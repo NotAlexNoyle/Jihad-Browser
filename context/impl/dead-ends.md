@@ -42,6 +42,27 @@ event loop + `AddWebBrowserListener` → a page **loads to STATE_STOP** headless
 (embed_load default path, exit 0). Just don't map/paint the window without a
 compositor. The render attempt is gated behind `JIHAD_TRY_RENDER`.
 
+## Headless rendering via the print path (nsIWebBrowserPrint → PDF/PS) — HANGS
+
+**What was tried:** after the page loads, render it to a file via the print path
+(which uses its own print device context, not the screen compositor):
+`nsIWebBrowserPrint::Print(settings, nullptr)` with `printToFile=true`,
+`outputFormat=kOutputFormatPDF`, `printSilent=true`, `showPrintProgress=false`.
+Hope: bypass the ClientLayerManager screen-paint crash entirely.
+
+**Result:** `Print()` **hangs** — it spins an internal nested event loop that
+never returns in a headless embedder (no output, container had to be killed).
+Our own pump loop after `Print()` is never reached.
+
+**Likely cause:** the print engine waits on UI/presentation state (print
+progress, a focused presentation, or a printer/params round-trip) that never
+arrives headlessly. Not pursued further.
+
+**Conclusion:** reinforces the same verdict — there is no quick frozen-API render
+path from the minimal embedder. Rendering goes through the in-tree/full-app
+compositor route. The render attempt in embed_load is gated off by default; the
+print path was removed (kept this note instead of dead code).
+
 ## Other notes
 - `-Wno-error=format-overflow` via warnings.configure does not reach js/src
   (js appends `-Werror=format` after the warnings list) — fixed with a source

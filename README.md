@@ -1,11 +1,17 @@
+<p align="center">
+  <img src="docs/jihad-browser-logo.png" alt="Jihad Browser logo" width="200">
+</p>
+
 # Jihad Browser
 
 A web browser for **legacy Palm webOS 3.0.x** (HP TouchPad), built by porting the
 **UXP / Goanna** rendering engine into the **isis-browser** front-end. The Enyo UI
 shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 
-> Status: **planning + scaffolding**. No engine build is wired up yet. See
-> `context/` for the Cavekit kits and build site that drive implementation.
+> Status: **planning + scaffolding + engine bring-up**. The Cavekit plan and
+> build site are in `context/`; the Goanna engine now configures and builds in a
+> pinned container (`build/desktop/`). Integration of the render backend is the
+> next phase.
 
 ## Why
 

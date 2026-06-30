@@ -11,7 +11,7 @@ last_edited: "2026-06-30"
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
 | Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
-| Engine Embedding & Build | 1 (T-010 DONE) | 4 | **libxul.so built (1.8G) + embedding headers + xpcshell** in the container; T-012/T-013/T-019 next |
+| Engine Embedding & Build | 2 (T-010 DONE, T-013 smoke PASS) | 4 | libxul built; **embedding smoke test passes** — XRE_InitEmbedding2 boots Goanna headless + creates/destroys nsIWebBrowser; T-019/T-012 next |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |
@@ -57,11 +57,20 @@ See impl-browserserver-import.md for the import detail.
   reimplementation against Goanna prefs, not a mechanical de-Qt (see MANIFEST).
 - Note: libxul is unstripped (-g) → 1.8G; strip for the device build (Phase 2).
 
-## Next (engine builds; integration is now unblocked)
-- T-013 (embedding runtime init + per-page nsIWebBrowser instance) against the
-  built libxul/headers → then T-019 (event loop) and the Tier-2 integration core
-  (offscreen render T-020/T-024/T-032, nav, input, services).
-- T-016 (desktop daemon build wiring) can now link against dist/.
+## T-013 embedding runtime — smoke PASS (this session)
+- `render/goanna/EngineHost.{h,cpp}` wraps XRE_InitEmbedding2/XRE_TermEmbedding +
+  do_CreateInstance(NS_WEBBROWSER_CONTRACTID). `render/goanna/test/embed_smoke.cpp`
+  + `build/desktop/build-embed-smoke.sh` compile against dist/ and run.
+- Result: "engine runtime up → created nsIWebBrowser → destroyed → PASS", exit 0.
+- Link recipe (for the daemon, T-016): `libxpcomglue_s.a -lxul libmozglue.a
+  -lnspr4 -lplc4 -lplds4 -ldl -lpthread`, `-include mozilla-config.h`,
+  `-fno-rtti -fno-exceptions`, frozen API (no MOZILLA_INTERNAL_API).
+- Remaining for full R2: repeated create/destroy leak check; explicit profile dir.
+
+## Next (integration core, now de-risked)
+- T-019 (event loop: pump Goanna's nsIThread/GLib bridge) + T-020 (offscreen
+  widget) → T-024 (readback to shmem) → T-032 (msgPainted). Then nav/input/services.
+- T-016 (daemon build wiring) reuses the embed link recipe above against dist/.
 - T-011 (ARMv7 cross-toolchain) in parallel; reuse the container base. For the
   device, strip libxul and revisit jemalloc/optimize-for-size.
 - Bucket-2 files (BrowserServer/Main/BrowserPageManager/Settings) compile once the

@@ -159,9 +159,14 @@ int main(int argc, char** argv) {
   // ClientLayerManager::ForwardTransaction (no compositor process).
   {
     nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
-    bool omtc = true;
-    if (pb) pb->GetBoolPref("layers.offmainthreadcomposition.enabled", &omtc);
-    printf("[embed_load] OMTC enabled pref = %d (want 0)\n", (int)omtc);
+    bool omtc = true, fdis = false, accelForce = true;
+    if (pb) {
+      pb->GetBoolPref("layers.offmainthreadcomposition.enabled", &omtc);
+      pb->GetBoolPref("layers.offmainthreadcomposition.force-disabled", &fdis);
+      pb->GetBoolPref("layers.acceleration.force", &accelForce);
+    }
+    printf("[embed_load] prefs: OMTC.enabled=%d force-disabled=%d accel.force=%d\n",
+           (int)omtc, (int)fdis, (int)accelForce);
   }
 
   RefPtr<Chrome> chrome = new Chrome();

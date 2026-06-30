@@ -63,6 +63,34 @@ path from the minimal embedder. Rendering goes through the in-tree/full-app
 compositor route. The render attempt in embed_load is gated off by default; the
 print path was removed (kept this note instead of dead code).
 
+## Why the screen-paint crash can't be fixed from the external embedder (deep diagnosis)
+
+Traced to bedrock. Two coupled internal init-ordering problems:
+
+1. **Can't force BasicLayerManager.** `nsBaseWidget::ShouldUseOffMainThreadCompositing`
+   = `gfxPlatform::UsesOffMainThreadCompositing()` =
+   `!gfxPrefs::LayersOffMainThreadCompositionForceDisabled()` (GTK). That gfxPref
+   is `DECL_GFX_PREF(Once, ...)` — snapshotted **once** at gfx init. In the
+   `XRE_InitEmbedding2` flow gfx initializes around/before greprefs (goanna.js)
+   apply, so the snapshot keeps the **default (false)** even though the live pref
+   service correctly reports `force-disabled=1` (verified at runtime:
+   `OMTC.enabled=0 force-disabled=1 accel.force=0`, yet ClientLayerManager is
+   still chosen). So OMTC stays on.
+
+2. **Compositor never connects.** With OMTC on, the widget uses a
+   `ClientLayerManager` that needs a compositor connection. The first paint
+   crashes in `ClientLayerManager::ForwardTransaction` dereferencing a null
+   `mTransactionIdAllocator` (gfx/layers/client/ClientLayerManager.cpp:636) —
+   the in-process CompositorBridge for the widget was never established by the
+   minimal embedder.
+
+**Net:** rendering requires controlling gfx/pref init ordering (set the Once
+pref before gfx init) **or** standing up the widget compositor — both are
+internal, in-tree concerns. The frozen-API external embedder cannot reach them.
+This is the concrete task for T-020: build the render backend in-tree (or extend
+the embedding init sequence in UXP) so the layer/compositor path is set up before
+paint, then read the BasicLayerManager/compositor buffer into the shmem.
+
 ## Other notes
 - `-Wno-error=format-overflow` via warnings.configure does not reach js/src
   (js appends `-Werror=format` after the warnings list) — fixed with a source

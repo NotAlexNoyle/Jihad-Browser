@@ -55,7 +55,8 @@ Goanna calls.
 
 | Path                    | Contents |
 |-------------------------|----------|
-| `app/`                  | Forked, rebranded isis-browser Enyo UI shell (Apache-2.0). |
+| `app/`                  | UI variant 1 — forked, rebranded isis-browser **Enyo 1.0** shell (Apache-2.0). |
+| `app-mochi/`            | UI variant 2 — **Enyo 2 + Mochi** shell, same contract, separate `.ipk` (Apache-2.0). |
 | `render/browserserver/` | BrowserServer/Adapter-derived daemon + IPC layer; engine-agnostic parts kept, QtWebKit `BrowserPage` replaced (Apache-2.0). |
 | `render/goanna/`        | New Goanna backend: `nsIWebBrowser` driver, offscreen widget, YAP bridge (MPL-2.0). |
 | `build/desktop/`        | x86_64 Linux build wiring (Phase 1 PoC). |

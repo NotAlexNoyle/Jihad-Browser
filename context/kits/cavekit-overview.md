@@ -17,7 +17,8 @@ Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 ## Domain Index
 | Domain | Cavekit File | Requirements | Status | Description |
 |--------|--------------|--------------|--------|-------------|
-| UI Shell | cavekit-ui-shell.md | 4 | DRAFT | Forked/rebranded Enyo app using the unchanged adapter contract |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 4 | DRAFT | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 5 | DRAFT | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | DRAFT | Frozen YAP interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | DRAFT | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 5 | DRAFT | Headless render → shared buffer → paint protocol + geometry events |
@@ -25,16 +26,18 @@ Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 | Navigation, Loading & Events | cavekit-navigation-events.md | 6 | DRAFT | Nav commands + load/location/title/history message stream |
 | Browser Services | cavekit-browser-services.md | 5 | DRAFT | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | DRAFT | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 5 | DRAFT | Phase-2 ARM cross-toolchain, OE recipes, .ipk, on-device |
+| Device Build & Packaging | cavekit-device-build.md | 6 | DRAFT | Phase-2 ARM cross-toolchain, OE recipes, two .ipks, TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | DRAFT | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: 10 domains, 48 requirements.
+Totals: 11 domains, 54 requirements.
 
 ## Cross-Reference Map
 | Domain A | Interacts With | Interaction Type |
 |----------|----------------|------------------|
-| UI Shell | IPC Contract | uses contract (client) |
-| UI Shell | Navigation/Events | drives navigation, observes events |
+| UI Shell (Enyo) | IPC Contract | uses contract (client) |
+| UI Shell (Enyo) | Navigation/Events | drives navigation, observes events |
+| Mochi UI Variant | IPC Contract / UI Shell | same contract; parity with Enyo UI |
+| Mochi UI Variant | Device Build | second .ipk packaged + on both TouchPad models |
 | IPC Contract | Offscreen Rendering | framebuffer + paint protocol |
 | IPC Contract | Engine Embedding | page lifecycle / page manager |
 | IPC Contract | Browser Services | LunaService surface |
@@ -69,7 +72,13 @@ Tier 3:
   Desktop Build & PoC Harness  (Phase-1 acceptance: needs IPC + Engine + Tier 2)
 
 Tier 4 (Phase 2):
-  Device Build & Packaging     (needs: Tier 2/3 + cross-toolchain gate)
+  Device Build & Packaging     (needs: Tier 2/3 + cross-toolchain gate;
+                                produces TWO UI .ipks for TouchPad + TouchPad Go)
+
+Parallel UI track (depends only on the contract; packaged by Device Build):
+  UI Shell (Enyo)   — forked/rebranded, mostly done
+  Mochi UI Variant  — Enyo-2/Mochi rewrite to parity (uses Navigation/Services
+                      contracts as its behavioral reference)
 ```
 
 Notes:
@@ -79,3 +88,6 @@ Notes:
   conceptual (see each kit's Cross-References), not build-order dependencies.
 - The cross-toolchain (Device Build R1) has no engine dependency and can be
   stood up in parallel with Phase-1 integration to de-risk Phase 2.
+- Both UI variants share the BrowserAdapter contract and can be developed in
+  parallel with the engine work; only their on-device verification needs the
+  working daemon. The Mochi rewrite is the larger of the two.

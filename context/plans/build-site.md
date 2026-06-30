@@ -5,11 +5,16 @@ last_edited: "2026-06-30"
 
 # Build Site
 
-48 tasks across 9 tiers (0–8) from 10 kits. One task per requirement
+54 tasks across 9 tiers (0–8) from 11 kits. One task per requirement
 (requirement-grained); `/ck:make` may sub-split a task whose acceptance criteria
 warrant parallel work. Phase 1 (desktop x86_64 PoC) is everything except the
-device track; Phase 2 (webOS ARMv7) is T-011, T-018, T-046, T-047, T-048, which
-can begin in parallel where their blockers allow.
+device track; Phase 2 (webOS ARMv7) is T-011, T-018, T-046, T-047, T-048, T-054,
+which can begin in parallel where their blockers allow.
+
+Two front-end variants ship as separate `.ipk`s: the Enyo-1.0 UI (`app/`,
+cavekit-ui-shell) and the Enyo-2/Mochi UI (`app-mochi/`, cavekit-mochi-ui). Both
+drive the same BrowserAdapter contract; both are packaged for the TouchPad and
+the TouchPad Go.
 
 Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 
@@ -30,6 +35,7 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | T-009 | Preserve Apache headers on forked UI files | cavekit-ui-shell.md | R3 | S |
 | T-010 | Engine build config: out-of-tree, embedding-capable, no front-end | cavekit-engine-embedding.md | R1 | L |
 | T-011 | ARMv7 cross-toolchain bring-up + trivial on-device binary | cavekit-device-build.md | R1 | L |
+| T-049 | Scaffold Enyo-2 + Mochi app shell (app-mochi: appinfo, entry, bundling) | cavekit-mochi-ui.md | R1 | M |
 
 ---
 
@@ -44,6 +50,9 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | T-016 | Desktop build wiring (daemon+backend link, Luna compiled out) | cavekit-desktop-build.md | R1 | T-010, T-004, T-005, T-006 | L |
 | T-017 | LunaService clearCache/clearCookies registration + desktop compile-out | cavekit-ipc-contract.md | R4 | T-006 | M |
 | T-018 | Cross-compile engine for webOS 3 ARMv7 | cavekit-device-build.md | R2 | T-011, T-010 | L |
+| T-050 | Mochi variant licensing + attribution (Apache headers, NOTICE) | cavekit-mochi-ui.md | R5 | T-001, T-003, T-049 | S |
+| T-051 | Enyo-2 WebView control bound to the unchanged BrowserAdapter | cavekit-mochi-ui.md | R3 | T-004, T-049 | L |
+| T-052 | Mochi controls + layout for TouchPad / TouchPad Go | cavekit-mochi-ui.md | R4 | T-049 | M |
 
 ---
 
@@ -56,7 +65,9 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | T-021 | setHtml inline content loading | cavekit-navigation-events.md | R2 | T-013 | S |
 | T-022 | Keyboard input synthesis + insertStringAtCursor | cavekit-input-bridging.md | R2 | T-013 | M |
 | T-023 | Engine settings (UA, JS, minFont, blockPopups, acceptCookies) | cavekit-browser-services.md | R1 | T-013 | M |
-| T-046 | OE recipes + .ipk packaging | cavekit-device-build.md | R3 | T-018, T-016 | L |
+| T-046 | OE recipes + two UI .ipks (Enyo + Mochi) + daemon + adapter | cavekit-device-build.md | R3 | T-018, T-016, T-049 | L |
+| T-053 | Mochi UI feature-parity port (views + dialogs, Mochi controls) | cavekit-mochi-ui.md | R2 | T-049, T-051, T-052 | L |
+| T-054 | TouchPad Go (Opal) machine config; build both models | cavekit-device-build.md | R6 | T-018 | M |
 
 ---
 
@@ -114,7 +125,7 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | T-043 | UI drives new daemon unchanged (start page, address bar, controls, find) | cavekit-ui-shell.md | R4 | T-042, T-007, T-008 | M |
 | T-044 | (Optional) isis UI against desktop daemon | cavekit-desktop-build.md | R4 | T-042, T-007 | M |
 | T-045 | BrowserAdapter-unchanged end-to-end verification | cavekit-ipc-contract.md | R5 | T-042, T-024, T-026 | M |
-| T-047 | On-device run (launch/render/nav/input/cert/dialog/download) | cavekit-device-build.md | R4 | T-046, T-030, T-040 | L |
+| T-047 | On-device run — both UIs on TouchPad + TouchPad Go (launch/render/nav/input/cert/dialog/download) | cavekit-device-build.md | R4 | T-046, T-030, T-040, T-053, T-054 | L |
 
 ---
 
@@ -130,9 +141,9 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 
 | Tier | Tasks | Effort breakdown |
 |------|-------|------------------|
-| 0 | 11 | 6S, 2M, 3L |
-| 1 | 7 | 1S, 2M, 4L |
-| 2 | 6 | 1S, 2M, 3L |
+| 0 | 12 | 6S, 3M, 3L |
+| 1 | 10 | 2S, 3M, 5L |
+| 2 | 8 | 1S, 3M, 4L |
 | 3 | 8 | 6M, 2L |
 | 4 | 5 | 1S, 3M, 1L |
 | 5 | 3 | 3M |
@@ -140,7 +151,9 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | 7 | 4 | 3M, 1L |
 | 8 | 1 | 1M |
 
-**Total: 48 tasks, 9 tiers.** Tier 0 has 11 tasks runnable in parallel immediately.
+**Total: 54 tasks, 9 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
+The Mochi UI track (T-049/T-050/T-051/T-052/T-053) is parallelizable with the
+engine work; T-054 + T-046 produce the two `.ipk`s for both TouchPad models.
 
 ## Coverage Matrix
 
@@ -161,6 +174,22 @@ Every acceptance criterion maps to its requirement's task. (Criterion text abbre
 | ui-shell | R4 | address bar → openUrl | T-043 | COVERED |
 | ui-shell | R4 | back/fwd/reload/stop calls | T-043 | COVERED |
 | ui-shell | R4 | find issues findInPage | T-043 | COVERED |
+| mochi-ui | R1 | distinct id/title (.mochi) | T-049 | COVERED |
+| mochi-ui | R1 | coexists with Enyo variant | T-049 | COVERED |
+| mochi-ui | R1 | uses Jihad icon set | T-049 | COVERED |
+| mochi-ui | R2 | address/search bar + nav | T-053 | COVERED |
+| mochi-ui | R2 | bookmarks/history/downloads views | T-053 | COVERED |
+| mochi-ui | R2 | find/preferences/start page | T-053 | COVERED |
+| mochi-ui | R2 | alert/confirm/prompt/auth/SSL dialogs | T-053 | COVERED |
+| mochi-ui | R2 | parity checklist vs app/ [human-review] | T-053 | COVERED |
+| mochi-ui | R3 | Enyo-2 WebView bound to BrowserAdapter | T-051 | COVERED |
+| mochi-ui | R3 | method set + Luna URIs == Enyo variant | T-051 | COVERED |
+| mochi-ui | R3 | no Goanna/UXP ids in app-mochi/ | T-051 | COVERED |
+| mochi-ui | R4 | composed from Mochi controls | T-052 | COVERED |
+| mochi-ui | R4 | layout usable on TouchPad + Go [human-review] | T-052 | COVERED |
+| mochi-ui | R4 | Enyo2+layout+Mochi bundled (not vendored) | T-052 | COVERED |
+| mochi-ui | R5 | app-mochi files carry Apache header | T-050 | COVERED |
+| mochi-ui | R5 | Mochi/Enyo2 attributed in NOTICE | T-050 | COVERED |
 | ipc-contract | R1 | YAP commands/messages unchanged | T-004 | COVERED |
 | ipc-contract | R1 | nothing added/removed/renamed | T-004 | COVERED |
 | ipc-contract | R1 | regenerated from .yap not hand-edited | T-004 | COVERED |
@@ -263,12 +292,17 @@ Every acceptance criterion maps to its requirement's task. (Criterion text abbre
 | device-build | R2 | engine builds w/ cross-toolchain | T-018 | COVERED |
 | device-build | R2 | libs load on device (no missing sym/ABI) | T-018 | COVERED |
 | device-build | R2 | ARMv7 FP/SIMD flags match CPU | T-018 | COVERED |
-| device-build | R3 | recipes build daemon/adapter/app | T-046 | COVERED |
-| device-build | R3 | produces .ipk | T-046 | COVERED |
-| device-build | R3 | installs on device/emulator | T-046 | COVERED |
-| device-build | R4 | launches + page on-screen via adapter | T-047 | COVERED |
+| device-build | R3 | daemon + adapter built once (shared) | T-046 | COVERED |
+| device-build | R3 | two UI .ipks (Enyo + Mochi) produced | T-046 | COVERED |
+| device-build | R3 | both UI packages install + coexist | T-046 | COVERED |
+| device-build | R3 | Mochi bundles Enyo2; Enyo bundles Enyo1 | T-046 | COVERED |
+| device-build | R4 | each UI launches + page on-screen (Topaz) | T-047 | COVERED |
 | device-build | R4 | nav/scroll/tap work | T-047 | COVERED |
 | device-build | R4 | cert/dialog/download w/ device services | T-047 | COVERED |
+| device-build | R4 | same verified on TouchPad Go (Opal) | T-047 | COVERED |
+| device-build | R6 | machine configs for Topaz + Opal | T-054 | COVERED |
+| device-build | R6 | daemon/adapter/both .ipks build+install both models | T-054 | COVERED |
+| device-build | R6 | model-specific diffs captured | T-054 | COVERED |
 | device-build | R5 | render RSS within budget | T-048 | COVERED |
 | device-build | R5 | freeze/purge reclaim | T-048 | COVERED |
 | device-build | R5 | no OOM during scenario | T-048 | COVERED |
@@ -285,7 +319,7 @@ Every acceptance criterion maps to its requirement's task. (Criterion text abbre
 | licensing | R4 | engine origin + patches documented | T-015 | COVERED |
 | licensing | R5 | LICENSE explains Apache+MPL combo | T-002 | COVERED |
 
-**Coverage: 136/136 criteria (100%).**
+**Coverage: 157/157 criteria (100%).**
 
 ## Dependency Graph
 
@@ -313,6 +347,20 @@ graph LR
     T-013 --> T-023
     T-018 --> T-046
     T-016 --> T-046
+    T-049 --> T-046
+    %% Mochi UI track + two-ipk / TouchPad Go
+    T-001 --> T-050
+    T-003 --> T-050
+    T-049 --> T-050
+    T-004 --> T-051
+    T-049 --> T-051
+    T-049 --> T-052
+    T-049 --> T-053
+    T-051 --> T-053
+    T-052 --> T-053
+    T-018 --> T-054
+    T-053 --> T-047
+    T-054 --> T-047
     %% Tier 2 -> 3
     T-020 --> T-024
     T-005 --> T-024

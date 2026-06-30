@@ -29,21 +29,31 @@ feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
 - [ ] ARMv7 FP/SIMD flags match the device CPU.
 **Dependencies:** R1, cavekit-engine-embedding.md (R1)
 
-### R3: OE recipes build and package Jihad
-**Description:** The whole product packages as installable webOS artifacts.
+### R3: OE recipes build and package Jihad — both UI variants
+**Description:** The whole product packages as installable webOS artifacts, including BOTH front-end variants.
 **Acceptance Criteria:**
-- [ ] Recipes build the daemon (with Goanna backend), the rebuilt BrowserAdapter, and the app package.
-- [ ] The build produces `.ipk` package(s).
-- [ ] The packages install on a webOS 3 device/emulator.
-**Dependencies:** R2, cavekit-desktop-build.md (R1)
+- [ ] Recipes build the daemon (with Goanna backend) and the rebuilt BrowserAdapter once (shared by both UIs).
+- [ ] The build produces **two UI `.ipk`s**: the Enyo variant (`net.riverstonerelay.jihad`, from `app/`) and the Mochi variant (`net.riverstonerelay.jihad.mochi`, from `app-mochi/`).
+- [ ] Both UI packages install on a webOS 3 device/emulator and can coexist.
+- [ ] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0.
+**Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1)
 
-### R4: Runs on the TouchPad
-**Description:** The installed browser works on real hardware.
+### R4: Runs on the TouchPad (and TouchPad Go)
+**Description:** The installed browser works on real hardware; both UI variants.
 **Acceptance Criteria:**
-- [ ] The app launches and loads a page rendered on-screen via the BrowserAdapter.
+- [ ] On the TouchPad (Topaz/tenderloin), each UI variant launches and loads a page rendered on-screen via the BrowserAdapter.
 - [ ] Basic navigation, scrolling, and tap input work.
 - [ ] Cert/dialog/download flows function with the device services. [human-review on device]
-**Dependencies:** R3, cavekit-browser-services.md (R5)
+- [ ] The same is verified on the TouchPad Go (Opal). [human-review on device]
+**Dependencies:** R3, R6, cavekit-browser-services.md (R5)
+
+### R6: TouchPad Go (Opal) machine support
+**Description:** The device build targets both TouchPad models, since the upstream isis-browser runs on the TouchPad Go.
+**Acceptance Criteria:**
+- [ ] The OE build provides machine configurations for both the TouchPad (Topaz/tenderloin) and the TouchPad Go (Opal).
+- [ ] The daemon, adapter, and both UI `.ipk`s build for, and install on, both machines (ARMv7 webOS 3).
+- [ ] Any model-specific differences (screen geometry, machine config) are captured rather than assumed identical. [human-review on device]
+**Dependencies:** R2
 
 ### R5: Fits the device memory budget
 **Description:** The renderer runs within the constraints of a 1 GB device.
@@ -58,7 +68,8 @@ feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
 - Deep performance optimization beyond fitting the budget (Phase 3).
 
 ## Cross-References
-- See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md
+- See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-06-30: Two UI `.ipk`s (Enyo + Mochi) in R3; added R6 TouchPad Go (Opal) support; R4 covers both models.

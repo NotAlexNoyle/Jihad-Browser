@@ -3,14 +3,18 @@ created: "2026-06-30"
 last_edited: "2026-06-30"
 ---
 
-# Cavekit: UI Shell
+# Cavekit: UI Shell (Enyo variant)
 
 ## Scope
-The webOS front-end application (Enyo) forked from isis-browser and rebranded as
-Jihad Browser. Covers app packaging/branding and the application's use of the
-browser engine **through the existing BrowserAdapter contract only**. The UI
-must not change in any engine-specific way — swapping the engine is invisible
-to it.
+The webOS front-end application forked from isis-browser (**Enyo 1.0**) and
+rebranded as Jihad Browser, in `app/`. Covers app packaging/branding and the
+application's use of the browser engine **through the existing BrowserAdapter
+contract only**. The UI must not change in any engine-specific way — swapping the
+engine is invisible to it.
+
+This is the **Enyo (legacy) variant**. A parallel **Mochi / Enyo-2** front-end is
+specified in cavekit-mochi-ui.md and ships as a separate `.ipk`; both variants
+share this contract and both are built (two versions for the TouchPad).
 
 ## Requirements
 
@@ -53,7 +57,7 @@ to it.
 - New webOS DB kinds for bookmarks/history (reuse existing schemas; coexistence-vs-replacement of the stock browser is a packaging decision in cavekit-device-build.md).
 
 ## Cross-References
-- See also: cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-licensing-branding.md
+- See also: cavekit-mochi-ui.md (the Enyo-2/Mochi sibling variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-licensing-branding.md
 
 ## Changelog
 - 2026-06-30: Initial draft.

@@ -4,6 +4,8 @@
 
 # Jihad Browser
 
+<p align="center"><em>Goanna inside, webOS alive, inshallah.</em></p>
+
 A web browser for **legacy Palm webOS 3.0.x** (HP TouchPad), built by porting the
 **UXP / Goanna** rendering engine into the **isis-browser** front-end. The Enyo UI
 shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.

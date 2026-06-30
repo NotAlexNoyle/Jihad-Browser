@@ -11,7 +11,7 @@ last_edited: "2026-06-30"
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
 | Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
-| Engine Embedding & Build | 0 (T-010 env ready) | 4 | build container + mozconfig authored; build run pending host with docker |
+| Engine Embedding & Build | 0 (T-010 configure OK) | 4 | container builds; `mach configure` succeeds for xulrunner embedding target; libxul `mach build` running |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |
@@ -31,16 +31,22 @@ last_edited: "2026-06-30"
 
 See impl-browserserver-import.md for the import detail.
 
-## T-010 build environment (this session)
-- Authored pinned build container under `build/desktop/`: `Dockerfile`
-  (Ubuntu 18.04 — Python 2.7 / autoconf2.13 / GCC 7 / yasm), `mozconfig.goanna`
-  (xulrunner embedding target, GTK2 + basic layers, trimmed), `build-goanna.sh`.
-- Reason: this Void host (Python 3.14 / autoconf 2.72 / GCC 14) cannot run the
-  ESR-52 `mach`. Container gives the era-correct baseline; UXP source is mounted,
-  never vendored. Documented in `docs/TOOLCHAIN.md`.
-- **Blocked on**: running the build needs docker/podman on the host. Build run +
-  mozconfig validation (xulrunner target may need fallback) is the remaining
-  T-010 work.
+## T-010 build environment (this session) — configure VALIDATED
+- Authored pinned build container under `build/desktop/`: `Dockerfile`,
+  `mozconfig.goanna` (xulrunner embedding target, GTK2 + basic layers, trimmed),
+  `build-goanna.sh`. UXP source is mounted (read-write — autoconf regenerates
+  `configure`), never vendored. Documented in `docs/TOOLCHAIN.md`.
+- Discovered the hard way (this UXP master is recent, not raw ESR-52):
+  - `mach` requires **Python 3.3+** (build/mach_bootstrap.py), not Python 2.
+  - configure requires **GCC ≥ 9.1** (build/moz.configure FatalCheckError).
+  - needs the full **X11 dev set** (libx11-xcb, xcb, xcomposite, xdamage, …).
+  - podman needs **fully-qualified** image names; bionic→archive not old-releases.
+  - Net: base image is **Ubuntu 20.04** (GCC 9.3, Python 3.8, autoconf2.13, yasm).
+- `mach configure` now **succeeds** for the xulrunner embedding target (917
+  moz.build files processed, backend generated). `mach build` (libxul) is
+  running. Remaining T-010: confirm libxul + headers land in /out.
+- `Settings.{h,cpp}` reclassified: engine-coupled (QtWebKit WebSettings), needs
+  reimplementation against Goanna prefs, not a mechanical de-Qt (see MANIFEST).
 
 ## Next (need build host / engine)
 - Run the container to build Goanna (T-010), then T-013 (embedding runtime) →

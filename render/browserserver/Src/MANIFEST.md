@@ -23,7 +23,7 @@ the Goanna backend in `../../goanna/` replaces them.
 | `BrowserServer.{h,cpp}` | De-Qt: the daemon currently constructs/manages QtWebKit `BrowserPage`. Rebind to the Goanna-backed `BrowserPage` and drop QtWebKit init. |
 | `Main.cpp` | Drop `QApplication`/Qt event loop; use the engine event-loop integration (T-019). |
 | `BrowserPageManager.{h,cpp}` | Includes `BrowserPage.h` (21 refs). Engine-agnostic in role; needs the `BrowserPage` type provided by the Goanna backend (see boundary note). |
-| `Settings.{h,cpp}` | Uses `QString` only; swap to `std::string` (no other Qt). |
+| `Settings.{h,cpp}` | **Engine-coupled, not a mechanical de-Qt.** Beyond `QString`, it drives the QtWebKit settings system (`webOS::WebSettings::initSettings`, `weboswebsettings.h`) and `QSettings`. For Goanna these map to `nsIPrefBranch`/profile prefs entirely differently — reimplement as part of the engine-settings work (cavekit-browser-services R1 / T-023), not a port. The path/quota defaults here are still a useful reference. |
 
 ## Bucket 3 — NOT imported (Goanna backend replaces)
 

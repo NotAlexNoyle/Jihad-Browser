@@ -19,12 +19,18 @@ harness at it, and see a real page rendered into the shared framebuffer.
 1. **Goanna engine** — build UXP (`../../../UXP`) out-of-tree inside the pinned
    container (a modern host cannot run the ESR-52 `mach`):
    ```
-   docker build -t jihad-goanna-build build/desktop
-   docker run --rm -it \
-     -v <abs>/Jihad/UXP:/src/uxp:ro \
+   podman build -t jihad-goanna-build build/desktop
+   mkdir -p build/desktop/out
+   podman run --rm --user 0 -e HOME=/out \
+     -v <abs>/Jihad/UXP:/src/uxp \
      -v <abs>/Jihad/Jihad-Browser/build/desktop:/cfg:ro \
-     -v $PWD/out:/out  jihad-goanna-build /cfg/build-goanna.sh all
+     -v <abs>/Jihad/Jihad-Browser/build/desktop/out:/out \
+     jihad-goanna-build /cfg/build-goanna.sh all
    ```
+   Notes: the UXP mount is **read-write** — ESR-52 `mach` regenerates
+   `configure` (autoconf2.13) into the source tree (git-ignored; objdir stays
+   external at `/out`, so the Jihad repo never vendors UXP). Rootless podman as
+   `--user 0` maps to your host uid, so `/out` artifacts come back owned by you.
    Output: libxul + generated headers consumed by `render/goanna`. (T-010)
 2. **render/browserserver** — engine-agnostic Apache-2.0 sources already imported
    under `render/browserserver/Src/` (see its `MANIFEST.md`); the YAP interface

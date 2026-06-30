@@ -3,15 +3,22 @@
 ## Build host (Phase 1, desktop x86_64)
 
 UXP/Goanna build host needs:
-- Python **2.7** (the ESR-52-era build system is Python 2 only) + `mach`.
-- **autoconf 2.13** (specifically; not 2.6x) for the configure step.
-- A C++14-capable compiler (gcc ≥ 5 / clang ≥ 3.9) and matching libstdc++.
+- **Python 3.3+** — verified against this UXP revision: `build/mach_bootstrap.py`
+  prints "Python 3.3 or above is required to run mach" and rejects Python 2.
+  (The maintained UXP master has migrated `mach`/mozbuild to Python 3; the old
+  "ESR-52 is Python 2 only" guidance does NOT apply here.) `mach` is a
+  shell/python polyglot that re-execs under `python3`.
+- **autoconf 2.13** (specifically; not 2.6x) — `configure` is still autoconf-
+  generated from `configure.in` into the source tree at build time, so the UXP
+  mount must be **read-write**.
+- **GCC ≥ 9.1** — verified: `build/moz.configure` raises `FatalCheckError`
+  ("Only GCC 9.1 or newer is supported") on older compilers. (This is why the
+  container base is Ubuntu 20.04 / GCC 9.3, not 18.04 / GCC 7.5.)
 - ~25–40 GB free disk for an object dir; several GB RAM for linking libxul.
-- yasm/nasm, zlib, pkg-config, GTK dev headers (for the desktop widget path),
-  NSPR/NSS (can use in-tree copies).
+- yasm/nasm, zlib, pkg-config, GTK dev headers, NSPR/NSS (in-tree copies).
 
-UXP deliberately has **no Rust requirement** (unlike contemporaneous
-mozilla-central), which simplifies the toolchain considerably.
+UXP has **no Rust requirement** (unlike contemporaneous mozilla-central), which
+simplifies the toolchain.
 
 ### Use a pinned build container (recommended)
 
@@ -24,9 +31,11 @@ out of the repos).
 Instead, build Goanna inside a pinned container with the era-correct baseline.
 This repo provides one under `build/desktop/`:
 
-- `Dockerfile` — Ubuntu 18.04 base (Python 2.7, autoconf2.13, GCC 7, yasm).
-  Apt is repointed at `old-releases.ubuntu.com` since 18.04 is archived. The
-  UXP source is **mounted**, never copied into the image (no vendoring).
+- `Dockerfile` — Ubuntu 20.04 base (Python 3.8, autoconf2.13 2.13-68, GCC 9.3,
+  yasm), fully-qualified (`docker.io/library/ubuntu:20.04`) so it resolves under
+  podman without a configured unqualified-search registry. 20.04 satisfies the
+  GCC ≥ 9.1 and Python 3 requirements (18.04's GCC 7.5 does not). The UXP source
+  is **mounted**, never copied into the image (no vendoring).
 - `mozconfig.goanna` — embedding-oriented config (xulrunner target, GTK2 +
   basic layers, trimmed subsystems) producing libxul for the render backend.
 - `build-goanna.sh` — runs `mach configure`/`build` as an unprivileged user

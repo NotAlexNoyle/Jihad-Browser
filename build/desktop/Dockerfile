@@ -3,55 +3,61 @@
 #
 # Pinned build environment for the UXP / Goanna engine (Phase-1 desktop x86_64).
 #
-# UXP is an ESR-52-era codebase: its `mach` build system requires Python 2.7 and
-# autoconf-2.13, and an era-appropriate GCC. Modern host distros (Python 3.x,
-# autoconf 2.7x, GCC 14) cannot run it. Ubuntu 18.04 has the right baseline
-# (Python 2.7, autoconf2.13, GCC 7, yasm) and is the documented Pale Moon/UXP
-# build environment vintage.
+# This UXP revision (maintained master) requires, verified against the tree:
+#   - Python 3.3+  (build/mach_bootstrap.py rejects Python 2; mach re-execs py3)
+#   - GCC >= 9.1   (build/moz.configure/checks.configure FatalCheckError)
+#   - autoconf 2.13 (configure is autoconf-generated into the source tree)
+#   - yasm/nasm, GTK, dbus-glib, pulse, etc.
+# UXP has NO Rust requirement.
+#
+# Ubuntu 20.04 (focal) is the smallest base that satisfies all of the above:
+# default GCC 9.3 (>= 9.1), Python 3.8, autoconf2.13 2.13-68, yasm. (Ubuntu
+# 18.04 was too old — GCC 7.5 — and its mach-era assumptions were wrong.)
 #
 # The engine source is NOT copied into the image — mount it at build time so the
 # repo never vendors UXP (see cavekit-engine-embedding R4). Example:
-#   docker build -t jihad-goanna-build build/desktop
-#   docker run --rm -it \
-#     -v /home/notalexnoyle/eclipse-workspace/Jihad/UXP:/src/uxp:ro \
-#     -v $PWD/out:/out \
-#     -v $PWD/build/desktop:/cfg:ro \
-#     jihad-goanna-build /cfg/build-goanna.sh
-FROM ubuntu:18.04
-
-# 18.04 is archived: point apt at old-releases so the image still builds.
-RUN sed -i -e 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
-           -e 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
-           /etc/apt/sources.list
+#   podman build -t jihad-goanna-build build/desktop
+#   mkdir -p build/desktop/out
+#   podman run --rm --user 0 -e HOME=/out \
+#     -v <abs>/Jihad/UXP:/src/uxp \
+#     -v <abs>/Jihad/Jihad-Browser/build/desktop:/cfg:ro \
+#     -v <abs>/Jihad/Jihad-Browser/build/desktop/out:/out \
+#     jihad-goanna-build /cfg/build-goanna.sh all
+#
+# Base image is fully qualified so it resolves under podman without a configured
+# unqualified-search registry. Focal is served from the default archive mirrors.
+FROM docker.io/library/ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
-      python2.7 python-pip \
+      python3 python3-dev python3-pip python3-setuptools python3-distutils \
       autoconf2.13 \
       yasm nasm \
       zip unzip \
-      git mercurial \
+      git \
       ccache pkg-config \
       libgtk2.0-dev libgtk-3-dev \
       libdbus-glib-1-dev \
       libpulse-dev \
       libgconf2-dev \
-      libxt-dev \
       libasound2-dev \
       uuid-dev \
       zlib1g-dev \
       ca-certificates \
+      libxt-dev libx11-xcb-dev libxcb1-dev \
+      libxcomposite-dev libxdamage-dev libxrender-dev libxext-dev \
+      libxfixes-dev libxrandr-dev libxcursor-dev libxi-dev libxtst-dev \
+      libxss-dev libxinerama-dev libxkbcommon-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# mach expects `python2` on PATH.
-RUN ln -sf /usr/bin/python2.7 /usr/bin/python2 && ln -sf /usr/bin/python2.7 /usr/bin/python
+# This UXP revision's mach requires Python 3; point `python` at python3.
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-# Unprivileged build user (engine build must not run as root).
+# Unprivileged build user (the build itself must not assume root).
 RUN useradd -ms /bin/bash builder
 USER builder
 WORKDIR /home/builder
 
-# Source mounted at /src/uxp (ro); object dir + artifacts go to /out.
 ENV MOZCONFIG=/cfg/mozconfig.goanna
 CMD ["/bin/bash"]

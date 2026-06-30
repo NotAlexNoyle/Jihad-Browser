@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libxcomposite-dev libxdamage-dev libxrender-dev libxext-dev \
       libxfixes-dev libxrandr-dev libxcursor-dev libxi-dev libxtst-dev \
       libxss-dev libxinerama-dev libxkbcommon-dev \
+      xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
 # This UXP revision's mach requires Python 3; point `python` at python3.

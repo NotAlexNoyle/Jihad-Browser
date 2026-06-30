@@ -11,7 +11,8 @@ last_edited: "2026-06-30"
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
 | Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
-| Engine Embedding & Build | 2 (T-010 DONE, T-013 smoke PASS) | 4 | libxul built; **embedding smoke test passes** — XRE_InitEmbedding2 boots Goanna headless + creates/destroys nsIWebBrowser; T-019/T-012 next |
+| Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; **page LOADS to completion** in our embedder (event loop + load lifecycle); T-012 next |
+| Navigation, Loading & Events | demo | 6 | load lifecycle (START→…→STATE_STOP) observed end-to-end via embed_load; formal wiring to YAP msgs pending |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |
@@ -67,10 +68,28 @@ See impl-browserserver-import.md for the import detail.
   `-fno-rtti -fno-exceptions`, frozen API (no MOZILLA_INTERNAL_API).
 - Remaining for full R2: repeated create/destroy leak check; explicit profile dir.
 
-## Next (integration core, now de-risked)
-- T-019 (event loop: pump Goanna's nsIThread/GLib bridge) + T-020 (offscreen
-  widget) → T-024 (readback to shmem) → T-032 (msgPainted). Then nav/input/services.
-- T-016 (daemon build wiring) reuses the embed link recipe above against dist/.
+## T-019 + load pipeline — page LOADS (this session)
+- `render/goanna/test/embed_load.cpp` + `build/desktop/build-embed-load.sh`:
+  minimal GTK embedder (invisible window under Xvfb) — creates nsIWebBrowser with
+  a small chrome (nsIWebBrowserChrome/nsIEmbeddingSiteWindow/nsIInterfaceRequestor/
+  nsIWebProgressListener/weakref), loads a data: URL, pumps the XPCOM event queue
+  (`NS_ProcessNextEvent`) + GTK, and observes the full load lifecycle to STATE_STOP.
+  Result: "load reached STATE_STOP → PASS", exit 0.
+- Lessons baked in: event loop must pump `NS_ProcessNextEvent` (GLib-only didn't
+  advance the load); the webBrowser does NOT QI to nsIWebProgress — use
+  `AddWebBrowserListener(weakRef, NS_GET_IID(nsIWebProgressListener))`; tear the
+  browser/baseWindow down before XRE_TermEmbedding to avoid a shutdown crash;
+  desktop needs Xvfb (added to the container).
+- Rendering architecture resolved (see render/goanna/PORT-MAP.md): offscreen
+  render needs internal gfx/layers (build the backend in-tree) + a display; the
+  frozen-API EngineHost still drives navigation/lifecycle.
+
+## Next (render path)
+- T-020/T-024: get the laid-out page's pixels into the shmem buffer
+  (`BrowserOffscreenInfo` ARGB32) via the internal layer manager → T-032 msgPainted.
+  This is the in-tree-component step (internal API), the larger remaining build.
+- Map the observed load lifecycle to the YAP msgLoadStarted/Progress/Stopped.
+- T-016 (daemon wiring) reuses the embed link recipe; T-011 ARM toolchain parallel.
 - T-011 (ARMv7 cross-toolchain) in parallel; reuse the container base. For the
   device, strip libxul and revisit jemalloc/optimize-for-size.
 - Bucket-2 files (BrowserServer/Main/BrowserPageManager/Settings) compile once the

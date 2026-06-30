@@ -64,3 +64,34 @@ Open questions to resolve in Phase 1:
   event loop into GLib via `nsIEventTarget` + a GSource pump.
 
 These are tracked as build-site tasks; see `../../context/`.
+
+## Rendering architecture (resolved 2026-06-30)
+
+Findings from bringing libxul up (T-010) and the embedding smoke test (T-013):
+
+- **Embedding works via the frozen API**: `XRE_InitEmbedding2` + `nsIWebBrowser`
+  (`EngineHost`) bring Goanna up headless and create a browser instance. Proven.
+- **But offscreen *rendering* needs more than the frozen SDK.** This UXP
+  revision (ESR-52 base) has **no headless widget backend** (that landed in
+  Gecko 56+), and `nsIDOMWindowUtils` (drawWindow/renderDocument) is **internal**
+  — not in `dist/include` frozen headers. So pixel readback can't be done purely
+  as an external glue consumer.
+- Consequences for the Goanna `BrowserPage` backend:
+  1. It needs a **widget + a display/compositor** to lay out and paint a page.
+     On desktop that means an (invisible) GTK window under a virtual display
+     (**Xvfb**); on webOS it targets the device framebuffer/EGL.
+  2. **Pixel readback** into the shared buffer needs internal gfx/layers/presShell
+     access. Two viable routes:
+     a. Build the backend **in-tree** as part of the UXP build (a new directory
+        compiled with `MOZILLA_INTERNAL_API`), like the e10s content-process
+        PuppetWidget renders into a shared surface. Most faithful to BrowserServer.
+     b. Expose the needed internal headers/libs to an out-of-tree backend.
+- **Decision**: pursue route (a) — the render backend is an in-tree-compiled
+  component using an offscreen widget + basic (CPU) layer manager, reading the
+  layer buffer back into the BrowserServer shmem (`BrowserOffscreenInfo` format).
+  The frozen-API `EngineHost` (navigation, lifecycle, listeners) still drives it.
+
+This refines kit cavekit-offscreen-rendering.md R1/R2: "offscreen widget" =
+windowless GTK/native widget under a virtual display, not a from-scratch
+PuppetWidget, and readback uses the internal layer manager.
+

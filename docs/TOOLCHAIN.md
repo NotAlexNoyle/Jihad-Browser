@@ -13,6 +13,43 @@ UXP/Goanna build host needs:
 UXP deliberately has **no Rust requirement** (unlike contemporaneous
 mozilla-central), which simplifies the toolchain considerably.
 
+### Use a pinned build container (recommended)
+
+A modern host is the *wrong* environment in both directions: too new for `mach`
+(it wants Python 2.7 + autoconf-2.13, not Python 3 / autoconf 2.7x) and too new
+in compiler (GCC 14 / recent clang vs an ~2017 engine). Installing Python 2.7
+and autoconf-2.13 on a bleeding-edge distro is itself painful (Python 2 is often
+out of the repos).
+
+Instead, build Goanna inside a pinned container with the era-correct baseline.
+This repo provides one under `build/desktop/`:
+
+- `Dockerfile` — Ubuntu 18.04 base (Python 2.7, autoconf2.13, GCC 7, yasm).
+  Apt is repointed at `old-releases.ubuntu.com` since 18.04 is archived. The
+  UXP source is **mounted**, never copied into the image (no vendoring).
+- `mozconfig.goanna` — embedding-oriented config (xulrunner target, GTK2 +
+  basic layers, trimmed subsystems) producing libxul for the render backend.
+- `build-goanna.sh` — runs `mach configure`/`build` as an unprivileged user
+  against the read-only source mount, writing artifacts to `/out`.
+
+```
+docker build -t jihad-goanna-build build/desktop
+docker run --rm -it \
+  -v <abs>/Jihad/UXP:/src/uxp:ro \
+  -v <abs>/Jihad/Jihad-Browser/build/desktop:/cfg:ro \
+  -v $PWD/out:/out \
+  jihad-goanna-build /cfg/build-goanna.sh all
+```
+
+The same container is the basis for the Phase-2 ARM cross-build: add the
+cross-toolchain (below) and a target mozconfig.
+
+### This workstation (observed)
+
+Void Linux host: Python 3.14, autoconf 2.72, GCC 14.2, rustc 1.96; no python2,
+no autoconf-2.13, no yasm. ~507 GB free, 31 GB RAM. **Cannot build UXP directly**
+— use the container above.
+
 ## Cross toolchain (Phase 2, webOS 3 ARMv7) — feasibility gate
 
 The TouchPad ships **CodeSourcery gcc 4.4.x** (2011). That compiler **cannot**

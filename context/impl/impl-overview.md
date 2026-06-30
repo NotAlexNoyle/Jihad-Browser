@@ -84,11 +84,23 @@ See impl-browserserver-import.md for the import detail.
   render needs internal gfx/layers (build the backend in-tree) + a display; the
   frozen-API EngineHost still drives navigation/lifecycle.
 
+## Render path — exact blocker pinned (this session)
+- Attempted headless paint (map GTK window under Xvfb → expose → capture pixels).
+  Crashes in `ClientLayerManager::ForwardTransaction` (null forwarder). Verified
+  the GTK widget forces ClientLayerManager (OMTC pref off confirmed, no effect)
+  and `XRE_InitEmbedding2` starts no compositor. Full analysis in dead-ends.md.
+- So T-020 must **bring up the compositor** (CompositorThread + bridge) — the
+  full-app/in-tree path — before paint. embed_load's render attempt is gated
+  behind `JIHAD_TRY_RENDER`; default path proves load (exit 0).
+
 ## Next (render path)
-- T-020/T-024: get the laid-out page's pixels into the shmem buffer
-  (`BrowserOffscreenInfo` ARGB32) via the internal layer manager → T-032 msgPainted.
-  This is the in-tree-component step (internal API), the larger remaining build.
-- Map the observed load lifecycle to the YAP msgLoadStarted/Progress/Stopped.
+- T-020: initialize the in-process compositor in the backend (replicate the
+  relevant nsAppShell/XRE compositor setup, or build the backend in-tree where
+  it's available), then map/paint.
+- T-024: read the rendered layer/window back into the shmem buffer
+  (`BrowserOffscreenInfo` ARGB32) → T-032 msgPainted. (Pixel-capture via GDK
+  already written in embed_load, ready once paint works.)
+- Map the observed load lifecycle to YAP msgLoadStarted/Progress/Stopped.
 - T-016 (daemon wiring) reuses the embed link recipe; T-011 ARM toolchain parallel.
 - T-011 (ARMv7 cross-toolchain) in parallel; reuse the container base. For the
   device, strip libxul and revisit jemalloc/optimize-for-size.

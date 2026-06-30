@@ -95,3 +95,18 @@ This refines kit cavekit-offscreen-rendering.md R1/R2: "offscreen widget" =
 windowless GTK/native widget under a virtual display, not a from-scratch
 PuppetWidget, and readback uses the internal layer manager.
 
+### Confirmed by experiment (embed_load + dead-ends.md)
+
+The GTK widget on this UXP/Linux **forces a `ClientLayerManager`** (compositor-
+backed) — `layers.offmainthreadcomposition.enabled=false` does NOT downgrade it
+to BasicLayerManager. And `XRE_InitEmbedding2` does **not** start the in-process
+compositor the ClientLayerManager forwards to, so the first paint crashes in
+`ClientLayerManager::ForwardTransaction` (null forwarder).
+
+→ The render backend must run with the **compositor brought up** (CompositorThread
++ CompositorBridgeChild/Parent), i.e. the full-app/in-tree path, before any
+paint. Navigation/lifecycle via the frozen `EngineHost` already works headless
+(page loads to STATE_STOP); only paint needs the compositor. T-020 starts by
+initializing the compositor, then reading the rendered layer/window back into the
+shmem buffer.
+

@@ -33,6 +33,20 @@ $CXX /out/embed_load.o /out/EngineHost.o \
   -o "$OUT" || exit 12
 set +x
 
+# The headless embedder has no compositor process; force the in-process
+# BasicLayerManager via a default pref read at GRE init (gfxPlatform caches the
+# OMTC decision at init, so it must be set before XRE_InitEmbedding2).
+if ! grep -q 'jihad-embed' "$DIST/bin/goanna.js" 2>/dev/null; then
+cat >> "$DIST/bin/goanna.js" <<'PREFS'
+// jihad-embed: force in-process BasicLayerManager (no compositor) for headless
+pref("layers.offmainthreadcomposition.enabled", false);
+pref("layers.offmainthreadcomposition.force-disabled", true);
+pref("layers.acceleration.disabled", true);
+pref("gfx.xrender.enabled", false);
+PREFS
+fi
+echo "== ensured embed prefs in goanna.js (OMTC off) =="
+
 echo "== running under Xvfb =="
 LD_LIBRARY_PATH="$DIST/bin" xvfb-run -a -s "-screen 0 1024x768x24" "$OUT" "$DIST/bin"
 rc=$?

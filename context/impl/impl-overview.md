@@ -11,7 +11,7 @@ last_edited: "2026-06-30"
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
 | Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
-| Engine Embedding & Build | 0 (T-010 configure OK) | 4 | container builds; `mach configure` succeeds for xulrunner embedding target; libxul `mach build` running |
+| Engine Embedding & Build | 1 (T-010 DONE) | 4 | **libxul.so built (1.8G) + embedding headers + xpcshell** in the container; T-012/T-013/T-019 next |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |
@@ -42,15 +42,27 @@ See impl-browserserver-import.md for the import detail.
   - needs the full **X11 dev set** (libx11-xcb, xcb, xcomposite, xdamage, …).
   - podman needs **fully-qualified** image names; bionic→archive not old-releases.
   - Net: base image is **Ubuntu 20.04** (GCC 9.3, Python 3.8, autoconf2.13, yasm).
-- `mach configure` now **succeeds** for the xulrunner embedding target (917
-  moz.build files processed, backend generated). `mach build` (libxul) is
-  running. Remaining T-010: confirm libxul + headers land in /out.
+- `mach build` **SUCCEEDS** ("Your build was successful!"). Artifacts in
+  `build/desktop/out/obj-jihad-goanna/dist`: **libxul.so (1.8G, unstripped),
+  xpcshell, NSS/NSPR**, and the embedding headers the backend needs
+  (nsIWebBrowser.h, nsIWebNavigation.h, nsIBaseWindow.h, nsIDOMWindowUtils.h,
+  nsEmbedCID.h). **T-010 DONE** — the engine builds for desktop.
+- Toolchain fights resolved en route (all captured in build/desktop/): podman
+  fully-qualified image; bionic→archive; **Python 3.3+** (not py2); **GCC ≥ 9.1**
+  → Ubuntu 20.04 base; full X11 dev set; and the real libxul blocker — js/src
+  appends `-Werror=format` after the warnings list, so a command-line
+  `-Wno-error=format-overflow` is re-escalated; fixed with a source pragma in
+  `js/src/jit/x64/BaseAssembler-x64.h` (patches/0002, applied by build-goanna.sh).
 - `Settings.{h,cpp}` reclassified: engine-coupled (QtWebKit WebSettings), needs
   reimplementation against Goanna prefs, not a mechanical de-Qt (see MANIFEST).
+- Note: libxul is unstripped (-g) → 1.8G; strip for the device build (Phase 2).
 
-## Next (need build host / engine)
-- Run the container to build Goanna (T-010), then T-013 (embedding runtime) →
-  unblocks the integration core (offscreen/nav/input/services).
-- T-011 (ARMv7 cross-toolchain) can start in parallel; reuse the same container base.
-- Bucket-2 files (BrowserServer/Main/BrowserPageManager/Settings) compile only once
-  the Goanna backend provides `BrowserPage` and the event-loop integration lands.
+## Next (engine builds; integration is now unblocked)
+- T-013 (embedding runtime init + per-page nsIWebBrowser instance) against the
+  built libxul/headers → then T-019 (event loop) and the Tier-2 integration core
+  (offscreen render T-020/T-024/T-032, nav, input, services).
+- T-016 (desktop daemon build wiring) can now link against dist/.
+- T-011 (ARMv7 cross-toolchain) in parallel; reuse the container base. For the
+  device, strip libxul and revisit jemalloc/optimize-for-size.
+- Bucket-2 files (BrowserServer/Main/BrowserPageManager/Settings) compile once the
+  Goanna backend provides `BrowserPage` and the event-loop integration lands.

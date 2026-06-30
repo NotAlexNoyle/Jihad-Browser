@@ -27,6 +27,20 @@ echo "gcc:      $(gcc -dumpfullversion 2>/dev/null || gcc -dumpversion)"
 
 if [ ! -d "$SRC" ]; then echo "ERROR: UXP source not mounted at $SRC"; exit 1; fi
 
+# Apply Jihad build patches to the UXP source (idempotent: skip if already in).
+# These adapt UXP to the modern toolchain (e.g. GCC 9 -Wformat-overflow).
+if [ -d /cfg/patches ]; then
+  for p in /cfg/patches/*.patch; do
+    [ -e "$p" ] || continue
+    name=$(basename "$p")
+    if patch -p1 -d "$SRC" --forward --dry-run < "$p" >/dev/null 2>&1; then
+      patch -p1 -d "$SRC" --forward < "$p" && echo "applied patch: $name"
+    else
+      echo "patch already applied/skipped: $name"
+    fi
+  done
+fi
+
 # mach builds into MOZ_OBJDIR (mozconfig → /out); autoconf2.13 also writes the
 # generated `configure` into the source tree, so $SRC is mounted read-write.
 cd "$SRC"

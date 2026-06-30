@@ -29,6 +29,14 @@ ac_add_options --disable-updater
 ac_add_options --disable-maintenance-service
 ac_add_options --disable-jemalloc          # match the desktop PoC; revisit for device
 
+# GCC 9.3 is stricter than this UXP revision's code expects and emits
+# false-positive warnings (e.g. js/src/jit/x64/BaseAssembler-x64.h trips
+# -Werror=format-overflow). We are building the engine, not developing it, so
+# do not treat warnings as errors, and neutralize the js-specific -Werror=format.
+ac_add_options --disable-warnings-as-errors
+export CFLAGS="$CFLAGS -Wno-error=format-overflow -Wno-error=format"
+export CXXFLAGS="$CXXFLAGS -Wno-error=format-overflow -Wno-error=format"
+
 # Branding: the Jihad branding-strip (cavekit-licensing-branding R3 / T-014) is
 # applied as a separate step; do not ship Pale Moon/Basilisk branding.
 # ac_add_options --with-branding=...   # set once Jihad branding dir exists

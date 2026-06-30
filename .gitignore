@@ -1,0 +1,27 @@
+# Build output
+/build/desktop/out/
+/build/desktop/obj-*/
+/build/webos-oe/tmp/
+*.o
+*.lo
+*.la
+*.so
+*.so.*
+*.a
+
+# UXP/Goanna object dirs (engine is built out-of-tree; never vendored here)
+obj-*/
+/third_party/uxp/
+
+# Packaging
+*.ipk
+*.deb
+*.ipk.*
+
+# Editor / OS
+*.swp
+*~
+.DS_Store
+
+# Cavekit transient
+/context/**/.cache/

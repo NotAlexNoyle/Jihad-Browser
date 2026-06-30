@@ -1,0 +1,70 @@
+Jihad Browser — Licensing Overview
+==================================
+
+Jihad Browser is a composite work that incorporates source code from several
+upstream projects, each retaining its own license. There is no single license
+that covers the entire repository. Every source file retains the license header
+of its origin; this file explains how the pieces fit together.
+
+--------------------------------------------------------------------------------
+Component licenses
+--------------------------------------------------------------------------------
+
+1. User-interface shell (directory: app/)
+   Derived from isis-browser (Enyo web app).
+   Copyright (c) 2012 Hewlett-Packard Development Company, L.P.
+   Licensed under the Apache License, Version 2.0.
+   Full text: licenses/Apache-2.0.txt
+
+2. Render daemon / IPC layer (directory: render/browserserver/)
+   Derived from the isis-project BrowserServer / BrowserAdapter / AdapterBase.
+   Copyright (c) 2012 Hewlett-Packard Development Company, L.P.
+   Copyright (c) 2012-2014 LG Electronics, Inc.
+   Licensed under the Apache License, Version 2.0.
+   Full text: licenses/Apache-2.0.txt
+
+3. Goanna rendering backend integration (directory: render/goanna/)
+   New code authored for Jihad Browser that links against the UXP / Goanna
+   engine. Licensed under the Mozilla Public License, Version 2.0, to remain
+   compatible with the engine it embeds.
+   Full text: licenses/MPL-2.0.txt
+
+4. UXP / Goanna web engine (referenced as an external dependency; NOT vendored
+   in this repository — built from the upstream UXP source tree).
+   Copyright (c) Mozilla Foundation and the Moonchild Productions / Pale Moon
+   contributors.
+   Licensed under the Mozilla Public License, Version 2.0, with portions under
+   other compatible licenses as documented in the UXP tree.
+   Full text: licenses/MPL-2.0.txt
+
+--------------------------------------------------------------------------------
+License compatibility
+--------------------------------------------------------------------------------
+
+The Apache License 2.0 and the Mozilla Public License 2.0 are compatible. The
+MPL-2.0 is a file-level (weak) copyleft: MPL-licensed files remain under the MPL
+and their source must be made available, but they may be combined with files
+under other licenses (including Apache-2.0) in a "Larger Work". See MPL-2.0
+section 1.7 and 3.3.
+
+New code added by the Jihad Browser project:
+  - Files placed under app/ or render/browserserver/ that are derivative of the
+    Apache-2.0 upstreams remain Apache-2.0.
+  - Files under render/goanna/ that integrate with the Goanna engine are
+    MPL-2.0.
+  - Build/packaging glue (build/) is Apache-2.0 unless a file header states
+    otherwise.
+
+--------------------------------------------------------------------------------
+Trademarks
+--------------------------------------------------------------------------------
+
+This project does NOT grant any rights to the trademarks of Moonchild
+Productions, the Mozilla Foundation, or any other party, including without
+limitation the "Pale Moon", "Basilisk", "Firefox", or "Mozilla" names and
+logos. All Pale Moon / Basilisk / Moonchild branding is removed from any
+engine build shipped under the Jihad Browser name, in accordance with the UXP
+licensing terms (http://www.palemoon.org/licensing.shtml). "Jihad Browser" is
+the product name used by this fork; it implies no endorsement by any upstream.
+
+See NOTICE for required attributions.

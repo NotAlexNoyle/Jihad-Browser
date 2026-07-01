@@ -24,9 +24,40 @@ public:
       W(1024), H(768), sz(1024*768*4), key1(0x4a494831), key2(0x4a494832) {}
   int painted, verified;
   bool loadStopped;
+  bool wroteImage = false;
   int W, H, sz, key1, key2;
 
   void serverConnected() override {}      // YapClient never calls this; we drive from start()
+
+  // Write the painted shared buffer to a PPM image (the real adapter blits it to
+  // the card). Proves the desktop pipe produces a correct pixel image (R2/R3).
+  void writeImage(int key) {
+    int id = shmget(key, sz, 0);
+    if (id < 0) return;
+    unsigned char* b = (unsigned char*)shmat(id, nullptr, SHM_RDONLY);
+    if (b == (unsigned char*)-1) return;
+    const char* path = getenv("JIHAD_POC_IMAGE");
+    if (!path || !*path) path = "/out/jihad-poc-render.ppm";
+    FILE* fp = fopen(path, "wb");
+    if (fp) {
+      fprintf(fp, "P6\n%d %d\n255\n", W, H);
+      for (int i = 0; i < W * H; ++i) {
+        unsigned char* p = b + (size_t)i * 4;     // B,G,R,A
+        unsigned char rgb[3] = { p[2], p[1], p[0] };
+        fwrite(rgb, 1, 3, fp);
+      }
+      fclose(fp);
+      printf("[adapter] wrote %dx%d render to %s\n", W, H, path);
+    }
+    shmdt(b);
+  }
+
+  // Return a painted buffer to the daemon per the contract (ReturnBuffer 0x150d).
+  void returnBuffer(int key) {
+    YapPacket* r = packetCommand();
+    (*r) << (int16_t)0x150d; (*r) << (int32_t)key;
+    sendAsyncCommand();
+  }
 
   // Verify the daemon actually rendered content into the shared buffer it named
   // in msgPainted (the real adapter would blit it to the card). Returns
@@ -77,6 +108,8 @@ public:
         long nb = verifyBuffer(k);
         printf("[adapter] <- msgPainted(key=0x%x): %ld non-white px in shared buffer\n", (unsigned)k, nb);
         if (nb > 100) ++verified;
+        if (nb > 100 && !wroteImage) { writeImage(k); wroteImage = true; }
+        returnBuffer(k);   // hand the buffer back so rendering can continue
         if (loadStopped && verified > 0) {
           printf("[adapter] verified rendered frame after load; done\n");
           g_main_loop_quit(mainLoop());

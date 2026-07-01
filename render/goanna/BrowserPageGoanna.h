@@ -62,6 +62,7 @@ public:
   bool init(uint32_t width, uint32_t height,
             int sharedBufferKey1, int sharedBufferKey2, int sharedBufferSize);
   void setWindowSize(uint32_t width, uint32_t height);
+  void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
   void setScrollPosition(int x, int y);   // YAP: setScrollPosition
   void setZoomAndScroll(double zoom, int x, int y);   // YAP: setZoomAndScroll
 

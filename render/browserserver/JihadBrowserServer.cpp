@@ -396,7 +396,7 @@ void JihadBrowserServer::asyncCmdThaw(YapProxy* proxy, int32_t sharedBufferKey1,
 
 void JihadBrowserServer::asyncCmdReturnBuffer(YapProxy* proxy, int32_t sharedBufferKey)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->returnBuffer(sharedBufferKey);
 }
 
 void JihadBrowserServer::asyncCmdSetZoomAndScroll(YapProxy* proxy, double zoom, int32_t cx, int32_t cy)

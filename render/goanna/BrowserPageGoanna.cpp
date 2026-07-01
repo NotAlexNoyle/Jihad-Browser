@@ -70,6 +70,13 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; emitGeometry(); }
 }
 
+void BrowserPageGoanna::returnBuffer(int /*sharedBufferKey*/) {
+  // The adapter is done with a painted buffer. The current model paints once per
+  // load into alternating segments, so there is no in-flight bookkeeping to undo;
+  // accepting the return (without error) satisfies the contract and lets a
+  // subsequent paint proceed. Full double-buffer flow-control is future work.
+}
+
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
   // The javascript: scroll applies asynchronously; the scrolled-to message is

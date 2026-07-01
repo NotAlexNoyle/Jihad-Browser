@@ -13,7 +13,11 @@
  */
 #include <gtk/gtk.h>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include "../../browserserver/Src/BrowserOffscreenInfo.h"
 
 #include "../EngineHost.h"
 #include "nsCOMPtr.h"
@@ -141,6 +145,51 @@ static long CaptureWindowPPM(GtkWidget* win, const char* path) {
   return nonblank;
 }
 
+// Write the rendered window into a SysV shared-memory segment in the exact
+// format BrowserServer ships to BrowserAdapter: ARGB32 (native LE = B,G,R,A
+// bytes), bufferWidth*bufferHeight*4, plus a BrowserOffscreenInfo. This is the
+// bridge from "render to bitmap" to the YAP framebuffer contract (T-024): the
+// real backend would emit msgPainted(shmKey) here.
+static bool WriteShmFramebuffer(GtkWidget* win) {
+  GdkWindow* gw = gtk_widget_get_window(win);
+  if (!gw) return false;
+  gint w = 0, h = 0;
+  gdk_drawable_get_size(GDK_DRAWABLE(gw), &w, &h);
+  GdkPixbuf* pb = gdk_pixbuf_get_from_drawable(nullptr, GDK_DRAWABLE(gw),
+                    gdk_colormap_get_system(), 0, 0, 0, 0, w, h);
+  if (!pb) return false;
+
+  int nch = gdk_pixbuf_get_n_channels(pb);
+  int rs = gdk_pixbuf_get_rowstride(pb);
+  guchar* px = gdk_pixbuf_get_pixels(pb);
+  size_t bytes = (size_t)w * h * 4;
+
+  key_t key = 0x4a494841; // 'JIHA'
+  int shmid = shmget(key, bytes, IPC_CREAT | 0666);
+  if (shmid < 0) { perror("[embed_load] shmget"); g_object_unref(pb); return false; }
+  unsigned char* buf = (unsigned char*)shmat(shmid, nullptr, 0);
+  if (buf == (unsigned char*)-1) { perror("[embed_load] shmat"); g_object_unref(pb); return false; }
+
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      guchar* p = px + y * rs + x * nch;
+      unsigned char* o = buf + ((size_t)y * w + x) * 4;
+      o[0] = p[2]; o[1] = p[1]; o[2] = p[0]; o[3] = 0xff;   // B,G,R,A (ARGB32 LE)
+    }
+  }
+  BrowserOffscreenInfo info;
+  memset(&info, 0, sizeof(info));
+  info.bufferWidth = w; info.bufferHeight = h; info.contentZoom = 1.0;
+  info.renderedX = 0; info.renderedY = 0; info.renderedWidth = w; info.renderedHeight = h;
+
+  printf("[embed_load] shm framebuffer: key=0x%x id=%d %dx%d %zu bytes ARGB32 "
+         "(BrowserOffscreenInfo filled); real backend emits msgPainted(key) here\n",
+         (unsigned)key, shmid, w, h, bytes);
+  shmdt(buf);
+  g_object_unref(pb);
+  return true;
+}
+
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);   // unbuffered: keep trace across a crash
   setvbuf(stderr, nullptr, _IONBF, 0);
@@ -252,6 +301,7 @@ int main(int argc, char** argv) {
     long content = CaptureWindowPPM(win, "/out/jihad_render.ppm");
     rendered = content > 100;
     printf("[embed_load] RENDER %s (non-white px=%ld)\n", rendered ? "PASS" : "FAIL", content);
+    if (rendered) WriteShmFramebuffer(win);   // T-024: frame -> shared framebuffer
   } else {
     printf("[embed_load] render skipped (set JIHAD_TRY_RENDER to attempt; needs compositor)\n");
   }

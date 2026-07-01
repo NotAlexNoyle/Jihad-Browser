@@ -13,7 +13,7 @@ last_edited: "2026-06-30"
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
 | Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; page loads; T-012 next |
 | Navigation, Loading & Events | demo | 6 | load lifecycle (START→…→STATE_STOP) observed end-to-end via embed_load; formal wiring to YAP msgs pending |
-| Offscreen Rendering | **T-020 RENDERS** | 5 | **Goanna renders a real page to a 1024×768 pixel buffer** (docs/jihad-render-proof.png) via BasicLayerManager CPU paint; readback via GDK; shmem wiring + msgPainted next |
+| Offscreen Rendering | **T-020+T-024 render→shmem** | 5 | **Goanna renders a page (docs/jihad-render-proof.png)** via BasicLayerManager CPU paint; GDK readback → **SysV shm ARGB32 + BrowserOffscreenInfo** (the BrowserServer framebuffer format); msgPainted wiring in the daemon next |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |

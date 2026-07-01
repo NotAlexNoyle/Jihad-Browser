@@ -18,7 +18,7 @@
 
 class CapSink : public jihad::IPageMessageSink {
 public:
-  int failed = 0, stopped = 0; char url[512] = {0};
+  int failed = 0, stopped = 0, gh = 0; char url[512] = {0};
   void msgPainted(int32_t) override {}
   void msgLoadStarted() override {}
   void msgLoadProgress(int32_t) override {}
@@ -31,6 +31,7 @@ public:
   void msgFailedLoad(const char*, int32_t, const char* u, const char*) override {
     ++failed; if (u) { strncpy(url, u, sizeof url - 1); }
   }
+  void msgUpdateGlobalHistory(const char*, bool) override { ++gh; }
 };
 
 int main(int argc, char** argv) {
@@ -59,15 +60,16 @@ int main(int argc, char** argv) {
     const char* bad = "zzzbogus://nohandler/";
     page.openUrl(bad);
     page.pump(4000);
-    printf("[fail] bad load: failed=%d stopped=%d url=%s\n", sink.failed, sink.stopped, sink.url);
-    bool badOK = sink.failed >= 1 && sink.stopped >= 1;
+    printf("[fail] bad load: failed=%d stopped=%d gh=%d url=%s\n", sink.failed, sink.stopped, sink.gh, sink.url);
+    // A failed load emits msgFailedLoad and NOT global-history (R3 + R6).
+    bool badOK = sink.failed >= 1 && sink.stopped >= 1 && sink.gh == 0;
 
-    // 2) A good load must NOT emit msgFailedLoad.
-    sink.failed = 0;
+    // 2) A good load must NOT emit msgFailedLoad but MUST emit global-history.
+    sink.failed = 0; sink.gh = 0;
     page.openUrl("data:text/html,<body>ok</body>");
     page.pump(8000);
-    printf("[fail] good load: failed=%d\n", sink.failed);
-    bool goodOK = sink.failed == 0;
+    printf("[fail] good load: failed=%d gh=%d\n", sink.failed, sink.gh);
+    bool goodOK = sink.failed == 0 && sink.gh >= 1;
 
     printf("[fail] badOK=%d goodOK=%d\n", badOK, goodOK);
     bool ok = badOK && goodOK;

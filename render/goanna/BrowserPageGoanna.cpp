@@ -164,8 +164,9 @@ void BrowserPageGoanna::emitLoadAndLocation() {
       mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
     }
     mSink.msgLoadStopped();
-    mSink.msgLocationChanged(mPage->CurrentUri().c_str(),
-                             mPage->CanGoBack(), mPage->CanGoForward());
+    std::string uri = mPage->CurrentUri();
+    mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+    if (!failed) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
     emitGeometry();   // R4: contents-size + meta-viewport once the page settled
   }
 }

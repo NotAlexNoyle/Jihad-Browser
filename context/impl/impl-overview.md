@@ -9,7 +9,7 @@ last_edited: "2026-06-30"
 | Domain | Tasks Done | Tasks Total | Status |
 |--------|-----------|-------------|--------|
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
-| Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
+| Licensing & Branding | **5 (COMPLETE)** | 5 | R1 headers, R2 LICENSE/NOTICE, R5 Apache↔MPL compatibility — done. **R3 branding strip: build-goanna.sh removes Pale Moon/Basilisk/Moonchild from all.js + nsAboutRedirector + the dead nsAppRunner literals; scan verified 0 branding strings in libxul.so / jihad-browserserver / goanna.js; round-trip still passes. R4: docs/ENGINE-SOURCE.md documents the UXP origin (pinned rev b2594a4), all patches (0001-0004 + strip), and MPL source-availability; LICENSE points to it.** |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
 | Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; page loads; T-012 next |
 | Navigation, Loading & Events | **R1–R6 COMPLETE** | 6 | load lifecycle; back/forward (real canGo*); setHtml — NAV PASS. R3 failed-load — FAIL-EVENT PASS. R1 clearHistory + R5 getHistoryState — HISTORY PASS. **R4 url-redirected (STATE_REDIRECTING) — REDIRECT PASS (302 /a→/b via local server). R6: global-history + addUrlRedirect (POSIX-regex rules, RULES PASS: tel: handed off) + link-clicked (content-initiated nav via programmatic-load heuristic, LINK PASS: click →/b reported).** Full domain verified end-to-end |

@@ -68,6 +68,10 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   if (mPage->Resize((int)width, (int)height)) mNeedsPaint = true;
 }
 
+void BrowserPageGoanna::setScrollPosition(int x, int y) {
+  if (mPage) { mPage->ScrollTo(x, y); mNeedsPaint = true; }
+}
+
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
   mLoadWasDone = false;

@@ -163,6 +163,31 @@ bool GoannaRenderPage::Resize(int width, int height) {
   return true;
 }
 
+static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
+
+void GoannaRenderPage::ScrollTo(int x, int y) {
+  if (!mChrome) return;
+  // No scroll entry point in the frozen embedding API; a javascript: URL runs in
+  // the page's context without navigating (window.scrollTo returns undefined, so
+  // the load is not replaced). Requires JS enabled (the default).
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  if (!nav) return;
+  char js[96];
+  snprintf(js, sizeof js, "javascript:void(window.scrollTo(%d,%d))", x, y);
+  NS_ConvertUTF8toUTF16 u(js);
+  nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+}
+
+bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  int32_t sx = 0, sy = 0;
+  if (NS_FAILED(u->GetScrollXY(/*flushLayout*/true, &sx, &sy))) return false;
+  if (x) *x = sx; if (y) *y = sy;
+  return true;
+}
+
 bool GoannaRenderPage::LoadUrl(const char* url) {
   if (!mChrome) return false;
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);

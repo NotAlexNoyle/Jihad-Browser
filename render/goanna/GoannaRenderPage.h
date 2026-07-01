@@ -46,6 +46,11 @@ public:
   // page reflows to the new size; the next ReadPixels returns width*height*4.
   bool Resize(int width, int height);
 
+  // Scroll the content to an absolute CSS-pixel offset (YAP: setScrollPosition).
+  void ScrollTo(int x, int y);
+  // Read the current scroll offset (for scrolled-to events / tests).
+  bool GetScrollXY(int* x, int* y);
+
   // Navigate. LoadUrlAndWait pumps the event loop until the load reaches
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   bool LoadUrl(const char* url);

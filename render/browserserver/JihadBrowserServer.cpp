@@ -323,7 +323,8 @@ void JihadBrowserServer::asyncCmdIgnoreMetaTags(YapProxy* proxy, bool ignore)
 
 void JihadBrowserServer::asyncCmdSetScrollPosition(YapProxy* proxy, int32_t cx, int32_t cy, int32_t cw, int32_t ch)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)cw; (void)ch; // cw/ch describe the content window; scroll uses cx/cy.
+  if (auto* p = pageFor(proxy)) p->setScrollPosition(cx, cy);
 }
 
 void JihadBrowserServer::asyncCmdPluginSpotlightStart(YapProxy* proxy, int32_t cx, int32_t cy, int32_t cw, int32_t ch)

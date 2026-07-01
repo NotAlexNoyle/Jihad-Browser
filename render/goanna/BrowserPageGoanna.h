@@ -56,6 +56,7 @@ public:
 
   // --- navigation (YAP: openUrl/back/forward/reload/stop) ---
   void openUrl(const char* url);
+  void setHTML(const char* url, const char* body);
   void pageBackward();
   void pageForward();
   void pageReload();

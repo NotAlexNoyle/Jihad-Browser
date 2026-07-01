@@ -46,6 +46,9 @@ public:
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   bool LoadUrl(const char* url);
   bool LoadUrlAndWait(const char* url, int timeoutSec);
+  bool SetHtml(const char* body);       // load inline HTML (YAP: setHtml)
+  bool CanGoBack();
+  bool CanGoForward();
 
   // Navigation controls (map to the YAP back/forward/reload/stop commands).
   void GoBack();

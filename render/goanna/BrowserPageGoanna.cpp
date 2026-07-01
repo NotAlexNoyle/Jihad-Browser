@@ -74,9 +74,17 @@ void BrowserPageGoanna::openUrl(const char* url) {
   }
 }
 
-void BrowserPageGoanna::pageBackward() { if (mPage) mPage->GoBack(); }
-void BrowserPageGoanna::pageForward() { if (mPage) mPage->GoForward(); }
-void BrowserPageGoanna::pageReload()  { if (mPage) mPage->Reload(); }
+void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
+  if (!mPage || !body) return;
+  mLoadWasDone = false; mNeedsPaint = false;
+  mSink.msgLoadStarted();
+  if (!mPage->SetHtml(body)) { mSink.msgLoadStopped(); mLoadWasDone = true; }
+}
+
+// Nav commands restart the load lifecycle so completion re-emits load+location.
+void BrowserPageGoanna::pageBackward() { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 
 void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
@@ -105,8 +113,8 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mNeedsPaint = true;   // paint the final frame once (dedup — Codex P2)
     mSink.msgLoadProgress(100);
     mSink.msgLoadStopped();
-    // TODO(T-016): real canGoBack/canGoForward from nsIWebNavigation.
-    mSink.msgLocationChanged(mPage->CurrentUri().c_str(), false, false);
+    mSink.msgLocationChanged(mPage->CurrentUri().c_str(),
+                             mPage->CanGoBack(), mPage->CanGoForward());
   }
 }
 

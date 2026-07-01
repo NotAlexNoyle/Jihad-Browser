@@ -184,9 +184,26 @@ bool GoannaRenderPage::LoadUrlAndWait(const char* url, int timeoutSec) {
   return mChrome->mDone;
 }
 
-void GoannaRenderPage::GoBack()    { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoBack(); } }
-void GoannaRenderPage::GoForward() { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoForward(); } }
-void GoannaRenderPage::Reload()    { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Reload(nsIWebNavigation::LOAD_FLAGS_NONE); } }
+bool GoannaRenderPage::SetHtml(const char* body) {
+  if (!body) return false;
+  std::string url = "data:text/html;charset=utf-8,";
+  url += body;
+  return LoadUrl(url.c_str());
+}
+bool GoannaRenderPage::CanGoBack() {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser);
+  bool v = false; if (n) n->GetCanGoBack(&v); return v;
+}
+bool GoannaRenderPage::CanGoForward() {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser);
+  bool v = false; if (n) n->GetCanGoForward(&v); return v;
+}
+
+void GoannaRenderPage::GoBack()    { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoBack(); } }
+void GoannaRenderPage::GoForward() { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoForward(); } }
+void GoannaRenderPage::Reload()    { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Reload(nsIWebNavigation::LOAD_FLAGS_NONE); } }
 void GoannaRenderPage::Stop()      { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Stop(nsIWebNavigation::STOP_ALL); } }
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }

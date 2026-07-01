@@ -97,7 +97,7 @@ void JihadBrowserServer::asyncCmdSetUserAgent(YapProxy* proxy, const char* userA
 
 void JihadBrowserServer::asyncCmdSetHtml(YapProxy* proxy, const char* url, const char* body)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->setHTML(url, body);
 }
 
 void JihadBrowserServer::asyncCmdClickAt(YapProxy* proxy, int32_t contentX, int32_t contentY, int32_t numClicks, int32_t counter)

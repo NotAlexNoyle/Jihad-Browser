@@ -92,7 +92,7 @@ void JihadBrowserServer::syncCmdRenderToFile(YapProxy* proxy, const char* filena
 
 void JihadBrowserServer::asyncCmdSetUserAgent(YapProxy* proxy, const char* userAgent)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::SetUserAgentOverride(userAgent);   // process-global pref
 }
 
 void JihadBrowserServer::asyncCmdSetHtml(YapProxy* proxy, const char* url, const char* body)
@@ -173,12 +173,12 @@ void JihadBrowserServer::asyncCmdClearSelection(YapProxy* proxy)
 
 void JihadBrowserServer::asyncCmdClearCache(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::ClearCache();
 }
 
 void JihadBrowserServer::asyncCmdClearCookies(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::ClearCookies();
 }
 
 void JihadBrowserServer::asyncCmdPopupMenuSelect(YapProxy* proxy, const char* identifier, int32_t selectedIdx)
@@ -188,7 +188,7 @@ void JihadBrowserServer::asyncCmdPopupMenuSelect(YapProxy* proxy, const char* id
 
 void JihadBrowserServer::asyncCmdSetEnableJavaScript(YapProxy* proxy, bool enable)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->settingsJavaScriptEnabled(enable);
 }
 
 void JihadBrowserServer::asyncCmdSetBlockPopups(YapProxy* proxy, bool enable)

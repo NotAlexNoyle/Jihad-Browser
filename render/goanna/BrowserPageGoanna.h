@@ -21,11 +21,11 @@
 
 #include <cstdint>
 #include <string>
+#include "GoannaRenderPage.h"   // GoannaRenderPage + global browser-service fns
 
 namespace jihad {
 
 class EngineHost;
-class GoannaRenderPage;
 
 // Sink for the server->adapter YAP messages. In the daemon this is implemented
 // by the BrowserServer (which forwards over YAP to BrowserAdapter). Decoupled
@@ -66,6 +66,9 @@ public:
   void keyDown(int key, int modifiers, int chr);
   void keyUp(int key, int modifiers, int chr);
   void mouseEvent(int type, int contentX, int contentY, int detail);
+
+  // --- settings (YAP: setEnableJavaScript) — per-page ---
+  void settingsJavaScriptEnabled(bool enable);
 
   // --- paint (YAP: drives msgPainted) ---
   // Render the current content into the inactive shared buffer and emit

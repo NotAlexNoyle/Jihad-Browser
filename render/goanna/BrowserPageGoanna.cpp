@@ -94,6 +94,9 @@ void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
   mPage->MouseEvent(t, x, y, 0);
   mNeedsPaint = true;
 }
+void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
+  if (mPage) mPage->SetJavaScriptEnabled(enable);
+}
 
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;

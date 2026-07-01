@@ -27,6 +27,11 @@ namespace jihad {
 class EngineHost;
 class PageChrome;   // internal XPCOM chrome + progress listener (impl detail)
 
+// Process-global browser services (YAP: setUserAgent/clearCache/clearCookies).
+void SetUserAgentOverride(const char* ua);
+void ClearCache();
+void ClearCookies();
+
 class GoannaRenderPage
 {
 public:
@@ -56,6 +61,9 @@ public:
   void ClickAt(int x, int y, int numClicks);                 // mousedown+mouseup
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
+
+  // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
+  void SetJavaScriptEnabled(bool enabled);
 
   // Read the current painted content into dst as ARGB32 (native LE B,G,R,A),
   // width*height*4 bytes. dst must be at least that large. Returns the number

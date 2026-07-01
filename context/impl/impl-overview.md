@@ -18,7 +18,7 @@ last_edited: "2026-06-30"
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | **click/key/mouse work** | 5 | GoannaRenderPage.{ClickAt,KeyEvent,MouseEvent} via nsIDOMWindowUtils; wired through BrowserPageGoanna + daemon asyncCmdClickAt/KeyDown/KeyUp/MouseEvent. Verified: synthesized click fires page onclick, blue→green (INPUT PASS). Touch/gesture + coord-mapping remain |
 | Navigation, Loading & Events | 0 | 6 | not started |
-| Browser Services | 0 | 5 | not started |
+| Browser Services | **settings + cache/cookies** | 5 | setEnableJavaScript (global pref + docShell), setUserAgent (UA override pref), clearCache (nsICacheStorageService), clearCookies (nsICookieManager) wired through the daemon; verified JS-off blocks onclick (SERVICES PASS). Dialogs/downloads/TLS remain |
 | Desktop Build & PoC | 0 | 4 | not started |
 | Device Build & Packaging | 0 | 5 | not started |
 

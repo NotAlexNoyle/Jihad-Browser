@@ -29,6 +29,11 @@
 #include "nsIDOMWindowUtils.h"
 #include "mozIDOMWindow.h"
 #include "nsIInterfaceRequestor.h"
+#include "nsIDocShell.h"
+#include "nsIPrefBranch.h"
+#include "nsICookieManager.h"
+#include "nsICacheStorageService.h"
+#include "nsServiceManagerUtils.h"
 
 namespace jihad {
 
@@ -196,6 +201,21 @@ std::string GoannaRenderPage::CurrentUri() {
   return std::string(spec.get());
 }
 
+// --- process-global browser services ---------------------------------------
+void SetUserAgentOverride(const char* ua) {
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) pb->SetCharPref("general.useragent.override", ua ? ua : "");
+}
+void ClearCache() {
+  nsCOMPtr<nsICacheStorageService> c =
+    do_GetService("@mozilla.org/netwerk/cache-storage-service;1");
+  if (c) c->Clear();
+}
+void ClearCookies() {
+  nsCOMPtr<nsICookieManager> cm = do_GetService("@mozilla.org/cookiemanager;1");
+  if (cm) cm->RemoveAll();
+}
+
 // Get the content window's nsIDOMWindowUtils (for input synthesis).
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
   nsCOMPtr<nsIDOMWindowUtils> utils;
@@ -235,6 +255,17 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
   u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
+}
+
+void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
+  // Global pref (read by the JS engine when a page's context is created) — must
+  // be set before the page loads. Also set the per-docShell flag when present.
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) pb->SetBoolPref("javascript.enabled", enabled);
+  if (!mChrome) return;
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  nsCOMPtr<nsIDocShell> ds = do_QueryInterface(nav);   // nsDocShell impls both
+  if (ds) ds->SetAllowJavascript(enabled);
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {

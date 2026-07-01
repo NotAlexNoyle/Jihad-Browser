@@ -92,7 +92,9 @@ void BrowserPageGoanna::openUrl(const char* url) {
   mNeedsPaint = false;
   mSink.msgLoadStarted();
   if (!mPage->LoadUrl(url)) {
-    // Don't leave the adapter permanently "loading" on a bad URL (Codex P2).
+    // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
+    // and don't leave the adapter permanently "loading" (Codex P2 + R3).
+    mSink.msgFailedLoad("Goanna", 0, url, "Load failed");
     mSink.msgLoadProgress(100);
     mSink.msgLoadStopped();
     mLoadWasDone = true;
@@ -151,6 +153,11 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true;
     mNeedsPaint = true;   // paint the final frame once (dedup — Codex P2)
     mSink.msgLoadProgress(100);
+    // R3: a network-level failure emits msgFailedLoad before load-stopped.
+    bool failed = false; int code = 0; std::string furl;
+    if (mPage->GetLoadError(&failed, &code, &furl) && failed) {
+      mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
+    }
     mSink.msgLoadStopped();
     mSink.msgLocationChanged(mPage->CurrentUri().c_str(),
                              mPage->CanGoBack(), mPage->CanGoForward());

@@ -98,6 +98,9 @@ public:
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }
   bool LoadDone() const;
+  // Whether the last load ended in a network error (R3 failed-load). Fills the
+  // failing nsresult code + URL when *failed is true.
+  bool GetLoadError(bool* failed, int* code, std::string* url);
   std::string CurrentUri();
 
 private:

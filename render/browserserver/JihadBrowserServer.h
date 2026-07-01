@@ -32,6 +32,7 @@ public:
   void msgContentsSizeChanged(int32_t w, int32_t h) override;
   void msgScrolledTo(int32_t x, int32_t y) override;
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;
+  void msgFailedLoad(const char* domain, int32_t code, const char* url, const char* description) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;

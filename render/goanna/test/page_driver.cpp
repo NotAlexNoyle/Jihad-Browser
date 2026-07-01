@@ -33,6 +33,9 @@ public:
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override {
     printf("  -> msgMetaViewportSet(is=%.2f min=%.2f max=%.2f %dx%d us=%d)\n", is, mn, mx, w, h, us);
   }
+  void msgFailedLoad(const char* d, int32_t c, const char* u, const char* desc) override {
+    printf("  -> msgFailedLoad(%s, 0x%x, %s, %s)\n", d, (unsigned)c, u ? u : "", desc ? desc : "");
+  }
 };
 
 int main(int argc, char** argv) {

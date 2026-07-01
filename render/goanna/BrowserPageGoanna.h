@@ -45,6 +45,8 @@ public:
   virtual void msgMetaViewportSet(double initialScale, double minimumScale,
                                   double maximumScale, int32_t width,
                                   int32_t height, bool userScalable) = 0;
+  virtual void msgFailedLoad(const char* domain, int32_t code,
+                             const char* url, const char* description) = 0;
 };
 
 class BrowserPageGoanna

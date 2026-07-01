@@ -22,6 +22,7 @@
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
+#include "nsIChannel.h"
 #include "nsIDOMClientRect.h"
 #include "nsWeakReference.h"
 #include "nsIWeakReferenceUtils.h"
@@ -53,8 +54,12 @@ public:
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSIWEBPROGRESSLISTENER
 
-  PageChrome(int w, int h) : mDone(false), mW(w), mH(h) {}
+  PageChrome(int w, int h) : mDone(false), mLoadFailed(false),
+                             mErrorStatus(NS_OK), mW(w), mH(h) {}
   bool mDone;
+  bool mLoadFailed;          // last load ended in a network error
+  nsresult mErrorStatus;     // the failing nsresult
+  nsCString mFailedUrl;      // URL that failed
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -87,8 +92,27 @@ NS_IMETHODIMP PageChrome::GetTitle(char16_t** t) { *t = nullptr; return NS_OK; }
 NS_IMETHODIMP PageChrome::SetTitle(const char16_t*) { return NS_OK; }
 NS_IMETHODIMP PageChrome::GetSiteWindow(void** w) { *w = nullptr; return NS_OK; }
 NS_IMETHODIMP PageChrome::Blur() { return NS_OK; }
-NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest*, uint32_t f, nsresult) {
-  if ((f & STATE_STOP) && (f & (STATE_IS_WINDOW | STATE_IS_NETWORK))) mDone = true;
+// NS_BINDING_ABORTED — a cancelled navigation (e.g. navigating away / teardown),
+// which is NOT a load error and can arrive late, bleeding into the next load.
+static const nsresult kBindingAborted = (nsresult)0x804B0002;
+
+NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
+  if (f & STATE_STOP) {
+    // A failing stop status is a failed load (R3). It arrives on the request-level
+    // stop (connection refused etc.) before Goanna swaps in a neterror page, so
+    // the later window/network stop reports NS_OK -- capture the first real
+    // failure of the load in progress (ignore aborts + post-completion noise).
+    if (NS_FAILED(aStatus) && aStatus != kBindingAborted && !mLoadFailed && !mDone) {
+      mLoadFailed = true;
+      mErrorStatus = aStatus;
+      nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
+      if (ch) {
+        nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u));
+        if (u) u->GetSpec(mFailedUrl);
+      }
+    }
+    if (f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) mDone = true;
+  }
   return NS_OK;
 }
 NS_IMETHODIMP PageChrome::OnProgressChange(nsIWebProgress*, nsIRequest*, int32_t, int32_t, int32_t, int32_t) { return NS_OK; }
@@ -243,6 +267,9 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
   if (!nav) return false;
   mChrome->mDone = false;
+  mChrome->mLoadFailed = false;
+  mChrome->mErrorStatus = NS_OK;
+  mChrome->mFailedUrl.Truncate();
   NS_ConvertUTF8toUTF16 u(url);
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
 }
@@ -297,6 +324,15 @@ void GoannaRenderPage::Reload()    { if (mChrome) { mChrome->mDone = false; nsCO
 void GoannaRenderPage::Stop()      { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Stop(nsIWebNavigation::STOP_ALL); } }
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
+
+bool GoannaRenderPage::GetLoadError(bool* failed, int* code, std::string* url) {
+  if (!mChrome) return false;
+  if (failed) *failed = mChrome->mLoadFailed;
+  if (code) *code = (int)(uint32_t)mChrome->mErrorStatus;
+  if (url) *url = mChrome->mFailedUrl.IsEmpty()
+             ? CurrentUri() : std::string(mChrome->mFailedUrl.get());
+  return true;
+}
 
 std::string GoannaRenderPage::CurrentUri() {
   if (!mChrome) return std::string();

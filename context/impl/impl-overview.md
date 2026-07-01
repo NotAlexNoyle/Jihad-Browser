@@ -13,7 +13,7 @@ last_edited: "2026-06-30"
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
 | Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; page loads; T-012 next |
 | Navigation, Loading & Events | **bridge wired** | 6 | load lifecycle now emitted as YAP msgs (msgLoadStarted/Progress/Stopped/LocationChanged) via BrowserPageGoanna → PrintingSink; real BrowserServer forwarder next |
-| IPC Contract / Daemon bridge | **BrowserPageGoanna** | — | YAP BrowserPage command surface (init/openUrl/nav/paint) → GoannaRenderPage → double-buffered shm + msgPainted, demonstrated end-to-end (DAEMON-BRIDGE PASS); wire into BrowserServerBase dispatch + de-Qt daemon next |
+| IPC Contract / Daemon | **jihad-browserserver BUILDS + RUNS** | — | Real daemon: libYap (Qt-free) + unchanged BrowserServerBase YAP dispatch + JihadBrowserServer (72 cmds, core wired to BrowserPageGoanna) + Main, linked to libxul. Brings up Goanna, opens the YAP socket, **listens for BrowserAdapter** (DAEMON_UP). Remaining: real adapter round-trip + de-Qt the ~64 stub commands |
 | Offscreen Rendering | **T-020+T-024 render→shmem** | 5 | **Goanna renders real web pages** — data: page (docs/jihad-render-proof.png) AND live **https://example.com over TLS** (docs/jihad-render-example-com.png); consolidated into the reusable **GoannaRenderPage** backend class (Create/LoadUrlAndWait/ReadPixels→ARGB32 shm); msgPainted wiring in the daemon next |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |

@@ -38,3 +38,17 @@ The Goanna backend supplies a `BrowserPage` (see `../../goanna/BrowserPageGoanna
 to be aliased/adapted to the `BrowserPage` name the manager and dispatch expect).
 Until that header is provided, `BrowserPageManager` and `BrowserServer` will not
 compile — this is the intended Phase-1 integration point, tracked in the build site.
+
+## Yap/ (YAP transport, imported + built for the desktop daemon)
+
+Imported `ref-BrowserServer/Yap/` (Apache-2.0). The core (`YapPacket`,
+`YapProxy`, `YapServer`) is the socket+GLib RPC layer BrowserServerBase rides on
+— **no webOS deps**. One change: `YapServer::run()` used `QApplication::exec()`;
+switched to the already-present `g_main_loop_run(d->mainLoop)` so the daemon
+needs no Qt (the GLib loop line was commented in the original). Not built:
+`OffscreenBuffer` (pulls libpng/Qt) — the Goanna backend writes the shm directly.
+
+The real daemon is `render/browserserver/{JihadBrowserServer.{h,cpp},Main.cpp}`:
+JihadBrowserServer subclasses the unchanged BrowserServerBase, wires the core
+commands to BrowserPageGoanna, and forwards msg* over YAP. Builds + runs via
+build/desktop/build-daemon.sh (DAEMON_UP: engine up + listening on the socket).

@@ -54,6 +54,7 @@ public:
             int sharedBufferKey1, int sharedBufferKey2, int sharedBufferSize);
   void setWindowSize(uint32_t width, uint32_t height);
   void setScrollPosition(int x, int y);   // YAP: setScrollPosition
+  void setZoomAndScroll(double zoom, int x, int y);   // YAP: setZoomAndScroll
 
   // --- navigation (YAP: openUrl/back/forward/reload/stop) ---
   void openUrl(const char* url);

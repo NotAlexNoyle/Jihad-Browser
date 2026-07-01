@@ -72,6 +72,13 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (mPage) { mPage->ScrollTo(x, y); mNeedsPaint = true; }
 }
 
+void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
+  if (!mPage) return;
+  mPage->SetZoom(zoom);
+  mPage->ScrollTo(x, y);
+  mNeedsPaint = true;
+}
+
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
   mLoadWasDone = false;

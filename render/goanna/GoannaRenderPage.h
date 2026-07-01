@@ -51,6 +51,9 @@ public:
   // Read the current scroll offset (for scrolled-to events / tests).
   bool GetScrollXY(int* x, int* y);
 
+  // Full-page zoom factor (YAP: setZoomAndScroll). 1.0 = 100%.
+  void SetZoom(double zoom);
+
   // Navigate. LoadUrlAndWait pumps the event loop until the load reaches
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   bool LoadUrl(const char* url);

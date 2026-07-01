@@ -30,6 +30,7 @@
 #include "mozIDOMWindow.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIDocShell.h"
+#include "nsIContentViewer.h"
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -164,6 +165,7 @@ bool GoannaRenderPage::Resize(int width, int height) {
 }
 
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
+static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);
 
 void GoannaRenderPage::ScrollTo(int x, int y) {
   if (!mChrome) return;
@@ -186,6 +188,19 @@ bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
   if (NS_FAILED(u->GetScrollXY(/*flushLayout*/true, &sx, &sy))) return false;
   if (x) *x = sx; if (y) *y = sy;
   return true;
+}
+
+void GoannaRenderPage::SetZoom(double zoom) {
+  if (!mChrome || zoom <= 0.0) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  nsCOMPtr<nsIContentViewer> cv;
+  ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return;
+  cv->SetFullZoom((float)zoom);                        // full-page zoom -> reflow
+  // Zoom doesn't resize the native window, so nudge a repaint to refresh readback.
+  nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
+  if (bw) bw->Repaint(true);
 }
 
 bool GoannaRenderPage::LoadUrl(const char* url) {
@@ -273,6 +288,22 @@ void ClearCookies() {
   if (cm) cm->RemoveAll();
 }
 
+// Get the real content nsIDocShell. nsWebBrowser forwards nsIWebNavigation to
+// its docshell but is not itself the docshell, so QI'ing the webBrowser fails;
+// reach it through the content window's interface requestor instead.
+static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb) {
+  nsCOMPtr<nsIDocShell> ds;
+  if (!wb) return ds.forget();
+  nsCOMPtr<mozIDOMWindowProxy> win;
+  wb->GetContentDOMWindow(getter_AddRefs(win));
+  nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(win);
+  if (!ir) return ds.forget();
+  nsCOMPtr<nsIWebNavigation> wn;
+  ir->GetInterface(NS_GET_IID(nsIWebNavigation), getter_AddRefs(wn));
+  ds = do_QueryInterface(wn);   // the window's nsIWebNavigation IS the docshell
+  return ds.forget();
+}
+
 // Get the content window's nsIDOMWindowUtils (for input synthesis).
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
   nsCOMPtr<nsIDOMWindowUtils> utils;
@@ -333,8 +364,7 @@ void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
   nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
   if (pb) pb->SetBoolPref("javascript.enabled", enabled);
   if (!mChrome) return;
-  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
-  nsCOMPtr<nsIDocShell> ds = do_QueryInterface(nav);   // nsDocShell impls both
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (ds) ds->SetAllowJavascript(enabled);
 }
 

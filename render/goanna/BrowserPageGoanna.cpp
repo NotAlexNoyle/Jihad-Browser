@@ -172,6 +172,7 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     }
     mSink.msgLoadStopped();
     std::string uri = mPage->CurrentUri();
+    if (mPage->DidRedirect()) mSink.msgUrlRedirected(uri.c_str(), "");  // R4
     mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
     if (!failed) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
     emitGeometry();   // R4: contents-size + meta-viewport once the page settled

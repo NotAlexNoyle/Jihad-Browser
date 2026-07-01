@@ -47,8 +47,9 @@ public:
                                   int32_t height, bool userScalable) = 0;
   virtual void msgFailedLoad(const char* domain, int32_t code,
                              const char* url, const char* description) = 0;
-  // Optional event (default no-op so existing sinks need not override).
+  // Optional events (default no-op so existing sinks need not override).
   virtual void msgUpdateGlobalHistory(const char* url, bool reload) { (void)url; (void)reload; }
+  virtual void msgUrlRedirected(const char* url, const char* userData) { (void)url; (void)userData; }
 };
 
 class BrowserPageGoanna

@@ -34,6 +34,7 @@ public:
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;
   void msgFailedLoad(const char* domain, int32_t code, const char* url, const char* description) override;
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
+  void msgUrlRedirected(const char* url, const char* userData) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;

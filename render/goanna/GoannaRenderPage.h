@@ -102,6 +102,8 @@ public:
   // Whether the last load ended in a network error (R3 failed-load). Fills the
   // failing nsresult code + URL when *failed is true.
   bool GetLoadError(bool* failed, int* code, std::string* url);
+  // Whether the main document was redirected during the last load (R4).
+  bool DidRedirect() const;
   std::string CurrentUri();
 
 private:

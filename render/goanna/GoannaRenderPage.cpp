@@ -55,10 +55,11 @@ public:
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSIWEBPROGRESSLISTENER
 
-  PageChrome(int w, int h) : mDone(false), mLoadFailed(false),
+  PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
                              mErrorStatus(NS_OK), mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
+  bool mRedirected;          // the main document was redirected during this load
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   int32_t mW, mH;
@@ -98,6 +99,9 @@ NS_IMETHODIMP PageChrome::Blur() { return NS_OK; }
 static const nsresult kBindingAborted = (nsresult)0x804B0002;
 
 NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
+  // A redirect of the main document (R4 url-redirected). STATE_REDIRECTING fires
+  // on the document request before the new location is followed.
+  if ((f & STATE_REDIRECTING) && (f & STATE_IS_DOCUMENT)) mRedirected = true;
   if (f & STATE_STOP) {
     // A failing stop status is a failed load (R3). Scope it to the main document
     // (STATE_IS_DOCUMENT) so a broken subresource doesn't mark the page failed;
@@ -273,6 +277,7 @@ void GoannaRenderPage::BeginLoad() {
   if (!mChrome) return;
   mChrome->mDone = false;
   mChrome->mLoadFailed = false;
+  mChrome->mRedirected = false;
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
 }
@@ -348,6 +353,8 @@ void GoannaRenderPage::ClearHistory() {
 }
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
+
+bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
 
 bool GoannaRenderPage::GetLoadError(bool* failed, int* code, std::string* url) {
   if (!mChrome) return false;

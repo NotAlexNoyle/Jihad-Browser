@@ -61,6 +61,12 @@ public:
   void pageReload();
   void pageStop();
 
+  // --- input (YAP: clickAt/keyDown/keyUp/mouseEvent) ---
+  void clickAt(int contentX, int contentY, int numClicks);
+  void keyDown(int key, int modifiers, int chr);
+  void keyUp(int key, int modifiers, int chr);
+  void mouseEvent(int type, int contentX, int contentY, int detail);
+
   // --- paint (YAP: drives msgPainted) ---
   // Render the current content into the inactive shared buffer and emit
   // msgPainted(key). Called from the paint timer / on invalidation.

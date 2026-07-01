@@ -26,6 +26,9 @@
 #include "nsIWeakReferenceUtils.h"
 #include "nsThreadUtils.h"
 #include "nsIThread.h"
+#include "nsIDOMWindowUtils.h"
+#include "mozIDOMWindow.h"
+#include "nsIInterfaceRequestor.h"
 
 namespace jihad {
 
@@ -191,6 +194,47 @@ std::string GoannaRenderPage::CurrentUri() {
   if (!uri) return std::string();
   nsCString spec; uri->GetSpec(spec);
   return std::string(spec.get());
+}
+
+// Get the content window's nsIDOMWindowUtils (for input synthesis).
+static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
+  nsCOMPtr<nsIDOMWindowUtils> utils;
+  if (!wb) return utils.forget();
+  nsCOMPtr<mozIDOMWindowProxy> win;
+  wb->GetContentDOMWindow(getter_AddRefs(win));
+  nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(win);
+  if (ir) ir->GetInterface(NS_GET_IID(nsIDOMWindowUtils), getter_AddRefs(utils));
+  return utils.forget();
+}
+
+void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
+  if (!mChrome) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return;
+  bool ret = false;
+  NS_ConvertUTF8toUTF16 t(type);
+  // Optional args left at IDL defaults (_argc = 0).
+  u->SendMouseEvent(t, (float)x, (float)y, button, /*clickCount*/1, /*mods*/0,
+                    false, 0.0f, 0, false, false, 0, 0, &ret);
+}
+
+void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
+  if (!mChrome) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return;
+  bool ret = false;
+  NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
+  u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 0, &ret);
+  u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 0, &ret);
+}
+
+void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {
+  if (!mChrome) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return;
+  bool ret = false;
+  NS_ConvertUTF8toUTF16 t(type);
+  u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {

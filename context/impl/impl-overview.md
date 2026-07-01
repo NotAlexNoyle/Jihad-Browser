@@ -16,7 +16,7 @@ last_edited: "2026-06-30"
 | IPC Contract / Daemon | **FULL ROUND-TRIP PASS** | — | Real daemon (libYap + unchanged BrowserServerBase + JihadBrowserServer + Goanna). A YapClient BrowserAdapter stand-in connects over the real YAP socket, sends Connect+OpenUrl, and receives msgLoadStarted→Progress→Stopped→LocationChanged→**msgPainted** — the exact isis contract, engine renders the page. ROUND-TRIP PASS, exit 0. Remaining: de-Qt ~64 stub commands + input; real BrowserAdapter/UI |
 | Offscreen Rendering | **T-020+T-024 render→shmem** | 5 | **Goanna renders real web pages** — data: page (docs/jihad-render-proof.png) AND live **https://example.com over TLS** (docs/jihad-render-example-com.png); consolidated into the reusable **GoannaRenderPage** backend class (Create/LoadUrlAndWait/ReadPixels→ARGB32 shm); msgPainted wiring in the daemon next |
 | Offscreen Rendering | 0 | 5 | not started |
-| Input Bridging | 0 | 5 | not started |
+| Input Bridging | **click/key/mouse work** | 5 | GoannaRenderPage.{ClickAt,KeyEvent,MouseEvent} via nsIDOMWindowUtils; wired through BrowserPageGoanna + daemon asyncCmdClickAt/KeyDown/KeyUp/MouseEvent. Verified: synthesized click fires page onclick, blue→green (INPUT PASS). Touch/gesture + coord-mapping remain |
 | Navigation, Loading & Events | 0 | 6 | not started |
 | Browser Services | 0 | 5 | not started |
 | Desktop Build & PoC | 0 | 4 | not started |

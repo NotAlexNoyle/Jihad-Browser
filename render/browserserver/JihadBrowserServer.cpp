@@ -102,17 +102,18 @@ void JihadBrowserServer::asyncCmdSetHtml(YapProxy* proxy, const char* url, const
 
 void JihadBrowserServer::asyncCmdClickAt(YapProxy* proxy, int32_t contentX, int32_t contentY, int32_t numClicks, int32_t counter)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)counter;
+  if (auto* p = pageFor(proxy)) p->clickAt(contentX, contentY, numClicks);
 }
 
 void JihadBrowserServer::asyncCmdKeyDown(YapProxy* proxy, int32_t key, int32_t modifiers, int32_t chr)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->keyDown(key, modifiers, chr);
 }
 
 void JihadBrowserServer::asyncCmdKeyUp(YapProxy* proxy, int32_t key, int32_t modifiers, int32_t chr)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->keyUp(key, modifiers, chr);
 }
 
 void JihadBrowserServer::asyncCmdPageFocused(YapProxy* proxy, bool focused)
@@ -202,7 +203,7 @@ void JihadBrowserServer::asyncCmdSetAcceptCookies(YapProxy* proxy, bool enable)
 
 void JihadBrowserServer::asyncCmdMouseEvent(YapProxy* proxy, int32_t type, int32_t contentX, int32_t contentY, int32_t detail)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->mouseEvent(type, contentX, contentY, detail);
 }
 
 void JihadBrowserServer::asyncCmdGestureEvent(YapProxy* proxy, int32_t type, int32_t contentX, int32_t contentY, double scale, double rotate, int32_t centerX, int32_t centerY)

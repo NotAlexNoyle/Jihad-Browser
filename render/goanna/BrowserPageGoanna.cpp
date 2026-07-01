@@ -79,6 +79,22 @@ void BrowserPageGoanna::pageForward() { if (mPage) mPage->GoForward(); }
 void BrowserPageGoanna::pageReload()  { if (mPage) mPage->Reload(); }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 
+void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
+  if (mPage) { mPage->ClickAt(x, y, numClicks); mNeedsPaint = true; }
+}
+void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
+  if (mPage) { mPage->KeyEvent("keydown", key, chr, modifiers); mNeedsPaint = true; }
+}
+void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
+  if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers); mNeedsPaint = true; }
+}
+void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
+  if (!mPage) return;
+  const char* t = (type == 1) ? "mousedown" : (type == 2) ? "mouseup" : "mousemove";
+  mPage->MouseEvent(t, x, y, 0);
+  mNeedsPaint = true;
+}
+
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;
   if (mPage->LoadDone() && !mLoadWasDone) {

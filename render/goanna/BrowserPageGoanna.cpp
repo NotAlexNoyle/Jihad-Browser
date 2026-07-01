@@ -36,11 +36,18 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0), mFrozen(false) {}
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
-  double z = (mZoom > 0.0) ? mZoom : 1.0;
+  // mZoom is clamped to a sane range on set (see setZoomAndScroll), so sx/z can't
+  // blow up; still clamp the result to a safe int range (Codex P0).
+  double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
   int scrollX = 0, scrollY = 0;
   if (mPage) mPage->GetScrollXY(&scrollX, &scrollY);   // content-space scroll
-  if (cx) *cx = (int)(sx / z) + scrollX;
-  if (cy) *cy = (int)(sy / z) + scrollY;
+  auto clamp = [](double v) -> int {
+    if (v < -1000000.0) return -1000000;
+    if (v >  1000000.0) return  1000000;
+    return (int)v;
+  };
+  if (cx) *cx = clamp((double)sx / z + scrollX);
+  if (cy) *cy = clamp((double)sy / z + scrollY);
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
@@ -119,14 +126,16 @@ void BrowserPageGoanna::freeze() {
 }
 
 void BrowserPageGoanna::thaw(int key1, int key2, int size) {
-  // Reattach the (possibly new) shared buffers the adapter provides, validate
-  // them, resume painting, and repaint the current frame.
-  if (key1 && size > 0) {
-    const size_t need = (size_t)size;
-    bool ok = true;
-    for (int k : { key1, key2 }) { if (k && shmget(k, need, 0) < 0) ok = false; }
-    if (ok) { mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1; }
-  }
+  // Reattach the (possibly new) shared buffers the adapter provides. Only resume
+  // painting if BOTH required segments validate and fit the surface; otherwise
+  // STAY FROZEN so maybePaint can't write a stale/reused segment (Codex P0). The
+  // adapter must re-thaw with valid buffers.
+  if (!mPage) return;
+  const size_t need = (size_t)mPage->Width() * mPage->Height() * 4;
+  bool ok = key1 && size > 0 && (size_t)size >= need;
+  if (ok) for (int k : { key1, key2 }) { if (k && shmget(k, (size_t)size, 0) < 0) ok = false; }
+  if (!ok) return;   // remain frozen; keep the old (already-detached) keys inactive
+  mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
   mFrozen = false;
   mNeedsPaint = true;
 }
@@ -152,7 +161,7 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   if (!mPage) return;
-  if (zoom > 0.0) mZoom = zoom;   // remember for input coord mapping (R5)
+  if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
   mPage->SetZoom(zoom);
   mPage->ScrollTo(x, y);
   mNeedsPaint = true;
@@ -230,9 +239,11 @@ void BrowserPageGoanna::dragStart(int, int) { /* nothing to latch; deltas drive 
 void BrowserPageGoanna::dragProcess(int deltaX, int deltaY) {
   if (!mPage) return;
   // Drag scrolls the content opposite the finger; surface deltas -> content px.
-  double z = (mZoom > 0.0) ? mZoom : 1.0;
+  double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
   int sx = 0, sy = 0; mPage->GetScrollXY(&sx, &sy);
-  mPage->ScrollTo(sx - (int)(deltaX / z), sy - (int)(deltaY / z));
+  auto clamp = [](double v) -> int {
+    if (v < -1000000.0) return -1000000; if (v > 1000000.0) return 1000000; return (int)v; };
+  mPage->ScrollTo(clamp(sx - deltaX / z), clamp(sy - deltaY / z));
   mNeedsPaint = true;
 }
 

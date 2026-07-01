@@ -146,14 +146,22 @@ NS_IMETHODIMP PageChrome::Blur() { return NS_OK; }
 // which is NOT a load error and can arrive late, bleeding into the next load.
 static const nsresult kBindingAborted = (nsresult)0x804B0002;
 
-NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
+NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
+  // Only the TOP-LEVEL document drives page-level events (Codex P1): an iframe's
+  // document load must not set the page's redirected/cert/failed/link state.
+  bool top = false;
+  if (aWebProgress && mBrowser) {
+    nsCOMPtr<mozIDOMWindowProxy> pw; aWebProgress->GetDOMWindow(getter_AddRefs(pw));
+    nsCOMPtr<mozIDOMWindowProxy> cw; mBrowser->GetContentDOMWindow(getter_AddRefs(cw));
+    top = pw && cw && pw == cw;
+  }
   // A redirect of the main document (R4 url-redirected). STATE_REDIRECTING fires
   // on the document request before the new location is followed.
-  if ((f & STATE_REDIRECTING) && (f & STATE_IS_DOCUMENT)) mRedirected = true;
-  // Link-clicked (R6): a main-document load that STARTs while we did not initiate
-  // it via a command (BeginLoad sets mProgrammaticLoad) is a content-initiated
-  // (link/anchor) navigation. Capture its target.
-  if ((f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
+  if (top && (f & STATE_REDIRECTING) && (f & STATE_IS_DOCUMENT)) mRedirected = true;
+  // Link-clicked (R6): a top-level document load that STARTs while we did not
+  // initiate it via a command (BeginLoad sets mProgrammaticLoad) is a
+  // content-initiated (link/anchor) navigation. Capture its target.
+  if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
     mLinkClicked = true;
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) { nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl); }
@@ -163,7 +171,7 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
     // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
     // (a cancelled nav, can arrive late). First failure only. (Cert errors are
     // captured separately in NotifyCertProblem during the handshake, R5.)
-    if (NS_FAILED(aStatus) && aStatus != kBindingAborted &&
+    if (top && NS_FAILED(aStatus) && aStatus != kBindingAborted &&
         (f & STATE_IS_DOCUMENT) && !mLoadFailed && !mDone) {
       mLoadFailed = true;
       mErrorStatus = aStatus;
@@ -172,8 +180,12 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
         nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u));
         if (u) {
           u->GetSpec(mFailedUrl);
-          // A security-module failure on the document is a TLS/cert error (R5):
-          // the nsresult module field == NS_ERROR_MODULE_SECURITY(21)+offset(0x45).
+          // A security-module failure on the document is surfaced as an
+          // SSL-confirm (R5): nsresult module == NS_ERROR_MODULE_SECURITY(21) +
+          // offset(0x45). NOTE (Codex P1): this also catches non-overridable
+          // security failures; that is acceptable because rejecting aborts the
+          // load either way, and accept (the override) is device-gated. The code
+          // is carried so the adapter can distinguish specific errors.
           if ((((uint32_t)aStatus >> 16) & 0x7fff) == (21u + 0x45u)) {
             mCertError = true;
             u->GetHost(mCertHost);
@@ -278,6 +290,7 @@ void GoannaRenderPage::ScrollTo(int x, int y) {
   char js[96];
   snprintf(js, sizeof js, "javascript:void(window.scrollTo(%d,%d))", x, y);
   NS_ConvertUTF8toUTF16 u(js);
+  mChrome->mProgrammaticLoad = true;   // internal nav: never a link-click (Codex P1)
   nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
 }
 
@@ -318,11 +331,17 @@ void GoannaRenderPage::InsertText(const char* text) {
   // quotes/backslashes; exotic characters that need URL-encoding are a known limit.
   std::string esc;
   for (const char* p = text; *p; ++p) {
-    if (*p == '\'' || *p == '\\') esc += '\\';
-    esc += *p;
+    switch (*p) {
+      case '\'': case '\\': esc += '\\'; esc += *p; break;
+      case '\n': esc += "\\n"; break;
+      case '\r': esc += "\\r"; break;
+      case '\t': esc += "\\t"; break;
+      default: esc += *p; break;
+    }
   }
   std::string js = "javascript:void(document.execCommand('insertText',false,'" + esc + "'))";
   NS_ConvertUTF8toUTF16 u(js.c_str());
+  mChrome->mProgrammaticLoad = true;   // internal nav: never a link-click (Codex P1)
   nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
 }
 

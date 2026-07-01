@@ -87,6 +87,7 @@ public:
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
   void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
+  void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);

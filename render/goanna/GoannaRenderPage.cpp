@@ -279,6 +279,23 @@ void GoannaRenderPage::ScrollTo(int x, int y) {
   nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
 }
 
+void GoannaRenderPage::InsertText(const char* text) {
+  if (!mChrome || !text) return;
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  if (!nav) return;
+  // Insert at the caret of the focused editable via execCommand, run in page
+  // context through a javascript: URL (no frozen text-insertion API). Escapes
+  // quotes/backslashes; exotic characters that need URL-encoding are a known limit.
+  std::string esc;
+  for (const char* p = text; *p; ++p) {
+    if (*p == '\'' || *p == '\\') esc += '\\';
+    esc += *p;
+  }
+  std::string js = "javascript:void(document.execCommand('insertText',false,'" + esc + "'))";
+  NS_ConvertUTF8toUTF16 u(js.c_str());
+  nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+}
+
 bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
   if (!mChrome) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);

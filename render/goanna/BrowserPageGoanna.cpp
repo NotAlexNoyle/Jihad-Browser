@@ -192,6 +192,30 @@ void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
   mPage->MouseEvent(t, cx, cy, 0);
   mNeedsPaint = true;
 }
+void BrowserPageGoanna::holdAt(int x, int y) {
+  if (!mPage) return;
+  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5 mapping
+  mPage->MouseEvent("contextmenu", cx, cy, 2);   // long-press -> context menu
+  mNeedsPaint = true;
+}
+
+void BrowserPageGoanna::insertStringAtCursor(const char* text) {
+  if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; }
+}
+
+void BrowserPageGoanna::dragStart(int, int) { /* nothing to latch; deltas drive scroll */ }
+
+void BrowserPageGoanna::dragProcess(int deltaX, int deltaY) {
+  if (!mPage) return;
+  // Drag scrolls the content opposite the finger; surface deltas -> content px.
+  double z = (mZoom > 0.0) ? mZoom : 1.0;
+  int sx = 0, sy = 0; mPage->GetScrollXY(&sx, &sy);
+  mPage->ScrollTo(sx - (int)(deltaX / z), sy - (int)(deltaY / z));
+  mNeedsPaint = true;
+}
+
+void BrowserPageGoanna::dragEnd(int, int) { /* scroll already applied by dragProcess */ }
+
 void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
   if (mPage) mPage->SetJavaScriptEnabled(enable);
 }

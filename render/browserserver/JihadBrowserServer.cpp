@@ -152,17 +152,17 @@ void JihadBrowserServer::asyncCmdZoomSmartCalculateRequest(YapProxy* proxy, int3
 
 void JihadBrowserServer::asyncCmdDragStart(YapProxy* proxy, int32_t contentX, int32_t contentY)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->dragStart(contentX, contentY);
 }
 
 void JihadBrowserServer::asyncCmdDragProcess(YapProxy* proxy, int32_t deltaX, int32_t deltaY)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->dragProcess(deltaX, deltaY);
 }
 
 void JihadBrowserServer::asyncCmdDragEnd(YapProxy* proxy, int32_t contentX, int32_t contentY)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->dragEnd(contentX, contentY);
 }
 
 void JihadBrowserServer::asyncCmdSetMinFontSize(YapProxy* proxy, int32_t minFontSizePt)
@@ -264,7 +264,7 @@ void JihadBrowserServer::asyncCmdIsEditing(YapProxy* proxy, int32_t queryNum)
 
 void JihadBrowserServer::asyncCmdInsertStringAtCursor(YapProxy* proxy, const char* text)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->insertStringAtCursor(text);
 }
 
 void JihadBrowserServer::asyncCmdEnableSelection(YapProxy* proxy, int32_t pointX, int32_t pointY)
@@ -380,7 +380,7 @@ void JihadBrowserServer::asyncCmdTouchEvent(YapProxy* proxy, int32_t type, int32
 
 void JihadBrowserServer::asyncCmdHoldAt(YapProxy* proxy, int32_t contentX, int32_t contentY)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->holdAt(contentX, contentY);
 }
 
 void JihadBrowserServer::asyncCmdGetTextCaretBounds(YapProxy* proxy, int32_t queryNum)

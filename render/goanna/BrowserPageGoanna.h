@@ -91,6 +91,11 @@ public:
   void keyUp(int key, int modifiers, int chr);
   void mouseEvent(int type, int contentX, int contentY, int detail);
   void touchEvent(int type, int touchCount, int modifiers, const char* touchesJson);
+  void holdAt(int x, int y);                       // YAP: holdAt (long-press)
+  void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
+  void dragStart(int x, int y);                    // YAP: dragStart
+  void dragProcess(int deltaX, int deltaY);        // YAP: dragProcess (scroll)
+  void dragEnd(int x, int y);                      // YAP: dragEnd
 
   // --- settings (YAP: setEnableJavaScript) — per-page ---
   void settingsJavaScriptEnabled(bool enable);

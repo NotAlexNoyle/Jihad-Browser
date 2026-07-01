@@ -172,7 +172,7 @@ void JihadBrowserServer::asyncCmdSetMinFontSize(YapProxy* proxy, int32_t minFont
 
 void JihadBrowserServer::asyncCmdFindString(YapProxy* proxy, const char* str, bool fwd)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->findString(str, fwd);
 }
 
 void JihadBrowserServer::asyncCmdClearSelection(YapProxy* proxy)
@@ -390,12 +390,12 @@ void JihadBrowserServer::asyncCmdGetTextCaretBounds(YapProxy* proxy, int32_t que
 
 void JihadBrowserServer::asyncCmdFreeze(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->freeze();
 }
 
 void JihadBrowserServer::asyncCmdThaw(YapProxy* proxy, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->thaw(sharedBufferKey1, sharedBufferKey2, sharedBufferSize);
 }
 
 void JihadBrowserServer::asyncCmdReturnBuffer(YapProxy* proxy, int32_t sharedBufferKey)

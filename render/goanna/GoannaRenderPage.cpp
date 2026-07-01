@@ -20,6 +20,8 @@
 #include "nsIBaseWindow.h"
 #include "nsIWebNavigation.h"
 #include "nsISHistory.h"
+#include "nsIWebBrowserFind.h"
+#include "nsIWebBrowserFocus.h"
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
@@ -277,6 +279,34 @@ void GoannaRenderPage::ScrollTo(int x, int y) {
   snprintf(js, sizeof js, "javascript:void(window.scrollTo(%d,%d))", x, y);
   NS_ConvertUTF8toUTF16 u(js);
   nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+}
+
+bool GoannaRenderPage::Find(const char* text, bool forward) {
+  if (!mChrome || !text) return false;
+  nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(mChrome->mBrowser);
+  if (!ir) return false;
+  nsCOMPtr<nsIWebBrowserFind> finder;
+  ir->GetInterface(NS_GET_IID(nsIWebBrowserFind), getter_AddRefs(finder));
+  if (!finder) return false;
+  nsCOMPtr<nsIWebBrowserFocus> focus = do_QueryInterface(mChrome->mBrowser);
+  if (focus) {
+    focus->Activate();
+    nsCOMPtr<mozIDOMWindowProxy> win;
+    mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
+    if (win) focus->SetFocusedWindow(win);
+  }
+  NS_ConvertUTF8toUTF16 s(text);
+  finder->SetSearchString(s.get());
+  finder->SetFindBackwards(!forward);
+  finder->SetSearchFrames(true);
+  // KNOWN LIMITATION: nsIWebBrowserFind::FindNext faults in this offscreen
+  // configuration (it dereferences a frame-selection controller the offscreen
+  // browser doesn't fully set up). The BrowserServer daemon renders offscreen on
+  // the device too, so we must NOT call FindNext here -- it would crash the
+  // daemon. The finder is fully prepared (search string/direction set); wiring
+  // an offscreen-safe selection controller so FindNext can run is future work.
+  // The findString command stays dispatched (contract preserved) and safe.
+  return false;
 }
 
 void GoannaRenderPage::InsertText(const char* text) {

@@ -33,7 +33,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
-    mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0) {}
+    mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0), mFrozen(false) {}
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
   double z = (mZoom > 0.0) ? mZoom : 1.0;
@@ -111,6 +111,28 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   if (width == 0 || height == 0) return;
   if ((size_t)width * height * 4 > (size_t)mBufSize) return;
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; emitGeometry(); }
+}
+
+void BrowserPageGoanna::freeze() {
+  // Card backgrounded: stop painting (the adapter may free/reuse the buffers).
+  mFrozen = true;
+}
+
+void BrowserPageGoanna::thaw(int key1, int key2, int size) {
+  // Reattach the (possibly new) shared buffers the adapter provides, validate
+  // them, resume painting, and repaint the current frame.
+  if (key1 && size > 0) {
+    const size_t need = (size_t)size;
+    bool ok = true;
+    for (int k : { key1, key2 }) { if (k && shmget(k, need, 0) < 0) ok = false; }
+    if (ok) { mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1; }
+  }
+  mFrozen = false;
+  mNeedsPaint = true;
+}
+
+bool BrowserPageGoanna::findString(const char* text, bool forward) {
+  return mPage && text && mPage->Find(text, forward);
 }
 
 void BrowserPageGoanna::returnBuffer(int /*sharedBufferKey*/) {
@@ -296,7 +318,8 @@ void BrowserPageGoanna::pump(int msBudget) {
 }
 
 void BrowserPageGoanna::maybePaint() {
-  if (mNeedsPaint) paintToSharedBuffer();   // only when there is a new frame
+  if (mFrozen) return;                       // card backgrounded: don't paint
+  if (mNeedsPaint) paintToSharedBuffer();    // only when there is a new frame
 }
 
 void BrowserPageGoanna::paintToSharedBuffer() {

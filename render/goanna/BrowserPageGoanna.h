@@ -69,6 +69,9 @@ public:
             int sharedBufferKey1, int sharedBufferKey2, int sharedBufferSize);
   void setWindowSize(uint32_t width, uint32_t height);
   void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
+  void freeze();                           // YAP: freeze (card backgrounded — pause paint)
+  void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)
+  bool findString(const char* text, bool forward);  // YAP: findString
   void setScrollPosition(int x, int y);   // YAP: setScrollPosition
   void setZoomAndScroll(double zoom, int x, int y);   // YAP: setZoomAndScroll
 
@@ -123,6 +126,7 @@ private:
   int                mActiveKey;        // which shm buffer we last painted into
   bool               mLoadWasDone;
   bool               mNeedsPaint;       // set when there is a new frame to send
+  bool               mFrozen;           // card backgrounded: skip painting
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

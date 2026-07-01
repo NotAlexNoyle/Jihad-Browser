@@ -88,6 +88,7 @@ public:
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
   void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
   void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
+  bool Find(const char* text, bool forward);       // find in page (YAP: findString)
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);

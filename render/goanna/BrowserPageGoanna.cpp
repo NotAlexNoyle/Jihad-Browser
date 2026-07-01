@@ -251,6 +251,10 @@ void BrowserPageGoanna::pump(int msBudget) {
   mPage->PumpFor(msBudget);
   emitLoadAndLocation();
   emitScrollIfChanged();
+  // R6 link-clicked: a content-initiated navigation is reported as it happens,
+  // independent of the command-driven load lifecycle.
+  std::string linkUrl;
+  if (mPage->TakeLinkClicked(&linkUrl)) mSink.msgLinkClicked(linkUrl.c_str());
 }
 
 void BrowserPageGoanna::maybePaint() {

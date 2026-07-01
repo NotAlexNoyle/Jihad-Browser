@@ -54,6 +54,7 @@ public:
   virtual void msgSSLConfirm(const char* host, int32_t code, const char* certFile) {
     (void)host; (void)code; (void)certFile;
   }
+  virtual void msgLinkClicked(const char* url) { (void)url; }
 };
 
 class BrowserPageGoanna

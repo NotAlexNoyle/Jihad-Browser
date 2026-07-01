@@ -62,12 +62,16 @@ public:
   NS_DECL_NSIBADCERTLISTENER2
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
-                             mCertError(false), mErrorStatus(NS_OK), mCertPort(443),
+                             mCertError(false), mProgrammaticLoad(true),
+                             mLinkClicked(false), mErrorStatus(NS_OK), mCertPort(443),
                              mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
   bool mRedirected;          // the main document was redirected during this load
   bool mCertError;           // last load failed on an (overridable) cert error
+  bool mProgrammaticLoad;    // current load was started by a command (not a link)
+  bool mLinkClicked;         // a content-initiated (link) navigation was seen
+  nsCString mLinkUrl;        // its target URL
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
@@ -144,6 +148,14 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
   // A redirect of the main document (R4 url-redirected). STATE_REDIRECTING fires
   // on the document request before the new location is followed.
   if ((f & STATE_REDIRECTING) && (f & STATE_IS_DOCUMENT)) mRedirected = true;
+  // Link-clicked (R6): a main-document load that STARTs while we did not initiate
+  // it via a command (BeginLoad sets mProgrammaticLoad) is a content-initiated
+  // (link/anchor) navigation. Capture its target.
+  if ((f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
+    mLinkClicked = true;
+    nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
+    if (ch) { nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl); }
+  }
   if (f & STATE_STOP) {
     // Failed-load (R3, non-cert): scope to the main document so a broken
     // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
@@ -168,7 +180,12 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
         }
       }
     }
-    if (f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) mDone = true;
+    if (f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) {
+      mDone = true;
+      // The command-initiated load has finished; any load that starts next
+      // without a BeginLoad is a content-initiated (link) navigation.
+      mProgrammaticLoad = false;
+    }
   }
   return NS_OK;
 }
@@ -330,6 +347,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mLoadFailed = false;
   mChrome->mRedirected = false;
   mChrome->mCertError = false;
+  mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
   mChrome->mCertHost.Truncate();
@@ -409,6 +427,14 @@ void GoannaRenderPage::ClearHistory() {
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
+
+bool GoannaRenderPage::TakeLinkClicked(std::string* url) {
+  if (!mChrome || !mChrome->mLinkClicked) return false;
+  if (url) *url = std::string(mChrome->mLinkUrl.get());
+  mChrome->mLinkClicked = false;   // consume
+  mChrome->mLinkUrl.Truncate();
+  return true;
+}
 
 bool GoannaRenderPage::GetCertError(std::string* host, int* code) {
   if (!mChrome || !mChrome->mCertError) return false;

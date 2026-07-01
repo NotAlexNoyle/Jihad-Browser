@@ -22,6 +22,7 @@ void ProxySink::msgUpdateGlobalHistory(const char* u, bool reload) { mSrv->msgUp
 void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRedirected(mProxy, u, ud); }
 // syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
+void ProxySink::msgLinkClicked(const char* url) { mSrv->msgLinkClicked(mProxy, url); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)

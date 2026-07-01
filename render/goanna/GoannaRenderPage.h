@@ -104,6 +104,9 @@ public:
   bool GetLoadError(bool* failed, int* code, std::string* url);
   // Whether the main document was redirected during the last load (R4).
   bool DidRedirect() const;
+  // If a content-initiated (link) navigation was seen, return its URL and clear
+  // the flag (R6 link-clicked). Returns false if none pending.
+  bool TakeLinkClicked(std::string* url);
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);

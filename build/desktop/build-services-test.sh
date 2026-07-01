@@ -15,9 +15,10 @@ INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/ns
 
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"       -o /out/EngineHost.o       || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/DialogService.cpp"    -o /out/DialogService.o    || exit 10
 $CXX $CXXFLAGS $INCS -c "$SRC/GoannaRenderPage.cpp" -o /out/GoannaRenderPage.o || exit 11
 $CXX $CXXFLAGS $INCS -c "$SRC/test/services_test.cpp"  -o /out/services_test.o       || exit 12
-$CXX /out/services_test.o /out/GoannaRenderPage.o /out/EngineHost.o \
+$CXX /out/services_test.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o \
   "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \
   -lnspr4 -lplc4 -lplds4 $GTK_LIBS -Wl,-rpath,"$DIST/bin" -ldl -lpthread -o "$OUT" || exit 13
 set +x

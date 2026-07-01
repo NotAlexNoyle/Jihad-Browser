@@ -18,7 +18,7 @@ last_edited: "2026-06-30"
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | **click/key/mouse verified; touch wired** | 5 | ClickAt/KeyEvent/MouseEvent via nsIDOMWindowUtils, wired through daemon; VERIFIED (click fires onclick, INPUT PASS). TouchEvent (SendTouchEvent) implemented + wired but the offscreen desktop GTK widget doesn't route synthetic touch to the DOM — on-device verification pending. Gesture + coord-mapping remain |
 | Navigation, Loading & Events | 0 | 6 | not started |
-| Browser Services | **settings + cache/cookies** | 5 | setEnableJavaScript (global pref + docShell), setUserAgent (UA override pref), clearCache (nsICacheStorageService), clearCookies (nsICookieManager) wired through the daemon; verified JS-off blocks onclick (SERVICES PASS). Dialogs/downloads/TLS remain |
+| Browser Services | **settings + cache/cookies + JS dialogs** | 5 | setEnableJavaScript (global pref + docShell), setUserAgent, clearCache, clearCookies — SERVICES PASS. **JS dialogs (R3): DialogService overrides `@mozilla.org/prompter;1` (nsIPromptFactory→nsIPrompt) so alert/confirm/prompt are captured by a sink instead of a chrome window — installed in EngineHost so the headless daemon never hangs on a dialog; verified capture + reply routing (DIALOG PASS: alert text captured, confirm=true→green).** Downloads/TLS + per-adapter blocking msgDialog* delivery remain |
 | Desktop Build & PoC | 0 | 4 | not started |
 | Device Build & Packaging | 0 | 5 | not started |
 

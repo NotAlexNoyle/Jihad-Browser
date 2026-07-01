@@ -12,6 +12,7 @@
 #include "nsComponentManagerUtils.h" // do_CreateInstance
 #include "nsXPCOM.h"                  // NS_NewNativeLocalFile
 #include "nsStringGlue.h"            // nsCString / nsDependentCString (frozen API)
+#include "DialogService.h"           // InstallDialogService (dialog interception)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
 #define JIHAD_NS_WEBBROWSER_CONTRACTID "@mozilla.org/embedding/browser/nsWebBrowser;1"
@@ -45,6 +46,14 @@ EngineHost::Init(const char* greDir)
   // no custom directory-service provider is needed for the smoke bring-up.
   rv = XRE_InitEmbedding2(dir, dir, nullptr);
   mInited = NS_SUCCEEDED(rv);
+
+  // Override "@mozilla.org/prompter;1" so content dialogs (alert/confirm/prompt)
+  // are captured by our sink instead of trying to open a chrome dialog window,
+  // which is absent in the headless daemon and would otherwise hang the load.
+  // With no sink installed the default is deny/OK — the engine never blocks.
+  if (mInited) {
+    InstallDialogService();
+  }
   return mInited;
 }
 

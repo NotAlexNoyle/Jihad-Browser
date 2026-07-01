@@ -25,10 +25,11 @@ INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/ns
 echo "== compiling EngineHost + embed_smoke =="
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"      -o /out/EngineHost.o    || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/DialogService.cpp"   -o /out/DialogService.o || exit 10
 $CXX $CXXFLAGS $INCS -c "$SRC/test/embed_smoke.cpp" -o /out/embed_smoke.o  || exit 11
 
 echo "== linking against libxul =="
-$CXX /out/embed_smoke.o /out/EngineHost.o \
+$CXX /out/embed_smoke.o /out/EngineHost.o /out/DialogService.o \
   "$DIST/sdk/lib/libxpcomglue_s.a" \
   -L"$DIST/bin" -lxul \
   "$DIST/sdk/lib/libmozglue.a" \

@@ -64,6 +64,7 @@ public:
   void ClickAt(int x, int y, int numClicks);                 // mousedown+mouseup
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
+  void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);

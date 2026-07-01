@@ -67,6 +67,7 @@ public:
   void keyDown(int key, int modifiers, int chr);
   void keyUp(int key, int modifiers, int chr);
   void mouseEvent(int type, int contentX, int contentY, int detail);
+  void touchEvent(int type, int touchCount, int modifiers, const char* touchesJson);
 
   // --- settings (YAP: setEnableJavaScript) — per-page ---
   void settingsJavaScriptEnabled(bool enable);

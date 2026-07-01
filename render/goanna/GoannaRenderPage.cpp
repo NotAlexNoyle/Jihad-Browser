@@ -274,6 +274,19 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
 }
 
+void GoannaRenderPage::TouchEvent(const char* type, int x, int y) {
+  if (!mChrome) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return;
+  uint32_t ids[1]   = { 0 };
+  int32_t  xs[1]    = { x }, ys[1] = { y };
+  uint32_t rxs[1]   = { 1 }, rys[1] = { 1 };
+  float    angs[1]  = { 0.0f }, forces[1] = { 1.0f };
+  bool ret = false;
+  NS_ConvertUTF8toUTF16 t(type);
+  u->SendTouchEvent(t, ids, xs, ys, rxs, rys, angs, forces, 1, 0, false, &ret);
+}
+
 void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
   // Global pref (read by the JS engine when a page's context is created) — must
   // be set before the page loads. Also set the per-docShell flag when present.

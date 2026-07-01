@@ -105,6 +105,20 @@ void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
 void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
   if (mPage) mPage->SetJavaScriptEnabled(enable);
 }
+void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const char* touchesJson) {
+  if (!mPage) return;
+  // Minimal parse of the first touch point's x/y from the touches JSON.
+  int x = 0, y = 0;
+  if (touchesJson) {
+    const char* px = strstr(touchesJson, "\"x\"");
+    const char* py = strstr(touchesJson, "\"y\"");
+    if (px) sscanf(px, "\"x\"%*[: ]%d", &x);
+    if (py) sscanf(py, "\"y\"%*[: ]%d", &y);
+  }
+  const char* t = (type == 0) ? "touchstart" : (type == 2) ? "touchend" : "touchmove";
+  mPage->TouchEvent(t, x, y);
+  mNeedsPaint = true;
+}
 
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;

@@ -275,11 +275,18 @@ int main(int argc, char** argv) {
 
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(wb);
   if (!nav) { fprintf(stderr, "[embed_load] FAIL: QI nsIWebNavigation\n"); return 5; }
-  const char16_t* url = u"data:text/html,<title>Jihad</title>"
+  // URL is overridable via $JIHAD_URL (e.g. a real http(s):// site); defaults to
+  // a self-contained data: page so the test needs no network.
+  const char16_t* defUrl = u"data:text/html,<title>Jihad</title>"
     u"<body style='background:%23224488;color:white;font-family:sans-serif;font-size:48px'>"
     u"<h1>Goanna inside, webOS alive, inshallah.</h1></body>";
+  nsString urlStr;
+  const char* envUrl = getenv("JIHAD_URL");
+  if (envUrl && *envUrl) urlStr = NS_ConvertUTF8toUTF16(envUrl);
+  else urlStr = defUrl;
+  printf("[embed_load] loading: %s\n", NS_ConvertUTF16toUTF8(urlStr).get());
   chrome->mDone = false;   // reset per-load (Codex P2: needed if browser reused)
-  rv = nav->LoadURI(url, nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+  rv = nav->LoadURI(urlStr.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
   printf("[embed_load] LoadURI rv=0x%x\n", (unsigned)rv);
 
   // Pump the XPCOM thread event queue (canonical embedding loop) plus any

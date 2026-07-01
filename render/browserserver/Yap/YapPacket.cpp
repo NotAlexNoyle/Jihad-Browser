@@ -352,7 +352,10 @@ void YapPacket::operator>>(char*& val)
         g_return_if_fail(false);
     }
 
-    int16_t strLen = 0;
+    // Jihad hardening (Codex P0): use an UNSIGNED length so a wire value like
+    // 0xffff can't become negative, pass the bounds check, and blow up malloc/
+    // memcpy as a huge size_t. Bound the read against the packet length.
+    uint16_t strLen = 0;
 
     uint8_t* pSrc = m_buffer + m_currReadPos;
     uint8_t* pDst = (uint8_t*)(&strLen);
@@ -361,8 +364,8 @@ void YapPacket::operator>>(char*& val)
     pDst[1] = pSrc[0];
     m_currReadPos += 2;
 
-    g_return_if_fail((m_currReadPos + strLen) <= m_readTotalLen);
-    val = (char*) malloc(strLen + 1);
+    g_return_if_fail((size_t)(m_currReadPos + strLen) <= (size_t)m_readTotalLen);
+    val = (char*) malloc((size_t)strLen + 1);
 
     memcpy(val, m_buffer + m_currReadPos, strLen);
     val[strLen] = 0;

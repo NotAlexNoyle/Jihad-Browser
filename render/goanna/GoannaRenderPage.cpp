@@ -92,14 +92,24 @@ GoannaRenderPage::GoannaRenderPage(EngineHost& host)
   : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidth(0), mHeight(0) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
+  // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
+  // clear the container window, destroy the browser + base window, then release
+  // the chrome and the native GTK window. All browser refs must be gone before
+  // the engine's XRE_TermEmbedding runs.
   nsCOMPtr<nsIWebBrowser> wb = mChrome ? mChrome->mBrowser : nullptr;
   if (wb) {
+    nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(wb);
+    if (nav) nav->Stop(nsIWebNavigation::STOP_ALL);
+    nsCOMPtr<nsIWeakReference> weak =
+      do_GetWeakReference(static_cast<nsIWebBrowserChrome*>(mChrome));
+    if (weak) wb->RemoveWebBrowserListener(weak, NS_GET_IID(nsIWebProgressListener));
+    wb->SetContainerWindow(nullptr);
     nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(wb);
     if (bw) bw->Destroy();
     mChrome->mBrowser = nullptr;
   }
   if (mChrome) { NS_RELEASE(mChrome); }   // release our ref
-  if (mWindow) gtk_widget_destroy(mWindow);
+  if (mWindow) { gtk_widget_destroy(mWindow); mWindow = nullptr; }
 }
 
 bool GoannaRenderPage::Create(int width, int height) {

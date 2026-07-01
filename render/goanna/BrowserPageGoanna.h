@@ -66,8 +66,11 @@ public:
   // msgPainted(key). Called from the paint timer / on invalidation.
   void paintToSharedBuffer();
 
-  // The daemon calls this to advance engine + load state (event-loop tick).
+  // The daemon calls these each event-loop tick: pump advances engine+load
+  // state (emitting load msgs); maybePaint paints only when there is new
+  // content (dedup — avoids 60 Hz blank/stale frames; Codex P2).
   void pump(int msBudget);
+  void maybePaint();
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
@@ -78,6 +81,7 @@ private:
   int                mKey1, mKey2, mBufSize;
   int                mActiveKey;        // which shm buffer we last painted into
   bool               mLoadWasDone;
+  bool               mNeedsPaint;       // set when there is a new frame to send
 
   BrowserPageGoanna(const BrowserPageGoanna&) = delete;
   BrowserPageGoanna& operator=(const BrowserPageGoanna&) = delete;

@@ -145,7 +145,10 @@ int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);   // unbuffered: keep trace across a crash
   setvbuf(stderr, nullptr, _IONBF, 0);
   const char* greDir = (argc > 1) ? argv[1] : ".";
-  const bool tryRender = getenv("JIHAD_TRY_RENDER") != nullptr;
+  // Rendering works with the OMTC-off + gfx-init engine patches (0003/0004) and
+  // JIHAD_DISABLE_OMTC=1 (set by build-embed-load.sh). On by default now; set
+  // JIHAD_NO_RENDER to run load-only.
+  const bool tryRender = getenv("JIHAD_NO_RENDER") == nullptr;
   printf("[embed_load] start; greDir=%s tryRender=%d\n", greDir, (int)tryRender);
   gtk_init(&argc, &argv);
   printf("[embed_load] gtk_init done\n");
@@ -188,12 +191,13 @@ int main(int argc, char** argv) {
   baseWin->Create();
   baseWin->SetVisibility(true);
   if (tryRender) {
-    // Mapping triggers paint. KNOWN ISSUE: on this UXP/Linux the GTK widget
-    // forces a ClientLayerManager and XRE_InitEmbedding2 brings up no compositor
-    // for it to forward to, so the first expose crashes in
-    // ClientLayerManager::ForwardTransaction. Gated until the render backend
-    // initializes a compositor (see PORT-MAP.md + context/impl/dead-ends.md).
-    // The load path below works without mapping.
+    // Mapping triggers paint. This works with the engine patches:
+    //  - 0003 (JIHAD_DISABLE_OMTC): force the in-process BasicLayerManager
+    //    (CPU layers), avoiding the ClientLayerManager/compositor crash.
+    //  - 0004: gfxPlatform::GetPlatform() in XRE_InitEmbedding2 so gfxVars/
+    //    gfxConfig are initialized before the first paint.
+    // The page then paints into the (offscreen, Xvfb) GTK window and we read it
+    // back with GDK -> shmem-equivalent bitmap. See PORT-MAP.md.
     gtk_widget_show_all(win);
     while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
     printf("[embed_load] window mapped + embedded\n");

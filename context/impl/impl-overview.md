@@ -11,8 +11,9 @@ last_edited: "2026-06-30"
 | IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
 | Licensing & Branding | 3 | 5 | T-001/T-002/T-003 done |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
-| Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; **page LOADS to completion** in our embedder (event loop + load lifecycle); T-012 next |
+| Engine Embedding & Build | 3 (T-010, T-013, T-019 demo) | 4 | libxul built; embed smoke passes; page loads; T-012 next |
 | Navigation, Loading & Events | demo | 6 | load lifecycle (START→…→STATE_STOP) observed end-to-end via embed_load; formal wiring to YAP msgs pending |
+| Offscreen Rendering | **T-020 RENDERS** | 5 | **Goanna renders a real page to a 1024×768 pixel buffer** (docs/jihad-render-proof.png) via BasicLayerManager CPU paint; readback via GDK; shmem wiring + msgPainted next |
 | Offscreen Rendering | 0 | 5 | not started |
 | Input Bridging | 0 | 5 | not started |
 | Navigation, Loading & Events | 0 | 6 | not started |

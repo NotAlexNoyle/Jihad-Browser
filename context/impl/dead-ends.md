@@ -7,6 +7,26 @@ last_edited: "2026-06-30"
 
 Failed approaches and their root causes, so they are not retried.
 
+## ✅ RESOLVED (2026-06-30): headless rendering now WORKS
+
+The "rendering needs a full in-tree rewrite" conclusion below was **too
+pessimistic**. Headless rendering works with **two small engine patches** +
+Xvfb, no backend rewrite:
+- **patches/0003** — `gfxPlatform::UsesOffMainThreadCompositing()` honors
+  `JIHAD_DISABLE_OMTC` env → force the in-process **BasicLayerManager** (CPU
+  paint), sidestepping the compositor entirely (fixes crash #1 below).
+- **patches/0004** — call `gfxPlatform::GetPlatform()` in `XRE_InitEmbedding2`
+  so `gfxVars`/`gfxConfig` are initialized before first paint (fixes the
+  `gfxVars::UseXRender` null crash that appeared after 0003).
+
+Result: `embed_load` (default) paints a real page into the offscreen GTK window
+and GDK-captures it — `docs/jihad-render-proof.png` (blue #224488 bg + white
+heading, 728k non-white px, exit 0). The detailed crash-progression notes below
+are kept for history; they are no longer blockers.
+
+---
+
+
 ## Headless rendering via the minimal external embedder (frozen API) — does NOT work for paint
 
 **What was tried:** drive paint by giving the `nsIWebBrowser` (created via the

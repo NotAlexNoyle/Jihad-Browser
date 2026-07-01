@@ -48,6 +48,9 @@ fi
 echo "== ensured embed prefs in goanna.js (OMTC off) =="
 
 echo "== running under Xvfb =="
+# JIHAD_DISABLE_OMTC forces the in-process BasicLayerManager (CPU paint), which
+# the headless render path needs (engine patch 0003).
+export JIHAD_DISABLE_OMTC=1
 LD_LIBRARY_PATH="$DIST/bin" xvfb-run -a -s "-screen 0 1024x768x24" "$OUT" "$DIST/bin"
 rc=$?
 echo "== embed_load exit code: $rc =="

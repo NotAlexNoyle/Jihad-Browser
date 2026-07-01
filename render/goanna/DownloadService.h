@@ -33,7 +33,10 @@ class DownloadSink {
 // after the engine is initialised. Idempotent; returns false on failure.
 bool InstallDownloadService();
 
-// Set (or clear, with nullptr) the process-wide sink. Not owned.
+// Set (or clear, with nullptr) the process-wide sink. Not owned. Threading/
+// lifetime contract (Codex P0): call only from the embedding (main) thread, and
+// clear the sink before the sink object is destroyed. EngineHost::Shutdown clears
+// it as a process-lifetime backstop.
 void SetDownloadSink(DownloadSink* sink);
 
 } // namespace jihad

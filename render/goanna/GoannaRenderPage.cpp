@@ -99,11 +99,12 @@ static const nsresult kBindingAborted = (nsresult)0x804B0002;
 
 NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
   if (f & STATE_STOP) {
-    // A failing stop status is a failed load (R3). It arrives on the request-level
-    // stop (connection refused etc.) before Goanna swaps in a neterror page, so
-    // the later window/network stop reports NS_OK -- capture the first real
-    // failure of the load in progress (ignore aborts + post-completion noise).
-    if (NS_FAILED(aStatus) && aStatus != kBindingAborted && !mLoadFailed && !mDone) {
+    // A failing stop status is a failed load (R3). Scope it to the main document
+    // (STATE_IS_DOCUMENT) so a broken subresource doesn't mark the page failed;
+    // ignore NS_BINDING_ABORTED (a cancelled nav, can arrive late) and only take
+    // the first failure of the load in progress (BeginLoad resets between loads).
+    if (NS_FAILED(aStatus) && aStatus != kBindingAborted &&
+        (f & STATE_IS_DOCUMENT) && !mLoadFailed && !mDone) {
       mLoadFailed = true;
       mErrorStatus = aStatus;
       nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
@@ -233,6 +234,9 @@ bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   if (!mChrome) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
+  // GetRootBounds returns the root scroll frame's bounds, i.e. the full scrollable
+  // document rect (Codex P2): geo_test confirms a 2500px-tall page reports 2500,
+  // not the 768px viewport -- so this is the content size, not just the viewport.
   nsCOMPtr<nsIDOMClientRect> r;
   if (NS_FAILED(u->GetRootBounds(getter_AddRefs(r))) || !r) return false;
   float fw = 0.0f, fh = 0.0f;
@@ -263,14 +267,21 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
   return true;
 }
 
-bool GoannaRenderPage::LoadUrl(const char* url) {
-  if (!mChrome) return false;
-  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
-  if (!nav) return false;
+// Reset per-load state before any navigation so a prior load's completion/failure
+// never bleeds into the next one (Codex P1). Called from every nav entry point.
+void GoannaRenderPage::BeginLoad() {
+  if (!mChrome) return;
   mChrome->mDone = false;
   mChrome->mLoadFailed = false;
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
+}
+
+bool GoannaRenderPage::LoadUrl(const char* url) {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  if (!nav) return false;
+  BeginLoad();
   NS_ConvertUTF8toUTF16 u(url);
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
 }
@@ -319,9 +330,9 @@ bool GoannaRenderPage::CanGoForward() {
   bool v = false; if (n) n->GetCanGoForward(&v); return v;
 }
 
-void GoannaRenderPage::GoBack()    { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoBack(); } }
-void GoannaRenderPage::GoForward() { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoForward(); } }
-void GoannaRenderPage::Reload()    { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Reload(nsIWebNavigation::LOAD_FLAGS_NONE); } }
+void GoannaRenderPage::GoBack()    { if (mChrome) { BeginLoad(); nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoBack(); } }
+void GoannaRenderPage::GoForward() { if (mChrome) { BeginLoad(); nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoForward(); } }
+void GoannaRenderPage::Reload()    { if (mChrome) { BeginLoad(); nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Reload(nsIWebNavigation::LOAD_FLAGS_NONE); } }
 void GoannaRenderPage::Stop()      { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Stop(nsIWebNavigation::STOP_ALL); } }
 
 void GoannaRenderPage::ClearHistory() {

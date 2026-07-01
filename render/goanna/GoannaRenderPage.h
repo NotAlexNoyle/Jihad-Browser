@@ -105,6 +105,8 @@ public:
   std::string CurrentUri();
 
 private:
+  void BeginLoad();   // reset per-load state (done + failure) before a navigation
+
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
   GtkWidget* mWindow;

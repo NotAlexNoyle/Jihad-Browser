@@ -83,6 +83,12 @@ JihadHelperDialog::CreateInstance(nsISupports* aOuter, const nsIID& aIID, void**
 NS_IMETHODIMP JihadHelperDialog::LockFactory(bool) { return NS_OK; }
 
 // nsIHelperAppLauncherDialog — capture the handoff instead of opening a window.
+// NOTE (Codex P1): this UXP's nsIHelperAppLauncher has no Cancel(); returning
+// NS_OK without SaveToDisk leaves the launcher unresolved (the engine may leave a
+// temp file). Actually saving/cancelling requires the adapter to choose a
+// destination over the YAP contract (msgDownload* + a reply) -- device/adapter
+// work. Here we only surface the handoff so the daemon never blocks on a chrome
+// save dialog.
 NS_IMETHODIMP
 JihadHelperDialog::Show(nsIHelperAppLauncher* aLauncher, nsISupports*, uint32_t) {
   Report(aLauncher);

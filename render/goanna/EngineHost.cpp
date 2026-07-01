@@ -83,6 +83,13 @@ EngineHost::Shutdown()
   if (!mInited) {
     return;
   }
+  // Clear the process-global service sinks before XPCOM teardown so a late
+  // prompt/download callback can never call through a dangling sink pointer
+  // (Codex P0). These services are driven on the embedding (main) thread, and
+  // the sink must only be set/cleared from that thread; clearing here is the
+  // process-lifetime backstop even if a caller forgot to clear its own sink.
+  SetDialogSink(nullptr);
+  SetDownloadSink(nullptr);
   // CAUTION (Codex P1): XRE_TermEmbedding tears down the process-wide runtime.
   // The caller MUST have released every nsIWebBrowser and listener first. In the
   // daemon this is invoked once at process exit, after BrowserPageManager has

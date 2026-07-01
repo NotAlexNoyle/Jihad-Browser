@@ -43,7 +43,10 @@ class DialogSink {
 // is initialised (XRE_InitEmbedding2). Idempotent; returns false on failure.
 bool InstallDialogService();
 
-// Set (or clear, with nullptr) the process-wide sink. Not owned.
+// Set (or clear, with nullptr) the process-wide sink. Not owned. Threading/
+// lifetime contract (Codex P0): call only from the embedding (main) thread, and
+// clear the sink (SetDialogSink(nullptr)) before the sink object is destroyed.
+// EngineHost::Shutdown clears it as a process-lifetime backstop.
 void SetDialogSink(DialogSink* sink);
 
 } // namespace jihad

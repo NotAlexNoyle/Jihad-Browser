@@ -165,9 +165,15 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true;
     mNeedsPaint = true;   // paint the final frame once (dedup — Codex P2)
     mSink.msgLoadProgress(100);
-    // R3: a network-level failure emits msgFailedLoad before load-stopped.
+    // R5: an overridable certificate error surfaces as an SSL-confirm dialog
+    // rather than a generic failed load. R3: other network failures -> failed.
     bool failed = false; int code = 0; std::string furl;
-    if (mPage->GetLoadError(&failed, &code, &furl) && failed) {
+    mPage->GetLoadError(&failed, &code, &furl);
+    std::string chost; int ccode = 0;
+    bool certErr = mPage->GetCertError(&chost, &ccode);
+    if (certErr) {
+      mSink.msgSSLConfirm(chost.c_str(), ccode, "");
+    } else if (failed) {
       mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
     }
     mSink.msgLoadStopped();

@@ -50,6 +50,9 @@ public:
   // Optional events (default no-op so existing sinks need not override).
   virtual void msgUpdateGlobalHistory(const char* url, bool reload) { (void)url; (void)reload; }
   virtual void msgUrlRedirected(const char* url, const char* userData) { (void)url; (void)userData; }
+  virtual void msgSSLConfirm(const char* host, int32_t code, const char* certFile) {
+    (void)host; (void)code; (void)certFile;
+  }
 };
 
 class BrowserPageGoanna

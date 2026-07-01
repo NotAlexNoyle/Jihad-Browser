@@ -35,6 +35,7 @@ public:
   void msgFailedLoad(const char* domain, int32_t code, const char* url, const char* description) override;
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
   void msgUrlRedirected(const char* url, const char* userData) override;
+  void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;

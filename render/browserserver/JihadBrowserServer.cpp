@@ -20,6 +20,8 @@ void ProxySink::msgMetaViewportSet(double is, double mn, double mx, int32_t w, i
 void ProxySink::msgFailedLoad(const char* d, int32_t c, const char* u, const char* desc) { mSrv->msgFailedLoad(mProxy, d, c, u, desc); }
 void ProxySink::msgUpdateGlobalHistory(const char* u, bool reload) { mSrv->msgUpdateGlobalHistory(mProxy, u, reload); }
 void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRedirected(mProxy, u, ud); }
+// syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
+void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)

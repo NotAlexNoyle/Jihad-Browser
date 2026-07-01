@@ -24,6 +24,10 @@
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
 #include "nsIChannel.h"
+#include "nsISSLStatus.h"
+#include "nsIBadCertListener2.h"
+#include "nsIX509Cert.h"
+#include "nsICertOverrideService.h"
 #include "nsIDOMClientRect.h"
 #include "nsWeakReference.h"
 #include "nsIWeakReferenceUtils.h"
@@ -46,6 +50,7 @@ class PageChrome final : public nsIWebBrowserChrome,
                          public nsIEmbeddingSiteWindow,
                          public nsIInterfaceRequestor,
                          public nsIWebProgressListener,
+                         public nsIBadCertListener2,
                          public nsSupportsWeakReference
 {
 public:
@@ -54,14 +59,20 @@ public:
   NS_DECL_NSIEMBEDDINGSITEWINDOW
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSIWEBPROGRESSLISTENER
+  NS_DECL_NSIBADCERTLISTENER2
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
-                             mErrorStatus(NS_OK), mW(w), mH(h) {}
+                             mCertError(false), mErrorStatus(NS_OK), mCertPort(443),
+                             mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
   bool mRedirected;          // the main document was redirected during this load
+  bool mCertError;           // last load failed on an (overridable) cert error
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
+  nsCString mCertHost;       // host of the cert error
+  int32_t mCertPort;         // port of the cert error
+  nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -70,7 +81,38 @@ private:
 
 NS_IMPL_ISUPPORTS(PageChrome, nsIWebBrowserChrome, nsIEmbeddingSiteWindow,
                   nsIInterfaceRequestor, nsIWebProgressListener,
-                  nsISupportsWeakReference)
+                  nsIBadCertListener2, nsISupportsWeakReference)
+
+// Cert error hook (R5): called during a bad TLS handshake with the SSL status
+// (which carries the untrusted server cert) BEFORE the connection fails. We
+// capture the cert + host/port and return false (don't silently proceed) so the
+// error surfaces as an SSL-confirm; on accept, AcceptCurrentCert adds a validity
+// override and a reload then handshakes clean (this hook isn't called again).
+NS_IMETHODIMP PageChrome::NotifyCertProblem(nsIInterfaceRequestor*,
+                                            nsISSLStatus* status,
+                                            const nsACString& targetSite,
+                                            bool* _retval) {
+  if (_retval) *_retval = false;   // surface the error (reject by default)
+  if (status) {
+    nsCOMPtr<nsIX509Cert> cert;
+    status->GetServerCert(getter_AddRefs(cert));
+    if (cert) {
+      mCertError = true;
+      mCertCert = cert;
+      // targetSite is "host:port".
+      nsCString site(targetSite);
+      int32_t colon = site.RFindChar(':');
+      if (colon >= 0) {
+        mCertHost = Substring(site, 0, colon);
+        nsCString portStr(Substring(site, colon + 1));
+        mCertPort = atoi(portStr.get());
+      } else {
+        mCertHost = site; mCertPort = 443;
+      }
+    }
+  }
+  return NS_OK;
+}
 
 NS_IMETHODIMP PageChrome::GetInterface(const nsIID& aIID, void** r) { return QueryInterface(aIID, r); }
 NS_IMETHODIMP PageChrome::SetStatus(uint32_t, const char16_t*) { return NS_OK; }
@@ -103,10 +145,10 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
   // on the document request before the new location is followed.
   if ((f & STATE_REDIRECTING) && (f & STATE_IS_DOCUMENT)) mRedirected = true;
   if (f & STATE_STOP) {
-    // A failing stop status is a failed load (R3). Scope it to the main document
-    // (STATE_IS_DOCUMENT) so a broken subresource doesn't mark the page failed;
-    // ignore NS_BINDING_ABORTED (a cancelled nav, can arrive late) and only take
-    // the first failure of the load in progress (BeginLoad resets between loads).
+    // Failed-load (R3, non-cert): scope to the main document so a broken
+    // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
+    // (a cancelled nav, can arrive late). First failure only. (Cert errors are
+    // captured separately in NotifyCertProblem during the handshake, R5.)
     if (NS_FAILED(aStatus) && aStatus != kBindingAborted &&
         (f & STATE_IS_DOCUMENT) && !mLoadFailed && !mDone) {
       mLoadFailed = true;
@@ -114,7 +156,16 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress*, nsIRequest* aRequest, u
       nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
       if (ch) {
         nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u));
-        if (u) u->GetSpec(mFailedUrl);
+        if (u) {
+          u->GetSpec(mFailedUrl);
+          // A security-module failure on the document is a TLS/cert error (R5):
+          // the nsresult module field == NS_ERROR_MODULE_SECURITY(21)+offset(0x45).
+          if ((((uint32_t)aStatus >> 16) & 0x7fff) == (21u + 0x45u)) {
+            mCertError = true;
+            u->GetHost(mCertHost);
+            int32_t p = -1; u->GetPort(&p); mCertPort = (p < 0) ? 443 : p;
+          }
+        }
       }
     }
     if (f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) mDone = true;
@@ -278,8 +329,11 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mDone = false;
   mChrome->mLoadFailed = false;
   mChrome->mRedirected = false;
+  mChrome->mCertError = false;
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
+  mChrome->mCertHost.Truncate();
+  mChrome->mCertCert = nullptr;
 }
 
 bool GoannaRenderPage::LoadUrl(const char* url) {
@@ -355,6 +409,26 @@ void GoannaRenderPage::ClearHistory() {
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
+
+bool GoannaRenderPage::GetCertError(std::string* host, int* code) {
+  if (!mChrome || !mChrome->mCertError) return false;
+  if (host) *host = std::string(mChrome->mCertHost.get());
+  if (code) *code = (int)(uint32_t)mChrome->mErrorStatus;
+  return true;
+}
+
+bool GoannaRenderPage::AcceptCurrentCert() {
+  if (!mChrome || !mChrome->mCertError || !mChrome->mCertCert) return false;
+  nsCOMPtr<nsICertOverrideService> ovr =
+    do_GetService(NS_CERTOVERRIDE_CONTRACTID);
+  if (!ovr) return false;
+  uint32_t bits = nsICertOverrideService::ERROR_UNTRUSTED |
+                  nsICertOverrideService::ERROR_MISMATCH |
+                  nsICertOverrideService::ERROR_TIME;
+  nsresult rv = ovr->RememberValidityOverride(mChrome->mCertHost, mChrome->mCertPort,
+                                              mChrome->mCertCert, bits, /*temporary*/true);
+  return NS_SUCCEEDED(rv);
+}
 
 bool GoannaRenderPage::GetLoadError(bool* failed, int* code, std::string* url) {
   if (!mChrome) return false;

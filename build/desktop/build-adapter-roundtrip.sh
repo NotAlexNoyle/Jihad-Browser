@@ -30,13 +30,14 @@ $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/Src/BrowserServerBase.cpp" -o /out/BrowserS
 echo "== compiling Goanna backend + daemon =="
 $CXX $CXXFLAGS $ENGINC $GTKC -c "$R/goanna/EngineHost.cpp"        -o /out/EngineHost.o        || exit 12
 $CXX $CXXFLAGS $ENGINC $GTKC -c "$R/goanna/DialogService.cpp"     -o /out/DialogService.o     || exit 12
+$CXX $CXXFLAGS $ENGINC $GTKC -c "$R/goanna/DownloadService.cpp"     -o /out/DownloadService.o     || exit 12
 $CXX $CXXFLAGS $ENGINC $GTKC -c "$R/goanna/GoannaRenderPage.cpp"  -o /out/GoannaRenderPage.o  || exit 13
 $CXX $CXXFLAGS $ENGINC $GTKC -c "$R/goanna/BrowserPageGoanna.cpp" -o /out/BrowserPageGoanna.o || exit 14
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp"      -o /out/JihadBrowserServer.o || exit 15
 $CXX $CXXFLAGS $YAPINC $ENGINC $GTKC $GLIB -c "$BS/Main.cpp"      -o /out/bs_main.o           || exit 16
 $CXX /out/bs_main.o /out/JihadBrowserServer.o /out/BrowserServerBase.o \
      /out/YapPacket.o /out/YapProxy.o /out/YapServer.o \
-     /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o \
+     /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o \
      $XULLINK $GTKL $GLIBL -Wl,-rpath,"$DIST/bin" -ldl -lpthread -o /out/jihad-browserserver || exit 17
 
 echo "== compiling adapter client =="

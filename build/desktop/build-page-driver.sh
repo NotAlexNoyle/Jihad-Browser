@@ -20,10 +20,11 @@ echo "== compiling GoannaRenderPage + driver =="
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"         -o /out/EngineHost.o        || exit 10
 $CXX $CXXFLAGS $INCS -c "$SRC/DialogService.cpp"      -o /out/DialogService.o     || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/DownloadService.cpp"      -o /out/DownloadService.o     || exit 10
 $CXX $CXXFLAGS $INCS -c "$SRC/GoannaRenderPage.cpp"   -o /out/GoannaRenderPage.o  || exit 11
 $CXX $CXXFLAGS $INCS -c "$SRC/BrowserPageGoanna.cpp"  -o /out/BrowserPageGoanna.o || exit 12
 $CXX $CXXFLAGS $INCS -c "$SRC/test/page_driver.cpp"   -o /out/page_driver.o       || exit 13
-$CXX /out/page_driver.o /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o \
+$CXX /out/page_driver.o /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o \
   "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \
   -lnspr4 -lplc4 -lplds4 $GTK_LIBS -Wl,-rpath,"$DIST/bin" -ldl -lpthread -o "$OUT" || exit 14
 set +x

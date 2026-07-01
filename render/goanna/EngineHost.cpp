@@ -15,6 +15,7 @@
 #include "nsIPrefBranch.h"           // default mobile prefs
 #include "nsServiceManagerUtils.h"   // do_GetService
 #include "DialogService.h"           // InstallDialogService (dialog interception)
+#include "DownloadService.h"         // InstallDownloadService (download handoff)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
 #define JIHAD_NS_WEBBROWSER_CONTRACTID "@mozilla.org/embedding/browser/nsWebBrowser;1"
@@ -55,6 +56,7 @@ EngineHost::Init(const char* greDir)
   // With no sink installed the default is deny/OK — the engine never blocks.
   if (mInited) {
     InstallDialogService();
+    InstallDownloadService();
     // Mobile-browser defaults. <meta name=viewport> is off by default on desktop
     // Gecko; a webOS phone browser must honor it (drives msgMetaViewportSet).
     nsCOMPtr<nsIPrefBranch> pb =

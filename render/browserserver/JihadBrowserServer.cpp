@@ -161,7 +161,7 @@ void JihadBrowserServer::asyncCmdDragEnd(YapProxy* proxy, int32_t contentX, int3
 
 void JihadBrowserServer::asyncCmdSetMinFontSize(YapProxy* proxy, int32_t minFontSizePt)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::SetMinFontSize(minFontSizePt);
 }
 
 void JihadBrowserServer::asyncCmdFindString(YapProxy* proxy, const char* str, bool fwd)
@@ -196,12 +196,12 @@ void JihadBrowserServer::asyncCmdSetEnableJavaScript(YapProxy* proxy, bool enabl
 
 void JihadBrowserServer::asyncCmdSetBlockPopups(YapProxy* proxy, bool enable)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::SetBlockPopups(enable);
 }
 
 void JihadBrowserServer::asyncCmdSetAcceptCookies(YapProxy* proxy, bool enable)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy; jihad::SetAcceptCookies(enable);
 }
 
 void JihadBrowserServer::asyncCmdMouseEvent(YapProxy* proxy, int32_t type, int32_t contentX, int32_t contentY, int32_t detail)

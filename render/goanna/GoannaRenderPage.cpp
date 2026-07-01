@@ -322,6 +322,20 @@ void ClearCookies() {
   nsCOMPtr<nsICookieManager> cm = do_GetService("@mozilla.org/cookiemanager;1");
   if (cm) cm->RemoveAll();
 }
+void SetMinFontSize(int px) {
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) pb->SetIntPref("font.minimum-size.x-western", px);
+}
+void SetBlockPopups(bool block) {
+  // Blocks script-initiated window.open that isn't driven by a user event.
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) pb->SetBoolPref("dom.disable_open_during_load", block);
+}
+void SetAcceptCookies(bool accept) {
+  // network.cookie.cookieBehavior: 0 = accept all, 2 = reject all.
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) pb->SetIntPref("network.cookie.cookieBehavior", accept ? 0 : 2);
+}
 
 // Get the real content nsIDocShell. nsWebBrowser forwards nsIWebNavigation to
 // its docshell but is not itself the docshell, so QI'ing the webBrowser fails;

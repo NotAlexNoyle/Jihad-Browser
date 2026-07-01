@@ -31,6 +31,9 @@ class PageChrome;   // internal XPCOM chrome + progress listener (impl detail)
 void SetUserAgentOverride(const char* ua);
 void ClearCache();
 void ClearCookies();
+void SetMinFontSize(int px);        // YAP: setMinFontSize
+void SetBlockPopups(bool block);    // YAP: setBlockPopups
+void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
 
 class GoannaRenderPage
 {

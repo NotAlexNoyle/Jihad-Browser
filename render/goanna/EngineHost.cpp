@@ -65,6 +65,12 @@ EngineHost::Shutdown()
   if (!mInited) {
     return;
   }
+  // CAUTION (Codex P1): XRE_TermEmbedding tears down the process-wide runtime.
+  // The caller MUST have released every nsIWebBrowser and listener first. In the
+  // daemon this is invoked once at process exit, after BrowserPageManager has
+  // destroyed all pages; it must never run while any BrowserPage/nsIWebBrowser
+  // is still live. A future revision should track outstanding instances and
+  // assert the count is zero here.
   XRE_TermEmbedding();
   mInited = false;
 }

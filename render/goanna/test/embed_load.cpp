@@ -164,28 +164,43 @@ static bool WriteShmFramebuffer(GtkWidget* win) {
   guchar* px = gdk_pixbuf_get_pixels(pb);
   size_t bytes = (size_t)w * h * 4;
 
-  key_t key = 0x4a494841; // 'JIHA'
-  int shmid = shmget(key, bytes, IPC_CREAT | 0666);
+  // Standalone test: allocate a private segment and clean it up. In the real
+  // daemon the segment is NOT created here — BrowserAdapter provides the SysV
+  // keys (sharedBufferKey1/2) via connect()/thaw(), the daemon shmget(key)s and
+  // rotates the double buffer, and IpcBuffer owns the lifecycle. (Codex P1: a
+  // fixed key + IPC_CREAT w/o IPC_EXCL collides and leaks; use IPC_PRIVATE +
+  // IPC_RMID here, and note the daemon uses adapter-provided buffers.)
+  int shmid = shmget(IPC_PRIVATE, bytes, IPC_CREAT | 0600);
   if (shmid < 0) { perror("[embed_load] shmget"); g_object_unref(pb); return false; }
   unsigned char* buf = (unsigned char*)shmat(shmid, nullptr, 0);
-  if (buf == (unsigned char*)-1) { perror("[embed_load] shmat"); g_object_unref(pb); return false; }
+  if (buf == (unsigned char*)-1) {
+    perror("[embed_load] shmat");
+    shmctl(shmid, IPC_RMID, nullptr);
+    g_object_unref(pb);
+    return false;
+  }
 
   for (int y = 0; y < h; ++y) {
     for (int x = 0; x < w; ++x) {
       guchar* p = px + y * rs + x * nch;
       unsigned char* o = buf + ((size_t)y * w + x) * 4;
+      // GDK capture under 24-bit Xvfb has no alpha; opaque page → A=0xff. The
+      // real adapter contract is ARGB32 (may expect premultiplied alpha).
       o[0] = p[2]; o[1] = p[1]; o[2] = p[0]; o[3] = 0xff;   // B,G,R,A (ARGB32 LE)
     }
   }
+  // BrowserOffscreenInfo: the daemon delivers this alongside the buffer (not
+  // shown here); filled for illustration of the contract fields.
   BrowserOffscreenInfo info;
   memset(&info, 0, sizeof(info));
   info.bufferWidth = w; info.bufferHeight = h; info.contentZoom = 1.0;
   info.renderedX = 0; info.renderedY = 0; info.renderedWidth = w; info.renderedHeight = h;
 
-  printf("[embed_load] shm framebuffer: key=0x%x id=%d %dx%d %zu bytes ARGB32 "
-         "(BrowserOffscreenInfo filled); real backend emits msgPainted(key) here\n",
-         (unsigned)key, shmid, w, h, bytes);
+  printf("[embed_load] shm framebuffer: id=%d %dx%d %zu bytes ARGB32 "
+         "(BrowserOffscreenInfo w=%d h=%d); real backend emits msgPainted(shmKey) here\n",
+         shmid, w, h, bytes, info.bufferWidth, info.bufferHeight);
   shmdt(buf);
+  shmctl(shmid, IPC_RMID, nullptr);   // don't leak the kernel segment
   g_object_unref(pb);
   return true;
 }
@@ -263,6 +278,7 @@ int main(int argc, char** argv) {
   const char16_t* url = u"data:text/html,<title>Jihad</title>"
     u"<body style='background:%23224488;color:white;font-family:sans-serif;font-size:48px'>"
     u"<h1>Goanna inside, webOS alive, inshallah.</h1></body>";
+  chrome->mDone = false;   // reset per-load (Codex P2: needed if browser reused)
   rv = nav->LoadURI(url, nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
   printf("[embed_load] LoadURI rv=0x%x\n", (unsigned)rv);
 
@@ -303,17 +319,24 @@ int main(int argc, char** argv) {
     printf("[embed_load] RENDER %s (non-white px=%ld)\n", rendered ? "PASS" : "FAIL", content);
     if (rendered) WriteShmFramebuffer(win);   // T-024: frame -> shared framebuffer
   } else {
-    printf("[embed_load] render skipped (set JIHAD_TRY_RENDER to attempt; needs compositor)\n");
+    printf("[embed_load] render skipped (unset JIHAD_NO_RENDER to render)\n");
   }
   (void)rendered;
 
-  // Tear down in order before terminating the engine, to avoid shutdown crashes.
+  // Tear down in order: ALL Gecko/XPCOM refs must be released BEFORE
+  // XRE_TermEmbedding (Codex P1). Release listener, destroy the browser, drop
+  // every nsCOMPtr/RefPtr, destroy the host GTK window, then shut the engine.
   wb->RemoveWebBrowserListener(weak, NS_GET_IID(nsIWebProgressListener));
   baseWin->Destroy();
+  cur = nullptr;
+  weak = nullptr;
   nav = nullptr;
   baseWin = nullptr;
-  wb = nullptr;
   chrome->mBrowser = nullptr;
+  wb = nullptr;
+  chrome = nullptr;           // release the last ref to the chrome
+  thread = nullptr;
+  gtk_widget_destroy(win);    // don't leak the native GTK window (Codex P2)
 
   host.Shutdown();
   return ok ? 0 : 6;   // load is the pass criterion; render is gated/experimental

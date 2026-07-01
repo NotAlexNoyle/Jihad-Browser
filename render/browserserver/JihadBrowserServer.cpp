@@ -14,6 +14,9 @@ void ProxySink::msgLoadProgress(int32_t p)   { mSrv->msgLoadProgress(mProxy, p);
 void ProxySink::msgLoadStopped()             { mSrv->msgLoadStopped(mProxy); }
 void ProxySink::msgLocationChanged(const char* uri, bool b, bool f) { mSrv->msgLocationChanged(mProxy, uri, b, f); }
 void ProxySink::msgTitleChanged(const char* t) { mSrv->msgTitleChanged(mProxy, t); }
+void ProxySink::msgContentsSizeChanged(int32_t w, int32_t h) { mSrv->msgContentsSizeChanged(mProxy, w, h); }
+void ProxySink::msgScrolledTo(int32_t x, int32_t y) { mSrv->msgScrolledTo(mProxy, x, y); }
+void ProxySink::msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) { mSrv->msgMetaViewportSet(mProxy, is, mn, mx, w, h, us); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)

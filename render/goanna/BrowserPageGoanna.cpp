@@ -20,7 +20,9 @@ namespace jihad {
 BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   : mHost(host), mSink(sink), mPage(nullptr),
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
-    mLoadWasDone(false), mNeedsPaint(false) {}
+    mLoadWasDone(false), mNeedsPaint(false),
+    mLastContentW(-1), mLastContentH(-1),
+    mLastScrollX(-1), mLastScrollY(-1) {}
 
 BrowserPageGoanna::~BrowserPageGoanna() {
   // The BrowserAdapter owns the shared segments (it allocated them and passed
@@ -65,11 +67,15 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // to re-allocate + re-key first (a returnBuffer/reconnect round-trip).
   if (width == 0 || height == 0) return;
   if ((size_t)width * height * 4 > (size_t)mBufSize) return;
-  if (mPage->Resize((int)width, (int)height)) mNeedsPaint = true;
+  if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; emitGeometry(); }
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
-  if (mPage) { mPage->ScrollTo(x, y); mNeedsPaint = true; }
+  if (!mPage) return;
+  // The javascript: scroll applies asynchronously; the scrolled-to message is
+  // emitted from pump() once the offset actually moves (emitScrollIfChanged).
+  mPage->ScrollTo(x, y);
+  mNeedsPaint = true;
 }
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
@@ -77,6 +83,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   mPage->SetZoom(zoom);
   mPage->ScrollTo(x, y);
   mNeedsPaint = true;
+  emitGeometry();   // zoom changes the rendered content size (scroll via pump)
 }
 
 void BrowserPageGoanna::openUrl(const char* url) {
@@ -147,6 +154,30 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mSink.msgLoadStopped();
     mSink.msgLocationChanged(mPage->CurrentUri().c_str(),
                              mPage->CanGoBack(), mPage->CanGoForward());
+    emitGeometry();   // R4: contents-size + meta-viewport once the page settled
+  }
+}
+
+void BrowserPageGoanna::emitGeometry() {
+  if (!mPage) return;
+  int cw = 0, ch = 0;
+  if (mPage->GetContentSize(&cw, &ch) &&
+      (cw != mLastContentW || ch != mLastContentH)) {
+    mLastContentW = cw; mLastContentH = ch;
+    mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
+  }
+  double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
+  if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us))
+    mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);   // R4: meta-viewport
+}
+
+void BrowserPageGoanna::emitScrollIfChanged() {
+  if (!mPage) return;
+  int sx = 0, sy = 0;
+  if (mPage->GetScrollXY(&sx, &sy) &&
+      (sx != mLastScrollX || sy != mLastScrollY)) {
+    mLastScrollX = sx; mLastScrollY = sy;
+    mSink.msgScrolledTo(sx, sy);          // R4: scrolled-to
   }
 }
 
@@ -154,6 +185,7 @@ void BrowserPageGoanna::pump(int msBudget) {
   if (!mPage) return;
   mPage->PumpFor(msBudget);
   emitLoadAndLocation();
+  emitScrollIfChanged();
 }
 
 void BrowserPageGoanna::maybePaint() {

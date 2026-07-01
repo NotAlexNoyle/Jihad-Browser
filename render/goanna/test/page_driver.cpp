@@ -28,6 +28,11 @@ public:
     printf("  -> msgLocationChanged(%s, back=%d fwd=%d)\n", uri, b, f);
   }
   void msgTitleChanged(const char* t) override { printf("  -> msgTitleChanged(%s)\n", t ? t : ""); }
+  void msgContentsSizeChanged(int32_t w, int32_t h) override { printf("  -> msgContentsSizeChanged(%d,%d)\n", w, h); }
+  void msgScrolledTo(int32_t x, int32_t y) override { printf("  -> msgScrolledTo(%d,%d)\n", x, y); }
+  void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override {
+    printf("  -> msgMetaViewportSet(is=%.2f min=%.2f max=%.2f %dx%d us=%d)\n", is, mn, mx, w, h, us);
+  }
 };
 
 int main(int argc, char** argv) {

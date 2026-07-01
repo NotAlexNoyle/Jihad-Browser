@@ -12,6 +12,8 @@
 #include "nsComponentManagerUtils.h" // do_CreateInstance
 #include "nsXPCOM.h"                  // NS_NewNativeLocalFile
 #include "nsStringGlue.h"            // nsCString / nsDependentCString (frozen API)
+#include "nsIPrefBranch.h"           // default mobile prefs
+#include "nsServiceManagerUtils.h"   // do_GetService
 #include "DialogService.h"           // InstallDialogService (dialog interception)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
@@ -53,6 +55,11 @@ EngineHost::Init(const char* greDir)
   // With no sink installed the default is deny/OK — the engine never blocks.
   if (mInited) {
     InstallDialogService();
+    // Mobile-browser defaults. <meta name=viewport> is off by default on desktop
+    // Gecko; a webOS phone browser must honor it (drives msgMetaViewportSet).
+    nsCOMPtr<nsIPrefBranch> pb =
+      do_GetService("@mozilla.org/preferences-service;1");
+    if (pb) pb->SetBoolPref("dom.meta-viewport.enabled", true);
   }
   return mInited;
 }

@@ -54,6 +54,12 @@ public:
   // Full-page zoom factor (YAP: setZoomAndScroll). 1.0 = 100%.
   void SetZoom(double zoom);
 
+  // Rendered content size in CSS px (for contents-size-changed events).
+  bool GetContentSize(int* w, int* h);
+  // Parsed viewport meta info (for meta-viewport events). Any out-ptr may be null.
+  bool GetViewport(double* initialScale, double* minScale, double* maxScale,
+                   int* w, int* h, bool* userScalable);
+
   // Navigate. LoadUrlAndWait pumps the event loop until the load reaches
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   bool LoadUrl(const char* url);

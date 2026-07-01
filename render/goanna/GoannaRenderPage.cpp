@@ -22,6 +22,7 @@
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
+#include "nsIDOMClientRect.h"
 #include "nsWeakReference.h"
 #include "nsIWeakReferenceUtils.h"
 #include "nsThreadUtils.h"
@@ -201,6 +202,40 @@ void GoannaRenderPage::SetZoom(double zoom) {
   // Zoom doesn't resize the native window, so nudge a repaint to refresh readback.
   nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
   if (bw) bw->Repaint(true);
+}
+
+bool GoannaRenderPage::GetContentSize(int* w, int* h) {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  nsCOMPtr<nsIDOMClientRect> r;
+  if (NS_FAILED(u->GetRootBounds(getter_AddRefs(r))) || !r) return false;
+  float fw = 0.0f, fh = 0.0f;
+  r->GetWidth(&fw); r->GetHeight(&fh);
+  if (w) *w = (int)(fw + 0.5f);
+  if (h) *h = (int)(fh + 0.5f);
+  return true;
+}
+
+bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
+                                   double* maxScale, int* w, int* h,
+                                   bool* userScalable) {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  double dz = 1.0, mn = 1.0, mx = 1.0;
+  bool allow = true, autoSize = true;
+  uint32_t vw = 0, vh = 0;
+  if (NS_FAILED(u->GetViewportInfo((uint32_t)mWidth, (uint32_t)mHeight,
+                                   &dz, &allow, &mn, &mx, &vw, &vh, &autoSize)))
+    return false;
+  if (initialScale) *initialScale = dz;
+  if (minScale) *minScale = mn;
+  if (maxScale) *maxScale = mx;
+  if (w) *w = (int)vw;
+  if (h) *h = (int)vh;
+  if (userScalable) *userScalable = allow;
+  return true;
 }
 
 bool GoannaRenderPage::LoadUrl(const char* url) {

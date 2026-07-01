@@ -40,6 +40,11 @@ public:
   virtual void msgLoadStopped() = 0;
   virtual void msgLocationChanged(const char* uri, bool canBack, bool canFwd) = 0;
   virtual void msgTitleChanged(const char* title) = 0;
+  virtual void msgContentsSizeChanged(int32_t width, int32_t height) = 0;
+  virtual void msgScrolledTo(int32_t x, int32_t y) = 0;
+  virtual void msgMetaViewportSet(double initialScale, double minimumScale,
+                                  double maximumScale, int32_t width,
+                                  int32_t height, bool userScalable) = 0;
 };
 
 class BrowserPageGoanna
@@ -87,6 +92,8 @@ public:
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
+  void emitGeometry();          // contents-size + meta-viewport (dedup on change)
+  void emitScrollIfChanged();   // scrolled-to when the offset moved
 
   EngineHost&        mHost;
   IPageMessageSink&  mSink;
@@ -95,6 +102,8 @@ private:
   int                mActiveKey;        // which shm buffer we last painted into
   bool               mLoadWasDone;
   bool               mNeedsPaint;       // set when there is a new frame to send
+  int                mLastContentW, mLastContentH;  // last emitted content size
+  int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
 
   BrowserPageGoanna(const BrowserPageGoanna&) = delete;
   BrowserPageGoanna& operator=(const BrowserPageGoanna&) = delete;

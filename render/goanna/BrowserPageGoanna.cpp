@@ -57,8 +57,15 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
   return true;
 }
 
-void BrowserPageGoanna::setWindowSize(uint32_t, uint32_t) {
-  // TODO(T-016): resize GoannaRenderPage + reallocate/re-key the shared buffers.
+void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
+  if (!mPage) return;
+  // The BrowserAdapter owns the shared framebuffer and its size (Codex P1/P2);
+  // the daemon must not paint beyond it. Only accept a surface that still fits
+  // the segments handed to us at connect(). Growing past that needs the adapter
+  // to re-allocate + re-key first (a returnBuffer/reconnect round-trip).
+  if (width == 0 || height == 0) return;
+  if ((size_t)width * height * 4 > (size_t)mBufSize) return;
+  if (mPage->Resize((int)width, (int)height)) mNeedsPaint = true;
 }
 
 void BrowserPageGoanna::openUrl(const char* url) {

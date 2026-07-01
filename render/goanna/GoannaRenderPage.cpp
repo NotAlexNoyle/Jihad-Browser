@@ -148,6 +148,21 @@ bool GoannaRenderPage::Create(int width, int height) {
   return true;
 }
 
+bool GoannaRenderPage::Resize(int width, int height) {
+  if (!mChrome || !mWindow) return false;
+  if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
+  mWidth = width; mHeight = height;
+  mChrome->mW = width; mChrome->mH = height;   // keep GetDimensions() consistent
+  gtk_widget_set_size_request(mWindow, width, height);
+  gtk_window_resize(GTK_WINDOW(mWindow), width, height);
+  // Resize the embedded surface; eRepaint invalidates so the page reflows to the
+  // new viewport (100vw/100vh content follows the new size).
+  nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
+  if (bw) bw->SetPositionAndSize(0, 0, width, height, nsIBaseWindow::eRepaint);
+  while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
+  return true;
+}
+
 bool GoannaRenderPage::LoadUrl(const char* url) {
   if (!mChrome) return false;
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);

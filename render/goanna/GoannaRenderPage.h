@@ -42,6 +42,10 @@ public:
   // Create the offscreen page at the given size. Returns false on failure.
   bool Create(int width, int height);
 
+  // Resize the offscreen surface + content viewport (YAP: setWindowSize). The
+  // page reflows to the new size; the next ReadPixels returns width*height*4.
+  bool Resize(int width, int height);
+
   // Navigate. LoadUrlAndWait pumps the event loop until the load reaches
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   bool LoadUrl(const char* url);

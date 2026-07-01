@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include "GoannaRenderPage.h"   // GoannaRenderPage + global browser-service fns
 
 namespace jihad {
@@ -79,6 +80,9 @@ public:
   void pageStop();
   void clearHistory();                        // YAP: clearHistory
   void getHistoryState(bool* back, bool* fwd); // YAP: getHistoryState (query)
+  // Register a URL redirect rule (YAP: addUrlRedirect). A matching URL is handed
+  // to the client via msgUrlRedirected; if redirect is true it is NOT loaded.
+  void addUrlRedirect(const char* urlRe, int type, bool redirect, const char* userData);
 
   // --- input (YAP: clickAt/keyDown/keyUp/mouseEvent) ---
   void clickAt(int contentX, int contentY, int numClicks);
@@ -115,6 +119,11 @@ private:
   bool               mNeedsPaint;       // set when there is a new frame to send
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
+
+  struct UrlRule;                             // {compiled regex, userData, redirect}
+  std::vector<UrlRule*> mRedirectRules;       // addUrlRedirect rules (R6)
+  // Returns true if url matched a redirect rule that consumed the load.
+  bool applyRedirectRules(const char* url);
 
   BrowserPageGoanna(const BrowserPageGoanna&) = delete;
   BrowserPageGoanna& operator=(const BrowserPageGoanna&) = delete;

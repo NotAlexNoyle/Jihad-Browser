@@ -243,7 +243,7 @@ void JihadBrowserServer::asyncCmdSetAppIdentifier(YapProxy* proxy, const char* i
 
 void JihadBrowserServer::asyncCmdAddUrlRedirect(YapProxy* proxy, const char* urlRe, int32_t type, bool redirect, const char* userData)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->addUrlRedirect(urlRe, type, redirect, userData);
 }
 
 void JihadBrowserServer::asyncCmdSetShowClickedLink(YapProxy* proxy, bool enable)

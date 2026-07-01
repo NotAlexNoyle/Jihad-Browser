@@ -12,10 +12,21 @@
 
 #include <cstdio>
 #include <cstring>
+#include <regex.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+namespace { }  // (UrlRule defined below in the jihad namespace)
+
 namespace jihad {
+
+// A compiled URL redirect rule (POSIX regex — exception-free, unlike std::regex,
+// which matters under -fno-exceptions).
+struct BrowserPageGoanna::UrlRule {
+  regex_t re;
+  std::string userData;
+  bool redirect;
+};
 
 BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   : mHost(host), mSink(sink), mPage(nullptr),
@@ -28,6 +39,30 @@ BrowserPageGoanna::~BrowserPageGoanna() {
   // The BrowserAdapter owns the shared segments (it allocated them and passed
   // the keys via connect()); the daemon must NOT IPC_RMID them (Codex P1).
   delete mPage;
+  for (UrlRule* r : mRedirectRules) { regfree(&r->re); delete r; }
+}
+
+void BrowserPageGoanna::addUrlRedirect(const char* urlRe, int /*type*/,
+                                       bool redirect, const char* userData) {
+  if (!urlRe || !*urlRe) return;
+  UrlRule* r = new UrlRule();
+  if (regcomp(&r->re, urlRe, REG_EXTENDED | REG_NOSUB) != 0) {   // invalid regex
+    delete r; return;
+  }
+  r->userData = userData ? userData : "";
+  r->redirect = redirect;
+  mRedirectRules.push_back(r);
+}
+
+bool BrowserPageGoanna::applyRedirectRules(const char* url) {
+  for (UrlRule* r : mRedirectRules) {
+    if (regexec(&r->re, url, 0, nullptr, 0) == 0) {   // matched
+      mSink.msgUrlRedirected(url, r->userData.c_str());   // R6: notify the client
+      if (r->redirect) return true;   // handled externally; do not load it here
+      break;
+    }
+  }
+  return false;
 }
 
 bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
@@ -95,6 +130,9 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
 
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
+  // R6: a matching redirect rule hands the URL to the client (msgUrlRedirected)
+  // and, if it is a redirect, is not loaded in the browser at all.
+  if (applyRedirectRules(url)) return;
   mLoadWasDone = false;
   mNeedsPaint = false;
   mSink.msgLoadStarted();

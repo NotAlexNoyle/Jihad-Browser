@@ -2,21 +2,33 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
- * Jihad Browser — driver exercising the GoannaRenderPage backend class:
- * init engine -> create page -> load URL -> render -> read ARGB32 -> shm.
- * This is the shape the daemon's BrowserPageGoanna will use per card.
+ * Jihad Browser — driver exercising the daemon-side BrowserPageGoanna bridge
+ * (which drives GoannaRenderPage). Simulates the YAP command/message flow with
+ * a printing IPageMessageSink: connect(init) -> openUrl -> pump -> paint.
+ * This is exactly the sequence the real BrowserServer dispatch performs.
  *
  * Usage: xvfb-run page_driver <greDir>   ($JIHAD_URL overrides the page)
  */
 #include <gtk/gtk.h>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
-#include "../GoannaRenderPage.h"
 #include "../EngineHost.h"
+#include "../BrowserPageGoanna.h"
+
+// Stand-in for the BrowserServer YAP forwarder: print each server->adapter msg.
+class PrintingSink : public jihad::IPageMessageSink {
+public:
+  int painted = 0;
+  void msgPainted(int32_t key) override { ++painted; printf("  -> msgPainted(key=0x%x)\n", (unsigned)key); }
+  void msgLoadStarted() override { printf("  -> msgLoadStarted\n"); }
+  void msgLoadProgress(int32_t p) override { printf("  -> msgLoadProgress(%d)\n", p); }
+  void msgLoadStopped() override { printf("  -> msgLoadStopped\n"); }
+  void msgLocationChanged(const char* uri, bool b, bool f) override {
+    printf("  -> msgLocationChanged(%s, back=%d fwd=%d)\n", uri, b, f);
+  }
+  void msgTitleChanged(const char* t) override { printf("  -> msgTitleChanged(%s)\n", t ? t : ""); }
+};
 
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);
@@ -24,7 +36,7 @@ int main(int argc, char** argv) {
   const char* url = getenv("JIHAD_URL");
   if (!url || !*url) url = "data:text/html,<title>Jihad</title>"
     "<body style='background:%23224488;color:white;font:48px sans-serif'>"
-    "<h1>GoannaRenderPage OK</h1></body>";
+    "<h1>BrowserPageGoanna OK</h1></body>";
 
   gtk_init(&argc, &argv);
 
@@ -33,33 +45,27 @@ int main(int argc, char** argv) {
   printf("[driver] engine up\n");
 
   {
-    jihad::GoannaRenderPage page(host);
-    if (!page.Create(1024, 768)) { fprintf(stderr, "[driver] FAIL page create\n"); return 2; }
-    printf("[driver] page created 1024x768\n");
+    PrintingSink sink;
+    jihad::BrowserPageGoanna page(host, sink);
 
-    bool ok = page.LoadUrlAndWait(url, 20);
-    printf("[driver] load %s: %s -> %s\n", url, ok ? "DONE" : "TIMEOUT", page.CurrentUri().c_str());
-    page.PumpFor(1500);   // let it paint
-
-    size_t bytes = (size_t)page.Width() * page.Height() * 4;
-    unsigned char* buf = (unsigned char*)malloc(bytes);
-    long nb = page.ReadPixels(buf, bytes);
-    printf("[driver] ReadPixels: %ld non-white px into %zu-byte ARGB32 buffer\n", nb, bytes);
-
-    if (nb > 100) {
-      int shmid = shmget(IPC_PRIVATE, bytes, IPC_CREAT | 0600);
-      if (shmid >= 0) {
-        void* seg = shmat(shmid, nullptr, 0);
-        if (seg != (void*)-1) { memcpy(seg, buf, bytes); shmdt(seg); }
-        printf("[driver] wrote %zu bytes to shm id=%d (daemon would msgPainted here)\n", bytes, shmid);
-        shmctl(shmid, IPC_RMID, nullptr);
-      }
-      printf("[driver] RENDER PASS\n");
-    } else {
-      printf("[driver] RENDER FAIL (blank)\n");
+    // YAP: connect(pageW,pageH, shmKey1, shmKey2, shmSize). Adapter-provided
+    // keys are simulated here with two fixed SysV keys.
+    const int W = 1024, H = 768, sz = W * H * 4;
+    if (!page.init(W, H, /*key1*/0x4a494831, /*key2*/0x4a494832, sz)) {
+      fprintf(stderr, "[driver] FAIL page.init\n"); return 2;
     }
-    free(buf);
-    // page destructor tears down browser/window before engine shutdown.
+    printf("[driver] page.init %dx%d (2 shared buffers)\n", W, H);
+
+    printf("[driver] openUrl: %s\n", url);
+    page.openUrl(url);                 // YAP: openUrl -> msgLoadStarted
+    page.pump(20000);                  // event-loop ticks -> msgLoadStopped/Location
+    page.pump(1500);                   // let it paint
+    page.paintToSharedBuffer();        // YAP paint -> msgPainted(key)
+    page.paintToSharedBuffer();        // second frame targets the other buffer
+
+    printf("[driver] frames painted: %d\n", sink.painted);
+    printf("[driver] %s\n", sink.painted >= 2 ? "DAEMON-BRIDGE PASS" : "DAEMON-BRIDGE FAIL");
+    // page destructor tears down render page + shared buffers before engine shutdown.
   }
 
   host.Shutdown();

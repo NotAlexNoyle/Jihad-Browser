@@ -33,7 +33,15 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
-    mLastScrollX(-1), mLastScrollY(-1) {}
+    mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0) {}
+
+void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
+  double z = (mZoom > 0.0) ? mZoom : 1.0;
+  int scrollX = 0, scrollY = 0;
+  if (mPage) mPage->GetScrollXY(&scrollX, &scrollY);   // content-space scroll
+  if (cx) *cx = (int)(sx / z) + scrollX;
+  if (cy) *cy = (int)(sy / z) + scrollY;
+}
 
 BrowserPageGoanna::~BrowserPageGoanna() {
   // The BrowserAdapter owns the shared segments (it allocated them and passed
@@ -122,6 +130,7 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   if (!mPage) return;
+  if (zoom > 0.0) mZoom = zoom;   // remember for input coord mapping (R5)
   mPage->SetZoom(zoom);
   mPage->ScrollTo(x, y);
   mNeedsPaint = true;
@@ -165,7 +174,10 @@ void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
 }
 
 void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
-  if (mPage) { mPage->ClickAt(x, y, numClicks); mNeedsPaint = true; }
+  if (!mPage) return;
+  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content
+  mPage->ClickAt(cx, cy, numClicks);
+  mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   if (mPage) { mPage->KeyEvent("keydown", key, chr, modifiers); mNeedsPaint = true; }
@@ -176,7 +188,8 @@ void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
 void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
   if (!mPage) return;
   const char* t = (type == 1) ? "mousedown" : (type == 2) ? "mouseup" : "mousemove";
-  mPage->MouseEvent(t, x, y, 0);
+  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content
+  mPage->MouseEvent(t, cx, cy, 0);
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
@@ -193,7 +206,8 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
     if (py) sscanf(py, "\"y\"%*[: ]%d", &y);
   }
   const char* t = (type == 0) ? "touchstart" : (type == 2) ? "touchend" : "touchmove";
-  mPage->TouchEvent(t, x, y);
+  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content
+  mPage->TouchEvent(t, cx, cy);
   mNeedsPaint = true;
 }
 

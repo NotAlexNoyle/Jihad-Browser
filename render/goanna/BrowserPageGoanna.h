@@ -120,6 +120,10 @@ private:
   bool               mNeedsPaint;       // set when there is a new frame to send
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
+  double             mZoom;   // current full-page zoom (for input coord mapping)
+  // Map an adapter surface coordinate to a content/CSS coordinate (R5): input
+  // events use content space, so undo zoom + scroll.
+  void mapToContent(int sx, int sy, int* cx, int* cy);
 
   struct UrlRule;                             // {compiled regex, userData, redirect}
   std::vector<UrlRule*> mRedirectRules;       // addUrlRedirect rules (R6)

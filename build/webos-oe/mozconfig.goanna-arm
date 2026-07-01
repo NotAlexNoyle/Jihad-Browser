@@ -1,0 +1,36 @@
+# Jihad Browser — Goanna/UXP mozconfig for the webOS 3 ARMv7 device target.
+# Cross-compiles the engine against the TouchPad sysroot. Mirror of
+# build/desktop/mozconfig.goanna with the target + ARM CPU flags. This is the
+# heavy device recipe (goanna.bb) input; see docs/DEVICE-BUILD.md for the gates.
+
+# --- application: embedding-only engine (no Pale Moon/Basilisk front end) ---
+ac_add_options --enable-application=xulrunner
+ac_add_options --enable-default-toolkit=cairo-gtk2
+
+# --- cross target: ARMv7 hard-float, webOS 3 glibc (TouchPad tenderloin / Go opal) ---
+# The sysroot + cross-compiler are provided by the OE toolchain (device-build R1).
+# webOS 3 is ARMv7-A + NEON (Snapdragon APQ8060 on the TouchPad).
+ac_add_options --target=arm-webos-linux-gnueabi
+ac_add_options --with-arch=armv7-a
+ac_add_options --with-fpu=neon
+ac_add_options --with-float-abi=hard
+ac_add_options --enable-optimize=-Os          # size matters on a 1 GB device
+ac_add_options --disable-debug
+
+# --- trim for the device: no tests/updater/crashreporter; basic CPU layers ---
+ac_add_options --disable-tests
+ac_add_options --disable-updater
+ac_add_options --disable-crashreporter
+ac_add_options --disable-webrtc
+ac_add_options --disable-gamepad
+ac_add_options --enable-strip                  # strip the 1.8G unstripped libxul
+
+# Basic (CPU) layer manager — no compositor, matches the offscreen paint path
+# proven on desktop (engine patches 0003/0004 apply the same way).
+export JIHAD_DISABLE_OMTC=1
+
+# Memory: the device is tight; prefer size + the system allocator tuning that
+# the OE recipe pins (see runtime constraints in README.md / DEVICE-BUILD.md).
+ac_add_options --disable-jemalloc
+
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/../obj-jihad-goanna-arm

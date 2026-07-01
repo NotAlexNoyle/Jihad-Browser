@@ -70,6 +70,8 @@ public:
   void pageForward();
   void pageReload();
   void pageStop();
+  void clearHistory();                        // YAP: clearHistory
+  void getHistoryState(bool* back, bool* fwd); // YAP: getHistoryState (query)
 
   // --- input (YAP: clickAt/keyDown/keyUp/mouseEvent) ---
   void clickAt(int contentX, int contentY, int numClicks);

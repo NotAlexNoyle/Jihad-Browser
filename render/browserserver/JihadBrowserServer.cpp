@@ -222,12 +222,14 @@ void JihadBrowserServer::asyncCmdInspectUrlAtPoint(YapProxy* proxy, int32_t quer
 
 void JihadBrowserServer::asyncCmdGetHistoryState(YapProxy* proxy, int32_t queryNum)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  bool back = false, fwd = false;
+  if (auto* p = pageFor(proxy)) p->getHistoryState(&back, &fwd);
+  msgGetHistoryStateResponse(proxy, queryNum, back, fwd);   // carries the queryNum
 }
 
 void JihadBrowserServer::asyncCmdClearHistory(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->clearHistory();
 }
 
 void JihadBrowserServer::asyncCmdSetAppIdentifier(YapProxy* proxy, const char* identifier)

@@ -19,6 +19,7 @@
 #include "nsIInterfaceRequestor.h"
 #include "nsIBaseWindow.h"
 #include "nsIWebNavigation.h"
+#include "nsISHistory.h"
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
@@ -322,6 +323,18 @@ void GoannaRenderPage::GoBack()    { if (mChrome) { mChrome->mDone = false; nsCO
 void GoannaRenderPage::GoForward() { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->GoForward(); } }
 void GoannaRenderPage::Reload()    { if (mChrome) { mChrome->mDone = false; nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Reload(nsIWebNavigation::LOAD_FLAGS_NONE); } }
 void GoannaRenderPage::Stop()      { if (mChrome) { nsCOMPtr<nsIWebNavigation> n = do_QueryInterface(mChrome->mBrowser); if (n) n->Stop(nsIWebNavigation::STOP_ALL); } }
+
+void GoannaRenderPage::ClearHistory() {
+  if (!mChrome) return;
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  if (!nav) return;
+  nsCOMPtr<nsISHistory> sh;
+  nav->GetSessionHistory(getter_AddRefs(sh));
+  if (!sh) return;
+  int32_t count = 0;
+  sh->GetCount(&count);
+  if (count > 0) sh->PurgeHistory(count);
+}
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 

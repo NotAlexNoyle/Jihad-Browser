@@ -113,6 +113,11 @@ void BrowserPageGoanna::pageBackward() { if (mPage) { mLoadWasDone=false; mNeeds
 void BrowserPageGoanna::pageForward() { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
 void BrowserPageGoanna::pageReload()  { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
+void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
+void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
+  if (back) *back = mPage && mPage->CanGoBack();
+  if (fwd)  *fwd  = mPage && mPage->CanGoForward();
+}
 
 void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   if (mPage) { mPage->ClickAt(x, y, numClicks); mNeedsPaint = true; }

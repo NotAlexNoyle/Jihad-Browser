@@ -76,6 +76,7 @@ public:
   void GoForward();
   void Reload();
   void Stop();
+  void ClearHistory();   // YAP: clearHistory — purge session history
 
   // Pump the event loop for up to msBudget milliseconds (paint/idle work).
   void PumpFor(int msBudget);

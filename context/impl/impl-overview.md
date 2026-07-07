@@ -1,9 +1,25 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-07"
 ---
 
 # Implementation Overview
+
+## 2026-07-07 — SELF-CONTAINED APP, RENDERS REAL PAGES ON DEVICE (READ FIRST)
+
+Jihad is now a **self-contained app that coexists with the stock browser** (own
+MIME `application/x-jihad-browser` → `BrowserAdapterJihad.so` → daemon socket
+`/tmp/yapserver.jihad-browser` → upstart job `jihad`; the app's WebView is routed
+there by `app/source/JihadEngineOverride.js`). Nothing system-level is replaced.
+Validated on the TouchPad: the card loads the Jihad adapter → the Jihad daemon,
+`http://example.com` and `slack.com` (HTTPS) load + render on `/dev/fb1`,
+load-completion fires (address-bar refresh glyph), both daemons coexist, device
+stable. Authoritative detail + deploy gotchas (reboot-to-register-plugin,
+`.ipk`-reinstall-to-bust-cache, content-is-on-fb1) in `docs/DEVICE-HANDOFF.md`
+(2026-07-07) and auto-memory `jihad-self-contained-arch.md`, `jihad-device-gotchas.md`.
+
+Still open (Phase-3 hardening): tap activation (staged `buttons` fix), landscape
+composite (staged rotation guard), keyboard/VKB, URL-fixup edge cases.
 
 ## 2026-07-06 — REAL on-device UI/UX state (READ FIRST)
 

@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-07"
 ---
 
 # Cavekit: Device Build & Packaging
@@ -8,8 +8,13 @@ last_edited: "2026-07-04"
 ## Scope
 Phase-2 work to run Jihad Browser on the HP TouchPad (webOS 3.0.x, ARMv7):
 standing up a modern cross-toolchain, cross-compiling the engine and daemon,
-packaging via OpenEmbedded, and validating on-device. The toolchain is a
-feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
+packaging, and validating on-device. The toolchain is a feasibility gate. Jihad
+packages as a **self-contained app that coexists with the stock browser** — its own
+NPAPI MIME/adapter/daemon/upstart job, nothing system-level replaced (see
+`jihad-self-contained-arch.md`). Reference: `docs/TOOLCHAIN.md`, `docs/DEVICE-BUILD.md`,
+`build/webos-oe/README.md`. (The `build/` tree — toolchain, engine objects, vendored
+adapter deps — is git-excluded to avoid redistributing third-party binaries; the build
+scripts/recipes and `packaging/` are the reproducible source.)
 
 ## Requirements
 
@@ -29,20 +34,21 @@ feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
 - [x] ARMv7 FP/SIMD flags match the device CPU.
 **Dependencies:** R1, cavekit-engine-embedding.md (R1)
 
-### R3: OE recipes build and package Jihad — both UI variants
-**Description:** The whole product packages as installable webOS artifacts, including BOTH front-end variants.
+### R3: Package Jihad as a self-contained app — both UI variants
+**Description:** The whole product packages as installable webOS artifacts that coexist with the stock browser, including BOTH front-end variants.
 **Acceptance Criteria:**
-- [ ] Recipes build the daemon (with Goanna backend) and the rebuilt BrowserAdapter once (shared by both UIs).
-- [ ] The build produces **two UI `.ipk`s**: the Enyo variant (`net.riverstonerelay.jihad-browser`, from `app/`) and the Mochi variant (`net.riverstonerelay.jihad-browser.mochi`, from `app-mochi/`).
-- [ ] Both UI packages install on a webOS 3 device/emulator and can coexist.
+- [x] The daemon + a rebuilt **coexisting** adapter (`BrowserAdapterJihad.so`, MIME `application/x-jihad-browser`, YAP name `jihad-browser`) install ALONGSIDE the stock browser without collision (`packaging/postinst`+`prerm`+`event.d/jihad`). Verified on-device.
+- [x] The Enyo UI `.ipk` (`net.riverstonerelay.jihad-browser`, from `app/`) builds (`palm-package app/`) and installs; its WebView is routed to the Jihad engine by `app/source/JihadEngineOverride.js`.
+- [ ] The build also produces the Mochi variant `.ipk` (`net.riverstonerelay.jihad-browser.mochi`, from `app-mochi/`); both install and can coexist.
+- [ ] A single OE/repeatable build produces the daemon + adapter + both UI `.ipk`s (currently the daemon/adapter are built by `build/webos-oe/*.sh` and the Enyo `.ipk` by `palm-package`).
 - [ ] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0.
-**Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1)
+**Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1), jihad-self-contained-arch.md
 
 ### R4: Runs on the TouchPad (and TouchPad Go)
 **Description:** The installed browser works on real hardware; both UI variants.
 **Acceptance Criteria:**
-- [ ] On the TouchPad (Topaz/tenderloin), each UI variant launches and loads a page rendered on-screen via the BrowserAdapter.
-- [ ] Basic navigation, scrolling, and tap input work.
+- [x] On the TouchPad (Topaz/tenderloin), the **Enyo** variant launches and loads a page rendered on-screen via the Jihad adapter (`example.com`, `slack.com`/HTTPS render on fb1; load-completion + refresh glyph). Mochi variant pending.
+- [~] Basic navigation works (URL load + load-complete); scrolling/tap-activation/keyboard are in Phase-3 hardening (staged fixes, on-device confirm pending).
 - [ ] Cert/dialog/download flows function with the device services. [human-review on device]
 - [ ] The same is verified on the TouchPad Go (Opal). [human-review on device]
 **Dependencies:** R3, R6, cavekit-browser-services.md (R5)

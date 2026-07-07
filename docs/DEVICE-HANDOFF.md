@@ -1,5 +1,63 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+## 2026-07-07 — SELF-CONTAINED APP, RENDERS REAL PAGES ON DEVICE (READ FIRST)
+
+Jihad was re-architected from *replacing* the system browser to being a
+**self-contained app that coexists with the stock browser** (the replace approach
+had two daemons crash-looping over one YAP socket → hours of device lag). It is now
+validated rendering real pages on the TouchPad. See auto-memory
+`jihad-self-contained-arch.md` + `jihad-device-gotchas.md`.
+
+### The self-contained pieces (all additive; stock browser untouched)
+| Piece | Jihad | Stock |
+|-------|-------|-------|
+| NPAPI MIME | `application/x-jihad-browser` | `application/x-palm-browser` |
+| Adapter | `/usr/lib/BrowserPlugins/BrowserAdapterJihad.so` | `BrowserAdapter.so` |
+| Daemon socket | `/tmp/yapserver.jihad-browser` | `/tmp/yapserver.browser` |
+| Upstart job | `/etc/event.d/jihad` (`JIHAD_BS_NAME=jihad-browser`) | `browserserver` |
+
+- Adapter source: `ref-BrowserAdapter/BrowserAdapter.cpp` — MIME in
+  `AdapterGetMIMEDescription`, YAP name in `BrowserClientBase("jihad-browser", ctxt)`.
+  Build: `build/webos-oe/build-adapter-pdk.sh` → `cp build-pdk/BrowserAdapter.so
+  BrowserAdapterJihad.so`.
+- App routing: `app/source/JihadEngineOverride.js` (first line of `app/depends.js`)
+  patches `enyo.BasicWebView.prototype.create` to set the plugin type to
+  `application/x-jihad-browser` for THIS app only.
+- Packaging: `packaging/{postinst,prerm,event.d/jihad}` install/remove only our files.
+
+### ✅ Confirmed working on the real screen (fb1) — 2026-07-07
+- **Self-contained routing** — the Jihad card's WebView loads `BrowserAdapterJihad.so`
+  → connects to the Jihad daemon (`/tmp/yapserver.jihad-browser`); stock browser untouched
+  (`grep -l BrowserAdapterJihad /proc/*/maps` after launch confirms).
+- **Real page render** — `http://example.com` loads end-to-end (`load done
+  uri=http://example.com/ loaderr failed=0`, `contentSize=768x942`, `painted bytes=723456`)
+  and renders correctly (heading/body/link, portrait). `slack.com` loads over HTTPS.
+- **Load completion** — the address-bar X → **refresh glyph** appears on load complete;
+  the looping load-overlay bug is gone for these pages (document-STOP completion + NSS
+  fast-path fixes verified in practice).
+- **StartPage** — new-window page shows the Jihad logo (fb1); isis UI (address bar,
+  back/fwd, share/new-tab/history) renders.
+- **Coexistence + stability** — both daemons auto-start at boot and run in parallel;
+  device stays calm (CPU ~30% idle-headroom to spare; loadavg over-reads on this device).
+
+### ⚠️ Deploy gotchas (learned the hard way — in auto-memory)
+- **A new NPAPI plugin registers only on a full REBOOT**, not `killall LunaSysMgr` —
+  webOS WebKit scans `/usr/lib/BrowserPlugins` at boot. Install the adapter, then reboot.
+- **App JS changes need a `.ipk` reinstall** (`palm-package app/ … && palm-install`) —
+  a loose-file `novacom put` does NOT bust WebKit's `file://` cache, so the override
+  silently won't run.
+- **App content is on `/dev/fb1`** (fb0 = system chrome/VKB, shows a black app area).
+
+### 🔧 Still open (was mid-work at the pivot; carry forward)
+- **Tap activation** — staged `ClickAt`/`MouseEvent` explicit-`buttons` fix (mousedown=1,
+  mouseup=0) needs on-device confirm with the self-contained adapter.
+- **Landscape composite** — staged adapter rotation-guard in `handlePaint`.
+- **Keyboard/VKB** — `msgEditorFocused`/typed-URL navigation still to wire up.
+- **URL fixup edge cases** — an older log showed `riverstonerelay.org` → `UNKNOWN_PROTOCOL`
+  while `example.com`/`slack.com` worked; needs a fresh check.
+
+---
+
 ## 2026-07-06 — REAL BROWSER UI/UX STATE (from on-device + framebuffer testing)
 
 A long interactive on-device session (verified against the REAL screen via `/dev/fb1`,

@@ -1,0 +1,46 @@
+# mozconfig for an embedding-capable Goanna (UXP) build — Phase-1 desktop x86_64.
+#
+# GOAL: produce libxul + headers the Jihad render backend links against, NOT a
+# standalone browser app. These options are a validated starting point; the
+# embedding/offscreen path is the experimental part of the port (see
+# render/goanna/PORT-MAP.md "Open questions") and may need adjustment once the
+# offscreen widget lands.
+#
+# Source is mounted read-only, so the object dir lives outside the source tree.
+
+mk_add_options MOZ_OBJDIR=/out/obj-jihad-goanna
+mk_add_options MOZ_MAKE_FLAGS="-j4"
+
+# Build the runtime/platform (xulrunner target) rather than a front-end app.
+# UXP retains the xulrunner/ tree; this yields an embeddable libxul.
+ac_add_options --enable-application=xulrunner
+
+# Toolkit: start with GTK2 + basic (CPU) layers. The render backend uses an
+# offscreen widget and reads pixels back from the basic layer manager first;
+# GL/EGL compositor readback is a later (Phase-3) optimization.
+ac_add_options --enable-default-toolkit=cairo-gtk2
+
+# Release-shaped, minimal: trim subsystems the headless renderer does not need.
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+ac_add_options --disable-crashreporter
+ac_add_options --disable-updater
+ac_add_options --disable-maintenance-service
+ac_add_options --disable-jemalloc          # match the desktop PoC; revisit for device
+
+# GCC 9.3 is stricter than this UXP revision's code expects and emits
+# false-positive warnings (e.g. js/src/jit/x64/BaseAssembler-x64.h trips
+# -Werror=format-overflow). We are building the engine, not developing it, so
+# do not treat warnings as errors, and neutralize the js-specific -Werror=format.
+ac_add_options --disable-warnings-as-errors
+export CFLAGS="$CFLAGS -Wno-error=format-overflow -Wno-error=format"
+export CXXFLAGS="$CXXFLAGS -Wno-error=format-overflow -Wno-error=format"
+
+# Branding: the Jihad branding-strip (cavekit-licensing-branding R3 / T-014) is
+# applied as a separate step; do not ship Pale Moon/Basilisk branding.
+# ac_add_options --with-branding=...   # set once Jihad branding dir exists
+
+# NOTE: --enable-application=xulrunner is the closest in-tree embedding target.
+# If it is unavailable/insufficient in this UXP revision, fall back to building
+# the platform default target and linking libxul directly. Validate in T-010.

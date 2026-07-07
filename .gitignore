@@ -1,27 +1,30 @@
-# Build output
-/build/
-/build/
-/build/
+/build/**/out/
+/build/**/out-*/
+/build/**/*.tar.gz
+/build/webos-oe/toolchain/
+/build/webos-oe/arm-sysroot/
+/build/webos-oe/device-bundle/
+/build/webos-oe/hl-bundle/
+/build/webos-oe/adapter-deps/qt4-extract/
+/build/webos-oe/adapter-deps/libpbnjson/
+/build/webos-oe/adapter-deps/yajl/
+/build/webos-oe/adapter-deps/yajl-inc/
+/build/webos-oe/adapter-deps/npapi-headers/
+/build/webos-oe/adapter-deps/staging/
+/build/webos-oe/adapter-deps/build/
+/build/webos-oe/adapter-deps/build-pdk/
 *.o
 *.lo
 *.la
 *.so
 *.so.*
 *.a
-
-# UXP/Goanna object dirs (engine is built out-of-tree; never vendored here)
 obj-*/
 /third_party/uxp/
-
-# Packaging
 *.ipk
 *.deb
 *.ipk.*
-
-# Editor / OS
 *.swp
 *~
 .DS_Store
-
-# Cavekit transient
 /context/**/.cache/

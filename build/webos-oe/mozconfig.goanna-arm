@@ -1,0 +1,72 @@
+# Jihad Browser — cross mozconfig: libxul for the webOS-3 TouchPad.
+#
+# Target: ARMv7-A + NEON, SOFTFP/armel (verified on-device: loader ld-linux.so.3,
+# no armhf). Compiler: our crosstool-NG GCC 9.4 (glibc 2.23; runs on the device's
+# kernel 2.6.35). GTK/X/cairo/pango come from the Debian-Jessie armel sysroot
+# (glibc-2.19-era; its libs need <= glibc 2.19 symbols, satisfied at runtime by the
+# bundled glibc 2.23 — backward compatible). See build-goanna-arm.sh for mounts.
+#
+# Mounts inside the build container:
+#   /src/uxp  UXP source          /tc      crosstool-NG toolchain (arm-webos-linux-gnueabi)
+#   /sysroot  Jessie armel sysroot /out    object dir + artifacts     /cfg  build/desktop (patches)
+
+mk_add_options MOZ_OBJDIR=/out/obj-jihad-goanna-arm
+mk_add_options MOZ_MAKE_FLAGS="-j8"
+
+ac_add_options --enable-application=xulrunner
+# Jihad headless: X/GTK-free libxul (device has no X server / gtk). Fonts via the
+# sysroot's freetype+fontconfig; the widget backend is widget/headless (PuppetWidget).
+ac_add_options --enable-default-toolkit=cairo-headless
+ac_add_options --disable-npapi-gtk2
+ac_add_options --disable-printing
+
+# --- cross target + host ---
+ac_add_options --target=arm-webos-linux-gnueabi
+ac_add_options --host=x86_64-pc-linux-gnu
+ac_add_options --with-arch=armv7-a
+ac_add_options --with-fpu=neon
+ac_add_options --with-float-abi=softfp
+
+# Point X11 detection at the sysroot, NOT the host. Otherwise AC_PATH_X finds the
+# build container's X headers and adds -I/usr/include, which pulls the HOST glibc
+# headers (time.h -> bits/types/clock_t.h) over the cross toolchain's — fatal.
+ac_add_options --x-includes=/sysroot/usr/include
+ac_add_options --x-libraries=/sysroot/usr/lib/arm-linux-gnueabi
+
+# --- cross toolchain (crosstool-NG GCC 9.4 / glibc 2.23) ---
+CC="/tc/bin/arm-webos-linux-gnueabi-gcc"
+CXX="/tc/bin/arm-webos-linux-gnueabi-g++"
+AR="/tc/bin/arm-webos-linux-gnueabi-ar"
+RANLIB="/tc/bin/arm-webos-linux-gnueabi-ranlib"
+STRIP="/tc/bin/arm-webos-linux-gnueabi-strip"
+# host tools (native) for build-time programs (host xpcshell, nsinstall, ...)
+HOST_CC="gcc"
+HOST_CXX="g++"
+
+# ARM CPU flags + do not treat warnings as errors (GCC 9 vs this UXP rev).
+# -I the Jessie sysroot's top include dir for GTK/X/fontconfig headers. Safe: the
+# glibc (libc6-dev) headers were removed from this sysroot, so the toolchain's own
+# glibc 2.23 headers are used for libc; only the graphics/X headers live here.
+export CFLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=softfp -I/sysroot/usr/include -I/sysroot/usr/include/arm-linux-gnueabi -Wno-error=format-overflow -Wno-error=format"
+export CXXFLAGS="$CFLAGS"
+# Link jointly against the Jessie armel libs; -rpath-link resolves their transitive
+# NEEDED (libc etc.) at link time without pulling their glibc into the sysroot.
+export LDFLAGS="-L/sysroot/usr/lib/arm-linux-gnueabi -L/sysroot/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/usr/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/lib/arm-linux-gnueabi"
+
+# --- release-shaped, trimmed for the device ---
+ac_add_options --enable-optimize=-Os
+ac_add_options --disable-debug
+ac_add_options --disable-warnings-as-errors
+ac_add_options --disable-tests
+ac_add_options --disable-updater
+ac_add_options --disable-crashreporter
+ac_add_options --disable-maintenance-service
+ac_add_options --disable-webrtc
+ac_add_options --disable-gamepad
+ac_add_options --disable-jemalloc
+# Headless render daemon: no audio output needed (offscreen render only).
+ac_add_options --disable-alsa
+ac_add_options --disable-pulseaudio
+# No dbus in the sysroot / on the device; necko-wifi needs dbus on Linux.
+ac_add_options --disable-dbus
+ac_add_options --disable-necko-wifi

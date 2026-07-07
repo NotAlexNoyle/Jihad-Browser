@@ -21,6 +21,41 @@ freeze/thaw, the branding strip, and the desktop PoC image. See
 The **`.ipk` build reuses those exact sources cross-targeted** — no new engine
 integration is needed, only a toolchain + packaging.
 
+## Self-contained on-device deployment (working, 2026-07-07)
+
+Jihad ships as a **self-contained app that coexists with the stock browser** — it
+installs its own MIME/adapter/daemon/upstart job and never touches the system
+browser (an earlier "replace the stock daemon" approach crash-looped two daemons
+over one YAP socket → hours of device lag). See `docs/DEVICE-HANDOFF.md` (2026-07-07)
+and auto-memory `jihad-self-contained-arch.md`.
+
+Four additive pieces, each independently named:
+
+| Piece | File on device | Built by |
+|-------|----------------|----------|
+| Adapter (MIME `application/x-jihad-browser`, YAP name `jihad-browser`) | `/usr/lib/BrowserPlugins/BrowserAdapterJihad.so` | `build/webos-oe/build-adapter-pdk.sh` (gcc4.3.3 PDK), then `cp build-pdk/BrowserAdapter.so BrowserAdapterJihad.so` |
+| Render daemon | `/media/internal/jihad/hl/jihad-browserserver` (+ bundled libs) | `build/webos-oe` ARM (crosstool-NG gcc9) |
+| Upstart job (`JIHAD_BS_NAME=jihad-browser`) | `/etc/event.d/jihad` | `packaging/event.d/jihad` |
+| WebView routing | `app/source/JihadEngineOverride.js` (in the UI `.ipk`) | `palm-package app/` |
+
+Install/remove scripts: `packaging/postinst` + `packaging/prerm` (lay down the
+adapter + upstart job in one rootfs-rw window; start the `jihad` job; reload
+LunaSysMgr). The Enyo UI `.ipk` is `palm-package app/ && palm-install`.
+
+**Two deploy gotchas (must-do):**
+- **Reboot after installing a new adapter** — webOS WebKit builds its NPAPI
+  MIME/plugin database at BOOT by scanning `/usr/lib/BrowserPlugins`; `killall
+  LunaSysMgr` does NOT re-scan, so `application/x-jihad-browser` stays unregistered
+  until the next boot. Verify with `grep -l BrowserAdapterJihad /proc/*/maps` after a
+  launch.
+- **App JS changes need a `.ipk` reinstall**, not a loose-file push — a `novacom put`
+  into the installed app dir does not bust WebKit's `file://` resource cache, so the
+  engine override silently won't run.
+
+Result: on the TouchPad the Jihad card renders real pages (`example.com`,
+`slack.com`/HTTPS) through the Goanna daemon, with load-completion + the address-bar
+refresh glyph, while the stock browser keeps working for every other app.
+
 ## Layout (authored)
 
 ```

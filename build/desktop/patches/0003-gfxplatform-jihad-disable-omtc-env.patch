@@ -1,0 +1,18 @@
+diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
+index d5eb69b410..4e34605f14 100644
+--- a/gfx/thebes/gfxPlatform.cpp
++++ b/gfx/thebes/gfxPlatform.cpp
+@@ -2166,6 +2166,13 @@ gfxPlatform::UsesOffMainThreadCompositing()
+     result |= gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly();
+ 
+ #endif
++    // Jihad Browser: the headless BrowserServer embedder has no compositor
++    // process; allow forcing off-main-thread compositing off (use the in-process
++    // BasicLayerManager) via env, since the gfxPrefs "Once" snapshot can miss a
++    // grepref set during XRE_InitEmbedding2 init ordering.
++    if (getenv("JIHAD_DISABLE_OMTC")) {
++      result = false;
++    }
+     firstTime = false;
+   }
+ 

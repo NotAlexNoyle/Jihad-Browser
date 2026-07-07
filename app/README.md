@@ -1,3 +1,18 @@
+Jihad Browser — Enyo 1.0 UI shell
+=================================
+
+This is the **Jihad Browser** fork of the isis-browser Enyo 1.0 app (Apache-2.0),
+rebranded and rendering through the **UXP/Goanna** engine instead of QtWebKit.
+
+It uses the enyo WebView control to display web content. Jihad is **self-contained
+and coexists with the stock browser**: `source/JihadEngineOverride.js` (first entry
+in `depends.js`) swaps THIS app's WebView plugin type to `application/x-jihad-browser`,
+so the card loads `BrowserAdapterJihad.so` → the Jihad Goanna daemon
+(`/tmp/yapserver.jihad-browser`). Every other app's stock `application/x-palm-browser`
+WebView is untouched. See `../packaging/README.md` and `../docs/DEVICE-BUILD.md`.
+
+The original isis README follows.
+
 isis-browser 
 ============
 

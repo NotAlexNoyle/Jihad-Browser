@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-07"
 ---
 
 # Cavekit Overview
@@ -8,8 +8,13 @@ last_edited: "2026-07-04"
 ## Project
 Jihad Browser — port the UXP/Goanna web engine into the isis-browser webOS 3
 (HP TouchPad) shell, replacing QtWebKit while keeping the
-BrowserAdapter↔BrowserServer YAP IPC contract byte-identical. Phase 1 brings the
-engine up on desktop x86_64; Phase 2 cross-compiles for the device.
+BrowserAdapter↔BrowserServer YAP IPC command/message contract byte-identical.
+Phase 1 brings the engine up on desktop x86_64; Phase 2 cross-compiles for the
+device. Jihad ships **self-contained, coexisting with the stock browser** — its
+own MIME/adapter/daemon/upstart job, nothing system-level replaced (Atlas model;
+see `jihad-self-contained-arch.md`). The adapter carries a two-line rebrand (MIME
+string + YAP server name) for coexistence; the YAP command/message interface it
+speaks is unchanged.
 
 Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 `render/goanna/PORT-MAP.md`.
@@ -22,17 +27,29 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 |--------|--------------|--------------|--------|-------------|
 | UI Shell (Enyo) | cavekit-ui-shell.md | 4 | 🟢 R1–R3 ✓; R4 vs Jihad daemon on-device | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
 | Mochi UI Variant | cavekit-mochi-ui.md | 5 | ⬜ 0/5 — `app-mochi/` skeleton only | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
-| IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R4/R5 device integration | Frozen YAP interface, shmem framebuffer, daemon, LunaService |
+| IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 5 | ✅ 5/5 desktop + on-device | Headless render → shared buffer → paint protocol + geometry events |
 | Input Bridging | cavekit-input-bridging.md | 5 | 🟢 R1/R4/R5 ✓; R2/R3 on-device | webOS pointer/key/touch/gesture → DOM events |
 | Navigation, Loading & Events | cavekit-navigation-events.md | 6 | ✅ 6/6 | Nav commands + load/location/title/history message stream |
 | Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓ (engine renders on device); R3–R6 pending | Phase-2 ARM cross-toolchain, OE recipes, two .ipks, TouchPad + TouchPad Go |
+| Device Build & Packaging | cavekit-device-build.md | 6 | 🟢 R1/R2 ✓; R4 Enyo UI renders real pages on TouchPad (self-contained deploy); R3 full OE `.ipk`/Mochi + R6 TouchPad Go pending | Phase-2 ARM cross-toolchain, self-contained packaging, two .ipks, TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: 11 domains, 54 requirements — **~38 met/verified, ~16 remaining** (Mochi UI, device UI-integration: LunaService daemon + real BrowserAdapter, on-device input/gestures, TouchPad Go).
+Totals: 11 domains, 54 requirements — **~40 met/verified, ~14 remaining** (Mochi UI, full OE `.ipk` packaging + TouchPad Go, device LunaService methods, on-device input/gesture activation + keyboard).
+
+### Milestone (2026-07-07): self-contained app renders real pages on the TouchPad
+Re-architected from *replacing* the system browser to a **self-contained app that
+coexists** with it (Atlas model: own MIME `application/x-jihad-browser` →
+`BrowserAdapterJihad.so` → `/tmp/yapserver.jihad-browser` → upstart job `jihad`; the
+app's WebView routed there by `app/source/JihadEngineOverride.js`). On-device the card
+loads the Jihad adapter → the Jihad daemon, `example.com` + `slack.com`/HTTPS load and
+render (fb1), load-completion fires (address-bar refresh glyph), and the stock browser
+keeps working for all other apps. This meets IPC-Contract R5 (rebuilt adapter drives the
+daemon through a full load+paint cycle) and advances Device-Build R4. Deploy gotchas
+(reboot registers the plugin; `.ipk` reinstall busts the WebKit cache; content is on fb1)
+in auto-memory `jihad-self-contained-arch.md` + `jihad-device-gotchas.md`.
 
 ### Milestone (2026-07-04): headless engine, no X/GTK, renders on the TouchPad
 `MOZ_WIDGET_TOOLKIT=headless` — libxul links **zero** gtk/gdk/pango/cairo/X libs

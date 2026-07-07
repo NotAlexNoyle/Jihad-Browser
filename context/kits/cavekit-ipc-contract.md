@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-07"
 ---
 
 # Cavekit: IPC Contract Preservation
@@ -8,10 +8,13 @@ last_edited: "2026-07-04"
 ## Scope
 The engine-agnostic render daemon and its contract with the BrowserAdapter: the
 YAP command/message interface, the shared-memory framebuffer protocol, the
-daemon lifecycle/page manager, and the LunaService surface. This contract is
-**frozen**: the entire port hinges on it staying identical so neither the UI nor
-the BrowserAdapter must change. Reference: `docs/IPC-CONTRACT.md`,
-`context/refs/refs-overview.md`.
+daemon lifecycle/page manager, and the LunaService surface. The **command/message
+interface is frozen**: the port hinges on the YAP commands and messages staying
+byte-identical so the UI needs no change. The self-contained build does rename the
+adapter's NPAPI MIME and YAP *server socket name* for coexistence with the stock
+browser (see R5, `jihad-self-contained-arch.md`) — a transport-addressing rebrand
+that leaves every command/message signature untouched. Reference:
+`docs/IPC-CONTRACT.md`, `context/refs/refs-overview.md`.
 
 ## Requirements
 
@@ -48,12 +51,13 @@ the BrowserAdapter must change. Reference: `docs/IPC-CONTRACT.md`,
 - [x] On the desktop build the service layer can be compiled out without affecting the YAP path.
 **Dependencies:** cavekit-browser-services.md (R2)
 
-### R5: BrowserAdapter requires no source change
-**Description:** The existing NPAPI BrowserAdapter, rebuilt unmodified, drives the new daemon.
+### R5: BrowserAdapter drives the daemon; no change for the engine swap
+**Description:** The NPAPI BrowserAdapter, rebuilt, drives the Goanna daemon through a full load+paint cycle. The engine swap requires no adapter change; the only adapter edit is a self-contained **coexistence rebrand** that leaves the YAP command/message interface untouched.
 **Acceptance Criteria:**
-- [ ] The upstream BrowserAdapter source (rebuilt) connects to the daemon and completes a load+paint cycle.
-- [ ] No adapter source change is required to accommodate the Goanna backend.
-**Dependencies:** cavekit-offscreen-rendering.md, cavekit-input-bridging.md
+- [x] The rebuilt BrowserAdapter connects to the daemon and completes a load+paint cycle (on-device: `http://example.com` → `loaderr failed=0`, `painted bytes=723456`).
+- [x] No adapter source change is required to accommodate the **Goanna backend** — the YAP command/message interface (R1) is byte-identical.
+- [x] The self-contained build adds only a **two-line rebrand** — MIME `application/x-jihad-browser` (`AdapterGetMIMEDescription`) and YAP server name `BrowserClientBase("jihad-browser", …)` — so `BrowserAdapterJihad.so` coexists with the stock adapter without collision. This does not add/remove/rename/re-type any YAP command or message.
+**Dependencies:** cavekit-offscreen-rendering.md, cavekit-input-bridging.md, jihad-self-contained-arch.md
 
 ## Out of Scope
 - How frames are produced or how engine events originate (rendering/engine domains).

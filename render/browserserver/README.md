@@ -5,6 +5,14 @@ Derived from the isis-project **BrowserServer / BrowserAdapter / AdapterBase**
 **independent of the rendering engine** and are kept unchanged across the
 QtWebKit → Goanna swap.
 
+> **Self-contained naming:** the daemon's YAP server name is set from
+> `JIHAD_BS_NAME` (`Main.cpp`), so it serves `/tmp/yapserver.jihad-browser` instead
+> of the stock `browser` socket — letting Jihad coexist with the stock browser
+> rather than replace it. The YAP command/message interface is byte-identical; only
+> the socket name differs. The matching adapter is built as `BrowserAdapterJihad.so`
+> (MIME `application/x-jihad-browser`). See `../../packaging/README.md` and auto-memory
+> `jihad-self-contained-arch.md`.
+
 > The upstream sources are cloned for reference at `../../../ref-BrowserServer`,
 > `../../../ref-BrowserAdapter`, `../../../ref-AdapterBase`. During Phase 1 the
 > reusable files are imported here (keeping their Apache-2.0 headers); the

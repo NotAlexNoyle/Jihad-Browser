@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: Input Bridging
@@ -16,15 +16,15 @@ with correct coordinate mapping under zoom and scroll. Reference:
 ### R1: Pointer/click input
 **Description:** Click and hold commands hit the right element.
 **Acceptance Criteria:**
-- [ ] `clickAt(x,y,numClicks)` dispatches pointer/mouse events at the content coordinate; the element at that point receives them (verified via a page that reports the event target, or by a navigation that results from clicking a link).
-- [ ] Click count (single/double) is preserved.
-- [ ] `holdAt` produces the long-press/context behavior.
+- [x] `clickAt(x,y,numClicks)` dispatches pointer/mouse events at the content coordinate; the element at that point receives them (verified via a page that reports the event target, or by a navigation that results from clicking a link).
+- [x] Click count (single/double) is preserved.
+- [x] `holdAt` produces the long-press/context behavior.
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
 ### R2: Keyboard input
 **Description:** Key commands produce correct DOM keyboard events and text entry.
 **Acceptance Criteria:**
-- [ ] `keyDown`/`keyUp` with a webOS key code, modifiers, and character produce DOM key events with the correct key and modifier state.
+- [x] `keyDown`/`keyUp` with a webOS key code, modifiers, and character produce DOM key events with the correct key and modifier state.
 - [ ] Typing into a focused text field inserts the expected characters.
 - [ ] `insertStringAtCursor` inserts text at the caret.
 **Dependencies:** none
@@ -40,15 +40,15 @@ with correct coordinate mapping under zoom and scroll. Reference:
 ### R4: Drag and flick scrolling
 **Description:** Drag commands scroll content and overflow regions.
 **Acceptance Criteria:**
-- [ ] `dragStart`/`dragProcess`/`dragEnd` scroll the page and CSS-overflow elements.
-- [ ] Scrolling emits scrolled-to updates consistent with the rendered output.
+- [x] `dragStart`/`dragProcess`/`dragEnd` scroll the page and CSS-overflow elements.
+- [x] Scrolling emits scrolled-to updates consistent with the rendered output.
 **Dependencies:** cavekit-offscreen-rendering.md (R4)
 
 ### R5: Coordinate mapping under zoom/scroll
 **Description:** Content coordinates resolve to the correct page location regardless of transform.
 **Acceptance Criteria:**
-- [ ] With the page zoomed and scrolled, a click at a given content coordinate hits the element actually shown at that location.
-- [ ] Mapping is consistent between input and the geometry the renderer reports.
+- [x] With the page zoomed and scrolled, a click at a given content coordinate hits the element actually shown at that location.
+- [x] Mapping is consistent between input and the geometry the renderer reports.
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
 ## Out of Scope
@@ -60,3 +60,4 @@ with correct coordinate mapping under zoom and scroll. Reference:
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-07-04: Reconciled — R1 click/hold, R4 drag-scroll, R5 coord-mapping-under-zoom all verified (INPUT/INPUT2/COORDMAP PASS); R2 keyDown/keyUp verified. Pending on-device: R2 field typing + insertStringAtCursor, all of R3 touch/pinch/tap (offscreen widget does not route synth touch on desktop).

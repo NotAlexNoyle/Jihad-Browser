@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: Device Build & Packaging
@@ -16,24 +16,24 @@ feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
 ### R1: Modern ARMv7 cross-toolchain (feasibility gate)
 **Description:** A toolchain capable of building the engine for the device exists, since the stock device compiler cannot.
 **Acceptance Criteria:**
-- [ ] A documented, reproducible cross-toolchain (modern C++14-capable compiler) targets the device's glibc/kernel ABI.
-- [ ] A trivial C++14 program built with it runs on a webOS 3 device/emulator.
-- [ ] The toolchain links against (or matches) the device sysroot so binaries do not require a newer glibc than the device has.
+- [x] A documented, reproducible cross-toolchain (modern C++14-capable compiler) targets the device's glibc/kernel ABI.
+- [x] A trivial C++14 program built with it runs on a webOS 3 device/emulator.
+- [x] The toolchain links against (or matches) the device sysroot so binaries do not require a newer glibc than the device has.
 **Dependencies:** none
 
 ### R2: Engine cross-compiles for webOS 3 ARMv7
 **Description:** Goanna builds for the device target.
 **Acceptance Criteria:**
-- [ ] The engine builds with the cross-toolchain against the device sysroot.
-- [ ] The resulting libraries load on the device without missing-symbol/ABI errors.
-- [ ] ARMv7 FP/SIMD flags match the device CPU.
+- [x] The engine builds with the cross-toolchain against the device sysroot.
+- [x] The resulting libraries load on the device without missing-symbol/ABI errors.
+- [x] ARMv7 FP/SIMD flags match the device CPU.
 **Dependencies:** R1, cavekit-engine-embedding.md (R1)
 
 ### R3: OE recipes build and package Jihad — both UI variants
 **Description:** The whole product packages as installable webOS artifacts, including BOTH front-end variants.
 **Acceptance Criteria:**
 - [ ] Recipes build the daemon (with Goanna backend) and the rebuilt BrowserAdapter once (shared by both UIs).
-- [ ] The build produces **two UI `.ipk`s**: the Enyo variant (`net.riverstonerelay.jihad`, from `app/`) and the Mochi variant (`net.riverstonerelay.jihad.mochi`, from `app-mochi/`).
+- [ ] The build produces **two UI `.ipk`s**: the Enyo variant (`net.riverstonerelay.jihad-browser`, from `app/`) and the Mochi variant (`net.riverstonerelay.jihad-browser.mochi`, from `app-mochi/`).
 - [ ] Both UI packages install on a webOS 3 device/emulator and can coexist.
 - [ ] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0.
 **Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1)
@@ -73,3 +73,4 @@ feasibility gate. Reference: `docs/TOOLCHAIN.md`, `build/webos-oe/README.md`.
 ## Changelog
 - 2026-06-30: Initial draft.
 - 2026-06-30: Two UI `.ipk`s (Enyo + Mochi) in R3; added R6 TouchPad Go (Opal) support; R4 covers both models.
+- 2026-07-04: Reconciled — R1 crosstool-NG toolchain (GCC 9.4/glibc 2.23 softfp) verified on-device; R2 DONE this session: X/GTK-free headless libxul cross-built, loads on the TouchPad and renders (on-device offscreen ROUND-TRIP PASS, msgPainted 786432). R3 two-.ipk (Mochi UI + real adapter), R4 full UI-on-screen + TouchPad Go, R5 memory budget (29M libxul helps), R6 Opal remain.

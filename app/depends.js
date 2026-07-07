@@ -15,6 +15,7 @@
 enyo.depends(
 	"$enyo-lib/printdialog/",
 	"css/browser.css",
+	"source/JihadEngineOverride.js",
 	"source/ActionBar.js",
 	"source/URLSearch.js",
 	"source/AddressInput.js",

@@ -6,7 +6,7 @@ It is functionally equivalent to the legacy Enyo-1.0 UI in `../app`, but uses
 modern Mochi controls (`Header`, `IconButton`, `Input`, `List`, `Panels`,
 `Popup`, `ProgressBar`, …).
 
-This ships as a **separate `.ipk`** (`net.riverstonerelay.jihad.mochi`,
+This ships as a **separate `.ipk`** (`net.riverstonerelay.jihad-browser.mochi`,
 "Jihad (Mochi)") so it can coexist with the Enyo variant on the device — two
 versions for the TouchPad. Both UIs drive the **same** Goanna-backed
 BrowserServer through the **unchanged** BrowserAdapter contract.

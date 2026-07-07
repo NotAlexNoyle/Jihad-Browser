@@ -8,7 +8,17 @@
 #include "GoannaRenderPage.h"
 #include "EngineHost.h"
 
+// JIHAD_OFFSCREEN_ONLY (device/ARM headless build): the engine's libxul is built
+// with MOZ_WIDGET_TOOLKIT=headless (no GTK/X). Compile the daemon GTK-free too so
+// the device bundle need not ship libgtk/gdk/pango/cairo/X. Only the JIHAD_OFFSCREEN
+// PuppetWidget path is used; the legacy on-screen GTK-window path is compiled out.
+#ifdef JIHAD_OFFSCREEN_ONLY
+#define JIHAD_GTK_PUMP() ((void)0)
+#else
 #include <gtk/gtk.h>
+#define JIHAD_GTK_PUMP() do { while (gtk_events_pending()) gtk_main_iteration_do(FALSE); } while (0)
+#endif
+#include <glib.h>
 #include <ctime>
 
 #include "nsCOMPtr.h"
@@ -39,11 +49,14 @@
 #include "mozIDOMWindow.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIDocShell.h"
+#include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
+#include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
 #include "nsServiceManagerUtils.h"
+#include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 
 namespace jihad {
 
@@ -166,6 +179,11 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) { nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl); }
   }
+  if (top && (f & (STATE_START | STATE_STOP))) {
+    fprintf(stderr, "[jihad-bs] state top f=0x%x doc=%d win=%d net=%d %s status=0x%x\n",
+            f, !!(f & STATE_IS_DOCUMENT), !!(f & STATE_IS_WINDOW), !!(f & STATE_IS_NETWORK),
+            (f & STATE_START) ? "START" : "STOP", (unsigned)aStatus);
+  }
   if (f & STATE_STOP) {
     // Failed-load (R3, non-cert): scope to the main document so a broken
     // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
@@ -194,7 +212,13 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
         }
       }
     }
-    if (f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) {
+    // Complete the load on the top-level DOCUMENT stop as well as window/network.
+    // Waiting ONLY for STATE_IS_NETWORK means a single hanging subresource (an ad,
+    // tracker, analytics beacon, or slow image that real sites are full of) keeps the
+    // page "loading" forever: the isis UI's loading overlay never clears (it covers the
+    // whole UI), the address-bar X never turns into refresh, and the card looks hung.
+    // The top document STOP means the page itself is loaded and usable — signal done.
+    if ((f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) || (top && (f & STATE_IS_DOCUMENT))) {
       mDone = true;
       // The command-initiated load has finished; any load that starts next
       // without a BeginLoad is a content-initiated (link) navigation.
@@ -210,8 +234,26 @@ NS_IMETHODIMP PageChrome::OnSecurityChange(nsIWebProgress*, nsIRequest*, uint32_
 
 // ── GoannaRenderPage ────────────────────────────────────────────────────────
 
+// Offscreen render entry points exported from libxul (patches/0005). Let the
+// frozen-API daemon create a memory-backed PuppetWidget (no X/GTK/native window),
+// hand it to nsIBaseWindow::InitWindow, drive a paint, and read the ARGB32 pixels.
+// Active when the env var JIHAD_OFFSCREEN is set (also switches PuppetWidget to a
+// BasicLayerManager). This is the path the on-device daemon uses.
+// (nsIWidget is forward-declared at global scope in GoannaRenderPage.h.)
+extern "C" {
+  nsIWidget* jihad_offscreen_create(int aWidth, int aHeight);
+  void jihad_offscreen_resize(nsIWidget* aWidget, int aWidth, int aHeight);
+  void jihad_offscreen_paint(nsIWidget* aWidget);
+  bool jihad_init_nss();   // force PSM/NSS init on the main thread (internal libxul code)
+  bool jihad_offscreen_render_document(nsIWidget* aWidget, nsIDocShell* aDocShell);
+  bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
+                                int aWidth, int aHeight);
+  void jihad_offscreen_release(nsIWidget* aWidget);
+}
+
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
-  : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidth(0), mHeight(0) {}
+  : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidget(nullptr),
+    mOffscreen(false), mWidth(0), mHeight(0) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
   // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
@@ -231,11 +273,18 @@ GoannaRenderPage::~GoannaRenderPage() {
     mChrome->mBrowser = nullptr;
   }
   if (mChrome) { NS_RELEASE(mChrome); }   // release our ref
+#ifndef JIHAD_OFFSCREEN_ONLY
   if (mWindow) { gtk_widget_destroy(mWindow); mWindow = nullptr; }
+#endif
+  if (mWidget) { jihad_offscreen_release(mWidget); mWidget = nullptr; }
 }
 
 bool GoannaRenderPage::Create(int width, int height) {
   mWidth = width; mHeight = height;
+  mOffscreen = (getenv("JIHAD_OFFSCREEN") != nullptr);
+#ifdef JIHAD_OFFSCREEN_ONLY
+  mOffscreen = true;   // device build: no GTK on-screen fallback exists
+#endif
   RefPtr<PageChrome> chrome = new PageChrome(width, height);
 
   nsCOMPtr<nsIWebBrowser> wb = mHost.CreateBrowser();
@@ -243,17 +292,34 @@ bool GoannaRenderPage::Create(int width, int height) {
   chrome->mBrowser = wb;
   wb->SetContainerWindow(static_cast<nsIWebBrowserChrome*>(chrome));
 
-  mWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_default_size(GTK_WINDOW(mWindow), width, height);
-  gtk_widget_realize(mWindow);
-
   nsCOMPtr<nsIBaseWindow> baseWin = do_QueryInterface(wb);
   if (!baseWin) return false;
-  if (NS_FAILED(baseWin->InitWindow(mWindow, nullptr, 0, 0, width, height))) return false;
+
+  if (mOffscreen) {
+    // Headless: a PuppetWidget backed by an in-memory DrawTarget. Passed as the
+    // parent nsIWidget (2nd arg) so nsWebBrowser uses it directly as the docShell
+    // widget — no native/GTK child widget is created.
+    mWidget = jihad_offscreen_create(width, height);
+    if (!mWidget) return false;
+    if (NS_FAILED(baseWin->InitWindow(nullptr, mWidget, 0, 0, width, height))) return false;
+  } else {
+#ifndef JIHAD_OFFSCREEN_ONLY
+    mWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_default_size(GTK_WINDOW(mWindow), width, height);
+    gtk_widget_realize(mWindow);
+    if (NS_FAILED(baseWin->InitWindow(mWindow, nullptr, 0, 0, width, height))) return false;
+#else
+    return false;   // unreachable: mOffscreen forced true in device build
+#endif
+  }
   baseWin->Create();
   baseWin->SetVisibility(true);
-  gtk_widget_show_all(mWindow);
-  while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
+#ifndef JIHAD_OFFSCREEN_ONLY
+  if (!mOffscreen) {
+    gtk_widget_show_all(mWindow);
+  }
+#endif
+  JIHAD_GTK_PUMP();
 
   nsCOMPtr<nsIWeakReference> weak = do_GetWeakReference(static_cast<nsIWebBrowserChrome*>(chrome));
   wb->AddWebBrowserListener(weak, NS_GET_IID(nsIWebProgressListener));
@@ -262,18 +328,47 @@ bool GoannaRenderPage::Create(int width, int height) {
   return true;
 }
 
+// Forward declarations (defined below) so Resize/SetZoom can resolve the content docShell.
+static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);
+static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
+
 bool GoannaRenderPage::Resize(int width, int height) {
-  if (!mChrome || !mWindow) return false;
+  if (!mChrome) return false;
+  if ((mOffscreen && !mWidget) || (!mOffscreen && !mWindow)) return false;
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
   mWidth = width; mHeight = height;
   mChrome->mW = width; mChrome->mH = height;   // keep GetDimensions() consistent
-  gtk_widget_set_size_request(mWindow, width, height);
-  gtk_window_resize(GTK_WINDOW(mWindow), width, height);
+  if (mOffscreen) {
+    jihad_offscreen_resize(mWidget, width, height);
+  } else {
+#ifndef JIHAD_OFFSCREEN_ONLY
+    gtk_widget_set_size_request(mWindow, width, height);
+    gtk_window_resize(GTK_WINDOW(mWindow), width, height);
+#endif
+  }
   // Resize the embedded surface; eRepaint invalidates so the page reflows to the
   // new viewport (100vw/100vh content follows the new size).
   nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
   if (bw) bw->SetPositionAndSize(0, 0, width, height, nsIBaseWindow::eRepaint);
-  while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
+  // Force the document to actually REFLOW at the new size. In this headless embedding
+  // the widget/baseWindow resize does not propagate to a presShell resize-reflow (there
+  // is no nsView listener wired up), so after a rotate the page stayed laid out at the
+  // initial (portrait) width: GetContentSize kept returning 768 while the window was
+  // 1024, and the adapter zoom-fit to 1024/768 = 1.333 and garbled the composite.
+  // ResizeReflowIgnoreOverride sets the presContext visible area to the new size so the
+  // content (and a width=device-width viewport) tracks the window in both orientations.
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (ds) {
+    nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+    if (ps) {
+      // ResizeReflow wants app units. AppUnitsPerCSSPixel is the constant 60, and the
+      // devicePixelRatio is pinned to 1 (layout.css.devPixelsPerPx), so 1 device px ==
+      // 1 CSS px == 60 app units. (nsPresContext.h can't be included here -- it drags in
+      // internal string headers unusable from the frozen-API daemon.)
+      ps->ResizeReflowIgnoreOverride((nscoord)width * 60, (nscoord)height * 60, 0, 0);
+    }
+  }
+  JIHAD_GTK_PUMP();
   return true;
 }
 
@@ -359,10 +454,22 @@ void GoannaRenderPage::SetZoom(double zoom) {
   if (!mChrome || zoom <= 0.0) return;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return;
-  nsCOMPtr<nsIContentViewer> cv;
-  ds->GetContentViewer(getter_AddRefs(cv));
-  if (!cv) return;
-  cv->SetFullZoom((float)zoom);                        // full-page zoom -> reflow
+  // Pinch/fit zoom via the presShell RESOLUTION, NOT nsIContentViewer::SetFullZoom.
+  // Full zoom reflows: it shrinks the layout viewport to window/zoom, so the adapter's
+  // fit-zoom of 1024/768=1.333 (after a rotate to landscape) made the page lay out at
+  // 768 CSS px, GetContentSize returned 768, and the adapter recomputed 1024/768=1.333
+  // again -- a feedback loop that upscaled the render past the buffer (garbled landscape,
+  // 3x tiling/scanlines). Resolution scales the RENDER while the layout viewport stays
+  // pinned to the window width (device-width), so content size is stable and the
+  // adapter's zoom-to-fit converges to 1.0. (SetResolutionAndScaleTo also bumps the
+  // content scale so text stays crisp when zoomed in, matching mobile pinch-zoom.)
+  nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+  if (!ps) return;
+  // Plain SetResolution (compositor scale only). SetResolutionAndScaleTo ALSO bumps the
+  // content scale, which shrinks the effective layout viewport just like SetFullZoom and
+  // re-arms the same 1.333 feedback loop. SetResolution leaves layout at the window width,
+  // so GetContentSize stays == window width and the adapter's zoom-to-fit converges to 1.0.
+  ps->SetResolution((float)zoom);
   // Zoom doesn't resize the native window, so nudge a repaint to refresh readback.
   nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
   if (bw) bw->Repaint(true);
@@ -370,6 +477,20 @@ void GoannaRenderPage::SetZoom(double zoom) {
 
 bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   if (!mChrome) return false;
+  // Flush layout FIRST so the size reflects the current viewport. emitGeometry() calls
+  // this right after a Resize (rotation), before the async reflow runs; without the
+  // flush GetRootBounds returns the stale pre-reflow width (e.g. 768 portrait). The
+  // adapter divides that into the window width for zoom-to-fit, so a stale 768 under a
+  // 1024 landscape window yields zoom 1024/768 = 1.333 -> SetFullZoom upscales and the
+  // page renders larger than the buffer (tiling/garbled). Flushing makes the width
+  // accurate (1024), so the adapter computes zoom 1.0.
+  {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    if (ds) {
+      nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+      if (ps) ps->FlushPendingNotifications(Flush_Layout);
+    }
+  }
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
   // GetRootBounds returns the root scroll frame's bounds, i.e. the full scrollable
@@ -422,10 +543,38 @@ void GoannaRenderPage::BeginLoad() {
 
 bool GoannaRenderPage::LoadUrl(const char* url) {
   if (!mChrome) return false;
+  // Force PSM/NSS (TLS) to construct on THIS main thread before the load. Necko
+  // otherwise lazily constructs nsNSSComponent from the socket-transport thread on the
+  // first https:// request, and its ctor MOZ_RELEASE_ASSERT(NS_IsMainThread()) crashes
+  // the daemon ("loads forever"). PSM isn't registered yet at engine-init time, but it
+  // is by first navigation, so do it here (idempotent — returns the singleton after).
+  jihad_init_nss();
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
   if (!nav) return false;
+  // Pin the browser identity: a non-empty docShell customUserAgent is returned
+  // directly by Navigator::GetUserAgent (ahead of nsHttpHandler), so navigator.userAgent
+  // reflects JIHAD_USER_AGENT reliably. general.useragent.override alone did not stick
+  // for navigator.userAgent under XRE_InitEmbedding (the loose goanna.js prefs file
+  // isn't loaded by a bare embedder). Set per-load: the attribute lives on the docShell
+  // and survives same-docShell navigations, but re-applying is cheap and covers a fresh
+  // content window. Also drives the network User-Agent header for this docShell's loads.
+  {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(JIHAD_USER_AGENT));
+  }
   BeginLoad();
-  NS_ConvertUTF8toUTF16 u(url);
+  // Scheme fixup: a bare host like "whatismybrowser.com" has no scheme, and nav->LoadURI
+  // needs one or the load silently fails (no load-done, blank page). Prepend http:// unless
+  // it already has a scheme or is an internal pseudo-scheme (about:/data:/etc). The app's
+  // URL bar should do this too, but the daemon must be robust to a schemeless URL.
+  std::string fixed(url ? url : "");
+  if (!fixed.empty() && fixed.find("://") == std::string::npos &&
+      fixed.compare(0, 6, "about:") != 0 && fixed.compare(0, 5, "data:") != 0 &&
+      fixed.compare(0, 11, "javascript:") != 0 && fixed.compare(0, 7, "mailto:") != 0 &&
+      fixed.compare(0, 5, "file:") != 0 && fixed.compare(0, 4, "tel:") != 0) {
+    fixed = "http://" + fixed;
+  }
+  NS_ConvertUTF8toUTF16 u(fixed.c_str());
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
 }
 
@@ -435,7 +584,7 @@ void GoannaRenderPage::PumpFor(int msBudget) {
   struct timespec ts0; clock_gettime(CLOCK_MONOTONIC, &ts0);
   for (;;) {
     NS_ProcessNextEvent(thread, false);
-    while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
+    JIHAD_GTK_PUMP();
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     long ms = (ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000;
     if (ms >= msBudget) break;
@@ -450,7 +599,7 @@ bool GoannaRenderPage::LoadUrlAndWait(const char* url, int timeoutSec) {
   time_t start = time(nullptr);
   while (!mChrome->mDone && (time(nullptr) - start) < timeoutSec) {
     NS_ProcessNextEvent(thread, false);
-    while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
+    JIHAD_GTK_PUMP();
     g_usleep(1000);
   }
   return mChrome->mDone;
@@ -543,8 +692,13 @@ std::string GoannaRenderPage::CurrentUri() {
 
 // --- process-global browser services ---------------------------------------
 void SetUserAgentOverride(const char* ua) {
+  // Only apply a NON-empty UA. The isis adapter/UI sends an empty setUserAgent at
+  // connect; without this guard it would wipe the complete default UA set at engine
+  // init (EngineHost) and the engine would fall back to the branding-stripped
+  // "Goanna/ /x.y" string (empty app-name/version fields).
+  if (!ua || !*ua) return;
   nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
-  if (pb) pb->SetCharPref("general.useragent.override", ua ? ua : "");
+  if (pb) pb->SetCharPref("general.useragent.override", ua);
 }
 void ClearCache() {
   nsCOMPtr<nsICacheStorageService> c =
@@ -603,9 +757,12 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   if (!u) return;
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
-  // Optional args left at IDL defaults (_argc = 0).
+  // Pass explicit buttons (_argc=6): the left button is held for down/move, released
+  // (0) for up. With _argc=0 the impl derives buttons from aButton for BOTH, so a
+  // mouseup reports the button still held and the press/release may not register.
+  int32_t buttons = (strcmp(type, "mouseup") == 0) ? 0 : 1;
   u->SendMouseEvent(t, (float)x, (float)y, button, /*clickCount*/1, /*mods*/0,
-                    false, 0.0f, 0, false, false, 0, 0, &ret);
+                    false, 0.0f, 0, false, false, buttons, 6, &ret);
 }
 
 void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
@@ -614,8 +771,11 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!u) return;
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
-  u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 0, &ret);
-  u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 0, &ret);
+  // Explicit buttons (_argc=6): mousedown = left held (1), mouseup = released (0).
+  // Without this the impl gives mouseup buttons=1 (button still down) and the click
+  // never fires -> links/buttons don't activate on a tap.
+  u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
+  u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
 }
 
 void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {
@@ -651,6 +811,31 @@ void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
+  if (mOffscreen) {
+    if (!mWidget) return -1;
+    int w = mWidth, h = mHeight;
+    if (w <= 0 || h <= 0) return -1;
+    if (dstBytes < (size_t)w * h * 4) return -1;
+    // Render the document into the widget's DrawTarget via the presShell (the widget
+    // Paint() path does not paint embedded content into our offscreen widget -> black).
+    if (mChrome && mChrome->mBrowser) {
+      nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+      if (ds) jihad_offscreen_render_document(mWidget, ds);
+    }
+    // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.
+    if (!jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;
+    long nonblank = 0;
+    for (int i = 0; i < w * h; ++i) {
+      unsigned char* o = dst + (size_t)i * 4;   // B,G,R,A
+      if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;
+      o[3] = 0xff;
+    }
+    return nonblank;
+  }
+#ifdef JIHAD_OFFSCREEN_ONLY
+  return -1;   // device build: only the offscreen path exists
+}
+#else
   if (!mWindow) return -1;
   GdkWindow* gw = gtk_widget_get_window(mWindow);
   if (!gw) return -1;
@@ -675,5 +860,6 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
   g_object_unref(pb);
   return nonblank;
 }
+#endif // !JIHAD_OFFSCREEN_ONLY
 
 } // namespace jihad

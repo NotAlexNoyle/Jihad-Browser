@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -21,25 +21,25 @@ share this contract and both are built (two versions for the TouchPad).
 ### R1: Rebranded webOS application package
 **Description:** The forked app is identified and presented as Jihad Browser, distinct from the stock webOS browser.
 **Acceptance Criteria:**
-- [ ] `app/appinfo.json` declares a Jihad app id (`net.riverstonerelay.jihad`), title "Jihad", and a non-HP vendor.
-- [ ] No remaining references to the stock id `com.palm.app.browser` inside `app/`.
-- [ ] App icon and splash icon are present and load.
-- [ ] `universalSearch` self-reference uses the new app id.
+- [x] `app/appinfo.json` declares a Jihad app id (`net.riverstonerelay.jihad-browser`), title "Jihad", and a non-HP vendor.
+- [x] No remaining references to the stock id `com.palm.app.browser` inside `app/`.
+- [x] App icon and splash icon are present and load.
+- [x] `universalSearch` self-reference uses the new app id.
 **Dependencies:** none
 
 ### R2: Engine access only via the unchanged BrowserAdapter contract
 **Description:** The UI talks to the renderer exclusively through the same calls upstream isis-browser used.
 **Acceptance Criteria:**
-- [ ] The set of `callBrowserAdapter(...)` method names used by the UI equals the upstream isis-browser set (no additions, removals, or renames).
-- [ ] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream.
-- [ ] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`.
+- [x] The set of `callBrowserAdapter(...)` method names used by the UI equals the upstream isis-browser set (no additions, removals, or renames).
+- [x] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream.
+- [x] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`.
 **Dependencies:** cavekit-ipc-contract.md (R1, R5)
 
 ### R3: Apache-2.0 provenance preserved on forked UI files
 **Description:** Forking the UI does not alter its licensing.
 **Acceptance Criteria:**
-- [ ] Every forked source file retains its original HP Apache-2.0 header unmodified.
-- [ ] New UI files (if any) carry an Apache-2.0 header.
+- [x] Every forked source file retains its original HP Apache-2.0 header unmodified.
+- [x] New UI files (if any) carry an Apache-2.0 header.
 **Dependencies:** cavekit-licensing-branding.md (R1)
 
 ### R4: UI drives the new render daemon unchanged
@@ -61,3 +61,4 @@ share this contract and both are built (two versions for the TouchPad).
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-07-04: Reconciled — R1 rebrand, R2 unchanged adapter contract (method set + Luna URIs = upstream), R3 Apache headers all verified. R4 is proven contract-correct against the STOCK QtWebKit BrowserServer on-device (openURL->loadStarted->pageTitleChanged->documentLoadFinished); driving the JIHAD Goanna daemon on-device is pending (needs the LunaService daemon + real BrowserAdapter).

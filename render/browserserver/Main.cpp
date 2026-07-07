@@ -7,7 +7,9 @@
  * server), and pumps the engine + paint on the server's GLib main loop. A
  * BrowserAdapter connects over YAP exactly as it did to the QtWebKit daemon.
  */
+#ifndef JIHAD_OFFSCREEN_ONLY
 #include <gtk/gtk.h>
+#endif
 #include <glib.h>
 #include <cstdio>
 #include <cstdlib>
@@ -24,7 +26,17 @@ int main(int argc, char** argv) {
   const char* name = getenv("JIHAD_BS_NAME");
   if (!name || !*name) name = "jihad-browserserver";
 
-  gtk_init(&argc, &argv);
+  // JIHAD_OFFSCREEN (on-device / headless): there is no X server. gtk_init() calls
+  // exit(1) if it cannot open a display; gtk_init_check() returns FALSE instead.
+  // The daemon drives the engine on a GLib main loop (not GTK), and rendering goes
+  // through the PuppetWidget offscreen path — no GTK widgets/X needed.
+#ifndef JIHAD_OFFSCREEN_ONLY
+  if (getenv("JIHAD_OFFSCREEN")) {
+    gtk_init_check(&argc, &argv);
+  } else {
+    gtk_init(&argc, &argv);
+  }
+#endif
 
   static jihad::EngineHost host;
   if (!host.Init(greDir)) { fprintf(stderr, "[jihad-bs] engine init FAILED\n"); return 1; }

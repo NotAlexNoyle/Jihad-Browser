@@ -21,6 +21,7 @@
 #include <string>
 
 typedef struct _GtkWidget GtkWidget;
+class nsIWidget;   // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
 
 namespace jihad {
 
@@ -120,7 +121,9 @@ private:
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
-  GtkWidget* mWindow;
+  GtkWidget* mWindow;      // legacy desktop path (GTK offscreen window)
+  nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
+  bool mOffscreen;         // true when rendering via the offscreen widget
   int mWidth;
   int mHeight;
 

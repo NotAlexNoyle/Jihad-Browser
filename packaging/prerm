@@ -1,0 +1,24 @@
+#!/bin/sh
+# Jihad Browser -- pre-removal. Runs as ROOT. Reverses postinst. Touches ONLY our own
+# files -- the stock browser (BrowserAdapter.so / browserserver / yapserver.browser) is
+# never modified by install or removal.
+log() { echo "jihad-prerm: $*"; }
+
+log "stopping Goanna daemon..."
+stop jihad 2>/dev/null
+killall jihad-browserserver 2>/dev/null
+rm -f /tmp/yapserver.jihad-browser*
+
+log "removing rootfs components (rw)..."
+mount -o remount,rw / 2>/dev/null
+rm -f /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
+rm -f /etc/event.d/jihad
+sync
+mount -o remount,ro / 2>/dev/null
+
+log "removing daemon..."
+rm -rf /media/internal/jihad/hl
+
+killall LunaSysMgr 2>/dev/null
+log "removal complete."
+exit 0

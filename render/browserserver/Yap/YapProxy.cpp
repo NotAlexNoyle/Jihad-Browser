@@ -159,7 +159,7 @@ YapProxy::YapProxy(YapServer* server, int cmdSocketFd, char* msgSocketPath, char
 
 YapProxy::~YapProxy()
 {
-    delete m_msgSocketPostfix;
+    delete[] m_msgSocketPostfix;   // allocated with new char[length+1] — must be delete[] (was UB)
     m_msgSocketPostfix = 0;
 
     if (m_ioSource) {

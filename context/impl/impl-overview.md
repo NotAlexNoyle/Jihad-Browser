@@ -1,26 +1,69 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Implementation Overview
 
+## 2026-07-06 — REAL on-device UI/UX state (READ FIRST)
+
+The build pipeline and offscreen round-trip below are done, but **interactive on-device
+browsing is NOT complete** — verified against the real screen (`/dev/fb1`), the daemon's
+`frame.ppm` was misleading (it's the pre-composite render). See
+`docs/DEVICE-HANDOFF.md` (2026-07-06 section) for the authoritative current state.
+
+Working on-device: portrait render (after DPR=1 fix), about:jihad/about:isis pages, the
+full UA (docShell customUserAgent), URL-bar → about: navigation, DuckDuckGo default,
+new-window Jihad logo, upstart-supervised daemon persistence.
+
+Broken / unverified on-device (the real remaining work): **click activation** (taps reach
+the daemon but SendMouseEvent doesn't fire links), **landscape composite** (adapter blits a
+stale-orientation buffer → tiling/scanlines; daemon render is correct), **load lifecycle**
+(load-complete now fires on document STOP — fixed, unverified; was the cause of the looping
+load overlay + address-bar X never→refresh + partial render + broken search), **HTTPS heavy
+pages** (NSS marshal-flood fixed in libxul, unverified), **keyboard/VKB** (no msgEditorFocused).
+
+## 2026-07-04 — HEADLESS ENGINE RENDERS ON THE HP TOUCHPAD (X/GTK dropped)
+
+The whole Phase-1 pipeline is now proven **on real ARM hardware with a fully
+X/GTK-free engine**:
+- **`MOZ_WIDGET_TOOLKIT=headless`** (new `widget/headless/` backend +
+  `gfxPlatformHeadless` + headless gates across gfx/thebes, gfx/2d, gfx/skia,
+  exthandler, widget, toolkit/library). libxul links **zero** gtk/gdk/pango/cairo/X
+  — only freetype+fontconfig. Two runtime bugs fixed: null `GfxInfo` at
+  `gfxPlatform::InitAcceleration` (stub registered) and a `PuppetScreen`↔fallback-hal
+  infinite recursion (GetRect/GetColorDepth/GetPixelDepth answered directly).
+- **Desktop**: offscreen ROUND-TRIP PASS, msgPainted 786432, `jihad-poc-render.ppm`.
+- **Device (TouchPad topaz-linux)**: ARM cross-built headless libxul (29 M stripped,
+  was 46 M) + GTK-free daemon (`-DJIHAD_OFFSCREEN_ONLY`) + lean bundle (**28 .so, no
+  gtk/X — vs 68 before**) → deployed to `/media/internal/jihad/hl` → **on-device
+  offscreen ROUND-TRIP PASS, msgPainted 786432**.
+- Closes **Engine-Embedding R2**, **Offscreen-Rendering** (on-device),
+  **Device-Build R2**; advances **Device-Build R4/R5**. Full recipe + gotchas in
+  auto-memory `jihad-headless-toolkit.md` and `docs/DEVICE-HANDOFF.md`.
+
+**Remaining for "all kits complete"** (see cavekit-overview.md status column):
+Mochi UI variant (`app-mochi/` skeleton → parity, largest item); device UI
+integration (LunaService-enabled daemon + real NPAPI BrowserAdapter so the Enyo UI
+drives the Jihad daemon on-screen — IPC R4/R5, UI-Shell R4, Device-Build R3/R4);
+on-device input/gestures (Input R2/R3); download progress + SSL-accept + device cert
+store (Services R4/R5); TouchPad Go / Opal (Device-Build R6).
+
 ## Domain Status
 | Domain | Tasks Done | Tasks Total | Status |
 |--------|-----------|-------------|--------|
-| IPC Contract Preservation | 1 (partial) | 5 | T-004 done; T-005/T-006 sources imported, not yet building |
+| IPC Contract Preservation | R1–R3 done; R4/R5 device | 5 | T-004/T-005/T-006 build + run: real daemon links the unchanged BrowserServerBase (byte-identical YAP) with the Goanna backend; ROUND-TRIP + FREEZE-THAW PASS on desktop AND on-device. R4 device LunaService + R5 real NPAPI BrowserAdapter are the remaining device-integration items. (See the "IPC Contract / Daemon" row below for detail.) |
 | Licensing & Branding | **5 (COMPLETE)** | 5 | R1 headers, R2 LICENSE/NOTICE, R5 Apache↔MPL compatibility — done. **R3 branding strip: build-goanna.sh removes Pale Moon/Basilisk/Moonchild from all.js + nsAboutRedirector + the dead nsAppRunner literals; scan verified 0 branding strings in libxul.so / jihad-browserserver / goanna.js; round-trip still passes. R4: docs/ENGINE-SOURCE.md documents the UXP origin (pinned rev b2594a4), all patches (0001-0004 + strip), and MPL source-availability; LICENSE points to it.** |
 | UI Shell | 3 | 4 | T-007/T-008/T-009 done; T-004(ui) R4 pending |
 | Engine Embedding & Build | **R1–R4 (R2 verified)** | 4 | libxul builds out-of-tree (R1); runtime init/shutdown once per process; **R2 repeated create/destroy: 20/20 cycles each render a full frame, no crash/leak (LEAK-CYCLE PASS)**; R3 event loop integrated (daemon tick 10ms + g_timeout, responsive, no busy-wait); R4 not vendored (git-ignored, docs/ENGINE-SOURCE.md) |
 | Navigation, Loading & Events | **R1–R6 COMPLETE** | 6 | load lifecycle; back/forward (real canGo*); setHtml — NAV PASS. R3 failed-load — FAIL-EVENT PASS. R1 clearHistory + R5 getHistoryState — HISTORY PASS. **R4 url-redirected (STATE_REDIRECTING) — REDIRECT PASS (302 /a→/b via local server). R6: global-history + addUrlRedirect (POSIX-regex rules, RULES PASS: tel: handed off) + link-clicked (content-initiated nav via programmatic-load heuristic, LINK PASS: click →/b reported).** Full domain verified end-to-end |
 | IPC Contract / Daemon | **ROUND-TRIP PASS + lifecycle** | — | Real daemon (libYap + unchanged BrowserServerBase + JihadBrowserServer + Goanna); ROUND-TRIP PASS (Connect+OpenUrl→…→msgPainted). **R2/R3: freeze suppresses paint + thaw reattaches buffers + resumes — FREEZE-THAW PASS; returnBuffer wired.** ~40 commands wired (nav/input/geometry/services/dialogs/downloads/history/redirect-rules/drag). findString kept safe (offscreen selection controller = future). Genuinely device-gated: R4 LunaService (device build), R5 real NPAPI BrowserAdapter rebuild. Remaining niche stubs are engine-inapplicable no-ops (plugin spotlight, spelling widget, mouse-mode, DNS/network-iface) |
-| Offscreen Rendering | **T-020+T-024 render→shmem** | 5 | **Goanna renders real web pages** — data: page (docs/jihad-render-proof.png) AND live **https://example.com over TLS** (docs/jihad-render-example-com.png); consolidated into the reusable **GoannaRenderPage** backend class (Create/LoadUrlAndWait/ReadPixels→ARGB32 shm); msgPainted wiring in the daemon next |
+| Offscreen Rendering | **R1–R3 COMPLETE (+ on-device)** | 5 | **Goanna renders real web pages** — data: page (docs/jihad-render-proof.png) AND live **https://example.com over TLS**; **GoannaRenderPage** backend (Create/LoadUrlAndWait/ReadPixels→ARGB32 shm) → **msgPainted wired through the daemon; ROUND-TRIP PASS on desktop AND on the TouchPad (786432 px)**. Now truly windowless via MOZ_WIDGET_TOOLKIT=headless (PuppetWidget, no gtk window). Geometry/resize/zoom in the row below |
 | Offscreen Rendering (geometry) | **R4 + R5 COMPLETE** | 5 | R5: Resize→RESIZE PASS; ScrollTo(javascript:)+GetScrollXY→SCROLL PASS; SetZoom(nsIContentViewer::SetFullZoom via proper content-docshell)→ZOOM PASS (9×). R4 events: GetContentSize(GetRootBounds)→msgContentsSizeChanged, GetViewport(GetViewportInfo, meta-viewport pref on)→msgMetaViewportSet, pump-polled msgScrolledTo — all emit through BrowserPageGoanna→ProxySink→YAP; GEO PASS (2032×2500; init/min/max=0.5/0.5/2.0 us=1; (0,400)). All wired to the daemon. GetDocShell also repaired SetJavaScriptEnabled |
 | Input Bridging | **click/key/mouse + coord-mapping (R5)** | 5 | ClickAt/KeyEvent/MouseEvent via nsIDOMWindowUtils — INPUT PASS. **R5 coord-mapping: clickAt uses content/CSS space (proven via coord_test: surface≠content at zoom); bridge now maps adapter surface coords → content (surface/zoom + scroll) for click/mouse/touch — COORDMAP PASS (surface(240,240)@2x hits the box at content(120,120)).** **R1 holdAt (contextmenu) + R4 drag scrolling (dragProcess→scroll, msgScrolledTo) — INPUT2 PASS (holdAt hits, drag scrolls 200).** TouchEvent + insertStringAtCursor wired but desktop-unverified (offscreen widget doesn't route synth touch; execCommand insertText via javascript: doesn't preserve input focus headless) — both on-device. Remaining: R3 pinch/tap gesture (on-device) |
-| Navigation, Loading & Events | 0 | 6 | not started |
 | Browser Services | **R1 settings + R2 cache/cookies + R3 dialogs** | 5 | R1 complete: setEnableJavaScript, setUserAgent, **setMinFontSize/setBlockPopups/setAcceptCookies** (SETTINGS2 PASS — prefs applied + window.open blocked behaviorally). R2: clearCache/clearCookies (SERVICES PASS). R3: DialogService overrides `@mozilla.org/prompter;1` — alert/confirm/prompt captured + reply routed (DIALOG PASS), installed in EngineHost so the daemon never hangs. R4 downloads: DownloadService overrides `@mozilla.org/helperapplauncherdialog;1` — handoff captured (DOWNLOAD PASS). **R5 TLS: invalid cert detected via the security-module document-stop status → msgSSLConfirm(host, code) (TLS PASS: self-signed 127.0.0.1 → host+0x805a2fe3 surfaced, reject-aborts = page not loaded).** Device-gated [human-review on device]: accept-proceeds (the untrusted cert object isn't exposed headless — nsIBadCertListener2 not consulted, SSL-status/failed-chain null) + webOS cert store. Remaining: save-to-disk/progress + per-adapter blocking dialog delivery (adapter/device) |
 | Desktop Build & PoC | **R1–R3 done; R4 [human-review]** | 4 | R1: single-entry build produces runnable jihad-browserserver (Goanna backend, LunaService compiled out) — DAEMON_UP. R2: jihad-adapter allocates buffers, Connect+OpenUrl, receives msgPainted, **writes out/jihad-poc-render.ppm** (→ docs/jihad-poc-render.png), returns buffer (0x150d wired). R3: real page renders through the whole pipe, lifecycle in order — ROUND-TRIP PASS. R4 (Enyo UI on desktop) recorded [human-review]: no desktop Enyo runtime → harness is the acceptance vehicle. See docs/DESKTOP-POC.md |
-| Device Build & Packaging (ipk) | **scaffolded; hardware-gated** | 5 | Authored: build/webos-oe/mozconfig.goanna-arm (ARMv7-A/NEON/hard-float, -Os, strip) + OE recipe skeletons (goanna.bb engine, jihad-browserserver.bb daemon w/ LunaService ON, and BOTH UI .ipks net.riverstonerelay.jihad + .mochi) mirroring the isis recipes with the engine dep swapped to Goanna; docs/DEVICE-BUILD.md documents the full track. Reuses the verified Phase-1 sources cross-targeted. GATED (cannot run in-session): R1 toolchain needs the webOS-3 device sysroot; R2 cross-build needs it + hours; R3 needs an OE/meta-webos tree; R4/R6 need the physical TouchPad + TouchPad Go [human-review on device]; R5 memory [human-review on device] |
+| Device Build & Packaging (ipk) | **R1+R2 DONE on-device; R3–R6 pending** | 6 | **R1 crosstool-NG toolchain (GCC 9.4 / glibc 2.23 softfp, min-kernel 2.6.32) — C++ ran on the TouchPad. R2 engine cross-compiles: X/GTK-free headless libxul (29 M) + GTK-free daemon cross-built, load on the device and RENDER (on-device offscreen ROUND-TRIP PASS, msgPainted 786432); lean bundle 28 .so (no gtk/X) launched via bundled ld-2.23.so on /media/internal.** Authored mozconfig.goanna-arm (now cairo-headless) + build-goanna-arm.sh + build-daemon-arm.sh + make-device-bundle.sh; OE `.bb` skeletons exist. Pending: R3 two `.ipk`s (needs Mochi UI + real BrowserAdapter rebuild) + on-device coexistence; R4 full UI-on-screen via BrowserAdapter + nav/scroll/tap on-device; R5 memory budget [human-review; 29 M libxul helps]; R6 TouchPad Go / Opal (no 2nd device). See docs/DEVICE-HANDOFF.md |
 
 ## Completed this session (Tier-0, build-independent)
 - **T-001/T-002** — LICENSE + NOTICE + license texts; Apache+MPL compatibility stated.
@@ -28,7 +71,7 @@ last_edited: "2026-06-30"
 - **T-004** — YAP interface imported & frozen; `BrowserServerBase.{h,cpp}` md5-verified byte-identical to upstream.
 - **T-005** — Shared-mem framebuffer + offscreen-info contract sources imported (engine-agnostic).
 - **T-006** — Daemon support sources imported (agnostic bucket); daemon/page-manager imported but flagged for de-Qt adaptation (see render/browserserver/Src/MANIFEST.md).
-- **T-007** — App package rebranded (`net.riverstonerelay.jihad`, title "Jihad").
+- **T-007** — App package rebranded (`net.riverstonerelay.jihad-browser`, title "Jihad").
 - **T-008** — Verified UI `callBrowserAdapter` set + browserServer Luna URIs identical to upstream isis.
 - **T-009** — Verified 24/24 forked UI `.js` retain Apache headers.
 

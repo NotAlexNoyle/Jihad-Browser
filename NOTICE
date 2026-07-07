@@ -29,6 +29,21 @@ UXP — Unified XUL Platform / Goanna engine (rendering engine dependency)
   licenses documented within the UXP source tree.
   Origin: https://repo.palemoon.org/MoonchildProductions/UXP
 
+Atlas Browser (parallel isis-browser fork) — ported fixes
+  Copyright (c) Herman van Hazendonk (Herrie82) and the Atlas Browser project.
+  Licensed under the Apache License, Version 2.0.
+  Origin: https://github.com/Herrie82/BrowserAdapter
+          https://github.com/Herrie82/BrowserServer
+  Jihad Browser incorporates device-hardening fixes first developed in Atlas
+  (which also forks isis-browser but targets WPE WebKit):
+    - YAP memory-safety fixes (YapProxy delete[], YapServer int16 length
+      validation, YapClient reconnect socket teardown, YapPacket malloc
+      null-check) — Atlas BrowserServer commit 89b71a7.
+    - BrowserAdapter LunaCE paint fix (dstBuffer raw-blit path instead of the
+      QPainter/PGContext deref that segfaults LunaSysMgr), out-of-buffer white
+      fill, tall-buffer pan, pinch-zoom scaled blit, and scroll indicator —
+      Atlas BrowserAdapter commits 7b91ab8, aefab6d, dbc897c, 27b54a5, 77ab724.
+
 --------------------------------------------------------------------------------
 Trademark notice
   "Pale Moon", "Basilisk", and Moonchild Productions marks and logos remain the

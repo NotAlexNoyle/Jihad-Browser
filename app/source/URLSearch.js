@@ -58,12 +58,16 @@ enyo.kind({
 	],
 	//* @protected
 	defaultSearchPreferences: [{
+		title: "DuckDuckGo",
+		url: "https://duckduckgo.com/?q={$query}",
+		icon: "list-icon-google.png"
+	}, {
 		title: "Google",
-		url: "http://www.google.com/search?q={$query}",
+		url: "https://www.google.com/search?q={$query}",
 		icon: "list-icon-google.png"
 	}, {
 		title: "Wikipedia",
-		url: "http://en.m.wikipedia.org/wiki/Special:Search?search={$query}",
+		url: "https://en.m.wikipedia.org/wiki/Special:Search?search={$query}",
 		icon: "list-icon-wikipedia.png"
 	}],
 	_boxSize: {},
@@ -176,10 +180,17 @@ enyo.kind({
 		}
 	},
 	providerClick: function(inSender, inEvent, inRowIndex) {
-		var provider = this.defaultSearchPreferences[0];
-		if (window.PalmSystem) {
-			provider = this.searchPreferences[inRowIndex];
-		}
+		var idx = inRowIndex || 0;
+		// Prefer the configured engine, but fall back to the built-in defaults so a
+		// search never no-ops when searchPreferences is empty (com.palm.universalsearch
+		// returned nothing / isn't provisioned for this app). Previously provider.url on
+		// an undefined provider threw and the navigation was silently dropped — this was
+		// the "can't navigate via the URL bar" bug for schemeless / search input.
+		var provider = (window.PalmSystem && this.searchPreferences[idx]) ||
+		               this.searchPreferences[0] ||
+		               this.defaultSearchPreferences[idx] ||
+		               this.defaultSearchPreferences[0];
+		if (!provider || !provider.url) { return; }
 		this.closeSearchPopup();
 		this.log(this.$.address.getUserInput(true));
 		this.doLoad(enyo.macroize(provider.url, {query: escape(this.$.address.getUserInput(true))}));
@@ -222,10 +233,23 @@ enyo.kind({
 		var uri = enyo.uri.parseUri(inValue);
 		if ((enyo.uri.isValidScheme(uri) && this.isUri(inValue, uri)) || (enyo.windowParams.allowAllSchemes && uri.scheme)) {
 			this.doLoad(inValue);
+		} else if (this.looksLikeHost(inValue)) {
+			// A schemeless host like "example.com" or "192.168.0.1/x" is a navigation,
+			// not a search — default it to http:// (the site can redirect to https).
+			this.doLoad("http://" + enyo.string.trim(inValue));
 		} else {
 			this.providerClick(null, null, 0);
 		}
 		this.closeSearchPopup();
+	},
+	// Heuristic: does the raw input denote a host (=> navigate) rather than search terms?
+	looksLikeHost: function(inText) {
+		var v = enyo.string.trim(inText || "");
+		if (!v || /\s/.test(v)) { return false; }                        // any space => search terms
+		if (/^localhost(:\d+)?([\/?#].*)?$/i.test(v)) { return true; }
+		if (/^\d{1,3}(\.\d{1,3}){3}(:\d+)?([\/?#].*)?$/.test(v)) { return true; }  // IPv4
+		// host.tld[:port][/path...] — final label is a 2+ letter TLD
+		return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}(:\d+)?([\/?#].*)?$/i.test(v);
 	},
 	isUri: function(inText, inUri) {
 		// probably a search term if there is a space

@@ -33,7 +33,7 @@ enyo.kind({
 		{name: "historyService", kind: "DbService", dbKind: "com.palm.browserhistory:1", reCallWatches: true},
 		{name: "systemPrefsService", kind: "SystemService"},
 		{name: "browserPrefsService", kind: "DbService", dbKind: "com.palm.browserpreferences:1", reCallWatches: true},
-		{name: "universalSearchService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "getUniversalSearchList", onSuccess: "gotUniversalSearchList", subscribe: true, resubscribe: true},
+		{name: "universalSearchService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "getUniversalSearchList", onSuccess: "gotUniversalSearchList", onFailure: "universalSearchFailed", subscribe: true, resubscribe: true},
 		{name: "setSearchPreferenceService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "setSearchPreference"},
 		{name: "clearOptionalSearchListService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "clearOptionalSearchList"},
 		{name: "stService", kind: "PalmService", service: "palm://com.palm.stservice/", timeout: 500},
@@ -174,7 +174,7 @@ enyo.kind({
 			}
 		}
 		if (queryArgs.query) {
-			queryArgs.url = "http://www.google.com/search?q=" + queryArgs.query;
+			queryArgs.url = "https://duckduckgo.com/?q=" + queryArgs.query;
 		}
 		return queryArgs;
 	},
@@ -334,13 +334,41 @@ enyo.kind({
 	},
 	gotUniversalSearchList: function(inSender, inResponse) {
 		this.searchPreferences = [];
-		for (var i=0, s;s=inResponse.UniversalSearchList[i];i++) {
+		var list = (inResponse && inResponse.UniversalSearchList) || [];
+		for (var i=0, s;s=list[i];i++) {
 			if (s.type === "web" && s.enabled) {
 				this.searchPreferences.push(s);
 			}
 		}
+		// com.palm.universalsearch may not be provisioned with web engines for this app
+		// (or may return nothing). Seed built-in defaults so the URL bar can search and
+		// the search dropdown is populated.
+		if (this.searchPreferences.length === 0) {
+			this.searchPreferences = this.defaultWebSearchEngines();
+		}
 		this.searchPreferencesChanged();
-		this.setDefaultSearch(inResponse.defaultSearchEngine);
+		this.setDefaultSearch((inResponse && inResponse.defaultSearchEngine) ||
+		                      this.searchPreferences[0].id);
+	},
+	// Fallback web search engines when the system universal-search list is empty.
+	// Kept in sync with URLSearch.defaultSearchPreferences.
+	defaultWebSearchEngines: function() {
+		return [
+			{id: "duckduckgo", type: "web", enabled: true, displayName: "DuckDuckGo",
+			 url: "https://duckduckgo.com/?q={$query}", iconFilePath: ""},
+			{id: "google", type: "web", enabled: true, displayName: "Google",
+			 url: "https://www.google.com/search?q={$query}", iconFilePath: ""},
+			{id: "wikipedia", type: "web", enabled: true, displayName: "Wikipedia",
+			 url: "https://en.m.wikipedia.org/wiki/Special:Search?search={$query}", iconFilePath: ""}
+		];
+	},
+	universalSearchFailed: function(inSender, inError) {
+		// No system search list at all — fall back to built-in defaults.
+		if (!this.searchPreferences || this.searchPreferences.length === 0) {
+			this.searchPreferences = this.defaultWebSearchEngines();
+			this.searchPreferencesChanged();
+			this.setDefaultSearch(this.searchPreferences[0].id);
+		}
 	},
 	preferenceChanged: function(inSender, inPreference, inType, inValue) {
 		if (inType === "System") {

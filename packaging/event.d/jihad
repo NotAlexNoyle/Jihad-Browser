@@ -1,0 +1,29 @@
+# Jihad BrowserServer (UXP/Goanna daemon) -- SELF-CONTAINED, own YAP name.
+# This is its OWN upstart job (named `jihad`); it does NOT touch the stock
+# `browserserver` job. Stock /usr/bin/BrowserServer keeps serving
+# /tmp/yapserver.browser for every other app; this daemon serves
+# /tmp/yapserver.jihad-browser for the Jihad app's WebView only (routed there by
+# JihadEngineOverride.js swapping the plugin MIME to application/x-jihad-browser).
+# upstart supervises this (respawn) so the browser stays usable across crashes.
+#
+# NOTE: LD_LIBRARY_PATH (the bundled gcc9 glibc-2.23) MUST be set ONLY for the
+# daemon via `env`, never exported into the shell -- otherwise /bin/rm etc. load
+# the wrong libc and segfault before the daemon ever execs.
+start on stopped fontconfig_cache
+stop on started start_update
+
+description "Jihad BrowserServer (Goanna) Daemon"
+
+script
+    exec >>/media/internal/jihad/upstart-daemon.log 2>&1
+    # Only our own socket -- never the stock browser's.
+    rm -f /tmp/yapserver.jihad-browser*
+    cd /media/internal/jihad/hl
+    exec env LD_LIBRARY_PATH=/media/internal/jihad/hl \
+             JIHAD_DUMP=/media/internal/jihad/frame.ppm \
+             JIHAD_BS_NAME=jihad-browser JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
+        ./ld-2.23.so --library-path /media/internal/jihad/hl ./jihad-browserserver /media/internal/jihad/hl
+end script
+
+respawn
+respawn limit 10 5

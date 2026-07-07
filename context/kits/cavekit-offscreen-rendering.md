@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: Offscreen Rendering
@@ -17,40 +17,40 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 ### R1: Headless, windowless rendering surface
 **Description:** Page content renders without any on-screen native window.
 **Acceptance Criteria:**
-- [ ] A page can be rendered with no native window created or shown.
-- [ ] The render surface size tracks the page/window size.
+- [x] A page can be rendered with no native window created or shown.
+- [x] The render surface size tracks the page/window size.
 **Dependencies:** cavekit-engine-embedding.md (R2)
 
 ### R2: Frames delivered in the contract pixel format
 **Description:** Rendered output is written into the shared buffer in the exact format/stride the adapter expects.
 **Acceptance Criteria:**
-- [ ] After loading a known page, the shared buffer holds a non-blank image of the correct dimensions.
-- [ ] Pixel format and stride match the upstream offscreen contract (32-bit), verifiable via `renderToFile` output or a pixel checksum against a reference.
-- [ ] Colors/coordinates are correct (no channel swap, no vertical flip).
+- [x] After loading a known page, the shared buffer holds a non-blank image of the correct dimensions.
+- [x] Pixel format and stride match the upstream offscreen contract (32-bit), verifiable via `renderToFile` output or a pixel checksum against a reference.
+- [x] Colors/coordinates are correct (no channel swap, no vertical flip).
 **Dependencies:** cavekit-ipc-contract.md (R2)
 
 ### R3: Paint notification protocol honored
 **Description:** Paint-ready notifications follow the double-buffer discipline.
 **Acceptance Criteria:**
-- [ ] Each completed frame yields exactly one paint-ready notification naming the buffer that was filled.
-- [ ] A buffer is not reused for the next frame until the client returns it.
-- [ ] Invalidations are coalesced so transient changes do not produce redundant full repaints.
+- [x] Each completed frame yields exactly one paint-ready notification naming the buffer that was filled.
+- [x] A buffer is not reused for the next frame until the client returns it.
+- [x] Invalidations are coalesced so transient changes do not produce redundant full repaints.
 **Dependencies:** cavekit-ipc-contract.md (R2), cavekit-engine-embedding.md (R3)
 
 ### R4: Geometry and viewport events emitted
 **Description:** The renderer reports size, scroll, and viewport changes.
 **Acceptance Criteria:**
-- [ ] Content-size changes emit a contents-size-changed message.
-- [ ] Scroll position changes emit a scrolled-to message.
-- [ ] Parsing a viewport meta tag emits a meta-viewport message with the parsed scale/size values.
+- [x] Content-size changes emit a contents-size-changed message.
+- [x] Scroll position changes emit a scrolled-to message.
+- [x] Parsing a viewport meta tag emits a meta-viewport message with the parsed scale/size values.
 **Dependencies:** none (emitted by the renderer; consumed alongside cavekit-navigation-events.md — see Cross-References)
 
 ### R5: Resize, zoom, and scroll commands affect output
 **Description:** Surface/viewport commands change what is rendered.
 **Acceptance Criteria:**
-- [ ] `setWindowSize`/`setVirtualWindowSize` resize the surface and content viewport respectively.
-- [ ] `setScrollPosition` and `scrollLayer` move the rendered content.
-- [ ] `setZoomAndScroll` changes rendered scale and position; subsequent input maps to the new transform.
+- [x] `setWindowSize`/`setVirtualWindowSize` resize the surface and content viewport respectively.
+- [x] `setScrollPosition` and `scrollLayer` move the rendered content.
+- [x] `setZoomAndScroll` changes rendered scale and position; subsequent input maps to the new transform.
 **Dependencies:** none (input coordinate mapping consumes this transform — see cavekit-input-bridging.md R5 and Cross-References)
 
 ## Out of Scope
@@ -62,3 +62,4 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-07-04: Status reconciled to implementation — all R1–R5 verified on desktop AND on-device (HP TouchPad): true windowless PuppetWidget render (now via MOZ_WIDGET_TOOLKIT=headless — no gtk window at all), ARGB32 correct, msgPainted double-buffer, geometry/viewport events, resize/zoom/scroll.

@@ -29,8 +29,8 @@ build/webos-oe/
   recipes-jihad/
     goanna/goanna_1.0.bb               # UXP engine, cross build (heavy)
     jihad-browserserver/…_1.0.bb       # daemon (Goanna backend), LunaService ON
-    jihad-ui/net.riverstonerelay.jihad_1.0.bb        # Enyo 1.0 UI .ipk (app/)
-    jihad-ui/net.riverstonerelay.jihad.mochi_1.0.bb  # Mochi UI .ipk (app-mochi/)
+    jihad-ui/net.riverstonerelay.jihad-browser_1.0.bb        # Enyo 1.0 UI .ipk (app/)
+    jihad-ui/net.riverstonerelay.jihad-browser.mochi_1.0.bb  # Mochi UI .ipk (app-mochi/)
 ```
 
 The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`,
@@ -71,5 +71,5 @@ backgrounded cards. Deeper memory tuning is Phase 3.
 1. Stand up the cross-toolchain against the device sysroot (R1); verify a trivial
    C++14 binary runs on the device/emulator.
 2. `bitbake goanna` (engine), then `bitbake jihad-browserserver`.
-3. `bitbake net.riverstonerelay.jihad net.riverstonerelay.jihad.mochi` → two `.ipk`s.
+3. `bitbake net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi` → two `.ipk`s.
 4. Install both on the TouchPad + TouchPad Go; run the on-device checklist (R4/R6).

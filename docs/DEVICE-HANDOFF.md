@@ -1,7 +1,267 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+## 2026-07-06 — REAL BROWSER UI/UX STATE (from on-device + framebuffer testing)
+
+A long interactive on-device session (verified against the REAL screen via `/dev/fb1`,
+not the daemon's `frame.ppm` — see [[jihad-screen-capture]]). The engine renders; most
+remaining work is the adapter composite, input, and load-lifecycle. Device went offline
+(battery) mid-session; the items marked "deployed, UNVERIFIED" are on-device but not yet
+confirmed on the real screen.
+
+### ✅ Confirmed working on the real screen
+- **Portrait render** — about:jihad renders crisp, fills the buffer, correct after the
+  DPR fix (`layout.css.devPixelsPerPx=1.0`; the device was deriving DPR 1.333 from the
+  1024×768 screen → content scaled to 0.75). Set in `EngineHost::Init`.
+- **URL-bar navigation to about: pages** — typing `about:jihad` navigates and renders.
+- **about:jihad / about:isis** — daemon-served inline HTML (BrowserPageGoanna
+  `jihadAboutPage`): logo, engine info, licensed credits (isis-browser Apache-2.0,
+  UXP/Goanna MPL-2.0, Atlas Apache-2.0) with embedded links, live UA via navigator.userAgent,
+  address bar aliased to `about:jihad` (not the underlying data: URL).
+- **User agent** — `Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad)
+  Goanna/6.9 UXP/b2594a4 Firefox/52.9 ECMAScript/2024 JihadBrowser/1.0` via docShell
+  `SetCustomUserAgent` in `GoannaRenderPage::LoadUrl` (general.useragent.override does NOT
+  stick under XRE_InitEmbedding). String in `render/goanna/JihadUserAgent.h`.
+- **Persistence** — the `browserserver` UPSTART job now runs the Jihad daemon (`respawn`),
+  so it survives crashes/deploys. See [[jihad-device-gotchas]]. CRITICAL: LD_LIBRARY_PATH
+  must be set via `env` on the daemon only, never exported in the upstart script (else
+  /bin/rm etc. segfault before the daemon execs).
+
+### 🔧 Fixed in code + deployed, UNVERIFIED (device offline before retest)
+- **HTTPS load loop / "loads forever"** — the NSS main-thread marshaling fix was
+  marshaling EVERY `EnsureNSSInitialized` call, flooding the main thread on https-heavy
+  pages. Added a lock-free fast-path (return immediately once `haveLoaded`) in
+  `UXP/security/manager/ssl/nsNSSComponent.cpp`. Rebuilt libxul, deployed. Flood confirmed
+  gone (forwarded-to-main count 0), but a full page load was not re-confirmed.
+- **Load never completes → looping load overlay, address-bar X never → refresh** — the
+  daemon only set `mDone` on `STATE_IS_WINDOW|STATE_IS_NETWORK` STOP, so one hanging
+  subresource (ad/tracker/slow image) kept the page "loading" forever. Now also completes
+  on the top-level DOCUMENT STOP (`PageChrome::OnStateChange`). Added top-level state
+  logging (`[jihad-bs] state top f=...`). THIS is the likely root of whatismybrowser.com
+  "partial render + can't scroll + loop" and search-not-working. **Verify first when the
+  device is back.**
+- **Schemeless URLs** (`whatismybrowser.com`) — daemon `LoadUrl` now prepends `http://`
+  (nav->LoadURI silently fails without a scheme).
+- **Taps reach the daemon** — the adapter's single-tap gesture was a no-op; now dispatches
+  `asyncCmdClickAt` (confirmed: `clickAt x=252 y=65` logged). Daemon no longer double-maps
+  click coords.
+- **Default search = DuckDuckGo**, **new-window page = glowing Jihad logo** (app rebuilt
+  + reinstalled).
+
+### 🟡 Candidate fixes STAGED in code (compiled, NOT yet deployed — device offline)
+- **Click ACTIVATION** — taps reach the daemon (`clickAt` logged) but the link didn't fire.
+  Staged fix: `GoannaRenderPage::ClickAt`/`MouseEvent` now pass explicit `buttons` (`_argc=6`):
+  mousedown=1, mouseup=0. With `_argc=0` the impl derived `buttons` from `aButton` for BOTH,
+  so mouseup reported the button still held and the press/release may never register as a
+  click. Compiled OK. **Verify:** a tap on a KNOWN link should log `state top ... START`
+  (nav). If still nothing, try `sendMouseEventToWindow` or check content-window focus.
+- **Landscape composite (3× tiling + scanlines)** — the DAEMON renders landscape correctly
+  (1024×686 @ zoom 1.0, verified). The adapter's `handlePaint` was reading a stale
+  portrait-oriented buffer (`rW=768 rH=942`) into a `1024×686` dst → wrong srcStride →
+  scanlines. Staged fix: a rotation guard in `handlePaint` — if buffer orientation ≠ dst
+  orientation, paint a clean white frame and return (the daemon emits a matching buffer
+  momentarily). Zoom preserves orientation so it never triggers on pinch. Compiled OK.
+  Deeper root (double-buffer race on resize) still wants real `asyncCmdReturnBuffer`
+  flow-control eventually.
+- **Keyboard (VKB) on web text fields** — daemon never emits `msgEditorFocused`; no engine
+  focus-listener wired. Stock/Atlas call `editorFocused()` from `clickAt` + `updateEditorFocus`.
+- **Font quality** — device has NO good monospace font (only Prelude sans + CJK); the UA
+  box was switched to sans-serif. General text is Prelude at DPR 1.
+
+### Debug logging currently compiled in (remove for release)
+`clickAt`, `OnStateChange state top`, `emitGeometry contentSize`, `painted ... mZoom`,
+adapter `handlePaint` geometry (`/media/internal/jihad/adapter.log`, logs on dst-dim change),
+NSS `NSS_NoDB_Init`/`InitializeNSS`/`jihad_init_nss`.
+
+### Fast device workflow (see [[jihad-device-gotchas]], [[jihad-screen-capture]])
+- Deploy daemon: `build-daemon-arm.sh` (podman `--userns=keep-id`) → md5-verify push →
+  `/sbin/stop browserserver; /sbin/start browserserver`. libxul change → `build-goanna-arm.sh build`.
+- Real screen: `dd if=/dev/fb1 of=... bs=1048576 count=9` → PIL/numpy, BGRA, rotate for portrait.
+- Fresh-open crash: first launch crashes LunaSysMgr → 2nd works (double-launch).
+
+---
+
+## ✅ 2026-07-04 — HEADLESS MOZ_WIDGET_TOOLKIT: GTK/X DROPPED, RENDERS ON DEVICE
+
+The optional "remaining" item below is **DONE**. libxul is now built with a real
+`MOZ_WIDGET_TOOLKIT=headless` (`--enable-default-toolkit=cairo-headless`) — it links
+**NO gtk/gdk/pango/cairo/X libs at all**, only freetype+fontconfig for fonts. Proven
+end-to-end:
+- **Desktop**: X/GTK-free libxul renders offscreen (build-headless-daemon.sh),
+  msgPainted 786432, `jihad-poc-render.ppm`.
+- **Device (HP TouchPad)**: ARM cross-built headless libxul (29M stripped, was 46M) +
+  GTK-free daemon (`-DJIHAD_OFFSCREEN_ONLY`) + a lean bundle of **28 .so (no gtk/X) vs
+  68 before** → deployed to `/media/internal/jihad/hl` → **on-device ROUND-TRIP PASS,
+  msgPainted 786432 non-white px**.
+- Recipe + all gotchas (the headless cascade, freetype TK_CFLAGS/TK_LIBS injection,
+  GfxInfo stub, PuppetScreen hal-recursion fix, GRE-resource symlink dereferencing)
+  are in the auto-memory `jihad-headless-toolkit.md`.
+
+Rebuild ARM: `build/webos-oe/{mozconfig.goanna-arm (cairo-headless), build-goanna-arm.sh,
+build-daemon-arm.sh}`; bundle: `make-device-bundle.sh` + a container `cp -rL` of the
+loose GRE resource dirs (res/ chrome/ components/ defaults/ modules/ dictionaries/
+hyphenation/ + icudt78l.dat); run on device via `rt-hl.sh`.
+
+---
+
+## ✅ 2026-07-03 — GOANNA RENDERS ON THE TOUCHPAD (headless, no X server)
+
+The cross-built Goanna/UXP engine renders a real web page to shared memory on the
+actual HP TouchPad. Full on-device YAP round-trip PASS: `msgPainted 786432 non-white
+px`, verified. Pipeline proven end-to-end on ARM hardware:
+- **crosstool-NG toolchain** GCC 9.4 + glibc 2.23 softfp (`build/webos-oe/toolchain/`) — runs on the device.
+- **Headless render** — PuppetWidget offscreen path, no X server (patches 0006–0009 +
+  daemon `Main.cpp`). `build/desktop/build-headless-roundtrip.sh` proves it on desktop.
+- **ARM cross-build** — `build/webos-oe/{mozconfig.goanna-arm, build-goanna-arm.sh,
+  build-daemon-arm.sh}` against a Debian-Jessie armel GTK/X sysroot
+  (`build/webos-oe/arm-sysroot/`). libxul.so (ARM) + jihad-browserserver-arm.
+- **Device bundle** — `build/webos-oe/make-device-bundle.sh` → `device-bundle/`
+  (glibc 2.23 + Jessie GTK/X `.so`s + GCC-9 libstdc++ + libxul + daemon + ICU data
+  `icudt78l.dat` + dereferenced GRE resources), soname-named for VFAT, launched via
+  the bundled `ld-2.23.so` on `/media/internal`. ~60 MB, 46 MB libxul.
+- **Deploy/run recipe** + all the hard-won gotchas are in the auto-memory
+  `jihad-browser-port.md` (novacom quoting, ICU data, GRE symlink dereferencing,
+  soname/VFAT, glibc/kernel-header sysroot stripping, etc.).
+
+**Remaining (optional, user's next ask):** a full headless `MOZ_WIDGET_TOOLKIT` so
+libxul links NO GTK/X libs at all (leaner runtime). Stage-1 (shipped) bundles them.
+
+---
+
+
 *Written 2026-07-01 for the next session (which will have the `webos-mcp`
 knowledge loaded). Load `webos://knowledge/all` first, then read this.*
+
+## UPDATE 2026-07-02 — device R4 VERIFIED + corrected facts
+
+- **UI-Shell R4 + device-build R4 PROVEN on hardware (log round-trip).** Launched
+  the installed Jihad UI with `palm-launch -p '{"target":"http://example.com/"}'
+  net.riverstonerelay.jihad-browser`; `palm-log` shows the full lifecycle:
+  `openURL http://example.com/` → `serverConnected` → `loadStarted` →
+  `pageTitleChanged: … Example Domain` (real `<title>` parsed = engine fetched +
+  parsed over the network) → `documentLoadFinished` → `loadStopped`. The forked UI
+  drives a live `BrowserServer` and loads a real page on the TouchPad.
+  **Caveat: this is the STOCK BrowserServer (QtWebKit)** — the Jihad/Goanna daemon
+  is NOT deployed. Goanna-on-device is the remaining track.
+- **PDK found:** `~/Downloads/palm-sdk_3.0.5-svn528736-pho676_i386.deb` (357 MB, no
+  `dpkg` on this host — extract via `ar p … data.tar.gz | tar xz`). Contains
+  `/opt/PalmPDK/arm-gcc/` (CodeSourcery **arm-none-linux-gnueabi**, gcc 4.x, C++98)
+  + `/opt/PalmPDK/arm-gcc/sysroot/` (**glibc 2.5**) + `/opt/PalmPDK/{device,include}`
+  (device libs + headers: GLES/GLES2/SDL/curl/openssl/freetype2/libpng12).
+- **Corrected device facts (probed via novacom this session):**
+  - **glibc = 2.8** (`Sourcery G++ 4.3-234`, 2008) — NOT 2.5. `/lib/libc-2.8.so`,
+    `/lib/ld-2.8.so`. (PDK sysroot 2.5 is *older* → PDK-built binaries run on 2.8.)
+  - **RAM = 940 MB total, ~215 MB free** with the system idle. **Tight for Goanna
+    — the top feasibility risk for the whole device track (OOM on real pages).**
+  - Kernel `2.6.35-palm-tenderloin`, armv7l. Stock `BrowserServer -d 30000`
+    (PID 27906) + `BrowserServerMojo` running.
+- **Cosmetic:** the shipped `.ipk` includes stray `CLAUDE.md` + `README.md` in the
+  app root (they land in `/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser`).
+  Exclude them from `app/` before the next `palm-package`.
+
+## UPDATE 2026-07-02 (4) — PuppetWidget render PROVEN; but libxul still needs GTK/X/Xvfb
+
+**Proven this session (desktop, all PASS):**
+- **crosstool-NG toolchain built + RUNS on device:** GCC 9.4 + **glibc 2.23** (floor
+  2.6.32; glibc ≥2.24 hard-floors 3.2.0 and won't load on 2.6.35) armv7 softfp.
+  Device runtime recipe: bundle glibc 2.23 + libstdc++.so.6 named BY SONAME (VFAT on
+  /media/internal = no symlinks), launch `ld-2.23.so --library-path <dir> <bin>`.
+  A GCC-9 C++ test ran on the TouchPad this way (`JIHAD-ARM-OK`). Toolchain infra in
+  `build/webos-oe/toolchain/`.
+- **PuppetWidget offscreen render PASS:** patch `patches/0005-puppetwidget-jihad-offscreen.patch`
+  + GoannaRenderPage edits (JIHAD_OFFSCREEN path: `jihad_offscreen_{create,resize,readback,release}`
+  exported from libxul; passes the PuppetWidget as the parent nsIWidget to InitWindow).
+  `build-adapter-roundtrip.sh` (JIHAD_OFFSCREEN=1) → msgPainted 786432 non-white px,
+  ROUND-TRIP PASS — Goanna renders to a memory DrawTarget with **no GTK window**.
+
+**The hard structural finding:** even with PuppetWidget, **libxul is built with the
+`cairo-gtk2` toolkit and hard-links the whole GTK2+X11 stack** (DT_NEEDED:
+libgtk-x11-2.0, libgdk-x11-2.0, libX11, libX11-xcb, libxcb, libxcb-shm, libXext,
+libXrender, libcairo, libpango, libpangocairo, libatk, libgdk_pixbuf, libgobject,
+libglib) AND `gtk_init` needs a **live X server** (verified: no DISPLAY → "cannot open
+display" → exit 1). PuppetWidget removed the need for a visible window / compositor,
+NOT the GTK/X libraries or the X server. UXP has no non-GTK Linux toolkit, and even
+upstream headless Firefox links these libs → building libxul without them is a
+from-scratch toolkit port (weeks, unsupported by design).
+
+**So the device needs (Option A, now the only tractable path):** cross-build + bundle
+the GTK2+X11 lib stack (~15 libs above + their deps: pixman, harfbuzz, libffi, libpcre,
+libpng, expat, freetype, fontconfig, libXau, libXdmcp…) **+ Xvfb** (minimal X server),
+run Xvfb on device, then the daemon with DISPLAY set; PuppetWidget renders to memory.
+~25 ARM packages. Best produced via Buildroot/Yocto (matches glibc 2.23 / kernel
+2.6.35 / softfp) or a scripted autotools chain on the crosstool-NG toolchain. All the
+hard prerequisites (toolchain, runtime bundling, offscreen render) are now proven.
+
+## UPDATE 2026-07-02 (3) — THE render-stack iceberg (device has no X/GTK)
+
+The biggest remaining unknown of the device port, now pinned:
+
+- **Device graphics inventory** (`/usr/lib`): HAS glib 2.16.6, gobject/gio/gthread,
+  freetype 2.4, fontconfig 1.3, EGL/GLES (libEGL, libGLESv2, eglwebos). **MISSING:
+  libX11, libgtk, libgdk, libcairo, libpango, libatk, libpixman. No Xorg/Xvfb.**
+  webOS 3 is a Qt/EGL stack — the stock BrowserServer is QtWebKit. There is no X11.
+- **UXP has no headless widget.** `widget/` has gtk, x11, cocoa, uikit, windows,
+  PuppetWidget — but **no `widget/headless`, no `MOZ_HEADLESS`**. `--enable-default-toolkit`
+  choices on Linux are only `cairo-gtk2 / cairo-gtk2-x11 / cairo-gtk3` — all need X11.
+- The desktop render path that works (impl history) is: offscreen GTK2 top-level
+  window under **Xvfb** + forced in-process BasicLayerManager (patches 0003/0004) +
+  GDK pixel capture → shmem. **That path needs X11 + GTK2 + an X server** — none of
+  which exist on the device. A `cairo-gtk2` libxul also *links* libgtk/libX11, so
+  even the PuppetWidget path can't avoid needing those libs present.
+
+**=> Rendering Goanna on this device requires one of:**
+  - **(A) Ship the GTK2+X11+Xvfb stack for ARM** (cross-build ~20 libs: pixman,
+    cairo, pango, atk, gdk-pixbuf, gtk2, libX11 + X extensions, xcb, xorg-server/Xvfb;
+    glib/freetype/fontconfig can be bundled too since device's are old). Bundle it all
+    in the ipk, run Xvfb + daemon from the bundle. Matches the proven desktop path;
+    lowest ENGINE risk; heavy CROSS-BUILD (best via OE/Yocto or a scripted autotools
+    chain on the crosstool-NG toolchain). Footprint fits (~150MB ipk; ~200MB RAM vs
+    531MB+512MB swap).
+  - **(B) Port a headless/framebuffer(EGL) widget into UXP** — engine work: add a
+    `widget/headless`-style backend (or an EGL/GLES-surface widget using the device's
+    libEGL/GLESv2) so libxul needs no X/GTK. Leanest device runtime; highest engine
+    risk/effort; benefits desktop too.
+  - **(C) De-scope on-device Goanna rendering** — ship the cross toolchain + a headless
+    libxul proving non-render pipeline; treat full render-on-device as future research.
+
+The **crosstool-NG toolchain (GCC 9.4 + glibc 2.25, softfp) is needed by ALL of these**
+and is building now (`build/webos-oe/toolchain/`, output in `out-toolchain/x-tools/`).
+
+## UPDATE 2026-07-02 (2) — feasibility gate PASSED + toolchain plan pinned
+
+**Gate (both steps PASS → GO for the Goanna cross-build):**
+1. Built a trivial ARM C++ with the PDK gcc **4.3.3** (`-march=armv7-a -mfloat-abi=softfp
+   -mfpu=neon`, `--sysroot=toolchains/opt/PalmPDK/arm-gcc/sysroot`), pushed via
+   `novacom put file:///tmp/armtest`, `chmod 755`, ran → printed
+   `JIHAD-ARM-OK armv7l 2.6.35-palm-tenderloin`. **build→deploy→run loop works.**
+2. RAM headroom: MemFree 193M + Cached 301M + Buffers 36M ≈ **531 MB reclaimable**,
+   plus a **512 MB swap partition (0 used)** ≈ **~1 GB effective headroom**. Goanna
+   (~100–200 MB/page) fits; heavy pages swap but won't instantly OOM. Fattest
+   *non-essential* consumers = the Android compat layer (`zygote`, `android.process.*`,
+   ~150 MB) — killable if we need more.
+
+**ABI (VERIFIED): armel SOFTFP, not hard-float.** Device loader is `/lib/ld-linux.so.3`
+(no `ld-linux-armhf.so.3`). Fixed `build/webos-oe/mozconfig.goanna-arm`:
+`--with-float-abi=hard` → `softfp` (triple stays `gnueabi`, not `gnueabihf`).
+
+**CRITICAL kernel/glibc constraint (reshapes the toolchain):** device kernel is
+**2.6.35**. glibc **≥ 2.26 requires Linux ≥ 3.2** → a modern-distro binary (Ubuntu
+20.04 = glibc 2.31) **won't even load** here ("kernel too old"). Debian/Ubuntu also
+build glibc with `--enable-kernel=3.2` regardless of version, so **no prebuilt distro
+glibc runs on this device**. → Must build glibc ourselves with `--enable-kernel` ≤
+2.6.35. Chosen: **crosstool-NG → GCC 9.x + glibc 2.19 (min-kernel 2.6.16) + binutils,
+armv7-a softfp NEON**; the device's own glibc is 2.8 (older than 2.19), so **bundle
+glibc 2.19 + `ld-2.19.so` into the ipk and launch the daemon via the bundled loader**
+(`./ld-2.19.so --library-path <bundled>:/usr/lib <daemon>`). Device libs (GTK/X11/
+cairo/freetype, built for glibc 2.8) load fine against the newer bundled glibc
+(backward-compatible). Static-linking glibc is out (Gecko dlopen/NSS need dynamic libc).
+
+**Deploy model (recommended): STANDALONE first** — Jihad ships its own Goanna daemon
+on a distinct service name; stock `com.palm.browserServer` untouched (bounded blast
+radius, lets us measure Goanna RSS alone). Later flip to system-wide by swapping
+`/usr/bin/BrowserServer` + the `browserserver` upstart job (reversible one-liner).
+BrowserServer topology (verified): shared singletons `BrowserServer` + `BrowserServerMojo`,
+upstart jobs `/etc/event.d/{browserserver,browserservermojo}`, Luna services
+`com.palm.browserServer{,Mojo}`, adapters `BrowserAdapter{,Mojo}.so` + `RemoteAdapter.so`.
 
 ## TL;DR
 
@@ -31,12 +291,12 @@ in shipped artifacts), and licensing docs. All proven by `build/desktop/build-*-
   (Dec 2011 stock). This is the exact BrowserAdapter↔BrowserServer architecture
   Jihad targets — the YAP contract is byte-identical.
 - Installed browser apps coexist: `com.omww.com.android.browser`,
-  `org.webosinternals.browser-tls13`, and now **`net.riverstonerelay.jihad`**.
+  `org.webosinternals.browser-tls13`, and now **`net.riverstonerelay.jihad-browser`**.
 
 ## What was DONE on-device this session
 
 - Packaged the Enyo UI: `palm-package app/ -o <out>` →
-  `net.riverstonerelay.jihad_1.0.0_all.ipk` (776 KB). **Builds cleanly.**
+  `net.riverstonerelay.jihad-browser_1.0.0_all.ipk` (776 KB). **Builds cleanly.**
 - `palm-install`ed it on the TouchPad; **it installs and coexists** with the
   other browsers (device-build R3, "installs + can coexist"). Launched with
   `palm-launch` (process started).
@@ -70,7 +330,7 @@ need the PDK path from the user** (search came up empty).
 2. **Verify the installed Jihad UI on-device (device-build R4):** launch it, drive
    a URL, and confirm it renders via the running `BrowserServer` (use a proper
    screen-capture service per the webos-mcp docs, and `palm-log -f
-   net.riverstonerelay.jihad`). This closes UI-Shell R4 too (app launches, URL →
+   net.riverstonerelay.jihad-browser`). This closes UI-Shell R4 too (app launches, URL →
    openUrl, back/fwd/reload/stop, findInPage) — all without cross-compiling.
 3. **Get the PDK path** from the user → pull the **device sysroot**; optionally
    rebuild the BrowserAdapter against the Jihad daemon (R5), and compile a trivial
@@ -95,4 +355,4 @@ need the PDK path from the user** (search came up empty).
   `docs/ENGINE-SOURCE.md`).
 - ARM device build scaffolding: `build/webos-oe/mozconfig.goanna-arm` +
   `build/webos-oe/recipes-jihad/`; full track in `docs/DEVICE-BUILD.md`.
-- Remove the app if needed: `palm-install -r net.riverstonerelay.jihad`.
+- Remove the app if needed: `palm-install -r net.riverstonerelay.jihad-browser`.

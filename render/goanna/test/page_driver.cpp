@@ -12,6 +12,8 @@
 #include <gtk/gtk.h>
 #include <cstdio>
 #include <cstdlib>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include "../EngineHost.h"
 #include "../BrowserPageGoanna.h"
@@ -57,8 +59,12 @@ int main(int argc, char** argv) {
     jihad::BrowserPageGoanna page(host, sink);
 
     // YAP: connect(pageW,pageH, shmKey1, shmKey2, shmSize). Adapter-provided
-    // keys are simulated here with two fixed SysV keys.
+    // keys are simulated here with two fixed SysV keys. The real adapter creates the
+    // segments; do that here too (init only ATTACHES) or the shm resolve fails.
     const int W = 1024, H = 768, sz = W * H * 4;
+    int _id1 = shmget(0x4a494831, sz, IPC_CREAT | 0666);
+    int _id2 = shmget(0x4a494832, sz, IPC_CREAT | 0666);
+    if (_id1 < 0 || _id2 < 0) { perror("[driver] shmget"); return 2; }
     if (!page.init(W, H, /*key1*/0x4a494831, /*key2*/0x4a494832, sz)) {
       fprintf(stderr, "[driver] FAIL page.init\n"); return 2;
     }

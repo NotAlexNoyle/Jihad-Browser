@@ -125,11 +125,17 @@ private:
   int                mKey1, mKey2, mBufSize;
   int                mActiveKey;        // which shm buffer we last painted into
   bool               mLoadWasDone;
+  std::string        mAliasUrl;         // non-empty when the current page is an internal
+                                        // about: page rendered from inline HTML (about:jihad
+                                        // /about:isis): report THIS as the location instead
+                                        // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   bool               mFrozen;           // card backgrounded: skip painting
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)
+  int                mAdapterScrollX, mAdapterScrollY;  // adapter's scroll in zoomed-content px
+                                                        // (== BrowserOffscreenInfo::renderedX/Y)
   // Map an adapter surface coordinate to a content/CSS coordinate (R5): input
   // events use content space, so undo zoom + scroll.
   void mapToContent(int sx, int sy, int* cx, int* cy);

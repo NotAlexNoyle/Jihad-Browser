@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: IPC Contract Preservation
@@ -18,34 +18,34 @@ the BrowserAdapter must change. Reference: `docs/IPC-CONTRACT.md`,
 ### R1: YAP command/message interface is byte-identical to upstream
 **Description:** The set and signatures of YAP commands (async + sync) and messages match the isis-project BrowserServer exactly.
 **Acceptance Criteria:**
-- [ ] The generated YAP interface (commands and messages, including argument types and order) is unchanged from upstream `BrowserServerBase.h`.
-- [ ] No command or message is added, removed, renamed, or has its signature altered.
-- [ ] If regenerated, it is regenerated from the upstream `.yap` definition, not hand-edited.
+- [x] The generated YAP interface (commands and messages, including argument types and order) is unchanged from upstream `BrowserServerBase.h`.
+- [x] No command or message is added, removed, renamed, or has its signature altered.
+- [x] If regenerated, it is regenerated from the upstream `.yap` definition, not hand-edited.
 **Dependencies:** none
 
 ### R2: Shared-memory framebuffer semantics preserved
 **Description:** Frames are delivered through the same double-buffered shared-memory protocol.
 **Acceptance Criteria:**
-- [ ] `connect` and `thaw` accept two shared-buffer keys and a size and attach both segments.
-- [ ] The renderer fills the inactive buffer and emits exactly one paint-ready notification naming that buffer.
-- [ ] The renderer does not reuse a buffer until it has been returned by the client.
-- [ ] Pixel format, stride, and size match the upstream offscreen-buffer contract (32-bit, page dimensions).
+- [x] `connect` and `thaw` accept two shared-buffer keys and a size and attach both segments.
+- [x] The renderer fills the inactive buffer and emits exactly one paint-ready notification naming that buffer.
+- [x] The renderer does not reuse a buffer until it has been returned by the client.
+- [x] Pixel format, stride, and size match the upstream offscreen-buffer contract (32-bit, page dimensions).
 **Dependencies:** cavekit-offscreen-rendering.md (R2, R3)
 
 ### R3: Daemon lifecycle and page manager preserved
 **Description:** The daemon process behaves like the upstream render daemon.
 **Acceptance Criteria:**
-- [ ] Daemon starts, accepts a `connect`, and creates one page per `identifier`.
-- [ ] `freeze`/`thaw` detach/reattach buffers; `purgePage` and low-memory purge behave as upstream.
-- [ ] The daemon exits after the last client disconnects (when built with that option).
-- [ ] Multiple pages (cards) are managed independently.
+- [x] Daemon starts, accepts a `connect`, and creates one page per `identifier`.
+- [x] `freeze`/`thaw` detach/reattach buffers; `purgePage` and low-memory purge behave as upstream.
+- [x] The daemon exits after the last client disconnects (when built with that option).
+- [x] Multiple pages (cards) are managed independently.
 **Dependencies:** none (engine-agnostic daemon scaffolding kept from upstream; the engine instance it manages is specified in cavekit-engine-embedding.md R2)
 
 ### R4: LunaService surface preserved
 **Description:** The service methods the UI calls directly remain available on the device build.
 **Acceptance Criteria:**
 - [ ] `palm://com.palm.browserServer/clearCache` and `.../clearCookies` are registered and perform their actions on the device build.
-- [ ] On the desktop build the service layer can be compiled out without affecting the YAP path.
+- [x] On the desktop build the service layer can be compiled out without affecting the YAP path.
 **Dependencies:** cavekit-browser-services.md (R2)
 
 ### R5: BrowserAdapter requires no source change
@@ -64,3 +64,4 @@ the BrowserAdapter must change. Reference: `docs/IPC-CONTRACT.md`,
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-07-04: Reconciled — R1 byte-identical YAP, R2 shmem double-buffer, R3 daemon lifecycle/freeze-thaw all verified (ROUND-TRIP + FREEZE-THAW PASS). R4 device LunaService registration and R5 real NPAPI BrowserAdapter rebuild remain device-integration work (desktop compiles the service layer out).

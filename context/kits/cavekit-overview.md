@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit Overview
@@ -15,21 +15,32 @@ Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 `render/goanna/PORT-MAP.md`.
 
 ## Domain Index
+Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 partial · ⬜ not started.
+Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless noted.
+
 | Domain | Cavekit File | Requirements | Status | Description |
 |--------|--------------|--------------|--------|-------------|
-| UI Shell (Enyo) | cavekit-ui-shell.md | 4 | DRAFT | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
-| Mochi UI Variant | cavekit-mochi-ui.md | 5 | DRAFT | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
-| IPC Contract Preservation | cavekit-ipc-contract.md | 5 | DRAFT | Frozen YAP interface, shmem framebuffer, daemon, LunaService |
-| Engine Embedding & Build | cavekit-engine-embedding.md | 4 | DRAFT | Out-of-tree Goanna build, embedding runtime, event-loop integration |
-| Offscreen Rendering | cavekit-offscreen-rendering.md | 5 | DRAFT | Headless render → shared buffer → paint protocol + geometry events |
-| Input Bridging | cavekit-input-bridging.md | 5 | DRAFT | webOS pointer/key/touch/gesture → DOM events |
-| Navigation, Loading & Events | cavekit-navigation-events.md | 6 | DRAFT | Nav commands + load/location/title/history message stream |
-| Browser Services | cavekit-browser-services.md | 5 | DRAFT | Settings, cookies/cache, JS dialogs, downloads, TLS |
-| Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | DRAFT | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 6 | DRAFT | Phase-2 ARM cross-toolchain, OE recipes, two .ipks, TouchPad + TouchPad Go |
-| Licensing & Branding | cavekit-licensing-branding.md | 5 | DRAFT | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 4 | 🟢 R1–R3 ✓; R4 vs Jihad daemon on-device | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 5 | ⬜ 0/5 — `app-mochi/` skeleton only | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R4/R5 device integration | Frozen YAP interface, shmem framebuffer, daemon, LunaService |
+| Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
+| Offscreen Rendering | cavekit-offscreen-rendering.md | 5 | ✅ 5/5 desktop + on-device | Headless render → shared buffer → paint protocol + geometry events |
+| Input Bridging | cavekit-input-bridging.md | 5 | 🟢 R1/R4/R5 ✓; R2/R3 on-device | webOS pointer/key/touch/gesture → DOM events |
+| Navigation, Loading & Events | cavekit-navigation-events.md | 6 | ✅ 6/6 | Nav commands + load/location/title/history message stream |
+| Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
+| Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
+| Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓ (engine renders on device); R3–R6 pending | Phase-2 ARM cross-toolchain, OE recipes, two .ipks, TouchPad + TouchPad Go |
+| Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: 11 domains, 54 requirements.
+Totals: 11 domains, 54 requirements — **~38 met/verified, ~16 remaining** (Mochi UI, device UI-integration: LunaService daemon + real BrowserAdapter, on-device input/gestures, TouchPad Go).
+
+### Milestone (2026-07-04): headless engine, no X/GTK, renders on the TouchPad
+`MOZ_WIDGET_TOOLKIT=headless` — libxul links **zero** gtk/gdk/pango/cairo/X libs
+(freetype+fontconfig only); ARM cross-build (29 M libxul) + GTK-free daemon → lean
+device bundle (**28 .so vs 68**) → **on-device offscreen ROUND-TRIP PASS** (msgPainted
+786432). This closes Engine-Embedding R2, Offscreen Rendering on-device, and
+Device-Build R2, and advances Device-Build R4/R5. Detail in
+`context/impl/impl-overview.md` + auto-memory `jihad-headless-toolkit.md`.
 
 ## Cross-Reference Map
 | Domain A | Interacts With | Interaction Type |

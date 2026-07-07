@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-06-30"
+last_edited: "2026-07-04"
 ---
 
 # Cavekit: Mochi UI Variant
@@ -20,8 +20,8 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R1: Separate, coexisting Mochi application package
 **Description:** The Mochi UI is packaged as its own webOS app, installable alongside the Enyo variant.
 **Acceptance Criteria:**
-- [ ] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad.mochi`) and title ("Jihad (Mochi)").
-- [ ] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad`); both can be installed at once.
+- [ ] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad (Mochi)").
+- [ ] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once.
 - [ ] Uses the Jihad Browser icon set.
 **Dependencies:** none
 
@@ -68,3 +68,4 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 
 ## Changelog
 - 2026-06-30: Initial draft (added per request: second UI variant + .ipk).
+- 2026-07-04: Status check — app-mochi/ is a skeleton (appinfo.json + index.html + source/ + icons, ~9 files); no requirement met yet. R1–R5 pending: the Mochi/Enyo-2 UI has not been built to parity. Largest remaining kit.

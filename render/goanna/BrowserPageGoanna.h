@@ -131,6 +131,10 @@ private:
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   bool               mFrozen;           // card backgrounded: skip painting
+  // Queued tap: clickAt (a YAP socket callback) only records the point; pump() does the
+  // hit-test / activation / click / navigation on the tick, where page teardown is safe.
+  bool               mPendingClick;
+  int                mPendingClickX, mPendingClickY, mPendingClickN;
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

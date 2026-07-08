@@ -19,6 +19,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] `clickAt(x,y,numClicks)` dispatches pointer/mouse events at the content coordinate; the element at that point receives them (verified via a page that reports the event target, or by a navigation that results from clicking a link).
 - [x] Click count (single/double) is preserved.
 - [x] `holdAt` produces the long-press/context behavior.
+- [x] Input handlers do NOT perform navigation or other engine teardown synchronously inside the YAP socket callback; teardown-capable work (hit-test/activation/click/navigation) runs in the page-lifetime-protected pump/tick context. *(review #5 H-1: a synchronous link-navigation from the clickAt callback re-entered and crash-rebooted the device.)*
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
 ### R2: Keyboard input

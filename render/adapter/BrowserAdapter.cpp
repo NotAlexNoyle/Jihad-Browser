@@ -1112,9 +1112,13 @@ void BrowserAdapter::handleWindowChange(NPWindow* window)
     asyncCmdSetWindowSize(mViewportWidth, mViewportHeight);
     mScroller->setViewportDimensions(mWindow.width, mWindow.height);
 
-    // If window size changes and adapter is zoom-fitting, need to update the zoomLevel
+    // If window size changes and adapter is zoom-fitting, need to update the zoomLevel.
+    // Compare old width to the NEW width (mViewportWidth), not mViewportHeight — on a
+    // 768x1024<->1024x768 rotation the old width equals the new height, so the height
+    // comparison skipped the fit-zoom recompute and landscape kept the portrait zoom
+    // (Jihad review #5 M-4; was a typo in the imported code).
     if (mZoomFit &&
-            oldWindowWidth != mViewportHeight &&
+            oldWindowWidth != mViewportWidth &&
             mWindow.width != 0 &&
             mPageWidth != 0) {
 
@@ -5955,6 +5959,13 @@ bool BrowserAdapter::createBufferLock()
     if (m_bufferLockName)
         m_bufferLock = sem_open(m_bufferLockName, O_CREAT, S_IRUSR | S_IWUSR, 0);
 
+    // sem_open returns SEM_FAILED ((sem_t*)-1), which is non-zero — a bare `!= 0` check
+    // treats failure as success, then sem_post/sem_close operate on (sem_t*)-1 (EINVAL/UB)
+    // and the shared-framebuffer lock (IPC R2) is silently absent (Jihad review #5 M-5).
+    if (m_bufferLock == SEM_FAILED) {
+        m_bufferLock = 0;
+        return false;
+    }
     return m_bufferLock != 0;
 }
 

@@ -51,3 +51,4 @@ JIHAD_REDIR_BASE="http://127.0.0.1:18080" \
 RC=$?
 kill "$SRV" 2>/dev/null
 echo "== redirect_test exit: $RC =="
+exit "$RC"

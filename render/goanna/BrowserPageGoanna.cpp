@@ -39,7 +39,8 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
-    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false) {}
+    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false),
+    mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {}
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
   // mZoom is clamped to a sane range on set (see setZoomAndScroll), so sx/z can't
@@ -265,6 +266,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
+  mPendingClick = false;   // a newer explicit navigation supersedes any queued tap
   // Internal about:jihad / about:isis pages: render inline HTML and report the typed
   // about: URL as the location (not the underlying data: URL). Any other load clears
   // the alias so a real page never inherits it.
@@ -299,8 +301,8 @@ void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
 }
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
-void BrowserPageGoanna::pageBackward() { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
 void BrowserPageGoanna::pageReload()  { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
@@ -315,7 +317,16 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   // The adapter already sends CONTENT coords (asyncCmdClickAt contentX/contentY =
   // (scroll+event)/zoom). The old mapToContent re-divided by zoom + re-added scroll, so
   // taps were double-transformed and missed the target at any zoom/scroll. Use directly.
-  mPage->ClickAt(x, y, numClicks);
+  // Record ONLY. All engine interaction for the tap — activation, hit-test
+  // (ElementFromPoint flushes layout), mouse/DOMClick synthesis, and navigation — runs in
+  // pump() on the tick. clickAt is a YAP socket callback (JihadBrowserServer mInTick==false)
+  // with no page-lifetime protection; any of those calls can run page script (onfocus,
+  // onmousedown, onclick -> location/history/document.open) that tears the document down
+  // mid-callback, then we keep using freed engine objects -> SIGSEGV whose core dump
+  // stalled I/O hard enough to REBOOT the device. pump() runs inside the tick's
+  // mInTick/mReap guard, so teardown there is safe.
+  mPendingClickX = x; mPendingClickY = y; mPendingClickN = numClicks;
+  mPendingClick = true;
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
@@ -440,6 +451,24 @@ void BrowserPageGoanna::emitScrollIfChanged() {
 
 void BrowserPageGoanna::pump(int msBudget) {
   if (!mPage) return;
+  // Process a queued tap FIRST — inside the tick's page-lifetime guard, and BEFORE
+  // spending the pump budget so a link's load gets pumped this call (matters for
+  // single-pump callers like link_test). ClickAt does the hit-test + activation +
+  // mouse/DOMClick; for a link it records the href (TakeClickNav) instead of navigating.
+  if (mPendingClick) {
+    mPendingClick = false;
+    fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d\n", mPendingClickX, mPendingClickY, mPendingClickN);
+    mPage->ClickAt(mPendingClickX, mPendingClickY, mPendingClickN);
+    std::string clickNav;
+    if (mPage->TakeClickNav(&clickNav)) {
+      // R6 (navigation-events): report the intercepted link activation, THEN navigate via
+      // the load path. openUrl marks the load programmatic, so OnStateChange won't ALSO
+      // flag it link-clicked — this msg is the single R6 notification for the tap.
+      fprintf(stderr, "[jihad-bs] clickAt -> navigate %s\n", clickNav.c_str());
+      mSink.msgLinkClicked(clickNav.c_str());
+      openUrl(clickNav.c_str());
+    }
+  }
   mPage->PumpFor(msBudget);
   emitLoadAndLocation();
   emitScrollIfChanged();

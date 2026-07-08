@@ -54,9 +54,15 @@ the engine's progress/URI listeners. Reference: `docs/IPC-CONTRACT.md`
 **Description:** Side-channel navigation events are reported.
 **Acceptance Criteria:**
 - [x] Navigation emits an update-global-history message.
-- [x] Intercepted link activations emit a link-clicked message.
+- [x] A link activated by tap/click (not only an engine content-initiated load) emits a link-clicked message with the target URL — verified by `link_test`. *(review #5 H-2: the tap-interception path bypasses the engine's programmatic-load classifier, so the message must be emitted at interception.)*
 - [x] URL-redirect rules registered via `addUrlRedirect` are honored.
 **Dependencies:** cavekit-browser-services.md
+
+### R7: Same-document (fragment) navigation
+**Description:** Fragment-only navigations do not restart the full load lifecycle.
+**Acceptance Criteria:**
+- [x] Activating `<a href="#frag">` on the current document does not emit a full load-started/stopped cycle or reload the page (the tap path detects same-URL-sans-fragment and routes it to the in-page click path rather than a full load). *(review #5 M-1.)*
+**Dependencies:** none
 
 ## Out of Scope
 - Painting the page (cavekit-offscreen-rendering.md).

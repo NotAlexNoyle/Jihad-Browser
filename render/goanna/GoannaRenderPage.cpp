@@ -52,6 +52,10 @@
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
+#include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
+#include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
+#include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
+#include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -751,8 +755,29 @@ static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
   return utils.forget();
 }
 
+// Give the content window activation + focus. The offscreen PuppetWidget
+// (JIHAD_OFFSCREEN_ONLY) gets NO window-manager activation, so the document is
+// treated as inactive and a synthesized mousedown+mouseup does not run the click's
+// default action -> links/buttons never navigate. (On desktop the GTK window
+// provides this for free, which is why link_test passes there but taps did nothing
+// on device.) Activate the browser, focus the content window, and mark the docShell
+// active so click default-actions fire.
+static void ActivateContent(nsIWebBrowser* wb) {
+  if (!wb) return;
+  nsCOMPtr<nsIWebBrowserFocus> focus = do_QueryInterface(wb);
+  if (focus) {
+    focus->Activate();
+    nsCOMPtr<mozIDOMWindowProxy> win;
+    wb->GetContentDOMWindow(getter_AddRefs(win));
+    if (win) focus->SetFocusedWindow(win);
+  }
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(wb);
+  if (ds) ds->SetIsActive(true);
+}
+
 void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   if (!mChrome) return;
+  ActivateContent(mChrome->mBrowser);
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
   bool ret = false;
@@ -767,15 +792,75 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
 
 void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
+  ActivateContent(mChrome->mBrowser);   // offscreen widget needs explicit activation (see above)
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
+  // Resolve the tap target FIRST. This offscreen embedding does NOT run the click
+  // default-action (confirmed on device: taps land on <A> but the anchor never
+  // navigates on its own). Dispatch by target:
+  //   - a real link (<a href> to http/https/ftp/file) -> navigate directly via the
+  //     daemon's own load path (LoadUrl). Do ONLY this for a link: dispatching the
+  //     mouse events / DOMClick as well made the anchor ALSO start a load, and the two
+  //     competing loads cancelled each other (NS_BINDING_ABORTED) so nothing navigated.
+  //   - anything else -> mouse events + DOM click() so buttons / form controls / JS
+  //     onclick handlers activate.
+  nsCOMPtr<nsIDOMElement> el;
+  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  // Walk up to the nearest <a href> ancestor (the tap often lands on inline content
+  // inside the anchor). The parent chain terminates at the document (null parent); the
+  // depth cap is just a cycle guard for a malformed tree.
+  nsAutoString href;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  for (int depth = 0; node && depth < 256 && href.IsEmpty(); ++depth) {
+    nsCOMPtr<nsIDOMHTMLAnchorElement> a = do_QueryInterface(node);
+    if (a) a->GetHref(href);
+    if (href.IsEmpty()) { nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p; }
+  }
+  NS_ConvertUTF16toUTF8 hrefUtf8(href);
+  const char* h = hrefUtf8.get();
+  // A single tap on a real external link navigates directly (the click default-action is
+  // inert offscreen). numClicks!=1 (double-tap etc.) falls through to the mouse/DOMClick
+  // path rather than direct-navigating (L-2).
+  bool navigable = numClicks == 1 && h &&
+      (strncmp(h, "http://", 7) == 0 || strncmp(h, "https://", 8) == 0 ||
+       strncmp(h, "ftp://", 6) == 0 || strncmp(h, "file://", 7) == 0);
+  // Same-document fragment link (#frag): GetHref resolves to absolute, so "#frag" becomes
+  // "<current-sans-frag>#frag". A full openUrl would restart the load lifecycle (stuck
+  // overlay, wrong history); route it to the in-page click path instead (M-1).
+  if (navigable) {
+    const char* hash = strchr(h, '#');
+    if (hash) {
+      std::string cur = CurrentUri();
+      size_t cf = cur.find('#');
+      std::string curBase = (cf == std::string::npos) ? cur : cur.substr(0, cf);
+      if (curBase == std::string(h, hash - h)) navigable = false;
+    }
+  }
+  nsAutoString tag; if (el) el->GetTagName(tag);
+  fprintf(stderr, "[jihad-bs] clickAt (%d,%d) <%s> href=%s nav=%d\n",
+          x, y, el ? NS_ConvertUTF16toUTF8(tag).get() : "null", navigable ? h : "-", navigable);
+  if (navigable) {
+    // Record the target; BrowserPageGoanna::pump drains it (TakeClickNav) and navigates
+    // via openUrl on the tick. Navigating here (inside the click flow) either stalls the
+    // load or, done synchronously in the socket callback, re-enters + crashes. Skip the
+    // mouse events for a link too — they made the anchor start its own (aborting) load.
+    mClickNavUrl = h;
+    return;
+  }
+  // Non-link: mouse events (JS mousedown/up + :active) then the DOM click().
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
-  // Explicit buttons (_argc=6): mousedown = left held (1), mouseup = released (0).
-  // Without this the impl gives mouseup buttons=1 (button still down) and the click
-  // never fires -> links/buttons don't activate on a tap.
   u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
   u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+  nsCOMPtr<nsIDOMHTMLElement> hel = do_QueryInterface(el);
+  if (hel) hel->DOMClick();
+}
+
+bool GoannaRenderPage::TakeClickNav(std::string* url) {
+  if (mClickNavUrl.empty()) return false;
+  if (url) *url = mClickNavUrl;
+  mClickNavUrl.clear();
+  return true;
 }
 
 void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {

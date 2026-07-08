@@ -42,3 +42,4 @@ JIHAD_TLS_BASE="https://127.0.0.1:18443" \
 RC=$?
 kill "$SRV" 2>/dev/null
 echo "== tls_test exit: $RC =="
+exit "$RC"

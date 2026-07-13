@@ -343,6 +343,7 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
+  fprintf(stderr, "[jihad-bs] keyDown key=%d chr=%d\n", key, chr);
   if (mPage) { mPage->KeyEvent("keydown", key, chr, modifiers); mNeedsPaint = true; }
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
@@ -367,6 +368,7 @@ void BrowserPageGoanna::holdAt(int x, int y) {
 }
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
+  fprintf(stderr, "[jihad-bs] insertStringAtCursor [%s]\n", text ? text : "(null)");
   if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; }
 }
 

@@ -55,7 +55,10 @@ for f in BrowserClientBase BrowserAdapter BrowserAdapterManager Rectangle UrlInf
   compile "$ROOT/Jihad-Browser/render/adapter/$f.cpp" "$OUT/$f.o"
 done
 
-echo "== [pdk-adapter] link BrowserAdapter.so (device libstdc++/Qt/pbnjson, dynamic) =="
+# The impl (BrowserAdapterImpl.so) holds ALL the adapter logic. It is loaded by the
+# shim from the app bundle per card open, NOT by LunaSysMgr directly. NOTE: $OUT/*.o must
+# be the impl objects only — the shim object is built into $OUT/shim/ so this glob skips it.
+echo "== [pdk-adapter] link BrowserAdapterImpl.so (device libstdc++/Qt/pbnjson, dynamic) =="
 $CXX --sysroot=$SYSROOT $ARM -shared -fPIC -fvisibility=hidden \
   -Wl,--version-script="$ROOT/Jihad-Browser/render/adapter/BrowserAdapter.exports" \
   "$OUT"/*.o \
@@ -63,11 +66,26 @@ $CXX --sysroot=$SYSROOT $ARM -shared -fPIC -fvisibility=hidden \
   -L"$JSR/usr/lib/arm-linux-gnueabi" -lglib-2.0 -lgthread-2.0 \
   -lrt -lpthread \
   -Wl,-rpath-link,"$DEPS/staging/lib" -Wl,-rpath-link,"$JSR/usr/lib/arm-linux-gnueabi" \
-  -o "$OUT/BrowserAdapter.so" || { echo "!! LINK FAILED"; exit 22; }
+  -o "$OUT/BrowserAdapterImpl.so" || { echo "!! LINK FAILED"; exit 22; }
+$STRIP "$OUT/BrowserAdapterImpl.so"
+echo "== built: $OUT/BrowserAdapterImpl.so =="; ls -la "$OUT/BrowserAdapterImpl.so" | awk '{print " size",$5}'
 
-$STRIP "$OUT/BrowserAdapter.so"
-echo "== built: $OUT/BrowserAdapter.so =="
-ls -la "$OUT/BrowserAdapter.so" | awk '{print " size",$5}'
+# The shim (BrowserAdapterJihad.so) is the STABLE plugin LunaSysMgr caches at boot. It
+# contains no browser logic — only NPAPI entry points + NPP_* forwarders + dlopen of the
+# impl. Minimal deps (npapi headers + libdl); no Qt/glib/pbnjson. See BrowserAdapterShim.cpp.
+echo "== [pdk-adapter] shim BrowserAdapterShim.cpp -> BrowserAdapterJihad.so =="
+mkdir -p "$OUT/shim"
+$CXX $COMMON $NPINC -c "$ROOT/Jihad-Browser/render/adapter/BrowserAdapterShim.cpp" \
+  -o "$OUT/shim/BrowserAdapterShim.o" || { echo "!! FAILED shim compile"; exit 23; }
+$CXX --sysroot=$SYSROOT $ARM -shared -fPIC -fvisibility=hidden \
+  -Wl,--version-script="$ROOT/Jihad-Browser/render/adapter/BrowserAdapter.exports" \
+  "$OUT/shim/BrowserAdapterShim.o" -ldl \
+  -o "$OUT/BrowserAdapterJihad.so" || { echo "!! SHIM LINK FAILED"; exit 24; }
+$STRIP "$OUT/BrowserAdapterJihad.so"
+echo "== built: $OUT/BrowserAdapterJihad.so =="; ls -la "$OUT/BrowserAdapterJihad.so" | awk '{print " size",$5}'
+
 RE=$ROOT/Jihad-Browser/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin/arm-webos-linux-gnueabi-readelf
-echo "== GLIBCXX/GLIBC floor =="; $RE -V "$OUT/BrowserAdapter.so" 2>/dev/null | grep -oE 'GLIBCXX_[0-9.]+|GLIBC_[0-9.]+' | sort -uV | tail -6
-echo "== NEEDED =="; $RE -d "$OUT/BrowserAdapter.so" 2>/dev/null | grep -oE '\[lib[^]]+\]' | tr '\n' ' '; echo
+echo "== impl GLIBCXX/GLIBC floor =="; $RE -V "$OUT/BrowserAdapterImpl.so" 2>/dev/null | grep -oE 'GLIBCXX_[0-9.]+|GLIBC_[0-9.]+' | sort -uV | tail -6
+echo "== impl NEEDED =="; $RE -d "$OUT/BrowserAdapterImpl.so" 2>/dev/null | grep -oE '\[lib[^]]+\]' | tr '\n' ' '; echo
+echo "== shim NEEDED =="; $RE -d "$OUT/BrowserAdapterJihad.so" 2>/dev/null | grep -oE '\[lib[^]]+\]' | tr '\n' ' '; echo
+echo "== shim exports (should be NP_*) =="; $RE --dyn-syms "$OUT/BrowserAdapterJihad.so" 2>/dev/null | grep -E ' NP_' | awk '{print $8}' | tr '\n' ' '; echo

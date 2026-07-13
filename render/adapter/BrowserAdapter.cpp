@@ -985,6 +985,14 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // Ported from the Atlas Browser project (Herrie82) BrowserAdapter: commits 7b91ab8
     // (dstBuffer path), aefab6d (out-of-buffer white fill), dbc897c (tall-buffer pan),
     // 27b54a5 (pinch-zoom scaled blit), 77ab724/01da087 (scroll indicator). See NOTICE.
+    { static int lastEH = -99; int eh = event ? (event->dstBottom - event->dstTop) : -1;
+      static void* lastOff = (void*)0x1;
+      if (eh != lastEH || (void*)mOffscreenCurrent != lastOff) {
+        lastEH = eh; lastOff = (void*)mOffscreenCurrent;
+        FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
+        if (lf) { fprintf(lf, "[hp-entry] dstH=%d mOff=%p dstBuf=%p rowBytes=%u\n",
+          eh, (void*)mOffscreenCurrent, event?event->dstBuffer:0, event?event->dstRowBytes:0); fclose(lf); } } }
+
     if (!event)
         return;
 
@@ -998,9 +1006,11 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // DEBUG geometry log: log whenever the dst box dimensions CHANGE (so a rotate to
     // landscape is captured, not just the portrait launch paints) -> pull to see the real
     // dst geometry when the on-screen composite is wrong (tiling/scanlines in landscape).
-    { static int lastW = -1, lastH = -1;
+    { static int lastW = -1, lastH = -1, lastRW = -1, lastRH = -1;
       int curW = event->dstRight - event->dstLeft, curH = event->dstBottom - event->dstTop;
-      if (curW != lastW || curH != lastH) { lastW = curW; lastH = curH;
+      if (curW != lastW || curH != lastH ||
+          info->renderedWidth != lastRW || info->renderedHeight != lastRH) {
+        lastW = curW; lastH = curH; lastRW = info->renderedWidth; lastRH = info->renderedHeight;
         FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
       if (lf) { fprintf(lf, "[hp] dstRowBytes=%u dst[l=%d r=%d t=%d b=%d] src[l=%d r=%d t=%d b=%d] "
         "hdr[bufW=%d bufH=%d rW=%d rH=%d rX=%d rY=%d cz=%.3f] win[%ux%u] zoom=%.3f scroll[%d,%d]\n",
@@ -1015,18 +1025,22 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     unsigned char* srcBase = mOffscreenCurrent->rasterBuffer();
     int srcStride = info->renderedWidth * 4;
 
-    // Rotation guard: if the offscreen buffer's orientation (portrait/landscape) does not
-    // match the paint destination's, the daemon has not yet re-rendered at the new
-    // orientation (a rotate is in progress). Blitting the stale buffer with its old
-    // srcStride produces the 3x tiling + scanlines seen in landscape. HOLD the last
-    // composited frame (return without touching dstBuffer) rather than flashing white — the
-    // daemon emits a matching-orientation buffer momentarily and the next paint blits it
-    // (Jihad review #7 P2). Pinch-zoom preserves orientation, so this never triggers on zoom.
+    // Rotation guard: during a portrait<->landscape rotate the daemon has not yet re-rendered
+    // at the new orientation, so the stale buffer's srcStride (renderedWidth*4) does not match
+    // the new dst width and blitting it produces the 3x tiling + scanlines seen in landscape.
+    // The distinguishing signal of a rotation is that the dst WIDTH changes (768<->1024); when
+    // that happens while the buffer is still the old width, HOLD (return, next paint blits the
+    // re-rendered buffer). Do NOT key off portrait/landscape aspect alone: the VKB shrinks a
+    // portrait page to 768x602 (numerically "landscape", width>height) while the dst stays
+    // 768 wide — that is not a rotation, and holding there left the freshly-cleared dst white
+    // (Jihad review #7 P2 + VKB-whiteout fix). Width match => safe to blit (height mismatch is
+    // handled per-row below). Pinch-zoom keeps width==dst-scaled and uses the invScale path.
     {
+        int dstW = event->dstRight - event->dstLeft;
+        int dstH = event->dstBottom - event->dstTop;
         bool bufLandscape = info->renderedWidth > info->renderedHeight;
-        bool dstLandscape = (event->dstRight - event->dstLeft) >
-                            (event->dstBottom - event->dstTop);
-        if (bufLandscape != dstLandscape)
+        bool dstLandscape = dstW > dstH;
+        if (bufLandscape != dstLandscape && info->renderedWidth != dstW)
             return;
     }
 
@@ -3763,6 +3777,11 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
     }
 
     mOffscreenCurrent = receivedBuffer == 0 ? mOffscreen0 : mOffscreen1;
+    { BrowserOffscreenInfo* pi = mOffscreenCurrent->header();
+      FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
+      if (lf) { fprintf(lf, "[msgp] key=%d recv=%d frozen=%d rW=%d rH=%d win[%ux%u] -> invalidate\n",
+        sharedBufferKey, receivedBuffer, mFrozen?1:0, pi?pi->renderedWidth:-1, pi?pi->renderedHeight:-1,
+        mWindow.width, mWindow.height); fclose(lf); } }
     invalidate();
 
     if (m_bufferLock)

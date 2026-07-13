@@ -447,14 +447,26 @@ void GoannaRenderPage::InsertText(const char* text) {
   // mNeedsPaint after this so the field repaints with the new text (review #7 P1).
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
+  fprintf(stderr, "[jihad-bs] InsertText enter len=%d\n", (int)t.Length());
   nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
   if (input) {
-    nsAutoString v; input->GetValue(v); v.Append(t); input->SetValue(v);
+    // Set the "value" CONTENT attribute, NOT the .value IDL setter. SetValue updates the
+    // editor's selection/caret, which — like Focus() — has no backing widget headless and
+    // crashes the engine. For a field we never natively focused, the displayed value tracks
+    // the content attribute, so this shows the text safely (no editor, no caret, no reflow
+    // of an editing host). Read the current value, append, write the attribute.
+    fprintf(stderr, "[jihad-bs] InsertText input: GetValue...\n");
+    nsAutoString v; input->GetValue(v); v.Append(t);
+    fprintf(stderr, "[jihad-bs] InsertText input: SetAttribute value len=%d...\n", (int)v.Length());
+    el->SetAttribute(NS_LITERAL_STRING("value"), v);
+    fprintf(stderr, "[jihad-bs] InsertText input: done\n");
     return;
   }
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
   if (ta) {
-    nsAutoString v; ta->GetValue(v); v.Append(t); ta->SetValue(v);
+    // textarea: the shown value is its text content — set that via the node (no editor).
+    nsCOMPtr<nsIDOMNode> tn = do_QueryInterface(el);
+    if (tn) { nsAutoString v; tn->GetTextContent(v); v.Append(t); tn->SetTextContent(v); }
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable region
@@ -981,6 +993,16 @@ bool GoannaRenderPage::TakeClickNav(std::string* url) {
 
 void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {
   if (!mChrome) return;
+  // When the user is typing into a field we tracked via ClickAt (mFocusedEditable), DO NOT
+  // dispatch a synthesized key event through the engine. SendKeyEvent routes to the focused
+  // editor, and a headless PuppetWidget has no backing widget for the editor's key/caret
+  // handling -> SIGSEGV (the same class of crash as Focus()). Text entry for these fields is
+  // handled by InsertText (a plain DOM value mutation) via insertStringAtCursor instead.
+  if (mChrome->mFocusedEditable) {
+    fprintf(stderr, "[jihad-bs] KeyEvent skip (editable focused) type=%s key=%d chr=%d\n",
+            type ? type : "?", keyCode, charCode);
+    return;
+  }
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
   bool ret = false;

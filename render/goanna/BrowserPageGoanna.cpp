@@ -39,7 +39,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
-    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false),
+    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
     mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {}
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
@@ -140,8 +140,12 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // the segments handed to us at connect(). Growing past that needs the adapter
   // to re-allocate + re-key first (a returnBuffer/reconnect round-trip).
   if (width == 0 || height == 0) return;
-  if ((size_t)width * height * 4 > (size_t)mBufSize) return;
-  if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; emitGeometry(); }
+  if (width > 8192 || height > 8192) return;                 // bound BEFORE the multiply (32-bit ARM, review #7 P3)
+  if ((uint64_t)width * height * 4 > (uint64_t)mBufSize) return;
+  // Defer the geometry emit to pump() (after PumpFor lets the reflow settle) rather than
+  // emitting synchronously here, mid-resize, when GetContentSize can still read 0x0
+  // (review #7 P2). mGeometryDirty is drained on the next tick.
+  if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
 }
 
 void BrowserPageGoanna::freeze() {
@@ -309,9 +313,10 @@ void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
 }
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
-void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
-void BrowserPageGoanna::pageReload()  { if (mPage) { mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
+// back/forward/reload also clear editor focus so the VKB lowers over the new page (review #7 P2).
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
@@ -441,20 +446,27 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   }
 }
 
-void BrowserPageGoanna::emitGeometry() {
-  if (!mPage) return;
+bool BrowserPageGoanna::emitGeometry() {
+  if (!mPage) return false;
   int cw = 0, ch = 0;
   bool got = mPage->GetContentSize(&cw, &ch);
   fprintf(stderr, "[jihad-bs] emitGeometry contentSize=%dx%d win=%dx%d mZoom=%.4f (reporting=%d)\n",
           cw, ch, mPage->Width(), mPage->Height(), mZoom,
-          (int)(got && (cw != mLastContentW || ch != mLastContentH)));
-  if (got && (cw != mLastContentW || ch != mLastContentH)) {
+          (int)(got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)));
+  // NEVER emit a degenerate (0,0) content size. During a resize, GetContentSize (GetRootBounds)
+  // momentarily returns (0,0) while the viewport reflow rebuilds the root frame — the Flush_Layout
+  // can complete mid-reconstruction. The adapter treats contentsSizeChanged(0,0) as "new page":
+  // it DROPS the live offscreen buffer (-> white card) and resets zoom-fit to 1.0 (-> the 1.0<->0.75
+  // flicker). Guarding cw>0 && ch>0 kills the dominant path of BOTH the resize white-out and the
+  // zoom oscillation (review #7 P1). Keeps the last good size until a real one arrives.
+  if (got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)) {
     mLastContentW = cw; mLastContentH = ch;
     mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
   }
   double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
   if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us))
     mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);   // R4: meta-viewport
+  return got && cw > 0 && ch > 0;   // a valid content size was available (deferred-emit can stop retrying)
 }
 
 void BrowserPageGoanna::emitScrollIfChanged() {
@@ -495,6 +507,10 @@ void BrowserPageGoanna::pump(int msBudget) {
     }
   }
   mPage->PumpFor(msBudget);
+  // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
+  // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
+  // reflow just re-defers via the guard until a real size is available.
+  if (mGeometryDirty && emitGeometry()) mGeometryDirty = false;   // retry until reflow yields a valid size
   emitLoadAndLocation();
   emitScrollIfChanged();
   // R6 link-clicked: a content-initiated navigation is reported as it happens,
@@ -577,6 +593,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   }
   shmdt(buf);
   if (nb < 0) return;
+  // Blank-over-good suppression (review #7 P1): a mid-reflow render fills the target white
+  // (nb==0). Do NOT push that over a previously-good frame — keep the last valid frame on
+  // screen and retry next tick (leave mNeedsPaint set, do NOT flip the active buffer). This
+  // removes the resize/rotation/navigation white-flash. Only a genuinely-never-rendered page
+  // (mHadContent==false) blits a blank frame.
+  if (nb == 0 && mHadContent) return;   // mNeedsPaint stays true -> retried until content lands
+  if (nb > 0) mHadContent = true;
 
   mNeedsPaint = false;
   mSink.msgPainted(mActiveKey);

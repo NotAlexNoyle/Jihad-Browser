@@ -1018,21 +1018,16 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // Rotation guard: if the offscreen buffer's orientation (portrait/landscape) does not
     // match the paint destination's, the daemon has not yet re-rendered at the new
     // orientation (a rotate is in progress). Blitting the stale buffer with its old
-    // srcStride produces the 3x tiling + scanlines seen in landscape, so paint a clean
-    // white frame instead — the daemon emits a matching-orientation buffer momentarily.
-    // Pinch-zoom preserves orientation, so this never triggers during zoom.
+    // srcStride produces the 3x tiling + scanlines seen in landscape. HOLD the last
+    // composited frame (return without touching dstBuffer) rather than flashing white — the
+    // daemon emits a matching-orientation buffer momentarily and the next paint blits it
+    // (Jihad review #7 P2). Pinch-zoom preserves orientation, so this never triggers on zoom.
     {
         bool bufLandscape = info->renderedWidth > info->renderedHeight;
         bool dstLandscape = (event->dstRight - event->dstLeft) >
                             (event->dstBottom - event->dstTop);
-        if (bufLandscape != dstLandscape) {
-            for (int dy = event->dstTop; dy < event->dstBottom; ++dy) {
-                unsigned int* drow = (unsigned int*)(dstBase + (dy - event->dstTop) * dstStride);
-                for (int dx = event->dstLeft; dx < event->dstRight; ++dx)
-                    drow[dx - event->dstLeft] = 0xffffffffu;
-            }
+        if (bufLandscape != dstLandscape)
             return;
-        }
     }
 
     // Map dst box <- src box (content coords). The src content lives at (renderedX,renderedY)
@@ -2925,8 +2920,11 @@ const char* BrowserAdapter::js_clickAt(AdapterBase *adapter, const NPVariant *ar
         return NULL;
     }
 
-    clickPt.x /= a->mZoomLevel;
-    clickPt.y /= a->mZoomLevel;
+    // contentX/contentY = (scroll + event) / zoom — the pen paths all add mScrollPos; this
+    // js-driven clickAt dropped it, so on a scrolled page it hit the wrong element (Jihad
+    // review #7). Add the scroll offset before dividing by zoom.
+    clickPt.x = (a->mScrollPos.x + clickPt.x) / a->mZoomLevel;
+    clickPt.y = (a->mScrollPos.y + clickPt.y) / a->mZoomLevel;
 
     /* filter clicks out in flash rects when gesture lock enabled since we
      * send the events directly via handlePen* */

@@ -59,6 +59,9 @@
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
 #include <cctype>                    // toupper/tolower for editable tag/type checks
+#include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
+#include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
+#include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -100,6 +103,7 @@ public:
   nsCString mCertHost;       // host of the cert error
   int32_t mCertPort;         // port of the cert error
   nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
+  nsCOMPtr<nsIDOMElement> mFocusedEditable;  // last-tapped editable, marked for InsertText DOM mutation
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -434,26 +438,27 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
 }
 
 void GoannaRenderPage::InsertText(const char* text) {
-  if (!mChrome || !text) return;
-  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
-  if (!nav) return;
-  // Insert at the caret of the focused editable via execCommand, run in page
-  // context through a javascript: URL (no frozen text-insertion API). Escapes
-  // quotes/backslashes; exotic characters that need URL-encoding are a known limit.
-  std::string esc;
-  for (const char* p = text; *p; ++p) {
-    switch (*p) {
-      case '\'': case '\\': esc += '\\'; esc += *p; break;
-      case '\n': esc += "\\n"; break;
-      case '\r': esc += "\\r"; break;
-      case '\t': esc += "\\t"; break;
-      default: esc += *p; break;
-    }
+  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
+  // Type into the field the user tapped (tracked in mFocusedEditable by ClickAt) by DIRECT
+  // DOM value mutation. NOT via a javascript: LoadURI — that ran through the docShell load
+  // machinery, so every keystroke flashed the isis loading overlay and reflowed the page
+  // white. And NOT via Focus()+execCommand — focusing an editable crashes headless. SetValue
+  // is a plain DOM mutation: no navigation, no focus, no caret. BrowserPageGoanna sets
+  // mNeedsPaint after this so the field repaints with the new text (review #7 P1).
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  NS_ConvertUTF8toUTF16 t(text);
+  nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
+  if (input) {
+    nsAutoString v; input->GetValue(v); v.Append(t); input->SetValue(v);
+    return;
   }
-  std::string js = "javascript:void(document.execCommand('insertText',false,'" + esc + "'))";
-  NS_ConvertUTF8toUTF16 u(js.c_str());
-  mChrome->mProgrammaticLoad = true;   // internal nav: never a link-click (Codex P1)
-  nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) {
+    nsAutoString v; ta->GetValue(v); v.Append(t); ta->SetValue(v);
+    return;
+  }
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable region
+  if (node) { nsAutoString v; node->GetTextContent(v); v.Append(t); node->SetTextContent(v); }
 }
 
 bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
@@ -555,6 +560,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mFailedUrl.Truncate();
   mChrome->mCertHost.Truncate();
   mChrome->mCertCert = nullptr;
+  mChrome->mFocusedEditable = nullptr;   // the marked field belongs to the old document
 }
 
 bool GoannaRenderPage::LoadUrl(const char* url) {
@@ -879,17 +885,36 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // click, using the tag name + "type" ATTRIBUTE via nsIDOMElement (known-good QI —
   // ElementFromPoint returned it). Do NOT depend on nsIDOMHTMLInputElement/GetType
   // (review #6 F-002). Skip readonly/disabled fields (F-010). ---
+  // If the tap is on a <label> (or inside one), the control it labels is what a real click
+  // would activate — and a label for a TEXT field focuses that field, which crashes headless
+  // (editable focus). Resolve the label's control and detect editability on IT, so the tap
+  // raises the VKB instead of DOMClick-ing into the crash (review #7 P1).
+  nsCOMPtr<nsIDOMElement> effEl = el;
+  {
+    nsCOMPtr<nsIDOMNode> n = do_QueryInterface(el);
+    for (int d = 0; n && d < 32; ++d) {
+      nsCOMPtr<nsIDOMHTMLLabelElement> lab = do_QueryInterface(n);
+      if (lab) {
+        nsCOMPtr<nsIDOMHTMLElement> ctrl; lab->GetControl(getter_AddRefs(ctrl));
+        nsCOMPtr<nsIDOMElement> ctrlEl = do_QueryInterface(ctrl);
+        if (ctrlEl) effEl = ctrlEl;
+        break;
+      }
+      nsCOMPtr<nsIDOMNode> p; n->GetParentNode(getter_AddRefs(p)); n = p;
+    }
+  }
   bool editable = false;
   {
-    std::string tg = el ? std::string(NS_ConvertUTF16toUTF8(tag).get()) : std::string();
+    nsAutoString effTag; if (effEl) effEl->GetTagName(effTag);
+    std::string tg = effEl ? std::string(NS_ConvertUTF16toUTF8(effTag).get()) : std::string();
     for (char& c : tg) c = (char)toupper((unsigned char)c);
     bool ro = false, dis = false;
-    if (el) { el->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
-              el->HasAttribute(NS_LITERAL_STRING("disabled"), &dis); }
-    if (el && tg == "TEXTAREA") {
+    if (effEl) { effEl->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
+                 effEl->HasAttribute(NS_LITERAL_STRING("disabled"), &dis); }
+    if (effEl && tg == "TEXTAREA") {
       editable = !ro && !dis;
-    } else if (el && tg == "INPUT") {
-      nsAutoString typeAttr; el->GetAttribute(NS_LITERAL_STRING("type"), typeAttr);
+    } else if (effEl && tg == "INPUT") {
+      nsAutoString typeAttr; effEl->GetAttribute(NS_LITERAL_STRING("type"), typeAttr);
       std::string ty = std::string(NS_ConvertUTF16toUTF8(typeAttr).get());
       for (char& c : ty) c = (char)tolower((unsigned char)c);
       const char* ts = ty.c_str();
@@ -898,8 +923,8 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
                       !strcmp(ts, "password");
       editable = textlike && !ro && !dis;
     }
-    if (!editable && el) {   // a contentEditable region (rich text editors)
-      nsCOMPtr<nsIDOMHTMLElement> h2 = do_QueryInterface(el);
+    if (!editable && effEl) {   // a contentEditable region (rich text editors)
+      nsCOMPtr<nsIDOMHTMLElement> h2 = do_QueryInterface(effEl);
       if (h2) { bool ce = false; h2->GetIsContentEditable(&ce); editable = ce; }
     }
   }
@@ -915,7 +940,9 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // mouse events / DOMClick / Focus() here — focusing an editable element in the
     // offscreen/headless embedding builds an editor caret/selection with no backing widget
     // and CRASHES the engine (observed: a tap on <input> respawned the daemon every time).
-    // Typing into web inputs needs headless editor support, tracked separately.
+    // Instead of engine focus, remember this field so InsertText types into it by DOM value
+    // mutation (review #7 P1). Just hold the element ref — no attribute marker needed.
+    mChrome->mFocusedEditable = effEl;
     return;
   }
   // Non-editable: mouse events (JS mousedown/up + :active) then DOM click() for buttons,
@@ -941,6 +968,7 @@ bool GoannaRenderPage::ClearEditorFocus() {
   bool was = mEditorFocused;
   mEditorFocused = false;
   mEditorFocusDirty = false;   // any pending change is superseded by the navigation
+  if (mChrome) mChrome->mFocusedEditable = nullptr;   // the field is no longer the type target
   return was;
 }
 
@@ -1001,7 +1029,10 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
         // capture the current laid-out state.
         nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
         if (ps) ps->FlushPendingNotifications(Flush_Layout);
-        jihad_offscreen_render_document(mWidget, ds);
+        // A failed render leaves the target as the white FillRect -> readback is all-white
+        // and would be blitted as a blank frame. Treat it as "no frame" so the caller keeps
+        // the last good frame instead (review #7 P2).
+        if (!jihad_offscreen_render_document(mWidget, ds)) return -1;
       }
     }
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.

@@ -127,7 +127,7 @@ public:
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
-  void emitGeometry();          // contents-size + meta-viewport (dedup on change)
+  bool emitGeometry();          // contents-size + meta-viewport (dedup); true if a valid size was read
   void emitScrollIfChanged();   // scrolled-to when the offset moved
 
   EngineHost&        mHost;
@@ -142,6 +142,8 @@ private:
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   bool               mFrozen;           // card backgrounded: skip painting
+  bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
+  bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles
   // Queued tap: clickAt (a YAP socket callback) only records the point; pump() does the
   // hit-test / activation / click / navigation on the tick, where page teardown is safe.
   bool               mPendingClick;

@@ -55,6 +55,17 @@ public:
     (void)host; (void)code; (void)certFile;
   }
   virtual void msgLinkClicked(const char* url) { (void)url; }
+  // Title+URL together (YAP 0x200A). This — not msgLocationChanged — is what drives the
+  // isis address bar: BasicWebView.titleURLChange -> urlTitleChanged -> ActionBar.setUrl.
+  virtual void msgTitleAndUrlChanged(const char* title, const char* uri, bool canBack, bool canFwd) {
+    (void)title; (void)uri; (void)canBack; (void)canFwd;
+  }
+  // An editable element gained/lost focus -> isis raises/hides the VKB
+  // (BasicWebView.editorFocused -> PalmSystem.editorFocused). fieldType/fieldActions are
+  // PalmIME hints (0 = default text).
+  virtual void msgEditorFocused(bool focused, int fieldType, int fieldActions) {
+    (void)focused; (void)fieldType; (void)fieldActions;
+  }
 };
 
 class BrowserPageGoanna

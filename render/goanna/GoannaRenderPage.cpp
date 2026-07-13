@@ -36,6 +36,7 @@
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
 #include "nsIChannel.h"
+#include "nsIHttpChannel.h"         // content-nav request method (POST vs GET re-drive)
 #include "nsISSLStatus.h"
 #include "nsIBadCertListener2.h"
 #include "nsIX509Cert.h"
@@ -52,10 +53,12 @@
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
+#include "nsIDOMWindow.h"            // content window -> document (GetTitle)
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
 #include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
+#include <cctype>                    // toupper/tolower for editable tag/type checks
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -82,7 +85,7 @@ public:
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
                              mCertError(false), mProgrammaticLoad(true),
-                             mLinkClicked(false), mErrorStatus(NS_OK), mCertPort(443),
+                             mLinkClicked(false), mLinkIsPost(false), mErrorStatus(NS_OK), mCertPort(443),
                              mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
@@ -90,6 +93,7 @@ public:
   bool mCertError;           // last load failed on an (overridable) cert error
   bool mProgrammaticLoad;    // current load was started by a command (not a link)
   bool mLinkClicked;         // a content-initiated (link) navigation was seen
+  bool mLinkIsPost;          // ...and it was a non-GET (POST) request (don't re-drive)
   nsCString mLinkUrl;        // its target URL
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
@@ -180,8 +184,15 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
   // content-initiated (link/anchor) navigation. Capture its target.
   if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
     mLinkClicked = true;
+    mLinkIsPost = false;
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
-    if (ch) { nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl); }
+    if (ch) {
+      nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
+      // Capture the method: a POST content-nav must NOT be re-driven as a GET (the body
+      // would be lost — logins/checkout break). Only GET-class navs get the re-drive (F-007).
+      nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(ch);
+      if (http) { nsAutoCString m; http->GetRequestMethod(m); mLinkIsPost = !m.EqualsLiteral("GET"); }
+    }
   }
   if (top && (f & (STATE_START | STATE_STOP))) {
     fprintf(stderr, "[jihad-bs] state top f=0x%x doc=%d win=%d net=%d %s status=0x%x\n",
@@ -257,7 +268,8 @@ extern "C" {
 
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
   : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidget(nullptr),
-    mOffscreen(false), mWidth(0), mHeight(0) {}
+    mOffscreen(false), mWidth(0), mHeight(0),
+    mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
   // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
@@ -647,9 +659,10 @@ bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
 
-bool GoannaRenderPage::TakeLinkClicked(std::string* url) {
+bool GoannaRenderPage::TakeLinkClicked(std::string* url, bool* isPost) {
   if (!mChrome || !mChrome->mLinkClicked) return false;
   if (url) *url = std::string(mChrome->mLinkUrl.get());
+  if (isPost) *isPost = mChrome->mLinkIsPost;
   mChrome->mLinkClicked = false;   // consume
   mChrome->mLinkUrl.Truncate();
   return true;
@@ -692,6 +705,20 @@ std::string GoannaRenderPage::CurrentUri() {
   if (!uri) return std::string();
   nsCString spec; uri->GetSpec(spec);
   return std::string(spec.get());
+}
+
+std::string GoannaRenderPage::GetTitle() {
+  if (!mChrome) return std::string();
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return std::string();
+  nsCOMPtr<nsIContentViewer> cv;
+  ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return std::string();
+  nsCOMPtr<nsIDOMDocument> doc;
+  cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return std::string();
+  nsAutoString title; doc->GetTitle(title);
+  return std::string(NS_ConvertUTF16toUTF8(title).get());
 }
 
 // --- process-global browser services ---------------------------------------
@@ -845,15 +872,76 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // load or, done synchronously in the socket callback, re-enters + crashes. Skip the
     // mouse events for a link too — they made the anchor start its own (aborting) load.
     mClickNavUrl = h;
+    if (mEditorFocused) { mEditorFocused = false; mEditorFocusDirty = true; }  // page change -> hide VKB
     return;
   }
-  // Non-link: mouse events (JS mousedown/up + :active) then the DOM click().
+  // --- VKB editable detection. Compute editability from the tapped element BEFORE the
+  // click, using the tag name + "type" ATTRIBUTE via nsIDOMElement (known-good QI —
+  // ElementFromPoint returned it). Do NOT depend on nsIDOMHTMLInputElement/GetType
+  // (review #6 F-002). Skip readonly/disabled fields (F-010). ---
+  bool editable = false;
+  {
+    std::string tg = el ? std::string(NS_ConvertUTF16toUTF8(tag).get()) : std::string();
+    for (char& c : tg) c = (char)toupper((unsigned char)c);
+    bool ro = false, dis = false;
+    if (el) { el->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
+              el->HasAttribute(NS_LITERAL_STRING("disabled"), &dis); }
+    if (el && tg == "TEXTAREA") {
+      editable = !ro && !dis;
+    } else if (el && tg == "INPUT") {
+      nsAutoString typeAttr; el->GetAttribute(NS_LITERAL_STRING("type"), typeAttr);
+      std::string ty = std::string(NS_ConvertUTF16toUTF8(typeAttr).get());
+      for (char& c : ty) c = (char)tolower((unsigned char)c);
+      const char* ts = ty.c_str();
+      bool textlike = !*ts || !strcmp(ts, "text") || !strcmp(ts, "search") || !strcmp(ts, "email") ||
+                      !strcmp(ts, "url") || !strcmp(ts, "tel") || !strcmp(ts, "number") ||
+                      !strcmp(ts, "password");
+      editable = textlike && !ro && !dis;
+    }
+    if (!editable && el) {   // a contentEditable region (rich text editors)
+      nsCOMPtr<nsIDOMHTMLElement> h2 = do_QueryInterface(el);
+      if (h2) { bool ce = false; h2->GetIsContentEditable(&ce); editable = ce; }
+    }
+  }
+  // Log the detection + update the editor-focus state BEFORE any click, so the VKB
+  // decision is recorded even if a later engine call faults (and so the crash-prone click
+  // path below is never taken for an editable).
+  fprintf(stderr, "[jihad-bs] vkb tag=[%s] editable=%d was=%d\n",
+          el ? NS_ConvertUTF16toUTF8(tag).get() : "null", editable, mEditorFocused);
+  if (editable != mEditorFocused) { mEditorFocused = editable; mEditorFieldType = 0; mEditorFocusDirty = true; }
+
+  if (editable) {
+    // Editable field: pump() emits msgEditorFocused(true) to raise the VKB. Do NOT dispatch
+    // mouse events / DOMClick / Focus() here — focusing an editable element in the
+    // offscreen/headless embedding builds an editor caret/selection with no backing widget
+    // and CRASHES the engine (observed: a tap on <input> respawned the daemon every time).
+    // Typing into web inputs needs headless editor support, tracked separately.
+    return;
+  }
+  // Non-editable: mouse events (JS mousedown/up + :active) then DOM click() for buttons,
+  // form controls, and JS onclick handlers.
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
   u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
   u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
   nsCOMPtr<nsIDOMHTMLElement> hel = do_QueryInterface(el);
   if (hel) hel->DOMClick();
+}
+
+bool GoannaRenderPage::TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions) {
+  if (!mEditorFocusDirty) return false;
+  mEditorFocusDirty = false;
+  if (focused) *focused = mEditorFocused;
+  if (fieldType) *fieldType = mEditorFieldType;
+  if (fieldActions) *fieldActions = 0;
+  return true;
+}
+
+bool GoannaRenderPage::ClearEditorFocus() {
+  bool was = mEditorFocused;
+  mEditorFocused = false;
+  mEditorFocusDirty = false;   // any pending change is superseded by the navigation
+  return was;
 }
 
 bool GoannaRenderPage::TakeClickNav(std::string* url) {
@@ -905,7 +993,16 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
     // Paint() path does not paint embedded content into our offscreen widget -> black).
     if (mChrome && mChrome->mBrowser) {
       nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-      if (ds) jihad_offscreen_render_document(mWidget, ds);
+      if (ds) {
+        // Flush layout BEFORE rendering. A paint triggered right after load-done (or any
+        // time reflow is still pending) otherwise captures un-laid-out content -> a blank
+        // frame, and the card stays black until a later resize/refocus forces a repaint
+        // ("black until you back out of the card and return"). Flushing makes every paint
+        // capture the current laid-out state.
+        nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+        if (ps) ps->FlushPendingNotifications(Flush_Layout);
+        jihad_offscreen_render_document(mWidget, ds);
+      }
     }
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.
     if (!jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;

@@ -188,14 +188,19 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   if (!mPage) return;
   if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
   double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
-  mPage->SetZoom(zoom);
+  mPage->SetZoom(z);   // clamped — SetZoom(raw) diverged from mZoom/contentZoom (review #6 F-008)
   // The adapter's scroll (x,y) is in ZOOMED-content px (its mScrollPos, buffer space);
   // the engine scrolls in CSS px, so divide by the zoom. Keep the zoomed values for
   // BrowserOffscreenInfo::renderedX/Y so the adapter's pan math lines up (== mScrollPos).
   mAdapterScrollX = x; mAdapterScrollY = y;
   mPage->ScrollTo((int)(x / z), (int)(y / z));
   mNeedsPaint = true;
-  emitGeometry();   // zoom changes the rendered content size (scroll via pump)
+  // NB: do NOT emitGeometry() here. A zoom-only command does not change the page's
+  // intrinsic CSS content size, but re-reporting it fed the adapter's fit-zoom, which sent
+  // a new zoom, which re-reported size... a cross-process oscillation (mZoom flapped
+  // 1.0<->0.75<->0.7837, size 768x942<->1024x686 on rotate). Content size is emitted only
+  // from setWindowSize + load-done now; the adapter derives its own contentWidth from the
+  // zoom it applied. (review #6 F-001)
 }
 
 // Internal about: pages served from inline HTML by the daemon (no engine/omni.ja
@@ -267,6 +272,9 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
   mPendingClick = false;   // a newer explicit navigation supersedes any queued tap
+  // Any navigation lowers the VKB (covers link tap, JS location.href re-drive, form submit,
+  // typed URL, back/forward) — otherwise the keyboard stays up over the new page (F-005).
+  if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false, 0, 0);
   // Internal about:jihad / about:isis pages: render inline HTML and report the typed
   // about: URL as the location (not the underlying data: URL). Any other load clears
   // the alias so a real page never inherits it.
@@ -411,13 +419,23 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     } else if (failed) {
       mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
     }
-    mSink.msgLoadStopped();
-    // For internal about: pages, report the typed about: URL, not the data: URL the
-    // engine actually loaded (keeps the address bar showing about:jihad/about:isis and
-    // avoids polluting global history with a huge data: entry).
+    // Emit location + title/URL BEFORE msgLoadStopped: isis's pageLoadStopped records the
+    // history entry from the CURRENT title/url, which these events set — emitting them after
+    // saves the previous title (typed nav) or previous URL (link/JS nav) (review #6 F-004).
+    // For internal about: pages, report the typed about: URL, not the data: URL the engine
+    // loaded (keeps the address bar showing about:jihad and avoids a huge data: history entry).
     std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
     if (mPage->DidRedirect()) mSink.msgUrlRedirected(uri.c_str(), "");  // R4
     mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+    // The isis address bar updates on the title+url message (BasicWebView.titleURLChange
+    // -> urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. Emit it so the
+    // bar reflects the navigated URL + page title after any navigation. If the page has no
+    // <title>, fall back to the URL so the bar still shows where we are (review #6 F-003).
+    { std::string title = mPage->GetTitle();
+      if (title.empty()) title = uri;
+      fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
+      mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
+    mSink.msgLoadStopped();
     if (!failed && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
     emitGeometry();   // R4: contents-size + meta-viewport once the page settled
   }
@@ -459,6 +477,13 @@ void BrowserPageGoanna::pump(int msBudget) {
     mPendingClick = false;
     fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d\n", mPendingClickX, mPendingClickY, mPendingClickN);
     mPage->ClickAt(mPendingClickX, mPendingClickY, mPendingClickN);
+    // VKB: the tap may have focused/blurred an editable field -> tell isis to raise/hide
+    // the on-screen keyboard.
+    bool efoc = false; int eft = 0, efa = 0;
+    if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) {
+      fprintf(stderr, "[jihad-bs] editorFocused=%d fieldType=%d\n", (int)efoc, eft);
+      mSink.msgEditorFocused(efoc, eft, efa);
+    }
     std::string clickNav;
     if (mPage->TakeClickNav(&clickNav)) {
       // R6 (navigation-events): report the intercepted link activation, THEN navigate via
@@ -474,8 +499,24 @@ void BrowserPageGoanna::pump(int msBudget) {
   emitScrollIfChanged();
   // R6 link-clicked: a content-initiated navigation is reported as it happens,
   // independent of the command-driven load lifecycle.
-  std::string linkUrl;
-  if (mPage->TakeLinkClicked(&linkUrl)) mSink.msgLinkClicked(linkUrl.c_str());
+  std::string linkUrl; bool linkIsPost = false;
+  if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost)) {
+    mSink.msgLinkClicked(linkUrl.c_str());
+    // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET,
+    // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE
+    // in this offscreen embedding — the same stall as the tap default-action (verified:
+    // location.href fires STATE_START for the target but never load-done). Re-drive the
+    // captured URL through the programmatic load path (openUrl), which completes and aborts
+    // the stalled content load. GET only: a POST (form submit) would lose its body if
+    // re-issued as a GET, so leave POSTs to the engine (review #6 F-007). `openUrl` clears
+    // mPendingClick and its programmatic load won't re-trigger TakeLinkClicked -> no loop.
+    if (!linkIsPost) {
+      fprintf(stderr, "[jihad-bs] content-nav re-drive -> %s\n", linkUrl.c_str());
+      openUrl(linkUrl.c_str());
+    } else {
+      fprintf(stderr, "[jihad-bs] content-nav POST (not re-driven) %s\n", linkUrl.c_str());
+    }
+  }
 }
 
 void BrowserPageGoanna::maybePaint() {

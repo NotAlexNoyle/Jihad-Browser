@@ -29,6 +29,8 @@ public:
   void msgLoadStopped() override;
   void msgLocationChanged(const char* uri, bool b, bool f) override;
   void msgTitleChanged(const char* t) override;
+  void msgTitleAndUrlChanged(const char* title, const char* uri, bool b, bool f) override;
+  void msgEditorFocused(bool focused, int fieldType, int fieldActions) override;
   void msgContentsSizeChanged(int32_t w, int32_t h) override;
   void msgScrolledTo(int32_t x, int32_t y) override;
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;

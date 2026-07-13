@@ -89,6 +89,12 @@ public:
   // navigate via the normal load path — the click default-action does not fire in the
   // offscreen embedding, and calling LoadUrl inside the click handler stalls the load.
   bool TakeClickNav(std::string* url);
+  // If a tap changed editable-element focus, returns the new state so the caller can emit
+  // msgEditorFocused (isis raises/hides the VKB). Drains the change; returns false if none.
+  bool TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions);
+  // Clear editor focus (a navigation happened); returns true if it WAS focused so the
+  // caller can emit msgEditorFocused(false) to lower the VKB over the new page.
+  bool ClearEditorFocus();
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
   void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
@@ -113,12 +119,13 @@ public:
   bool DidRedirect() const;
   // If a content-initiated (link) navigation was seen, return its URL and clear
   // the flag (R6 link-clicked). Returns false if none pending.
-  bool TakeLinkClicked(std::string* url);
+  bool TakeLinkClicked(std::string* url, bool* isPost = nullptr);
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);
   bool AcceptCurrentCert();
   std::string CurrentUri();
+  std::string GetTitle();   // current document title (for the address-bar title+url msg)
 
 private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
@@ -126,6 +133,9 @@ private:
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
   std::string mClickNavUrl;   // href from the last link tap, drained by TakeClickNav
+  bool mEditorFocused;        // is an editable element currently focused (VKB up)?
+  bool mEditorFocusDirty;     // the focus state changed and needs emitting
+  int  mEditorFieldType;      // PalmIME field-type hint for the focused editable
   GtkWidget* mWindow;      // legacy desktop path (GTK offscreen window)
   nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
   bool mOffscreen;         // true when rendering via the offscreen widget

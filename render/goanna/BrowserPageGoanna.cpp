@@ -13,6 +13,7 @@
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
 
 #include <cstdio>
+#include <sys/time.h>   // gettimeofday (paint render timing)
 #include <cstdlib>
 #include <cstring>
 #include <cctype>
@@ -345,17 +346,39 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   if (!mPage) return;
   // Never log key/chr — those are user keystrokes (F-163). When a tapped editable is the type
-  // target, edits go through DOM mutation (KeyEvent -> SendKeyEvent into the headless editor
-  // SIGSEGVs). Handle Backspace here (the VKB sends it as a keyDown, not insertStringAtCursor);
-  // printable characters arrive via insertStringAtCursor -> InsertText. Other editing/nav keys
-  // (Enter, arrows, Del) are not yet supported headless and are swallowed rather than dispatched
-  // (Jihad review F-164). Non-editable focus falls through to normal engine key dispatch.
+  // target, the webOS VKB delivers each character (and Backspace) as a keyDown; route it into the
+  // field via crash-free DOM mutation (InsertText/DeleteBackward) rather than the engine key path,
+  // and render IMMEDIATELY (don't wait for the ~16ms tick) so typing feels responsive. Enter/Tab/
+  // arrows aren't supported headless yet and are swallowed (F-183). Non-editable focus falls
+  // through to normal engine key dispatch.
   if (mPage->HasFocusedEditable()) {
+    // The webOS VKB delivers typed characters to the focused plugin as npPalmKeyDownEvent (verified
+    // on device). Route them into the tapped field via the crash-free DOM value mutation (InsertText/
+    // DeleteBackward) rather than the engine key path, and do NOT re-dispatch the synthesized key
+    // (that is the SendKeyEvent path). Backspace/Delete delete; a printable character (chr) inserts;
+    // other keys (Enter/Tab/arrows) are swallowed for now (headless-editor limitation, F-183).
     const int kBackspace = 8, kDelete = 127;
     if (key == kBackspace || chr == kBackspace || key == kDelete) {
       mPage->DeleteBackward();
       mNeedsPaint = true;
+    } else {
+      // The webOS VKB puts the printable character (letters, digits, symbols, and non-ASCII) in
+      // `key` (rawkeyCode) with `chr`==0 on device; accept it from whichever field carries it, for
+      // the FULL Unicode range (not just ASCII), then UTF-8 encode -> InsertText. Anything >= 0x20
+      // and not DEL is treated as a character; Backspace/Enter/Tab (< 0x20) are handled elsewhere.
+      unsigned int c = (chr >= 0x20 && chr != 0x7f) ? (unsigned int)chr
+                     : (key >= 0x20 && key != 0x7f) ? (unsigned int)key : 0u;
+      if (c) {
+        char buf[5] = {0};
+        if (c < 0x80) { buf[0] = (char)c; }
+        else if (c < 0x800) { buf[0] = (char)(0xC0 | (c >> 6)); buf[1] = (char)(0x80 | (c & 0x3F)); }
+        else if (c < 0x10000) { buf[0] = (char)(0xE0 | (c >> 12)); buf[1] = (char)(0x80 | ((c >> 6) & 0x3F)); buf[2] = (char)(0x80 | (c & 0x3F)); }
+        else { buf[0] = (char)(0xF0 | (c >> 18)); buf[1] = (char)(0x80 | ((c >> 12) & 0x3F)); buf[2] = (char)(0x80 | ((c >> 6) & 0x3F)); buf[3] = (char)(0x80 | (c & 0x3F)); }
+        mPage->InsertText(buf);
+        mNeedsPaint = true;
+      }
     }
+    if (mNeedsPaint) maybePaint();   // paint now, in this keyDown, instead of waiting for the tick
     return;
   }
   mPage->KeyEvent("keydown", key, chr, modifiers);
@@ -594,10 +617,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   oi->renderedWidth = w; oi->renderedHeight = h;
   unsigned char* pixels = buf + hdr;
 
+  struct timeval _pt0, _pt1; gettimeofday(&_pt0, nullptr);
   long nb = mPage->ReadPixels(pixels, segSize - hdr);
+  gettimeofday(&_pt1, nullptr);
+  long _pms = (_pt1.tv_sec - _pt0.tv_sec) * 1000 + (_pt1.tv_usec - _pt0.tv_usec) / 1000;
   if (nb >= 0) {
-    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d) mZoom=%.4f contentZoom=%.4f\n",
-            (unsigned)mActiveKey, nb, w, h, mZoom, oi->contentZoom);
+    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d) render=%ldms mZoom=%.4f contentZoom=%.4f\n",
+            (unsigned)mActiveKey, nb, w, h, _pms, mZoom, oi->contentZoom);
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0

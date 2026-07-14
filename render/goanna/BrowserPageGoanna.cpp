@@ -174,7 +174,11 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
 
 void BrowserPageGoanna::freeze() {
   // Card backgrounded: stop painting (the adapter may free/reuse the buffers).
+  // Drop the cached shm attachments too: the production segments are IPC_RMID-marked,
+  // so holding an attach keeps them alive and can exhaust the device's scarce shared
+  // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
   mFrozen = true;
+  detachShm();
 }
 
 void BrowserPageGoanna::thaw(int key1, int key2, int size) {
@@ -392,6 +396,13 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
       // and not DEL is treated as a character; Backspace/Enter/Tab (< 0x20) are handled elsewhere.
       unsigned int c = (chr >= 0x20 && chr != 0x7f) ? (unsigned int)chr
                      : (key >= 0x20 && key != 0x7f) ? (unsigned int)key : 0u;
+      // Only encode a valid Unicode scalar: reject the UTF-16 surrogate range and anything
+      // above U+10FFFF so we never emit malformed UTF-8 into the DOM value (Codex F-210). We do
+      // NOT reject keycodes like 0x25-0x28 as "arrow keys": on this device the VKB delivers the
+      // actual character in `key`, so those values are the '%','&',apostrophe,'(' symbols — the
+      // VKB has no arrow keys. Enter/Tab/Backspace (< 0x20) are handled/swallowed above.
+      if (c >= 0xD800 && c <= 0xDFFF) c = 0u;
+      else if (c > 0x10FFFF) c = 0u;
       if (c) {
         char buf[5] = {0};
         if (c < 0x80) { buf[0] = (char)c; }

@@ -1044,6 +1044,24 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
             return;
     }
 
+    // DIAGNOSTIC (file-gated by /media/internal/jihad/testpat): fill the dst box with a known
+    // vertical R/G/B stripe pattern + a black line every 64 rows, using the SAME dst addressing
+    // as the real blit but IGNORING the source. If this shows clean 48px vertical stripes and
+    // horizontal black lines on screen, the dst geometry + compositor are correct and any
+    // corruption is in the source read; if the stripes shear/tile, it's the dst stride/geometry.
+    if (access("/media/internal/jihad/testpat", F_OK) == 0) {
+        for (int dy = event->dstTop; dy < event->dstBottom; ++dy) {
+            unsigned int* drow = (unsigned int*)(dstBase + (dy - event->dstTop) * dstStride);
+            for (int dx = event->dstLeft; dx < event->dstRight; ++dx) {
+                int band = (dx / 48) % 3;
+                unsigned int c = band == 0 ? 0xffff0000u : band == 1 ? 0xff00ff00u : 0xff0000ffu;
+                if ((dy % 64) == 0) c = 0xff000000u;
+                drow[dx - event->dstLeft] = c;
+            }
+        }
+        return;
+    }
+
     // Map dst box <- src box (content coords). The src content lives at (renderedX,renderedY)
     // in the offscreen; dstBuffer points to the dst-box top-left.
     int dl = event->dstLeft, dt = event->dstTop, dr = event->dstRight, dbm = event->dstBottom;

@@ -439,7 +439,11 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
 }
 
 void GoannaRenderPage::InsertText(const char* text) {
-  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
+  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) {
+    fprintf(stderr, "[jihad-bs] InsertText SKIP chrome=%d editable=%d text=%d\n",
+            mChrome ? 1 : 0, (mChrome && mChrome->mFocusedEditable) ? 1 : 0, (text && *text) ? 1 : 0);
+    return;
+  }
   // Type into the field the user tapped (tracked in mFocusedEditable by ClickAt) by DIRECT
   // DOM value mutation. NOT via a javascript: LoadURI — that ran through the docShell load
   // machinery, so every keystroke flashed the isis loading overlay and reflowed the page
@@ -458,6 +462,7 @@ void GoannaRenderPage::InsertText(const char* text) {
     // vs default-value caveat for script-dirtied fields is a headless limitation — F-165.)
     nsAutoString v; input->GetValue(v); v.Append(t);
     el->SetAttribute(NS_LITERAL_STRING("value"), v);
+    fprintf(stderr, "[jihad-bs] InsertText input SetAttribute newlen=%d\n", (int)v.Length());
     return;
   }
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);

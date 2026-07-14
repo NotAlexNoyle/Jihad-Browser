@@ -384,7 +384,10 @@ void BrowserPageGoanna::holdAt(int x, int y) {
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
   // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is
-  // redirected to a persistent, user-readable file on device (Jihad review F-163).
+  // redirected to a persistent, user-readable file on device (Jihad review F-163). Occurrence +
+  // editable-state only, to diagnose whether VKB text reaches the daemon and the insert path.
+  fprintf(stderr, "[jihad-bs] insertStr recv=%d editable=%d\n",
+          text ? 1 : 0, (mPage && mPage->HasFocusedEditable()) ? 1 : 0);
   if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; }
 }
 

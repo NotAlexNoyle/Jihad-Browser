@@ -470,23 +470,37 @@ void GoannaRenderPage::InsertText(const char* text) {
   if (node) { nsAutoString v; node->GetTextContent(v); v.Append(t); node->SetTextContent(v); }
 }
 
+// Drop the last USER-PERCEIVED character: one UTF-16 code unit, or two if it is a surrogate pair
+// (e.g. an emoji), so Backspace never leaves a malformed lone surrogate (Jihad review F-187).
+static void jihadTrimLastChar(nsAutoString& v) {
+  uint32_t len = v.Length();
+  if (len == 0) return;
+  uint32_t drop = 1;
+  if (len >= 2) {
+    char16_t lo = v.CharAt(len - 1), hi = v.CharAt(len - 2);
+    if (lo >= 0xDC00 && lo <= 0xDFFF && hi >= 0xD800 && hi <= 0xDBFF) drop = 2;  // low+high surrogate
+  }
+  v.Truncate(len - drop);
+}
+
 // Backspace on the tapped field: drop the last character via the SAME crash-free DOM value
 // mutation as InsertText (no engine key dispatch, no editor caret). The VKB delivers Backspace
 // as a keyDown, not through insertStringAtCursor, so without this the key was swallowed and
-// text could never be corrected (Jihad review F-164).
+// text could never be corrected (Jihad review F-164). NB: this always edits the END of the field
+// (we have no headless caret) — a known limitation of the widget-less text path.
 void GoannaRenderPage::DeleteBackward() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
   if (input) {
     nsAutoString v; input->GetValue(v);
-    if (!v.IsEmpty()) { v.Truncate(v.Length() - 1); el->SetAttribute(NS_LITERAL_STRING("value"), v); }
+    if (!v.IsEmpty()) { jihadTrimLastChar(v); el->SetAttribute(NS_LITERAL_STRING("value"), v); }
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // textarea / contentEditable
   if (node) {
     nsAutoString v; node->GetTextContent(v);
-    if (!v.IsEmpty()) { v.Truncate(v.Length() - 1); node->SetTextContent(v); }
+    if (!v.IsEmpty()) { jihadTrimLastChar(v); node->SetTextContent(v); }
   }
 }
 

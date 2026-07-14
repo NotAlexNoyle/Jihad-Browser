@@ -37,21 +37,33 @@
 
 #define JIHAD_VISIBLE __attribute__((visibility("default")))
 
-// The impl ships INSIDE the app bundle (installed by the signed package, root-owned). Loading a
-// native .so into the privileged LunaSysMgr process from a world-writable path is arbitrary code
-// execution (Jihad review F-161), so this trusted app-bundle path is the ONLY default source.
-// Dev overrides (a /media/internal drop, or JIHAD_ADAPTER_IMPL) are honored ONLY when the dev
-// marker /media/internal/jihad/DEV exists — a shipped device never has it.
+// The impl ships INSIDE the app bundle (installed by the signed package, root-owned + not writable).
+// Loading a native .so into privileged LunaSysMgr from a world-writable path is arbitrary code
+// execution (Jihad review F-161/F-180), so:
+//   - PRODUCTION (default): the trusted app-bundle path is the ONLY source, and before dlopen the
+//     opened file MUST be a regular file, root-owned, and not group/world-writable (fail closed).
+//   - DEV builds (compile -DJIHAD_DEV_ADAPTER — never shipped): additionally honor JIHAD_ADAPTER_IMPL
+//     or a /media/internal drop, and skip the root-owner check (that partition is vfat: no real perms).
+// This replaces the earlier runtime /media/internal/jihad/DEV marker, which was itself in the
+// world-writable location it was meant to distrust.
 static const char* kImplTrusted =
     "/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/BrowserAdapterImpl.so";
+#ifdef JIHAD_DEV_ADAPTER
 static const char* kImplDevPath = "/media/internal/jihad/BrowserAdapterImpl.so";
-static const char* kDevMarker   = "/media/internal/jihad/DEV";
+#endif
 
 static NPNetscapeFuncs sBrowser;     // browser funcs, handed to the impl on load
 static NPPluginFuncs   sImpl;        // current impl's NPP_* table (valid once sHandle != 0)
 static void*           sHandle = 0;  // dlopen handle for the currently-loaded impl (never dlclose'd)
 static int             sInstances = 0;
-static time_t          sLoadedMtime = 0;  // mtime of the impl file at last load (for reload-on-change)
+// Identity of the impl file at last load. Reload when ANY of these change — mtime alone is
+// second-resolution and package tools can preserve timestamps, so a same-tick replacement would be
+// missed (Jihad review F-185). sLoadedSize = -1 also acts as a "force reload" sentinel.
+static dev_t  sLoadedDev   = 0;
+static ino_t  sLoadedIno   = 0;
+static off_t  sLoadedSize  = -1;
+static time_t sLoadedMtime = 0;
+static long   sLoadedMtimeNs = -1;
 
 static void shimLog(const char* fmt, const char* a)
 {
@@ -59,16 +71,29 @@ static void shimLog(const char* fmt, const char* a)
     if (f) { fprintf(f, fmt, a); fclose(f); }
 }
 
-// Resolve the impl source: the trusted app-bundle path, unless the dev marker enables an override.
+// Resolve the impl source: the trusted app-bundle path (dev builds also allow an override).
 static const char* implSourcePath()
 {
-    if (access(kDevMarker, F_OK) == 0) {
-        const char* env = getenv("JIHAD_ADAPTER_IMPL");
-        if (env && *env && access(env, R_OK) == 0) return env;
-        if (access(kImplDevPath, R_OK) == 0) return kImplDevPath;
-    }
+#ifdef JIHAD_DEV_ADAPTER
+    const char* env = getenv("JIHAD_ADAPTER_IMPL");
+    if (env && *env && access(env, R_OK) == 0) return env;
+    if (access(kImplDevPath, R_OK) == 0) return kImplDevPath;
+#endif
     if (access(kImplTrusted, R_OK) == 0) return kImplTrusted;
     return 0;
+}
+
+// Reject an impl that is not a regular file, is group/world-writable, or (production) not root-owned
+// — verified on the OPEN fd so the check applies to the exact bytes we are about to dlopen (F-180).
+static bool fdIsTrusted(int fd)
+{
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) return false;
+    if (st.st_mode & (S_IWGRP | S_IWOTH)) return false;
+#ifndef JIHAD_DEV_ADAPTER
+    if (st.st_uid != 0) return false;
+#endif
+    return true;
 }
 
 // dlopen a FRESH mapping of `src`. glibc dlopen dedups by path, so reopening the same path returns
@@ -79,6 +104,7 @@ static void* dlopenFreshCopy(const char* src)
 {
     int in = open(src, O_RDONLY);
     if (in < 0) { shimLog("[shim] open src fail: %s\n", src); return 0; }
+    if (!fdIsTrusted(in)) { shimLog("[shim] REJECT untrusted impl: %s\n", src); close(in); return 0; }
     char tmpl[] = "/tmp/jihad-adapter-XXXXXX";
     int out = mkstemp(tmpl);
     if (out < 0) { shimLog("[shim] mkstemp fail%s\n", ""); close(in); return 0; }
@@ -111,8 +137,12 @@ static NPError loadImpl()
     if (!src) { shimLog("[shim] NO impl found%s\n", ""); return NPERR_MODULE_LOAD_FAILED_ERROR; }
 
     struct stat st;
-    time_t mtime = (stat(src, &st) == 0) ? st.st_mtime : 0;
-    if (sHandle && (mtime == sLoadedMtime || sInstances > 0))
+    bool haveStat = (stat(src, &st) == 0);
+    bool changed = !haveStat ||
+                   st.st_dev != sLoadedDev || st.st_ino != sLoadedIno ||
+                   st.st_size != sLoadedSize || st.st_mtime != sLoadedMtime ||
+                   st.st_mtim.tv_nsec != sLoadedMtimeNs;
+    if (sHandle && (!changed || sInstances > 0))
         return NPERR_NO_ERROR;   // current build already loaded, or a card is live — keep it
 
     void* h = dlopenFreshCopy(src);
@@ -123,12 +153,18 @@ static NPError loadImpl()
     NPPluginFuncs pf; memset(&pf, 0, sizeof(pf)); pf.size = sizeof(pf);
     if (!init || init(&sBrowser, &pf) != NPERR_NO_ERROR) {
         shimLog("[shim] impl init fail: %s\n", src);
-        // Leak h (may have partially registered); keep any previously-good impl loaded.
+        // A failed init registered no NPObjects/GSources, so this handle is safe to unmap now —
+        // dlclose it rather than leak one mapping per retry (Jihad review F-186). Any previously
+        // good impl stays loaded.
+        dlclose(h);
         return sHandle ? NPERR_NO_ERROR : NPERR_MODULE_LOAD_FAILED_ERROR;
     }
-    sImpl = pf;              // switch to the new table (previous sHandle intentionally leaked)
+    sImpl = pf;              // switch to the new table (previous sHandle intentionally leaked — F-160)
     sHandle = h;
-    sLoadedMtime = mtime;
+    if (haveStat) {
+        sLoadedDev = st.st_dev; sLoadedIno = st.st_ino; sLoadedSize = st.st_size;
+        sLoadedMtime = st.st_mtime; sLoadedMtimeNs = st.st_mtim.tv_nsec;
+    }
     shimLog("[shim] loaded impl: %s\n", src);
     return NPERR_NO_ERROR;
 }
@@ -145,7 +181,7 @@ static NPError sNewp(NPMIMEType type, NPP inst, uint16_t mode, int16_t argc,
     if (e == NPERR_NO_ERROR)
         ++sInstances;
     else
-        sLoadedMtime = 0;   // failed create: don't wedge — force a reload attempt next open (F-168)
+        sLoadedSize = -1;   // failed create: don't wedge — force a reload attempt next open (F-168)
     return e;
 }
 

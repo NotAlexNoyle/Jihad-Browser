@@ -24,6 +24,9 @@ QT=$DEPS/qt4-extract/usr/include/qt4
 PBN=$DEPS/libpbnjson                                         # checked out at submissions/10
 YAPDIR=$ROOT/Jihad-Browser/render/browserserver
 OUT=$DEPS/build-pdk; mkdir -p "$OUT"; rm -f "$OUT"/*.o
+# Remove the stale monolithic output from before the shim/impl split, so an incremental build can
+# never silently deploy the old single BrowserAdapter.so instead of the shim (Jihad review F-181).
+rm -f "$OUT/BrowserAdapter.so"
 
 ARM="-march=armv7-a -mfpu=neon -mfloat-abi=softfp"
 COMMON="--sysroot=$SYSROOT -fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG $ARM"
@@ -98,6 +101,8 @@ echo "== shim exports (should be NP_*) =="; $RE --dyn-syms "$OUT/BrowserAdapterJ
 # installed separately (see make-device-bundle.sh / DEVICE-HANDOFF.md) — not part of the app ipk.
 APPDIR="$ROOT/Jihad-Browser/app"
 if [ -d "$APPDIR" ]; then
-  cp "$OUT/BrowserAdapterImpl.so" "$APPDIR/BrowserAdapterImpl.so"
+  # F-188: fail the build if staging the impl fails — otherwise the echo below would still succeed
+  # (the script has no `set -e`) and palm-package would ship an absent/stale app/BrowserAdapterImpl.so.
+  cp "$OUT/BrowserAdapterImpl.so" "$APPDIR/BrowserAdapterImpl.so" || { echo "!! FAILED to stage impl into app/"; exit 25; }
   echo "== staged impl -> app/BrowserAdapterImpl.so (palm-package will bundle it) =="
 fi

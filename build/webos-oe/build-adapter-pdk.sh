@@ -89,3 +89,15 @@ echo "== impl GLIBCXX/GLIBC floor =="; $RE -V "$OUT/BrowserAdapterImpl.so" 2>/de
 echo "== impl NEEDED =="; $RE -d "$OUT/BrowserAdapterImpl.so" 2>/dev/null | grep -oE '\[lib[^]]+\]' | tr '\n' ' '; echo
 echo "== shim NEEDED =="; $RE -d "$OUT/BrowserAdapterJihad.so" 2>/dev/null | grep -oE '\[lib[^]]+\]' | tr '\n' ' '; echo
 echo "== shim exports (should be NP_*) =="; $RE --dyn-syms "$OUT/BrowserAdapterJihad.so" 2>/dev/null | grep -E ' NP_' | awk '{print $8}' | tr '\n' ' '; echo
+
+# Stage the impl INTO the Enyo app so `palm-package app/` bundles it — a packaged install then
+# lands it at /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/
+# BrowserAdapterImpl.so, exactly the trusted path the shim loads (Jihad review F-162). It is a
+# build artifact (.gitignore'd), copied fresh on every build so the package never ships a stale
+# impl. The shim (BrowserAdapterJihad.so) is a SYSTEM plugin under /usr/lib/BrowserPlugins and is
+# installed separately (see make-device-bundle.sh / DEVICE-HANDOFF.md) — not part of the app ipk.
+APPDIR="$ROOT/Jihad-Browser/app"
+if [ -d "$APPDIR" ]; then
+  cp "$OUT/BrowserAdapterImpl.so" "$APPDIR/BrowserAdapterImpl.so"
+  echo "== staged impl -> app/BrowserAdapterImpl.so (palm-package will bundle it) =="
+fi

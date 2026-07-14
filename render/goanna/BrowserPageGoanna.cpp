@@ -343,8 +343,23 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
-  fprintf(stderr, "[jihad-bs] keyDown key=%d chr=%d\n", key, chr);
-  if (mPage) { mPage->KeyEvent("keydown", key, chr, modifiers); mNeedsPaint = true; }
+  if (!mPage) return;
+  // Never log key/chr — those are user keystrokes (F-163). When a tapped editable is the type
+  // target, edits go through DOM mutation (KeyEvent -> SendKeyEvent into the headless editor
+  // SIGSEGVs). Handle Backspace here (the VKB sends it as a keyDown, not insertStringAtCursor);
+  // printable characters arrive via insertStringAtCursor -> InsertText. Other editing/nav keys
+  // (Enter, arrows, Del) are not yet supported headless and are swallowed rather than dispatched
+  // (Jihad review F-164). Non-editable focus falls through to normal engine key dispatch.
+  if (mPage->HasFocusedEditable()) {
+    const int kBackspace = 8, kDelete = 127;
+    if (key == kBackspace || chr == kBackspace || key == kDelete) {
+      mPage->DeleteBackward();
+      mNeedsPaint = true;
+    }
+    return;
+  }
+  mPage->KeyEvent("keydown", key, chr, modifiers);
+  mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers); mNeedsPaint = true; }
@@ -368,7 +383,8 @@ void BrowserPageGoanna::holdAt(int x, int y) {
 }
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
-  fprintf(stderr, "[jihad-bs] insertStringAtCursor [%s]\n", text ? text : "(null)");
+  // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is
+  // redirected to a persistent, user-readable file on device (Jihad review F-163).
   if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; }
 }
 

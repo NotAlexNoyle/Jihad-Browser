@@ -28,25 +28,30 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "npapi.h"
 #include "npupp.h"
 
 #define JIHAD_VISIBLE __attribute__((visibility("default")))
 
-// Candidate locations for the impl, tried in order. The app installs it in its own
-// bundle (self-contained); the /media/internal/jihad path is the dev/staging drop.
-// JIHAD_ADAPTER_IMPL overrides everything for ad-hoc testing.
-static const char* kImplFallbacks[] = {
-    "/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/BrowserAdapterImpl.so",
-    "/media/internal/jihad/BrowserAdapterImpl.so",
-    0
-};
+// The impl ships INSIDE the app bundle (installed by the signed package, root-owned). Loading a
+// native .so into the privileged LunaSysMgr process from a world-writable path is arbitrary code
+// execution (Jihad review F-161), so this trusted app-bundle path is the ONLY default source.
+// Dev overrides (a /media/internal drop, or JIHAD_ADAPTER_IMPL) are honored ONLY when the dev
+// marker /media/internal/jihad/DEV exists — a shipped device never has it.
+static const char* kImplTrusted =
+    "/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/BrowserAdapterImpl.so";
+static const char* kImplDevPath = "/media/internal/jihad/BrowserAdapterImpl.so";
+static const char* kDevMarker   = "/media/internal/jihad/DEV";
 
 static NPNetscapeFuncs sBrowser;     // browser funcs, handed to the impl on load
-static NPPluginFuncs   sImpl;        // impl's NPP_* table (valid only while sHandle != 0)
-static void*           sHandle = 0;  // dlopen handle for the currently-loaded impl
+static NPPluginFuncs   sImpl;        // current impl's NPP_* table (valid once sHandle != 0)
+static void*           sHandle = 0;  // dlopen handle for the currently-loaded impl (never dlclose'd)
 static int             sInstances = 0;
+static time_t          sLoadedMtime = 0;  // mtime of the impl file at last load (for reload-on-change)
 
 static void shimLog(const char* fmt, const char* a)
 {
@@ -54,60 +59,78 @@ static void shimLog(const char* fmt, const char* a)
     if (f) { fprintf(f, fmt, a); fclose(f); }
 }
 
-// Try to load + initialize the impl at one path. Returns true on success (sHandle set).
-static bool tryLoad(const char* path)
+// Resolve the impl source: the trusted app-bundle path, unless the dev marker enables an override.
+static const char* implSourcePath()
 {
-    if (!path || !*path)
-        return false;
+    if (access(kDevMarker, F_OK) == 0) {
+        const char* env = getenv("JIHAD_ADAPTER_IMPL");
+        if (env && *env && access(env, R_OK) == 0) return env;
+        if (access(kImplDevPath, R_OK) == 0) return kImplDevPath;
+    }
+    if (access(kImplTrusted, R_OK) == 0) return kImplTrusted;
+    return 0;
+}
 
-    void* h = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-    if (!h) { shimLog("[shim] dlopen fail: %s\n", dlerror()); return false; }
+// dlopen a FRESH mapping of `src`. glibc dlopen dedups by path, so reopening the same path returns
+// the cached handle and would NOT pick up an updated build; copying to a unique temp forces a new
+// mapping. The temp is created 0600 (owner-only) and unlinked right after dlopen — the mapping
+// persists, the on-disk name is gone, which also closes the copy→dlopen substitution window.
+static void* dlopenFreshCopy(const char* src)
+{
+    int in = open(src, O_RDONLY);
+    if (in < 0) { shimLog("[shim] open src fail: %s\n", src); return 0; }
+    char tmpl[] = "/tmp/jihad-adapter-XXXXXX";
+    int out = mkstemp(tmpl);
+    if (out < 0) { shimLog("[shim] mkstemp fail%s\n", ""); close(in); return 0; }
+    char buf[65536]; ssize_t n; bool ok = true;
+    while ((n = read(in, buf, sizeof buf)) > 0) {
+        for (ssize_t off = 0; off < n; ) {
+            ssize_t w = write(out, buf + off, (size_t)(n - off));
+            if (w <= 0) { ok = false; break; }
+            off += w;
+        }
+        if (!ok) break;
+    }
+    if (n < 0) ok = false;
+    close(in); close(out);
+    void* h = ok ? dlopen(tmpl, RTLD_NOW | RTLD_LOCAL) : 0;
+    unlink(tmpl);
+    if (ok && !h) shimLog("[shim] dlopen copy fail: %s\n", dlerror());
+    return h;
+}
+
+// Ensure the impl is loaded and current. Loads on first use, and RELOADS when the on-disk impl's
+// mtime changed AND no card is currently open (never swap the impl out from under a live NPP
+// instance). NEVER dlclose the previous handle: the browser may retain scriptable NPObjects and
+// the impl may leave GSource timers on LunaSysMgr's mainloop past NPP_Destroy — unmapping their
+// code would crash LunaSysMgr (Jihad review F-160). The previous mapping is intentionally leaked
+// (bounded: one per impl update per LunaSysMgr lifetime).
+static NPError loadImpl()
+{
+    const char* src = implSourcePath();
+    if (!src) { shimLog("[shim] NO impl found%s\n", ""); return NPERR_MODULE_LOAD_FAILED_ERROR; }
+
+    struct stat st;
+    time_t mtime = (stat(src, &st) == 0) ? st.st_mtime : 0;
+    if (sHandle && (mtime == sLoadedMtime || sInstances > 0))
+        return NPERR_NO_ERROR;   // current build already loaded, or a card is live — keep it
+
+    void* h = dlopenFreshCopy(src);
+    if (!h) return sHandle ? NPERR_NO_ERROR : NPERR_MODULE_LOAD_FAILED_ERROR;
 
     typedef NPError (*InitFn)(NPNetscapeFuncs*, NPPluginFuncs*);
     InitFn init = (InitFn) dlsym(h, "NP_Initialize");
-    if (!init) { shimLog("[shim] no NP_Initialize in %s\n", path); dlclose(h); return false; }
-
-    memset(&sImpl, 0, sizeof(sImpl));
-    sImpl.size = sizeof(sImpl);
-    if (init(&sBrowser, &sImpl) != NPERR_NO_ERROR) {
-        shimLog("[shim] impl NP_Initialize err on %s\n", path);
-        dlclose(h);
-        return false;
+    NPPluginFuncs pf; memset(&pf, 0, sizeof(pf)); pf.size = sizeof(pf);
+    if (!init || init(&sBrowser, &pf) != NPERR_NO_ERROR) {
+        shimLog("[shim] impl init fail: %s\n", src);
+        // Leak h (may have partially registered); keep any previously-good impl loaded.
+        return sHandle ? NPERR_NO_ERROR : NPERR_MODULE_LOAD_FAILED_ERROR;
     }
+    sImpl = pf;              // switch to the new table (previous sHandle intentionally leaked)
     sHandle = h;
-    shimLog("[shim] loaded impl: %s\n", path);
-    return true;
-}
-
-// dlopen the impl (once) and pull its NPP_* function table via its NP_Initialize.
-// JIHAD_ADAPTER_IMPL (if set) is tried first, then the fallback bundle paths.
-static NPError loadImpl()
-{
-    if (sHandle)
-        return NPERR_NO_ERROR;
-
-    if (tryLoad(getenv("JIHAD_ADAPTER_IMPL")))
-        return NPERR_NO_ERROR;
-    for (int i = 0; kImplFallbacks[i]; ++i)
-        if (tryLoad(kImplFallbacks[i]))
-            return NPERR_NO_ERROR;
-
-    shimLog("[shim] NO impl found%s\n", "");
-    return NPERR_MODULE_LOAD_FAILED_ERROR;
-}
-
-// Unload the impl so the next card open picks up whatever build is on disk.
-static void unloadImpl()
-{
-    if (!sHandle)
-        return;
-    typedef NPError (*ShutFn)(void);
-    ShutFn sh = (ShutFn) dlsym(sHandle, "NP_Shutdown");
-    if (sh) sh();
-    dlclose(sHandle);
-    sHandle = 0;
-    memset(&sImpl, 0, sizeof(sImpl));
-    shimLog("[shim] unloaded impl%s\n", "");
+    sLoadedMtime = mtime;
+    shimLog("[shim] loaded impl: %s\n", src);
+    return NPERR_NO_ERROR;
 }
 
 // ---- per-instance forwarders (stable addresses handed to LunaSysMgr) ----------------
@@ -119,14 +142,19 @@ static NPError sNewp(NPMIMEType type, NPP inst, uint16_t mode, int16_t argc,
     if (e != NPERR_NO_ERROR) return e;
     if (!sImpl.newp) return NPERR_GENERIC_ERROR;
     e = sImpl.newp(type, inst, mode, argc, argn, argv, saved);
-    if (e == NPERR_NO_ERROR) ++sInstances;
+    if (e == NPERR_NO_ERROR)
+        ++sInstances;
+    else
+        sLoadedMtime = 0;   // failed create: don't wedge — force a reload attempt next open (F-168)
     return e;
 }
 
 static NPError sDestroy(NPP inst, NPSavedData** save)
 {
     NPError e = sImpl.destroy ? sImpl.destroy(inst, save) : NPERR_NO_ERROR;
-    if (--sInstances <= 0) { sInstances = 0; unloadImpl(); }  // last card closed -> reload next time
+    if (sInstances > 0) --sInstances;
+    // NEVER dlclose here (F-160). Reloading an updated impl happens on the next NPP_New via the
+    // mtime check in loadImpl; the current mapping stays valid for any browser-retained NPObjects.
     return e;
 }
 
@@ -198,7 +226,8 @@ NPError NP_Initialize(NPNetscapeFuncs* browserFuncs, NPPluginFuncs* pluginFuncs)
 extern "C" JIHAD_VISIBLE
 NPError NP_Shutdown(void)
 {
-    unloadImpl();
+    // LunaSysMgr is tearing the plugin down (process exit). Do NOT dlclose the impl (F-160) —
+    // the OS reclaims the mappings on exit; unmapping here could still fire retained callbacks.
     return NPERR_NO_ERROR;
 }
 

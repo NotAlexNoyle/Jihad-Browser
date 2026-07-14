@@ -975,6 +975,24 @@ static void drawDebugFill(QPainter* gc, NPWindow* window, QColor color)
 
 #endif
 
+// Paint-path debug log (Jihad review F-166). Resolved AT MOST ONCE: only opens a stream
+// when the gate file /media/internal/jihad/adapterlog exists, so in production the paint
+// and msgPainted paths do ZERO per-frame filesystem I/O (the old code fopen/fprintf/fclose'd
+// on every geometry change / every painted frame, which stalls the compositor and grows an
+// unbounded log). Line-buffered so tails see each entry without an explicit flush.
+static FILE* jihadPaintLog()
+{
+    static FILE* s_log = reinterpret_cast<FILE*>(-1);   // -1 == not yet resolved
+    if (s_log == reinterpret_cast<FILE*>(-1)) {
+        if (access("/media/internal/jihad/adapterlog", F_OK) == 0) {
+            s_log = fopen("/media/internal/jihad/adapter.log", "a");
+            if (s_log) setvbuf(s_log, NULL, _IOLBF, 0);
+        } else {
+            s_log = NULL;
+        }
+    }
+    return s_log;
+}
 
 void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
 {
@@ -985,13 +1003,13 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // Ported from the Atlas Browser project (Herrie82) BrowserAdapter: commits 7b91ab8
     // (dstBuffer path), aefab6d (out-of-buffer white fill), dbc897c (tall-buffer pan),
     // 27b54a5 (pinch-zoom scaled blit), 77ab724/01da087 (scroll indicator). See NOTICE.
-    { static int lastEH = -99; int eh = event ? (event->dstBottom - event->dstTop) : -1;
-      static void* lastOff = (void*)0x1;
+    if (FILE* lf = jihadPaintLog()) {
+      static int lastEH = -99; static void* lastOff = (void*)0x1;
+      int eh = event ? (event->dstBottom - event->dstTop) : -1;
       if (eh != lastEH || (void*)mOffscreenCurrent != lastOff) {
         lastEH = eh; lastOff = (void*)mOffscreenCurrent;
-        FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
-        if (lf) { fprintf(lf, "[hp-entry] dstH=%d mOff=%p dstBuf=%p rowBytes=%u\n",
-          eh, (void*)mOffscreenCurrent, event?event->dstBuffer:0, event?event->dstRowBytes:0); fclose(lf); } } }
+        fprintf(lf, "[hp-entry] dstH=%d mOff=%p dstBuf=%p rowBytes=%u\n",
+          eh, (void*)mOffscreenCurrent, event?event->dstBuffer:0, event?event->dstRowBytes:0); } }
 
     if (!event)
         return;
@@ -1006,19 +1024,19 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // DEBUG geometry log: log whenever the dst box dimensions CHANGE (so a rotate to
     // landscape is captured, not just the portrait launch paints) -> pull to see the real
     // dst geometry when the on-screen composite is wrong (tiling/scanlines in landscape).
-    { static int lastW = -1, lastH = -1, lastRW = -1, lastRH = -1;
+    if (FILE* lf = jihadPaintLog()) {
+      static int lastW = -1, lastH = -1, lastRW = -1, lastRH = -1;
       int curW = event->dstRight - event->dstLeft, curH = event->dstBottom - event->dstTop;
       if (curW != lastW || curH != lastH ||
           info->renderedWidth != lastRW || info->renderedHeight != lastRH) {
         lastW = curW; lastH = curH; lastRW = info->renderedWidth; lastRH = info->renderedHeight;
-        FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
-      if (lf) { fprintf(lf, "[hp] dstRowBytes=%u dst[l=%d r=%d t=%d b=%d] src[l=%d r=%d t=%d b=%d] "
+        fprintf(lf, "[hp] dstRowBytes=%u dst[l=%d r=%d t=%d b=%d] src[l=%d r=%d t=%d b=%d] "
         "hdr[bufW=%d bufH=%d rW=%d rH=%d rX=%d rY=%d cz=%.3f] win[%ux%u] zoom=%.3f scroll[%d,%d]\n",
         event->dstRowBytes, event->dstLeft, event->dstRight, event->dstTop, event->dstBottom,
         event->srcLeft, event->srcRight, event->srcTop, event->srcBottom,
         info->bufferWidth, info->bufferHeight, info->renderedWidth, info->renderedHeight,
         info->renderedX, info->renderedY, info->contentZoom, mWindow.width, mWindow.height,
-        mZoomLevel, mScrollPos.x, mScrollPos.y); fclose(lf); } } }
+        mZoomLevel, mScrollPos.x, mScrollPos.y); } }
 
     unsigned char* dstBase = (unsigned char*) event->dstBuffer;
     int dstStride = (int) event->dstRowBytes;
@@ -1037,29 +1055,19 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // handled per-row below). Pinch-zoom keeps width==dst-scaled and uses the invScale path.
     {
         int dstW = event->dstRight - event->dstLeft;
-        int dstH = event->dstBottom - event->dstTop;
-        bool bufLandscape = info->renderedWidth > info->renderedHeight;
-        bool dstLandscape = dstW > dstH;
-        if (bufLandscape != dstLandscape && info->renderedWidth != dstW)
+        // A 1:1 (near-unity) blit requires the buffer's rendered width to equal the dst box width:
+        // the source is read at srcStride = renderedWidth*4, so if that differs from the row the
+        // dst expects, every row lands shifted and the frame shears/tiles. HOLD the last good frame
+        // until the daemon re-renders at the new width, rather than blit garbage. Keying off the
+        // WIDTH (not portrait/landscape aspect) also catches a same-aspect-class stale buffer during
+        // rotation, e.g. a 768x602 buffer vs a 1024x768 dst — both "landscape", but widths differ
+        // (Jihad review F-167). Deliberate pinch-zoom (invScale != 1) legitimately changes widths
+        // and uses the scaled path below, so it is exempt. A VKB resize keeps width == dst width.
+        double cz  = (info->contentZoom > 0.0) ? info->contentZoom : 1.0;
+        double inv = (mZoomLevel > 0.0) ? (cz / mZoomLevel) : 1.0;
+        bool nearUnity = inv > 0.98 && inv < 1.02;
+        if (nearUnity && info->renderedWidth != dstW)
             return;
-    }
-
-    // DIAGNOSTIC (file-gated by /media/internal/jihad/testpat): fill the dst box with a known
-    // vertical R/G/B stripe pattern + a black line every 64 rows, using the SAME dst addressing
-    // as the real blit but IGNORING the source. If this shows clean 48px vertical stripes and
-    // horizontal black lines on screen, the dst geometry + compositor are correct and any
-    // corruption is in the source read; if the stripes shear/tile, it's the dst stride/geometry.
-    if (access("/media/internal/jihad/testpat", F_OK) == 0) {
-        for (int dy = event->dstTop; dy < event->dstBottom; ++dy) {
-            unsigned int* drow = (unsigned int*)(dstBase + (dy - event->dstTop) * dstStride);
-            for (int dx = event->dstLeft; dx < event->dstRight; ++dx) {
-                int band = (dx / 48) % 3;
-                unsigned int c = band == 0 ? 0xffff0000u : band == 1 ? 0xff00ff00u : 0xff0000ffu;
-                if ((dy % 64) == 0) c = 0xff000000u;
-                drow[dx - event->dstLeft] = c;
-            }
-        }
-        return;
     }
 
     // Map dst box <- src box (content coords). The src content lives at (renderedX,renderedY)
@@ -3795,11 +3803,11 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
     }
 
     mOffscreenCurrent = receivedBuffer == 0 ? mOffscreen0 : mOffscreen1;
-    { BrowserOffscreenInfo* pi = mOffscreenCurrent->header();
-      FILE* lf = fopen("/media/internal/jihad/adapter.log","a");
-      if (lf) { fprintf(lf, "[msgp] key=%d recv=%d frozen=%d rW=%d rH=%d win[%ux%u] -> invalidate\n",
+    if (FILE* lf = jihadPaintLog()) {
+      BrowserOffscreenInfo* pi = mOffscreenCurrent->header();
+      fprintf(lf, "[msgp] key=%d recv=%d frozen=%d rW=%d rH=%d win[%ux%u] -> invalidate\n",
         sharedBufferKey, receivedBuffer, mFrozen?1:0, pi?pi->renderedWidth:-1, pi?pi->renderedHeight:-1,
-        mWindow.width, mWindow.height); fclose(lf); } }
+        mWindow.width, mWindow.height); }
     invalidate();
 
     if (m_bufferLock)

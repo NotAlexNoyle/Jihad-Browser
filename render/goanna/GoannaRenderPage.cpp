@@ -447,19 +447,16 @@ void GoannaRenderPage::InsertText(const char* text) {
   // mNeedsPaint after this so the field repaints with the new text (review #7 P1).
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
-  fprintf(stderr, "[jihad-bs] InsertText enter len=%d\n", (int)t.Length());
   nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
   if (input) {
     // Set the "value" CONTENT attribute, NOT the .value IDL setter. SetValue updates the
     // editor's selection/caret, which — like Focus() — has no backing widget headless and
     // crashes the engine. For a field we never natively focused, the displayed value tracks
     // the content attribute, so this shows the text safely (no editor, no caret, no reflow
-    // of an editing host). Read the current value, append, write the attribute.
-    fprintf(stderr, "[jihad-bs] InsertText input: GetValue...\n");
+    // of an editing host). Read the current value, append, write the attribute. (Live-value
+    // vs default-value caveat for script-dirtied fields is a headless limitation — F-165.)
     nsAutoString v; input->GetValue(v); v.Append(t);
-    fprintf(stderr, "[jihad-bs] InsertText input: SetAttribute value len=%d...\n", (int)v.Length());
     el->SetAttribute(NS_LITERAL_STRING("value"), v);
-    fprintf(stderr, "[jihad-bs] InsertText input: done\n");
     return;
   }
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
@@ -471,6 +468,30 @@ void GoannaRenderPage::InsertText(const char* text) {
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable region
   if (node) { nsAutoString v; node->GetTextContent(v); v.Append(t); node->SetTextContent(v); }
+}
+
+// Backspace on the tapped field: drop the last character via the SAME crash-free DOM value
+// mutation as InsertText (no engine key dispatch, no editor caret). The VKB delivers Backspace
+// as a keyDown, not through insertStringAtCursor, so without this the key was swallowed and
+// text could never be corrected (Jihad review F-164).
+void GoannaRenderPage::DeleteBackward() {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
+  if (input) {
+    nsAutoString v; input->GetValue(v);
+    if (!v.IsEmpty()) { v.Truncate(v.Length() - 1); el->SetAttribute(NS_LITERAL_STRING("value"), v); }
+    return;
+  }
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // textarea / contentEditable
+  if (node) {
+    nsAutoString v; node->GetTextContent(v);
+    if (!v.IsEmpty()) { v.Truncate(v.Length() - 1); node->SetTextContent(v); }
+  }
+}
+
+bool GoannaRenderPage::HasFocusedEditable() const {
+  return mChrome && mChrome->mFocusedEditable;
 }
 
 bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
@@ -957,6 +978,10 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     mChrome->mFocusedEditable = effEl;
     return;
   }
+  // Non-editable tap: stop treating keystrokes as edits to a previously-tapped field. Without
+  // this, mFocusedEditable stayed set after tapping away, so keyDown kept swallowing keys and
+  // InsertText kept mutating the old field for the rest of the page's life (Jihad review F-164).
+  mChrome->mFocusedEditable = nullptr;
   // Non-editable: mouse events (JS mousedown/up + :active) then DOM click() for buttons,
   // form controls, and JS onclick handlers.
   bool ret = false;
@@ -998,11 +1023,8 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // editor, and a headless PuppetWidget has no backing widget for the editor's key/caret
   // handling -> SIGSEGV (the same class of crash as Focus()). Text entry for these fields is
   // handled by InsertText (a plain DOM value mutation) via insertStringAtCursor instead.
-  if (mChrome->mFocusedEditable) {
-    fprintf(stderr, "[jihad-bs] KeyEvent skip (editable focused) type=%s key=%d chr=%d\n",
-            type ? type : "?", keyCode, charCode);
+  if (mChrome->mFocusedEditable)
     return;
-  }
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
   bool ret = false;

@@ -19,8 +19,10 @@ script
     # Only our own socket -- never the stock browser's.
     rm -f /tmp/yapserver.jihad-browser*
     cd /media/internal/jihad/hl
+    # NB: do NOT set JIHAD_DUMP in normal operation — it makes every paint write a ~2.2MB PPM
+    # char-by-char (fputc), which added ~400ms of latency PER KEYSTROKE. Set it only when
+    # debugging what the engine renders (env JIHAD_DUMP=/media/internal/jihad/frame.ppm).
     exec env LD_LIBRARY_PATH=/media/internal/jihad/hl \
-             JIHAD_DUMP=/media/internal/jihad/frame.ppm \
              JIHAD_BS_NAME=jihad-browser JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
         ./ld-2.23.so --library-path /media/internal/jihad/hl ./jihad-browserserver /media/internal/jihad/hl
 end script

@@ -439,11 +439,7 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
 }
 
 void GoannaRenderPage::InsertText(const char* text) {
-  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) {
-    fprintf(stderr, "[jihad-bs] InsertText SKIP chrome=%d editable=%d text=%d\n",
-            mChrome ? 1 : 0, (mChrome && mChrome->mFocusedEditable) ? 1 : 0, (text && *text) ? 1 : 0);
-    return;
-  }
+  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
   // Type into the field the user tapped (tracked in mFocusedEditable by ClickAt) by DIRECT
   // DOM value mutation. NOT via a javascript: LoadURI — that ran through the docShell load
   // machinery, so every keystroke flashed the isis loading overlay and reflowed the page
@@ -462,7 +458,10 @@ void GoannaRenderPage::InsertText(const char* text) {
     // vs default-value caveat for script-dirtied fields is a headless limitation — F-165.)
     nsAutoString v; input->GetValue(v); v.Append(t);
     el->SetAttribute(NS_LITERAL_STRING("value"), v);
-    fprintf(stderr, "[jihad-bs] InsertText input SetAttribute newlen=%d\n", (int)v.Length());
+    // Scroll the field to the end so the newest text stays visible once it overflows the box (we
+    // have no caret to auto-scroll to). A large value is clamped to the max scroll on the reflow
+    // that the next paint flushes.
+    el->SetScrollLeft(1 << 24);
     return;
   }
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
@@ -470,6 +469,7 @@ void GoannaRenderPage::InsertText(const char* text) {
     // textarea: the shown value is its text content — set that via the node (no editor).
     nsCOMPtr<nsIDOMNode> tn = do_QueryInterface(el);
     if (tn) { nsAutoString v; tn->GetTextContent(v); v.Append(t); tn->SetTextContent(v); }
+    el->SetScrollTop(1 << 24);   // keep the newest line visible in a multi-line field
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable region
@@ -500,7 +500,8 @@ void GoannaRenderPage::DeleteBackward() {
   nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
   if (input) {
     nsAutoString v; input->GetValue(v);
-    if (!v.IsEmpty()) { jihadTrimLastChar(v); el->SetAttribute(NS_LITERAL_STRING("value"), v); }
+    if (!v.IsEmpty()) { jihadTrimLastChar(v); el->SetAttribute(NS_LITERAL_STRING("value"), v);
+                        el->SetScrollLeft(1 << 24); }
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // textarea / contentEditable

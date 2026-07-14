@@ -135,6 +135,12 @@ private:
   GoannaRenderPage*  mPage;
   int                mKey1, mKey2, mBufSize;
   int                mActiveKey;        // which shm buffer we last painted into
+  // Cache of attached shared buffers (up to the 2 alternating segments). shmat/shmdt of the ~12MB
+  // segment on EVERY paint cost ~400ms/keystroke on the device; attach once and reuse instead.
+  unsigned char*     mShmBuf[2];
+  int                mShmId[2];
+  unsigned char*     attachShm(int keyOrId);   // resolve+attach (cached); nullptr on failure
+  void               detachShm();               // shmdt all cached (on thaw/teardown)
   bool               mLoadWasDone;
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad

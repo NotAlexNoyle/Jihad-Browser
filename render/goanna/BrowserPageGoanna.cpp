@@ -41,7 +41,29 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
-    mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {}
+    mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {
+  mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
+}
+
+static int jihadShmResolve(int keyOrId);   // defined below
+
+// Resolve a key/shmid and return a cached attachment (attaching once, then reusing). shmat/shmdt
+// per paint cost ~400ms/keystroke on device; the two alternating segments are attached at most once.
+unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
+  int id = jihadShmResolve(keyOrId);
+  if (id < 0) return nullptr;
+  for (int i = 0; i < 2; ++i) if (mShmId[i] == id && mShmBuf[i]) return mShmBuf[i];
+  void* p = shmat(id, nullptr, 0);
+  if (p == (void*)-1) { perror("[BrowserPageGoanna] shmat"); return nullptr; }
+  int slot = (mShmBuf[0] == nullptr) ? 0 : 1;   // 2 buffers total; fill an empty slot
+  if (mShmBuf[slot]) { shmdt(mShmBuf[slot]); }
+  mShmBuf[slot] = (unsigned char*)p; mShmId[slot] = id;
+  return mShmBuf[slot];
+}
+
+void BrowserPageGoanna::detachShm() {
+  for (int i = 0; i < 2; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; }
+}
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
   // mZoom is clamped to a sane range on set (see setZoomAndScroll), so sx/z can't
@@ -61,6 +83,7 @@ void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
 BrowserPageGoanna::~BrowserPageGoanna() {
   // The BrowserAdapter owns the shared segments (it allocated them and passed
   // the keys via connect()); the daemon must NOT IPC_RMID them (Codex P1).
+  detachShm();
   delete mPage;
   for (UrlRule* r : mRedirectRules) { regfree(&r->re); delete r; }
 }
@@ -165,6 +188,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   // keys may be SHMIDs (isis) or ftok keys (test adapter) &mdash; validate via the resolver.
   if (ok) for (int k : { key1, key2 }) { if (k && jihadShmResolve(k) < 0) ok = false; }
   if (!ok) return;   // remain frozen; keep the old (already-detached) keys inactive
+  detachShm();       // the buffers may be new segments — drop stale cached attachments
   mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
   mFrozen = false;
   mNeedsPaint = true;
@@ -406,12 +430,9 @@ void BrowserPageGoanna::holdAt(int x, int y) {
 }
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
-  // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is
-  // redirected to a persistent, user-readable file on device (Jihad review F-163). Occurrence +
-  // editable-state only, to diagnose whether VKB text reaches the daemon and the insert path.
-  fprintf(stderr, "[jihad-bs] insertStr recv=%d editable=%d\n",
-          text ? 1 : 0, (mPage && mPage->HasFocusedEditable()) ? 1 : 0);
-  if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; }
+  // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is redirected
+  // to a persistent, user-readable file on device (Jihad review F-163).
+  if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; if (mNeedsPaint) maybePaint(); }
 }
 
 void BrowserPageGoanna::dragStart(int, int) { /* nothing to latch; deltas drive scroll */ }
@@ -594,8 +615,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   if (id < 0) { perror("[BrowserPageGoanna] shm resolve"); return; }
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
   if (shmctl(id, IPC_STAT, &ds) == 0 && ds.shm_segsz > 0) segSize = ds.shm_segsz;
-  unsigned char* buf = (unsigned char*)shmat(id, nullptr, 0);
-  if (buf == (unsigned char*)-1) { perror("[BrowserPageGoanna] shmat"); return; }
+  unsigned char* buf = attachShm(mActiveKey);   // cached attach — no per-paint shmat/shmdt (~400ms)
+  if (!buf) return;
 
   // isis BrowserOffscreen shmem layout: [BrowserOffscreenInfo header][ARGB32 pixels].
   // The real BrowserAdapter reads header() at the base and rasterBuffer() at
@@ -604,7 +625,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // no header -> the adapter read a garbage geometry and blitted nothing = white).
   int w = mPage->Width(), h = mPage->Height();
   const size_t hdr = sizeof(BrowserOffscreenInfo);
-  if (segSize < hdr + (size_t)w * h * 4) { shmdt(buf); return; }
+  if (segSize < hdr + (size_t)w * h * 4) { return; }
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)buf;
   // Report the zoom we actually rendered at (SetFullZoom in setZoomAndScroll). The
   // adapter blits at invScale = contentZoom/mZoomLevel; reporting 1.0 while the page
@@ -617,13 +638,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   oi->renderedWidth = w; oi->renderedHeight = h;
   unsigned char* pixels = buf + hdr;
 
-  struct timeval _pt0, _pt1; gettimeofday(&_pt0, nullptr);
   long nb = mPage->ReadPixels(pixels, segSize - hdr);
-  gettimeofday(&_pt1, nullptr);
-  long _pms = (_pt1.tv_sec - _pt0.tv_sec) * 1000 + (_pt1.tv_usec - _pt0.tv_usec) / 1000;
   if (nb >= 0) {
-    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d) render=%ldms mZoom=%.4f contentZoom=%.4f\n",
-            (unsigned)mActiveKey, nb, w, h, _pms, mZoom, oi->contentZoom);
+    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d) mZoom=%.4f contentZoom=%.4f\n",
+            (unsigned)mActiveKey, nb, w, h, mZoom, oi->contentZoom);
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0
@@ -642,7 +660,6 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       }
     }
   }
-  shmdt(buf);
   if (nb < 0) return;
   // Blank-over-good suppression (review #7 P1): a mid-reflow render fills the target white
   // (nb==0). Do NOT push that over a previously-good frame — keep the last valid frame on

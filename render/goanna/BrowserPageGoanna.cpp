@@ -428,6 +428,10 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true;
     mNeedsPaint = true;   // paint the final frame once (dedup &mdash; Codex P2)
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
+    // DIAG: a page whose URL contains "jihadselftest" triggers a one-shot programmatic
+    // focus+type, so the headless focus/key path can be verified without a physical VKB tap.
+    if (mPage->CurrentUri().find("jihadselftest") != std::string::npos)
+      mPage->JihadTypingSelfTest();
     mSink.msgLoadProgress(100);
     // R5: an overridable certificate error surfaces as an SSL-confirm dialog
     // rather than a generic failed load. R3: other network failures -> failed.

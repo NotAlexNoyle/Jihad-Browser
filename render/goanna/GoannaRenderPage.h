@@ -101,6 +101,7 @@ public:
   void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
   void DeleteBackward();                            // Backspace on the tapped field (DOM value edit)
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
+  void JihadTypingSelfTest();                      // diag: programmatic focus+type (no VKB tap)
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---

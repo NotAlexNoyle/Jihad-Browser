@@ -43,6 +43,19 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
     mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
+  mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
+}
+
+// Monotonic-enough wall clock in ms for the buffer flow-control timeout valve.
+static long jihadNowMs() {
+  struct timeval tv; gettimeofday(&tv, NULL);
+  return (long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+int BrowserPageGoanna::slotForKey(int key) const {
+  if (key && key == mKey1) return 0;
+  if (key && key == mKey2) return 1;
+  return -1;
 }
 
 static int jihadShmResolve(int keyOrId);   // defined below
@@ -135,6 +148,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
   mKey2 = sharedBufferKey2;
   mBufSize = sharedBufferSize;
   mActiveKey = mKey1;
+  mInFlight[0] = mInFlight[1] = false;   // fresh segments: nothing in flight (F-211)
 
   // Attach-only: the adapter (isis IpcBuffer::create) makes each segment, IPC_RMID-marks
   // it for auto-delete on last detach, and sends the SysV SHMID (not an ftok key). An
@@ -194,6 +208,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   if (!ok) return;   // remain frozen; keep the old (already-detached) keys inactive
   detachShm();       // the buffers may be new segments — drop stale cached attachments
   mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
+  mInFlight[0] = mInFlight[1] = false;   // reattached (possibly new) segments: clear in flight (F-211)
   mFrozen = false;
   mNeedsPaint = true;
 }
@@ -202,11 +217,15 @@ bool BrowserPageGoanna::findString(const char* text, bool forward) {
   return mPage && text && mPage->Find(text, forward);
 }
 
-void BrowserPageGoanna::returnBuffer(int /*sharedBufferKey*/) {
-  // The adapter is done with a painted buffer. The current model paints once per
-  // load into alternating segments, so there is no in-flight bookkeeping to undo;
-  // accepting the return (without error) satisfies the contract and lets a
-  // subsequent paint proceed. Full double-buffer flow-control is future work.
+void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
+  // The adapter is done blitting this buffer (F-211): clear its in-flight mark so the next
+  // paint may reuse it. This is what makes per-keystroke immediate painting safe under fast
+  // typing — without it the daemon overwrote a buffer the adapter was still reading and the
+  // adapter (in LunaSysMgr) crashed. If a queued paint was deferred waiting on this return,
+  // paint it now so the latest frame lands promptly instead of on the next tick.
+  int s = slotForKey(sharedBufferKey);
+  if (s >= 0) mInFlight[s] = false;
+  if (mNeedsPaint && !mFrozen) maybePaint();
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
@@ -622,6 +641,17 @@ void BrowserPageGoanna::maybePaint() {
 
 void BrowserPageGoanna::paintToSharedBuffer() {
   if (!mPage || !mActiveKey) return;
+  // Flow control (F-211): never overwrite a buffer the adapter still holds. If the target buffer
+  // was msgPainted but not yet returned, defer this paint (mNeedsPaint stays set, so the next
+  // pump tick / returnBuffer retries) — the typed text is already in the DOM, only the frame is
+  // delayed. A timeout valve reclaims the buffer if a return was lost so painting can't stall.
+  {
+    int gs = slotForKey(mActiveKey);
+    if (gs >= 0 && mInFlight[gs]) {
+      if (jihadNowMs() - mPaintMs[gs] < 250) return;   // adapter may still be blitting it — wait
+      mInFlight[gs] = false;                            // stale: assume the return was lost, reclaim
+    }
+  }
   int id = jihadShmResolve(mActiveKey);       // shmid (isis) or key->shmid (test adapter)
   if (id < 0) { perror("[BrowserPageGoanna] shm resolve"); return; }
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
@@ -682,10 +712,15 @@ void BrowserPageGoanna::paintToSharedBuffer() {
 
   mNeedsPaint = false;
   mSink.msgPainted(mActiveKey);
-  // Double buffer: next paint targets the other segment. NOTE (Codex P1): a
-  // correct daemon must wait for the adapter's returnBuffer before reusing a
-  // buffer; asyncCmdReturnBuffer is still a stub. With maybePaint() we paint
-  // once per load so we don't race, but full double-buffering is T-016 work.
+  // This buffer is now the adapter's until it returns it (F-211). Mark it in flight so a
+  // subsequent paint won't overwrite it mid-blit, and record when for the timeout valve.
+  {
+    int ps = slotForKey(mActiveKey);
+    if (ps >= 0) { mInFlight[ps] = true; mPaintMs[ps] = jihadNowMs(); }
+  }
+  // Double buffer: next paint targets the other segment. The adapter holds one buffer at a
+  // time and returns the previous one on the next msgPainted, so alternating keeps a free
+  // buffer available; the in-flight gate above blocks reuse until that return arrives.
   mActiveKey = (mActiveKey == mKey1 && mKey2) ? mKey2 : mKey1;
 }
 

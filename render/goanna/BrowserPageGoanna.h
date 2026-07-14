@@ -141,6 +141,15 @@ private:
   int                mShmId[2];
   unsigned char*     attachShm(int keyOrId);   // resolve+attach (cached); nullptr on failure
   void               detachShm();               // shmdt all cached (on thaw/teardown)
+  // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
+  // previous one (asyncCmdReturnBuffer) each time it receives a new msgPainted. A buffer that has
+  // been msgPainted but not yet returned is "in flight" — the adapter may still be blitting it, so
+  // overwriting it corrupts/crashes the adapter (seen as an app crash on fast typing). We refuse to
+  // repaint an in-flight buffer until returnBuffer clears it, with a timeout valve so a lost return
+  // can't deadlock painting. Slot i corresponds to mKey1 (0) / mKey2 (1).
+  bool               mInFlight[2];
+  long               mPaintMs[2];               // ms timestamp of the msgPainted that put it in flight
+  int                slotForKey(int key) const; // 0 for mKey1, 1 for mKey2, -1 otherwise
   bool               mLoadWasDone;
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad

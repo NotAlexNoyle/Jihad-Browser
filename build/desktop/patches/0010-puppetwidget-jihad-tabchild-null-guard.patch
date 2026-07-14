@@ -1,0 +1,26 @@
+Jihad: guard the null mTabChild deref on the synthesized-key path in PuppetWidget.
+
+PuppetWidget::DispatchEvent() calls mTabChild->RequestNativeKeyBindings() whenever a
+key event has mIsSynthesizedForTests set (which nsIDOMWindowUtils::SendKeyEvent -- the
+daemon's text-input path -- produces). In the standalone offscreen render daemon there is
+no parent content process, so mTabChild is null and that deref SIGSEGV'd the daemon on
+every keystroke, making typing into web inputs impossible. Native key bindings come from
+that (absent) parent, so skip the request when mTabChild is null -- fine for character
+input. MPL-2.0 (UXP); see NOTICE.
+
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -344,9 +344,14 @@
+   AutoCacheNativeKeyCommands autoCache(this);
+   if (event->mFlags.mIsSynthesizedForTests && !mNativeKeyCommandsValid) {
+     WidgetKeyboardEvent* keyEvent = event->AsKeyboardEvent();
+-    if (keyEvent) {
++    // JIHAD: mTabChild is null in the standalone offscreen render daemon (there is no parent
++    // content process). Native key bindings are supplied by that parent, so when it is absent
++    // simply leave no cached native commands (fine for character input) rather than null-deref
++    // on RequestNativeKeyBindings -- that deref SIGSEGV'd the daemon on every synthesized key
++    // event, which is exactly the crash that made typing into web inputs impossible.
++    if (keyEvent && mTabChild) {
+       mTabChild->RequestNativeKeyBindings(&autoCache, keyEvent);
+     }
+   }

@@ -1054,19 +1054,22 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // (Jihad review #7 P2 + VKB-whiteout fix). Width match => safe to blit (height mismatch is
     // handled per-row below). Pinch-zoom keeps width==dst-scaled and uses the invScale path.
     {
-        int dstW = event->dstRight - event->dstLeft;
-        // A 1:1 (near-unity) blit requires the buffer's rendered width to equal the dst box width:
-        // the source is read at srcStride = renderedWidth*4, so if that differs from the row the
-        // dst expects, every row lands shifted and the frame shears/tiles. HOLD the last good frame
-        // until the daemon re-renders at the new width, rather than blit garbage. Keying off the
-        // WIDTH (not portrait/landscape aspect) also catches a same-aspect-class stale buffer during
-        // rotation, e.g. a 768x602 buffer vs a 1024x768 dst — both "landscape", but widths differ
-        // (Jihad review F-167). Deliberate pinch-zoom (invScale != 1) legitimately changes widths
-        // and uses the scaled path below, so it is exempt. A VKB resize keeps width == dst width.
+        // A 1:1 (near-unity) blit requires the buffer's rendered width to equal the VIEWPORT
+        // (plugin window) width: the source is read at srcStride = renderedWidth*4, so if the
+        // buffer was rendered at a different width than the window it is being composited into,
+        // every row lands shifted and the frame shears/tiles. HOLD the last good frame until the
+        // daemon re-renders at the new width, rather than blit garbage. Compare against the WINDOW
+        // width, NOT the paint damage-rect (dstRight-dstLeft): a partial/clipped exposure paint has
+        // a narrow damage rect but a matching buffer, and keying off the damage width made those
+        // partial repaints look like a rotation mismatch and wrongly held -> stale/blank regions
+        // (Jihad review F-184). This width test also catches a same-aspect-class stale buffer during
+        // rotation (e.g. a 768x602 buffer vs a 1024x768 window — both "landscape", widths differ,
+        // F-167). Deliberate pinch-zoom (invScale != 1) legitimately changes widths and uses the
+        // scaled path below, so it is exempt. A VKB resize keeps width == window width.
         double cz  = (info->contentZoom > 0.0) ? info->contentZoom : 1.0;
         double inv = (mZoomLevel > 0.0) ? (cz / mZoomLevel) : 1.0;
         bool nearUnity = inv > 0.98 && inv < 1.02;
-        if (nearUnity && info->renderedWidth != dstW)
+        if (nearUnity && mWindow.width > 0 && info->renderedWidth != (int)mWindow.width)
             return;
     }
 

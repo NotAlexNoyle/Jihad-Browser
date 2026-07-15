@@ -173,6 +173,14 @@ NS_IMETHODIMP PageChrome::Blur() { return NS_OK; }
 // NS_BINDING_ABORTED — a cancelled navigation (e.g. navigating away / teardown),
 // which is NOT a load error and can arrive late, bleeding into the next load.
 static const nsresult kBindingAborted = (nsresult)0x804B0002;
+// NS_BINDING_REDIRECTED — the document channel was replaced by a server 3xx redirect. This is
+// NOT the end of the navigation (the redirect target keeps loading) and NOT a failure, so its
+// STATE_STOP must not complete the load or reset mProgrammaticLoad — otherwise the redirect
+// target's STATE_START is misread as a content-initiated link nav and re-driven via openUrl,
+// which aborts the in-flight redirect and loops forever (breaks every http->https/www-redirecting
+// site: google, iana.org, most https). It is NS_FAILED-category, so it must also be excluded from
+// the failed-load check below.
+static const nsresult kBindingRedirected = (nsresult)0x804B0003;
 
 NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest* aRequest, uint32_t f, nsresult aStatus) {
   // Only the TOP-LEVEL document drives page-level events (Codex P1): an iframe's
@@ -211,7 +219,7 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
     // (a cancelled nav, can arrive late). First failure only. (Cert errors are
     // captured separately in NotifyCertProblem during the handshake, R5.)
-    if (top && NS_FAILED(aStatus) && aStatus != kBindingAborted &&
+    if (top && NS_FAILED(aStatus) && aStatus != kBindingAborted && aStatus != kBindingRedirected &&
         (f & STATE_IS_DOCUMENT) && !mLoadFailed && !mDone) {
       mLoadFailed = true;
       mErrorStatus = aStatus;
@@ -240,7 +248,11 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     // page "loading" forever: the isis UI's loading overlay never clears (it covers the
     // whole UI), the address-bar X never turns into refresh, and the card looks hung.
     // The top document STOP means the page itself is loaded and usable — signal done.
-    if ((f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) || (top && (f & STATE_IS_DOCUMENT))) {
+    // A redirect hop (NS_BINDING_REDIRECTED) or a cancelled load (NS_BINDING_ABORTED) is NOT the
+    // end of the navigation — do NOT complete or clear mProgrammaticLoad on it, or the redirect
+    // target's STATE_START is misread as a link click and re-driven into an abort/redirect loop.
+    if (aStatus != kBindingRedirected && aStatus != kBindingAborted &&
+        ((f & (STATE_IS_WINDOW | STATE_IS_NETWORK)) || (top && (f & STATE_IS_DOCUMENT)))) {
       mDone = true;
       // The command-initiated load has finished; any load that starts next
       // without a BeginLoad is a content-initiated (link) navigation.

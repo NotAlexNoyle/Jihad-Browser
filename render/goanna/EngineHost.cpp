@@ -82,6 +82,7 @@ static const JihadUaRule kJihadUaTable[] = {
 // or nullptr if no rule matches. Matches on a full label boundary so "notgoogle.com" never matches.
 static const char* jihadUaForHost(const nsACString& hostCStr) {
   std::string h(hostCStr.BeginReading(), hostCStr.Length());
+  if (!h.empty() && h[h.size() - 1] == '.') h.erase(h.size() - 1);   // FQDN trailing dot (google.com.)
   while (!h.empty()) {
     for (size_t i = 0; i < sizeof(kJihadUaTable) / sizeof(kJihadUaTable[0]); ++i)
       if (h == kJihadUaTable[i].domain) return kJihadUaTable[i].ua;

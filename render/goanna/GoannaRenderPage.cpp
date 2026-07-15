@@ -591,6 +591,7 @@ void GoannaRenderPage::DeleteBackwardWord() {
     while (i > 0 && edIsSpace(v.CharAt(i - 1))) i--;          // trailing whitespace
     while (i > 0 && !edIsSpace(v.CharAt(i - 1))) i--;         // the word itself
     if (i >= s) i = s - 1;                                    // guarantee progress
+    if (edIsPairBoundaryLow(v, i)) i--;                       // never split a surrogate pair (F-187)
     nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, s));
     edSetValue(el, nv); edSetCaret(el, i);
     return;

@@ -32,6 +32,7 @@
 #include "nsISHistory.h"
 #include "nsIWebBrowserFind.h"
 #include "nsIWebBrowserFocus.h"
+#include "nsIFocusManager.h"         // GetFocusedElement — reconcile edit target after Focus (F-225)
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
@@ -591,8 +592,6 @@ void GoannaRenderPage::DeleteBackwardWord() {
 // pump loop, because it may submit a form and navigate — Codex F-219/F-223.)
 void GoannaRenderPage::EditKey(int action) {
   if (!mChrome || !mChrome->mFocusedEditable) return;
-  if (action == EK_TAB)      { FocusNextField(false); return; }
-  if (action == EK_TAB_BACK) { FocusNextField(true);  return; }
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsAutoString v; int32_t s, e;
   if (!edGetValue(el, v) || !edGetSelection(el, v, &s, &e)) return;   // no caret model (number/CE)
@@ -689,55 +688,6 @@ void GoannaRenderPage::ActivateEditorCaret() {
   }
   nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
   if (pb) { pb->SetIntPref("ui.caretBlinkTime", 0); pb->SetIntPref("ui.caretWidth", 2); }
-}
-
-// Tab: move focus to the next (or previous) text field and make it the type target. Enumerate
-// the document's <input>/<textarea> in document order; the engine editor focus works headless.
-void GoannaRenderPage::FocusNextField(bool backward) {
-  if (!mChrome || !mChrome->mFocusedEditable) return;
-  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-  if (!ds) return;
-  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
-  if (!cv) return;
-  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
-  if (!doc) return;
-  // Collect text inputs + textareas in document order (querySelectorAll preserves it).
-  nsCOMPtr<nsIDOMNodeList> list;
-  doc->QuerySelectorAll(NS_LITERAL_STRING(
-      "input[type=text],input[type=search],input[type=email],input[type=url],input[type=tel],"
-      "input[type=number],input[type=password],input:not([type]),textarea"),
-      getter_AddRefs(list));
-  uint32_t n = 0; if (list) list->GetLength(&n);
-  if (!n) return;
-  int32_t cur = -1;
-  for (uint32_t i = 0; i < n; ++i) {
-    nsCOMPtr<nsIDOMNode> node; list->Item(i, getter_AddRefs(node));
-    nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
-    if (e == mChrome->mFocusedEditable) { cur = (int32_t)i; break; }
-  }
-  // Step to the next candidate, skipping disabled/readonly fields (Codex F-222). If none of the
-  // other fields are focusable, stay put rather than making a readonly field the type target.
-  int32_t next = cur; bool found = false;
-  for (uint32_t step = 0; step < n; ++step) {
-    next = (next < 0) ? 0 : (backward ? (next - 1 + (int32_t)n) % n : (next + 1) % n);
-    nsCOMPtr<nsIDOMNode> cand; list->Item((uint32_t)next, getter_AddRefs(cand));
-    nsCOMPtr<nsIDOMElement> ce = do_QueryInterface(cand);
-    if (!ce) continue;
-    bool dis = false, ro = false;
-    ce->HasAttribute(NS_LITERAL_STRING("disabled"), &dis);
-    ce->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
-    if (!dis && !ro) { found = true; break; }
-  }
-  if (!found) return;
-  nsCOMPtr<nsIDOMNode> nnode; list->Item((uint32_t)next, getter_AddRefs(nnode));
-  nsCOMPtr<nsIDOMElement> nel = do_QueryInterface(nnode);
-  if (!nel) return;
-  mChrome->mFocusedEditable = nel;
-  nsCOMPtr<nsIDOMHTMLElement> he = do_QueryInterface(nel);
-  if (he) he->Focus();
-  ActivateEditorCaret();   // keep the caret painting on the newly-focused field
-  int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
-  edSetCaret(nel, vlen);   // caret at end of the newly-focused field
 }
 
 bool GoannaRenderPage::HasFocusedEditable() const {
@@ -1267,6 +1217,21 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     nsCOMPtr<nsIDOMHTMLElement> hedit = do_QueryInterface(effEl);
     if (hedit) hedit->Focus();
     ActivateEditorCaret();   // make the caret actually paint (activate window + solid caret)
+    // F-225: Focus() can run a page focus handler that moves focus to a DIFFERENT field (e.g. a
+    // wrapper redirects to a hidden proxy input). Retarget the edit target to whatever is ACTUALLY
+    // focused, if that is itself an <input>/<textarea>, so the visible caret and the keystroke
+    // target never diverge. If focus went nowhere or to a non-text element, keep the tapped field.
+    {
+      nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
+      if (fm) {
+        nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
+        if (foc && foc != effEl) {
+          nsCOMPtr<nsIDOMHTMLInputElement> fi = do_QueryInterface(foc);
+          nsCOMPtr<nsIDOMHTMLTextAreaElement> fta = do_QueryInterface(foc);
+          if (fi || fta) mChrome->mFocusedEditable = foc;
+        }
+      }
+    }
     // NB: do NOT position the caret at the tap via a javascript: URL here — a javascript: LoadURI
     // runs through the docShell load machinery and flashes the isis loading overlay (the page
     // "whites out" on every tap). Focus() leaves the caret at a sane default; the user positions

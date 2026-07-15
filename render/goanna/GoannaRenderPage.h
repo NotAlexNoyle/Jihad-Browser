@@ -104,8 +104,7 @@ public:
   // Non-character editing keys, applied to the focused <input>/<textarea> using the ENGINE'S
   // selection as the caret (validated crash-free headless after UXP patch 0010). Enter inserts a
   // newline only in a <textarea>; Tab moves focus to the next field.
-  enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE, EK_ENTER,
-                       EK_TAB, EK_TAB_BACK };
+  enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE };
   void EditKey(int action);
   void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
@@ -140,7 +139,6 @@ public:
 
 private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
-  void FocusNextField(bool backward);      // Tab: move focus to the next/prev text field
   void ActivateEditorCaret();              // activate the offscreen window so nsCaret paints (solid)
 
   EngineHost& mHost;

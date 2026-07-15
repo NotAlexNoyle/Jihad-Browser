@@ -569,7 +569,12 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     // For internal about: pages, report the typed about: URL, not the data: URL the engine
     // loaded (keeps the address bar showing about:jihad and avoids a huge data: history entry).
     std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
-    if (mPage->DidRedirect()) mSink.msgUrlRedirected(uri.c_str(), "");  // R4
+    // NB: do NOT emit msgUrlRedirected for an ordinary HTTP 3xx redirect. In isis the app binds
+    // onUrlRedirected -> openResource -> com.palm.applicationManager 'open', i.e. it hands the URL
+    // to the DEFAULT (stock) browser in a new card. That message is only for addUrlRedirect
+    // app-handoff rules (applyRedirectRules above). A normal redirect (e.g. google.com -> https://
+    // www.google.com) is just a location change — reported below — so it stays in THIS browser.
+    // Emitting it here sent every redirecting site to the stock browser.
     mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
     // The isis address bar updates on the title+url message (BasicWebView.titleURLChange
     // -> urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. Emit it so the

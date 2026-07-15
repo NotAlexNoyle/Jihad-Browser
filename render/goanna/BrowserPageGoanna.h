@@ -167,6 +167,10 @@ private:
   // hit-test / activation / click / navigation on the tick, where page teardown is safe.
   bool               mPendingClick;
   int                mPendingClickX, mPendingClickY, mPendingClickN;
+  // Queued editing key that runs page JS which may focus/navigate (Tab, Enter). Like clickAt these
+  // must run in pump(), not synchronously in the keyDown YAP callback, or a focus/submit handler
+  // could tear the page down under us (Codex F-219). 0 = none; see the PEA_* constants in the .cpp.
+  int                mPendingEditAction;
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

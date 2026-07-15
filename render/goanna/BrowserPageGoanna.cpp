@@ -45,7 +45,11 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
+  mPendingEditAction = 0;
 }
+
+// Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219).
+enum { PEA_NONE = 0, PEA_TAB = 1, PEA_TAB_BACK = 2, PEA_ENTER = 3 };
 
 // Monotonic-enough wall clock in ms for the buffer flow-control timeout valve.
 static long jihadNowMs() {
@@ -431,9 +435,11 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     } else if (km(kDelete) || km(kQtDelete) || km(kMacDelete)) {
       mPage->EditKey(GRP::EK_DELETE); mNeedsPaint = true;
     } else if (km(kTab) || km(kQtTab) || km(kQtBacktab)) {
-      mPage->EditKey((shift || km(kQtBacktab)) ? GRP::EK_TAB_BACK : GRP::EK_TAB); mNeedsPaint = true;
+      // Tab focuses another field, which fires blur/focus JS that can navigate — defer to pump().
+      mPendingEditAction = (shift || km(kQtBacktab)) ? PEA_TAB_BACK : PEA_TAB; mNeedsPaint = true;
     } else if (km(kEnter) || km(kQtReturn) || km(kQtEnter)) {
-      mPage->EditKey(GRP::EK_ENTER); mNeedsPaint = true;
+      // Enter may submit a form and navigate — defer to pump() (never navigate in the key callback).
+      mPendingEditAction = PEA_ENTER; mNeedsPaint = true;
     } else if (km(kQtLeft)  || km(kMacLeft)  || km(kWebLeft))  { mPage->EditKey(GRP::EK_LEFT);  mNeedsPaint = true; }
     else if (km(kQtRight) || km(kMacRight) || km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
     else if (km(kQtUp)    || km(kMacUp)    || km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
@@ -649,6 +655,19 @@ void BrowserPageGoanna::pump(int msBudget) {
       mSink.msgLinkClicked(clickNav.c_str());
       openUrl(clickNav.c_str());
     }
+  }
+  // Process a queued editing key (Tab/Enter) in the SAME page-lifetime guard — it runs page JS
+  // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback
+  // (Codex F-219). A form submit navigates via the engine and is completed by the TakeLinkClicked
+  // re-drive below, exactly like any content-initiated navigation.
+  if (mPendingEditAction != PEA_NONE) {
+    int act = mPendingEditAction; mPendingEditAction = PEA_NONE;
+    if (act == PEA_TAB)           mPage->EditKey(GoannaRenderPage::EK_TAB);
+    else if (act == PEA_TAB_BACK) mPage->EditKey(GoannaRenderPage::EK_TAB_BACK);
+    else if (act == PEA_ENTER)    mPage->HandleEnter();
+    mNeedsPaint = true;
+    bool efoc = false; int eft = 0, efa = 0;   // Tab may have changed the focused field
+    if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
   }
   mPage->PumpFor(msBudget);
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).

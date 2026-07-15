@@ -107,6 +107,7 @@ public:
   enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE, EK_ENTER,
                        EK_TAB, EK_TAB_BACK };
   void EditKey(int action);
+  void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   void JihadTypingSelfTest();                      // diag: programmatic focus+type (no VKB tap)
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)

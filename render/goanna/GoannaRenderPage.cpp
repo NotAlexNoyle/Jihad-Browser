@@ -63,6 +63,7 @@
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
+#include "nsIDOMHTMLFormElement.h"   // HandleEnter: submit the focused input's form
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -458,19 +459,28 @@ static bool edSetValue(nsIDOMElement* el, const nsAString& v) {
   if (ta) { ta->SetValue(v); return true; }
   return false;
 }
-static bool edGetCaret(nsIDOMElement* el, int32_t* pos) {
-  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
-  if (in) return NS_SUCCEEDED(in->GetSelectionStart(pos));
-  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
-  if (ta) return NS_SUCCEEDED(ta->GetSelectionStart(pos));
-  return false;
-}
 static bool edSetCaret(nsIDOMElement* el, int32_t pos) {
   nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
   if (in) return NS_SUCCEEDED(in->SetSelectionRange(pos, pos, NS_LITERAL_STRING("")));
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
   if (ta) return NS_SUCCEEDED(ta->SetSelectionRange(pos, pos, NS_LITERAL_STRING("")));
   return false;
+}
+// Read the selection [start,end], normalized (start<=end) and clamped to the value length. Returns
+// false when the element exposes no text-selection API — notably <input type=number>/email/etc.,
+// whose selectionStart is null (Codex F-220); callers then fall back to an append-at-end edit.
+static bool edGetSelection(nsIDOMElement* el, const nsAString& v, int32_t* s, int32_t* e) {
+  int32_t a = 0, b = 0; bool ok = false;
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (in) ok = NS_SUCCEEDED(in->GetSelectionStart(&a)) && NS_SUCCEEDED(in->GetSelectionEnd(&b));
+  else { nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+         if (ta) ok = NS_SUCCEEDED(ta->GetSelectionStart(&a)) && NS_SUCCEEDED(ta->GetSelectionEnd(&b)); }
+  if (!ok) return false;
+  int32_t len = (int32_t)v.Length();
+  if (a < 0) a = 0; if (a > len) a = len;
+  if (b < 0) b = 0; if (b > len) b = len;
+  if (a > b) { int32_t t = a; a = b; b = t; }
+  *s = a; *e = b; return true;
 }
 // True when UTF-16 index i is the LOW half of a surrogate pair whose HIGH half is at i-1, so a
 // caret step / delete spanning it must move by two units to stay on a code-point boundary.
@@ -484,17 +494,23 @@ void GoannaRenderPage::InsertText(const char* text) {
   if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
-  nsAutoString v; int32_t c = 0;
-  if (edGetValue(el, v) && edGetCaret(el, &c)) {
-    // Splice the new text in at the engine caret, then restore the caret just past it. SetValue
-    // is the live .value IDL setter (crash-free headless post-0010) — more correct than the old
-    // content-attribute write (it is the actual submitted value, not the default-value).
-    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
-    nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(t); nv.Append(Substring(v, c));
-    edSetValue(el, nv);
-    int32_t nc = c + (int32_t)t.Length();
-    edSetCaret(el, nc);
-    if (nc >= (int32_t)nv.Length()) el->SetScrollLeft(1 << 24);   // caret at end -> keep it visible
+  nsAutoString v;
+  if (edGetValue(el, v)) {
+    int32_t s, e;
+    if (edGetSelection(el, v, &s, &e)) {
+      // Replace the selected range [s,e] (a collapsed caret has s==e) with the text, then put the
+      // caret just past it. Replacing the selection is what makes onfocus=this.select() fields (e.g.
+      // a search box) type correctly instead of appending to the selected text (Codex F-221).
+      nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(t); nv.Append(Substring(v, e));
+      edSetValue(el, nv);
+      int32_t nc = s + (int32_t)t.Length();
+      edSetCaret(el, nc);
+      if (nc >= (int32_t)nv.Length()) el->SetScrollLeft(1 << 24);   // caret at end -> keep visible
+    } else {
+      // A value control with no selection API (<input type=number> etc., Codex F-220): append at
+      // the end via the live value setter (SetTextContent would not update the control's value).
+      nsAutoString nv(v); nv.Append(t); edSetValue(el, nv); el->SetScrollLeft(1 << 24);
+    }
     return;
   }
   // contentEditable / other: append via textContent (no value-based caret model here).
@@ -520,13 +536,20 @@ static void jihadTrimLastChar(nsAutoString& v) {
 void GoannaRenderPage::DeleteBackward() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
-  nsAutoString v; int32_t c = 0;
-  if (edGetValue(el, v) && edGetCaret(el, &c)) {
-    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
-    if (c == 0) return;
-    int32_t drop = edIsPairBoundaryLow(v, c - 1) ? 2 : 1; if (drop > c) drop = c;
-    nsAutoString nv; nv.Append(Substring(v, 0, c - drop)); nv.Append(Substring(v, c));
-    edSetValue(el, nv); edSetCaret(el, c - drop);
+  nsAutoString v;
+  if (edGetValue(el, v)) {
+    int32_t s, e;
+    if (edGetSelection(el, v, &s, &e)) {
+      if (s != e) {   // a range is selected: Backspace deletes the whole selection (Codex F-221)
+        nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+        edSetValue(el, nv); edSetCaret(el, s); return;
+      }
+      if (s == 0) return;
+      int32_t drop = edIsPairBoundaryLow(v, s - 1) ? 2 : 1; if (drop > s) drop = s;
+      nsAutoString nv; nv.Append(Substring(v, 0, s - drop)); nv.Append(Substring(v, s));
+      edSetValue(el, nv); edSetCaret(el, s - drop); return;
+    }
+    if (!v.IsEmpty()) { jihadTrimLastChar(v); edSetValue(el, v); }   // number/email: drop last char
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable
@@ -540,77 +563,114 @@ static bool edIsSpace(char16_t c) { return c == ' ' || c == '\t' || c == '\n' ||
 
 // Accelerated Backspace: delete a whole word before the caret (the run of whitespace immediately
 // before the caret, then the run of non-whitespace) — used when Backspace is held long enough to
-// auto-repeat, so clearing a long field is quick. Falls back to one char if the caret sits mid-word
-// with no boundary. Same crash-free value-splice + caret path as DeleteBackward.
+// auto-repeat, so clearing a long field is quick. If a range is selected it deletes that instead.
 void GoannaRenderPage::DeleteBackwardWord() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
-  nsAutoString v; int32_t c = 0;
-  if (edGetValue(el, v) && edGetCaret(el, &c)) {
-    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
-    if (c == 0) return;
-    int32_t i = c;
+  nsAutoString v; int32_t s, e;
+  if (edGetValue(el, v) && edGetSelection(el, v, &s, &e)) {
+    if (s != e) {   // selection present: delete it
+      nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+      edSetValue(el, nv); edSetCaret(el, s); return;
+    }
+    if (s == 0) return;
+    int32_t i = s;
     while (i > 0 && edIsSpace(v.CharAt(i - 1))) i--;          // trailing whitespace
     while (i > 0 && !edIsSpace(v.CharAt(i - 1))) i--;         // the word itself
-    if (i >= c) i = c - 1;                                    // guarantee progress
-    nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, c));
+    if (i >= s) i = s - 1;                                    // guarantee progress
+    nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, s));
     edSetValue(el, nv); edSetCaret(el, i);
     return;
   }
-  DeleteBackward();   // contentEditable: no word model — remove one char
+  DeleteBackward();   // number/contentEditable: no word model — remove one char
 }
 
-// Non-character editing keys, applied at the engine caret of the focused <input>/<textarea>.
-// Arrows/Home/End move the caret (SetSelectionRange); Delete removes the code point AFTER the
-// caret; Enter inserts a newline only in a <textarea>; Tab moves focus to the next/prev field.
+// Non-character editing keys, applied at the engine selection of the focused <input>/<textarea>.
+// Arrows/Home/End move/collapse the caret; Delete removes the selection or the code point after the
+// caret; Tab moves focus to the next/prev field. (Enter is handled by HandleEnter, deferred to the
+// pump loop, because it may submit a form and navigate — Codex F-219/F-223.)
 void GoannaRenderPage::EditKey(int action) {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   if (action == EK_TAB)      { FocusNextField(false); return; }
   if (action == EK_TAB_BACK) { FocusNextField(true);  return; }
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
-  nsAutoString v; int32_t c = 0;
-  if (!edGetValue(el, v) || !edGetCaret(el, &c)) return;   // contentEditable: no caret model
-  int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
+  nsAutoString v; int32_t s, e;
+  if (!edGetValue(el, v) || !edGetSelection(el, v, &s, &e)) return;   // no caret model (number/CE)
+  int32_t len = (int32_t)v.Length();
+  const bool hasSel = (s != e);
+  const int32_t c = e;   // caret reference = the focus (right) end of the selection
   switch (action) {
-    case EK_LEFT:  if (c > 0)   edSetCaret(el, c - (edIsPairBoundaryLow(v, c - 1) ? 2 : 1)); break;
-    case EK_RIGHT: if (c < len) edSetCaret(el, c + (edIsPairBoundaryLow(v, c + 1) ? 2 : 1)); break;
+    case EK_LEFT:  if (hasSel) edSetCaret(el, s);
+                   else if (c > 0)   edSetCaret(el, c - (edIsPairBoundaryLow(v, c - 1) ? 2 : 1)); break;
+    case EK_RIGHT: if (hasSel) edSetCaret(el, e);
+                   else if (c < len) edSetCaret(el, c + (edIsPairBoundaryLow(v, c + 1) ? 2 : 1)); break;
     case EK_HOME:  edSetCaret(el, 0);   break;
     case EK_END:   edSetCaret(el, len); break;
     case EK_UP: case EK_DOWN: {
       // Move to the same column on the adjacent line. For a single-line <input> (no '\n') this
       // degrades to Home (up) / End (down), which is the expected behaviour.
       int32_t lineStart = c; while (lineStart > 0 && v.CharAt(lineStart - 1) != '\n') lineStart--;
-      int32_t col = c - lineStart;
+      int32_t col = c - lineStart, target;
       if (action == EK_UP) {
         if (lineStart == 0) { edSetCaret(el, 0); break; }
         int32_t prevEnd = lineStart - 1, prevStart = prevEnd;
         while (prevStart > 0 && v.CharAt(prevStart - 1) != '\n') prevStart--;
         int32_t prevLen = prevEnd - prevStart;
-        edSetCaret(el, prevStart + (col < prevLen ? col : prevLen));
+        target = prevStart + (col < prevLen ? col : prevLen);
       } else {
         int32_t nextStart = c; while (nextStart < len && v.CharAt(nextStart) != '\n') nextStart++;
         if (nextStart >= len) { edSetCaret(el, len); break; }
         nextStart++;   // skip the '\n'
         int32_t nextEnd = nextStart; while (nextEnd < len && v.CharAt(nextEnd) != '\n') nextEnd++;
         int32_t nextLen = nextEnd - nextStart;
-        edSetCaret(el, nextStart + (col < nextLen ? col : nextLen));
+        target = nextStart + (col < nextLen ? col : nextLen);
       }
+      if (edIsPairBoundaryLow(v, target)) target--;   // never land between a surrogate pair (F-224)
+      edSetCaret(el, target);
       break;
     }
     case EK_DELETE: {
+      if (hasSel) {   // forward-Delete with a selection removes the selection
+        nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+        edSetValue(el, nv); edSetCaret(el, s); break;
+      }
       if (c >= len) break;
       int32_t drop = edIsPairBoundaryLow(v, c + 1) ? 2 : 1; if (c + drop > len) drop = len - c;
       nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(Substring(v, c + drop));
       edSetValue(el, nv); edSetCaret(el, c);
       break;
     }
-    case EK_ENTER: {
-      nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
-      if (ta) InsertText("\n");   // <input>: Enter is a submit/no-op headless — swallow it
-      break;
-    }
     default: break;
   }
+}
+
+// Enter in the focused editable. A <textarea> inserts a newline; a single-line <input> performs
+// implicit form submission — click the form's submit control (so onclick/onsubmit + validation run)
+// or, if none, submit the form directly. This NAVIGATES, so it must only run from the guarded pump()
+// loop (BrowserPageGoanna defers Enter there), never synchronously from the YAP key callback (F-219).
+void GoannaRenderPage::HandleEnter() {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) { InsertText("\n"); return; }
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (!in) return;
+  nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
+  if (!form) return;
+  nsCOMPtr<nsIDOMElement> formEl = do_QueryInterface(form);
+  if (formEl) {
+    nsCOMPtr<nsIDOMNodeList> subs;
+    formEl->QuerySelectorAll(
+      NS_LITERAL_STRING("input[type=submit],button[type=submit],button:not([type])"),
+      getter_AddRefs(subs));
+    uint32_t n = 0; if (subs) subs->GetLength(&n);
+    if (n) {
+      nsCOMPtr<nsIDOMNode> bnode; subs->Item(0, getter_AddRefs(bnode));
+      nsCOMPtr<nsIDOMHTMLElement> b = do_QueryInterface(bnode);
+      if (b) { b->DOMClick(); return; }
+    }
+  }
+  form->Submit();   // no submit control found — submit the form directly
 }
 
 // Make the editor caret actually PAINT. The offscreen embedding starts "deactivated", so even a
@@ -655,7 +715,20 @@ void GoannaRenderPage::FocusNextField(bool backward) {
     nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
     if (e == mChrome->mFocusedEditable) { cur = (int32_t)i; break; }
   }
-  int32_t next = (cur < 0) ? 0 : (backward ? (cur - 1 + (int32_t)n) % n : (cur + 1) % n);
+  // Step to the next candidate, skipping disabled/readonly fields (Codex F-222). If none of the
+  // other fields are focusable, stay put rather than making a readonly field the type target.
+  int32_t next = cur; bool found = false;
+  for (uint32_t step = 0; step < n; ++step) {
+    next = (next < 0) ? 0 : (backward ? (next - 1 + (int32_t)n) % n : (next + 1) % n);
+    nsCOMPtr<nsIDOMNode> cand; list->Item((uint32_t)next, getter_AddRefs(cand));
+    nsCOMPtr<nsIDOMElement> ce = do_QueryInterface(cand);
+    if (!ce) continue;
+    bool dis = false, ro = false;
+    ce->HasAttribute(NS_LITERAL_STRING("disabled"), &dis);
+    ce->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
+    if (!dis && !ro) { found = true; break; }
+  }
+  if (!found) return;
   nsCOMPtr<nsIDOMNode> nnode; list->Item((uint32_t)next, getter_AddRefs(nnode));
   nsCOMPtr<nsIDOMElement> nel = do_QueryInterface(nnode);
   if (!nel) return;

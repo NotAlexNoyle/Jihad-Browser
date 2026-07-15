@@ -1213,6 +1213,11 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // earlier "focus crashes the daemon" behaviour was the pre-0010 mTabChild null-deref. The caret
     // lands at a sane default; the user repositions it with the arrow keys (exact tap-to-offset would
     // need a non-navigating layout hit-test — a javascript: URL flashes the isis loading overlay).
+    // Remember the scroll position before focusing: Focus() scrolls the field into view, but the
+    // user just tapped it so it is already on-screen — that scroll only cuts the top of the page off
+    // (e.g. google's logo) when the VKB shrinks the viewport. Restore it afterwards. window.scrollTo
+    // is overlay-free (unlike a javascript: URL that does editor work), so no white flash.
+    int svScrollX = 0, svScrollY = 0; GetScrollXY(&svScrollX, &svScrollY);
     mChrome->mFocusedEditable = effEl;
     nsCOMPtr<nsIDOMHTMLElement> hedit = do_QueryInterface(effEl);
     if (hedit) hedit->Focus();
@@ -1236,6 +1241,9 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // runs through the docShell load machinery and flashes the isis loading overlay (the page
     // "whites out" on every tap). Focus() leaves the caret at a sane default; the user positions
     // it with the arrow keys. Exact tap-to-offset needs a non-navigating hit-test (future work).
+    // Undo the focus-induced scroll so the page top stays visible under the keyboard (see above).
+    int nx = 0, ny = 0; GetScrollXY(&nx, &ny);
+    if (nx != svScrollX || ny != svScrollY) ScrollTo(svScrollX, svScrollY);
     return;
   }
   // Non-editable tap: stop treating keystrokes as edits to a previously-tapped field. Without

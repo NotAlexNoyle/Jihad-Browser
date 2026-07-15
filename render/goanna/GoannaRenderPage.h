@@ -99,7 +99,14 @@ public:
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
   void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
   void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
-  void DeleteBackward();                            // Backspace on the tapped field (DOM value edit)
+  void DeleteBackward();                            // Backspace: delete the char before the caret
+  void DeleteBackwardWord();                        // accelerated Backspace: delete a word before caret
+  // Non-character editing keys, applied to the focused <input>/<textarea> using the ENGINE'S
+  // selection as the caret (validated crash-free headless after UXP patch 0010). Enter inserts a
+  // newline only in a <textarea>; Tab moves focus to the next field.
+  enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE, EK_ENTER,
+                       EK_TAB, EK_TAB_BACK };
+  void EditKey(int action);
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   void JihadTypingSelfTest();                      // diag: programmatic focus+type (no VKB tap)
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
@@ -132,6 +139,8 @@ public:
 
 private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
+  void FocusNextField(bool backward);      // Tab: move focus to the next/prev text field
+  void ActivateEditorCaret();              // activate the offscreen window so nsCaret paints (solid)
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)

@@ -438,42 +438,68 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
   return false;
 }
 
+// --- caret-aware editing over the focused <input>/<textarea> --------------------------------
+// The engine editor DOES work in the headless/offscreen build (validated on-device: Focus,
+// GetValue/SetValue, GetSelectionStart/SetSelectionRange are all crash-free
+// after UXP patch 0010). So we keep the ENGINE'S selection as the caret and edit the value
+// around it, instead of the old append-only content-attribute mutation. Value get/set + caret
+// get/set work for BOTH <input> and <textarea> (identical HTML API, different XPCOM interfaces).
+static bool edGetValue(nsIDOMElement* el, nsAString& v) {
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (in) { in->GetValue(v); return true; }
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) { ta->GetValue(v); return true; }
+  return false;
+}
+static bool edSetValue(nsIDOMElement* el, const nsAString& v) {
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (in) { in->SetValue(v); return true; }
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) { ta->SetValue(v); return true; }
+  return false;
+}
+static bool edGetCaret(nsIDOMElement* el, int32_t* pos) {
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (in) return NS_SUCCEEDED(in->GetSelectionStart(pos));
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) return NS_SUCCEEDED(ta->GetSelectionStart(pos));
+  return false;
+}
+static bool edSetCaret(nsIDOMElement* el, int32_t pos) {
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (in) return NS_SUCCEEDED(in->SetSelectionRange(pos, pos, NS_LITERAL_STRING("")));
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) return NS_SUCCEEDED(ta->SetSelectionRange(pos, pos, NS_LITERAL_STRING("")));
+  return false;
+}
+// True when UTF-16 index i is the LOW half of a surrogate pair whose HIGH half is at i-1, so a
+// caret step / delete spanning it must move by two units to stay on a code-point boundary.
+static bool edIsPairBoundaryLow(const nsAString& v, int32_t i) {
+  if (i <= 0 || i >= (int32_t)v.Length()) return false;
+  char16_t lo = v.CharAt(i), hi = v.CharAt(i - 1);
+  return lo >= 0xDC00 && lo <= 0xDFFF && hi >= 0xD800 && hi <= 0xDBFF;
+}
+
 void GoannaRenderPage::InsertText(const char* text) {
   if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
-  // Type into the field the user tapped (tracked in mFocusedEditable by ClickAt) by DIRECT
-  // DOM value mutation. NOT via a javascript: LoadURI — that ran through the docShell load
-  // machinery, so every keystroke flashed the isis loading overlay and reflowed the page
-  // white. And NOT via Focus()+execCommand — focusing an editable crashes headless. SetValue
-  // is a plain DOM mutation: no navigation, no focus, no caret. BrowserPageGoanna sets
-  // mNeedsPaint after this so the field repaints with the new text (review #7 P1).
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
-  nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
-  if (input) {
-    // Set the "value" CONTENT attribute, NOT the .value IDL setter. SetValue updates the
-    // editor's selection/caret, which — like Focus() — has no backing widget headless and
-    // crashes the engine. For a field we never natively focused, the displayed value tracks
-    // the content attribute, so this shows the text safely (no editor, no caret, no reflow
-    // of an editing host). Read the current value, append, write the attribute. (Live-value
-    // vs default-value caveat for script-dirtied fields is a headless limitation — F-165.)
-    nsAutoString v; input->GetValue(v); v.Append(t);
-    el->SetAttribute(NS_LITERAL_STRING("value"), v);
-    // Scroll the field to the end so the newest text stays visible once it overflows the box (we
-    // have no caret to auto-scroll to). A large value is clamped to the max scroll on the reflow
-    // that the next paint flushes.
-    el->SetScrollLeft(1 << 24);
+  nsAutoString v; int32_t c = 0;
+  if (edGetValue(el, v) && edGetCaret(el, &c)) {
+    // Splice the new text in at the engine caret, then restore the caret just past it. SetValue
+    // is the live .value IDL setter (crash-free headless post-0010) — more correct than the old
+    // content-attribute write (it is the actual submitted value, not the default-value).
+    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
+    nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(t); nv.Append(Substring(v, c));
+    edSetValue(el, nv);
+    int32_t nc = c + (int32_t)t.Length();
+    edSetCaret(el, nc);
+    if (nc >= (int32_t)nv.Length()) el->SetScrollLeft(1 << 24);   // caret at end -> keep it visible
     return;
   }
-  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
-  if (ta) {
-    // textarea: the shown value is its text content — set that via the node (no editor).
-    nsCOMPtr<nsIDOMNode> tn = do_QueryInterface(el);
-    if (tn) { nsAutoString v; tn->GetTextContent(v); v.Append(t); tn->SetTextContent(v); }
-    el->SetScrollTop(1 << 24);   // keep the newest line visible in a multi-line field
-    return;
-  }
-  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable region
-  if (node) { nsAutoString v; node->GetTextContent(v); v.Append(t); node->SetTextContent(v); }
+  // contentEditable / other: append via textContent (no value-based caret model here).
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  if (node) { nsAutoString cv; node->GetTextContent(cv); cv.Append(t); node->SetTextContent(cv); }
 }
 
 // Drop the last USER-PERCEIVED character: one UTF-16 code unit, or two if it is a surrogate pair
@@ -489,26 +515,156 @@ static void jihadTrimLastChar(nsAutoString& v) {
   v.Truncate(len - drop);
 }
 
-// Backspace on the tapped field: drop the last character via the SAME crash-free DOM value
-// mutation as InsertText (no engine key dispatch, no editor caret). The VKB delivers Backspace
-// as a keyDown, not through insertStringAtCursor, so without this the key was swallowed and
-// text could never be corrected (Jihad review F-164). NB: this always edits the END of the field
-// (we have no headless caret) — a known limitation of the widget-less text path.
+// Backspace: delete the code point immediately BEFORE the engine caret (surrogate-aware), then
+// keep the caret where the deleted text was. The VKB delivers Backspace as a keyDown.
 void GoannaRenderPage::DeleteBackward() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
-  nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(el);
-  if (input) {
-    nsAutoString v; input->GetValue(v);
-    if (!v.IsEmpty()) { jihadTrimLastChar(v); el->SetAttribute(NS_LITERAL_STRING("value"), v);
-                        el->SetScrollLeft(1 << 24); }
+  nsAutoString v; int32_t c = 0;
+  if (edGetValue(el, v) && edGetCaret(el, &c)) {
+    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
+    if (c == 0) return;
+    int32_t drop = edIsPairBoundaryLow(v, c - 1) ? 2 : 1; if (drop > c) drop = c;
+    nsAutoString nv; nv.Append(Substring(v, 0, c - drop)); nv.Append(Substring(v, c));
+    edSetValue(el, nv); edSetCaret(el, c - drop);
     return;
   }
-  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // textarea / contentEditable
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable
   if (node) {
-    nsAutoString v; node->GetTextContent(v);
-    if (!v.IsEmpty()) { jihadTrimLastChar(v); node->SetTextContent(v); }
+    nsAutoString cv; node->GetTextContent(cv);
+    if (!cv.IsEmpty()) { jihadTrimLastChar(cv); node->SetTextContent(cv); }
   }
+}
+
+static bool edIsSpace(char16_t c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+
+// Accelerated Backspace: delete a whole word before the caret (the run of whitespace immediately
+// before the caret, then the run of non-whitespace) — used when Backspace is held long enough to
+// auto-repeat, so clearing a long field is quick. Falls back to one char if the caret sits mid-word
+// with no boundary. Same crash-free value-splice + caret path as DeleteBackward.
+void GoannaRenderPage::DeleteBackwardWord() {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  nsAutoString v; int32_t c = 0;
+  if (edGetValue(el, v) && edGetCaret(el, &c)) {
+    int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
+    if (c == 0) return;
+    int32_t i = c;
+    while (i > 0 && edIsSpace(v.CharAt(i - 1))) i--;          // trailing whitespace
+    while (i > 0 && !edIsSpace(v.CharAt(i - 1))) i--;         // the word itself
+    if (i >= c) i = c - 1;                                    // guarantee progress
+    nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, c));
+    edSetValue(el, nv); edSetCaret(el, i);
+    return;
+  }
+  DeleteBackward();   // contentEditable: no word model — remove one char
+}
+
+// Non-character editing keys, applied at the engine caret of the focused <input>/<textarea>.
+// Arrows/Home/End move the caret (SetSelectionRange); Delete removes the code point AFTER the
+// caret; Enter inserts a newline only in a <textarea>; Tab moves focus to the next/prev field.
+void GoannaRenderPage::EditKey(int action) {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  if (action == EK_TAB)      { FocusNextField(false); return; }
+  if (action == EK_TAB_BACK) { FocusNextField(true);  return; }
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  nsAutoString v; int32_t c = 0;
+  if (!edGetValue(el, v) || !edGetCaret(el, &c)) return;   // contentEditable: no caret model
+  int32_t len = (int32_t)v.Length(); if (c < 0) c = 0; if (c > len) c = len;
+  switch (action) {
+    case EK_LEFT:  if (c > 0)   edSetCaret(el, c - (edIsPairBoundaryLow(v, c - 1) ? 2 : 1)); break;
+    case EK_RIGHT: if (c < len) edSetCaret(el, c + (edIsPairBoundaryLow(v, c + 1) ? 2 : 1)); break;
+    case EK_HOME:  edSetCaret(el, 0);   break;
+    case EK_END:   edSetCaret(el, len); break;
+    case EK_UP: case EK_DOWN: {
+      // Move to the same column on the adjacent line. For a single-line <input> (no '\n') this
+      // degrades to Home (up) / End (down), which is the expected behaviour.
+      int32_t lineStart = c; while (lineStart > 0 && v.CharAt(lineStart - 1) != '\n') lineStart--;
+      int32_t col = c - lineStart;
+      if (action == EK_UP) {
+        if (lineStart == 0) { edSetCaret(el, 0); break; }
+        int32_t prevEnd = lineStart - 1, prevStart = prevEnd;
+        while (prevStart > 0 && v.CharAt(prevStart - 1) != '\n') prevStart--;
+        int32_t prevLen = prevEnd - prevStart;
+        edSetCaret(el, prevStart + (col < prevLen ? col : prevLen));
+      } else {
+        int32_t nextStart = c; while (nextStart < len && v.CharAt(nextStart) != '\n') nextStart++;
+        if (nextStart >= len) { edSetCaret(el, len); break; }
+        nextStart++;   // skip the '\n'
+        int32_t nextEnd = nextStart; while (nextEnd < len && v.CharAt(nextEnd) != '\n') nextEnd++;
+        int32_t nextLen = nextEnd - nextStart;
+        edSetCaret(el, nextStart + (col < nextLen ? col : nextLen));
+      }
+      break;
+    }
+    case EK_DELETE: {
+      if (c >= len) break;
+      int32_t drop = edIsPairBoundaryLow(v, c + 1) ? 2 : 1; if (c + drop > len) drop = len - c;
+      nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(Substring(v, c + drop));
+      edSetValue(el, nv); edSetCaret(el, c);
+      break;
+    }
+    case EK_ENTER: {
+      nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+      if (ta) InsertText("\n");   // <input>: Enter is a submit/no-op headless — swallow it
+      break;
+    }
+    default: break;
+  }
+}
+
+// Make the editor caret actually PAINT. The offscreen embedding starts "deactivated", so even a
+// focused editable draws no caret (the caret positions correctly — GetSelectionStart is right —
+// but nsCaret is only painted for an active, focused window). Activate the browser + focus its
+// content window, and disable blink so the caret is a SOLID bar (the offscreen refresh driver
+// does not tick a blink reliably, which would otherwise leave the caret invisible most of the time).
+void GoannaRenderPage::ActivateEditorCaret() {
+  if (!mChrome) return;
+  nsCOMPtr<nsIWebBrowserFocus> focus = do_QueryInterface(mChrome->mBrowser);
+  if (focus) {
+    focus->Activate();
+    nsCOMPtr<mozIDOMWindowProxy> win;
+    mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
+    if (win) focus->SetFocusedWindow(win);
+  }
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (pb) { pb->SetIntPref("ui.caretBlinkTime", 0); pb->SetIntPref("ui.caretWidth", 2); }
+}
+
+// Tab: move focus to the next (or previous) text field and make it the type target. Enumerate
+// the document's <input>/<textarea> in document order; the engine editor focus works headless.
+void GoannaRenderPage::FocusNextField(bool backward) {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return;
+  // Collect text inputs + textareas in document order (querySelectorAll preserves it).
+  nsCOMPtr<nsIDOMNodeList> list;
+  doc->QuerySelectorAll(NS_LITERAL_STRING(
+      "input[type=text],input[type=search],input[type=email],input[type=url],input[type=tel],"
+      "input[type=number],input[type=password],input:not([type]),textarea"),
+      getter_AddRefs(list));
+  uint32_t n = 0; if (list) list->GetLength(&n);
+  if (!n) return;
+  int32_t cur = -1;
+  for (uint32_t i = 0; i < n; ++i) {
+    nsCOMPtr<nsIDOMNode> node; list->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
+    if (e == mChrome->mFocusedEditable) { cur = (int32_t)i; break; }
+  }
+  int32_t next = (cur < 0) ? 0 : (backward ? (cur - 1 + (int32_t)n) % n : (cur + 1) % n);
+  nsCOMPtr<nsIDOMNode> nnode; list->Item((uint32_t)next, getter_AddRefs(nnode));
+  nsCOMPtr<nsIDOMElement> nel = do_QueryInterface(nnode);
+  if (!nel) return;
+  mChrome->mFocusedEditable = nel;
+  nsCOMPtr<nsIDOMHTMLElement> he = do_QueryInterface(nel);
+  if (he) he->Focus();
+  ActivateEditorCaret();   // keep the caret painting on the newly-focused field
+  int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
+  edSetCaret(nel, vlen);   // caret at end of the newly-focused field
 }
 
 bool GoannaRenderPage::HasFocusedEditable() const {
@@ -818,6 +974,7 @@ void GoannaRenderPage::JihadTypingSelfTest() {
   fprintf(stderr, "[jihad-bs] SELFTEST end\n");
 }
 
+
 // --- process-global browser services ---------------------------------------
 void SetUserAgentOverride(const char* ua) {
   // Only apply a NON-empty UA. The isis adapter/UI sends an empty setUserAgent at
@@ -1027,13 +1184,20 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (editable != mEditorFocused) { mEditorFocused = editable; mEditorFieldType = 0; mEditorFocusDirty = true; }
 
   if (editable) {
-    // Editable field: pump() emits msgEditorFocused(true) to raise the VKB. Do NOT dispatch
-    // mouse events / DOMClick / Focus() here — focusing an editable element in the
-    // offscreen/headless embedding builds an editor caret/selection with no backing widget
-    // and CRASHES the engine (observed: a tap on <input> respawned the daemon every time).
-    // Instead of engine focus, remember this field so InsertText types into it by DOM value
-    // mutation (review #7 P1). Just hold the element ref — no attribute marker needed.
+    // Editable field: pump() emits msgEditorFocused(true) to raise the VKB. Remember the field as
+    // the type target, then FOCUS it so the engine shows a real, visible caret. Focusing an editable
+    // is crash-free in the headless/offscreen build after UXP patch 0010 (validated on-device) — the
+    // earlier "focus crashes the daemon" behaviour was the pre-0010 mTabChild null-deref. The caret
+    // lands at a sane default; the user repositions it with the arrow keys (exact tap-to-offset would
+    // need a non-navigating layout hit-test — a javascript: URL flashes the isis loading overlay).
     mChrome->mFocusedEditable = effEl;
+    nsCOMPtr<nsIDOMHTMLElement> hedit = do_QueryInterface(effEl);
+    if (hedit) hedit->Focus();
+    ActivateEditorCaret();   // make the caret actually paint (activate window + solid caret)
+    // NB: do NOT position the caret at the tap via a javascript: URL here — a javascript: LoadURI
+    // runs through the docShell load machinery and flashes the isis loading overlay (the page
+    // "whites out" on every tap). Focus() leaves the caret at a sane default; the user positions
+    // it with the arrow keys. Exact tap-to-offset needs a non-navigating hit-test (future work).
     return;
   }
   // Non-editable tap: stop treating keystrokes as edits to a previously-tapped field. Without

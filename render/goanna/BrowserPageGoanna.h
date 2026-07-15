@@ -150,6 +150,10 @@ private:
   bool               mInFlight[2];
   long               mPaintMs[2];               // ms timestamp of the msgPainted that put it in flight
   int                slotForKey(int key) const; // 0 for mKey1, 1 for mKey2, -1 otherwise
+  // Held-Backspace acceleration: consecutive Backspace keyDowns arriving within the auto-repeat
+  // window build a run; once it is long enough, Backspace deletes a word at a time (not a char).
+  long               mLastBackspaceMs;
+  int                mBackspaceRun;
   bool               mLoadWasDone;
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad

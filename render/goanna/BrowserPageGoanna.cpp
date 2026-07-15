@@ -44,6 +44,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
+  mLastBackspaceMs = 0; mBackspaceRun = 0;
 }
 
 // Monotonic-enough wall clock in ms for the buffer flow-control timeout valve.
@@ -393,22 +394,53 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   if (!mPage) return;
   // Never log key/chr — those are user keystrokes (F-163). When a tapped editable is the type
-  // target, the webOS VKB delivers each character (and Backspace) as a keyDown; route it into the
-  // field via crash-free DOM mutation (InsertText/DeleteBackward) rather than the engine key path,
-  // and render IMMEDIATELY (don't wait for the ~16ms tick) so typing feels responsive. Enter/Tab/
-  // arrows aren't supported headless yet and are swallowed (F-183). Non-editable focus falls
-  // through to normal engine key dispatch.
+  // target, the webOS VKB delivers each character (and the editing keys) as a keyDown; route it
+  // into the field via the engine editor (caret-aware value edits + SetSelectionRange), and render
+  // IMMEDIATELY (don't wait for the ~16ms tick) so typing feels responsive. Non-editable focus
+  // falls through to normal engine key dispatch.
   if (mPage->HasFocusedEditable()) {
-    // The webOS VKB delivers typed characters to the focused plugin as npPalmKeyDownEvent (verified
-    // on device). Route them into the tapped field via the crash-free DOM value mutation (InsertText/
-    // DeleteBackward) rather than the engine key path, and do NOT re-dispatch the synthesized key
-    // (that is the SendKeyEvent path). Backspace/Delete delete; a printable character (chr) inserts;
-    // other keys (Enter/Tab/arrows) are swallowed for now (headless-editor limitation, F-183).
-    const int kBackspace = 8, kDelete = 127;
-    if (key == kBackspace || chr == kBackspace || key == kDelete) {
-      mPage->DeleteBackward();
+    // webOS delivers editing keys to the plugin as: ASCII control codes where they exist
+    // (ESC=27, Backspace=8, Tab=9, Enter=13) and the Apple/NSEvent function-key Unicode range
+    // (0xF700+) for arrows / Home / End / forward-Delete — the WebKit webOS derives from puts
+    // those code points in the key field. (Qt keycodes 0x0100001x are matched too, as a fallback.)
+    // The code arrives in `key` with `chr`==0, but we accept it from either field. A printable
+    // character inserts at the caret; the editing keys drive the engine caret.
+    typedef jihad::GoannaRenderPage GRP;
+    const int kBackspace = 8, kTab = 9, kEnter = 13, kDelete = 127;
+    const int kQtTab = 0x01000001, kQtBacktab = 0x01000002, kQtReturn = 0x01000004,
+              kQtEnter = 0x01000005, kQtDelete = 0x01000007, kQtHome = 0x01000010,
+              kQtEnd = 0x01000011, kQtLeft = 0x01000012, kQtUp = 0x01000013,
+              kQtRight = 0x01000014, kQtDown = 0x01000015;
+    const int kMacUp = 0xF700, kMacDown = 0xF701, kMacLeft = 0xF702, kMacRight = 0xF703,
+              kMacDelete = 0xF728, kMacHome = 0xF729, kMacEnd = 0xF72B;
+    // webOS's own special-key block (measured on-device via the keyprobe): the VKB keypad's arrow
+    // keys arrive here, NOT in the Apple/Qt ranges. Down/Up/Left/Right are 0xE0A0..0xE0A3.
+    const int kWebDown = 0xE0A0, kWebUp = 0xE0A1, kWebLeft = 0xE0A2, kWebRight = 0xE0A3;
+    const bool shift = (modifiers & (1 << 2)) != 0;   // npPalmShiftKeyModifier
+    auto km = [key, chr](int v) { return key == v || chr == v; };
+    if (!km(kBackspace)) mBackspaceRun = 0;   // any non-Backspace key breaks the accelerate run
+    if (km(kBackspace)) {
+      // Accelerate a held Backspace: consecutive presses within the auto-repeat window build a run;
+      // once sustained (~0.5s of holding), delete a whole word per repeat so long text clears fast.
+      long now = jihadNowMs();
+      mBackspaceRun = (now - mLastBackspaceMs <= 250) ? (mBackspaceRun + 1) : 1;
+      mLastBackspaceMs = now;
+      if (mBackspaceRun >= 12) mPage->DeleteBackwardWord();
+      else                     mPage->DeleteBackward();
       mNeedsPaint = true;
-    } else {
+    } else if (km(kDelete) || km(kQtDelete) || km(kMacDelete)) {
+      mPage->EditKey(GRP::EK_DELETE); mNeedsPaint = true;
+    } else if (km(kTab) || km(kQtTab) || km(kQtBacktab)) {
+      mPage->EditKey((shift || km(kQtBacktab)) ? GRP::EK_TAB_BACK : GRP::EK_TAB); mNeedsPaint = true;
+    } else if (km(kEnter) || km(kQtReturn) || km(kQtEnter)) {
+      mPage->EditKey(GRP::EK_ENTER); mNeedsPaint = true;
+    } else if (km(kQtLeft)  || km(kMacLeft)  || km(kWebLeft))  { mPage->EditKey(GRP::EK_LEFT);  mNeedsPaint = true; }
+    else if (km(kQtRight) || km(kMacRight) || km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
+    else if (km(kQtUp)    || km(kMacUp)    || km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
+    else if (km(kQtDown)  || km(kMacDown)  || km(kWebDown))  { mPage->EditKey(GRP::EK_DOWN);  mNeedsPaint = true; }
+    else if (km(kQtHome)  || km(kMacHome))  { mPage->EditKey(GRP::EK_HOME);  mNeedsPaint = true; }
+    else if (km(kQtEnd)   || km(kMacEnd))   { mPage->EditKey(GRP::EK_END);   mNeedsPaint = true; }
+    else {
       // The webOS VKB puts the printable character (letters, digits, symbols, and non-ASCII) in
       // `key` (rawkeyCode) with `chr`==0 on device; accept it from whichever field carries it, for
       // the FULL Unicode range (not just ASCII), then UTF-8 encode -> InsertText. Anything >= 0x20
@@ -422,6 +454,13 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
       // VKB has no arrow keys. Enter/Tab/Backspace (< 0x20) are handled/swallowed above.
       if (c >= 0xD800 && c <= 0xDFFF) c = 0u;
       else if (c > 0x10FFFF) c = 0u;
+      // Function/nav keys arrive as Private-Use code points, NOT text: webOS's own special-key
+      // block 0xE0A0-0xE0BF (arrows measured at 0xE0A0-0xE0A3; Home/End/PageUp/Down likely adjacent)
+      // and the Apple/NSEvent function-key range 0xF700-0xF8FF. The ones we map are consumed above;
+      // swallow the rest here so an unmapped nav key never inserts an invisible PUA glyph (which
+      // read as "arrows type characters" + repaint lag + Backspace eating the invisible chars).
+      else if (c >= 0xE0A0 && c <= 0xE0BF) c = 0u;
+      else if (c >= 0xF700 && c <= 0xF8FF) c = 0u;
       if (c) {
         char buf[5] = {0};
         if (c < 0x80) { buf[0] = (char)c; }
@@ -431,6 +470,7 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
         mPage->InsertText(buf);
         mNeedsPaint = true;
       }
+      // else: an unmapped control/nav key — swallow it (do not insert).
     }
     if (mNeedsPaint) maybePaint();   // paint now, in this keyDown, instead of waiting for the tick
     return;

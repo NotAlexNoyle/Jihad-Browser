@@ -685,6 +685,65 @@ void GoannaRenderPage::HandleEnter() {
   form->Submit();   // no submit control found — submit the form directly
 }
 
+// Tab in the focused editable. A <textarea> inserts a literal tab; a single-line <input> moves
+// focus to the next/prev text field (the standard browser behaviour — inserting a tab into a
+// search/login value is wrong). Runs from the guarded pump() loop because FocusNextField's Focus()
+// fires page focus/blur JS that can navigate (F-219).
+void GoannaRenderPage::HandleTab(bool backward) {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(mChrome->mFocusedEditable);
+  if (ta) { InsertText("\t"); return; }
+  FocusNextField(backward);
+}
+
+// Move focus to the next (or previous) text field and make it the type target. Enumerate the
+// document's <input>/<textarea> in document order, skipping disabled/readonly (F-222).
+void GoannaRenderPage::FocusNextField(bool backward) {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return;
+  nsCOMPtr<nsIDOMNodeList> list;
+  doc->QuerySelectorAll(NS_LITERAL_STRING(
+      "input[type=text],input[type=search],input[type=email],input[type=url],input[type=tel],"
+      "input[type=number],input[type=password],input:not([type]),textarea"),
+      getter_AddRefs(list));
+  uint32_t n = 0; if (list) list->GetLength(&n);
+  if (!n) return;
+  int32_t cur = -1;
+  for (uint32_t i = 0; i < n; ++i) {
+    nsCOMPtr<nsIDOMNode> node; list->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
+    if (e == mChrome->mFocusedEditable) { cur = (int32_t)i; break; }
+  }
+  // Step to the next candidate, skipping disabled/readonly fields (F-222). If none of the other
+  // fields are focusable, stay put rather than making a readonly field the type target.
+  int32_t next = cur; bool found = false;
+  for (uint32_t step = 0; step < n; ++step) {
+    next = (next < 0) ? 0 : (backward ? (next - 1 + (int32_t)n) % n : (next + 1) % n);
+    nsCOMPtr<nsIDOMNode> cand; list->Item((uint32_t)next, getter_AddRefs(cand));
+    nsCOMPtr<nsIDOMElement> ce = do_QueryInterface(cand);
+    if (!ce) continue;
+    bool dis = false, ro = false;
+    ce->HasAttribute(NS_LITERAL_STRING("disabled"), &dis);
+    ce->HasAttribute(NS_LITERAL_STRING("readonly"), &ro);
+    if (!dis && !ro) { found = true; break; }
+  }
+  if (!found) return;
+  nsCOMPtr<nsIDOMNode> nnode; list->Item((uint32_t)next, getter_AddRefs(nnode));
+  nsCOMPtr<nsIDOMElement> nel = do_QueryInterface(nnode);
+  if (!nel) return;
+  mChrome->mFocusedEditable = nel;
+  nsCOMPtr<nsIDOMHTMLElement> he = do_QueryInterface(nel);
+  if (he) he->Focus();
+  ActivateEditorCaret();   // keep the caret painting on the newly-focused field
+  int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
+  edSetCaret(nel, vlen);   // caret at end of the newly-focused field
+}
+
 // Make the editor caret actually PAINT. The offscreen embedding starts "deactivated", so even a
 // focused editable draws no caret (the caret positions correctly — GetSelectionStart is right —
 // but nsCaret is only painted for an active, focused window). Activate the browser + focus its
@@ -1254,9 +1313,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // runs through the docShell load machinery and flashes the isis loading overlay (the page
     // "whites out" on every tap). Focus() leaves the caret at a sane default; the user positions
     // it with the arrow keys. Exact tap-to-offset needs a non-navigating hit-test (future work).
-    // Undo the focus-induced scroll so the page top stays visible under the keyboard (see above).
+    // Undo the focus-induced scroll so the page top stays visible under the keyboard (see above) —
+    // but ONLY when the tapped field is in the upper part of the viewport, where it stays visible
+    // above the VKB. For a field tapped low (which the VKB would cover), keep Focus()'s scroll so
+    // the field is lifted above the keyboard instead of being restored back under it.
     int nx = 0, ny = 0; GetScrollXY(&nx, &ny);
-    if (nx != svScrollX || ny != svScrollY) ScrollTo(svScrollX, svScrollY);
+    if ((nx != svScrollX || ny != svScrollY) && mHeight > 0 && y < (mHeight * 55) / 100)
+      ScrollTo(svScrollX, svScrollY);
     return;
   }
   // Non-editable tap: stop treating keystrokes as edits to a previously-tapped field. Without

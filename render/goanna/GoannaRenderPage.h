@@ -107,6 +107,7 @@ public:
   enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE };
   void EditKey(int action);
   void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
+  void HandleTab(bool backward);                   // Tab: tab char (textarea) or focus next field (input)
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   void JihadTypingSelfTest();                      // diag: programmatic focus+type (no VKB tap)
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
@@ -140,6 +141,7 @@ public:
 private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
   void ActivateEditorCaret();              // activate the offscreen window so nsCaret paints (solid)
+  void FocusNextField(bool backward);      // Tab in an <input>: focus the next/prev text field
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)

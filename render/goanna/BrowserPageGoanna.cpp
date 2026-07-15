@@ -48,9 +48,11 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mPendingEditAction = 0;
 }
 
-// Deferred editing key (run in pump(), not the keyDown YAP callback — Codex F-219). Only Enter
-// needs deferral now (it may submit a form and navigate); Tab inserts a plain tab character.
-enum { PEA_NONE = 0, PEA_ENTER = 3 };
+// Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
+// submit a form and navigate; Tab in an <input> focuses another field (fires focus/blur JS). Both
+// must run in the page-lifetime-protected pump loop. (Tab in a <textarea> just inserts a tab, but
+// HandleTab decides that, so all Tabs defer for uniformity.)
+enum { PEA_NONE = 0, PEA_TAB = 1, PEA_TAB_BACK = 2, PEA_ENTER = 3 };
 
 // Monotonic-enough wall clock in ms for the buffer flow-control timeout valve.
 static long jihadNowMs() {
@@ -436,9 +438,9 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     } else if (km(kDelete) || km(kQtDelete) || km(kMacDelete)) {
       mPage->EditKey(GRP::EK_DELETE); mNeedsPaint = true;
     } else if (km(kTab) || km(kQtTab) || km(kQtBacktab)) {
-      // Tab inserts a real tab character into the field (a plain value edit — safe, immediate).
-      (void)shift;
-      mPage->InsertText("\t"); mNeedsPaint = true;
+      // Tab: <textarea> inserts a tab, single-line <input> moves to the next field (fires focus JS)
+      // — defer to pump() (F-219). Shift+Tab / the Qt backtab code go backward.
+      mPendingEditAction = (shift || km(kQtBacktab)) ? PEA_TAB_BACK : PEA_TAB; mNeedsPaint = true;
     } else if (km(kEnter) || km(kQtReturn) || km(kQtEnter)) {
       // Enter may submit a form and navigate — defer to pump() (never navigate in the key callback).
       mPendingEditAction = PEA_ENTER; mNeedsPaint = true;
@@ -664,7 +666,9 @@ void BrowserPageGoanna::pump(int msBudget) {
   // re-drive below, exactly like any content-initiated navigation.
   if (mPendingEditAction != PEA_NONE) {
     int act = mPendingEditAction; mPendingEditAction = PEA_NONE;
-    if (act == PEA_ENTER) mPage->HandleEnter();
+    if (act == PEA_ENTER)         mPage->HandleEnter();
+    else if (act == PEA_TAB)      mPage->HandleTab(false);
+    else if (act == PEA_TAB_BACK) mPage->HandleTab(true);
     mNeedsPaint = true;
     // A form submit navigates away — keep the VKB state in sync if the editable focus changed.
     bool efoc = false; int eft = 0, efa = 0;

@@ -1192,6 +1192,30 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     if (a) a->GetHref(href);
     if (href.IsEmpty()) { nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p; }
   }
+  // Touch-target tolerance: a small link is easy to miss by a few px (the tap lands on the
+  // surrounding text/heading/<html>). If the exact point found no link AND it did not land on an
+  // interactive control (never hijack a tap meant for a form field/button), search a small radius
+  // for the nearest <a href> and follow it. NodesFromRect returns nodes topmost-first.
+  if (href.IsEmpty() && el) {
+    nsAutoString dtag; el->GetTagName(dtag);
+    std::string dt = NS_ConvertUTF16toUTF8(dtag).get();
+    for (char& c : dt) c = (char)toupper((unsigned char)c);
+    bool interactive = (dt == "INPUT" || dt == "TEXTAREA" || dt == "BUTTON" || dt == "SELECT" ||
+                        dt == "A" || dt == "LABEL" || dt == "OPTION");
+    if (!interactive) {
+      nsCOMPtr<nsIDOMNodeList> near;
+      u->NodesFromRect((float)x, (float)y, 14, 14, 14, 14, false, true, getter_AddRefs(near));
+      uint32_t nn = 0; if (near) near->GetLength(&nn);
+      for (uint32_t i = 0; i < nn && href.IsEmpty(); ++i) {
+        nsCOMPtr<nsIDOMNode> nd; near->Item(i, getter_AddRefs(nd));
+        for (int d = 0; nd && d < 64 && href.IsEmpty(); ++d) {
+          nsCOMPtr<nsIDOMHTMLAnchorElement> a = do_QueryInterface(nd);
+          if (a) a->GetHref(href);
+          if (href.IsEmpty()) { nsCOMPtr<nsIDOMNode> p; nd->GetParentNode(getter_AddRefs(p)); nd = p; }
+        }
+      }
+    }
+  }
   NS_ConvertUTF16toUTF8 hrefUtf8(href);
   const char* h = hrefUtf8.get();
   // A single tap on a real external link navigates directly (the click default-action is
@@ -1276,7 +1300,12 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // path below is never taken for an editable).
   fprintf(stderr, "[jihad-bs] vkb tag=[%s] editable=%d was=%d\n",
           el ? NS_ConvertUTF16toUTF8(tag).get() : "null", editable, mEditorFocused);
-  if (editable != mEditorFocused) { mEditorFocused = editable; mEditorFieldType = 0; mEditorFocusDirty = true; }
+  // (Re)assert the VKB state on every tap. For an editable tap ALWAYS emit msgEditorFocused(true),
+  // even if we already thought it was focused (was=1): the user may have dismissed the keyboard
+  // (webOS swipe-down / the VKB's own hide) without the daemon knowing, so a re-tap must re-raise
+  // it. For a non-editable tap, hide the VKB only if it was up.
+  if (editable) { mEditorFocused = true; mEditorFieldType = 0; mEditorFocusDirty = true; }
+  else if (mEditorFocused) { mEditorFocused = false; mEditorFocusDirty = true; }
 
   if (editable) {
     // Editable field: pump() emits msgEditorFocused(true) to raise the VKB. Remember the field as

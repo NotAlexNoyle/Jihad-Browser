@@ -65,6 +65,8 @@
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIDOMHTMLFormElement.h"   // HandleEnter: submit the focused input's form
+#include "nsIDOMEvent.h"             // dispatch 'input' so controlled/React fields see edits (F-238)
+#include "nsIDOMEventTarget.h"
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -288,7 +290,8 @@ extern "C" {
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
   : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidget(nullptr),
     mOffscreen(false), mWidth(0), mHeight(0),
-    mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0) {}
+    mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0),
+    mPendingInputEvent(false) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
   // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
@@ -503,8 +506,28 @@ static bool edIsPairBoundaryLow(const nsAString& v, int32_t i) {
   return lo >= 0xDC00 && lo <= 0xDFFF && hi >= 0xD800 && hi <= 0xDBFF;
 }
 
+// Dispatch a bubbling DOM 'input' event on the focused editable if a value edit is pending (see the
+// header). Called only from the guarded pump loop (BrowserPageGoanna::pump), never from keyDown.
+void GoannaRenderPage::FlushPendingInputEvent() {
+  if (!mPendingInputEvent) return;
+  mPendingInputEvent = false;
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  if (!node) return;
+  nsCOMPtr<nsIDOMDocument> doc; node->GetOwnerDocument(getter_AddRefs(doc));
+  if (!doc) return;
+  nsCOMPtr<nsIDOMEvent> ev;
+  doc->CreateEvent(NS_LITERAL_STRING("Event"), getter_AddRefs(ev));
+  if (!ev) return;
+  ev->InitEvent(NS_LITERAL_STRING("input"), true, false);   // bubbles, non-cancelable
+  nsCOMPtr<nsIDOMEventTarget> tgt = do_QueryInterface(el);
+  bool dummy = false; if (tgt) tgt->DispatchEvent(ev, &dummy);
+}
+
 void GoannaRenderPage::InsertText(const char* text) {
   if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
+  mPendingInputEvent = true;   // fire 'input' from pump so controlled fields keep the edit (F-238)
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
   nsAutoString v;
@@ -548,6 +571,7 @@ static void jihadTrimLastChar(nsAutoString& v) {
 // keep the caret where the deleted text was. The VKB delivers Backspace as a keyDown.
 void GoannaRenderPage::DeleteBackward() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
+  mPendingInputEvent = true;   // fire 'input' from pump (F-238)
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsAutoString v;
   if (edGetValue(el, v)) {
@@ -579,6 +603,7 @@ static bool edIsSpace(char16_t c) { return c == ' ' || c == '\t' || c == '\n' ||
 // auto-repeat, so clearing a long field is quick. If a range is selected it deletes that instead.
 void GoannaRenderPage::DeleteBackwardWord() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
+  mPendingInputEvent = true;   // fire 'input' from pump (F-238)
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsAutoString v; int32_t s, e;
   if (edGetValue(el, v) && edGetSelection(el, v, &s, &e)) {
@@ -642,6 +667,7 @@ void GoannaRenderPage::EditKey(int action) {
       break;
     }
     case EK_DELETE: {
+      mPendingInputEvent = true;   // fire 'input' from pump (F-238)
       if (hasSel) {   // forward-Delete with a selection removes the selection
         nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
         edSetValue(el, nv); edSetCaret(el, s); break;

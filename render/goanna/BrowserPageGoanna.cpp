@@ -681,6 +681,9 @@ void BrowserPageGoanna::pump(int msBudget) {
     bool efoc = false; int eft = 0, efa = 0;
     if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
   }
+  // Fire a pending 'input' event for a keystroke edit — HERE, in the page-lifetime-protected pump,
+  // not in the keyDown YAP callback, because framework onChange handlers run page JS (F-219/F-238).
+  mPage->FlushPendingInputEvent();
   mPage->PumpFor(msBudget);
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled

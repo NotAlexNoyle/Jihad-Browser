@@ -108,6 +108,11 @@ public:
   void EditKey(int action);
   void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
   void HandleTab(bool backward);                   // Tab: tab char (textarea) or focus next field (input)
+  // Dispatch a bubbling DOM 'input' event on the focused editable if a value edit is pending. Runs
+  // page JS (framework onChange) so it MUST be called only from the guarded pump loop, never from
+  // the keyDown YAP callback (F-219) — controlled/React inputs otherwise discard the programmatic
+  // SetValue edit and restore the old value (Codex F-238).
+  void FlushPendingInputEvent();
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
 
@@ -148,6 +153,7 @@ private:
   bool mEditorFocused;        // is an editable element currently focused (VKB up)?
   bool mEditorFocusDirty;     // the focus state changed and needs emitting
   int  mEditorFieldType;      // PalmIME field-type hint for the focused editable
+  bool mPendingInputEvent;    // a value edit happened; fire 'input' on the next guarded pump tick
   GtkWidget* mWindow;      // legacy desktop path (GTK offscreen window)
   nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
   bool mOffscreen;         // true when rendering via the offscreen widget

@@ -1036,38 +1036,6 @@ std::string GoannaRenderPage::GetTitle() {
 // key events into the engine, to verify — WITHOUT a physical VKB tap — that (a) focusing an editable
 // no longer crashes headless and (b) SendKeyEvent no longer null-derefs mTabChild (UXP patch 0010).
 // Logs each step so the last line before any daemon respawn pinpoints a remaining crash site.
-void GoannaRenderPage::JihadTypingSelfTest() {
-  fprintf(stderr, "[jihad-bs] SELFTEST begin\n");
-  if (!mChrome) return;
-  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-  if (!ds) { fprintf(stderr, "[jihad-bs] SELFTEST no docshell\n"); return; }
-  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
-  if (!cv) { fprintf(stderr, "[jihad-bs] SELFTEST no cv\n"); return; }
-  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
-  if (!doc) { fprintf(stderr, "[jihad-bs] SELFTEST no doc\n"); return; }
-  nsCOMPtr<nsIDOMNodeList> inputs;
-  doc->GetElementsByTagName(NS_LITERAL_STRING("input"), getter_AddRefs(inputs));
-  uint32_t n = 0; if (inputs) inputs->GetLength(&n);
-  fprintf(stderr, "[jihad-bs] SELFTEST inputs=%u\n", n);
-  if (!n) return;
-  nsCOMPtr<nsIDOMNode> node; inputs->Item(0, getter_AddRefs(node));
-  nsCOMPtr<nsIDOMHTMLElement> h = do_QueryInterface(node);
-  if (!h) { fprintf(stderr, "[jihad-bs] SELFTEST not HTMLElement\n"); return; }
-  fprintf(stderr, "[jihad-bs] SELFTEST focusing...\n");
-  h->Focus();                                  // crash-point #1 (focus/caret headless)
-  fprintf(stderr, "[jihad-bs] SELFTEST focus returned (no crash)\n");
-  const int keys[3][2] = { {65,97}, {66,98}, {67,99} };   // a,b,c : {keyCode,charCode}
-  for (int i = 0; i < 3; ++i) {
-    fprintf(stderr, "[jihad-bs] SELFTEST key %d...\n", i);
-    KeyEvent("keydown",  keys[i][0], keys[i][1], 0);       // crash-point #2 (SendKeyEvent -> 0010)
-    KeyEvent("keypress", keys[i][0], keys[i][1], 0);
-    KeyEvent("keyup",    keys[i][0], keys[i][1], 0);
-  }
-  nsCOMPtr<nsIDOMHTMLInputElement> input = do_QueryInterface(node);
-  if (input) { nsAutoString v; input->GetValue(v);
-    fprintf(stderr, "[jihad-bs] SELFTEST value=[%s]\n", NS_ConvertUTF16toUTF8(v).get()); }
-  fprintf(stderr, "[jihad-bs] SELFTEST end\n");
-}
 
 
 // --- process-global browser services ---------------------------------------

@@ -109,7 +109,6 @@ public:
   void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
   void HandleTab(bool backward);                   // Tab: tab char (textarea) or focus next field (input)
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
-  void JihadTypingSelfTest();                      // diag: programmatic focus+type (no VKB tap)
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---

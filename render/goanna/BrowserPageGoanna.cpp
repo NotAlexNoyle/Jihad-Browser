@@ -46,6 +46,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
   mPendingEditAction = 0;
+  mLoadStartMs = 0;
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -350,7 +351,7 @@ void BrowserPageGoanna::openUrl(const char* url) {
   if (applyRedirectRules(url)) return;
   mLoadWasDone = false;
   mNeedsPaint = false;
-  mSink.msgLoadStarted();
+  mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
   if (!mPage->LoadUrl(url)) {
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
     // and don't leave the adapter permanently "loading" (Codex P2 + R3).
@@ -364,15 +365,15 @@ void BrowserPageGoanna::openUrl(const char* url) {
 void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
   if (!mPage || !body) return;
   mLoadWasDone = false; mNeedsPaint = false;
-  mSink.msgLoadStarted();
+  mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
   if (!mPage->SetHtml(body)) { mSink.msgLoadStopped(); mLoadWasDone = true; }
 }
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
 // back/forward/reload also clear editor focus so the VKB lowers over the new page (review #7 P2).
-void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->GoForward(); } }
-void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mSink.msgLoadStarted(); mPage->Reload(); } }
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
@@ -551,14 +552,20 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
 
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;
-  if (mPage->LoadDone() && !mLoadWasDone) {
+  // Load-overlay watchdog: force the load "done" if it has been active too long without a real
+  // completion. A heavy modern page whose subresources stall, google's SPA churn, or an aborted
+  // nav that was excluded from completion (Codex F-236) must NEVER pin the isis loading overlay
+  // open — that covers the whole card and makes the browser look crashed/unusable. The page keeps
+  // loading in the background; we just stop showing the spinner (standard browser behaviour).
+  bool watchdog = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
+  if ((mPage->LoadDone() || watchdog) && !mLoadWasDone) {
+    if (watchdog && !mPage->LoadDone())
+      fprintf(stderr, "[jihad-bs] load watchdog: forcing loadStopped after %ldms\n",
+              jihadNowMs() - mLoadStartMs);
     mLoadWasDone = true;
+    mLoadStartMs = 0;
     mNeedsPaint = true;   // paint the final frame once (dedup &mdash; Codex P2)
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
-    // DIAG: a page whose URL contains "jihadselftest" triggers a one-shot programmatic
-    // focus+type, so the headless focus/key path can be verified without a physical VKB tap.
-    if (mPage->CurrentUri().find("jihadselftest") != std::string::npos)
-      mPage->JihadTypingSelfTest();
     mSink.msgLoadProgress(100);
     // R5: an overridable certificate error surfaces as an SSL-confirm dialog
     // rather than a generic failed load. R3: other network failures -> failed.

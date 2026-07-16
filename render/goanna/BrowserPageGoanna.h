@@ -160,6 +160,7 @@ private:
                                         // /about:isis): report THIS as the location instead
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
+  long               mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
   bool               mFrozen;           // card backgrounded: skip painting
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
   bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles

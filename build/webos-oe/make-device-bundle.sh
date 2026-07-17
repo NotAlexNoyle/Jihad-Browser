@@ -69,6 +69,27 @@ done
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"
+# Low-RAM (512 MB target: TouchPad Go, Palm Pre 3) memory + repaint tuning. These MUST be in
+# goanna.js (loaded before gfxPlatform snapshots the "Once" gfx prefs) — a runtime SetIntPref in
+# EngineHost::Init is too late (Codex F-235). Appended prefs override the stock defaults (last-wins).
+# The stock surfacecache cap is 1 GB, catastrophic on 512 MB: the decoded-image surface memory grows
+# until the OS evicts the live render to near-blank (the "renders full then goes blank" degradation).
+grep -q 'JIHAD low-RAM tuning' "$OUT/goanna.js" 2>/dev/null || cat >> "$OUT/goanna.js" <<'JIHADPREFS'
+// --- JIHAD low-RAM tuning (512 MB floor) ---
+pref("image.mem.surfacecache.max_size_kb", 32768);        // 32 MB decoded-image cache (was 1 GB)
+pref("image.mem.surfacecache.size_factor", 8);            // cap at RAM/8, not RAM/4
+pref("image.mem.surfacecache.discard_factor", 1);         // drop the whole cache on memory pressure
+pref("image.mem.discardable", true);
+pref("image.mem.animated.discardable", true);
+pref("browser.sessionhistory.max_total_viewers", 0);      // no bfcache page viewers in RAM
+pref("browser.sessionhistory.max_entries", 20);           // bound history depth
+pref("browser.cache.memory.enable", true);
+pref("browser.cache.memory.capacity", 16384);             // 16 MB in-RAM HTTP cache
+pref("layout.frame_rate", 30);                            // cap the refresh driver at 30 Hz
+pref("general.smoothScroll", false);                      // no smooth-scroll compositing
+pref("image.animation_mode", "once");                     // play animated GIFs once, not forever
+pref("nglayout.initialpaint.delay", 100);                 // paint sooner on slow pages
+JIHADPREFS
 
 # strip everything to shrink for the device
 for so in "$OUT"/*.so "$OUT"/*.so.* "$OUT/jihad-browserserver" "$OUT/libxul.so"; do

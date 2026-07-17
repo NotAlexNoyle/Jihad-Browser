@@ -184,29 +184,13 @@ EngineHost::Init(const char* greDir)
     if (pb) pb->SetCharPref("general.useragent.override", JIHAD_USER_AGENT);
     // Per-domain User-Agent overrides so modern sites serve working content (see jihadUaTable).
     jihadRegisterUaOverride();
-    // Performance tuning for heavy modern pages on low-RAM webOS devices — Jihad must run on as
-    // little as 512 MB (TouchPad Go / smaller). These are conservative, correctness-preserving prefs
-    // that cut MEMORY pressure and repaint churn: on a heavy page the offscreen render was seen
-    // degrading from a full frame to nearly blank, which is the surface/layer memory being evicted
-    // under pressure. Tuned for the 512 MB floor (bounded, small caches; aggressive image discard).
-    if (pb) {
-      // Do NOT keep old pages' full layout trees + layer caches in RAM (bfcache). On a memory-tight
-      // device this is the single biggest win — it frees the memory that evicts the live render.
-      pb->SetIntPref("browser.sessionhistory.max_total_viewers", 0);
-      // Bound the in-RAM HTTP + decoded-image caches so one heavy page can't balloon them (16 MB each).
-      pb->SetBoolPref("browser.cache.memory.enable", true);
-      pb->SetIntPref("browser.cache.memory.capacity", 16384);            // 16 MB memory HTTP cache (KB)
-      pb->SetIntPref("image.mem.surfacecache.max_size_kb", 16384);       // 16 MB decoded-image surface cache
-      pb->SetIntPref("image.mem.surfacecache.discard_factor", 2);        // halve the cache under pressure
-      // Discard decoded frames of not-recently-displayed images so they don't pin RAM.
-      pb->SetBoolPref("image.mem.discardable", true);
-      // Cut repaint/compositing churn from JS-heavy pages.
-      pb->SetIntPref("layout.frame_rate", 30);                           // cap the refresh driver at 30 Hz
-      pb->SetBoolPref("general.smoothScroll", false);                    // no smooth-scroll compositing
-      pb->SetCharPref("image.animation_mode", "once");                   // play animated GIFs once, not forever
-      // Faster first paint on slow pages (paint sooner rather than waiting for more content).
-      pb->SetIntPref("nglayout.initialpaint.delay", 100);
-    }
+    // NOTE: the low-RAM (512 MB) memory + repaint tuning prefs are NOT set here — a SetIntPref at
+    // this point is too late for the "Once"-style gfx prefs (image.mem.surfacecache.max_size_kb,
+    // layout.frame_rate), which gfxPlatform snapshots during XRE_InitEmbedding2 BEFORE this returns
+    // (Codex F-235). They live in goanna.js instead (loaded before gfx init) — see the append block
+    // in build/webos-oe/make-device-bundle.sh. Critically, the stock surfacecache cap is 1 GB, which
+    // is catastrophic on a 512 MB device (the surface memory grows until the live render is evicted
+    // to near-blank); goanna.js overrides it to a small bounded value.
     // NOTE: PSM/NSS (TLS) is force-initialized on the main thread in
     // GoannaRenderPage::LoadUrl (it is not registered yet this early at engine init).
   }

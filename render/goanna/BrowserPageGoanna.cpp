@@ -553,14 +553,15 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
   mNeedsPaint = true;
 }
 
-// Emit the completion details for a finished load: failure/cert, location, title+url, global history,
-// geometry, and a repaint. emitStopBoundary controls the load-lifecycle boundary (progress 100 +
-// load-stopped): true for a normal completion; false for a LATE completion the stall watchdog already
-// dismissed the overlay for (re-emitting the boundary would blink the spinner). Location/title are
-// emitted BEFORE load-stopped: isis's pageLoadStopped records the history entry from the CURRENT
-// title/url (review #6 F-004).
-void BrowserPageGoanna::emitCompletion(bool emitStopBoundary) {
-  if (emitStopBoundary) mSink.msgLoadProgress(100);
+// Emit the completion details for a finished load: failure/cert, location, title+url, load-stopped,
+// global history, geometry, and a repaint. emitProgress100 sends the progress bar to 100 (true for a
+// normal completion; false for a LATE completion the watchdog already carried to 100 when it dismissed
+// the overlay — re-sending it would restart the isis clear-progress timer). load-stopped is ALWAYS
+// emitted, AFTER location/title: isis's pageLoadStopped writes the history entry from the CURRENT
+// title/url, so it must run once the final title/url are set — the watchdog deliberately does NOT emit
+// load-stopped, so this late load-stopped is what records correct history (Codex F-004/F-334).
+void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
+  if (emitProgress100) mSink.msgLoadProgress(100);
   // R5: an overridable certificate error surfaces as an SSL-confirm dialog rather than a generic
   // failed load. R3: other network failures -> failed.
   bool failed = false; int code = 0; std::string furl;
@@ -585,7 +586,7 @@ void BrowserPageGoanna::emitCompletion(bool emitStopBoundary) {
     if (title.empty()) title = uri;
     fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
     mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
-  if (emitStopBoundary) mSink.msgLoadStopped();
+  mSink.msgLoadStopped();   // always: records history from the title/url just set (F-334)
   if (!failed && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
   emitGeometry();      // R4: contents-size + meta-viewport once the page settled
   mNeedsPaint = true;  // paint the final frame once (dedup — Codex P2)
@@ -609,24 +610,25 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     emitCompletion(true);
   } else if (mWatchdogDismissed && mPage->LoadDone()) {
     // LATE completion: the engine finished a load the stall watchdog had already dismissed the overlay
-    // for. Report the final location/title/error + repaint, but NOT another load-start/stop boundary
-    // (the overlay is gone; re-blinking it would look broken) — Codex F-324.
+    // for. Report the final location/title/error + load-stopped (records correct history — the watchdog
+    // did NOT, F-334) + repaint, but do NOT re-send progress 100 (already at 100) — Codex F-324.
     mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] late load done uri=%s\n", mPage->CurrentUri().c_str());
     emitCompletion(false);
   } else if (stalled) {
     // Stall watchdog (UI-ONLY): a load active too long without completing must NEVER pin the isis
-    // loading overlay open — it covers the whole card and looks crashed. Dismiss the overlay (progress
-    // 100 + load-stopped) but do NOT touch the engine: the request keeps loading in the background and,
-    // when it finishes, the late-completion branch reports its final URL/title and repaints. Leaving the
-    // engine + mProgrammaticLoad untouched also means a late redirect on that request is not
-    // misclassified as a user link nav (Codex F-288/F-324). The address bar keeps whatever it showed
-    // (the nav target) rather than reverting to the still-old CurrentUri.
+    // loading overlay open — it covers the whole card and looks crashed. Dismiss the overlay by driving
+    // the progress bar to 100 (isis then clears the spinner ~1s later); do NOT emit load-stopped here —
+    // that would write a history entry from the still-stale title/url, and the late-completion branch
+    // above emits the authoritative one (F-334). Do NOT Stop() the engine: the request keeps loading in
+    // the background and reports its real completion later (F-288). Reset mProgrammaticLoad so a form/
+    // location.href/meta-refresh nav the user triggers on the partial page is still detected and
+    // adopted/re-driven instead of being misread as a command load and dropped (Codex F-333).
     fprintf(stderr, "[jihad-bs] load watchdog: dismissing overlay after %ldms (engine still loading)\n",
             jihadNowMs() - mLoadStartMs);
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = true;
+    mPage->ClearProgrammaticLoad();
     mSink.msgLoadProgress(100);
-    mSink.msgLoadStopped();
   }
 }
 

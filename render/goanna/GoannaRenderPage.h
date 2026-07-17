@@ -139,6 +139,9 @@ public:
   // real completion (msgLocationChanged + repaint). Used for POSTs, which must NOT be re-driven via
   // openUrl (that would replay the body and double-submit — Codex F-262/F-289).
   void AdoptContentLoad();
+  // Reset the command-load flag so a content nav on a watchdog-dismissed partial page is still detected
+  // (Codex F-333). Called by the daemon's stall watchdog.
+  void ClearProgrammaticLoad();
   // Whether the last load ended in a network error (R3 failed-load). Fills the
   // failing nsresult code + URL when *failed is true.
   bool GetLoadError(bool* failed, int* code, std::string* url);

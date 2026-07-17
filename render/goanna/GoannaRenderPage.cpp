@@ -204,6 +204,15 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
   if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
     mLinkClicked = true;
     mLinkIsPost = false;
+    // Reset the per-load completion/failure state HERE, synchronously with the content nav's real
+    // START, so mDone tracks THIS navigation rather than the previous load. Without this, a fast POST
+    // that also STOPs before the daemon adopts it (STATE_START is delivered asynchronously while
+    // PumpFor runs) would be indistinguishable — mDone would still read the previous load's value, and
+    // the daemon would either complete prematurely or reset an already-finished load and stall it to
+    // the watchdog (Codex F-332). The daemon's AdoptContentLoad no longer touches mDone; it only marks
+    // the nav programmatic while it is still in flight.
+    mDone = false; mLoadFailed = false; mRedirected = false; mCertError = false;
+    mErrorStatus = NS_OK; mProgressPct = 0;
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
@@ -1085,12 +1094,22 @@ bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 int GoannaRenderPage::GetLoadProgress() const { return mChrome ? mChrome->mProgressPct : 0; }
 
 void GoannaRenderPage::AdoptContentLoad() {
-  // The engine already fired STATE_START for this content nav (that is how the daemon detected it),
-  // so mDone is still the PREVIOUS load's value (true). Re-run the per-load reset to clear it and mark
-  // the nav programmatic — same state a command load establishes — so completion is detected and no
-  // subframe/redirect START is misread as a fresh link click. No LoadUrl call: the engine owns the
-  // in-flight request (a re-issue would double a POST body — F-262/F-289).
-  BeginLoad();
+  if (!mChrome) return;
+  // OnStateChange already reset the per-load state (mDone/failure/progress) at this nav's STATE_START,
+  // so mDone accurately reflects whether the POST is still loading or already finished — do NOT touch
+  // it here (resetting a finished load to not-done would stall it to the watchdog — Codex F-332).
+  mChrome->mFocusedEditable = nullptr;   // the submitted form's field belongs to the old document
+  // If the nav is STILL in flight, mark it programmatic so its own redirect/subframe STARTs aren't
+  // re-detected as fresh link clicks. If it already COMPLETED (a fast POST whose STATE_STOP already
+  // reset mProgrammaticLoad to false), leave it false so the NEXT content nav is still detected.
+  if (!mChrome->mDone) mChrome->mProgrammaticLoad = true;
+}
+
+// Reset mProgrammaticLoad so a content nav on a watchdog-dismissed partial page is still detected
+// (Codex F-333). Used by the stall watchdog, which — unlike a command load — must not leave the
+// engine looking "mid command load" once the overlay is gone.
+void GoannaRenderPage::ClearProgrammaticLoad() {
+  if (mChrome) mChrome->mProgrammaticLoad = false;
 }
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }

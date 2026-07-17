@@ -45,7 +45,6 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
-  mPendingEditAction = 0;
   mLoadStartMs = 0;
 }
 
@@ -333,6 +332,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
   mPendingClick = false;   // a newer explicit navigation supersedes any queued tap
+  mPendingEditActions.clear();   // queued Tab/Enter for the old page are stale after a navigation
   // Any navigation lowers the VKB (covers link tap, JS location.href re-drive, form submit,
   // typed URL, back/forward) — otherwise the keyboard stays up over the new page (F-005).
   if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false, 0, 0);
@@ -441,10 +441,10 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     } else if (km(kTab) || km(kQtTab) || km(kQtBacktab)) {
       // Tab: <textarea> inserts a tab, single-line <input> moves to the next field (fires focus JS)
       // — defer to pump() (F-219). Shift+Tab / the Qt backtab code go backward.
-      mPendingEditAction = (shift || km(kQtBacktab)) ? PEA_TAB_BACK : PEA_TAB; mNeedsPaint = true;
+      mPendingEditActions.push_back((shift || km(kQtBacktab)) ? PEA_TAB_BACK : PEA_TAB); mNeedsPaint = true;
     } else if (km(kEnter) || km(kQtReturn) || km(kQtEnter)) {
       // Enter may submit a form and navigate — defer to pump() (never navigate in the key callback).
-      mPendingEditAction = PEA_ENTER; mNeedsPaint = true;
+      mPendingEditActions.push_back(PEA_ENTER); mNeedsPaint = true;
     } else if (km(kQtLeft)  || km(kMacLeft)  || km(kWebLeft))  { mPage->EditKey(GRP::EK_LEFT);  mNeedsPaint = true; }
     else if (km(kQtRight) || km(kMacRight) || km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
     else if (km(kQtUp)    || km(kMacUp)    || km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
@@ -671,13 +671,19 @@ void BrowserPageGoanna::pump(int msBudget) {
   // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback
   // (Codex F-219). A form submit navigates via the engine and is completed by the TakeLinkClicked
   // re-drive below, exactly like any content-initiated navigation.
-  if (mPendingEditAction != PEA_NONE) {
-    int act = mPendingEditAction; mPendingEditAction = PEA_NONE;
-    if (act == PEA_ENTER)         mPage->HandleEnter();
-    else if (act == PEA_TAB)      mPage->HandleTab(false);
-    else if (act == PEA_TAB_BACK) mPage->HandleTab(true);
+  if (!mPendingEditActions.empty()) {
+    // Process every queued Tab/Enter in press order (a swap-and-clear so a handler that queues more
+    // doesn't reenter this loop). Stop early once an editable is gone (a submit navigated away).
+    std::vector<int> acts;
+    acts.swap(mPendingEditActions);
+    for (int act : acts) {
+      if (!mPage->HasFocusedEditable()) break;   // a prior Enter submitted + navigated
+      if (act == PEA_ENTER)         mPage->HandleEnter();
+      else if (act == PEA_TAB)      mPage->HandleTab(false);
+      else if (act == PEA_TAB_BACK) mPage->HandleTab(true);
+    }
     mNeedsPaint = true;
-    // A form submit navigates away — keep the VKB state in sync if the editable focus changed.
+    // A form submit navigates away / Tab moves fields — keep the VKB state in sync if it changed.
     bool efoc = false; int eft = 0, efa = 0;
     if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
   }

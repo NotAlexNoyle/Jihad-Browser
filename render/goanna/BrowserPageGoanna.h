@@ -168,10 +168,11 @@ private:
   // hit-test / activation / click / navigation on the tick, where page teardown is safe.
   bool               mPendingClick;
   int                mPendingClickX, mPendingClickY, mPendingClickN;
-  // Queued editing key that runs page JS which may focus/navigate (Tab, Enter). Like clickAt these
+  // Queued editing keys that run page JS which may focus/navigate (Tab, Enter). Like clickAt these
   // must run in pump(), not synchronously in the keyDown YAP callback, or a focus/submit handler
-  // could tear the page down under us (Codex F-219). 0 = none; see the PEA_* constants in the .cpp.
-  int                mPendingEditAction;
+  // could tear the page down under us (Codex F-219). A QUEUE, not a single slot, so several presses
+  // between pump ticks aren't dropped (Codex F-241); see the PEA_* constants in the .cpp.
+  std::vector<int>   mPendingEditActions;
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

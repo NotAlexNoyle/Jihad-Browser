@@ -133,6 +133,11 @@ public:
   // Aggregate load progress 0..99 during a load (100 is signalled separately by LoadDone). Drives the
   // isis address-bar progress bar so a slow load looks alive instead of frozen.
   int GetLoadProgress() const;
+  // True (draining) if engine content invalidated since the last call — incremental render, JS/SPA DOM
+  // updates, async image decode, CSS animation (UXP patch 0012 sticky PuppetWidget flag). The daemon
+  // repaints on dirty: the engine-driven frame delivery the stock QtWebKit server got from Qt paint
+  // events. Always false on the non-offscreen (desktop GTK) path and on a pre-0012 libxul (weak symbol).
+  bool TakeDirty();
   // Adopt an in-flight ENGINE-initiated content navigation (a POST form submit) as the tracked load:
   // reset the per-load done/failure state and mark it programmatic so its own subframe/redirect
   // STATE_STARTs aren't misread as fresh link clicks, and so its eventual STATE_STOP is reported as a

@@ -29,6 +29,8 @@ downloads and MIME handoff, and TLS/certificate error handling. Reference:
 - [x] `clearCache` empties the engine cache.
 - [x] `clearCookies` removes stored cookies.
 - [x] With cookie acceptance disabled, set-cookie responses do not persist.
+- [x] Cookies and the HTTP disk cache PERSIST across daemon restarts (profile dir provided to the engine — `$JIHAD_PROFILE_DIR`, default `<greDir>/../profile`). Without persistence, consent/login cookies die with the process and consent-gated modern sites re-prompt every launch (the Atlas WPE lesson). *(2026-07-17, unverified on device.)*
+- [x] Low-memory guardrail: the renderer watches available system memory (rate-limited /proc/meminfo poll) and fires the engine memory-pressure flush + malloc_trim when RAM runs short, throttled against GC thrash — 512 MB Pre 3 floor. Threshold via `$JIHAD_MEM_LOW_KB` (default 48 MB). *(Pattern: Palm memchute watcher + Atlas memory budget; 2026-07-17, unverified on device.)*
 - [ ] The same actions are reachable via the LunaService methods on the device build.
 **Dependencies:** cavekit-ipc-contract.md (R4)
 
@@ -65,3 +67,4 @@ downloads and MIME handoff, and TLS/certificate error handling. Reference:
 ## Changelog
 - 2026-06-30: Initial draft.
 - 2026-07-04: Reconciled — R1 settings + R2 clear cache/cookies + R3 JS dialogs (blocking) verified (SETTINGS2/SERVICES/DIALOG PASS); R4 MIME/download handoff captured (DOWNLOAD PASS); R5 invalid-cert->SSL-confirm + reject-aborts (TLS PASS). Pending: device LunaService cache/cookie methods, download start/progress/finished + cancel, SSL accept-proceeds + webOS cert store (device).
+- 2026-07-17: R2 gained cookie/disk-cache PERSISTENCE (profile dir provider) and the low-memory guardrail (memory-pressure watcher), both ported patterns from Atlas/stock BrowserServer — see NOTICE. goanna.js gained Arctic-Fox/Mypal68-style JS-heap + media/network low-RAM prefs (build/webos-oe/make-device-bundle.sh).

@@ -20,11 +20,16 @@
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
+#include "nsIDirectoryService.h"     // nsIDirectoryServiceProvider (profile dir — cookie persistence)
 #include "nsIHttpChannel.h"
 #include "nsIURI.h"
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
+#include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
+#include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB)
+#include <ctime>                     // clock_gettime (watcher rate-limit)
+#include <malloc.h>                  // malloc_trim (memchute pattern)
 #include <cctype>                    // tolower (case-insensitive host match)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
@@ -150,6 +155,45 @@ EngineHost::~EngineHost()
   Shutdown();
 }
 
+// ── profile directory provider ──────────────────────────────────────────────
+// Without a profile dir ("ProfD"/"ProfLD"), the cookie service, permission
+// manager, and disk cache have nowhere to persist — cookies become memory-only
+// and die with the daemon. That is exactly the failure Atlas hit on WPE: every
+// restart lost consent/login cookies, so consent-gated modern sites bounced to
+// their consent wall on each launch. Provide a writable profile dir so
+// cookies.sqlite + the disk cache survive restarts. Path: $JIHAD_PROFILE_DIR,
+// else <greDir>/../profile (= /media/internal/jihad/profile on the device).
+class JihadDirProvider final : public nsIDirectoryServiceProvider
+{
+public:
+  NS_DECL_ISUPPORTS
+  explicit JihadDirProvider(nsIFile* aProfile) : mProfile(aProfile) {}
+
+  NS_IMETHOD GetFile(const char* aProp, bool* aPersistent, nsIFile** aResult) override
+  {
+    *aPersistent = true;
+    if (mProfile &&
+        (!strcmp(aProp, "ProfD") ||    // NS_APP_USER_PROFILE_50_DIR
+         !strcmp(aProp, "ProfLD"))) {  // NS_APP_USER_PROFILE_LOCAL_50_DIR
+      nsCOMPtr<nsIFile> f;
+      if (NS_SUCCEEDED(mProfile->Clone(getter_AddRefs(f))) && f) {
+        f.forget(aResult);
+        return NS_OK;
+      }
+    }
+    return NS_ERROR_FAILURE;
+  }
+
+private:
+  ~JihadDirProvider() {}
+  nsCOMPtr<nsIFile> mProfile;
+};
+NS_IMPL_ISUPPORTS(JihadDirProvider, nsIDirectoryServiceProvider)
+
+// Held (deliberately leaked) for the process lifetime — XRE keeps a raw pointer
+// to the provider, so it must outlive the embedding.
+static JihadDirProvider* sJihadDirProvider = nullptr;
+
 bool
 EngineHost::Init(const char* greDir)
 {
@@ -168,9 +212,33 @@ EngineHost::Init(const char* greDir)
     return false;
   }
 
-  // greDir doubles as the application directory for this headless embedder;
-  // no custom directory-service provider is needed for the smoke bring-up.
-  rv = XRE_InitEmbedding2(dir, dir, nullptr);
+  // greDir doubles as the application directory for this headless embedder.
+  // Provide a PROFILE dir ("ProfD"/"ProfLD") so cookies.sqlite, permissions,
+  // and the disk cache persist across daemon restarts — without it the cookie
+  // service is memory-only and consent/login cookies die with the process
+  // (the Atlas WPE consent-bounce lesson). $JIHAD_PROFILE_DIR overrides;
+  // default <greDir>/../profile (device: /media/internal/jihad/profile).
+  {
+    std::string profPath;
+    const char* pe = getenv("JIHAD_PROFILE_DIR");
+    if (pe && *pe) profPath = pe;
+    else { profPath = greDir; profPath += "/../profile"; }
+    nsCOMPtr<nsIFile> prof;
+    if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(profPath.c_str()),
+                                           true, getter_AddRefs(prof))) && prof) {
+      prof->Normalize();   // resolve the ".." so ProfD is a clean absolute path
+      // 0700 like a real profile; already-exists is fine.
+      nsresult crv = prof->Create(nsIFile::DIRECTORY_TYPE, 0700);
+      if (NS_SUCCEEDED(crv) || crv == NS_ERROR_FILE_ALREADY_EXISTS) {
+        sJihadDirProvider = new JihadDirProvider(prof);
+        NS_ADDREF(sJihadDirProvider);
+      } else {
+        fprintf(stderr, "[jihad-bs] profile dir %s unavailable (0x%x) — cookies will be memory-only\n",
+                profPath.c_str(), (unsigned)crv);
+      }
+    }
+  }
+  rv = XRE_InitEmbedding2(dir, dir, sJihadDirProvider);
   mInited = NS_SUCCEEDED(rv);
 
   // Override "@mozilla.org/prompter;1" so content dialogs (alert/confirm/prompt)
@@ -252,6 +320,63 @@ EngineHost::Shutdown()
   // assert the count is zero here.
   XRE_TermEmbedding();
   mInited = false;
+}
+
+// ── low-memory guardrail ────────────────────────────────────────────────────
+// Ported patterns: Palm BrowserServer memchute watcher (doMemWatch — timed poll,
+// malloc_trim + tiered purge) and Atlas WPE's memory budget lesson (the budget
+// must sit near the REAL free memory or the engine grows past what the system
+// can commit and dies before it ever purges — exactly the 512 MB Pre 3 risk).
+// Goanna already has the reaction machinery: the "memory-pressure" observer
+// notification drives JS GC/CC, image surface discard, and cache eviction
+// (nsMemoryImpl/FlushMemory subscribers) — we just have to FIRE it, because in
+// this bare embedding nothing else watches system memory.
+
+// Available-memory estimate in kB: MemFree + Buffers + Cached (page cache is
+// reclaimable). Same /proc/meminfo fields the Palm BrowserServer getMemInfo read.
+static long jihadAvailableKb() {
+  FILE* f = fopen("/proc/meminfo", "r");
+  if (!f) return -1;
+  char line[128]; long freeKb = 0, buffersKb = 0, cachedKb = 0; int got = 0;
+  while (got < 3 && fgets(line, sizeof(line), f)) {
+    long v = 0;
+    if (sscanf(line, "MemFree: %ld", &v) == 1)      { freeKb = v;    ++got; }
+    else if (sscanf(line, "Buffers: %ld", &v) == 1) { buffersKb = v; ++got; }
+    else if (sscanf(line, "Cached: %ld", &v) == 1)  { cachedKb = v;  ++got; }
+  }
+  fclose(f);
+  return freeKb + buffersKb + cachedKb;
+}
+
+void
+EngineHost::CheckMemoryPressure()
+{
+  if (!mInited) return;
+  long now = 0;
+  { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    now = ts.tv_sec * 1000L + ts.tv_nsec / 1000000L; }
+  if (now - mMemPollMs < 5000) return;   // poll /proc/meminfo at most every 5 s
+  mMemPollMs = now;
+
+  static long lowKb = -2;
+  if (lowKb == -2) {   // resolve the threshold once
+    lowKb = 49152;     // default 48 MB — headroom for one paint + GC on a 512 MB device
+    const char* e = getenv("JIHAD_MEM_LOW_KB");
+    if (e) { long v = atol(e); if (v >= 8192 && v <= 262144) lowKb = v; }
+  }
+  long avail = jihadAvailableKb();
+  if (avail < 0 || avail >= lowKb) return;
+
+  // Throttle the reaction: repeated pressure notifications thrash the GC (the
+  // memchute watcher throttled for the same reason; Atlas's aggressive-purge
+  // regression was over-frequent pressure handling).
+  if (now - mMemNotifyMs < 30000) return;
+  mMemNotifyMs = now;
+  fprintf(stderr, "[jihad-bs] memory pressure: %ld kB available (< %ld kB) — flushing engine caches\n",
+          avail, lowKb);
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (obs) obs->NotifyObservers(nullptr, "memory-pressure", u"low-memory");
+  malloc_trim(0);   // return freed heap pages to the kernel (memchute pattern)
 }
 
 } // namespace jihad

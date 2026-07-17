@@ -1,0 +1,80 @@
+Jihad: sticky invalidation flag so the daemon repaints on content change.
+
+The offscreen embedding has no compositor/paint-event feedback loop: the stock
+QtWebKit BrowserServer received engine invalidations as Qt paint events
+(BrowserPage::paintEvent -> flushBuffer -> msgPainted), but the Jihad daemon
+paints only when ITS OWN state machine sets a needs-paint flag (input, load
+completion, geometry). Engine-internal changes — incremental render during a
+load, async image decode after load-done, all JS/SPA DOM updates, CSS
+animation — never reached the daemon, so the shared buffer showed a stale
+frame until the user dragged (on-device bug: "the old page sticks around;
+have to tap or drag to see the current rendering state").
+
+Record every PuppetWidget::Invalidate() in a sticky mJihadDirty flag (separate
+from mDirtyRegion, which the PaintTask self-clears) and export
+jihad_offscreen_take_dirty() for the daemon to drain each tick: dirty ->
+repaint. This is the engine-driven frame delivery the platform expects,
+without periodic blind repaints (which would waste CPU/battery on the 512 MB
+TouchPad/Pre 3 target).
+
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -216,6 +216,14 @@
+   // widget Paint() path does NOT paint the embedded content into this widget, so
+   // relying on it produced a black frame; this renders the actual document.
+   bool JihadRenderDocument(nsIDocShell* aDocShell);
++  // Sticky invalidation flag for the render daemon (jihad_offscreen_take_dirty):
++  // set on every Invalidate() so the daemon knows CONTENT CHANGED and a repaint is
++  // due — the offscreen embedding has no compositor/paint-event feedback loop, so
++  // without this the daemon's frame delivery is input-driven only and JS/SPA DOM
++  // updates, async image decode, and incremental page render leave the shared
++  // buffer stale (the on-device "old page sticks around until you drag" bug).
++  // Deliberately separate from mDirtyRegion, which the PaintTask self-clears.
++  bool JihadTakeDirty() { bool d = mJihadDirty; mJihadDirty = false; return d; }
+
+   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
+
+@@ -366,6 +374,7 @@
+   // event handler.
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
++  bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
+   nsRevocableEventPtr<PaintTask> mPaintTask;
+   RefPtr<MemoryPressureObserver> mMemoryPressureObserver;
+   // XXX/cjones: keeping this around until we teach LayerManager to do
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -309,6 +309,10 @@
+   if (mChild) {
+     return mChild->Invalidate(aRect);
+   }
+
++  // Jihad: record that content changed so the offscreen render daemon repaints
++  // (jihad_offscreen_take_dirty). Sticky — only the daemon's drain clears it.
++  mJihadDirty = true;
++
+   mDirtyRegion.Or(mDirtyRegion, aRect);
+
+   if (!mDirtyRegion.IsEmpty() && !mPaintTask.IsPending()) {
+@@ -755,6 +759,21 @@
+     static_cast<PuppetWidget*>(aWidget)->PaintNowIfNeeded();
+   }
+ }
+
++// True (and clears the flag) if content invalidated since the last call — layout
++// invalidations from incremental page render, JS/SPA DOM updates, async image
++// decode, CSS animation. The daemon polls this each tick and repaints on dirty,
++// giving the offscreen embedding the engine-driven frame delivery the stock
++// QtWebKit BrowserServer got from Qt paint events (BrowserPage::paintEvent).
++MOZ_EXPORT bool
++jihad_offscreen_take_dirty(nsIWidget* aWidget)
++{
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadTakeDirty();
++}
++
+ // Render the docShell's document into the widget's offscreen DrawTarget via the
+ // presShell (canonical offscreen render). The daemon passes the content nsIDocShell
+ // it already resolves. Returns true if the document rendered.

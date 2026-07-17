@@ -311,6 +311,10 @@ extern "C" {
   bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
                                 int aWidth, int aHeight);
   void jihad_offscreen_release(nsIWidget* aWidget);
+  // Sticky content-invalidation drain (patches/0012). WEAK so the daemon still
+  // loads against a pre-0012 libxul (then reports no dirty and paint falls back
+  // to the input/load-driven behavior instead of failing to start).
+  bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
 }
 
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
@@ -1092,6 +1096,11 @@ void GoannaRenderPage::ClearHistory() {
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 int GoannaRenderPage::GetLoadProgress() const { return mChrome ? mChrome->mProgressPct : 0; }
+
+bool GoannaRenderPage::TakeDirty() {
+  if (!mOffscreen || !mWidget || !jihad_offscreen_take_dirty) return false;
+  return jihad_offscreen_take_dirty(mWidget);
+}
 
 void GoannaRenderPage::AdoptContentLoad() {
   if (!mChrome) return;

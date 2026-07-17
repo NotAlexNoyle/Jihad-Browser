@@ -607,7 +607,9 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   // decreases and clears its bar at 100, which the completion boundary sends).
   if (!mLoadWasDone) {
     int p = mPage->GetLoadProgress();
-    if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); }
+    // Progress also repaints (belt-and-braces under the 0012 dirty flag): bytes arrived, so the
+    // incremental render likely changed — show the page building up instead of a stale frame.
+    if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); mNeedsPaint = true; }
   }
   bool stalled = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
   if (mPage->LoadDone() && !mLoadWasDone) {
@@ -768,12 +770,22 @@ void BrowserPageGoanna::pump(int msBudget) {
     }
   }
   mPage->PumpFor(msBudget);
+  // Engine-driven repaint (UXP patch 0012): PumpFor just ran layout/JS/imagelib work; if any of it
+  // invalidated content (incremental page render, SPA/JS DOM update, async image decode, animation),
+  // repaint this tick. This is the frame-delivery loop the stock QtWebKit server got from Qt paint
+  // events — without it the shared buffer goes stale until user input forces a paint (device T3:
+  // "the old page sticks around until you tap or drag").
+  if (mPage->TakeDirty()) mNeedsPaint = true;
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
   // reflow just re-defers via the guard until a real size is available.
   if (mGeometryDirty && emitGeometry()) mGeometryDirty = false;   // retry until reflow yields a valid size
   emitLoadAndLocation();
   emitScrollIfChanged();
+  // Low-memory guardrail (512 MB Pre 3 floor): internally rate-limited /proc/meminfo poll; fires the
+  // engine "memory-pressure" flush + malloc_trim when RAM runs short. Lives here (not the engine-
+  // agnostic browserserver tick) so the daemon layer keeps zero engine includes.
+  mHost.CheckMemoryPressure();
 }
 
 void BrowserPageGoanna::maybePaint() {

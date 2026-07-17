@@ -89,6 +89,28 @@ pref("layout.frame_rate", 30);                            // cap the refresh dri
 pref("general.smoothScroll", false);                      // no smooth-scroll compositing
 pref("image.animation_mode", "once");                     // play animated GIFs once, not forever
 pref("nglayout.initialpaint.delay", 100);                 // paint sooner on slow pages
+// JS heap tuning for a small-RAM/slow-CPU device, following the low-spec Goanna
+// forks: Arctic Fox ships high_water_mark=128 + slice=10 for old Macs; Mypal68
+// uses slice=5 for old XP boxes. 512 MB floor wants an even lower water mark.
+pref("javascript.options.mem.high_water_mark", 32);       // GC when a zone's malloc'd heap hits 32 MB
+pref("javascript.options.mem.gc_incremental_slice_ms", 5); // short GC slices keep input responsive
+pref("javascript.options.mem.gc_low_frequency_heap_growth", 120); // grow the heap slowly (default 150%)
+pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 40); // treat >40 MB heaps as "large"
+// Media: never buffer half a video in RAM on a 512 MB device.
+pref("media.cache_size", 32768);                          // 32 MB media cache (kB; default 500 MB)
+pref("media.memory_cache_max_size", 4096);                // 4 MB in-memory media cache (kB)
+// Network: fewer parallel sockets = less buffer memory + less CPU contention on
+// the single-core-class device; still plenty for one page.
+pref("network.http.max-connections", 32);
+pref("network.http.max-persistent-connections-per-server", 4);
+pref("network.prefetch-next", false);                     // no speculative page prefetch
+pref("network.dns.disablePrefetch", true);
+// Disk offload: persistent HTTP cache on the (large) internal media partition
+// keeps repeat loads off the network AND lets the RAM cache stay small. Cookies
+// and the rest of the profile live in the daemon profile dir (see EngineHost).
+pref("browser.cache.disk.enable", true);
+pref("browser.cache.disk.capacity", 65536);               // 64 MB on /media/internal
+pref("browser.cache.disk.smart_size.enabled", false);     // never autosize into GBs
 JIHADPREFS
 
 # strip everything to shrink for the device

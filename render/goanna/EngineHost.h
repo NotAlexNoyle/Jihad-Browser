@@ -39,8 +39,22 @@ public:
 
   bool IsInited() const { return mInited; }
 
+  // Low-memory guardrail for the 512 MB Pre 3 / 1 GB TouchPad targets. Called from the
+  // daemon tick; internally rate-limited (polls /proc/meminfo every few seconds). When
+  // available memory (MemFree+Buffers+Cached) drops below the threshold it fires the
+  // engine's "memory-pressure" observer notification — JS GC/CC, image discard, and the
+  // caches all subscribe — and malloc_trim(0)s the heap back to the kernel, throttled so
+  // repeated pressure can't thrash the GC. Pattern ported from the Palm BrowserServer
+  // memchute watcher (doMemWatch: malloc_trim + purge tiers) and Atlas's WPE memory
+  // budget ("set the budget near the real free memory so the engine purges early
+  // enough" — a 480 MB default budget let the WebProcess die before ever purging).
+  // Threshold override: JIHAD_MEM_LOW_KB (default 49152 = 48 MB).
+  void CheckMemoryPressure();
+
 private:
   bool mInited;
+  long mMemPollMs = 0;      // last /proc/meminfo poll (monotonic ms)
+  long mMemNotifyMs = 0;    // last memory-pressure notification (throttle)
 
   EngineHost(const EngineHost&) = delete;
   EngineHost& operator=(const EngineHost&) = delete;

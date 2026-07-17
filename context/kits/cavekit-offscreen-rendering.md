@@ -35,7 +35,7 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 - [x] Each completed frame yields exactly one paint-ready notification naming the buffer that was filled.
 - [x] A buffer is not reused for the next frame until the client returns it.
 - [x] Invalidations are coalesced so transient changes do not produce redundant full repaints.
-- [ ] **A content change produces a repaint without user input.** *(REPORTED broken on-device 2026-07-17, T3: painting is gated on daemon-side mNeedsPaint, which no engine invalidation ever sets — incremental render during load, post-load async image decode, and ALL SPA/JS DOM updates leave the shared buffer stale until the user drags. "Old page sticks around; have to tap or drag to see the current rendering state." See context/impl/device-test-2026-07-17.md.)*
+- [ ] **A content change produces a repaint without user input.** *(REPORTED broken on-device 2026-07-17, T3: painting is gated on daemon-side mNeedsPaint, which no engine invalidation ever sets — incremental render during load, post-load async image decode, and ALL SPA/JS DOM updates leave the shared buffer stale until the user drags. FIX IMPLEMENTED same day, pending device retest: UXP patch 0012 adds a sticky PuppetWidget::Invalidate() dirty flag drained by `jihad_offscreen_take_dirty`; the daemon polls it each tick after PumpFor and repaints on dirty — the engine-driven frame delivery the stock QtWebKit server got from Qt paint events. Plus progress-increase→repaint during loads. See context/impl/device-test-2026-07-17.md.)*
 **Dependencies:** cavekit-ipc-contract.md (R2), cavekit-engine-embedding.md (R3)
 
 ### R4: Geometry and viewport events emitted

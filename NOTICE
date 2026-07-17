@@ -49,6 +49,24 @@ Atlas Browser (parallel isis-browser fork) — ported fixes
       QPainter/PGContext deref that segfaults LunaSysMgr), out-of-buffer white
       fill, tall-buffer pan, pinch-zoom scaled blit, and scroll indicator —
       Atlas BrowserAdapter commits 7b91ab8, aefab6d, dbc897c, 27b54a5, 77ab724.
+    - Low-memory design patterns from atlas-wpe-backend/BrowserPageWPE.cpp:
+      pin the engine memory budget near the REAL free memory so purges happen
+      before system OOM, throttle pressure handling to avoid GC thrash, and
+      persist the cookie jar on disk so consent/login cookies survive daemon
+      restarts (EngineHost memory-pressure watcher + profile dir provider).
+
+Palm/HP webOS BrowserServer (this project's upstream base, Apache-2.0)
+  The daemon's low-memory reaction (timed memory watch -> notify + malloc_trim,
+  tiered response) follows the original BrowserServer memchute watcher
+  (BrowserServer::doMemWatch / getMemInfo).
+
+Arctic Fox and Mypal68 (Pale Moon / Goanna family forks for legacy hardware)
+  Copyright (c) their respective contributors, MPL-2.0.
+  Origin: https://github.com/rmottola/Arctic-Fox
+          https://github.com/Feodor2/Mypal68
+  The 512 MB device JS-heap tuning in goanna.js (javascript.options.mem.
+  high_water_mark, gc_incremental_slice_ms) follows the values these forks
+  ship for low-memory/slow-CPU machines.
 
 --------------------------------------------------------------------------------
 Trademark notice

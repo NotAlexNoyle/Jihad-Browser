@@ -127,7 +127,8 @@ public:
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
-  void emitCompletion(bool emitStopBoundary);   // completion details (location/title/history/geometry)
+  std::string emitLocationAndTitle();           // failure/cert + location + title/url; returns uri ("" if failed)
+  void emitCompletion(bool emitProgress100);    // full boundary: progress/location/title/load-stopped/history
   bool emitGeometry();          // contents-size + meta-viewport (dedup); true if a valid size was read
   void emitScrollIfChanged();   // scrolled-to when the offset moved
 

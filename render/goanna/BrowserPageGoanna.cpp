@@ -553,14 +553,11 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
   mNeedsPaint = true;
 }
 
-// Emit the completion details for a finished load: failure/cert, location, title+url, load-stopped,
-// global history, geometry, and a repaint. emitProgress100 sends the progress bar to 100 (true for a
-// normal completion and for the watchdog's forced completion; false for a LATE completion already
-// carried to 100 — re-sending it would restart the isis clear-progress timer). load-stopped is ALWAYS
-// emitted, AFTER location/title: isis's pageLoadStopped writes the history entry from the title/url just
-// set, so those must precede it or history records stale data (Codex F-004/F-334).
-void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
-  if (emitProgress100) mSink.msgLoadProgress(100);
+// Emit failure/cert + location + title/url for a settled load, and return the reported uri ("" if the
+// load failed, so the caller skips writing history). Does NOT emit the load-stopped boundary — isis's
+// pageLoadStopped writes the app history entry from the title/url this sets, so load-stopped must run
+// AFTER this or history records stale data (Codex F-004/F-334).
+std::string BrowserPageGoanna::emitLocationAndTitle() {
   // R5: an overridable certificate error surfaces as an SSL-confirm dialog rather than a generic
   // failed load. R3: other network failures -> failed.
   bool failed = false; int code = 0; std::string furl;
@@ -585,8 +582,19 @@ void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
     if (title.empty()) title = uri;
     fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
     mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
-  mSink.msgLoadStopped();   // always: records history from the title/url just set (F-334)
-  if (!failed && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
+  return failed ? std::string() : uri;
+}
+
+// Full completion boundary: progress, location/title, load-stopped, global history, geometry, repaint.
+// emitProgress100 drives the bar to 100 (true for a normal completion and the watchdog's forced one;
+// omit only if it is already at 100). Emits EXACTLY ONE load-stopped per load — the late-completion path
+// deliberately does not call this (it only re-syncs the address bar), so pageLoadStopped/history run
+// once (Codex F-361).
+void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
+  if (emitProgress100) mSink.msgLoadProgress(100);
+  std::string uri = emitLocationAndTitle();
+  mSink.msgLoadStopped();   // records app history from the title/url just set (F-334)
+  if (!uri.empty() && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
   emitGeometry();      // R4: contents-size + meta-viewport once the page settled
   mNeedsPaint = true;  // paint the final frame once (dedup — Codex P2)
 }
@@ -596,36 +604,38 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   // Incremental load progress: feed the isis address-bar progress bar while the load is in flight so a
   // slow 512 MB-device page visibly advances instead of sitting at 0% — a frozen full-width bar reads
   // as a crashed "loading screen" (the user's #1 complaint). Only emit increases (isis ignores
-  // decreases and clears its bar at 100, which emitCompletion(true) sends).
+  // decreases and clears its bar at 100, which the completion boundary sends).
   if (!mLoadWasDone) {
     int p = mPage->GetLoadProgress();
     if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); }
   }
   bool stalled = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
   if (mPage->LoadDone() && !mLoadWasDone) {
-    // Normal completion.
+    // Normal completion — the one and only load-stopped boundary for this load.
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
     emitCompletion(true);
   } else if (mWatchdogDismissed && mPage->LoadDone()) {
-    // LATE completion: the engine finished a load the stall watchdog already forced a provisional
-    // completion for. Re-report the FINAL location/title/error + load-stopped (correcting the provisional
-    // history the watchdog wrote from the then-current URL — updateHistory dedups by URL) + repaint, but
-    // do NOT re-send progress 100 (already at 100; re-sending restarts the isis clear-progress timer) —
-    // Codex F-324/F-334.
+    // LATE completion: the engine finished a load the stall watchdog already gave a full completion
+    // boundary. The lifecycle (load-started..load-stopped) is already balanced, so DON'T emit another
+    // load-stopped/progress (that would double pageLoadStopped + unbalance the stream — Codex F-361).
+    // Just re-sync the address bar to the FINAL url/title in case it changed since the watchdog fired
+    // (e.g. a redirect that resolved late) and repaint the final frame.
     mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] late load done uri=%s\n", mPage->CurrentUri().c_str());
-    emitCompletion(false);
+    emitLocationAndTitle();
+    emitGeometry();
+    mNeedsPaint = true;
   } else if (stalled) {
     // Stall watchdog: a load active too long without completing must NEVER pin the isis loading overlay
-    // open — it covers the whole card and looks crashed. Force a completion boundary (R3): emitCompletion
-    // emits the current best location/title THEN load-stopped, so the lifecycle is balanced (a
-    // permanently-stalled load isn't left with load-started unmatched — Codex F-353) and history is
-    // recorded from the current URL, not stale data (F-334). This does NOT Stop() the engine: the request
-    // keeps loading in the background and, if it finishes, the late-completion branch above re-emits the
-    // final location/title (F-288). mWatchdogDismissed marks that state; ClearProgrammaticLoad lets a
-    // form/location.href/meta-refresh nav the user triggers on the partial page still be detected and
-    // adopted/re-driven instead of being misread as a command load and dropped (Codex F-333).
+    // open — it covers the whole card and looks crashed. Force ONE full completion boundary (R3) so the
+    // lifecycle is balanced even if the request never finishes (a permanently-stalled load isn't left
+    // with load-started unmatched — Codex F-353). By 12s the doc has almost always COMMITTED (headers
+    // received) so CurrentUri is the new page, not stale (F-360). This does NOT Stop() the engine: the
+    // request keeps loading and, if it finishes, the late branch above re-syncs the final url + repaints
+    // (F-288) — without a second load-stopped. ClearProgrammaticLoad lets a form/location.href/
+    // meta-refresh nav the user triggers on the partial page still be detected and adopted/re-driven
+    // instead of being misread as a command load and dropped (Codex F-333).
     fprintf(stderr, "[jihad-bs] load watchdog: forcing load-stopped after %ldms (engine still loading)\n",
             jihadNowMs() - mLoadStartMs);
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = true;

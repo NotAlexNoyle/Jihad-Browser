@@ -108,6 +108,14 @@ pref("network.dns.disablePrefetch", true);
 // Disk offload: persistent HTTP cache on the (large) internal media partition
 // keeps repeat loads off the network AND lets the RAM cache stay small. Cookies
 // and the rest of the profile live in the daemon profile dir (see EngineHost).
+// VFAT CAUTION (inspector P2): /media/internal is VFAT — no journaling. The
+// cache2 disk cache is DISPOSABLE by design (entries are checksummed; corruption
+// = cache miss + auto-rebuild), so it is safe there. cookies.sqlite is NOT
+// disposable: force mozStorage to synchronous=FULL so the SQLite rollback
+// journal is fsync-ordered and a hard power loss mid-write rolls back cleanly
+// instead of corrupting the whole cookie DB (an OOM SIGKILL alone doesn't tear
+// writes — the kernel completes queued I/O — but battery pulls happen).
+pref("toolkit.storage.synchronous", 2);                   // FULL fsync for sqlite (cookies on VFAT)
 pref("browser.cache.disk.enable", true);
 pref("browser.cache.disk.capacity", 65536);               // 64 MB on /media/internal
 pref("browser.cache.disk.smart_size.enabled", false);     // never autosize into GBs

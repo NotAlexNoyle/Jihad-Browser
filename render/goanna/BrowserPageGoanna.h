@@ -162,6 +162,9 @@ private:
   bool               mWatchdogDismissed; // the stall watchdog cleared the overlay while the engine load
                                          // is still running; a later real completion emits location/
                                          // title/repaint without a fresh load-start/stop boundary (F-324)
+  bool               mDirtyPending;      // engine invalidation seen, repaint owed once the rate-limit
+                                         // window opens (inspector P2: cap dirty-driven full repaints)
+  long               mLastDirtyPaintMs;  // last dirty-driven repaint (ms), for the 150 ms cap
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad
                                         // /about:isis): report THIS as the location instead

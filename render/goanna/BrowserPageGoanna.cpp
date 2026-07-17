@@ -48,6 +48,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mLoadStartMs = 0;
   mLastProgress = 0;
   mWatchdogDismissed = false;
+  mDirtyPending = false; mLastDirtyPaintMs = 0;
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -772,10 +773,19 @@ void BrowserPageGoanna::pump(int msBudget) {
   mPage->PumpFor(msBudget);
   // Engine-driven repaint (UXP patch 0012): PumpFor just ran layout/JS/imagelib work; if any of it
   // invalidated content (incremental page render, SPA/JS DOM update, async image decode, animation),
-  // repaint this tick. This is the frame-delivery loop the stock QtWebKit server got from Qt paint
-  // events — without it the shared buffer goes stale until user input forces a paint (device T3:
-  // "the old page sticks around until you tap or drag").
-  if (mPage->TakeDirty()) mNeedsPaint = true;
+  // repaint. This is the frame-delivery loop the stock QtWebKit server got from Qt paint events —
+  // without it the shared buffer goes stale until user input forces a paint (device T3: "the old page
+  // sticks around until you tap or drag"). RATE-LIMITED (inspector P2): a page with a persistent
+  // animation (CSS spinner, video, SPA churn) otherwise re-dirties EVERY tick, forcing a full-document
+  // software render + 3 MB buffer copy at ~30 Hz on the single-core ARMv7 — input latency + battery
+  // drain. Dirty-driven paints are capped at one per 150 ms (~6 fps for pure animation; latency the
+  // user can't perceive on a spinner); input/load-driven paints stay immediate via their own
+  // mNeedsPaint sets. The pending flag is sticky so a dirty burst still paints when the window opens.
+  if (mPage->TakeDirty()) mDirtyPending = true;
+  if (mDirtyPending) {
+    long dnow = jihadNowMs();
+    if (dnow - mLastDirtyPaintMs >= 150) { mNeedsPaint = true; mDirtyPending = false; mLastDirtyPaintMs = dnow; }
+  }
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
   // reflow just re-defers via the guard until a real size is available.

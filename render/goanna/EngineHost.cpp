@@ -27,7 +27,8 @@
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
-#include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB)
+#include <cstdlib>                   // getenv/atol/realpath (JIHAD_MEM_LOW_KB, profile dir)
+#include <climits>                   // PATH_MAX (realpath buffer)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
 #include <malloc.h>                  // malloc_trim (memchute pattern)
 #include <cctype>                    // tolower (case-insensitive host match)
@@ -222,14 +223,23 @@ EngineHost::Init(const char* greDir)
     std::string profPath;
     const char* pe = getenv("JIHAD_PROFILE_DIR");
     if (pe && *pe) profPath = pe;
-    else { profPath = greDir; profPath += "/../profile"; }
+    else {
+      // NS_NewNativeLocalFile requires an ABSOLUTE path, and the desktop smoke runs pass a
+      // relative greDir ("."). realpath() the greDir (it exists — libxul loaded from it) so
+      // persistence works in desktop tests too, not just on-device (inspector P3).
+      char rp[PATH_MAX];
+      profPath = realpath(greDir, rp) ? rp : greDir;
+      profPath += "/../profile";
+    }
     nsCOMPtr<nsIFile> prof;
     if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(profPath.c_str()),
                                            true, getter_AddRefs(prof))) && prof) {
-      prof->Normalize();   // resolve the ".." so ProfD is a clean absolute path
-      // 0700 like a real profile; already-exists is fine.
+      // Create FIRST (mkdir resolves the ".." at the kernel; already-exists is fine), THEN
+      // Normalize — realpath-based, so it only succeeds once the dir exists. Best-effort:
+      // an un-normalized ProfD still works, consumers open() through the "..".
       nsresult crv = prof->Create(nsIFile::DIRECTORY_TYPE, 0700);
       if (NS_SUCCEEDED(crv) || crv == NS_ERROR_FILE_ALREADY_EXISTS) {
+        prof->Normalize();
         sJihadDirProvider = new JihadDirProvider(prof);
         NS_ADDREF(sJihadDirProvider);
       } else {
@@ -261,13 +271,15 @@ EngineHost::Init(const char* greDir)
     // laid out at the wrong width. Pinning DPR=1 makes the page fill the buffer at 1:1;
     // user pinch-zoom is still handled separately via setZoomAndScroll (full zoom).
     if (pb) pb->SetCharPref("layout.css.devPixelsPerPx", "1.0");
-    // Set the complete, identifiable UA HERE via general.useragent.override. A bare
-    // XRE_InitEmbedding embedder loads greprefs.js (from omni.ja) but NOT the loose
-    // goanna.js in greDir, so a UA override placed only in goanna.js is silently
-    // ignored — navigator.userAgent then falls back to the branding-stripped engine
-    // default "Mozilla/5.0 (X11; Linux armv7l; rv:6.9) Goanna/ /6.9". Setting it as a
-    // runtime pref makes nsHttpHandler::PrefsChanged pick it up. SetUserAgentOverride
-    // ignores the empty setUserAgent the adapter sends at connect, so this value sticks.
+    // Set the complete, identifiable UA HERE via general.useragent.override. NB on
+    // goanna.js: the loose $greDir/goanna.js IS loaded by libpref (proven on-device —
+    // the F-235 surfacecache cap appended there fixed the blank-degradation, and gfx
+    // "Once" prefs snapshot it before Init returns), BUT a UA override placed only
+    // there did NOT stick for navigator.userAgent under this embedding — the observed
+    // fallback was the branding-stripped engine default "Mozilla/5.0 (X11; Linux
+    // armv7l; rv:6.9) Goanna/ /6.9". Setting it as a runtime pref makes
+    // nsHttpHandler::PrefsChanged pick it up reliably. SetUserAgentOverride ignores
+    // the empty setUserAgent the adapter sends at connect, so this value sticks.
     //   Tokens: webOS/TouchPad platform; Goanna/6.9 (engine); UXP/<commit> (build);
     //   Firefox/52.9 (site-compat, ESR52 base); ECMAScript/2024 (JS level UXP b2594a4
     //   supports: Object.groupBy, Promise.withResolvers, String.isWellFormed, ...).
@@ -282,6 +294,17 @@ EngineHost::Init(const char* greDir)
     // in build/webos-oe/make-device-bundle.sh. Critically, the stock surfacecache cap is 1 GB, which
     // is catastrophic on a 512 MB device (the surface memory grows until the live render is evicted
     // to near-blank); goanna.js overrides it to a small bounded value.
+    // Read-back check (inspector P3): confirm the goanna.js low-RAM block actually
+    // loaded by reading one of its prefs. Logs the live value — if it prints the
+    // stock default (1048576 = 1 GB) the loose-pref load is broken and every
+    // low-RAM pref is dead; investigate before trusting memory behavior.
+    if (pb) {
+      int32_t sc = -1;
+      pb->GetIntPref("image.mem.surfacecache.max_size_kb", &sc);
+      fprintf(stderr, "[jihad-bs] prefs check: surfacecache.max_size_kb=%d (%s)\n",
+              sc, sc == 32768 ? "goanna.js low-RAM block ACTIVE"
+                              : "UNEXPECTED — goanna.js block missing/stale?");
+    }
     // NOTE: PSM/NSS (TLS) is force-initialized on the main thread in
     // GoannaRenderPage::LoadUrl (it is not registered yet this early at engine init).
   }
@@ -332,20 +355,26 @@ EngineHost::Shutdown()
 // (nsMemoryImpl/FlushMemory subscribers) — we just have to FIRE it, because in
 // this bare embedding nothing else watches system memory.
 
-// Available-memory estimate in kB: MemFree + Buffers + Cached (page cache is
-// reclaimable). Same /proc/meminfo fields the Palm BrowserServer getMemInfo read.
+// Available-memory estimate in kB: MemFree + Buffers + (Cached - Shmem). The
+// webOS 3 kernel (2.6.35) predates MemAvailable, and its Cached INCLUDES
+// shmem/tmpfs pages, which are NOT reclaimable — and this device leans on them
+// (the YAP shared framebuffers are SysV shm). Counting them would over-estimate
+// headroom and let the guardrail miss the OOM it exists to prevent (inspector
+// P3). Same /proc/meminfo fields the Palm BrowserServer getMemInfo read.
 static long jihadAvailableKb() {
   FILE* f = fopen("/proc/meminfo", "r");
   if (!f) return -1;
-  char line[128]; long freeKb = 0, buffersKb = 0, cachedKb = 0; int got = 0;
-  while (got < 3 && fgets(line, sizeof(line), f)) {
+  char line[128]; long freeKb = 0, buffersKb = 0, cachedKb = 0, shmemKb = 0; int got = 0;
+  while (got < 4 && fgets(line, sizeof(line), f)) {
     long v = 0;
     if (sscanf(line, "MemFree: %ld", &v) == 1)      { freeKb = v;    ++got; }
     else if (sscanf(line, "Buffers: %ld", &v) == 1) { buffersKb = v; ++got; }
     else if (sscanf(line, "Cached: %ld", &v) == 1)  { cachedKb = v;  ++got; }
+    else if (sscanf(line, "Shmem: %ld", &v) == 1)   { shmemKb = v;   ++got; }
   }
   fclose(f);
-  return freeKb + buffersKb + cachedKb;
+  long reclaimable = cachedKb - shmemKb; if (reclaimable < 0) reclaimable = 0;
+  return freeKb + buffersKb + reclaimable;
 }
 
 void

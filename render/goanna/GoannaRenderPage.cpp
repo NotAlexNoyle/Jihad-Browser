@@ -67,6 +67,9 @@
 #include "nsIDOMHTMLFormElement.h"   // HandleEnter: submit the focused input's form
 #include "nsIDOMEvent.h"             // dispatch 'input' so controlled/React fields see edits (F-238)
 #include "nsIDOMEventTarget.h"
+#include "nsIUploadChannel.h"        // POST form re-drive: capture + replay the upload stream (F-243)
+#include "nsISeekableStream.h"
+#include "nsIInputStream.h"
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -101,8 +104,9 @@ public:
   bool mCertError;           // last load failed on an (overridable) cert error
   bool mProgrammaticLoad;    // current load was started by a command (not a link)
   bool mLinkClicked;         // a content-initiated (link) navigation was seen
-  bool mLinkIsPost;          // ...and it was a non-GET (POST) request (don't re-drive)
+  bool mLinkIsPost;          // ...and it was a non-GET (POST) request
   nsCString mLinkUrl;        // its target URL
+  nsCOMPtr<nsIInputStream> mLinkPostData;   // captured POST upload stream, for the re-drive (F-243)
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
@@ -203,12 +207,25 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     mLinkClicked = true;
     mLinkIsPost = false;
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
+    mLinkPostData = nullptr;
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
-      // Capture the method: a POST content-nav must NOT be re-driven as a GET (the body
-      // would be lost — logins/checkout break). Only GET-class navs get the re-drive (F-007).
+      // Capture the method. A POST content-nav must NOT be re-driven as a GET (the body would be
+      // lost — logins/checkout break), so capture the upload stream and re-drive it as a real POST
+      // (F-243). Rewind it: the aborted-then-re-driven channel re-reads from the start.
       nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(ch);
       if (http) { nsAutoCString m; http->GetRequestMethod(m); mLinkIsPost = !m.EqualsLiteral("GET"); }
+      if (mLinkIsPost) {
+        nsCOMPtr<nsIUploadChannel> up = do_QueryInterface(ch);
+        if (up) {
+          nsCOMPtr<nsIInputStream> upstream; up->GetUploadStream(getter_AddRefs(upstream));
+          if (upstream) {
+            nsCOMPtr<nsISeekableStream> seek = do_QueryInterface(upstream);
+            if (seek) seek->Seek(nsISeekableStream::NS_SEEK_SET, 0);   // rewind for re-read
+            mLinkPostData = upstream;
+          }
+        }
+      }
     }
   }
   if (top && (f & (STATE_START | STATE_STOP))) {
@@ -699,7 +716,8 @@ void GoannaRenderPage::HandleEnter() {
   if (formEl) {
     nsCOMPtr<nsIDOMNodeList> subs;
     formEl->QuerySelectorAll(
-      NS_LITERAL_STRING("input[type=submit],button[type=submit],button:not([type])"),
+      NS_LITERAL_STRING("input[type=submit]:not([disabled]),button[type=submit]:not([disabled]),"
+                        "input[type=image]:not([disabled]),button:not([type]):not([disabled])"),
       getter_AddRefs(subs));
     uint32_t n = 0; if (subs) subs->GetLength(&n);
     if (n) {
@@ -949,6 +967,25 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
   }
   NS_ConvertUTF8toUTF16 u(fixed.c_str());
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
+}
+
+bool GoannaRenderPage::RedriveLinkPost(const char* url) {
+  if (!mChrome || !url) return false;
+  nsCOMPtr<nsIInputStream> post = mChrome->mLinkPostData;
+  mChrome->mLinkPostData = nullptr;   // consume regardless
+  if (!post) return false;            // no captured body — caller reports a failed load
+  jihad_init_nss();                   // same TLS main-thread init as LoadUrl (POST is usually https)
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
+  if (!nav) return false;
+  // customUserAgent identical to LoadUrl (per-domain override -> navigator.userAgent match).
+  { const char* domUa = JihadPerDomainUaForUrl(url);
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(domUa ? domUa : JIHAD_USER_AGENT)); }
+  BeginLoad();
+  // aPostData is the captured form upload stream (an nsIMIMEInputStream carrying its Content-Type),
+  // so LoadURI re-issues a proper POST with the original body + headers instead of losing them.
+  NS_ConvertUTF8toUTF16 u(url);
+  return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, post, nullptr));
 }
 
 void GoannaRenderPage::PumpFor(int msBudget) {

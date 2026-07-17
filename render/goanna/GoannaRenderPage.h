@@ -135,6 +135,10 @@ public:
   // If a content-initiated (link) navigation was seen, return its URL and clear
   // the flag (R6 link-clicked). Returns false if none pending.
   bool TakeLinkClicked(std::string* url, bool* isPost = nullptr);
+  // Re-drive the last content-initiated POST navigation to url, replaying the captured upload
+  // stream so the form body survives (GET navs use LoadUrl; POST would otherwise lose the body).
+  // Returns false if there was no captured body (caller reports a failed load). Runs in pump().
+  bool RedriveLinkPost(const char* url);
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);

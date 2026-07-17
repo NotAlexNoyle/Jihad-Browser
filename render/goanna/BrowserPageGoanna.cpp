@@ -696,19 +696,29 @@ void BrowserPageGoanna::pump(int msBudget) {
   std::string linkUrl; bool linkIsPost = false;
   if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost)) {
     mSink.msgLinkClicked(linkUrl.c_str());
-    // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET,
+    // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET/POST,
     // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE
-    // in this offscreen embedding — the same stall as the tap default-action (verified:
-    // location.href fires STATE_START for the target but never load-done). Re-drive the
-    // captured URL through the programmatic load path (openUrl), which completes and aborts
-    // the stalled content load. GET only: a POST (form submit) would lose its body if
-    // re-issued as a GET, so leave POSTs to the engine (review #6 F-007). `openUrl` clears
-    // mPendingClick and its programmatic load won't re-trigger TakeLinkClicked -> no loop.
+    // in this offscreen embedding (verified: it fires STATE_START for the target but never
+    // load-done). Re-drive it through the programmatic load path, which completes and aborts
+    // the stalled content load. `openUrl`/RedriveLinkPost mark the load programmatic so they
+    // won't re-trigger TakeLinkClicked -> no loop.
     if (!linkIsPost) {
-      fprintf(stderr, "[jihad-bs] content-nav re-drive -> %s\n", linkUrl.c_str());
+      fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s\n", linkUrl.c_str());
       openUrl(linkUrl.c_str());
     } else {
-      fprintf(stderr, "[jihad-bs] content-nav POST (not re-driven) %s\n", linkUrl.c_str());
+      // POST (login/checkout/search): re-issue as a real POST replaying the captured upload body
+      // (F-243). Same load lifecycle as openUrl. If the body wasn't captured, report a failed load
+      // so the overlay clears instead of hanging.
+      fprintf(stderr, "[jihad-bs] content-nav re-drive POST -> %s\n", linkUrl.c_str());
+      mPendingClick = false;
+      if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false, 0, 0);
+      mAliasUrl.clear();
+      mLoadWasDone = false; mNeedsPaint = false;
+      mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
+      if (!mPage->RedriveLinkPost(linkUrl.c_str())) {
+        mSink.msgFailedLoad("Goanna", 0, linkUrl.c_str(), "POST body unavailable");
+        mSink.msgLoadProgress(100); mSink.msgLoadStopped(); mLoadWasDone = true;
+      }
     }
   }
 }

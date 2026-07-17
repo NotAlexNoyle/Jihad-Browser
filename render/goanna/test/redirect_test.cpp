@@ -3,9 +3,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Jihad Browser — redirect event test (domain F / R4). Loads /a on a local
- * server that 302-redirects to /b, and confirms the engine emits
- * msgUrlRedirected and the final location is /b. Requires redirect_server.py
- * (started by the build script). Base URL via $JIHAD_REDIR_BASE.
+ * server that 302-redirects to /b, and confirms the engine FOLLOWS the redirect
+ * in-browser (final location /b) WITHOUT emitting msgUrlRedirected. In isis the
+ * app routes onUrlRedirected -> openResource -> the DEFAULT (stock) browser, so
+ * emitting it on an ordinary HTTP redirect would make every redirecting site
+ * leave Jihad; msgUrlRedirected is reserved for addUrlRedirect app-handoff rules.
+ * Requires redirect_server.py (started by the build script). Base via $JIHAD_REDIR_BASE.
  */
 #include <gtk/gtk.h>
 #include <cstdio>
@@ -61,7 +64,10 @@ int main(int argc, char** argv) {
 
     printf("[redir] redirected=%d redirUrl=%s finalLoc=%s stopped=%d\n",
            sink.redirected, sink.redirUrl.c_str(), sink.loc.c_str(), sink.stopped);
-    bool ok = sink.redirected >= 1 && sink.stopped >= 1 &&
+    // Correct behavior: the HTTP redirect is FOLLOWED in-browser (final location /b, load stopped)
+    // and msgUrlRedirected is NOT emitted (redirected==0) — see the file header. Emitting it would
+    // hand the URL to the stock browser via the isis openResource binding.
+    bool ok = sink.redirected == 0 && sink.stopped >= 1 &&
               sink.loc.rfind("/b") != std::string::npos;
     printf("[redir] %s\n", ok ? "REDIRECT PASS" : "REDIRECT FAIL");
     rc = ok ? 0 : 4;

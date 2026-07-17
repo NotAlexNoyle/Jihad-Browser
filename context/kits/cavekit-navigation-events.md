@@ -41,7 +41,7 @@ the engine's progress/URI listeners. Reference: `docs/IPC-CONTRACT.md`
 **Acceptance Criteria:**
 - [x] Navigation emits a location-changed message with the URL and back/forward state.
 - [x] Title resolution emits title-changed (and the combined title-and-url message where upstream did).
-- [x] Redirects emit a url-redirected message.
+- [x] An ordinary HTTP 3xx redirect is FOLLOWED in-browser (final location reported via location-changed) and does NOT emit url-redirected. *(2026-07: the isis app binds onUrlRedirected -> openResource -> the DEFAULT (stock) browser, so emitting url-redirected on a normal redirect made every redirecting site — google, most https — leave Jihad and reload forever. url-redirected is reserved for `addUrlRedirect` app-handoff rules only, R6.)*
 **Dependencies:** cavekit-offscreen-rendering.md (R4)
 
 ### R5: History-state queries answered

@@ -5,6 +5,18 @@ last_edited: "2026-07-07"
 
 # Implementation Overview
 
+## 2026-07-17 — DEVICE BIG-TEST RESULTS (READ FIRST)
+
+The loading-lifecycle batch (real progress, POST adopt, UI-only watchdog — commits
+df24fb8..1d9532b, codex-clean) is deployed, but the big test surfaced 5 open
+interaction failures: focus-scroll pushes the page off screen, Enter shows the
+overlay without visible results, **stale frames** (no invalidation-driven repaint —
+the suspected shared root), VKB stuck after multi-site session, link taps show the
+overlay without visible navigation. **Authoritative catalog + hypotheses + retest
+plan: `context/impl/device-test-2026-07-17.md`.** Matching REPORTED flags are on
+cavekit-offscreen-rendering R3, cavekit-input-bridging R2/R2a, and
+cavekit-navigation-events R6.
+
 ## 2026-07-07 — SELF-CONTAINED APP, RENDERS REAL PAGES ON DEVICE (READ FIRST)
 
 Jihad is now a **self-contained app that coexists with the stock browser** (own

@@ -29,6 +29,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] Typing into a focused text field inserts the expected characters (letters, digits, symbols, and non-ASCII), at the caret, with no per-keystroke navigation flash.
 - [x] `insertStringAtCursor` inserts text at the caret.
 - [x] A visible text caret is shown for the focused editable, and typing/editing happens at it (not append-only).
+- [ ] Tapping an editable raises the VKB reliably on EVERY page in a session, and focusing a field does not scroll the page content off-screen. *(REPORTED broken on-device 2026-07-17 — T1: on google, focusing the search box pushes the whole page up off the screen (the F-247 one-shot scroll-restore doesn't hold once the VKB resize/reflow lands). T4: after visiting google + ddg in one card, tapping the html.duckduckgo.com field raises no keyboard until the browser restarts — editorFocused state desync across navigations. See context/impl/device-test-2026-07-17.md.)*
 **Dependencies:** none
 
 ### R2a: Full editable navigation and editing
@@ -37,7 +38,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] Backspace deletes the code point before the caret; forward-Delete the one after; both are surrogate-pair aware.
 - [x] Left/Right move the caret by a full code point; Home/End jump to the field start/end; Up/Down move by line in a `<textarea>` (and degrade to Home/End in a single-line input) without landing between a surrogate pair.
 - [x] Typing or deleting while a range is selected replaces/removes the selection (e.g. an `onfocus=this.select()` search box).
-- [x] Enter inserts a newline in a `<textarea>` and submits the form for a single-line `<input>`. Tab inserts a tab character in a `<textarea>` but moves focus to the next/prev text field in a single-line `<input>` (Shift+Tab goes back) — inserting a control char into a search/login value is wrong.
+- [ ] Enter inserts a newline in a `<textarea>` and submits the form for a single-line `<input>`. Tab inserts a tab character in a `<textarea>` but moves focus to the next/prev text field in a single-line `<input>` (Shift+Tab goes back) — inserting a control char into a search/login value is wrong. *(REPORTED broken on-device 2026-07-17, T2: on google/duckduckgo full sites Enter shows the loading overlay and the search never visibly executes. May be the stale-frame paint root (offscreen-rendering R3) rather than the submit path itself. See context/impl/device-test-2026-07-17.md.)*
 - [x] Enter submission runs the form's constraint validation first: an INVALID form is not submitted and keeps focus + the keyboard so the user can correct it (never discards the edit target before knowing submission succeeded). *(2026-07 Codex F-290.)*
 - [x] When a page focus/blur handler moves focus off the tapped/next field to a NON-text control (button/checkbox), the keystroke target is cleared rather than left on the old field — typing must never silently mutate a field that is no longer focused. Retargeting only follows focus to another text control. *(2026-07 Codex F-270/F-292.)*
 - [x] After a programmatic value edit, a bubbling DOM `input` event is dispatched (from the guarded loop) so controlled/framework (React) inputs keep the edit instead of reverting it.

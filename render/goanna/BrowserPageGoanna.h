@@ -155,6 +155,8 @@ private:
   long               mLastBackspaceMs;
   int                mBackspaceRun;
   bool               mLoadWasDone;
+  int                mLastProgress;     // last msgLoadProgress value emitted this load (0..99); reset at
+                                        // each load start so a stale high value can't freeze the bar
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad
                                         // /about:isis): report THIS as the location instead

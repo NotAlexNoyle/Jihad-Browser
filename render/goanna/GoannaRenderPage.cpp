@@ -94,7 +94,7 @@ public:
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
                              mCertError(false), mProgrammaticLoad(true),
                              mLinkClicked(false), mLinkIsPost(false), mErrorStatus(NS_OK), mCertPort(443),
-                             mW(w), mH(h) {}
+                             mProgressPct(0), mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
   bool mRedirected;          // the main document was redirected during this load
@@ -107,6 +107,7 @@ public:
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
   int32_t mCertPort;         // port of the cert error
+  int32_t mProgressPct;      // aggregate load progress 0..99 during a load (100 emitted on completion)
   nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
   nsCOMPtr<nsIDOMElement> mFocusedEditable;  // last-tapped editable, marked for InsertText DOM mutation
   nsCOMPtr<nsIDOMElement> mPendingInputEl;   // element that was edited + needs an 'input' event (F-266)
@@ -265,7 +266,21 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
   }
   return NS_OK;
 }
-NS_IMETHODIMP PageChrome::OnProgressChange(nsIWebProgress*, nsIRequest*, int32_t, int32_t, int32_t, int32_t) { return NS_OK; }
+// Aggregate load progress across the load group (bytes). Fed to the isis address-bar progress bar so
+// a slow 512 MB-device load visibly advances instead of sitting at 0% — a frozen full-width bar reads
+// as a crashed "loading screen" (the user's #1 complaint). Held to 1..99 here; 100 is emitted only on
+// real completion (STATE_STOP) so the bar can't finish early. maxTotal is -1 when the total is unknown
+// (no Content-Length) — keep the last value rather than snapping the bar around.
+NS_IMETHODIMP PageChrome::OnProgressChange(nsIWebProgress*, nsIRequest*, int32_t, int32_t,
+                                           int32_t curTotal, int32_t maxTotal) {
+  if (maxTotal > 0 && curTotal >= 0) {
+    int64_t pct = (int64_t)curTotal * 100 / maxTotal;
+    if (pct < 1) pct = 1;
+    if (pct > 99) pct = 99;
+    if ((int32_t)pct > mProgressPct) mProgressPct = (int32_t)pct;   // monotonic (isis ignores decreases)
+  }
+  return NS_OK;
+}
 NS_IMETHODIMP PageChrome::OnLocationChange(nsIWebProgress*, nsIRequest*, nsIURI*, uint32_t) { return NS_OK; }
 NS_IMETHODIMP PageChrome::OnStatusChange(nsIWebProgress*, nsIRequest*, nsresult, const char16_t*) { return NS_OK; }
 NS_IMETHODIMP PageChrome::OnSecurityChange(nsIWebProgress*, nsIRequest*, uint32_t) { return NS_OK; }
@@ -714,9 +729,17 @@ void GoannaRenderPage::HandleEnter() {
   if (!in) return;
   nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
   if (!form) return;
-  // Submit exactly once: clear the edit target FIRST so a second queued Enter (F-264) can't
-  // re-submit the same form (the pump loop stops when HasFocusedEditable() goes false). The load
-  // that the submit starts also clears it via ClearEditorFocus.
+  // Mirror the browser's implicit form submission: constraint validation runs FIRST. If any control
+  // is invalid the form is NOT submitted (the engine fires 'invalid' + shows the validity bubble), so
+  // focus must stay on the field for the user to correct it — do NOT clear the edit target or the VKB
+  // path breaks and the form can't be fixed (Codex F-290). CheckValidity is a no-op that returns true
+  // for forms with no constrained controls, so ordinary search/login boxes submit as before.
+  bool valid = true;
+  form->CheckValidity(&valid);
+  if (!valid) return;
+  // Valid: submit exactly once. Clear the edit target FIRST so a second queued Enter (F-264) can't
+  // re-submit the same form (the pump loop stops when HasFocusedEditable() goes false). The load the
+  // submit starts also clears it via ClearEditorFocus.
   mChrome->mFocusedEditable = nullptr;
   nsCOMPtr<nsIDOMElement> formEl = do_QueryInterface(form);
   if (formEl) {
@@ -791,13 +814,18 @@ void GoannaRenderPage::FocusNextField(bool backward) {
   if (he) he->Focus();
   ActivateEditorCaret();   // keep the caret painting on the newly-focused field
   // F-245 (same class as F-225 for taps): Focus() may fail (CSS-hidden field) or a focus handler
-  // may redirect focus elsewhere. Reconcile the edit target with the element ACTUALLY focused, if
-  // it is itself a text control; otherwise keep this one. Prevents typing into a stale/invisible field.
+  // may redirect focus elsewhere. Reconcile the edit target with the element ACTUALLY focused: keep it
+  // if it is another text control, but if focus landed on a NON-text control (a button/checkbox a
+  // handler moved to), clear the target and stop — typing must not silently mutate the old, unfocused
+  // field (Codex F-270/F-292).
   {
     nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-      if (foc && foc != nel && edIsTextInput(foc)) { mChrome->mFocusedEditable = foc; nel = foc; }
+      if (foc && foc != nel) {
+        if (edIsTextInput(foc)) { mChrome->mFocusedEditable = foc; nel = foc; }
+        else { mChrome->mFocusedEditable = nullptr; return; }
+      }
     }
   }
   int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
@@ -921,6 +949,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mRedirected = false;
   mChrome->mCertError = false;
   mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
+  mChrome->mProgressPct = 0;           // fresh progress for the new load (isis resets its bar too)
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
   mChrome->mCertHost.Truncate();
@@ -1034,9 +1063,25 @@ void GoannaRenderPage::ClearHistory() {
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
+int GoannaRenderPage::GetLoadProgress() const { return mChrome ? mChrome->mProgressPct : 0; }
+
 void GoannaRenderPage::ForceLoadComplete() {
-  Stop();   // cancel the stalled network activity so it can't emit late/contradictory events
+  // UI-only: mark the load done so the isis overlay clears, and reset mProgrammaticLoad so the next
+  // content nav is still detected (it would otherwise stay stuck — F-265). Deliberately do NOT Stop()
+  // the engine: a slow-but-legitimate document (streaming response, heavy 512 MB page) must keep
+  // loading in the background and finish/repaint on its own, not be aborted into a permanent partial
+  // page at a fixed 12 s timeout (Codex F-288). A late real STATE_STOP is harmless — mLoadWasDone is
+  // already set on the daemon side, so it won't re-emit a contradictory completion.
   if (mChrome) { mChrome->mDone = true; mChrome->mProgrammaticLoad = false; }
+}
+
+void GoannaRenderPage::AdoptContentLoad() {
+  // The engine already fired STATE_START for this content nav (that is how the daemon detected it),
+  // so mDone is still the PREVIOUS load's value (true). Re-run the per-load reset to clear it and mark
+  // the nav programmatic — same state a command load establishes — so completion is detected and no
+  // subframe/redirect START is misread as a fresh link click. No LoadUrl call: the engine owns the
+  // in-flight request (a re-issue would double a POST body — F-262/F-289).
+  BeginLoad();
 }
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
@@ -1366,13 +1411,18 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     ActivateEditorCaret();   // make the caret actually paint (activate window + solid caret)
     // F-225: Focus() can run a page focus handler that moves focus to a DIFFERENT field (e.g. a
     // wrapper redirects to a hidden proxy input). Retarget the edit target to whatever is ACTUALLY
-    // focused, if that is itself an <input>/<textarea>, so the visible caret and the keystroke
-    // target never diverge. If focus went nowhere or to a non-text element, keep the tapped field.
+    // focused if that is itself an <input>/<textarea>, so the visible caret and the keystroke target
+    // never diverge. If the handler instead moved focus to a NON-text control, clear the target so a
+    // keystroke can't silently mutate the tapped-but-now-unfocused field (Codex F-270/F-292). Focus
+    // going nowhere (null) leaves the tapped field as the target.
     {
       nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
       if (fm) {
         nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-        if (foc && foc != effEl && edIsTextInput(foc)) mChrome->mFocusedEditable = foc;
+        if (foc && foc != effEl) {
+          if (edIsTextInput(foc)) mChrome->mFocusedEditable = foc;
+          else mChrome->mFocusedEditable = nullptr;
+        }
       }
     }
     // NB: do NOT position the caret at the tap via a javascript: URL here — a javascript: LoadURI

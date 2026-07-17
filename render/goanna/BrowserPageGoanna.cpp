@@ -46,6 +46,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
   mLoadStartMs = 0;
+  mLastProgress = 0;
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -351,6 +352,7 @@ void BrowserPageGoanna::openUrl(const char* url) {
   if (applyRedirectRules(url)) return;
   mLoadWasDone = false;
   mNeedsPaint = false;
+  mLastProgress = 0;
   mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
   if (!mPage->LoadUrl(url)) {
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
@@ -364,16 +366,16 @@ void BrowserPageGoanna::openUrl(const char* url) {
 
 void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
   if (!mPage || !body) return;
-  mLoadWasDone = false; mNeedsPaint = false;
+  mLoadWasDone = false; mNeedsPaint = false; mLastProgress = 0;
   mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
   if (!mPage->SetHtml(body)) { mSink.msgLoadStopped(); mLoadWasDone = true; }
 }
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
 // back/forward/reload also clear editor focus so the VKB lowers over the new page (review #7 P2).
-void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
-void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
@@ -552,6 +554,14 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
 
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;
+  // Incremental load progress: feed the isis address-bar progress bar while the load is in flight so a
+  // slow 512 MB-device page visibly advances instead of sitting at 0% — a frozen full-width bar reads
+  // as a crashed "loading screen" (the user's #1 complaint). Only emit increases (isis ignores
+  // decreases and clears its bar at 100, which the completion block below sends).
+  if (!mLoadWasDone) {
+    int p = mPage->GetLoadProgress();
+    if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); }
+  }
   // Load-overlay watchdog: force the load "done" if it has been active too long without a real
   // completion. A heavy modern page whose subresources stall, google's SPA churn, or an aborted
   // nav that was excluded from completion (Codex F-236) must NEVER pin the isis loading overlay
@@ -646,7 +656,14 @@ void BrowserPageGoanna::emitScrollIfChanged() {
 
 void BrowserPageGoanna::pump(int msBudget) {
   if (!mPage) return;
-  // Process a queued tap FIRST — inside the tick's page-lifetime guard, and BEFORE
+  // Fire the pending 'input' event for a keystroke edit FIRST — before the queued tap AND the Tab/Enter
+  // queue below. It targets the element that was actually edited (mPendingInputEl). Flushing before the
+  // tap matters when the user types then taps a submit/button or a link: a controlled/React handler must
+  // observe the edited value before the click submits or navigates, and the event must dispatch on the
+  // still-current document before openUrl swaps it out (Codex F-266/F-291). Runs here (guarded pump),
+  // not in keyDown, since onChange/oninput run page JS.
+  mPage->FlushPendingInputEvent();
+  // Process a queued tap next — inside the tick's page-lifetime guard, and BEFORE
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +
   // mouse/DOMClick; for a link it records the href (TakeClickNav) instead of navigating.
@@ -671,11 +688,6 @@ void BrowserPageGoanna::pump(int msBudget) {
       openUrl(clickNav.c_str());
     }
   }
-  // Fire the pending 'input' event for a keystroke edit FIRST, BEFORE the Tab/Enter queue below —
-  // otherwise a queued Tab would move focus and the event would fire on the wrong field, or a
-  // queued Enter would submit before the edit was observed (Codex F-266). It targets the element
-  // that was actually edited. Runs here (guarded pump), not in keyDown, since onChange runs page JS.
-  mPage->FlushPendingInputEvent();
   // Process a queued editing key (Tab/Enter) in the SAME page-lifetime guard — it runs page JS
   // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback
   // (Codex F-219). A form submit navigates via the engine and is completed by the TakeLinkClicked
@@ -720,9 +732,17 @@ void BrowserPageGoanna::pump(int msBudget) {
     } else {
       // A POST content-nav (form submit) is NOT re-driven: the original request has already reached
       // STATE_START — the body may already be on the wire — so re-issuing it would DOUBLE the POST
-      // (double login/charge, Codex F-262). Leave it to the engine to complete; the load-overlay
-      // watchdog (emitLoadAndLocation) clears the spinner if it stalls, so the card is never stuck.
+      // (double login/charge, Codex F-262). Leave the request to the ENGINE, but ADOPT it as the
+      // tracked load so the daemon still: shows the overlay + progress, arms the stall watchdog, and
+      // (crucially) emits the completion + new location and schedules a repaint when the POST response
+      // arrives — otherwise the response silently stays on the old frame (Codex F-289).
       fprintf(stderr, "[jihad-bs] content-nav POST (engine-driven) %s\n", linkUrl.c_str());
+      mPage->AdoptContentLoad();
+      mLoadWasDone = false;
+      mNeedsPaint = false;
+      mLastProgress = 0;
+      mLoadStartMs = jihadNowMs();
+      mSink.msgLoadStarted();
     }
   }
 }

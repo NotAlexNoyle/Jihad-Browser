@@ -127,10 +127,21 @@ public:
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }
   bool LoadDone() const;
-  // Called by the load-overlay watchdog when a load stalled: cancel it (so it can't emit late or
-  // contradictory SSL/location events) and reset the load-tracking state so the next content
-  // navigation is still correctly detected (mProgrammaticLoad would otherwise stay stuck — F-265).
+  // Aggregate load progress 0..99 during a load (100 is signalled separately by LoadDone). Drives the
+  // isis address-bar progress bar so a slow load looks alive instead of frozen.
+  int GetLoadProgress() const;
+  // Called by the load-overlay watchdog when a load stalled: reset the load-tracking state so the
+  // overlay clears and the next content navigation is still correctly detected (mProgrammaticLoad
+  // would otherwise stay stuck — F-265). Does NOT Stop() the engine load: a slow-but-legitimate
+  // document must keep loading in the background rather than being aborted into a partial page at a
+  // fixed timeout (Codex F-288); the watchdog is UI-only.
   void ForceLoadComplete();
+  // Adopt an in-flight ENGINE-initiated content navigation (a POST form submit) as the tracked load:
+  // reset the per-load done/failure state and mark it programmatic so its own subframe/redirect
+  // STATE_STARTs aren't misread as fresh link clicks, and so its eventual STATE_STOP is reported as a
+  // real completion (msgLocationChanged + repaint). Used for POSTs, which must NOT be re-driven via
+  // openUrl (that would replay the body and double-submit — Codex F-262/F-289).
+  void AdoptContentLoad();
   // Whether the last load ended in a network error (R3 failed-load). Fills the
   // failing nsresult code + URL when *failed is true.
   bool GetLoadError(bool* failed, int* code, std::string* url);

@@ -766,6 +766,20 @@ void GoannaRenderPage::FocusNextField(bool backward) {
   nsCOMPtr<nsIDOMHTMLElement> he = do_QueryInterface(nel);
   if (he) he->Focus();
   ActivateEditorCaret();   // keep the caret painting on the newly-focused field
+  // F-245 (same class as F-225 for taps): Focus() may fail (CSS-hidden field) or a focus handler
+  // may redirect focus elsewhere. Reconcile the edit target with the element ACTUALLY focused, if
+  // it is itself a text control; otherwise keep this one. Prevents typing into a stale/invisible field.
+  {
+    nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
+    if (fm) {
+      nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
+      if (foc && foc != nel) {
+        nsCOMPtr<nsIDOMHTMLInputElement> fi = do_QueryInterface(foc);
+        nsCOMPtr<nsIDOMHTMLTextAreaElement> fta = do_QueryInterface(foc);
+        if (fi || fta) { mChrome->mFocusedEditable = foc; nel = foc; }
+      }
+    }
+  }
   int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
   edSetCaret(nel, vlen);   // caret at end of the newly-focused field
 }
@@ -1194,11 +1208,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     nsAutoString dtag; el->GetTagName(dtag);
     std::string dt = NS_ConvertUTF16toUTF8(dtag).get();
     for (char& c : dt) c = (char)toupper((unsigned char)c);
-    bool interactive = (dt == "INPUT" || dt == "TEXTAREA" || dt == "BUTTON" || dt == "SELECT" ||
-                        dt == "A" || dt == "LABEL" || dt == "OPTION");
-    if (!interactive) {
+    // Only expand the touch target when the tap clearly hit nothing — the root <html> or <body>
+    // background. Do NOT expand over other elements (a <div role=button>, a custom control, a
+    // heading with its own handler, etc.) or a slightly-off tap could hijack the intended element
+    // and navigate to a nearby link instead (Codex F-246). Small radius keeps it to true near-misses.
+    if (dt == "HTML" || dt == "BODY") {
       nsCOMPtr<nsIDOMNodeList> near;
-      u->NodesFromRect((float)x, (float)y, 14, 14, 14, 14, false, true, getter_AddRefs(near));
+      u->NodesFromRect((float)x, (float)y, 10, 10, 10, 10, false, true, getter_AddRefs(near));
       uint32_t nn = 0; if (near) near->GetLength(&nn);
       for (uint32_t i = 0; i < nn && href.IsEmpty(); ++i) {
         nsCOMPtr<nsIDOMNode> nd; near->Item(i, getter_AddRefs(nd));
@@ -1341,7 +1357,10 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // above the VKB. For a field tapped low (which the VKB would cover), keep Focus()'s scroll so
     // the field is lifted above the keyboard instead of being restored back under it.
     int nx = 0, ny = 0; GetScrollXY(&nx, &ny);
-    if ((nx != svScrollX || ny != svScrollY) && mHeight > 0 && y < (mHeight * 55) / 100)
+    // Compare the tap's VIEWPORT y (content y minus the scroll offset), not the raw content y —
+    // otherwise on a scrolled page a field near the top of the visible viewport has a large content
+    // y and the restore is wrongly skipped (Codex F-247).
+    if ((nx != svScrollX || ny != svScrollY) && mHeight > 0 && (y - svScrollY) < (mHeight * 55) / 100)
       ScrollTo(svScrollX, svScrollY);
     return;
   }

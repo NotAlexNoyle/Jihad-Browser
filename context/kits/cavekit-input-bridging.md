@@ -37,7 +37,8 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] Backspace deletes the code point before the caret; forward-Delete the one after; both are surrogate-pair aware.
 - [x] Left/Right move the caret by a full code point; Home/End jump to the field start/end; Up/Down move by line in a `<textarea>` (and degrade to Home/End in a single-line input) without landing between a surrogate pair.
 - [x] Typing or deleting while a range is selected replaces/removes the selection (e.g. an `onfocus=this.select()` search box).
-- [x] Enter inserts a newline in a `<textarea>` and submits the form for a single-line `<input>`; Tab inserts a tab character.
+- [x] Enter inserts a newline in a `<textarea>` and submits the form for a single-line `<input>`. Tab inserts a tab character in a `<textarea>` but moves focus to the next/prev text field in a single-line `<input>` (Shift+Tab goes back) — inserting a control char into a search/login value is wrong.
+- [x] After a programmatic value edit, a bubbling DOM `input` event is dispatched (from the guarded loop) so controlled/framework (React) inputs keep the edit instead of reverting it.
 - [x] A held Backspace accelerates to whole-word deletion after it auto-repeats for a short interval.
 - [x] `<input type=number>`/`email` etc. (no text-selection API) still accept typed characters.
 - [x] Focus/blur handlers that navigate or submit run in the page-lifetime-protected pump/tick context, never synchronously in the YAP key callback (same crash class as R1).

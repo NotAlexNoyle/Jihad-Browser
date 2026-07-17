@@ -127,6 +127,7 @@ public:
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
+  void emitCompletion(bool emitStopBoundary);   // completion details (location/title/history/geometry)
   bool emitGeometry();          // contents-size + meta-viewport (dedup); true if a valid size was read
   void emitScrollIfChanged();   // scrolled-to when the offset moved
 
@@ -157,6 +158,9 @@ private:
   bool               mLoadWasDone;
   int                mLastProgress;     // last msgLoadProgress value emitted this load (0..99); reset at
                                         // each load start so a stale high value can't freeze the bar
+  bool               mWatchdogDismissed; // the stall watchdog cleared the overlay while the engine load
+                                         // is still running; a later real completion emits location/
+                                         // title/repaint without a fresh load-start/stop boundary (F-324)
   std::string        mAliasUrl;         // non-empty when the current page is an internal
                                         // about: page rendered from inline HTML (about:jihad
                                         // /about:isis): report THIS as the location instead

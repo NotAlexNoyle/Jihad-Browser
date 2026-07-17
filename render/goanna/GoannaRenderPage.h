@@ -106,7 +106,10 @@ public:
   // newline only in a <textarea>; Tab moves focus to the next field.
   enum EditKeyAction { EK_LEFT, EK_RIGHT, EK_UP, EK_DOWN, EK_HOME, EK_END, EK_DELETE };
   void EditKey(int action);
-  void HandleEnter();                              // Enter: newline (textarea) or submit form (input)
+  // Enter: newline (textarea) or implicit form submission (single-line input). Returns true if it
+  // ATTEMPTED a form submission (whether or not it actually navigated) so the caller can stop draining
+  // queued Enters after one submit — preventing a double submission independent of when the nav commits.
+  bool HandleEnter();
   void HandleTab(bool backward);                   // Tab: tab char (textarea) or focus next field (input)
   // Dispatch a bubbling DOM 'input' event on the focused editable if a value edit is pending. Runs
   // page JS (framework onChange) so it MUST be called only from the guarded pump loop, never from
@@ -130,12 +133,6 @@ public:
   // Aggregate load progress 0..99 during a load (100 is signalled separately by LoadDone). Drives the
   // isis address-bar progress bar so a slow load looks alive instead of frozen.
   int GetLoadProgress() const;
-  // Called by the load-overlay watchdog when a load stalled: reset the load-tracking state so the
-  // overlay clears and the next content navigation is still correctly detected (mProgrammaticLoad
-  // would otherwise stay stuck — F-265). Does NOT Stop() the engine load: a slow-but-legitimate
-  // document must keep loading in the background rather than being aborted into a partial page at a
-  // fixed timeout (Codex F-288); the watchdog is UI-only.
-  void ForceLoadComplete();
   // Adopt an in-flight ENGINE-initiated content navigation (a POST form submit) as the tracked load:
   // reset the per-load done/failure state and mark it programmatic so its own subframe/redirect
   // STATE_STARTs aren't misread as fresh link clicks, and so its eventual STATE_STOP is reported as a

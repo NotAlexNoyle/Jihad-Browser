@@ -47,6 +47,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mLastBackspaceMs = 0; mBackspaceRun = 0;
   mLoadStartMs = 0;
   mLastProgress = 0;
+  mWatchdogDismissed = false;
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -552,72 +553,80 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
   mNeedsPaint = true;
 }
 
+// Emit the completion details for a finished load: failure/cert, location, title+url, global history,
+// geometry, and a repaint. emitStopBoundary controls the load-lifecycle boundary (progress 100 +
+// load-stopped): true for a normal completion; false for a LATE completion the stall watchdog already
+// dismissed the overlay for (re-emitting the boundary would blink the spinner). Location/title are
+// emitted BEFORE load-stopped: isis's pageLoadStopped records the history entry from the CURRENT
+// title/url (review #6 F-004).
+void BrowserPageGoanna::emitCompletion(bool emitStopBoundary) {
+  if (emitStopBoundary) mSink.msgLoadProgress(100);
+  // R5: an overridable certificate error surfaces as an SSL-confirm dialog rather than a generic
+  // failed load. R3: other network failures -> failed.
+  bool failed = false; int code = 0; std::string furl;
+  mPage->GetLoadError(&failed, &code, &furl);
+  std::string chost; int ccode = 0;
+  bool certErr = mPage->GetCertError(&chost, &ccode);
+  fprintf(stderr, "[jihad-bs] loaderr failed=%d code=0x%x certErr=%d chost=%s ccode=0x%x\n",
+          (int)failed, (unsigned)code, (int)certErr, chost.c_str(), (unsigned)ccode);
+  if (certErr) mSink.msgSSLConfirm(chost.c_str(), ccode, "");
+  else if (failed) mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
+  // For internal about: pages, report the typed about: URL, not the data: URL the engine loaded
+  // (keeps the bar showing about:jihad and avoids a huge data: history entry). NB: never emit
+  // msgUrlRedirected for an ordinary HTTP 3xx redirect — in isis the app binds onUrlRedirected ->
+  // openResource -> the DEFAULT (stock) browser, so a normal redirect (google.com -> www.google.com)
+  // would leave Jihad. A redirect is just a location change, reported here.
+  std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
+  mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+  // The isis address bar updates on the title+url message (BasicWebView.titleURLChange ->
+  // urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. If the page has no <title>, fall
+  // back to the URL so the bar still shows where we are (review #6 F-003).
+  { std::string title = mPage->GetTitle();
+    if (title.empty()) title = uri;
+    fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
+    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
+  if (emitStopBoundary) mSink.msgLoadStopped();
+  if (!failed && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
+  emitGeometry();      // R4: contents-size + meta-viewport once the page settled
+  mNeedsPaint = true;  // paint the final frame once (dedup — Codex P2)
+}
+
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;
   // Incremental load progress: feed the isis address-bar progress bar while the load is in flight so a
   // slow 512 MB-device page visibly advances instead of sitting at 0% — a frozen full-width bar reads
   // as a crashed "loading screen" (the user's #1 complaint). Only emit increases (isis ignores
-  // decreases and clears its bar at 100, which the completion block below sends).
+  // decreases and clears its bar at 100, which emitCompletion(true) sends).
   if (!mLoadWasDone) {
     int p = mPage->GetLoadProgress();
     if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); }
   }
-  // Load-overlay watchdog: force the load "done" if it has been active too long without a real
-  // completion. A heavy modern page whose subresources stall, google's SPA churn, or an aborted
-  // nav that was excluded from completion (Codex F-236) must NEVER pin the isis loading overlay
-  // open — that covers the whole card and makes the browser look crashed/unusable. The page keeps
-  // loading in the background; we just stop showing the spinner (standard browser behaviour).
-  bool watchdog = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
-  if ((mPage->LoadDone() || watchdog) && !mLoadWasDone) {
-    if (watchdog && !mPage->LoadDone()) {
-      fprintf(stderr, "[jihad-bs] load watchdog: forcing loadStopped after %ldms\n",
-              jihadNowMs() - mLoadStartMs);
-      // Cancel the stalled load + reset the engine load state, so it can't emit late/contradictory
-      // events and mProgrammaticLoad doesn't stay stuck (misclassifying the next nav) — Codex F-265.
-      mPage->ForceLoadComplete();
-    }
-    mLoadWasDone = true;
-    mLoadStartMs = 0;
-    mNeedsPaint = true;   // paint the final frame once (dedup &mdash; Codex P2)
+  bool stalled = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
+  if (mPage->LoadDone() && !mLoadWasDone) {
+    // Normal completion.
+    mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
+    emitCompletion(true);
+  } else if (mWatchdogDismissed && mPage->LoadDone()) {
+    // LATE completion: the engine finished a load the stall watchdog had already dismissed the overlay
+    // for. Report the final location/title/error + repaint, but NOT another load-start/stop boundary
+    // (the overlay is gone; re-blinking it would look broken) — Codex F-324.
+    mWatchdogDismissed = false;
+    fprintf(stderr, "[jihad-bs] late load done uri=%s\n", mPage->CurrentUri().c_str());
+    emitCompletion(false);
+  } else if (stalled) {
+    // Stall watchdog (UI-ONLY): a load active too long without completing must NEVER pin the isis
+    // loading overlay open — it covers the whole card and looks crashed. Dismiss the overlay (progress
+    // 100 + load-stopped) but do NOT touch the engine: the request keeps loading in the background and,
+    // when it finishes, the late-completion branch reports its final URL/title and repaints. Leaving the
+    // engine + mProgrammaticLoad untouched also means a late redirect on that request is not
+    // misclassified as a user link nav (Codex F-288/F-324). The address bar keeps whatever it showed
+    // (the nav target) rather than reverting to the still-old CurrentUri.
+    fprintf(stderr, "[jihad-bs] load watchdog: dismissing overlay after %ldms (engine still loading)\n",
+            jihadNowMs() - mLoadStartMs);
+    mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = true;
     mSink.msgLoadProgress(100);
-    // R5: an overridable certificate error surfaces as an SSL-confirm dialog
-    // rather than a generic failed load. R3: other network failures -> failed.
-    bool failed = false; int code = 0; std::string furl;
-    mPage->GetLoadError(&failed, &code, &furl);
-    std::string chost; int ccode = 0;
-    bool certErr = mPage->GetCertError(&chost, &ccode);
-    fprintf(stderr, "[jihad-bs] loaderr failed=%d code=0x%x certErr=%d chost=%s ccode=0x%x\n",
-            (int)failed, (unsigned)code, (int)certErr, chost.c_str(), (unsigned)ccode);
-    if (certErr) {
-      mSink.msgSSLConfirm(chost.c_str(), ccode, "");
-    } else if (failed) {
-      mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
-    }
-    // Emit location + title/URL BEFORE msgLoadStopped: isis's pageLoadStopped records the
-    // history entry from the CURRENT title/url, which these events set — emitting them after
-    // saves the previous title (typed nav) or previous URL (link/JS nav) (review #6 F-004).
-    // For internal about: pages, report the typed about: URL, not the data: URL the engine
-    // loaded (keeps the address bar showing about:jihad and avoids a huge data: history entry).
-    std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
-    // NB: do NOT emit msgUrlRedirected for an ordinary HTTP 3xx redirect. In isis the app binds
-    // onUrlRedirected -> openResource -> com.palm.applicationManager 'open', i.e. it hands the URL
-    // to the DEFAULT (stock) browser in a new card. That message is only for addUrlRedirect
-    // app-handoff rules (applyRedirectRules above). A normal redirect (e.g. google.com -> https://
-    // www.google.com) is just a location change — reported below — so it stays in THIS browser.
-    // Emitting it here sent every redirecting site to the stock browser.
-    mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
-    // The isis address bar updates on the title+url message (BasicWebView.titleURLChange
-    // -> urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. Emit it so the
-    // bar reflects the navigated URL + page title after any navigation. If the page has no
-    // <title>, fall back to the URL so the bar still shows where we are (review #6 F-003).
-    { std::string title = mPage->GetTitle();
-      if (title.empty()) title = uri;
-      fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
-      mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
     mSink.msgLoadStopped();
-    if (!failed && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
-    emitGeometry();   // R4: contents-size + meta-viewport once the page settled
   }
 }
 
@@ -699,7 +708,10 @@ void BrowserPageGoanna::pump(int msBudget) {
     acts.swap(mPendingEditActions);
     for (int act : acts) {
       if (!mPage->HasFocusedEditable()) break;   // a prior Enter submitted + navigated
-      if (act == PEA_ENTER)         mPage->HandleEnter();
+      // A form-submit attempt ends the drain so a second queued Enter can't double-submit — regardless
+      // of whether the nav commits synchronously (which also clears the edit target) or asynchronously
+      // (cleared next tick by the adopt/re-drive's BeginLoad) — Codex F-323/F-325.
+      if (act == PEA_ENTER)         { if (mPage->HandleEnter()) break; }
       else if (act == PEA_TAB)      mPage->HandleTab(false);
       else if (act == PEA_TAB_BACK) mPage->HandleTab(true);
     }
@@ -708,25 +720,21 @@ void BrowserPageGoanna::pump(int msBudget) {
     bool efoc = false; int eft = 0, efa = 0;
     if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
   }
-  mPage->PumpFor(msBudget);
-  // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
-  // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
-  // reflow just re-defers via the guard until a real size is available.
-  if (mGeometryDirty && emitGeometry()) mGeometryDirty = false;   // retry until reflow yields a valid size
-  emitLoadAndLocation();
-  emitScrollIfChanged();
-  // R6 link-clicked: a content-initiated navigation is reported as it happens,
-  // independent of the command-driven load lifecycle.
+  // R6 link-clicked: detect + re-drive/adopt a content-initiated navigation BEFORE PumpFor, so the
+  // re-driven (GET) or adopted (POST) load runs to completion within THIS tick's PumpFor and is
+  // reported by the emitLoadAndLocation below. Doing this AFTER PumpFor raced: a fast POST that fired
+  // STATE_START+STATE_STOP inside PumpFor was already done, and adopting it then reset mDone=false
+  // after its only STOP — no completion until the 12 s watchdog (Codex F-323).
   std::string linkUrl; bool linkIsPost = false;
   if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost)) {
     mSink.msgLinkClicked(linkUrl.c_str());
     // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET/POST,
-    // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE
-    // in this offscreen embedding (verified: it fires STATE_START for the target but never
-    // load-done). Re-drive it through the programmatic load path, which completes and aborts
-    // the stalled content load. `openUrl`/RedriveLinkPost mark the load programmatic so they
-    // won't re-trigger TakeLinkClicked -> no loop.
+    // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE on its own
+    // in this offscreen embedding (verified: it fires STATE_START for the target but never load-done).
     if (!linkIsPost) {
+      // Re-drive a GET-class nav through the programmatic load path, which completes and supersedes
+      // the stalled content load. openUrl marks the load programmatic so it won't re-trigger
+      // TakeLinkClicked -> no loop.
       fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s\n", linkUrl.c_str());
       openUrl(linkUrl.c_str());
     } else {
@@ -745,6 +753,13 @@ void BrowserPageGoanna::pump(int msBudget) {
       mSink.msgLoadStarted();
     }
   }
+  mPage->PumpFor(msBudget);
+  // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
+  // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
+  // reflow just re-defers via the guard until a real size is available.
+  if (mGeometryDirty && emitGeometry()) mGeometryDirty = false;   // retry until reflow yields a valid size
+  emitLoadAndLocation();
+  emitScrollIfChanged();
 }
 
 void BrowserPageGoanna::maybePaint() {

@@ -720,28 +720,29 @@ void GoannaRenderPage::EditKey(int action) {
 // implicit form submission — click the form's submit control (so onclick/onsubmit + validation run)
 // or, if none, submit the form directly. This NAVIGATES, so it must only run from the guarded pump()
 // loop (BrowserPageGoanna defers Enter there), never synchronously from the YAP key callback (F-219).
-void GoannaRenderPage::HandleEnter() {
-  if (!mChrome || !mChrome->mFocusedEditable) return;
+bool GoannaRenderPage::HandleEnter() {
+  if (!mChrome || !mChrome->mFocusedEditable) return false;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
-  if (ta) { InsertText("\n"); return; }
+  if (ta) { InsertText("\n"); return false; }   // newline, not a submit
   nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
-  if (!in) return;
+  if (!in) return false;
   nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
-  if (!form) return;
-  // Mirror the browser's implicit form submission: constraint validation runs FIRST. If any control
-  // is invalid the form is NOT submitted (the engine fires 'invalid' + shows the validity bubble), so
-  // focus must stay on the field for the user to correct it — do NOT clear the edit target or the VKB
-  // path breaks and the form can't be fixed (Codex F-290). CheckValidity is a no-op that returns true
-  // for forms with no constrained controls, so ordinary search/login boxes submit as before.
-  bool valid = true;
-  form->CheckValidity(&valid);
-  if (!valid) return;
-  // Valid: submit exactly once. Clear the edit target FIRST so a second queued Enter (F-264) can't
-  // re-submit the same form (the pump loop stops when HasFocusedEditable() goes false). The load the
-  // submit starts also clears it via ClearEditorFocus.
-  mChrome->mFocusedEditable = nullptr;
+  if (!form) return false;
+  // Implicit form submission. Do NOT pre-validate or clear the edit target up front: whether the form
+  // actually submits depends on constraint validation, the form's novalidate / a submit button's
+  // formnovalidate, and any onsubmit handler that may preventDefault — all of which the engine
+  // evaluates inside the submit path below (pre-checking CheckValidity would wrongly block novalidate
+  // and custom-validation forms — Codex F-325). Instead detect the OUTCOME: a real submission
+  // synchronously starts a top-level content nav (OnStateChange sets mLinkClicked). Snapshot the flag,
+  // submit, then clear the edit target ONLY if a nav actually started — so a blocked/invalid submit
+  // keeps focus + the VKB for correction (F-290), while a genuine submit clears it so a second queued
+  // Enter can't re-submit (F-264).
+  bool navBefore = mChrome->mLinkClicked;
+  // Prefer clicking the form's default submit control: its onclick, formnovalidate/formaction, and the
+  // engine's interactive validation all run (form->Submit() bypasses every one of them).
   nsCOMPtr<nsIDOMElement> formEl = do_QueryInterface(form);
+  bool clickedButton = false;
   if (formEl) {
     nsCOMPtr<nsIDOMNodeList> subs;
     formEl->QuerySelectorAll(
@@ -752,10 +753,22 @@ void GoannaRenderPage::HandleEnter() {
     if (n) {
       nsCOMPtr<nsIDOMNode> bnode; subs->Item(0, getter_AddRefs(bnode));
       nsCOMPtr<nsIDOMHTMLElement> b = do_QueryInterface(bnode);
-      if (b) { b->DOMClick(); return; }
+      if (b) { b->DOMClick(); clickedButton = true; }
     }
   }
-  form->Submit();   // no submit control found — submit the form directly
+  if (!clickedButton) {
+    // No submit control: run the submission directly. form->Submit() skips constraint validation, so
+    // reproduce the browser's implicit-submission validation here unless the form opts out with
+    // novalidate (Codex F-325). An invalid, validated form is not submitted — keep focus for the fix.
+    bool noValidate = false; form->GetNoValidate(&noValidate);
+    if (!noValidate) {
+      bool valid = true; form->CheckValidity(&valid);
+      if (!valid) return true;   // invalid + validated: don't submit, keep focus; still an attempt
+    }
+    form->Submit();
+  }
+  if (mChrome->mLinkClicked && !navBefore) mChrome->mFocusedEditable = nullptr;
+  return true;   // a submit was attempted (navigated or blocked) — the caller ends the Enter drain
 }
 
 // Tab in the focused editable. A <textarea> inserts a literal tab; a single-line <input> moves
@@ -824,7 +837,13 @@ void GoannaRenderPage::FocusNextField(bool backward) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
       if (foc && foc != nel) {
         if (edIsTextInput(foc)) { mChrome->mFocusedEditable = foc; nel = foc; }
-        else { mChrome->mFocusedEditable = nullptr; return; }
+        else {
+          // Tab landed focus on a non-text control: clear the target AND lower the VKB (no editable to
+          // type into) instead of leaving the keyboard raised over a dead target (Codex F-326).
+          mChrome->mFocusedEditable = nullptr;
+          mEditorFocused = false; mEditorFieldType = 0; mEditorFocusDirty = true;
+          return;
+        }
       }
     }
   }
@@ -1064,16 +1083,6 @@ void GoannaRenderPage::ClearHistory() {
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 int GoannaRenderPage::GetLoadProgress() const { return mChrome ? mChrome->mProgressPct : 0; }
-
-void GoannaRenderPage::ForceLoadComplete() {
-  // UI-only: mark the load done so the isis overlay clears, and reset mProgrammaticLoad so the next
-  // content nav is still detected (it would otherwise stay stuck — F-265). Deliberately do NOT Stop()
-  // the engine: a slow-but-legitimate document (streaming response, heavy 512 MB page) must keep
-  // loading in the background and finish/repaint on its own, not be aborted into a permanent partial
-  // page at a fixed 12 s timeout (Codex F-288). A late real STATE_STOP is harmless — mLoadWasDone is
-  // already set on the daemon side, so it won't re-emit a contradictory completion.
-  if (mChrome) { mChrome->mDone = true; mChrome->mProgrammaticLoad = false; }
-}
 
 void GoannaRenderPage::AdoptContentLoad() {
   // The engine already fired STATE_START for this content nav (that is how the daemon detected it),
@@ -1420,8 +1429,14 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
       if (fm) {
         nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
         if (foc && foc != effEl) {
-          if (edIsTextInput(foc)) mChrome->mFocusedEditable = foc;
-          else mChrome->mFocusedEditable = nullptr;
+          if (edIsTextInput(foc)) {
+            mChrome->mFocusedEditable = foc;
+          } else {
+            // Focus went to a non-text control: no editable target, so also LOWER the VKB we were about
+            // to raise — otherwise the keyboard stays up over a field it can't edit (Codex F-326).
+            mChrome->mFocusedEditable = nullptr;
+            mEditorFocused = false; mEditorFieldType = 0; mEditorFocusDirty = true;
+          }
         }
       }
     }

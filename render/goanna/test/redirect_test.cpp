@@ -60,7 +60,10 @@ int main(int argc, char** argv) {
 
     std::string url = std::string(base) + "/a";
     page.openUrl(url.c_str());
-    page.pump(15000);
+    // Pump UNDER the 12s load-overlay watchdog (BrowserPageGoanna forces msgLoadStopped at 12s on a
+    // stalled load). At 15s the watchdog would fire and satisfy stopped>=1 even if the redirect never
+    // completed — a false PASS. 8s is well past a local redirect+load yet below the watchdog (F-271).
+    page.pump(8000);
 
     printf("[redir] redirected=%d redirUrl=%s finalLoc=%s stopped=%d\n",
            sink.redirected, sink.redirUrl.c_str(), sink.loc.c_str(), sink.stopped);

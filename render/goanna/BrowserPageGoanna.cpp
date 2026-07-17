@@ -559,9 +559,13 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   // loading in the background; we just stop showing the spinner (standard browser behaviour).
   bool watchdog = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
   if ((mPage->LoadDone() || watchdog) && !mLoadWasDone) {
-    if (watchdog && !mPage->LoadDone())
+    if (watchdog && !mPage->LoadDone()) {
       fprintf(stderr, "[jihad-bs] load watchdog: forcing loadStopped after %ldms\n",
               jihadNowMs() - mLoadStartMs);
+      // Cancel the stalled load + reset the engine load state, so it can't emit late/contradictory
+      // events and mProgrammaticLoad doesn't stay stuck (misclassifying the next nav) — Codex F-265.
+      mPage->ForceLoadComplete();
+    }
     mLoadWasDone = true;
     mLoadStartMs = 0;
     mNeedsPaint = true;   // paint the final frame once (dedup &mdash; Codex P2)
@@ -667,6 +671,11 @@ void BrowserPageGoanna::pump(int msBudget) {
       openUrl(clickNav.c_str());
     }
   }
+  // Fire the pending 'input' event for a keystroke edit FIRST, BEFORE the Tab/Enter queue below —
+  // otherwise a queued Tab would move focus and the event would fire on the wrong field, or a
+  // queued Enter would submit before the edit was observed (Codex F-266). It targets the element
+  // that was actually edited. Runs here (guarded pump), not in keyDown, since onChange runs page JS.
+  mPage->FlushPendingInputEvent();
   // Process a queued editing key (Tab/Enter) in the SAME page-lifetime guard — it runs page JS
   // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback
   // (Codex F-219). A form submit navigates via the engine and is completed by the TakeLinkClicked
@@ -687,9 +696,6 @@ void BrowserPageGoanna::pump(int msBudget) {
     bool efoc = false; int eft = 0, efa = 0;
     if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
   }
-  // Fire a pending 'input' event for a keystroke edit — HERE, in the page-lifetime-protected pump,
-  // not in the keyDown YAP callback, because framework onChange handlers run page JS (F-219/F-238).
-  mPage->FlushPendingInputEvent();
   mPage->PumpFor(msBudget);
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
@@ -712,19 +718,11 @@ void BrowserPageGoanna::pump(int msBudget) {
       fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s\n", linkUrl.c_str());
       openUrl(linkUrl.c_str());
     } else {
-      // POST (login/checkout/search): re-issue as a real POST replaying the captured upload body
-      // (F-243). Same load lifecycle as openUrl. If the body wasn't captured, report a failed load
-      // so the overlay clears instead of hanging.
-      fprintf(stderr, "[jihad-bs] content-nav re-drive POST -> %s\n", linkUrl.c_str());
-      mPendingClick = false;
-      if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false, 0, 0);
-      mAliasUrl.clear();
-      mLoadWasDone = false; mNeedsPaint = false;
-      mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
-      if (!mPage->RedriveLinkPost(linkUrl.c_str())) {
-        mSink.msgFailedLoad("Goanna", 0, linkUrl.c_str(), "POST body unavailable");
-        mSink.msgLoadProgress(100); mSink.msgLoadStopped(); mLoadWasDone = true;
-      }
+      // A POST content-nav (form submit) is NOT re-driven: the original request has already reached
+      // STATE_START — the body may already be on the wire — so re-issuing it would DOUBLE the POST
+      // (double login/charge, Codex F-262). Leave it to the engine to complete; the load-overlay
+      // watchdog (emitLoadAndLocation) clears the spinner if it stalls, so the card is never stuck.
+      fprintf(stderr, "[jihad-bs] content-nav POST (engine-driven) %s\n", linkUrl.c_str());
     }
   }
 }

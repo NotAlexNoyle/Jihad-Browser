@@ -127,6 +127,10 @@ public:
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }
   bool LoadDone() const;
+  // Called by the load-overlay watchdog when a load stalled: cancel it (so it can't emit late or
+  // contradictory SSL/location events) and reset the load-tracking state so the next content
+  // navigation is still correctly detected (mProgrammaticLoad would otherwise stay stuck — F-265).
+  void ForceLoadComplete();
   // Whether the last load ended in a network error (R3 failed-load). Fills the
   // failing nsresult code + URL when *failed is true.
   bool GetLoadError(bool* failed, int* code, std::string* url);
@@ -135,10 +139,6 @@ public:
   // If a content-initiated (link) navigation was seen, return its URL and clear
   // the flag (R6 link-clicked). Returns false if none pending.
   bool TakeLinkClicked(std::string* url, bool* isPost = nullptr);
-  // Re-drive the last content-initiated POST navigation to url, replaying the captured upload
-  // stream so the form body survives (GET navs use LoadUrl; POST would otherwise lose the body).
-  // Returns false if there was no captured body (caller reports a failed load). Runs in pump().
-  bool RedriveLinkPost(const char* url);
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);
@@ -157,7 +157,6 @@ private:
   bool mEditorFocused;        // is an editable element currently focused (VKB up)?
   bool mEditorFocusDirty;     // the focus state changed and needs emitting
   int  mEditorFieldType;      // PalmIME field-type hint for the focused editable
-  bool mPendingInputEvent;    // a value edit happened; fire 'input' on the next guarded pump tick
   GtkWidget* mWindow;      // legacy desktop path (GTK offscreen window)
   nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
   bool mOffscreen;         // true when rendering via the offscreen widget

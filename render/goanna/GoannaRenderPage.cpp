@@ -67,9 +67,6 @@
 #include "nsIDOMHTMLFormElement.h"   // HandleEnter: submit the focused input's form
 #include "nsIDOMEvent.h"             // dispatch 'input' so controlled/React fields see edits (F-238)
 #include "nsIDOMEventTarget.h"
-#include "nsIUploadChannel.h"        // POST form re-drive: capture + replay the upload stream (F-243)
-#include "nsISeekableStream.h"
-#include "nsIInputStream.h"
 #include "nsIPrefBranch.h"
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
@@ -104,15 +101,15 @@ public:
   bool mCertError;           // last load failed on an (overridable) cert error
   bool mProgrammaticLoad;    // current load was started by a command (not a link)
   bool mLinkClicked;         // a content-initiated (link) navigation was seen
-  bool mLinkIsPost;          // ...and it was a non-GET (POST) request
+  bool mLinkIsPost;          // ...and it was a non-GET (POST) request (not re-driven — F-262)
   nsCString mLinkUrl;        // its target URL
-  nsCOMPtr<nsIInputStream> mLinkPostData;   // captured POST upload stream, for the re-drive (F-243)
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
   int32_t mCertPort;         // port of the cert error
   nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
   nsCOMPtr<nsIDOMElement> mFocusedEditable;  // last-tapped editable, marked for InsertText DOM mutation
+  nsCOMPtr<nsIDOMElement> mPendingInputEl;   // element that was edited + needs an 'input' event (F-266)
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -207,25 +204,13 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     mLinkClicked = true;
     mLinkIsPost = false;
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
-    mLinkPostData = nullptr;
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
-      // Capture the method. A POST content-nav must NOT be re-driven as a GET (the body would be
-      // lost — logins/checkout break), so capture the upload stream and re-drive it as a real POST
-      // (F-243). Rewind it: the aborted-then-re-driven channel re-reads from the start.
+      // Capture the method: a POST content-nav is NOT re-driven (the body may already be on the
+      // wire — re-issuing would double the request, Codex F-262); only GET-class navs get the
+      // re-drive. The engine completes POSTs; the load watchdog clears the overlay if one stalls.
       nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(ch);
       if (http) { nsAutoCString m; http->GetRequestMethod(m); mLinkIsPost = !m.EqualsLiteral("GET"); }
-      if (mLinkIsPost) {
-        nsCOMPtr<nsIUploadChannel> up = do_QueryInterface(ch);
-        if (up) {
-          nsCOMPtr<nsIInputStream> upstream; up->GetUploadStream(getter_AddRefs(upstream));
-          if (upstream) {
-            nsCOMPtr<nsISeekableStream> seek = do_QueryInterface(upstream);
-            if (seek) seek->Seek(nsISeekableStream::NS_SEEK_SET, 0);   // rewind for re-read
-            mLinkPostData = upstream;
-          }
-        }
-      }
     }
   }
   if (top && (f & (STATE_START | STATE_STOP))) {
@@ -307,8 +292,7 @@ extern "C" {
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
   : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidget(nullptr),
     mOffscreen(false), mWidth(0), mHeight(0),
-    mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0),
-    mPendingInputEvent(false) {}
+    mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
   // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
@@ -499,6 +483,22 @@ static bool edSetCaret(nsIDOMElement* el, int32_t pos) {
   if (ta) return NS_SUCCEEDED(ta->SetSelectionRange(pos, pos, NS_LITERAL_STRING("")));
   return false;
 }
+// True for a TEXT-entry control: a <textarea>, or an <input> of a text-like type. Used to reject
+// retargeting the edit target to a checkbox/radio/submit/button <input> (all nsIDOMHTMLInputElement)
+// when a focus handler moved focus there (Codex F-270).
+static bool edIsTextInput(nsIDOMElement* el) {
+  if (!el) return false;
+  nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
+  if (ta) return true;
+  nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
+  if (!in) return false;
+  nsAutoString ty; el->GetAttribute(NS_LITERAL_STRING("type"), ty);
+  std::string t = NS_ConvertUTF16toUTF8(ty).get();
+  for (char& c : t) c = (char)tolower((unsigned char)c);
+  return t.empty() || t == "text" || t == "search" || t == "email" || t == "url" ||
+         t == "tel" || t == "number" || t == "password";
+}
+
 // Read the selection [start,end], normalized (start<=end) and clamped to the value length. Returns
 // false when the element exposes no text-selection API — notably <input type=number>/email/etc.,
 // whose selectionStart is null (Codex F-220); callers then fall back to an append-at-end edit.
@@ -526,10 +526,9 @@ static bool edIsPairBoundaryLow(const nsAString& v, int32_t i) {
 // Dispatch a bubbling DOM 'input' event on the focused editable if a value edit is pending (see the
 // header). Called only from the guarded pump loop (BrowserPageGoanna::pump), never from keyDown.
 void GoannaRenderPage::FlushPendingInputEvent() {
-  if (!mPendingInputEvent) return;
-  mPendingInputEvent = false;
-  if (!mChrome || !mChrome->mFocusedEditable) return;
-  nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
+  if (!mChrome || !mChrome->mPendingInputEl) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mPendingInputEl;   // the element that was EDITED (F-266)...
+  mChrome->mPendingInputEl = nullptr;                      // ...not necessarily the current focus
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
   if (!node) return;
   nsCOMPtr<nsIDOMDocument> doc; node->GetOwnerDocument(getter_AddRefs(doc));
@@ -544,7 +543,7 @@ void GoannaRenderPage::FlushPendingInputEvent() {
 
 void GoannaRenderPage::InsertText(const char* text) {
   if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
-  mPendingInputEvent = true;   // fire 'input' from pump so controlled fields keep the edit (F-238)
+  mChrome->mPendingInputEl = mChrome->mFocusedEditable;   // fire 'input' from pump (F-238) on THIS field
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
   nsAutoString v;
@@ -562,6 +561,10 @@ void GoannaRenderPage::InsertText(const char* text) {
     } else {
       // A value control with no selection API (<input type=number> etc., Codex F-220): append at
       // the end via the live value setter (SetTextContent would not update the control's value).
+      // KNOWN LIMITATION (Codex F-242): <input type=number> sanitizes .value, so a temporarily-
+      // invalid prefix (a lone leading "-", or "1." mid-decimal) is dropped — typing "-1" yields
+      // "1". Faithfully supporting that needs the engine's own text-control editor buffer, which we
+      // bypass; acceptable for now since numeric entry is normally left-to-right and valid.
       nsAutoString nv(v); nv.Append(t); edSetValue(el, nv); el->SetScrollLeft(1 << 24);
     }
     return;
@@ -588,7 +591,8 @@ static void jihadTrimLastChar(nsAutoString& v) {
 // keep the caret where the deleted text was. The VKB delivers Backspace as a keyDown.
 void GoannaRenderPage::DeleteBackward() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
-  mPendingInputEvent = true;   // fire 'input' from pump (F-238)
+  // NB: mark the pending 'input' event only when a value change ACTUALLY happens (F-267) — a
+  // Backspace at position 0 / on an empty field mutates nothing and must not fire input.
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsAutoString v;
   if (edGetValue(el, v)) {
@@ -596,20 +600,20 @@ void GoannaRenderPage::DeleteBackward() {
     if (edGetSelection(el, v, &s, &e)) {
       if (s != e) {   // a range is selected: Backspace deletes the whole selection (Codex F-221)
         nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
-        edSetValue(el, nv); edSetCaret(el, s); return;
+        edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; return;
       }
-      if (s == 0) return;
+      if (s == 0) return;   // nothing before the caret: no mutation, no input event
       int32_t drop = edIsPairBoundaryLow(v, s - 1) ? 2 : 1; if (drop > s) drop = s;
       nsAutoString nv; nv.Append(Substring(v, 0, s - drop)); nv.Append(Substring(v, s));
-      edSetValue(el, nv); edSetCaret(el, s - drop); return;
+      edSetValue(el, nv); edSetCaret(el, s - drop); mChrome->mPendingInputEl = el; return;
     }
-    if (!v.IsEmpty()) { jihadTrimLastChar(v); edSetValue(el, v); }   // number/email: drop last char
+    if (!v.IsEmpty()) { jihadTrimLastChar(v); edSetValue(el, v); mChrome->mPendingInputEl = el; }
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable
   if (node) {
     nsAutoString cv; node->GetTextContent(cv);
-    if (!cv.IsEmpty()) { jihadTrimLastChar(cv); node->SetTextContent(cv); }
+    if (!cv.IsEmpty()) { jihadTrimLastChar(cv); node->SetTextContent(cv); mChrome->mPendingInputEl = el; }
   }
 }
 
@@ -620,22 +624,21 @@ static bool edIsSpace(char16_t c) { return c == ' ' || c == '\t' || c == '\n' ||
 // auto-repeat, so clearing a long field is quick. If a range is selected it deletes that instead.
 void GoannaRenderPage::DeleteBackwardWord() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
-  mPendingInputEvent = true;   // fire 'input' from pump (F-238)
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsAutoString v; int32_t s, e;
   if (edGetValue(el, v) && edGetSelection(el, v, &s, &e)) {
     if (s != e) {   // selection present: delete it
       nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
-      edSetValue(el, nv); edSetCaret(el, s); return;
+      edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; return;
     }
-    if (s == 0) return;
+    if (s == 0) return;   // nothing before the caret: no mutation (F-267)
     int32_t i = s;
     while (i > 0 && edIsSpace(v.CharAt(i - 1))) i--;          // trailing whitespace
     while (i > 0 && !edIsSpace(v.CharAt(i - 1))) i--;         // the word itself
     if (i >= s) i = s - 1;                                    // guarantee progress
     if (edIsPairBoundaryLow(v, i)) i--;                       // never split a surrogate pair (F-187)
     nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, s));
-    edSetValue(el, nv); edSetCaret(el, i);
+    edSetValue(el, nv); edSetCaret(el, i); mChrome->mPendingInputEl = el;
     return;
   }
   DeleteBackward();   // number/contentEditable: no word model — remove one char
@@ -684,15 +687,14 @@ void GoannaRenderPage::EditKey(int action) {
       break;
     }
     case EK_DELETE: {
-      mPendingInputEvent = true;   // fire 'input' from pump (F-238)
       if (hasSel) {   // forward-Delete with a selection removes the selection
         nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
-        edSetValue(el, nv); edSetCaret(el, s); break;
+        edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; break;
       }
-      if (c >= len) break;
+      if (c >= len) break;   // nothing after the caret: no mutation, no input event (F-267)
       int32_t drop = edIsPairBoundaryLow(v, c + 1) ? 2 : 1; if (c + drop > len) drop = len - c;
       nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(Substring(v, c + drop));
-      edSetValue(el, nv); edSetCaret(el, c);
+      edSetValue(el, nv); edSetCaret(el, c); mChrome->mPendingInputEl = el;
       break;
     }
     default: break;
@@ -712,6 +714,10 @@ void GoannaRenderPage::HandleEnter() {
   if (!in) return;
   nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
   if (!form) return;
+  // Submit exactly once: clear the edit target FIRST so a second queued Enter (F-264) can't
+  // re-submit the same form (the pump loop stops when HasFocusedEditable() goes false). The load
+  // that the submit starts also clears it via ClearEditorFocus.
+  mChrome->mFocusedEditable = nullptr;
   nsCOMPtr<nsIDOMElement> formEl = do_QueryInterface(form);
   if (formEl) {
     nsCOMPtr<nsIDOMNodeList> subs;
@@ -791,11 +797,7 @@ void GoannaRenderPage::FocusNextField(bool backward) {
     nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-      if (foc && foc != nel) {
-        nsCOMPtr<nsIDOMHTMLInputElement> fi = do_QueryInterface(foc);
-        nsCOMPtr<nsIDOMHTMLTextAreaElement> fta = do_QueryInterface(foc);
-        if (fi || fta) { mChrome->mFocusedEditable = foc; nel = foc; }
-      }
+      if (foc && foc != nel && edIsTextInput(foc)) { mChrome->mFocusedEditable = foc; nel = foc; }
     }
   }
   int32_t vlen = 0; { nsAutoString vv; if (edGetValue(nel, vv)) vlen = (int32_t)vv.Length(); }
@@ -969,25 +971,6 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
 }
 
-bool GoannaRenderPage::RedriveLinkPost(const char* url) {
-  if (!mChrome || !url) return false;
-  nsCOMPtr<nsIInputStream> post = mChrome->mLinkPostData;
-  mChrome->mLinkPostData = nullptr;   // consume regardless
-  if (!post) return false;            // no captured body — caller reports a failed load
-  jihad_init_nss();                   // same TLS main-thread init as LoadUrl (POST is usually https)
-  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
-  if (!nav) return false;
-  // customUserAgent identical to LoadUrl (per-domain override -> navigator.userAgent match).
-  { const char* domUa = JihadPerDomainUaForUrl(url);
-    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-    if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(domUa ? domUa : JIHAD_USER_AGENT)); }
-  BeginLoad();
-  // aPostData is the captured form upload stream (an nsIMIMEInputStream carrying its Content-Type),
-  // so LoadURI re-issues a proper POST with the original body + headers instead of losing them.
-  NS_ConvertUTF8toUTF16 u(url);
-  return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, post, nullptr));
-}
-
 void GoannaRenderPage::PumpFor(int msBudget) {
   nsCOMPtr<nsIThread> thread;
   NS_GetCurrentThread(getter_AddRefs(thread));
@@ -1050,6 +1033,11 @@ void GoannaRenderPage::ClearHistory() {
 }
 
 bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
+
+void GoannaRenderPage::ForceLoadComplete() {
+  Stop();   // cancel the stalled network activity so it can't emit late/contradictory events
+  if (mChrome) { mChrome->mDone = true; mChrome->mProgrammaticLoad = false; }
+}
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
 
@@ -1384,11 +1372,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
       nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
       if (fm) {
         nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-        if (foc && foc != effEl) {
-          nsCOMPtr<nsIDOMHTMLInputElement> fi = do_QueryInterface(foc);
-          nsCOMPtr<nsIDOMHTMLTextAreaElement> fta = do_QueryInterface(foc);
-          if (fi || fta) mChrome->mFocusedEditable = foc;
-        }
+        if (foc && foc != effEl && edIsTextInput(foc)) mChrome->mFocusedEditable = foc;
       }
     }
     // NB: do NOT position the caret at the tap via a javascript: URL here — a javascript: LoadURI

@@ -25,6 +25,7 @@
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
+#include <cctype>                    // tolower (case-insensitive host match)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
 #define JIHAD_NS_WEBBROWSER_CONTRACTID "@mozilla.org/embedding/browser/nsWebBrowser;1"
@@ -101,12 +102,15 @@ const char* JihadPerDomainUaForUrl(const char* url) {
   if (!url) return nullptr;
   const char* p = strstr(url, "://");
   p = p ? p + 3 : url;
-  if (const char* at = strchr(p, '@')) {   // skip userinfo if present, up to the next '/'
-    const char* slash = strchr(p, '/');
-    if (!slash || at < slash) p = at + 1;
-  }
+  // The authority ends at the first '/', '?' or '#'. Only an '@' WITHIN the authority is userinfo —
+  // an '@' in the query (e.g. ?email=a@b) is not (Codex F-269).
+  const char* end = p;
+  while (*end && *end != '/' && *end != '?' && *end != '#') ++end;
+  for (const char* q = p; q < end; ++q) if (*q == '@') { p = q + 1; break; }
+  // host = authority minus any :port, lowercased to match the normalized ascii host the observer
+  // sees (host matching must be case-insensitive: HTTPS://GOOGLE.COM should match — F-269).
   std::string host;
-  for (; *p && *p != '/' && *p != '?' && *p != '#' && *p != ':'; ++p) host += *p;
+  for (const char* q = p; q < end && *q != ':'; ++q) host += (char)tolower((unsigned char)*q);
   if (host.empty()) return nullptr;
   nsDependentCString h(host.c_str());
   return jihadUaForHost(h);

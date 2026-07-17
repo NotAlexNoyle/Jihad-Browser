@@ -925,10 +925,6 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
   // isn't loaded by a bare embedder). Set per-load: the attribute lives on the docShell
   // and survives same-docShell navigations, but re-applying is cheap and covers a fresh
   // content window. Also drives the network User-Agent header for this docShell's loads.
-  {
-    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-    if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(JIHAD_USER_AGENT));
-  }
   BeginLoad();
   // Scheme fixup: a bare host like "whatismybrowser.com" has no scheme, and nav->LoadURI
   // needs one or the load silently fails (no load-done, blank page). Prepend http:// unless
@@ -940,6 +936,16 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
       fixed.compare(0, 11, "javascript:") != 0 && fixed.compare(0, 7, "mailto:") != 0 &&
       fixed.compare(0, 5, "file:") != 0 && fixed.compare(0, 4, "tel:") != 0) {
     fixed = "http://" + fixed;
+  }
+  // Pin the browser identity via the docShell customUserAgent (returned by Navigator::GetUserAgent
+  // ahead of nsHttpHandler, so navigator.userAgent is reliable). For a domain with a per-domain UA
+  // override, use THAT UA so navigator.userAgent matches the request header the observer sends —
+  // otherwise client-side UA gating (e.g. google's JS) sees a stale FF52 while the server saw FF71
+  // (Codex F-240). Otherwise the standard JIHAD_USER_AGENT.
+  {
+    const char* domUa = JihadPerDomainUaForUrl(fixed.c_str());
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(domUa ? domUa : JIHAD_USER_AGENT));
   }
   NS_ConvertUTF8toUTF16 u(fixed.c_str());
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));

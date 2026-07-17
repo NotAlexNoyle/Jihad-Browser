@@ -46,6 +46,11 @@ private:
   EngineHost& operator=(const EngineHost&) = delete;
 };
 
+// The per-domain User-Agent override for a URL's host (walking up sub-domains), or nullptr if none.
+// Same table the http-on-modify-request observer uses — so navigator.userAgent (set via the
+// docShell customUserAgent in LoadUrl) matches the request header for override domains (Codex F-240).
+const char* JihadPerDomainUaForUrl(const char* url);
+
 } // namespace jihad
 
 #endif // JIHAD_ENGINEHOST_H

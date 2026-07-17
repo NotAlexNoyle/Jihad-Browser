@@ -24,6 +24,7 @@
 #include "nsIURI.h"
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
 #include <string>
+#include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
 #define JIHAD_NS_WEBBROWSER_CONTRACTID "@mozilla.org/embedding/browser/nsWebBrowser;1"
@@ -91,6 +92,24 @@ static const char* jihadUaForHost(const nsACString& hostCStr) {
     h.erase(0, dot + 1);
   }
   return nullptr;
+}
+
+// Public (see EngineHost.h): extract the host from a URL string and return its per-domain UA
+// override, so LoadUrl can pin the docShell customUserAgent (navigator.userAgent) to the same value
+// the request-header observer sends — otherwise client-side UA gating sees a stale FF52 (F-240).
+const char* JihadPerDomainUaForUrl(const char* url) {
+  if (!url) return nullptr;
+  const char* p = strstr(url, "://");
+  p = p ? p + 3 : url;
+  if (const char* at = strchr(p, '@')) {   // skip userinfo if present, up to the next '/'
+    const char* slash = strchr(p, '/');
+    if (!slash || at < slash) p = at + 1;
+  }
+  std::string host;
+  for (; *p && *p != '/' && *p != '?' && *p != '#' && *p != ':'; ++p) host += *p;
+  if (host.empty()) return nullptr;
+  nsDependentCString h(host.c_str());
+  return jihadUaForHost(h);
 }
 
 class JihadUaOverride final : public nsIObserver {

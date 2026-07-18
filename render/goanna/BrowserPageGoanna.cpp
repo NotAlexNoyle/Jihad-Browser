@@ -197,12 +197,17 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // T1 instrumentation (device 2026-07-17: "page pushed up off screen when the search bar is
   // focused"): log the engine scroll across the resize — the VKB shrink arrives as a
   // setWindowSize, so these lines show whether the reflow moved the scroll (engine-side push)
-  // or the scroll was already moved before the resize (adapter/app-side push).
-  int sx0 = 0, sy0 = 0; mPage->GetScrollXY(&sx0, &sy0);
+  // or the scroll was already moved before the resize (adapter/app-side push). GATED behind
+  // JIHAD_T1_LOG (inspector P3): each GetScrollXY forces a layout flush, and two extra full
+  // reflows per VKB toggle in the socket-callback context is a real cost on the ARMv7.
+  static const bool t1log = getenv("JIHAD_T1_LOG") != nullptr;
+  int sx0 = 0, sy0 = 0; if (t1log) mPage->GetScrollXY(&sx0, &sy0);
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
-  int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
-  fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d\n",
-          width, height, sx0, sy0, sx1, sy1, (int)mPage->HasFocusedEditable());
+  if (t1log) {
+    int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
+    fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d\n",
+            width, height, sx0, sy0, sx1, sy1, (int)mPage->HasFocusedEditable());
+  }
 }
 
 void BrowserPageGoanna::freeze() {
@@ -656,6 +661,10 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = true;
     mPage->ClearProgrammaticLoad();
     emitCompletion(true);
+    // The watchdog-completed page still needs the engine focus listener — by 12 s the document
+    // has almost always committed, and this slow-load path is exactly the wedged-VKB scenario
+    // the feature targets (inspector P2). Re-resolves when the load later finishes (late branch).
+    mPage->RegisterEngineFocusListener();
   }
 }
 

@@ -115,3 +115,17 @@ paint, then read the BasicLayerManager/compositor buffer into the shmem.
 - `-Wno-error=format-overflow` via warnings.configure does not reach js/src
   (js appends `-Werror=format` after the warnings list) — fixed with a source
   pragma instead (patches/0002). See git log T-010.
+
+## input2_test holdAt/insert pixel checks — desktop harness paint (pre-existing, 2026-07-18)
+
+input2_test reports `holdAt green=-1` / `insertStringAtCursor green=-1` = ZERO
+`painted shmid` emissions across the whole run (harness-wide, not logic-specific).
+Confirmed NOT a regression from the 2026-07 loading-screen/focus work: `git diff
+8b993a1..HEAD -- BrowserPageGoanna.cpp` touches none of paintToSharedBuffer /
+attachShm / jihadShmResolve / mActiveKey / mBufSize. link_test (navigation) and
+the new focus_test (VKB emissions) both PASS against the same desktop libxul, so
+navigation + input + focus logic are fine — only the pixel-readback paint in the
+desktop Xvfb harness is dead. Prime suspect: the desktop libxul in
+build/desktop/out is stale vs the current UXP tree (this session only rebuilt ARM
+libxul). Rebuild desktop libxul before trusting input2/scroll/geo pixel asserts.
+Does not affect device (ARM libxul is current + the daemon renders on /dev/fb1).

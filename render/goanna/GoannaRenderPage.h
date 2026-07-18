@@ -21,7 +21,8 @@
 #include <string>
 
 typedef struct _GtkWidget GtkWidget;
-class nsIWidget;   // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
+class nsIWidget;      // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
+class nsIDOMElement;  // opaque; synthetic-click target (ClickElementSynthetic)
 
 namespace jihad {
 
@@ -173,6 +174,10 @@ private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
   void ActivateEditorCaret();              // activate the offscreen window so nsCaret paints (solid)
   void FocusNextField(bool backward);      // Tab in an <input>: focus the next/prev text field
+  // Synthesize a trusted click on an element via mousedown+mouseup at its rect center (content
+  // coords). Replaces DOMClick(), which MOZ_CRASHes from native code (no JSContext -> no subject
+  // principal). Returns false if the element has no layout box. Used for submit buttons + taps.
+  bool ClickElementSynthetic(nsIDOMElement* el);
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)

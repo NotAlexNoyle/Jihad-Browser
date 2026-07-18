@@ -230,6 +230,13 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     mDone = false; mLoadFailed = false; mRedirected = false; mCertError = false;
     mErrorStatus = NS_OK; mProgressPct = 0;
     mUserInteracted = false;   // new page (content nav): autofocus must not grab the VKB
+    // Release the outgoing document (content nav): the focus-listener pair pins it otherwise
+    // (see BeginLoad — same inspector P3). Progress-callback context: listener bookkeeping only.
+    if (mFocusListenTarget) {
+      mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("focus"), this, true);
+      mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), this, true);
+      mFocusListenTarget = nullptr;
+    }
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
@@ -577,8 +584,12 @@ NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
     mEngineFocusIsText = text;
     mEngineFocusEvent = true;
     // Track the ENGINE's focused field as the type target so keystrokes follow script-driven
-    // focus moves (login flows that swap fields), not just taps.
-    mFocusedEditable = text ? el : nullptr;
+    // focus moves (login flows that swap fields), not just taps — but only once the user has
+    // interacted with the page. Gating the RETARGET on the same mUserInteracted flag as the VKB
+    // raise keeps key routing consistent with it (inspector P3): a load-time autofocus neither
+    // raises the keyboard NOR captures the raw-key path (KeyEvent falls through to SendKeyEvent
+    // exactly as before this feature — matters for desktop/synthetic-key callers).
+    mFocusedEditable = (text && mUserInteracted) ? el : nullptr;
   } else if (type.EqualsLiteral("blur")) {
     // Only a blur OF the tracked field lowers the VKB — a blur elsewhere (a button losing
     // focus as the user taps the field) must not clobber the just-set focus state.
@@ -829,8 +840,11 @@ bool GoannaRenderPage::HandleEnter() {
     uint32_t n = 0; if (subs) subs->GetLength(&n);
     if (n) {
       nsCOMPtr<nsIDOMNode> bnode; subs->Item(0, getter_AddRefs(bnode));
-      nsCOMPtr<nsIDOMHTMLElement> b = do_QueryInterface(bnode);
-      if (b) { b->DOMClick(); clickedButton = true; }
+      nsCOMPtr<nsIDOMElement> b = do_QueryInterface(bnode);
+      // Synthesize the click via mouse events (NOT DOMClick — that MOZ_CRASHes from native code,
+      // see ClickElementSynthetic). This runs the button's onclick + the form's onsubmit +
+      // interactive validation exactly like a real tap, then submits.
+      if (b) clickedButton = ClickElementSynthetic(b);
     }
   }
   if (!clickedButton) {
@@ -1047,6 +1061,16 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
   mChrome->mProgressPct = 0;           // fresh progress for the new load (isis resets its bar too)
   mChrome->mUserInteracted = false;    // Atlas autofocus gate: new page, no tap yet
+  // Drop the focus listener NOW, not at the next completion — the listener pair holds a strong
+  // ref to the OLD document (chrome -> doc -> listener -> chrome cycle), which would pin the
+  // outgoing page's whole content tree for the duration of a slow load, exactly when a 512 MB
+  // device is tightest (inspector P3). VKB lowering on nav is handled by ClearEditorFocus, not
+  // by the dying page's blur.
+  if (mChrome->mFocusListenTarget) {
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+    mChrome->mFocusListenTarget = nullptr;
+  }
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
   mChrome->mCertHost.Truncate();
@@ -1337,6 +1361,32 @@ static void ActivateContent(nsIWebBrowser* wb) {
   if (ds) ds->SetIsActive(true);
 }
 
+// Synthesize a trusted click on an element by dispatching mousedown+mouseup at its center
+// (in content coords = viewport-rect + scroll). This REPLACES nsIDOMHTMLElement::DOMClick(),
+// which the engine explicitly forbids from native code — nsGenericHTMLElement::Click() builds
+// its event with nsContentUtils::IsCallerChrome(), and SubjectPrincipal() MOZ_CRASHes when no
+// JSContext is on the stack (we call from the guarded pump, not JS). That native DOMClick was a
+// latent daemon SIGSEGV on every button/submit activation (Enter-submit, non-anchor taps). The
+// mouse-event path runs through the event-state manager, which sets up a proper trusted click.
+// Returns false if the element has no layout box (0x0 rect) — nothing to click.
+bool GoannaRenderPage::ClickElementSynthetic(nsIDOMElement* el) {
+  if (!mChrome || !el) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  nsCOMPtr<nsIDOMClientRect> r;
+  if (NS_FAILED(el->GetBoundingClientRect(getter_AddRefs(r))) || !r) return false;
+  float left = 0, top = 0, w = 0, h = 0;
+  r->GetLeft(&left); r->GetTop(&top); r->GetWidth(&w); r->GetHeight(&h);
+  if (w <= 0 || h <= 0) return false;   // display:none / detached — no click target
+  int sx = 0, sy = 0; GetScrollXY(&sx, &sy);   // rect is viewport-relative; add scroll -> content
+  float cx = left + w / 2 + sx, cy = top + h / 2 + sy;
+  bool ret = false;
+  NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
+  u->SendMouseEvent(down, cx, cy, 0, 1, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
+  u->SendMouseEvent(up,   cx, cy, 0, 1, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+  return true;
+}
+
 void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   if (!mChrome) return;
   ActivateContent(mChrome->mBrowser);
@@ -1554,14 +1604,15 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // this, mFocusedEditable stayed set after tapping away, so keyDown kept swallowing keys and
   // InsertText kept mutating the old field for the rest of the page's life (Jihad review F-164).
   mChrome->mFocusedEditable = nullptr;
-  // Non-editable: mouse events (JS mousedown/up + :active) then DOM click() for buttons,
-  // form controls, and JS onclick handlers.
+  // Non-editable: dispatch mousedown+mouseup at the tap. On the same element these synthesize a
+  // trusted `click` through the event-state manager — buttons, form controls, and JS onclick
+  // handlers all fire. Do NOT also call nsIDOMHTMLElement::DOMClick(): the engine forbids Click()
+  // from native code (SubjectPrincipal() MOZ_CRASH with no JSContext on the stack) — it was a latent
+  // daemon SIGSEGV on every non-anchor tap (see ClickElementSynthetic).
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
   u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
   u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
-  nsCOMPtr<nsIDOMHTMLElement> hel = do_QueryInterface(el);
-  if (hel) hel->DOMClick();
 }
 
 bool GoannaRenderPage::TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions) {

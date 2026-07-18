@@ -21,8 +21,8 @@
 #include <string>
 
 typedef struct _GtkWidget GtkWidget;
-class nsIWidget;      // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
-class nsIDOMElement;  // opaque; synthetic-click target (ClickElementSynthetic)
+class nsIWidget;              // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
+class nsIDOMHTMLFormElement;  // opaque; crash-safe implicit submission target (FireFormSubmit)
 
 namespace jihad {
 
@@ -174,10 +174,11 @@ private:
   void BeginLoad();   // reset per-load state (done + failure) before a navigation
   void ActivateEditorCaret();              // activate the offscreen window so nsCaret paints (solid)
   void FocusNextField(bool backward);      // Tab in an <input>: focus the next/prev text field
-  // Synthesize a trusted click on an element via mousedown+mouseup at its rect center (content
-  // coords). Replaces DOMClick(), which MOZ_CRASHes from native code (no JSContext -> no subject
-  // principal). Returns false if the element has no layout box. Used for submit buttons + taps.
-  bool ClickElementSynthetic(nsIDOMElement* el);
+  // Crash-safe implicit form submission: validate (honoring novalidate), fire a cancelable 'submit'
+  // event (onsubmit can preventDefault), then form->Submit() if not cancelled. Replaces DOMClick(),
+  // which MOZ_CRASHes from native code (no JSContext -> no subject principal), and a synthesized click,
+  // which fires onclick but not the submit default action in this embedding. Returns true iff submitted.
+  bool FireFormSubmit(nsIDOMHTMLFormElement* form);
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)

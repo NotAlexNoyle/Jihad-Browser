@@ -41,6 +41,13 @@ export JIHAD_DISABLE_OMTC=1
 # Gecko). Append unconditionally so it wins.
 echo 'pref("dom.meta-viewport.enabled", true);' >> "$DIST/bin/goanna.js"
 
+echo "== starting local http server (127.0.0.1:18080) for the submit-nav scenario =="
+python3 /jihad/render/goanna/test/redirect_server.py 18080 &
+SRV=$!
+sleep 1
 echo "== running under Xvfb =="
 LD_LIBRARY_PATH="$DIST/bin" xvfb-run -a -s "-screen 0 1024x768x24" "$OUT" "$DIST/bin"
-echo "== focus_test exit: $? =="
+RC=$?
+kill "$SRV" 2>/dev/null
+echo "== focus_test exit: $RC =="
+exit "$RC"

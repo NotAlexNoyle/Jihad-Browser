@@ -64,6 +64,7 @@
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
+#include "nsIDOMHTMLButtonElement.h" // tapped <button type=submit> -> FireFormSubmit
 #include "nsIDOMEventListener.h"     // engine-driven focus/blur -> VKB (Atlas IM-context port)
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMEvent.h"
@@ -817,49 +818,14 @@ bool GoannaRenderPage::HandleEnter() {
   if (!in) return false;
   nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
   if (!form) return false;
-  // Implicit form submission. Do NOT pre-validate or clear the edit target up front: whether the form
-  // actually submits depends on constraint validation, the form's novalidate / a submit button's
-  // formnovalidate, and any onsubmit handler that may preventDefault — all of which the engine
-  // evaluates inside the submit path below (pre-checking CheckValidity would wrongly block novalidate
-  // and custom-validation forms — Codex F-325). Instead detect the OUTCOME: a real submission
-  // synchronously starts a top-level content nav (OnStateChange sets mLinkClicked). Snapshot the flag,
-  // submit, then clear the edit target ONLY if a nav actually started — so a blocked/invalid submit
-  // keeps focus + the VKB for correction (F-290), while a genuine submit clears it so a second queued
-  // Enter can't re-submit (F-264).
-  bool navBefore = mChrome->mLinkClicked;
-  // Prefer clicking the form's default submit control: its onclick, formnovalidate/formaction, and the
-  // engine's interactive validation all run (form->Submit() bypasses every one of them).
-  nsCOMPtr<nsIDOMElement> formEl = do_QueryInterface(form);
-  bool clickedButton = false;
-  if (formEl) {
-    nsCOMPtr<nsIDOMNodeList> subs;
-    formEl->QuerySelectorAll(
-      NS_LITERAL_STRING("input[type=submit]:not([disabled]),button[type=submit]:not([disabled]),"
-                        "input[type=image]:not([disabled]),button:not([type]):not([disabled])"),
-      getter_AddRefs(subs));
-    uint32_t n = 0; if (subs) subs->GetLength(&n);
-    if (n) {
-      nsCOMPtr<nsIDOMNode> bnode; subs->Item(0, getter_AddRefs(bnode));
-      nsCOMPtr<nsIDOMElement> b = do_QueryInterface(bnode);
-      // Synthesize the click via mouse events (NOT DOMClick — that MOZ_CRASHes from native code,
-      // see ClickElementSynthetic). This runs the button's onclick + the form's onsubmit +
-      // interactive validation exactly like a real tap, then submits.
-      if (b) clickedButton = ClickElementSynthetic(b);
-    }
-  }
-  if (!clickedButton) {
-    // No submit control: run the submission directly. form->Submit() skips constraint validation, so
-    // reproduce the browser's implicit-submission validation here unless the form opts out with
-    // novalidate (Codex F-325). An invalid, validated form is not submitted — keep focus for the fix.
-    bool noValidate = false; form->GetNoValidate(&noValidate);
-    if (!noValidate) {
-      bool valid = true; form->CheckValidity(&valid);
-      if (!valid) return true;   // invalid + validated: don't submit, keep focus; still an attempt
-    }
-    form->Submit();
-  }
-  if (mChrome->mLinkClicked && !navBefore) mChrome->mFocusedEditable = nullptr;
-  return true;   // a submit was attempted (navigated or blocked) — the caller ends the Enter drain
+  // Implicit form submission: validate (honoring novalidate), fire the cancelable 'submit' event so
+  // onsubmit runs + can preventDefault, then submit — all crash-safe (FireFormSubmit). Clear the edit
+  // target only if a submission was actually ISSUED (a nav is starting): a genuine submit must not be
+  // re-run by a second queued Enter (F-264), while a blocked/invalid/cancelled submit keeps focus +
+  // the VKB so the user can correct it (F-290). Returns true regardless — a submit was ATTEMPTED, so
+  // the pump's Enter drain stops here.
+  if (FireFormSubmit(form)) mChrome->mFocusedEditable = nullptr;
+  return true;
 }
 
 // Tab in the focused editable. A <textarea> inserts a literal tab; a single-line <input> moves
@@ -1361,29 +1327,33 @@ static void ActivateContent(nsIWebBrowser* wb) {
   if (ds) ds->SetIsActive(true);
 }
 
-// Synthesize a trusted click on an element by dispatching mousedown+mouseup at its center
-// (in content coords = viewport-rect + scroll). This REPLACES nsIDOMHTMLElement::DOMClick(),
-// which the engine explicitly forbids from native code — nsGenericHTMLElement::Click() builds
-// its event with nsContentUtils::IsCallerChrome(), and SubjectPrincipal() MOZ_CRASHes when no
-// JSContext is on the stack (we call from the guarded pump, not JS). That native DOMClick was a
-// latent daemon SIGSEGV on every button/submit activation (Enter-submit, non-anchor taps). The
-// mouse-event path runs through the event-state manager, which sets up a proper trusted click.
-// Returns false if the element has no layout box (0x0 rect) — nothing to click.
-bool GoannaRenderPage::ClickElementSynthetic(nsIDOMElement* el) {
-  if (!mChrome || !el) return false;
-  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
-  if (!u) return false;
-  nsCOMPtr<nsIDOMClientRect> r;
-  if (NS_FAILED(el->GetBoundingClientRect(getter_AddRefs(r))) || !r) return false;
-  float left = 0, top = 0, w = 0, h = 0;
-  r->GetLeft(&left); r->GetTop(&top); r->GetWidth(&w); r->GetHeight(&h);
-  if (w <= 0 || h <= 0) return false;   // display:none / detached — no click target
-  int sx = 0, sy = 0; GetScrollXY(&sx, &sy);   // rect is viewport-relative; add scroll -> content
-  float cx = left + w / 2 + sx, cy = top + h / 2 + sy;
-  bool ret = false;
-  NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
-  u->SendMouseEvent(down, cx, cy, 0, 1, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
-  u->SendMouseEvent(up,   cx, cy, 0, 1, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+// Crash-safe implicit form submission. We CANNOT use nsIDOMHTMLElement::DOMClick() — the engine
+// forbids Click() from native code (nsGenericHTMLElement::Click() → IsCallerChrome() →
+// SubjectPrincipal() MOZ_CRASHes with no JSContext on the stack), which was a latent daemon SIGSEGV
+// on every submit-button activation. And a synthesized mousedown+mouseup fires the `click` event
+// (so onclick handlers run) but NOT the submit DEFAULT ACTION in this offscreen embedding — the
+// reason the crashing DOMClick was there at all. So replicate requestSubmit(): run constraint
+// validation (honoring novalidate), dispatch a cancelable `submit` event so onsubmit runs and can
+// preventDefault, then form->Submit() (which itself skips both validation and the submit event) only
+// if it wasn't cancelled. Returns true iff a submission was actually issued (a nav is starting).
+bool GoannaRenderPage::FireFormSubmit(nsIDOMHTMLFormElement* form) {
+  if (!form) return false;
+  bool noValidate = false; form->GetNoValidate(&noValidate);
+  if (!noValidate) { bool valid = true; form->CheckValidity(&valid); if (!valid) return false; }
+  bool proceed = true;   // becomes false iff an onsubmit handler calls preventDefault
+  nsCOMPtr<nsIDOMDocument> doc;
+  { nsCOMPtr<nsIDOMNode> fn = do_QueryInterface(form);
+    if (fn) fn->GetOwnerDocument(getter_AddRefs(doc)); }
+  nsCOMPtr<nsIDOMEventTarget> ftgt = do_QueryInterface(form);
+  if (doc && ftgt) {
+    nsCOMPtr<nsIDOMEvent> ev;
+    if (NS_SUCCEEDED(doc->CreateEvent(NS_LITERAL_STRING("Events"), getter_AddRefs(ev))) && ev) {
+      ev->InitEvent(NS_LITERAL_STRING("submit"), /*bubbles*/true, /*cancelable*/true);
+      ftgt->DispatchEvent(ev, &proceed);
+    }
+  }
+  if (!proceed) return false;
+  form->Submit();
   return true;
 }
 
@@ -1605,14 +1575,42 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // InsertText kept mutating the old field for the rest of the page's life (Jihad review F-164).
   mChrome->mFocusedEditable = nullptr;
   // Non-editable: dispatch mousedown+mouseup at the tap. On the same element these synthesize a
-  // trusted `click` through the event-state manager — buttons, form controls, and JS onclick
-  // handlers all fire. Do NOT also call nsIDOMHTMLElement::DOMClick(): the engine forbids Click()
-  // from native code (SubjectPrincipal() MOZ_CRASH with no JSContext on the stack) — it was a latent
-  // daemon SIGSEGV on every non-anchor tap (see ClickElementSynthetic).
+  // trusted `click` through the event-state manager — JS onclick handlers, :active, and focus all
+  // fire. Do NOT call nsIDOMHTMLElement::DOMClick(): the engine forbids Click() from native code
+  // (SubjectPrincipal() MOZ_CRASH with no JSContext on the stack) — it was a latent daemon SIGSEGV on
+  // every non-anchor tap (see FireFormSubmit).
+  bool navBefore = mChrome->mLinkClicked;
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
   u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
   u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+  // A tapped SUBMIT control (search "Go" button, login submit) needs the form-submission DEFAULT
+  // action, which the synthesized click above does NOT trigger in this embedding (only onclick fires).
+  // If the click didn't already start a nav (an onclick SPA handler), submit its form crash-safely —
+  // the same path Enter uses. Covers input[type=submit|image] and <button> that defaults to submit.
+  if (!mChrome->mLinkClicked || mChrome->mLinkClicked == navBefore) {
+    nsCOMPtr<nsIDOMHTMLFormElement> sform;
+    { nsAutoString tg2; if (effEl) effEl->GetTagName(tg2);
+      std::string t2 = NS_ConvertUTF16toUTF8(tg2).get();
+      for (char& c : t2) c = (char)toupper((unsigned char)c);
+      if (t2 == "BUTTON") {
+        nsCOMPtr<nsIDOMHTMLButtonElement> btn = do_QueryInterface(effEl);
+        nsAutoString bt; if (effEl) effEl->GetAttribute(NS_LITERAL_STRING("type"), bt);
+        std::string bts = NS_ConvertUTF16toUTF8(bt).get();
+        for (char& c : bts) c = (char)tolower((unsigned char)c);
+        if (btn && (bts.empty() || bts == "submit")) btn->GetForm(getter_AddRefs(sform));   // default type is submit
+      } else if (t2 == "INPUT") {
+        nsAutoString it; if (effEl) effEl->GetAttribute(NS_LITERAL_STRING("type"), it);
+        std::string its = NS_ConvertUTF16toUTF8(it).get();
+        for (char& c : its) c = (char)tolower((unsigned char)c);
+        if (its == "submit" || its == "image") {
+          nsCOMPtr<nsIDOMHTMLInputElement> ib = do_QueryInterface(effEl);
+          if (ib) ib->GetForm(getter_AddRefs(sform));
+        }
+      }
+    }
+    if (sform) FireFormSubmit(sform);
+  }
 }
 
 bool GoannaRenderPage::TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions) {

@@ -116,6 +116,21 @@ paint fix + this.
 
 - Login form (POST) end-to-end — user: "too ambitious" until the above are fixed.
 
+## Architectural finding (2026-07-18) — SendMouseEvent doesn't fire DEFAULT actions
+
+Root of both the DOMClick crash AND why removing it wasn't enough:
+`nsIDOMWindowUtils::SendMouseEvent(mousedown+mouseup)` in this offscreen
+embedding synthesizes the `click` EVENT (so onclick/JS handlers run) but does
+NOT trigger the click DEFAULT ACTION (form submission, checkbox toggle). That is
+why the original code called DOMClick() — which MOZ_CRASHes from native code
+(no JSContext → SubjectPrincipal crash). Fix: for form submission, dispatch a
+cancelable `submit` event + form->Submit() (FireFormSubmit — crash-safe, runs
+onsubmit + validation). Applied to Enter (HandleEnter) and tapped submit
+controls (ClickAt). Links keep working via the separate href path
+(TakeClickNav→openUrl). Validated desktop: focus_test D (Enter) + E (tap submit)
+both navigate. **Remaining default-action gaps (not yet handled): checkbox/radio
+toggle on tap, `<label for>` activation** — add if the device test shows them.
+
 ## Test order for the next device session
 
 1. T3 paint fix in place → re-run google Enter (T2), link tap (T5) — expect both

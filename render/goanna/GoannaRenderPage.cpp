@@ -64,6 +64,9 @@
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
+#include "nsIDOMEventListener.h"     // engine-driven focus/blur -> VKB (Atlas IM-context port)
+#include "nsIDOMEventTarget.h"
+#include "nsIDOMEvent.h"
 #include "nsIDOMHTMLFormElement.h"   // HandleEnter: submit the focused input's form
 #include "nsIDOMEvent.h"             // dispatch 'input' so controlled/React fields see edits (F-238)
 #include "nsIDOMEventTarget.h"
@@ -81,6 +84,7 @@ class PageChrome final : public nsIWebBrowserChrome,
                          public nsIInterfaceRequestor,
                          public nsIWebProgressListener,
                          public nsIBadCertListener2,
+                         public nsIDOMEventListener,
                          public nsSupportsWeakReference
 {
 public:
@@ -90,11 +94,13 @@ public:
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSIWEBPROGRESSLISTENER
   NS_DECL_NSIBADCERTLISTENER2
+  NS_DECL_NSIDOMEVENTLISTENER   // engine focus/blur -> VKB state (Atlas IM-context port)
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
                              mCertError(false), mProgrammaticLoad(true),
                              mLinkClicked(false), mLinkIsPost(false), mErrorStatus(NS_OK), mCertPort(443),
-                             mProgressPct(0), mW(w), mH(h) {}
+                             mProgressPct(0), mEngineFocusIsText(false), mEngineFocusEvent(false),
+                             mUserInteracted(false), mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
   bool mRedirected;          // the main document was redirected during this load
@@ -111,6 +117,16 @@ public:
   nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
   nsCOMPtr<nsIDOMElement> mFocusedEditable;  // last-tapped editable, marked for InsertText DOM mutation
   nsCOMPtr<nsIDOMElement> mPendingInputEl;   // element that was edited + needs an 'input' event (F-266)
+  // Engine-driven focus state (Atlas IM-context port): capture-phase focus/blur on the top
+  // document land in HandleEvent, which records the ENGINE's view of whether a text control is
+  // focused. GoannaRenderPage::PollEngineFocus merges this into the VKB state machine each pump
+  // tick, so a page that moves/removes focus by SCRIPT (SPA login flows, blur() calls, focus
+  // wedged after multi-site sessions — device T4) drives msgEditorFocused without a tap.
+  nsCOMPtr<nsIDOMEventTarget> mFocusListenTarget;  // doc the focus/blur pair is registered on
+  bool mEngineFocusIsText;    // engine focus currently on a text control / contentEditable
+  bool mEngineFocusEvent;     // focus/blur seen since the last PollEngineFocus drain
+  bool mUserInteracted;       // a tap happened since this page's load started (Atlas autofocus
+                              // gate: a page that AUTOFOCUSES on load must not grab the VKB)
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -119,7 +135,7 @@ private:
 
 NS_IMPL_ISUPPORTS(PageChrome, nsIWebBrowserChrome, nsIEmbeddingSiteWindow,
                   nsIInterfaceRequestor, nsIWebProgressListener,
-                  nsIBadCertListener2, nsISupportsWeakReference)
+                  nsIBadCertListener2, nsIDOMEventListener, nsISupportsWeakReference)
 
 // Cert error hook (R5): called during a bad TLS handshake with the SSL status
 // (which carries the untrusted server cert) BEFORE the connection fails. We
@@ -213,6 +229,7 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     // the nav programmatic while it is still in flight.
     mDone = false; mLoadFailed = false; mRedirected = false; mCertError = false;
     mErrorStatus = NS_OK; mProgressPct = 0;
+    mUserInteracted = false;   // new page (content nav): autofocus must not grab the VKB
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
@@ -328,6 +345,14 @@ GoannaRenderPage::~GoannaRenderPage() {
   // the chrome and the native GTK window. All browser refs must be gone before
   // the engine's XRE_TermEmbedding runs.
   nsCOMPtr<nsIWebBrowser> wb = mChrome ? mChrome->mBrowser : nullptr;
+  // Drop the engine focus/blur listener pair before the browser goes away — a focus event
+  // delivered into a half-destroyed chrome would be a use-after-free (same ordered-teardown
+  // rule as the progress listener below).
+  if (mChrome && mChrome->mFocusListenTarget) {
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+    mChrome->mFocusListenTarget = nullptr;
+  }
   if (wb) {
     nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(wb);
     if (nav) nav->Stop(nsIWebNavigation::STOP_ALL);
@@ -525,6 +550,45 @@ static bool edIsTextInput(nsIDOMElement* el) {
   for (char& c : t) c = (char)tolower((unsigned char)c);
   return t.empty() || t == "text" || t == "search" || t == "email" || t == "url" ||
          t == "tel" || t == "number" || t == "password";
+}
+
+// True for anything the VKB should serve: a text control or a contentEditable region.
+static bool edIsEditable(nsIDOMElement* el) {
+  if (edIsTextInput(el)) return true;
+  nsCOMPtr<nsIDOMHTMLElement> h = do_QueryInterface(el);
+  if (!h) return false;
+  bool ce = false; h->GetIsContentEditable(&ce);
+  return ce;
+}
+
+// Engine focus/blur observer (Atlas IM-context port). Runs SYNCHRONOUSLY inside engine event
+// dispatch (during PumpFor), so it must only flip flags/swap COMPtrs — no engine calls, no
+// navigation (the F-219 crash class). The VKB emission happens later, from PollEngineFocus in
+// the guarded pump. Registered capture-phase on the TOP document only (RegisterEngineFocusListener);
+// iframe fields don't propagate here — the tap heuristic still covers those.
+NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
+  if (!aEvent) return NS_OK;
+  nsAutoString type; aEvent->GetType(type);
+  nsCOMPtr<nsIDOMEventTarget> t; aEvent->GetTarget(getter_AddRefs(t));
+  nsCOMPtr<nsIDOMElement> el = do_QueryInterface(t);
+  if (!el) return NS_OK;   // window/document focus transitions — not a field
+  if (type.EqualsLiteral("focus")) {
+    bool text = edIsEditable(el);
+    mEngineFocusIsText = text;
+    mEngineFocusEvent = true;
+    // Track the ENGINE's focused field as the type target so keystrokes follow script-driven
+    // focus moves (login flows that swap fields), not just taps.
+    mFocusedEditable = text ? el : nullptr;
+  } else if (type.EqualsLiteral("blur")) {
+    // Only a blur OF the tracked field lowers the VKB — a blur elsewhere (a button losing
+    // focus as the user taps the field) must not clobber the just-set focus state.
+    if (mFocusedEditable && el == mFocusedEditable) {
+      mEngineFocusIsText = false;
+      mEngineFocusEvent = true;
+      mFocusedEditable = nullptr;
+    }
+  }
+  return NS_OK;
 }
 
 // Read the selection [start,end], normalized (start<=end) and clamped to the value length. Returns
@@ -982,6 +1046,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mCertError = false;
   mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
   mChrome->mProgressPct = 0;           // fresh progress for the new load (isis resets its bar too)
+  mChrome->mUserInteracted = false;    // Atlas autofocus gate: new page, no tap yet
   mChrome->mErrorStatus = NS_OK;
   mChrome->mFailedUrl.Truncate();
   mChrome->mCertHost.Truncate();
@@ -1289,6 +1354,7 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
 
 void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
+  mChrome->mUserInteracted = true;   // Atlas autofocus gate: a real tap unlocks VKB raises
   ActivateContent(mChrome->mBrowser);   // offscreen widget needs explicit activation (see above)
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
@@ -1511,8 +1577,53 @@ bool GoannaRenderPage::ClearEditorFocus() {
   bool was = mEditorFocused;
   mEditorFocused = false;
   mEditorFocusDirty = false;   // any pending change is superseded by the navigation
-  if (mChrome) mChrome->mFocusedEditable = nullptr;   // the field is no longer the type target
+  if (mChrome) {
+    mChrome->mFocusedEditable = nullptr;   // the field is no longer the type target
+    mChrome->mEngineFocusEvent = false;    // pending engine focus/blur belongs to the old page
+    mChrome->mEngineFocusIsText = false;
+  }
   return was;
+}
+
+// (Re)register the capture-phase focus/blur pair on the CURRENT top document (Atlas IM-context
+// port: the engine, not the tap heuristic, is the authority on editor focus). Called after each
+// completed load; a same-document (SPA) completion re-resolves to the same target and no-ops.
+// Listening on the document — not the window — survives everything but a doc swap, which is
+// exactly when we re-register. Safe to call from the guarded pump only (resolves layout).
+void GoannaRenderPage::RegisterEngineFocusListener() {
+  if (!mChrome) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return;
+  nsCOMPtr<nsIDOMEventTarget> tgt = do_QueryInterface(doc);
+  if (!tgt || tgt == mChrome->mFocusListenTarget) return;   // same doc: already registered
+  if (mChrome->mFocusListenTarget) {
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
+    mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+  }
+  tgt->AddEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
+  tgt->AddEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+  mChrome->mFocusListenTarget = tgt;
+}
+
+// Merge engine-observed focus/blur into the VKB state machine (drained by TakeEditorFocus).
+// Emits only on CHANGE — the tap path keeps its always-re-raise semantics (the user may have
+// manually dismissed the VKB), engine events don't need them. The Atlas autofocus gate drops a
+// RAISE that arrives before any tap on this page (a load-time autofocus grabbing the keyboard
+// would block the app's own address bar); lowers always pass — they can only unwedge (T4).
+void GoannaRenderPage::PollEngineFocus() {
+  if (!mChrome || !mChrome->mEngineFocusEvent) return;
+  mChrome->mEngineFocusEvent = false;
+  bool text = mChrome->mEngineFocusIsText;
+  if (text && !mChrome->mUserInteracted) return;   // autofocus before first tap: don't raise
+  if (text != mEditorFocused) {
+    mEditorFocused = text;
+    mEditorFieldType = 0;
+    mEditorFocusDirty = true;
+  }
 }
 
 bool GoannaRenderPage::TakeClickNav(std::string* url) {

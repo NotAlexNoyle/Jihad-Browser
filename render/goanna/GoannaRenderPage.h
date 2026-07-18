@@ -95,6 +95,13 @@ public:
   // Clear editor focus (a navigation happened); returns true if it WAS focused so the
   // caller can emit msgEditorFocused(false) to lower the VKB over the new page.
   bool ClearEditorFocus();
+  // (Re)register the engine focus/blur listener on the current top document (Atlas IM-context
+  // port). Call after each completed load, from the guarded pump; same-document calls no-op.
+  void RegisterEngineFocusListener();
+  // Merge engine-observed focus/blur into the VKB state (drained by TakeEditorFocus): script-
+  // driven focus moves and blurs now drive msgEditorFocused without a tap. Change-only emission
+  // + the Atlas autofocus gate (no VKB raise before the first tap on a page). Device T4.
+  void PollEngineFocus();
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
   void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"

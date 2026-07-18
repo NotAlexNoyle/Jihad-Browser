@@ -194,7 +194,15 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // Defer the geometry emit to pump() (after PumpFor lets the reflow settle) rather than
   // emitting synchronously here, mid-resize, when GetContentSize can still read 0x0
   // (review #7 P2). mGeometryDirty is drained on the next tick.
+  // T1 instrumentation (device 2026-07-17: "page pushed up off screen when the search bar is
+  // focused"): log the engine scroll across the resize — the VKB shrink arrives as a
+  // setWindowSize, so these lines show whether the reflow moved the scroll (engine-side push)
+  // or the scroll was already moved before the resize (adapter/app-side push).
+  int sx0 = 0, sy0 = 0; mPage->GetScrollXY(&sx0, &sy0);
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
+  int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
+  fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d\n",
+          width, height, sx0, sy0, sx1, sy1, (int)mPage->HasFocusedEditable());
 }
 
 void BrowserPageGoanna::freeze() {
@@ -618,6 +626,9 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
     emitCompletion(true);
+    // New document settled: hang the engine focus/blur listener on it so script-driven
+    // focus changes drive the VKB (Atlas IM-context port, device T4). No-op if same doc.
+    mPage->RegisterEngineFocusListener();
   } else if (mWatchdogDismissed && mPage->LoadDone()) {
     // LATE completion: the engine finished a load the stall watchdog already gave a full completion
     // boundary. The lifecycle (load-started..load-stopped) is already balanced, so DON'T emit another
@@ -629,6 +640,7 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     emitLocationAndTitle();
     emitGeometry();
     mNeedsPaint = true;
+    mPage->RegisterEngineFocusListener();   // the late-settled doc still needs the focus listener
   } else if (stalled) {
     // Stall watchdog: a load active too long without completing must NEVER pin the isis loading overlay
     // open — it covers the whole card and looks crashed. Force ONE full completion boundary (R3) so the
@@ -786,6 +798,16 @@ void BrowserPageGoanna::pump(int msBudget) {
     long dnow = jihadNowMs();
     if (dnow - mLastDirtyPaintMs >= 150) { mNeedsPaint = true; mDirtyPending = false; mLastDirtyPaintMs = dnow; }
   }
+  // Engine-driven VKB sync (Atlas IM-context port, device T4): merge any focus/blur the engine
+  // dispatched during PumpFor into the VKB state machine and emit the change. Script-driven focus
+  // moves and blurs now raise/lower the keyboard without a tap; a wedged app-side state gets clean
+  // false transitions to recover on.
+  mPage->PollEngineFocus();
+  { bool efoc = false; int eft = 0, efa = 0;
+    if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) {
+      fprintf(stderr, "[jihad-bs] engine editorFocused=%d\n", (int)efoc);
+      mSink.msgEditorFocused(efoc, eft, efa);
+    } }
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
   // reflow just re-defers via the guard until a real size is available.

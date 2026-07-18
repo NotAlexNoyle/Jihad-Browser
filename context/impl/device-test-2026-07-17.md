@@ -24,6 +24,9 @@ again AFTER our one-shot restore ran. Stock isis scrolls using field-rect info
 the daemon never emits, so the app-side autoscroll may be operating on garbage.
 **Next:** log scroll offsets around focus on-device; consider re-asserting the
 restore after the VKB resize settles, or emitting the focused-field rect.
+**INSTRUMENTED (2026-07-18, commit 8ebca68):** setWindowSize now logs engine
+scroll before/after each resize + editable-focused state — the next repro shows
+whether the push is the VKB-shrink reflow (engine) or pre-resize (adapter/app).
 
 ## T2 — Enter → full-card loading overlay, search never executes (google, ddg full)
 
@@ -76,6 +79,12 @@ true→false→true across navs; a missed transition wedges it). Order-dependenc
 (google/ddg first) points at carried state, not html.ddg itself.
 **Next:** on-device `vkb tag=` + `editorFocused=` log lines while reproducing;
 compare Atlas's editorFocused/keyboard lifecycle handling.
+**FIX IMPLEMENTED (2026-07-18, commit 8ebca68, pending retest):** engine-driven
+editorFocused — capture-phase focus/blur listener on the top document feeds the
+VKB state machine (change-only emission; blur gives the app clean false
+transitions to unwedge on; Atlas autofocus gate so load-time autofocus can't
+grab the VKB before the first tap). Typing also retargets to the field the
+ENGINE says is focused, not just the tapped one.
 
 ## T5 — Link clicks: full-card overlay, no navigation
 

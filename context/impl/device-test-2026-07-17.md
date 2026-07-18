@@ -44,6 +44,14 @@ work" — no results page. Same on duckduckgo.com.
 **Next:** on-device daemon log during an Enter press (state-change lines will
 show whether a content nav STARTs at all); T3 paint fix first — it may reveal
 that the result page actually rendered.
+**ROOT CAUSE FOUND (2026-07-18, commit 11839bc):** HandleEnter clicked the
+submit button via nsIDOMHTMLElement::DOMClick(), which the engine forbids from
+native code — nsGenericHTMLElement::Click() → IsCallerChrome() →
+SubjectPrincipal() MOZ_CRASHes with no JSContext on the stack. So Enter-to-submit
+SIGSEGV'd the daemon; upstart respawned it, the app saw the socket drop = the
+stuck full-card loading overlay with no results. Reproduced deterministically in
+focus_test (gdb backtrace). Fixed: submit now via ClickElementSynthetic (mouse
+events at the button rect). Retest T2 on device.
 
 ## T3 — Stale frame: old page sticks around until a tap/drag forces a repaint
 
@@ -96,6 +104,13 @@ completes on-device (overlay till watchdog) or it completes and renders while
 the buffer stays stale (T3) so the user still sees the old page = "doesn't
 work". Desktop link_test passes; device differs. T3 fix first, then re-test;
 if still broken, capture the daemon state-change log for one link tap.
+**PARTIAL ROOT (2026-07-18, commit 11839bc):** a link tap that landed on a
+NON-anchor element (or an anchor wrapping other elements where the hit-test
+resolved to a child) hit the non-editable ClickAt path, which called DOMClick()
+= the same SubjectPrincipal MOZ_CRASH as T2. Real <a href> taps use the href
+path (unaffected — link_test always passed), but taps on button/JS-onclick
+"links" crashed the daemon. Fixed with the DOMClick removal. Retest with T3
+paint fix + this.
 
 ## Explicitly deferred
 

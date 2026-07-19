@@ -8,12 +8,15 @@ modern Mochi controls (`Header`, `IconButton`, `Input`, `List`, `Panels`,
 
 This ships as a **separate `.ipk`** (`net.riverstonerelay.jihad-browser.mochi`,
 "Jihad (Mochi)") so it can coexist with the Enyo variant on the device — two
-versions for the TouchPad. Both UIs drive the **same** Goanna-backed
-BrowserServer through the **unchanged** BrowserAdapter contract.
+versions for the TouchPad. Both UIs drive the **same** BrowserServer through the
+**unchanged** BrowserAdapter contract.
 
-> Status: **scaffold**. `index.html` + `source/` sketch the structure; the full
-> port to parity with `../app` is specified in
-> `../context/kits/cavekit-mochi-ui.md` and tracked in the build site.
+> Status: **shell**. `source/` implements the browser shell — the NPAPI-bound
+> `JihadWebView` control plus a Mochi action bar (back/forward/reload/stop +
+> address + menu), load progress, and popup scaffolding. The full feature-parity
+> port to `../app` (bookmarks / history / downloads / find / preferences / start
+> page / dialogs) is specified in `../context/kits/cavekit-mochi-ui.md` and
+> tracked in the build site (next wave).
 
 ## Why two UIs
 
@@ -46,8 +49,10 @@ are the shared Jihad Browser set (identical bytes to `../app/icon*.png`).
 
 ## Contract invariant
 
-The Mochi UI must use the identical `callBrowserAdapter(...)` method set and
-`palm://com.palm.browserServer/*` URIs as `../app`. The only new UI-side piece
-is an Enyo-2 `WebView`-equivalent control that binds to the same BrowserAdapter
-NPAPI plugin (port task — see cavekit-mochi-ui.md R3). See
+The Mochi UI uses the identical `callBrowserAdapter(...)` method set and
+`palm://com.palm.browserServer/*` URIs as `../app`. The new UI-side piece is
+`source/JihadWebView.js` — an Enyo-2 `WebView`-equivalent control that renders
+the BrowserAdapter NPAPI `<object>` with the self-contained MIME
+`application/x-jihad-browser` (matching `../app/source/JihadEngineOverride.js`)
+and exposes the same adapter method surface (see cavekit-mochi-ui.md R3). See
 `../docs/IPC-CONTRACT.md`.

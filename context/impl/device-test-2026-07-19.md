@@ -69,6 +69,45 @@ daemon emitting rotated buffer. See DEVICE-HANDOFF 2026-07-06 landscape notes.
 with the crosstool toolchain) + fb1 screenshot loop → closed-loop testing
 without a human. Existing: fb1 capture works (dd + PIL), palm-launch works.
 
+## Progress this session (daemon 22520fd3 + app da0152c/39944f5)
+
+- **U6 self-drive — DONE.** Daemon inject channel (`/media/internal/jihad/inject.cmd`,
+  polled ~5×/s in tick) drives the active card: click/hold/key/text/url/back/
+  forward/reload/stop/scroll/drag/size/zoom. Proven: `inject url` navigates,
+  `back`/`forward` both work at the daemon. `build/webos-oe/device-retest.sh`
+  streams the T-signal log. Enables closed-loop testing (fb1 capture + inject).
+- **U3 History — ROOT-CAUSED + FIXED.** The app wrote to stock kinds
+  `com.palm.browser{history,bookmarks,preferences}:1` (owner com.palm.app.browser;
+  no permission for the Jihad app id) → every write DENIED (-3963). Fix: Jihad-OWNED
+  kinds `net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1` +
+  permissions (app da0152c), all 8 dbKind refs + appinfo universalSearch repointed
+  (39944f5). Proven on device: putKind/putPermissions as the app + a history
+  put/find round-trips. `build/webos-oe/register-db-kinds.sh` registers them after
+  a dev `palm-install` (the SDK tool skips the appinstaller's db step; a real ipk
+  install does it). REMAINING: confirm the app's own loadStopped→updateHistory→put
+  fires on address-bar/link nav (my inject only drives web content, not the app UI).
+- **U3 Forward — daemon side CLEARED.** `titleAndUrl back=/fwd=` logging proves the
+  daemon emits correct flags (fwd=1 only after Back); adapter (msgTitleAndUrlChanged,
+  4 args) → framework BasicWebView (titleURLChange→doPageTitleChanged, 4 args) →
+  Browser.pageTitleChanged→gotHistoryState→actionbar.setCanGoForward all wired.
+  So greying/forward SHOULD work — needs a user confirm on real nav; if still wrong
+  it is a subtle app-state reset, not the nav engine.
+- **U1 crash — instrumented, not yet caught.** NOT OOM (swap barely used). Core
+  capture ARMED (`core_pattern` → /media/internal/jihad/cores, `ulimit -c unlimited`
+  in the upstart job) + a breadcrumb around SendMouseEvent in ClickAt, so the next
+  real crash yields a core+log naming the faulting element. Could NOT reproduce
+  synthetically (toy onclick/location pages + google taps survived); needs the
+  user's real tap targets or a caught core.
+- **U4 VKB jank — quantified.** Window sizes seen: portrait full 768×942 ↔ VKB
+  768×602 (13k×), landscape 1024×686/768. The jank is the 942↔602 reflow fight on
+  VKB toggle. Fix still open (emit focused-field rect / re-assert restore post-resize).
+- **U5 landscape — scoped.** The card stays portrait under a daemon `size` inject
+  (chrome down the left edge); landscape is webOS CARD-orientation driven (adapter
+  composite + window manager), not daemon-simulable. appinfo has no orientation
+  lock, so the card is free to rotate — the remaining work is the adapter
+  (BrowserAdapterImpl.so) landscape composite (stale-orientation blit → scanlines;
+  staged rotation guard) which needs a PDK adapter rebuild + physical rotation test.
+
 ## Test assets
 - Full log: job tmp `retest-daemon.log` (189k lines; today = lines 180761+,
   extracted to `today.log`).

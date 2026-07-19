@@ -143,7 +143,7 @@ each device — the direct cross-build pipeline (NOT a full bitbake world-build;
 | device bundle (daemon + .so closure + GRE) | `make-device-bundle.sh` | ✓ same | ✓ same |
 | adapter `BrowserAdapterJihad.so` | `build-adapter-pdk.sh` | ✓ same | ✓ same |
 | Enyo UI `.ipk` | `palm-package app/` | ✓ same | ✓ same |
-| Mochi UI `.ipk` | `build-mochi-ipk.sh` *(built by T-049; expected path `build/webos-oe/build-mochi-ipk.sh` — not yet present in-tree)* | ✓ same | ✓ same |
+| Mochi UI `.ipk` | `build/webos-oe/build-mochi-ipk.sh` (T-049) | ✓ same | ✓ same |
 
 For a full OE tree the equivalent is `MACHINE=tenderloin bitbake …` / `MACHINE=opal
 bitbake …`; the machine confs above are what those invocations select. The machine confs
@@ -180,8 +180,15 @@ per-machine table under "Machine configs" above):
    on-device checklist (R4/R6).
 
 **Full-OE equivalent (needs a stood-up meta-webos tree — not the current path):** add
-`build/webos-oe` as a layer, then `MACHINE=tenderloin bitbake goanna jihad-browserserver
-net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi`, and again with
-`MACHINE=opal`. The `conf/machine/{tenderloin,opal}.conf` files are what those `MACHINE=`
-values select; the engine/daemon recipes carry `COMPATIBLE_MACHINE = "(tenderloin|opal)"`
-and the two UI recipes are allarch, so the same outputs result for both machines.
+`build/webos-oe` to `BBLAYERS` (it carries `conf/layer.conf`, so BitBake discovers
+`recipes-jihad/` and the machine confs), then `MACHINE=tenderloin bitbake goanna
+jihad-browserserver browser-adapter-jihad net.riverstonerelay.jihad-browser
+net.riverstonerelay.jihad-browser.mochi`, and again with `MACHINE=opal`. The
+`conf/machine/{tenderloin,opal}.conf` files are what those `MACHINE=` values select; the
+engine/daemon/adapter recipes carry `COMPATIBLE_MACHINE = "(tenderloin|opal)"` and the two
+UI recipes declare `PACKAGE_ARCH = "all"`, so the same outputs result for both machines.
+The UI recipes RDEPEND on `browser-adapter-jihad` (the coexisting
+`BrowserAdapterJihad.so`, MIME `application/x-jihad-browser`) — NOT the stock
+`browser-adapter` — matching the self-contained deployment. NOTE the recipes remain
+compile-skeletons (`do_compile` is a stub documenting the object set); the direct
+cross-build scripts above are the working, verified pipeline.

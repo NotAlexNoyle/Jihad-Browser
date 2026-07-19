@@ -11,6 +11,14 @@ HOMEPAGE = "https://repo.palemoon.org/MoonchildProductions/UXP"
 LICENSE = "MPL-2.0"
 LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=<fill-from-uxp>"
 
+# Both TouchPad models (TouchPad = topaz/tenderloin, TouchPad Go = opal) share ONE
+# APQ8060 ARMv7 softfp libxul — there is no per-model engine variance (device-build R6).
+# The machine confs (../../conf/machine/{tenderloin,opal}.conf) both resolve to
+# DEFAULTTUNE "armv7a-neon" (softfp), which is exactly the mozconfig.goanna-arm target,
+# so the same libxul.so installs on both. Model differences are UI-side DPI only, not
+# compiled into the engine. Captured difference: none — shared ARMv7 softfp binary.
+COMPATIBLE_MACHINE = "(tenderloin|opal)"
+
 # UXP is fetched, not vendored. Pin the same revision documented in
 # docs/ENGINE-SOURCE.md (b2594a4...).
 SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;branch=master"

@@ -15,6 +15,10 @@ S = "${WORKDIR}/app"
 inherit webos-app
 WEBOS_APP_ID = "net.riverstonerelay.jihad-browser"
 
+# Model-agnostic package: webos-app is allarch and the Enyo UI is density-independent
+# (scales to MACHINE_DPI at runtime), and both TouchPad models are 1024x768, so ONE .ipk
+# installs on tenderloin AND opal. No COMPATIBLE_MACHINE restriction — build once, install
+# on both (device-build R6). DPI capture lives in the machine confs, not here.
 RDEPENDS:${PN} = "jihad-browserserver browser-adapter"
 
 do_install() {

@@ -60,12 +60,16 @@ refresh glyph, while the stock browser keeps working for every other app.
 
 ```
 build/webos-oe/
-  mozconfig.goanna-arm                 # ARMv7 hard-float/NEON engine mozconfig
+  mozconfig.goanna-arm                 # ARMv7 softfp/NEON engine mozconfig
+  conf/machine/
+    include/jihad-touchpad.inc         # shared TouchPad-family defs (SoC, tune, kernel)
+    tenderloin.conf                    # TouchPad (topaz)   — 9.7" 1024x768, 132 dpi
+    opal.conf                          # TouchPad Go (opal) — 7"   1024x768, 183 dpi
   recipes-jihad/
-    goanna/goanna_1.0.bb               # UXP engine, cross build (heavy)
-    jihad-browserserver/…_1.0.bb       # daemon (Goanna backend), LunaService ON
-    jihad-ui/net.riverstonerelay.jihad-browser_1.0.bb        # Enyo 1.0 UI .ipk (app/)
-    jihad-ui/net.riverstonerelay.jihad-browser.mochi_1.0.bb  # Mochi UI .ipk (app-mochi/)
+    goanna/goanna_1.0.bb               # UXP engine, cross build (heavy); COMPATIBLE_MACHINE = (tenderloin|opal)
+    jihad-browserserver/…_1.0.bb       # daemon (Goanna backend), LunaService ON; COMPATIBLE_MACHINE = (tenderloin|opal)
+    jihad-ui/net.riverstonerelay.jihad-browser_1.0.bb        # Enyo 1.0 UI .ipk (app/), allarch
+    jihad-ui/net.riverstonerelay.jihad-browser.mochi_1.0.bb  # Mochi UI .ipk (app-mochi/), allarch
 ```
 
 The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`,
@@ -78,7 +82,7 @@ The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`
 | Gate | Requirement | Kit |
 |------|-------------|-----|
 | **Toolchain sysroot** | A modern **C++14** cross-toolchain (stock webOS 3 gcc 4.4 cannot build UXP) that links against the **TouchPad's glibc/kernel ABI** so binaries don't need a newer glibc than the device has. Needs the webOS 3 device sysroot. | R1 |
-| **Engine cross-build** | Run the `goanna` recipe with that toolchain (ARMv7-A + NEON, hard-float). Heavy (hours). Verifying "loads without missing-symbol/ABI errors" needs the device. | R2 |
+| **Engine cross-build** | Run the `goanna` recipe with that toolchain (ARMv7-A + NEON, **softfp** — matches the device glibc 2.8 ABI). Heavy (hours). Verifying "loads without missing-symbol/ABI errors" needs the device. | R2 |
 | **OE environment** | An OpenEmbedded/`meta-webos` tree to `bitbake` the recipes into `.ipk`s (both UI variants). | R3 |
 | **Physical device** | Install + run each `.ipk` on the **TouchPad** and **TouchPad Go**; verify launch, render-on-screen via the adapter, navigation, scroll, tap. Cert/dialog/download flows with device services. | R4, R6 `[human-review on device]` |
 | **Memory budget** | Render-process memory within the 1 GB device budget; freeze/purge reclaim; no OOM in a browsing scenario. | R5 `[human-review on device]` |
@@ -87,12 +91,72 @@ None of these can be executed in this environment: there is **no device sysroot,
 no OE tree, no network for the cross-toolchain, and no TouchPad**. They require
 the user's hardware + SDK. This is the one milestone gated on the device in hand.
 
-## Machine configs (R6)
+## Machine configs — TouchPad (Topaz) vs TouchPad Go (Opal) (R6)
 
-Two ARMv7 webOS-3 machines, both supported by upstream isis:
-- **TouchPad** — Topaz / `tenderloin` (APQ8060, 1024×768).
-- **TouchPad Go** — Opal (smaller screen). Model-specific screen geometry /
-  machine config is captured in the OE machine conf, not assumed identical.
+Two ARMv7 webOS-3 machines, both supported by upstream isis. Each has its own OE
+machine conf under `build/webos-oe/conf/machine/`; both `require` the shared
+`include/jihad-touchpad.inc` and override ONLY what differs. Differences are captured
+here, not assumed identical.
+
+### Geometry / DPI
+
+| Attribute | TouchPad (topaz/tenderloin) | TouchPad Go (opal) | Same? |
+|-----------|-----------------------------|--------------------|-------|
+| Machine conf | `tenderloin.conf` | `opal.conf` | — |
+| Resolution (XRES×YRES) | 1024 × 768 | 1024 × 768 | **yes** |
+| Physical diagonal | 9.7 in | 7.0 in | no |
+| Pixel diagonal | 1280 px | 1280 px | yes |
+| DPI (1280 / inches) | ~132 dpi | ~183 dpi | **no** |
+| SoC | Qualcomm APQ8060 (Scorpion) | APQ8060 family | yes |
+| ABI / tune | ARMv7 softfp, `armv7a-neon` | ARMv7 softfp, `armv7a-neon` | **yes** |
+| Kernel | `2.6.35-palm-tenderloin` (verified) | `2.6.35-palm-opal` (unverified `?=`) | family |
+| webOS | 3.0.5 | 3.0.5 | yes |
+
+### What differs vs what is shared
+
+- **Differs:** physical panel size (9.7" vs 7") and therefore DPI (~132 vs ~183), and the
+  per-board kernel version string. That's it. DPI is a *rendering/viewport* concern the UI
+  scales to at runtime (`MACHINE_DPI` in each conf); it does not change any binary.
+- **Shared (identical artifacts):** the resolution (1024×768 → same render buffer + adapter
+  shmem contract), the APQ8060 SoC family, the ARMv7 **softfp** ABI (`-march=armv7-a
+  -mfpu=neon -mfloat-abi=softfp`), and webOS 3.0.5. Consequently **all four artifact
+  classes are model-agnostic**:
+  - `libxul.so` (goanna) — one softfp binary, `COMPATIBLE_MACHINE = (tenderloin|opal)`.
+  - `jihad-browserserver` (daemon) — one softfp binary, `COMPATIBLE_MACHINE = (tenderloin|opal)`.
+  - `BrowserAdapterJihad.so` (adapter) — one softfp binary (PDK gcc4.3.3, softfp).
+  - both UI `.ipk`s — `webos-app` allarch + density-independent Enyo → install on both.
+
+  **Captured model-specific build difference: none — a single ARMv7 softfp binary set
+  serves both models.** The Go's *smaller-RAM* posture is already covered by the low-RAM
+  prefs in `make-device-bundle.sh` (a 512 MB floor tuning that is safe on both).
+
+### Build path per machine (four artifact classes)
+
+Because the artifacts are model-agnostic, "build both models" is one build, installed on
+each device — the direct cross-build pipeline (NOT a full bitbake world-build; see
+"Dead ends"):
+
+| Artifact | Command (host, cross) | tenderloin | opal |
+|----------|-----------------------|:----------:|:----:|
+| engine `libxul.so` | `build-goanna-arm.sh build` | ✓ same | ✓ same |
+| daemon `jihad-browserserver` | `build-daemon-arm.sh` | ✓ same | ✓ same |
+| device bundle (daemon + .so closure + GRE) | `make-device-bundle.sh` | ✓ same | ✓ same |
+| adapter `BrowserAdapterJihad.so` | `build-adapter-pdk.sh` | ✓ same | ✓ same |
+| Enyo UI `.ipk` | `palm-package app/` | ✓ same | ✓ same |
+| Mochi UI `.ipk` | `build-mochi-ipk.sh` *(built by T-049; expected path `build/webos-oe/build-mochi-ipk.sh` — not yet present in-tree)* | ✓ same | ✓ same |
+
+For a full OE tree the equivalent is `MACHINE=tenderloin bitbake …` / `MACHINE=opal
+bitbake …`; the machine confs above are what those invocations select. The machine confs
+are also where a genuinely per-model difference (were one ever found) would live.
+
+### Install / verification status
+
+- **TouchPad (tenderloin):** BUILD done; on-device INSTALL + Enyo-render **verified**
+  (real pages render through the Goanna daemon — see "Self-contained on-device deployment").
+- **TouchPad Go (opal):** BUILD satisfied (same model-agnostic artifacts; machine conf
+  authored). INSTALL + on-device render **pending hardware** — no Opal device is present.
+  `[human-review on device]`: confirm the opal kernel string, launch each `.ipk`, and
+  eyeball rendering at the higher DPI.
 
 ## Runtime constraints
 
@@ -103,8 +167,21 @@ backgrounded cards. Deeper memory tuning is Phase 3.
 
 ## To build (once the gates are satisfied)
 
+**Working pipeline (direct cross-build — what actually runs today):** the artifacts are
+model-agnostic ARMv7 softfp, so build once and install on either model (see the
+per-machine table under "Machine configs" above):
+
 1. Stand up the cross-toolchain against the device sysroot (R1); verify a trivial
    C++14 binary runs on the device/emulator.
-2. `bitbake goanna` (engine), then `bitbake jihad-browserserver`.
-3. `bitbake net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi` → two `.ipk`s.
-4. Install both on the TouchPad + TouchPad Go; run the on-device checklist (R4/R6).
+2. `build-goanna-arm.sh build` (engine `libxul.so`), then `build-daemon-arm.sh` (daemon).
+3. `make-device-bundle.sh` (daemon + .so closure + GRE), `build-adapter-pdk.sh` (adapter).
+4. `palm-package app/` (Enyo `.ipk`); `build-mochi-ipk.sh` (Mochi `.ipk`, from T-049).
+5. Install on the TouchPad (verified) and the TouchPad Go (pending hardware); run the
+   on-device checklist (R4/R6).
+
+**Full-OE equivalent (needs a stood-up meta-webos tree — not the current path):** add
+`build/webos-oe` as a layer, then `MACHINE=tenderloin bitbake goanna jihad-browserserver
+net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi`, and again with
+`MACHINE=opal`. The `conf/machine/{tenderloin,opal}.conf` files are what those `MACHINE=`
+values select; the engine/daemon recipes carry `COMPATIBLE_MACHINE = "(tenderloin|opal)"`
+and the two UI recipes are allarch, so the same outputs result for both machines.

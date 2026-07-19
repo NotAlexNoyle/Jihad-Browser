@@ -9,6 +9,12 @@ SUMMARY = "Jihad Browser render daemon (Goanna-backed BrowserServer)"
 LICENSE = "Apache-2.0 & MPL-2.0"
 LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=<fill>"
 
+# Model-agnostic: the daemon is one ARMv7 softfp binary (build-daemon-arm.sh,
+# -mfloat-abi=softfp) valid on BOTH TouchPad models — tenderloin and opal share the
+# APQ8060 SoC + 1024x768 render buffer, so the shmem/offscreen contract is identical.
+# Captured difference: none — shared ARMv7 softfp binary (device-build R6).
+COMPATIBLE_MACHINE = "(tenderloin|opal)"
+
 # The daemon sources live in this repo (not fetched).
 SRC_URI = "file://render/ file://build/desktop/"
 S = "${WORKDIR}"

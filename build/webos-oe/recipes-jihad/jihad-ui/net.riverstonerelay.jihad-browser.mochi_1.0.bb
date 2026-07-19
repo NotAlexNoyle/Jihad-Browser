@@ -14,6 +14,9 @@ S = "${WORKDIR}/app-mochi"
 inherit webos-app
 WEBOS_APP_ID = "net.riverstonerelay.jihad-browser.mochi"
 
+# Model-agnostic package: webos-app is allarch and Enyo 2/Mochi scales to MACHINE_DPI at
+# runtime; both TouchPad models are 1024x768, so ONE .ipk installs on tenderloin AND opal
+# (device-build R6). No COMPATIBLE_MACHINE restriction — build once, install on both.
 # The Mochi package bundles Enyo 2 + layout + Mochi (vs Enyo 1.0 for the other).
 RDEPENDS:${PN} = "jihad-browserserver browser-adapter"
 

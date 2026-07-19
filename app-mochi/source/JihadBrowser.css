@@ -1,9 +1,64 @@
 /* Copyright 2026 the Jihad Browser project.
    Licensed under the Apache License, Version 2.0; see ../../LICENSE.
-   Mochi UI variant — app styles. SCAFFOLD; extend during the UI port. */
+   Mochi UI variant — shell styles. Relative/fittable layout only; the sole
+   size assumption is the 1024x768 both TouchPad models share. */
+
 .jihad {
 	background: #fff;
 }
-.jihad .mochi-input {
+
+/* Action bar: a full-width Mochi header holding the fittable toolbar row. */
+.jihad-actionbar {
 	width: 100%;
+}
+.jihad-toolbar {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 4px 6px;
+}
+
+/* Nav buttons keep intrinsic width; the address box (fit: true) takes the rest. */
+.jihad-nav-btn {
+	margin: 0 2px;
+}
+.jihad-address-box {
+	margin: 0 6px;
+}
+.jihad-address {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* Scale the base64 SVG glyphs to fill the Mochi icon box cleanly. */
+.jihad .mochi-icon {
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+/* Load progress: a thin bar under the action bar. */
+.jihad-progress {
+	width: 100%;
+	height: 4px;
+}
+
+/* Web content region fills the remaining rows; the NPAPI <object> stretches. */
+.jihad-view {
+	width: 100%;
+	background: #fff;
+	display: block;
+}
+
+/* Popup scaffolding (menu + generic dialog); contents are the T-053 port. */
+.jihad-menu-popup {
+	min-width: 200px;
+}
+.jihad-dialog {
+	min-width: 320px;
+	max-width: 600px;
+	padding: 16px;
+}
+.jihad-dialog-title {
+	font-weight: bold;
+	margin-bottom: 8px;
 }

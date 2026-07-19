@@ -20,9 +20,9 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R1: Separate, coexisting Mochi application package
 **Description:** The Mochi UI is packaged as its own webOS app, installable alongside the Enyo variant.
 **Acceptance Criteria:**
-- [ ] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad (Mochi)").
-- [ ] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once.
-- [ ] Uses the Jihad Browser icon set.
+- [x] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad (Mochi)"). *(2026-07-18, T-049: title reconciled to kit value.)*
+- [~] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once. *(Structural side verified 2026-07-18 from the ipk: distinct package name, no services.json. Actual dual install DEVICE-GATED — device offline.)*
+- [x] Uses the Jihad Browser icon set. *(md5-identical to `app/icon*.png`, verified 2026-07-18.)*
 **Dependencies:** none
 
 ### R2: Feature parity with the Enyo UI
@@ -48,7 +48,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 **Acceptance Criteria:**
 - [ ] UI is composed from Mochi controls (e.g. Header, IconButton, Input, List, Panels, Popup, ProgressBar) rather than ad-hoc markup.
 - [ ] Layout is usable on the TouchPad (Topaz) and TouchPad Go (Opal) screen. [human-review on device]
-- [ ] Enyo 2 core + layout + Mochi are bundled into the package at build time (not vendored in this repo).
+- [x] Enyo 2 core + layout + Mochi are bundled into the package at build time (not vendored in this repo). *(2026-07-18, T-049: `build/webos-oe/build-mochi-ipk.sh` stages Enyo 2 core from `../mochi-sampler/enyo`, layout from `webos-stacks/mochi/lib/layout` (mochi-sampler's lib/ dirs are empty; overridable via `LAYOUT_SRC`), Mochi from `../mochi` → palm-package → 1.4 MB ipk, 394 entries; output git-ignored, nothing vendored.)*
 **Dependencies:** cavekit-device-build.md (R3, R6)
 
 ### R5: Licensing and attribution

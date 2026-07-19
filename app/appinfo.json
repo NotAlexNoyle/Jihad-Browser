@@ -17,7 +17,7 @@
 			"launchParam":"url",
 			"launchParamDbField":"url",
 			"displayFields": ["title", "url"],
-			"dbQuery": [{"method":"search","params":{"query":{"from":"com.palm.browserbookmarks:1","where":[{"prop":"searchText","op":"?","val":"","collate":"primary"}],"limit":20}}},{"method":"search","params":{"query":{"from":"com.palm.browserhistory:1","where":[{"prop":"searchText","op":"?","val":"","collate":"primary"}],"limit":50}}}],
+			"dbQuery": [{"method":"search","params":{"query":{"from":"net.riverstonerelay.jihad-browser.bookmarks:1","where":[{"prop":"searchText","op":"?","val":"","collate":"primary"}],"limit":20}}},{"method":"search","params":{"query":{"from":"net.riverstonerelay.jihad-browser.history:1","where":[{"prop":"searchText","op":"?","val":"","collate":"primary"}],"limit":50}}}],
 			"batchQuery":true
 		}
 	}

@@ -578,7 +578,9 @@ enyo.kind({
 	showAddtoLauncherDialog: function() {
 		this.$.bookmarkDialog.setTitle(this.$.browser.title);
 		this.$.bookmarkDialog.setUrl(this.$.browser.url);
-		this.$.bookmarkDialog.setIcons(this.$.browser.createPageImages());
+		var imgs = {};
+		try { imgs = this.$.browser.createPageImages(); } catch (e) {}
+		this.$.bookmarkDialog.setIcons(imgs);
 		this.$.bookmarkDialog.setAcceptCaption($L("Add to Launcher"));
 		this.$.bookmarkDialog.acceptAction = "addToLauncher";
 		this.$.bookmarkDialog.openAtCenter();
@@ -613,7 +615,16 @@ enyo.kind({
 			visitCount: 0,
 			idx: null
 		};
-		enyo.mixin(b, this.$.browser.createPageImages());
+		// Thumbnail generation (createPageImages -> saveViewToFile/generateIconFromFile
+		// NPAPI calls, writing under /var/luna/data/browser/icons which the app user
+		// can't write) is best-effort: a throw here must NOT abort the bookmark write,
+		// or the bookmark never lands in the db (device: "adding bookmarks via share
+		// menu doesn't show up"). The essential record saves regardless.
+		try {
+			enyo.mixin(b, this.$.browser.createPageImages());
+		} catch (e) {
+			this.log && this.log("createPageImages failed, saving bookmark without images: " + e);
+		}
 		this.$.bookmarksService.call({objects: [b]}, {method: "put"});
 	},
 	editBookmark: function(inTitle, inUrl, inIcons, inId) {

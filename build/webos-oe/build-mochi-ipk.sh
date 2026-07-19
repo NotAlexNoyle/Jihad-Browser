@@ -111,7 +111,9 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 		name=${entry%%:*}; src=${entry#*:}
 		rev=$(git -C "$src" rev-parse HEAD 2>/dev/null || echo "not-a-git-checkout")
 		dirty=$(git -C "$src" status --porcelain 2>/dev/null | grep -q . && echo "-dirty" || true)
-		echo "$name: $src @ $rev$dirty"
+		# Workspace-relative path only — absolute host paths would leak the
+		# builder's username/layout into every distributed ipk (codex F-392).
+		echo "$name: ${src#"$WORKSPACE"/} @ $rev$dirty"
 	done
 } > "$STAGE/BUNDLED-VERSIONS"
 cat "$STAGE/BUNDLED-VERSIONS"

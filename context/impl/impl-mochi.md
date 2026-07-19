@@ -8,8 +8,8 @@ Build site: context/plans/build-site.md
 
 | Task | Status | Notes |
 |------|--------|-------|
-| T-049 | DONE | 2026-07-18, commit c6d0e9a. appinfo title → "Jihad (Mochi)"; icons md5-match app/; `build/webos-oe/build-mochi-ipk.sh` bundles Enyo2 core (`../mochi-sampler/enyo`) + layout (`webos-stacks/mochi/lib/layout` — mochi-sampler lib/ dirs EMPTY; `LAYOUT_SRC` override) + Mochi (`../mochi`) → 1.4 MB ipk, 394 entries, verified rebuild on merged main. Dev dirs pruned (~12 MB cut). Dual-install on device pending hardware |
-| T-050 | TODO | Mochi licensing/attribution (Apache headers, NOTICE) |
+| T-049 | DONE (desktop) — device residue open | 2026-07-18, commit c6d0e9a. appinfo title → "Jihad (Mochi)"; icons md5-match app/; `build/webos-oe/build-mochi-ipk.sh` bundles Enyo2 core (`../mochi-sampler/enyo`) + layout (`webos-stacks/mochi/lib/layout` — mochi-sampler lib/ dirs EMPTY; `LAYOUT_SRC` override) + Mochi (`../mochi`) → 1.4 MB ipk, 394 entries, verified rebuild on merged main. Dev dirs pruned (~12 MB cut). Dual-install on device pending hardware |
+| T-050 | TODO | Mochi licensing/attribution (Apache headers, NOTICE). MUST add Enyo 2 + Mochi/LG credits to NOTICE — the bundled ipk now ships NOTICE and codex F-390 flags the missing attribution |
 | T-051 | TODO | Enyo-2 WebView control bound to unchanged BrowserAdapter; must also route MIME `application/x-jihad-browser` (self-contained arch, see app/source/JihadEngineOverride.js) |
 | T-052 | TODO | Mochi controls + layout both TouchPad models |
 | T-053 | TODO | Feature-parity port (blocked by T-051, T-052) |

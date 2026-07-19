@@ -16,11 +16,11 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=<fill>"
 COMPATIBLE_MACHINE = "(tenderloin|opal)"
 
 # The daemon sources live in this repo (not fetched).
-SRC_URI = "file://render/ file://build/desktop/"
+SRC_URI = "file://render/ file://build/desktop/ file://packaging/"
 S = "${WORKDIR}"
 
 DEPENDS = "goanna glib-2.0 gtk+ luna-service2"
-RDEPENDS:${PN} = "goanna"
+RDEPENDS_${PN} = "goanna"
 
 # On device the LunaService surface (clearCache/clearCookies) is compiled IN
 # (unlike the desktop PoC where it is compiled out) — IPC-contract R4.
@@ -39,6 +39,11 @@ do_install() {
     install -m 0755 ${B}/jihad-browserserver ${D}${bindir}/
     # LunaService role/permission files for palm://com.palm.browserServer/*.
     install -d ${D}${sysconfdir}/palm/services
+    # Upstart job: without it nothing starts the daemon and the adapter's
+    # /tmp/yapserver.jihad-browser socket never exists (codex F-389). Same job
+    # the working packaging/postinst deploys.
+    install -d ${D}${sysconfdir}/event.d
+    install -m 0644 ${WORKDIR}/packaging/event.d/jihad ${D}${sysconfdir}/event.d/jihad
 }
 
-FILES:${PN} += "${bindir}/jihad-browserserver ${sysconfdir}/palm/services"
+FILES_${PN} += "${bindir}/jihad-browserserver ${sysconfdir}/palm/services ${sysconfdir}/event.d/jihad"

@@ -50,6 +50,6 @@ do_install() {
     cp -r ${S}/../obj-jihad-goanna-arm/dist/include/* ${D}${includedir}/goanna/
 }
 
-FILES:${PN} = "${libdir}/goanna/libxul.so"
-FILES:${PN}-dev = "${includedir}/goanna"
+FILES_${PN} = "${libdir}/goanna/libxul.so"
+FILES_${PN}-dev = "${includedir}/goanna"
 INSANE_SKIP:${PN} = "already-stripped dev-so"

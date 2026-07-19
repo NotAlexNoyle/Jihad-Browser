@@ -24,11 +24,17 @@ WEBOS_APP_ID = "net.riverstonerelay.jihad-browser"
 # (scales to MACHINE_DPI at runtime), and both TouchPad models are 1024x768, so ONE .ipk
 # installs on tenderloin AND opal. No COMPATIBLE_MACHINE restriction — build once, install
 # on both (device-build R6). DPI capture lives in the machine confs, not here.
-RDEPENDS:${PN} = "jihad-browserserver browser-adapter-jihad"
+RDEPENDS_${PN} = "jihad-browserserver browser-adapter-jihad"
+
+# GAP (codex F-388): the adapter is two-piece — the /usr/lib/BrowserPlugins shim
+# dlopens BrowserAdapterImpl.so from THIS app's install dir per card open, so
+# the UI package must also carry BrowserAdapterImpl.so (built by
+# build-adapter-pdk.sh; a git-ignored binary, hence absent from SRC_URI here).
+# The working deployment pushes it via the app .ipk; this skeleton documents it.
 
 do_install() {
     install -d ${D}${webos_applicationsdir}/${WEBOS_APP_ID}
     cp -r ${S}/* ${D}${webos_applicationsdir}/${WEBOS_APP_ID}/
 }
 
-FILES:${PN} = "${webos_applicationsdir}/${WEBOS_APP_ID}"
+FILES_${PN} = "${webos_applicationsdir}/${WEBOS_APP_ID}"

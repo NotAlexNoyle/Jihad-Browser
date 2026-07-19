@@ -179,16 +179,16 @@ per-machine table under "Machine configs" above):
 5. Install on the TouchPad (verified) and the TouchPad Go (pending hardware); run the
    on-device checklist (R4/R6).
 
-**Full-OE equivalent (needs a stood-up meta-webos tree — not the current path):** add
-`build/webos-oe` to `BBLAYERS` (it carries `conf/layer.conf`, so BitBake discovers
-`recipes-jihad/` and the machine confs), then `MACHINE=tenderloin bitbake goanna
-jihad-browserserver browser-adapter-jihad net.riverstonerelay.jihad-browser
-net.riverstonerelay.jihad-browser.mochi`, and again with `MACHINE=opal`. The
-`conf/machine/{tenderloin,opal}.conf` files are what those `MACHINE=` values select; the
-engine/daemon/adapter recipes carry `COMPATIBLE_MACHINE = "(tenderloin|opal)"` and the two
-UI recipes declare `PACKAGE_ARCH = "all"`, so the same outputs result for both machines.
-The UI recipes RDEPEND on `browser-adapter-jihad` (the coexisting
-`BrowserAdapterJihad.so`, MIME `application/x-jihad-browser`) — NOT the stock
-`browser-adapter` — matching the self-contained deployment. NOTE the recipes remain
-compile-skeletons (`do_compile` is a stub documenting the object set); the direct
-cross-build scripts above are the working, verified pipeline.
+**Full-OE path — ASPIRATIONAL, NOT RUNNABLE (documentation of record only):** the layer
+shape is real (`conf/layer.conf` + `recipes-jihad/` + the machine confs, selected by
+`MACHINE=tenderloin` / `MACHINE=opal`; engine/daemon/adapter recipes carry
+`COMPATIBLE_MACHINE = "(tenderloin|opal)"`, UI recipes `PACKAGE_ARCH = "all"`, UI RDEPENDS
+point at `browser-adapter-jihad` — the coexisting `BrowserAdapterJihad.so` for
+`application/x-jihad-browser`, not the stock adapter). But the recipes are
+**compile-skeletons that cannot execute** (codex F-385..F-401, acknowledged): stub
+`do_compile`s, placeholder `LIC_FILES_CHKSUM`s, `SRC_URI`s referencing sibling checkouts
+outside the layer, the 2014-era meta-webos here has no `webos-app` class and its BitBake
+wants underscore overrides (recipes now use the era's underscore syntax, but the class gap
+stands), and the two-piece adapter's `BrowserAdapterImpl.so` rides in the app bundle.
+Standing this up for real is out of scope (recorded dead end: no bitbake world-build);
+**the direct cross-build scripts above are the only working, verified pipeline.**

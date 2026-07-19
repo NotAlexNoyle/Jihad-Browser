@@ -13,6 +13,7 @@
 
 #include <BrowserServerBase.h>
 #include "../goanna/BrowserPageGoanna.h"
+#include "../goanna/DownloadService.h"   // jihad::DownloadSink
 #include <map>
 #include <vector>
 
@@ -39,16 +40,22 @@ public:
   void msgUrlRedirected(const char* url, const char* userData) override;
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
   void msgLinkClicked(const char* url) override;
+  void msgMimeHandoffUrl(const char* mimeType, const char* url) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;
 };
 
-class JihadBrowserServer : public BrowserServerBase
+class JihadBrowserServer : public BrowserServerBase, public jihad::DownloadSink
 {
 public:
   JihadBrowserServer(const char* name, jihad::EngineHost& host);
   virtual ~JihadBrowserServer();
+
+  // jihad::DownloadSink — a download/handoff fired on the ACTIVE page; route it to
+  // that page's client so the app hands it to com.palm.downloadmanager.
+  void OnDownload(const char* url, const char* mimeType,
+                  const char* suggestedName, int64_t contentLength) override;
 
   virtual void clientConnected(YapProxy* proxy);
   virtual void clientDisconnected(YapProxy* proxy);

@@ -66,6 +66,13 @@ public:
   virtual void msgEditorFocused(bool focused, int fieldType, int fieldActions) {
     (void)focused; (void)fieldType; (void)fieldActions;
   }
+  // A navigation resolved to a non-displayable resource (download / MIME handoff).
+  // Drives BrowserServerBase::msgMimeHandoffUrl (YAP 0x2014) -> adapter
+  // mimeHandoffUrl -> BasicWebView.doFileLoad -> app handleResource, which routes
+  // it to com.palm.downloadmanager. (mimeType may be empty if unknown.)
+  virtual void msgMimeHandoffUrl(const char* mimeType, const char* url) {
+    (void)mimeType; (void)url;
+  }
 };
 
 class BrowserPageGoanna
@@ -79,6 +86,9 @@ public:
   bool init(uint32_t width, uint32_t height,
             int sharedBufferKey1, int sharedBufferKey2, int sharedBufferSize);
   void setWindowSize(uint32_t width, uint32_t height);
+  // Emit a download/MIME handoff for this page (from the process-wide download
+  // interceptor, routed to the active page). See IPageMessageSink::msgMimeHandoffUrl.
+  void emitMimeHandoff(const char* mimeType, const char* url) { mSink.msgMimeHandoffUrl(mimeType, url); }
   void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
   void freeze();                           // YAP: freeze (card backgrounded — pause paint)
   void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)

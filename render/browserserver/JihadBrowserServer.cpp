@@ -27,14 +27,32 @@ void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRe
 // syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
 void ProxySink::msgLinkClicked(const char* url) { mSrv->msgLinkClicked(mProxy, url); }
+void ProxySink::msgMimeHandoffUrl(const char* mimeType, const char* url) { mSrv->msgMimeHandoffUrl(mProxy, mimeType, url); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)
-  : BrowserServerBase(name), mHost(host), mInTick(false) {}
+  : BrowserServerBase(name), mHost(host), mInTick(false) {
+  jihad::SetDownloadSink(this);   // receive engine download/handoff callbacks
+}
 
 JihadBrowserServer::~JihadBrowserServer() {
+  jihad::SetDownloadSink(nullptr);   // clear before we (the sink) are destroyed
   for (auto& kv : mPages) { delete kv.second.page; delete kv.second.sink; }
   for (auto& e : mReap)   { delete e.page; delete e.sink; }
+}
+
+// A download/handoff fired in the engine (helperapplauncherdialog). It has no page
+// handle, so route it to the ACTIVE card (mLastProxy) — the page the user is on.
+// The app then drives com.palm.downloadmanager. Runs on the embedding thread.
+void JihadBrowserServer::OnDownload(const char* url, const char* mimeType,
+                                    const char* suggestedName, int64_t contentLength) {
+  (void)suggestedName; (void)contentLength;
+  printf("[jihad-bs] download handoff mime=%s url=%s\n",
+         mimeType ? mimeType : "", url ? url : "");
+  if (auto* p = pageFor(mLastProxy))
+    p->emitMimeHandoff(mimeType ? mimeType : "", url ? url : "");
+  else
+    printf("[jihad-bs] download: no active page to hand off to\n");
 }
 
 jihad::BrowserPageGoanna* JihadBrowserServer::pageFor(YapProxy* proxy) {

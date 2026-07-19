@@ -21,7 +21,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 **Description:** The Mochi UI is packaged as its own webOS app, installable alongside the Enyo variant.
 **Acceptance Criteria:**
 - [x] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad (Mochi)"). *(2026-07-18, T-049: title reconciled to kit value.)*
-- [~] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once. *(Structural side verified 2026-07-18 from the ipk: distinct package name, no services.json. Actual dual install DEVICE-GATED — device offline.)*
+- [x] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once. *(VERIFIED ON DEVICE 2026-07-19: `palm-install` of the Mochi ipk succeeded with the Enyo variant present; `palm-install -l` lists both `net.riverstonerelay.jihad-browser 1.0.0` and `net.riverstonerelay.jihad-browser.mochi 1.0.0`.)*
 - [x] Uses the Jihad Browser icon set. *(md5-identical to `app/icon*.png`, verified 2026-07-18.)*
 **Dependencies:** none
 

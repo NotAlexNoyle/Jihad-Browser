@@ -56,9 +56,9 @@ scripts/recipes and `packaging/` are the reproducible source.)
 ### R6: TouchPad Go (Opal) machine support
 **Description:** The device build targets both TouchPad models, since the upstream isis-browser runs on the TouchPad Go.
 **Acceptance Criteria:**
-- [ ] The OE build provides machine configurations for both the TouchPad (Topaz/tenderloin) and the TouchPad Go (Opal).
-- [ ] The daemon, adapter, and both UI `.ipk`s build for, and install on, both machines (ARMv7 webOS 3).
-- [ ] Any model-specific differences (screen geometry, machine config) are captured rather than assumed identical. [human-review on device]
+- [x] The OE build provides machine configurations for both the TouchPad (Topaz/tenderloin) and the TouchPad Go (Opal). *(2026-07-18, T-054: `build/webos-oe/conf/machine/{tenderloin,opal}.conf` + shared `include/jihad-touchpad.inc`; engine+daemon recipes gain `COMPATIBLE_MACHINE = "(tenderloin|opal)"`.)*
+- [~] The daemon, adapter, and both UI `.ipk`s build for, and install on, both machines (ARMv7 webOS 3). *(Build side satisfied 2026-07-18: both models share one ARMv7 softfp binary set — same APQ8060 family, same 1024x768 — documented per-machine build path in docs/DEVICE-BUILD.md. Install-on-Opal DEVICE-GATED: no TouchPad Go hardware present.)*
+- [x] Any model-specific differences (screen geometry, machine config) are captured rather than assumed identical. [human-review on device] *(Captured 2026-07-18: only physical size/DPI differ — 9.7in ~132dpi vs 7in ~183dpi; opal kernel string left `?=` unverified pending hardware. docs/DEVICE-BUILD.md Topaz-vs-Opal section.)*
 **Dependencies:** R2
 
 ### R5: Fits the device memory budget

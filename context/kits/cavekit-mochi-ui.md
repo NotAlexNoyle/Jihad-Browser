@@ -38,24 +38,24 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R3: Drives the unchanged BrowserAdapter contract
 **Description:** The Mochi UI talks to the engine only through the existing contract; no engine/IPC change.
 **Acceptance Criteria:**
-- [ ] An Enyo-2 WebView-equivalent control binds to the same BrowserAdapter NPAPI plugin the Enyo UI uses.
-- [ ] The `callBrowserAdapter(...)` method set and `palm://com.palm.browserServer/*` URIs used are identical to the Enyo variant (no additions/renames).
-- [ ] No Goanna/UXP-specific identifiers appear in `app-mochi/`.
+- [x] An Enyo-2 WebView-equivalent control binds to the same BrowserAdapter NPAPI plugin the Enyo UI uses. *(2026-07-19, T-051: `app-mochi/source/JihadWebView.js` renders `<object type="application/x-jihad-browser">` (self-contained MIME per JihadEngineOverride.js), `node.eventListener=this`, callback arg orders verified against render/adapter/BrowserAdapter.cpp. Live daemon handshake DEVICE-GATED.)*
+- [x] The `callBrowserAdapter(...)` method set and `palm://com.palm.browserServer/*` URIs used are identical to the Enyo variant (no additions/renames). *(Verified 2026-07-19: set {findInPage, goBack, goForward, reloadPage, stopLoad} + URIs {clearCache, clearCookies} — diff empty both.)*
+- [x] No Goanna/UXP-specific identifiers appear in `app-mochi/`. *(grep clean 2026-07-19.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5), cavekit-ui-shell.md (R2)
 
 ### R4: Built with Mochi controls; layout fits both TouchPad models
 **Description:** The UI uses Mochi widgets and renders correctly on TouchPad and TouchPad Go.
 **Acceptance Criteria:**
-- [ ] UI is composed from Mochi controls (e.g. Header, IconButton, Input, List, Panels, Popup, ProgressBar) rather than ad-hoc markup.
-- [ ] Layout is usable on the TouchPad (Topaz) and TouchPad Go (Opal) screen. [human-review on device]
+- [x] UI is composed from Mochi controls (e.g. Header, IconButton, Input, List, Panels, Popup, ProgressBar) rather than ad-hoc markup. *(2026-07-19, T-052: mochi.Header + FittableColumns toolbar (IconButton nav + InputDecorator/Input address), mochi.ProgressBar, mochi.Popup scaffolding.)*
+- [~] Layout is usable on the TouchPad (Topaz) and TouchPad Go (Opal) screen. [human-review on device] *(Fittable/relative layout, shared 1024x768, no hardcoded px; stays [~] until on-device review.)*
 - [x] Enyo 2 core + layout + Mochi are bundled into the package at build time (not vendored in this repo). *(2026-07-18, T-049: `build/webos-oe/build-mochi-ipk.sh` stages Enyo 2 core from `../mochi-sampler/enyo`, layout from `webos-stacks/mochi/lib/layout` (mochi-sampler's lib/ dirs are empty; overridable via `LAYOUT_SRC`), Mochi from `../mochi` → palm-package → 1.4 MB ipk, 394 entries; output git-ignored, nothing vendored.)*
 **Dependencies:** cavekit-device-build.md (R3, R6)
 
 ### R5: Licensing and attribution
 **Description:** The Mochi variant respects all licenses.
 **Acceptance Criteria:**
-- [ ] New `app-mochi/` source files carry Apache-2.0 headers.
-- [ ] Bundled Mochi (LG, Apache-2.0) and Enyo 2 are attributed in `NOTICE`.
+- [x] New `app-mochi/` source files carry Apache-2.0 headers. *(2026-07-19, T-050.)*
+- [x] Bundled Mochi (LG, Apache-2.0) and Enyo 2 are attributed in `NOTICE`. *(2026-07-19, T-050: Enyo 2 core + layout (LG 2012-2014) + Mochi (LG 2014) in NOTICE; confirmed inside packaged ipk — closes codex F-390.)*
 **Dependencies:** cavekit-licensing-branding.md (R1, R2)
 
 ## Out of Scope

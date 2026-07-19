@@ -4,6 +4,8 @@
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 #include "JihadBrowserServer.h"
 #include <cstdio>
+#include <cstring>
+#include <unistd.h>
 // EngineHost is only forwarded by reference (forward-declared), so this
 // dispatch layer stays free of XPCOM/engine headers.
 
@@ -45,6 +47,7 @@ void JihadBrowserServer::reap(YapProxy* proxy) {
   if (it == mPages.end()) return;
   Page pg = it->second;
   mPages.erase(it);
+  if (proxy == mLastProxy) mLastProxy = nullptr;   // inject target gone
   if (mInTick) mReap.push_back(pg);          // defer delete out of the tick loop
   else { delete pg.page; delete pg.sink; }
 }
@@ -57,12 +60,80 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
   reap(proxy);
 }
 
+// Dev-only self-drive channel (device testing without a human on the glass).
+// A text file of one command per line, consumed atomically (read then unlink)
+// so each batch applies once. Content coordinates, same as the adapter sends.
+//   click X Y [N]      -> clickAt
+//   hold X Y           -> holdAt (long-press)
+//   key CODE [CHR]     -> keyDown+keyUp (CHR defaults to CODE)
+//   text STRING...     -> insertStringAtCursor (rest of line)
+//   url URL            -> openUrl
+//   back|forward|reload|stop
+//   scroll X Y         -> setScrollPosition
+//   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
+//   size W H           -> setWindowSize (VKB-resize / rotation simulation)
+//   zoom Z X Y         -> setZoomAndScroll
+// The path lives under /media/internal (device-only) so desktop builds are
+// inert; the file is only creatable via novacom/device access. Strip with the
+// other debug hooks for release.
+static const char* kInjectPath = "/media/internal/jihad/inject.cmd";
+
+void JihadBrowserServer::processInjectFile() {
+  FILE* f = fopen(kInjectPath, "r");
+  if (!f) return;
+  char line[2048];
+  std::vector<std::string> cmds;
+  while (fgets(line, sizeof line, f)) cmds.push_back(line);
+  fclose(f);
+  unlink(kInjectPath);
+  jihad::BrowserPageGoanna* p = pageFor(mLastProxy);
+  if (!p) { printf("[jihad-bs] inject: no page\n"); return; }
+  for (auto& c : cmds) {
+    int x=0, y=0, n=1, a=0, b=0;
+    char buf[1600] = {0};
+    if (sscanf(c.c_str(), "click %d %d %d", &x, &y, &n) >= 2) {
+      printf("[jihad-bs] inject click %d,%d n=%d\n", x, y, n); p->clickAt(x, y, n);
+    } else if (sscanf(c.c_str(), "hold %d %d", &x, &y) == 2) {
+      printf("[jihad-bs] inject hold %d,%d\n", x, y); p->holdAt(x, y);
+    } else if (sscanf(c.c_str(), "key %d %d", &x, &y) >= 1) {
+      int chr = (sscanf(c.c_str(), "key %d %d", &x, &y) == 2) ? y : x;
+      printf("[jihad-bs] inject key %d chr=%d\n", x, chr);
+      p->keyDown(x, 0, chr); p->keyUp(x, 0, chr);
+    } else if (strncmp(c.c_str(), "text ", 5) == 0) {
+      std::string t = c.substr(5); while (!t.empty() && (t.back()=='\n'||t.back()=='\r')) t.pop_back();
+      printf("[jihad-bs] inject text (%zu chars)\n", t.size()); p->insertStringAtCursor(t.c_str());
+    } else if (strncmp(c.c_str(), "url ", 4) == 0) {
+      // rest-of-line (not %s) so data: URLs and query strings with spaces survive
+      std::string u2 = c.substr(4); while (!u2.empty() && (u2.back()=='\n'||u2.back()=='\r')) u2.pop_back();
+      printf("[jihad-bs] inject url %s\n", u2.c_str()); p->openUrl(u2.c_str());
+    } else if (strncmp(c.c_str(), "back", 4) == 0)    { p->pageBackward(); }
+    else if (strncmp(c.c_str(), "forward", 7) == 0)   { p->pageForward(); }
+    else if (strncmp(c.c_str(), "reload", 6) == 0)    { p->pageReload(); }
+    else if (strncmp(c.c_str(), "stop", 4) == 0)      { p->pageStop(); }
+    else if (sscanf(c.c_str(), "scroll %d %d", &x, &y) == 2) { p->setScrollPosition(x, y); }
+    else if (sscanf(c.c_str(), "drag %d %d %d %d", &x, &y, &a, &b) == 4) {
+      p->dragStart(x, y); p->dragProcess(a, b); p->dragEnd(x + a, y + b);
+    } else if (sscanf(c.c_str(), "size %d %d", &x, &y) == 2) {
+      printf("[jihad-bs] inject size %dx%d\n", x, y); p->setWindowSize(x, y);
+    } else if (c.find_first_not_of(" \t\r\n") != std::string::npos) {
+      double z = 1.0;
+      if (sscanf(c.c_str(), "zoom %lf %d %d", &z, &x, &y) == 3) p->setZoomAndScroll(z, x, y);
+      else printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
+    }
+  }
+}
+
 void JihadBrowserServer::tick() {
   // Snapshot page pointers so a connect/disconnect during nested GLib pumping
   // can't invalidate our iteration or delete a page under us (Codex P0).
   std::vector<jihad::BrowserPageGoanna*> snap;
   snap.reserve(mPages.size());
   for (auto& kv : mPages) snap.push_back(kv.second.page);
+
+  // Self-drive: poll the inject file ~5x/s (tick is ~10 ms). Applied OUTSIDE
+  // mInTick like a YAP callback would be — commands only queue work (clickAt
+  // defers to pump, keys queue edits), mirroring the adapter path.
+  if (++mInjectThrottle >= 20) { mInjectThrottle = 0; processInjectFile(); }
 
   mInTick = true;
   for (auto* pg : snap) { pg->pump(10); pg->maybePaint(); }
@@ -84,6 +155,7 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
     printf("[jihad-bs] page init FAILED\n"); delete page; delete sink; return;
   }
   mPages[proxy] = Page{ page, sink };
+  mLastProxy = proxy;   // newest connect = active card = self-drive inject target
 }
 void JihadBrowserServer::asyncCmdOpenUrl(YapProxy* proxy, const char* url)
 { printf("[jihad-bs] openUrl %s\n", url ? url : "(null)"); if (auto* p = pageFor(proxy)) p->openUrl(url); }

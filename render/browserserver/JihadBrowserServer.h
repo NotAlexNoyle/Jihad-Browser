@@ -132,11 +132,17 @@ private:
   struct Page { jihad::BrowserPageGoanna* page; ProxySink* sink; };
   jihad::BrowserPageGoanna* pageFor(YapProxy* proxy);
   void reap(YapProxy* proxy);   // destroy a client's page (deferred during tick)
+  // Dev-only input injection: consume + apply command lines from the inject
+  // file against the last-connected page. Inert unless the file exists (the
+  // path only exists on-device). See docs in JihadBrowserServer.cpp.
+  void processInjectFile();
 
   jihad::EngineHost&               mHost;
   std::map<YapProxy*, Page>        mPages;
   std::vector<Page>                mReap;    // deleted after the tick loop
   bool                             mInTick;
+  YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
+  int                              mInjectThrottle = 0;   // check the file ~5x/s, not per-tick
 };
 
 #endif // JIHAD_BROWSERSERVER_H

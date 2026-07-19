@@ -594,8 +594,9 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
   // back to the URL so the bar still shows where we are (review #6 F-003).
   { std::string title = mPage->GetTitle();
     if (title.empty()) title = uri;
-    fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s\n", title.c_str(), uri.c_str());
-    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward()); }
+    bool cb = mPage->CanGoBack(), cf = mPage->CanGoForward();
+    fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s back=%d fwd=%d\n", title.c_str(), uri.c_str(), (int)cb, (int)cf);
+    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), cb, cf); }
   return failed ? std::string() : uri;
 }
 

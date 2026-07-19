@@ -1582,8 +1582,16 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   bool navBefore = mChrome->mLinkClicked;
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
+  // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
+  // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
+  // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
+  // dies here, this line + the matching core in /media/internal/jihad/cores
+  // name the element that triggered it (device U1). Flushed (stderr unbuffered).
+  fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d\n",
+          el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks);
   u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
   u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+  fprintf(stderr, "[jihad-bs] mouseSend done\n");
   // A tapped SUBMIT control (search "Go" button, login submit) needs the form-submission DEFAULT
   // action, which the synthesized click above does NOT trigger in this embedding (only onclick fires).
   // If the click didn't already start a nav (an onclick SPA handler), submit its form crash-safely —

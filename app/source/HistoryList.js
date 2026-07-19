@@ -23,7 +23,7 @@ enyo.kind({
 		onClose: ""
 	},
 	components: [
-		{name: "historyService", kind: "DbService", dbKind: "com.palm.browserhistory:1", reCallWatches: true, method: "find", onSuccess: "gotHistoryData", subscribe: true, onWatch:"refreshList"},
+		{name: "historyService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.history:1", reCallWatches: true, method: "find", onSuccess: "gotHistoryData", subscribe: true, onWatch:"refreshList"},
 		{name:"list", kind:"DbList", flex:1, onQuery:"historyQuery", onSetupRow: "listSetupRow", desc:true, components: [
 			{name: "divider", kind: "Divider", showing: false},
 			{name: "item", kind: "SwipeableItem", layoutKind: "HFlexLayout", tapHighlight: true, onclick: "itemClick", onConfirm: "deleteItem", components: [

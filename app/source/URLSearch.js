@@ -29,8 +29,8 @@ enyo.kind({
 		onRefresh: ""
 	},
 	components: [
-		{name: "bookmarksService", kind: "DbService", method: "search", dbKind: "com.palm.browserbookmarks:1", onSuccess: "gotBookmarksData", onFailure: "finishShowSearchResults"},
-		{name: "historyService", kind: "DbService", method: "search", dbKind: "com.palm.browserhistory:1", onSuccess: "gotHistoryData", onFailure: "finishShowSearchResults"},			
+		{name: "bookmarksService", kind: "DbService", method: "search", dbKind: "net.riverstonerelay.jihad-browser.bookmarks:1", onSuccess: "gotBookmarksData", onFailure: "finishShowSearchResults"},
+		{name: "historyService", kind: "DbService", method: "search", dbKind: "net.riverstonerelay.jihad-browser.history:1", onSuccess: "gotHistoryData", onFailure: "finishShowSearchResults"},			
 		{name: "address", kind: "AddressInput", flex: 1, hint: $L("Enter URL or search terms"),
 			onInputChange: "startSearch",
 			onGo: "go",

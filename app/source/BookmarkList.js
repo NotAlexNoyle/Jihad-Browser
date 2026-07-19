@@ -25,7 +25,7 @@ enyo.kind({
 		onClose: "",
 	},
 	components: [
-		{name: "bookmarksService", kind: "DbService", dbKind: "com.palm.browserbookmarks:1", reCallWatches: true, method: "find", onSuccess: "gotBookmarksData", subscribe: true, onWatch:"refreshList"},
+		{name: "bookmarksService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.bookmarks:1", reCallWatches: true, method: "find", onSuccess: "gotBookmarksData", subscribe: true, onWatch:"refreshList"},
 		{name: "list", kind: "DbList", flex: 1, desc: true, onQuery:"bookmarksQuery", onSetupRow: "listSetupRow", components: [
 			{name: "item", kind: "SwipeableItem", className: "toaster-item", layoutKind: "HFlexLayout", align: "center", tapHighlight: true, onclick: "itemClick", onConfirm: "deleteItem", components: [
 				{className: "item-thumb-container", components: [

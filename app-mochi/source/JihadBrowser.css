@@ -121,3 +121,20 @@
 	width: 24px; height: 24px;
 	margin: -12px 0 0 -12px;
 }
+
+/* App-chrome start page overlay: crisp bundled logo + name + engine line, over
+   the idle WebView until the first navigation. Mirrors the Enyo variant. */
+.jihad-startpage {
+	position: absolute;
+	top: 52px; left: 0; right: 0; bottom: 0;
+	background: #1c1c1c;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-box-pack: center;
+	-webkit-box-align: center;
+	text-align: center;
+	z-index: 5;
+}
+.jihad-sp-logo { width: 132px; height: 132px; margin-bottom: 18px; }
+.jihad-sp-title { font-size: 30px; font-weight: bold; color: #f0f0f0; letter-spacing: 1px; }
+.jihad-sp-sub { font-size: 15px; color: #8cafbe; margin-top: 8px; }

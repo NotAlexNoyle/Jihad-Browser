@@ -19,6 +19,14 @@
 <body>
 <script type="text/javascript">
 	new JihadBrowser({classes: "enyo-unselectable enyo-fit"}).renderInto(document.body);
+	// webOS shows the app card's loading spinner until the app signals it has
+	// rendered. The Enyo-1 variant gets this for free via the system framework's
+	// launch="bridged"; this bundled Enyo-2 app must call stageReady() itself, or
+	// the card "loads forever and never opens" (device report). Guarded: no-op off
+	// device. (The webOS-injected "Mojo is not defined" probe is unrelated legacy.)
+	if (window.PalmSystem && window.PalmSystem.stageReady) {
+		window.PalmSystem.stageReady();
+	}
 </script>
 </body>
 </html>

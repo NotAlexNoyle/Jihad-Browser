@@ -171,6 +171,26 @@ without a human. Existing: fb1 capture works (dd + PIL), palm-launch works.
 - **Enyo start page (478c616):** centred brand block (smaller logo + name +
   "Enyo UI ★ Goanna/6.9 UXP/b2594a4") matching Mochi.
 
+## Session 4 (2026-07-20) — kit-criteria verification sweep (device connected)
+
+Working the OPEN kit acceptance criteria as the goal list.
+- **ui-shell R4** — app launches to start page, address→openUrl loads, back/forward/
+  reload navigate (daemon-verified across the session). findInPage: pending a
+  focused test.
+- **browser-services R2 low-RAM prefs** — VERIFIED active: daemon logs
+  "prefs check: surfacecache.max_size_kb=32768 (goanna.js low-RAM block ACTIVE)".
+  The memory-pressure FLUSH line (R33 guardrail) needs a heavy multi-site session
+  to trigger — not yet observed.
+- **browser-services R2 cookie/cache PERSISTENCE — GAP FOUND (not working on
+  device).** The profile provider is wired (EngineHost passes sJihadDirProvider to
+  XRE_InitEmbedding2, covers ProfD+ProfLD → /media/internal/jihad/profile), prefs
+  are correct (cookieBehavior=0, lifetimePolicy=0, toolkit.storage.synchronous=2),
+  and the engine DOES create `startupCache/` there — but NO `cookies.sqlite` is
+  ever created, even after loading github.com/duckduckgo.com + a daemon restart.
+  So the cookie service isn't opening its DB in the profile. Needs deeper debug
+  (cookie-service init on VFAT, or a ProfD-vs-startupCache path mismatch). Cookies
+  work in-session; they just don't persist across restart.
+
 ## Still open (hard)
 - **U4/T1 VKB jank** — white band on top, rendering "snaps around", page shoved
   off-screen on VKB raise (942↔602 reflow fight). Not fixed.

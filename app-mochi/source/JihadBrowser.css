@@ -57,40 +57,6 @@
 	opacity: 0.35;
 }
 
-/* --- drawn icons (pure CSS, coloured by #f0f0f0) ------------------
-   Each button centres a 20x20 icon box; ::before / ::after form the shape. */
-.jihad-nav-btn::before, .jihad-nav-btn::after {
-	content: "";
-	position: absolute;
-	box-sizing: border-box;
-}
-/* back / forward: chevrons (two borders on a rotated square) */
-.jihad-ic-back::before, .jihad-ic-forward::before {
-	width: 11px; height: 11px; top: 14px;
-	border-left: 3px solid #f0f0f0;
-	border-bottom: 3px solid #f0f0f0;
-}
-.jihad-ic-back::before    { left: 16px; -webkit-transform: rotate(45deg);  transform: rotate(45deg); }
-.jihad-ic-forward::before { left: 13px; -webkit-transform: rotate(-135deg); transform: rotate(-135deg); }
-/* stop: an X (two rotated bars) */
-.jihad-ic-stop::before, .jihad-ic-stop::after {
-	width: 22px; height: 3px; top: 18px; left: 9px;
-	background: #f0f0f0; border-radius: 2px;
-}
-.jihad-ic-stop::before { -webkit-transform: rotate(45deg);  transform: rotate(45deg); }
-.jihad-ic-stop::after  { -webkit-transform: rotate(-45deg); transform: rotate(-45deg); }
-/* menu: three bars. box-shadow duplication does not render on this engine, so
-   draw the top + bottom bars as the borders of a box (::before) and the middle
-   bar as ::after. Bars land at y = 12 / 19 / 26 within the 40px button. */
-.jihad-ic-menu::before {
-	width: 20px; height: 17px; left: 10px; top: 12px;
-	border-top: 3px solid #f0f0f0;
-	border-bottom: 3px solid #f0f0f0;
-}
-.jihad-ic-menu::after {
-	width: 20px; height: 3px; left: 10px; top: 19px;
-	background: #f0f0f0;
-}
 .jihad-address-box {
 	margin: 0 6px;
 	vertical-align: middle;
@@ -98,7 +64,18 @@
 .jihad-address {
 	width: 100%;
 	box-sizing: border-box;
+	padding-right: 34px;
 }
+/* Reload/stop control INSIDE the address field (Enyo-parity), right-aligned. */
+.jihad-inline-btn {
+	position: absolute;
+	right: 4px; top: 50%;
+	width: 32px; height: 32px;
+	margin-top: -16px;
+	cursor: pointer;
+}
+.jihad-inline-btn .jihad-nav-img { width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+.jihad-address-box { position: relative; }
 
 /* Scale the base64 SVG glyphs to fill the Mochi icon box cleanly. */
 .jihad .mochi-icon {

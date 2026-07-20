@@ -75,32 +75,65 @@ enyo.kind({
 			onLoadStarted:     "loadStarted",
 			onLoadProgress:    "loadProgress",
 			onLoadStopped:     "loadStopped",
-			onPageInfoChanged: "pageInfoChanged"
+			onPageInfoChanged: "pageInfoChanged",
+			// Engine-driven JS dialogs (T-053): presented by JihadDialogs.
+			onDialogAlert:        "showAlertDialog",
+			onDialogConfirm:      "showConfirmDialog",
+			onDialogPrompt:       "showPromptDialog",
+			onDialogSSLConfirm:   "showSSLDialog",
+			onDialogUserPassword: "showLoginDialog"
 		},
+		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
+		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
 		// Start page rendered as APP CHROME (not a size-limited WebView data: URL),
 		// so the logo is the crisp bundled asset — matches the Enyo variant. Shown
 		// over the (idle) WebView until the first navigation; hidden on loadStarted.
 		{name: "startPage", classes: "jihad-startpage", components: [
 			{tag: "img", name: "spLogo", classes: "jihad-sp-logo", attributes: {src: "icon-256x256.png"}},
 			{content: "Jihad Browser", classes: "jihad-sp-title", allowHtml: false},
-			{content: "Mochi UI \u2605 Goanna/6.9 UXP/b2594a4", classes: "jihad-sp-sub", allowHtml: false}
+			{content: "Mochi UI \u2605 Enyo 2", classes: "jihad-sp-sub", allowHtml: false}
 		]},
-		// Basic Popup scaffolding. The overflow menu and a generic modal dialog
-		// are structured here; their contents (bookmarks / history / downloads /
-		// preferences / find / alert-confirm-prompt-SSL) are the T-053 port.
+		// Overflow menu (opened from the toolbar menu button). Items launch the
+		// T-053 parity views below.
 		{kind: "mochi.Popup", name: "menuPopup", classes: "jihad-menu-popup", floating: true, components: [
-			// T-053: menu items (New Card, Bookmarks, History, Downloads,
-			// Find, Share, Add to Launcher, Preferences) slot in here.
+			{classes: "jihad-menu-item", ontap: "menuNewCard",      content: "New Card"},
+			{classes: "jihad-menu-item", ontap: "menuBookmarks",    content: "Bookmarks"},
+			{classes: "jihad-menu-item", ontap: "menuHistory",      content: "History"},
+			{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
+			{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
+			{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
+			{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Preferences"}
 		]},
+		// Parity views (full-card overlays, hidden until opened).
+		{kind: "JihadBookmarkList", name: "bookmarkList",
+			onSelectItem: "navigateTo", onAddBookmark: "addCurrentBookmark", onClose: "panelClosed"},
+		{kind: "JihadHistoryList", name: "historyList",
+			onSelectItem: "navigateTo", onClearHistory: "clearHistory", onClose: "panelClosed"},
+		{kind: "JihadDownloadList", name: "downloadList",
+			onOpenItem: "openDownload", onCancelItem: "cancelDownload", onClearAll: "clearDownloads", onClose: "panelClosed"},
+		{kind: "JihadPreferences", name: "preferences",
+			onClearBookmarks: "clearBookmarks", onClearHistory: "clearHistory",
+			onClearCookies: "clearCookies", onClearCache: "clearCache", onClose: "panelClosed"},
+		// Engine-driven dialog set (alert / confirm / prompt / auth / SSL).
+		{kind: "JihadDialogs", name: "dialogs", onDialogAnswer: "answerDialog"},
+		// Generic info dialog (page/engine errors, Share placeholder).
 		{kind: "mochi.Popup", name: "dialog", classes: "jihad-dialog", floating: true, modal: true, centered: true, components: [
 			{name: "dialogTitle",   classes: "jihad-dialog-title"},
-			{name: "dialogMessage", classes: "jihad-dialog-message"}
+			{name: "dialogMessage", classes: "jihad-dialog-message"},
+			{classes: "jihad-dialog-buttons", components: [
+				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "closeDialog"}
+			]}
 		]}
 	],
 
 	// --- init + launch parameters -------------------------------------------
 	create: function() {
 		this.inherited(arguments);
+		//* Session download records (download-manager status + history), rendered
+		//* by the DownloadList view.
+		this.downloads = [];
+		//* Latest page title (from the engine), used when saving a bookmark/history.
+		this._title = "";
 		// webOS relaunch (a second launch of the running app, e.g. an external
 		// link tap) redelivers launch params. Register best-effort listeners for
 		// the platform relaunch events; harmless where they never fire.
@@ -292,6 +325,9 @@ enyo.kind({
 		this.$.progress.setShowing(false);
 		this.$.progress.setProgress(0);
 		this.setStopVisible(false);
+		// Record the visit in the Jihad history kind (BrowserApp.pageLoadStopped
+		// parity): drop any prior row for this URL, then insert the fresh one.
+		this.updateHistory(this._title, this.url);
 	},
 	//* Page info from the engine: {title, url, canGoBack, canGoForward}. Reflect
 	//* the URL in the address bar and the history state on the nav buttons. A new
@@ -304,6 +340,9 @@ enyo.kind({
 			this.url = inEvent.url;
 			this.$.address.setValue(inEvent.url);
 			this._lastSubmit = null;
+		}
+		if (typeof inEvent.title === "string" && inEvent.title) {
+			this._title = inEvent.title;
 		}
 		if (typeof inEvent.canGoBack === "boolean") {
 			this.$.back.addRemoveClass("disabled", !inEvent.canGoBack);
@@ -321,15 +360,133 @@ enyo.kind({
 		if (this._loading) { this.$.view.callBrowserAdapter("stopLoad"); }
 		else { this.$.view.callBrowserAdapter("reloadPage"); }
 	},
-	//* New card (Enyo-parity "new tab"). T-053 fills the other overflow actions.
+	//* New card (Enyo-parity "new tab").
 	doNewCard: function() { if (window.enyo && enyo.windows) { enyo.windows.openWindow("index.html"); } },
-	doShare: function() { this.openDialog("Share", "Sharing is part of the feature-parity port (T-053)."); },
-	doBookmarks: function() { this.$.menuPopup.show(); },
+	doShare: function() { this.openDialog("Share", "Copy the address from the bar to share this page."); },
+	//* Toolbar menu button opens the overflow menu.
+	doBookmarks: function() { this.openMenu(); },
 
-	// --- generic dialog (scaffold for the T-053 dialog set) -----------------
+	// --- overflow menu actions ----------------------------------------------
+	menuNewCard:     function() { this.$.menuPopup.hide(); this.doNewCard(); },
+	menuBookmarks:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.bookmarkList.open(); },
+	menuHistory:     function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.historyList.open(); },
+	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.setDownloads(this.downloads); this.$.downloadList.open(); this.refreshDownloads(); },
+	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
+	menuAddBookmark: function() { this.$.menuPopup.hide(); this.addCurrentBookmark(); },
+	menuPreferences: function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.preferences.open(); },
+
+	//* Hide every full-card overlay view.
+	hidePanels: function() {
+		this.$.bookmarkList.hide();
+		this.$.historyList.hide();
+		this.$.downloadList.hide();
+		this.$.preferences.hide();
+		this.$.findBar.hide();
+	},
+	//* A list view selected an item (bookmark/history) — navigate to it.
+	navigateTo: function(inSender, inEvent) {
+		var url = inEvent && inEvent.url;
+		if (!url) { return; }
+		this.hidePanels();
+		this._lastSubmit = null;
+		this.openUrl(url);
+	},
+	panelClosed: function() { /* the view hid itself; nothing else to do. */ },
+
+	// --- find-in-page -------------------------------------------------------
+	//* FindBar query -> the frozen findInPage adapter method (via this.find).
+	findRequested: function(inSender, inEvent) {
+		if (inEvent && inEvent.value) { this.find(inEvent.value); }
+	},
+	findClosed: function() { /* bar hid itself. */ },
+
+	// --- engine-driven dialogs (present via JihadDialogs) -------------------
+	showAlertDialog:   function(inSender, inEvent) { this.$.dialogs.showAlert(inEvent.message); },
+	showConfirmDialog: function(inSender, inEvent) { this.$.dialogs.showConfirm(inEvent.message); },
+	showPromptDialog:  function(inSender, inEvent) { this.$.dialogs.showPrompt(inEvent.message, inEvent.defaultValue); },
+	showSSLDialog:     function(inSender, inEvent) { this.$.dialogs.showSSL(inEvent.host, inEvent.code, inEvent.certFile); },
+	showLoginDialog:   function(inSender, inEvent) { this.$.dialogs.showLogin(inEvent.message); },
+	//* The user answered a dialog -> hand the string args to the WebView, which
+	//* writes them back down the adapter's YAP response pipe.
+	answerDialog: function(inSender, inEvent) {
+		this.$.view.sendDialogResponse((inEvent && inEvent.args) || ["0"]);
+	},
+
+	// --- bookmarks / history (Jihad db8 kinds) ------------------------------
+	addCurrentBookmark: function() {
+		if (!this.url) { return; }
+		var date = (new Date()).getTime();
+		enyo.jihad.dbPut([{
+			_kind: enyo.jihad.kinds.bookmarks,
+			title: this._title || this.url,
+			url: this.url,
+			date: date,
+			lastVisited: date,
+			defaultEntry: false,
+			visitCount: 0,
+			idx: null
+		}]);
+	},
+	//* BrowserApp.updateHistory parity: replace any prior row for this URL with a
+	//* fresh one. Chained so the delete completes before the insert.
+	updateHistory: function(title, url) {
+		if (!url) { return; }
+		var rec = {
+			_kind: enyo.jihad.kinds.history,
+			url: url,
+			title: title || url,
+			date: (new Date()).getTime()
+		};
+		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.history,
+			[{prop: "url", op: "=", val: url}], function() {
+				enyo.jihad.dbPut([rec]);
+			});
+	},
+	clearBookmarks: function() {
+		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.bookmarks, null);
+		this.$.bookmarkList.setItems([]);
+	},
+	clearHistory: function() {
+		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.history, null);
+		this.$.historyList.setItems([]);
+	},
+
+	// --- downloads (palm://com.palm.downloadmanager) ------------------------
+	refreshDownloads: function() {
+		var self = this;
+		enyo.jihad.downloadHistory(enyo.jihad.appId(), function(resp) {
+			var items = (resp && resp.items) || [];
+			var list = [];
+			for (var i = 0, d; (d = items[i]); i++) {
+				if (d.state === "completed" && d.fileExistsOnFilesys && d.recordString) {
+					try { list.push(enyo.json.parse(d.recordString)); } catch (e) { /* skip */ }
+				}
+			}
+			self.downloads = list;
+			self.$.downloadList.setDownloads(list);
+		});
+	},
+	openDownload: function(inSender, inEvent) {
+		var d = inEvent && inEvent.item;
+		if (d && d.completed && !d.aborted) {
+			enyo.jihad.launch({target: (d.destPath || "") + (d.destFile || "")});
+		}
+	},
+	cancelDownload: function(inSender, inEvent) {
+		var d = inEvent && inEvent.item;
+		if (d && d.ticket) { enyo.jihad.cancelDownload(d.ticket); }
+	},
+	clearDownloads: function() {
+		enyo.jihad.clearDownloads(enyo.jihad.appId());
+		this.downloads = [];
+		this.$.downloadList.setDownloads([]);
+	},
+
+	// --- generic info dialog ------------------------------------------------
 	openDialog: function(inTitle, inMessage) {
 		this.$.dialogTitle.setContent(inTitle || "");
 		this.$.dialogMessage.setContent(inMessage || "");
 		this.$.dialog.show();
-	}
+	},
+	closeDialog: function() { this.$.dialog.hide(); }
 });

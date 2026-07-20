@@ -104,8 +104,8 @@ enyo.kind({
 		return true;
 	},
 	clearTapped: function() {
+		// The shell (onClearHistory) owns the db8 delByQuery; just clear the view.
 		this.doClearHistory();
-		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.history, null);
 		this.setItems([]);
 	},
 	closeTapped: function() {

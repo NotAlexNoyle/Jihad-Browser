@@ -33,12 +33,42 @@
 	*/
 }
 
+/* The old full-size logo is replaced by the centred brand block below; keep the
+   element (the resize keyboard-repaint workaround references it) but draw nothing. */
 .startpage .startpage-placeholder {
-	background: url(../images/startpage-placeholder.png) 50% 50% no-repeat;
+	background: none;
 }
 
 .startpage .startpage-placeholder-tall {
 	height: 1024px;
+}
+
+/* Centred brand block — mirrors the Mochi variant's start page so the two match:
+   a smaller logo, the app name, and "<UI> UI ★ <engine>". */
+.startpage .startpage-brand {
+	position: absolute;
+	top: 0; left: 0; right: 0; bottom: 0;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-box-pack: center;
+	-webkit-box-align: center;
+	text-align: center;
+}
+.startpage .startpage-logo {
+	width: 132px;
+	height: 132px;
+	margin-bottom: 18px;
+}
+.startpage .startpage-title {
+	font-size: 30px;
+	font-weight: bold;
+	color: #f0f0f0;
+	letter-spacing: 1px;
+}
+.startpage .startpage-sub {
+	font-size: 15px;
+	color: #8cafbe;
+	margin-top: 8px;
 }
 
 /* AddressBar */

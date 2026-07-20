@@ -47,7 +47,9 @@
 /* Web content region fills the remaining rows; the NPAPI <object> stretches. */
 .jihad-view {
 	width: 100%;
-	background: #fff;
+	/* Mochi dark, matching the toolbar (#2b2b2b) and the start page (#1c1c1c),
+	   so there is no white flash before/around a page paints. */
+	background: #1c1c1c;
 	display: block;
 }
 

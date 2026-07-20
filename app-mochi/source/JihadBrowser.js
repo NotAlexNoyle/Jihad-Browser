@@ -118,15 +118,43 @@ enyo.kind({
 	//* link / new-card launches) takes precedence over `url`; `webviewId` binds
 	//* an engine-created card to this view.
 	applyLaunchParams: function(p) {
-		if (!p) {
-			return;
-		}
+		p = p || {};
 		if (p.webviewId) {
 			this.$.view.setIdentifier(p.webviewId);
 		}
 		var url = p.target || p.url;
+		// Launched from the icon with no URL: show the Mochi start page so the card
+		// presents content instead of a blank/forever-loading view (device: "the
+		// mochi app just loads forever and doesn't open"). Only on the FIRST apply
+		// (a later relaunch with no URL must not wipe the current page).
 		if (url) {
 			this.setUrl(url);
+		} else if (!this._startedOnce) {
+			this.showStartPage();
+		}
+		this._startedOnce = true;
+	},
+	//* Mochi-styled start page: a dark card matching the shell chrome (#1c1c1c),
+	//* loaded via a data: URL so its background is our own, not a generic about:.
+	showStartPage: function() {
+		var html = "<!doctype html><html><head><meta charset=utf-8>"
+			+ "<meta name=viewport content='width=device-width,initial-scale=1'>"
+			+ "<style>html,body{margin:0;height:100%}"
+			+ "body{background:#1c1c1c;color:#eaeaea;font-family:sans-serif;"
+			+ "display:flex;flex-direction:column;align-items:center;justify-content:center}"
+			+ "h1{margin:0;font-size:30px;letter-spacing:.5px}"
+			+ ".sub{color:#8cafbe;margin-top:8px;font-size:15px}"
+			+ ".dot{width:74px;height:74px;border-radius:18px;margin-bottom:20px;"
+			+ "background:radial-gradient(circle at 32% 30%,#2f6d8c,#12303f);"
+			+ "box-shadow:0 0 0 1px #2b2b2b,0 8px 24px rgba(0,0,0,.5)}"
+			+ "</style></head><body><div class=dot></div>"
+			+ "<h1>Jihad Browser</h1>"
+			+ "<div class=sub>Mochi &middot; UXP/Goanna engine</div></body></html>";
+		this.url = "about:jihad";
+		if (this.$.view.setHtml) {
+			this.$.view.setHtml("about:jihad", html);
+		} else {
+			this.$.view.setUrl("data:text/html," + encodeURIComponent(html));
 		}
 	},
 	relaunchHandler: function() {

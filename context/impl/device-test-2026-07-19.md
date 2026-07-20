@@ -108,6 +108,37 @@ without a human. Existing: fb1 capture works (dd + PIL), palm-launch works.
   (BrowserAdapterImpl.so) landscape composite (stale-orientation blit → scanlines;
   staged rotation guard) which needs a PDK adapter rebuild + physical rotation test.
 
+## Session 2 additions (user retest + new reports)
+
+- **History — CONFIRMED WORKING by user** ("history works"). db has real entries
+  (trueog.net, Gmail). Closes the U3-History item.
+- **Bookmarks — FIXED (216bae1).** User: "adding bookmarks via share menu doesn't
+  show up." The bookmark never reached the db though the kind + write are fine.
+  Root: addBookmark called createPageImages() (saveViewToFile/generateIconFromFile/
+  resizeImage via callBrowserAdapter, writing under /var/luna/data/browser/icons,
+  mode d-wxr----t owner luna → app user can't write) BEFORE the put; the failure
+  aborted addBookmark. Wrapped createPageImages in try/catch (addBookmark +
+  showAddtoLauncherDialog) so the record always saves; thumbnails best-effort.
+  RETEST: add a bookmark via share menu → should appear in Bookmarks.
+- **Downloads — WIRED (218ed0e).** The engine download interceptor was installed
+  but no sink was ever set (SetDownloadSink only got nullptr) → captured downloads
+  went nowhere. Now JihadBrowserServer IS the DownloadSink: OnDownload → active
+  card's new IPageMessageSink::msgMimeHandoffUrl → BrowserServerBase::
+  msgMimeHandoffUrl (YAP 0x2014) → adapter mimeHandoffUrl → app handleResource →
+  com.palm.downloadmanager. Daemon 74ebea4b deployed. RETEST: tap a real download
+  link (e.g. a .zip); end-to-end (app → downloadmanager → completion) unverified.
+- **Mochi 'loads forever' — FIXED (141e28d).** Launched from the icon with no
+  launch URL, applyLaunchParams navigated nowhere → blank card. Now shows a
+  Mochi-styled dark start page (showStartPage) and the view bg is #1c1c1c (no
+  white flash). Verified: the Mochi card connects + loads the start page at the
+  daemon level. Card foreground/presentation is a webOS wm concern to eyeball.
+  (Mochi still carries the codex cycle-2 findings F-434..443 — its full parity
+  port T-053 is unbuilt.)
+- **U1 crash — CORE CAPTURED.** A 362 MB core (core.ld-2.23.so.17076) was caught
+  and pulled to the job tmp; crashes cluster on the VKB resize (rapid 942↔686
+  window-height flips). Backtrace with the cross-gdb + unstripped ARM libxul is
+  the next step. NOT reproducible via synthetic taps.
+
 ## Test assets
 - Full log: job tmp `retest-daemon.log` (189k lines; today = lines 180761+,
   extracted to `today.log`).

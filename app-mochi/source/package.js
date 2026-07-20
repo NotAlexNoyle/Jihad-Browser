@@ -18,5 +18,7 @@ enyo.depends(
 	"JihadBookmarkList.js",
 	"JihadHistoryList.js",
 	"JihadDownloadList.js",
+	"JihadFindBar.js",
+	"JihadPreferences.js",
 	"JihadBrowser.js"
 );

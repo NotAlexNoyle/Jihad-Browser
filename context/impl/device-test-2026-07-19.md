@@ -127,13 +127,18 @@ without a human. Existing: fb1 capture works (dd + PIL), palm-launch works.
   msgMimeHandoffUrl (YAP 0x2014) → adapter mimeHandoffUrl → app handleResource →
   com.palm.downloadmanager. Daemon 74ebea4b deployed. RETEST: tap a real download
   link (e.g. a .zip); end-to-end (app → downloadmanager → completion) unverified.
-- **Mochi 'loads forever' — FIXED (141e28d).** Launched from the icon with no
-  launch URL, applyLaunchParams navigated nowhere → blank card. Now shows a
-  Mochi-styled dark start page (showStartPage) and the view bg is #1c1c1c (no
-  white flash). Verified: the Mochi card connects + loads the start page at the
-  daemon level. Card foreground/presentation is a webOS wm concern to eyeball.
-  (Mochi still carries the codex cycle-2 findings F-434..443 — its full parity
-  port T-053 is unbuilt.)
+- **Mochi 'loads forever' — FIXED (a8f282a), verified on device.** REAL root
+  cause (from /var/log/messages: `Uncaught ReferenceError: Mojo is not defined`
+  led here): webOS keeps the app card's loading spinner up until the app signals
+  it rendered. The Enyo-1 variant gets that free via the system framework's
+  `launch="bridged"`; the bundled Enyo-2 Mochi app never called
+  `PalmSystem.stageReady()`, so the card never presented even though the WebView
+  connected + the start page loaded. Added stageReady() after renderInto — the
+  card now OPENS and shows the Mochi start page (screenshot confirmed). Also
+  (141e28d) added a Mochi-styled dark start page on empty launch + #1c1c1c view
+  bg (no white flash). REMAINING: address bar shows the raw data: URL of the
+  start page instead of "about:jihad" (cosmetic); Mochi still carries codex
+  cycle-2 findings F-434..443 and the full parity port T-053 is unbuilt.
 - **U1 crash — CORE CAPTURED.** A 362 MB core (core.ld-2.23.so.17076) was caught
   and pulled to the job tmp; crashes cluster on the VKB resize (rapid 942↔686
   window-height flips). Backtrace with the cross-gdb + unstripped ARM libxul is

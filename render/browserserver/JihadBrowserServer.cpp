@@ -142,19 +142,30 @@ void JihadBrowserServer::processInjectFile() {
 }
 
 void JihadBrowserServer::tick() {
+  // Re-entrancy guard (device crash: BeginLoad this=0xa, SIGBUS). A synchronous
+  // navigation started from INSIDE pump() — Enter form-submit (FireFormSubmit),
+  // a tapped link/button (SendMouseEvent), or a content-nav re-drive (openUrl) —
+  // dispatches DOM events that run page JS and spins the engine's nested event
+  // loop. That nested loop can fire our g_timeout again, re-entering tick() while
+  // the outer pump is mid-navigation; the nested pump then re-drives the same
+  // page and corrupts the outer frame's mPage (observed as mPage==0xa). Bail on
+  // any re-entry — the outer tick still owns this cycle. (mInTick also defers
+  // reap, so a connect/disconnect during nested pumping stays safe.)
+  if (mInTick) return;
+  mInTick = true;
+
   // Snapshot page pointers so a connect/disconnect during nested GLib pumping
   // can't invalidate our iteration or delete a page under us (Codex P0).
   std::vector<jihad::BrowserPageGoanna*> snap;
   snap.reserve(mPages.size());
   for (auto& kv : mPages) snap.push_back(kv.second.page);
 
-  // Self-drive: poll the inject file ~5x/s (tick is ~10 ms). Applied OUTSIDE
-  // mInTick like a YAP callback would be — commands only queue work (clickAt
-  // defers to pump, keys queue edits), mirroring the adapter path.
+  // Self-drive: poll the inject file ~5x/s (tick is ~10 ms). Commands only queue
+  // work (clickAt defers to pump, keys queue edits), mirroring the adapter path.
   if (++mInjectThrottle >= 20) { mInjectThrottle = 0; processInjectFile(); }
 
-  mInTick = true;
   for (auto* pg : snap) { pg->pump(10); pg->maybePaint(); }
+
   mInTick = false;
 
   for (auto& e : mReap) { delete e.page; delete e.sink; }

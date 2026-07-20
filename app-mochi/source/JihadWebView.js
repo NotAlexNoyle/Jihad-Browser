@@ -52,7 +52,15 @@ enyo.kind({
 		onPageInfoChanged: "",
 		onServerConnected: "",
 		//* {focused, fieldType, fieldActions}
-		onEditorFocusChanged: ""
+		onEditorFocusChanged: "",
+		//* Engine-driven JS dialogs (adapter callbacks). The shell presents them
+		//* and answers via sendDialogResponse below. {message} / {message,
+		//* defaultValue} / {host, code, certFile}.
+		onDialogAlert: "",
+		onDialogConfirm: "",
+		onDialogPrompt: "",
+		onDialogSSLConfirm: "",
+		onDialogUserPassword: ""
 	},
 
 	// --- lifecycle ----------------------------------------------------------
@@ -166,6 +174,14 @@ enyo.kind({
 	callBrowserAdapter: function(method, args) {
 		return this._call(method, args);
 	},
+	//* Answer an engine-driven dialog. Routed through the variable-method _call
+	//* path (NOT a callBrowserAdapter literal), exactly as the Enyo 1.0 app's
+	//* viewCall("sendDialogResponse", ...) fallback does — so this existing YAP
+	//* response method does NOT widen the grep-audited callBrowserAdapter set.
+	//* `args` is an all-string array: ["1"|"0"|"2", (promptText|user)?, (pass)?].
+	sendDialogResponse: function(args) {
+		return this._call("sendDialogResponse", args);
+	},
 
 	// --- WebView-internal plugin path (kept OUT of the app call set) --------
 	// Queue-aware node invoker, mirroring BasicWebView.callBrowserAdapter. Used
@@ -265,5 +281,27 @@ enyo.kind({
 			fieldType: fieldType,
 			fieldActions: fieldActions
 		});
+	},
+
+	// --- engine-driven dialog callbacks (adapter -> app) --------------------
+	// Names + arg orders verified against render/adapter/BrowserAdapter.cpp: the
+	// adapter InvokeEventListener()s these on node.eventListener. Each surfaces a
+	// shell event; the shell presents the dialog and answers via
+	// sendDialogResponse (above). These are inbound engine callbacks, not
+	// callBrowserAdapter methods — they do not touch the frozen app->engine set.
+	dialogAlert: function(msg) {
+		this.doDialogAlert({message: msg});
+	},
+	dialogConfirm: function(msg) {
+		this.doDialogConfirm({message: msg});
+	},
+	dialogPrompt: function(msg, defaultValue) {
+		this.doDialogPrompt({message: msg, defaultValue: defaultValue});
+	},
+	dialogSSLConfirm: function(host, code, certFile) {
+		this.doDialogSSLConfirm({host: host, code: code, certFile: certFile});
+	},
+	dialogUserPassword: function(msg) {
+		this.doDialogUserPassword({message: msg});
 	}
 });

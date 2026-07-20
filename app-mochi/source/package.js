@@ -9,8 +9,17 @@
 // T-053) and slots additional source files in here.
 enyo.depends(
 	"JihadBrowser.css",
+	// Luna-service helpers (db8 / download manager / launcher) — the Enyo 2
+	// stand-in for the Enyo 1.0 DbService / enyo.PalmService kinds.
+	"JihadServices.js",
 	"JihadWebView.js",
+	// Parity views + dialog set (T-053) are appended here as they land, ahead of
+	// JihadBrowser (which references them as kinds).
+	"JihadBookmarkList.js",
+	"JihadHistoryList.js",
+	"JihadDownloadList.js",
+	"JihadFindBar.js",
+	"JihadPreferences.js",
+	"JihadDialogs.js",
 	"JihadBrowser.js"
-	// future (T-053): BookmarkList.js, HistoryList.js, DownloadList.js,
-	// Preferences.js, FindBar.js, StartPage.js, dialogs...
 );

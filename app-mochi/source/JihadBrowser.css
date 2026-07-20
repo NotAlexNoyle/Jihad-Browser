@@ -4,7 +4,7 @@
    size assumption is the 1024x768 both TouchPad models share. */
 
 /* ---------------------------------------------------------------------------
-   THEME / PERSONA HOOK. This engine (Goanna, ESR52-era) does NOT support CSS
+   THEME / PERSONA HOOK. This target's rendering engine does NOT support CSS
    custom properties, so a persona is a ROOT CLASS that overrides the concrete
    rules below — add e.g. class "persona-light" on the .jihad root and ship a
    rule set like `.jihad.persona-light .jihad-actionbar { background:#eee }`,
@@ -103,19 +103,208 @@
 	display: block;
 }
 
-/* Popup scaffolding (menu + generic dialog); contents are the T-053 port. */
+/* Overflow menu popup (T-053): a stack of tappable rows. */
 .jihad-menu-popup {
-	min-width: 200px;
+	min-width: 220px;
+	padding: 4px 0;
+	background: #2b2b2b;
+	color: #f0f0f0;
 }
+.jihad-menu-item {
+	padding: 12px 18px;
+	font-size: 18px;
+	border-bottom: 1px solid #3a3a3a;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-menu-item:active { background: #3d3d3d; }
+
+/* Dialog set (alert/confirm/prompt/auth/SSL + generic info). */
 .jihad-dialog {
 	min-width: 320px;
 	max-width: 600px;
-	padding: 16px;
+	padding: 18px;
+	background: #2b2b2b;
+	color: #f0f0f0;
+	border-radius: 6px;
 }
 .jihad-dialog-title {
 	font-weight: bold;
+	font-size: 18px;
 	margin-bottom: 8px;
 }
+.jihad-dialog-message {
+	font-size: 16px;
+	line-height: 1.4;
+	margin-bottom: 14px;
+}
+.jihad-dialog-inputbox { margin-bottom: 12px; }
+.jihad-dialog-input { width: 100%; box-sizing: border-box; }
+.jihad-dialog-buttons {
+	text-align: right;
+}
+.jihad-dialog-buttons .mochi-button { margin-left: 10px; }
+/* SSL dialog has three trust choices — let them wrap and spread. */
+.jihad-dialog-ssl { min-width: 380px; }
+
+/* ---------------------------------------------------------------------------
+   Full-card overlay views: bookmarks / history / downloads / preferences.
+   enyo-fit positions them absolute-filling the card; z above the toolbar.
+   --------------------------------------------------------------------------- */
+.jihad-panel {
+	background: #1c1c1c;
+	color: #f0f0f0;
+	z-index: 30;
+}
+.jihad-panel-header {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 8px 10px;
+	background: #2b2b2b;
+	border-bottom: 1px solid #3a3a3a;
+}
+.jihad-panel-title {
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	line-height: 40px;
+}
+.jihad-panel-btn {
+	min-width: 64px;
+	height: 40px;
+	line-height: 40px;
+	padding: 0 12px;
+	text-align: center;
+	font-size: 16px;
+	background: #3a3a3a;
+	border: 1px solid #4a4a4a;
+	border-radius: 6px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-panel-btn:active { background: #4d4d4d; }
+.jihad-panel-spacer { visibility: hidden; }
+.jihad-panel-scroller {
+	width: 100%;
+	background: #1c1c1c;
+}
+
+/* List rows (Repeater). */
+.jihad-row {
+	padding: 10px 14px;
+	border-bottom: 1px solid #2f2f2f;
+	cursor: pointer;
+}
+.jihad-row:active { background: #262626; }
+.jihad-row-title {
+	font-size: 17px;
+	color: #f0f0f0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.jihad-row-url {
+	font-size: 13px;
+	color: #8cafbe;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.jihad-row-date {
+	font-size: 13px;
+	color: #999;
+	line-height: 38px;
+	padding: 0 10px;
+	vertical-align: middle;
+}
+.jihad-row-del, .jihad-row-act {
+	min-width: 60px;
+	height: 34px;
+	line-height: 34px;
+	margin-left: 8px;
+	padding: 0 10px;
+	text-align: center;
+	font-size: 14px;
+	border-radius: 5px;
+	vertical-align: middle;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-row-del { background: #5a2b2b; border: 1px solid #713636; }
+.jihad-row-del:active { background: #713636; }
+.jihad-row-act { background: #2b4a5a; border: 1px solid #366071; }
+.jihad-row-act:active { background: #366071; }
+.jihad-empty {
+	padding: 40px 20px;
+	text-align: center;
+	color: #888;
+	font-size: 16px;
+}
+
+/* Preferences view. */
+.jihad-prefs-group { padding: 8px 0 16px; }
+.jihad-prefs-caption {
+	padding: 12px 16px 6px;
+	font-size: 14px;
+	color: #8cafbe;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+.jihad-prefs-row {
+	padding: 10px 16px;
+	border-bottom: 1px solid #2f2f2f;
+}
+.jihad-prefs-label {
+	font-size: 17px;
+	line-height: 34px;
+}
+.jihad-prefs-btn {
+	margin: 8px 16px 0;
+	padding: 12px;
+	text-align: center;
+	font-size: 16px;
+	background: #3a3a3a;
+	border: 1px solid #4a4a4a;
+	border-radius: 6px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-prefs-btn:active { background: #4d4d4d; }
+
+/* Find-in-page bar: overlay strip below the toolbar. */
+.jihad-findbar {
+	position: absolute;
+	top: 50px; left: 0; right: 0;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 6px 8px;
+	background: #2b2b2b;
+	border-bottom: 1px solid #3a3a3a;
+	z-index: 25;
+}
+.jihad-findbar-box { margin-right: 8px; }
+.jihad-findbar-input { width: 100%; box-sizing: border-box; }
+.jihad-findbar-btn {
+	min-width: 54px;
+	height: 38px;
+	line-height: 38px;
+	margin-left: 6px;
+	padding: 0 10px;
+	text-align: center;
+	font-size: 15px;
+	background: #3a3a3a;
+	border: 1px solid #4a4a4a;
+	border-radius: 6px;
+	vertical-align: middle;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-findbar-btn:active { background: #4d4d4d; }
+.jihad-findbar-btn.disabled { opacity: 0.35; }
 
 /* PNG toolbar icon (reload) — centred in the button. A persona may recolour via
    `filter` (e.g. invert for a light theme) or override the img src. */

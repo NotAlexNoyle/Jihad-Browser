@@ -12,7 +12,7 @@ Build site: context/plans/build-site.md
 | T-050 | DONE | 2026-07-19, commit 2a79d71. Apache headers on all new app-mochi files; NOTICE gained Enyo 2 core + layout + Mochi (LG, Apache-2.0) credits, confirmed inside packaged ipk (closes codex F-390) |
 | T-051 | DONE (desktop) — live handshake device-gated | 2026-07-19, commit 2a79d71. JihadWebView.js: NPAPI <object type="application/x-jihad-browser">, callBrowserAdapter surface frozen (set identical to app/: findInPage/goBack/goForward/reloadPage/stopLoad; Luna URIs clearCache/clearCookies), node.eventListener wiring, arg orders checked against render/adapter/BrowserAdapter.cpp |
 | T-052 | DONE (desktop) — on-device layout review open | 2026-07-19, commit 2a79d71. Shell from mochi.Header/IconButton/InputDecorator/Input/ProgressBar/Popup + Fittable layout; inline SVG data-URI glyphs; no hardcoded px beyond shared 1024x768 |
-| T-053 | TODO (UNBLOCKED) | Feature-parity port: views (bookmarks/history/downloads/find/prefs/start page) + dialogs + full page/dialog/download callback surface + live-daemon nav wiring |
+| T-053 | PARTIAL | Shell built + polished on-device: Enyo-parity toolbar (back/forward, address with inline reload/stop, share, new-tab, history+bookmarks; PNG icon set), app-chrome crisp start page, no-autocap URL input, stageReady card-open. Remaining: bookmarks/history/downloads/find/prefs VIEWS + dialog set. Original: Feature-parity port: views (bookmarks/history/downloads/find/prefs/start page) + dialogs + full page/dialog/download callback surface + live-daemon nav wiring |
 
 ## Notes
 - Framework sources stay outside repo; bundle at build time only.

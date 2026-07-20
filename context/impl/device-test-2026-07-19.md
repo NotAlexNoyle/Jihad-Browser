@@ -144,6 +144,41 @@ without a human. Existing: fb1 capture works (dd + PIL), palm-launch works.
   window-height flips). Backtrace with the cross-gdb + unstripped ARM libxul is
   the next step. NOT reproducible via synthetic taps.
 
+## Session 3 (2026-07-19/20) — crash ROOT-CAUSED+FIXED, Mochi UI overhaul
+
+- **U1 crash — FIXED (commit 2be6d85).** Captured a core, backtraced with cross-gdb
+  + a -g rebuild: SIGBUS in GoannaRenderPage::BeginLoad with this==0xa, from
+  BrowserPageGoanna::pump. A synchronous nav inside pump() (Enter-submit /
+  tapped link / content re-drive) spins the engine's nested event loop, which
+  re-enters tick() and re-pumps the SAME page mid-navigation, corrupting mPage.
+  Fix: `if (mInTick) return;` re-entrancy guard in tick(). Verified: the exact
+  google/ddg Enter+tap sequence that gave 36 restarts now gives ZERO across two
+  stress rounds. This underlies U1 (overload), U2 (un-clickable suggestions), and
+  the html.ddg "still loading" artifact. Deployed as a -g build for future cores.
+- **Downloads — WIRED (218ed0e).** DownloadSink was never set; now JihadBrowserServer
+  is the sink → msgMimeHandoffUrl → app → com.palm.downloadmanager. Needs a real
+  download to verify end-to-end.
+- **Bookmarks — FIXED (216bae1).** createPageImages() (thumbnail write to a dir the
+  app user can't write) threw and aborted addBookmark before the put; wrapped in
+  try/catch so the record always saves.
+- **Mochi variant — major overhaul (multiple commits, latest 09c050c):**
+  stageReady() so the card opens; Enyo-parity toolbar (back/forward, address with
+  inline reload/stop, share, new-tab, history+bookmarks) as a consistent PNG icon
+  set (this engine renders no mochi sprites / CSS-SVG / needed font glyphs / CSS
+  circles); app-chrome start page with the crisp bundled logo (a big logo in a
+  WebView data: URL exceeded the engine's URL limit → blank-white card — the root
+  of "entire card is 100% white"); "Jihad Browser" title on both variants.
+- **Enyo start page (478c616):** centred brand block (smaller logo + name +
+  "Enyo UI ★ Goanna/6.9 UXP/b2594a4") matching Mochi.
+
+## Still open (hard)
+- **U4/T1 VKB jank** — white band on top, rendering "snaps around", page shoved
+  off-screen on VKB raise (942↔602 reflow fight). Not fixed.
+- **U5 landscape** — needs adapter composite rebuild + physical rotation test.
+- Keyboard-focus-on-start (focusing the app input did not raise the VKB) and
+  URL-bar off-white shade (mochi's white decorator override resisted; reverted to
+  keep the card rendering) — both deferred.
+
 ## Test assets
 - Full log: job tmp `retest-daemon.log` (189k lines; today = lines 180761+,
   extracted to `today.log`).

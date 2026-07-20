@@ -15,5 +15,8 @@ enyo.depends(
 	"JihadWebView.js",
 	// Parity views + dialog set (T-053) are appended here as they land, ahead of
 	// JihadBrowser (which references them as kinds).
+	"JihadBookmarkList.js",
+	"JihadHistoryList.js",
+	"JihadDownloadList.js",
 	"JihadBrowser.js"
 );

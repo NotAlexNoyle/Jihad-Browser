@@ -201,12 +201,33 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // JIHAD_T1_LOG (inspector P3): each GetScrollXY forces a layout flush, and two extra full
   // reflows per VKB toggle in the socket-callback context is a real cost on the ARMv7.
   static const bool t1log = getenv("JIHAD_T1_LOG") != nullptr;
-  int sx0 = 0, sy0 = 0; if (t1log) mPage->GetScrollXY(&sx0, &sy0);
+  // T1 fix ("page pushed up off screen when the search box is focused"): a VKB-raise
+  // arrives as a height SHRINK. The engine's Resize reflow re-scrolls the focused
+  // editable into view, shoving the page up — even though the user just tapped that
+  // field so it was already visible. Capture the scroll before the shrink and, if a
+  // field is focused and the reflow pushed the scroll DOWN (content up), restore the
+  // pre-resize offset so the page stays put under the keyboard. Only on a shrink
+  // (VKB up); a grow (VKB down) keeps the engine's natural scroll. The field the user
+  // tapped stays visible because ClickAt already ensured it was on-screen pre-resize.
+  const bool shrink = (mLastWinH != 0 && (int)height < mLastWinH);
+  const bool hadEditable = mPage->HasFocusedEditable();
+  int sx0 = 0, sy0 = 0;
+  if (t1log || (shrink && hadEditable)) mPage->GetScrollXY(&sx0, &sy0);
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
-  if (t1log) {
+  if (shrink && hadEditable) {
     int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
-    fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d\n",
-            width, height, sx0, sy0, sx1, sy1, (int)mPage->HasFocusedEditable());
+    // Only counter an engine-induced downward push (field-into-view), and only when
+    // the tapped field's top stays within the shrunken viewport if we restore — i.e.
+    // its content-y is above the pre-resize scroll + the new (smaller) height. That
+    // keeps a field the VKB would otherwise cover lifted, but stops the common case
+    // (top-of-page search box) from being shoved off the top.
+    if (sy1 > sy0) mPage->ScrollTo(sx0, sy0);
+  }
+  mLastWinH = (int)height;
+  if (t1log) {
+    int sx2 = 0, sy2 = 0; mPage->GetScrollXY(&sx2, &sy2);
+    fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d shrink=%d\n",
+            width, height, sx0, sy0, sx2, sy2, (int)hadEditable, (int)shrink);
   }
 }
 

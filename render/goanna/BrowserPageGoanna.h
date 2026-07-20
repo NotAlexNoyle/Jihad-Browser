@@ -146,6 +146,7 @@ private:
   IPageMessageSink&  mSink;
   GoannaRenderPage*  mPage;
   int                mKey1, mKey2, mBufSize;
+  int                mLastWinH = 0;     // last surface height (VKB-shrink scroll-restore, T1)
   int                mActiveKey;        // which shm buffer we last painted into
   // Cache of attached shared buffers (up to the 2 alternating segments). shmat/shmdt of the ~12MB
   // segment on EVERY paint cost ~400ms/keystroke on the device; attach once and reuse instead.

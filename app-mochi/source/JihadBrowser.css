@@ -3,13 +3,25 @@
    Mochi UI variant — shell styles. Relative/fittable layout only; the sole
    size assumption is the 1024x768 both TouchPad models share. */
 
+/* ---------------------------------------------------------------------------
+   THEME / PERSONA HOOK. This engine (Goanna, ESR52-era) does NOT support CSS
+   custom properties, so a persona is a ROOT CLASS that overrides the concrete
+   rules below — add e.g. class "persona-light" on the .jihad root and ship a
+   rule set like `.jihad.persona-light .jihad-actionbar { background:#eee }`,
+   `.jihad.persona-light .jihad-ic-back::before { border-color:#333 }`, etc.
+   Nothing outside CSS needs to change. The icons are DRAWN in CSS (no font, no
+   image, no SVG — all of which fail to render here), so a persona can restyle or
+   redraw them purely in the override sheet. All skinnable surfaces are grouped
+   here: .jihad-actionbar (toolbar), .jihad-nav-btn (+ :active/.disabled), the
+   .jihad-ic-* icons, .jihad-view (content bg), and the start page in
+   JihadBrowser.js showStartPage().
+   --------------------------------------------------------------------------- */
 .jihad {
-	background: #fff;
+	background: #1c1c1c;
 }
 
-/* Toolbar: a full-width dark chrome bar. It is a FittableColumns (NOT a
-   mochi.Header), so the address box can genuinely take the free width; the dark
-   background is what makes the white nav glyphs read. */
+/* Toolbar: a full-width chrome bar (FittableColumns, not mochi.Header, so the
+   address box can take the free width). */
 .jihad-actionbar {
 	width: 100%;
 	box-sizing: border-box;
@@ -17,17 +29,20 @@
 	background: #2b2b2b;
 }
 
-/* Nav buttons: fixed-size glyph controls (Unicode text, white on the dark bar).
-   The address box (fit: true) takes the remaining width. */
+/* Nav buttons: fixed-size controls; the icon is drawn by the .jihad-ic-* rules
+   from CSS variables (themeable), so there is no font/image/SVG dependency. */
 .jihad-nav-btn {
+	position: relative;
 	display: inline-block;
 	width: 40px;
 	height: 40px;
+	/* min-height + line-height keep the box from collapsing inside FittableColumns
+	   when the control has no text content (the icon is drawn, not typed). */
+	min-width: 40px;
+	min-height: 40px;
 	line-height: 40px;
-	text-align: center;
-	font-size: 22px;
-	color: #f0f0f0;
 	background: #3a3a3a;
+	border: 1px solid #4a4a4a;
 	border-radius: 6px;
 	margin: 0 3px;
 	vertical-align: middle;
@@ -40,6 +55,41 @@
 }
 .jihad-nav-btn.disabled {
 	opacity: 0.35;
+}
+
+/* --- drawn icons (pure CSS, coloured by #f0f0f0) ------------------
+   Each button centres a 20x20 icon box; ::before / ::after form the shape. */
+.jihad-nav-btn::before, .jihad-nav-btn::after {
+	content: "";
+	position: absolute;
+	box-sizing: border-box;
+}
+/* back / forward: chevrons (two borders on a rotated square) */
+.jihad-ic-back::before, .jihad-ic-forward::before {
+	width: 11px; height: 11px; top: 14px;
+	border-left: 3px solid #f0f0f0;
+	border-bottom: 3px solid #f0f0f0;
+}
+.jihad-ic-back::before    { left: 16px; -webkit-transform: rotate(45deg);  transform: rotate(45deg); }
+.jihad-ic-forward::before { left: 13px; -webkit-transform: rotate(-135deg); transform: rotate(-135deg); }
+/* stop: an X (two rotated bars) */
+.jihad-ic-stop::before, .jihad-ic-stop::after {
+	width: 22px; height: 3px; top: 18px; left: 9px;
+	background: #f0f0f0; border-radius: 2px;
+}
+.jihad-ic-stop::before { -webkit-transform: rotate(45deg);  transform: rotate(45deg); }
+.jihad-ic-stop::after  { -webkit-transform: rotate(-45deg); transform: rotate(-45deg); }
+/* menu: three bars. box-shadow duplication does not render on this engine, so
+   draw the top + bottom bars as the borders of a box (::before) and the middle
+   bar as ::after. Bars land at y = 12 / 19 / 26 within the 40px button. */
+.jihad-ic-menu::before {
+	width: 20px; height: 17px; left: 10px; top: 12px;
+	border-top: 3px solid #f0f0f0;
+	border-bottom: 3px solid #f0f0f0;
+}
+.jihad-ic-menu::after {
+	width: 20px; height: 3px; left: 10px; top: 19px;
+	background: #f0f0f0;
 }
 .jihad-address-box {
 	margin: 0 6px;
@@ -84,4 +134,13 @@
 .jihad-dialog-title {
 	font-weight: bold;
 	margin-bottom: 8px;
+}
+
+/* PNG toolbar icon (reload) — centred in the button. A persona may recolour via
+   `filter` (e.g. invert for a light theme) or override the img src. */
+.jihad-nav-img {
+	position: absolute;
+	top: 50%; left: 50%;
+	width: 24px; height: 24px;
+	margin: -12px 0 0 -12px;
 }

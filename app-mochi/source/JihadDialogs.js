@@ -17,6 +17,11 @@
 // All args are strings (the adapter rejects non-string variants). The shell hands
 // the array to JihadWebView.sendDialogResponse, which writes it back down the
 // same YAP response pipe the Enyo 1.0 app uses — the IPC contract is unchanged.
+//
+// PRESENTATION: each dialog is a plain in-app overlay (a Control toggled by
+// `showing`, over a scrim), NOT a mochi.Popup — a floating/modal mochi.Popup
+// crashes the app card on this engine (Goanna/ESR52 host). The overlay pattern is
+// the same one the parity list-view panels use, and renders correctly.
 
 enyo.kind({
 	name: "JihadDialogs",
@@ -27,57 +32,67 @@ enyo.kind({
 	},
 	components: [
 		// Alert: message + OK only (Enyo 1.0 alertDialog has no cancel).
-		{name: "alert", kind: "mochi.Popup", floating: true, modal: true, centered: true, classes: "jihad-dialog", components: [
-			{name: "alertMsg", classes: "jihad-dialog-message"},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "alertOk"}
+		{name: "alert", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "alertMsg", classes: "jihad-dialog-message"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn", content: "OK", ontap: "alertOk"}
+				]}
 			]}
 		]},
 		// Confirm: message + OK / Cancel.
-		{name: "confirm", kind: "mochi.Popup", floating: true, modal: true, centered: true, classes: "jihad-dialog", components: [
-			{name: "confirmMsg", classes: "jihad-dialog-message"},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Cancel", ontap: "confirmCancel"},
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "confirmOk"}
+		{name: "confirm", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "confirmMsg", classes: "jihad-dialog-message"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Cancel", ontap: "confirmCancel"},
+					{classes: "jihad-btn", content: "OK", ontap: "confirmOk"}
+				]}
 			]}
 		]},
 		// Prompt: message + input + OK / Cancel.
-		{name: "prompt", kind: "mochi.Popup", floating: true, modal: true, centered: true, classes: "jihad-dialog", components: [
-			{name: "promptMsg", classes: "jihad-dialog-message"},
-			{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
-				{kind: "mochi.Input", name: "promptInput", classes: "jihad-dialog-input",
-					attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
-			]},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Cancel", ontap: "promptCancel"},
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "promptOk"}
+		{name: "prompt", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "promptMsg", classes: "jihad-dialog-message"},
+				{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
+					{kind: "mochi.Input", name: "promptInput", classes: "jihad-dialog-input",
+						attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
+				]},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Cancel", ontap: "promptCancel"},
+					{classes: "jihad-btn", content: "OK", ontap: "promptOk"}
+				]}
 			]}
 		]},
 		// User/password auth: message + username + password + OK / Cancel.
-		{name: "login", kind: "mochi.Popup", floating: true, modal: true, centered: true, classes: "jihad-dialog", components: [
-			{name: "loginMsg", classes: "jihad-dialog-message"},
-			{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
-				{kind: "mochi.Input", name: "userInput", placeholder: "Username", classes: "jihad-dialog-input",
-					attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
-			]},
-			{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
-				{kind: "mochi.Input", name: "passInput", placeholder: "Password", classes: "jihad-dialog-input",
-					type: "password", attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
-			]},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Cancel", ontap: "loginCancel"},
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "loginOk"}
+		{name: "login", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "loginMsg", classes: "jihad-dialog-message"},
+				{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
+					{kind: "mochi.Input", name: "userInput", placeholder: "Username", classes: "jihad-dialog-input",
+						attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
+				]},
+				{kind: "mochi.InputDecorator", classes: "jihad-dialog-inputbox", components: [
+					{kind: "mochi.Input", name: "passInput", placeholder: "Password", classes: "jihad-dialog-input",
+						type: "password", attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false"}}
+				]},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Cancel", ontap: "loginCancel"},
+					{classes: "jihad-btn", content: "OK", ontap: "loginOk"}
+				]}
 			]}
 		]},
 		// SSL confirm: message + Trust Always / Trust Once / Don't Trust. (The Enyo
 		// 1.0 "View Certificate" detail is intentionally omitted — see PARITY.md;
 		// the security-critical trust decision is fully answerable here.)
-		{name: "ssl", kind: "mochi.Popup", floating: true, modal: true, centered: true, classes: "jihad-dialog jihad-dialog-ssl", components: [
-			{name: "sslMsg", classes: "jihad-dialog-message"},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Don't Trust", ontap: "sslDontTrust"},
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Trust Once", ontap: "sslTrustOnce"},
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "Trust Always", ontap: "sslTrustAlways"}
+		{name: "ssl", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box jihad-dialog-ssl", components: [
+				{name: "sslMsg", classes: "jihad-dialog-message"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Don't Trust", ontap: "sslDontTrust"},
+					{classes: "jihad-btn", content: "Trust Once", ontap: "sslTrustOnce"},
+					{classes: "jihad-btn", content: "Trust Always", ontap: "sslTrustAlways"}
+				]}
 			]}
 		]}
 	],

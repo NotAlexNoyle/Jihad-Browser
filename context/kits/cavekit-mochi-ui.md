@@ -20,7 +20,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R1: Separate, coexisting Mochi application package
 **Description:** The Mochi UI is packaged as its own webOS app, installable alongside the Enyo variant.
 **Acceptance Criteria:**
-- [x] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad (Mochi)"). *(2026-07-18, T-049: title reconciled to kit value.)*
+- [x] `app-mochi/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mochi`) and title ("Jihad Browser"). *(2026-07-18, T-049. 2026-07-20: title is "Jihad Browser" — per user directive BOTH variants are titled "Jihad Browser" (never "Jihad (Mochi)"/"Jihad (Enyo)"); the distinct app id keeps them coexisting. Confirmed on-device: the card status bar reads "Jihad Browser".)*
 - [x] Installing it does not collide with or replace the Enyo variant (`net.riverstonerelay.jihad-browser`); both can be installed at once. *(VERIFIED ON DEVICE 2026-07-19: `palm-install` of the Mochi ipk succeeded with the Enyo variant present; `palm-install -l` lists both `net.riverstonerelay.jihad-browser 1.0.0` and `net.riverstonerelay.jihad-browser.mochi 1.0.0`.)*
 - [x] Uses the Jihad Browser icon set. *(md5-identical to `app/icon*.png`, verified 2026-07-18.)*
 **Dependencies:** none
@@ -31,7 +31,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - [ ] Address/search bar with navigation (back, forward, reload, stop) works.
 - [ ] Bookmarks, history, and downloads views are present and functional.
 - [ ] Find-in-page, preferences, and the start page are present.
-- [ ] Alert/confirm/prompt/auth and SSL-confirm dialogs are presented and answerable.
+- [~] Alert/confirm/prompt/auth and SSL-confirm dialogs are presented and answerable. *(2026-07-20: implemented in `JihadDialogs.js` + the overflow menu / generic dialog in `JihadBrowser.js`, but NOT as `mochi.Popup` — a floating/modal `mochi.Popup` CRASHES the Mochi card on this engine (pressing Share crashed the app). Converted to plain Control overlays (a scrim + centered box toggled by `showing`, `jihad-btn` divs instead of `mochi.Button`) — the same pattern the parity list-views use. The share crash is gone and the card opens cleanly (verified on-device 2026-07-20). Dialog PRESENTATION/answering still needs on-device verification with a page that raises alert/confirm.)*
 - [ ] A parity checklist against `../app` source shows no missing user-facing feature (or documents intentional omissions). [human-review]
 **Dependencies:** cavekit-navigation-events.md, cavekit-browser-services.md
 
@@ -46,7 +46,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R4: Built with Mochi controls; layout fits both TouchPad models
 **Description:** The UI uses Mochi widgets and renders correctly on TouchPad and TouchPad Go.
 **Acceptance Criteria:**
-- [x] UI is composed from Mochi controls (e.g. Header, IconButton, Input, List, Panels, Popup, ProgressBar) rather than ad-hoc markup. *(2026-07-19, T-052: mochi.Header + FittableColumns toolbar (IconButton nav + InputDecorator/Input address), mochi.ProgressBar, mochi.Popup scaffolding.)*
+- [x] UI is composed from Mochi controls (e.g. Header, IconButton, Input, List, Panels, ProgressBar — NOT Popup, which crashes on this engine; see the deviation note) rather than ad-hoc markup. *(2026-07-19, T-052: mochi.Header + FittableColumns toolbar (IconButton nav + InputDecorator/Input address), mochi.ProgressBar. 2026-07-20 DEVIATION: `mochi.Popup` is NOT usable — a floating/modal Popup crashes the card on this engine (Goanna/ESR52 host). The overflow menu + all dialogs use plain Control overlays instead (scrim + box toggled by `showing`); `mochi.Input`/`Header`/`ProgressBar` etc. are fine. Documented in PARITY.md + [[jihad-input-activation-and-tiling]].)*
 - [~] Layout is usable on the TouchPad (Topaz) and TouchPad Go (Opal) screen. [human-review on device] *(Fittable/relative layout, shared 1024x768, no hardcoded px; stays [~] until on-device review.)*
 - [x] Enyo 2 core + layout + Mochi are bundled into the package at build time (not vendored in this repo). *(2026-07-18, T-049: `build/webos-oe/build-mochi-ipk.sh` stages Enyo 2 core from `../mochi-sampler/enyo`, layout from `webos-stacks/mochi/lib/layout` (mochi-sampler's lib/ dirs are empty; overridable via `LAYOUT_SRC`), Mochi from `../mochi` → palm-package → 1.4 MB ipk, 394 entries; output git-ignored, nothing vendored.)*
 **Dependencies:** cavekit-device-build.md (R3, R6)

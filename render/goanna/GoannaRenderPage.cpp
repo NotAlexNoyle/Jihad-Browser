@@ -1582,16 +1582,89 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   bool navBefore = mChrome->mLinkClicked;
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
-  // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
-  // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
-  // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
-  // dies here, this line + the matching core in /media/internal/jihad/cores
-  // name the element that triggered it (device U1). Flushed (stderr unbuffered).
-  fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d\n",
-          el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks);
-  u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
-  u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
-  fprintf(stderr, "[jihad-bs] mouseSend done\n");
+  // XUL/chrome content (about:config, about:addons, … render as XUL documents) CRASHES the
+  // headless daemon when fed synthesized mouse events: the XUL event/command frames assume a
+  // real widget the offscreen PuppetWidget does not provide (confirmed on-device — a tap on
+  // about:config's XUL <label>/<checkbox>/<hbox> SIGSEGV'd inside SendMouseEvent, core dumped).
+  // For XUL we DROP the synthetic click entirely (the tap does nothing; activating XUL buttons
+  // needs real headless XUL support — see the NOTE after the submit handling). Ordinary HTML is
+  // unaffected. Key the decision off the DOCUMENT ROOT's namespace, NOT the hit element (F-002):
+  // ElementFromPoint can return null (a miss), and a XUL about: page embeds html:-namespaced nodes
+  // (about:addons detail panes) — both would otherwise slip a mouse event into the XUL frame tree.
+  bool isXul = false;
+  {
+    nsCOMPtr<nsIDOMDocument> doc;
+    if (el) { nsCOMPtr<nsIDOMNode> n = do_QueryInterface(el); if (n) n->GetOwnerDocument(getter_AddRefs(doc)); }
+    if (!doc) {   // hit-test miss (el == null): fall back to the top document via the docshell
+      nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+      if (ds) { nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+                if (cv) cv->GetDOMDocument(getter_AddRefs(doc)); }
+    }
+    if (doc) {
+      nsCOMPtr<nsIDOMElement> root; doc->GetDocumentElement(getter_AddRefs(root));
+      nsAutoString nsuri; if (root) root->GetNamespaceURI(nsuri);
+      isXul = nsuri.EqualsLiteral("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+    }
+  }
+  // F-001: flip a tapped checkbox/radio BEFORE the synthetic click, so the click's own handlers
+  // (and React's click-driven onChange, which reads .checked AT click time) see the NEW state —
+  // real browsers toggle in the click default-action's pre-phase. SetChecked is a plain DOM setter
+  // (crash-safe, no JSContext); radio maintains its group. The input+change events fire AFTER the
+  // mouse events below (real order: state new by click time, change last). HTML only (isXul false).
+  nsCOMPtr<nsIDOMHTMLInputElement> toggledCtrl; bool toggledState = false;
+  if (!isXul && effEl) {
+    nsAutoString effTag2; effEl->GetTagName(effTag2);
+    std::string tg2 = NS_ConvertUTF16toUTF8(effTag2).get();
+    for (char& c : tg2) c = (char)toupper((unsigned char)c);
+    if (tg2 == "INPUT") {
+      nsAutoString it2; effEl->GetAttribute(NS_LITERAL_STRING("type"), it2);
+      std::string its2 = NS_ConvertUTF16toUTF8(it2).get();
+      for (char& c : its2) c = (char)tolower((unsigned char)c);
+      if (its2 == "checkbox" || its2 == "radio") {
+        nsCOMPtr<nsIDOMHTMLInputElement> cb = do_QueryInterface(effEl);
+        bool dis = false; if (cb) cb->GetDisabled(&dis);          // F-007: catches <fieldset disabled>
+        if (cb && !dis) {
+          bool was = false; cb->GetChecked(&was);
+          bool now = (its2 == "radio") ? true : !was;
+          if (now != was) {
+            cb->SetChecked(now);
+            bool ind = false; cb->GetIndeterminate(&ind); if (ind) cb->SetIndeterminate(false);  // F-007
+            toggledCtrl = cb; toggledState = now;
+          }
+        }
+      }
+    }
+  }
+  if (isXul) {
+    fprintf(stderr, "[jihad-bs] skip mouseSend on XUL <%s> at %d,%d (crash-avoid)\n",
+            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y);
+  } else {
+    // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
+    // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
+    // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
+    // dies here, this line + the matching core in /media/internal/jihad/cores
+    // name the element that triggered it (device U1). Flushed (stderr unbuffered).
+    fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d\n",
+            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks);
+    u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
+    u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
+    fprintf(stderr, "[jihad-bs] mouseSend done\n");
+  }
+  // F-001/F-004: for a checkbox/radio flipped above (before the click), deliver `input` then
+  // `change` now — AFTER the click — matching real event order. Same crash-safe CreateEvent
+  // pattern as FireFormSubmit / the F-238 input dispatch.
+  if (toggledCtrl) {
+    nsCOMPtr<nsIDOMNode> cn = do_QueryInterface(toggledCtrl);
+    nsCOMPtr<nsIDOMDocument> cdoc; if (cn) cn->GetOwnerDocument(getter_AddRefs(cdoc));
+    nsCOMPtr<nsIDOMEventTarget> ct = do_QueryInterface(toggledCtrl);
+    if (cdoc && ct) {
+      nsCOMPtr<nsIDOMEvent> iev; cdoc->CreateEvent(NS_LITERAL_STRING("Event"), getter_AddRefs(iev));
+      if (iev) { iev->InitEvent(NS_LITERAL_STRING("input"),  true, false); bool d = false; ct->DispatchEvent(iev, &d); }
+      nsCOMPtr<nsIDOMEvent> cev; cdoc->CreateEvent(NS_LITERAL_STRING("Event"), getter_AddRefs(cev));
+      if (cev) { cev->InitEvent(NS_LITERAL_STRING("change"), true, false); bool d = false; ct->DispatchEvent(cev, &d); }
+    }
+    fprintf(stderr, "[jihad-bs] toggled control -> %d\n", toggledState);
+  }
   // A tapped SUBMIT control (search "Go" button, login submit) needs the form-submission DEFAULT
   // action, which the synthesized click above does NOT trigger in this embedding (only onclick fires).
   // If the click didn't already start a nav (an onclick SPA handler), submit its form crash-safely —
@@ -1615,9 +1688,18 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
           nsCOMPtr<nsIDOMHTMLInputElement> ib = do_QueryInterface(effEl);
           if (ib) ib->GetForm(getter_AddRefs(sform));
         }
+        // (checkbox/radio are flipped BEFORE the click above — F-001 — not here.)
       }
     }
     if (sform) FireFormSubmit(sform);
+    // NOTE: XUL `oncommand` activation (e.g. about:config's "I promise to be careful!" button)
+    // was tried here (fire a synthetic `command` event on the bound XUL button) but it CRASHES
+    // the headless daemon on-device: dispatching `command` runs the XUL handler (ShowPrefs, etc.),
+    // whose tree/command frames touch the same widget path that faults offscreen. Verified by the
+    // build sequence -- the isXul mouse-skip build survived XUL taps, and adding the command
+    // dispatch reintroduced the SIGSEGV core. The isXul skip above already stops the tap from
+    // crashing; XUL buttons are left inert rather than crash the card. Activating them needs real
+    // headless XUL/widget support (future work), not a synthetic event.
   }
 }
 

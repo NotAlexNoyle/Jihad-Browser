@@ -5,10 +5,11 @@
 //
 // This is the browser SHELL: a Mochi-composed toolbar (back / forward / reload /
 // stop + address input + menu), a load ProgressBar, the JihadWebView content
-// region, and basic Popup scaffolding. Full feature parity with the Enyo 1.0 app
+// region, and the overflow menu + parity views. Feature parity with the Enyo 1.0 app
 // (bookmarks / history / downloads / find / preferences / start page /
-// alert-confirm-prompt-SSL dialogs) is the next-wave parity port (T-053); this
-// shell is structured so those views slot into the popups / menu below.
+// alert-confirm-prompt-SSL dialogs) is provided by the T-053 views + overlay dialogs
+// below. NOTE: those are plain Control OVERLAYS, not mochi.Popup — a floating/modal
+// mochi.Popup crashes the card on this engine (see JihadDialogs.js / PARITY.md).
 //
 // Contract invariant (cavekit-ipc-contract R1, cavekit-mochi-ui R3): the UI
 // drives the engine ONLY through JihadWebView's callBrowserAdapter proxy and the
@@ -95,14 +96,16 @@ enyo.kind({
 		]},
 		// Overflow menu (opened from the toolbar menu button). Items launch the
 		// T-053 parity views below.
-		{kind: "mochi.Popup", name: "menuPopup", classes: "jihad-menu-popup", floating: true, components: [
-			{classes: "jihad-menu-item", ontap: "menuNewCard",      content: "New Card"},
-			{classes: "jihad-menu-item", ontap: "menuBookmarks",    content: "Bookmarks"},
-			{classes: "jihad-menu-item", ontap: "menuHistory",      content: "History"},
-			{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
-			{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
-			{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
-			{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Preferences"}
+		{name: "menuPopup", classes: "jihad-menu-overlay", showing: false, ontap: "closeMenu", components: [
+			{classes: "jihad-menu-box", components: [
+				{classes: "jihad-menu-item", ontap: "menuNewCard",      content: "New Card"},
+				{classes: "jihad-menu-item", ontap: "menuBookmarks",    content: "Bookmarks"},
+				{classes: "jihad-menu-item", ontap: "menuHistory",      content: "History"},
+				{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
+				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
+				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
+				{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Preferences"}
+			]}
 		]},
 		// Parity views (full-card overlays, hidden until opened).
 		{kind: "JihadBookmarkList", name: "bookmarkList",
@@ -117,11 +120,13 @@ enyo.kind({
 		// Engine-driven dialog set (alert / confirm / prompt / auth / SSL).
 		{kind: "JihadDialogs", name: "dialogs", onDialogAnswer: "answerDialog"},
 		// Generic info dialog (page/engine errors, Share placeholder).
-		{kind: "mochi.Popup", name: "dialog", classes: "jihad-dialog", floating: true, modal: true, centered: true, components: [
-			{name: "dialogTitle",   classes: "jihad-dialog-title"},
-			{name: "dialogMessage", classes: "jihad-dialog-message"},
-			{classes: "jihad-dialog-buttons", components: [
-				{kind: "mochi.Button", decoratorLeft: "", decoratorRight: "", content: "OK", ontap: "closeDialog"}
+		{name: "dialog", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "dialogTitle",   classes: "jihad-dialog-title"},
+				{name: "dialogMessage", classes: "jihad-dialog-message"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn", ontap: "closeDialog", content: "OK"}
+				]}
 			]}
 		]}
 	],
@@ -300,8 +305,10 @@ enyo.kind({
 	},
 
 	// --- overflow menu (scaffold) -------------------------------------------
+	closeMenu: function() { this.$.menuPopup.hide(); },
 	openMenu: function(inSender) {
-		// T-053 populates the menu; for now just present the (empty) popup.
+		// Show the overflow-menu overlay (a scrim + item box; not a mochi.Popup, which
+		// crashes this engine). Tapping the scrim or any item closes it.
 		this.$.menuPopup.show();
 	},
 

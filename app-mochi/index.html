@@ -27,6 +27,15 @@
 	if (window.PalmSystem && window.PalmSystem.stageReady) {
 		window.PalmSystem.stageReady();
 	}
+	// NOTE (orientation / tiling): the web-content plugin composites CLEANLY only when
+	// the device is held PHYSICALLY in landscape (display + card both native 1024). A
+	// PORTRAIT card (768 wide) — or a card forced to landscape via setWindowOrientation
+	// while the device is physically portrait — is composited by LunaCE at a mismatched
+	// surface pitch that shears/"tiles" the plugin. This is a LunaCE-side limitation (the
+	// closed PGContext plugin-paint path Jihad avoids); it is tied to the PHYSICAL
+	// framebuffer orientation, so a logical orientation lock cannot force the clean path
+	// (it just yields an upside-down, still-tiled card). Left as free rotation so physical
+	// landscape stays clean. See [[jihad-input-activation-and-tiling]].
 </script>
 </body>
 </html>

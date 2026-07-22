@@ -103,13 +103,9 @@
 	display: block;
 }
 
-/* Overflow menu popup (T-053): a stack of tappable rows. */
-.jihad-menu-popup {
-	min-width: 220px;
-	padding: 4px 0;
-	background: #2b2b2b;
-	color: #f0f0f0;
-}
+/* Overflow menu + dialogs are presented as overlays (see .jihad-menu-box /
+   .jihad-dialog-box below); mochi.Popup is unusable on this engine. The row/text
+   sub-element styles are shared by those overlays. */
 .jihad-menu-item {
 	padding: 12px 18px;
 	font-size: 18px;
@@ -120,15 +116,7 @@
 }
 .jihad-menu-item:active { background: #3d3d3d; }
 
-/* Dialog set (alert/confirm/prompt/auth/SSL + generic info). */
-.jihad-dialog {
-	min-width: 320px;
-	max-width: 600px;
-	padding: 18px;
-	background: #2b2b2b;
-	color: #f0f0f0;
-	border-radius: 6px;
-}
+/* Dialog text/field sub-elements (used inside .jihad-dialog-box). */
 .jihad-dialog-title {
 	font-weight: bold;
 	font-size: 18px;
@@ -144,9 +132,66 @@
 .jihad-dialog-buttons {
 	text-align: right;
 }
-.jihad-dialog-buttons .mochi-button { margin-left: 10px; }
-/* SSL dialog has three trust choices — let them wrap and spread. */
-.jihad-dialog-ssl { min-width: 380px; }
+/* SSL dialog has three trust choices — give it a wider box. Combined selector so it
+   wins over .jihad-dialog-box's min-width regardless of source order (F-005). */
+.jihad-dialog-box.jihad-dialog-ssl { min-width: 380px; }
+
+/* ---------------------------------------------------------------------------
+   In-app OVERLAY presentation for the overflow menu + generic dialog.
+   A floating/modal mochi.Popup crashes the app card on this engine, so the
+   menu and dialog are plain Controls toggled by `showing`, laid over a scrim
+   with absolute positioning (no modern flexbox — the app-chrome WebKit is old).
+   --------------------------------------------------------------------------- */
+.jihad-menu-overlay,
+.jihad-modal-overlay {
+	position: absolute;
+	top: 0; right: 0; bottom: 0; left: 0;
+	z-index: 60;
+}
+.jihad-modal-overlay { background: rgba(0, 0, 0, 0.45); }
+/* Menu drops down from the toolbar's right edge. */
+.jihad-menu-box {
+	position: absolute;
+	top: 52px; right: 6px;
+	min-width: 220px;
+	padding: 4px 0;
+	background: #2b2b2b;
+	color: #f0f0f0;
+	border: 1px solid #444;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+/* Dialog box: centered horizontally via auto margins, near the top. */
+.jihad-dialog-box {
+	position: absolute;
+	top: 90px; left: 0; right: 0;
+	margin: 0 auto;
+	width: 80%;
+	min-width: 320px;
+	max-width: 560px;
+	padding: 18px;
+	box-sizing: border-box;
+	background: #2b2b2b;
+	color: #f0f0f0;
+	border-radius: 6px;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+/* Plain button (replaces mochi.Button, which pulls in the crashing popup path). */
+.jihad-btn {
+	display: inline-block;
+	padding: 10px 22px;
+	margin-left: 10px;
+	background: #3d6fb4;
+	color: #fff;
+	border-radius: 4px;
+	font-size: 16px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-btn:active { background: #2f588f; }
+/* Secondary/cancel button variant. */
+.jihad-btn-alt { background: #4a4a4a; }
+.jihad-btn-alt:active { background: #5a5a5a; }
 
 /* ---------------------------------------------------------------------------
    Full-card overlay views: bookmarks / history / downloads / preferences.

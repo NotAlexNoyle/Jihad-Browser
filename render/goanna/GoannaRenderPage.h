@@ -58,6 +58,9 @@ public:
 
   // Full-page zoom factor (YAP: setZoomAndScroll). 1.0 = 100%.
   void SetZoom(double zoom);
+  // Visual-viewport pan (CSS px) applied in the offscreen render when zoomed (>1), so the
+  // whole page is reachable in both axes without the engine's device-width scroll limits.
+  void SetRenderPan(double x, double y) { mPanX = x; mPanY = y; }
 
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);
@@ -191,6 +194,9 @@ private:
   bool mOffscreen;         // true when rendering via the offscreen widget
   int mWidth;
   int mHeight;
+  double mRenderZoom = 1.0;  // pinch/fit zoom applied as a gfxContext scale in the offscreen capture
+  double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)
+  double mPanY = 0.0;
 
   GoannaRenderPage(const GoannaRenderPage&) = delete;
   GoannaRenderPage& operator=(const GoannaRenderPage&) = delete;

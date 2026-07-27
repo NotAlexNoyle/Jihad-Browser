@@ -1,0 +1,112 @@
+Jihad: pinch/fit ZOOM + visual-viewport pan in the offscreen render.
+
+PuppetWidget::JihadRenderDocument (added by 0005, caret by 0011) rendered a
+fixed (0,0,w,h) CSS-px rect at scale 1, so the daemon's SetResolution/SetFullZoom
+never magnified the RenderDocument capture — they only relocated content into a
+1/zoom quadrant ("zoom is poor / things get cut off"). This adds real zoom:
+
+  - JihadRenderDocument takes (aZoom, aPanX, aPanY). When |Z-1| > 1% (or panned)
+    it pre-scales the gfxContext by Z and renders an ABSOLUTE DOCUMENT rect
+    (RENDER_IGNORE_VIEWPORT_SCROLLING | RENDER_DOCUMENT_RELATIVE), so w/Z x h/Z
+    CSS px fill the w x h device buffer at Zx and the whole page is reachable in
+    both axes (no display-list culling, no engine-scroll dependence). A near-1
+    fit-zoom stays viewport-relative so window.onscroll/fixed/sticky keep working.
+  - The C entry point is renamed jihad_offscreen_render_document_v2 (5 args) so a
+    stale daemon/libxul mismatch fails loudly at RTLD_NOW load (extern C has no
+    parameter mangling). See render/goanna/{GoannaRenderPage,BrowserPageGoanna}.
+
+Layout viewport is left at the window width (no reflow) so this can't re-arm the
+landscape fit-zoom feedback loop. See context/impl/zoom-fix-2026-07-27.md.
+
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -676,7 +676,8 @@
+ }
+ 
+ bool
+-PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell)
++PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
++                                  double aPanX, double aPanY)
+ {
+   if (!aDocShell) {
+     return false;
+@@ -713,15 +714,38 @@
+   // rect using the CURRENT (pre-scaled) matrix, so the clip lands at w x h device px. Z==1 is
+   // the identity path (unchanged). This is why SetFullZoom/SetResolution were wrong: they made
+   // the engine zoom, which RenderDocument's internal scale then cancels back into a 1/Z quadrant.
+-  // Render the current viewport (device pixels == CSS pixels here; default scale 1)
+-  // straight into mDrawTarget, on a white background. RENDER_CARET draws the text caret
+-  // when an editable is focused (Jihad: the on-screen keyboard needs a visible cursor) —
+-  // without it RenderDocument skips the caret entirely. Scroll position is still respected.
+-  nsRect r(0, 0,
+-           nsPresContext::CSSPixelsToAppUnits((float)w),
+-           nsPresContext::CSSPixelsToAppUnits((float)h));
+-  nsresult rv = presShell->RenderDocument(r, nsIPresShell::RENDER_CARET,
+-                                          NS_RGB(255, 255, 255), ctx);
++  // RENDER_CARET draws the text caret when an editable is focused (Jihad: the on-screen
++  // keyboard needs a visible cursor).
++  double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  uint32_t flags = nsIPresShell::RENDER_CARET;
++  nsRect r;
++  if (Z < 0.99 || Z > 1.01 || aPanX != 0.0 || aPanY != 0.0) {
++    // Zoomed / panned (|Z-1|>1%, matching the daemon's is-zoomed threshold so a near-1 fit-zoom
++    // like 1.0052 stays on the engine-scroll path and keeps window.onscroll/fixed/sticky correct):
++    // magnify by Z and render an ABSOLUTE DOCUMENT rect (aPanX,aPanY,w/Z,h/Z),
++    // IGNORING the engine scroll (RENDER_IGNORE_VIEWPORT_SCROLLING | RENDER_DOCUMENT_RELATIVE).
++    // This is a pure visual viewport: the whole page is reachable in BOTH axes with no display-
++    // list culling and no dependence on the engine scroll, so there is no blank-past-the-first-
++    // screen, no engine-parking echo, and zoom-OUT (Z<1, rect > viewport) is not clipped.
++    // RenderDocument clips to aRect.width/height in the (pre-scaled) matrix, so the clip lands at
++    // exactly w x h device px. RenderDocument's internal AppUnitsPerDevPixel/AppUnitsPerCSSPixel
++    // scale is 1 (no engine zoom — layout viewport stays device-width), so the net paint scale
++    // is exactly Z (zoom fix 2026-07-27; Codex review F2-F6 -> document-relative).
++    ctx->SetMatrix(ctx->CurrentMatrix().Scale(Z, Z));
++    flags |= nsIPresShell::RENDER_IGNORE_VIEWPORT_SCROLLING | nsIPresShell::RENDER_DOCUMENT_RELATIVE;
++    r = nsRect(nsPresContext::CSSPixelsToAppUnits((float)aPanX),
++               nsPresContext::CSSPixelsToAppUnits((float)aPanY),
++               nsPresContext::CSSPixelsToAppUnits((float)(w / Z)),
++               nsPresContext::CSSPixelsToAppUnits((float)(h / Z)));
++  } else {
++    // Unzoomed (Z==1, no pan): viewport-relative, the engine scroll drives position (so
++    // window.onscroll + position:fixed/sticky stay correct). Byte-identical to the pre-zoom-fix
++    // capture.
++    r = nsRect(0, 0,
++               nsPresContext::CSSPixelsToAppUnits((float)w),
++               nsPresContext::CSSPixelsToAppUnits((float)h));
++  }
++  nsresult rv = presShell->RenderDocument(r, flags, NS_RGB(255, 255, 255), ctx);
+   return NS_SUCCEEDED(rv);
+ }
+ 
+@@ -783,12 +807,17 @@
+ // presShell (canonical offscreen render). The daemon passes the content nsIDocShell
+ // it already resolves. Returns true if the document rendered.
+ MOZ_EXPORT bool
+-jihad_offscreen_render_document(nsIWidget* aWidget, nsIDocShell* aDocShell)
++jihad_offscreen_render_document_v2(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
++                                   double aPanX, double aPanY)
+ {
++  // Versioned symbol (Codex F1): the zoom/pan args were added to an extern-C function, which has
++  // no parameter mangling — an old daemon vs new libxul (or vice versa) would pass garbage or
++  // silently drop the args. The rename makes any stale-binary mismatch fail LOUDLY at RTLD_NOW
++  // load (undefined symbol) instead of mis-rendering.
+   if (!aWidget) {
+     return false;
+   }
+-  return static_cast<PuppetWidget*>(aWidget)->JihadRenderDocument(aDocShell);
++  return static_cast<PuppetWidget*>(aWidget)->JihadRenderDocument(aDocShell, aZoom, aPanX, aPanY);
+ }
+ 
+ MOZ_EXPORT bool
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -215,7 +215,8 @@
+   // (the canonical offscreen path, like canvas drawWindow / tab thumbnails). The
+   // widget Paint() path does NOT paint the embedded content into this widget, so
+   // relying on it produced a black frame; this renders the actual document.
+-  bool JihadRenderDocument(nsIDocShell* aDocShell);
++  bool JihadRenderDocument(nsIDocShell* aDocShell, double aZoom = 1.0,
++                           double aPanX = 0.0, double aPanY = 0.0);
+   // Sticky invalidation flag for the render daemon (jihad_offscreen_take_dirty):
+   // set on every Invalidate() so the daemon knows CONTENT CHANGED and a repaint is
+   // due — the offscreen embedding has no compositor/paint-event feedback loop, so

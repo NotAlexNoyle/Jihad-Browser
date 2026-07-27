@@ -66,6 +66,15 @@ Atlas Browser (parallel isis-browser fork) — ported fixes
       QPainter/PGContext deref that segfaults LunaSysMgr), out-of-buffer white
       fill, tall-buffer pan, pinch-zoom scaled blit, and scroll indicator —
       Atlas BrowserAdapter commits 7b91ab8, aefab6d, dbc897c, 27b54a5, 77ab724.
+    - BrowserAdapter rotation-aware composite: useGraphicsContext=true + bitblt
+      the offscreen (wrapped as a Piranha PGSurface) THROUGH the WebKit-provided
+      PGContext, which carries the card's rotation/scale transform. This makes
+      portrait<->landscape rotation render correctly (the raw dstBuffer blit is
+      row-major in the card's logical space and sheared/tiled after a rotate) —
+      Atlas BrowserAdapter handlePaint graphics-context path. The Piranha PG* ABI
+      declarations (render/adapter/PGContext.h, PGSurface.h) are the Jihad
+      project's own minimal reconstruction of the webOS SDK interface (resolved at
+      load time from the device libWebKitLuna.so), not copied from HP or Atlas.
     - Low-memory design patterns from atlas-wpe-backend/BrowserPageWPE.cpp:
       pin the engine memory budget near the REAL free memory so purges happen
       before system OOM, throttle pressure handling to avoid GC thrash, and

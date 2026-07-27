@@ -54,6 +54,30 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 - [x] `setZoomAndScroll` changes rendered scale and position; subsequent input maps to the new transform.
 **Dependencies:** none (input coordinate mapping consumes this transform — see cavekit-input-bridging.md R5 and Cross-References)
 
+### R6: Orientation-correct on-device composite (portrait ↔ landscape)
+**Description:** When the card rotates between portrait and landscape, the composited
+on-screen frame stays correct — no shear, tiling, scanlines, or blank page. The daemon
+already re-renders at the new viewport (R5); this requirement covers the BrowserAdapter's
+composite of the shared buffer to the rotated card.
+**Acceptance Criteria:**
+- [x] The adapter composites the offscreen through the WebKit-provided **PGContext**
+  (Piranha graphics context), which carries the card's rotation/scale transform, rather
+  than a raw row-major `dstBuffer` blit that is fixed to the card's logical orientation.
+  *(Enabled via `AdapterBase(..., useGraphicsContext=true)`; the raw dstBuffer blit remains
+  a no-context fallback for desktop/Ubuntu builds.)*
+- [x] After a portrait→landscape (and landscape→portrait) rotate, the page renders
+  filling the card with correct geometry — verified by eye on the TouchPad. *(Device-gated
+  visual check; the old white-frame "rotation guard" band-aid is removed by this path.)*
+- [x] The load-time symbols `PGContext::bitblt` and `PGSurface::wrap` resolve against the device
+  `libWebKitLuna.so` (the link is intentionally not `--no-undefined`); `releaseRef`/`addRef` are
+  inherited INLINE from the `PGShared` base (no exported symbol — modeling them as PGSurface
+  members would emit an unresolvable UND that blocks the RTLD_NOW load). Verifiable off-device by
+  demangling the adapter's UND symbols (exactly two PG entries), and on-device by `dlopen_probe`.
+**Dependencies:** cavekit-offscreen-rendering.md (R5), cavekit-device-build.md
+**Reference solution:** Atlas Browser (Herrie82) BrowserAdapter graphics-context paint path
+(Apache-2.0; see NOTICE). Ported to Goanna's viewport-sized buffer contract (renderedX/Y =
+adapter scroll, contentZoom = engine zoom).
+
 ## Out of Scope
 - Synthesizing input (cavekit-input-bridging.md).
 - GPU/WebGL/video compositor path — first target is CPU/basic-layers readback; accelerated paths are deferred (note in impl, revisit in Phase 3).
@@ -62,5 +86,8 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-07-26: Added R6 (orientation-correct on-device composite). Root cause of the
+  portrait↔landscape render-break traced to the adapter's raw dstBuffer blit ignoring the
+  card rotation transform; fixed by compositing through the PGContext (Atlas reference).
 - 2026-06-30: Initial draft.
 - 2026-07-04: Status reconciled to implementation — all R1–R5 verified on desktop AND on-device (HP TouchPad): true windowless PuppetWidget render (now via MOZ_WIDGET_TOOLKIT=headless — no gtk window at all), ARGB32 correct, msgPainted double-buffer, geometry/viewport events, resize/zoom/scroll.

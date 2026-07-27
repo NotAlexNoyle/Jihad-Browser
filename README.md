@@ -15,7 +15,8 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > pages on-device (http + HTTPS) into the isis UI. Working on-device: address-bar
 > navigation, back/forward/reload/stop, link + button taps, typing via the on-screen
 > keyboard (Enter-to-search / form submit), engine-driven repaint (no more stale
-> frames), and load completion. Both UI variants ship: the **Enyo 1.0** shell and a
+> frames), **portrait ↔ landscape rotation**, **pinch/fit zoom (real magnification +
+> full-page visual-viewport pan in both axes)**, and load completion. Both UI variants ship: the **Enyo 1.0** shell and a
 > second **Enyo 2 + Mochi** shell (its own `.ipk`, coexisting), each with a matching
 > branded start page. Jihad installs as a **self-contained browser that coexists
 > with the stock webOS browser** — its own NPAPI MIME, adapter, render daemon, and
@@ -25,9 +26,16 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > pages "overload" into a stuck loading screen) was root-caused from an on-device
 > core dump and fixed. History, bookmarks, and downloads are wired to the app's own
 > db8 kinds + the system download manager. Remaining work: cookie persistence across
-> restarts, the VKB viewport "snap"/white-band on keyboard toggle, landscape
-> composite, the Mochi parity views (bookmarks/history/downloads lists + dialogs),
-> and TouchPad Go hardware verification.
+> restarts, the VKB viewport "snap"/white-band on keyboard toggle, the Mochi parity
+> views (bookmarks/history/downloads lists + dialogs), and TouchPad Go hardware
+> verification.
+>
+> **Rotation** and **zoom** are both fixed (2026-07): the landscape "3× tiling" was a
+> LunaCE fixed-stride read of the raw plugin surface — resolved by compositing the
+> offscreen through the device's transform-aware Piranha `PGContext` (the Atlas
+> approach). Zoom now magnifies in the offscreen `RenderDocument` capture (gfxContext
+> scale) and pans the full page via document-relative rendering. Both were verified
+> on the TouchPad and adversarially reviewed with Codex.
 
 ## Why
 
@@ -105,7 +113,7 @@ Goanna calls.
 - **Phase 0 — Plan & scaffold — ✅ done:** Cavekit kits + build site; project skeleton; license setup; YAP contract captured; port map drafted.
 - **Phase 1 — Desktop PoC (x86_64 Linux) — ✅ done:** Build Goanna once; bring up `BrowserServer` with the Goanna backend; render a page into the shared framebuffer; drive it from the isis UI on desktop. De-risked engine integration before the embedded toolchain.
 - **Phase 2 — webOS 3 cross-build (ARMv7) — ✅ reached:** modern cross-toolchain stood up (stock gcc 4.4 cannot build UXP); Goanna + daemon cross-compiled; the self-contained adapter + daemon + upstart job deploy and **render real pages on the TouchPad**. Both `.ipk`s build via a single entry (`build/webos-oe/build-all-device.sh`); TouchPad Go (Opal) machine config authored (shared ARMv7 softfp binary; install pending hardware).
-- **Phase 3 — Hardening — 🔧 in progress:** DONE — daemon crash fix (tick re-entrancy), engine-driven repaint (no stale frames), engine-driven VKB focus, crash-safe form submission, history/bookmarks/downloads storage, both branded start pages, self-drive test harness. IN PROGRESS — Mochi parity views (bookmarks/history/downloads lists, find, preferences, dialogs). REMAINING — cookie/cache persistence across restarts, VKB viewport "snap"/white-band, landscape composite, tap-coordinate hit-test edge cases, memory-budget measurement, TouchPad Go on-device verification.
+- **Phase 3 — Hardening — 🔧 in progress:** DONE — daemon crash fix (tick re-entrancy), engine-driven repaint (no stale frames), engine-driven VKB focus, crash-safe form submission, history/bookmarks/downloads storage, both branded start pages, self-drive test harness, **portrait ↔ landscape rotation (PGContext composite)**, **pinch/fit zoom — magnify + full-page visual-viewport pan (document-relative render)**. IN PROGRESS — Mochi parity views (bookmarks/history/downloads lists, find, preferences, dialogs). REMAINING — cookie/cache persistence across restarts, VKB viewport "snap"/white-band, tap-coordinate hit-test edge cases, memory-budget measurement, TouchPad Go on-device verification.
 
 ## Licensing
 

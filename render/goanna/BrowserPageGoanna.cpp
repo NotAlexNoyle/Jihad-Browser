@@ -275,9 +275,41 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
-  // The javascript: scroll applies asynchronously; the scrolled-to message is
-  // emitted from pump() once the offset actually moves (emitScrollIfChanged).
-  mPage->ScrollTo(x, y);
+  // The adapter's scroll (x,y) is in ZOOMED-content px (its mScrollPos / buffer space); the
+  // engine scrolls in CSS px, so divide by the zoom — EXACTLY as setZoomAndScroll does. And keep
+  // BrowserOffscreenInfo::renderedX/Y (= mAdapterScrollX/Y) in step so the adapter's composite pan
+  // lines up (renderedX == mScrollPos => identity blit). Without this, a drag-pan AFTER a zoom fed
+  // zoomed px straight to the CSS-px engine and left renderedX/Y stale, so panned/zoomed content
+  // landed off-screen ("cut off"). At zoom==1 this is unchanged (x/1==x) so plain scroll, rotation
+  // and first render are unaffected (Codex review 2026-07-26, Finding 2).
+  double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  mAdapterScrollX = x; mAdapterScrollY = y;
+  // Same zoom-aware routing as setZoomAndScroll: at z>1 pan the render's visual viewport (so
+  // a drag while zoomed reaches the whole page in both axes) and park the engine scroll; at
+  // z<=1 the javascript: engine scroll applies asynchronously (the scrolled-to message is
+  // emitted from pump() once the offset actually moves, emitScrollIfChanged).
+  if (z < 0.99 || z > 1.01) {
+    // Zoomed (|z-1|>1%, so a near-1 fit like 1.0052 stays on the engine-scroll path below and
+    // keeps window.onscroll/fixed/sticky correct for normal browsing): PURE visual-viewport pan
+    // — this covers zoom-IN (z>1) and zoom-OUT (z<1, e.g. a wide fixed-width page fit into the
+    // window). JihadRenderDocument renders an absolute DOCUMENT rect
+    // (RENDER_DOCUMENT_RELATIVE), so the whole page is reachable in both axes with no engine
+    // scroll and no display-list culling. Clamp the pan to the content so it can't drift into the
+    // white margin past the page edge (Codex F6); mLastContentW/H staleness only affects the
+    // clamp, not correctness (document-relative never goes blank). The engine scroll is left
+    // untouched (the render ignores it) so no spurious scrolled-to echo corrupts the adapter's
+    // pan (Codex F2).
+    double vpX = x / z, vpY = y / z;                            // visual-viewport top-left, CSS px
+    double vw = (double)mPage->Width() / z, vh = (double)mPage->Height() / z;  // visible CSS px @ zoom
+    if (vpX < 0.0) vpX = 0.0;
+    if (vpY < 0.0) vpY = 0.0;
+    if (mLastContentW > 0 && vpX > mLastContentW - vw) vpX = (mLastContentW > vw) ? (mLastContentW - vw) : 0.0;
+    if (mLastContentH > 0 && vpY > mLastContentH - vh) vpY = (mLastContentH > vh) ? (mLastContentH - vh) : 0.0;
+    mPage->SetRenderPan(vpX, vpY);
+  } else {
+    mPage->SetRenderPan(0.0, 0.0);
+    mPage->ScrollTo((int)(x / z), (int)(y / z));
+  }
   mNeedsPaint = true;
 }
 
@@ -290,7 +322,34 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   // the engine scrolls in CSS px, so divide by the zoom. Keep the zoomed values for
   // BrowserOffscreenInfo::renderedX/Y so the adapter's pan math lines up (== mScrollPos).
   mAdapterScrollX = x; mAdapterScrollY = y;
-  mPage->ScrollTo((int)(x / z), (int)(y / z));
+  // When zoomed IN (z>1) the engine layout viewport is device-width, so it can't scroll
+  // horizontally and can't reach past its unzoomed vertical range — drive the RENDER's
+  // visual-viewport pan (CSS px) and park the engine scroll at 0 so the whole magnified page
+  // is reachable both axes. (Pinch-zoom pan is a visual-viewport move — no window.onscroll —
+  // matching real mobile browsers.) At z<=1 keep the engine scroll unchanged (fires onscroll,
+  // drives position:fixed/sticky). See JihadRenderDocument (zoom fix 2026-07-27).
+  if (z < 0.99 || z > 1.01) {
+    // Zoomed (|z-1|>1%, so a near-1 fit like 1.0052 stays on the engine-scroll path below and
+    // keeps window.onscroll/fixed/sticky correct for normal browsing): PURE visual-viewport pan
+    // — this covers zoom-IN (z>1) and zoom-OUT (z<1, e.g. a wide fixed-width page fit into the
+    // window). JihadRenderDocument renders an absolute DOCUMENT rect
+    // (RENDER_DOCUMENT_RELATIVE), so the whole page is reachable in both axes with no engine
+    // scroll and no display-list culling. Clamp the pan to the content so it can't drift into the
+    // white margin past the page edge (Codex F6); mLastContentW/H staleness only affects the
+    // clamp, not correctness (document-relative never goes blank). The engine scroll is left
+    // untouched (the render ignores it) so no spurious scrolled-to echo corrupts the adapter's
+    // pan (Codex F2).
+    double vpX = x / z, vpY = y / z;                            // visual-viewport top-left, CSS px
+    double vw = (double)mPage->Width() / z, vh = (double)mPage->Height() / z;  // visible CSS px @ zoom
+    if (vpX < 0.0) vpX = 0.0;
+    if (vpY < 0.0) vpY = 0.0;
+    if (mLastContentW > 0 && vpX > mLastContentW - vw) vpX = (mLastContentW > vw) ? (mLastContentW - vw) : 0.0;
+    if (mLastContentH > 0 && vpY > mLastContentH - vh) vpY = (mLastContentH > vh) ? (mLastContentH - vh) : 0.0;
+    mPage->SetRenderPan(vpX, vpY);
+  } else {
+    mPage->SetRenderPan(0.0, 0.0);
+    mPage->ScrollTo((int)(x / z), (int)(y / z));
+  }
   mNeedsPaint = true;
   // NB: do NOT emitGeometry() here. A zoom-only command does not change the page's
   // intrinsic CSS content size, but re-reporting it fed the adapter's fit-zoom, which sent
@@ -715,6 +774,11 @@ bool BrowserPageGoanna::emitGeometry() {
 
 void BrowserPageGoanna::emitScrollIfChanged() {
   if (!mPage) return;
+  // When zoomed (>1) the authoritative visual scroll is the adapter's render-pan, not the engine
+  // scroll (JihadRenderDocument ignores the engine scroll via RENDER_DOCUMENT_RELATIVE). Echoing
+  // the engine scroll here would overwrite the adapter's horizontal pan and the vertical position
+  // it is driving (Codex F2), so suppress the scrolled-to echo while zoomed.
+  if (mZoom < 0.99 || mZoom > 1.01) return;
   int sx = 0, sy = 0;
   if (mPage->GetScrollXY(&sx, &sy) &&
       (sx != mLastScrollX || sy != mLastScrollY)) {

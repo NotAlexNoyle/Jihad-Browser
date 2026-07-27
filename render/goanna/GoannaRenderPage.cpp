@@ -332,7 +332,8 @@ extern "C" {
   void jihad_offscreen_resize(nsIWidget* aWidget, int aWidth, int aHeight);
   void jihad_offscreen_paint(nsIWidget* aWidget);
   bool jihad_init_nss();   // force PSM/NSS init on the main thread (internal libxul code)
-  bool jihad_offscreen_render_document(nsIWidget* aWidget, nsIDocShell* aDocShell);
+  bool jihad_offscreen_render_document_v2(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
+                                          double aPanX, double aPanY);
   bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
                                 int aWidth, int aHeight);
   void jihad_offscreen_release(nsIWidget* aWidget);
@@ -944,22 +945,17 @@ void GoannaRenderPage::SetZoom(double zoom) {
   if (!mChrome || zoom <= 0.0) return;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return;
-  // Pinch/fit zoom via the presShell RESOLUTION, NOT nsIContentViewer::SetFullZoom.
-  // Full zoom reflows: it shrinks the layout viewport to window/zoom, so the adapter's
-  // fit-zoom of 1024/768=1.333 (after a rotate to landscape) made the page lay out at
-  // 768 CSS px, GetContentSize returned 768, and the adapter recomputed 1024/768=1.333
-  // again -- a feedback loop that upscaled the render past the buffer (garbled landscape,
-  // 3x tiling/scanlines). Resolution scales the RENDER while the layout viewport stays
-  // pinned to the window width (device-width), so content size is stable and the
-  // adapter's zoom-to-fit converges to 1.0. (SetResolutionAndScaleTo also bumps the
-  // content scale so text stays crisp when zoomed in, matching mobile pinch-zoom.)
-  nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
-  if (!ps) return;
-  // Plain SetResolution (compositor scale only). SetResolutionAndScaleTo ALSO bumps the
-  // content scale, which shrinks the effective layout viewport just like SetFullZoom and
-  // re-arms the same 1.333 feedback loop. SetResolution leaves layout at the window width,
-  // so GetContentSize stays == window width and the adapter's zoom-to-fit converges to 1.0.
-  ps->SetResolution((float)zoom);
+  // Pinch/fit zoom is a pure RENDER magnification applied in the offscreen capture:
+  // JihadRenderDocument scales the gfxContext by mRenderZoom and renders the 1/zoom-reduced
+  // visible region so it fills the device buffer. The engine layout viewport is LEFT at the
+  // window width (device-width) — NO reflow, NO SetFullZoom, NO SetResolution — so content
+  // size is stable and the old landscape 1.333 fit-zoom feedback loop cannot arm (keeps the
+  // rotation fix intact). SetResolution/SetFullZoom were both wrong here: RenderDocument's
+  // internal scale (AppUnitsPerDevPixel/AppUnitsPerCSSPixel) counteracts an engine zoom, so
+  // they shrank the capture into a 1/zoom quadrant with the rest white ("things get cut off",
+  // device test 2026-07-27). renderedX/Y + contentZoom keep the adapter composite at inv==1.
+  (void)ds;
+  mRenderZoom = (zoom > 0.0) ? zoom : 1.0;
   // Zoom doesn't resize the native window, so nudge a repaint to refresh readback.
   nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
   if (bw) bw->Repaint(true);
@@ -1832,7 +1828,7 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
         // A failed render leaves the target as the white FillRect -> readback is all-white
         // and would be blitted as a blank frame. Treat it as "no frame" so the caller keeps
         // the last good frame instead (review #7 P2).
-        if (!jihad_offscreen_render_document(mWidget, ds)) return -1;
+        if (!jihad_offscreen_render_document_v2(mWidget, ds, mRenderZoom, mPanX, mPanY)) return -1;
       }
     }
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.

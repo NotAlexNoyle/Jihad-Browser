@@ -5,6 +5,28 @@ last_edited: "2026-07-07"
 
 # Implementation Overview
 
+## 2026-07-27 — ZOOM FIXED: magnify + visual-viewport pan (READ FIRST)
+
+Rotation confirmed working on device; the next issue was zoom ("things get cut off"). ROOT:
+`presShell->RenderDocument`'s internal scale cancels any engine zoom, so `SetResolution`/
+`SetFullZoom` shrank the offscreen capture into a `1/zoom` quadrant. FIX: magnify in
+`JihadRenderDocument` (libxul) by pre-scaling the gfxContext by Z + rendering a `w/Z × h/Z`
+sub-rect (layout viewport untouched → no reflow → rotation unaffected); pan via an engine-scroll
+(brings rows into the display list) + `aRect` residual split in the daemon (horizontal + vertical
+bottom reachable). Verified on device: 3× magnify, horizontal + vertical pan, zoom-1 no
+regression. Also built an **autonomous device-driving toolkit** (daemon inject channel + frame.ppm
+capture). Full detail: `zoom-fix-2026-07-27.md` + auto-memory `jihad-input-activation-and-tiling`.
+
+## 2026-07-26 — ROTATION RENDER-BREAK FIXED (READ FIRST)
+
+Portrait↔landscape rotation broke the composite (3× tiling + scanlines in landscape);
+Atlas did not. **Root cause: the adapter's raw `dstBuffer` blit is row-major in the card's
+logical orientation and ignores the rotation transform the compositor applies.** Fixed by
+compositing through the WebKit **PGContext** (`useGraphicsContext=true` + `PGSurface::wrap` +
+`gc->bitblt`), the rotation-aware path Atlas uses. Compiles + links (PG symbols resolve at
+load from `libWebKitLuna`); on-device visual + `dlopen_probe` confirm remains (device was
+offline). New kit req **cavekit-offscreen-rendering R6**. Full detail: `rotation-fix-2026-07-26.md`.
+
 ## 2026-07-17 — DEVICE BIG-TEST RESULTS (READ FIRST)
 
 The loading-lifecycle batch (real progress, POST adopt, UI-only watchdog — commits

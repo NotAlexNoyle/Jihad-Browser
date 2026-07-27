@@ -49,6 +49,8 @@ LICENSE@@@ */
 #include "BrowserCenteredZoom.h"
 #include "BrowserMetaViewport.h"
 #include "BrowserOffscreen.h"
+#include "PGContext.h"    // webOS Piranha graphics context (rotation-aware composite; see NOTICE)
+#include "PGSurface.h"    // webOS Piranha surface (zero-copy wrap of our offscreen raster)
 #include "BrowserRect.h"
 #include <BufferLock.h>
 #include "Debug.h"
@@ -420,8 +422,11 @@ static inline bool PrvIsEqual(double a, double b)
  */
 BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, char* argn[], char* argv[])
     : BrowserClientBase("jihad-browser", ctxt)   // -> /tmp/yapserver.jihad-browser (own daemon; stock "browser" untouched)
-    , AdapterBase(instance, true, false)   // useGraphicsContext=false: use the dstBuffer raw-blit
-                                           // paint path, not QPainter/PGContext (Atlas 7b91ab8; see NOTICE)
+    , AdapterBase(instance, true, true)    // useGraphicsContext=true: WebKit hands a transform-aware
+                                           // Piranha PGContext (carries the card's rotation) — composite
+                                           // our offscreen THROUGH it so portrait<->landscape rotation is
+                                           // correct. Raw dstBuffer blit (below) is the no-context fallback.
+                                           // Rotation-aware path ported from Atlas Browser; see NOTICE.
     , mScroller(0)
     , mDirtyPattern(0)
     , m_pageOffset(0, 0)
@@ -996,13 +1001,19 @@ static FILE* jihadPaintLog()
 
 void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
 {
-    // The device's LunaCE WebKit1 paints plugins with a PGContext, NOT a QPainter, so the
-    // stock isis path — ((QPainter*)event->graphicsContext)->save() — segfaults LunaSysMgr.
-    // Use the NPAPI API-1.0 dstBuffer raw path instead: memcpy our offscreen ARGB tiles into
-    // the WebKit-provided paint buffer. No QPainter/PGContext deref => no compositor crash.
-    // Ported from the Atlas Browser project (Herrie82) BrowserAdapter: commits 7b91ab8
-    // (dstBuffer path), aefab6d (out-of-buffer white fill), dbc897c (tall-buffer pan),
-    // 27b54a5 (pinch-zoom scaled blit), 77ab724/01da087 (scroll indicator). See NOTICE.
+    // Two paint modes (WebKit selects via npPalmUseGraphicsContext, which reads our
+    // useGraphicsContext=true):
+    //  - GRAPHICS CONTEXT (device default): WebKit hands us a Piranha PGContext* (no buffer).
+    //    It carries the card's rotation/scale transform, so we wrap our offscreen as a PGSurface
+    //    and bitblt THROUGH it => the compositor maps logical->physical incl. portrait<->landscape
+    //    rotation. This is the rotation-correct path (see the PGContext branch below).
+    //  - RAW dstBuffer (fallback, only if no context is provided — e.g. desktop/Ubuntu builds):
+    //    memcpy our offscreen ARGB tiles into the WebKit-provided buffer. NOTE the stock isis path
+    //    cast event->graphicsContext to a QPainter* and segfaulted LunaSysMgr — the device type is
+    //    a PGContext, which the graphics-context branch now uses correctly.
+    // Ported from the Atlas Browser project (Herrie82) BrowserAdapter: PGContext/PGSurface composite
+    // + commits 7b91ab8 (dstBuffer path), aefab6d (out-of-buffer white fill), dbc897c (tall-buffer
+    // pan), 27b54a5 (pinch-zoom scaled blit), 77ab724/01da087 (scroll indicator). See NOTICE.
     if (FILE* lf = jihadPaintLog()) {
       static int lastEH = -99; static void* lastOff = (void*)0x1;
       int eh = event ? (event->dstBottom - event->dstTop) : -1;
@@ -1013,6 +1024,63 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
 
     if (!event)
         return;
+
+    // PRIMARY (device) PATH — composite through the transform-aware Piranha PGContext.
+    // With useGraphicsContext=true WebKit hands us a PGContext* that already carries the
+    // card's rotation/scale transform, and NO dstBuffer. We wrap our offscreen raster as a
+    // PGSurface (zero-copy) and bitblt THROUGH the context, so the compositor performs the
+    // logical->physical mapping — INCLUDING the portrait<->landscape rotation. This is the
+    // correct fix for the rotation shear/tiling: the raw-dstBuffer blit below is row-major in
+    // the card's logical space and cannot account for the rotation the compositor applies, so
+    // it sheared in landscape (the old white-frame "rotation guard" only masked it). Ported
+    // from Atlas Browser (Herrie82) BrowserAdapter; see NOTICE.
+    if (event->graphicsContext && mOffscreenCurrent) {
+        PGContext* gc = (PGContext*) event->graphicsContext;
+        BrowserOffscreenInfo* gi = mOffscreenCurrent->header();
+        if (gi && gi->renderedWidth > 0 && gi->renderedHeight > 0) {
+            // Stale-geometry guard (rotation transition): at unity zoom the buffer must match the
+            // current viewport WIDTH. If the daemon has not re-rendered at the new orientation yet
+            // after a rotate, HOLD the last composited frame rather than transform a wrong-size
+            // buffer (Codex review 2026-07-26, Finding 4). Pinch-zoom legitimately changes the
+            // width ratio and is exempt (inv != 1 -> scaled blit below).
+            {
+                double cz = (gi->contentZoom > 0.0) ? gi->contentZoom : 1.0;
+                double iv = (mZoomLevel > 0.0) ? (cz / mZoomLevel) : 1.0;
+                bool nearUnity = iv > 0.98 && iv < 1.02;
+                if (nearUnity && mWindow.width > 0 && gi->renderedWidth != (int)mWindow.width)
+                    return;
+            }
+            PGSurface* surf = PGSurface::wrap((uint32_t)gi->renderedWidth, (uint32_t)gi->renderedHeight,
+                                              (const unsigned char*)mOffscreenCurrent->rasterBuffer(), true);
+            if (surf) {
+                int dl = event->dstLeft, dt = event->dstTop, dr = event->dstRight, dbm = event->dstBottom;
+                double czoom = (gi->contentZoom > 0.0) ? gi->contentZoom : 1.0;
+                double inv   = (mZoomLevel > 0.0) ? (czoom / mZoomLevel) : 1.0;   // buffer px per screen px
+                int baseX = event->srcLeft - gi->renderedX;                       // buffer-x for content-x 0
+                int baseY = event->srcTop  - gi->renderedY;
+                int sL = (int)(baseX + mScrollPos.x * inv);
+                int sT = (int)(baseY + mScrollPos.y * inv);
+                int sR = (int)(baseX + (mScrollPos.x + (dr - dl)) * inv);
+                int sB = (int)(baseY + (mScrollPos.y + (dbm - dt)) * inv);
+                // Clamp the SOURCE rect to the buffer on BOTH axes and shrink the DEST edges by the
+                // same scale (ceil = conservative), so a pan/zoom past the buffer edge leaves that
+                // region undrawn instead of feeding Piranha an out-of-bounds source (garbage/crash)
+                // or edge-replicating a smear. No-op when the viewport is inside the buffer -> normal
+                // composite is byte-identical (Codex review 2026-07-26, Finding 4).
+                if (inv > 0.0) {
+                    int W = (int)gi->renderedWidth, H = (int)gi->renderedHeight;
+                    if (sL < 0) { dl  += (int)ceil((0  - sL) / inv); sL = 0; }
+                    if (sT < 0) { dt  += (int)ceil((0  - sT) / inv); sT = 0; }
+                    if (sR > W) { dr  -= (int)ceil((sR - W) / inv); sR = W; }
+                    if (sB > H) { dbm -= (int)ceil((sB - H) / inv); sB = H; }
+                }
+                if (sR > sL && sB > sT && dr > dl && dbm > dt)   // valid rect on BOTH axes after clamp
+                    gc->bitblt(surf, sL, sT, sR, sB, dl, dt, dr, dbm);
+                surf->releaseRef();   // PG ref-counted (starts at 1); frees the wrapper, not our data
+            }
+        }
+        return;
+    }
 
     if (!event->dstBuffer || event->dstRowBytes == 0 || !mOffscreenCurrent)
         return;

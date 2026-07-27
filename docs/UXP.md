@@ -29,7 +29,10 @@ operation.
 
 Each patch is generated as `git -C third_party/uxp diff <pinned> -- <that patch's files>`. The
 partition (one file → one patch) is what lets them apply independently — verified: a fresh
-pinned checkout + all ten patches reproduces the intended engine source tree exactly.
+pinned checkout + all ten patches reproduces the intended engine source tree exactly, **and a
+full clean ARM `libxul.so` builds from it end-to-end** (2026-07-27: fresh `third_party/uxp` at
+`b2594a4ace` + `patch -p1 --forward` of all ten patches → `build-goanna-arm.sh all` → libxul.so
+with the zoom/pan changes present). The strategy is proven, not just designed.
 
 ## First build / fresh clone
 

@@ -16,7 +16,7 @@ harness at it, and see a real page rendered into the shared framebuffer.
 
 ## Build order
 
-1. **Goanna engine** — build UXP (`../../../UXP`) out-of-tree inside the pinned
+1. **Goanna engine** — build UXP (`third_party/uxp` (submodule)) out-of-tree inside the pinned
    container (a modern host cannot run the ESR-52 `mach`):
    ```
    podman build -t jihad-goanna-build build/desktop

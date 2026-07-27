@@ -24,7 +24,7 @@ Grounding for the Jihad Browser port. Kits cite these via file:line.
 | BrowserServer (render daemon) | `../ref-BrowserServer` | Apache-2.0 |
 | BrowserAdapter (NPAPI client) | `../ref-BrowserAdapter` | Apache-2.0 |
 | AdapterBase | `../ref-AdapterBase` | Apache-2.0 |
-| UXP / Goanna engine | `../UXP` | MPL-2.0 (+ trademark restriction) |
+| UXP / Goanna engine | `third_party/uxp` (submodule) | MPL-2.0 (+ trademark restriction) |
 | QtWebKit (engine being replaced) | `../WebKit` | LGPL/BSD |
 | meta-webos OE layer | `../meta-webos` | MIT/Apache |
 | luna-sysmgr | `../luna-sysmgr` | Apache-2.0 |

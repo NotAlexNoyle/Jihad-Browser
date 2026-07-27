@@ -26,14 +26,14 @@ over TLS is in `jihad-render-example-com.png`.*
 
 - `podman` (or Docker) — the pinned build container is Ubuntu 20.04 (GCC 9.3,
   Python 3.8, autoconf2.13, yasm, full X11 dev set + Xvfb). See `build/desktop/Dockerfile`.
-- The UXP source tree at `../UXP` (mounted read-write; autoconf regenerates configure).
+- The UXP source submodule at `third_party/uxp` (mounted read-write; autoconf regenerates configure).
 - One-time: build the image — `podman build -t jihad-goanna-build build/desktop`.
 
 ## 1. Build the engine (once, ~30–60 min)
 
 ```bash
 podman run --rm --user 0 -e HOME=/out \
-  -v "$PWD/../UXP:/src/uxp" -v "$PWD:/jihad" \
+  -v "$PWD/third_party/uxp:/src/uxp" -v "$PWD:/jihad" \
   -v "$PWD/build/desktop/out:/out" \
   jihad-goanna-build bash /jihad/build/desktop/build-goanna.sh
 ```
@@ -46,7 +46,7 @@ automatically (0002 format-overflow, 0003 OMTC-off, 0004 gfx init).
 
 ```bash
 podman run --rm --user 0 -e HOME=/out \
-  -v "$PWD/../UXP:/src/uxp" -v "$PWD:/jihad" \
+  -v "$PWD/third_party/uxp:/src/uxp" -v "$PWD:/jihad" \
   -v "$PWD/build/desktop/out:/out" \
   jihad-goanna-build bash /jihad/build/desktop/build-adapter-roundtrip.sh
 ```

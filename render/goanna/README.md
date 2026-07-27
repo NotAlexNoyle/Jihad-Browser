@@ -28,7 +28,7 @@ here.
 ## Engine dependency
 
 UXP/Goanna is **built out-of-tree** from the upstream UXP source
-(`../../../UXP`, pinned rev in `../../docs/ENGINE-SOURCE.md`) and linked; it is
+(`third_party/uxp` (submodule), pinned rev in `../../docs/ENGINE-SOURCE.md`) and linked; it is
 **not vendored** in this repo. The build wiring lives in `../../build/`. libxul is
 built with `MOZ_WIDGET_TOOLKIT=headless` (a new in-tree toolkit added by the Jihad
 patches) so it links **no** GTK/X — only freetype + fontconfig — and renders

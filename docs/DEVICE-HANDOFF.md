@@ -409,7 +409,7 @@ need the PDK path from the user** (search came up empty).
 
 - UI source: `Jihad-Browser/app/` (Enyo 1.0), `Jihad-Browser/app-mochi/` (Mochi).
 - Engine build (desktop, works): `build/desktop/` + the pinned podman image
-  `jihad-goanna-build`; UXP checkout at `../UXP` (pinned rev in
+  `jihad-goanna-build`; UXP checkout at `third_party/uxp` (submodule) (pinned rev in
   `docs/ENGINE-SOURCE.md`).
 - ARM device build scaffolding: `build/webos-oe/mozconfig.goanna-arm` +
   `build/webos-oe/recipes-jihad/`; full track in `docs/DEVICE-BUILD.md`.

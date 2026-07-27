@@ -9,7 +9,11 @@
 # Connect, etc.) that the Jihad Goanna daemon implements, replacing the stock
 # 2011 HP BrowserAdapter.so which is a different, incompatible generation.
 set -uo pipefail
-ROOT=/home/notalexnoyle/eclipse-workspace/Jihad
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"     # Jihad-Browser repo root (derived)
+ROOT="$(cd "$REPO/.." && pwd)"                  # workspace root (legacy PDK sibling location)
+# PDK headers (Palm SDK). Proprietary — fetch with build/webos-oe/fetch-pdk.sh or set PDK_ROOT.
+PDK="${PDK_ROOT:-$REPO/build/webos-oe/pdk/opt/PalmPDK}"
+[ -d "$PDK/include" ] || PDK="$ROOT/toolchains/opt/PalmPDK"
 DEPS=$ROOT/Jihad-Browser/build/webos-oe/adapter-deps
 TCB=$ROOT/Jihad-Browser/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin
 SYSROOT=$ROOT/Jihad-Browser/build/webos-oe/arm-sysroot/root
@@ -27,7 +31,7 @@ ARM="-march=armv7-a -mfpu=neon -mfloat-abi=softfp"
 COMMON="-fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=0 $ARM -Wno-psabi"
 GLIBINC="-I$SYSROOT/usr/include/glib-2.0 -I$SYSROOT/usr/lib/arm-linux-gnueabi/glib-2.0/include"
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
-PDKINC="-I$ROOT/toolchains/opt/PalmPDK/include"
+PDKINC="-I$PDK/include"
 YAPDIR=$ROOT/Jihad-Browser/render/browserserver
 PBN=$DEPS/libpbnjson
 PBNINC="-I$PBN/include/public -I$PBN/include/public/pbnjson/cxx -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_cxx -I$PBN/src/pbnjson_c -I$DEPS/yajl-inc"

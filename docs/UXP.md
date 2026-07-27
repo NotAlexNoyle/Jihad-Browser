@@ -37,10 +37,18 @@ with the zoom/pan changes present). The strategy is proven, not just designed.
 ## First build / fresh clone
 
 ```bash
-git clone --recursive git@github.com:NotAlexNoyle/Jihad-Browser
+git clone --recursive git@github.com:NotAlexNoyle/Jihad-Browser   # all submodules
 # or, after a plain clone:
-git submodule update --init third_party/uxp
+git submodule update --init            # third_party/{uxp,mochi,mochi-sampler,enyo-layout}
+
+# Palm PDK (proprietary; gcc 4.3.3 + device sysroot for the NPAPI adapter) — not vendored:
+build/webos-oe/fetch-pdk.sh <path/to/palm-sdk_3.0.5-*_i386.deb>   # -> build/webos-oe/pdk/
 ```
+Other submodules: `third_party/mochi` + `third_party/mochi-sampler` (github.com/webOSArchive,
+the Mochi UI `.ipk`) and `third_party/enyo-layout` (github.com/enyojs/layout @ 2.5.2, the Enyo
+layout lib). They are pristine (no patches) — bumping their pin is just a checkout. The build
+scripts derive their own paths (no hardcoded workspace path) and find the PDK at
+`build/webos-oe/pdk/` or via `PDK_ROOT`.
 The build (`build/desktop/build-goanna.sh`, mounted at `/src/uxp`) applies the patch queue to
 the submodule checkout. The submodule tree becomes "dirty" during a build (patches applied
 in-tree) — that is expected for patch-based vendoring; `git -C third_party/uxp checkout -- .`

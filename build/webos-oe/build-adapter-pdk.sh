@@ -12,17 +12,23 @@
 # tag submissions/10 (the device era) so gcc4 instantiates exactly what the device
 # libpbnjson_cpp exports. It speaks the isis YAP generation the Jihad daemon implements.
 set -uo pipefail
-ROOT=/home/notalexnoyle/eclipse-workspace/Jihad
-DEPS=$ROOT/Jihad-Browser/build/webos-oe/adapter-deps
-PDK=$ROOT/toolchains/opt/PalmPDK
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"          # Jihad-Browser repo root (derived, not hardcoded)
+ROOT="$(cd "$REPO/.." && pwd)"             # workspace root (legacy PDK sibling location)
+DEPS=$REPO/build/webos-oe/adapter-deps
+# PDK (Palm SDK: gcc 4.3.3 + device sysroot). Proprietary — NOT in the repo; fetch it with
+# build/webos-oe/fetch-pdk.sh <palm-sdk_*.deb> into build/webos-oe/pdk/, or set PDK_ROOT.
+PDK="${PDK_ROOT:-$REPO/build/webos-oe/pdk/opt/PalmPDK}"
+[ -d "$PDK/arm-gcc" ] || PDK="$ROOT/toolchains/opt/PalmPDK"   # legacy sibling location fallback
+[ -d "$PDK/arm-gcc" ] || { echo "!! PDK not found. Run build/webos-oe/fetch-pdk.sh <palm-sdk_*.deb>, or set PDK_ROOT=<dir with arm-gcc/>."; exit 2; }
 CXX=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-g++
 CC=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-gcc
 STRIP=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-strip
 SYSROOT=$PDK/arm-gcc/sysroot
-JSR=$ROOT/Jihad-Browser/build/webos-oe/arm-sysroot/root     # jessie: glib headers only
+JSR=$REPO/build/webos-oe/arm-sysroot/root                    # jessie: glib headers only
 QT=$DEPS/qt4-extract/usr/include/qt4
 PBN=$DEPS/libpbnjson                                         # checked out at submissions/10
-YAPDIR=$ROOT/Jihad-Browser/render/browserserver
+YAPDIR=$REPO/render/browserserver
 OUT=$DEPS/build-pdk; mkdir -p "$OUT"; rm -f "$OUT"/*.o
 # Remove the stale monolithic output from before the shim/impl split, so an incremental build can
 # never silently deploy the old single BrowserAdapter.so instead of the shim (Jihad review F-181).

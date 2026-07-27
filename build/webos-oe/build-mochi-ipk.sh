@@ -26,23 +26,21 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)          # Jihad-Browser repo (or worktree) root
 APP="$REPO/app-mochi"                     # in-repo Mochi front-end
 
-# --- external framework sources (bundled at build time, never vendored) --------
-# Workspace roots. Override any of the *_SRC vars directly to relocate a source.
-WORKSPACE="${WORKSPACE:-/home/notalexnoyle/eclipse-workspace}"
-JIHAD_ROOT="${JIHAD_ROOT:-$WORKSPACE/Jihad}"
-
-# Enyo 2 core.
-ENYO_SRC="${ENYO_SRC:-$JIHAD_ROOT/mochi-sampler/enyo}"
-# Mochi widget library (LG, Apache-2.0).
-MOCHI_SRC="${MOCHI_SRC:-$JIHAD_ROOT/mochi}"
-# Enyo 2 "layout" library. Resolved from the first candidate that actually holds a
-# package.js: the mochi-sampler slot (per the build packet) is an empty dir in this
-# checkout, so the matched copy from the webos-stacks Mochi demo assembly is used.
+# --- UI framework sources: in-repo submodules (third_party/), bundled at build ----
+# Populate with `git submodule update --init`. Override any *_SRC to relocate a source.
+# Enyo 2 core (github.com/webOSArchive/mochi-sampler submodule).
+ENYO_SRC="${ENYO_SRC:-$REPO/third_party/mochi-sampler/enyo}"
+# Mochi widget library (github.com/webOSArchive/mochi submodule; LG, Apache-2.0).
+MOCHI_SRC="${MOCHI_SRC:-$REPO/third_party/mochi}"
+# Enyo 2 "layout" library (github.com/enyojs/layout @ 2.5.2 submodule). mochi-sampler's own
+# lib/layout slot is an empty placeholder, so the layout submodule supplies it. Legacy
+# fallbacks (a sibling mochi-sampler checkout / a webos-stacks assembly) are kept last.
 LAYOUT_SRC="${LAYOUT_SRC:-}"
 LAYOUT_CANDIDATES=(
 	"$LAYOUT_SRC"
-	"$JIHAD_ROOT/mochi-sampler/lib/layout"
-	"$WORKSPACE/webos-stacks/mochi/lib/layout"
+	"$REPO/third_party/enyo-layout"
+	"${JIHAD_ROOT:-$REPO/..}/mochi-sampler/lib/layout"
+	"${WORKSPACE:-$REPO/../..}/webos-stacks/mochi/lib/layout"
 )
 
 # --- output (git-ignored) ------------------------------------------------------

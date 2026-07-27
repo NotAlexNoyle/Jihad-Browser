@@ -102,7 +102,7 @@ Goanna calls.
 | `app-mochi/`            | UI variant 2 — **Enyo 2 + Mochi** shell, same contract, separate `.ipk` (Apache-2.0). |
 | `render/browserserver/` | BrowserServer/Adapter-derived daemon + IPC layer; engine-agnostic parts kept, QtWebKit `BrowserPage` replaced (Apache-2.0). |
 | `render/goanna/`        | New Goanna backend: `nsIWebBrowser` driver, offscreen widget, YAP bridge (MPL-2.0). |
-| `third_party/uxp`       | The **UXP / Goanna engine** as a pristine **git submodule** pinned to a Pale Moon upstream commit; Jihad's engine changes live as patches in `build/desktop/patches/` applied at build. Updatable from upstream by bumping the pin — see `docs/UXP.md`. |
+| `third_party/`          | Out-of-tree upstreams as pinned **git submodules** (populate with `git submodule update --init`): **`uxp`** = UXP/Goanna engine (Pale Moon; Jihad's engine mods are patches in `build/desktop/patches/`, see `docs/UXP.md`); **`mochi`** + **`mochi-sampler`** = webOSArchive Mochi/Enyo-2 for the Mochi UI `.ipk`; **`enyo-layout`** = `enyojs/layout` 2.5.2. All updatable from upstream by bumping the pin. |
 | `build/desktop/`        | x86_64 Linux build wiring (Phase 1 PoC). |
 | `build/webos-oe/`       | OpenEmbedded recipes for the webOS 3 ARMv7 device build (Phase 2). |
 | `context/`              | Cavekit kits + build site (the plan). |

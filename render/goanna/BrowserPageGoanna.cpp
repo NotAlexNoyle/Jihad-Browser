@@ -949,11 +949,15 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   const size_t hdr = sizeof(BrowserOffscreenInfo);
   if (segSize < hdr + (size_t)w * h * 4) { return; }
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)buf;
-  // Report the zoom we actually rendered at (SetFullZoom in setZoomAndScroll). The
-  // adapter blits at invScale = contentZoom/mZoomLevel; reporting 1.0 while the page
-  // is rendered at mZoom made it upscale (blur). contentZoom==mZoom => 1:1 crisp blit.
+  // Report the EFFECTIVE scale JihadRenderDocument actually rendered at, so the adapter's
+  // blit (invScale = contentZoom/mZoomLevel) AND its screen->content click mapping (which
+  // divides by mZoomLevel) stay consistent with the pixels. A near-1 fit-zoom (|mZoom-1|<=1%,
+  // matching the is-zoomed threshold) is rendered at 1x on the engine-scroll path; reporting
+  // mZoom there desynced the display from the click coords by ~(mZoom-1) and made small link
+  // taps miss (input-bridging R5). Outside that band the render is magnified by mZoom.
   oi->bufferWidth = w; oi->bufferHeight = h;
-  oi->contentZoom = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  oi->contentZoom = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
+                  : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
   // The buffer holds the viewport starting at the adapter's scroll position (zoomed
   // px), so renderedX/Y = that scroll &mdash; the adapter pans within the buffer using it.
   oi->renderedX = mAdapterScrollX; oi->renderedY = mAdapterScrollY;

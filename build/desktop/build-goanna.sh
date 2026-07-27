@@ -41,32 +41,9 @@ if [ -d /cfg/patches ]; then
   done
 fi
 
-# Jihad branding strip (cavekit-licensing-branding R3): remove Pale Moon /
-# Basilisk / Moonchild branding from the engine defaults so shipped artifacts
-# present only the Jihad Browser identity. Idempotent (sed no-ops if already
-# stripped). The UA product is already "Goanna" (nsHttpHandler mProduct); this
-# neutralizes the branded pref URLs + the about:credits redirect target.
-JIHAD_STRIP="$SRC/.jihad-branding-stripped-v2"
-if [ ! -e "$JIHAD_STRIP" ]; then
-  ALLJS="$SRC/modules/libpref/init/all.js"
-  RED="$SRC/docshell/base/nsAboutRedirector.cpp"
-  RUN="$SRC/toolkit/xre/nsAppRunner.cpp"
-  # Remote blocklist + captive-portal detection off branded domains -> disabled.
-  sed -i 's#https://blocklist\.basilisk-browser\.org/[^"]*#about:blank#g' "$ALLJS"
-  sed -i 's#http://detectportal\.palemoon\.org/success\.txt#http://example.com/success.txt#g' "$ALLJS"
-  # about:credits -> Jihad project page (no palemoon.org contributors URL).
-  sed -i 's#http://www\.palemoon\.org/Contributors\.shtml#https://net.riverstonerelay.jihad-browser/credits#g' "$RED"
-  # Branding URLs left only in comments -> neutralize so a strings scan is clean.
-  sed -i 's#https://github\.com/MoonchildProductions/UXP/issues/719#(upstream issue 719)#g' "$ALLJS"
-  sed -i 's#https://forum\.palemoon\.org/[^ ]*#(upstream forum)#g' "$ALLJS"
-  # Dead branding literals compiled into libxul (MOZ_APP_NAME is "xulrunner", so
-  # these comparisons are always false): drop the "basilisk"/"palemoon" literals.
-  sed -i 's#MOZ_APP_NAME == "basilisk"#MOZ_APP_NAME == "n/a"#g; s#MOZ_APP_NAME == "palemoon"#MOZ_APP_NAME == "n/a"#g' "$RUN"
-  touch "$JIHAD_STRIP"
-  echo "applied Jihad branding strip"
-else
-  echo "Jihad branding strip already applied"
-fi
+# Jihad branding strip (cavekit-licensing-branding R3) is now patches/0010-branding-strip.patch
+# (applied by the patch loop above), not an inline sed — so it is captured in the patch queue
+# against the pristine third_party/uxp submodule like every other engine modification. See docs/UXP.md.
 
 # mach builds into MOZ_OBJDIR (mozconfig → /out); autoconf2.13 also writes the
 # generated `configure` into the source tree, so $SRC is mounted read-write.

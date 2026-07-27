@@ -1,0 +1,55 @@
+dom/plugins/ipc: define a NativeWindowHandle for the headless/PGContext platform so plugin IPC compiles.
+
+Generated as a clean diff against UXP upstream  (Pale Moon); applies
+independently (distinct files) to the pristine third_party/uxp submodule.
+
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 61e56a9438..16f81e29f1 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -717,8 +717,8 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)
+       // on the chrome process.  This is because our audio
+       // API calls should run the chrome proc, not content.
+       NPError rv = NPERR_GENERIC_ERROR;
+-      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
+-      if (chromeInstance) {
++      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
++      if (chromeInstance) {
+         rv = chromeInstance->PluginRequiresAudioDeviceChanges(this,
+                                               (NPBool)(intptr_t)aValue);
+       }
+@@ -1449,6 +1449,8 @@ PluginInstanceChild::AnswerNPP_SetWindow(const NPRemoteWindow& aWindow)
+ 
+     if (mPluginIface->setwindow)
+         (void) mPluginIface->setwindow(&mData, &mWindow);
++#elif defined(MOZ_WIDGET_HEADLESS)
++    // Jihad headless: no windowed plugins; nothing to do.
+ #else
+ #  error Implement me for your OS
+ #endif
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index ee9b4e7ae9..c1efb1da12 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -269,6 +269,8 @@ PluginInstanceParent::AnswerNPN_GetValue_NPNVnetscapeWindow(NativeWindowHandle*
+     XID id;
+ #elif defined(XP_DARWIN)
+     intptr_t id;
++#elif defined(MOZ_WIDGET_HEADLESS)
++    intptr_t id; // Jihad headless: no native window id
+ #else
+ #warning Implement me
+ #endif
+diff --git a/dom/plugins/ipc/PluginMessageUtils.h b/dom/plugins/ipc/PluginMessageUtils.h
+index cb9dbaad51..3313675c3a 100644
+--- a/dom/plugins/ipc/PluginMessageUtils.h
++++ b/dom/plugins/ipc/PluginMessageUtils.h
+@@ -117,6 +117,8 @@ typedef HWND NativeWindowHandle;
+ typedef XID NativeWindowHandle;
+ #elif defined(XP_DARWIN)
+ typedef intptr_t NativeWindowHandle; // never actually used, will always be 0
++#elif defined(MOZ_WIDGET_HEADLESS)
++typedef intptr_t NativeWindowHandle; // Jihad headless: no native window handle
+ #else
+ #error Need NativeWindowHandle for this platform
+ #endif

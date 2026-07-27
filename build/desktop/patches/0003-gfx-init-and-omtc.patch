@@ -1,0 +1,103 @@
+Force in-process BasicLayerManager (JIHAD_DISABLE_OMTC) + init gfxPlatform in XRE_InitEmbedding2 so gfxVars/gfxConfig are ready before first paint.
+
+Generated as a clean diff against UXP upstream  (Pale Moon); applies
+independently (distinct files) to the pristine third_party/uxp submodule.
+
+diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
+index d5eb69b410..ddad584b3e 100644
+--- a/gfx/thebes/gfxPlatform.cpp
++++ b/gfx/thebes/gfxPlatform.cpp
+@@ -40,6 +40,8 @@
+ #elif defined(XP_MACOSX)
+ #include "gfxPlatformMac.h"
+ #include "gfxQuartzSurface.h"
++#elif defined(MOZ_WIDGET_HEADLESS)
++#include "gfxPlatformHeadless.h"
+ #elif defined(MOZ_WIDGET_GTK)
+ #include "gfxPlatformGtk.h"
+ #elif defined(ANDROID)
+@@ -572,6 +574,8 @@ gfxPlatform::Init()
+     gPlatform = new gfxWindowsPlatform;
+ #elif defined(XP_MACOSX)
+     gPlatform = new gfxPlatformMac;
++#elif defined(MOZ_WIDGET_HEADLESS)
++    gPlatform = new gfxPlatformHeadless;
+ #elif defined(MOZ_WIDGET_GTK)
+     gPlatform = new gfxPlatformGtk;
+ #elif defined(ANDROID)
+@@ -2166,6 +2170,13 @@ gfxPlatform::UsesOffMainThreadCompositing()
+     result |= gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly();
+ 
+ #endif
++    // Jihad Browser: the headless BrowserServer embedder has no compositor
++    // process; allow forcing off-main-thread compositing off (use the in-process
++    // BasicLayerManager) via env, since the gfxPrefs "Once" snapshot can miss a
++    // grepref set during XRE_InitEmbedding2 init ordering.
++    if (getenv("JIHAD_DISABLE_OMTC")) {
++      result = false;
++    }
+     firstTime = false;
+   }
+ 
+diff --git a/gfx/thebes/gfxPlatformGtk.cpp b/gfx/thebes/gfxPlatformGtk.cpp
+index 257e2c6520..06b277b5eb 100644
+--- a/gfx/thebes/gfxPlatformGtk.cpp
++++ b/gfx/thebes/gfxPlatformGtk.cpp
+@@ -72,7 +72,17 @@ static cairo_user_data_key_t cairo_gdk_drawable_key;
+ 
+ gfxPlatformGtk::gfxPlatformGtk()
+ {
+-    gtk_init(nullptr, nullptr);
++    // Jihad: in JIHAD_OFFSCREEN (headless daemon) mode there is no X server on the
++    // device. gtk_init() calls exit() if it cannot open a display; gtk_init_check()
++    // returns false instead and leaves GTK usable for the non-X paths (fontconfig/
++    // freetype font list, image/CPU surfaces via the BasicLayerManager). The X code
++    // below is already guarded by GDK_IS_X11_DISPLAY(gdk_display_get_default()),
++    // which is false with no display, so it is skipped cleanly.
++    if (getenv("JIHAD_OFFSCREEN")) {
++        gtk_init_check(nullptr, nullptr);
++    } else {
++        gtk_init(nullptr, nullptr);
++    }
+ 
+     mMaxGenericSubstitutions = UNINITIALIZED_VALUE;
+ 
+@@ -325,8 +335,10 @@ gfxPlatformGtk::GetDPI()
+     if (!sDPI) {
+         // Make sure init is run so we have a resolution
+         GdkScreen *screen = gdk_screen_get_default();
+-        gtk_settings_get_for_screen(screen);
+-        sDPI = int32_t(round(gdk_screen_get_resolution(screen)));
++        if (screen) {                       // null when headless (no X display)
++            gtk_settings_get_for_screen(screen);
++            sDPI = int32_t(round(gdk_screen_get_resolution(screen)));
++        }
+         if (sDPI <= 0) {
+             // Fall back to something sane
+             sDPI = 96;
+diff --git a/toolkit/xre/nsEmbedFunctions.cpp b/toolkit/xre/nsEmbedFunctions.cpp
+index 662796fcaf..505c3370a5 100644
+--- a/toolkit/xre/nsEmbedFunctions.cpp
++++ b/toolkit/xre/nsEmbedFunctions.cpp
+@@ -76,6 +76,7 @@
+ #include "GMPLoader.h"
+ #endif
+ #include "mozilla/gfx/GPUProcessImpl.h"
++#include "gfxPlatform.h"
+ 
+ #include "GeckoProfiler.h"
+ 
+@@ -177,6 +178,13 @@ XRE_InitEmbedding2(nsIFile *aLibXULDirectory,
+ 
+   startupNotifier->Observe(nullptr, APPSTARTUP_TOPIC, nullptr);
+ 
++  // Jihad Browser: force full gfx init (gfxPlatform/gfxVars/gfxConfig) during
++  // embedding startup. XRE_InitEmbedding2 otherwise leaves gfx lazy, but the
++  // headless paint path (WindowSurfaceProvider -> gfxVars::UseXRender) touches
++  // gfxVars before anything triggers gfxPlatform::Init, crashing on a null
++  // singleton. XRE_main initializes gfx during normal startup.
++  gfxPlatform::GetPlatform();
++
+   return NS_OK;
+ }
+ 

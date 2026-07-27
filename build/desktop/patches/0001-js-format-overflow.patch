@@ -1,3 +1,8 @@
+js/src appends -Werror=format after the warnings list, re-escalating -Wno-error=format-overflow; a source pragma is the only fix that wins.
+
+Generated as a clean diff against UXP upstream  (Pale Moon); applies
+independently (distinct files) to the pristine third_party/uxp submodule.
+
 diff --git a/js/src/jit/x64/BaseAssembler-x64.h b/js/src/jit/x64/BaseAssembler-x64.h
 index 2b42bc12d2..e134043471 100644
 --- a/js/src/jit/x64/BaseAssembler-x64.h

@@ -1,6 +1,13 @@
+Guard gtk realize/theme/look-and-feel paths so libxul runs with NO X server (headless offscreen render).
+
+Generated as a clean diff against UXP upstream  (Pale Moon); applies
+independently (distinct files) to the pristine third_party/uxp submodule.
+
+diff --git a/widget/gtk/gtk2drawing.c b/widget/gtk/gtk2drawing.c
+index 7fcac4de63..9de7d566a4 100644
 --- a/widget/gtk/gtk2drawing.c
 +++ b/widget/gtk/gtk2drawing.c
-@@ -87,12 +87,26 @@
+@@ -87,12 +87,26 @@ moz_gtk_enable_style_props(style_prop_t styleGetProp)
      return MOZ_GTK_SUCCESS;
  }
  
@@ -28,7 +35,7 @@
          moz_gtk_set_widget_name(gProtoWindow);
      }
      return MOZ_GTK_SUCCESS;
-@@ -108,7 +122,7 @@
+@@ -108,7 +122,7 @@ setup_widget_prototype(GtkWidget* widget)
      }
  
      gtk_container_add(GTK_CONTAINER(gProtoLayout), widget);
@@ -37,7 +44,7 @@
      g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      return MOZ_GTK_SUCCESS;
  }
-@@ -163,7 +177,7 @@
+@@ -163,7 +177,7 @@ ensure_button_arrow_widget()
  
          gButtonArrowWidget = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_OUT);
          gtk_container_add(GTK_CONTAINER(gToggleButtonWidget), gButtonArrowWidget);
@@ -46,7 +53,7 @@
      }
      return MOZ_GTK_SUCCESS;
  }
-@@ -253,7 +267,7 @@
+@@ -253,7 +267,7 @@ moz_gtk_get_combo_box_inner_button(GtkWidget *widget, gpointer client_data)
          gComboBoxButtonWidget = widget;
          g_object_add_weak_pointer(G_OBJECT(widget),
                                    (gpointer) &gComboBoxButtonWidget);
@@ -55,7 +62,7 @@
          g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
  }
-@@ -272,7 +286,7 @@
+@@ -272,7 +286,7 @@ moz_gtk_get_combo_box_button_inner_widgets(GtkWidget *widget,
                                    (gpointer) &gComboBoxArrowWidget);
      } else
          return;
@@ -64,7 +71,7 @@
      g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
  }
  
-@@ -312,7 +326,7 @@
+@@ -312,7 +326,7 @@ ensure_combo_box_widgets()
              gComboBoxArrowWidget = buttonChild;
              g_object_add_weak_pointer(G_OBJECT(buttonChild), (gpointer)
                                        &gComboBoxArrowWidget);
@@ -73,7 +80,7 @@
              g_object_set_data(G_OBJECT(gComboBoxArrowWidget),
                                "transparent-bg-hint", GINT_TO_POINTER(TRUE));
          }
-@@ -363,7 +377,7 @@
+@@ -363,7 +377,7 @@ moz_gtk_get_combo_box_entry_inner_widgets(GtkWidget *widget,
                                    (gpointer) &gComboBoxEntryTextareaWidget);
      } else
          return;
@@ -82,7 +89,7 @@
      g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
  }
  
-@@ -374,7 +388,7 @@
+@@ -374,7 +388,7 @@ moz_gtk_get_combo_box_entry_arrow(GtkWidget *widget, gpointer client_data)
          gComboBoxEntryArrowWidget = widget;
          g_object_add_weak_pointer(G_OBJECT(widget),
                                    (gpointer) &gComboBoxEntryArrowWidget);
@@ -91,7 +98,7 @@
          g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
  }
-@@ -425,7 +439,7 @@
+@@ -425,7 +439,7 @@ ensure_combo_box_entry_widgets()
              gComboBoxEntryArrowWidget = buttonChild;
              g_object_add_weak_pointer(G_OBJECT(buttonChild), (gpointer)
                                        &gComboBoxEntryArrowWidget);
@@ -100,7 +107,7 @@
              g_object_set_data(G_OBJECT(gComboBoxEntryArrowWidget),
                                "transparent-bg-hint", GINT_TO_POINTER(TRUE));
          }
-@@ -466,7 +480,7 @@
+@@ -466,7 +480,7 @@ ensure_toolbar_widget()
          ensure_handlebox_widget();
          gToolbarWidget = gtk_toolbar_new();
          gtk_container_add(GTK_CONTAINER(gHandleBoxWidget), gToolbarWidget);
@@ -109,7 +116,7 @@
          g_object_set_data(G_OBJECT(gToolbarWidget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
      return MOZ_GTK_SUCCESS;
-@@ -488,7 +502,7 @@
+@@ -488,7 +502,7 @@ ensure_tooltip_widget()
  {
      if (!gTooltipWidget) {
          gTooltipWidget = gtk_window_new(GTK_WINDOW_POPUP);
@@ -118,7 +125,7 @@
          moz_gtk_set_widget_name(gTooltipWidget);
      }
      return MOZ_GTK_SUCCESS;
-@@ -531,7 +545,7 @@
+@@ -531,7 +545,7 @@ ensure_frame_widget()
          ensure_statusbar_widget();
          gFrameWidget = gtk_frame_new(NULL);
          gtk_container_add(GTK_CONTAINER(gStatusbarWidget), gFrameWidget);
@@ -127,7 +134,7 @@
      }
      return MOZ_GTK_SUCCESS;
  }
-@@ -554,7 +568,7 @@
+@@ -554,7 +568,7 @@ ensure_menu_bar_item_widget()
          gMenuBarItemWidget = gtk_menu_item_new();
          gtk_menu_shell_append(GTK_MENU_SHELL(gMenuBarWidget),
                                gMenuBarItemWidget);
@@ -136,7 +143,7 @@
          g_object_set_data(G_OBJECT(gMenuBarItemWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
-@@ -569,7 +583,7 @@
+@@ -569,7 +583,7 @@ ensure_menu_popup_widget()
          gMenuPopupWidget = gtk_menu_new();
          gtk_menu_item_set_submenu(GTK_MENU_ITEM(gMenuBarItemWidget),
                                    gMenuPopupWidget);
@@ -145,7 +152,7 @@
          g_object_set_data(G_OBJECT(gMenuPopupWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
-@@ -584,7 +598,7 @@
+@@ -584,7 +598,7 @@ ensure_menu_item_widget()
          gMenuItemWidget = gtk_menu_item_new_with_label("M");
          gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
                                gMenuItemWidget);
@@ -154,7 +161,7 @@
          g_object_set_data(G_OBJECT(gMenuItemWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
-@@ -599,7 +613,7 @@
+@@ -599,7 +613,7 @@ ensure_image_menu_item_widget()
          gImageMenuItemWidget = gtk_image_menu_item_new();
          gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
                                gImageMenuItemWidget);
@@ -163,7 +170,7 @@
          g_object_set_data(G_OBJECT(gImageMenuItemWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
-@@ -614,7 +628,7 @@
+@@ -614,7 +628,7 @@ ensure_menu_separator_widget()
          gMenuSeparatorWidget = gtk_separator_menu_item_new();
          gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
                                gMenuSeparatorWidget);
@@ -172,7 +179,7 @@
          g_object_set_data(G_OBJECT(gMenuSeparatorWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
-@@ -629,7 +643,7 @@
+@@ -629,7 +643,7 @@ ensure_check_menu_item_widget()
          gCheckMenuItemWidget = gtk_check_menu_item_new_with_label("M");
          gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
                                gCheckMenuItemWidget);
@@ -181,3 +188,48 @@
          g_object_set_data(G_OBJECT(gCheckMenuItemWidget),
                            "transparent-bg-hint", GINT_TO_POINTER(TRUE));
      }
+diff --git a/widget/gtk/nsLookAndFeel.cpp b/widget/gtk/nsLookAndFeel.cpp
+index e206f43e8c..e51b83da2c 100644
+--- a/widget/gtk/nsLookAndFeel.cpp
++++ b/widget/gtk/nsLookAndFeel.cpp
+@@ -1060,6 +1060,21 @@ nsLookAndFeel::Init()
+     GdkColor colorValue;
+     GdkColor *colorValuePtr;
+ 
++    // Jihad: headless (no X display, JIHAD_OFFSCREEN daemon on the device). The
++    // GTK theme cannot be queried; every gtk_invisible_new()/gtk_widget_realize()
++    // below would crash (gdk_window_new asserts 'GDK_IS_SCREEN'/'GDK_IS_WINDOW'
++    // and then a null-deref). Provide a default GtkStyle so GetColor()'s mStyle
++    // reads stay valid, and skip all widget realization. System colours fall back
++    // to GTK defaults; CSS-styled web content does not depend on them.
++    if (!gdk_display_get_default()) {
++#if (MOZ_WIDGET_GTK == 2)
++        if (!mStyle) {
++            mStyle = gtk_style_new();
++        }
++#endif
++        return;
++    }
++
+ #if (MOZ_WIDGET_GTK == 2)
+     NS_ASSERTION(!mStyle, "already initialized");
+     // GtkInvisibles come with a refcount that is not floating
+diff --git a/widget/gtk/nsNativeThemeGTK.cpp b/widget/gtk/nsNativeThemeGTK.cpp
+index eceee1b53d..ed32dd6aaa 100644
+--- a/widget/gtk/nsNativeThemeGTK.cpp
++++ b/widget/gtk/nsNativeThemeGTK.cpp
+@@ -1838,6 +1838,14 @@ nsNativeThemeGTK::ThemeSupportsWidget(nsPresContext* aPresContext,
+                                       nsIFrame* aFrame,
+                                       uint8_t aWidgetType)
+ {
++  // Jihad: headless (no X display, JIHAD_OFFSCREEN daemon on the device). Native
++  // GTK theming draws through gtk2drawing.c, which realizes GTK widgets
++  // (ensure_window_widget -> gtk_widget_realize -> gdk_window_new) and crashes
++  // without a display. Report no native-theme support so Gecko falls back to its
++  // own non-native control rendering. Controls look non-native; content is fine.
++  if (!gdk_display_get_default())
++    return false;
++
+   if (IsWidgetTypeDisabled(mDisabledWidgetTypes, aWidgetType))
+     return false;
+ 

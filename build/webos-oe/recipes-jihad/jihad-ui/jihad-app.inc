@@ -29,6 +29,14 @@ do_install() {
     if [ -e ${D}${APPINSTDIR}/deviceroot/BrowserAdapterImpl.so ]; then
         mv ${D}${APPINSTDIR}/deviceroot/BrowserAdapterImpl.so ${D}${APPINSTDIR}/BrowserAdapterImpl.so
     fi
+    # License/attribution payload (review #12): the app bundles MPL-2.0 Goanna + Apache-2.0 parts,
+    # so ship the composite LICENSE + NOTICE (+ the full texts) in each package, like the direct build.
+    install -m 0644 ${JIHAD_REPO}/LICENSE ${D}${APPINSTDIR}/LICENSE
+    install -m 0644 ${JIHAD_REPO}/NOTICE  ${D}${APPINSTDIR}/NOTICE
+    if [ -d ${JIHAD_REPO}/licenses ]; then
+        install -d ${D}${APPINSTDIR}/licenses
+        install -m 0644 ${JIHAD_REPO}/licenses/*.txt ${D}${APPINSTDIR}/licenses/
+    fi
 }
 
 FILES_${PN} = "${webos_applicationsdir}"
@@ -39,14 +47,20 @@ INSANE_SKIP_${PN} = "arch already-stripped ldflags libdir textrel staticdev"
 # ---- on-device install/removal (opkg runs these; guarded so a rootfs build never runs them) ----
 pkg_postinst_${PN} () {
 if [ -n "$D" ]; then exit 1; fi   # defer to first boot if installed into an image
+set -e                            # review #6: a failed deploy must NOT report success
 APP=/media/cryptofs/apps/usr/palm/applications/${WEBOS_APP_ID}
 DR=$APP/deviceroot
-# 1. daemon + its bundled libs (incl. glibc-2.23) -> /media/internal/jihad/hl
+# preflight: the bundle payload must be present before we touch the system.
+[ -x "$DR/hl/jihad-browserserver" ] && [ -f "$DR/hl/ld-2.23.so" ] \
+  && [ -f "$DR/BrowserPlugins/BrowserAdapterJihad.so" ] && [ -f "$DR/event.d/jihad" ] || {
+    echo "jihad-postinst: bundle payload missing under $DR — aborting" >&2; exit 1; }
+# 1. daemon + its bundled libs (incl. glibc-2.23) -> /media/internal/jihad/hl (fatal on failure).
 mkdir -p /media/internal/jihad/hl
 cp -a "$DR/hl/." /media/internal/jihad/hl/
-chmod 755 /media/internal/jihad/hl/jihad-browserserver /media/internal/jihad/hl/ld-2.23.so 2>/dev/null || true
-# 2. adapter shim + upstart job live on the read-only rootfs — one rw window.
-mount -o remount,rw / 2>/dev/null || true
+chmod 755 /media/internal/jihad/hl/jihad-browserserver /media/internal/jihad/hl/ld-2.23.so
+# 2. adapter shim + upstart job live on the read-only rootfs — one rw window (restore ro on exit).
+trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
+mount -o remount,rw /
 mkdir -p /usr/lib/BrowserPlugins
 cp -a "$DR/BrowserPlugins/BrowserAdapterJihad.so" /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
 chmod 755 /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
@@ -54,7 +68,13 @@ cp -a "$DR/event.d/jihad" /etc/event.d/jihad
 chmod 755 /etc/event.d/jihad
 sync
 mount -o remount,ro / 2>/dev/null || true
-# 3. start the daemon + reload LunaSysMgr (registers the new NPAPI plugin at next scan/boot).
+trap - EXIT
+# verify the critical files actually landed (BusyBox cp can fail with EBADF across mounts).
+[ -x /media/internal/jihad/hl/jihad-browserserver ] \
+  && [ -f /usr/lib/BrowserPlugins/BrowserAdapterJihad.so ] && [ -f /etc/event.d/jihad ] || {
+    echo "jihad-postinst: deploy verification failed" >&2; exit 1; }
+# 3. optional runtime kicks — non-fatal (a fresh boot picks them up anyway).
+set +e
 start jihad 2>/dev/null || true
 killall LunaSysMgr 2>/dev/null || true
 true
@@ -62,6 +82,21 @@ true
 
 pkg_prerm_${PN} () {
 if [ -n "$D" ]; then exit 1; fi
+APP=/media/cryptofs/apps/usr/palm/applications/${WEBOS_APP_ID}
+# Coexistence refcount (review #4): the daemon (/media/internal/jihad/hl), the system shim
+# (/usr/lib/BrowserPlugins/BrowserAdapterJihad.so) and the upstart job (/etc/event.d/jihad) are
+# SHARED by all Jihad UI variants. Only tear them down when THIS is the LAST variant installed;
+# otherwise leave them for the survivor(s) (the package manager still removes this app's own dir).
+others=0
+for d in /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser*; do
+  [ -d "$d" ] || continue
+  [ "$d" = "$APP" ] && continue
+  others=$((others + 1))
+done
+if [ "$others" -gt 0 ]; then
+  echo "jihad-prerm: $others sibling variant(s) remain — keeping the shared runtime" >&2
+  exit 0
+fi
 stop jihad 2>/dev/null || true
 killall jihad-browserserver 2>/dev/null || true
 rm -f /tmp/yapserver.jihad-browser*

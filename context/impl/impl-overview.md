@@ -1,9 +1,23 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-07"
+last_edited: "2026-07-29"
 ---
 
 # Implementation Overview
+
+## 2026-07-29 — FULL OE BUILD-FROM-SOURCE → two self-contained `.ipk`s + Mojo skeleton (READ FIRST)
+
+The reproducible Open webOS build (build-webos + meta-webos, 2013 "dylan" / bitbake 1.18) is
+**complete**: `oe-env.sh run ". oe-init-build-env && bitbake net.riverstonerelay.jihad-browser
+net.riverstonerelay.jihad-browser.mochi"` cross-compiles the whole stack **from source** into two
+self-contained app `.ipk`s (Enyo 39 MB, Mochi 38 MB). Each bundles the engine (libxul) + daemon +
+adapter (shim+impl) + **bundled glibc-2.23** + NSS + GRE via the new `jihad-deviceroot` recipe, with
+a `postinst` that deploys the coexisting daemon/shim/upstart. A **Mojo UI skeleton** (`app-mojo/` +
+recipe) scaffolds a future third front-end. New: `build/webos-oe/oe-env.sh` (chroot Ubuntu-14.04 OE
+host on any Linux; no container, sudo/doas) + `docs/OE-BUILD.md`. Recipe chain fixes (pseudo/oe-core
+symlink, host-gcc9, python3+UTF-8 xpt, LD override, engine `.so` closure + static-`.a` via datadir,
+x86 host-tool exclusion) are in auto-memory `jihad-oe-env`. Meets device-build **R3**; the open gate
+is on-device INSTALL of the `.ipk`s (**R4**). Direct-cross-build scripts remain the faster verified path.
 
 ## 2026-07-27 — ZOOM FIXED: magnify + visual-viewport pan (READ FIRST)
 

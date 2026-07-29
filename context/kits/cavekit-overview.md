@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-07"
+last_edited: "2026-07-29"
 ---
 
 # Cavekit Overview
@@ -34,10 +34,17 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Navigation, Loading & Events | cavekit-navigation-events.md | 6 | ✅ 6/6 | Nav commands + load/location/title/history message stream |
 | Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 6 | 🟢 R1/R2 ✓; R4 Enyo UI renders real pages on TouchPad (self-contained deploy); R3 full OE `.ipk`/Mochi + R6 TouchPad Go pending | Phase-2 ARM cross-toolchain, self-contained packaging, two .ipks, TouchPad + TouchPad Go |
+| Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓; **R3 BUILD-PRODUCED, not done** — OE build (`oe-env.sh`) emits two `.ipk`s + a Mojo skeleton, but the **Mochi `.ipk` is broken** (missing Enyo2/layout/Mochi frameworks + shim impl-path hard-coded to Enyo), **coexistence-removal is unsafe**, it is **not clean-clone reproducible** (prebuilt toolchain/sysroot/PDK), and none is device-verified (gpt-5.6-sol cavekit-inspector review 2026-07-29); R4/R5/R6 device-gated | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: 11 domains, 54 requirements — **~40 met/verified, ~14 remaining** (Mochi UI, full OE `.ipk` packaging + TouchPad Go, device LunaService methods, on-device input/gesture activation + keyboard).
+Totals: 11 domains, 54 requirements — **~40 met/verified, ~14 remaining** (device-build R3 reverted
+to build-produced by the 2026-07-29 review). Current priorities:
+(1) **Finish device-build R3** — stage the Mochi Enyo2/layout/Mochi frameworks into its `.ipk`
+(review #1), fix the shim per-variant impl path (#5), make coexistence install/removal safe (#4),
+ship LICENSE/NOTICE (#12), harden `oe-env.sh` `rm -rf`/supply-chain (#3/#2), then on-device verify;
+(2) Mochi UI parity views + on-device render; (3) TouchPad Go (Opal) hardware (R6); (4) device
+LunaService methods (IPC R4); (5) on-device input/gesture activation + keyboard (input R2/R3);
+(6) memory-budget measurement (R5). Full OE-review findings: `../impl/impl-review-findings-oe.md`.
 
 ### Milestone (2026-07-07): self-contained app renders real pages on the TouchPad
 Re-architected from *replacing* the system browser to a **self-contained app that

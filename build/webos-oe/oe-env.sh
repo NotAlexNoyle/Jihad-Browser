@@ -40,7 +40,10 @@ ROOTFS="${OE_ROOTFS:-$HERE/oe-rootfs}"
 CACHE="$HERE/oe-cache"
 STAMP="$ROOTFS/.oe-provisioned"
 
-UBUNTU_URL="${UBUNTU_URL:-http://cdimage.ubuntu.com/ubuntu-base/releases/14.04/release/ubuntu-base-14.04.6-base-amd64.tar.gz}"
+UBUNTU_URL="${UBUNTU_URL:-https://cdimage.ubuntu.com/ubuntu-base/releases/14.04/release/ubuntu-base-14.04.6-base-amd64.tar.gz}"
+# Pinned digest (review #2): the rootfs is extracted + executed as root, so verify it before use;
+# reject any cached/downloaded tarball that doesn't match.
+UBUNTU_SHA256="${UBUNTU_SHA256:-84a01ed9a5a6dd90d0a68b9d26b9bd92dacdbf221989bcf5549da22c01e5103a}"
 UBUNTU_TB="$CACHE/$(basename "$UBUNTU_URL")"
 
 # build-webos orchestrator: reuse a sibling clone if present, else clone it pinned.
@@ -54,6 +57,12 @@ JIHAD_LAYER_CHROOT="/oe/Jihad-Browser/build/webos-oe"
 # Real user's uid/gid — the builder user + bind-mounted files use these. Prefer SUDO_UID/GID
 # so `sudo oe-env.sh ...` still targets the invoking user (not root) rather than uid 0.
 HOST_UID="${SUDO_UID:-$(id -u)}"; HOST_GID="${SUDO_GID:-$(id -g)}"
+# review #11: run directly as root (no sudo) would make HOST_UID=0 → a root-owned builder + bound
+# files. Require an explicit non-root uid instead of silently using 0.
+if [ "$HOST_UID" -eq 0 ]; then
+  if [ -n "${OE_HOST_UID:-}" ]; then HOST_UID="$OE_HOST_UID"; HOST_GID="${OE_HOST_GID:-$OE_HOST_UID}"
+  else echo "!! running as root without SUDO_UID — set OE_HOST_UID=<your uid> (and OE_HOST_GID) so the build is not root-owned" >&2; exit 1; fi
+fi
 MACHINE="${MACHINE:-tenderloin}"
 
 # ---- privilege escalation: sudo | doas | direct-if-root ---------------------
@@ -80,26 +89,57 @@ trap cleanup EXIT INT TERM
 umount_rootfs_tree() {
   local mp rp; rp="$(readlink -f "$ROOTFS" 2>/dev/null || echo "$ROOTFS")"
   [ -n "$rp" ] && [ "$rp" != "/" ] || return 0
-  while read -r mp; do
-    asroot umount -l "$mp" 2>/dev/null || true
-  done < <(awk '{print $2}' /proc/mounts | grep -F "$rp" | awk '{print length, $0}' | sort -rn | cut -d' ' -f2-)
+  # review #3: match only mounts AT or UNDER $rp on a path-component boundary (NOT a shared
+  # prefix like /foo vs /foobar); deepest-first; three passes for nested rbinds.
+  local pass
+  for pass in 1 2 3; do
+    while read -r mp; do
+      case "$mp" in "$rp"|"$rp"/*) asroot umount -l "$mp" 2>/dev/null || true ;; esac
+    done < <(awk '{print length, $2}' /proc/mounts | sort -rn | cut -d' ' -f2-)
+  done
+  # fail CLOSED: if anything is still mounted under $rp, refuse to let the caller rm through it.
+  if awk '{print $2}' /proc/mounts | while read -r mp; do case "$mp" in "$rp"|"$rp"/*) echo x; esac; done | grep -q x; then
+    echo "!! mounts still present under $rp after unmount — refusing the destructive op" >&2; exit 1
+  fi
+}
+
+# review #3: refuse to rm/extract unless ROOTFS is a dedicated dir under our own build tree —
+# never /, a home dir, the repo, a parent, or an approved-tree sibling with a shared prefix.
+validate_rootfs() {
+  local rp base; rp="$(readlink -f "$ROOTFS" 2>/dev/null || echo "$ROOTFS")"
+  base="$(readlink -f "$HERE" 2>/dev/null || echo "$HERE")"
+  case "$rp" in
+    "$base"/oe-rootfs|"$base"/oe-rootfs/*) : ;;
+    *) echo "!! refusing to operate on OE_ROOTFS='$rp' — it must live under $base/oe-rootfs" >&2; exit 1 ;;
+  esac
 }
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "!! missing host tool: $1" >&2; exit 1; }; }
 say()  { echo ">> $*" >&2; }
 
 # ---- rootfs bring-up ---------------------------------------------------------
+verify_sha256() {  # file expected-hex
+  local got; got="$(sha256sum "$1" | awk '{print $1}')"
+  [ "$got" = "$2" ] || { echo "!! SHA256 mismatch for $1 (got $got, expected $2)" >&2; return 1; }
+}
+
 fetch_tarball() {
-  [ -f "$UBUNTU_TB" ] && return
-  need curl; mkdir -p "$CACHE"
+  if [ -f "$UBUNTU_TB" ]; then
+    need sha256sum
+    verify_sha256 "$UBUNTU_TB" "$UBUNTU_SHA256" || { echo "!! cached rootfs failed digest — remove $UBUNTU_TB and retry" >&2; exit 1; }
+    return
+  fi
+  need curl; need sha256sum; mkdir -p "$CACHE"
   say "fetching $(basename "$UBUNTU_TB") ..."
   curl -fL --retry 3 -o "$UBUNTU_TB.part" "$UBUNTU_URL"
+  verify_sha256 "$UBUNTU_TB.part" "$UBUNTU_SHA256" || { rm -f "$UBUNTU_TB.part"; echo "!! downloaded rootfs failed digest — aborting" >&2; exit 1; }
   mv "$UBUNTU_TB.part" "$UBUNTU_TB"
 }
 
 extract_rootfs() {
   [ -e "$ROOTFS/etc/os-release" ] && return
   need tar
+  validate_rootfs               # SAFETY: never rm/extract outside the sanctioned oe-rootfs dir
   fetch_tarball
   say "extracting rootfs -> $ROOTFS ..."
   umount_rootfs_tree            # SAFETY: never rm through a live bind of the repo
@@ -140,6 +180,12 @@ ensure_build_webos() {
     need git; say "cloning build-webos ($BUILD_WEBOS_REV) -> $BUILD_WEBOS ..."
     git clone "$BUILD_WEBOS_URL" "$BUILD_WEBOS"
     git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV"
+  elif [ "$(git -C "$BUILD_WEBOS" rev-parse HEAD 2>/dev/null)" != "$BUILD_WEBOS_REV" ]; then
+    # review #10: an existing sibling checkout is reused in place — make sure it is the pinned rev,
+    # not a stale/wrong/dirty tree, before we build against it.
+    say "WARNING: build-webos HEAD != pinned $BUILD_WEBOS_REV — checking out the pin ..."
+    git -C "$BUILD_WEBOS" fetch --quiet origin "$BUILD_WEBOS_REV" 2>/dev/null || true
+    git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV" || say "WARNING: could not check out the pin; proceeding with existing HEAD"
   fi
   # Install our vendored layer config (2013 "dylan" pins + TouchPad machines) so the
   # build is reproducible from THIS repo, not from a hand-edited sibling checkout.
@@ -247,6 +293,7 @@ cmd="${1:-shell}"; shift || true
 case "$cmd" in
   provision) provision ;;
   clean)
+    validate_rootfs               # SAFETY: never rm outside the sanctioned oe-rootfs dir
     say "removing rootfs $ROOTFS (downloads/sstate kept) ..."
     umount_rootfs_tree            # SAFETY: never rm through a live bind of the repo
     asroot rm -rf "$ROOTFS"; say "done." ;;

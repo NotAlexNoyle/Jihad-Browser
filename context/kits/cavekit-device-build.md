@@ -1,9 +1,33 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-07"
+last_edited: "2026-07-29"
 ---
 
 # Cavekit: Device Build & Packaging
+
+## 2026-07-29 — OE BUILD stands up + produces `.ipk`s, but R3 is NOT complete (READ FIRST)
+
+The reproducible Open webOS path (previously "aspirational, not runnable") now **stands up and
+produces `.ipk`s** under `build-webos` + `meta-webos` (2013 "dylan" / bitbake 1.18). But an
+adversarial review (gpt-5.6-sol as the cavekit inspector, 2026-07-29 — see
+`../impl/impl-review-findings-oe.md`) found R3 was **over-claimed**; it is **build-produced, not
+done**. Honest status:
+- **Environment:** `build/webos-oe/oe-env.sh` — an OE host via a chroot into a downloaded Ubuntu-14.04
+  rootfs (`sudo`/`doas`). Caveat: **x86_64 hosts only** (AMD64 rootfs), and it consumes prebuilt,
+  git-ignored inputs (crosstool-NG toolchain, Jessie sysroot, Palm PDK, adapter-deps) — so **NOT
+  "whole stack from source" / not clean-clone reproducible** (finding #7). See `docs/OE-BUILD.md`.
+- **Recipes** build: `goanna` (libxul), `jihad-browserserver`, `browser-adapter-jihad`,
+  `jihad-cross-toolchain-native`, `jihad-deviceroot` (assembles daemon + libxul `.so` closure +
+  bundled glibc-2.23 + NSS + GRE). The four component recipes are stage-only; the shipping
+  deliverable is **two self-contained app `.ipk`s** (Enyo 39 MB, Mochi 38 MB) + a **Mojo skeleton**.
+- **KNOWN GAPS (review):** the **Mochi `.ipk` is structurally broken** — it omits the bundled
+  Enyo2/layout/Mochi frameworks its `index.html` loads (finding #1), and the adapter shim's impl
+  path is **hard-coded to the Enyo appid** (finding #5), so Mochi cannot init the plugin from its
+  own bundle. **Coexistence is unsafe** — both `.ipk`s install the SAME `/media/internal/jihad/hl`
+  + system shim + upstart, and either `prerm` deletes all three, so removing one breaks the other
+  (finding #4). None is device-verified. The Enyo `.ipk` is the structurally-complete one.
+- **Remaining for R3:** stage the Mochi frameworks, fix the shim per-variant impl path, make
+  coexistence install/removal safe, ship the LICENSE/NOTICE payload, then on-device verify.
 
 ## Scope
 Phase-2 work to run Jihad Browser on the HP TouchPad (webOS 3.0.x, ARMv7):
@@ -35,19 +59,21 @@ scripts/recipes and `packaging/` are the reproducible source.)
 **Dependencies:** R1, cavekit-engine-embedding.md (R1)
 
 ### R3: Package Jihad as a self-contained app — both UI variants
-**Description:** The whole product packages as installable webOS artifacts that coexist with the stock browser, including BOTH front-end variants.
+**Description:** The whole product packages as installable webOS artifacts that coexist with the stock browser, including BOTH front-end variants. **Shipping model (2026-07-29): two SELF-CONTAINED app `.ipk`s** (Enyo + Mochi), each bundling engine+daemon+adapter+bundled-glibc+UI + a postinst that deploys the coexisting pieces — plus a Mojo UI skeleton.
 **Acceptance Criteria:**
 - [x] The daemon + a rebuilt **coexisting** adapter (`BrowserAdapterJihad.so`, MIME `application/x-jihad-browser`, YAP name `jihad-browser`) install ALONGSIDE the stock browser without collision (`packaging/postinst`+`prerm`+`event.d/jihad`). Verified on-device.
 - [x] The Enyo UI `.ipk` (`net.riverstonerelay.jihad-browser`, from `app/`) builds (`palm-package app/`) and installs; its WebView is routed to the Jihad engine by `app/source/JihadEngineOverride.js`.
 - [x] The build also produces the Mochi variant `.ipk` (`net.riverstonerelay.jihad-browser.mochi`, from `app-mochi/`); both install and can coexist. *(Produced 2026-07-19 (`build-mochi-ipk.sh`, 1.4 MB). INSTALL + COEXIST VERIFIED ON DEVICE 2026-07-19: `palm-install -l` lists both app ids at 1.0.0.)*
-- [x] A single OE/repeatable build produces the daemon + adapter + both UI `.ipk`s (currently the daemon/adapter are built by `build/webos-oe/*.sh` and the Enyo `.ipk` by `palm-package`). *(2026-07-19: `build/webos-oe/build-all-device.sh` — one entry, all four artifact classes, md5 report, `--engine/--adapter/--skip-arm` flags; validated end-to-end with existing ARM artifacts: ALL ARTIFACTS PRESENT, daemon md5 33a1aaa0 matches the on-device deploy. The Enyo ipk stage now also excludes the stray repo CLAUDE.md/README.md from the payload.)*
-- [~] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0. *(Mochi half DONE (T-049). Enyo half: INTENTIONAL DEVIATION — `app/index.html` loads Enyo 1.0 from the OS framework path `/usr/palm/frameworks/enyo/0.10`, exactly like upstream isis-browser; bundling would duplicate the system framework and risk skew. Documented in build-all-device.sh.)*
+- [~] A single OE/bitbake build PRODUCES the two `.ipk`s. *(2026-07-29: `oe-env.sh run ". oe-init-build-env && bitbake net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi"` → the two self-contained `.ipk`s (component recipes stage-only). BUT it consumes prebuilt, git-ignored inputs — crosstool-NG toolchain, Jessie sysroot, Palm PDK, adapter-deps (`jihad-cross-toolchain-native` only CHECKS the toolchain, does not build it) — so it is NOT clean-clone reproducible and NOT "whole stack from source" (review #7). Undeclared `${JIHAD_REPO}` inputs also bypass bitbake task hashes → stale-sstate risk (#8). The direct-cross-build scripts remain a faster path.)*
+- [~] Each variant `.ipk` is SELF-CONTAINED and installs as one coexisting package. *(2026-07-29: `jihad-app.inc` bundles the `jihad-deviceroot` runtime + the UI app + impl + a `postinst`/`prerm`. ENYO `.ipk` is structurally complete (its Enyo 1.0 loads from the OS framework path). **MOCHI `.ipk` is BROKEN** — omits the bundled Enyo2/layout/Mochi frameworks its `index.html` loads (#1), and the shim's impl path is hard-coded to the Enyo appid (#5). **Coexistence unsafe:** both install the same `/media/internal/jihad/hl` + system shim + upstart; either `prerm` deletes all three → removing one breaks the other (#4). `postinst` masks failures + reports success (#6). None device-verified.)*
+- [~] A third UI variant is scaffolded for a future Mojo port. *(2026-07-29: `app-mojo/` scaffold + `net.riverstonerelay.jihad-browser.mojo` recipe build an `.ipk`; but like Mochi the shim can't find a Mojo-appid impl (#5) and the UI is a documented stub — so "engine works" is aspirational, not demonstrated.)*
+- [~] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0. *(Mochi half DONE (T-049). Enyo half: INTENTIONAL DEVIATION — `app/index.html` loads Enyo 1.0 from the OS framework path `/usr/palm/frameworks/enyo/0.10`, exactly like upstream isis-browser; bundling would duplicate the system framework and risk skew.)*
 **Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1), jihad-self-contained-arch.md
 
 ### R4: Runs on the TouchPad (and TouchPad Go)
 **Description:** The installed browser works on real hardware; both UI variants.
 **Acceptance Criteria:**
-- [x] On the TouchPad (Topaz/tenderloin), the **Enyo** variant launches and loads a page rendered on-screen via the Jihad adapter (`example.com`, `slack.com`/HTTPS render on fb1; load-completion + refresh glyph). Mochi variant pending.
+- [x] On the TouchPad (Topaz/tenderloin), the **Enyo** variant launches and loads a page rendered on-screen via the Jihad adapter (`example.com`, `slack.com`/HTTPS render on fb1; load-completion + refresh glyph). Mochi variant pending. *(NOTE 2026-07-29: this was verified via the direct-cross-build deploy. Installing the NEW self-contained OE `.ipk`s (R3) on-device and confirming their postinst lays the bundle down + renders is the current open gate — [human-review on device].)*
 - [~] Basic navigation works (URL load + load-complete); scrolling/tap-activation/keyboard are in Phase-3 hardening (staged fixes, on-device confirm pending).
 - [ ] Composite is correct in portrait and landscape. *(2026-07-20 — ROOT-CAUSED to a LunaCE limitation, NOT fixable in daemon/adapter. Device-verified: **LANDSCAPE (1024-wide) renders CLEAN; PORTRAIT (768-wide) shows a 3× horizontal shear/tiling** of the plugin's web content (chrome composites fine — only the NPAPI <object> region). Proven CLEAN at every stage we control via a simultaneous JIHAD_DUMP (daemon raw frame = single clean copy) + adapter.log (`[hp]` = a clean 1:1 blit, consistent 768/stride-3072) + /dev/fb1 capture. The shear is LunaCE reading the PORTRAIT plugin dstBuffer at a ~256px (1024-byte) pitch regardless of the 768 NPWindow/dstRowBytes (768=3×256); landscape reads at 4096 and matches. A fix attempt — adapter writes dstBuffer at the screen-width pitch (`max(dstRowBytes, screenWidth*4)`, PDK-built + deployed) — was DISPROVEN: portrait stayed tiled (middle copy dimmed by the padding), reverted. No adapter write-stride can fit 768px content into a 256px read. Realistic paths: landscape-lock the app as a workaround; the LunaCE-only PGContext plugin-paint path (Piranha headers closed — why Jihad uses the raw dstBuffer path); or find the LunaCE plugin DPR/surface-width setting. Separate KNOWN quirk (NOT this): black card + VKB on the FIRST launch after a LunaSysMgr restart, cleared by reopening. See [[jihad-input-activation-and-tiling]] + [[jihad-screen-capture]].)*
 - [ ] Cert/dialog/download flows function with the device services. [human-review on device]
@@ -81,3 +107,4 @@ scripts/recipes and `packaging/` are the reproducible source.)
 - 2026-06-30: Initial draft.
 - 2026-06-30: Two UI `.ipk`s (Enyo + Mochi) in R3; added R6 TouchPad Go (Opal) support; R4 covers both models.
 - 2026-07-04: Reconciled — R1 crosstool-NG toolchain (GCC 9.4/glibc 2.23 softfp) verified on-device; R2 DONE this session: X/GTK-free headless libxul cross-built, loads on the TouchPad and renders (on-device offscreen ROUND-TRIP PASS, msgPainted 786432). R3 two-.ipk (Mochi UI + real adapter), R4 full UI-on-screen + TouchPad Go, R5 memory budget (29M libxul helps), R6 Opal remain.
+- 2026-07-29: OE build **stands up + produces two `.ipk`s** (new `build/webos-oe/oe-env.sh` — chroot Ubuntu-14.04 OE host, x86_64, sudo/doas) — engine/daemon/adapter/deviceroot recipes + `jihad-app.inc` products + a Mojo skeleton. But an adversarial review (**gpt-5.6-sol as the cavekit inspector**) found R3 was **OVER-CLAIMED** → reverted `[x]`→`[~]` (build-produced, not done). Real gaps: **Mochi `.ipk` missing its Enyo2/layout/Mochi frameworks** (#1) + adapter shim impl-path **hard-coded to the Enyo appid** (#5); **coexistence-removal breaks the survivor** (both share `/media/internal/jihad/hl`+shim+upstart, #4); **not clean-clone reproducible** (prebuilt toolchain/sysroot/PDK, #7); postinst masks failures (#6); LICENSE/NOTICE payload dropped (#12); none device-verified. Full findings: `../impl/impl-review-findings-oe.md`.

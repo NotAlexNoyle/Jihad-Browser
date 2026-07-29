@@ -83,7 +83,7 @@ The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`
 |------|-------------|-----|
 | **Toolchain sysroot** | A modern **C++14** cross-toolchain (stock webOS 3 gcc 4.4 cannot build UXP) that links against the **TouchPad's glibc/kernel ABI** so binaries don't need a newer glibc than the device has. Needs the webOS 3 device sysroot. | R1 |
 | **Engine cross-build** | Run the `goanna` recipe with that toolchain (ARMv7-A + NEON, **softfp** — matches the device glibc 2.8 ABI). Heavy (hours). Verifying "loads without missing-symbol/ABI errors" needs the device. | R2 |
-| **OE environment** | An OpenEmbedded/`meta-webos` tree to `bitbake` the recipes into `.ipk`s (both UI variants). | R3 |
+| **OE environment** | An OpenEmbedded/`meta-webos` tree to `bitbake` the recipes into `.ipk`s (both UI variants). **Provided by `build/webos-oe/oe-env.sh`** (chroot Ubuntu-14.04, any Linux, sudo/doas) — see the Full-OE path below + `docs/OE-BUILD.md`. | R3 |
 | **Physical device** | Install + run each `.ipk` on the **TouchPad** and **TouchPad Go**; verify launch, render-on-screen via the adapter, navigation, scroll, tap. Cert/dialog/download flows with device services. | R4, R6 `[human-review on device]` |
 | **Memory budget** | Render-process memory within the 1 GB device budget; freeze/purge reclaim; no OOM in a browsing scenario. | R5 `[human-review on device]` |
 
@@ -179,16 +179,42 @@ per-machine table under "Machine configs" above):
 5. Install on the TouchPad (verified) and the TouchPad Go (pending hardware); run the
    on-device checklist (R4/R6).
 
-**Full-OE path — ASPIRATIONAL, NOT RUNNABLE (documentation of record only):** the layer
-shape is real (`conf/layer.conf` + `recipes-jihad/` + the machine confs, selected by
-`MACHINE=tenderloin` / `MACHINE=opal`; engine/daemon/adapter recipes carry
-`COMPATIBLE_MACHINE = "(tenderloin|opal)"`, UI recipes `PACKAGE_ARCH = "all"`, UI RDEPENDS
-point at `browser-adapter-jihad` — the coexisting `BrowserAdapterJihad.so` for
-`application/x-jihad-browser`, not the stock adapter). But the recipes are
-**compile-skeletons that cannot execute** (codex F-385..F-401, acknowledged): stub
-`do_compile`s, placeholder `LIC_FILES_CHKSUM`s, `SRC_URI`s referencing sibling checkouts
-outside the layer, the 2014-era meta-webos here has no `webos-app` class and its BitBake
-wants underscore overrides (recipes now use the era's underscore syntax, but the class gap
-stands), and the two-piece adapter's `BrowserAdapterImpl.so` rides in the app bundle.
-Standing this up for real is out of scope (recorded dead end: no bitbake world-build);
-**the direct cross-build scripts above are the only working, verified pipeline.**
+### Full-OE path (`build-webos` + `meta-webos` bitbake)
+
+The reproducible-from-source alternative to the direct cross-build: `bitbake` the whole
+stack under the 2013 "dylan" OE / bitbake 1.18 that openwebos `meta-webos` targets. Chosen
+for reproducibility (no scripts pulling prebuilt/"dubiously open-source" device libs).
+
+**Environment — now runnable (`oe-env.sh`).** OE/bitbake is a Linux-host-only build system
+(its `pseudo` fakeroot is `LD_PRELOAD`-based; recipes assume a GNU/Linux host), and the
+dylan stack is Python-2 / Ubuntu-14.04-era — so it cannot run natively on a modern host
+(Void, Arch, …) or on a non-Linux Unix. `build/webos-oe/oe-env.sh` provides that host
+**without a container runtime**: it downloads Ubuntu's official `ubuntu-base-14.04` rootfs
+tarball once and enters it with plain POSIX `chroot`. One clean solution that spans Linux —
+works on **every** init system (runit/OpenRC/s6/systemd, no systemd dependency), glibc or
+musl host, at native speed; privilege via **`sudo` or `doas`** (or run as root). See
+`docs/OE-BUILD.md`.
+
+```bash
+build/webos-oe/oe-env.sh provision            # build the Ubuntu-14.04 OE host (once, sudo/doas)
+build/webos-oe/oe-env.sh bringup tenderloin   # mcf: clone+pin the dylan layers, fetch, wire meta-jihad
+build/webos-oe/oe-env.sh make webos-image     # (or a single recipe) — the bitbake build
+```
+
+`oe-env.sh` vendors `weboslayers.py` (2013 layer pins + the `tenderloin`/`opal` machines) and
+wires this directory into `BBLAYERS` *after* mcf, so mcf's git layer-management never touches
+it. The layer shape is real: `conf/layer.conf` + `recipes-jihad/` + the machine confs, selected
+by `MACHINE=tenderloin` / `MACHINE=opal` (engine/daemon/adapter recipes carry
+`COMPATIBLE_MACHINE = "(tenderloin|opal)"`, UI recipes `PACKAGE_ARCH = "all"`).
+
+**Recipes now parse (0 errors).** `bitbake -p` parses the full metadata (1419 recipes) with the
+five Jihad recipes included, and every in-repo `SRC_URI` resolves. Fixed: the `webos-app` class
+gap (→ `inherit allarch` + `recipes-jihad/jihad-common.inc`, which points `FILESEXTRAPATHS` at the
+repo and supplies the real `LIC_FILES_CHKSUM`), the modern `:`-override syntax (→ dylan
+underscore), and the adapter `SRC_URI` (→ the vendored `render/adapter/`).
+
+**Remaining — the compiles (Phase B).** The `do_compile`s still need to actually cross-build:
+`goanna` (libxul, needs a `jihad-cross-toolchain-native` provider — stock dylan gcc can't build
+UXP), `jihad-browserserver`, and `browser-adapter-jihad` (against the Palm PDK). Iterated against
+live `bitbake` inside `oe-env.sh`. Until those land, **the direct cross-build scripts above remain
+the working, verified pipeline.**

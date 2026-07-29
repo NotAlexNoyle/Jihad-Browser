@@ -7,13 +7,16 @@
 # launched via the bundled glibc-2.23 loader. Runs on the host (readelf reads ARM).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-DIST="$HERE/out-arm/obj-jihad-goanna-arm/dist"
-SYS="$HERE/arm-sysroot/root"
-TCS="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/arm-webos-linux-gnueabi/sysroot"
-TCLIB="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/arm-webos-linux-gnueabi/lib"
-DAEMON="$HERE/out-arm/jihad-browserserver-arm"
-OUT="$HERE/device-bundle"
-STRIP="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin/arm-webos-linux-gnueabi-strip"
+# All inputs are env-overridable so the OE product recipe can point them at bitbake-built
+# artifacts (jihad-deviceroot recipe). Defaults = the direct cross-build layout.
+TC="${JIHAD_TC:-$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi}"
+DIST="${DIST:-$HERE/out-arm/obj-jihad-goanna-arm/dist}"
+SYS="${SYS:-$HERE/arm-sysroot/root}"
+TCS="${TCS:-$TC/arm-webos-linux-gnueabi/sysroot}"
+TCLIB="${TCLIB:-$TC/arm-webos-linux-gnueabi/lib}"
+DAEMON="${DAEMON:-$HERE/out-arm/jihad-browserserver-arm}"
+OUT="${OUT:-$HERE/device-bundle}"
+STRIP="${STRIP:-$TC/bin/arm-webos-linux-gnueabi-strip}"
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 SEARCH=("$DIST/bin" "$SYS/usr/lib/arm-linux-gnueabi" "$SYS/lib/arm-linux-gnueabi" "$TCS/lib" "$TCS/usr/lib" "$TCLIB")

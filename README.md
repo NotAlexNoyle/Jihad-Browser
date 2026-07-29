@@ -104,7 +104,7 @@ Goanna calls.
 | `render/goanna/`        | New Goanna backend: `nsIWebBrowser` driver, offscreen widget, YAP bridge (MPL-2.0). |
 | `third_party/`          | Out-of-tree upstreams as pinned **git submodules** (populate with `git submodule update --init`): **`uxp`** = UXP/Goanna engine (Pale Moon; Jihad's engine mods are patches in `build/desktop/patches/`, see `docs/UXP.md`); **`mochi`** + **`mochi-sampler`** = webOSArchive Mochi/Enyo-2 for the Mochi UI `.ipk`; **`enyo-layout`** = `enyojs/layout` 2.5.2. All updatable from upstream by bumping the pin. |
 | `build/desktop/`        | x86_64 Linux build wiring (Phase 1 PoC). |
-| `build/webos-oe/`       | OpenEmbedded recipes for the webOS 3 ARMv7 device build (Phase 2). |
+| `build/webos-oe/`       | webOS 3 ARMv7 device build: the direct cross-build scripts (verified pipeline) **and** the full OpenEmbedded path — `oe-env.sh` stands up the OE "dylan" host on any Linux via `chroot` (no container; sudo/doas), see `docs/OE-BUILD.md`. |
 | `context/`              | Cavekit kits + build site (the plan). |
 | `docs/`                 | Design notes, IPC contract reference, toolchain notes. |
 | `licenses/`             | Full Apache-2.0 and MPL-2.0 texts. |

@@ -14,13 +14,17 @@ routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 literal set. Persistence uses the same Jihad-owned db8 kinds the Enyo 1.0 app
 uses: `net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1`.
 
-> **Persistence caveat (audit F-A01).** Those kinds are registered — and their db8
-> permissions granted — by `../app/db/`, whose `owner`/`caller` is
-> `net.riverstonerelay.jihad-browser`. This package's app id is
-> `net.riverstonerelay.jihad-browser.mochi`, a *different* db8 caller, and it ships
-> no `db/` of its own. Every "Ported" row below that reads or writes db8 is
-> therefore blocked until the grant covers both app ids. See the
-> "Audit 2026-07-31" section of `../context/impl/impl-mochi.md`.
+> **Persistence caveat (audit F-A01 — grant applied 2026-07-31, device-gated).**
+> Those kinds are registered by `../app/db/` (owner
+> `net.riverstonerelay.jihad-browser`; a db8 kind's owner must equal the
+> registering app id, so the Mochi package cannot own or ship them itself).
+> `../app/db/permissions/*` now carries explicit full-CRUD grants for the
+> `.mochi` and `.mojo` app ids (explicit callers, not a trailing wildcard —
+> wildcard-caller semantics on this db8 build are unverified). Consequence:
+> db8-backed features in this variant REQUIRE the Enyo variant to be installed
+> (it registers the kinds + grants at install; after a dev `palm-install`, run
+> `build/webos-oe/register-db-kinds.sh`). On-device verification of the grant is
+> pending hardware. See "Audit 2026-07-31" in `../context/impl/impl-mochi.md`.
 
 Status legend: **Ported** = feature-equivalent · **Simplified** = present with a
 documented reduction · **Omitted** = intentionally not built (rationale given).

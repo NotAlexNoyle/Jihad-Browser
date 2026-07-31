@@ -1,16 +1,43 @@
-[	{	"type"		: "db.kind"
-	,	"object"	: "net.riverstonerelay.jihad-browser.preferences:1"
-	,	"caller"	: "net.riverstonerelay.jihad-browser"
-	,	"operations":
-		{	"create": "allow"
-		,	"read"	: "allow"
-		,	"update": "allow"
-		,	"delete": "allow"
-		}
-	},
-	{	"type"		: "db.kind"
-	,	"object"	: "net.riverstonerelay.jihad-browser.preferences:1"
-	,	"caller"	: "com.palm.launcher"
-	,	"operations": { "read" : "allow" }
-	}
+[
+ {
+  "type": "db.kind",
+  "object": "net.riverstonerelay.jihad-browser.preferences:1",
+  "caller": "net.riverstonerelay.jihad-browser",
+  "operations": {
+   "create": "allow",
+   "read": "allow",
+   "update": "allow",
+   "delete": "allow"
+  }
+ },
+ {
+  "type": "db.kind",
+  "object": "net.riverstonerelay.jihad-browser.preferences:1",
+  "caller": "com.palm.launcher",
+  "operations": {
+   "read": "allow"
+  }
+ },
+ {
+  "type": "db.kind",
+  "object": "net.riverstonerelay.jihad-browser.preferences:1",
+  "caller": "net.riverstonerelay.jihad-browser.mochi",
+  "operations": {
+   "create": "allow",
+   "read": "allow",
+   "update": "allow",
+   "delete": "allow"
+  }
+ },
+ {
+  "type": "db.kind",
+  "object": "net.riverstonerelay.jihad-browser.preferences:1",
+  "caller": "net.riverstonerelay.jihad-browser.mojo",
+  "operations": {
+   "create": "allow",
+   "read": "allow",
+   "update": "allow",
+   "delete": "allow"
+  }
+ }
 ]

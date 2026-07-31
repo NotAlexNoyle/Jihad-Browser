@@ -35,6 +35,13 @@ GOANNA_INC = "${GOANNA}/include"
 GOANNA_LIB = "${GOANNA}/bin"
 GOANNA_A = "${GOANNA}/sdk/lib"
 
+# review #8: render/ + packaging/ are SRC_URI entries, already covered by oe-core's
+# do_fetch[file-checksums] (base.bbclass:98), and the staged goanna dist arrives through the
+# DEPENDS task-hash chain. What bypasses both is the cross-toolchain and the Jessie sysroot,
+# used in place from ${JIHAD_REPO} — declare them so a toolchain/sysroot swap invalidates the
+# daemon (identity sets + bitbake-1.18 mechanics: ../jihad-common.inc).
+do_compile[file-checksums] = "${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
+
 do_compile() {
     CXX="${JIHAD_TC}/bin/arm-webos-linux-gnueabi-g++"
     export PATH="${JIHAD_TC}/bin:${PATH}"

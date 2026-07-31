@@ -41,6 +41,24 @@ RDEPENDS_${PN} = "jihad-browserserver"
 INHIBIT_DEFAULT_DEPS = "1"
 do_configure[noexec] = "1"
 
+# review #8: do_compile shells out to build-adapter-pdk.sh, which compiles from the LIVE repo
+# (${JIHAD_REPO}/render/...) — NOT from ${S}/${WORKDIR} — and links against the PDK + the
+# vendored device libs. None of that reaches the task hash through SRC_URI (the file://render/adapter/
+# entry only covers the unpacked copy the script does not use), so declare every real input here.
+# See ../jihad-common.inc for the bitbake-1.18 mechanics and the JIHAD_*_SIG identity sets.
+#   the script itself + render/adapter (adapter sources, exports map, shim)
+#   render/browserserver/{Yap,Src} — the YAP wire code the script compiles straight out of the repo
+#   ${JIHAD_PDK_SIG}   the PDK gcc 4.3.3 drivers          ${JIHAD_DEPS_SIG} the vendored device libs/headers
+#   ${JIHAD_SYS_SIG}   the Jessie sysroot's glib (headers + libs are found via its pkg-config set)
+# do_install is deliberately NOT given file-checksums: the files it installs
+# (adapter-deps/build-pdk/*.so) are do_compile's OUTPUTS, and task hashes are computed before the
+# build runs — hashing an output would bake in the previous run's artifact.
+do_compile[file-checksums] = "${JIHAD_REPO}/build/webos-oe/build-adapter-pdk.sh \
+    ${JIHAD_REPO}/render/adapter \
+    ${JIHAD_REPO}/render/browserserver/Yap \
+    ${JIHAD_REPO}/render/browserserver/Src \
+    ${JIHAD_PDK_SIG} ${JIHAD_DEPS_SIG} ${JIHAD_SYS_SIG}"
+
 do_compile() {
     # The two-piece adapter (stable NPAPI shim BrowserAdapterJihad.so + logic BrowserAdapterImpl.so)
     # is built by the proven build-adapter-pdk.sh: PDK gcc 4.3.3 (build/webos-oe/pdk/) against the

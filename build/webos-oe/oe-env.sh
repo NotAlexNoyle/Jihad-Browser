@@ -46,6 +46,26 @@ UBUNTU_URL="${UBUNTU_URL:-https://cdimage.ubuntu.com/ubuntu-base/releases/14.04/
 UBUNTU_SHA256="${UBUNTU_SHA256:-84a01ed9a5a6dd90d0a68b9d26b9bd92dacdbf221989bcf5549da22c01e5103a}"
 UBUNTU_TB="$CACHE/$(basename "$UBUNTU_URL")"
 
+# ---- ubuntu-toolchain-r PPA signing key (review #2) --------------------------
+# The chroot installs gcc-9/g++-9 from the ubuntu-toolchain-r/test PPA (trusty is EOL and that PPA
+# is the only source of the >= GCC 9.1 HOST compiler UXP's host tools require). apt authentication
+# stays ON: the PPA key is pinned by FULL fingerprint and installed into its own keyring under
+# /etc/apt/trusted.gpg.d/. trusty ships apt 1.0.1ubuntu2, which predates the sources.list
+# `[signed-by=...]` option (apt 1.1), so a dedicated trusted.gpg.d keyring is the tightest scoping
+# this apt supports — and gnupg is a hard dependency of apt, so it is always present.
+#
+# Key source, in order:
+#   1. the pre-seeded copy in this repo ($PPA_KEY_SEED) — works offline, no keyserver round-trip;
+#   2. otherwise $PPA_KEYSERVER, fetched over HTTPS.
+# Either way the FULL fingerprint must match or provisioning ABORTS (fail closed — never fall back
+# to [trusted=yes]). To (re-)seed the in-repo copy:
+#   gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
+#   gpg --armor --export 60C317803A41BA51845E371A1E9377A2BA9EF27F > build/webos-oe/keys/ubuntu-toolchain-r.asc
+PPA_KEY_FPR="60C317803A41BA51845E371A1E9377A2BA9EF27F"     # Launchpad "Toolchain builds"
+PPA_KEY_SEED="${PPA_KEY_SEED:-$HERE/keys/ubuntu-toolchain-r.asc}"
+PPA_KEYSERVER="${PPA_KEYSERVER:-https://keyserver.ubuntu.com}"
+PPA_KEYRING="ubuntu-toolchain-r.gpg"                        # under /etc/apt/trusted.gpg.d/
+
 # build-webos orchestrator: reuse a sibling clone if present, else clone it pinned.
 BUILD_WEBOS="${BUILD_WEBOS:-$REPO/../../build-webos}"
 BUILD_WEBOS_URL="https://github.com/openwebos/build-webos.git"
@@ -149,6 +169,51 @@ extract_rootfs() {
 
 write_resolv() { echo "nameserver 1.1.1.1" | asroot tee "$ROOTFS/etc/resolv.conf" >/dev/null; }
 
+# Install the ubuntu-toolchain-r PPA signing key as a DEDICATED apt keyring inside the rootfs,
+# pinned by full fingerprint (review #2 — replaces the old `[trusted=yes]`, which turned apt
+# authentication off entirely). Runs host-side (host gpg, host network) and drops a binary keyring
+# into $ROOTFS/etc/apt/trusted.gpg.d/. Fails CLOSED on any mismatch/failure.
+install_ppa_key() {
+  local dest="$ROOTFS/etc/apt/trusted.gpg.d/$PPA_KEYRING" tmp keyfile
+  need gpg
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/jihad-ppa-key.XXXXXX")" || { echo "!! mktemp failed" >&2; exit 1; }
+  chmod 700 "$tmp"                     # gpg refuses a group/world-readable GNUPGHOME
+  keyfile="$tmp/key.asc"
+  if [ -f "$PPA_KEY_SEED" ]; then
+    say "using the pre-seeded PPA key $PPA_KEY_SEED"
+    cp "$PPA_KEY_SEED" "$keyfile"
+  else
+    need curl
+    say "fetching the ubuntu-toolchain-r PPA key $PPA_KEY_FPR from $PPA_KEYSERVER ..."
+    curl -fsSL --retry 3 --max-time 60 \
+      "$PPA_KEYSERVER/pks/lookup?op=get&search=0x$PPA_KEY_FPR&options=mr" -o "$keyfile" || {
+        rm -rf "$tmp"
+        echo "!! could not fetch the PPA signing key (no network?). Seed it in-repo instead:" >&2
+        echo "     gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys $PPA_KEY_FPR" >&2
+        echo "     gpg --armor --export $PPA_KEY_FPR > $PPA_KEY_SEED" >&2
+        exit 1; }
+  fi
+  # Import into a THROWAWAY keyring, then demand the FULL 40-hex fingerprint: a short/long key id
+  # is exactly the collision apt authentication exists to prevent.
+  GNUPGHOME="$tmp" gpg --batch --quiet --import "$keyfile" 2>/dev/null || {
+    rm -rf "$tmp"; echo "!! PPA key material is not a valid OpenPGP key" >&2; exit 1; }
+  if ! GNUPGHOME="$tmp" gpg --batch --with-colons --fingerprint 2>/dev/null \
+       | grep -q "^fpr:::::::::$PPA_KEY_FPR:"; then
+    echo "!! PPA key fingerprint MISMATCH — expected $PPA_KEY_FPR, the key material carries:" >&2
+    GNUPGHOME="$tmp" gpg --batch --with-colons --fingerprint 2>/dev/null | grep '^fpr' >&2 || true
+    rm -rf "$tmp"; echo "!! refusing to provision with an unverified apt key" >&2; exit 1
+  fi
+  # Export ONLY the pinned key (so key material carrying extra keys cannot smuggle them in) as a
+  # binary keyring — the format /etc/apt/trusted.gpg.d expects.
+  GNUPGHOME="$tmp" gpg --batch --export "$PPA_KEY_FPR" > "$tmp/$PPA_KEYRING" 2>/dev/null || {
+    rm -rf "$tmp"; echo "!! failed to export the pinned PPA key" >&2; exit 1; }
+  [ -s "$tmp/$PPA_KEYRING" ] || { rm -rf "$tmp"; echo "!! exported PPA keyring is empty" >&2; exit 1; }
+  asroot install -d -m 0755 "$ROOTFS/etc/apt/trusted.gpg.d"
+  asroot install -m 0644 "$tmp/$PPA_KEYRING" "$dest"
+  rm -rf "$tmp"
+  say "PPA key $PPA_KEY_FPR installed as $PPA_KEYRING — apt authentication stays ON."
+}
+
 mount_kernel_fs() {
   for fs in proc sys dev; do asroot mkdir -p "$ROOTFS/$fs"; done
   asroot mount -t proc proc "$ROOTFS/proc"; MOUNTS+=("$ROOTFS/proc")
@@ -231,6 +296,7 @@ provision() {
   mount_kernel_fs
   if [ ! -f "$STAMP" ]; then
     say "provisioning OE host tools (once) ..."
+    install_ppa_key            # review #2: pin the PPA key BEFORE anything reads that repo
     # 14.04/trusty is still served from the live archive.ubuntu.com + security.ubuntu.com
     # (verified 200) — the ubuntu-base sources.list is correct as-is; no old-releases rewrite.
     asroot chroot "$ROOTFS" /bin/bash -euc '
@@ -238,9 +304,13 @@ provision() {
       # UXP/Goanna requires a HOST compiler of GCC >= 9.1 to build its host tools, but the
       # dylan OE native recipes need the stock gcc 4.8 — so install BOTH: gcc-9/g++-9 from the
       # ubuntu-toolchain-r PPA (which does carry trusty builds) ALONGSIDE the default 4.8. The
-      # goanna recipe points only its HOST_CC/HOST_CXX at gcc-9; OE natives keep 4.8. [trusted=yes]
-      # avoids a flaky keyserver round-trip on this EOL release.
-      echo "deb [trusted=yes] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu trusty main" \
+      # goanna recipe points only its HOST_CC/HOST_CXX at gcc-9; OE natives keep 4.8.
+      # review #2: the repo is AUTHENTICATED — install_ppa_key() (host-side) pinned the PPA
+      # signing key by full fingerprint into /etc/apt/trusted.gpg.d/. Fail closed if it is not
+      # there rather than silently installing unverified packages as root.
+      [ -s /etc/apt/trusted.gpg.d/ubuntu-toolchain-r.gpg ] || {
+        echo "!! ubuntu-toolchain-r keyring missing — refusing an unauthenticated PPA" >&2; exit 1; }
+      echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu trusty main" \
         > /etc/apt/sources.list.d/ubuntu-toolchain-r.list
       apt-get update
       apt-get install -y --no-install-recommends \
@@ -273,6 +343,16 @@ provision() {
     "
     asroot touch "$STAMP"
     say "provisioned."
+  fi
+  # review #2: an ALREADY-provisioned rootfs from an older oe-env.sh still carries the
+  # `[trusted=yes]` PPA line (apt authentication off). Repair it in place rather than leaving the
+  # hole until someone runs `clean`. Idempotent, and skipped once the line is clean.
+  local ppalist="$ROOTFS/etc/apt/sources.list.d/ubuntu-toolchain-r.list"
+  if [ -f "$ppalist" ] && grep -q 'trusted=yes' "$ppalist" 2>/dev/null; then
+    say "repairing a legacy [trusted=yes] ubuntu-toolchain-r entry (review #2) ..."
+    install_ppa_key
+    echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu trusty main" \
+      | asroot tee "$ppalist" >/dev/null
   fi
 }
 

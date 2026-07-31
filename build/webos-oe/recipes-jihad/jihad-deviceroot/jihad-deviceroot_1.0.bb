@@ -25,6 +25,15 @@ DEPENDS = "goanna jihad-browserserver browser-adapter-jihad"
 INHIBIT_DEFAULT_DEPS = "1"
 do_configure[noexec] = "1"
 
+# review #8: do_compile runs the repo's bundler script and copies the repo's upstart job — both
+# read from ${JIHAD_REPO}, outside SRC_URI, so declare them (plus the toolchain, whose sysroot
+# supplies the bundled glibc-2.23 + NSS modules, and the Jessie sysroot the closure walk searches).
+# The staged engine dist / daemon / adapter parts arrive through the DEPENDS task-hash chain.
+# Mechanics + the JIHAD_*_SIG identity sets: ../jihad-common.inc.
+do_compile[file-checksums] = "${JIHAD_REPO}/build/webos-oe/make-device-bundle.sh \
+    ${JIHAD_REPO}/packaging/event.d/jihad \
+    ${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
+
 do_compile() {
     DROOT=${B}/deviceroot
     rm -rf ${DROOT}; install -d ${DROOT}/hl ${DROOT}/BrowserPlugins ${DROOT}/event.d

@@ -21,6 +21,13 @@ JIHAD_ENYO   = "${JIHAD_REPO}/third_party/mochi-sampler/enyo"
 JIHAD_LAYOUT = "${JIHAD_REPO}/third_party/enyo-layout"
 JIHAD_MOCHI  = "${JIHAD_REPO}/third_party/mochi"
 
+# review #8: those three framework trees are shipped payload read straight from ${JIHAD_REPO}
+# (submodules, not SRC_URI), so add them to do_install's signature on top of the LICENSE/NOTICE
+# set jihad-app.inc declares. Passed as bare directories (bitbake 1.18 os.walk's them; ~13 MB /
+# 1590 files, md5-cached by mtime) — NOT as globs, which must never match a directory. See
+# ../jihad-common.inc.
+do_install[file-checksums] += "${JIHAD_ENYO} ${JIHAD_LAYOUT} ${JIHAD_MOCHI}"
+
 do_install_append() {
     A=${D}${webos_applicationsdir}/${WEBOS_APP_ID}
     install -d ${A}/enyo ${A}/lib/layout ${A}/lib/mochi

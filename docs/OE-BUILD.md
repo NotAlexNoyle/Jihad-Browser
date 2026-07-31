@@ -16,8 +16,9 @@ therefore needs an old GNU/Linux userland regardless of what you run on.
 `oe-env.sh` supplies exactly that userland — **one clean, self-contained solution that spans
 Linux** — without a container runtime:
 
-- Downloads Ubuntu's official **`ubuntu-base-14.04`** rootfs tarball once (just `curl`+`tar`;
-  no `debootstrap`, no distro packages) and enters it with plain POSIX **`chroot`**.
+- Downloads Ubuntu's official **`ubuntu-base-14.04`** rootfs tarball once (just `curl`+`tar`+`gpg`
+  — `gpg` pins the GCC PPA's signing key, see below; no `debootstrap`, no distro packages) and
+  enters it with plain POSIX **`chroot`**.
 - `chroot` exists on **every** Linux and **every** init system — runit / OpenRC / s6 /
   systemd, **no systemd dependency**. The rootfs carries its own glibc, so it runs identically
   on a glibc host or a **musl** host (Alpine, musl-Void). Native speed (no `proot`/ptrace).
@@ -72,6 +73,56 @@ Inside the chroot:
 
 Host-side, all generated state is git-ignored: `oe-rootfs/`, `oe-cache/`, `oe-downloads/`,
 `oe-sstate/`.
+
+## apt authentication in the chroot (the GCC 9 PPA)
+
+UXP's *host* tools need GCC ≥ 9.1 while the dylan OE natives need trusty's stock 4.8, so the
+rootfs installs `gcc-9`/`g++-9` from the **ubuntu-toolchain-r/test** PPA alongside 4.8. That repo
+is **authenticated** — apt verification is never disabled (review #2):
+
+- The PPA signing key is pinned by **full fingerprint**
+  `60C317803A41BA51845E371A1E9377A2BA9EF27F` ("Launchpad Toolchain builds").
+- `oe-env.sh` installs it host-side into its own keyring, `/etc/apt/trusted.gpg.d/ubuntu-toolchain-r.gpg`
+  inside the rootfs. (trusty ships apt 1.0.1, which predates the `[signed-by=…]` sources.list
+  option added in apt 1.1, so a dedicated `trusted.gpg.d` keyring is the tightest scoping this
+  apt supports.)
+- Key source: the **pre-seeded** copy at `build/webos-oe/keys/ubuntu-toolchain-r.asc` if present
+  (works offline), otherwise fetched over HTTPS from `keyserver.ubuntu.com`.
+- It **fails closed**: a fingerprint mismatch, unreadable key material, or a missing keyring
+  aborts provisioning — it never falls back to `[trusted=yes]`. A rootfs provisioned by an older
+  `oe-env.sh` (which did use `[trusted=yes]`) is repaired in place on the next `provision`.
+
+To re-seed the in-repo key (e.g. after a key rotation), or to seed it on a machine that will
+build offline:
+
+```bash
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
+gpg --armor --export 60C317803A41BA51845E371A1E9377A2BA9EF27F \
+  > build/webos-oe/keys/ubuntu-toolchain-r.asc
+```
+
+`PPA_KEY_SEED=<path>` and `PPA_KEYSERVER=<url>` override the seed path and the keyserver.
+
+## Task signatures and `${JIHAD_REPO}` inputs
+
+The Jihad recipes read several build-control files and prebuilt trees **straight from the bound
+repo** (`${JIHAD_REPO}`) instead of through `SRC_URI` — the goanna patch queue and ARM mozconfig,
+the deviceroot bundler + upstart job, the PDK adapter build script and its sources, the
+crosstool-NG toolchain, the Jessie sysroot, the Palm PDK, `adapter-deps/`, the Mochi frameworks,
+and the LICENSE/NOTICE payload. The fetcher never sees those, so nothing would invalidate sstate
+when they change (review #8).
+
+Each task that reads such an input now declares it in its **own signature** with bitbake's
+per-task `file-checksums` varflag (supported in the pinned bitbake 1.18.0: `lib/bb/cache.py:135`
+collects the flag, `lib/bb/siggen.py:189-193` folds every listed file's md5 into the task hash).
+The two large prebuilt trees are represented by small identity sets rather than whole-tree walks —
+`JIHAD_TC_SIG` (gcc drivers + crosstool-NG build log) and `JIHAD_SYS_SIG` (the sysroot's
+pkg-config manifest, i.e. exactly what `PKG_CONFIG_LIBDIR` points at). See
+`build/webos-oe/recipes-jihad/jihad-common.inc` for the full rationale and the glob rules the
+1.18 implementation imposes.
+
+Because the declarations change every affected task hash, the **first build after this change
+rebuilds** those recipes once instead of restoring from sstate.
 
 ## How the Jihad layer is wired
 

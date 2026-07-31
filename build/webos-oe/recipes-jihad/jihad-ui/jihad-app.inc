@@ -39,6 +39,13 @@ do_install() {
     fi
 }
 
+# review #8: the app payload itself comes from SRC_URI (covered by oe-core's
+# do_fetch[file-checksums]) and the runtime bundle through the DEPENDS chain, but the
+# license/attribution files are read straight from ${JIHAD_REPO} — declare them so editing
+# LICENSE/NOTICE/licenses/ actually reissues the .ipk instead of hitting stale sstate.
+# (licenses/*.txt is a glob: it matches files only, never the directory — see ../jihad-common.inc.)
+do_install[file-checksums] = "${JIHAD_REPO}/LICENSE ${JIHAD_REPO}/NOTICE ${JIHAD_REPO}/licenses/*.txt"
+
 FILES_${PN} = "${webos_applicationsdir}"
 # The app carries the ARM engine/daemon/adapter — an "all"-arch webOS package legitimately holds
 # ARM binaries; skip the arch/QA checks that would reject them.

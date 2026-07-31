@@ -40,6 +40,21 @@ DEPENDS = "jihad-cross-toolchain-native"
 JIHAD_PATCHES = "${JIHAD_REPO}/build/desktop/patches"
 JIHAD_MOZCONFIG_TMPL = "${JIHAD_REPO}/build/webos-oe/mozconfig.goanna-arm"
 
+# review #8: because those files are NOT in SRC_URI, nothing would invalidate sstate when they
+# change — declare them in the signature of each task that reads them (mechanics + the
+# JIHAD_*_SIG identity sets are documented in ../jihad-common.inc). The UXP tree itself IS a
+# SRC_URI (git, SRCREV-pinned) so it is already covered by do_fetch.
+#   apply_jihad_patches  the patch queue (glob: adding/removing/editing a patch moves the hash).
+#   configure            the mozconfig template + the toolchain + the Jessie sysroot it retargets.
+#   compile              the toolchain + sysroot used in place by mach.
+#   install              the toolchain (its `strip` shrinks the staged libxul).
+# NOTE: apply_jihad_patches re-runs on the EXISTING ${S} when the queue changes; `patch --forward`
+# skips already-applied hunks, so the re-run is safe (a full re-unpack still needs cleansstate).
+do_apply_jihad_patches[file-checksums] = "${JIHAD_PATCHES}/*.patch"
+do_configure[file-checksums] = "${JIHAD_MOZCONFIG_TMPL} ${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
+do_compile[file-checksums] = "${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
+do_install[file-checksums] = "${JIHAD_TC_SIG}"
+
 # The cross env for mach (mirrors build-goanna-arm.sh). Exported to every task shell. The
 # toolchain + Jessie sysroot are used in place from the repo; GTK/X/nspr/nss come from the
 # sysroot via pkg-config, NOT from OE. CC/CXX are exported so in-tree gyp probes (e.g. NSS

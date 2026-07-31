@@ -27,6 +27,13 @@ do_patch[noexec]     = "1"
 do_configure[noexec] = "1"
 do_compile[noexec]   = "1"
 
+# review #8: the toolchain is used in place from ${JIHAD_REPO} and never passes through SRC_URI,
+# so nothing would invalidate this recipe (or, via the DEPENDS chain, goanna/jihad-browserserver)
+# when it is re-assembled. Declare the toolchain identity set in do_install's signature — the one
+# task that actually reads it. ${JIHAD_TC_SIG} is a small stand-in for the 219 MB tree; see
+# ../jihad-common.inc for what it contains and why the whole tree is not walked.
+do_install[file-checksums] = "${JIHAD_TC_SIG}"
+
 do_install() {
     if [ ! -x "${JIHAD_TC}/bin/arm-webos-linux-gnueabi-gcc" ]; then
         bbfatal "crosstool-NG toolchain not found at ${JIHAD_TC}. Assemble it first (crosstool-NG build under build/webos-oe/toolchain/); it is git-ignored and not vendored."

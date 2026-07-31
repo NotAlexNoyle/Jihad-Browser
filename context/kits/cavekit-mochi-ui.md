@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-31"
 ---
 
 # Cavekit: Mochi UI Variant
@@ -28,11 +28,11 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R2: Feature parity with the Enyo UI
 **Description:** The Mochi UI offers the same user-facing browser features as the Enyo-1.0 UI.
 **Acceptance Criteria:**
-- [ ] Address/search bar with navigation (back, forward, reload, stop) works.
-- [ ] Bookmarks, history, and downloads views are present and functional.
-- [ ] Find-in-page, preferences, and the start page are present.
+- [~] Address/search bar with navigation (back, forward, reload, stop) works. *(2026-07-31 reconciliation: `../../app-mochi/PARITY.md` "R2 acceptance summary" records this as **met (shell)** — the toolbar Input + `goBack/goForward/reloadPage/stopLoad` route through the frozen `callBrowserAdapter` set (T-051/T-052, commit 2a79d71). Stays `[~]`: PARITY.md states on-device FUNCTIONAL verification (live adapter round-trips) is **DEVICE-GATED and pending hardware**; only the structural side — `node --check`, the frozen method set, and the `build-mochi-ipk.sh` end-to-end build — is verified.)*
+- [~] Bookmarks, history, and downloads views are present and functional. *(2026-07-31 reconciliation: PARITY.md "R2 acceptance summary" records **met**, with downloads auto-initiation listed as an intentional omission and list/open/cancel/clear functional against the download manager. Views built by commits 9a8997c/9418599 (`JihadBookmarkList.js`, `JihadHistoryList.js`, `JihadDownloadList.js` + the Enyo-2 Luna-service helper) and wired into the shell by a244eed. Stays `[~]` on the same device gate — live db8/download-manager round-trips are unverified on hardware.)*
+- [~] Find-in-page, preferences, and the start page are present. *(2026-07-31 reconciliation: PARITY.md "R2 acceptance summary" records **met** — `JihadFindBar.js` + `JihadPreferences.js` (commit dbeafc6) and the app-chrome start page (09c050c, device-screenshot-confirmed 2026-07-19 per `../impl/device-test-2026-07-19.md` Session 2). Stays `[~]`: PARITY.md documents that Preferences persists toggles to db8 but does **not** apply them to the live engine (intentional contract omission — applying would widen the frozen `callBrowserAdapter` set), and find/prefs are not device-functional-verified.)*
 - [~] Alert/confirm/prompt/auth and SSL-confirm dialogs are presented and answerable. *(2026-07-20: implemented in `JihadDialogs.js` + the overflow menu / generic dialog in `JihadBrowser.js`, but NOT as `mochi.Popup` — a floating/modal `mochi.Popup` CRASHES the Mochi card on this engine (pressing Share crashed the app). Converted to plain Control overlays (a scrim + centered box toggled by `showing`, `jihad-btn` divs instead of `mochi.Button`) — the same pattern the parity list-views use. The share crash is gone and the card opens cleanly (verified on-device 2026-07-20). Dialog PRESENTATION/answering still needs on-device verification with a page that raises alert/confirm.)*
-- [ ] A parity checklist against `../app` source shows no missing user-facing feature (or documents intentional omissions). [human-review]
+- [~] A parity checklist against `../app` source shows no missing user-facing feature (or documents intentional omissions). [human-review] *(2026-07-31 reconciliation: the checklist EXISTS and is complete — `../../app-mochi/PARITY.md` (commit 0d2fb82) maps every user-facing Enyo-1.0 feature to Ported / Simplified / Omitted with a rationale per omission (bookmark-edit dialog, thumbnails, download auto-initiation + retry, context menu, share sheet, add-to-launcher, print, cert detail viewer, search-engine selector, live-engine pref application). Stays `[~]` because the `[human-review]` sign-off on that checklist is not recorded anywhere.)*
 **Dependencies:** cavekit-navigation-events.md, cavekit-browser-services.md
 
 ### R3: Drives the unchanged BrowserAdapter contract
@@ -69,3 +69,4 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ## Changelog
 - 2026-06-30: Initial draft (added per request: second UI variant + .ipk).
 - 2026-07-04: Status check — app-mochi/ is a skeleton (appinfo.json + index.html + source/ + icons, ~9 files); no requirement met yet. R1–R5 pending: the Mochi/Enyo-2 UI has not been built to parity. Largest remaining kit.
+- 2026-07-31: Reconciliation against recorded evidence. R2's first three ACs moved `[ ]`→`[~]`: `app-mochi/PARITY.md` ("R2 acceptance summary", commit 0d2fb82) records them as structurally met — views built (a244eed, 9a8997c, 9418599, dbeafc6), contract-clean against the frozen `callBrowserAdapter` set, ipk builds — while the same document states on-device functional verification is DEVICE-GATED and pending hardware; NOT marked `[x]`. The parity-checklist AC also moved to `[~]` (the checklist exists and documents every omission; the `[human-review]` sign-off is unrecorded). R1/R3/R5 were already `[x]` on cited evidence (R1 dual-install VERIFIED ON DEVICE 2026-07-19); no status was raised without a citation.

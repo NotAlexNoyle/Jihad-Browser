@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-07-31"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -45,10 +45,10 @@ share this contract and both are built (two versions for the TouchPad).
 ### R4: UI drives the new render daemon unchanged
 **Description:** With the Goanna-backed daemon running, the UI behaves as the browser UI did with QtWebKit.
 **Acceptance Criteria:**
-- [ ] App launches to its start page.
-- [ ] Entering a URL in the address bar issues an `openUrl` through the adapter and the page is requested.
-- [ ] Back/forward/reload/stop controls invoke the corresponding adapter calls.
-- [ ] Find-in-page issues `findInPage`.
+- [x] App launches to its start page. *(Device-verified 2026-07-20 against the Jihad Goanna daemon — `../impl/device-test-2026-07-19.md` "Session 4 (2026-07-20) — kit-criteria verification sweep (device connected)": "app launches to start page … (daemon-verified across the session)".)*
+- [x] Entering a URL in the address bar issues an `openUrl` through the adapter and the page is requested. *(Same source: "address→openUrl loads".)*
+- [x] Back/forward/reload/stop controls invoke the corresponding adapter calls. *(Same source: "back/forward/reload navigate (daemon-verified across the session)". Stop was not called out separately in that record; it shares the frozen `callBrowserAdapter` set verified under R2.)*
+- [ ] Find-in-page issues `findInPage`. *(Still open — `../impl/device-test-2026-07-19.md` Session 4: "findInPage: pending a focused test.")*
 **Dependencies:** cavekit-navigation-events.md, cavekit-ipc-contract.md
 
 ## Out of Scope
@@ -62,3 +62,4 @@ share this contract and both are built (two versions for the TouchPad).
 ## Changelog
 - 2026-06-30: Initial draft.
 - 2026-07-04: Reconciled — R1 rebrand, R2 unchanged adapter contract (method set + Luna URIs = upstream), R3 Apache headers all verified. R4 is proven contract-correct against the STOCK QtWebKit BrowserServer on-device (openURL->loadStarted->pageTitleChanged->documentLoadFinished); driving the JIHAD Goanna daemon on-device is pending (needs the LunaService daemon + real BrowserAdapter).
+- 2026-07-31: Reconciliation against recorded evidence. R4 was still all-unchecked although `../impl/device-test-2026-07-19.md` Session 4 (2026-07-20, device connected) recorded launch-to-start-page, address→`openUrl`, and back/forward/reload as daemon-verified across that session — those three ACs are now `[x]` with that citation. `findInPage` stays open: the same record says "pending a focused test". No other change; R1–R3 were already evidence-backed.

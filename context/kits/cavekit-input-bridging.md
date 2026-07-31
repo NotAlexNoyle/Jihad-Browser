@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-15"
+last_edited: "2026-07-31"
 ---
 
 # Cavekit: Input Bridging
@@ -55,7 +55,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 **Description:** Touch and gesture commands map to DOM touch/zoom behavior.
 **Acceptance Criteria:**
 - [ ] `touchEvent` (with the touches payload) produces DOM touch events with matching touch points.
-- [ ] A pinch gesture changes page zoom; a tap maps to a click.
+- [ ] A pinch gesture changes page zoom; a tap maps to a click. *(2026-07-31 reconciliation — partial credit, box stays OPEN: the ZOOM half of the chain is device-verified as of 2026-07-27 (`../impl/zoom-fix-2026-07-27.md`, commit 8d7865c — a zoom command magnifies + pans on device, verified through the daemon inject channel + frame.ppm), and tap→click is verified (R1). What is NOT verified is the gesture path itself: that doc records "the end-to-end on-screen feel (adapter driving pinch → daemon magnify → adapter composite at inv==1) is a human/gesture check (no gesture injection into LunaSysMgr)". So a real two-finger pinch has never been recorded as changing zoom on device.)*
 - [ ] Multi-touch point count and coordinates are preserved.
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
@@ -69,7 +69,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 ### R5: Coordinate mapping under zoom/scroll
 **Description:** Content coordinates resolve to the correct page location regardless of transform.
 **Acceptance Criteria:**
-- [x] With the page zoomed and scrolled, a click at a given content coordinate hits the element actually shown at that location. *(REPORTED 2026-07-15: a tap on example.com's sole link hit-tested to `<HTML>` (missed). ROOT (2026-07-27): the adapter-vs-daemon zoom DID disagree — the daemon rendered a near-1 fit-zoom at 1× but advertised `contentZoom=mZoom` (~1.005), so the adapter's composite scale and its screen→content click divisor were off by ~(mZoom−1), a few-px vertical offset that made small targets miss. FIXED alongside the zoom rework: the daemon now reports the EFFECTIVE render scale, and the new document-relative zoom keeps the render, display, and click coords consistent. Verified on-device — a tap on example.com's "Learn more" link hit-tests the anchor and navigates. See context/impl/zoom-fix-2026-07-27.md.)*
+- [x] With the page zoomed and scrolled, a click at a given content coordinate hits the element actually shown at that location. *(REPORTED 2026-07-15: a tap on example.com's sole link hit-tested to `<HTML>` (missed). ROOT (2026-07-27): the adapter-vs-daemon zoom DID disagree — the daemon rendered a near-1 fit-zoom at 1× but advertised `contentZoom=mZoom` (~1.005), so the adapter's composite scale and its screen→content click divisor were off by ~(mZoom−1), a few-px vertical offset that made small targets miss. FIXED alongside the zoom rework: the daemon now reports the EFFECTIVE render scale, and the new document-relative zoom keeps the render, display, and click coords consistent. Verified on-device — a tap on example.com's "Learn more" link hit-tests the anchor and navigates. See context/impl/zoom-fix-2026-07-27.md; the on-device link-tap confirmation itself is recorded in commit **d4f0842** ("Verified on-device: a tap on example.com's 'Learn more' link now hit-tests the anchor and navigates (contentZoom=1.0000)"), not in that impl doc.)*
 - [x] Mapping is consistent between input and the geometry the renderer reports.
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
@@ -87,3 +87,5 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - 2026-07-17: R2a hardened (Codex gpt-5.6-sol F-264..F-292): Enter submission is constraint-validation-gated (invalid form keeps focus + VKB, F-290); the keystroke target is cleared when a focus handler moves focus to a non-text control and only follows focus to another text control (F-270/F-292); the pending `input` event flushes before a queued tap so a typed edit is observed before a submit/link click (F-291); the deferred `input` event targets the actually-edited element (F-266/F-267).
 - 2026-07-18: R2 VKB is now ENGINE-DRIVEN (Atlas IM-context port, device T4): capture-phase focus/blur on the top document merges into the VKB state each pump tick — script-driven focus moves/blurs raise/lower the keyboard without a tap, blur gives the app clean false transitions to unwedge on, and a load-time autofocus cannot grab the VKB before the first tap (Atlas gate). Typing retargets to the engine's focused field. Tap path unchanged (always-re-raise). Pending on-device retest.
 - 2026-07-20: R1 native-control activation. Synthesized clicks in this embedding fire `onclick` but not the click DEFAULT ACTION, so tapped checkboxes/radios never changed. Now hand-flipped + a `change` event dispatched (VERIFIED on-device, daemon `b4d1a01`). Also fixed a daemon SIGSEGV when tapping XUL `about:` pages (`SendMouseEvent` on XUL crashes → now skipped via namespace check). XUL button activation (synthetic `command`) also crashes → left inert, deferred. See [[jihad-input-activation-and-tiling]] and context/impl/impl-overview.md.
+- 2026-07-27: R5 coordinate-mapping RESOLVED (commit c342009 = the kit edit; fix in d4f0842). The 2026-07-15 REPORTED link-hit-test miss was the daemon advertising `contentZoom=mZoom` (~1.005) while rendering a near-1 fit-zoom at 1×, desyncing the adapter's composite scale from its screen→content click divisor; the daemon now reports the EFFECTIVE render scale. Verified on-device (d4f0842). The 2026-07-15 entry above still calls R5 open — historical, superseded here.
+- 2026-07-31: Reconciliation against recorded evidence (no box changed state). R5's note now names commit d4f0842 as the source of the on-device link-tap confirmation (`../impl/zoom-fix-2026-07-27.md` documents the zoom rework but does not itself record that tap). R3's pinch AC gained a note separating what IS device-verified (the daemon-side zoom magnify/pan, 2026-07-27) from what is not (a real two-finger gesture — no gesture injection into LunaSysMgr, human check per `../impl/zoom-fix-2026-07-27.md`); it stays open. Frontmatter `last_edited` was stale at 2026-07-15 despite the 07-20 and 07-27 edits.

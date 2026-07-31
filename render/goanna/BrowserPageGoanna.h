@@ -67,11 +67,24 @@ public:
     (void)focused; (void)fieldType; (void)fieldActions;
   }
   // A navigation resolved to a non-displayable resource (download / MIME handoff).
-  // Drives BrowserServerBase::msgMimeHandoffUrl (YAP 0x2014) -> adapter
+  // Drives BrowserServerBase::msgMimeHandoffUrl (YAP 0x2015) -> adapter
   // mimeHandoffUrl -> BasicWebView.doFileLoad -> app handleResource, which routes
   // it to com.palm.downloadmanager. (mimeType may be empty if unknown.)
   virtual void msgMimeHandoffUrl(const char* mimeType, const char* url) {
     (void)mimeType; (void)url;
+  }
+  // Lifecycle of a download the ENGINE performs to a temp file (YAP 0x2010..0x2013).
+  // Exactly one start, then >=0 progress, terminated by one finished OR one error.
+  virtual void msgDownloadStart(const char* url) { (void)url; }
+  virtual void msgDownloadProgress(const char* url, int32_t soFar, int32_t total) {
+    (void)url; (void)soFar; (void)total;
+  }
+  virtual void msgDownloadFinished(const char* url, const char* mimeType,
+                                   const char* tmpFilePath) {
+    (void)url; (void)mimeType; (void)tmpFilePath;
+  }
+  virtual void msgDownloadError(const char* url, const char* errorMsg) {
+    (void)url; (void)errorMsg;
   }
 };
 
@@ -89,6 +102,15 @@ public:
   // Emit a download/MIME handoff for this page (from the process-wide download
   // interceptor, routed to the active page). See IPageMessageSink::msgMimeHandoffUrl.
   void emitMimeHandoff(const char* mimeType, const char* url) { mSink.msgMimeHandoffUrl(mimeType, url); }
+  // Same routing for the engine-performed download lifecycle (YAP msgDownload*).
+  void emitDownloadStart(const char* url) { mSink.msgDownloadStart(url); }
+  void emitDownloadProgress(const char* url, int32_t soFar, int32_t total) {
+    mSink.msgDownloadProgress(url, soFar, total);
+  }
+  void emitDownloadFinished(const char* url, const char* mime, const char* path) {
+    mSink.msgDownloadFinished(url, mime, path);
+  }
+  void emitDownloadError(const char* url, const char* msg) { mSink.msgDownloadError(url, msg); }
   void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
   void freeze();                           // YAP: freeze (card backgrounded — pause paint)
   void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)

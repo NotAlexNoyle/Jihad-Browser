@@ -173,9 +173,16 @@ public:
   NS_IMETHOD GetFile(const char* aProp, bool* aPersistent, nsIFile** aResult) override
   {
     *aPersistent = true;
+    // The four profile keys nsXULAppAPI.h documents for embedders that pick the
+    // profile BEFORE XRE_InitEmbedding. "ProfDS"/"ProfLDS" are the *startup*
+    // aliases nsXREDirProvider falls back to for consumers that run before a
+    // profile is "selected" — the startup cache is one (StartupCache::Init asks
+    // for ProfLDS), so omitting them left it homeless.
     if (mProfile &&
-        (!strcmp(aProp, "ProfD") ||    // NS_APP_USER_PROFILE_50_DIR
-         !strcmp(aProp, "ProfLD"))) {  // NS_APP_USER_PROFILE_LOCAL_50_DIR
+        (!strcmp(aProp, "ProfD") ||     // NS_APP_USER_PROFILE_50_DIR
+         !strcmp(aProp, "ProfLD") ||    // NS_APP_USER_PROFILE_LOCAL_50_DIR
+         !strcmp(aProp, "ProfDS") ||    // NS_APP_PROFILE_DIR_STARTUP
+         !strcmp(aProp, "ProfLDS"))) {  // NS_APP_PROFILE_LOCAL_DIR_STARTUP
       nsCOMPtr<nsIFile> f;
       if (NS_SUCCEEDED(mProfile->Clone(getter_AddRefs(f))) && f) {
         f.forget(aResult);
@@ -258,6 +265,24 @@ EngineHost::Init(const char* greDir)
   if (mInited) {
     InstallDialogService();
     InstallDownloadService();
+    // ── announce the profile ────────────────────────────────────────────────
+    // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:
+    // nsXREDirProvider::GetFile short-circuits EVERY profile key with
+    //   if (!mProfileNotified) return NS_ERROR_FAILURE;
+    // BEFORE it ever consults the embedder's provider, and mProfileNotified is
+    // only set by XRE_NotifyProfile()/DoStartup(). So without this call
+    // NS_GetSpecialDirectory("ProfD") fails process-wide, and every consumer
+    // that keys off it silently degrades to memory-only — nsCookieService takes
+    // its "couldn't get cookie file" branch in InitDBStates(), which is exactly
+    // why cookies.sqlite was never created and cookies died with the daemon
+    // (browser-services R2). nsXULAppAPI.h documents this call as mandatory for
+    // scenario 1 (profile chosen before XRE_InitEmbedding): "XRE_NotifyProfile
+    // should be called immediately after XRE_InitEmbedding".
+    // It also fires profile-do-change / profile-after-change, the notifications
+    // profile-scoped services wait on. Called BEFORE the pref block below
+    // because DoStartup() runs Preferences::ResetAndReadUserPrefs(), which would
+    // otherwise discard the runtime prefs we set here.
+    if (sJihadDirProvider) XRE_NotifyProfile();
     // Mobile-browser defaults. <meta name=viewport> is off by default on desktop
     // Goanna; a webOS phone browser must honor it (drives msgMetaViewportSet).
     nsCOMPtr<nsIPrefBranch> pb =

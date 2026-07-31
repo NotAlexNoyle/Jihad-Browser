@@ -28,6 +28,10 @@ void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRe
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
 void ProxySink::msgLinkClicked(const char* url) { mSrv->msgLinkClicked(mProxy, url); }
 void ProxySink::msgMimeHandoffUrl(const char* mimeType, const char* url) { mSrv->msgMimeHandoffUrl(mProxy, mimeType, url); }
+void ProxySink::msgDownloadStart(const char* url) { mSrv->msgDownloadStart(mProxy, url); }
+void ProxySink::msgDownloadProgress(const char* url, int32_t soFar, int32_t total) { mSrv->msgDownloadProgress(mProxy, url, soFar, total); }
+void ProxySink::msgDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) { mSrv->msgDownloadFinished(mProxy, url, mimeType, tmpFilePath); }
+void ProxySink::msgDownloadError(const char* url, const char* errorMsg) { mSrv->msgDownloadError(mProxy, url, errorMsg); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)
@@ -53,6 +57,35 @@ void JihadBrowserServer::OnDownload(const char* url, const char* mimeType,
     p->emitMimeHandoff(mimeType ? mimeType : "", url ? url : "");
   else
     printf("[jihad-bs] download: no active page to hand off to\n");
+}
+
+// The frozen msgDownloadProgress carries int32 byte counts; the engine counts in
+// int64. Saturate rather than wrap so a >2 GB transfer still reports monotonic
+// progress (and keep -1 = "unknown total" intact).
+static int32_t clampToI32(int64_t v) {
+  if (v < 0) return -1;
+  return v > 0x7fffffffLL ? 0x7fffffff : (int32_t)v;
+}
+
+// Lifecycle of the download the ENGINE performs (DownloadService drives the
+// helper-app save). Like OnDownload these have no page handle, so they follow
+// the same rule: route to the ACTIVE card.
+void JihadBrowserServer::OnDownloadStart(const char* url) {
+  if (auto* p = pageFor(mLastProxy)) p->emitDownloadStart(url ? url : "");
+}
+void JihadBrowserServer::OnDownloadProgress(const char* url, int64_t bytesSoFar, int64_t totalBytes) {
+  if (auto* p = pageFor(mLastProxy))
+    p->emitDownloadProgress(url ? url : "", clampToI32(bytesSoFar), clampToI32(totalBytes));
+}
+void JihadBrowserServer::OnDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) {
+  printf("[jihad-bs] download finished mime=%s path=%s\n",
+         mimeType ? mimeType : "", tmpFilePath ? tmpFilePath : "");
+  if (auto* p = pageFor(mLastProxy))
+    p->emitDownloadFinished(url ? url : "", mimeType ? mimeType : "", tmpFilePath ? tmpFilePath : "");
+}
+void JihadBrowserServer::OnDownloadError(const char* url, const char* errorMsg) {
+  printf("[jihad-bs] download error %s: %s\n", url ? url : "", errorMsg ? errorMsg : "");
+  if (auto* p = pageFor(mLastProxy)) p->emitDownloadError(url ? url : "", errorMsg ? errorMsg : "");
 }
 
 jihad::BrowserPageGoanna* JihadBrowserServer::pageFor(YapProxy* proxy) {
@@ -238,9 +271,16 @@ void JihadBrowserServer::asyncCmdExit(YapProxy* proxy)
   (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
 }
 
+// YAP cancelDownload(url): abort the matching in-flight engine download. The
+// download is process-wide (the engine's helper-app service owns it, not a
+// page), so this is not routed per-proxy. An empty url cancels all of them,
+// matching the adapter's "stop whatever is downloading" intent.
 void JihadBrowserServer::asyncCmdCancelDownload(YapProxy* proxy, const char* url)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  (void)proxy;
+  bool aborted = jihad::CancelDownload(url);
+  printf("[jihad-bs] cancelDownload %s -> %s\n", url ? url : "(all)",
+         aborted ? "aborted" : "no match");
 }
 
 void JihadBrowserServer::asyncCmdInterrogateClicks(YapProxy* proxy, bool enable)

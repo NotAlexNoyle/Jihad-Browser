@@ -41,6 +41,10 @@ public:
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
   void msgLinkClicked(const char* url) override;
   void msgMimeHandoffUrl(const char* mimeType, const char* url) override;
+  void msgDownloadStart(const char* url) override;
+  void msgDownloadProgress(const char* url, int32_t soFar, int32_t total) override;
+  void msgDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) override;
+  void msgDownloadError(const char* url, const char* errorMsg) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;
@@ -56,6 +60,12 @@ public:
   // that page's client so the app hands it to com.palm.downloadmanager.
   void OnDownload(const char* url, const char* mimeType,
                   const char* suggestedName, int64_t contentLength) override;
+  // ... and the lifecycle of the download the engine itself performs, which maps
+  // 1:1 onto the frozen msgDownloadStart/Progress/Finished/Error contract.
+  void OnDownloadStart(const char* url) override;
+  void OnDownloadProgress(const char* url, int64_t bytesSoFar, int64_t totalBytes) override;
+  void OnDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) override;
+  void OnDownloadError(const char* url, const char* errorMsg) override;
 
   virtual void clientConnected(YapProxy* proxy);
   virtual void clientDisconnected(YapProxy* proxy);

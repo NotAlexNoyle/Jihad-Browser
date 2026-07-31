@@ -20,7 +20,7 @@ internals; the YAP interface and shared-buffer plumbing are unchanged.
 | Selection/clipboard | `nsISelectionController`, `nsIClipboard`, `nsICommandManager` (`cmd_copy/cut/paste/selectAll`) | copy/cut/paste/selectAll, caret bounds via selection range rects. |
 | Cookies / cache | `nsICookieManager2`, `nsICacheStorageService` | `clearCookies`, `clearCache`, `setAcceptCookies`. |
 | User agent | `nsIHttpProtocolHandler` userAgent override / pref `general.useragent.override` | `setUserAgent`. |
-| Downloads | `nsIWebBrowserPersist` / `nsIExternalHelperAppService` / `nsIHelperAppLauncherDialog` | download start/progress/error/finished, MIME not-supported handoff. |
+| Downloads | `nsIHelperAppLauncherDialog` override (capture the handoff + drive `saveToDisk`) **and** an `@mozilla.org/transfer;1` (`nsITransfer`) implementation | `render/goanna/DownloadService.cpp`. The dialog override → `msgMimeHandoffUrl`; the transfer's `init`/`onProgressChange64`/`onStateChange(STATE_STOP)` → `msgDownloadStart/Progress/Finished/Error`; the `nsICancelable` handed to `init` is what `cancelDownload` aborts. Registering the transfer contract is mandatory: without it `nsExternalAppHandler::CreateTransfer` fails and cancels every download. |
 | TLS/cert prompts | `nsICertOverrideService`, `nsIBadCertListener2` | `msgDialogSSLConfirm` (bridge to webOS CertificateMgr as the QtWebKit path did). |
 | JS dialogs | `nsIPromptService` / `nsIPrompt` override | `msgDialogAlert/Confirm/Prompt/UserPassword`. |
 | Network interface / DNS | proxy + `nsIDNSService` / interface binding via socket transport | `setNetworkInterface`, `setDNSServers` (may need engine patch for bind-to-iface). |
@@ -44,6 +44,7 @@ internals; the YAP interface and shared-buffer plumbing are unchanged.
 | `clearCache/clearCookies` | cache storage clear / cookie manager `removeAll`. |
 | `setEnableJavaScript/setBlockPopups/setAcceptCookies/setMinFontSize/setUserAgent` | set corresponding `nsIPrefBranch` prefs / per-docshell `nsIDocShell.allowJavascript`. |
 | hit-test family | `nsIDOMWindowUtils.elementFromPoint` + element geometry → matching `msg…Response`. |
+| `cancelDownload(url)` | `jihad::CancelDownload` → `nsICancelable.cancel(NS_BINDING_ABORTED)` on the matching in-flight transfer (process-wide, not per page). |
 
 ## Paint loop (the hard part)
 

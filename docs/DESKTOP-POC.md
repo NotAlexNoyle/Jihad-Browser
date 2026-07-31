@@ -88,6 +88,8 @@ asserts real behavior under Xvfb (all PASS):
 | `build-download-test.sh` | download / MIME handoff (DOWNLOAD PASS) |
 | `build-resize-test.sh` / `build-scroll-test.sh` / `build-zoom-test.sh` | surface geometry |
 | `build-geo-test.sh` | contents-size / meta-viewport / scrolled-to events (GEO PASS) |
+| `build-download2-test.sh` | daemon-side download lifecycle over YAP: `msgDownloadStart`/`Progress`/`Finished` (temp path + MIME) and `cancelDownload` aborting an in-progress download (DOWNLOAD-LIFECYCLE PASS) |
+| `build-cookie-test.sh` | persistent cookie survives an engine restart + `cookies.sqlite` exists in the profile (COOKIE-PERSISTENCE PASS) |
 
 ## R4 — isis Enyo UI against the desktop daemon `[human-review]`
 

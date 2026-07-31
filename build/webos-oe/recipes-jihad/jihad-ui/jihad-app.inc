@@ -52,18 +52,23 @@ APP=/media/cryptofs/apps/usr/palm/applications/${WEBOS_APP_ID}
 DR=$APP/deviceroot
 # preflight: the bundle payload must be present before we touch the system.
 [ -x "$DR/hl/jihad-browserserver" ] && [ -f "$DR/hl/ld-2.23.so" ] \
-  && [ -f "$DR/BrowserPlugins/BrowserAdapterJihad.so" ] && [ -f "$DR/event.d/jihad" ] || {
-    echo "jihad-postinst: bundle payload missing under $DR — aborting" >&2; exit 1; }
+  && [ -f "$DR/BrowserPlugins/BrowserAdapterJihad.so" ] && [ -f "$DR/event.d/jihad" ] \
+  && [ -f "$APP/BrowserAdapterImpl.so" ] || {
+    echo "jihad-postinst: bundle payload missing under $APP — aborting" >&2; exit 1; }
 # 1. daemon + its bundled libs (incl. glibc-2.23) -> /media/internal/jihad/hl (fatal on failure).
 mkdir -p /media/internal/jihad/hl
 cp -a "$DR/hl/." /media/internal/jihad/hl/
 chmod 755 /media/internal/jihad/hl/jihad-browserserver /media/internal/jihad/hl/ld-2.23.so
-# 2. adapter shim + upstart job live on the read-only rootfs — one rw window (restore ro on exit).
+# 2. adapter shim + upstart job + the SHARED impl live on the read-only rootfs — one rw window
+#    (restore ro on exit). The impl at /usr/lib/jihad is root-owned (rootfs) so the shim's trust
+#    check passes, and it is variant-agnostic — every UI package deploys the SAME impl there (#5).
 trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
 mount -o remount,rw /
-mkdir -p /usr/lib/BrowserPlugins
+mkdir -p /usr/lib/BrowserPlugins /usr/lib/jihad
 cp -a "$DR/BrowserPlugins/BrowserAdapterJihad.so" /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
 chmod 755 /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
+cp -a "$APP/BrowserAdapterImpl.so" /usr/lib/jihad/BrowserAdapterImpl.so
+chmod 644 /usr/lib/jihad/BrowserAdapterImpl.so
 cp -a "$DR/event.d/jihad" /etc/event.d/jihad
 chmod 755 /etc/event.d/jihad
 sync
@@ -71,7 +76,8 @@ mount -o remount,ro / 2>/dev/null || true
 trap - EXIT
 # verify the critical files actually landed (BusyBox cp can fail with EBADF across mounts).
 [ -x /media/internal/jihad/hl/jihad-browserserver ] \
-  && [ -f /usr/lib/BrowserPlugins/BrowserAdapterJihad.so ] && [ -f /etc/event.d/jihad ] || {
+  && [ -f /usr/lib/BrowserPlugins/BrowserAdapterJihad.so ] && [ -f /usr/lib/jihad/BrowserAdapterImpl.so ] \
+  && [ -f /etc/event.d/jihad ] || {
     echo "jihad-postinst: deploy verification failed" >&2; exit 1; }
 # 3. optional runtime kicks — non-fatal (a fresh boot picks them up anyway).
 set +e
@@ -102,6 +108,8 @@ killall jihad-browserserver 2>/dev/null || true
 rm -f /tmp/yapserver.jihad-browser*
 mount -o remount,rw / 2>/dev/null || true
 rm -f /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
+rm -f /usr/lib/jihad/BrowserAdapterImpl.so
+rmdir /usr/lib/jihad 2>/dev/null || true
 rm -f /etc/event.d/jihad
 sync
 mount -o remount,ro / 2>/dev/null || true

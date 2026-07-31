@@ -46,6 +46,13 @@
 //     or a /media/internal drop, and skip the root-owner check (that partition is vfat: no real perms).
 // This replaces the earlier runtime /media/internal/jihad/DEV marker, which was itself in the
 // world-writable location it was meant to distrust.
+// SHARED system path — root-owned rootfs (deployed by each UI package's postinst in a rootfs-rw
+// window, like the shim itself), so it passes the root-owned/not-writable trust check AND is
+// variant-agnostic: the Enyo, Mochi, and Mojo packages all load THIS one impl. Not under
+// /usr/lib/BrowserPlugins (LunaSysMgr scans that for NPAPI plugins at boot).
+static const char* kImplSystem =
+    "/usr/lib/jihad/BrowserAdapterImpl.so";
+// Legacy: the Enyo app-bundle path (kept as a fallback for the app-bundled impl).
 static const char* kImplTrusted =
     "/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/BrowserAdapterImpl.so";
 #ifdef JIHAD_DEV_ADAPTER
@@ -79,6 +86,9 @@ static const char* implSourcePath()
     if (env && *env && access(env, R_OK) == 0) return env;
     if (access(kImplDevPath, R_OK) == 0) return kImplDevPath;
 #endif
+    // Shared system path first — root-owned rootfs, works for EVERY UI variant (Enyo/Mochi/Mojo).
+    if (access(kImplSystem, R_OK) == 0) return kImplSystem;
+    // Legacy fallback: the Enyo app-bundle path.
     if (access(kImplTrusted, R_OK) == 0) return kImplTrusted;
     return 0;
 }

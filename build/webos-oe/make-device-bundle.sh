@@ -129,6 +129,18 @@ for so in "$OUT"/*.so "$OUT"/*.so.* "$OUT/jihad-browserserver" "$OUT/libxul.so";
   [ -f "$so" ] && "$STRIP" "$so" 2>/dev/null || true
 done
 
+# review #9: required-file manifest — a bundle missing anything essential is a hard failure, not a
+# silent success. Covers the daemon, libxul, the bundled glibc loader/core, the NSS TLS modules
+# (dlopen'd, not NEEDED), and the GRE resources the engine loads from greDir.
+# (omni.ja is NOT required — this xulrunner embedding build ships loose resources + goanna.js,
+# not a packed omni.ja; the direct build treats it as optional too.)
+REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
+          libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
+          libmozsqlite3.so goanna.js)
+_missing=""
+for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
+[ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }
+
 echo "=== bundle assembled: $OUT ==="
 echo "files: $(ls "$OUT" | wc -l), size: $(du -sh "$OUT" | cut -f1)"
 echo "libxul: $(du -h "$OUT/libxul.so" | cut -f1)"

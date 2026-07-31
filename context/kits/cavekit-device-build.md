@@ -20,14 +20,20 @@ done**. Honest status:
   `jihad-cross-toolchain-native`, `jihad-deviceroot` (assembles daemon + libxul `.so` closure +
   bundled glibc-2.23 + NSS + GRE). The four component recipes are stage-only; the shipping
   deliverable is **two self-contained app `.ipk`s** (Enyo 39 MB, Mochi 38 MB) + a **Mojo skeleton**.
-- **KNOWN GAPS (review):** the **Mochi `.ipk` is structurally broken** — it omits the bundled
-  Enyo2/layout/Mochi frameworks its `index.html` loads (finding #1), and the adapter shim's impl
-  path is **hard-coded to the Enyo appid** (finding #5), so Mochi cannot init the plugin from its
-  own bundle. **Coexistence is unsafe** — both `.ipk`s install the SAME `/media/internal/jihad/hl`
-  + system shim + upstart, and either `prerm` deletes all three, so removing one breaks the other
-  (finding #4). None is device-verified. The Enyo `.ipk` is the structurally-complete one.
-- **Remaining for R3:** stage the Mochi frameworks, fix the shim per-variant impl path, make
-  coexistence install/removal safe, ship the LICENSE/NOTICE payload, then on-device verify.
+- **Review fixes applied + build-verified (2026-07-29):** Mochi `.ipk` now stages its
+  Enyo2/layout/Mochi frameworks (#1); the shim loads a SHARED root-owned rootfs impl
+  `/usr/lib/jihad/BrowserAdapterImpl.so` so Mochi/Mojo load their own impl (#5); `prerm` refcounts
+  siblings so removing one variant no longer breaks the other (#4); each `.ipk` ships LICENSE/NOTICE
+  (#12); `postinst` fails loud (#6); `oe-env.sh` HTTPS+SHA256 rootfs, `validate_rootfs`, fail-closed
+  unmount, pin check, root-uid guard (#2/#3/#10/#11); the bundle assembler aborts on a missing
+  required file (#9). Both `.ipk`s (Enyo 40 MB, Mochi 42 MB) are now structurally complete +
+  coexistence-safe + license-compliant.
+- **STILL OPEN for R3:** (a) **clean-clone reproducibility** — the build consumes prebuilt,
+  git-ignored inputs (crosstool-NG toolchain, Jessie sysroot, Palm PDK, adapter-deps), and several
+  `${JIHAD_REPO}` inputs bypass bitbake task hashes (#7/#8) — a larger refactor (build the toolchain
+  from source / declare all inputs); the PDK is proprietary so full "from source" is bounded. (b)
+  **on-device verification** of the `.ipk` install + render + coexistence (device-gated). See
+  `../impl/impl-review-findings-oe.md`.
 
 ## Scope
 Phase-2 work to run Jihad Browser on the HP TouchPad (webOS 3.0.x, ARMv7):
@@ -65,7 +71,7 @@ scripts/recipes and `packaging/` are the reproducible source.)
 - [x] The Enyo UI `.ipk` (`net.riverstonerelay.jihad-browser`, from `app/`) builds (`palm-package app/`) and installs; its WebView is routed to the Jihad engine by `app/source/JihadEngineOverride.js`.
 - [x] The build also produces the Mochi variant `.ipk` (`net.riverstonerelay.jihad-browser.mochi`, from `app-mochi/`); both install and can coexist. *(Produced 2026-07-19 (`build-mochi-ipk.sh`, 1.4 MB). INSTALL + COEXIST VERIFIED ON DEVICE 2026-07-19: `palm-install -l` lists both app ids at 1.0.0.)*
 - [~] A single OE/bitbake build PRODUCES the two `.ipk`s. *(2026-07-29: `oe-env.sh run ". oe-init-build-env && bitbake net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser.mochi"` → the two self-contained `.ipk`s (component recipes stage-only). BUT it consumes prebuilt, git-ignored inputs — crosstool-NG toolchain, Jessie sysroot, Palm PDK, adapter-deps (`jihad-cross-toolchain-native` only CHECKS the toolchain, does not build it) — so it is NOT clean-clone reproducible and NOT "whole stack from source" (review #7). Undeclared `${JIHAD_REPO}` inputs also bypass bitbake task hashes → stale-sstate risk (#8). The direct-cross-build scripts remain a faster path.)*
-- [~] Each variant `.ipk` is SELF-CONTAINED and installs as one coexisting package. *(2026-07-29: `jihad-app.inc` bundles the `jihad-deviceroot` runtime + the UI app + impl + a `postinst`/`prerm`. ENYO `.ipk` is structurally complete (its Enyo 1.0 loads from the OS framework path). **MOCHI `.ipk` is BROKEN** — omits the bundled Enyo2/layout/Mochi frameworks its `index.html` loads (#1), and the shim's impl path is hard-coded to the Enyo appid (#5). **Coexistence unsafe:** both install the same `/media/internal/jihad/hl` + system shim + upstart; either `prerm` deletes all three → removing one breaks the other (#4). `postinst` masks failures + reports success (#6). None device-verified.)*
+- [~] Each variant `.ipk` is SELF-CONTAINED and installs as one coexisting package. *(2026-07-29: `jihad-app.inc` bundles the `jihad-deviceroot` runtime + the UI app + impl + a `postinst`/`prerm`. **Review fixes applied + build-verified:** Mochi now stages its Enyo2/layout/Mochi frameworks (#1); the shim loads a shared root-owned impl `/usr/lib/jihad/BrowserAdapterImpl.so` so every variant loads its own impl (#5); `prerm` refcounts siblings — removing one no longer breaks the other (#4); `postinst` fails loud (#6). Both `.ipk`s (Enyo 40 MB, Mochi 42 MB) are structurally complete + coexistence-safe. STILL `[~]` because (a) not clean-clone reproducible — prebuilt toolchain/sysroot/PDK + undeclared bitbake inputs (#7/#8), (b) not device-verified.)*
 - [~] A third UI variant is scaffolded for a future Mojo port. *(2026-07-29: `app-mojo/` scaffold + `net.riverstonerelay.jihad-browser.mojo` recipe build an `.ipk`; but like Mochi the shim can't find a Mojo-appid impl (#5) and the UI is a documented stub — so "engine works" is aspirational, not demonstrated.)*
 - [~] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0. *(Mochi half DONE (T-049). Enyo half: INTENTIONAL DEVIATION — `app/index.html` loads Enyo 1.0 from the OS framework path `/usr/palm/frameworks/enyo/0.10`, exactly like upstream isis-browser; bundling would duplicate the system framework and risk skew.)*
 **Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1), jihad-self-contained-arch.md

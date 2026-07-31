@@ -51,6 +51,11 @@ enyo.kind({
 		//* {title, url, canGoBack, canGoForward} — any field may be absent.
 		onPageInfoChanged: "",
 		onServerConnected: "",
+		//* BrowserServer went away (daemon restart/crash).
+		onServerDisconnected: "",
+		//* {identifier} — the engine created a page for a link with a target /
+		//* window.open; the shell binds it to a new card.
+		onNewPage: "",
 		//* {focused, fieldType, fieldActions}
 		onEditorFocusChanged: "",
 		//* Engine-driven JS dialogs (adapter callbacks). The shell presents them
@@ -139,6 +144,16 @@ enyo.kind({
 		this._flushQueue();
 		this.doServerConnected();
 	},
+	// (adapter callback) BrowserServer went away — the daemon exited or crashed
+	// (BrowserAdapter notifies once per disconnect). BasicWebView.
+	// browserServerDisconnected does the same: drop the connected flag so later
+	// calls QUEUE and connect() is retried, instead of being fired at a dead
+	// socket and silently lost until the card is relaunched.
+	browserServerDisconnected: function() {
+		this._serverConnected = false;
+		this.doServerDisconnected();
+		this.connect();
+	},
 	//* First-view setup, matching BasicWebView.initView (the pieces the shell
 	//* needs). These are frozen-contract adapter methods, invoked node-directly
 	//* via _call so they never enter the app-facing callBrowserAdapter set.
@@ -192,7 +207,9 @@ enyo.kind({
 		if (this.adapterReady() && this._serverConnected) {
 			this._flushQueue();
 			this._invoke(method, args);
-		} else if (method !== "disconnectBrowserServer") {
+		} else if (method !== "disconnectBrowserServer" && this._callQueue) {
+			// (`_callQueue` is null after destroy — a late adapter callback that
+			// tries to queue must not throw on the torn-down view.)
 			this._callQueue.push({name: method, args: args});
 			if (this.adapterReady() && !this._serverConnected) {
 				this.connect();
@@ -266,6 +283,13 @@ enyo.kind({
 			canGoBack: canGoBack,
 			canGoForward: canGoForward
 		});
+	},
+	// (adapter callback) the engine created a page for a link with a target /
+	// window.open (adapter msgCreatePage -> "createPage", one string arg: the new
+	// page identifier). BasicWebView.createPage -> doNewPage; the shell opens a
+	// card bound to that identifier, so target=_blank links are not dropped.
+	createPage: function(identifier) {
+		this.doNewPage({identifier: identifier});
 	},
 	// (adapter callback) input field focused/blurred: focus the plugin node and
 	// raise/lower the VKB via PalmSystem, then notify the shell (BasicWebView).

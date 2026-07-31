@@ -46,6 +46,13 @@ enyo.kind({
 			{name: "empty", classes: "jihad-empty", content: "No bookmarks yet.", showing: false}
 		]}
 	],
+	create: function() {
+		this.inherited(arguments);
+		// `published` defaults live on the PROTOTYPE, so the literal [] above is one
+		// array shared by every instance — and deleteTapped splices `items` in
+		// place. Give each instance its own copy.
+		this.items = this.items ? this.items.slice() : [];
+	},
 	//* Load from db8 and present.
 	open: function() {
 		this.load();

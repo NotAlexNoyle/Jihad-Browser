@@ -14,6 +14,14 @@ routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 literal set. Persistence uses the same Jihad-owned db8 kinds the Enyo 1.0 app
 uses: `net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1`.
 
+> **Persistence caveat (audit F-A01).** Those kinds are registered — and their db8
+> permissions granted — by `../app/db/`, whose `owner`/`caller` is
+> `net.riverstonerelay.jihad-browser`. This package's app id is
+> `net.riverstonerelay.jihad-browser.mochi`, a *different* db8 caller, and it ships
+> no `db/` of its own. Every "Ported" row below that reads or writes db8 is
+> therefore blocked until the grant covers both app ids. See the
+> "Audit 2026-07-31" section of `../context/impl/impl-mochi.md`.
+
 Status legend: **Ported** = feature-equivalent · **Simplified** = present with a
 documented reduction · **Omitted** = intentionally not built (rationale given).
 
@@ -24,8 +32,9 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Address / search bar | `AddressInput.js`, `URLSearch.js` | `JihadBrowser.js` toolbar (`address` Input, `normalizeUrl`) | Ported (shell) |
 | Back / Forward / Reload / Stop | `Browser.js`, `ActionBar.js` | `JihadBrowser.js` `goBack/goForward/reloadPage/stopLoad` → `callBrowserAdapter` | Ported (shell) |
 | Load progress | `Browser.js` `loadProgress` | `JihadBrowser.js` `mochi.ProgressBar` | Ported (shell) |
-| Start page | `StartPage.js` | `JihadBrowser.js` app-chrome overlay | Ported (shell) |
-| New card | `Browser.openNewCard` | `JihadBrowser.doNewCard` (`enyo.windows.openWindow`) | Ported |
+| Start page | `StartPage.js` | `JihadBrowser.js` app-chrome overlay; address bar stays empty for it (`addressTextFor`), never recorded in history (`isTransientUrl`) | Ported (shell) |
+| New card | `Browser.openNewCard` | `JihadBrowser.openCard` (`window.open` + webOS `attributes=`) | Ported [device-gated] — Enyo 2 has no `enyo.windows`; see audit F-A03 |
+| Engine-created page (link `target` / `window.open`) | `BasicWebView.createPage` → `Browser.openNewCardWithIdentifier` | `JihadWebView.createPage` → `onNewPage` → `JihadBrowser.newPageRequested` → `openCard({webviewId})` | Ported [device-gated] — see audit F-A05 |
 | Reflect title/URL + history state | `Browser.pageTitleChanged` | `JihadBrowser.pageInfoChanged` | Ported (shell) |
 
 ## Bookmarks
@@ -48,7 +57,7 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Record a visit on load-stop | `BrowserApp.updateHistory` | `JihadBrowser.updateHistory` (delByQuery url → put; same kind/shape) | Ported |
 | Open a history entry | `HistoryList.itemClick` | `onSelectItem` → `navigateTo` | Ported |
 | Delete a history entry | `HistoryList` swipe | row **Delete** → `dbDel` | Ported |
-| Clear all history | `BrowserApp.clearHistory` | header **Clear** / Preferences **Clear History** → `JihadBrowser.clearHistory` | Ported |
+| Clear all history | `BrowserApp.clearHistory` | header **Clear** / Preferences **Clear History** → `JihadBrowser.clearHistory` (db8 delByQuery) | Simplified — clears the db8 kind only. Enyo 1.0 additionally clears the ENGINE's own history (`Browser.clearHistory` → `viewCall("clearHistory")`), so back/forward and global history survive a Mochi clear. Adding it would widen the frozen `callBrowserAdapter` literal set (audit F-A14a). |
 | Relative-date dividers ("Last Week", month names) | `HistoryList.getDivider` (`enyo.g11n`) | inline `M/D/YY` date label | Simplified — `enyo.g11n` is not in the Enyo 2 stack; a compact date replaces the grouped dividers. |
 
 ## Downloads
@@ -85,6 +94,19 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 
 ## Engine-driven dialogs
 
+> **Answer path is app-side-correct but not yet live end-to-end (audit F-A12).**
+> The argument shapes below are exactly what the adapter's `js_sendDialogResponse`
+> accepts, and Mochi is *more* correct than Enyo 1.0 here: `Browser.sendDialogResponse`
+> calls `viewCall("acceptDialog"/"cancelDialog")`, and neither name exists in
+> `BasicWebView` or in the adapter's exposed method table, so the Enyo 1.0
+> alert/confirm/prompt/auth answers are dead upstream (only its SSL path uses the
+> real `sendDialogResponse`). What is NOT live is the daemon side: no production
+> `DialogSink` is installed (`render/goanna/DialogService.cpp` dispatches only to
+> a sink the desktop test installs), so `msgDialogAlert/Confirm/Prompt/UserPassword`
+> are never emitted; and `JihadBrowserServer`'s SSL sink passes an EMPTY
+> `syncPipePath`, which makes `js_sendDialogResponse` bail with "Invalid state".
+> Both are daemon-side (not app-mochi) work.
+
 | Feature | Enyo 1.0 source | Mochi equivalent | Status |
 | --- | --- | --- | --- |
 | Alert | `Browser.showAlertDialog` (`onAlertDialog`) | `JihadWebView.dialogAlert` → `JihadDialogs.showAlert` → `sendDialogResponse(["1"])` | Ported |
@@ -93,7 +115,7 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | HTTP auth (user/password) | `Browser.showUserPasswordDialog` | `dialogUserPassword` → `showLogin` → `["1", user, pass]`/`["0"]` | Ported |
 | SSL confirm (trust always/once/deny) | `Browser.showSSLConfirmDialog` | `dialogSSLConfirm` → `showSSL` → `["1"]`/`["2"]`/`["0"]` | Ported |
 | SSL "View Certificate" detail | `CertificateDetail.js`, `Browser.viewSSLCertificate` | — | Omitted — the security-critical trust decision is fully answerable; the X.509 detail viewer is deferred. |
-| Page/engine error dialogs | `Browser.browserError` | `JihadBrowser.openDialog` (generic info popup) available | Simplified — a generic info dialog exists; per-error-code mapping requires the WebView `onError` callback (navigation-events scope). |
+| Page/engine error dialogs | `Browser.browserError` | — | Omitted — `JihadBrowser.openDialog` (a generic info popup) exists but NOTHING routes engine errors to it: `JihadWebView` handles none of the adapter's `failedLoad` / `setMainDocumentError` / `reportError` callbacks, so a failed load is silent. Surfacing them is navigation-events scope (audit F-A14c). |
 
 ## Context menu, sharing, launcher, print (intentional omissions)
 

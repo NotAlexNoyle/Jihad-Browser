@@ -77,6 +77,8 @@ enyo.kind({
 			onLoadProgress:    "loadProgress",
 			onLoadStopped:     "loadStopped",
 			onPageInfoChanged: "pageInfoChanged",
+			// Engine-created page (link with target / window.open) -> its own card.
+			onNewPage:         "newPageRequested",
 			// Engine-driven JS dialogs (T-053): presented by JihadDialogs.
 			onDialogAlert:        "showAlertDialog",
 			onDialogConfirm:      "showConfirmDialog",
@@ -139,6 +141,16 @@ enyo.kind({
 		this.downloads = [];
 		//* Latest page title (from the engine), used when saving a bookmark/history.
 		this._title = "";
+		//* Chrome state initialised here (not lazily in the callbacks) so an engine
+		//* callback that arrives out of order can't read an undefined guard: a
+		//* loadProgress before loadStarted used to compare against `undefined` and
+		//* silently freeze the bar at 0.
+		this._lastProgress = 0;
+		this._loading = false;
+		this._lastSubmit = null;
+		//* Exact URL of an inline start-page document the SHELL itself loaded (see
+		//* isStartPageUrl below). Null while the start page is app chrome.
+		this._startPageDocUrl = null;
 		// webOS relaunch (a second launch of the running app, e.g. an external
 		// link tap) redelivers launch params. Register best-effort listeners for
 		// the platform relaunch events; harmless where they never fire.
@@ -158,8 +170,10 @@ enyo.kind({
 	},
 	//* Read the initial launch parameters. Enyo 2 does NOT populate the Enyo-1
 	//* `enyo.windowParams`; the webOS way is to parse PalmSystem.launchParams
-	//* (a JSON string). Fall back to enyo.windowParams only if some bootplate
-	//* set it.
+	//* (a JSON string). A card this app opened itself (openCard below) carries its
+	//* params in the query string instead — the same form Enyo 1.0's enyo.windows
+	//* uses for cross-domain windows and BrowserApp.processQueryString reads — so
+	//* merge those in for any key PalmSystem did not supply.
 	readLaunchParams: function() {
 		var p = null;
 		if (window.PalmSystem && window.PalmSystem.launchParams) {
@@ -172,7 +186,51 @@ enyo.kind({
 		if (!p && window.enyo && enyo.windowParams) {
 			p = enyo.windowParams;
 		}
-		return p || {};
+		p = p || {};
+		var q = this.processQueryString();
+		for (var k in q) {
+			if (p[k] === undefined) {
+				p[k] = q[k];
+			}
+		}
+		return p;
+	},
+	//* Launch params carried in the URL (BrowserApp.processQueryString parity).
+	//* Understands the flat `url`/`target`/`webviewId`/`query` form and the
+	//* `enyoWindowParams=<json>` envelope openCard writes.
+	processQueryString: function() {
+		var out = {};
+		var q = (window.location && window.location.search) ? window.location.search.slice(1) : "";
+		if (!q) {
+			return out;
+		}
+		var args = q.split("&");
+		for (var i = 0, a, nv; (a = args[i]); i++) {
+			nv = a.split("=");
+			if (nv[0]) {
+				out[nv[0]] = decodeURIComponent((nv[1] || "").replace(/\+/g, " "));
+			}
+		}
+		if (out.enyoWindowParams) {
+			var inner = null;
+			try {
+				inner = enyo.json.parse(out.enyoWindowParams);
+			} catch (e) {
+				inner = null;
+			}
+			delete out.enyoWindowParams;
+			if (inner) {
+				for (var k in inner) {
+					if (out[k] === undefined) {
+						out[k] = inner[k];
+					}
+				}
+			}
+		}
+		if (out.query && out.url === undefined) {
+			out.url = this.searchUrl(out.query);
+		}
+		return out;
 	},
 	//* Apply launch params, matching app/source/BrowserApp.js: `target` (external
 	//* link / new-card launches) takes precedence over `url`; `webviewId` binds
@@ -195,9 +253,51 @@ enyo.kind({
 	},
 	urlChanged: function() {
 		if (this.url) {
+			this.rememberStartPageDoc(this.url);
 			this.$.view.setUrl(this.url);
-			this.$.address.setValue(this.url);
+			this.$.address.setValue(this.addressTextFor(this.url));
 		}
+	},
+
+	// --- start-page URL identity (address cosmetics + history hygiene) -------
+	// The start page is APP CHROME (the `startPage` overlay above), so while it
+	// stands in the shell has no location and the address bar stays EMPTY —
+	// exactly what the Enyo 1.0 app does (BrowserApp.startPageShown ->
+	// startPage.setUrl("")). Earlier Mochi builds instead loaded the start page
+	// INTO the WebView as an inline data: document; the engine then reported that
+	// raw data: URL back as the location, so it landed in the address bar (device
+	// report 2026-07-19) and in the db8 history kind. `startPageUrl` is the name
+	// the engine itself uses for that page (BrowserPageGoanna aliases the internal
+	// data: document to "about:jihad"), and `_startPageDocUrl` records the EXACT
+	// URL string whenever the SHELL points the view at an inline document.
+	//
+	// The match is by identity, never by a "starts with data:" guess: a page may
+	// legitimately navigate to a data: URL, and aliasing that to "about:jihad"
+	// would let a page spoof the address bar.
+	//* Canonical name of the start page (the engine's own internal about: page).
+	startPageUrl: "about:jihad",
+	//* Record `url` as the start-page document if the shell just loaded an inline
+	//* one; any other shell navigation clears the association.
+	rememberStartPageDoc: function(url) {
+		this._startPageDocUrl = (url && url.slice(0, 5) === "data:") ? url : null;
+	},
+	//* True when `url` is the inline start-page document rather than a location.
+	isStartPageUrl: function(url) {
+		return Boolean(url) && url === this._startPageDocUrl;
+	},
+	//* Address-bar text for an engine-reported URL.
+	addressTextFor: function(url) {
+		if (!url) {
+			return "";
+		}
+		return this.isStartPageUrl(url) ? this.startPageUrl : url;
+	},
+	//* True for URLs that must never be persisted as a history/bookmark entry:
+	//* nothing loaded, the start-page document, or any inline data: document (the
+	//* daemon skips global history for these too — an inline document can be
+	//* megabytes and is not a revisitable location).
+	isTransientUrl: function(url) {
+		return !url || this.isStartPageUrl(url) || url.slice(0, 5) === "data:";
 	},
 
 	// --- navigation: forwarded verbatim to the frozen adapter contract -------
@@ -248,6 +348,7 @@ enyo.kind({
 			return;
 		}
 		this.url = url;
+		this.rememberStartPageDoc(url);
 		this.$.view.setUrl(url);
 	},
 	//* Turn an address-bar entry into a URL, mirroring app/source/URLSearch.js
@@ -345,7 +446,8 @@ enyo.kind({
 		}
 		if (inEvent.url) {
 			this.url = inEvent.url;
-			this.$.address.setValue(inEvent.url);
+			// The start-page document has no location to show (see addressTextFor).
+			this.$.address.setValue(this.addressTextFor(inEvent.url));
 			this._lastSubmit = null;
 		}
 		if (typeof inEvent.title === "string" && inEvent.title) {
@@ -367,8 +469,31 @@ enyo.kind({
 		if (this._loading) { this.$.view.callBrowserAdapter("stopLoad"); }
 		else { this.$.view.callBrowserAdapter("reloadPage"); }
 	},
-	//* New card (Enyo-parity "new tab").
-	doNewCard: function() { if (window.enyo && enyo.windows) { enyo.windows.openWindow("index.html"); } },
+	//* New card (Enyo-parity "new tab"). Enyo 2 has NO `enyo.windows` — that is an
+	//* Enyo 1.0 / webOS-framework API, so the previous `enyo.windows.openWindow`
+	//* call was a silent no-op in this bundled Enyo-2 app. Open the card the way
+	//* enyo.windows' own agent does (windows/agent.js): window.open with the webOS
+	//* `attributes=` window descriptor. Params ride in the query string, which
+	//* readLaunchParams/processQueryString read back. [device-gated]
+	openCard: function(params) {
+		var url = "index.html";
+		if (params) {
+			url += "?enyoWindowParams=" + encodeURIComponent(enyo.json.stringify(params));
+		}
+		if (window.enyo && enyo.windows && enyo.windows.openWindow) {
+			return enyo.windows.openWindow("index.html", null, params || null);
+		}
+		if (window.open) {
+			return window.open(url, "", 'attributes={"window":"card"}');
+		}
+	},
+	doNewCard: function() { this.openCard(null); },
+	//* The engine created a page for us (target=_blank / window.open): bind it to a
+	//* new card by identifier, exactly as Browser.openNewCardWithIdentifier does.
+	newPageRequested: function(inSender, inEvent) {
+		var id = inEvent && inEvent.identifier;
+		if (id) { this.openCard({webviewId: id}); }
+	},
 	doShare: function() { this.openDialog("Share", "Copy the address from the bar to share this page."); },
 	//* Toolbar menu button opens the overflow menu.
 	doBookmarks: function() { this.openMenu(); },
@@ -408,11 +533,14 @@ enyo.kind({
 	findClosed: function() { /* bar hid itself. */ },
 
 	// --- engine-driven dialogs (present via JihadDialogs) -------------------
-	showAlertDialog:   function(inSender, inEvent) { this.$.dialogs.showAlert(inEvent.message); },
-	showConfirmDialog: function(inSender, inEvent) { this.$.dialogs.showConfirm(inEvent.message); },
-	showPromptDialog:  function(inSender, inEvent) { this.$.dialogs.showPrompt(inEvent.message, inEvent.defaultValue); },
-	showSSLDialog:     function(inSender, inEvent) { this.$.dialogs.showSSL(inEvent.host, inEvent.code, inEvent.certFile); },
-	showLoginDialog:   function(inSender, inEvent) { this.$.dialogs.showLogin(inEvent.message); },
+	// Each guards its payload: these are engine-driven callbacks, and a dialog
+	// raised with no message must still present (and stay answerable) rather than
+	// throw on a missing event object and leave the page blocked.
+	showAlertDialog:   function(inSender, inEvent) { this.$.dialogs.showAlert((inEvent && inEvent.message) || ""); },
+	showConfirmDialog: function(inSender, inEvent) { this.$.dialogs.showConfirm((inEvent && inEvent.message) || ""); },
+	showPromptDialog:  function(inSender, inEvent) { this.$.dialogs.showPrompt((inEvent && inEvent.message) || "", (inEvent && inEvent.defaultValue) || ""); },
+	showSSLDialog:     function(inSender, inEvent) { inEvent = inEvent || {}; this.$.dialogs.showSSL(inEvent.host, inEvent.code, inEvent.certFile); },
+	showLoginDialog:   function(inSender, inEvent) { this.$.dialogs.showLogin((inEvent && inEvent.message) || ""); },
 	//* The user answered a dialog -> hand the string args to the WebView, which
 	//* writes them back down the adapter's YAP response pipe.
 	answerDialog: function(inSender, inEvent) {
@@ -421,7 +549,8 @@ enyo.kind({
 
 	// --- bookmarks / history (Jihad db8 kinds) ------------------------------
 	addCurrentBookmark: function() {
-		if (!this.url) { return; }
+		// Never bookmark the start page / an inline document (isTransientUrl).
+		if (this.isTransientUrl(this.url)) { return; }
 		var date = (new Date()).getTime();
 		enyo.jihad.dbPut([{
 			_kind: enyo.jihad.kinds.bookmarks,
@@ -437,7 +566,8 @@ enyo.kind({
 	//* BrowserApp.updateHistory parity: replace any prior row for this URL with a
 	//* fresh one. Chained so the delete completes before the insert.
 	updateHistory: function(title, url) {
-		if (!url) { return; }
+		// The start page and any inline data: document are chrome, not visits.
+		if (this.isTransientUrl(url)) { return; }
 		var rec = {
 			_kind: enyo.jihad.kinds.history,
 			url: url,
@@ -475,7 +605,8 @@ enyo.kind({
 	},
 	openDownload: function(inSender, inEvent) {
 		var d = inEvent && inEvent.item;
-		if (d && d.completed && !d.aborted) {
+		// BrowserApp.openDownloadedFile parity: completed, not aborted, not interrupted.
+		if (d && d.completed && !d.aborted && !d.interrupted) {
 			enyo.jihad.launch({target: (d.destPath || "") + (d.destFile || "")});
 		}
 	},

@@ -68,8 +68,17 @@ enyo.kind({
 			]}
 		]}
 	],
-	//* Toggle keys managed by this view (map to the named ToggleButtons above).
-	toggleKeys: ["blockPopups", "acceptCookies", "enableJavascript"],
+	create: function() {
+		this.inherited(arguments);
+		// Persistence is SUPPRESSED until the stored prefs have been read back
+		// (load -> applyPrefs / seedDefaults clears this). mochi.ToggleButton fires
+		// onChange from valueChanged, and its rendered() calls valueChanged TWICE —
+		// so every toggle emits onChange with its default `false` the moment this
+		// (initially hidden) panel is rendered at app start. Without this gate that
+		// startup burst ran toggleChanged and merged value:false over the user's
+		// stored preferences on every single launch.
+		this._applying = true;
+	},
 	open: function() {
 		this.load();
 		this.show();

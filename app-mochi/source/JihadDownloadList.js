@@ -49,6 +49,12 @@ enyo.kind({
 			{name: "empty", classes: "jihad-empty", content: "No downloads.", showing: false}
 		]}
 	],
+	create: function() {
+		this.inherited(arguments);
+		// `published` defaults live on the PROTOTYPE — give each instance its own
+		// array rather than sharing the literal [] above.
+		this.downloads = this.downloads ? this.downloads.slice() : [];
+	},
 	open: function() {
 		this.show();
 	},

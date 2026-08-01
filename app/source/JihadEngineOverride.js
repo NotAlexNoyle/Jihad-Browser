@@ -42,9 +42,23 @@
 	// console.log line reached palm-log — LunaSysMgrJS surfaces enyo.log but evidently not bare
 	// console.log on this build. A probe whose output never arrives is indistinguishable from a
 	// probe that never ran, which cost one full rebuild+reinstall round trip to notice.
+	// Route through the SAME log() that demonstrably reaches palm-log, and chunk.
+	// Measured on-device 2026-08-01, after three rebuild+reinstall round trips: log() emits
+	// "[Jihad] WebView engine -> …" every launch, while plog() on the very next statement emitted
+	// NOTHING — via console.log first, then via its own enyo.log call. Same file, same closure,
+	// adjacent lines, verified byte-identical on device (md5) at version 1.0.1. The two differ
+	// only in message SHAPE: the working line is short, the probe's first line is a long
+	// concatenation. So this delegates to the known-good emitter and splits at 120 chars, and
+	// emits a short fixed canary FIRST so "never called" and "message dropped" stop being
+	// indistinguishable — which is exactly the ambiguity that cost those three round trips.
 	function plog(m) {
-		try { if (window.enyo && enyo.log) { enyo.log("[JihadProbe] " + m); return; } } catch (e) {}
-		try { console.log("[JihadProbe] " + m); } catch (e2) {}
+		try {
+			var s = "" + m;
+			while (s.length > 120) { log("P " + s.slice(0, 120)); s = s.slice(120); }
+			log("P " + s);
+		} catch (e) {
+			try { log("P plog-EXCEPTION"); } catch (e2) {}
+		}
 	}
 
 	function patch() {
@@ -61,7 +75,7 @@
 			};
 			proto._jihadPatched = true;
 			log("WebView engine -> application/x-jihad-browser");
-			if (JIHAD_PROBE) { probeInstall(proto); }
+			if (JIHAD_PROBE) { log("probe-canary: JIHAD_PROBE=" + JIHAD_PROBE); probeInstall(proto); }
 		}
 		return true;
 	}

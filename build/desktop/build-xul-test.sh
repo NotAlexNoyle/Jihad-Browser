@@ -62,4 +62,10 @@ if [ -n "${JIHAD_HEADLESS:-}" ]; then
 else
   LD_LIBRARY_PATH="$DIST/bin" xvfb-run -a -s "-screen 0 1024x768x24" "$OUT" "$DIST/bin"
 fi
-echo "== xul_test exit: $? =="
+# F-5: `echo "... $?"` USED TO BE THE LAST COMMAND, so the script's own exit status was echo's
+# (always 0) and even a SIGSEGV (139) was reported to the caller as success. Capture the status
+# FIRST, then exit with it — a runner that cannot fail makes every "harness passed" line
+# worthless, and this was the ninth such fail-open in this repo's verification code.
+rc=$?
+echo "== xul_test exit: $rc =="
+exit $rc

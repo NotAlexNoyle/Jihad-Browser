@@ -23,6 +23,30 @@
 (function () {
 	function log(m) { if (window.enyo && enyo.log) { enyo.log("[Jihad] " + m); } }
 
+	// ───────────────────────────────────────────────────────────────────────────────────
+	// TEMPORARY DIAGNOSTIC — delete this constant and the JihadProbe block at the bottom
+	// once the card→adapter thread is closed (2026-08-01 triage).
+	//
+	// It exists because "the <object> is in the DOM but no plugin was instantiated" has at
+	// least four causes that are INDISTINGUISHABLE from outside the card: the type attribute
+	// never reached the live node; the MIME is not in WebKit's plugin database; the database
+	// has it but content cannot see it; or the element got no renderer/instance. On-device
+	// evidence has already ruled out the adapter binary (the shim is mapped in WebAppMgr, and
+	// its NPP_New — which now logs to syslog unconditionally — is never entered), so the
+	// remaining question is entirely on this side of the boundary.
+	// Everything it prints is prefixed [JihadProbe] and goes to console.log → palm-log.
+	// ───────────────────────────────────────────────────────────────────────────────────
+	var JIHAD_PROBE = true;
+	// MUST go through enyo.log, not console.log. Measured on-device 2026-08-01: with the probe
+	// installed and running (the [Jihad] patch line from log() below appears in palm-log), NOT ONE
+	// console.log line reached palm-log — LunaSysMgrJS surfaces enyo.log but evidently not bare
+	// console.log on this build. A probe whose output never arrives is indistinguishable from a
+	// probe that never ran, which cost one full rebuild+reinstall round trip to notice.
+	function plog(m) {
+		try { if (window.enyo && enyo.log) { enyo.log("[JihadProbe] " + m); return; } } catch (e) {}
+		try { console.log("[JihadProbe] " + m); } catch (e2) {}
+	}
+
 	function patch() {
 		if (!(window.enyo && enyo.BasicWebView && enyo.BasicWebView.prototype)) { return false; }
 		var proto = enyo.BasicWebView.prototype;
@@ -33,16 +57,214 @@
 			proto.create = function () {
 				origCreate.apply(this, arguments);
 				this.domAttributes.type = "application/x-jihad-browser";
+				if (JIHAD_PROBE) { probeCreate(this); }
 			};
 			proto._jihadPatched = true;
 			log("WebView engine -> application/x-jihad-browser");
+			if (JIHAD_PROBE) { probeInstall(proto); }
 		}
 		return true;
+	}
+
+	// ---- probe: patch-time facts ------------------------------------------------------
+	// Answers "is the kind we patched the kind that actually gets instantiated?". The app
+	// declares {kind:"WebView"} (Browser.js), and enyo.WebView's chrome holds a DIRECT
+	// constructor reference (`kind: enyo.BasicWebView`) captured when the framework was
+	// parsed. Prototype patching survives that, but only if it is the same constructor —
+	// if a second copy of the kind exists, we would be patching a prototype nobody uses.
+	function probeInstall(proto) {
+		try {
+			var wv = window.enyo && enyo.WebView && enyo.WebView.prototype;
+			var chromeKind = (wv && wv.chrome && wv.chrome[0]) ? wv.chrome[0].kind : null;
+			plog("install: BasicWebView.prototype patched; enyo.WebView present=" + (!!wv) +
+				"; WebView.chrome[0].kind===enyo.BasicWebView -> " +
+				(chromeKind === enyo.BasicWebView) +
+				"; chromeKind typeof=" + (typeof chromeKind));
+			plog("install: proto.nodeTag=" + proto.nodeTag +
+				"; proto.domAttributes.type(before instance)=" + proto.domAttributes.type);
+		} catch (e) { plog("install: EXCEPTION " + e); }
+	}
+
+	// ---- probe: did OUR create() run, and was the node already generated? --------------
+	// `generated`/hasNode() being true here would mean Enyo had already serialized
+	// domAttributes into HTML and our assignment came too late to reach the live element.
+	// (Enyo 1 reads domAttributes inside generateHtml(), which runs at render time and sets
+	// `generated` — so this is the direct test of the "set after render" hypothesis.)
+	function probeCreate(c) {
+		try {
+			plog("create: id=" + c.id + " kindName=" + c.kindName +
+				" generated=" + c.generated + " hasNode=" + (!!c.hasNode()) +
+				" domAttributes.type=" + c.domAttributes.type +
+				" x-palm-cache-plugin=" + c.domAttributes["x-palm-cache-plugin"]);
+			// Report the live node repeatedly: WebKit can defer plugin start until the page
+			// is allowed to start media, so a null instance at `rendered` is not conclusive.
+			var report = function (tag) { probeNode(c, tag); };
+			var origRendered = c.rendered;
+			c.rendered = function () {
+				origRendered.apply(this, arguments);
+				report("rendered");
+				window.setTimeout(function () { report("+0.5s"); }, 500);
+				window.setTimeout(function () { report("+3s"); }, 3000);
+				window.setTimeout(function () { report("+8s"); probeRegistry("late"); }, 8000);
+			};
+		} catch (e) { plog("create: EXCEPTION " + e); }
+	}
+
+	// ---- probe: what the LIVE element actually is, and whether it has an NPObject -------
+	function probeNode(c, tag) {
+		try {
+			var n = c.hasNode();
+			if (!n) { plog(tag + ": NO NODE for id=" + c.id); return; }
+			plog(tag + " node: id=" + c.id + " tag=" + n.tagName +
+				" attr(type)=" + n.getAttribute("type") +
+				" prop(type)=" + n.type +
+				" cache-plugin=" + n.getAttribute("x-palm-cache-plugin"));
+			// Layout size AND effective visibility. SubframeLoader::loadPlugin bails at
+			// `if (!renderer || useFallback) return false;` — an element with no render object
+			// (any ancestor display:none, which is exactly how Enyo's showingChanged hides a
+			// control) never reaches createPlugin, and nothing later retries unless it is
+			// re-rendered. Inline style is not enough to see that: walk the ancestors and
+			// report the computed values.
+			var r = n.getBoundingClientRect ? n.getBoundingClientRect() : null;
+			var cs = window.getComputedStyle ? window.getComputedStyle(n, null) : null;
+			plog(tag + " node: inDoc=" + (document.body.contains ? document.body.contains(n) : "n/a") +
+				" offset=" + n.offsetWidth + "x" + n.offsetHeight +
+				" client=" + n.clientWidth + "x" + n.clientHeight +
+				" rect=" + (r ? (Math.round(r.width) + "x" + Math.round(r.height)) : "n/a") +
+				" computed(display/visibility)=" +
+				(cs ? (cs.display + "/" + cs.visibility) : "n/a"));
+			probeAncestors(n, tag);
+			// The single fact that decides everything: an instantiated BrowserAdapter exposes
+			// its scriptable methods on the element.
+			plog(tag + " npobject: openURL=" + (typeof n.openURL) +
+				" connectBrowserServer=" + (typeof n.connectBrowserServer) +
+				" setPageIdentifier=" + (typeof n.setPageIdentifier));
+		} catch (e) { plog(tag + ": EXCEPTION " + e); }
+	}
+
+	// ---- probe: is any ancestor hiding the element (⇒ no render object ⇒ no plugin)? ----
+	function probeAncestors(n, tag) {
+		try {
+			var hidden = [], depth = 0, p = n.parentNode;
+			while (p && p.nodeType === 1 && depth < 40) {
+				var s = window.getComputedStyle ? window.getComputedStyle(p, null) : null;
+				if (s && (s.display === "none" || s.visibility === "hidden")) {
+					hidden.push(p.tagName + "#" + (p.id || "-") + "." +
+						((p.className || "").toString().split(" ")[0] || "-") +
+						"[" + s.display + "/" + s.visibility + "]");
+				}
+				p = p.parentNode; depth++;
+			}
+			plog(tag + " ancestors: depth=" + depth + " hidden=" +
+				(hidden.length ? hidden.join(" <- ") : "NONE"));
+		} catch (e) { plog(tag + " ancestors: EXCEPTION " + e); }
+	}
+
+	// ---- probe: which bundle/app is actually running ------------------------------------
+	function probeEnv() {
+		try {
+			var ps = window.PalmSystem;
+			plog("env: href=" + document.location.href +
+				" readyState=" + document.readyState);
+			plog("env: PalmSystem=" + (!!ps) +
+				" identifier=" + (ps && ps.identifier ? ps.identifier : "n/a") +
+				" screen=" + screen.width + "x" + screen.height +
+				" inner=" + window.innerWidth + "x" + window.innerHeight);
+		} catch (e) { plog("env: EXCEPTION " + e); }
+	}
+
+	// ---- probe: WebKit's plugin database, as content can see it -------------------------
+	// navigator.plugins.length is NOT merely informational here: WebCore Page::pluginData()
+	// returns 0 unless SubframeLoader::allowPlugins() is true, and DOMPluginArray::length()
+	// returns 0 for a null PluginData. allowPlugins() is the SAME gate
+	// SubframeLoader::requestObject consults before it will instantiate anything. So:
+	//   length === 0  ⇒ plugins are disabled for this page — no <object> of ANY type can ever
+	//                   get an instance, and the MIME is irrelevant.
+	//   length  >  0  ⇒ plugins are allowed; the failure is further down (MIME lookup,
+	//                   renderer, or the canStartMedia deferral).
+	// navigator.mimeTypes is built from the same PluginDatabase that
+	// FrameLoaderClient::objectContentType consults, so a missing entry here means the
+	// <object> could never have been routed to a Netscape plugin at all.
+	function probeRegistry(tag) {
+		try {
+			var mt = navigator.mimeTypes, pl = navigator.plugins;
+			plog(tag + " db: mimeTypes.length=" + (mt ? mt.length : "none") +
+				" plugins.length=" + (pl ? pl.length : "none"));
+			var names = ["application/x-jihad-browser", "application/x-palm-browser",
+				"application/x-palm-mojo-browser"];
+			for (var i = 0; i < names.length; i++) {
+				var m = mt ? mt[names[i]] : null;
+				var ep = m && m.enabledPlugin;
+				plog(tag + " db: " + names[i] + " -> " + (m ? "PRESENT" : "ABSENT") +
+					(ep ? (" plugin=" + ep.name + " file=" + ep.filename) : ""));
+			}
+			if (pl) {
+				for (var j = 0; j < pl.length; j++) {
+					var p = pl[j], types = [];
+					for (var k = 0; k < p.length; k++) { types.push(p[k].type); }
+					plog(tag + " db: plugin[" + j + "] " + p.name + " | " + p.filename +
+						" | " + types.join(","));
+				}
+			}
+		} catch (e) { plog(tag + " db: EXCEPTION " + e); }
+	}
+
+	// ---- probe: control elements, outside Enyo entirely ---------------------------------
+	// Builds a bare <object> for our MIME and for the stock one, in the same document. This
+	// separates "our MIME cannot instantiate" from "this app cannot instantiate any plugin"
+	// and from "Enyo's element is built wrong" — the three are otherwise identical in the log.
+	// Both are removed again; neither is ever told to connect to a BrowserServer.
+	function probeControls() {
+		try {
+			var made = [];
+			var mk = function (type) {
+				var o = document.createElement("object");
+				o.setAttribute("type", type);
+				o.setAttribute("x-palm-cache-plugin", "false");
+				o.style.cssText = "position:absolute;left:0;top:0;width:64px;height:64px;opacity:0";
+				document.body.appendChild(o);
+				made.push(o);
+				return o;
+			};
+			var mine = mk("application/x-jihad-browser");
+			var stock = mk("application/x-palm-browser");
+			window.setTimeout(function () {
+				try {
+					plog("control jihad: attr=" + mine.getAttribute("type") +
+						" openURL=" + (typeof mine.openURL) +
+						" offset=" + mine.offsetWidth + "x" + mine.offsetHeight);
+					plog("control stock: attr=" + stock.getAttribute("type") +
+						" openURL=" + (typeof stock.openURL) +
+						" offset=" + stock.offsetWidth + "x" + stock.offsetHeight);
+				} catch (e) { plog("control: EXCEPTION " + e); }
+				for (var i = 0; i < made.length; i++) {
+					if (made[i].parentNode) { made[i].parentNode.removeChild(made[i]); }
+				}
+			}, 2000);
+		} catch (e) { plog("control: EXCEPTION " + e); }
 	}
 
 	// Enyo 1 loads framework kinds before app source, so BasicWebView is usually ready.
 	// Retry briefly in case app source is parsed before the palm controls register.
 	if (!patch()) {
 		var t = setInterval(function () { if (patch()) { clearInterval(t); } }, 50);
+	}
+
+	if (JIHAD_PROBE) {
+		// Once at startup (before any refresh) and once after forcing a database rescan: if
+		// the MIME only appears after refresh(), the registry was stale when the card's
+		// element was laid out, which is a load-ORDER bug, not a packaging one.
+		window.setTimeout(function () {
+			probeEnv();
+			probeRegistry("boot");
+			try {
+				if (navigator.plugins && navigator.plugins.refresh) {
+					navigator.plugins.refresh(false);
+					plog("boot: navigator.plugins.refresh(false) called");
+					probeRegistry("post-refresh");
+				}
+			} catch (e) { plog("boot refresh: EXCEPTION " + e); }
+			probeControls();
+		}, 2500);
 	}
 })();

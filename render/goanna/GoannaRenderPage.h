@@ -204,6 +204,19 @@ private:
   double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)
   double mPanY = 0.0;
 
+  // F-1: raw pen-path click dedup. The adapter forwards mousedown/mouseup for a tap whenever
+  // shouldPassInputEvents() is true AND sends clickAt from the single-tap gesture, so one tap
+  // arrives as BOTH. Since T-067 both actually reach the DOM, so both activate. MouseEvent()
+  // records the down/up pair; ClickAt() suppresses its own duplicate activation when the pair
+  // it matches already delivered a real click. See the block comment in ClickAt().
+  int  mRawDownX = 0, mRawDownY = 0;
+  long mRawDownMs = 0;              // >0 while a raw mousedown is unmatched by an up
+  int  mRawClickX = 0, mRawClickY = 0;
+  long mRawClickMs = 0;             // >0 when a raw down+up pair completed and no clickAt consumed it
+  // Focused element at the raw mousedown, for the F-7 "focus actually CHANGED" test on the raw
+  // path. COMPARED ONLY, never dereferenced (same rule as DocShellKey) — it may be dead by then.
+  const void* mRawFocusBefore = nullptr;
+
   GoannaRenderPage(const GoannaRenderPage&) = delete;
   GoannaRenderPage& operator=(const GoannaRenderPage&) = delete;
 };

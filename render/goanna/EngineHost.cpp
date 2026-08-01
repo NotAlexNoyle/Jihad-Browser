@@ -631,11 +631,19 @@ static void InstallClipboardHelper()
 // knows exactly why and we were throwing the explanation away. Two device round-trips were spent
 // guessing at symptoms a single console line would have named.
 //
-// SCOPE, deliberate: only messages whose source is OUR chrome (chrome://, resource://, about:,
-// or no source at all — the JSM/component case) are printed. Errors from web content are the
-// site's business, would be high-volume on real browsing, and could echo page data into the log,
-// which F-163 forbids. $JIHAD_JS_CONSOLE=all lifts the filter for a debugging session; =0 turns
-// the bridge off entirely.
+// SCOPE, deliberate: only messages whose source is OUR chrome are printed. Errors from web content
+// are the site's business, would be high-volume on real browsing, and could echo page data into the
+// log, which F-163 forbids. $JIHAD_JS_CONSOLE=all lifts the filter for a debugging session; =0
+// turns the bridge off entirely.
+//
+// F-8 tightening — the first version of this filter passed `about:` wholesale and passed EVERY
+// empty source, and both are reachable by content: `about:blank` (and `about:srcdoc`) are the
+// source name of script in a content-created iframe, and a script error raised from eval/data:
+// carries no source name at all. Either one echoes page-controlled text into the persistent device
+// log, which is the exact leak class the filter exists to prevent. So: chrome:// and resource://
+// always; `about:` only for the specific chrome pages this browser drives (content cannot navigate
+// to those); and an empty source only when the message is NOT an nsIScriptError — a plain
+// nsIConsoleMessage comes from XPCOM internals (the chrome registry, NSS), never from page JS.
 class JihadConsoleListener final : public nsIConsoleListener
 {
 public:
@@ -649,9 +657,17 @@ public:
     NS_ConvertUTF16toUTF8 src8(src);
     if (!sAll) {
       const char* s = src8.get();
-      bool ours = !s || !*s ||
-                  !strncmp(s, "chrome://", 9) || !strncmp(s, "resource://", 11) ||
-                  !strncmp(s, "about:", 6);
+      bool ours;
+      if (!s || !*s) {
+        ours = !err;                       // internal console message, not script (F-8)
+      } else if (!strncmp(s, "chrome://", 9) || !strncmp(s, "resource://", 11)) {
+        ours = true;
+      } else {
+        // The chrome about: pages we actually drive. NOT a prefix match on "about:" — that
+        // admits about:blank, i.e. content (F-8).
+        ours = !strcmp(s, "about:config") || !strcmp(s, "about:addons") ||
+               !strcmp(s, "about:preferences") || !strcmp(s, "about:support");
+      }
       if (!ours) return NS_OK;
     }
     // nsIConsoleMessage::message is `wstring`, not AString — it hands back a malloc'd

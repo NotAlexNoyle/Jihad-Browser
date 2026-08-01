@@ -39,8 +39,16 @@ metadata was destroyed when the parent was removed
 `mWidgetListener` the way real widgets do, and in this embedding that listener is null — so
 **every synthesized event was silently discarded, including on plain HTML**. Fixed by routing
 through `SendMouseEventToWindow`/`SendTouchEventToWindow` (presShell, no libxul rebuild).
-`about:config` is fully operable on desktop. `about:addons` still fails for a *separate* named
-reason: `No chrome package registered for chrome://branding/locale/brand.dtd`.
+On `about:config`, **measured on desktop** (`build-xul-test.sh`, phases C–E): a tap activates the
+"I promise to be careful!" button's `oncommand` and the prefs tree replaces the warning deck, and
+text typed into the filter box filters the list. NOT measured, so not claimed: selecting a tree row
+or changing a pref value (R6 AC3's back half), and real KEY events into XUL — the filter text goes
+in via `InsertText` (the engine editor), while `KeyEvent` still goes through `SendKeyEvent` → the
+widget → dropped (R6 AC6). `about:addons` still fails for a *separate* named reason:
+`No chrome package registered for chrome://branding/locale/brand.dtd`.
+**None of the XUL input work has run on the device since the change** — the 2026-07-20 SIGSEGV that
+the old crash-avoidance skip was added for is still unattributed (a dropped event cannot dump core),
+so the first device session should retest taps on `about:config` before anything else.
 
 **Useful for the next session:** `qemu-arm` on the build host runs the real ARM daemon + ARM libxul
 to `engine up` (~10 min startup), so a device-only issue can be reproduced locally without a

@@ -1344,6 +1344,18 @@ const void* GoannaRenderPage::DocShellKey() const {
 // goes straight to `widget->DispatchEvent`), so raw key synthesis still dies in PuppetWidget.
 // Text entry does not depend on it — R2/R2a drive the engine editor directly — but true keyboard
 // delivery into XUL needs the engine-side fallback in PuppetWidget::DispatchEvent.
+//
+// WHAT THIS DOES **NOT** EXPLAIN (F-4, honesty about the evidence). The dropped-event chain above
+// is verified and it fixes the DROPPED-EVENT defect. It does NOT account for the 2026-07-20 device
+// report "SendMouseEvent on XUL SIGSEGVs (core dumped)": a discarded event cannot dump core. So one
+// of these is true and we do not yet know which — (a) that crash was misattributed and its real
+// cause is still unidentified, or (b) the device path diverges from desktop somewhere this analysis
+// does not reach (the device widget probe shows theme components ABSENT, and the offscreen path now
+// runs strictly MORE XUL frame code than has ever run there: holdAt -> contextmenu -> the XUL
+// <menupopup> open path, tree frames, column pickers — none of which the desktop taps exercise).
+// Claim only what is established: the dropped-event defect is fixed and XUL input works on the
+// desktop headless build; the recorded SIGSEGV remains unattributed until a device run says
+// otherwise.
 
 // Get the content window's nsIDOMWindowUtils (for input synthesis).
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
@@ -1406,6 +1418,69 @@ bool GoannaRenderPage::FireFormSubmit(nsIDOMHTMLFormElement* form) {
   return true;
 }
 
+// Monotonic-ish ms clock for the F-1 pen-pair/clickAt correlation window. CLOCK_MONOTONIC, so a
+// wall-clock step (ntp, the device's clock coming up late) cannot make a fresh pair look ancient.
+static long jihadInputNowMs() {
+  struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+// Is `inner` the element `outer`, or inside it? Walks the DOM parent chain, which for XBL
+// ANONYMOUS content (the html:input inside a XUL <textbox>) leads back to the bound element — so
+// this answers "did the tap land on the thing that now has focus?" for exactly the case the tap
+// classifier cannot see. Depth-capped as a cycle guard, like the anchor walks above.
+static bool jihadIsSelfOrInside(nsIDOMElement* inner, nsIDOMElement* outer) {
+  if (!inner || !outer) return false;
+  nsCOMPtr<nsIDOMNode> n = do_QueryInterface(inner);
+  nsCOMPtr<nsIDOMNode> o = do_QueryInterface(outer);
+  for (int d = 0; n && d < 64; ++d) {
+    if (n == o) return true;
+    nsCOMPtr<nsIDOMNode> p; n->GetParentNode(getter_AddRefs(p)); n = p;
+  }
+  return false;
+}
+
+// The element the focus manager currently reports, as a bare pointer for IDENTITY COMPARISON
+// ONLY (F-7 / F-1). Never dereferenced — by the time it is compared the element may be gone.
+static const void* jihadFocusedPtr() {
+  nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
+  if (!fm) return nullptr;
+  nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
+  return foc.get();
+}
+
+// ── F-2/F-3 — DELIVERY DETECTION, because STATE cannot tell the two cases apart ───────────────
+// The checkbox fallback used to infer "the engine did not act" from `checked` being unchanged.
+// It is not inferable: UXP PRE-toggles the control and REVERTS the toggle when the click comes
+// back eConsumeNoDefault (HTMLInputElement.cpp:4483-4505), so a preventDefault()ed click and a
+// click that never arrived leave byte-identical state — and the fallback then force-flipped a
+// control the page had deliberately refused, firing phantom input/change. The submit fallback had
+// the same shape: "nothing started loading" includes every legitimate refusal (onsubmit returning
+// false, a preventDefault()ed click), so it re-ran exactly what the engine declined.
+// The …ToWindow dispatch passes nullptr for aPreventDefault, so the status is not available that
+// way. Instead OBSERVE the click: a one-shot capture-phase listener on the control answers the
+// only question the fallback may act on — did a click reach this control AT ALL. `defaultPrevented`
+// is read off the retained event AFTER dispatch returns (at capture time it is not final yet); it
+// is logged for diagnosis, never used to hand-activate.
+class ClickProbe final : public nsIDOMEventListener {
+public:
+  NS_DECL_ISUPPORTS
+  NS_IMETHOD HandleEvent(nsIDOMEvent* aEvent) override {
+    mSaw = true;
+    mEvent = aEvent;   // retain: the flags on it stay readable after the dispatch unwinds
+    return NS_OK;
+  }
+  bool Saw() const { return mSaw; }
+  bool DefaultPrevented() const {
+    bool p = false; if (mEvent) mEvent->GetDefaultPrevented(&p); return p;
+  }
+private:
+  ~ClickProbe() {}
+  bool mSaw = false;
+  nsCOMPtr<nsIDOMEvent> mEvent;
+};
+NS_IMPL_ISUPPORTS(ClickProbe, nsIDOMEventListener)
+
 void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   if (!mChrome) return;
   ActivateContent(mChrome->mBrowser);
@@ -1413,6 +1488,24 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   if (!u) return;
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
+  // F-1 bookkeeping, BEFORE the dispatch (the focus snapshot has to predate it). A down+up pair
+  // that lands within kRawTapSlop of each other is a TAP, and since T-067 the engine synthesises a
+  // real click from it — including the default action. Record that so the clickAt the adapter
+  // sends for the same tap does not activate the element a second time. A pair that ends far from
+  // its down is a drag: the adapter sends no tap gesture for it and the engine synthesises no
+  // click, so nothing is recorded.
+  const int kRawTapSlop = 16;                     // content px; adapter drag hysteresis is 4
+  if (strcmp(type, "mousedown") == 0) {
+    mRawDownX = x; mRawDownY = y; mRawDownMs = jihadInputNowMs(); mRawClickMs = 0;
+    mRawFocusBefore = jihadFocusedPtr();
+  } else if (strcmp(type, "mouseup") == 0) {
+    long now = jihadInputNowMs();
+    int dx = x - mRawDownX, dy = y - mRawDownY;
+    if (mRawDownMs && (now - mRawDownMs) < 4000 && (dx * dx + dy * dy) <= kRawTapSlop * kRawTapSlop) {
+      mRawClickX = x; mRawClickY = y; mRawClickMs = now;
+    }
+    mRawDownMs = 0;
+  }
   // Pass explicit buttons (_argc=6): the left button is held for down/move, released
   // (0) for up. With _argc=0 the impl derives buttons from aButton for BOTH, so a
   // mouseup reports the button still held and the press/release may not register.
@@ -1423,12 +1516,56 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
                             false, 0.0f, 0, false, false, buttons, 6);
 }
 
+// ── F-1 — ONE TAP MUST DELIVER ONE CLICK SEQUENCE ─────────────────────────────────────────────
+//
+// A device tap reaches this daemon TWICE. The adapter's pen path sends asyncCmdMouseEvent(down)
+// then (up) whenever `shouldPassInputEvents()` is true — which is "the content fits the viewport
+// AND the meta-viewport is non-scalable", i.e. most mobile-optimised pages, NOT only when the tap
+// hits a known interactive rect — and Jihad's single-tap gesture separately sends asyncCmdClickAt.
+// Before T-067 the raw pair was discarded by the un-attached PuppetWidget, so only clickAt acted
+// and nobody noticed. Now both act: a checkbox toggles twice (net zero, two `change` events), a
+// form submits twice, and a link tap starts two loads that abort each other (NS_BINDING_ABORTED).
+// Reproduced on the desktop harness — xul_test phase K2 came back UNCHECKED before this fix.
+//
+// WHERE THE DEDUP LIVES, and why here rather than in the adapter:
+//   * The adapter could suppress its tap->clickAt when it forwarded the pen pair, and that is
+//     exact (it knows what it sent). But it throws away everything clickAt does that the raw pair
+//     does not — hit-test, the near-miss link touch target, the VKB editable classification, the
+//     crash-safe deferral to the guarded pump — on precisely the pages where the pen path is live.
+//     It is also UNTESTABLE without the device: no desktop harness runs the adapter.
+//   * Here, the daemon keeps all of that and drops only the DUPLICATE DOM DISPATCH. It covers any
+//     client that sends both (all three UI variants share one adapter, plus the inject channel),
+//     it survives the adapter's condition changing, and — decisive — xul_test phase K exercises it
+//     on the desktop, so the fix is proven before it ever reaches hardware.
+//   * Cost: four ints and a timestamp. The correlation is not a guess: the record is CONSUMED by
+//     the first clickAt after it, so a stale pair can never suppress a later tap.
+//
+// WHICH PATH WINS: the raw pair, necessarily — it is delivered first and cannot be recalled. That
+// is also the correct browser sequence (mousedown, mouseup, click). Measured (xul_test K1/K3) that
+// the pair alone activates a checkbox AND navigates an <a href> via the engine's own default
+// action, so nothing is lost by standing down here.
 void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
   mChrome->mUserInteracted = true;   // Atlas autofocus gate: a real tap unlocks VKB raises
   ActivateContent(mChrome->mBrowser);   // offscreen widget needs explicit activation (see above)
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
+  // Did the pen path already deliver a complete click for THIS tap? Window: the adapter sends the
+  // tap gesture immediately after pen-up and the daemon defers clickAt to the next ~10ms tick, so
+  // a real pairing is tens of ms; 1s is slack for a loaded device, still far below any plausible
+  // second deliberate tap on the same pixel. The record is consumed either way — an unmatched
+  // clickAt means the correspondence is broken, and a kept record could then suppress a real tap.
+  bool rawClickDelivered = false;
+  if (mRawClickMs) {
+    long age = jihadInputNowMs() - mRawClickMs;
+    int dx = x - mRawClickX, dy = y - mRawClickY;
+    const int kSlop = 24;   // content px between the pen-up point and the gesture's tap point
+    rawClickDelivered = (age >= 0 && age <= 1000) && (dx * dx + dy * dy) <= kSlop * kSlop;
+    mRawClickMs = 0;
+  }
+  if (rawClickDelivered)
+    fprintf(stderr, "[jihad-bs] clickAt (%d,%d): pen path already delivered this tap's click — "
+                    "no second activation (F-1)\n", x, y);
   // Resolve the tap target FIRST. This offscreen embedding does NOT run the click
   // default-action (confirmed on device: taps land on <A> but the anchor never
   // navigates on its own). Dispatch by target:
@@ -1500,6 +1637,16 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   fprintf(stderr, "[jihad-bs] clickAt (%d,%d) <%s> href=%s nav=%d\n",
           x, y, el ? NS_ConvertUTF16toUTF8(tag).get() : "null", navigable ? h : "-", navigable);
   if (navigable) {
+    // F-1: if the pen pair already delivered this tap's click, the ENGINE has already started the
+    // anchor's load (measured — xul_test K3 ends on the link target with no clickAt involved).
+    // Recording it here as well would openUrl the same href a second time: two loads racing, which
+    // is the NS_BINDING_ABORTED failure the comment below was written about. Just do the VKB
+    // bookkeeping the navigation implies.
+    if (rawClickDelivered) {
+      fprintf(stderr, "[jihad-bs] clickAt: link already navigated by the pen path — not re-driving\n");
+      if (mEditorFocused) { mEditorFocused = false; mEditorFocusDirty = true; }
+      return;
+    }
     // Record the target; BrowserPageGoanna::pump drains it (TakeClickNav) and navigates
     // via openUrl on the tick. Navigating here (inside the click flow) either stalls the
     // load or, done synchronously in the socket callback, re-enters + crashes. Skip the
@@ -1634,10 +1781,16 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
   // (T-067/R6) The XUL-namespace test that used to live here — and the crash-avoidance SKIP of
-  // both SendMouseEvent calls that it gated — are GONE, not relocated behind a fixed path. XUL
-  // was never a special case: the events were being discarded for every document type (see the
-  // dropped-event analysis above), and XUL was simply the only content with no hand-written
-  // activation propping it up. Nothing downstream branches on document namespace any more.
+  // both SendMouseEvent calls that it gated — are GONE. XUL was never a special case for INPUT
+  // DELIVERY: the events were being discarded for every document type (see the dropped-event
+  // analysis above), and XUL was simply the only content with no hand-written activation propping
+  // it up. Nothing downstream branches on document namespace any more.
+  // F-4, stated plainly: removing the skip is justified by the dropped-event chain and by the
+  // desktop headless runs (xul_test — repeated taps on about:config, its tree, and about:addons
+  // all survive). It is NOT backed by a device run, and the 2026-07-20 SIGSEGV that the skip was
+  // added for has no confirmed cause — a dropped event cannot dump core, so either that
+  // attribution was wrong or something device-specific is still unaccounted for. Taps on XUL are
+  // therefore live again on a desktop-proven basis, not a device-proven one.
   // F-001 + T-067: a tapped checkbox/radio.
   //
   // This used to hand-flip `checked` BEFORE the synthetic click, because in this embedding the
@@ -1651,6 +1804,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // headless build; if any device-specific difference stops it, this silently restores the
   // previously device-verified behaviour instead of regressing to a dead control. It costs one
   // bool comparison when the engine has already done the job.
+  //
+  // F-2: the trigger is NOT "checked is unchanged" any more. UXP pre-toggles the control and
+  // REVERTS that toggle when the click returns eConsumeNoDefault (HTMLInputElement.cpp:4483-4505),
+  // so a page that preventDefault()s the click leaves exactly the state a dropped click leaves,
+  // and the old test force-flipped it and fired phantom input/change on a control the page had
+  // deliberately refused. The fallback now runs only when NO CLICK WAS DELIVERED AT ALL (ClickProbe
+  // above), which is the one condition it was written for and the one that state cannot express.
   nsCOMPtr<nsIDOMHTMLInputElement> pendingToggle; bool toggleWasChecked = false; bool toggleIsRadio = false;
   if (effEl) {
     nsAutoString effTag2; effEl->GetTagName(effTag2);
@@ -1670,7 +1830,24 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
       }
     }
   }
-  {
+  // F-2/F-3: watch for the click on the element the fallbacks would act on. Capture phase, so a
+  // content handler calling stopPropagation() cannot hide the click from us and trick a fallback
+  // into re-activating. Registered only when we are about to dispatch — if the pen path already
+  // delivered (F-1) there is nothing of ours to observe, and `clickDelivered` is true by fiat.
+  const void* focBefore = jihadFocusedPtr();   // F-7: focus BEFORE the dispatch (compared only)
+  RefPtr<ClickProbe> probe;
+  nsCOMPtr<nsIDOMEventTarget> probeTarget = do_QueryInterface(effEl);
+  if (probeTarget && !rawClickDelivered) {
+    probe = new ClickProbe();
+    probeTarget->AddEventListener(NS_LITERAL_STRING("click"), probe, true);
+  }
+  if (rawClickDelivered) {
+    // F-1: the adapter's pen pair already produced a real click here (down, up, click — the
+    // browser sequence). Dispatching our own pair would be the SECOND one.
+    fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d : SKIPPED, pen path already clicked (F-1)\n",
+            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y);
+    focBefore = mRawFocusBefore;   // the focus move, if any, happened during THAT dispatch
+  } else {
     // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
     // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
     // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
@@ -1692,6 +1869,16 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     u->SendMouseEventToWindow(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6);
     fprintf(stderr, "[jihad-bs] mouseSend done\n");
   }
+  // One-shot: off again the moment the dispatch is over, so nothing of ours stays on the page.
+  if (probeTarget && probe)
+    probeTarget->RemoveEventListener(NS_LITERAL_STRING("click"), probe, true);
+  // The single question the fallbacks below are allowed to ask. `defaultPrevented` is reported for
+  // the log only — a page that cancels its click has REFUSED the activation, and re-running it by
+  // hand is precisely the bug F-2/F-3 record.
+  bool clickDelivered = rawClickDelivered || (probe && probe->Saw());
+  if (probe && probe->Saw())
+    fprintf(stderr, "[jihad-bs] click delivered to the tapped control (defaultPrevented=%d)\n",
+            (int)probe->DefaultPrevented());
   // T-067 / R6 keyboard-into-XUL: adopt whatever the ENGINE focused as the keystroke target.
   //
   // A XUL <textbox> (about:config's filter box) is an XBL binding wrapping an ANONYMOUS
@@ -1705,28 +1892,41 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   //
   // Only ADOPTS: it never clears an existing target (the non-editable-tap path above already did
   // that deliberately), and it only follows focus to a real text control.
+  //
+  // F-7: and only when this tap can be shown to be responsible for that focus — either focus
+  // CHANGED across the dispatch, or the focused control is the tapped element itself / anonymous
+  // content inside it (a re-tap on the already-focused XUL <textbox>, which must keep working).
+  // Adopting whatever happens to be focused fights the tap-away policy twelve lines up: if the
+  // page cancels `mousedown` (drag and custom-UI libraries do this routinely) focus never moves,
+  // and the old code re-adopted the very field the user just tapped AWAY from — re-raising the VKB
+  // over a password field they had dismissed. Neither condition holds for that tap, so it now
+  // earns nothing. (focBefore is a bare pointer compared for identity only — never dereferenced.
+  // A recycled address can only make this MISS an adoption, which is the safe direction.)
   if (!mChrome->mFocusedEditable) {
     nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-      if (edIsTextInput(foc)) {
+      bool causedByThisTap = (foc.get() != focBefore) || jihadIsSelfOrInside(foc, effEl);
+      if (causedByThisTap && edIsTextInput(foc)) {
         mChrome->mFocusedEditable = foc;
         mEditorFocused = true; mEditorFieldType = 0; mEditorFocusDirty = true;
         fprintf(stderr, "[jihad-bs] adopted engine-focused text control as the edit target\n");
       }
     }
   }
-  // F-001/F-004 + T-067: only now do we know whether the engine's own click default action
-  // toggled the control. If it did, we do nothing at all — it also fired `input`/`change` itself,
-  // in the right order, with the right trust flags. If it did not, fall back to the previously
-  // device-verified hand-flip and dispatch the two events ourselves.
+  // F-001/F-004 + T-067 + F-2: only now do we know whether a click reached the control. If one
+  // did, we do nothing at all — the engine ran the default action (or the page cancelled it, which
+  // is equally its decision), fired `input`/`change` itself, in the right order, with the right
+  // trust flags. Only a click that NEVER ARRIVED licenses the hand-flip.
   nsCOMPtr<nsIDOMHTMLInputElement> toggledCtrl; bool toggledState = false;
-  if (pendingToggle) {
+  if (pendingToggle && clickDelivered) {
     bool nowChecked = false; pendingToggle->GetChecked(&nowChecked);
+    fprintf(stderr, "[jihad-bs] control click delivered — engine owns the toggle (checked=%d)\n",
+            (int)nowChecked);
+  } else if (pendingToggle) {
     bool wanted = toggleIsRadio ? true : !toggleWasChecked;
-    if (nowChecked != toggleWasChecked) {
-      fprintf(stderr, "[jihad-bs] control toggled by the engine -> %d\n", (int)nowChecked);
-    } else if (wanted != toggleWasChecked) {
+    if (wanted != toggleWasChecked) {
+      fprintf(stderr, "[jihad-bs] NO click reached the control — hand-flipping (F-2 fallback)\n");
       pendingToggle->SetChecked(wanted);
       bool ind = false; pendingToggle->GetIndeterminate(&ind);
       if (ind) pendingToggle->SetIndeterminate(false);            // F-007
@@ -1755,6 +1955,15 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // progress listener, and a submit begun inside the click dispatch has not necessarily reported
   // STATE_START by the time this line runs, whereas the docshell is marked busy synchronously
   // when the load is initiated. Both are consulted, so either signal suppresses the fallback.
+  // (That interlock's TIMING was re-verified in review — OnLinkClickSync sets mBusyFlags
+  // synchronously inside the mouseup dispatch — and is deliberately left alone.)
+  //
+  // F-3: busy flags alone were never enough, because "nothing started loading" also describes
+  // every LEGITIMATE refusal — an `onsubmit` that returns false (the handler then ran twice per
+  // tap), a preventDefault()ed submit click (which still navigated), and a DISABLED button (which
+  // submitted, because the classifier read the `type` attribute and never asked GetDisabled the
+  // way the checkbox branch does). So the fallback now requires, in addition: no click was
+  // delivered to the control at all, and the control is not disabled.
   uint32_t busy = nsIDocShell::BUSY_FLAGS_NONE;
   { nsCOMPtr<nsIDocShell> bds = GetDocShell(mChrome->mBrowser);
     if (bds) bds->GetBusyFlags(&busy); }
@@ -1764,7 +1973,10 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     fprintf(stderr, "[jihad-bs] click started a load (busy=0x%x) — no fallback submit\n",
             (unsigned)busy);
   }
-  if (!navStarted) {
+  {
+    // Classify first, gate after, so the "declined" diagnostic below is only printed for a tap
+    // that really was on a submit control — the whole point of F-3 is telling a refusal apart
+    // from a dropped event, and a log line on every ordinary tap would bury it.
     nsCOMPtr<nsIDOMHTMLFormElement> sform;
     { nsAutoString tg2; if (effEl) effEl->GetTagName(tg2);
       std::string t2 = NS_ConvertUTF16toUTF8(tg2).get();
@@ -1774,26 +1986,41 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
         nsAutoString bt; if (effEl) effEl->GetAttribute(NS_LITERAL_STRING("type"), bt);
         std::string bts = NS_ConvertUTF16toUTF8(bt).get();
         for (char& c : bts) c = (char)tolower((unsigned char)c);
-        if (btn && (bts.empty() || bts == "submit")) btn->GetForm(getter_AddRefs(sform));   // default type is submit
+        // GetDisabled, not the attribute: it also catches a button inside a <fieldset disabled>
+        // (F-3, mirroring the checkbox branch's F-007 check). A disabled control receives no
+        // click, so without this the "no click arrived" test would read as a dropped event.
+        bool bdis = false; if (btn) btn->GetDisabled(&bdis);
+        if (btn && !bdis && (bts.empty() || bts == "submit")) btn->GetForm(getter_AddRefs(sform));   // default type is submit
       } else if (t2 == "INPUT") {
         nsAutoString it; if (effEl) effEl->GetAttribute(NS_LITERAL_STRING("type"), it);
         std::string its = NS_ConvertUTF16toUTF8(it).get();
         for (char& c : its) c = (char)tolower((unsigned char)c);
         if (its == "submit" || its == "image") {
           nsCOMPtr<nsIDOMHTMLInputElement> ib = do_QueryInterface(effEl);
-          if (ib) ib->GetForm(getter_AddRefs(sform));
+          bool idis = false; if (ib) ib->GetDisabled(&idis);          // F-3, as above
+          if (ib && !idis) ib->GetForm(getter_AddRefs(sform));
         }
         // (checkbox/radio are flipped BEFORE the click above — F-001 — not here.)
       }
     }
-    if (sform) FireFormSubmit(sform);
+    if (sform && clickDelivered) {
+      fprintf(stderr, "[jihad-bs] submit control got its click and the form did not submit — the "
+                      "page's decision (onsubmit/preventDefault), not a dropped event (F-3)\n");
+    } else if (sform && !navStarted) {
+      fprintf(stderr, "[jihad-bs] NO click reached the submit control — falling back (F-3)\n");
+      FireFormSubmit(sform);
+    }
     // XUL needs NOTHING here (T-067/R6). The 2026-07-20 note that used to sit at this line said
     // XUL `oncommand` activation had to be hand-fired and that doing so crashed the daemon. Both
     // halves were consequences of the dropped-event defect: with the events actually reaching the
     // document, `nsButtonBoxFrame` synthesises the `command` itself off the real click, exactly as
     // it does in a normal browser. Measured on the headless build: a tap on about:config's
     // "I promise to be careful!" reaches `oncommand@about:config` -> `ShowPrefs@config.js:346`
-    // and the prefs tree replaces the warning deck. No synthetic command event, no crash.
+    // and the prefs tree replaces the warning deck (xul_test phase D, default click coordinate).
+    // No synthetic command event, and no crash ON DESKTOP — the device has not run this path since
+    // the change, and the XUL frame code it now reaches there (holdAt -> contextmenu -> menupopup,
+    // tree frames) is more than has ever run on a widget probe that reports theme components
+    // ABSENT. Treat "no crash" as a desktop result until a device session says otherwise (F-4).
   }
 }
 

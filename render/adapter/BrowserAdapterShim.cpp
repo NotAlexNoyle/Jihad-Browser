@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include "npapi.h"
 #include "npupp.h"
@@ -135,8 +136,17 @@ static long   sLoadedMtimeNs = -1;
 //     planted symlink cannot redirect a root-privileged write, and mode 0600 rather than
 //     fopen()'s umask-dependent 0666.
 // If the dir does not exist the marker check fails and this is a silent no-op.
+//
+// SYSLOG IS UNCONDITIONAL, and that is the point (2026-08-01 device triage). This code runs
+// inside WebAppMgr — a host process whose uid is not ours to assume — and JIHAD_STATE_DIR is
+// root-owned 0755, so if WebAppMgr is not root the open() below fails and EVERY load failure
+// becomes invisible. That is exactly the hole that made "no shim.log" unreadable evidence: it
+// could mean NPP_New never ran, or that it ran and could not tell anyone. syslog() needs no
+// filesystem permission and lands in /var/log/messages, so the reason a card came up without a
+// plugin is always recoverable. Volume is a handful of lines per impl load (never per frame).
 static void shimLog(const char* fmt, const char* a)
 {
+    syslog(LOG_WARNING, fmt, a);
     if (access(JIHAD_STATE_DIR "/shimlog", F_OK) != 0) return;
     int fd = open(JIHAD_STATE_DIR "/shim.log",
                   O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR);
@@ -201,7 +211,31 @@ static void* dlopenFreshCopy(const char* src)
     close(in); close(out);
     void* h = ok ? dlopen(tmpl, RTLD_NOW | RTLD_LOCAL) : 0;
     unlink(tmpl);
-    if (ok && !h) shimLog("[shim] dlopen copy fail: %s\n", dlerror());
+    if (!ok)      shimLog("[shim] copy to /tmp failed for: %s\n", src);
+    else if (!h)  shimLog("[shim] dlopen /tmp copy FAILED: %s\n", dlerror());
+    return h;
+}
+
+// Fallback when the /tmp copy cannot be loaded. The copy exists ONLY to defeat glibc's dlopen
+// path-dedup so a REPLACED impl is picked up without restarting LunaSysMgr; it is a
+// hot-reload convenience, never a correctness requirement. But it silently makes the FIRST load
+// depend on /tmp accepting an executable mapping and on the temp copy resolving the impl's
+// NEEDED libraries — and if either is false, the card comes up with an <object> and no plugin,
+// which is indistinguishable from "the MIME is not registered". So: if the copy path fails, load
+// the impl where it actually lives. The trust check still runs first, on the open fd, exactly as
+// before; the residual difference is that dlopen re-opens by path (a TOCTOU window that requires
+// root to exploit, in a root-owned 0755 directory on the read-only rootfs — strictly weaker than
+// the copy path, which is why it is the fallback and not the default). Hot reload degrades to
+// "unchanged until LunaSysMgr restarts" on this path, and says so in the log.
+static void* dlopenInPlace(const char* src)
+{
+    int in = open(src, O_RDONLY);
+    if (in < 0) { shimLog("[shim] open src fail: %s\n", src); return 0; }
+    if (!fdIsTrusted(in)) { shimLog("[shim] REJECT untrusted impl: %s\n", src); close(in); return 0; }
+    close(in);
+    void* h = dlopen(src, RTLD_NOW | RTLD_LOCAL);
+    if (!h) shimLog("[shim] dlopen in place FAILED: %s\n", dlerror());
+    else    shimLog("[shim] loaded IN PLACE (no /tmp copy; hot reload disabled): %s\n", src);
     return h;
 }
 
@@ -226,10 +260,12 @@ static NPError loadImpl()
         return NPERR_NO_ERROR;   // current build already loaded, or a card is live — keep it
 
     void* h = dlopenFreshCopy(src);
+    if (!h) h = dlopenInPlace(src);
     if (!h) return sHandle ? NPERR_NO_ERROR : NPERR_MODULE_LOAD_FAILED_ERROR;
 
     typedef NPError (*InitFn)(NPNetscapeFuncs*, NPPluginFuncs*);
     InitFn init = (InitFn) dlsym(h, "NP_Initialize");
+    if (!init) shimLog("[shim] impl has no NP_Initialize: %s\n", src);
     NPPluginFuncs pf; memset(&pf, 0, sizeof(pf)); pf.size = sizeof(pf);
     if (!init || init(&sBrowser, &pf) != NPERR_NO_ERROR) {
         shimLog("[shim] impl init fail: %s\n", src);
@@ -254,9 +290,14 @@ static NPError loadImpl()
 static NPError sNewp(NPMIMEType type, NPP inst, uint16_t mode, int16_t argc,
                      char* argn[], char* argv[], NPSavedData* saved)
 {
+    // Logged on EVERY instance creation, unconditionally (see shimLog). Without it, "the card has
+    // an <object> but no plugin" cannot be told apart from "WebKit never asked us for an
+    // instance" — the two have identical symptoms in the front-end (Enyo just queues
+    // callBrowserAdapter forever) and only this line separates them.
+    shimLog("[shim] NPP_New for %s\n", type ? type : "(null mime)");
     NPError e = loadImpl();
-    if (e != NPERR_NO_ERROR) return e;
-    if (!sImpl.newp) return NPERR_GENERIC_ERROR;
+    if (e != NPERR_NO_ERROR) { shimLog("[shim] NPP_New ABORT: no usable impl%s\n", ""); return e; }
+    if (!sImpl.newp) { shimLog("[shim] NPP_New ABORT: impl exports no NPP_New%s\n", ""); return NPERR_GENERIC_ERROR; }
     e = sImpl.newp(type, inst, mode, argc, argn, argv, saved);
     if (e == NPERR_NO_ERROR)
         ++sInstances;

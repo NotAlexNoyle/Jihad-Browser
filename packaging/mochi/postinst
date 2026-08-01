@@ -17,17 +17,33 @@
 #         by scanning /usr/lib/BrowserPlugins at BOOT, and that is the only path it loads a
 #         plugin from (Atlas hit the same wall and found no way around it). Bounded + reversed
 #         instead of pretended away.
+#   /usr/lib/jihad/  and  /usr/lib/jihad/mochi/
+#         root-owned 0755 directories holding the adapter impl. Mode-pinned EXPLICITLY (F-8):
+#         `mkdir -p` applies the INHERITED umask, and the installer has been observed running
+#         with `umask 0`, which would leave both 0777 — enough for any local uid to unlink the
+#         impl or hardlink-swap it, and the shim validates the impl FILE, never the directory it
+#         was loaded out of.
 #   /usr/lib/jihad/mochi/BrowserAdapterImpl.so
 #         the adapter implementation. It lives on the ROOTFS, not in the app bundle, because the
 #         shim dlopens it into privileged LunaSysMgr and fails closed unless the file is
 #         root-owned and not group/world-writable (review F-161/F-180) — and cryptofs reports
 #         EVERY file as 777, so an app-bundle impl could never pass that check.
 #   /etc/event.d/jihad-mochi
-#         this variant's own upstart job. The stock `browserserver` job is never touched.
-#   /var/palm/jihad/mochi/
-#         root-owned 0755 runtime state (daemon log). Root-owned and NOT world-writable: it is
-#         read by root-privileged code, and /media/internal (world-writable vfat) is exactly the
-#         location the shim's trust check exists to distrust.
+#         this variant's own upstart job, root-owned 0644. The stock `browserserver` job is
+#         never touched. 0644 and not 0755 deliberately: upstart READS a job file, it never
+#         execs it, so the execute bit buys nothing and costs a root-run-file's worth of risk.
+#   /var/palm/jihad/  and  /var/palm/jihad/mochi/
+#         root-owned 0755 runtime state (daemon log, engine profile/cache). Root-owned and NOT
+#         world-writable: it is read by root-privileged code, and /media/internal
+#         (world-writable vfat) is exactly the location the shim's trust check exists to
+#         distrust.
+#
+# EVERY ONE OF THOSE IS `chown 0:0`'d (F-7). They are copied out of the app bundle with `cp -a`,
+# and `-a` PRESERVES the source's ownership — from /media/cryptofs, an untrusted 0777 filesystem
+# whose reported uid is not ours to trust. The impl was already chown'd because the shim refuses
+# to dlopen anything else; the shim itself needs it just as much (LunaSysMgr dlopens the shim as
+# root and performs NO trust check of its own) and so does the upstart job (init execs it as
+# root).
 #
 # NOT written, deliberately:
 #   * NOTHING under /media/internal. That vfat volume is the user's USB mass-storage partition
@@ -79,10 +95,17 @@ log "installing shim + impl + upstart job + state dir (rootfs rw)..."
 trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
 mount -o remount,rw /
 mkdir -p /usr/lib/BrowserPlugins "$IMPLDIR" "$STATE"
-# 0755 root-owned, NOT world-writable — see the footprint note above.
-chown 0:0 /var/palm/jihad "$STATE" 2>/dev/null || true
-chmod 0755 /var/palm/jihad "$STATE"
+# F-8: `mkdir -p` uses the INHERITED umask. The state dir was already mode-pinned; the impl
+# directories were not, so under `umask 0` they landed 0777 and any local uid could unlink or
+# hardlink-swap the impl the shim is about to dlopen into LunaSysMgr. Pin all four, root-owned
+# 0755, NOT world-writable — see the footprint note above.
+chown 0:0 /usr/lib/jihad "$IMPLDIR" /var/palm/jihad "$STATE" 2>/dev/null || true
+chmod 0755 /usr/lib/jihad "$IMPLDIR" /var/palm/jihad "$STATE"
 cp -a "$DR/BrowserPlugins/BrowserAdapterJihadMochi.so" "$SHIM"
+# F-7: `cp -a` preserves the SOURCE's ownership, and the source is the app bundle on cryptofs —
+# an untrusted 0777 filesystem. LunaSysMgr dlopens this shim as root with no trust check of its
+# own, so it must be root-owned exactly like the impl it loads.
+chown 0:0 "$SHIM" 2>/dev/null || true
 chmod 0755 "$SHIM"
 cp -a "$APP/BrowserAdapterImpl.so" "$IMPL"
 # The shim REJECTS an impl that is not root-owned or is group/world-writable, and `cp -a`
@@ -91,10 +114,19 @@ cp -a "$APP/BrowserAdapterImpl.so" "$IMPL"
 chown 0:0 "$IMPL" 2>/dev/null || true
 chmod 0644 "$IMPL"
 cp -a "$DR/event.d/jihad-mochi" "$JOB"
-chmod 0755 "$JOB"
+# F-7 again: init execs this job as root, so it is not the app bundle's file to own. 0644, not
+# 0755 — upstart READS a job file, it never execs it, so the execute bit is pure surface.
+chown 0:0 "$JOB" 2>/dev/null || true
+chmod 0644 "$JOB"
 sync
-mount -o remount,ro / 2>/dev/null || true
-trap - EXIT
+# F-9: never swallow a failed restore-to-read-only. R8 requires `/` back to ro on every exit
+# path, so if it did not happen, say so — out loud, on stderr, where ipkg records it. The EXIT
+# trap stays armed as a second attempt when this one fails.
+if mount -o remount,ro /; then
+	trap - EXIT
+else
+	echo "jihad-postinst($V): WARNING: could not restore / to read-only" >&2
+fi
 
 # ── 3. verify the deploy actually landed ─────────────────────────────────────────────────────
 # BusyBox `cp` can fail with EBADF across these mounts, so believe the filesystem, not $?.
@@ -109,10 +141,38 @@ trap - EXIT
 set +e
 log "restarting the Enyo 2 + Mochi daemon + reloading LunaSysMgr..."
 stop jihad-mochi 2>/dev/null
-start jihad-mochi 2>/dev/null
-# NOTE: a NEW plugin only enters WebKit's MIME database on a full BOOT (it scans
-# /usr/lib/BrowserPlugins once, at startup). `killall LunaSysMgr` refreshes the UI but does NOT
-# re-scan — after a first install of this variant, REBOOT before expecting its card to render.
-killall LunaSysMgr 2>/dev/null
+# `stop` returns before upstart has finished tearing the job down, and a `start` issued into that
+# window is dropped ("Job not changed") — leaving the job STOPPED with no error anywhere. Measured
+# 2026-08-01: after a three-variant matrix install, jihad-mochi and jihad-mojo were both
+# stop/waiting while enyo happened to win the race; started by hand each came up fine
+# ("engine up; serving YAP 'jihad-browser-mochi'"). So: wait for the teardown, then start, then
+# CONFIRM — and retry, because a deferred/duplicated install can leave upstart in an odd state.
+i=0
+while [ $i -lt 10 ]; do
+	case "$(status jihad-mochi 2>/dev/null)" in *"stop/waiting"*) break ;; esac
+	i=$((i + 1)); sleep 1
+done
+i=0
+while [ $i -lt 3 ]; do
+	start jihad-mochi 2>/dev/null
+	sleep 2
+	case "$(status jihad-mochi 2>/dev/null)" in
+		*"start/running"*) break ;;
+	esac
+	i=$((i + 1))
+done
+case "$(status jihad-mochi 2>/dev/null)" in
+	*"start/running"*) log "daemon job jihad-mochi is running" ;;
+	*) log "WARNING: jihad-mochi did not start; it will come up on the next boot" ;;
+esac
+# F-12: there is deliberately NO `killall LunaSysMgr` here. It tears down every card of every
+# app — including the OTHER Jihad variants' cards, which is precisely the cross-variant
+# interference R7 exists to forbid, arriving from the packaging side. And it never bought the
+# thing it was there for: a NEW plugin enters WebKit's MIME database only on a full BOOT,
+# because WebKit scans /usr/lib/BrowserPlugins exactly once, at startup. The old comment
+# conceded that. Nothing short of a reboot works, so ASK for the reboot instead of taking the
+# user's running cards away in exchange for nothing.
 log "install complete."
+log "REBOOT the device before launching Enyo 2 + Mochi for the first time: webOS WebKit builds its"
+log "NPAPI MIME database at boot, so BrowserAdapterJihadMochi.so stays unregistered until the next one."
 exit 0

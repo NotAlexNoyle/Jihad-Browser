@@ -4,7 +4,7 @@
 #
 # Jihad Browser — Enyo 1.0 variant (net.riverstonerelay.jihad-browser) — pre-removal. Runs as ROOT.
 #
-# Removes EXACTLY what this variant's postinst created, and nothing else:
+# ON A REAL REMOVAL it removes EXACTLY what this variant's postinst created, and nothing else:
 #   /usr/lib/BrowserPlugins/BrowserAdapterJihad.so
 #   /usr/lib/jihad/enyo/BrowserAdapterImpl.so   (+ the now-empty /usr/lib/jihad/enyo)
 #   /etc/event.d/jihad
@@ -12,6 +12,8 @@
 #   /tmp/yapserver.jihad-browser                       (this variant's socket)
 # `/usr/lib/jihad` and `/var/palm/jihad` are only ever `rmdir`'d — that succeeds solely when the
 # LAST variant is gone, and can never take a sibling's subdirectory with it.
+#
+# ON AN UPGRADE it removes NOTHING. See step 0.
 #
 # ── TWO PROPERTIES THIS SCRIPT EXISTS TO GUARANTEE ───────────────────────────────────────────
 # NO REFCOUNT. The 2026-07-29 review (#4) added a loop that counted sibling
@@ -41,7 +43,33 @@ SOCK=/tmp/yapserver.jihad-browser
 STATE=/var/palm/jihad/enyo
 log() { echo "jihad-prerm($V): $*"; }
 
+# ── 0. is this a REMOVAL or an UPGRADE? ──────────────────────────────────────────────────────
+# F-6: this script used to ignore its argument, so an UPGRADE ran the same `rm -rf
+# /var/palm/jihad/enyo` as a removal — destroying the user's engine profile (cookies, logins,
+# site permissions), the daemon log and anything else the state dir holds on EVERY version
+# bump. And because ipkg defers control scripts, the new postinst that was supposed to put it
+# all back may not run until much later, or at all: the data is gone first and unconditionally.
+# ipkg/dpkg call prerm as one of:
+#     prerm remove                     a real removal (also `remove in-favour <pkg>`)
+#     prerm upgrade <new-version>      this package is being REPLACED, not removed
+#     prerm failed-upgrade <old-ver>   an upgrade is being rolled back — still not a removal
+#     prerm deconfigure in-favour …    a dependency shuffle — still not a removal
+# Only the first purges. Everything else means THIS PACKAGE IS STAYING, so both the state dir
+# and the rootfs files (which the new postinst rewrites in place anyway) are left alone — and
+# leaving them means a deferred/failed new postinst degrades to "still running the old shim"
+# rather than "nothing installed at all".
+# No argument at all is treated as `remove`: callers that pass none are doing a plain uninstall,
+# and an uninstall that leaves residue fails R8.
+ACTION=$1
+[ -n "$ACTION" ] || ACTION=remove
+case "$ACTION" in
+	remove|purge) PURGE=1 ;;
+	*)            PURGE=0 ;;
+esac
+
 # ── 1. stop THIS variant's daemon ─────────────────────────────────────────────────────────────
+# Unconditional, upgrade included: the running daemon owns the socket and holds the replaced
+# files open, so the new install cannot come up cleanly until it is gone.
 log "stopping the Enyo 1.0 daemon..."
 stop jihad 2>/dev/null || true
 # Fallback for a daemon upstart is not supervising (started by hand, or orphaned by a crash).
@@ -69,10 +97,15 @@ EOF
 done
 rm -f "$SOCK"                       # exact socket path — never a glob (see header)
 
+if [ "$PURGE" = 0 ]; then
+	log "$ACTION — this package is staying; leaving the rootfs footprint and $STATE untouched"
+	exit 0
+fi
+
 # ── 2. the rootfs + state removals: ONE rw window, closed on every exit path ──────────────────
 log "removing this variant's rootfs components (rw)..."
 trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
-mount -o remount,rw / 2>/dev/null || true
+mount -o remount,rw / || log "WARNING: could not remount / read-write — step 3 will catch what that costs"
 rm -f "$SHIM"
 rm -f "$IMPL"
 rmdir "$IMPLDIR" 2>/dev/null || true
@@ -81,9 +114,35 @@ rm -f "$JOB"
 rm -rf "$STATE"                             # this variant's state dir only
 rmdir /var/palm/jihad 2>/dev/null || true   # ditto
 sync
-mount -o remount,ro / 2>/dev/null || true
-trap - EXIT
+# F-9: a failed restore-to-read-only is REPORTED, never swallowed (R8 requires `/` back to ro on
+# every exit path). It does not by itself fail the removal — the removal above already happened,
+# and the EXIT trap gets one more attempt — but it does not get to be silent either.
+if mount -o remount,ro /; then
+	trap - EXIT
+else
+	echo "jihad-prerm($V): WARNING: could not restore / to read-only" >&2
+fi
 
-killall LunaSysMgr 2>/dev/null || true
+# ── 3. verify the removal ACTUALLY happened — believe the filesystem, not $? ──────────────────
+# F-9: every step above is best-effort by design (a half-installed package must still be
+# removable), and the script then reported success unconditionally. So a failed `mount -o
+# remount,rw /` turned removal into a silent no-op while the installer recorded a clean
+# uninstall — leaving a stale shim to register an NPAPI MIME on every boot and a stale upstart
+# job to respawn against an app directory that no longer exists. postinst already refuses to
+# report a deploy it cannot see on disk; this is the same rule applied to the reverse operation.
+rc=0
+for f in "$SHIM" "$IMPL" "$JOB" "$SOCK" "$STATE"; do
+	if [ -e "$f" ]; then log "ERROR: $f still present after removal"; rc=1; fi
+done
+if [ "$rc" != 0 ]; then
+	echo "jihad-prerm($V): removal INCOMPLETE — refusing to report success" >&2
+	exit 1
+fi
+
+# F-12: no `killall LunaSysMgr` here either — see this variant's postinst. It would take down
+# every card of every app (R7's isolation, broken from the packaging side) to achieve a plugin
+# re-scan that only a boot performs.
 log "removal complete."
+log "REBOOT to drop BrowserAdapterJihad.so from WebKit's NPAPI MIME database; until then it is registered but"
+log "its backing file is gone, so a card asking for that MIME simply fails to instantiate."
 exit 0

@@ -60,11 +60,23 @@ do_install() {
 	nc /usr/bin/ipkg -o /media/cryptofs/apps install "$stage/jihad-$v.ipk"
 	nc /bin/rm -f "$stage/jihad-$v.ipk"
 	nc /bin/rmdir "$stage"
+	# ipkg DEFERS configuration when installing into an offline root: it unpacks the payload and
+	# stores the control scripts, but does not run postinst (the package is left "unpacked", to be
+	# configured at next boot). Preware's install flow ends up running it; here we invoke the
+	# stored script directly so a matrix run tests the real deployed state rather than a
+	# half-installed one. Idempotent by construction — postinst only copies and chmods.
+	nc /bin/sh "/media/cryptofs/apps/usr/lib/ipkg/info/$(appid "$v").postinst"
 }
 
 do_remove() {
 	local v="$1"
 	echo "=== remove $v ==="
+	# ipkg with an offline root defers control scripts on REMOVAL exactly as it does on install:
+	# it deletes the payload but never runs prerm, so the shim, impl, upstart job and state dir
+	# would all survive an "uninstall". Measured 2026-07-31 — a full three-variant remove left
+	# every rootfs file and every daemon in place. Run prerm first, while the app directory it
+	# reads still exists, then let ipkg remove the payload.
+	nc /bin/sh "/media/cryptofs/apps/usr/lib/ipkg/info/$(appid "$v").prerm"
 	nc /usr/bin/ipkg -o /media/cryptofs/apps remove "$(appid "$v")"
 }
 
@@ -92,7 +104,17 @@ do_check() {
 		&& pass "own upstart job ($j)" || fail "upstart job missing"
 
 	# The daemon: its own process, its own socket.
-	nc /bin/ls "$s" >/dev/null && pass "own socket ($s)" || fail "socket missing ($s)"
+	# Poll rather than sample once. postinst returns as soon as upstart reports the job started,
+	# but the daemon then has to bring XPCOM up (ICU tables, GRE registration, NSS) before it
+	# binds its YAP socket — seconds on this hardware, and longer when three daemons start close
+	# together. A single immediate check reported "socket missing" for daemons that were merely
+	# still starting (2026-07-31 matrix run). A real failure still fails, just 30s later.
+	local i=0
+	while [ $i -lt 30 ]; do
+		nc /bin/ls "$s" >/dev/null && break
+		i=$((i + 1)); sleep 1
+	done
+	nc /bin/ls "$s" >/dev/null && pass "own socket ($s)" || fail "socket missing ($s) after 30s"
 	# Capture then match — never `… | grep -q` under `set -o pipefail`: -q exits at the first
 	# match, ps upstream takes SIGPIPE, and pipefail turns that 141 into a failed test. It
 	# reported "no daemon process" for a daemon that was demonstrably running (2026-07-31).
@@ -104,10 +126,17 @@ do_check() {
 	esac
 
 	# R8: nothing of ours on the user's volume.
-	if nc /bin/ls /media/internal | grep -qi jihad; then
-		fail "R8 VIOLATION: something jihad-named on /media/internal"
+	# Captured, not piped into `grep -q`: under pipefail the match SIGPIPEs `novacom`, the
+	# pipeline reports 141, the `if` takes the else branch, and a REAL violation prints
+	# "clean" — the one assertion R8 exists to enforce, failing open. Found by review, 2026-08-01.
+	# Recursive, not top-level: app internals written into an existing subdirectory (a downloads
+	# folder, say) are exactly what this must catch.
+	local mi
+	mi=$(nc /usr/bin/find /media/internal -iname '*jihad*')
+	if [ -n "$mi" ]; then
+		fail "R8 VIOLATION: jihad-named paths on the user's volume: $(echo "$mi" | tr '\n' ' ')"
 	else
-		pass "R8: /media/internal clean"
+		pass "R8: /media/internal clean (recursive)"
 	fi
 }
 

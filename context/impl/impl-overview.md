@@ -5,6 +5,43 @@ last_edited: "2026-07-29"
 
 # Implementation Overview
 
+## 2026-07-31 — THREE INDEPENDENT PACKAGES, RUN IN PLACE FROM CRYPTOFS (READ FIRST)
+
+Two user decisions reshaped packaging: **each front-end must work entirely on its own**, and the
+package must be a **good webOS citizen** that writes nothing to `/media/internal`. Both are now
+requirements — cavekit-device-build.md **R7** and **R8** — with the naming contract in
+`../plans/plan-variant-identity.md` and the full record in `independence-citizen-2026-07-31.md`.
+
+**Enyo variant VERIFIED ON DEVICE, 0 failures** (commit e36c8cc): installs from a self-contained
+`.ipk`, deploys its own shim + impl + upstart job, serves its own socket, and runs its daemon **out
+of the app's own cryptofs `deviceroot`** — with every stock checksum unchanged and `/media/internal`
+clean. Atlas was checked at the user's request and has no way around the one unavoidable rootfs
+write (webOS's WebKit only scans `/usr/lib/BrowserPlugins` at boot); R8 bounds and reverses that
+footprint instead, and Atlas's run-in-place model is adopted + attributed in `NOTICE`.
+
+The device also gave up **5.3 GB** of accumulated dev cruft on the user's USB volume (bundle
+tarballs, a 28 MB log, ~40 framebuffer dumps); the 285 irreplaceable on-device dev scripts were
+archived into the repo first.
+
+Four defects had to be fixed before the daemon would start at all, each of which would have
+shipped: `ipkg` without `-o` installs into the **rootfs** rather than the app partition; the ARM
+dist's `icudt78l.dat` is a symlink into the build container, so the bundler **silently** shipped no
+ICU data and no GRE resources; `ICU_DATA` was never set, so libxul aborted in `u_init()` on every
+start and upstart respawned forever; and `| grep -q` under `set -o pipefail` fails on SIGPIPE —
+which made the R8 "no `/media/internal`" assertion **fail open**. That last one is endemic: it was
+found independently in the adapter build scripts, the `.ipk` verifier, the Mochi payload check and
+the device harness.
+
+Also this session: **browser-services R4 (downloads) closed on desktop** — no `nsITransfer` was
+registered, so `CreateTransfer` failed and *every* download was being cancelled — plus **cookie
+persistence** proven across an engine restart; the **Mojo front-end promoted from skeleton to a
+working browser** (new cavekit-mojo-ui.md); and the desktop **round-trip harness found broken since
+2026-07-27** (the daemon adopted the real isis shmem header layout, the test stand-in never
+followed), meaning every "ROUND-TRIP PASS" restated after that date was inherited rather than
+reproduced — now fixed and re-verified. A fable adversarial review of the download work found two
+P1s and an R8 violation; all nine findings are fixed
+(`impl-review-findings-downloads.md`).
+
 ## 2026-07-29 — FULL OE BUILD-FROM-SOURCE → two self-contained `.ipk`s + Mojo skeleton (READ FIRST)
 
 The reproducible Open webOS build (build-webos + meta-webos, 2013 "dylan" / bitbake 1.18) is

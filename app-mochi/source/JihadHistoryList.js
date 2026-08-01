@@ -4,7 +4,7 @@
 // JihadHistoryList — the Enyo 2 / Mochi port of ../../app/source/HistoryList.js.
 // A full-card overlay panel listing browse history (most-recent first) from the
 // SAME db8 kind the Enyo 1.0 app uses
-// (net.riverstonerelay.jihad-browser.history:1, via enyo.jihad.dbFind ordered by
+// (net.riverstonerelay.jihad-browser.mochi.history:1, via enyo.jihad.dbFind ordered by
 // `date` desc). A tap selects an entry (doSelectItem -> shell navigates); a row
 // Delete removes it; the header Clear empties the kind (doClearHistory + db8
 // delByQuery). The Enyo 1.0 relative-date dividers used enyo.g11n (not in the

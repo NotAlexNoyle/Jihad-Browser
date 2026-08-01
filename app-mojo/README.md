@@ -104,6 +104,16 @@ downloads and preferences views. JS `alert`/`confirm`/`prompt`/auth/SSL dialogs 
 no code here — `Mojo.Widget.WebView` presents them itself from the framework's own
 system templates.
 
+**This variant therefore has NO db8 layer, deliberately** — no `db/` directory, no
+kinds, no permissions, and no `com.palm.db` call anywhere in `app/` (grep-verified).
+The other two variants each declare, ship and own their own kinds under their own app
+id (review F-1 / cavekit-device-build.md **R7**); this one owns nothing because it
+persists nothing. It used to appear in `../app/db/permissions/*` as a granted caller
+on the ENYO variant's kinds — a cross-variant grant for a data layer it never used.
+That grant is gone. If a Mojo front-end ever grows persistence it gets its own
+`app-mojo/db/` with `net.riverstonerelay.jihad-browser.mojo.*` owned by this app id —
+never a grant on another variant's kinds.
+
 ## Build
 
 `../build/webos-oe/recipes-jihad/jihad-ui/net.riverstonerelay.jihad-browser.mojo_1.0.bb`

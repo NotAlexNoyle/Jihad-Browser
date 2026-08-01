@@ -33,7 +33,10 @@
 #         never touched. 0644 and not 0755 deliberately: upstart READS a job file, it never
 #         execs it, so the execute bit buys nothing and costs a root-run-file's worth of risk.
 #   /var/palm/jihad/  and  /var/palm/jihad/mojo/
-#         root-owned 0755 runtime state (daemon log, engine profile/cache). Root-owned and NOT
+#         root-owned 0755 runtime state: the daemon log and the debug channels, and NOTHING
+#         else. Kilobytes of operational state for a root daemon, correctly on ext3. The engine
+#         profile and cache deliberately do NOT live here — /var has 49.6 MB free and is shared
+#         with system state (see $APP/profile and $APP/cache below). Root-owned and NOT
 #         world-writable: it is read by root-privileged code, and /media/internal
 #         (world-writable vfat) is exactly the location the shim's trust check exists to
 #         distrust.
@@ -44,6 +47,20 @@
 # to dlopen anything else; the shim itself needs it just as much (LunaSysMgr dlopens the shim as
 # root and performs NO trust check of its own) and so does the upstart job (init execs it as
 # root).
+#
+# Created at RUNTIME by the daemon, inside the app's own directory, and listed here because
+# this variant's prerm removes it (ipkg only tracks files IT installed, so an untracked tree
+# would survive removal as residue and break R8's exact-reversal criterion):
+#   $APP/profile/   the engine's DURABLE profile (Gecko's ProfD): cookies.sqlite, prefs.js,
+#                   permissions, cert overrides.
+#   $APP/cache/     the engine's DISPOSABLE local profile (Gecko's ProfLD): cache2 +
+#                   startupCache, capped at 50 MB by browser.cache.disk.capacity.
+#         Both on cryptofs, not in /var/palm/jihad/mojo/: measured 2026-08-01, /var has 49.6 MB
+#         free and is shared with system state, while cryptofs has 10.2 GB. This is also where
+#         BOTH prior implementations of this browser on this device put them — isis
+#         (CookieJarPath/CachePath under /media/cryptofs/.browser) and Atlas (netdata/netcache/
+#         cookies.db in its app deviceroot), the latter because /media/internal is VFAT and
+#         gives SQLite no real file locking.
 #
 # NOT written, deliberately:
 #   * NOTHING under /media/internal. That vfat volume is the user's USB mass-storage partition
@@ -139,7 +156,7 @@ fi
 # still holds the replaced files open, so a bare `start` would fail and leave the old build
 # running. Only this variant's job name is used — never a glob, never another variant's job.
 set +e
-log "restarting the Mojo daemon + reloading LunaSysMgr..."
+log "restarting the Mojo daemon..."
 stop jihad-mojo 2>/dev/null
 # `stop` returns before upstart has finished tearing the job down, and a `start` issued into that
 # window is dropped ("Job not changed") — leaving the job STOPPED with no error anywhere. Measured

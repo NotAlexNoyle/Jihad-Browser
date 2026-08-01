@@ -118,8 +118,19 @@ umount_rootfs_tree() {
     done < <(awk '{print length, $2}' /proc/mounts | sort -rn | cut -d' ' -f2-)
   done
   # fail CLOSED: if anything is still mounted under $rp, refuse to let the caller rm through it.
-  if awk '{print $2}' /proc/mounts | while read -r mp; do case "$mp" in "$rp"|"$rp"/*) echo x; esac; done | grep -q x; then
-    echo "!! mounts still present under $rp after unmount — refusing the destructive op" >&2; exit 1
+  #
+  # Captured, then tested — NOT `… | grep -q x`. Under `set -o pipefail` (line 35) `grep -q`
+  # exits at the FIRST match, the `while` upstream takes SIGPIPE, pipefail promotes the 141 to
+  # the pipeline's status, and the `if` therefore reads FALSE exactly when mounts ARE still
+  # present: the guard fails OPEN and lets a recursive delete run through a live bind mount.
+  # It only ever "worked" when the producer happened to finish before grep exited, i.e. with a
+  # single leftover mount. (Seventh instance of this defect class in this tree; see review F-2.)
+  local still
+  still=$(awk '{print $2}' /proc/mounts | while read -r mp; do case "$mp" in "$rp"|"$rp"/*) echo "$mp" ;; esac; done)
+  if [ -n "$still" ]; then
+    echo "!! mounts still present under $rp after unmount — refusing the destructive op" >&2
+    echo "$still" >&2
+    exit 1
   fi
 }
 
@@ -197,12 +208,20 @@ install_ppa_key() {
   # is exactly the collision apt authentication exists to prevent.
   GNUPGHOME="$tmp" gpg --batch --quiet --import "$keyfile" 2>/dev/null || {
     rm -rf "$tmp"; echo "!! PPA key material is not a valid OpenPGP key" >&2; exit 1; }
-  if ! GNUPGHOME="$tmp" gpg --batch --with-colons --fingerprint 2>/dev/null \
-       | grep -q "^fpr:::::::::$PPA_KEY_FPR:"; then
-    echo "!! PPA key fingerprint MISMATCH — expected $PPA_KEY_FPR, the key material carries:" >&2
-    GNUPGHOME="$tmp" gpg --batch --with-colons --fingerprint 2>/dev/null | grep '^fpr' >&2 || true
-    rm -rf "$tmp"; echo "!! refusing to provision with an unverified apt key" >&2; exit 1
-  fi
+  # Captured, then matched — same reason as the mount guard above. `gpg | grep -q` under
+  # pipefail reports a MISMATCH when the fingerprint MATCHES (grep -q exits first, gpg takes
+  # SIGPIPE, pipefail returns 141, `!` inverts it to true). This one fails CLOSED — it refuses a
+  # good key rather than accepting a bad one — but a check that misfires on success is still a
+  # check nobody will trust. `case` on the captured text has no pipeline at all.
+  local fprs
+  fprs=$(GNUPGHOME="$tmp" gpg --batch --with-colons --fingerprint 2>/dev/null)
+  case $'\n'"$fprs"$'\n' in
+    *$'\n'"fpr:::::::::$PPA_KEY_FPR:"*) : ;;
+    *)
+      echo "!! PPA key fingerprint MISMATCH — expected $PPA_KEY_FPR, the key material carries:" >&2
+      printf '%s\n' "$fprs" | grep '^fpr' >&2 || true
+      rm -rf "$tmp"; echo "!! refusing to provision with an unverified apt key" >&2; exit 1 ;;
+  esac
   # Export ONLY the pinned key (so key material carrying extra keys cannot smuggle them in) as a
   # binary keyring — the format /etc/apt/trusted.gpg.d expects.
   GNUPGHOME="$tmp" gpg --batch --export "$PPA_KEY_FPR" > "$tmp/$PPA_KEYRING" 2>/dev/null || {

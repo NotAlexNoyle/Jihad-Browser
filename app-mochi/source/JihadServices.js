@@ -8,10 +8,11 @@
 // JihadBrowser.js), exposing helpers for the two Luna surfaces the parity views
 // need:
 //
-//   * db8 (palm://com.palm.db/*) against the SAME Jihad-owned kinds the Enyo 1.0
-//     app uses (net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1
-//     — see ../../app/source/BrowserApp.js and ../../app/db/). NOT the stock
-//     com.palm.* kinds.
+//   * db8 (palm://com.palm.db/*) against THIS PACKAGE'S OWN kinds,
+//     net.riverstonerelay.jihad-browser.mochi.{history,bookmarks,preferences}:1
+//     — declared in ../db/kinds/, owned by this app id, and shipped inside this
+//     .ipk. NOT the stock com.palm.* kinds, and (since review F-1) NOT the Enyo
+//     variant's kinds either: see the ownership note above scope.kinds below.
 //   * the download manager (palm://com.palm.downloadmanager/*) and the app
 //     launcher (palm://com.palm.applicationManager/*), matching
 //     BrowserApp.js downloadService / launchApplicationService.
@@ -28,11 +29,31 @@ enyo.jihad = enyo.jihad || {};
 	var DL_URI = "palm://com.palm.downloadmanager/";
 	var APP_URI = "palm://com.palm.applicationManager/";
 
-	// db8 kinds — identical to the Enyo 1.0 app (do not swap to com.palm.*).
+	// db8 kinds — THIS PACKAGE'S OWN, namespaced under its own app id.
+	//
+	// Review F-1 (cavekit-device-build.md R7): these used to be the Enyo variant's
+	// kinds — `owner: net.riverstonerelay.jihad-browser`, declared in ../../app/db/
+	// and shipped ONLY inside the Enyo .ipk — with app/db/permissions/* extended to
+	// grant this app id CRUD. That made the three variants co-own their data layer,
+	// which R7 forbids and which broke both ways: install Mochi ALONE and the kinds
+	// were never registered, so every db8 call failed; remove the Enyo package and
+	// Mochi's data layer went with a package it does not own.
+	//
+	// A db8 kind's `owner` MUST equal the app id that registers it, so the fix is
+	// not a permission grant (that is the co-ownership, not a cure) but a separate
+	// namespace: each variant declares, ships, owns and — on uninstall — takes with
+	// it exactly its own kinds. Nothing is shared, so nothing can be broken by a
+	// sibling's install or removal. Do not swap these back to the Enyo ids, and do
+	// not add a cross-variant caller grant to make them "shareable".
+	//
+	// Consequence, by design: history/bookmarks/preferences are PER VARIANT. The
+	// Mochi browser does not see the Enyo browser's history. Three independent
+	// browsers have three independent profiles — the same way each has its own
+	// engine profile under /var/palm/jihad/<variant>/ (R8).
 	scope.kinds = {
-		history:     "net.riverstonerelay.jihad-browser.history:1",
-		bookmarks:   "net.riverstonerelay.jihad-browser.bookmarks:1",
-		preferences: "net.riverstonerelay.jihad-browser.preferences:1"
+		history:     "net.riverstonerelay.jihad-browser.mochi.history:1",
+		bookmarks:   "net.riverstonerelay.jihad-browser.mochi.bookmarks:1",
+		preferences: "net.riverstonerelay.jihad-browser.mochi.preferences:1"
 	};
 
 	// Keep in-flight bridges referenced so the native side isn't GC'd mid-call.

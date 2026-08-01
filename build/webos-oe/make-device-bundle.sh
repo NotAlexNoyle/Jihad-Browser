@@ -170,20 +170,44 @@ pref("network.http.max-connections", 32);
 pref("network.http.max-persistent-connections-per-server", 4);
 pref("network.prefetch-next", false);                     // no speculative page prefetch
 pref("network.dns.disablePrefetch", true);
-// Disk offload: persistent HTTP cache on the (large) internal media partition
-// keeps repeat loads off the network AND lets the RAM cache stay small. Cookies
-// and the rest of the profile live in the daemon profile dir (see EngineHost).
-// VFAT CAUTION (inspector P2): /media/internal is VFAT — no journaling. The
-// cache2 disk cache is DISPOSABLE by design (entries are checksummed; corruption
-// = cache miss + auto-rebuild), so it is safe there. cookies.sqlite is NOT
-// disposable: force mozStorage to synchronous=FULL so the SQLite rollback
-// journal is fsync-ordered and a hard power loss mid-write rolls back cleanly
-// instead of corrupting the whole cookie DB (an OOM SIGKILL alone doesn't tear
-// writes — the kernel completes queued I/O — but battery pulls happen).
-pref("toolkit.storage.synchronous", 2);                   // FULL fsync for sqlite (cookies on VFAT)
+// Disk offload: a persistent HTTP cache keeps repeat loads off the network AND
+// lets the RAM cache stay small. WHERE it lives is decided in
+// render/goanna/JihadRuntimePaths.h, not here — Gecko's own ProfD/ProfLD split,
+// with BOTH halves in the app's own directory on cryptofs:
+//   ProfD  (durable: cookies.sqlite, prefs.js, permissions) -> $APP/profile
+//   ProfLD (disposable: cache2, startupCache)               -> $APP/cache
+//
+// That is where both prior implementations of this browser on this device put
+// them. isis — our own upstream, still in the fork at Src/Settings.cpp:65-74 —
+// ships CachePath=/media/cryptofs/.browser/cache and
+// CookieJarPath=/media/cryptofs/.browser/cookies. Atlas routes netdata, netcache
+// and cookies.db to its app deviceroot on cryptofs, and says why: /media/internal
+// is VFAT, with no hard links and no real file locking, which breaks both the
+// network cache and SQLite-backed storage. (That is also why OUR cookies.sqlite
+// was never created on-device on 2026-07-20.) /var is not used for either half:
+// 49.6 MB free, shared with system state.
+//
+// THE CAP IS NOT OPTIONAL, and it is why smart-sizing stays off: cache2 sizes
+// itself from FREE SPACE when smart_size is enabled, so on a 10.2 GB partition it
+// would claim GBs — the room existing is not a reason to use it. 50 MB is not a
+// number invented here: it is isis's own CacheMaxSize ("50M"), chosen by the
+// people who shipped this browser on this hardware, and it is ~3x the 16 MB RAM
+// cache in front of it.
+//
+// CAUTION, cryptofs: it is FUSE, so cache2's many-small-file I/O is slower there
+// than ext3 would be. Both predecessors accepted that trade, and the alternative
+// is a cache that fills a 62 MB system partition and takes the rest of webOS with
+// it. The memory cache absorbs the hot set either way.
+//
+// cookies.sqlite is NOT disposable: force mozStorage to synchronous=FULL so the
+// SQLite rollback journal is fsync-ordered and a hard power loss mid-write rolls
+// back cleanly instead of corrupting the whole cookie DB (an OOM SIGKILL alone
+// doesn't tear writes — the kernel completes queued I/O — but battery pulls
+// happen).
+pref("toolkit.storage.synchronous", 2);                   // FULL fsync for the cookie DB
 pref("browser.cache.disk.enable", true);
-pref("browser.cache.disk.capacity", 65536);               // 64 MB on /media/internal
-pref("browser.cache.disk.smart_size.enabled", false);     // never autosize into GBs
+pref("browser.cache.disk.capacity", 51200);               // 50 MB — isis's own CacheMaxSize
+pref("browser.cache.disk.smart_size.enabled", false);     // never autosize from free space
 JIHADPREFS
 
 # strip everything to shrink for the device

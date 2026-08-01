@@ -11,20 +11,23 @@ stopLoad}` plus the `palm://com.palm.browserServer/{clearCache,clearCookies}`
 URIs. Dialog answers use the adapter's existing scriptable `sendDialogResponse`
 routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 1.0 app's `viewCall(...)` fallback does), so they do **not** widen that grep-audited
-literal set. Persistence uses the same Jihad-owned db8 kinds the Enyo 1.0 app
-uses: `net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1`.
+literal set. Persistence uses THIS PACKAGE'S OWN db8 kinds:
+`net.riverstonerelay.jihad-browser.mochi.{history,bookmarks,preferences}:1`.
 
-> **Persistence caveat (audit F-A01 — grant applied 2026-07-31, device-gated).**
-> Those kinds are registered by `../app/db/` (owner
-> `net.riverstonerelay.jihad-browser`; a db8 kind's owner must equal the
-> registering app id, so the Mochi package cannot own or ship them itself).
-> `../app/db/permissions/*` now carries explicit full-CRUD grants for the
-> `.mochi` and `.mojo` app ids (explicit callers, not a trailing wildcard —
-> wildcard-caller semantics on this db8 build are unverified). Consequence:
-> db8-backed features in this variant REQUIRE the Enyo variant to be installed
-> (it registers the kinds + grants at install; after a dev `palm-install`, run
-> `build/webos-oe/register-db-kinds.sh`). On-device verification of the grant is
-> pending hardware. See "Audit 2026-07-31" in `../context/impl/impl-mochi.md`.
+> **Persistence ownership (audit F-A01, superseded by review F-1 on 2026-08-01).**
+> F-A01's fix was a permission grant: the kinds stayed owned by the Enyo package
+> and `../app/db/permissions/*` granted the `.mochi`/`.mojo` app ids CRUD. That
+> made db8 features here REQUIRE the Enyo variant to be installed — which is the
+> cross-variant coupling cavekit-device-build.md **R7** forbids, and it failed in
+> both directions (Mochi alone: kinds never registered; Enyo removed: this
+> variant's data destroyed with a package it does not own). Since a db8 kind's
+> owner must equal the registering app id, the fix is a SEPARATE NAMESPACE, not a
+> broader grant. This package now declares, ships and owns
+> `…jihad-browser.mochi.*` in `db/{kinds,permissions}/`, the cross-variant grants
+> are removed from `../app/db/permissions/*`, and no variant depends on another.
+> History/bookmarks are therefore per variant, by design. After a dev
+> `palm-install`, run `build/webos-oe/register-db-kinds.sh mochi`. Live db8
+> round-trips remain device-gated.
 
 Status legend: **Ported** = feature-equivalent · **Simplified** = present with a
 documented reduction · **Omitted** = intentionally not built (rationale given).

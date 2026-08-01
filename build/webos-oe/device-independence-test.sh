@@ -129,8 +129,14 @@ do_check() {
 	# Captured, not piped into `grep -q`: under pipefail the match SIGPIPEs `novacom`, the
 	# pipeline reports 141, the `if` takes the else branch, and a REAL violation prints
 	# "clean" — the one assertion R8 exists to enforce, failing open. Found by review, 2026-08-01.
-	# Recursive, not top-level: app internals written into an existing subdirectory (a downloads
-	# folder, say) are exactly what this must catch.
+	# Recursive, not top-level: app internals written into an existing subdirectory are exactly
+	# what this must catch.
+	#
+	# It matches JIHAD-NAMED paths, which is the right test AND the reason the one deliberate
+	# carve-out does not trip it: finished downloads go to /media/internal/downloads (review
+	# F-10 — USER data, webOS's own convention, see the R8 carve-out criterion in
+	# cavekit-device-build.md). Those files carry the user's names, not ours, and install/removal
+	# never writes there at all. Anything Jihad-named on this volume is still a violation.
 	local mi
 	mi=$(nc /usr/bin/find /media/internal -iname '*jihad*')
 	if [ -n "$mi" ]; then

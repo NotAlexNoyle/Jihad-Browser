@@ -21,7 +21,11 @@ set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT="$HERE/out-audit"
 
-nc() { timeout 60 novacom run "file://$1" -- "${@:2}" 2>/dev/null; }
+# NC_TIMEOUT lets one call buy more wall-clock than the default without loosening it for all of
+# them: the recursive /media/internal walk below can legitimately take minutes on a device with a
+# populated user volume, and a `timeout`-truncated listing would be BOTH wrong and unstable
+# between runs (which is the one thing a byte-comparable snapshot must never be).
+nc() { timeout "${NC_TIMEOUT:-60}" novacom run "file://$1" -- "${@:2}" 2>/dev/null; }
 
 snap() {
 	local name="${1:?snapshot name required}"
@@ -46,23 +50,57 @@ snap() {
 		echo "## --- /usr/lib/BrowserPlugins (names + sizes) ---"
 		nc /bin/ls -la /usr/lib/BrowserPlugins | awk '{print $5, $9}' | sort
 
-		echo "## --- /usr/lib/jihad tree ---"
-		nc /usr/bin/find /usr/lib/jihad -type f | sort
+		# F-14: `-type f` missed a leftover EMPTY DIRECTORY, which is residue too — prerm only
+		# `rmdir`s /usr/lib/jihad and /usr/lib/jihad/<V>, so a failed rmdir is exactly the
+		# outcome this snapshot has to be able to see. Every entry, no type filter.
+		echo "## --- /usr/lib/jihad tree (every entry) ---"
+		nc /usr/bin/find /usr/lib/jihad | sort
 
 		echo "## --- /etc/event.d ---"
 		nc /bin/ls /etc/event.d | sort
 
-		echo "## --- /var/palm/jihad tree (dirs only; logs churn) ---"
-		nc /usr/bin/find /var/palm/jihad -type d | sort
+		# F-14: was `-type d`, so a residual FILE under /var/palm/jihad was invisible — the
+		# inverse blind spot, on the tree prerm `rm -rf`s. Every entry.
+		# `find` prints NAMES only: the daemon log's existence shows up (which is what the R8
+		# residue check needs) while its contents, size and mtime do not (which is what keeps two
+		# snapshots byte-comparable). Do not "improve" this into `ls -l`.
+		echo "## --- /var/palm/jihad tree (every entry; names only, so log CONTENT stays out) ---"
+		nc /usr/bin/find /var/palm/jihad | sort
 
-		echo "## --- /media/internal top level (MUST be untouched by us) ---"
-		nc /bin/ls -a /media/internal | sort
+		# F-14: this was `ls -a /media/internal`, i.e. the TOP LEVEL ONLY — anything written into
+		# an already-existing subdirectory (which is where a stray write would land) was invisible
+		# to the one assertion R8 exists to enforce. Walk the whole volume.
+		# NOTE the one deliberate exception, /media/internal/downloads: that is where FINISHED
+		# USER DOWNLOADS go (F-10), by webOS convention and by the user's own request. Install and
+		# removal still write nothing there, so an install->remove snapshot pair is unaffected;
+		# but a snapshot taken across a browsing session legitimately shows the user's files.
+		echo "## --- /media/internal (whole tree; MUST be untouched by install/removal) ---"
+		NC_TIMEOUT=600 nc /usr/bin/find /media/internal | sort
 
 		echo "## --- installed jihad apps ---"
 		nc /bin/ls /media/cryptofs/apps/usr/palm/applications | grep -i jihad | sort
 
-		echo "## --- our yap sockets ---"
-		nc /bin/ls /tmp | grep -E '^yapserver\.' | sort
+		# The engine's profile lives in each app's OWN cryptofs directory, both halves:
+		#   $APP/profile   ProfD  — cookies.sqlite, prefs.js, permissions
+		#   $APP/cache     ProfLD — cache2, startupCache
+		# (isis and Atlas both put cookies+cache on cryptofs on this device; /var has only
+		# 49.6 MB free and is shared with system state.) The DAEMON creates both at runtime, so
+		# ipkg never tracked them and would leave the trees behind on removal — residue that R8's
+		# exact-reversal criterion forbids and that this snapshot is the evidence for. `prerm`
+		# removes them explicitly; this makes that visible.
+		#
+		# Directory names only: cache2 fans out into thousands of entry files and cookies.sqlite
+		# is rewritten on every page load, so listing FILES would make two snapshots incomparable
+		# — the one thing this file must never be. A leftover tree still shows up as a directory.
+		echo "## --- per-app engine profile + cache trees (dirs only; contents churn) ---"
+		for a in net.riverstonerelay.jihad-browser \
+		         net.riverstonerelay.jihad-browser.mochi \
+		         net.riverstonerelay.jihad-browser.mojo; do
+			for d in profile cache; do
+				nc /usr/bin/find "/media/cryptofs/apps/usr/palm/applications/$a/$d" -type d
+			done
+		done | sort
+
 	} > "$f"
 	echo "wrote $f ($(wc -l < "$f") lines)"
 }

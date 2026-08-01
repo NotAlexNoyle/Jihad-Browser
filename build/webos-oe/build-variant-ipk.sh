@@ -133,6 +133,30 @@ for V in $VARIANTS; do
     [ -e "$STAGE/$f" ] || die "[$V] staging is missing $f (postinst would abort on-device)"
   done
 
+  # ---- 6b. this variant's OWN db8 kinds must ride along (R7 / review F-1) ----------------
+  # The appinstaller registers db8 kinds by reading db/{kinds,permissions}/ out of the app dir,
+  # so a kind that is not IN this .ipk is a kind that does not exist when this package is
+  # installed alone. That was F-1: Mochi's history/bookmarks/preferences were declared in the
+  # ENYO package and merely permission-granted to the Mochi app id, so Mochi-alone had no data
+  # layer and removing Enyo destroyed it. Each variant now owns its own namespace; assert the
+  # files are present and that every one of them is owned by THIS app id, because a copy-paste
+  # that left `owner` pointing at a sibling would silently recreate the co-ownership.
+  # Mojo is exempt: it ships no history/bookmarks/preferences UI and makes no com.palm.db call,
+  # so it declares no kinds at all (see build/webos-oe/register-db-kinds.sh).
+  if [ "$V" != mojo ]; then
+    for k in history bookmarks preferences; do
+      for d in kinds permissions; do
+        [ -f "$STAGE/db/$d/$V_APPID.$k" ] \
+          || die "[$V] staging is missing db/$d/$V_APPID.$k — this package would install with no data layer"
+      done
+      OWNER=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["owner"])' \
+                "$STAGE/db/kinds/$V_APPID.$k")
+      [ "$OWNER" = "$V_APPID" ] \
+        || die "[$V] db/kinds/$V_APPID.$k is owned by '$OWNER', not '$V_APPID' — that is the R7 co-ownership F-1 removed"
+    done
+    echo "  db8 kinds  : 3, all owned by $V_APPID"
+  fi
+
   # ---- 7. palm-package -------------------------------------------------------------------
   say "[$V] palm-package"
   palm-package "$STAGE" -o "$OUT"
@@ -196,7 +220,21 @@ for V in $VARIANTS; do
   # Captured, not piped into `grep -q`: under pipefail a SIGPIPE'd producer would make this
   # check report "clean" for a script that DOES touch /media/internal — failing open on the one
   # assertion R8 exists to enforce.
-  CTRLTEXT=$(ar p "$IPK" control.tar.gz | tar -xzOf - ./postinst ./prerm | grep -vE '^[[:space:]]*#' || true)
+  #
+  # F-15: the previous form ended in `|| true`, which was there because `grep -v` exits 1 when
+  # it emits NO lines — but `|| true` does not distinguish that from `ar` failing, `tar` failing,
+  # or `grep` erroring out (exit 2). ANY of those produced an empty CTRLTEXT and a vacuous PASS,
+  # on the one build-time assertion that keeps app internals off the user's volume. So: extract
+  # under pipefail (a real failure aborts the build), then strip comments in the SHELL — no
+  # pipeline, no exit status to swallow, no `|| true`.
+  CTRLRAW=$(ar p "$IPK" control.tar.gz | tar -xzOf - ./postinst ./prerm)
+  [ -n "$CTRLRAW" ] || die "[$V] control scripts extracted empty — cannot assert the R8 footprint"
+  CTRLTEXT=""
+  while IFS= read -r line; do
+    trimmed=${line#"${line%%[![:space:]]*}"}   # drop leading whitespace
+    case $trimmed in '#'*) continue ;; esac    # comments legitimately name the volume
+    CTRLTEXT="$CTRLTEXT$line"$'\n'
+  done <<< "$CTRLRAW"
   case "$CTRLTEXT" in
     *"/media/internal"*) die "[$V] a control script still touches /media/internal" ;;
   esac

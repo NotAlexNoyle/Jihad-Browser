@@ -154,6 +154,22 @@ closing device-build R3/R4. T-055..T-058 touch disjoint surfaces and run in para
 
 ---
 
+## Tier 10 — Add-ons & extensions (added 2026-08-01, user requirement)
+
+T-062 is the P0 crash fix and the feature prerequisite in one: the daemon SIGSEGVs in
+`XRE_NotifyProfile()` → `DoStartup()` precisely because no `nsIXULAppInfo` is registered, which is
+the same thing the add-on manager needs. Everything else is gated behind it.
+
+| Task | Title | Cavekit | Req | blockedBy | Effort |
+|------|-------|---------|-----|-----------|--------|
+| T-062 | Register `nsIXULAppInfo`/`nsIXULRuntime` in the embedded runtime (fixes the device SIGSEGV; stable app ID shared with the UA string) | cavekit-addons-extensions.md | R1 | — | M |
+| T-063 | `about:addons` opens, lists, and is operable through the synthesized input path (incl. the XUL input hazard) | cavekit-addons-extensions.md | R2 | T-062 | L |
+| T-064 | XPI install flow: prompt, accept/decline, target-application compatibility rejection | cavekit-addons-extensions.md | R3 | T-062, T-063 | L |
+| T-065 | Prove an installed extension actually alters browsing; enable/disable toggles the effect | cavekit-addons-extensions.md | R4 | T-064 | M |
+| T-066 | Extension persistence + per-variant isolation in `$APP/profile/extensions`; removal takes them with it | cavekit-addons-extensions.md | R5, R6 | T-064 | M |
+
+---
+
 ## Summary
 
 | Tier | Tasks | Effort breakdown |
@@ -168,8 +184,9 @@ closing device-build R3/R4. T-055..T-058 touch disjoint surfaces and run in para
 | 7 | 4 | 3M, 1L |
 | 8 | 1 | 1M |
 | 9 | 7 | 2S, 2M, 3L |
+| 10 | 5 | 3M, 2L |
 
-**Total: 61 tasks, 10 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
+**Total: 66 tasks, 11 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
 The Mochi UI track (T-049/T-050/T-051/T-052/T-053) is parallelizable with the
 engine work; T-054 + T-046 produce the two `.ipk`s for both TouchPad models.
 
@@ -346,6 +363,27 @@ Every acceptance criterion maps to its requirement's task. (Criterion text abbre
 | mojo-ui | R4 | layout usable on Topaz + Opal [human-review] | T-061 | COVERED |
 | mojo-ui | R5 | Apache headers on app-mojo sources | T-060 | COVERED |
 | mojo-ui | R5 | ships composite LICENSE + NOTICE | T-060 | COVERED |
+| addons | R1 | nsIXULAppInfo registered before NotifyProfile | T-062 | COVERED |
+| addons | R1 | nsIXULRuntime members answered | T-062 | COVERED |
+| addons | R1 | stable documented application ID | T-062 | COVERED |
+| addons | R1 | identity shared with the UA string, one source | T-062 | COVERED |
+| addons | R1 | no stripped branding reintroduced | T-062 | COVERED |
+| addons | R1 | device SIGSEGV gone with NotifyProfile ENABLED | T-062 | COVERED |
+| addons | R2 | about:addons renders the manager | T-063 | COVERED |
+| addons | R2 | lists add-ons with name/version/state | T-063 | COVERED |
+| addons | R2 | enable/disable/remove persist across restart | T-063 | COVERED |
+| addons | R2 | operable via synthesized input (XUL hazard) | T-063 | COVERED |
+| addons | R3 | .xpi triggers install, not download | T-064 | COVERED |
+| addons | R3 | prompt identifies add-on; decline installs nothing | T-064 | COVERED |
+| addons | R3 | accepted add-on appears + is active | T-064 | COVERED |
+| addons | R3 | targetApplication mismatch rejected with a reason | T-064 | COVERED |
+| addons | R4 | a test extension observably alters a real page | T-065 | COVERED |
+| addons | R4 | disable stops the effect; re-enable restores | T-065 | COVERED |
+| addons | R5 | extensions survive daemon restart + reboot | T-066 | COVERED |
+| addons | R5 | per-variant profile isolation of extensions | T-066 | COVERED |
+| addons | R5 | removing a variant removes only its extensions | T-066 | COVERED |
+| addons | R6 | extension data on cryptofs, not /media/internal or /var | T-066 | COVERED |
+| addons | R6 | install/removal writes nothing outside the profile | T-066 | COVERED |
 | device-build | R6 | machine configs for Topaz + Opal | T-054 | COVERED |
 | device-build | R6 | daemon/adapter/both .ipks build+install both models | T-054 | COVERED |
 | device-build | R6 | model-specific diffs captured | T-054 | COVERED |

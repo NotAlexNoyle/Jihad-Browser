@@ -22,6 +22,70 @@ scans `/usr/lib/BrowserPlugins` at boot, and Atlas's own README calls that "the 
 app loads it from". So the plan **bounds** that footprint (a tiny shim + the impl + one upstart job,
 all variant-namespaced) and reverses it exactly, instead of pretending it away.
 
+## Where the engine's state belongs — measured partition sizes (2026-08-01)
+
+Grounded in `webos://knowledge/system-internals` ("Where persistent state lives") and `df` on the
+device. The engine has two distinct storage needs and they do **not** belong on the same partition:
+
+| Path | Free | FS | Verdict |
+|---|---|---|---|
+| `/var` | **49.6 MB** | ext3 | Cookies/prefs only. Far too small for a browser disk cache, and shared with system state. |
+| `/var/file-cache` | 110.8 MB | ext3, encrypted (`store-cryptofilecache`) | **Off limits.** It is the filecache *service's* managed store with its own accounting and GC; squatting there is exactly the bad-citizen behaviour R8 forbids. |
+| `/var/db` | 216.8 MB | ext3, encrypted (`store-cryptodb`) | Off limits — mojodb's. |
+| `/media/cryptofs` | **10.2 GB** | fuse.cryptofs | The app partition; the engine already executes from here. Right home for the disposable cache. |
+| `/media/internal` | 10.2 GB | vfat | The user's USB volume. Barred for app internals; the sole carve-out is finished downloads. |
+| `/media/ram` | 459 MB | tmpfs | Volatile and costs RAM on a 1 GB device. No. |
+
+### What isis and Atlas actually do — checked, and they agree
+
+Both prior implementations of this exact browser on this exact device put **cache AND cookies on
+cryptofs**, and downloads on the user's volume. This is not a judgement call; it is settled prior
+art, and one of the two spells out the hard technical reason.
+
+**isis** — our own upstream, still in the fork at `render/browserserver/Src/Settings.cpp:65-74`
+(and identically in `ref-BrowserServer`):
+```
+CacheEnabled                      true
+CacheMaxSize                      "50M"
+CachePath                         /media/cryptofs/.browser/cache
+CookieJarPath                     /media/cryptofs/.browser/cookies
+DownloadPath                      /media/internal/downloads
+WebSettings/PersistentStoragePath /media/cryptofs/.browser
+```
+
+**Atlas** — `atlas-wpe-backend/BrowserPageWPE.cpp:730`, verbatim, and it is the *why*:
+> "Network session data (IndexedDB / localStorage / ServiceWorkers) + disk cache + cookies must NOT
+> live on /media/internal: it is VFAT (no hard links, no real file locking). That breaks WebKit's
+> NetworkCache (endless 'Failed to create hard link ...') AND, critically, the SQLite-backed website
+> storage that heavy apps need… Put them on cryptofs (create/rename/lock work; PROVEN…)"
+
+It routes `netdata`, `netcache` and `cookies.db` to its app deviceroot on cryptofs (through a
+`/var/atlas252` bridge symlink that exists only because WPE bakes in a length-limited prefix —
+not a constraint we have).
+
+**This independently explains our own 2026-07-20 cookie failure.** `cookies.sqlite` never appeared
+because the profile was on VFAT, which gives SQLite no real locking. Moving to ext3 (`/var`) fixed
+it — but cryptofs would have fixed it equally, and is where both predecessors put it.
+
+### The split to implement
+
+- `ProfD` (`NS_APP_USER_PROFILE_50_DIR`) → the app's own `profile/` **on cryptofs** — cookies,
+  prefs, permissions, cert overrides. Matches isis's `CookieJarPath` and Atlas's `cookies.db`.
+- `ProfLD` (`NS_APP_USER_PROFILE_LOCAL_50_DIR`) → the app's own `cache/` **on cryptofs** —
+  `cache2`, `startupCache`. Matches isis's `CachePath`. Gecko puts `cache2` under the local key, so
+  `EngineHost` needs no new mechanism; it already registers both.
+- **Cache cap: 50 MB** — isis's own `CacheMaxSize`, chosen by the people who shipped this browser
+  on this hardware. Set it in the low-RAM `goanna.js` block, not at runtime (the "Once" prefs are
+  snapshotted before a runtime `SetIntPref` would land — Codex F-235).
+- `/var/palm/jihad/<variant>/` keeps ONLY the daemon log and debug channels — operational state for
+  a root daemon, kilobytes, correctly on ext3. **Not** the engine profile: `/var` has 49.6 MB free.
+- Downloads → `/media/internal/downloads` — isis's exact default, and the user's decision.
+
+Tradeoff, stated deliberately: cryptofs is FUSE, so many-small-file cache I/O is slower than ext3.
+Both predecessors accepted it, and the alternative is a cache that fills a 62 MB system partition.
+R8 consequence: the profile and cache trees are **untracked** by `ipkg`, so `prerm` must remove them
+explicitly or they become residue and break the exact-reversal criterion that is currently green.
+
 ## Verified platform facts (this device, 2026-07-31)
 
 - `/media/cryptofs` is `fuse.cryptofs (rw,nosuid,nodev)` — **not** `noexec`. Exec from an app's
@@ -45,8 +109,11 @@ all variant-namespaced) and reverses it exactly, instead of pretending it away.
 | YAP socket | `/tmp/yapserver.jihad-browser` | `/tmp/yapserver.jihad-browser-mochi` | `/tmp/yapserver.jihad-browser-mojo` |
 | upstart job | `/etc/event.d/jihad` | `/etc/event.d/jihad-mochi` | `/etc/event.d/jihad-mojo` |
 | engine + daemon | `$APP/deviceroot/hl/` — **run in place** | same | same |
-| runtime state dir | `/var/palm/jihad/enyo/` | `/var/palm/jihad/mochi/` | `/var/palm/jihad/mojo/` |
+| runtime state dir (log + debug only) | `/var/palm/jihad/enyo/` | `/var/palm/jihad/mochi/` | `/var/palm/jihad/mojo/` |
 | daemon log | `/var/palm/jihad/enyo/daemon.log` | `…/mochi/daemon.log` | `…/mojo/daemon.log` |
+| engine profile — `ProfD` (durable: cookies, prefs, permissions) | `$APP/profile/` | same shape | same shape |
+| engine local profile — `ProfLD` (disposable: `cache2`, `startupCache`) | `$APP/cache/` | same shape | same shape |
+| downloads (USER data; the one R8 carve-out) | `/media/internal/downloads` | same | same |
 
 `$APP` = `/media/cryptofs/apps/usr/palm/applications/<app id>`.
 

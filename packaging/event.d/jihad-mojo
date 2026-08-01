@@ -51,8 +51,11 @@ script
 	# /media/internal (env JIHAD_DUMP=$STATE/frame.ppm).
 	# JIHAD_BS_NAME is this variant's YAP service name — it is what makes the socket, and
 	# therefore the whole daemon<->adapter channel, unique per variant.
-	# JIHAD_STATE_DIR tells the daemon where its writable state (profile/cache/debug output)
-	# belongs; it must never fall back to the user's storage.
+	# JIHAD_STATE_DIR tells the daemon where its operational state (the log and the debug
+	# channels) belongs; it must never fall back to the user's storage. The engine PROFILE and
+	# CACHE are NOT here — they go to $APP/profile and $APP/cache on cryptofs, where isis and
+	# Atlas both put them, because /var has 49.6 MB free and is shared with system state (see
+	# RuntimeProfileDir()/RuntimeCacheDir() in render/goanna/JihadRuntimePaths.h).
 	# ICU_DATA is REQUIRED, not a nicety. libxul loads its Unicode tables from icudt78l.dat at
 	# XPCOM startup; the path compiled into the engine is the BUILD machine's, which does not
 	# exist here, and ICU has no notion of "next to the library". Without this the daemon aborts

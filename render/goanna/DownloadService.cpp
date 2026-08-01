@@ -438,33 +438,80 @@ void JihadHelperDialog::Report(nsIHelperAppLauncher* aLauncher, DownloadOrigin a
 // F-3: this used to spell its own path — $JIHAD_DOWNLOAD_DIR taken on trust,
 // with NS_OS_TEMP_DIR as the fallback — and both halves were wrong for the
 // device. Nothing checked the value, so an inherited/stale variable could point
-// finished downloads straight at /media/internal, the user's vfat USB volume
-// that cavekit-device-build.md R8 forbids the package to write to at all; and
-// since no upstart job sets that variable, the REAL device path was the
-// fallback, /tmp — which no prerm cleans, so every download was permanent
-// residue (R8's "no residue" criterion) and a filled /tmp then fed F-2's
+// finished downloads at any path at all; and since no upstart job sets that
+// variable, the REAL device path was the fallback, /tmp — which no prerm cleans,
+// so every download was permanent residue and a filled /tmp then fed F-2's
 // temp-file-setup failure.
 //
-// Everything now goes through JihadRuntimePaths.h, which is the ONE place in the
-// tree allowed to derive a runtime path. That gives us, for free: the
-// unconditional R8 guard, RuntimeDirUsable()'s lstat/ownership/mode validation
-// (so a symlink planted at the path, or a group-writable dir, is refused instead
-// of silently used for the user's downloads), and the variant-scoped default
-// /var/palm/jihad/<variant>/downloads — inside the tree that variant's own prerm
-// deletes.
+// F-10 then corrected the correction. The first fix routed downloads into the
+// variant's runtime state dir, /var/palm/jihad/<variant>/downloads — which is
+// right for ENGINE INTERNALS and wrong for this. R8 exists to keep app internals
+// (profile, cache, log, debug channels) off the user's USB mass-storage volume;
+// a file the USER asked the browser to download is the opposite case:
+//   * it is the user's data, and it has to be reachable — from every other app
+//     on the device, and from the PC when the TouchPad is mounted as a USB drive.
+//     /var/palm is root-only and invisible to both.
+//   * it must OUTLIVE this package. `prerm` `rm -rf`s the state dir, so an
+//     uninstall (and, before F-6, every upgrade) silently destroyed the user's
+//     downloads along with our cache.
+//   * it has to FIT. The rootfs holding /var is 559 MB; the user volume is
+//     multi-GB. A single large download fills the system partition.
+//   * webOS's own convention is /media/internal/downloads — still the
+//     `DownloadPath` default in render/browserserver/Src/Settings.cpp, i.e. what
+//     the stock BrowserServer this daemon replaces has always used, and what
+//     com.palm.downloadmanager hands out.
+// So the two concepts are now SEPARATE: engine internals stay in the state dir
+// (unchanged, still R8-guarded), and the final download target goes to the user's
+// volume through RuntimeUserDownloadDir() — the single, deliberate, commented
+// carve-out documented in JihadRuntimePaths.h. Everything else about the guard is
+// untouched: RuntimeResolvePath/RuntimeTryDir still refuse EVERY other path on
+// that volume, so a stale $JIHAD_DUMP or $JIHAD_STATE_DIR cannot re-colonise it.
 //
-// $JIHAD_DOWNLOAD_DIR keeps RuntimeResolvePath's vocabulary: an absolute path is
-// honoured (unless it is on the user's volume, which is redirected with a loud
-// line), a bare name is a leaf under the state dir, and "0"/"off"/"no"/"false"
-// disables the engine-side save entirely — the client still gets
-// msgMimeHandoffUrl and can fetch the URL itself. UNSET means the DEFAULT, not
-// "disabled", because a download has to land somewhere; hence the "1" below.
+// $JIHAD_DOWNLOAD_DIR vocabulary:
+//   unset / "1" / "on" / "yes" / "true"   -> /media/internal/downloads, falling
+//                                            back to <state>/downloads when the
+//                                            user volume is absent (desktop, or
+//                                            the device mounted on a PC).
+//   "0" / "off" / "no" / "false"          -> engine-side save DISABLED; the
+//                                            client still gets msgMimeHandoffUrl
+//                                            and can fetch the URL itself.
+//   "/media/internal/downloads"           -> the carve-out, named explicitly.
+//   any other absolute path / bare leaf   -> RuntimeResolvePath as before, i.e.
+//                                            state-dir-scoped and R8-guarded.
 static already_AddRefed<nsIFile> jihadDownloadDir() {
   nsCOMPtr<nsIFile> dir;
   const char* env = getenv("JIHAD_DOWNLOAD_DIR");
-  const std::string want = RuntimeResolvePath((env && *env) ? env : "1", "downloads");
-  if (want.empty()) return dir.forget();          // disabled, or no writable state
+  const bool haveEnv = env && *env;
   std::string usable;
+
+  // Explicit "off" is honoured before anything else.
+  if (haveEnv && (!strcmp(env, "0") || !strcmp(env, "off") ||
+                  !strcmp(env, "no") || !strcmp(env, "false")))
+    return dir.forget();
+
+  const bool boolish = !haveEnv || !strcmp(env, "1") || !strcmp(env, "on") ||
+                       !strcmp(env, "yes") || !strcmp(env, "true");
+  // The DEFAULT, and an explicit request for the carve-out path itself, both land
+  // on the user's volume. RuntimeIsUserDownloadDir canonicalises before comparing,
+  // so "/media/internal/./downloads" is recognised and "/media/internal/../x" is
+  // not mistaken for it.
+  if (boolish || (haveEnv && RuntimeIsUserDownloadDir(env))) {
+    if (RuntimeTryUserDownloadDir(usable)) {
+      if (NS_FAILED(NS_NewNativeLocalFile(nsDependentCString(usable.c_str()), true,
+                                          getter_AddRefs(dir))))
+        dir = nullptr;
+      return dir.forget();
+    }
+    // No user volume (desktop, container, or the device in USB-drive mode, where
+    // /media/internal is unmounted from under us). Keep downloads working by
+    // falling back INSIDE the state dir rather than dropping them: it is our own
+    // R8-legal storage, and the client still learns the final path.
+    fprintf(stderr, "[jihad-dl] %s unavailable — falling back to the runtime state dir\n",
+            RuntimeUserDownloadDir());
+  }
+
+  const std::string want = RuntimeResolvePath(boolish ? "1" : env, "downloads");
+  if (want.empty()) return dir.forget();          // disabled, or no writable state
   // Creates it 0700 if missing and re-checks the R8 + ownership/mode rules on
   // what is actually there.
   if (!RuntimeTryDir(want, 0700, usable)) {

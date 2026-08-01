@@ -56,12 +56,23 @@ directive, cavekit-mochi-ui.md R1 — never "Jihad (Mochi)"/"Jihad (Enyo)"); the
 distinct app id is what keeps them apart. Icons are the shared Jihad Browser set
 (identical bytes to `../app/icon*.png`).
 
-**db8 kinds are owned by the Enyo variant.** Bookmarks/history/preferences use
-`net.riverstonerelay.jihad-browser.{bookmarks,history,preferences}:1`, which are
-registered — and whose db8 permissions are granted — by `../app/db/`, to the
-caller `net.riverstonerelay.jihad-browser` only. See the "Audit 2026-07-31"
-section of `../context/impl/impl-mochi.md` (finding F-A01) before relying on
-persistence from this package.
+**This package owns its own db8 kinds.** Bookmarks/history/preferences use
+`net.riverstonerelay.jihad-browser.mochi.{bookmarks,history,preferences}:1`,
+declared in `db/{kinds,permissions}/` HERE, owned by this app id, and registered
+by the appinstaller out of this `.ipk`. Nothing is shared with the Enyo variant.
+
+Until review F-1 they were the ENYO variant's kinds, shipped only in that package
+with a permission grant extended to this app id — so installing Mochi alone
+registered no kinds at all and every db8 call failed, and removing the Enyo
+package destroyed this variant's data. That is the co-ownership
+cavekit-device-build.md **R7** forbids. A db8 kind's `owner` must equal the app id
+that registers it, so independence means a separate namespace, not a broader
+grant; there are deliberately no cross-variant permissions. The consequence is by
+design: **history and bookmarks are per variant** — this browser does not see the
+Enyo browser's history, exactly as it does not share its engine profile.
+
+After a dev `palm-install` (which does not run the appinstaller's kind
+registration) run `build/webos-oe/register-db-kinds.sh mochi` once.
 
 ## Contract invariant
 

@@ -124,7 +124,17 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 	for entry in "enyo:$ENYO_SRC" "layout:$LAYOUT_RESOLVED" "mochi:$MOCHI_SRC"; do
 		name=${entry%%:*}; src=${entry#*:}
 		rev=$(git -C "$src" rev-parse HEAD 2>/dev/null || echo "not-a-git-checkout")
-		dirty=$(git -C "$src" status --porcelain 2>/dev/null | grep -q . && echo "-dirty" || true)
+		# F-13: this was `git status --porcelain | grep -q . && echo -dirty`. Under `set -o
+		# pipefail` that records a DIRTY tree as clean: `grep -q` exits at the first line, git
+		# takes SIGPIPE, pipefail promotes the 141 to the pipeline's status, and the `&&` never
+		# fires — so the provenance stamp lies precisely when it has something to report. Same
+		# defect class as the .ipk verifier and the R8 control-script assertion. Capture the
+		# output, then test it; no pipeline, nothing to fail open.
+		# (An `if`, not `[ -n … ] && dirty=…`: under `set -e` a false AND-list at statement
+		# position would abort the whole build.)
+		status=$(git -C "$src" status --porcelain 2>/dev/null || true)
+		dirty=""
+		if [ -n "$status" ]; then dirty="-dirty"; fi
 		# Workspace-relative path only — absolute host paths would leak the
 		# builder's username/layout into every distributed ipk (codex F-392).
 		echo "$name: ${src#"${WORKSPACE:-}"/} @ $rev$dirty"

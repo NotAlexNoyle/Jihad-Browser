@@ -32,15 +32,80 @@
 #define JIHAD_RUNTIME_PATHS_H
 
 #include <cerrno>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 namespace jihad {
+
+// ── path canonicalisation ───────────────────────────────────────────────────
+// The R8 guard below is a PREFIX test, and a prefix test on a raw string is not
+// a statement about where a path lands: "/tmp/../media/internal/x" and
+// "/media//internal/x" both resolve onto the user's volume while failing to
+// start with the literal prefix (review F-5). Canonicalise first, then test.
+//
+// Done in two steps because realpath(3) fails on a path that does not exist yet
+// — which is the normal case here, since these helpers are what CREATE the
+// directories:
+//   1. lexical: collapse "//", drop ".", pop ".." against the accumulated
+//      components. Purely textual, always available.
+//   2. physical: realpath() the longest EXISTING ancestor (so a symlinked
+//      component cannot hide the destination) and re-attach the rest.
+// A path that cannot be canonicalised at all falls back to its lexical form,
+// which is still strictly better than the raw string.
+inline std::string RuntimeLexicalCanon(const std::string& in) {
+  if (in.empty() || in[0] != '/') return in;      // callers only pass absolutes
+  std::vector<std::string> parts;
+  size_t i = 0;
+  while (i < in.size()) {
+    while (i < in.size() && in[i] == '/') i++;
+    size_t j = i;
+    while (j < in.size() && in[j] != '/') j++;
+    if (j > i) {
+      const std::string c = in.substr(i, j - i);
+      if (c == ".") {
+        // no-op
+      } else if (c == "..") {
+        if (!parts.empty()) parts.pop_back();     // ".." at "/" stays at "/"
+      } else {
+        parts.push_back(c);
+      }
+    }
+    i = j;
+  }
+  std::string out;
+  for (size_t k = 0; k < parts.size(); k++) { out += "/"; out += parts[k]; }
+  return out.empty() ? std::string("/") : out;
+}
+
+inline std::string RuntimeCanon(const std::string& in) {
+  if (in.empty() || in[0] != '/') return in;
+  const std::string lex = RuntimeLexicalCanon(in);
+  std::string head = lex, tail;
+  for (;;) {
+    char rp[PATH_MAX];
+    if (realpath(head.c_str(), rp)) {
+      std::string out(rp);
+      if (!tail.empty()) {
+        if (out != "/") out += "/";
+        out += tail;
+      }
+      return RuntimeLexicalCanon(out);
+    }
+    const size_t slash = head.find_last_of('/');
+    if (slash == std::string::npos || head == "/") break;   // realpath("/") cannot fail
+    const std::string comp = head.substr(slash + 1);
+    tail = tail.empty() ? comp : comp + "/" + tail;
+    head = (slash == 0) ? std::string("/") : head.substr(0, slash);
+  }
+  return lex;
+}
 
 // ── the user's volume: never ours ───────────────────────────────────────────
 // R8: nothing this package writes may land here. Kept as a predicate (not just a
@@ -49,10 +114,44 @@ namespace jihad {
 inline const char* RuntimeUserVolume() { return "/media/internal"; }
 
 inline bool RuntimeOnUserVolume(const std::string& p) {
-  const char* v = RuntimeUserVolume();
-  const size_t n = strlen(v);
-  return p.size() >= n && p.compare(0, n, v) == 0 &&
-         (p.size() == n || p[n] == '/');
+  if (p.empty() || p[0] != '/') return false;     // relative: not a claim we can make
+  // The volume itself is canonicalised too (and cached): on a desktop/container
+  // host it does not exist at all, where realpath() fails and the lexical form
+  // "/media/internal" is exactly right.
+  static const std::string v = RuntimeCanon(RuntimeUserVolume());
+  const std::string c = RuntimeCanon(p);
+  const size_t n = v.size();
+  return c.size() >= n && c.compare(0, n, v) == 0 &&
+         (c.size() == n || c[n] == '/');
+}
+
+// ── the ONE deliberate carve-out: where the USER's downloads go ─────────────
+// R8 is about keeping APP INTERNALS off the user's USB mass-storage volume: the
+// engine profile, the cache, the log, the debug channels — things the user never
+// asked for, cannot see, and would be baffled to find on the drive they mount on
+// a PC. A file the user explicitly asked the browser to download is the exact
+// opposite case (review F-10). It is THEIR data; it has to be reachable from
+// every other app and from the USB mass-storage mode; it must survive an upgrade
+// and an uninstall of this package; and on a 559 MB rootfs vs a multi-GB user
+// volume, it is also the only place a large download fits.
+//
+// /media/internal/downloads is webOS's own convention for exactly this — it is
+// still the `DownloadPath` default in render/browserserver/Src/Settings.cpp, i.e.
+// what the stock BrowserServer this daemon replaces has always used, and what
+// com.palm.downloadmanager hands out.
+//
+// This is ONE destination, named here as a constant, and nothing else about the
+// R8 guard changes: RuntimeTryDir()/RuntimeResolvePath() still refuse every other
+// path on that volume, so an inherited $JIHAD_DUMP or a stale $JIHAD_STATE_DIR
+// cannot re-colonise it. Do not generalise this into "paths under /media are
+// allowed" — the whole value of the carve-out is that it is a single, auditable,
+// user-data-only exception.
+inline const char* RuntimeUserDownloadDir() { return "/media/internal/downloads"; }
+
+inline bool RuntimeIsUserDownloadDir(const std::string& p) {
+  if (p.empty() || p[0] != '/') return false;
+  static const std::string d = RuntimeCanon(RuntimeUserDownloadDir());
+  return RuntimeCanon(p) == d;
 }
 
 // ── identity table: YAP service name -> variant token ───────────────────────
@@ -68,6 +167,18 @@ inline const char* RuntimeVariantForName(const char* yapName) {
   if (!strcmp(yapName, "jihad-browser-mochi"))  return "mochi";
   if (!strcmp(yapName, "jihad-browser-mojo"))   return "mojo";
   return kRuntimeVariantUnpackaged;
+}
+
+// The same table's app-id column. Needed because the DISPOSABLE half of the
+// engine profile lives in the app's own directory on cryptofs (see
+// RuntimeCacheDir below), and that path is keyed by app id, not by variant
+// token. Empty for a non-packaged run — there is no app directory then.
+inline const char* RuntimeAppIdForVariant(const char* v) {
+  if (!v) return "";
+  if (!strcmp(v, "enyo"))  return "net.riverstonerelay.jihad-browser";
+  if (!strcmp(v, "mochi")) return "net.riverstonerelay.jihad-browser.mochi";
+  if (!strcmp(v, "mojo"))  return "net.riverstonerelay.jihad-browser.mojo";
+  return "";
 }
 
 // The variant token for THIS process. Read once — JIHAD_BS_NAME is fixed at exec
@@ -132,6 +243,75 @@ inline bool RuntimeTryDir(const std::string& path, mode_t mode, std::string& out
   return true;
 }
 
+// ── the weaker validator, for filesystems that HAVE no permissions ──────────
+// Same shape as RuntimeTryDir minus RuntimeDirUsable's ownership/mode
+// assertions, because on the two filesystems this is used for those assertions
+// cannot be satisfied by ANY directory:
+//   * /media/internal is VFAT — no ownership, no mode bits. The kernel
+//     synthesises one uid/mode for every entry from the mount options (0777
+//     root-owned in practice).
+//   * /media/cryptofs is FUSE and reports EVERY file as 0777 (the same fact that
+//     forces the adapter impl onto the rootfs — plan-variant-identity.md rule 5).
+// Demanding "owned by us and not group/world-writable" there would reject the
+// correct destination 100% of the time.
+//
+// What is STILL checked, and why it is enough: the path must resolve to a real
+// DIRECTORY (lstat, not stat — a symlink planted at the path cannot redirect us)
+// and must be writable. Nothing written through this helper is ever trusted for
+// integrity: it is either the user's own downloaded file, or a disposable HTTP
+// cache whose entries Gecko checksums (a corrupt entry is a cache miss, not a
+// vulnerability). Anything privileged, or anything whose integrity we rely on,
+// must keep using RuntimeTryDir.
+inline bool RuntimeTryDirUnowned(const std::string& path, mode_t mode, std::string& out) {
+  if (path.empty() || path[0] != '/') return false;
+  if (!RuntimeMakeDirs(path, mode)) return false;
+  struct stat st;
+  if (lstat(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) return false;
+  if (access(path.c_str(), W_OK | X_OK) != 0) return false;
+  out = path;
+  return true;
+}
+
+// The download carve-out's constructor (F-10). This is the ONE caller that also
+// skips RuntimeOnUserVolume — because it IS the exception. Spelled out here
+// rather than by weakening the shared guard, so the exception stays greppable.
+inline bool RuntimeTryUserDownloadDir(std::string& out) {
+  return RuntimeTryDirUnowned(RuntimeUserDownloadDir(), 0755, out);
+}
+
+// ── the app partition ───────────────────────────────────────────────────────
+// /media/cryptofs is where an installed webOS app lives, and where our engine
+// already executes from. It is FUSE and reports EVERY entry as 0777, so
+// RuntimeDirUsable's ownership/mode assertions can never hold there (the same
+// fact that forces the adapter impl onto the rootfs — plan-variant-identity.md
+// rule 5).
+inline const char* RuntimeAppPartition() { return "/media/cryptofs"; }
+
+inline bool RuntimeOnAppPartition(const std::string& p) {
+  if (p.empty() || p[0] != '/') return false;
+  static const std::string v = RuntimeCanon(RuntimeAppPartition());
+  const std::string c = RuntimeCanon(p);
+  const size_t n = v.size();
+  return c.size() >= n && c.compare(0, n, v) == 0 &&
+         (c.size() == n || c[n] == '/');
+}
+
+// One entry point for "make this directory and check it", picking the strongest
+// validator the destination's filesystem can actually satisfy:
+//   /media/internal  -> REFUSED outright (R8). No exceptions here; the single
+//                       download carve-out calls RuntimeTryDirUnowned directly.
+//   /media/cryptofs  -> RuntimeTryDirUnowned (0777-reporting FUSE; see above)
+//   anything else    -> RuntimeTryDir, full lstat + ownership + mode assertions
+// Choosing by FILESYSTEM rather than by caller is what keeps this honest: the
+// weaker check applies exactly where the stronger one is impossible, never
+// because a caller found it inconvenient.
+inline bool RuntimeTryDirAuto(const std::string& path, mode_t mode, std::string& out) {
+  if (path.empty() || path[0] != '/') return false;
+  if (RuntimeOnUserVolume(path)) return false;          // R8, unconditional
+  if (RuntimeOnAppPartition(path)) return RuntimeTryDirUnowned(path, mode, out);
+  return RuntimeTryDir(path, mode, out);
+}
+
 // ── the state directory ─────────────────────────────────────────────────────
 // Resolution order (first usable wins):
 //   1. $JIHAD_STATE_DIR            — explicit override (absolute; never on the
@@ -193,7 +373,8 @@ inline std::string RuntimeStatePath(const char* leaf) {
 //   unset, "", "0", "off", "no", "false"  -> DISABLED (returns "")
 //   "1", "on", "yes", "true"              -> <state>/<defaultLeaf>
 //   "name.ext"                            -> <state>/name.ext
-//   "/abs/path"                           -> exactly that, EXCEPT under
+//   "/abs/path"                           -> that path, CANONICALISED, EXCEPT
+//                                            when it resolves onto
 //                                            /media/internal, which R8 forbids:
 //                                            redirected to <state>/<defaultLeaf>
 //                                            with a loud line, so a stale env in
@@ -201,7 +382,10 @@ inline std::string RuntimeStatePath(const char* leaf) {
 //                                            script cannot re-colonize the user's
 //                                            volume behind our back.
 // ".." anywhere in a relative value is refused rather than silently escaping the
-// state dir.
+// state dir. In an ABSOLUTE value ".." is not refused but resolved (F-5) —
+// "/tmp/../media/internal/x" used to slip past the guard because the check was a
+// raw-string prefix test; it is now a canonicalised one, and the canonical form is
+// what gets returned, so the caller cannot re-introduce the escape either.
 inline std::string RuntimeResolvePath(const char* env, const char* defaultLeaf) {
   if (!env || !*env) return std::string();
   if (!strcmp(env, "0") || !strcmp(env, "off") ||
@@ -212,7 +396,7 @@ inline std::string RuntimeResolvePath(const char* env, const char* defaultLeaf) 
   if (boolish) return RuntimeStatePath(defaultLeaf);
 
   if (env[0] == '/') {
-    std::string p(env);
+    const std::string p = RuntimeCanon(env);
     if (!RuntimeOnUserVolume(p)) return p;
     std::string redirected = RuntimeStatePath(defaultLeaf);
     fprintf(stderr, "[jihad-bs] refusing to write %s on the user's volume (R8) -> %s\n",
@@ -224,6 +408,117 @@ inline std::string RuntimeResolvePath(const char* env, const char* defaultLeaf) 
     return std::string();
   }
   return RuntimeStatePath(env);
+}
+
+// ── the engine profile: BOTH halves live in the app's own directory ─────────
+//
+// PRIOR ART, and it is unanimous. Both previous implementations of this browser
+// on this device put the disk cache AND the cookies on cryptofs:
+//
+//   isis (our own upstream — render/browserserver/Src/Settings.cpp:65-74, dead
+//   Qt code now, but it is the shipped configuration of the browser we forked):
+//       CachePath                         /media/cryptofs/.browser/cache
+//       CookieJarPath                     /media/cryptofs/.browser/cookies
+//       WebSettings/PersistentStoragePath /media/cryptofs/.browser
+//       CacheMaxSize                      "50M"
+//       DownloadPath                      /media/internal/downloads
+//
+//   Atlas (atlas-wpe-backend/BrowserPageWPE.cpp:730), which also gives the hard
+//   reason: "Network session data (IndexedDB / localStorage / ServiceWorkers) +
+//   disk cache + cookies must NOT live on /media/internal: it is VFAT (no hard
+//   links, no real file locking). That breaks WebKit's NetworkCache … AND,
+//   critically, the SQLite-backed website storage that heavy apps need… Put them
+//   on cryptofs (create/rename/lock work; PROVEN…)". It routes netdata, netcache
+//   and cookies.db to its app deviceroot on cryptofs.
+//
+// That VFAT sentence also explains OUR OWN 2026-07-20 device failure, where
+// cookies.sqlite was never created at all: the profile was on /media/internal,
+// and SQLite had no real locking there. Moving to ext3 fixed it — but cryptofs
+// fixes it equally and is where both predecessors put it, so this converges on
+// the platform's answer rather than inventing a third one.
+//
+// Measured free space, 2026-08-01:
+//     /var             49.6 MB  ext3, SHARED with system state
+//     /media/cryptofs  10.2 GB  the app partition, where the engine already runs
+// So /var/palm/jihad/<variant>/ keeps ONLY the daemon log and the debug channels
+// — kilobytes of operational state for a root daemon, correctly on ext3. The
+// engine profile does not go there: 49.6 MB is not a browser profile budget.
+//
+// Gecko's own split is honoured rather than a new mechanism invented (EngineHost
+// registers both keys):
+//     ProfD  (NS_APP_USER_PROFILE_50_DIR)        $APP/profile  durable
+//     ProfLD (NS_APP_USER_PROFILE_LOCAL_50_DIR)  $APP/cache    disposable
+//
+// TRADEOFF, written down: cryptofs is FUSE, so cache2's many-small-file I/O is
+// slower than ext3 would be. Both predecessors accepted that, and the
+// alternative is a cache that fills a 62 MB system partition and takes the rest
+// of webOS with it. The disk cache is also CAPPED (browser.cache.disk.capacity =
+// 50 MB, isis's own CacheMaxSize; set in make-device-bundle.sh's goanna.js).
+//
+// R8 consequence, handled in packaging: both trees are created at RUNTIME inside
+// the app directory, so ipkg never tracks them and would leave them behind on
+// removal. Each variant's prerm removes them explicitly.
+//
+// NOT /var/file-cache and NOT /var/db: those are the filecache service's and
+// mojodb's managed stores, with their own accounting and GC. Squatting in
+// another service's store is exactly the bad-citizen behaviour R8 exists to
+// prevent, whatever the free-space number says.
+
+// $APP for this variant, or "" when this is not a packaged run.
+inline std::string RuntimeAppDir() {
+  const char* appId = RuntimeAppIdForVariant(RuntimeVariant());
+  if (!*appId) return std::string();
+  return std::string("/media/cryptofs/apps/usr/palm/applications/") + appId;
+}
+
+// Shared resolution for the two profile halves: explicit env override first
+// (through the R8 guard + canonicalisation), then $APP/<leaf> on cryptofs, then
+// <state>/<leaf> for a desktop/harness run where there is no app directory.
+// Never returns a path that has not been created and validated.
+inline std::string RuntimeAppScopedDir(const char* env, const char* leaf, mode_t mode) {
+  std::string out;
+  if (const char* e = env) {
+    if (*e) {
+      const std::string want = RuntimeResolvePath(e, leaf);
+      if (want.empty()) return std::string();          // "0"/"off" — explicitly disabled
+      if (RuntimeTryDirAuto(want, mode, out)) return out;
+      fprintf(stderr, "[jihad-bs] %s unusable — falling back\n", e);
+    }
+  }
+  const std::string app = RuntimeAppDir();
+  if (!app.empty()) {
+    if (RuntimeTryDirAuto(app + "/" + leaf, mode, out)) return out;
+    fprintf(stderr, "[jihad-bs] %s/%s unavailable (%s) — falling back to the state dir\n",
+            app.c_str(), leaf, strerror(errno));
+  }
+  // Desktop/harness (no app dir), or a device where it is not writable. On the
+  // desktop the state dir is $HOME/.jihad/<v>, with no 49.6 MB ceiling.
+  if (RuntimeTryDirAuto(RuntimeStatePath(leaf), mode, out)) return out;
+  return std::string();
+}
+
+// ProfD — durable: cookies.sqlite, prefs.js, permissions, cert overrides.
+// 0700 on a real filesystem; on cryptofs the mode is advisory (it reports 0777
+// for everything), which is precisely why nothing privileged reads this tree.
+inline const std::string& RuntimeProfileDir() {
+  static const std::string dir = []() -> std::string {
+    const std::string d = RuntimeAppScopedDir(getenv("JIHAD_PROFILE_DIR"), "profile", 0700);
+    if (d.empty())
+      fprintf(stderr, "[jihad-bs] no writable profile dir — cookies will be memory-only\n");
+    return d;
+  }();
+  return dir;
+}
+
+// ProfLD — disposable: cache2, startupCache.
+inline const std::string& RuntimeCacheDir() {
+  static const std::string dir = []() -> std::string {
+    const std::string d = RuntimeAppScopedDir(getenv("JIHAD_CACHE_DIR"), "cache", 0700);
+    if (d.empty())
+      fprintf(stderr, "[jihad-bs] no writable cache dir — HTTP disk cache disabled\n");
+    return d;
+  }();
+  return dir;
 }
 
 }  // namespace jihad

@@ -51,7 +51,10 @@ if [ -n "$D" ]; then exit 1; fi
 #         never touched. 0644 and not 0755 deliberately: upstart READS a job file, it never
 #         execs it, so the execute bit buys nothing and costs a root-run-file's worth of risk.
 #   /var/palm/jihad/  and  /var/palm/jihad/${JIHAD_VARIANT}/
-#         root-owned 0755 runtime state (daemon log, engine profile/cache). Root-owned and NOT
+#         root-owned 0755 runtime state: the daemon log and the debug channels, and NOTHING
+#         else. Kilobytes of operational state for a root daemon, correctly on ext3. The engine
+#         profile and cache deliberately do NOT live here — /var has 49.6 MB free and is shared
+#         with system state (see $APP/profile and $APP/cache below). Root-owned and NOT
 #         world-writable: it is read by root-privileged code, and /media/internal
 #         (world-writable vfat) is exactly the location the shim's trust check exists to
 #         distrust.
@@ -62,6 +65,20 @@ if [ -n "$D" ]; then exit 1; fi
 # to dlopen anything else; the shim itself needs it just as much (LunaSysMgr dlopens the shim as
 # root and performs NO trust check of its own) and so does the upstart job (init execs it as
 # root).
+#
+# Created at RUNTIME by the daemon, inside the app's own directory, and listed here because
+# this variant's prerm removes it (ipkg only tracks files IT installed, so an untracked tree
+# would survive removal as residue and break R8's exact-reversal criterion):
+#   $APP/profile/   the engine's DURABLE profile (Gecko's ProfD): cookies.sqlite, prefs.js,
+#                   permissions, cert overrides.
+#   $APP/cache/     the engine's DISPOSABLE local profile (Gecko's ProfLD): cache2 +
+#                   startupCache, capped at 50 MB by browser.cache.disk.capacity.
+#         Both on cryptofs, not in /var/palm/jihad/${JIHAD_VARIANT}/: measured 2026-08-01, /var has 49.6 MB
+#         free and is shared with system state, while cryptofs has 10.2 GB. This is also where
+#         BOTH prior implementations of this browser on this device put them — isis
+#         (CookieJarPath/CachePath under /media/cryptofs/.browser) and Atlas (netdata/netcache/
+#         cookies.db in its app deviceroot), the latter because /media/internal is VFAT and
+#         gives SQLite no real file locking.
 #
 # NOT written, deliberately:
 #   * NOTHING under /media/internal. That vfat volume is the user's USB mass-storage partition
@@ -157,7 +174,7 @@ fi
 # still holds the replaced files open, so a bare `start` would fail and leave the old build
 # running. Only this variant's job name is used — never a glob, never another variant's job.
 set +e
-log "restarting the ${JIHAD_VARIANT} daemon + reloading LunaSysMgr..."
+log "restarting the ${JIHAD_VARIANT} daemon..."
 stop ${JIHAD_UPSTART_JOB} 2>/dev/null
 # `stop` returns before upstart has finished tearing the job down, and a `start` issued into that
 # window is dropped ("Job not changed") — leaving the job STOPPED with no error anywhere. Measured
@@ -208,6 +225,10 @@ if [ -n "$D" ]; then exit 1; fi
 #   /usr/lib/jihad/${JIHAD_VARIANT}/BrowserAdapterImpl.so   (+ the now-empty /usr/lib/jihad/${JIHAD_VARIANT})
 #   /etc/event.d/${JIHAD_UPSTART_JOB}
 #   /var/palm/jihad/${JIHAD_VARIANT}/                       (the runtime state dir, log included)
+#   $APP/profile/                                (the engine's DURABLE profile: cookies.sqlite,
+#                                                 prefs.js, permissions — see below)
+#   $APP/cache/                                  (the engine's DISPOSABLE local profile: cache2
+#                                                 + startupCache — see below)
 #   /tmp/yapserver.${JIHAD_YAP_NAME}                       (this variant's socket)
 # `/usr/lib/jihad` and `/var/palm/jihad` are only ever `rmdir`'d — that succeeds solely when the
 # LAST variant is gone, and can never take a sibling's subdirectory with it.
@@ -240,6 +261,21 @@ IMPL=$IMPLDIR/BrowserAdapterImpl.so
 JOB=/etc/event.d/${JIHAD_UPSTART_JOB}
 SOCK=/tmp/yapserver.${JIHAD_YAP_NAME}
 STATE=/var/palm/jihad/${JIHAD_VARIANT}
+# The engine's profile, BOTH halves, in the app's own directory on cryptofs:
+#   $APP/profile   Gecko's ProfD  — durable: cookies.sqlite, prefs.js, permissions
+#   $APP/cache     Gecko's ProfLD — disposable: cache2, startupCache
+# Not in $STATE: /var has 49.6 MB free and is shared with system state, and both isis
+# (CookieJarPath/CachePath under /media/cryptofs/.browser) and Atlas (netdata/netcache/cookies.db
+# in its app deviceroot) put these on cryptofs on this exact device — Atlas because /media/internal
+# is VFAT, with no hard links and no real file locking, which breaks the network cache AND
+# SQLite. See RuntimeProfileDir()/RuntimeCacheDir() in render/goanna/JihadRuntimePaths.h.
+#
+# The DAEMON creates both at runtime, so ipkg never tracked them and would leave the whole app
+# directory behind as residue — exactly the "no residue" half of R8 that a full install->remove
+# filesystem diff checks. They are therefore removed HERE, explicitly, on a real removal only:
+# an upgrade must not throw away the user's cookies (F-6).
+PROFILE=$APP/profile
+CACHE=$APP/cache
 log() { echo "jihad-prerm($V): $*"; }
 
 # ── 0. is this a REMOVAL or an UPGRADE? ──────────────────────────────────────────────────────
@@ -313,6 +349,10 @@ rm -f "$JOB"
 rm -rf "$STATE"                             # this variant's state dir only
 rmdir /var/palm/jihad 2>/dev/null || true   # ditto
 sync
+# The engine profile + cache are on cryptofs, not the rootfs, so they need no rw window — but
+# they do need to go, for the reason at $PROFILE above. Exact paths, both inside THIS variant's
+# own app directory; no glob could reach a sibling's.
+rm -rf "$PROFILE" "$CACHE"
 # F-9: a failed restore-to-read-only is REPORTED, never swallowed (R8 requires `/` back to ro on
 # every exit path). It does not by itself fail the removal — the removal above already happened,
 # and the EXIT trap gets one more attempt — but it does not get to be silent either.
@@ -330,7 +370,7 @@ fi
 # job to respawn against an app directory that no longer exists. postinst already refuses to
 # report a deploy it cannot see on disk; this is the same rule applied to the reverse operation.
 rc=0
-for f in "$SHIM" "$IMPL" "$JOB" "$SOCK" "$STATE"; do
+for f in "$SHIM" "$IMPL" "$JOB" "$SOCK" "$STATE" "$PROFILE" "$CACHE"; do
 	if [ -e "$f" ]; then log "ERROR: $f still present after removal"; rc=1; fi
 done
 if [ "$rc" != 0 ]; then

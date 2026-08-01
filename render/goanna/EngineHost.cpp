@@ -28,8 +28,7 @@
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
-#include <cstdlib>                   // getenv/atol/realpath (JIHAD_MEM_LOW_KB, profile dir)
-#include <climits>                   // PATH_MAX (realpath buffer)
+#include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB, profile dir)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
 #include <malloc.h>                  // malloc_trim (memchute pattern)
 #include <cctype>                    // tolower (case-insensitive host match)
@@ -163,17 +162,26 @@ EngineHost::~EngineHost()
 // and die with the daemon. That is exactly the failure Atlas hit on WPE: every
 // restart lost consent/login cookies, so consent-gated modern sites bounced to
 // their consent wall on each launch. Provide a writable profile dir so
-// cookies.sqlite + the disk cache survive restarts. Path: $JIHAD_PROFILE_DIR,
-// else <runtime state dir>/profile (= /var/palm/jihad/$V/profile on the device —
-// T-057; it used to be <greDir>/../profile, which resolved to
-// /media/internal/jihad/profile, i.e. the user's vfat volume that R8 forbids, and
-// now that the daemon runs IN PLACE from the app bundle would resolve into the
-// read-only-by-convention install dir instead).
+// cookies.sqlite + the disk cache survive restarts. Both halves are derived and
+// validated by JihadRuntimePaths.h — $APP/profile and $APP/cache on cryptofs,
+// where isis and Atlas both put them ($JIHAD_PROFILE_DIR / $JIHAD_CACHE_DIR
+// override, R8-guarded). See the block in Init() for why there is no longer a
+// <greDir>/../profile fallback.
 class JihadDirProvider final : public nsIDirectoryServiceProvider
 {
 public:
   NS_DECL_ISUPPORTS
-  explicit JihadDirProvider(nsIFile* aProfile) : mProfile(aProfile) {}
+  // Two directories, not one. Gecko already splits the profile into a DURABLE
+  // half and a DISPOSABLE half, and we answer each from the storage that suits
+  // it (see RuntimeCacheDir() in JihadRuntimePaths.h for the measured numbers):
+  //   ProfD  -> $APP/profile   durable: cookies.sqlite, prefs.js, permissions
+  //   ProfLD -> $APP/cache     disposable: cache2, startupCache
+  // Both on cryptofs, where isis and Atlas both put them (see JihadRuntimePaths.h
+  // for the citations and the VFAT file-locking reason). /var is NOT used for
+  // either: 49.6 MB free, shared with system state. aLocal falls back to aProfile
+  // when there is no separate cache dir, so behaviour degrades rather than breaks.
+  JihadDirProvider(nsIFile* aProfile, nsIFile* aLocal)
+      : mProfile(aProfile), mLocal(aLocal ? aLocal : aProfile) {}
 
   NS_IMETHOD GetFile(const char* aProp, bool* aPersistent, nsIFile** aResult) override
   {
@@ -183,13 +191,17 @@ public:
     // aliases nsXREDirProvider falls back to for consumers that run before a
     // profile is "selected" — the startup cache is one (StartupCache::Init asks
     // for ProfLDS), so omitting them left it homeless.
-    if (mProfile &&
-        (!strcmp(aProp, "ProfD") ||     // NS_APP_USER_PROFILE_50_DIR
-         !strcmp(aProp, "ProfLD") ||    // NS_APP_USER_PROFILE_LOCAL_50_DIR
-         !strcmp(aProp, "ProfDS") ||    // NS_APP_PROFILE_DIR_STARTUP
-         !strcmp(aProp, "ProfLDS"))) {  // NS_APP_PROFILE_LOCAL_DIR_STARTUP
+    nsIFile* src = nullptr;
+    if (!strcmp(aProp, "ProfD") ||          // NS_APP_USER_PROFILE_50_DIR
+        !strcmp(aProp, "ProfDS")) {         // NS_APP_PROFILE_DIR_STARTUP
+      src = mProfile;
+    } else if (!strcmp(aProp, "ProfLD") ||  // NS_APP_USER_PROFILE_LOCAL_50_DIR
+               !strcmp(aProp, "ProfLDS")) { // NS_APP_PROFILE_LOCAL_DIR_STARTUP
+      src = mLocal;
+    }
+    if (src) {
       nsCOMPtr<nsIFile> f;
-      if (NS_SUCCEEDED(mProfile->Clone(getter_AddRefs(f))) && f) {
+      if (NS_SUCCEEDED(src->Clone(getter_AddRefs(f))) && f) {
         f.forget(aResult);
         return NS_OK;
       }
@@ -199,13 +211,26 @@ public:
 
 private:
   ~JihadDirProvider() {}
-  nsCOMPtr<nsIFile> mProfile;
+  nsCOMPtr<nsIFile> mProfile;   // ProfD  — durable  ($APP/profile)
+  nsCOMPtr<nsIFile> mLocal;     // ProfLD — disposable ($APP/cache)
 };
 NS_IMPL_ISUPPORTS(JihadDirProvider, nsIDirectoryServiceProvider)
 
 // Held (deliberately leaked) for the process lifetime — XRE keeps a raw pointer
 // to the provider, so it must outlive the embedding.
 static JihadDirProvider* sJihadDirProvider = nullptr;
+
+// ── startup breadcrumbs ─────────────────────────────────────────────────────
+// The TouchPad has no debugger and no core dumps: when the daemon dies during
+// engine bring-up, the ONLY evidence is what reached the log before it went. A
+// SIGSEGV inside this function is otherwise indistinguishable from one three
+// steps later, which costs a device round-trip per hypothesis. Unbuffered stderr,
+// one line per step, so the last line printed names the step that was running.
+// Cheap enough to leave on permanently (a dozen writes, once per process).
+static void initStep(const char* what) {
+  fprintf(stderr, "[jihad-bs] init: %s\n", what);
+  fflush(stderr);
+}
 
 bool
 EngineHost::Init(const char* greDir)
@@ -217,6 +242,7 @@ EngineHost::Init(const char* greDir)
     return false;
   }
 
+  initStep("resolving greDir");
   nsCOMPtr<nsIFile> dir;
   nsresult rv = NS_NewNativeLocalFile(nsDependentCString(greDir),
                                       /* followLinks */ true,
@@ -229,52 +255,64 @@ EngineHost::Init(const char* greDir)
   // Provide a PROFILE dir ("ProfD"/"ProfLD") so cookies.sqlite, permissions,
   // and the disk cache persist across daemon restarts — without it the cookie
   // service is memory-only and consent/login cookies die with the process
-  // (the Atlas WPE consent-bounce lesson). $JIHAD_PROFILE_DIR overrides;
-  // default <runtime state dir>/profile (device: /var/palm/jihad/$V/profile).
+  // (the Atlas WPE consent-bounce lesson).
+  //
+  // F-5: $JIHAD_PROFILE_DIR was the ONE path environment variable that bypassed
+  // JihadRuntimePaths.h entirely — taken on trust, with no R8 user-volume check
+  // and no ownership/mode validation, while $JIHAD_DUMP, $JIHAD_INJECT and
+  // $JIHAD_DOWNLOAD_DIR all went through the shared helpers. Both halves are now
+  // derived there and nothing but the leaf names appears at this call site:
+  //   RuntimeProfileDir()  ProfD  — durable: cookies.sqlite, prefs, permissions
+  //   RuntimeCacheDir()    ProfLD — disposable: cache2, startupCache
+  // Both resolve to the app's own directory on cryptofs, which is where isis
+  // (CookieJarPath/CachePath under /media/cryptofs/.browser) and Atlas (netdata/
+  // netcache/cookies.db in its app deviceroot) both put them — see the header for
+  // the VFAT locking reason that decided it. Each honours its env override
+  // through RuntimeResolvePath (canonicalised, R8-guarded) and is created and
+  // validated before it is handed to the engine: a symlink planted at either path
+  // is refused, and /media/internal is refused unconditionally.
+  //
+  // There is deliberately NO fallback to <greDir>/../profile any more. That was
+  // the pre-T-057 location, and now that the daemon RUNS IN PLACE from the app
+  // bundle it would resolve to $APP/deviceroot/profile — next to the engine
+  // binaries, where a profile has no business being. Degrading to memory-only
+  // cookies with a loud line is the honest outcome.
+  initStep("resolving the profile + cache dirs");
   {
-    std::string profPath;
-    const char* pe = getenv("JIHAD_PROFILE_DIR");
-    if (pe && *pe) profPath = pe;
-    else profPath = jihad::RuntimeStatePath("profile");
-    if (profPath.empty()) {
-      // No writable runtime state anywhere (RuntimeStateDir() already said so).
-      // Last resort so an odd environment degrades instead of losing cookies:
-      // the pre-T-057 behaviour, <greDir>/../profile. NS_NewNativeLocalFile
-      // requires an ABSOLUTE path and the desktop smoke runs pass a relative
-      // greDir ("."), so realpath() it first — it exists, libxul loaded from it
-      // (inspector P3).
-      char rp[PATH_MAX];
-      profPath = realpath(greDir, rp) ? rp : greDir;
-      profPath += "/../profile";
-    }
-    nsCOMPtr<nsIFile> prof;
-    if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(profPath.c_str()),
+    const std::string& profDir  = jihad::RuntimeProfileDir();
+    const std::string& cacheDir = jihad::RuntimeCacheDir();
+    fprintf(stderr, "[jihad-bs] profile ProfD=%s ProfLD=%s\n",
+            profDir.empty()  ? "(none — cookies memory-only)" : profDir.c_str(),
+            cacheDir.empty() ? "(none — disk cache off)"      : cacheDir.c_str());
+    nsCOMPtr<nsIFile> prof, local;
+    if (!profDir.empty() &&
+        NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(profDir.c_str()),
                                            true, getter_AddRefs(prof))) && prof) {
-      // Create FIRST (mkdir resolves the ".." of the legacy fallback at the kernel;
-      // already-exists is fine), THEN Normalize — realpath-based, so it only succeeds
-      // once the dir exists. Best-effort: an un-normalized ProfD still works, consumers
-      // open() through the "..". 0700, deliberately tighter than the 0755 of the state
-      // dir itself: this holds cookies.sqlite, permissions and the disk cache.
-      nsresult crv = prof->Create(nsIFile::DIRECTORY_TYPE, 0700);
-      if (NS_SUCCEEDED(crv) || crv == NS_ERROR_FILE_ALREADY_EXISTS) {
-        prof->Normalize();
-        sJihadDirProvider = new JihadDirProvider(prof);
-        NS_ADDREF(sJihadDirProvider);
+      prof->Normalize();
+      if (!cacheDir.empty() &&
+          NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(cacheDir.c_str()),
+                                             true, getter_AddRefs(local))) && local) {
+        local->Normalize();
       } else {
-        fprintf(stderr, "[jihad-bs] profile dir %s unavailable (0x%x) — cookies will be memory-only\n",
-                profPath.c_str(), (unsigned)crv);
+        local = nullptr;   // provider falls back to ProfD; cache2 shares the profile tree
       }
+      sJihadDirProvider = new JihadDirProvider(prof, local);
+      NS_ADDREF(sJihadDirProvider);
     }
   }
+  initStep("XRE_InitEmbedding2");
   rv = XRE_InitEmbedding2(dir, dir, sJihadDirProvider);
   mInited = NS_SUCCEEDED(rv);
+  initStep(mInited ? "XRE_InitEmbedding2 OK" : "XRE_InitEmbedding2 FAILED");
 
   // Override "@mozilla.org/prompter;1" so content dialogs (alert/confirm/prompt)
   // are captured by our sink instead of trying to open a chrome dialog window,
   // which is absent in the headless daemon and would otherwise hang the load.
   // With no sink installed the default is deny/OK — the engine never blocks.
   if (mInited) {
+    initStep("InstallDialogService");
     InstallDialogService();
+    initStep("InstallDownloadService");
     InstallDownloadService();
     // ── announce the profile ────────────────────────────────────────────────
     // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:
@@ -293,9 +331,27 @@ EngineHost::Init(const char* greDir)
     // profile-scoped services wait on. Called BEFORE the pref block below
     // because DoStartup() runs Preferences::ResetAndReadUserPrefs(), which would
     // otherwise discard the runtime prefs we set here.
-    if (sJihadDirProvider) XRE_NotifyProfile();
+    //
+    // KILL SWITCH (device bring-up): $JIHAD_NO_PROFILE_NOTIFY=1 skips this call.
+    // It exists because XRE_NotifyProfile is the single heaviest thing engine
+    // init does — DoStartup() re-reads user prefs, starts the JS Add-on Manager
+    // and fires profile-do-change/profile-after-change, i.e. it runs a large
+    // amount of GRE JavaScript that the desktop dist has in full and the trimmed
+    // device bundle may not. Setting the switch turns a "does the daemon come up
+    // at all" question into ONE run instead of a rebuild-and-reflash cycle. With
+    // it set, cookies degrade to memory-only (that is exactly what this call was
+    // added to fix), so it is a diagnostic, never a shipping configuration.
+    const char* noNotify = getenv("JIHAD_NO_PROFILE_NOTIFY");
+    if (sJihadDirProvider && !(noNotify && *noNotify && strcmp(noNotify, "0"))) {
+      initStep("XRE_NotifyProfile (DoStartup: prefs + addons + profile-after-change)");
+      XRE_NotifyProfile();
+      initStep("XRE_NotifyProfile returned");
+    } else if (sJihadDirProvider) {
+      initStep("XRE_NotifyProfile SKIPPED ($JIHAD_NO_PROFILE_NOTIFY) — cookies will be memory-only");
+    }
     // Mobile-browser defaults. <meta name=viewport> is off by default on desktop
     // Goanna; a webOS phone browser must honor it (drives msgMetaViewportSet).
+    initStep("preferences-service");
     nsCOMPtr<nsIPrefBranch> pb =
       do_GetService("@mozilla.org/preferences-service;1");
     if (pb) pb->SetBoolPref("dom.meta-viewport.enabled", true);
@@ -320,8 +376,10 @@ EngineHost::Init(const char* greDir)
     //   Firefox/52.9 (site-compat, ESR52 base); ECMAScript/2024 (JS level UXP b2594a4
     //   supports: Object.groupBy, Promise.withResolvers, String.isWellFormed, ...).
     // Keep JIHAD_UA in sync with build/webos-oe/make-device-bundle.sh docs and NOTICE.
+    initStep("general.useragent.override");
     if (pb) pb->SetCharPref("general.useragent.override", JIHAD_USER_AGENT);
     // Per-domain User-Agent overrides so modern sites serve working content (see jihadUaTable).
+    initStep("registering the per-domain UA observer");
     jihadRegisterUaOverride();
     // NOTE: the low-RAM (512 MB) memory + repaint tuning prefs are NOT set here — a SetIntPref at
     // this point is too late for the "Once"-style gfx prefs (image.mem.surfacecache.max_size_kb,
@@ -343,6 +401,7 @@ EngineHost::Init(const char* greDir)
     }
     // NOTE: PSM/NSS (TLS) is force-initialized on the main thread in
     // GoannaRenderPage::LoadUrl (it is not registered yet this early at engine init).
+    initStep("engine init complete");
   }
   return mInited;
 }

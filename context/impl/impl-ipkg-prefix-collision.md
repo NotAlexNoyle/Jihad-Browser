@@ -107,3 +107,21 @@ metadata because of the dot* (also true, and the actual cause here).
 
 Lesson worth keeping: when a removal silently does nothing, check whether the metadata still exists
 **before** blaming the invocation.
+
+## Two further device findings from the cleanup (2026-08-01)
+
+**`killall jihad-browserserver` could never have worked.** The daemon is exec'd through the bundled
+loader — `./ld-2.23.so --library-path <hl> ./jihad-browserserver <hl>` — so its `comm` (and what
+`pidof` matches) is **`ld-2.23.so`**, not `jihad-browserserver`. `pidof jihad-browserserver` returns
+nothing and `killall jihad-browserserver` is a no-op. The pre-2026-07-31 packaging used exactly that
+call, so its "stop the daemon" fallback was doubly broken: cross-variant in intent *and* ineffective
+in practice. The current `prerm` matches the variant's own bundle directory as a whole argument in
+`/proc/*/cmdline`, which is correct for this exec shape — this is a second, independent reason that
+rewrite was necessary.
+
+**Uninstalling with the daemon still running leaves `.fuse_hidden*` residue.** cryptofs is FUSE, so
+deleting a file another process still holds open renames it to `.fuse_hidden<hex>` until the last
+handle closes. Removing a variant's app directory while its daemon was live left 30 such entries and
+made `rm -rf` fail with "Directory not empty" — residue that an R8 audit would legitimately flag.
+The shipped `prerm` already does the right thing (stop the daemon, *then* let the package manager
+remove files), and this is the concrete reason that ordering matters rather than being tidy.

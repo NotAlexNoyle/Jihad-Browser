@@ -74,8 +74,18 @@ snap() {
 		# USER DOWNLOADS go (F-10), by webOS convention and by the user's own request. Install and
 		# removal still write nothing there, so an install->remove snapshot pair is unaffected;
 		# but a snapshot taken across a browsing session legitimately shows the user's files.
+		# EXCLUDED: /media/internal/.palm — webOS's OWN per-app storage area, with base32-encoded
+		# path components. Measured 2026-08-01: it already held 14991 entries on a device with
+		# nothing of ours installed, with subdirectories dated March 2024, i.e. it predates this
+		# project by years. Installing any app makes the OS provision storage under it (~864 new
+		# entries across a three-variant install), and uninstalling does not reclaim it — that is
+		# platform behaviour for every webOS app, not this package writing. Our control scripts are
+		# separately PROVEN not to touch /media/internal at all: build-variant-ipk.sh greps the
+		# shipped postinst/prerm for the string and fails the build if it appears. Including .palm
+		# here would make the residue diff report a violation on every run for something we do not
+		# do, which trains the reader to ignore it — the classic way a real finding gets missed.
 		echo "## --- /media/internal (whole tree; MUST be untouched by install/removal) ---"
-		NC_TIMEOUT=600 nc /usr/bin/find /media/internal | sort
+		NC_TIMEOUT=600 nc /usr/bin/find /media/internal -path '/media/internal/.palm' -prune -o -print | sort
 
 		echo "## --- installed jihad apps ---"
 		nc /bin/ls /media/cryptofs/apps/usr/palm/applications | grep -i jihad | sort

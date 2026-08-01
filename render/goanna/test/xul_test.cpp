@@ -124,12 +124,20 @@ int main(int argc, char** argv) {
     dumpPpm(getenv("JIHAD_XUL_PPM2") ? getenv("JIHAD_XUL_PPM2") : "/out/xul-config-after.ppm",
             buf, page.Width(), page.Height());
 
-    // ---- Phase E: keyboard into the XUL filter box ----------------------------------
-    printf("[xul] --- E: keyboard ---\n");
-    page.InsertText("javascript");
-    page.PumpFor(1500);
+    // ---- Phase E: keyboard into the XUL filter box (R6 AC6) --------------------------
+    // Only meaningful once the prefs deck is showing, i.e. after the warning button was
+    // activated in phase C. Tap the search box first — that is what gives the anonymous
+    // html:input inside the XUL <textbox> focus — then type. Filtering to a rare substring
+    // collapses a ~3000-row tree to a handful, which is an unmistakable pixel change.
+    printf("[xul] --- E: keyboard into the XUL filter box ---\n");
+    page.ClickAt(400, 20, 1);
+    page.PumpFor(600);
+    page.InsertText("zzzznosuchpref");
+    page.PumpFor(2000);
     page.ReadPixels(buf, sz);
-    printf("[xul] E: nonwhite=%ld\n", countNonWhite(buf, N));
+    long eAfter = countNonWhite(buf, N);
+    printf("[xul] E: nonwhite=%ld (was %ld) -> filter %s\n",
+           eAfter, nw2, (nw2 - eAfter) > 20000 ? "APPLIED" : "did NOT apply");
     dumpPpm(getenv("JIHAD_XUL_PPM3") ? getenv("JIHAD_XUL_PPM3") : "/out/xul-config-typed.ppm",
             buf, page.Width(), page.Height());
 
@@ -172,16 +180,20 @@ int main(int argc, char** argv) {
     // (which is the difference between "input is broken" and "the click default action is
     // broken", and those need completely different fixes).
     printf("[xul] --- H: which events arrive? ---\n");
-    page.SetHtml(
-      "<body style='margin:0'>"
-      "<div id='d1' style='height:200px;background:#888'></div>"
-      "<div id='d2' style='height:200px;background:#888'></div>"
-      "<div id='d3' style='height:200px;background:#888'></div>"
+    // NB: every '#' is written as %23. SetHtml/LoadUrl paste the body into a data: URL with no
+    // escaping, so a literal '#' starts the URL FRAGMENT and silently truncates the document
+    // there — which is exactly how the first version of this phase reported "no events" on a
+    // build where events demonstrably worked. A probe that can fail open is worse than none.
+    page.LoadUrlAndWait(
+      "data:text/html,<body style='margin:0'>"
+      "<div id='d1' style='height:200px;background:%23888888'></div>"
+      "<div id='d2' style='height:200px;background:%23888888'></div>"
+      "<div id='d3' style='height:200px;background:%23888888'></div>"
       "<script>"
-      "document.addEventListener('mousedown',function(){d1.style.background='#ff0000'},true);"
-      "document.addEventListener('mouseup',  function(){d2.style.background='#00ff00'},true);"
-      "document.addEventListener('click',    function(){d3.style.background='#0000ff'},true);"
-      "</script></body>");
+      "document.addEventListener('mousedown',function(){d1.style.background='%23ff0000'},true);"
+      "document.addEventListener('mouseup',  function(){d2.style.background='%2300ff00'},true);"
+      "document.addEventListener('click',    function(){d3.style.background='%230000ff'},true);"
+      "</script></body>", 20);
     page.PumpFor(1500);
     page.ClickAt(300, 300, 1);       // inside d2, well away from the band edges
     page.PumpFor(1500);
@@ -195,6 +207,48 @@ int main(int argc, char** argv) {
     }
     printf("[xul] H: mousedown=%s mouseup=%s click=%s  (px r=%ld g=%ld b=%ld)\n",
            r > 5000 ? "YES" : "no", g > 5000 ? "YES" : "no", b > 5000 ? "YES" : "no", r, g, b);
+
+    // ---- Phase I: HTML checkbox must toggle EXACTLY ONCE (R6 AC7, no HTML regression) ----
+    // The real hazard of making the engine's click default action work: the daemon ALSO
+    // hand-flips checkboxes (R1/F-001), so a working default action would toggle twice and
+    // land back where it started — silently converting the R1 fix into the bug it cured.
+    printf("[xul] --- I: HTML checkbox toggles exactly once ---\n");
+    page.LoadUrlAndWait(
+      "data:text/html,<body style='margin:0;background:%23ffffff'>"
+      "<input id='c' type='checkbox' onchange=\"document.body.style.background="
+      "this.checked?'%2300ff00':'%23ff0000'\" style='width:200px;height:200px'>"
+      "</body>", 20);
+    page.PumpFor(1200);
+    page.ClickAt(100, 100, 1);
+    page.PumpFor(1500);
+    page.ReadPixels(buf, sz);
+    long onGreen = 0, onRed = 0;
+    for (int i = 0; i < N; ++i) {
+      unsigned char* p = buf + (size_t)i * 4;
+      if (p[2] < 80 && p[1] > 180 && p[0] < 80) ++onGreen;
+      if (p[2] > 180 && p[1] < 80 && p[0] < 80) ++onRed;
+    }
+    printf("[xul] I: after one tap green=%ld red=%ld -> %s\n", onGreen, onRed,
+           onGreen > 100000 ? "CHECKED once (correct)"
+           : (onRed > 100000 ? "UNCHECKED (double-toggled - REGRESSION)"
+                             : "no change event at all"));
+
+    // ---- Phase J: about:addons (R6 AC4 / cavekit-addons-extensions R2) -----------------
+    // Recorded 2026-07-20 as rendering a <parsererror> in the stripped build, cause unknown.
+    // With the chrome-JS console bridged (see EngineHost.cpp) the engine now says why, instead
+    // of us inferring it from a screenshot.
+    printf("[xul] --- J: about:addons ---\n");
+    bool okAddons = page.LoadUrlAndWait("about:addons", 30);
+    page.PumpFor(2500);
+    page.ReadPixels(buf, sz);
+    printf("[xul] J: load=%d uri=%s title=%s nonwhite=%ld\n", (int)okAddons,
+           page.CurrentUri().c_str(), page.GetTitle().c_str(), countNonWhite(buf, N));
+    dumpPpm("/out/xul-addons.ppm", buf, page.Width(), page.Height());
+    page.ClickAt(200, 200, 1);
+    page.PumpFor(1500);
+    page.ReadPixels(buf, sz);
+    printf("[xul] J: after tap nonwhite=%ld (survived)\n", countNonWhite(buf, N));
+    dumpPpm("/out/xul-addons-after.ppm", buf, page.Width(), page.Height());
 
     free(buf);
   }

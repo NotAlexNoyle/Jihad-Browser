@@ -522,6 +522,107 @@ static void ProbeAppInfo(const char* when)
           when, id.get(), v.get(), MOZILLA_VERSION);
 }
 
+// ── nsIClipboardHelper (T-067 / cavekit-input-bridging R6) ──────────────────────────────────
+//
+// The headless widget module (build/desktop/patches/0006) registers five contracts and its own
+// comment concedes "theme, clipboard, idle, … are still TODO". One of those omissions is not
+// cosmetic: `@mozilla.org/widget/clipboardhelper;1` is fetched at TOP LEVEL by
+// `chrome://global/content/config.js`:
+//
+//     const gClipboardHelper = Components.classes[nsClipboardHelper_CONTRACTID].getService(...)
+//
+// With no registration, `Components.classes[...]` is `undefined`, the `.getService` throws a
+// TypeError, and the whole script aborts at line 21 — so `gPrefHash`, `ShowPrefs` and every other
+// definition below it never come into existence. That, not the input path, is why about:config's
+// button did nothing even once its `oncommand` was firing (measured: the click reached
+// `ShowPrefs@config.js:346`, which then died on `gPrefHash is undefined`).
+//
+// Registering it here rather than in the engine keeps this a daemon change with no libxul
+// rebuild. The CID is ours: nothing in a headless build claims that contract, so this is a fresh
+// registration, not the kind of override that the app-info work found JS caches defeat.
+//
+// SCOPE, stated honestly: this stores the copied text in-process. webOS clipboard integration is
+// a separate concern with no requirement behind it yet, so nothing here pretends to reach the
+// system clipboard — the point is that chrome which merely *asks for the service* stops dying.
+// The interface is declared here rather than included: nsIClipboardHelper.idl carries a
+// `%{C++ #include "nsString.h"}` block, and nsString.h is an INTERNAL string header that this
+// frozen-API daemon cannot compile against ("Internal string headers are not available from
+// external-linkage code"). Two pure virtuals in IDL order after nsISupports is the entire ABI,
+// and `const nsAString&` is a pointer either way — the same external/internal string equivalence
+// DialogService already relies on to implement nsIPromptService.
+#define JIHAD_NS_ICLIPBOARDHELPER_IID \
+  { 0x438307fd, 0x0c68, 0x4d79, { 0x92, 0x2a, 0xf6, 0xcc, 0x95, 0x50, 0xcd, 0x02 } }
+
+class nsIClipboardHelper : public nsISupports {
+public:
+  NS_DECLARE_STATIC_IID_ACCESSOR(JIHAD_NS_ICLIPBOARDHELPER_IID)
+  NS_IMETHOD CopyStringToClipboard(const nsAString& aString, int32_t aClipboardID) = 0;
+  NS_IMETHOD CopyString(const nsAString& aString) = 0;
+};
+NS_DEFINE_STATIC_IID_ACCESSOR(nsIClipboardHelper, JIHAD_NS_ICLIPBOARDHELPER_IID)
+
+static nsCString& JihadClipboardText() { static nsCString s; return s; }
+
+class JihadClipboardHelper final : public nsIClipboardHelper {
+public:
+  NS_DECL_ISUPPORTS
+  NS_IMETHOD CopyStringToClipboard(const nsAString& aString, int32_t) override {
+    JihadClipboardText() = NS_ConvertUTF16toUTF8(aString);
+    return NS_OK;
+  }
+  NS_IMETHOD CopyString(const nsAString& aString) override {
+    JihadClipboardText() = NS_ConvertUTF16toUTF8(aString);
+    return NS_OK;
+  }
+private:
+  ~JihadClipboardHelper() {}
+};
+NS_IMPL_ISUPPORTS(JihadClipboardHelper, nsIClipboardHelper)
+
+// {0f0d1e2a-7c44-4b8e-9d3a-5b6c7e8f9a01} — Jihad-owned; no headless build registers this contract.
+#define JIHAD_CLIPBOARDHELPER_CID \
+  { 0x0f0d1e2a, 0x7c44, 0x4b8e, { 0x9d, 0x3a, 0x5b, 0x6c, 0x7e, 0x8f, 0x9a, 0x01 } }
+static const nsCID kJihadClipboardHelperCID = JIHAD_CLIPBOARDHELPER_CID;
+
+class JihadClipboardHelperFactory final : public nsIFactory {
+public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) || aIID.Equals(NS_GET_IID(nsIFactory))) {
+      *aResult = static_cast<nsIFactory*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override  { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+  NS_IMETHOD CreateInstance(nsISupports* aOuter, const nsIID& aIID, void** aResult) override {
+    if (aOuter) return NS_ERROR_NO_AGGREGATION;
+    if (!mInstance) { mInstance = new JihadClipboardHelper(); NS_ADDREF(mInstance); }
+    return mInstance->QueryInterface(aIID, aResult);
+  }
+  NS_IMETHOD LockFactory(bool) override { return NS_OK; }
+private:
+  JihadClipboardHelper* mInstance = nullptr;   // deliberately leaked: process lifetime
+};
+static JihadClipboardHelperFactory& ClipboardHelperFactory()
+{ static JihadClipboardHelperFactory f; return f; }
+
+static void InstallClipboardHelper()
+{
+  nsCOMPtr<nsIClipboardHelper> have = do_GetService("@mozilla.org/widget/clipboardhelper;1");
+  if (have) return;                     // a toolkit that already provides one wins (desktop GTK)
+  nsCOMPtr<nsIComponentRegistrar> reg;
+  if (NS_FAILED(NS_GetComponentRegistrar(getter_AddRefs(reg))) || !reg) return;
+  nsresult rv = reg->RegisterFactory(kJihadClipboardHelperCID, "Jihad Clipboard Helper",
+                                     "@mozilla.org/widget/clipboardhelper;1",
+                                     &ClipboardHelperFactory());
+  fprintf(stderr, "[jihad-bs] clipboardhelper: %s (headless widget module does not provide one)\n",
+          NS_SUCCEEDED(rv) ? "registered" : "REGISTRATION FAILED");
+}
+
 // ── chrome-JS console bridge (T-067 / cavekit-input-bridging R6) ────────────────────────────
 //
 // WHY: nothing in this embedding listens to the console service, so EVERY error thrown by
@@ -724,6 +825,7 @@ EngineHost::Init(const char* greDir)
     ProbeAppInfo("late-backstop");
     ProbeWidgetComponents();   // T-067/R6 — see the comment on the function
     InstallConsoleListener();  // T-067/R6 — chrome JS errors were being discarded entirely
+    InstallClipboardHelper();  // T-067/R6 — without it chrome/global/content/config.js aborts
     // ── announce the profile ────────────────────────────────────────────────
     // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:
     // nsXREDirProvider::GetFile short-circuits EVERY profile key with

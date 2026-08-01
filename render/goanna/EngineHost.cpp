@@ -18,6 +18,7 @@
 #include "DialogService.h"           // InstallDialogService (dialog interception)
 #include "DownloadService.h"         // InstallDownloadService (download handoff)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
+#include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
 #include "nsIDirectoryService.h"     // nsIDirectoryServiceProvider (profile dir — cookie persistence)
@@ -163,7 +164,11 @@ EngineHost::~EngineHost()
 // restart lost consent/login cookies, so consent-gated modern sites bounced to
 // their consent wall on each launch. Provide a writable profile dir so
 // cookies.sqlite + the disk cache survive restarts. Path: $JIHAD_PROFILE_DIR,
-// else <greDir>/../profile (= /media/internal/jihad/profile on the device).
+// else <runtime state dir>/profile (= /var/palm/jihad/$V/profile on the device —
+// T-057; it used to be <greDir>/../profile, which resolved to
+// /media/internal/jihad/profile, i.e. the user's vfat volume that R8 forbids, and
+// now that the daemon runs IN PLACE from the app bundle would resolve into the
+// read-only-by-convention install dir instead).
 class JihadDirProvider final : public nsIDirectoryServiceProvider
 {
 public:
@@ -225,15 +230,19 @@ EngineHost::Init(const char* greDir)
   // and the disk cache persist across daemon restarts — without it the cookie
   // service is memory-only and consent/login cookies die with the process
   // (the Atlas WPE consent-bounce lesson). $JIHAD_PROFILE_DIR overrides;
-  // default <greDir>/../profile (device: /media/internal/jihad/profile).
+  // default <runtime state dir>/profile (device: /var/palm/jihad/$V/profile).
   {
     std::string profPath;
     const char* pe = getenv("JIHAD_PROFILE_DIR");
     if (pe && *pe) profPath = pe;
-    else {
-      // NS_NewNativeLocalFile requires an ABSOLUTE path, and the desktop smoke runs pass a
-      // relative greDir ("."). realpath() the greDir (it exists — libxul loaded from it) so
-      // persistence works in desktop tests too, not just on-device (inspector P3).
+    else profPath = jihad::RuntimeStatePath("profile");
+    if (profPath.empty()) {
+      // No writable runtime state anywhere (RuntimeStateDir() already said so).
+      // Last resort so an odd environment degrades instead of losing cookies:
+      // the pre-T-057 behaviour, <greDir>/../profile. NS_NewNativeLocalFile
+      // requires an ABSOLUTE path and the desktop smoke runs pass a relative
+      // greDir ("."), so realpath() it first — it exists, libxul loaded from it
+      // (inspector P3).
       char rp[PATH_MAX];
       profPath = realpath(greDir, rp) ? rp : greDir;
       profPath += "/../profile";
@@ -241,9 +250,11 @@ EngineHost::Init(const char* greDir)
     nsCOMPtr<nsIFile> prof;
     if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(profPath.c_str()),
                                            true, getter_AddRefs(prof))) && prof) {
-      // Create FIRST (mkdir resolves the ".." at the kernel; already-exists is fine), THEN
-      // Normalize — realpath-based, so it only succeeds once the dir exists. Best-effort:
-      // an un-normalized ProfD still works, consumers open() through the "..".
+      // Create FIRST (mkdir resolves the ".." of the legacy fallback at the kernel;
+      // already-exists is fine), THEN Normalize — realpath-based, so it only succeeds
+      // once the dir exists. Best-effort: an un-normalized ProfD still works, consumers
+      // open() through the "..". 0700, deliberately tighter than the 0755 of the state
+      // dir itself: this holds cookies.sqlite, permissions and the disk cache.
       nsresult crv = prof->Create(nsIFile::DIRECTORY_TYPE, 0700);
       if (NS_SUCCEEDED(crv) || crv == NS_ERROR_FILE_ALREADY_EXISTS) {
         prof->Normalize();
@@ -358,6 +369,12 @@ EngineHost::Shutdown()
   // (Codex P0). These services are driven on the embedding (main) thread, and
   // the sink must only be set/cleared from that thread; clearing here is the
   // process-lifetime backstop even if a caller forgot to clear its own sink.
+  // F-9: abort anything still downloading FIRST, while the sink is still
+  // installed — that is what lets each interrupted download deliver its terminal
+  // msgDownloadError and delete its own "<target>.part" + placeholder instead of
+  // leaving them as residue (R8). Nothing in the engine will call us back after
+  // this, so the service terminates them itself rather than waiting.
+  ShutdownDownloadService();
   SetDialogSink(nullptr);
   SetDownloadSink(nullptr);
   // CAUTION (Codex P1): XRE_TermEmbedding tears down the process-wide runtime.

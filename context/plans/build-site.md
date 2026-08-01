@@ -137,6 +137,23 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 
 ---
 
+## Tier 9 — Independence + citizen rework (added 2026-07-31, user decision)
+
+Supersedes the shared-runtime/refcount design. All of these are prerequisites for honestly
+closing device-build R3/R4. T-055..T-058 touch disjoint surfaces and run in parallel.
+
+| Task | Title | Cavekit | Req | blockedBy | Effort |
+|------|-------|---------|-----|-----------|--------|
+| T-055 | Per-variant adapter identity — shim MIME/name/impl path + impl YAP name, built ×3 | cavekit-device-build.md | R7 | — | M |
+| T-056 | Packaging rework — run in place from cryptofs deviceroot, zero `/media/internal` writes, per-variant upstart job, exact-reverse prerm (direct-build `packaging/` + OE `jihad-app.inc`/`jihad-deviceroot`) | cavekit-device-build.md | R8 | — | L |
+| T-057 | Daemon runtime paths off user storage — log/profile/cache/debug channels under a root-owned variant-scoped path, derived from `JIHAD_BS_NAME` | cavekit-device-build.md | R8 | — | M |
+| T-058 | Per-variant WebView MIME routing in all three front-ends | cavekit-device-build.md | R7 | — | S |
+| T-059 | Mojo front-end — working browser (render surface, address bar, back/fwd/reload/stop, progress, title, error) | cavekit-mojo-ui.md | R2, R3, R4 | T-058 | L |
+| T-060 | Mojo package licensing/attribution (Apache headers + composite LICENSE/NOTICE) | cavekit-mojo-ui.md | R5 | T-059 | S |
+| T-061 | On-device verification of independence + footprint: three-way install/remove matrix, stock-file checksum diff, filesystem residue diff | cavekit-device-build.md | R7, R8 | T-055, T-056, T-057, T-058, T-059 | L |
+
+---
+
 ## Summary
 
 | Tier | Tasks | Effort breakdown |
@@ -150,8 +167,9 @@ Effort key: S = <½ day, M = ~1–2 days, L = multi-day / high-risk.
 | 6 | 3 | 3M |
 | 7 | 4 | 3M, 1L |
 | 8 | 1 | 1M |
+| 9 | 7 | 2S, 2M, 3L |
 
-**Total: 54 tasks, 9 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
+**Total: 61 tasks, 10 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
 The Mochi UI track (T-049/T-050/T-051/T-052/T-053) is parallelizable with the
 engine work; T-054 + T-046 produce the two `.ipk`s for both TouchPad models.
 
@@ -300,6 +318,34 @@ Every acceptance criterion maps to its requirement's task. (Criterion text abbre
 | device-build | R4 | nav/scroll/tap work | T-047 | COVERED |
 | device-build | R4 | cert/dialog/download w/ device services | T-047 | COVERED |
 | device-build | R4 | same verified on TouchPad Go (Opal) | T-047 | COVERED |
+| device-build | R7 | distinct MIME/shim/impl/YAP name/socket/upstart per variant | T-055 | COVERED |
+| device-build | R7 | each front-end routes only its own MIME | T-058 | COVERED |
+| device-build | R7 | installing B never overwrites A's files | T-056 | COVERED |
+| device-build | R7 | removing one leaves the others working, no refcount | T-056, T-061 | COVERED |
+| device-build | R7 | own daemon+socket per variant; crash isolation | T-057, T-061 | COVERED |
+| device-build | R8 | zero writes to /media/internal; engine runs in place | T-056, T-057 | COVERED |
+| device-build | R8 | no stock file modified (checksum diff) | T-061 | COVERED |
+| device-build | R8 | rootfs footprint namespaced + enumerated in docs | T-056 | COVERED |
+| device-build | R8 | writable state root-owned, variant-scoped, removed | T-057 | COVERED |
+| device-build | R8 | prerm removes exactly its own files (residue diff) | T-056, T-061 | COVERED |
+| device-build | R8 | rootfs rw window closed on every exit path | T-056 | COVERED |
+| mojo-ui | R1 | distinct app id + Jihad icons | T-058 | COVERED |
+| mojo-ui | R1 | installs alongside both other variants | T-061 | COVERED |
+| mojo-ui | R1 | removing it leaves the others working | T-061 | COVERED |
+| mojo-ui | R2 | render surface bound to its MIME shows a page | T-059 | COVERED |
+| mojo-ui | R2 | address entry navigates | T-059 | COVERED |
+| mojo-ui | R2 | back/forward/reload/stop drive the adapter | T-059 | COVERED |
+| mojo-ui | R2 | load state visible (progress + stop/reload) | T-059 | COVERED |
+| mojo-ui | R2 | title + committed URL reflected | T-059 | COVERED |
+| mojo-ui | R2 | failed load surfaces an error | T-059 | COVERED |
+| mojo-ui | R3 | callBrowserAdapter set ⊆ Enyo's, no renames | T-059 | COVERED |
+| mojo-ui | R3 | only its own MIME, never another's | T-058 | COVERED |
+| mojo-ui | R3 | no Goanna/UXP identifiers in app-mojo/ | T-059 | COVERED |
+| mojo-ui | R4 | real Mojo idiom (stage/scene assistants, sources.json) | T-059 | COVERED |
+| mojo-ui | R4 | uses system Mojo framework, not bundled | T-059 | COVERED |
+| mojo-ui | R4 | layout usable on Topaz + Opal [human-review] | T-061 | COVERED |
+| mojo-ui | R5 | Apache headers on app-mojo sources | T-060 | COVERED |
+| mojo-ui | R5 | ships composite LICENSE + NOTICE | T-060 | COVERED |
 | device-build | R6 | machine configs for Topaz + Opal | T-054 | COVERED |
 | device-build | R6 | daemon/adapter/both .ipks build+install both models | T-054 | COVERED |
 | device-build | R6 | model-specific diffs captured | T-054 | COVERED |

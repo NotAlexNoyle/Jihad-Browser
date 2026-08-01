@@ -68,7 +68,8 @@ persistence from this package.
 The Mochi UI uses the identical `callBrowserAdapter(...)` method set and
 `palm://com.palm.browserServer/*` URIs as `../app`. The new UI-side piece is
 `source/JihadWebView.js` — an Enyo-2 `WebView`-equivalent control that renders
-the BrowserAdapter NPAPI `<object>` with the self-contained MIME
-`application/x-jihad-browser` (matching `../app/source/JihadEngineOverride.js`)
+the BrowserAdapter NPAPI `<object>` with **this variant's own** self-contained
+MIME `application/x-jihad-browser-mochi` (the Enyo variant keeps
+`application/x-jihad-browser`; see `../context/plans/plan-variant-identity.md`)
 and exposes the same adapter method surface (see cavekit-mochi-ui.md R3). See
 `../docs/IPC-CONTRACT.md`.

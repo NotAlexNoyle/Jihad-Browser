@@ -1,17 +1,20 @@
-# Jihad Browser — self-contained Goanna browser, MOJO UI variant. SKELETON for a future port.
+# Jihad Browser — standalone Goanna browser, MOJO UI variant (3 of 3 independent packages).
 #
-# Third UI variant alongside Enyo 1.0 + Enyo 2/Mochi. It packages the SAME self-contained runtime
-# bundle (engine + daemon + adapter + glibc-2.23, from jihad-deviceroot) via jihad-app.inc, so it
-# installs and the engine works — only the Mojo UI is a stub (see app-mojo/README.md for the TODOs:
-# a WebView with the application/x-jihad-browser plugin MIME + the browser chrome).
+# Third UI variant alongside Enyo 1.0 + Enyo 2/Mochi. It packages its OWN copy of the runtime
+# bundle (engine + daemon + glibc-2.23, from jihad-deviceroot) plus its OWN adapter shim, adapter
+# impl, YAP service name, socket and upstart job via jihad-app.inc — nothing is shared with the
+# Enyo or Mochi package (cavekit-device-build.md R7).
 #
-# It is NOT one of the two shipping variants; it builds on request (`bitbake
-# net.riverstonerelay.jihad-browser.mojo`) as a starting point for the port.
+# The front-end itself is still being brought up (cavekit-mojo-ui.md / T-059): app-mojo/ is a
+# scaffold, so this recipe stays out of `bitbake world` and builds on request (`bitbake
+# net.riverstonerelay.jihad-browser.mojo`).
 
-SUMMARY = "Jihad Browser (self-contained Goanna browser, Mojo UI — SKELETON)"
+SUMMARY = "Jihad Browser (standalone Goanna browser, Mojo UI — front-end in progress)"
 LICENSE = "Apache-2.0 & MPL-2.0"
 
-WEBOS_APP_ID = "net.riverstonerelay.jihad-browser.mojo"
+# The ONE identity fact this recipe states; app id, shim, upstart job, YAP name are all derived.
+JIHAD_VARIANT = "mojo"
+
 SRC_URI = "file://app-mojo/"
 S = "${WORKDIR}/app-mojo"
 

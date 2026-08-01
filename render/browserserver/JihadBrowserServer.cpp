@@ -3,9 +3,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 #include "JihadBrowserServer.h"
+#include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+#include <cerrno>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 // EngineHost is only forwarded by reference (forward-declared), so this
 // dispatch layer stays free of XPCOM/engine headers.
 
@@ -37,6 +43,14 @@ void ProxySink::msgDownloadError(const char* url, const char* errorMsg) { mSrv->
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)
   : BrowserServerBase(name), mHost(host), mInTick(false) {
   jihad::SetDownloadSink(this);   // receive engine download/handoff callbacks
+#ifndef JIHAD_NO_INJECT
+  // Resolve the self-drive channel ONCE (see the block above processInjectFile
+  // for what it is and how to turn it on). Disabled resolves to "", which makes
+  // the tick-loop poll a single bool test — no getenv, no stat, no open per tick.
+  mInjectPath = jihad::RuntimeResolvePath(getenv("JIHAD_INJECT"), "inject.cmd");
+  if (!mInjectPath.empty())
+    printf("[jihad-bs] self-drive inject channel ENABLED: %s\n", mInjectPath.c_str());
+#endif
 }
 
 JihadBrowserServer::~JihadBrowserServer() {
@@ -45,18 +59,49 @@ JihadBrowserServer::~JihadBrowserServer() {
   for (auto& e : mReap)   { delete e.page; delete e.sink; }
 }
 
-// A download/handoff fired in the engine (helperapplauncherdialog). It has no page
-// handle, so route it to the ACTIVE card (mLastProxy) — the page the user is on.
-// The app then drives com.palm.downloadmanager. Runs on the embedding thread.
-void JihadBrowserServer::OnDownload(const char* url, const char* mimeType,
+// ── routing a process-wide download back to ONE card (F-1) ──────────────────
+// The engine's download machinery has no page handle by the time it calls us, so
+// these used to be routed to mLastProxy — the card that connected LAST. That is
+// the wrong client as soon as two cards are open (card A's download progress
+// lands on card B), and once that card closed reap() nulled mLastProxy without
+// re-electing, so from then on EVERY download message was silently dropped —
+// including the single terminal message the client's download list waits on,
+// leaving a permanently-stuck entry even though other cards were still live.
+//
+// jihad::DownloadOrigin fixes the attribution at the source: the download service
+// captures the originating page's docShell identity while the engine still knows
+// it, and hands the same token back on every callback. Here we turn it into a
+// page. The fallbacks matter as much as the match: an unknown origin must land
+// somewhere live, never nowhere, because dropping a terminal message strands the
+// client's UI. Order: the originating card -> the active card -> the newest card
+// still connected.
+jihad::BrowserPageGoanna* JihadBrowserServer::pageForDownload(jihad::DownloadOrigin origin) {
+  if (origin) {
+    for (auto& kv : mPages)
+      if (kv.second.page && kv.second.page->docShellKey() == origin) return kv.second.page;
+  }
+  if (auto* p = pageFor(mLastProxy)) return p;
+  for (auto it = mConnectOrder.rbegin(); it != mConnectOrder.rend(); ++it)
+    if (auto* p = pageFor(*it)) return p;
+  return nullptr;
+}
+
+// A download/handoff fired in the engine (helperapplauncherdialog). Runs on the
+// embedding thread. The app then drives com.palm.downloadmanager.
+void JihadBrowserServer::OnDownload(jihad::DownloadOrigin origin, const char* url,
+                                    const char* mimeType,
                                     const char* suggestedName, int64_t contentLength) {
   (void)suggestedName; (void)contentLength;
-  printf("[jihad-bs] download handoff mime=%s url=%s\n",
-         mimeType ? mimeType : "", url ? url : "");
-  if (auto* p = pageFor(mLastProxy))
+  auto* p = pageForDownload(origin);
+  // Log whether the ORIGIN matched, not just that something was routed: on the
+  // device the log is the only way to tell a correct attribution from a fallback.
+  printf("[jihad-bs] download handoff mime=%s url=%s origin=%p (%s)\n",
+         mimeType ? mimeType : "", url ? url : "", origin,
+         (origin && p && p->docShellKey() == origin) ? "originating card" : "fallback");
+  if (p)
     p->emitMimeHandoff(mimeType ? mimeType : "", url ? url : "");
   else
-    printf("[jihad-bs] download: no active page to hand off to\n");
+    printf("[jihad-bs] download: no connected page to hand off to\n");
 }
 
 // The frozen msgDownloadProgress carries int32 byte counts; the engine counts in
@@ -68,24 +113,32 @@ static int32_t clampToI32(int64_t v) {
 }
 
 // Lifecycle of the download the ENGINE performs (DownloadService drives the
-// helper-app save). Like OnDownload these have no page handle, so they follow
-// the same rule: route to the ACTIVE card.
-void JihadBrowserServer::OnDownloadStart(const char* url) {
-  if (auto* p = pageFor(mLastProxy)) p->emitDownloadStart(url ? url : "");
+// helper-app save). Every one of these carries the same origin token for a given
+// download, so start/progress/terminal all land on the same client (F-1).
+void JihadBrowserServer::OnDownloadStart(jihad::DownloadOrigin origin, const char* url) {
+  if (auto* p = pageForDownload(origin)) p->emitDownloadStart(url ? url : "");
 }
-void JihadBrowserServer::OnDownloadProgress(const char* url, int64_t bytesSoFar, int64_t totalBytes) {
-  if (auto* p = pageFor(mLastProxy))
+void JihadBrowserServer::OnDownloadProgress(jihad::DownloadOrigin origin, const char* url,
+                                            int64_t bytesSoFar, int64_t totalBytes) {
+  if (auto* p = pageForDownload(origin))
     p->emitDownloadProgress(url ? url : "", clampToI32(bytesSoFar), clampToI32(totalBytes));
 }
-void JihadBrowserServer::OnDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) {
+void JihadBrowserServer::OnDownloadFinished(jihad::DownloadOrigin origin, const char* url,
+                                            const char* mimeType, const char* tmpFilePath) {
   printf("[jihad-bs] download finished mime=%s path=%s\n",
          mimeType ? mimeType : "", tmpFilePath ? tmpFilePath : "");
-  if (auto* p = pageFor(mLastProxy))
+  if (auto* p = pageForDownload(origin))
     p->emitDownloadFinished(url ? url : "", mimeType ? mimeType : "", tmpFilePath ? tmpFilePath : "");
+  else
+    printf("[jihad-bs] download finished with no connected page — terminal message dropped\n");
 }
-void JihadBrowserServer::OnDownloadError(const char* url, const char* errorMsg) {
+void JihadBrowserServer::OnDownloadError(jihad::DownloadOrigin origin, const char* url,
+                                         const char* errorMsg) {
   printf("[jihad-bs] download error %s: %s\n", url ? url : "", errorMsg ? errorMsg : "");
-  if (auto* p = pageFor(mLastProxy)) p->emitDownloadError(url ? url : "", errorMsg ? errorMsg : "");
+  if (auto* p = pageForDownload(origin))
+    p->emitDownloadError(url ? url : "", errorMsg ? errorMsg : "");
+  else
+    printf("[jihad-bs] download error with no connected page — terminal message dropped\n");
 }
 
 jihad::BrowserPageGoanna* JihadBrowserServer::pageFor(YapProxy* proxy) {
@@ -94,11 +147,22 @@ jihad::BrowserPageGoanna* JihadBrowserServer::pageFor(YapProxy* proxy) {
 }
 
 void JihadBrowserServer::reap(YapProxy* proxy) {
+  // Drop it from the connect order even if it has no page (a client that
+  // connected and disconnected before asyncCmdConnect succeeded), so a dead
+  // proxy can never be re-elected below.
+  mConnectOrder.erase(std::remove(mConnectOrder.begin(), mConnectOrder.end(), proxy),
+                      mConnectOrder.end());
   auto it = mPages.find(proxy);
   if (it == mPages.end()) return;
   Page pg = it->second;
   mPages.erase(it);
-  if (proxy == mLastProxy) mLastProxy = nullptr;   // inject target gone
+  // F-1: RE-ELECT rather than null. mLastProxy is both the self-drive inject
+  // target and the download fallback; clearing it when the newest card closed
+  // meant every later download message — terminal included — was discarded even
+  // with other cards still connected. The newest surviving card is the closest
+  // thing to "the card the user is on".
+  if (proxy == mLastProxy)
+    mLastProxy = mConnectOrder.empty() ? nullptr : mConnectOrder.back();
   if (mInTick) mReap.push_back(pg);          // defer delete out of the tick loop
   else { delete pg.page; delete pg.sink; }
 }
@@ -111,9 +175,11 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
   reap(proxy);
 }
 
-// Dev-only self-drive channel (device testing without a human on the glass).
-// A text file of one command per line, consumed atomically (read then unlink)
-// so each batch applies once. Content coordinates, same as the adapter sends.
+#ifndef JIHAD_NO_INJECT
+// ── DEBUG self-drive channel — OFF BY DEFAULT ───────────────────────────────
+// Device testing without a human on the glass: a text file of one command per
+// line, consumed atomically (read then unlink) so each batch applies once.
+// Content coordinates, same as the adapter sends.
 //   click X Y [N]      -> clickAt
 //   hold X Y           -> holdAt (long-press)
 //   key CODE [CHR]     -> keyDown+keyUp (CHR defaults to CODE)
@@ -124,19 +190,60 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
 //   size W H           -> setWindowSize (VKB-resize / rotation simulation)
 //   zoom Z X Y         -> setZoomAndScroll
-// The path lives under /media/internal (device-only) so desktop builds are
-// inert; the file is only creatable via novacom/device access. Strip with the
-// other debug hooks for release.
-static const char* kInjectPath = "/media/internal/jihad/inject.cmd";
+//
+// HOW TO TURN IT ON (T-057): set $JIHAD_INJECT in the daemon's environment —
+// in the variant's upstart job, or on an ad-hoc novacom run:
+//     env JIHAD_INJECT=1 ./jihad-browserserver <greDir>
+// "1"/"on"/"yes"/"true" -> <state>/inject.cmd, i.e. /var/palm/jihad/$V/inject.cmd
+// on the device; a bare filename or an absolute path picks another file. Then:
+//     novacom run file://bin/sh -- -c 'echo url http://example.com > /var/palm/jihad/enyo/inject.cmd'
+// Unset (the default) disables it entirely: no polling, no syscalls, nothing to
+// write to. `-DJIHAD_NO_INJECT` compiles the whole facility out for a release
+// build.
+//
+// WHY IT IS GATED AT ALL. This is a remote control: anything that can create the
+// file drives the browser (navigate, type, click). It used to live on
+// /media/internal — the user's vfat volume, where every file is effectively
+// world-writable and any app or a PC in USB-drive mode could plant it. Moving it
+// to the root-owned 0755 /var/palm/jihad/$V/ (R8) means only root can write it,
+// which is most of the risk gone; keeping it OFF by default means an installed
+// package ships with no live control channel at all, which is the rest.
+//
+// Defence in depth on top of the gate: the file is opened once and validated
+// through that same fd (no path re-lookup between check and read — no TOCTOU),
+// and is refused unless it is a regular file owned by our own euid and not
+// group/world-writable. A rejected file is still unlinked so a hostile one
+// cannot wedge the channel by sitting there.
 
 void JihadBrowserServer::processInjectFile() {
-  FILE* f = fopen(kInjectPath, "r");
-  if (!f) return;
+  const char* path = mInjectPath.c_str();
+  // O_NOFOLLOW: a symlink at the path is not the file we agreed on. O_NONBLOCK: a
+  // FIFO left there would otherwise block open() until a writer showed up — i.e.
+  // hang the whole daemon tick loop. Neither affects a plain regular file.
+  int fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+  if (fd < 0) {
+    if (errno != ENOENT) {                 // ENOENT is the normal "no commands" case
+      printf("[jihad-bs] inject: %s unusable (%s) — clearing\n", path, strerror(errno));
+      unlink(path);                        // e.g. ELOOP: don't let it wedge the channel
+    }
+    return;
+  }
+  struct stat st;
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) ||
+      st.st_uid != geteuid() || (st.st_mode & (S_IWGRP | S_IWOTH))) {
+    printf("[jihad-bs] inject: refusing %s (not a private regular file of uid %lu)\n",
+           path, (unsigned long)geteuid());
+    close(fd);
+    unlink(path);
+    return;
+  }
+  FILE* f = fdopen(fd, "r");
+  if (!f) { close(fd); return; }
   char line[2048];
   std::vector<std::string> cmds;
   while (fgets(line, sizeof line, f)) cmds.push_back(line);
   fclose(f);
-  unlink(kInjectPath);
+  unlink(path);
   jihad::BrowserPageGoanna* p = pageFor(mLastProxy);
   if (!p) { printf("[jihad-bs] inject: no page\n"); return; }
   for (auto& c : cmds) {
@@ -173,6 +280,7 @@ void JihadBrowserServer::processInjectFile() {
     }
   }
 }
+#endif  // !JIHAD_NO_INJECT
 
 void JihadBrowserServer::tick() {
   // Re-entrancy guard (device crash: BeginLoad this=0xa, SIGBUS). A synchronous
@@ -195,7 +303,13 @@ void JihadBrowserServer::tick() {
 
   // Self-drive: poll the inject file ~5x/s (tick is ~10 ms). Commands only queue
   // work (clickAt defers to pump, keys queue edits), mirroring the adapter path.
-  if (++mInjectThrottle >= 20) { mInjectThrottle = 0; processInjectFile(); }
+  // Disabled is the default (T-057): mInjectPath is empty, so this whole thing
+  // is one predictable branch per tick — the counter never even increments.
+#ifndef JIHAD_NO_INJECT
+  if (!mInjectPath.empty() && ++mInjectThrottle >= 20) {
+    mInjectThrottle = 0; processInjectFile();
+  }
+#endif
 
   for (auto* pg : snap) { pg->pump(10); pg->maybePaint(); }
 
@@ -217,6 +331,7 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
     printf("[jihad-bs] page init FAILED\n"); delete page; delete sink; return;
   }
   mPages[proxy] = Page{ page, sink };
+  mConnectOrder.push_back(proxy);
   mLastProxy = proxy;   // newest connect = active card = self-drive inject target
 }
 void JihadBrowserServer::asyncCmdOpenUrl(YapProxy* proxy, const char* url)
@@ -274,13 +389,25 @@ void JihadBrowserServer::asyncCmdExit(YapProxy* proxy)
 // YAP cancelDownload(url): abort the matching in-flight engine download. The
 // download is process-wide (the engine's helper-app service owns it, not a
 // page), so this is not routed per-proxy. An empty url cancels all of them,
-// matching the adapter's "stop whatever is downloading" intent.
+// matching the adapter's "stop whatever is downloading" intent; a specific url
+// cancels exactly one (F-4).
+//
+// Nothing goes back on the wire for a cancel that matched nothing, and that is
+// deliberate: cancelDownload (0x1015) is a fire-and-forget async command with no
+// reply in the FROZEN contract, and synthesising a msgDownloadError for a
+// download that already sent its terminal message would corrupt the client's
+// download list. So the three outcomes are separated in the log instead — the
+// only diagnostic that exists on the device.
 void JihadBrowserServer::asyncCmdCancelDownload(YapProxy* proxy, const char* url)
 {
   (void)proxy;
-  bool aborted = jihad::CancelDownload(url);
-  printf("[jihad-bs] cancelDownload %s -> %s\n", url ? url : "(all)",
-         aborted ? "aborted" : "no match");
+  const char* what = "no such download";
+  switch (jihad::CancelDownload(url)) {
+    case jihad::CancelOutcome::Aborted:           what = "aborted"; break;
+    case jihad::CancelOutcome::AlreadyTerminated: what = "already finished/failed"; break;
+    case jihad::CancelOutcome::Unknown:           break;
+  }
+  printf("[jihad-bs] cancelDownload %s -> %s\n", url ? url : "(all)", what);
 }
 
 void JihadBrowserServer::asyncCmdInterrogateClicks(YapProxy* proxy, bool enable)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 the Jihad Browser project. Apache-2.0 (see ../../../LICENSE).
+# Copyright 2026 NotAlexNoyle. Apache-2.0 (see ../../../LICENSE).
 # Tiny redirect server for the F R4 test: GET /a -> 302 -> /b ; GET /b -> 200.
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer

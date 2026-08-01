@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 # Build + run the input-synthesis test (domain E) against the built engine.
 set -uo pipefail
@@ -24,8 +24,11 @@ $CXX /out/zoom_test.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogServi
   -lnspr4 -lplc4 -lplds4 $GTK_LIBS -Wl,-rpath,"$DIST/bin" -ldl -lpthread -o "$OUT" || exit 13
 set +x
 
+# F-8: the guard greps for a 'jihad-embed' marker, so the appended line has to
+# CARRY it — without it the guard never matched its own output and every run
+# appended another copy of the pref to the SHARED build output goanna.js.
 if ! grep -q 'jihad-embed' "$DIST/bin/goanna.js" 2>/dev/null; then
-  echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$DIST/bin/goanna.js"
+  echo 'pref("layers.offmainthreadcomposition.force-disabled", true); // jihad-embed' >> "$DIST/bin/goanna.js"
 fi
 export JIHAD_DISABLE_OMTC=1
 LD_LIBRARY_PATH="$DIST/bin" xvfb-run -a -s "-screen 0 1024x768x24" "$OUT" "$DIST/bin"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # Build the real jihad-browserserver daemon on desktop: libYap (Qt-free) +
@@ -49,8 +49,11 @@ $CXX /out/bs_main.o /out/JihadBrowserServer.o /out/BrowserServerBase.o \
 set +x
 echo "== built: $OUT ($(du -h "$OUT" | cut -f1)) =="
 
+# F-8: the guard greps for a 'jihad-embed' marker, so the appended line has to
+# CARRY it — without it the guard never matched its own output and every run
+# appended another copy of the pref to the SHARED build output goanna.js.
 if ! grep -q 'jihad-embed' "$DIST/bin/goanna.js" 2>/dev/null; then
-  echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$DIST/bin/goanna.js"
+  echo 'pref("layers.offmainthreadcomposition.force-disabled", true); // jihad-embed' >> "$DIST/bin/goanna.js"
 fi
 export JIHAD_DISABLE_OMTC=1
 

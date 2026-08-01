@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Assemble the on-device bundle for the TouchPad: the transitive .so closure of
 # jihad-browserserver-arm + libxul, plus the GRE files (goanna.js, omni.ja, ...),
@@ -7,6 +7,7 @@
 # launched via the bundled glibc-2.23 loader. Runs on the host (readelf reads ARM).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
+REPO="${JIHAD_REPO:-$(cd "$HERE/../.." && pwd)}"   # repo root: source of the in-tree ICU data
 # All inputs are env-overridable so the OE product recipe can point them at bitbake-built
 # artifacts (jihad-deviceroot recipe). Defaults = the direct cross-build layout.
 TC="${JIHAD_TC:-$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi}"
@@ -65,10 +66,71 @@ for s in libnssckbi.so libsoftokn3.so libfreebl3.so libfreeblpriv3.so; do
   [ -e "$DIST/bin/$s" ] && cp "$DIST/bin/$s" "$OUT/$s" && echo "  NSS module: $s"
 done
 
-# GRE resource files the engine loads from greDir (= the bundle dir)
-for f in goanna.js omni.ja dependentlibs.list platform.ini icudt78l.dat; do
-  [ -e "$DIST/bin/$f" ] && cp "$DIST/bin/$f" "$OUT/"
+# GRE resource files the engine loads from greDir (= the bundle dir).
+#
+# `cp -L` and the REQUIRED check are both load-bearing (found on-device 2026-07-31, the hard way):
+# in the ARM dist, `bin/icudt78l.dat` is a SYMLINK to /src/uxp/config/external/icu/data/… — a path
+# that exists only INSIDE the build container. Assembled on the host, `[ -e ]` follows that link,
+# finds nothing, and the old code SILENTLY SKIPPED the file. The resulting bundle looked complete
+# (39 files, no error) and the daemon then aborted on every start with
+#   ###!!! ABORT: u_init() failed: file /src/uxp/xpcom/build/XPCOMInit.cpp, line 698
+# i.e. ICU could not initialize, which upstart dutifully respawned forever. A missing required
+# GRE file must fail the BUILD, not the device.
+REQUIRED_GRE="goanna.js dependentlibs.list platform.ini icudt78l.dat"
+for f in $REQUIRED_GRE; do
+  src="$DIST/bin/$f"
+  # Fall back to the in-tree source for a dist entry that is a container-only dangling symlink.
+  if [ ! -e "$src" ] && [ "$f" = "icudt78l.dat" ]; then
+    src="$REPO/third_party/uxp/config/external/icu/data/$f"
+  fi
+  [ -e "$src" ] || { echo "ERROR: required GRE file missing: $f (looked in $DIST/bin)" >&2; exit 1; }
+  cp -L "$src" "$OUT/$f" || { echo "ERROR: failed to copy $f" >&2; exit 1; }
 done
+# omni.ja is OPTIONAL: it exists only in a packaged (jar'd) build. This dist ships the GRE
+# resources as loose directories instead, copied below.
+[ -e "$DIST/bin/omni.ja" ] && cp -L "$DIST/bin/omni.ja" "$OUT/"
+
+# Loose GRE resource directories. When the engine is not packaged into omni.ja it loads chrome
+# manifests, XPCOM component manifests, default prefs and JS modules from these directories under
+# greDir; without them XPCOM registration fails.
+#
+# These cannot simply be `cp -rL`'d on the host. A mach build tree links its resources straight
+# back at the SOURCE tree, so most entries here are symlinks to /src/uxp/… — the path where the
+# build CONTAINER mounts third_party/uxp. On the host every one of them dangles, `cp -rL` fails
+# mid-copy, and a naive `|| cp -r` fallback both leaves the dangling links in place and (because
+# the destination already half-exists) nests the tree as res/res/…. palm-package then dies trying
+# to read them (FilteredFileContents.readContents → NPE in the regex matcher).
+#
+# So: copy the structure preserving links, then rewrite each dangling /src/uxp/… link into the
+# real in-tree file. The container mount is exactly $REPO/third_party/uxp, so the mapping is a
+# prefix substitution. Anything still dangling afterwards is dropped rather than shipped —
+# palm-package cannot read it and the engine would not find it either.
+UXP_SRC="$REPO/third_party/uxp"
+for d in chrome components defaults dictionaries hyphenation modules res; do
+  [ -d "$DIST/bin/$d" ] || continue
+  rm -rf "${OUT:?}/$d"
+  cp -a "$DIST/bin/$d" "$OUT/$d"
+  # Resolve container-only links against the in-tree source.
+  while IFS= read -r link; do
+    [ -n "$link" ] || continue
+    tgt=$(readlink "$link")
+    case "$tgt" in
+      /src/uxp/*) real="$UXP_SRC/${tgt#/src/uxp/}" ;;
+      *)          real="" ;;
+    esac
+    if [ -n "$real" ] && [ -e "$real" ]; then
+      rm -f "$link"; cp -L "$real" "$link"
+    else
+      rm -f "$link"          # unresolvable: ship nothing rather than a broken entry
+    fi
+  done <<EOF
+$(find "$OUT/$d" -xtype l 2>/dev/null)
+EOF
+  # Build bookkeeping that must never reach a package.
+  find "$OUT/$d" -name '.mkdir.done' -delete 2>/dev/null || true
+  find "$OUT/$d" -type d -empty -delete 2>/dev/null || true
+done
+[ -e "$DIST/bin/chrome.manifest" ] && cp -L "$DIST/bin/chrome.manifest" "$OUT/"
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

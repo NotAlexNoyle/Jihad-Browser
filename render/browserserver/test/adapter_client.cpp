@@ -10,6 +10,7 @@
  */
 #include <YapClient.h>
 #include <YapPacket.h>
+#include <BrowserOffscreenInfo.h>   // the isis shmem layout: [header][ARGB32 pixels]
 #include <glib.h>
 #include <cstdio>
 #include <cstdlib>
@@ -19,9 +20,19 @@
 
 class JihadAdapterClient : public YapClient {
 public:
+  // HARNESS FIX (pre-existing, found while verifying T-057): the segment must hold
+  // the BrowserOffscreenInfo HEADER *plus* the pixels. The real BrowserAdapter
+  // allocates it that way and reads rasterBuffer() at base+sizeof(header); this
+  // stand-in still allocated bare W*H*4, so the daemon's
+  //   if (segSize < hdr + w*h*4) return;   // BrowserPageGoanna::paintToSharedBuffer
+  // guard silently declined EVERY paint and the round-trip could only ever end in
+  // the 30 s timeout (exit 124, never a msgPainted). The client dates from the
+  // pre-header desktop PoC (36e8513) and was never updated when the header was
+  // added to the layout.
+  static constexpr size_t kHdr = sizeof(BrowserOffscreenInfo);
   explicit JihadAdapterClient(const char* name)
     : YapClient(name), painted(0), verified(0), loadStopped(false),
-      W(1024), H(768), sz(1024*768*4), key1(0x4a494831), key2(0x4a494832) {}
+      W(1024), H(768), sz((int)kHdr + 1024*768*4), key1(0x4a494831), key2(0x4a494832) {}
   int painted, verified;
   bool loadStopped;
   bool wroteImage = false;
@@ -38,11 +49,15 @@ public:
     if (b == (unsigned char*)-1) return;
     const char* path = getenv("JIHAD_POC_IMAGE");
     if (!path || !*path) path = "/out/jihad-poc-render.ppm";
+    const BrowserOffscreenInfo* oi = (const BrowserOffscreenInfo*)b;
+    unsigned char* px = b + kHdr;                 // pixels live AFTER the header
     FILE* fp = fopen(path, "wb");
     if (fp) {
       fprintf(fp, "P6\n%d %d\n255\n", W, H);
+      printf("[adapter] header says %dx%d zoom=%.3f rendered=%d,%d\n",
+             oi->bufferWidth, oi->bufferHeight, oi->contentZoom, oi->renderedX, oi->renderedY);
       for (int i = 0; i < W * H; ++i) {
-        unsigned char* p = b + (size_t)i * 4;     // B,G,R,A
+        unsigned char* p = px + (size_t)i * 4;    // B,G,R,A
         unsigned char rgb[3] = { p[2], p[1], p[0] };
         fwrite(rgb, 1, 3, fp);
       }
@@ -69,7 +84,7 @@ public:
     if (b == (unsigned char*)-1) return -1;
     long nb = 0;
     for (int i = 0; i < W * H; ++i) {
-      unsigned char* p = b + (size_t)i * 4;   // B,G,R,A
+      unsigned char* p = b + kHdr + (size_t)i * 4;   // pixels AFTER the header; B,G,R,A
       if (!(p[0] > 240 && p[1] > 240 && p[2] > 240)) ++nb;
     }
     shmdt(b);

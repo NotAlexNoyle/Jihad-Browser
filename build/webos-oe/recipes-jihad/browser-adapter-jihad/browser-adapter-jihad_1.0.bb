@@ -23,6 +23,7 @@ SUMMARY = "Jihad Browser coexisting NPAPI adapter (BrowserAdapterJihad.so)"
 LICENSE = "Apache-2.0"
 
 require ../jihad-common.inc
+require ../jihad-variants.inc
 
 # Model-agnostic: one ARMv7 softfp .so for both TouchPad models (same SoC family,
 # same 1024x768 buffer). Captured difference: none (device-build R6).
@@ -69,14 +70,25 @@ do_compile() {
 }
 
 do_install() {
-    # Stage both pieces under datadir for the product .ipk: the deviceroot puts the shim under
-    # deviceroot/BrowserPlugins (→ /usr/lib/BrowserPlugins at postinst) and the impl in the app dir
-    # (dlopen'd by the shim from there).
+    # Stage the adapter PER VARIANT (R7): build-adapter-pdk.sh builds the shim + impl once per
+    # variant with that variant's MIME / YAP name / impl path compiled in, emitting the shim flat
+    # as build-pdk/<shim>.so (the names are already unique) and the impl as
+    # build-pdk/<variant>/BrowserAdapterImpl.so. Regroup both under jihad-parts/<variant>/ so the
+    # deviceroot and the product .ipk can copy exactly one variant's slice and cannot pick up a
+    # sibling's adapter — the shape review finding #5 (one shared impl for all variants) required.
     install -d ${D}${datadir}/jihad-parts
-    install -m 0755 ${JIHAD_REPO}/build/webos-oe/adapter-deps/build-pdk/BrowserAdapterJihad.so \
-        ${D}${datadir}/jihad-parts/BrowserAdapterJihad.so
-    install -m 0755 ${JIHAD_REPO}/build/webos-oe/adapter-deps/build-pdk/BrowserAdapterImpl.so \
-        ${D}${datadir}/jihad-parts/BrowserAdapterImpl.so
+    PDK=${JIHAD_REPO}/build/webos-oe/adapter-deps/build-pdk
+    for row in ${JIHAD_VARIANT_TABLE}; do
+        V=$(echo "$row" | cut -d: -f1)
+        SHIM=$(echo "$row" | cut -d: -f3)
+        if [ -f "$PDK/$SHIM" ] && [ -f "$PDK/$V/BrowserAdapterImpl.so" ]; then
+            install -d ${D}${datadir}/jihad-parts/$V
+            install -m 0755 "$PDK/$SHIM" ${D}${datadir}/jihad-parts/$V/$SHIM
+            install -m 0755 "$PDK/$V/BrowserAdapterImpl.so" ${D}${datadir}/jihad-parts/$V/BrowserAdapterImpl.so
+        else
+            bbwarn "browser-adapter-jihad: variant '$V' not built (missing $PDK/$SHIM or $PDK/$V/BrowserAdapterImpl.so)"
+        fi
+    done
 }
 
 FILES_${PN} = "${datadir}/jihad-parts"

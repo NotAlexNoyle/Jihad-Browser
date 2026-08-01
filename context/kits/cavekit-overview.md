@@ -16,6 +16,13 @@ see `jihad-self-contained-arch.md`). The adapter carries a two-line rebrand (MIM
 string + YAP server name) for coexistence; the YAP command/message interface it
 speaks is unchanged.
 
+**Three independent front-ends (user decision 2026-07-31).** Enyo 1.0 (`app/`), Enyo 2 + Mochi
+(`app-mochi/`), and Mojo (`app-mojo/`) each ship as a complete, standalone browser with its own
+MIME / adapter shim + impl / YAP name / socket / upstart job / daemon process — installing or
+removing one cannot affect another (cavekit-device-build.md **R7**). Each package runs its engine
+in place from its own cryptofs `deviceroot` and writes nothing to the user's `/media/internal`
+storage (**R8**).
+
 Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 `render/goanna/PORT-MAP.md`.
 
@@ -27,6 +34,7 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 |--------|--------------|--------------|--------|-------------|
 | UI Shell (Enyo) | cavekit-ui-shell.md | 4 | 🟢 R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload — device-test-2026-07-19 Session 4); findInPage untested | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
 | Mochi UI Variant | cavekit-mochi-ui.md | 5 | 🟡 R1 ✓ (dual-install VERIFIED ON DEVICE 2026-07-19), R3 ✓, R5 ✓; R2/R4 [~] — full parity views + dialogs built and PARITY.md complete, on-device functional verification pending | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| Mojo UI Variant | cavekit-mojo-ui.md | 5 | 🟡 R1 partly ✓ (app id/icons); R2–R5 open — `app-mojo/` is being promoted from skeleton to a working Mojo front-end (user decision 2026-07-31) | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 6 | ✅ 6/6 desktop + on-device (R6 rotation composite + the R5 zoom rework device-confirmed 2026-07-27) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite |
@@ -37,13 +45,17 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓; **R3 BUILD-PRODUCED, not done** — the OE build (`oe-env.sh`) emits two `.ipk`s + a Mojo skeleton, and the 2026-07-29 review items #1/#4/#5/#6/#9/#12 (Mochi frameworks, prerm refcount, shared shim impl path, loud postinst, bundle manifest, LICENSE/NOTICE) are **fixed + build-verified** (commits 9413d16, b1c0112) — the two open gaps are **clean-clone reproducibility** (prebuilt toolchain/sysroot/PDK + undeclared bitbake inputs, #7/#8) and **on-device install verification**; R4 rotation composite ✓ (2026-07-27) with cert/download flows + Opal open; R5/R6 device-gated | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: 11 domains, **55 requirements** (offscreen R6 added 2026-07-26) — **~43 met/verified, ~12
-open**, and every open item is either device-gated or a named debug lead. Current priorities
-(reprioritized 2026-07-31 against the recorded evidence; the 2026-07-29 review items #1/#4/#5/#12
-that used to lead this list are fixed + build-verified — see cavekit-device-build.md and commit
-b1c0112):
-(1) **Install the two self-contained OE `.ipk`s on device** and confirm the postinst lays the
-bundle down, both variants render, and coexistence + removal are safe — the single gate blocking
+Totals: **12 domains, 62 requirements** (offscreen R6 added 2026-07-26; device-build R7/R8 +
+cavekit-mojo-ui's 5 added 2026-07-31) — **~44 met/verified, ~18 open**, and every open item is
+either device-gated, part of the new independence/citizen track, or a named debug lead. Current
+priorities (reprioritized 2026-07-31 against the recorded evidence; the 2026-07-29 review items
+#1/#4/#5/#12 that used to lead this list are fixed + build-verified — see cavekit-device-build.md
+and commit b1c0112):
+(0) **Per-variant independence + install-footprint rework** (device-build R7/R8) — three standalone
+packages, nothing on `/media/internal`, engine run in place from cryptofs. Supersedes the shared
+runtime + refcount design and is a prerequisite for honestly closing R3/R4;
+(1) **Install the self-contained `.ipk`s on device** and confirm the postinst lays the
+bundle down, each variant renders, and coexistence + removal are safe — the gate blocking
 device-build R3's "device-verified" and R4;
 (2) **Mochi on-device functional verification** (mochi-ui R2/R4) — the parity views, dialogs, and
 PARITY.md are complete; nothing but hardware time is missing;
@@ -100,6 +112,8 @@ Device-Build R2, and advances Device-Build R4/R5. Detail in
 | UI Shell (Enyo) | Navigation/Events | drives navigation, observes events |
 | Mochi UI Variant | IPC Contract / UI Shell | same contract; parity with Enyo UI |
 | Mochi UI Variant | Device Build | second .ipk packaged + on both TouchPad models |
+| Mojo UI Variant | IPC Contract / UI Shell | same contract; behavioral baseline is the Enyo shell |
+| Mojo UI Variant | Device Build | third independent .ipk (own MIME/adapter/socket/upstart/daemon) |
 | IPC Contract | Offscreen Rendering | framebuffer + paint protocol |
 | IPC Contract | Engine Embedding | page lifecycle / page manager |
 | IPC Contract | Browser Services | LunaService surface |

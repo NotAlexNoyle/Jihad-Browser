@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Build the Mochi (Enyo 2) UI variant .ipk:
 #     net.riverstonerelay.jihad-browser.mochi_<version>_all.ipk
@@ -19,12 +19,27 @@
 # by /build/**/out-*/ and the global *.ipk rule), so nothing bundled is committed.
 #
 # Usage:  build/webos-oe/build-mochi-ipk.sh
+#         build/webos-oe/build-mochi-ipk.sh --stage-only <dir>
+#
+# --stage-only stages app-mochi/ + the three bundled framework trees into <dir> and STOPS
+# (no palm-package, no .ipk). It exists so build-variant-ipk.sh — which has to add the
+# deviceroot runtime bundle and repack the .ipk to inject postinst/prerm — reuses THIS
+# script's framework resolution/pruning/provenance/QA instead of duplicating it. There is
+# exactly one implementation of "what goes in a Mochi app tree", and it is here.
+#
 # Requires: palm-package (webOS SDK, on PATH), rsync, ar, tar.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)          # Jihad-Browser repo (or worktree) root
 APP="$REPO/app-mochi"                     # in-repo Mochi front-end
+
+STAGE_ONLY=""
+if [ "${1:-}" = "--stage-only" ]; then
+	[ -n "${2:-}" ] || { echo "ERROR: --stage-only needs a directory" >&2; exit 2; }
+	mkdir -p "$2"
+	STAGE_ONLY=$(cd "$2" && pwd)
+fi
 
 # --- UI framework sources: in-repo submodules (third_party/), bundled at build ----
 # Populate with `git submodule update --init`. Override any *_SRC to relocate a source.
@@ -45,7 +60,7 @@ LAYOUT_CANDIDATES=(
 
 # --- output (git-ignored) ------------------------------------------------------
 OUT="$HERE/out-mochi"
-STAGE="$OUT/staging"                      # palm-package APP_DIR
+STAGE="${STAGE_ONLY:-$OUT/staging}"       # palm-package APP_DIR (or the caller's --stage-only dir)
 IPK_OUT="$OUT/ipk"                        # palm-package OUTPUT_DIR
 APP_ID="net.riverstonerelay.jihad-browser.mochi"
 
@@ -79,7 +94,8 @@ echo "  layout    : $LAYOUT_RESOLVED"
 echo "  mochi lib : $MOCHI_SRC"
 
 # --- stage ---------------------------------------------------------------------
-rm -rf "$OUT"
+# In --stage-only mode the caller owns the staging dir (and out-mochi/ must be left alone).
+if [ -n "$STAGE_ONLY" ]; then rm -rf "$STAGE"; else rm -rf "$OUT"; fi
 mkdir -p "$STAGE" "$IPK_OUT"
 
 # App: appinfo.json, index.html, icons, source/. Exclude any local framework dirs
@@ -111,7 +127,7 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 		dirty=$(git -C "$src" status --porcelain 2>/dev/null | grep -q . && echo "-dirty" || true)
 		# Workspace-relative path only — absolute host paths would leak the
 		# builder's username/layout into every distributed ipk (codex F-392).
-		echo "$name: ${src#"$WORKSPACE"/} @ $rev$dirty"
+		echo "$name: ${src#"${WORKSPACE:-}"/} @ $rev$dirty"
 	done
 } > "$STAGE/BUNDLED-VERSIONS"
 cat "$STAGE/BUNDLED-VERSIONS"
@@ -127,6 +143,14 @@ while IFS= read -r src; do
 	fi
 done < <(grep -oE 'src="[^"]+"' "$STAGE/index.html" | sed -e 's/^src="//' -e 's/"$//')
 [ "$missing" -eq 0 ] || die "index.html references a script that is not staged"
+
+# --- --stage-only: hand the staged app tree back to the caller and stop ---------
+# (build-variant-ipk.sh adds deviceroot/ + LICENSE/NOTICE and does the palm-package +
+# control-script repack itself; everything above is the part that must not be duplicated.)
+if [ -n "$STAGE_ONLY" ]; then
+	echo "=== staged only (no .ipk): $STAGE ==="
+	exit 0
+fi
 
 # --- package -------------------------------------------------------------------
 echo "=== palm-package ==="
@@ -144,14 +168,24 @@ TMP=$(mktemp -d)
 DATA=$(ls "$TMP"/data.tar.* 2>/dev/null | head -n1 || true)
 [ -n "$DATA" ] || die "no data.tar.* inside the .ipk"
 MANIFEST=$(tar tf "$DATA")
+# Captured + matched without a pipe. `echo "$MANIFEST" | grep -q …` is unsafe here: -q exits at
+# the first match, echo upstream takes SIGPIPE, and `set -o pipefail` promotes that to a failed
+# check — so a payload that DOES contain the file gets reported missing, non-deterministically,
+# depending on where in the manifest the match lands. Bit the .ipk verifier for real on
+# 2026-07-31 once the payload grew past ~2400 entries.
 for need in appinfo.json index.html LICENSE NOTICE BUNDLED-VERSIONS \
             enyo/enyo.js lib/layout/package.js \
             lib/mochi/package.js source/package.js; do
-	echo "$MANIFEST" | grep -q "/$need$" || echo "$MANIFEST" | grep -q "^\./.*/$need$" \
-		|| die "expected $need missing from .ipk payload"
+	case $'\n'"$MANIFEST"$'\n' in
+		*"/$need"$'\n'*) : ;;
+		*) die "expected $need missing from .ipk payload" ;;
+	esac
 done
 for d in enyo/ lib/layout/ lib/mochi/ source/; do
-	echo "$MANIFEST" | grep -q "$d" || die "expected dir $d missing from .ipk payload"
+	case "$MANIFEST" in
+		*"$d"*) : ;;
+		*) die "expected dir $d missing from .ipk payload" ;;
+	esac
 done
 # appinfo id inside the packaged appinfo.json
 AIFILE=$(echo "$MANIFEST" | grep '/appinfo.json$' | head -n1)

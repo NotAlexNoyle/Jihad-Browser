@@ -1,4 +1,4 @@
-<!-- Copyright 2026 the Jihad Browser project. Apache-2.0; see ../LICENSE. -->
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0; see ../LICENSE. -->
 
 # Mochi UI parity checklist (T-053 / cavekit-mochi-ui.md R2)
 

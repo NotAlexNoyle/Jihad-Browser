@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Register the Jihad app's db8 kinds + permissions on a connected device.
 #

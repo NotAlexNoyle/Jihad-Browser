@@ -16,7 +16,7 @@
 *
 LICENSE@@@ */
 
-/* Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b):
+/* Modified by NotAlexNoyle (2026), per Apache-2.0 section 4(b):
  * - MIME `application/x-jihad-browser` + YAP server name `jihad-browser` so this
  *   adapter (BrowserAdapterJihad.so) coexists with the stock browser.
  * - handlePaint() replaced with a dstBuffer raw-blit path (+ rotation guard,
@@ -65,6 +65,42 @@ LICENSE@@@ */
 
 #include <pbnjson.hpp>
 #include <QtCore/QDir>
+
+// ---- BUILD-TIME VARIANT IDENTITY (Jihad) --------------------------------------------
+// The Enyo, Mochi, and Mojo packages are three fully independent browsers (cavekit-device-build.md
+// R7), so each needs its own MIME type and its own YAP service name — otherwise a Mochi card gets
+// served by the Enyo daemon, and removing one package breaks the other. Both values come in on the
+// compiler command line (build/webos-oe/build-adapter-{pdk,arm}.sh) instead of forking this file
+// three ways; context/plans/plan-variant-identity.md is the authoritative name table.
+//   JIHAD_VARIANT   the variant token: "enyo" | "mochi" | "mojo". Matches the token the daemon
+//                   derives at RUNTIME from $JIHAD_BS_NAME in render/goanna/JihadRuntimePaths.h —
+//                   this adapter runs inside LunaSysMgr, not the daemon, so it has no such
+//                   environment to read and takes the token at compile time instead. Both halves
+//                   land on the same /var/palm/jihad/<variant>.
+//   JIHAD_MIME      the BARE NPAPI MIME type — the same macro and the same value the shim is built
+//                   with (BrowserAdapterShim.cpp). AdapterGetMIMEDescription appends the "::;"
+//                   extension/description fields, so this string stays a plain type everywhere.
+//   JIHAD_YAP_NAME  the BrowserClientBase service name -> /tmp/yapserver.<name>. ONLY the name is
+//                   per-variant: the YAP command/message wire format is untouched and byte-identical,
+//                   exactly as stock "browser" and "browsermojo" already differ by name alone.
+// Defaults are the Enyo values — the one deployment known to work on-device keeps the unsuffixed
+// names it already has. All-or-nothing, because a build that sets JIHAD_MIME but forgets
+// JIHAD_YAP_NAME registers as Mochi and then connects to the Enyo daemon: a cross-variant hijack
+// that looks perfectly healthy in the logs. That has to be a compile error, not a field report.
+#if defined(JIHAD_VARIANT) || defined(JIHAD_MIME) || defined(JIHAD_YAP_NAME) || defined(JIHAD_STATE_DIR)
+#  if !defined(JIHAD_VARIANT) || !defined(JIHAD_MIME) || !defined(JIHAD_YAP_NAME)
+#    error "Jihad variant build is inconsistent: define JIHAD_VARIANT, JIHAD_MIME and JIHAD_YAP_NAME together (or none of them, for the enyo default). See context/plans/plan-variant-identity.md."
+#  endif
+#else
+#  define JIHAD_VARIANT  "enyo"
+#  define JIHAD_MIME     "application/x-jihad-browser"
+#  define JIHAD_YAP_NAME "jihad-browser"
+#endif
+// Derived from the token by literal concatenation, so the state dir can never disagree with the
+// identity (same construction as BrowserAdapterShim.cpp). Overridable only deliberately.
+#ifndef JIHAD_STATE_DIR
+#  define JIHAD_STATE_DIR "/var/palm/jihad/" JIHAD_VARIANT
+#endif
 
 // what user does browserserver run as?
 #define BROWSERVER_USER "luna"
@@ -244,10 +280,11 @@ NPError AdapterLibInitialize(void)// Called when proxy library is loaded by brow
 const char* AdapterGetMIMEDescription(void)
 {
     TRACE;
-    // Self-contained: own MIME so Enyo loads THIS adapter (BrowserAdapterJihad.so),
-    // not the stock one. JihadEngineOverride.js swaps the WebView plugin type to this.
+    // Self-contained: own MIME so the front-end loads THIS adapter, not the stock one. The app's
+    // engine override swaps its WebView plugin type to the matching JIHAD_MIME (per variant).
     // Stock browser (application/x-palm-browser -> /tmp/yapserver.browser) untouched.
-    return "application/x-jihad-browser::;";
+    // "<mime>:<extensions>:<description>" — no extensions or description, as before.
+    return JIHAD_MIME "::;";
 }
 
 
@@ -421,7 +458,9 @@ static inline bool PrvIsEqual(double a, double b)
  * Constructor. The
  */
 BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, char* argn[], char* argv[])
-    : BrowserClientBase("jihad-browser", ctxt)   // -> /tmp/yapserver.jihad-browser (own daemon; stock "browser" untouched)
+    : BrowserClientBase(JIHAD_YAP_NAME, ctxt)    // -> /tmp/yapserver.<JIHAD_YAP_NAME>: this variant's OWN
+                                                 // daemon (stock "browser" untouched, and no other Jihad
+                                                 // variant's socket touched either — R7)
     , AdapterBase(instance, true, true)    // useGraphicsContext=true: WebKit hands a transform-aware
                                            // Piranha PGContext (carries the card's rotation) — composite
                                            // our offscreen THROUGH it so portrait<->landscape rotation is
@@ -980,20 +1019,37 @@ static void drawDebugFill(QPainter* gc, NPWindow* window, QColor color)
 
 #endif
 
-// Paint-path debug log (Jihad review F-166). Resolved AT MOST ONCE: only opens a stream
-// when the gate file /media/internal/jihad/adapterlog exists, so in production the paint
-// and msgPainted paths do ZERO per-frame filesystem I/O (the old code fopen/fprintf/fclose'd
-// on every geometry change / every painted frame, which stalls the compositor and grows an
-// unbounded log). Line-buffered so tails see each entry without an explicit flush.
+// Paint-path debug log (Jihad review F-166). Resolved AT MOST ONCE: only opens a stream when the
+// gate file <state>/adapterlog exists, so in production the paint and msgPainted paths do ZERO
+// per-frame filesystem I/O (the old code fopen/fprintf/fclose'd on every geometry change / every
+// painted frame, which stalls the compositor and grows an unbounded log). Line-buffered so tails
+// see each entry without an explicit flush. Off by default: no gate file, no stream, no writes.
+//
+// Both the gate and the log moved OUT of /media/internal/jihad/ into JIHAD_STATE_DIR
+// (/var/palm/jihad/<variant>). /media/internal is the user's vfat USB mass-storage volume:
+// cavekit-device-build.md R8 forbids this package writing anything there, it has no real
+// permissions (everything reads as 777), and it disappears while the device is mounted as a USB
+// drive on a PC. The daemon half of this made the same move (render/goanna/JihadRuntimePaths.h);
+// it resolves the dir at runtime from $JIHAD_BS_NAME, we resolve it at compile time from
+// JIHAD_VARIANT, and both land on the same /var/palm/jihad/<variant>.
+//
+// Nothing is created here but the log file itself, and never a world-readable one: no mkdir (the
+// package owns the state dir and R8 forbids us widening it), O_NOFOLLOW so a planted symlink
+// cannot redirect a write made with LunaSysMgr's root privileges, and mode 0600 instead of
+// fopen()'s umask-dependent 0666. On a desktop/Ubuntu adapter build the gate simply never exists.
 static FILE* jihadPaintLog()
 {
     static FILE* s_log = reinterpret_cast<FILE*>(-1);   // -1 == not yet resolved
     if (s_log == reinterpret_cast<FILE*>(-1)) {
-        if (access("/media/internal/jihad/adapterlog", F_OK) == 0) {
-            s_log = fopen("/media/internal/jihad/adapter.log", "a");
-            if (s_log) setvbuf(s_log, NULL, _IOLBF, 0);
-        } else {
-            s_log = NULL;
+        s_log = NULL;
+        if (access(JIHAD_STATE_DIR "/adapterlog", F_OK) == 0) {
+            int fd = open(JIHAD_STATE_DIR "/adapter.log",
+                          O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR);
+            if (fd >= 0) {
+                s_log = fdopen(fd, "a");
+                if (s_log) setvbuf(s_log, NULL, _IOLBF, 0);
+                else       close(fd);
+            }
         }
     }
     return s_log;

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. -->
+<!-- Licensed under the Apache License, Version 2.0; see LICENSE. -->
+<!--
+	The start page the Mojo variant opens on. It is loaded THROUGH the engine (the
+	scene assistant hands Mojo.appPath + "start.html" to the WebView's openURL), so
+	the card opens on a real rendered page rather than an empty render surface, and
+	it needs no network. It is a plain document on purpose: nothing here talks to
+	the adapter, the daemon or any Luna service.
+-->
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Jihad Browser</title>
+	<style type="text/css">
+		html, body {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			background: #1b1b1b;
+			color: #e6e6e6;
+			font-family: Prelude, Helvetica, Arial, sans-serif;
+			-webkit-text-size-adjust: none;
+		}
+		.wrap {
+			box-sizing: border-box;
+			width: 100%;
+			max-width: 40em;
+			margin: 0 auto;
+			padding: 12% 8% 8% 8%;
+			text-align: center;
+		}
+		h1 {
+			margin: 0 0 0.4em 0;
+			font-size: 2.2em;
+			font-weight: normal;
+			letter-spacing: 0.02em;
+		}
+		p {
+			margin: 0.6em 0;
+			font-size: 1.1em;
+			line-height: 1.5;
+			color: #b4b4b4;
+		}
+		ul {
+			display: inline-block;
+			margin: 1.4em 0 0 0;
+			padding: 0;
+			text-align: left;
+			list-style: none;
+		}
+		li {
+			margin: 0.5em 0;
+			font-size: 1.05em;
+		}
+		a {
+			color: #6fb4ff;
+			text-decoration: none;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<h1>Jihad Browser</h1>
+		<p>Type a web address or a search in the bar above, then press Enter.</p>
+		<ul>
+			<li><a href="https://duckduckgo.com/">DuckDuckGo</a></li>
+			<li><a href="https://en.m.wikipedia.org/">Wikipedia</a></li>
+			<li><a href="https://webosarchive.org/">webOS Archive</a></li>
+		</ul>
+	</div>
+</body>
+</html>

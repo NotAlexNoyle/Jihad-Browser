@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # Compile + link + run the Goanna page-load test (T-019) against the built

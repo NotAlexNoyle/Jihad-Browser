@@ -1,4 +1,4 @@
-// Copyright 2026 the Jihad Browser project.
+// Copyright 2026 NotAlexNoyle.
 // Licensed under the Apache License, Version 2.0; see ../../LICENSE.
 //
 // JihadWebView — the Enyo 2 equivalent of the Enyo 1.0 BasicWebView, bound to
@@ -7,12 +7,18 @@
 // lifecycle (SDK: enyo/1.0/framework/source/palm/controls/BasicWebView.js):
 // call queue, connect handshake, touch registration, VKB/editor focus.
 //
-// SELF-CONTAINED ENGINE ROUTING: the plugin MIME is application/x-jihad-browser
-// (NOT the stock application/x-palm-browser). LunaSysMgr therefore loads OUR
-// adapter (BrowserAdapterJihad.so -> BrowserServer at /tmp/yapserver.jihad-
-// browser); the stock browser (application/x-palm-browser) is untouched, so the
-// two coexist. This mirrors ../../app/source/JihadEngineOverride.js, which swaps
-// the identical MIME onto the Enyo 1.0 BasicWebView.
+// SELF-CONTAINED ENGINE ROUTING: the plugin MIME is
+// application/x-jihad-browser-mochi — THIS VARIANT'S OWN MIME, not the Enyo
+// variant's and not the stock application/x-palm-browser. LunaSysMgr therefore
+// loads the Mochi variant's own adapter shim (BrowserAdapterJihadMochi.so ->
+// BrowserServer at /tmp/yapserver.jihad-browser-mochi); the Enyo variant
+// (application/x-jihad-browser -> /tmp/yapserver.jihad-browser) and the stock
+// browser (application/x-palm-browser -> /tmp/yapserver.browser) are untouched,
+// so all three coexist. Per cavekit-device-build.md R7 / plan-variant-identity.md
+// every variant owns a complete, independent stack — sharing one MIME/adapter
+// with the Enyo variant is exactly the co-ownership R7 removes. The Enyo-1.0
+// sibling does the equivalent swap in ../../app/source/JihadEngineOverride.js
+// with ITS own MIME.
 //
 // CONTRACT INVARIANT (cavekit-ipc-contract R1, cavekit-mochi-ui R3): the public
 // callBrowserAdapter(method, args) proxy is the ONLY app-facing adapter surface,
@@ -25,12 +31,14 @@
 enyo.kind({
 	name: "JihadWebView",
 	kind: "enyo.Control",
-	// The NPAPI plugin element. `type` selects OUR adapter (self-contained MIME);
-	// tabIndex makes the <object> focusable so webOS WebKit routes key/VKB input
-	// into it (BasicWebView.domAttributes).
+	// The NPAPI plugin element. `type` selects THIS VARIANT'S adapter (its own
+	// self-contained MIME, declared here and nowhere else — the three variants are
+	// independent packages and none imports another's constants); tabIndex makes
+	// the <object> focusable so webOS WebKit routes key/VKB input into it
+	// (BasicWebView.domAttributes).
 	tag: "object",
 	attributes: {
-		type: "application/x-jihad-browser",
+		type: "application/x-jihad-browser-mochi",
 		tabindex: 0
 	},
 	// -webkit-transform:translate3d promotes the plugin to its own layer, as

@@ -1,13 +1,24 @@
 <!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. -->
+<!-- Licensed under the Apache License, Version 2.0; see ../LICENSE. -->
 <html>
 <head>
-	<title>Jihad Browser (Mojo)</title>
-	<!-- Mojo (the pre-Enyo webOS framework) bootstraps from the on-device framework. -->
+	<meta charset="utf-8"/>
+	<title>Jihad Browser</title>
+	<!-- webOS 3.0.5 SHIPS the Mojo framework on-device; this app USES the system
+	     framework and bundles no copy of it (cavekit-mojo-ui.md R4).
+
+	     x-mojo-submission pins the framework submission the device actually carries
+	     as a builtin (/usr/palm/frameworks/mojo/builtins/palmInitFramework506.js).
+	     x-mojo-version="1"/"2" would resolve through mojo.js's Mojo.Versions table
+	     to submission 344 instead, which this device does not ship. -->
 	<script src="/usr/palm/frameworks/mojo/mojo.js" type="text/javascript"
-		x-mojo-version="2"></script>
+		x-mojo-submission="506"></script>
+	<!-- The application stylesheet must come in AFTER the framework's own. -->
+	<link href="stylesheets/jihad-browser.css" media="screen" rel="stylesheet" type="text/css"/>
 </head>
 <body>
-	<!-- Mojo builds the UI from the stage/scene assistants (app/assistants, app/views).
-	     This is a SKELETON for a future Mojo port — see README.md. -->
+<!-- Mojo builds the UI from the stage/scene assistants (app/assistants) and the
+     view templates (app/views); every script is declared in sources.json. -->
 </body>
 </html>

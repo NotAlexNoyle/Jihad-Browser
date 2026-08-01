@@ -5,6 +5,7 @@
  * Jihad Browser — download / MIME-handoff interception. See DownloadService.h.
  */
 #include "DownloadService.h"
+#include "JihadRuntimePaths.h"            // the ONE runtime-path derivation (T-057 / R8)
 
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
@@ -20,12 +21,15 @@
 #include "nsIWebProgressListener.h"       // STATE_STOP
 #include "nsIComponentRegistrar.h"
 #include "nsISupportsImpl.h"              // NS_IMPL_ISUPPORTS
-#include "nsDirectoryServiceDefs.h"       // NS_OS_TEMP_DIR
-#include "nsDirectoryServiceUtils.h"      // NS_GetSpecialDirectory
+#include "nsIInterfaceRequestorUtils.h"   // do_GetInterface (window context -> docShell)
+#include "nsIDocShell.h"                  // download origin identity (F-1)
+#include "nsIDocShellTreeItem.h"          // ... normalised to the ROOT docShell
+#include "nsIWebNavigation.h"
 #include "nsXPCOM.h"
 #include "mozilla/RefPtr.h"
 #include "mozilla/RefCountType.h"
 #include <vector>
+#include <string>
 #include <cstdlib>
 #include <cstdio>
 
@@ -65,7 +69,7 @@ class JihadTransfer final : public nsITransfer {
   NS_DECL_NSIWEBPROGRESSLISTENER2
   NS_DECL_NSITRANSFER
 
-  JihadTransfer() : mDone(false) {}
+  JihadTransfer() : mOrigin(nullptr), mDone(false), mPseudo(false) {}
 
   const nsCString& Url() const { return mUrl; }
   bool Done() const { return mDone; }
@@ -73,13 +77,16 @@ class JihadTransfer final : public nsITransfer {
   // saver with the abort status, which comes back as OnStateChange(STATE_STOP,
   // <failure>) -> exactly one msgDownloadError and never a Finished. Safe to
   // call re-entrantly (Finish is idempotent).
-  void Abort() {
+  //
+  // aForceTerminal terminates the lifecycle HERE instead of waiting for that
+  // callback. Two callers need it: a transfer with nothing to cancel through,
+  // and engine shutdown (F-9), where no further engine callback will ever run —
+  // waiting there would mean no terminal message and no file cleanup at all.
+  void Abort(bool aForceTerminal = false) {
     if (mDone) return;
     nsCOMPtr<nsICancelable> c = mCancelable;
     if (c) c->Cancel(NS_BINDING_ABORTED);
-    // Nothing to cancel through: terminate the lifecycle ourselves so a client
-    // that asked for a cancel always gets a terminal message.
-    if (!c) Finish(NS_BINDING_ABORTED);
+    if (!c || aForceTerminal) Finish(NS_BINDING_ABORTED);
   }
 
  private:
@@ -88,14 +95,20 @@ class JihadTransfer final : public nsITransfer {
   // Rename the "<target>.part" work file the helper-app service writes into over
   // the final target. Firefox does this move in its own nsITransfer (Download.jsm);
   // there is no other owner for it, so an embedder that supplies the contract must.
-  void FinalizePartFile();
+  // Returns the rename's result: F-5 — it used to be discarded.
+  nsresult FinalizePartFile();
 
   nsCString         mUrl;
   nsCString         mMime;
   nsCOMPtr<nsIFile> mTarget;      // where the finished file must end up
   nsCOMPtr<nsIFile> mTempFile;    // "<target>.part" while the download runs
   nsCOMPtr<nsICancelable> mCancelable;
+  DownloadOrigin    mOrigin;      // page that started it; null = unknown (F-1)
   bool              mDone;
+  // True for nsExternalAppHandler::CreateFailedTransfer's pseudo-transfer (F-2):
+  // the download never started, and neither the ".part" nor the target on disk is
+  // ours, so the error path must not delete anything.
+  bool              mPseudo;
 };
 
 NS_IMPL_ISUPPORTS(JihadTransfer, nsITransfer, nsIWebProgressListener,
@@ -116,6 +129,73 @@ static void ActiveRemove(JihadTransfer* t) {
   }
 }
 
+// Recently TERMINATED download URLs, newest last, bounded (F-4). Only so the
+// daemon can tell "you cancelled something that already ended" from "you
+// cancelled something that never existed" in its log; nothing on the wire keys
+// off it, and it is dropped at shutdown.
+static const size_t kRecentMax = 8;
+static std::vector<nsCString>* gRecent = nullptr;
+
+static void RecentAdd(const nsCString& url) {
+  if (url.IsEmpty()) return;
+  if (!gRecent) gRecent = new std::vector<nsCString>();
+  gRecent->push_back(url);
+  if (gRecent->size() > kRecentMax) gRecent->erase(gRecent->begin());
+}
+static bool RecentHas(const char* url) {
+  if (!gRecent || !url || !*url) return false;
+  for (size_t i = 0; i < gRecent->size(); ++i)
+    if ((*gRecent)[i].Equals(nsDependentCString(url))) return true;
+  return false;
+}
+
+// ── which card started this download (F-1) ──────────────────────────────────
+// The engine hands the helper-app dialog the load's window context, and that is
+// the LAST point in the download's life at which the originating page is still
+// identifiable — everything after it (nsExternalAppHandler, the file saver, the
+// nsITransfer) is page-agnostic. Resolve it to the ROOT docShell of that page's
+// tree, so a download started from an iframe attributes to the card that hosts
+// it, and use the docShell pointer purely as an identity token (see
+// DownloadOrigin in the header — never dereferenced by the daemon).
+static DownloadOrigin jihadOriginKey(nsISupports* aWindowContext) {
+  if (!aWindowContext) return nullptr;
+  // The context is normally the loading nsDocShell itself; accept the two other
+  // shapes the uriloader can hand over rather than silently losing the origin.
+  nsCOMPtr<nsIDocShell> ds = do_QueryInterface(aWindowContext);
+  if (!ds) {
+    nsCOMPtr<nsIWebNavigation> nav = do_GetInterface(aWindowContext);
+    ds = do_QueryInterface(nav);
+  }
+  if (!ds) {
+    nsCOMPtr<nsIDocShellTreeItem> ti = do_GetInterface(aWindowContext);
+    ds = do_QueryInterface(ti);
+  }
+  if (!ds) return nullptr;
+  nsCOMPtr<nsIDocShellTreeItem> item = do_QueryInterface(ds);
+  if (item) {
+    nsCOMPtr<nsIDocShellTreeItem> root;
+    item->GetRootTreeItem(getter_AddRefs(root));
+    nsCOMPtr<nsIDocShell> rootDs = do_QueryInterface(root);
+    if (rootDs) return rootDs.get();
+  }
+  return ds.get();
+}
+
+// The origin of the download whose transfer the engine is about to create.
+// nsIHelperAppLauncherDialog::show -> BeginSave -> nsIHelperAppLauncher::
+// saveToDisk -> ContinueSave -> CreateTransfer -> nsITransfer::init is ONE
+// synchronous call stack (verified in nsExternalHelperAppService.cpp), so a
+// single slot scoped to that stack is enough and — unlike a launcher->origin map
+// — cannot leak an entry when a launcher is abandoned.
+static DownloadOrigin gPendingOrigin = nullptr;
+
+namespace {
+struct ScopedPendingOrigin {
+  explicit ScopedPendingOrigin(DownloadOrigin o) { gPendingOrigin = o; }
+  ~ScopedPendingOrigin() { gPendingOrigin = nullptr; }
+};
+}  // namespace
+
 NS_IMETHODIMP
 JihadTransfer::Init(nsIURI* aSource, nsIURI* aTarget, const nsAString& /*aDisplayName*/,
                     nsIMIMEInfo* aMIMEInfo, PRTime /*aStartTime*/, nsIFile* aTempFile,
@@ -124,13 +204,32 @@ JihadTransfer::Init(nsIURI* aSource, nsIURI* aTarget, const nsAString& /*aDispla
   if (aMIMEInfo) aMIMEInfo->GetMIMEType(mMime);
   mTempFile = aTempFile;
   mCancelable = aCancelable;
+  mOrigin = gPendingOrigin;           // F-1: whose card this belongs to
   // aTarget is a file:// URI for the destination we picked in the dialog.
   nsCOMPtr<nsIFileURL> furl = do_QueryInterface(aTarget);
   if (furl) furl->GetFile(getter_AddRefs(mTarget));
 
-  ActiveAdd(this);
-  printf("[jihad-dl] start %s (mime=%s)\n", mUrl.get(), mMime.get());
-  if (gSink) gSink->OnDownloadStart(mUrl.get());
+  // F-2: a transfer initialised with NO temp file is not a download at all — it
+  // is nsExternalAppHandler::CreateFailedTransfer's pseudo-transfer, built when
+  // SetUpTempFile() failed (typically: the download dir is full or unwritable,
+  // which F-3's /tmp default made a live risk on the device). That path sets
+  // mCanceled=true WITHOUT ever calling NotifyTransfer, so the engine will never
+  // send us OnStateChange. Left as-is we emitted msgDownloadStart and then
+  // nothing, forever: the client's download list kept a phantom entry with no
+  // terminal message, we stayed pinned in gActive, and every later
+  // cancelDownload matched us and reported "aborted" while doing nothing at all
+  // (nsExternalAppHandler::Cancel early-returns on mCanceled). Terminate it here
+  // instead — Start immediately followed by Error, which is a valid, complete
+  // lifecycle under the contract in DownloadService.h.
+  mPseudo = !aTempFile;
+
+  if (!mPseudo) ActiveAdd(this);
+  printf("[jihad-dl] start %s (mime=%s)%s\n", mUrl.get(), mMime.get(),
+         mPseudo ? " [engine could not stage a temp file — failing immediately]" : "");
+  if (gSink) gSink->OnDownloadStart(mOrigin, mUrl.get());
+  // The engine does not pass CreateFailedTransfer's real nsresult to init(), so
+  // report the generic failure rather than invent a more specific one.
+  if (mPseudo) Finish(NS_ERROR_FAILURE);
   return NS_OK;
 }
 
@@ -144,7 +243,8 @@ JihadTransfer::OnProgressChange64(nsIWebProgress*, nsIRequest*,
                                   int64_t aCurTotalProgress,
                                   int64_t aMaxTotalProgress) {
   if (mDone) return NS_OK;
-  if (gSink) gSink->OnDownloadProgress(mUrl.get(), aCurTotalProgress, aMaxTotalProgress);
+  if (gSink) gSink->OnDownloadProgress(mOrigin, mUrl.get(), aCurTotalProgress,
+                                       aMaxTotalProgress);
   return NS_OK;
 }
 
@@ -170,17 +270,27 @@ NS_IMETHODIMP JihadTransfer::OnRefreshAttempted(nsIWebProgress*, nsIURI*, int32_
   return NS_OK;
 }
 
-void JihadTransfer::FinalizePartFile() {
-  if (!mTempFile || !mTarget) return;
+nsresult JihadTransfer::FinalizePartFile() {
+  // No destination at all: we have nothing to report a path for, so this is a
+  // failure even though the bytes may have arrived.
+  if (!mTarget) return NS_ERROR_UNEXPECTED;
+  if (!mTempFile) return NS_OK;          // engine wrote straight to the target
   bool same = false;
-  if (NS_SUCCEEDED(mTempFile->Equals(mTarget, &same)) && same) return;
+  if (NS_SUCCEEDED(mTempFile->Equals(mTarget, &same)) && same) return NS_OK;
   bool exists = false;
-  if (NS_FAILED(mTempFile->Exists(&exists)) || !exists) return;
+  if (NS_FAILED(mTempFile->Exists(&exists)) || !exists) {
+    // Nothing left to move. Fine only if the destination is actually there;
+    // otherwise the download produced no file and must not report success.
+    bool haveTarget = false;
+    if (NS_SUCCEEDED(mTarget->Exists(&haveTarget)) && haveTarget) return NS_OK;
+    return NS_ERROR_FILE_NOT_FOUND;
+  }
   nsAutoString leaf;
-  if (NS_FAILED(mTarget->GetLeafName(leaf))) return;
+  nsresult rv = mTarget->GetLeafName(leaf);
+  if (NS_FAILED(rv)) return rv;
   // Same directory (the service derived the .part name from our target), so a
   // leaf-name move is an atomic rename over the placeholder we created.
-  mTempFile->MoveTo(nullptr, leaf);
+  return mTempFile->MoveTo(nullptr, leaf);
 }
 
 void JihadTransfer::Finish(nsresult aStatus) {
@@ -191,41 +301,102 @@ void JihadTransfer::Finish(nsresult aStatus) {
   ActiveRemove(this);
   mCancelable = nullptr;
 
+  // F-5: the ".part" -> final rename is ours to perform and it can fail (target
+  // directory gone, cross-device after a JIHAD_DOWNLOAD_DIR change, ENOSPC on
+  // the metadata write, a stale read-only mount). Its result used to be thrown
+  // away and msgDownloadFinished emitted regardless — pointing the client at the
+  // 0-byte placeholder BeginSave reserved with CreateUnique, so the user was
+  // handed an empty file and told the download succeeded. Demote it to the error
+  // path, where the leftovers are cleaned up like any other failure.
   if (NS_SUCCEEDED(aStatus)) {
-    FinalizePartFile();
+    nsresult mv = FinalizePartFile();
+    if (NS_FAILED(mv)) {
+      printf("[jihad-dl] finalize FAILED for %s (0x%08x) — reporting as an error\n",
+             mUrl.get(), (unsigned)static_cast<uint32_t>(mv));
+      aStatus = mv;
+    }
+  }
+
+  RecentAdd(mUrl);   // F-4: remember that this URL reached a terminal state
+
+  if (NS_SUCCEEDED(aStatus)) {
     nsAutoCString path;
     if (mTarget) mTarget->GetNativePath(path);
     printf("[jihad-dl] finished %s -> %s\n", mUrl.get(), path.get());
-    if (gSink) gSink->OnDownloadFinished(mUrl.get(), mMime.get(), path.get());
+    if (gSink) gSink->OnDownloadFinished(mOrigin, mUrl.get(), mMime.get(), path.get());
   } else {
     char msg[64];
     snprintf(msg, sizeof msg, "0x%08x", (unsigned)static_cast<uint32_t>(aStatus));
     printf("[jihad-dl] error %s (%s)\n", mUrl.get(), msg);
-    if (gSink) gSink->OnDownloadError(mUrl.get(), msg);
+    if (gSink) gSink->OnDownloadError(mOrigin, mUrl.get(), msg);
     // A cancelled/failed download leaves two files behind: the "<target>.part"
     // the saver was writing, and the empty target we reserved with CreateUnique.
     // Both are ours; drop them so a cancel doesn't litter the download dir.
-    if (mTempFile) mTempFile->Remove(false);
-    if (mTarget) {
-      int64_t sz = -1;
-      if (NS_SUCCEEDED(mTarget->GetFileSize(&sz)) && sz == 0) mTarget->Remove(false);
+    // NOT for the F-2 pseudo-transfer: nothing on disk there is ours (the engine
+    // never staged a temp file, and its "target" is a speculative name in the
+    // download dir that may well be somebody else's existing file).
+    if (!mPseudo) {
+      if (mTempFile) mTempFile->Remove(false);
+      if (mTarget) {
+        int64_t sz = -1;
+        if (NS_SUCCEEDED(mTarget->GetFileSize(&sz)) && sz == 0) mTarget->Remove(false);
+      }
     }
   }
 }
 
-bool CancelDownload(const char* url) {
-  if (!gActive || gActive->empty()) return false;
-  // Snapshot: Abort() runs the whole termination path synchronously and mutates
-  // gActive (Codex-style re-entrancy guard).
-  std::vector<RefPtr<JihadTransfer>> snap(*gActive);
-  bool any = false;
-  for (size_t i = 0; i < snap.size(); ++i) {
-    if (snap[i]->Done()) continue;
-    if (url && *url && !snap[i]->Url().Equals(nsDependentCString(url))) continue;
-    snap[i]->Abort();
-    any = true;
+CancelOutcome CancelDownload(const char* url) {
+  const bool all = !url || !*url;
+  if (gActive && !gActive->empty()) {
+    // Snapshot: Abort() runs the whole termination path synchronously and mutates
+    // gActive (Codex-style re-entrancy guard).
+    std::vector<RefPtr<JihadTransfer>> snap(*gActive);
+    bool any = false;
+    for (size_t i = 0; i < snap.size(); ++i) {
+      if (snap[i]->Done()) continue;
+      if (!all && !snap[i]->Url().Equals(nsDependentCString(url))) continue;
+      snap[i]->Abort();
+      any = true;
+      // F-4: one cancelDownload(url) cancels ONE download. Without this break a
+      // URL being fetched twice (a re-tapped link, a page that triggers the same
+      // attachment from two frames) had every one of its transfers aborted, so
+      // the client received several msgDownloadError for a single url — which,
+      // since the URL is the only key the frozen contract carries, reads as one
+      // download failing repeatedly and breaks the "exactly one terminal message
+      // per download" invariant the download list depends on.
+      if (!all) return CancelOutcome::Aborted;
+      // The empty-url form deliberately means "stop everything" (see the header),
+      // so it keeps going.
+    }
+    if (any) return CancelOutcome::Aborted;
   }
-  return any;
+  // Nothing in flight matched. Distinguish the two ways that happens, for the
+  // log line — the frozen YAP surface has no cancelDownload reply and no
+  // "cancel-failed" message, and emitting a msgDownloadError for a download that
+  // already reported its terminal message would corrupt the client's list, so
+  // this deliberately stays off the wire.
+  if (!all && RecentHas(url)) return CancelOutcome::AlreadyTerminated;
+  return CancelOutcome::Unknown;
+}
+
+void ShutdownDownloadService() {
+  // F-9: in-flight downloads used to simply die with the process. That leaked
+  // gActive, denied every interrupted download its terminal message, and — worse
+  // on the device — left a "<target>.part" plus the empty CreateUnique
+  // placeholder behind for each one, i.e. permanent residue in a directory
+  // cavekit-device-build.md R8 requires to be clean. Abort with the terminal
+  // forced (no engine callback will arrive after this point), which runs the
+  // normal error path: one msgDownloadError, both files removed.
+  if (gActive) {
+    std::vector<RefPtr<JihadTransfer>> snap(*gActive);
+    for (size_t i = 0; i < snap.size(); ++i) {
+      if (!snap[i]->Done()) snap[i]->Abort(/* aForceTerminal */ true);
+    }
+    delete gActive;
+    gActive = nullptr;
+  }
+  delete gRecent;
+  gRecent = nullptr;
 }
 
 // ── the helper-app dialog override ──────────────────────────────────────────
@@ -240,14 +411,14 @@ class JihadHelperDialog final : public nsIFactory,
   NS_DECL_NSIHELPERAPPLAUNCHERDIALOG
 
  private:
-  static void Report(nsIHelperAppLauncher* aLauncher);
+  static void Report(nsIHelperAppLauncher* aLauncher, DownloadOrigin aOrigin);
   // Pick a temp destination and tell the launcher to save there. viaPrompt
   // selects the callback the service is waiting on (saveDestinationAvailable
   // for promptForSaveToFileAsync, saveToDisk for show).
   static void BeginSave(nsIHelperAppLauncher* aLauncher, bool viaPrompt);
 };
 
-void JihadHelperDialog::Report(nsIHelperAppLauncher* aLauncher) {
+void JihadHelperDialog::Report(nsIHelperAppLauncher* aLauncher, DownloadOrigin aOrigin) {
   if (!aLauncher) return;
   nsCString url, mime;
   nsString name;
@@ -259,24 +430,51 @@ void JihadHelperDialog::Report(nsIHelperAppLauncher* aLauncher) {
   aLauncher->GetSuggestedFileName(name);
   aLauncher->GetContentLength(&len);
   if (gSink)
-    gSink->OnDownload(url.get(), mime.get(),
+    gSink->OnDownload(aOrigin, url.get(), mime.get(),
                       NS_ConvertUTF16toUTF8(name).get(), len);
 }
 
-// Destination directory for engine downloads: $JIHAD_DOWNLOAD_DIR, else the
-// engine temp dir. On the device the launcher points this at the media
-// partition so a finished file survives for the app to hand to the user.
+// ── destination directory for engine downloads ──────────────────────────────
+// F-3: this used to spell its own path — $JIHAD_DOWNLOAD_DIR taken on trust,
+// with NS_OS_TEMP_DIR as the fallback — and both halves were wrong for the
+// device. Nothing checked the value, so an inherited/stale variable could point
+// finished downloads straight at /media/internal, the user's vfat USB volume
+// that cavekit-device-build.md R8 forbids the package to write to at all; and
+// since no upstart job sets that variable, the REAL device path was the
+// fallback, /tmp — which no prerm cleans, so every download was permanent
+// residue (R8's "no residue" criterion) and a filled /tmp then fed F-2's
+// temp-file-setup failure.
+//
+// Everything now goes through JihadRuntimePaths.h, which is the ONE place in the
+// tree allowed to derive a runtime path. That gives us, for free: the
+// unconditional R8 guard, RuntimeDirUsable()'s lstat/ownership/mode validation
+// (so a symlink planted at the path, or a group-writable dir, is refused instead
+// of silently used for the user's downloads), and the variant-scoped default
+// /var/palm/jihad/<variant>/downloads — inside the tree that variant's own prerm
+// deletes.
+//
+// $JIHAD_DOWNLOAD_DIR keeps RuntimeResolvePath's vocabulary: an absolute path is
+// honoured (unless it is on the user's volume, which is redirected with a loud
+// line), a bare name is a leaf under the state dir, and "0"/"off"/"no"/"false"
+// disables the engine-side save entirely — the client still gets
+// msgMimeHandoffUrl and can fetch the URL itself. UNSET means the DEFAULT, not
+// "disabled", because a download has to land somewhere; hence the "1" below.
 static already_AddRefed<nsIFile> jihadDownloadDir() {
   nsCOMPtr<nsIFile> dir;
   const char* env = getenv("JIHAD_DOWNLOAD_DIR");
-  if (env && *env) {
-    if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(env), true,
-                                           getter_AddRefs(dir))) && dir) {
-      nsresult crv = dir->Create(nsIFile::DIRECTORY_TYPE, 0700);
-      if (NS_FAILED(crv) && crv != NS_ERROR_FILE_ALREADY_EXISTS) dir = nullptr;
-    }
+  const std::string want = RuntimeResolvePath((env && *env) ? env : "1", "downloads");
+  if (want.empty()) return dir.forget();          // disabled, or no writable state
+  std::string usable;
+  // Creates it 0700 if missing and re-checks the R8 + ownership/mode rules on
+  // what is actually there.
+  if (!RuntimeTryDir(want, 0700, usable)) {
+    fprintf(stderr, "[jihad-dl] download dir %s unusable — engine save disabled\n",
+            want.c_str());
+    return dir.forget();
   }
-  if (!dir) NS_GetSpecialDirectory(NS_OS_TEMP_DIR, getter_AddRefs(dir));
+  if (NS_FAILED(NS_NewNativeLocalFile(nsDependentCString(usable.c_str()), true,
+                                      getter_AddRefs(dir))))
+    dir = nullptr;
   return dir.forget();
 }
 
@@ -335,17 +533,25 @@ NS_IMETHODIMP JihadHelperDialog::LockFactory(bool) { return NS_OK; }
 
 // nsIHelperAppLauncherDialog — capture the handoff instead of opening a window,
 // then drive the save so the download actually completes and is reported.
+// aWindowContext is the ONLY page identity the engine still carries at this
+// point (F-1). Resolve it once and keep it in scope for the whole synchronous
+// save stack, so the nsITransfer the engine creates below picks it up.
 NS_IMETHODIMP
-JihadHelperDialog::Show(nsIHelperAppLauncher* aLauncher, nsISupports*, uint32_t) {
-  Report(aLauncher);
+JihadHelperDialog::Show(nsIHelperAppLauncher* aLauncher, nsISupports* aWindowContext,
+                        uint32_t) {
+  DownloadOrigin origin = jihadOriginKey(aWindowContext);
+  ScopedPendingOrigin pending(origin);
+  Report(aLauncher, origin);
   BeginSave(aLauncher, /* viaPrompt */ false);
   return NS_OK;
 }
 NS_IMETHODIMP
 JihadHelperDialog::PromptForSaveToFileAsync(nsIHelperAppLauncher* aLauncher,
-                                            nsISupports*, const char16_t*,
-                                            const char16_t*, bool) {
-  Report(aLauncher);
+                                            nsISupports* aWindowContext,
+                                            const char16_t*, const char16_t*, bool) {
+  DownloadOrigin origin = jihadOriginKey(aWindowContext);
+  ScopedPendingOrigin pending(origin);
+  Report(aLauncher, origin);
   BeginSave(aLauncher, /* viaPrompt */ true);
   return NS_OK;
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # Cookie PERSISTENCE test (cavekit-browser-services R2): a local HTTP server
@@ -69,8 +69,15 @@ python3 /out/cookiesrv.py "$PORT" &
 httpd=$!
 sleep 1
 
+# F-8: the idempotence guard greps for a 'jihad-embed' marker, so the line it
+# appends has to CARRY that marker. It did not, so the guard never matched its
+# own output and every run of this script appended another copy of the pref to
+# $DIST/bin/goanna.js — a SHARED build output that every other desktop test reads,
+# growing without bound. (Same defect in a dozen sibling scripts; fixed the same
+# way. The scripts that already wrote the marker — download/touch/dialog — were
+# the only reason the growth ever stopped.)
 if ! grep -q 'jihad-embed' "$DIST/bin/goanna.js" 2>/dev/null; then
-  echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$DIST/bin/goanna.js"
+  echo 'pref("layers.offmainthreadcomposition.force-disabled", true); // jihad-embed' >> "$DIST/bin/goanna.js"
 fi
 
 rm -rf "$PROF"

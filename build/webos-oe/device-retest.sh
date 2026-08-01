@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # T1–T5 retest bring-up (context/impl/device-test-2026-07-17.md): run when the
 # TouchPad reappears on novacom. Verifies the deployed trio still matches the

@@ -8,7 +8,8 @@
  * contract and asserts the daemon-side download messages:
  *
  *   openUrl($JIHAD_DL_URL)   -> msgDownloadStart    (0x2010)
- *                            -> msgDownloadProgress (0x2011)  [>= 1]
+ *                            -> msgDownloadProgress (0x2011)  [>= 2 INTERMEDIATE,
+ *                               monotonic, last one reaching the total — see F-6]
  *                            -> msgDownloadFinished (0x2013)  with mime + temp path
  *   openUrl($JIHAD_DL_SLOW)  -> msgDownloadStart, then
  *   cancelDownload (0x1015)  -> msgDownloadError    (0x2012), and NO finished.
@@ -44,6 +45,19 @@ public:
 
   // Phase 1 (bigUrl) tallies.
   int  startBig = 0, progressBig = 0, finishedBig = 0, errorBig = 0;
+  // F-6: counting progress messages is NOT enough to prove per-chunk progress.
+  // nsExternalAppHandler::NotifyTransfer ALWAYS fires one final
+  // onProgressChange64(mProgress, mContentLength) immediately before the
+  // STATE_STOP that terminates the download, so `progressBig >= 1` is satisfied
+  // even if the engine reported nothing at all while the bytes were arriving —
+  // deleting per-chunk progress entirely still PASSED. What the terminal
+  // notification can never produce is an INTERMEDIATE tick (soFar strictly less
+  // than a known total), so that is what is counted and asserted, together with
+  // monotonicity and the final value actually reaching the total.
+  int  progressBigMid = 0;      // soFar < total, total > 0 — only a real mid-transfer tick
+  int  progressBigBad = 0;      // out-of-order/regressing soFar (must stay 0)
+  long lastBigSoFar = -1;       // last reported byte count for bigUrl
+  long lastBigTotal = -1;
   long finishedSize = -1;
   std::string finishedMime, finishedPath;
   // Phase 2 (slowUrl) tallies.
@@ -148,6 +162,9 @@ public:
         } else {
           if (++progressBig <= 3)
             printf("[dlc] <- msgDownloadProgress(big, %d/%d)\n", so, tot);
+          if (tot > 0 && so < tot) ++progressBigMid;   // real mid-transfer tick
+          if (so < lastBigSoFar) ++progressBigBad;     // progress must not go backwards
+          lastBigSoFar = so; lastBigTotal = tot;
         }
         break; }
       case 0x2012: {   // msgDownloadError(url, msg)
@@ -221,7 +238,17 @@ int main(int argc, char** argv) {
     int i2 = shmget(client.key2, client.sz, 0); if (i2 >= 0) shmctl(i2, IPC_RMID, nullptr); }
 
   bool startOK    = client.startBig >= 1;
-  bool progressOK = client.progressBig >= 1;
+  // F-6: the download is 16 chunks of 32 KiB with a 30 ms pause between them, so
+  // a working engine reports many intermediate ticks. Require at least two of
+  // them (one could conceivably be an artefact of a single early flush), require
+  // the counts to be monotonic, and require the last one to have actually reached
+  // the total. Every one of these clauses is FALSE for a build that reports only
+  // NotifyTransfer's terminal notification: that one arrives exactly once with
+  // soFar == total, so progressBigMid stays 0.
+  bool progressOK = client.progressBig >= 2 && client.progressBigMid >= 2 &&
+                    client.progressBigBad == 0 &&
+                    client.lastBigTotal == expectSize &&
+                    client.lastBigSoFar == expectSize;
   bool finishOK   = client.finishedBig == 1 && !client.finishedPath.empty() &&
                     client.finishedMime.find("octet-stream") != std::string::npos &&
                     client.finishedSize == expectSize;
@@ -229,9 +256,12 @@ int main(int argc, char** argv) {
                     client.cancelSent && client.finishedSlow == 0 &&
                     client.errorSlow >= 1;
 
-  printf("[dlc] big: start=%d progress=%d finished=%d mime='%s' size=%ld (expect %ld)\n",
-         client.startBig, client.progressBig, client.finishedBig,
-         client.finishedMime.c_str(), client.finishedSize, expectSize);
+  printf("[dlc] big: start=%d progress=%d mid=%d backwards=%d last=%ld/%ld "
+         "finished=%d mime='%s' size=%ld (expect %ld)\n",
+         client.startBig, client.progressBig, client.progressBigMid,
+         client.progressBigBad, client.lastBigSoFar, client.lastBigTotal,
+         client.finishedBig, client.finishedMime.c_str(), client.finishedSize,
+         expectSize);
   printf("[dlc] slow: start=%d progress=%d cancelSent=%d finished=%d error=%d\n",
          client.startSlow, client.progressSlow, (int)client.cancelSent,
          client.finishedSlow, client.errorSlow);

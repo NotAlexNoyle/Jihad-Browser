@@ -1,5 +1,5 @@
 Jihad Browser
-Copyright (c) 2026 the Jihad Browser project.
+Copyright (c) 2026 NotAlexNoyle.
 
 This product includes software developed by third parties, as listed below.
 This NOTICE file is provided to satisfy the attribution requirements of the
@@ -75,6 +75,16 @@ Atlas Browser (parallel isis-browser fork) — ported fixes
       declarations (render/adapter/PGContext.h, PGSurface.h) are the Jihad
       project's own minimal reconstruction of the webOS SDK interface (resolved at
       load time from the device libWebKitLuna.so), not copied from HP or Atlas.
+    - Self-contained install model (packaging/, build/webos-oe/recipes-jihad/):
+      run the engine + render daemon IN PLACE from the app's own cryptofs
+      deviceroot and copy NOTHING to /media/internal, because that vfat volume is
+      the user's USB mass storage and must stay free of app internals; confine the
+      rootfs footprint to the NPAPI adapter plugin and the app's own upstart job,
+      opened in a single remount-rw window and reversed exactly by prerm. Adopted
+      from atlas-browser-app/packaging/{ipk-postinst.sh,ipk-prerm.sh}, including
+      the practice of removing only the package's own files on uninstall so stock
+      registrations survive. Jihad's variant-namespacing (three independent
+      packages) is its own.
     - Low-memory design patterns from atlas-wpe-backend/BrowserPageWPE.cpp:
       pin the engine memory budget near the REAL free memory so purges happen
       before system OOM, throttle pressure handling to avoid GC thrash, and

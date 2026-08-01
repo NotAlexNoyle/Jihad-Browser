@@ -111,6 +111,10 @@ public:
     mSink.msgDownloadFinished(url, mime, path);
   }
   void emitDownloadError(const char* url, const char* msg) { mSink.msgDownloadError(url, msg); }
+  // Identity token for this card's engine docShell (F-1). The daemon compares it
+  // against the origin the download service reports so a download's messages go
+  // to the card that STARTED it, not to whichever card connected last.
+  const void* docShellKey() const { return mPage ? mPage->DocShellKey() : nullptr; }
   void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
   void freeze();                           // YAP: freeze (card backgrounded — pause paint)
   void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)

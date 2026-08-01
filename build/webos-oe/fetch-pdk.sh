@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Fetch the Palm PDK (CodeSourcery arm-none-linux-gnueabi gcc 4.3.3 + the webOS-3 device
 # sysroot/headers) needed to build the NPAPI BrowserAdapter with the device-host-native

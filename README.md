@@ -69,26 +69,38 @@ or re-typed. Only `BrowserPage`'s internals are reimplemented: instead of a
 an offscreen widget, copies the result into the shared framebuffer, and emits the
 same YAP messages from Goanna's progress/URI/embedding listeners.
 
-### Self-contained coexistence (redistributable app)
+### Three independent apps, coexisting with the stock browser
 
-Jihad is packaged as a **self-contained app that runs alongside the stock webOS
-browser** — the system `BrowserAdapter.so` / `browserserver` job / stock browser
-are never touched. Coexistence follows the Atlas model: four additive pieces, each
-with its own name so there is no collision.
+Jihad ships as **three standalone browsers** — an Enyo 1.0 shell, an Enyo 2 + Mochi
+shell, and a Mojo shell — each a complete, self-contained `.ipk`. They run alongside
+the stock webOS browser and alongside *each other*: the system `BrowserAdapter.so`,
+the `browserserver` job, and the stock browser are never touched, and **no component
+is shared between the three variants**, so installing, upgrading, or removing any one
+of them cannot affect another.
 
-| Piece | Jihad | Stock (untouched) |
-|-------|-------|-------------------|
-| NPAPI MIME | `application/x-jihad-browser` | `application/x-palm-browser` |
-| Adapter plugin | `BrowserAdapterJihad.so` | `BrowserAdapter.so` |
-| Render daemon socket | `/tmp/yapserver.jihad-browser` | `/tmp/yapserver.browser` |
-| Upstart job | `jihad` | `browserserver` |
+| Piece | Enyo | Mochi | Mojo | Stock (untouched) |
+|-------|------|-------|------|-------------------|
+| NPAPI MIME | `application/x-jihad-browser` | `…-mochi` | `…-mojo` | `application/x-palm-browser` |
+| Adapter plugin | `BrowserAdapterJihad.so` | `…Mochi.so` | `…Mojo.so` | `BrowserAdapter.so` |
+| Daemon socket | `/tmp/yapserver.jihad-browser` | `…-mochi` | `…-mojo` | `/tmp/yapserver.browser` |
+| Upstart job | `jihad` | `jihad-mochi` | `jihad-mojo` | `browserserver` |
 
-The Enyo shell swaps **only its own** WebView's plugin type to
-`application/x-jihad-browser` (`app/source/JihadEngineOverride.js`), so the card
-loads the Jihad adapter → the Jihad daemon → Goanna. The adapter therefore carries
-a **two-line rebrand** (its MIME string and YAP server name); the YAP command/message
-interface it speaks is still byte-identical. A later, opt-in goal is to replace the
-system browser engine for *all* apps — for now Jihad is app-scoped.
+Each shell swaps **only its own** WebView's plugin type to its own MIME, so its card
+loads its own adapter → its own daemon → Goanna. The adapter therefore carries a
+**two-line rebrand** (MIME string + YAP server name); the YAP command/message interface
+it speaks is still byte-identical.
+
+**Good-citizen install contract.** Following Atlas, each package runs its engine and
+daemon **in place from its own app bundle** on `/media/cryptofs`, and writes **nothing**
+to `/media/internal` — that volume is the user's USB storage and stays free of app
+internals. The only files placed outside the app directory are the ones webOS forces:
+webOS's WebKit scans `/usr/lib/BrowserPlugins` for NPAPI plugins at boot, so each variant
+installs its own small adapter shim there, its own adapter impl under `/usr/lib/jihad/<variant>/`,
+and its own upstart job in `/etc/event.d/`. Runtime state (log, engine profile/cache) lives
+under `/var/palm/jihad/<variant>/`. Every one of those paths is variant-namespaced and removed
+exactly by `prerm` — verified by a before/after filesystem and checksum diff
+(`build/webos-oe/device-citizen-audit.sh`). Full contract: `context/kits/cavekit-device-build.md`
+R7/R8, with the naming table in `context/plans/plan-variant-identity.md`.
 
 See `context/` (kits) for the full requirement decomposition and
 `render/goanna/PORT-MAP.md` for the per-command mapping from the YAP contract to

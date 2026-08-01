@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 the Jihad Browser project. Apache-2.0 (see ../../../LICENSE).
+# Copyright 2026 NotAlexNoyle. Apache-2.0 (see ../../../LICENSE).
 # Tiny self-signed HTTPS server for the G R5 TLS test. GET / -> 200 "tls-ok".
 # Args: <port> <certfile> <keyfile>
 import sys, ssl

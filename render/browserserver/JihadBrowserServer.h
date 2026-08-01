@@ -15,6 +15,7 @@
 #include "../goanna/BrowserPageGoanna.h"
 #include "../goanna/DownloadService.h"   // jihad::DownloadSink
 #include <map>
+#include <string>
 #include <vector>
 
 namespace jihad { class EngineHost; }
@@ -56,16 +57,20 @@ public:
   JihadBrowserServer(const char* name, jihad::EngineHost& host);
   virtual ~JihadBrowserServer();
 
-  // jihad::DownloadSink — a download/handoff fired on the ACTIVE page; route it to
-  // that page's client so the app hands it to com.palm.downloadmanager.
-  void OnDownload(const char* url, const char* mimeType,
+  // jihad::DownloadSink — a download/handoff fired in the engine; `origin` names
+  // the card whose docShell started it (F-1), so it goes to THAT client and the
+  // app hands it to com.palm.downloadmanager.
+  void OnDownload(jihad::DownloadOrigin origin, const char* url, const char* mimeType,
                   const char* suggestedName, int64_t contentLength) override;
   // ... and the lifecycle of the download the engine itself performs, which maps
   // 1:1 onto the frozen msgDownloadStart/Progress/Finished/Error contract.
-  void OnDownloadStart(const char* url) override;
-  void OnDownloadProgress(const char* url, int64_t bytesSoFar, int64_t totalBytes) override;
-  void OnDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) override;
-  void OnDownloadError(const char* url, const char* errorMsg) override;
+  void OnDownloadStart(jihad::DownloadOrigin origin, const char* url) override;
+  void OnDownloadProgress(jihad::DownloadOrigin origin, const char* url,
+                          int64_t bytesSoFar, int64_t totalBytes) override;
+  void OnDownloadFinished(jihad::DownloadOrigin origin, const char* url,
+                          const char* mimeType, const char* tmpFilePath) override;
+  void OnDownloadError(jihad::DownloadOrigin origin, const char* url,
+                       const char* errorMsg) override;
 
   virtual void clientConnected(YapProxy* proxy);
   virtual void clientDisconnected(YapProxy* proxy);
@@ -148,18 +153,33 @@ public:
 private:
   struct Page { jihad::BrowserPageGoanna* page; ProxySink* sink; };
   jihad::BrowserPageGoanna* pageFor(YapProxy* proxy);
+  // The page a download belongs to (F-1). See the comment at its definition for
+  // the match-then-fall-back rule; never returns a page that is being reaped.
+  jihad::BrowserPageGoanna* pageForDownload(jihad::DownloadOrigin origin);
   void reap(YapProxy* proxy);   // destroy a client's page (deferred during tick)
-  // Dev-only input injection: consume + apply command lines from the inject
-  // file against the last-connected page. Inert unless the file exists (the
-  // path only exists on-device). See docs in JihadBrowserServer.cpp.
+#ifndef JIHAD_NO_INJECT
+  // DEBUG self-drive channel, OFF unless $JIHAD_INJECT is set: consume + apply
+  // command lines from mInjectPath against the last-connected page. The file
+  // lives in the variant's runtime state dir (/var/palm/jihad/$V/inject.cmd on
+  // the device — T-057/R8, never on the user's /media/internal volume). Full
+  // command list + how to enable: JihadBrowserServer.cpp.
   void processInjectFile();
+#endif
 
   jihad::EngineHost&               mHost;
   std::map<YapProxy*, Page>        mPages;
   std::vector<Page>                mReap;    // deleted after the tick loop
   bool                             mInTick;
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
+  // Connect order, oldest first. mPages is keyed by pointer, so it cannot answer
+  // "which card is newest"; this can, which is what lets reap() RE-ELECT
+  // mLastProxy instead of nulling it (F-1) and gives pageForDownload a sane
+  // last-resort target.
+  std::vector<YapProxy*>           mConnectOrder;
+#ifndef JIHAD_NO_INJECT
+  std::string                      mInjectPath;           // "" = channel disabled (default)
   int                              mInjectThrottle = 0;   // check the file ~5x/s, not per-tick
+#endif
 };
 
 #endif // JIHAD_BROWSERSERVER_H

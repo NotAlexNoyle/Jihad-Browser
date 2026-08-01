@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # Full IPC round-trip: build the jihad-browserserver daemon + a minimal
@@ -46,8 +46,11 @@ $CXX /out/adapter_client.o /out/YapClient.o /out/YapPacket.o \
      $GLIBL -ldl -lpthread -o /out/jihad-adapter || exit 19
 echo "== built daemon + adapter =="
 
+# F-8: the guard greps for a 'jihad-embed' marker, so the appended line has to
+# CARRY it — without it the guard never matched its own output and every run
+# appended another copy of the pref to the SHARED build output goanna.js.
 if ! grep -q 'jihad-embed' "$DIST/bin/goanna.js" 2>/dev/null; then
-  echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$DIST/bin/goanna.js"
+  echo 'pref("layers.offmainthreadcomposition.force-disabled", true); // jihad-embed' >> "$DIST/bin/goanna.js"
 fi
 
 echo "== round-trip under Xvfb =="

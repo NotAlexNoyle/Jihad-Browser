@@ -38,7 +38,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 ### R3: Drives the unchanged BrowserAdapter contract
 **Description:** The Mochi UI talks to the engine only through the existing contract; no engine/IPC change.
 **Acceptance Criteria:**
-- [x] An Enyo-2 WebView-equivalent control binds to the same BrowserAdapter NPAPI plugin the Enyo UI uses. *(2026-07-19, T-051: `app-mochi/source/JihadWebView.js` renders `<object type="application/x-jihad-browser">` (self-contained MIME per JihadEngineOverride.js), `node.eventListener=this`, callback arg orders verified against render/adapter/BrowserAdapter.cpp. Live daemon handshake DEVICE-GATED.)*
+- [~] An Enyo-2 WebView-equivalent control binds to a BrowserAdapter NPAPI plugin speaking the same contract the Enyo UI uses. *(2026-07-19, T-051: `app-mochi/source/JihadWebView.js` renders an `<object>` whose type is the Jihad MIME, `node.eventListener=this`, callback arg orders verified against render/adapter/BrowserAdapter.cpp. Live daemon handshake DEVICE-GATED. **Reopened 2026-07-31**: under cavekit-device-build.md R7 the Mochi variant must bind to its OWN MIME (`application/x-jihad-browser-mochi`), not the Enyo variant's — sharing one MIME/adapter is exactly the co-ownership R7 removes.)*
 - [x] The `callBrowserAdapter(...)` method set and `palm://com.palm.browserServer/*` URIs used are identical to the Enyo variant (no additions/renames). *(Verified 2026-07-19: set {findInPage, goBack, goForward, reloadPage, stopLoad} + URIs {clearCache, clearCookies} — diff empty both.)*
 - [x] No Goanna/UXP-specific identifiers appear in `app-mochi/`. *(grep clean 2026-07-19.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5), cavekit-ui-shell.md (R2)

@@ -11,6 +11,7 @@
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
+#include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
 
 #include <cstdio>
 #include <sys/time.h>   // gettimeofday (paint render timing)
@@ -973,16 +974,24 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0
     // (not a once-only flag) makes frame.ppm hold the latest real content frame &mdash;
     // including repaints after in-page JS runs (e.g. navigator.userAgent). Env-gated.
-    const char* dp = getenv("JIHAD_DUMP");
-    if (dp && nb > 0) {
-      FILE* f = fopen(dp, "wb");
+    // $JIHAD_DUMP: unset = off (the default; a dump costs ~2.2 MB of fputc per
+    // paint). "1" writes <state>/frame.ppm — /var/palm/jihad/$V/frame.ppm on the
+    // device, NEVER the old /media/internal/jihad/frame.ppm (T-057, R8: the user's
+    // vfat volume is not ours to write). Resolved once: getenv + the state-dir
+    // derivation must not run on every paint.
+    static const std::string dumpPath = jihad::RuntimeResolvePath(getenv("JIHAD_DUMP"), "frame.ppm");
+    if (!dumpPath.empty() && nb > 0) {
+      FILE* f = fopen(dumpPath.c_str(), "wb");
       if (f) {
         fprintf(f, "P6\n%d %d\n255\n", w, h);            // buffer is BGRA -> write RGB
         for (long i = 0, px = (long)w * h; i < px; i++) {
           unsigned char* p = pixels + i * 4; fputc(p[2], f); fputc(p[1], f); fputc(p[0], f);
         }
         fclose(f);
-        fprintf(stderr, "[jihad-bs] dumped frame -> %s\n", dp);
+        // Pin 0644 rather than inherit the daemon's umask (T-057 (d): root-owned
+        // 0755 dirs / 0644 files — never a world-writable artifact).
+        chmod(dumpPath.c_str(), 0644);
+        fprintf(stderr, "[jihad-bs] dumped frame -> %s\n", dumpPath.c_str());
       }
     }
   }

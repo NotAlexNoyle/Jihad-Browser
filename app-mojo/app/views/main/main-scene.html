@@ -1,10 +1,35 @@
-<!-- Jihad Browser (Mojo) — main scene. SKELETON.
-     Build the browser chrome (address bar + nav buttons) and the application/x-jihad-browser
-     WebView here. See app/assistants/main-assistant.js for what to wire. -->
-<div class="palm-hasheader">
-	<div class="palm-header">Jihad (Mojo)</div>
-	<div id="jihad-mojo-placeholder" style="padding:24px;text-align:center;">
-		Jihad Browser — Mojo UI port TODO.<br>
-		Engine + daemon + adapter are installed by this package; only this UI is a stub.
+<!-- Copyright 2026 NotAlexNoyle. -->
+<!-- Licensed under the Apache License, Version 2.0; see ../../../../LICENSE. -->
+<!--
+	Jihad Browser (Mojo) — main scene view template.
+
+	Mojo wraps a pushed scene in a Scroller of its own, and Mojo.Widget.WebView
+	scrolls the page by driving that scroller, so the chrome lives above the render
+	surface inside it. The always-visible navigation bar (back / forward /
+	stop-reload) is Mojo.Menu.commandMenu, set up in the scene assistant.
+
+	Widget ids here are the ones app/assistants/main-assistant.js configures.
+-->
+<div id="jihad-main" class="jihad-main">
+
+	<div id="jihad-toolbar" class="jihad-toolbar" x-mojo-focus-highlight="true">
+		<div id="jihad-title" class="jihad-title truncating-text">Jihad Browser</div>
+		<div x-mojo-element="TextField" id="jihad-address" class="jihad-address"
+			name="jihadAddress"></div>
+		<div x-mojo-element="ProgressBar" id="jihad-progress" class="jihad-progress"
+			name="jihadProgress" style="display: none;"></div>
 	</div>
+
+	<!-- Shown instead of a blank card when a load fails (cavekit-mojo-ui.md R2). -->
+	<div id="jihad-error" class="jihad-error" style="display: none;">
+		<div class="jihad-error-title">Can't load this page</div>
+		<div id="jihad-error-message" class="jihad-error-message"></div>
+		<div x-mojo-element="Button" id="jihad-error-retry"
+			class="jihad-error-retry"></div>
+	</div>
+
+	<!-- The render surface. Its NPAPI plugin type is swapped to this variant's own
+	     MIME by app/models/jihad-engine-override.js before the plugin goes live. -->
+	<div x-mojo-element="WebView" id="jihad-web" class="jihad-web" name="jihadWeb"></div>
+
 </div>

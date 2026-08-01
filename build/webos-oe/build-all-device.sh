@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Single-entry device build (device-build R3): produces ALL FOUR artifact
 # classes for the TouchPad family (tenderloin + opal share one ARMv7 softfp
@@ -8,9 +8,11 @@
 #   1. engine    libxul.so            (build-goanna-arm.sh — SLOW, container)
 #   2. daemon    jihad-browserserver  (build-daemon-arm.sh — container)
 #      + bundle  device-bundle/       (make-device-bundle.sh)
-#   3. adapter   BrowserAdapterJihad.so + BrowserAdapterImpl.so (build-adapter-pdk.sh)
-#   4. UI ipks   net.riverstonerelay.jihad-browser_*.ipk        (palm-package app/)
-#                net.riverstonerelay.jihad-browser.mochi_*.ipk  (build-mochi-ipk.sh)
+#   3. adapter   BrowserAdapterJihad{,Mochi,Mojo}.so + per-variant BrowserAdapterImpl.so
+#                                                              (build-adapter-pdk.sh)
+#   4. UI ipks   the THREE self-contained packages              (build-variant-ipk.sh)
+#                net.riverstonerelay.jihad-browser{,.mochi,.mojo}_*.ipk — each carries its own
+#                deviceroot runtime + shim + upstart job and its own postinst/prerm
 #
 # Default: rebuild the FAST parts (daemon, bundle, both ipks) and REUSE existing
 # slow artifacts (libxul, adapter) when present — pass flags to force:
@@ -70,24 +72,23 @@ else
 	say "adapter: reusing existing shim/impl (pass --adapter to rebuild)"
 fi
 
-# --- 4. the two UI ipks ---------------------------------------------------------
-# Enyo ipk: stage app/ minus repo-docs (a shipped ipk once carried stray
-# CLAUDE.md/README.md — keep them out of the payload), then palm-package.
-say "Enyo ipk: palm-package (staged app/)"
-ESTAGE="$OUT/app-stage"
-rm -rf "$ESTAGE"; mkdir -p "$ESTAGE"
-rsync -a --exclude=CLAUDE.md --exclude=README.md "$REPO/app/" "$ESTAGE/"
-palm-package "$ESTAGE" -o "$OUT"
-
-say "Mochi ipk: build-mochi-ipk.sh"
-bash "$HERE/build-mochi-ipk.sh"
-cp "$HERE"/out-mochi/ipk/net.riverstonerelay.jihad-browser.mochi_*_all.ipk "$OUT/"
+# --- 4. the three SELF-CONTAINED UI ipks ----------------------------------------
+# build-variant-ipk.sh produces, per variant, the same payload shape the OE product recipe does:
+# the app tree + deviceroot/{hl, BrowserPlugins/<shim>, event.d/<job>} + the adapter impl +
+# LICENSE/NOTICE, and it repacks the .ipk so control.tar.gz carries that variant's
+# packaging/<V>/{postinst,prerm}. A plain `palm-package app/` cannot do this — it emits a UI-only
+# package whose control.tar.gz holds nothing but ./control, so the daemon/shim/upstart would
+# never be installed. Install the results via Preware or WebOS Quick Install, NOT palm-install.
+say "ipks: build-variant-ipk.sh (enyo mochi mojo — self-contained, postinst/prerm injected)"
+bash "$HERE/build-variant-ipk.sh" enyo mochi mojo
+cp "$HERE"/out-ipk/net.riverstonerelay.jihad-browser*_all.ipk "$OUT/"
 
 # --- report ---------------------------------------------------------------------
 say "artifacts"
 for f in "$LIBXUL" "$DAEMON" "$ADAPTER_SO" "$ADAPTER_IMPL" \
          "$OUT"/net.riverstonerelay.jihad-browser_*_all.ipk \
-         "$OUT"/net.riverstonerelay.jihad-browser.mochi_*_all.ipk; do
+         "$OUT"/net.riverstonerelay.jihad-browser.mochi_*_all.ipk \
+         "$OUT"/net.riverstonerelay.jihad-browser.mojo_*_all.ipk; do
 	if have "$f"; then
 		printf '  %s  %s\n' "$(md5sum "$f" | cut -c1-8)" "$f"
 	else

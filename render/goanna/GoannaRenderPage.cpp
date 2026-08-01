@@ -1292,6 +1292,16 @@ static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb) {
   return ds.forget();
 }
 
+// F-1: the identity token the download service reports as a download's origin.
+// The nsWebBrowser owns this docShell for its whole life, so the raw pointer is a
+// stable key while the page exists — and it is only ever COMPARED (see
+// GoannaRenderPage.h / jihad::DownloadOrigin), never dereferenced.
+const void* GoannaRenderPage::DocShellKey() const {
+  if (!mChrome) return nullptr;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  return ds.get();
+}
+
 // Get the content window's nsIDOMWindowUtils (for input synthesis).
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
   nsCOMPtr<nsIDOMWindowUtils> utils;
@@ -1638,8 +1648,9 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
     // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
     // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
-    // dies here, this line + the matching core in /media/internal/jihad/cores
-    // name the element that triggered it (device U1). Flushed (stderr unbuffered).
+    // dies here, this line + the matching core (wherever /proc/sys/kernel/core_pattern
+    // points — NOT /media/internal any more, T-057/R8) name the element that
+    // triggered it (device U1). Flushed (stderr unbuffered).
     fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d\n",
             el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks);
     u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);

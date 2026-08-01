@@ -12,17 +12,25 @@
  *   a system-level component, not something the app owns.
  *
  *   This shim breaks that: it is the plugin LunaSysMgr caches (registered once for
- *   MIME application/x-jihad-browser), and it contains no browser logic. All the real
- *   work lives in BrowserAdapterImpl.so, which the shim dlopen()s from an app-owned
- *   path on the FIRST card instance and dlclose()s when the LAST card closes. Because
- *   the impl is unloaded when idle, the very next card open dlopen()s whatever build is
- *   currently on disk. Result: reopening the card always relaunches the current adapter
- *   — no LunaSysMgr restart, no reboot, and the adapter is self-contained in the app.
+ *   this variant's MIME type), and it contains no browser logic. All the real work
+ *   lives in BrowserAdapterImpl.so, which the shim dlopen()s from a root-owned rootfs
+ *   path on the FIRST card instance and reloads (fresh copy) whenever the on-disk impl
+ *   changes and no card is live. Result: reopening the card always runs the current
+ *   adapter build — no LunaSysMgr restart, no reboot.
  *
  * Contract: the impl exports the standard Linux NPAPI entry points (NP_Initialize fills
  * an NPPluginFuncs table with its NPP_* pointers; NP_Shutdown; NP_GetMIMEDescription).
  * The shim keeps that table (sImpl) and forwards each NPP_* call straight through, so
  * the BrowserAdapter<->BrowserServer YAP contract is byte-identical either way.
+ *
+ * THREE VARIANTS, ONE SOURCE (cavekit-device-build.md R7, plan-variant-identity.md):
+ *   The Enyo, Mochi, and Mojo packages are three fully independent browsers — no
+ *   co-owned component, no refcount. Each therefore needs its OWN MIME type, shim
+ *   filename, and impl path, or installing/removing one would silently hijack or break
+ *   another. Rather than fork this file three ways (three copies to keep in sync = the
+ *   exact drift the 2026-07-29 OE review flagged as finding #5, "adapter shim impl-path
+ *   hard-coded to the Enyo appid"), the identity comes in on the compiler command line.
+ *   See the JIHAD_* macro block below for the contract the build scripts must honor.
  */
 #include <dlfcn.h>
 #include <string.h>
@@ -37,26 +45,67 @@
 
 #define JIHAD_VISIBLE __attribute__((visibility("default")))
 
-// The impl ships INSIDE the app bundle (installed by the signed package, root-owned + not writable).
-// Loading a native .so into privileged LunaSysMgr from a world-writable path is arbitrary code
-// execution (Jihad review F-161/F-180), so:
-//   - PRODUCTION (default): the trusted app-bundle path is the ONLY source, and before dlopen the
-//     opened file MUST be a regular file, root-owned, and not group/world-writable (fail closed).
-//   - DEV builds (compile -DJIHAD_DEV_ADAPTER — never shipped): additionally honor JIHAD_ADAPTER_IMPL
-//     or a /media/internal drop, and skip the root-owner check (that partition is vfat: no real perms).
-// This replaces the earlier runtime /media/internal/jihad/DEV marker, which was itself in the
-// world-writable location it was meant to distrust.
-// SHARED system path — root-owned rootfs (deployed by each UI package's postinst in a rootfs-rw
-// window, like the shim itself), so it passes the root-owned/not-writable trust check AND is
-// variant-agnostic: the Enyo, Mochi, and Mojo packages all load THIS one impl. Not under
-// /usr/lib/BrowserPlugins (LunaSysMgr scans that for NPAPI plugins at boot).
-static const char* kImplSystem =
-    "/usr/lib/jihad/BrowserAdapterImpl.so";
-// Legacy: the Enyo app-bundle path (kept as a fallback for the app-bundled impl).
-static const char* kImplTrusted =
-    "/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/BrowserAdapterImpl.so";
+// ---- BUILD-TIME VARIANT IDENTITY ----------------------------------------------------
+//
+// The build scripts pass the variant in with -D (see build/webos-oe/build-adapter-*.sh):
+//
+//   JIHAD_VARIANT    "enyo" | "mochi" | "mojo"   — the variant token V from the identity table
+//   JIHAD_MIME       the BARE NPAPI MIME type, e.g. "application/x-jihad-browser".
+//                    NOT the description: NP_GetMIMEDescription appends the "::;" extension/
+//                    description fields itself, so this one macro is the SAME value the impl
+//                    (BrowserAdapter.cpp AdapterGetMIMEDescription) and the front-end's WebView
+//                    plugin-type override use — one string, one place to get it wrong.
+//   JIHAD_IMPL_PATH  absolute path of this variant's BrowserAdapterImpl.so on the ROOTFS.
+//   JIHAD_STATE_DIR  this variant's root-owned runtime state dir (R8: never under /media).
+//
+// Why an all-or-nothing group check instead of independent defaults: a build that defines
+// JIHAD_MIME but forgets JIHAD_IMPL_PATH would register as Mochi and then dlopen the ENYO
+// impl — a card silently served by another package's adapter, which is exactly the
+// cross-variant hijack R7 forbids, and it would look perfectly healthy in the logs. That
+// failure must be a compile error, not a field report. An undefined build still compiles
+// (defaults to enyo, the one deployment known to work) so a bare `g++ BrowserAdapterShim.cpp`
+// syntax check needs no -D soup.
+#if defined(JIHAD_VARIANT) || defined(JIHAD_MIME) || defined(JIHAD_IMPL_PATH) || defined(JIHAD_STATE_DIR)
+#  if !defined(JIHAD_VARIANT) || !defined(JIHAD_MIME)
+#    error "Jihad variant build is inconsistent: define BOTH -DJIHAD_VARIANT and -DJIHAD_MIME (or neither, for the enyo default). See context/plans/plan-variant-identity.md."
+#  endif
+#else
+#  define JIHAD_VARIANT   "enyo"
+#  define JIHAD_MIME      "application/x-jihad-browser"
+#endif
+// Layout macros default FROM the variant token by literal concatenation, so the path and the
+// identity can never disagree — the only way to get a mismatched pair is to override these
+// explicitly, which is deliberate. Paths per plan-variant-identity.md's identity table.
+#ifndef JIHAD_IMPL_PATH
+#  define JIHAD_IMPL_PATH "/usr/lib/jihad/" JIHAD_VARIANT "/BrowserAdapterImpl.so"
+#endif
+#ifndef JIHAD_STATE_DIR
+#  define JIHAD_STATE_DIR "/var/palm/jihad/" JIHAD_VARIANT
+#endif
+// gcc 4.3.3 / C++98: no static_assert, so use the negative-array-size idiom. This catches the
+// one class of mistake the preprocessor can see — an EMPTY macro (`-DJIHAD_VARIANT=""`, or a
+// shell variable that expanded to nothing in the build script), which would otherwise yield a
+// plausible-looking "/usr/lib/jihad//BrowserAdapterImpl.so" and a MIME of "::;".
+typedef char jihadVariantMustBeNonEmpty[(sizeof(JIHAD_VARIANT) > 1) ? 1 : -1];
+typedef char jihadMimeMustBeNonEmpty[(sizeof(JIHAD_MIME) > 1) ? 1 : -1];
+typedef char jihadImplPathMustBeNonEmpty[(sizeof(JIHAD_IMPL_PATH) > 1) ? 1 : -1];
+typedef char jihadStateDirMustBeNonEmpty[(sizeof(JIHAD_STATE_DIR) > 1) ? 1 : -1];
+
+// THIS VARIANT's impl, on the root-owned rootfs (deployed by this package's postinst in a
+// rootfs-rw window, like the shim itself). Loading a native .so into privileged LunaSysMgr from
+// a world-writable path is arbitrary code execution (Jihad review F-161/F-180), so before dlopen
+// the opened file MUST be a regular file, root-owned, and not group/world-writable (fail closed).
+// Not under /usr/lib/BrowserPlugins (LunaSysMgr scans that for NPAPI plugins at boot), and NOT in
+// the app bundle: cryptofs reports every file as 0777, so an app-bundle impl can never pass the
+// trust check (plan-variant-identity.md rule 5). The former app-bundle fallback is gone for that
+// reason — it was dead code that could only ever log "REJECT untrusted impl".
+//   DEV builds (compile -DJIHAD_DEV_ADAPTER — never shipped) additionally honor $JIHAD_ADAPTER_IMPL
+//   or a drop in this variant's state dir, and skip the root-owner check.
+static const char* kImplSystem = JIHAD_IMPL_PATH;
 #ifdef JIHAD_DEV_ADAPTER
-static const char* kImplDevPath = "/media/internal/jihad/BrowserAdapterImpl.so";
+// Was /media/internal/jihad/BrowserAdapterImpl.so. R8 forbids the shim touching /media/internal
+// (the user's vfat USB volume), so the dev drop moved into the variant's own state dir too.
+static const char* kImplDevPath = JIHAD_STATE_DIR "/BrowserAdapterImpl.so";
 #endif
 
 static NPNetscapeFuncs sBrowser;     // browser funcs, handed to the impl on load
@@ -72,13 +121,32 @@ static off_t  sLoadedSize  = -1;
 static time_t sLoadedMtime = 0;
 static long   sLoadedMtimeNs = -1;
 
+// Diagnostic channel for the load path (why an impl was rejected / which one won). It USED to
+// write to /media/internal/jihad/shim.log — the user's vfat USB mass-storage volume, which R8
+// puts off limits for app internals — so it now lives in this variant's root-owned state dir.
+// Two properties, both deliberate:
+//   - OFF BY DEFAULT (plan-variant-identity.md rule 3): nothing is written unless the operator
+//     drops the marker file JIHAD_STATE_DIR "/shimlog". Same gate convention as the adapter's
+//     paint log (Jihad review F-166). The marker is re-checked per call rather than cached: this
+//     is called a handful of times per impl load, never per frame, so there is no cost to pay for
+//     the convenience of enabling it without restarting LunaSysMgr.
+//   - NEVER CREATES ANYTHING but the log file itself, and never a world-writable one: no mkdir
+//     (the packaging owns the state dir; R8 forbids the shim widening it), O_NOFOLLOW so a
+//     planted symlink cannot redirect a root-privileged write, and mode 0600 rather than
+//     fopen()'s umask-dependent 0666.
+// If the dir does not exist the marker check fails and this is a silent no-op.
 static void shimLog(const char* fmt, const char* a)
 {
-    FILE* f = fopen("/media/internal/jihad/shim.log", "a");
+    if (access(JIHAD_STATE_DIR "/shimlog", F_OK) != 0) return;
+    int fd = open(JIHAD_STATE_DIR "/shim.log",
+                  O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR);
+    if (fd < 0) return;
+    FILE* f = fdopen(fd, "a");
     if (f) { fprintf(f, fmt, a); fclose(f); }
+    else   { close(fd); }
 }
 
-// Resolve the impl source: the trusted app-bundle path (dev builds also allow an override).
+// Resolve the impl source: THIS variant's rootfs impl (dev builds also allow an override).
 static const char* implSourcePath()
 {
 #ifdef JIHAD_DEV_ADAPTER
@@ -86,10 +154,9 @@ static const char* implSourcePath()
     if (env && *env && access(env, R_OK) == 0) return env;
     if (access(kImplDevPath, R_OK) == 0) return kImplDevPath;
 #endif
-    // Shared system path first — root-owned rootfs, works for EVERY UI variant (Enyo/Mochi/Mojo).
+    // Exactly one production source. R7: this variant loads its OWN impl and nothing else — a
+    // fallback to another path is how a Mochi card ends up driven by the Enyo adapter.
     if (access(kImplSystem, R_OK) == 0) return kImplSystem;
-    // Legacy fallback: the Enyo app-bundle path.
-    if (access(kImplTrusted, R_OK) == 0) return kImplTrusted;
     return 0;
 }
 
@@ -115,7 +182,10 @@ static void* dlopenFreshCopy(const char* src)
     int in = open(src, O_RDONLY);
     if (in < 0) { shimLog("[shim] open src fail: %s\n", src); return 0; }
     if (!fdIsTrusted(in)) { shimLog("[shim] REJECT untrusted impl: %s\n", src); close(in); return 0; }
-    char tmpl[] = "/tmp/jihad-adapter-XXXXXX";
+    // Variant in the template so a `ls /tmp` (or an lsof/maps dump) during on-device triage with
+    // all three packages installed says WHICH adapter is mid-load. mkstemp already guarantees
+    // uniqueness; this is purely legibility.
+    char tmpl[] = "/tmp/jihad-" JIHAD_VARIANT "-adapter-XXXXXX";
     int out = mkstemp(tmpl);
     if (out < 0) { shimLog("[shim] mkstemp fail%s\n", ""); close(in); return 0; }
     char buf[65536]; ssize_t n; bool ok = true;
@@ -242,7 +312,10 @@ static NPError sSetValue(NPP inst, NPNVariable variable, void* ret)
 extern "C" JIHAD_VISIBLE
 char* NP_GetMIMEDescription()
 {
-    return const_cast<char*>("application/x-jihad-browser::;");
+    // "<mime>:<extensions>:<description>" — no file extensions or description, as before.
+    // JIHAD_MIME is the bare type so the impl and the front-end's WebView plugin-type override
+    // can share the exact same macro value (R7: each variant answers for its MIME and no other).
+    return const_cast<char*>(JIHAD_MIME "::;");
 }
 
 extern "C" JIHAD_VISIBLE
@@ -280,8 +353,13 @@ NPError NP_Shutdown(void)
 extern "C" JIHAD_VISIBLE
 NPError NP_GetValue(void* /*future*/, NPPVariable variable, void* value)
 {
-    static char name[] = "Jihad Browser Adapter";
-    static char desc[] = "Jihad/Goanna browser adapter (shim)";
+    // Variant-stamped: with all three packages installed, LunaSysMgr's plugin registry and
+    // about:plugins otherwise show three identical entries, and there is no way to tell which
+    // .so answered for a MIME type. The description carries the resolved impl path too, so a
+    // mis-parametrized build (right MIME, wrong impl) is visible without a disassembler.
+    static char name[] = "Jihad Browser Adapter (" JIHAD_VARIANT ")";
+    static char desc[] = "Jihad/Goanna browser adapter shim — variant " JIHAD_VARIANT
+                         ", MIME " JIHAD_MIME ", impl " JIHAD_IMPL_PATH;
     switch (variable) {
     case NPPVpluginNameString:        *static_cast<char**>(value) = name; return NPERR_NO_ERROR;
     case NPPVpluginDescriptionString: *static_cast<char**>(value) = desc; return NPERR_NO_ERROR;

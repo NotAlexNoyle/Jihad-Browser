@@ -1,0 +1,80 @@
+/* Copyright 2026 NotAlexNoyle.
+   Licensed under the Apache License, Version 2.0; see ../LICENSE.
+
+   Jihad Browser (Mojo) — scene chrome styles. Everything is relative/percentage
+   sized with no hard-coded card width, so the same layout works on the TouchPad
+   (Topaz, 1024x768) and the TouchPad Go (Opal) without a second stylesheet.
+   Mojo's own stylesheets style the widgets themselves; this file only lays them
+   out and dresses the title row and the error panel. */
+
+.jihad-main {
+	width: 100%;
+}
+
+/* Address row. Sits above the render surface inside the scene scroller, which is
+   what Mojo.Widget.WebView scrolls; the navigation buttons are in the always
+   visible command menu instead. */
+.jihad-toolbar {
+	width: 100%;
+	padding: 6px 8px 4px 8px;
+	box-sizing: border-box;
+	background-color: #303030;
+	border-bottom: 1px solid #101010;
+}
+
+.jihad-title {
+	padding: 0 4px 2px 4px;
+	font-size: 15px;
+	line-height: 20px;
+	color: #d8d8d8;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.jihad-address {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* Progress is shown only while a load is in flight; the assistant toggles it. */
+.jihad-progress {
+	width: 100%;
+	margin-top: 4px;
+}
+
+/* Error panel — what a failed load shows instead of an empty card. */
+.jihad-error {
+	width: 100%;
+	padding: 24px 8%;
+	box-sizing: border-box;
+	text-align: center;
+	background-color: #262626;
+	border-bottom: 1px solid #101010;
+}
+
+.jihad-error-title {
+	font-size: 20px;
+	line-height: 26px;
+	color: #f0f0f0;
+}
+
+.jihad-error-message {
+	margin: 8px 0 16px 0;
+	font-size: 15px;
+	line-height: 21px;
+	color: #b4b4b4;
+	word-wrap: break-word;
+}
+
+.jihad-error-retry {
+	display: inline-block;
+	min-width: 180px;
+}
+
+/* The NPAPI plugin is sized in pixels by the WebView widget itself (it tracks the
+   page dimensions), so the container must not constrain it. */
+.jihad-web {
+	display: block;
+	width: 100%;
+}

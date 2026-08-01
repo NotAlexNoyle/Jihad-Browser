@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project.
+# Copyright 2026 NotAlexNoyle.
 # Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # Download LIFECYCLE test (cavekit-browser-services R4): builds the real
@@ -96,7 +96,10 @@ ThreadingHTTPServer.daemon_threads = True
 ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
 PYEOF
 
-rm -rf /out/dltmp && mkdir -p /out/dltmp
+# 0700 explicitly: the daemon now validates its download dir through
+# JihadRuntimePaths.h (F-3), which REFUSES a group/world-writable one. Leaving the
+# mode to the container's umask would make this test's outcome depend on it.
+rm -rf /out/dltmp && mkdir -p /out/dltmp && chmod 700 /out/dltmp
 python3 /out/dlserver.py "$PORT" "$SIZE" &
 httpd=$!
 sleep 1
@@ -122,7 +125,29 @@ xvfb-run -a -s "-screen 0 1024x768x24" bash -c '
 '
 rc=$?
 kill "$httpd" 2>/dev/null
-echo "== files left in /out/dltmp: $(ls -l /out/dltmp | tail -n +2 | wc -l) =="
+
+# --- F-7: ASSERT the cancel-cleanup, don't just print it ----------------------
+# This block used to print the leftover count and move on, so the "a cancel does
+# not litter the download dir" behaviour the commit claims was never actually
+# tested — the removal of the ".part" work file and of the empty CreateUnique
+# placeholder could regress silently. The exact expected end state after the two
+# scenarios is:
+#   * the completed download's file, at full size                  -> 1 file
+#   * NOTHING from the cancelled one: no "<name>.part", no 0-byte
+#     placeholder, i.e. no jihad-slow* at all                      -> 0 files
+# Anything else is a real defect (leaked work file, or — if the finished file
+# vanished — an over-eager cleanup), so it fails the run.
+left=$(ls -A /out/dltmp | wc -l)
+parts=$(ls -A /out/dltmp | grep -c '\.part$' || true)
+slow=$(ls -A /out/dltmp | grep -c 'jihad-slow' || true)
+echo "== files left in /out/dltmp: $left (part=$parts slow=$slow) =="
 ls -l /out/dltmp || true
+if [ "$left" != 1 ] || [ "$parts" != 0 ] || [ "$slow" != 0 ]; then
+  echo "== DOWNLOAD-CLEANUP FAIL: expected exactly 1 leftover (the finished file)," \
+       "no .part and no cancelled-download residue =="
+  [ "$rc" = 0 ] && rc=5
+else
+  echo "== DOWNLOAD-CLEANUP PASS: only the finished file remains =="
+fi
 echo "== download2 exit: $rc =="
 exit $rc

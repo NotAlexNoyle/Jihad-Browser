@@ -170,6 +170,12 @@ public:
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);
   bool AcceptCurrentCert();
+  // Identity of this page's root content docShell, as an opaque token (F-1). The
+  // process-wide download service reports the same token as a download's origin
+  // (jihad::DownloadOrigin), so the daemon can route msgDownload* back to the
+  // card that started the download instead of guessing at the newest one. Pure
+  // identity — compare it, never dereference it; it is null before Create().
+  const void* DocShellKey() const;
   std::string CurrentUri();
   std::string GetTitle();   // current document title (for the address-bar title+url msg)
 

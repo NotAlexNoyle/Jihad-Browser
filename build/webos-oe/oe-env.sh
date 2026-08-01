@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 the Jihad Browser project. Apache-2.0.
+# Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # oe-env.sh — self-contained OpenEmbedded "dylan" (2013) / BitBake 1.18 build host.
 #

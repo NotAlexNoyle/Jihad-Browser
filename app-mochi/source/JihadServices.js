@@ -1,4 +1,4 @@
-// Copyright 2026 the Jihad Browser project.
+// Copyright 2026 NotAlexNoyle.
 // Licensed under the Apache License, Version 2.0; see ../../LICENSE.
 //
 // JihadServices — the Enyo 2 equivalent of the Enyo 1.0 app's DbService /

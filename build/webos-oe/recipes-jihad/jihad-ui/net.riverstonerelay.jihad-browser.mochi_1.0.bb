@@ -1,12 +1,17 @@
-# Jihad Browser — self-contained Goanna browser, Enyo 2 + Mochi UI variant (.ipk #2 of 2).
+# Jihad Browser — standalone Goanna browser, Enyo 2 + Mochi UI variant (2 of 3 independent
+# packages).
 #
-# Same self-contained stack as the Enyo variant (shared jihad-deviceroot runtime bundle), with the
-# Enyo 2 + Mochi front-end and its own app id so both variants coexist on-device. See jihad-app.inc.
+# Same complete stack as the Enyo variant, with the Enyo 2 + Mochi front-end and its OWN app id,
+# MIME, adapter shim, adapter impl, YAP service name, socket and upstart job — nothing is shared
+# with the Enyo or Mojo package (cavekit-device-build.md R7). See jihad-app.inc; every name comes
+# from ../jihad-variants.inc.
 
-SUMMARY = "Jihad Browser (self-contained Goanna browser, Enyo 2 + Mochi UI)"
+SUMMARY = "Jihad Browser (standalone Goanna browser, Enyo 2 + Mochi UI)"
 LICENSE = "Apache-2.0 & MPL-2.0"
 
-WEBOS_APP_ID = "net.riverstonerelay.jihad-browser.mochi"
+# The ONE identity fact this recipe states; app id, shim, upstart job, YAP name are all derived.
+JIHAD_VARIANT = "mochi"
+
 SRC_URI = "file://app-mochi/"
 S = "${WORKDIR}/app-mochi"
 

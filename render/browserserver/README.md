@@ -13,6 +13,17 @@ QtWebKit → Goanna swap.
 > (MIME `application/x-jihad-browser`). See `../../packaging/README.md` and auto-memory
 > `jihad-self-contained-arch.md`.
 
+> **Runtime state (T-057, cavekit-device-build R8):** the daemon derives ONE
+> variant-scoped state directory from `JIHAD_BS_NAME` in `../goanna/JihadRuntimePaths.h`
+> — `/var/palm/jihad/{enyo,mochi,mojo}/` on the device (root-owned 0755), per
+> `context/plans/plan-variant-identity.md`. The engine profile/cache, the frame dump
+> and the self-drive inject channel all live there; **nothing** is written to
+> `/media/internal` (the user's USB mass-storage volume). Off-device (no writable
+> `/var/palm`) it falls back to `$HOME/.jihad/<variant>/`, then `/tmp/jihad-<uid>/<variant>/`.
+> Env knobs: `JIHAD_STATE_DIR` overrides the directory; `JIHAD_INJECT=1` turns the
+> DEBUG self-drive channel ON (off by default — see `JihadBrowserServer.cpp`);
+> `JIHAD_DUMP=1` writes `<state>/frame.ppm`; `JIHAD_PROFILE_DIR` overrides the profile.
+
 > The upstream sources are cloned for reference at `../../../ref-BrowserServer`,
 > `../../../ref-BrowserAdapter`, `../../../ref-AdapterBase`. During Phase 1 the
 > reusable files are imported here (keeping their Apache-2.0 headers); the

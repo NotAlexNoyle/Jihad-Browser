@@ -1,5 +1,51 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+## 2026-08-01 — DAEMON RUNS FROM A COLD BOOT; CARD→ADAPTER IS THE OPEN THREAD (READ FIRST)
+
+**Where it stands.** After a reboot, upstart auto-starts the variant's daemon from the app's own
+cryptofs `deviceroot`, it reaches `engine up; serving YAP 'jihad-browser'`, and binds its socket.
+The shim is registered and **mapped in `WebAppMgr`** (verified: `grep BrowserAdapterJihad
+/proc/*/maps`), with `/usr/lib/jihad/enyo/BrowserAdapterImpl.so` `root:root 0644` and the shim
+`root:root 0755`, so the shim's trust check will pass.
+
+**The open thread:** launching the card does not produce an adapter connection — the daemon stays
+at `waiting for BrowserAdapter`, and **no `shim.log` is written**. `loadImpl()` only runs on
+`NPP_New`, so the absence of that log means no card instance ever created a WebView. The plugin is
+loaded; the *instance* is not being made. Next steps in order: confirm the card actually opens
+(`palm-log -f net.riverstonerelay.jihad-browser`), check whether the start page's WebView element is
+constructed, and remember the recorded double-launch quirk (first open after a LunaSysMgr restart).
+
+**Three defects were fixed to get this far, all device-only, all now understood:**
+1. `ICU_DATA` unset → libxul aborted in `u_init()` every start. The ARM dist's `icudt78l.dat` is a
+   symlink into the build container, so the bundler had also been silently shipping no ICU data and
+   no GRE resources. A missing required GRE file now fails the BUILD.
+2. No `nsIXULAppInfo` under `XRE_InitEmbedding2` → `AddonManager` wrote `undefined` prefs.
+   Fixing it required taking over the STOCK CID from the directory-provider hook, because
+   `nsJSCID` resolves contract→CID eagerly and `Services.appinfo` caches for the process lifetime.
+3. **`$HOME` unset** → UXP does `nsDependentCString(PR_GetEnv("HOME"))` with no null check →
+   `strlen(NULL)` → SIGSEGV. Upstart inherits init's environment, which has no `HOME`; the desktop
+   container always passes `-e HOME=/out`, which is exactly why it never reproduced there.
+
+**Packaging is verified on device at 65/66** (`device-independence-test.sh matrix`): three
+independent variants, each with its own MIME/shim/impl/YAP name/socket/upstart job/daemon, install
+and remove without touching each other, nothing written to `/media/internal`, engine run in place
+from cryptofs. Fixing that required renaming the Mochi/Mojo app ids from `.mochi`/`.mojo` to
+`-mochi`/`-mojo`: webOS `ipkg` globs `info/<pkgid>.*` on removal, so a **dot-child's** uninstall
+metadata was destroyed when the parent was removed
+(`../context/impl/impl-ipkg-prefix-collision.md`).
+
+**XUL/chrome input root cause is NAMED and fixed desktop-side** (cavekit-input-bridging R6):
+`PuppetWidget::DispatchEvent` consults only `mAttachedWidgetListener` and never falls back to
+`mWidgetListener` the way real widgets do, and in this embedding that listener is null — so
+**every synthesized event was silently discarded, including on plain HTML**. Fixed by routing
+through `SendMouseEventToWindow`/`SendTouchEventToWindow` (presShell, no libxul rebuild).
+`about:config` is fully operable on desktop. `about:addons` still fails for a *separate* named
+reason: `No chrome package registered for chrome://branding/locale/brand.dtd`.
+
+**Useful for the next session:** `qemu-arm` on the build host runs the real ARM daemon + ARM libxul
+to `engine up` (~10 min startup), so a device-only issue can be reproduced locally without a
+round-trip.
+
 ## 2026-07-07 — SELF-CONTAINED APP, RENDERS REAL PAGES ON DEVICE (READ FIRST)
 
 Jihad was re-architected from *replacing* the system browser to being a

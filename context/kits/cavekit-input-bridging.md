@@ -73,9 +73,27 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] Mapping is consistent between input and the geometry the renderer reports.
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
+### R6: XUL/chrome documents accept input like any other page
+**Description:** Input works on XUL documents — `about:config`, `about:addons`, and every other chrome-privileged page — not just HTML content. User requirement, 2026-08-01: *"fix xul input so it works everywhere like about:config etc"*.
+
+**Current state (the thing to fix):** synthesized input on XUL **crashes the daemon**. `nsIDOMWindowUtils::SendMouseEvent` on XUL content SIGSEGVs — the XUL event/command frames assume a real widget that `PuppetWidget` does not provide — and firing a synthetic `command` event on a XUL button crashes the same way (verified on-device 2026-07-20: `about:config`'s "I promise to be careful!" button re-entered the fault through `ShowPrefs`' XUL tree). The shipped mitigation is a **crash-avoidance skip**, not a fix: `GoannaRenderPage.cpp:1600-1645` detects the XUL namespace (`http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul`) and drops both `SendMouseEvent` calls, so XUL pages render and no longer crash on tap — and are completely inert. See [[jihad-input-activation-and-tiling]].
+
+**Acceptance Criteria:**
+- [ ] The root cause of the XUL SIGSEGV is identified and named (which widget/frame path dereferences what `PuppetWidget` leaves null), not worked around. The existing `isXul` skip is REMOVED as part of this, not left in place behind a fixed path.
+- [ ] `SendMouseEvent` on a XUL document does not crash the daemon, under repeated taps across a full session.
+- [ ] `about:config` is operable end to end: the warning button activates, the prefs list renders, a pref can be filtered, selected, and its value changed — through the adapter's normal synthesized input path.
+- [ ] `about:addons` is operable: list items select, and enable/disable/remove buttons activate (this is what cavekit-addons-extensions.md R2 depends on).
+- [ ] XUL default actions actually run — matching the HTML lesson recorded in R1, where a synthesized click fires `onclick` but the engine skips the DEFAULT action in this embedding, so each native control needed hand-activation. Establish whether XUL needs the same treatment and say so explicitly rather than assuming the click suffices.
+- [ ] Keyboard input reaches XUL documents (text entry into `about:config`'s filter box), not only mouse.
+- [ ] No regression to HTML input: the R1/R4/R5 device evidence (checkbox/radio activation, drag scrolling, zoomed link hit-testing) still holds.
+**Dependencies:** R1, cavekit-offscreen-rendering.md (the offscreen widget is the thing lacking what XUL expects)
+
 ## Out of Scope
 - Producing frames (cavekit-offscreen-rendering.md).
 - IME/virtual-keyboard UI (webOS sysmgr concern; only the resulting key/text commands are handled here).
+- Native XUL **popups/menus** as OS-level windows. If a popup requires a real toplevel widget the headless
+  path cannot provide, an in-content fallback is acceptable — but that is a finding to record, not a
+  silent omission.
 
 ## Cross-References
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md

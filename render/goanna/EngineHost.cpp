@@ -19,9 +19,19 @@
 #include "DownloadService.h"         // InstallDownloadService (download handoff)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
+#include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
 #include "nsIDirectoryService.h"     // nsIDirectoryServiceProvider (profile dir — cookie persistence)
+#include "nsIXULAppInfo.h"           // app identity: the add-on compatibility contract
+#include "nsIXULRuntime.h"
+#include "nsIPlatformInfo.h"
+#include "nsXPCOMCIDInternal.h"      // XULAPPINFO_SERVICE_CONTRACTID / XULRUNTIME_…
+#include "nsIComponentRegistrar.h"   // RegisterFactory (override the stock app-info)
+#include "nsIFactory.h"
+#include "nsServiceManagerUtils.h"
+#include "nsIInterfaceRequestorUtils.h"
+#include "nsIComponentManager.h"     // GetClassObject (evict the stock app-info factory)  // do_GetService (app-info readback probe)
 #include "nsIHttpChannel.h"
 #include "nsIURI.h"
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
@@ -156,6 +166,10 @@ EngineHost::~EngineHost()
   Shutdown();
 }
 
+// Defined below (with the app-info service itself); declared here because the
+// directory provider is the earliest hook we own and calls it. See GetFile().
+static void InstallAppInfoServiceEarly();
+
 // ── profile directory provider ──────────────────────────────────────────────
 // Without a profile dir ("ProfD"/"ProfLD"), the cookie service, permission
 // manager, and disk cache have nowhere to persist — cookies become memory-only
@@ -185,6 +199,21 @@ public:
 
   NS_IMETHOD GetFile(const char* aProp, bool* aPersistent, nsIFile** aResult) override
   {
+    // EARLIEST EMBEDDER HOOK. This is the only callback we own that runs INSIDE
+    // NS_InitXPCOM2, i.e. before XRE_InitEmbedding2 fires "app-startup" and lets
+    // chrome JS run. That ordering matters for exactly one thing: Services.jsm
+    // caches `Services.appinfo` on first access (defineLazyGetter), and whatever
+    // resolves it first wins for the life of the process — so registering our
+    // nsIXULAppInfo after app-startup is too late for JS even though the
+    // component manager is correct (measured: do_GetService returns ours while
+    // AddonManager still reads undefined). Registering here gets in first.
+    // RETRIED on every call, not attempted once: the FIRST GetFile happens before
+    // the component manager exists (NS_GetComponentRegistrar returns
+    // NS_ERROR_NOT_INITIALIZED, measured), so a one-shot attempt always lost the
+    // race. GetFile is called many times during startup; this takes the first one
+    // that can succeed, which is still comfortably before app-startup JS runs.
+    // Costs one already-registered bool test per call afterwards.
+    InstallAppInfoServiceEarly();
     *aPersistent = true;
     // The four profile keys nsXULAppAPI.h documents for embedders that pick the
     // profile BEFORE XRE_InitEmbedding. "ProfDS"/"ProfLDS" are the *startup*
@@ -219,6 +248,276 @@ NS_IMPL_ISUPPORTS(JihadDirProvider, nsIDirectoryServiceProvider)
 // Held (deliberately leaked) for the process lifetime — XRE keeps a raw pointer
 // to the provider, so it must outlive the embedding.
 static JihadDirProvider* sJihadDirProvider = nullptr;
+
+// ── application identity: nsIXULAppInfo + nsIXULRuntime ─────────────────────
+//
+// WHY THIS EXISTS AT ALL — it is the fix for a hard device crash, and the
+// prerequisite for add-ons.
+//
+// UXP registers a stock nsXULAppInfo (toolkit/xre/nsAppRunner.cpp, static module
+// "Apprunner"), so `@mozilla.org/xre/app-info;1` RESOLVES even in an embedding.
+// But its interface map is conditional:
+//
+//     NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIXULAppInfo, gAppData || XRE_IsContentProcess())
+//
+// and `gAppData` is only ever set by XRE_main() from application.ini. We come up
+// through XRE_InitEmbedding2(), which never touches it — so QI(nsIXULAppInfo)
+// returns NS_NOINTERFACE and the service exposes nsIXULRuntime ONLY.
+//
+// Services.jsm swallows exactly that (toolkit/modules/Services.jsm:21-33: get the
+// nsIXULRuntime, try to QI to nsIXULAppInfo, ignore NS_NOINTERFACE), so
+// `Services.appinfo` exists but every nsIXULAppInfo attribute on it is undefined.
+// AddonManager.jsm:770-781 then does:
+//
+//     try { oldAppVersion = Services.prefs.getCharPref(PREF_EM_LAST_APP_VERSION);
+//           appChanged = Services.appinfo.version != oldAppVersion; } catch (e) {}
+//     if (appChanged !== false)
+//       Services.prefs.setCharPref(PREF_EM_LAST_APP_VERSION, Services.appinfo.version);
+//
+// On a fresh profile the getCharPref throws (no default argument), so appChanged
+// stays `undefined`, `undefined !== false` is true, and it walks into
+// setCharPref(pref, undefined) — a null `char*` — which is the
+// NS_ERROR_ILLEGAL_VALUE [nsIPrefBranch.setCharPref] logged on both desktop and
+// device. On the TouchPad the failure downstream of it is a SIGSEGV inside
+// XRE_NotifyProfile()'s DoStartup(), which killed the daemon before it could
+// serve (device runs 2026-08-01: last breadcrumb "XRE_NotifyProfile", EXIT=139;
+// with the notify skipped it comes up and serves normally).
+//
+// So the daemon supplies its OWN app identity, unconditionally implementing
+// nsIXULAppInfo + nsIPlatformInfo + nsIXULRuntime and taking over both contract
+// IDs. Every value comes from JihadUserAgent.h — the same place the UA product
+// token comes from — because appinfo.version and the UA's product version are the
+// same fact, and an add-on's <em:targetApplication> range is checked against it.
+//
+// NOT solved by leaving $JIHAD_NO_PROFILE_NOTIFY set: XRE_NotifyProfile is what
+// arms the profile keys, and without it nsCookieService never opens cookies.sqlite
+// — i.e. it would cost exactly the persistence the profile work exists to deliver.
+class JihadAppInfo final : public nsIXULAppInfo, public nsIXULRuntime
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIPLATFORMINFO
+  NS_DECL_NSIXULAPPINFO
+  NS_DECL_NSIXULRUNTIME
+  JihadAppInfo() : mLogConsoleErrors(false) {}
+private:
+  ~JihadAppInfo() {}
+  bool mLogConsoleErrors;
+};
+
+// nsIXULAppInfo inherits nsIPlatformInfo, so the ambiguous nsISupports has to be
+// disambiguated exactly as the stock nsXULAppInfo does.
+NS_IMPL_ADDREF(JihadAppInfo)
+NS_IMPL_RELEASE(JihadAppInfo)
+NS_INTERFACE_MAP_BEGIN(JihadAppInfo)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIXULAppInfo)
+  NS_INTERFACE_MAP_ENTRY(nsIPlatformInfo)
+  NS_INTERFACE_MAP_ENTRY(nsIXULAppInfo)
+  NS_INTERFACE_MAP_ENTRY(nsIXULRuntime)
+NS_INTERFACE_MAP_END
+
+// --- nsIXULAppInfo: the add-on compatibility contract -----------------------
+NS_IMETHODIMP JihadAppInfo::GetVendor(nsACString& r)  { r.AssignLiteral(JIHAD_APP_VENDOR);  return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetName(nsACString& r)    { r.AssignLiteral(JIHAD_APP_NAME);    return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetID(nsACString& r)      { r.AssignLiteral(JIHAD_APP_ID);      return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetVersion(nsACString& r) { r.AssignLiteral(JIHAD_APP_VERSION); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetAppBuildID(nsACString& r) { r.AssignLiteral(JIHAD_APP_BUILD_ID); return NS_OK; }
+// UAName is what Gecko would splice into a default UA. Ours is fully overridden
+// (general.useragent.override), so this is only ever read by chrome JS; keep it
+// equal to the UA's product token rather than letting a second spelling exist.
+NS_IMETHODIMP JihadAppInfo::GetUAName(nsACString& r)  { r.AssignLiteral(JIHAD_APP_NAME);    return NS_OK; }
+
+// --- nsIPlatformInfo: the ENGINE's version, not the product's ---------------
+// MOZILLA_VERSION comes from the engine's own mozilla-config.h (6.9.0 here), so
+// it tracks whatever UXP this daemon was built against and cannot drift.
+// Extensions range against this separately from the app version.
+NS_IMETHODIMP JihadAppInfo::GetPlatformVersion(nsACString& r) { r.AssignLiteral(MOZILLA_VERSION); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetPlatformBuildID(nsACString& r) { r.AssignLiteral(JIHAD_APP_BUILD_ID); return NS_OK; }
+
+// --- nsIXULRuntime ----------------------------------------------------------
+NS_IMETHODIMP JihadAppInfo::GetInSafeMode(bool* r)  { *r = false; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetLogConsoleErrors(bool* r) { *r = mLogConsoleErrors; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::SetLogConsoleErrors(bool v)  { mLogConsoleErrors = v; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetOS(nsACString& r) { r.AssignLiteral("Linux"); return NS_OK; }
+// TARGET_XPCOM_ABI is the engine build's own ABI tag ("arm-eabi-gcc3" on device,
+// "x86_64-gcc3" on the desktop harness). It gates XPIs carrying binary XPCOM
+// components, so it must be the real one, not a guess.
+NS_IMETHODIMP JihadAppInfo::GetXPCOMABI(nsACString& r) {
+#ifdef TARGET_XPCOM_ABI
+  r.AssignLiteral(TARGET_XPCOM_ABI); return NS_OK;
+#else
+  r.Truncate(); return NS_ERROR_NOT_AVAILABLE;
+#endif
+}
+// The engine is built --enable-default-toolkit=cairo-headless and the daemon
+// renders through PuppetWidget offscreen; report that rather than a GTK it does
+// not have.
+NS_IMETHODIMP JihadAppInfo::GetWidgetToolkit(nsACString& r) {
+#if defined(MOZ_WIDGET_TOOLKIT)
+  r.AssignLiteral(MOZ_WIDGET_TOOLKIT);
+#else
+  r.AssignLiteral("headless");
+#endif
+  return NS_OK;
+}
+// Single process, always: e10s is off in this embedding, so there is no content
+// child to be and nothing to spawn.
+NS_IMETHODIMP JihadAppInfo::GetProcessType(uint32_t* r) { *r = 0 /* GeckoProcessType_Default */; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetProcessID(uint32_t* r)   { *r = (uint32_t)getpid(); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetUniqueProcessID(uint64_t* r) { *r = (uint64_t)getpid(); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::EnsureContentProcess()      { return NS_ERROR_NOT_IMPLEMENTED; }
+NS_IMETHODIMP JihadAppInfo::GetAccessibilityEnabled(bool* r) { *r = false; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetIs64Bit(bool* r) { *r = (sizeof(void*) == 8); return NS_OK; }
+// No compatibility.ini and no updater: there is no "restart" for us to invalidate
+// caches across. Report success rather than failing a caller that is only asking
+// us to remember something for next boot — the startup cache is rebuilt from the
+// (disposable) ProfLD tree anyway.
+NS_IMETHODIMP JihadAppInfo::InvalidateCachesOnRestart() { return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetReplacedLockTime(PRTime* r) { *r = 0; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetLastRunCrashID(nsAString& r) { r.Truncate(); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetIsReleaseOrBeta(bool* r)  { *r = true;  return NS_OK; }
+// "Official branding" means the vendor's trademarked branding, which this build
+// deliberately does not carry (cavekit-licensing-branding.md R3 stripped it).
+NS_IMETHODIMP JihadAppInfo::GetIsOfficialBranding(bool* r) { *r = false; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetIsOfficial(bool* r)        { *r = false; return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetDefaultUpdateChannel(nsACString& r) { r.AssignLiteral("default"); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetDistributionID(nsACString& r) { r.Truncate(); return NS_OK; }
+NS_IMETHODIMP JihadAppInfo::GetWindowsDLLBlocklistStatus(bool* r) { *r = false; return NS_OK; }
+
+// We register under the STOCK app-info CID, {95d89e3e-a169-41a3-8e56-719978e15b12}
+// (toolkit/xre/nsAppRunner.cpp APPINFO_CID), rather than minting our own.
+//
+// WHY, and this is the whole reason the first attempt failed: re-pointing the
+// CONTRACT id is not enough to reach chrome JS. `Cc["@mozilla.org/xre/app-info;1"]`
+// builds an nsJSCID, and nsJSCID::NewID (js/xpconnect/src/XPCJSID.cpp) resolves a
+// contract string to a CID *eagerly* — `registrar->ContractIDToCID(str, &cid)`
+// then `InitWithName(*cid, str)` — so from that moment the JS object is pinned to
+// a CID and getService() never consults the contract table again. Remapping the
+// contract therefore fixes C++ callers and silently misses JS ones. Measured
+// exactly that: with only the contract remapped, do_GetService() returned our
+// object at both probe points while AddonManager still read undefined, and our
+// GetVersion() was never called from JS at all.
+//
+// Owning the CID makes both routes land here. It means UNREGISTERING the stock
+// factory first (the component manager refuses a duplicate CID with
+// NS_ERROR_FACTORY_EXISTS), which is safe this early: the stock service is a
+// gAppData-less stub that cannot answer nsIXULAppInfo, nothing has had a reason
+// to hold it, and any cached service instance is dropped with its factory entry.
+#define JIHAD_APPINFO_CID \
+  { 0x95d89e3e, 0xa169, 0x41a3, \
+    { 0x8e, 0x56, 0x71, 0x99, 0x78, 0xe1, 0x5b, 0x12 } }
+static const nsCID kJihadAppInfoCID = JIHAD_APPINFO_CID;
+
+// Factory returning the one process-wide instance (same shape as the dialog
+// service's singleton factory in DownloadService.cpp).
+class JihadAppInfoFactory final : public nsIFactory {
+public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) || aIID.Equals(NS_GET_IID(nsIFactory))) {
+      *aResult = static_cast<nsIFactory*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override  { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+  NS_IMETHOD CreateInstance(nsISupports* aOuter, const nsIID& aIID, void** aResult) override {
+    if (aOuter) return NS_ERROR_NO_AGGREGATION;
+    if (!mInstance) { mInstance = new JihadAppInfo(); NS_ADDREF(mInstance); }
+    return mInstance->QueryInterface(aIID, aResult);
+  }
+  NS_IMETHOD LockFactory(bool) override { return NS_OK; }
+private:
+  JihadAppInfo* mInstance = nullptr;   // deliberately leaked: process lifetime
+};
+static JihadAppInfoFactory& AppInfoFactory() { static JihadAppInfoFactory f; return f; }
+
+// Re-point BOTH contract IDs at our implementation. Registering a contract that
+// already exists re-maps it (the same override the helper-app dialog and the
+// transfer service use), so the stock gAppData-less nsXULAppInfo stops being
+// reachable through either name. MUST run before XRE_NotifyProfile(): that is
+// what starts the add-on manager, and Services.appinfo is a lazy getter that
+// caches the first object it resolves.
+static bool InstallAppInfoService()
+{
+  static bool sRegistered = false;
+  if (sRegistered) return true;          // the early hook may have done it already
+  // Not an error during the earliest retries — the component manager simply does
+  // not exist yet (NS_ERROR_NOT_INITIALIZED). Silent: the caller retries.
+  nsCOMPtr<nsIComponentRegistrar> reg;
+  if (NS_FAILED(NS_GetComponentRegistrar(getter_AddRefs(reg))) || !reg) return false;
+  // Evict the stock factory so the CID is free (see the CID comment above).
+  nsCOMPtr<nsIComponentManager> cm;
+  if (NS_SUCCEEDED(NS_GetComponentManager(getter_AddRefs(cm))) && cm) {
+    nsCOMPtr<nsIFactory> stock;
+    if (NS_SUCCEEDED(cm->GetClassObject(kJihadAppInfoCID, NS_GET_IID(nsIFactory),
+                                        getter_AddRefs(stock))) && stock) {
+      reg->UnregisterFactory(kJihadAppInfoCID, stock);
+    }
+  }
+  // First call registers the CID and points the app-info contract at it.
+  nsresult rv1 = reg->RegisterFactory(kJihadAppInfoCID, "Jihad App Info",
+                                      XULAPPINFO_SERVICE_CONTRACTID, &AppInfoFactory());
+  // The second contract must be aliased with a NULL factory. Passing the factory
+  // again re-registers the same CID, which nsComponentManagerImpl rejects with
+  // NS_ERROR_FACTORY_EXISTS ("if a null factory is passed in, this call just
+  // wants to reset the contract ID to point to an existing CID entry" —
+  // xpcom/components/nsComponentManager.cpp).
+  nsresult rv2 = reg->RegisterFactory(kJihadAppInfoCID, "Jihad App Info",
+                                      XULRUNTIME_SERVICE_CONTRACTID, nullptr);
+  if (NS_FAILED(rv1) || NS_FAILED(rv2)) {
+    fprintf(stderr, "[jihad-bs] appinfo: RegisterFactory failed (app-info=0x%x runtime=0x%x)\n",
+            (unsigned)rv1, (unsigned)rv2);
+    return false;
+  }
+
+  sRegistered = true;
+  return true;
+}
+
+// One-shot wrapper for the earliest hook (JihadDirProvider::GetFile). Silent on
+// failure: at that point in XPCOM startup a diagnostic write is not necessarily
+// safe, and Init()'s explicit call reports properly a moment later.
+static void InstallAppInfoServiceEarly()
+{
+  static bool sDone = false;
+  if (sDone) return;
+  sDone = InstallAppInfoService();
+  if (sDone) fprintf(stderr, "[jihad-bs] appinfo: registered early (before app-startup JS)\n");
+}
+
+// READ IT BACK, exactly the way chrome JS does. Registering a factory over an
+// existing contract id is an override, and an override that silently did not take
+// is invisible until something downstream crashes — the same reason the adapter
+// build reads its own identity strings back out of the .so.
+//
+// This replicates Services.jsm's getter verbatim (toolkit/modules/Services.jsm:21-33):
+// getService(nsIXULRuntime) on the app-info contract, then QI to nsIXULAppInfo.
+// If that sequence yields our identity here but `Services.appinfo.version` is still
+// undefined in JS, the divergence is on the JS side, not in the component manager —
+// which is precisely the distinction worth being able to make from a log.
+static void ProbeAppInfo(const char* when)
+{
+  nsCOMPtr<nsIXULRuntime> rt = do_GetService(XULAPPINFO_SERVICE_CONTRACTID);
+  if (!rt) {
+    fprintf(stderr, "[jihad-bs] appinfo[%s]: contract does not resolve at all\n", when);
+    return;
+  }
+  nsCOMPtr<nsIXULAppInfo> ai = do_QueryInterface(rt);
+  if (!ai) {
+    fprintf(stderr, "[jihad-bs] appinfo[%s]: resolves, but QI(nsIXULAppInfo) FAILS "
+                    "(this is the stock gAppData-less nsXULAppInfo)\n", when);
+    return;
+  }
+  nsCString v, id;
+  ai->GetVersion(v);
+  ai->GetID(id);
+  fprintf(stderr, "[jihad-bs] appinfo[%s]: id=%s version=%s platform=%s\n",
+          when, id.get(), v.get(), MOZILLA_VERSION);
+}
 
 // ── startup breadcrumbs ─────────────────────────────────────────────────────
 // The TouchPad has no debugger and no core dumps: when the daemon dies during
@@ -304,6 +603,12 @@ EngineHost::Init(const char* greDir)
   rv = XRE_InitEmbedding2(dir, dir, sJihadDirProvider);
   mInited = NS_SUCCEEDED(rv);
   initStep(mInited ? "XRE_InitEmbedding2 OK" : "XRE_InitEmbedding2 FAILED");
+  // RE-ARM the fatal-signal dump. SpiderMonkey installs its own SIGSEGV handler
+  // during engine init (the wasm/asm.js bounds-check trap) and replaces ours, so
+  // the install in main() no longer covers anything from here on — which is
+  // exactly the window the device crash lives in. Measured: without this, a fault
+  // after engine init produced no report at all. See JihadCrashReport.h.
+  jihad::JihadInstallCrashHandler();
 
   // Override "@mozilla.org/prompter;1" so content dialogs (alert/confirm/prompt)
   // are captured by our sink instead of trying to open a chrome dialog window,
@@ -314,6 +619,15 @@ EngineHost::Init(const char* greDir)
     InstallDialogService();
     initStep("InstallDownloadService");
     InstallDownloadService();
+    // MUST precede XRE_NotifyProfile(): DoStartup() runs the add-on manager,
+    // whose very first act is to read Services.appinfo.version — and without a
+    // real nsIXULAppInfo that is `undefined`, which is what crashed the daemon on
+    // device. See the JihadAppInfo block above for the full chain.
+    initStep("InstallAppInfoService (nsIXULAppInfo/nsIXULRuntime)");
+    if (!InstallAppInfoService())
+      fprintf(stderr, "[jihad-bs] WARNING: could not register the app-info service — "
+                      "the add-on manager will fail and may take the process with it\n");
+    ProbeAppInfo("late-backstop");
     // ── announce the profile ────────────────────────────────────────────────
     // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:
     // nsXREDirProvider::GetFile short-circuits EVERY profile key with
@@ -343,7 +657,8 @@ EngineHost::Init(const char* greDir)
     // added to fix), so it is a diagnostic, never a shipping configuration.
     const char* noNotify = getenv("JIHAD_NO_PROFILE_NOTIFY");
     if (sJihadDirProvider && !(noNotify && *noNotify && strcmp(noNotify, "0"))) {
-      initStep("XRE_NotifyProfile (DoStartup: prefs + addons + profile-after-change)");
+      jihad::JihadMaybeTestCrash();   // $JIHAD_TEST_CRASH — proves the handler fires
+    initStep("XRE_NotifyProfile (DoStartup: prefs + addons + profile-after-change)");
       XRE_NotifyProfile();
       initStep("XRE_NotifyProfile returned");
     } else if (sJihadDirProvider) {

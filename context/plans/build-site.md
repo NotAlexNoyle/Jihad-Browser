@@ -170,6 +170,21 @@ the same thing the add-on manager needs. Everything else is gated behind it.
 
 ---
 
+## Tier 11 — XUL/chrome input (added 2026-08-01, user requirement)
+
+"fix xul input so it works everywhere like about:config etc". Today synthesized input on XUL
+SIGSEGVs the daemon and is skipped as a crash-avoidance measure, leaving `about:config` and
+`about:addons` rendered but inert. T-067 is the blocker for cavekit-addons-extensions R2.
+
+| Task | Title | Cavekit | Req | blockedBy | Effort |
+|------|-------|---------|-----|-----------|--------|
+| T-067 | Root-cause the XUL `SendMouseEvent` SIGSEGV (which widget/frame path derefs what `PuppetWidget` leaves null) | cavekit-input-bridging.md | R6 | — | L |
+| T-068 | Make XUL accept mouse input for real; remove the `isXul` skip; XUL default actions run | cavekit-input-bridging.md | R6 | T-067 | L |
+| T-069 | Keyboard input into XUL documents (e.g. `about:config`'s filter box) | cavekit-input-bridging.md | R6 | T-068 | M |
+| T-070 | Acceptance: `about:config` fully operable (warning button, filter, select, change a pref) + no HTML input regression | cavekit-input-bridging.md | R6 | T-068, T-069 | M |
+
+---
+
 ## Summary
 
 | Tier | Tasks | Effort breakdown |
@@ -185,8 +200,9 @@ the same thing the add-on manager needs. Everything else is gated behind it.
 | 8 | 1 | 1M |
 | 9 | 7 | 2S, 2M, 3L |
 | 10 | 5 | 3M, 2L |
+| 11 | 4 | 2M, 2L |
 
-**Total: 66 tasks, 11 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
+**Total: 70 tasks, 12 tiers.** Tier 0 has 12 tasks runnable in parallel immediately.
 The Mochi UI track (T-049/T-050/T-051/T-052/T-053) is parallelizable with the
 engine work; T-054 + T-046 produce the two `.ipk`s for both TouchPad models.
 

@@ -63,7 +63,19 @@ script
 	#     ###!!! ABORT: u_init() failed: file .../xpcom/build/XPCOMInit.cpp, line 698
 	# and upstart respawns it forever. Diagnosed on-device 2026-07-31: identical invocation, the
 	# only difference being ICU_DATA, gets past u_init() and on into fontconfig.
-	exec env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" \
+	# HOME IS LOAD-BEARING, not hygiene. UXP reads it via
+	# `nsDependentCString(PR_GetEnv("HOME"))` with NO null check (xpcom/io/
+	# SpecialSystemDirectory.cpp GetUnixHomeDir, xpcom/io/nsAppFileLocationProvider.cpp),
+	# so an unset HOME is strlen(NULL) and an instant SIGSEGV at address 0 during
+	# engine startup. An upstart job inherits init's environment, which on webOS 3 has
+	# no HOME — which is why this crashed 100% on device and never in the container
+	# (podman always passes -e HOME=...). Diagnosed 2026-08-01 from the daemon's own
+	# fault report. The daemon also sets this itself if it is missing, so hand-launched
+	# runs are covered; it is repeated here because this is where the daemon's
+	# environment is actually defined, and a reader must not have to know the C++ to
+	# see it. Pointed at the state dir so anything Gecko writes under $HOME stays
+	# inside the footprint this variant's prerm removes.
+	exec env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
 	         JIHAD_BS_NAME=jihad-browser-mochi JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
 	         JIHAD_STATE_DIR="$STATE" \
 	    ./ld-2.23.so --library-path "$HL" ./jihad-browserserver "$HL"

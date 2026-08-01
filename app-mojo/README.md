@@ -11,13 +11,20 @@ Requirements: `../context/kits/cavekit-mojo-ui.md`. Contract:
 ## Fully independent package
 
 Per cavekit-device-build.md **R7** this variant owns a complete stack of its own —
-app id `net.riverstonerelay.jihad-browser.mojo`, NPAPI MIME
+app id `net.riverstonerelay.jihad-browser-mojo`, NPAPI MIME
 `application/x-jihad-browser-mojo`, adapter shim `BrowserAdapterJihadMojo.so`,
 adapter impl under `/usr/lib/jihad/mojo/`, YAP name `jihad-browser-mojo`, socket
 `/tmp/yapserver.jihad-browser-mojo`, upstart job `/etc/event.d/jihad-mojo`. It shares
 nothing with the Enyo or Mochi variants, and installing or removing it leaves them
 untouched. It also coexists with the *stock* Mojo browser, which has its own separate
 adapter/daemon pair (`application/x-palm-mojo-browser` → `/tmp/yapserver.browsermojo`).
+
+The app id's suffix is a **hyphen, not a dot**, and that is load-bearing: `ipkg` stores
+package metadata as `info/<pkgid>.{control,list,prerm}` and removes a package by globbing
+`<pkgid>.*`, which also matches `<pkgid>.mojo.control`. With the old dotted id, removing
+the Enyo package destroyed this package's control scripts and file list — so it could no
+longer be uninstalled and its shim, impl and upstart job became permanent rootfs residue
+(`../context/impl/impl-ipkg-prefix-collision.md`).
 
 The engine, the daemon and the adapter come from the shared `jihad-deviceroot`
 runtime bundle that this package's recipe installs; **nothing in `app-mojo/` touches
@@ -111,12 +118,12 @@ id (review F-1 / cavekit-device-build.md **R7**); this one owns nothing because 
 persists nothing. It used to appear in `../app/db/permissions/*` as a granted caller
 on the ENYO variant's kinds — a cross-variant grant for a data layer it never used.
 That grant is gone. If a Mojo front-end ever grows persistence it gets its own
-`app-mojo/db/` with `net.riverstonerelay.jihad-browser.mojo.*` owned by this app id —
+`app-mojo/db/` with `net.riverstonerelay.jihad-browser-mojo.*` owned by this app id —
 never a grant on another variant's kinds.
 
 ## Build
 
-`../build/webos-oe/recipes-jihad/jihad-ui/net.riverstonerelay.jihad-browser.mojo_1.0.bb`
+`../build/webos-oe/recipes-jihad/jihad-ui/net.riverstonerelay.jihad-browser-mojo_1.0.bb`
 builds this into a self-contained `.ipk` via `jihad-app.inc`, which also installs the
 composite `LICENSE` + `NOTICE` + `licenses/` into the package, exactly as it does for
 the other two variants.

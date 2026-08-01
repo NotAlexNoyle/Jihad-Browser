@@ -2,7 +2,7 @@
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Build the Mochi (Enyo 2) UI variant .ipk:
-#     net.riverstonerelay.jihad-browser.mochi_<version>_all.ipk
+#     net.riverstonerelay.jihad-browser-mochi_<version>_all.ipk
 #
 # The in-repo front-end lives in app-mochi/. Its index.html loads the framework
 # from these paths (relative to the app root):
@@ -62,7 +62,7 @@ LAYOUT_CANDIDATES=(
 OUT="$HERE/out-mochi"
 STAGE="${STAGE_ONLY:-$OUT/staging}"       # palm-package APP_DIR (or the caller's --stage-only dir)
 IPK_OUT="$OUT/ipk"                        # palm-package OUTPUT_DIR
-APP_ID="net.riverstonerelay.jihad-browser.mochi"
+APP_ID="net.riverstonerelay.jihad-browser-mochi"
 
 # Dev-only dirs pruned from the bundled frameworks: never loaded at runtime (no
 # package.js depends on them) and they carry the bulk (enyo tools/node_modules,

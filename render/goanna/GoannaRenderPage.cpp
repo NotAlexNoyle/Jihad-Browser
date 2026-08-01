@@ -52,6 +52,10 @@
 #include "nsIInterfaceRequestor.h"
 #include "nsIDocShell.h"
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
+#include "nsViewManager.h"           // T-067: route synthesized events into the offscreen widget
+#include "nsView.h"
+#include "nsIWidget.h"
+#include "nsIWidgetListener.h"
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
@@ -1302,6 +1306,91 @@ const void* GoannaRenderPage::DocShellKey() const {
   return ds.get();
 }
 
+// ── T-067 / cavekit-input-bridging R6 — THE ROOT CAUSE OF "SYNTHESIZED INPUT DOES NOTHING" ──
+//
+// Every synthesized event was being DROPPED before it reached the DOM, on the offscreen path
+// only. Not XUL-specific — XUL was merely the only content that had nothing else propping it up.
+//
+// The chain, all in UXP:
+//   1. `nsIWidget::UsePuppetWidgets()` is `XRE_IsContentProcess()`, and this daemon is a single
+//      process, so it is FALSE.
+//   2. `nsDocumentViewer::ShouldAttachToTopLevel()` therefore falls through to a platform branch
+//      guarded by `#if defined(XP_WIN) || defined(MOZ_WIDGET_GTK)` that ALSO requires a
+//      `typeChrome` docshell. The device build is `--enable-default-toolkit=cairo-headless`, so
+//      MOZ_WIDGET_GTK is not even defined, and our docshell is typeContent regardless. It
+//      returns false.
+//   3. So `nsDocumentViewer::MakeWindow` takes the `CreateWidgetForParent` branch: the root view
+//      gets its own CHILD PuppetWidget, registered via `nsView::InitializeWindow` ->
+//      `SetWidgetListener()` — the PLAIN listener, not the ATTACHED one.
+//   4. `PuppetWidget::DispatchEvent` consults `GetCurrentWidgetListener()`, which returns
+//      `mAttachedWidgetListener` and NOTHING ELSE. It never falls back to `mWidgetListener` the
+//      way every real widget does (`nsWindow::DispatchEvent` -> `GetListener()`, which is
+//      `mAttachedWidgetListener ? mAttachedWidgetListener : mWidgetListener`). PuppetWidget only
+//      ever runs in a content process, where step 1 is true and the view is always attached, so
+//      the missing fallback never showed up upstream.
+//   => `mAttachedWidgetListener` is null, `DispatchEvent` returns eIgnore, and the event is
+//      discarded silently. No mousedown, no mouseup, no click, no default action, no XUL command.
+//
+// MEASURED, not argued: with the GTK on-screen widget path a synthesized click fires the page's
+// onclick; with JIHAD_OFFSCREEN (the only path the device ever runs) the same click on the same
+// engine fires nothing at all — including on plain HTML. See render/goanna/test/xul_test.cpp
+// phases G and H. This also corrects the earlier reading recorded in cavekit-input-bridging R1
+// ("a synthesized click fires onclick but not the default action"): on the offscreen path the
+// click was never generated in the first place, which is why every native control had to be
+// hand-activated.
+//
+// THE FIX, embedder-side: for the duration of one synthesized dispatch, give that child widget
+// the attached listener it is missing, pointing at the same nsView its plain listener already
+// points at. `mUseAttachedEvents` stays false, so `nsView::HandleEvent` still resolves the target
+// view through `GetViewFor(widget)` exactly as it always would — this restores the fallback
+// PuppetWidget forgot, it does not re-route anything. Done here rather than as an engine patch
+// because it needs no libxul rebuild and works against the libxul already on the device; the
+// upstream-correct `PuppetWidget::DispatchEvent` fallback is also recorded as an engine patch.
+//
+// SCOPED, and that is not tidiness — it is required. `nsView::DestroyWidget` clears only the
+// PLAIN listener and then destroys the widget on an ASYNC runnable, so a permanently-installed
+// attached listener would outlive its nsView and hand `PuppetWidget::DispatchEvent` a freed
+// pointer. Installing it around one dispatch and taking it straight back out leaves no window at
+// all. The strong widget ref keeps the widget alive even if page JS run inside the dispatch
+// navigates and tears the document down underneath us.
+//
+// It also has to be re-established per dispatch anyway: `nsDocShell::SetupNewViewer` builds a
+// fresh content viewer, root view and child widget for EVERY load, so anything set once in
+// Create() would be discarded by the first navigation.
+class ScopedWidgetEventRouting
+{
+public:
+  explicit ScopedWidgetEventRouting(nsIWebBrowser* wb) {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(wb);
+    if (!ds) return;
+    nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+    if (!ps) return;
+    nsViewManager* vm = ps->GetViewManager();
+    if (!vm) return;
+    nsView* root = vm->GetRootView();
+    if (!root) return;
+    nsIWidget* w = root->GetWidget();
+    if (!w) return;
+    if (w->GetAttachedWidgetListener()) return;        // genuinely attached already: leave it
+    nsIWidgetListener* l = w->GetWidgetListener();
+    if (!l) return;                                    // nothing to route to
+    w->SetAttachedWidgetListener(l);
+    mWidget = w;                                       // strong ref: survives a nav mid-dispatch
+    static bool logged = false;
+    if (!logged) {
+      logged = true;
+      fprintf(stderr, "[jihad-bs] widget event routing repaired: the offscreen root-view widget "
+                      "had no attached listener, so PuppetWidget::DispatchEvent was dropping "
+                      "every synthesized event (T-067)\n");
+    }
+  }
+  ~ScopedWidgetEventRouting() {
+    if (mWidget) mWidget->SetAttachedWidgetListener(nullptr);
+  }
+private:
+  nsCOMPtr<nsIWidget> mWidget;   // null unless WE installed the listener
+};
+
 // Get the content window's nsIDOMWindowUtils (for input synthesis).
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb) {
   nsCOMPtr<nsIDOMWindowUtils> utils;
@@ -1588,15 +1677,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   bool navBefore = mChrome->mLinkClicked;
   bool ret = false;
   NS_ConvertUTF8toUTF16 down("mousedown"), up("mouseup");
-  // XUL/chrome content (about:config, about:addons, … render as XUL documents) CRASHES the
-  // headless daemon when fed synthesized mouse events: the XUL event/command frames assume a
-  // real widget the offscreen PuppetWidget does not provide (confirmed on-device — a tap on
-  // about:config's XUL <label>/<checkbox>/<hbox> SIGSEGV'd inside SendMouseEvent, core dumped).
-  // For XUL we DROP the synthetic click entirely (the tap does nothing; activating XUL buttons
-  // needs real headless XUL support — see the NOTE after the submit handling). Ordinary HTML is
-  // unaffected. Key the decision off the DOCUMENT ROOT's namespace, NOT the hit element (F-002):
-  // ElementFromPoint can return null (a miss), and a XUL about: page embeds html:-namespaced nodes
-  // (about:addons detail panes) — both would otherwise slip a mouse event into the XUL frame tree.
+  // R6/T-067: classify the DOCUMENT ROOT's namespace. This used to gate a crash-avoidance SKIP of
+  // the synthetic mouse events on XUL (about:config/about:addons rendered but were inert); that
+  // skip is GONE — the underlying fault is fixed (see below). The flag survives only because XUL
+  // needs its OWN default-action hand-run (R6/R1 lesson: a synthesized click fires the handler
+  // wiring but not the engine's default action in this embedding).
+  // Keyed off the document root, NOT the hit element (F-002): ElementFromPoint can return null on
+  // a miss, and a XUL about: page embeds html:-namespaced nodes (about:addons detail panes).
   bool isXul = false;
   {
     nsCOMPtr<nsIDOMDocument> doc;
@@ -1641,21 +1728,25 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
       }
     }
   }
-  if (isXul) {
-    fprintf(stderr, "[jihad-bs] skip mouseSend on XUL <%s> at %d,%d (crash-avoid)\n",
-            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y);
-  } else {
+  {
     // Breadcrumb BEFORE the synthetic click: page JS run synchronously inside
     // SendMouseEvent dispatch can fault (a native-code MOZ_CRASH like the old
     // DOMClick SubjectPrincipal, or a headless-unimplemented API). If the daemon
     // dies here, this line + the matching core (wherever /proc/sys/kernel/core_pattern
     // points — NOT /media/internal any more, T-057/R8) name the element that
     // triggered it (device U1). Flushed (stderr unbuffered).
-    fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d\n",
-            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks);
-    u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &ret);
-    u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &ret);
-    fprintf(stderr, "[jihad-bs] mouseSend done\n");
+    // T-067: the down and the up are logged SEPARATELY. The 2026-07-20 device report could only
+    // say "somewhere inside SendMouseEvent" because a single breadcrumb spanned both calls, and
+    // down/up run very different code (down: focus/activation/drag-gesture tracking; up: click
+    // synthesis + XUL command dispatch out of nsButtonBoxFrame). Which one dies is half the answer.
+    fprintf(stderr, "[jihad-bs] mouseSend <%s> at %d,%d n=%d xul=%d : down\n",
+            el ? NS_ConvertUTF16toUTF8(tag).get() : "null", x, y, numClicks, (int)isXul);
+    bool pdDown = false, pdUp = false;
+    u->SendMouseEvent(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6, &pdDown);
+    fprintf(stderr, "[jihad-bs] mouseSend : down ok (preventDefault=%d), up\n", (int)pdDown);
+    u->SendMouseEvent(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6, &pdUp);
+    ret = pdDown || pdUp;
+    fprintf(stderr, "[jihad-bs] mouseSend done (preventDefault=%d)\n", (int)pdUp);
   }
   // F-001/F-004: for a checkbox/radio flipped above (before the click), deliver `input` then
   // `change` now — AFTER the click — matching real event order. Same crash-safe CreateEvent

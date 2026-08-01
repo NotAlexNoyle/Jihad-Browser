@@ -48,11 +48,19 @@ if [ "${1:-}" = "--check" ]; then MODE=check; fi
 #
 # Derived, never written by hand: the socket is /tmp/yapserver.<YAP name>, the adapter impl is
 # /usr/lib/jihad/<variant>/BrowserAdapterImpl.so, the state dir is /var/palm/jihad/<variant>/.
+#
+# THE SUFFIXED APP IDS USE A HYPHEN, NEVER A DOT. ipkg keeps package metadata as
+# info/<pkgid>.{control,list,prerm} and removes a package by globbing <pkgid>.* — which also
+# matches <pkgid>.child.control. A dotted `…jihad-browser.mochi` is a dot-CHILD of the Enyo id, so
+# removing the Enyo package deleted Mochi's and Mojo's control scripts and file lists outright,
+# leaving them un-uninstallable and their rootfs footprint permanent (P1 against R7/R8; proven
+# on-device 2026-08-01 with a dot pair vs. a hyphen pair — see
+# ../context/impl/impl-ipkg-prefix-collision.md). A hyphen makes them siblings, not children.
 # ---------------------------------------------------------------------------------------------
 TABLE="
 enyo:net.riverstonerelay.jihad-browser:BrowserAdapterJihad.so:jihad:jihad-browser:Enyo 1.0
-mochi:net.riverstonerelay.jihad-browser.mochi:BrowserAdapterJihadMochi.so:jihad-mochi:jihad-browser-mochi:Enyo 2 + Mochi
-mojo:net.riverstonerelay.jihad-browser.mojo:BrowserAdapterJihadMojo.so:jihad-mojo:jihad-browser-mojo:Mojo
+mochi:net.riverstonerelay.jihad-browser-mochi:BrowserAdapterJihadMochi.so:jihad-mochi:jihad-browser-mochi:Enyo 2 + Mochi
+mojo:net.riverstonerelay.jihad-browser-mojo:BrowserAdapterJihadMojo.so:jihad-mojo:jihad-browser-mojo:Mojo
 "
 
 # ---------------------------------------------------------------------------------------------

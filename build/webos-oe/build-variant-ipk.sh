@@ -55,11 +55,17 @@ say() { echo; echo "=== $* ==="; }
 # <variant> : <app id> : <shim .so> : <upstart job> : <app source dir>
 # The YAP name / socket / impl path / state dir are NOT repeated here — they are compiled into
 # the adapter and written into packaging/<V>/*, which this script only copies.
+#
+# The suffixed app ids are HYPHENATED, never dotted. ipkg removes a package by globbing its
+# metadata as <pkgid>.*, which also matches <pkgid>.child.control — so a dotted
+# `…jihad-browser.mochi` was a dot-CHILD of the Enyo id and removing the Enyo package destroyed
+# this package's control/list/prerm, making it un-uninstallable (P1 against R7/R8, proven
+# on-device 2026-08-01: ../../context/impl/impl-ipkg-prefix-collision.md).
 variant_set() {
   case "$1" in
     enyo)  V_APPID="net.riverstonerelay.jihad-browser";       V_SHIM="BrowserAdapterJihad.so";      V_JOB="jihad";       V_SRC="app"       ;;
-    mochi) V_APPID="net.riverstonerelay.jihad-browser.mochi"; V_SHIM="BrowserAdapterJihadMochi.so"; V_JOB="jihad-mochi"; V_SRC="app-mochi" ;;
-    mojo)  V_APPID="net.riverstonerelay.jihad-browser.mojo";  V_SHIM="BrowserAdapterJihadMojo.so";  V_JOB="jihad-mojo";  V_SRC="app-mojo"  ;;
+    mochi) V_APPID="net.riverstonerelay.jihad-browser-mochi"; V_SHIM="BrowserAdapterJihadMochi.so"; V_JOB="jihad-mochi"; V_SRC="app-mochi" ;;
+    mojo)  V_APPID="net.riverstonerelay.jihad-browser-mojo";  V_SHIM="BrowserAdapterJihadMojo.so";  V_JOB="jihad-mojo";  V_SRC="app-mojo"  ;;
     *) die "unknown variant '$1' (expected: enyo mochi mojo)" ;;
   esac
 }

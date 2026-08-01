@@ -13,7 +13,7 @@ over a Fittable layout.
 > needed font glyphs, so toolbar icons are PNG data URIs. Do not "modernise"
 > these back — see `PARITY.md` and `../context/impl/impl-mochi.md`.
 
-This ships as a **separate `.ipk`** (`net.riverstonerelay.jihad-browser.mochi`)
+This ships as a **separate `.ipk`** (`net.riverstonerelay.jihad-browser-mochi`)
 so it can coexist with the Enyo variant on the device — two versions for the
 TouchPad. Both UIs drive the **same** BrowserServer through the **unchanged**
 BrowserAdapter contract.
@@ -49,15 +49,21 @@ outside the repo at build time (never committed); the staging tree and the
 overridable via `ENYO_SRC` / `LAYOUT_SRC` / `MOCHI_SRC`; the layout library is
 resolved from the first candidate that actually contains `package.js`.
 
-The app id is `net.riverstonerelay.jihad-browser.mochi` — distinct from the Enyo
+The app id is `net.riverstonerelay.jihad-browser-mochi` — distinct from the Enyo
 variant (`net.riverstonerelay.jihad-browser`), so both `.ipk`s install and
-coexist. The launcher **title is "Jihad Browser"** for BOTH variants (user
+coexist. The suffix is a **hyphen, not a dot**, and that is load-bearing: `ipkg`
+stores package metadata as `info/<pkgid>.{control,list,prerm}` and removes a
+package by globbing `<pkgid>.*`, which also matches `<pkgid>.mochi.control`. With
+the old dotted id, removing the Enyo package destroyed this package's control
+scripts and file list, leaving it un-uninstallable
+(`../context/impl/impl-ipkg-prefix-collision.md`). The launcher **title is
+"Jihad Browser"** for BOTH variants (user
 directive, cavekit-mochi-ui.md R1 — never "Jihad (Mochi)"/"Jihad (Enyo)"); the
 distinct app id is what keeps them apart. Icons are the shared Jihad Browser set
 (identical bytes to `../app/icon*.png`).
 
 **This package owns its own db8 kinds.** Bookmarks/history/preferences use
-`net.riverstonerelay.jihad-browser.mochi.{bookmarks,history,preferences}:1`,
+`net.riverstonerelay.jihad-browser-mochi.{bookmarks,history,preferences}:1`,
 declared in `db/{kinds,permissions}/` HERE, owned by this app id, and registered
 by the appinstaller out of this `.ipk`. Nothing is shared with the Enyo variant.
 

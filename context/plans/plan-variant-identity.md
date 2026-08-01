@@ -100,7 +100,7 @@ explicitly or they become residue and break the exact-reversal criterion that is
 | | **Enyo 1.0** | **Enyo 2 / Mochi** | **Mojo** |
 |---|---|---|---|
 | variant token `V` | `enyo` | `mochi` | `mojo` |
-| app id | `net.riverstonerelay.jihad-browser` | `net.riverstonerelay.jihad-browser.mochi` | `net.riverstonerelay.jihad-browser.mojo` |
+| app id | `net.riverstonerelay.jihad-browser` | `net.riverstonerelay.jihad-browser-mochi` | `net.riverstonerelay.jihad-browser-mojo` |
 | source dir | `app/` | `app-mochi/` | `app-mojo/` |
 | NPAPI MIME | `application/x-jihad-browser` | `application/x-jihad-browser-mochi` | `application/x-jihad-browser-mojo` |
 | shim (rootfs) | `/usr/lib/BrowserPlugins/BrowserAdapterJihad.so` | `…/BrowserAdapterJihadMochi.so` | `…/BrowserAdapterJihadMojo.so` |
@@ -115,10 +115,23 @@ explicitly or they become residue and break the exact-reversal criterion that is
 | engine local profile — `ProfLD` (disposable: `cache2`, `startupCache`) | `$APP/cache/` | same shape | same shape |
 | downloads (USER data; the one R8 carve-out) | `/media/internal/downloads` | same | same |
 
-`$APP` = `/media/cryptofs/apps/usr/palm/applications/<app id>`.
+`$APP` = `/media/cryptofs/apps/usr/palm/applications/<app id>` — i.e.
+`…/net.riverstonerelay.jihad-browser`, `…/net.riverstonerelay.jihad-browser-mochi`,
+`…/net.riverstonerelay.jihad-browser-mojo`.
 
 The Enyo variant keeps the unsuffixed names it already has on-device — renaming it would break the
 one deployment that is known to work, for no gain.
+
+**The suffixed app ids use a HYPHEN, never a dot** (`…jihad-browser-mochi`, not
+`…jihad-browser.mochi`). This is not cosmetic and it is not negotiable. webOS's `/usr/bin/ipkg`
+stores package metadata as `info/<pkgid>.{control,list,prerm}` and cleans up on removal with a glob
+on `<pkgid>.*` — which also matches `<pkgid>.child.control`. With dotted ids the two suffixed
+variants were *dot-children* of the Enyo id, so **removing the Enyo package deleted Mochi's and
+Mojo's control/list/prerm**, leaving them un-uninstallable and their shim, impl and upstart job as
+permanent rootfs residue — a direct P1 against R7 and R8. Proven on-device 2026-08-01 with two
+pairs of minimal packages: with a dot the child's metadata is destroyed, with a hyphen it survives
+intact (`../impl/impl-ipkg-prefix-collision.md`). Any FUTURE variant id must be a hyphen suffix for
+the same reason.
 
 ## Rules that follow from the table
 

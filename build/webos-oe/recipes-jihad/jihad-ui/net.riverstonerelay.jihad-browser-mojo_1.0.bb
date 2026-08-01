@@ -7,7 +7,12 @@
 #
 # The front-end itself is still being brought up (cavekit-mojo-ui.md / T-059): app-mojo/ is a
 # scaffold, so this recipe stays out of `bitbake world` and builds on request (`bitbake
-# net.riverstonerelay.jihad-browser.mojo`).
+# net.riverstonerelay.jihad-browser-mojo`).
+#
+# The filename carries the app id with a HYPHEN, not a dot: PN comes from the filename and
+# jihad-app.inc bb.fatal's unless PN == WEBOS_APP_ID, and the id must not be a dot-child of the
+# Enyo id or ipkg's `<pkgid>.*` removal glob eats this package's metadata when the Enyo package is
+# removed (../../../../context/impl/impl-ipkg-prefix-collision.md).
 
 SUMMARY = "Jihad Browser (standalone Goanna browser, Mojo UI — front-end in progress)"
 LICENSE = "Apache-2.0 & MPL-2.0"

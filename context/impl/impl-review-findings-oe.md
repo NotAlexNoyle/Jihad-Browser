@@ -67,7 +67,7 @@ No fallback (parse-time `${@...}` hashing) was needed.
 | `jihad-deviceroot` | `do_compile` | `make-device-bundle.sh`, `packaging/event.d/jihad`, `JIHAD_TC_SIG`, `JIHAD_SYS_SIG` |
 | `jihad-cross-toolchain-native` | `do_install` | `JIHAD_TC_SIG` |
 | `jihad-ui/jihad-app.inc` (all 3 variants) | `do_install` | `LICENSE`, `NOTICE`, `licenses/*.txt` |
-| `…jihad-browser.mochi` | `do_install` (`+=`) | `third_party/{mochi-sampler/enyo,enyo-layout,mochi}` |
+| `…jihad-browser-mochi` | `do_install` (`+=`) | `third_party/{mochi-sampler/enyo,enyo-layout,mochi}` |
 
 Already covered without new declarations, and left alone: `SRC_URI` entries (`app/`, `app-mochi/`,
 `app-mojo/`, `render/`, `packaging/`) via oe-core's `do_fetch[file-checksums]`

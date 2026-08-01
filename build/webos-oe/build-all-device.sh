@@ -11,7 +11,7 @@
 #   3. adapter   BrowserAdapterJihad{,Mochi,Mojo}.so + per-variant BrowserAdapterImpl.so
 #                                                              (build-adapter-pdk.sh)
 #   4. UI ipks   the THREE self-contained packages              (build-variant-ipk.sh)
-#                net.riverstonerelay.jihad-browser{,.mochi,.mojo}_*.ipk — each carries its own
+#                net.riverstonerelay.jihad-browser{,-mochi,-mojo}_*.ipk — each carries its own
 #                deviceroot runtime + shim + upstart job and its own postinst/prerm
 #
 # Default: rebuild the FAST parts (daemon, bundle, both ipks) and REUSE existing
@@ -87,8 +87,8 @@ cp "$HERE"/out-ipk/net.riverstonerelay.jihad-browser*_all.ipk "$OUT/"
 say "artifacts"
 for f in "$LIBXUL" "$DAEMON" "$ADAPTER_SO" "$ADAPTER_IMPL" \
          "$OUT"/net.riverstonerelay.jihad-browser_*_all.ipk \
-         "$OUT"/net.riverstonerelay.jihad-browser.mochi_*_all.ipk \
-         "$OUT"/net.riverstonerelay.jihad-browser.mojo_*_all.ipk; do
+         "$OUT"/net.riverstonerelay.jihad-browser-mochi_*_all.ipk \
+         "$OUT"/net.riverstonerelay.jihad-browser-mojo_*_all.ipk; do
 	if have "$f"; then
 		printf '  %s  %s\n' "$(md5sum "$f" | cut -c1-8)" "$f"
 	else

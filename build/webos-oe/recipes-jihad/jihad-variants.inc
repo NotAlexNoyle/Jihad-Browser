@@ -19,10 +19,19 @@ JIHAD_VARIANTS ?= "enyo mochi mojo"
 # adapter impl is /usr/lib/jihad/<variant>/BrowserAdapterImpl.so, the runtime state dir is
 # /var/palm/jihad/<variant>/. The Enyo variant keeps the unsuffixed names it already has
 # deployed on-device — renaming the one deployment known to work buys nothing.
+#
+# THE SUFFIXED APP IDS USE A HYPHEN, NEVER A DOT — and so do the recipe FILENAMES, because
+# oe-core derives PN from the filename and jihad-app.inc bb.fatal's when PN != WEBOS_APP_ID.
+# ipkg stores package metadata as info/<pkgid>.{control,list,prerm} and removes a package by
+# globbing <pkgid>.*, which also matches <pkgid>.child.control: a dotted `…jihad-browser.mochi`
+# was a dot-CHILD of the Enyo id, so removing the Enyo package destroyed Mochi's and Mojo's
+# control scripts and file lists, leaving them un-uninstallable and their rootfs footprint
+# permanent (P1 against R7/R8, proven on-device 2026-08-01 — see
+# ../../../context/impl/impl-ipkg-prefix-collision.md).
 JIHAD_VARIANT_TABLE ?= "\
     enyo:net.riverstonerelay.jihad-browser:BrowserAdapterJihad.so:jihad:jihad-browser \
-    mochi:net.riverstonerelay.jihad-browser.mochi:BrowserAdapterJihadMochi.so:jihad-mochi:jihad-browser-mochi \
-    mojo:net.riverstonerelay.jihad-browser.mojo:BrowserAdapterJihadMojo.so:jihad-mojo:jihad-browser-mojo"
+    mochi:net.riverstonerelay.jihad-browser-mochi:BrowserAdapterJihadMochi.so:jihad-mochi:jihad-browser-mochi \
+    mojo:net.riverstonerelay.jihad-browser-mojo:BrowserAdapterJihadMojo.so:jihad-mojo:jihad-browser-mojo"
 
 # Field lookup for the recipe that sets JIHAD_VARIANT. Indices match the row above:
 #   1 app id   2 shim .so   3 upstart job   4 YAP service name

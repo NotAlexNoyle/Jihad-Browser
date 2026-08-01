@@ -4,7 +4,7 @@
 // JihadBookmarkList — the Enyo 2 / Mochi port of ../../app/source/BookmarkList.js.
 // A full-card overlay panel (enyo-fit, toggled by showing) listing the saved
 // bookmarks from the SAME db8 kind the Enyo 1.0 app uses
-// (net.riverstonerelay.jihad-browser.mochi.bookmarks:1, via enyo.jihad.dbFind). A tap
+// (net.riverstonerelay.jihad-browser-mochi.bookmarks:1, via enyo.jihad.dbFind). A tap
 // selects a bookmark (doSelectItem -> shell navigates); a row Delete removes it
 // (doDeleteBookmark + db8 del); the header + button adds the current page
 // (doAddBookmark -> shell). enyo.Repeater (not enyo.List) is used because these

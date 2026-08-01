@@ -9,7 +9,7 @@
 // need:
 //
 //   * db8 (palm://com.palm.db/*) against THIS PACKAGE'S OWN kinds,
-//     net.riverstonerelay.jihad-browser.mochi.{history,bookmarks,preferences}:1
+//     net.riverstonerelay.jihad-browser-mochi.{history,bookmarks,preferences}:1
 //     — declared in ../db/kinds/, owned by this app id, and shipped inside this
 //     .ipk. NOT the stock com.palm.* kinds, and (since review F-1) NOT the Enyo
 //     variant's kinds either: see the ownership note above scope.kinds below.
@@ -50,10 +50,17 @@ enyo.jihad = enyo.jihad || {};
 	// Mochi browser does not see the Enyo browser's history. Three independent
 	// browsers have three independent profiles — the same way each has its own
 	// engine profile under /var/palm/jihad/<variant>/ (R8).
+	//
+	// The namespace is HYPHENATED (`…jihad-browser-mochi.*`) because the app id is,
+	// and a kind's `owner` must equal the registering app id. The app id lost its
+	// dot on 2026-08-01 for a packaging reason, not a db8 one: ipkg removes a
+	// package by globbing its metadata as `<pkgid>.*`, which also matched
+	// `<pkgid>.mochi.control`, so removing the Enyo package destroyed this
+	// package's control scripts (context/impl/impl-ipkg-prefix-collision.md).
 	scope.kinds = {
-		history:     "net.riverstonerelay.jihad-browser.mochi.history:1",
-		bookmarks:   "net.riverstonerelay.jihad-browser.mochi.bookmarks:1",
-		preferences: "net.riverstonerelay.jihad-browser.mochi.preferences:1"
+		history:     "net.riverstonerelay.jihad-browser-mochi.history:1",
+		bookmarks:   "net.riverstonerelay.jihad-browser-mochi.bookmarks:1",
+		preferences: "net.riverstonerelay.jihad-browser-mochi.preferences:1"
 	};
 
 	// Keep in-flight bridges referenced so the native side isn't GC'd mid-call.
@@ -135,6 +142,6 @@ enyo.jihad = enyo.jihad || {};
 		if (window.PalmSystem && window.PalmSystem.identifier) {
 			return String(window.PalmSystem.identifier).split(" ")[0];
 		}
-		return "net.riverstonerelay.jihad-browser.mochi";
+		return "net.riverstonerelay.jihad-browser-mochi";
 	};
 })(enyo.jihad);

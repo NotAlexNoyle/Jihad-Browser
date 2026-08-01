@@ -12,7 +12,7 @@ A third browser front-end (directory `app-mojo/`) implemented on **Mojo**, the o
 demonstration — and drives the **same** BrowserAdapter contract as the Enyo-1.0 shell
 (cavekit-ui-shell.md) and the Enyo-2/Mochi shell (cavekit-mochi-ui.md).
 
-It ships as its own `.ipk` (`net.riverstonerelay.jihad-browser.mojo`) and, per
+It ships as its own `.ipk` (`net.riverstonerelay.jihad-browser-mojo`) and, per
 cavekit-device-build.md **R7**, is a fully independent package: its own NPAPI MIME type,
 adapter shim, adapter impl, YAP service name, socket, upstart job, and daemon process.
 Installing or removing it has no effect on the Enyo or Mochi variants.
@@ -28,8 +28,8 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 ### R1: Separate, coexisting Mojo application package
 **Description:** The Mojo UI is packaged as its own webOS app, installable alongside both other variants.
 **Acceptance Criteria:**
-- [x] `app-mojo/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser.mojo`) and the Jihad Browser title/icon set.
-- [ ] Installing it does not collide with, overwrite, or replace either the Enyo (`net.riverstonerelay.jihad-browser`) or Mochi (`…​.mochi`) variant; all three can be installed at once and all three launch.
+- [x] `app-mojo/appinfo.json` declares a distinct app id (`net.riverstonerelay.jihad-browser-mojo`) and the Jihad Browser title/icon set.
+- [ ] Installing it does not collide with, overwrite, or replace either the Enyo (`net.riverstonerelay.jihad-browser`) or Mochi (`…jihad-browser-mochi`) variant; all three can be installed at once and all three launch.
 - [ ] Removing it leaves the other two fully functional (launch + load a page).
 **Dependencies:** cavekit-device-build.md (R7)
 

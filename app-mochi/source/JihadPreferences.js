@@ -4,7 +4,7 @@
 // JihadPreferences — the Enyo 2 / Mochi port of ../../app/source/Preferences.js.
 // A full-card overlay panel with mochi.ToggleButton content switches and the
 // clear-data actions. Preferences are read from and written to the SAME db8 kind
-// this package owns (net.riverstonerelay.jihad-browser.mochi.preferences:1, via
+// this package owns (net.riverstonerelay.jihad-browser-mochi.preferences:1, via
 // enyo.jihad.db*), seeded with the same defaults BrowserApp.js seeds. Clear
 // actions bubble to the shell (onClearBookmarks/onClearHistory/onClearCookies/
 // onClearCache) so the shell drives the db8 delByQuery + the

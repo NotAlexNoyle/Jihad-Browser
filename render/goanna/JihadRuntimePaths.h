@@ -173,11 +173,20 @@ inline const char* RuntimeVariantForName(const char* yapName) {
 // engine profile lives in the app's own directory on cryptofs (see
 // RuntimeCacheDir below), and that path is keyed by app id, not by variant
 // token. Empty for a non-packaged run — there is no app directory then.
+//
+// The two suffixed ids are HYPHENATED, not dotted. That is a packaging fact, not
+// a style choice: ipkg keeps package metadata as info/<pkgid>.{control,list,
+// prerm} and removes a package by globbing <pkgid>.*, which also matched
+// <pkgid>.mochi.control — so removing the Enyo package destroyed the Mochi and
+// Mojo packages' control scripts (context/impl/impl-ipkg-prefix-collision.md).
+// If these strings ever disagree with the installed app directory name, the
+// daemon writes its cache to a path that does not exist and `prerm` cannot
+// remove it — so keep them in lockstep with plan-variant-identity.md.
 inline const char* RuntimeAppIdForVariant(const char* v) {
   if (!v) return "";
   if (!strcmp(v, "enyo"))  return "net.riverstonerelay.jihad-browser";
-  if (!strcmp(v, "mochi")) return "net.riverstonerelay.jihad-browser.mochi";
-  if (!strcmp(v, "mojo"))  return "net.riverstonerelay.jihad-browser.mojo";
+  if (!strcmp(v, "mochi")) return "net.riverstonerelay.jihad-browser-mochi";
+  if (!strcmp(v, "mojo"))  return "net.riverstonerelay.jihad-browser-mojo";
   return "";
 }
 

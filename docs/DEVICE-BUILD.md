@@ -76,7 +76,7 @@ build/webos-oe/
     goanna/goanna_1.0.bb               # UXP engine, cross build (heavy); COMPATIBLE_MACHINE = (tenderloin|opal)
     jihad-browserserver/…_1.0.bb       # daemon (Goanna backend), LunaService ON; COMPATIBLE_MACHINE = (tenderloin|opal)
     jihad-ui/net.riverstonerelay.jihad-browser_1.0.bb        # Enyo 1.0 UI .ipk (app/), allarch
-    jihad-ui/net.riverstonerelay.jihad-browser.mochi_1.0.bb  # Mochi UI .ipk (app-mochi/), allarch
+    jihad-ui/net.riverstonerelay.jihad-browser-mochi_1.0.bb  # Mochi UI .ipk (app-mochi/), allarch
 ```
 
 The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`,

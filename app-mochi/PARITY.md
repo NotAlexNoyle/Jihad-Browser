@@ -12,18 +12,18 @@ URIs. Dialog answers use the adapter's existing scriptable `sendDialogResponse`
 routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 1.0 app's `viewCall(...)` fallback does), so they do **not** widen that grep-audited
 literal set. Persistence uses THIS PACKAGE'S OWN db8 kinds:
-`net.riverstonerelay.jihad-browser.mochi.{history,bookmarks,preferences}:1`.
+`net.riverstonerelay.jihad-browser-mochi.{history,bookmarks,preferences}:1`.
 
 > **Persistence ownership (audit F-A01, superseded by review F-1 on 2026-08-01).**
 > F-A01's fix was a permission grant: the kinds stayed owned by the Enyo package
-> and `../app/db/permissions/*` granted the `.mochi`/`.mojo` app ids CRUD. That
+> and `../app/db/permissions/*` granted the Mochi/Mojo app ids CRUD. That
 > made db8 features here REQUIRE the Enyo variant to be installed — which is the
 > cross-variant coupling cavekit-device-build.md **R7** forbids, and it failed in
 > both directions (Mochi alone: kinds never registered; Enyo removed: this
 > variant's data destroyed with a package it does not own). Since a db8 kind's
 > owner must equal the registering app id, the fix is a SEPARATE NAMESPACE, not a
 > broader grant. This package now declares, ships and owns
-> `…jihad-browser.mochi.*` in `db/{kinds,permissions}/`, the cross-variant grants
+> `…jihad-browser-mochi.*` in `db/{kinds,permissions}/`, the cross-variant grants
 > are removed from `../app/db/permissions/*`, and no variant depends on another.
 > History/bookmarks are therefore per variant, by design. After a dev
 > `palm-install`, run `build/webos-oe/register-db-kinds.sh mochi`. Live db8

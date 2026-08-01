@@ -33,6 +33,9 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIComponentManager.h"     // GetClassObject (evict the stock app-info factory)  // do_GetService (app-info readback probe)
 #include "nsIHttpChannel.h"
+#include "nsIConsoleService.h"       // chrome-JS error visibility (T-067 / R6)
+#include "nsIConsoleListener.h"
+#include "nsIScriptError.h"
 #include "nsIURI.h"
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
 #include <string>
@@ -519,6 +522,97 @@ static void ProbeAppInfo(const char* when)
           when, id.get(), v.get(), MOZILLA_VERSION);
 }
 
+// ── chrome-JS console bridge (T-067 / cavekit-input-bridging R6) ────────────────────────────
+//
+// WHY: nothing in this embedding listens to the console service, so EVERY error thrown by
+// chrome JavaScript is discarded. That is not a small gap — `about:addons` renders a
+// `<parsererror>`, `about:config`'s warning button does nothing, and in both cases the engine
+// knows exactly why and we were throwing the explanation away. Two device round-trips were spent
+// guessing at symptoms a single console line would have named.
+//
+// SCOPE, deliberate: only messages whose source is OUR chrome (chrome://, resource://, about:,
+// or no source at all — the JSM/component case) are printed. Errors from web content are the
+// site's business, would be high-volume on real browsing, and could echo page data into the log,
+// which F-163 forbids. $JIHAD_JS_CONSOLE=all lifts the filter for a debugging session; =0 turns
+// the bridge off entirely.
+class JihadConsoleListener final : public nsIConsoleListener
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_IMETHOD Observe(nsIConsoleMessage* aMessage) override
+  {
+    if (!aMessage) return NS_OK;
+    nsCOMPtr<nsIScriptError> err = do_QueryInterface(aMessage);
+    nsAutoString src;
+    if (err) err->GetSourceName(src);
+    NS_ConvertUTF16toUTF8 src8(src);
+    if (!sAll) {
+      const char* s = src8.get();
+      bool ours = !s || !*s ||
+                  !strncmp(s, "chrome://", 9) || !strncmp(s, "resource://", 11) ||
+                  !strncmp(s, "about:", 6);
+      if (!ours) return NS_OK;
+    }
+    // nsIConsoleMessage::message is `wstring`, not AString — it hands back a malloc'd
+    // char16_t* the caller owns (unlike nsIScriptError::sourceName, which is AString).
+    char16_t* raw = nullptr;
+    aMessage->GetMessageMoz(&raw);
+    uint32_t line = 0;
+    if (err) err->GetLineNumber(&line);
+    fprintf(stderr, "[jihad-bs] js-console %s:%u %s\n",
+            src8.get() && *src8.get() ? src8.get() : "(no source)", line,
+            raw ? NS_ConvertUTF16toUTF8(nsDependentString(raw)).get() : "");
+    if (raw) NS_Free(raw);
+    return NS_OK;
+  }
+  static bool sAll;
+private:
+  ~JihadConsoleListener() {}
+};
+bool JihadConsoleListener::sAll = false;
+NS_IMPL_ISUPPORTS(JihadConsoleListener, nsIConsoleListener)
+
+static void InstallConsoleListener()
+{
+  const char* e = getenv("JIHAD_JS_CONSOLE");
+  if (e && *e && !strcmp(e, "0")) return;
+  JihadConsoleListener::sAll = (e && !strcmp(e, "all"));
+  nsCOMPtr<nsIConsoleService> cs = do_GetService("@mozilla.org/consoleservice;1");
+  if (!cs) { fprintf(stderr, "[jihad-bs] js-console: no console service\n"); return; }
+  RefPtr<JihadConsoleListener> l = new JihadConsoleListener();
+  cs->RegisterListener(l);
+  fprintf(stderr, "[jihad-bs] js-console bridge on (%s)\n",
+          JihadConsoleListener::sAll ? "ALL sources" : "chrome/resource/about only");
+}
+
+// T-067 (cavekit-input-bridging R6): which widget components does this build actually have?
+//
+// The headless toolkit (build/desktop/patches/0006) registers FIVE widget contracts — app shell,
+// screen manager, transferable, format converter, gfxinfo — and its own comment says "theme,
+// clipboard, idle, … are still TODO". The desktop GTK2 build registers all of them. That is the
+// single structural difference between the configuration where synthesized XUL input works
+// (desktop) and the one where it SIGSEGV'd (device), so the missing set is evidence, not trivia:
+// XUL frames are the heaviest users of nsITheme and the drag service, which is why HTML pages
+// never noticed. Printed once at init, unconditionally, because a device round-trip costs five
+// minutes and this is the cheapest possible way to make the difference visible in the daemon log.
+static void ProbeWidgetComponents()
+{
+  static const char* kContracts[] = {
+    "@mozilla.org/chrome/chrome-native-theme;1",   // nsITheme — every -moz-appearance XUL widget
+    "@mozilla.org/widget/dragservice;1",           // EventStateManager drag-gesture path
+    "@mozilla.org/widget/clipboard;1",
+    "@mozilla.org/widget/lookandfeel;1",
+    "@mozilla.org/widget/idleservice;1",
+    "@mozilla.org/widget/appshell/headless;1",     // present: the control for this probe
+    "@mozilla.org/gfx/screenmanager;1",            // present: the control for this probe
+    nullptr
+  };
+  for (int i = 0; kContracts[i]; ++i) {
+    nsCOMPtr<nsISupports> s = do_GetService(kContracts[i]);
+    fprintf(stderr, "[jihad-bs] widget-probe %-46s %s\n", kContracts[i], s ? "PRESENT" : "ABSENT");
+  }
+}
+
 // ── startup breadcrumbs ─────────────────────────────────────────────────────
 // The TouchPad has no debugger and no core dumps: when the daemon dies during
 // engine bring-up, the ONLY evidence is what reached the log before it went. A
@@ -628,6 +722,8 @@ EngineHost::Init(const char* greDir)
       fprintf(stderr, "[jihad-bs] WARNING: could not register the app-info service — "
                       "the add-on manager will fail and may take the process with it\n");
     ProbeAppInfo("late-backstop");
+    ProbeWidgetComponents();   // T-067/R6 — see the comment on the function
+    InstallConsoleListener();  // T-067/R6 — chrome JS errors were being discarded entirely
     // ── announce the profile ────────────────────────────────────────────────
     // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:
     // nsXREDirProvider::GetFile short-circuits EVERY profile key with

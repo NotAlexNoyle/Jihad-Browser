@@ -30,7 +30,12 @@ AUDIT="$HERE/device-citizen-audit.sh"
 
 # Identity table — MUST match context/plans/plan-variant-identity.md. Kept as parallel lookups
 # rather than an array-of-structs because this has to run under both bash and scrutiny.
-appid()   { case "$1" in enyo) echo net.riverstonerelay.jihad-browser;; mochi) echo net.riverstonerelay.jihad-browser.mochi;; mojo) echo net.riverstonerelay.jihad-browser.mojo;; *) return 1;; esac; }
+#
+# The suffixed app ids are HYPHENATED, never dotted — with a dot they were ipkg dot-CHILDREN of
+# the Enyo id, and `ipkg remove <enyo>` globs <pkgid>.* and so deleted THIS harness's Mochi/Mojo
+# packages' control/list/prerm along with it. That is exactly the R7 failure this matrix hunts
+# for, arriving from the package manager (../../context/impl/impl-ipkg-prefix-collision.md).
+appid()   { case "$1" in enyo) echo net.riverstonerelay.jihad-browser;; mochi) echo net.riverstonerelay.jihad-browser-mochi;; mojo) echo net.riverstonerelay.jihad-browser-mojo;; *) return 1;; esac; }
 yapname() { case "$1" in enyo) echo jihad-browser;;                    mochi) echo jihad-browser-mochi;;                    mojo) echo jihad-browser-mojo;;                    *) return 1;; esac; }
 job()     { case "$1" in enyo) echo jihad;;                            mochi) echo jihad-mochi;;                            mojo) echo jihad-mojo;;                            *) return 1;; esac; }
 shim()    { case "$1" in enyo) echo BrowserAdapterJihad.so;;           mochi) echo BrowserAdapterJihadMochi.so;;            mojo) echo BrowserAdapterJihadMojo.so;;            *) return 1;; esac; }
@@ -137,8 +142,14 @@ do_check() {
 	# F-10 — USER data, webOS's own convention, see the R8 carve-out criterion in
 	# cavekit-device-build.md). Those files carry the user's names, not ours, and install/removal
 	# never writes there at all. Anything Jihad-named on this volume is still a violation.
+	# Exclude /media/internal/.photosApp/ — webOS's OWN card-thumbnail cache. The card system
+	# writes appGridThumbnail-<id>-jihad-browser_<date>.png there whenever our app card is
+	# displayed, so an `-iname '*jihad*'` sweep matches ~8 OS-authored files and reports a
+	# violation for something the package never wrote. R8 forbids *this package* writing to the
+	# user's volume; the OS caching a picture of our card is not us. (Measured 2026-08-01: the
+	# matched files are root-owned, dated before this session, and survive every install/remove.)
 	local mi
-	mi=$(nc /usr/bin/find /media/internal -iname '*jihad*')
+	mi=$(nc /usr/bin/find /media/internal -iname '*jihad*' -not -path '*/.photosApp/*')
 	if [ -n "$mi" ]; then
 		fail "R8 VIOLATION: jihad-named paths on the user's volume: $(echo "$mi" | tr '\n' ' ')"
 	else

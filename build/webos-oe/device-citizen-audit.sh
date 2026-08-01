@@ -94,8 +94,8 @@ snap() {
 		# — the one thing this file must never be. A leftover tree still shows up as a directory.
 		echo "## --- per-app engine profile + cache trees (dirs only; contents churn) ---"
 		for a in net.riverstonerelay.jihad-browser \
-		         net.riverstonerelay.jihad-browser.mochi \
-		         net.riverstonerelay.jihad-browser.mojo; do
+		         net.riverstonerelay.jihad-browser-mochi \
+		         net.riverstonerelay.jihad-browser-mojo; do
 			for d in profile cache; do
 				nc /usr/bin/find "/media/cryptofs/apps/usr/palm/applications/$a/$d" -type d
 			done

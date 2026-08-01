@@ -48,12 +48,16 @@ exists() { [ -n "$(nc /bin/ls -d "$1")" ]; }
 echo "=== device ==="; novacom -l
 
 echo "=== 0. refuse to run against a configured install (F-11) ==="
+# The app-dir rows carry the CURRENT app ids (the suffixed pair became hyphenated on 2026-08-01 —
+# see context/impl/impl-ipkg-prefix-collision.md). A device still carrying a PRE-RENAME dotted
+# install is not missed: its `/usr/lib/jihad/<variant>/` and `/var/palm/jihad/<variant>/` rows are
+# keyed by the variant TOKEN, which did not change, so the guard still fires for it.
 APPS=/media/cryptofs/apps/usr/palm/applications
 CONFIGURED=""
 for p in \
 	"$APPS/net.riverstonerelay.jihad-browser" \
-	"$APPS/net.riverstonerelay.jihad-browser.mochi" \
-	"$APPS/net.riverstonerelay.jihad-browser.mojo" \
+	"$APPS/net.riverstonerelay.jihad-browser-mochi" \
+	"$APPS/net.riverstonerelay.jihad-browser-mojo" \
 	/usr/lib/jihad/enyo /usr/lib/jihad/mochi /usr/lib/jihad/mojo \
 	/var/palm/jihad/enyo /var/palm/jihad/mochi /var/palm/jihad/mojo
 do

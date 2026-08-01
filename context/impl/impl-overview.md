@@ -46,7 +46,7 @@ P1s and an R8 violation; all nine findings are fixed
 
 The reproducible Open webOS build (build-webos + meta-webos, 2013 "dylan" / bitbake 1.18) is
 **complete**: `oe-env.sh run ". oe-init-build-env && bitbake net.riverstonerelay.jihad-browser
-net.riverstonerelay.jihad-browser.mochi"` cross-compiles the whole stack **from source** into two
+net.riverstonerelay.jihad-browser-mochi"` cross-compiles the whole stack **from source** into two
 self-contained app `.ipk`s (Enyo 39 MB, Mochi 38 MB). Each bundles the engine (libxul) + daemon +
 adapter (shim+impl) + **bundled glibc-2.23** + NSS + GRE via the new `jihad-deviceroot` recipe, with
 a `postinst` that deploys the coexisting daemon/shim/upstart. A **Mojo UI skeleton** (`app-mojo/` +

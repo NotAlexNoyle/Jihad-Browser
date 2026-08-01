@@ -5,6 +5,11 @@
 # MIME, adapter shim, adapter impl, YAP service name, socket and upstart job — nothing is shared
 # with the Enyo or Mojo package (cavekit-device-build.md R7). See jihad-app.inc; every name comes
 # from ../jihad-variants.inc.
+#
+# The filename carries the app id with a HYPHEN, not a dot: PN comes from the filename and
+# jihad-app.inc bb.fatal's unless PN == WEBOS_APP_ID, and the id must not be a dot-child of the
+# Enyo id or ipkg's `<pkgid>.*` removal glob eats this package's metadata when the Enyo package is
+# removed (../../../../context/impl/impl-ipkg-prefix-collision.md).
 
 SUMMARY = "Jihad Browser (standalone Goanna browser, Enyo 2 + Mochi UI)"
 LICENSE = "Apache-2.0 & MPL-2.0"

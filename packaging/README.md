@@ -23,7 +23,7 @@ name table is `context/plans/plan-variant-identity.md`.
 | | **Enyo 1.0** | **Enyo 2 / Mochi** | **Mojo** | Stock (untouched) |
 |---|---|---|---|---|
 | variant token | `enyo` | `mochi` | `mojo` | — |
-| app id | `net.riverstonerelay.jihad-browser` | `…jihad-browser.mochi` | `…jihad-browser.mojo` | — |
+| app id | `net.riverstonerelay.jihad-browser` | `…jihad-browser-mochi` | `…jihad-browser-mojo` | — |
 | NPAPI MIME | `application/x-jihad-browser` | `application/x-jihad-browser-mochi` | `application/x-jihad-browser-mojo` | `application/x-palm-browser` |
 | adapter shim | `BrowserAdapterJihad.so` | `BrowserAdapterJihadMochi.so` | `BrowserAdapterJihadMojo.so` | `BrowserAdapter.so` |
 | YAP name | `jihad-browser` | `jihad-browser-mochi` | `jihad-browser-mojo` | `browser` |
@@ -31,6 +31,14 @@ name table is `context/plans/plan-variant-identity.md`.
 | upstart job | `/etc/event.d/jihad` | `/etc/event.d/jihad-mochi` | `/etc/event.d/jihad-mojo` | `browserserver` |
 
 `$APP` below = `/media/cryptofs/apps/usr/palm/applications/<app id>`.
+
+**The suffixed app ids use a HYPHEN, never a dot.** `ipkg` keeps package metadata as
+`info/<pkgid>.{control,list,prerm}` and removes a package by globbing `<pkgid>.*` — which also
+matches `<pkgid>.child.control`. Dotted ids made Mochi and Mojo *dot-children* of the Enyo
+package, so removing Enyo deleted their control scripts and file lists outright: they became
+un-uninstallable and their shim, impl and upstart job permanent residue (P1 against R7 and R8).
+Proven on-device 2026-08-01 with a dot pair and a hyphen pair —
+`../context/impl/impl-ipkg-prefix-collision.md`. Any future variant id follows the same rule.
 
 ## Install footprint — exactly what each package puts OUTSIDE its own app directory
 
@@ -54,7 +62,7 @@ both scripts declare the same set at the top of the file.
 | `/var/palm/jihad/` | yes (`mkdir -p`), root:root 0755 | `rmdir` only — succeeds only when the last variant is gone |
 | `/tmp/yapserver.jihad-browser` | created by the daemon at runtime | yes (exact path) |
 
-### Enyo 2 / Mochi — `net.riverstonerelay.jihad-browser.mochi`
+### Enyo 2 / Mochi — `net.riverstonerelay.jihad-browser-mochi`
 
 | Path | Created by `postinst` | Removed by `prerm` |
 |---|---|---|
@@ -69,7 +77,7 @@ both scripts declare the same set at the top of the file.
 | `/var/palm/jihad/` | yes (`mkdir -p`), root:root 0755 | `rmdir` only |
 | `/tmp/yapserver.jihad-browser-mochi` | created by the daemon at runtime | yes (exact path) |
 
-### Mojo — `net.riverstonerelay.jihad-browser.mojo`
+### Mojo — `net.riverstonerelay.jihad-browser-mojo`
 
 | Path | Created by `postinst` | Removed by `prerm` |
 |---|---|---|
@@ -158,12 +166,12 @@ the appinstaller from that package's own `db/{kinds,permissions}/`:
 | Variant | Kinds | Declared in |
 |---|---|---|
 | Enyo 1.0 | `net.riverstonerelay.jihad-browser.{history,bookmarks,preferences}:1` | `app/db/` |
-| Mochi | `net.riverstonerelay.jihad-browser.mochi.{history,bookmarks,preferences}:1` | `app-mochi/db/` |
+| Mochi | `net.riverstonerelay.jihad-browser-mochi.{history,bookmarks,preferences}:1` | `app-mochi/db/` |
 | Mojo | *none* — ships no history/bookmarks/preferences UI and makes no `com.palm.db` call | — |
 
 They used to be **co-owned** (review F-1): all three kinds were declared in the Enyo package with
 `owner: net.riverstonerelay.jihad-browser`, and `app/db/permissions/*` merely granted the
-`.mochi`/`.mojo` app ids CRUD on them. Installing Mochi alone therefore registered no kinds at
+Mochi/Mojo app ids CRUD on them. Installing Mochi alone therefore registered no kinds at
 all and its whole data layer failed; removing the Enyo package destroyed Mochi's data with it —
 a direct R7 violation. A db8 kind's `owner` must equal the app id that registers it, so
 independence means **separate namespaces, not broader grants**. There are deliberately no

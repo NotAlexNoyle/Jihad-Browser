@@ -71,6 +71,17 @@ inline void CrashHex(unsigned long v) {
   CrashPuts(buf);
 }
 
+// Small decimal, for frame indices — a hex frame number is just noise in a log
+// that a human has to read back out of a device console.
+inline void CrashDec(unsigned v) {
+  char buf[12];
+  int i = (int)sizeof buf - 1;
+  buf[i] = '\0';
+  if (!v) buf[--i] = '0';
+  while (v && i > 0) { buf[--i] = (char)('0' + (v % 10)); v /= 10; }
+  CrashPuts(&buf[i]);
+}
+
 // Only the mappings that can host code we care about, so the report stays short
 // enough to paste back out of a device log.
 inline void CrashDumpMaps() {
@@ -99,7 +110,7 @@ inline _Unwind_Reason_Code CrashBtFrame(struct _Unwind_Context* ctx, void* arg) 
   _Unwind_Ptr ip = _Unwind_GetIP(ctx);
   if (ip) {
     CrashPuts("[jihad-bs]   #");
-    CrashHex(st->n);
+    CrashDec(st->n);
     CrashPuts(" ");
     CrashHex((unsigned long)ip);
     CrashPuts("\n");

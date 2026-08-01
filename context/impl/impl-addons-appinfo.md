@@ -99,7 +99,23 @@ app identity — the UA is composed from the macros so the product token cannot 
   `b78d29eeee77019ad74d1f6596efa1c9`): `addons.manager` error count 0 (was 1 every run), and
   `appinfo: registered early (before app-startup JS)` proves the directory-provider hook wins the
   race on hardware too. Desktop: ROUND-TRIP PASS, exit 0.
-- **The device crash PERSISTS.** The daemon still dies ~2 s into `XRE_NotifyProfile` — no
+- **THE DEVICE CRASH ROOT CAUSE: `$HOME` was unset.** Found 2026-08-01 after the appinfo fix, using
+  the crash reporter below. UXP dereferences `$HOME` unguarded —
+  `nsDependentCString(PR_GetEnv("HOME"))` in `xpcom/io/SpecialSystemDirectory.cpp:189`
+  (`GetUnixHomeDir`) and `xpcom/io/nsAppFileLocationProvider.cpp:318` — so an unset HOME is
+  `strlen(NULL)` and an instant SIGSEGV at address 0. An **upstart job inherits init's environment,
+  which on webOS 3 has no HOME**, while the container harness always passes `-e HOME=…` — which is
+  the entire reason this failed 100% on device and never once on desktop.
+  **It is NOT `gAppData`** and not an add-on defect: the add-on startup path was merely the first
+  code to ask for a HOME-derived directory. Fixed in `Main.cpp` with `setenv("HOME", <state dir>, 0)`
+  (covers every launch path, never overwrites a deliberate HOME) and again on the upstart job's
+  `exec env` line. Pointing HOME at the variant's state dir keeps anything Gecko writes under `$HOME`
+  inside the footprint that variant's `prerm` removes (R8).
+  **Proven on the host, not just argued**: with `env -u HOME` the pre-fix daemon dies exit 139,
+  `faultaddr=0x0`, at the identical last breadcrumb (`init: XRE_NotifyProfile`) as the device; the
+  fixed daemon logs `HOME was unset — set to …` and reaches `engine up; serving YAP`.
+
+- **The appinfo fix was a co-symptom, and saying so matters.** The daemon still dies ~2 s into `XRE_NotifyProfile` — no
   `XRE_NotifyProfile returned`, no `engine up`, no socket. So the missing identity was a real
   defect and a **co-symptom**, not the cause: with valid appinfo the add-on manager gets FURTHER
   into startup and hits a second, distinct failure. `$APP/profile/extensions` is never created, so

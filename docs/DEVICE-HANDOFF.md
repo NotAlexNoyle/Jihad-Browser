@@ -1,5 +1,38 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+> ## 2026-08-02 — CURRENT STATE, read before starting
+>
+> **The browser works on device.** UXP/Goanna renders real pages end to end (card → NPAPI adapter →
+> YAP → BrowserServer → page → pixels). `about:addons` and `about:plugins` both open.
+>
+> **Screenshots: capture `/dev/fb1` (app layer), NOT `/dev/fb0`.** fb0 carries the status bar, app
+> chrome and system alerts, so an fb0 capture shows chrome over a blank content area and reads as
+> "rendering is broken" when it is fine. Wake the display first or every buffer reads black.
+>
+> **Dev loop for app JS: `novacom put` + `killall LunaSysMgr` + `palm-launch`** (~10 s). WebAppMgr
+> caches app sources in-process, so a relaunch alone runs the OLD script. Do NOT use `palm-install`
+> to iterate — it hung twice on a 44 MB ipk, and two concurrent runs race on the same app directory.
+> See context/impl/impl-stale-app-js.md.
+>
+> **Open, in priority order:**
+> 1. `about:addons` icons — context/impl/impl-addons-icons-open.md has everything already ruled out
+>    (files, registration, CSS, decoding, chrome access, XUL image painting, sync decode, the repaint
+>    loop) and the one live clue. Read it first; do not re-derive.
+> 2. Only the **enyo** variant is deployed — mochi and mojo are shells with no libxul and no adapter,
+>    so R7 independence has never been tested with three variants live
+>    (context/impl/impl-variant-deploy-state.md).
+> 3. R3 needs a daemon `amIWebInstallPrompt`; R7 needs headless windowless NPAPI, which does not
+>    exist in a cairo-headless build and must be ported (context/impl/impl-r8-palemoon-basilisk.md).
+> 4. F-9 and the `holdAt` coordinate fix need a **physical tap** to confirm — the touchscreen is not
+>    an evdev device, so no tap can be injected by software.
+>
+> **Two verification lessons from this session.** `build-goanna-arm.sh` reported success after
+> `mach configure` failed, so a change was believed built when it was not (now fixed with explicit
+> per-stage checks plus an artifact-freshness assertion). And a delegated fix was reported verified
+> but did not reproduce when measured against the daemon's own frame. Believe the artifact, not the
+> exit status or the report.
+
+
 ## 2026-08-01 — DAEMON RUNS FROM A COLD BOOT; CARD→ADAPTER IS THE OPEN THREAD (READ FIRST)
 
 **Where it stands.** After a reboot, upstart auto-starts the variant's daemon from the app's own

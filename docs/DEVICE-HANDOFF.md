@@ -1,5 +1,24 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+> ## 2026-08-02 (LATER SESSION) — READ FIRST; supersedes much of the block below
+>
+> **Scroll pan headroom FIXED + device-verified** (overscan paint, Opus-adversarial-reviewed,
+> all 3 blockers fixed pre-deploy): `context/impl/impl-scroll-overscan-2026-08-02.md`. User:
+> "scrolling is now more reliable." Long-press root-caused live: daemon `asyncCmdHitTest` was
+> a stub (the adapter GATES mousehold on that round-trip) + input coords were DOC space
+> dispatched as VIEWPORT space — both fixed, deployed, awaiting user confirm.
+>
+> **ALL THREE VARIANTS ARE LIVE** (mochi re-deployed, mojo first run — `push-variant.sh`
+> md5-verified tarball + real postinst over novacom; `push-engine-update.sh` for fast engine
+> swaps). Cold boot: three daemons auto-start on their own sockets, ~27 MB RSS each idle,
+> R7 `check` 24/24 PASS, `/media/internal` clean. Device REBOOTED so all shims are
+> registered — mochi/mojo cards have NOT yet been launched (next R7 step: launch each card,
+> confirm it reaches only its own daemon).
+>
+> Start-page centring fixed (flex; verified VKB-up on fb1). XPI install prompt authored but
+> deliberately UNWIRED (no manifest) until the card confirm-reply path is verified.
+> Popup (menupopup) instrumentation is in the UXP tree, NOT yet in a shipped libxul.
+
 > ## 2026-08-02 — CURRENT STATE, read before starting
 >
 > **The browser works on device.** UXP/Goanna renders real pages end to end (card → NPAPI adapter →

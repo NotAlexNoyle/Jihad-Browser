@@ -144,6 +144,20 @@ public:
   void queueInput(int type, int x, int y, int detail);
   void touchEvent(int type, int touchCount, int modifiers, const char* touchesJson);
   void holdAt(int x, int y);                       // YAP: holdAt (long-press)
+  // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
+  // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
+  void hitTest(int x, int y, std::string* json);
+
+ private:
+  // Map the adapter's DOCUMENT coords (m_penDownDoc, zoomed px) to the VIEWPORT-relative
+  // CSS px the engine dispatch expects (SendMouseEvent / ElementFromPoint). Measured on
+  // device 2026-08-02: a long-press at doc(388,1488) with the engine scrolled to y=909
+  // reached the page at client y=1488 (should be 579) — every below-the-fold press
+  // resolved a screenful low. The earlier "no mapping" pass fixed the old double-ADD of
+  // scroll but overshot to zero mapping.
+  void docToViewport(int* x, int* y);
+
+ public:
   void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
   void dragStart(int x, int y);                    // YAP: dragStart
   void dragProcess(int deltaX, int deltaY);        // YAP: dragProcess (scroll)
@@ -250,6 +264,13 @@ private:
   // sends setScrollPosition, so a repaint mid-fling ships a buffer whose origin disagrees with
   // where the adapter has already panned -> content appears to jump and regions blank out.
   long               mLastScrollMs;
+  long               mPrevPaintScrollY = 0;  // pan direction for the overscan bias (paint path)
+  // Last painted region (zoomed px + its zoom) — coverage-aware repaint: a scroll whose
+  // viewport is still well inside this region needs NO repaint (the adapter pans locally).
+  int                mPaintedX = 0;
+  long               mPaintedLo = 0, mPaintedHi = 0;
+  double             mPaintedZoom = 1.0;
+  long               mLastPaintDoneMs = 0;    // pan-cadence refresh (fixed-content drift bound)
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

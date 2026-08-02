@@ -38,6 +38,9 @@
 #include "nsIScriptError.h"
 #include "nsIURI.h"
 #include "nsISupportsImpl.h"         // NS_IMPL_ISUPPORTS
+#ifndef JIHAD_OFFSCREEN_ONLY
+#include <gdk/gdk.h>                 // gdk_display_get_default (widget-probe display guard)
+#endif
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
@@ -714,6 +717,21 @@ static void InstallConsoleListener()
 // minutes and this is the cheapest possible way to make the difference visible in the daemon log.
 static void ProbeWidgetComponents()
 {
+#ifndef JIHAD_OFFSCREEN_ONLY
+  // Desktop GTK2 build with NO X server: getting the drag-service/clipboard
+  // contracts CONSTRUCTS GTK widgets against a null display → gdk_window_new
+  // assertion → SIGSEGV (found 2026-08-02: the no-X round-trip had not run since
+  // this probe landed in T-067). The probe is diagnostics, not a dependency —
+  // skip it rather than crash the daemon it exists to diagnose. The device
+  // (JIHAD_OFFSCREEN_ONLY, headless toolkit) has no GTK and probes safely.
+  // Checked on the OPENED display, not just $DISPLAY (review F15): DISPLAY=:99
+  // with no Xvfb behind it crashes identically.
+  const char* disp = getenv("DISPLAY");
+  if (!disp || !*disp || !gdk_display_get_default()) {
+    fprintf(stderr, "[jihad-bs] widget-probe skipped (GTK build, no usable display)\n");
+    return;
+  }
+#endif
   static const char* kContracts[] = {
     "@mozilla.org/chrome/chrome-native-theme;1",   // nsITheme — every -moz-appearance XUL widget
     "@mozilla.org/widget/dragservice;1",           // EventStateManager drag-gesture path

@@ -1,10 +1,5 @@
-PuppetWidget offscreen render: JihadRenderDocument (RenderDocument into mDrawTarget), null-TabChild guards, RENDER_CARET, sticky dirty flag (drains the CHILD widget chain — the view hierarchy invalidates a child PuppetWidget, not the daemon-polled top-level; an un-drained child made the dirty loop inert and post-load changes, e.g. the about:addons icons, never repainted), and pinch/fit ZOOM + document-relative visual-viewport pan (see context/impl/zoom-fix-2026-07-27.md).
-
-Generated as a clean diff against UXP upstream  (Pale Moon); applies
-independently (distinct files) to the pristine third_party/uxp submodule.
-
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 0294193adf..f6db93a6c8 100644
+index 0294193adf..8a8389393e 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -21,6 +21,13 @@
@@ -21,7 +16,40 @@ index 0294193adf..f6db93a6c8 100644
  
  using namespace mozilla;
  using namespace mozilla::dom;
-@@ -231,6 +238,10 @@ PuppetWidget::Resize(double aWidth,
+@@ -114,6 +121,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+   mEnabled = true;
+   mVisible = true;
+ 
++  // JIHAD popup instrumentation (menupopup investigation 2026-08-02): today popup
++  // widget creation logs NOTHING, so "no popup created" and "popup created but
++  // painted nowhere" are indistinguishable — exactly the ambiguity that burned the
++  // holdAt and icon investigations. One line per widget creation, offscreen only.
++  if (getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-widget] create type=%d popup=%d hint=%d parent=%p bounds=%d,%d %dx%d\n",
++            aInitData ? (int)aInitData->mWindowType : -1,
++            (int)IsPopup(aInitData),
++            aInitData ? (int)aInitData->mPopupHint : -1,
++            (void*)aParent, aRect.x, aRect.y, aRect.width, aRect.height);
++  }
++
+   mDrawTarget = gfxPlatform::GetPlatform()->
+     CreateOffscreenContentDrawTarget(IntSize(1, 1), SurfaceFormat::B8G8R8A8);
+ 
+@@ -201,6 +220,13 @@ PuppetWidget::Show(bool aState)
+   bool wasVisible = mVisible;
+   mVisible = aState;
+ 
++  // JIHAD popup instrumentation: a popup that opens/closes flips its widget's
++  // visibility — the cheapest reliable "did the menu actually open" signal.
++  if (mWindowType == eWindowType_popup && getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-widget] popup show=%d widget=%p bounds=%d,%d %dx%d\n",
++            (int)aState, (void*)this, mBounds.x, mBounds.y, mBounds.width, mBounds.height);
++  }
++
+   if (mChild) {
+     mChild->mVisible = aState;
+   }
+@@ -231,6 +257,10 @@ PuppetWidget::Resize(double aWidth,
    mBounds.SizeTo(LayoutDeviceIntSize(NSToIntRound(aWidth),
                                       NSToIntRound(aHeight)));
  
@@ -32,7 +60,7 @@ index 0294193adf..f6db93a6c8 100644
    if (mChild) {
      return mChild->Resize(aWidth, aHeight, aRepaint);
    }
-@@ -300,6 +311,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
+@@ -300,6 +330,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
      return mChild->Invalidate(aRect);
    }
  
@@ -43,7 +71,7 @@ index 0294193adf..f6db93a6c8 100644
    mDirtyRegion.Or(mDirtyRegion, aRect);
  
    if (!mDirtyRegion.IsEmpty() && !mPaintTask.IsPending()) {
-@@ -335,7 +350,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
+@@ -335,7 +369,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
    AutoCacheNativeKeyCommands autoCache(this);
    if (event->mFlags.mIsSynthesizedForTests && !mNativeKeyCommandsValid) {
      WidgetKeyboardEvent* keyEvent = event->AsKeyboardEvent();
@@ -57,7 +85,7 @@ index 0294193adf..f6db93a6c8 100644
        mTabChild->RequestNativeKeyBindings(&autoCache, keyEvent);
      }
    }
-@@ -583,7 +603,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -583,7 +622,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
                                LayerManagerPersistence aPersistence)
  {
    if (!mLayerManager) {
@@ -72,7 +100,7 @@ index 0294193adf..f6db93a6c8 100644
    }
    ShadowLayerForwarder* lf = mLayerManager->AsShadowForwarder();
    if (lf && !lf->HasShadowManager() && aShadowManager) {
-@@ -602,6 +628,274 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
+@@ -602,6 +647,343 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
    return mLayerManager;
  }
  
@@ -305,6 +333,75 @@ index 0294193adf..f6db93a6c8 100644
 +  return true;
 +}
 +
++// Render an ABSOLUTE document region straight into caller-owned memory (the
++// daemon's shared buffer). Unlike jihad_offscreen_render_document_v2 this is not
++// bounded by the widget's DrawTarget size, so the daemon can paint a region
++// TALLER than the viewport (viewport + overscan) and give the adapter real pan
++// headroom (scroll pan headroom fix 2026-08-02: painting exactly the viewport
++// left zero headroom, so one pixel of pan exposed undrawn grey).
++// aDocX/aDocY are CSS px (document-absolute); the region is aWidth x aHeight
++// DEVICE px rendered at aZoom, i.e. it covers aWidth/Z x aHeight/Z CSS px.
++// Always RENDER_DOCUMENT_RELATIVE + RENDER_IGNORE_VIEWPORT_SCROLLING: the engine
++// scroll does not shift the output, and position:fixed content is NOT placed at
++// the current scroll — at z~1 the daemon overlays a viewport-relative band
++// (render_document_v2 + readback) over the visible rows to keep fixed/sticky
++// correct on screen; the overscan strips only ever show transiently mid-pan.
++MOZ_EXPORT bool
++jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, double aZoom,
++                              double aDocX, double aDocY, void* aDest, int aStride,
++                              int aWidth, int aHeight)
++{
++  if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return false;
++  }
++  nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++  if (!presShell) {
++    return false;
++  }
++  presShell->FlushPendingNotifications(Flush_Layout);
++  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++  if (!dt || !dt->IsValid()) {
++    return false;
++  }
++  // Opaque white base: RenderDocument's over-op on an opaque base keeps alpha at
++  // 255 everywhere, which the adapter's raw-word blit requires (no post-pass
++  // alpha forcing on this path — the pixels land directly in the shared buffer).
++  dt->FillRect(mozilla::gfx::Rect(0, 0, aWidth, aHeight),
++               mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
++  RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++  if (!ctx) {
++    return false;
++  }
++  double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  ctx->SetMatrix(ctx->CurrentMatrix().Scale(Z, Z));
++  uint32_t flags = nsIPresShell::RENDER_CARET |
++                   nsIPresShell::RENDER_IGNORE_VIEWPORT_SCROLLING |
++                   nsIPresShell::RENDER_DOCUMENT_RELATIVE;
++  nsRect r(nsPresContext::CSSPixelsToAppUnits((float)aDocX),
++           nsPresContext::CSSPixelsToAppUnits((float)aDocY),
++           nsPresContext::CSSPixelsToAppUnits((float)(aWidth / Z)),
++           nsPresContext::CSSPixelsToAppUnits((float)(aHeight / Z)));
++  nsresult rv = presShell->RenderDocument(r, flags, NS_RGB(255, 255, 255), ctx);
++  if (NS_FAILED(rv)) {
++    return false;
++  }
++  // ENFORCE alpha == 255 over every pixel (adversarial review 2026-08-02 F3): the
++  // adapter raw-blits these words into the card surface, so any a<255 pixel is a
++  // see-through hole. The opaque-white base + OP_OVER argument holds on the paths
++  // we traced, but it is an engine-internal invariant across the whole display
++  // list — enforce it here rather than trust it (a few ms of byte stores).
++  dt->Flush();
++  for (int y = 0; y < aHeight; ++y) {
++    unsigned char* row = static_cast<unsigned char*>(aDest) + (size_t)y * aStride;
++    for (int x = 0; x < aWidth; ++x) {
++      row[(size_t)x * 4 + 3] = 0xff;
++    }
++  }
++  return true;
++}
++
 +MOZ_EXPORT void
 +jihad_offscreen_release(nsIWidget* aWidget)
 +{
@@ -347,7 +444,7 @@ index 0294193adf..f6db93a6c8 100644
  nsresult
  PuppetWidget::RequestIMEToCommitComposition(bool aCancel)
  {
-@@ -1086,13 +1380,25 @@ PuppetWidget::Paint()
+@@ -1086,13 +1468,25 @@ PuppetWidget::Paint()
          mTabChild->NotifyPainted();
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
@@ -375,7 +472,7 @@ index 0294193adf..f6db93a6c8 100644
        AutoLayerManagerSetup setupLayerManager(this, ctx,
                                                BufferMode::BUFFER_NONE);
        GetCurrentWidgetListener()->PaintWindow(this, region);
-@@ -1349,6 +1655,16 @@ NS_IMETHODIMP
+@@ -1349,6 +1743,16 @@ NS_IMETHODIMP
  PuppetScreen::GetRect(int32_t *outLeft,  int32_t *outTop,
                        int32_t *outWidth, int32_t *outHeight)
  {
@@ -392,7 +489,7 @@ index 0294193adf..f6db93a6c8 100644
    nsIntRect r = ScreenConfig().rect();
    *outLeft = r.x;
    *outTop = r.y;
-@@ -1367,6 +1683,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
+@@ -1367,6 +1771,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
  NS_IMETHODIMP
  PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  {
@@ -404,7 +501,7 @@ index 0294193adf..f6db93a6c8 100644
    *aPixelDepth = ScreenConfig().pixelDepth();
    return NS_OK;
  }
-@@ -1374,6 +1695,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
+@@ -1374,6 +1783,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  NS_IMETHODIMP
  PuppetScreen::GetColorDepth(int32_t *aColorDepth)
  {

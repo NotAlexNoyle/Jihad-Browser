@@ -59,6 +59,7 @@
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
 #include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
+#include "nsIDOMHTMLImageElement.h"  // hit-test: <img> src/alt for the adapter's HitTest JSON
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
 #include <cctype>                    // toupper/tolower for editable tag/type checks
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
@@ -75,6 +76,8 @@
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
 #include "nsServiceManagerUtils.h"
+#include "nsIScriptSecurityManager.h" // DebugRunChromeJs: system principal for javascript: probes
+#include "nsIPrincipal.h"
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 
 namespace jihad {
@@ -334,6 +337,13 @@ extern "C" {
   bool jihad_init_nss();   // force PSM/NSS init on the main thread (internal libxul code)
   bool jihad_offscreen_render_document_v2(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
                                           double aPanX, double aPanY);
+  // WEAK: on a pre-overscan libxul the symbol is absent and RenderRegion degrades to the
+  // viewport-exact paint (the caller's fallback) instead of failing the daemon at load.
+  // New-symbol-weak is safe (no signature change on an existing symbol — the F1 ABI lesson
+  // applies to CHANGED signatures, which still get a rename).
+  bool jihad_offscreen_render_region(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
+                                     double aDocX, double aDocY, void* aDest, int aStride,
+                                     int aWidth, int aHeight) __attribute__((weak));
   bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
                                 int aWidth, int aHeight);
   void jihad_offscreen_release(nsIWidget* aWidget);
@@ -342,6 +352,10 @@ extern "C" {
   // to the input/load-driven behavior instead of failing to start).
   bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
 }
+
+// DEBUG ONLY: last-created page, target of DebugRunChromeJs (single-page embedding;
+// the inject channel that calls it is compile-gated and off by default).
+static GoannaRenderPage* sDebugLastPage = nullptr;
 
 GoannaRenderPage::GoannaRenderPage(EngineHost& host)
   : mHost(host), mChrome(nullptr), mWindow(nullptr), mWidget(nullptr),
@@ -378,6 +392,7 @@ GoannaRenderPage::~GoannaRenderPage() {
   if (mWindow) { gtk_widget_destroy(mWindow); mWindow = nullptr; }
 #endif
   if (mWidget) { jihad_offscreen_release(mWidget); mWidget = nullptr; }
+  if (sDebugLastPage == this) sDebugLastPage = nullptr;
 }
 
 bool GoannaRenderPage::Create(int width, int height) {
@@ -426,7 +441,39 @@ bool GoannaRenderPage::Create(int width, int height) {
   wb->AddWebBrowserListener(weak, NS_GET_IID(nsIWebProgressListener));
 
   mChrome = chrome.forget().take();   // GoannaRenderPage keeps a strong ref
+  sDebugLastPage = this;              // DEBUG: DebugRunChromeJs target (inject channel)
   return true;
+}
+
+nsIWebBrowser* GoannaRenderPage::DebugWebBrowser() const {
+  return mChrome ? mChrome->mBrowser.get() : nullptr;
+}
+
+// DEBUG ONLY — see the header comment. javascript: URL with the SYSTEM principal so it
+// executes inside privileged chrome documents. LoadURIWithOptions is the only frozen-API
+// entry that accepts a triggering principal; a void() expression does not navigate.
+bool DebugRunChromeJs(const char* jsUrl) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !jsUrl) return false;
+  nsIWebBrowser* wb = page->DebugWebBrowser();
+  if (!wb) return false;
+  nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(wb);
+  if (!nav) return false;
+  nsCOMPtr<nsIScriptSecurityManager> ssm =
+    do_GetService("@mozilla.org/scriptsecuritymanager;1");
+  if (!ssm) return false;
+  nsCOMPtr<nsIPrincipal> system;
+  if (NS_FAILED(ssm->GetSystemPrincipal(getter_AddRefs(system))) || !system) return false;
+  NS_ConvertUTF8toUTF16 u(jsUrl);
+  return NS_SUCCEEDED(nav->LoadURIWithOptions(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE,
+                                              nullptr, 0, nullptr, nullptr, nullptr,
+                                              system));
+}
+
+// DEBUG ONLY — see the header comment.
+std::string DebugGetTitle() {
+  GoannaRenderPage* page = sDebugLastPage;
+  return page ? page->GetTitle() : std::string();
 }
 
 // Forward declarations (defined below) so Resize/SetZoom can resolve the content docShell.
@@ -931,12 +978,12 @@ bool GoannaRenderPage::HasFocusedEditable() const {
   return mChrome && mChrome->mFocusedEditable;
 }
 
-bool GoannaRenderPage::GetScrollXY(int* x, int* y) {
+bool GoannaRenderPage::GetScrollXY(int* x, int* y, bool flushLayout) {
   if (!mChrome) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
   int32_t sx = 0, sy = 0;
-  if (NS_FAILED(u->GetScrollXY(/*flushLayout*/true, &sx, &sy))) return false;
+  if (NS_FAILED(u->GetScrollXY(flushLayout, &sx, &sy))) return false;
   if (x) *x = sx; if (y) *y = sy;
   return true;
 }
@@ -2133,6 +2180,84 @@ void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
   if (!mChrome) return;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (ds) ds->SetAllowJavascript(enabled);
+}
+
+// JSON string escape for the HitTest reply (quotes, backslash, control chars). The values
+// are page-controlled (href/alt/text), so this is load-bearing, not cosmetic.
+static void jihadJsonEscape(const nsAString& in, std::string* out, size_t maxLen) {
+  NS_ConvertUTF16toUTF8 u8(in);
+  const char* s = u8.get();
+  size_t n = strlen(s);
+  if (n > maxLen) {
+    n = maxLen;
+    // never cut a UTF-8 sequence in half — pbnjson would reject the whole document
+    while (n > 0 && ((unsigned char)s[n] & 0xC0) == 0x80) --n;
+  }
+  for (size_t i = 0; i < n; ++i) {
+    unsigned char c = (unsigned char)s[i];
+    switch (c) {
+      case '"':  out->append("\\\""); break;
+      case '\\': out->append("\\\\"); break;
+      default:
+        if (c < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); out->append(b); }
+        else out->push_back((char)c);
+    }
+  }
+}
+
+void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
+  char head[96];
+  snprintf(head, sizeof head, "{\"isNull\":true,\"x\":%d,\"y\":%d}", x, y);
+  *json = head;                                  // the safe default: nothing at the point
+  if (!mChrome || !mChrome->mBrowser) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return;
+  nsCOMPtr<nsIDOMElement> el;
+  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  if (!el) return;
+  nsAutoString tag; el->GetTagName(tag);
+  // Nearest <a href> / <img> ancestors — the press usually lands on inline content inside
+  // them (same walk as clickAt; depth cap is a cycle guard).
+  nsAutoString href, linkText, imgSrc, imgAlt;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  for (int depth = 0; node && depth < 256; ++depth) {
+    if (href.IsEmpty()) {
+      nsCOMPtr<nsIDOMHTMLAnchorElement> a = do_QueryInterface(node);
+      if (a) { a->GetHref(href); node->GetTextContent(linkText); }
+    }
+    if (imgSrc.IsEmpty()) {
+      nsCOMPtr<nsIDOMHTMLImageElement> im = do_QueryInterface(node);
+      if (im) { im->GetSrc(imgSrc); im->GetAlt(imgAlt); }
+    }
+    if (!href.IsEmpty() && !imgSrc.IsEmpty()) break;
+    nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p;
+  }
+  // Editable: tag-based, same spirit as the clickAt VKB classifier (INPUT/TEXTAREA).
+  bool editable = tag.LowerCaseEqualsLiteral("input") || tag.LowerCaseEqualsLiteral("textarea");
+  std::string t;
+  jihadJsonEscape(tag, &t, 32);
+  char buf[160];
+  snprintf(buf, sizeof buf, "{\"isNull\":false,\"x\":%d,\"y\":%d,\"isLink\":%s,\"isImage\":%s,\"editable\":%s,\"element\":\"",
+           x, y, href.IsEmpty() ? "false" : "true", imgSrc.IsEmpty() ? "false" : "true",
+           editable ? "true" : "false");
+  std::string out(buf);
+  out += t; out += "\"";
+  if (!href.IsEmpty())    { out += ",\"linkUrl\":\"";  jihadJsonEscape(href, &out, 512);    out += "\""; }
+  if (!linkText.IsEmpty()){ out += ",\"linkText\":\""; jihadJsonEscape(linkText, &out, 256); out += "\""; }
+  if (!imgSrc.IsEmpty())  { out += ",\"imageUrl\":\""; jihadJsonEscape(imgSrc, &out, 512);  out += "\""; }
+  if (!imgAlt.IsEmpty())  { out += ",\"altText\":\"";  jihadJsonEscape(imgAlt, &out, 256);  out += "\""; }
+  out += "}";
+  *json = out;
+}
+
+bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h,
+                                    double docX, double docY, double zoom) {
+  if (!mOffscreen || !dst || w <= 0 || h <= 0) return false;
+  if (!jihad_offscreen_render_region) return false;   // old libxul: weak symbol absent
+  if (!mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  return jihad_offscreen_render_region(mWidget, ds, zoom, docX, docY, dst, stride, w, h);
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {

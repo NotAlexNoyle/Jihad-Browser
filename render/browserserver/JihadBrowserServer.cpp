@@ -264,6 +264,16 @@ void JihadBrowserServer::processInjectFile() {
       // rest-of-line (not %s) so data: URLs and query strings with spaces survive
       std::string u2 = c.substr(4); while (!u2.empty() && (u2.back()=='\n'||u2.back()=='\r')) u2.pop_back();
       printf("[jihad-bs] inject url %s\n", u2.c_str()); p->openUrl(u2.c_str());
+    } else if (strncmp(c.c_str(), "jsurl ", 6) == 0) {
+      // DEBUG: run a javascript: URL with the SYSTEM principal (executes inside privileged
+      // chrome documents such as about:addons, where a plain `url javascript:` is refused).
+      // Same gating as the rest of this channel: off unless $JIHAD_INJECT is set.
+      std::string u2 = c.substr(6); while (!u2.empty() && (u2.back()=='\n'||u2.back()=='\r')) u2.pop_back();
+      bool ok = jihad::DebugRunChromeJs(u2.c_str());
+      printf("[jihad-bs] inject jsurl ok=%d (%zu chars)\n", (int)ok, u2.size());
+    } else if (strncmp(c.c_str(), "title", 5) == 0) {
+      // DEBUG: print the current document title (jsurl probe readback).
+      printf("[jihad-bs] inject title=[%s]\n", jihad::DebugGetTitle().c_str());
     } else if (strncmp(c.c_str(), "back", 4) == 0)    { p->pageBackward(); }
     else if (strncmp(c.c_str(), "forward", 7) == 0)   { p->pageForward(); }
     else if (strncmp(c.c_str(), "reload", 6) == 0)    { p->pageReload(); }
@@ -630,7 +640,18 @@ void JihadBrowserServer::asyncCmdSetNetworkInterface(YapProxy* proxy, const char
 
 void JihadBrowserServer::asyncCmdHitTest(YapProxy* proxy, int32_t queryNum, int32_t cx, int32_t cy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  // The long-press is GATED on this round-trip: the adapter queues the mousehold gesture
+  // (mouseHoldTimeoutCb -> asyncCmdHitTest) and only sends asyncCmdHoldAt after
+  // msgHitTestResponse arrives and the card's eventFired handler declines the hit. As a
+  // stub this silently killed EVERY long-press — no holdAt was ever sent (device
+  // 2026-08-02: "holding on the yellow doesn't work"; the daemon log showed nothing
+  // because there was nothing to log). Always reply, even with no page: a lost reply
+  // strands the adapter's gesture queue.
+  std::string json;
+  if (auto* p = pageFor(proxy)) p->hitTest(cx, cy, &json);
+  if (json.empty()) json = "{\"isNull\":true}";
+  fprintf(stderr, "[jihad-bs] hitTest q=%d at %d,%d -> %s\n", queryNum, cx, cy, json.c_str());
+  msgHitTestResponse(proxy, queryNum, json.c_str());
 }
 
 void JihadBrowserServer::asyncCmdSetVirtualWindowSize(YapProxy* proxy, int32_t width, int32_t height)

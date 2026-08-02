@@ -30,7 +30,8 @@ namespace jihad {
 // How long after the last adapter scroll/zoom update an engine-driven repaint is held back. Long
 // enough to cover the gaps between setScrollPosition messages during a fling, short enough that a
 // page which updates itself while the user rests a finger still refreshes promptly.
-static const long kScrollSettleMs = 220;
+// The scroll-settle gate constant is gone with the gate (see maybePaint). mLastScrollMs
+// remains the "a pan is in flight" signal for echo suppression and fling-mode painting.
 
 // A compiled URL redirect rule (POSIX regex &mdash; exception-free, unlike std::regex,
 // which matters under -fno-exceptions).
@@ -317,7 +318,28 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
     mPage->SetRenderPan(0.0, 0.0);
     mPage->ScrollTo((int)(x / z), (int)(y / z));
   }
-  mNeedsPaint = true;
+  // Coverage-aware repaint ("scrolling is still janky... optimize it", device 2026-08-02):
+  // with overscan the last painted region usually already CONTAINS the pan target, and the
+  // 2+-viewport repaint this used to force on every scroll message starved the
+  // single-threaded daemon mid-drag (input, hit-tests and the engine scroll all queue
+  // behind it). Repaint only when the viewport nears the painted region's edge (within
+  // h/4) or leaves it — panning inside the buffer is exactly what the headroom is for.
+  {
+    long h2 = (long)mPage->Height();
+    long slack = h2 / 2;   // trigger EARLY: the repaint takes real time on this CPU and the
+                           // fling keeps consuming rows while it renders ("content doesn't
+                           // stay consistently visible" — h/4 triggered too late)
+    double Zc = (z >= 0.99 && z <= 1.01) ? 1.0 : z;   // the zoom the paint path would use
+    long contentRows = (mLastContentH > 0) ? (long)((double)mLastContentH * Zc) : 0;
+    long loBound = (mPaintedLo <= 0) ? 0 : mPaintedLo + slack;             // page top: no slack
+    long hiBound = (contentRows > 0 && mPaintedHi >= contentRows)
+                       ? mPaintedHi : mPaintedHi - slack;                   // page end: no slack
+    bool covered = mPaintedHi > mPaintedLo &&
+                   x == mPaintedX &&
+                   (mPaintedZoom > Zc - 0.001 && mPaintedZoom < Zc + 0.001) &&
+                   (long)y >= loBound && (long)y + h2 <= hiBound;
+    if (!covered) mNeedsPaint = true;   // covered: keep whatever was already pending
+  }
 }
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
@@ -659,6 +681,33 @@ void BrowserPageGoanna::holdAt(int x, int y) {
   mNeedsPaint = true;
 }
 
+void BrowserPageGoanna::docToViewport(int* x, int* y) {
+  if (!mPage) return;
+  double z = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
+           : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
+  double cx = *x / z, cy = *y / z;              // zoomed doc px -> CSS doc px
+  if (z != 1.0) {
+    // Zoomed: the engine scroll is parked at 0; the visual-viewport pan carries the offset.
+    double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
+    cx -= px; cy -= py;
+  } else {
+    // z~1: the engine scroll carries it. No layout flush in an input path.
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { cx -= ex; cy -= ey; }
+  }
+  *x = (int)(cx + 0.5); *y = (int)(cy + 0.5);
+}
+
+void BrowserPageGoanna::hitTest(int x, int y, std::string* json) {
+  // x,y arrive as DOCUMENT coords (the adapter's m_penDownDoc); the engine query wants
+  // viewport-relative CSS px — same mapping as the input drain. Runs the DOM query inline
+  // (read-only — no event dispatch, no layout mutation), so the reply can be sent from the
+  // YAP callback and the adapter's queued mousehold proceeds without waiting on a tick.
+  if (!mPage) return;
+  docToViewport(&x, &y);
+  mPage->HitTestAt(x, y, json);
+}
+
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
   // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is redirected
   // to a persistent, user-readable file on device (Jihad review F-163).
@@ -819,6 +868,14 @@ bool BrowserPageGoanna::emitGeometry() {
   // it DROPS the live offscreen buffer (-> white card) and resets zoom-fit to 1.0 (-> the 1.0<->0.75
   // flicker). Guarding cw>0 && ch>0 kills the dominant path of BOTH the resize white-out and the
   // zoom oscillation (review #7 P1). Keeps the last good size until a real one arrives.
+  // Never report content NARROWER than the window ("scrolling is janky", device 2026-08-02):
+  // the adapter fit-zooms to mWindow.width/contentWidth, so a 764-wide body in a 768 window
+  // produced mZoomLevel=1.0052 — and at inv=0.9948 EVERY blit is a nearest-neighbour
+  // resample (row dup/skip shimmer, scroll-position rounding jitter, and the whole click
+  // map wobbling by 0.5%). Fit-zoom exists to shrink WIDE desktop layouts; content that
+  // already fits the layout viewport should composite at exactly 1.0 (identity blit). The
+  // reported height is unchanged — only the width is floored at the window width.
+  if (got && cw > 0 && cw < mPage->Width()) cw = mPage->Width();
   if (got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)) {
     mLastContentW = cw; mLastContentH = ch;
     mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
@@ -840,7 +897,22 @@ void BrowserPageGoanna::emitScrollIfChanged() {
   if (mPage->GetScrollXY(&sx, &sy) &&
       (sx != mLastScrollX || sy != mLastScrollY)) {
     mLastScrollX = sx; mLastScrollY = sy;
-    mSink.msgScrolledTo(sx, sy);          // R4: scrolled-to
+    // Echo suppression ("scrolling is janky and skips around", device 2026-08-02): the
+    // adapter's msgScrolledTo handler OVERWRITES its own pan position
+    // (BrowserAdapter.cpp:4218 — mScrollPos + mScroller->scrollTo), and our engine scroll
+    // CONVERGES on the adapter's setScrollPosition target 100-300 ms late (async
+    // javascript: + pump cadence). Echoing that convergence yanked the view backwards to
+    // where the finger was a beat ago, every beat. Only a scroll the PAGE initiated
+    // (anchor jump, JS scrollTo, focus scroll) may drive the adapter — recognized as the
+    // engine landing somewhere that is NOT near the adapter's own recent target. "Near"
+    // is half a viewport: convergence chatter is always inside that; a real anchor jump
+    // on any page worth jumping is not.
+    double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+    long dy = (long)sy - (long)((double)mAdapterScrollY / z); if (dy < 0) dy = -dy;
+    long dx = (long)sx - (long)((double)mAdapterScrollX / z); if (dx < 0) dx = -dx;
+    bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
+                         dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
+    if (!adapterDriven) mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)
   }
 }
 
@@ -870,9 +942,17 @@ void BrowserPageGoanna::pump(int msBudget) {
       // remaining events belong to a document that is no longer current (F4). The queue itself
       // was already cleared by the navigation, but this batch is a local copy.
       if (!mPage || mNavGen != gen) break;
-      const PendingMouse& e = evs[i];
+      PendingMouse e = evs[i];
+      // The queue holds the adapter's DOCUMENT coords; the engine dispatch below
+      // (SendMouseEvent / ElementFromPoint) expects VIEWPORT-relative CSS px. One mapping,
+      // here, for every input kind — measured wrong on device 2026-08-02 (contextmenu at
+      // doc y=1488 reached the page at client y=1488 while scrolled to 909; the target sat
+      // at client y=579). This also explains the 2026-07-17 "link taps below the fold show
+      // the overlay but never navigate": the tap resolved a screenful low.
+      docToViewport(&e.x, &e.y);
       if (e.type == PM_CLICK) {
-        fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d\n", e.x, e.y, e.detail);
+        fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d (doc %d,%d)\n", e.x, e.y, e.detail,
+                evs[i].x, evs[i].y);
         mPage->ClickAt(e.x, e.y, e.detail);
         // VKB: the tap may have focused/blurred an editable field -> tell isis to raise/hide
         // the on-screen keyboard.
@@ -971,6 +1051,15 @@ void BrowserPageGoanna::pump(int msBudget) {
   // drain. Dirty-driven paints are capped at one per 150 ms (~6 fps for pure animation; latency the
   // user can't perceive on a spinner); input/load-driven paints stay immediate via their own
   // mNeedsPaint sets. The pending flag is sticky so a dirty burst still paints when the window opens.
+  // Pan-cadence refresh: while a pan is active, repaint every ~250 ms even when the pan is
+  // fully covered — position:fixed content is baked at the band position of the LAST frame,
+  // and the coverage skip alone would let it drift up to a whole overscan before snapping
+  // ("the fixed banner flies around", device 2026-08-02). One ~66 ms paint per 250 ms keeps
+  // the drift to a beat while preserving the coverage skip's win for fixed-free stretches.
+  {
+    long pnow = jihadNowMs();
+    if ((pnow - mLastScrollMs) < 400 && (pnow - mLastPaintDoneMs) >= 250) mNeedsPaint = true;
+  }
   if (mPage->TakeDirty()) mDirtyPending = true;
   if (mDirtyPending) {
     long dnow = jihadNowMs();
@@ -1000,18 +1089,13 @@ void BrowserPageGoanna::pump(int msBudget) {
 
 void BrowserPageGoanna::maybePaint() {
   if (mFrozen) return;                       // card backgrounded: don't paint
-  // Scroll-settle gate. paintToSharedBuffer stamps renderedX/Y from mAdapterScrollX/Y, which are
-  // only refreshed when the adapter sends setScrollPosition. During a drag/fling the adapter pans
-  // locally between those updates, so a repaint fired here would hand it a buffer whose origin is
-  // behind its current pan — the adapter blits it anyway and the page visibly jumps backwards while
-  // the newly-exposed strip has no content ("things disappear as I scroll", device 2026-08-02).
-  //
-  // Before the dirty-loop fix this was unreachable: nothing repainted after load, so a scroll just
-  // panned inside the last good buffer. Restoring repaints made it reachable, so hold engine-driven
-  // paints until the pan settles. mNeedsPaint stays set, so the frame is delivered on the next tick
-  // after settling — the adapter keeps panning its current buffer meanwhile, exactly as before.
-  // Explicit paint callers (paintToSharedBuffer directly) are unaffected.
-  if (mNeedsPaint && (jihadNowMs() - mLastScrollMs) < kScrollSettleMs) return;
+  // The scroll-settle gate is GONE ("content doesn't stay consistently visible", device
+  // 2026-08-02). It predates honest renderedX/Y: back then a mid-pan repaint mispositioned
+  // the frame, so paints were held until the pan settled. Now a mid-pan frame is
+  // positionally correct AND the coverage-aware skip means a paint request during a pan
+  // exists precisely because the pan is about to run out of painted rows — holding it
+  // until the fling ended guaranteed the white gap it was trying to avoid (every scroll
+  // message reset the gate, so a continuous fling starved paints entirely).
   if (mNeedsPaint) paintToSharedBuffer();    // only when there is a new frame
 }
 
@@ -1024,7 +1108,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   {
     int gs = slotForKey(mActiveKey);
     if (gs >= 0 && mInFlight[gs]) {
-      if (jihadNowMs() - mPaintMs[gs] < 250) return;   // adapter may still be blitting it — wait
+      // 2000 ms, was 250: with overscan the header GEOMETRY (renderedY) varies per frame,
+      // so overwriting a buffer the adapter still holds no longer just tears pixels — a
+      // blit straddling the write reads old geometry against new pixels and mispositions
+      // the whole frame (review 2026-08-02 F7). A lost returnBuffer is rare; waiting 2 s
+      // for it shrinks the torn-geometry window to near-nothing. The real fix is a frame
+      // sequence number in the header + an adapter-side re-read guard — that needs an
+      // adapter rebuild, queued for the next adapter change.
+      if (jihadNowMs() - mPaintMs[gs] < 2000) return;  // adapter may still hold it — wait
       mInFlight[gs] = false;                            // stale: assume the return was lost, reclaim
     }
   }
@@ -1042,27 +1133,172 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // no header -> the adapter read a garbage geometry and blitted nothing = white).
   int w = mPage->Width(), h = mPage->Height();
   const size_t hdr = sizeof(BrowserOffscreenInfo);
-  if (segSize < hdr + (size_t)w * h * 4) { return; }
+  if (w <= 0 || h <= 0 || segSize < hdr + (size_t)w * h * 4) { return; }
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)buf;
-  // Report the EFFECTIVE scale JihadRenderDocument actually rendered at, so the adapter's
-  // blit (invScale = contentZoom/mZoomLevel) AND its screen->content click mapping (which
-  // divides by mZoomLevel) stay consistent with the pixels. A near-1 fit-zoom (|mZoom-1|<=1%,
-  // matching the is-zoomed threshold) is rendered at 1x on the engine-scroll path; reporting
-  // mZoom there desynced the display from the click coords by ~(mZoom-1) and made small link
-  // taps miss (input-bridging R5). Outside that band the render is magnified by mZoom.
-  oi->bufferWidth = w; oi->bufferHeight = h;
-  oi->contentZoom = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
-                  : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
-  // The buffer holds the viewport starting at the adapter's scroll position (zoomed
-  // px), so renderedX/Y = that scroll &mdash; the adapter pans within the buffer using it.
-  oi->renderedX = mAdapterScrollX; oi->renderedY = mAdapterScrollY;
-  oi->renderedWidth = w; oi->renderedHeight = h;
   unsigned char* pixels = buf + hdr;
 
-  long nb = mPage->ReadPixels(pixels, segSize - hdr);
+  // The EFFECTIVE scale the render runs at, so the adapter's blit (invScale =
+  // contentZoom/mZoomLevel) AND its screen->content click mapping stay consistent with the
+  // pixels. A near-1 fit-zoom (|mZoom-1|<=1%, the is-zoomed threshold) renders at 1x on the
+  // engine-scroll path; reporting mZoom there desynced display from click coords (R5).
+  double Zeff = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
+              : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
+  bool zoomed = (Zeff != 1.0);
+
+  // --- Overscan geometry (scroll pan headroom, 2026-08-02). The adapter pans locally
+  // inside the painted region between repaints; a viewport-exact paint has zero headroom,
+  // so one pixel of pan exposed undrawn grey ("I scroll down into a grey area"). The shm
+  // segment is 4x the screen (BrowserOffscreen::create), so paint viewport + overscan and
+  // report the REAL painted geometry — the adapter's blit pans anywhere inside
+  // renderedWidth/Height (baseY = srcTop - renderedY, FILL outside) and holds only on a
+  // WIDTH mismatch, so a taller-than-window buffer is safe on both composite paths.
+  long maxRows = (long)((segSize - hdr) / ((size_t)w * 4));
+  // SGX540/Piranha cap (review 2026-08-02 F1): the adapter's PRIMARY composite path wraps
+  // the WHOLE painted region as one PGSurface and bitblts it through the GPU compositor.
+  // Piranha is closed source and the SGX540's max texture dimension is 2048 — a portrait
+  // region of 2355 rows would be the only configuration to cross it, and it is exactly the
+  // configuration the desktop round-trip cannot exercise. Cap until a device run proves a
+  // taller PGSurface blits.
+  if (maxRows > 2048) maxRows = 2048;
+
+  // Where the viewport-relative band actually is, in ZOOMED px. At z~1 the engine scroll
+  // is authoritative for Y (ScrollTo is an async javascript: — it can lag the adapter's
+  // pan); when zoomed the band is the CLAMPED render pan. Stamping renderedY from the raw
+  // adapter scroll while the frame was rendered elsewhere was itself a source of
+  // mispositioned frames ("content moves without me touching it").
+  // If the engine scroll is UNREADABLE at z~1, take the viewport-exact fallback instead of
+  // stamping a geometry we cannot know (review F9: mixed coordinate spaces with an
+  // honest-looking header). flushLayout=false — the renders below flush anyway (F4).
+  long bandX = mAdapterScrollX, bandY = mAdapterScrollY;
+  bool bandKnown = true;
+  if (zoomed) {
+    double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
+    bandX = (long)(px * Zeff + 0.5); bandY = (long)(py * Zeff + 0.5);
+  } else {
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { bandY = ey; (void)ex; }
+    else bandKnown = false;
+  }
+  // Horizontally the region is exactly one viewport wide (no x overscan), so keep the
+  // pre-change identity: render AND stamp at the adapter's own x. Stamping the engine's
+  // lagging x would turn every horizontal pan into a transient white column (review F6);
+  // the transient CONTENT lag during a horizontal pan is the pre-existing behavior.
+  // (When zoomed, bandX is the clamped pan — the render x — which is exact.)
+  if (!zoomed) bandX = mAdapterScrollX;
+
+  // Painted rows [lo, hi): cover the band AND the adapter's pan target, plus overscan
+  // (half a viewport above, one below — scrolling down dominates), bounded by the segment
+  // and the content height (mLastContentH is css px; unknown 0 = don't bound).
+  long contentRows = (mLastContentH > 0) ? (long)((double)mLastContentH * Zeff) : 0;
+  long adY = (long)mAdapterScrollY;
+  // Bias the headroom toward the pan DIRECTION ("content blips in and out when I scroll",
+  // device 2026-08-02): the strip behind the pan is dead weight; the strip ahead is what
+  // the user is about to expose. Direction from the adapter scroll delta since last paint.
+  long ovAbove = h / 2, ovBelow = h;
+  if (adY > mPrevPaintScrollY + 8)      { ovAbove = h / 8; ovBelow = h + h / 2; }
+  else if (adY < mPrevPaintScrollY - 8) { ovAbove = h + h / 2; ovBelow = h / 8; }
+  mPrevPaintScrollY = adY;
+  long lo = (bandY < adY ? bandY : adY) - ovAbove;
+  long hi = (bandY > adY ? bandY : adY) + h + ovBelow;
+  if (lo < 0) lo = 0;
+  if (contentRows > 0 && hi > contentRows) hi = contentRows;
+  if (hi < lo + h) hi = lo + h;               // never less than one viewport
+  if (hi - lo > maxRows) {                    // over budget: trim overscan…
+    lo = bandY - (maxRows - (long)h) / 3;     // keep ~2/3 of the slack below the band
+    if (lo < 0) lo = 0;
+    hi = lo + maxRows;
+    // …but the ADAPTER's viewport is what gets composited, so it must stay inside the
+    // region (review F5: an engine parked at 0 by overflow:hidden while the adapter
+    // flings to adY leaves the visible viewport past hi → a persistent white card).
+    if (adY + h > hi) {
+      hi = adY + h; lo = hi - maxRows; if (lo < 0) { lo = 0; hi = maxRows; }
+    }
+    // Re-apply the content bound after the re-anchors (review F10) — never below one
+    // viewport though.
+    if (contentRows > 0 && hi > contentRows) hi = contentRows;
+    if (hi < lo + h) hi = lo + h;
+  }
+  int tallH = (int)(hi - lo);
+  if (!bandKnown) tallH = h;                  // F9: unknown band → viewport-exact fallback
+
+  long paintT0 = jihadNowMs();
+  // NO fling-mode fast path (tried 2026-08-02, removed the same day): skipping the band
+  // overlay during flings painted position:fixed content at its DOCUMENT position in
+  // those frames while full frames painted it at the viewport — two models alternating,
+  // so a fixed banner "flew around" mid-scroll (user report). A full region+band paint
+  // measured 66 ms on device, cheap enough to be every frame's model: fixed content bakes
+  // at the band position each frame, swims with the pan between paints, snaps per paint —
+  // the classic webOS-era behavior.
+  long nb = -1;
+  int paintedX = (int)bandX, paintedTop = (int)bandY, paintedH = h;
+  bool region = false;
+  long bandRow = bandY - lo;
+  if (bandRow < 0) bandRow = 0;
+  if (bandRow > (long)tallH - h) bandRow = (long)tallH - h;
+  if (tallH > h) {
+    // Absolute document rows straight into the shared buffer (not bounded by the widget
+    // DrawTarget). docX/docY are css px = zoomed px / Zeff.
+    if (!zoomed) {
+      // Render ONLY the strips doc-relative — the band rows come from the viewport-relative
+      // overlay below, so rendering them here too was pure duplicate work (~30% of the
+      // frame: 2048-row frame = 2990 rows rendered, now 2048 — "trim the paint cost",
+      // device 2026-08-02, measured 185 ms before this change at the region cap).
+      bool okAbove = true, okBelow = true;
+      if (bandRow > 0) {
+        okAbove = mPage->RenderRegion(pixels, w * 4, w, (int)bandRow,
+                                      (double)bandX / Zeff, (double)lo / Zeff, Zeff);
+      }
+      long belowRows = (long)tallH - h - bandRow;
+      if (belowRows > 0) {
+        okBelow = mPage->RenderRegion(pixels + (size_t)(bandRow + h) * w * 4, w * 4,
+                                      w, (int)belowRows, (double)bandX / Zeff,
+                                      (double)(lo + bandRow + h) / Zeff, Zeff);
+      }
+      region = okAbove && okBelow;
+    } else {
+      // Zoomed: single-pass region (there is no separate band pass at zoom).
+      region = mPage->RenderRegion(pixels, w * 4, w, tallH,
+                                   (double)bandX / Zeff, (double)lo / Zeff, Zeff);
+    }
+    if (region) { paintedTop = (int)lo; paintedH = tallH; }
+  }
+  if (region && !zoomed) {
+    // Overlay the viewport-relative band over the visible rows so position:fixed/sticky
+    // and the caret stay correct on screen; the doc-relative strips around it only show
+    // transiently mid-pan. ReadPixels renders v2 (viewport-relative at z~1) + readback,
+    // forces alpha and returns the nonblank count — same "did it render" signal as before.
+    nb = mPage->ReadPixels(pixels + (size_t)bandRow * w * 4, (size_t)w * h * 4);
+  } else if (region) {
+    // Zoomed: the region render IS the frame (pure visual viewport, same semantics as the
+    // old single-pass zoomed paint; fixed content already doc-positioned when zoomed).
+    // Count nonblank over the visible band rows only — same signal, 1/tallH the cost.
+    nb = 0;
+    for (long y = bandRow; y < bandRow + h; ++y) {
+      unsigned char* row = pixels + (size_t)y * w * 4;
+      for (int x = 0; x < w; ++x) {
+        unsigned char* p = row + (size_t)x * 4;
+        if (!(p[0] > 240 && p[1] > 240 && p[2] > 240)) ++nb;
+      }
+    }
+  } else {
+    // Region render unavailable (old libxul: weak symbol absent / render failed / no room
+    // for overscan): the previous viewport-exact paint, stamped at the band's true position.
+    paintedTop = (int)bandY; paintedH = h;
+    nb = mPage->ReadPixels(pixels, segSize - hdr);
+  }
+
+  oi->bufferWidth = w; oi->bufferHeight = paintedH;
+  oi->contentZoom = Zeff;
+  oi->renderedX = paintedX; oi->renderedY = paintedTop;
+  oi->renderedWidth = w; oi->renderedHeight = paintedH;
+  // Record the painted region for the coverage-aware repaint skip (setScrollPosition).
+  mPaintedX = paintedX; mPaintedLo = paintedTop; mPaintedHi = (long)paintedTop + paintedH;
+  mPaintedZoom = Zeff;
+  mLastPaintDoneMs = jihadNowMs();   // pan-cadence refresh reference
   if (nb >= 0) {
-    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d) mZoom=%.4f contentZoom=%.4f\n",
-            (unsigned)mActiveKey, nb, w, h, mZoom, oi->contentZoom);
+    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld) mZoom=%.4f contentZoom=%.4f ms=%ld\n",
+            (unsigned)mActiveKey, nb, w, paintedH, paintedTop, bandY, mZoom, oi->contentZoom,
+            jihadNowMs() - paintT0);
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0
@@ -1077,8 +1313,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     if (!dumpPath.empty() && nb > 0) {
       FILE* f = fopen(dumpPath.c_str(), "wb");
       if (f) {
-        fprintf(f, "P6\n%d %d\n255\n", w, h);            // buffer is BGRA -> write RGB
-        for (long i = 0, px = (long)w * h; i < px; i++) {
+        fprintf(f, "P6\n%d %d\n255\n", w, paintedH);     // buffer is BGRA -> write RGB
+        for (long i = 0, px = (long)w * paintedH; i < px; i++) {
           unsigned char* p = pixels + i * 4; fputc(p[2], f); fputc(p[1], f); fputc(p[0], f);
         }
         fclose(f);
@@ -1095,6 +1331,20 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // screen and retry next tick (leave mNeedsPaint set, do NOT flip the active buffer). This
   // removes the resize/rotation/navigation white-flash. Only a genuinely-never-rendered page
   // (mHadContent==false) blits a blank frame.
+  if (nb == 0 && region && mHadContent) {
+    // The visible band is blank but the strips may carry real content (scrolled into a
+    // white gap / white footer). Suppressing on the band alone would re-render the full
+    // tall region every tick forever and publish none of them (review 2026-08-02 F8) —
+    // sample the strips (every 8th row, every 4th px) and publish if anything is there.
+    for (long y = 0; y < (long)paintedH && nb == 0; y += 8) {
+      if (y >= bandRow && y < bandRow + h) continue;    // the band was already counted
+      unsigned char* row = pixels + (size_t)y * w * 4;
+      for (int x = 0; x < w; x += 4) {
+        unsigned char* p = row + (size_t)x * 4;
+        if (!(p[0] > 240 && p[1] > 240 && p[2] > 240)) { nb = 1; break; }
+      }
+    }
+  }
   if (nb == 0 && mHadContent) return;   // mNeedsPaint stays true -> retried until content lands
   if (nb > 0) mHadContent = true;
 

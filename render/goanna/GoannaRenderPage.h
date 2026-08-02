@@ -23,6 +23,7 @@
 typedef struct _GtkWidget GtkWidget;
 class nsIWidget;              // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
 class nsIDOMHTMLFormElement;  // opaque; crash-safe implicit submission target (FireFormSubmit)
+class nsIWebBrowser;          // opaque; DebugWebBrowser() handle for the debug inject channel
 
 namespace jihad {
 
@@ -36,6 +37,16 @@ void ClearCookies();
 void SetMinFontSize(int px);        // YAP: setMinFontSize
 void SetBlockPopups(bool block);    // YAP: setBlockPopups
 void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
+
+// DEBUG ONLY (self-drive inject channel, off by default — see JihadBrowserServer.cpp).
+// Runs a javascript: URL against the LAST-CREATED page with the SYSTEM principal, so a
+// probe can execute inside privileged chrome documents (about:addons/about:config) where
+// a plain LoadURI's null triggering principal is rightly refused. Never call this from
+// production paths: it executes arbitrary script with full chrome privileges.
+bool DebugRunChromeJs(const char* jsUrl);
+// DEBUG ONLY: current document title of the last-created page (probe result readback —
+// jsurl probes report via document.title, which is otherwise only logged at load-done).
+std::string DebugGetTitle();
 
 class GoannaRenderPage
 {
@@ -53,14 +64,19 @@ public:
 
   // Scroll the content to an absolute CSS-pixel offset (YAP: setScrollPosition).
   void ScrollTo(int x, int y);
-  // Read the current scroll offset (for scrolled-to events / tests).
-  bool GetScrollXY(int* x, int* y);
+  // Read the current scroll offset (for scrolled-to events / tests). flushLayout=false
+  // skips the synchronous reflow — the paint path uses it because the render that follows
+  // flushes anyway (review 2026-08-02 F4: an extra forced reflow per paint).
+  bool GetScrollXY(int* x, int* y, bool flushLayout = true);
 
   // Full-page zoom factor (YAP: setZoomAndScroll). 1.0 = 100%.
   void SetZoom(double zoom);
   // Visual-viewport pan (CSS px) applied in the offscreen render when zoomed (>1), so the
   // whole page is reachable in both axes without the engine's device-width scroll limits.
   void SetRenderPan(double x, double y) { mPanX = x; mPanY = y; }
+  // The pan actually in effect (post-clamp) — the paint path stamps renderedX/Y from THIS,
+  // not from the raw adapter scroll, so the header always describes the rendered pixels.
+  void GetRenderPan(double* x, double* y) const { if (x) *x = mPanX; if (y) *y = mPanY; }
 
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);
@@ -129,6 +145,12 @@ public:
   void FlushPendingInputEvent();
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
+  // Resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON (isNull/isLink/
+  // isImage/linkUrl/linkText/imageUrl/altText/editable). The adapter GATES the long-press
+  // gesture on this round-trip (asyncCmdHitTest -> msgHitTestResponse -> card eventFired ->
+  // asyncCmdHoldAt), so this must always produce a valid document — on any miss it emits
+  // {"isNull":true,...}.
+  void HitTestAt(int x, int y, std::string* json);
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);
@@ -137,6 +159,15 @@ public:
   // width*height*4 bytes. dst must be at least that large. Returns the number
   // of non-near-white pixels (a cheap "did it render" signal), or -1 on error.
   long ReadPixels(unsigned char* dst, size_t dstBytes);
+
+  // Render an ABSOLUTE document region (document-relative, engine scroll ignored)
+  // directly into dst: w x h DEVICE px at zoom Z, covering the CSS rect
+  // (docX, docY, w/Z, h/Z). Used by the overscan paint path to fill a region
+  // TALLER than the viewport (scroll pan headroom); position:fixed content is not
+  // placed at the scroll here — the caller overlays a viewport-relative band via
+  // ReadPixels for the visible rows at z~1. Offscreen path only.
+  bool RenderRegion(unsigned char* dst, int stride, int w, int h,
+                    double docX, double docY, double zoom);
 
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }
@@ -176,6 +207,9 @@ public:
   // card that started the download instead of guessing at the newest one. Pure
   // identity — compare it, never dereference it; it is null before Create().
   const void* DocShellKey() const;
+
+  // DEBUG ONLY: raw browser handle for DebugRunChromeJs (below). Not for production use.
+  nsIWebBrowser* DebugWebBrowser() const;
   std::string CurrentUri();
   std::string GetTitle();   // current document title (for the address-bar title+url msg)
 

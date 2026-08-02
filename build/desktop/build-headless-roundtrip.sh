@@ -15,6 +15,7 @@ echo "== headless round-trip (NO X server, DISPLAY unset) =="
 unset DISPLAY
 export JIHAD_DISABLE_OMTC=1
 export JIHAD_OFFSCREEN=1
+export JIHAD_EXPECT_OVERSCAN=1  # daemon must paint viewport+overscan (pan headroom) on this libxul
 export LD_LIBRARY_PATH="$DIST/bin"
 /out/jihad-browserserver "$DIST/bin" &
 dpid=$!

@@ -58,6 +58,7 @@ export DIST
 xvfb-run -a -s "-screen 0 1024x768x24" bash -c '
   export JIHAD_DISABLE_OMTC=1
   export JIHAD_OFFSCREEN=1      # render via the memory-backed PuppetWidget (no GTK window)
+  export JIHAD_EXPECT_OVERSCAN=1  # daemon must paint viewport+overscan (pan headroom) on this libxul
   export LD_LIBRARY_PATH="$DIST/bin"
   /out/jihad-browserserver "$DIST/bin" &
   dpid=$!

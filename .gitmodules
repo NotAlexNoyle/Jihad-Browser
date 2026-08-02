@@ -1,6 +1,16 @@
 [submodule "third_party/uxp"]
 	path = third_party/uxp
 	url = https://repo.palemoon.org/MoonchildProductions/UXP
+	# The engine tree is MODIFIED IN PLACE by design: build/desktop/patches/*.patch are applied
+	# idempotently into it at build time (build-goanna.sh / build-goanna-arm.sh), so a working tree
+	# that is "dirty" is the normal, correct state after any build — not uncommitted work.
+	# Verified 2026-08-02 that the dirt is fully reproducible: every modified and untracked path
+	# (including the entirely patch-created widget/headless/ and gfx/thebes/gfxPlatformHeadless.*)
+	# is produced by that patch set, so nothing here is unique or at risk of being lost.
+	# `ignore = dirty` reports the submodule only when its recorded COMMIT changes, which is the
+	# thing that actually matters. Do NOT commit the patched state into the submodule instead: its
+	# url is upstream Pale Moon, so a locally-created commit would not exist for anyone cloning.
+	ignore = dirty
 [submodule "third_party/mochi"]
 	path = third_party/mochi
 	url = https://github.com/webOSArchive/mochi

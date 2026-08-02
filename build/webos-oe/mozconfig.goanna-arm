@@ -70,3 +70,8 @@ ac_add_options --disable-pulseaudio
 # No dbus in the sysroot / on the device; necko-wifi needs dbus on Linux.
 ac_add_options --disable-dbus
 ac_add_options --disable-necko-wifi
+
+# A configure change (e.g. adding UXP_APPCOMPAT_GUID) updates the CLOBBER file, and without this
+# mach REFUSES to build and tells you to clobber by hand. Left off, that surfaced as a build
+# that looked like it ran and produced a stale libxul.
+mk_add_options AUTOCLOBBER=1

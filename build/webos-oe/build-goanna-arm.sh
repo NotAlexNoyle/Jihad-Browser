@@ -48,10 +48,30 @@ if [ -d /cfg/patches ]; then
 fi
 
 cd "$SRC"
+# Check each stage EXPLICITLY rather than trusting `set -e` to catch it. Measured 2026-08-02:
+# `./mach configure` failed here (the CLOBBER file had been updated after the appcompat-guid
+# configure change, and AUTOCLOBBER was off), and this script still printed "done" and exited 0 —
+# so a caller, and the log, both reported a successful engine build that had not happened. That is
+# the same fail-open class this project has been bitten by repeatedly; a build step must never be
+# able to report success it did not achieve.
+run_stage() { "$@" || { echo "ERROR: $* failed" >&2; exit 1; }; }
 case "$STAGE" in
-  configure) ./mach configure ;;
-  build)     ./mach build ;;
-  all)       ./mach configure && ./mach build ;;
+  configure) run_stage ./mach configure ;;
+  build)     run_stage ./mach build ;;
+  all)       run_stage ./mach configure; run_stage ./mach build ;;
   *)         echo "unknown stage: $STAGE"; exit 2 ;;
 esac
+# Believe the filesystem, not the exit status: for a stage that produces libxul, assert the artifact
+# exists AND is newer than the newest applied patch, so a silently-skipped rebuild cannot pass.
+if [ "$STAGE" = build ] || [ "$STAGE" = all ]; then
+  XUL=/out/obj-jihad-goanna-arm/dist/bin/libxul.so
+  [ -e "$XUL" ] || { echo "ERROR: build reported success but $XUL does not exist" >&2; exit 1; }
+  if [ -d /cfg/patches ]; then
+    newest=$(ls -t /cfg/patches/*.patch 2>/dev/null | head -1)
+    if [ -n "$newest" ] && [ "$newest" -nt "$XUL" ]; then
+      echo "ERROR: $XUL is OLDER than $newest — the engine was not rebuilt against current patches" >&2
+      exit 1
+    fi
+  fi
+fi
 echo "== ARM build stage '$STAGE' done; artifacts under /out =="

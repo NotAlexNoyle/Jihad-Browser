@@ -14,6 +14,12 @@
 #include "nsIComponentRegistrar.h"
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
 #include "mozilla/RefCountType.h" // MozExternalRefCountType
+#include <cstring>                // strcmp (observer topic)
+#include "nsIObserver.h"          // XPI web-install confirm round-trip (R3)
+#include "nsIObserverService.h"
+#include "nsIPropertyBag2.h"
+#include "nsIWritablePropertyBag2.h"
+#include "nsServiceManagerUtils.h" // do_GetService
 
 namespace jihad {
 
@@ -162,6 +168,80 @@ JihadPrompter::Select(const char16_t*, const char16_t* text, uint32_t,
 // --- installation ---
 static JihadPrompter& Singleton() { static JihadPrompter sPrompter; return sPrompter; }
 
+// --- XPI web-install confirm (browser-services R3) -------------------------------------------
+// The bundled JS component components/jihadInstallPrompt.js takes the toolkit's
+// "@mozilla.org/addons/web-install-prompt;1" hook and raises a SYNCHRONOUS
+// "jihad-xpi-confirm" observer notification carrying a property bag
+// (host, names, accept=false). This observer routes it through the same DialogSink
+// as every other content dialog — so each card answers in its own framework's
+// idiom — and writes the decision back into the bag before returning. Default
+// stays DENY on any missing piece: no sink, no card, wrong bag type.
+class JihadXpiConfirmObserver final : public nsIObserver {
+ public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) ||
+        aIID.Equals(NS_GET_IID(nsIObserver))) {
+      *aResult = static_cast<nsIObserver*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+
+  NS_IMETHOD Observe(nsISupports* aSubject, const char* aTopic,
+                     const char16_t* /*aData*/) override {
+    if (!aTopic || strcmp(aTopic, "jihad-xpi-confirm") != 0) return NS_OK;
+    nsCOMPtr<nsIPropertyBag2> bag = do_QueryInterface(aSubject);
+    nsCOMPtr<nsIWritablePropertyBag2> wbag = do_QueryInterface(aSubject);
+    if (!bag || !wbag) return NS_OK;               // wrong subject: leave accept=false
+    nsAutoString host, names;
+    bag->GetPropertyAsAString(NS_LITERAL_STRING("host"), host);
+    bag->GetPropertyAsAString(NS_LITERAL_STRING("names"), names);
+    // Sanitize CONTENT-CONTROLLED text (review 2026-08-02 F12): an install.rdf name can
+    // embed "\nfrom addons.example.org" to forge the origin line, or be multi-KB to push
+    // the real origin off the card dialog. Control chars become spaces, both strings get
+    // a hard budget, and the HOST comes FIRST so content can never displace it.
+    struct Clean {
+      static void Run(nsAutoString& s, uint32_t maxLen) {
+        for (uint32_t i = 0; i < s.Length(); ++i) {
+          char16_t c = s.CharAt(i);
+          if (c < 0x20 || c == 0x7f) s.SetCharAt(' ', i);
+        }
+        if (s.Length() > maxLen) {
+          s.Truncate(maxLen - 3);
+          s.AppendLiteral("...");
+        }
+      }
+    };
+    Clean::Run(host, 80);
+    Clean::Run(names, 160);
+    nsAutoString text;
+    if (!host.IsEmpty()) {
+      text.AssignLiteral("Allow ");
+      text.Append(host);
+      text.AppendLiteral(" to install add-on: ");
+    } else {
+      text.AssignLiteral("Install add-on: ");
+    }
+    text.Append(names);
+    DialogReply reply;
+    reply.accept = false;                          // default deny (unattended install)
+    NS_ConvertUTF16toUTF8 utf8(text);
+    if (gSink) gSink->OnDialog(DialogKind::Confirm, utf8.get(), &reply);
+    wbag->SetPropertyAsBool(NS_LITERAL_STRING("accept"), reply.accept);
+    return NS_OK;
+  }
+};
+
+static JihadXpiConfirmObserver& XpiObserver() {
+  static JihadXpiConfirmObserver o;
+  return o;
+}
+
 bool InstallDialogService() {
   static bool installed = false;
   if (installed) return true;
@@ -170,9 +250,27 @@ bool InstallDialogService() {
   nsresult rv = reg->RegisterFactory(kJihadPrompterCID, "Jihad Prompter",
                                      kPrompterContract, &Singleton());
   installed = NS_SUCCEEDED(rv);
+  // The XPI confirm round-trip (R3): non-fatal if the observer service is absent —
+  // the JS component then leaves accept=false and every web install is denied,
+  // which is the safe default, not a broken one.
+  if (installed) {
+    nsCOMPtr<nsIObserverService> obs =
+        do_GetService("@mozilla.org/observer-service;1");
+    if (obs) obs->AddObserver(&XpiObserver(), "jihad-xpi-confirm", false);
+  }
   return installed;
 }
 
-void SetDialogSink(DialogSink* sink) { gSink = sink; }
+void SetDialogSink(DialogSink* sink) {
+  gSink = sink;
+  // Shutdown symmetry (review 2026-08-02 F13): the XPI observer holds no state, but an
+  // observer left registered across XPCOM teardown is a needless dangling registration.
+  // Clearing the sink at shutdown is the existing lifecycle hook — drop the observer with it.
+  if (!sink) {
+    nsCOMPtr<nsIObserverService> obs =
+        do_GetService("@mozilla.org/observer-service;1");
+    if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
+  }
+}
 
 } // namespace jihad

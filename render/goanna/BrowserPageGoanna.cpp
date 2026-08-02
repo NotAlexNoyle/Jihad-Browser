@@ -42,7 +42,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
-    mPendingClick(false), mPendingClickX(0), mPendingClickY(0), mPendingClickN(1) {
+    mNavGen(0) {
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
@@ -428,7 +428,9 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 
 void BrowserPageGoanna::openUrl(const char* url) {
   if (!mPage || !url) return;
-  mPendingClick = false;   // a newer explicit navigation supersedes any queued tap
+  // A newer explicit navigation supersedes ALL queued input aimed at the old document, and the
+  // generation bump stops an in-flight drain from continuing into the superseded page.
+  mPendingMouse.clear(); ++mNavGen;
   mPendingEditActions.clear();   // queued Tab/Enter for the old page are stale after a navigation
   // Any navigation lowers the VKB (covers link tap, JS location.href re-drive, form submit,
   // typed URL, back/forward) — otherwise the keyboard stays up over the new page (F-005).
@@ -469,9 +471,9 @@ void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
 // back/forward/reload also clear editor focus so the VKB lowers over the new page (review #7 P2).
-void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
-void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingClick=false; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
@@ -493,8 +495,7 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   // mid-callback, then we keep using freed engine objects -> SIGSEGV whose core dump
   // stalled I/O hard enough to REBOOT the device. pump() runs inside the tick's
   // mInTick/mReap guard, so teardown there is safe.
-  mPendingClickX = x; mPendingClickY = y; mPendingClickN = numClicks;
-  mPendingClick = true;
+  queueInput(PM_CLICK, x, y, numClicks);
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
@@ -590,21 +591,64 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers); mNeedsPaint = true; }
 }
+// Shared enqueue for every input kind (F-9). Records only — pump() dispatches.
+void BrowserPageGoanna::queueInput(int type, int x, int y, int detail) {
+  // Coalesce a run of pointer moves into the newest position. A drag delivers a move per touch
+  // sample (~60/s) while pump() runs on the ~16 ms tick, so without this the queue grows faster
+  // than it drains and every stale intermediate position is still dispatched — latency that
+  // compounds for as long as the finger is down. Only the LAST move matters for hover/drag
+  // tracking. Merging only when the queue's LAST entry is also a move is what keeps this safe: a
+  // move that must PRECEDE a down/click is never swallowed, and down/up/click/contextmenu — each
+  // semantically significant — are never coalesced.
+  if ((type == PM_MOVE || type == PM_TOUCHMOVE) && !mPendingMouse.empty() &&
+      mPendingMouse.back().type == type) {
+    mPendingMouse.back().x = x; mPendingMouse.back().y = y;
+    return;
+  }
+  // Bound the queue so a page whose handler never yields cannot grow it without limit. Reaching
+  // this needs a multi-second pump stall (coalescing keeps a normal drag at ~1 entry), so the
+  // policy only has to be sane, not clever: drop the OLDEST entry — and, when that is a
+  // press, its matching release too, so a half-gesture is never left behind (a lone mouseup is a
+  // stray DOM event; a lone mousedown latches the element :active and the page's drag state until
+  // the next gesture).
+  if (mPendingMouse.size() >= 256) {
+    int dropped = mPendingMouse.front().type;
+    mPendingMouse.erase(mPendingMouse.begin());
+    if (dropped == PM_DOWN || dropped == PM_TOUCHSTART) {
+      const int mate = (dropped == PM_DOWN) ? PM_UP : PM_TOUCHEND;
+      for (size_t i = 0; i < mPendingMouse.size(); ++i) {
+        if (mPendingMouse[i].type == mate) { mPendingMouse.erase(mPendingMouse.begin() + i); break; }
+        if (mPendingMouse[i].type == dropped) break;   // next gesture began; this one had no release
+      }
+    }
+  }
+  PendingMouse pm; pm.type = type; pm.x = x; pm.y = y; pm.detail = detail;
+  mPendingMouse.push_back(pm);
+}
+
 void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
   if (!mPage) return;
   // The BrowserAdapter's wire convention is 0=mousedown, 1=mouseup, 2=mousemove
   // (asyncCmdMouseEvent in BrowserClientBase). A tap sends down(0) then up(1); the old
   // mapping (1->down, 2->up, 0->move) was shifted, so a tap became move+down with no
   // mouseup -> links/buttons never activated. Match the adapter exactly.
-  const char* t = (type == 0) ? "mousedown" : (type == 1) ? "mouseup" : "mousemove";
+  // RECORD ONLY (F-9) — see mPendingMouse in the header for why this must not dispatch here.
   // x,y are already CONTENT coords (see clickAt) -- do not re-map.
-  mPage->MouseEvent(t, x, y, 0);
+  int t = (type == 0) ? PM_DOWN : (type == 1) ? PM_UP : PM_MOVE;
+  queueInput(t, x, y, 0);
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::holdAt(int x, int y) {
   if (!mPage) return;
-  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5 mapping
-  mPage->MouseEvent("contextmenu", cx, cy, 2);   // long-press -> context menu
+  // x,y are already CONTENT coords, exactly like mouseEvent/clickAt: the adapter's long-press
+  // sends asyncCmdHoldAt(m_penDownDoc.x, m_penDownDoc.y) — the SAME m_penDownDoc it passes to
+  // asyncCmdMouseEvent(mousedown) (render/adapter/BrowserAdapter.cpp). The old mapToContent here
+  // re-divided by zoom and re-added the engine scroll, so a long-press on a scrolled page resolved
+  // against a point far below the finger (scroll y=1000 -> contextmenu at y~2000: wrong element or
+  // none). This is the same double-transform already fixed for clickAt. Removing it also drops a
+  // layout flush (mapToContent -> GetScrollXY(flushLayout=true)) that ran in the YAP callback —
+  // precisely the unguarded engine work this queue exists to eliminate.
+  queueInput(PM_CONTEXTMENU, x, y, 2);
   mNeedsPaint = true;
 }
 
@@ -642,9 +686,14 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
     if (px) sscanf(px, "\"x\"%*[: ]%d", &x);
     if (py) sscanf(py, "\"y\"%*[: ]%d", &y);
   }
-  const char* t = (type == 0) ? "touchstart" : (type == 2) ? "touchend" : "touchmove";
-  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content
-  mPage->TouchEvent(t, cx, cy);
+  // Queued like every other input (F-9/F5): TouchEvent -> SendTouchEventToWindow runs
+  // touchstart/touchend page JS synchronously, so dispatching it from this YAP callback is the
+  // same reboot-class crash door the queue was built to close. Currently unreachable from the
+  // device (the adapter's doTouchEvent body is #ifdef QT_FIXME'd out) but the daemon command IS
+  // wired, so this must already be safe the day touch forwarding is turned on.
+  int t = (type == 0) ? PM_TOUCHSTART : (type == 2) ? PM_TOUCHEND : PM_TOUCHMOVE;
+  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content, at QUEUE time
+  queueInput(t, cx, cy, 0);
   mNeedsPaint = true;
 }
 
@@ -801,26 +850,52 @@ void BrowserPageGoanna::pump(int msBudget) {
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +
   // mouse/DOMClick; for a link it records the href (TakeClickNav) instead of navigating.
-  if (mPendingClick) {
-    mPendingClick = false;
-    fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d\n", mPendingClickX, mPendingClickY, mPendingClickN);
-    mPage->ClickAt(mPendingClickX, mPendingClickY, mPendingClickN);
-    // VKB: the tap may have focused/blurred an editable field -> tell isis to raise/hide
-    // the on-screen keyboard.
-    bool efoc = false; int eft = 0, efa = 0;
-    if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) {
-      fprintf(stderr, "[jihad-bs] editorFocused=%d fieldType=%d\n", (int)efoc, eft);
-      mSink.msgEditorFocused(efoc, eft, efa);
+  // Drain ALL queued input (F-9) in arrival order — raw mouse events and taps share one queue,
+  // so a nested GLib loop entered by a page handler mid-drain can no longer invert a click ahead
+  // of its own mouseup (see the PM_* comment in the header). Swap-and-clear, like
+  // mPendingEditActions, so a handler that queues more input does not reenter this loop.
+  if (!mPendingMouse.empty()) {
+    std::vector<PendingMouse> evs;
+    evs.swap(mPendingMouse);
+    const unsigned gen = mNavGen;
+    for (size_t i = 0; i < evs.size(); ++i) {
+      // Stop on teardown OR on a navigation that happened during this drain: from here on the
+      // remaining events belong to a document that is no longer current (F4). The queue itself
+      // was already cleared by the navigation, but this batch is a local copy.
+      if (!mPage || mNavGen != gen) break;
+      const PendingMouse& e = evs[i];
+      if (e.type == PM_CLICK) {
+        fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d\n", e.x, e.y, e.detail);
+        mPage->ClickAt(e.x, e.y, e.detail);
+        // VKB: the tap may have focused/blurred an editable field -> tell isis to raise/hide
+        // the on-screen keyboard.
+        bool efoc = false; int eft = 0, efa = 0;
+        if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) {
+          fprintf(stderr, "[jihad-bs] editorFocused=%d fieldType=%d\n", (int)efoc, eft);
+          mSink.msgEditorFocused(efoc, eft, efa);
+        }
+        std::string clickNav;
+        if (mPage->TakeClickNav(&clickNav)) {
+          // R6 (navigation-events): report the intercepted link activation, THEN navigate via
+          // the load path. openUrl marks the load programmatic, so OnStateChange won't ALSO
+          // flag it link-clicked — this msg is the single R6 notification for the tap.
+          fprintf(stderr, "[jihad-bs] clickAt -> navigate %s\n", clickNav.c_str());
+          mSink.msgLinkClicked(clickNav.c_str());
+          openUrl(clickNav.c_str());   // bumps mNavGen -> the loop above stops next iteration
+        }
+        continue;
+      }
+      if (e.type == PM_TOUCHSTART || e.type == PM_TOUCHMOVE || e.type == PM_TOUCHEND) {
+        mPage->TouchEvent(e.type == PM_TOUCHSTART ? "touchstart"
+                        : e.type == PM_TOUCHEND   ? "touchend" : "touchmove", e.x, e.y);
+        continue;
+      }
+      const char* t = (e.type == PM_DOWN) ? "mousedown"
+                    : (e.type == PM_UP)   ? "mouseup"
+                    : (e.type == PM_MOVE) ? "mousemove" : "contextmenu";
+      mPage->MouseEvent(t, e.x, e.y, e.detail);
     }
-    std::string clickNav;
-    if (mPage->TakeClickNav(&clickNav)) {
-      // R6 (navigation-events): report the intercepted link activation, THEN navigate via
-      // the load path. openUrl marks the load programmatic, so OnStateChange won't ALSO
-      // flag it link-clicked — this msg is the single R6 notification for the tap.
-      fprintf(stderr, "[jihad-bs] clickAt -> navigate %s\n", clickNav.c_str());
-      mSink.msgLinkClicked(clickNav.c_str());
-      openUrl(clickNav.c_str());
-    }
+    mNeedsPaint = true;
   }
   // Process a queued editing key (Tab/Enter) in the SAME page-lifetime guard — it runs page JS
   // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback

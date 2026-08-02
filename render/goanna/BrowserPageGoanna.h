@@ -140,6 +140,8 @@ public:
   void keyDown(int key, int modifiers, int chr);
   void keyUp(int key, int modifiers, int chr);
   void mouseEvent(int type, int contentX, int contentY, int detail);
+  // Shared enqueue for clickAt/mouseEvent/holdAt/touchEvent — records only; pump() dispatches.
+  void queueInput(int type, int x, int y, int detail);
   void touchEvent(int type, int touchCount, int modifiers, const char* touchesJson);
   void holdAt(int x, int y);                       // YAP: holdAt (long-press)
   void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
@@ -213,13 +215,36 @@ private:
   bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles
   // Queued tap: clickAt (a YAP socket callback) only records the point; pump() does the
   // hit-test / activation / click / navigation on the tick, where page teardown is safe.
-  bool               mPendingClick;
-  int                mPendingClickX, mPendingClickY, mPendingClickN;
   // Queued editing keys that run page JS which may focus/navigate (Tab, Enter). Like clickAt these
   // must run in pump(), not synchronously in the keyDown YAP callback, or a focus/submit handler
   // could tear the page down under us (Codex F-219). A QUEUE, not a single slot, so several presses
   // between pump ticks aren't dropped (Codex F-241); see the PEA_* constants in the .cpp.
   std::vector<int>   mPendingEditActions;
+  // Queued raw mouse events (F-9). mouseEvent()/holdAt() are YAP socket callbacks with no
+  // page-lifetime protection, exactly like clickAt: a mousedown/mouseup/contextmenu runs page JS
+  // (onmousedown -> location/document.open) that can tear the document down mid-callback, after
+  // which the engine objects we keep using are freed -> the SIGSEGV whose core dump stalled I/O
+  // hard enough to REBOOT the device (R1 AC4, review #5 H-1). They only RECORD here; pump()
+  // dispatches inside the tick's mInTick/mReap guard where teardown is safe.
+  // detail carries numClicks for PM_CLICK and the contextmenu detail for PM_CONTEXTMENU.
+  struct PendingMouse { int type; int x; int y; int detail; };
+  std::vector<PendingMouse> mPendingMouse;
+  // PM_* are the queue's own type codes, deliberately NOT the adapter's wire codes: the wire has
+  // no contextmenu, and holdAt/clickAt/touchEvent all ride the SAME queue so their relative order
+  // is total. Taps are queued rather than kept in a separate mPendingClick slot because the two
+  // could invert: YAP sockets live on the default GMainContext, and page JS run during a drain can
+  // spin a nested GLib loop (a sync XHR in onmousedown) that delivers the finger-up mouseEvent AND
+  // the tap's clickAt while the outer drain is still inside its swapped batch. With a separate
+  // slot the click then ran BEFORE the queued mouseup, so the F-1 dedup record (written at
+  // mouseup DISPATCH time) did not exist yet, ClickAt fully activated, and the engine later
+  // synthesized a second click from the down/up pair — a double activation, i.e. the double form
+  // POST this project rates critical. One ordered queue makes that interleaving unrepresentable.
+  enum { PM_DOWN = 0, PM_UP = 1, PM_MOVE = 2, PM_CONTEXTMENU = 3, PM_CLICK = 4,
+         PM_TOUCHSTART = 5, PM_TOUCHMOVE = 6, PM_TOUCHEND = 7 };
+  // Bumped by every explicit navigation. The drain re-reads it each iteration: a navigation
+  // delivered by a nested loop mid-drain clears the (already swapped, hence empty) member queue,
+  // so without this the rest of the local batch would still dispatch into the superseded document.
+  unsigned           mNavGen;
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

@@ -229,9 +229,63 @@ registry, NSS — never from page JS, whereas an eval/`data:` script error has n
 Verified the useful diagnostics survive: `js-console (no source):0 No chrome package registered for
 chrome://branding/locale/brand.properties` and the `about:addons` XML parse error both still print.
 
+## F-9 — FIXED 2026-08-02
+
+`mouseEvent()` and `holdAt()` no longer dispatch into the engine from the YAP socket callback.
+They record into `mPendingMouse` (`BrowserPageGoanna.h`); `pump()` drains the queue inside the
+tick's `mInTick`/`mReap` page-lifetime guard, **before** the pending click — so on a
+`shouldPassInputEvents()` page the pen path's mousedown/mouseup still land ahead of the tap's
+synthesized click, the order a real pointer would produce. Details:
+
+- **mousemove coalescing.** A drag delivers ~60 moves/s while `pump()` runs on the ~16 ms tick,
+  so consecutive moves collapse into the newest position. Without it the queue grows faster than
+  it drains and every stale intermediate point is still dispatched. `mousedown`/`mouseup` are
+  never coalesced — each is semantically significant.
+- **Queue bound** of 256, dropping the oldest, so a page whose handler never yields cannot grow
+  it without limit.
+- **`holdAt` maps coordinates at QUEUE time**, not dispatch time: `mapToContent` depends on the
+  current zoom/scroll, and a fling between the callback and the next pump would otherwise resolve
+  the long-press against a viewport the user was no longer looking at.
+- **Cleared on explicit navigation** (`openUrl`, back, forward, reload) alongside `mPendingClick`
+  — queued events aimed at the old document must not land on the new one.
+- Swap-and-clear on drain, and a `!mPage` re-check each iteration, so a handler that tears the
+  page down or queues more input cannot reenter the loop.
+
+### Fable adversarial review of the F-9 fix — 5 findings, all addressed 2026-08-02
+
+| # | Sev | What | Resolution |
+|---|-----|------|------------|
+| F1 | P2 | **Ordering inversion re-opens the double-activation.** YAP sockets live on the default GMainContext, and page JS run during a drain can spin a nested GLib loop (sync XHR in `onmousedown`). The finger-up `mouseEvent` and the tap's `clickAt` are then both delivered mid-drain: the up lands in the already-swapped (empty) queue while the click sets the separate `mPendingClick` slot, so the click ran BEFORE its own mouseup. The F-1 dedup record is written at mouseup *dispatch* time, so it did not exist yet → `ClickAt` fully activated, then the queued mouseup let the engine synthesize a second click. **Double form POST.** | FIXED — took the *complete* fix, not the suggested one-line `mPendingMouse.empty()` guard: clicks are now `PM_CLICK` entries in the SAME queue, so ordering is total and the interleaving is unrepresentable. The one-line guard would also have starved a click for as long as a drag kept the queue non-empty. `mPendingClick`/`X`/`Y`/`N` are gone. |
+| F2 | P2 | **`holdAt` double-transformed its coordinates.** The adapter sends `asyncCmdHoldAt(m_penDownDoc.x, …)` — the SAME content-space point it passes to `asyncCmdMouseEvent(mousedown)` — but `holdAt` still called `mapToContent`, re-dividing by zoom and re-adding the engine scroll. Long-press on a page scrolled to y=1000 resolved at y≈2000: wrong element or none. Same bug already fixed for `clickAt`. Also forced a layout flush (`GetScrollXY(flushLayout=true)`) inside the YAP callback. | FIXED — verified the claim against `BrowserAdapter.cpp` before acting (both call sites read `m_penDownDoc`). `mapToContent` removed; coords used directly. |
+| F3 | P3 | 256-entry cap dropped the oldest entry of any type, which can split a down/up pair (lone mouseup = stray DOM event; lone mousedown latches `:active` + page drag state). Comment claimed "oldest non-move", which the code did not do. | FIXED — dropping a press now also drops its matching release (stopping at the next press, i.e. a gesture that genuinely had none). Comment matches the code. |
+| F4 | P3 | Swap-and-clear defeated clear-on-navigation for the in-flight batch: a nested-loop `openUrl` mid-drain cleared the (already swapped, empty) member queue while the local copy kept dispatching into the superseded document. | FIXED — `mNavGen` is bumped by every explicit navigation and re-read each drain iteration alongside `!mPage`. |
+| F5 | P3 | `touchEvent` still dispatched `touchstart`/`touchend` straight from the YAP callback — the identical crash class. Unreachable today (the adapter's `doTouchEvent` is `#ifdef QT_FIXME`'d out) but the daemon command IS wired. | FIXED — routed through the same queue (`PM_TOUCH*`), so it is already safe whenever touch forwarding is enabled. |
+
+Fable also confirmed, with receipts, three things that are NOT defects: draining mouse events before the click is *load-bearing* (the F-1 dedup depends on the mouseup dispatching first); move coalescing is sound because only a trailing move merges; and `mPendingMouse` was cleared at exactly the sites `mPendingClick` was. It noted the `!mPage` re-check is harmless but weaker than its comment implied — real safety comes from deferred teardown plus `MouseEvent` re-resolving `GetWindowUtils` per dispatch.
+
+**Still open (pre-existing, not caused by this work):** `setHTML` clears neither input queue nor `mPendingEditActions`; back/forward/reload clear `mPendingMouse` but not `mPendingEditActions` while `openUrl` clears both. Neither is reachable from a live adapter path today.
+
+**Verification.** Desktop harnesses: `xul` PASS, `link` PASS, `input` PASS (`click DID change the
+page`), `focus` PASS. `input2` FAILs — but it fails **identically without the change**: the change
+was stashed and the test re-run, giving byte-identical `holdOK=0 dragOK=1 insertOK=0`, exit 4.
+Its `holdAt green=-1` is the harness's shm readback returning −1, a pre-existing paint-readback
+failure unrelated to input dispatch. `dragOK=1` on both sides is the positive signal that the
+queued mousemove path still scrolls.
+
+**NOT device-verified, and it cannot be from this host.** The adapter's pen path is only reached
+by real `NpPalmPenEvent`s from LunaSysMgr's touch handling. Attempted and rejected:
+`PalmSystem.simulateMouseClick(200, 332, …)` fires from the card and was confirmed to run
+(`[Jihad] taptest down/up` in `palm-log`), but produced **no** `clickAt` and no mouse line in the
+daemon log — a synthesized WebKit DOM click is not delivered to a windowless NPAPI plugin. The
+touchscreen is not an evdev device (`/proc/bus/input/devices` has only gpio-keys,
+pmic8058_pwrkey, headset), so `uinput` cannot inject one either. Confirming this on hardware
+needs a **physical** tap: load a `user-scalable=no` page, tap a checkbox, and confirm it ends
+CHECKED with ONE `change`, plus `clickAt (x,y): pen path already delivered this tap's click` in
+the daemon log.
+
 ## NOT fixed — recorded, with reasons
 
-- **F-9 (new, P1) — `asyncCmdMouseEvent` runs the DOM dispatch synchronously in the YAP socket
+- **F-9 (superseded by the section above; original text kept for the reasoning)** — `asyncCmdMouseEvent` runs the DOM dispatch synchronously in the YAP socket
   callback.** `JihadBrowserServer::asyncCmdMouseEvent` → `BrowserPageGoanna::mouseEvent` →
   `GoannaRenderPage::MouseEvent` with no deferral, unlike `clickAt`, which records only and runs
   everything from the guarded pump *because* an activation can run page JS that tears the document

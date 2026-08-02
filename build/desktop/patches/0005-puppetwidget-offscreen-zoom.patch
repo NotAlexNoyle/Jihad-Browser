@@ -1,4 +1,4 @@
-PuppetWidget offscreen render: JihadRenderDocument (RenderDocument into mDrawTarget), null-TabChild guards, RENDER_CARET, sticky dirty flag, and pinch/fit ZOOM + document-relative visual-viewport pan (see context/impl/zoom-fix-2026-07-27.md).
+PuppetWidget offscreen render: JihadRenderDocument (RenderDocument into mDrawTarget), null-TabChild guards, RENDER_CARET, sticky dirty flag (drains the CHILD widget chain — the view hierarchy invalidates a child PuppetWidget, not the daemon-polled top-level; an un-drained child made the dirty loop inert and post-load changes, e.g. the about:addons icons, never repainted), and pinch/fit ZOOM + document-relative visual-viewport pan (see context/impl/zoom-fix-2026-07-27.md).
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
@@ -416,7 +416,7 @@ index 0294193adf..f6db93a6c8 100644
    return NS_OK;
  }
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index ab52dfca86..d2badaf5a5 100644
+index ab52dfca86..07a102c20d 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
 @@ -25,6 +25,8 @@
@@ -428,7 +428,7 @@ index ab52dfca86..d2badaf5a5 100644
  namespace mozilla {
  
  namespace dom {
-@@ -200,6 +202,30 @@ public:
+@@ -200,6 +202,47 @@ public:
    // Paint the widget immediately if any paints are queued up.
    void PaintNowIfNeeded();
  
@@ -454,12 +454,29 @@ index ab52dfca86..d2badaf5a5 100644
 +  // updates, async image decode, and incremental page render leave the shared
 +  // buffer stale (the on-device "old page sticks around until you drag" bug).
 +  // Deliberately separate from mDirtyRegion, which the PaintTask self-clears.
-+  bool JihadTakeDirty() { bool d = mJihadDirty; mJihadDirty = false; return d; }
++  //
++  // DRAINS THE CHILD CHAIN: the embedding's view hierarchy does not paint through
++  // the top-level widget the daemon created — nsView::CreateWidgetForParent goes
++  // through PuppetWidget::CreateChild, which makes a SEPARATE child PuppetWidget
++  // (linked back via SetChild). Every Invalidate() from the view manager lands on
++  // that CHILD, setting the child's mJihadDirty, while the daemon polls the
++  // top-level parent — whose flag nothing ever set. That inert dirty loop is why
++  // anything that became visually ready after the last load/input-driven paint
++  // (async image decode — the about:addons icons — JS/SPA DOM updates) never
++  // appeared on the device: no repaint was ever triggered. Draining the chain
++  // here makes the poll see the child's invalidations.
++  bool JihadTakeDirty() {
++    bool d = mJihadDirty; mJihadDirty = false;
++    for (PuppetWidget* c = mChild.get(); c; c = c->mChild.get()) {
++      if (c->mJihadDirty) { d = true; c->mJihadDirty = false; }
++    }
++    return d;
++  }
 +
    virtual TabChild* GetOwningTabChild() override { return mTabChild; }
  
    void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -342,6 +368,7 @@ private:
+@@ -342,6 +385,7 @@ private:
    // event handler.
    RefPtr<PuppetWidget> mChild;
    LayoutDeviceIntRegion mDirtyRegion;

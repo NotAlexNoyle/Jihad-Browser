@@ -417,7 +417,7 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 MainAssistant.prototype.syncChrome = function () {
 	var isStart = this.isStartPage(this.url);
 	this.setText("jihad-title",
-		isStart ? $L("Jihad Browser") : (this.title || this.url || ""));
+		isStart ? $L("Jihad Mojo") : (this.title || this.url || ""));
 	// The start page is app-shipped chrome, so its file:/// path is not shown; the
 	// address bar falls back to its hint, as in both sibling variants.
 	this.addressModel.value = isStart ? "" : (this.url || "");

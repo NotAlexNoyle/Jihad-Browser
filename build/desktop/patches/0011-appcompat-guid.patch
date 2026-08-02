@@ -1,0 +1,46 @@
+diff --git a/xulrunner/configure.in b/xulrunner/configure.in
+index 825faaddd1..d78c5ee72c 100644
+--- a/xulrunner/configure.in
++++ b/xulrunner/configure.in
+@@ -4,6 +4,20 @@ dnl This Source Code Form is subject to the terms of the Mozilla Public
+ dnl License, v. 2.0. If a copy of the MPL was not distributed with this
+ dnl file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
++dnl ========================================================
++dnl = Enable AppCompat GUID Support (mirrors palemoon/configure.in:19-28)
++dnl ========================================================
++MOZ_ARG_ENABLE_BOOL(appcompat-guid,
++[  --enable-appcompat-guid           Enable AppCompat GUID Support],
++    UXP_APPCOMPAT_GUID=1,
++    UXP_APPCOMPAT_GUID=)
++
++if test -n "$UXP_APPCOMPAT_GUID"; then
++    AC_DEFINE(UXP_APPCOMPAT_GUID)
++fi
++
++AC_SUBST(UXP_APPCOMPAT_GUID)
++
+ dnl Things we need to carry from confvars.sh
+ AC_SUBST(MOZ_XULRUNNER)
+ AC_DEFINE(MOZ_XULRUNNER)
+diff --git a/xulrunner/confvars.sh b/xulrunner/confvars.sh
+index e122d1c374..ca39eb0033 100644
+--- a/xulrunner/confvars.sh
++++ b/xulrunner/confvars.sh
+@@ -6,4 +6,14 @@
+ MOZ_APP_NAME=xulrunner
+ MOZ_APP_DISPLAYNAME=XULRunner
+ MOZ_APP_VERSION=$MOZILLA_VERSION
+-MOZ_XULRUNNER=1
+\ No newline at end of file
++MOZ_XULRUNNER=1
++
++# Jihad: AppCompat GUID (Pale Moon's UXP_APPCOMPAT_GUID feature, palemoon/confvars.sh:71).
++# Our app GUID is frozen and named by ZERO existing extensions, so without this every real XPI
++# arrives appDisabled and the web-install path treats that as a failed install
++# (amWebInstallListener.js:112-115) -- i.e. XPI support is structurally unreachable. With it,
++# XPIProvider.jsm accepts a targetApplication naming extensions.guid.appCompatId and
++# substitutes extensions.guid.appCompatVersion (XPIProvider.jsm:6357-6377, extensions only --
++# themes are deliberately excluded upstream). Basilisk solves the same problem by shipping
++# Firefox's GUID outright; that is not open to us, the app ID is frozen by user decision.
++UXP_APPCOMPAT_GUID=1

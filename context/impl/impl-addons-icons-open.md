@@ -1,10 +1,33 @@
 ---
 created: "2026-08-02"
 last_edited: "2026-08-02"
-status: OPEN — read this before touching about:addons icons
+status: RESOLVED by adc06f5f (the dirty-loop fix). Icons render; they are SLOW to appear.
 ---
 
-# `about:addons` icons: everything ruled out, and the one live clue
+# RESOLVED — `about:addons` icons render (the dirty-loop fix WAS the cause)
+
+**Correction, 2026-08-02 (user, on device): the icons work.** They are slow to appear, but they do
+render. So commit adc06f5f — draining the child PuppetWidget chain so post-load repaints happen —
+**was** the fix, and my earlier conclusion that it "did not fix the icons" was WRONG.
+
+Why I got it wrong: I captured the daemon's frame ~35 s after launch and saw no icons, and treated
+that as proof. But the chrome PNGs load and decode after the load-driven paints, and the repaint
+that carries them is subject to the ~150 ms paint rate limit and (since 9cb58c56) the scroll-settle
+gate — so on this ~1.2 GHz device they arrive later than my capture window, and later still if
+anything is panning. A single timed capture cannot distinguish "never renders" from "renders late",
+and I asserted the former. The sub-agent's original claim was right; my re-measurement was the flawed
+instrument.
+
+**Remaining, and it is a real defect: the icons are SLOW.** Sync decode is already on
+(`PAINT_SYNC_DECODE_IMAGES`), so this is latency in *delivering the repaint*, not in decoding.
+Suspects, in order: the ~150 ms paint rate limit in `BrowserPageGoanna`; the 220 ms scroll-settle
+gate added in 9cb58c56 (which delays any repaint that follows a pan); and whether an image-completion
+invalidation actually reaches the widget promptly or waits for the next unrelated tick.
+
+Everything below is the original investigation, kept because the ruled-out list is still accurate and
+saved real time.
+
+## Original notes: everything ruled out, and the live clue
 
 **Symptom.** `about:addons` renders correctly except that the category rows
 ("Extensions/Themes/Plugins") show text with **no icons**, and the toolbar buttons top-left are

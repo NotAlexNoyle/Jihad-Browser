@@ -1,7 +1,7 @@
 ---
 created: "2026-08-02"
 last_edited: "2026-08-02"
-status: OPEN — P1, user-visible, suspected regression from adc06f5f
+status: OPEN — P1. Settle gate helped but is only half the story; the buffer has NO pan headroom
 ---
 
 # Scrolling is glitchy: content moves untouched, regions blank out
@@ -58,3 +58,47 @@ attributes the glitch definitively rather than by argument. Do this BEFORE writi
 
 The `holdAt` long-press verification is blocked behind this: the test needs a large scroll offset,
 and scrolling is currently too unstable to reach the target reliably.
+
+
+## Device feedback after the scroll-settle gate (2026-08-02)
+
+User: *"scrolling is more stable than before but my long press isnt being registered and the page is
+still glitchy. sometimes I scroll down into a grey area instead of the next zone."*
+
+So the gate reduced the backwards-jumping (stale `renderedX/Y` being blitted), but it is **at best
+half a fix**, and the grey areas expose the real defect.
+
+### The buffer has no pan headroom — this is the root problem
+
+`paintToSharedBuffer` paints exactly `w x h = mPage->Width() x mPage->Height()`, i.e. the WINDOW
+size (768x942 on device), and stamps `renderedWidth/Height` to match. The adapter pans inside that
+buffer using `renderedX/Y`. With the painted region exactly viewport-sized there is **zero
+headroom**: the moment the user pans by one pixel they are outside the painted area, and the
+adapter's own out-of-buffer clamp leaves that strip undrawn — the grey.
+
+Deferring paints during the pan (the settle gate) therefore trades jumping for grey: nothing
+repaints the newly exposed strip until the pan settles.
+
+**There IS room to fix this.** The shm segment is far larger than one viewport: the connect line
+reports `connect 960x1400 keys=… sz=12582944`, i.e. 12.58 MB = ~3.15 M pixels at 4 bytes, against a
+768x942 = 723 k pixel viewport — roughly 4x headroom. The isis/Atlas design this port inherits
+expects exactly that (see the adapter's "tall-buffer pan" lineage, commit dbc897c referenced in
+`BrowserAdapter::handlePaint`). So the daemon should paint a region TALLER than the viewport
+(viewport + overscan, bounded by `segSize`) and report it in `renderedWidth/Height`, giving the
+adapter real content to pan into.
+
+That is the actual fix. The settle gate should be re-evaluated once there is headroom — with a
+taller buffer, repainting during a pan may be harmless, and the gate may become unnecessary or want
+a much shorter window.
+
+### Also unresolved: long-press never registers
+
+The `holdAt` path did not fire at all during this session's testing — no `contextmenu` reached the
+page and no long-press line appeared in the daemon log. Unknown whether the adapter's `mousehold`
+gesture is being consumed as a scroll (the gesture starts with a pen-down that the pan path also
+claims), or whether `asyncCmdHoldAt` is not being sent. **This blocks verifying the `holdAt`
+coordinate fix**, which is otherwise ready and desktop-reasoned.
+
+Next step there: instrument the daemon's `holdAt` entry (it currently logs nothing) so "not sent" and
+"sent but mis-resolved" stop being indistinguishable — the same instrument-the-boundary lesson this
+project keeps relearning.

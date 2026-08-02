@@ -27,6 +27,11 @@ namespace { }  // (UrlRule defined below in the jihad namespace)
 
 namespace jihad {
 
+// How long after the last adapter scroll/zoom update an engine-driven repaint is held back. Long
+// enough to cover the gaps between setScrollPosition messages during a fling, short enough that a
+// page which updates itself while the user rests a finger still refreshes promptly.
+static const long kScrollSettleMs = 220;
+
 // A compiled URL redirect rule (POSIX regex &mdash; exception-free, unlike std::regex,
 // which matters under -fno-exceptions).
 struct BrowserPageGoanna::UrlRule {
@@ -42,7 +47,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
-    mNavGen(0) {
+    mNavGen(0), mLastScrollMs(0) {
   mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
@@ -276,6 +281,7 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
+  mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   // The adapter's scroll (x,y) is in ZOOMED-content px (its mScrollPos / buffer space); the
   // engine scrolls in CSS px, so divide by the zoom — EXACTLY as setZoomAndScroll does. And keep
   // BrowserOffscreenInfo::renderedX/Y (= mAdapterScrollX/Y) in step so the adapter's composite pan
@@ -316,6 +322,7 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   if (!mPage) return;
+  mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
   double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
   mPage->SetZoom(z);   // clamped — SetZoom(raw) diverged from mZoom/contentZoom (review #6 F-008)
@@ -993,6 +1000,18 @@ void BrowserPageGoanna::pump(int msBudget) {
 
 void BrowserPageGoanna::maybePaint() {
   if (mFrozen) return;                       // card backgrounded: don't paint
+  // Scroll-settle gate. paintToSharedBuffer stamps renderedX/Y from mAdapterScrollX/Y, which are
+  // only refreshed when the adapter sends setScrollPosition. During a drag/fling the adapter pans
+  // locally between those updates, so a repaint fired here would hand it a buffer whose origin is
+  // behind its current pan — the adapter blits it anyway and the page visibly jumps backwards while
+  // the newly-exposed strip has no content ("things disappear as I scroll", device 2026-08-02).
+  //
+  // Before the dirty-loop fix this was unreachable: nothing repainted after load, so a scroll just
+  // panned inside the last good buffer. Restoring repaints made it reachable, so hold engine-driven
+  // paints until the pan settles. mNeedsPaint stays set, so the frame is delivered on the next tick
+  // after settling — the adapter keeps panning its current buffer meanwhile, exactly as before.
+  // Explicit paint callers (paintToSharedBuffer directly) are unaffected.
+  if (mNeedsPaint && (jihadNowMs() - mLastScrollMs) < kScrollSettleMs) return;
   if (mNeedsPaint) paintToSharedBuffer();    // only when there is a new frame
 }
 

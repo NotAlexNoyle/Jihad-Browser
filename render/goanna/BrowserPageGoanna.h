@@ -245,6 +245,11 @@ private:
   // delivered by a nested loop mid-drain clears the (already swapped, hence empty) member queue,
   // so without this the rest of the local batch would still dispatch into the superseded document.
   unsigned           mNavGen;
+  // ms of the last adapter scroll/zoom update. Engine-driven repaints are deferred while a pan is
+  // in flight: renderedX/Y are stamped from mAdapterScrollX/Y, which only move when the adapter
+  // sends setScrollPosition, so a repaint mid-fling ships a buffer whose origin disagrees with
+  // where the adapter has already panned -> content appears to jump and regions blank out.
+  long               mLastScrollMs;
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

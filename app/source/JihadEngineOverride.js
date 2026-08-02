@@ -23,6 +23,18 @@
 (function () {
 	function log(m) { if (window.enyo && enyo.log) { enyo.log("[Jihad] " + m); } }
 
+	// Execution-trace stamps. log() silently no-ops until enyo is loaded, so stamps are BUFFERED
+	// and flushed from a point already proven to reach palm-log. Without this, "stamp missing"
+	// conflates "code not reached" with "logger not ready yet" — the exact ambiguity that has
+	// cost several round trips on this file already.
+	window.__jihadStamps = window.__jihadStamps || [];
+	function stamp(s) { try { window.__jihadStamps.push(s); } catch (e) {} }
+	// Silent unless JIHAD_PROBE is on: the stamps are cheap to RECORD (an array push) and are
+	// what proved the WebAppMgr source cache (context/impl/impl-stale-app-js.md), so the
+	// mechanism stays; only the two log lines per launch are gated, so production logs stay clean.
+	function flushStamps(tag) { if (!JIHAD_PROBE) { return; }
+		try { log("stamps " + tag + " " + window.__jihadStamps.join(",")); } catch (e) {} }
+
 	// ───────────────────────────────────────────────────────────────────────────────────
 	// TEMPORARY DIAGNOSTIC — delete this constant and the JihadProbe block at the bottom
 	// once the card→adapter thread is closed (2026-08-01 triage).
@@ -36,7 +48,15 @@
 	// remaining question is entirely on this side of the boundary.
 	// Everything it prints is prefixed [JihadProbe] and goes to console.log → palm-log.
 	// ───────────────────────────────────────────────────────────────────────────────────
-	var JIHAD_PROBE = true;
+	// OFF. The card->adapter thread it existed for is CLOSED (context/impl/
+	// impl-card-adapter-resolved.md): the MIME resolves, the prototype patch reaches the kind
+	// actually instantiated, and the plugin instantiates as soon as the pane is visible and
+	// non-zero-sized. Leaving it on is actively harmful, not merely noisy: probeControls()
+	// creates extra 64x64 <object>s that each open their OWN connection to the daemon and
+	// then get removed, which floods daemon.log with 64x64 geometry and leaves
+	// "Broken pipe" / NS_BINDING_ABORTED behind that masks the real client's lines.
+	var JIHAD_PROBE = false;
+	stamp("A" + JIHAD_PROBE);
 	// MUST go through enyo.log, not console.log. Measured on-device 2026-08-01: with the probe
 	// installed and running (the [Jihad] patch line from log() below appears in palm-log), NOT ONE
 	// console.log line reached palm-log — LunaSysMgrJS surfaces enyo.log but evidently not bare
@@ -75,7 +95,18 @@
 			};
 			proto._jihadPatched = true;
 			log("WebView engine -> application/x-jihad-browser");
-			if (JIHAD_PROBE) { log("probe-canary: JIHAD_PROBE=" + JIHAD_PROBE); probeInstall(proto); }
+			stamp("E" + JIHAD_PROBE);
+			flushStamps("at-patch");
+			// Canary deliberately shaped EXACTLY like the line above (plain words, no ":" or "="):
+			// on device that line logs and this one did not, from adjacent statements in a file whose
+			// md5 matches local, so the remaining suspects are message CONTENT or a throw. The catch
+			// distinguishes them — an exception here would abort the rest of patch() silently while
+			// leaving the MIME swap installed, which is precisely what we observe.
+			if (JIHAD_PROBE) {
+				stamp("F");
+				try { log("probe canary alive"); } catch (e1) {}
+				try { probeInstall(proto); } catch (e2) { try { log("probe threw"); } catch (e3) {} }
+			}
 		}
 		return true;
 	}
@@ -260,9 +291,11 @@
 
 	// Enyo 1 loads framework kinds before app source, so BasicWebView is usually ready.
 	// Retry briefly in case app source is parsed before the palm controls register.
+	stamp("B" + JIHAD_PROBE);
 	if (!patch()) {
 		var t = setInterval(function () { if (patch()) { clearInterval(t); } }, 50);
 	}
+	stamp("C");
 
 	if (JIHAD_PROBE) {
 		// Once at startup (before any refresh) and once after forcing a database rescan: if
@@ -281,4 +314,8 @@
 			probeControls();
 		}, 2500);
 	}
+
+	stamp("D" + JIHAD_PROBE);
+	// Unguarded second flush: if this line never appears, the IIFE never reached its end.
+	window.setTimeout(function () { flushStamps("at-end"); }, 4000);
 })();

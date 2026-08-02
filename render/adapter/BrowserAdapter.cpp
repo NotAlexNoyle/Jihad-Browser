@@ -1075,8 +1075,13 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
       int eh = event ? (event->dstBottom - event->dstTop) : -1;
       if (eh != lastEH || (void*)mOffscreenCurrent != lastOff) {
         lastEH = eh; lastOff = (void*)mOffscreenCurrent;
-        fprintf(lf, "[hp-entry] dstH=%d mOff=%p dstBuf=%p rowBytes=%u\n",
-          eh, (void*)mOffscreenCurrent, event?event->dstBuffer:0, event?event->dstRowBytes:0); } }
+        // gc is logged because it SELECTS the path: on device it is non-NULL and dstBuffer is
+        // legitimately NULL, so "dstBuf=(nil)" alone cannot distinguish "took the PGContext
+        // path" from "bailed at the dstBuffer guard" — which is exactly the ambiguity that made
+        // a blank card unreadable from this log.
+        fprintf(lf, "[hp-entry] dstH=%d mOff=%p dstBuf=%p rowBytes=%u gc=%p\n",
+          eh, (void*)mOffscreenCurrent, event?event->dstBuffer:0, event?event->dstRowBytes:0,
+          event?event->graphicsContext:0); } }
 
     if (!event)
         return;
@@ -1108,6 +1113,8 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
             }
             PGSurface* surf = PGSurface::wrap((uint32_t)gi->renderedWidth, (uint32_t)gi->renderedHeight,
                                               (const unsigned char*)mOffscreenCurrent->rasterBuffer(), true);
+            if (!surf) { if (FILE* lf = jihadPaintLog()) fprintf(lf, "[hp-pg] PGSurface::wrap FAILED %dx%d\n",
+                                                                gi->renderedWidth, gi->renderedHeight); }
             if (surf) {
                 int dl = event->dstLeft, dt = event->dstTop, dr = event->dstRight, dbm = event->dstBottom;
                 double czoom = (gi->contentZoom > 0.0) ? gi->contentZoom : 1.0;
@@ -1130,7 +1137,22 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                     if (sR > W) { dr  -= (int)ceil((sR - W) / inv); sR = W; }
                     if (sB > H) { dbm -= (int)ceil((sB - H) / inv); sB = H; }
                 }
-                if (sR > sL && sB > sT && dr > dl && dbm > dt)   // valid rect on BOTH axes after clamp
+                bool blitted = (sR > sL && sB > sT && dr > dl && dbm > dt);
+                // Every way this branch can silently draw nothing (clamped-away rect, zero-area
+                // dst, a surface that wrapped but never blitted) looks identical on screen: a
+                // blank card. Log the decision and the numbers behind it, on change only.
+                if (FILE* lf = jihadPaintLog()) {
+                  static int lS[4] = {-9,-9,-9,-9}, lD[4] = {-9,-9,-9,-9}; static int lB = -1;
+                  if (lS[0]!=sL||lS[1]!=sT||lS[2]!=sR||lS[3]!=sB||
+                      lD[0]!=dl||lD[1]!=dt||lD[2]!=dr||lD[3]!=dbm||lB!=(int)blitted) {
+                    lS[0]=sL; lS[1]=sT; lS[2]=sR; lS[3]=sB;
+                    lD[0]=dl; lD[1]=dt; lD[2]=dr; lD[3]=dbm; lB=(int)blitted;
+                    fprintf(lf, "[hp-pg] blit=%d src[%d,%d %d,%d] dst[%d,%d %d,%d] inv=%.3f "
+                            "base[%d,%d] scroll[%d,%d] rW=%d rH=%d rX=%d rY=%d\n",
+                            (int)blitted, sL, sT, sR, sB, dl, dt, dr, dbm, inv, baseX, baseY,
+                            mScrollPos.x, mScrollPos.y, gi->renderedWidth, gi->renderedHeight,
+                            gi->renderedX, gi->renderedY); } }
+                if (blitted)
                     gc->bitblt(surf, sL, sT, sR, sB, dl, dt, dr, dbm);
                 surf->releaseRef();   // PG ref-counted (starts at 1); frees the wrapper, not our data
             }

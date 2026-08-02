@@ -181,6 +181,30 @@ per-machine table under "Machine configs" above):
 1. Stand up the cross-toolchain against the device sysroot (R1); verify a trivial
    C++14 binary runs on the device/emulator.
 2. `build-goanna-arm.sh build` (engine `libxul.so`), then `build-daemon-arm.sh` (daemon).
+
+   **These two run INSIDE the container** — they use absolute container paths (`/out`, `/tc`,
+   `/sysroot`, `/jihad`, `/armcfg`) and running them on the host fails with a misleading
+   `ERROR: cross-build libxul first`, even when the ARM `libxul.so` is present. The exact
+   invocation (reconstructed on-device 2026-08-02; three details are easy to get wrong):
+
+   ```bash
+   podman run --rm --userns=keep-id \
+     -v "$PWD/third_party/uxp:/src/uxp" \
+     -v "$PWD:/jihad" \
+     -v "$PWD/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi:/tc" \
+     -v "$PWD/build/webos-oe/arm-sysroot/root:/sysroot" \
+     -v "$PWD/build/desktop:/cfg" \
+     -v "$PWD/build/webos-oe:/armcfg" \
+     -v "$PWD/build/webos-oe/out-arm:/out" \
+     localhost/jihad-goanna-build bash /jihad/build/webos-oe/build-daemon-arm.sh
+   ```
+
+   - The image is **`jihad-goanna-build`**, not `jihad-xtool-build`: the latter has no
+     `pkg-config`, and the cross compiler comes from the `/tc` mount either way, so the Ubuntu
+     build image is the right host.
+   - `/sysroot` must be `arm-sysroot/**root**`, one level deeper than the directory name
+     suggests — mounting `arm-sysroot` finds no `glib-2.0.pc` and fails on `#include <glib.h>`.
+   - The crosstool-NG toolchain lives in the repo, not in the image or `~/x-tools`.
 3. `make-device-bundle.sh` (daemon + .so closure + GRE), `build-adapter-pdk.sh` (adapter).
 4. `palm-package app/` (Enyo `.ipk`); `build-mochi-ipk.sh` (Mochi `.ipk`, from T-049).
 5. Install on the TouchPad (verified) and the TouchPad Go (pending hardware); run the

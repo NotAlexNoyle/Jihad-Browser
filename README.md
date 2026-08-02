@@ -22,6 +22,27 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > with the stock webOS browser** — its own NPAPI MIME, adapter, render daemon, and
 > upstart job; nothing system-level is replaced (see below).
 >
+> **Add-ons infrastructure (2026-08)** — `about:addons` and `about:plugins` both open and render
+> on-device. `about:addons` had been dead on a missing `chrome://branding/` package (the branding
+> package is supplied by the *application* in Firefox/Pale Moon, and this build embeds the GRE with
+> no application above it), fixed by shipping our own. The add-on pref set the reference forks rely
+> on now ships, and Pale Moon's dual-GUID `UXP_APPCOMPAT_GUID` mechanism is built in — without it our
+> frozen app ID is named by zero existing extensions, so every real XPI would arrive `appDisabled`.
+> NPAPI is compiled in and `nsPluginHost` scans, but **windowless NPAPI does not exist in a
+> cairo-headless build** and must be ported, so binary plugins (Flash) are not yet possible.
+>
+> **Known issues, on-device (2026-08):** scrolling can expose undrawn "grey" strips — the daemon
+> paints exactly the viewport with **no pan headroom**, while the shared buffer is ~4× that size, so
+> the fix is to paint viewport+overscan the way the isis/Atlas adapter expects. Chrome icons render
+> but are **slow to appear** (repaint-delivery latency, not decode). XUL `<menupopup>` support
+> (the `about:addons` tools menu, `<select>` dropdowns, context menus) is **untested**. Long-press
+> `contextmenu` does not currently reach the page.
+>
+> **Deployment reality:** only the **Enyo** variant is currently live on the test device. The Mochi
+> variant has worked before and is presently a deploy regression; the **Mojo** variant has never run
+> on hardware. Per-variant independence is therefore verified in the packaging/uninstall matrix but
+> **not** with three variants running side by side.
+>
 > A latent daemon crash (a `tick()` re-entrancy use-after-free that made complex
 > pages "overload" into a stuck loading screen) was root-caused from an on-device
 > core dump and fixed. History, bookmarks, and downloads are wired to the app's own
@@ -129,7 +150,8 @@ Goanna calls.
 - **Phase 1 — Desktop PoC (x86_64 Linux) — ✅ done:** Build Goanna once; bring up `BrowserServer` with the Goanna backend; render a page into the shared framebuffer; drive it from the isis UI on desktop. De-risked engine integration before the embedded toolchain.
 - **Phase 2 — webOS 3 cross-build (ARMv7) — ✅ reached:** modern cross-toolchain stood up (stock gcc 4.4 cannot build UXP); Goanna + daemon cross-compiled; the self-contained adapter + daemon + upstart job deploy and **render real pages on the TouchPad**. Both `.ipk`s build via a single entry (`build/webos-oe/build-all-device.sh`); TouchPad Go (Opal) machine config authored (shared ARMv7 softfp binary; install pending hardware).
 - **Phase 2.5 — Three independent packages + install-footprint contract — ✅ Enyo verified on device:** each front-end ships as a standalone `.ipk` with its own MIME/adapter/socket/upstart job/daemon (nothing co-owned, so nothing to refcount); the engine runs **in place from the app's cryptofs bundle** and nothing is written to the user's `/media/internal` volume; `build/webos-oe/build-variant-ipk.sh` produces all three without bitbake, and `device-citizen-audit.sh` + `device-independence-test.sh` are the acceptance evidence.
-- **Phase 3 — Hardening — 🔧 in progress:** DONE — daemon crash fix (tick re-entrancy), engine-driven repaint (no stale frames), engine-driven VKB focus, crash-safe form submission, history/bookmarks/downloads storage, both branded start pages, self-drive test harness, **portrait ↔ landscape rotation (PGContext composite)**, **pinch/fit zoom — magnify + full-page visual-viewport pan (document-relative render)**. IN PROGRESS — Mochi parity views (bookmarks/history/downloads lists, find, preferences, dialogs). REMAINING — cookie/cache persistence across restarts, VKB viewport "snap"/white-band, tap-coordinate hit-test edge cases, memory-budget measurement, TouchPad Go on-device verification.
+- **Phase 3.5 — Add-ons + engine-repaint correctness — 🔧 in progress (2026-08):** `about:addons`/`about:plugins` open; branding package, add-on prefs and the dual-GUID AppCompat mechanism ship; the engine-driven repaint loop was found **inert** (invalidations landed on a child `PuppetWidget` the daemon never polled) and fixed, which restored all post-load repainting — SPA updates, animations, late images, XHR content; input dispatch moved off the YAP socket callback into the guarded pump and was **verified on hardware with a physical tap** (one tap → one activation, no double form POST). Adversarially reviewed against Pale Moon and Basilisk (cavekit-addons-extensions R8).
+- **Phase 3 — Hardening — 🔧 in progress:** DONE — daemon crash fix (tick re-entrancy), engine-driven repaint (no stale frames), engine-driven VKB focus, crash-safe form submission, history/bookmarks/downloads storage, both branded start pages, self-drive test harness, **portrait ↔ landscape rotation (PGContext composite)**, **pinch/fit zoom — magnify + full-page visual-viewport pan (document-relative render)**. IN PROGRESS — Mochi parity views (bookmarks/history/downloads lists, find, preferences, dialogs). REMAINING — **scroll pan headroom** (paint viewport+overscan; undrawn strips today), **XUL popup support** (tools menu / `<select>` / context menus, untested), chrome-icon repaint latency, long-press `contextmenu` not reaching the page, start-page centring under the VKB (currently a hardcoded 1024 px box, so it is also wrong in landscape), cookie/cache persistence across restarts, VKB viewport "snap"/white-band, memory-budget measurement, Mochi re-deploy + Mojo first run, and TouchPad Go on-device verification.
 
 ## Licensing
 

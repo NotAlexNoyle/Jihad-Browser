@@ -28,6 +28,18 @@ Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 
 ## Domain Index
 Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 partial · ⬜ not started.
+
+> **Device reality check (2026-08-02).** Statuses below describe what is BUILT and, where stated,
+> device-verified for the **Enyo** variant — the only one currently live on hardware. Mochi has
+> worked before and is presently a deploy regression; Mojo has never run on a device. So any
+> "verified on device" claim means Enyo unless it says otherwise, and per-variant independence (R7)
+> has never been exercised with three variants running at once.
+>
+> Open cross-cutting defects that affect several domains: scroll paints have **no pan headroom**
+> (undrawn strips while panning), chrome icons render **late**, XUL `<menupopup>` support is
+> **untested** (tools menu, `<select>`, context menus), and long-press `contextmenu` does not reach
+> the page. See `context/impl/impl-scroll-glitch-open.md`,
+> `context/impl/impl-addons-icons-open.md`, `context/impl/impl-addons-utils-button.md`.
 Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless noted.
 
 | Domain | Cavekit File | Requirements | Status | Description |
@@ -40,7 +52,7 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 6 | ✅ 6/6 desktop + on-device (R6 rotation composite + the R5 zoom rework device-confirmed 2026-07-27) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite |
 | Input Bridging | cavekit-input-bridging.md | 5 | 🟢 R1 ✓ (XUL-button activation deferred — crashes headless), R4 ✓, R5 ✓ (link hit-test fixed + device-verified 2026-07-27); R2 VKB jank / R3 gestures on-device | webOS pointer/key/touch/gesture → DOM events |
 | Navigation, Loading & Events | cavekit-navigation-events.md | 6 | 🟢 6/6 (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
-| Add-ons & Extensions | cavekit-addons-extensions.md | 6 | 🟡 R1 in progress — the missing `nsIXULAppInfo` is BOTH the device SIGSEGV and the prerequisite for the feature; the whole add-ons UI + XPI installer already ship in the bundle | `about:addons` + classic XPI extension support (user requirement 2026-08-01) |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding package shipped), R8 ✅ (Pale Moon/Basilisk comparison, 9 findings), R5/R6 ✓ via the scope clamp; R3 blocked on a daemon `amIWebInstallPrompt` (the toolkit prompt is a modal XUL window headless cannot open); **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled** | `about:addons` + classic XPI + NPAPI plugin support (user requirement 2026-08-01) |
 | Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
 | Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓; **R3 BUILD-PRODUCED, not done** — the OE build (`oe-env.sh`) emits two `.ipk`s + a Mojo skeleton, and the 2026-07-29 review items #1/#4/#5/#6/#9/#12 (Mochi frameworks, prerm refcount, shared shim impl path, loud postinst, bundle manifest, LICENSE/NOTICE) are **fixed + build-verified** (commits 9413d16, b1c0112) — the two open gaps are **clean-clone reproducibility** (prebuilt toolchain/sysroot/PDK + undeclared bitbake inputs, #7/#8) and **on-device install verification**; R4 rotation composite ✓ (2026-07-27) with cert/download flows + Opal open; R5/R6 device-gated | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |

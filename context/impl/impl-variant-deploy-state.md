@@ -1,10 +1,16 @@
 ---
 created: "2026-08-02"
 last_edited: "2026-08-02"
-status: enyo deployed and working; mochi + mojo are SHELLS
+status: enyo deployed and working; mochi REGRESSED (has worked before); mojo is a shell
 ---
 
-# Only the enyo variant is actually deployed
+# Only the enyo variant is currently deployed
+
+**Correction (user, 2026-08-02): mochi has been in a working state before.** So its empty
+`deviceroot` below is a DEPLOYMENT REGRESSION — its payload was removed or overwritten at some
+point in this session's churn — not a variant that was never built. Only **mojo** is a genuine
+shell that has never run. Treat mochi as "re-deploy and re-verify", not "build from scratch"; if
+its state looks unexpectedly empty again, suspect the deploy step, not the variant.
 
 Measured on device 2026-08-02. This corrects any impression that "three variants are installed":
 the other two have app directories but nothing that can run.

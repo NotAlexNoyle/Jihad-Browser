@@ -100,8 +100,27 @@ variants sharing one device `$HOME` is a webOS packaging requirement neither has
 
 ## Remaining plan
 
+### How to build the install prompt: follow Atlas, not the toolkit
+
+The toolkit's install confirm is a modal XUL chrome window (`amWebInstallListener.js:174-191`),
+which headless cannot open — and its failure path CANCELS every install (F4). Do NOT try to make a
+XUL window appear.
+
+**Atlas's model is the right one for this platform** (user direction, 2026-08-02): prompts are
+CARD-SIDE Enyo dialogs driven by engine events, never engine-drawn chrome. In
+`Atlas/atlas-browser-app`, `source/BrowserPrompt.js` is an Enyo kind built on
+`VerticalAcceptCancelPopup` with accept/cancel buttons, declared as a component in
+`source/BrowserApp.js` (e.g. `{name: "downloadError", kind: "BrowserPrompt", caption: …}`) and
+opened when the browser layer reports something needing a decision.
+
+So: register `@mozilla.org/addons/web-install-prompt;1` (`amIWebInstallPrompt`) in the daemon,
+have it emit a message over the existing YAP/DialogService surface, and let the card show its own
+`BrowserPrompt` and send accept/decline back. Our `app/source/BrowserPrompt.js` already exists
+(inherited from isis) and is the component to reuse — the same path should carry the
+`addon-install-failed` / `addon-install-blocked` reasons for F6.
+
 **R3:** (1) prefs — DONE; (2) `UXP_APPCOMPAT_GUID` define + libxul rebuild; (3) daemon
-`amIWebInstallPrompt` + `addon-install-failed`/`-blocked` observers; (4) desktop flow test of
+`amIWebInstallPrompt` (Atlas pattern above) + `addon-install-failed`/`-blocked` observers; (4) desktop flow test of
 `amContentHandler` → message-manager → `AddonManager.jsm:1880` under a bare `nsWebBrowser`;
 (5) the R3 acceptance run.
 

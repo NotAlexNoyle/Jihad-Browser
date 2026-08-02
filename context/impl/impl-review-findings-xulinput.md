@@ -272,7 +272,29 @@ Its `holdAt green=-1` is the harness's shm readback returning −1, a pre-existi
 failure unrelated to input dispatch. `dragOK=1` on both sides is the positive signal that the
 queued mousemove path still scrolls.
 
-**NOT device-verified, and it cannot be from this host.** The adapter's pen path is only reached
+**DEVICE-VERIFIED 2026-08-02 with a physical tap** (the user performed it; no software path can
+inject one). A `user-scalable=no` page — which makes `shouldPassInputEvents()` true, so the tap is
+delivered by the adapter's PEN path *and* as `asyncCmdClickAt` — with a checkbox that renders its
+own verdict. One tap produced `PASS checked=true change=1 click=1`, and the daemon log shows the
+ordering the fix exists to guarantee:
+
+```
+[jihad-bs] clickAt x=380 y=127 n=1
+[jihad-bs] clickAt (380,127): pen path already delivered this tap's click — no second activation (F-1)
+[jihad-bs] mouseSend <INPUT> at 380,127 : SKIPPED, pen path already clicked (F-1)
+```
+
+The pen path's mouseup dispatched BEFORE the queued tap's `ClickAt` — only possible because clicks
+now ride the same ordered queue — so the F-1 dedup record (written at mouseup dispatch time) already
+existed and suppressed the second activation. Exactly one activation reached the DOM. This is
+precisely the interleaving fable's F1 predicted would double-activate with a separate
+`mPendingClick` slot, and it is now closed on hardware. Test page kept at
+`/var/palm/jihad/enyo/taptest.html` (source: it renders PASS/FAIL itself, so no log parsing needed).
+
+**The `holdAt` coordinate fix is still NOT device-verified** — it needs a long-press on a SCROLLED
+page, which also requires a physical gesture.
+
+Historical note (superseded by the above): The adapter's pen path is only reached
 by real `NpPalmPenEvent`s from LunaSysMgr's touch handling. Attempted and rejected:
 `PalmSystem.simulateMouseClick(200, 332, …)` fires from the card and was confirmed to run
 (`[Jihad] taptest down/up` in `palm-log`), but produced **no** `clickAt` and no mouse line in the

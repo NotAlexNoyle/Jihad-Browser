@@ -164,9 +164,13 @@ stop jihad-mochi 2>/dev/null
 # stop/waiting while enyo happened to win the race; started by hand each came up fine
 # ("engine up; serving YAP 'jihad-browser-mochi'"). So: wait for the teardown, then start, then
 # CONFIRM — and retry, because a deferred/duplicated install can leave upstart in an odd state.
+# NB the status format: this device's upstart prints "(NNN/NNN) <job> (start) running,
+# process N" / "(stop) waiting" — NOT the modern "start/running". Match BOTH forms, or the
+# teardown wait always times out and the confirm below reports a false WARNING for a daemon
+# that is in fact running (observed on the 2026-08-02 mochi deploy).
 i=0
 while [ $i -lt 10 ]; do
-	case "$(status jihad-mochi 2>/dev/null)" in *"stop/waiting"*) break ;; esac
+	case "$(status jihad-mochi 2>/dev/null)" in *"stop/waiting"*|*"(stop) waiting"*) break ;; esac
 	i=$((i + 1)); sleep 1
 done
 i=0
@@ -174,12 +178,12 @@ while [ $i -lt 3 ]; do
 	start jihad-mochi 2>/dev/null
 	sleep 2
 	case "$(status jihad-mochi 2>/dev/null)" in
-		*"start/running"*) break ;;
+		*"start/running"*|*"(start) running"*) break ;;
 	esac
 	i=$((i + 1))
 done
 case "$(status jihad-mochi 2>/dev/null)" in
-	*"start/running"*) log "daemon job jihad-mochi is running" ;;
+	*"start/running"*|*"(start) running"*) log "daemon job jihad-mochi is running" ;;
 	*) log "WARNING: jihad-mochi did not start; it will come up on the next boot" ;;
 esac
 # F-12: there is deliberately NO `killall LunaSysMgr` here. It tears down every card of every

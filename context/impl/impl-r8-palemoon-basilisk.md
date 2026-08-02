@@ -113,6 +113,20 @@ CARD-SIDE Enyo dialogs driven by engine events, never engine-drawn chrome. In
 `source/BrowserApp.js` (e.g. `{name: "downloadError", kind: "BrowserPrompt", caption: …}`) and
 opened when the browser layer reports something needing a decision.
 
+**Each variant must use ITS OWN framework's dialog idiom** (user direction, 2026-08-02) — adapted
+from Atlas's dialogs, not shared between variants and not drawn by the engine:
+
+| variant | dialog style to adapt Atlas's `BrowserPrompt` into |
+|---|---|
+| **enyo** (`app/`) | Enyo 1.0 popups — `VerticalAcceptCancelPopup` / `enyo.Popup`, i.e. Atlas's shape almost directly; `app/source/BrowserPrompt.js` already exists to reuse |
+| **mochi** (`app-mochi/`) | Mochi / Enyo 2 popup kinds — do NOT import the Enyo 1 kind; Mochi has its own popup + button styling |
+| **mojo** (`app-mojo/`) | Mojo's own dialog API (`this.controller.showAlertDialog` / `showDialog` with a Mojo scene assistant), not an Enyo kind at all |
+
+This keeps each app a native citizen of its framework and preserves R7 independence: the daemon
+emits one framework-agnostic "a decision is needed" message over the YAP/DialogService surface, and
+each card renders it in its own idiom and returns accept/decline. Nothing variant-specific belongs
+in the daemon.
+
 So: register `@mozilla.org/addons/web-install-prompt;1` (`amIWebInstallPrompt`) in the daemon,
 have it emit a message over the existing YAP/DialogService surface, and let the card show its own
 `BrowserPrompt` and send accept/decline back. Our `app/source/BrowserPrompt.js` already exists

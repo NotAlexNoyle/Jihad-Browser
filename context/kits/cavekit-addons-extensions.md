@@ -124,7 +124,13 @@ Nothing needs to be added to the engine build for the UI to exist:
 
 **Acceptance Criteria:**
 - [ ] The engine build enables NPAPI (`MOZ_ENABLE_NPAPI`) while keeping `--disable-npapi-gtk2`, and the daemon exposes a documented plugin search path that is variant-scoped and honours the R8 storage contract.
-- [ ] `about:plugins` lists installed plugins with name, version, MIME types and enabled state.
+- [~] `about:plugins` lists installed plugins with name, version, MIME types and enabled state.
+      **Page verified working on device 2026-08-02** (`title=[About Plugins]`, renders "No
+      installed plugins found") — `nsPluginHost` initialises and scans, so the subsystem is
+      live. Listing CONTENT is unmet only because the search path is still empty. Also
+      confirmed the engine already has NPAPI compiled in (NP_Initialize/NP_Shutdown/
+      NP_GetMIMEDescription/NP_GetValue present in the shipped ARM libxul), so the first AC
+      needs no build change. See context/impl/impl-npapi-groundtruth.md.
 - [ ] A plugin instantiates in **windowless mode** and its output composites correctly into the offscreen surface — correct position, size, and orientation under the rotation/zoom paths that cavekit-offscreen-rendering.md R5/R6 already fixed for page content.
 - [ ] Plugin input works: mouse and keyboard events reach a windowless plugin instance, mapped through the same coordinate transform as page content (cavekit-input-bridging.md R5).
 - [ ] `setEnableFlashPlugin` / plugin-enable settings in the existing frozen YAP surface behave correctly (the contract already carries plugin-related commands — they must not become no-ops).

@@ -142,10 +142,16 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R8: The XPI implementation is validated against Pale Moon and Basilisk
 **Description:** Extension support is compared against the two UXP browsers that ship it correctly, rather than reinvented. User requirement, 2026-08-01: *"when you do your adversarial review for xpi extension support make sure you compare it to how basilisk and pale moon do it correctly."*
 **Acceptance Criteria:**
-- [ ] The adversarial review of R1–R6 explicitly diffs our approach against **Pale Moon** and **Basilisk** — both are checked out at `../ref-forks/{Pale-Moon,Basilisk}` and both ship the same UXP-era XPI stack we are targeting, so they are the authoritative reference for what "correct" means here.
-- [ ] Specifically compared, with findings recorded per item: how they populate application identity (`nsIXULAppInfo`, and whether they rely on `gAppData` from `application.ini` — the exact thing our embedding lacks); their extension install locations and `extensions.enabledScopes` defaults; their signature policy (`xpinstall.signatures.required`) and why; how `about:addons` is registered and reached; and their NPAPI plugin enablement and windowless handling for R7.
-- [ ] Every place we deliberately DIVERGE from both is justified in writing (embedding vs. full XRE app, headless vs. real widget, three independent variants vs. one browser) — divergence is expected, unexplained divergence is a defect.
-- [ ] Anything they do that we simply MISSED is filed as a finding, not silently absorbed.
+- [x] The adversarial review of R1–R6 explicitly diffs our approach against **Pale Moon** and **Basilisk** — both are checked out at `../ref-forks/{Pale-Moon,Basilisk}` and both ship the same UXP-era XPI stack we are targeting, so they are the authoritative reference for what "correct" means here.
+- [x] Specifically compared, with findings recorded per item: how they populate application identity (`nsIXULAppInfo`, and whether they rely on `gAppData` from `application.ini` — the exact thing our embedding lacks); their extension install locations and `extensions.enabledScopes` defaults; their signature policy (`xpinstall.signatures.required`) and why; how `about:addons` is registered and reached; and their NPAPI plugin enablement and windowless handling for R7.
+- [x] Every place we deliberately DIVERGE from both is justified in writing (embedding vs. full XRE app, headless vs. real widget, three independent variants vs. one browser) — divergence is expected, unexplained divergence is a defect.
+- [x] Anything they do that we simply MISSED is filed as a finding, not silently absorbed.
+
+**R8 DONE 2026-08-02** — 9 findings; see context/impl/impl-r8-palemoon-basilisk.md. Headline: R3 is
+structurally impossible for any real extension until the Pale Moon `UXP_APPCOMPAT_GUID` mechanism is
+built in (our frozen GUID is named by zero extensions), and R7 is much further out than the kit
+assumed — windowless NPAPI does not exist in a cairo-headless build and must be ported, not merely
+enabled. Signature policy needs no work at all: UXP builds no enforcement.
 **Dependencies:** R1, R7
 
 ## Out of Scope

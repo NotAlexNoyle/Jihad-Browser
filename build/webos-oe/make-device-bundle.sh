@@ -131,6 +131,34 @@ EOF
   find "$OUT/$d" -type d -empty -delete 2>/dev/null || true
 done
 [ -e "$DIST/bin/chrome.manifest" ] && cp -L "$DIST/bin/chrome.manifest" "$OUT/"
+
+# --- our own chrome://branding/ package ---------------------------------------------------------
+# toolkit's about:addons opens with <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">.
+# In Firefox/Pale Moon that package comes from the APPLICATION (browser/branding); this build embeds
+# the GRE with no application above it, and the branding strip removed the vendor's, so the DTD
+# resolved to nothing — a hard XML parse error that killed about:addons before it rendered
+# ("No chrome package registered for chrome://branding/locale/brand.dtd"). The GRE's own
+# chrome/en-US/.../global/brand.dtd is EMPTY and registered under chrome://global/, so it does not
+# satisfy this. Ship ours instead — our names, none of the upstream vendor's trademarked assets.
+BRANDING="$REPO/packaging/branding"
+if [ -d "$BRANDING" ]; then
+	rm -rf "$OUT/branding"
+	mkdir -p "$OUT/branding"
+	cp -R "$BRANDING/content" "$BRANDING/locale" "$OUT/branding/"
+	cp -L "$BRANDING/jihad-branding.manifest" "$OUT/"
+	# Idempotent: re-running the bundler must not append the line twice (a duplicate `manifest`
+	# directive re-registers the package and the engine warns on every start).
+	if ! grep -q '^manifest jihad-branding.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest jihad-branding.manifest' >> "$OUT/chrome.manifest"
+	fi
+	# Fail the BUILD, not the device: a branding package that silently did not land means
+	# about:addons breaks again, and the symptom (an XML parse error) points nowhere near here.
+	for f in jihad-branding.manifest branding/locale/en-US/brand.dtd \
+	         branding/locale/en-US/brand.properties branding/content/icon32.png; do
+		[ -s "$OUT/$f" ] || { echo "ERROR: branding file missing/empty in bundle: $f" >&2; exit 1; }
+	done
+	echo "  branding: chrome://branding/ registered (about:addons brand.dtd)"
+fi
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

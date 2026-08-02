@@ -72,7 +72,11 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R2: `about:addons` opens and is usable
 **Description:** The user can reach the add-ons manager from the browser and operate it.
 **Acceptance Criteria:**
-- [ ] Navigating to `about:addons` renders the add-ons manager rather than an error or a blank card.
+- [x] Navigating to `about:addons` renders the add-ons manager rather than an error or a blank card.
+      **Met on device 2026-08-02** — `title=[Add-ons Manager]`, and the fb1 capture shows the
+      Extensions/Themes/Plugins category list and the search field. It had been failing on a
+      missing `chrome://branding/` package (a DTD load failure = hard XML parse error), fixed by
+      shipping our own branding package; see context/impl/impl-addons-branding.md.
 - [ ] Installed extensions, themes and plugins are listed with name, version and state.
 - [ ] Enable / disable / remove work from the UI and the change is reflected after a restart.
 - [ ] The page is **operable through the adapter's synthesized input path**, not merely rendered. `about:addons` is a XUL document, and XUL input currently crashes the daemon (mitigated by a skip, so the page is inert). **The user has required this be fixed properly (2026-08-01, "fix xul input so it works everywhere like about:config etc") — it is now cavekit-input-bridging.md R6**, and this criterion is satisfied by that work rather than duplicating it.

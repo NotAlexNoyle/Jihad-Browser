@@ -1,0 +1,17 @@
+# Jihad Browser branding package. Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE it
+# registers into).
+#
+# WHY THIS EXISTS: toolkit's about:addons (chrome/toolkit/content/mozapps/extensions/
+# extensions.xul) opens with
+#     <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" > %brandDTD;
+# In Firefox/Pale Moon the `branding` package is supplied by the APPLICATION (browser/branding),
+# not by the GRE. This build embeds the GRE with no application on top, and the branding strip
+# (cavekit-licensing-branding.md R3) removed the vendor's, so `chrome://branding/` resolved to
+# nothing. A DTD that fails to load is a hard XML parse error, so about:addons died with
+#     No chrome package registered for chrome://branding/locale/brand.dtd
+# before rendering anything. Registering our OWN branding package fixes it without reinstating
+# any of the upstream vendor's trademarked assets.
+#
+# Paths are relative to THIS FILE, which is installed at the GRE root next to chrome.manifest.
+content branding branding/content/
+locale  branding en-US branding/locale/en-US/

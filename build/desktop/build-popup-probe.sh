@@ -17,7 +17,10 @@ DIST=/out/obj-jihad-goanna/dist
 # must NOT be the container's PID 1 (as PID 1 its child-reaping deadlocks and it hangs
 # before ever starting X; measured 2026-08-02).
 if [ -z "${DISPLAY:-}" ]; then
-  exec xvfb-run -a -s "-screen 0 1024x768x24" bash "$0" "$@"
+  # A CHILD call, never exec: exec would make xvfb-run this container's PID 1,
+  # which is exactly the deadlock the comment above describes.
+  xvfb-run -a -s "-screen 0 1024x768x24" bash "$0" "$@"
+  exit $?
 fi
 
 # Xvfb, not no-X: the desktop GTK2 build measures <select> via gdk_pango and aborts

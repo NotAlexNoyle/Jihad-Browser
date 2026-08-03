@@ -2330,7 +2330,34 @@ bool GoannaRenderPage::BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect) {
     // emitted anyway because the isis file always carries them.
     json += ",\"isSeparator\":false,\"isLabel\":false}";
   }
-  json += "],\"selectedIdx\":" + std::to_string((int)selIdx) + "}";
+  json += "],\"selectedIdx\":" + std::to_string((int)selIdx);
+  // ADDITIVE to the isis shape (the framework's enyo.json.parse ignores unknown keys):
+  // the <select>'s rect in CARD/plugin px, so the card can anchor the popup under the
+  // box instead of screen-centre. The stock anchor path (enyo.WebView._selectRect via
+  // click info) is dead in this embedding — BasicWebView publishes no onClick — so the
+  // daemon, which owns the element, ships the geometry. Mapping is the exact inverse of
+  // BrowserPageGoanna::docToViewport: at z~1 card px == client-rect px (scroll already
+  // excluded by GetBoundingClientRect); zoomed, engine scroll parks at 0 and the visual-
+  // viewport pan carries the offset, so card = (client + pan) * z.
+  {
+    nsCOMPtr<nsIDOMElement> el = do_QueryInterface(aSelect);
+    nsCOMPtr<nsIDOMClientRect> r;
+    if (el) el->GetBoundingClientRect(getter_AddRefs(r));
+    if (r) {
+      float fL = 0, fT = 0, fR = 0, fB = 0;
+      r->GetLeft(&fL); r->GetTop(&fT); r->GetRight(&fR); r->GetBottom(&fB);
+      double L = fL, T = fT, R = fR, B = fB;
+      double z = (mRenderZoom >= 0.99 && mRenderZoom <= 1.01) ? 1.0
+               : ((mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0);
+      if (z != 1.0) { L = (L + mPanX) * z; R = (R + mPanX) * z;
+                      T = (T + mPanY) * z; B = (B + mPanY) * z; }
+      json += ",\"rect\":{\"left\":"   + std::to_string((int)(L + 0.5)) +
+              ",\"top\":"    + std::to_string((int)(T + 0.5)) +
+              ",\"right\":"  + std::to_string((int)(R + 0.5)) +
+              ",\"bottom\":" + std::to_string((int)(B + 0.5)) + "}";
+    }
+  }
+  json += "}";
   mSelectPopupJson = json;
   mSelectPopupPending = true;
   SetSelectPopupEl(aSelect);                       // held (AddRef'd) until popupMenuSelect / nav

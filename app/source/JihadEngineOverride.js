@@ -115,6 +115,45 @@
 				try { probeInstall(proto); } catch (e2) { try { log("probe threw"); } catch (e3) {} }
 			}
 		}
+		// Anchor the framework's <select> PopupList under the tapped box. Stock
+		// enyo.WebView positions from this._selectRect, which is only ever set from
+		// click info BasicWebView cannot publish (it declares no onClick event), so
+		// every popup opened dead-centre. The daemon owns the element and ships its
+		// card-px rect as an ADDITIVE "rect" key in the popup JSON (the framework's
+		// own parse ignores it); capture it in showSelect and place the popup in
+		// openSelect — delegating both ways, never replacing framework behaviour.
+		var wv = window.enyo && enyo.WebView && enyo.WebView.prototype;
+		if (wv && !wv._jihadAnchorPatched) {
+			wv._jihadAnchorPatched = true;
+			var origShowSelect = wv.showSelect;
+			wv.showSelect = function(inSender, inId, inJson) {
+				this._jihadSelectRect = null;
+				try {
+					var m = enyo.json.parse(inJson);
+					if (m && m.rect && typeof m.rect.bottom === "number") {
+						this._jihadSelectRect = m.rect;
+					}
+				} catch (e) {}
+				return origShowSelect.apply(this, arguments);
+			};
+			var origOpenSelect = wv.openSelect;
+			wv.openSelect = function(inPopup) {
+				var r = this._jihadSelectRect;
+				if (!r) { return origOpenSelect.apply(this, arguments); }
+				var c = inPopup.calcSize(), d = this.getOffset();
+				// horizontally centred on the box, top edge at the box's bottom;
+				// flip above the box when it would run off the bottom of the card.
+				var left = Math.max(0, (r.left + r.right) / 2 - c.width / 2 + d.left);
+				if (left + c.width > window.innerWidth) {
+					left = Math.max(0, window.innerWidth - c.width);
+				}
+				var top = r.bottom + d.top;
+				if (top + c.height > window.innerHeight) {
+					top = Math.max(0, r.top + d.top - c.height);
+				}
+				inPopup.openAt({left: left, top: top});
+			};
+		}
 		return true;
 	}
 

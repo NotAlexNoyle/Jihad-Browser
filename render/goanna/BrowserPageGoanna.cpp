@@ -345,6 +345,16 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
 
 void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   if (!mPage) return;
+  // Trace what the CARD actually asks for. A zoom injected here for testing is immediately
+  // overwritten by the card's next setZoomAndScroll, so the only way to see a real pinch is
+  // to log the incoming values; "zoom is unreliable on about:addons" (device 2026-08-03)
+  // cannot be told apart from "the card never asked for that zoom" without this. Rate-limited
+  // to changes so a pan (which re-sends the same zoom every frame) does not flood the log.
+  if (zoom != mLastLoggedZoom) {
+    fprintf(stderr, "[jihad-bs] setZoomAndScroll zoom=%.4f (was %.4f) scroll=%d,%d\n",
+            zoom, mLastLoggedZoom, x, y);
+    mLastLoggedZoom = zoom;
+  }
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
   double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;

@@ -288,6 +288,7 @@ private:
   // is all a scroll needs — but a drag over an open menu is a menu drag-select and has to
   // hit-test an absolute point, so the deltas are accumulated here from dragStart.
   int                mDragX = 0, mDragY = 0;
+  double             mLastLoggedZoom = -1.0;   // trace only: last zoom the card asked for
   int                mAdapterScrollX, mAdapterScrollY;  // adapter's scroll in zoomed-content px
                                                         // (== BrowserOffscreenInfo::renderedX/Y)
   // Map an adapter surface coordinate to a content/CSS coordinate (R5): input

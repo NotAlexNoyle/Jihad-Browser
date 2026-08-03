@@ -1,8 +1,14 @@
 ---
 created: "2026-08-02"
-last_edited: "2026-08-02"
-status: OPEN — P1. Settle gate helped but is only half the story; the buffer has NO pan headroom
+last_edited: "2026-08-03"
+status: RESOLVED 2026-08-03 — see impl-scroll-overscan-2026-08-02.md. User signed off ("scrolling feels good now").
 ---
+
+> **RESOLVED.** The overscan paint (viewport + direction-biased headroom, honest per-frame
+> geometry, ≤2048-row SGX cap) fixed this end to end; the settle gate discussed below was
+> ultimately REMOVED. Kept for the root-cause history. Authoritative record + the follow-up F7
+> (header frame-seq) is **`impl-scroll-overscan-2026-08-02.md`**.
+
 
 # Scrolling is glitchy: content moves untouched, regions blank out
 

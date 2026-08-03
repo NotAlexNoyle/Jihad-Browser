@@ -1,23 +1,28 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
-> ## 2026-08-02 (LATER SESSION) — READ FIRST; supersedes much of the block below
+> ## 2026-08-03 — READ FIRST (full handoff: `context/impl/impl-NEXT-AGENT-START-HERE.md`)
 >
-> **Scroll pan headroom FIXED + device-verified** (overscan paint, Opus-adversarial-reviewed,
-> all 3 blockers fixed pre-deploy): `context/impl/impl-scroll-overscan-2026-08-02.md`. User:
-> "scrolling is now more reliable." Long-press root-caused live: daemon `asyncCmdHitTest` was
-> a stub (the adapter GATES mousehold on that round-trip) + input coords were DOC space
-> dispatched as VIEWPORT space — both fixed, deployed, awaiting user confirm.
+> **Scrolling DONE — user signed off** ("scrolling feels good now"): overscan paint, honest
+> per-frame geometry, ≤2048-row SGX cap, Opus-reviewed. **Long-press WORKS** (user-confirmed, test
+> banner green) — the daemon `asyncCmdHitTest` gate was a stub. **Input coord mapping fixed**
+> (doc→viewport; below-the-fold taps landed a screenful low). `impl-scroll-overscan-2026-08-02.md`.
 >
-> **ALL THREE VARIANTS ARE LIVE** (mochi re-deployed, mojo first run — `push-variant.sh`
-> md5-verified tarball + real postinst over novacom; `push-engine-update.sh` for fast engine
-> swaps). Cold boot: three daemons auto-start on their own sockets, ~27 MB RSS each idle,
-> R7 `check` 24/24 PASS, `/media/internal` clean. Device REBOOTED so all shims are
-> registered — mochi/mojo cards have NOT yet been launched (next R7 step: launch each card,
-> confirm it reaches only its own daemon).
+> **ALL THREE VARIANTS LIVE + CARDS LAUNCHED** (mochi re-deployed, mojo's first-ever run) — each
+> card paints through its own daemon, cold boot auto-starts all three, `device-independence-test.sh
+> check` 24/24, `/media/internal` clean. Deployed via `push-variant.sh` + `push-engine-update.sh`
+> (novacom, md5-verified). Apps renamed **Jihad Enyo / Mochi / Mojo**; Jihad logo on `about:` +
+> `about:jihad`; Enyo start page follows VKB/orientation.
 >
-> Start-page centring fixed (flex; verified VKB-up on fb1). XPI install prompt authored but
-> deliberately UNWIRED (no manifest) until the card confirm-reply path is verified.
-> Popup (menupopup) instrumentation is in the UXP tree, NOT yet in a shipped libxul.
+> **`<select>` popup: daemon half DONE + device-verified** (tap → serialize options →
+> `msgPopupMenuShow` → apply returned index). The **card list renders EMPTY and is BLOCKED on a
+> broken card JS dev-loop** — fresh card JS would not load (frozen WebAppMgr cache) and `enyo.log`
+> stopped reaching `palm-log`. **RESTORE THE CARD DEV LOOP FIRST** — `impl-select-popup-2026-08-03.md`.
+> XPI install prompt authored but UNWIRED (same card-loop dependency). `<menupopup>` DIAGNOSED
+> (separate 0x0 display root; overlay-composite pass to build) — `impl-menupopup-2026-08-02.md`.
+>
+> **The device took ~30 LunaSysMgr restarts + 2 reboots this session and got flaky** (card
+> crash-loops, the JS cache froze). A fresh reboot on the user's end is the recommended starting
+> point for the next session.
 
 > ## 2026-08-02 — CURRENT STATE, read before starting
 >

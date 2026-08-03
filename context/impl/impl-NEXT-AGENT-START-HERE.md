@@ -1,101 +1,123 @@
 ---
 created: "2026-08-02"
-last_edited: "2026-08-02"
+last_edited: "2026-08-03"
 status: HANDOFF — read this first, then context/kits/cavekit-overview.md
 ---
 
-# START HERE — handoff to the next cavekit agent
+# START HERE — handoff to the next Fable session
 
 The browser **works** on the HP TouchPad: UXP/Goanna renders real pages end to end through the
-frozen YAP contract into the unmodified isis UI. `about:addons` and `about:plugins` open. What
-follows is what is broken, in the order the user chose, plus the traps that cost this session time.
+frozen YAP contract into the unmodified isis UI, on **all three front-ends** (Enyo, Mochi, Mojo),
+each driving its own daemon. This session (2026-08-02 → 08-03) fixed scrolling, long-press,
+coordinate mapping, brought all three variants live, renamed the apps, put the logo on the about
+pages, and built the `<select>` popup pipeline. What is still open, and the traps that cost time,
+are below.
 
 ## Device facts you must know before touching anything
 
-- **Screenshots come from `/dev/fb1`** (app layer), NOT `fb0` (status bar / chrome / system alerts).
-  An fb0 capture shows chrome over a blank content area and reads as "rendering is broken" when it
-  is fine. Wake the display first (`palm://com.palm.display/control/setState {"state":"on"}`) or
-  every buffer reads black. 1024x2304 virtual, 32bpp BGRA, stride 4096: read `bs=4096 count=768`,
-  interpret 1024x768 BGRA, `rotate(-90, expand)`.
-- **App JS dev loop:** `novacom put` → `killall LunaSysMgr` → `palm-launch`. WebAppMgr caches app
-  sources in-process, so relaunching alone runs the OLD script. **Never** use `palm-install` to
-  iterate (hangs on a 44 MB ipk; two concurrent runs race the same app dir).
-- **After every `novacom put`, md5-compare both sides.** A push died mid-transfer this session and
-  left a **zero-byte daemon** on device; the exit status said success.
-- **Only the Enyo variant is live.** Mochi worked before and is a deploy regression; Mojo has never
-  run. The USB "Connected" dialog cannot be dismissed programmatically — ignore it, it is on fb0.
-- The user can perform **physical taps/gestures on request** — this is the only way to exercise the
-  adapter's pen path (the touchscreen is not an evdev device, so nothing can be injected).
+- **Screenshots come from `/dev/fb1`** (app layer), NOT `fb0` (status bar / chrome / alerts).
+  1024x2304 virtual, 32bpp BGRA, stride 4096: `dd bs=4096 count=768`, interpret 1024x768 BGRA,
+  `rotate(-90, expand)`. Wake the display first or every buffer reads black. **fb1 holds the LAST
+  painted frame even after the card dies** — a screenshot is NOT proof the card is alive (this cost
+  real time this session; confirm liveness from the daemon log's `client connected` / a fresh
+  paint, not a screenshot).
+- **App JS dev loop is UNRELIABLE right now — see the tooling wall below.** The documented loop is
+  `novacom put` → `killall LunaSysMgr` → relaunch, but this session the card **froze on a cached
+  build** and fresh JS would not load for hours despite reboot / version bump / md5-verified disk.
+  **Fix the card dev loop before trusting any card-JS change** (impl-select-popup-2026-08-03.md).
+- **After every `novacom put`, md5-compare both sides** (a push died mid-transfer earlier and left
+  a zero-byte daemon; the exit status said success). NOTE: md5 verifies the FILE, not that the
+  CARD reloaded it — those are different problems.
+- **The user can perform physical taps/gestures on request** — the only way to exercise the pen
+  path (the touchscreen is not an evdev device, nothing can be injected). The **daemon** has an
+  off-by-default `$JIHAD_INJECT` self-drive channel for clicks/scroll/zoom without a human, but it
+  needs a live adapter connection (or the offline `jihad-adapter-arm`).
+- **Deploy tooling built this session:** `build/webos-oe/push-variant.sh` (full payload, md5-verified
+  tarball + runs the variant's real postinst as root) and `push-engine-update.sh` (fast libxul +
+  daemon swap, atomic mv, restarts the job). These are the autonomous device routes.
 
-## Work queue — the user chose this order
+## What this session finished (all committed, `main`, NOT pushed)
 
-### 1. Scroll pan headroom (P1, most user-visible) — `impl-scroll-glitch-open.md`
-Scrolling shows undrawn **grey** strips. `paintToSharedBuffer` paints exactly `w x h` = the WINDOW
-size (768x942) and stamps `renderedWidth/Height` to match, so the buffer the adapter pans inside has
-**zero headroom** — one pixel of pan leaves the painted area. The shm segment is ~4x a viewport
-(`connect … sz=12582944` ≈ 3.15 M px vs 723 k), and the isis/Atlas adapter expects a TALL buffer
-panned within (see the "tall-buffer pan" lineage in `BrowserAdapter::handlePaint`).
-**Fix:** paint viewport+overscan bounded by `segSize`, report the real painted size, then
-re-evaluate the 220 ms scroll-settle gate added in 9cb58c56 — it may become unnecessary.
+- **Scrolling — DONE, user signed off ("scrolling feels good now").** Overscan paint with honest
+  geometry, ≤2048-row region (SGX texture cap), direction-biased headroom; removed the settle
+  gate; echo-suppression; fit-zoom floored to an identity blit; coverage-aware repaint +
+  pan-cadence refresh. Opus-reviewed (16 findings, 3 blockers, all fixed pre-deploy).
+  `impl-scroll-overscan-2026-08-02.md`.
+- **Long-press — WORKS, user-confirmed (test-page banner went green).** Root cause: the daemon's
+  `asyncCmdHitTest` was a stub and the adapter GATES every long-press on that round-trip. Real
+  hit-test now implemented (HitTest.schema JSON).
+- **Input coordinate mapping — fixed.** Input was dispatching DOCUMENT coords as VIEWPORT coords
+  (presses landed a screenful low). One `docToViewport` at the drain covers click/mouse/
+  contextmenu/touch/hit-test. Likely also the old "links below the fold don't navigate" cause.
+- **All three variants LIVE (R7 real for the first time).** Mochi re-deployed, Mojo's first-ever
+  run; cold boot auto-starts all three daemons on their own sockets (~27 MB RSS each), each card
+  paints through its own engine, `device-independence-test.sh check` 24/24.
+- **Apps renamed** Jihad Enyo / Jihad Mochi / Jihad Mojo; Enyo start page follows the VKB/orientation.
+- **Jihad logo on `about:` and `about:jihad`/`about:isis`** (the source PNG has a baked-in
+  checkerboard; border flood-fill replaces it per page background).
 
-### 2. XUL `<menupopup>` support (P1 — CONFIRMED by the user 2026-08-02)
-**Tapping the `about:addons` settings button does nothing** — the tools menu never opens
-(`extensions.xul:137`, `<toolbarbutton type="menu">` → `<menupopup id="utils-menu">`). This is
-structural, not cosmetic, and the same popup path backs **`<select>` dropdowns, context menus and
-every XUL menu** — very likely why long-press `contextmenu` never reaches the page either.
-PuppetWidget *does* model popup children (`PuppetWidget.cpp:63` tests `eWindowType_popup`, `:347`
-asserts it), so popups are not obviously unsupported. **Instrument popup widget creation FIRST** —
-today it logs nothing, so "no popup created" and "popup created but painted nowhere" are
-indistinguishable. That ambiguity is exactly what cost this session time on `holdAt` and the icons.
+## Work queue — what to do next, in priority order
+
+### 1. Finish the `<select>` popup — RESTORE THE CARD DEV LOOP FIRST — `impl-select-popup-2026-08-03.md`
+The daemon/engine/adapter half is **done + device-verified** (a `<select>` tap serializes the real
+options, emits `msgPopupMenuShow`, applies the returned index). The card list renders EMPTY and
+could not be debugged because **two card-side tools broke**: fresh card JS would not load (frozen
+cache), and `enyo.log` stopped reaching `palm-log`. **Do this first:** on a clean boot, prove fresh
+JS loads via a boot-marker log line (NOT disk md5), and confirm `enyo.log` reaches `palm-log`
+again. Then the current `Browser.js` (plain `Popup` + a `Button` per option) either works or the
+`[JSEL]` diagnostic in git history pins it in one tap. Then mochi/mojo get their own idiom.
+
+### 2. XUL `<menupopup>` (about:addons tools menu, context menus) — `impl-menupopup-2026-08-02.md`
+DIAGNOSED: the popup widget IS created at the right place but 0x0 and never shown; it is a separate
+display root the offscreen capture doesn't composite. Two-part fix (size+show the popup widget;
+overlay-composite `GetVisiblePopups()` after the main paint). `build-popup-probe.sh` is the loop.
+NOTE: `<select>` (item 1) is the higher-value, closer-to-done instance of the same "engine popup is
+a separate display root" problem — finish it first, the menupopup overlay pass is bigger.
 
 ### 3. Chrome icon repaint latency — `impl-addons-icons-open.md`
-Icons render but are **slow**. Sync decode is already on, so this is repaint DELIVERY latency.
-Suspects: the ~150 ms paint rate limit, the 220 ms scroll-settle gate, and whether an
-image-completion invalidation reaches the widget promptly.
+`about:addons` icons render but LATE. Sync decode is on, so this is repaint-delivery latency (the
+~150 ms paint rate limit / image-completion invalidation). Lower-priority polish.
 
-### 4. Start-page centring under the VKB (user request, not yet implemented)
-`app/css/browser.css` hardcodes `.startpage { height: 1024px }` and
-`.startpage-placeholder-tall { height: 1024px }`, with the brand block absolutely centred in that
-FIXED box — so it cannot follow the keyboard and is also wrong in landscape (centres at ~512 in a
-768-tall viewport). webOS already shrinks the card when the VKB rises (768x602 portrait), so making
-the container follow available height (`height:100%`, `flex:1` on the `tall` box, `position:relative`)
-re-centres for keyboard up/down AND both orientations with no resize handler. Unverified — the fixed
-1024 px was likely chosen because a parent lacked a height, so check the parent chain on device.
+### 4. XPI install (browser-services R3) — `impl-r8-palemoon-basilisk.md`, `impl-select-popup-2026-08-03.md`
+The daemon `amIWebInstallPrompt` + `jihad-xpi-confirm` observer are AUTHORED and committed but
+deliberately UNWIRED (no manifest) — a blocking confirm with no card reply path would hang the
+daemon. Wire it only AFTER the card dialog reply path is proven (same card-loop dependency as #1,
+and it should reuse whatever confirm mechanism the `<select>` popup ends up using).
 
-### 5. Mochi re-deploy + Mojo first run — `impl-variant-deploy-state.md`
-**User decision: push the files over novacom autonomously** (slow, hours per variant, but no user
-action needed). Then run the real R7 test: three daemons on their own sockets, each card reaching
-only its own variant, removing one leaving the others untouched
-(`build/webos-oe/device-independence-test.sh`, so far only ever run against one live variant).
+### 5. R7 NPAPI plugins — configuration done; the blocker is that **windowless NPAPI does not exist
+in a cairo-headless build** (`NPNVSupportsWindowless` answers false unless Win/Mac/X11-GTK). Must be
+PORTED, not enabled. Neither reference browser faced this. Large; lowest priority.
 
-### 6. R3 XPI install — `impl-r8-palemoon-basilisk.md`
-Needs a daemon `amIWebInstallPrompt`; the toolkit's prompt is a modal XUL chrome window headless
-cannot open, and its failure path CANCELS every install. **Follow Atlas: prompts are card-side
-dialogs**, and **each variant uses its OWN framework's idiom** (Enyo 1 popup for enyo, Mochi/Enyo 2
-kinds for mochi, Mojo `showAlertDialog` for mojo). The daemon stays framework-agnostic.
+### Also open (pre-existing, device-gated)
+- cookie/cache persistence: no `cookies.sqlite` created on device despite a correct provider + prefs
+  (browser-services R2; the one non-hardware debug lead).
+- VKB white-band / "snap" jank (input R2); real pinch/touch gesture path (input R3).
+- ui-shell R4 findInPage focused test (smallest open item).
+- device LunaService methods (IPC R4).
+- clean-clone reproducibility of the OE build (device-build R3, review #7/#8).
+- TouchPad Go / Opal hardware + memory budget (device-build R5/R6).
 
-### 7. R7 NPAPI plugins
-Configuration is done. The blocker is that **windowless NPAPI does not exist in a cairo-headless
-build** (`NPNVSupportsWindowless` answers false unless Win/Mac/X11-GTK; the Unix windowless model is
-X11-defined) — it must be PORTED, not enabled. Neither reference browser faced this.
+## The F7 follow-up owed from the scroll work
+The overscan header geometry now varies per frame, so a torn read mispositions a frame. Mitigated
+by widening the in-flight reclaim valve to 2000 ms; the REAL fix (a frame sequence number in the
+shared header + an adapter-side re-read guard) needs an **adapter rebuild** and is queued for the
+next adapter change. `impl-scroll-overscan-2026-08-02.md`, finding F7.
 
-## Verification standards this project learned the hard way
+## Verification standards this project learned the hard way (still true)
 
-1. **Believe the artifact, not the exit status.** `build-goanna-arm.sh` reported success after
-   `mach configure` failed; a `.ipk` install "succeeded" while the daemon was zero bytes; a bundler
-   run that was never executable produced a one-line log that looked like a completed build.
-2. **One timed capture cannot distinguish "never" from "late".** I concluded the icons were not
-   fixed from a single frame grab; they were rendering, just after my window. That claim was wrong
-   and contradicted a correct sub-agent finding.
-3. **Instrument the boundary before theorising.** `mouseEvent`, `holdAt` and popup creation all log
-   nothing, so absence of evidence kept getting read as evidence of absence.
-4. **Restoring correct behaviour exposes bugs that were hidden.** The card→adapter "bug" was a pane
-   legitimately hidden until navigation; the scroll glitching only became reachable once repaints
-   started happening at all. Expect more of this.
+1. **Believe the artifact, not the exit status** (a `.ipk` install "succeeded" with a zero-byte
+   daemon; a build script reported success after `mach configure` failed).
+2. **fb1 holds the last frame — a screenshot is not proof of card liveness.** Confirm from the
+   daemon log. (New this session; cost real time on the select popup.)
+3. **md5 of the file on disk is not proof the card RELOADED it.** The WebAppMgr/LunaCE in-process
+   JS cache can serve a stale build for hours. Prove card freshness with a runtime marker.
+4. **One timed capture cannot distinguish "never" from "late"** (the icon investigation).
+5. **Instrument the boundary before theorising** — but make sure the instrument's output actually
+   arrives (this session, `enyo.log` silently stopped reaching `palm-log`).
 
 ## Uncommitted in the working tree, on purpose
 
 `render/browserserver/JihadBrowserServer.cpp`, `render/goanna/GoannaRenderPage.{cpp,h}` — a
 `$JIHAD_INJECT`-gated debug channel (`jsurl` runs privileged JS in a chrome document, `title` reads
-it back). It **does compile** (the ARM daemon built with it) and is off by default. It is the right
-tool for the popup investigation in item 2.
+it back). It compiles (the ARM daemon builds with it) and is off by default. Useful for the popup
+investigations.

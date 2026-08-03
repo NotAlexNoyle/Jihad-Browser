@@ -1,11 +1,30 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-29"
+last_edited: "2026-08-03"
 ---
 
 # Implementation Overview
 
-## 2026-07-31 — THREE INDEPENDENT PACKAGES, RUN IN PLACE FROM CRYPTOFS (READ FIRST)
+## 2026-08-03 — SCROLL DONE, THREE VARIANTS LIVE, SELECT-POPUP CARD-BLOCKED (READ FIRST)
+
+Full handoff: **`impl-NEXT-AGENT-START-HERE.md`**. This session:
+- **Scrolling FIXED, user signed off** — overscan region paint with honest per-frame geometry,
+  ≤2048-row SGX cap, direction-biased headroom, settle-gate removed, echo suppression, fit-zoom
+  floored to identity blit, coverage-aware repaint + pan-cadence refresh. Opus adversarial review
+  (16 findings, 3 blockers) all fixed pre-deploy. `impl-scroll-overscan-2026-08-02.md`.
+- **Long-press WORKS** (user-confirmed) — the daemon `asyncCmdHitTest` gate was a stub; real
+  hit-test round-trip added. **Input coord mapping fixed** — doc→viewport at the input drain.
+- **All three variants LIVE** (mochi re-deployed, mojo first run); cold boot auto-starts all three,
+  `device-independence-test.sh check` 24/24 → device-build **R7 verified**. `push-variant.sh` +
+  `push-engine-update.sh` are the autonomous novacom deploy routes.
+- **Apps renamed** Jihad Enyo/Mochi/Mojo; **Jihad logo on `about:`/`about:jihad`**; Enyo start page
+  follows VKB/orientation.
+- **`<select>` popup: daemon done + device-verified; card list empty, BLOCKED on a broken card JS
+  dev-loop** (frozen WebAppMgr cache + `enyo.log`→`palm-log` stopped). `impl-select-popup-2026-08-03.md`.
+- **`<menupopup>` DIAGNOSED** (separate 0x0 display root) — `impl-menupopup-2026-08-02.md`. **XPI
+  install prompt authored, UNWIRED** (card-loop dependency).
+
+## 2026-07-31 — THREE INDEPENDENT PACKAGES, RUN IN PLACE FROM CRYPTOFS
 
 Two user decisions reshaped packaging: **each front-end must work entirely on its own**, and the
 package must be a **good webOS citizen** that writes nothing to `/media/internal`. Both are now

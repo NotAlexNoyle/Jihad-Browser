@@ -1,98 +1,70 @@
 ---
 created: "2026-08-03"
 last_edited: "2026-08-03"
-status: daemon+adapter+card pipeline built & desktop-proven; card popup renders over the plugin but showed EMPTY (stale-JS suspected); device was crash-looping from the day's LunaSysMgr churn — reboot + retest
+status: RESOLVED on device (popup renders all options; Opus-hardened apply guard). Open — one physical tap to confirm the reply, mochi/mojo card handlers, optgroup header rows
 ---
 
-# `<select>` dropdown -> card-native popup (Atlas msgPopupMenuShow model)
+# `<select>` dropdown -> card popup — RESOLVED (the framework owns the card side)
 
-The user asked for popup support "referencing Atlas". The decisive finding: **isis/Atlas never
-rendered `<select>` dropdowns in the card** — QtWebKit/WPE paint the combobox popup natively into
-the plugin surface, so neither has an `onOpenSelect` app handler. Our Goanna engine can't paint it
-(the XUL/native combobox is a separate display root that comes up 0x0, impl-menupopup-2026-08-02.md),
-so we take Atlas's *IPC contract* (already inherited byte-identical) and render the list card-side.
+## The real root cause (found 2026-08-03 after the dev loop was restored)
 
-## The pipeline (built this session)
+**The card never needed any app-side popup code.** The isis-era stack handles the whole
+card side by itself:
 
-1. **Daemon/engine** (`GoannaRenderPage::BuildSelectPopup`): a tap on a dropdown `<select>`
-   (not multiple, size<=1) reads the options via the DOM (`nsIDOMHTMLSelectElement`/options),
-   serializes `{"selected":N,"items":[{"label","enabled"},...]}`, holds the element (AddRef'd),
-   and skips the normal click. Dedup guards the raw+gesture double-tap (700 ms / same element).
-2. **Daemon** (`BrowserPageGoanna::emitSelectPopupIfPending`, drained in the click path): writes
-   the JSON to `<state>/popup-<id>.json` (0644, R8-safe) and emits `msgPopupMenuShow(id, file)`.
-3. **Adapter** (inherited): reads+unlinks the file, calls the WebView's `showPopupMenu(id, json)`.
-4. **Framework BasicWebView** (already present!): `showPopupMenu` -> `doOpenSelect` -> the
-   `onOpenSelect` event. **Do NOT patch showPopupMenu** — an earlier patch here shadowed the
-   framework method with a broken `this.bubble()` (BasicWebView has no `bubble`), which killed it.
-5. **Card** (`app/source/Browser.js`): `onOpenSelect: "showSelectPopup"` -> parse JSON ->
-   `PopupSelect.setItems([{caption,value:index}])` + `openAtCenter` (deferred one turn so the
-   opening tap's release can't dismiss the modal). Choice -> `callBrowserAdapter(
-   "selectPopupMenuItem",[id,idx])`; dismiss sends idx -1.
-6. **Daemon** (`asyncCmdPopupMenuSelect` -> `popupMenuSelect` -> `ApplySelectPopup`): sets
-   `selectedIndex` + fires input/change; -1 releases the held element.
+1. Adapter `msgPopupMenuShow` reads the JSON file, unlinks it, and invokes `showPopupMenu`
+   on the plugin node's `eventListener` (= the framework `BasicWebView` instance).
+2. `BasicWebView.showPopupMenu -> doOpenSelect`, and the **`enyo.WebView` WRAPPER consumes
+   that event itself**: `showSelect -> createSelectPopup -> PopupList`, reply via
+   `callBrowserAdapter("selectPopupMenuItem", [id, idx])` (idx = row, or -1 on dismiss).
+   The wrapper NEVER re-publishes `onOpenSelect` to the app — the app's handler (and the
+   custom `Popup`/`Button` list built last session) was unreachable dead code, deleted.
+3. `createSelectPopup` parses **`items[].text` / `items[].isEnabled`** (+ top-level
+   `selectedIdx`, unused) — the exact isis `BrowserComboBox.cpp` shape. Our daemon wrote
+   `label`/`enabled`/`selected`, so the framework rendered a list of **undefined captions:
+   the "empty popup"**. Fixed: daemon emits the isis shape byte-for-byte
+   (`text`/`isEnabled`/`isSeparator:false`/`isLabel:false` + `selectedIdx`).
 
-## Proven on desktop (build-popup-probe.sh, Xvfb)
+Device-verified (commit e3de7d8a): injected tap on the test `<select>` -> `popupMenuShow`
+-> card popup renders **alpha/beta/gamma/delta with captions** (fb1, with a fresh daemon
+paint in the log as the liveness proof).
 
-A `<select>` tap injected through `$JIHAD_INJECT`: `clickAt <SELECT>` -> `popupMenuShow id=sel1
-items->…/popup-sel1.json` with correct JSON (alpha/beta/gamma) -> adapter receives YAP 0x2019.
-End to end minus the on-screen card list.
+## Opus adversarial review (FIX-FIRST) — folded into the same commit
 
-## On device — where it stands (unfinished)
+- **#1 (blocker)** The framework `PopupList` never reads its `disabled` flag — every row is
+  tappable — so `ApplySelectPopup` is the ONLY enforcement point: it now re-reads the
+  options collection and refuses disabled options (**#2** incl. an enclosing disabled
+  `<optgroup>`, walked to the `<select>`), out-of-range indexes (**#4** — page JS can
+  rewrite options while the popup is up), and no-op picks (**#3** — re-selecting the
+  current option fires no `input`/`change`, as in real browsers).
+- **#6** A short/empty popup-json write now fails CLOSED (unlink + drop the message):
+  forwarding it would throw in `createSelectPopup` after `showSpinner()` and leave the
+  modal scrim stuck over the card until relaunch.
+- **#7** The popup id sequence is process-global (isis `idSeq` parity): the framework
+  caches popups BY ID and a daemon page rebuild restarting at `sel1` would reopen a stale
+  cached list.
 
-- Daemon side VERIFIED on device: every `<select>` tap emits `popupMenuShow` with the right
-  options; dedup collapses the double-tap to one; `popupMenuSelect id=… idx=…` routes back.
-- The card popup DID render over the plugin (fb1 screenshot: a small popup centre-screen) — so
-  **z-order is fine** (Enyo popups composite above the NPAPI surface, like the alert dialogs).
-- But it rendered **EMPTY**, and the deployed Browser.js on disk did not match the card's
-  behaviour → **stale WebAppMgr JS** is the strong suspect (killall LunaSysMgr wasn't reliably
-  busting the in-process source cache during the rapid iteration; bumped appinfo to 1.0.4 to
-  force a version reload).
-- Late in the session the card began **crash-looping** (client connect -> one paint ->
-  `client disconnected`, load aborts NS_BINDING_ABORTED 0x804b0002), consistent with the device
-  destabilising after ~30 LunaSysMgr restarts in a day (a churn failure mode the notes warn about),
-  not obviously the popup code (the crash persisted with the popup-open suppressed).
+## Still open
 
-## The real wall (2026-08-03, after a reboot + ~10 more deploy cycles): CARD TOOLING
+1. **One physical tap** (user) on an option to see the pick apply end-to-end on device
+   (`popupMenuSelect id=selN idx=…` in the daemon log + the test page's onchange banner).
+   The IPC reply route itself was device-verified 2026-08-03 (dismiss/-1 path).
+2. **Mochi + Mojo card handlers** — both variants' custom WebViews have NO `showPopupMenu`
+   callback (the NPAPI bridge drops it silently). Each needs its own small popup + the
+   `selectPopupMenuItem` reply, parsing the isis shape (`app-mochi/source/JihadWebView.js`
+   "adapter -> app callbacks" block; mojo `app-mojo/app/assistants/main-assistant.js`).
+3. **Optgroup header rows** (review #5): options inside `<optgroup>` render as a flat list
+   (isis emitted `isLabel` group rows). Needs a daemon-side index remap between list rows
+   and option indexes — do NOT add rows without remapping the reply.
+4. Cosmetic (review): option text truncates at 200 UTF-8 bytes (≈66 CJK chars, no
+   ellipsis); the popup always opens centered (`_selectRect` is never set — stock-framework
+   behaviour, not a daemon bug); `selectedIdx` has no framework consumer (kept for contract
+   fidelity).
 
-The popup-content problem could NOT be resolved because **two card-side dev-loop tools are
-broken on this device right now**, and both are needed to debug card JS:
+## Tooling this rode on (see impl-NEXT-AGENT-START-HERE.md)
 
-1. **Fresh card JS will not load.** After the reboot the card froze on an early cached build
-   (~the first `onOpenSelect` version): every subsequent edit — verified byte-for-byte on disk
-   by md5 — had ZERO effect on the running card. Tried, none worked: `killall LunaSysMgr`,
-   `appinfo` version bump (→1.0.4), a full reboot, and a close-then-relaunch (the close script's
-   `running`-query parse returns nothing for the app, so it closes nothing and LunaSysMgr
-   restores the card with its cached bundle). The card kept running the OLD `showSelectPopup`
-   (empty popup, no diagnostic logs), which is why every "fix" looked identical on screen.
-2. **Card JS logs will not capture.** `palm-log` (and a `palm-log` Monitor) reliably showed the
-   DAEMON's stdout but never surfaced the card's `enyo.log` lines this session (earlier in the
-   day they did) — so the one diagnostic that would settle "0 controls built" vs "built but not
-   rendered" vs "exception" (`[JSEL] built controls=N … listNode=…`) never came back.
-
-So the empty popup is UNDIAGNOSED between two hypotheses that need a working loop to separate:
-(a) the card is simply still running stale JS and the current code is fine; (b) adding controls
-to an already-created Popup + `render()` + `openAtCenter()` genuinely doesn't paint content in
-this LunaCE/WebAppMgr embedding. The identical empty box across BOTH `PopupSelect.setItems` AND a
-plain `Popup` + explicit `Button`s is equally explained by (a) — the card never ran either.
-
-## Next step (do FIRST — restore the card dev loop, THEN debug the popup)
-
-1. **Get fresh card JS to actually load.** Reboot, and BEFORE launching, confirm no jihad card
-   is restorable — fix the close path first: capture the real `com.palm.applicationManager/running`
-   JSON shape (this session's `.jihad-running.sh` parse produced nothing) and close by the real
-   processId, or as a last resort `palm-install -r` + reinstall the `.ipk` (heavier; palm-install
-   has hung before). Prove freshness with a one-line boot marker in the log, not by disk md5.
-2. **Get card logs.** Confirm `enyo.log` reaches `palm-log` again on a clean boot (it did at
-   ~08:11 today) before trusting any card diagnostic.
-3. Then the current `Browser.js` (plain `Popup` + a `Button` per option, built in `showSelectPopup`)
-   either just works, or the `[JSEL]` diagnostic (still in git history) tells you which of (a)/(b)
-   it is in one tap.
-4. Then mochi (Enyo2 kind) + mojo (Mojo dialog) get their own idiom per the per-variant rule.
-
-## What IS solid (committed, not blocked)
-
-The whole daemon/engine/adapter half is done and device-verified: a `<select>` tap serializes the
-real options, emits `msgPopupMenuShow`, and applies the returned index (input/change) — plus the
-`ClickAt` fix so a dropdown `<select>` never falls through to a normal click (the "box around
-Apple" focus ring). Only the card's on-screen list rendering is unverified, gated on the tooling
-above.
+The card dev loop is `build/webos-oe/push-card-js.sh` (stamp-proven reloads). Key traps
+now encoded there: `novacom run` DROPS late output at host stdin EOF (`sleep 4 |` every
+run that must reply — this masqueraded as "luna-send blackouts"/"enyo.log dead" all
+session); the WebAppMgr in-process JS cache really serves stale builds (LunaSysMgr restart
+per cycle, default); launch the card on a page via launch params
+(`{"id":…,"params":{"url":…}}`) or the adapter/engine never connects.

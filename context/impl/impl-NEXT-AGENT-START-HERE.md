@@ -4,6 +4,26 @@ last_edited: "2026-08-03"
 status: HANDOFF — read this first, then context/kits/cavekit-overview.md
 ---
 
+> **2026-08-03 (second session) — the two big blockers below are RESOLVED:**
+> **(0) the card JS dev loop is RESTORED** — `build/webos-oe/push-card-js.sh`, reloads
+> proven by a per-push runtime stamp in the device log; the freeze had TWO layers:
+> `novacom run` silently DROPS late output at host stdin EOF (hold stdin open:
+> `sleep 4 | novacom run …` — this alone explains the "luna-send blackouts", the dead
+> `running` queries and the "enyo.log stopped reaching palm-log"), and the WebAppMgr
+> in-process JS cache genuinely serves stale builds (per-cycle LunaSysMgr restart, now the
+> script default, busts it). **(1) the `<select>` popup WORKS on device** (commit
+> e3de7d8a): the empty popup was a JSON field-name mismatch — the stock `enyo.WebView`
+> wrapper handles the WHOLE card side itself (`showSelect`→`createSelectPopup`→`PopupList`)
+> and expects the isis shape `items[].text/isEnabled` (+`selectedIdx`); our daemon wrote
+> `label/enabled`. Daemon now emits the isis shape; the app's custom popup was deleted
+> (unreachable dead code). Opus-review hardening folded in (disabled/optgroup/out-of-range/
+> no-op guards in `ApplySelectPopup`; fail-closed popup-json write; process-global id seq).
+> Remaining on this track: one physical tap to confirm the applied pick; mochi/mojo card
+> handlers (both silently drop `showPopupMenu`); optgroup header rows need an index remap.
+> Start page now titles "Jihad Browser" (user request, verified). Details:
+> `impl-select-popup-2026-08-03.md`. The queue below is otherwise unchanged (next:
+> menupopup overlay → XPI wiring → icon latency → cookies → F7).
+
 # START HERE — handoff to the next Fable session
 
 The browser **works** on the HP TouchPad: UXP/Goanna renders real pages end to end through the

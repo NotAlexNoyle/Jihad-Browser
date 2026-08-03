@@ -86,8 +86,8 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R3: XPI installation works
 **Description:** A user can install an extension from a file or a URL.
 **Acceptance Criteria:**
-- [ ] Navigating to / opening an `.xpi` triggers the install flow rather than a download or a MIME handoff.
-- [ ] The install prompt identifies the extension and can be accepted or declined; declining installs nothing.
+- [x] Navigating to / opening an `.xpi` triggers the install flow rather than a download or a MIME handoff. *(2026-08-03: the flow runs end to end on desktop AND device. Two engine assumptions had to go first — `amInstallTrigger` requires a chrome `<browser>` above the page or a content-frame message manager, and `AddonManager.installAddonsFromWebpage` dereferences its documented-optional `aBrowser` three times; patch 0013. Before that every `InstallTrigger.install()` threw `NS_ERROR_UNEXPECTED`.)*
+- [~] The install prompt identifies the extension and can be accepted or declined; declining installs nothing. *(The prompt is RAISED with the right origin and add-on name, on device: `xpi confirm: Install add-on: Jihad Test Add-on`. Declining works and the page is told `USER_CANCELLED`. **ACCEPTING is not reachable yet**: the daemon has no `DialogSink`, so the confirm has nobody to ask and defaults to deny — cavekit-browser-services.md **R3**, whose first AC is corrected in the same session.)*
 - [ ] After accepting, the extension appears in `about:addons` and is active (subject to a restart if it is not bootstrapped).
 - [ ] An extension whose `targetApplication` does not match this app's ID/version is rejected with a clear reason rather than installed and silently inert.
 **Dependencies:** R1, R2, cavekit-browser-services.md (R4)

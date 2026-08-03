@@ -67,11 +67,38 @@ if [ "$STAGE" = build ] || [ "$STAGE" = all ]; then
   XUL=/out/obj-jihad-goanna-arm/dist/bin/libxul.so
   [ -e "$XUL" ] || { echo "ERROR: build reported success but $XUL does not exist" >&2; exit 1; }
   if [ -d /cfg/patches ]; then
-    newest=$(ls -t /cfg/patches/*.patch 2>/dev/null | head -1)
+    # Only patches that touch COMPILED sources can move libxul's mtime. A patch that changes
+    # only loose JS resources (.js/.jsm — they are copied to dist, never linked in) leaves
+    # libxul untouched no matter how correctly it was rebuilt, so including those here made
+    # the guard fail permanently and unfixably (measured 2026-08-03 with the XPI patch).
+    # Those patches are checked below instead, against the artifact they DO affect.
+    newest=""
+    for p in /cfg/patches/*.patch; do
+      [ -e "$p" ] || continue
+      # A JS-only patch touches nothing but .js/.jsm files.
+      if grep -qE '^\+\+\+ b/.*\.(js|jsm)$' "$p" && \
+         ! grep -qE '^\+\+\+ b/.*\.(cpp|h|c|cc|mm|build|configure|in)$' "$p"; then
+        continue
+      fi
+      [ -z "$newest" ] || [ "$p" -nt "$newest" ] && newest="$p"
+    done
     if [ -n "$newest" ] && [ "$newest" -nt "$XUL" ]; then
       echo "ERROR: $XUL is OLDER than $newest — the engine was not rebuilt against current patches" >&2
       exit 1
     fi
+    # JS-only patches: assert the dist actually carries the patched file, which is what the
+    # device bundle copies. Same "believe the artifact" rule, applied to the right artifact.
+    for p in /cfg/patches/*.patch; do
+      [ -e "$p" ] || continue
+      grep -E '^\+\+\+ b/.*\.(js|jsm)$' "$p" | sed 's|^+++ b/||' | while read -r f; do
+        base=$(basename "$f")
+        found=$(find /out/obj-jihad-goanna-arm/dist/bin -name "$base" 2>/dev/null | head -1)
+        if [ -n "$found" ] && [ "/src/uxp/$f" -nt "$found" ]; then
+          echo "ERROR: $found is OLDER than /src/uxp/$f — patched JS did not reach the dist" >&2
+          exit 1
+        fi
+      done
+    done
   fi
 fi
 echo "== ARM build stage '$STAGE' done; artifacts under /out =="

@@ -37,9 +37,10 @@ downloads and MIME handoff, and TLS/certificate error handling. Reference:
 ### R3: JavaScript dialogs bridged with blocking semantics
 **Description:** Script-initiated dialogs surface to the client and block the page until answered.
 **Acceptance Criteria:**
-- [x] `alert`, `confirm`, `prompt`, and HTTP-auth dialogs emit the corresponding dialog messages carrying a sync reply path.
-- [x] The page blocks until the client replies over the sync pipe, then resumes with the reply value.
+- [~] `alert`, `confirm`, `prompt`, and HTTP-auth dialogs emit the corresponding dialog messages carrying a sync reply path. **CORRECTED 2026-08-03 — this was marked met on the strength of `render/goanna/test/dialog_test.cpp`, which installs its OWN `DialogSink` and asserts the ENGINE side calls it. That is real, but it is only half the path: the DAEMON never calls `SetDialogSink` at all** (grep: the only callers are that test and the shutdown clear), so in the shipping binary `gSink` is null and an engine dialog reaches no card. Found while wiring the XPI confirm, which logs `sink=NONE — denying` on device: the prompt is raised correctly and then has nobody to ask. The card ends of this are built (Enyo/Mochi/Mojo all present dialogs) and the adapter carries the messages; what is missing is the daemon-side sink that turns an engine dialog into `msgDialog*`.
+- [ ] The page blocks until the client replies over the sync pipe, then resumes with the reply value. *(The reply pipe is unimplemented: `ProxySink::msgSSLConfirm` passes an EMPTY `syncPipePath` with the note "the blocking accept/reject reply pipe is adapter/device work". So no dialog can currently be ANSWERED, only defaulted — which is why the XPI confirm fails closed to deny.)*
 **Dependencies:** cavekit-engine-embedding.md (R3)
+**Next step:** implement a `DialogSink` in the daemon that emits `msgDialogAlert`/`msgDialogConfirm`/`msgDialogPrompt` for the connected page and blocks on a reply, then point `SetDialogSink` at it. Until then every engine dialog takes its safe default.
 
 ### R4: Downloads and MIME handoff
 **Description:** Downloads and unsupported content are reported per the contract.

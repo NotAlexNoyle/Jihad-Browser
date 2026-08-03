@@ -43,11 +43,19 @@ paint in the log as the liveness proof).
   caches popups BY ID and a daemon page rebuild restarting at `sel1` would reopen a stale
   cached list.
 
+## End-to-end confirmed + anchored (2026-08-03, later the same day)
+
+- **User-confirmed pick**: tapping "gamma" applied the selection and fired the page's
+  onchange (the test banner updated). The Enyo select popup is fully working.
+- **Anchoring fixed** (commit 322f26bd): the popup was opening dead-centre because the
+  stock `_selectRect` path can never run (BasicWebView publishes no onClick). The daemon
+  now appends an ADDITIVE `"rect"` key (card px; inverse of `docToViewport`, zoom/pan
+  aware) to the popup JSON, and delegating patches on `enyo.WebView.showSelect`/
+  `openSelect` (JihadEngineOverride) open the list flush under the box, centred, clamped,
+  flipping above when it would run off screen. fb1-verified.
+
 ## Still open
 
-1. **One physical tap** (user) on an option to see the pick apply end-to-end on device
-   (`popupMenuSelect id=selN idx=…` in the daemon log + the test page's onchange banner).
-   The IPC reply route itself was device-verified 2026-08-03 (dismiss/-1 path).
 2. **Mochi + Mojo card handlers** — both variants' custom WebViews have NO `showPopupMenu`
    callback (the NPAPI bridge drops it silently). Each needs its own small popup + the
    `selectPopupMenuItem` reply, parsing the isis shape (`app-mochi/source/JihadWebView.js`

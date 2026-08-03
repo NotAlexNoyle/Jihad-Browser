@@ -93,7 +93,7 @@ enyo.kind({
 		// over the (idle) WebView until the first navigation; hidden on loadStarted.
 		{name: "startPage", classes: "jihad-startpage", components: [
 			{tag: "img", name: "spLogo", classes: "jihad-sp-logo", attributes: {src: "icon-256x256.png"}},
-			{content: "Jihad Mochi", classes: "jihad-sp-title", allowHtml: false},
+			{content: "Jihad Browser", classes: "jihad-sp-title", allowHtml: false},
 			{content: "Mochi UI \u2605 Goanna/6.9 UXP/b2594a4", classes: "jihad-sp-sub", allowHtml: false}
 		]},
 		// Overflow menu (opened from the toolbar menu button). Items launch the

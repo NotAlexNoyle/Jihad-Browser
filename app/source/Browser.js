@@ -123,8 +123,13 @@ enyo.kind({
 		ERR_CURL_COULDNT_RESOLVE_HOST: 2006,
 		ERR_CURL_SSL_CACERT: 2060
 	},
+	// Dev-loop boot marker: "@DEV@" is replaced with a per-push stamp by
+	// build/webos-oe/push-card-js.sh; a stale WebAppMgr JS cache shows the old stamp.
+	jihadBuildStamp: "@DEV@",
 	create: function() {
 		this.inherited(arguments);
+		enyo.log("[JIHAD-BOOT] stamp=" + this.jihadBuildStamp);
+		try { window.console.error("[JIHAD-BOOT-ERR] stamp=" + this.jihadBuildStamp); } catch (e) {}
 		this.$.context.setView(this.$.view);
 		this.urlChanged();
 		this.searchPreferencesChanged();
@@ -357,6 +362,9 @@ enyo.kind({
 		}
 		list.render();
 		this.$.selectPopup.openAtCenter();
+		enyo.log("[JSEL] id=" + inId + " built controls=" + list.getControls().length +
+			" listNode=" + (list.hasNode() ? "yes" : "NO") +
+			" popupShowing=" + this.$.selectPopup.showing);
 		return true;
 	},
 	selectPopupChoice: function(inSender) {

@@ -33,7 +33,7 @@ enyo.kind({
 			// name + "<UI> UI ★ <engine>"). The logo is sized to match Mochi's.
 			{name: "brand", className: "startpage-brand", components: [
 				{kind: "Image", className: "startpage-logo", src: "images/startpage-placeholder.png"},
-				{content: "Jihad Enyo", className: "startpage-title", allowHtml: false},
+				{content: "Jihad Browser", className: "startpage-title", allowHtml: false},
 				{content: "Enyo UI ★ Goanna/6.9 UXP/b2594a4", className: "startpage-sub", allowHtml: false}
 			]},
 			{name: "placeholder", className: "startpage-placeholder"}

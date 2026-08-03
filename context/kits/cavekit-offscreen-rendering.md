@@ -104,18 +104,33 @@ solution shapes are shared, only the presentation differs per popup type.
   variants 2026-08-03 (`../impl/impl-select-popup-2026-08-03.md`); the serialized shape is the
   isis one (`items[].text` / `items[].isEnabled` + `selectedIdx`), plus a Jihad-additive `rect`
   so the card can anchor the list under the tapped control.
-- [ ] **XUL `<menupopup>`: composite it.** DIAGNOSED, not built (`../impl/impl-menupopup-2026-08-02.md`):
-  the popup widget IS created at the right place but comes up **0x0 and is never shown**. Two parts,
-  neither sufficient alone — (a) push the `nsMenuPopupFrame`'s measured size into the offscreen
-  popup widget's `Resize` and honour `Show(true)` for the popup window type; (b) after the main
-  paint, enumerate `nsXULPopupManager::GetInstance()->GetVisiblePopups()` and composite each into
-  the shared buffer at its screen offset, gated so a page with no popup pays nothing.
-- [ ] The `about:addons` tools menu and page context menus open, are readable, and can be
-  dismissed on device (what (b) buys, and what cavekit-addons-extensions.md R2 depends on).
+- [x] **XUL `<menupopup>`: composited.** After the main paint the daemon enumerates
+  `nsXULPopupManager::GetInstance()->GetVisiblePopups()` and draws each into the shared buffer at
+  its own offset, clipped to its box, innermost last, enforcing the alpha==255 invariant the
+  adapter's raw blit needs; a page with no popup pays one query.
+  **The 2026-08-02 diagnosis that a popup "is created 0x0 and never shown" was wrong**: it was
+  measured on a plain `<select>`, which is the COMBOBOX path and never enters the popup manager.
+  A real `<menupopup>` sizes and shows itself correctly (594,52 347x117 on desktop), so no
+  size-and-show fix was needed — only the compositing, and then the input routing below.
+- [x] The `about:addons` tools menu opens, is readable, can be dismissed, and its items ACTIVATE.
+  Desktop-verified end to end: all items, separators and the checkmark render; a tap elsewhere
+  dismisses; clicking "Update Add-ons Automatically" drives the real XUL command path (on reopen
+  the checkmark is gone and the last item reads "…to Update Manually"). Device-verified: the menu
+  opens and composites over the page, and a double-delivered tap no longer closes it.
+  Page context menus are NOT this path — a long-press is reported to the CARD over the frozen
+  contract (isis model), so the engine never opens a context popup here.
+- [x] An open popup is INTERACTIVE, not just visible. It is a separate display root, so the
+  content document's hit-testing cannot see it: a tap on the tools menu's first row resolved to
+  the `<vbox>` underneath. Taps, moves and drags are routed into the popup, the row under the
+  finger highlights (an AGENT sheet draws it — this build has no native theme to paint
+  `_moz-menuactive`), and a drag that ends over the menu picks the highlighted row.
 **Dependencies:** R1, R3, cavekit-input-bridging.md, cavekit-addons-extensions.md (R2)
-**Iteration loop:** `build/desktop/build-popup-probe.sh` (self-wraps under Xvfb; a plain `<select>`
-plus injected clicks) prints every `[jihad-widget]`/`[jihad-popup]` line. The device path is the
-same minus Xvfb, so desktop is the right first loop.
+**Iteration loop:** `build/desktop/build-menupopup-probe.sh` — it drives **about:addons**, because
+XUL parsing is chrome-only and a `file://` .xul document is refused outright, and because
+`build-popup-probe.sh`'s plain `<select>` exercises the combobox path instead of the popup manager
+(that conflation is what produced the wrong 2026-08-02 diagnosis). The desktop dist needs the
+`chrome://branding/` package or about:addons parses to a `<parsererror>` and every probe silently
+tests an error page — `build-goanna.sh` now installs it, as the device bundle already did.
 
 ## Out of Scope
 - Synthesizing input (cavekit-input-bridging.md).

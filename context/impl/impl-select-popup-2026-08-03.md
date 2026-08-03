@@ -52,13 +52,47 @@ End to end minus the on-screen card list.
   destabilising after ~30 LunaSysMgr restarts in a day (a churn failure mode the notes warn about),
   not obviously the popup code (the crash persisted with the popup-open suppressed).
 
-## Next step (do FIRST, on a freshly rebooted device)
+## The real wall (2026-08-03, after a reboot + ~10 more deploy cycles): CARD TOOLING
 
-A reboot clears the churn instability AND guarantees fresh JS (no cache) and fresh daemons. Then:
-1. Load `file:///var/palm/jihad/enyo/selecttest.html`, tap the `<select>`.
-2. Expect the centred PopupSelect to show Apple/Banana/Cherry/Durian; pick one; the page's
-   `onchange` updates "Chosen:" and the daemon logs `popupMenuSelect id=… idx=<n>`.
-3. If the popup is still EMPTY on genuinely-fresh JS, the bug is `PopupSelect.setItems` timing
-   (canCreateItems/componentsReady) — force it by creating the MenuItems explicitly (defaultKind
-   is `MenuItem`, `caption` renders) and calling `render()` before `openAtCenter`.
+The popup-content problem could NOT be resolved because **two card-side dev-loop tools are
+broken on this device right now**, and both are needed to debug card JS:
+
+1. **Fresh card JS will not load.** After the reboot the card froze on an early cached build
+   (~the first `onOpenSelect` version): every subsequent edit — verified byte-for-byte on disk
+   by md5 — had ZERO effect on the running card. Tried, none worked: `killall LunaSysMgr`,
+   `appinfo` version bump (→1.0.4), a full reboot, and a close-then-relaunch (the close script's
+   `running`-query parse returns nothing for the app, so it closes nothing and LunaSysMgr
+   restores the card with its cached bundle). The card kept running the OLD `showSelectPopup`
+   (empty popup, no diagnostic logs), which is why every "fix" looked identical on screen.
+2. **Card JS logs will not capture.** `palm-log` (and a `palm-log` Monitor) reliably showed the
+   DAEMON's stdout but never surfaced the card's `enyo.log` lines this session (earlier in the
+   day they did) — so the one diagnostic that would settle "0 controls built" vs "built but not
+   rendered" vs "exception" (`[JSEL] built controls=N … listNode=…`) never came back.
+
+So the empty popup is UNDIAGNOSED between two hypotheses that need a working loop to separate:
+(a) the card is simply still running stale JS and the current code is fine; (b) adding controls
+to an already-created Popup + `render()` + `openAtCenter()` genuinely doesn't paint content in
+this LunaCE/WebAppMgr embedding. The identical empty box across BOTH `PopupSelect.setItems` AND a
+plain `Popup` + explicit `Button`s is equally explained by (a) — the card never ran either.
+
+## Next step (do FIRST — restore the card dev loop, THEN debug the popup)
+
+1. **Get fresh card JS to actually load.** Reboot, and BEFORE launching, confirm no jihad card
+   is restorable — fix the close path first: capture the real `com.palm.applicationManager/running`
+   JSON shape (this session's `.jihad-running.sh` parse produced nothing) and close by the real
+   processId, or as a last resort `palm-install -r` + reinstall the `.ipk` (heavier; palm-install
+   has hung before). Prove freshness with a one-line boot marker in the log, not by disk md5.
+2. **Get card logs.** Confirm `enyo.log` reaches `palm-log` again on a clean boot (it did at
+   ~08:11 today) before trusting any card diagnostic.
+3. Then the current `Browser.js` (plain `Popup` + a `Button` per option, built in `showSelectPopup`)
+   either just works, or the `[JSEL]` diagnostic (still in git history) tells you which of (a)/(b)
+   it is in one tap.
 4. Then mochi (Enyo2 kind) + mojo (Mojo dialog) get their own idiom per the per-variant rule.
+
+## What IS solid (committed, not blocked)
+
+The whole daemon/engine/adapter half is done and device-verified: a `<select>` tap serializes the
+real options, emits `msgPopupMenuShow`, and applies the returned index (input/change) — plus the
+`ClickAt` fix so a dropdown `<select>` never falls through to a normal click (the "box around
+Apple" focus ring). Only the card's on-screen list rendering is unverified, gated on the tooling
+above.

@@ -1727,9 +1727,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     if (sel) {
       bool multiple = false; uint32_t size = 0; bool disabled = false;
       sel->GetMultiple(&multiple); sel->GetSize(&size); sel->GetDisabled(&disabled);
-      if (!disabled && !multiple && size <= 1 && BuildSelectPopup(sel)) {
-        // The popup is queued; the daemon drains it (TakeSelectPopup) and emits
-        // msgPopupMenuShow. Do NOT fall through to the click/VKB path.
+      if (!disabled && !multiple && size <= 1) {
+        // A dropdown <select>: hand it to the card popup (BuildSelectPopup queues it, or a
+        // dedup skips a duplicate). EITHER WAY return — never fall through to the normal
+        // click/VKB path, which would dispatch a mouse click that just focus-rings the
+        // <select> (device 2026-08-03: "box around Apple") and can open the engine's own
+        // 0x0 combobox.
+        BuildSelectPopup(sel);
         return;
       }
     }

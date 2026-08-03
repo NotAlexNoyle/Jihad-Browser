@@ -73,9 +73,17 @@ enyo.kind({
 		},
 		{kind: "FindBar", showing: false, onFind: "find", onGoToPrevious: "goToPrevious", onGoToNext: "goToNext"},
 		{name: "context", kind: "BrowserContextMenu", onItemClick: "contextItemClick"},
-		// Native <select> dropdown list (Atlas msgPopupMenuShow model). PopupSelect is the same
-		// kind BrowserContextMenu uses; the daemon reads the choice back via popupMenuSelect.
-		{name: "selectPopup", kind: "PopupSelect", onSelect: "selectPopupChoice", onClose: "selectPopupClosed"},
+		// Native <select> dropdown list (Atlas msgPopupMenuShow model). A plain Popup with an
+		// explicit Button per option, built dynamically in showSelectPopup — Menu/PopupSelect's
+		// setItems produced an empty popup in this embedding (device 2026-08-03), so we render
+		// the buttons ourselves, which is predictable. The daemon reads the choice back via
+		// popupMenuSelect (selectPopupMenuItem -> asyncCmdPopupMenuSelect).
+		{name: "selectPopup", kind: "Popup", scrim: true, dismissWithClick: true, onClose: "selectPopupClosed",
+			components: [
+				{name: "selectPopupScroller", kind: "BasicScroller", height: "auto", maxHeight: "480px", components: [
+					{name: "selectPopupList", kind: "VFlexBox"}
+				]}
+			]},
 		{name: "dialog", kind: "VerticalAcceptCancelPopup", cancelCaption: "", components: [
 			{name: "dialogTitle", className: "enyo-dialog-prompt-title"},
 			{name: "dialogMessage", className: "browser-dialog-body enyo-text-body "}
@@ -337,24 +345,28 @@ enyo.kind({
 		if (!menu || !menu.items || !menu.items.length) { return true; }
 		this._selectPopupId = inId;
 		this._selectPopupDone = false;
-		var items = [];
+		// Rebuild the button list for this <select>: one Button per option, tagged with its
+		// index. Buttons render predictably (unlike Menu items in this embedding).
+		var list = this.$.selectPopupList;
+		list.destroyControls();
 		for (var i = 0; i < menu.items.length; i++) {
-			// value = the option INDEX (string) so the reply is unambiguous even with dup labels.
-			items.push({caption: menu.items[i].label || "", value: String(i)});
+			list.createComponent({
+				kind: "Button", caption: menu.items[i].label || "", className: "enyo-button-dark",
+				optIndex: i, onclick: "selectPopupChoice"
+			}, {owner: this});
 		}
-		this.$.selectPopup.setItems(items);
-		// Defer the open one turn past the gesture that opened the <select>.
-		var p = this.$.selectPopup;
-		enyo.asyncMethod(this, function() { p.openAtCenter(); });
+		list.render();
+		this.$.selectPopup.openAtCenter();
 		return true;
 	},
-	selectPopupChoice: function(inSender, inSelected) {
-		var idx = parseInt(inSelected && inSelected.getValue(), 10);
+	selectPopupChoice: function(inSender) {
+		var idx = (inSender && typeof inSender.optIndex === "number") ? inSender.optIndex : -1;
 		this._selectPopupDone = true;
-		if (!isNaN(idx) && this.$.view.callBrowserAdapter) {
+		if (idx >= 0 && this.$.view.callBrowserAdapter) {
 			this.$.view.callBrowserAdapter("selectPopupMenuItem", [this._selectPopupId, idx]);
 		}
 		this.$.selectPopup.close();
+		return true;
 	},
 	selectPopupClosed: function() {
 		// Dismissed without a choice: tell the daemon (index -1) so it releases the held <select>.

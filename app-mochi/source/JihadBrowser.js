@@ -84,7 +84,9 @@ enyo.kind({
 			onDialogConfirm:      "showConfirmDialog",
 			onDialogPrompt:       "showPromptDialog",
 			onDialogSSLConfirm:   "showSSLDialog",
-			onDialogUserPassword: "showLoginDialog"
+			onDialogUserPassword: "showLoginDialog",
+			// Engine <select> dropdown -> the card-side list (Atlas model).
+			onOpenSelect:         "showSelectPopup"
 		},
 		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
 		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
@@ -119,6 +121,14 @@ enyo.kind({
 		{kind: "JihadPreferences", name: "preferences",
 			onClearBookmarks: "clearBookmarks", onClearHistory: "clearHistory",
 			onClearCookies: "clearCookies", onClearCache: "clearCache", onClose: "panelClosed"},
+		// Engine <select> popup (msgPopupMenuShow -> JihadWebView.onOpenSelect):
+		// the same overlay idiom as menuPopup (mochi.Popup crashes on this engine).
+		// Items are built per-popup in showSelectPopup; the box is anchored under
+		// the tapped <select> from the daemon's rect (Jihad-additive JSON key).
+		{name: "selectPopup", classes: "jihad-menu-overlay", showing: false,
+			ontap: "selectPopupDismiss", components: [
+			{name: "selectBox", classes: "jihad-menu-box jihad-select-box"}
+		]},
 		// Engine-driven dialog set (alert / confirm / prompt / auth / SSL).
 		{kind: "JihadDialogs", name: "dialogs", onDialogAnswer: "answerDialog"},
 		// Generic info dialog (page/engine errors, Share placeholder).
@@ -133,9 +143,14 @@ enyo.kind({
 		]}
 	],
 
+	// Dev-loop boot marker: "@DEV@" is replaced with a per-push stamp by
+	// build/webos-oe/push-card-js.sh; a stale WebAppMgr JS cache shows the old stamp.
+	jihadBuildStamp: "@DEV@",
+
 	// --- init + launch parameters -------------------------------------------
 	create: function() {
 		this.inherited(arguments);
+		enyo.log("[JIHAD-BOOT] stamp=" + this.jihadBuildStamp);
 		//* Session download records (download-manager status + history), rendered
 		//* by the DownloadList view.
 		this.downloads = [];
@@ -531,6 +546,66 @@ enyo.kind({
 		if (inEvent && inEvent.value) { this.find(inEvent.value); }
 	},
 	findClosed: function() { /* bar hid itself. */ },
+
+	// --- engine <select> popup ----------------------------------------------
+	//* Present the daemon's option list (JihadWebView.onOpenSelect). One row per
+	//* item, disabled rows dimmed and inert (the daemon enforces too — the row
+	//* just must LOOK the part). Reply exactly once: a pick sends its index, a
+	//* scrim tap sends -1 so the daemon releases the held element.
+	showSelectPopup: function(inSender, inEvent) {
+		var items = (inEvent && inEvent.items) || [];
+		if (!items.length) { return true; }
+		this._selectPopupId = inEvent.id;
+		var box = this.$.selectBox;
+		box.destroyClientControls();
+		for (var i = 0; i < items.length; i++) {
+			var disabled = items[i].isEnabled === false;
+			box.createComponent({
+				classes: "jihad-menu-item" + (disabled ? " jihad-select-disabled" : ""),
+				content: items[i].text || "", allowHtml: false,
+				_optIndex: disabled ? -1 : i, ontap: "selectPopupPick"
+			}, {owner: this});
+		}
+		this.$.selectPopup.setShowing(true);
+		box.render();
+		this.positionSelectBox(inEvent.rect);
+		return true;
+	},
+	//* Anchor the list under the tapped box: rect is in view px (the plugin blits
+	//* 1:1), so add the view node's offset in the card, clamp to the card, and
+	//* flip above the box when it would run off the bottom. No rect -> leave the
+	//* CSS default position (same as the overflow menu).
+	positionSelectBox: function(rect) {
+		var box = this.$.selectBox, node = box.hasNode(), vnode = this.$.view.hasNode();
+		if (!node || !vnode || !rect || typeof rect.bottom !== "number") { return; }
+		var v = vnode.getBoundingClientRect();
+		var w = node.offsetWidth, h = node.offsetHeight;
+		var left = Math.max(0, v.left + (rect.left + rect.right) / 2 - w / 2);
+		if (left + w > window.innerWidth) { left = Math.max(0, window.innerWidth - w); }
+		var top = v.top + rect.bottom;
+		if (top + h > window.innerHeight) {
+			top = Math.max(0, v.top + rect.top - h);
+		}
+		box.applyStyle("left", left + "px");
+		box.applyStyle("top", top + "px");
+		box.applyStyle("right", "auto");
+	},
+	selectPopupPick: function(inSender) {
+		var idx = inSender._optIndex;
+		if (idx === undefined || idx < 0) { return true; }  // disabled row: popup stays up
+		var id = this._selectPopupId;
+		this._selectPopupId = null;
+		this.$.selectPopup.setShowing(false);
+		if (id != null) { this.$.view.callBrowserAdapter("selectPopupMenuItem", [id, idx]); }
+		return true;                                        // don't bubble into selectPopupDismiss
+	},
+	selectPopupDismiss: function() {
+		var id = this._selectPopupId;
+		this._selectPopupId = null;
+		this.$.selectPopup.setShowing(false);
+		if (id != null) { this.$.view.callBrowserAdapter("selectPopupMenuItem", [id, -1]); }
+		return true;
+	},
 
 	// --- engine-driven dialogs (present via JihadDialogs) -------------------
 	// Each guards its payload: these are engine-driven callbacks, and a dialog

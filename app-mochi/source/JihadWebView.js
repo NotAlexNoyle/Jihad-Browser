@@ -66,6 +66,12 @@ enyo.kind({
 		onNewPage: "",
 		//* {focused, fieldType, fieldActions}
 		onEditorFocusChanged: "",
+		//* Engine `<select>` popup (adapter msgPopupMenuShow -> "showPopupMenu").
+		//* {id, items: [{text, isEnabled, ...}], selectedIdx, rect?} — items is the
+		//* daemon's isis-shape list; rect (card px, Jihad-additive) anchors the list
+		//* under the tapped box. The shell presents and replies via
+		//* callBrowserAdapter("selectPopupMenuItem", [id, idx]) (idx -1 = dismissed).
+		onOpenSelect: "",
 		//* Engine-driven JS dialogs (adapter callbacks). The shell presents them
 		//* and answers via sendDialogResponse below. {message} / {message,
 		//* defaultValue} / {host, code, certFile}.
@@ -313,6 +319,22 @@ enyo.kind({
 			fieldType: fieldType,
 			fieldActions: fieldActions
 		});
+	},
+
+	// (adapter callback) the engine intercepted a tap on a dropdown <select>
+	// (msgPopupMenuShow): inJson is the daemon's isis-shape JSON (items[].text/
+	// isEnabled + selectedIdx + the Jihad-additive rect). Surface it; a payload
+	// that cannot present must still RELEASE the daemon's held element (idx -1),
+	// or the <select> stays held until navigation.
+	showPopupMenu: function(inId, inJson) {
+		var menu = null;
+		try { menu = enyo.json.parse(inJson); } catch (e) {}
+		if (!menu || !menu.items || !menu.items.length) {
+			this.callBrowserAdapter("selectPopupMenuItem", [inId, -1]);
+			return;
+		}
+		this.doOpenSelect({id: inId, items: menu.items,
+			selectedIdx: menu.selectedIdx, rect: menu.rect});
 	},
 
 	// --- engine-driven dialog callbacks (adapter -> app) --------------------

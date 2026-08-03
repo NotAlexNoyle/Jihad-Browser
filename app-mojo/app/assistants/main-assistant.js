@@ -61,6 +61,9 @@ MainAssistant.prototype.ERRORS = {
 // --- lifecycle --------------------------------------------------------------
 
 MainAssistant.prototype.setup = function () {
+	// Dev-loop boot marker: "@DEV@" is replaced with a per-push stamp by
+	// build/webos-oe/push-card-js.sh; a stale WebAppMgr JS cache shows the old stamp.
+	Mojo.Log.error("[JIHAD-BOOT] stamp=%s", "@DEV@");
 	// A real page, shipped in the package, so the card opens on rendered content
 	// instead of an empty surface. Mojo.appPath is the app's own file:/// root.
 	this.startUrl = (window.Mojo && Mojo.appPath ? Mojo.appPath : "") + "start.html";
@@ -114,12 +117,18 @@ MainAssistant.prototype.setupChrome = function () {
 };
 
 MainAssistant.prototype.setupCommandMenu = function () {
-	// The always-visible bottom bar: back / forward / (stop | reload). The empty
-	// items are Mojo's spacers, which centre the group.
+	// The always-visible bottom bar: back / forward / (stop | reload) / new card /
+	// history / share. The empty items are Mojo's spacers, which centre the group.
+	// Icons are the framework's own menu-icon set (images/menu-icon-<name>.png);
+	// history and share have no stock icon, so they carry an app-shipped one via
+	// iconPath, which the menu widget turns into the button's background-image.
 	this.backItem = {icon: "back", command: "jihad-back", disabled: true};
 	this.forwardItem = {icon: "forward", command: "jihad-forward", disabled: true};
 	this.reloadItem = {icon: "refresh", command: "jihad-reload"};
 	this.stopItem = {icon: "stop", command: "jihad-stop"};
+	this.newCardItem = {icon: "new", command: "jihad-new-card"};
+	this.historyItem = {iconPath: "images/menu-icon-history.png", command: "jihad-history"};
+	this.shareItem = {iconPath: "images/menu-icon-share.png", command: "jihad-share"};
 	this.commandMenuModel = {visible: true, items: []};
 	this.syncCommandMenu();
 	this.controller.setupWidget(Mojo.Menu.commandMenu, {menuClass: "no-fade"},
@@ -176,7 +185,12 @@ MainAssistant.prototype.listen = function () {
 	Mojo.Event.listen(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
 };
 
-MainAssistant.prototype.activate = function () {
+//* `result` is what a scene we pushed handed back when it popped — the history
+//* scene returns {url} for the entry the user tapped.
+MainAssistant.prototype.activate = function (result) {
+	if (result && result.url) {
+		this.openUrl(result.url);
+	}
 	if (!this.checkedEngine) {
 		this.checkedEngine = true;
 		this.verifyEngineRouting();
@@ -284,6 +298,15 @@ MainAssistant.prototype.handleCommand = function (event) {
 			this.callBrowserAdapter("stopLoad");
 			this.setLoading(false);
 			break;
+		case "jihad-new-card":
+			this.openNewCard();
+			break;
+		case "jihad-history":
+			this.controller.stageController.pushScene("history", {history: JihadHistory.all()});
+			break;
+		case "jihad-share":
+			this.shareCurrentPage();
+			break;
 		}
 		// The command event is deliberately NOT stopped: nothing further up the chain
 		// claims these commands, and the menu widget still wants to see it (this is
@@ -310,6 +333,43 @@ MainAssistant.prototype.stopEvent = function (event) {
 //* The engine created a page for a link with a target / window.open. Push another
 //* browser scene bound to that page identifier, so the link is not dropped and the
 //* back gesture returns to the opener.
+//* New card: a second STAGE of this same app (the Enyo shell's
+//* enyo.windows.openWindow equivalent), so the user gets a real second browser card
+//* in the card stack rather than another scene on this one's stack.
+MainAssistant.prototype.openNewCard = function (url) {
+	var name = "jihad-card-" + (new Date()).getTime();
+	var params = url ? {url: url} : {};
+	try {
+		Mojo.Controller.getAppController().createStageWithCallback(
+			{name: name, lightweight: false},
+			function (stageController) {
+				stageController.pushScene("main", params);
+			});
+	} catch (e) {
+		Mojo.Log.logException(e, "MainAssistant#openNewCard");
+	}
+};
+
+//* Share the current page by handing it to the mail app, exactly as the Enyo
+//* shell's ShareLinkDialog does (same launch id and params) — no new adapter or
+//* service surface of our own.
+MainAssistant.prototype.shareCurrentPage = function () {
+	if (this.isStartPage(this.url)) {
+		return;
+	}
+	var body = $L("Here's a website I think you'll like: ") + this.url;
+	this.controller.serviceRequest("palm://com.palm.applicationManager", {
+		method: "launch",
+		parameters: {
+			id: "com.palm.app.email",
+			params: {summary: $L("Check out this web page..."), text: body}
+		},
+		onFailure: function (response) {
+			Mojo.Log.warn("[Jihad] share failed: %j", response);
+		}
+	});
+};
+
 MainAssistant.prototype.handleCreatePage = function (event) {
 	var identifier = event && event.pageIdentifier;
 	if (!identifier) {
@@ -395,7 +455,19 @@ MainAssistant.prototype.handleTitleUrlChanged = function (event) {
 	this.title = event.title || this.title;
 	this.canGoBack = !!event.canGoBack;
 	this.canGoForward = !!event.canGoForward;
+	this.recordHistory();
 	this.syncChrome();
+};
+
+//* Record the committed page in this variant's own history store. Never the
+//* app-shipped start page (it is chrome, not a visited site), and never an
+//* unchanged url twice in a row.
+MainAssistant.prototype.recordHistory = function () {
+	if (!this.url || this.isStartPage(this.url) || this.url === this._historyUrl) {
+		return;
+	}
+	this._historyUrl = this.url;
+	JihadHistory.add(this.url, this.title);
 };
 
 MainAssistant.prototype.handleTitleChanged = function (event) {
@@ -416,8 +488,8 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 //* Reflect the committed url + reported title, and the history state, in the UI.
 MainAssistant.prototype.syncChrome = function () {
 	var isStart = this.isStartPage(this.url);
-	this.setText("jihad-title",
-		isStart ? $L("Jihad Mojo") : (this.title || this.url || ""));
+	// No title row: the card's own title bar and the address field already say what
+	// this is, and a third line of the same text just ate vertical space.
 	// The start page is app-shipped chrome, so its file:/// path is not shown; the
 	// address bar falls back to its hint, as in both sibling variants.
 	this.addressModel.value = isStart ? "" : (this.url || "");
@@ -442,11 +514,15 @@ MainAssistant.prototype.setText = function (elementId, text) {
 MainAssistant.prototype.syncCommandMenu = function () {
 	this.backItem.disabled = !this.canGoBack;
 	this.forwardItem.disabled = !this.canGoForward;
+	this.shareItem.disabled = this.isStartPage(this.url);   // nothing to share yet
 	this.commandMenuModel.items = [
 		{},
 		this.backItem,
 		this.forwardItem,
 		this.loading ? this.stopItem : this.reloadItem,
+		this.newCardItem,
+		this.historyItem,
+		this.shareItem,
 		{}
 	];
 	if (this.commandMenuReady) {

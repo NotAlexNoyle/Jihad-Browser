@@ -17,7 +17,7 @@
 .jihad-toolbar {
 	width: 100%;
 	padding: 6px 8px 4px 8px;
-	box-sizing: border-box;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
 	background-color: #303030;
 	border-bottom: 1px solid #101010;
 }
@@ -34,20 +34,32 @@
 
 .jihad-address {
 	width: 100%;
-	box-sizing: border-box;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+}
+
+/* The TextField widget builds its own inner markup at render time; keep it inside
+   the row whatever padding it brings. */
+.jihad-address * {
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+	max-width: 100%;
 }
 
 /* Progress is shown only while a load is in flight; the assistant toggles it. */
 .jihad-progress {
 	width: 100%;
 	margin-top: 4px;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+}
+.jihad-progress * {
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+	max-width: 100%;
 }
 
 /* Error panel — what a failed load shows instead of an empty card. */
 .jihad-error {
 	width: 100%;
 	padding: 24px 8%;
-	box-sizing: border-box;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
 	text-align: center;
 	background-color: #262626;
 	border-bottom: 1px solid #101010;
@@ -77,4 +89,45 @@
 .jihad-web {
 	display: block;
 	width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   History scene (app/views/history/, pushed from the command menu).
+   --------------------------------------------------------------------------- */
+.jihad-history {
+	width: 100%;
+	min-height: 100%;
+	background-color: #1c1c1c;
+	color: #f0f0f0;
+}
+.jihad-history-header {
+	padding: 10px 12px;
+	font-size: 20px;
+	font-weight: bold;
+	background-color: #303030;
+	border-bottom: 1px solid #101010;
+}
+.jihad-history-row {
+	padding: 10px 12px;
+	border-bottom: 1px solid #2e2e2e;
+	cursor: pointer;
+}
+.jihad-history-title {
+	font-size: 17px;
+	line-height: 22px;
+	color: #f0f0f0;
+}
+.jihad-history-url {
+	font-size: 14px;
+	line-height: 18px;
+	color: #9a9a9a;
+}
+.jihad-history-empty {
+	padding: 30px 12px;
+	text-align: center;
+	font-size: 17px;
+	color: #9a9a9a;
+}
+.jihad-history-actions {
+	padding: 14px 12px 24px 12px;
 }

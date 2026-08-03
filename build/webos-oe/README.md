@@ -36,3 +36,34 @@ build; see `../../docs/DEVICE-BUILD.md`).
 - ~1 GB RAM, ARMv7 (single render process per card). Goanna is heavier than the
   old QtWebKit; memory tuning, `jemalloc`/`ptmalloc3` choice, and aggressive
   `freeze`/`purgePage` handling matter. Tracked in Phase 3.
+
+## Deploying to a connected device
+
+Three scripts cover the whole loop, coarsest first. Each pushes over `novacom` and
+**md5-verifies both sides** — a push has died mid-transfer before and left a zero-byte
+daemon behind while the exit status said success.
+
+| Script | Pushes | When |
+|--------|--------|------|
+| `push-variant.sh <variant>` | the full payload, then runs that variant's real `postinst` as root | after a packaging change, or to reproduce what an `.ipk` install does |
+| `push-engine-update.sh [variants…]` | `libxul.so` + the daemon (stripped, atomic `mv`), then restarts the upstart job | after an engine or daemon rebuild |
+| `push-card-js.sh <variant> <files…>` | card JS/CSS/assets | after a UI change — the fast loop |
+
+`push-card-js.sh` is the one to reach for while working on a shell, and it exists
+because two things on this device make a naive push untrustworthy:
+
+- **The WebAppMgr JS cache really does serve a stale build** after a close-and-relaunch,
+  with the new bytes already on disk. So the script restarts LunaSysMgr each cycle and
+  then **requires a per-push stamp to appear in `/var/log/messages`** before reporting
+  success. An on-disk md5 proves the file arrived; only the stamp proves the card
+  reloaded it. (`/dev/fb1` holds the last painted frame, so a screenshot proves even
+  less — confirm liveness from the daemon log.)
+- **`novacom run` discards output that arrives after the host's stdin hits EOF.** Slow
+  commands — anything crossing the Luna bus — come back EMPTY with exit 0, which reads
+  exactly like "no result". Every device call in the script holds stdin open
+  (`sleep 4 | novacom run …`) and retries rather than trusting an empty reply.
+
+It also closes the running card by its **real** `processId` from
+`applicationManager/running` (note the reply field is lowercase `processid` while the
+close request wants camelCase `processId` — mixing them up closes nothing and the
+window manager quietly restores the stale card).

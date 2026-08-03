@@ -1,6 +1,36 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
-> ## 2026-08-03 — READ FIRST (full handoff: `context/impl/impl-NEXT-AGENT-START-HERE.md`)
+> ## 2026-08-03 (second session) — READ FIRST (full handoff: `context/impl/impl-NEXT-AGENT-START-HERE.md`)
+>
+> **The card JS dev loop is RESTORED — use `build/webos-oe/push-card-js.sh <variant> <files…>`.**
+> It stamps each push, md5-verifies both sides, closes the card by its REAL `processid`, restarts
+> LunaSysMgr, relaunches, and **fails unless the new stamp appears in `/var/log/messages`**. Two
+> things had broken the old loop and both are now encoded in the script:
+> - **`novacom run` discards output that arrives after the host's stdin hits EOF.** Fast commands
+>   win the race, `luna-send` loses it, so replies came back EMPTY with exit 0 — which is what the
+>   previous session read as "luna-send blackouts", dead `running` queries, and "`enyo.log` stopped
+>   reaching `palm-log`". Hold stdin open: `sleep 4 | novacom run …`. An empty reply is never "no
+>   result"; retry, then fail loudly.
+> - **The WebAppMgr JS cache really does serve a stale build** after close+relaunch, with the new
+>   bytes already on disk (md5-proven). A LunaSysMgr restart per cycle busts it. An on-disk md5
+>   proves the file arrived; only the runtime stamp proves the card reloaded it.
+>
+> **`<select>` popups work on all three variants** (user-confirmed pick). The empty popup was a JSON
+> field-name mismatch — the stock framework consumes the event itself and wants the isis
+> `items[].text`/`isEnabled` + `selectedIdx` shape; Mojo needed no app code at all. The list is
+> anchored under the tapped control from a daemon-supplied rect.
+> **Mojo chrome**: title row dropped, command menu gained new card / history / share.
+> **Start pages** are identical across the three shells now.
+> **Watch out:** the card WebKit (~534.x) silently ignores unprefixed `box-sizing`/flexbox — that
+> made the Mojo toolbar 784 px wide on a 768 px screen. Use `-webkit-` prefixes in card CSS.
+> To diagnose layout on device, log `offsetWidth`/`scrollWidth`/`getBoundingClientRect()` from
+> inside the card (`enyo.log` / `Mojo.Log.error` reach `/var/log/messages`) — do not eyeball a
+> screenshot.
+>
+> **Next up:** the `<menupopup>` overlay composite (`context/impl/impl-menupopup-2026-08-02.md`),
+> then wiring the authored XPI install prompt (its card-reply blocker is gone).
+
+> ## 2026-08-03 (first session) — superseded in part by the block above
 >
 > **Scrolling DONE — user signed off** ("scrolling feels good now"): overscan paint, honest
 > per-frame geometry, ≤2048-row SGX cap, Opus-reviewed. **Long-press WORKS** (user-confirmed, test
@@ -14,15 +44,16 @@
 > `about:jihad`; Enyo start page follows VKB/orientation.
 >
 > **`<select>` popup: daemon half DONE + device-verified** (tap → serialize options →
-> `msgPopupMenuShow` → apply returned index). The **card list renders EMPTY and is BLOCKED on a
-> broken card JS dev-loop** — fresh card JS would not load (frozen WebAppMgr cache) and `enyo.log`
-> stopped reaching `palm-log`. **RESTORE THE CARD DEV LOOP FIRST** — `impl-select-popup-2026-08-03.md`.
-> XPI install prompt authored but UNWIRED (same card-loop dependency). `<menupopup>` DIAGNOSED
-> (separate 0x0 display root; overlay-composite pass to build) — `impl-menupopup-2026-08-02.md`.
+> `msgPopupMenuShow` → apply returned index). *(The card half was finished later the same day —
+> see the block above; the "empty list" was a JSON field-name mismatch, not the dev loop, though
+> the broken loop is what prevented seeing that.)* XPI install prompt authored but UNWIRED.
+> `<menupopup>` DIAGNOSED (separate 0x0 display root; overlay-composite pass to build) —
+> `impl-menupopup-2026-08-02.md`.
 >
 > **The device took ~30 LunaSysMgr restarts + 2 reboots this session and got flaky** (card
-> crash-loops, the JS cache froze). A fresh reboot on the user's end is the recommended starting
-> point for the next session.
+> crash-loops, the JS cache froze). A reboot is a cheap first move when the device starts behaving
+> oddly — but note that most of what looked like device flakiness that day was the novacom
+> stdin-EOF race described above.
 
 > ## 2026-08-02 — CURRENT STATE, read before starting
 >
@@ -33,10 +64,12 @@
 > chrome and system alerts, so an fb0 capture shows chrome over a blank content area and reads as
 > "rendering is broken" when it is fine. Wake the display first or every buffer reads black.
 >
-> **Dev loop for app JS: `novacom put` + `killall LunaSysMgr` + `palm-launch`** (~10 s). WebAppMgr
-> caches app sources in-process, so a relaunch alone runs the OLD script. Do NOT use `palm-install`
-> to iterate — it hung twice on a 44 MB ipk, and two concurrent runs race on the same app directory.
-> See context/impl/impl-stale-app-js.md.
+> **Dev loop for app JS: use `build/webos-oe/push-card-js.sh`** (see the 2026-08-03 block at the
+> top). It is the `novacom put` + `killall LunaSysMgr` + relaunch sequence with the two traps this
+> project has actually been bitten by handled — the stale-JS cache and the novacom stdin-EOF output
+> race — and it refuses to report success without a runtime stamp proving the reload. Do NOT use
+> `palm-install` to iterate: it hung twice on a 44 MB ipk, and two concurrent runs race on the same
+> app directory. See context/impl/impl-stale-app-js.md.
 >
 > **Open, in priority order:**
 > 1. `about:addons` icons — context/impl/impl-addons-icons-open.md has everything already ruled out

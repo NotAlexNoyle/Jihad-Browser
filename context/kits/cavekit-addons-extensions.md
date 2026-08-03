@@ -1,6 +1,6 @@
 ---
 created: "2026-08-01"
-last_edited: "2026-08-01"
+last_edited: "2026-08-03"
 ---
 
 # Cavekit: Add-ons, Extensions & Plugins
@@ -80,7 +80,8 @@ Nothing needs to be added to the engine build for the UI to exist:
 - [ ] Installed extensions, themes and plugins are listed with name, version and state.
 - [ ] Enable / disable / remove work from the UI and the change is reflected after a restart.
 - [ ] The page is **operable through the adapter's synthesized input path**, not merely rendered. `about:addons` is a XUL document, and XUL input currently crashes the daemon (mitigated by a skip, so the page is inert). **The user has required this be fixed properly (2026-08-01, "fix xul input so it works everywhere like about:config etc") — it is now cavekit-input-bridging.md R6**, and this criterion is satisfied by that work rather than duplicating it.
-**Dependencies:** R1, cavekit-input-bridging.md, cavekit-offscreen-rendering.md
+- [ ] The page's **tools menu opens**. It is a XUL `<menupopup>`, which is a separate display root the offscreen capture never contains — diagnosed (the popup widget is created at the right place but 0x0 and never shown) and owned by **cavekit-offscreen-rendering.md R7**, which also covers page context menus. The `<select>` half of R7 is already solved by handing the option list to the card, and is the model for what "reaches the user" can mean when the engine cannot paint a popup itself.
+**Dependencies:** R1, cavekit-input-bridging.md, cavekit-offscreen-rendering.md (R7)
 
 ### R3: XPI installation works
 **Description:** A user can install an extension from a file or a URL.
@@ -171,6 +172,12 @@ enabled. Signature policy needs no work at all: UXP builds no enforcement.
   cavekit-licensing-branding.md (R3 — identity must not reintroduce stripped branding).
 
 ## Changelog
+- 2026-08-03: R2 gains an explicit tools-menu criterion, pointing at
+  cavekit-offscreen-rendering.md **R7** (engine popups reach the user) rather than leaving the
+  `<menupopup>` work tracked only in impl notes. R3's card-side blocker is gone — the XPI confirm
+  prompt was waiting on a proven card dialog-reply path, and the restored card dev loop plus the
+  shipped `<select>` popup provide one — so wiring the authored `amIWebInstallPrompt` observer is
+  now ordinary work rather than a dependency.
 - 2026-08-01: Initial draft. Created when the user required `about:addons` + XPI support to work,
   immediately after the on-device diagnosis showed the daemon's SIGSEGV was the missing
   `nsIXULAppInfo` that the add-on manager depends on — making the crash fix and the feature the same

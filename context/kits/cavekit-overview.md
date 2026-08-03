@@ -29,59 +29,83 @@ Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 ## Domain Index
 Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 partial · ⬜ not started.
 
-> **Device reality check (2026-08-03).** **All three variants (Enyo, Mochi, Mojo) are now live on
-> hardware** — each card paints through its own daemon on its own socket, cold boot auto-starts all
-> three, and `device-independence-test.sh check` passes 24/24 (R7 exercised for real for the first
-> time). "Verified on device" still means **Enyo** unless it says otherwise — Enyo is the variant
-> the interactive fixes were driven against; Mochi/Mojo are launch-verified but not feature-tested.
+> **Device reality check (2026-08-03, second session).** **All three variants (Enyo, Mochi, Mojo)
+> are live on hardware** — each card paints through its own daemon on its own socket, cold boot
+> auto-starts all three, and `device-independence-test.sh check` passes 24/24. Feature work is no
+> longer Enyo-only: `<select>` popups and the start page are now verified on **all three**, and the
+> Mojo shell gained its chrome actions (new card / history / share).
 >
-> Cross-cutting defects RESOLVED this session: scroll pan headroom (overscan paint, user signed
-> off), long-press `contextmenu` (hit-test round-trip was a daemon stub — now works, user-confirmed),
-> and below-the-fold input landing (doc→viewport coordinate mapping). Still open: chrome icons
-> render **late**; the engine popup path (`<select>` dropdowns, `<menupopup>` tools menu, context
-> menus) is a **separate display root** the offscreen capture doesn't composite — the `<select>`
-> daemon side is done and the card list is blocked on a broken card JS dev-loop, the `<menupopup>`
-> overlay pass is still to build. See `impl-scroll-overscan-2026-08-02.md`,
-> `impl-select-popup-2026-08-03.md`, `impl-menupopup-2026-08-02.md`, `impl-addons-icons-open.md`.
-> **Tooling caveat:** the card-side JS dev loop (fresh-JS load + `enyo.log`→`palm-log`) broke late
-> this session and must be restored before any card-JS change can be trusted — see the START-HERE.
+> **The card JS dev loop is RESTORED** — `build/webos-oe/push-card-js.sh` is the tool, and it
+> proves each reload by a per-push stamp reaching the device log. Two independent causes had
+> broken it: **`novacom run` discards output that arrives after the host's stdin hits EOF** (hold
+> it open — `sleep 4 | novacom run …`; this masqueraded as luna-send "blackouts", dead
+> `applicationManager/running` queries, and "`enyo.log` stopped reaching `palm-log`"), and the
+> **WebAppMgr in-process JS cache really does serve a stale build** after a close+relaunch (a
+> LunaSysMgr restart per cycle busts it, and is the script's default).
+>
+> Cross-cutting defects RESOLVED: scroll pan headroom (user signed off), long-press `contextmenu`,
+> below-the-fold input landing, and the **`<select>` popup on all three variants** — the "empty
+> popup" was a JSON field-name mismatch, not a rendering problem (the stock framework consumes the
+> event itself and expects the isis `items[].text/isEnabled` shape; Mojo needed no app code at
+> all). Still open on the engine-popup track: the `<menupopup>` overlay composite (tools menu,
+> context menus) — a **separate display root** the offscreen capture doesn't composite — and
+> `<optgroup>` header rows in `<select>` lists. Chrome icons still render **late**. See
+> `impl-select-popup-2026-08-03.md`, `impl-menupopup-2026-08-02.md`,
+> `impl-scroll-overscan-2026-08-02.md`, `impl-addons-icons-open.md`.
+>
+> **Platform constraint found the hard way:** the webOS 3 **card** WebKit (~534.x) silently
+> ignores unprefixed `box-sizing` and modern flexbox, so all card-chrome CSS must carry
+> `-webkit-` prefixes (it made the Mojo toolbar 784 px wide on a 768 px screen). Pages rendered by
+> our own Goanna engine are modern and unaffected.
 Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless noted.
 
 | Domain | Cavekit File | Requirements | Status | Description |
 |--------|--------------|--------------|--------|-------------|
-| UI Shell (Enyo) | cavekit-ui-shell.md | 4 | 🟢 R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload); findInPage untested. Start page now follows VKB/orientation; app renamed "Jihad Enyo" (2026-08-03) | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
-| Mochi UI Variant | cavekit-mochi-ui.md | 5 | 🟢 R1/R3/R5 ✓; **card LIVE on device 2026-08-03** (loads + paints example.com through its own daemon); R2/R4 on-device feature verification pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
-| Mojo UI Variant | cavekit-mojo-ui.md | 5 | 🟢 **FIRST device run 2026-08-03** — UI on fb1 + paints through its own daemon (own MIME/socket/upstart, enyo untouched during launch); R1 ✓, R2–R5 feature verification pending; renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 5 | 🟢 R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload); findInPage untested. `<select>` popup ✓; start page follows VKB/orientation and carries the shared logo/title/hint block; app renamed "Jihad Enyo" | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 6 | 🟢 R1/R3/R5 ✓; card LIVE on device (loads + paints through its own daemon); **`<select>` popup device-verified 2026-08-03** (own overlay list, pick applied); start page matches the others; R2/R4 remaining on-device feature checks pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| Mojo UI Variant | cavekit-mojo-ui.md | 6 | 🟢 R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
-| Offscreen Rendering | cavekit-offscreen-rendering.md | 6 | ✅ 6/6 desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27). **Scroll pan headroom FIXED 2026-08-03** (overscan region paint, honest per-frame geometry, ≤2048-row SGX cap; user signed off) — Opus-reviewed, 3 blockers fixed pre-deploy; `impl-scroll-overscan-2026-08-02.md`. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite |
-| Input Bridging | cavekit-input-bridging.md | 5 | 🟢 R1 ✓ + **long-press `contextmenu` now works on device 2026-08-03** (the daemon `asyncCmdHitTest` gate was a stub; real hit-test round-trip added, user-confirmed), R4 ✓, R5 ✓ + **doc→viewport coord mapping fixed** (below-the-fold taps landed a screenful low); R2 VKB jank / R3 gestures on-device | webOS pointer/key/touch/gesture → DOM events |
-| Navigation, Loading & Events | cavekit-navigation-events.md | 6 | 🟢 6/6 (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
-| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages 2026-08-03), R8 ✅, R5/R6 ✓; **R3 groundwork built** — daemon `amIWebInstallPrompt` + `jihad-xpi-confirm` observer authored/committed but deliberately UNWIRED (no manifest) until the card confirm-reply path is proven (same card-loop dependency as the `<select>` popup); **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools-menu `<menupopup>` is DIAGNOSED (separate 0x0 display root; overlay-composite pass to build — `impl-menupopup-2026-08-02.md`) | `about:addons` + classic XPI + NPAPI plugin support |
+| Offscreen Rendering | cavekit-offscreen-rendering.md | 7 | 🟢 R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups**: `<select>` solved card-side on all three variants ✓; the `<menupopup>` overlay composite is diagnosed + open — **the current top priority**. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
+| Input Bridging | cavekit-input-bridging.md | 7 | 🟢 R1 ✓ + **long-press `contextmenu` works on device** (the daemon `asyncCmdHitTest` gate was a stub; real hit-test round-trip added, user-confirmed), R4 ✓, R5 ✓ + **doc→viewport coord mapping fixed** (below-the-fold taps landed a screenful low); R2 VKB jank / R3 gestures on-device; **R6 XUL input partial** — text reaches XUL fields through the engine editor, but real DOM key events need a ~2-line PuppetWidget patch + a full libxul rebuild | webOS pointer/key/touch/gesture → DOM events |
+| Navigation, Loading & Events | cavekit-navigation-events.md | 7 | 🟢 R1–R7 met (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5/R6 ✓; **R3 groundwork built** — daemon `amIWebInstallPrompt` + `jihad-xpi-confirm` observer authored/committed but deliberately UNWIRED (no manifest); the card-loop blocker is GONE, so wiring it is now just work; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools-menu `<menupopup>` is DIAGNOSED (separate 0x0 display root; overlay-composite pass to build — `impl-menupopup-2026-08-02.md`) | `about:addons` + classic XPI + NPAPI plugin support |
 | Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 6 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deployed this session via `push-variant.sh` / `push-engine-update.sh` (novacom, md5-verified) — the supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
+| Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **12 domains, 62 requirements** — **~48 met/verified, ~14 open** (2026-08-03: scroll pan
-headroom, long-press/hit-test, coord-mapping, and device-build R7 closed; three variants live). Every
-open item is device-gated, a named debug lead, or the new engine-popup-overlay track. **Current
-priorities (2026-08-03) — see `../impl/impl-NEXT-AGENT-START-HERE.md` for the detailed queue:**
-(0) **Restore the card JS dev loop** (fresh-JS load + `enyo.log`→`palm-log`) — a hard prerequisite
-for every remaining CARD-side item; it broke late 2026-08-03 and blocked the `<select>` popup;
-(1) **`<select>` popup card list** (addons/engine-popup) — daemon half done + device-verified;
-the card `Button` list renders empty, undiagnosed only because of (0). `impl-select-popup-2026-08-03.md`;
-(2) **`<menupopup>` overlay composite** (addons R-tools-menu) — DIAGNOSED (separate 0x0 display
-root); size+show the popup widget and overlay-composite `GetVisiblePopups()`. Bigger than (1);
-(3) **XPI install** (browser-services R3) — wire the authored `amIWebInstallPrompt` observer to a
-card dialog once (0)/(1) give a proven card-reply path;
-(4) **chrome icon repaint latency** (addons R2 polish) — repaint-delivery latency, has a debug lead;
-(5) **cookie/cache persistence** (browser-services R2) — no `cookies.sqlite` on device despite a
+Totals: **13 domains, 77 requirements, 274 acceptance criteria — 204 met, 18 partial, 52 open**
+(counted from the kit files 2026-08-03; the previous "12 domains, 62 requirements" line had drifted
+from the files it summarised). Closed this session on top of the earlier scroll / long-press /
+coord-mapping / R7-independence work: the card dev loop, the `<select>` popup on all three
+variants, the Mojo chrome actions, the Mojo toolbar overflow and the shared start page. The bulk
+of what remains open sits in two kits — add-ons (22 open ACs: XPI wiring, extension effects, the
+NPAPI port) and device-build (11: clean-clone reproducibility, Opal, memory budget) — plus the
+XUL-input and engine-popup work. Every open item is hardware-gated, a named debug lead, or the
+engine-popup-overlay track. **Current priorities — see `../impl/impl-NEXT-AGENT-START-HERE.md`
+for the detailed queue:**
+(1) **`<menupopup>` overlay composite** (addons, tools menu + context menus) — DIAGNOSED
+(separate 0x0 display root): size+show the popup widget and overlay-composite
+`GetVisiblePopups()` after the main paint. `impl-menupopup-2026-08-02.md`;
+(2) **XPI install** (browser-services R3) — wire the authored `amIWebInstallPrompt` observer to a
+card dialog; the card-reply path is proven now, so this is unblocked;
+(3) **chrome icon repaint latency** (addons R2 polish) — repaint-delivery latency, has a debug lead;
+(4) **cookie/cache persistence** (browser-services R2) — no `cookies.sqlite` on device despite a
 correct provider + prefs; the one non-hardware debug lead;
-(6) F7 scroll header frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
+(5) `<select>` `<optgroup>` header rows (needs a daemon reply-index remap); F7 scroll header
+frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
 ui-shell R4 findInPage; device LunaService (IPC R4);
-(7) clean-clone OE reproducibility (device-build #7/#8); TouchPad Go + memory budget (device-build R5/R6).
+(6) clean-clone OE reproducibility (device-build #7/#8); TouchPad Go + memory budget (device-build R5/R6).
 Full OE-review findings: `../impl/impl-review-findings-oe.md`.
+
+### Working on the card UIs
+`build/webos-oe/push-card-js.sh <enyo|mochi|mojo> <files…>` is the card-JS loop: it stamps the
+push, md5-verifies it on both sides, closes the card by its real `processid`, restarts LunaSysMgr
+(the WebAppMgr JS cache is real), relaunches, and **fails unless the new stamp appears in the
+device log**. A screenshot is not proof a card is alive (fb1 holds the last painted frame) and an
+on-disk md5 is not proof a card reloaded — the stamp is. Hold stdin open on every `novacom run`
+whose output matters (`sleep 4 | novacom run …`).
 
 ### Milestone (2026-07-27): rotation and zoom work on the device
 The portrait↔landscape render-break and the "things get cut off" zoom are both fixed and
@@ -161,12 +185,14 @@ Tier 3:
 
 Tier 4 (Phase 2):
   Device Build & Packaging     (needs: Tier 2/3 + cross-toolchain gate;
-                                produces TWO UI .ipks for TouchPad + TouchPad Go)
+                                produces THREE independent UI .ipks, each running
+                                on both TouchPad models)
 
 Parallel UI track (depends only on the contract; packaged by Device Build):
-  UI Shell (Enyo)   — forked/rebranded, mostly done
-  Mochi UI Variant  — Enyo-2/Mochi rewrite to parity, built (uses Navigation/
-                      Services contracts as its behavioral reference)
+  UI Shell (Enyo)   — forked/rebranded; live on device
+  Mochi UI Variant  — Enyo-2/Mochi rewrite to parity; live on device (uses
+                      Navigation/Services contracts as its behavioral reference)
+  Mojo UI Variant   — built on the device's own Mojo framework; live on device
 ```
 
 Notes:
@@ -184,6 +210,18 @@ Notes:
   verification, not construction.
 
 ## Changelog
+- 2026-08-03 (second session): The card JS dev loop is restored (`push-card-js.sh`, stamp-proven
+  reloads) — the two causes were `novacom run`'s stdin-EOF output race and the real WebAppMgr JS
+  cache. With it, the `<select>` popup closed on **all three** variants: the "empty popup" was a
+  JSON field-name mismatch (the stock framework consumes `onOpenSelect` itself and expects the
+  isis `items[].text/isEnabled` + `selectedIdx` shape), so the daemon now emits that shape, the
+  Enyo app's own popup code was deleted as unreachable, Mochi got an overlay list, and Mojo needed
+  no app code at all. Opus review hardened the apply path (disabled/optgroup/out-of-range/no-op
+  guards, fail-closed popup file, process-global ids). Mojo gained **R6** (new card / history /
+  share), lost its redundant title row, and had its toolbar overflow fixed — root cause: the card
+  WebKit ignores unprefixed `box-sizing`, now documented as a platform constraint. All three start
+  pages share the logo/title/engine-line/hint block. Totals → ~54 met / ~9 open; priorities
+  reordered around the now-unblocked queue.
 - 2026-08-03: Session handoff for the next Fable run. Closed on device: scroll pan headroom
   (offscreen, overscan paint, Opus-reviewed), long-press/`contextmenu` (input, hit-test round-trip
   was a daemon stub), input coord mapping (input R5, doc→viewport), and **device-build R7** — all

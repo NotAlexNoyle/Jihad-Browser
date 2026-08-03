@@ -5,7 +5,39 @@ last_edited: "2026-08-03"
 
 # Implementation Overview
 
-## 2026-08-03 — SCROLL DONE, THREE VARIANTS LIVE, SELECT-POPUP CARD-BLOCKED (READ FIRST)
+## 2026-08-03 (second session) — CARD DEV LOOP RESTORED, SELECT POPUP DONE ON ALL THREE (READ FIRST)
+
+Full handoff: **`impl-NEXT-AGENT-START-HERE.md`**. Commits 512ede2f, e3de7d8a, 322f26bd, 80b7fab9,
+ca4dcc52 (+ doc commits).
+
+- **Card JS dev loop RESTORED** — `build/webos-oe/push-card-js.sh`. Two independent causes had
+  broken it: (a) **`novacom run` discards output that arrives after the host's stdin hits EOF**, so
+  every slow reply (anything crossing the Luna bus) came back EMPTY with exit 0 — this is what
+  looked like "luna-send blackouts", dead `applicationManager/running` queries and "`enyo.log`
+  stopped reaching `palm-log`"; hold stdin open (`sleep 4 | novacom run …`). (b) The **WebAppMgr
+  in-process JS cache genuinely serves a stale build** after close+relaunch, md5-proven; a
+  LunaSysMgr restart per cycle busts it. The script now proves every reload with a per-push stamp
+  in the device log — nothing else counts.
+- **`<select>` popup DONE on all three variants, user-confirmed.** The "empty popup" was a JSON
+  field-name mismatch, not a rendering problem: the stock `enyo.WebView` wrapper consumes
+  `onOpenSelect` itself and expects the isis `items[].text`/`isEnabled` (+ `selectedIdx`) shape,
+  while the daemon wrote `label`/`enabled`. Daemon fixed; the Enyo app's own popup code deleted as
+  unreachable; Mochi given its own overlay list; **Mojo needed no app code at all** (the system
+  framework implements the whole path). Popup is anchored under the tapped control from a
+  daemon-supplied rect. Opus review hardened the apply path (disabled / `<optgroup>` /
+  out-of-range / no-op guards; fail-closed popup file; process-global ids).
+  `impl-select-popup-2026-08-03.md`.
+- **Mojo chrome reworked** (user-driven): title row dropped; command menu gained new card /
+  history / share (history is card-local — this package registers no db8 kinds); custom icons are
+  32×64 two-frame sprites. Its toolbar had overflowed the screen because **the card WebKit ignores
+  unprefixed `box-sizing`** — a platform constraint now recorded in the kits, AGENTS.md and the
+  variant READMEs. Diagnosed by logging real widths from inside the card, not by eyeballing a
+  screenshot.
+- **Start pages unified** across all three shells (logo, "Jihad Browser", engine line, hint).
+- Open on this track: the `<menupopup>` overlay composite (now the top priority) and `<optgroup>`
+  header rows in `<select>` lists (needs a reply-index remap).
+
+## 2026-08-03 (first session) — SCROLL DONE, THREE VARIANTS LIVE, SELECT-POPUP CARD-BLOCKED
 
 Full handoff: **`impl-NEXT-AGENT-START-HERE.md`**. This session:
 - **Scrolling FIXED, user signed off** — overscan region paint with honest per-frame geometry,

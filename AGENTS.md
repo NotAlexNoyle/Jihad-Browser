@@ -1,7 +1,8 @@
-# Jihad Browser — agent & reviewer context (incl. Codex)
+# Jihad Browser — agent & reviewer context
 
-This file primes any automated agent (including the Codex adversarial reviewer run via
-cavekit) with the webOS-3 platform knowledge needed to review this codebase correctly.
+This file primes any automated agent — including the **adversarial reviewer, which is an
+Opus agent** (user directive 2026-08-02; it replaced Codex in that role) — with the webOS-3
+platform knowledge needed to review this codebase correctly.
 **The authoritative, curated platform knowledge is the `webos-mcp` server**
 (https://github.com/webOSArchive/webos-mcp) — resource `webos://knowledge/all`. The facts
 below are the subset that matters for the browser port; when in doubt defer to webos-mcp.
@@ -48,8 +49,21 @@ see `render/goanna/EngineHost.cpp`). Modern-site compat also relies on per-domai
 - **App/UI layer is ES5 only** (2009-era WebKit): no `let`/`const`/arrow-fns/Promises in
   `app/` (Enyo 1). The daemon/adapter are C++ (adapter is PDK gcc4.3.3 / C++03 — no `nullptr`,
   no C++11; the daemon is gcc9 / C++17).
+- **App/UI CSS is read by a ~534.x WebKit**: unprefixed `box-sizing` and modern flexbox are
+  silently ignored, so card chrome must use `-webkit-box-sizing` / `-webkit-box`. An
+  unprefixed declaration is not "mostly fine", it is dropped — a `width:100%` row with padding
+  then overflows the card. Pages rendered by our own Goanna engine are modern and unaffected.
 - **BusyBox on device** lacks many GNU options (`head -c`, `tr '[:space:]'`, `cp` can EBADF on
   some mounts — use `cat >`). App content renders to `/dev/fb1`, not `fb0`.
+- **`novacom run` drops output that arrives after the host's stdin hits EOF** — the channel
+  close races the reply, so slow commands (anything going through `luna-send`) return EMPTY
+  with exit 0. Hold stdin open: `sleep 4 | novacom run …`. An empty reply is never "no result".
+  It also mangles quoted arguments — push a helper script and run that instead.
+- **Card JS is cached by WebAppMgr**: a close+relaunch can boot the PREVIOUS build even though
+  the file on disk is new (md5-proven). Use `build/webos-oe/push-card-js.sh`, which restarts
+  LunaSysMgr and then requires a per-push stamp to appear in `/var/log/messages` — the only
+  accepted proof that a card reloaded. Likewise, `/dev/fb1` holds the last painted frame, so a
+  screenshot is not proof a card is alive; confirm from the daemon log.
 
 ## Licensing (must be upheld with credit)
 UXP/Goanna family = MPL-2.0 (credit Moonchild); Atlas references = Apache-2.0 (credit

@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-31"
+last_edited: "2026-08-03"
 ---
 
 # Cavekit: Offscreen Rendering
@@ -89,6 +89,34 @@ composite of the shared buffer to the rotated card.
 (Apache-2.0; see NOTICE). Ported to Goanna's viewport-sized buffer contract (renderedX/Y =
 adapter scroll, contentZoom = engine zoom).
 
+### R7: Engine popups reach the user
+**Description:** A popup the engine opens (XUL `<menupopup>`: the `about:addons` tools menu,
+context menus; and the native `<select>` combobox) is a **separate display root** —
+`nsLayoutUtils::GetDisplayRootFrame` returns the popup frame itself — so the main-document
+render never contains it. Every such popup must still reach the user somehow.
+**Added 2026-08-03**, splitting a cross-cutting defect out of the UI kits: the diagnosis and both
+solution shapes are shared, only the presentation differs per popup type.
+**Acceptance Criteria:**
+- [x] **`<select>` comboboxes: solved by handing them to the card.** The engine cannot paint the
+  combobox, so the daemon serializes the options and emits the inherited `msgPopupMenuShow`
+  contract; the card renders the list and replies with the index. This is also what isis and Atlas
+  do — neither ever rendered a `<select>` dropdown in the engine. Device-verified on all three
+  variants 2026-08-03 (`../impl/impl-select-popup-2026-08-03.md`); the serialized shape is the
+  isis one (`items[].text` / `items[].isEnabled` + `selectedIdx`), plus a Jihad-additive `rect`
+  so the card can anchor the list under the tapped control.
+- [ ] **XUL `<menupopup>`: composite it.** DIAGNOSED, not built (`../impl/impl-menupopup-2026-08-02.md`):
+  the popup widget IS created at the right place but comes up **0x0 and is never shown**. Two parts,
+  neither sufficient alone — (a) push the `nsMenuPopupFrame`'s measured size into the offscreen
+  popup widget's `Resize` and honour `Show(true)` for the popup window type; (b) after the main
+  paint, enumerate `nsXULPopupManager::GetInstance()->GetVisiblePopups()` and composite each into
+  the shared buffer at its screen offset, gated so a page with no popup pays nothing.
+- [ ] The `about:addons` tools menu and page context menus open, are readable, and can be
+  dismissed on device (what (b) buys, and what cavekit-addons-extensions.md R2 depends on).
+**Dependencies:** R1, R3, cavekit-input-bridging.md, cavekit-addons-extensions.md (R2)
+**Iteration loop:** `build/desktop/build-popup-probe.sh` (self-wraps under Xvfb; a plain `<select>`
+plus injected clicks) prints every `[jihad-widget]`/`[jihad-popup]` line. The device path is the
+same minus Xvfb, so desktop is the right first loop.
+
 ## Out of Scope
 - Synthesizing input (cavekit-input-bridging.md).
 - GPU/WebGL/video compositor path — first target is CPU/basic-layers readback; accelerated paths are deferred (note in impl, revisit in Phase 3).
@@ -97,6 +125,11 @@ adapter scroll, contentZoom = engine zoom).
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-08-03: Added **R7** (engine popups reach the user), which collects the "popup is a separate
+  display root" defect that had been tracked only in impl notes and referenced loosely from the UI
+  kits. Its `<select>` AC is met on all three variants (card-side list, isis JSON shape, anchored
+  from a daemon-supplied rect); the `<menupopup>` overlay-composite ACs are diagnosed and open,
+  and are the project's current top priority.
 - 2026-07-31: Reconciliation against recorded evidence. R6's second AC carried a "(Device-gated
   visual check)" note while already checked — the gate closed on 2026-07-27 (commit 8d7865c
   "Verified on-device"; `../impl/impl-overview.md` 2026-07-27 "Rotation confirmed working on

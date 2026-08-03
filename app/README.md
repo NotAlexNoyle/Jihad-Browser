@@ -11,6 +11,19 @@ so the card loads `BrowserAdapterJihad.so` → the Jihad Goanna daemon
 (`/tmp/yapserver.jihad-browser`). Every other app's stock `application/x-palm-browser`
 WebView is untouched. See `../packaging/README.md` and `../docs/DEVICE-BUILD.md`.
 
+**Iterating on this UI:** `../build/webos-oe/push-card-js.sh enyo source/Browser.js …`
+pushes card files to a connected device and only reports success once a per-push stamp
+reaches the device log — the WebAppMgr JS cache will otherwise keep running the previous
+build with the new file already on disk. See `../build/webos-oe/README.md`.
+
+**`<select>` dropdowns need no code here.** The stock `enyo.WebView` wrapper handles the
+whole card side itself (`showSelect` → `createSelectPopup` → `PopupList`, answering with
+`selectPopupMenuItem`) and never re-publishes the event, so an `onOpenSelect` handler in
+`source/Browser.js` is unreachable — one was written, proved dead and removed. Do not
+re-add one, and do not patch `BasicWebView.showPopupMenu`: an earlier patch shadowed the
+framework method and killed the popup outright. What the feature actually needs is the
+daemon emitting the isis option-list shape, which it does.
+
 The original isis README follows.
 
 isis-browser 

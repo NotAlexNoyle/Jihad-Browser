@@ -231,7 +231,14 @@ class JihadXpiConfirmObserver final : public nsIObserver {
     DialogReply reply;
     reply.accept = false;                          // default deny (unattended install)
     NS_ConvertUTF16toUTF8 utf8(text);
+    // Log the prompt: on device this is the only record that a web install was offered at
+    // all, and while bringing the path up it is what distinguishes "the prompt was reached
+    // and denied" from "something upstream cancelled the install before it" — both of which
+    // surface to the page as the same USER_CANCELLED status.
+    fprintf(stderr, "[jihad-bs] xpi confirm: %s (sink=%s)\n",
+            utf8.get(), gSink ? "yes" : "NONE — denying");
     if (gSink) gSink->OnDialog(DialogKind::Confirm, utf8.get(), &reply);
+    fprintf(stderr, "[jihad-bs] xpi confirm -> %s\n", reply.accept ? "ACCEPT" : "deny");
     wbag->SetPropertyAsBool(NS_LITERAL_STRING("accept"), reply.accept);
     return NS_OK;
   }

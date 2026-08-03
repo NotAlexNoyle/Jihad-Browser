@@ -82,4 +82,32 @@ if [ -d "$BRANDING" ] && [ -d "$DISTBIN" ]; then
   echo "  branding: chrome://branding/ registered in the desktop dist (about:addons brand.dtd)"
 fi
 
+# --- XPI web-install confirm component, into the DESKTOP dist ------------------------------------
+# Same reason as the branding package above: the device bundle installs this, and the desktop dist
+# needs it to be able to exercise the install flow at all (without it the toolkit falls back to a
+# modal XUL window that cannot open here, and every install is cancelled).
+PROMPT_JS=/jihad/render/goanna/components/jihadInstallPrompt.js
+if [ -f "$PROMPT_JS" ] && [ -d "$DISTBIN/components" ]; then
+  cp -L "$PROMPT_JS" "$DISTBIN/components/jihadInstallPrompt.js"
+  cat > "$DISTBIN/components/jihad-install-prompt.manifest" <<'MANIFEST'
+component {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17} jihadInstallPrompt.js
+contract @mozilla.org/addons/web-install-prompt;1 {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17}
+MANIFEST
+  if ! grep -q '^manifest components/jihad-install-prompt.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
+    echo 'manifest components/jihad-install-prompt.manifest' >> "$DISTBIN/chrome.manifest"
+  fi
+  echo "  xpi prompt: registered in the desktop dist"
+fi
+
+# --- add-on prefs, from the SAME file the device bundle uses --------------------------------------
+# Without these the desktop dist runs on engine defaults, where xpinstall.whitelist.required is TRUE
+# and an install from a page throws NS_ERROR_UNEXPECTED — indistinguishable from a broken install
+# path. Sharing the file is what keeps the two builds from drifting.
+ADDON_PREFS=/jihad/packaging/prefs/jihad-addon-prefs.js
+if [ -f "$ADDON_PREFS" ] && [ -f "$DISTBIN/goanna.js" ]; then
+  grep -q 'JIHAD add-on prefs' "$DISTBIN/goanna.js" 2>/dev/null || \
+    cat "$ADDON_PREFS" >> "$DISTBIN/goanna.js"
+  echo "  add-on prefs: appended to the desktop goanna.js"
+fi
+
 echo "== done; artifacts under /out =="

@@ -723,8 +723,17 @@ void BrowserPageGoanna::emitSelectPopupIfPending() {
   }
   FILE* f = fopen(path.c_str(), "wb");
   if (!f) { fprintf(stderr, "[jihad-bs] popupMenuShow: cannot write %s\n", path.c_str()); return; }
-  fwrite(json.data(), 1, json.size(), f);
-  fclose(f);
+  // Fail CLOSED on a short write: the adapter forwards a truncated/empty file verbatim and
+  // the card's createSelectPopup then throws inside JSON.parse mid-flow — AFTER showSpinner()
+  // but before hideSpinner() — leaving a modal scrim over the card until relaunch (review #6).
+  size_t wrote = fwrite(json.data(), 1, json.size(), f);
+  int closed = fclose(f);
+  if (wrote != json.size() || closed != 0) {
+    fprintf(stderr, "[jihad-bs] popupMenuShow: short write %zu/%zu on %s — dropping popup\n",
+            wrote, json.size(), path.c_str());
+    unlink(path.c_str());
+    return;
+  }
   chmod(path.c_str(), 0644);
   fprintf(stderr, "[jihad-bs] popupMenuShow id=%s items->%s\n", id.c_str(), path.c_str());
   mSink.msgPopupMenuShow(id.c_str(), path.c_str());

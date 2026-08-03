@@ -62,6 +62,7 @@
 #include "nsIDOMHTMLImageElement.h"  // hit-test: <img> src/alt for the adapter's HitTest JSON
 #include "nsIDOMHTMLSelectElement.h" // <select> dropdown -> card-native popup (Atlas model)
 #include "nsIDOMHTMLOptionElement.h"
+#include "nsIDOMHTMLOptGroupElement.h" // a disabled <optgroup> disables its options (apply guard)
 #include "nsIDOMHTMLOptionsCollection.h"
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
 #include <cctype>                    // toupper/tolower for editable tag/type checks
@@ -2304,7 +2305,13 @@ bool GoannaRenderPage::BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect) {
   uint32_t len = 0; opts->GetLength(&len);
   if (len == 0) return false;
   int32_t selIdx = -1; aSelect->GetSelectedIndex(&selIdx);
-  std::string json = "{\"selected\":" + std::to_string((int)selIdx) + ",\"items\":[";
+  // The JSON shape is CONTRACT, not ours to invent: the card side is the stock
+  // enyo.WebView.createSelectPopup, which reads items[].text / items[].isEnabled
+  // (isis BrowserComboBox.cpp createJSONItem — text/isEnabled/isSeparator/isLabel
+  // + top-level selectedIdx). Our first cut wrote label/enabled/selected and the
+  // framework built a list of undefined captions — the "empty popup" of
+  // impl-select-popup-2026-08-03.md.
+  std::string json = "{\"items\":[";
   for (uint32_t i = 0; i < len; ++i) {
     nsCOMPtr<nsIDOMNode> node; opts->Item(i, getter_AddRefs(node));
     nsCOMPtr<nsIDOMHTMLOptionElement> opt = do_QueryInterface(node);
@@ -2315,17 +2322,24 @@ bool GoannaRenderPage::BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect) {
       opt->GetDisabled(&odis);
     }
     if (i) json += ",";
-    json += "{\"label\":\"";
+    json += "{\"text\":\"";
     jihadJsonEscape(label, &json, 200);
-    json += "\",\"enabled\":";
+    json += "\",\"isEnabled\":";
     json += odis ? "false" : "true";
-    json += "}";
+    // nsIDOMHTMLOptionsCollection yields <option>s only, so neither shows up here;
+    // emitted anyway because the isis file always carries them.
+    json += ",\"isSeparator\":false,\"isLabel\":false}";
   }
-  json += "]}";
+  json += "],\"selectedIdx\":" + std::to_string((int)selIdx) + "}";
   mSelectPopupJson = json;
   mSelectPopupPending = true;
   SetSelectPopupEl(aSelect);                       // held (AddRef'd) until popupMenuSelect / nav
-  mSelectPopupId = std::string("sel") + std::to_string(++mSelectPopupSeq);
+  // Process-global like isis's BrowserComboBox idSeq (static int): a per-page counter
+  // restarts at 0 when the daemon rebuilds the page (e.g. the card's auto-reconnect),
+  // and the framework CACHES popups by id — a reused id reopens the stale cached list
+  // and replies with an index into it (Opus review #7).
+  static unsigned sSelectPopupSeq = 0;
+  mSelectPopupId = std::string("sel") + std::to_string(++sSelectPopupSeq);
   return true;
 }
 
@@ -2348,7 +2362,37 @@ bool GoannaRenderPage::TakeSelectPopup(std::string* json, std::string* id) {
 void GoannaRenderPage::ApplySelectPopup(const char* id, int idx) {
   // Ignore a stale reply (a newer popup, or the page navigated and dropped the element).
   if (!mSelectPopupEl || !id || mSelectPopupId != id) return;
+  // The card's PopupList is NOT disabled-aware (its listSetupRow never reads the
+  // `disabled` flag), and page JS can rewrite the option list while the popup is
+  // up — so the daemon is the ONLY enforcement point (Opus review #1/#2/#3/#4):
+  // refuse out-of-range indexes, options disabled directly or via an enclosing
+  // disabled <optgroup>, and no-op picks (re-selecting the current option must
+  // not fire change — real browsers don't).
+  bool apply = false;
   if (idx >= 0) {
+    nsCOMPtr<nsIDOMHTMLOptionsCollection> opts;
+    mSelectPopupEl->GetOptions(getter_AddRefs(opts));
+    uint32_t len = 0; if (opts) opts->GetLength(&len);
+    int32_t cur = -1; mSelectPopupEl->GetSelectedIndex(&cur);
+    if (opts && (uint32_t)idx < len && idx != cur) {
+      nsCOMPtr<nsIDOMNode> node; opts->Item((uint32_t)idx, getter_AddRefs(node));
+      nsCOMPtr<nsIDOMHTMLOptionElement> opt = do_QueryInterface(node);
+      bool dis = false; if (opt) opt->GetDisabled(&dis);
+      if (opt && !dis && node) {          // walk to the <select>: a disabled <optgroup> disables its options
+        nsCOMPtr<nsIDOMNode> up; node->GetParentNode(getter_AddRefs(up));
+        for (int hop = 0; !dis && up && hop < 4; ++hop) {
+          if (SameCOMIdentity(up, mSelectPopupEl)) break;
+          nsCOMPtr<nsIDOMHTMLOptGroupElement> og = do_QueryInterface(up);
+          if (og) og->GetDisabled(&dis);
+          nsCOMPtr<nsIDOMNode> next; up->GetParentNode(getter_AddRefs(next)); up = next;
+        }
+      }
+      apply = opt && !dis;
+    }
+    if (!apply) fprintf(stderr, "[jihad-bs] popupMenuSelect idx=%d refused (len=%u cur=%d)\n",
+                        idx, len, (int)cur);
+  }
+  if (apply) {
     mSelectPopupEl->SetSelectedIndex(idx);
     // Fire input+change so page JS (framework onChange) reacts, exactly as a real pick would.
     // Same dispatch pattern as FlushPendingInputEvent (bubbling, non-trusted DOM Event).

@@ -93,11 +93,13 @@
 				this.domAttributes.type = "application/x-jihad-browser";
 				if (JIHAD_PROBE) { probeCreate(this); }
 			};
-			// <select> dropdown (Atlas model): the framework BasicWebView ALREADY implements
-			// showPopupMenu(id, itemsJson) -> doOpenSelect -> the onOpenSelect event, so we do
-			// NOT patch it (an earlier patch here shadowed the framework method with a broken
-			// this.bubble() and killed the popup). The app maps onOpenSelect to a native
-			// PopupSelect list and replies via callBrowserAdapter("selectPopupMenuItem",[id,idx]).
+			// <select> dropdown (Atlas model): the framework handles the WHOLE card side.
+			// BasicWebView.showPopupMenu -> doOpenSelect, and the enyo.WebView WRAPPER
+			// consumes that event itself (showSelect -> createSelectPopup -> PopupList,
+			// reply via selectPopupMenuItem) — it is never re-published to the app, so
+			// neither this file nor Browser.js patches or handles anything here. The one
+			// obligation is the daemon's: emit the isis JSON shape
+			// (items[].text/isEnabled/isSeparator/isLabel + selectedIdx).
 			proto._jihadPatched = true;
 			log("WebView engine -> application/x-jihad-browser");
 			stamp("E" + JIHAD_PROBE);

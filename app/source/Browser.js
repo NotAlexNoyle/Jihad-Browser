@@ -68,22 +68,15 @@ enyo.kind({
 			onUserPasswordDialog: "showUserPasswordDialog",
 			onNewPage: "openNewCardWithIdentifier",
 			onPrint: "doPrint",
-			onOpenSelect: "showSelectPopup",   // framework BasicWebView.showPopupMenu -> doOpenSelect
+			// <select> dropdowns need NO app handler: enyo.WebView consumes the inner
+			// BasicWebView's onOpenSelect itself (showSelect -> createSelectPopup ->
+			// PopupList) and replies via selectPopupMenuItem. It never re-publishes the
+			// event, so an onOpenSelect mapping here is dead code — the daemon just has
+			// to emit the isis JSON shape (items[].text/isEnabled + selectedIdx).
 			minFontSize: 2,
 		},
 		{kind: "FindBar", showing: false, onFind: "find", onGoToPrevious: "goToPrevious", onGoToNext: "goToNext"},
 		{name: "context", kind: "BrowserContextMenu", onItemClick: "contextItemClick"},
-		// Native <select> dropdown list (Atlas msgPopupMenuShow model). A plain Popup with an
-		// explicit Button per option, built dynamically in showSelectPopup — Menu/PopupSelect's
-		// setItems produced an empty popup in this embedding (device 2026-08-03), so we render
-		// the buttons ourselves, which is predictable. The daemon reads the choice back via
-		// popupMenuSelect (selectPopupMenuItem -> asyncCmdPopupMenuSelect).
-		{name: "selectPopup", kind: "Popup", scrim: true, dismissWithClick: true, onClose: "selectPopupClosed",
-			components: [
-				{name: "selectPopupScroller", kind: "BasicScroller", height: "auto", maxHeight: "480px", components: [
-					{name: "selectPopupList", kind: "VFlexBox"}
-				]}
-			]},
 		{name: "dialog", kind: "VerticalAcceptCancelPopup", cancelCaption: "", components: [
 			{name: "dialogTitle", className: "enyo-dialog-prompt-title"},
 			{name: "dialogMessage", className: "browser-dialog-body enyo-text-body "}
@@ -338,54 +331,6 @@ enyo.kind({
 		if (this[inValue]) {
 			this[inValue](inTapInfo, inPosition);
 		}
-	},
-	// <select> dropdown -> native PopupSelect list (Atlas msgPopupMenuShow model). The daemon
-	// intercepted the tap and sent the options; show them, and reply with the chosen index via
-	// the adapter (selectPopupMenuItem -> asyncCmdPopupMenuSelect -> popupMenuSelect).
-	// The framework's BasicWebView.showPopupMenu(id, itemsJson) fires onOpenSelect(id, itemsJson):
-	// itemsJson is the daemon's raw JSON {"selected":N,"items":[{"label","enabled"},...]}.
-	showSelectPopup: function(inSender, inId, inItemsJson) {
-		var menu;
-		try { menu = JSON.parse(inItemsJson); } catch (e) { menu = null; }
-		if (!menu || !menu.items || !menu.items.length) { return true; }
-		this._selectPopupId = inId;
-		this._selectPopupDone = false;
-		// Rebuild the button list for this <select>: one Button per option, tagged with its
-		// index. Buttons render predictably (unlike Menu items in this embedding).
-		var list = this.$.selectPopupList;
-		list.destroyControls();
-		for (var i = 0; i < menu.items.length; i++) {
-			list.createComponent({
-				kind: "Button", caption: menu.items[i].label || "", className: "enyo-button-dark",
-				optIndex: i, onclick: "selectPopupChoice"
-			}, {owner: this});
-		}
-		list.render();
-		this.$.selectPopup.openAtCenter();
-		enyo.log("[JSEL] id=" + inId + " built controls=" + list.getControls().length +
-			" listNode=" + (list.hasNode() ? "yes" : "NO") +
-			" popupShowing=" + this.$.selectPopup.showing);
-		return true;
-	},
-	selectPopupChoice: function(inSender) {
-		var idx = (inSender && typeof inSender.optIndex === "number") ? inSender.optIndex : -1;
-		this._selectPopupDone = true;
-		if (idx >= 0 && this.$.view.callBrowserAdapter) {
-			this.$.view.callBrowserAdapter("selectPopupMenuItem", [this._selectPopupId, idx]);
-		}
-		this.$.selectPopup.close();
-		return true;
-	},
-	selectPopupClosed: function() {
-		// Dismissed without a choice: tell the daemon (index -1) so it releases the held <select>.
-		if (!this._selectPopupDone && this._selectPopupId && this.$.view.callBrowserAdapter) {
-			this.$.view.callBrowserAdapter("selectPopupMenuItem", [this._selectPopupId, -1]);
-		}
-		this._selectPopupId = null;
-	},
-	hideSelectPopup: function() {
-		this.$.selectPopup.close();
-		return true;
 	},
 	newCardClick: function(inTapInfo) {
 		enyo.windows.openWindow("index.html", null, {url: inTapInfo.linkUrl});

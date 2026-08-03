@@ -239,7 +239,6 @@ private:
   std::string mSelectPopupJson;               // options serialized for the card
   std::string mSelectPopupId;                 // id echoed back by popupMenuSelect
   bool mSelectPopupPending = false;           // a popup is queued for the daemon to emit
-  unsigned mSelectPopupSeq = 0;               // monotonic id source
   long mSelectPopupMs = 0;                     // last-build time (dedup the raw+gesture double tap)
   // Raw ptr, not nsCOMPtr: this header keeps XPCOM types opaque (forward-decl only). AddRef'd
   // in BuildSelectPopup, Release'd in SetSelectPopupEl/ApplySelectPopup/BeginLoad/dtor.

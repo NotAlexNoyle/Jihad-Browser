@@ -54,9 +54,21 @@ paint in the log as the liveness proof).
   `openSelect` (JihadEngineOverride) open the list flush under the box, centred, clamped,
   flipping above when it would run off screen. fb1-verified.
 
+## All three variants now have it (2026-08-03, commit 80b7fab9)
+
+- **Mochi**: `JihadWebView.showPopupMenu` surfaces `onOpenSelect`; `JihadBrowser` presents the
+  list with the overflow-menu overlay idiom (mochi.Popup crashes the card on this engine),
+  anchors it under the box from the daemon's `rect`, and replies with the index (or -1 on
+  dismiss AND on an unpresentable payload, so the daemon always releases the element).
+  Device-verified: `popupMenuSelect id=sel2 idx=2` and the page's onchange banner updated.
+- **Mojo**: needed NO app code — the system framework's WebView widget already implements
+  `showPopupMenu -> popupSubmenu` and replies via `selectPopupMenuItem`. It only ever needed
+  the isis JSON shape. Device-verified: the native submenu lists all options and check-marks
+  the current one.
+
 ## Still open
 
-2. **Mochi + Mojo card handlers** — both variants' custom WebViews have NO `showPopupMenu`
+2. ~~Mochi + Mojo card handlers~~ — DONE (above). Historical note: both variants' WebViews had NO `showPopupMenu`
    callback (the NPAPI bridge drops it silently). Each needs its own small popup + the
    `selectPopupMenuItem` reply, parsing the isis shape (`app-mochi/source/JihadWebView.js`
    "adapter -> app callbacks" block; mojo `app-mojo/app/assistants/main-assistant.js`).

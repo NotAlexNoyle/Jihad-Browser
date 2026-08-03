@@ -68,10 +68,14 @@ enyo.kind({
 			onUserPasswordDialog: "showUserPasswordDialog",
 			onNewPage: "openNewCardWithIdentifier",
 			onPrint: "doPrint",
+			onOpenSelect: "showSelectPopup",   // framework BasicWebView.showPopupMenu -> doOpenSelect
 			minFontSize: 2,
 		},
 		{kind: "FindBar", showing: false, onFind: "find", onGoToPrevious: "goToPrevious", onGoToNext: "goToNext"},
 		{name: "context", kind: "BrowserContextMenu", onItemClick: "contextItemClick"},
+		// Native <select> dropdown list (Atlas msgPopupMenuShow model). PopupSelect is the same
+		// kind BrowserContextMenu uses; the daemon reads the choice back via popupMenuSelect.
+		{name: "selectPopup", kind: "PopupSelect", onSelect: "selectPopupChoice", onClose: "selectPopupClosed"},
 		{name: "dialog", kind: "VerticalAcceptCancelPopup", cancelCaption: "", components: [
 			{name: "dialogTitle", className: "enyo-dialog-prompt-title"},
 			{name: "dialogMessage", className: "browser-dialog-body enyo-text-body "}
@@ -321,6 +325,47 @@ enyo.kind({
 		if (this[inValue]) {
 			this[inValue](inTapInfo, inPosition);
 		}
+	},
+	// <select> dropdown -> native PopupSelect list (Atlas msgPopupMenuShow model). The daemon
+	// intercepted the tap and sent the options; show them, and reply with the chosen index via
+	// the adapter (selectPopupMenuItem -> asyncCmdPopupMenuSelect -> popupMenuSelect).
+	// The framework's BasicWebView.showPopupMenu(id, itemsJson) fires onOpenSelect(id, itemsJson):
+	// itemsJson is the daemon's raw JSON {"selected":N,"items":[{"label","enabled"},...]}.
+	showSelectPopup: function(inSender, inId, inItemsJson) {
+		var menu;
+		try { menu = JSON.parse(inItemsJson); } catch (e) { menu = null; }
+		if (!menu || !menu.items || !menu.items.length) { return true; }
+		this._selectPopupId = inId;
+		this._selectPopupDone = false;
+		var items = [];
+		for (var i = 0; i < menu.items.length; i++) {
+			// value = the option INDEX (string) so the reply is unambiguous even with dup labels.
+			items.push({caption: menu.items[i].label || "", value: String(i)});
+		}
+		this.$.selectPopup.setItems(items);
+		// Defer the open one turn past the gesture that opened the <select>.
+		var p = this.$.selectPopup;
+		enyo.asyncMethod(this, function() { p.openAtCenter(); });
+		return true;
+	},
+	selectPopupChoice: function(inSender, inSelected) {
+		var idx = parseInt(inSelected && inSelected.getValue(), 10);
+		this._selectPopupDone = true;
+		if (!isNaN(idx) && this.$.view.callBrowserAdapter) {
+			this.$.view.callBrowserAdapter("selectPopupMenuItem", [this._selectPopupId, idx]);
+		}
+		this.$.selectPopup.close();
+	},
+	selectPopupClosed: function() {
+		// Dismissed without a choice: tell the daemon (index -1) so it releases the held <select>.
+		if (!this._selectPopupDone && this._selectPopupId && this.$.view.callBrowserAdapter) {
+			this.$.view.callBrowserAdapter("selectPopupMenuItem", [this._selectPopupId, -1]);
+		}
+		this._selectPopupId = null;
+	},
+	hideSelectPopup: function() {
+		this.$.selectPopup.close();
+		return true;
 	},
 	newCardClick: function(inTapInfo) {
 		enyo.windows.openWindow("index.html", null, {url: inTapInfo.linkUrl});

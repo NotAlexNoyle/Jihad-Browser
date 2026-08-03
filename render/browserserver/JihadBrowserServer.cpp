@@ -33,6 +33,7 @@ void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRe
 // syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
 void ProxySink::msgLinkClicked(const char* url) { mSrv->msgLinkClicked(mProxy, url); }
+void ProxySink::msgPopupMenuShow(const char* id, const char* file) { mSrv->msgPopupMenuShow(mProxy, id, file); }
 void ProxySink::msgMimeHandoffUrl(const char* mimeType, const char* url) { mSrv->msgMimeHandoffUrl(mProxy, mimeType, url); }
 void ProxySink::msgDownloadStart(const char* url) { mSrv->msgDownloadStart(mProxy, url); }
 void ProxySink::msgDownloadProgress(const char* url, int32_t soFar, int32_t total) { mSrv->msgDownloadProgress(mProxy, url, soFar, total); }
@@ -472,7 +473,7 @@ void JihadBrowserServer::asyncCmdClearCookies(YapProxy* proxy)
 
 void JihadBrowserServer::asyncCmdPopupMenuSelect(YapProxy* proxy, const char* identifier, int32_t selectedIdx)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->popupMenuSelect(identifier, selectedIdx);
 }
 
 void JihadBrowserServer::asyncCmdSetEnableJavaScript(YapProxy* proxy, bool enable)

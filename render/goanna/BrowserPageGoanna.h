@@ -55,6 +55,12 @@ public:
     (void)host; (void)code; (void)certFile;
   }
   virtual void msgLinkClicked(const char* url) { (void)url; }
+  // A dropdown <select> was tapped -> the card shows a native option list (Atlas model).
+  // menuDataFileName is a temp JSON file the adapter reads + unlinks. The choice returns via
+  // asyncCmdPopupMenuSelect -> BrowserPageGoanna::popupMenuSelect.
+  virtual void msgPopupMenuShow(const char* identifier, const char* menuDataFileName) {
+    (void)identifier; (void)menuDataFileName;
+  }
   // Title+URL together (YAP 0x200A). This — not msgLocationChanged — is what drives the
   // isis address bar: BasicWebView.titleURLChange -> urlTitleChanged -> ActionBar.setUrl.
   virtual void msgTitleAndUrlChanged(const char* title, const char* uri, bool canBack, bool canFwd) {
@@ -147,6 +153,9 @@ public:
   // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
   // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
   void hitTest(int x, int y, std::string* json);
+  // YAP: popupMenuSelect — the card's native <select> list returned a choice. selectedIdx<0
+  // is a dismissal. (The show side is emitSelectPopupIfPending, driven from the click drain.)
+  void popupMenuSelect(const char* identifier, int selectedIdx);
 
  private:
   // Map the adapter's DOCUMENT coords (m_penDownDoc, zoomed px) to the VIEWPORT-relative
@@ -183,6 +192,7 @@ private:
   void emitCompletion(bool emitProgress100);    // full boundary: progress/location/title/load-stopped/history
   bool emitGeometry();          // contents-size + meta-viewport (dedup); true if a valid size was read
   void emitScrollIfChanged();   // scrolled-to when the offset moved
+  void emitSelectPopupIfPending(); // drain a queued <select> popup -> write file + msgPopupMenuShow
 
   EngineHost&        mHost;
   IPageMessageSink&  mSink;

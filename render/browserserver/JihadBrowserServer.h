@@ -41,6 +41,7 @@ public:
   void msgUrlRedirected(const char* url, const char* userData) override;
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
   void msgLinkClicked(const char* url) override;
+  void msgPopupMenuShow(const char* identifier, const char* menuDataFileName) override;
   void msgMimeHandoffUrl(const char* mimeType, const char* url) override;
   void msgDownloadStart(const char* url) override;
   void msgDownloadProgress(const char* url, int32_t soFar, int32_t total) override;

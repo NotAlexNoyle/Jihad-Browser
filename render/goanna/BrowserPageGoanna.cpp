@@ -22,6 +22,7 @@
 #include <regex.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>   // chmod (popup menu data file 0644)
 
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
@@ -708,6 +709,36 @@ void BrowserPageGoanna::hitTest(int x, int y, std::string* json) {
   mPage->HitTestAt(x, y, json);
 }
 
+void BrowserPageGoanna::emitSelectPopupIfPending() {
+  if (!mPage) return;
+  std::string json, id;
+  if (!mPage->TakeSelectPopup(&json, &id)) return;
+  // The adapter reads the menu data from a FILE and unlinks it (BrowserAdapter::msgPopupMenuShow).
+  // Write it to the variant's root-owned state dir (R8: never /media/internal, never /tmp world-
+  // writable) as <state>/popup-<id>.json, 0644 (root daemon writes, the card-side adapter reads).
+  std::string path = jihad::RuntimeResolvePath("1", (std::string("popup-") + id + ".json").c_str());
+  if (path.empty()) {
+    fprintf(stderr, "[jihad-bs] popupMenuShow: no state dir — dropping select popup\n");
+    return;
+  }
+  FILE* f = fopen(path.c_str(), "wb");
+  if (!f) { fprintf(stderr, "[jihad-bs] popupMenuShow: cannot write %s\n", path.c_str()); return; }
+  fwrite(json.data(), 1, json.size(), f);
+  fclose(f);
+  chmod(path.c_str(), 0644);
+  fprintf(stderr, "[jihad-bs] popupMenuShow id=%s items->%s\n", id.c_str(), path.c_str());
+  mSink.msgPopupMenuShow(id.c_str(), path.c_str());
+}
+
+void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx) {
+  // The card's native <select> list returned a choice (asyncCmdPopupMenuSelect). Apply it to
+  // the held element and fire input/change; a negative index is a dismissal (no change).
+  if (!mPage) return;
+  fprintf(stderr, "[jihad-bs] popupMenuSelect id=%s idx=%d\n", identifier ? identifier : "", selectedIdx);
+  mPage->ApplySelectPopup(identifier, selectedIdx);
+  mNeedsPaint = true;
+}
+
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
   // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is redirected
   // to a persistent, user-readable file on device (Jihad review F-163).
@@ -970,6 +1001,11 @@ void BrowserPageGoanna::pump(int msBudget) {
           mSink.msgLinkClicked(clickNav.c_str());
           openUrl(clickNav.c_str());   // bumps mNavGen -> the loop above stops next iteration
         }
+        // A dropdown <select> tap queued a card-native popup instead of a click (Atlas model):
+        // write the option data to a temp file and emit msgPopupMenuShow(id, file). The adapter
+        // reads+unlinks the file and calls the card's showPopupMenu; the choice returns via
+        // popupMenuSelect (asyncCmdPopupMenuSelect).
+        emitSelectPopupIfPending();
         continue;
       }
       if (e.type == PM_TOUCHSTART || e.type == PM_TOUCHMOVE || e.type == PM_TOUCHEND) {

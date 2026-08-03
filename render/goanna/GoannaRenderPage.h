@@ -23,6 +23,7 @@
 typedef struct _GtkWidget GtkWidget;
 class nsIWidget;              // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
 class nsIDOMHTMLFormElement;  // opaque; crash-safe implicit submission target (FireFormSubmit)
+class nsIDOMHTMLSelectElement;// opaque; the dropdown <select> whose popup is on the card
 class nsIWebBrowser;          // opaque; DebugWebBrowser() handle for the debug inject channel
 
 namespace jihad {
@@ -152,6 +153,14 @@ public:
   // {"isNull":true,...}.
   void HitTestAt(int x, int y, std::string* json);
 
+  // <select> dropdown -> card-native popup (Atlas msgPopupMenuShow/selectPopupMenuItem model,
+  // impl-menupopup-2026-08-02.md). BuildSelectPopup (called from ClickAt when a dropdown
+  // <select> is tapped) serializes the options + holds the element; the daemon drains
+  // TakeSelectPopup and emits msgPopupMenuShow; the card's choice returns via ApplySelectPopup.
+  bool BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect);
+  bool TakeSelectPopup(std::string* json, std::string* id);
+  void ApplySelectPopup(const char* id, int idx);
+
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);
 
@@ -226,6 +235,16 @@ private:
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
   std::string mClickNavUrl;   // href from the last link tap, drained by TakeClickNav
+  // <select> card-native popup state (see BuildSelectPopup):
+  std::string mSelectPopupJson;               // options serialized for the card
+  std::string mSelectPopupId;                 // id echoed back by popupMenuSelect
+  bool mSelectPopupPending = false;           // a popup is queued for the daemon to emit
+  unsigned mSelectPopupSeq = 0;               // monotonic id source
+  long mSelectPopupMs = 0;                     // last-build time (dedup the raw+gesture double tap)
+  // Raw ptr, not nsCOMPtr: this header keeps XPCOM types opaque (forward-decl only). AddRef'd
+  // in BuildSelectPopup, Release'd in SetSelectPopupEl/ApplySelectPopup/BeginLoad/dtor.
+  nsIDOMHTMLSelectElement* mSelectPopupEl = nullptr;  // held until the choice returns / nav
+  void SetSelectPopupEl(nsIDOMHTMLSelectElement* el);  // ref-swap helper (defined in .cpp)
   bool mEditorFocused;        // is an editable element currently focused (VKB up)?
   bool mEditorFocusDirty;     // the focus state changed and needs emitting
   int  mEditorFieldType;      // PalmIME field-type hint for the focused editable

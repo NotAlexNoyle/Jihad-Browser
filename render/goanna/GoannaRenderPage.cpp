@@ -60,6 +60,9 @@
 #include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
 #include "nsIDOMHTMLImageElement.h"  // hit-test: <img> src/alt for the adapter's HitTest JSON
+#include "nsIDOMHTMLSelectElement.h" // <select> dropdown -> card-native popup (Atlas model)
+#include "nsIDOMHTMLOptionElement.h"
+#include "nsIDOMHTMLOptionsCollection.h"
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
 #include <cctype>                    // toupper/tolower for editable tag/type checks
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
@@ -363,6 +366,7 @@ GoannaRenderPage::GoannaRenderPage(EngineHost& host)
     mEditorFocused(false), mEditorFocusDirty(false), mEditorFieldType(0) {}
 
 GoannaRenderPage::~GoannaRenderPage() {
+  SetSelectPopupEl(nullptr);   // release the held <select> before the engine tears down
   // Ordered teardown (Codex P1): stop navigation, remove the progress listener,
   // clear the container window, destroy the browser + base window, then release
   // the chrome and the native GTK window. All browser refs must be gone before
@@ -1070,6 +1074,8 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
   mChrome->mProgressPct = 0;           // fresh progress for the new load (isis resets its bar too)
   mChrome->mUserInteracted = false;    // Atlas autofocus gate: new page, no tap yet
+  // A navigation drops any pending <select> popup: its element belongs to the outgoing page.
+  mSelectPopupPending = false; SetSelectPopupEl(nullptr);
   // Drop the focus listener NOW, not at the next completion — the listener pair holds a strong
   // ref to the OLD document (chrome -> doc -> listener -> chrome cycle), which would pin the
   // outgoing page's whole content tree for the duration of a slow load, exactly when a 512 MB
@@ -1702,6 +1708,32 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     if (mEditorFocused) { mEditorFocused = false; mEditorFocusDirty = true; }  // page change -> hide VKB
     return;
   }
+  // --- <select> dropdown -> CARD-NATIVE popup (Atlas model). A tap on a dropdown <select>
+  // must NOT dispatch a normal click: the engine would open its own XUL/native combobox
+  // popup, which in this offscreen embedding is created 0x0 and never painted (a separate
+  // display root — see impl-menupopup-2026-08-02.md). Instead read the options straight
+  // from the DOM, serialize them, and hand them to the card, which shows a native list and
+  // sends the choice back via popupMenuSelect (asyncCmdPopupMenuSelect). This is exactly the
+  // BrowserAdapter msgPopupMenuShow/selectPopupMenuItem contract inherited from isis, and is
+  // the good-webOS-citizen path Atlas uses. Multi-selects and list-boxes (size>1) render
+  // inline and are left to the normal click path. ---
+  {
+    nsCOMPtr<nsIDOMHTMLSelectElement> sel;
+    nsCOMPtr<nsIDOMNode> n = do_QueryInterface(el);
+    for (int d = 0; n && d < 32 && !sel; ++d) {
+      sel = do_QueryInterface(n);
+      if (!sel) { nsCOMPtr<nsIDOMNode> p; n->GetParentNode(getter_AddRefs(p)); n = p; }
+    }
+    if (sel) {
+      bool multiple = false; uint32_t size = 0; bool disabled = false;
+      sel->GetMultiple(&multiple); sel->GetSize(&size); sel->GetDisabled(&disabled);
+      if (!disabled && !multiple && size <= 1 && BuildSelectPopup(sel)) {
+        // The popup is queued; the daemon drains it (TakeSelectPopup) and emits
+        // msgPopupMenuShow. Do NOT fall through to the click/VKB path.
+        return;
+      }
+    }
+  }
   // --- VKB editable detection. Compute editability from the tapped element BEFORE the
   // click, using the tag name + "type" ATTRIBUTE via nsIDOMElement (known-good QI —
   // ElementFromPoint returned it). Do NOT depend on nsIDOMHTMLInputElement/GetType
@@ -2248,6 +2280,89 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   if (!imgAlt.IsEmpty())  { out += ",\"altText\":\"";  jihadJsonEscape(imgAlt, &out, 256);  out += "\""; }
   out += "}";
   *json = out;
+}
+
+// Serialize a dropdown <select>'s options to the JSON the card popup consumes, and hold a
+// reference to the element so a later popupMenuSelect can apply the choice. Returns false
+// (fall back to a normal click) if the select is empty or the DOM read fails.
+bool GoannaRenderPage::BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect) {
+  if (!aSelect) return false;
+  // Dedup: a single physical tap reaches ClickAt TWICE (the raw pen down/up pair delivers a
+  // click, then the gesture single-tap delivers another), so without this each tap opened
+  // two card popups and they dismissed each other (device 2026-08-03: every tap returned -1).
+  // Suppress a second popup for the SAME element within a short window.
+  long now = jihadInputNowMs();
+  if (aSelect == mSelectPopupEl && (now - mSelectPopupMs) < 700) return false;
+  mSelectPopupMs = now;
+  nsCOMPtr<nsIDOMHTMLOptionsCollection> opts;
+  aSelect->GetOptions(getter_AddRefs(opts));
+  if (!opts) return false;
+  uint32_t len = 0; opts->GetLength(&len);
+  if (len == 0) return false;
+  int32_t selIdx = -1; aSelect->GetSelectedIndex(&selIdx);
+  std::string json = "{\"selected\":" + std::to_string((int)selIdx) + ",\"items\":[";
+  for (uint32_t i = 0; i < len; ++i) {
+    nsCOMPtr<nsIDOMNode> node; opts->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMHTMLOptionElement> opt = do_QueryInterface(node);
+    nsAutoString label; bool odis = false;
+    if (opt) {
+      opt->GetLabel(label);                       // label attr, or the text if unset...
+      if (label.IsEmpty()) opt->GetText(label);   // ...which is the common case
+      opt->GetDisabled(&odis);
+    }
+    if (i) json += ",";
+    json += "{\"label\":\"";
+    jihadJsonEscape(label, &json, 200);
+    json += "\",\"enabled\":";
+    json += odis ? "false" : "true";
+    json += "}";
+  }
+  json += "]}";
+  mSelectPopupJson = json;
+  mSelectPopupPending = true;
+  SetSelectPopupEl(aSelect);                       // held (AddRef'd) until popupMenuSelect / nav
+  mSelectPopupId = std::string("sel") + std::to_string(++mSelectPopupSeq);
+  return true;
+}
+
+// Strong-ref swap for the held <select> (the header keeps XPCOM types opaque, so no nsCOMPtr).
+void GoannaRenderPage::SetSelectPopupEl(nsIDOMHTMLSelectElement* el) {
+  if (el == mSelectPopupEl) return;
+  if (el) el->AddRef();
+  if (mSelectPopupEl) mSelectPopupEl->Release();
+  mSelectPopupEl = el;
+}
+
+bool GoannaRenderPage::TakeSelectPopup(std::string* json, std::string* id) {
+  if (!mSelectPopupPending) return false;
+  mSelectPopupPending = false;
+  if (json) *json = mSelectPopupJson;
+  if (id)   *id   = mSelectPopupId;
+  return true;
+}
+
+void GoannaRenderPage::ApplySelectPopup(const char* id, int idx) {
+  // Ignore a stale reply (a newer popup, or the page navigated and dropped the element).
+  if (!mSelectPopupEl || !id || mSelectPopupId != id) return;
+  if (idx >= 0) {
+    mSelectPopupEl->SetSelectedIndex(idx);
+    // Fire input+change so page JS (framework onChange) reacts, exactly as a real pick would.
+    // Same dispatch pattern as FlushPendingInputEvent (bubbling, non-trusted DOM Event).
+    nsCOMPtr<nsIDOMNode> node = do_QueryInterface(mSelectPopupEl);
+    nsCOMPtr<nsIDOMEventTarget> tgt = do_QueryInterface(mSelectPopupEl);
+    nsCOMPtr<nsIDOMDocument> doc; if (node) node->GetOwnerDocument(getter_AddRefs(doc));
+    if (doc && tgt) {
+      const char* kEvents[] = { "input", "change" };
+      for (const char* name : kEvents) {
+        nsCOMPtr<nsIDOMEvent> ev;
+        doc->CreateEvent(NS_LITERAL_STRING("Event"), getter_AddRefs(ev));
+        if (!ev) continue;
+        ev->InitEvent(NS_ConvertUTF8toUTF16(name), true, false);
+        bool dummy = false; tgt->DispatchEvent(ev, &dummy);
+      }
+    }
+  }
+  SetSelectPopupEl(nullptr);
 }
 
 bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h,

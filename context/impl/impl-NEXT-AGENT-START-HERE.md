@@ -115,9 +115,12 @@ next adapter change. `impl-scroll-overscan-2026-08-02.md`, finding F7.
 5. **Instrument the boundary before theorising** — but make sure the instrument's output actually
    arrives (this session, `enyo.log` silently stopped reaching `palm-log`).
 
-## Uncommitted in the working tree, on purpose
+## The `$JIHAD_INJECT` self-drive channel (committed, OFF by default)
 
-`render/browserserver/JihadBrowserServer.cpp`, `render/goanna/GoannaRenderPage.{cpp,h}` — a
-`$JIHAD_INJECT`-gated debug channel (`jsurl` runs privileged JS in a chrome document, `title` reads
-it back). It compiles (the ARM daemon builds with it) and is off by default. Useful for the popup
-investigations.
+`render/browserserver/JihadBrowserServer.cpp` carries a `$JIHAD_INJECT`-gated debug channel: a
+text file of one command per line (`click X Y`, `hold X Y`, `scroll X Y`, `zoom Z X Y`, `url …`,
+`jsurl` runs privileged JS in a chrome document, `title` reads it back), consumed atomically. OFF
+unless `JIHAD_INJECT` is set in the daemon env; gated to a root-owned private regular file in the
+variant state dir (no TOCTOU). This is how the desktop `build-popup-probe.sh` and autonomous device
+tests drive input without a human. The working tree is otherwise CLEAN (everything committed on
+`main`, NOT pushed).

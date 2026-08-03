@@ -1332,6 +1332,23 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     nb = mPage->ReadPixels(pixels, segSize - hdr);
   }
 
+  // A XUL popup (about:addons tools menu, a context menu) is a SEPARATE display root,
+  // so nothing above can have drawn it — composite any open one over the frame we just
+  // painted, at the same origin/zoom. Costs one popup-manager query when none is open,
+  // which is the normal case. Must come AFTER the band overlay: that overlay rewrites
+  // the visible rows and would erase a popup drawn before it.
+  if (nb >= 0) {
+    int popups = mPage->CompositePopups(pixels, w * 4, w, paintedH,
+                                        (double)paintedX / Zeff, (double)paintedTop / Zeff,
+                                        Zeff);
+    if (popups > 0) {
+      fprintf(stderr, "[jihad-bs] composited %d popup(s) over the frame\n", popups);
+      // A popup is content: an otherwise-blank frame carrying one must not be
+      // suppressed as "blank over good" below.
+      if (nb == 0) nb = 1;
+    }
+  }
+
   oi->bufferWidth = w; oi->bufferHeight = paintedH;
   oi->contentZoom = Zeff;
   oi->renderedX = paintedX; oi->renderedY = paintedTop;

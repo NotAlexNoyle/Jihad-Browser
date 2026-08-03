@@ -57,4 +57,29 @@ case "$STAGE" in
   *)         echo "unknown stage: $STAGE (use configure|build|all)"; exit 2 ;;
 esac
 
+# --- our own chrome://branding/ package, into the DESKTOP dist -----------------------------------
+# The device bundle installs this (make-device-bundle.sh) because toolkit's about:addons opens with
+#   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" > %brandDTD;
+# and a DTD that fails to load is a hard XML parse error. The desktop dist needs it for the same
+# reason: without it about:addons parses to a <parsererror> document, and every chrome/XUL probe run
+# against it silently tests an error page instead of the add-ons manager (measured 2026-08-03 —
+# clicks resolved to <parsererror>/<sourcetext>, which reads like "the popup path is broken" when
+# the page simply never existed). A `mach build` rewrites dist/bin, so this must run after it, on
+# every build, not once by hand.
+BRANDING=/jihad/packaging/branding
+DISTBIN=/out/obj-jihad-goanna/dist/bin
+if [ -d "$BRANDING" ] && [ -d "$DISTBIN" ]; then
+  rm -rf "$DISTBIN/branding"
+  mkdir -p "$DISTBIN/branding"
+  cp -R "$BRANDING/content" "$BRANDING/locale" "$DISTBIN/branding/"
+  cp -L "$BRANDING/jihad-branding.manifest" "$DISTBIN/"
+  # Idempotent: a duplicate `manifest` line re-registers the package and warns on every start.
+  if ! grep -q '^manifest jihad-branding.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
+    echo 'manifest jihad-branding.manifest' >> "$DISTBIN/chrome.manifest"
+  fi
+  [ -s "$DISTBIN/branding/locale/en-US/brand.dtd" ] || {
+    echo "ERROR: branding brand.dtd missing from the desktop dist" >&2; exit 1; }
+  echo "  branding: chrome://branding/ registered in the desktop dist (about:addons brand.dtd)"
+fi
+
 echo "== done; artifacts under /out =="

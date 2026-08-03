@@ -275,6 +275,13 @@ void JihadBrowserServer::processInjectFile() {
     } else if (strncmp(c.c_str(), "title", 5) == 0) {
       // DEBUG: print the current document title (jsurl probe readback).
       printf("[jihad-bs] inject title=[%s]\n", jihad::DebugGetTitle().c_str());
+    } else if (strncmp(c.c_str(), "rect ", 5) == 0) {
+      // DEBUG: report an element's viewport rect by id, so a test can click a real
+      // control instead of guessing coordinates (chrome XUL has no other way in from
+      // here — a javascript: URL does not run in a chrome document).
+      std::string id = c.substr(5);
+      while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
+      printf("[jihad-bs] inject rect %s\n", jihad::DebugElementRect(id.c_str()).c_str());
     } else if (strncmp(c.c_str(), "back", 4) == 0)    { p->pageBackward(); }
     else if (strncmp(c.c_str(), "forward", 7) == 0)   { p->pageForward(); }
     else if (strncmp(c.c_str(), "reload", 6) == 0)    { p->pageReload(); }

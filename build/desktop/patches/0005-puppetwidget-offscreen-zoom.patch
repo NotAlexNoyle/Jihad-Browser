@@ -1,8 +1,8 @@
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 0294193adf..8a8389393e 100644
+index 0294193adf..650ba5d373 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
-@@ -21,6 +21,13 @@
+@@ -21,6 +21,20 @@
  #include "nsIWidgetListener.h"
  #include "imgIContainer.h"
  #include "nsView.h"
@@ -13,10 +13,17 @@ index 0294193adf..8a8389393e 100644
 +#include "nsPresContext.h"
 +#include "nsServiceManagerUtils.h"   // do_GetService (jihad_init_nss)
 +#include "nsThreadUtils.h"           // NS_IsMainThread
++// Jihad popup overlay composite (a popup is a separate display root — see
++// jihad_offscreen_composite_popups at the bottom of this file):
++#include "nsXULPopupManager.h"
++#include "nsLayoutUtils.h"
++#include "nsRenderingContext.h"
++#include "nsIFrame.h"
++#include "nsDisplayList.h"       // nsDisplayListBuilderMode
  
  using namespace mozilla;
  using namespace mozilla::dom;
-@@ -114,6 +121,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+@@ -114,6 +128,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
    mEnabled = true;
    mVisible = true;
  
@@ -35,7 +42,7 @@ index 0294193adf..8a8389393e 100644
    mDrawTarget = gfxPlatform::GetPlatform()->
      CreateOffscreenContentDrawTarget(IntSize(1, 1), SurfaceFormat::B8G8R8A8);
  
-@@ -201,6 +220,13 @@ PuppetWidget::Show(bool aState)
+@@ -201,6 +227,13 @@ PuppetWidget::Show(bool aState)
    bool wasVisible = mVisible;
    mVisible = aState;
  
@@ -49,7 +56,7 @@ index 0294193adf..8a8389393e 100644
    if (mChild) {
      mChild->mVisible = aState;
    }
-@@ -231,6 +257,10 @@ PuppetWidget::Resize(double aWidth,
+@@ -231,6 +264,10 @@ PuppetWidget::Resize(double aWidth,
    mBounds.SizeTo(LayoutDeviceIntSize(NSToIntRound(aWidth),
                                       NSToIntRound(aHeight)));
  
@@ -60,7 +67,7 @@ index 0294193adf..8a8389393e 100644
    if (mChild) {
      return mChild->Resize(aWidth, aHeight, aRepaint);
    }
-@@ -300,6 +330,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
+@@ -300,6 +337,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
      return mChild->Invalidate(aRect);
    }
  
@@ -71,7 +78,7 @@ index 0294193adf..8a8389393e 100644
    mDirtyRegion.Or(mDirtyRegion, aRect);
  
    if (!mDirtyRegion.IsEmpty() && !mPaintTask.IsPending()) {
-@@ -335,7 +369,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
+@@ -335,7 +376,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
    AutoCacheNativeKeyCommands autoCache(this);
    if (event->mFlags.mIsSynthesizedForTests && !mNativeKeyCommandsValid) {
      WidgetKeyboardEvent* keyEvent = event->AsKeyboardEvent();
@@ -85,7 +92,7 @@ index 0294193adf..8a8389393e 100644
        mTabChild->RequestNativeKeyBindings(&autoCache, keyEvent);
      }
    }
-@@ -583,7 +622,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -583,7 +629,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
                                LayerManagerPersistence aPersistence)
  {
    if (!mLayerManager) {
@@ -100,7 +107,7 @@ index 0294193adf..8a8389393e 100644
    }
    ShadowLayerForwarder* lf = mLayerManager->AsShadowForwarder();
    if (lf && !lf->HasShadowManager() && aShadowManager) {
-@@ -602,6 +647,343 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
+@@ -602,6 +654,545 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
    return mLayerManager;
  }
  
@@ -402,6 +409,208 @@ index 0294193adf..8a8389393e 100644
 +  return true;
 +}
 +
++// Composite every OPEN XUL popup over an already-painted buffer.
++//
++// WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
++// is a SEPARATE DISPLAY ROOT — nsLayoutUtils::GetDisplayRootFrame returns the popup
++// frame itself, not the document root — so RenderDocument on the content docShell
++// never contains it, no matter how it is sized or positioned. On a desktop build the
++// popup would be its own toplevel OS window and the window manager would put it on
++// screen; headless there is no such window, so the pixels have to be composited by
++// hand. The daemon calls this after its main paint, so a popup lands on top of the
++// page exactly where the engine placed it.
++//
++// aOriginX/aOriginY are the document-space CSS coords of the buffer's top-left (the
++// same origin the main render used) and aZoom the scale it rendered at, so a popup
++// is placed with the identical transform as the content underneath it.
++//
++// Returns the number of popups composited (0 = nothing open, the overwhelmingly
++// common case, and the reason this is cheap enough to call every frame).
++MOZ_EXPORT int
++jihad_offscreen_composite_popups(nsIWidget* /*aWidget*/, void* aDest, int aStride,
++                                 int aWidth, int aHeight, double aOriginX,
++                                 double aOriginY, double aZoom)
++{
++  if (!aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return 0;
++  }
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return 0;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return 0;      // no popup open: pay nothing beyond this check
++  }
++
++  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++  if (!dt || !dt->IsValid()) {
++    return 0;
++  }
++  const double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  int painted = 0;
++
++  // GetVisiblePopups walks the chain innermost-first; paint in reverse so a submenu
++  // lands on top of the menu that opened it.
++  for (int32_t i = popups.Length() - 1; i >= 0; --i) {
++    nsIFrame* frame = popups[i];
++    if (!frame) {
++      continue;
++    }
++    // The popup's own rect, in the same document space the buffer was rendered in.
++    // GetScreenRectInAppUnits() is what the widget code positions the popup window
++    // with, and in this embedding the "screen" IS the document surface: PuppetScreen
++    // reports the offscreen bounds, so screen coords and document coords agree.
++    nsRect screen = frame->GetScreenRectInAppUnits();
++    const double cssX = nsPresContext::AppUnitsToFloatCSSPixels(screen.x);
++    const double cssY = nsPresContext::AppUnitsToFloatCSSPixels(screen.y);
++    const double cssW = nsPresContext::AppUnitsToFloatCSSPixels(screen.width);
++    const double cssH = nsPresContext::AppUnitsToFloatCSSPixels(screen.height);
++    if (cssW <= 0 || cssH <= 0) {
++      // A popup that is open but has no size is the "0x0 popup" failure this whole
++      // path was built for — say so rather than silently drawing nothing.
++      if (getenv("JIHAD_OFFSCREEN")) {
++        fprintf(stderr, "[jihad-popup] composite: frame=%p is OPEN but %gx%g — skipped\n",
++                (void*)frame, cssW, cssH);
++      }
++      continue;
++    }
++    // Device px in the destination buffer.
++    const double dx = (cssX - aOriginX) * Z;
++    const double dy = (cssY - aOriginY) * Z;
++    if (dx >= aWidth || dy >= aHeight || dx + cssW * Z <= 0 || dy + cssH * Z <= 0) {
++      continue;                                   // entirely off this buffer
++    }
++
++    RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++    if (!ctx) {
++      continue;
++    }
++    // Clip to the popup's own box so a display list that paints outside its bounds
++    // (shadows, overflow) cannot scribble over the page around it.
++    ctx->Save();
++    ctx->Clip(mozilla::gfx::Rect(dx, dy, cssW * Z, cssH * Z));
++    // cairo semantics: each call pre-multiplies, i.e. it applies FIRST in user
++    // space. Scale then translate => device = css * Z + (dx, dy), which places the
++    // popup's own coordinate space at its spot in this buffer.
++    ctx->SetMatrix(ctx->CurrentMatrix().Translate(gfxPoint(dx, dy)).Scale(Z, Z));
++    nsRenderingContext rc(ctx);
++    // Frame-relative dirty region covering the whole popup. PAINT_DOCUMENT_RELATIVE
++    // is deliberately NOT set: we want the popup drawn at its own origin, which the
++    // transform above has already placed.
++    nsRect dirty(nsPoint(0, 0), screen.Size());
++    nsresult rv = nsLayoutUtils::PaintFrame(
++        &rc, frame, nsRegion(dirty), NS_RGBA(0, 0, 0, 0),
++        nsDisplayListBuilderMode::PAINTING,
++        nsLayoutUtils::PaintFrameFlags::PAINT_SYNC_DECODE_IMAGES |
++        nsLayoutUtils::PaintFrameFlags::PAINT_IGNORE_SUPPRESSION |
++        nsLayoutUtils::PaintFrameFlags::PAINT_HIDE_CARET);
++    ctx->Restore();
++    if (NS_FAILED(rv)) {
++      if (getenv("JIHAD_OFFSCREEN")) {
++        fprintf(stderr, "[jihad-popup] composite: PaintFrame failed frame=%p rv=0x%x\n",
++                (void*)frame, (unsigned)rv);
++      }
++      continue;
++    }
++    ++painted;
++    if (getenv("JIHAD_OFFSCREEN")) {
++      fprintf(stderr, "[jihad-popup] composite: frame=%p at %g,%g %gx%g (dev %g,%g z=%g)\n",
++              (void*)frame, cssX, cssY, cssW, cssH, dx, dy, Z);
++    }
++  }
++
++  if (painted) {
++    // Same alpha invariant the region render enforces: the adapter raw-blits these
++    // words into the card surface, so a popup pixel with a<255 is a see-through hole.
++    dt->Flush();
++    for (int y = 0; y < aHeight; ++y) {
++      unsigned char* row = static_cast<unsigned char*>(aDest) + (size_t)y * aStride;
++      for (int x = 0; x < aWidth; ++x) {
++        row[(size_t)x * 4 + 3] = 0xff;
++      }
++    }
++  }
++  return painted;
++}
++
++// Route a mouse event into an OPEN popup.
++//
++// The same separate-display-root property that keeps a popup out of the main render
++// also keeps it out of the main document's hit-testing: the daemon's normal input path
++// resolves a tap with elementFromPoint on the CONTENT document, which walks the content
++// display root and cannot see popup frames. Measured: with the tools menu open, a tap on
++// its first row resolved to the <vbox> UNDER the menu. So a popup that is visible is not
++// operable unless its events are dispatched against its own display root, which is what
++// this does.
++//
++// aX/aY are document CSS px (same space the composite places the popup in). Returns true
++// if a visible popup contained the point and the event was dispatched to it — the caller
++// then does NOT run its normal content-document dispatch for that tap.
++// aMsg: 0 = move, 1 = down, 2 = up.
++MOZ_EXPORT bool
++jihad_offscreen_popup_mouse(int aMsg, double aX, double aY)
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return false;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return false;
++  }
++  const nscoord appX = nsPresContext::CSSPixelsToAppUnits((float)aX);
++  const nscoord appY = nsPresContext::CSSPixelsToAppUnits((float)aY);
++
++  // Innermost first: GetVisiblePopups walks the chain from the deepest submenu out, so
++  // the first hit is the one the user is actually pointing at.
++  for (uint32_t i = 0; i < popups.Length(); ++i) {
++    nsIFrame* frame = popups[i];
++    if (!frame) {
++      continue;
++    }
++    nsRect screen = frame->GetScreenRectInAppUnits();
++    if (screen.width <= 0 || screen.height <= 0 ||
++        appX < screen.x || appX >= screen.XMost() ||
++        appY < screen.y || appY >= screen.YMost()) {
++      continue;
++    }
++    nsIPresShell* presShell = frame->PresContext()->PresShell();
++    if (!presShell) {
++      return false;
++    }
++    // The event's refPoint is widget-relative; a popup's own widget has the popup's
++    // top-left as its origin, so subtract the popup's screen position.
++    nsIWidget* widget = frame->GetNearestWidget();
++    if (!widget) {
++      return false;
++    }
++    const int32_t localX = nsPresContext::AppUnitsToIntCSSPixels(appX - screen.x);
++    const int32_t localY = nsPresContext::AppUnitsToIntCSSPixels(appY - screen.y);
++
++    EventMessage msg = (aMsg == 1) ? eMouseDown : (aMsg == 2) ? eMouseUp : eMouseMove;
++    WidgetMouseEvent event(true, msg, widget, WidgetMouseEvent::eReal);
++    event.mRefPoint = LayoutDeviceIntPoint(localX, localY);
++    event.mClickCount = (msg == eMouseMove) ? 0 : 1;
++    event.button = WidgetMouseEvent::eLeftButton;
++    if (msg != eMouseMove) {
++      event.mFlags.mIsSynthesizedForTests = false;
++    }
++    nsEventStatus status = nsEventStatus_eIgnore;
++    presShell->HandleEvent(frame, &event, false, &status);
++    if (getenv("JIHAD_OFFSCREEN")) {
++      fprintf(stderr, "[jihad-popup] mouse msg=%d doc=%g,%g -> popup-local %d,%d status=%d\n",
++              aMsg, aX, aY, localX, localY, (int)status);
++    }
++    return true;
++  }
++  return false;
++}
++
 +MOZ_EXPORT void
 +jihad_offscreen_release(nsIWidget* aWidget)
 +{
@@ -444,7 +653,7 @@ index 0294193adf..8a8389393e 100644
  nsresult
  PuppetWidget::RequestIMEToCommitComposition(bool aCancel)
  {
-@@ -1086,13 +1468,25 @@ PuppetWidget::Paint()
+@@ -1086,13 +1677,25 @@ PuppetWidget::Paint()
          mTabChild->NotifyPainted();
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
@@ -472,7 +681,7 @@ index 0294193adf..8a8389393e 100644
        AutoLayerManagerSetup setupLayerManager(this, ctx,
                                                BufferMode::BUFFER_NONE);
        GetCurrentWidgetListener()->PaintWindow(this, region);
-@@ -1349,6 +1743,16 @@ NS_IMETHODIMP
+@@ -1349,6 +1952,16 @@ NS_IMETHODIMP
  PuppetScreen::GetRect(int32_t *outLeft,  int32_t *outTop,
                        int32_t *outWidth, int32_t *outHeight)
  {
@@ -489,7 +698,7 @@ index 0294193adf..8a8389393e 100644
    nsIntRect r = ScreenConfig().rect();
    *outLeft = r.x;
    *outTop = r.y;
-@@ -1367,6 +1771,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
+@@ -1367,6 +1980,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
  NS_IMETHODIMP
  PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  {
@@ -501,7 +710,7 @@ index 0294193adf..8a8389393e 100644
    *aPixelDepth = ScreenConfig().pixelDepth();
    return NS_OK;
  }
-@@ -1374,6 +1783,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
+@@ -1374,6 +1992,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  NS_IMETHODIMP
  PuppetScreen::GetColorDepth(int32_t *aColorDepth)
  {
@@ -512,72 +721,3 @@ index 0294193adf..8a8389393e 100644
    *aColorDepth = ScreenConfig().colorDepth();
    return NS_OK;
  }
-diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index ab52dfca86..07a102c20d 100644
---- a/widget/PuppetWidget.h
-+++ b/widget/PuppetWidget.h
-@@ -25,6 +25,8 @@
- #include "mozilla/ContentCache.h"
- #include "mozilla/EventForwards.h"
- 
-+class nsIDocShell;   // Jihad offscreen render (JihadRenderDocument)
-+
- namespace mozilla {
- 
- namespace dom {
-@@ -200,6 +202,47 @@ public:
-   // Paint the widget immediately if any paints are queued up.
-   void PaintNowIfNeeded();
- 
-+  // --- Jihad offscreen render support ---
-+  // When the env var JIHAD_OFFSCREEN is set, a (null-TabChild) PuppetWidget
-+  // renders through an in-process CPU BasicLayerManager into an in-memory
-+  // DrawTarget (no compositor, no native window, no X/GTK), so a headless
-+  // render daemon can read the pixels straight out. See the extern "C"
-+  // jihad_offscreen_* entry points in PuppetWidget.cpp.
-+  static bool JihadOffscreen();
-+  void JihadEnsureDrawTarget();
-+  already_AddRefed<mozilla::gfx::SourceSurface> JihadSnapshot();
-+  // Render the docShell's document straight into mDrawTarget via the presShell
-+  // (the canonical offscreen path, like canvas drawWindow / tab thumbnails). The
-+  // widget Paint() path does NOT paint the embedded content into this widget, so
-+  // relying on it produced a black frame; this renders the actual document.
-+  bool JihadRenderDocument(nsIDocShell* aDocShell, double aZoom = 1.0,
-+                           double aPanX = 0.0, double aPanY = 0.0);
-+  // Sticky invalidation flag for the render daemon (jihad_offscreen_take_dirty):
-+  // set on every Invalidate() so the daemon knows CONTENT CHANGED and a repaint is
-+  // due — the offscreen embedding has no compositor/paint-event feedback loop, so
-+  // without this the daemon's frame delivery is input-driven only and JS/SPA DOM
-+  // updates, async image decode, and incremental page render leave the shared
-+  // buffer stale (the on-device "old page sticks around until you drag" bug).
-+  // Deliberately separate from mDirtyRegion, which the PaintTask self-clears.
-+  //
-+  // DRAINS THE CHILD CHAIN: the embedding's view hierarchy does not paint through
-+  // the top-level widget the daemon created — nsView::CreateWidgetForParent goes
-+  // through PuppetWidget::CreateChild, which makes a SEPARATE child PuppetWidget
-+  // (linked back via SetChild). Every Invalidate() from the view manager lands on
-+  // that CHILD, setting the child's mJihadDirty, while the daemon polls the
-+  // top-level parent — whose flag nothing ever set. That inert dirty loop is why
-+  // anything that became visually ready after the last load/input-driven paint
-+  // (async image decode — the about:addons icons — JS/SPA DOM updates) never
-+  // appeared on the device: no repaint was ever triggered. Draining the chain
-+  // here makes the poll see the child's invalidations.
-+  bool JihadTakeDirty() {
-+    bool d = mJihadDirty; mJihadDirty = false;
-+    for (PuppetWidget* c = mChild.get(); c; c = c->mChild.get()) {
-+      if (c->mJihadDirty) { d = true; c->mJihadDirty = false; }
-+    }
-+    return d;
-+  }
-+
-   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
- 
-   void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -342,6 +385,7 @@ private:
-   // event handler.
-   RefPtr<PuppetWidget> mChild;
-   LayoutDeviceIntRegion mDirtyRegion;
-+  bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
-   nsRevocableEventPtr<PaintTask> mPaintTask;
-   RefPtr<MemoryPressureObserver> mMemoryPressureObserver;
-   // XXX/cjones: keeping this around until we teach LayerManager to do

@@ -350,6 +350,18 @@ extern "C" {
                                      int aWidth, int aHeight) __attribute__((weak));
   bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
                                 int aWidth, int aHeight);
+  // WEAK, same reasoning: composite any OPEN XUL popup (menupopup / context menu) over
+  // an already-painted buffer. A popup is a separate display root, so the main render
+  // never contains it; absent the symbol, popups simply do not appear (today's behaviour)
+  // rather than the daemon failing to load. Returns the number of popups drawn.
+  int jihad_offscreen_composite_popups(nsIWidget* aWidget, void* aDest, int aStride,
+                                       int aWidth, int aHeight, double aOriginX,
+                                       double aOriginY, double aZoom) __attribute__((weak));
+  // WEAK: dispatch a mouse event into an OPEN popup, whose separate display root the
+  // content document's hit-testing cannot see. True = the point was inside a popup and
+  // the event went there instead. Absent the symbol, taps behave as before (they land on
+  // whatever is under the popup).
+  bool jihad_offscreen_popup_mouse(int aMsg, double aX, double aY) __attribute__((weak));
   void jihad_offscreen_release(nsIWidget* aWidget);
   // Sticky content-invalidation drain (patches/0012). WEAK so the daemon still
   // loads against a pre-0012 libxul (then reports no dirty and paint falls back
@@ -481,9 +493,36 @@ std::string DebugGetTitle() {
   return page ? page->GetTitle() : std::string();
 }
 
+
 // Forward declarations (defined below) so Resize/SetZoom can resolve the content docShell.
 static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
+
+std::string DebugElementRect(const char* elementId) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !elementId) return std::string();
+  nsIWebBrowser* wb = page->DebugWebBrowser();
+  if (!wb) return std::string();
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(wb);
+  if (!ds) return std::string();
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return std::string();
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return std::string();
+  nsCOMPtr<nsIDOMElement> el;
+  doc->GetElementById(NS_ConvertUTF8toUTF16(elementId), getter_AddRefs(el));
+  if (!el) return std::string("(no element)");
+  nsCOMPtr<nsIDOMClientRect> r;
+  el->GetBoundingClientRect(getter_AddRefs(r));
+  if (!r) return std::string("(no rect)");
+  float x = 0, y = 0, w = 0, h = 0;
+  r->GetLeft(&x); r->GetTop(&y); r->GetWidth(&w); r->GetHeight(&h);
+  char buf[160];
+  snprintf(buf, sizeof buf, "%s %d,%d %dx%d center=%d,%d", elementId,
+           (int)(x + 0.5f), (int)(y + 0.5f), (int)(w + 0.5f), (int)(h + 0.5f),
+           (int)(x + w / 2 + 0.5f), (int)(y + h / 2 + 0.5f));
+  return std::string(buf);
+}
 
 bool GoannaRenderPage::Resize(int width, int height) {
   if (!mChrome) return false;
@@ -1602,6 +1641,23 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
   mChrome->mUserInteracted = true;   // Atlas autofocus gate: a real tap unlocks VKB raises
   ActivateContent(mChrome->mBrowser);   // offscreen widget needs explicit activation (see above)
+  // An OPEN popup owns the pixels under it, so it must own the taps on them too. Its
+  // separate display root is invisible to the content document's elementFromPoint —
+  // measured: with the about:addons tools menu open, a tap on its first row resolved to
+  // the <vbox> UNDERNEATH. Offer the tap to the popup first; if it takes it, this tap is
+  // finished (dispatching to the content document as well would act on both).
+  if (jihad_offscreen_popup_mouse) {
+    double cssX = x, cssY = y;
+    double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
+    if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+    if (jihad_offscreen_popup_mouse(1, cssX, cssY)) {   // down
+      jihad_offscreen_popup_mouse(2, cssX, cssY);       // up -> the menuitem's command
+      // No explicit repaint request needed: the popup's own invalidation sets the
+      // sticky dirty flag the daemon drains each tick (jihad_offscreen_take_dirty).
+      fprintf(stderr, "[jihad-bs] clickAt (%d,%d) went to an open popup\n", x, y);
+      return;
+    }
+  }
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
   // Did the pen path already deliver a complete click for THIS tap? Window: the adapter sends the
@@ -2438,6 +2494,17 @@ void GoannaRenderPage::ApplySelectPopup(const char* id, int idx) {
     }
   }
   SetSelectPopupEl(nullptr);
+}
+
+// Draw any open XUL popup over a buffer the caller has already painted. docX/docY are
+// the document CSS coords of its top-left and zoom the scale it was rendered at, so the
+// popup lands with the same transform as the content under it. 0 = nothing was open,
+// which is the normal case and costs one popup-manager query.
+int GoannaRenderPage::CompositePopups(unsigned char* dst, int stride, int w, int h,
+                                      double docX, double docY, double zoom) {
+  if (!mOffscreen || !dst || w <= 0 || h <= 0) return 0;
+  if (!jihad_offscreen_composite_popups) return 0;   // old libxul: weak symbol absent
+  return jihad_offscreen_composite_popups(mWidget, dst, stride, w, h, docX, docY, zoom);
 }
 
 bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h,

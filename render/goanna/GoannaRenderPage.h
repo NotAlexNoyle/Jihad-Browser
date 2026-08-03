@@ -49,6 +49,14 @@ bool DebugRunChromeJs(const char* jsUrl);
 // jsurl probes report via document.title, which is otherwise only logged at load-done).
 std::string DebugGetTitle();
 
+// DEBUG ONLY: report an element's viewport rect by id, as "id x,y WxH" (empty if there
+// is no such element). Exists because driving XUL chrome (about:addons) from a test
+// needs the real coordinates of a control, and the alternatives are both dead ends here:
+// a `javascript:` URL does not execute in a chrome document (measured — it returns
+// success and does nothing), and guessing coordinates resolves to `<null>` and tells you
+// nothing about why.
+std::string DebugElementRect(const char* elementId);
+
 class GoannaRenderPage
 {
 public:
@@ -177,6 +185,15 @@ public:
   // ReadPixels for the visible rows at z~1. Offscreen path only.
   bool RenderRegion(unsigned char* dst, int stride, int w, int h,
                     double docX, double docY, double zoom);
+
+  // Composite any OPEN XUL popup (menupopup: the about:addons tools menu, context
+  // menus) over a buffer already painted by RenderRegion/ReadPixels. A popup is a
+  // SEPARATE display root, so no amount of document rendering will contain it —
+  // it has to be drawn as an overlay. docX/docY/zoom describe the buffer so the
+  // popup is placed with the same transform as the content beneath it. Returns the
+  // number of popups drawn; 0 (nothing open) is the normal case and costs one query.
+  int CompositePopups(unsigned char* dst, int stride, int w, int h,
+                      double docX, double docY, double zoom);
 
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }

@@ -96,7 +96,9 @@ enyo.kind({
 		{name: "startPage", classes: "jihad-startpage", components: [
 			{tag: "img", name: "spLogo", classes: "jihad-sp-logo", attributes: {src: "icon-256x256.png"}},
 			{content: "Jihad Browser", classes: "jihad-sp-title", allowHtml: false},
-			{content: "Mochi UI \u2605 Goanna/6.9 UXP/b2594a4", classes: "jihad-sp-sub", allowHtml: false}
+			{content: "Mochi UI \u2605 Goanna/6.9 UXP/b2594a4", classes: "jihad-sp-sub", allowHtml: false},
+			{content: "Type a web address or a search in the bar above, then press Enter.",
+				classes: "jihad-sp-hint", allowHtml: false}
 		]},
 		// Overflow menu (opened from the toolbar menu button). Items launch the
 		// T-053 parity views below.

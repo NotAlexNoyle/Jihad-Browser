@@ -7,6 +7,12 @@
 	the card opens on a real rendered page rather than an empty render surface, and
 	it needs no network. It is a plain document on purpose: nothing here talks to
 	the adapter, the daemon or any Luna service.
+
+	Laid out to match the Enyo and Mochi variants' start pages — the same bundled
+	logo, name, engine line and hint, in the same order and the same colours — so
+	the three front-ends open identically. Those two build the page as app chrome
+	from their own frameworks; this one is a document, because a Mojo scene has no
+	equivalent overlay and the packaged file renders through our own engine anyway.
 -->
 <html>
 <head>
@@ -18,7 +24,7 @@
 			margin: 0;
 			padding: 0;
 			height: 100%;
-			background: #1b1b1b;
+			background: #1c1c1c;
 			color: #e6e6e6;
 			font-family: Prelude, Helvetica, Arial, sans-serif;
 			-webkit-text-size-adjust: none;
@@ -26,26 +32,39 @@
 		.wrap {
 			box-sizing: border-box;
 			width: 100%;
-			max-width: 40em;
+			max-width: 34em;
 			margin: 0 auto;
-			padding: 12% 8% 8% 8%;
+			padding: 14% 8% 8% 8%;
 			text-align: center;
 		}
-		h1 {
-			margin: 0 0 0.4em 0;
-			font-size: 2.2em;
-			font-weight: normal;
-			letter-spacing: 0.02em;
+		/* Logo box sized as in the sibling variants (132px square). */
+		.logo {
+			display: block;
+			width: 132px;
+			height: 132px;
+			margin: 0 auto 18px auto;
 		}
-		p {
-			margin: 0.6em 0;
-			font-size: 1.1em;
-			line-height: 1.5;
+		h1 {
+			margin: 0;
+			font-size: 30px;
+			font-weight: bold;
+			letter-spacing: 1px;
+			color: #f0f0f0;
+		}
+		.sub {
+			margin: 8px 0 0 0;
+			font-size: 15px;
+			color: #8cafbe;
+		}
+		.hint {
+			margin: 22px 0 0 0;
+			font-size: 17px;
+			line-height: 24px;
 			color: #b4b4b4;
 		}
 		ul {
 			display: inline-block;
-			margin: 1.4em 0 0 0;
+			margin: 1.6em 0 0 0;
 			padding: 0;
 			text-align: left;
 			list-style: none;
@@ -62,8 +81,10 @@
 </head>
 <body>
 	<div class="wrap">
+		<img class="logo" src="icon-256x256.png" alt=""/>
 		<h1>Jihad Browser</h1>
-		<p>Type a web address or a search in the bar above, then press Enter.</p>
+		<p class="sub">Mojo UI &#9733; Goanna/6.9 UXP/b2594a4</p>
+		<p class="hint">Type a web address or a search in the bar above, then press Enter.</p>
 		<ul>
 			<li><a href="https://duckduckgo.com/">DuckDuckGo</a></li>
 			<li><a href="https://en.m.wikipedia.org/">Wikipedia</a></li>

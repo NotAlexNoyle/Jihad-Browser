@@ -187,6 +187,9 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   text STRING...     -> insertStringAtCursor (rest of line)
 //   url URL            -> openUrl
 //   back|forward|reload|stop
+//   move X Y           -> pointer move (rollover highlight over an open menu)
+//   clickid <id>       -> click an element by id at its centre (ignores zoom/scroll)
+//   rect <id>          -> report an element's viewport rect
 //   scroll X Y         -> setScrollPosition
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
 //   size W H           -> setWindowSize (VKB-resize / rotation simulation)
@@ -252,6 +255,11 @@ void JihadBrowserServer::processInjectFile() {
     char buf[1600] = {0};
     if (sscanf(c.c_str(), "click %d %d %d", &x, &y, &n) >= 2) {
       printf("[jihad-bs] inject click %d,%d n=%d\n", x, y, n); p->clickAt(x, y, n);
+    } else if (sscanf(c.c_str(), "move %d %d", &x, &y) == 2) {
+      // Pointer move without a press — how a finger rolling over an open menu is
+      // delivered, and the only way to test the rollover highlight without a human.
+      printf("[jihad-bs] inject move %d,%d\n", x, y);
+      p->mouseEvent(2, x, y, 0);
     } else if (sscanf(c.c_str(), "hold %d %d", &x, &y) == 2) {
       printf("[jihad-bs] inject hold %d,%d\n", x, y); p->holdAt(x, y);
     } else if (sscanf(c.c_str(), "key %d %d", &x, &y) >= 1) {
@@ -275,6 +283,12 @@ void JihadBrowserServer::processInjectFile() {
     } else if (strncmp(c.c_str(), "title", 5) == 0) {
       // DEBUG: print the current document title (jsurl probe readback).
       printf("[jihad-bs] inject title=[%s]\n", jihad::DebugGetTitle().c_str());
+    } else if (strncmp(c.c_str(), "clickid ", 8) == 0) {
+      // DEBUG: click an element by id (zoom/scroll independent — see DebugClickElement).
+      std::string id = c.substr(8);
+      while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
+      printf("[jihad-bs] inject clickid %s ok=%d\n", id.c_str(),
+             (int)jihad::DebugClickElement(id.c_str()));
     } else if (strncmp(c.c_str(), "rect ", 5) == 0) {
       // DEBUG: report an element's viewport rect by id, so a test can click a real
       // control instead of guessing coordinates (chrome XUL has no other way in from

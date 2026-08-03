@@ -13,12 +13,15 @@
 #include "nsXPCOM.h"                  // NS_NewNativeLocalFile
 #include "nsStringGlue.h"            // nsCString / nsDependentCString (frozen API)
 #include "nsIPrefBranch.h"           // default mobile prefs
+#include "nsIStyleSheetService.h"    // menu rollover highlight (no native theme here)
+#include "nsIIOService.h"            //  ... its data: URI
 #include "nsServiceManagerUtils.h"   // do_GetService
 #include "nsThreadUtils.h"           // NS_IsMainThread
 #include "DialogService.h"           // InstallDialogService (dialog interception)
 #include "DownloadService.h"         // InstallDownloadService (download handoff)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
+#include <sys/stat.h>               // chmod (menu highlight sheet)
 #include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
@@ -925,6 +928,55 @@ EngineHost::Init(const char* greDir)
     // Keep JIHAD_UA in sync with build/webos-oe/make-device-bundle.sh docs and NOTICE.
     initStep("general.useragent.override");
     if (pb) pb->SetCharPref("general.useragent.override", JIHAD_USER_AGENT);
+    // Menu/popup rollover highlight. This build has NO native theme (cairo-headless;
+    // nsNativeThemeGTK reports every widget unsupported — patch 0008), so a XUL menuitem's
+    // :hover state, which the platform theme normally draws, paints nothing at all: rows
+    // gave no feedback under the finger and there was no indication of what a lift would
+    // pick. Register an AGENT-level sheet that draws it ourselves, keyed on the
+    // `_moz-menuactive` attribute XUL sets on the item under the pointer. Agent level so it
+    // cannot be overridden by document CSS and needs no chrome package of its own.
+    initStep("menu highlight sheet");
+    {
+      // Written to a real FILE and registered as file://, not a data: URI: a percent-encoded
+      // data:text/css sheet registered with rv=0 and then did nothing at all — not even a
+      // rule that painted EVERY menuitem — so its body was never parsed. A file is also
+      // inspectable on the device when a style question comes up again.
+      std::string cssPath = jihad::RuntimeResolvePath("1", "jihad-menu.css");
+      bool wrote = false;
+      if (!cssPath.empty()) {
+        FILE* f = fopen(cssPath.c_str(), "wb");
+        if (f) {
+          static const char kCss[] =
+            "menuitem[_moz-menuactive=\"true\"],\n"
+            "menu[_moz-menuactive=\"true\"] {\n"
+            "  background-color: #3d6fb4 !important;\n"
+            "  color: #ffffff !important;\n"
+            "}\n"
+            "menuitem[_moz-menuactive=\"true\"][disabled=\"true\"] {\n"
+            "  background-color: transparent !important;\n"
+            "  color: GrayText !important;\n"
+            "}\n";
+          wrote = fwrite(kCss, 1, sizeof(kCss) - 1, f) == sizeof(kCss) - 1;
+          fclose(f);
+          chmod(cssPath.c_str(), 0644);
+        }
+      }
+      nsCOMPtr<nsIStyleSheetService> sss =
+        do_GetService("@mozilla.org/content/style-sheet-service;1");
+      nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
+      if (wrote && sss && ios) {
+        nsCOMPtr<nsIURI> uri;
+        nsAutoCString spec("file://");
+        spec.Append(cssPath.c_str());
+        if (NS_SUCCEEDED(ios->NewURI(spec, nullptr, nullptr, getter_AddRefs(uri))) && uri) {
+          nsresult rvS = sss->LoadAndRegisterSheet(uri, nsIStyleSheetService::AGENT_SHEET);
+          fprintf(stderr, "[jihad-bs] menu highlight sheet: %s rv=0x%x\n",
+                  cssPath.c_str(), (unsigned)rvS);
+        }
+      } else {
+        fprintf(stderr, "[jihad-bs] menu highlight sheet: NOT registered (wrote=%d)\n", (int)wrote);
+      }
+    }
     // Per-domain User-Agent overrides so modern sites serve working content (see jihadUaTable).
     initStep("registering the per-domain UA observer");
     jihadRegisterUaOverride();

@@ -1,8 +1,8 @@
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 0294193adf..650ba5d373 100644
+index 0294193adf..6dd2e1b2cc 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
-@@ -21,6 +21,20 @@
+@@ -21,6 +21,23 @@
  #include "nsIWidgetListener.h"
  #include "imgIContainer.h"
  #include "nsView.h"
@@ -18,12 +18,15 @@ index 0294193adf..650ba5d373 100644
 +#include "nsXULPopupManager.h"
 +#include "nsLayoutUtils.h"
 +#include "nsRenderingContext.h"
++#include "nsMenuPopupFrame.h"
++#include "nsMenuFrame.h"
++#include "nsGkAtoms.h"
 +#include "nsIFrame.h"
 +#include "nsDisplayList.h"       // nsDisplayListBuilderMode
  
  using namespace mozilla;
  using namespace mozilla::dom;
-@@ -114,6 +128,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+@@ -114,6 +131,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
    mEnabled = true;
    mVisible = true;
  
@@ -42,7 +45,7 @@ index 0294193adf..650ba5d373 100644
    mDrawTarget = gfxPlatform::GetPlatform()->
      CreateOffscreenContentDrawTarget(IntSize(1, 1), SurfaceFormat::B8G8R8A8);
  
-@@ -201,6 +227,13 @@ PuppetWidget::Show(bool aState)
+@@ -201,6 +230,13 @@ PuppetWidget::Show(bool aState)
    bool wasVisible = mVisible;
    mVisible = aState;
  
@@ -56,7 +59,7 @@ index 0294193adf..650ba5d373 100644
    if (mChild) {
      mChild->mVisible = aState;
    }
-@@ -231,6 +264,10 @@ PuppetWidget::Resize(double aWidth,
+@@ -231,6 +267,10 @@ PuppetWidget::Resize(double aWidth,
    mBounds.SizeTo(LayoutDeviceIntSize(NSToIntRound(aWidth),
                                       NSToIntRound(aHeight)));
  
@@ -67,7 +70,7 @@ index 0294193adf..650ba5d373 100644
    if (mChild) {
      return mChild->Resize(aWidth, aHeight, aRepaint);
    }
-@@ -300,6 +337,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
+@@ -300,6 +340,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
      return mChild->Invalidate(aRect);
    }
  
@@ -78,7 +81,7 @@ index 0294193adf..650ba5d373 100644
    mDirtyRegion.Or(mDirtyRegion, aRect);
  
    if (!mDirtyRegion.IsEmpty() && !mPaintTask.IsPending()) {
-@@ -335,7 +376,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
+@@ -335,7 +379,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
    AutoCacheNativeKeyCommands autoCache(this);
    if (event->mFlags.mIsSynthesizedForTests && !mNativeKeyCommandsValid) {
      WidgetKeyboardEvent* keyEvent = event->AsKeyboardEvent();
@@ -92,7 +95,7 @@ index 0294193adf..650ba5d373 100644
        mTabChild->RequestNativeKeyBindings(&autoCache, keyEvent);
      }
    }
-@@ -583,7 +629,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -583,7 +632,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
                                LayerManagerPersistence aPersistence)
  {
    if (!mLayerManager) {
@@ -107,7 +110,7 @@ index 0294193adf..650ba5d373 100644
    }
    ShadowLayerForwarder* lf = mLayerManager->AsShadowForwarder();
    if (lf && !lf->HasShadowManager() && aShadowManager) {
-@@ -602,6 +654,545 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
+@@ -602,6 +657,602 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
    return mLayerManager;
  }
  
@@ -517,6 +520,18 @@ index 0294193adf..650ba5d373 100644
 +      continue;
 +    }
 +    ++painted;
++    if (getenv("JIHAD_MENU_DEBUG")) {
++      // Which row does the engine consider active, and does it carry the attribute the
++      // highlight rule keys on? Without this, "no highlight" cannot be told apart from
++      // "no active item" — the two look identical on screen.
++      nsMenuPopupFrame* mpf = do_QueryFrame(frame);
++      nsMenuFrame* cur = mpf ? mpf->GetCurrentMenuItem() : nullptr;
++      nsIContent* c = cur ? cur->GetContent() : nullptr;
++      nsAutoString act;
++      if (c) c->GetAttr(kNameSpaceID_None, nsGkAtoms::menuactive, act);
++      fprintf(stderr, "[jihad-popup] active item=%p content=%p _moz-menuactive=[%s]\n",
++              (void*)cur, (void*)c, NS_ConvertUTF16toUTF8(act).get());
++    }
 +    if (getenv("JIHAD_OFFSCREEN")) {
 +      fprintf(stderr, "[jihad-popup] composite: frame=%p at %g,%g %gx%g (dev %g,%g z=%g)\n",
 +              (void*)frame, cssX, cssY, cssW, cssH, dx, dy, Z);
@@ -535,6 +550,51 @@ index 0294193adf..650ba5d373 100644
 +    }
 +  }
 +  return painted;
++}
++
++// How many popups are open right now. The daemon uses this straight after dispatching a
++// tap to tell "that tap opened a menu" from "it did not", which is what lets it drop the
++// DUPLICATE delivery of the same physical tap instead of letting it close the menu again.
++MOZ_EXPORT int
++jihad_offscreen_popup_count()
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return 0;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  return (int)popups.Length();
++}
++
++// Close every open popup ("roll up").
++//
++// On a desktop build this happens by itself: the popup's widget takes a native mouse
++// capture, so a click anywhere else reaches the popup manager as a rollup. There is no
++// native capture in this headless embedding — the daemon synthesises taps straight into
++// the content document's presShell — so tapping outside a menu left it open (measured;
++// it closed only sometimes, depending on what the tap happened to hit). The daemon calls
++// this explicitly for a tap that lands outside every popup, which is what a user means.
++MOZ_EXPORT bool
++jihad_offscreen_popup_rollup()
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return false;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return false;
++  }
++  // aCount 0 = roll up the whole chain; aFlush = run the close synchronously so the next
++  // paint no longer contains the popup.
++  bool rolled = pm->Rollup(0, true, nullptr, nullptr);
++  if (getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-popup] rollup: closed=%d (%u were open)\n",
++            (int)rolled, (unsigned)popups.Length());
++  }
++  return rolled;
 +}
 +
 +// Route a mouse event into an OPEN popup.
@@ -653,7 +713,7 @@ index 0294193adf..650ba5d373 100644
  nsresult
  PuppetWidget::RequestIMEToCommitComposition(bool aCancel)
  {
-@@ -1086,13 +1677,25 @@ PuppetWidget::Paint()
+@@ -1086,13 +1737,25 @@ PuppetWidget::Paint()
          mTabChild->NotifyPainted();
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
@@ -681,7 +741,7 @@ index 0294193adf..650ba5d373 100644
        AutoLayerManagerSetup setupLayerManager(this, ctx,
                                                BufferMode::BUFFER_NONE);
        GetCurrentWidgetListener()->PaintWindow(this, region);
-@@ -1349,6 +1952,16 @@ NS_IMETHODIMP
+@@ -1349,6 +2012,16 @@ NS_IMETHODIMP
  PuppetScreen::GetRect(int32_t *outLeft,  int32_t *outTop,
                        int32_t *outWidth, int32_t *outHeight)
  {
@@ -698,7 +758,7 @@ index 0294193adf..650ba5d373 100644
    nsIntRect r = ScreenConfig().rect();
    *outLeft = r.x;
    *outTop = r.y;
-@@ -1367,6 +1980,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
+@@ -1367,6 +2040,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
  NS_IMETHODIMP
  PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  {
@@ -710,7 +770,7 @@ index 0294193adf..650ba5d373 100644
    *aPixelDepth = ScreenConfig().pixelDepth();
    return NS_OK;
  }
-@@ -1374,6 +1992,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
+@@ -1374,6 +2052,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
  NS_IMETHODIMP
  PuppetScreen::GetColorDepth(int32_t *aColorDepth)
  {

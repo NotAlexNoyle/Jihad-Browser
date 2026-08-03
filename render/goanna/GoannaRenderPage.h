@@ -57,6 +57,10 @@ std::string DebugGetTitle();
 // nothing about why.
 std::string DebugElementRect(const char* elementId);
 
+// DEBUG ONLY: click an element by id at its own centre, in the viewport CSS space, so a
+// test does not have to undo the daemon's zoom/scroll mapping to hit a known control.
+bool DebugClickElement(const char* elementId);
+
 class GoannaRenderPage
 {
 public:
@@ -195,6 +199,18 @@ public:
   int CompositePopups(unsigned char* dst, int stride, int w, int h,
                       double docX, double docY, double zoom);
 
+  // --- pointer interaction with an open popup -------------------------------------
+  // A popup is a separate display root: the content document cannot hit-test it, so the
+  // daemon has to steer the pointer into it explicitly.
+  // PopupHover: highlight the row under the finger (XUL sets _moz-menuactive on a
+  // mousemove) — the rollover feedback AND the "what am I about to pick" indicator.
+  // PopupActivate: commit the row under the finger (a lift after a drag picks it, the way
+  // a desktop menu drag-select does). Both return false if the point is outside every
+  // popup, which is the caller's signal to treat the event normally.
+  bool PopupHover(int x, int y);
+  bool PopupActivate(int x, int y);
+  bool PopupsOpen() const;
+
   int Width() const { return mWidth; }
   int Height() const { return mHeight; }
   bool LoadDone() const;
@@ -281,6 +297,11 @@ private:
   int  mRawDownX = 0, mRawDownY = 0;
   long mRawDownMs = 0;              // >0 while a raw mousedown is unmatched by an up
   int  mRawClickX = 0, mRawClickY = 0;
+  // A XUL popup opened at this time/point (jihad_offscreen_composite_popups draws it).
+  // One physical tap is delivered TWICE, so without this the duplicate re-hits the anchor
+  // and shuts the menu the first delivery just opened — see ClickAt.
+  long mPopupOpenMs = 0;
+  int mPopupOpenX = 0, mPopupOpenY = 0;
   long mRawClickMs = 0;             // >0 when a raw down+up pair completed and no clickAt consumed it
   // Focused element at the raw mousedown, for the F-7 "focus actually CHANGED" test on the raw
   // path. COMPARED ONLY, never dereferenced (same rule as DocShellKey) — it may be dead by then.

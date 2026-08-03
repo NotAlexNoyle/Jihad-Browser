@@ -754,10 +754,30 @@ void BrowserPageGoanna::insertStringAtCursor(const char* text) {
   if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; if (mNeedsPaint) maybePaint(); }
 }
 
-void BrowserPageGoanna::dragStart(int, int) { /* nothing to latch; deltas drive scroll */ }
+void BrowserPageGoanna::dragStart(int x, int y) {
+  // Latch the finger position. Normally nothing needs it (deltas drive scroll), but while a
+  // menu is open the drag is a menu drag-select and needs an absolute point to hit-test.
+  mDragX = x; mDragY = y;
+  if (!mPage) return;
+  if (mPage->PopupsOpen()) {
+    int cx = x, cy = y; docToViewport(&cx, &cy);
+    mPage->PopupHover(cx, cy);
+    mNeedsPaint = true;
+  }
+}
 
 void BrowserPageGoanna::dragProcess(int deltaX, int deltaY) {
   if (!mPage) return;
+  // While a menu is open the drag belongs to the menu, not the page: track the finger and
+  // highlight the row under it. Scrolling the page out from under an open menu is never what
+  // the user meant, and the menu would then be drawn over the wrong content anyway.
+  mDragX += deltaX; mDragY += deltaY;
+  if (mPage->PopupsOpen()) {
+    int cx = mDragX, cy = mDragY; docToViewport(&cx, &cy);
+    mPage->PopupHover(cx, cy);
+    mNeedsPaint = true;
+    return;
+  }
   // Drag scrolls the content opposite the finger; surface deltas -> content px.
   double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
   int sx = 0, sy = 0; mPage->GetScrollXY(&sx, &sy);
@@ -767,7 +787,20 @@ void BrowserPageGoanna::dragProcess(int deltaX, int deltaY) {
   mNeedsPaint = true;
 }
 
-void BrowserPageGoanna::dragEnd(int, int) { /* scroll already applied by dragProcess */ }
+void BrowserPageGoanna::dragEnd(int x, int y) {
+  // Lifting over an open menu picks the highlighted row — the drag-select every desktop
+  // menu does, and the natural touch equivalent of "press, slide, release".
+  if (!mPage) return;
+  if (mPage->PopupsOpen()) {
+    int cx = (x || y) ? x : mDragX, cy = (x || y) ? y : mDragY;
+    docToViewport(&cx, &cy);
+    if (mPage->PopupActivate(cx, cy)) {
+      fprintf(stderr, "[jihad-bs] drag ended over an open popup — picked that row\n");
+    }
+    mNeedsPaint = true;
+  }
+  /* otherwise: scroll already applied by dragProcess */
+}
 
 void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
   if (mPage) mPage->SetJavaScriptEnabled(enable);
@@ -1020,6 +1053,14 @@ void BrowserPageGoanna::pump(int msBudget) {
       if (e.type == PM_TOUCHSTART || e.type == PM_TOUCHMOVE || e.type == PM_TOUCHEND) {
         mPage->TouchEvent(e.type == PM_TOUCHSTART ? "touchstart"
                         : e.type == PM_TOUCHEND   ? "touchend" : "touchmove", e.x, e.y);
+        continue;
+      }
+      // A finger moving over an OPEN menu highlights the row under it, exactly as a mouse
+      // cursor would — and that highlight is also the selection indicator, so the user can
+      // see what a lift would pick. The content document cannot hit-test a popup (separate
+      // display root), so steer the move into the popup instead of dispatching it below.
+      if (e.type == PM_MOVE && mPage->PopupHover(e.x, e.y)) {
+        mNeedsPaint = true;
         continue;
       }
       const char* t = (e.type == PM_DOWN) ? "mousedown"

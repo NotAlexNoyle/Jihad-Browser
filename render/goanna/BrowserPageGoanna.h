@@ -284,6 +284,10 @@ private:
   int                mLastContentW, mLastContentH;  // last emitted content size
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)
+  // Absolute finger position during a drag. The adapter sends dragProcess as DELTAS, which
+  // is all a scroll needs — but a drag over an open menu is a menu drag-select and has to
+  // hit-test an absolute point, so the deltas are accumulated here from dragStart.
+  int                mDragX = 0, mDragY = 0;
   int                mAdapterScrollX, mAdapterScrollY;  // adapter's scroll in zoomed-content px
                                                         // (== BrowserOffscreenInfo::renderedX/Y)
   // Map an adapter surface coordinate to a content/CSS coordinate (R5): input

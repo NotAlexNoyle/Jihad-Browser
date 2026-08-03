@@ -362,6 +362,13 @@ extern "C" {
   // the event went there instead. Absent the symbol, taps behave as before (they land on
   // whatever is under the popup).
   bool jihad_offscreen_popup_mouse(int aMsg, double aX, double aY) __attribute__((weak));
+  // WEAK: how many popups are open. Used right after a tap is dispatched to tell "this
+  // tap opened a menu" from "it did not" — the duplicate delivery of that same tap is
+  // then dropped instead of closing the menu again.
+  int jihad_offscreen_popup_count() __attribute__((weak));
+  // WEAK: close every open popup. There is no native mouse capture in this embedding, so
+  // a tap outside a menu does not roll it up by itself — the daemon has to say so.
+  bool jihad_offscreen_popup_rollup() __attribute__((weak));
   void jihad_offscreen_release(nsIWidget* aWidget);
   // Sticky content-invalidation drain (patches/0012). WEAK so the daemon still
   // loads against a pre-0012 libxul (then reports no dirty and paint falls back
@@ -497,6 +504,23 @@ std::string DebugGetTitle() {
 // Forward declarations (defined below) so Resize/SetZoom can resolve the content docShell.
 static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);
 static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
+
+// DEBUG ONLY: click an element by id, at its own centre. Coordinates injected as raw
+// numbers go through the daemon's zoom/scroll mapping, so on a zoomed page (about:addons
+// gets a fit-zoom) they land somewhere else entirely — measured: an injected 365,31
+// arrived at 466,40. This resolves the element itself and clicks its centre in the
+// viewport CSS space ClickAt expects, so a test is independent of zoom and scroll.
+bool DebugClickElement(const char* elementId) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !elementId) return false;
+  std::string r = DebugElementRect(elementId);
+  int cx = 0, cy = 0;
+  const char* c = strstr(r.c_str(), "center=");
+  if (!c || sscanf(c, "center=%d,%d", &cx, &cy) != 2) return false;
+  fprintf(stderr, "[jihad-bs] debug click %s at viewport %d,%d\n", elementId, cx, cy);
+  page->ClickAt(cx, cy, 1);
+  return true;
+}
 
 std::string DebugElementRect(const char* elementId) {
   GoannaRenderPage* page = sDebugLastPage;
@@ -1641,23 +1665,6 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
   mChrome->mUserInteracted = true;   // Atlas autofocus gate: a real tap unlocks VKB raises
   ActivateContent(mChrome->mBrowser);   // offscreen widget needs explicit activation (see above)
-  // An OPEN popup owns the pixels under it, so it must own the taps on them too. Its
-  // separate display root is invisible to the content document's elementFromPoint —
-  // measured: with the about:addons tools menu open, a tap on its first row resolved to
-  // the <vbox> UNDERNEATH. Offer the tap to the popup first; if it takes it, this tap is
-  // finished (dispatching to the content document as well would act on both).
-  if (jihad_offscreen_popup_mouse) {
-    double cssX = x, cssY = y;
-    double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
-    if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
-    if (jihad_offscreen_popup_mouse(1, cssX, cssY)) {   // down
-      jihad_offscreen_popup_mouse(2, cssX, cssY);       // up -> the menuitem's command
-      // No explicit repaint request needed: the popup's own invalidation sets the
-      // sticky dirty flag the daemon drains each tick (jihad_offscreen_take_dirty).
-      fprintf(stderr, "[jihad-bs] clickAt (%d,%d) went to an open popup\n", x, y);
-      return;
-    }
-  }
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
   // Did the pen path already deliver a complete click for THIS tap? Window: the adapter sends the
@@ -1676,6 +1683,69 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (rawClickDelivered)
     fprintf(stderr, "[jihad-bs] clickAt (%d,%d): pen path already delivered this tap's click — "
                     "no second activation (F-1)\n", x, y);
+
+  // --- open popups own their pixels, and the tap that opened them ------------------
+  // An OPEN popup is a separate display root, invisible to the content document's
+  // elementFromPoint: measured, a tap on the tools menu's first row resolved to the
+  // <vbox> UNDERNEATH it. So taps inside a popup are dispatched to the popup instead.
+  //
+  // This sits AFTER the F-1 dedup on purpose. One physical tap arrives TWICE (the raw
+  // pen path and the gesture single-tap), and with the popup path above that dedup the
+  // second delivery re-hit the anchor button and toggled the menu straight back shut —
+  // the user-visible "it opens for a second and then dismisses itself" (device
+  // 2026-08-03). Both duplicates must be suppressed:
+  //   - a duplicate landing INSIDE the popup would activate an item the user only
+  //     opened the menu over;
+  //   - a duplicate landing on the ANCHOR would close what the first tap just opened.
+  // The anchor case needs its own guard because the popup swallows neither: the anchor
+  // is outside the popup box.
+  const long nowMs = jihadInputNowMs();
+  // "The duplicate of the tap that opened a menu": recent, and at the same point within
+  // the same slop the F-1 pen/gesture pairing uses (the two deliveries of one physical tap
+  // can differ by a pixel or two). Anything else — including a deliberate second tap a
+  // moment later — is a real tap and must act normally.
+  const int kMenuSlop = 24;
+  const int mdx = x - mPopupOpenX, mdy = y - mPopupOpenY;
+  const bool duplicateOfMenuTap =
+      mPopupOpenMs && (nowMs - mPopupOpenMs) < 700 &&
+      (rawClickDelivered || (mdx * mdx + mdy * mdy) <= kMenuSlop * kMenuSlop);
+  if (jihad_offscreen_popup_mouse) {
+    double cssX = x, cssY = y;
+    double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
+    if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+    // Probe-only (move) first: it tells us the point is inside a popup WITHOUT
+    // activating anything, so a duplicate tap can be dropped rather than acted on.
+    if (jihad_offscreen_popup_mouse(0, cssX, cssY)) {
+      // Inside the popup. Drop ONLY a duplicate — a fast but deliberate tap on a menu item
+      // right after opening the menu is exactly how a menu is used, and must go through.
+      if (duplicateOfMenuTap) {
+        fprintf(stderr, "[jihad-bs] clickAt (%d,%d) inside a popup — duplicate tap dropped\n", x, y);
+        return;
+      }
+      jihad_offscreen_popup_mouse(1, cssX, cssY);   // down
+      jihad_offscreen_popup_mouse(2, cssX, cssY);   // up -> the menuitem's command
+      mPopupOpenMs = 0;                             // the popup acted; it is closing
+      fprintf(stderr, "[jihad-bs] clickAt (%d,%d) went to an open popup\n", x, y);
+      return;
+    }
+    // Outside every popup. If one opened a moment ago and this is the duplicate of the
+    // very tap that opened it, dropping it keeps the menu up.
+    if (duplicateOfMenuTap) {
+      fprintf(stderr, "[jihad-bs] clickAt (%d,%d): duplicate of the tap that opened a popup — "
+                      "dropped so the popup stays up\n", x, y);
+      return;
+    }
+    // A real tap outside an open menu means "close it", and nothing else does that here:
+    // rollup normally rides on a native mouse capture the popup's widget takes, which this
+    // headless embedding has no equivalent of. Roll up explicitly and consume the tap —
+    // consuming matches every desktop toolkit (the click that dismisses a menu does not
+    // also actuate what is under it) and avoids acting on a control the menu was covering.
+    if (jihad_offscreen_popup_rollup && jihad_offscreen_popup_rollup()) {
+      fprintf(stderr, "[jihad-bs] clickAt (%d,%d) outside an open popup — rolled it up\n", x, y);
+      mPopupOpenMs = 0;
+      return;
+    }
+  }
   // Resolve the tap target FIRST. This offscreen embedding does NOT run the click
   // default-action (confirmed on device: taps land on <A> but the anchor never
   // navigates on its own). Dispatch by target:
@@ -2161,6 +2231,32 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // the change, and the XUL frame code it now reaches there (holdAt -> contextmenu -> menupopup,
     // tree frames) is more than has ever run on a widget probe that reports theme components
     // ABSENT. Treat "no crash" as a desktop result until a device session says otherwise (F-4).
+    // Did this tap land on a control that OPENS a menu (the about:addons tools button is
+    // <toolbarbutton type="menu">)? Remember it, so the duplicate delivery of this same
+    // physical tap can be dropped instead of toggling the menu straight back shut — the
+    // "opens for a second, then dismisses itself" seen on device.
+    //
+    // Keyed on the ANCHOR, not on the popup being open: XUL opens menus ASYNCHRONOUSLY
+    // (nsXULPopupManager::ShowMenu async=1), so asking "is a popup open?" at the end of
+    // this function still answers no, and the guard would never arm. Measured — that is
+    // exactly why the first attempt at this did nothing.
+    if (effEl) {
+      nsAutoString tgm; effEl->GetTagName(tgm);
+      std::string t = NS_ConvertUTF16toUTF8(tgm).get();
+      for (char& c : t) c = (char)toupper((unsigned char)c);
+      nsAutoString typeAttr; effEl->GetAttribute(NS_LITERAL_STRING("type"), typeAttr);
+      std::string ty = NS_ConvertUTF16toUTF8(typeAttr).get();
+      for (char& c : ty) c = (char)tolower((unsigned char)c);
+      const bool opensMenu = (t == "MENU" || t == "MENULIST" || t == "MENUBUTTON" ||
+                              ((t == "TOOLBARBUTTON" || t == "BUTTON") &&
+                               (ty == "menu" || ty == "menu-button")));
+      if (opensMenu) {
+        mPopupOpenMs = jihadInputNowMs();
+        mPopupOpenX = x; mPopupOpenY = y;
+        fprintf(stderr, "[jihad-bs] clickAt (%d,%d) hit a menu anchor <%s type=%s> — "
+                        "duplicate taps suppressed for 700 ms\n", x, y, t.c_str(), ty.c_str());
+      }
+    }
   }
 }
 
@@ -2500,6 +2596,34 @@ void GoannaRenderPage::ApplySelectPopup(const char* id, int idx) {
 // the document CSS coords of its top-left and zoom the scale it was rendered at, so the
 // popup lands with the same transform as the content under it. 0 = nothing was open,
 // which is the normal case and costs one popup-manager query.
+bool GoannaRenderPage::PopupHover(int x, int y) {
+  // Highlight the row under the finger: a mousemove into the popup is what makes XUL set
+  // _moz-menuactive on the item, which is both the rollover feedback and the "what would
+  // I pick" indicator. Returns true if the point was inside a popup.
+  if (!jihad_offscreen_popup_mouse) return false;
+  double cssX = x, cssY = y;
+  double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
+  if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+  return jihad_offscreen_popup_mouse(0, cssX, cssY);
+}
+
+bool GoannaRenderPage::PopupActivate(int x, int y) {
+  // Commit the row under the finger (lift after a drag = pick, like a desktop menu drag).
+  if (!jihad_offscreen_popup_mouse) return false;
+  double cssX = x, cssY = y;
+  double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
+  if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+  if (!jihad_offscreen_popup_mouse(0, cssX, cssY)) return false;   // outside every popup
+  jihad_offscreen_popup_mouse(1, cssX, cssY);
+  jihad_offscreen_popup_mouse(2, cssX, cssY);
+  mPopupOpenMs = 0;
+  return true;
+}
+
+bool GoannaRenderPage::PopupsOpen() const {
+  return jihad_offscreen_popup_count && jihad_offscreen_popup_count() > 0;
+}
+
 int GoannaRenderPage::CompositePopups(unsigned char* dst, int stride, int w, int h,
                                       double docX, double docY, double zoom) {
   if (!mOffscreen || !dst || w <= 0 || h <= 0) return 0;

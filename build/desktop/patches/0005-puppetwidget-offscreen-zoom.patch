@@ -1,5 +1,5 @@
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 0294193adf..6dd2e1b2cc 100644
+index 0294193adf..a680f0f3c1 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -21,6 +21,23 @@
@@ -781,3 +781,29 @@ index 0294193adf..6dd2e1b2cc 100644
    *aColorDepth = ScreenConfig().colorDepth();
    return NS_OK;
  }
+@@ -1452,8 +2134,23 @@ PuppetScreenManager::GetSystemDefaultScale(float *aDefaultScale)
+ nsIWidgetListener*
+ PuppetWidget::GetCurrentWidgetListener()
+ {
+-  if (!mPreviouslyAttachedWidgetListener ||
+-      !mAttachedWidgetListener) {
++  // JIHAD: fall back to mWidgetListener when nothing is ATTACHED, exactly as the real
++  // widget does (widget/gtk/nsWindow.cpp GetListener:
++  // `mAttachedWidgetListener ? mAttachedWidgetListener : mWidgetListener`). PuppetWidget
++  // was written for the content-process case, where the view is always attached to a
++  // top-level widget, so it only ever consulted the attached listener — and in this
++  // standalone offscreen embedding nothing attaches, leaving mAttachedWidgetListener null.
++  //
++  // Everything routed through DispatchEvent was therefore silently DROPPED. Mouse input
++  // hid the problem because nsIDOMWindowUtils has `…SendMouseEventToWindow`, which goes to
++  // the presShell directly; there is no `SendKeyEventToWindow`, so SendKeyEvent went
++  // widget->DispatchEvent and vanished. That is why text could only be inserted through
++  // the editor (SetValue/SetSelectionRange) and why anything reacting to real key events —
++  // XUL <key> elements, tree type-ahead, Escape/Enter handling — got nothing at all.
++  if (!mAttachedWidgetListener) {
++    return mWidgetListener;
++  }
++  if (!mPreviouslyAttachedWidgetListener) {
+     return mAttachedWidgetListener;
+   }
+ 

@@ -193,6 +193,8 @@ public:
   void hitTest(int x, int y, std::string* json);
   // YAP: popupMenuSelect — the card's native <select> list returned a choice. selectedIdx<0
   // is a dismissal. (The show side is emitSelectPopupIfPending, driven from the click drain.)
+  // DEBUG readback: is any XUL popup open (see the inject `popups` command).
+  bool popupsOpen() const;
   void popupMenuSelect(const char* identifier, int selectedIdx);
 
  private:

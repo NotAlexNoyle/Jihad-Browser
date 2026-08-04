@@ -59,7 +59,11 @@ std::string DebugElementRect(const char* elementId);
 
 // DEBUG ONLY: click an element by id at its own centre, in the viewport CSS space, so a
 // test does not have to undo the daemon's zoom/scroll mapping to hit a known control.
-bool DebugClickElement(const char* elementId);
+bool DebugClickElement(const char* elementId, int clickCount = 1);
+// Click at an OFFSET from an element's top-left, rather than its centre. Needed for XUL
+// trees: their rows are not DOM nodes (a tree is view-backed), so no selector reaches a
+// row and a centre click on a mostly-empty tree lands below every row.
+bool DebugClickElementAt(const char* elementId, int dx, int dy, int clickCount);
 
 // DEBUG ONLY: enable/disable an installed add-on by id (R4's "disabling stops the effect",
 // which otherwise needs a chrome UI this embedding does not have).

@@ -520,15 +520,32 @@ static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
 // gets a fit-zoom) they land somewhere else entirely — measured: an injected 365,31
 // arrived at 466,40. This resolves the element itself and clicks its centre in the
 // viewport CSS space ClickAt expects, so a test is independent of zoom and scroll.
-bool DebugClickElement(const char* elementId) {
+bool DebugClickElementAt(const char* elementId, int dx, int dy, int clickCount) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !elementId) return false;
+  std::string r = DebugElementRect(elementId);
+  int x = 0, y = 0, w = 0, h = 0;
+  // "<name> X,Y WxH center=CX,CY" — take the ORIGIN, not the centre.
+  const char* sp = strstr(r.c_str(), "rect=");
+  if (!sp || sscanf(sp + 5, "%d,%d %dx%d", &x, &y, &w, &h) != 4) return false;
+  fprintf(stderr, "[jihad-bs] debug click%s %s at viewport %d,%d (origin %d,%d + %d,%d)\n",
+          clickCount > 1 ? "x2" : "", elementId, x + dx, y + dy, x, y, dx, dy);
+  page->ClickAt(x + dx, y + dy, clickCount);
+  return true;
+}
+
+bool DebugClickElement(const char* elementId, int clickCount) {
   GoannaRenderPage* page = sDebugLastPage;
   if (!page || !elementId) return false;
   std::string r = DebugElementRect(elementId);
   int cx = 0, cy = 0;
   const char* c = strstr(r.c_str(), "center=");
   if (!c || sscanf(c, "center=%d,%d", &cx, &cy) != 2) return false;
-  fprintf(stderr, "[jihad-bs] debug click %s at viewport %d,%d\n", elementId, cx, cy);
-  page->ClickAt(cx, cy, 1);
+  fprintf(stderr, "[jihad-bs] debug click%s %s at viewport %d,%d\n",
+          clickCount > 1 ? "x2" : "", elementId, cx, cy);
+  // clickCount matters for XUL: a tree row TOGGLES a boolean pref on double-click
+  // (config.js onTreeDblClick), which single clicks only select.
+  page->ClickAt(cx, cy, clickCount);
   return true;
 }
 
@@ -666,7 +683,10 @@ std::string DebugElementRect(const char* elementId) {
   float x = 0, y = 0, w = 0, h = 0;
   r->GetLeft(&x); r->GetTop(&y); r->GetWidth(&w); r->GetHeight(&h);
   char buf[160];
-  snprintf(buf, sizeof buf, "%s %d,%d %dx%d center=%d,%d", elementId,
+  // Both geometry tokens are LABELLED because the "name" is now a selector that can itself
+  // contain spaces (`sel:#configTree treechildren`) — a positional parse of this line breaks
+  // on exactly the selectors that need it most.
+  snprintf(buf, sizeof buf, "%s rect=%d,%d %dx%d center=%d,%d", elementId,
            (int)(x + 0.5f), (int)(y + 0.5f), (int)(w + 0.5f), (int)(h + 0.5f),
            (int)(x + w / 2 + 0.5f), (int)(y + h / 2 + 0.5f));
   return std::string(buf);
@@ -2470,9 +2490,11 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   if (!u) return;
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
-  // NB: there is no sendKeyEventToWindow — this still goes through the widget and is therefore
-  // still swallowed on the offscreen path (T-067). Left in place: it is harmless, and R2/R2a
-  // drive the engine editor directly rather than relying on it.
+  // There is no sendKeyEventToWindow, so this goes through the widget — which used to mean it
+  // was swallowed, because PuppetWidget::GetCurrentWidgetListener consulted only the ATTACHED
+  // listener and nothing attaches in this embedding. That is fixed in the engine now (patch
+  // 0005, mirroring nsWindow's `mAttachedWidgetListener ? … : mWidgetListener`), so synthesized
+  // key events reach the DOM: verified 2026-08-04, a document keydown/keyup listener sees them.
   u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
 }
 

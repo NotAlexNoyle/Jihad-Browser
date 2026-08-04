@@ -296,6 +296,29 @@ void JihadBrowserServer::processInjectFile() {
       while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
       printf("[jihad-bs] inject clickid %s ok=%d\n", id.c_str(),
              (int)jihad::DebugClickElement(id.c_str()));
+    } else if (strncmp(c.c_str(), "popups", 6) == 0) {
+      // DEBUG: how many XUL popups are open. Readback for tests that drive a menu — and the
+      // only cheap way to observe a XUL-only KEY reaction (Escape rolls a menu up), since a
+      // menu changes no DOM a selector can see.
+      printf("[jihad-bs] inject popups=%d\n", (int)p->popupsOpen());
+    } else if (strncmp(c.c_str(), "clickoff ", 9) == 0) {
+      // DEBUG: `clickoff <dx> <dy> <count> <selector>` — click at an OFFSET from the
+      // element's top-left. A XUL tree's rows are not DOM nodes, so no selector reaches
+      // one; a centre click on a filtered (nearly empty) tree lands below every row.
+      int dx = 0, dy = 0, cnt = 1; char sel[512] = {0};
+      if (sscanf(c.c_str(), "clickoff %d %d %d %511[^\n\r]", &dx, &dy, &cnt, sel) == 4) {
+        printf("[jihad-bs] inject clickoff %s +%d,%d n=%d ok=%d\n", sel, dx, dy, cnt,
+               (int)jihad::DebugClickElementAt(sel, dx, dy, cnt));
+      } else {
+        printf("[jihad-bs] inject clickoff: need <dx> <dy> <count> <selector>\n");
+      }
+    } else if (strncmp(c.c_str(), "dblclickid ", 11) == 0) {
+      // DEBUG: same lookup as `clickid`, delivered as a DOUBLE click — the only way to
+      // change a value in a XUL tree (about:config toggles a boolean on dblclick).
+      std::string id = c.substr(11);
+      while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
+      printf("[jihad-bs] inject dblclickid %s ok=%d\n", id.c_str(),
+             (int)jihad::DebugClickElement(id.c_str(), 2));
     } else if (strncmp(c.c_str(), "addon ", 6) == 0) {
       // DEBUG: `addon <id> on|off` — flip an installed add-on's enabled state.
       std::string rest = c.substr(6);

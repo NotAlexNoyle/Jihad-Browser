@@ -637,6 +637,15 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     return;
   }
   mPage->KeyEvent("keydown", key, chr, modifiers);
+  // …AND a keypress. Gecko does NOT derive keypress from keydown for SYNTHESIZED events — the
+  // native widget code that normally does it is not in this path — so a caller that sends only
+  // keydown/keyup produces a key sequence no keypress listener ever sees. That is not a corner
+  // case: XUL `<key>` elements match on keypress (about:config's own
+  // `<key keycode="VK_RETURN" oncommand="ModifySelected()">` is one), and plenty of web pages
+  // listen for keypress rather than keydown. Measured 2026-08-04: with keydown/keyup alone the
+  // document saw `down:65,up:65` and no `press:` at all, and Enter on a selected about:config
+  // row did nothing.
+  mPage->KeyEvent("keypress", key, chr, modifiers);
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
@@ -909,6 +918,10 @@ void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply*
   }
 
   awaitDialogReply(path, kindName, &reply->accept, &reply->promptValue);
+}
+
+bool BrowserPageGoanna::popupsOpen() const {
+  return mPage ? mPage->PopupsOpen() : false;
 }
 
 void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx) {

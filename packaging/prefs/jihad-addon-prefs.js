@@ -49,6 +49,17 @@ pref("extensions.install.requireSecureOrigin", false);
 // timer and the version-change blocklist validation burn cycles on a 512 MB device and throw
 // per-addon against URLs that do not exist. Out of scope per the kit.
 pref("extensions.update.enabled", false);
+// The update URL must EXIST even though updates are off. XPIProvider's UpdateChecker reads it
+// with a ONE-ARGUMENT getCharPref (XPIProvider.jsm, PREF_EM_UPDATE_URL) whenever an add-on has
+// no updateURL of its own, and a one-arg getCharPref THROWS on an absent pref rather than
+// returning a default. The GRE ships no value (it is app-supplied in Firefox/Pale Moon), so
+// with this absent an install that reaches an update check dies with NS_ERROR_UNEXPECTED and
+// the add-on silently fails to install — measured 2026-08-04, and it is the same trap already
+// documented below for the AppCompat GUID prefs. The value is deliberately a non-resolving
+// placeholder: we operate no update server, and `extensions.update.enabled=false` means nothing
+// should ever fetch it. It exists so the read succeeds.
+pref("extensions.update.url", "data:text/plain,");
+pref("extensions.update.background.url", "data:text/plain,");
 pref("extensions.blocklist.enabled", false);
 pref("extensions.getAddons.cache.enabled", false);
 

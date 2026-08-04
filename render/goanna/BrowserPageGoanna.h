@@ -55,6 +55,13 @@ public:
   virtual void msgSSLConfirm(const char* host, int32_t code, const char* certFile) {
     (void)host; (void)code; (void)certFile;
   }
+  // Same message, but carrying the reply FIFO so the card's answer can come back and be
+  // acted on (accept -> remember the validity override and reload). The no-pipe overload
+  // above stays for sinks that only observe.
+  virtual void msgSSLConfirm2(const char* syncPipePath, const char* host, int32_t code,
+                              const char* certFile) {
+    (void)syncPipePath; msgSSLConfirm(host, code, certFile);
+  }
   virtual void msgLinkClicked(const char* url) { (void)url; }
   // Content opened a JS dialog (alert/confirm/prompt/auth). syncPipePath is a FIFO the
   // daemon is about to block on: the adapter stashes it, shows the card's dialog, and the
@@ -122,6 +129,14 @@ public:
 
   // jihad::DialogSink — called synchronously on the engine thread.
   void OnDialog(DialogKind kind, const char* text, DialogReply* reply) override;
+
+ private:
+  // Shared plumbing for every card dialog: create the reply FIFO, and block on it with a
+  // deadline. Used by OnDialog and by the SSL-confirm path.
+  std::string makeDialogPipe();
+  bool awaitDialogReply(const std::string& path, const char* what,
+                        bool* accept, std::string* value);
+ public:
 
   // --- lifecycle / surface (YAP: connect/setWindowSize) ---
   // Attach the double-buffered shared memory the adapter provided (SysV keys).

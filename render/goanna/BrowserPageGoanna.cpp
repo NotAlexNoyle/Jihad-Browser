@@ -772,25 +772,103 @@ void BrowserPageGoanna::emitSelectPopupIfPending() {
 // before we wait, and the answer comes back through the FIFO, not through the tick loop we are
 // standing in. The TIMEOUT is the part that must not be skipped — a card that never answers (no
 // dialog handler, a card that died mid-prompt) would otherwise hang the daemon forever.
+// Create the reply FIFO for one dialog. Empty on failure (caller then takes the default).
+std::string BrowserPageGoanna::makeDialogPipe() {
+  static unsigned sSeq = 0;
+  std::string path = jihad::RuntimeResolvePath("1",
+      (std::string("dialog-") + std::to_string(++sSeq) + ".fifo").c_str());
+  if (path.empty()) {
+    fprintf(stderr, "[jihad-bs] dialog: no state dir for the reply pipe\n");
+    return std::string();
+  }
+  unlink(path.c_str());
+  if (mkfifo(path.c_str(), 0600) != 0) {
+    fprintf(stderr, "[jihad-bs] dialog: mkfifo %s failed (%s)\n", path.c_str(), strerror(errno));
+    return std::string();
+  }
+  return path;
+}
+
+// Block until the card answers through the FIFO, or the deadline passes. Fills accept/value
+// from the adapter's wire format (4-byte big-endian length, then NUL-terminated args; arg0
+// "1" accept / "0" cancel / "2" SSL trust-once, arg1 prompt text or username).
+// The deadline is load-bearing: a card that never answers must not wedge the daemon.
+bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* what,
+                                         bool* accept, std::string* value) {
+  int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+  if (fd < 0) {
+    fprintf(stderr, "[jihad-bs] dialog: cannot open reply pipe (%s)\n", strerror(errno));
+    unlink(path.c_str());
+    return false;
+  }
+  // TWO deadlines, because "nobody is listening" and "a human is reading" need very different
+  // patience. A read-only FIFO with no writer polls POLLHUP; that clears once the adapter opens
+  // its end to answer. So: a SHORT wait for someone to pick up the phone, then a long one for
+  // the answer. Without the first, a daemon with no card attached — or a card whose framework
+  // has no handler for this dialog kind — would sit here for a full minute per dialog and look
+  // like a frozen browser (measured in the desktop harness, which has no card at all).
+  const int kPickupMs = 5000;     // an adapter that is going to answer opens the pipe at once
+  const int kAnswerMs = 60000;    // then a person reads the dialog and decides
+  std::string data;
+  long start = jihadNowMs();
+  bool got = false, writerSeen = false;
+  for (;;) {
+    long elapsed = jihadNowMs() - start;
+    if (elapsed >= (writerSeen ? kAnswerMs : kPickupMs)) break;
+    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
+    int pr = poll(&pfd, 1, 200);
+    if (pr < 0) { if (errno == EINTR) continue; break; }
+    if (pr == 0) continue;
+    if (!(pfd.revents & POLLHUP)) writerSeen = true;   // someone has the write end open
+    char buf[512];
+    ssize_t n = read(fd, buf, sizeof buf);
+    if (n > 0) { data.append(buf, (size_t)n); got = true; writerSeen = true; continue; }
+    // A writer closing is NOT proof the answer is complete: the reply is a 4-byte length
+    // followed by that many bytes, and a writer that opens/closes per write (or is simply
+    // scheduled between the two) delivers the header alone. Breaking there truncated the
+    // answer to nothing and every dialog read as "cancel" — believe the declared length,
+    // not the close.
+    if (n == 0 && got && data.size() >= 4) {
+      const unsigned char* L = reinterpret_cast<const unsigned char*>(data.data());
+      size_t declared = ((size_t)L[0] << 24) | ((size_t)L[1] << 16) |
+                        ((size_t)L[2] << 8)  |  (size_t)L[3];
+      if (data.size() >= 4 + declared) break;    // complete
+    }
+    if (n < 0 && errno != EAGAIN && errno != EINTR) break;
+  }
+  if (!writerSeen && !got) {
+    fprintf(stderr, "[jihad-bs] dialog %s: nobody opened the reply pipe in %d ms — "
+                    "no card is answering, taking the default\n", what, kPickupMs);
+  }
+  close(fd);
+  unlink(path.c_str());
+  if (!got || data.size() < 4) {
+    fprintf(stderr, "[jihad-bs] dialog %s: no answer from the card — taking the default\n", what);
+    return false;
+  }
+  size_t pos = 4;
+  std::vector<std::string> args;
+  while (pos < data.size() && args.size() < 4) {
+    size_t end = data.find('\0', pos);
+    if (end == std::string::npos) { args.push_back(data.substr(pos)); break; }
+    args.push_back(data.substr(pos, end - pos));
+    pos = end + 1;
+  }
+  if (!args.empty() && accept) *accept = (args[0] == "1" || args[0] == "2");
+  if (args.size() > 1 && value) *value = args[1];
+  fprintf(stderr, "[jihad-bs] dialog %s -> %s\n", what,
+          (accept && *accept) ? "ACCEPT" : "cancel");
+  return true;
+}
+
 void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply* reply) {
   if (!reply) return;
   // Defaults are the safe answer for each kind, and stand if anything below fails.
   reply->accept = false;
   reply->promptValue.clear();
 
-  static unsigned sSeq = 0;
-  std::string path = jihad::RuntimeResolvePath("1",
-      (std::string("dialog-") + std::to_string(++sSeq) + ".fifo").c_str());
-  if (path.empty()) {
-    fprintf(stderr, "[jihad-bs] dialog: no state dir for the reply pipe — taking the default\n");
-    return;
-  }
-  unlink(path.c_str());
-  if (mkfifo(path.c_str(), 0600) != 0) {
-    fprintf(stderr, "[jihad-bs] dialog: mkfifo %s failed (%s) — taking the default\n",
-            path.c_str(), strerror(errno));
-    return;
-  }
+  std::string path = makeDialogPipe();
+  if (path.empty()) return;
 
   const char* kindName = (kind == DialogKind::Alert)   ? "alert"
                        : (kind == DialogKind::Confirm) ? "confirm"
@@ -805,50 +883,7 @@ void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply*
     default:                  mSink.msgDialogUserPassword(path.c_str(), text ? text : ""); break;
   }
 
-  // Wait for the card. O_NONBLOCK on open so a card that never opens the write end cannot wedge
-  // us in open() itself, then poll for the data with a deadline.
-  int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
-  if (fd < 0) {
-    fprintf(stderr, "[jihad-bs] dialog: cannot open reply pipe (%s)\n", strerror(errno));
-    unlink(path.c_str());
-    return;
-  }
-  const int kTimeoutMs = 60000;   // a human is answering; generous, but never infinite
-  std::string data;
-  long start = jihadNowMs();
-  bool got = false;
-  while (jihadNowMs() - start < kTimeoutMs) {
-    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
-    int pr = poll(&pfd, 1, 200);
-    if (pr < 0) { if (errno == EINTR) continue; break; }
-    if (pr == 0) continue;
-    char buf[512];
-    ssize_t n = read(fd, buf, sizeof buf);
-    if (n > 0) { data.append(buf, (size_t)n); got = true; continue; }
-    if (n == 0 && got) break;          // writer closed: the answer is complete
-    if (n < 0 && errno != EAGAIN && errno != EINTR) break;
-  }
-  close(fd);
-  unlink(path.c_str());
-
-  if (!got || data.size() < 4) {
-    fprintf(stderr, "[jihad-bs] dialog %s: no answer from the card — taking the default\n", kindName);
-    return;
-  }
-  // 4-byte big-endian length, then NUL-terminated args (adapter js_sendDialogResponse).
-  size_t pos = 4;
-  std::vector<std::string> args;
-  while (pos < data.size() && args.size() < 4) {
-    size_t end = data.find('\0', pos);
-    if (end == std::string::npos) { args.push_back(data.substr(pos)); break; }
-    args.push_back(data.substr(pos, end - pos));
-    pos = end + 1;
-  }
-  // arg0: "1" accept / "0" cancel (SSL uses "2" = trust once, also an accept).
-  if (!args.empty()) reply->accept = (args[0] == "1" || args[0] == "2");
-  // arg1: the prompt's text, or the username for an auth dialog.
-  if (args.size() > 1) reply->promptValue = args[1];
-  fprintf(stderr, "[jihad-bs] dialog %s -> %s\n", kindName, reply->accept ? "ACCEPT" : "cancel");
+  awaitDialogReply(path, kindName, &reply->accept, &reply->promptValue);
 }
 
 void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx) {
@@ -951,7 +986,33 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
   bool certErr = mPage->GetCertError(&chost, &ccode);
   fprintf(stderr, "[jihad-bs] loaderr failed=%d code=0x%x certErr=%d chost=%s ccode=0x%x\n",
           (int)failed, (unsigned)code, (int)certErr, chost.c_str(), (unsigned)ccode);
-  if (certErr) mSink.msgSSLConfirm(chost.c_str(), ccode, "");
+  if (certErr) {
+    // R5: ask the card whether to trust this certificate, and ACT on the answer. This used to
+    // pass an empty reply-pipe path, so the card could show the prompt but never answer it and
+    // nothing consumed a decision — AcceptCurrentCert() existed and had no caller outside the
+    // test. Now it takes the same FIFO every other dialog uses: on accept we add the validity
+    // override and RELOAD, which is what makes "trust this site" actually load the page; on
+    // decline (or no answer) the failed load stands.
+    std::string pipePath = makeDialogPipe();
+    fprintf(stderr, "[jihad-bs] dialog ssl-confirm -> card (pipe %s) host=%s\n",
+            pipePath.empty() ? "(none)" : pipePath.c_str(), chost.c_str());
+    mSink.msgSSLConfirm2(pipePath.c_str(), chost.c_str(), ccode, "");
+    if (!pipePath.empty()) {
+      bool trust = false;
+      awaitDialogReply(pipePath, "ssl-confirm", &trust, nullptr);
+      if (trust) {
+        if (mPage->AcceptCurrentCert()) {
+          std::string retry = mPage->CurrentUri();
+          fprintf(stderr, "[jihad-bs] ssl: override remembered for %s — reloading\n", chost.c_str());
+          // Reload through the normal load path so the retry reports load state as usual.
+          if (!retry.empty() && retry != "about:blank") openUrl(retry.c_str());
+          else mPage->Reload();
+        } else {
+          fprintf(stderr, "[jihad-bs] ssl: could not remember the override for %s\n", chost.c_str());
+        }
+      }
+    }
+  }
   else if (failed) mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
   // For internal about: pages, report the typed about: URL, not the data: URL the engine loaded
   // (keeps the bar showing about:jihad and avoids a huge data: history entry). NB: never emit

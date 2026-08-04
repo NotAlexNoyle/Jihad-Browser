@@ -32,6 +32,7 @@ void ProxySink::msgUpdateGlobalHistory(const char* u, bool reload) { mSrv->msgUp
 void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRedirected(mProxy, u, ud); }
 // syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
+void ProxySink::msgSSLConfirm2(const char* pipe, const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, pipe, host, code, certFile); }
 void ProxySink::msgDialogAlert(const char* p, const char* m) { mSrv->msgDialogAlert(mProxy, p, m); }
 void ProxySink::msgDialogConfirm(const char* p, const char* m) { mSrv->msgDialogConfirm(mProxy, p, m); }
 void ProxySink::msgDialogPrompt(const char* p, const char* m, const char* d) { mSrv->msgDialogPrompt(mProxy, p, m, d); }

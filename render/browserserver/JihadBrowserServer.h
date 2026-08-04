@@ -40,6 +40,8 @@ public:
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
   void msgUrlRedirected(const char* url, const char* userData) override;
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
+  void msgSSLConfirm2(const char* syncPipePath, const char* host, int32_t code,
+                      const char* certFile) override;
   void msgDialogAlert(const char* syncPipePath, const char* msg) override;
   void msgDialogConfirm(const char* syncPipePath, const char* msg) override;
   void msgDialogPrompt(const char* syncPipePath, const char* msg, const char* defaultValue) override;

@@ -102,9 +102,9 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R5: Extensions are per-variant and survive restart
 **Description:** Extension state persists, and — per cavekit-device-build.md R7 — belongs to exactly one variant.
 **Acceptance Criteria:**
-- [ ] Installed extensions survive a daemon restart and a device reboot.
-- [ ] Each variant's extensions live in ITS OWN profile (`$APP/profile/extensions`), so installing an extension in one variant does not appear in, or affect, another.
-- [ ] Removing a variant removes its extensions with it and leaves the other variants' untouched.
+- [~] Installed extensions survive a daemon restart and a device reboot. *(2026-08-04: DAEMON RESTART verified — after a full stop/start the extensions are still in the profile, the enabled one's `startup()` runs again by itself, and the page renders with its effect (693,224 styled px). A device REBOOT has not been run this session; the state lives in the same on-disk profile either way.)*
+- [x] Each variant's extensions live in ITS OWN profile (`$APP/profile/extensions`), so installing an extension in one variant does not appear in, or affect, another. *(DEVICE-VERIFIED 2026-08-04: the add-on installed in the Enyo variant is in Enyo's profile alone — Mochi and Mojo both report zero extensions.)*
+- [~] Removing a variant removes its extensions with it and leaves the other variants' untouched. *(Follows from the footprint contract rather than from a fresh test: extensions live under `$APP/profile`, which the variant's own `prerm` removes wholesale — the path `device-citizen-audit.sh` already checks. Not re-run here, because it means uninstalling a live variant.)*
 **Dependencies:** R1, cavekit-device-build.md (R7, R8)
 
 ### R6: Extension storage respects the install-footprint contract

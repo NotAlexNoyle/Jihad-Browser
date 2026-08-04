@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-03"
+last_edited: "2026-08-04"
 ---
 
 # Cavekit Overview
@@ -47,9 +47,14 @@ Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 pa
 > below-the-fold input landing, and the **`<select>` popup on all three variants** — the "empty
 > popup" was a JSON field-name mismatch, not a rendering problem (the stock framework consumes the
 > event itself and expects the isis `items[].text/isEnabled` shape; Mojo needed no app code at
-> all). Still open on the engine-popup track: the `<menupopup>` overlay composite (tools menu,
-> context menus) — a **separate display root** the offscreen capture doesn't composite — and
-> `<optgroup>` header rows in `<select>` lists. Chrome icons still render **late**. See
+> all). The **`<menupopup>` track then closed too**: engine popups are composited over the frame,
+> taps/moves route into them, the row under the finger highlights, drag-and-release selects, and a
+> tap outside rolls up — the `about:addons` tools menu opens, reads correctly and its items act.
+> **XPI web install now works end to end, on device** (the first extension this browser has
+> installed), which required fixing two engine assumptions that a browser chrome exists above the
+> content, and then implementing the **DialogSink the daemon never had** — a claim the kits carried
+> on the strength of a test that supplied its own sink. Still open on these tracks: `<optgroup>`
+> header rows in `<select>` lists, and the SSL accept-and-reload branch. See
 > `impl-select-popup-2026-08-03.md`, `impl-menupopup-2026-08-02.md`,
 > `impl-scroll-overscan-2026-08-02.md`, `impl-addons-icons-open.md`.
 >
@@ -66,11 +71,11 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Mojo UI Variant | cavekit-mojo-ui.md | 6 | 🟢 R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
-| Offscreen Rendering | cavekit-offscreen-rendering.md | 7 | 🟢 R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups**: `<select>` solved card-side on all three variants ✓; the `<menupopup>` overlay composite is diagnosed + open — **the current top priority**. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
+| Offscreen Rendering | cavekit-offscreen-rendering.md | 7 | 🟢 R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups ✅**: `<select>` solved card-side on all three variants; `<menupopup>` composited over the frame AND interactive (taps routed in, rollover highlight, drag-select, tap-outside rollup) — the old "popup is 0x0 and never shown" diagnosis was measured on a `<select>` (the combobox path) and was wrong. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
 | Input Bridging | cavekit-input-bridging.md | 7 | 🟢 R1 ✓ + **long-press `contextmenu` works on device** (the daemon `asyncCmdHitTest` gate was a stub; real hit-test round-trip added, user-confirmed), R4 ✓, R5 ✓ + **doc→viewport coord mapping fixed** (below-the-fold taps landed a screenful low); R2 VKB jank / R3 gestures on-device; **R6 XUL input partial** — text reaches XUL fields through the engine editor, but real DOM key events need a ~2-line PuppetWidget patch + a full libxul rebuild | webOS pointer/key/touch/gesture → DOM events |
 | Navigation, Loading & Events | cavekit-navigation-events.md | 7 | 🟢 R1–R7 met (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
-| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5/R6 ✓; **R3 groundwork built** — daemon `amIWebInstallPrompt` + `jihad-xpi-confirm` observer authored/committed but deliberately UNWIRED (no manifest); the card-loop blocker is GONE, so wiring it is now just work; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools-menu `<menupopup>` is DIAGNOSED (separate 0x0 display root; overlay-composite pass to build — `impl-menupopup-2026-08-02.md`) | `about:addons` + classic XPI + NPAPI plugin support |
-| Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓; R4/R5 partial (device) | Settings, cookies/cache, JS dialogs, downloads, TLS |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5/R6 ✓; **R3 XPI install WORKS** — device-verified: a page's `InstallTrigger.install()` raises the confirm on the card, accept installs, and `about:addons` lists the add-on. Needed patch 0013 (`amInstallTrigger` and `AddonManager` both assume a chrome `<browser>` above the content) plus the new daemon DialogSink; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools menu now opens and is operable (cavekit-offscreen-rendering.md R7) | `about:addons` + classic XPI + NPAPI plugin support |
+| Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓ (**R3 dialogs really work now** — the daemon had NO DialogSink, so every engine dialog silently took its default; `BrowserPageGoanna` is now that sink, over the frozen FIFO contract, with a pickup deadline so an unanswered dialog cannot wedge the daemon); R4 partial; R5 SSL confirm wired with a reply path, accept-and-reload not yet end-to-end verified | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |

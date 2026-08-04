@@ -70,28 +70,37 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Mochi UI Variant | cavekit-mochi-ui.md | 6 | 🟢 R1/R3/R5 ✓; card LIVE on device (loads + paints through its own daemon); **`<select>` popup device-verified 2026-08-03** (own overlay list, pick applied); start page matches the others; R2/R4 remaining on-device feature checks pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
 | Mojo UI Variant | cavekit-mojo-ui.md | 6 | 🟢 R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
-| Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build) | Out-of-tree Goanna build, embedding runtime, event-loop integration |
+| Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build). **R2's "shuts down cleanly" was met in error until 2026-08-04** — `main()` never returned, so `XRE_TermEmbedding` never ran and the engine's deferred savers never flushed; SIGTERM is handled now, pages are destroyed before the runtime, and the never-run `~YapServer` teardown it exposed was itself broken | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 7 | 🟢 R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups ✅**: `<select>` solved card-side on all three variants; `<menupopup>` composited over the frame AND interactive (taps routed in, rollover highlight, drag-select, tap-outside rollup) — the old "popup is 0x0 and never shown" diagnosis was measured on a `<select>` (the combobox path) and was wrong. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
 | Input Bridging | cavekit-input-bridging.md | 7 | 🟢 R1 ✓ + **long-press `contextmenu` works on device** (the daemon `asyncCmdHitTest` gate was a stub; real hit-test round-trip added, user-confirmed), R4 ✓, R5 ✓ + **doc→viewport coord mapping fixed** (below-the-fold taps landed a screenful low); R2 VKB jank / R3 gestures on-device; **R6 XUL input partial** — text reaches XUL fields through the engine editor, but real DOM key events need a ~2-line PuppetWidget patch + a full libxul rebuild | webOS pointer/key/touch/gesture → DOM events |
 | Navigation, Loading & Events | cavekit-navigation-events.md | 7 | 🟢 R1–R7 met (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
-| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5/R6 ✓; **R3 XPI install WORKS** — device-verified: a page's `InstallTrigger.install()` raises the confirm on the card, accept installs, and `about:addons` lists the add-on. Needed patch 0013 (`amInstallTrigger` and `AddonManager` both assume a chrome `<browser>` above the content) plus the new daemon DialogSink; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools menu now opens and is operable (cavekit-offscreen-rendering.md R7) | `about:addons` + classic XPI + NPAPI plugin support |
-| Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓ (**R3 dialogs really work now** — the daemon had NO DialogSink, so every engine dialog silently took its default; `BrowserPageGoanna` is now that sink, over the frozen FIFO contract, with a pickup deadline so an unanswered dialog cannot wedge the daemon); R4 partial; R5 SSL confirm wired with a reply path, accept-and-reload not yet end-to-end verified | Settings, cookies/cache, JS dialogs, downloads, TLS |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 8 | 🟡 R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5 ✓, **R2 now complete** (enable/disable/remove driven by clicks on the real about:addons row controls, each surviving a SIGTERM restart) and **R6 device-verified** (an on-device install between two footprint snapshots: `/media/internal` byte-identical, nothing new outside the variant's own tree); **R3 XPI install WORKS** — device-verified: a page's `InstallTrigger.install()` raises the confirm on the card, accept installs, and `about:addons` lists the add-on. Needed patch 0013 (`amInstallTrigger` and `AddonManager` both assume a chrome `<browser>` above the content) plus the new daemon DialogSink; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. The tools menu now opens and is operable (cavekit-offscreen-rendering.md R7) | `about:addons` + classic XPI + NPAPI plugin support |
+| Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓ (**R3 dialogs really work now** — the daemon had NO DialogSink, so every engine dialog silently took its default; `BrowserPageGoanna` is now that sink, over the frozen FIFO contract, **and one 60 s deadline sized for a person** — the original 5 s "has the card picked up" deadline could never be satisfied, because the card opens the reply pipe only when the user taps, so every dialog answered later than five seconds was silently defaulted); R4 partial; R5 SSL confirm wired with a reply path, accept-and-reload not yet end-to-end verified | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **13 domains, 77 requirements, 276 acceptance criteria — 215 met, 21 partial, 40 open**
-(recounted 2026-08-04 after the engine-popup, XPI-install, dialog, extension-effect and
-cookie-persistence work; the previous "12 domains, 62 requirements" line had drifted
-from the files it summarised). Closed this session on top of the earlier scroll / long-press /
-coord-mapping / R7-independence work: the card dev loop, the `<select>` popup on all three
-variants, the Mojo chrome actions, the Mojo toolbar overflow and the shared start page. The bulk
-of what remains open sits in two kits — add-ons (22 open ACs: XPI wiring, extension effects, the
-NPAPI port) and device-build (11: clean-clone reproducibility, Opal, memory budget) — plus the
-XUL-input and engine-popup work. Every open item is hardware-gated, a named debug lead, or the
-engine-popup-overlay track. **Current priorities — see `../impl/impl-NEXT-AGENT-START-HERE.md`
+Totals: **13 domains, 77 requirements, 279 acceptance criteria — 232 met, 22 partial, 25 open**
+(COUNTED, not estimated, 2026-08-04: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
+`[~]`/`[ ]` equivalents — re-run that before quoting these numbers, and fix them here if they
+disagree. The previous line said 276/215/21/40 and had drifted from the files it summarised.)
+Closed this session on top of the earlier scroll / long-press / coord-mapping / R7-independence
+work: add-ons R2 (enable, disable and remove driven from the real `about:addons` controls, each
+surviving a restart) and R6 (extension storage, device-verified against a footprint snapshot);
+and three daemon-lifecycle defects that had been invisible because the daemon never exited —
+no SIGTERM handling (so nothing flushed), `XRE_TermEmbedding` running while pages were live, and
+a `~YapServer` teardown that had never once executed and was broken. One user-reported defect
+closed with them: dialogs were being answered for the user after five seconds.
+The bulk of what remains sits in two kits — add-ons (8 open, 4 partial: the NPAPI port, the
+Pale Moon/Basilisk cross-validation) and device-build (6 open, 8 partial: clean-clone
+reproducibility, Opal, memory budget) — plus the XUL-zoom gesture. Every open item is
+hardware-gated, a named debug lead, or an engine port.
+**Current priorities — see `../impl/impl-NEXT-AGENT-START-HERE.md`
 for the detailed queue:**
-(1) **XUL zoom on `about:addons`** — see below; the one open user-reported defect;
+(1) **XUL zoom on `about:addons`** — see below; the one open user-reported defect. Note the
+OTHER user-reported defect from that session, "clicking the button to install the add-on doesn't
+do anything", is CLOSED and was not an add-on bug at all: the dialog deadline was denying the
+answer before the user could give it (cavekit-browser-services.md R3);
     (user-reported as unreliable. The fit-zoom itself is correct — a fixed-width 980 px XUL
 document in a 768 px window — and the popup work does not perturb contentSize; an injected zoom
 is overwritten by the card re-asserting its own, so the actual pinch path needs a real gesture.
@@ -113,6 +122,40 @@ push, md5-verifies it on both sides, closes the card by its real `processid`, re
 device log**. A screenshot is not proof a card is alive (fb1 holds the last painted frame) and an
 on-disk md5 is not proof a card reloaded — the stamp is. Hold stdin open on every `novacom run`
 whose output matters (`sleep 4 | novacom run …`).
+
+### Driving the browser without a human
+Most acceptance criteria here are reachable without anyone touching the screen, but only if you
+know the four traps below. All of this is gated on `$JIHAD_INJECT`, which stays OFF unless set.
+
+**`jsurl` does NOT execute in a chrome document.** It loads a `javascript:` URL with the system
+principal, which works in content — and in `about:addons` it does nothing at all:
+`LoadURIWithOptions` returns NS_OK, so the inject line prints **`ok=1`**, and no code runs, no
+error is raised, nothing reaches the console. Measured 2026-08-04 three ways (setting
+`document.title`, `Components.utils.reportError`, a `gViewController` call). Treat `ok=1` from
+`jsurl` as "the load was issued", never as "the script ran".
+
+**So click the real control.** `rect`/`clickid` resolve an element and click its own centre in
+viewport space, which is also zoom- and scroll-independent. Three forms:
+`<id>` (getElementById) · `sel:<css>` (querySelector — an about:addons row is
+`richlistitem[value="<addon id>"]`) · `anon:<css>|<anonid>` (XBL **anonymous** content, which is
+where a row's `enable-btn`/`disable-btn`/`remove-btn` live — no id reaches them). Clicking the
+real button is also the more honest test: it exercises the same command path a finger does.
+
+**A dialog must be answered the way a PERSON would.** The daemon blocks on a reply FIFO with a
+60 s deadline; a harness that answers in 300 ms proves almost nothing about the human path, and
+one that never answers takes the default. `JIHAD_DIALOG_MS` shortens the deadline for tests that
+WANT the default fast. When a test's whole point is the human path, **answer late on purpose** —
+that is what caught the 5 s deadline that had been silently denying every real dialog
+(cavekit-browser-services.md R3).
+
+**On device, the card creates no engine page until it navigates.** The supervised upstart job
+deliberately does not set `JIHAD_INJECT`, so driving the device means stopping the job and
+running an ad-hoc daemon with the same environment plus `JIHAD_INJECT=1` — then launching the
+card **at a URL**: `palm-launch -p '{"target":"…"}' <appid>`. Launch it bare and every inject
+command answers `inject: no page`, because the start page is card-side HTML and no
+`BrowserPageGoanna` exists yet. Kill the ad-hoc daemon with **SIGTERM** (not `-9`) when you are
+done, or the add-on database and prefs never flush, and restart the job. Its process name is
+`ld-2.23.so`, so `killall jihad-browserserver` matches nothing.
 
 ### Milestone (2026-07-27): rotation and zoom work on the device
 The portrait↔landscape render-break and the "things get cut off" zoom are both fixed and
@@ -217,6 +260,18 @@ Notes:
   verification, not construction.
 
 ## Changelog
+- 2026-08-04: Add-ons **R2** and **R6** closed, and with them three daemon-lifecycle defects that
+  had been hidden by the daemon never exiting: no SIGTERM handling (so the add-on database and
+  prefs never flushed — a UI disable came back enabled after a restart), `XRE_TermEmbedding`
+  running while pages were still live, and a `~YapServer` teardown that had never once run and
+  was broken. cavekit-engine-embedding.md R2's "shuts down cleanly" was corrected from met to
+  met-with-evidence and gained two criteria. The user-reported "install button does nothing" was
+  traced to the DIALOG deadline, not the add-on stack: the card opens the reply pipe only when
+  the user taps, so the 5 s pickup deadline silently denied every dialog a person answered in
+  time — every harness passed throughout (cavekit-browser-services.md R3). New section
+  **"Driving the browser without a human"** records the four traps that cost time here, chiefly
+  that `jsurl` does not execute in a chrome document while still reporting `ok=1`. Totals are now
+  COUNTED rather than estimated; the previous line had drifted.
 - 2026-08-03 (second session): The card JS dev loop is restored (`push-card-js.sh`, stamp-proven
   reloads) — the two causes were `novacom run`'s stdin-EOF output race and the real WebAppMgr JS
   cache. With it, the `<select>` popup closed on **all three** variants: the "empty popup" was a

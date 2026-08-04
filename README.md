@@ -34,14 +34,22 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > NPAPI is compiled in and `nsPluginHost` scans, but **windowless NPAPI does not exist in a
 > cairo-headless build** and must be ported, so binary plugins (Flash) are not yet possible.
 >
-> **Known issues, on-device (2026-08):** the XUL `<menupopup>` path — the `about:addons` tools
-> menu and page context menus — does not paint yet. A popup is a **separate display root** the
-> offscreen capture never contains; it is diagnosed (the widget is created at the right place but
-> 0×0 and never shown) and the fix is a size-and-show plus an overlay composite of the visible
-> popups. `<select>` dropdowns took the other route and are done: the daemon serializes the options
-> and the card renders the list, exactly as isis and Atlas do. Chrome icons render but are **slow
-> to appear** (repaint-delivery latency, not decode). Cookies still do not persist across restarts.
-> Binary NPAPI plugins remain impossible (see above).
+> **Extensions work end to end (2026-08).** A page's `InstallTrigger.install()` raises a confirm
+> on the card, accepting it installs the XPI into that variant's own profile, `about:addons` lists
+> it, and the add-on's effect is visible on real pages. Enable, disable and remove all work from
+> the real `about:addons` controls and survive a restart. Extensions are per-variant: each app has
+> its own profile, and nothing lands on the user's storage volume. Getting there needed two engine
+> assumptions removed — `amInstallTrigger` and `AddonManager` both expect a chrome `<browser>`
+> above the content, which this embedding does not have — and the XUL `<menupopup>` overlay
+> composite, since a popup is a **separate display root** the offscreen capture never contains and
+> the content document cannot hit-test.
+>
+> **Known issues, on-device:** the fit-zoom on `about:addons` is unreliable under a real pinch
+> (the fit-zoom itself is correct; the card re-asserts its own zoom, so this needs a gesture, not
+> an injected value). `<optgroup>` header rows in `<select>` popups need a reply-index remap.
+> Windowless NPAPI still does not exist in a cairo-headless build, so binary plugins (Flash)
+> remain impossible without a port. Cookies now persist across restarts, and the chrome-icon
+> latency did not reproduce on re-test.
 >
 > **Deployment reality:** all three variants are live on the test device simultaneously — cold boot
 > auto-starts three daemons on three sockets, and the independence harness
@@ -53,9 +61,13 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > core dump and fixed. History, bookmarks, and downloads are wired to the app's own
 > db8 kinds + the system download manager in the two Enyo-family shells; the Mojo
 > shell registers no db8 kinds and keeps its own history in card-local storage.
-> Remaining work: the `<menupopup>` overlay composite, cookie persistence across
-> restarts, the VKB viewport "snap"/white-band on keyboard toggle, and TouchPad Go
-> hardware verification.
+> Remaining work: the VKB viewport "snap"/white-band on keyboard toggle, the windowless
+> NPAPI port, and TouchPad Go hardware verification.
+>
+> **The daemon shuts down cleanly (2026-08-04).** It had no SIGTERM handler — the signal
+> `stop <job>` sends — so it was killed before the engine's deferred savers (the add-on database,
+> prefs) could flush, and a change made in the UI could be lost. Fixing that exposed two crashes
+> on a teardown path the process had literally never taken.
 >
 > **Rotation** and **zoom** are both fixed (2026-07): the landscape "3× tiling" was a
 > LunaCE fixed-stride read of the raw plugin surface — resolved by compositing the

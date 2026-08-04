@@ -25,6 +25,43 @@ Branding-strip and the headless toolkit are engine-side patches applied by the
 build (`build/desktop/patches/`, `build/webos-oe/mozconfig.goanna-arm`), not files
 here.
 
+## The DEBUG surface (`$JIHAD_INJECT`), and its one sharp edge
+
+`GoannaRenderPage.cpp` exposes a small set of `Debug*` helpers the daemon's inject channel maps
+to commands. They exist so acceptance criteria can be met without a human touching the screen,
+and they are gated on `$JIHAD_INJECT`, which is off unless set.
+
+**`DebugRunChromeJs` (`jsurl`) does NOT execute in a chrome document.** It loads a `javascript:`
+URL with the system principal, which works in content. In `about:addons` and friends,
+`LoadURIWithOptions` returns NS_OK — so the daemon prints `ok=1` — and no code runs: no effect,
+no exception, nothing on the console. Measured 2026-08-04 three ways (`document.title`,
+`Components.utils.reportError`, a `gViewController` call). **`ok=1` from `jsurl` means the load
+was issued, never that the script ran.**
+
+Drive the chrome UI by clicking its real controls instead. `DebugElementRect` /
+`DebugClickElement` (`rect` / `clickid`) resolve an element and click its own centre in viewport
+space — independent of zoom and scroll, which raw coordinates are not. Three lookup forms:
+
+| Form | Resolves via | Use for |
+|---|---|---|
+| `<id>` | `getElementById` | content pages |
+| `sel:<css>` | `querySelector` | XUL nodes keyed by attribute — an about:addons row is `richlistitem[value="<addon id>"]` |
+| `anon:<css>\|<anonid>` | `querySelector` + `nsIDOMDocumentXBL::GetAnonymousElementByAttribute` | XBL **anonymous** content — a row's `enable-btn`/`disable-btn`/`remove-btn`, which no id can reach |
+
+Clicking the real button is also the better test: it goes through the same command path a finger
+does.
+
+## Dialogs block, on a deadline sized for a person
+
+`BrowserPageGoanna` is the `DialogSink`: it creates a FIFO, emits `msgDialog*(syncPipePath, …)`,
+and blocks until the card answers. **The card opens the reply pipe only at the moment the user
+taps** (`BrowserAdapter::js_sendDialogResponse`), so there is NO signal distinguishing "the dialog
+is on screen" from "nobody is there" — do not add a liveness heuristic based on the pipe. A
+5-second version of exactly that idea silently defaulted every dialog a human answered in normal
+time, while every harness passed. One 60 s deadline now; `JIHAD_DIALOG_MS` overrides it for
+tests. The wait is timed in the log (card-picked-up, answered) because the engine side is ~2 ms
+from click to dialog emitted, so any visible lag belongs to the front-end.
+
 ## Engine dependency
 
 UXP/Goanna is **built out-of-tree** from the upstream UXP source

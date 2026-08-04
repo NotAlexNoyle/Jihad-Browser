@@ -24,6 +24,18 @@ QtWebKit → Goanna swap.
 > DEBUG self-drive channel ON (off by default — see `JihadBrowserServer.cpp`);
 > `JIHAD_DUMP=1` writes `<state>/frame.ppm`; `JIHAD_PROFILE_DIR` overrides the profile.
 
+> **Termination (2026-08-04):** `Main.cpp` handles **SIGTERM/SIGINT/SIGHUP** — the handler only
+> sets a flag, and the 16 ms tick quits the GLib loop, because `g_main_loop_quit` is not
+> async-signal-safe. This is not hygiene. `stop <job>` sends SIGTERM, and the engine's state is
+> written by DEFERRED savers (the add-on database, prefs) that only flush during XPCOM shutdown;
+> with the default action, `main()` never returned, `XRE_TermEmbedding` never ran, and those
+> changes were lost — an extension disabled from `about:addons` came back enabled. `main()` also
+> SCOPES the server so every page (and `nsIWebBrowser`) is destroyed before the runtime; the other
+> order crashes in engine teardown. Two never-executed teardown paths were broken when they first
+> ran: `YapServerPriv::deadlockDetector` is uninitialized and `run()`'s default never creates it,
+> yet `~YapServer` deletes it anyway; and `~YapServerDeadlockPriv` quit a null loop and joined
+> thread 0. **Anything you add on the shutdown path is, until proven otherwise, untested code.**
+
 > The upstream sources are cloned for reference at `../../../ref-BrowserServer`,
 > `../../../ref-BrowserAdapter`, `../../../ref-AdapterBase`. During Phase 1 the
 > reusable files are imported here (keeping their Apache-2.0 headers); the

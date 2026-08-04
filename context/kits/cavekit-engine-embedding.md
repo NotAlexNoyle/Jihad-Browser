@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-04"
+last_edited: "2026-08-04"
 ---
 
 # Cavekit: Engine Embedding & Build
@@ -25,7 +25,9 @@ integrating the engine's event loop with the daemon's. Reference:
 ### R2: Embedding runtime initialized once per process; instances managed cleanly
 **Description:** The daemon starts the engine runtime once and creates a browser instance per page.
 **Acceptance Criteria:**
-- [x] The embedding runtime initializes successfully at daemon startup and shuts down cleanly at exit.
+- [x] The embedding runtime initializes successfully at daemon startup and shuts down cleanly at exit. *(The shutdown half was marked met in error until 2026-08-04. `XRE_TermEmbedding` was only ever reached by falling off the end of `main()`, and **`main()` never returned**: the GLib loop ran forever and the process was killed by SIGTERM — which is exactly what `stop <job>` sends, i.e. the NORMAL device path. Nothing flushed. The visible cost was elsewhere and took a while to trace back here: an add-on disabled from about:addons came back ENABLED after a restart, because `XPIDatabase` and prefs are DEFERRED savers that only write during XPCOM shutdown. `Main.cpp` now handles SIGTERM/SIGINT/SIGHUP by flagging the tick, which quits the loop (`g_main_loop_quit` is not async-signal-safe), so `run()` returns into the ordinary teardown. Device-verified: a stop with a card connected logs the clean-shutdown line and writes no fault report.)*
+- [x] **Teardown order: every page is destroyed BEFORE the runtime.** *(Added 2026-08-04. `EngineHost::Shutdown` has always carried a caution that `XRE_TermEmbedding` tears down the process-wide runtime and must not run while an `nsIWebBrowser` is live — but nothing enforced it, and nothing could hit it while the daemon simply never exited. The first clean shutdown with a card attached SIGSEGV'd in engine teardown (device, faultaddr=0x150). `main()` now scopes the server, which owns every page, so the pages go away first. If you add another owner of an `nsIWebBrowser`, it belongs inside that scope.)*
+- [x] **Exiting the loop at all exposed dead teardown code that had never run once.** *(2026-08-04: `~YapServer` deletes `YapServerPriv::deadlockDetector`, which is never initialized and — with `run()`'s default `deadlockTimeoutMs` of -1 — is never created either. Indeterminate memory, non-null every time, so the first four clean exits all SIGSEGV'd there. Its own destructor also quit a null loop and joined thread 0 when the watchdog thread had not started. Both guarded. The general lesson for this embedding: **code on a path the process never takes is not "working", it is untested** — expect more of it as other never-run paths become reachable.)*
 - [x] A working profile/data directory is established for the engine.
 - [x] A browser instance is created per page and destroyed on `disconnect`/purge with no leak or crash across repeated create/destroy cycles.
 **Dependencies:** cavekit-ipc-contract.md (R3)
@@ -56,4 +58,5 @@ integrating the engine's event loop with the daemon's. Reference:
 
 ## Changelog
 - 2026-06-30: Initial draft.
+- 2026-08-04: R2 corrected and extended. The "shuts down cleanly at exit" criterion had been met in error — `main()` never returned, so `XRE_TermEmbedding` never ran and the engine's deferred savers never flushed; SIGTERM is now handled. Two new criteria record what that exposed: pages must be destroyed before the runtime (the caution in `EngineHost::Shutdown` was never enforced, and violating it crashed on device), and `~YapServer`'s never-executed teardown was itself broken.
 - 2026-07-04: Status reconciled to implementation — all R1–R4 verified: libxul builds out-of-tree (+ ARM cross-build this session), init/shutdown + 20/20 create-destroy no-leak, event loop integrated, engine not vendored (docs/ENGINE-SOURCE.md).

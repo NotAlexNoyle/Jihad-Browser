@@ -46,7 +46,7 @@ daemon behind while the exit status said success.
 | Script | Pushes | When |
 |--------|--------|------|
 | `push-variant.sh <variant>` | the full payload, then runs that variant's real `postinst` as root | after a packaging change, or to reproduce what an `.ipk` install does |
-| `push-engine-update.sh [variants…]` | `libxul.so` + the daemon (stripped, atomic `mv`), then restarts the upstart job | after an engine or daemon rebuild |
+| `push-engine-update.sh [variants…]` | `libxul.so` + the daemon + **`goanna.js`** (stripped, atomic `mv`), then restarts the upstart job | after an engine, daemon **or pref** rebuild |
 | `push-card-js.sh <variant> <files…>` | card JS/CSS/assets | after a UI change — the fast loop |
 
 `push-card-js.sh` is the one to reach for while working on a shell, and it exists
@@ -62,6 +62,36 @@ because two things on this device make a naive push untrustworthy:
   commands — anything crossing the Luna bus — come back EMPTY with exit 0, which reads
   exactly like "no result". Every device call in the script holds stdin open
   (`sleep 4 | novacom run …`) and retries rather than trusting an empty reply.
+
+`push-engine-update.sh` ships `goanna.js` from `device-bundle/`, not from the dist: the dist copy
+is stock upstream, and the low-RAM / add-on / OMTC pref blocks are appended by
+`make-device-bundle.sh`. **Run `make-device-bundle.sh` after changing a pref**, or the push
+carries the old file. Prefs are read once at engine startup, so a pref-only change still needs
+the daemon restart this script performs — a card reload is not enough.
+
+## Driving the device without touching the screen
+
+The supervised upstart job deliberately does **not** set `JIHAD_INJECT`; the self-drive channel
+stays off in normal operation. To drive a variant, stop its job and run an ad-hoc daemon with the
+same environment plus `JIHAD_INJECT=1` (copy the `exec env` line out of `/etc/event.d/<job>` —
+`LD_LIBRARY_PATH`, `ICU_DATA`, `HOME` and `JIHAD_BS_NAME` are all load-bearing), then write one
+command per line to `$JIHAD_STATE_DIR/inject.cmd`.
+
+Two things will waste your afternoon otherwise:
+
+- **Launch the card AT a URL**: `palm-launch -p '{"target":"…"}' <appid>`. The start page is
+  card-side HTML, and no `BrowserPageGoanna` exists until the card navigates — launch it bare and
+  every inject command answers `inject: no page`.
+- **Stop the ad-hoc daemon with SIGTERM, never `-9`.** The add-on database and prefs are deferred
+  savers that only write during a clean shutdown. Also note the process name is **`ld-2.23.so`**
+  (it runs via the bundled loader), so `killall jihad-browserserver` matches nothing and instances
+  pile up, all polling the same inject file.
+
+A dialog raised while you are driving needs answering, or it takes its default after 60 s: write
+`\x00\x00\x00\x02` then `1\x00` to the `dialog-*.fifo` the daemon logs. `JIHAD_DIALOG_MS`
+shortens the deadline for tests that want the default quickly. If what you are testing is the
+HUMAN path, answer LATE on purpose — a 300 ms scripted answer hid a bug that denied every real
+dialog for months (see `context/kits/cavekit-browser-services.md` R3).
 
 It also closes the running card by its **real** `processId` from
 `applicationManager/running` (note the reply field is lowercase `processid` while the

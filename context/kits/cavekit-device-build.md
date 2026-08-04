@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-31"
+last_edited: "2026-08-04"
 ---
 
 # Cavekit: Device Build & Packaging
@@ -130,6 +130,18 @@ Two decisions supersede the 2026-07-29 shipping model and are now carried by **R
 - [x] With two or more variants installed, each card is served by its own daemon process on its own socket; a crash or restart of one daemon does not disturb another variant's card.
 **Dependencies:** R3, cavekit-ipc-contract.md (R1), cavekit-ui-shell.md, cavekit-mochi-ui.md, cavekit-mojo-ui.md
 
+**Engine PREFS are part of the engine, and are deployed with it (2026-08-04).** Everything that
+tunes this embedding — the low-RAM block, the add-on prefs, OMTC-off — is appended to `goanna.js`
+by `make-device-bundle.sh`, from `packaging/prefs/jihad-addon-prefs.js` and the bundler's own
+blocks. Two consequences that have both bitten: the prefs are read ONCE at engine startup, so a
+pref-only change is an engine change and needs a daemon restart, not just a card reload; and
+`push-engine-update.sh` must ship `goanna.js` alongside `libxul.so` and the daemon, which it did
+not until 2026-08-04 — a pref fixed on desktop left the device silently running the old file.
+An absent pref is not always inert: several are read with a ONE-ARGUMENT `getCharPref`, which
+THROWS rather than returning a default, so *omitting* one can disable a whole subsystem (it
+killed add-on installs, and before that the add-ons manager itself). See
+`packaging/prefs/jihad-addon-prefs.js`, which explains each value at the point it is set.
+
 ### R8: Good webOS citizen — install footprint contract
 **Description:** The package behaves the way webOS expects a third-party app to behave: it keeps its own runtime inside its own app bundle, does not colonize the user's storage, touches the smallest possible amount of the system, and reverses itself exactly. (User decisions 2026-07-31: "without modifying system files", "follow atlas in not copying anything to /media/internal". Reference behavior: the Atlas browser, which runs its engine in place from the app's cryptofs `deviceroot` and copies nothing to `/media/internal`.)
 
@@ -197,6 +209,10 @@ package, so `remove` had nothing to do until Mojo was installed from its `.ipk` 
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-08-04: Recorded that engine PREFS ship in `goanna.js` and deploy with the engine —
+  `push-engine-update.sh` now pushes it, and a pref-only change needs a daemon restart. Also that
+  an ABSENT pref can be actively harmful here, because several are read with a one-argument
+  `getCharPref` that throws instead of defaulting.
 - 2026-06-30: Initial draft.
 - 2026-06-30: Two UI `.ipk`s (Enyo + Mochi) in R3; added R6 TouchPad Go (Opal) support; R4 covers both models.
 - 2026-07-04: Reconciled — R1 crosstool-NG toolchain (GCC 9.4/glibc 2.23 softfp) verified on-device; R2 DONE this session: X/GTK-free headless libxul cross-built, loads on the TouchPad and renders (on-device offscreen ROUND-TRIP PASS, msgPainted 786432). R3 two-.ipk (Mochi UI + real adapter), R4 full UI-on-screen + TouchPad Go, R5 memory budget (29M libxul helps), R6 Opal remain.

@@ -113,6 +113,14 @@ int main(int argc, char** argv) {
   static jihad::EngineHost host;
   if (!host.Init(greDir)) { fprintf(stderr, "[jihad-bs] engine init FAILED\n"); return 1; }
 
+  // Scoped: the server owns every BrowserPage (and therefore every nsIWebBrowser), and
+  // XRE_TermEmbedding tears down the process-wide runtime — running it while a page is
+  // still live is the hazard EngineHost::Shutdown warns about. Letting `server` go out of
+  // scope here destroys the pages FIRST. Not hypothetical: with a card still connected,
+  // shutting down in the other order SIGSEGV'd inside the engine teardown (device,
+  // 2026-08-04, faultaddr=0x150) — and a stop with the browser open is the ordinary case,
+  // not an edge one.
+  {
   JihadBrowserServer server(name, host);
   g_server = &server;
 
@@ -138,6 +146,8 @@ int main(int argc, char** argv) {
   server.run();   // GLib main loop (patched YapServer::run)
   if (g_termSignal)
     printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);
+  g_server = nullptr;
+  }   // every page destroyed here, before the runtime goes away
   // Explicit, not left to static destruction order: this is what flushes the
   // add-on database and prefs. `host` is function-static, so its dtor would run
   // eventually, but Shutdown() is idempotent (mInited) and doing it here keeps

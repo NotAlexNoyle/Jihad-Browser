@@ -113,8 +113,8 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R6: Extension storage respects the install-footprint contract
 **Description:** Add-on data lands where the rest of the engine's state does.
 **Acceptance Criteria:**
-- [ ] Extensions and their data live under the variant's profile on cryptofs — never on `/media/internal` (the user's volume) and never on the 62 MB `/var` partition.
-- [ ] Extension install/removal writes nothing outside the variant's own profile.
+- [x] Extensions and their data live under the variant's profile on cryptofs — never on `/media/internal` (the user's volume) and never on the 62 MB `/var` partition. *(2026-08-04, on device: the XPI installed by the run below landed at `$APP/profile/extensions/jihad-effect@riverstonerelay.net.xpi` on cryptofs, alongside the one already there.)*
+- [x] Extension install/removal writes nothing outside the variant's own profile. *(2026-08-04: a real on-device install — trigger page tapped through the inject channel, confirm accepted, `install status=0` — run between two `device-citizen-audit.sh` snapshots. The diff shows `/media/internal` byte-identical, `/usr/lib/jihad` unchanged, and no new directory anywhere under any variant's profile or cache. The only two new paths in the whole system were `/var/palm/jihad/{mochi,mojo}/jihad-menu.css`, which are not add-on data at all: each daemon writes that AGENT stylesheet into its own state dir at startup, and the mochi/mojo daemons happened to restart during this window (enyo's was already there). Both sit inside the variant-scoped tree that variant's `prerm` removes. NOTE for whoever re-runs this: the snapshot lists the profile tree DIRECTORIES only, deliberately, so a packed `.xpi` — a file — cannot show up there; the positive evidence is the `ls` above, and the snapshot's job is to prove the ABSENCE of anything elsewhere.)*
 **Dependencies:** cavekit-device-build.md (R8)
 
 ### R7: NPAPI plugins load and run

@@ -15,6 +15,14 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 DIST="$HERE/out-arm/obj-jihad-goanna-arm/dist"
 DAEMON="$HERE/out-arm/jihad-browserserver-arm"
+# goanna.js comes from the assembled BUNDLE, not from the dist: the dist copy is the stock
+# upstream file, and the low-RAM / add-on / OMTC pref blocks are appended by
+# make-device-bundle.sh. Pushing it here matters because prefs are read once at engine
+# startup, so a pref-only change is an engine change — and without this the only way to
+# ship one was a full variant push. (2026-08-04: extensions.update.url was fixed on desktop
+# and the device silently kept the old file, which would have failed add-on installs there
+# for a reason already diagnosed.)
+PREFS="$HERE/device-bundle/goanna.js"
 TC_DEFAULT="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi"
 STRIP="${STRIP:-$TC_DEFAULT/bin/arm-webos-linux-gnueabi-strip}"
 
@@ -26,16 +34,19 @@ say() { echo "[engine-update] $*"; }
 
 for v in $VARIANTS; do appid "$v" >/dev/null || die "unknown variant '$v'"; done
 [ -f "$DAEMON" ] || die "no daemon at $DAEMON — run build-daemon-arm.sh"
+[ -f "$PREFS" ] || die "no goanna.js at $PREFS — run make-device-bundle.sh"
 XUL=$(readlink -f "$DIST/bin/libxul.so"); [ -f "$XUL" ] || die "no libxul at $DIST/bin/libxul.so — run build-goanna-arm.sh build"
 [ -x "$STRIP" ] || die "no cross strip at $STRIP"
 novacom -l >/dev/null 2>&1 || die "no device on novacom"
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 cp -L "$XUL" "$TMP/libxul.so"; cp -L "$DAEMON" "$TMP/jihad-browserserver"
+cp -L "$PREFS" "$TMP/goanna.js"
 "$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" 2>/dev/null || true
 XUL_MD5=$(md5sum "$TMP/libxul.so" | cut -c1-32)
 BS_MD5=$(md5sum "$TMP/jihad-browserserver" | cut -c1-32)
-say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5"
+PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
+say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5; goanna.js md5=$PREFS_MD5"
 
 push_verified() { # push_verified <local> <devpath> <md5>
   local ok=""
@@ -64,8 +75,11 @@ for v in $VARIANTS; do
   push_verified "$TMP/libxul.so" "$HL/.libxul.so.new" "$XUL_MD5"
   say "[$v] pushing jihad-browserserver"
   push_verified "$TMP/jihad-browserserver" "$HL/.jihad-browserserver.new" "$BS_MD5"
+  say "[$v] pushing goanna.js"
+  push_verified "$TMP/goanna.js" "$HL/.goanna.js.new" "$PREFS_MD5"
   novacom run file://bin/mv -- "$HL/.libxul.so.new" "$HL/libxul.so"
   novacom run file://bin/mv -- "$HL/.jihad-browserserver.new" "$HL/jihad-browserserver"
+  novacom run file://bin/mv -- "$HL/.goanna.js.new" "$HL/goanna.js"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
   say "[$v] starting $J"
   novacom run file://sbin/start -- "$J" >/dev/null 2>&1 || true

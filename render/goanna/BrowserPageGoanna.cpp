@@ -801,24 +801,48 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     unlink(path.c_str());
     return false;
   }
-  // TWO deadlines, because "nobody is listening" and "a human is reading" need very different
-  // patience. A read-only FIFO with no writer polls POLLHUP; that clears once the adapter opens
-  // its end to answer. So: a SHORT wait for someone to pick up the phone, then a long one for
-  // the answer. Without the first, a daemon with no card attached — or a card whose framework
-  // has no handler for this dialog kind — would sit here for a full minute per dialog and look
-  // like a frozen browser (measured in the desktop harness, which has no card at all).
-  const int kPickupMs = 5000;     // an adapter that is going to answer opens the pipe at once
-  const int kAnswerMs = 60000;    // then a person reads the dialog and decides
+  // ONE deadline, sized for a person.
+  //
+  // This used to be two: a short 5 s "has anyone picked up the phone" wait (detected by the
+  // read-only FIFO's POLLHUP clearing) followed by a long wait for the answer. That reasoning
+  // was wrong about how the card replies. BrowserAdapter::js_sendDialogResponse opens the
+  // pipe ONLY at the moment the user answers (BrowserAdapter.cpp — fopen(gDialogResponsePipe)
+  // inside the response handler); nothing opens the write end while the dialog is merely on
+  // screen. So POLLHUP never cleared early, the 5 s deadline always won, and EVERY dialog a
+  // human took more than five seconds to answer was silently defaulted — the daemon had
+  // already unlinked the FIFO by the time they tapped.
+  //
+  // That is the "clicking the button to install the add-on doesn't do anything" report:
+  // it worked in every harness, because a scripted answerer replies in ~300 ms.
+  //
+  // The short deadline existed to stop a daemon with no card — or a front-end with no handler
+  // for this dialog kind — from wedging for a full minute. That cost is real but bounded, and
+  // it is far better than answering for the user. Harnesses that WANT a fast default set
+  // JIHAD_DIALOG_MS.
+  long deadlineMs = 60000;
+  if (const char* e = getenv("JIHAD_DIALOG_MS")) {
+    long v = atol(e);
+    if (v > 0) deadlineMs = v;
+  }
   std::string data;
   long start = jihadNowMs();
   bool got = false, writerSeen = false;
   for (;;) {
     long elapsed = jihadNowMs() - start;
-    if (elapsed >= (writerSeen ? kAnswerMs : kPickupMs)) break;
+    if (elapsed >= deadlineMs) break;
     struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
     int pr = poll(&pfd, 1, 200);
     if (pr < 0) { if (errno == EINTR) continue; break; }
     if (pr == 0) continue;
+    if (!(pfd.revents & POLLHUP) && !writerSeen) {
+      // First moment the card has the write end open. Timed because "the dialog took a
+      // while to appear" is otherwise unattributable: this line separates OUR side (engine
+      // work to produce the dialog, already measured at ~2 ms on desktop) from the card's
+      // side (YAP delivery + the front-end actually drawing something). Only the second
+      // number can be large, and only the card can fix it.
+      fprintf(stderr, "[jihad-bs] dialog %s: card picked up after %ld ms\n",
+              what, jihadNowMs() - start);
+    }
     if (!(pfd.revents & POLLHUP)) writerSeen = true;   // someone has the write end open
     char buf[512];
     ssize_t n = read(fd, buf, sizeof buf);
@@ -837,8 +861,8 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     if (n < 0 && errno != EAGAIN && errno != EINTR) break;
   }
   if (!writerSeen && !got) {
-    fprintf(stderr, "[jihad-bs] dialog %s: nobody opened the reply pipe in %d ms — "
-                    "no card is answering, taking the default\n", what, kPickupMs);
+    fprintf(stderr, "[jihad-bs] dialog %s: nobody opened the reply pipe in %ld ms — "
+                    "no card is answering, taking the default\n", what, deadlineMs);
   }
   close(fd);
   unlink(path.c_str());
@@ -846,6 +870,7 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     fprintf(stderr, "[jihad-bs] dialog %s: no answer from the card — taking the default\n", what);
     return false;
   }
+  fprintf(stderr, "[jihad-bs] dialog %s: answered after %ld ms\n", what, jihadNowMs() - start);
   size_t pos = 4;
   std::vector<std::string> args;
   while (pos < data.size() && args.size() < 4) {

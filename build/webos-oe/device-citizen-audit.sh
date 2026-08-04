@@ -25,7 +25,24 @@ OUT="$HERE/out-audit"
 # them: the recursive /media/internal walk below can legitimately take minutes on a device with a
 # populated user volume, and a `timeout`-truncated listing would be BOTH wrong and unstable
 # between runs (which is the one thing a byte-comparable snapshot must never be).
-nc() { timeout "${NC_TIMEOUT:-60}" novacom run "file://$1" -- "${@:2}" 2>/dev/null; }
+# `novacom run` DISCARDS output that arrives after the host's stdin hits EOF — the channel
+# close races the reply (proven 2026-08-03: a luna-send probe returned its JSON 2/2 with stdin
+# held open and 0/3 with </dev/null). For THIS script that is not a nuisance but a correctness
+# bug: a truncated listing is a snapshot that is both wrong and unstable between runs, which is
+# exactly what the comment above says must never happen.
+#
+# Do NOT hold it with `sleep N |`: a pipeline caps the call at N seconds, so a long listing is
+# cut off mid-stream and the snapshot still looks plausible. Give novacom a stdin that simply
+# never reaches EOF instead — a FIFO opened read-write — so the only thing that ends a call is
+# novacom itself or `timeout`.
+#
+# (For the record, because it nearly caused a wrong "fix": the /media/internal section
+# legitimately holds ~2,300 entries, not the ~25,000 `find /media/internal` reports, because the
+# walk below PRUNES `/media/internal/.palm` — 22,693 entries of system app data that churn on
+# their own and would swamp the diff. 2,297 + 22,693 = 24,990. A short snapshot here is the
+# prune doing its job, not truncation.)
+NC_FIFO="$(mktemp -u)"; mkfifo "$NC_FIFO"; exec 9<>"$NC_FIFO"; rm -f "$NC_FIFO"
+nc() { timeout "${NC_TIMEOUT:-120}" novacom run "file://$1" -- "${@:2}" <&9 2>/dev/null; }
 
 snap() {
 	local name="${1:?snapshot name required}"

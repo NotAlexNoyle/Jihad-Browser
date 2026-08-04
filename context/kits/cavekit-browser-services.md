@@ -42,6 +42,23 @@ downloads and MIME handoff, and TLS/certificate error handling. Reference:
 - [x] The page blocks until the client replies over the sync pipe, then resumes with the reply value. *(The daemon blocks on the FIFO — opened `O_NONBLOCK` and polled with a 60 s deadline, so an unanswered dialog takes its default instead of wedging the daemon — and parses the adapter's wire format: 4-byte big-endian length, then NUL-terminated args, arg0 `"1"`/`"0"` (`"2"` = SSL trust-once), arg1 prompt text or username. Desktop-verified through a real XPI install: accept came back, the page resumed, and the install completed with status 0. `msgSSLConfirm` still passes an empty pipe path — SSL confirm is the one dialog not yet routed this way.)*
 **Dependencies:** cavekit-engine-embedding.md (R3)
 **Device-verified 2026-08-03**: an engine confirm reached the Enyo card over the FIFO and its ACCEPT came back (`dialog confirm -> ACCEPT`), completing an XPI install on the TouchPad.
+
+**The deadline has to be sized for a PERSON (2026-08-04).** The wait was two-phase: 5 s for
+the card to "pick up" (POLLHUP clearing on the reply FIFO), then 60 s for the answer. The
+premise was wrong. `BrowserAdapter::js_sendDialogResponse` opens the pipe ONLY when the user
+taps a button — nothing opens the write end while the dialog is merely on screen — so the
+pickup phase never ended, the 5 s deadline always won, and **any dialog a human took longer
+than five seconds to answer was silently defaulted**, with the FIFO already unlinked by the
+time they tapped. Every harness passed throughout, because a scripted answerer replies in
+~300 ms; this is a defect that only a human could see, and the user reported it as "clicking
+the button to install the add-on doesn't do anything". Now ONE 60 s deadline (`JIHAD_DIALOG_MS`
+overrides it for harnesses), verified by answering deliberately late — an accept at 11.6 s
+installs. **If you add a dialog kind, do not reintroduce a liveness heuristic based on the
+reply pipe: this protocol gives no signal between "shown" and "answered".**
+
+The wait is also timed in the log now (card-picked-up and answered), because "the dialog was
+slow to appear" is otherwise unattributable. The engine side measures 2 ms from click to
+dialog emitted, so any visible lag is the front-end drawing it.
 **Remaining:** route `msgSSLConfirm` through the same FIFO — it still passes an empty pipe path, so a certificate prompt cannot be answered.
 
 ### R4: Downloads and MIME handoff

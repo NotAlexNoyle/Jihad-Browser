@@ -75,8 +75,8 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **13 domains, 77 requirements, 274 acceptance criteria — 204 met, 18 partial, 52 open**
-(counted from the kit files 2026-08-03; the previous "12 domains, 62 requirements" line had drifted
+Totals: **13 domains, 77 requirements, 276 acceptance criteria — 211 met, 19 partial, 46 open**
+(recounted 2026-08-04 after the engine-popup, XPI-install and dialog work; the previous "12 domains, 62 requirements" line had drifted
 from the files it summarised). Closed this session on top of the earlier scroll / long-press /
 coord-mapping / R7-independence work: the card dev loop, the `<select>` popup on all three
 variants, the Mojo chrome actions, the Mojo toolbar overflow and the shared start page. The bulk
@@ -85,14 +85,16 @@ NPAPI port) and device-build (11: clean-clone reproducibility, Opal, memory budg
 XUL-input and engine-popup work. Every open item is hardware-gated, a named debug lead, or the
 engine-popup-overlay track. **Current priorities — see `../impl/impl-NEXT-AGENT-START-HERE.md`
 for the detailed queue:**
-(1) **`<menupopup>` overlay composite** (addons, tools menu + context menus) — DIAGNOSED
-(separate 0x0 display root): size+show the popup widget and overlay-composite
-`GetVisiblePopups()` after the main paint. `impl-menupopup-2026-08-02.md`;
-(2) **XPI install** (browser-services R3) — wire the authored `amIWebInstallPrompt` observer to a
-card dialog; the card-reply path is proven now, so this is unblocked;
-(3) **chrome icon repaint latency** (addons R2 polish) — repaint-delivery latency, has a debug lead;
-(4) **cookie/cache persistence** (browser-services R2) — no `cookies.sqlite` on device despite a
-correct provider + prefs; the one non-hardware debug lead;
+(1) **cookie/cache persistence** (browser-services R2) — no `cookies.sqlite` on device despite a
+correct provider + prefs; the one non-hardware debug lead left;
+(2) **XUL zoom on `about:addons`** — user-reported as unreliable. The fit-zoom itself is correct
+(a fixed-width 980 px XUL document in a 768 px window), and the popup work does not perturb
+contentSize; an injected zoom is overwritten by the card re-asserting its own, so the actual
+pinch path needs a real gesture. A trace of every zoom the card requests is deployed;
+(3) **chrome icon repaint latency** (addons R2 polish) — repaint-delivery latency, has a debug
+lead. Re-checked 2026-08-04 and NOT reproduced on a fresh load (icons present at 3/8/16 s);
+(4) **SSL accept-and-reload** (browser-services R5) — wired, not yet verified end to end; a cert
+failure also raises an engine ALERT before the confirm, which wants its own look;
 (5) `<select>` `<optgroup>` header rows (needs a daemon reply-index remap); F7 scroll header
 frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
 ui-shell R4 findInPage; device LunaService (IPC R4);

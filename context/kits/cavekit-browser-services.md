@@ -54,8 +54,8 @@ downloads and MIME handoff, and TLS/certificate error handling. Reference:
 ### R5: TLS / certificate error handling
 **Description:** Certificate problems surface as a confirmable dialog.
 **Acceptance Criteria:**
-- [x] An invalid/untrusted certificate emits an SSL-confirm dialog with host, error code, and certificate reference.
-- [ ] Accepting proceeds with the load; rejecting aborts it.
+- [x] An invalid/untrusted certificate emits an SSL-confirm dialog with host, error code, and certificate reference. *(2026-08-03: it now carries a REPLY PIPE too — it was the last dialog passing an empty `syncPipePath`, so a card could show the prompt and never answer it.)*
+- [~] Accepting proceeds with the load; rejecting aborts it. *(Both halves are now WIRED: the daemon waits on the FIFO and, on accept, calls `AcceptCurrentCert()` — which had existed since the TLS work with no caller outside its test — to remember the validity override, then reloads. Rejecting leaves the failed load standing, which is already the behaviour. NOT yet verified end to end: the desktop harness has no card to answer with, and a cert failure raises an engine ALERT before the SSL confirm, which wants investigating on its own. The `tls_test` path (`AcceptCurrentCert` + reload) still passes.)*
 - [ ] On the device build, this integrates with the webOS certificate store as the upstream path did. [human-review on device]
 **Dependencies:** none (desktop TLS-confirm flow stands alone; device cert-store integration is tracked one-way in cavekit-device-build.md R4)
 

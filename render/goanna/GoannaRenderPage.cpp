@@ -64,6 +64,8 @@
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
 #include "nsIDOMDocumentXBL.h"       // reach XBL anonymous content (chrome UI controls)
+#include "nsISSLStatusProvider.h"    // pull the server cert off a failed TLS channel
+#include "nsISSLStatus.h"
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
@@ -294,6 +296,32 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
             mCertError = true;
             u->GetHost(mCertHost);
             int32_t p = -1; u->GetPort(&p); mCertPort = (p < 0) ? 443 : p;
+            // …AND capture the CERTIFICATE, from the failed channel's security info.
+            //
+            // Without this, accepting an untrusted certificate could not work at all:
+            // `AcceptCurrentCert` needs an nsIX509Cert to hand to
+            // RememberValidityOverride, and the only other place one was captured is
+            // `NotifyCertProblem` — which never fires in this embedding, because
+            // nsIBadCertListener2 is reached through the channel's notification
+            // callbacks and nothing routes those to our chrome for the document load.
+            // So the state was certErr=1 with cert=null, and every accept fell out of
+            // AcceptCurrentCert's first guard: the dialog asked, the user said yes, and
+            // the load stayed failed (measured 2026-08-04).
+            //
+            // This is the same route Firefox's own cert-error page uses: the channel's
+            // securityInfo is an nsITransportSecurityInfo that also answers
+            // nsISSLStatusProvider, whose nsISSLStatus carries the server certificate.
+            nsCOMPtr<nsISupports> secInfo;
+            ch->GetSecurityInfo(getter_AddRefs(secInfo));
+            nsCOMPtr<nsISSLStatusProvider> prov = do_QueryInterface(secInfo);
+            nsCOMPtr<nsISSLStatus> st;
+            if (prov) prov->GetSSLStatus(getter_AddRefs(st));
+            if (st) st->GetServerCert(getter_AddRefs(mCertCert));
+            // Kept as a breadcrumb, not a debug leftover: `status=0` here is the exact
+            // reason an accept cannot complete, and it is invisible from anywhere else.
+            fprintf(stderr, "[jihad-bs] ssl: cert error on %s:%d secInfo=%d prov=%d status=%d cert=%d\n",
+                    mCertHost.get(), mCertPort, (int)!!secInfo, (int)!!prov, (int)!!st,
+                    (int)!!mCertCert);
           }
         }
       }
@@ -1456,15 +1484,25 @@ bool GoannaRenderPage::GetCertError(std::string* host, int* code) {
 }
 
 bool GoannaRenderPage::AcceptCurrentCert() {
-  if (!mChrome || !mChrome->mCertError || !mChrome->mCertCert) return false;
+  if (!mChrome || !mChrome->mCertError || !mChrome->mCertCert) {
+    fprintf(stderr, "[jihad-bs] ssl: no cert to accept (chrome=%d certErr=%d cert=%d)\n",
+            (int)!!mChrome, mChrome ? (int)mChrome->mCertError : -1,
+            mChrome ? (int)!!mChrome->mCertCert : -1);
+    return false;
+  }
   nsCOMPtr<nsICertOverrideService> ovr =
     do_GetService(NS_CERTOVERRIDE_CONTRACTID);
-  if (!ovr) return false;
+  if (!ovr) {
+    fprintf(stderr, "[jihad-bs] ssl: no cert-override service (%s)\n", NS_CERTOVERRIDE_CONTRACTID);
+    return false;
+  }
   uint32_t bits = nsICertOverrideService::ERROR_UNTRUSTED |
                   nsICertOverrideService::ERROR_MISMATCH |
                   nsICertOverrideService::ERROR_TIME;
   nsresult rv = ovr->RememberValidityOverride(mChrome->mCertHost, mChrome->mCertPort,
                                               mChrome->mCertCert, bits, /*temporary*/true);
+  fprintf(stderr, "[jihad-bs] ssl: RememberValidityOverride(%s:%d) rv=0x%x\n",
+          mChrome->mCertHost.get(), mChrome->mCertPort, (unsigned)rv);
   return NS_SUCCEEDED(rv);
 }
 

@@ -102,7 +102,7 @@ lead. Re-checked 2026-08-04 and NOT reproduced on a fresh load (icons present at
 failure also raises an engine ALERT before the confirm, which wants its own look;
 (5) `<select>` `<optgroup>` header rows (needs a daemon reply-index remap); F7 scroll header
 frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
-ui-shell R4 findInPage; device LunaService (IPC R4);
+ui-shell R4 findInPage (NOT small — the engine's FindNext SIGSEGVs offscreen; needs a selection controller); device LunaService (IPC R4);
 (6) clean-clone OE reproducibility (device-build #7/#8); TouchPad Go + memory budget (device-build R5/R6).
 Full OE-review findings: `../impl/impl-review-findings-oe.md`.
 

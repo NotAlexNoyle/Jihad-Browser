@@ -645,13 +645,17 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
   finder->SetSearchString(s.get());
   finder->SetFindBackwards(!forward);
   finder->SetSearchFrames(true);
-  // KNOWN LIMITATION: nsIWebBrowserFind::FindNext faults in this offscreen
-  // configuration (it dereferences a frame-selection controller the offscreen
-  // browser doesn't fully set up). The BrowserServer daemon renders offscreen on
-  // the device too, so we must NOT call FindNext here -- it would crash the
-  // daemon. The finder is fully prepared (search string/direction set); wiring
-  // an offscreen-safe selection controller so FindNext can run is future work.
-  // The findString command stays dispatched (contract preserved) and safe.
+  // KNOWN LIMITATION: nsIWebBrowserFind::FindNext faults in this offscreen configuration
+  // (it dereferences a frame-selection controller the offscreen browser doesn't fully set
+  // up). The BrowserServer daemon renders offscreen on the device too, so we must NOT call
+  // FindNext here — it would crash the daemon. The finder is fully prepared (search
+  // string/direction set); wiring an offscreen-safe selection controller so FindNext can
+  // run is future work. The findString command stays dispatched (contract preserved) and safe.
+  //
+  // RE-TESTED 2026-08-04, because this note predates the offscreen widget gaining real event
+  // dispatch, focus and editing (T-067) and might have gone stale: it has not. Calling
+  // FindNext still takes the process down with SIGSEGV (find_test exit 139). The limitation
+  // is current, not inherited.
   return false;
 }
 

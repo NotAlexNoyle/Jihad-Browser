@@ -194,6 +194,7 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   back|forward|reload|stop
 //   move X Y           -> pointer move (rollover highlight over an open menu)
 //   clickid <id>       -> click an element by id at its centre (ignores zoom/scroll)
+//   addon <id> on|off  -> enable/disable an installed add-on
 //   rect <id>          -> report an element's viewport rect
 //   scroll X Y         -> setScrollPosition
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
@@ -294,6 +295,15 @@ void JihadBrowserServer::processInjectFile() {
       while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
       printf("[jihad-bs] inject clickid %s ok=%d\n", id.c_str(),
              (int)jihad::DebugClickElement(id.c_str()));
+    } else if (strncmp(c.c_str(), "addon ", 6) == 0) {
+      // DEBUG: `addon <id> on|off` — flip an installed add-on's enabled state.
+      std::string rest = c.substr(6);
+      while (!rest.empty() && (rest.back()=='\n' || rest.back()=='\r' || rest.back()==' ')) rest.pop_back();
+      size_t sp = rest.rfind(' ');
+      std::string id = (sp == std::string::npos) ? rest : rest.substr(0, sp);
+      std::string act = (sp == std::string::npos) ? "off" : rest.substr(sp + 1);
+      printf("[jihad-bs] inject addon %s %s ok=%d\n", id.c_str(), act.c_str(),
+             (int)jihad::DebugSetAddonEnabled(id.c_str(), act == "on"));
     } else if (strncmp(c.c_str(), "rect ", 5) == 0) {
       // DEBUG: report an element's viewport rect by id, so a test can click a real
       // control instead of guessing coordinates (chrome XUL has no other way in from

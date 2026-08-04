@@ -61,6 +61,10 @@ std::string DebugElementRect(const char* elementId);
 // test does not have to undo the daemon's zoom/scroll mapping to hit a known control.
 bool DebugClickElement(const char* elementId);
 
+// DEBUG ONLY: enable/disable an installed add-on by id (R4's "disabling stops the effect",
+// which otherwise needs a chrome UI this embedding does not have).
+bool DebugSetAddonEnabled(const char* addonId, bool enable);
+
 class GoannaRenderPage
 {
 public:

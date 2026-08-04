@@ -522,6 +522,28 @@ bool DebugClickElement(const char* elementId) {
   return true;
 }
 
+// DEBUG ONLY: enable/disable an installed add-on by id, so a test can prove that disabling
+// an extension stops its effect (cavekit-addons-extensions.md R4) without a chrome UI to
+// click. Runs against the AddonManager through the frozen script surface: the add-on
+// manager is JS, so this goes through a privileged sandbox rather than XPCOM directly.
+bool DebugSetAddonEnabled(const char* addonId, bool enable) {
+  if (!addonId) return false;
+  nsCOMPtr<nsIScriptSecurityManager> ssm =
+    do_GetService("@mozilla.org/scriptsecuritymanager;1");
+  if (!ssm) return false;
+  fprintf(stderr, "[jihad-bs] debug addon %s -> %s\n", addonId, enable ? "enable" : "disable");
+  // AddonManager.getAddonByID is async; the callback flips userDisabled. A bootstrapped
+  // add-on's shutdown()/startup() then runs immediately, which is the observable part.
+  std::string js = std::string("javascript:void(function(){")
+    + "Components.utils.import('resource://gre/modules/AddonManager.jsm');"
+    + "AddonManager.getAddonByID('" + addonId + "', function(a){"
+    + "  if (a) { a.userDisabled = " + (enable ? "false" : "true") + "; }"
+    + "  Components.utils.reportError('[JIHAD-ADDON] ' + (a ? ('"
+    + (enable ? "enabled" : "disabled") + " ' + a.name) : 'not found'));"
+    + "});}())";
+  return DebugRunChromeJs(js.c_str());
+}
+
 std::string DebugElementRect(const char* elementId) {
   GoannaRenderPage* page = sDebugLastPage;
   if (!page || !elementId) return std::string();

@@ -95,8 +95,8 @@ Nothing needs to be added to the engine build for the UI to exist:
 ### R4: An installed extension actually affects browsing
 **Description:** Extensions are functional, not just listed.
 **Acceptance Criteria:**
-- [ ] A test extension that observably alters page behavior (e.g. blocks a request, injects a style, or rewrites content) demonstrably does so on a real page.
-- [ ] Disabling it stops the effect; re-enabling restores it.
+- [x] A test extension that observably alters page behavior (e.g. blocks a request, injects a style, or rewrites content) demonstrably does so on a real page. *(2026-08-04: a bootstrapped extension registering a USER stylesheet, installed through the web-install flow. Judged from the PIXELS, not a log line — it paints page backgrounds a colour nothing else here uses, and the rendered frame carries 693,224 of them.)*
+- [x] Disabling it stops the effect; re-enabling restores it. *(Both driven through the REAL `about:addons` UI — clicking its Disable/Enable buttons, which also exercises the XUL input path. The extension's `shutdown()`/`startup()` run on each click and the page rendering follows exactly: 693,224 → 0 → 693,224 styled pixels. NB the list re-sorts enabled-first on every toggle, so a test must locate the button in the CURRENT frame rather than reuse a coordinate.)*
 **Dependencies:** R3
 
 ### R5: Extensions are per-variant and survive restart

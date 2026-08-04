@@ -1,5 +1,51 @@
 # Device Handoff — pick up the `.ipk` / on-device track here
 
+> ## 2026-08-04 — READ FIRST
+>
+> **Dialogs gave the user five seconds to answer, then answered for them.** The daemon waited
+> 5 s for the card to "pick up" (POLLHUP on the reply FIFO) before defaulting.
+> `BrowserAdapter::js_sendDialogResponse` opens that pipe ONLY when the user taps, so the pickup
+> phase never ended and **every dialog answered later than 5 s was silently denied** — the FIFO
+> was already unlinked by the time the tap landed. Every harness passed: a scripted answerer
+> replies in ~300 ms. This is the "clicking the button to install the add-on doesn't do anything"
+> report. Now one 60 s deadline (`JIHAD_DIALOG_MS` for harnesses), verified by answering at
+> 11.6 s. **Do not reintroduce a liveness heuristic on the reply pipe** — the protocol has no
+> signal between "shown" and "answered". The wait is timed in the log now; the engine side is
+> 2 ms from click to dialog, so visible lag is the front-end drawing it.
+>
+> **The daemon now shuts down cleanly on SIGTERM** — which is what `stop <job>` sends. It had no
+> handler, so the engine's deferred savers (add-on DB, prefs) never flushed: disabling an add-on
+> from about:addons came back ENABLED after a restart. Two latent crashes surfaced the moment a
+> clean exit existed at all, both because `~YapServer` had never once run — an uninitialized
+> `deadlockDetector` that the dtor deletes anyway, and `XRE_TermEmbedding` running while pages
+> were still live. Both fixed; a device stop with a card connected is now clean, no fault report.
+>
+> **`extensions.update.url` must EXIST even though updates are off.** `XPIProvider`'s
+> `UpdateChecker` reads it with a ONE-ARGUMENT `getCharPref`, which THROWS when the pref is
+> absent, and the GRE ships no value. Any install reaching an update check died silently. Same
+> trap as the AppCompat GUID prefs, one pref further on.
+>
+> **`push-engine-update.sh` now pushes `goanna.js` too** (from `device-bundle/`, which is where
+> the pref blocks are appended). Prefs are read once at engine start, so a pref-only change is an
+> engine change — previously the only way to ship one was a full variant push, and the device
+> silently kept running the old file.
+>
+> **`jsurl` does NOT execute in a chrome document.** `LoadURIWithOptions` returns NS_OK so the
+> inject line prints `ok=1`, and nothing runs — no error, no console output. To drive about:addons
+> from here, click the real controls: `rect`/`clickid` gained `sel:<css>` and
+> `anon:<css>|<anonid>` forms, since the row's enable/disable/remove buttons are XBL anonymous
+> content that no id can reach.
+>
+> **Met this session:** addons R2 (enable/disable/remove from the real UI, each surviving a
+> SIGTERM restart) and addons R6 (on-device install between two footprint snapshots:
+> `/media/internal` byte-identical, nothing new outside the variant's own tree).
+>
+> **Device workflow note:** the supervised upstart job deliberately does not set `JIHAD_INJECT`.
+> To drive the device, stop the job and run an ad-hoc daemon with the same env plus
+> `JIHAD_INJECT=1`, and launch the card AT a URL (`palm-launch -p '{"target":"…"}'`) — the card
+> creates no engine page until it navigates, so `inject` reports "no page" otherwise.
+
+
 > ## 2026-08-03 (second session) — READ FIRST (full handoff: `context/impl/impl-NEXT-AGENT-START-HERE.md`)
 >
 > **The card JS dev loop is RESTORED — use `build/webos-oe/push-card-js.sh <variant> <files…>`.**

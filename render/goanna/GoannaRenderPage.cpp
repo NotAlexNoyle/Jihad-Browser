@@ -43,6 +43,12 @@
 #include "nsIX509Cert.h"
 #include "nsICertOverrideService.h"
 #include "nsIDOMClientRect.h"
+#include "nsICookieManager.h"        // cookie persistence probe (browser-services R2)
+#include "nsICookieService.h"
+#include "nsIIOService.h"
+#include "nsICookie2.h"
+#include "nsISimpleEnumerator.h"
+#include <ctime>
 #include "nsWeakReference.h"
 #include "nsIWeakReferenceUtils.h"
 #include "nsThreadUtils.h"
@@ -542,6 +548,48 @@ bool DebugSetAddonEnabled(const char* addonId, bool enable) {
     + (enable ? "enabled" : "disabled") + " ' + a.name) : 'not found'));"
     + "});}())";
   return DebugRunChromeJs(js.c_str());
+}
+
+// DEBUG ONLY: write a persistent cookie, and count the persistent cookies currently stored.
+// Exists to test PERSISTENCE (browser-services R2) without depending on a website that
+// happens to set one: `cookie set` then a daemon restart then `cookie count` answers the
+// question directly. Uses the cookie manager, i.e. the same store cookies.sqlite backs.
+bool DebugCookieSet(const char* host, const char* name, const char* value) {
+  if (!host || !name || !value) return false;
+  // Via the cookie SERVICE, exactly as an HTTP response would set it — not the cookie
+  // manager's AddNative, whose NeckoOriginAttributes constructor is not exported to the
+  // frozen SDK (it links against internal-API-only symbols). This also exercises the
+  // realistic path: URI in, Set-Cookie header semantics, engine decides persistence.
+  nsCOMPtr<nsICookieService> cs = do_GetService("@mozilla.org/cookieService;1");
+  nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
+  if (!cs || !ios) { fprintf(stderr, "[jihad-bs] cookie: no cookie service\n"); return false; }
+  nsCOMPtr<nsIURI> uri;
+  nsAutoCString spec("http://"); spec.Append(host); spec.Append("/");
+  if (NS_FAILED(ios->NewURI(spec, nullptr, nullptr, getter_AddRefs(uri))) || !uri) return false;
+  // A year-long Max-Age, so the engine MUST write it to disk for it to survive a restart.
+  nsAutoCString ck(name); ck.Append("="); ck.Append(value);
+  ck.Append("; path=/; max-age=31536000");
+  nsresult rv = cs->SetCookieString(uri, nullptr, ck.get(), nullptr);
+  fprintf(stderr, "[jihad-bs] cookie set %s %s=%s rv=0x%x\n", host, name, value, (unsigned)rv);
+  return NS_SUCCEEDED(rv);
+}
+
+int DebugCookieCount() {
+  nsCOMPtr<nsICookieManager> cm = do_GetService("@mozilla.org/cookiemanager;1");
+  if (!cm) return -1;
+  nsCOMPtr<nsISimpleEnumerator> e;
+  if (NS_FAILED(cm->GetEnumerator(getter_AddRefs(e))) || !e) return -1;
+  int n = 0; bool more = false;
+  while (NS_SUCCEEDED(e->HasMoreElements(&more)) && more) {
+    nsCOMPtr<nsISupports> s2; e->GetNext(getter_AddRefs(s2));
+    nsCOMPtr<nsICookie2> c = do_QueryInterface(s2);
+    if (c) {
+      nsAutoCString h, nm; c->GetHost(h); c->GetName(nm);
+      fprintf(stderr, "[jihad-bs] cookie: %s %s\n", h.get(), nm.get());
+      ++n;
+    }
+  }
+  return n;
 }
 
 std::string DebugElementRect(const char* elementId) {

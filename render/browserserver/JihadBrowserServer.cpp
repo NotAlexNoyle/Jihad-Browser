@@ -195,6 +195,7 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   move X Y           -> pointer move (rollover highlight over an open menu)
 //   clickid <id>       -> click an element by id at its centre (ignores zoom/scroll)
 //   addon <id> on|off  -> enable/disable an installed add-on
+//   cookie set H N V   -> store a persistent cookie;  cookie count -> list/count them
 //   rect <id>          -> report an element's viewport rect
 //   scroll X Y         -> setScrollPosition
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
@@ -304,6 +305,16 @@ void JihadBrowserServer::processInjectFile() {
       std::string act = (sp == std::string::npos) ? "off" : rest.substr(sp + 1);
       printf("[jihad-bs] inject addon %s %s ok=%d\n", id.c_str(), act.c_str(),
              (int)jihad::DebugSetAddonEnabled(id.c_str(), act == "on"));
+    } else if (strncmp(c.c_str(), "cookie ", 7) == 0) {
+      // DEBUG: `cookie set <host> <name> <value>` | `cookie count`.
+      std::string rest = c.substr(7);
+      while (!rest.empty() && (rest.back()=='\n' || rest.back()=='\r')) rest.pop_back();
+      char h[128] = {0}, n2[64] = {0}, v[128] = {0};
+      if (sscanf(rest.c_str(), "set %127s %63s %127s", h, n2, v) == 3) {
+        printf("[jihad-bs] inject cookie set ok=%d\n", (int)jihad::DebugCookieSet(h, n2, v));
+      } else {
+        printf("[jihad-bs] inject cookie count=%d\n", jihad::DebugCookieCount());
+      }
     } else if (strncmp(c.c_str(), "rect ", 5) == 0) {
       // DEBUG: report an element's viewport rect by id, so a test can click a real
       // control instead of guessing coordinates (chrome XUL has no other way in from

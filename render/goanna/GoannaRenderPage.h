@@ -65,6 +65,11 @@ bool DebugClickElement(const char* elementId);
 // which otherwise needs a chrome UI this embedding does not have).
 bool DebugSetAddonEnabled(const char* addonId, bool enable);
 
+// DEBUG ONLY: cookie persistence probe (browser-services R2) — write a year-long cookie,
+// and count/list what the store currently holds, so a restart test needs no website.
+bool DebugCookieSet(const char* host, const char* name, const char* value);
+int DebugCookieCount();
+
 class GoannaRenderPage
 {
 public:

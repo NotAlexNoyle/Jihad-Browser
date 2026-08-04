@@ -46,6 +46,9 @@
 #include "nsICookieManager.h"        // cookie persistence probe (browser-services R2)
 #include "nsICookieService.h"
 #include "nsIIOService.h"
+#include "nsIChannel.h"
+#include "nsILoadInfo.h"
+#include "nsIContentPolicy.h"
 #include "nsICookie2.h"
 #include "nsISimpleEnumerator.h"
 #include <ctime>
@@ -569,7 +572,26 @@ bool DebugCookieSet(const char* host, const char* name, const char* value) {
   // A year-long Max-Age, so the engine MUST write it to disk for it to survive a restart.
   nsAutoCString ck(name); ck.Append("="); ck.Append(value);
   ck.Append("; path=/; max-age=31536000");
-  nsresult rv = cs->SetCookieString(uri, nullptr, ck.get(), nullptr);
+  // A CHANNEL is required, not optional: nsCookieService derives the origin attributes and
+  // the third-party decision from it and dereferences it without a null check. Passing
+  // nullptr here SIGSEGVs the daemon at address 0 — measured on device, and it is what made
+  // an earlier desktop run of this probe silently produce nothing (the daemon had died).
+  nsCOMPtr<nsIScriptSecurityManager> ssm =
+    do_GetService("@mozilla.org/scriptsecuritymanager;1");
+  nsCOMPtr<nsIPrincipal> systemPrincipal;
+  if (ssm) ssm->GetSystemPrincipal(getter_AddRefs(systemPrincipal));
+  nsCOMPtr<nsIChannel> channel;
+  if (systemPrincipal) {
+    ios->NewChannelFromURI2(uri, nullptr, systemPrincipal, systemPrincipal,
+                            nsILoadInfo::SEC_ALLOW_CROSS_ORIGIN_DATA_INHERITS,
+                            nsIContentPolicy::TYPE_OTHER, getter_AddRefs(channel));
+  }
+  if (!channel) {
+    fprintf(stderr, "[jihad-bs] cookie: could not build a channel — refusing to call the "
+                    "cookie service with a null one (it would crash)\n");
+    return false;
+  }
+  nsresult rv = cs->SetCookieString(uri, nullptr, ck.get(), channel);
   fprintf(stderr, "[jihad-bs] cookie set %s %s=%s rv=0x%x\n", host, name, value, (unsigned)rv);
   return NS_SUCCEEDED(rv);
 }

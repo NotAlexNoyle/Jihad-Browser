@@ -63,6 +63,7 @@
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
+#include "nsIDOMDocumentXBL.h"       // reach XBL anonymous content (chrome UI controls)
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
@@ -625,8 +626,39 @@ std::string DebugElementRect(const char* elementId) {
   if (!cv) return std::string();
   nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
   if (!doc) return std::string();
+  // Three lookup forms. Plain ids cover content pages, but the chrome UI this has to be
+  // able to drive keeps its controls in two places an id cannot reach:
+  //   <id>                     getElementById
+  //   sel:<css>                querySelector — for XUL nodes keyed by attribute rather
+  //                            than id, e.g. an about:addons row is
+  //                            `richlistitem[value="<addon id>"]` (extensions.js:1428)
+  //   anon:<css>|<anonid>      the row's own buttons (enable/disable/remove) live in XBL
+  //                            ANONYMOUS content, so they are invisible to both of the
+  //                            above; resolve the host, then its anonid child.
+  // This exists because `jsurl` — the other way into chrome — does NOT execute in a
+  // chrome document: LoadURIWithOptions returns NS_OK, so the inject line prints ok=1,
+  // and nothing runs. Measured 2026-08-04 against about:addons (a javascript: URL setting
+  // document.title, then reportError, then a gViewController call: no effect, no error,
+  // no console output). Clicking the real control is therefore the ONLY way to exercise
+  // this UI from here — which is also the more honest test.
   nsCOMPtr<nsIDOMElement> el;
-  doc->GetElementById(NS_ConvertUTF8toUTF16(elementId), getter_AddRefs(el));
+  if (strncmp(elementId, "anon:", 5) == 0) {
+    const char* rest = elementId + 5;
+    const char* bar = strchr(rest, '|');
+    if (!bar) return std::string("(anon: needs <css>|<anonid>)");
+    nsCOMPtr<nsIDOMElement> host;
+    doc->QuerySelector(NS_ConvertUTF8toUTF16(std::string(rest, bar - rest).c_str()),
+                       getter_AddRefs(host));
+    if (!host) return std::string("(no host)");
+    nsCOMPtr<nsIDOMDocumentXBL> xbl = do_QueryInterface(doc);
+    if (!xbl) return std::string("(no xbl)");
+    xbl->GetAnonymousElementByAttribute(host, NS_LITERAL_STRING("anonid"),
+                                        NS_ConvertUTF8toUTF16(bar + 1), getter_AddRefs(el));
+  } else if (strncmp(elementId, "sel:", 4) == 0) {
+    doc->QuerySelector(NS_ConvertUTF8toUTF16(elementId + 4), getter_AddRefs(el));
+  } else {
+    doc->GetElementById(NS_ConvertUTF8toUTF16(elementId), getter_AddRefs(el));
+  }
   if (!el) return std::string("(no element)");
   nsCOMPtr<nsIDOMClientRect> r;
   el->GetBoundingClientRect(getter_AddRefs(r));

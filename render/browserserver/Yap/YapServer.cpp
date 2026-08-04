@@ -109,8 +109,11 @@ YapServerDeadlockPriv::YapServerDeadlockPriv(int deadlockTimeoutMs)
 
 YapServerDeadlockPriv::~YapServerDeadlockPriv()
 {
-    g_main_loop_quit(threadMainLoop);
-    pthread_join(threadId, NULL);
+    // Both members stay zero until the watchdog THREAD starts, and it only starts on the
+    // first deadlockTimerCallback — half the timeout, so ~7.5 s by default. A server torn
+    // down before then would quit a null loop and join thread 0.
+    if (threadMainLoop) g_main_loop_quit(threadMainLoop);
+    if (threadId) pthread_join(threadId, NULL);
 }
 
 void YapServerDeadlockPriv::attach(GMainContext *context)
@@ -263,6 +266,14 @@ YapServer::YapServer(const char* name)
     d->mainLoop      = 0;
     d->mainCtxt      = 0;
     d->ioSource      = 0;
+    // Left uninitialized upstream. YapServerPriv is allocated with a plain `new`, so
+    // this member holds indeterminate memory, and run()'s default deadlockTimeoutMs of
+    // -1 means the detector is normally NEVER created — yet ~YapServer does
+    // `if (d->deadlockDetector) delete d->deadlockDetector`. Upstream never noticed
+    // because its server never returned from run(); ours now does, on SIGTERM, and the
+    // garbage pointer was reliably non-null: every clean shutdown SIGSEGV'd inside
+    // ~YapServerDeadlockPriv (measured 2026-08-04, four for four).
+    d->deadlockDetector = 0;
 
     ::snprintf(d->socketPath, G_N_ELEMENTS(d->socketPath), "%s%s", kSocketPathPrefix, name);
     ::unlink(d->socketPath);

@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 
 #include "JihadBrowserServer.h"
 #include "../goanna/EngineHost.h"
@@ -21,7 +22,36 @@
 #include "../goanna/JihadCrashReport.h"    // self-reporting fatal-signal dump
 
 static JihadBrowserServer* g_server = nullptr;
-static gboolean tick_cb(gpointer) { if (g_server) g_server->tick(); return TRUE; }
+
+// ── clean termination ───────────────────────────────────────────────────────
+// SIGTERM must NOT be left on its default action. Engine state is written by
+// DEFERRED savers — the add-on database (XPIDatabase/DeferredSave), prefs.js
+// (savePrefFile), permissions — which only flush when XPCOM shuts down. Default
+// SIGTERM kills the process outright, so XRE_TermEmbedding never runs, nothing
+// flushes, and the last changes are silently lost.
+//
+// That is not theoretical: measured 2026-08-04. Disabling an extension from
+// about:addons ran its shutdown() (the UI half worked), the daemon was then
+// killed and restarted, and the add-on came back ENABLED — userDisabled had
+// never reached extensions.json. On device this is the NORMAL path, not an edge
+// case: `stop jihad-browserserver-<variant>` is how upstart stops the job, and
+// it sends SIGTERM.
+//
+// The handler only sets a flag. g_main_loop_quit is not async-signal-safe, so
+// the 16 ms tick — already running — observes the flag and quits the loop; run()
+// returns and the ordinary shutdown path (EngineHost dtor -> XRE_TermEmbedding)
+// flushes everything.
+static volatile sig_atomic_t g_termSignal = 0;
+static void term_handler(int sig) { g_termSignal = sig; }
+
+static gboolean tick_cb(gpointer) {
+  if (g_termSignal) {
+    if (g_server && g_server->mainLoop()) g_main_loop_quit(g_server->mainLoop());
+    return FALSE;
+  }
+  if (g_server) g_server->tick();
+  return TRUE;
+}
 
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);
@@ -93,8 +123,26 @@ int main(int argc, char** argv) {
   g_source_attach(src, ctx);
   g_source_unref(src);
 
+  // Installed AFTER engine init: EngineHost::Init re-arms the fatal-signal
+  // handlers, and this must sit on top of whatever it leaves behind. SA_RESTART
+  // so a signal never turns a socket read into a spurious EINTR failure.
+  struct sigaction sa;
+  memset(&sa, 0, sizeof sa);
+  sa.sa_handler = term_handler;
+  sa.sa_flags = SA_RESTART;
+  sigaction(SIGTERM, &sa, nullptr);
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGHUP, &sa, nullptr);
+
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);
   server.run();   // GLib main loop (patched YapServer::run)
+  if (g_termSignal)
+    printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);
+  // Explicit, not left to static destruction order: this is what flushes the
+  // add-on database and prefs. `host` is function-static, so its dtor would run
+  // eventually, but Shutdown() is idempotent (mInited) and doing it here keeps
+  // the flush inside the part of the program that can still report a problem.
+  host.Shutdown();
   printf("[jihad-bs] exited\n");
   return 0;
 }

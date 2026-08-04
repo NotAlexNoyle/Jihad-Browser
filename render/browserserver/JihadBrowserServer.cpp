@@ -316,9 +316,11 @@ void JihadBrowserServer::processInjectFile() {
         printf("[jihad-bs] inject cookie count=%d\n", jihad::DebugCookieCount());
       }
     } else if (strncmp(c.c_str(), "rect ", 5) == 0) {
-      // DEBUG: report an element's viewport rect by id, so a test can click a real
-      // control instead of guessing coordinates (chrome XUL has no other way in from
-      // here — a javascript: URL does not run in a chrome document).
+      // DEBUG: report an element's viewport rect, so a test can click a real control
+      // instead of guessing coordinates (chrome XUL has no other way in from here — a
+      // javascript: URL does not run in a chrome document; `jsurl` prints ok=1 and does
+      // nothing there). Three forms, see DebugElementRect:
+      //   rect <id>                     rect sel:<css>                rect anon:<css>|<anonid>
       std::string id = c.substr(5);
       while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
       printf("[jihad-bs] inject rect %s\n", jihad::DebugElementRect(id.c_str()).c_str());

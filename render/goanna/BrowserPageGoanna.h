@@ -22,7 +22,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "GoannaRenderPage.h"   // GoannaRenderPage + global browser-service fns
+#include "GoannaRenderPage.h"
+#include "DialogService.h"      // DialogSink: engine dialogs -> this page's card   // GoannaRenderPage + global browser-service fns
 
 namespace jihad {
 
@@ -55,6 +56,22 @@ public:
     (void)host; (void)code; (void)certFile;
   }
   virtual void msgLinkClicked(const char* url) { (void)url; }
+  // Content opened a JS dialog (alert/confirm/prompt/auth). syncPipePath is a FIFO the
+  // daemon is about to block on: the adapter stashes it, shows the card's dialog, and the
+  // card's sendDialogResponse writes the answer back through it. Frozen contract — the
+  // adapter and all three cards already implement their ends.
+  virtual void msgDialogAlert(const char* syncPipePath, const char* msg) {
+    (void)syncPipePath; (void)msg;
+  }
+  virtual void msgDialogConfirm(const char* syncPipePath, const char* msg) {
+    (void)syncPipePath; (void)msg;
+  }
+  virtual void msgDialogPrompt(const char* syncPipePath, const char* msg, const char* defaultValue) {
+    (void)syncPipePath; (void)msg; (void)defaultValue;
+  }
+  virtual void msgDialogUserPassword(const char* syncPipePath, const char* msg) {
+    (void)syncPipePath; (void)msg;
+  }
   // A dropdown <select> was tapped -> the card shows a native option list (Atlas model).
   // menuDataFileName is a temp JSON file the adapter reads + unlinks. The choice returns via
   // asyncCmdPopupMenuSelect -> BrowserPageGoanna::popupMenuSelect.
@@ -94,11 +111,17 @@ public:
   }
 };
 
-class BrowserPageGoanna
+// Also the DialogSink for its own page: an engine-raised JS dialog (alert/confirm/prompt/
+// auth, and the XPI install confirm) is emitted to THIS page's card over the frozen contract
+// and answered through the sync FIFO the adapter writes back.
+class BrowserPageGoanna : public DialogSink
 {
 public:
   BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink);
   ~BrowserPageGoanna();
+
+  // jihad::DialogSink — called synchronously on the engine thread.
+  void OnDialog(DialogKind kind, const char* text, DialogReply* reply) override;
 
   // --- lifecycle / surface (YAP: connect/setWindowSize) ---
   // Attach the double-buffered shared memory the adapter provided (SysV keys).

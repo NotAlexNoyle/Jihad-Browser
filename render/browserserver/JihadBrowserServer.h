@@ -40,6 +40,10 @@ public:
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
   void msgUrlRedirected(const char* url, const char* userData) override;
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
+  void msgDialogAlert(const char* syncPipePath, const char* msg) override;
+  void msgDialogConfirm(const char* syncPipePath, const char* msg) override;
+  void msgDialogPrompt(const char* syncPipePath, const char* msg, const char* defaultValue) override;
+  void msgDialogUserPassword(const char* syncPipePath, const char* msg) override;
   void msgLinkClicked(const char* url) override;
   void msgPopupMenuShow(const char* identifier, const char* menuDataFileName) override;
   void msgMimeHandoffUrl(const char* mimeType, const char* url) override;

@@ -22,7 +22,12 @@
 #include <regex.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <sys/stat.h>   // chmod (popup menu data file 0644)
+#include <sys/stat.h>   // chmod (popup menu data file 0644), mkfifo (dialog reply pipe)
+#include <fcntl.h>      // open() the dialog reply FIFO
+#include <poll.h>       // wait for the card's answer with a deadline
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
 
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
@@ -57,6 +62,10 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   mLastProgress = 0;
   mWatchdogDismissed = false;
   mDirtyPending = false; mLastDirtyPaintMs = 0;
+  // Engine dialogs are process-wide (one prompter service), so the LAST page created owns
+  // them — the same single-page-embedding assumption DebugRunChromeJs already makes. Without
+  // this nothing implements DialogSink and every dialog silently takes its default.
+  SetDialogSink(this);
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -113,6 +122,8 @@ void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
+  // Never leave the process-wide sink pointing at a destroyed page.
+  SetDialogSink(nullptr);
   // The BrowserAdapter owns the shared segments (it allocated them and passed
   // the keys via connect()); the daemon must NOT IPC_RMID them (Codex P1).
   detachShm();
@@ -747,6 +758,97 @@ void BrowserPageGoanna::emitSelectPopupIfPending() {
   chmod(path.c_str(), 0644);
   fprintf(stderr, "[jihad-bs] popupMenuShow id=%s items->%s\n", id.c_str(), path.c_str());
   mSink.msgPopupMenuShow(id.c_str(), path.c_str());
+}
+
+// --- engine JS dialogs -> this page's card (browser-services R3) ------------------------------
+//
+// The engine raises a dialog on its own thread and BLOCKS the page until it has an answer. The
+// frozen contract carries the question over YAP with the path of a FIFO, and the card's
+// sendDialogResponse writes the answer back through it (BrowserAdapter::js_sendDialogResponse:
+// a 4-byte big-endian length, then each argument NUL-terminated). Until now nothing in the daemon
+// implemented DialogSink at all, so every engine dialog took its default and no card ever saw one.
+//
+// Blocking here is safe and is what the contract expects: the YAP message is written to the socket
+// before we wait, and the answer comes back through the FIFO, not through the tick loop we are
+// standing in. The TIMEOUT is the part that must not be skipped — a card that never answers (no
+// dialog handler, a card that died mid-prompt) would otherwise hang the daemon forever.
+void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply* reply) {
+  if (!reply) return;
+  // Defaults are the safe answer for each kind, and stand if anything below fails.
+  reply->accept = false;
+  reply->promptValue.clear();
+
+  static unsigned sSeq = 0;
+  std::string path = jihad::RuntimeResolvePath("1",
+      (std::string("dialog-") + std::to_string(++sSeq) + ".fifo").c_str());
+  if (path.empty()) {
+    fprintf(stderr, "[jihad-bs] dialog: no state dir for the reply pipe — taking the default\n");
+    return;
+  }
+  unlink(path.c_str());
+  if (mkfifo(path.c_str(), 0600) != 0) {
+    fprintf(stderr, "[jihad-bs] dialog: mkfifo %s failed (%s) — taking the default\n",
+            path.c_str(), strerror(errno));
+    return;
+  }
+
+  const char* kindName = (kind == DialogKind::Alert)   ? "alert"
+                       : (kind == DialogKind::Confirm) ? "confirm"
+                       : (kind == DialogKind::Prompt)  ? "prompt" : "auth";
+  fprintf(stderr, "[jihad-bs] dialog %s -> card (pipe %s)\n", kindName, path.c_str());
+
+  switch (kind) {
+    case DialogKind::Alert:   mSink.msgDialogAlert(path.c_str(), text ? text : ""); break;
+    case DialogKind::Confirm: mSink.msgDialogConfirm(path.c_str(), text ? text : ""); break;
+    case DialogKind::Prompt:  mSink.msgDialogPrompt(path.c_str(), text ? text : "",
+                                                    reply->promptValue.c_str()); break;
+    default:                  mSink.msgDialogUserPassword(path.c_str(), text ? text : ""); break;
+  }
+
+  // Wait for the card. O_NONBLOCK on open so a card that never opens the write end cannot wedge
+  // us in open() itself, then poll for the data with a deadline.
+  int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+  if (fd < 0) {
+    fprintf(stderr, "[jihad-bs] dialog: cannot open reply pipe (%s)\n", strerror(errno));
+    unlink(path.c_str());
+    return;
+  }
+  const int kTimeoutMs = 60000;   // a human is answering; generous, but never infinite
+  std::string data;
+  long start = jihadNowMs();
+  bool got = false;
+  while (jihadNowMs() - start < kTimeoutMs) {
+    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
+    int pr = poll(&pfd, 1, 200);
+    if (pr < 0) { if (errno == EINTR) continue; break; }
+    if (pr == 0) continue;
+    char buf[512];
+    ssize_t n = read(fd, buf, sizeof buf);
+    if (n > 0) { data.append(buf, (size_t)n); got = true; continue; }
+    if (n == 0 && got) break;          // writer closed: the answer is complete
+    if (n < 0 && errno != EAGAIN && errno != EINTR) break;
+  }
+  close(fd);
+  unlink(path.c_str());
+
+  if (!got || data.size() < 4) {
+    fprintf(stderr, "[jihad-bs] dialog %s: no answer from the card — taking the default\n", kindName);
+    return;
+  }
+  // 4-byte big-endian length, then NUL-terminated args (adapter js_sendDialogResponse).
+  size_t pos = 4;
+  std::vector<std::string> args;
+  while (pos < data.size() && args.size() < 4) {
+    size_t end = data.find('\0', pos);
+    if (end == std::string::npos) { args.push_back(data.substr(pos)); break; }
+    args.push_back(data.substr(pos, end - pos));
+    pos = end + 1;
+  }
+  // arg0: "1" accept / "0" cancel (SSL uses "2" = trust once, also an accept).
+  if (!args.empty()) reply->accept = (args[0] == "1" || args[0] == "2");
+  // arg1: the prompt's text, or the username for an auth dialog.
+  if (args.size() > 1) reply->promptValue = args[1];
+  fprintf(stderr, "[jihad-bs] dialog %s -> %s\n", kindName, reply->accept ? "ACCEPT" : "cancel");
 }
 
 void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx) {

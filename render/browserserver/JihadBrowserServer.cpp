@@ -315,6 +315,13 @@ void JihadBrowserServer::processInjectFile() {
         printf("[jihad-bs] inject touch type=%d points=%d\n", tt, n);
         if (n > 0) p->touchEvent(tt, n, 0, json.c_str());
       }
+    } else if (strncmp(c.c_str(), "gettext ", 8) == 0) {
+      // DEBUG: read an element's text — the only way to assert on what a GENERATED chrome
+      // page says (about:plugins, about:addons), where a rect proves existence but not content.
+      std::string sel = c.substr(8);
+      while (!sel.empty() && (sel.back()=='\n' || sel.back()=='\r' || sel.back()==' ')) sel.pop_back();
+      printf("[jihad-bs] inject gettext %s = [%s]\n", sel.c_str(),
+             jihad::DebugElementText(sel.c_str(), 400).c_str());
     } else if (strncmp(c.c_str(), "popups", 6) == 0) {
       // DEBUG: how many XUL popups are open. Readback for tests that drive a menu — and the
       // only cheap way to observe a XUL-only KEY reaction (Escape rolls a menu up), since a

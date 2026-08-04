@@ -64,6 +64,9 @@ bool DebugClickElement(const char* elementId, int clickCount = 1);
 // trees: their rows are not DOM nodes (a tree is view-backed), so no selector reaches a
 // row and a centre click on a mostly-empty tree lands below every row.
 bool DebugClickElementAt(const char* elementId, int dx, int dy, int clickCount);
+// Read an element's text. The only way to assert on what a generated chrome page actually
+// SAYS (about:plugins lists name/version/MIME types), since a rect proves existence only.
+std::string DebugElementText(const char* selector, int maxChars);
 
 // DEBUG ONLY: enable/disable an installed add-on by id (R4's "disabling stops the effect",
 // which otherwise needs a chrome UI this embedding does not have).

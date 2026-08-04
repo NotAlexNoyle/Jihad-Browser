@@ -47,8 +47,21 @@ shell is kept as-is; only the rendering core is swapped from QtWebKit to Goanna.
 > **Known issues, on-device:** the fit-zoom on `about:addons` is unreliable under a real pinch
 > (the fit-zoom itself is correct; the card re-asserts its own zoom, so this needs a gesture, not
 > an injected value). `<optgroup>` header rows in `<select>` popups need a reply-index remap.
-> Windowless NPAPI still does not exist in a cairo-headless build, so binary plugins (Flash)
-> remain impossible without a port. Cookies now persist across restarts, and the chrome-icon
+> Windowless NPAPI does not exist in a cairo-headless build, so a plugin cannot yet paint into
+> a page — that port is the remaining work. What DOES work as of 2026-08-04: the daemon exposes
+> a variant-scoped plugin search path, and the device's own **Adobe Flash** (`libflashplayer.so`,
+> Shockwave Flash 10.3 d185) loads and is listed in `about:plugins` as Enabled with both of its
+> MIME types. Every one of its dependencies resolves against our bundled loader, including the
+> three webOS-WebKit libraries that were expected to be the blockers — `libWebKitLuna`,
+> `libPiranha` and `libLunaSysMgrIpc`.
+>
+> **Silverlight is not achievable on this device, and never will be** — stated plainly because
+> "NPAPI support" tends to imply it. Silverlight shipped for Windows and macOS on x86/x64 only;
+> the Linux implementation was Moonlight, which was x86-only and has been dead for over a
+> decade. There is no ARM Linux build to load. This is a platform fact, not a limitation of our
+> plugin support: the requirement we hold ourselves to is that the NPAPI *architecture* is
+> generic enough that any platform-appropriate NPAPI binary works, which is verifiable on the
+> desktop x86_64 build where such plugins exist. Cookies now persist across restarts, and the chrome-icon
 > latency did not reproduce on re-test.
 >
 > **Deployment reality:** all three variants are live on the test device simultaneously — cold boot

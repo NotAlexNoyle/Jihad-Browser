@@ -548,6 +548,37 @@ static already_AddRefed<nsIDOMWindowUtils> GetWindowUtils(nsIWebBrowser* wb);
 // gets a fit-zoom) they land somewhere else entirely — measured: an injected 365,31
 // arrived at 466,40. This resolves the element itself and clicks its centre in the
 // viewport CSS space ClickAt expects, so a test is independent of zoom and scroll.
+std::string DebugElementText(const char* selector, int maxChars) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !selector) return std::string();
+  nsIWebBrowser* wb = page->DebugWebBrowser();
+  if (!wb) return std::string();
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(wb);
+  if (!ds) return std::string();
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return std::string();
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return std::string();
+  nsCOMPtr<nsIDOMElement> el;
+  doc->QuerySelector(NS_ConvertUTF8toUTF16(selector), getter_AddRefs(el));
+  if (!el) return std::string("(no element)");
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  if (!node) return std::string("(no node)");
+  nsAutoString text;
+  node->GetTextContent(text);
+  NS_ConvertUTF16toUTF8 utf8(text);
+  std::string out(utf8.get());
+  // Collapse whitespace: generated chrome pages are full of layout newlines that would
+  // otherwise turn one readback into dozens of log lines.
+  std::string flat; bool sp = false;
+  for (char c : out) {
+    if (c == '\n' || c == '\r' || c == '\t' || c == ' ') { if (!sp) { flat += ' '; sp = true; } }
+    else { flat += c; sp = false; }
+  }
+  if (maxChars > 0 && (int)flat.size() > maxChars) flat.resize(maxChars);
+  return flat;
+}
+
 bool DebugClickElementAt(const char* elementId, int dx, int dy, int clickCount) {
   GoannaRenderPage* page = sDebugLastPage;
   if (!page || !elementId) return false;

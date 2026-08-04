@@ -773,6 +773,36 @@ EngineHost::Init(const char* greDir)
     return false;
   }
 
+  // ── NPAPI plugin search path (addons R7), set BEFORE the engine starts ──────
+  // nsPluginHost reads MOZ_PLUGIN_PATH once during its first scan, so this has to
+  // be in the environment before XRE comes up, not after.
+  //
+  // Two directories, in precedence order, and BOTH are inside this variant's own
+  // footprint — the R8 storage contract applies to plugins exactly as it does to
+  // the profile:
+  //   <profile>/plugins   user-installed, variant-scoped, removed with the profile
+  //                       by this variant's prerm (Gecko's own convention)
+  //   <greDir>/plugins    anything shipped in the bundle
+  // Nothing points at a system directory. /usr/lib/BrowserPlugins is the STOCK
+  // browser's, and reading it would make us load another app's binaries and give a
+  // plugin crash a cross-app blast radius; a user who wants a plugin puts it in the
+  // profile. The profile directory is created so the path is real rather than
+  // aspirational — an absent directory is silently skipped and looks identical to a
+  // plugin that failed to load.
+  if (!getenv("MOZ_PLUGIN_PATH")) {
+    const std::string& prof = jihad::RuntimeProfileDir();
+    std::string path;
+    if (!prof.empty()) {
+      std::string pdir = prof + "/plugins";
+      mkdir(pdir.c_str(), 0755);          // harmless if it exists
+      path = pdir;
+    }
+    if (!path.empty()) path += ":";
+    path += std::string(greDir) + "/plugins";
+    setenv("MOZ_PLUGIN_PATH", path.c_str(), 0);
+    printf("[jihad-bs] plugin search path: %s\n", path.c_str());
+  }
+
   initStep("resolving greDir");
   nsCOMPtr<nsIFile> dir;
   nsresult rv = NS_NewNativeLocalFile(nsDependentCString(greDir),

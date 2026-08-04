@@ -296,6 +296,25 @@ void JihadBrowserServer::processInjectFile() {
       while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
       printf("[jihad-bs] inject clickid %s ok=%d\n", id.c_str(),
              (int)jihad::DebugClickElement(id.c_str()));
+    } else if (strncmp(c.c_str(), "touch ", 6) == 0) {
+      // DEBUG: `touch <0|1|2> x1,y1[ x2,y2 …]` — 0=start 1=move 2=end. Builds the same
+      // touches JSON the adapter sends, so this exercises the REAL parse, not a shortcut.
+      // Coordinates are document space, as the adapter's payload is.
+      int tt = 0; char rest[1024] = {0};
+      if (sscanf(c.c_str(), "touch %d %1023[^\n\r]", &tt, rest) == 2) {
+        std::string json = "[";
+        int x = 0, y = 0, n = 0; const char* q = rest;
+        while (*q) {
+          while (*q == ' ') ++q;
+          if (sscanf(q, "%d,%d", &x, &y) != 2) break;
+          if (n++) json += ",";
+          json += "{\"x\":" + std::to_string(x) + ",\"y\":" + std::to_string(y) + ",\"state\":0}";
+          while (*q && *q != ' ') ++q;
+        }
+        json += "]";
+        printf("[jihad-bs] inject touch type=%d points=%d\n", tt, n);
+        if (n > 0) p->touchEvent(tt, n, 0, json.c_str());
+      }
     } else if (strncmp(c.c_str(), "popups", 6) == 0) {
       // DEBUG: how many XUL popups are open. Readback for tests that drive a menu — and the
       // only cheap way to observe a XUL-only KEY reaction (Escape rolls a menu up), since a

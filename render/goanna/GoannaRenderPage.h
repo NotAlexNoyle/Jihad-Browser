@@ -150,7 +150,10 @@ public:
   void PollEngineFocus();
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
-  void TouchEvent(const char* type, int x, int y); // single-touch "touchstart"/"touchmove"/"touchend"
+  void TouchEvent(const char* type, int x, int y);
+  // Multi-point form. A pinch is two points that move relative to each other, so a
+  // single-point touch API cannot express one at all.
+  void TouchEvent(const char* type, const int* xs, const int* ys, int count); // single-touch "touchstart"/"touchmove"/"touchend"
   void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
   void DeleteBackward();                            // Backspace: delete the char before the caret
   void DeleteBackwardWord();                        // accelerated Backspace: delete a word before caret

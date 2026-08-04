@@ -203,6 +203,9 @@ grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null |
 # against Pale Moon's and Basilisk's app prefs and the engine defaults they override; see
 # context/impl/impl-r8-palemoon-basilisk.md for the per-item comparison and citations.
 grep -q 'JIHAD add-on prefs' "$OUT/goanna.js" 2>/dev/null || cat "$REPO/packaging/prefs/jihad-addon-prefs.js" >> "$OUT/goanna.js"
+# Platform prefs (what this device IS — touch, chiefly). Same shared-file rule as the add-on
+# prefs above: one source, appended by both builds, so desktop and device cannot drift.
+grep -q 'JIHAD platform prefs' "$OUT/goanna.js" 2>/dev/null || cat "$REPO/packaging/prefs/jihad-platform-prefs.js" >> "$OUT/goanna.js"
 
 grep -q 'JIHAD low-RAM tuning' "$OUT/goanna.js" 2>/dev/null || cat >> "$OUT/goanna.js" <<'JIHADPREFS'
 // --- JIHAD low-RAM tuning (512 MB floor) ---

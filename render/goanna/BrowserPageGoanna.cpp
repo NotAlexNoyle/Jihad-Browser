@@ -992,22 +992,36 @@ void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
 }
 void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const char* touchesJson) {
   if (!mPage) return;
-  // Minimal parse of the first touch point's x/y from the touches JSON.
-  int x = 0, y = 0;
+  // Parse EVERY point in the touches payload, not just the first. The adapter builds
+  // `[{"x":N,"y":N,"state":S}, …]` (BrowserAdapter::doTouchEvent) with one object per live
+  // contact; keeping only the first made a two-finger gesture indistinguishable from a
+  // one-finger one, so a pinch could not be expressed at all.
+  //
+  // COORDINATES ARE ALREADY IN DOCUMENT SPACE. The adapter divides by its zoom level and
+  // subtracts the page offset before serializing (`touchDocPt`), unlike clickAt/mouseEvent,
+  // which carry surface coordinates for us to map. This path used to call mapToContent on
+  // them anyway — a second conversion of an already-converted point, which lands the touch
+  // somewhere else entirely on any zoomed or scrolled page. The adapter is the contract, so
+  // its coordinates are taken as given.
+  std::vector<std::pair<int,int>> pts;
   if (touchesJson) {
-    const char* px = strstr(touchesJson, "\"x\"");
-    const char* py = strstr(touchesJson, "\"y\"");
-    if (px) sscanf(px, "\"x\"%*[: ]%d", &x);
-    if (py) sscanf(py, "\"y\"%*[: ]%d", &y);
+    const char* c = touchesJson;
+    while ((c = strstr(c, "\"x\"")) != nullptr) {
+      int x = 0, y = 0;
+      if (sscanf(c, "\"x\"%*[: ]%d", &x) != 1) break;
+      const char* yk = strstr(c, "\"y\"");
+      if (!yk || sscanf(yk, "\"y\"%*[: ]%d", &y) != 1) break;
+      pts.push_back(std::make_pair(x, y));
+      c = yk + 3;
+    }
   }
+  if (pts.empty()) return;
   // Queued like every other input (F-9/F5): TouchEvent -> SendTouchEventToWindow runs
   // touchstart/touchend page JS synchronously, so dispatching it from this YAP callback is the
-  // same reboot-class crash door the queue was built to close. Currently unreachable from the
-  // device (the adapter's doTouchEvent body is #ifdef QT_FIXME'd out) but the daemon command IS
-  // wired, so this must already be safe the day touch forwarding is turned on.
+  // same reboot-class crash door the queue was built to close.
   int t = (type == 0) ? PM_TOUCHSTART : (type == 2) ? PM_TOUCHEND : PM_TOUCHMOVE;
-  int cx, cy; mapToContent(x, y, &cx, &cy);   // R5: surface -> content, at QUEUE time
-  queueInput(t, cx, cy, 0);
+  queueInput(t, pts[0].first, pts[0].second, 0);
+  if (pts.size() > 1) mPendingMouse.back().pts = pts;
   mNeedsPaint = true;
 }
 
@@ -1262,8 +1276,16 @@ void BrowserPageGoanna::pump(int msBudget) {
         continue;
       }
       if (e.type == PM_TOUCHSTART || e.type == PM_TOUCHMOVE || e.type == PM_TOUCHEND) {
-        mPage->TouchEvent(e.type == PM_TOUCHSTART ? "touchstart"
-                        : e.type == PM_TOUCHEND   ? "touchend" : "touchmove", e.x, e.y);
+        const char* tt = e.type == PM_TOUCHSTART ? "touchstart"
+                       : e.type == PM_TOUCHEND   ? "touchend" : "touchmove";
+        if (e.pts.size() > 1) {
+          std::vector<int> xs, ys;
+          xs.reserve(e.pts.size()); ys.reserve(e.pts.size());
+          for (auto& pt : e.pts) { xs.push_back(pt.first); ys.push_back(pt.second); }
+          mPage->TouchEvent(tt, xs.data(), ys.data(), (int)xs.size());
+        } else {
+          mPage->TouchEvent(tt, e.x, e.y);
+        }
         continue;
       }
       // A finger moving over an OPEN menu highlights the row under it, exactly as a mouse

@@ -2499,16 +2499,28 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
 }
 
 void GoannaRenderPage::TouchEvent(const char* type, int x, int y) {
-  if (!mChrome) return;
+  TouchEvent(type, &x, &y, 1);
+}
+
+void GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py, int count) {
+  if (!mChrome || !px || !py || count <= 0) return;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
-  uint32_t ids[1]   = { 0 };
-  int32_t  xs[1]    = { x }, ys[1] = { y };
-  uint32_t rxs[1]   = { 1 }, rys[1] = { 1 };
-  float    angs[1]  = { 0.0f }, forces[1] = { 1.0f };
+  // One identifier per contact, stable across the start/move/end of a gesture — that is what
+  // makes a two-finger pinch expressible: the page tracks each Touch by identifier and reads
+  // the CHANGE in their separation. Sending N points with one shared id would look like a
+  // single finger teleporting.
+  const int kMax = 10;
+  if (count > kMax) count = kMax;
+  uint32_t ids[kMax]; int32_t xs[kMax], ys[kMax];
+  uint32_t rxs[kMax], rys[kMax]; float angs[kMax], forces[kMax];
+  for (int i = 0; i < count; ++i) {
+    ids[i] = (uint32_t)i; xs[i] = px[i]; ys[i] = py[i];
+    rxs[i] = 1; rys[i] = 1; angs[i] = 0.0f; forces[i] = 1.0f;
+  }
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
-  u->SendTouchEventToWindow(t, ids, xs, ys, rxs, rys, angs, forces, 1, 0, false, &ret);   // T-067
+  u->SendTouchEventToWindow(t, ids, xs, ys, rxs, rys, angs, forces, count, 0, false, &ret);
 }
 
 void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {

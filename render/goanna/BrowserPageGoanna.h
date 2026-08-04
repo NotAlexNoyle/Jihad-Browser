@@ -291,7 +291,11 @@ private:
   // hard enough to REBOOT the device (R1 AC4, review #5 H-1). They only RECORD here; pump()
   // dispatches inside the tick's mInTick/mReap guard where teardown is safe.
   // detail carries numClicks for PM_CLICK and the contextmenu detail for PM_CONTEXTMENU.
-  struct PendingMouse { int type; int x; int y; int detail; };
+  // x/y is point 0 (every non-touch input has exactly one). `pts` carries the FULL point list
+  // for a multi-touch event — empty for everything else, so single-point paths are unchanged
+  // and the move-coalescing/dedup logic below still keys off x/y.
+  struct PendingMouse { int type; int x; int y; int detail;
+                        std::vector<std::pair<int,int>> pts; };
   std::vector<PendingMouse> mPendingMouse;
   // PM_* are the queue's own type codes, deliberately NOT the adapter's wire codes: the wire has
   // no contextmenu, and holdAt/clickAt/touchEvent all ride the SAME queue so their relative order

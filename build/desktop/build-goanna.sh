@@ -110,4 +110,11 @@ if [ -f "$ADDON_PREFS" ] && [ -f "$DISTBIN/goanna.js" ]; then
   echo "  add-on prefs: appended to the desktop goanna.js"
 fi
 
+PLATFORM_PREFS=/jihad/packaging/prefs/jihad-platform-prefs.js
+if [ -f "$PLATFORM_PREFS" ] && [ -f "$DISTBIN/goanna.js" ]; then
+  grep -q 'JIHAD platform prefs' "$DISTBIN/goanna.js" 2>/dev/null || \
+    cat "$PLATFORM_PREFS" >> "$DISTBIN/goanna.js"
+  echo "  platform prefs: appended to the desktop goanna.js"
+fi
+
 echo "== done; artifacts under /out =="

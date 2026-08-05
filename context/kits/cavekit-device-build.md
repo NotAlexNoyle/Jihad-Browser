@@ -163,6 +163,38 @@ development harness (`build/webos-oe/device-independence-test.sh`) invokes `post
 directly to emulate the supported path. Every acceptance result below must name the path it was
 proven on.
 
+**HOW REMOVAL ACTUALLY WORKS ON THIS DEVICE (measured 2026-08-05, and it is not what this kit
+assumed).** A real removal was run and the whole footprint was inspected either side. The
+appinstaller's own log names the path:
+
+```
+lunasvcRemove: Trying to run preRemove script - /media/cryptofs/apps/.scripts/<appid>/pmPreRemove…
+lunasvcRemove: Couldn't find …/pmPreRemove…
+Step 1: executing: ipkg -o /media/cryptofs/apps remove <appid>
+```
+
+So the hook webOS looks for is **`pmPreRemove`**, app-scoped under `/media/cryptofs/apps/.scripts/<appid>/`
+— not the Debian-style `prerm` our `.ipk` shipped. And the fallback it does run, `ipkg -o
+<offline-root>`, is the one this kit already records as DEFERRING control scripts and then
+deleting them. Both hooks therefore missed. Result after the removal: ipkg metadata gone and the
+app de-registered, but the app directory, `profile`, `cache`, the upstart job, the adapter shim,
+the adapter impl and `/var/palm/jihad/<V>` were **all still present**, and the variant's daemon
+was still running — precisely the residue R8 forbids.
+
+Two honest qualifications. First, that removal was driven by `palm-install -r`, which this kit
+already says does not run control scripts — but the log shows it goes through the same
+`com.palm.appinstaller` → `lunasvcRemove` → `ipkg -o` path that the launcher uses, so the
+finding is about the INSTALLER, not about the SDK tool. Second, `pmPreRemove` is not a complete
+answer either: a shipping webOS app (`com.openmobileww.acl`) says so in its own script — *"This
+script may not run when uninstalling via the app launcher. The boot-time cleanup script … handles
+cleanup regardless of whether this script runs."* — and uses a boot-time cleanup as the
+belt-and-braces.
+
+`build-variant-ipk.sh` now ships `pmPostInstall` and `pmPreRemove` alongside `postinst`/`prerm`,
+which is the part we control. **Still open:** proving a clean uninstall on the supported path, and
+deciding whether to follow ACL's boot-time-cleanup pattern for the case where even `pmPreRemove`
+is skipped.
+
 **The one deliberate exception to "nothing on `/media/internal`" (user decision 2026-08-01):**
 **finished user downloads** go to `/media/internal/downloads`, the webOS convention. R8 exists to
 keep *app internals* off the user's storage; a file the user asked to download is the opposite

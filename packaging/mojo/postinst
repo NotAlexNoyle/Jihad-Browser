@@ -152,21 +152,6 @@ mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
 # has anything to object to.
 printf '%s' "{\"role\":{\"exeName\":\"$LSEXE\",\"type\":\"regular\",\"allowedNames\":[\"$LSNAME\",\"\"]},\"permissions\":[{\"service\":\"$LSNAME\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]}]}" \
   > /usr/share/ls2/roles/prv/$LSNAME.json
- {
-     "role": {
-         "exeName":"$LSEXE",
-         "type": "regular",
-         "allowedNames": ["$LSNAME",""]
-     },
-     "permissions": [
-         {
-             "service":"$LSNAME",
-             "inbound":["*"],
-             "outbound":["*"]
-         }
-     ]
- }
-LSROLE
 cp -a /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json
 # Type=static: upstart already runs the daemon, so the bus must never try to spawn it.
 cat > /usr/share/dbus-1/system-services/$LSNAME.service <<LSSVC

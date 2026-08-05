@@ -224,21 +224,6 @@ mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
 # has anything to object to.
 printf '%s' "{\"role\":{\"exeName\":\"$LSEXE\",\"type\":\"regular\",\"allowedNames\":[\"$LSNAME\",\"\"]},\"permissions\":[{\"service\":\"$LSNAME\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]}]}" \
   > /usr/share/ls2/roles/prv/$LSNAME.json
- {
-     "role": {
-         "exeName":"$LSEXE",
-         "type": "regular",
-         "allowedNames": ["$LSNAME",""]
-     },
-     "permissions": [
-         {
-             "service":"$LSNAME",
-             "inbound":["*"],
-             "outbound":["*"]
-         }
-     ]
- }
-LSROLE
 cp -a /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json
 # Type=static: upstart already runs the daemon, so the bus must never try to spawn it.
 cat > /usr/share/dbus-1/system-services/$LSNAME.service <<LSSVC
@@ -704,6 +689,21 @@ put() {
 	tmp=$dest.gen.$$
 	mkdir -p "$(dirname "$dest")"
 	cat > "$tmp"
+	# Syntax-check anything that is a shell script BEFORE it is written. A generator edit once
+	# left an orphaned here-doc body behind (the terminator was matched against the OPENING
+	# `<<LSROLE` line, so only one line was removed) — producing a postinst whose stray JSON
+	# would have run as shell commands ON DEVICE, as root, inside a rootfs rw window. `sh -n`
+	# catches that for free; nothing generated here is worth shipping unparsed.
+	case "$dest" in
+		*/postinst|*/prerm|*/preinst|*/postrm)
+			if ! sh -n "$tmp" 2>/dev/null; then
+				echo "  SYNTAX ERROR in generated ${dest#"$ROOT"/} — refusing to write" >&2
+				sh -n "$tmp" 2>&1 | head -3 >&2
+				rm -f "$tmp"
+				: > "$DRIFT_MARKER"
+				return 1
+			fi ;;
+	esac
 	if [ "$MODE" = check ]; then
 		if cmp -s "$tmp" "$dest"; then
 			echo "  ok      ${dest#"$ROOT"/}"

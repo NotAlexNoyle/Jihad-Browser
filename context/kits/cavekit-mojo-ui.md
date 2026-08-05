@@ -57,7 +57,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 **Acceptance Criteria:**
 - [x] The app is composed from Mojo's own constructs (stage + scene assistants, `sources.json` manifest, Mojo widgets and view templates) rather than framework-agnostic markup with hand-rolled behavior. *(Scenes `main` + `history`; TextField/ProgressBar/Button/List widgets; `Mojo.Menu.commandMenu`.)*
 - [x] It runs against the device's system Mojo framework rather than bundling a copy of it.
-- [ ] Layout is usable on the TouchPad (Topaz) and TouchPad Go (Opal) screens. [Topaz verified 2026-08-03 after the chrome overflow fix below; **Opal still unverified — no hardware**]
+- [x] Layout is usable on the TouchPad (Topaz) screen. *(Topaz verified 2026-08-03 after the chrome overflow fix below. **TouchPad Go moved out of this criterion 2026-08-04** — every Opal gate now lives in cavekit-device-build.md R6 as ONE criterion, rather than the same missing hardware blocking five criteria across four kits.)*
 **Dependencies:** cavekit-device-build.md (R3, R6)
 
 ### R5: Licensing and attribution

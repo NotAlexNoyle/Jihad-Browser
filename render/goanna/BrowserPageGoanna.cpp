@@ -1265,6 +1265,9 @@ void BrowserPageGoanna::pump(int msBudget) {
           // the load path. openUrl marks the load programmatic, so OnStateChange won't ALSO
           // flag it link-clicked — this msg is the single R6 notification for the tap.
           fprintf(stderr, "[jihad-bs] clickAt -> navigate %s\n", clickNav.c_str());
+          // Logged because this MESSAGE, not the navigation it precedes, is what the
+          // contract owes the card (navigation-events R6) — and it is otherwise invisible.
+          fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", clickNav.c_str());
           mSink.msgLinkClicked(clickNav.c_str());
           openUrl(clickNav.c_str());   // bumps mNavGen -> the loop above stops next iteration
         }
@@ -1333,6 +1336,7 @@ void BrowserPageGoanna::pump(int msBudget) {
   // after its only STOP — no completion until the 12 s watchdog (Codex F-323).
   std::string linkUrl; bool linkIsPost = false;
   if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost)) {
+    fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", linkUrl.c_str());
     mSink.msgLinkClicked(linkUrl.c_str());
     // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET/POST,
     // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE on its own

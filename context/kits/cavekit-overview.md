@@ -141,6 +141,14 @@ viewport space, which is also zoom- and scroll-independent. Three forms:
 where a row's `enable-btn`/`disable-btn`/`remove-btn` live — no id reaches them). Clicking the
 real button is also the more honest test: it exercises the same command path a finger does.
 
+**`clickid` is not a tap.** `clickid`/`dblclickid`/`clickoff` resolve an element and call the
+engine's `ClickAt` DIRECTLY, skipping the input QUEUE — so anything `pump()` does after a click
+does not happen: no link-clicked message, no click-nav re-drive, no `<select>` popup emission.
+That is fine for reaching a chrome control, and wrong for anything about content navigation
+semantics, where `click <x> <y> <n>` (card coordinates, the path a finger takes) is the one to
+use. Measured 2026-08-04: the same anchor tap emitted nothing and ended `NS_BINDING_ABORTED`
+through `clickid`, and emitted `linkClicked` and navigated through `click`.
+
 **A dialog must be answered the way a PERSON would.** The daemon blocks on a reply FIFO with a
 60 s deadline; a harness that answers in 300 ms proves almost nothing about the human path, and
 one that never answers takes the default. `JIHAD_DIALOG_MS` shortens the deadline for tests that

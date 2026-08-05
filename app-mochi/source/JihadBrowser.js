@@ -153,6 +153,8 @@ enyo.kind({
 	create: function() {
 		this.inherited(arguments);
 		enyo.log("[JIHAD-BOOT] stamp=" + this.jihadBuildStamp);
+		//* After the toolbar has actually been laid out, not during create().
+		enyo.job("jihadUrlGeom", enyo.bind(this, "logUrlGeometry"), 2500);
 		//* Session download records (download-manager status + history), rendered
 		//* by the DownloadList view.
 		this.downloads = [];
@@ -480,6 +482,24 @@ enyo.kind({
 		if (typeof inEvent.canGoForward === "boolean") {
 			this.$.forward.addRemoveClass("disabled", !inEvent.canGoForward);
 		}
+	},
+	//* One-shot geometry probe: does the field's TEXT area actually stop before the glyph?
+	//* A screenshot cannot answer this (and the card WebKit silently drops unprefixed rules),
+	//* so log the real numbers — the lesson from the Mojo toolbar overflow.
+	logUrlGeometry: function() {
+		try {
+			var box = this.$.addressBox.hasNode(), btn = this.$.reloadStop.hasNode();
+			var inp = box && box.getElementsByTagName ? box.getElementsByTagName("input")[0] : null;
+			if (!inp || !btn) { enyo.log("[JIHAD-URLGEOM] input or glyph not found"); return; }
+			var ir = inp.getBoundingClientRect(), br = btn.getBoundingClientRect();
+			var pad = 0;
+			if (window.getComputedStyle) pad = parseFloat(window.getComputedStyle(inp).paddingRight) || 0;
+			enyo.log("[JIHAD-URLGEOM] input.right=" + Math.round(ir.right) +
+			         " padRight=" + pad +
+			         " textEdge=" + Math.round(ir.right - pad) +
+			         " glyph.left=" + Math.round(br.left) +
+			         " overlap=" + Math.round((ir.right - pad) - br.left));
+		} catch (e) { enyo.log("[JIHAD-URLGEOM] " + e); }
 	},
 	//* Swap the reload/stop affordance during a load.
 	setStopVisible: function(loading) {

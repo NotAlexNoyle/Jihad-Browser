@@ -66,7 +66,18 @@
 .jihad-address {
 	width: 100%;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
-	padding-right: 40px;
+}
+/* The padding has to land on the REAL <input>, not on the control that carries the class.
+   mochi.Input renders a wrapper and puts `jihad-address` on THAT, so padding-right here alone
+   reserved space around the wrapper while the inner field still ran its text straight under the
+   reload glyph. Both selectors, so it holds whichever element the framework ends up styling.
+   The reserve is 44px: the glyph box is 32px wide sitting 6px from the right edge, so 38px is
+   the true overlap and 44 leaves a little air rather than letting a descender kiss the icon. */
+.jihad-address input,
+input.jihad-address {
+	width: 100%;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+	padding-right: 44px;
 }
 /* Reload/stop control INSIDE the address field (Enyo-parity), right-aligned. */
 .jihad-inline-btn {

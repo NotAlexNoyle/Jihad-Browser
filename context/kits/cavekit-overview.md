@@ -80,8 +80,8 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **13 domains, 77 requirements, 279 acceptance criteria — 232 met, 22 partial, 25 open**
-(COUNTED, not estimated, 2026-08-04: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
+Totals: **13 domains, 77 requirements, 278 acceptance criteria — 250 met, 18 partial, 10 open**
+(COUNTED, not estimated, 2026-08-04 — second count of the day, after a sweep that closed 19: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
 `[~]`/`[ ]` equivalents — re-run that before quoting these numbers, and fix them here if they
 disagree. The previous line said 276/215/21/40 and had drifted from the files it summarised.)
 Closed this session on top of the earlier scroll / long-press / coord-mapping / R7-independence
@@ -260,6 +260,21 @@ Notes:
   verification, not construction.
 
 ## Changelog
+- 2026-08-04 (second pass): A sweep against the open list closed **19** criteria and corrected two
+  whose premise was wrong. The engine gained three patches, each fixing something that had been
+  silently doing nothing: `PuppetWidget::GetCurrentWidgetListener` never fell back to
+  `mWidgetListener`, so every synthesized KEY event was dropped (mouse hid it — there is a
+  `SendMouseEventToWindow`, but no key equivalent); no `keypress` was ever synthesized, which is
+  what XUL `<key>` elements match on; and `nsIBadCertListener2` reached nobody, so accepting a bad
+  certificate had no cert to override. That last one came from the user's suggestion to look at how
+  **Atlas** does it — WebKit hands Atlas the certificate as a signal argument, and the lesson
+  (take it from the notification that carries it, don't recover it later) transferred exactly.
+  Also: W3C touch events were OFF on a touchscreen-only device (autodetect only works on
+  Windows/GTK3) and multi-touch parsed only its first point; Flash loads on the TouchPad and
+  `about:plugins` lists it; the memory guardrail was observed firing for the first time, which
+  required admitting it had been unexercisable; and the memory budget is now a number (~90 MB RSS,
+  ceiling 150 MB). What remains is genuinely gated: TouchPad Go hardware, a human pinch, the
+  windowless NPAPI port, a Luna service design decision, and the OE/bitbake track.
 - 2026-08-04: Add-ons **R2** and **R6** closed, and with them three daemon-lifecycle defects that
   had been hidden by the daemon never exiting: no SIGTERM handling (so the add-on database and
   prefs never flushed — a UI disable came back enabled after a restart), `XRE_TermEmbedding`

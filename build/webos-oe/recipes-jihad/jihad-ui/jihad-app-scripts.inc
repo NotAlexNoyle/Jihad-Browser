@@ -211,6 +211,36 @@ chmod 0644 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAM
 # ls-hubd reads roles at startup, so the service becomes reachable after the reboot this
 # postinst already asks for — not the moment these files land.
 
+# ── REGISTER THIS VARIANT'S db8 KINDS (2026-08-05) ───────────────────────────────────────────
+# The installer does NOT do this for us. Measured on the supported path: after installing Mochi
+# and Mojo through org.webosinternals.ipkgservice, every one of their kinds came back
+# "kind not registered", and the card logged the same error each time it tried to read history
+# or bookmarks — i.e. installed, running, and its history silently broken. (Enyo's kinds were
+# registered only because a dev helper, build/webos-oe/register-db-kinds.sh, had been run by
+# hand months earlier. That helper stays useful for a palm-install dev loop; it must not be the
+# only thing that ever registers them.)
+#
+# putKind/putPermissions are upserts, so this is idempotent and safe on reinstall. The `-a <app
+# id>` is load-bearing: db8 requires a kind's declared owner to equal the identity registering
+# it, which is also why each variant owns its OWN namespace rather than sharing Enyo's (R7).
+if [ -d "$APP/db/kinds" ]; then
+	for kf in "$APP/db/kinds"/*; do
+		[ -f "$kf" ] || continue
+		kn=$(basename "$kf")
+		pf="$APP/db/permissions/$kn"
+		if luna-send -n 1 -a "${WEBOS_APP_ID}" luna://com.palm.db/putKind "$(cat "$kf")" >/dev/null 2>&1; then
+			log "db8 kind registered: $kn"
+		else
+			log "WARNING: could not register db8 kind $kn — history/bookmarks will not work"
+		fi
+		if [ -f "$pf" ]; then
+			luna-send -n 1 -a "${WEBOS_APP_ID}" luna://com.palm.db/putPermissions \
+				"{\"permissions\":$(cat "$pf")}" >/dev/null 2>&1 \
+				|| log "WARNING: could not set db8 permissions for $kn"
+		fi
+	done
+fi
+
 cp -a "$DR/event.d/${JIHAD_UPSTART_JOB}" "$JOB"
 # F-7 again: init execs this job as root, so it is not the app bundle's file to own. 0644, not
 # 0755 — upstart READS a job file, it never execs it, so the execute bit is pure surface.
@@ -433,6 +463,18 @@ rm -f "$SHIM"
 rm -f "$IMPL"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone
+# De-register this variant's db8 kinds — they are ours, and leaving them behind is residue of
+# exactly the kind R8 forbids, just in a database rather than on a filesystem. delKind removes
+# the kind AND its objects, which is right: the history belonged to the app being removed.
+if [ -d "$APP/db/kinds" ]; then
+	for kf in "$APP/db/kinds"/*; do
+		[ -f "$kf" ] || continue
+		kn=$(basename "$kf")
+		luna-send -n 1 -a "${WEBOS_APP_ID}" luna://com.palm.db/delKind "{\"id\":\"$kn:1\"}" >/dev/null 2>&1 \
+			&& log "db8 kind removed: $kn:1" || log "db8 kind $kn:1 not present (already gone)"
+	done
+fi
+
 rm -f "$JOB"
 # This variant's Luna service name (exact paths, one variant's name — no glob could reach a
 # sibling's). Leaving these behind would be rootfs residue that R8 forbids, and would leave the

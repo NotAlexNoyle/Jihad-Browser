@@ -142,6 +142,18 @@ rm -f "$SHIM"
 rm -f "$IMPL"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone
+# De-register this variant's db8 kinds — they are ours, and leaving them behind is residue of
+# exactly the kind R8 forbids, just in a database rather than on a filesystem. delKind removes
+# the kind AND its objects, which is right: the history belonged to the app being removed.
+if [ -d "$APP/db/kinds" ]; then
+	for kf in "$APP/db/kinds"/*; do
+		[ -f "$kf" ] || continue
+		kn=$(basename "$kf")
+		luna-send -n 1 -a "net.riverstonerelay.jihad-browser-mojo" luna://com.palm.db/delKind "{\"id\":\"$kn:1\"}" >/dev/null 2>&1 \
+			&& log "db8 kind removed: $kn:1" || log "db8 kind $kn:1 not present (already gone)"
+	done
+fi
+
 rm -f "$JOB"
 # This variant's Luna service name (exact paths, one variant's name — no glob could reach a
 # sibling's). Leaving these behind would be rootfs residue that R8 forbids, and would leave the

@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <unistd.h>              // write/_exit/alarm in the teardown bailout
 
 #include "JihadBrowserServer.h"
 #include "../goanna/EngineHost.h"
@@ -44,6 +45,22 @@ static JihadBrowserServer* g_server = nullptr;
 // flushes everything.
 static volatile sig_atomic_t g_termSignal = 0;
 static void term_handler(int sig) { g_termSignal = sig; }
+
+// Seconds the engine teardown gets before we stop waiting for it. Generous enough for a
+// real flush (the add-on database and prefs are small), short enough that a wedged one
+// never holds up an OS shutdown.
+static const unsigned kTeardownDeadlineSec = 8;
+
+// Installed ONLY around the teardown — see the long comment at the call site. Async-signal
+// safe: one write, then _exit. Not exit(): no atexit handlers, no further I/O against a
+// filesystem that is in the middle of going away.
+static void teardown_bailout(int sig) {
+  const char* m = (sig == SIGALRM)
+    ? "[jihad-bs] teardown exceeded its deadline — leaving the rest to the on-disk journals\n"
+    : "[jihad-bs] storage went away mid-teardown (expected at system shutdown) — exiting\n";
+  ssize_t n = write(2, m, strlen(m)); (void)n;
+  _exit(0);
+}
 
 static gboolean tick_cb(gpointer) {
   if (g_termSignal) {
@@ -160,7 +177,43 @@ int main(int argc, char** argv) {
   // add-on database and prefs. `host` is function-static, so its dtor would run
   // eventually, but Shutdown() is idempotent (mInited) and doing it here keeps
   // the flush inside the part of the program that can still report a problem.
+  //
+  // ── BOUNDED, AND SURVIVABLE. This is the shutdown that bricked the device. ──
+  // Our SIGTERM handling is right for `stop jihad`, where flushing is the whole
+  // point. It is DANGEROUS at system shutdown, and the job cannot tell the two
+  // apart: `stop on started start_update` is what every cryptofs-dependent job
+  // on this platform uses, the stock browserserver included — so at reboot we
+  // are killed by the late generic sweep, at the same moment cryptofs is being
+  // torn down. The engine profile LIVES on cryptofs, so XRE_TermEmbedding is
+  // writing and mmap-reading files whose backing store is disappearing under it.
+  //
+  // Measured 2026-08-05, from the device's own log, as the system went down:
+  //     minicore_launch: CRASH! ld-2.23.so(1947) received 7
+  //     minicore_launch: CRASH! ld-2.23.so(1950) received 7
+  // Signal 7 is SIGBUS — the classic result of touching an mmap'd region whose
+  // file went away. Two of the three daemons took it, each then writing a
+  // minicore dump to /var while /var was being unmounted. The next boot found
+  // /var with an unrecovered journal and never came up: no syslog, no
+  // LunaSysMgr, novacom silent. Recovery needed bootie plus a doctor image.
+  // The stock BrowserServer never had this exposure because it simply dies.
+  //
+  // So: keep the flush, bound it, and never let it turn into a fatal signal.
+  // SIGBUS/SIGSEGV during teardown means the storage went away mid-flush, which
+  // at this point is EXPECTED rather than exceptional — the profile's own stores
+  // (sqlite, prefs.js via an atomic rename) are crash-safe by design, so the
+  // right answer is to stop touching them and leave quietly. _exit avoids
+  // atexit handlers and any further I/O.
+  {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = teardown_bailout;
+    sigaction(SIGBUS,  &sa, nullptr);
+    sigaction(SIGSEGV, &sa, nullptr);
+    signal(SIGALRM, teardown_bailout);
+    alarm(kTeardownDeadlineSec);   // a flush that cannot finish must not hold up the OS
+  }
   host.Shutdown();
+  alarm(0);
   printf("[jihad-bs] exited\n");
   return 0;
 }

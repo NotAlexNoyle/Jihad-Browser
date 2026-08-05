@@ -95,7 +95,7 @@ Two decisions supersede the 2026-07-29 shipping model and are now carried by **R
 - [x] The Enyo UI `.ipk` (`net.riverstonerelay.jihad-browser`, from `app/`) builds (`palm-package app/`) and installs; its WebView is routed to the Jihad engine by `app/source/JihadEngineOverride.js`.
 - [x] The build also produces the Mochi variant `.ipk` (`net.riverstonerelay.jihad-browser-mochi`, from `app-mochi/`); both install and can coexist. *(Produced 2026-07-19 (`build-mochi-ipk.sh`, 1.4 MB). INSTALL + COEXIST VERIFIED ON DEVICE 2026-07-19: `palm-install -l` lists both app ids at 1.0.0.)*
 - [~] A single OE/bitbake build PRODUCES the two `.ipk`s. *(2026-07-29: `oe-env.sh run ". oe-init-build-env && bitbake net.riverstonerelay.jihad-browser net.riverstonerelay.jihad-browser-mochi"` → the two self-contained `.ipk`s (component recipes stage-only). BUT it consumes prebuilt, git-ignored inputs — crosstool-NG toolchain, Jessie sysroot, Palm PDK, adapter-deps (`jihad-cross-toolchain-native` only CHECKS the toolchain, does not build it) — so it is NOT clean-clone reproducible and NOT "whole stack from source" (review #7). The direct-cross-build scripts remain a faster path. **2026-07-31 — #8 CLOSED in code, build-unverified:** every task that reads a `${JIHAD_REPO}` input (goanna patch queue + mozconfig, browserserver/adapter/deviceroot scripts + sources, PDK, adapter-deps, toolchain, Jessie sysroot, Mochi frameworks, LICENSE/NOTICE) now declares it via `do_<task>[file-checksums]` — confirmed supported by the pinned bitbake 1.18.0 (`lib/bb/cache.py:135` + `lib/bb/siggen.py:189-193`), with small identity sets standing in for the 219 MB toolchain / 127 MB sysroot. Verified statically only (bitbake's own line grammar re-run over the recipes; `get_file_checksums` semantics simulated) — **the chroot was not runnable, so neither `bitbake -p` nor a real sstate run has exercised it; verify at the next `oe-env.sh` run.** Full coverage table + caveats: `../impl/impl-review-findings-oe.md`.)*
-- [~] Each variant `.ipk` is SELF-CONTAINED and installs as one coexisting package. *(2026-07-29: `jihad-app.inc` bundles the `jihad-deviceroot` runtime + the UI app + impl + a `postinst`/`prerm`. **Review fixes applied + build-verified:** Mochi now stages its Enyo2/layout/Mochi frameworks (#1); the shim loads a shared root-owned impl `/usr/lib/jihad/BrowserAdapterImpl.so` so every variant loads its own impl (#5); `prerm` refcounts siblings — removing one no longer breaks the other (#4); `postinst` fails loud (#6). Both `.ipk`s (Enyo 40 MB, Mochi 42 MB) are structurally complete + coexistence-safe. STILL `[~]` because (a) not clean-clone reproducible — prebuilt toolchain/sysroot/PDK (#7); the undeclared-bitbake-inputs half (#8) is fixed in code 2026-07-31 via `do_<task>[file-checksums]` but NOT build-verified, (b) not device-verified.)*
+- [x] Each variant `.ipk` is SELF-CONTAINED and installs as one coexisting package. *(2026-08-05 — proven on the SUPPORTED path for all three, driving `org.webosinternals.ipkgservice` directly. Each install runs our `postinst`, which lays down the upstart job, adapter shim, adapter impl, state dir and Luna role; afterwards all three variants are registered with ipkg, all three daemons run, and all three Luna services are serving. Survives a reboot: verified from a cold boot with all three coming up on their own.)* *(2026-07-29: `jihad-app.inc` bundles the `jihad-deviceroot` runtime + the UI app + impl + a `postinst`/`prerm`. **Review fixes applied + build-verified:** Mochi now stages its Enyo2/layout/Mochi frameworks (#1); the shim loads a shared root-owned impl `/usr/lib/jihad/BrowserAdapterImpl.so` so every variant loads its own impl (#5); `prerm` refcounts siblings — removing one no longer breaks the other (#4); `postinst` fails loud (#6). Both `.ipk`s (Enyo 40 MB, Mochi 42 MB) are structurally complete + coexistence-safe. STILL `[~]` because (a) not clean-clone reproducible — prebuilt toolchain/sysroot/PDK (#7); the undeclared-bitbake-inputs half (#8) is fixed in code 2026-07-31 via `do_<task>[file-checksums]` but NOT build-verified, (b) not device-verified.)*
 - [~] A third UI variant SHIPS as a working Mojo front-end (not a scaffold). *(2026-07-29: `app-mojo/` scaffold + `net.riverstonerelay.jihad-browser-mojo` recipe build an `.ipk`, but the UI was a documented stub. 2026-07-31: promoted from "scaffolded" to "working" — the user requires all three front-ends to function standalone; the real UI is cavekit-mojo-ui.md.)*
 - [~] The Mochi package bundles Enyo 2 + layout + Mochi; the Enyo package bundles Enyo 1.0. *(Mochi half DONE (T-049). Enyo half: INTENTIONAL DEVIATION — `app/index.html` loads Enyo 1.0 from the OS framework path `/usr/palm/frameworks/enyo/0.10`, exactly like upstream isis-browser; bundling would duplicate the system framework and risk skew.)*
 **Dependencies:** R2, cavekit-desktop-build.md (R1), cavekit-mochi-ui.md (R1), jihad-self-contained-arch.md
@@ -163,37 +163,39 @@ development harness (`build/webos-oe/device-independence-test.sh`) invokes `post
 directly to emulate the supported path. Every acceptance result below must name the path it was
 proven on.
 
-**HOW REMOVAL ACTUALLY WORKS ON THIS DEVICE (measured 2026-08-05, and it is not what this kit
-assumed).** A real removal was run and the whole footprint was inspected either side. The
-appinstaller's own log names the path:
+**HOW INSTALL AND REMOVAL ACTUALLY WORK HERE (settled 2026-08-05, on the supported path).**
+Preware's backend is `org.webosinternals.ipkgservice`, and reading its strings settles the whole
+question:
 
 ```
-lunasvcRemove: Trying to run preRemove script - /media/cryptofs/apps/.scripts/<appid>/pmPreRemove…
-lunasvcRemove: Couldn't find …/pmPreRemove…
-Step 1: executing: ipkg -o /media/cryptofs/apps remove <appid>
+/usr/bin/ipkg -o /media/cryptofs/apps -force-overwrite install %s
+/usr/bin/install -m 755 %s /media/cryptofs/apps/.scripts/%s/pmPostInstall.script   ("stage": "postinst")
+/usr/bin/install -m 755 %s /media/cryptofs/apps/.scripts/%s/pmPreRemove.script     ("stage": "install-prerm")
 ```
 
-So the hook webOS looks for is **`pmPreRemove`**, app-scoped under `/media/cryptofs/apps/.scripts/<appid>/`
-— not the Debian-style `prerm` our `.ipk` shipped. And the fallback it does run, `ipkg -o
-<offline-root>`, is the one this kit already records as DEFERRING control scripts and then
-deleting them. Both hooks therefore missed. Result after the removal: ipkg metadata gone and the
-app de-registered, but the app directory, `profile`, `cache`, the upstart job, the adapter shim,
-the adapter impl and `/var/palm/jihad/<V>` were **all still present**, and the variant's daemon
-was still running — precisely the residue R8 forbids.
+`ipkg -o` DEFERS the control scripts — it says so itself in the install log, *"(offline root mode:
+not running …postinst)"* — leaving them at `usr/lib/ipkg/info/<pkg>.{postinst,prerm}`. The service
+then INSTALLS those two as the app-scoped hooks and RUNS the postinst. So plain `postinst` +
+`prerm`, which is exactly what Atlas ships, is complete and correct; **no `pm*.script` control
+member is needed** (one was added on a wrong hypothesis and removed again — with or without the
+`.script` suffix the installer ignores it, because the control archive is not where it looks).
 
-Two honest qualifications. First, that removal was driven by `palm-install -r`, which this kit
-already says does not run control scripts — but the log shows it goes through the same
-`com.palm.appinstaller` → `lunasvcRemove` → `ipkg -o` path that the launcher uses, so the
-finding is about the INSTALLER, not about the SDK tool. Second, `pmPreRemove` is not a complete
-answer either: a shipping webOS app (`com.openmobileww.acl`) says so in its own script — *"This
-script may not run when uninstalling via the app launcher. The boot-time cleanup script … handles
-cleanup regardless of whether this script runs."* — and uses a boot-time cleanup as the
-belt-and-braces.
+**Everything therefore hinges on installing the supported way.** `palm-install` does not run
+control scripts, and the consequence is not subtle: a `palm-install` of a variant produces an app
+directory and NOTHING else — no upstart job, no adapter shim, no adapter impl, no daemon. It
+installs and is completely non-functional. Measured twice before the cause was clear.
 
-`build-variant-ipk.sh` now ships `pmPostInstall` and `pmPreRemove` alongside `postinst`/`prerm`,
-which is the part we control. **Still open:** proving a clean uninstall on the supported path, and
-deciding whether to follow ACL's boot-time-cleanup pattern for the case where even `pmPreRemove`
-is skipped.
+Driving the service directly is scriptable, which is what made this testable without touching
+Preware's UI:
+
+```
+luna-send -n 20 -f palm://org.webosinternals.ipkgservice/install \
+  '{"subscribe":true,"filename":"<name>.ipk","url":"file:///media/internal/.developer/<name>.ipk"}'
+luna-send -n 12 -f palm://org.webosinternals.ipkgservice/remove \
+  '{"subscribe":true,"package":"<appid>"}'
+```
+
+Both parameters are required, and the file must be staged in `/media/internal/.developer/`.
 
 **The one deliberate exception to "nothing on `/media/internal`" (user decision 2026-08-01):**
 **finished user downloads** go to `/media/internal/downloads`, the webOS convention. R8 exists to

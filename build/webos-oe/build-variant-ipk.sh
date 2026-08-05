@@ -184,24 +184,18 @@ for V in $VARIANTS; do
   tar -xzf "$RW/control.tar.gz" -C "$RW/ctrl"
   install -m 0755 "$REPO/packaging/$V/postinst" "$RW/ctrl/postinst"
   install -m 0755 "$REPO/packaging/$V/prerm"    "$RW/ctrl/prerm"
-  # ── ALSO ship the PALM-NAMED hooks (2026-08-05) ──────────────────────────────────────────
-  # webOS's ApplicationInstaller does not run the Debian-style control scripts on the launcher
-  # path. Its log names what it DOES look for:
-  #     lunasvcRemove: Trying to run preRemove script - /media/cryptofs/apps/.scripts/<appid>/pmPreRemove…
-  #     lunasvcRemove: Couldn't find …/pmPreRemove…
-  #     Step 1: executing: ipkg -o /media/cryptofs/apps remove <appid>
-  # and `ipkg -o <offline-root>` DEFERS control scripts and then deletes them, so `prerm` never
-  # runs either. Observed 2026-08-05: after a removal the app dir, profile, cache, upstart job,
-  # adapter shim, adapter impl and state dir were all still present — exactly the residue R8
-  # forbids — while the ipkg metadata was gone.
-  #
-  # Shipping these under the names the installer expects is the part we can control. Note the
-  # honest limit, from a shipping webOS app's own pmPreRemove (com.openmobileww.acl): "This
-  # script may not run when uninstalling via the app launcher." So this raises the odds of a
-  # clean uninstall; it does not guarantee one, and the belt-and-braces answer that app uses is
-  # a boot-time cleanup that runs regardless. Tracked in cavekit-device-build.md R8.
-  install -m 0755 "$REPO/packaging/$V/postinst" "$RW/ctrl/pmPostInstall"
-  install -m 0755 "$REPO/packaging/$V/prerm"    "$RW/ctrl/pmPreRemove"
+  # DO NOT add pmPostInstall.script / pmPreRemove.script as control members. It looks like the
+  # right idea and it is not how this platform works — established 2026-08-05 by reading
+  # `strings /var/usr/sbin/org.webosinternals.ipkgservice`, which is Preware's backend:
+  #     /usr/bin/ipkg -o /media/cryptofs/apps -force-overwrite install %s
+  #     /usr/bin/install -m 755 %s /media/cryptofs/apps/.scripts/%s/pmPostInstall.script   ("stage": "postinst")
+  #     /usr/bin/install -m 755 %s /media/cryptofs/apps/.scripts/%s/pmPreRemove.script     ("stage": "install-prerm")
+  # `ipkg -o` DEFERS the control scripts into usr/lib/ipkg/info/<pkg>.{postinst,prerm}, and the
+  # service then INSTALLS THOSE as the two hooks and runs the postinst. So shipping plain
+  # `postinst` and `prerm` — exactly what Atlas ships — is complete and correct; extra members
+  # only add records nothing reads. Tried and measured: shipping them, with and without the
+  # `.script` suffix, left the hooks at zero bytes on a palm-install, because palm-install is
+  # not the path that populates them.
   ( cd "$RW/ctrl" && tar -czf "$RW/control.tar.gz" . )
   ( cd "$RW" && rm -f repacked.ipk && ar rc repacked.ipk debian-binary control.tar.gz data.tar.gz )
   mv "$RW/repacked.ipk" "$IPK"

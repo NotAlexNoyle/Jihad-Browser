@@ -181,8 +181,21 @@ chmod 755 "$HL/jihad-browserserver" "$HL/ld-2.23.so" 2>/dev/null || true
 # path INCLUDING failure (R8), so a crash mid-install can never leave the rootfs writable.
 # /var/palm is created in the same window because it may sit on the read-only rootfs.
 log "installing shim + impl + upstart job + state dir (rootfs rw)..."
-trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
-mount -o remount,rw /
+# RESTORE WHAT WE FOUND, don't assume we own the mount state. When the installer (Preware's
+# ipkgservice) drives this, `/` is ALREADY read-write for the duration of its own work — so
+# unconditionally forcing it back to read-only here either fights the installer mid-install or
+# fails outright. Measured 2026-08-05 on a supported install: our own honest warning,
+# "could not restore / to read-only", and `/` left mounted rw afterwards, which is exactly the
+# R8 violation this window exists to prevent. If it was already rw on entry, leave it to
+# whoever made it so; only a window WE opened is a window we must close.
+ROOTFS_WAS_RW=no
+mount | grep -q "on / .*[(,]rw[,)]" && ROOTFS_WAS_RW=yes
+if [ "$ROOTFS_WAS_RW" = no ]; then
+	trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
+	mount -o remount,rw /
+else
+	log "/ was already read-write (installer-driven) — leaving the mount state to the caller"
+fi
 mkdir -p /usr/lib/BrowserPlugins "$IMPLDIR" "$STATE"
 # F-8: `mkdir -p` uses the INHERITED umask. The state dir was already mode-pinned; the impl
 # directories were not, so under `umask 0` they landed 0777 and any local uid could unlink or
@@ -261,10 +274,18 @@ sync
 # F-9: never swallow a failed restore-to-read-only. R8 requires `/` back to ro on every exit
 # path, so if it did not happen, say so — out loud, on stderr, where ipkg records it. The EXIT
 # trap stays armed as a second attempt when this one fails.
-if mount -o remount,ro /; then
+if [ "$ROOTFS_WAS_RW" = yes ]; then
+	log "leaving / read-write as found"
+elif mount -o remount,ro /; then
 	trap - EXIT
 else
-	echo "jihad-postinst($V): WARNING: could not restore / to read-only" >&2
+	# Retry: the usual cause is a write still settling on /, not a real failure.
+	sync; sleep 1
+	if mount -o remount,ro /; then
+		trap - EXIT
+	else
+		echo "jihad-postinst($V): WARNING: could not restore / to read-only" >&2
+	fi
 fi
 
 # ── 3. verify the deploy actually landed ─────────────────────────────────────────────────────
@@ -449,8 +470,21 @@ fi
 
 # ── 2. the rootfs + state removals: ONE rw window, closed on every exit path ──────────────────
 log "removing this variant's rootfs components (rw)..."
-trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
-mount -o remount,rw / || log "WARNING: could not remount / read-write — step 3 will catch what that costs"
+# RESTORE WHAT WE FOUND, don't assume we own the mount state. When the installer (Preware's
+# ipkgservice) drives this, `/` is ALREADY read-write for the duration of its own work — so
+# unconditionally forcing it back to read-only here either fights the installer mid-install or
+# fails outright. Measured 2026-08-05 on a supported install: our own honest warning,
+# "could not restore / to read-only", and `/` left mounted rw afterwards, which is exactly the
+# R8 violation this window exists to prevent. If it was already rw on entry, leave it to
+# whoever made it so; only a window WE opened is a window we must close.
+ROOTFS_WAS_RW=no
+mount | grep -q "on / .*[(,]rw[,)]" && ROOTFS_WAS_RW=yes
+if [ "$ROOTFS_WAS_RW" = no ]; then
+	trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
+	mount -o remount,rw /
+else
+	log "/ was already read-write (installer-driven) — leaving the mount state to the caller"
+fi
 rm -f "$SHIM"
 rm -f "$IMPL"
 rmdir "$IMPLDIR" 2>/dev/null || true
@@ -483,10 +517,17 @@ rm -rf "$PROFILE" "$CACHE"
 # F-9: a failed restore-to-read-only is REPORTED, never swallowed (R8 requires `/` back to ro on
 # every exit path). It does not by itself fail the removal — the removal above already happened,
 # and the EXIT trap gets one more attempt — but it does not get to be silent either.
-if mount -o remount,ro /; then
+if [ "$ROOTFS_WAS_RW" = yes ]; then
+	log "leaving / read-write as found"
+elif mount -o remount,ro /; then
 	trap - EXIT
 else
-	echo "jihad-prerm($V): WARNING: could not restore / to read-only" >&2
+	sync; sleep 1
+	if mount -o remount,ro /; then
+		trap - EXIT
+	else
+		echo "jihad-prerm($V): WARNING: could not restore / to read-only" >&2
+	fi
 fi
 
 # ── 3. verify the removal ACTUALLY happened — believe the filesystem, not $? ──────────────────

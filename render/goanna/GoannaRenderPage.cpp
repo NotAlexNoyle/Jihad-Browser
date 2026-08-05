@@ -826,18 +826,21 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
   finder->SetSearchString(s.get());
   finder->SetFindBackwards(!forward);
   finder->SetSearchFrames(true);
-  // KNOWN LIMITATION: nsIWebBrowserFind::FindNext faults in this offscreen configuration
-  // (it dereferences a frame-selection controller the offscreen browser doesn't fully set
-  // up). The BrowserServer daemon renders offscreen on the device too, so we must NOT call
-  // FindNext here — it would crash the daemon. The finder is fully prepared (search
-  // string/direction set); wiring an offscreen-safe selection controller so FindNext can
-  // run is future work. The findString command stays dispatched (contract preserved) and safe.
-  //
-  // RE-TESTED 2026-08-04, because this note predates the offscreen widget gaining real event
-  // dispatch, focus and editing (T-067) and might have gone stale: it has not. Calling
-  // FindNext still takes the process down with SIGSEGV (find_test exit 139). The limitation
-  // is current, not inherited.
-  return false;
+  // WHY THIS USED TO CRASH, since the note it replaces was wrong for two weeks. FindNext was
+  // recorded as faulting on "a frame-selection controller the offscreen browser doesn't set
+  // up". It is not the selection machinery: `nsWebBrowserFind::SearchInFrame` does a
+  // same-origin check via `nsContentUtils::SubjectPrincipal()`, and that function starts with
+  //     if (!GetCurrentJSContext()) MOZ_CRASH("… without an AutoJSAPI on the stack is forbidden")
+  // An EMBEDDER calls FindNext from C++ with no script on the stack, so there is no JSContext
+  // and the deliberate abort fires — presenting as SIGSEGV at address 0, which is exactly the
+  // fault that was measured. Traced by instrumenting the engine: the crash lands between
+  // "before SearchInFrame" and any selection work at all. Patch 0015 makes the check consult
+  // the subject principal only when a JSContext exists; with none, the caller is native
+  // embedding code, already inside libxul's own process holding this docShell's finder.
+  bool found = false;
+  finder->FindNext(&found);
+  fprintf(stderr, "[jihad-bs] find '%s' -> %d\n", text, (int)found);
+  return found;
 }
 
 // --- caret-aware editing over the focused <input>/<textarea> --------------------------------

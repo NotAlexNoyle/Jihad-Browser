@@ -1121,7 +1121,14 @@ EngineHost::CheckMemoryPressure()
   if (lowKb == -2) {   // resolve the threshold once
     lowKb = 49152;     // default 48 MB — headroom for one paint + GC on a 512 MB device
     const char* e = getenv("JIHAD_MEM_LOW_KB");
-    if (e) { long v = atol(e); if (v >= 8192 && v <= 262144) lowKb = v; }
+    // Ceiling raised from 256 MB to 1 GB on 2026-08-04, purely so the reaction is
+    // REACHABLE on a machine with headroom. A guardrail that cannot be exercised is one
+    // nobody can trust: an 8-site session on the TouchPad moved available memory by only
+    // 35 MB (441 -> 406 MB, the low-RAM prefs doing their job), so with the old ceiling
+    // there was no way to make the flush fire on demand — on device or in the container.
+    // This is a sanity bound on a debug override, not a safety property; the shipped
+    // default below is unchanged.
+    if (e) { long v = atol(e); if (v >= 8192 && v <= 1048576) lowKb = v; }
   }
   long avail = jihadAvailableKb();
   if (avail < 0 || avail >= lowKb) return;

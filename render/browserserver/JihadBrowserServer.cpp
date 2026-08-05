@@ -315,6 +315,12 @@ void JihadBrowserServer::processInjectFile() {
         printf("[jihad-bs] inject touch type=%d points=%d\n", tt, n);
         if (n > 0) p->touchEvent(tt, n, 0, json.c_str());
       }
+    } else if (strncmp(c.c_str(), "freeze", 6) == 0) {
+      // DEBUG: the card-backgrounded path (device-build R5 reclaim). Real cards send this
+      // over YAP; the inject form lets a test measure what backgrounding actually frees.
+      printf("[jihad-bs] inject freeze\n"); p->freeze();
+    } else if (strncmp(c.c_str(), "thaw", 4) == 0) {
+      printf("[jihad-bs] inject thaw\n"); p->thaw(0, 0, 0);
     } else if (strncmp(c.c_str(), "gettext ", 8) == 0) {
       // DEBUG: read an element's text — the only way to assert on what a GENERATED chrome
       // page says (about:plugins, about:addons), where a rect proves existence but not content.

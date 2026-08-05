@@ -56,6 +56,7 @@ The precedent and the mechanism both exist; see cavekit-addons-extensions.md R2.
 - [ ] `about:settings` resolves to the same page, as an alias rather than a second copy. (Pale Moon/Basilisk parity: users of either name land in the same place.)
 - [ ] It opens in **each** of the three variants, each against its own daemon and profile.
 - [ ] It renders with no browser chrome present — this embedding has no XUL browser window, and a page that assumes one is the failure mode this project has hit repeatedly (cavekit-addons-extensions.md R2, and the `amInstallTrigger` / `AddonManager` chrome assumptions in patch 0013).
+- [ ] The page is built on the GRE's OWN widget bindings rather than a hand-rolled UI. `toolkit/content/widgets/preferences.xml` (`<prefwindow>`, `<prefpane>`, `<preference>`) is what Pale Moon and Basilisk build their preferences window on, and it ships in our dist already — as do `dialog.xml`, `tabbox.xml`, `groupbox.xml`, `scale.xml`, `numberbox.xml` and `notification.xml`, all wired for chrome documents by `xul.css`. Inventory and per-binding notes: `../impl/impl-gre-widget-inventory.md`. Two of those are known-good in THIS embedding — `richlistbox` (about:addons) and `tree` (about:config) — which is the evidence that chrome widgets work here at all.
 **Dependencies:** cavekit-engine-embedding.md (R2), cavekit-addons-extensions.md (R2 — the branding-package precedent)
 
 ### R2: The panes cover what this device can actually change

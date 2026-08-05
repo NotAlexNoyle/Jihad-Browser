@@ -216,7 +216,14 @@ LSNAME=net.riverstonerelay.@@YAP@@
 LSEXE=$DR/hl/ld-2.23.so
 mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
          /usr/share/dbus-1/system-services /usr/share/dbus-1/services
-cat > /usr/share/ls2/roles/prv/$LSNAME.json <<LSROLE
+# COMPACT, single-line JSON — deliberately, for two reasons. This generator rejects a bare `}`
+# at column 0 (it would close an OE function body early), and the obvious workaround, indenting
+# the JSON, puts a leading SPACE before the opening brace of a file that ls-hubd parses with its
+# own C parser. ls-hubd is load-bearing for boot: if it rejects a role file it can take the whole
+# UI down with it. One line has no column-0 brace and no leading whitespace, so neither parser
+# has anything to object to.
+printf '%s' "{\"role\":{\"exeName\":\"$LSEXE\",\"type\":\"regular\",\"allowedNames\":[\"$LSNAME\",\"\"]},\"permissions\":[{\"service\":\"$LSNAME\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]}]}" \
+  > /usr/share/ls2/roles/prv/$LSNAME.json
  {
      "role": {
          "exeName":"$LSEXE",

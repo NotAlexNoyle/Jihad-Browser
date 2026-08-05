@@ -23,6 +23,19 @@
 # execs. Keep it on the `exec env` line and nowhere else.
 start on stopped fontconfig_cache
 stop on started start_update
+# ── AND stop when the system is going down, EARLY ────────────────────────────────────────────
+# Without this we are killed by the late generic sweep at reboot, which runs at the same moment
+# cryptofs is torn down — and the engine profile lives on cryptofs. Our SIGTERM handler flushes
+# the add-on database and prefs, so it was writing and mmap-reading files whose backing store
+# was disappearing: two daemons took SIGBUS (signal 7) on 2026-08-05, wrote crash dumps onto a
+# /var that was unmounting, and the device would not boot again.
+#
+# The stock browserserver has only the start_update clause and gets away with it because it does
+# no work on SIGTERM — it just dies. We do work, so we have to be asked earlier. Runlevel 0 is
+# halt and 6 is reboot; `stop on runlevel [06]` is the platform's own idiom for this (ntpdate-sync
+# uses it), and it fires while the filesystems are still mounted, which is the whole point.
+# Boot runlevels are 2/3, so this never interferes with starting.
+stop on runlevel [06]
 
 description "Jihad BrowserServer (Goanna) — Enyo 2 + Mochi"
 

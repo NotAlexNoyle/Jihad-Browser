@@ -80,8 +80,9 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **13 domains, 77 requirements, 278 acceptance criteria — 250 met, 18 partial, 10 open**
-(COUNTED, not estimated, 2026-08-04 — second count of the day, after a sweep that closed 19: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
+Totals: **13 domains, 77 requirements, 277 acceptance criteria — 255 met, 13 partial, 9 open**
+(COUNTED, not estimated, 2026-08-04 — third count of the day; the sweep closed 24 and consolidated
+the five scattered TouchPad Go gates into one: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
 `[~]`/`[ ]` equivalents — re-run that before quoting these numbers, and fix them here if they
 disagree. The previous line said 276/215/21/40 and had drifted from the files it summarised.)
 Closed this session on top of the earlier scroll / long-press / coord-mapping / R7-independence

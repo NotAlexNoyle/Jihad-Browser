@@ -48,7 +48,22 @@ that leaves every command/message signature untouched. Reference:
 **Description:** The service methods the UI calls directly remain available on the device build.
 **Acceptance Criteria:**
 - [ ] `palm://com.palm.browserServer/clearCache` and `.../clearCookies` are registered and perform their actions on the device build. *(**2026-08-04 — measured, and the result is worse than "not done": these calls SUCCEED on device and act on the WRONG BROWSER.** Our daemon registers no Luna service at all (no `LSRegister` anywhere in `render/`), and `com.palm.browserServer` is the STOCK browser's service, which we deliberately coexist with. So `luna-send palm://com.palm.browserServer/clearCookies` returns `{"returnValue":true}` — from the stock daemon — while Jihad's own store is untouched: a cookie count taken straight afterwards still shows all three of Jihad's cookies. The Enyo card's Preferences "clear cookies/cache" therefore clears the STOCK browser's data and silently does nothing for this one. That became user-visible the moment cookie persistence started working (browser-services R2, closed the same day).*
-  *The clearing itself is NOT missing: `asyncCmdClearCache`/`asyncCmdClearCookies` exist over YAP and are implemented in the daemon (`jihad::ClearCache/ClearCookies`). What is missing is a route from the card to them — the isis adapter exposes no scriptable `clearCache`/`clearCookies`, which is why the app uses the Luna URI. Two ways out, and it is a CONTRACT decision rather than a bug fix: register a per-variant service (`palm://net.riverstonerelay.jihad-browser/...`) and point each app at its own — a documented divergence like the MIME/YAP rebrand — or expose the two as scriptable adapter methods, which widens the frozen app-facing call set. Not chosen unilaterally.)*
+  *The clearing itself is NOT missing: `asyncCmdClearCache`/`asyncCmdClearCookies` exist over YAP and are implemented in the daemon (`jihad::ClearCache/ClearCookies`). What is missing is a route from the card to them — the isis adapter exposes no scriptable `clearCache`/`clearCookies`, which is why the app uses the Luna URI. Two ways out, and it is a CONTRACT decision rather than a bug fix: register a per-variant service (`palm://net.riverstonerelay.jihad-browser/...`) and point each app at its own — a documented divergence like the MIME/YAP rebrand — or expose the two as scriptable adapter methods, which widens the frozen app-facing call set.*
+
+  ***DECISION, 2026-08-04: register a PER-VARIANT service. This is no longer an open choice.*** *It
+  is not a coin flip once the project's own precedent is applied: the second option widens the
+  `callBrowserAdapter` set, which cavekit-ui-shell.md R2 holds byte-identical to upstream and marks
+  MET — so taking it would knowingly break a met criterion in another kit. The first option is the
+  same move already made, deliberately, four times over for coexistence: our own NPAPI MIME, our own
+  YAP service name, our own upstart job, our own state directory. A Luna service name is the fifth
+  instance of one pattern, not a new kind of divergence, and it leaves the app-facing contract
+  untouched. **What implementing it takes:** the daemon registers `palm://net.riverstonerelay.jihad-browser{,-mochi,-mojo}/`
+  with `clearCache` + `clearCookies` routed to the existing `jihad::ClearCache/ClearCookies`, name
+  derived from `JIHAD_BS_NAME` like every other per-variant identity; each app's Preferences points
+  at its own URI. Note there is no `lunaservice.h` in the sysroot — the device has
+  `/usr/lib/liblunaservice.so` but no headers here — so the practical route is `dlopen` + the handful
+  of `LS*` entry points, which also keeps the daemon loadable if the library is ever absent.
+  Add `plan-variant-identity.md`'s table as the single source for the new name.)*
 - [x] On the desktop build the service layer can be compiled out without affecting the YAP path.
 **Dependencies:** cavekit-browser-services.md (R2)
 

@@ -328,6 +328,12 @@ void JihadBrowserServer::processInjectFile() {
       while (!sel.empty() && (sel.back()=='\n' || sel.back()=='\r' || sel.back()==' ')) sel.pop_back();
       printf("[jihad-bs] inject gettext %s = [%s]\n", sel.c_str(),
              jihad::DebugElementText(sel.c_str(), 400).c_str());
+    } else if (strncmp(c.c_str(), "find ", 5) == 0) {
+      // DEBUG: drive findInPage without a card's find bar. The frozen command is already
+      // dispatched from the UI; this exercises the same daemon path from the inject channel.
+      std::string q = c.substr(5);
+      while (!q.empty() && (q.back()=='\n' || q.back()=='\r')) q.pop_back();
+      printf("[jihad-bs] inject find \"%s\" -> %d\n", q.c_str(), (int)p->findString(q.c_str(), true));
     } else if (strncmp(c.c_str(), "popups", 6) == 0) {
       // DEBUG: how many XUL popups are open. Readback for tests that drive a menu — and the
       // only cheap way to observe a XUL-only KEY reaction (Escape rolls a menu up), since a

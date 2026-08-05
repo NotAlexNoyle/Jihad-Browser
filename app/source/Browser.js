@@ -182,10 +182,10 @@ enyo.kind({
 	// state dir. This is a SERVICE name, not part of the frozen BrowserAdapter call set, so
 	// the contract cavekit-ui-shell.md R2 protects is untouched.
 	clearCookies: function() {
-		new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser/clearCookies', '{}');
+		new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowser/clearCookies', '{}');
 	},
 	clearCache: function() {
-		new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser/clearCache', '{}');
+		new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowser/clearCache', '{}');
 	},
 	isLoading: function() {
 		return this.$.actionbar.getProgress() != 0;

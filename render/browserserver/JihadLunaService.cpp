@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 
 namespace {
 
@@ -21,12 +22,21 @@ struct LSMessage;
 
 typedef bool (*LSMethodFunction)(LSHandle* sh, LSMessage* msg, void* ctx);
 
-// webOS 3's LSMethod is {name, function} — NO flags member. Getting this wrong would
-// misregister every method after the first, so it is copied from the device's own
-// generation of the API rather than from a later one.
+// LSMethod has THREE fields on this device: {name, function, flags}.
+//
+// I got this wrong first time by copying the shape from luna-sysmgr's sources in this
+// workspace, which are LS1-era usage — but the TouchPad ships luna-service**2** (the device's
+// own error text names it: luna-service2-2.0.0-136). With a two-field struct the array STRIDE
+// is 8 bytes where the library reads 12, so it walks the table at the wrong offsets: LSRegister
+// and LSRegisterCategory both report success, the service appears on the bus, and every call
+// comes back
+//     {"returnValue":false,"errorCode":-1,"errorText":"Unknown method \"clearCookies\" for category \"/\""}
+// which is exactly what happened (2026-08-05). A registration that succeeds while registering
+// nothing is the worst shape of wrong, so: three fields, terminator {0,0,0}.
 struct LSMethod {
   const char*      name;
   LSMethodFunction function;
+  unsigned int     flags;   // LSMethodFlags; 0 is the plain, non-validated method
 };
 
 // LSError is written by the library. Its exact size varies across versions and we never
@@ -86,11 +96,11 @@ bool onClearCookies(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
-// Terminated with {0,0}, exactly as the stock BrowserServer's table is.
+// Terminated with a fully-zeroed entry — all THREE fields, or the walk reads past the end.
 LSMethod gMethods[] = {
-  { "clearCache",   onClearCache   },
-  { "clearCookies", onClearCookies },
-  { 0, 0 },
+  { "clearCache",   onClearCache,   0 },
+  { "clearCookies", onClearCookies, 0 },
+  { 0, 0, 0 },
 };
 
 bool loadApi() {
@@ -124,8 +134,26 @@ namespace jihad {
 std::string LunaServiceNameFor(const char* yapName) {
   // The YAP name IS the variant identity everywhere else in this daemon, so the Luna name is
   // derived from it rather than being a second hand-maintained list that can disagree.
+  //
+  // BUT A LUNA SERVICE NAME CANNOT CONTAIN A HYPHEN, and our YAP names all do
+  // ("jihad-browser", "jihad-browser-mochi"). LS2 rejects it at the CALLER, before anything
+  // reaches us: `luna-send palm://net.riverstonerelay.jihad-browser/clearCookies` fails with
+  //     _UriParse: Not a valid service name in uri … (service name: net.riverstonerelay.jihad-browser)
+  // and the daemon's own LSRegister fails with -1027 for the same reason. Measured 2026-08-05.
+  // Every name the platform ships is dot-separated camelCase — com.palm.browserServer,
+  // com.palm.applicationManager, com.palm.appInstallService — and none has a hyphen.
+  //
+  // So: strip the hyphens and camel-case what follows, which turns "jihad-browser-mochi" into
+  // "jihadBrowserMochi" and keeps the one-to-one mapping with the YAP name intact.
   const std::string y = (yapName && *yapName) ? yapName : "jihad-browser";
-  return std::string("net.riverstonerelay.") + y;
+  std::string camel;
+  bool up = false;
+  for (char c : y) {
+    if (c == '-' || c == '_') { up = true; continue; }
+    camel += up ? (char)toupper((unsigned char)c) : c;
+    up = false;
+  }
+  return std::string("net.riverstonerelay.") + camel;
 }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
@@ -136,11 +164,13 @@ bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (gApi.ErrorInit) gApi.ErrorInit(&err);
 
   if (!gApi.Register(serviceName.c_str(), &gHandle, &err)) {
-    // The usual cause is a missing role file: the hub refuses a name the process is not
-    // permitted to own. packaging/gen-variant-scripts.sh installs prv+pub roles keyed on
-    // the loader path (/proc/pid/exe is ld-2.23.so, NOT jihad-browserserver — the daemon
-    // is exec'd through the bundled loader).
-    printf("[jihad-bs] luna: LSRegister('%s') FAILED (code=%d) — is the role file installed?\n",
+    // Two causes, and the message names both because guessing one wasted a device cycle:
+    //  - an INVALID NAME (a hyphen anywhere is fatal — see LunaServiceNameFor), or
+    //  - a missing/incorrect role file: the hub refuses a name the process may not own, and
+    //    the role is keyed on the loader path (/proc/pid/exe is ld-2.23.so, NOT
+    //    jihad-browserserver, because the job execs through the bundled loader).
+    printf("[jihad-bs] luna: LSRegister('%s') FAILED (code=%d) — invalid name (no hyphens "
+           "allowed) or no matching role in /usr/share/ls2/roles\n",
            serviceName.c_str(), errCode(err));
     if (gApi.ErrorFree) gApi.ErrorFree(&err);
     gHandle = nullptr;

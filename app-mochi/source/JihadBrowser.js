@@ -13,7 +13,7 @@
 //
 // Contract invariant (cavekit-ipc-contract R1, cavekit-mochi-ui R3): the UI
 // drives the engine ONLY through JihadWebView's callBrowserAdapter proxy and the
-// palm://net.riverstonerelay.jihad-browser-mochi/* Luna service — the identical method-name set
+// palm://net.riverstonerelay.jihadBrowserMochi/* Luna service — the identical method-name set
 // and URIs the Enyo 1.0 app uses (../../app/source/Browser.js). See
 // ../../docs/IPC-CONTRACT.md.
 //
@@ -335,8 +335,8 @@ enyo.kind({
 	//* calling it clears the wrong browser (see app/source/Browser.js for the measurement).
 	//* Each variant owns `net.riverstonerelay.jihad-browser<variant>`, as it owns its MIME,
 	//* YAP socket, upstart job and state dir.
-	clearCookies: function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser-mochi/clearCookies', '{}'); },
-	clearCache:   function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser-mochi/clearCache', '{}'); },
+	clearCookies: function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCookies', '{}'); },
+	clearCache:   function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCache', '{}'); },
 
 	// --- address bar --------------------------------------------------------
 	// mochi.Input onchange fires on blur/commit; Enter does not blur on its own,

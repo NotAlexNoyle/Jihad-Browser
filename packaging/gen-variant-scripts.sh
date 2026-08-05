@@ -212,7 +212,17 @@ chmod 0644 "$IMPL"
 # `exeName` is the path the hub resolves for our process, and that is the BUNDLED LOADER, not the
 # daemon binary: the job execs `./ld-2.23.so … ./jihad-browserserver`, so /proc/<pid>/exe is
 # ld-2.23.so. Naming jihad-browserserver here would look right and fail.
-LSNAME=net.riverstonerelay.@@YAP@@
+# A Luna service name CANNOT contain a hyphen — LS2 rejects it at the caller
+# (`_UriParse: Not a valid service name`) and LSRegister fails with -1027. Our YAP names all
+# have hyphens, so the Luna name is the camel-cased form, matching the platform's own idiom
+# (com.palm.browserServer, com.palm.applicationManager). Kept as an explicit table rather than
+# a sed transform: three variants, and busybox sed has no \U.
+case "@@V@@" in
+	enyo)  LSNAME=net.riverstonerelay.jihadBrowser ;;
+	mochi) LSNAME=net.riverstonerelay.jihadBrowserMochi ;;
+	mojo)  LSNAME=net.riverstonerelay.jihadBrowserMojo ;;
+	*)     LSNAME=net.riverstonerelay.jihadBrowser ;;
+esac
 LSEXE=$DR/hl/ld-2.23.so
 mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
          /usr/share/dbus-1/system-services /usr/share/dbus-1/services
@@ -449,7 +459,17 @@ rm -f "$JOB"
 # This variant's Luna service name (exact paths, one variant's name — no glob could reach a
 # sibling's). Leaving these behind would be rootfs residue that R8 forbids, and would leave the
 # hub permitting a name nothing serves.
-LSNAME=net.riverstonerelay.@@YAP@@
+# A Luna service name CANNOT contain a hyphen — LS2 rejects it at the caller
+# (`_UriParse: Not a valid service name`) and LSRegister fails with -1027. Our YAP names all
+# have hyphens, so the Luna name is the camel-cased form, matching the platform's own idiom
+# (com.palm.browserServer, com.palm.applicationManager). Kept as an explicit table rather than
+# a sed transform: three variants, and busybox sed has no \U.
+case "@@V@@" in
+	enyo)  LSNAME=net.riverstonerelay.jihadBrowser ;;
+	mochi) LSNAME=net.riverstonerelay.jihadBrowserMochi ;;
+	mojo)  LSNAME=net.riverstonerelay.jihadBrowserMojo ;;
+	*)     LSNAME=net.riverstonerelay.jihadBrowser ;;
+esac
 rm -f /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
       /usr/share/dbus-1/system-services/$LSNAME.service \
       /usr/share/dbus-1/services/$LSNAME.service

@@ -44,10 +44,11 @@ done
 
 echo "== [ARM] JihadBrowserServer + Main =="
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/arm-JihadBrowserServer.o || exit 15
+$CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/JihadLunaService.cpp" -o /out/arm-JihadLunaService.o || exit 15
 $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/Main.cpp" -o /out/arm-bs_main.o || exit 16
 
 echo "== [ARM] linking jihad-browserserver-arm =="
-$CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-BrowserServerBase.o \
+$CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-JihadLunaService.o /out/arm-BrowserServerBase.o \
      /out/arm-YapPacket.o /out/arm-YapProxy.o /out/arm-YapServer.o \
      /out/arm-BrowserPageGoanna.o /out/arm-GoannaRenderPage.o /out/arm-EngineHost.o \
      /out/arm-DialogService.o /out/arm-DownloadService.o \

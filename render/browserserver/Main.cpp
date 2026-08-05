@@ -20,6 +20,7 @@
 #include "../goanna/EngineHost.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 #include "../goanna/JihadCrashReport.h"    // self-reporting fatal-signal dump
+#include "JihadLunaService.h"              // this variant's own palm:// service (IPC R4)
 
 static JihadBrowserServer* g_server = nullptr;
 
@@ -142,10 +143,17 @@ int main(int argc, char** argv) {
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGHUP, &sa, nullptr);
 
+  // This variant's OWN Luna service. Started AFTER the server exists (it needs the same
+  // GLib loop) and treated as optional: no bus, no library, or no role file means no service
+  // and a daemon that still runs. See JihadLunaService.h for why the name is not
+  // com.palm.browserServer.
+  jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
+
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);
   server.run();   // GLib main loop (patched YapServer::run)
   if (g_termSignal)
     printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);
+  jihad::LunaServiceStop();
   g_server = nullptr;
   }   // every page destroyed here, before the runtime goes away
   // Explicit, not left to static destruction order: this is what flushes the

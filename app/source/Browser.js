@@ -169,11 +169,23 @@ enyo.kind({
 	clearHistory: function() {
 		this.viewCall("clearHistory");
 	},
+	// OUR OWN service, not palm://com.palm.browserServer/ — see below.
+	//
+	// Upstream calls the stock browser daemon's name. That daemon is still running on this
+	// device, because Jihad coexists with it rather than replacing it, so the upstream URI
+	// SUCCEEDS and clears the STOCK browser's data while this browser's is untouched
+	// (measured 2026-08-04: `{"returnValue":true}` came back and Jihad's cookies were all
+	// still there). Silent, and it only became visible once cookie persistence worked.
+	//
+	// The daemon registers `palm://net.riverstonerelay.jihad-browser<variant>/` itself — the
+	// same per-variant identity as the NPAPI MIME, the YAP socket, the upstart job and the
+	// state dir. This is a SERVICE name, not part of the frozen BrowserAdapter call set, so
+	// the contract cavekit-ui-shell.md R2 protects is untouched.
 	clearCookies: function() {
-		new PalmServiceBridge().call('palm://com.palm.browserServer/clearCookies', '{}');
+		new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser/clearCookies', '{}');
 	},
 	clearCache: function() {
-		new PalmServiceBridge().call('palm://com.palm.browserServer/clearCache', '{}');
+		new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser/clearCache', '{}');
 	},
 	isLoading: function() {
 		return this.$.actionbar.getProgress() != 0;

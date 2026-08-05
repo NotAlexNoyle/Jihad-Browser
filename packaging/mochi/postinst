@@ -130,6 +130,54 @@ cp -a "$APP/BrowserAdapterImpl.so" "$IMPL"
 # refuse to load its own implementation.
 chown 0:0 "$IMPL" 2>/dev/null || true
 chmod 0644 "$IMPL"
+# ── this variant's OWN Luna service name (cavekit-ipc-contract.md R4) ────────────────────────
+# The app clears cache/cookies over the Luna bus. Upstream calls `palm://com.palm.browserServer/`,
+# which is the STOCK daemon — on a device with Jihad installed that call succeeds and clears the
+# WRONG browser (measured 2026-08-04). Each variant therefore owns its own service name, the same
+# coexistence move already made for the NPAPI MIME, the YAP name, the upstart job and the state
+# dir. Registering a name needs the hub's permission, which is what these four files grant.
+#
+# `exeName` is the path the hub resolves for our process, and that is the BUNDLED LOADER, not the
+# daemon binary: the job execs `./ld-2.23.so … ./jihad-browserserver`, so /proc/<pid>/exe is
+# ld-2.23.so. Naming jihad-browserserver here would look right and fail.
+LSNAME=net.riverstonerelay.jihad-browser-mochi
+LSEXE=$DR/hl/ld-2.23.so
+mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
+         /usr/share/dbus-1/system-services /usr/share/dbus-1/services
+cat > /usr/share/ls2/roles/prv/$LSNAME.json <<LSROLE
+ {
+     "role": {
+         "exeName":"$LSEXE",
+         "type": "regular",
+         "allowedNames": ["$LSNAME",""]
+     },
+     "permissions": [
+         {
+             "service":"$LSNAME",
+             "inbound":["*"],
+             "outbound":["*"]
+         }
+     ]
+ }
+LSROLE
+cp -a /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json
+# Type=static: upstart already runs the daemon, so the bus must never try to spawn it.
+cat > /usr/share/dbus-1/system-services/$LSNAME.service <<LSSVC
+[D-BUS Service]
+Name=$LSNAME
+Exec=$LSEXE
+Type=static
+LSSVC
+cp -a /usr/share/dbus-1/system-services/$LSNAME.service /usr/share/dbus-1/services/$LSNAME.service
+chown 0:0 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
+          /usr/share/dbus-1/system-services/$LSNAME.service \
+          /usr/share/dbus-1/services/$LSNAME.service 2>/dev/null || true
+chmod 0644 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
+           /usr/share/dbus-1/system-services/$LSNAME.service \
+           /usr/share/dbus-1/services/$LSNAME.service
+# ls-hubd reads roles at startup, so the service becomes reachable after the reboot this
+# postinst already asks for — not the moment these files land.
+
 cp -a "$DR/event.d/jihad-mochi" "$JOB"
 # F-7 again: init execs this job as root, so it is not the app bundle's file to own. 0644, not
 # 0755 — upstart READS a job file, it never execs it, so the execute bit is pure surface.

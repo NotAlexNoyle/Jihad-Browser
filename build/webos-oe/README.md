@@ -93,6 +93,16 @@ shortens the deadline for tests that want the default quickly. If what you are t
 HUMAN path, answer LATE on purpose — a 300 ms scripted answer hid a bug that denied every real
 dialog for months (see `context/kits/cavekit-browser-services.md` R3).
 
+**Neither push script carries `appinfo.json`.** `push-engine-update.sh` ships the engine, daemon
+and prefs; `push-card-js.sh` ships the files you name. App METADATA — the launcher title, the
+icon, the version — only travels with a full `push-variant.sh` or a real `.ipk` install. That is
+how the Mojo variant sat on the device titled "Jihad Browser" for two days after the repo had
+renamed it to "Jihad Mojo" (2026-08-05): the repo was right, the device was stale, and nothing
+in the fast loop would ever have corrected it. `push-card-js.sh <variant> appinfo.json` does work
+— the LunaSysMgr restart it already performs is what makes the launcher re-read the file — but
+you have to know to ask for it. When you rename or re-version an app, push `appinfo.json`
+explicitly and check the launcher, not the repo.
+
 It also closes the running card by its **real** `processId` from
 `applicationManager/running` (note the reply field is lowercase `processid` while the
 close request wants camelCase `processId` — mixing them up closes nothing and the

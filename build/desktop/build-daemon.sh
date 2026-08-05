@@ -37,10 +37,11 @@ $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/BrowserPageGoanna.cpp" -o /out/
 
 echo "== compiling JihadBrowserServer + Main =="
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/JihadBrowserServer.o || exit 15
+$CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/JihadLunaService.cpp" -o /out/JihadLunaService.o || exit 15
 $CXX $CXXFLAGS $YAPINC $ENGINC $GTK_CFLAGS $GLIB -c "$BS/Main.cpp" -o /out/bs_main.o || exit 16
 
 echo "== linking jihad-browserserver =="
-$CXX /out/bs_main.o /out/JihadBrowserServer.o /out/BrowserServerBase.o \
+$CXX /out/bs_main.o /out/JihadBrowserServer.o /out/JihadLunaService.o /out/BrowserServerBase.o \
      /out/YapPacket.o /out/YapProxy.o /out/YapServer.o \
      /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o \
      "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \

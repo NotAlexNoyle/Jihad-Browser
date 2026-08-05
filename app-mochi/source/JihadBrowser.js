@@ -13,7 +13,7 @@
 //
 // Contract invariant (cavekit-ipc-contract R1, cavekit-mochi-ui R3): the UI
 // drives the engine ONLY through JihadWebView's callBrowserAdapter proxy and the
-// palm://com.palm.browserServer/* Luna services — the identical method-name set
+// palm://net.riverstonerelay.jihad-browser-mochi/* Luna service — the identical method-name set
 // and URIs the Enyo 1.0 app uses (../../app/source/Browser.js). See
 // ../../docs/IPC-CONTRACT.md.
 //
@@ -330,9 +330,13 @@ enyo.kind({
 	find:       function(str) { this.$.view.callBrowserAdapter("findInPage", [str]); },
 	//* Luna services the Enyo 1.0 app invokes from Preferences (Browser.js). The
 	//* Preferences UI is the T-053 port; these are present now so the
-	//* palm://com.palm.browserServer/* URI set matches the Enyo 1.0 app exactly.
-	clearCookies: function() { new PalmServiceBridge().call('palm://com.palm.browserServer/clearCookies', '{}'); },
-	clearCache:   function() { new PalmServiceBridge().call('palm://com.palm.browserServer/clearCache', '{}'); },
+	//* This variant's OWN Luna service, matching the Enyo app's method-name set but not its
+	//* service NAME: `palm://com.palm.browserServer/` is the stock daemon we coexist with, and
+	//* calling it clears the wrong browser (see app/source/Browser.js for the measurement).
+	//* Each variant owns `net.riverstonerelay.jihad-browser<variant>`, as it owns its MIME,
+	//* YAP socket, upstart job and state dir.
+	clearCookies: function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser-mochi/clearCookies', '{}'); },
+	clearCache:   function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihad-browser-mochi/clearCache', '{}'); },
 
 	// --- address bar --------------------------------------------------------
 	// mochi.Input onchange fires on blur/commit; Enter does not blur on its own,

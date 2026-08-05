@@ -130,6 +130,13 @@ rm -f "$IMPL"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone
 rm -f "$JOB"
+# This variant's Luna service name (exact paths, one variant's name — no glob could reach a
+# sibling's). Leaving these behind would be rootfs residue that R8 forbids, and would leave the
+# hub permitting a name nothing serves.
+LSNAME=net.riverstonerelay.jihad-browser-mojo
+rm -f /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
+      /usr/share/dbus-1/system-services/$LSNAME.service \
+      /usr/share/dbus-1/services/$LSNAME.service
 rm -rf "$STATE"                             # this variant's state dir only
 rmdir /var/palm/jihad 2>/dev/null || true   # ditto
 sync

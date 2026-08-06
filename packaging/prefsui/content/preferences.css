@@ -1,0 +1,207 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+   about:preferences / about:settings.
+
+   Sized for a TouchPad card held either way (1024 or 768 across) and for a finger:
+   every control is at least 44px tall, and nothing is laid out at a fixed width.
+   -webkit- prefixes are NOT needed here — unlike the card shells, this document is
+   rendered by Goanna, not by webOS's 2011 WebKit. */
+
+/* A drag should pan a settings page rather than select it — this is chrome, not prose.
+   The fields opt back in below so a url can still be selected and copied.
+   HONESTY NOTE: added on a WRONG diagnosis of the device report "I cant scroll down in
+   about:preferences". The magenta banding read as a selection highlight; it was actually the
+   `jihad-effect` test add-on's user stylesheet. The rule is kept because it is right for a
+   settings page, but **it is not known to fix the scrolling** — that report is still
+   unexplained. Do not treat it as closed. */
+/* Root background over the whole viewport, so the page does not depend on which boxes
+   happen to carry their own background. (Kept, but note the magenta banding that prompted
+   it was NOT a background bug: the `jihad-effect` TEST add-on registers a user stylesheet
+   of `body{background-color:#ff00ff !important}` and was painting every document, this page
+   included. Remove that add-on to see the page's real colours.) */
+html {
+	min-height: 100%;
+	background: #1c1c1c;
+}
+body {
+	min-height: 100%;
+}
+html, body {
+	-moz-user-select: none;
+	margin: 0;
+	padding: 0;
+	background: #1c1c1c;
+	color: #e6e6e6;
+	font-family: Prelude, Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	-moz-text-size-adjust: none;
+}
+
+.hdr {
+	padding: 18px 20px 12px 20px;
+	background: #262626;
+	border-bottom: 1px solid #101010;
+}
+.hdr h1 {
+	margin: 0;
+	font-size: 26px;
+	font-weight: bold;
+	color: #f0f0f0;
+}
+.hdr .sub {
+	margin-top: 4px;
+	font-size: 14px;
+	color: #8cafbe;
+}
+
+/* Pane switcher. Scrolls sideways rather than wrapping, so the row stays one line
+   on the narrow (portrait) card. */
+.panes {
+	display: block;
+	white-space: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	background: #202020;
+	border-bottom: 1px solid #101010;
+	padding: 8px 12px;
+}
+.pane-tab {
+	display: inline-block;
+	min-height: 44px;
+	margin: 0 6px 0 0;
+	padding: 10px 18px;
+	font-size: 16px;
+	color: #d8d8d8;
+	background: #303030;
+	border: 1px solid #3d3d3d;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.pane-tab.on {
+	color: #ffffff;
+	background: #3f5d6b;
+	border-color: #557a8c;
+}
+
+main {
+	display: block;
+	padding: 12px 12px 24px 12px;
+}
+
+.group {
+	display: block;
+	margin: 0 0 16px 0;
+	background: #232323;
+	border: 1px solid #2f2f2f;
+	border-radius: 8px;
+	overflow: hidden;
+}
+.group-title {
+	margin: 0;
+	padding: 10px 16px;
+	font-size: 13px;
+	font-weight: normal;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: #8cafbe;
+	background: #1f1f1f;
+	border-bottom: 1px solid #2f2f2f;
+}
+
+/* One setting. Label left, control right; the label takes the slack so long
+   pref names and help text wrap instead of squeezing the control. */
+/* Label left, control right. Plain flexbox: this document is rendered by Goanna,
+   which supports the unprefixed properties — the -moz-box form used here first laid
+   the control out UNDER the label on device. */
+.row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 10px 16px;
+	border-bottom: 1px solid #2a2a2a;
+}
+.row:last-child { border-bottom: 0; }
+
+.row-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-right: 14px;
+	font-size: 17px;
+	line-height: 22px;
+	color: #ececec;
+}
+.row-pref {
+	margin-top: 2px;
+	font-family: monospace;
+	font-size: 12px;
+	color: #7e7e7e;
+	word-wrap: break-word;
+}
+.row-help {
+	margin-top: 4px;
+	font-size: 13px;
+	line-height: 18px;
+	color: #a8a8a8;
+}
+
+/* A pref this build does not ship: shown, so the pane still documents what Pale
+   Moon puts here, but visibly inert. */
+.row.unavailable .row-label { color: #8a8a8a; }
+
+.cb {
+	width: 30px;
+	height: 30px;
+	margin: 0;
+}
+.sel, .txt {
+	flex: 0 0 auto;
+	width: 42%;
+	max-width: 320px;
+	min-width: 150px;
+	min-height: 44px;
+	padding: 8px 10px;
+	font-size: 16px;
+	color: #101010;
+	background: #f4f4f4;
+	border: 1px solid #101010;
+	border-radius: 6px;
+}
+.txt[type="number"] { width: 130px; min-width: 110px; }
+.cb { flex: 0 0 auto; }
+
+.ftr {
+	padding: 4px 16px 28px 16px;
+}
+.btn {
+	min-height: 48px;
+	padding: 12px 18px;
+	font-size: 16px;
+	color: #ececec;
+	background: #3a3a3a;
+	border: 1px solid #4a4a4a;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.note {
+	margin-top: 10px;
+	min-height: 20px;
+	font-size: 13px;
+	color: #8fbf8f;
+}
+
+/* Start-page link editor: name, address, remove on one line. The two fields share the
+   row's width so a long url does not squeeze the name to nothing. */
+.link-row {
+	gap: 8px;
+}
+.link-name { flex: 1 1 30%; width: auto; min-width: 90px; }
+.link-url  { flex: 2 1 55%; width: auto; min-width: 120px; }
+.link-remove { flex: 0 0 auto; min-height: 44px; padding: 10px 14px; }
+/* The add / restore pair sits in a plain row, so give the buttons some air. */
+.row > .btn { margin-right: 10px; }
+
+/* The fields opt back into selection — a home page or a link address is exactly the kind
+   of value a user wants to select, copy and paste. */
+input, textarea, .row-pref {
+	-moz-user-select: text;
+}

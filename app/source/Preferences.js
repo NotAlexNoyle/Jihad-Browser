@@ -31,7 +31,7 @@ enyo.kind({
 			{kind: "Image", src: "images/header-icon-prefs.png", className: "preferences-header-image"},
 			{content: $L("Preferences")}
 		]},
-		{kind: "Scroller", flex: 1, components: [
+		{kind: "Scroller", name: "prefScroller", flex: 1, components: [
 			{kind: "Control", className: "enyo-preferences-box", components: [
 				{kind: "RowGroup", caption: $L("Default Web Search Engine"), components: [
 					{kind: "ListSelector", name: "searchPreference", value: $L("Google"), onChange: "searchPreferenceChange"}
@@ -50,6 +50,11 @@ enyo.kind({
 						{kind: "ToggleButton", name: "flashplugins", onChange: "togglePreferenceClick", preference: "flashplugins", type: "System"}
 					]},
 				]},
+				// NO home-page or start-page-links rows here any more. Both moved to
+				// about:preferences (cavekit-preferences-ui.md R5): they are stored by the
+				// ENGINE and read back by this card over Luna, so a copy here would be a
+				// second writer for the same setting. "Preferences" in the app menu opens
+				// that page; this panel keeps only what the card itself owns.
 				{kind: "Button", caption: $L("Clear Bookmarks"), onclick: "promptButtonClick", dialog: "clearBookmarksPrompt"},
 				{kind: "Button", caption: $L("Clear History"), onclick: "promptButtonClick", dialog: "clearHistoryPrompt"},
 				{kind: "Button", caption: $L("Clear Cookies"), onclick: "promptButtonClick", dialog: "clearCookiesPrompt"},

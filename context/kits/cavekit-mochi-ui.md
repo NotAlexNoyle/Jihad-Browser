@@ -69,6 +69,17 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - [x] Device-verified: a tap lists the real options and the pick reaches the page (`popupMenuSelect id=… idx=…`, and the test page's `onchange` fired).
 **Dependencies:** cavekit-addons-extensions.md, cavekit-ipc-contract.md (R1)
 
+### R7: Chrome-owned settings
+**Description:** The two settings this shell owns rather than the engine — the home button's target and the start page's shortcut list — are stored, rendered and editable.
+**Added 2026-08-05 (user requests: a configurable home button; customizable start-page links).**
+**Acceptance Criteria:**
+- [x] A **home** control sits immediately right of forward and opens the configured page. Never disabled — unlike back/forward it does not depend on page history. Default `https://start.duckduckgo.com/`. *(Device-verified 2026-08-05.)*
+- [x] The start page renders the stored shortcut list rather than a hard-coded one, and redraws when the list is edited without relaunching the card.
+- [x] Both are edited in ONE place, and it is not this panel: `about:preferences`, reached from this variant's overflow menu ("Settings"). *(Changed 2026-08-06. Previously read "editable in this variant's own preferences panel" with a row-per-shortcut editor — which made Mochi a second writer for settings the engine page also owns. The editor is removed; `JihadChromePrefs` is now a read cache with an `adoptFromUrl()` that takes edits published by the page, gated on the url PATH so `about:blank` cannot be used to inject one.)* ~~Both are editable in this variant's own preferences panel:~~ a row per shortcut (name, address, remove), plus add and restore-defaults, and a home-page field where blanking it restores the default rather than leaving home pointing nowhere.
+- [x] They are stored in the card's own `localStorage` (`source/JihadChromePrefs.js`), **not** in the db8 preferences kind this package owns. Reason: the start page reads them while it is being built, and db8 is asynchronous where `localStorage` is not. This registers no new kind and adds nothing to the frozen adapter set.
+- [x] The copy is this variant's own CACHE of the shared value — the three shells are deliberately not a shared installation, so each keeps its own copy, but there is now exactly one WRITER (the settings page). *(Resolved 2026-08-06 by removing Mochi's editor; the note below is kept because it records why the original design had to change.)* *(Was downgraded 2026-08-06: This was the right design before the settings merge and is the wrong one after it: `about:preferences` is now the single editing surface, and Mochi shipping its OWN editor over its OWN store makes it a second writer for the same two settings — the exact state cavekit-preferences-ui.md R5 exists to end. Either remove Mochi's editor and read the shared value, or accept it and say so in R5. Not left as-is.)*
+**Dependencies:** cavekit-preferences-ui.md (R5 — where this panel is headed), cavekit-ui-shell.md
+
 ## Out of Scope
 - Any change to the rendering engine, BrowserServer, or the YAP/Luna contract.
 - New browser capabilities beyond parity with the Enyo UI (YAGNI).
@@ -86,6 +97,11 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - See also: cavekit-ui-shell.md (Enyo variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-browser-services.md, cavekit-device-build.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-08-05: **R7 added** (home button, customizable start-page links) and met. The storage
+  choice is the point worth keeping: these two live in the card's `localStorage` rather than the
+  db8 preferences kind this package already owns, because the start page reads them
+  synchronously while building. Note this panel is not the final home for them —
+  cavekit-preferences-ui.md R5 merges the per-variant panels into `about:preferences`.
 - 2026-08-03: Device gate cleared for this variant. R2's navigation AC and R3's WebView-binding AC
   move to `[x]` (the card is live on hardware, bound to its OWN MIME — closing the R7 reopening —
   and loads pages through its own daemon); R4's layout AC records Topaz verified, Opal not. R1's

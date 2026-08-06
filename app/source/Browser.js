@@ -41,6 +41,7 @@ enyo.kind({
 		{name: "actionbar", kind: "ActionBar",
 			onBack: "goBack",
 			onForward: "goForward",
+			onHome: "goHome",
 			onLoad: "goClick",
 			onStopLoad: "stopClick",
 			onRefresh: "reloadClick",
@@ -151,11 +152,24 @@ enyo.kind({
 	//* @protected
 	find: function(inSender, inString) {
 		this.log(inString);
+		//* Remembered so "next" can re-issue the same query — see goToNext.
+		this._findString = inString;
 		this.$.view.callBrowserAdapter("findInPage", [inString]);
 	},
-	goToPrevious: function() {
-	},
+	//* The engine's finder continues from the current match, so re-issuing the SAME query is
+	//* what "next" means. That is the whole of it — there is no separate find-again command.
 	goToNext: function() {
+		if (this._findString) {
+			this.$.view.callBrowserAdapter("findInPage", [this._findString]);
+		}
+	},
+	//* Backwards search is NOT reachable from here. The frozen scriptable surface exposes
+	//* `findInPage(string)` with no direction argument, and the adapter hardcodes forward
+	//* (`asyncCmdFindString(str, true)`, BrowserAdapter.cpp). The daemon and the YAP command
+	//* both carry the flag, so the capability exists — only the app-facing call cannot express
+	//* it, and widening that call set is exactly what cavekit-ui-shell.md R2 forbids. The
+	//* FindBar's prev button therefore stays disabled rather than silently searching forward.
+	goToPrevious: function() {
 	},
 	setEnableJavascript: function(inEnable) {
 		this.viewCall("setEnableJavascript", [inEnable]);
@@ -432,6 +446,12 @@ enyo.kind({
 		} else {
 			this.doClose();
 		}
+	},
+	//* Home goes to the page configured in Preferences (default
+	//* https://start.duckduckgo.com/), by exactly the path a typed address takes
+	//* (ActionBar onLoad -> goClick).
+	goHome: function() {
+		this.setUrl(enyo.jihadChrome.loadHome());
 	},
 	goForward: function() {
 		this.$.view.callBrowserAdapter("goForward");

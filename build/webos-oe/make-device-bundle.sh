@@ -160,6 +160,51 @@ if [ -d "$BRANDING" ]; then
 	echo "  branding: chrome://branding/ registered (about:addons brand.dtd)"
 fi
 
+# --- about:preferences / about:settings ---------------------------------------------------------
+# Pale Moon organises settings as a prefwindow of panes; Basilisk serves the same material
+# in-content. This embedding has no chrome window to host a prefwindow, so it takes Basilisk's
+# shape with Pale Moon's panes: an nsIAboutModule (a JS component, exactly like the XPI install
+# prompt above) resolving both about: names to chrome://jihad-prefs/content/preferences.html.
+# chrome://, not resource://, because the page writes prefs and therefore needs the system
+# principal; content cannot reach it because the module does not set URI_SAFE_FOR_UNTRUSTED_CONTENT.
+PREFSUI="$REPO/packaging/prefsui"
+ABOUT_JS="$REPO/render/goanna/components/jihadAboutPreferences.js"
+if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
+	rm -rf "$OUT/prefsui"
+	mkdir -p "$OUT/prefsui" "$OUT/components"
+	cp -R "$PREFSUI/content" "$OUT/prefsui/"
+	cp -L "$PREFSUI/jihad-prefsui.manifest" "$OUT/"
+	cp -L "$ABOUT_JS" "$OUT/components/jihadAboutPreferences.js"
+	cat > "$OUT/components/jihad-about-preferences.manifest" <<'MANIFEST'
+# Jihad Browser — about:preferences / about:settings. Copyright 2026 NotAlexNoyle. MPL-2.0.
+# Both names resolve to the same document (chrome://jihad-prefs/content/preferences.html):
+# about:preferences is what Basilisk users type, about:settings is the other name asked for.
+component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
+contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+MANIFEST
+	# Idempotent, same reason as the branding line above.
+	if ! grep -q '^manifest jihad-prefsui.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest jihad-prefsui.manifest' >> "$OUT/chrome.manifest"
+	fi
+	if ! grep -q '^manifest components/jihad-about-preferences.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest components/jihad-about-preferences.manifest' >> "$OUT/chrome.manifest"
+	fi
+	# Fail the BUILD, not the device: a half-landed package means about:preferences resolves to
+	# nothing, and "unknown protocol" points nowhere near this block.
+	for f in jihad-prefsui.manifest prefsui/content/preferences.html \
+	         prefsui/content/preferences.js prefsui/content/preferences.css \
+	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
+		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }
+	done
+	echo "  prefs ui: about:preferences + about:settings registered (chrome://jihad-prefs/)"
+else
+	# FAIL LOUD, do not skip. A guard that quietly passes when its inputs are missing is how
+	# this build drifts: the bundle would ship with no about:preferences and say nothing.
+	echo "ERROR: prefs-ui inputs missing ($PREFSUI / $ABOUT_JS)" >&2
+	exit 1
+fi
+
 # --- XPI web-install confirm (browser-services R3 / addons R3) -----------------------------------
 # The toolkit's own install confirm is a modal XUL chrome window (amWebInstallListener.js) that a
 # headless daemon cannot open — and its failure path CANCELS the install, so without this every web

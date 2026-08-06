@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cctype>
+#include <string>
 
 namespace {
 
@@ -96,10 +97,57 @@ bool onClearCookies(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
+// getChromePrefs — the CARD's read side of the settings the SETTINGS PAGE owns.
+//
+// about:preferences runs in this process with the system principal and writes
+// `jihad.chrome.settings` (one JSON string) through Services.prefs. The home button and the
+// start page live in the card, which cannot reach engine prefs — so it asks here. Read-only
+// on purpose: there is exactly one writer, which is what makes the merged settings page a
+// single source of truth (cavekit-preferences-ui.md R5).
+//
+// Nothing is added to the YAP contract by this; Luna is a separate, already-used channel.
+bool onGetChromePrefs(LSHandle* sh, LSMessage* msg, void*) {
+  std::string json;
+  bool have = jihad::GetChromeSettings(&json);
+  printf("[jihad-bs] luna: getChromePrefs (%s, %u bytes)\n",
+         have ? "set" : "unset", (unsigned)json.size());
+  if (!gApi.MessageReply) return true;
+  // The stored value is a JSON *string*; it is embedded as a quoted, escaped string rather
+  // than spliced in raw, so a malformed or hostile stored value cannot break the reply's
+  // own JSON. The card parses the inner string itself.
+  std::string out = "{\"returnValue\":true,\"settings\":";
+  if (!have) {
+    out += "\"\"";
+  } else {
+    out += '"';
+    for (size_t i = 0; i < json.size(); ++i) {
+      unsigned char c = (unsigned char)json[i];
+      switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\n': out += "\\n"; break;
+      case '\r': out += "\\r"; break;
+      case '\t': out += "\\t"; break;
+      default:
+        if (c < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); out += b; }
+        else          { out += (char)c; }
+      }
+    }
+    out += '"';
+  }
+  out += "}";
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  gApi.MessageReply(sh, msg, out.c_str(), &e);
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
+  return true;
+}
+
 // Terminated with a fully-zeroed entry — all THREE fields, or the walk reads past the end.
 LSMethod gMethods[] = {
-  { "clearCache",   onClearCache,   0 },
-  { "clearCookies", onClearCookies, 0 },
+  { "clearCache",     onClearCache,     0 },
+  { "clearCookies",   onClearCookies,   0 },
+  { "getChromePrefs", onGetChromePrefs, 0 },
   { 0, 0, 0 },
 };
 

@@ -32,6 +32,7 @@ enyo.kind({
 	events: {
 		onBack: "",
 		onForward: "",
+		onHome: "",
 		onLoad: "",
 		onStopLoad: "",
 		onRefresh: "",
@@ -46,6 +47,10 @@ enyo.kind({
 		{kind: enyo.HFlexBox, className: "menu-container", align: "center", components: [
 			{kind: "ToolButton", name: "back", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-back.png", onclick: "doBack"},
 			{kind: "ToolButton", name: "forward", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-forward.png", onclick: "doForward"},
+			// Home sits immediately right of forward and goes to the page set in
+			// Preferences (enyo.jihadChrome.loadHome(), default
+			// https://start.duckduckgo.com/). Never disabled: home is always reachable.
+			{kind: "ToolButton", name: "home", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-home.png", onclick: "doHome"},
 			{kind: "ToolButton", name: "search", className: "actionbar-tool-button", flex: 1, kind: "URLSearch", onLoad: "doLoad", onStopLoad: "doStopLoad", onRefresh: "doRefresh"},
 			{kind: "ToolButton", name: "share", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-share.png", onclick: "showSharePopup"},
 			{kind: "ToolButton", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-newcard.png", onclick: "doNewCard"},

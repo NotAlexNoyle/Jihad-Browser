@@ -59,6 +59,11 @@ enyo.kind({
 					{kind: "mochi.ToggleButton", name: "enableJavascript", onChange: "toggleChanged", preference: "enableJavascript"}
 				]}
 			]},
+			// NO home-page or start-page-links rows here. Both moved to about:preferences
+			// (cavekit-preferences-ui.md R5): it is the one editing surface, and a copy here
+			// made this variant a SECOND WRITER for the same two settings — exactly the state
+			// R5 exists to end. Removed 2026-08-06 after review. The overflow menu's
+			// "Settings" opens that page; this panel keeps only what the card itself owns.
 			{classes: "jihad-prefs-group", components: [
 				{classes: "jihad-prefs-caption", content: "Clear Data"},
 				{name: "clearBookmarks", classes: "jihad-prefs-btn", ontap: "clearBookmarksTapped", content: "Clear Bookmarks"},

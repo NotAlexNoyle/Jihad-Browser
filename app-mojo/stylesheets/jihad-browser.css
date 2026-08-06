@@ -32,9 +32,25 @@
 	text-overflow: ellipsis;
 }
 
+/* Mojo's TextField is TWO nodes that swap, not one: the real <input> ("-write") is
+   shown while the field has focus, and a read-only <div> ("-read") takes over the
+   moment it blurs (proven on device by dumping outerHTML in both states). Only the
+   input carries the framework's white field background, so dismissing the keyboard
+   left the url sitting as bare text on the dark toolbar with no field around it
+   (device report: "when the keyboard is dismissed the url bar looks incorrect").
+   The field chrome therefore belongs on the CONTAINER, which is present in both
+   states; the two inner nodes are made transparent so focused and unfocused render
+   identically. */
 .jihad-address {
 	width: 100%;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
+	position: relative;
+	height: 34px;
+	padding: 0 8px;
+	background-color: #ffffff;
+	border: 1px solid #101010;
+	-webkit-border-radius: 6px; border-radius: 6px;
+	overflow: hidden;
 }
 
 /* The TextField widget builds its own inner markup at render time; keep it inside
@@ -42,6 +58,29 @@
 .jihad-address * {
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 	max-width: 100%;
+}
+
+/* Both swap nodes plus the hint overlay: same metrics, no chrome of their own, so
+   the container's field is the only thing that draws. Not display: the framework
+   toggles that inline to do the swap. */
+.jihad-address input,
+.jihad-address > div {
+	background: transparent;
+	border: 0;
+	margin: 0;
+	padding: 0;
+	height: 32px;
+	line-height: 32px;
+	font-size: 17px;
+	color: #101010;
+	text-shadow: none;
+}
+
+/* The hint is absolutely positioned by the widget (inline left: 8px), which resolves
+   against the padding box — so it lands on the same 8px as the text in both states. */
+.jihad-address .hint-text {
+	top: 0;
+	color: #808080;
 }
 
 /* Progress is shown only while a load is in flight; the assistant toggles it. */
@@ -130,4 +169,92 @@
 }
 .jihad-history-actions {
 	padding: 14px 12px 24px 12px;
+}
+
+/* ── Horizontally scrollable command row ────────────────────────────────────────────────────
+   The Mojo command menu lays its items out with `position: absolute` and `max-width: 50px`,
+   spread across `width: 100%` (framework global-menus.css). That is why this shell could only
+   ever carry a few controls before running off the right edge — the bug already fixed once by
+   removing a row, and the reason find had to go somewhere else entirely.
+
+   Scoped to OUR menu via the `jihad-cmdmenu` class passed as menuClass, because the command
+   menu renders OUTSIDE the scene element and unscoped rules here would reach every menu.
+
+   `position: static` is the load-bearing part, not `relative`: the framework computes each
+   item's offset and writes it as an inline `left`, and inline `left` is INERT on a statically
+   positioned element. So the items fall back into normal inline flow and lay themselves out
+   left to right, however many there are, instead of being pinned to computed columns.
+
+   -webkit- prefixes throughout: this card's WebKit (~534) silently drops the unprefixed forms,
+   which is what made the toolbar overflow invisible to inspection the first time. */
+.palm-menu.command-menu.jihad-cmdmenu {
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	white-space: nowrap;
+	/* Centred, not left-aligned: the controls are a small group in a full-width bar, and
+	   centring keeps them under the thumbs. Once there are enough of them to overflow, the
+	   row scrolls and the centring stops mattering. */
+	text-align: center;
+}
+/* The framework's fade layer is a 50px BLOCK that comes FIRST among the row's children,
+   with the items following it as absolutely-positioned siblings that overlay it. Once the
+   items are static they flow AFTER that block instead — a full row height down, outside the
+   bar's own 50px box, where the overflow-y: hidden above clips them. The bar then renders
+   as an empty strip (device report: "the mojo buttons at the bottom are currently not
+   visible"; measured with [JIHAD-CMDGEOM] — row at y=606, every button at y=656).
+   Taking the fade out of flow puts it back underneath the items, which is where it was,
+   and lets them start at the top of the row. */
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-fade {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-group,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-button,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-label,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-text {
+	position: static;
+	display: -webkit-inline-box;
+	display: inline-block;
+	max-width: none;
+	white-space: nowrap;
+	vertical-align: top;
+}
+
+/* Square them off so the framework's fully-rounded corners resolve to a CIRCLE. The stock row
+   caps each item at 50px; lifting that cap for the scrolling row let them stretch to 82px, and
+   a 82x50 box with a 25px radius reads as an oval (device report: "fix the circular mojo button
+   shapes"). Width and height only — background-position is left alone because the icon is a
+   32x64 two-state sprite the framework slides to show the pressed half. */
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-button {
+	width: 50px;
+	height: 50px;
+	margin: 0 2px;
+	-webkit-box-sizing: border-box; box-sizing: border-box;
+	-webkit-border-radius: 25px; border-radius: 25px;
+}
+
+/* Find-in-page bar (hidden until opened from the command row). */
+.jihad-find {
+	padding: 6px 8px;
+	white-space: nowrap;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+	width: 100%;
+}
+.jihad-find-input {
+	display: -webkit-inline-box;
+	display: inline-block;
+	width: 60%;
+	vertical-align: middle;
+}
+.jihad-find-btn {
+	display: -webkit-inline-box;
+	display: inline-block;
+	vertical-align: middle;
+	margin-left: 6px;
 }

@@ -99,6 +99,41 @@ MANIFEST
   echo "  xpi prompt: registered in the desktop dist"
 fi
 
+# --- about:preferences / about:settings, into the DESKTOP dist ------------------------------------
+# Mirrors the block in build/webos-oe/make-device-bundle.sh. Without this the desktop dist has no
+# about:preferences at all, so EVERY criterion in cavekit-preferences-ui.md was device-only —
+# which is the divergence cavekit-gre-widgets.md R7 exists to prevent (found in review 2026-08-06).
+PREFSUI=/jihad/packaging/prefsui
+ABOUT_JS=/jihad/render/goanna/components/jihadAboutPreferences.js
+if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ] && [ -d "$DISTBIN/components" ]; then
+  rm -rf "$DISTBIN/prefsui"
+  mkdir -p "$DISTBIN/prefsui"
+  cp -R "$PREFSUI/content" "$DISTBIN/prefsui/"
+  cp -L "$PREFSUI/jihad-prefsui.manifest" "$DISTBIN/"
+  cp -L "$ABOUT_JS" "$DISTBIN/components/jihadAboutPreferences.js"
+  cat > "$DISTBIN/components/jihad-about-preferences.manifest" <<'MANIFEST'
+component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
+contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+MANIFEST
+  if ! grep -q '^manifest jihad-prefsui.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
+    echo 'manifest jihad-prefsui.manifest' >> "$DISTBIN/chrome.manifest"
+  fi
+  if ! grep -q '^manifest components/jihad-about-preferences.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
+    echo 'manifest components/jihad-about-preferences.manifest' >> "$DISTBIN/chrome.manifest"
+  fi
+  for f in jihad-prefsui.manifest prefsui/content/preferences.html prefsui/content/preferences.js \
+           prefsui/content/preferences.css components/jihadAboutPreferences.js \
+           components/jihad-about-preferences.manifest; do
+    [ -s "$DISTBIN/$f" ] || { echo "ERROR: prefs-ui file missing/empty in desktop dist: $f" >&2; exit 1; }
+  done
+  echo "  prefs ui: about:preferences + about:settings registered in the desktop dist"
+else
+  # FAIL LOUD. A silent skip here is what let the two builds drift in the first place.
+  echo "ERROR: prefs-ui inputs missing ($PREFSUI / $ABOUT_JS) — desktop dist would have no about:preferences" >&2
+  exit 1
+fi
+
 # --- add-on prefs, from the SAME file the device bundle uses --------------------------------------
 # Without these the desktop dist runs on engine defaults, where xpinstall.whitelist.required is TRUE
 # and an install from a page throws NS_ERROR_UNEXPECTED — indistinguishable from a broken install

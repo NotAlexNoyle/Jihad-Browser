@@ -411,3 +411,46 @@ input.jihad-address {
 	margin-top: 22px;
 	max-width: 26em;
 }
+
+/* Start-page shortcut links — parity with the Mojo and Enyo shells. */
+.jihad-sp-links {
+	margin-top: 18px;
+	text-align: center;
+}
+.jihad-sp-link {
+	display: -webkit-inline-box;
+	display: inline-block;
+	margin: 0 10px;
+	padding: 10px 14px;
+	font-size: 17px;
+	color: #6fb7ff;
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
+}
+.jihad-sp-link:active {
+	background-color: #2a2a2a;
+}
+
+/* ── Preferences: home target + start-page link editor ──────────────────────
+   The rows are built at runtime from enyo.jihadChrome, so only the fields'
+   own metrics live here. -webkit- prefixes because this card's WebKit (~534)
+   silently drops the unprefixed box-sizing. */
+.jihad-prefs-input {
+	margin: 6px 16px;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+}
+.jihad-prefs-input input {
+	width: 100%;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+}
+/* Narrower than the add/reset pair: it sits at the end of an editor row, not
+   on its own. */
+.jihad-prefs-remove {
+	margin: 6px 16px 6px 0;
+	min-width: 96px;
+	-webkit-box-flex: 0;
+	-webkit-flex: none;
+	flex: none;
+}

@@ -66,9 +66,9 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 
 | Domain | Cavekit File | Requirements | Status | Description |
 |--------|--------------|--------------|--------|-------------|
-| UI Shell (Enyo) | cavekit-ui-shell.md | 5 | 🟢 R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload); findInPage untested. `<select>` popup ✓; start page follows VKB/orientation and carries the shared logo/title/hint block; app renamed "Jihad Enyo" | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
-| Mochi UI Variant | cavekit-mochi-ui.md | 6 | 🟢 R1/R3/R5 ✓; card LIVE on device (loads + paints through its own daemon); **`<select>` popup device-verified 2026-08-03** (own overlay list, pick applied); start page matches the others; R2/R4 remaining on-device feature checks pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
-| Mojo UI Variant | cavekit-mojo-ui.md | 6 | 🟢 R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 6 | 🟢 R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload); findInPage WORKS as of patch 0015 (the long-recorded 'selection controller' cause was a misdiagnosis). `<select>` popup ✓; start page follows VKB/orientation and carries the shared logo/title/hint block; app renamed "Jihad Enyo" | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 7 | 🟢 R1/R3/R5 ✓; card LIVE on device (loads + paints through its own daemon); **`<select>` popup device-verified 2026-08-03** (own overlay list, pick applied); start page matches the others; R2/R4 remaining on-device feature checks pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| Mojo UI Variant | cavekit-mojo-ui.md | 7 | 🟢 R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | 🟢 R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 4/4 (+ ARM cross-build). **R2's "shuts down cleanly" was met in error until 2026-08-04** — `main()` never returned, so `XRE_TermEmbedding` never ran and the engine's deferred savers never flushed; SIGTERM is handled now, pages are destroyed before the runtime, and the never-run `~YapServer` teardown it exposed was itself broken | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 7 | 🟢 R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups ✅**: `<select>` solved card-side on all three variants; `<menupopup>` composited over the frame AND interactive (taps routed in, rollover highlight, drag-select, tap-outside rollup) — the old "popup is 0x0 and never shown" diagnosis was measured on a `<select>` (the combobox path) and was wrong. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
@@ -78,19 +78,21 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | Browser Services | cavekit-browser-services.md | 5 | 🟢 R1–R3 ✓ (**R3 dialogs really work now** — the daemon had NO DialogSink, so every engine dialog silently took its default; `BrowserPageGoanna` is now that sink, over the frozen FIFO contract, **and one 60 s deadline sized for a person** — the original 5 s "has the card picked up" deadline could never be satisfied, because the card opens the reply pipe only when the user taps, so every dialog answered later than five seconds was silently defaulted); R4 partial; R5 SSL confirm wired with a reply path, accept-and-reload not yet end-to-end verified | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
 | Device Build & Packaging | cavekit-device-build.md | 8 | 🟡 R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
-| GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🔴 0/7 — NEW 2026-08-05. 49 XBL bindings ship in our dist; a handful are used. **FOUR are wired for CONTENT** by `html.css`/`forms.css` — `videocontrols`, `datetimebox` (date/time inputs) and `platformHTMLBindings` (102 editing-key handlers) — so they apply to every website and no requirement had ever mentioned them. R3 has teeth: our own `keyDown` prevents the GRE's editing keys from ever running | Widgets the engine already gives us, used or explicitly declined |
-| In-Browser Preferences | cavekit-preferences-ui.md | 7 | 🔴 0/7 — NEW 2026-08-05. `about:preferences` / `about:settings` in the Pale Moon/Basilisk idiom, in all three variants. Grounded: UXP ships the `<prefwindow>`/`<preference>` XBL machinery but **no such page** (it is app-supplied in both forks), and this port already ships two app-supplied chrome pieces, so the mechanism is proven. R5 is the one to read first — the three front-ends currently DISAGREE about settings | An engine-side settings page the three shells can share |
+| GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🟡 8/22 met, 2 partial. **R2 closed by decision**: date/time input is OFF at the pref with the reason recorded (device-verified degrading to `type=text`) — note the side effect that `valueAsDate` leaves the DOM. **R6's recorded diagnosis was WRONG and is corrected**: `FindNext` did not SIGSEGV on a missing selection controller, it hit `MOZ_CRASH` in `SubjectPrincipal()` (no JSContext on an embedder call); fixed in patch 0015 — though `find_test.cpp` still only PRINTS its result and asserts nothing, so it is not yet a gate. R1 (media/codecs) is the big open block | Widgets the engine already gives us, used or explicitly declined |
+| In-Browser Preferences | cavekit-preferences-ui.md | 7 | 🟡 11/26 met, 4 partial. **`about:preferences` + `about:settings` render on device**, built as an `nsIAboutModule` JS component + `chrome://jihad-prefs/` package — no C++ change, no daemon rebuild. In-content HTML (Basilisk's shape, Pale Moon's panes): `<prefwindow>` is a chrome-WINDOW binding and there is no window here. R3 3/4 device-proven from the PROFILE. **Adversarial review 2026-08-06 pulled three marks back**: "no decorative toggles" (the UA row was reverted by EngineHost every start; `intl.accept_languages` is a LOCALIZED pref that displayed a chrome:// url; and the card re-applies popups/cookies/min-font-size from db8 at every launch, overwriting the page), "opens in all three variants" (only two were loaded), and it disproved the recorded reason the Luna route was abandoned — **the public role file is already installed by `gen-variant-scripts.sh`**. Does not exist on the desktop build at all. **R5 is the blocking item** | An engine-side settings page the three shells can share |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **15 domains, 91 requirements, 325 acceptance criteria — 255 met, 13 partial, 57 open**
-(the jump in "open" is two NEW domains arriving 2026-08-05 with nothing started: in-browser
-preferences, and the GRE widget bindings. Both came out of one discovery — that the engine ships
-a preferences UI toolkit we had never touched, and three content-facing bindings that apply to
-every website and that no requirement had ever mentioned.)
-(COUNTED, not estimated, 2026-08-04 — third count of the day; the sweep closed 24 and consolidated
-the five scattered TouchPad Go gates into one: `grep -hc '^- \[x\]' context/kits/cavekit-*.md` and the
-`[~]`/`[ ]` equivalents — re-run that before quoting these numbers, and fix them here if they
-disagree. The previous line said 276/215/21/40 and had drifted from the files it summarised.)
+Totals: **15 domains, 94 requirements, 348 acceptance criteria — 307 met, 11 partial, 30 open**
+(COUNTED programmatically 2026-08-06, not estimated, after an adversarial review pass. The count
+went DOWN from the 2026-08-05 figure — three criteria un-marked because their evidence did not
+support "met", and two new criteria added for defects the review found. A count that only ever
+rises is not measuring anything. The open list is still dominated by the two domains that arrived
+2026-08-05: GRE widget bindings and in-browser preferences.)
+
+(How to re-count, and please do before quoting these numbers: count `^### R` for requirements and
+`^- \[x\]` / `^- \[~\]` / `^- \[ \]` for criteria across `context/kits/cavekit-*.md`, excluding this
+file. These numbers have drifted from the files they summarise more than once — a line here once
+said 276/215/21/40 against files that said otherwise.)
 Closed this session on top of the earlier scroll / long-press / coord-mapping / R7-independence
 work: add-ons R2 (enable, disable and remove driven from the real `about:addons` controls, each
 surviving a restart) and R6 (extension storage, device-verified against a footprint snapshot);
@@ -118,7 +120,7 @@ lead. Re-checked 2026-08-04 and NOT reproduced on a fresh load (icons present at
 failure also raises an engine ALERT before the confirm, which wants its own look;
 (5) `<select>` `<optgroup>` header rows (needs a daemon reply-index remap); F7 scroll header
 frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
-ui-shell R4 findInPage (NOT small — the engine's FindNext SIGSEGVs offscreen; needs a selection controller); device LunaService (IPC R4);
+ device LunaService (IPC R4);
 (6) clean-clone OE reproducibility (device-build #7/#8); TouchPad Go + memory budget (device-build R5/R6).
 Full OE-review findings: `../impl/impl-review-findings-oe.md`.
 
@@ -275,6 +277,64 @@ Notes:
   verification, not construction.
 
 ## Changelog
+- 2026-08-06 (adversarial review + fixes): an inspector pass over this session's claims found a
+  **shipped regression and two false statements**, and the counts moved DOWN to 304/13/31 as a
+  result — which is the point of counting.
+  - **Regression:** repointing the Enyo app menu's only "Preferences" entry at `about:preferences`
+    left the card's own panel unreachable, removing the default-search selector, the
+    JavaScript/Flash toggles and all four clear-data actions from the product; a block delete had
+    also taken five preference handlers with it. Both restored; the menu now carries two entries
+    until R5 can absorb what only the card can do.
+  - **Security:** `adoptFromUrl` accepted ANY `about:*` url carrying `#chrome=`. `about:blank` is
+    content-loadable, so a visited page could have rewritten the home button — and a `javascript:`
+    home target runs in page context. Now gated on the path, with an `https?:`/`about:` allowlist
+    on stored values in both the card and the page.
+  - **Two claims disproved:** the Luna route was NOT blocked by policy (this repo already installs
+    a public LS2 role file); and `CurrentUri()` is not the thing stripping the url fragment (this
+    project's own Mojo start page round-trips fragments fine). Both corrected in place rather than
+    quietly dropped.
+  - Three criteria un-marked because the evidence did not support "met".
+- 2026-08-05 (closing sweep): 299 -> **308 met, 7 partial, 31 open**. Prioritised by cost, and the
+  cheapest wins turned out to be corrections, not code:
+  - **cavekit-gre-widgets.md R6 recorded a false blocker.** It said find-in-page SIGSEGVs because
+    the offscreen browser never sets up a frame-selection controller. It does not: `FindNext`
+    reaches `nsContentUtils::SubjectPrincipal()`, which is `MOZ_CRASH` when there is no JSContext
+    — and an embedder calls it from C++ with no script on the stack. `MOZ_CRASH` presents as
+    SIGSEGV at address 0, which is what was misread for two weeks. Patch 0015 fixes it and
+    carries the explanation inline. A kit that records a wrong cause is worse than one that
+    records nothing, so this is the highest-value edit in the sweep.
+  - **R2 (date/time) closed by turning the feature off**, which is one of the two outcomes the
+    criterion itself allowed. Verified by a probe page that prints its own result: `type=date`
+    before, `type=text` after, value intact.
+  - **A deploy trap worth remembering**, recorded in `../impl/impl-gre-widget-inventory.md`: the
+    first attempt to apply that pref silently did nothing, because the idempotence guard grepped
+    for the pref NAME and upstream already set it in the same file. Guard on your own marker.
+  - **preferences-ui R3 3/4 device-proven** from the profile rather than the UI. The fourth
+    measured a real defect and left the criterion open — the honest outcome, and one that reading
+    the pref back would have hidden.
+- 2026-08-05: **`about:preferences` / `about:settings` now render on device**, and the shells
+  gained the two settings they own rather than the engine. Three new requirements
+  (cavekit-ui-shell.md R6, cavekit-mochi-ui.md R7, cavekit-mojo-ui.md R7) for the home button's
+  target and the start page's shortcut list; cavekit-mojo-ui.md R6 extended for the command row.
+  Totals re-counted programmatically (see the Totals line for the current figure).
+
+  Four things here are worth carrying forward more than the counts are:
+  1. **The preferences page needed no C++ change.** An `nsIAboutModule` registered from a JS
+     component reaches `Services.prefs` with the system principal, so the engine's own about:
+     table in `BrowserPageGoanna.cpp` stays as the two-static-pages thing it was written to be.
+  2. **A kit criterion was wrong, not just unmet.** cavekit-preferences-ui.md R1 required the
+     page be built on `<prefwindow>`; that both prescribes a HOW (against the kit conventions)
+     and prescribes the wrong thing, because `<prefwindow>` is a chrome-WINDOW binding and this
+     embedding has no window. Restated as an outcome.
+  3. **Every user-reported symptom this session was invisible in the source.** The Mojo command
+     bar rendering empty was a `.palm-menu-fade` block pushing statically-positioned items out
+     of a clipped box; the url bar "looking incorrect" was Mojo's TextField being two nodes that
+     swap on blur. Both were found by screenshotting the device and dumping live geometry —
+     `luna-send palm://com.palm.systemmanager/takeScreenShot` — not by reading CSS. The same
+     method caught 13 preference rows bound to prefs a bare GRE does not ship.
+  4. **`Mojo.stringifyJSON` does not exist in this framework build**, and `jihad-history.js`
+     used it — so Mojo history had never persisted. Found only because an unrelated new call
+     threw in the main scene's `setup()`.
 - 2026-08-04 (second pass): A sweep against the open list closed **19** criteria and corrected two
   whose premise was wrong. The engine gained three patches, each fixing something that had been
   silently doing nothing: `PuppetWidget::GetCurrentWidgetListener` never fell back to

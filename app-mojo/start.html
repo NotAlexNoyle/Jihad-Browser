@@ -85,11 +85,40 @@
 		<h1>Jihad Browser</h1>
 		<p class="sub">Mojo UI &#9733; Goanna/6.9 UXP/b2594a4</p>
 		<p class="hint">Type a web address or a search in the bar above, then press Enter.</p>
-		<ul>
+		<ul id="links">
 			<li><a href="https://duckduckgo.com/">DuckDuckGo</a></li>
 			<li><a href="https://en.m.wikipedia.org/">Wikipedia</a></li>
 			<li><a href="https://webosarchive.org/">webOS Archive</a></li>
 		</ul>
 	</div>
+	<script type="text/javascript">
+	// The shortcuts are editable in settings, but this page is rendered by the ENGINE
+	// and cannot read the card's localStorage — so the scene passes the list in the
+	// url fragment (main-assistant.js startPageUrl()). The markup above is the
+	// default, left in place so the page still shows shortcuts when opened directly
+	// with no fragment and when script is off.
+	(function () {
+		var m = /(?:^|[#&])links=([^&]*)/.exec(window.location.hash || "");
+		if (!m) { return; }
+		var list;
+		try { list = JSON.parse(decodeURIComponent(m[1])); } catch (e) { return; }
+		if (!list || !list.length) { return; }
+		var ul = document.getElementById("links");
+		if (!ul) { return; }
+		while (ul.firstChild) { ul.removeChild(ul.firstChild); }
+		for (var i = 0; i < list.length; i++) {
+			var title = list[i] && list[i].title, url = list[i] && list[i].url;
+			if (!title || !url) { continue; }
+			var li = document.createElement("li");
+			var a = document.createElement("a");
+			// href is assigned, and the label goes in as TEXT — the list is
+			// user-supplied, so it is never turned into markup.
+			a.setAttribute("href", String(url));
+			a.appendChild(document.createTextNode(String(title)));
+			li.appendChild(a);
+			ul.appendChild(li);
+		}
+	}());
+	</script>
 </body>
 </html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:preferences / about:settings. Served by
+     render/goanna/components/jihadAboutPreferences.js.
+
+     HTML, not XUL: Pale Moon's preferences.xul is a <prefwindow> of <prefpane>s, a
+     construct that only makes sense inside a chrome window — this embedding has none.
+     Basilisk already moved the same material in-content, and in-content here also
+     avoids the XUL problems this shell has measured (popup layers as separate display
+     roots, unreliable zoom on about:addons). The panes and their contents follow Pale
+     Moon's; see preferences.js for the table and for the panes deliberately dropped. -->
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Preferences</title>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/preferences.css" type="text/css"/>
+</head>
+<body>
+	<header class="hdr">
+		<h1 id="page-title">Preferences</h1>
+		<div class="sub" id="page-sub">Jihad Browser</div>
+	</header>
+
+	<!-- Pane switcher. Buttons, not a <select>: a settings page should show where you
+	     are, and this row scrolls sideways on a narrow card. -->
+	<nav class="panes" id="panes"></nav>
+
+	<main id="content"></main>
+
+	<footer class="ftr">
+		<button type="button" id="reset-pane" class="btn">Restore this pane's defaults</button>
+		<div class="note" id="status" role="status"></div>
+	</footer>
+
+	<script type="application/javascript" src="chrome://jihad-prefs/content/preferences.js"></script>
+</body>
+</html>

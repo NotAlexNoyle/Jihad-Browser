@@ -39,14 +39,23 @@ int main(int argc, char** argv) {
   printf("[find] engine up\n");
 
   bool freezeOK = false;
+  bool findOK = false;
 
-  // Part 1: findString stays safe (no crash) in the offscreen config -- it
-  // returns false rather than faulting in FindNext. See GoannaRenderPage::Find.
+  // Part 1: find-in-page actually FINDS.
+  //
+  // This used to print `r` and assert nothing, with a comment saying find "returns false
+  // rather than faulting" — the old, WRONG diagnosis (a missing frame-selection controller).
+  // The real cause was nsContentUtils::SubjectPrincipal() hitting MOZ_CRASH with no JSContext
+  // on an embedder call; patch 0015 fixes it. A test that only printed would pass identically
+  // with find completely broken, which is exactly how the wrong diagnosis survived two weeks.
+  // So: assert BOTH directions — a present string must be found, an absent one must not.
   { jihad::GoannaRenderPage page(host); page.Create(640, 480);
     page.LoadUrlAndWait("data:text/html,<body>alpha JIHADFINDME omega</body>", 20);
     page.PumpFor(500);
-    bool r = page.Find("JIHADFINDME", true);   // must not crash
-    printf("[find] findString safe (returned %d, no crash)\n", r);
+    bool hit  = page.Find("JIHADFINDME", true);
+    bool miss = page.Find("NOTONTHISPAGEXYZ", true);
+    findOK = hit && !miss;
+    printf("[find] findString hit=%d miss=%d ok=%d\n", hit, miss, findOK);
   }
 
   // Part 2: freeze/thaw painting.
@@ -71,9 +80,12 @@ int main(int argc, char** argv) {
     }
   }
 
-  bool ok = freezeOK;   // find is a documented safe no-op in the offscreen config
-  printf("[find] freezeOK=%d\n", freezeOK);
-  printf("[find] %s\n", ok ? "FREEZE-THAW PASS" : "FREEZE-THAW FAIL");
+  // Gates on BOTH halves now. The old line was `ok = freezeOK` with the comment "find is a
+  // documented safe no-op in the offscreen config" — which documented the misdiagnosis and
+  // meant this binary could not fail because of find, no matter what find did.
+  bool ok = freezeOK && findOK;
+  printf("[find] freezeOK=%d findOK=%d\n", freezeOK, findOK);
+  printf("[find] %s\n", ok ? "PASS" : "FAIL");
   host.Shutdown();
   return ok ? 0 : 4;
 }

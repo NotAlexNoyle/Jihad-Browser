@@ -36,7 +36,12 @@ enyo.kind({
 				{content: "Jihad Browser", className: "startpage-title", allowHtml: false},
 				{content: "Enyo UI ★ Goanna/6.9 UXP/b2594a4", className: "startpage-sub", allowHtml: false},
 				{content: $L("Type a web address or a search in the bar above, then press Enter."),
-					className: "startpage-hint", allowHtml: false}
+					className: "startpage-hint", allowHtml: false},
+				// Shortcuts, filled in at create() from enyo.jihadChrome so the list
+				// the user edited in Preferences is what shows. Taps go through
+				// doUrlChange — the identical event the address bar raises — rather
+				// than a new path.
+				{name: "links", className: "startpage-links"}
 			]},
 			{name: "placeholder", className: "startpage-placeholder"}
 		]}
@@ -44,11 +49,36 @@ enyo.kind({
 	//* @protected
 	create: function() {
 		this.inherited(arguments);
+		this.buildLinks();
 		this.searchPreferencesChanged();
 		this.defaultSearchChanged();
 	},
+	//* Render the shortcut row from the stored list. Called again by the shell after
+	//* Preferences saves, so an edit shows without relaunching the card.
+	buildLinks: function() {
+		var list = enyo.jihadChrome.loadLinks(), i;
+		this.$.links.destroyControls();
+		for (i = 0; i < list.length; i++) {
+			this.$.links.createComponent({
+				content: list[i].title,
+				className: "startpage-link",
+				// Enyo 1.0's onclick hands back the sender, so the target rides on the
+				// control itself rather than needing a handler per row.
+				linkUrl: list[i].url,
+				onclick: "linkTapped"
+			}, {owner: this});
+		}
+		if (this.hasNode()) {
+			this.$.links.render();
+		}
+	},
 	addressSelect: function(inSender, inUrl) {
 		this.doUrlChange(inUrl);
+	},
+	linkTapped: function(inSender) {
+		if (inSender && inSender.linkUrl) {
+			this.doUrlChange(inSender.linkUrl);
+		}
 	},
 	showingChanged: function() {
 		this.inherited(arguments);

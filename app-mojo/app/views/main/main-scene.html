@@ -20,6 +20,15 @@
 	</div>
 
 	<!-- Shown instead of a blank card when a load fails (cavekit-mojo-ui.md R2). -->
+	<!-- Find-in-page. Hidden until the app menu opens it, so the toolbar keeps its width
+	     (this shell has already overflowed once — see cavekit-mojo-ui.md R4). -->
+	<div id="jihad-find" class="jihad-find" style="display: none;">
+		<div x-mojo-element="TextField" id="jihad-find-input" class="jihad-find-input"
+			name="jihadFindInput"></div>
+		<div x-mojo-element="Button" id="jihad-find-next" class="jihad-find-btn"></div>
+		<div x-mojo-element="Button" id="jihad-find-done" class="jihad-find-btn"></div>
+	</div>
+
 	<div id="jihad-error" class="jihad-error" style="display: none;">
 		<div class="jihad-error-title">Can't load this page</div>
 		<div id="jihad-error-message" class="jihad-error-message"></div>

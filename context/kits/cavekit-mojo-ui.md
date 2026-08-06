@@ -76,7 +76,22 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 - [x] Share hands the current page to the mail app using the same launch id and parameters as the Enyo shell's share dialog; it is disabled on the start page.
 - [x] History is per-variant and self-contained: this package registers **no db8 kinds**, so it keeps its own capped, de-duplicated list in the card's own storage (`app/models/jihad-history.js`) and shows it in a pushed scene that navigates on tap and can clear the list. It writes nothing outside the app's storage and sees no other variant's history.
 - [x] Icons the framework has no glyph for are app-shipped **32x64 two-frame sprites** (soft-white normal frame, opaque pressed frame) referenced by a menu item's `iconPath` — a 32x32 image renders as a cropped, off-centre glyph.
+- [x] **Find** is in the row, as an icon (a magnifying glass), not a text item. *(Added 2026-08-05 on user report "there is no find UI", then "make find a magnifying glass instead of text": a text item is the one thing in the row that cannot be circular, and the row reads as a set of round controls.)*
+- [x] **Home** sits immediately right of forward and opens the configured home page. It is never disabled — unlike back/forward it does not depend on page history. *(Added 2026-08-05 by user request. Device-verified.)*
+- [x] The row **scrolls horizontally** rather than overflowing, so it can hold as many controls as the Enyo and Mochi shells. *(Device-verified 2026-08-05: 8 buttons, `client=768 scroll=768 overflowX=auto`.)*
+- [x] The buttons are **circular and centred** as a group, with tight spacing. *(Device-verified 2026-08-05: 50x50 each, `btn0` at x=170 — (768-8*54)/2 — i.e. centred.)*
 **Dependencies:** cavekit-ui-shell.md (behavioral baseline)
+
+### R7: Chrome-owned settings, and where they live
+**Description:** The two settings this shell owns rather than the engine — the home button's target and the start page's shortcut list — are stored by the card and are editable.
+**Added 2026-08-05 (user requests: a configurable home button; customizable start-page links).**
+**Acceptance Criteria:**
+- [x] Both are stored in the card's own `localStorage` (`app/models/jihad-chrome-prefs.js`), the same store the history list uses, because this package registers no db8 kinds. Defaults: `https://start.duckduckgo.com/` for home, and the three shortcuts the other two shells ship.
+- [x] The start page renders the stored list. **The list travels in the url FRAGMENT**, because `start.html` is a document rendered by the ENGINE and therefore cannot read the card's `localStorage` the way the Enyo and Mochi start pages (which are app chrome) read theirs. `isStartPage()` compares without the fragment, or the shell stops recognising its own start page and the url leaks into the address bar.
+- [x] The page still shows its default shortcuts when opened directly with no fragment, and with script off — the markup carries them, the script only replaces them.
+- [ ] They are **editable**. *(OPEN. Per user direction 2026-08-05 this variant gets no settings UI of its own — "dont put a settings icon in mojo, just depend on about:preferences and about:settings" — so editing arrives with cavekit-preferences-ui.md R5's merge, not before.)*
+- [x] Two defects found in review 2026-08-06, both fixed and device-verified the same day: the error-panel retry now re-opens `startPageUrl()` rather than the bare `this.startUrl`, so a retry no longer silently drops the user's shortcut list back to the built-in defaults; and `logCommandRowGeometry` is behind `LOG_COMMAND_ROW_GEOMETRY` (default false) instead of running on every card launch at ERROR level. *(Verified: 0 card errors and 0 `JIHAD-CMDGEOM` lines after a launch, where it previously logged on every one. The probe is kept, off, because this row's layout is CSS-overridden and has broken twice.)*
+**Dependencies:** cavekit-preferences-ui.md (R5), cavekit-ui-shell.md
 
 ## Out of Scope
 - Any change to the rendering engine, BrowserServer, or the YAP/Luna contract.
@@ -91,6 +106,25 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
   declarations parse away silently: the toolbar measured **784 px on a 768 px screen**
   because its padding was added to `width:100%` (device-measured 2026-08-03). This applies
   to card chrome only — pages rendered by our own Goanna engine are modern.
+- **`Mojo.stringifyJSON` does not exist in this framework build** — `Mojo.parseJSON` does. Calling
+  it throws `Object #<an Object> has no method 'stringifyJSON'`, which is a silent data-loss bug
+  wherever it is used to write: `app/models/jihad-history.js` used it, so **Mojo history never
+  persisted at all** until this surfaced (2026-08-05) from an exception in the main scene's
+  `setup()`. Use native `JSON.stringify`.
+- **`Mojo.Log.warn` never reaches `/var/log/messages`** — it is below the card's log threshold.
+  `Mojo.Log.error` does. A diagnostic logged at warn level looks exactly like a probe that did
+  not run; a command-row geometry probe read as "produces no output" for weeks because of this.
+- **The framework's command menu positions its items absolutely OVER a `.palm-menu-fade` block
+  that comes first among the row's children.** Making the items `static` (which is what lets them
+  flow left-to-right and scroll) drops them BELOW that block — a full row height down, outside the
+  bar's own 50 px box, where `overflow-y: hidden` clips them and the bar renders as an empty
+  strip. Take the fade out of flow. Measured 2026-08-05: row at y=606, every button at y=656.
+- **Mojo's `TextField` is TWO nodes that swap, not one.** The real `<input>` ("-write") is shown
+  while the field has focus; a read-only `<div>` ("-read") takes over the moment it blurs. Only
+  the input carries the framework's white field background, so field chrome placed on the input
+  disappears when the keyboard is dismissed — the url sat as bare text on the toolbar. Put the
+  chrome on the CONTAINER, which is present in both states. Proven 2026-08-05 by dumping
+  `outerHTML` in both states.
 - `<select>` dropdowns need **no app code in this variant**: the system framework's WebView
   widget already implements `showPopupMenu -> popupSubmenu -> selectPopupMenuItem`. It only
   ever needed the daemon to emit the isis JSON shape (cavekit-addons-extensions.md,
@@ -102,6 +136,14 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
   R8 install footprint), cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-08-05: R6 extended (find as a magnifying-glass icon, home right of forward, the row
+  scrolling, and the buttons circular + centred) and **R7 added** for the two chrome-owned
+  settings. Four platform constraints recorded, all found by measuring on device rather than
+  by reading CSS: the missing `Mojo.stringifyJSON` (which had silently disabled history
+  persistence), `Mojo.Log.warn` being below the log threshold, the `.palm-menu-fade` block that
+  clips statically-positioned menu items, and the TextField's two-node focus swap. Every one of
+  these was a bug the user reported as a visual symptom ("the buttons are not visible", "the url
+  bar looks incorrect") and none was diagnosable from the source alone.
 - 2026-08-03: Reconciled against the device. R1–R3 and R4's first two ACs marked met (all three
   variants live on hardware; the R7 harness passes 24/24); R4's Opal AC is the only one left,
   and it is hardware-gated. Added **R6** (command-menu parity actions: new card / history /

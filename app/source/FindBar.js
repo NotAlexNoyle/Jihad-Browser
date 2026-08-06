@@ -37,7 +37,10 @@ enyo.kind({
 	inputChange: function() {
 		var value = this.$.input.getValue();
 		var disabled = value.length < 2;
-		this.$.prev.setDisabled(disabled);
+		// `prev` stays disabled always: the frozen findInPage(string) carries no direction and
+		// the adapter hardcodes forward, so enabling it would search FORWARD while claiming to
+		// go back. See Browser.js goToPrevious.
+		this.$.prev.setDisabled(true);
 		this.$.next.setDisabled(disabled);
 		if (!disabled) {
 			this.doFind(value);

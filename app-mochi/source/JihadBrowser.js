@@ -37,6 +37,7 @@ enyo.JihadIcons = {
 	stop: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAB/klEQVR4nO2VsY7TQBCGx75Ag2ig4ClokGhoKHgNkCguEVS8CdTQIPEMPEaEBLpHiBJFjj3r3bXX3l3zX3FeMEvCxVYKivzV2v6934x3Zkx01lkjldxmAJASUZIkSXeED3RjxqRo+k3+Wv/L11/fmsjBTYqieC6EWPT3Znt8MyKi7Xb7zBjzNcuy+6OhAFIACTO/qOuaAYCZL2NoWGdZ9tQYkwGAlPIHgAcAkqOhAC6IiIQQCwBQSrXOOTDzPIAiWKG17rqug5Tyy2azuReCHpUlEVGe55fOOSil7BAawwCgLMtPg/cnneOMiIiZ5845aK2t9x5lWb4siuKxMYZjGICLSbB9UO89qqpCURSdEEJVVYX+k58GFkPLsnxljNFSyk4IAWOM11q/HwM72Fv75L3/BqBNkuQnEdk0Tcla+z3sNbnhh4qqUVRVhbqu0TQNpJSd9x55ni+IiJbL5Z1Twn5VoxDiAzO/7qvXxS0zFZYSEa3X6z9goUCIbvrUWguttbXWDqHjCmc4aYwxudbax6V/dXV1l+h3yyilXNu2EEK87QfD8fURT5o+s4/hWcggnBkzz9u2hXMOUkqhlHo0arSFLImIdrvdO6XU52HmkW9GRJTn+ZumaVbM/GT4/ihFv6eDEQffarV6GLyjYcPNjok2QCZlNlUnGWtn/fe6BjOqYn5X7L9uAAAAAElFTkSuQmCC",
 	share: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACiUlEQVR4nN2WvW7UQBDHZ9b2+YSOi51nQKKiTJOSjxfgBahpKFEaSsQ7pEJAw0tAGRFFgoLqpERKpEhEjrxjZ5Wzz/b+KbIXWSLnu3OChJjGXzPz2/nv7qyJ/nfjPkEAPBfbMDPudkh/wrjreZn564KYGXmePw/DcPPo6OgzM18AUMxs1wEvhTkZKcuyXTgzxnw7OTnZdD7qLmGqDRORmda6tNbCGLN/fHwc3wm0DRORXQDQWs9EBFmWIU1T2zQNjDH7aZpuzGNuA1QAPBF57yqzxhhora3WuhERMcagrmtkWfZTRDbdIBdCV5EAAH64+19VVb0OggDD4ZCttS/quv7ieR4BOJhOpyX13Gpz0vViEZGXSZJspWn6qKoqVFUFEdk6Pz8f53n+ph3TG3iTicjTsixRliW01k/Wje+UFMAQQJym6QaA0M1p03KxToVBkiT3AcRnZ2ejtYEAfFfNKyI6ZOaD09PTkdvc15L5vk/MDGaeBUHwgYgOwzD86HLcmLuz0yil7hFRzMzEzHMQWlW2++gGEcXuutA6gS4xAFTzd03TBGEYekRERVEELd/a+da9gXQlHxMRAwARked5SVmWX4mIfN9PALCTlYmIW0r0Al7baDSyRERxHH8nosfz926uVj6iVu59SikfgA9gMJlMwslkEgIIiMh3i2yl/bdqhRiPx0mXg9Z6dmugtZaJyDLzUGv9jpmn1lpWSrUlZLqS9IG1dumZ2AlkZkVXso+jKNrp8r28vCSlFAEY9gFaAJzn+aeiKJ4NBoOHIlLTgnliZvi+r8qyvGDmt51FdH2c+wCIRASLljwARFHEe3t7xfb29nSFnDdbn86/7NRfmnBd6F//bfzn7TdXVcWzva+xYwAAAABJRU5ErkJggg==",
 	newtab: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAADCUlEQVR4nO1VsY7kRBB9z257Znc8zLDHIRFBBiHB3okQhAj5AhKEiC8guABICfkJwk0RIKILCViJiA0uOV2EtLtMe8f23NjjrkeA57S3O+uZWwjvSS1L5ap6Xa+7q4BX+J/BbQ6Stvq8kJDUrXcjKb5NTN8mXV8wySBpD8Awz3OR3JhIkqbTKbz3InnRm/OGBATAoii+TpLky6Zp9sysV1qScs6J5M8hhIfj8fjvtb0v7rmMeZ5/I0lt22pXmJkkaTab/SopkhT1VrjW/vz8PHPOPc6y7G5Zln+Q/FFSRNI617b7RgAikpEkA/B+mqafRlHkQgj3R6PR75JikuGm6thVd+C9P5Ok+Xz+sFeSSzg7O7vXNI3qujbv/ceXFVvjWslrbgDWBexLct03mc/nd/M8fyKp6GRPJGXHx8dJkiQTSWvlNlZ1E+E6CJKMZAvgGclVXddLM5sAyADEJFcAnh0eHq4khavxL0P4AoqiuJPn+evOuTsk2+6CDL33UwBvdNJtffS977BDCwBmduyc21+tVgRwUJYlST4A8IWZxfP5/BOSZRRFMLMbk+1CCADY399/O0kSAEBRFAghIMuykXNuBABRFO2ZWb0tzy6EEQAsFotvnXNxCGEo6cFwOBxVVfUIwKPxeJw0TfM0TdN3ukvz3wmn0+l3a4P3/vPhcLjXNM1Pk8nk+0v297YRbr003aOOJWWSBqenp28BOAAQSXpT0kDSa5Icdpg+fRUKAMxs0XWKsrP/NZvN7gNIST4hWQOoASDP8zlJmJnatt1IvpFQ/+riQgiB5Afe+49IxpKCc04hhOri4sJIvuu9H6z/SfqwbVtzzkWDwWBzO9tAFkui9/4HSSqKQsvlUsvlUnVdq65rrVYrtW2rro09X1VVSZLyPH8saSSJV2fjpjM0AIjj+KvFYvFLkiS4OgbNDCEErC+IJEiCcw51Xf8J4DOSFQBeHU9bD7mqqntpmmZlWfb6OecQx3E4OTn5rWtz18h6sUmOl4jduWVew9HRUdyd667rVpt8hVvjH9tHTdc+UNHdAAAAAElFTkSuQmCC",
+	home: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAQAAADYBBcfAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAACYktHRAD/h4/MvwAAAAd0SU1FB+oIBRMsCFUv1wIAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMDgtMDVUMTk6NDQ6MDgrMDA6MDCd0orgAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTA4LTA1VDE5OjQ0OjA4KzAwOjAw7I8yXAAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAAMjAyNi0wOC0wNVQxOTo0NDowOCswMDowMLuaE4MAAAGvSURBVDjLndTNb0xRGMfxZ2YuCzSNSVUXUgmqGiJCQmJjwYKFVS0kbP0b/gGxsPISXWgFGxIhEsFCvVSQCAsRqxKNdOGlSVfM9GNx78ykM3Nnpn53c5/nd77nPOc599yI/1ShfVrXIcUOWF8MNk/SUdKn3xWPbU+j3rGyCfDMWE9ohm0wqaYZu7uiGTbkFvjkOXhrX0c0w4bdBe8dsMkd8MHBXDTDtnkE3tgrhI1ugs8Ot0UzbNQ0eGmXWm7ANTDraAuaDdnpBZi2o46FsN5VS/jq+DI0s/d4DZ4Yadj1M72oijnjdS+z9nsH7tm8vKDMX+ecP5h3KvOFcMhHVN0w2NqCDF3trEX8cEYiihExEpdjLCJ+xUKcjP7mz7oQEVGKE7E2vocox/k4ls7X55KKKTP4Zrj1tIRVHmLOBYue2lIrtey0IffxJRd8gFlbjRsVIomIiJ9xPZL2V6yp6r9xO30tFhrJFagQSUr0fFnrK3QvL0dJSx8qbdevNCebwTVxJOZb6hBJ+v/JBwdiImfDSX5YqrUrV6V2YDUm41UsdWzn71hoBNkmeteKDrxV/wDUNmqziiwduwAAAABJRU5ErkJggg==",
 	bookmarks: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAD9klEQVR4nN2VT2gjdRTH3/vNJI3NJKZIi7KHkoOwuD2IK+LBlQraw4IHkV4UFC8eRBCPnnQ9qujV9eZJaPUiqOAWuwcF0d5qFE8BPSxJmpk3md/8SebP10N/U9JsGrrS0z4IGea93/fz3vv9fm+I7nfjixICoIhIzXHlzIyL4tyznbtCAEzHFZys2d3dxfb2NjFz7nneZqvV2vQ8r2BmBQCNRoO11l+urKx0AShmLs4F2t/ftxf4LQCW67ofAUBRFJg2rfVWGUdEdKaQCSqzygA4WusnATxVrVbtPM/9SqXya6fTOdzY2JiISEBEme/7mdEt6vW6AjCZ1lyUuWLmYjAYNOr1+rtxHL/pOM6l2bh2u/3H0dHRB0SkANhERMxsAyiY+dQWnAksYf1+/wnHcb6o1WpX4zgmEfkFwC2l1JiIHrIs67rjOBvLy8tfi8hAa01EZAHIZ0EL2wiAe73ew6PR6A4A+L6/Px6Pr8yJtbTWW1EU/ZvnOVzXLcIwBACISDaZTIogCJ4rY88EEhF5nvedgX1VtgoAi8h7eZ4HruteK9f0+/1HtNaHSZLkItL1ff9DrTUAYDQaPTsNVDMwi5kLz/M2Hce5HkXRnyLyFjNnAGrmAleVUg4d75kCUF9bW7uTpum3S0tLipm52WzeyLLshSRJIgDONGPeZCBmftW2bRqPxzfX19c9ABUiyoy7OM4NqTnBEQC2bft2GIYHzWZzXUReb7Vae1rrFwEMynrmAQsASwA2kySZKKW+Nxc+n4qZEBEsy3IANIjoQSKqNhqNW+Px+GOTzDUA1urq6k+tVut3U0RxCgiAmRki8gARXUqSZJymac+0sfwRgMdNO38QkWGWZUci8gwAValUekTESql1Zs4B2CbhE7vrWgCAUqqYDZzyH2ZZ9jQzd81BYGb2mbkYjUblkC5HWLFwcANgALaIHKRpmoZheNUcjFNHutvt1uas4yAI3gZQiMhn5v1dBc3uocXMGRHt2bZtJ0nyMjMXnU7nBAiA2+12YhIpk7GZGWmavmIq/rEMP7M6I6aIiEaj0eUoiiZJkgyGw+GG8VXLNk/9KwBVIiLXdV9L07QQkb8B1MqqFwKNiGUEPgGAMAwPfN9/dDqpchqV70RkK45jL01TeJ730rTOeYBsBG3P8342n5ie1vqNMAxPDe8kSS5rrd+P4xgAMBwOP70n2BxoMwzDm+W3TUQiz/Nui8ie67q/lXMziqKx7/vvlLBztXIetHwOguD5OI6/CYLAm/m4/hMEwedBEFyZXXOWLQwoBcq7JCIrSqnHarWaNZlMdL1e/4uZ47IyZs4X6Z3bTJvmzt1FvosAswFYOzs7/2+v7nv7D6hZPMoW7YwgAAAAAElFTkSuQmCC"
 };
 
@@ -60,6 +61,10 @@ enyo.kind({
 		{kind: "FittableColumns", name: "actionBar", classes: "jihad-actionbar", components: [
 			{name: "back",    classes: "jihad-nav-btn disabled", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.back + "'>", ontap: "goBack"},
 			{name: "forward", classes: "jihad-nav-btn disabled", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.forward + "'>", ontap: "goForward"},
+			// Home: immediately right of forward, goes to the page set in Preferences
+			// (enyo.jihadChrome.loadHome(), default https://start.duckduckgo.com/).
+			// Never disabled — unlike back/forward it does not depend on page history.
+			{name: "home",    classes: "jihad-nav-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.home + "'>", ontap: "goHome"},
 			// Address field with the reload/stop control INSIDE it (Enyo-parity).
 			{kind: "mochi.InputDecorator", name: "addressBox", classes: "jihad-address-box", fit: true, components: [
 				{kind: "mochi.Input", name: "address", classes: "jihad-address", placeholder: "Search or type a URL", onchange: "addressEntered", onkeydown: "addressKeydown", attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false", type: "url"}},
@@ -98,7 +103,10 @@ enyo.kind({
 			{content: "Jihad Browser", classes: "jihad-sp-title", allowHtml: false},
 			{content: "Mochi UI \u2605 Goanna/6.9 UXP/b2594a4", classes: "jihad-sp-sub", allowHtml: false},
 			{content: "Type a web address or a search in the bar above, then press Enter.",
-				classes: "jihad-sp-hint", allowHtml: false}
+				classes: "jihad-sp-hint", allowHtml: false},
+			// Same three destinations as the Mojo and Enyo start pages, so all three shells
+			// open on the same page. Straight to openUrl — the path the address bar uses.
+			{name: "spLinks", classes: "jihad-sp-links"}
 		]},
 		// Overflow menu (opened from the toolbar menu button). Items launch the
 		// T-053 parity views below.
@@ -110,7 +118,13 @@ enyo.kind({
 				{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
 				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
 				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
-				{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Preferences"}
+				// TWO entries, mirroring the Enyo shell: "Settings" is the engine's
+				// about:preferences — the one surface the three shells share, and the only
+				// place the home target and start-page links are edited. "Browser Settings"
+				// is this card's own panel, which still owns the content toggles and the
+				// clear-data actions that about:preferences cannot do yet.
+				{classes: "jihad-menu-item", ontap: "menuSettings",     content: "Settings"},
+				{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Browser Settings"}
 			]}
 		]},
 		// Parity views (full-card overlays, hidden until opened).
@@ -121,6 +135,7 @@ enyo.kind({
 		{kind: "JihadDownloadList", name: "downloadList",
 			onOpenItem: "openDownload", onCancelItem: "cancelDownload", onClearAll: "clearDownloads", onClose: "panelClosed"},
 		{kind: "JihadPreferences", name: "preferences",
+			onPreferenceChanged: "preferenceChanged",
 			onClearBookmarks: "clearBookmarks", onClearHistory: "clearHistory",
 			onClearCookies: "clearCookies", onClearCache: "clearCache", onClose: "panelClosed"},
 		// Engine <select> popup (msgPopupMenuShow -> JihadWebView.onOpenSelect):
@@ -153,6 +168,7 @@ enyo.kind({
 	create: function() {
 		this.inherited(arguments);
 		enyo.log("[JIHAD-BOOT] stamp=" + this.jihadBuildStamp);
+		this.buildStartLinks();
 		//* After the toolbar has actually been laid out, not during create().
 		enyo.job("jihadUrlGeom", enyo.bind(this, "logUrlGeometry"), 2500);
 		//* Session download records (download-manager status + history), rendered
@@ -324,6 +340,7 @@ enyo.kind({
 	// uses (Browser.js). Do not add or rename (cavekit-ipc-contract R1).
 	goBack:     function() { if (!this.$.back.hasClass("disabled")) this.$.view.callBrowserAdapter("goBack"); },
 	goForward:  function() { if (!this.$.forward.hasClass("disabled")) this.$.view.callBrowserAdapter("goForward"); },
+	goHome:     function() { this.openUrl(enyo.jihadChrome.loadHome()); },
 	reloadPage: function() { this.$.view.callBrowserAdapter("reloadPage"); },
 	stopLoad:   function() { this.$.view.callBrowserAdapter("stopLoad"); },
 	//* Find-in-page: the frozen adapter method. The FindBar UI that calls this
@@ -464,6 +481,11 @@ enyo.kind({
 	//* the URL in the address bar and the history state on the nav buttons. A new
 	//* address entry clears the de-dupe guard so the same URL can be retyped.
 	pageInfoChanged: function(inSender, inEvent) {
+		// The settings page publishes an edit by rewriting its own fragment; this is where
+		// the card learns about it (cavekit-preferences-ui.md R5).
+		if (inEvent && inEvent.url && enyo.jihadChrome.adoptFromUrl(inEvent.url)) {
+			this.buildStartLinks();
+		}
 		if (!inEvent) {
 			return;
 		}
@@ -546,6 +568,22 @@ enyo.kind({
 	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.setDownloads(this.downloads); this.$.downloadList.open(); this.refreshDownloads(); },
 	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
 	menuAddBookmark: function() { this.$.menuPopup.hide(); this.addCurrentBookmark(); },
+	//* The only preference the SHELL has to react to: the start page's shortcut row
+	//* is already rendered, so it has to be rebuilt when the list is edited. The
+	//* toggles are persisted by the panel itself and read by the engine elsewhere.
+	preferenceChanged: function(inSender, inEvent) {
+		if (inEvent && inEvent.preference === "startPageLinks") {
+			this.buildStartLinks();
+		}
+	},
+	//* The shared settings page, opened through the ordinary navigation path — no adapter
+	//* call is added. Carries this card's current chrome settings so the page opens on what
+	//* the user is actually using (cavekit-preferences-ui.md R4/R5).
+	menuSettings: function() {
+		this.$.menuPopup.hide();
+		this.hidePanels();
+		this.openUrl(enyo.jihadChrome.settingsUrl());
+	},
 	menuPreferences: function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.preferences.open(); },
 
 	//* Hide every full-card overlay view.
@@ -557,6 +595,29 @@ enyo.kind({
 		this.$.findBar.hide();
 	},
 	//* A list view selected an item (bookmark/history) — navigate to it.
+	//* Start-page shortcuts.
+	//* Render the start page's shortcut row from the stored list. Called again after
+	//* Preferences saves, so an edit shows without relaunching the card.
+	buildStartLinks: function() {
+		var list = enyo.jihadChrome.loadLinks(), i;
+		this.$.spLinks.destroyClientControls();
+		for (i = 0; i < list.length; i++) {
+			this.$.spLinks.createComponent({
+				content: list[i].title,
+				classes: "jihad-sp-link",
+				// The target rides on the control, so one handler serves every row.
+				linkUrl: list[i].url,
+				ontap: "startLinkTapped"
+			}, {owner: this});
+		}
+		// Only once there is a node to render into: create() runs before the app is
+		// rendered, and the initial pass draws these with everything else.
+		if (this.generated) { this.$.spLinks.render(); }
+	},
+	startLinkTapped: function(inSender) {
+		if (inSender && inSender.linkUrl) { this.openUrl(inSender.linkUrl); }
+	},
+
 	navigateTo: function(inSender, inEvent) {
 		var url = inEvent && inEvent.url;
 		if (!url) { return; }

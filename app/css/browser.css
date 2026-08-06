@@ -421,3 +421,44 @@
 .enyo-gemstone.enyo-item.enyo-held {
     background-repeat: repeat-x;
 }
+
+/* Start-page shortcut links — same three destinations as the Mojo and Mochi shells.
+   Sized for a finger, not a cursor: the row is centred and each target is comfortably
+   above the ~40px touch minimum. */
+.startpage .startpage-links {
+	margin-top: 18px;
+	text-align: center;
+}
+.startpage .startpage-link {
+	display: -webkit-inline-box;
+	display: inline-block;
+	margin: 0 10px;
+	padding: 10px 14px;
+	font-size: 17px;
+	color: #6fb7ff;
+	text-decoration: none;
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
+}
+.startpage .startpage-link:active {
+	background-color: #2a2a2a;
+}
+
+/* ── Preferences: start-page link editor ────────────────────────────────────
+   One row per shortcut (name, address, remove) plus the add/reset pair. The
+   rows are built at runtime from enyo.jihadChrome, so only spacing lives here. */
+.startlinks-row {
+	margin-bottom: 6px;
+}
+
+.startlinks-row .enyo-input-box {
+	margin-right: 6px;
+}
+
+.startlinks-remove {
+	min-width: 88px;
+}
+
+.startlinks-actions {
+	margin-top: 4px;
+}

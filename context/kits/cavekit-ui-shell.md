@@ -60,6 +60,20 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] **No app-side popup implementation exists.** The stock `enyo.WebView` wrapper consumes the inner `BasicWebView`'s `onOpenSelect` itself (`showSelect` → `createSelectPopup` → `PopupList`) and replies via `selectPopupMenuItem`; it never re-publishes the event. An `onOpenSelect` handler in `Browser.js` is unreachable dead code — one was written, proved dead, and deleted. **Do not re-add one**, and do not patch `BasicWebView.showPopupMenu` (an earlier patch shadowed the framework method and killed the popup entirely).
 **Dependencies:** cavekit-addons-extensions.md, cavekit-ipc-contract.md (R1)
 
+### R6: Chrome-owned settings
+**Description:** The two settings this shell owns rather than the engine — the home button's target and the start page's shortcut list — are stored, rendered and editable.
+**Added 2026-08-05 (user requests: a configurable home button; customizable start-page links).**
+**Acceptance Criteria:**
+- [x] A **home** `ToolButton` sits immediately right of forward in the action bar and opens the configured page, by exactly the path a typed address takes (`ActionBar` `onLoad` -> `goClick`) rather than a new one. Never disabled. Default `https://start.duckduckgo.com/`. *(Device-verified 2026-08-05.)*
+- [x] Its icon is a **32x64 two-frame sprite** matching the rest of `app/images/chrome/` — grey normal frame over blue-glow pressed frame — not a flat single-state image.
+- [x] The start page renders the stored shortcut list rather than a hard-coded one, and the shell redraws it when Preferences saves, without relaunching the card.
+- [x] Both are editable in Preferences: a row per shortcut (name, address, remove), plus add and restore-defaults, and a home-page field where blanking it restores the default. *(Device-verified 2026-08-05.)*
+- [x] They are stored in the card's own `localStorage` (`app/source/ChromePrefs.js`) — no new db8 kind, and nothing added to the frozen `callBrowserAdapter` set that R2 holds byte-identical.
+- [x] The redraw is dispatched **before** the shell's `applyPreference()`, which switches to the browser view as a side effect and would otherwise yank the user out of Preferences mid-edit.
+- [x] The editor keeps its own copy UNCLEANED so a half-finished row (a name typed, no address yet) does not vanish under the cursor; only what reaches the start page is cleaned.
+- [x] The card's own preferences panel stays REACHABLE while `about:preferences` cannot yet replace it. *(Added 2026-08-06 after a self-inflicted regression: repointing the single app-menu "Preferences" entry at the engine page left the native panel with no route in, removing the default-search selector, the JavaScript/Flash toggles and all four clear-data actions from the product — and a block delete took five preference handlers with it. The menu now carries "Settings" (the shared page) and "Browser Settings" (this card's panel). The panel goes away when R5 absorbs what only it can do, not before.)*
+**Dependencies:** cavekit-preferences-ui.md (R5 — where this panel is headed)
+
 ## Out of Scope
 - Any rendering, IPC transport, or engine concern (other domains).
 - Redesigning the UI/UX — this is a fork that preserves the isis browser UX.
@@ -69,6 +83,10 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - See also: cavekit-mochi-ui.md (the Enyo-2/Mochi sibling variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-08-05: **R6 added** (home button, customizable start-page links) and met. Stored in the
+  card's own `localStorage`, so nothing was added to the frozen adapter set. Note this panel is
+  not the final home for them — cavekit-preferences-ui.md R5 merges the per-variant panels into
+  `about:preferences`.
 - 2026-08-03: Added **R5** (card-side `<select>` popup — device-verified and user-confirmed),
   including the standing "no app-side popup implementation" rule that the investigation
   established. Corrected R1's title AC: the launcher title is "Jihad Enyo" since the three

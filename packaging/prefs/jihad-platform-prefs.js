@@ -22,3 +22,25 @@
 // 1 = enabled unconditionally. That is the honest answer for a TouchPad, and it is also right
 // for the desktop harness, whose whole job is to stand in for the device.
 pref("dom.w3c_touch_events.enabled", 1);
+
+// --- about:preferences rows that the GRE honors but ships no default for -----------------
+// Both are read directly by platform code with a fallback, so they WORK with no browser app
+// above the engine — they simply have no default pref entry, which made about:preferences
+// show them as "not available in this build". Shipping the upstream defaults makes the rows
+// live without changing behaviour.
+pref("privacy.donottrackheader.enabled", false);   // necko sends DNT when true
+pref("places.history.enabled", true);              // Places records visits when true
+
+// --- date/time inputs: OFF, deliberately (cavekit-gre-widgets.md R2) ---------------------
+// `dom.forms.datetime` defaults TRUE in this GRE, which makes <input type="date"> render as a
+// date field whose picker is a XUL popup — a separate display root, the same class as the
+// <select> dropdown and the about:addons tools menu. Measured on device 2026-08-05: tapping a
+// date field opened NO popup (popups=0 before and after), so the field looked editable and was
+// not. R2 names that outcome the worst of the three available, so the feature is turned off
+// rather than left half-working: with this false the input degrades to a plain text field,
+// which the VKB and the engine's own editing keys already handle.
+// To revisit: route the picker card-side the way <select> is (cavekit-ui-shell.md R5), or make
+// the popup composite (cavekit-offscreen-rendering.md R7); then flip this back and re-measure.
+pref("dom.forms.datetime", false);
+pref("dom.forms.datetime.timepicker", false);   // already the default; pinned so it cannot drift
+pref("dom.forms.datetime.others", false);       // month/week — same story, same reason

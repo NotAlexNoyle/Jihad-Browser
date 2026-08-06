@@ -1598,6 +1598,21 @@ void ClearCookies() {
   nsCOMPtr<nsICookieManager> cm = do_GetService("@mozilla.org/cookiemanager;1");
   if (cm) cm->RemoveAll();
 }
+// See GoannaRenderPage.h. nsIPrefBranch::GetCharPref hands back a malloc'd buffer that the
+// caller owns, so it is freed here on both paths.
+bool GetChromeSettings(std::string* outJson) {
+  if (!outJson) return false;
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb) return false;
+  // Raw char** rather than nsXPIDLCString: GetCharPref hands back a moz_xmalloc'd buffer the
+  // caller owns, and freeing it here keeps this file's include set untouched.
+  char* val = nullptr;
+  if (NS_FAILED(pb->GetCharPref("jihad.chrome.settings", &val)) || !val) return false;
+  bool ok = (*val != '\0');
+  if (ok) outJson->assign(val);
+  free(val);
+  return ok;
+}
 void SetMinFontSize(int px) {
   nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
   if (pb) pb->SetIntPref("font.minimum-size.x-western", px);

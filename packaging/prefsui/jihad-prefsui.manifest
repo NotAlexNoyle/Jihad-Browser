@@ -1,0 +1,23 @@
+# Jihad Browser preferences UI package. Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the
+# GRE it registers into).
+#
+# Backs about:preferences and about:settings — see
+# render/goanna/components/jihadAboutPreferences.js, which resolves both to
+# chrome://jihad-prefs/content/preferences.html.
+#
+# A chrome:// package, not a resource:// one, on purpose: the page must load with the
+# system principal so it can write through Services.prefs, and chrome:// is what gives
+# it that. Content is unable to reach it because the about: module does not set
+# URI_SAFE_FOR_UNTRUSTED_CONTENT.
+#
+# LOAD-BEARING: the "content" part of the path is not decoration. nsChromeProtocolHandler
+# calls SetOwner(systemPrincipal) only when the chrome url path begins "/content/", so
+# chrome://jihad-prefs/content/preferences.html gets the system principal and can write
+# Services.prefs. Rename that segment and the page silently loses its privileges — every
+# pref call throws and the page renders as an empty settings screen. (Found in review
+# 2026-08-06; the flag on the about: module is what keeps CONTENT out, this is what lets
+# the PAGE in. Two different mechanisms, both required.)
+#
+# Paths are relative to THIS FILE, which is installed at the GRE root next to
+# chrome.manifest (same arrangement as jihad-branding.manifest).
+content jihad-prefs prefsui/content/

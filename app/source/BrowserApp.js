@@ -112,8 +112,20 @@ enyo.kind({
 		},
 		{kind: "PrintDialog", lazy: false, duplexOption: true, colorOption: true, onRenderDocument: "renderDocument", appName: "Browser"},
 		{kind: "AppMenu", onBeforeOpen: "toggleAppMenuItems", components: [
-			//{caption: $L("Find on Page"), onclick: "showFindOnPage"},
-			{name: "preferencesItem", caption: $L("Preferences"), onclick: "preferencesClick"},
+			// Upstream isis shipped this COMMENTED OUT, and this fork inherited it — so the
+			// FindBar, its handlers and the frozen findInPage command were all present and
+			// wired, with nothing anywhere to open them. Re-enabled 2026-08-05, now that
+			// findInPage actually searches (it used to abort the daemon: patch 0015).
+			{caption: $L("Find on Page"), onclick: "showFindOnPage"},
+			// TWO entries on purpose, until cavekit-preferences-ui.md R5's merge is finished.
+			// "Settings" is the engine's about:preferences — the one surface the three shells
+			// share. "Browser Settings" is this card's own panel, which still owns the things
+			// about:preferences cannot do yet: the default search engine (it comes from a
+			// webOS service, not from an engine pref) and the four clear-data actions. Pointing
+			// the single old entry at the page removed all of those from the product, plus the
+			// JavaScript and Flash toggles — a regression caught in review, 2026-08-06.
+			{caption: $L("Settings"), onclick: "openSettings"},
+			{name: "preferencesItem", caption: $L("Browser Settings"), onclick: "preferencesClick"},
 			{name: "printMenuItem", caption: $L("Print"), onclick: "printClick"},
 			{caption: $L("Help"), onclick: "helpClick"}
 		]}
@@ -244,6 +256,23 @@ enyo.kind({
 	},
 	preferencesShown: function(inSender) {
 		this.$.preferences.updatePreferences(this.preferences);
+	},
+	//* Settings live in ONE place now (cavekit-preferences-ui.md R5): the engine's own
+	//* about:preferences. Opened through the ordinary navigation path — the same setUrl a
+	//* typed address takes — so no adapter call is added. The url carries THIS card's
+	//* current chrome settings, so the page opens on what the user is actually using.
+	openSettings: function() {
+		this.gotoView("browser");
+		this.$.browser.setUrl(enyo.jihadChrome.settingsUrl());
+	},
+	//* Every committed url passes here. When it is the settings page carrying an edited
+	//* payload, adopt it and redraw the start page.
+	noteUrlForChromePrefs: function(inUrl) {
+		// startPage is a LAZY pane view: a card launched straight at a url selects "browser"
+		// and never instantiates it, so this must not assume it exists.
+		if (enyo.jihadChrome.adoptFromUrl(inUrl) && this.$.startPage) {
+			this.$.startPage.buildLinks();
+		}
 	},
 	startPageShown: function() {
 		this.$.startPage.setUrl("");
@@ -409,6 +438,9 @@ enyo.kind({
 	pageTitleChanged: function(inSender, inTitle, inUrl) {
 		this.url = inUrl;
 		this.title = inTitle;
+		// The settings page publishes an edit by rewriting its own fragment; this is where
+		// the card learns about it (cavekit-preferences-ui.md R5).
+		this.noteUrlForChromePrefs(inUrl);
 	},
 	pageLoadStopped: function(inSender, inUrl) {
 		this.updateHistory(this.title, this.url);

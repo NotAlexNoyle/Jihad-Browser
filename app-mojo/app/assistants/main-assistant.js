@@ -42,6 +42,10 @@ function MainAssistant(params) {
 	this.failedUrl = "";
 }
 
+//* Diagnostic, off by default — see setup(). Flip to true when changing the command row's
+//* CSS; it prints one line with the row's and first button's geometry.
+MainAssistant.prototype.LOG_COMMAND_ROW_GEOMETRY = false;
+
 MainAssistant.prototype.WEB_VIEW_ID = "jihad-web";
 MainAssistant.prototype.ADDRESS_ID = "jihad-address";
 MainAssistant.prototype.PROGRESS_ID = "jihad-progress";
@@ -72,7 +76,18 @@ MainAssistant.prototype.setup = function () {
 	this.setupChrome();
 	this.setupCommandMenu();
 	this.bindHandlers();
+	this.bindFindHandlers();
 	this.listen();
+	// After the scene renders and the menu widget exists.
+	// Command-row geometry probe: OFF by default. It was a diagnostic for the row rendering
+	// empty (the .palm-menu-fade block pushing statically-positioned items out of a clipped
+	// box), that bug is fixed, and it logged at ERROR level on EVERY card launch. Kept because
+	// the row's layout is overridden in CSS and has broken twice; turn it on with
+	//     luna-send -n 1 -a com.palm.configurator palm://com.palm.systemmanager/... (or just
+	// flip this flag) when touching stylesheets/jihad-browser.css.
+	if (MainAssistant.prototype.LOG_COMMAND_ROW_GEOMETRY) {
+		this.controller.window.setTimeout(this.logCommandRowGeometry.bind(this), 3000);
+	}
 	// No modelChanged() here: the widgets are instantiated when the scene renders,
 	// after setup() returns, and they read these models then.
 };
@@ -91,7 +106,7 @@ MainAssistant.prototype.setupWebView = function () {
 		// setPageIdentifier for us once the adapter is initialised.
 		attributes.pageIdentifier = this.params.pageIdentifier;
 	} else {
-		attributes.url = JihadUrl.normalize(this.params.url) || this.startUrl;
+		attributes.url = JihadUrl.normalize(this.params.url) || this.startPageUrl();
 	}
 	this.controller.setupWidget(this.WEB_VIEW_ID, attributes);
 };
@@ -124,19 +139,106 @@ MainAssistant.prototype.setupCommandMenu = function () {
 	// iconPath, which the menu widget turns into the button's background-image.
 	this.backItem = {icon: "back", command: "jihad-back", disabled: true};
 	this.forwardItem = {icon: "forward", command: "jihad-forward", disabled: true};
+	// Home: immediately right of forward, goes to the page JihadChromePrefs holds
+	// (default https://start.duckduckgo.com/). Never disabled — unlike back/forward
+	// it does not depend on page history.
+	this.homeItem = {iconPath: "images/menu-icon-home.png", command: "jihad-home"};
 	this.reloadItem = {icon: "refresh", command: "jihad-reload"};
 	this.stopItem = {icon: "stop", command: "jihad-stop"};
 	this.newCardItem = {icon: "new", command: "jihad-new-card"};
 	this.historyItem = {iconPath: "images/menu-icon-history.png", command: "jihad-history"};
 	this.shareItem = {iconPath: "images/menu-icon-share.png", command: "jihad-share"};
+	// The row scrolls now (see the jihad-cmdmenu rules), so find lives here with the rest of
+	// the controls rather than being tucked into the app menu for want of space. An icon, not
+	// a label: a text item is the one thing in this row that cannot be a circle, and the row
+	// reads as a set of round controls.
+	this.findItem = {iconPath: "images/menu-icon-find.png", command: "jihad-find"};
 	this.commandMenuModel = {visible: true, items: []};
 	this.syncCommandMenu();
-	this.controller.setupWidget(Mojo.Menu.commandMenu, {menuClass: "no-fade"},
+	// jihad-cmdmenu carries the horizontal-scroll rules in stylesheets/jihad-browser.css, so
+	// the row can hold as many controls as the Enyo and Mochi shells rather than overflowing.
+	this.controller.setupWidget(Mojo.Menu.commandMenu, {menuClass: "no-fade jihad-cmdmenu"},
 		this.commandMenuModel);
 	// Mojo.Menu.commandMenu is a key into the scene's widget setups, NOT an element
 	// id — there is nothing to look up with controller.get() — so track readiness
 	// here to know when modelChanged() has a widget to notify.
 	this.commandMenuReady = true;
+
+	// ── find-in-page ────────────────────────────────────────────────────────────────────────
+	// Opened from the command row (see findItem above), which scrolls horizontally now.
+	this.controller.setupWidget("jihad-find-input",
+		{hintText: "Find in page", multiline: false, enterSubmits: true,
+		 changeOnKeyPress: true, focusMode: Mojo.Widget.focusSelectMode},
+		{});
+	this.controller.setupWidget("jihad-find-next", {type: Mojo.Widget.defaultButton}, {label: "Next"});
+	this.controller.setupWidget("jihad-find-done", {type: Mojo.Widget.defaultButton}, {label: "Done"});
+};
+
+//* Show the find bar and put the cursor in it.
+MainAssistant.prototype.showFind = function () {
+	var bar = this.controller.get("jihad-find");
+	if (!bar) { return; }
+	bar.style.display = "";
+	var input = this.controller.get("jihad-find-input");
+	if (input && input.mojo && input.mojo.focus) { input.mojo.focus(); }
+};
+
+MainAssistant.prototype.hideFind = function () {
+	var bar = this.controller.get("jihad-find");
+	if (bar) { bar.style.display = "none"; }
+};
+
+//* Issue the search. The engine's finder continues from the current match, so pressing Next
+//* with the same text is what "find again" means — there is no separate command, and the
+//* frozen findInPage(string) carries no direction (backwards is not reachable from the app,
+//* see cavekit-ui-shell.md R4).
+MainAssistant.prototype.runFind = function () {
+	var input = this.controller.get("jihad-find-input");
+	var text = input && input.mojo && input.mojo.getValue ? input.mojo.getValue() : "";
+	if (text && text.length >= 2) {
+		this.callBrowserAdapter("findInPage", [text]);
+	}
+};
+
+//* One-shot geometry probe for the command row, in the spirit of the Mochi address-bar fix:
+//* a card-WebKit layout bug is invisible to inspection and obvious to arithmetic. If
+//* scrollWidth exceeds clientWidth the row is genuinely overflowing AND scrollable, which is
+//* the whole point of the jihad-cmdmenu rules; if the items were still absolutely positioned
+//* they would overlap instead and scrollWidth would equal clientWidth.
+//* One compact line about the command row, at ERROR level: Mojo.Log.warn is BELOW
+//* this card's log threshold and never reaches /var/log/messages, which is why this
+//* probe looked like it produced no output for weeks. Kept because the row's layout
+//* is overridden in stylesheets/jihad-browser.css and has broken twice — once
+//* running off the right edge, once clipped out of sight by the fade block.
+MainAssistant.prototype.logCommandRowGeometry = function () {
+	try {
+		var row = document.querySelector(".palm-menu.command-menu.jihad-cmdmenu");
+		if (!row) { Mojo.Log.error("[JIHAD-CMDGEOM] command row not in the document"); return; }
+		var s = window.getComputedStyle ? window.getComputedStyle(row) : null;
+		var r = row.getBoundingClientRect ? row.getBoundingClientRect() : null;
+		var btns = row.querySelectorAll(".palm-menu-button");
+		var b0 = btns.length && btns[0].getBoundingClientRect ? btns[0].getBoundingClientRect() : null;
+		// A button top that is not the row top means the items have fallen out of the
+		// row's box and overflow-y: hidden is clipping them (the 2026-08-05 bug).
+		Mojo.Log.error("[JIHAD-CMDGEOM] buttons=" + btns.length +
+			" row=" + (r ? Math.round(r.top) + "+" + Math.round(r.height) : "?") +
+			" btn0=" + (b0 ? Math.round(b0.left) + "," + Math.round(b0.top) + " " +
+				Math.round(b0.width) + "x" + Math.round(b0.height) : "?") +
+			" client=" + row.clientWidth + " scroll=" + row.scrollWidth +
+			" overflowX=" + (s && s.overflowX));
+	} catch (e) { Mojo.Log.error("[JIHAD-CMDGEOM] " + e); }
+};
+
+MainAssistant.prototype.bindFindHandlers = function () {
+	var next = this.controller.get("jihad-find-next");
+	var done = this.controller.get("jihad-find-done");
+	var input = this.controller.get("jihad-find-input");
+	this.handleFindNext = this.runFind.bind(this);
+	this.handleFindDone = this.hideFind.bind(this);
+	if (next)  { next.addEventListener(Mojo.Event.tap, this.handleFindNext); }
+	if (done)  { done.addEventListener(Mojo.Event.tap, this.handleFindDone); }
+	// enterSubmits on the field means Enter fires propertyChange with the committed value.
+	if (input) { input.addEventListener(Mojo.Event.propertyChange, this.handleFindNext); }
 };
 
 MainAssistant.prototype.bindHandlers = function () {
@@ -277,7 +379,10 @@ MainAssistant.prototype.handleRetry = function () {
 	this.hideError();
 	// Fall back to the start page so the button is never a dead end, even when the
 	// failure arrived before any url was committed.
-	this.openUrl(this.failedUrl || this.url || this.startUrl);
+	// startPageUrl(), not the bare startUrl: the start page is a DOCUMENT rendered by the
+	// engine and gets its shortcut list from the url fragment, so retrying with the bare url
+	// would silently drop the user's links back to the built-in defaults.
+	this.openUrl(this.failedUrl || this.url || this.startPageUrl());
 };
 
 //* Menu commands and the back gesture (Mojo's chain of command).
@@ -286,6 +391,9 @@ MainAssistant.prototype.handleCommand = function (event) {
 		switch (event.command) {
 		case "jihad-back":
 			this.callBrowserAdapter("goBack");
+			break;
+		case "jihad-home":
+			this.openUrl(JihadChromePrefs.loadHome());
 			break;
 		case "jihad-forward":
 			this.callBrowserAdapter("goForward");
@@ -306,6 +414,9 @@ MainAssistant.prototype.handleCommand = function (event) {
 			break;
 		case "jihad-share":
 			this.shareCurrentPage();
+			break;
+		case "jihad-find":
+			this.showFind();
 			break;
 		}
 		// The command event is deliberately NOT stopped: nothing further up the chain
@@ -497,8 +608,22 @@ MainAssistant.prototype.syncChrome = function () {
 	this.syncCommandMenu();
 };
 
+//* The start page is a DOCUMENT rendered by the engine, so it cannot read the
+//* card's localStorage the way the Enyo and Mochi start pages (which are app
+//* chrome) read theirs. The shortcut list therefore travels in the url fragment,
+//* which start.html parses. A fragment costs no extra request and keeps the page
+//* a plain packaged file that talks to nothing.
+MainAssistant.prototype.startPageUrl = function () {
+	var links = JihadChromePrefs.loadLinks();
+	return this.startUrl + "#links=" + encodeURIComponent(JSON.stringify(links));
+};
+
+//* Compare without the fragment: startPageUrl() appends one, and the engine reports
+//* the committed url back with it, so a bare === would stop recognising our own
+//* start page (which is what keeps it out of the address bar).
 MainAssistant.prototype.isStartPage = function (url) {
-	return !url || url === this.startUrl;
+	if (!url) { return true; }
+	return String(url).split("#")[0] === this.startUrl;
 };
 
 //* Put plain text into an element. Titles and engine error strings originate with
@@ -519,10 +644,12 @@ MainAssistant.prototype.syncCommandMenu = function () {
 		{},
 		this.backItem,
 		this.forwardItem,
+		this.homeItem,
 		this.loading ? this.stopItem : this.reloadItem,
 		this.newCardItem,
 		this.historyItem,
 		this.shareItem,
+		this.findItem,
 		{}
 	];
 	if (this.commandMenuReady) {

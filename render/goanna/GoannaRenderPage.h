@@ -39,6 +39,19 @@ void SetMinFontSize(int px);        // YAP: setMinFontSize
 void SetBlockPopups(bool block);    // YAP: setBlockPopups
 void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
 
+// Chrome-owned settings, read by the CARD over this variant's Luna service.
+//
+// The settings page (about:preferences) lives in the ENGINE and writes these through
+// Services.prefs; the home button and the start page live in the CARD and need to read
+// them. The card cannot reach engine prefs and the page cannot reach the card's storage,
+// so this is the bridge — deliberately over Luna (a channel the cards already use) and
+// NOT over YAP, which is byte-frozen (cavekit-ipc-contract.md R1).
+//
+// One string pref carrying JSON, not a pref per setting: the set is owned end-to-end by
+// this project, it is read and written whole, and one pref keeps the Luna surface to a
+// single method. Returns false if the pref is unset, leaving *outJson untouched.
+bool GetChromeSettings(std::string* outJson);
+
 // DEBUG ONLY (self-drive inject channel, off by default — see JihadBrowserServer.cpp).
 // Runs a javascript: URL against the LAST-CREATED page with the SYSTEM principal, so a
 // probe can execute inside privileged chrome documents (about:addons/about:config) where

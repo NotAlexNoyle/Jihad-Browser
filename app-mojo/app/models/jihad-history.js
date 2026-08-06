@@ -11,6 +11,10 @@
 // it. Nothing here touches a system file or another variant's data.
 //
 // The store is a single JSON array under one key, newest first, capped at LIMIT
+// NB JSON.stringify, not Mojo.stringifyJSON: this framework build has
+// Mojo.parseJSON but NO Mojo.stringifyJSON, and calling it threw
+// "Object #<an Object> has no method 'stringifyJSON'" — which silently lost every
+// write here until it was caught in the main scene (2026-08-05).
 // entries so a long-running card cannot grow it without bound (localStorage is a
 // small, shared-per-origin quota — an unbounded list would eventually throw on
 // write and take the chrome down with it).
@@ -56,7 +60,7 @@ var JihadHistory = {
 	write: function (list) {
 		try {
 			if (window.localStorage) {
-				window.localStorage.setItem(this.KEY, Mojo.stringifyJSON(list));
+				window.localStorage.setItem(this.KEY, JSON.stringify(list));
 			}
 		} catch (e) {
 			// Quota exceeded (or storage disabled): drop the oldest half and retry
@@ -64,7 +68,7 @@ var JihadHistory = {
 			try {
 				if (list.length > 1) {
 					list.length = Math.floor(list.length / 2);
-					window.localStorage.setItem(this.KEY, Mojo.stringifyJSON(list));
+					window.localStorage.setItem(this.KEY, JSON.stringify(list));
 				}
 			} catch (e2) {
 				Mojo.Log.warn("[Jihad] history not saved: %s", e2);

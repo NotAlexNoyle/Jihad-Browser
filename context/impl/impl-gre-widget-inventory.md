@@ -52,6 +52,35 @@ structure is two levels deep — the input's frame creates a native-anonymous `<
 child, and the XBL binding (with those anonids) is bound to THAT, not to the input. So the
 `(no element)` results are a limitation of the probe, not evidence about the binding.
 
+## VERDICT (2026-08-05): `datetimebox` — date/time input turned OFF
+
+Resolved on device rather than by further probing, because the outcome the kit cares about
+(cavekit-gre-widgets.md R2) does not depend on whether the binding attaches:
+
+- The field rendered as a segmented `08 / 05 / 2026` control with a clear button and **no picker
+  button**, and tapping it opened no popup. So it looked editable and offered no way to pick a
+  date — R2 names that the worst of the three available outcomes.
+- `packaging/prefs/jihad-platform-prefs.js` now sets `dom.forms.datetime` false, with the reason
+  and the way back written next to the value. Both builds append that one file, so desktop and
+  device cannot disagree.
+- **Device-verified from a probe page that prints its own result**: before, `type=date | value=
+  2026-08-05`; after, `type=text | value=2026-08-05`, rendering identically to a plain text
+  input. The value survives the downgrade, and a text field is something the VKB and the
+  engine's own editing keys already handle.
+- The NAC-walk question is therefore moot and should NOT be re-run. It only becomes live again
+  if someone turns `dom.forms.datetime` back on — at which point the picker is a XUL popup and
+  goes down the cavekit-offscreen-rendering.md R7 path, or gets routed card-side the way
+  `<select>` is.
+
+**A deploy trap this exposed, worth more than the result.** The first attempt to apply the pref
+silently did nothing. The device-side append was guarded with
+`grep -q 'dom.forms.datetime"' "$G" || …` — and the file ALREADY contained the upstream
+`pref("dom.forms.datetime", true)` at line 1098, so the guard matched and skipped the append on
+every variant. It reported success. The measurement then said "STILL A DATE FIELD" and briefly
+looked like the engine ignoring the pref. **Guard an idempotent append on YOUR OWN marker, never
+on the name of the thing you are overriding** — upstream almost certainly sets it too, which is
+why you are overriding it.
+
 **Why this matters beyond neatness.** If the date/time bindings do attach, their picker is a XUL
 popup — a separate display root, exactly like the `<select>` dropdown and the `about:addons`
 tools menu, both of which needed the popup compositing and input routing work in

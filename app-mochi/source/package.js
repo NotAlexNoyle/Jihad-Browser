@@ -12,6 +12,9 @@ enyo.depends(
 	// Luna-service helpers (db8 / download manager / launcher) — the Enyo 2
 	// stand-in for the Enyo 1.0 DbService / enyo.PalmService kinds.
 	"JihadServices.js",
+	// Chrome-owned settings (start-page shortcuts, home target); read at build time
+	// by both the shell and the preferences panel, so it loads before either.
+	"JihadChromePrefs.js",
 	"JihadWebView.js",
 	// Parity views + dialog set (T-053) are appended here as they land, ahead of
 	// JihadBrowser (which references them as kinds).

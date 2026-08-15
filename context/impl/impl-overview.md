@@ -1,9 +1,45 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-03"
+last_edited: "2026-08-15"
 ---
 
 # Implementation Overview
+
+> **STALE AS A STATUS DOCUMENT — read `docs/PICKUP.md` and `context/kits/` first (2026-08-10).**
+> This file stops at 2026-08-03 and therefore predates all of the Flash work: NPAPI windowless,
+> input, audio, the CPU-governor fix, and the whole frame-rate/pacing investigation. Where it
+> disagrees with a kit criterion or with PICKUP, **it is wrong** — it is kept for the per-session
+> engineering detail it records (the causes, the traps, the measurements), not for its status.
+> It also names `impl-NEXT-AGENT-START-HERE.md`, which was folded into `docs/PICKUP.md` and
+> deleted; PICKUP is the only current handoff.
+>
+> The traps recorded below are still true and still load-bearing — the `novacom` stdin-EOF output
+> loss and the WebAppMgr JS cache in particular.
+
+## 2026-08-15 — HOST-SIDE CLOSE-OUT WAVE (no device all session)
+
+Cavekit loop against `context/plans/build-site.md`; per-task detail in `context/impl/loop-log.md`
+Iteration 3 and the new impl files it names (impl-yap-codegen, impl-audio-backend, impl-cert-store,
+impl-touch-events, impl-toast-channel, impl-device-build §2026-08-15). Highlights:
+- **ipc-contract R1 fully closed** — YapCodeGen vendored + patched; regeneration reproduces the
+  shipped wire with zero hand edits; space-hang trap fixed.
+- **Engine audio output exists in the build** — cubeb ALSA backend compiled into ARM libxul
+  (`--enable-alsa`, Jessie alsa-lib staged); device listen pending; MP3/AAC/H.264 decoders still off.
+- **Cert-store integration (T-135) landed and desktop-proven** — real PEM certFile, honest
+  Palm-ordinal error mapping off `nsISSLStatus` (the emitted nsresult was a transport-class lie),
+  three-way trust with both-ends session-serial sweep; platform writes via dlopen'd
+  libPmCertificateMgr, degrade-safe.
+- **Touch events (T-120) code-complete behind `JIHAD_TOUCH_EVENTS=1`** — 28-byte header re-staged,
+  fence out, double-activation suppressor; two real bugs fixed en route. All ARM artifacts rebuilt;
+  .ipks 1.0.4 bundle libasound (older ipks won't start the daemon).
+- **Desktop verifications** — notificationbox attach/dismiss PASS on the offscreen widget path
+  (gre-widgets R5 first criterion `[x]`); XPI mismatch alert fires with discriminating control;
+  eleven shared-file pref rows observed (R7 second criterion `[x]`).
+- **Opal config corrected** — kernel string pinned `2.6.35-palm-shortloin` (board name; `opal` is
+  the product); prebuilt-input manifests landed (187-deb sysroot + adapter-deps).
+- Keyboard arbitration: observable rebuilt around the address-bar screenshot; latch found to be
+  DOUBLE-tap-set only, no latch log compiles (T-124 rescoped).
+- Everything still open is device-, hardware-, or human-decision-gated; see build-site rows.
 
 ## 2026-08-03 (second session) — CARD DEV LOOP RESTORED, SELECT POPUP DONE ON ALL THREE (READ FIRST)
 
@@ -151,7 +187,7 @@ Validated on the TouchPad: the card loads the Jihad adapter → the Jihad daemon
 `http://example.com` and `slack.com` (HTTPS) load + render on `/dev/fb1`,
 load-completion fires (address-bar refresh glyph), both daemons coexist, device
 stable. Authoritative detail + deploy gotchas (reboot-to-register-plugin,
-`.ipk`-reinstall-to-bust-cache, content-is-on-fb1) in `docs/DEVICE-HANDOFF.md`
+`.ipk`-reinstall-to-bust-cache, content-is-on-fb1) in `docs/PICKUP.md`
 (2026-07-07) and auto-memory `jihad-self-contained-arch.md`, `jihad-device-gotchas.md`.
 
 Still open (Phase-3 hardening): tap activation (staged `buttons` fix), landscape
@@ -162,7 +198,7 @@ composite (staged rotation guard), keyboard/VKB, URL-fixup edge cases.
 The build pipeline and offscreen round-trip below are done, but **interactive on-device
 browsing is NOT complete** — verified against the real screen (`/dev/fb1`), the daemon's
 `frame.ppm` was misleading (it's the pre-composite render). See
-`docs/DEVICE-HANDOFF.md` (2026-07-06 section) for the authoritative current state.
+`docs/PICKUP.md` (2026-07-06 section) for the authoritative current state.
 
 Working on-device: portrait render (after DPR=1 fix), about:jihad/about:isis pages, the
 full UA (docShell customUserAgent), URL-bar → about: navigation, DuckDuckGo default,
@@ -192,7 +228,7 @@ X/GTK-free engine**:
   offscreen ROUND-TRIP PASS, msgPainted 786432**.
 - Closes **Engine-Embedding R2**, **Offscreen-Rendering** (on-device),
   **Device-Build R2**; advances **Device-Build R4/R5**. Full recipe + gotchas in
-  auto-memory `jihad-headless-toolkit.md` and `docs/DEVICE-HANDOFF.md`.
+  auto-memory `jihad-headless-toolkit.md` and `docs/PICKUP.md`.
 
 **Remaining for "all kits complete"** (see cavekit-overview.md status column):
 Mochi UI variant (`app-mochi/` skeleton → parity, largest item); device UI
@@ -215,7 +251,7 @@ store (Services R4/R5); TouchPad Go / Opal (Device-Build R6).
 | Input Bridging | **click/key/mouse + coord-mapping (R5)** | 5 | ClickAt/KeyEvent/MouseEvent via nsIDOMWindowUtils — INPUT PASS. **R5 coord-mapping: clickAt uses content/CSS space (proven via coord_test: surface≠content at zoom); bridge now maps adapter surface coords → content (surface/zoom + scroll) for click/mouse/touch — COORDMAP PASS (surface(240,240)@2x hits the box at content(120,120)).** **R1 holdAt (contextmenu) + R4 drag scrolling (dragProcess→scroll, msgScrolledTo) — INPUT2 PASS (holdAt hits, drag scrolls 200).** TouchEvent + insertStringAtCursor wired but desktop-unverified (offscreen widget doesn't route synth touch; execCommand insertText via javascript: doesn't preserve input focus headless) — both on-device. Remaining: R3 pinch/tap gesture (on-device) |
 | Browser Services | **R1 settings + R2 cache/cookies + R3 dialogs** | 5 | R1 complete: setEnableJavaScript, setUserAgent, **setMinFontSize/setBlockPopups/setAcceptCookies** (SETTINGS2 PASS — prefs applied + window.open blocked behaviorally). R2: clearCache/clearCookies (SERVICES PASS). R3: DialogService overrides `@mozilla.org/prompter;1` — alert/confirm/prompt captured + reply routed (DIALOG PASS), installed in EngineHost so the daemon never hangs. R4 downloads: DownloadService overrides `@mozilla.org/helperapplauncherdialog;1` — handoff captured (DOWNLOAD PASS). **R5 TLS: invalid cert detected via the security-module document-stop status → msgSSLConfirm(host, code) (TLS PASS: self-signed 127.0.0.1 → host+0x805a2fe3 surfaced, reject-aborts = page not loaded).** Device-gated [human-review on device]: accept-proceeds (the untrusted cert object isn't exposed headless — nsIBadCertListener2 not consulted, SSL-status/failed-chain null) + webOS cert store. Remaining: save-to-disk/progress + per-adapter blocking dialog delivery (adapter/device) |
 | Desktop Build & PoC | **R1–R3 done; R4 [human-review]** | 4 | R1: single-entry build produces runnable jihad-browserserver (Goanna backend, LunaService compiled out) — DAEMON_UP. R2: jihad-adapter allocates buffers, Connect+OpenUrl, receives msgPainted, **writes out/jihad-poc-render.ppm** (→ docs/jihad-poc-render.png), returns buffer (0x150d wired). R3: real page renders through the whole pipe, lifecycle in order — ROUND-TRIP PASS. R4 (Enyo UI on desktop) recorded [human-review]: no desktop Enyo runtime → harness is the acceptance vehicle. See docs/DESKTOP-POC.md |
-| Device Build & Packaging (ipk) | **R1+R2 DONE on-device; R3–R6 pending** | 6 | **R1 crosstool-NG toolchain (GCC 9.4 / glibc 2.23 softfp, min-kernel 2.6.32) — C++ ran on the TouchPad. R2 engine cross-compiles: X/GTK-free headless libxul (29 M) + GTK-free daemon cross-built, load on the device and RENDER (on-device offscreen ROUND-TRIP PASS, msgPainted 786432); lean bundle 28 .so (no gtk/X) launched via bundled ld-2.23.so on /media/internal.** Authored mozconfig.goanna-arm (now cairo-headless) + build-goanna-arm.sh + build-daemon-arm.sh + make-device-bundle.sh; OE `.bb` skeletons exist. Pending: R3 two `.ipk`s (needs Mochi UI + real BrowserAdapter rebuild) + on-device coexistence; R4 full UI-on-screen via BrowserAdapter + nav/scroll/tap on-device; R5 memory budget [human-review; 29 M libxul helps]; R6 TouchPad Go / Opal (no 2nd device). See docs/DEVICE-HANDOFF.md |
+| Device Build & Packaging (ipk) | **R1+R2 DONE on-device; R3–R6 pending** | 6 | **R1 crosstool-NG toolchain (GCC 9.4 / glibc 2.23 softfp, min-kernel 2.6.32) — C++ ran on the TouchPad. R2 engine cross-compiles: X/GTK-free headless libxul (29 M) + GTK-free daemon cross-built, load on the device and RENDER (on-device offscreen ROUND-TRIP PASS, msgPainted 786432); lean bundle 28 .so (no gtk/X) launched via bundled ld-2.23.so on /media/internal.** Authored mozconfig.goanna-arm (now cairo-headless) + build-goanna-arm.sh + build-daemon-arm.sh + make-device-bundle.sh; OE `.bb` skeletons exist. Pending: R3 two `.ipk`s (needs Mochi UI + real BrowserAdapter rebuild) + on-device coexistence; R4 full UI-on-screen via BrowserAdapter + nav/scroll/tap on-device; R5 memory budget [human-review; 29 M libxul helps]; R6 TouchPad Go / Opal (no 2nd device). See docs/PICKUP.md |
 
 ## Completed this session (Tier-0, build-independent)
 - **T-001/T-002** — LICENSE + NOTICE + license texts; Apache+MPL compatibility stated.

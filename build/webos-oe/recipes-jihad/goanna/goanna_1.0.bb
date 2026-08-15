@@ -2,8 +2,11 @@
 # The heavy recipe: cross-compiles UXP with the embedding config against the
 # device sysroot. Replaces the isis webkit-webos + qt4-webos engine deps.
 #
-# STATUS: skeleton. Requires the modern ARMv7 cross-toolchain (device-build R1)
-# and the UXP source; the actual cross-build is gated on the device sysroot.
+# STATUS (re-read 2026-08-10, T-115): "skeleton … gated on the device sysroot" was STALE. The body
+# below is a full cross-build (mach configure/build under ${JIHAD_TC} against ${JIHAD_ARM_SYSROOT},
+# staged as jihad-engine-dist), and both prerequisites it named exist: the crosstool-NG toolchain
+# (R1, on-device verified) and the Jessie armel sysroot — both are declared prebuilt inputs, see
+# R3's prebuilt-inputs carve-out. CODE READ ONLY: not bitbake-run since 2026-07-29.
 # See ../../../docs/DEVICE-BUILD.md and ../../mozconfig.goanna-arm.
 
 SUMMARY = "Goanna (UXP) web engine, embedding build for Jihad Browser"
@@ -151,7 +154,8 @@ INHIBIT_PACKAGE_STRIP = "1"
 INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 
 # Build-INPUT recipe: stages the engine dist to the sysroot for the daemon + deviceroot; emits no
-# .ipk of its own (only the 2 UI products + Mojo skeleton are packages). populate_sysroot still runs.
+# .ipk of its own (only the THREE UI products are packages — Mojo stopped being a skeleton on
+# 2026-08-05, cavekit-mojo-ui.md). populate_sysroot still runs.
 do_package[noexec] = "1"
 do_packagedata[noexec] = "1"
 do_package_qa[noexec] = "1"

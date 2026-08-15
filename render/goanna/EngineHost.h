@@ -53,8 +53,8 @@ public:
 
 private:
   bool mInited;
-  long mMemPollMs = 0;      // last /proc/meminfo poll (monotonic ms)
-  long mMemNotifyMs = 0;    // last memory-pressure notification (throttle)
+  int64_t mMemPollMs = 0;      // last /proc/meminfo poll (monotonic ms)
+  int64_t mMemNotifyMs = 0;    // last memory-pressure notification (throttle)
 
   EngineHost(const EngineHost&) = delete;
   EngineHost& operator=(const EngineHost&) = delete;

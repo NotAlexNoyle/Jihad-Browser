@@ -7,6 +7,7 @@
 # ON A REAL REMOVAL it removes EXACTLY what this variant's postinst created, and nothing else:
 #   /usr/lib/BrowserPlugins/BrowserAdapterJihadMochi.so
 #   /usr/lib/jihad/mochi/BrowserAdapterImpl.so   (+ the now-empty /usr/lib/jihad/mochi)
+#   /usr/lib/jihad/mochi/InteractiveWidgetRect.schema
 #   /etc/event.d/jihad-mochi
 #   /var/palm/jihad/mochi/                       (the runtime state dir, log included)
 #   $APP/profile/                                (the engine's DURABLE profile: cookies.sqlite,
@@ -42,6 +43,7 @@ HL=$APP/deviceroot/hl
 SHIM=/usr/lib/BrowserPlugins/BrowserAdapterJihadMochi.so
 IMPLDIR=/usr/lib/jihad/mochi
 IMPL=$IMPLDIR/BrowserAdapterImpl.so
+RECTSCHEMA=$IMPLDIR/InteractiveWidgetRect.schema
 JOB=/etc/event.d/jihad-mochi
 SOCK=/tmp/yapserver.jihad-browser-mochi
 STATE=/var/palm/jihad/mochi
@@ -140,6 +142,7 @@ else
 fi
 rm -f "$SHIM"
 rm -f "$IMPL"
+rm -f "$RECTSCHEMA"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone
 # De-register this variant's db8 kinds — they are ours, and leaving them behind is residue of

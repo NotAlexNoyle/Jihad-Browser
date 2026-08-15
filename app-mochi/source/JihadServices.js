@@ -92,6 +92,41 @@ enyo.jihad = enyo.jihad || {};
 	}
 	scope.luna = lunaCall;
 
+	// Kept forever on purpose — a subscription bridge that is collected stops delivering.
+	var subscriptions = [];
+
+	//* Low-level Luna SUBSCRIPTION. Same shape as lunaCall, with the two differences that make
+	//* a subscription work at all: `subscribe:true` goes on the request, and the bridge is
+	//* NEVER spliced out of the keep-alive list — lunaCall removes it on the first reply,
+	//* which for a subscription is the handshake, after which the native side would be
+	//* collected and every later push dropped. `onResult` therefore fires MANY times: once for
+	//* {"returnValue":true,"subscribed":true} and again for each pushed payload.
+	//*
+	//* There is no unsubscribe: the only subscriber in this shell lives for the life of the
+	//* card, and the hub drops the subscription when the card goes away.
+	function lunaSubscribe(uri, params, onResult) {
+		if (typeof PalmServiceBridge === "undefined") {
+			if (onResult) { onResult({returnValue: false, offline: true}); }
+			return null;
+		}
+		var bridge = new PalmServiceBridge();
+		subscriptions.push(bridge);
+		bridge.onservicecallback = function(payload) {
+			var resp;
+			try {
+				resp = enyo.json.parse(payload);
+			} catch (e) {
+				resp = {returnValue: false, parseError: true};
+			}
+			if (onResult) { onResult(resp); }
+		};
+		var p = params || {};
+		p.subscribe = true;
+		bridge.call(uri, enyo.json.stringify(p));
+		return bridge;
+	}
+	scope.lunaSubscribe = lunaSubscribe;
+
 	// --- db8 -----------------------------------------------------------------
 	scope.db = function(method, params, onResult) {
 		return lunaCall(DB_URI + method, params, onResult);

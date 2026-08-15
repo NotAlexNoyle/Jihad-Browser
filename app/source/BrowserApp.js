@@ -40,6 +40,14 @@ enyo.kind({
 		{name: "launchApplicationService", kind: "PalmService", service: enyo.palmServices.application, method: "open", onFailure: "gotResourceError"},
 		{name: "addToLauncherService", kind: "PalmService", service: enyo.palmServices.application, method: "addLaunchPoint"},
 		{name: "resourceInfoService", kind: "PalmService", service: enyo.palmServices.application, method: "getResourceInfo", onSuccess: "gotResourceInfo", onFailure: "gotResourceError"},
+		// The daemon's NON-BLOCKING message channel (cavekit-gre-widgets.md R5). One
+		// subscription, opened at create() and left open for the life of the card; every
+		// informational line the daemon raises arrives on it and becomes a transient toast
+		// (source/JihadToast.js). OUR OWN service, per-variant, exactly like clearCookies /
+		// clearCache below in Browser.js — never palm://com.palm.browserServer/, which is the
+		// stock daemon we coexist with. resubscribe:true so a daemon restart re-arms it
+		// instead of leaving the card permanently deaf.
+		{name: "notificationService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/", method: "notifications", onSuccess: "gotNotification", onFailure: "notificationServiceFailed", subscribe: true, resubscribe: true},
 		{kind: enyo.Pane, flex: 1, height: "100%", lazyViews: [
 			{name: "startPage", kind: "StartPage", 
 				onUrlChange: "processUrlChange",
@@ -139,7 +147,32 @@ enyo.kind({
 	create: function() {
 		this.inherited(arguments);
 		this.fetchInitialPreferences();
+		this.subscribeNotifications();
 		this.log(enyo.json.stringify(enyo.windowParams));
+	},
+	//* Open the daemon's message subscription (cavekit-gre-widgets.md R5). Off device there is
+	//* no Luna bus at all, so this is skipped rather than left to fail asynchronously.
+	subscribeNotifications: function() {
+		if (!window.PalmSystem) { return; }
+		// Empty params on purpose. The component's own `subscribe: true` is what puts
+		// "subscribe":true into the request AND marks the request persistent, and the
+		// framework's own docs say passing subscribe in params directly is not supported
+		// (enyo/1.0/framework/source/palm/services/PalmService.js, makeRequestProps).
+		this.$.notificationService.call({});
+	},
+	//* Every reply on that subscription lands here — the immediate
+	//* {"returnValue":true,"subscribed":true} handshake as well as each later push. Only a
+	//* payload carrying `text` is a message; the handshake is not one, and showing it would
+	//* put an empty toast on screen at every card launch.
+	gotNotification: function(inSender, inResponse) {
+		if (!inResponse || !inResponse.text) { return; }
+		enyo.jihadToast.show(inResponse.category, inResponse.text);
+	},
+	//* A failed subscription is not worth a dialog: it costs the user their status toasts and
+	//* nothing else, and the browser is fully usable without them. Logged so "no toasts" can
+	//* be told apart from "the daemon never sent one".
+	notificationServiceFailed: function(inSender, inResponse) {
+		this.log("notifications subscription failed: " + enyo.json.stringify(inResponse || {}));
 	},
 	applicationRelaunchHandler: function(inSender) {
 		var c = enyo.windows.getActiveWindow();
@@ -273,6 +306,13 @@ enyo.kind({
 		if (enyo.jihadChrome.adoptFromUrl(inUrl) && this.$.startPage) {
 			this.$.startPage.buildLinks();
 		}
+		// COUNTS ONLY, never the values: this carries the user's home page and shortcut
+		// list, and /var/log/messages is world-readable. The count is what tells you the
+		// page->card leg fired at all, which is the leg that was dead until 2026-08-06.
+		if (enyo.jihadChrome.isSettingsUrl(inUrl)) {
+			enyo.log("jihadChrome: settings url seen, links=" +
+				enyo.jihadChrome.linkCount() + " startPage=" + (this.$.startPage ? 1 : 0));
+		}
 	},
 	startPageShown: function() {
 		this.$.startPage.setUrl("");
@@ -282,6 +322,19 @@ enyo.kind({
 		this.$.printMenuItem.setDisabled(!browser || this.isBrowserLoading());
 		this.$.preferencesItem.setDisabled(this.isPreferencesShowing());
 	},
+	// OWNERSHIP, decided 2026-08-10 (cavekit-preferences-ui.md R2/R5, task T-143). blockPopups
+	// and acceptCookies are also editable in about:preferences, and the page's edit used to be
+	// overwritten at the next card launch. THE FIX IS NOT IN THIS FILE, and deleting this replay
+	// would have made it worse: enyo's own BasicWebView.initView() re-sends setBlockPopups /
+	// setAcceptCookies / setEnableJavascript / setMinFontSize from its published defaults on
+	// EVERY adapter connect — framework code no app edit can reach — so removing the loop that
+	// calls this would drop the only writer carrying a user choice and leave the one carrying a
+	// constant. The daemon now writes those three to the pref DEFAULT branch, so a page-written
+	// user pref shadows them and survives a restart (jihad::SetBlockPopups in
+	// render/goanna/GoannaRenderPage.cpp). enableJavascript stays CARD-owned: the daemon gates
+	// script per docShell too, so this command is the only thing that really stops a script.
+	// NB minFontSize is in neither this map nor db8 — its only source is `minFontSize: 2` on the
+	// WebView in Browser.js, which is why removing rows here could never have fixed it.
 	applyPreference: function(inPreference, inValue) {
 		this.log(inPreference, inValue);
 		var preferenceMap = {

@@ -86,6 +86,19 @@ void BrowserServerBase::handleAsyncCommand(YapProxy* proxy, YapPacket* cmd)
 		
 		break;
 	}
+	case 0x1600: { // SetExtraBuffer (Jihad addition: a THIRD shared buffer)
+		
+		int32_t sharedBufferKey3 = 0;
+		int32_t sharedBufferSize = 0;
+		
+		(*cmd) >> sharedBufferKey3;
+		(*cmd) >> sharedBufferSize;
+		
+		asyncCmdSetExtraBuffer(proxy, sharedBufferKey3, sharedBufferSize);
+		
+		
+		break;
+	}
 	case 0x1001: { // SetWindowSize
 		
 		int32_t width = 0;

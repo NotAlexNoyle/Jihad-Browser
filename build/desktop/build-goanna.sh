@@ -134,22 +134,78 @@ else
   exit 1
 fi
 
-# --- add-on prefs, from the SAME file the device bundle uses --------------------------------------
-# Without these the desktop dist runs on engine defaults, where xpinstall.whitelist.required is TRUE
-# and an install from a page throws NS_ERROR_UNEXPECTED — indistinguishable from a broken install
-# path. Sharing the file is what keeps the two builds from drifting.
+# --- shared prefs, from the SAME files the device bundle uses -------------------------------------
+# Both files are appended into the built goanna.js. Without the add-on prefs the desktop dist runs
+# on engine defaults, where xpinstall.whitelist.required is TRUE and an install from a page throws
+# NS_ERROR_UNEXPECTED — indistinguishable from a broken install path. Without the platform prefs the
+# desktop dist silently shows STOCK values where the device shows tuned ones. Sharing the files is
+# what keeps the two builds from drifting (cavekit-gre-widgets.md R7).
+#
+# HARDENED 2026-08-15. Two defects, both of the fail-open class this project keeps getting bitten by:
+#
+#   1. Missing inputs were a SILENT skip — an `[ -f ... ]` guard with no else branch — while the
+#      prefs-ui block directly above FAILS LOUD for exactly the same reason. A dist built without
+#      these prefs looked like a successful build and then behaved like a broken engine.
+#
+#   2. The append was guarded on a MARKER, not on the VALUES. Once 'JIHAD platform prefs' was in
+#      goanna.js the block was never appended again, so on any run where mach left goanna.js in
+#      place, an EDIT to a shared pref file did not reach the dist — and the marker still claimed
+#      it had. The dist shipped stale values while reporting success.
+#
+# The fix for (2) is to stop asking "was something appended?" and re-append unconditionally: strip
+# whatever a previous run left, append fresh, then verify the shipped BYTES equal the source bytes.
+# That is idempotent (no duplicate blocks), it cannot go stale, and the check is on the values
+# themselves rather than on a claim about them. The device bundler needs none of this because it
+# `rm -rf`s its output and re-copies goanna.js every run, so its guard can never fire.
 ADDON_PREFS=/jihad/packaging/prefs/jihad-addon-prefs.js
-if [ -f "$ADDON_PREFS" ] && [ -f "$DISTBIN/goanna.js" ]; then
-  grep -q 'JIHAD add-on prefs' "$DISTBIN/goanna.js" 2>/dev/null || \
-    cat "$ADDON_PREFS" >> "$DISTBIN/goanna.js"
-  echo "  add-on prefs: appended to the desktop goanna.js"
-fi
-
 PLATFORM_PREFS=/jihad/packaging/prefs/jihad-platform-prefs.js
-if [ -f "$PLATFORM_PREFS" ] && [ -f "$DISTBIN/goanna.js" ]; then
-  grep -q 'JIHAD platform prefs' "$DISTBIN/goanna.js" 2>/dev/null || \
-    cat "$PLATFORM_PREFS" >> "$DISTBIN/goanna.js"
-  echo "  platform prefs: appended to the desktop goanna.js"
+GOANNA_JS=$DISTBIN/goanna.js
+PREF_SENTINEL='// ==== JIHAD shared prefs — appended by build/desktop/build-goanna.sh ===='
+
+for f in "$ADDON_PREFS" "$PLATFORM_PREFS"; do
+  [ -s "$f" ] || { echo "ERROR: shared pref file missing/empty: $f — the desktop dist would run on engine defaults" >&2; exit 1; }
+done
+[ -f "$GOANNA_JS" ] || {
+  echo "ERROR: $GOANNA_JS does not exist — the build produced no greprefs file to append to" >&2; exit 1; }
+
+# Strip anything a previous run appended, so the re-append cannot duplicate or go stale. The
+# appended region is always the tail of the file, so cutting at its first line and dropping the
+# rest is exact. Three start-of-region forms are recognised: the sentinel written below, and the
+# two legacy forms written before the sentinel existed (a shared file's own header line, and its
+# '--- JIHAD ... prefs ---' marker) so a dist appended by the OLD code is cleaned up too.
+STRIPPED=$(mktemp) || { echo "ERROR: mktemp failed" >&2; exit 1; }
+awk -v s="$PREF_SENTINEL" '
+  $0 == s                                   { exit }
+  index($0, "// Jihad Browser") == 1        { exit }
+  index($0, "// --- JIHAD add-on prefs")==1 { exit }
+  index($0, "// --- JIHAD platform prefs")==1 { exit }
+  { print }
+' "$GOANNA_JS" > "$STRIPPED" || { rm -f "$STRIPPED"; echo "ERROR: failed to strip previous prefs from $GOANNA_JS" >&2; exit 1; }
+cat "$STRIPPED" > "$GOANNA_JS"
+rm -f "$STRIPPED"
+
+printf '%s\n' "$PREF_SENTINEL" >> "$GOANNA_JS"
+cat "$ADDON_PREFS" "$PLATFORM_PREFS" >> "$GOANNA_JS"
+
+# Verify by VALUE, not by marker: the region after the sentinel must be byte-identical to the two
+# shared files concatenated. This is what a marker check could never establish — it proves the
+# values in the dist are the values in the source, this run.
+SENTINEL_COUNT=$(grep -c -F -x "$PREF_SENTINEL" "$GOANNA_JS" || true)
+[ "$SENTINEL_COUNT" = 1 ] || {
+  echo "ERROR: $GOANNA_JS carries $SENTINEL_COUNT copies of the prefs sentinel (expected 1) — the strip pass did not work" >&2
+  exit 1; }
+ACTUAL=$(mktemp) && EXPECTED=$(mktemp) || { echo "ERROR: mktemp failed" >&2; exit 1; }
+awk -v s="$PREF_SENTINEL" 'found { print } $0 == s { found = 1 }' "$GOANNA_JS" > "$ACTUAL"
+cat "$ADDON_PREFS" "$PLATFORM_PREFS" > "$EXPECTED"
+if ! cmp -s "$ACTUAL" "$EXPECTED"; then
+  echo "ERROR: the prefs appended to $GOANNA_JS do not match the shared source files" >&2
+  # `|| true`: diff exits 1 when the files differ, which is the case we are already in, and under
+  # `set -e -o pipefail` that would abort here and leak the temporaries.
+  { diff -u "$EXPECTED" "$ACTUAL" | head -20 >&2; } || true
+  rm -f "$ACTUAL" "$EXPECTED"; exit 1
 fi
+rm -f "$ACTUAL" "$EXPECTED"
+PREF_LINES=$(grep -h -c -E '^[[:space:]]*(pref|user_pref)\(' "$ADDON_PREFS" "$PLATFORM_PREFS" | awk '{t += $0} END {print t+0}')
+echo "  shared prefs: $PREF_LINES pref lines re-appended to the desktop goanna.js, verified byte-identical to the source files"
 
 echo "== done; artifacts under /out =="

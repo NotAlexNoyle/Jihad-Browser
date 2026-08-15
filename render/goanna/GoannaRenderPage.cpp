@@ -7,6 +7,7 @@
  */
 #include "GoannaRenderPage.h"
 #include "EngineHost.h"
+#include "DialogService.h"   // jihad::PostNotification — the non-blocking message channel (R5)
 
 // JIHAD_OFFSCREEN_ONLY (device/ARM headless build): the engine's libxul is built
 // with MOZ_WIDGET_TOOLKIT=headless (no GTK/X). Compile the daemon GTK-free too so
@@ -41,6 +42,7 @@
 #include "nsISSLStatus.h"
 #include "nsIBadCertListener2.h"
 #include "nsIX509Cert.h"
+#include "nsIX509CertValidity.h"     // notAfter, to say EXPIRED rather than "not valid now"
 #include "nsICertOverrideService.h"
 #include "nsIDOMClientRect.h"
 #include "nsICookieManager.h"        // cookie persistence probe (browser-services R2)
@@ -64,6 +66,8 @@
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
 #include "nsIDOMDocumentXBL.h"       // reach XBL anonymous content (chrome UI controls)
+#include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
+#include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
 #include "nsISSLStatusProvider.h"    // pull the server cert off a failed TLS channel
 #include "nsISSLStatus.h"
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
@@ -77,7 +81,9 @@
 #include "nsIDOMHTMLOptGroupElement.h" // a disabled <optgroup> disables its options (apply guard)
 #include "nsIDOMHTMLOptionsCollection.h"
 #include "nsIDOMNode.h"              // walk up to the nearest anchor ancestor
+#include "nsIObjectLoadingContent.h" // hasRunningPlugin: which <embed> is a LIVE plugin (R7)
 #include <cctype>                    // toupper/tolower for editable tag/type checks
+#include <cstdlib>                   // free() for XPCOM out-arrays (nsIX509Cert::getRawDER)
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
@@ -89,6 +95,7 @@
 #include "nsIDOMEvent.h"             // dispatch 'input' so controlled/React fields see edits (F-238)
 #include "nsIDOMEventTarget.h"
 #include "nsIPrefBranch.h"
+#include "nsIPrefService.h"          // GetDefaultBranch — the card's settings are DEFAULTS (R2/R5)
 #include "nsICookieManager.h"
 #include "nsICacheStorageService.h"
 #include "nsServiceManagerUtils.h"
@@ -117,14 +124,25 @@ public:
   NS_DECL_NSIDOMEVENTLISTENER   // engine focus/blur -> VKB state (Atlas IM-context port)
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
-                             mCertError(false), mProgrammaticLoad(true),
+                             mCertError(false),
+                             mCertFlagsValid(false), mCertUntrusted(false),
+                             mCertDomainMismatch(false), mCertTimeInvalid(false),
+                             mProgrammaticLoad(true),
                              mLinkClicked(false), mLinkIsPost(false), mErrorStatus(NS_OK), mCertPort(443),
                              mProgressPct(0), mEngineFocusIsText(false), mEngineFocusEvent(false),
-                             mUserInteracted(false), mW(w), mH(h) {}
+                             mUserInteracted(false), mSameDocLocation(false), mW(w), mH(h) {}
   bool mDone;
   bool mLoadFailed;          // last load ended in a network error
   bool mRedirected;          // the main document was redirected during this load
   bool mCertError;           // last load failed on an (overridable) cert error
+  // What was actually WRONG with the certificate, straight from nsISSLStatus.
+  // The failing nsresult alone cannot answer this (the document status for a
+  // rejected handshake is a transport-level code), and these three booleans are
+  // almost exactly the distinctions the card's message table draws.
+  bool mCertFlagsValid;      // nsISSLStatus was seen, so the three below mean something
+  bool mCertUntrusted;
+  bool mCertDomainMismatch;
+  bool mCertTimeInvalid;
   bool mProgrammaticLoad;    // current load was started by a command (not a link)
   bool mLinkClicked;         // a content-initiated (link) navigation was seen
   bool mLinkIsPost;          // ...and it was a non-GET (POST) request (not re-driven — F-262)
@@ -147,6 +165,11 @@ public:
   bool mEngineFocusEvent;     // focus/blur seen since the last PollEngineFocus drain
   bool mUserInteracted;       // a tap happened since this page's load started (Atlas autofocus
                               // gate: a page that AUTOFOCUSES on load must not grab the VKB)
+  // A same-document location change (fragment edit, pushState/replaceState) happened since the
+  // last drain. These produce NO load lifecycle at all — no STATE_START, no STATE_STOP — so the
+  // completion boundary that normally reports the url never runs and the card keeps showing the
+  // previous one. Drained by GoannaRenderPage::TakeSameDocumentLocation each pump tick.
+  bool mSameDocLocation;
   int32_t mW, mH;
   nsCOMPtr<nsIWebBrowser> mBrowser;
 private:
@@ -173,6 +196,18 @@ NS_IMETHODIMP PageChrome::NotifyCertProblem(nsIInterfaceRequestor*,
     if (cert) {
       mCertError = true;
       mCertCert = cert;
+      // Why the certificate is bad, while we still have something that knows.
+      // The nsresult the document stop reports is a transport-level code
+      // (0x805a2fe3 on our own self-signed test), so it cannot be decoded into
+      // "untrusted" vs "wrong host" vs "out of date" — these can.
+      bool untrusted = false, mismatch = false, badTime = false;
+      status->GetIsUntrusted(&untrusted);
+      status->GetIsDomainMismatch(&mismatch);
+      status->GetIsNotValidAtThisTime(&badTime);
+      mCertFlagsValid = true;
+      mCertUntrusted = untrusted;
+      mCertDomainMismatch = mismatch;
+      mCertTimeInvalid = badTime;
       // targetSite is "host:port".
       nsCString site(targetSite);
       int32_t colon = site.RFindChar(':');
@@ -360,7 +395,18 @@ NS_IMETHODIMP PageChrome::OnProgressChange(nsIWebProgress*, nsIRequest*, int32_t
   }
   return NS_OK;
 }
-NS_IMETHODIMP PageChrome::OnLocationChange(nsIWebProgress*, nsIRequest*, nsIURI*, uint32_t) { return NS_OK; }
+// The ONLY notification a same-document navigation produces. A fragment-only change
+// (location.hash = ...), history.pushState and history.replaceState all move the document's
+// URI without starting a load, so OnStateChange never fires and the daemon's completion
+// boundary — the thing that normally emits msgTitleAndUrlChanged — never runs. Without this
+// the card's address bar keeps the pre-change url, and about:preferences (which publishes an
+// edited settings payload by rewriting its own fragment) can never reach the shell.
+// Only SAME_DOCUMENT is recorded here: a cross-document location change is already covered by
+// the load lifecycle, and emitting from both would double every ordinary navigation's report.
+NS_IMETHODIMP PageChrome::OnLocationChange(nsIWebProgress*, nsIRequest*, nsIURI*, uint32_t aFlags) {
+  if (aFlags & nsIWebProgressListener::LOCATION_CHANGE_SAME_DOCUMENT) mSameDocLocation = true;
+  return NS_OK;
+}
 NS_IMETHODIMP PageChrome::OnStatusChange(nsIWebProgress*, nsIRequest*, nsresult, const char16_t*) { return NS_OK; }
 NS_IMETHODIMP PageChrome::OnSecurityChange(nsIWebProgress*, nsIRequest*, uint32_t) { return NS_OK; }
 
@@ -388,6 +434,13 @@ extern "C" {
                                      int aWidth, int aHeight) __attribute__((weak));
   bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
                                 int aWidth, int aHeight);
+  // WEAK, same reasoning: hand every running NPAPI plugin Palm's spotlight system event
+  // (npPalmSpotlightStartEvent / npPalmSpotlightEndEvent), which is how a webOS plugin is
+  // told it went fullscreen. Absent the symbol — an older libxul — the frozen YAP spotlight
+  // commands stay the no-ops they have always been rather than failing the daemon at load.
+  // Returns the number of instances told.
+  int jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight,
+                                  int aBottom) __attribute__((weak));
   // WEAK, same reasoning: composite any OPEN XUL popup (menupopup / context menu) over
   // an already-painted buffer. A popup is a separate display root, so the main render
   // never contains it; absent the symbol, popups simply do not appear (today's behaviour)
@@ -412,6 +465,18 @@ extern "C" {
   // loads against a pre-0012 libxul (then reports no dirty and paint falls back
   // to the input/load-driven behavior instead of failing to start).
   bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
+  // WEAK: the damage bounding box behind that flag. Absent on an older libxul, in which case
+  // the daemon keeps doing whole-viewport repaints — slower, never wrong.
+  bool jihad_offscreen_take_dirty_rect(nsIWidget* aWidget, int32_t* aX, int32_t* aY,
+                                       int32_t* aW, int32_t* aH) __attribute__((weak));
+  // Count of plugin frames that have crossed into this process (PluginInstanceParent::RecvShow).
+  // WEAK for the same reason as the two above: on a libxul without it the daemon keeps its
+  // dirty-flag behaviour, which is slower to settle but never wrong.
+  uint32_t jihad_plugin_frame_seq(void) __attribute__((weak));
+  // Ask every live NPAPI plugin for one frame. WEAK for the same reason: on a libxul without it
+  // the plugin child keeps its own repaint timer (patch 0026) and the daemon goes on SAMPLING it,
+  // which is what shipped before and is never wrong — only less evenly paced.
+  int jihad_plugin_request_frame(void) __attribute__((weak));
 }
 
 // DEBUG ONLY: last-created page, target of DebugRunChromeJs (single-page embedding;
@@ -577,6 +642,142 @@ std::string DebugElementText(const char* selector, int maxChars) {
   }
   if (maxChars > 0 && (int)flat.size() > maxChars) flat.resize(maxChars);
   return flat;
+}
+
+// See GoannaRenderPage.h. Writes a pref from the daemon, which is where it has to happen —
+// a `jsurl` probe cannot, because `Components` is not exposed in a content scope even under
+// the system principal.
+bool DebugSetPref(const char* name, char type, const char* value) {
+  if (!name || !value) return false;
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb) return false;
+  switch (type) {
+    case 'b': return NS_SUCCEEDED(pb->SetBoolPref(name, atoi(value) != 0 ||
+                                                        !strcasecmp(value, "true")));
+    case 'i': return NS_SUCCEEDED(pb->SetIntPref(name, atoi(value)));
+    case 's': return NS_SUCCEEDED(pb->SetCharPref(name, value));
+    default:  return false;
+  }
+}
+
+std::string DebugGetPref(const char* name, char type) {
+  if (!name) return std::string();
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb) return std::string();
+  char buf[64];
+  switch (type) {
+    case 'b': { bool b = false;
+                if (NS_FAILED(pb->GetBoolPref(name, &b))) return std::string();
+                return std::string(b ? "true" : "false"); }
+    case 'i': { int32_t i = 0;
+                if (NS_FAILED(pb->GetIntPref(name, &i))) return std::string();
+                snprintf(buf, sizeof buf, "%d", (int)i); return std::string(buf); }
+    case 's': { // GetCharPref hands back a moz_xmalloc'd buffer the caller owns — freed here,
+                // same as GetChromeSettings below.
+                char* v = nullptr;
+                if (NS_FAILED(pb->GetCharPref(name, &v)) || !v) return std::string();
+                std::string out(v); free(v); return out; }
+    default:  return std::string();
+  }
+}
+
+// See GoannaRenderPage.h. The NAC walk that answers "did the XBL binding attach", done in C++
+// because nsIDOMDocumentXBL is not reachable from page script in this embedding.
+std::string DebugAnonNodes(const char* selector) {
+  GoannaRenderPage* page = sDebugLastPage;
+  if (!page || !selector) return std::string("(no page)");
+  nsIWebBrowser* wb = page->DebugWebBrowser();
+  if (!wb) return std::string("(no browser)");
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(wb);
+  if (!ds) return std::string("(no docshell)");
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return std::string("(no viewer)");
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return std::string("(no document)");
+  nsCOMPtr<nsIDOMElement> el;
+  doc->QuerySelector(NS_ConvertUTF8toUTF16(selector), getter_AddRefs(el));
+  if (!el) return std::string("?");                      // no such element — not "no binding"
+  nsCOMPtr<nsIDOMDocumentXBL> xbl = do_QueryInterface(doc);
+  if (!xbl) return std::string("(no nsIDOMDocumentXBL)");
+  // GetAnonymousNodes returns only XBL-bound anonymous content. `<video controls>` controls are
+  // NOT that: nsVideoFrame creates a <xul:videocontrols> as NATIVE anonymous content and the XBL
+  // binding attaches to THAT child, so asking the <video> for XBL anonymous nodes returns null
+  // BY CONSTRUCTION, whether or not the controls exist. That is still true and the `xbl=` half
+  // below still reports it honestly.
+  //
+  // WHAT WAS REMOVED HERE, AND WHY — it manufactured a false negative that was published as a
+  // finding. The previous line asked GetAnonymousElementByAttribute(<video>, "anonid",
+  // "controlBar") and reported the null as `NAC:controlBar absent`, which read as "the binding
+  // did not attach". That call could NEVER have returned non-null, for two independent reasons,
+  // both read out of this tree rather than inferred:
+  //   1. THE ACCESSOR IS HOST-SCOPED, not a subtree search. nsDocument::
+  //      GetAnonymousElementByAttribute goes straight to BindingManager()->GetAnonymousNodesFor
+  //      (nsDocument.cpp:5848), which is GetBindingWithContent(elem)->GetAnonymousNodeList()
+  //      (nsBindingManager.cpp:250-254) — the XBL binding on the element you PASS. A <video>
+  //      never has one. videocontrols.xml's own init() shows the intended call:
+  //      getAnonymousElementByAttribute(binding, ...) where `binding` IS the <xul:videocontrols>
+  //      element (videocontrols.xml:1540-1553). So it bottoms out in the same function as
+  //      GetAnonymousNodes below and the two can never disagree — which is exactly what the
+  //      device run showed, and was misread as two accessors agreeing.
+  //   2. THERE IS NO anonid="controlBar" IN THIS UXP AT ALL. The control strip is
+  //      <hbox class="controlBar"> (videocontrols.xml:225); the only anonids in that file are the
+  //      six error labels and volumeForeground. The binding finds its own parts by CLASS.
+  // A screenshot later overturned the conclusion (videocontrols drew its own error overlay), so
+  // the cost was a wrong verdict rather than a wrong decision. Do not reintroduce the query.
+  //
+  // WHAT REPLACES IT: inIDOMUtils::getChildrenForNode(node, /*anon*/ true), which is
+  // nsIContent::GetChildren(eAllChildren) — flattened XBL children AND native anonymous children
+  // (inDOMUtils.cpp:192-214, nsIContent.h:117-128). Two levels answer the question without
+  // naming videocontrols at all: level 1 is the element's own NAC, level 2 is each NAC child's
+  // flattened children, which are non-empty ONLY if an XBL binding attached to that child (a
+  // frame-created <xul:videocontrols> has no explicit children, ever). Reported as `name[n]`.
+  nsCOMPtr<inIDOMUtils> du = do_GetService(IN_DOMUTILS_CONTRACTID);
+  std::string nac;
+  if (!du) {
+    nac = "NAC:(no inIDOMUtils)";
+  } else {
+    nsCOMPtr<nsIDOMNode> host = do_QueryInterface(el);
+    nsCOMPtr<nsIDOMNodeList> nacKids;
+    du->GetChildrenForNode(host, true, getter_AddRefs(nacKids));
+    uint32_t nn = 0; if (nacKids) nacKids->GetLength(&nn);
+    char nbuf[32]; snprintf(nbuf, sizeof nbuf, "NAC:%u", (unsigned)nn);
+    nac = nbuf;
+    for (uint32_t i = 0; i < nn && i < 6; ++i) {
+      nsCOMPtr<nsIDOMNode> kid; nacKids->Item(i, getter_AddRefs(kid));
+      if (!kid) continue;
+      nsAutoString nm; kid->GetNodeName(nm);
+      nac += (i ? "," : " ");
+      nac += NS_ConvertUTF16toUTF8(nm).get();
+      nsCOMPtr<nsIDOMNodeList> sub;
+      du->GetChildrenForNode(kid, true, getter_AddRefs(sub));
+      uint32_t sn = 0; if (sub) sub->GetLength(&sn);
+      snprintf(nbuf, sizeof nbuf, "[%u]", (unsigned)sn);
+      nac += nbuf;
+    }
+  }
+
+  nsCOMPtr<nsIDOMNodeList> kids;
+  nsresult rv = xbl->GetAnonymousNodes(el, getter_AddRefs(kids));
+  if (NS_FAILED(rv)) return nac + " | xbl=(getAnonymousNodes failed)";
+  if (!kids)         return nac + " | xbl=(null list — expected for frame-created NAC)";
+  uint32_t n = 0; kids->GetLength(&n);
+  char head[48]; snprintf(head, sizeof head, " | xbl=%u", (unsigned)n);
+  std::string out(nac); out += head;
+  // Name the first few so "it attached" can be told from "it attached the WRONG thing".
+  for (uint32_t i = 0; i < n && i < 4; ++i) {
+    nsCOMPtr<nsIDOMNode> kid; kids->Item(i, getter_AddRefs(kid));
+    if (!kid) continue;
+    nsAutoString nm; kid->GetNodeName(nm);
+    out += (i ? ", " : ": ");
+    out += NS_ConvertUTF16toUTF8(nm).get();
+    nsCOMPtr<nsIDOMElement> kel = do_QueryInterface(kid);
+    if (kel) {
+      nsAutoString anonid;
+      kel->GetAttribute(NS_LITERAL_STRING("anonid"), anonid);
+      if (!anonid.IsEmpty()) { out += "#"; out += NS_ConvertUTF16toUTF8(anonid).get(); }
+    }
+  }
+  return out;
 }
 
 bool DebugClickElementAt(const char* elementId, int dx, int dy, int clickCount) {
@@ -971,8 +1172,73 @@ void GoannaRenderPage::FlushPendingInputEvent() {
   bool dummy = false; if (tgt) tgt->DispatchEvent(ev, &dummy);
 }
 
+// T-131 (cavekit-preferences-ui.md R6) DIAGNOSIS INSTRUMENT — deliberately NOT a fix.
+// The recorded fact this exists to explain: typing lands on an ordinary file:// page and does NOT on
+// about:preferences, where the tap IS classified correctly (the daemon logged `editorFocused=1
+// fieldType=0`) yet the field's rendered value never changes. From outside the daemon at least four
+// different paths produce that one symptom and nothing distinguishes them, so print WHICH ran:
+//   branch=NO-TARGET      mFocusedEditable was null when the text arrived — nothing was edited
+//   branch=value/sel      the normal caret-aware edit
+//   branch=value/append   no selection API on this control (edGetSelection false, F-220)
+//   branch=textContent    edGetValue says this is not an <input>/<textarea> at all
+// plus, on the branches that DO edit, whether the edit STUCK (`readback`, a length read straight
+// back off the element) and whether the element is still IN THE DOCUMENT (`inDoc`).
+// `inDoc` is here because the criterion's two named candidates do not cover the case this page can
+// produce on its own: preferences.js REBUILDS its rows (the pane switcher rebuilds the DOM — the same
+// rebuild that made R6's scroll defect need a re-measure), and a DETACHED <input> takes and returns a
+// value perfectly while being invisible on screen. readback==want with inDoc=0 is precisely the
+// recorded symptom, and no probe short of this could tell it apart from a refused setter.
+// NEVER logs the text or the value — this path also carries <input type=password> (F-163). Branch,
+// tag/type and LENGTHS only, and only when JIHAD_LOG_INSERT is set, so a normal session is untouched.
+static void jihadLogInsertBranch(nsIDOMElement* el, const char* branch, int before, int want) {
+  nsAutoString tag, ty;
+  if (el) { el->GetTagName(tag); el->GetAttribute(NS_LITERAL_STRING("type"), ty); }
+  nsAutoString rb;
+  int readback = (el && edGetValue(el, rb)) ? (int)rb.Length() : -1;
+  int inDoc = -1;
+  nsCOMPtr<nsIDOMNode> n = do_QueryInterface(el);
+  if (n) {
+    nsCOMPtr<nsIDOMDocument> d; n->GetOwnerDocument(getter_AddRefs(d));
+    nsCOMPtr<nsIDOMNode> dn = do_QueryInterface(d);
+    bool has = false;
+    if (dn && NS_SUCCEEDED(dn->Contains(n, &has))) inDoc = has ? 1 : 0;
+  }
+  fprintf(stderr,
+          "[jihad-bs] insert: branch=%s tag=[%s] type=[%s] before=%d want=%d readback=%d inDoc=%d\n",
+          branch, el ? NS_ConvertUTF16toUTF8(tag).get() : "null",
+          el ? NS_ConvertUTF16toUTF8(ty).get() : "", before, want, readback, inDoc);
+}
+
 void GoannaRenderPage::InsertText(const char* text) {
-  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) return;
+  static const bool kLogInsert = getenv("JIHAD_LOG_INSERT") != nullptr;   // T-131 instrument
+  // T-131: recover a focused editable the engine's focus-event tracking missed. In a CHROME
+  // document (about:preferences) the capture-phase focus listener registered on the top CONTENT
+  // document (PageChrome::HandleEvent) never sees the field's focus event, so mFocusedEditable
+  // stays null even though the document HAS a focused editable — device-diagnosed 2026-08-15 as
+  // `insert: branch=NO-TARGET editable=0` on a prefs field. document.activeElement is per-document
+  // and NOT subject to the focus-manager's window-scoping the diagnosis flagged, so it recovers the
+  // target here. Only fires when tracking already failed, so content pages (where mFocusedEditable
+  // is set correctly) are untouched, and a genuinely-unfocused page yields a non-text activeElement
+  // (body/null) that edIsTextInput rejects — no false target.
+  if (mChrome && !mChrome->mFocusedEditable && text && *text) {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+    nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
+    nsCOMPtr<nsIDOMElement> act; if (doc) doc->GetActiveElement(getter_AddRefs(act));
+    if (act && edIsTextInput(act)) {
+      mChrome->mFocusedEditable = act;
+      if (kLogInsert)
+        fprintf(stderr, "[jihad-bs] insert: recovered editable from document.activeElement\n");
+    }
+  }
+  if (!mChrome || !mChrome->mFocusedEditable || !text || !*text) {
+    // The whole point of the run: "no focused editable" must be VISIBLE, not inferred from silence.
+    if (kLogInsert)
+      fprintf(stderr, "[jihad-bs] insert: branch=NO-TARGET chrome=%d editable=%d text=%s\n",
+              mChrome ? 1 : 0, (mChrome && mChrome->mFocusedEditable) ? 1 : 0,
+              text ? (*text ? "ok" : "empty") : "null");
+    return;
+  }
   mChrome->mPendingInputEl = mChrome->mFocusedEditable;   // fire 'input' from pump (F-238) on THIS field
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   NS_ConvertUTF8toUTF16 t(text);
@@ -988,6 +1254,7 @@ void GoannaRenderPage::InsertText(const char* text) {
       int32_t nc = s + (int32_t)t.Length();
       edSetCaret(el, nc);
       if (nc >= (int32_t)nv.Length()) el->SetScrollLeft(1 << 24);   // caret at end -> keep visible
+      if (kLogInsert) jihadLogInsertBranch(el, "value/sel", (int)v.Length(), (int)nv.Length());
     } else {
       // A value control with no selection API (<input type=number> etc., Codex F-220): append at
       // the end via the live value setter (SetTextContent would not update the control's value).
@@ -996,12 +1263,15 @@ void GoannaRenderPage::InsertText(const char* text) {
       // "1". Faithfully supporting that needs the engine's own text-control editor buffer, which we
       // bypass; acceptable for now since numeric entry is normally left-to-right and valid.
       nsAutoString nv(v); nv.Append(t); edSetValue(el, nv); el->SetScrollLeft(1 << 24);
+      if (kLogInsert) jihadLogInsertBranch(el, "value/append", (int)v.Length(), (int)nv.Length());
     }
     return;
   }
   // contentEditable / other: append via textContent (no value-based caret model here).
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
   if (node) { nsAutoString cv; node->GetTextContent(cv); cv.Append(t); node->SetTextContent(cv); }
+  // before/want are -1 here on purpose: this branch has no value model, so a LENGTH would be a lie.
+  if (kLogInsert) jihadLogInsertBranch(el, node ? "textContent" : "no-node", -1, -1);
 }
 
 // Drop the last USER-PERCEIVED character: one UTF-16 code unit, or two if it is a surrogate pair
@@ -1286,6 +1556,114 @@ void GoannaRenderPage::SetZoom(double zoom) {
   if (bw) bw->Repaint(true);
 }
 
+int GoannaRenderPage::SetPluginSpotlight(bool on, int left, int top, int right, int bottom) {
+  // POLICY 2026-08-10 — DELIVERY IS OFF BY DEFAULT, and that MATCHES STOCK.
+  //
+  // Flash routes npPalmSpotlightStartEvent(11) into its npPalmSetFullScreenEvent(6) handler
+  // (jump table libflashplayer.so 0x44e0c) and takes the fullscreen render-target branch,
+  // which ends at PIpcClient("sysmgr", "com.palm.app.flash.fullscreen") — a channel this
+  // embedding does not provide. The child faults and the instance stays dead until the page
+  // reloads. Stock isis delivered nothing here either: ref-BrowserServer/Src/BrowserPage.cpp
+  // pluginSpotlightStart/End are both wholly inside #ifdef FIXME_QT, and the adapter's scrim
+  // painter is commented out in ref AND here. The only real effect of stock spotlight in this
+  // port is the adapter's gesture gating, which is client-side and untouched by this.
+  //
+  // It is NOT unreachable in normal use, either — the stock Mojo WebView widget turns a
+  // long-press over <object>/<embed> into setSpotlight, and the Mojo variant uses that widget
+  // unmodified. That path is broken today only by the unimplemented element-info stub, so
+  // this gate is what actually keeps it safe.
+  //
+  // Kept wired and testable rather than deleted: run the daemon with JIHAD_PLUGIN_SPOTLIGHT=1
+  // to reproduce the crash or to try a plugin that handles the event properly.
+  // Returns -1, not 0, so the caller can tell "we suppressed it" from "nothing was listening".
+  static const bool kDeliver = getenv("JIHAD_PLUGIN_SPOTLIGHT") != nullptr;
+  if (!kDeliver) return -1;
+  // Weak symbol: an older libxul simply has no spotlight entry point, and the frozen YAP
+  // commands stay no-ops rather than the daemon failing to load.
+  if (!jihad_plugin_palm_spotlight) return 0;
+  return jihad_plugin_palm_spotlight(on ? 1 : 0, left, top, right, bottom);
+}
+
+bool GoannaRenderPage::CollectPluginRects(std::vector<PluginRect>* out) {
+  if (!out || !mChrome) return false;
+  out->clear();
+
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return false;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return false;
+
+  nsCOMPtr<nsIDOMNodeList> nodes;
+  doc->QuerySelectorAll(NS_LITERAL_STRING("embed,object,applet"), getter_AddRefs(nodes));
+  if (!nodes) return true;   // a document with no plugin elements is a success, not a failure
+
+  // One window-utils for the whole sweep; it is the only route to a non-flushing rect.
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  uint32_t n = 0; nodes->GetLength(&n);
+  for (uint32_t i = 0; i < n; ++i) {
+    nsCOMPtr<nsIDOMNode> node; nodes->Item(i, getter_AddRefs(node));
+    if (!node) continue;
+
+    // The gate. Palm's own host queried the
+    // plugin for npPalmIsInteractive (NPPVariable 10005) in platformStart and emitted a rect
+    // only if the plugin said yes. We cannot ask that here — the daemon has no route to the
+    // plugin's NPP_GetValue, which lives in another process behind the NPAPI boundary — so
+    // this gates on the element DISPLAYING AS A PLUGIN instead. That is a deliberate superset:
+    // a plugin that would have answered "not interactive" also gets a rect, and the only
+    // consequence is that a drag over it is handed to the plugin rather than panning the
+    // card. Recorded rather than hidden, because it is a real divergence from stock.
+    // (The device's Flash answers npPalmIsInteractive = true, so for the plugin this
+    // criterion exists for, the two gates agree.)
+    // DisplayedType(), NOT hasRunningPlugin — and this is a trap worth naming, because the
+    // obvious call crashes the daemon. nsObjectLoadingContent::GetHasRunningPlugin opens with
+    // NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome()), which reaches SubjectPrincipal() ->
+    // ScriptSettingsStack::Top(); with no script on the stack — which is exactly the daemon's
+    // situation, calling in from C++ on the tick — Top() is null and it SIGSEGVs at address 0.
+    // Measured on device: `FATAL SIGNAL sig=0xb faultaddr=0x0`, pc resolving to
+    // nsContentUtils::SubjectPrincipal (nsContentUtils.cpp:3005), once per tick, an endless
+    // respawn loop. GetDisplayedType is a plain attribute read with no caller check, and
+    // TYPE_PLUGIN means the element resolved to a plugin and is displaying as one — the same
+    // thing this needs to know.
+    nsCOMPtr<nsIObjectLoadingContent> olc = do_QueryInterface(node);
+    if (!olc) continue;
+    uint32_t displayed = 0;
+    if (NS_FAILED(olc->GetDisplayedType(&displayed)) ||
+        displayed != nsIObjectLoadingContent::TYPE_PLUGIN) {
+      continue;
+    }
+
+    nsCOMPtr<nsIDOMElement> el = do_QueryInterface(node);
+    if (!el) continue;
+    // getBoundsWithoutFlushing, NOT getBoundingClientRect — and this one is load-bearing.
+    // getBoundingClientRect forces a layout flush, and forcing one from the daemon's tick
+    // reflows the plugin frame, which tears down and reallocates the plugin's async surface
+    // underneath the child. The child's Piranha context cache then holds a PGSurface wrapping
+    // a mapping that is no longer the right size, and the next draw writes off the end of it.
+    // Measured on device: the plugin child died with `FAULT sig=7` (SIGBUS) at buf+0x40000
+    // on a 0x4B000-byte 320x240 surface, once per load, with two `piranha ctx` reallocations
+    // logged immediately before — and the same run with the collector disabled
+    // (JIHAD_NO_PLUGIN_RECTS=1) kept the child alive with zero faults. A rect is worth
+    // nothing if reading it kills the plugin it describes.
+    nsCOMPtr<nsIDOMClientRect> r;
+    if (u) {
+      u->GetBoundsWithoutFlushing(el, getter_AddRefs(r));
+    }
+    if (!r) continue;
+
+    PluginRect pr;
+    pr.key = el.get();
+    r->GetLeft(&pr.left); r->GetTop(&pr.top);
+    r->GetWidth(&pr.width); r->GetHeight(&pr.height);
+    // display:none, or not laid out yet. An empty rect would be a permanent dead zone in
+    // the adapter's arbitration, which never clears these maps on its own.
+    if (pr.width <= 0 || pr.height <= 0) continue;
+    out->push_back(pr);
+  }
+  return true;
+}
+
 bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   if (!mChrome) return false;
   // Flush layout FIRST so the size reflects the current viewport. emitGeometry() calls
@@ -1311,8 +1689,44 @@ bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   if (NS_FAILED(u->GetRootBounds(getter_AddRefs(r))) || !r) return false;
   float fw = 0.0f, fh = 0.0f;
   r->GetWidth(&fw); r->GetHeight(&fh);
-  if (w) *w = (int)(fw + 0.5f);
-  if (h) *h = (int)(fh + 0.5f);
+  int cw = (int)(fw + 0.5f), ch = (int)(fh + 0.5f);
+
+  // ...BUT ONLY WHEN THERE IS A ROOT SCROLL FRAME. nsDOMWindowUtils::GetRootBounds computes
+  // scrollRange + scrollPort from presShell->GetRootScrollFrameAsScrollable(); when that is
+  // null it falls back to the root FRAME's rect, which is the viewport — so it reports
+  // "exactly the window" however tall the content really is. Measured on device 2026-08-06 on
+  // about:preferences: body 764x1397 inside a 942-tall window, GetRootBounds 942. The adapter
+  // decides whether there is anything to scroll from this number, so the page could not be
+  // scrolled at all ("I cant scroll down in about:preferences"), and no amount of re-measuring
+  // helped because the number was wrong, not stale.
+  //
+  // documentElement.scrollHeight is the ordinary DOM answer and is correct with or without a
+  // root scroll frame, so take whichever is LARGER: never under-report the content, which is
+  // the failure that costs scrolling. (Not simply replacing GetRootBounds: it is the measure
+  // that geo_test pins, and it stays authoritative wherever it is the bigger of the two.)
+  {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    nsCOMPtr<nsIContentViewer> cv;
+    if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+    nsCOMPtr<nsIDOMDocument> doc;
+    if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
+    nsCOMPtr<nsIDOMElement> root;
+    if (doc) doc->GetDocumentElement(getter_AddRefs(root));
+    // HEIGHT ONLY, deliberately. Width feeds the adapter's zoom-to-fit
+    // (mWindow.width / contentWidth), and this project has already measured what a width a few
+    // pixels over the window does: a 764-wide body in a 768 window gave mZoomLevel=1.0052, and
+    // at inv=0.9948 every blit becomes a nearest-neighbour resample — row shimmer, scroll
+    // jitter, and the click map off by 0.5%. scrollWidth counts overflowing/absolutely
+    // positioned children, so taking a max on width could reintroduce exactly that on ordinary
+    // pages for no benefit: the failure being fixed here is VERTICAL scrolling, and the width
+    // floor below already pins width to the window, which is the identity-blit case we want.
+    if (root) {
+      int32_t sh = 0;
+      if (NS_SUCCEEDED(root->GetScrollHeight(&sh)) && sh > ch) ch = sh;
+    }
+  }
+  if (w) *w = cw;
+  if (h) *h = ch;
   return true;
 }
 
@@ -1345,6 +1759,8 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mLoadFailed = false;
   mChrome->mRedirected = false;
   mChrome->mCertError = false;
+  mChrome->mCertFlagsValid = false;
+  mChrome->mCertUntrusted = mChrome->mCertDomainMismatch = mChrome->mCertTimeInvalid = false;
   mChrome->mProgrammaticLoad = true;   // this load is command-initiated, not a link
   mChrome->mProgressPct = 0;           // fresh progress for the new load (isis resets its bar too)
   mChrome->mUserInteracted = false;    // Atlas autofocus gate: new page, no tap yet
@@ -1408,6 +1824,35 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
   }
   NS_ConvertUTF8toUTF16 u(fixed.c_str());
   return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
+}
+
+// Drain the engine's ready work and RETURN. This is the tick's pump, and it exists because
+// PumpFor's contract is the opposite one: PumpFor SPENDS its budget, g_usleep(1000)ing between
+// events so that a test waiting on a load keeps the engine running for the full duration.
+//
+// On this device that sleep is the single most expensive thing in the frame path. A 1 ms sleep
+// really costs ~3 ms here (CONFIG_HZ=100 with hrtimers, on a loaded 1.2 GHz ARM), so PumpFor(4)
+// measured 12 ms of a 16 ms tick with the page idle — device-measured 2026-08-10, tick work
+// avg=12 of which pump avg=12 and paint avg=0. The tick was therefore WORK-bound, not
+// timer-bound: its period sat at 26-28 ms instead of 16, and since a frame can only be
+// published on a tick, every frame gap was quantised to that. The paced 33 ms grid then had no
+// tick to land on and split between 26 and 52 ms, which is the 24-31 / 40-55 bucket pair the
+// gap histogram showed.
+//
+// Not sleeping costs nothing in throughput: if the queue is empty there is by definition no
+// engine work to do, and the next tick is 16 ms away. The budget is kept as a CEILING so a
+// pathological event storm still cannot hold the tick indefinitely.
+void GoannaRenderPage::PumpReady(int msBudget) {
+  nsCOMPtr<nsIThread> thread;
+  NS_GetCurrentThread(getter_AddRefs(thread));
+  struct timespec ts0; clock_gettime(CLOCK_MONOTONIC, &ts0);
+  for (;;) {
+    if (!NS_ProcessNextEvent(thread, false)) break;   // nothing ready: do not wait for more
+    JIHAD_GTK_PUMP();
+    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    long ms = (ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000;
+    if (ms >= msBudget) break;
+  }
 }
 
 void GoannaRenderPage::PumpFor(int msBudget) {
@@ -1475,9 +1920,34 @@ bool GoannaRenderPage::LoadDone() const { return mChrome && mChrome->mDone; }
 
 int GoannaRenderPage::GetLoadProgress() const { return mChrome ? mChrome->mProgressPct : 0; }
 
+bool GoannaRenderPage::TakeDirtyRect(int* x, int* y, int* w, int* h) {
+  if (!mOffscreen || !mWidget || !jihad_offscreen_take_dirty_rect) return false;
+  int32_t rx = 0, ry = 0, rw = 0, rh = 0;
+  if (!jihad_offscreen_take_dirty_rect(mWidget, &rx, &ry, &rw, &rh)) return false;
+  if (rw <= 0 || rh <= 0) return false;
+  if (x) *x = rx; if (y) *y = ry; if (w) *w = rw; if (h) *h = rh;
+  return true;
+}
+
 bool GoannaRenderPage::TakeDirty() {
   if (!mOffscreen || !mWidget || !jihad_offscreen_take_dirty) return false;
   return jihad_offscreen_take_dirty(mWidget);
+}
+
+// How many plugin frames have arrived in this process, ever. 0 when the running libxul does not
+// export the symbol, which is also the "no plugin has drawn" value, so a caller only ever needs
+// to compare it against what it saw last.
+uint32_t GoannaRenderPage::PluginFrameSeq() {
+  if (!jihad_plugin_frame_seq) return 0;
+  return jihad_plugin_frame_seq();
+}
+
+// Ask the plugin for the next frame. Returns how many instances were asked; 0 both when no
+// plugin is running and when the engine cannot pull, and the caller wants the same thing in
+// either case — leave the plugin's own clock alone.
+int GoannaRenderPage::RequestPluginFrame() {
+  if (!jihad_plugin_request_frame) return 0;
+  return jihad_plugin_request_frame();
 }
 
 void GoannaRenderPage::AdoptContentLoad() {
@@ -1517,7 +1987,49 @@ bool GoannaRenderPage::GetCertError(std::string* host, int* code) {
   return true;
 }
 
-bool GoannaRenderPage::AcceptCurrentCert() {
+bool GoannaRenderPage::GetCertProblem(jihad::certstore::Problem* out) {
+  if (!out || !mChrome || !mChrome->mCertError) return false;
+  out->haveFlags = mChrome->mCertFlagsValid;
+  out->untrusted = mChrome->mCertUntrusted;
+  out->domainMismatch = mChrome->mCertDomainMismatch;
+  out->notValidNow = mChrome->mCertTimeInvalid;
+  out->expired = false;
+  out->selfSigned = false;
+  if (!mChrome->mCertCert) return true;
+  bool selfSigned = false;
+  if (NS_SUCCEEDED(mChrome->mCertCert->GetIsSelfSigned(&selfSigned)))
+    out->selfSigned = selfSigned;
+  // nsISSLStatus only says "not valid at this time"; the card can say EXPIRED,
+  // which is the more useful sentence, so ask the certificate which side of its
+  // window we are on.
+  if (out->notValidNow) {
+    nsCOMPtr<nsIX509CertValidity> validity;
+    mChrome->mCertCert->GetValidity(getter_AddRefs(validity));
+    PRTime notAfter = 0;
+    if (validity && NS_SUCCEEDED(validity->GetNotAfter(&notAfter)) && notAfter) {
+      const PRTime nowUs = (PRTime)time(nullptr) * (PRTime)1000000;
+      out->expired = (nowUs > notAfter);
+    }
+  }
+  return true;
+}
+
+bool GoannaRenderPage::GetCertDer(std::string* der) {
+  if (!mChrome || !mChrome->mCertCert) return false;
+  uint32_t len = 0;
+  uint8_t* data = nullptr;
+  nsresult rv = mChrome->mCertCert->GetRawDER(&len, &data);
+  if (NS_FAILED(rv) || !data || !len) {
+    fprintf(stderr, "[jihad-bs] ssl: getRawDER rv=0x%x len=%u\n", (unsigned)rv, (unsigned)len);
+    if (data) free(data);
+    return false;
+  }
+  if (der) der->assign(reinterpret_cast<const char*>(data), (size_t)len);
+  free(data);   // XPCOM out-arrays come from moz_xmalloc
+  return true;
+}
+
+bool GoannaRenderPage::AcceptCurrentCert(bool aPermanent) {
   if (!mChrome || !mChrome->mCertError || !mChrome->mCertCert) {
     fprintf(stderr, "[jihad-bs] ssl: no cert to accept (chrome=%d certErr=%d cert=%d)\n",
             (int)!!mChrome, mChrome ? (int)mChrome->mCertError : -1,
@@ -1533,10 +2045,16 @@ bool GoannaRenderPage::AcceptCurrentCert() {
   uint32_t bits = nsICertOverrideService::ERROR_UNTRUSTED |
                   nsICertOverrideService::ERROR_MISMATCH |
                   nsICertOverrideService::ERROR_TIME;
+  // temporary = !permanent. This used to be hardcoded true, so "Trust Always"
+  // and "Trust Once" were the same thing and the always-arm died with the
+  // daemon: nsICertOverrideService only writes cert_override.txt in the profile
+  // for a NON-temporary override.
   nsresult rv = ovr->RememberValidityOverride(mChrome->mCertHost, mChrome->mCertPort,
-                                              mChrome->mCertCert, bits, /*temporary*/true);
-  fprintf(stderr, "[jihad-bs] ssl: RememberValidityOverride(%s:%d) rv=0x%x\n",
-          mChrome->mCertHost.get(), mChrome->mCertPort, (unsigned)rv);
+                                              mChrome->mCertCert, bits,
+                                              /*temporary*/!aPermanent);
+  fprintf(stderr, "[jihad-bs] ssl: RememberValidityOverride(%s:%d, %s) rv=0x%x\n",
+          mChrome->mCertHost.get(), mChrome->mCertPort,
+          aPermanent ? "permanent" : "session", (unsigned)rv);
   return NS_SUCCEEDED(rv);
 }
 
@@ -1589,14 +2107,26 @@ void SetUserAgentOverride(const char* ua) {
   nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
   if (pb) pb->SetCharPref("general.useragent.override", ua);
 }
+// The two destructive privacy actions. Both are reached from TWO callers — the frozen YAP
+// commands (asyncCmdClearCache/asyncCmdClearCookies) and this variant's Luna service — so the
+// acknowledgement is raised HERE rather than in either caller, and neither route can be the
+// silent one.
+//
+// They were silent before (cavekit-gre-widgets.md R5): a user tapped "Clear cookies" in
+// Preferences and nothing whatsoever changed on screen, because the only way the daemon could
+// say anything was a msgDialog* that blocks the whole render loop until the card answers. A
+// confirmation of something the user just asked for is the archetypal message that does not
+// deserve a modal, so it takes the non-blocking channel. See DialogService.h.
 void ClearCache() {
   nsCOMPtr<nsICacheStorageService> c =
     do_GetService("@mozilla.org/netwerk/cache-storage-service;1");
   if (c) c->Clear();
+  PostNotification("privacy", "Cache cleared.");
 }
 void ClearCookies() {
   nsCOMPtr<nsICookieManager> cm = do_GetService("@mozilla.org/cookiemanager;1");
   if (cm) cm->RemoveAll();
+  PostNotification("privacy", "Cookies cleared.");
 }
 // See GoannaRenderPage.h. nsIPrefBranch::GetCharPref hands back a malloc'd buffer that the
 // caller owns, so it is freed here on both paths.
@@ -1613,18 +2143,54 @@ bool GetChromeSettings(std::string* outJson) {
   free(val);
   return ok;
 }
+// ── cavekit-preferences-ui.md R2/R5 (T-143) — WHO OWNS A PREF THE CARD AND THE PAGE BOTH SET ─
+//
+// These three prefs have TWO writers: the card, over the frozen YAP settings commands that
+// land here, and about:preferences, which writes them as ordinary user prefs. Both used to
+// write the USER branch, so the card always won — it sends AFTER the daemon has read prefs.js
+// — and every page-side edit was overwritten on the next card launch and persisted over.
+//
+// DECIDED 2026-08-10: the PAGE owns the value, the CARD supplies the DEFAULT. That way round
+// because what the card sends is not a user choice at all — established from source, not
+// assumed, and the kit's own note had it in the wrong file:
+//   * The unconditional re-applier is the ENYO FRAMEWORK, not our app. BasicWebView.initView()
+//     calls blockPopupsChanged/acceptCookiesChanged/minFontSizeChanged on EVERY adapter
+//     connect, from its own published defaults (blockPopups true, acceptCookies true) — PDK
+//     copy under build/webos-oe/pdk/.../enyo/1.0/framework/source/palm/controls/. No app-side
+//     edit can reach it, so BrowserApp.js's db8 replay is only the SECOND of two writers.
+//   * minFontSize never passes through the card's preference machinery at all: no db8 copy, no
+//     applyPreference entry. Its only source is the literal `minFontSize: 2` in Browser.js.
+//     A hardcoded constant is exactly what a default is for.
+// A user value always shadows a default and defaults are never serialised, so an
+// about:preferences edit now survives the next card launch and prefs.js carries only it.
+//
+// The frozen contract is untouched (cavekit-ipc-contract.md R1): same commands, same wire, and
+// on a profile with no user pref the effective value is identical to before this change.
+// KNOWN CORNER, recorded rather than hidden: once the user HAS set one of these from
+// about:preferences, the card panel's own toggle for it stops having a visible effect. That is
+// the price of one authoritative writer. enableJavascript is deliberately NOT here — the
+// daemon gates script per docShell as well as by pref, so the card command is the only thing
+// that actually stops a script (R3), and the page ships no JS row.
+// NOT DEVICE-VERIFIED: written with no device available. What is unproven is the read side —
+// that a page-written user pref is what the engine honours after a card relaunch.
+static already_AddRefed<nsIPrefBranch> CardDefaultsBranch() {
+  nsCOMPtr<nsIPrefBranch> pb;
+  nsCOMPtr<nsIPrefService> ps = do_GetService("@mozilla.org/preferences-service;1");
+  if (ps) ps->GetDefaultBranch("", getter_AddRefs(pb));
+  return pb.forget();
+}
 void SetMinFontSize(int px) {
-  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  nsCOMPtr<nsIPrefBranch> pb = CardDefaultsBranch();
   if (pb) pb->SetIntPref("font.minimum-size.x-western", px);
 }
 void SetBlockPopups(bool block) {
   // Blocks script-initiated window.open that isn't driven by a user event.
-  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  nsCOMPtr<nsIPrefBranch> pb = CardDefaultsBranch();
   if (pb) pb->SetBoolPref("dom.disable_open_during_load", block);
 }
 void SetAcceptCookies(bool accept) {
   // network.cookie.cookieBehavior: 0 = accept all, 2 = reject all.
-  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  nsCOMPtr<nsIPrefBranch> pb = CardDefaultsBranch();
   if (pb) pb->SetIntPref("network.cookie.cookieBehavior", accept ? 0 : 2);
 }
 
@@ -1772,9 +2338,15 @@ bool GoannaRenderPage::FireFormSubmit(nsIDOMHTMLFormElement* form) {
 
 // Monotonic-ish ms clock for the F-1 pen-pair/clickAt correlation window. CLOCK_MONOTONIC, so a
 // wall-clock step (ntp, the device's clock coming up late) cannot make a fresh pair look ancient.
-static long jihadInputNowMs() {
+// int64_t, and the cast is INSIDE the multiply. long is 32-bit on this ARM target, so
+// tv_sec*1000 overflows at 2^31 ms = 24.86 days of UPTIME and the value goes negative — the
+// identical defect jihadNowMs() carried until session 7, on the monotonic clock instead of
+// the wall clock, which is why that sweep missed it. Across the wrap `now - stamp` overflows
+// to a small positive, so the <700 ms select-popup dedup and the <700 ms menu-tap dedup both
+// read "recent" and start swallowing real taps. Casting the RESULT would not fix it.
+static int64_t jihadInputNowMs() {
   struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+  return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
 // Is `inner` the element `outer`, or inside it? Walks the DOM parent chain, which for XBL
@@ -1851,7 +2423,7 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
     mRawDownX = x; mRawDownY = y; mRawDownMs = jihadInputNowMs(); mRawClickMs = 0;
     mRawFocusBefore = jihadFocusedPtr();
   } else if (strcmp(type, "mouseup") == 0) {
-    long now = jihadInputNowMs();
+    int64_t now = jihadInputNowMs();
     int dx = x - mRawDownX, dy = y - mRawDownY;
     if (mRawDownMs && (now - mRawDownMs) < 4000 && (dx * dx + dy * dy) <= kRawTapSlop * kRawTapSlop) {
       mRawClickX = x; mRawClickY = y; mRawClickMs = now;
@@ -1909,7 +2481,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // clickAt means the correspondence is broken, and a kept record could then suppress a real tap.
   bool rawClickDelivered = false;
   if (mRawClickMs) {
-    long age = jihadInputNowMs() - mRawClickMs;
+    int64_t age = jihadInputNowMs() - mRawClickMs;
     int dx = x - mRawClickX, dy = y - mRawClickY;
     const int kSlop = 24;   // content px between the pen-up point and the gesture's tap point
     rawClickDelivered = (age >= 0 && age <= 1000) && (dx * dx + dy * dy) <= kSlop * kSlop;
@@ -1934,7 +2506,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   //   - a duplicate landing on the ANCHOR would close what the first tap just opened.
   // The anchor case needs its own guard because the popup swallows neither: the anchor
   // is outside the popup box.
-  const long nowMs = jihadInputNowMs();
+  const int64_t nowMs = jihadInputNowMs();
   // "The duplicate of the tap that opened a menu": recent, and at the same point within
   // the same slop the F-1 pen/gesture pairing uses (the two deliveries of one physical tap
   // can differ by a pixel or two). Anything else — including a deliberate second tap a
@@ -2557,6 +3129,14 @@ void GoannaRenderPage::PollEngineFocus() {
   }
 }
 
+// Drain the same-document location flag (fragment change / pushState / replaceState). One shot:
+// the caller re-reports the url, and a second report for the same change would be noise.
+bool GoannaRenderPage::TakeSameDocumentLocation() {
+  if (!mChrome || !mChrome->mSameDocLocation) return false;
+  mChrome->mSameDocLocation = false;
+  return true;
+}
+
 bool GoannaRenderPage::TakeClickNav(std::string* url) {
   if (mClickNavUrl.empty()) return false;
   if (url) *url = mClickNavUrl;
@@ -2571,6 +3151,17 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // editor, and a headless PuppetWidget has no backing widget for the editor's key/caret
   // handling -> SIGSEGV (the same class of crash as Focus()). Text entry for these fields is
   // handled by InsertText (a plain DOM value mutation) via insertStringAtCursor instead.
+  //
+  // T-109 (2026-08-10, SOURCE READ ONLY, no device): this is the SECOND gate on that condition —
+  // BrowserPageGoanna::keyDown has its own. Deleting only the caller's branch to "hand the key path
+  // back to platformHTMLBindings.xml" makes the field DEAD rather than GRE-driven, because keyDown
+  // then falls through to here and this returns without dispatching anything. Both must go, together,
+  // and only after the device pass recorded on cavekit-gre-widgets.md R3.
+  // The SIGSEGV named above is the mTabChild null-deref in PuppetWidget::DispatchEvent, and it IS on
+  // this exact path (nsContentUtils::SendKeyEvent sets mIsSynthesizedForTests because we pass
+  // aAdditionalFlags == 0), and patch 0005 already guards it — so the stated reason is PROBABLY
+  // obsolete. It has never been re-tested, and "probably" does not justify removing a guard on the
+  // most-used path in the browser. NB the "patch 0010" above is stale numbering: it is 0005.
   if (mChrome->mFocusedEditable)
     return;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
@@ -2582,17 +3173,29 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // listener and nothing attaches in this embedding. That is fixed in the engine now (patch
   // 0005, mirroring nsWindow's `mAttachedWidgetListener ? … : mWidgetListener`), so synthesized
   // key events reach the DOM: verified 2026-08-04, a document keydown/keyup listener sees them.
+  // T-109 (2026-08-10, SOURCE READ ONLY): all three fields are forwarded RAW and none of them is in
+  // the namespace this API expects — this is the mapping any GRE handover has to build first.
+  //  * keyCode is NpPalmKeyEvent::rawkeyCode, so the webOS arrows arrive as 0xE0A0-0xE0A3 while DOM
+  //    VK_LEFT is 37. nsXBLPrototypeHandler::KeyEventMatched compares against the VK_* value, so NO
+  //    keycode handler in platformHTMLBindings.xml can ever match a key this VKB sends.
+  //  * for a keypress, nsContentUtils::SendKeyEvent sets mCharCode = charCode and zeroes mKeyCode
+  //    when charCode is non-zero. The VKB puts the printable character in `key` with chr == 0, so a
+  //    keypress lands with mCharCode 0, IsInputtingText() is false, and the editor inserts nothing.
+  //  * modifiers is the npPalm mask (Ctrl 1, Alt 2, Shift 4, Meta 8) against MODIFIER_ALT 1 /
+  //    CONTROL 2 / SHIFT 4 / META 8: Shift and Meta agree by coincidence, Ctrl and Alt are SWAPPED.
+  //    Unobservable today only because the VKB emits neither Ctrl nor Alt; a Bluetooth keyboard
+  //    would expose it. Left as-is on purpose — no device here to verify a live-path change.
   u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
 }
 
-void GoannaRenderPage::TouchEvent(const char* type, int x, int y) {
-  TouchEvent(type, &x, &y, 1);
+bool GoannaRenderPage::TouchEvent(const char* type, int x, int y) {
+  return TouchEvent(type, &x, &y, 1);
 }
 
-void GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py, int count) {
-  if (!mChrome || !px || !py || count <= 0) return;
+bool GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py, int count) {
+  if (!mChrome || !px || !py || count <= 0) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
-  if (!u) return;
+  if (!u) return false;
   // One identifier per contact, stable across the start/move/end of a gesture — that is what
   // makes a two-finger pinch expressible: the page tracks each Touch by identifier and reads
   // the CHANGE in their separation. Sending N points with one shared id would look like a
@@ -2605,9 +3208,17 @@ void GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py
     ids[i] = (uint32_t)i; xs[i] = px[i]; ys[i] = py[i];
     rxs[i] = 1; rys[i] = 1; angs[i] = 0.0f; forces[i] = 1.0f;
   }
+  // `ret` is sendTouchEventToWindow's aPreventDefault out-param: true when a content listener
+  // called preventDefault on the event. Gecko dispatches one DOM event per CHANGED touch and
+  // this out-param reports the whole dispatch, so a two-finger touchstart answers once for both.
+  // It used to be discarded; it is the input to the mouse suppressor.
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
-  u->SendTouchEventToWindow(t, ids, xs, ys, rxs, rys, angs, forces, count, 0, false, &ret);
+  nsresult rv = u->SendTouchEventToWindow(t, ids, xs, ys, rxs, rys, angs, forces, count, 0, false, &ret);
+  // A failed dispatch is not a consumed gesture. Reporting "consumed" on failure would suppress
+  // the pen events too, and the tap would do nothing at all.
+  if (NS_FAILED(rv)) return false;
+  return ret;
 }
 
 void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
@@ -2697,7 +3308,7 @@ bool GoannaRenderPage::BuildSelectPopup(nsIDOMHTMLSelectElement* aSelect) {
   // click, then the gesture single-tap delivers another), so without this each tap opened
   // two card popups and they dismissed each other (device 2026-08-03: every tap returned -1).
   // Suppress a second popup for the SAME element within a short window.
-  long now = jihadInputNowMs();
+  int64_t now = jihadInputNowMs();
   if (aSelect == mSelectPopupEl && (now - mSelectPopupMs) < 700) return false;
   mSelectPopupMs = now;
   nsCOMPtr<nsIDOMHTMLOptionsCollection> opts;

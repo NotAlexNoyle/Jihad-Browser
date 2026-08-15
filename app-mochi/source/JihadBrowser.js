@@ -199,6 +199,10 @@ enyo.kind({
 				window.addEventListener("mojo-relaunch", this._relaunchBind, false);
 			}
 		}
+		// The daemon's message subscription, opened before any launch param is applied: a
+		// clearCookies from a launch target would otherwise raise its toast before anything
+		// was listening.
+		this.subscribeNotifications();
 		this.applyLaunchParams(this.readLaunchParams());
 		// Start with the address bar focused so the keyboard is up (all variants).
 		enyo.asyncMethod(this, function() { if (this.$.address && this.$.address.focus) { this.$.address.focus(); } });
@@ -356,6 +360,22 @@ enyo.kind({
 	//* YAP socket, upstart job and state dir.
 	clearCookies: function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCookies', '{}'); },
 	clearCache:   function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCache', '{}'); },
+
+	//* The daemon's NON-BLOCKING message channel (cavekit-gre-widgets.md R5). One subscription
+	//* on the SAME per-variant service as the two calls above, opened at create() and left open
+	//* for the life of the card; each pushed line becomes a transient toast. Nothing is added
+	//* to the frozen YAP or callBrowserAdapter surfaces by this — Luna is a separate channel.
+	subscribeNotifications: function() {
+		enyo.jihad.lunaSubscribe(
+			"palm://net.riverstonerelay.jihadBrowserMochi/notifications", {},
+			enyo.bind(this, function(resp) {
+				// The handshake reply ({"returnValue":true,"subscribed":true}) carries no
+				// `text` and is NOT a message — showing it would put an empty toast on screen
+				// at every card launch.
+				if (!resp || !resp.text) { return; }
+				enyo.jihad.toast(resp.category, resp.text);
+			}));
+	},
 
 	// --- address bar --------------------------------------------------------
 	// mochi.Input onchange fires on blur/commit; Enter does not blur on its own,

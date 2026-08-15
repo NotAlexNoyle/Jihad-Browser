@@ -33,6 +33,30 @@ add(){ local real="$1" name="$2"; [ -n "${done[$name]:-}" ] && return; done[$nam
 cp -L "$DAEMON" "$OUT/jihad-browserserver"; queue+=("$OUT/jihad-browserserver")
 add "$(readlink -f "$DIST/bin/libxul.so")" "libxul.so"
 
+# plugin-container: the OOP NPAPI host, and the ONLY path in UXP that can render a windowless
+# plugin. In-process has no rendering path at all — nsPluginFrame::PaintPlugin is an empty stub
+# ("we no longer support in-process plugins or synchronous painting") and
+# PluginPRLibrary::GetImageContainer returns NS_ERROR_NOT_IMPLEMENTED, so only
+# PluginInstanceParent can produce the ImageContainer the plugin layer is built from.
+# Seeded into the dependency queue like the daemon so ITS shared libraries get bundled too.
+#
+# Shipped as the REAL ELF binary under the name XRE looks for. It is NOT exec'able on its own —
+# its PT_INTERP is /lib/ld-linux.so.3, webOS's glibc 2.8, while everything we cross-build targets
+# the bundled 2.23 — so the daemon exports MOZ_CHILD_PROCESS_LOADER/_PATH and XRE launches it
+# through our own loader, exactly the way /etc/event.d/jihad launches the daemon.
+# It was briefly a /bin/sh wrapper that re-exec'd the binary through that loader; that CANNOT
+# work and cost this port a session. The child inherits LD_LIBRARY_PATH pointing at the bundled
+# glibc (the upstart job sets it, and GeckoChildProcessHost sets it again from gGREBinPath), so
+# the wrapper's own /bin/sh — a 2.8 binary — resolved OUR 2.23 libc and segfaulted before running
+# a single line. Verified on device: `LD_LIBRARY_PATH=$HL /bin/sh -c 'echo hi'` segfaults.
+if [ -f "$DIST/bin/plugin-container" ]; then
+  cp -L "$DIST/bin/plugin-container" "$OUT/plugin-container"
+  queue+=("$OUT/plugin-container")
+else
+  echo "!! no plugin-container in $DIST/bin — NPAPI plugins cannot render out-of-process" >&2
+  exit 31
+fi
+
 i=0
 while [ $i -lt ${#queue[@]} ]; do
   f="${queue[$i]}"; i=$((i+1))
@@ -252,20 +276,30 @@ grep -q 'JIHAD add-on prefs' "$OUT/goanna.js" 2>/dev/null || cat "$REPO/packagin
 # prefs above: one source, appended by both builds, so desktop and device cannot drift.
 grep -q 'JIHAD platform prefs' "$OUT/goanna.js" 2>/dev/null || cat "$REPO/packaging/prefs/jihad-platform-prefs.js" >> "$OUT/goanna.js"
 
+# WHAT IS LEFT IN THIS HEREDOC IS DEVICE-ONLY ON PURPOSE, and the test is one line long: nothing
+# below backs a row in packaging/prefsui/content/preferences.js. These are 512 MB / ARM numbers
+# (decoded-image surfacecache, JS GC water marks, media cache, socket counts), and appending them
+# to the DESKTOP harness would be wrong on its own terms - a harness that GCs at a 32 MB heap and
+# caps its surface cache at 32 MB is not standing in for the device, it is simulating a memory
+# ceiling the host does not have, and it would hide the eviction behaviour this tuning exists to
+# avoid on device.
+#
+# The ELEVEN prefs that DO back about:preferences rows moved to
+# packaging/prefs/jihad-platform-prefs.js on 2026-08-10 (T-111, cavekit-gre-widgets.md R7), which
+# BOTH builds append. Do NOT re-add one of them here: goanna.js is last-wins and this heredoc is
+# appended AFTER that file, so a duplicate here silently un-shares the value and restores exactly
+# the desktop/device drift R7 exists to prevent.
 grep -q 'JIHAD low-RAM tuning' "$OUT/goanna.js" 2>/dev/null || cat >> "$OUT/goanna.js" <<'JIHADPREFS'
 // --- JIHAD low-RAM tuning (512 MB floor) ---
+// Device-only by design: nothing in this block backs an about:preferences row. The ones that do
+// live in packaging/prefs/jihad-platform-prefs.js, appended by BOTH builds (gre-widgets R7).
 pref("image.mem.surfacecache.max_size_kb", 32768);        // 32 MB decoded-image cache (was 1 GB)
 pref("image.mem.surfacecache.size_factor", 8);            // cap at RAM/8, not RAM/4
 pref("image.mem.surfacecache.discard_factor", 1);         // drop the whole cache on memory pressure
 pref("image.mem.discardable", true);
 pref("image.mem.animated.discardable", true);
 pref("browser.sessionhistory.max_total_viewers", 0);      // no bfcache page viewers in RAM
-pref("browser.sessionhistory.max_entries", 20);           // bound history depth
 pref("browser.cache.memory.enable", true);
-pref("browser.cache.memory.capacity", 16384);             // 16 MB in-RAM HTTP cache
-pref("layout.frame_rate", 30);                            // cap the refresh driver at 30 Hz
-pref("general.smoothScroll", false);                      // no smooth-scroll compositing
-pref("image.animation_mode", "once");                     // play animated GIFs once, not forever
 pref("nglayout.initialpaint.delay", 100);                 // paint sooner on slow pages
 // JS heap tuning for a small-RAM/slow-CPU device, following the low-spec Goanna
 // forks: Arctic Fox ships high_water_mark=128 + slice=10 for old Macs; Mypal68
@@ -278,11 +312,11 @@ pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 40); // treat >40
 pref("media.cache_size", 32768);                          // 32 MB media cache (kB; default 500 MB)
 pref("media.memory_cache_max_size", 4096);                // 4 MB in-memory media cache (kB)
 // Network: fewer parallel sockets = less buffer memory + less CPU contention on
-// the single-core-class device; still plenty for one page.
-pref("network.http.max-connections", 32);
+// the single-core-class device; still plenty for one page. The other three that used to be
+// here - network.http.max-connections, network.prefetch-next, network.dns.disablePrefetch -
+// back about:preferences rows and are now in packaging/prefs/jihad-platform-prefs.js. This one
+// backs no row, so it stays device-only.
 pref("network.http.max-persistent-connections-per-server", 4);
-pref("network.prefetch-next", false);                     // no speculative page prefetch
-pref("network.dns.disablePrefetch", true);
 // Disk offload: a persistent HTTP cache keeps repeat loads off the network AND
 // lets the RAM cache stay small. WHERE it lives is decided in
 // render/goanna/JihadRuntimePaths.h, not here — Gecko's own ProfD/ProfLD split,
@@ -318,13 +352,15 @@ pref("network.dns.disablePrefetch", true);
 // doesn't tear writes — the kernel completes queued I/O — but battery pulls
 // happen).
 pref("toolkit.storage.synchronous", 2);                   // FULL fsync for the cookie DB
-pref("browser.cache.disk.enable", true);
-pref("browser.cache.disk.capacity", 51200);               // 50 MB — isis's own CacheMaxSize
-pref("browser.cache.disk.smart_size.enabled", false);     // never autosize from free space
+// browser.cache.disk.{enable,capacity,smart_size.enabled} all back about:preferences rows, so
+// the VALUES moved to packaging/prefs/jihad-platform-prefs.js (T-111). The reasoning above is
+// kept here because it is device reasoning - where the cache lives and why 50 MB - and the
+// shared file cites it rather than repeating it.
 JIHADPREFS
 
 # strip everything to shrink for the device
-for so in "$OUT"/*.so "$OUT"/*.so.* "$OUT/jihad-browserserver" "$OUT/libxul.so"; do
+for so in "$OUT"/*.so "$OUT"/*.so.* "$OUT/jihad-browserserver" "$OUT/libxul.so" \
+          "$OUT/plugin-container"; do
   [ -f "$so" ] && "$STRIP" "$so" 2>/dev/null || true
 done
 
@@ -335,7 +371,7 @@ done
 # not a packed omni.ja; the direct build treats it as optional too.)
 REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
           libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
-          libmozsqlite3.so goanna.js)
+          libmozsqlite3.so goanna.js plugin-container)
 _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }

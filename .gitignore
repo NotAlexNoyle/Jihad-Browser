@@ -1,7 +1,19 @@
 /build/**/out/
 /build/**/out-*/
 /build/**/*.tar.gz
-/build/webos-oe/toolchain/
+# crosstool-NG: ignore the toolchain OUTPUT, keep the RECIPE. The blanket
+# `/build/webos-oe/toolchain/` that stood here also excluded Dockerfile + build-toolchain.sh +
+# jihad.defconfig, so the one prebuilt input of the device build that is fully FOSS and
+# rebuildable from source had no recipe in a clean clone (measured 2026-08-10:
+# `git check-ignore -v build/webos-oe/toolchain/jihad.defconfig` named this line).
+# The pattern must be `toolchain/*`, NOT `toolchain/`: git never descends into an ignored
+# DIRECTORY, so a `!` re-include under one is dead. Verified in a scratch repo — the three files
+# become trackable while out-toolchain/ (219 MB x-tools + 279 MB src cache) stays ignored.
+# Un-ignoring does not stage them; they still need `git add`.
+/build/webos-oe/toolchain/*
+!/build/webos-oe/toolchain/Dockerfile
+!/build/webos-oe/toolchain/build-toolchain.sh
+!/build/webos-oe/toolchain/jihad.defconfig
 /build/webos-oe/arm-sysroot/
 /build/webos-oe/device-bundle/
 /build/webos-oe/hl-bundle/
@@ -35,3 +47,4 @@ build/webos-oe/pdk/
 /build/webos-oe/oe-cache/
 /build/webos-oe/oe-downloads/
 /build/webos-oe/oe-sstate/
+__pycache__/

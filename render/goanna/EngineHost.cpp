@@ -22,6 +22,7 @@
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include <sys/stat.h>               // chmod (menu highlight sheet)
+#include <unistd.h>                 // access (bundled child-process loader probe)
 #include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
@@ -803,6 +804,33 @@ EngineHost::Init(const char* greDir)
     printf("[jihad-bs] plugin search path: %s\n", path.c_str());
   }
 
+  // ── How the OOP plugin host gets launched (addons R7) ───────────────────────
+  // XRE execs the NPAPI child as <greDir>/plugin-container directly. That binary
+  // is cross-built against the bundled glibc 2.23 but its PT_INTERP names the
+  // SYSTEM loader (/lib/ld-linux.so.3, webOS's glibc 2.8), so exec'ing it as-is
+  // resolves the wrong libc and it dies before main(). Launch it the same way the
+  // upstart job launches this daemon: through our own loader, with an explicit
+  // library path.
+  //
+  // A /bin/sh wrapper doing the same re-exec is NOT an alternative, and the
+  // reason is worth keeping: the child inherits LD_LIBRARY_PATH pointing at the
+  // bundled tree (the job sets it, and GeckoChildProcessHost sets it again from
+  // gGREBinPath), so /bin/sh — itself a 2.8 binary — loads OUR 2.23 libc and
+  // segfaults instantly. The parent then sees the IPC socketpair's peer close
+  // ("pipe error (58): Connection reset by peer") and LoadModule returns null.
+  //
+  // Set only when the loader is actually present, so desktop builds — where the
+  // binary runs against the system loader as usual — are untouched.
+  if (!getenv("MOZ_CHILD_PROCESS_LOADER")) {
+    std::string loader = std::string(greDir) + "/ld-2.23.so";
+    if (access(loader.c_str(), X_OK) == 0) {
+      setenv("MOZ_CHILD_PROCESS_LOADER", loader.c_str(), 0);
+      setenv("MOZ_CHILD_PROCESS_LOADER_PATH", greDir, 0);
+      printf("[jihad-bs] child process loader: %s (library-path %s)\n",
+             loader.c_str(), greDir);
+    }
+  }
+
   initStep("resolving greDir");
   nsCOMPtr<nsIFile> dir;
   nsresult rv = NS_NewNativeLocalFile(nsDependentCString(greDir),
@@ -1013,8 +1041,12 @@ EngineHost::Init(const char* greDir)
     // NOTE: the low-RAM (512 MB) memory + repaint tuning prefs are NOT set here — a SetIntPref at
     // this point is too late for the "Once"-style gfx prefs (image.mem.surfacecache.max_size_kb,
     // layout.frame_rate), which gfxPlatform snapshots during XRE_InitEmbedding2 BEFORE this returns
-    // (Codex F-235). They live in goanna.js instead (loaded before gfx init) — see the append block
-    // in build/webos-oe/make-device-bundle.sh. Critically, the stock surfacecache cap is 1 GB, which
+    // (Codex F-235). They live in goanna.js instead (loaded before gfx init), appended from TWO
+    // places since 2026-08-10 (T-111): the device-only values still inline in
+    // build/webos-oe/make-device-bundle.sh, and the eleven that back about:preferences rows, which
+    // moved to packaging/prefs/jihad-platform-prefs.js so the DESKTOP build appends them too.
+    // The read-back below still checks a value from the inline block, so it stays a valid probe.
+    // Critically, the stock surfacecache cap is 1 GB, which
     // is catastrophic on a 512 MB device (the surface memory grows until the live render is evicted
     // to near-blank); goanna.js overrides it to a small bounded value.
     // Read-back check (inspector P3): confirm the goanna.js low-RAM block actually
@@ -1111,9 +1143,13 @@ void
 EngineHost::CheckMemoryPressure()
 {
   if (!mInited) return;
-  long now = 0;
+  int64_t now = 0;
+  // int64_t: tv_sec*1000 in 32-bit `long` wraps negative at 24.86 days of uptime, and then
+  // `now - mMemPollMs` overflows to a small positive that is always < 5000 — the low-memory
+  // guardrail would silently stop running on exactly the long-uptime device that needs it.
+  // Resetting the members would not recover it either, since `now - 0` is then negative too.
   { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    now = ts.tv_sec * 1000L + ts.tv_nsec / 1000000L; }
+    now = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000; }
   if (now - mMemPollMs < 5000) return;   // poll /proc/meminfo at most every 5 s
   mMemPollMs = now;
 

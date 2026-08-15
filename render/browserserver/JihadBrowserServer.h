@@ -53,6 +53,8 @@ public:
   void msgDownloadProgress(const char* url, int32_t soFar, int32_t total) override;
   void msgDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) override;
   void msgDownloadError(const char* url, const char* errorMsg) override;
+  void msgAddFlashRects(const char* rectsArrayJson) override;
+  void msgRemoveFlashRects(const char* rectIdJson) override;
 private:
   JihadBrowserServer* mSrv;
   YapProxy*           mProxy;
@@ -87,6 +89,7 @@ public:
   void syncCmdRenderToFile(YapProxy* proxy, const char* filename, int32_t viewX, int32_t viewY, int32_t viewW, int32_t viewH, int32_t& result) override;
   void asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier) override;
   void asyncCmdSetWindowSize(YapProxy* proxy, int32_t width, int32_t height) override;
+  void asyncCmdSetExtraBuffer(YapProxy* proxy, int32_t sharedBufferKey3, int32_t sharedBufferSize) override;
   void asyncCmdSetUserAgent(YapProxy* proxy, const char* userAgent) override;
   void asyncCmdOpenUrl(YapProxy* proxy, const char* url) override;
   void asyncCmdSetHtml(YapProxy* proxy, const char* url, const char* body) override;

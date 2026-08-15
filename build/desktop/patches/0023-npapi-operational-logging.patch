@@ -1,0 +1,344 @@
+--- a/ipc/glue/GeckoChildProcessHost.cpp
++++ b/ipc/glue/GeckoChildProcessHost.cpp
+@@ -160,6 +160,13 @@
+ 
+   exePath = exePath.AppendASCII(MOZ_CHILD_PROCESS_NAME);
+ 
++  // JIHAD DIAGNOSTIC (R7): the resolved child path, and which branch produced it. In this
++  // embedding the daemon is exec'd as `./ld-2.23.so … ./jihad-browserserver`, so argv[0] is the
++  // LOADER — if the directory-service branch is not taken, the fallback dirname(argv[0]) is
++  // relative to that, not to the daemon.
++  fprintf(stderr, "[jihad-npapi] child binary path=%s (dirService=%d)\n",
++          exePath.value().c_str(), (int)ShouldHaveDirectoryService());
++
+   return BinaryPathType::PluginContainer;
+ }
+ 
+--- a/dom/plugins/base/nsNPAPIPlugin.cpp
++++ b/dom/plugins/base/nsNPAPIPlugin.cpp
+@@ -341,6 +341,10 @@
+   RefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
+ 
+   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
++  // JIHAD DIAGNOSTIC (R7): GetNewPluginLibrary is where the OOP decision is made —
++  // RunPluginOOP() ? PluginModuleParent::LoadModule (launches plugin-container) : a
++  // PluginPRLibrary loaded in-process. A null here is the plugin-container launch failing.
++  fprintf(stderr, "[jihad-npapi] GetNewPluginLibrary lib=%d\n", (int)!!pluginLib);
+   if (!pluginLib) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -386,6 +390,7 @@
+ #else
+   NPError pluginCallError;
+   nsresult rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
++  fprintf(stderr, "[jihad-npapi] NP_Initialize rv=0x%x npErr=%d\n", (unsigned)rv, (int)pluginCallError);
+   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
+     return NS_ERROR_FAILURE;
+   }
+diff --git a/dom/base/nsObjectLoadingContent.cpp b/dom/base/nsObjectLoadingContent.cpp
+index 986468b139..b064216329 100644
+--- a/dom/base/nsObjectLoadingContent.cpp
++++ b/dom/base/nsObjectLoadingContent.cpp
+@@ -787,6 +787,12 @@ nsresult
+ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+ {
+ #ifdef MOZ_ENABLE_NPAPI
++  // JIHAD DIAGNOSTIC (R7): entry + the four early-out conditions. If this line never appears the
++  // plugin was never asked for at all (no nsPluginFrame -> no HasNewFrame), which is a different
++  // bug from being asked for and refused.
++  fprintf(stderr, "[jihad-npapi] InstantiatePluginInstance(aIsLoading=%d) owner=%d type=%d "
++          "mIsLoading=%d instantiating=%d\n", (int)aIsLoading, (int)!!mInstanceOwner,
++          (int)mType, (int)mIsLoading, (int)mInstantiating);
+   if (mInstanceOwner || mType != eType_Plugin || (mIsLoading != aIsLoading) ||
+       mInstantiating) {
+     // If we hit this assertion it's probably because LoadObject re-entered :(
+@@ -822,10 +828,12 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   NS_ENSURE_TRUE(mInstantiating, NS_OK);
+ 
+   if (!thisContent->GetPrimaryFrame()) {
++    // JIHAD DIAGNOSTIC (R7): a silent NS_OK return — the single most likely place for a plugin
++    // to "do nothing" with no error anywhere.
++    fprintf(stderr, "[jihad-npapi] NO PRIMARY FRAME -> not instantiating\n");
+     LOG(("OBJLC [%p]: Not instantiating plugin with no frame", this));
+     return NS_OK;
+   }
+-
+   nsresult rv = NS_ERROR_FAILURE;
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+ 
+@@ -846,6 +854,8 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   rv = pluginHost->InstantiatePluginInstance(mContentType,
+                                              mURI.get(), this,
+                                              getter_AddRefs(newOwner));
++  fprintf(stderr, "[jihad-npapi] pluginHost->InstantiatePluginInstance rv=0x%x owner=%d\n",
++          (unsigned)rv, (int)!!newOwner);
+ 
+   // XXX(johns): We don't suspend native inside stopping plugins...
+   if (appShell) {
+@@ -2378,6 +2388,11 @@ nsObjectLoadingContent::LoadObject(bool aNotify,
+   FallbackType clickToPlayReason;
+   if (!mActivated && (mType == eType_Null || mType == eType_Plugin) &&
+       !ShouldPlay(clickToPlayReason, false)) {
++    // JIHAD DIAGNOSTIC (R7): this is where a plugin that resolved fine is silently demoted to
++    // eType_Null. Every path out of ShouldPlay that returns false lands here, so one line here
++    // names the reason instead of instrumenting each exit.
++    fprintf(stderr, "[jihad-npapi] demoted to fallback: mType=%d fallbackReason=%d\n",
++            (int)mType, (int)clickToPlayReason);
+     LOG(("OBJLC [%p]: Marking plugin as click-to-play", this));
+     mType = eType_Null;
+     fallbackType = clickToPlayReason;
+@@ -2887,9 +2902,16 @@ nsObjectLoadingContent::GetTypeOfContent(const nsCString& aMIMEType)
+ 
+ #ifdef MOZ_ENABLE_NPAPI
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+-  if ((caps & eSupportPlugins) &&
+-      pluginHost &&
+-      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone)) {
++  bool jihadHave = pluginHost &&
++      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone);
++  // JIHAD DIAGNOSTIC (R7 windowless port): says, for one MIME type, whether the element
++  // advertised plugin capability and whether the host has a plugin — the two facts that decide
++  // if the NPAPI subsystem is entered at all. Added because a plugin that never instantiates
++  // produces NO plugin logging whatsoever, which is indistinguishable from one that was never
++  // asked for.
++  fprintf(stderr, "[jihad-npapi] GetTypeOfContent mime=%s caps=0x%x supportsPlugins=%d have=%d\n",
++          nsCString(aMIMEType).get(), caps, (int)!!(caps & eSupportPlugins), (int)jihadHave);
++  if ((caps & eSupportPlugins) && jihadHave) {
+     // ShouldPlay will handle checking for disabled plugins
+     return eType_Plugin;
+   }
+@@ -3486,9 +3508,15 @@ nsObjectLoadingContent::ShouldPlay(FallbackType &aReason, bool aIgnoreCurrentTyp
+   aReason = eFallbackClickToPlay;
+ 
+   uint32_t enabledState = nsIPluginTag::STATE_DISABLED;
+-  pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
++  nsresult jihadStateRv = pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
+                               &enabledState);
++  // JIHAD DIAGNOSTIC (R7): note that enabledState is pre-set to STATE_DISABLED and the rv of
++  // GetStateForType is NOT checked upstream, so a failing lookup silently blocks the plugin
++  // with no other trace. Log the rv as well as the value.
++  fprintf(stderr, "[jihad-npapi] ShouldPlay type=%s enabledState=%u rv=0x%x\n",
++          mContentType.get(), enabledState, (unsigned)jihadStateRv);
+   if (nsIPluginTag::STATE_DISABLED == enabledState) {
++    fprintf(stderr, "[jihad-npapi] ShouldPlay -> FALSE (eFallbackDisabled)\n");
+     aReason = eFallbackDisabled;
+     return false;
+   }
+diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
+index 11f54ab87f..61a608fc45 100644
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -843,6 +843,9 @@ nsPluginHost::InstantiatePluginInstance(const nsACString& aMimeType, nsIURI* aUR
+   }
+ 
+   rv = SetUpPluginInstance(aMimeType, aURL, instanceOwner);
++  // JIHAD DIAGNOSTIC (R7): the real rv is flattened to NS_ERROR_FAILURE below, which is what
++  // made this failure opaque from the caller's side.
++  fprintf(stderr, "[jihad-npapi] SetUpPluginInstance rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     instanceOwner->Destroy();
+     return NS_ERROR_FAILURE;
+@@ -961,7 +964,12 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+ #endif
+ 
+   RefPtr<nsNPAPIPlugin> plugin;
+-  GetPlugin(aMimeType, getter_AddRefs(plugin));
++  nsresult jihadGetRv = GetPlugin(aMimeType, getter_AddRefs(plugin));
++  // JIHAD DIAGNOSTIC (R7): GetPlugin -> CreateNPAPIPlugin -> nsNPAPIPlugin::CreatePlugin, which
++  // for an OOP build is PluginModuleParent::LoadModule (the plugin-container launch). Its rv is
++  // DISCARDED here; only the null check survives, so a launch failure is invisible.
++  fprintf(stderr, "[jihad-npapi] GetPlugin rv=0x%x plugin=%d\n",
++          (unsigned)jihadGetRv, (int)!!plugin);
+   if (!plugin) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -987,6 +995,7 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+   // except in some cases not Java, see bug 140931
+   // our COM pointer will free the peer
+   nsresult rv = instance->Initialize(plugin.get(), aOwner, aMimeType);
++  fprintf(stderr, "[jihad-npapi] instance->Initialize rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     mInstances.RemoveElement(instance.get());
+     aOwner->SetInstance(nullptr);
+diff --git a/dom/plugins/ipc/BrowserStreamChild.cpp b/dom/plugins/ipc/BrowserStreamChild.cpp
+index 4fdfc1d471..24c533c5ea 100644
+--- a/dom/plugins/ipc/BrowserStreamChild.cpp
++++ b/dom/plugins/ipc/BrowserStreamChild.cpp
+@@ -133,6 +133,12 @@ BrowserStreamChild::RecvNPP_DestroyStream(const NPReason& reason)
+ {
+   PLUGIN_LOG_DEBUG_METHOD;
+ 
++  // Jihad R7: end-of-stream is what tells a Flash player the movie is complete. A player that
++  // is never told stops on frame zero, which looks exactly like a player that cannot draw.
++  fprintf(stderr, "[jihad-npapi-child] RecvNPP_DestroyStream reason=%d state=%d\n",
++          (int)reason, (int)mState);
++  fflush(stderr);
++
+   if (ALIVE != mState)
+     NS_RUNTIMEABORT("Unexpected state: recevied NPP_DestroyStream twice?");
+ 
+@@ -232,8 +238,12 @@ BrowserStreamChild::Deliver()
+     if (kStreamOpen == mStreamStatus)
+       mStreamStatus = NPRES_DONE;
+ 
+-    (void) mInstance->mPluginIface
++    NPError dsrv = mInstance->mPluginIface
+       ->destroystream(&mInstance->mData, &mStream, mStreamStatus);
++    // Jihad R7: the delivery site, as opposed to RecvNPP_DestroyStream which only queues it.
++    fprintf(stderr, "[jihad-npapi-child] NPP_DestroyStream status=%d rv=%d\n",
++            (int)mStreamStatus, (int)dsrv);
++    fflush(stderr);
+   }
+   if (DESTROYED == mDestroyPending && mNotifyPending) {
+     NS_ASSERTION(mStreamNotify, "mDestroyPending but no mStreamNotify?");
+diff --git a/dom/plugins/ipc/PluginModuleParent.cpp b/dom/plugins/ipc/PluginModuleParent.cpp
+index a79d608267..4a1ff189e3 100755
+--- a/dom/plugins/ipc/PluginModuleParent.cpp
++++ b/dom/plugins/ipc/PluginModuleParent.cpp
+@@ -444,6 +444,8 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mSubprocess->SetCallRunnableImmediately(!parent->mIsStartingAsync);
+     bool launched = parent->mSubprocess->Launch(Move(onLaunchedRunnable),
+                                                 aPluginTag->mSandboxLevel);
++    fprintf(stderr, "[jihad-npapi] LoadModule path=%s async=%d launched=%d\n",
++            aFilePath, (int)parent->mIsStartingAsync, (int)launched);
+     if (!launched) {
+         // We never reached open
+         parent->mShutdown = true;
+@@ -455,7 +457,10 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mIsBlocklisted = NS_FAILED(rv) || blocklistState != 0;
+     if (!parent->mIsStartingAsync) {
+         int32_t launchTimeoutSecs = Preferences::GetInt(kLaunchTimeoutPref, 0);
+-        if (!parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000)) {
++        bool connected = parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000);
++        fprintf(stderr, "[jihad-npapi] LoadModule WaitUntilConnected(%ds) = %d\n",
++                (int)launchTimeoutSecs, (int)connected);
++        if (!connected) {
+             parent->mShutdown = true;
+             return nullptr;
+         }
+diff --git a/dom/plugins/ipc/PluginProcessChild.cpp b/dom/plugins/ipc/PluginProcessChild.cpp
+index fd6992454f..e964355395 100644
+--- a/dom/plugins/ipc/PluginProcessChild.cpp
++++ b/dom/plugins/ipc/PluginProcessChild.cpp
+@@ -111,9 +111,14 @@ PluginProcessChild::Init()
+       return false;
+     }
+ 
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome plugin=%s parentPid=%d\n",
++            pluginFilename.c_str(), (int)ParentPid());
++    fflush(stderr);
+     bool retval = mPlugin.InitForChrome(pluginFilename, ParentPid(),
+                                         IOThreadChild::message_loop(),
+                                         IOThreadChild::channel());
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome = %d\n", (int)retval);
++    fflush(stderr);
+ #if defined(XP_MACOSX)
+     if (nsCocoaFeatures::OnYosemiteOrLater()) {
+       // Explicitly turn off CGEvent logging.  This works around bug 1092855.
+diff --git a/ipc/contentproc/plugin-container.cpp b/ipc/contentproc/plugin-container.cpp
+index 5e5f6d8fbb..e627e21f5a 100644
+--- a/ipc/contentproc/plugin-container.cpp
++++ b/ipc/contentproc/plugin-container.cpp
+@@ -19,6 +19,82 @@
+ #include <unistd.h>
+ #endif
+ 
++// JIHAD DIAGNOSTIC (R7): the child process dies with SIGSEGV between a successful
++// InitForChrome and handling its first IPC message, and the device's own minicore reporter
++// is out of report slots ("no room for new reports"), so nothing records where. This prints
++// the faulting address, a backtrace, and /proc/self/maps to stderr — which the child
++// inherits from the daemon, so it lands in the variant's daemon.log. The maps dump is the
++// part that matters on ARM: even a single frame is enough to name the faulting library.
++#if defined(OS_POSIX) || defined(XP_UNIX)
++#include <execinfo.h>
++#include <signal.h>
++#include <ucontext.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++static void
++jihad_child_fault_handler(int sig, siginfo_t* info, void* ctx)
++{
++  void* frames[32];
++  int n = backtrace(frames, 32);
++  fprintf(stderr, "[jihad-npapi-child] FAULT sig=%d addr=%p pid=%d frames=%d\n",
++          sig, info ? info->si_addr : nullptr, (int)getpid(), n);
++
++  // backtrace() returns nothing useful from a signal frame on ARM (no unwind tables
++  // through the trampoline), so take the registers straight out of the signal context.
++  // pc and lr against the maps below give the faulting library and offset, and
++  // addr2line on the unstripped build turns that into file:line.
++#if defined(__arm__)
++  if (ctx) {
++    ucontext_t* uc = (ucontext_t*)ctx;
++    fprintf(stderr, "[jihad-npapi-child] FAULT pc=%08lx lr=%08lx sp=%08lx r0=%08lx\n",
++            (unsigned long)uc->uc_mcontext.arm_pc,
++            (unsigned long)uc->uc_mcontext.arm_lr,
++            (unsigned long)uc->uc_mcontext.arm_sp,
++            (unsigned long)uc->uc_mcontext.arm_r0);
++  }
++#else
++  (void)ctx;
++#endif
++  fflush(stderr);
++  backtrace_symbols_fd(frames, n, STDERR_FILENO);
++
++  FILE* maps = fopen("/proc/self/maps", "r");
++  if (maps) {
++    char line[512];
++    fputs("[jihad-npapi-child] --- maps ---\n", stderr);
++    while (fgets(line, sizeof(line), maps)) {
++      // Only the executable mappings; the full map is hundreds of lines of noise.
++      if (strstr(line, "r-xp")) {
++        fputs("[jihad-npapi-child] ", stderr);
++        fputs(line, stderr);
++      }
++    }
++    fclose(maps);
++  }
++  fflush(stderr);
++
++  // Restore the default disposition and re-raise so the exit status still says "crashed".
++  signal(sig, SIG_DFL);
++  raise(sig);
++}
++
++static void
++jihad_install_child_fault_handler()
++{
++  struct sigaction sa;
++  memset(&sa, 0, sizeof(sa));
++  sa.sa_sigaction = jihad_child_fault_handler;
++  sa.sa_flags = SA_SIGINFO;
++  sigemptyset(&sa.sa_mask);
++  sigaction(SIGSEGV, &sa, nullptr);
++  sigaction(SIGBUS, &sa, nullptr);
++  sigaction(SIGILL, &sa, nullptr);
++  sigaction(SIGFPE, &sa, nullptr);
++}
++#endif
++
+ #ifdef MOZ_GMP
+ #include "GMPLoader.h"
+ 
+@@ -38,6 +114,19 @@ content_process_main(int argc, char* argv[])
+       return 3;
+     }
+ 
++#if defined(OS_POSIX) || defined(XP_UNIX)
++    jihad_install_child_fault_handler();
++#endif
++
++    // JIHAD DIAGNOSTIC (R7): the child's own view of its argv. Doubles as the control that
++    // child stderr reaches the parent's log at all — every other child probe is worthless
++    // until this line is seen.
++    fprintf(stderr, "[jihad-npapi-child] main argc=%d\n", argc);
++    for (int i = 0; i < argc; i++) {
++      fprintf(stderr, "[jihad-npapi-child]   argv[%d]=%s\n", i, argv[i]);
++    }
++    fflush(stderr);
++
+ #ifdef MOZ_GMP
+     XREChildData childData;
+ #endif

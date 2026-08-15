@@ -141,7 +141,13 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 - Alert/confirm/prompt/auth + SSL-confirm dialogs presented and answerable — **met**.
 - Parity checklist with no undocumented missing feature — **this document**.
 
-On-device functional verification (rendering, live db8/download-manager/adapter
-round-trips) is **DEVICE-GATED** and pending hardware. Structural correctness —
-kinds, the frozen adapter method set, `node --check`, grep-clean, and the
-`build-mochi-ipk.sh` end-to-end build — is verified.
+~~On-device functional verification (rendering, live db8/download-manager/adapter round-trips) is
+**DEVICE-GATED** and pending hardware.~~ **CORRECTED 2026-08-10 — that has been false since
+2026-08-05.** The Mochi variant is installed and running on the TouchPad, renders live pages, and
+runs alongside the Enyo and Mojo variants (`device-independence-test.sh` 24/24 with all three
+installed). It was left standing after the device work landed, which would have asked a reviewer
+to sign a statement the project had already disproved.
+
+Structural correctness — kinds, the frozen adapter method set, `node --check`, grep-clean, and the
+`build-mochi-ipk.sh` end-to-end build — is verified, and remains the right gate for this document.
+Per-criterion status lives in `context/kits/cavekit-mochi-ui.md`, not here.

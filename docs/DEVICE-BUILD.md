@@ -3,31 +3,17 @@
 *cavekit-device-build — the webOS 3 ARMv7 build for the HP TouchPad (Topaz/
 tenderloin) and TouchPad Go (Opal).*
 
-This is the **last** milestone: cross-compile the verified Phase-1 backend for
-the device and package it as installable `.ipk`s. The scaffolding is authored
-here; the parts that need the physical hardware / device sysroot / OE build
-environment are marked **[gated]** and are the only things that cannot be
-completed off-device.
+**This file is the build PROCEDURE — the toolchain, the recipes, the commands, the on-device
+layout.** What the device build is *required* to achieve, and whether it does, lives in
+`context/kits/cavekit-device-build.md`; the install-footprint contract is R7/R8 there. None of that
+is restated here.
 
-## What is done (Phase 1, verified on desktop)
+## Self-contained on-device deployment
 
-Everything the daemon does is built + adversarially reviewed (3× Codex) + proven
-by runnable tests on x86_64: engine embed + real-web render, the full YAP
-round-trip, input (click/key/mouse + coord-mapping), navigation (R1–R6),
-geometry (R4–R5), services (settings/cache/cookies/dialogs/downloads/TLS-detect),
-freeze/thaw, the branding strip, and the desktop PoC image. See
-`docs/DESKTOP-POC.md` and `context/impl/impl-overview.md`.
-
-The **`.ipk` build reuses those exact sources cross-targeted** — no new engine
-integration is needed, only a toolchain + packaging.
-
-## Self-contained on-device deployment (working, 2026-07-07)
-
-Jihad ships as a **self-contained app that coexists with the stock browser** — it
-installs its own MIME/adapter/daemon/upstart job and never touches the system
-browser (an earlier "replace the stock daemon" approach crash-looped two daemons
-over one YAP socket → hours of device lag). See `docs/DEVICE-HANDOFF.md` (2026-07-07)
-and auto-memory `jihad-self-contained-arch.md`.
+Jihad ships as a self-contained app that coexists with the stock browser: its own
+MIME/adapter/daemon/upstart job, and the system browser is never touched. **The reason it is built
+this way is worth keeping** — an earlier "replace the stock daemon" approach crash-looped two
+daemons over one YAP socket and cost hours of device lag.
 
 Four additive pieces, each independently named:
 
@@ -84,19 +70,16 @@ The recipes mirror the upstream isis recipes (`browserserver`, `browser-adapter`
 `webkit-webos`+`qt4-webos` to `goanna`. The **BrowserAdapter is reused unchanged**
 (it only speaks YAP + blits shmem) — IPC-contract R5.
 
-## The gates (what needs the hardware / SDK)
+## What is still gated
 
-| Gate | Requirement | Kit |
-|------|-------------|-----|
-| **Toolchain sysroot** | A modern **C++14** cross-toolchain (stock webOS 3 gcc 4.4 cannot build UXP) that links against the **TouchPad's glibc/kernel ABI** so binaries don't need a newer glibc than the device has. Needs the webOS 3 device sysroot. | R1 |
-| **Engine cross-build** | Run the `goanna` recipe with that toolchain (ARMv7-A + NEON, **softfp** — matches the device glibc 2.8 ABI). Heavy (hours). Verifying "loads without missing-symbol/ABI errors" needs the device. | R2 |
-| **OE environment** | An OpenEmbedded/`meta-webos` tree to `bitbake` the recipes into `.ipk`s (both UI variants). **Provided by `build/webos-oe/oe-env.sh`** (chroot Ubuntu-14.04, any Linux, sudo/doas) — see the Full-OE path below + `docs/OE-BUILD.md`. | R3 |
-| **Physical device** | Install + run each `.ipk` on the **TouchPad** and **TouchPad Go**; verify launch, render-on-screen via the adapter, navigation, scroll, tap. Cert/dialog/download flows with device services. | R4, R6 `[human-review on device]` |
-| **Memory budget** | Render-process memory within the 1 GB device budget; freeze/purge reclaim; no OOM in a browsing scenario. | R5 `[human-review on device]` |
+Which requirements are met and which still need hardware is tracked per-criterion in
+`context/kits/cavekit-device-build.md` (R1-R10) — not here, so the two cannot drift.
 
-None of these can be executed in this environment: there is **no device sysroot,
-no OE tree, no network for the cross-toolchain, and no TouchPad**. They require
-the user's hardware + SDK. This is the one milestone gated on the device in hand.
+A table in this spot used to restate those requirements and then concluded that there was "no
+device sysroot, no OE tree, no network for the cross-toolchain, and no TouchPad". **Every clause
+of that has been false since 2026-07:** the cross-toolchain is built and in-tree, `oe-env.sh`
+stands up the OE host, and a TouchPad runs all three variants simultaneously. Only **TouchPad Go
+(Opal)** hardware is genuinely still absent.
 
 ## Machine configs — TouchPad (Topaz) vs TouchPad Go (Opal) (R6)
 
@@ -116,7 +99,8 @@ here, not assumed identical.
 | DPI (1280 / inches) | ~132 dpi | ~183 dpi | **no** |
 | SoC | Qualcomm APQ8060 (Scorpion) | APQ8060 family | yes |
 | ABI / tune | ARMv7 softfp, `armv7a-neon` | ARMv7 softfp, `armv7a-neon` | **yes** |
-| Kernel | `2.6.35-palm-tenderloin` (verified) | `2.6.35-palm-opal` (unverified `?=`) | family |
+| Kernel | `2.6.35-palm-tenderloin` (verified) | `2.6.35-palm-shortloin` (pinned 2026-08-15) | family |
+| Board / product name | board `tenderloin`, product `topaz` | board **`shortloin`**, product `opal` | — |
 | webOS | 3.0.5 | 3.0.5 | yes |
 
 ### What differs vs what is shared

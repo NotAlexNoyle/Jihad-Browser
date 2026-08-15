@@ -456,6 +456,13 @@ private:
 
     BrowserOffscreen* mOffscreen0;
     BrowserOffscreen* mOffscreen1;
+    // THIRD shared buffer. With two, the daemon can only paint into the one the adapter is not
+    // holding, so every frame costs a full adapter round trip and roughly a quarter of paint
+    // attempts were refused outright (device: deferred climbed 11 -> 38 -> 77 as the plugin's
+    // draw rate rose while completed paints stayed pinned at ~26/s). A third gives the daemon a
+    // free buffer while the adapter still owns the displayed one. OPTIONAL: if it cannot be
+    // allocated the adapter simply runs on two, exactly as before.
+    BrowserOffscreen* mOffscreen2;
     BrowserOffscreen* mOffscreenCurrent;
 
     QImage* mFrozenSurface;
@@ -466,6 +473,10 @@ private:
     float mFrozenZoomFactor;
 
     bool m_passInputEvents;
+    // JIHAD_TOUCH_EVENTS=1. DOM touch forwarding is new capability that stock never shipped, it
+    // can double-fire against the pen events the same finger already produces, and it has never
+    // run on hardware — so it is off unless the environment asks for it. See doTouchEvent.
+    bool mTouchEventsEnabled;
     bool mFirstPaintComplete; ///< Set once the first non-empty paint has been completed.
     bool mEnableJavaScript;
     bool mBlockPopups;

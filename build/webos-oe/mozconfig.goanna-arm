@@ -64,9 +64,36 @@ ac_add_options --disable-maintenance-service
 ac_add_options --disable-webrtc
 ac_add_options --disable-gamepad
 ac_add_options --disable-jemalloc
-# Headless render daemon: no audio output needed (offscreen render only).
-ac_add_options --disable-alsa
-ac_add_options --disable-pulseaudio
+# Audio OUTPUT for <audio>/<video>. Enabled 2026-08-15; it was --disable-alsa, and the reason
+# given there ("headless render daemon: no audio output needed, offscreen render only") was
+# stale and wrong on its own terms — offscreen rendering concerns the VIDEO surface and says
+# nothing about sound, and this daemon is a browser engine expected to play media.
+#
+# What the flag actually controls: MOZ_ALSA is default-ON for Linux in old-configure.in:2904,
+# and --disable-alsa unset it, so media/libcubeb/src compiled only cubeb.o + cubeb_panner.o —
+# NO backend. cubeb_init's dispatch table was empty and AudioStream::Init returned
+# CUBEB_INITIALIZATION_ERR, i.e. every decoded sample went nowhere. Enabling it compiles
+# cubeb_alsa.c (media/libcubeb/src/moz.build gates it on MOZ_ALSA) and links libxul against
+# libasound. --enable-alsa is passed explicitly rather than just dropping --disable-alsa, so
+# the intent is readable and a future default change upstream cannot silently take it away.
+#
+# Requires alsa.pc + alsa/asoundlib.h + a linkable libasound.so in the sysroot: staged from
+# Debian-Jessie armel libasound2/libasound2-dev 1.0.28-1 (arm-sysroot/debs/), same mechanism
+# as the GTK/cairo/pango libs. Runtime library choice and its ABI reasoning:
+# context/impl/impl-audio-backend.md.
+ac_add_options --enable-alsa
+# PulseAudio: ENABLED 2026-08-15. The comment that used to sit here — "the ALSA default PCM
+# already routes into pulse anyway" — was DISPROVEN on device: an ALSA-created stream (ours AND
+# stock `aplay -D media`) lands on the pcm_output hardware sink and is MUTED to 0% by
+# module-palm-policy ("THE DEFAULT DEVICE WAS USED TO CREATE THIS STREAM - PLEASE CATEGORIZE USING
+# A VIRTUAL STREAM"). webOS powers the codec route only for a stream CREATED on a virtual sink
+# (pmedia), which the ALSA pulse plugin cannot target. cubeb_pulse CAN: it calls
+# pa_stream_connect_playback with an explicit sink name. So the engine needs the pulse backend
+# with the sink set to "pmedia" (patch 0030 + JIHAD_PULSE_SINK). cubeb_pulse dlopens libpulse.so.0
+# at runtime (no link dep) — the device's own 0.9.22 libpulse has all 62 symbols cubeb needs
+# (verified). Headers are pulse 0.9.22 staged in the sysroot to match the device ABI, NOT Jessie's
+# 5.0. Full analysis: context/impl/impl-audio-backend.md §"FULLY RESOLVED 2026-08-15".
+ac_add_options --enable-pulseaudio
 # No dbus in the sysroot / on the device; necko-wifi needs dbus on Linux.
 ac_add_options --disable-dbus
 ac_add_options --disable-necko-wifi

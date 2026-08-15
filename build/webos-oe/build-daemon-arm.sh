@@ -31,6 +31,12 @@ GLIB=$(pkg-config --cflags glib-2.0 gthread-2.0);  GLIBL=$(pkg-config --libs gli
 ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr"
 YAPINC="-I$BS/Yap -I$BS/Src"
 
+# BrowserServerBase.cpp is GENERATED and its 0x1600 arm is hand-written, so a regeneration
+# silently drops it and the third framebuffer stops being accepted. Nothing about that fails
+# to compile, so it has to be checked as text. Exit 9 is otherwise unused here.
+echo "== [ARM] YAP wire-contract guard =="
+bash /jihad/build/webos-oe/check-yap-contract.sh /jihad || exit 9
+
 echo "== [ARM] libYap + BrowserServerBase =="
 for f in YapPacket YapProxy YapServer; do
   $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/Yap/$f.cpp" -o "/out/arm-$f.o" || exit 10
@@ -38,9 +44,18 @@ done
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/Src/BrowserServerBase.cpp" -o /out/arm-BrowserServerBase.o || exit 11
 
 echo "== [ARM] Goanna backend =="
-for f in EngineHost DialogService DownloadService GoannaRenderPage BrowserPageGoanna; do
+for f in EngineHost DialogService DownloadService JihadCertStore GoannaRenderPage BrowserPageGoanna; do
   $CXX $CXXFLAGS $ENGINC $YAPINC $GLIB -c "$R/goanna/$f.cpp" -o "/out/arm-$f.o" || exit 12
 done
+
+echo "== [ARM] PmLogLib named-semaphore interposition =="
+# Plain C, and it must live in the PROGRAM IMAGE rather than in any library: a plugin
+# dlopened later resolves its PLT against the global scope, which the executable heads.
+# Without it the daemon's plugin scan dlopens the device's Flash, PmLogLib's constructor
+# sem_wait()s a glibc-2.8-created named semaphore our glibc 2.23 reads as empty, and the
+# daemon deadlocks before it has logged a single line. See render/goanna/JihadPmLogSem.c.
+CC=/tc/bin/arm-webos-linux-gnueabi-gcc
+$CC -std=gnu99 -fPIC -Os -g0 $ARMFLAGS -c "$R/goanna/JihadPmLogSem.c" -o /out/arm-JihadPmLogSem.o || exit 14
 
 echo "== [ARM] JihadBrowserServer + Main =="
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/arm-JihadBrowserServer.o || exit 15
@@ -49,9 +64,10 @@ $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/Main.cpp" -o /out/arm-bs_main.o || 
 
 echo "== [ARM] linking jihad-browserserver-arm =="
 $CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-JihadLunaService.o /out/arm-BrowserServerBase.o \
+     /out/arm-JihadPmLogSem.o \
      /out/arm-YapPacket.o /out/arm-YapProxy.o /out/arm-YapServer.o \
      /out/arm-BrowserPageGoanna.o /out/arm-GoannaRenderPage.o /out/arm-EngineHost.o \
-     /out/arm-DialogService.o /out/arm-DownloadService.o \
+     /out/arm-DialogService.o /out/arm-DownloadService.o /out/arm-JihadCertStore.o \
      "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -Wl,-rpath-link,"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \
      -lnspr4 -lplc4 -lplds4 $SYSLIB $GLIBL -ldl -lpthread \
      -o "$OUT" || exit 17

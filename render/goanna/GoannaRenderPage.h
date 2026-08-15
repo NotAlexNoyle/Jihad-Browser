@@ -19,6 +19,9 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
+
+#include "JihadCertStore.h"   // jihad::certstore::Problem (R5 cert-error description)
 
 typedef struct _GtkWidget GtkWidget;
 class nsIWidget;              // opaque; the offscreen PuppetWidget handle (see GoannaRenderPage.cpp)
@@ -70,6 +73,37 @@ std::string DebugGetTitle();
 // nothing about why.
 std::string DebugElementRect(const char* elementId);
 
+// DEBUG ONLY: write a pref from the inject channel. `type` is 'b', 'i' or 's'.
+//
+// This exists because there was NO WAY to write a pref from a test, and the absence was only
+// noticed after a whole device run was wasted on it (2026-08-10, T-132). The obvious route —
+// a `jsurl` javascript: URL calling Components.classes["@mozilla.org/preferences-service;1"] —
+// runs with the system PRINCIPAL but in a CONTENT scope, where `Components` is not exposed at
+// all, so the probe silently did nothing and the run looked like a negative result about the
+// shutdown flush. The daemon is in-process with libxul and already holds nsIPrefBranch, so
+// doing it here is both correct and trivial. Returns false if the pref service is unavailable
+// or the type letter is unknown.
+bool DebugSetPref(const char* name, char type, const char* value);
+// DEBUG ONLY: read a pref back as text, so a test can assert on what it just wrote without
+// depending on the page. Empty string when the pref does not exist.
+std::string DebugGetPref(const char* name, char type);
+
+// DEBUG ONLY: report an element's NATIVE ANONYMOUS CONTENT — the only honest way to ask
+// "did this XBL binding actually attach". Returns "NAC:<n> <name>[<k>],…", where n is the
+// element's native-anonymous child count and k is each child's own flattened-children count;
+// k > 0 IS "an XBL binding attached to that child". "?" when there is no such element.
+//
+// READ THE .cpp BEFORE CHANGING THIS. Two earlier shapes of this probe reported a null as a
+// negative RESULT when it was a limitation of the accessor, and the second of those was
+// published as the finding "videocontrols does not attach" — later overturned by a screenshot.
+// Nothing that bottoms out in nsIDOMDocumentXBL can see native anonymous content.
+//
+// Page JS cannot answer this either: `document.getAnonymousNodes` is not exposed to script here
+// even with the system principal (measured on device 2026-08-10, T-125 — it throws
+// "not a function"), and the `controls` DOM attribute reflects whether or not a binding bound,
+// so it proves nothing.
+std::string DebugAnonNodes(const char* selector);
+
 // DEBUG ONLY: click an element by id at its own centre, in the viewport CSS space, so a
 // test does not have to undo the daemon's zoom/scroll mapping to hit a known control.
 bool DebugClickElement(const char* elementId, int clickCount = 1);
@@ -120,6 +154,29 @@ public:
   // not from the raw adapter scroll, so the header always describes the rendered pixels.
   void GetRenderPan(double* x, double* y) const { if (x) *x = mPanX; if (y) *y = mPanY; }
 
+  // The bounding box of everything the engine invalidated since the last call, in viewport
+  // device px, drained. False when nothing changed. Lets the caller repaint only those rows
+  // instead of the whole viewport — the difference between ~20 fps and 30 fps for animated
+  // content on this hardware.
+  bool TakeDirtyRect(int* x, int* y, int* w, int* h);
+
+  // Tell every running NPAPI plugin that the card has entered/left the plugin spotlight
+  // (webOS fullscreen). Rect is in VIEWPORT CSS px, absolute edges. Returns how many
+  // instances were told — 0 means no plugin is running, which the caller should log rather
+  // than treat as success.
+  int SetPluginSpotlight(bool on, int left, int top, int right, int bottom);
+
+  // One running NPAPI plugin's on-screen box, in VIEWPORT CSS px (getBoundingClientRect
+  // space). Used to emit the frozen interactive-rect messages (YAP 0x2037/0x2038).
+  struct PluginRect {
+    void* key;                 // element identity across ticks; never dereferenced
+    float left, top, width, height;
+  };
+  // Every <embed>/<object>/<applet> in the content document whose plugin is actually
+  // RUNNING. Flushes layout (getBoundingClientRect does), so the caller rate-limits.
+  // Returns false if there is no document to ask.
+  bool CollectPluginRects(std::vector<PluginRect>* out);
+
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);
   // Parsed viewport meta info (for meta-viewport events). Any out-ptr may be null.
@@ -142,7 +199,23 @@ public:
   void ClearHistory();   // YAP: clearHistory — purge session history
 
   // Pump the event loop for up to msBudget milliseconds (paint/idle work).
+  // SPENDS the budget: it keeps spinning even with an empty queue, which is what a caller
+  // waiting on a load or a timer wants. Do NOT use it from the tick — see PumpReady.
   void PumpFor(int msBudget);
+
+  // Drain what the engine already has ready, then return. Same work as PumpFor, opposite
+  // contract about time: it never sleeps and stops as soon as the queue is empty.
+  void PumpReady(int msBudget);
+
+  // Monotonic count of plugin frames delivered into this process. The embedder compares it
+  // against the value it saw at its last publish to tell a NEW plugin frame from a repeat,
+  // which the sticky dirty flag cannot express. 0 if the engine does not provide it.
+  uint32_t PluginFrameSeq();
+
+  // Pull: ask every live plugin for one frame. Called right after a card frame is published, so
+  // the plugin's draw clock IS the daemon's publish clock instead of a second free-running one.
+  // Returns the number of instances asked; 0 if the engine does not support the pull.
+  int RequestPluginFrame();
 
   // --- input synthesis (YAP: clickAt/keyDown/keyUp/mouseEvent) ---
   // Synthesize DOM events at content coordinates via nsIDOMWindowUtils.
@@ -164,12 +237,19 @@ public:
   // driven focus moves and blurs now drive msgEditorFocused without a tap. Change-only emission
   // + the Atlas autofocus gate (no VKB raise before the first tap on a page). Device T4.
   void PollEngineFocus();
+  // True once per same-document location change (fragment edit, pushState/replaceState), which
+  // produces no load lifecycle and so no completion boundary. Drains the flag.
+  bool TakeSameDocumentLocation();
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
   void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
-  void TouchEvent(const char* type, int x, int y);
+  // Both forms RETURN the preventDefault result of sendTouchEventToWindow, i.e. "the page
+  // consumed this gesture". That is the only signal the double-activation suppressor in
+  // BrowserPageGoanna has: on this platform the same finger also produces pen events, which
+  // arrive as a SEPARATE YAP command that the engine cannot know is related.
+  bool TouchEvent(const char* type, int x, int y);
   // Multi-point form. A pinch is two points that move relative to each other, so a
   // single-point touch API cannot express one at all.
-  void TouchEvent(const char* type, const int* xs, const int* ys, int count); // single-touch "touchstart"/"touchmove"/"touchend"
+  bool TouchEvent(const char* type, const int* xs, const int* ys, int count); // "touchstart"/"touchmove"/"touchend"
   void InsertText(const char* text);               // insert at caret (YAP: insertStringAtCursor)
   void DeleteBackward();                            // Backspace: delete the char before the caret
   void DeleteBackwardWord();                        // accelerated Backspace: delete a word before caret
@@ -274,7 +354,18 @@ public:
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);
-  bool AcceptCurrentCert();
+  // aPermanent mirrors the card's answer: "1" (Trust Always) writes a PERMANENT
+  // override, which is the only form that survives a daemon restart in Goanna's
+  // own store; "2" (Trust Once) keeps the temporary one. Defaulted so callers
+  // that only ever meant "once" (the TLS harness) read the same as before.
+  bool AcceptCurrentCert(bool aPermanent = false);
+  // Raw DER of the certificate the failing handshake presented, for armouring
+  // into the PEM that both the card's View Certificate button and the platform
+  // store want. False when no certificate was captured.
+  bool GetCertDer(std::string* der);
+  // What is actually wrong with that certificate, for choosing the card's
+  // message. False when the last load had no cert error.
+  bool GetCertProblem(jihad::certstore::Problem* out);
   // Identity of this page's root content docShell, as an opaque token (F-1). The
   // process-wide download service reports the same token as a download's origin
   // (jihad::DownloadOrigin), so the daemon can route msgDownload* back to the
@@ -304,7 +395,7 @@ private:
   std::string mSelectPopupJson;               // options serialized for the card
   std::string mSelectPopupId;                 // id echoed back by popupMenuSelect
   bool mSelectPopupPending = false;           // a popup is queued for the daemon to emit
-  long mSelectPopupMs = 0;                     // last-build time (dedup the raw+gesture double tap)
+  int64_t mSelectPopupMs = 0;                     // last-build time (dedup the raw+gesture double tap)
   // Raw ptr, not nsCOMPtr: this header keeps XPCOM types opaque (forward-decl only). AddRef'd
   // in BuildSelectPopup, Release'd in SetSelectPopupEl/ApplySelectPopup/BeginLoad/dtor.
   nsIDOMHTMLSelectElement* mSelectPopupEl = nullptr;  // held until the choice returns / nav
@@ -327,14 +418,14 @@ private:
   // records the down/up pair; ClickAt() suppresses its own duplicate activation when the pair
   // it matches already delivered a real click. See the block comment in ClickAt().
   int  mRawDownX = 0, mRawDownY = 0;
-  long mRawDownMs = 0;              // >0 while a raw mousedown is unmatched by an up
+  int64_t mRawDownMs = 0;              // >0 while a raw mousedown is unmatched by an up
   int  mRawClickX = 0, mRawClickY = 0;
   // A XUL popup opened at this time/point (jihad_offscreen_composite_popups draws it).
   // One physical tap is delivered TWICE, so without this the duplicate re-hits the anchor
   // and shuts the menu the first delivery just opened — see ClickAt.
-  long mPopupOpenMs = 0;
+  int64_t mPopupOpenMs = 0;
   int mPopupOpenX = 0, mPopupOpenY = 0;
-  long mRawClickMs = 0;             // >0 when a raw down+up pair completed and no clickAt consumed it
+  int64_t mRawClickMs = 0;             // >0 when a raw down+up pair completed and no clickAt consumed it
   // Focused element at the raw mousedown, for the F-7 "focus actually CHANGED" test on the raw
   // path. COMPARED ONLY, never dereferenced (same rule as DocShellKey) — it may be dead by then.
   const void* mRawFocusBefore = nullptr;

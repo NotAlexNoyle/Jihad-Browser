@@ -1,0 +1,50 @@
+# Jihad Browser — crosstool-NG override fragment for the webOS-3 TouchPad target.
+# Appended on top of the `arm-unknown-linux-gnueabi` sample, then normalised with
+# `ct-ng olddefconfig`. Each override is: unset the sample's choice, set ours.
+#
+# Target facts (all verified on-device 2026-07-02):
+#   armv7-a, NEON, SOFTFP (loader /lib/ld-linux.so.3), glibc 2.8, kernel 2.6.35.
+# Constraints:
+#   * UXP/Goanna needs GCC >= 9.1            -> GCC 9.
+#   * glibc >= 2.26 requires Linux >= 3.2    -> glibc 2.25 (newest allowed here).
+#   * device kernel 2.6.35                   -> --enable-kernel = 2.6.32 (glibc 2.25 floor).
+# The resulting glibc (2.25) is NEWER than the device's 2.8, so the daemon ipk
+# BUNDLES this glibc + its loader and launches via it (device libs built for 2.8
+# resolve fine against 2.25 — backward compatible).
+
+# --- target triple: arm-webos-linux-gnueabi (matches mozconfig --target=) ---
+CT_TARGET_VENDOR="webos"
+
+# --- CPU / FPU / float ABI: ARMv7-A + NEON, SOFTFP (not soft, not hard) ---
+CT_ARCH_ARCH="armv7-a"
+CT_ARCH_FPU="neon"
+# CT_ARCH_FLOAT_SW is not set
+CT_ARCH_FLOAT_SOFTFP=y
+
+# --- Linux kernel headers: 4.4 LTS (safe for glibc 2.25; >= min-kernel) ---
+# CT_LINUX_V_5_16 is not set
+CT_LINUX_V_4_4=y
+
+# --- glibc 2.23: newest glibc whose ARM kernel floor is <= device kernel ---
+# glibc >= 2.24 hard-floors arch_minimum_kernel at 3.2.0 (verified in-source), so a
+# 2.24/2.25 build refuses to load on the device's 2.6.35 ("FATAL: kernel too old").
+# glibc 2.23's floor is 2.6.32 (<= 2.6.35 OK) and it is still >= 2.18, so it provides
+# the GLIBC_2.16/2.17/2.18 symbols GCC 9's libstdc++ requires. Pinned here.
+# CT_GLIBC_V_2_35 is not set
+CT_GLIBC_V_2_23=y
+# CT_GLIBC_KERNEL_VERSION_AS_HEADERS is not set
+CT_GLIBC_KERNEL_VERSION_CHOSEN=y
+CT_GLIBC_MIN_KERNEL_VERSION="2.6.32"
+
+# --- GCC 9 (>= 9.1 required by UXP; best compat for building glibc 2.25) ---
+# CT_GCC_V_11 is not set
+CT_GCC_V_9=y
+
+# --- ensure C++ is built (libxul needs the target C++ runtime) ---
+CT_CC_LANG_CXX=y
+
+# --- glibc 2.25 (2017) vs GCC 9 (2019): GCC 9 promotes new warnings to errors
+# (-Werror=missing-attributes, stringop-overflow, ...) that old glibc trips on.
+# Disable glibc's -Werror so those stay warnings and the build completes. ---
+# CT_GLIBC_ENABLE_WERROR is not set
+CT_GLIBC_EXTRA_CFLAGS="-Wno-error"

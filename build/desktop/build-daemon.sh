@@ -32,6 +32,7 @@ echo "== compiling Goanna backend =="
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/EngineHost.cpp"        -o /out/EngineHost.o        || exit 12
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/DialogService.cpp"     -o /out/DialogService.o     || exit 12
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/DownloadService.cpp"     -o /out/DownloadService.o     || exit 12
+$CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/JihadCertStore.cpp"    -o /out/JihadCertStore.o    || exit 12
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/GoannaRenderPage.cpp"  -o /out/GoannaRenderPage.o  || exit 13
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/BrowserPageGoanna.cpp" -o /out/BrowserPageGoanna.o || exit 14
 
@@ -43,7 +44,7 @@ $CXX $CXXFLAGS $YAPINC $ENGINC $GTK_CFLAGS $GLIB -c "$BS/Main.cpp" -o /out/bs_ma
 echo "== linking jihad-browserserver =="
 $CXX /out/bs_main.o /out/JihadBrowserServer.o /out/JihadLunaService.o /out/BrowserServerBase.o \
      /out/YapPacket.o /out/YapProxy.o /out/YapServer.o \
-     /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o \
+     /out/BrowserPageGoanna.o /out/GoannaRenderPage.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o /out/JihadCertStore.o \
      "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \
      -lnspr4 -lplc4 -lplds4 $GTK_LIBS $GLIBL -Wl,-rpath,"$DIST/bin" -ldl -lpthread \
      -o "$OUT" || exit 17

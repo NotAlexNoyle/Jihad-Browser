@@ -157,6 +157,7 @@ HL=$DR/hl
 SHIM=/usr/lib/BrowserPlugins/@@SHIM@@
 IMPLDIR=/usr/lib/jihad/@@V@@
 IMPL=$IMPLDIR/BrowserAdapterImpl.so
+RECTSCHEMA=$IMPLDIR/InteractiveWidgetRect.schema
 JOB=/etc/event.d/@@JOB@@
 STATE=/var/palm/jihad/@@V@@
 log() { echo "jihad-postinst($V): $*"; }
@@ -215,6 +216,18 @@ cp -a "$APP/BrowserAdapterImpl.so" "$IMPL"
 # refuse to load its own implementation.
 chown 0:0 "$IMPL" 2>/dev/null || true
 chmod 0644 "$IMPL"
+# The interactive-widget-rect JSON schema, NEXT TO the impl because the impl finds it with
+# dladdr on itself (jihadAppFile in BrowserAdapter.cpp). The adapter validates every
+# msgAddFlashRects payload against this file and DROPS the whole message if it cannot be
+# read, so a missing schema turns plugin input arbitration off with no error anywhere.
+# Stock webOS 3.0.5 ships only HitTest.schema in /etc/palm/browser — this one is simply not
+# on the device — and /etc is the read-only system rootfs, outside this variant's footprint
+# (R8). Hence a private copy here, which the prerm removes with everything else.
+if [ -f "$APP/conf/InteractiveWidgetRect.schema" ]; then
+  cp -a "$APP/conf/InteractiveWidgetRect.schema" "$RECTSCHEMA"
+  chown 0:0 "$RECTSCHEMA" 2>/dev/null || true
+  chmod 0644 "$RECTSCHEMA"
+fi
 # ── this variant's OWN Luna service name (cavekit-ipc-contract.md R4) ────────────────────────
 # The app clears cache/cookies over the Luna bus. Upstream calls `palm://com.palm.browserServer/`,
 # which is the STOCK daemon — on a device with Jihad installed that call succeeds and clears the
@@ -245,7 +258,7 @@ mkdir -p /usr/share/ls2/roles/prv /usr/share/ls2/roles/pub \
 # own C parser. ls-hubd is load-bearing for boot: if it rejects a role file it can take the whole
 # UI down with it. One line has no column-0 brace and no leading whitespace, so neither parser
 # has anything to object to.
-printf '%s' "{\"role\":{\"exeName\":\"$LSEXE\",\"type\":\"regular\",\"allowedNames\":[\"$LSNAME\",\"\"]},\"permissions\":[{\"service\":\"$LSNAME\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]}]}" \
+printf '%s' "{\"role\":{\"exeName\":\"$LSEXE\",\"type\":\"regular\",\"allowedNames\":[\"$LSNAME\",\"com.palm.flashgraphics\",\"\"]},\"permissions\":[{\"service\":\"$LSNAME\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]},{\"service\":\"com.palm.flashgraphics\",\"inbound\":[\"*\"],\"outbound\":[\"*\"]}]}" \
   > /usr/share/ls2/roles/prv/$LSNAME.json
 cp -a /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json
 # Type=static: upstart already runs the daemon, so the bus must never try to spawn it.
@@ -263,7 +276,27 @@ chmod 0644 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAM
            /usr/share/dbus-1/system-services/$LSNAME.service \
            /usr/share/dbus-1/services/$LSNAME.service
 # ls-hubd reads roles at startup, so the service becomes reachable after the reboot this
-# postinst already asks for — not the moment these files land.
+# postinst already asks for — not the moment these files land. It can also be done live, with
+# no reboot: `ls-control scan-services` is nothing but `kill -HUP $(pidof ls-hubd)`, and the hub
+# re-reads its whole config including roles. Verified 2026-08-07 (bus stayed healthy across it).
+#
+# ── WHY com.palm.flashgraphics IS IN allowedNames ────────────────────────────────────────────
+# The device's Flash plugin calls LSRegisterPalmService("com.palm.flashgraphics") and attaches
+# that service to the GMainLoop the host hands it via npPalmEventLoopValue; its whole startup
+# (getPreferences, display status, db find) runs over that connection. Stock webOS grants the
+# name in com.palm.browserServer.json because Flash ran IN-PROCESS in /usr/bin/BrowserServer.
+# We run it out-of-process in plugin-container, but plugin-container and the daemon both exec
+# through the SAME bundled ld-2.23.so, so the hub resolves both to this one role — granting it
+# here covers the plugin child. Without it the hub answers -1027 "Invalid permissions", Flash
+# never gets a service handle, nothing is ever attached to the loop, and the player never
+# starts its frame clock. Measured 2026-08-07: adding the name turned
+# registerServerStatus{com.palm.flashgraphics} from connected:false to connected:true and made
+# the child's glib pump run sources for the first time.
+#
+# The name is not exclusive to us: stock com.palm.browserServer.json also allows it, and only
+# one process can hold a bus name at a time. Whoever instantiates Flash first wins; the other
+# gets -1027. Acceptable — the stock browser and this one are not expected to play Flash
+# simultaneously — but it is why this is first-come-first-served rather than a hard conflict.
 
 # ── REGISTER THIS VARIANT'S db8 KINDS (2026-08-05) ───────────────────────────────────────────
 # The installer does NOT do this for us. Measured on the supported path: after installing Mochi
@@ -384,6 +417,7 @@ emit_prerm() {
 # ON A REAL REMOVAL it removes EXACTLY what this variant's postinst created, and nothing else:
 #   /usr/lib/BrowserPlugins/@@SHIM@@
 #   /usr/lib/jihad/@@V@@/BrowserAdapterImpl.so   (+ the now-empty /usr/lib/jihad/@@V@@)
+#   /usr/lib/jihad/@@V@@/InteractiveWidgetRect.schema
 #   /etc/event.d/@@JOB@@
 #   /var/palm/jihad/@@V@@/                       (the runtime state dir, log included)
 #   $APP/profile/                                (the engine's DURABLE profile: cookies.sqlite,
@@ -419,6 +453,7 @@ HL=$APP/deviceroot/hl
 SHIM=/usr/lib/BrowserPlugins/@@SHIM@@
 IMPLDIR=/usr/lib/jihad/@@V@@
 IMPL=$IMPLDIR/BrowserAdapterImpl.so
+RECTSCHEMA=$IMPLDIR/InteractiveWidgetRect.schema
 JOB=/etc/event.d/@@JOB@@
 SOCK=/tmp/yapserver.@@YAP@@
 STATE=/var/palm/jihad/@@V@@
@@ -517,6 +552,7 @@ else
 fi
 rm -f "$SHIM"
 rm -f "$IMPL"
+rm -f "$RECTSCHEMA"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone
 # De-register this variant's db8 kinds — they are ours, and leaving them behind is residue of
@@ -653,6 +689,26 @@ script
 	mkdir -p "$STATE" 2>/dev/null || true
 	LOG=$STATE/daemon.log
 	touch "$LOG" 2>/dev/null || LOG=/dev/null
+
+	# Cap the log. /var is a 62 MB partition shared with db8, luna preferences and tokens, and
+	# on 2026-08-06 the three variants' logs reached 55 MB of it and took /var to 100% full.
+	# A full /var does not announce itself: every fprintf(stderr) in the daemon then fails with
+	# ENOSPC SILENTLY, so the log freezes at a byte count while the daemon keeps serving pages
+	# normally — and a frozen log reads exactly like a live one. A stale line read out of one
+	# cost the previous session a whole false diagnosis. Rotate at 2 MB keeping one generation,
+	# so the worst case across three variants is 12 MB rather than the whole partition.
+	if [ "$LOG" != /dev/null ]; then
+		LOGMAX=2097152
+		# `tr -d ' '`: some wc builds pad the count, and a padded value makes `[ -ge ]` fail
+		# with "integer expression expected" — which would abort this script and, because it
+		# runs before the exec, take the whole job down. Never let logging kill the daemon.
+		SZ=$(wc -c < "$LOG" 2>/dev/null | tr -d ' \t') || SZ=0
+		case "$SZ" in ''|*[!0-9]*) SZ=0 ;; esac
+		if [ "$SZ" -ge "$LOGMAX" ]; then
+			mv -f "$LOG" "$LOG.old" 2>/dev/null || true
+			: > "$LOG" 2>/dev/null || true
+		fi
+	fi
 	exec >>"$LOG" 2>&1
 
 	# Only this variant's own socket — an exact path, never `…jihad-browser*`, which would
@@ -694,6 +750,23 @@ script
 	         JIHAD_BS_NAME=@@YAP@@ JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
 	         JIHAD_STATE_DIR="$STATE" \
 	    ./ld-2.23.so --library-path "$HL" ./jihad-browserserver "$HL"
+end script
+
+# The daemon raises the CPU governor's responsiveness while a plugin instance is alive and lowers
+# it again on teardown (libxul patch 0027). Those are SYSTEM-WIDE tunables, so a daemon that dies
+# holding the boost — a crash, an upstart kill, a `stop` mid-playback — would leave the WHOLE
+# device tuned for battery burn with nothing owning it. This restores the stock values
+# unconditionally on the way out; it is a no-op when the daemon already released them, and it must
+# stay cheap and never fail the job.
+#
+# NEVER write scaling_governor here or anywhere else: switching away from `ondemandtcl` deadlocks
+# cpufreq in the kernel and every later reader blocks in unkillable D state, which takes a forced
+# reboot to clear. Writing the governor's own tunables, as below, is safe.
+post-stop script
+	D=/sys/devices/system/cpu/cpufreq/ondemandtcl
+	[ -w "$D/up_threshold" ] && echo 95 > "$D/up_threshold" 2>/dev/null
+	[ -w "$D/sampling_rate" ] && echo 200000 > "$D/sampling_rate" 2>/dev/null
+	true
 end script
 
 respawn

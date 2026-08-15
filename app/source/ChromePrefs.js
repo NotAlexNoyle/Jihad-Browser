@@ -15,9 +15,14 @@
 // `getChromePrefs`, but it registers on the private bus and this card is on the public one,
 // so the call never arrives. See cavekit-preferences-ui.md R5.
 //
-// NOTE the page->card leg is NOT working yet: the ref is not reaching the card, so this
-// cache currently only ever holds what the card itself last stored (defaults, on a fresh
-// profile). Nothing here is added to the frozen callBrowserAdapter set.
+// The page->card leg WORKS as of 2026-08-06 (device-verified end to end: a real click on the
+// page's own control -> publishToFragment -> daemon same-document location change ->
+// msgTitleAndUrlChanged -> here). It needed a body in PageChrome::OnLocationChange, because a
+// fragment rewrite is a SAME-DOCUMENT navigation and so produces no load lifecycle for the
+// daemon's completion boundary to report from. The earlier note here — "the ref is not reaching
+// the card" — was WRONG and is corrected: the ref was always delivered on a real load; the
+// evidence for it was a stale daemon.log line, frozen because /var had filled up.
+// Nothing here is added to the frozen callBrowserAdapter set.
 
 enyo.jihadChrome = (function () {
 	var KEY = "jihad.chromeSettings";
@@ -71,6 +76,20 @@ enyo.jihadChrome = (function () {
 		HOME_DEFAULT: HOME_DEFAULT,
 		defaultLinks: defaultLinks,
 
+		//* True when this url is the settings page (path only — see adoptFromUrl for why the
+		//* scheme alone is not safe). Shared by the adopt gate and the diagnostic log so the
+		//* two can never disagree about what counts as the settings page.
+		isSettingsUrl: function (url) {
+			var base = url ? String(url).split("#")[0] : "";
+			return base === "about:preferences" || base === "about:settings";
+		},
+
+		//* How many shortcut rows the cache currently holds. For logging the SHAPE of an
+		//* adopted payload without logging the user's urls.
+		linkCount: function () {
+			return this.load().startLinks.length;
+		},
+
 		//* Immediate, from cache. Never empty: defaults until the first read lands.
 		loadLinks: function () {
 			return this.load().startLinks;
@@ -115,8 +134,7 @@ enyo.jihadChrome = (function () {
 			// target runs script in page context (the daemon's url fixup passes javascript:
 			// through). Only the settings page may hand us settings. Caught in review
 			// 2026-08-06, before the ref-delivery fix that would have armed it.
-			var base = url ? String(url).split("#")[0] : "";
-			if (base !== "about:preferences" && base !== "about:settings") { return false; }
+			if (!this.isSettingsUrl(url)) { return false; }
 			var m = /[#&]chrome=([^&]*)/.exec(String(url));
 			if (!m) { return false; }
 			var o = null;

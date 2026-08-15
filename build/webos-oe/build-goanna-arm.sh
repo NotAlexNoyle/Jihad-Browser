@@ -90,7 +90,10 @@ if [ "$STAGE" = build ] || [ "$STAGE" = all ]; then
     # device bundle copies. Same "believe the artifact" rule, applied to the right artifact.
     for p in /cfg/patches/*.patch; do
       [ -e "$p" ] || continue
-      grep -E '^\+\+\+ b/.*\.(js|jsm)$' "$p" | sed 's|^+++ b/||' | while read -r f; do
+      # `|| true`: a patch with no JS hunks makes grep exit 1, which pipefail+errexit
+      # would promote into silently killing the script before "done" ever prints —
+      # 27 of 29 patches have no JS, so this fired on EVERY run until 2026-08-15.
+      { grep -E '^\+\+\+ b/.*\.(js|jsm)$' "$p" || true; } | sed 's|^+++ b/||' | while read -r f; do
         base=$(basename "$f")
         found=$(find /out/obj-jihad-goanna-arm/dist/bin -name "$base" 2>/dev/null | head -1)
         if [ -n "$found" ] && [ "/src/uxp/$f" -nt "$found" ]; then

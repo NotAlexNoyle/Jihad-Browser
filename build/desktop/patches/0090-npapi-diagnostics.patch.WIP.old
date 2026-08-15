@@ -1,0 +1,1431 @@
+diff --git a/dom/base/nsObjectLoadingContent.cpp b/dom/base/nsObjectLoadingContent.cpp
+index 986468b139..0b8eef187e 100644
+--- a/dom/base/nsObjectLoadingContent.cpp
++++ b/dom/base/nsObjectLoadingContent.cpp
+@@ -787,6 +787,12 @@ nsresult
+ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+ {
+ #ifdef MOZ_ENABLE_NPAPI
++  // JIHAD DIAGNOSTIC (R7): entry + the four early-out conditions. If this line never appears the
++  // plugin was never asked for at all (no nsPluginFrame -> no HasNewFrame), which is a different
++  // bug from being asked for and refused.
++  fprintf(stderr, "[jihad-npapi] InstantiatePluginInstance(aIsLoading=%d) owner=%d type=%d "
++          "mIsLoading=%d instantiating=%d\n", (int)aIsLoading, (int)!!mInstanceOwner,
++          (int)mType, (int)mIsLoading, (int)mInstantiating);
+   if (mInstanceOwner || mType != eType_Plugin || (mIsLoading != aIsLoading) ||
+       mInstantiating) {
+     // If we hit this assertion it's probably because LoadObject re-entered :(
+@@ -822,9 +828,13 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   NS_ENSURE_TRUE(mInstantiating, NS_OK);
+ 
+   if (!thisContent->GetPrimaryFrame()) {
++    // JIHAD DIAGNOSTIC (R7): a silent NS_OK return — the single most likely place for a plugin
++    // to "do nothing" with no error anywhere.
++    fprintf(stderr, "[jihad-npapi] NO PRIMARY FRAME -> not instantiating\n");
+     LOG(("OBJLC [%p]: Not instantiating plugin with no frame", this));
+     return NS_OK;
+   }
++  fprintf(stderr, "[jihad-npapi] have primary frame, calling pluginHost\n");
+ 
+   nsresult rv = NS_ERROR_FAILURE;
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+@@ -846,6 +856,8 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   rv = pluginHost->InstantiatePluginInstance(mContentType,
+                                              mURI.get(), this,
+                                              getter_AddRefs(newOwner));
++  fprintf(stderr, "[jihad-npapi] pluginHost->InstantiatePluginInstance rv=0x%x owner=%d\n",
++          (unsigned)rv, (int)!!newOwner);
+ 
+   // XXX(johns): We don't suspend native inside stopping plugins...
+   if (appShell) {
+@@ -2378,6 +2390,11 @@ nsObjectLoadingContent::LoadObject(bool aNotify,
+   FallbackType clickToPlayReason;
+   if (!mActivated && (mType == eType_Null || mType == eType_Plugin) &&
+       !ShouldPlay(clickToPlayReason, false)) {
++    // JIHAD DIAGNOSTIC (R7): this is where a plugin that resolved fine is silently demoted to
++    // eType_Null. Every path out of ShouldPlay that returns false lands here, so one line here
++    // names the reason instead of instrumenting each exit.
++    fprintf(stderr, "[jihad-npapi] demoted to fallback: mType=%d fallbackReason=%d\n",
++            (int)mType, (int)clickToPlayReason);
+     LOG(("OBJLC [%p]: Marking plugin as click-to-play", this));
+     mType = eType_Null;
+     fallbackType = clickToPlayReason;
+@@ -2887,9 +2904,16 @@ nsObjectLoadingContent::GetTypeOfContent(const nsCString& aMIMEType)
+ 
+ #ifdef MOZ_ENABLE_NPAPI
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+-  if ((caps & eSupportPlugins) &&
+-      pluginHost &&
+-      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone)) {
++  bool jihadHave = pluginHost &&
++      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone);
++  // JIHAD DIAGNOSTIC (R7 windowless port): says, for one MIME type, whether the element
++  // advertised plugin capability and whether the host has a plugin — the two facts that decide
++  // if the NPAPI subsystem is entered at all. Added because a plugin that never instantiates
++  // produces NO plugin logging whatsoever, which is indistinguishable from one that was never
++  // asked for.
++  fprintf(stderr, "[jihad-npapi] GetTypeOfContent mime=%s caps=0x%x supportsPlugins=%d have=%d\n",
++          nsCString(aMIMEType).get(), caps, (int)!!(caps & eSupportPlugins), (int)jihadHave);
++  if ((caps & eSupportPlugins) && jihadHave) {
+     // ShouldPlay will handle checking for disabled plugins
+     return eType_Plugin;
+   }
+@@ -3486,9 +3510,15 @@ nsObjectLoadingContent::ShouldPlay(FallbackType &aReason, bool aIgnoreCurrentTyp
+   aReason = eFallbackClickToPlay;
+ 
+   uint32_t enabledState = nsIPluginTag::STATE_DISABLED;
+-  pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
++  nsresult jihadStateRv = pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
+                               &enabledState);
++  // JIHAD DIAGNOSTIC (R7): note that enabledState is pre-set to STATE_DISABLED and the rv of
++  // GetStateForType is NOT checked upstream, so a failing lookup silently blocks the plugin
++  // with no other trace. Log the rv as well as the value.
++  fprintf(stderr, "[jihad-npapi] ShouldPlay type=%s enabledState=%u rv=0x%x\n",
++          mContentType.get(), enabledState, (unsigned)jihadStateRv);
+   if (nsIPluginTag::STATE_DISABLED == enabledState) {
++    fprintf(stderr, "[jihad-npapi] ShouldPlay -> FALSE (eFallbackDisabled)\n");
+     aReason = eFallbackDisabled;
+     return false;
+   }
+diff --git a/dom/plugins/base/nsNPAPIPlugin.cpp b/dom/plugins/base/nsNPAPIPlugin.cpp
+index 746e271abc..9262fdb210 100644
+--- a/dom/plugins/base/nsNPAPIPlugin.cpp
++++ b/dom/plugins/base/nsNPAPIPlugin.cpp
+@@ -341,6 +341,10 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+   RefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
+ 
+   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
++  // JIHAD DIAGNOSTIC (R7): GetNewPluginLibrary is where the OOP decision is made —
++  // RunPluginOOP() ? PluginModuleParent::LoadModule (launches plugin-container) : a
++  // PluginPRLibrary loaded in-process. A null here is the plugin-container launch failing.
++  fprintf(stderr, "[jihad-npapi] GetNewPluginLibrary lib=%d\n", (int)!!pluginLib);
+   if (!pluginLib) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -386,6 +390,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+ #else
+   NPError pluginCallError;
+   nsresult rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
++  fprintf(stderr, "[jihad-npapi] NP_Initialize rv=0x%x npErr=%d\n", (unsigned)rv, (int)pluginCallError);
+   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -1939,7 +1944,16 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
+   }
+ 
+   case NPNVSupportsWindowless: {
+-#if defined(XP_WIN) || defined(XP_MACOSX) || \
++    // MOZ_WIDGET_HEADLESS added for Jihad Browser. This list enumerates the toolkits that can
++    // host a windowless plugin, and it was written before a headless toolkit existed — so a
++    // cairo-headless build answered "windowless unsupported" to every plugin, which is the
++    // opposite of the truth. Headless is the toolkit that MOST needs windowless: there is no X
++    // server, no Drawable and no XEmbed, so windowed hosting is impossible and drawing into a
++    // memory bitmap we own is the only thing that can work. gfxPlatformHeadless already returns
++    // true from SupportsPluginDirectBitmapDrawing(), i.e. the drawing model this unlocks
++    // (NPDrawingModelAsyncBitmapSurface) is implemented for this platform; only this
++    // advertisement was missing, and with it false no plugin would ever choose windowless.
++#if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_HEADLESS) || \
+     (defined(MOZ_X11) && defined(MOZ_WIDGET_GTK))
+     *(NPBool*)result = true;
+ #else
+diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
+index 11f54ab87f..61a608fc45 100644
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -843,6 +843,9 @@ nsPluginHost::InstantiatePluginInstance(const nsACString& aMimeType, nsIURI* aUR
+   }
+ 
+   rv = SetUpPluginInstance(aMimeType, aURL, instanceOwner);
++  // JIHAD DIAGNOSTIC (R7): the real rv is flattened to NS_ERROR_FAILURE below, which is what
++  // made this failure opaque from the caller's side.
++  fprintf(stderr, "[jihad-npapi] SetUpPluginInstance rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     instanceOwner->Destroy();
+     return NS_ERROR_FAILURE;
+@@ -961,7 +964,12 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+ #endif
+ 
+   RefPtr<nsNPAPIPlugin> plugin;
+-  GetPlugin(aMimeType, getter_AddRefs(plugin));
++  nsresult jihadGetRv = GetPlugin(aMimeType, getter_AddRefs(plugin));
++  // JIHAD DIAGNOSTIC (R7): GetPlugin -> CreateNPAPIPlugin -> nsNPAPIPlugin::CreatePlugin, which
++  // for an OOP build is PluginModuleParent::LoadModule (the plugin-container launch). Its rv is
++  // DISCARDED here; only the null check survives, so a launch failure is invisible.
++  fprintf(stderr, "[jihad-npapi] GetPlugin rv=0x%x plugin=%d\n",
++          (unsigned)jihadGetRv, (int)!!plugin);
+   if (!plugin) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -987,6 +995,7 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+   // except in some cases not Java, see bug 140931
+   // our COM pointer will free the peer
+   nsresult rv = instance->Initialize(plugin.get(), aOwner, aMimeType);
++  fprintf(stderr, "[jihad-npapi] instance->Initialize rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     mInstances.RemoveElement(instance.get());
+     aOwner->SetInstance(nullptr);
+diff --git a/dom/plugins/ipc/BrowserStreamChild.cpp b/dom/plugins/ipc/BrowserStreamChild.cpp
+index 4fdfc1d471..4d0d00df3d 100644
+--- a/dom/plugins/ipc/BrowserStreamChild.cpp
++++ b/dom/plugins/ipc/BrowserStreamChild.cpp
+@@ -133,6 +133,12 @@ BrowserStreamChild::RecvNPP_DestroyStream(const NPReason& reason)
+ {
+   PLUGIN_LOG_DEBUG_METHOD;
+ 
++  // Jihad R7: end-of-stream is what tells a Flash player the movie is complete. A player that
++  // is never told stops on frame zero, which looks exactly like a player that cannot draw.
++  fprintf(stderr, "[jihad-npapi-child] RecvNPP_DestroyStream reason=%d state=%d\n",
++          (int)reason, (int)mState);
++  fflush(stderr);
++
+   if (ALIVE != mState)
+     NS_RUNTIMEABORT("Unexpected state: recevied NPP_DestroyStream twice?");
+ 
+@@ -232,8 +238,12 @@ BrowserStreamChild::Deliver()
+     if (kStreamOpen == mStreamStatus)
+       mStreamStatus = NPRES_DONE;
+ 
+-    (void) mInstance->mPluginIface
++    NPError dsrv = mInstance->mPluginIface
+       ->destroystream(&mInstance->mData, &mStream, mStreamStatus);
++    // Jihad R7: the delivery site, as opposed to RecvNPP_DestroyStream which only queues it.
++    fprintf(stderr, "[jihad-npapi-child] NPP_DestroyStream status=%d rv=%d\n",
++            (int)mStreamStatus, (int)dsrv);
++    fflush(stderr);
+   }
+   if (DESTROYED == mDestroyPending && mNotifyPending) {
+     NS_ASSERTION(mStreamNotify, "mDestroyPending but no mStreamNotify?");
+@@ -265,11 +275,25 @@ BrowserStreamChild::DeliverPendingData()
+     if (0 == r) // plugin wants to suspend delivery
+       return true;
+ 
++    // r is reassigned by the write below, so the NPP_WriteReady answer has to be kept if the
++    // diagnostic is to report it — printing r twice made "ready" a copy of "took".
++    int32_t jihadReady = r;
++    int32_t jihadWant = mPendingData[0].data.Length() - mPendingData[0].curpos;
+     r = mInstance->mPluginIface->write(
+       &mInstance->mData, &mStream,
+       mPendingData[0].offset + mPendingData[0].curpos, // offset
+-      mPendingData[0].data.Length() - mPendingData[0].curpos, // length
++      jihadWant, // length
+       const_cast<char*>(mPendingData[0].data.BeginReading() + mPendingData[0].curpos));
++    {
++        // JIHAD DIAGNOSTIC (R7): bytes actually consumed by the plugin.
++        static int sLogged = 0;
++        if (sLogged < 6) {
++            sLogged++;
++            fprintf(stderr, "[jihad-npapi-child] NPP_Write ready=%d offered=%d took=%d\n",
++                    (int)jihadReady, (int)jihadWant, (int)r);
++            fflush(stderr);
++        }
++    }
+     if (kStreamOpen != mStreamStatus)
+       return false;
+     if (0 == r)
+diff --git a/dom/plugins/ipc/JihadNPNInterpose.cpp b/dom/plugins/ipc/JihadNPNInterpose.cpp
+new file mode 100644
+index 0000000000..7dd1833441
+--- /dev/null
++++ b/dom/plugins/ipc/JihadNPNInterpose.cpp
+@@ -0,0 +1,74 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++/*
++ * NPN entry points exported as GLOBAL SYMBOLS, for plugins that expect the old Netscape
++ * convention where the host browser exports them rather than only passing an NPNetscapeFuncs
++ * table to NP_Initialize.
++ *
++ * WHY THIS IS ITS OWN TRANSLATION UNIT. The obvious place for these is PluginModuleChild.cpp,
++ * and it does not work: npapi.h already declares NPN_InvalidateRect, and every header in this
++ * build is compiled under `-include config/gcc_hidden.h`, which pushes hidden visibility. GCC
++ * takes visibility from the FIRST declaration it sees, so a later definition carrying
++ * __attribute__((visibility("default"))) is silently ignored and the symbol lands in the
++ * object as GLOBAL HIDDEN — present to `nm`, absent from the dynamic table, and therefore
++ * impossible to interpose. Verified with readelf. This file deliberately includes no NPAPI
++ * headers at all and describes the functions with void* so there is no prior declaration to
++ * inherit hidden visibility from.
++ *
++ * WHY IT MATTERS. webOS's Flash imports NPN_CreateObject and NPN_InvalidateRect as undefined
++ * dynamic symbols. Left alone they bind into libWebKitLuna.so — another browser engine that
++ * is in this process because Flash (and our Piranha drawing path) pull it in. Two consequences,
++ * both measured:
++ *   1. Flash's repaint requests go to LunaSysMgr's WebKit and never reach our engine, so the
++ *      plugin is only ever painted when something else happens to invalidate it. That alone
++ *      makes an animating plugin look frozen.
++ *   2. It is a latent crash: UXP stores a PluginInstanceChild* in NPP::ndata, while
++ *      libWebKitLuna's NPN_InvalidateRect casts that same field to a WebCore::PluginView* and
++ *      makes a virtual call on it — a wild vtable dispatch on the first repaint.
++ *
++ * The forwarding pointers are installed by PluginModuleChild once the browser function table
++ * exists; until then these are safe no-ops.
++ */
++
++#include <stdio.h>
++
++extern "C" {
++
++void  (*gJihadNPNInvalidateRect)(void* aNPP, void* aRect) = 0;
++void* (*gJihadNPNCreateObject)(void* aNPP, void* aClass)  = 0;
++
++// Read by the host repaint clock in PluginInstanceChild.cpp: while this is zero the plugin has
++// never asked to be repainted, so the host has to drive it.
++unsigned gJihadNPNInvalidateRectCalls = 0;
++
++__attribute__((visibility("default"))) void
++NPN_InvalidateRect(void* aNPP, void* aRect)
++{
++    // The first call is the signal that the plugin's frame clock is finally running; without
++    // it the plugin is only ever painted by an unrelated invalidation, which is
++    // indistinguishable on screen from a plugin that draws nothing. Log it once, and log the
++    // no-forwarder case too — arriving before PluginModuleChild installs the pointers is a
++    // dropped repaint, not a no-op.
++    gJihadNPNInvalidateRectCalls++;
++    static int sLogged = 0;
++    if (sLogged < 8) {
++        sLogged++;
++        fprintf(stderr, "[jihad-npapi-child] NPN_InvalidateRect npp=%p rect=%p fwd=%p\n",
++                aNPP, aRect, (void*)gJihadNPNInvalidateRect);
++        fflush(stderr);
++    }
++    if (gJihadNPNInvalidateRect) {
++        gJihadNPNInvalidateRect(aNPP, aRect);
++    }
++}
++
++__attribute__((visibility("default"))) void*
++NPN_CreateObject(void* aNPP, void* aClass)
++{
++    return gJihadNPNCreateObject ? gJihadNPNCreateObject(aNPP, aClass) : 0;
++}
++
++} // extern "C"
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 61e56a9438..b65f39da64 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -31,6 +31,7 @@ using mozilla::gfx::SharedDIBSurface;
+ #endif
+ #endif
+ #include "gfxSharedImageSurface.h"
++#include <dlfcn.h>   // Jihad R7: reach the plugin's own glib for npPalmEventLoopValue
+ #include "gfxUtils.h"
+ #include "gfxAlphaRecovery.h"
+ 
+@@ -50,6 +51,18 @@ using namespace mozilla::gfx;
+ using namespace mozilla::widget;
+ using namespace std;
+ 
++// Defined next to JihadPumpGlib, far below; declared here because DoNPP_New starts it.
++static void JihadStartGlibPump(PluginInstanceChild* aInstance);
++
++// The instance the host clock repaints, and the count of repaints the PLUGIN asked for. Both
++// live here rather than on the instance because the pump is a process-wide free function.
++// Cleared in ~PluginInstanceChild so the clock cannot outlive what it points at.
++static PluginInstanceChild* sJihadPalmInstance = nullptr;
++static uint64_t gJihadPalmDrawEvents = 0;
++// Defined in JihadNPNInterpose.cpp, which deliberately includes no NPAPI headers.
++extern "C" unsigned gJihadNPNInvalidateRectCalls;
++
++
+ #ifdef MOZ_WIDGET_GTK
+ 
+ #include <gtk/gtk.h>
+@@ -193,6 +206,7 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
+ #endif
+     , mAccumulatedInvalidRect(0,0,0,0)
+     , mIsTransparent(false)
++    , mJihadSentPalmGainFocus(false)
+     , mSurfaceType(gfxSurfaceType::Max)
+     , mPendingPluginCall(false)
+     , mDoAlphaExtraction(false)
+@@ -231,6 +245,11 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
+ 
+ PluginInstanceChild::~PluginInstanceChild()
+ {
++    // The host repaint clock outlives any single instance (it is bound to the process-wide
++    // GMainLoop), so it must not be left holding this pointer.
++    if (sJihadPalmInstance == this) {
++        sJihadPalmInstance = nullptr;
++    }
+ #if defined(OS_WIN)
+     NS_ASSERTION(!mPluginWindowHWND, "Destroying PluginInstanceChild without NPP_Destroy?");
+     if (GetQuirks() & QUIRK_UNITY_FIXUP_MOUSE_CAPTURE) {
+@@ -260,6 +279,52 @@ PluginInstanceChild::~PluginInstanceChild()
+ #endif
+ }
+ 
++// ── THE webOS PLUGIN ABI (Jihad, addons R7) ───────────────────────────────────────────────
++//
++// None of this is in our npapi.h; it is Palm's XP_WEBOS block, and every layout below was
++// checked TWICE — against WebKit/Source/WebCore/plugins/npapi.h, and against the machine code
++// of the host that actually shipped on the device. That host is NOT the Qt one in our WebKit
++// checkout (PluginViewQt.cpp passes a QPainter* and Flash has no Qt dependency at all); it is
++// WebCore::PluginView compiled from PluginViewPalm.cpp into /usr/lib/libWebKitLuna.so, which
++// is unstripped on the device and can simply be read. Offsets cited below are into that
++// library. Get these wrong and the plugin reads garbage, silently.
++struct JihadNpPalmDrawEvent {
++    void*    dstBuffer;
++    uint32_t dstRowBytes;
++    int32_t  srcLeft, srcRight, srcTop, srcBottom;
++    void*    graphicsContext;
++    int32_t  dstLeft, dstRight, dstTop, dstBottom;
++};
++// Confirmed against PluginView::paint (libWebKitLuna 0x4e7e30-0x4e7e44): it stores
++// platformContext() at frame+52 and the four scaled dst coords at +56/+60/+64/+68, which pins
++// graphicsContext and the dst quadruple to exactly these offsets.
++
++struct JihadNpPalmSystemEvent {
++    int32_t type;   // NpPalmSystemEventsEnum
++};
++
++struct JihadNpPalmEvent {
++    uint32_t eventType;
++    union {
++        JihadNpPalmDrawEvent   drawEvent;
++        JihadNpPalmSystemEvent systemEvent;
++        unsigned char          pad[256];   // ≥ the largest member of Palm's union
++    } data;
++};
++
++// NPWindow.window for a webOS plugin. Palm's host never calls setwindow without one:
++// PluginView::setNPWindowRect (libWebKitLuna 0x4e74e0) builds it as a STACK LOCAL, points
++// m_npWindow.window at it (0x4e7570 `str sp, [r4, #520]`), calls setwindow, and immediately
++// re-nulls the pointer (0x4e7614) so the dangling stack address is never left behind.
++// Field offsets read straight off that function: visible is a byte at +0 (0x4e755c
++// `strbne r3, [sp]`), bpp is 32 at +4 (0x4e75dc `mov ip,#32; str ip,[sp,#4]`), and scaleFactor
++// is the double from ScrollView::getScale() at +8 (0x4e7588 `strd r6, [sp, #8]`).
++struct JihadNpPalmWindow {
++    bool     visible;
++    uint32_t bpp;
++    double   scaleFactor;
++};
++
+ NPError
+ PluginInstanceChild::DoNPP_New()
+ {
+@@ -286,6 +351,73 @@ PluginInstanceChild::DoNPP_New()
+         return rv;
+     }
+ 
++    // JIHAD DIAGNOSTIC (R7): ask the plugin which webOS/Palm NPAPI extensions it speaks.
++    // These NPP variables are the whole webOS plugin contract (see Palm's own
++    // WebKit/Source/WebCore/plugins/npapi.h, XP_WEBOS block), and the answer to
++    // npPalmUseGraphicsContext (10003) decides everything: "true" means the plugin insists on
++    // drawing through a Piranha PGContext direct-to-screen, which no non-webOS host can give
++    // it; "false"/unsupported means it accepts NpPalmDrawEvent.dstBuffer — an ordinary 32-bit
++    // raster buffer with a stride, which this embedder CAN hand it.
++    fprintf(stderr, "[jihad-npapi-child] palm-probe pFuncs size=%u version=0x%x getvalue=%p "
++                    "setvalue=%p event=%p\n",
++            (unsigned)mPluginIface->size, (unsigned)mPluginIface->version,
++            (void*)mPluginIface->getvalue, (void*)mPluginIface->setvalue,
++            (void*)mPluginIface->event);
++    fflush(stderr);
++    if (mPluginIface->getvalue) {
++        struct { uint32_t var; const char* name; } probes[] = {
++            { 10003, "npPalmUseGraphicsContext" },
++            { 10004, "npPalmEnableTouchEvents" },
++            { 10005, "npPalmIsInteractive" },
++            { 10007, "npPalmScriptStuckTimeout" },
++        };
++        for (size_t i = 0; i < sizeof(probes)/sizeof(probes[0]); ++i) {
++            int32_t out = -1;
++            NPError perr = mPluginIface->getvalue(npp, (NPPVariable)probes[i].var, &out);
++            fprintf(stderr, "[jihad-npapi-child] palm-probe %s(%u) err=%d value=%d\n",
++                    probes[i].name, probes[i].var, (int)perr, (int)out);
++        }
++        fflush(stderr);
++    }
++
++    // WEBOS EVENT LOOP (Jihad, addons R7).
++    //
++    // Palm's own host does this right after NPP_New and before anything else
++    // (WebKit/Source/WebCore/plugins/qt/PluginViewQt.cpp, PluginView::platformStart):
++    // it hands the plugin a GMainLoop* through npPalmEventLoopValue. A webOS plugin drives
++    // its own frame scheduling off that loop, so a plugin that never receives one is a
++    // plugin that instantiates and then never asks to paint — exactly the symptom this port
++    // had.
++    //
++    // glib is not linked into this process; it arrives as a dependency of the plugin, so it
++    // can only be reached by name once the plugin is loaded — which it is by now. A plugin
++    // that does not know the variable just returns an error, so this is safe for any plugin.
++    if (mPluginIface->setvalue) {
++        static void* sMainLoop = nullptr;
++        if (!sMainLoop) {
++            if (void* glib = dlopen("libglib-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++                typedef void* (*GMainLoopNewFn)(void*, int);
++                GMainLoopNewFn newLoop = (GMainLoopNewFn)dlsym(glib, "g_main_loop_new");
++                if (newLoop) {
++                    sMainLoop = newLoop(nullptr, 1 /* is_running */);
++                }
++            }
++        }
++        if (sMainLoop) {
++            const uint32_t kNpPalmEventLoopValue = 10000;
++            NPError lerr = mPluginIface->setvalue(npp, (NPNVariable)kNpPalmEventLoopValue,
++                                                  sMainLoop);
++            fprintf(stderr, "[jihad-npapi-child] npPalmEventLoopValue loop=%p err=%d\n",
++                    sMainLoop, (int)lerr);
++            // The plugin now has a loop to hang sources off; start running it. See
++            // JihadStartGlibPump for why this cannot wait for the first paint.
++            JihadStartGlibPump(this);
++        } else {
++            fprintf(stderr, "[jihad-npapi-child] npPalmEventLoopValue: no glib main loop\n");
++        }
++        fflush(stderr);
++    }
++
+     Initialize();
+ 
+ #if defined(XP_MACOSX) && defined(__i386__)
+@@ -717,8 +849,8 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)
+       // on the chrome process.  This is because our audio
+       // API calls should run the chrome proc, not content.
+       NPError rv = NPERR_GENERIC_ERROR;
+-      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
+-      if (chromeInstance) {
++      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
++      if (chromeInstance) {
+         rv = chromeInstance->PluginRequiresAudioDeviceChanges(this,
+                                               (NPBool)(intptr_t)aValue);
+       }
+@@ -1449,6 +1581,8 @@ PluginInstanceChild::AnswerNPP_SetWindow(const NPRemoteWindow& aWindow)
+ 
+     if (mPluginIface->setwindow)
+         (void) mPluginIface->setwindow(&mData, &mWindow);
++#elif defined(MOZ_WIDGET_HEADLESS)
++    // Jihad headless: no windowed plugins; nothing to do.
+ #else
+ #  error Implement me for your OS
+ #endif
+@@ -2827,6 +2961,12 @@ PluginInstanceChild::DoNPP_NewStream(BrowserStreamChild* actor,
+     AssertPluginThread();
+     AutoStackHelper guard(this);
+     NPError rv = actor->StreamConstructed(mimeType, seekable, stype);
++    // JIHAD DIAGNOSTIC (R7): does content actually reach the plugin? A plugin that was
++    // never handed its stream draws nothing for a completely different reason than a
++    // plugin that cannot draw, and on screen the two are identical (an empty box).
++    fprintf(stderr, "[jihad-npapi-child] NPP_NewStream mime=%s seekable=%d rv=%d stype=%d\n",
++            mimeType.get(), (int)seekable, (int)rv, (int)*stype);
++    fflush(stderr);
+     return rv;
+ }
+ 
+@@ -3741,10 +3881,345 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
+          mWindow.clipRect.left, mWindow.clipRect.top, mWindow.clipRect.right, mWindow.clipRect.bottom));
+ 
+     if (mPluginIface->setwindow) {
++        // WEBOS: hand the plugin an NpPalmWindow, exactly as Palm's host does.
++        //
++        // Out of the box this embedder passes NPWindow.window = nullptr for every windowless
++        // plugin (DoAsyncSetWindow hard-nulls it, and the MOZ_WIDGET_HEADLESS branch of
++        // AnswerNPP_SetWindow is a no-op), which is correct for an X11 windowless plugin — the
++        // slot means "native window handle" there, and there isn't one. On webOS the same slot
++        // means something completely different: it carries the plugin's visibility, the
++        // surface depth and the page scale. A webOS plugin told window=NULL has been told
++        // nothing about the surface it is supposed to draw into.
++        //
++        // Scoped to the call and re-nulled afterwards, because this is a stack address and
++        // Palm's host is careful about exactly that (libWebKitLuna 0x4e7570 / 0x4e7614).
++        //
++        // scaleFactor is 1.0 rather than the card's fit-zoom: Palm passes ScrollView::getScale()
++        // because its plugin drew into the page's own scaled surface, whereas here the plugin
++        // owns an unscaled CSS-sized buffer and the compositor applies the zoom afterwards.
++        JihadNpPalmWindow palmWindow;
++        palmWindow.visible     = true;
++        palmWindow.bpp         = 32;
++        palmWindow.scaleFactor = 1.0;
++        void* savedWindow = mWindow.window;
++        mWindow.window = &palmWindow;
++
+         mPluginIface->setwindow(&mData, &mWindow);
++
++        mWindow.window = savedWindow;
++
++        static int sLoggedSetWindow = 0;
++        if (sLoggedSetWindow < 3) {
++            sLoggedSetWindow++;
++            fprintf(stderr, "[jihad-npapi-child] NPP_SetWindow %dx%d at %d,%d type=%d "
++                            "palmWindow{visible=1 bpp=32 scale=1.0}\n",
++                    (int)mWindow.width, (int)mWindow.height, (int)mWindow.x, (int)mWindow.y,
++                    (int)mWindow.type);
++            fflush(stderr);
++        }
++
++        // WEBOS: the last thing Palm's PluginView::platformStart does is tell the plugin it has
++        // focus — handlePageGainFocus (libWebKitLuna 0x4e6df0) builds
++        // {eventType = 0x100 (npPalmSystemEvent), systemEvent.type = 3 (npPalmGainFocusEvent)}
++        // and dispatches it. A plugin that is never told it is focused and visible has no
++        // reason to start animating.
++        //
++        // Only gain-focus: Flash's own system-event dispatcher (libflashplayer.so 0x44da0)
++        // routes npPalmPageLoadingEvent(8), npPalmPageLoadCompleteEvent(9) and
++        // npPalmViewPortChangedEvent(10) to a bare `mov r0,#0; pop {pc}`, so those three are
++        // inert in this build and sending them would prove nothing.
++        //
++        // After setwindow, not before, and once: the plugin needs its geometry first, and
++        // UpdateWindowAttributes runs on every resize and every scroll.
++        if (mPluginIface->event && !mJihadSentPalmGainFocus) {
++            mJihadSentPalmGainFocus = true;
++            JihadNpPalmEvent ev;
++            memset(&ev, 0, sizeof(ev));
++            ev.eventType = 1 << 8;              // npPalmSystemEvent
++            ev.data.systemEvent.type = 3;       // npPalmGainFocusEvent
++            int16_t handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&ev));
++            fprintf(stderr, "[jihad-npapi-child] npPalmSystemEvent gainFocus handled=%d\n",
++                    (int)handled);
++            fflush(stderr);
++        }
+     }
+ }
+ 
++// Run any work the plugin scheduled on glib.
++//
++// A webOS plugin is handed a GMainLoop through npPalmEventLoopValue and hangs its timers and
++// idle sources off it — but this process's main loop is chromium's MessageLoop, so unless
++// glib is pumped explicitly those sources NEVER RUN. The visible symptom is a plugin that
++// initialises, clears its stage, and then sits on frame zero forever: it is not stuck, it is
++// simply never being given the chance to advance.
++//
++// Bounded so a busy plugin cannot starve the paint it is being pumped for.
++static int
++JihadPumpGlib(int aMaxIterations)
++{
++    typedef int (*GMainContextIterationFn)(void*, int);
++    typedef int (*GMainContextPendingFn)(void*);
++    static bool sTried = false;
++    static GMainContextIterationFn sIterate = nullptr;
++    static GMainContextPendingFn sPending = nullptr;
++
++    if (!sTried) {
++        sTried = true;
++        if (void* glib = dlopen("libglib-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++            sIterate = (GMainContextIterationFn)dlsym(glib, "g_main_context_iteration");
++            sPending = (GMainContextPendingFn)dlsym(glib, "g_main_context_pending");
++        }
++        fprintf(stderr, "[jihad-npapi-child] glib pump iterate=%p pending=%p\n",
++                (void*)sIterate, (void*)sPending);
++        fflush(stderr);
++    }
++    if (!sIterate) {
++        return 0;
++    }
++    int n = 0;
++    while (n < aMaxIterations) {
++        if (sPending && !sPending(nullptr)) {
++            break;
++        }
++        sIterate(nullptr, 0 /* may_block = FALSE */);
++        n++;
++    }
++    return n;
++}
++
++// ── RUN THE PLUGIN'S EVENT LOOP CONTINUOUSLY (Jihad, addons R7) ───────────────────────────
++//
++// Pumping glib only just before a paint deadlocks a webOS plugin, because its startup is
++// asynchronous: Flash registers com.palm.flashgraphics on the LS2 bus, attaches that socket to
++// the loop it was handed, and then waits on round-trips to com.palm.systemservice
++// (getPreferences), com.palm.display (status) and com.palm.db (find) before it starts its frame
++// clock. Until the clock runs it never calls NPN_InvalidateRect, so nothing ever asks it to
++// paint — and the only pump was on the paint path. No paint, no pump; no pump, no paint.
++//
++// So the pump has to be independent of painting. This reposts itself on the child's own
++// MessageLoop, which is the SAME thread every other NPAPI call into the plugin runs on — the
++// arrangement Palm's host gave it, since BrowserServer's main loop simply WAS a GMainLoop.
++// g_main_loop_run() on a dedicated thread would be the wrong shape: the plugin's timer
++// callbacks would then fire off the NPAPI thread and reenter us from it.
++//
++// MEASURED: before the LS2 role allowed com.palm.flashgraphics, LSRegisterPalmService failed
++// with -1027, nothing was ever attached to the loop, and g_main_context_pending() returned
++// FALSE forever. That is fixed in packaging/gen-variant-scripts.sh; the pump only has anything
++// to run because of it.
++static const int kJihadGlibPumpIntervalMs = 16;   // ~60Hz, the rate a frame clock wants
++static const int kJihadGlibPumpMaxIters   = 20;   // bounded: never starve the MessageLoop
++static const int kJihadRepaintEveryTicks  = 4;    // ~15Hz while the host is driving repaints
++
++// ── REPAINT A webOS PLUGIN FROM THE HOST'S CLOCK (Jihad, addons R7) ──────────────────────
++//
++// Gecko paints a windowless plugin only when something invalidates it, and for an ordinary
++// NPAPI plugin that is the plugin itself calling NPN_InvalidateRect. A webOS plugin is under
++// no such obligation, because the host it was written for never made it one: Palm's
++// PluginView::paint (libWebKitLuna 0x4e7a3c) issues npPalmDrawEvent every time the PAGE
++// paints, and BrowserServer's compositor painted continuously. Flash on that host could sit
++// on its frame clock and simply expect to be asked.
++//
++// So this drives the repaint until the plugin proves it drives itself, then gets out of the
++// way — a plugin that calls NPN_InvalidateRect gets Gecko's normal damage-driven painting and
++// none of this cost. Measured: with no host clock, Flash produced exactly 3 draw events in
++// 30 s and 0 invalidates.
++void
++PluginInstanceChild::JihadPalmRepaintTick()
++{
++    if (!mLayersRendering || mWindow.width <= 0 || mWindow.height <= 0) {
++        return;
++    }
++    NPRect windowRect = { 0, 0,
++                          uint16_t(mWindow.height), uint16_t(mWindow.width) };
++    InvalidateRect(&windowRect);
++}
++
++namespace {
++class JihadGlibPumpTask final : public Runnable
++{
++public:
++    NS_IMETHOD Run() override
++    {
++        int n = JihadPumpGlib(kJihadGlibPumpMaxIters);
++
++        static uint64_t sRepaintTicks = 0;
++        if (sJihadPalmInstance && gJihadNPNInvalidateRectCalls == 0 &&
++            (++sRepaintTicks % kJihadRepaintEveryTicks) == 0) {
++            sJihadPalmInstance->JihadPalmRepaintTick();
++        }
++
++        // Rate-limited liveness, because "the plugin is idle" and "the pump died" look
++        // identical on screen. Report the first tick that actually ran a source, then a
++        // running total roughly once a minute.
++        static bool sSawFirstSource = false;
++        static uint64_t sTicks = 0;
++        static uint64_t sIters = 0;
++        sTicks++;
++        sIters += n;
++        if (n && !sSawFirstSource) {
++            sSawFirstSource = true;
++            fprintf(stderr, "[jihad-npapi-child] glib pump: first source ran on tick %llu\n",
++                    (unsigned long long)sTicks);
++            fflush(stderr);
++        }
++        if ((sTicks % 625) == 0) {   // ~10s
++            // The draw and invalidate counts belong on this line and nowhere else: the
++            // per-event logs are capped at a handful of lines each (deliberately — they run at
++            // frame rate), so the ONLY way to read the actual draw rate is a periodic total.
++            // Reading a capped log as a count is how "2 draw events in 28s" was concluded.
++            fprintf(stderr, "[jihad-npapi-child] glib pump: %llu ticks, %llu source-iters, "
++                            "%llu draws, %u plugin-invalidates\n",
++                    (unsigned long long)sTicks, (unsigned long long)sIters,
++                    (unsigned long long)gJihadPalmDrawEvents, gJihadNPNInvalidateRectCalls);
++            fflush(stderr);
++        }
++
++        MessageLoop::current()->PostDelayedTask(
++            RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
++            kJihadGlibPumpIntervalMs);
++        return NS_OK;
++    }
++};
++} // namespace
++
++// Idempotent: several plugin instances share one GMainLoop, so they share one pump.
++static void
++JihadStartGlibPump(PluginInstanceChild* aInstance)
++{
++    sJihadPalmInstance = aInstance;
++    static bool sStarted = false;
++    if (sStarted) {
++        return;
++    }
++    MessageLoop* loop = MessageLoop::current();
++    if (!loop) {
++        fprintf(stderr, "[jihad-npapi-child] glib pump: no MessageLoop, not starting\n");
++        fflush(stderr);
++        return;
++    }
++    sStarted = true;
++    fprintf(stderr, "[jihad-npapi-child] glib pump: starting, every %dms\n",
++            kJihadGlibPumpIntervalMs);
++    fflush(stderr);
++    loop->PostDelayedTask(RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
++                          kJihadGlibPumpIntervalMs);
++}
++
++// ── PIRANHA CONTEXT FOR A WEBOS PLUGIN (Jihad, addons R7) ────────────────────────────────
++//
++// webOS plugins that answer npPalmUseGraphicsContext=true expect NpPalmDrawEvent to carry a
++// Piranha PGContext* rather than a raster pointer. Piranha ships on the device inside
++// libWebKitLuna.so (PGContext/PGSurface) and libPiranha.so; neither is linked into this
++// process, so everything is resolved by dlsym on the mangled names — no webOS headers, and
++// nothing breaks on a desktop build where the libraries simply are not there.
++//
++// Feasibility was established separately before any of this was written; see
++// render/goanna/test/piranha_offscreen_probe.c, which does exactly this sequence in a bare
++// process and confirms the pixels land in caller-owned memory.
++//
++// The context is cached per (buffer,size) because a plugin repaints constantly and both
++// objects would otherwise leak once per frame.
++static void*
++JihadPiranhaContextFor(unsigned char* aData, int aWidth, int aHeight, int aStride)
++{
++    // PGSurface::wrap() has no stride parameter, so it can only describe tightly packed
++    // rows. Refuse rather than hand Piranha a buffer it would misread into a sheared image.
++    if (!aData || aWidth <= 0 || aHeight <= 0 || aStride != aWidth * 4) {
++        static bool sWarnedStride = false;
++        if (!sWarnedStride) {
++            sWarnedStride = true;
++            fprintf(stderr, "[jihad-npapi-child] piranha: stride %d != %d*4, not wrapping\n",
++                    aStride, aWidth);
++            fflush(stderr);
++        }
++        return nullptr;
++    }
++
++    typedef void* (*PGSurfaceWrapFn)(unsigned, unsigned, const unsigned char*, bool);
++    typedef void* (*PGContextCreateFn)(void);
++    typedef void  (*PGContextSetSurfaceFn)(void*, void*);
++
++    static bool sTried = false;
++    static PGSurfaceWrapFn sWrap = nullptr;
++    static PGContextCreateFn sCreate = nullptr;
++    static PGContextSetSurfaceFn sSetSurface = nullptr;
++
++    if (!sTried) {
++        sTried = true;
++        // g_thread_init() MUST run before libWebKitLuna loads or its constructors abort with
++        // "GLib-ERROR **: The thread system is not yet initialized". It lives in
++        // libgthread-2.0.so.0, NOT libglib-2.0.so.0. Measured, not guessed.
++        if (void* gthread = dlopen("libgthread-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++            typedef void (*GThreadInitFn)(void*);
++            if (GThreadInitFn init = (GThreadInitFn)dlsym(gthread, "g_thread_init")) {
++                typedef int (*GThreadGetInitFn)(void);
++                GThreadGetInitFn got =
++                    (GThreadGetInitFn)dlsym(gthread, "g_thread_get_initialized");
++                if (!got || !got()) {
++                    init(nullptr);
++                }
++            }
++        }
++        void* wk = dlopen("libWebKitLuna.so", RTLD_NOW | RTLD_GLOBAL);
++        if (!wk) {
++            fprintf(stderr, "[jihad-npapi-child] piranha: no libWebKitLuna (%s)\n", dlerror());
++            fflush(stderr);
++        } else {
++            sWrap       = (PGSurfaceWrapFn)dlsym(wk, "_ZN9PGSurface4wrapEjjPKhb");
++            sCreate     = (PGContextCreateFn)dlsym(wk, "_ZN9PGContext6createEv");
++            sSetSurface = (PGContextSetSurfaceFn)dlsym(wk, "_ZN9PGContext10setSurfaceEP9PGSurface");
++            fprintf(stderr, "[jihad-npapi-child] piranha syms wrap=%p create=%p setSurface=%p\n",
++                    (void*)sWrap, (void*)sCreate, (void*)sSetSurface);
++            fflush(stderr);
++        }
++    }
++    if (!sWrap || !sCreate || !sSetSurface) {
++        return nullptr;
++    }
++
++    // A SET of cached contexts, not one. Palm got away with a single context because its
++    // buffer was one process-global screen-sized allocation that never moved; here the child
++    // rotates between a front and a back gfxSharedImageSurface, so a one-entry cache keyed on
++    // the buffer address misses on EVERY frame. That was invisible while the plugin was only
++    // painted twice, and turned into a PGSurface + PGContext leaked per frame the moment the
++    // host started driving repaints at 15Hz.
++    //
++    // Four entries: two buffers is the observed case, and a small fixed array keeps this
++    // allocation-free and bounded even if the surface pool grows. On overflow the oldest entry
++    // is dropped — leaking that one context rather than freeing an object the plugin may still
++    // be holding, which is the safer of the two mistakes and is bounded by the buffer count.
++    struct CacheEntry { unsigned char* data; int w, h; void* ctx; };
++    static CacheEntry sCache[4] = {};
++    static unsigned sCacheNext = 0;
++
++    for (size_t i = 0; i < MOZ_ARRAY_LENGTH(sCache); ++i) {
++        if (sCache[i].ctx && sCache[i].data == aData &&
++            sCache[i].w == aWidth && sCache[i].h == aHeight) {
++            return sCache[i].ctx;
++        }
++    }
++
++    void* surf = sWrap((unsigned)aWidth, (unsigned)aHeight, aData, true);
++    void* ctx  = surf ? sCreate() : nullptr;
++    if (ctx) {
++        sSetSurface(ctx, surf);
++    }
++    // Rate-limited: this is now a cache MISS log, and a miss storm is exactly the symptom
++    // worth seeing — but only the first few, or it floods the daemon log at frame rate.
++    static int sLoggedCtx = 0;
++    if (sLoggedCtx < 8) {
++        sLoggedCtx++;
++        fprintf(stderr, "[jihad-npapi-child] piranha ctx %dx%d buf=%p surface=%p context=%p\n",
++                aWidth, aHeight, aData, surf, ctx);
++        fflush(stderr);
++    }
++
++    CacheEntry& slot = sCache[sCacheNext % MOZ_ARRAY_LENGTH(sCache)];
++    sCacheNext++;
++    slot.data = aData; slot.w = aWidth; slot.h = aHeight; slot.ctx = ctx;
++    return ctx;
++}
++
+ void
+ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+                                                 gfxASurface* aSurface)
+@@ -3799,7 +4274,133 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+     ::IntersectClipRect((HDC) mWindow.window, rect.left, rect.top, rect.right, rect.bottom);
+     mPluginIface->event(&mData, reinterpret_cast<void*>(&paintEvent));
+ #else
+-    NS_RUNTIMEABORT("Surface type not implemented.");
++    // No platform surface to paint onto.
++    //
++    // This is the CLASSIC windowless paint path, and on Unix it is X11 and nothing else: the
++    // browser hands the plugin a Drawable and sends it an XGraphicsExposeEvent. A build with
++    // no X (a headless toolkit) has nothing it can hand over, and NPAPI defines no
++    // alternative for Unix — a plugin that wants to draw without X has to opt into a bitmap
++    // drawing model (NPDrawingModelAsyncBitmapSurface), which is a different path entirely
++    // and is fully supported here.
++    //
++    // Aborting is wrong for an embedder: the plugin process dies, the parent respawns it,
++    // and the whole cycle repeats for every paint, so one plugin that cannot draw becomes an
++    // endless crash loop. Warn once and leave the surface untouched instead — the plugin
++    // stays loaded and scriptable and simply shows nothing, which is a bounded failure the
++    // embedder can report.
++    // fprintf, not NS_WARNING: NS_WARNING compiles to nothing in a release build, and this is
++    // the ONLY signal distinguishing "the plugin drew nothing" from "the plugin was never
++    // asked to draw" — a distinction that is invisible on screen (both are a blank box).
++    // WEBOS RASTER DRAW EVENT (Jihad, addons R7).
++    //
++    // webOS plugins do not use the X11 protocol at all — they are painted by an
++    // npPalmDrawEvent, and NpPalmDrawEvent carries BOTH a raster destination (dstBuffer +
++    // dstRowBytes, "only valid in API version 1.0") and a Piranha PGContext
++    // ("must be used to draw in API version 2.0"). See Palm's own npapi.h, XP_WEBOS block.
++    //
++    // The device's Flash answers npPalmUseGraphicsContext = true, which per that header means
++    // the HOST may then pass a null raster — it is a statement about host behaviour, NOT a
++    // promise that the plugin refuses a non-null dstBuffer. There is no API-version
++    // negotiation anywhere in the contract, so the only way to find out whether a plugin
++    // honours the raster path is to hand it one and look. That is what this does.
++    //
++    // The surface here is already an ordinary shared-memory image (gfxSharedImageSurface,
++    // created a few hundred lines up), living in this process, whose pixels the parent
++    // already composites — so the raster the plugin needs costs nothing to produce.
++    if (aSurface->GetType() == gfxSurfaceType::Image) {
++        gfxImageSurface* img = static_cast<gfxImageSurface*>(aSurface);
++        uint8_t* data = img->Data();
++        int32_t stride = img->Stride();
++
++        if (data && stride > 0) {
++            // JihadNpPalmEvent / JihadNpPalmDrawEvent are declared at the top of this file,
++            // where the offsets are justified against both Palm's npapi.h and libWebKitLuna.
++            const uint32_t kNpPalmDrawEvent = 1 << 7;   // npPalmDrawEvent
++
++            JihadNpPalmEvent ev;
++            memset(&ev, 0, sizeof(ev));
++            ev.eventType = kNpPalmDrawEvent;
++            // "points to top-left of area to paint"
++            ev.data.drawEvent.dstBuffer =
++                data + (ptrdiff_t)aRect.y * stride + (ptrdiff_t)aRect.x * 4;
++            ev.data.drawEvent.dstRowBytes = (uint32_t)stride;
++            ev.data.drawEvent.srcLeft   = aRect.x;
++            ev.data.drawEvent.srcTop    = aRect.y;
++            ev.data.drawEvent.srcRight  = aRect.XMost();
++            ev.data.drawEvent.srcBottom = aRect.YMost();
++            ev.data.drawEvent.dstLeft   = ev.data.drawEvent.srcLeft;
++            ev.data.drawEvent.dstTop    = ev.data.drawEvent.srcTop;
++            ev.data.drawEvent.dstRight  = ev.data.drawEvent.srcRight;
++            ev.data.drawEvent.dstBottom = ev.data.drawEvent.srcBottom;
++            // API 2.0: a real Piranha PGContext bound to the very same pixels.
++            //
++            // The device's Flash answers npPalmUseGraphicsContext = true, and although it
++            // accepts a raster draw event (returns handled=1) it writes nothing into the
++            // buffer — so "handled" evidently means "consumed", not "drew". This gives it
++            // what it actually asked for. Proven possible by
++            // render/goanna/test/piranha_offscreen_probe.c: a PGContext can be created over
++            // wrapped memory in an ordinary process with no display and no compositor.
++            //
++            // PGSurface::wrap() takes no stride, so it assumes tightly-packed w*4 rows. That
++            // holds here (a 320-wide surface has stride 1280) but is asserted rather than
++            // assumed, because a padded stride would silently shear the image.
++            ev.data.drawEvent.graphicsContext = JihadPiranhaContextFor(data, img->Width(),
++                                                                       img->Height(), stride);
++            // BOTH fields stay populated, including for a plugin that answered
++            // npPalmUseGraphicsContext = true.
++            //
++            // npapi.h says the raster pointer "is then passed in as null" for such plugins, and
++            // this code used to believe it. The host that actually shipped does not: PluginView
++            // ::paint (libWebKitLuna 0x4e7c70 / 0x4e7c5c) stores a live dstBuffer and a live
++            // dstRowBytes into the event on the SAME branch that stores the PGContext — the
++            // graphics-context case is precisely the one where it computes
++            // dstBuffer = <shared buffer> + (y*screenWidth + x)*4 and
++            // dstRowBytes = screenWidth*4 (0x4e7e04-0x4e7e18). The header comment describes
++            // what a 2.0 plugin is expected to USE, not what the host is allowed to omit, and
++            // handing Flash a null raster is a difference from the reference host that costs
++            // nothing to remove.
++
++            // Let the plugin's own scheduled work run before we ask it to draw, so the
++            // frame it paints is current rather than whatever it had at instantiation.
++            JihadPumpGlib(50);
++
++            int16_t handled = mPluginIface->event
++                ? mPluginIface->event(&mData, reinterpret_cast<void*>(&ev)) : -1;
++            gJihadPalmDrawEvents++;
++
++            static int sLogged = 0;
++            if (sLogged < 3) {
++                sLogged++;
++                // handled= is reported but means nothing on its own: Flash's NPP_HandleEvent
++                // sets its return to 1 (libflashplayer.so 0x45274) BEFORE calling the draw
++                // handler and returns it unconditionally, so handled=1 is emitted even when
++                // the handler bails without touching the surface. Only pixels are evidence.
++                fprintf(stderr, "[jihad-npapi-child] npPalmDrawEvent %s %d,%d %dx%d "
++                                "stride=%d ctx=%p handled=%d\n",
++                        ev.data.drawEvent.graphicsContext ? "pgcontext" : "raster",
++                        aRect.x, aRect.y, aRect.width, aRect.height,
++                        (int)stride, ev.data.drawEvent.graphicsContext, (int)handled);
++                fflush(stderr);
++            }
++            return;
++        }
++    }
++
++    // Nothing we can paint onto at all.
++    //
++    // Aborting is wrong for an embedder: the plugin process dies, the parent respawns it,
++    // and the whole cycle repeats for every paint, so one plugin that cannot draw becomes an
++    // endless crash loop. Warn once and leave the surface untouched instead.
++    // fprintf, not NS_WARNING: NS_WARNING compiles to nothing in a release build, and this is
++    // the ONLY signal distinguishing "the plugin drew nothing" from "the plugin was never
++    // asked to draw" — a distinction that is invisible on screen (both are a blank box).
++    static bool sWarned = false;
++    if (!sWarned) {
++        sWarned = true;
++        fprintf(stderr, "[jihad-npapi-child] no paintable surface for this windowless "
++                        "plugin (type=%d); it will NOT paint.\n", (int)aSurface->GetType());
++        fflush(stderr);
++    }
+ #endif
+ }
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index 57b88a30fb..18a59686a5 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -641,6 +641,18 @@ private:
+     // and p->getvalue return always false
+     bool mIsTransparent;
+ 
++    // Jihad R7 (webOS): npPalmGainFocusEvent is a once-per-instance startup signal, but the
++    // setwindow that carries it runs again on every resize and scroll.
++    bool mJihadSentPalmGainFocus;
++
++public:
++    // Jihad R7 (webOS): repaint this instance from the host's own clock. See
++    // JihadGlibPumpTask::Run — a webOS plugin is not obliged to ask for repaints, because the
++    // host it was written for painted it as part of every page paint.
++    void JihadPalmRepaintTick();
++
++private:
++
+     // Surface type optimized of parent process
+     gfxSurfaceType mSurfaceType;
+ 
+diff --git a/dom/plugins/ipc/PluginModuleChild.cpp b/dom/plugins/ipc/PluginModuleChild.cpp
+index 4bdaa613c5..cda7c60cf0 100644
+--- a/dom/plugins/ipc/PluginModuleChild.cpp
++++ b/dom/plugins/ipc/PluginModuleChild.cpp
+@@ -60,6 +60,9 @@ using namespace mozilla::ipc;
+ using namespace mozilla::plugins;
+ using namespace mozilla::widget;
+ 
++// Defined at the bottom of this file; see the NPN SYMBOL INTERPOSITION block there.
++namespace mozilla { namespace plugins { void JihadInstallNPNInterposition(); } }
++
+ #if defined(XP_WIN)
+ const wchar_t * kFlashFullscreenClass = L"ShockwaveFlashFullScreen";
+ const wchar_t * kMozillaWindowClass = L"MozillaWindowClass";
+@@ -232,6 +235,10 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+ {
+     NS_ASSERTION(aChannel, "need a channel");
+ 
++    // Point the exported NPN_* globals at the real implementations before any plugin can be
++    // loaded, so a plugin that resolves them as symbols reaches us rather than libWebKitLuna.
++    JihadInstallNPNInterposition();
++
+     if (!InitGraphics())
+         return false;
+ 
+@@ -251,7 +258,11 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+     nsPluginFile pluginFile(localFile);
+ 
+     nsPluginInfo info = nsPluginInfo();
+-    if (NS_FAILED(pluginFile.GetPluginInfo(info, &mLibrary))) {
++    nsresult jihadRv = pluginFile.GetPluginInfo(info, &mLibrary);
++    fprintf(stderr, "[jihad-npapi-child] GetPluginInfo rv=0x%x lib=%d\n",
++            (unsigned)jihadRv, (int)!!mLibrary);
++    fflush(stderr);
++    if (NS_FAILED(jihadRv)) {
+         return false;
+     }
+ 
+@@ -1842,7 +1853,10 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+ bool
+ PluginModuleChild::AnswerNP_Initialize(const PluginSettings& aSettings, NPError* rv)
+ {
++    fprintf(stderr, "[jihad-npapi-child] AnswerNP_Initialize enter\n"); fflush(stderr);
+     *rv = DoNP_Initialize(aSettings);
++    fprintf(stderr, "[jihad-npapi-child] AnswerNP_Initialize rv=%d\n", (int)*rv);
++    fflush(stderr);
+     return true;
+ }
+ 
+@@ -1874,6 +1888,9 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
+ #endif
+ 
+     NPError result;
++    fprintf(stderr, "[jihad-npapi-child] DoNP_Initialize calling plugin initFunc=%p\n",
++            (void*)mInitializeFunc);
++    fflush(stderr);
+ #if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_SOLARIS)
+     result = mInitializeFunc(&sBrowserFuncs, &mFunctions);
+ #elif defined(OS_WIN) || defined(OS_MACOSX)
+@@ -1882,6 +1899,8 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
+ #  error Please implement me for your platform
+ #endif
+ 
++    fprintf(stderr, "[jihad-npapi-child] DoNP_Initialize plugin returned %d\n", (int)result);
++    fflush(stderr);
+     return result;
+ }
+ 
+@@ -2617,3 +2636,31 @@ PluginModuleChild::RecvNPP_SetValue_NPNVaudioDeviceChangeDetails(
+ #endif
+ }
+ #endif // MOZ_ENABLE_NPAPI
++
++// ── NPN SYMBOL INTERPOSITION (Jihad, addons R7) ──────────────────────────────────────────
++//
++// The exported NPN_* globals themselves live in JihadNPNInterpose.cpp (they must, to escape
++// hidden visibility — see the long comment there). All that is needed here is to point them
++// at the same implementations the browser function table uses, which is done once the table
++// exists. Installed from a static initializer-free helper called by the child at startup.
++extern "C" {
++extern void  (*gJihadNPNInvalidateRect)(void*, void*);
++extern void* (*gJihadNPNCreateObject)(void*, void*);
++}
++
++namespace mozilla {
++namespace plugins {
++
++void JihadInstallNPNInterposition()
++{
++    const NPNetscapeFuncs& f = PluginModuleChild::sBrowserFuncs;
++    gJihadNPNInvalidateRect = (void(*)(void*, void*))f.invalidaterect;
++    gJihadNPNCreateObject   = (void*(*)(void*, void*))f.createobject;
++    fprintf(stderr, "[jihad-npapi-child] NPN interposition installed invalidaterect=%p "
++                    "createobject=%p\n",
++            (void*)f.invalidaterect, (void*)f.createobject);
++    fflush(stderr);
++}
++
++} // namespace plugins
++} // namespace mozilla
+diff --git a/dom/plugins/ipc/PluginModuleParent.cpp b/dom/plugins/ipc/PluginModuleParent.cpp
+index a79d608267..4a1ff189e3 100755
+--- a/dom/plugins/ipc/PluginModuleParent.cpp
++++ b/dom/plugins/ipc/PluginModuleParent.cpp
+@@ -444,6 +444,8 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mSubprocess->SetCallRunnableImmediately(!parent->mIsStartingAsync);
+     bool launched = parent->mSubprocess->Launch(Move(onLaunchedRunnable),
+                                                 aPluginTag->mSandboxLevel);
++    fprintf(stderr, "[jihad-npapi] LoadModule path=%s async=%d launched=%d\n",
++            aFilePath, (int)parent->mIsStartingAsync, (int)launched);
+     if (!launched) {
+         // We never reached open
+         parent->mShutdown = true;
+@@ -455,7 +457,10 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mIsBlocklisted = NS_FAILED(rv) || blocklistState != 0;
+     if (!parent->mIsStartingAsync) {
+         int32_t launchTimeoutSecs = Preferences::GetInt(kLaunchTimeoutPref, 0);
+-        if (!parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000)) {
++        bool connected = parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000);
++        fprintf(stderr, "[jihad-npapi] LoadModule WaitUntilConnected(%ds) = %d\n",
++                (int)launchTimeoutSecs, (int)connected);
++        if (!connected) {
+             parent->mShutdown = true;
+             return nullptr;
+         }
+diff --git a/dom/plugins/ipc/PluginProcessChild.cpp b/dom/plugins/ipc/PluginProcessChild.cpp
+index fd6992454f..e964355395 100644
+--- a/dom/plugins/ipc/PluginProcessChild.cpp
++++ b/dom/plugins/ipc/PluginProcessChild.cpp
+@@ -111,9 +111,14 @@ PluginProcessChild::Init()
+       return false;
+     }
+ 
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome plugin=%s parentPid=%d\n",
++            pluginFilename.c_str(), (int)ParentPid());
++    fflush(stderr);
+     bool retval = mPlugin.InitForChrome(pluginFilename, ParentPid(),
+                                         IOThreadChild::message_loop(),
+                                         IOThreadChild::channel());
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome = %d\n", (int)retval);
++    fflush(stderr);
+ #if defined(XP_MACOSX)
+     if (nsCocoaFeatures::OnYosemiteOrLater()) {
+       // Explicitly turn off CGEvent logging.  This works around bug 1092855.
+diff --git a/dom/plugins/ipc/moz.build b/dom/plugins/ipc/moz.build
+index 5bc3474413..8f95041b6c 100644
+--- a/dom/plugins/ipc/moz.build
++++ b/dom/plugins/ipc/moz.build
+@@ -88,6 +88,10 @@ UNIFIED_SOURCES += [
+ ]
+ 
+ SOURCES += [
++    # Jihad: must NOT be unified — it deliberately includes no NPAPI headers so its exported
++    # NPN_* symbols escape the hidden-visibility pragma. Merging it with a TU that includes
++    # npapi.h would reintroduce the prior hidden declaration and silently un-export them.
++    'JihadNPNInterpose.cpp',
+     'PluginInstanceChild.cpp', # 'PluginThreadCallback' : ambiguous symbol
+     'PluginModuleChild.cpp',   # Redefinition of mozilla::WindowsDllInterceptor sUser32Intercept
+ ]
+diff --git a/gfx/layers/basic/BasicImageLayer.cpp b/gfx/layers/basic/BasicImageLayer.cpp
+index 0bb6b132d0..7f4d3edca4 100644
+--- a/gfx/layers/basic/BasicImageLayer.cpp
++++ b/gfx/layers/basic/BasicImageLayer.cpp
+@@ -64,6 +64,8 @@ BasicImageLayer::Paint(DrawTarget* aDT,
+                        const gfx::Point& aDeviceOffset,
+                        Layer* aMaskLayer)
+ {
++  fprintf(stderr, "[jihad-npapi] BasicImageLayer::Paint hidden=%d container=%d\n",
++          (int)IsHidden(), (int)!!mContainer);
+   if (IsHidden() || !mContainer) {
+     return;
+   }
+@@ -84,6 +86,14 @@ BasicImageLayer::Paint(DrawTarget* aDT,
+   }
+ 
+   gfx::IntSize size = mSize = surface->GetSize();
++  {
++    Matrix dtm = aDT->GetTransform();
++    fprintf(stderr, "[jihad-npapi] BasicImageLayer::Paint drawing %dx%d opacity=%.2f "
++                    "dt=%dx%d xform=[%.2f %.2f %.2f %.2f %.1f %.1f]\n",
++            size.width, size.height, GetEffectiveOpacity(),
++            aDT->GetSize().width, aDT->GetSize().height,
++            dtm._11, dtm._12, dtm._21, dtm._22, dtm._31, dtm._32);
++  }
+   FillRectWithMask(aDT, aDeviceOffset, Rect(0, 0, size.width, size.height),
+                    surface, mSamplingFilter,
+                    DrawOptions(GetEffectiveOpacity(), GetEffectiveOperator(this)),
+diff --git a/ipc/contentproc/plugin-container.cpp b/ipc/contentproc/plugin-container.cpp
+index 5e5f6d8fbb..e627e21f5a 100644
+--- a/ipc/contentproc/plugin-container.cpp
++++ b/ipc/contentproc/plugin-container.cpp
+@@ -19,6 +19,82 @@
+ #include <unistd.h>
+ #endif
+ 
++// JIHAD DIAGNOSTIC (R7): the child process dies with SIGSEGV between a successful
++// InitForChrome and handling its first IPC message, and the device's own minicore reporter
++// is out of report slots ("no room for new reports"), so nothing records where. This prints
++// the faulting address, a backtrace, and /proc/self/maps to stderr — which the child
++// inherits from the daemon, so it lands in the variant's daemon.log. The maps dump is the
++// part that matters on ARM: even a single frame is enough to name the faulting library.
++#if defined(OS_POSIX) || defined(XP_UNIX)
++#include <execinfo.h>
++#include <signal.h>
++#include <ucontext.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++static void
++jihad_child_fault_handler(int sig, siginfo_t* info, void* ctx)
++{
++  void* frames[32];
++  int n = backtrace(frames, 32);
++  fprintf(stderr, "[jihad-npapi-child] FAULT sig=%d addr=%p pid=%d frames=%d\n",
++          sig, info ? info->si_addr : nullptr, (int)getpid(), n);
++
++  // backtrace() returns nothing useful from a signal frame on ARM (no unwind tables
++  // through the trampoline), so take the registers straight out of the signal context.
++  // pc and lr against the maps below give the faulting library and offset, and
++  // addr2line on the unstripped build turns that into file:line.
++#if defined(__arm__)
++  if (ctx) {
++    ucontext_t* uc = (ucontext_t*)ctx;
++    fprintf(stderr, "[jihad-npapi-child] FAULT pc=%08lx lr=%08lx sp=%08lx r0=%08lx\n",
++            (unsigned long)uc->uc_mcontext.arm_pc,
++            (unsigned long)uc->uc_mcontext.arm_lr,
++            (unsigned long)uc->uc_mcontext.arm_sp,
++            (unsigned long)uc->uc_mcontext.arm_r0);
++  }
++#else
++  (void)ctx;
++#endif
++  fflush(stderr);
++  backtrace_symbols_fd(frames, n, STDERR_FILENO);
++
++  FILE* maps = fopen("/proc/self/maps", "r");
++  if (maps) {
++    char line[512];
++    fputs("[jihad-npapi-child] --- maps ---\n", stderr);
++    while (fgets(line, sizeof(line), maps)) {
++      // Only the executable mappings; the full map is hundreds of lines of noise.
++      if (strstr(line, "r-xp")) {
++        fputs("[jihad-npapi-child] ", stderr);
++        fputs(line, stderr);
++      }
++    }
++    fclose(maps);
++  }
++  fflush(stderr);
++
++  // Restore the default disposition and re-raise so the exit status still says "crashed".
++  signal(sig, SIG_DFL);
++  raise(sig);
++}
++
++static void
++jihad_install_child_fault_handler()
++{
++  struct sigaction sa;
++  memset(&sa, 0, sizeof(sa));
++  sa.sa_sigaction = jihad_child_fault_handler;
++  sa.sa_flags = SA_SIGINFO;
++  sigemptyset(&sa.sa_mask);
++  sigaction(SIGSEGV, &sa, nullptr);
++  sigaction(SIGBUS, &sa, nullptr);
++  sigaction(SIGILL, &sa, nullptr);
++  sigaction(SIGFPE, &sa, nullptr);
++}
++#endif
++
+ #ifdef MOZ_GMP
+ #include "GMPLoader.h"
+ 
+@@ -38,6 +114,19 @@ content_process_main(int argc, char* argv[])
+       return 3;
+     }
+ 
++#if defined(OS_POSIX) || defined(XP_UNIX)
++    jihad_install_child_fault_handler();
++#endif
++
++    // JIHAD DIAGNOSTIC (R7): the child's own view of its argv. Doubles as the control that
++    // child stderr reaches the parent's log at all — every other child probe is worthless
++    // until this line is seen.
++    fprintf(stderr, "[jihad-npapi-child] main argc=%d\n", argc);
++    for (int i = 0; i < argc; i++) {
++      fprintf(stderr, "[jihad-npapi-child]   argv[%d]=%s\n", i, argv[i]);
++    }
++    fflush(stderr);
++
+ #ifdef MOZ_GMP
+     XREChildData childData;
+ #endif
+diff --git a/ipc/glue/GeckoChildProcessHost.cpp b/ipc/glue/GeckoChildProcessHost.cpp
+index c771b87eb0..eea8490219 100644
+--- a/ipc/glue/GeckoChildProcessHost.cpp
++++ b/ipc/glue/GeckoChildProcessHost.cpp
+@@ -160,6 +160,13 @@ GeckoChildProcessHost::GetPathToBinary(FilePath& exePath, GeckoProcessType proce
+ 
+   exePath = exePath.AppendASCII(MOZ_CHILD_PROCESS_NAME);
+ 
++  // JIHAD DIAGNOSTIC (R7): the resolved child path, and which branch produced it. In this
++  // embedding the daemon is exec'd as `./ld-2.23.so … ./jihad-browserserver`, so argv[0] is the
++  // LOADER — if the directory-service branch is not taken, the fallback dirname(argv[0]) is
++  // relative to that, not to the daemon.
++  fprintf(stderr, "[jihad-npapi] child binary path=%s (dirService=%d)\n",
++          exePath.value().c_str(), (int)ShouldHaveDirectoryService());
++
+   return BinaryPathType::PluginContainer;
+ }
+ 
+@@ -662,6 +669,27 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+ 
+   std::vector<std::string> childArgv;
+ 
++  // Optional ELF loader prefix for the child process.
++  //
++  // An embedder whose bundled glibc differs from the host system's cannot exec the child
++  // binary directly: its PT_INTERP names the SYSTEM loader, which then resolves the child's
++  // libraries against the bundled set and dies before main(). Exporting these two variables
++  // makes the child be launched exactly the way such an embedder launches itself —
++  //     <loader> --library-path <path> <child> <args…>
++  // — which runs the child in the same process image (no extra fork, no shell hop, so the
++  // pid we hand to waitpid and the inherited IPC channel fd are unaffected).
++  //
++  // Both unset is upstream behaviour, unchanged.
++  const char* childLoader = PR_GetEnv("MOZ_CHILD_PROCESS_LOADER");
++  if (childLoader && *childLoader) {
++    childArgv.push_back(childLoader);
++    const char* loaderLibPath = PR_GetEnv("MOZ_CHILD_PROCESS_LOADER_PATH");
++    if (loaderLibPath && *loaderLibPath) {
++      childArgv.push_back("--library-path");
++      childArgv.push_back(loaderLibPath);
++    }
++  }
++
+   childArgv.push_back(exePath.value());
+ 
+   if (pathType == BinaryPathType::Self) {
+diff --git a/layout/generic/nsPluginFrame.cpp b/layout/generic/nsPluginFrame.cpp
+index a36c3259cf..fe25dd0fcb 100644
+--- a/layout/generic/nsPluginFrame.cpp
++++ b/layout/generic/nsPluginFrame.cpp
+@@ -1329,9 +1329,11 @@ nsPluginFrame::GetLayerState(nsDisplayListBuilder* aBuilder,
+   }
+ 
+   if (!mInstanceOwner->UseAsyncRendering()) {
++    fprintf(stderr, "[jihad-npapi] GetLayerState -> LAYER_NONE (no async rendering)\n");
+     return LAYER_NONE;
+   }
+ 
++  fprintf(stderr, "[jihad-npapi] GetLayerState -> LAYER_ACTIVE_FORCE\n");
+   return LAYER_ACTIVE_FORCE;
+ }
+ 
+@@ -1403,6 +1405,9 @@ nsPluginFrame::BuildLayer(nsDisplayListBuilder* aBuilder,
+     // Image for Windowed plugins that support window capturing for scroll
+     // operations or async windowless rendering.
+     container = mInstanceOwner->GetImageContainer();
++    fprintf(stderr, "[jihad-npapi] BuildLayer container=%d hasImage=%d size=%dx%d\n",
++            (int)!!container, (int)(container && container->HasCurrentImage()),
++            size.width, size.height);
+     if (!container) {
+       // This can occur if our instance is gone or if the current plugin
+       // configuration does not require a backing image layer.
+diff --git a/toolkit/xre/nsEmbedFunctions.cpp b/toolkit/xre/nsEmbedFunctions.cpp
+index 662796fcaf..61f8da23de 100644
+--- a/toolkit/xre/nsEmbedFunctions.cpp
++++ b/toolkit/xre/nsEmbedFunctions.cpp
+@@ -76,6 +76,7 @@
+ #include "GMPLoader.h"
+ #endif
+ #include "mozilla/gfx/GPUProcessImpl.h"
++#include "gfxPlatform.h"
+ 
+ #include "GeckoProfiler.h"
+ 
+@@ -177,6 +178,13 @@ XRE_InitEmbedding2(nsIFile *aLibXULDirectory,
+ 
+   startupNotifier->Observe(nullptr, APPSTARTUP_TOPIC, nullptr);
+ 
++  // Jihad Browser: force full gfx init (gfxPlatform/gfxVars/gfxConfig) during
++  // embedding startup. XRE_InitEmbedding2 otherwise leaves gfx lazy, but the
++  // headless paint path (WindowSurfaceProvider -> gfxVars::UseXRender) touches
++  // gfxVars before anything triggers gfxPlatform::Init, crashing on a null
++  // singleton. XRE_main initializes gfx during normal startup.
++  gfxPlatform::GetPlatform();
++
+   return NS_OK;
+ }
+ 
+@@ -549,13 +557,19 @@ XRE_InitChildProcess(int aArgc,
+       ::SetProcessShutdownParameters(0x280 - 1, SHUTDOWN_NORETRY);
+ #endif
+ 
++      fprintf(stderr, "[jihad-npapi-child] xre: process->Init done\n"); fflush(stderr);
+       mozilla::FilePreferences::InitDirectoriesWhitelist();
++      fprintf(stderr, "[jihad-npapi-child] xre: whitelist done\n"); fflush(stderr);
+       mozilla::FilePreferences::InitPrefs();
++      fprintf(stderr, "[jihad-npapi-child] xre: file prefs done\n"); fflush(stderr);
+ 
+       OverrideDefaultLocaleIfNeeded();
++      fprintf(stderr, "[jihad-npapi-child] xre: locale done, entering message loop\n");
++      fflush(stderr);
+ 
+       // Run the UI event loop on the main thread.
+       uiMessageLoop.MessageLoop::Run();
++      fprintf(stderr, "[jihad-npapi-child] xre: message loop returned\n"); fflush(stderr);
+ 
+       // Allow ProcessChild to clean up after itself before going out of
+       // scope and being deleted

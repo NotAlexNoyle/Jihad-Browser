@@ -27,6 +27,12 @@
 	     are, and this row scrolls sideways on a narrow card. -->
 	<nav class="panes" id="panes"></nav>
 
+	<!-- Host for the GRE's notificationbox (chrome://global/content/bindings/notification.xml).
+	     Empty on purpose: HTML markup cannot spell the XUL namespace, so preferences.js
+	     creates the box with createElementNS. It lives OUTSIDE #content because renderPane()
+	     empties #content on every pane switch, which would take the bar with it. -->
+	<div id="msgbar"></div>
+
 	<main id="content"></main>
 
 	<footer class="ftr">

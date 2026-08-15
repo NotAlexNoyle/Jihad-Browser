@@ -69,6 +69,24 @@ ProcessMutex::ProcessMutex(int size, int key)
         header->marker1 = s_marker;
         header->marker2 = s_marker;
 
+        // CROSS-ABI LANDMINE, measured 2026-08-10 (cavekit-device-build.md R9, T-104). This file is
+        // compiled ONLY into the adapter (build-adapter-pdk.sh / build-adapter-arm.sh), which runs
+        // inside LunaSysMgr on the device's glibc 2.8; the Jihad daemon is glibc 2.23 and does not
+        // even compile this file. pthread_mutex_t's LAYOUT is identical in both (24 bytes, __kind at
+        // offset 12) and the Header markers above still validate, so nothing looks wrong — but
+        // __kind's MEANING is not identical. Measured by static-linking a probe with the PDK gcc
+        // (glibc 2.5 headers, a pre-2.21 proxy for the device's 2.8) and with our crosstool gcc
+        // (2.23), then running both under qemu-arm: 2.5 writes __kind = 0 here and returns EINVAL
+        // from pthread_mutex_lock on a mutex whose __kind is 128; 2.23 writes __kind = 128 and
+        // derives the futex private/shared flag from exactly that bit (nptl/pthreadP.h,
+        // PTHREAD_MUTEX_PSHARED, consumed by lll_lock in pthread_mutex_lock.c). So a 2.8-created
+        // mutex makes a 2.23 waiter use FUTEX_PRIVATE on a cross-process futex and hang forever
+        // under CONTENTION ONLY (uncontended lock/unlock still works, so it passes light tests),
+        // and a 2.23-created one makes every 2.8-side lock() a silent no-op, because lock() below
+        // ignores the return value. Dormant today only because nothing constructs OffscreenBuffer,
+        // which is ProcessMutex's sole user. If a daemon/adapter lock is ever actually needed, use
+        // SysV semop: a kernel object has no userspace layout for the two libcs to disagree about.
+        // NOT verified against the device's own 2.8 libpthread - there was no device that session.
         pthread_mutexattr_t attr;
         pthread_mutexattr_init (&attr);
         pthread_mutexattr_setpshared (&attr, PTHREAD_PROCESS_SHARED);

@@ -48,6 +48,18 @@ space — independent of zoom and scroll, which raw coordinates are not. Three l
 | `sel:<css>` | `querySelector` | XUL nodes keyed by attribute — an about:addons row is `richlistitem[value="<addon id>"]` |
 | `anon:<css>\|<anonid>` | `querySelector` + `nsIDOMDocumentXBL::GetAnonymousElementByAttribute` | XBL **anonymous** content — a row's `enable-btn`/`disable-btn`/`remove-btn`, which no id can reach |
 
+`anon:` only works when the `<css>` element is ITSELF XBL-bound. That accessor resolves to
+`GetBindingWithContent(elem)->GetAnonymousNodeList()` (`nsBindingManager.cpp:250-254`), so it is
+blind to native anonymous content and returns null for e.g. a `<video>`, whose controls hang off
+a frame-created `<xul:videocontrols>` child. Use the `anon` INJECT command for that question — it
+walks NAC through `inIDOMUtils` — and never read this form's null as "nothing is bound".
+
+`anon:` only works when the `<css>` element is ITSELF XBL-bound. That accessor resolves to
+`GetBindingWithContent(elem)->GetAnonymousNodeList()` (`nsBindingManager.cpp:250-254`), so it is
+blind to native anonymous content and returns null for e.g. a `<video>`, whose controls hang off
+a frame-created `<xul:videocontrols>` child. Use the `anon` INJECT command for that question — it
+walks NAC through `inIDOMUtils` — and never read this form's null as "nothing is bound".
+
 Clicking the real button is also the better test: it goes through the same command path a finger
 does.
 

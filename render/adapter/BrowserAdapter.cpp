@@ -64,7 +64,10 @@ LICENSE@@@ */
 #include "NPObjectEvent.h"
 
 #include <pbnjson.hpp>
+#include <dlfcn.h>              // dladdr: locate this .so, hence the app dir (jihadAppFile)
 #include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QFileInfo>
 
 // ---- BUILD-TIME VARIANT IDENTITY (Jihad) --------------------------------------------
 // The Enyo, Mochi, and Mojo packages are three fully independent browsers (cavekit-device-build.md
@@ -125,6 +128,25 @@ LICENSE@@@ */
 #endif
 
 const int ESC_KEY = 27;
+
+// JIHAD: resolve a file that ships inside THIS app, next to the adapter's own .so.
+//
+// The adapter is an NPAPI plugin loaded by the card out of the app directory, so dladdr on
+// any symbol in this library names that directory — no env var to set, no path to keep in
+// sync with packaging, and correct for all three UI variants, which install to three
+// different app ids. Returns an empty string if the file is not there, so callers can fall
+// back to whatever the stock path was.
+static QString jihadAppFile(const char* relPath)
+{
+    Dl_info info;
+    // The address must be of something in THIS library; a static function is enough.
+    if (!dladdr(reinterpret_cast<void*>(&jihadAppFile), &info) || !info.dli_fname) {
+        return QString();
+    }
+    QString dir = QFileInfo(QString::fromUtf8(info.dli_fname)).absolutePath();
+    QString path = dir + QLatin1Char('/') + QString::fromUtf8(relPath);
+    return QFile::exists(path) ? path : QString();
+}
 
 static const float kFrozenSurfaceScale = 0.5f;
 
@@ -454,6 +476,17 @@ static inline bool PrvIsEqual(double a, double b)
     return (::fabs(a - b) < kDoubleEqualityTolerance);
 }
 
+// DOM touch forwarding is DEFAULT OFF and opted into with JIHAD_TOUCH_EVENTS=1 in the
+// environment LunaSysMgr starts with. Env rather than a plugin param or a pref because the
+// adapter already reads one switch that way (LOG_BROWSER_ALERTS) and because the thing being
+// switched has to be decidable in the constructor, before any card JS has run. Only the exact
+// string "1" enables it — "0"/"false"/empty must not turn a risky path on by accident.
+static bool jihadTouchEventsRequested()
+{
+    const char* env = ::getenv("JIHAD_TOUCH_EVENTS");
+    return env != NULL && ::strcmp(env, "1") == 0;
+}
+
 /**
  * Constructor. The
  */
@@ -484,11 +517,13 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mCenteredZoom(0)
     , mOffscreen0(0)
     , mOffscreen1(0)
+    , mOffscreen2(0)
     , mOffscreenCurrent(0)
     , mFrozenSurface(0)
     , mFrozen(false)
     , mFrozenRenderPos(0, 0)
     , m_passInputEvents(false)
+    , mTouchEventsEnabled(jihadTouchEventsRequested())
     , mFirstPaintComplete(false)
     , mEnableJavaScript(true)
     , mBlockPopups(true)
@@ -597,6 +632,18 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     TRACEF("pass events %d viewport %dx%d", m_passInputEvents,
            mViewportWidth, mViewportHeight);
 
+    // Touch delivery is opt-in on this platform: WebKit sends no npPalmTouch*Event to a plugin
+    // that has not set npPalmEnableTouchEvents to a non-NULL value (AdapterBase.h, above
+    // handleTouchStart). Without this call doTouchEvent below is unreachable no matter what
+    // shouldPassTouchEvents() says. Asked for only when the switch is on, so a default build
+    // does not even ask the host to generate the events.
+    if (mTouchEventsEnabled) {
+        NPError touchErr = NPN_SetValue((NPPVariable) npPalmEnableTouchEvents, (void*) this);
+        syslog(LOG_WARNING, "JIHAD_TOUCH_EVENTS=1: DOM touch forwarding ENABLED "
+                            "(npPalmEnableTouchEvents rc=%d) — pen events are suppressed per "
+                            "gesture by the daemon when the page consumes touchstart", (int) touchErr);
+    }
+
     // Only at the end shall we inform our listener that we're initialized.
     InvokeEventListener(gAdapterInitializedHandler, NULL, 0, NULL);
 }
@@ -632,6 +679,7 @@ BrowserAdapter::~BrowserAdapter()
 
     delete mOffscreen0;
     delete mOffscreen1;
+    delete mOffscreen2;
 
     std::list<UrlRedirectInfo*>::iterator i;
     for (i = m_urlRedirects.begin(); i != m_urlRedirects.end(); ++i) {
@@ -820,6 +868,11 @@ void BrowserAdapter::sendStateToServer()
 
     asyncCmdConnect(virtualPageWidth, virtualPageHeight, mOffscreen0->key(),
                     mOffscreen1->key(), mOffscreen0->size(), mPageIdentifier);
+    // Connect carries exactly two keys and its wire shape is frozen, so the third arrives as a
+    // SEPARATE, ADDITIVE command. An adapter that never sends it leaves the daemon on two
+    // buffers, which is why this is safe to add to a contract otherwise held byte-identical.
+    if (mOffscreen2)
+        asyncCmdSetExtraBuffer(mOffscreen2->key(), mOffscreen2->size());
     asyncCmdSetWindowSize(mViewportWidth, mViewportHeight);
     asyncCmdPageFocused(mPageFocused);
     asyncCmdSetMouseMode(mMouseMode);
@@ -941,6 +994,13 @@ bool BrowserAdapter::initializeIpcBuffer()
         mOffscreen0 = 0;
         return false;
     }
+
+    // Best-effort ONLY. A third buffer is a frame-rate optimisation, not a requirement, and it
+    // costs another full-page segment of SysV shm; on a device this size that allocation can
+    // legitimately fail. Failing it must leave a working two-buffer adapter rather than a dead
+    // one, so this deliberately does not undo the pair above.
+    if (!mOffscreen2)
+        mOffscreen2 = BrowserOffscreen::create();
 
     return true;
 }
@@ -1552,18 +1612,37 @@ bool BrowserAdapter::handlePenDoubleClick(NpPalmPenEvent *event)
     return true;
 }
 
+// ── WHO SWALLOWS A KEYSTROKE ────────────────────────────────────────────────────────────────
+// The key is ALWAYS forwarded to the daemon (asyncCmdKeyDown above the return), so the engine
+// and any plugin see it either way. The return value decides only whether the CARD also acts
+// on it — so it is the difference between typing into a Flash game and typing into the
+// address bar at the same time.
+//
+// Two conditions, for two different bugs:
+//
+//   mPageFocused — ported from Atlas (BrowserAdapter commit ce199bc, Herman van Hazendonk,
+//   Apache-2.0; see NOTICE). bEditorFocused alone meant a page that auto-focuses an input on
+//   load left it true forever, so after the user tapped the chrome address bar the adapter
+//   kept eating every keystroke: "can't type an address after a site loaded".
+//
+//   mFlashGestureLock — Jihad addition for R7. A Flash GAME focuses no HTML editor, so
+//   bEditorFocused is false throughout and every arrow key / WASD press leaked to the chrome
+//   while the game was being played. This latch is exactly the right signal: it is set when a
+//   tap lands inside a plugin rect and cleared by a tap outside one, i.e. it already means
+//   "the user has engaged the plugin", and it is the same latch that decides whether a DRAG
+//   goes to the plugin instead of panning the card.
 bool BrowserAdapter::handleKeyDown(NpPalmKeyEvent *event)
 {
     EVENT_TRACEF("KeyDown %d/0x%08x\n", event->rawkeyCode, event->rawModifier);
     asyncCmdKeyDown(event->rawkeyCode, event->rawModifier, event->chr);
-    return event->rawkeyCode != ESC_KEY && bEditorFocused;
+    return event->rawkeyCode != ESC_KEY && mPageFocused && (bEditorFocused || mFlashGestureLock);
 }
 
 bool BrowserAdapter::handleKeyUp(NpPalmKeyEvent *event)
 {
     EVENT_TRACEF("KeyUp %d/0x%08x\n", event->rawkeyCode, event->rawModifier);
     asyncCmdKeyUp(event->rawkeyCode, event->rawModifier, event->chr);
-    return  event->rawkeyCode != ESC_KEY && bEditorFocused;
+    return  event->rawkeyCode != ESC_KEY && mPageFocused && (bEditorFocused || mFlashGestureLock);
 }
 
 bool BrowserAdapter::handleTouchStart(NpPalmTouchEvent *event)
@@ -1586,20 +1665,107 @@ bool BrowserAdapter::handleTouchCancelled(NpPalmTouchEvent *event)
     return doTouchEvent(3, event);
 }
 
+// TOUCH FORWARDING IS ON AS OF 2026-08-15 (T-120) BUT DEFAULT OFF AT RUNTIME. Read this whole
+// note before touching the block; the fence it replaces was there for a real reason.
+//
+// What changed: the ABI mismatch described below is FIXED — adapter-deps/staging/include/webkit/
+// npapi/npapi.h was re-staged with the 28-byte NpPalmTouchEvent (sha256 36b58a83…21c199, recorded
+// in build/webos-oe/adapter-deps.manifest), so the compile-time guard in doTouchEvent now passes
+// and the body is compiled in. What has NOT changed: no device has ever run this. The runtime
+// switch is JIHAD_TOUCH_EVENTS=1 (mTouchEventsEnabled), default off, and with it off neither the
+// npPalmEnableTouchEvents opt-in in the constructor nor this body does anything at all.
+//
+// The historical measurement, kept because it is the evidence for the layout below.
+// (2026-08-10, on the BUILD HOST from binaries and sources already in this tree. No device was
+// used, and nothing here is a runtime result.)
+//
+// The block below was written against a DIFFERENT npapi.h than the one this adapter used to
+// compile with, and the two disagree about NpPalmTouchEvent:
+//
+//   header on our include path BEFORE the        what the DEVICE actually pushes
+//   re-stage (adapter-deps/staging/include/       (libWebKitLuna.so, measured — and what the
+//   webkit/npapi/npapi.h, sha 462bcc89…1752b)     re-staged header now declares)
+//     int32_t           touchCount;  // +0        NpPalmTouchList touches;        // +0
+//     NpPalmTouchPoint* touches;     // +4        NpPalmTouchList targetTouches;  // +8
+//     int32_t           modifiers;   // +8        NpPalmTouchList changedTouches; // +16
+//     sizeof == 12                                int32_t         modifiers;      // +24
+//                                                 sizeof == 28
+//
+// How the right column was measured: WebCore::PluginView::handleTouchEvent at 0x4e913c in
+// build/webos-oe/device-binaries/libWebKitLuna.so builds THREE variable-length point arrays out of
+// TouchEvent+0x6c/+0x70/+0x74 (m_touches, m_targetTouches, m_changedTouches, in declaration order),
+// stores each (points,length) pair at NPEvent data +0/+8/+16, writes modifiers=0 at +24, and hands
+// that base to dispatchNPEvent. Three independent things agree with it: isis's own adapter
+// (../ref-BrowserAdapter) and Atlas's both read event->changedTouches, and the npapi-headers
+// checkout our header was staged from carries the 28-byte declaration in its debian INSTALL copy
+// (adapter-deps/npapi-headers/debian/npapiheaders/usr/include/npapi.h). The 12-byte declaration is
+// the repo-root file of that SAME checkout, so the two copies are out of sync and staging took the
+// wrong one.
+//
+// Enabling this block against the 12-byte header would therefore not merely misplace a touch. It
+// reads the device's length word as a pointer and dereferences it INSIDE LunaSysMgr. That is also
+// where the "coordinates in excess of 7,000,000" the code below apologises for came from — plus a
+// second, independent cause, fixed below: the TouchEnd loop iterated changedTouches.length but
+// indexed touches.points, and on a release the touches list is the SHORTER of the two (the lifted
+// finger is gone from it), so it read past the end. The guard below turns a re-stage that reverts
+// the header into a compile error instead of a shell crash.
+//
+// Three things that were listed as unsettled, and where they now stand:
+//   * DOUBLE ACTIVATION. A finger already produces pen events, hence asyncCmdMouseEvent/clickAt, so
+//     turning touch on hands the page BOTH. Gecko's own suppression cannot help, because our mouse
+//     events are not synthesized from touch; they arrive on a separate YAP command. HANDLED
+//     DAEMON-SIDE as of 2026-08-15: GoannaRenderPage::TouchEvent now RETURNS the preventDefault
+//     result of nsIDOMWindowUtils::sendTouchEventToWindow, and BrowserPageGoanna suppresses the
+//     synthesized mouse events of a gesture whose touchstart the page consumed. The correlation is
+//     positional + time-boxed, not by id (there is no shared id) — see the comment on
+//     BrowserPageGoanna::touchSuppressesMouse for the rule and its failure modes. The suppressor
+//     needs no switch of its own: it only ever arms when a touch command arrives, which only
+//     happens when this switch is on.
+//   * shouldPassTouchEvents() is m_passInputEvents || a non-user-scalable viewport, and
+//     m_passInputEvents comes from the "usemouseevents" plugin param, which NO variant passes
+//     (grepped app/, app-mochi/, app-mojo/). So even with JIHAD_TOUCH_EVENTS=1 this fires on
+//     user-scalable=no pages only. That gate is deliberately KEPT: it is the stock rule, and it
+//     keeps the untested path off ordinary pages.
+//   * Stock never did this either. isis AND Atlas both ship doTouchEvent under an
+//     #ifdef QT_FIXME, so this is new capability, not restored parity — which is the third reason
+//     the switch defaults to off.
+
+// The per-point "state" written into the touches JSON. THESE VALUES ARE OURS, NOT THE FROZEN
+// CONTRACT'S. The field is on the wire, but upstream never shipped the values: they came from
+// Palm::TouchPointPalm::State in webkit-supplemental, a header that does not exist in this build.
+// The ordering is WebCore::PlatformTouchPoint::State from the reference WebKit tree, which
+// TouchPointPalm mirrored. Nothing reads the field today either, since BrowserPageGoanna::touchEvent
+// parses only "x" and "y". Do not pass these numbers off as part of the contract.
+enum JihadTouchState {
+    kJihadTouchReleased   = 0,
+    kJihadTouchPressed    = 1,
+    kJihadTouchMoved      = 2,
+    kJihadTouchStationary = 3,
+    kJihadTouchCancelled  = 4
+};
+
+// Fails the BUILD, not the device, if the include path still carries the 12-byte
+// NpPalmTouchEvent described above. ARM EABI: 3 * 8 + 4, no tail padding. At namespace scope so
+// it is checked even in a build where nothing calls doTouchEvent.
+typedef char jihadTouchAbiGuard[(sizeof(NpPalmTouchEvent) == 28) ? 1 : -1];
+
 bool BrowserAdapter::doTouchEvent(int32_t type, NpPalmTouchEvent *event)
 {
-#ifdef QT_FIXME
-    if (shouldPassTouchEvents()) {
+    if (!event)
+        return true;
+
+    if (mTouchEventsEnabled && shouldPassTouchEvents()) {
         pbnjson::JValue arr = pbnjson::Array();
-        for (int ix = 0; ix < event->touches.length; ix++) {
+        const int liveCount = event->touches.points ? event->touches.length : 0;
+        for (int ix = 0; ix < liveCount; ix++) {
             Point touchPoint (event->touches.points[ix].xCoord, event->touches.points[ix].yCoord);
-            Palm::TouchPointPalm::State touchState = Palm::TouchPointPalm::TouchStationary;
+            JihadTouchState touchState = kJihadTouchStationary;
 
             if (isPointInList(touchPoint, event->changedTouches)) {
                 if (type == 0) // TouchStart
-                    touchState = Palm::TouchPointPalm::TouchPressed;
+                    touchState = kJihadTouchPressed;
                 else if (type == 1) // TouchMove
-                    touchState = Palm::TouchPointPalm::TouchMoved;
+                    touchState = kJihadTouchMoved;
             }
 
             Point eventPt(touchPoint.x - m_pageOffset.x, touchPoint.y - (m_pageOffset.y + m_headerHeight));
@@ -1618,9 +1784,15 @@ bool BrowserAdapter::doTouchEvent(int32_t type, NpPalmTouchEvent *event)
         // released or cancelled touches are not in the event->touches list
         // so we need to add them from the event->changedTouches list
         if (type == 2 || type == 3) { // TouchEnd or TouchCancelled
-            Palm::TouchPointPalm::State touchState = type == 2 ? Palm::TouchPointPalm::TouchReleased : Palm::TouchPointPalm::TouchCancelled;
-            for (int ix = 0; ix < event->changedTouches.length; ix++) {
-                Point touchPoint (event->touches.points[ix].xCoord, event->touches.points[ix].yCoord);
+            JihadTouchState touchState = type == 2 ? kJihadTouchReleased : kJihadTouchCancelled;
+            const int liftedCount = event->changedTouches.points ? event->changedTouches.length : 0;
+            for (int ix = 0; ix < liftedCount; ix++) {
+                // changedTouches, NOT touches: this loop is bounded by changedTouches.length and
+                // the point it wants is the lifted one, which is exactly what is missing from the
+                // touches list. Indexing touches.points here read past the end of the shorter
+                // array — the actual source of the "7,000,000" coordinates apologised for below.
+                Point touchPoint (event->changedTouches.points[ix].xCoord,
+                                  event->changedTouches.points[ix].yCoord);
                 Point eventPt(touchPoint.x - m_pageOffset.x, touchPoint.y - (m_pageOffset.y + m_headerHeight));
                 Point touchDocPt((mScrollPos.x + eventPt.x) / mZoomLevel,
                                  (mScrollPos.y + eventPt.y) / mZoomLevel);
@@ -1652,13 +1824,17 @@ bool BrowserAdapter::doTouchEvent(int32_t type, NpPalmTouchEvent *event)
             asyncCmdTouchEvent(type, arr.arraySize(), event->modifiers, json.c_str());
         }
     }
-#endif
+    // Always true: the card must not act on the touch itself, and returning false here would
+    // hand it back to WebKit, which would then re-derive the pen events the daemon is busy
+    // suppressing. Same value the fenced-off version returned.
     return true;
 }
 
 bool BrowserAdapter::isPointInList(const Point &point, const NpPalmTouchList &list)
 {
     bool retVal = false;
+    if (!list.points)
+        return false;
     for (int ix = 0; ix < list.length; ix++) {
         if (point.x == list.points[ix].xCoord && point.y == list.points[ix].yCoord) {
             retVal = true;
@@ -3937,6 +4113,8 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
         receivedBuffer = 0;
     else if (mOffscreen1->ipcBuffer()->key() == sharedBufferKey)
         receivedBuffer = 1;
+    else if (mOffscreen2 && mOffscreen2->ipcBuffer()->key() == sharedBufferKey)
+        receivedBuffer = 2;
 
     if (receivedBuffer < 0) {
         g_warning("Received shared buffer key is not ours: %d", sharedBufferKey);
@@ -3951,7 +4129,8 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
         mOffscreenCurrent = 0;
     }
 
-    mOffscreenCurrent = receivedBuffer == 0 ? mOffscreen0 : mOffscreen1;
+    mOffscreenCurrent = (receivedBuffer == 0) ? mOffscreen0
+                      : (receivedBuffer == 1) ? mOffscreen1 : mOffscreen2;
     if (FILE* lf = jihadPaintLog()) {
       BrowserOffscreenInfo* pi = mOffscreenCurrent->header();
       fprintf(lf, "[msgp] key=%d recv=%d frozen=%d rW=%d rH=%d win[%ux%u] -> invalidate\n",
@@ -4274,15 +4453,33 @@ void BrowserAdapter::jsonToRects(const char* rectsArrayJson)
     pbnjson::JValue rectsArray;
     pbnjson::JDomParser parser(NULL);
 
+    // JIHAD: resolve the schema inside THIS app first, and only then fall back to the stock
+    // system path. Two reasons, both learned the hard way:
+    //   - /etc/palm/browser/ on a webOS 3.0.5 device ships HitTest.schema and NOTHING else.
+    //     InteractiveWidgetRect.schema is simply not there, and a missing schema file makes
+    //     the parse below fail, which silently drops EVERY rect in the message — the feature
+    //     looks correct all the way to the wire and then does nothing.
+    //   - /etc is the read-only system rootfs, shared with the stock browser, and outside
+    //     this variant's own footprint (device-build R8). Installing into it would need a
+    //     remount and would leave a file behind that our uninstall never removes.
+    // The wire bytes are untouched by this: the schema is how the adapter validates the
+    // payload, not part of the frozen contract.
+    // Flat, not conf/: the loaded library is the ROOT-OWNED copy in /usr/lib/jihad/<variant>/
+    // (the app-bundle copy is only a delivery vehicle), and postinst puts the schema there
+    // beside it. dladdr therefore names that directory, for whichever variant is running.
+    QString schemaFile = jihadAppFile("InteractiveWidgetRect.schema");
+    if (schemaFile.isEmpty()) {
 #ifdef ISIS_DESKTOP
-    QString schemaFile = QString("%1/.isis/conf/InteractiveWidgetRect.schema").arg(QDir::homePath());
+        schemaFile = QString("%1/.isis/conf/InteractiveWidgetRect.schema").arg(QDir::homePath());
 #else
-    QString schemaFile("/etc/palm/browser/InteractiveWidgetRect.schema");
+        schemaFile = QString("/etc/palm/browser/InteractiveWidgetRect.schema");
 #endif
+    }
 
     pbnjson::JSchemaFile schema(qPrintable(schemaFile));
     if (!parser.parse(rectsArrayJson, schema, NULL)) {
-        TRACEF("%s: unable to parse string '%s'\n", __FUNCTION__, rectsArrayJson);
+        TRACEF("%s: unable to parse '%s' against schema '%s'\n", __FUNCTION__,
+               rectsArrayJson, qPrintable(schemaFile));
         goto Done;
     }
 
@@ -5042,6 +5239,9 @@ void BrowserAdapter::freeze()
     delete mOffscreen1;
     mOffscreen1 = 0;
 
+    delete mOffscreen2;
+    mOffscreen2 = 0;
+
     mOffscreenCurrent = 0;
 
     asyncCmdFreeze();
@@ -5066,6 +5266,11 @@ void BrowserAdapter::thaw()
 
     asyncCmdThaw(mOffscreen0->key(), mOffscreen1->key(),
                  mOffscreen0->size());
+    // Thaw carries two keys for the same frozen-shape reason as Connect, and init() above may
+    // have allocated a NEW third segment, so it has to be re-announced or the daemon would keep
+    // rotating onto a key that no longer exists.
+    if (mOffscreen2)
+        asyncCmdSetExtraBuffer(mOffscreen2->key(), mOffscreen2->size());
 
     // don't release frozen at this point, wait msgPainted event coming back!
 }

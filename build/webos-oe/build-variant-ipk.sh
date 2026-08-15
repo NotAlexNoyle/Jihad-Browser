@@ -113,6 +113,12 @@ for V in $VARIANTS; do
   [ -f "$PARTS/$V/BrowserAdapterImpl.so" ] \
     || die "[$V] missing $PARTS/$V/BrowserAdapterImpl.so — run build-adapter-pdk.sh $V"
   install -m 0644 "$PARTS/$V/BrowserAdapterImpl.so" "$STAGE/BrowserAdapterImpl.so"
+  # The interactive-widget-rect schema travels with the impl: the adapter validates every
+  # msgAddFlashRects payload against it and silently drops the message when it is missing, and
+  # stock webOS 3.0.5 does not ship this file at all (only HitTest.schema). postinst copies it
+  # next to the impl in /usr/lib/jihad/<V>/, which is where the impl looks (dladdr on itself).
+  install -d "$STAGE/conf"
+  install -m 0644 "$REPO/packaging/conf/InteractiveWidgetRect.schema" "$STAGE/conf/InteractiveWidgetRect.schema"
 
   # ---- 4. deviceroot: engine/daemon run in place + this variant's shim and upstart job ----
   # NOTHING here is copied to /media/internal at install time (R8) — postinst execs it in place

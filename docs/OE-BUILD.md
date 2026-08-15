@@ -139,21 +139,17 @@ put it under mcf's git layer-management. Instead `oe-env.sh` appends it to `conf
 
 ## Status
 
-The **environment is runnable and proven**: `oe-env.sh provision` + `bringup tenderloin` build
-the Ubuntu-14.04 host, clone+pin the dylan layers, and wire the Jihad layer; `bitbake -p` then
-**parses the full metadata (1419 recipes) with 0 errors**, including all five Jihad recipes, and
-every in-repo `SRC_URI` (`render/`, `app/`, `packaging/`, …) resolves via the repo bind. The
-early blockers are fixed:
+Tracked as one acceptance criterion — `context/kits/cavekit-device-build.md` R3 — not restated
+here. The short version a reader of this file needs: **the OE environment parses and is runnable,
+but the `do_compile`s do not yet cross-build**, so the direct cross-build scripts in
+`docs/DEVICE-BUILD.md` remain the verified pipeline and are what every current binary was built
+with.
 
-- `recipes-jihad/jihad-common.inc` (new) points `FILESEXTRAPATHS` at the repo root (`/oe/Jihad-Browser`)
+Two fixes are worth keeping here because they are properties of the metadata rather than of the
+requirement:
+
+- `recipes-jihad/jihad-common.inc` points `FILESEXTRAPATHS` at the repo root (`/oe/Jihad-Browser`)
   so `file://` sources resolve, and supplies the real `LIC_FILES_CHKSUM` (repo `LICENSE`) + the
   webOS app dir.
-- UI recipes drop the nonexistent `webos-app` class → `inherit allarch`; the modern `:`-override
-  in goanna → dylan underscore; the adapter `SRC_URI` → the vendored `render/adapter/`.
-
-**Remaining (Phase B — the real compiles):** the `do_compile`s still need to actually cross-build:
-`goanna` (libxul via the ARM mozconfig + patch queue — and a `jihad-cross-toolchain-native`
-provider, since stock dylan gcc can't build UXP), then `jihad-browserserver` and
-`browser-adapter-jihad` (the latter against the Palm PDK, `fetch-pdk.sh`). This is iterated against
-live `bitbake` inside `oe-env.sh`. Until those land, the direct cross-build scripts
-(`docs/DEVICE-BUILD.md`) remain the verified pipeline.
+- UI recipes drop the nonexistent `webos-app` class → `inherit allarch`; the modern `:`-override in
+  goanna → dylan underscore; the adapter `SRC_URI` → the vendored `render/adapter/`.

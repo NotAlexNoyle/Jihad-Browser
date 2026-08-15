@@ -132,6 +132,102 @@ XUL parsing is chrome-only and a `file://` .xul document is refused outright, an
 `chrome://branding/` package or about:addons parses to a `<parsererror>` and every probe silently
 tests an error page — `build-goanna.sh` now installs it, as the device bundle already did.
 
+### R8: The damage-only repaint may never publish a frame it cannot prove
+
+**Description:** A whole-viewport software render costs ~38 ms on this device; the damage box of an
+animating plugin costs ~2 ms, so damage-only repaint is what makes animated content viable at all
+(cavekit-addons-extensions.md R7). It is also the single easiest way to publish a WRONG frame,
+because it copies forward a buffer it did not write this tick. Every one of its premises must be
+proven per buffer, per frame — geometry alone is not enough, because the common failures leave
+width, height, zoom and the adapter's scroll position all identical while invalidating the mapping.
+
+**Acceptance Criteria:**
+- [x] A buffer is eligible as a partial-paint base only if it provably holds a COMPLETE, NON-BLANK
+      frame of the current geometry. *(2026-08-10. `mBufFull[fs].valid` was recorded BEFORE the
+      blank-over-good suppression and before the active-buffer flip, so a frame rejected as blank
+      still advertised its slot as complete; the next tick then blitted one live rectangle into that
+      white buffer and published it — laundering the exact white flash the suppression exists to
+      prevent. The record now happens past every early return, on the path that will definitely
+      publish, and is `nb > 0` rather than `nb >= 0`. Both non-publishing returns explicitly drop the
+      record via `invalidateBufRecord()`.)*
+- [x] An ENGINE-initiated scroll forces one full frame. *(2026-08-10. `mDamageForceFull` existed,
+      was read once, and was NEVER assigned true anywhere in the tree — the protection its own
+      comment described did not exist. Adapter-driven scroll/zoom/resize/nav were covered by
+      accident, because they change `mAdapterScrollX/Y` or drop the buffer records; an anchor jump,
+      `window.scrollTo`, scroll-into-view on focus, find-in-page, or the 100-300 ms convergence on
+      the adapter's target change NONE of those, while the damage box from PuppetWidget is relative
+      to the NEW scroll. With a plugin animating, damage is present on essentially every tick, so
+      the partial branch would win every tick and the card would composite pre-scroll rows
+      indefinitely with the plugin drawn at the wrong offset. **The check must sit ABOVE the
+      zoom guard in `emitScrollIfChanged`** — that guard suppresses the adapter ECHO while zoomed,
+      and fit-zoom ~0.78 is the normal state for a desktop-width page, so gating on it left the bug
+      live in the common case (measured: a `window.scrollTo` at fit-zoom never reached the flag).
+      It reads the scroll with `flushLayout=false` and its own last-seen pair: the 2-arg default
+      flushes layout, and a layout flush from the tick reflows the plugin frame, reallocates its
+      async surface under the child and kills it.)*
+- [x] `thaw()` invalidates both buffer records. *(2026-08-10. Its own comment said "the buffers may
+      be new segments" and it called `detachShm()`, but left `mBufFull[0]/[1]` valid — so the first
+      paint after a card returns to the foreground passed the eligibility test and rendered only the
+      damage box into a segment we had never written, publishing whatever its previous owner left
+      there. With a plugin animating this was the guaranteed first frame, not a rare one.)*
+- [x] `bandRow` is only recorded when the tall-region render actually ran. *(2026-08-10. The
+      fallback path reads the frame to buffer row 0 while `bandRow` still holds the tall-region
+      value, which would offset every later damage rect by it.)*
+- [x] The partial path's own output is bounded the way the full path's is — it publishes with no
+      non-blank count and no blank check of any kind, so anything that corrupts a partial frame is
+      invisible to the daemon. Decide whether that is acceptable or add a cheap guard.
+      *(**2026-08-10 — analysed, and the obvious guard is the WRONG one. Do not ship it.** The
+      full path's guard is a non-blank pixel count over the visible band, and it is sound there
+      because a whole viewport that renders to nothing is always a failure
+      (`BrowserPageGoanna.cpp:2422/2428/2444` — `nb < 0`, `nb == 0 && region && mHadContent`,
+      `nb == 0 && mHadContent`). Copying that test onto the damage rect
+      (`RenderRegion`, `:2196-2199`) inverts its meaning: a SMALL rect that is legitimately
+      all-white is completely ordinary — a caret blinking off, text being erased, a white area
+      scrolling in — and the full path's own test treats `p[0]>240 && p[1]>240 && p[2]>240` as
+      blank. A per-damage-rect blank check would therefore suppress a large class of correct
+      frames, and on a mostly-white page it would suppress most of them. That is a worse defect
+      than the one this criterion is about.*
+      *What the partial path DOES already have is `RenderRegion`'s boolean return, which is a
+      "did the render run" signal but not a "did it produce sane pixels" one.*
+      *So this criterion needs a guard whose failure mode is not "white content", and the two
+      candidates worth measuring are (a) a checksum/／sentinel over the destination rect before and
+      after the render — corruption changes it, legitimate white does too, so this only detects a
+      render that wrote NOTHING, and (b) bounding the rect against `renderedWidth/Height` and the
+      segment size, which catches the geometry class of corruption without looking at pixels at
+      all. (b) is cheap, has no false positives, and is probably the whole answer; (a) is nearly
+      free given `RenderRegion` already returns bool. Kept `[~]` rather than closed because
+      neither is implemented yet.)*
+      *(**2026-08-10, SECOND PASS — DECIDED: no blank check, and the path is already bounded. This
+      criterion offers two ways to close and this takes the first one, "justify that in writing".**
+      Reading the partial branch properly (`BrowserPageGoanna.cpp:2173-2199`) changes the picture
+      the criterion was written from — it is not unguarded, it is guarded by construction rather
+      than by a pixel test:*
+      1. ***The damage box is CLAMPED, not trusted.*** *`:2184-2190` clips `dLeft/dTop/dW/dH` into
+         the visible band on all four sides, and `worthIt` (`:2193`) additionally requires
+         `dW > 0 && dH > 0`. The destination write `pixels + (dTop*w + dLeft)*4` with stride `w*4`
+         and `dH` rows therefore cannot leave the band, and the band itself is capped by `maxRows`
+         from the real segment size. The geometry class of corruption — the one that actually
+         crashes or tears — has no way in.*
+      2. ***It only runs on an EXACT buffer-state match.*** `:2175-2179` *requires the cached full
+         frame to match on `w`, `h`, `zeff`, `scrollX` AND `scrollY`; anything else falls through
+         to the full path. So a partial paint cannot land on a buffer whose geometry moved.*
+      3. ***`RenderRegion` returns bool*** *(`:2196`) and a false return skips the publish entirely,
+         which covers "the render did not run".*
+      4. ***And the decisive one: a partial paint only ever rewrites a SUB-RECT of a frame that
+         already passed the full path's non-blank check.*** *The surrounding pixels are the last
+         full paint. So the failure this criterion imagines — "publishes a corrupt frame invisibly"
+         — cannot produce a blank or wholly-corrupt card frame; the worst case is a stale-or-wrong
+         rectangle inside an otherwise valid one, bounded by `0.6 * w * h`.*
+      *The residual risk is `RenderRegion` returning true having written wrong pixels, and there is
+      no cheap detector for that which does not fire on legitimate white (see the previous note).
+      `JIHAD_NO_PARTIAL_PAINT=1` remains the kill switch if a real corruption is ever observed.
+      Closing `[x]` on the written justification, NOT on an added guard.)*
+
+**Dependencies:** R1, R2, cavekit-addons-extensions.md (R7)
+**Kill switch:** `JIHAD_NO_PARTIAL_PAINT=1` disables the damage-only branch. NOTE it gates exactly
+one block — it is NOT a general "disable this session's frame work" switch, and a 2026-08-09 bisect
+that assumed otherwise reached a right conclusion for the wrong reason.
+
 ## Out of Scope
 - Synthesizing input (cavekit-input-bridging.md).
 - GPU/WebGL/video compositor path — first target is CPU/basic-layers readback; accelerated paths are deferred (note in impl, revisit in Phase 3).

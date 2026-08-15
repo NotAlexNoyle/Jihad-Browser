@@ -12,6 +12,7 @@
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
 #include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
+#include "JihadCertStore.h"         // webOS platform certificate store (R5)
 
 #include <cstdio>
 #include <sys/time.h>   // gettimeofday (paint render timing)
@@ -53,19 +54,28 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
-    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false),
+    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false), mGeometryTries(0),
     mNavGen(0), mLastScrollMs(0) {
-  mShmBuf[0] = mShmBuf[1] = nullptr; mShmId[0] = mShmId[1] = -1;
+  for (int i = 0; i < 3; ++i) { mShmBuf[i] = nullptr; mShmId[i] = -1; }
+  mTouchSeqActive = false; mTouchSeqConsumed = false;
+  mTouchAnchorX = 0; mTouchAnchorY = 0;
+  mTouchSeqStartMs = 0; mTouchSuppressUntilMs = 0;
   mInFlight[0] = mInFlight[1] = false; mPaintMs[0] = mPaintMs[1] = 0;
   mLastBackspaceMs = 0; mBackspaceRun = 0;
   mLoadStartMs = 0;
   mLastProgress = 0;
   mWatchdogDismissed = false;
-  mDirtyPending = false; mLastDirtyPaintMs = 0;
+  mDirtyPending = false; mLastDirtyPaintMs = 0; mPaceDeadlineMs = 0; mLastPluginFrameSeq = 0;
+  mLastRequestedSeq = 0; mPluginReqMs = 0; mPluginReqTicks = 0; mPluginReqOutstanding = false;
   // Engine dialogs are process-wide (one prompter service), so the LAST page created owns
   // them — the same single-page-embedding assumption DebugRunChromeJs already makes. Without
   // this nothing implements DialogSink and every dialog silently takes its default.
   SetDialogSink(this);
+  // Session certificates a previous daemon died holding are removed here, before
+  // this page can install any of its own. It is idempotent and runs on the first
+  // page ONLY, which is the earliest point this file owns; a daemon that never
+  // creates a page also never installs a certificate, so nothing is missed.
+  jihad::certstore::InitAndSweepStale();
 }
 
 // Deferred editing keys (run in pump(), not the keyDown YAP callback — Codex F-219). Enter may
@@ -74,36 +84,190 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
 // HandleTab decides that, so all Tabs defer for uniformity.)
 enum { PEA_NONE = 0, PEA_TAB = 1, PEA_TAB_BACK = 2, PEA_ENTER = 3 };
 
-// Monotonic-enough wall clock in ms for the buffer flow-control timeout valve.
-static long jihadNowMs() {
-  struct timeval tv; gettimeofday(&tv, NULL);
-  return (long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+// Minimum gap between two damage-driven repaints.
+//
+// 8 ms, deliberately BELOW the tick period rather than at the target frame time. A floor of
+// 33 ms looks like "cap at 30 fps" but a paint can only happen on a tick, and the tick runs at
+// ~26 ms under load — so a 33 ms floor pushed every second frame to the following tick and
+// produced a 26/52 ms beat: 22 fps average made of alternating fast and slow frames, which is
+// exactly what uneven motion looks like. Measured before: gap min 34 avg 45 max 78.
+// Keeping the floor under the tick lets every tick that has damage deliver, so the pacing is
+// set by the damage rate and the tick, not by a beat between two similar periods. The real
+// throttles remain: the in-flight buffer guard, and the cost of the frame itself.
+static const int kJihadDirtyPaintMinMs = 8;
+
+// Frame PACING for plugin-driven animation, on a fixed grid rather than a floor.
+//
+// The floor above is right for ordinary page damage, where a repaint should go out as soon as
+// it can, but it is wrong for a plugin, which produces a CONTINUOUS stream of frames. Damage
+// from an out-of-process plugin arrives whenever its IPC lands, which bears no relation to our
+// 16 ms tick, so "paint on any tick that has damage" delivers frames at essentially random
+// instants. Device-measured 2026-08-10 on a 30 fps SWF, and this is the whole diagnosis: the
+// gap histogram was FLAT across every bucket from under 16 ms to 55 ms (<16=19 16-23=20
+// 24-31=10 32-39=24 40-55=6) at a healthy 35-42 fps average. The compositor then held each
+// frame for anywhere between half a refresh and three, which is what a viewer reads as stutter
+// even though no frame was ever dropped and the average was ABOVE the content's own rate.
+//
+// A DEADLINE, not a floor. The distinction is the reason the earlier attempt failed: a floor
+// measured from the last actual publish accumulates every late paint into the next interval, so
+// it drifts and beats against the tick (the 2026-08 note above records a 26/52 ms alternation
+// from exactly that). A deadline advances on its own fixed grid, so a late frame is followed by
+// an early one and the spacing averages the target instead of walking away from it.
+//
+// 33 ms because it is two refreshes of a 60 Hz compositor and because Flash content is
+// essentially all 12-30 fps; snapping to it means every frame is held the SAME number of
+// refreshes. That trades a few fps of average for even spacing, which is the trade the eye
+// wants. $JIHAD_PLUGIN_FRAME_MS overrides it (0 disables the pacer entirely and restores the
+// old free-running behaviour) so the period can be A/B'd on the device without a rebuild.
+// How long damage may sit unpainted on a plugin page before it is published regardless of the
+// plugin. 250 ms is a quarter second of latency for a caret or an image decode in the worst
+// case, and it is ~8 plugin periods, so it cannot fire while anything is animating.
+static const int kJihadDirtyStaleMs = 250;
+
+static int jihadPluginFramePeriodMs() {
+  static int s_ms = -1;
+  if (s_ms < 0) {
+    const char* e = getenv("JIHAD_PLUGIN_FRAME_MS");
+    s_ms = (e && *e) ? atoi(e) : 33;
+    if (s_ms < 0) s_ms = 0;
+  }
+  return s_ms;
 }
+
+static uint32_t gJihadPaintWanted = 0;
+static uint32_t gJihadPaintDeferInFlight = 0;
+static uint32_t gJihadPaintDone = 0;
+static uint32_t gJihadPaintPartial = 0;
+static uint32_t gJihadTicks = 0;
+static uint32_t gJihadDirtyTrue = 0;
+
+// Frame PACING, not frame rate. An average hides the thing a viewer actually notices: a run
+// of 30 ms frames with an occasional 200 ms stall reads as stutter even though it averages
+// well. This keeps the spread between consecutive delivered frames.
+static int64_t  gJihadPrevFrameMs = 0;
+static uint32_t gJihadGapMin = 0, gJihadGapMax = 0, gJihadGapN = 0;
+static uint64_t gJihadGapSum = 0;
+
+// Frame-gap HISTOGRAM, because min/avg/max cannot show the failure this is looking for.
+// A publisher free-running near the content's own rate delivers a BEAT: most frames one tick
+// apart and a few two ticks apart. That reads as stutter to a viewer while producing a healthy
+// average and an unremarkable max, so the summary statistics all look fine. A bimodal bucket
+// count is the signature, and it is the only cheap way to tell "evenly late" from "unevenly
+// on time". Buckets are centred on the 33 ms a 30 fps plugin wants: everything in one bucket
+// is smooth, weight split across two non-adjacent buckets is judder.
+enum { kGapBuckets = 6 };
+static uint32_t gJihadGapHist[kGapBuckets] = {0};
+static const char* const kGapLabels[kGapBuckets] =
+  { "<16", "16-23", "24-31", "32-39", "40-55", "56+" };
+static void JihadRecordFrameGap(int64_t aNowMs)
+{
+  if (gJihadPrevFrameMs) {
+    uint32_t gap = (uint32_t)(aNowMs - gJihadPrevFrameMs);
+    if (!gJihadGapN || gap < gJihadGapMin) gJihadGapMin = gap;
+    if (gap > gJihadGapMax) gJihadGapMax = gap;
+    gJihadGapSum += gap;
+    gJihadGapN++;
+    gJihadGapHist[gap < 16 ? 0 : gap < 24 ? 1 : gap < 32 ? 2
+                : gap < 40 ? 3 : gap < 56 ? 4 : 5]++;
+  }
+  gJihadPrevFrameMs = aNowMs;
+}
+
+// Monotonic-enough wall clock in ms.
+//
+// int64_t, NOT long. `long` is 32 BITS on this ARM target, and tv_sec*1000 for any date after
+// 1970+49.7 days overflows it — right now the old version returned -379298136. Differences
+// between two wrapped stamps still come out right, which is why this went unnoticed, but a
+// comparison against a literal 0 sentinel does not: `now - 0 >= 150` is FALSE for the whole
+// ~25-day window in which the wrapped value is negative, and TRUE for the next. That silently
+// disabled the dirty-driven repaint path — every plugin frame and every JS animation — on a
+// calendar cycle, which is about the least debuggable failure shape available. Measured:
+// Flash drawing at 30fps while the card repainted 5 times in 25 seconds.
+static int64_t jihadNowMs() {
+  struct timeval tv; gettimeofday(&tv, NULL);
+  return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+// The daemon's tick period. Defined HERE rather than in Main.cpp, which used to own it, because
+// the plugin pull has to express its request period in whole ticks — a request grid that is not
+// a tick multiple beats against the tick and reintroduces the uneven spacing it exists to
+// remove. Two copies of the env read would let the two drift apart silently, so there is one.
+int jihadTickPeriodMs() {
+  static int s_ms = -1;
+  if (s_ms < 0) {
+    s_ms = 8;
+    if (const char* e = getenv("JIHAD_TICK_MS")) {
+      int v = atoi(e);
+      if (v >= 4 && v <= 64) s_ms = v;
+    }
+  }
+  return s_ms;
+}
+
+static int jihadShmResolve(int keyOrId);   // defined below
 
 int BrowserPageGoanna::slotForKey(int key) const {
   if (key && key == mKey1) return 0;
   if (key && key == mKey2) return 1;
+  if (key && key == mKey3) return 2;
   return -1;
 }
 
-static int jihadShmResolve(int keyOrId);   // defined below
+// YAP 0x1600. The adapter allocated a third segment and is telling us its key. Accepting it is
+// what turns the paint rotation from "one adapter round trip per frame" into "the adapter holds
+// one buffer while we still have a free one" — with two buffers roughly a quarter of paint
+// attempts were refused outright (device: deferred 11 -> 38 -> 77 as the plugin sped up, while
+// completed paints stayed pinned at ~26/s).
+void BrowserPageGoanna::setExtraBuffer(int key3, int size) {
+  if (!key3) return;
+  // Must match the pair we already have, or the rotation would hand the adapter a buffer of a
+  // different size than the header it reads describes.
+  if (size > 0 && mBufSize > 0 && size != mBufSize) {
+    fprintf(stderr, "[jihad-bs] extra buffer REFUSED: size %d != %d\n", size, mBufSize);
+    return;
+  }
+  if (jihadShmResolve(key3) < 0) {
+    fprintf(stderr, "[jihad-bs] extra buffer REFUSED: key 0x%x does not resolve\n", (unsigned)key3);
+    return;
+  }
+  mKey3 = key3;
+  mInFlight[2] = false; mPaintMs[2] = 0; mBufFull[2].valid = false;
+  fprintf(stderr, "[jihad-bs] extra buffer ACCEPTED: 3-buffer rotation active (key 0x%x)\n",
+          (unsigned)key3);
+}
+
+// Advance the paint target. With two buffers this is the original alternation; with three it
+// cycles 1 -> 2 -> 3 -> 1, which is the whole point of the third: the adapter can be holding one
+// displayed buffer and STILL leave us a free one, instead of gating every frame on its return.
+int BrowserPageGoanna::nextBufferKey() const {
+  if (mKey3) {
+    if (mActiveKey == mKey1) return mKey2 ? mKey2 : mKey3;
+    if (mActiveKey == mKey2) return mKey3;
+    return mKey1;
+  }
+  return (mActiveKey == mKey1 && mKey2) ? mKey2 : mKey1;
+}
+
 
 // Resolve a key/shmid and return a cached attachment (attaching once, then reusing). shmat/shmdt
 // per paint cost ~400ms/keystroke on device; the two alternating segments are attached at most once.
 unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
   int id = jihadShmResolve(keyOrId);
   if (id < 0) return nullptr;
-  for (int i = 0; i < 2; ++i) if (mShmId[i] == id && mShmBuf[i]) return mShmBuf[i];
+  for (int i = 0; i < 3; ++i) if (mShmId[i] == id && mShmBuf[i]) return mShmBuf[i];
   void* p = shmat(id, nullptr, 0);
   if (p == (void*)-1) { perror("[BrowserPageGoanna] shmat"); return nullptr; }
-  int slot = (mShmBuf[0] == nullptr) ? 0 : 1;   // 2 buffers total; fill an empty slot
+  // Fill the first empty slot; with a third buffer in rotation there are three of them.
+  int slot = -1;
+  for (int i = 0; i < 3; ++i) if (!mShmBuf[i]) { slot = i; break; }
+  if (slot < 0) slot = 0;
   if (mShmBuf[slot]) { shmdt(mShmBuf[slot]); }
   mShmBuf[slot] = (unsigned char*)p; mShmId[slot] = id;
   return mShmBuf[slot];
 }
 
 void BrowserPageGoanna::detachShm() {
-  for (int i = 0; i < 2; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; }
+  for (int i = 0; i < 3; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; }
 }
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
@@ -124,6 +288,11 @@ void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
 BrowserPageGoanna::~BrowserPageGoanna() {
   // Never leave the process-wide sink pointing at a destroyed page.
   SetDialogSink(nullptr);
+  // "Trust once" ends with the page that asked, exactly as upstream's dtor did.
+  // The startup sweep is what covers the case this one cannot: dying without
+  // running at all.
+  jihad::certstore::SweepSession(this);
+  clearPluginRects();
   // The BrowserAdapter owns the shared segments (it allocated them and passed
   // the keys via connect()); the daemon must NOT IPC_RMID them (Codex P1).
   detachShm();
@@ -176,9 +345,12 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 
   mKey1 = sharedBufferKey1;
   mKey2 = sharedBufferKey2;
+  // A fresh Connect replaces the whole set, so a third announced against the PREVIOUS set is
+  // stale — the adapter re-announces once it has allocated the new one.
+  mKey3 = 0;
   mBufSize = sharedBufferSize;
   mActiveKey = mKey1;
-  mInFlight[0] = mInFlight[1] = false;   // fresh segments: nothing in flight (F-211)
+  mInFlight[0] = mInFlight[1] = mInFlight[2] = false;   // fresh segments: nothing in flight (F-211)
 
   // Attach-only: the adapter (isis IpcBuffer::create) makes each segment, IPC_RMID-marks
   // it for auto-delete on last detach, and sends the SysV SHMID (not an ftok key). An
@@ -202,6 +374,10 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 }
 
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
+  // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
+  // buffers still hold the old one.
+  mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mDamageValid = false; mDamageForceFull = true;
   if (!mPage) return;
   // The BrowserAdapter owns the shared framebuffer and its size (Codex P1/P2);
   // the daemon must not paint beyond it. Only accept a surface that still fits
@@ -235,13 +411,20 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
   if (shrink && hadEditable) {
     int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
-    // Only counter an engine-induced downward push (field-into-view), and only when
-    // the tapped field's top stays within the shrunken viewport if we restore — i.e.
-    // its content-y is above the pre-resize scroll + the new (smaller) height. That
-    // keeps a field the VKB would otherwise cover lifted, but stops the common case
-    // (top-of-page search box) from being shoved off the top.
+    // Counter an engine-induced downward push (field-into-view).
+    // CORRECTION 2026-08-10 (T-133): the field-position guard the previous version of this
+    // comment described WAS NEVER IMPLEMENTED. It claimed the restore runs only when the tapped
+    // field's top stays inside the shrunken viewport; the test is just sy1 > sy0, so a field the
+    // VKB genuinely covers gets pushed back under it. Left as-is on purpose: e1b3197 was tuned on
+    // the device, T-119 has not re-run it, and adding the guard blind could regress the verified
+    // top-of-page-search-box case.
+    // The adapter cannot compensate either. scrollCaretIntoViewAfterResize is DEAD CODE in this
+    // port: its first clause tests m_textCaretRect, which is only written by
+    // msgGetTextCaretBoundsResponse, and JihadBrowserServer::asyncCmdGetTextCaretBounds is a
+    // (void)proxy; no-op (TODO T-016), so that response never arrives and the rect stays (0,0).
     if (sy1 > sy0) mPage->ScrollTo(sx0, sy0);
   }
+  if (mLastWinH != (int)height) { mLastWinResizeDh = (int)height - mLastWinH; mLastWinResizeMs = jihadNowMs(); }
   mLastWinH = (int)height;
   if (t1log) {
     int sx2 = 0, sy2 = 0; mPage->GetScrollXY(&sx2, &sy2);
@@ -272,7 +455,17 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   if (!ok) return;   // remain frozen; keep the old (already-detached) keys inactive
   detachShm();       // the buffers may be new segments — drop stale cached attachments
   mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
-  mInFlight[0] = mInFlight[1] = false;   // reattached (possibly new) segments: clear in flight (F-211)
+  mKey3 = 0;   // re-announced by the adapter after thaw; the old third segment may be gone
+  mInFlight[0] = mInFlight[1] = mInFlight[2] = false;   // reattached (possibly new) segments: clear in flight (F-211)
+  // Possibly NEW segments — detachShm() above just dropped the old attachments — so nothing
+  // we recorded about the old buffers' contents survives. Without this the first paint after
+  // a card comes back to the foreground passes the damage-only eligibility test (w, h, zoom
+  // and scroll are all unchanged by backgrounding) and renders ONLY the damage box into a
+  // segment we have never written, publishing whatever its previous owner left there. With a
+  // plugin animating, mDamageValid is true on essentially every tick, so that is the
+  // guaranteed first frame after thaw, not a rare one.
+  mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mDamageValid = false; mDamageForceFull = true;
   mFrozen = false;
   mNeedsPaint = true;
 }
@@ -290,6 +483,42 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
   int s = slotForKey(sharedBufferKey);
   if (s >= 0) mInFlight[s] = false;
   if (mNeedsPaint && !mFrozen) maybePaint();
+}
+
+// Every navigation lands at the top, on BOTH sides of the YAP boundary. Stock isis reset via the
+// msgContentsSizeChanged(0,0) "new page" sentinel (ref-BrowserServer BrowserPage.cpp:1614 —
+// saveFrameStateRequested on commit; the adapter's (0,0) branch zeroes mScrollPos + zoom-fit), but
+// this port deliberately never emits that sentinel (emitGeometry: a transient (0,0) during resize
+// made the adapter drop the live buffer -> white card + zoom flicker). So nothing reset the
+// adapter's scroll on navigation, and the daemon's own band state kept the OLD page's scroll: a
+// card that navigated while scrolled down painted the new (short) page's band a full viewport
+// below the content, and a static plugin at the top of the page never entered the shared buffer
+// (device repro 2026-08-09: tall page -> scroll 942 -> flash page = no magenta, doc=0,942 bands).
+// msgScrolledTo(0,0) is the sentinel-free reset: the adapter's handler clamps to exactly (0,0) at
+// any zoom and moves its scroller (BrowserAdapter.cpp:4218-4224), and the KineticScroller listener
+// echoes asyncCmdSetScrollPosition(0,0) back — both sides converge on 0,0. Stock never restored
+// scroll on back/forward either (restoreFrameStateRequested is an empty stub), so calling this
+// from all five nav commands reproduces stock exactly.
+void BrowserPageGoanna::resetScrollForNavigation() {
+  // A new document invalidates both buffers wholesale. The damage-only path proves its
+  // premise from geometry (size, zoom, scroll), and a navigation can leave every one of
+  // those identical while replacing all the pixels — so geometry alone cannot catch it and
+  // the record has to be dropped explicitly.
+  mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mDamageValid = false; mDamageForceFull = true;
+  // The old page's plugins are gone; their rects must not outlive them. The adapter never
+  // clears mFlashRects itself, so leaving them behind makes the NEW page carry invisible
+  // gesture dead zones wherever the OLD page happened to have a plugin.
+  clearPluginRects();
+  mAdapterScrollX = 0; mAdapterScrollY = 0;       // stale band origin + adY band extension
+  if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
+  mLastContentW = -1; mLastContentH = -1;         // old page's clamp/bound inputs; also forces a
+                                                  // re-emit at load-done even if the size repeats
+  mLastScrollX = 0; mLastScrollY = 0;             // emitScrollIfChanged dedup cache
+  mLastScrollMs = 0;                              // disarm the adapter-driven suppression window
+  mPaintedX = 0; mPaintedLo = 0; mPaintedHi = 0;  // no stale coverage claim (setScrollPosition)
+  mPrevPaintScrollY = 0;                          // overscan direction bias
+  mSink.msgScrolledTo(0, 0);                      // the adapter-side half of the reset
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
@@ -351,6 +580,39 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
                    (mPaintedZoom > Zc - 0.001 && mPaintedZoom < Zc + 0.001) &&
                    (long)y >= loBound && (long)y + h2 <= hiBound;
     if (!covered) mNeedsPaint = true;   // covered: keep whatever was already pending
+    // T-133 INSTRUMENT: the white band on a VKB toggle, counted in ROWS instead of inferred.
+    // This is the only point in the daemon holding the adapter's pan and the painted band in one
+    // coordinate space, and the adapter's composite is a pure function of the two. handlePaint
+    // computes sT = srcTop - renderedY + scrollY, then CLIPS the dst at whichever edge falls
+    // outside the buffer (PGSurface path) or writes FILL = 0xffffffff (dstBuffer path). Rows above
+    // mPaintedLo or below mPaintedHi are therefore never drawn, and an undrawn dst reads WHITE on
+    // device, which is what handlePaint's own "VKB-whiteout" note records. gapTop/gapBot are those
+    // row counts exactly.
+    // Prints only when rows are actually missing: `covered` carries h/2 of slack, so !covered by
+    // itself is the ordinary early-repaint trigger and proves nothing. sinceResize/dh separate the
+    // two producers. A VKB toggle moves the ADAPTER's pan before the daemon can paint at the new
+    // height (KineticScroller::setViewportDimensions re-runs constrain() against the new
+    // bottomBoundary, so a GROW springs a bottom-of-page pan up by as much as dh), while a fling
+    // that outran the overscan has no recent resize. Zoom-matched only, so a pinch cannot print a
+    // row count computed at the wrong scale.
+    if (mPaintedHi > mPaintedLo &&
+        mPaintedZoom > Zc - 0.001 && mPaintedZoom < Zc + 0.001) {
+      long gapTop = mPaintedLo - (long)y;
+      long gapBot = ((long)y + h2) - mPaintedHi;
+      if (gapTop > 0 || gapBot > 0) {
+        // Bounded so a fling past the buffer edge cannot flood the log. A full /var freezes the
+        // daemon log, and a frozen log has already read here as a live one.
+        static int64_t sLastGapLogMs = 0;
+        const int64_t gnow = jihadNowMs();
+        if (gnow - sLastGapLogMs >= 100) {
+          sLastGapLogMs = gnow;
+          fprintf(stderr, "[jihad-bs] uncovered pan y=%d h=%ld band=[%ld,%ld) gapTop=%ld gapBot=%ld"
+                          " sinceResize=%ldms dh=%d\n",
+                  y, h2, mPaintedLo, mPaintedHi, gapTop > 0 ? gapTop : 0, gapBot > 0 ? gapBot : 0,
+                  mLastWinResizeMs ? (long)(gnow - mLastWinResizeMs) : -1L, mLastWinResizeDh);
+        }
+      }
+    }
   }
 }
 
@@ -499,6 +761,7 @@ void BrowserPageGoanna::openUrl(const char* url) {
   // R6: a matching redirect rule hands the URL to the client (msgUrlRedirected)
   // and, if it is a redirect, is not loaded in the browser at all.
   if (applyRedirectRules(url)) return;
+  resetScrollForNavigation();   // after the redirect/about: outs — those never navigate here
   mLoadWasDone = false;
   mNeedsPaint = false;
   mLastProgress = 0;
@@ -515,6 +778,7 @@ void BrowserPageGoanna::openUrl(const char* url) {
 
 void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
   if (!mPage || !body) return;
+  resetScrollForNavigation();
   mLoadWasDone = false; mNeedsPaint = false; mLastProgress = 0;
   mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
   if (!mPage->SetHtml(body)) { mSink.msgLoadStopped(); mLoadWasDone = true; }
@@ -522,9 +786,9 @@ void BrowserPageGoanna::setHTML(const char* /*url*/, const char* body) {
 
 // Nav commands restart the load lifecycle so completion re-emits load+location.
 // back/forward/reload also clear editor focus so the VKB lowers over the new page (review #7 P2).
-void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
-void BrowserPageGoanna::pageForward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
-void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
+void BrowserPageGoanna::pageBackward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); resetScrollForNavigation(); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoBack(); } }
+void BrowserPageGoanna::pageForward() { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); resetScrollForNavigation(); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
+void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); resetScrollForNavigation(); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
@@ -551,28 +815,55 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   if (!mPage) return;
+  // T-131 instrument (cavekit-preferences-ui.md R6), same JIHAD_LOG_INSERT gate as InsertText's.
+  // WARRANTED because of an asymmetry that would otherwise void the run: a VKB keystroke arriving
+  // with no focused editable never reaches InsertText at all — it falls through to engine dispatch
+  // below — so the InsertText probe alone prints NOTHING for the on-device typing case, and an empty
+  // log reads as "the instrument did not fire" rather than as the answer. (The inject `text` channel
+  // does NOT come through here; it calls InsertText directly, which is why one probe cannot cover
+  // both.) NEVER the key or the char (F-163) — the branch bit only.
+  { static const bool kLogInsert = getenv("JIHAD_LOG_INSERT") != nullptr;
+    if (kLogInsert)
+      fprintf(stderr, "[jihad-bs] keydown: editable=%d\n", mPage->HasFocusedEditable() ? 1 : 0); }
   // Never log key/chr — those are user keystrokes (F-163). When a tapped editable is the type
   // target, the webOS VKB delivers each character (and the editing keys) as a keyDown; route it
   // into the field via the engine editor (caret-aware value edits + SetSelectionRange), and render
   // IMMEDIATELY (don't wait for the ~16ms tick) so typing feels responsive. Non-editable focus
   // falls through to normal engine key dispatch.
   if (mPage->HasFocusedEditable()) {
-    // webOS delivers editing keys to the plugin as: ASCII control codes where they exist
-    // (ESC=27, Backspace=8, Tab=9, Enter=13) and the Apple/NSEvent function-key Unicode range
-    // (0xF700+) for arrows / Home / End / forward-Delete — the WebKit webOS derives from puts
-    // those code points in the key field. (Qt keycodes 0x0100001x are matched too, as a fallback.)
+    // webOS delivers editing keys as ASCII control codes where they exist (ESC=27, Backspace=8,
+    // Tab=9, Enter=13, DEL=127) and, for the arrows, its own private-use block 0xE0A0-0xE0A3.
     // The code arrives in `key` with `chr`==0, but we accept it from either field. A printable
     // character inserts at the caret; the editing keys drive the engine caret.
+    //
+    // T-127 (2026-08-10) DELETED the Qt (0x0100000x/1x) and Apple/NSEvent (0xF7xx) blocks that sat
+    // here as "fallbacks". Both were guesses, written in the same commit (f88cd932) that measured
+    // the real codes, and both are now PROVEN unreachable by reading the shipped device binary
+    // build/webos-oe/device-binaries/libWebKitLuna.so (unstripped). No device run was involved:
+    //  * the webOS key path is 16 BITS WIDE end to end. Palm::WebView::keyEvent(unsigned short,
+    //    unsigned short, bool) @0x75f760 -> PlatformKeyboardEvent(unsigned short, unsigned short,
+    //    bool) @0x540ca4 (540cbc: strh r1,[r7,#34]) -> PluginView::handleKeyboardEvent @0x4e8e68
+    //    reads it back (4e8eec: ldrh r0,[r2,#34]) into NPEvent.data.keyEvent.rawkeyCode; `chr` is
+    //    one UTF-16 unit of the same text (4e8eb8: ldrh r3,[r1]). Both are <= 0xFFFF, so no
+    //    Qt::Key value (>= 0x01000001) can ever appear in either field.
+    //  * WebCore::keyIdentifierForPalmCode @0x53fc78 is the authoritative webOS code table:
+    //    0x0C Clear, 0x0D Enter, 0x12 Alt, 0x13 Pause, 0x1B Back, 0x2E "U+007F", 0x80-0x83
+    //    Shift/Alt/Ctrl/Opt, 0x91 Scroll, 0xE0A0 Up, 0xE0A1 Down, 0xE0A2 Left, 0xE0A3 Right,
+    //    0xE0B1 Home (the DEVICE Home button), 0xE0B2 Launcher, 0xE0B3/B4 PageUp/PageDown,
+    //    0xE0E2/E3 Previous/Next, 0xE0E5 Menu, 0xE0E7 Meta. No 0xF7xx anywhere in it, nor in
+    //    EditorClient::translateKeyWithStickyState or EditorStickyState::*. The NSEvent range
+    //    came from WebKit's platform/ios/KeyEventCodesIOS.h, which only the Cocoa port compiles.
+    // That table has NO End code at all, which is why Home/End went with the blocks (see below).
     typedef jihad::GoannaRenderPage GRP;
+    // kDelete=127 is the 2026-07-15 on-device measurement and is left alone, but T-141 should
+    // settle a conflict: the table above says the RAW webOS forward-Delete code is 0x2E and only
+    // its keyIdentifier is "U+007F". If 127 only ever arrives in `chr`, a raw 0x2E types '.'.
     const int kBackspace = 8, kTab = 9, kEnter = 13, kDelete = 127;
-    const int kQtTab = 0x01000001, kQtBacktab = 0x01000002, kQtReturn = 0x01000004,
-              kQtEnter = 0x01000005, kQtDelete = 0x01000007, kQtHome = 0x01000010,
-              kQtEnd = 0x01000011, kQtLeft = 0x01000012, kQtUp = 0x01000013,
-              kQtRight = 0x01000014, kQtDown = 0x01000015;
-    const int kMacUp = 0xF700, kMacDown = 0xF701, kMacLeft = 0xF702, kMacRight = 0xF703,
-              kMacDelete = 0xF728, kMacHome = 0xF729, kMacEnd = 0xF72B;
-    // webOS's own special-key block (measured on-device via the keyprobe): the VKB keypad's arrow
-    // keys arrive here, NOT in the Apple/Qt ranges. Down/Up/Left/Right are 0xE0A0..0xE0A3.
+    // webOS's own special-key block. The BLOCK is certain (2026-07-15 keyprobe AND the binary
+    // table). The Up/Down LABELS are NOT: the binary reads 0xE0A0="Up" 0xE0A1="Down", the reverse
+    // of the 2026-07-15 note these names come from; Left/Right agree. Left exactly as measured on
+    // purpose - swapping on binary evidence alone could invert a path that works today. One
+    // keypress under T-141 settles it; AGENTS.md carries the same possibly-swapped pair.
     const int kWebDown = 0xE0A0, kWebUp = 0xE0A1, kWebLeft = 0xE0A2, kWebRight = 0xE0A3;
     const bool shift = (modifiers & (1 << 2)) != 0;   // npPalmShiftKeyModifier
     auto km = [key, chr](int v) { return key == v || chr == v; };
@@ -580,27 +871,33 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     if (km(kBackspace)) {
       // Accelerate a held Backspace: consecutive presses within the auto-repeat window build a run;
       // once sustained (~0.5s of holding), delete a whole word per repeat so long text clears fast.
-      long now = jihadNowMs();
+      int64_t now = jihadNowMs();
       mBackspaceRun = (now - mLastBackspaceMs <= 250) ? (mBackspaceRun + 1) : 1;
       mLastBackspaceMs = now;
       if (mBackspaceRun >= 12) mPage->DeleteBackwardWord();
       else                     mPage->DeleteBackward();
       mNeedsPaint = true;
-    } else if (km(kDelete) || km(kQtDelete) || km(kMacDelete)) {
+    } else if (km(kDelete)) {
       mPage->EditKey(GRP::EK_DELETE); mNeedsPaint = true;
-    } else if (km(kTab) || km(kQtTab) || km(kQtBacktab)) {
+    } else if (km(kTab)) {
       // Tab: <textarea> inserts a tab, single-line <input> moves to the next field (fires focus JS)
-      // — defer to pump() (F-219). Shift+Tab / the Qt backtab code go backward.
-      mPendingEditActions.push_back((shift || km(kQtBacktab)) ? PEA_TAB_BACK : PEA_TAB); mNeedsPaint = true;
-    } else if (km(kEnter) || km(kQtReturn) || km(kQtEnter)) {
-      // Enter may submit a form and navigate — defer to pump() (never navigate in the key callback).
+      // so defer to pump() (F-219). Shift+Tab goes backward off the MODIFIER; the Qt backtab code
+      // that used to be tested here cannot arrive (16-bit path, see above).
+      mPendingEditActions.push_back(shift ? PEA_TAB_BACK : PEA_TAB); mNeedsPaint = true;
+    } else if (km(kEnter)) {
+      // Enter may submit a form and navigate, so defer to pump() (never navigate in a key callback).
       mPendingEditActions.push_back(PEA_ENTER); mNeedsPaint = true;
-    } else if (km(kQtLeft)  || km(kMacLeft)  || km(kWebLeft))  { mPage->EditKey(GRP::EK_LEFT);  mNeedsPaint = true; }
-    else if (km(kQtRight) || km(kMacRight) || km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
-    else if (km(kQtUp)    || km(kMacUp)    || km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
-    else if (km(kQtDown)  || km(kMacDown)  || km(kWebDown))  { mPage->EditKey(GRP::EK_DOWN);  mNeedsPaint = true; }
-    else if (km(kQtHome)  || km(kMacHome))  { mPage->EditKey(GRP::EK_HOME);  mNeedsPaint = true; }
-    else if (km(kQtEnd)   || km(kMacEnd))   { mPage->EditKey(GRP::EK_END);   mNeedsPaint = true; }
+    } else if (km(kWebLeft))  { mPage->EditKey(GRP::EK_LEFT);  mNeedsPaint = true; }
+    else if (km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
+    else if (km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
+    else if (km(kWebDown))  { mPage->EditKey(GRP::EK_DOWN);  mNeedsPaint = true; }
+    // No Home/End branch, and that is a REMOVAL of behaviour rather than a tidy-up. They were
+    // reachable only from Qt 0x01000010/11 and NSEvent 0xF729/0xF72B, neither of which this
+    // platform can deliver, so EK_HOME/EK_END were already dead code (now unreferenced;
+    // GoannaRenderPage.h:222 keeps the enum for whenever a real source appears).
+    // keyIdentifierForPalmCode has no End code at all and its "Home" is the device button.
+    // Field start/end is still reachable in a single-line <input>: EditKey's EK_UP/EK_DOWN
+    // degrade to Home/End when the value has no newline, and Up/Down DO arrive.
     else {
       // The webOS VKB puts the printable character (letters, digits, symbols, and non-ASCII) in
       // `key` (rawkeyCode) with `chr`==0 on device; accept it from whichever field carries it, for
@@ -615,11 +912,17 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
       // VKB has no arrow keys. Enter/Tab/Backspace (< 0x20) are handled/swallowed above.
       if (c >= 0xD800 && c <= 0xDFFF) c = 0u;
       else if (c > 0x10FFFF) c = 0u;
-      // Function/nav keys arrive as Private-Use code points, NOT text: webOS's own special-key
-      // block 0xE0A0-0xE0BF (arrows measured at 0xE0A0-0xE0A3; Home/End/PageUp/Down likely adjacent)
-      // and the Apple/NSEvent function-key range 0xF700-0xF8FF. The ones we map are consumed above;
-      // swallow the rest here so an unmapped nav key never inserts an invisible PUA glyph (which
-      // read as "arrows type characters" + repaint lag + Backspace eating the invisible chars).
+      // Function/nav keys arrive as Private-Use code points, NOT text. The ones we map are consumed
+      // above; swallow the rest here so an unmapped nav key never inserts an invisible PUA glyph
+      // (which read as "arrows type characters" + repaint lag + Backspace eating the invisible
+      // chars). 0xE0A0-0xE0BF is webOS's live block, no longer a guess: keyIdentifierForPalmCode
+      // (libWebKitLuna @0x53fc78) defines 0xE0A0-A3 arrows, 0xE0B1 Home button, 0xE0B2 Launcher,
+      // 0xE0B3/B4 PageUp/PageDown. GAP, deliberately not changed under T-127: the real codes
+      // 0xE0E2-0xE0E7 (Previous/Next/Menu/Meta) sit PAST 0xE0BF and still fall through here.
+      // 0xF700-0xF8FF is now a GUARD ONLY - its mapping constants were deleted because nothing on
+      // this platform emits them (same table, no 0xF7xx anywhere). Kept because the asymmetry is
+      // one-sided: one compare, versus re-opening the invisible-glyph bug above if that binary
+      // read is wrong. Do NOT read its presence as evidence that webOS uses the NSEvent range.
       else if (c >= 0xE0A0 && c <= 0xE0BF) c = 0u;
       else if (c >= 0xF700 && c <= 0xF8FF) c = 0u;
       if (c) {
@@ -803,7 +1106,7 @@ std::string BrowserPageGoanna::makeDialogPipe() {
 // "1" accept / "0" cancel / "2" SSL trust-once, arg1 prompt text or username).
 // The deadline is load-bearing: a card that never answers must not wedge the daemon.
 bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* what,
-                                         bool* accept, std::string* value) {
+                                         bool* accept, std::string* value, int* answer) {
   int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
     fprintf(stderr, "[jihad-bs] dialog: cannot open reply pipe (%s)\n", strerror(errno));
@@ -834,10 +1137,10 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     if (v > 0) deadlineMs = v;
   }
   std::string data;
-  long start = jihadNowMs();
+  int64_t start = jihadNowMs();
   bool got = false, writerSeen = false;
   for (;;) {
-    long elapsed = jihadNowMs() - start;
+    int64_t elapsed = jihadNowMs() - start;
     if (elapsed >= deadlineMs) break;
     struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
     int pr = poll(&pfd, 1, 200);
@@ -849,8 +1152,11 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
       // work to produce the dialog, already measured at ~2 ms on desktop) from the card's
       // side (YAP delivery + the front-end actually drawing something). Only the second
       // number can be large, and only the card can fix it.
+      // (long) is not decoration: jihadNowMs() is int64_t and long is 32-bit on this ARM
+      // target, so a bare %ld prints one word of a two-word vararg — a garbage number in the
+      // one line that exists to be read as a measurement.
       fprintf(stderr, "[jihad-bs] dialog %s: card picked up after %ld ms\n",
-              what, jihadNowMs() - start);
+              what, (long)(jihadNowMs() - start));
     }
     if (!(pfd.revents & POLLHUP)) writerSeen = true;   // someone has the write end open
     char buf[512];
@@ -879,7 +1185,8 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     fprintf(stderr, "[jihad-bs] dialog %s: no answer from the card — taking the default\n", what);
     return false;
   }
-  fprintf(stderr, "[jihad-bs] dialog %s: answered after %ld ms\n", what, jihadNowMs() - start);
+  fprintf(stderr, "[jihad-bs] dialog %s: answered after %ld ms\n", what,
+          (long)(jihadNowMs() - start));
   size_t pos = 4;
   std::vector<std::string> args;
   while (pos < data.size() && args.size() < 4) {
@@ -888,10 +1195,17 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
     args.push_back(data.substr(pos, end - pos));
     pos = end + 1;
   }
-  if (!args.empty() && accept) *accept = (args[0] == "1" || args[0] == "2");
+  // The three-way answer is carried THROUGH, not just collapsed. arg0 is "0"
+  // reject / "1" trust always / "2" trust once; every dialog but the SSL confirm
+  // only cares about the collapse, and the SSL confirm cannot act correctly
+  // without the distinction (permanent vs session trust, on both sides).
+  int raw = 0;
+  if (!args.empty()) raw = (args[0] == "1") ? 1 : (args[0] == "2") ? 2 : 0;
+  if (accept) *accept = (raw != 0);
+  if (answer) *answer = raw;
   if (args.size() > 1 && value) *value = args[1];
-  fprintf(stderr, "[jihad-bs] dialog %s -> %s\n", what,
-          (accept && *accept) ? "ACCEPT" : "cancel");
+  fprintf(stderr, "[jihad-bs] dialog %s -> %s (answer=%d)\n", what,
+          raw ? "ACCEPT" : "cancel", raw);
   return true;
 }
 
@@ -990,6 +1304,79 @@ void BrowserPageGoanna::dragEnd(int x, int y) {
 void BrowserPageGoanna::settingsJavaScriptEnabled(bool enable) {
   if (mPage) mPage->SetJavaScriptEnabled(enable);
 }
+
+// ---- double-activation suppressor (T-120, 2026-08-15) ---------------------------------------
+//
+// THE PROBLEM. With the adapter's JIHAD_TOUCH_EVENTS switch on, one finger reaches the page
+// TWICE: once as DOM touch events (asyncCmdTouchEvent -> touchEvent above) and once as DOM mouse
+// events (asyncCmdMouseEvent/clickAt -> queueInput). The second stream is not synthesized from
+// the first — LunaSysMgr generates pen events for every finger whether or not the plugin also
+// asked for touch — so Gecko's own touch-to-mouse suppression, which only ever suppresses mouse
+// events it synthesized itself, cannot see the relationship. A page that handles touchstart and
+// calls preventDefault (every carousel, map, and drawing surface) then gets its gesture AND a
+// full mousedown/mouseup/click on top of it. That is the double-activation class this project
+// treats as critical.
+//
+// THE ONLY AVAILABLE SIGNAL. sendTouchEventToWindow reports whether content called
+// preventDefault. GoannaRenderPage::TouchEvent used to discard it; it now returns it, and this
+// is what consumes it. preventDefault on touchstart is precisely the W3C signal for "I am
+// handling this gesture, do not give me the compatibility mouse events".
+//
+// THE CORRELATION RULE, and why it is not by identity. The two streams share NO event id, no
+// sequence number, and no timestamp — they are separate YAP commands. What they DO share is the
+// one queue: touch and pen both land in mPendingMouse, so their relative ORDER is total and
+// reliable (that is why the queue exists — see the PM_* comment in the header). So:
+//
+//   1. SEQUENCE STATE is the primary rule. From a touchstart that content consumed until the
+//      matching touchend, every queued mouse/click/contextmenu event is dropped. No geometry is
+//      involved; during a live consumed gesture there is nothing else the pen stream can be.
+//   2. A TIME+DISTANCE WINDOW covers the tail. The pen-up and the synthesized click arrive just
+//      AFTER the touchend, when rule 1 has already disarmed. For kTailMs after the touchend, a
+//      mouse event within kSlopPx of the last touch point is dropped too.
+//   3. A RUNAWAY CAP bounds the damage. If a touchend never arrives (a lost cancel, a card
+//      switch or a navigation mid-gesture — a navigation clears the input queue but cannot know
+//      a finger is still down), rule 1 would suppress ALL pointer input for the life of the page —
+//      an unusable browser. Suppression from rule 1 therefore also expires kMaxSeqMs after the
+//      touchstart. Nothing else in this file self-heals, so it is spelled out here.
+//
+// FAILURE MODES, stated rather than hidden. NONE of this has run on hardware; the ordering and
+// the timing constants are reasoned from the code, not measured.
+//   * A page that consumes touchMOVE but not touchSTART (a scroll-hijacking list) is NOT
+//      suppressed: the rule keys on touchstart, matching the W3C compatibility-event rule. Such
+//      a page gets the mouse stream as it does today, which is the current behaviour, not a
+//      regression.
+//   * A real second finger landing on a DIFFERENT element within kTailMs of a consumed gesture
+//      ending, and within kSlopPx of where the first ended, loses its click. kSlopPx is small
+//      (a finger's own jitter) to keep that window narrow.
+//   * If the device delivers the pen-down BEFORE the touchstart, that one leading mousedown
+//      escapes. Its mouseup/click still do not, so a click is not fabricated — but a page
+//      watching mousedown alone would see one. Determining the real order needs a device.
+//   * The window is wall-clock (gettimeofday, as everything else here is). A clock step during
+//      a gesture mis-sizes one window; it cannot latch, because rule 1 does not use time except
+//      as a cap.
+static const int64_t kTouchTailMs   = 400;   // pen-up + click after a touchend
+static const int64_t kTouchMaxSeqMs = 5000;  // runaway cap on an unterminated sequence
+static const int     kTouchSlopPx   = 48;    // document px; a fingertip's own wander
+
+bool BrowserPageGoanna::touchSuppressesMouse(int type, int docX, int docY) {
+  if (type != PM_DOWN && type != PM_UP && type != PM_MOVE &&
+      type != PM_CLICK && type != PM_CONTEXTMENU)
+    return false;
+  const int64_t now = jihadNowMs();
+  if (mTouchSeqActive && mTouchSeqConsumed) {
+    if (now - mTouchSeqStartMs <= kTouchMaxSeqMs) return true;
+    // Rule 3: the sequence never ended. Disarm and let input through rather than wedge the page.
+    fprintf(stderr, "[jihad-bs] touch suppressor: sequence ran %lldms with no touchend — disarming\n",
+            (long long)(now - mTouchSeqStartMs));
+    mTouchSeqActive = false; mTouchSeqConsumed = false; mTouchSuppressUntilMs = 0;
+    return false;
+  }
+  if (now < mTouchSuppressUntilMs) {
+    const int dx = docX - mTouchAnchorX, dy = docY - mTouchAnchorY;
+    if (dx * dx + dy * dy <= kTouchSlopPx * kTouchSlopPx) return true;
+  }
+  return false;
+}
 void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const char* touchesJson) {
   if (!mPage) return;
   // Parse EVERY point in the touches payload, not just the first. The adapter builds
@@ -1019,9 +1406,21 @@ void BrowserPageGoanna::touchEvent(int type, int /*count*/, int /*mods*/, const 
   // Queued like every other input (F-9/F5): TouchEvent -> SendTouchEventToWindow runs
   // touchstart/touchend page JS synchronously, so dispatching it from this YAP callback is the
   // same reboot-class crash door the queue was built to close.
-  int t = (type == 0) ? PM_TOUCHSTART : (type == 2) ? PM_TOUCHEND : PM_TOUCHMOVE;
+  // type 3 is TouchCancelled (BrowserAdapter::handleTouchCancelled -> doTouchEvent(3, ...)). It used
+  // to fall into the else and dispatch a phantom "touchmove" at the released coordinates, which is
+  // worse than nothing: a page tracking a drag sees the finger STOP rather than leave. Ending the
+  // sequence is the closest thing the current PM_ set can express; a real "touchcancel" needs a new
+  // PM_ value, and the engine already accepts the string (GoannaRenderPage::TouchEvent passes the
+  // type straight to nsIDOMWindowUtils::sendTouchEventToWindow). Reachable as of 2026-08-15 —
+  // BrowserAdapter::doTouchEvent is compiled in — but only when LunaSysMgr is started with
+  // JIHAD_TOUCH_EVENTS=1, and never yet exercised on a device.
+  int t = (type == 0) ? PM_TOUCHSTART : (type == 2 || type == 3) ? PM_TOUCHEND : PM_TOUCHMOVE;
   queueInput(t, pts[0].first, pts[0].second, 0);
+  // Assign in BOTH directions. queueInput coalesces a run of PM_TOUCHMOVE into the queue's last
+  // entry, so a two-finger move followed by a one-finger move would otherwise keep the stale
+  // two-point list and dispatch a contact the user has already lifted.
   if (pts.size() > 1) mPendingMouse.back().pts = pts;
+  else                mPendingMouse.back().pts.clear();
   mNeedsPaint = true;
 }
 
@@ -1045,17 +1444,55 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     // test. Now it takes the same FIFO every other dialog uses: on accept we add the validity
     // override and RELOAD, which is what makes "trust this site" actually load the page; on
     // decline (or no answer) the failed load stands.
+    // The card needs a REAL certificate file: it disables "View Certificate" on
+    // every show and re-enables it only once com.palm.certificatemanager has
+    // answered getcertificatedetails for this path, and CertificateDetail skips
+    // that call entirely when certFile is empty. We passed "" here, so the
+    // button was dead by construction on every prompt. The same PEM is what the
+    // platform store installs, so it is produced once and used for both.
+    std::string certFile;
+    std::string der;
+    if (mPage->GetCertDer(&der))
+      certFile = jihad::certstore::WriteCertPem(der.data(), der.size());
+
+    // …and the error code has to be in the card's numbering space. mErrorStatus
+    // is an nsresult; the card matches Palm's small ordinals, so an unmapped
+    // value leaves the dialog body EMPTY under three unexplained buttons.
+    jihad::certstore::Problem problem;
+    mPage->GetCertProblem(&problem);
+    const int ordinal = jihad::certstore::PalmSslErrorOrdinalFor(problem, ccode);
+
     std::string pipePath = makeDialogPipe();
-    fprintf(stderr, "[jihad-bs] dialog ssl-confirm -> card (pipe %s) host=%s\n",
-            pipePath.empty() ? "(none)" : pipePath.c_str(), chost.c_str());
-    mSink.msgSSLConfirm2(pipePath.c_str(), chost.c_str(), ccode, "");
+    fprintf(stderr, "[jihad-bs] dialog ssl-confirm -> card (pipe %s) host=%s "
+                    "status=0x%x flags=%d(untrusted=%d selfSigned=%d mismatch=%d badTime=%d "
+                    "expired=%d) -> ordinal %d cert=%s\n",
+            pipePath.empty() ? "(none)" : pipePath.c_str(), chost.c_str(), (unsigned)ccode,
+            (int)problem.haveFlags, (int)problem.untrusted, (int)problem.selfSigned,
+            (int)problem.domainMismatch, (int)problem.notValidNow, (int)problem.expired,
+            ordinal, certFile.empty() ? "(none)" : certFile.c_str());
+    mSink.msgSSLConfirm2(pipePath.c_str(), chost.c_str(), ordinal, certFile.c_str());
     if (!pipePath.empty()) {
       bool trust = false;
-      awaitDialogReply(pipePath, "ssl-confirm", &trust, nullptr);
+      int answer = 0;
+      awaitDialogReply(pipePath, "ssl-confirm", &trust, nullptr, &answer);
+      // "1" is Trust Always, "2" is Trust Once. These were collapsed into one
+      // bool, and the override below was hardcoded temporary, so Trust Always
+      // did not survive a daemon restart even in Goanna's own store.
+      const bool permanent = (answer == 1);
       if (trust) {
-        if (mPage->AcceptCurrentCert()) {
+        if (mPage->AcceptCurrentCert(permanent)) {
+          // Write-through to the platform store so the rest of the device sees
+          // the same decision. Absent or failing store = Goanna-only trust; it
+          // must never turn an accepted certificate into a failed load.
+          if (!certFile.empty()) {
+            jihad::certstore::Install(certFile.c_str(),
+                                      permanent ? jihad::certstore::kTrustPermanent
+                                                : jihad::certstore::kTrustSession,
+                                      this);
+          }
           std::string retry = mPage->CurrentUri();
-          fprintf(stderr, "[jihad-bs] ssl: override remembered for %s — reloading\n", chost.c_str());
+          fprintf(stderr, "[jihad-bs] ssl: %s override remembered for %s — reloading\n",
+                  permanent ? "permanent" : "session", chost.c_str());
           // Reload through the normal load path so the retry reports load state as usual.
           if (!retry.empty() && retry != "about:blank") openUrl(retry.c_str());
           else mPage->Reload();
@@ -1064,8 +1501,22 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
         }
       }
     }
+    // Upstream unlinked the cert file once the dialog resolved, and so do we:
+    // the card fetches its details at show time (setCertFile -> certFileChanged),
+    // which is strictly inside the window we are blocked in, and the store has
+    // already copied whatever it installed.
+    jihad::certstore::ForgetCertPem(certFile);
   }
   else if (failed) mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
+  std::string uri = emitLocationAndTitleCore();
+  return failed ? std::string() : uri;
+}
+
+// The location + title/url half, WITHOUT the failure/cert half above. Split out for the
+// same-document path: GetLoadError/GetCertError report the state of the last real LOAD, so
+// running them again for a fragment change would re-raise the previous load's failure dialog
+// (or re-emit msgFailedLoad) on a page that never reloaded.
+std::string BrowserPageGoanna::emitLocationAndTitleCore() {
   // For internal about: pages, report the typed about: URL, not the data: URL the engine loaded
   // (keeps the bar showing about:jihad and avoids a huge data: history entry). NB: never emit
   // msgUrlRedirected for an ordinary HTTP 3xx redirect — in isis the app binds onUrlRedirected ->
@@ -1073,6 +1524,7 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
   // would leave Jihad. A redirect is just a location change, reported here.
   std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
   mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+
   // The isis address bar updates on the title+url message (BasicWebView.titleURLChange ->
   // urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. If the page has no <title>, fall
   // back to the URL so the bar still shows where we are (review #6 F-003).
@@ -1081,7 +1533,7 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     bool cb = mPage->CanGoBack(), cf = mPage->CanGoForward();
     fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s back=%d fwd=%d\n", title.c_str(), uri.c_str(), (int)cb, (int)cf);
     mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), cb, cf); }
-  return failed ? std::string() : uri;
+  return uri;
 }
 
 // Full completion boundary: progress, location/title, load-stopped, global history, geometry, repaint.
@@ -1100,6 +1552,17 @@ void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
 
 void BrowserPageGoanna::emitLoadAndLocation() {
   if (!mPage) return;
+  // Same-document navigation: a fragment change (location.hash = ...), pushState or
+  // replaceState. None of these start a load, so none of the branches below ever fire for
+  // them and the card would keep reporting the pre-change url. This is the leg the settings
+  // page needs: about:preferences publishes an edited payload by rewriting its own fragment,
+  // and the shells adopt it off the committed url (ChromePrefs.adoptFromUrl and its Mochi/Mojo
+  // twins). Emitted BEFORE the load branches so a same-document change that lands in the same
+  // tick as a completion does not report the old url after the new one.
+  if (mPage->TakeSameDocumentLocation()) {
+    fprintf(stderr, "[jihad-bs] same-document location -> %s\n", mPage->CurrentUri().c_str());
+    emitLocationAndTitleCore();
+  }
   // Incremental load progress: feed the isis address-bar progress bar while the load is in flight so a
   // slow 512 MB-device page visibly advances instead of sitting at 0% — a frozen full-width bar reads
   // as a crashed "loading screen" (the user's #1 complaint). Only emit increases (isis ignores
@@ -1142,7 +1605,7 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     // meta-refresh nav the user triggers on the partial page still be detected and adopted/re-driven
     // instead of being misread as a command load and dropped (Codex F-333).
     fprintf(stderr, "[jihad-bs] load watchdog: forcing load-stopped after %ldms (engine still loading)\n",
-            jihadNowMs() - mLoadStartMs);
+            (long)(jihadNowMs() - mLoadStartMs));
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = true;
     mPage->ClearProgrammaticLoad();
     emitCompletion(true);
@@ -1157,9 +1620,15 @@ bool BrowserPageGoanna::emitGeometry() {
   if (!mPage) return false;
   int cw = 0, ch = 0;
   bool got = mPage->GetContentSize(&cw, &ch);
-  fprintf(stderr, "[jihad-bs] emitGeometry contentSize=%dx%d win=%dx%d mZoom=%.4f (reporting=%d)\n",
-          cw, ch, mPage->Width(), mPage->Height(), mZoom,
-          (int)(got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)));
+  // Every-call trace, off by default. The change-only line below is what a normal run wants
+  // (an unconditional one filled the device's /var — see the note there), but "did it even
+  // re-measure?" is exactly the question the scroll bug turned on, and a change-only log
+  // cannot answer it. Set JIHAD_LOG_GEOMETRY=1 to see each call.
+  { static const bool kTrace = getenv("JIHAD_LOG_GEOMETRY") != nullptr;
+    if (kTrace) {
+      fprintf(stderr, "[jihad-bs] emitGeometry(call) got=%d raw=%dx%d win=%dx%d last=%dx%d\n",
+              (int)got, cw, ch, mPage->Width(), mPage->Height(), mLastContentW, mLastContentH);
+    } }
   // NEVER emit a degenerate (0,0) content size. During a resize, GetContentSize (GetRootBounds)
   // momentarily returns (0,0) while the viewport reflow rebuilds the root frame — the Flush_Layout
   // can complete mid-reconstruction. The adapter treats contentsSizeChanged(0,0) as "new page":
@@ -1175,6 +1644,13 @@ bool BrowserPageGoanna::emitGeometry() {
   // reported height is unchanged — only the width is floored at the window width.
   if (got && cw > 0 && cw < mPage->Width()) cw = mPage->Width();
   if (got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)) {
+    // Log only on a REAL change. This used to log unconditionally, and emitGeometry is retried
+    // from the pump on EVERY tick while mGeometryDirty is set — which made this line the single
+    // biggest producer in the daemon log (1263 of the last 1400 lines on device) and the main
+    // reason the three logs grew to 55 MB and filled the TouchPad's 62 MB /var, silently killing
+    // all daemon logging (2026-08-06). A no-change retry carries no information; the change does.
+    fprintf(stderr, "[jihad-bs] emitGeometry contentSize=%dx%d win=%dx%d mZoom=%.4f\n",
+            cw, ch, mPage->Width(), mPage->Height(), mZoom);
     mLastContentW = cw; mLastContentH = ch;
     mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
   }
@@ -1182,6 +1658,165 @@ bool BrowserPageGoanna::emitGeometry() {
   if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us))
     mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);   // R4: meta-viewport
   return got && cw > 0 && ch > 0;   // a valid content size was available (deferred-emit can stop retrying)
+}
+
+void BrowserPageGoanna::pluginSpotlightStart(int x, int y, int w, int h) {
+  mSpotlightPending = true;
+  mSpotlightOn = true;
+  // Document space in, absolute edges out — and note the two frozen messages disagree on
+  // shape: the spotlight command carries origin + WIDTH/HEIGHT, while the interactive-rect
+  // JSON carries absolute right/bottom. Normalising here keeps that asymmetry in one place.
+  mSpotL = x; mSpotT = y; mSpotR = x + w; mSpotB = y + h;
+}
+
+void BrowserPageGoanna::pluginSpotlightEnd() {
+  mSpotlightPending = true;
+  mSpotlightOn = false;
+  mSpotL = mSpotT = mSpotR = mSpotB = 0;
+}
+
+void BrowserPageGoanna::drainPluginSpotlight() {
+  if (!mSpotlightPending || !mPage) return;
+  mSpotlightPending = false;
+  // The plugin thinks in the same viewport CSS px its own coordinates arrive in, so the rect
+  // goes through docToViewport exactly like a pen event does.
+  int l = mSpotL, t = mSpotT, r = mSpotR, b = mSpotB;
+  if (mSpotlightOn) { docToViewport(&l, &t); docToViewport(&r, &b); }
+  int n = mPage->SetPluginSpotlight(mSpotlightOn, l, t, r, b);
+  // Logged even at zero. This command spent the whole port as a silent no-op; "no plugin was
+  // listening" and "we never delivered it" have to stay distinguishable — and now so does
+  // "we deliberately refused to deliver it", which is the default (see SetPluginSpotlight).
+  if (n < 0) {
+    fprintf(stderr, "[jihad-bs] pluginSpotlight %s %d,%d..%d,%d -> SUPPRESSED "
+                    "(JIHAD_PLUGIN_SPOTLIGHT unset; delivering it kills Flash)\n",
+            mSpotlightOn ? "start" : "end", l, t, r, b);
+    return;
+  }
+  fprintf(stderr, "[jihad-bs] pluginSpotlight %s %d,%d..%d,%d -> %d instance(s)\n",
+          mSpotlightOn ? "start" : "end", l, t, r, b, n);
+}
+
+void BrowserPageGoanna::clearPluginRects() {
+  // The adapter has no expiry of its own: mFlashRects is only ever mutated by our two
+  // messages, and nothing — navigation, load, resize, freeze — clears it. A rect we forget
+  // to withdraw is a permanent dead zone in the card's gesture arbitration, on every page
+  // the card visits afterwards. So teardown is not housekeeping, it is part of the contract.
+  for (const auto& kv : mEmittedFlashRects) {
+    char buf[64];
+    snprintf(buf, sizeof buf, "{\"id\":%d,\"type\":1}", kv.first);
+    mSink.msgRemoveFlashRects(buf);
+    fprintf(stderr, "[jihad-bs] flashRect remove id=%d (teardown)\n", kv.first);
+  }
+  mEmittedFlashRects.clear();
+  mPluginRectIds.clear();
+}
+
+void BrowserPageGoanna::syncPluginRects() {
+  // Kill switch for bisecting: this is the only path that forces a layout flush on the tick.
+  static const bool kOff = getenv("JIHAD_NO_PLUGIN_RECTS") != nullptr;
+  if (kOff) return;
+  if (!mPage) return;
+
+  // Cost gate. This runs from the ~10 ms tick, so it is rate-limited. On a page with no
+  // plugin — which is nearly every page — the cost stops at one querySelectorAll that matches
+  // nothing. Nothing on this path flushes layout: CollectPluginRects deliberately reads the
+  // bounds through getBoundsWithoutFlushing, for the reason documented there.
+  // Rate limit, with an explicit "never run" flag rather than a 0 sentinel. jihadNowMs()
+  // returns `long`, which is 32 BITS on this ARM target, so tv_sec*1000 overflows and the
+  // value is a wrapped (often negative) counter. Differences between two wrapped stamps are
+  // still correct, which is why every other user of this clock works — but comparing a
+  // wrapped stamp against a literal 0 is not, and it silently made this function return on
+  // EVERY tick. Measured: three "enter" probes, zero past this line.
+  int64_t now = jihadNowMs();
+  if (mRectSyncStarted && (now - mLastRectSyncMs) < 500) return;
+  mRectSyncStarted = true;
+  mLastRectSyncMs = now;
+
+  std::vector<GoannaRenderPage::PluginRect> rects;
+  if (!mPage->CollectPluginRects(&rects)) return;
+
+  // COORDINATE SPACE — defined by the CONSUMER, not by inverting one of our own functions.
+  //
+  // getBoundingClientRect gives VIEWPORT CSS px. The adapter tests these rects with
+  // flashRectContainsPoint(m_penDownDoc), and it builds that point as
+  // `(mScrollPos + eventPt) / mZoomLevel` — unzoomed DOCUMENT CSS px. So the target space is
+  // CSS document px: viewport CSS plus the scroll offset, with NO zoom factor applied.
+  //
+  // Written from the adapter's formula rather than as the inverse of docToViewport, on
+  // purpose. docToViewport divides its input by the zoom a second time, and the rest of the
+  // daemon disagrees with itself about what space that leaves (the popup path converts the
+  // same value back with `x/Z + mPanX`, i.e. treating it as card px). That tangle is a real
+  // pre-existing question and it is deliberately NOT resolved here — but a rect derived by
+  // inverting the disputed function would inherit the dispute, whereas the adapter's own
+  // formula is not in doubt. If docToViewport is later corrected, this needs no change.
+  double offX = 0, offY = 0;
+  if (mZoom < 0.99 || mZoom > 1.01) {
+    // Zoomed: the engine scroll is parked and the visual pan carries the offset, in CSS px.
+    mPage->GetRenderPan(&offX, &offY);
+  } else {
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { offX = ex; offY = ey; }
+  }
+
+  std::map<int, FlashRect> want;
+  for (const auto& pr : rects) {
+    int id;
+    auto it = mPluginRectIds.find(pr.key);
+    if (it != mPluginRectIds.end()) {
+      id = it->second;
+    } else {
+      // PROCESS-GLOBAL counter, not per-page. The adapter files every rect into ONE map
+      // keyed by id, and the card can hold two pages at once across a navigation — with a
+      // per-page counter both pages mint id=1, the second add silently loses to the first
+      // (the adapter's insert does not overwrite), and one page's remove withdraws the
+      // other's rect. Observed: two adds for id=1 with different rects and no remove
+      // between them. A global counter makes the collision unrepresentable.
+      static int sNextFlashRectId = 1;
+      id = sNextFlashRectId++;
+      mPluginRectIds[pr.key] = id;
+    }
+    FlashRect fr;
+    fr.l = (int)((pr.left + offX) + 0.5);
+    fr.t = (int)((pr.top + offY) + 0.5);
+    fr.r = (int)((pr.left + pr.width + offX) + 0.5);
+    fr.b = (int)((pr.top + pr.height + offY) + 0.5);
+    want[id] = fr;
+  }
+
+  // Withdraw first, then announce. The adapter's add path is a map::insert, which does NOT
+  // overwrite an existing key — so a moved plugin whose add is re-sent without a remove
+  // keeps its OLD rect forever, silently. That is the single most likely way this feature
+  // half-works, which is why the change case sends both messages rather than just an add.
+  for (auto it = mEmittedFlashRects.begin(); it != mEmittedFlashRects.end(); ) {
+    auto w = want.find(it->first);
+    bool moved = (w != want.end()) &&
+                 (w->second.l != it->second.l || w->second.t != it->second.t ||
+                  w->second.r != it->second.r || w->second.b != it->second.b);
+    if (w == want.end() || moved) {
+      char buf[64];
+      snprintf(buf, sizeof buf, "{\"id\":%d,\"type\":1}", it->first);
+      mSink.msgRemoveFlashRects(buf);
+      fprintf(stderr, "[jihad-bs] flashRect remove id=%d (%s)\n", it->first,
+              (w == want.end()) ? "gone" : "moved");
+      it = mEmittedFlashRects.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  for (const auto& kv : want) {
+    if (mEmittedFlashRects.count(kv.first)) continue;
+    // One rect per message, in an array, and type 1 (InteractiveRectPlugin) — byte-identical
+    // to what BrowserPage::addInteractiveWidgetRect emits. Note right/bottom are absolute
+    // EDGES, not extents. Type 0 is isis's selection markers, which this port does not have.
+    char buf[192];
+    snprintf(buf, sizeof buf,
+             "[{\"id\":%d,\"left\":%d,\"top\":%d,\"right\":%d,\"bottom\":%d,\"type\":1}]",
+             kv.first, kv.second.l, kv.second.t, kv.second.r, kv.second.b);
+    mSink.msgAddFlashRects(buf);
+    mEmittedFlashRects[kv.first] = kv.second;
+    fprintf(stderr, "[jihad-bs] flashRect add id=%d %d,%d..%d,%d\n", kv.first,
+            kv.second.l, kv.second.t, kv.second.r, kv.second.b);
+  }
 }
 
 void BrowserPageGoanna::emitScrollIfChanged() {
@@ -1214,7 +1849,7 @@ void BrowserPageGoanna::emitScrollIfChanged() {
   }
 }
 
-void BrowserPageGoanna::pump(int msBudget) {
+void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   if (!mPage) return;
   // Fire the pending 'input' event for a keystroke edit FIRST — before the queued tap AND the Tab/Enter
   // queue below. It targets the element that was actually edited (mPendingInputEl). Flushing before the
@@ -1241,6 +1876,15 @@ void BrowserPageGoanna::pump(int msBudget) {
       // was already cleared by the navigation, but this batch is a local copy.
       if (!mPage || mNavGen != gen) break;
       PendingMouse e = evs[i];
+      // Double activation: the same finger also produced this pen event on a separate YAP
+      // command. Checked HERE, on the still-document coordinates, because the touch anchor it
+      // compares against is in document space too (docToViewport below would move one and not
+      // the other). See touchSuppressesMouse for the rule.
+      if (touchSuppressesMouse(e.type, e.x, e.y)) {
+        fprintf(stderr, "[jihad-bs] touch consumed gesture — dropping mouse type=%d at doc %d,%d\n",
+                e.type, e.x, e.y);
+        continue;
+      }
       // The queue holds the adapter's DOCUMENT coords; the engine dispatch below
       // (SendMouseEvent / ElementFromPoint) expects VIEWPORT-relative CSS px. One mapping,
       // here, for every input kind — measured wrong on device 2026-08-02 (contextmenu at
@@ -1281,13 +1925,35 @@ void BrowserPageGoanna::pump(int msBudget) {
       if (e.type == PM_TOUCHSTART || e.type == PM_TOUCHMOVE || e.type == PM_TOUCHEND) {
         const char* tt = e.type == PM_TOUCHSTART ? "touchstart"
                        : e.type == PM_TOUCHEND   ? "touchend" : "touchmove";
+        bool consumed = false;
         if (e.pts.size() > 1) {
           std::vector<int> xs, ys;
           xs.reserve(e.pts.size()); ys.reserve(e.pts.size());
           for (auto& pt : e.pts) { xs.push_back(pt.first); ys.push_back(pt.second); }
-          mPage->TouchEvent(tt, xs.data(), ys.data(), (int)xs.size());
+          consumed = mPage->TouchEvent(tt, xs.data(), ys.data(), (int)xs.size());
         } else {
-          mPage->TouchEvent(tt, e.x, e.y);
+          consumed = mPage->TouchEvent(tt, e.x, e.y);
+        }
+        // Suppressor bookkeeping. The anchor is kept in DOCUMENT coords (evs[i], not the
+        // viewport-mapped e) so it is comparable with the queued mouse events, which are
+        // tested before their own mapping.
+        const int64_t now = jihadNowMs();
+        if (e.type == PM_TOUCHSTART) {
+          mTouchSeqActive = true;
+          mTouchSeqConsumed = consumed;
+          mTouchSeqStartMs = now;
+          mTouchAnchorX = evs[i].x; mTouchAnchorY = evs[i].y;
+          if (consumed)
+            fprintf(stderr, "[jihad-bs] touchstart consumed by page at doc %d,%d — suppressing "
+                            "this gesture's mouse events\n", evs[i].x, evs[i].y);
+        } else if (e.type == PM_TOUCHMOVE) {
+          if (mTouchSeqActive) { mTouchAnchorX = evs[i].x; mTouchAnchorY = evs[i].y; }
+        } else { // PM_TOUCHEND (also the adapter's TouchCancelled, type 3)
+          if (mTouchSeqActive) { mTouchAnchorX = evs[i].x; mTouchAnchorY = evs[i].y; }
+          // Rule 2: the pen-up and the synthesized click land just after this.
+          mTouchSuppressUntilMs = (mTouchSeqActive && mTouchSeqConsumed) ? now + kTouchTailMs : 0;
+          mTouchSeqActive = false;
+          mTouchSeqConsumed = false;
         }
         continue;
       }
@@ -1363,7 +2029,7 @@ void BrowserPageGoanna::pump(int msBudget) {
       mSink.msgLoadStarted();
     }
   }
-  mPage->PumpFor(msBudget);
+  if (drainOnly) mPage->PumpReady(msBudget); else mPage->PumpFor(msBudget);
   // Engine-driven repaint (UXP patch 0012): PumpFor just ran layout/JS/imagelib work; if any of it
   // invalidated content (incremental page render, SPA/JS DOM update, async image decode, animation),
   // repaint. This is the frame-delivery loop the stock QtWebKit server got from Qt paint events —
@@ -1380,13 +2046,106 @@ void BrowserPageGoanna::pump(int msBudget) {
   // ("the fixed banner flies around", device 2026-08-02). One ~66 ms paint per 250 ms keeps
   // the drift to a beat while preserving the coverage skip's win for fixed-free stretches.
   {
-    long pnow = jihadNowMs();
+    int64_t pnow = jihadNowMs();
     if ((pnow - mLastScrollMs) < 400 && (pnow - mLastPaintDoneMs) >= 250) mNeedsPaint = true;
   }
-  if (mPage->TakeDirty()) mDirtyPending = true;
+  if (mPage->TakeDirty()) { mDirtyPending = true; gJihadDirtyTrue++; }
+  {
+    int dx = 0, dy = 0, dw = 0, dh = 0;
+    if (mPage->TakeDirtyRect(&dx, &dy, &dw, &dh)) {
+      // Union with anything not yet painted: several ticks of damage can accumulate behind
+      // one paint, and repainting only the newest box would leave the older ones stale.
+      if (mDamageValid) {
+        int x0 = mDamageX < dx ? mDamageX : dx;
+        int y0 = mDamageY < dy ? mDamageY : dy;
+        int x1 = (mDamageX + mDamageW) > (dx + dw) ? (mDamageX + mDamageW) : (dx + dw);
+        int y1 = (mDamageY + mDamageH) > (dy + dh) ? (mDamageY + mDamageH) : (dy + dh);
+        mDamageX = x0; mDamageY = y0; mDamageW = x1 - x0; mDamageH = y1 - y0;
+      } else {
+        mDamageX = dx; mDamageY = dy; mDamageW = dw; mDamageH = dh;
+        mDamageValid = true;
+      }
+    }
+  }
   if (mDirtyPending) {
-    long dnow = jihadNowMs();
-    if (dnow - mLastDirtyPaintMs >= 150) { mNeedsPaint = true; mDirtyPending = false; mLastDirtyPaintMs = dnow; }
+    int64_t dnow = jihadNowMs();
+    // 33 ms, not 150. This cadence is what animated content actually runs at: every plugin
+    // frame and every JS animation arrives as engine damage and is gated here, so 150 ms was a
+    // hard 6.7 fps ceiling on the whole browser no matter how fast the source was. Measured
+    // with a 30fps SWF: the plugin drew at 30fps and the parent received all of it, while the
+    // card repainted 5 times in 25 seconds.
+    // 33 ms is a FLOOR, not a promise — a paint that takes longer simply takes longer, and the
+    // in-flight buffer guard above already refuses to start one while the adapter holds the
+    // target. So this cannot spin: the cost of a frame throttles the next one.
+    // A live plugin instance rides the paced grid (see jihadPluginFramePeriodMs); everything
+    // else keeps the as-soon-as-possible floor. mEmittedFlashRects is the plugin-present
+    // signal we already maintain for the adapter, so this costs one empty() test per tick.
+    // Deferring here leaves mDirtyPending set, so the frame goes out on the first tick at or
+    // after the deadline rather than being dropped.
+    const int pacePeriod = mEmittedFlashRects.empty() ? 0 : jihadPluginFramePeriodMs();
+    bool due;
+    if (pacePeriod > 0) {
+      // ONE CARD FRAME PER PLUGIN FRAME. The seq counter is the only signal in the pipeline
+      // that distinguishes a new plugin frame from a repeat; the dirty flag cannot, because
+      // the refresh driver and ordinary page damage set the same boolean. Gating on it makes
+      // the publish rate EQUAL the plugin's delivery rate, which is what the stock host gets
+      // for free by pulling the plugin inside its own page paint.
+      //
+      // Measured 2026-08-10, 30 fps SWF, and both alternatives are visibly wrong: publishing
+      // on every dirty tick sent ~78 card frames for ~60 plugin frames (duplicates, and 22-44
+      // deferred because the adapter could not drain that rate), while a fixed 33 ms grid sent
+      // ~57 for ~68 and DROPPED frames, so the animation stepped two positions at once.
+      const uint32_t seq = mPage->PluginFrameSeq();
+      const bool haveSeq = (seq != 0);
+      // The period is now a FLOOR, not a grid: it bounds how fast a pathological plugin can
+      // drive the card, and it is what still paces things when the engine cannot report a seq.
+      const bool floorOk = (dnow - mLastDirtyPaintMs) >= kJihadDirtyPaintMinMs;
+      if (haveSeq) {
+        // Damage on a plugin page is not necessarily the plugin's: a caret blink, an image
+        // decode or chrome drawn over the embed all set the same flag, and gating those on a
+        // plugin frame that may never come would freeze them for as long as the plugin is
+        // idle. So a frame still goes out if damage has been waiting longer than the stale
+        // bound, which is far above the plugin's own period and therefore never fires while
+        // the plugin is animating.
+        const bool stale = (dnow - mLastDirtyPaintMs) >= kJihadDirtyStaleMs;
+        due = floorOk && ((seq != mLastPluginFrameSeq) || stale);
+        if (due) mLastPluginFrameSeq = seq;
+      } else {
+        if (!mPaceDeadlineMs) mPaceDeadlineMs = dnow;
+        due = dnow >= mPaceDeadlineMs;
+        if (due) {
+          mPaceDeadlineMs += pacePeriod;
+          // Resync rather than chase: after a stall (a full repaint, a navigation, a frozen
+          // card) the grid can be many periods in the past, and walking it forward one period
+          // per frame would publish a burst at tick rate to "catch up" — the exact unevenness
+          // this exists to remove.
+          if (mPaceDeadlineMs <= dnow) mPaceDeadlineMs = dnow + pacePeriod;
+        }
+      }
+    } else {
+      mPaceDeadlineMs = 0;
+      due = (dnow - mLastDirtyPaintMs) >= kJihadDirtyPaintMinMs;
+    }
+    if (due) {
+      mNeedsPaint = true; mDirtyPending = false; mLastDirtyPaintMs = dnow;
+      // A DOM change can change the SCROLLABLE SIZE, and until 2026-08-06 nothing re-measured
+      // it: geometry was emitted only on load completion and on resize. So a page that grows
+      // itself after load kept the adapter's original content size, and the adapter decides
+      // whether there is anything to scroll from exactly that value — hence "I cant scroll
+      // down in about:preferences", whose panes swap the whole content subtree with no load
+      // and no resize (measured: Advanced overflows the viewport while the daemon still
+      // reported contentSize == the window). Rides the dirty-paint cadence rather than the raw
+      // tick because emitGeometry flushes layout; emitGeometry itself only emits on a real
+      // change, so a page that dirties without resizing costs the flush and nothing more.
+      // Re-measure the scrollable size — but NOT on every frame. This exists for pages that
+      // grow themselves after load with no resize and no navigation (about:preferences swaps
+      // its whole pane subtree), and emitGeometry FLUSHES LAYOUT. Setting it on every
+      // damage-driven paint meant a full layout flush per animation frame, which on this
+      // hardware costs more than the paint it was attached to: the animated-SWF pipeline sat
+      // at 9 fps with 2 ms paints and no buffer contention, i.e. the flush WAS the frame time.
+      // Twice a second catches a pane swap as promptly as anyone can notice.
+      if (dnow - mLastGeomDirtyMs >= 500) { mGeometryDirty = true; mLastGeomDirtyMs = dnow; }
+    }
   }
   // Engine-driven VKB sync (Atlas IM-context port, device T4): merge any focus/blur the engine
   // dispatched during PumpFor into the VKB state machine and emit the change. Script-driven focus
@@ -1401,17 +2160,58 @@ void BrowserPageGoanna::pump(int msBudget) {
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
   // reflow just re-defers via the guard until a real size is available.
-  if (mGeometryDirty && emitGeometry()) mGeometryDirty = false;   // retry until reflow yields a valid size
+  // Retry until the reflow yields a valid size — but BOUNDED. emitGeometry() returns false on a
+  // degenerate 0x0, which leaves the flag set, and it flushes layout on every call. That was
+  // safe while only a RESIZE armed the flag (rare, and it settles); since a paint arms it too,
+  // an unbounded retry would flush layout on every tick for as long as a page reports 0x0.
+  // 20 ticks is far more than the handful a reflow needs, and the next paint re-arms it anyway.
+  if (mGeometryDirty) {
+    if (emitGeometry() || ++mGeometryTries >= 20) { mGeometryDirty = false; mGeometryTries = 0; }
+  }
   emitLoadAndLocation();
   emitScrollIfChanged();
+  syncPluginRects();
+  drainPluginSpotlight();
   // Low-memory guardrail (512 MB Pre 3 floor): internally rate-limited /proc/meminfo poll; fires the
   // engine "memory-pressure" flush + malloc_trim when RAM runs short. Lives here (not the engine-
   // agnostic browserserver tick) so the daemon layer keeps zero engine includes.
   mHost.CheckMemoryPressure();
 }
 
+// Paint-pipeline counters, reported once every 2 s. Which of these three moves tells you where
+// an animation is being lost: ticks that wanted a frame, frames refused because the adapter had
+// not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (mFrozen) return;                       // card backgrounded: don't paint
+  gJihadTicks++;
+  if (mNeedsPaint) {
+    gJihadPaintWanted++;
+    static int64_t sLast = 0;
+    int64_t nowMs = jihadNowMs();
+    if (!sLast) { sLast = nowMs; }
+    else if (nowMs - sLast >= 2000) {
+      fprintf(stderr, "[jihad-bs] paint pipeline: wanted=%u deferred=%u done=%u in %dms "
+                      "(%.1f fps)\n",
+              gJihadPaintWanted, gJihadPaintDeferInFlight, gJihadPaintDone,
+              (int)(nowMs - sLast), gJihadPaintDone * 1000.0 / double(nowMs - sLast));
+      fprintf(stderr, "[jihad-bs]   partial=%u ticks=%u dirty=%u | frame gap ms "
+                      "min=%u avg=%u max=%u\n",
+              gJihadPaintPartial, gJihadTicks, gJihadDirtyTrue,
+              gJihadGapMin, gJihadGapN ? (uint32_t)(gJihadGapSum / gJihadGapN) : 0,
+              gJihadGapMax);
+      fprintf(stderr, "[jihad-bs]   gap hist ms %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u\n",
+              kGapLabels[0], gJihadGapHist[0], kGapLabels[1], gJihadGapHist[1],
+              kGapLabels[2], gJihadGapHist[2], kGapLabels[3], gJihadGapHist[3],
+              kGapLabels[4], gJihadGapHist[4], kGapLabels[5], gJihadGapHist[5]);
+      gJihadTicks = gJihadDirtyTrue = 0;
+      gJihadGapMin = gJihadGapMax = gJihadGapN = 0; gJihadGapSum = 0;
+      for (int gi = 0; gi < kGapBuckets; ++gi) gJihadGapHist[gi] = 0;
+      fflush(stderr);
+      gJihadPaintPartial = 0;
+      gJihadPaintWanted = gJihadPaintDeferInFlight = gJihadPaintDone = 0;
+      sLast = nowMs;
+    }
+  }
   // The scroll-settle gate is GONE ("content doesn't stay consistently visible", device
   // 2026-08-02). It predates honest renderedX/Y: back then a mid-pan repaint mispositioned
   // the frame, so paints were held until the pan settled. Now a mid-pan frame is
@@ -1420,6 +2220,118 @@ void BrowserPageGoanna::maybePaint() {
   // until the fling ended guaranteed the white gap it was trying to avoid (every scroll
   // message reset the gate, so a continuous fling starved paints entirely).
   if (mNeedsPaint) paintToSharedBuffer();    // only when there is a new frame
+}
+
+// ── PULL THE PLUGIN INSTEAD OF SAMPLING IT ───────────────────────────────────────────────
+//
+// Patch 0028 made delivery 1:1 (one card frame per plugin frame) but left TWO clocks running:
+// the plugin child re-posts its own repaint task 16 ms after its work finishes, so its period
+// is 16+work and drifts, while the daemon ticks on its own 16 ms timer. A frame that lands just
+// after maybePaint() waits a whole tick, and because neither clock is locked to the other the
+// wait varies frame to frame. Device-measured on the 30 fps SWF with 0028 alone: 1:1 delivery,
+// deferred=0 and a healthy 29-32 fps average, but a gap spread of 9-62 ms around a 33 ms
+// target — which is exactly the "smoother in the stock browser" report, and is invisible in
+// the average.
+//
+// Stock has one clock: PluginViewPalm pulls the plugin inside the page paint. This is that,
+// minus the blocking — the request is async because the synchronous shape out-of-process is
+// intr NPP_HandleEvent, which would stall the daemon's tick and its YAP socket for an IPC
+// round trip plus a Flash paint on every frame.
+//
+// ON THE TICK GRID, IN WHOLE TICKS — not on a wall-clock period, and not off the publish.
+//
+// A frame can only be PUBLISHED on a tick, so asking on any grid that is not a whole number of
+// ticks guarantees a beat: with a 16 ms tick and a 33 ms request period the frame is ready
+// either 2 or 3 ticks later depending on where in the tick the request fell, and the publish
+// spacing alternates 32/48 ms. That is the same beat the 2026-08 note above records for a
+// drifting floor, one layer up. Rounding the period to whole ticks removes it by construction:
+// requests land ON ticks, the frame arrives a roughly constant time later, and the publish
+// lands on a tick a fixed number of ticks after the request.
+//
+// NEVER STACK REQUESTS. If the previous request has not produced a frame yet, asking again
+// would queue a draw the pipeline has no room for. Waiting for the seq to move instead is the
+// backpressure the stock host gets from blocking the producer on the consumer — expressed here
+// as "the consumer does not ask until the producer delivered". The child coalesces a stacked
+// request anyway (mCurrentInvalidateTask), so this is belt and braces, but it also keeps the
+// daemon from spending an IPC per tick on a plugin that is busy.
+//
+// The outstanding wait is BOUNDED. A plugin that dies mid-draw, or a frame lost to a torn-down
+// actor, would otherwise mean we never ask again and the animation stops for good — silently,
+// which is the failure mode PICKUP.md warns reads exactly like a pacing regression. After
+// kJihadPluginReqTimeoutMs with no frame we ask again regardless.
+static const int kJihadPluginReqTimeoutMs = 250;   // ~8 periods; cannot fire while animating
+
+// Disable the PULL ONLY, leaving the publish policy exactly as it is. $JIHAD_PLUGIN_PULL=0.
+//
+// This exists because the obvious way to A/B the pull — JIHAD_PLUGIN_FRAME_MS=0 — cannot answer
+// the question. It stops the requests, but it ALSO drops the publish gate from "one card frame
+// per plugin frame" to the bare 8 ms floor, so the run measures two changes at once and the
+// histogram is unreadable. Worse, the child's lease then expires and its own timer takes over,
+// which is patch 0026 behaviour: still two producers, just different ones.
+//
+// With this off and JIHAD_PLUGIN_FRAME_MS left at its normal value, the only producer left is the
+// plugin invalidating ITSELF — measured at ~23/s against our ~26/s (see the R7 frame-rate
+// criterion). That is the experiment that decides whether the host clock should exist at all for
+// a self-invalidating plugin, or be deleted along with patch 0026's premise.
+static bool jihadPluginPullEnabled() {
+  static int s_on = -1;
+  if (s_on < 0) {
+    const char* e = getenv("JIHAD_PLUGIN_PULL");
+    s_on = (e && *e && atoi(e) == 0) ? 0 : 1;   // default ON; only an explicit 0 disables
+    if (!s_on) {
+      fprintf(stderr, "[jihad-bs] plugin PULL disabled (JIHAD_PLUGIN_PULL=0) — the plugin's own "
+                      "invalidations are the only frame source now\n");
+      fflush(stderr);
+    }
+  }
+  return s_on != 0;
+}
+
+void BrowserPageGoanna::requestNextPluginFrame() {
+  if (!mPage) return;
+  if (!jihadPluginPullEnabled()) return;
+  const int period = jihadPluginFramePeriodMs();
+  if (period <= 0) return;            // JIHAD_PLUGIN_FRAME_MS=0 disables the pull with the pacer
+
+  // DELIBERATELY NOT GATED ON mEmittedFlashRects. That map is the plugin-present signal used by
+  // the publish policy, but it is refreshed only every 500 ms and — the reason this matters — it
+  // is exactly what goes EMPTY when the plugin wedges: syncPluginRects logs "flashRect remove
+  // id=N (gone)" and erases it. Gating here would stop asking at the one moment the plugin most
+  // needs re-driving, turning a recoverable wedge into a permanent one. The engine-side call is
+  // already the cheapest possible no-op with no plugin (a null weak symbol, or an empty list),
+  // so paying it per grid slot on every page costs less than the gate would.
+  const int tick = jihadTickPeriodMs();
+  int ticksPerFrame = (period + tick / 2) / tick;   // whole ticks, nearest
+  if (ticksPerFrame < 1) ticksPerFrame = 1;
+
+  // Count EVERY tick, before any early return. Counting only the ticks that got as far as the
+  // grid check would stall the counter for as long as a request is outstanding, and the request
+  // period would then be (round trip + grid) instead of the grid — drifting with draw time,
+  // which is the defect this replaces rather than a fix for it.
+  ++mPluginReqTicks;
+
+  const uint32_t seq = mPage->PluginFrameSeq();
+  if (seq != mLastRequestedSeq) {
+    mPluginReqOutstanding = false;    // the frame we asked for arrived
+    mLastRequestedSeq = seq;
+  }
+  if (mPluginReqTicks < ticksPerFrame) return;
+
+  const int64_t now = jihadNowMs();
+  if (mPluginReqOutstanding && (now - mPluginReqMs) < kJihadPluginReqTimeoutMs) {
+    // The plugin still owes us a frame, so it is drawing slower than the grid. SKIP this slot
+    // and stay on the grid (reset the counter) rather than firing the instant the frame lands:
+    // sending off-grid is how an evenly-produced stream becomes unevenly delivered, and a plugin
+    // that cannot hold 1/period should fall to a clean 1/2period, not to a drifting rate.
+    mPluginReqTicks = 0;
+    return;
+  }
+  mPluginReqTicks = 0;
+
+  if (mPage->RequestPluginFrame() > 0) {
+    mPluginReqOutstanding = true;
+    mPluginReqMs = now;
+  }
 }
 
 void BrowserPageGoanna::paintToSharedBuffer() {
@@ -1438,7 +2350,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // for it shrinks the torn-geometry window to near-nothing. The real fix is a frame
       // sequence number in the header + an adapter-side re-read guard — that needs an
       // adapter rebuild, queued for the next adapter change.
-      if (jihadNowMs() - mPaintMs[gs] < 2000) return;  // adapter may still hold it — wait
+      if (jihadNowMs() - mPaintMs[gs] < 2000) { gJihadPaintDeferInFlight++; return; }  // adapter may still hold it
       mInFlight[gs] = false;                            // stale: assume the return was lost, reclaim
     }
   }
@@ -1492,6 +2404,123 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // If the engine scroll is UNREADABLE at z~1, take the viewport-exact fallback instead of
   // stamping a geometry we cannot know (review F9: mixed coordinate spaces with an
   // honest-looking header). flushLayout=false — the renders below flush anyway (F4).
+  // ── DAMAGE-ONLY REPAINT (the 30 fps path) ──────────────────────────────────────────────
+  //
+  // A whole-viewport software render costs ~40 ms on this hardware — measured p50 38 ms for
+  // 1024x686 — which caps ANY animation at ~20 fps however fast its source runs. A plugin
+  // animating inside a 320x240 box does not need the other 90% of the screen re-rasterised.
+  //
+  // The frozen adapter contract forbids simply reporting a smaller region: its blit FILLs
+  // anything outside the painted rect, so a partial paint that ADMITTED to being partial
+  // would blank the rest of the card. The way through is to repaint only the damaged rows
+  // but keep reporting the geometry the buffer already holds — which is sound exactly when
+  // this buffer already contains a full frame of that same geometry, and everything that has
+  // changed since is inside the damage box. Both conditions are checked, and anything that
+  // fails one takes the full path below.
+  //
+  // Buffers alternate, so "this buffer's last full frame" is two frames old. That is the
+  // reason the eligibility test is per-buffer state rather than a single global flag.
+  // ON by default; JIHAD_NO_PARTIAL_PAINT falls back to whole-frame repaints.
+  //
+  // The gate exists because this path is the one place that ships a frame the renderer did
+  // not draw in full, so there has to be a way to take it out of the picture when diagnosing
+  // anything that looks like a stale or torn frame. It is on by default because it is both
+  // faster and STEADIER: a plugin frame costs ~2 ms here against 34-60 ms for a full repaint,
+  // and it is that variance, not the mean, that shows up as uneven motion — measured, the
+  // full-frame path delivered 12-25 fps swinging frame to frame while this one held 19 fps
+  // flat.
+  static const bool kPartialPaint = getenv("JIHAD_NO_PARTIAL_PAINT") == nullptr;
+  // ── DID THE ENGINE SCROLL SINCE THE LAST FULL FRAME? ────────────────────────────────────
+  // Asked HERE, not once per pump tick, and only when a damage-only repaint is actually on the
+  // table — which is the only moment the answer can change a decision. Measured cost of getting
+  // this wrong: probing every tick dropped the daemon tick from ~48/s to ~40/s, because at
+  // fit-zoom (the normal state for a desktop-width page) emitScrollIfChanged used to return
+  // before touching the engine at all.
+  //
+  // An engine scroll — anchor jump, window.scrollTo, scroll-into-view on focus, find-in-page,
+  // or just the 100-300 ms convergence on the adapter's last target — changes NONE of the
+  // things the eligibility test below checks: w, h, zoom and mAdapterScrollX/Y are all
+  // identical across it. Meanwhile the damage box is relative to the NEW scroll and the buffer
+  // holds the OLD one, so the partial branch would blit the plugin at the wrong rows forever.
+  //
+  // flushLayout=false is REQUIRED: the 2-arg default flushes, and a layout flush from the tick
+  // reflows the plugin frame, reallocates its async surface under the child and kills it.
+  // Its own last-seen pair, because mLastScrollX/Y belong to the adapter echo and are
+  // deliberately not maintained while zoomed.
+  if (kPartialPaint && mDamageValid && !mDamageForceFull && mPage) {
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false) &&
+        (ex != mDamageScrollX || ey != mDamageScrollY)) {
+      mDamageScrollX = ex; mDamageScrollY = ey;
+      mDamageForceFull = true;
+    }
+  }
+  if (kPartialPaint && mDamageValid && !mDamageForceFull) {
+    int slot = slotForKey(mActiveKey);
+    if (slot >= 0 && mBufFull[slot].valid &&
+        mBufFull[slot].w == w && mBufFull[slot].h == h &&
+        mBufFull[slot].zeff == Zeff &&
+        mBufFull[slot].scrollX == mAdapterScrollX &&
+        mBufFull[slot].scrollY == mAdapterScrollY) {
+      const BufFrame& bf = mBufFull[slot];
+      // The damage box arrives in VIEWPORT device px; the buffer's rows are the painted
+      // band, whose first visible row is bandRow. Clamp into the visible band and bail to
+      // the full path on anything degenerate rather than guessing.
+      long dTop = (long)bf.bandRow + mDamageY;
+      long dLeft = (long)mDamageX;
+      long dW = mDamageW, dH = mDamageH;
+      if (dLeft < 0) { dW += dLeft; dLeft = 0; }
+      if (dTop < bf.bandRow) { dH -= (bf.bandRow - dTop); dTop = bf.bandRow; }
+      if (dLeft + dW > w) dW = w - dLeft;
+      if (dTop + dH > (long)bf.bandRow + h) dH = (long)bf.bandRow + h - dTop;
+      // A damage box that covers essentially the whole viewport saves nothing and adds a
+      // code path; take the ordinary paint for it.
+      bool worthIt = dW > 0 && dH > 0 && (double)(dW * dH) < 0.6 * (double)(w * h);
+      if (worthIt) {
+        int64_t pt0 = jihadNowMs();
+        bool ok = mPage->RenderRegion(pixels + ((size_t)dTop * w + dLeft) * 4, w * 4,
+                                      (int)dW, (int)dH,
+                                      (double)(bf.paintedX + dLeft) / Zeff,
+                                      (double)(bf.paintedTop + dTop) / Zeff, Zeff);
+        if (ok) {
+          // Re-stamp the SAME geometry the buffer was last fully painted with. The pixels
+          // outside the damage box are that frame's and are still current, which is the
+          // whole premise checked above.
+          oi->bufferWidth = w; oi->bufferHeight = bf.paintedH;
+          oi->contentZoom = Zeff;
+          oi->renderedX = bf.paintedX; oi->renderedY = bf.paintedTop;
+          oi->renderedWidth = w; oi->renderedHeight = bf.paintedH;
+          mPaintedX = bf.paintedX; mPaintedLo = bf.paintedTop;
+          mPaintedHi = (long)bf.paintedTop + bf.paintedH; mPaintedZoom = Zeff;
+          mLastPaintDoneMs = jihadNowMs();
+          gJihadPaintDone++;
+          gJihadPaintPartial++;
+          JihadRecordFrameGap(mLastPaintDoneMs);
+          mDamageValid = false; mDamageX = mDamageY = mDamageW = mDamageH = 0;
+          {
+            static int64_t sLastP = 0;
+            int64_t nowP = jihadNowMs();
+            if (nowP - sLastP >= 2000) {
+              sLastP = nowP;
+              fprintf(stderr, "[jihad-bs] partial paint %ldx%ld at %ld,%ld in %dms\n",
+                      dW, dH, dLeft, dTop, (int)(nowP - pt0));
+              fflush(stderr);
+            }
+          }
+          mSink.msgPainted(mActiveKey);
+          {
+            int ps = slotForKey(mActiveKey);
+            if (ps >= 0) { mInFlight[ps] = true; mPaintMs[ps] = jihadNowMs(); }
+          }
+          mActiveKey = nextBufferKey();
+          mNeedsPaint = false;
+          return;
+        }
+      }
+    }
+  }
+  mDamageValid = false; mDamageForceFull = false;
+
   long bandX = mAdapterScrollX, bandY = mAdapterScrollY;
   bool bandKnown = true;
   if (zoomed) {
@@ -1544,7 +2573,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   int tallH = (int)(hi - lo);
   if (!bandKnown) tallH = h;                  // F9: unknown band → viewport-exact fallback
 
-  long paintT0 = jihadNowMs();
+  int64_t paintT0 = jihadNowMs();
   // NO fling-mode fast path (tried 2026-08-02, removed the same day): skipping the band
   // overlay during flings painted position:fixed content at its DOCUMENT position in
   // those frames while full frames painted it at the viewport — two models alternating,
@@ -1634,11 +2663,18 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // Record the painted region for the coverage-aware repaint skip (setScrollPosition).
   mPaintedX = paintedX; mPaintedLo = paintedTop; mPaintedHi = (long)paintedTop + paintedH;
   mPaintedZoom = Zeff;
+  // NB: what this buffer now holds is recorded LOWER DOWN, past the blank-over-good
+  // suppression — see the comment there. Recording it here marked a frame that is about to
+  // be REJECTED as blank as "holds a complete frame", and the next tick's damage-only
+  // repaint then blitted one live rectangle into that white buffer and published it,
+  // laundering the exact white flash the suppression exists to prevent.
   mLastPaintDoneMs = jihadNowMs();   // pan-cadence refresh reference
+  gJihadPaintDone++;
+  JihadRecordFrameGap(mLastPaintDoneMs);
   if (nb >= 0) {
     fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld) mZoom=%.4f contentZoom=%.4f ms=%ld\n",
             (unsigned)mActiveKey, nb, w, paintedH, paintedTop, bandY, mZoom, oi->contentZoom,
-            jihadNowMs() - paintT0);
+            (long)(jihadNowMs() - paintT0));
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0
@@ -1665,7 +2701,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       }
     }
   }
-  if (nb < 0) return;
+  // Every path that returns WITHOUT publishing must also drop this slot's frame record.
+  // Otherwise a record from two frames ago keeps the slot eligible for a damage-only
+  // repaint into a buffer whose current contents we did not write.
+  if (nb < 0) { invalidateBufRecord(); return; }
   // Blank-over-good suppression (review #7 P1): a mid-reflow render fills the target white
   // (nb==0). Do NOT push that over a previously-good frame — keep the last valid frame on
   // screen and retry next tick (leave mNeedsPaint set, do NOT flip the active buffer). This
@@ -1685,10 +2724,44 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       }
     }
   }
-  if (nb == 0 && mHadContent) return;   // mNeedsPaint stays true -> retried until content lands
+  // mNeedsPaint stays true -> retried until content lands. The record must go too: this
+  // buffer holds white, and a damage-only repaint into it would publish that white.
+  if (nb == 0 && mHadContent) { invalidateBufRecord(); return; }
   if (nb > 0) mHadContent = true;
 
+  // Record what this buffer now holds, so a later damage-only repaint can prove it is
+  // painting into a complete frame of the same geometry. Deliberately HERE — past every
+  // early return above — so only a frame that is actually about to be published can become
+  // the base for a partial paint.
+  //
+  // valid = (nb > 0), not (nb >= 0): the only nb==0 frame that reaches this point is the
+  // genuinely-never-rendered first one (mHadContent still false), which is a blank buffer
+  // and must never be a partial-paint base.
+  //
+  // bandRow only means anything when the tall-region render ran. In the fallback the frame
+  // was read to buffer row 0 (ReadPixels(pixels, ...)) while bandRow still holds the tall
+  // computation, and recording that would offset every later damage rect by it.
+  {
+    int fs = slotForKey(mActiveKey);
+    if (fs >= 0) {
+      mBufFull[fs].valid = (nb > 0);
+      mBufFull[fs].w = w; mBufFull[fs].h = h; mBufFull[fs].zeff = Zeff;
+      mBufFull[fs].scrollX = mAdapterScrollX; mBufFull[fs].scrollY = mAdapterScrollY;
+      mBufFull[fs].paintedX = paintedX; mBufFull[fs].paintedTop = paintedTop;
+      mBufFull[fs].paintedH = paintedH; mBufFull[fs].bandRow = region ? bandRow : 0;
+    }
+  }
+
   mNeedsPaint = false;
+  // Anything that changed the pixels may have changed the SCROLLABLE SIZE too, and until
+  // 2026-08-06 only a load completion or a resize ever re-measured it. A page that rebuilds
+  // its own content after load — about:preferences swapping panes is the case that was
+  // reported, but any script-driven show/hide does it — kept the adapter's original content
+  // size, and the adapter decides from that whether there is anything to scroll. The dirty
+  // flag is NOT a reliable trigger here (measured: the pane swap repaints without it), so
+  // this hangs off the paint, which by definition happened. Drained on the next pump tick,
+  // and emitGeometry only emits when the size really changed.
+  mGeometryDirty = true;
   mSink.msgPainted(mActiveKey);
   // This buffer is now the adapter's until it returns it (F-211). Mark it in flight so a
   // subsequent paint won't overwrite it mid-blit, and record when for the timeout valve.
@@ -1699,7 +2772,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // Double buffer: next paint targets the other segment. The adapter holds one buffer at a
   // time and returns the previous one on the next msgPainted, so alternating keeps a free
   // buffer available; the in-flight gate above blocks reuse until that return arrives.
-  mActiveKey = (mActiveKey == mKey1 && mKey2) ? mKey2 : mKey1;
+  mActiveKey = nextBufferKey();
 }
 
 } // namespace jihad

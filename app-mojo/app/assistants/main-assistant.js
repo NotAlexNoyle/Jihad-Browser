@@ -23,6 +23,10 @@
 //     Enyo : {findInPage, goBack, goForward, reloadPage, stopLoad}
 // — no additions, no renames. This variant uses no palm://com.palm.browserServer/*
 // URI at all (the empty set is a subset of Enyo's {clearCache, clearCookies}).
+// Since 2026-08-15 it does hold ONE subscription to its OWN per-variant service,
+// palm://net.riverstonerelay.jihadBrowserMojo/notifications — see subscribeNotifications
+// below. That is our service, not the stock daemon's, and it adds no adapter method and
+// no YAP id, so neither frozen set above changes.
 // Everything else the page needs — openURL, the connect handshake, viewport sizing,
 // magnification, dialog responses — is the WebView widget's own internal traffic to
 // the plugin, exactly as Enyo-1.0's BasicWebView keeps those calls out of the app's
@@ -40,6 +44,10 @@ function MainAssistant(params) {
 	this.startUrl = "";
 	//* Url of the load that last failed, so the error panel's retry can re-open it.
 	this.failedUrl = "";
+	//* Set when an adopted settings edit has not been drawn on the start page yet. The
+	//* redraw is a NAVIGATION in this variant, so it has to be deferred — see
+	//* adoptChromePrefs.
+	this._chromePrefsStale = false;
 }
 
 //* Diagnostic, off by default — see setup(). Flip to true when changing the command row's
@@ -74,10 +82,12 @@ MainAssistant.prototype.setup = function () {
 
 	this.setupWebView();
 	this.setupChrome();
+	this.setupAppMenu();
 	this.setupCommandMenu();
 	this.bindHandlers();
 	this.bindFindHandlers();
 	this.listen();
+	this.subscribeNotifications();
 	// After the scene renders and the menu widget exists.
 	// Command-row geometry probe: OFF by default. It was a diagnostic for the row rendering
 	// empty (the .palm-menu-fade block pushing statically-positioned items out of a clipped
@@ -129,6 +139,23 @@ MainAssistant.prototype.setupChrome = function () {
 
 	this.retryModel = {buttonLabel: $L("Try Again"), buttonClass: "affirmative", disabled: false};
 	this.controller.setupWidget(this.RETRY_ID, {type: Mojo.Widget.defaultButton}, this.retryModel);
+};
+
+// App menu (swipe down from the app name): a single "Settings" entry that opens
+// about:preferences through the ordinary openUrl path, matching Enyo's app-menu entry and
+// Mochi's overflow-menu entry (cavekit-preferences-ui R4). Added 2026-08-15 when the product
+// owner reversed the 2026-08-05 "no settings icon in mojo" direction. A TEXT app-menu item rather
+// than a command-row icon: the command row is circular icons only and already crowded, and the
+// app menu is exactly where Enyo puts Settings. No new adapter call — settingsUrl() carries the
+// card's current home + shortcuts in the fragment so the page opens on this card's values.
+MainAssistant.prototype.setupAppMenu = function () {
+	this.appMenuModel = {
+		visible: true,
+		items: [
+			{ label: $L("Settings"), command: "jihad-settings" }
+		]
+	};
+	this.controller.setupWidget(Mojo.Menu.appMenu, { omitDefaultItems: true }, this.appMenuModel);
 };
 
 MainAssistant.prototype.setupCommandMenu = function () {
@@ -301,6 +328,57 @@ MainAssistant.prototype.activate = function (result) {
 
 MainAssistant.prototype.deactivate = function () {};
 
+//* THE DAEMON'S NON-BLOCKING MESSAGE CHANNEL (cavekit-gre-widgets.md R5).
+//*
+//* One subscription to THIS VARIANT'S OWN Luna service, opened at setup() and left open for
+//* the life of the scene; every informational line the daemon raises arrives on it and becomes
+//* a transient toast (../models/jihad-toast.js). Statements — "Cookies cleared.", "<add-on>
+//* installed." — used to have no route but msgDialog*, which stops the render daemon until
+//* this card answers; a message with no possible answer must not be able to do that.
+//*
+//* controller.serviceRequest rather than a bare Mojo.Service.Request: the controller owns the
+//* request's lifetime and cancels the subscription when the scene is popped, which is exactly
+//* the lifetime this subscription wants.
+//*
+//* CONTRACT: this is the first palm:// URI this variant uses, and it is our own per-variant
+//* service name — never com.palm.browserServer, which is the stock daemon we coexist with and
+//* whose clearCookies would clear the wrong browser. No adapter method and no YAP id is added;
+//* the frozen sets in cavekit-mojo-ui.md R3 and cavekit-ipc-contract.md R1 are untouched.
+MainAssistant.prototype.subscribeNotifications = function () {
+	JihadToast.attach(this.controller.window);
+	// Off device (Mojo.Host.browser) there is no Luna bus; serviceRequest would fail
+	// asynchronously and log noise on every desktop preview run.
+	if (!window.PalmSystem) {
+		return;
+	}
+	this.notificationRequest = this.controller.serviceRequest(
+		"palm://net.riverstonerelay.jihadBrowserMojo", {
+			method: "notifications",
+			// subscribe goes in the request PARAMETERS — that is what travels to the daemon and
+			// what makes Mojo hold the request open for repeated onSuccess calls. resubscribe
+			// re-arms it if the daemon restarts, so a card does not go permanently deaf.
+			parameters: {subscribe: true},
+			resubscribe: true,
+			onSuccess: this.handleNotification.bind(this),
+			onFailure: function (response) {
+				// Mojo.Log.error, not .warn: warn does not reach the device log in this
+				// framework build, and a subscription that never opened is exactly the thing
+				// somebody will be looking for when no toast ever appears.
+				Mojo.Log.error("[Jihad] notifications subscription failed: %j", response);
+			}
+		});
+};
+
+//* Every reply on that subscription: the immediate {"returnValue":true,"subscribed":true}
+//* handshake as well as each later push. Only a payload carrying `text` is a message — the
+//* handshake is not one, and showing it would put an empty toast up at every card launch.
+MainAssistant.prototype.handleNotification = function (response) {
+	if (!response || !response.text) {
+		return;
+	}
+	JihadToast.show(response.category, response.text);
+};
+
 //* This card must run on THIS variant's adapter and no other (cavekit-mojo-ui.md R3).
 //* Mojo.Widget.WebView hard-codes the stock plugin MIME and ../models/
 //* jihad-engine-override.js rewrites it before the plugin goes live; if that ever
@@ -330,6 +408,9 @@ MainAssistant.prototype.cleanup = function () {
 	Mojo.Event.stopListening(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.stopListening(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
+	// The toast holds a node in this scene's document and a pending timer in its window; both
+	// have to go with the scene or the timer fires against a torn-down document.
+	JihadToast.detach();
 };
 
 // --- the single app-facing adapter surface (FROZEN SET) ---------------------
@@ -417,6 +498,9 @@ MainAssistant.prototype.handleCommand = function (event) {
 			break;
 		case "jihad-find":
 			this.showFind();
+			break;
+		case "jihad-settings":
+			this.openUrl(JihadChromePrefs.settingsUrl());
 			break;
 		}
 		// The command event is deliberately NOT stopped: nothing further up the chain
@@ -568,6 +652,9 @@ MainAssistant.prototype.handleTitleUrlChanged = function (event) {
 	this.canGoForward = !!event.canGoForward;
 	this.recordHistory();
 	this.syncChrome();
+	// After this.url and the chrome are up to date — adoptChromePrefs reads this.url as the
+	// COMMITTED url and may navigate.
+	this.adoptChromePrefs();
 };
 
 //* Record the committed page in this variant's own history store. Never the
@@ -594,6 +681,13 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 	this.canGoBack = !!event.canGoBack;
 	this.canGoForward = !!event.canGoForward;
 	this.syncChrome();
+	// BOTH committed-url events, not just titleUrlChange. The Enyo and Mochi shells hook only
+	// their title+url event, because that is the one a same-document fragment rewrite was
+	// device-observed to produce (app/source/ChromePrefs.js header, 2026-08-06). This widget
+	// dispatches webViewUrlChanged separately and WHICH of the two carries a fragment-only
+	// change here is not verified — no device. adoptFromUrl is idempotent (a second call sees
+	// no change and returns false), so hooking both costs one comparison and removes the guess.
+	this.adoptChromePrefs();
 };
 
 //* Reflect the committed url + reported title, and the history state, in the UI.
@@ -606,6 +700,49 @@ MainAssistant.prototype.syncChrome = function () {
 	this.addressModel.value = isStart ? "" : (this.url || "");
 	this.controller.modelChanged(this.addressModel);
 	this.syncCommandMenu();
+};
+
+//* Every committed url passes here (cavekit-mojo-ui.md R7, cavekit-preferences-ui.md R5).
+//* When it is the settings page carrying an edited payload, adopt it: the page publishes an
+//* edit by rewriting its own fragment, and the url the card already receives is the only
+//* channel between the two. The GATE and the url allowlist are JihadChromePrefs' — path-only,
+//* never scheme-only — and are deliberately not second-guessed here; see adoptFromUrl for the
+//* about:blank attack the path test is there to stop.
+//*
+//* RE-RENDERING IS NOT THE JOB IT IS IN THE OTHER TWO SHELLS, and the obvious port of it is
+//* DEAD CODE. Enyo and Mochi rebuild the start page IN PLACE (BrowserApp.noteUrlForChromePrefs
+//* -> startPage.buildLinks; JihadBrowser.pageInfoChanged -> buildStartLinks) because their
+//* start page is card CHROME. Ours is a DOCUMENT whose shortcut list travels in the url
+//* fragment, so the only way to redraw it is to re-open startPageUrl() — a NAVIGATION. And
+//* "re-open it if it is showing" can never fire: the url that just passed the adopt gate IS
+//* about:preferences, so the start page is by construction not what is showing.
+//* The redraw is therefore DEFERRED and spent the next time the start page commits. That is
+//* also the case that actually breaks without it: a Back gesture lands on the start page's own
+//* history entry, which still carries the STALE `#links=` fragment it was opened with, so the
+//* user sees the edit they just made silently missing.
+//*
+//* The flag is cleared BEFORE the re-open, so this cannot loop even if the engine hands the
+//* fragment back re-encoded and the fresh url never compares equal to the committed one. That
+//* is why the condition is a one-shot flag and not a fragment comparison.
+//*
+//* Called AFTER this.url is updated, deliberately: the test below reads this.url as the
+//* COMMITTED url. Called before it — which is where both sibling shells call theirs, because
+//* neither has anything to navigate — this.url would still be the PREVIOUS page, and a card
+//* that reached the settings page from the start page would immediately navigate itself back
+//* off the settings page.
+//*
+//* NOT DEVICE-VERIFIED: no device was available for this port. What IS verified is the code
+//* path, the gate's premise (jihadAboutPreferences.js getURIFlags withholds
+//* URI_SAFE_FOR_UNTRUSTED_CONTENT, so content cannot navigate into about:preferences) and
+//* parity of the gate + allowlist with the Enyo shell.
+MainAssistant.prototype.adoptChromePrefs = function () {
+	if (JihadChromePrefs.adoptFromUrl(this.url)) {
+		this._chromePrefsStale = true;
+	}
+	if (this._chromePrefsStale && this.isStartPage(this.url)) {
+		this._chromePrefsStale = false;
+		this.openUrl(this.startPageUrl());
+	}
 };
 
 //* The start page is a DOCUMENT rendered by the engine, so it cannot read the

@@ -5,19 +5,20 @@
 # stock is replaced. See docs/DEVICE-HANDOFF.md (2026-07-07) and
 # jihad-self-contained-arch.md.
 #
-# STATUS: NON-RUNNABLE skeleton — packaging documentation of record, NOT a
-# buildable recipe (codex F-385..F-388). The working build is
-# build/webos-oe/build-adapter-pdk.sh (PDK gcc 4.x against ref-BrowserAdapter/
-# with the two Jihad edits: MIME in AdapterGetMIMEDescription +
-# BrowserClientBase("jihad-browser", ctxt)). Known gaps to make this real:
-#   - LIC_FILES_CHKSUM is a placeholder and ref-BrowserAdapter carries no
-#     LICENSE file (use the repo LICENSE + real md5).
-#   - SRC_URI points at a sibling checkout outside FILESPATH; the source would
-#     need mirroring into the layer (or a git:// fetch).
-#   - do_compile is a stub; do_install would fail wanting ${B}/BrowserAdapterJihad.so.
-#   - Two-piece adapter: this shim (/usr/lib/BrowserPlugins) dlopens
-#     BrowserAdapterImpl.so FROM THE APP BUNDLE per card open — the Impl ships
-#     inside the UI .ipk (see jihad-ui recipes), not here.
+# STATUS (re-read 2026-08-10, T-115): the "NON-RUNNABLE skeleton, do_compile is a stub" header
+# that stood here was STALE and actively harmful — it told the reader to skip a recipe that had
+# since been made real. Each of the four gaps it listed is contradicted by this file's own body:
+#   - LIC_FILES_CHKSUM now comes from ../jihad-common.inc (repo LICENSE + real md5).
+#   - SRC_URI is file://render/adapter/, which resolves via that file's FILESEXTRAPATHS at
+#     ${JIHAD_REPO} — no sibling checkout, nothing to mirror.
+#   - do_compile shells out to the proven build-adapter-pdk.sh.
+#   - do_install stages per-variant from adapter-deps/build-pdk/, not ${B}/BrowserAdapterJihad.so.
+# CODE READ ONLY — "the body is correct" is NOT "the task succeeds". The last recorded bitbake run
+# is 2026-07-29 (cavekit-device-build.md R3) and it predates the 2026-07-31 per-variant split
+# (e36c8cc), so the do_install loop below has never been executed by bitbake.
+#   - Two-piece adapter (unchanged and still true): this shim (/usr/lib/BrowserPlugins) dlopens
+#     BrowserAdapterImpl.so FROM THE APP BUNDLE per card open — the Impl ships inside the UI .ipk
+#     (see jihad-ui recipes), not here.
 
 SUMMARY = "Jihad Browser coexisting NPAPI adapter (BrowserAdapterJihad.so)"
 LICENSE = "Apache-2.0"

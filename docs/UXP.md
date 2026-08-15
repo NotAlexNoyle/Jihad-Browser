@@ -28,11 +28,18 @@ operation.
 - `0010-branding-strip` — licensing/branding (R3): strip Pale Moon/Basilisk/Moonchild pref URLs + about:credits target. (Was an inline `sed` in build-goanna.sh; now a patch so it is captured in the queue.)
 
 Each patch is generated as `git -C third_party/uxp diff <pinned> -- <that patch's files>`. The
-partition (one file → one patch) is what lets them apply independently — verified: a fresh
-pinned checkout + all ten patches reproduces the intended engine source tree exactly, **and a
-full clean ARM `libxul.so` builds from it end-to-end** (2026-07-27: fresh `third_party/uxp` at
-`b2594a4ace` + `patch -p1 --forward` of all ten patches → `build-goanna-arm.sh all` → libxul.so
-with the zoom/pan changes present). The strategy is proven, not just designed.
+partition (one file → one patch) is what lets them apply independently.
+
+**There are 29 patches now, not ten** — an earlier version of this paragraph said ten and was not
+updated as the queue grew. Whether a fresh checkout plus the queue still reproduces a clean build
+is an acceptance criterion, tracked in `context/kits/cavekit-engine-embedding.md` R1.
+
+**Authoring a new patch is the part that goes wrong.** Several patches touch the same files, so by
+the time you author patch N those files already carry N-1 patches: diffing against the working tree
+yields nothing, and diffing against the pinned revision folds in every predecessor. Use
+`build/desktop/patches/make-0029.sh` as the template — it reconstructs the correct baseline
+(`git show <pinned>:` plus only the EARLIER patches that touch the same files) and diffs against
+that.
 
 ## First build / fresh clone
 

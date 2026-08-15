@@ -18,6 +18,10 @@ public:
     // Async commands
     void asyncCmdConnect(int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier);
     void asyncCmdSetWindowSize(int32_t width, int32_t height);
+    // JIHAD ADDITION (0x1600), not part of the frozen isis surface. Connect and Thaw both carry
+    // exactly two shared-buffer keys and their shapes must not change, so a third buffer is
+    // announced separately. A client that never sends it leaves the server on two buffers.
+    void asyncCmdSetExtraBuffer(int32_t sharedBufferKey3, int32_t sharedBufferSize);
     void asyncCmdSetUserAgent(const char* userAgent);
     void asyncCmdOpenUrl(const char* url);
     void asyncCmdSetHtml(const char* url, const char* body);

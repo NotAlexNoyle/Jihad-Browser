@@ -14,7 +14,7 @@ available is met.
 - The UXP source tree is **not vendored** into this repository. It is built
   out-of-tree from a local checkout mounted into the pinned build container
   (see `build/desktop/`). Engine object/build dirs are git-ignored
-  (`build/desktop/out/`). This satisfies cavekit-engine-embedding R4.
+  (`build/desktop/out/`).
 
 ## Modifications to the engine (all MPL-2.0, source here)
 
@@ -45,9 +45,9 @@ so a `strings(1)` scan of the shipped artifacts is clean:
 | `docshell/base/nsAboutRedirector.cpp` | `about:credits` target (palemoon.org Contributors) → the Jihad credits URL |
 | `toolkit/xre/nsAppRunner.cpp` | dead `MOZ_APP_NAME == "basilisk"/"palemoon"` literals (always false for the `xulrunner` app) → `"n/a"` — behavior identical, literals removed |
 
-**Verification:** after the strip + rebuild, `strings libxul.so`,
-`strings jihad-browserserver`, and `goanna.js` each contain **0**
-`basilisk`/`palemoon`/`moonchild` strings; the adapter round-trip still passes.
+**How the strip is verified**, and its result, is an acceptance criterion —
+`context/kits/cavekit-licensing-branding.md` R3. The check itself is a `strings` scan of
+`libxul.so`, `jihad-browserserver` and `goanna.js` for `basilisk`/`palemoon`/`moonchild`.
 
 ## Trademark note
 

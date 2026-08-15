@@ -5,16 +5,10 @@
 This is the single documented entry point for the **x86_64 Linux desktop proof of
 concept**: it builds the real render daemon (`jihad-browserserver`) with the
 Goanna/UXP backend, and drives it with a minimal BrowserAdapter stand-in over the
-**unchanged YAP IPC contract** — no webOS stack required. It satisfies
-`cavekit-desktop-build.md` R1–R3; R4 (the Enyo UI on desktop) is recorded below as
-`[human-review]`.
+**unchanged YAP IPC contract** — no webOS stack required.
 
-## What it proves
-
-The isis `BrowserAdapter ↔ BrowserServer` contract is byte-identical to upstream;
-only the engine behind it changed (QtWebKit → Goanna). The daemon renders real web
-content into a SysV shared framebuffer and speaks the exact YAP command/message
-surface the webOS UI already uses.
+Which acceptance criteria this satisfies, and their status, are in
+`context/kits/cavekit-desktop-build.md`. This file is the procedure only.
 
 ![Desktop PoC render](jihad-poc-render.png)
 
@@ -90,12 +84,12 @@ asserts real behavior under Xvfb (all PASS):
 | `build-geo-test.sh` | contents-size / meta-viewport / scrolled-to events (GEO PASS) |
 | `build-download2-test.sh` | daemon-side download lifecycle over YAP: `msgDownloadStart`/`Progress`/`Finished` (temp path + MIME) and `cancelDownload` aborting an in-progress download (DOWNLOAD-LIFECYCLE PASS) |
 | `build-cookie-test.sh` | persistent cookie survives an engine restart + `cookies.sqlite` exists in the profile (COOKIE-PERSISTENCE PASS) |
+| `build-prefsui-test.sh` | about:preferences notificationbox attach/render/dismiss (DOM-gone, both widget paths) + the eleven shared-file pref rows (PREFSUI PASS; negative modes via `JIHAD_PREFSUI_NEG`) |
+| `build-xpi-mismatch-test.sh` | mismatched-targetApplication XPI: refusal alert names the add-on, matching-declined control shows zero alerts, page status -210 both ways (XPI-MISMATCH PASS) |
 
 ## R4 — isis Enyo UI against the desktop daemon `[human-review]`
 
-The Enyo UI (`app/`) targets the **webOS Enyo runtime + LunaService/sysmgr**, which
-do not exist on a stock Linux desktop. A full desktop Enyo runtime is therefore
-**not available**, so per the cavekit criterion the **R2/R3 harness is the
-acceptance vehicle** for Phase 1. Driving the real UI is exercised on the device /
-emulator in Phase 2 (`cavekit-device-build.md`). This is the documented, recorded
-outcome for R4.
+The Enyo UI (`app/`) targets the **webOS Enyo runtime + LunaService/sysmgr**, which do not exist on
+a stock Linux desktop, so there is nothing on desktop to drive the real UI with. The harness above
+is what stands in. Driving the real UI happens on the device (`docs/DEVICE-BUILD.md`); how that
+substitution is accounted for against the requirement is `context/kits/cavekit-desktop-build.md` R4.

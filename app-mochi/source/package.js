@@ -12,6 +12,9 @@ enyo.depends(
 	// Luna-service helpers (db8 / download manager / launcher) — the Enyo 2
 	// stand-in for the Enyo 1.0 DbService / enyo.PalmService kinds.
 	"JihadServices.js",
+	// The card end of the daemon's non-blocking message channel (gre-widgets R5). Plain DOM,
+	// no kind, so it only has to load before the shell that raises it.
+	"JihadToast.js",
 	// Chrome-owned settings (start-page shortcuts, home target); read at build time
 	// by both the shell and the preferences panel, so it loads before either.
 	"JihadChromePrefs.js",

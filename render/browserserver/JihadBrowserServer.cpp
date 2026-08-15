@@ -12,6 +12,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <time.h>
+
+// Cadence clock. Deliberately CLOCK_MONOTONIC and deliberately not the goanna side's
+// jihadNowMs(), which is gettimeofday(): a wall-clock step (NTP, the user setting the time)
+// would show up as one absurd frame period and poison a min/avg/max that is being read to
+// decide whether motion is even.
+static int64_t jihadTickNowMs() {
+  struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
 // EngineHost is only forwarded by reference (forward-declared), so this
 // dispatch layer stays free of XPCOM/engine headers.
 
@@ -44,6 +54,8 @@ void ProxySink::msgDownloadStart(const char* url) { mSrv->msgDownloadStart(mProx
 void ProxySink::msgDownloadProgress(const char* url, int32_t soFar, int32_t total) { mSrv->msgDownloadProgress(mProxy, url, soFar, total); }
 void ProxySink::msgDownloadFinished(const char* url, const char* mimeType, const char* tmpFilePath) { mSrv->msgDownloadFinished(mProxy, url, mimeType, tmpFilePath); }
 void ProxySink::msgDownloadError(const char* url, const char* errorMsg) { mSrv->msgDownloadError(mProxy, url, errorMsg); }
+void ProxySink::msgAddFlashRects(const char* j)    { mSrv->msgAddFlashRects(mProxy, j); }
+void ProxySink::msgRemoveFlashRects(const char* j) { mSrv->msgRemoveFlashRects(mProxy, j); }
 
 // ---- server ----------------------------------------------------------------
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)
@@ -315,12 +327,27 @@ void JihadBrowserServer::processInjectFile() {
         printf("[jihad-bs] inject touch type=%d points=%d\n", tt, n);
         if (n > 0) p->touchEvent(tt, n, 0, json.c_str());
       }
+    } else if (strncmp(c.c_str(), "spotlight ", 10) == 0) {
+      // DEBUG: `spotlight <x> <y> <w> <h>` | `spotlight end` — drive the frozen
+      // asyncCmdPluginSpotlightStart/End pair without the fullscreen round trip that
+      // normally produces it (plugin asks -> card scrims and smart-zooms -> card confirms).
+      // Same doc-space rect the adapter sends.
+      int sx = 0, sy = 0, sw = 0, sh = 0;
+      if (sscanf(c.c_str(), "spotlight %d %d %d %d", &sx, &sy, &sw, &sh) == 4) {
+        printf("[jihad-bs] inject spotlight %d,%d %dx%d\n", sx, sy, sw, sh);
+        p->pluginSpotlightStart(sx, sy, sw, sh);
+      } else {
+        printf("[jihad-bs] inject spotlight end\n");
+        p->pluginSpotlightEnd();
+      }
     } else if (strncmp(c.c_str(), "freeze", 6) == 0) {
       // DEBUG: the card-backgrounded path (device-build R5 reclaim). Real cards send this
       // over YAP; the inject form lets a test measure what backgrounding actually frees.
       printf("[jihad-bs] inject freeze\n"); p->freeze();
     } else if (strncmp(c.c_str(), "thaw", 4) == 0) {
-      printf("[jihad-bs] inject thaw\n"); p->thaw(0, 0, 0);
+      // thaw(0,0,0) could never un-freeze — thaw()'s guard is `ok = key1 && ...` — so this
+      // re-thaws onto the buffers the page already holds, which is what a real card does.
+      printf("[jihad-bs] inject thaw\n"); p->thawSelf();
     } else if (strncmp(c.c_str(), "gettext ", 8) == 0) {
       // DEBUG: read an element's text — the only way to assert on what a GENERATED chrome
       // page says (about:plugins, about:addons), where a rect proves existence but not content.
@@ -328,6 +355,45 @@ void JihadBrowserServer::processInjectFile() {
       while (!sel.empty() && (sel.back()=='\n' || sel.back()=='\r' || sel.back()==' ')) sel.pop_back();
       printf("[jihad-bs] inject gettext %s = [%s]\n", sel.c_str(),
              jihad::DebugElementText(sel.c_str(), 400).c_str());
+    } else if (strncmp(c.c_str(), "setpref ", 8) == 0) {
+      // DEBUG: `setpref <b|i|s> <name> <value>` — write a pref, then read it straight back so
+      // one line proves both. Added 2026-08-10 after a device run was wasted discovering there
+      // was no way to write a pref from a test: `jsurl` runs with the system PRINCIPAL but in a
+      // CONTENT scope, where `Components` is not exposed, so the probe silently did nothing and
+      // the run read as a negative result about the shutdown flush rather than a broken probe.
+      std::string a = c.substr(8);
+      while (!a.empty() && (a.back()=='\n' || a.back()=='\r')) a.pop_back();
+      char t = a.empty() ? '\0' : a[0];
+      size_t s1 = a.find(' '), s2 = (s1 == std::string::npos) ? s1 : a.find(' ', s1 + 1);
+      if (s1 == std::string::npos || s2 == std::string::npos) {
+        printf("[jihad-bs] inject setpref: usage `setpref <b|i|s> <name> <value>`\n");
+      } else {
+        std::string nm = a.substr(s1 + 1, s2 - s1 - 1), val = a.substr(s2 + 1);
+        bool ok = jihad::DebugSetPref(nm.c_str(), t, val.c_str());
+        printf("[jihad-bs] inject setpref %c %s = %s -> ok=%d readback=[%s]\n",
+               t, nm.c_str(), val.c_str(), (int)ok, jihad::DebugGetPref(nm.c_str(), t).c_str());
+      }
+    } else if (strncmp(c.c_str(), "getpref ", 8) == 0) {
+      // DEBUG: `getpref <b|i|s> <name>` — read a pref after a restart, which is the half that
+      // proves persistence rather than just that the setter ran.
+      std::string a = c.substr(8);
+      while (!a.empty() && (a.back()=='\n' || a.back()=='\r')) a.pop_back();
+      char t = a.empty() ? '\0' : a[0];
+      size_t s1 = a.find(' ');
+      std::string nm = (s1 == std::string::npos) ? std::string() : a.substr(s1 + 1);
+      printf("[jihad-bs] inject getpref %c %s = [%s]\n",
+             t, nm.c_str(), jihad::DebugGetPref(nm.c_str(), t).c_str());
+    } else if (strncmp(c.c_str(), "anon ", 5) == 0) {
+      // DEBUG: `anon <selector>` — the element's native anonymous content, i.e. whether an XBL
+      // binding actually ATTACHED. The only honest test for it: the `controls` attribute
+      // reflects either way, and `document.getAnonymousNodes` is not exposed to page script here
+      // even under the system principal (device-measured 2026-08-10 — it throws "not a
+      // function"). "?" means no such element; "0" means the element exists and bound NOTHING,
+      // which is the real negative.
+      std::string sel = c.substr(5);
+      while (!sel.empty() && (sel.back()=='\n' || sel.back()=='\r' || sel.back()==' ')) sel.pop_back();
+      printf("[jihad-bs] inject anon %s = [%s]\n", sel.c_str(),
+             jihad::DebugAnonNodes(sel.c_str()).c_str());
     } else if (strncmp(c.c_str(), "find ", 5) == 0) {
       // DEBUG: drive findInPage without a card's find bar. The frozen command is already
       // dispatched from the UI; this exercises the same daemon path from the inject channel.
@@ -432,7 +498,66 @@ void JihadBrowserServer::tick() {
   }
 #endif
 
-  for (auto* pg : snap) { pg->pump(10); pg->maybePaint(); }
+  // 4 ms of engine pump per tick, not 10.
+  //
+  // The tick is a 16 ms timer, but a 10 ms pump plus a paint made each tick take ~33 ms, so
+  // the timer never actually got to run at its own rate. That matters for MOTION, not
+  // throughput: a frame can only be delivered on a tick, so a 33 ms tick quantises every
+  // frame gap to 33/66/99 ms and animation arrives visibly uneven no matter how fast the
+  // source is. A smaller budget keeps the tick near its 16 ms period, which halves that
+  // quantisation. Total pump time per second is unchanged or better — the pump simply runs
+  // more often for less time each, which is also what a plugin's own timer sources want.
+  //
+  // TICK CADENCE, measured at the source rather than inferred. A frame can only be delivered
+  // on a tick, so the tick PERIOD is a hard floor on how evenly motion can be delivered, and
+  // no amount of cheap painting can get under it. Separating PERIOD from WORK is the whole
+  // point: if period >> work the loop is busy with something other than us and the fix is not
+  // to make the paint cheaper. Device-measured 2026-08-10 on a 30 fps plugin: the timer asks
+  // for 16 ms and the observed period was 28.6 ms while the paint itself cost only 3-7 ms.
+  int64_t tickT0 = jihadTickNowMs();
+  int64_t pumpMs = 0;
+  for (auto* pg : snap) {
+    int64_t a = jihadTickNowMs();
+    pg->pump(4, /*drainOnly*/true);
+    pumpMs += jihadTickNowMs() - a;
+    pg->maybePaint();
+    // Pull the next plugin frame. HERE and not inside maybePaint, because maybePaint is also
+    // called from returnBuffer() outside the tick, and the pull paces itself by counting calls
+    // — an off-tick call would shift the request off the tick grid it exists to stay on.
+    pg->requestNextPluginFrame();
+  }
+  int64_t tickT1 = jihadTickNowMs();
+  {
+    static int64_t sPrevStart = 0, sReport = 0;
+    static uint32_t sPerMin = 0, sPerMax = 0, sWorkMax = 0, sN = 0;
+    static uint64_t sPerSum = 0, sWorkSum = 0, sPumpSum = 0;
+    if (sPrevStart) {
+      uint32_t per = (uint32_t)(tickT0 - sPrevStart);
+      uint32_t work = (uint32_t)(tickT1 - tickT0);
+      if (!sN || per < sPerMin) sPerMin = per;
+      if (per > sPerMax) sPerMax = per;
+      if (work > sWorkMax) sWorkMax = work;
+      sPerSum += per; sWorkSum += work; sPumpSum += (uint64_t)pumpMs; sN++;
+    }
+    sPrevStart = tickT0;
+    if (!sReport) sReport = tickT1;
+    else if (tickT1 - sReport >= 2000) {
+      if (sN) {
+        // pump vs paint, split: the tick is WORK-bound, not timer-bound, whenever work
+        // approaches the 16 ms period, and then the frame grid can only land on multiples of
+        // the work time. Knowing which half to attack is the difference between shrinking the
+        // pump budget and making the paint cheaper.
+        fprintf(stderr, "[jihad-bs]   tick period ms min=%u avg=%u max=%u | work avg=%u max=%u "
+                        "(pump avg=%u paint avg=%u) | n=%u\n",
+                sPerMin, (uint32_t)(sPerSum / sN), sPerMax,
+                (uint32_t)(sWorkSum / sN), sWorkMax,
+                (uint32_t)(sPumpSum / sN), (uint32_t)((sWorkSum - sPumpSum) / sN), sN);
+        fflush(stderr);
+      }
+      sPerMin = sPerMax = sWorkMax = sN = 0; sPerSum = sWorkSum = sPumpSum = 0;
+      sReport = tickT1;
+    }
+  }
 
   mInTick = false;
 
@@ -457,6 +582,13 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
 }
 void JihadBrowserServer::asyncCmdOpenUrl(YapProxy* proxy, const char* url)
 { printf("[jihad-bs] openUrl %s\n", url ? url : "(null)"); if (auto* p = pageFor(proxy)) p->openUrl(url); }
+void JihadBrowserServer::asyncCmdSetExtraBuffer(YapProxy* proxy, int32_t sharedBufferKey3, int32_t sharedBufferSize)
+{
+  printf("[jihad-bs] extra buffer key=0x%x sz=%d\n", (unsigned)sharedBufferKey3, sharedBufferSize);
+  fflush(stdout);
+  if (auto* p = pageFor(proxy)) p->setExtraBuffer(sharedBufferKey3, sharedBufferSize);
+}
+
 void JihadBrowserServer::asyncCmdSetWindowSize(YapProxy* proxy, int32_t width, int32_t height)
 { if (auto* p = pageFor(proxy)) p->setWindowSize(width, height); }
 void JihadBrowserServer::asyncCmdForward(YapProxy* proxy) { if (auto* p = pageFor(proxy)) p->pageForward(); }
@@ -685,6 +817,13 @@ void JihadBrowserServer::asyncCmdIsInteractiveAtPoint(YapProxy* proxy, int32_t q
 
 void JihadBrowserServer::asyncCmdGetElementInfoAtPoint(YapProxy* proxy, int32_t queryNum, int32_t pointX, int32_t pointY)
 {
+  // READ BEFORE IMPLEMENTING THIS. The stock Mojo WebView widget's hold handler
+  // (widget_webview.js _handleHoldPluginSpotlight -> _pluginSpotlightCreate("partial"))
+  // turns a reply naming an <object>/<embed>/<applet> into adapter.setSpotlight(), i.e.
+  // YAP 0x1501. The Mojo variant uses that widget unmodified, so once this stub answers, a
+  // long-press on Flash becomes a plugin-spotlight event — which kills the Flash instance.
+  // This stub returning nothing is the ONLY thing breaking that chain today. It is safe to
+  // implement only while GoannaRenderPage::SetPluginSpotlight suppresses delivery.
   (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
 }
 
@@ -729,14 +868,21 @@ void JihadBrowserServer::asyncCmdSetScrollPosition(YapProxy* proxy, int32_t cx, 
   if (auto* p = pageFor(proxy)) p->setScrollPosition(cx, cy);
 }
 
+// The confirmation leg of the fullscreen-plugin round trip: the plugin asks for fullscreen, the
+// card scrims and smart-zooms to it, and then tells the server the rect it actually settled on.
+// The rect arrives in the adapter's DOCUMENT space, as origin + WIDTH/HEIGHT (unlike the
+// interactive-rect JSON, which uses absolute edges).
+//
+// Queued rather than dispatched here, like every other input command: this callback runs on the
+// YAP socket with no page-lifetime guard, and it ends in a synchronous call into the plugin.
 void JihadBrowserServer::asyncCmdPluginSpotlightStart(YapProxy* proxy, int32_t cx, int32_t cy, int32_t cw, int32_t ch)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->pluginSpotlightStart(cx, cy, cw, ch);
 }
 
 void JihadBrowserServer::asyncCmdPluginSpotlightEnd(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->pluginSpotlightEnd();
 }
 
 void JihadBrowserServer::asyncCmdHideSpellingWidget(YapProxy* proxy)

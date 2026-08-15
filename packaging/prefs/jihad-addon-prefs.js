@@ -76,8 +76,25 @@ pref("extensions.getAddons.cache.enabled", false);
 pref("extensions.guid.appCompatId", "{ec8030f7-c20a-464f-9b0e-13a3a9e97384}");
 pref("extensions.guid.appCompatVersion", "56.9");
 
-// NPAPI: this daemon is single-process and plugin-container is not in the bundle, so an
-// out-of-process plugin load would stall trying to spawn it. RunPluginOOP defaults TRUE on a
-// non-GTK build (nsNPAPIPlugin.cpp:229-303). Whether OOP is viable on this device at all is an
-// open R7 question, not a settled one.
-pref("dom.ipc.plugins.enabled", false);
+// NPAPI runs OUT OF PROCESS. This was `false` until 2026-08-06 on the reasoning that the daemon
+// is single-process and plugin-container was not bundled — true at the time, but it had the
+// consequence backwards: in-process is not the safe fallback, it is the configuration in which a
+// windowless plugin can never render at all. Established by reading UXP rather than assuming:
+//   * nsPluginFrame::PaintPlugin is an EMPTY STUB whose own comment says "we no longer support
+//     in-process plugins or synchronous painting" — the synchronous paint path is gone.
+//   * The surviving path is the layer one: nsPluginFrame::BuildLayer asks
+//     nsPluginInstanceOwner::GetImageContainer for an ImageContainer — and the in-process library
+//     PluginPRLibrary::GetImageContainer returns NS_ERROR_NOT_IMPLEMENTED. Only
+//     PluginInstanceParent (OOP) implements it.
+// So OOP is not a hardening choice here, it is the only implementation that exists.
+// plugin-container is now bundled (make-device-bundle.sh), with a launch wrapper because its
+// PT_INTERP is the device's glibc 2.8 loader and our binaries need the bundled 2.23 one.
+pref("dom.ipc.plugins.enabled", true);
+
+// The non-X windowless drawing model. NPDrawingModelAsyncBitmapSurface has the plugin draw into a
+// memory bitmap we own, which is exactly what this offscreen embedding wants and needs no X
+// server, no Drawable and no XEmbed — the reason `--disable-npapi-gtk2` is not a dead end.
+// PluginInstanceParent gates it on gfxPrefs::PluginAsyncDrawingEnabled() AND
+// gfxPlatform::SupportsPluginDirectBitmapDrawing(); gfxPlatformHeadless (our platform) already
+// returns true for the second, so this pref is the remaining half.
+pref("dom.ipc.plugins.asyncdrawing.enabled", true);

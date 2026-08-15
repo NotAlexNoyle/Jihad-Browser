@@ -43,6 +43,15 @@ void BrowserClientBase::asyncCmdSetWindowSize(int32_t width, int32_t height)
     sendAsyncCommand();
 }
 
+void BrowserClientBase::asyncCmdSetExtraBuffer(int32_t sharedBufferKey3, int32_t sharedBufferSize)
+{
+    YapPacket* _cmd = packetCommand();
+    (*_cmd) << (int16_t) 0x1600; // SetExtraBuffer (Jihad addition — see the header)
+    (*_cmd) << sharedBufferKey3;
+    (*_cmd) << sharedBufferSize;
+    sendAsyncCommand();
+}
+
 void BrowserClientBase::asyncCmdSetUserAgent(const char* userAgent)
 {
     YapPacket* _cmd = packetCommand();

@@ -1,0 +1,156 @@
+# adapter-deps — prebuilt input manifest
+#
+# The NPAPI BrowserAdapter is built by build-adapter-pdk.sh (PDK gcc 4.3.3) and
+# build-adapter-arm.sh (crosstool gcc 9.4). Both link against the libraries and headers in
+# build/webos-oe/adapter-deps/, which is git-ignored in full. This file is the declared,
+# checksummed form of that directory: cavekit-device-build.md R3 requires every prebuilt
+# input to be obtainable from a clean clone by an in-repo recipe or a documented procedure.
+#
+# THE SPLIT THAT MATTERS. Only ONE of the four parts below is genuinely device-gated:
+#
+#   part                        obtainable from a clean clone?
+#   staging/lib/*.so*           NO — needs a TouchPad. Procedure below; not redistributable.
+#   staging/include/webkit/     MOSTLY — 4 of 5 headers are the npapi-headers checkout.
+#                               nppalmdefs.h is Palm-only and travels with the device drop.
+#   qt4-extract/                YES — three stock Debian jessie .debs, pinned below.
+#   libpbnjson/ yajl/ npapi-headers/
+#                               YES — public git, pinned by tag+commit below.
+#
+# ============================================================================
+# PROCEDURE: RE-OBTAIN staging/lib FROM A TOUCHPAD
+# ============================================================================
+# These are HP's own builds off the device rootfs (webOS 3.0.5, ARMv7 softfp, glibc 2.8).
+# They cannot be vendored — they are HP proprietary — and they cannot be rebuilt, because
+# nothing reproduces HP's "nova" OE tree. With a device attached over novacom:
+#
+#   mkdir -p build/webos-oe/adapter-deps/staging/lib
+#   cd build/webos-oe/adapter-deps/staging/lib
+#   for f in libQtCore.so.4 libQtGui.so.4 libQtNetwork.so.4 \
+#            libpbnjson_c.so libpbnjson_cpp.so libyajl.so.1 libpng12.so.0; do
+#     novacom get file:///usr/lib/$f > $f
+#   done
+#
+# Then rename each to the versioned name in the table below (the device ships the SONAME
+# path; the versioned filename is what the linker table here records) and recreate the
+# development symlinks listed in the SYMLINKS section — `ld -lQtGui` needs libQtGui.so to
+# exist, and the device rootfs has no -dev symlinks. Verify with --check afterwards: a
+# device that is not webOS 3.0.5 will produce different checksums, and that is the point.
+#
+# CAVEAT, stated rather than glossed: the /usr/lib paths above are the standard webOS 3
+# locations for these libraries and are how the set was originally obtained, but they were
+# NOT re-confirmed against hardware when this manifest was written (no device was attached).
+# If a path is wrong, `novacom get` fails loudly rather than silently producing a bad file.
+# [human-review on device]
+#
+# ============================================================================
+# PROCEDURE: RE-OBTAIN qt4-extract FROM archive.debian.org
+# ============================================================================
+# Debian 8 "jessie" is end-of-life, so these versions are frozen rather than moving under
+# security updates. For each package in the QT4-DEBIAN-PACKAGES table:
+#
+#   curl -fsSLO <url>
+#   ar p <pkg>.deb data.tar.xz | tar -C build/webos-oe/adapter-deps/qt4-extract -xJf -
+#
+# ============================================================================
+# PROCEDURE: RE-OBTAIN THE GIT CHECKOUTS
+# ============================================================================
+# For each row of GIT-CHECKOUTS: git clone <remote> <dir> && git -C <dir> checkout <commit>.
+# Pin by COMMIT, not by tag — openwebos tags are mutable in principle and the commit is not.
+#
+# Regenerate with: build/webos-oe/gen-adapter-deps-manifest.sh
+# Verify on-disk:  build/webos-oe/gen-adapter-deps-manifest.sh --check
+#
+# ============================================================================
+# SECTION: DEVICE-ARM-SHARED-OBJECTS  (staging/lib, regular files)
+# TSV: filename  sha256  size_bytes  soname  upstream_version  device_path  note
+# ============================================================================
+libQtCore.so.4.8.0	d708948a524370da3f1ecbc1e0f72b0ff93f52eb6912a6a6a2e80f059382269f	3731541	libQtCore.so.4	Qt 4.8.0 (HP nova qt4-4.8.0-83)	/usr/lib/libQtCore.so.4	carries /home/reviewdaemon/projects/nova/oe/BUILD-topaz/work/qt4-4.8.0-83
+libQtGui.so.4.8.0	219be520fd3e19b09ab0f8e3306564d5fa60296a05f5f9e0d366b28cdccfae43	6073539	libQtGui.so.4	Qt 4.8.0 (HP nova)	/usr/lib/libQtGui.so.4	carries BUILD-topaz build paths
+libQtNetwork.so.4.8.0	8bc44558d5daac459ac61223ab2568a2424f519d265cefe901485a1e308bb13c	1366948	libQtNetwork.so.4	Qt 4.8.0 (HP nova)	/usr/lib/libQtNetwork.so.4	carries BUILD-topaz build paths
+libpbnjson_c.so	72debf6ac463958aae23220f5d9ba4c1db0dd3521e6d5936de69c5f0556b8af0	85954	libpbnjson_c.so	pbnjson 1.0.1-38 (submission-38)	/usr/lib/libpbnjson_c.so	carries .../BUILD-topaz/work/pbnjson-1.0.1-38 — NEWER than the submissions/10 headers built against
+libpbnjson_cpp.so	b0254bd09480cadcba1ebd714a6654a5413a99e928506801c75767b759f05ded	103026	libpbnjson_cpp.so	pbnjson 1.0.1-38 (submission-38)	/usr/lib/libpbnjson_cpp.so	carries .../BUILD-topaz/work/pbnjson-1.0.1-38 — NEWER than the submissions/10 headers built against
+libyajl.so.1	ef7a0236039aa1ffefd24c0c173aade143f0e8f519a28dd4d8ba821b681be0e2	30629	libyajl.so.1	yajl 1.0.7	/usr/lib/libyajl.so.1	SONAME libyajl.so.1, internal version string libyajl.so.1.0.7 — OLDER than the 1.0.12 checkout
+libpng12.so.0	d3037fcc5d073cb3b3069227c042d0c7eec59e6ee0013bd09d42f810b8cb466b	201491	libpng12.so.0	libpng 1.2.44 (2010-06-26)	/usr/lib/libpng12.so.0	version string read from the binary
+#
+# ============================================================================
+# SECTION: SYMLINKS  (staging/lib — created HERE for the linker, not device artifacts)
+# The device rootfs ships no -dev symlinks; `-lQtGui` needs libQtGui.so to resolve.
+# TSV: link  target
+# ============================================================================
+libQtCore.so	libQtCore.so.4
+libQtCore.so.4	libQtCore.so.4.8.0
+libQtGui.so	libQtGui.so.4
+libQtGui.so.4	libQtGui.so.4.8.0
+libQtNetwork.so	libQtNetwork.so.4
+libQtNetwork.so.4	libQtNetwork.so.4.8.0
+libpbnjson_c.so.1	libpbnjson_c.so
+libpbnjson_cpp.so.1	libpbnjson_cpp.so
+libpng12.so	libpng12.so.0
+libyajl.so	libyajl.so.1
+#
+# ============================================================================
+# SECTION: NPAPI-HEADERS  (staging/include/webkit/npapi)
+# origin=npapi-headers means byte-identical to the pinned npapi-headers checkout, so a
+# clean clone regenerates it. origin=palm-only means it exists nowhere else in this repo
+# and travels with the device drop.
+# origin=npapi-headers+jihad means the pinned checkout's file with a recorded local fix; the
+# recipe to reproduce it is in the entry's comment, and the build has a compile-time guard.
+# TSV: path  sha256  size_bytes  origin
+# ============================================================================
+# npapi.h RE-STAGED 2026-08-15 (T-120). Was 462bcc89…1752b / 35552 bytes, the repo-root copy of
+# the npapi-headers checkout, which declares a 12-byte NpPalmTouchEvent. The device pushes 28
+# bytes. Reproduce: take the checkout's repo-root npapi.h and replace ONLY the NpPalmTouchEvent
+# struct with the one from npapi-headers/debian/npapiheaders/usr/include/npapi.h (three
+# NpPalmTouchList + int32_t modifiers). Not a whole-file swap — see the comment in the header.
+# BrowserAdapter::doTouchEvent carries sizeof(NpPalmTouchEvent)==28 as a compile-time guard, so
+# a re-stage that reverts this fails the adapter build rather than crashing LunaSysMgr.
+webkit/npapi/npapi.h	36b58a83636bdc19de927772ee6a111db0b657b87595ae51d0766e20ff21c199	36646	npapi-headers+jihad
+webkit/npapi/nppalmdefs.h	804fd4e8de6220ca9e2dbf634538a323df8d92ddbb3fc715d6332c4e1279b0f1	341	palm-only
+webkit/npapi/npruntime.h	569e1e9b73ebee0698314817b847c56a7414af6ae6d431e6d47779216958668d	16392	npapi-headers
+webkit/npapi/nptypes.h	5a95b0cfedef732596bf156e1fd3b755c31b8eb39cba772703270c07c7a37f3f	3846	npapi-headers
+webkit/npapi/npupp.h	8a1d65c0dc634565b919131c553ca924cb78913b7493e5eed854fddb64228273	26046	npapi-headers
+#
+# ============================================================================
+# SECTION: QT4-DEBIAN-PACKAGES  (what qt4-extract/ was unpacked from)
+# sha256 is of the .deb as served by archive.debian.org, verified by download.
+# TSV: package  version  architecture  sha256  size_bytes  source_package  url
+# ============================================================================
+libqt4-dev	4:4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1	armel	55bec20d00137291967fd0c2523aebf352ea3021e6d923ede67e71314d1396b8	890012	qt4-x11	http://archive.debian.org/debian/pool/main/q/qt4-x11/libqt4-dev_4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1_armel.deb
+libqtcore4	4:4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1	armel	564e1854cdb10722ae9d180645180bca425bce2ec1d8ffd31a6f1ac1c8b706b9	1420836	qt4-x11	http://archive.debian.org/debian/pool/main/q/qt4-x11/libqtcore4_4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1_armel.deb
+libqtgui4	4:4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1	armel	3b6102b008a5cbe434f2394791e81452b20bb349150d4e5dc8abd0ecf8fda28a	3613208	qt4-x11	http://archive.debian.org/debian/pool/main/q/qt4-x11/libqtgui4_4.8.6+git64-g5dc8b2b+dfsg-3+deb8u1_armel.deb
+#
+# ============================================================================
+# SECTION: TREE-DIGESTS
+# A whole-tree fingerprint for the parts too large to list file-by-file: sha256 over a
+# C-sorted "<sha256|symlink target>\t<relpath>" listing of every entry. Independent of
+# mtimes and traversal order, so it is stable across machines and re-extractions.
+# TSV: tree  digest  contents
+# ============================================================================
+qt4-extract	b316ff7e0f98daea18e6ed90eb05458aa196e8212aab79866f7e982bb70051a4	2922 files, 28 symlinks
+staging/lib	0412309eb02933960fd2becc203e69d1a58adf220fa24fbddcc603f2fd61ff0a	7 files, 10 symlinks
+staging/include	0b293a1946d806761d28596cf280c15c4b838672ffff1684b7cf2246812ca21a	5 files, 0 symlinks
+yajl-inc	861e1366377b9fc72a9b5efa0c142375a9301fd36cc7a188778f1bab8deec518	4 files, 0 symlinks
+#
+# ============================================================================
+# SECTION: GIT-CHECKOUTS  (public, fully reproducible — pin by commit)
+# TSV: dir  commit  describe  remote
+# ============================================================================
+libpbnjson	c4b0611639324f36e69fbbd531b7fd6d2ca894e8	submissions/10	https://github.com/openwebos/libpbnjson.git
+yajl	17b1790fb9c8abbb3c0f7e083864a6a014191d56	1.0.12	https://github.com/lloyd/yajl.git
+npapi-headers	9d3512142291f0bbd75b014e49a552c1962a11d5	0.4	https://github.com/isis-project/npapi-headers.git
+#
+# yajl-inc/ is NOT a checkout: it is yajl/src/api/*.h copied flat under a yajl/ directory
+# so `#include <yajl/yajl_parse.h>` resolves. Three of its four headers are byte-identical
+# to the yajl checkout; yajl_version.h is absent from it because cmake GENERATES that one
+# from yajl_version.h.cmake at configure time. Regenerate yajl-inc by copying the three and
+# configuring yajl once for the fourth, or keep it as the small vendored drop it is — the
+# TREE-DIGESTS row above pins it either way.
+#
+# VERSION SKEW, recorded because it is load-bearing and easy to "fix" wrongly:
+#   pbnjson  headers submissions/10 (c4b0611)  vs  device library submission-38
+#   yajl     checkout tag 1.0.12               vs  device library 1.0.7
+#   Qt       headers 4.8.6 (Debian)            vs  device libraries 4.8.0 (HP)
+# In each case the HEADERS are what this repo pins and the LIBRARY is whatever the device
+# has. build-adapter-pdk.sh chose submissions/10 deliberately ("the device era") so gcc4
+# instantiates what the device libpbnjson_cpp exports. Do not bump these to match each
+# other without re-testing the adapter on hardware: the C++ ones are template/ABI-sensitive.

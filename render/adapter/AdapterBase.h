@@ -477,6 +477,11 @@ public:
 
     void* NPN_GetValue(NPNVariable variable);
 
+    // The write half of the browser-side value API. Needed at all because the touch handlers
+    // above are opt-in: WebKit sends no npPalmTouch*Event until the plugin asks for them with
+    // npPalmEnableTouchEvents (NOTE above handleTouchStart).
+    NPError NPN_SetValue(NPPVariable variable, void* value);
+
 
     // Only for use internally by C entrypoints in AdapterBase.cpp.
     static void InitializePluginFuncs(NPPluginFuncs* pPluginFuncs);

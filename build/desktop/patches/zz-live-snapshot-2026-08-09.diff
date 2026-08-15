@@ -1,0 +1,3486 @@
+diff --git a/build/moz.configure/warnings.configure b/build/moz.configure/warnings.configure
+index 0704f94a09..8dd1b90ee0 100644
+--- a/build/moz.configure/warnings.configure
++++ b/build/moz.configure/warnings.configure
+@@ -88,6 +88,11 @@ check_and_add_gcc_warning('-Wno-error=deprecated-declarations')
+ # false positives depending on optimization
+ check_and_add_gcc_warning('-Wno-error=array-bounds')
+ 
++# GCC 9+ value-range analysis trips -Wformat-overflow on null %s args in debug
++# spew (e.g. js/src/jit/x64/BaseAssembler-x64.h:595); harmless for our build,
++# and js/src forces -Werror=format so this must be downgraded here to reach it.
++check_and_add_gcc_warning('-Wno-error=format-overflow')
++
+ # can't get rid of those PGO warnings
+ check_and_add_gcc_warning('-Wno-error=coverage-mismatch', when='MOZ_PGO')
+ 
+diff --git a/docshell/base/nsAboutRedirector.cpp b/docshell/base/nsAboutRedirector.cpp
+index c393fdd13e..fc2e5c8b9a 100644
+--- a/docshell/base/nsAboutRedirector.cpp
++++ b/docshell/base/nsAboutRedirector.cpp
+@@ -52,7 +52,7 @@ static RedirEntry kRedirMap[] = {
+   { "config", "chrome://global/content/config.xul", 0 },
+   { "console", "chrome://global/content/console.xul", 0 },
+   {
+-    "credits", "http://www.palemoon.org/Contributors.shtml",
++    "credits", "https://net.riverstonerelay.jihad-browser/credits",
+     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
+     nsIAboutModule::MAKE_LINKABLE
+   },
+diff --git a/docshell/base/nsDocShell.cpp b/docshell/base/nsDocShell.cpp
+index 44d8bc308b..193fd56b39 100644
+--- a/docshell/base/nsDocShell.cpp
++++ b/docshell/base/nsDocShell.cpp
+@@ -199,6 +199,7 @@
+ #include "nsICommandManager.h"
+ #include "nsIDOMNode.h"
+ #include "nsIDocShellTreeOwner.h"
++#include "nsIBadCertListener2.h"   // JIHAD: route cert errors to the embedder chrome
+ #include "nsIHttpChannel.h"
+ #include "nsIIDNService.h"
+ #include "nsIInputStreamChannel.h"
+@@ -1074,6 +1075,33 @@ nsDocShell::GetInterface(const nsIID& aIID, void** aSink)
+   } else if (aIID.Equals(NS_GET_IID(nsITabChild))) {
+     *aSink = GetTabChild().take();
+     return *aSink ? NS_OK : NS_ERROR_FAILURE;
++  } else if (aIID.Equals(NS_GET_IID(nsIBadCertListener2))) {
++    // JIHAD: hand the embedder's chrome the certificate error.
++    //
++    // NSS asks the channel's notification callbacks for nsIBadCertListener2
++    // (SSLServerCertVerification.cpp, CertErrorRunnable::CheckCertOverrides) and passes
++    // it the nsISSLStatus carrying the SERVER CERTIFICATE. That call is the one and only
++    // place an embedder is handed the cert while it still exists — the same shape the
++    // Atlas browser gets for free from WebKit's load-failed-with-tls-errors signal, which
++    // delivers the GTlsCertificate as a signal argument.
++    //
++    // Without this hop nothing answers: the docShell's fallthrough is
++    // nsDocLoader::GetInterface, which Queries the docloader ITSELF, so the request never
++    // reaches nsIWebBrowserChrome. The embedder is then left trying to recover the cert
++    // afterwards, and there is no way to: the failed channel's securityInfo has a null
++    // SSLStatus, and UXP has no nsIRecentBadCerts service. Measured 2026-08-04 — the
++    // SSL-confirm dialog worked, the user accepted, and the accept could do nothing
++    // because RememberValidityOverride had no nsIX509Cert to take.
++    //
++    // Routed through the tree owner, exactly as nsIWebBrowserChromeFocus and nsIPrompt
++    // already are (nsDocShellTreeOwner::GetInterface).
++    nsCOMPtr<nsIDocShellTreeOwner> treeOwner;
++    GetTreeOwner(getter_AddRefs(treeOwner));
++    nsCOMPtr<nsIInterfaceRequestor> req(do_QueryInterface(treeOwner));
++    if (req) {
++      return req->GetInterface(aIID, aSink);
++    }
++    return NS_NOINTERFACE;
+   } else if (aIID.Equals(NS_GET_IID(nsIContentFrameMessageManager))) {
+     nsCOMPtr<nsITabChild> tabChild =
+       do_GetInterface(static_cast<nsIDocShell*>(this));
+diff --git a/dom/base/nsObjectLoadingContent.cpp b/dom/base/nsObjectLoadingContent.cpp
+index 986468b139..b064216329 100644
+--- a/dom/base/nsObjectLoadingContent.cpp
++++ b/dom/base/nsObjectLoadingContent.cpp
+@@ -787,6 +787,12 @@ nsresult
+ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+ {
+ #ifdef MOZ_ENABLE_NPAPI
++  // JIHAD DIAGNOSTIC (R7): entry + the four early-out conditions. If this line never appears the
++  // plugin was never asked for at all (no nsPluginFrame -> no HasNewFrame), which is a different
++  // bug from being asked for and refused.
++  fprintf(stderr, "[jihad-npapi] InstantiatePluginInstance(aIsLoading=%d) owner=%d type=%d "
++          "mIsLoading=%d instantiating=%d\n", (int)aIsLoading, (int)!!mInstanceOwner,
++          (int)mType, (int)mIsLoading, (int)mInstantiating);
+   if (mInstanceOwner || mType != eType_Plugin || (mIsLoading != aIsLoading) ||
+       mInstantiating) {
+     // If we hit this assertion it's probably because LoadObject re-entered :(
+@@ -822,10 +828,12 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   NS_ENSURE_TRUE(mInstantiating, NS_OK);
+ 
+   if (!thisContent->GetPrimaryFrame()) {
++    // JIHAD DIAGNOSTIC (R7): a silent NS_OK return — the single most likely place for a plugin
++    // to "do nothing" with no error anywhere.
++    fprintf(stderr, "[jihad-npapi] NO PRIMARY FRAME -> not instantiating\n");
+     LOG(("OBJLC [%p]: Not instantiating plugin with no frame", this));
+     return NS_OK;
+   }
+-
+   nsresult rv = NS_ERROR_FAILURE;
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+ 
+@@ -846,6 +854,8 @@ nsObjectLoadingContent::InstantiatePluginInstance(bool aIsLoading)
+   rv = pluginHost->InstantiatePluginInstance(mContentType,
+                                              mURI.get(), this,
+                                              getter_AddRefs(newOwner));
++  fprintf(stderr, "[jihad-npapi] pluginHost->InstantiatePluginInstance rv=0x%x owner=%d\n",
++          (unsigned)rv, (int)!!newOwner);
+ 
+   // XXX(johns): We don't suspend native inside stopping plugins...
+   if (appShell) {
+@@ -2378,6 +2388,11 @@ nsObjectLoadingContent::LoadObject(bool aNotify,
+   FallbackType clickToPlayReason;
+   if (!mActivated && (mType == eType_Null || mType == eType_Plugin) &&
+       !ShouldPlay(clickToPlayReason, false)) {
++    // JIHAD DIAGNOSTIC (R7): this is where a plugin that resolved fine is silently demoted to
++    // eType_Null. Every path out of ShouldPlay that returns false lands here, so one line here
++    // names the reason instead of instrumenting each exit.
++    fprintf(stderr, "[jihad-npapi] demoted to fallback: mType=%d fallbackReason=%d\n",
++            (int)mType, (int)clickToPlayReason);
+     LOG(("OBJLC [%p]: Marking plugin as click-to-play", this));
+     mType = eType_Null;
+     fallbackType = clickToPlayReason;
+@@ -2887,9 +2902,16 @@ nsObjectLoadingContent::GetTypeOfContent(const nsCString& aMIMEType)
+ 
+ #ifdef MOZ_ENABLE_NPAPI
+   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
+-  if ((caps & eSupportPlugins) &&
+-      pluginHost &&
+-      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone)) {
++  bool jihadHave = pluginHost &&
++      pluginHost->HavePluginForType(aMIMEType, nsPluginHost::eExcludeNone);
++  // JIHAD DIAGNOSTIC (R7 windowless port): says, for one MIME type, whether the element
++  // advertised plugin capability and whether the host has a plugin — the two facts that decide
++  // if the NPAPI subsystem is entered at all. Added because a plugin that never instantiates
++  // produces NO plugin logging whatsoever, which is indistinguishable from one that was never
++  // asked for.
++  fprintf(stderr, "[jihad-npapi] GetTypeOfContent mime=%s caps=0x%x supportsPlugins=%d have=%d\n",
++          nsCString(aMIMEType).get(), caps, (int)!!(caps & eSupportPlugins), (int)jihadHave);
++  if ((caps & eSupportPlugins) && jihadHave) {
+     // ShouldPlay will handle checking for disabled plugins
+     return eType_Plugin;
+   }
+@@ -3486,9 +3508,15 @@ nsObjectLoadingContent::ShouldPlay(FallbackType &aReason, bool aIgnoreCurrentTyp
+   aReason = eFallbackClickToPlay;
+ 
+   uint32_t enabledState = nsIPluginTag::STATE_DISABLED;
+-  pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
++  nsresult jihadStateRv = pluginHost->GetStateForType(mContentType, nsPluginHost::eExcludeNone,
+                               &enabledState);
++  // JIHAD DIAGNOSTIC (R7): note that enabledState is pre-set to STATE_DISABLED and the rv of
++  // GetStateForType is NOT checked upstream, so a failing lookup silently blocks the plugin
++  // with no other trace. Log the rv as well as the value.
++  fprintf(stderr, "[jihad-npapi] ShouldPlay type=%s enabledState=%u rv=0x%x\n",
++          mContentType.get(), enabledState, (unsigned)jihadStateRv);
+   if (nsIPluginTag::STATE_DISABLED == enabledState) {
++    fprintf(stderr, "[jihad-npapi] ShouldPlay -> FALSE (eFallbackDisabled)\n");
+     aReason = eFallbackDisabled;
+     return false;
+   }
+diff --git a/dom/plugins/base/nsNPAPIPlugin.cpp b/dom/plugins/base/nsNPAPIPlugin.cpp
+index 746e271abc..9262fdb210 100644
+--- a/dom/plugins/base/nsNPAPIPlugin.cpp
++++ b/dom/plugins/base/nsNPAPIPlugin.cpp
+@@ -341,6 +341,10 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+   RefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
+ 
+   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
++  // JIHAD DIAGNOSTIC (R7): GetNewPluginLibrary is where the OOP decision is made —
++  // RunPluginOOP() ? PluginModuleParent::LoadModule (launches plugin-container) : a
++  // PluginPRLibrary loaded in-process. A null here is the plugin-container launch failing.
++  fprintf(stderr, "[jihad-npapi] GetNewPluginLibrary lib=%d\n", (int)!!pluginLib);
+   if (!pluginLib) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -386,6 +390,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+ #else
+   NPError pluginCallError;
+   nsresult rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
++  fprintf(stderr, "[jihad-npapi] NP_Initialize rv=0x%x npErr=%d\n", (unsigned)rv, (int)pluginCallError);
+   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -1939,7 +1944,16 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
+   }
+ 
+   case NPNVSupportsWindowless: {
+-#if defined(XP_WIN) || defined(XP_MACOSX) || \
++    // MOZ_WIDGET_HEADLESS added for Jihad Browser. This list enumerates the toolkits that can
++    // host a windowless plugin, and it was written before a headless toolkit existed — so a
++    // cairo-headless build answered "windowless unsupported" to every plugin, which is the
++    // opposite of the truth. Headless is the toolkit that MOST needs windowless: there is no X
++    // server, no Drawable and no XEmbed, so windowed hosting is impossible and drawing into a
++    // memory bitmap we own is the only thing that can work. gfxPlatformHeadless already returns
++    // true from SupportsPluginDirectBitmapDrawing(), i.e. the drawing model this unlocks
++    // (NPDrawingModelAsyncBitmapSurface) is implemented for this platform; only this
++    // advertisement was missing, and with it false no plugin would ever choose windowless.
++#if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_HEADLESS) || \
+     (defined(MOZ_X11) && defined(MOZ_WIDGET_GTK))
+     *(NPBool*)result = true;
+ #else
+diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
+index 11f54ab87f..61a608fc45 100644
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -843,6 +843,9 @@ nsPluginHost::InstantiatePluginInstance(const nsACString& aMimeType, nsIURI* aUR
+   }
+ 
+   rv = SetUpPluginInstance(aMimeType, aURL, instanceOwner);
++  // JIHAD DIAGNOSTIC (R7): the real rv is flattened to NS_ERROR_FAILURE below, which is what
++  // made this failure opaque from the caller's side.
++  fprintf(stderr, "[jihad-npapi] SetUpPluginInstance rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     instanceOwner->Destroy();
+     return NS_ERROR_FAILURE;
+@@ -961,7 +964,12 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+ #endif
+ 
+   RefPtr<nsNPAPIPlugin> plugin;
+-  GetPlugin(aMimeType, getter_AddRefs(plugin));
++  nsresult jihadGetRv = GetPlugin(aMimeType, getter_AddRefs(plugin));
++  // JIHAD DIAGNOSTIC (R7): GetPlugin -> CreateNPAPIPlugin -> nsNPAPIPlugin::CreatePlugin, which
++  // for an OOP build is PluginModuleParent::LoadModule (the plugin-container launch). Its rv is
++  // DISCARDED here; only the null check survives, so a launch failure is invisible.
++  fprintf(stderr, "[jihad-npapi] GetPlugin rv=0x%x plugin=%d\n",
++          (unsigned)jihadGetRv, (int)!!plugin);
+   if (!plugin) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -987,6 +995,7 @@ nsPluginHost::TrySetUpPluginInstance(const nsACString &aMimeType,
+   // except in some cases not Java, see bug 140931
+   // our COM pointer will free the peer
+   nsresult rv = instance->Initialize(plugin.get(), aOwner, aMimeType);
++  fprintf(stderr, "[jihad-npapi] instance->Initialize rv=0x%x\n", (unsigned)rv);
+   if (NS_FAILED(rv)) {
+     mInstances.RemoveElement(instance.get());
+     aOwner->SetInstance(nullptr);
+diff --git a/dom/plugins/base/nsPluginInstanceOwner.cpp b/dom/plugins/base/nsPluginInstanceOwner.cpp
+index e3fcc83f0d..5bb7a60a6b 100644
+--- a/dom/plugins/base/nsPluginInstanceOwner.cpp
++++ b/dom/plugins/base/nsPluginInstanceOwner.cpp
+@@ -569,6 +569,27 @@ NS_IMETHODIMP nsPluginInstanceOwner::InvalidateRect(NPRect *invalidRect)
+   GetContentsScaleFactor(&scaleFactor);
+   rect.ScaleRoundOut(scaleFactor);
+   mPluginFrame->InvalidateLayer(nsDisplayItem::TYPE_PLUGIN, &rect);
++
++  // JIHAD (2026-08-09): drive the offscreen daemon's re-capture for WINDOWLESS plugins.
++  //
++  // A windowless plugin has no mWidget, so the mWidget->Invalidate() branch above (which is what
++  // ultimately reaches PuppetWidget::Invalidate and sets the daemon's mJihadDirty flag) never
++  // runs. InvalidateLayer() alone only marks the plugin's ImageLayer for recomposition; with the
++  // in-process BasicLayerManager and no separate compositor, that repaints the widget's own layer
++  // backbuffer but never triggers jihad_offscreen_render_region, the path that actually renders a
++  // frame into the adapter's shared buffer for the card. Measured: Flash pushes a fresh magenta
++  // frame into its ImageContainer ~15x/s and BasicImageLayer::Paint runs on each, yet
++  // render_region fired ONCE (at load) so the card froze on the pre-content frame. The control
++  // plugin only appeared to work because its static fill was already present at that single
++  // capture. Invalidate the nearest real widget here so every async plugin frame marks the daemon
++  // dirty and gets composited to the card. The daemon re-renders the whole document per capture,
++  // so invalidating the widget bounds (rather than a precise sub-rect) is sufficient and correct.
++  if (!mWidget) {
++    nsIWidget* nearest = mPluginFrame->GetNearestWidget();
++    if (nearest) {
++      nearest->Invalidate(nearest->GetBounds());
++    }
++  }
+   return NS_OK;
+ }
+ 
+diff --git a/dom/plugins/ipc/BrowserStreamChild.cpp b/dom/plugins/ipc/BrowserStreamChild.cpp
+index 4fdfc1d471..24c533c5ea 100644
+--- a/dom/plugins/ipc/BrowserStreamChild.cpp
++++ b/dom/plugins/ipc/BrowserStreamChild.cpp
+@@ -133,6 +133,12 @@ BrowserStreamChild::RecvNPP_DestroyStream(const NPReason& reason)
+ {
+   PLUGIN_LOG_DEBUG_METHOD;
+ 
++  // Jihad R7: end-of-stream is what tells a Flash player the movie is complete. A player that
++  // is never told stops on frame zero, which looks exactly like a player that cannot draw.
++  fprintf(stderr, "[jihad-npapi-child] RecvNPP_DestroyStream reason=%d state=%d\n",
++          (int)reason, (int)mState);
++  fflush(stderr);
++
+   if (ALIVE != mState)
+     NS_RUNTIMEABORT("Unexpected state: recevied NPP_DestroyStream twice?");
+ 
+@@ -232,8 +238,12 @@ BrowserStreamChild::Deliver()
+     if (kStreamOpen == mStreamStatus)
+       mStreamStatus = NPRES_DONE;
+ 
+-    (void) mInstance->mPluginIface
++    NPError dsrv = mInstance->mPluginIface
+       ->destroystream(&mInstance->mData, &mStream, mStreamStatus);
++    // Jihad R7: the delivery site, as opposed to RecvNPP_DestroyStream which only queues it.
++    fprintf(stderr, "[jihad-npapi-child] NPP_DestroyStream status=%d rv=%d\n",
++            (int)mStreamStatus, (int)dsrv);
++    fflush(stderr);
+   }
+   if (DESTROYED == mDestroyPending && mNotifyPending) {
+     NS_ASSERTION(mStreamNotify, "mDestroyPending but no mStreamNotify?");
+diff --git a/dom/plugins/ipc/JihadNPNInterpose.cpp b/dom/plugins/ipc/JihadNPNInterpose.cpp
+new file mode 100644
+index 0000000000..7dd1833441
+--- /dev/null
++++ b/dom/plugins/ipc/JihadNPNInterpose.cpp
+@@ -0,0 +1,74 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++/*
++ * NPN entry points exported as GLOBAL SYMBOLS, for plugins that expect the old Netscape
++ * convention where the host browser exports them rather than only passing an NPNetscapeFuncs
++ * table to NP_Initialize.
++ *
++ * WHY THIS IS ITS OWN TRANSLATION UNIT. The obvious place for these is PluginModuleChild.cpp,
++ * and it does not work: npapi.h already declares NPN_InvalidateRect, and every header in this
++ * build is compiled under `-include config/gcc_hidden.h`, which pushes hidden visibility. GCC
++ * takes visibility from the FIRST declaration it sees, so a later definition carrying
++ * __attribute__((visibility("default"))) is silently ignored and the symbol lands in the
++ * object as GLOBAL HIDDEN — present to `nm`, absent from the dynamic table, and therefore
++ * impossible to interpose. Verified with readelf. This file deliberately includes no NPAPI
++ * headers at all and describes the functions with void* so there is no prior declaration to
++ * inherit hidden visibility from.
++ *
++ * WHY IT MATTERS. webOS's Flash imports NPN_CreateObject and NPN_InvalidateRect as undefined
++ * dynamic symbols. Left alone they bind into libWebKitLuna.so — another browser engine that
++ * is in this process because Flash (and our Piranha drawing path) pull it in. Two consequences,
++ * both measured:
++ *   1. Flash's repaint requests go to LunaSysMgr's WebKit and never reach our engine, so the
++ *      plugin is only ever painted when something else happens to invalidate it. That alone
++ *      makes an animating plugin look frozen.
++ *   2. It is a latent crash: UXP stores a PluginInstanceChild* in NPP::ndata, while
++ *      libWebKitLuna's NPN_InvalidateRect casts that same field to a WebCore::PluginView* and
++ *      makes a virtual call on it — a wild vtable dispatch on the first repaint.
++ *
++ * The forwarding pointers are installed by PluginModuleChild once the browser function table
++ * exists; until then these are safe no-ops.
++ */
++
++#include <stdio.h>
++
++extern "C" {
++
++void  (*gJihadNPNInvalidateRect)(void* aNPP, void* aRect) = 0;
++void* (*gJihadNPNCreateObject)(void* aNPP, void* aClass)  = 0;
++
++// Read by the host repaint clock in PluginInstanceChild.cpp: while this is zero the plugin has
++// never asked to be repainted, so the host has to drive it.
++unsigned gJihadNPNInvalidateRectCalls = 0;
++
++__attribute__((visibility("default"))) void
++NPN_InvalidateRect(void* aNPP, void* aRect)
++{
++    // The first call is the signal that the plugin's frame clock is finally running; without
++    // it the plugin is only ever painted by an unrelated invalidation, which is
++    // indistinguishable on screen from a plugin that draws nothing. Log it once, and log the
++    // no-forwarder case too — arriving before PluginModuleChild installs the pointers is a
++    // dropped repaint, not a no-op.
++    gJihadNPNInvalidateRectCalls++;
++    static int sLogged = 0;
++    if (sLogged < 8) {
++        sLogged++;
++        fprintf(stderr, "[jihad-npapi-child] NPN_InvalidateRect npp=%p rect=%p fwd=%p\n",
++                aNPP, aRect, (void*)gJihadNPNInvalidateRect);
++        fflush(stderr);
++    }
++    if (gJihadNPNInvalidateRect) {
++        gJihadNPNInvalidateRect(aNPP, aRect);
++    }
++}
++
++__attribute__((visibility("default"))) void*
++NPN_CreateObject(void* aNPP, void* aClass)
++{
++    return gJihadNPNCreateObject ? gJihadNPNCreateObject(aNPP, aClass) : 0;
++}
++
++} // extern "C"
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 61e56a9438..2d661f0753 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -31,6 +31,7 @@ using mozilla::gfx::SharedDIBSurface;
+ #endif
+ #endif
+ #include "gfxSharedImageSurface.h"
++#include <dlfcn.h>   // Jihad R7: reach the plugin's own glib for npPalmEventLoopValue
+ #include "gfxUtils.h"
+ #include "gfxAlphaRecovery.h"
+ 
+@@ -50,6 +51,18 @@ using namespace mozilla::gfx;
+ using namespace mozilla::widget;
+ using namespace std;
+ 
++// Defined next to JihadPumpGlib, far below; declared here because DoNPP_New starts it.
++static void JihadStartGlibPump(PluginInstanceChild* aInstance);
++
++// The instance the host clock repaints, and the count of repaints the PLUGIN asked for. Both
++// live here rather than on the instance because the pump is a process-wide free function.
++// Cleared in ~PluginInstanceChild so the clock cannot outlive what it points at.
++static PluginInstanceChild* sJihadPalmInstance = nullptr;
++static uint64_t gJihadPalmDrawEvents = 0;
++// Defined in JihadNPNInterpose.cpp, which deliberately includes no NPAPI headers.
++extern "C" unsigned gJihadNPNInvalidateRectCalls;
++
++
+ #ifdef MOZ_WIDGET_GTK
+ 
+ #include <gtk/gtk.h>
+@@ -193,6 +206,7 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
+ #endif
+     , mAccumulatedInvalidRect(0,0,0,0)
+     , mIsTransparent(false)
++    , mJihadSentPalmGainFocus(false)
+     , mSurfaceType(gfxSurfaceType::Max)
+     , mPendingPluginCall(false)
+     , mDoAlphaExtraction(false)
+@@ -231,6 +245,11 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
+ 
+ PluginInstanceChild::~PluginInstanceChild()
+ {
++    // The host repaint clock outlives any single instance (it is bound to the process-wide
++    // GMainLoop), so it must not be left holding this pointer.
++    if (sJihadPalmInstance == this) {
++        sJihadPalmInstance = nullptr;
++    }
+ #if defined(OS_WIN)
+     NS_ASSERTION(!mPluginWindowHWND, "Destroying PluginInstanceChild without NPP_Destroy?");
+     if (GetQuirks() & QUIRK_UNITY_FIXUP_MOUSE_CAPTURE) {
+@@ -260,6 +279,52 @@ PluginInstanceChild::~PluginInstanceChild()
+ #endif
+ }
+ 
++// ── THE webOS PLUGIN ABI (Jihad, addons R7) ───────────────────────────────────────────────
++//
++// None of this is in our npapi.h; it is Palm's XP_WEBOS block, and every layout below was
++// checked TWICE — against WebKit/Source/WebCore/plugins/npapi.h, and against the machine code
++// of the host that actually shipped on the device. That host is NOT the Qt one in our WebKit
++// checkout (PluginViewQt.cpp passes a QPainter* and Flash has no Qt dependency at all); it is
++// WebCore::PluginView compiled from PluginViewPalm.cpp into /usr/lib/libWebKitLuna.so, which
++// is unstripped on the device and can simply be read. Offsets cited below are into that
++// library. Get these wrong and the plugin reads garbage, silently.
++struct JihadNpPalmDrawEvent {
++    void*    dstBuffer;
++    uint32_t dstRowBytes;
++    int32_t  srcLeft, srcRight, srcTop, srcBottom;
++    void*    graphicsContext;
++    int32_t  dstLeft, dstRight, dstTop, dstBottom;
++};
++// Confirmed against PluginView::paint (libWebKitLuna 0x4e7e30-0x4e7e44): it stores
++// platformContext() at frame+52 and the four scaled dst coords at +56/+60/+64/+68, which pins
++// graphicsContext and the dst quadruple to exactly these offsets.
++
++struct JihadNpPalmSystemEvent {
++    int32_t type;   // NpPalmSystemEventsEnum
++};
++
++struct JihadNpPalmEvent {
++    uint32_t eventType;
++    union {
++        JihadNpPalmDrawEvent   drawEvent;
++        JihadNpPalmSystemEvent systemEvent;
++        unsigned char          pad[256];   // ≥ the largest member of Palm's union
++    } data;
++};
++
++// NPWindow.window for a webOS plugin. Palm's host never calls setwindow without one:
++// PluginView::setNPWindowRect (libWebKitLuna 0x4e74e0) builds it as a STACK LOCAL, points
++// m_npWindow.window at it (0x4e7570 `str sp, [r4, #520]`), calls setwindow, and immediately
++// re-nulls the pointer (0x4e7614) so the dangling stack address is never left behind.
++// Field offsets read straight off that function: visible is a byte at +0 (0x4e755c
++// `strbne r3, [sp]`), bpp is 32 at +4 (0x4e75dc `mov ip,#32; str ip,[sp,#4]`), and scaleFactor
++// is the double from ScrollView::getScale() at +8 (0x4e7588 `strd r6, [sp, #8]`).
++struct JihadNpPalmWindow {
++    bool     visible;
++    uint32_t bpp;
++    double   scaleFactor;
++};
++
+ NPError
+ PluginInstanceChild::DoNPP_New()
+ {
+@@ -286,6 +351,44 @@ PluginInstanceChild::DoNPP_New()
+         return rv;
+     }
+ 
++    // WEBOS EVENT LOOP (Jihad, addons R7).
++    //
++    // Palm's own host does this right after NPP_New and before anything else
++    // (WebKit/Source/WebCore/plugins/qt/PluginViewQt.cpp, PluginView::platformStart):
++    // it hands the plugin a GMainLoop* through npPalmEventLoopValue. A webOS plugin drives
++    // its own frame scheduling off that loop, so a plugin that never receives one is a
++    // plugin that instantiates and then never asks to paint — exactly the symptom this port
++    // had.
++    //
++    // glib is not linked into this process; it arrives as a dependency of the plugin, so it
++    // can only be reached by name once the plugin is loaded — which it is by now. A plugin
++    // that does not know the variable just returns an error, so this is safe for any plugin.
++    if (mPluginIface->setvalue) {
++        static void* sMainLoop = nullptr;
++        if (!sMainLoop) {
++            if (void* glib = dlopen("libglib-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++                typedef void* (*GMainLoopNewFn)(void*, int);
++                GMainLoopNewFn newLoop = (GMainLoopNewFn)dlsym(glib, "g_main_loop_new");
++                if (newLoop) {
++                    sMainLoop = newLoop(nullptr, 1 /* is_running */);
++                }
++            }
++        }
++        if (sMainLoop) {
++            const uint32_t kNpPalmEventLoopValue = 10000;
++            NPError lerr = mPluginIface->setvalue(npp, (NPNVariable)kNpPalmEventLoopValue,
++                                                  sMainLoop);
++            fprintf(stderr, "[jihad-npapi-child] npPalmEventLoopValue loop=%p err=%d\n",
++                    sMainLoop, (int)lerr);
++            // The plugin now has a loop to hang sources off; start running it. See
++            // JihadStartGlibPump for why this cannot wait for the first paint.
++            JihadStartGlibPump(this);
++        } else {
++            fprintf(stderr, "[jihad-npapi-child] npPalmEventLoopValue: no glib main loop\n");
++        }
++        fflush(stderr);
++    }
++
+     Initialize();
+ 
+ #if defined(XP_MACOSX) && defined(__i386__)
+@@ -717,8 +820,8 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)
+       // on the chrome process.  This is because our audio
+       // API calls should run the chrome proc, not content.
+       NPError rv = NPERR_GENERIC_ERROR;
+-      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
+-      if (chromeInstance) {
++      PluginModuleChild* chromeInstance = PluginModuleChild::GetChrome();
++      if (chromeInstance) {
+         rv = chromeInstance->PluginRequiresAudioDeviceChanges(this,
+                                               (NPBool)(intptr_t)aValue);
+       }
+@@ -1449,6 +1552,8 @@ PluginInstanceChild::AnswerNPP_SetWindow(const NPRemoteWindow& aWindow)
+ 
+     if (mPluginIface->setwindow)
+         (void) mPluginIface->setwindow(&mData, &mWindow);
++#elif defined(MOZ_WIDGET_HEADLESS)
++    // Jihad headless: no windowed plugins; nothing to do.
+ #else
+ #  error Implement me for your OS
+ #endif
+@@ -2827,6 +2932,12 @@ PluginInstanceChild::DoNPP_NewStream(BrowserStreamChild* actor,
+     AssertPluginThread();
+     AutoStackHelper guard(this);
+     NPError rv = actor->StreamConstructed(mimeType, seekable, stype);
++    // JIHAD DIAGNOSTIC (R7): does content actually reach the plugin? A plugin that was
++    // never handed its stream draws nothing for a completely different reason than a
++    // plugin that cannot draw, and on screen the two are identical (an empty box).
++    fprintf(stderr, "[jihad-npapi-child] NPP_NewStream mime=%s seekable=%d rv=%d stype=%d\n",
++            mimeType.get(), (int)seekable, (int)rv, (int)*stype);
++    fflush(stderr);
+     return rv;
+ }
+ 
+@@ -3741,10 +3852,331 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
+          mWindow.clipRect.left, mWindow.clipRect.top, mWindow.clipRect.right, mWindow.clipRect.bottom));
+ 
+     if (mPluginIface->setwindow) {
++        // WEBOS: hand the plugin an NpPalmWindow, exactly as Palm's host does.
++        //
++        // Out of the box this embedder passes NPWindow.window = nullptr for every windowless
++        // plugin (DoAsyncSetWindow hard-nulls it, and the MOZ_WIDGET_HEADLESS branch of
++        // AnswerNPP_SetWindow is a no-op), which is correct for an X11 windowless plugin — the
++        // slot means "native window handle" there, and there isn't one. On webOS the same slot
++        // means something completely different: it carries the plugin's visibility, the
++        // surface depth and the page scale. A webOS plugin told window=NULL has been told
++        // nothing about the surface it is supposed to draw into.
++        //
++        // Scoped to the call and re-nulled afterwards, because this is a stack address and
++        // Palm's host is careful about exactly that (libWebKitLuna 0x4e7570 / 0x4e7614).
++        //
++        // scaleFactor is 1.0 rather than the card's fit-zoom: Palm passes ScrollView::getScale()
++        // because its plugin drew into the page's own scaled surface, whereas here the plugin
++        // owns an unscaled CSS-sized buffer and the compositor applies the zoom afterwards.
++        JihadNpPalmWindow palmWindow;
++        palmWindow.visible     = true;
++        palmWindow.bpp         = 32;
++        palmWindow.scaleFactor = 1.0;
++        void* savedWindow = mWindow.window;
++        mWindow.window = &palmWindow;
++
+         mPluginIface->setwindow(&mData, &mWindow);
++
++        mWindow.window = savedWindow;
++
++        static int sLoggedSetWindow = 0;
++        if (sLoggedSetWindow < 3) {
++            sLoggedSetWindow++;
++            fprintf(stderr, "[jihad-npapi-child] NPP_SetWindow %dx%d at %d,%d type=%d "
++                            "palmWindow{visible=1 bpp=32 scale=1.0}\n",
++                    (int)mWindow.width, (int)mWindow.height, (int)mWindow.x, (int)mWindow.y,
++                    (int)mWindow.type);
++            fflush(stderr);
++        }
++
++        // WEBOS: the last thing Palm's PluginView::platformStart does is tell the plugin it has
++        // focus — handlePageGainFocus (libWebKitLuna 0x4e6df0) builds
++        // {eventType = 0x100 (npPalmSystemEvent), systemEvent.type = 3 (npPalmGainFocusEvent)}
++        // and dispatches it. A plugin that is never told it is focused and visible has no
++        // reason to start animating.
++        //
++        // Only gain-focus: Flash's own system-event dispatcher (libflashplayer.so 0x44da0)
++        // routes npPalmPageLoadingEvent(8), npPalmPageLoadCompleteEvent(9) and
++        // npPalmViewPortChangedEvent(10) to a bare `mov r0,#0; pop {pc}`, so those three are
++        // inert in this build and sending them would prove nothing.
++        //
++        // After setwindow, not before, and once: the plugin needs its geometry first, and
++        // UpdateWindowAttributes runs on every resize and every scroll.
++        if (mPluginIface->event && !mJihadSentPalmGainFocus) {
++            mJihadSentPalmGainFocus = true;
++            JihadNpPalmEvent ev;
++            memset(&ev, 0, sizeof(ev));
++            ev.eventType = 1 << 8;              // npPalmSystemEvent
++            ev.data.systemEvent.type = 3;       // npPalmGainFocusEvent
++            int16_t handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&ev));
++            fprintf(stderr, "[jihad-npapi-child] npPalmSystemEvent gainFocus handled=%d\n",
++                    (int)handled);
++            fflush(stderr);
++        }
+     }
+ }
+ 
++// Run any work the plugin scheduled on glib.
++//
++// A webOS plugin is handed a GMainLoop through npPalmEventLoopValue and hangs its timers and
++// idle sources off it — but this process's main loop is chromium's MessageLoop, so unless
++// glib is pumped explicitly those sources NEVER RUN. The visible symptom is a plugin that
++// initialises, clears its stage, and then sits on frame zero forever: it is not stuck, it is
++// simply never being given the chance to advance.
++//
++// Bounded so a busy plugin cannot starve the paint it is being pumped for.
++static int
++JihadPumpGlib(int aMaxIterations)
++{
++    typedef int (*GMainContextIterationFn)(void*, int);
++    typedef int (*GMainContextPendingFn)(void*);
++    static bool sTried = false;
++    static GMainContextIterationFn sIterate = nullptr;
++    static GMainContextPendingFn sPending = nullptr;
++
++    if (!sTried) {
++        sTried = true;
++        if (void* glib = dlopen("libglib-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++            sIterate = (GMainContextIterationFn)dlsym(glib, "g_main_context_iteration");
++            sPending = (GMainContextPendingFn)dlsym(glib, "g_main_context_pending");
++        }
++        fprintf(stderr, "[jihad-npapi-child] glib pump iterate=%p pending=%p\n",
++                (void*)sIterate, (void*)sPending);
++        fflush(stderr);
++    }
++    if (!sIterate) {
++        return 0;
++    }
++    int n = 0;
++    while (n < aMaxIterations) {
++        if (sPending && !sPending(nullptr)) {
++            break;
++        }
++        sIterate(nullptr, 0 /* may_block = FALSE */);
++        n++;
++    }
++    return n;
++}
++
++// ── RUN THE PLUGIN'S EVENT LOOP CONTINUOUSLY (Jihad, addons R7) ───────────────────────────
++//
++// Pumping glib only just before a paint deadlocks a webOS plugin, because its startup is
++// asynchronous: Flash registers com.palm.flashgraphics on the LS2 bus, attaches that socket to
++// the loop it was handed, and then waits on round-trips to com.palm.systemservice
++// (getPreferences), com.palm.display (status) and com.palm.db (find) before it starts its frame
++// clock. Until the clock runs it never calls NPN_InvalidateRect, so nothing ever asks it to
++// paint — and the only pump was on the paint path. No paint, no pump; no pump, no paint.
++//
++// So the pump has to be independent of painting. This reposts itself on the child's own
++// MessageLoop, which is the SAME thread every other NPAPI call into the plugin runs on — the
++// arrangement Palm's host gave it, since BrowserServer's main loop simply WAS a GMainLoop.
++// g_main_loop_run() on a dedicated thread would be the wrong shape: the plugin's timer
++// callbacks would then fire off the NPAPI thread and reenter us from it.
++//
++// MEASURED: before the LS2 role allowed com.palm.flashgraphics, LSRegisterPalmService failed
++// with -1027, nothing was ever attached to the loop, and g_main_context_pending() returned
++// FALSE forever. That is fixed in packaging/gen-variant-scripts.sh; the pump only has anything
++// to run because of it.
++static const int kJihadGlibPumpIntervalMs = 16;   // ~60Hz, the rate a frame clock wants
++static const int kJihadGlibPumpMaxIters   = 20;   // bounded: never starve the MessageLoop
++static const int kJihadRepaintEveryTicks  = 4;    // ~15Hz while the host is driving repaints
++
++// ── REPAINT A webOS PLUGIN FROM THE HOST'S CLOCK (Jihad, addons R7) ──────────────────────
++//
++// Gecko paints a windowless plugin only when something invalidates it, and for an ordinary
++// NPAPI plugin that is the plugin itself calling NPN_InvalidateRect. A webOS plugin is under
++// no such obligation, because the host it was written for never made it one: Palm's
++// PluginView::paint (libWebKitLuna 0x4e7a3c) issues npPalmDrawEvent every time the PAGE
++// paints, and BrowserServer's compositor painted continuously. Flash on that host could sit
++// on its frame clock and simply expect to be asked.
++//
++// So this drives the repaint until the plugin proves it drives itself, then gets out of the
++// way — a plugin that calls NPN_InvalidateRect gets Gecko's normal damage-driven painting and
++// none of this cost. Measured: with no host clock, Flash produced exactly 3 draw events in
++// 30 s and 0 invalidates.
++void
++PluginInstanceChild::JihadPalmRepaintTick()
++{
++    if (!mLayersRendering || mWindow.width <= 0 || mWindow.height <= 0) {
++        return;
++    }
++    NPRect windowRect = { 0, 0,
++                          uint16_t(mWindow.height), uint16_t(mWindow.width) };
++    InvalidateRect(&windowRect);
++}
++
++namespace {
++class JihadGlibPumpTask final : public Runnable
++{
++public:
++    NS_IMETHOD Run() override
++    {
++        int n = JihadPumpGlib(kJihadGlibPumpMaxIters);
++
++        static uint64_t sRepaintTicks = 0;
++        if (sJihadPalmInstance && gJihadNPNInvalidateRectCalls == 0 &&
++            (++sRepaintTicks % kJihadRepaintEveryTicks) == 0) {
++            sJihadPalmInstance->JihadPalmRepaintTick();
++        }
++
++        // One-shot liveness, because "the plugin is idle" and "the pump died" look
++        // identical on screen. Report the first tick that actually ran a source.
++        static bool sSawFirstSource = false;
++        static uint64_t sTicks = 0;
++        sTicks++;
++        if (n && !sSawFirstSource) {
++            sSawFirstSource = true;
++            fprintf(stderr, "[jihad-npapi-child] glib pump: first source ran on tick %llu\n",
++                    (unsigned long long)sTicks);
++            fflush(stderr);
++        }
++
++        MessageLoop::current()->PostDelayedTask(
++            RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
++            kJihadGlibPumpIntervalMs);
++        return NS_OK;
++    }
++};
++} // namespace
++
++// Idempotent: several plugin instances share one GMainLoop, so they share one pump.
++static void
++JihadStartGlibPump(PluginInstanceChild* aInstance)
++{
++    sJihadPalmInstance = aInstance;
++    static bool sStarted = false;
++    if (sStarted) {
++        return;
++    }
++    MessageLoop* loop = MessageLoop::current();
++    if (!loop) {
++        fprintf(stderr, "[jihad-npapi-child] glib pump: no MessageLoop, not starting\n");
++        fflush(stderr);
++        return;
++    }
++    sStarted = true;
++    fprintf(stderr, "[jihad-npapi-child] glib pump: starting, every %dms\n",
++            kJihadGlibPumpIntervalMs);
++    fflush(stderr);
++    loop->PostDelayedTask(RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
++                          kJihadGlibPumpIntervalMs);
++}
++
++// ── PIRANHA CONTEXT FOR A WEBOS PLUGIN (Jihad, addons R7) ────────────────────────────────
++//
++// webOS plugins that answer npPalmUseGraphicsContext=true expect NpPalmDrawEvent to carry a
++// Piranha PGContext* rather than a raster pointer. Piranha ships on the device inside
++// libWebKitLuna.so (PGContext/PGSurface) and libPiranha.so; neither is linked into this
++// process, so everything is resolved by dlsym on the mangled names — no webOS headers, and
++// nothing breaks on a desktop build where the libraries simply are not there.
++//
++// Feasibility was established separately before any of this was written; see
++// render/goanna/test/piranha_offscreen_probe.c, which does exactly this sequence in a bare
++// process and confirms the pixels land in caller-owned memory.
++//
++// The context is cached per (buffer,size) because a plugin repaints constantly and both
++// objects would otherwise leak once per frame.
++static void*
++JihadPiranhaContextFor(unsigned char* aData, int aWidth, int aHeight, int aStride)
++{
++    // PGSurface::wrap() has no stride parameter, so it can only describe tightly packed
++    // rows. Refuse rather than hand Piranha a buffer it would misread into a sheared image.
++    if (!aData || aWidth <= 0 || aHeight <= 0 || aStride != aWidth * 4) {
++        static bool sWarnedStride = false;
++        if (!sWarnedStride) {
++            sWarnedStride = true;
++            fprintf(stderr, "[jihad-npapi-child] piranha: stride %d != %d*4, not wrapping\n",
++                    aStride, aWidth);
++            fflush(stderr);
++        }
++        return nullptr;
++    }
++
++    typedef void* (*PGSurfaceWrapFn)(unsigned, unsigned, const unsigned char*, bool);
++    typedef void* (*PGContextCreateFn)(void);
++    typedef void  (*PGContextSetSurfaceFn)(void*, void*);
++
++    static bool sTried = false;
++    static PGSurfaceWrapFn sWrap = nullptr;
++    static PGContextCreateFn sCreate = nullptr;
++    static PGContextSetSurfaceFn sSetSurface = nullptr;
++
++    if (!sTried) {
++        sTried = true;
++        // g_thread_init() MUST run before libWebKitLuna loads or its constructors abort with
++        // "GLib-ERROR **: The thread system is not yet initialized". It lives in
++        // libgthread-2.0.so.0, NOT libglib-2.0.so.0. Measured, not guessed.
++        if (void* gthread = dlopen("libgthread-2.0.so.0", RTLD_NOW | RTLD_GLOBAL)) {
++            typedef void (*GThreadInitFn)(void*);
++            if (GThreadInitFn init = (GThreadInitFn)dlsym(gthread, "g_thread_init")) {
++                typedef int (*GThreadGetInitFn)(void);
++                GThreadGetInitFn got =
++                    (GThreadGetInitFn)dlsym(gthread, "g_thread_get_initialized");
++                if (!got || !got()) {
++                    init(nullptr);
++                }
++            }
++        }
++        void* wk = dlopen("libWebKitLuna.so", RTLD_NOW | RTLD_GLOBAL);
++        if (!wk) {
++            fprintf(stderr, "[jihad-npapi-child] piranha: no libWebKitLuna (%s)\n", dlerror());
++            fflush(stderr);
++        } else {
++            sWrap       = (PGSurfaceWrapFn)dlsym(wk, "_ZN9PGSurface4wrapEjjPKhb");
++            sCreate     = (PGContextCreateFn)dlsym(wk, "_ZN9PGContext6createEv");
++            sSetSurface = (PGContextSetSurfaceFn)dlsym(wk, "_ZN9PGContext10setSurfaceEP9PGSurface");
++            fprintf(stderr, "[jihad-npapi-child] piranha syms wrap=%p create=%p setSurface=%p\n",
++                    (void*)sWrap, (void*)sCreate, (void*)sSetSurface);
++            fflush(stderr);
++        }
++    }
++    if (!sWrap || !sCreate || !sSetSurface) {
++        return nullptr;
++    }
++
++    // A SET of cached contexts, not one. Palm got away with a single context because its
++    // buffer was one process-global screen-sized allocation that never moved; here the child
++    // rotates between a front and a back gfxSharedImageSurface, so a one-entry cache keyed on
++    // the buffer address misses on EVERY frame. That was invisible while the plugin was only
++    // painted twice, and turned into a PGSurface + PGContext leaked per frame the moment the
++    // host started driving repaints at 15Hz.
++    //
++    // Four entries: two buffers is the observed case, and a small fixed array keeps this
++    // allocation-free and bounded even if the surface pool grows. On overflow the oldest entry
++    // is dropped — leaking that one context rather than freeing an object the plugin may still
++    // be holding, which is the safer of the two mistakes and is bounded by the buffer count.
++    struct CacheEntry { unsigned char* data; int w, h; void* ctx; };
++    static CacheEntry sCache[4] = {};
++    static unsigned sCacheNext = 0;
++
++    for (size_t i = 0; i < MOZ_ARRAY_LENGTH(sCache); ++i) {
++        if (sCache[i].ctx && sCache[i].data == aData &&
++            sCache[i].w == aWidth && sCache[i].h == aHeight) {
++            return sCache[i].ctx;
++        }
++    }
++
++    void* surf = sWrap((unsigned)aWidth, (unsigned)aHeight, aData, true);
++    void* ctx  = surf ? sCreate() : nullptr;
++    if (ctx) {
++        sSetSurface(ctx, surf);
++    }
++    // Rate-limited: this is now a cache MISS log, and a miss storm is exactly the symptom
++    // worth seeing — but only the first few, or it floods the daemon log at frame rate.
++    static int sLoggedCtx = 0;
++    if (sLoggedCtx < 8) {
++        sLoggedCtx++;
++        fprintf(stderr, "[jihad-npapi-child] piranha ctx %dx%d buf=%p surface=%p context=%p\n",
++                aWidth, aHeight, aData, surf, ctx);
++        fflush(stderr);
++    }
++
++    CacheEntry& slot = sCache[sCacheNext % MOZ_ARRAY_LENGTH(sCache)];
++    sCacheNext++;
++    slot.data = aData; slot.w = aWidth; slot.h = aHeight; slot.ctx = ctx;
++    return ctx;
++}
++
+ void
+ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+                                                 gfxASurface* aSurface)
+@@ -3799,7 +4231,133 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+     ::IntersectClipRect((HDC) mWindow.window, rect.left, rect.top, rect.right, rect.bottom);
+     mPluginIface->event(&mData, reinterpret_cast<void*>(&paintEvent));
+ #else
+-    NS_RUNTIMEABORT("Surface type not implemented.");
++    // No platform surface to paint onto.
++    //
++    // This is the CLASSIC windowless paint path, and on Unix it is X11 and nothing else: the
++    // browser hands the plugin a Drawable and sends it an XGraphicsExposeEvent. A build with
++    // no X (a headless toolkit) has nothing it can hand over, and NPAPI defines no
++    // alternative for Unix — a plugin that wants to draw without X has to opt into a bitmap
++    // drawing model (NPDrawingModelAsyncBitmapSurface), which is a different path entirely
++    // and is fully supported here.
++    //
++    // Aborting is wrong for an embedder: the plugin process dies, the parent respawns it,
++    // and the whole cycle repeats for every paint, so one plugin that cannot draw becomes an
++    // endless crash loop. Warn once and leave the surface untouched instead — the plugin
++    // stays loaded and scriptable and simply shows nothing, which is a bounded failure the
++    // embedder can report.
++    // fprintf, not NS_WARNING: NS_WARNING compiles to nothing in a release build, and this is
++    // the ONLY signal distinguishing "the plugin drew nothing" from "the plugin was never
++    // asked to draw" — a distinction that is invisible on screen (both are a blank box).
++    // WEBOS RASTER DRAW EVENT (Jihad, addons R7).
++    //
++    // webOS plugins do not use the X11 protocol at all — they are painted by an
++    // npPalmDrawEvent, and NpPalmDrawEvent carries BOTH a raster destination (dstBuffer +
++    // dstRowBytes, "only valid in API version 1.0") and a Piranha PGContext
++    // ("must be used to draw in API version 2.0"). See Palm's own npapi.h, XP_WEBOS block.
++    //
++    // The device's Flash answers npPalmUseGraphicsContext = true, which per that header means
++    // the HOST may then pass a null raster — it is a statement about host behaviour, NOT a
++    // promise that the plugin refuses a non-null dstBuffer. There is no API-version
++    // negotiation anywhere in the contract, so the only way to find out whether a plugin
++    // honours the raster path is to hand it one and look. That is what this does.
++    //
++    // The surface here is already an ordinary shared-memory image (gfxSharedImageSurface,
++    // created a few hundred lines up), living in this process, whose pixels the parent
++    // already composites — so the raster the plugin needs costs nothing to produce.
++    if (aSurface->GetType() == gfxSurfaceType::Image) {
++        gfxImageSurface* img = static_cast<gfxImageSurface*>(aSurface);
++        uint8_t* data = img->Data();
++        int32_t stride = img->Stride();
++
++        if (data && stride > 0) {
++            // JihadNpPalmEvent / JihadNpPalmDrawEvent are declared at the top of this file,
++            // where the offsets are justified against both Palm's npapi.h and libWebKitLuna.
++            const uint32_t kNpPalmDrawEvent = 1 << 7;   // npPalmDrawEvent
++
++            JihadNpPalmEvent ev;
++            memset(&ev, 0, sizeof(ev));
++            ev.eventType = kNpPalmDrawEvent;
++            // "points to top-left of area to paint"
++            ev.data.drawEvent.dstBuffer =
++                data + (ptrdiff_t)aRect.y * stride + (ptrdiff_t)aRect.x * 4;
++            ev.data.drawEvent.dstRowBytes = (uint32_t)stride;
++            ev.data.drawEvent.srcLeft   = aRect.x;
++            ev.data.drawEvent.srcTop    = aRect.y;
++            ev.data.drawEvent.srcRight  = aRect.XMost();
++            ev.data.drawEvent.srcBottom = aRect.YMost();
++            ev.data.drawEvent.dstLeft   = ev.data.drawEvent.srcLeft;
++            ev.data.drawEvent.dstTop    = ev.data.drawEvent.srcTop;
++            ev.data.drawEvent.dstRight  = ev.data.drawEvent.srcRight;
++            ev.data.drawEvent.dstBottom = ev.data.drawEvent.srcBottom;
++            // API 2.0: a real Piranha PGContext bound to the very same pixels.
++            //
++            // The device's Flash answers npPalmUseGraphicsContext = true, and although it
++            // accepts a raster draw event (returns handled=1) it writes nothing into the
++            // buffer — so "handled" evidently means "consumed", not "drew". This gives it
++            // what it actually asked for. Proven possible by
++            // render/goanna/test/piranha_offscreen_probe.c: a PGContext can be created over
++            // wrapped memory in an ordinary process with no display and no compositor.
++            //
++            // PGSurface::wrap() takes no stride, so it assumes tightly-packed w*4 rows. That
++            // holds here (a 320-wide surface has stride 1280) but is asserted rather than
++            // assumed, because a padded stride would silently shear the image.
++            ev.data.drawEvent.graphicsContext = JihadPiranhaContextFor(data, img->Width(),
++                                                                       img->Height(), stride);
++            // BOTH fields stay populated, including for a plugin that answered
++            // npPalmUseGraphicsContext = true.
++            //
++            // npapi.h says the raster pointer "is then passed in as null" for such plugins, and
++            // this code used to believe it. The host that actually shipped does not: PluginView
++            // ::paint (libWebKitLuna 0x4e7c70 / 0x4e7c5c) stores a live dstBuffer and a live
++            // dstRowBytes into the event on the SAME branch that stores the PGContext — the
++            // graphics-context case is precisely the one where it computes
++            // dstBuffer = <shared buffer> + (y*screenWidth + x)*4 and
++            // dstRowBytes = screenWidth*4 (0x4e7e04-0x4e7e18). The header comment describes
++            // what a 2.0 plugin is expected to USE, not what the host is allowed to omit, and
++            // handing Flash a null raster is a difference from the reference host that costs
++            // nothing to remove.
++
++            // Let the plugin's own scheduled work run before we ask it to draw, so the
++            // frame it paints is current rather than whatever it had at instantiation.
++            JihadPumpGlib(50);
++
++            int16_t handled = mPluginIface->event
++                ? mPluginIface->event(&mData, reinterpret_cast<void*>(&ev)) : -1;
++            gJihadPalmDrawEvents++;
++
++            static int sLogged = 0;
++            if (sLogged < 3) {
++                sLogged++;
++                // handled= is reported but means nothing on its own: Flash's NPP_HandleEvent
++                // sets its return to 1 (libflashplayer.so 0x45274) BEFORE calling the draw
++                // handler and returns it unconditionally, so handled=1 is emitted even when
++                // the handler bails without touching the surface. Only pixels are evidence.
++                fprintf(stderr, "[jihad-npapi-child] npPalmDrawEvent %s %d,%d %dx%d "
++                                "stride=%d ctx=%p handled=%d\n",
++                        ev.data.drawEvent.graphicsContext ? "pgcontext" : "raster",
++                        aRect.x, aRect.y, aRect.width, aRect.height,
++                        (int)stride, ev.data.drawEvent.graphicsContext, (int)handled);
++                fflush(stderr);
++            }
++            return;
++        }
++    }
++
++    // Nothing we can paint onto at all.
++    //
++    // Aborting is wrong for an embedder: the plugin process dies, the parent respawns it,
++    // and the whole cycle repeats for every paint, so one plugin that cannot draw becomes an
++    // endless crash loop. Warn once and leave the surface untouched instead.
++    // fprintf, not NS_WARNING: NS_WARNING compiles to nothing in a release build, and this is
++    // the ONLY signal distinguishing "the plugin drew nothing" from "the plugin was never
++    // asked to draw" — a distinction that is invisible on screen (both are a blank box).
++    static bool sWarned = false;
++    if (!sWarned) {
++        sWarned = true;
++        fprintf(stderr, "[jihad-npapi-child] no paintable surface for this windowless "
++                        "plugin (type=%d); it will NOT paint.\n", (int)aSurface->GetType());
++        fflush(stderr);
++    }
+ #endif
+ }
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index 57b88a30fb..18a59686a5 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -641,6 +641,18 @@ private:
+     // and p->getvalue return always false
+     bool mIsTransparent;
+ 
++    // Jihad R7 (webOS): npPalmGainFocusEvent is a once-per-instance startup signal, but the
++    // setwindow that carries it runs again on every resize and scroll.
++    bool mJihadSentPalmGainFocus;
++
++public:
++    // Jihad R7 (webOS): repaint this instance from the host's own clock. See
++    // JihadGlibPumpTask::Run — a webOS plugin is not obliged to ask for repaints, because the
++    // host it was written for painted it as part of every page paint.
++    void JihadPalmRepaintTick();
++
++private:
++
+     // Surface type optimized of parent process
+     gfxSurfaceType mSurfaceType;
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index ee9b4e7ae9..e38f6174aa 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -269,6 +269,8 @@ PluginInstanceParent::AnswerNPN_GetValue_NPNVnetscapeWindow(NativeWindowHandle*
+     XID id;
+ #elif defined(XP_DARWIN)
+     intptr_t id;
++#elif defined(MOZ_WIDGET_HEADLESS)
++    intptr_t id; // Jihad headless: no native window id
+ #else
+ #warning Implement me
+ #endif
+@@ -769,6 +771,51 @@ PluginInstanceParent::RecvShowDirectBitmap(Shmem&& buffer,
+         return false;
+     }
+ 
++    // NO COMPOSITOR PROCESS: composite the plugin's bitmap directly.
++    //
++    // Everything below this point routes the plugin's pixels through a TextureClient to a
++    // compositor, and that requires ImageBridgeChild — which only exists with off-main-thread
++    // composition. This embedder deliberately runs OMTC off (the offscreen renderer uses the
++    // in-process BasicLayerManager and hands finished frames to the browser adapter itself),
++    // so ImageBridgeChild::GetSingleton() is null and TextureClientRecycleAllocator is built
++    // around a null KnowsCompositor. The first plugin paint then dereferenced it and took the
++    // whole daemon down with it — upstream never sees this because the DXGI path a few
++    // hundred lines up checks the forwarder and the direct-bitmap path does not.
++    //
++    // A BasicLayerManager does not need a TextureClient at all: it draws an ImageLayer from
++    // the image's own SourceSurface. So wrap the pixels in a plain SourceSurfaceImage and
++    // hand that to the container.
++    //
++    // The pixels are COPIED, not wrapped. `source` above wraps the shmem the plugin drew
++    // into, and the plugin owns that buffer and may draw the next frame into it as soon as
++    // this call returns; the texture path's UpdateFromSurface copies for the same reason.
++    if (!ImageBridgeChild::GetSingleton()) {
++        RefPtr<gfx::DataSourceSurface> copy =
++            gfx::Factory::CreateDataSourceSurface(size, format);
++        if (!copy) {
++            NS_WARNING("Could not allocate a surface for plugin bitmap!");
++            return false;
++        }
++        {
++            gfx::DataSourceSurface::ScopedMap srcMap(source, gfx::DataSourceSurface::READ);
++            gfx::DataSourceSurface::ScopedMap dstMap(copy, gfx::DataSourceSurface::WRITE);
++            if (!srcMap.IsMapped() || !dstMap.IsMapped()) {
++                return false;
++            }
++            const int32_t bpp = BytesPerPixel(format);
++            const int32_t rowBytes = size.width * bpp;
++            for (int32_t y = 0; y < size.height; y++) {
++                memcpy(dstMap.GetData() + (ptrdiff_t)y * dstMap.GetStride(),
++                       srcMap.GetData() + (ptrdiff_t)y * srcMap.GetStride(),
++                       rowBytes);
++            }
++        }
++
++        RefPtr<SourceSurfaceImage> image = new SourceSurfaceImage(size, copy);
++        SetCurrentImage(image);
++        return true;
++    }
++
+     // Allocate a texture for the compositor.
+     RefPtr<TextureClientRecycleAllocator> allocator = mParent->EnsureTextureAllocatorForDirectBitmap();
+     RefPtr<TextureClient> texture = allocator->CreateOrRecycle(
+@@ -959,14 +1006,75 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+                    updatedRect.bottom - updatedRect.top);
+         surface->MarkDirty(ur);
+ 
+-        bool isPlugin = true;
+-        RefPtr<gfx::SourceSurface> sourceSurface =
+-            gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(nullptr, surface, isPlugin);
+-        RefPtr<SourceSurfaceImage> image = new SourceSurfaceImage(surface->GetSize(), sourceSurface);
++        // JIHAD (2026-08-09): route the legacy windowless show through the SAME
++        // representation the direct-bitmap path uses, for the SAME reasons.
++        //
++        // Background: the webOS npPalmDrawEvent path (PaintRectToPlatformSurface) makes Flash
++        // blit its stage into mCurrentSurface — measured full-magenta in the child — and ships
++        // it here via SendShow. The control plugin's pixels reach the screen through
++        // RecvShowDirectBitmap; Flash's did not, although both feed the one mImageContainer the
++        // BasicLayerManager reads. Two concrete differences made the legacy path invisible:
++        //   1. It WRAPPED the shmem (GetSourceSurfaceForSurface(nullptr,…)) instead of copying.
++        //      The child double-buffers and SwapSurfaces() immediately after SendShow returns,
++        //      so a wrapped front buffer is the very buffer the child repaints next — the image
++        //      the layer later samples is racing the child. RecvShowDirectBitmap copies for
++        //      exactly this reason ("the plugin owns that buffer and may draw the next frame
++        //      into it as soon as this call returns").
++        //   2. It stamped no frameID. SetCurrentImage() on the working path assigns a monotonic
++        //      ++mFrameID; the ImageContainer/ImageLayer treats a repeated frameID as "no new
++        //      frame". A fixed 0 can be coalesced away.
++        // Copying into a fresh DataSourceSurface and stamping a monotonic frameID makes this
++        // path identical in substance to the one already proven to composite here.
++        IntSize ssize = surface->GetSize();
++        RefPtr<Image> image;
++        RefPtr<gfxImageSurface> imgSurf = surface->GetAsImageSurface();
++        if (imgSurf) {
++            // Always present the copy as B8G8R8A8, and force the alpha channel opaque when the
++            // source carries no alpha (RGB24 / B8G8R8X8). This is Bug 1196927 in this file's own
++            // words (see PluginInstanceChild::PaintRectToSurface): Cairo/Skia leave the X byte of
++            // a BGRX surface zeroed, and a BasicImageLayer then composites those pixels multiplied
++            // by alpha 0 — i.e. fully transparent. That is exactly why Flash's magenta stage
++            // arrived here (RecvShow logged px0=0xffff00ff) yet BasicImageLayer::Paint drew
++            // nothing visible, while the control plugin — which ships B8G8R8A8 — composited fine
++            // through the identical layer path. webOS windowless plugins are opaque
++            // (wmode=opaque forces the windowless instance in the first place), so forcing alpha
++            // opaque is correct here.
++            const SurfaceFormat srcFmt = surface->GetSurfaceFormat();
++            const bool srcHasAlpha =
++                srcFmt != SurfaceFormat::B8G8R8X8 &&
++                srcFmt != SurfaceFormat::R8G8B8X8;
++            RefPtr<gfx::DataSourceSurface> copy =
++                gfx::Factory::CreateDataSourceSurface(ssize, SurfaceFormat::B8G8R8A8);
++            if (copy) {
++                gfx::DataSourceSurface::ScopedMap dstMap(copy, gfx::DataSourceSurface::WRITE);
++                if (dstMap.IsMapped()) {
++                    const int32_t rowBytes = ssize.width * 4;
++                    for (int32_t y = 0; y < ssize.height; y++) {
++                        uint8_t* dstRow = dstMap.GetData() + (ptrdiff_t)y * dstMap.GetStride();
++                        memcpy(dstRow, imgSurf->Data() + (ptrdiff_t)y * imgSurf->Stride(),
++                               rowBytes);
++                        if (!srcHasAlpha) {
++                            for (int32_t x = 0; x < ssize.width; x++) {
++                                dstRow[x * 4 + 3] = 0xff;  // BGRA: byte 3 is alpha
++                            }
++                        }
++                    }
++                    image = new SourceSurfaceImage(ssize, copy);
++                }
++            }
++        }
++        if (!image) {
++            // Fallback to the original wrap if the copy path could not be taken.
++            bool isPlugin = true;
++            RefPtr<gfx::SourceSurface> sourceSurface =
++                gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(nullptr, surface, isPlugin);
++            image = new SourceSurfaceImage(ssize, sourceSurface);
++        }
+ 
++        ImageContainer::NonOwningImage holder(image);
++        holder.mFrameID = ++mFrameID;
+         AutoTArray<ImageContainer::NonOwningImage,1> imageList;
+-        imageList.AppendElement(
+-            ImageContainer::NonOwningImage(image));
++        imageList.AppendElement(holder);
+ 
+         ImageContainer *container = GetImageContainer();
+         container->SetCurrentImages(imageList);
+@@ -1301,7 +1409,11 @@ PluginInstanceParent::GetImageContainer()
+     return mImageContainer;
+   }
+ 
+-  if (IsUsingDirectDrawing()) {
++  if (IsUsingDirectDrawing() && ImageBridgeChild::GetSingleton()) {
++      // ASYNCHRONOUS means "shared with the compositor through ImageBridge". Without an
++      // ImageBridge the async container silently gets no image client and never publishes
++      // anything, so with OMTC off this has to be an ordinary local container — which is
++      // what the BasicLayerManager reads from. See RecvShowDirectBitmap.
+       mImageContainer = LayerManager::CreateImageContainer(ImageContainer::ASYNCHRONOUS);
+   } else {
+       mImageContainer = LayerManager::CreateImageContainer();
+diff --git a/dom/plugins/ipc/PluginMessageUtils.h b/dom/plugins/ipc/PluginMessageUtils.h
+index cb9dbaad51..3313675c3a 100644
+--- a/dom/plugins/ipc/PluginMessageUtils.h
++++ b/dom/plugins/ipc/PluginMessageUtils.h
+@@ -117,6 +117,8 @@ typedef HWND NativeWindowHandle;
+ typedef XID NativeWindowHandle;
+ #elif defined(XP_DARWIN)
+ typedef intptr_t NativeWindowHandle; // never actually used, will always be 0
++#elif defined(MOZ_WIDGET_HEADLESS)
++typedef intptr_t NativeWindowHandle; // Jihad headless: no native window handle
+ #else
+ #error Need NativeWindowHandle for this platform
+ #endif
+diff --git a/dom/plugins/ipc/PluginModuleChild.cpp b/dom/plugins/ipc/PluginModuleChild.cpp
+index 4bdaa613c5..f0e2b1cddd 100644
+--- a/dom/plugins/ipc/PluginModuleChild.cpp
++++ b/dom/plugins/ipc/PluginModuleChild.cpp
+@@ -60,6 +60,9 @@ using namespace mozilla::ipc;
+ using namespace mozilla::plugins;
+ using namespace mozilla::widget;
+ 
++// Defined at the bottom of this file; see the NPN SYMBOL INTERPOSITION block there.
++namespace mozilla { namespace plugins { void JihadInstallNPNInterposition(); } }
++
+ #if defined(XP_WIN)
+ const wchar_t * kFlashFullscreenClass = L"ShockwaveFlashFullScreen";
+ const wchar_t * kMozillaWindowClass = L"MozillaWindowClass";
+@@ -232,6 +235,10 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+ {
+     NS_ASSERTION(aChannel, "need a channel");
+ 
++    // Point the exported NPN_* globals at the real implementations before any plugin can be
++    // loaded, so a plugin that resolves them as symbols reaches us rather than libWebKitLuna.
++    JihadInstallNPNInterposition();
++
+     if (!InitGraphics())
+         return false;
+ 
+@@ -251,7 +258,11 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+     nsPluginFile pluginFile(localFile);
+ 
+     nsPluginInfo info = nsPluginInfo();
+-    if (NS_FAILED(pluginFile.GetPluginInfo(info, &mLibrary))) {
++    nsresult jihadRv = pluginFile.GetPluginInfo(info, &mLibrary);
++    fprintf(stderr, "[jihad-npapi-child] GetPluginInfo rv=0x%x lib=%d\n",
++            (unsigned)jihadRv, (int)!!mLibrary);
++    fflush(stderr);
++    if (NS_FAILED(jihadRv)) {
+         return false;
+     }
+ 
+@@ -1843,6 +1854,8 @@ bool
+ PluginModuleChild::AnswerNP_Initialize(const PluginSettings& aSettings, NPError* rv)
+ {
+     *rv = DoNP_Initialize(aSettings);
++    fprintf(stderr, "[jihad-npapi-child] AnswerNP_Initialize rv=%d\n", (int)*rv);
++    fflush(stderr);
+     return true;
+ }
+ 
+@@ -1882,6 +1895,8 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
+ #  error Please implement me for your platform
+ #endif
+ 
++    fprintf(stderr, "[jihad-npapi-child] DoNP_Initialize plugin returned %d\n", (int)result);
++    fflush(stderr);
+     return result;
+ }
+ 
+@@ -2617,3 +2632,31 @@ PluginModuleChild::RecvNPP_SetValue_NPNVaudioDeviceChangeDetails(
+ #endif
+ }
+ #endif // MOZ_ENABLE_NPAPI
++
++// ── NPN SYMBOL INTERPOSITION (Jihad, addons R7) ──────────────────────────────────────────
++//
++// The exported NPN_* globals themselves live in JihadNPNInterpose.cpp (they must, to escape
++// hidden visibility — see the long comment there). All that is needed here is to point them
++// at the same implementations the browser function table uses, which is done once the table
++// exists. Installed from a static initializer-free helper called by the child at startup.
++extern "C" {
++extern void  (*gJihadNPNInvalidateRect)(void*, void*);
++extern void* (*gJihadNPNCreateObject)(void*, void*);
++}
++
++namespace mozilla {
++namespace plugins {
++
++void JihadInstallNPNInterposition()
++{
++    const NPNetscapeFuncs& f = PluginModuleChild::sBrowserFuncs;
++    gJihadNPNInvalidateRect = (void(*)(void*, void*))f.invalidaterect;
++    gJihadNPNCreateObject   = (void*(*)(void*, void*))f.createobject;
++    fprintf(stderr, "[jihad-npapi-child] NPN interposition installed invalidaterect=%p "
++                    "createobject=%p\n",
++            (void*)f.invalidaterect, (void*)f.createobject);
++    fflush(stderr);
++}
++
++} // namespace plugins
++} // namespace mozilla
+diff --git a/dom/plugins/ipc/PluginModuleParent.cpp b/dom/plugins/ipc/PluginModuleParent.cpp
+index a79d608267..4a1ff189e3 100755
+--- a/dom/plugins/ipc/PluginModuleParent.cpp
++++ b/dom/plugins/ipc/PluginModuleParent.cpp
+@@ -444,6 +444,8 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mSubprocess->SetCallRunnableImmediately(!parent->mIsStartingAsync);
+     bool launched = parent->mSubprocess->Launch(Move(onLaunchedRunnable),
+                                                 aPluginTag->mSandboxLevel);
++    fprintf(stderr, "[jihad-npapi] LoadModule path=%s async=%d launched=%d\n",
++            aFilePath, (int)parent->mIsStartingAsync, (int)launched);
+     if (!launched) {
+         // We never reached open
+         parent->mShutdown = true;
+@@ -455,7 +457,10 @@ PluginModuleChromeParent::LoadModule(const char* aFilePath, uint32_t aPluginId,
+     parent->mIsBlocklisted = NS_FAILED(rv) || blocklistState != 0;
+     if (!parent->mIsStartingAsync) {
+         int32_t launchTimeoutSecs = Preferences::GetInt(kLaunchTimeoutPref, 0);
+-        if (!parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000)) {
++        bool connected = parent->mSubprocess->WaitUntilConnected(launchTimeoutSecs * 1000);
++        fprintf(stderr, "[jihad-npapi] LoadModule WaitUntilConnected(%ds) = %d\n",
++                (int)launchTimeoutSecs, (int)connected);
++        if (!connected) {
+             parent->mShutdown = true;
+             return nullptr;
+         }
+diff --git a/dom/plugins/ipc/PluginProcessChild.cpp b/dom/plugins/ipc/PluginProcessChild.cpp
+index fd6992454f..e964355395 100644
+--- a/dom/plugins/ipc/PluginProcessChild.cpp
++++ b/dom/plugins/ipc/PluginProcessChild.cpp
+@@ -111,9 +111,14 @@ PluginProcessChild::Init()
+       return false;
+     }
+ 
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome plugin=%s parentPid=%d\n",
++            pluginFilename.c_str(), (int)ParentPid());
++    fflush(stderr);
+     bool retval = mPlugin.InitForChrome(pluginFilename, ParentPid(),
+                                         IOThreadChild::message_loop(),
+                                         IOThreadChild::channel());
++    fprintf(stderr, "[jihad-npapi-child] InitForChrome = %d\n", (int)retval);
++    fflush(stderr);
+ #if defined(XP_MACOSX)
+     if (nsCocoaFeatures::OnYosemiteOrLater()) {
+       // Explicitly turn off CGEvent logging.  This works around bug 1092855.
+diff --git a/dom/plugins/ipc/moz.build b/dom/plugins/ipc/moz.build
+index 5bc3474413..8f95041b6c 100644
+--- a/dom/plugins/ipc/moz.build
++++ b/dom/plugins/ipc/moz.build
+@@ -88,6 +88,10 @@ UNIFIED_SOURCES += [
+ ]
+ 
+ SOURCES += [
++    # Jihad: must NOT be unified — it deliberately includes no NPAPI headers so its exported
++    # NPN_* symbols escape the hidden-visibility pragma. Merging it with a TU that includes
++    # npapi.h would reintroduce the prior hidden declaration and silently un-export them.
++    'JihadNPNInterpose.cpp',
+     'PluginInstanceChild.cpp', # 'PluginThreadCallback' : ambiguous symbol
+     'PluginModuleChild.cpp',   # Redefinition of mozilla::WindowsDllInterceptor sUser32Intercept
+ ]
+diff --git a/embedding/browser/nsDocShellTreeOwner.cpp b/embedding/browser/nsDocShellTreeOwner.cpp
+index 70b7e9c075..374b7e6002 100644
+--- a/embedding/browser/nsDocShellTreeOwner.cpp
++++ b/embedding/browser/nsDocShellTreeOwner.cpp
+@@ -5,6 +5,7 @@
+ 
+ // Local Includes
+ #include "nsDocShellTreeOwner.h"
++#include "nsIBadCertListener2.h"   // JIHAD: route cert errors to the embedder chrome
+ #include "nsWebBrowser.h"
+ 
+ // Helper Classes
+@@ -143,6 +144,15 @@ nsDocShellTreeOwner::GetInterface(const nsIID& aIID, void** aSink)
+     return NS_OK;
+   }
+ 
++  if (aIID.Equals(NS_GET_IID(nsIBadCertListener2))) {
++    // JIHAD: the embedder's chrome is what implements this — see the matching comment in
++    // nsDocShell::GetInterface. Same forwarding shape as nsIWebBrowserChromeFocus below.
++    if (mWebBrowserChromeWeak != nullptr) {
++      return mWebBrowserChromeWeak->QueryReferent(aIID, aSink);
++    }
++    return mOwnerWin ? mOwnerWin->QueryInterface(aIID, aSink) : NS_NOINTERFACE;
++  }
++
+   if (aIID.Equals(NS_GET_IID(nsIWebBrowserChromeFocus))) {
+     if (mWebBrowserChromeWeak != nullptr) {
+       return mWebBrowserChromeWeak->QueryReferent(aIID, aSink);
+diff --git a/embedding/components/find/nsWebBrowserFind.cpp b/embedding/components/find/nsWebBrowserFind.cpp
+index ca9883075f..2d09f4472b 100644
+--- a/embedding/components/find/nsWebBrowserFind.cpp
++++ b/embedding/components/find/nsWebBrowserFind.cpp
+@@ -390,6 +390,14 @@ nsWebBrowserFind::SetSelectionAndScroll(nsPIDOMWindowOuter* aWindow,
+ 
+   nsCOMPtr<nsISelection> selection;
+ 
++  // JIHAD: frame->GetSelectionController can leave selCon NULL, and this dereferenced it
++  // unconditionally — a null deref that took the whole process down. It is reachable in an
++  // offscreen embedding with no chrome: this is the ONLY thing that made find-in-page
++  // unusable there (faultaddr=0x0, measured repeatedly). Guarding costs nothing and the
++  // rest of the function already tolerates a null `selection`.
++  if (!selCon) {
++    return;
++  }
+   selCon->SetDisplaySelection(nsISelectionController::SELECTION_ON);
+   selCon->GetSelection(nsISelectionController::SELECTION_NORMAL,
+                        getter_AddRefs(selection));
+@@ -707,7 +715,24 @@ nsWebBrowserFind::SearchInFrame(nsPIDOMWindowOuter* aWindow, bool aWrapping,
+     return NS_ERROR_FAILURE;
+   }
+ 
+-  if (!nsContentUtils::SubjectPrincipal()->Subsumes(theDoc->NodePrincipal())) {
++  // JIHAD: this same-origin check is why find-in-page took the whole process down in this
++  // embedding, and the engine says why itself. nsContentUtils::SubjectPrincipal() begins:
++  //     JSContext* cx = GetCurrentJSContext();
++  //     if (!cx) {
++  //       MOZ_CRASH("Accessing the Subject Principal without an AutoJSAPI on the stack is forbidden");
++  //     }
++  // An EMBEDDER calls nsIWebBrowserFind::FindNext from C++ with no script on the stack, so
++  // there is no JSContext and MOZ_CRASH fires — a deliberate abort that presents as SIGSEGV at
++  // address 0, which is precisely the fault this port recorded for two weeks and attributed to
++  // "a frame-selection controller the offscreen browser doesn't set up". That was wrong: the
++  // selection machinery is fine and the crash happens BEFORE any of it, on the security check.
++  //
++  // The check is meaningful only when there IS a caller to check. With no JS on the stack the
++  // caller is native embedding code, which is already fully trusted — it is inside libxul's own
++  // process, holding the nsIWebBrowserFind for that very docShell. So: consult the subject
++  // principal only when a JSContext exists, and otherwise proceed.
++  if (nsContentUtils::GetCurrentJSContext() &&
++      !nsContentUtils::SubjectPrincipal()->Subsumes(theDoc->NodePrincipal())) {
+     return NS_ERROR_DOM_PROP_ACCESS_DENIED;
+   }
+ 
+@@ -809,8 +834,11 @@ nsWebBrowserFind::GetFrameSelection(nsPIDOMWindowOuter* aWindow)
+   nsCOMPtr<nsISelection> sel;
+   if (frame) {
+     frame->GetSelectionController(presContext, getter_AddRefs(selCon));
+-    selCon->GetSelection(nsISelectionController::SELECTION_NORMAL,
+-                         getter_AddRefs(sel));
++    // JIHAD: same unguarded deref as above — GetSelectionController can yield null.
++    if (selCon) {
++      selCon->GetSelection(nsISelectionController::SELECTION_NORMAL,
++                           getter_AddRefs(sel));
++    }
+     if (sel) {
+       int32_t count = -1;
+       sel->GetRangeCount(&count);
+@@ -820,7 +848,12 @@ nsWebBrowserFind::GetFrameSelection(nsPIDOMWindowOuter* aWindow)
+     }
+   }
+ 
++  // JIHAD: and the fallback QI is not guaranteed either — if the presShell does not answer
++  // nsISelectionController we must return nothing rather than crash.
+   selCon = do_QueryInterface(presShell);
++  if (!selCon) {
++    return nullptr;
++  }
+   selCon->GetSelection(nsISelectionController::SELECTION_NORMAL,
+                        getter_AddRefs(sel));
+   return sel.forget();
+diff --git a/embedding/components/printingui/moz.build b/embedding/components/printingui/moz.build
+index c75471555e..f123f8c02b 100644
+--- a/embedding/components/printingui/moz.build
++++ b/embedding/components/printingui/moz.build
+@@ -12,5 +12,6 @@ if CONFIG['NS_PRINTING']:
+         DIRS += ['win']
+     elif toolkit == 'cocoa':
+         DIRS += ['mac']
+-    elif CONFIG['MOZ_PDF_PRINTING']:
++    elif CONFIG['MOZ_PDF_PRINTING'] or toolkit == 'headless':
++        # Jihad headless: reuse the gtk-free PDF printing prompt service.
+         DIRS += ['unixshared']
+diff --git a/gfx/2d/2D.h b/gfx/2d/2D.h
+index 1a1b369dae..7e6b69280f 100644
+--- a/gfx/2d/2D.h
++++ b/gfx/2d/2D.h
+@@ -1374,7 +1374,7 @@ public:
+   static already_AddRefed<ScaledFont>
+     CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSize);
+ 
+-#ifdef MOZ_WIDGET_GTK
++#if defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_HEADLESS)
+   static already_AddRefed<ScaledFont>
+     CreateScaledFontForFontconfigFont(cairo_scaled_font_t* aScaledFont, FcPattern* aPattern, Float aSize);
+ #endif
+diff --git a/gfx/2d/Factory.cpp b/gfx/2d/Factory.cpp
+index f0fd38c2ca..b808a824c0 100644
+--- a/gfx/2d/Factory.cpp
++++ b/gfx/2d/Factory.cpp
+@@ -30,7 +30,7 @@
+ #include "NativeFontResourceMac.h"
+ #endif
+ 
+-#ifdef MOZ_WIDGET_GTK
++#if defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_HEADLESS)
+ #include "ScaledFontFontconfig.h"
+ #endif
+ 
+@@ -584,7 +584,7 @@ Factory::CreateScaledFontWithCairo(const NativeFont& aNativeFont, Float aSize, c
+ #endif
+ }
+ 
+-#ifdef MOZ_WIDGET_GTK
++#if defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_HEADLESS)
+ already_AddRefed<ScaledFont>
+ Factory::CreateScaledFontForFontconfigFont(cairo_scaled_font_t* aScaledFont, FcPattern* aPattern, Float aSize)
+ {
+diff --git a/gfx/2d/moz.build b/gfx/2d/moz.build
+index 8bdd24cd2d..cefe8eadba 100644
+--- a/gfx/2d/moz.build
++++ b/gfx/2d/moz.build
+@@ -91,7 +91,7 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'windows':
+         'JobScheduler_posix.cpp',
+     ]
+ 
+-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3'):
++if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'headless'):
+     SOURCES += [
+         'ScaledFontFontconfig.cpp',
+     ]
+@@ -209,12 +209,12 @@ FINAL_LIBRARY = 'xul'
+ for var in ('USE_CAIRO', 'MOZ2D_HAS_MOZ_CAIRO'):
+     DEFINES[var] = True
+ 
+-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3'):
++if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'headless'):
+     DEFINES['MOZ_ENABLE_FREETYPE'] = True
+ 
+ CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
+ 
+-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3'):
++if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'headless'):
+     CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
+ 
+ LOCAL_INCLUDES += CONFIG['SKIA_INCLUDES']
+diff --git a/gfx/skia/moz.build b/gfx/skia/moz.build
+index a41723b382..0170b10d3d 100644
+--- a/gfx/skia/moz.build
++++ b/gfx/skia/moz.build
+@@ -529,7 +529,7 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] in {'cocoa', 'uikit'}:
+     SOURCES += [
+         'skia/src/ports/SkFontHost_mac.cpp',
+     ]
+-if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT']:
++if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT'] or CONFIG['MOZ_WIDGET_TOOLKIT'] == 'headless':
+     UNIFIED_SOURCES += [
+         'skia/src/ports/SkDebug_stdio.cpp',
+         'skia/src/ports/SkOSFile_posix.cpp',
+@@ -665,6 +665,7 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] in {
+     'cocoa',
+     'gtk2',
+     'gtk3',
++    'headless',
+     'uikit',
+   }:
+     DEFINES['SK_FONTHOST_DOES_NOT_USE_FONTMGR'] = 1
+@@ -738,7 +739,7 @@ if CONFIG['CLANG_CXX'] or CONFIG['CLANG_CL']:
+         '-Wno-unused-private-field',
+     ]
+ 
+-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3'):
++if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'headless'):
+     CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
+     CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
+ 
+diff --git a/gfx/thebes/gfxFcPlatformFontList.cpp b/gfx/thebes/gfxFcPlatformFontList.cpp
+index 903be6adfb..4822261866 100644
+--- a/gfx/thebes/gfxFcPlatformFontList.cpp
++++ b/gfx/thebes/gfxFcPlatformFontList.cpp
+@@ -32,6 +32,9 @@
+ #include <gdk/gdk.h>
+ #include "gfxPlatformGtk.h"
+ #endif
++#ifdef MOZ_WIDGET_HEADLESS
++#include "gfxPlatformHeadless.h"
++#endif
+ 
+ #ifdef MOZ_X11
+ #include "mozilla/X11Util.h"
+@@ -1764,7 +1767,11 @@ gfxFcPlatformFontList::FindGenericFamilies(const nsAString& aGeneric,
+ 
+     // -- select the fonts to be used for the generic
+     prefFonts = new PrefFontList; // can be empty but in practice won't happen
++#ifdef MOZ_WIDGET_HEADLESS
++    uint32_t limit = gfxPlatformHeadless::GetPlatform()->MaxGenericSubstitions();
++#else
+     uint32_t limit = gfxPlatformGtk::GetPlatform()->MaxGenericSubstitions();
++#endif
+     bool foundFontWithLang = false;
+     for (int i = 0; i < faces->nfont; i++) {
+         FcPattern* font = faces->fonts[i];
+diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
+index d5eb69b410..ddad584b3e 100644
+--- a/gfx/thebes/gfxPlatform.cpp
++++ b/gfx/thebes/gfxPlatform.cpp
+@@ -40,6 +40,8 @@
+ #elif defined(XP_MACOSX)
+ #include "gfxPlatformMac.h"
+ #include "gfxQuartzSurface.h"
++#elif defined(MOZ_WIDGET_HEADLESS)
++#include "gfxPlatformHeadless.h"
+ #elif defined(MOZ_WIDGET_GTK)
+ #include "gfxPlatformGtk.h"
+ #elif defined(ANDROID)
+@@ -572,6 +574,8 @@ gfxPlatform::Init()
+     gPlatform = new gfxWindowsPlatform;
+ #elif defined(XP_MACOSX)
+     gPlatform = new gfxPlatformMac;
++#elif defined(MOZ_WIDGET_HEADLESS)
++    gPlatform = new gfxPlatformHeadless;
+ #elif defined(MOZ_WIDGET_GTK)
+     gPlatform = new gfxPlatformGtk;
+ #elif defined(ANDROID)
+@@ -2166,6 +2170,13 @@ gfxPlatform::UsesOffMainThreadCompositing()
+     result |= gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly();
+ 
+ #endif
++    // Jihad Browser: the headless BrowserServer embedder has no compositor
++    // process; allow forcing off-main-thread compositing off (use the in-process
++    // BasicLayerManager) via env, since the gfxPrefs "Once" snapshot can miss a
++    // grepref set during XRE_InitEmbedding2 init ordering.
++    if (getenv("JIHAD_DISABLE_OMTC")) {
++      result = false;
++    }
+     firstTime = false;
+   }
+ 
+diff --git a/gfx/thebes/gfxPlatformGtk.cpp b/gfx/thebes/gfxPlatformGtk.cpp
+index 257e2c6520..06b277b5eb 100644
+--- a/gfx/thebes/gfxPlatformGtk.cpp
++++ b/gfx/thebes/gfxPlatformGtk.cpp
+@@ -72,7 +72,17 @@ static cairo_user_data_key_t cairo_gdk_drawable_key;
+ 
+ gfxPlatformGtk::gfxPlatformGtk()
+ {
+-    gtk_init(nullptr, nullptr);
++    // Jihad: in JIHAD_OFFSCREEN (headless daemon) mode there is no X server on the
++    // device. gtk_init() calls exit() if it cannot open a display; gtk_init_check()
++    // returns false instead and leaves GTK usable for the non-X paths (fontconfig/
++    // freetype font list, image/CPU surfaces via the BasicLayerManager). The X code
++    // below is already guarded by GDK_IS_X11_DISPLAY(gdk_display_get_default()),
++    // which is false with no display, so it is skipped cleanly.
++    if (getenv("JIHAD_OFFSCREEN")) {
++        gtk_init_check(nullptr, nullptr);
++    } else {
++        gtk_init(nullptr, nullptr);
++    }
+ 
+     mMaxGenericSubstitutions = UNINITIALIZED_VALUE;
+ 
+@@ -325,8 +335,10 @@ gfxPlatformGtk::GetDPI()
+     if (!sDPI) {
+         // Make sure init is run so we have a resolution
+         GdkScreen *screen = gdk_screen_get_default();
+-        gtk_settings_get_for_screen(screen);
+-        sDPI = int32_t(round(gdk_screen_get_resolution(screen)));
++        if (screen) {                       // null when headless (no X display)
++            gtk_settings_get_for_screen(screen);
++            sDPI = int32_t(round(gdk_screen_get_resolution(screen)));
++        }
+         if (sDPI <= 0) {
+             // Fall back to something sane
+             sDPI = 96;
+diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
+index 036df875cf..b4cdb46032 100644
+--- a/gfx/thebes/moz.build
++++ b/gfx/thebes/moz.build
+@@ -74,6 +74,22 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+         'gfxQuartzSurface.cpp',
+         'PrintTargetCG.cpp',
+     ]
++elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'headless':
++    # Jihad headless (no X/GTK): fontconfig/freetype fonts + a memory gfxPlatform.
++    EXPORTS += [
++        'gfxFT2FontBase.h',
++        'gfxPlatformHeadless.h',
++    ]
++    EXPORTS.mozilla.gfx += [
++        'PrintTargetPDF.h',
++    ]
++    SOURCES += [
++        'gfxFcPlatformFontList.cpp',
++        'gfxFT2FontBase.cpp',
++        'gfxFT2Utils.cpp',
++        'gfxPlatformHeadless.cpp',
++        'PrintTargetPDF.cpp',
++    ]
+ elif 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT']:
+     EXPORTS += [
+         'gfxFT2FontBase.h',
+diff --git a/ipc/chromium/src/base/message_loop.cc b/ipc/chromium/src/base/message_loop.cc
+index 69493dccb1..ded952ea5a 100644
+--- a/ipc/chromium/src/base/message_loop.cc
++++ b/ipc/chromium/src/base/message_loop.cc
+@@ -146,7 +146,13 @@ MessageLoop::MessageLoop(Type type, nsIThread* aThread)
+ #if defined(OS_MACOSX)
+     pump_ = base::MessagePumpMac::Create();
+ #elif defined(OS_LINUX) || defined(OS_BSD) || defined(OS_SOLARIS)
++#if defined(MOZ_WIDGET_GTK)
+     pump_ = new base::MessagePumpForUI();
++#else
++    // Jihad headless: no GTK UI pump; the embedder drives events via
++    // NS_ProcessNextEvent, so a default (non-UI) message pump suffices.
++    pump_ = new base::MessagePumpDefault();
++#endif
+ #endif  // OS_LINUX
+   } else if (type_ == TYPE_IO) {
+     pump_ = new base::MessagePumpLibevent();
+diff --git a/ipc/contentproc/plugin-container.cpp b/ipc/contentproc/plugin-container.cpp
+index 5e5f6d8fbb..e627e21f5a 100644
+--- a/ipc/contentproc/plugin-container.cpp
++++ b/ipc/contentproc/plugin-container.cpp
+@@ -19,6 +19,82 @@
+ #include <unistd.h>
+ #endif
+ 
++// JIHAD DIAGNOSTIC (R7): the child process dies with SIGSEGV between a successful
++// InitForChrome and handling its first IPC message, and the device's own minicore reporter
++// is out of report slots ("no room for new reports"), so nothing records where. This prints
++// the faulting address, a backtrace, and /proc/self/maps to stderr — which the child
++// inherits from the daemon, so it lands in the variant's daemon.log. The maps dump is the
++// part that matters on ARM: even a single frame is enough to name the faulting library.
++#if defined(OS_POSIX) || defined(XP_UNIX)
++#include <execinfo.h>
++#include <signal.h>
++#include <ucontext.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++static void
++jihad_child_fault_handler(int sig, siginfo_t* info, void* ctx)
++{
++  void* frames[32];
++  int n = backtrace(frames, 32);
++  fprintf(stderr, "[jihad-npapi-child] FAULT sig=%d addr=%p pid=%d frames=%d\n",
++          sig, info ? info->si_addr : nullptr, (int)getpid(), n);
++
++  // backtrace() returns nothing useful from a signal frame on ARM (no unwind tables
++  // through the trampoline), so take the registers straight out of the signal context.
++  // pc and lr against the maps below give the faulting library and offset, and
++  // addr2line on the unstripped build turns that into file:line.
++#if defined(__arm__)
++  if (ctx) {
++    ucontext_t* uc = (ucontext_t*)ctx;
++    fprintf(stderr, "[jihad-npapi-child] FAULT pc=%08lx lr=%08lx sp=%08lx r0=%08lx\n",
++            (unsigned long)uc->uc_mcontext.arm_pc,
++            (unsigned long)uc->uc_mcontext.arm_lr,
++            (unsigned long)uc->uc_mcontext.arm_sp,
++            (unsigned long)uc->uc_mcontext.arm_r0);
++  }
++#else
++  (void)ctx;
++#endif
++  fflush(stderr);
++  backtrace_symbols_fd(frames, n, STDERR_FILENO);
++
++  FILE* maps = fopen("/proc/self/maps", "r");
++  if (maps) {
++    char line[512];
++    fputs("[jihad-npapi-child] --- maps ---\n", stderr);
++    while (fgets(line, sizeof(line), maps)) {
++      // Only the executable mappings; the full map is hundreds of lines of noise.
++      if (strstr(line, "r-xp")) {
++        fputs("[jihad-npapi-child] ", stderr);
++        fputs(line, stderr);
++      }
++    }
++    fclose(maps);
++  }
++  fflush(stderr);
++
++  // Restore the default disposition and re-raise so the exit status still says "crashed".
++  signal(sig, SIG_DFL);
++  raise(sig);
++}
++
++static void
++jihad_install_child_fault_handler()
++{
++  struct sigaction sa;
++  memset(&sa, 0, sizeof(sa));
++  sa.sa_sigaction = jihad_child_fault_handler;
++  sa.sa_flags = SA_SIGINFO;
++  sigemptyset(&sa.sa_mask);
++  sigaction(SIGSEGV, &sa, nullptr);
++  sigaction(SIGBUS, &sa, nullptr);
++  sigaction(SIGILL, &sa, nullptr);
++  sigaction(SIGFPE, &sa, nullptr);
++}
++#endif
++
+ #ifdef MOZ_GMP
+ #include "GMPLoader.h"
+ 
+@@ -38,6 +114,19 @@ content_process_main(int argc, char* argv[])
+       return 3;
+     }
+ 
++#if defined(OS_POSIX) || defined(XP_UNIX)
++    jihad_install_child_fault_handler();
++#endif
++
++    // JIHAD DIAGNOSTIC (R7): the child's own view of its argv. Doubles as the control that
++    // child stderr reaches the parent's log at all — every other child probe is worthless
++    // until this line is seen.
++    fprintf(stderr, "[jihad-npapi-child] main argc=%d\n", argc);
++    for (int i = 0; i < argc; i++) {
++      fprintf(stderr, "[jihad-npapi-child]   argv[%d]=%s\n", i, argv[i]);
++    }
++    fflush(stderr);
++
+ #ifdef MOZ_GMP
+     XREChildData childData;
+ #endif
+diff --git a/ipc/glue/GeckoChildProcessHost.cpp b/ipc/glue/GeckoChildProcessHost.cpp
+index c771b87eb0..eea8490219 100644
+--- a/ipc/glue/GeckoChildProcessHost.cpp
++++ b/ipc/glue/GeckoChildProcessHost.cpp
+@@ -160,6 +160,13 @@ GeckoChildProcessHost::GetPathToBinary(FilePath& exePath, GeckoProcessType proce
+ 
+   exePath = exePath.AppendASCII(MOZ_CHILD_PROCESS_NAME);
+ 
++  // JIHAD DIAGNOSTIC (R7): the resolved child path, and which branch produced it. In this
++  // embedding the daemon is exec'd as `./ld-2.23.so … ./jihad-browserserver`, so argv[0] is the
++  // LOADER — if the directory-service branch is not taken, the fallback dirname(argv[0]) is
++  // relative to that, not to the daemon.
++  fprintf(stderr, "[jihad-npapi] child binary path=%s (dirService=%d)\n",
++          exePath.value().c_str(), (int)ShouldHaveDirectoryService());
++
+   return BinaryPathType::PluginContainer;
+ }
+ 
+@@ -662,6 +669,27 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+ 
+   std::vector<std::string> childArgv;
+ 
++  // Optional ELF loader prefix for the child process.
++  //
++  // An embedder whose bundled glibc differs from the host system's cannot exec the child
++  // binary directly: its PT_INTERP names the SYSTEM loader, which then resolves the child's
++  // libraries against the bundled set and dies before main(). Exporting these two variables
++  // makes the child be launched exactly the way such an embedder launches itself —
++  //     <loader> --library-path <path> <child> <args…>
++  // — which runs the child in the same process image (no extra fork, no shell hop, so the
++  // pid we hand to waitpid and the inherited IPC channel fd are unaffected).
++  //
++  // Both unset is upstream behaviour, unchanged.
++  const char* childLoader = PR_GetEnv("MOZ_CHILD_PROCESS_LOADER");
++  if (childLoader && *childLoader) {
++    childArgv.push_back(childLoader);
++    const char* loaderLibPath = PR_GetEnv("MOZ_CHILD_PROCESS_LOADER_PATH");
++    if (loaderLibPath && *loaderLibPath) {
++      childArgv.push_back("--library-path");
++      childArgv.push_back(loaderLibPath);
++    }
++  }
++
+   childArgv.push_back(exePath.value());
+ 
+   if (pathType == BinaryPathType::Self) {
+diff --git a/js/src/jit/x64/BaseAssembler-x64.h b/js/src/jit/x64/BaseAssembler-x64.h
+index 2b42bc12d2..e134043471 100644
+--- a/js/src/jit/x64/BaseAssembler-x64.h
++++ b/js/src/jit/x64/BaseAssembler-x64.h
+@@ -8,6 +8,14 @@
+ 
+ #include "jit/x86-shared/BaseAssembler-x86-shared.h"
+ 
++// Jihad Browser: GCC 9+ -Wformat-overflow raises false positives on the debug
++// spew() format strings below (it deduces a null %s arg via value-range
++// analysis). js/src forces -Werror=format, which re-escalates this even when
++// downgraded on the command line, so silence the diagnostic at the source.
++#if defined(__GNUC__) && !defined(__clang__)
++# pragma GCC diagnostic ignored "-Wformat-overflow"
++#endif
++
+ namespace js {
+ namespace jit {
+ 
+diff --git a/layout/xul/nsXULPopupManager.cpp b/layout/xul/nsXULPopupManager.cpp
+index 99cbd421dd..c427738167 100644
+--- a/layout/xul/nsXULPopupManager.cpp
++++ b/layout/xul/nsXULPopupManager.cpp
+@@ -673,6 +673,13 @@ nsXULPopupManager::ShowMenu(nsIContent *aMenu,
+                             bool aSelectFirstItem,
+                             bool aAsynchronous)
+ {
++  // JIHAD popup instrumentation: the toolbarbutton type="menu" path (about:addons
++  // utils menu) enters here; if this line never fires, the DOM activation upstream
++  // (XUL button command/mousedown handling) is where the tap died.
++  if (getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-popup] ShowMenu menu=%p async=%d\n",
++            (void*)aMenu, (int)aAsynchronous);
++  }
+   // generate any template content first. Otherwise, the menupopup may not
+   // have been created yet.
+   if (aMenu) {
+@@ -897,6 +904,18 @@ nsXULPopupManager::ShowPopupCallback(nsIContent* aPopup,
+   nsPopupType popupType = aPopupFrame->PopupType();
+   bool ismenu = (popupType == ePopupTypeMenu);
+ 
++  // JIHAD popup instrumentation (2026-08-02): EVERY popup that actually opens funnels
++  // through here. Silent until now — "menu never opened" vs "opened but painted
++  // nowhere" were indistinguishable in the headless daemon.
++  if (getenv("JIHAD_OFFSCREEN")) {
++    nsRect r = aPopupFrame->GetRect();
++    fprintf(stderr, "[jihad-popup] ShowPopupCallback type=%d ctx=%d frame=%p rect=%d,%d %dx%d hasView=%d hasWidget=%d\n",
++            (int)popupType, (int)aIsContextMenu, (void*)aPopupFrame,
++            r.x, r.y, r.width, r.height,
++            (int)aPopupFrame->HasView(),
++            (int)(aPopupFrame->GetView() && aPopupFrame->GetView()->HasWidget()));
++  }
++
+   nsMenuChainItem* item =
+     new nsMenuChainItem(aPopupFrame, aIsContextMenu, popupType);
+   if (!item)
+diff --git a/modules/libpref/init/all.js b/modules/libpref/init/all.js
+index 4f7918c80d..d6d1e6c860 100644
+--- a/modules/libpref/init/all.js
++++ b/modules/libpref/init/all.js
+@@ -245,7 +245,7 @@ pref("dom.compartment_per_addon", true);
+ pref("browser.sessionhistory.max_total_viewers", -1);
+ 
+ // Whether to store 'about:newtab' in the session history, disabled by default.
+-// See https://github.com/MoonchildProductions/UXP/issues/719
++// See (upstream issue 719)
+ pref("browser.newtabpage.add_to_session_history", false);
+ 
+ // Determines whether the browser's current theme should be light or dark.
+@@ -1193,7 +1193,7 @@ pref("dom.webapps.useCurrentProfile", false);
+ 
+ // Use incremental cycle collection?
+ // In practice this gave a noticeable performance hit. Default off.
+-// See forum topic https://forum.palemoon.org/viewtopic.php?f=62&t=29887
++// See forum topic (upstream forum)
+ pref("dom.cycle_collector.incremental", false);
+ 
+ // Parsing perf prefs. For now just mimic what the old code did.
+@@ -2232,7 +2232,7 @@ pref("extensions.blocklist.interval", 86400);
+ // Required blocklist freshness for OneCRL OCSP bypass
+ // (default is 1.25x extensions.blocklist.interval, or 30 hours)
+ pref("security.onecrl.maximum_staleness_in_seconds", 108000);
+-pref("extensions.blocklist.url", "https://blocklist.basilisk-browser.org/blocklist/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/");
++pref("extensions.blocklist.url", "about:blank");
+ pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
+ pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+ // Controls what level the blocklist switches from warning about items to forcibly
+@@ -4779,7 +4779,7 @@ pref("network.captive-portal-service.maxInterval", 1500000); // 25 minutes
+ pref("network.captive-portal-service.backoffFactor", "5.0");
+ pref("network.captive-portal-service.enabled", false);
+ 
+-pref("captivedetect.canonicalURL", "http://detectportal.palemoon.org/success.txt");
++pref("captivedetect.canonicalURL", "http://example.com/success.txt");
+ pref("captivedetect.canonicalContent", "success\n");
+ pref("captivedetect.maxWaitingTime", 5000);
+ pref("captivedetect.pollingTime", 3000);
+diff --git a/old-configure.in b/old-configure.in
+index 721cb87894..c8b0e8d0e6 100644
+--- a/old-configure.in
++++ b/old-configure.in
+@@ -2187,6 +2187,12 @@ gtk2)
+     USE_FC_FREETYPE=1
+     ;;
+ 
++headless)
++    dnl Jihad: X/GTK-free headless toolkit. Fonts via fontconfig/freetype
++    dnl (no X); the widget backend is widget/headless (PuppetWidget-based).
++    USE_FC_FREETYPE=1
++    ;;
++
+ cocoa)
+     LDFLAGS="$LDFLAGS -framework Cocoa -lobjc"
+     # Use -Wl as a trick to avoid -framework and framework names from
+@@ -4433,6 +4439,14 @@ if test "$MOZ_TREE_CAIRO"; then
+         MOZ_ENABLE_CAIRO_FT=1
+         CAIRO_FT_CFLAGS="$FT2_CFLAGS"
+         AC_SUBST_LIST(CAIRO_FT_CFLAGS)
++        dnl Jihad headless: no toolkit pkg-config supplies the freetype include
++        dnl path (gtk normally carries it in TK_CFLAGS via its gtk cflags).
++        dnl Inject it so gfx/thebes and other cairo-ft consumers find
++        dnl <ft2build.h> and the fontconfig headers.
++        if test "$MOZ_WIDGET_TOOLKIT" = "headless"; then
++            TK_CFLAGS="$TK_CFLAGS $FT2_CFLAGS"
++            TK_LIBS="$TK_LIBS $FT2_LIBS"
++        fi
+     fi
+ 
+     case "$MOZ_WIDGET_TOOLKIT" in
+diff --git a/security/manager/ssl/nsNSSComponent.cpp b/security/manager/ssl/nsNSSComponent.cpp
+index 2864e5ba09..9a8b3a8c70 100644
+--- a/security/manager/ssl/nsNSSComponent.cpp
++++ b/security/manager/ssl/nsNSSComponent.cpp
+@@ -150,6 +150,35 @@ bool EnsureNSSInitialized(EnsureNSSOperator op)
+   static bool loading = false;
+   static int32_t haveLoaded = 0;
+ 
++  // Jihad: in the embedding render daemon there is no early main-thread PSM init, so
++  // necko's SOCKET thread reaches here first on the first https load and the
++  // do_GetService(PSM) below would construct nsNSSComponent off the main thread — its
++  // ctor MOZ_RELEASE_ASSERT(NS_IsMainThread()) then aborts the process ("loads forever").
++  // Forward to the main thread synchronously (same as the content-process path above) so
++  // NSS constructs on the main thread; the socket thread then reuses the singleton.
++  //
++  // FAST PATH (critical): once NSS is loaded, an "ensure" op just needs to confirm that,
++  // which is a lock-free atomic read valid on ANY thread — so return immediately WITHOUT
++  // marshaling. Marshaling every ensure call floods the main thread with SyncRunnables on
++  // an https-heavy page (one per SSL socket op) and the load hangs/loops. Only the FIRST
++  // init (haveLoaded still 0) needs the main-thread round-trip.
++  if ((op == nssEnsure || op == nssEnsureOnChromeOnly || op == nssEnsureChromeOrContent) &&
++      PR_AtomicAdd(&haveLoaded, 0)) {
++    return true;
++  }
++  if (!NS_IsMainThread()) {
++    nsCOMPtr<nsIThread> mainThread;
++    if (NS_FAILED(NS_GetMainThread(getter_AddRefs(mainThread)))) {
++      return false;
++    }
++    bool result = false;
++    mozilla::SyncRunnable::DispatchToThread(mainThread,
++      new mozilla::SyncRunnable(NS_NewRunnableFunction([op, &result]() {
++        result = EnsureNSSInitialized(op);
++      })));
++    return result;
++  }
++
+   switch (op)
+   {
+     // In following 4 cases we are protected by monitor of XPCOM component
+@@ -1793,12 +1822,17 @@ nsNSSComponent::InitializeNSS()
+   // pref has been set to "true", attempt to initialize with no DB.
+   if (nocertdb || init_rv != SECSuccess) {
+     init_rv = NSS_NoDB_Init(nullptr);
++    PRErrorCode prerr = PR_GetError();
++    fprintf(stderr, "[jihad-bs] NSS_NoDB_Init rv=%d PRerr=%d (%s) osErr=%d\n",
++            (int)init_rv, (int)prerr, PR_ErrorToName(prerr), (int)PR_GetOSError());
+   }
+ 
+   if (init_rv != SECSuccess) {
++    fprintf(stderr, "[jihad-bs] InitializeNSS FAILED (panicking)\n");
+     MOZ_LOG(gPIPNSSLog, LogLevel::Error, ("could not initialize NSS - panicking\n"));
+     return NS_ERROR_NOT_AVAILABLE;
+   }
++  fprintf(stderr, "[jihad-bs] InitializeNSS OK\n");
+ 
+   // ensure we have an initial value for the content signer root
+   mContentSigningRootHash =
+diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
+index e32a1258bb..2024d653d7 100644
+--- a/toolkit/library/moz.build
++++ b/toolkit/library/moz.build
+@@ -212,6 +212,10 @@ OS_LIBS += CONFIG['ICONV_LIBS']
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('cocoa', 'uikit'):
+     OS_LIBS += CONFIG['TK_LIBS']
+ 
++if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'headless':
++    # Jihad headless: TK_LIBS carries freetype/fontconfig (no gtk/X libs).
++    OS_LIBS += CONFIG['TK_LIBS']
++
+ if CONFIG['MOZ_SNDIO']:
+     OS_LIBS += [
+         'sndio',
+diff --git a/toolkit/moz.configure b/toolkit/moz.configure
+index e77965d15c..04083ffe68 100644
+--- a/toolkit/moz.configure
++++ b/toolkit/moz.configure
+@@ -48,7 +48,7 @@ set_config('L10NBASEDIR', l10n_base)
+ # reason.
+ option('--enable-default-toolkit', nargs=1,
+        choices=('cairo-windows', 'cairo-gtk2', 'cairo-gtk2-x11', 'cairo-gtk3',
+-                'cairo-cocoa', 'cairo-uikit'),
++                'cairo-cocoa', 'cairo-uikit', 'cairo-headless'),
+        help='Select default toolkit')
+ 
+ @depends('--enable-default-toolkit', target, '--help')
+@@ -63,7 +63,8 @@ def toolkit(value, target, _):
+     elif target.os == 'iOS':
+         platform_choices = ('cairo-uikit',)
+     else:
+-        platform_choices = ('cairo-gtk3', 'cairo-gtk2', 'cairo-gtk2-x11')
++        platform_choices = ('cairo-gtk3', 'cairo-gtk2', 'cairo-gtk2-x11',
++                            'cairo-headless')
+ 
+     if value:
+         if value[0] not in platform_choices:
+@@ -160,7 +161,9 @@ set_define(gl_provider_define, True)
+ # ==============================================================
+ @depends(toolkit)
+ def pdf_printing(toolkit):
+-    if toolkit in ('windows', 'gtk2', 'gtk3'):
++    # 'headless' included: the cairo PDF surface is X/GTK-free and the headless
++    # gfx build uses PrintTargetPDF, so CAIRO_HAS_PDF_SURFACE must be defined.
++    if toolkit in ('windows', 'gtk2', 'gtk3', 'headless'):
+         return True
+ 
+ @depends(pdf_printing)
+diff --git a/toolkit/mozapps/extensions/AddonManager.jsm b/toolkit/mozapps/extensions/AddonManager.jsm
+index aef5c6acba..fee45fa085 100644
+--- a/toolkit/mozapps/extensions/AddonManager.jsm
++++ b/toolkit/mozapps/extensions/AddonManager.jsm
+@@ -1878,13 +1878,21 @@ var AddonManagerInternal = {
+     // notify front-end that install events came from the outer-browser (the
+     // main tab's browser). Check this by seeing if the browser we've been
+     // passed is in a content type docshell and if so get the outer-browser.
++    // JIHAD (browser-services R3): aBrowser is documented above as optional ("aSource must be
++    // a nsIDOMElement, or null") and every caller in a browser passes the <browser> element the
++    // page lives in — but this embedding has no browser chrome and therefore no such element, so
++    // the walk below dereferenced null and cancelled the install before the prompt was reached.
++    // With no element there is no outer-browser to notify either, so the whole remapping is
++    // simply skipped and topBrowser stays null, which the listener path already tolerates.
+     let topBrowser = aBrowser;
+-    let docShell = aBrowser.ownerDocument.defaultView
+-                           .QueryInterface(Ci.nsIInterfaceRequestor)
+-                           .getInterface(Ci.nsIDocShell)
+-                           .QueryInterface(Ci.nsIDocShellTreeItem);
+-    if (docShell.itemType == Ci.nsIDocShellTreeItem.typeContent)
+-      topBrowser = docShell.chromeEventHandler;
++    if (aBrowser) {
++      let docShell = aBrowser.ownerDocument.defaultView
++                             .QueryInterface(Ci.nsIInterfaceRequestor)
++                             .getInterface(Ci.nsIDocShell)
++                             .QueryInterface(Ci.nsIDocShellTreeItem);
++      if (docShell.itemType == Ci.nsIDocShellTreeItem.typeContent)
++        topBrowser = docShell.chromeEventHandler;
++    }
+ 
+     try {
+       let weblistener = Cc["@mozilla.org/addons/web-install-listener;1"].
+@@ -1898,7 +1906,13 @@ var AddonManagerInternal = {
+                                          aInstalls, aInstalls.length);
+         return;
+       }
+-      else if (!aBrowser.contentPrincipal || !aInstallingPrincipal.subsumes(aBrowser.contentPrincipal)) {
++      // JIHAD: the same optional-aBrowser problem as above. This check compares the principal
++      // that triggered the install against the principal of the page currently in the browser
++      // element, to catch a page that navigated away mid-install; with no browser element there
++      // is nothing to compare against and no navigation to race, so the check is skipped rather
++      // than treated as a failed comparison (which cancelled every install).
++      else if (aBrowser &&
++               (!aBrowser.contentPrincipal || !aInstallingPrincipal.subsumes(aBrowser.contentPrincipal))) {
+         for (let install of aInstalls)
+           install.cancel();
+ 
+@@ -1912,7 +1926,10 @@ var AddonManagerInternal = {
+       // The installs may start now depending on the web install listener,
+       // listen for the browser navigating to a new origin and cancel the
+       // installs in that case.
+-      new BrowserListener(aBrowser, aInstallingPrincipal, aInstalls);
++      // Same reason: BrowserListener watches a browser element for a navigation that should
++      // cancel the installs. With no element there is nothing to attach to.
++      if (aBrowser)
++        new BrowserListener(aBrowser, aInstallingPrincipal, aInstalls);
+ 
+       if (!this.isInstallAllowed(aMimetype, aInstallingPrincipal)) {
+         if (weblistener.onWebInstallBlocked(topBrowser, aInstallingPrincipal.URI,
+diff --git a/toolkit/mozapps/extensions/amInstallTrigger.js b/toolkit/mozapps/extensions/amInstallTrigger.js
+index 5fc0e17172..0c6db4981e 100644
+--- a/toolkit/mozapps/extensions/amInstallTrigger.js
++++ b/toolkit/mozapps/extensions/amInstallTrigger.js
+@@ -93,14 +93,30 @@ RemoteMediator.prototype = {
+       }
+     }
+ 
+-    // Fall back to sending through the message manager
+-    let messageManager = window.QueryInterface(Ci.nsIInterfaceRequestor)
+-                               .getInterface(Ci.nsIWebNavigation)
+-                               .QueryInterface(Ci.nsIDocShell)
+-                               .QueryInterface(Ci.nsIInterfaceRequestor)
+-                               .getInterface(Ci.nsIContentFrameMessageManager);
+-
+-    return messageManager.sendSyncMessage(MSG_INSTALL_ADDONS, installs)[0];
++    // JIHAD (browser-services R3): this embedding is a single top-level content docShell
++    // with NO browser chrome above it — there is no chrome-privileged frameElement to find
++    // above, and no nsIContentFrameMessageManager below, so BOTH upstream paths fail and
++    // InstallTrigger.install() threw NS_ERROR_UNEXPECTED at the getInterface below for every
++    // web install (measured 2026-08-03). Call the integration service directly: it is the same
++    // object, and the same method, that the parent process reaches when it handles the
++    // MSG_INSTALL_ADDONS message — only the transport is skipped, because there is no second
++    // process to send it to.
++    let integration = Cc["@mozilla.org/addons/integration;1"]
++                        .getService(Ci.nsIMessageListener).wrappedJSObject;
++    let jihadCallback = null;
++    if (callbackID != -1) {
++      jihadCallback = {
++        onInstallEnded: (url, status) => {
++          try {
++            let cb = this._callbacks.get(callbackID);
++            if (cb) cb.callCallback(url, status);
++          } catch (e) {}
++        },
++      };
++    }
++    return integration.installAddonsFromWebpage(installs.mimetype, null, principal,
++                                                installs.uris, installs.hashes, installs.names,
++                                                installs.icons, jihadCallback);
+   },
+ 
+   _addCallback: function(callback, urls) {
+diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
+index 0ed2c3e6c8..2fbd6dfcbb 100644
+--- a/toolkit/xre/nsAppRunner.cpp
++++ b/toolkit/xre/nsAppRunner.cpp
+@@ -3629,8 +3629,8 @@ XREMain::XRE_mainRun()
+           // reset the profile.
+           // For Basilisk and Pale Moon:
+           // Hard-code MOZ_APP_NAME to firefox because of hard-coded type in migrator.
+-          aKey = (((MOZ_APP_NAME == "basilisk")
+-                     || (MOZ_APP_NAME == "palemoon"))
++          aKey = (((MOZ_APP_NAME == "n/a")
++                     || (MOZ_APP_NAME == "n/a"))
+                   ? "firefox" : MOZ_APP_NAME);
+ 
+         }
+diff --git a/toolkit/xre/nsEmbedFunctions.cpp b/toolkit/xre/nsEmbedFunctions.cpp
+index 662796fcaf..505c3370a5 100644
+--- a/toolkit/xre/nsEmbedFunctions.cpp
++++ b/toolkit/xre/nsEmbedFunctions.cpp
+@@ -76,6 +76,7 @@
+ #include "GMPLoader.h"
+ #endif
+ #include "mozilla/gfx/GPUProcessImpl.h"
++#include "gfxPlatform.h"
+ 
+ #include "GeckoProfiler.h"
+ 
+@@ -177,6 +178,13 @@ XRE_InitEmbedding2(nsIFile *aLibXULDirectory,
+ 
+   startupNotifier->Observe(nullptr, APPSTARTUP_TOPIC, nullptr);
+ 
++  // Jihad Browser: force full gfx init (gfxPlatform/gfxVars/gfxConfig) during
++  // embedding startup. XRE_InitEmbedding2 otherwise leaves gfx lazy, but the
++  // headless paint path (WindowSurfaceProvider -> gfxVars::UseXRender) touches
++  // gfxVars before anything triggers gfxPlatform::Init, crashing on a null
++  // singleton. XRE_main initializes gfx during normal startup.
++  gfxPlatform::GetPlatform();
++
+   return NS_OK;
+ }
+ 
+diff --git a/toolkit/xre/nsXREDirProvider.cpp b/toolkit/xre/nsXREDirProvider.cpp
+index e38cc4f35b..4c12fe34e9 100644
+--- a/toolkit/xre/nsXREDirProvider.cpp
++++ b/toolkit/xre/nsXREDirProvider.cpp
+@@ -4,6 +4,7 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "nsAppRunner.h"
++#include "GeckoProfiler.h"  // Jihad headless: PROFILER_LABEL_FUNC/js::ProfileEntry (was transitively included in the gtk unified build)
+ #include "nsToolkitCompsCID.h"
+ #include "nsXREDirProvider.h"
+ 
+diff --git a/uriloader/exthandler/moz.build b/uriloader/exthandler/moz.build
+index 633c56e26d..72bcaa230f 100644
+--- a/uriloader/exthandler/moz.build
++++ b/uriloader/exthandler/moz.build
+@@ -73,7 +73,9 @@ else:
+     if CONFIG['GNU_CXX']:
+         CXXFLAGS += ['-Wno-error=shadow']
+ 
+-if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT']:
++if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT'] or CONFIG['MOZ_WIDGET_TOOLKIT'] == 'headless':
++    # Jihad headless is a unix helper-app target: GNOME/GIO lookups are
++    # runtime do_GetService calls that degrade gracefully with no gnome libs.
+     UNIFIED_SOURCES += [
+         'unix/nsGNOMERegistry.cpp',
+         'unix/nsMIMEInfoUnix.cpp',
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 0294193adf..a680f0f3c1 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -21,6 +21,23 @@
+ #include "nsIWidgetListener.h"
+ #include "imgIContainer.h"
+ #include "nsView.h"
++// Jihad offscreen render-document support:
++#include "gfxContext.h"
++#include "nsIDocShell.h"
++#include "nsIPresShell.h"
++#include "nsPresContext.h"
++#include "nsServiceManagerUtils.h"   // do_GetService (jihad_init_nss)
++#include "nsThreadUtils.h"           // NS_IsMainThread
++// Jihad popup overlay composite (a popup is a separate display root — see
++// jihad_offscreen_composite_popups at the bottom of this file):
++#include "nsXULPopupManager.h"
++#include "nsLayoutUtils.h"
++#include "nsRenderingContext.h"
++#include "nsMenuPopupFrame.h"
++#include "nsMenuFrame.h"
++#include "nsGkAtoms.h"
++#include "nsIFrame.h"
++#include "nsDisplayList.h"       // nsDisplayListBuilderMode
+ 
+ using namespace mozilla;
+ using namespace mozilla::dom;
+@@ -114,6 +131,18 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+   mEnabled = true;
+   mVisible = true;
+ 
++  // JIHAD popup instrumentation (menupopup investigation 2026-08-02): today popup
++  // widget creation logs NOTHING, so "no popup created" and "popup created but
++  // painted nowhere" are indistinguishable — exactly the ambiguity that burned the
++  // holdAt and icon investigations. One line per widget creation, offscreen only.
++  if (getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-widget] create type=%d popup=%d hint=%d parent=%p bounds=%d,%d %dx%d\n",
++            aInitData ? (int)aInitData->mWindowType : -1,
++            (int)IsPopup(aInitData),
++            aInitData ? (int)aInitData->mPopupHint : -1,
++            (void*)aParent, aRect.x, aRect.y, aRect.width, aRect.height);
++  }
++
+   mDrawTarget = gfxPlatform::GetPlatform()->
+     CreateOffscreenContentDrawTarget(IntSize(1, 1), SurfaceFormat::B8G8R8A8);
+ 
+@@ -201,6 +230,13 @@ PuppetWidget::Show(bool aState)
+   bool wasVisible = mVisible;
+   mVisible = aState;
+ 
++  // JIHAD popup instrumentation: a popup that opens/closes flips its widget's
++  // visibility — the cheapest reliable "did the menu actually open" signal.
++  if (mWindowType == eWindowType_popup && getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-widget] popup show=%d widget=%p bounds=%d,%d %dx%d\n",
++            (int)aState, (void*)this, mBounds.x, mBounds.y, mBounds.width, mBounds.height);
++  }
++
+   if (mChild) {
+     mChild->mVisible = aState;
+   }
+@@ -231,6 +267,10 @@ PuppetWidget::Resize(double aWidth,
+   mBounds.SizeTo(LayoutDeviceIntSize(NSToIntRound(aWidth),
+                                      NSToIntRound(aHeight)));
+ 
++  if (JihadOffscreen()) {
++    JihadEnsureDrawTarget();
++  }
++
+   if (mChild) {
+     return mChild->Resize(aWidth, aHeight, aRepaint);
+   }
+@@ -300,6 +340,10 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
+     return mChild->Invalidate(aRect);
+   }
+ 
++  // Jihad: record that content changed so the offscreen render daemon repaints
++  // (jihad_offscreen_take_dirty). Sticky — only the daemon's drain clears it.
++  mJihadDirty = true;
++
+   mDirtyRegion.Or(mDirtyRegion, aRect);
+ 
+   if (!mDirtyRegion.IsEmpty() && !mPaintTask.IsPending()) {
+@@ -335,7 +379,12 @@ PuppetWidget::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
+   AutoCacheNativeKeyCommands autoCache(this);
+   if (event->mFlags.mIsSynthesizedForTests && !mNativeKeyCommandsValid) {
+     WidgetKeyboardEvent* keyEvent = event->AsKeyboardEvent();
+-    if (keyEvent) {
++    // JIHAD: mTabChild is null in the standalone offscreen render daemon (there is no parent
++    // content process). Native key bindings are supplied by that parent, so when it is absent
++    // simply leave no cached native commands (fine for character input) rather than null-deref
++    // on RequestNativeKeyBindings — that deref SIGSEGV'd the daemon on every synthesized key
++    // event, which is exactly the crash that made typing into web inputs impossible.
++    if (keyEvent && mTabChild) {
+       mTabChild->RequestNativeKeyBindings(&autoCache, keyEvent);
+     }
+   }
+@@ -583,7 +632,13 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+                               LayerManagerPersistence aPersistence)
+ {
+   if (!mLayerManager) {
+-    mLayerManager = new ClientLayerManager(this);
++    if (JihadOffscreen()) {
++      // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
++      // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
++      mLayerManager = CreateBasicLayerManager();
++    } else {
++      mLayerManager = new ClientLayerManager(this);
++    }
+   }
+   ShadowLayerForwarder* lf = mLayerManager->AsShadowForwarder();
+   if (lf && !lf->HasShadowManager() && aShadowManager) {
+@@ -602,6 +657,602 @@ PuppetWidget::RecreateLayerManager(PLayerTransactionChild* aShadowManager)
+   return mLayerManager;
+ }
+ 
++// ---------------------------------------------------------------------------
++// Jihad offscreen render support.
++// ---------------------------------------------------------------------------
++bool
++PuppetWidget::JihadOffscreen()
++{
++  static int sMode = -1;
++  if (sMode < 0) {
++    const char* e = getenv("JIHAD_OFFSCREEN");
++    sMode = (e && *e) ? 1 : 0;
++  }
++  return sMode == 1;
++}
++
++// Jihad headless: dimensions of the offscreen "screen", set by
++// jihad_offscreen_create/resize and returned directly by PuppetScreen::GetRect.
++// PuppetScreen must NOT ask hal for the screen config: the fallback hal
++// implementation (hal/fallback/FallbackScreenConfiguration.cpp) resolves the
++// config by querying the screen manager — i.e. PuppetScreen — which would
++// recurse into hal again and overflow the stack.
++static int32_t sJihadScreenWidth = 1024;
++static int32_t sJihadScreenHeight = 768;
++
++void
++PuppetWidget::JihadEnsureDrawTarget()
++{
++  int32_t w = mBounds.width > 0 ? mBounds.width : 1;
++  int32_t h = mBounds.height > 0 ? mBounds.height : 1;
++  if (mDrawTarget) {
++    IntSize have = mDrawTarget->GetSize();
++    if (have.width >= w && have.height >= h) {
++      return;
++    }
++  }
++  mDrawTarget = gfxPlatform::GetPlatform()->
++    CreateOffscreenContentDrawTarget(IntSize(w, h), SurfaceFormat::B8G8R8A8);
++}
++
++already_AddRefed<SourceSurface>
++PuppetWidget::JihadSnapshot()
++{
++  if (!mDrawTarget) {
++    return nullptr;
++  }
++  return mDrawTarget->Snapshot();
++}
++
++bool
++PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
++                                  double aPanX, double aPanY)
++{
++  if (!aDocShell) {
++    return false;
++  }
++  JihadEnsureDrawTarget();
++  if (!mDrawTarget) {
++    return false;
++  }
++  nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++  if (!presShell) {
++    return false;
++  }
++  // Make sure layout is up to date before we snapshot the document.
++  presShell->FlushPendingNotifications(Flush_Layout);
++
++  int32_t w = mBounds.width  > 0 ? mBounds.width  : 1;
++  int32_t h = mBounds.height > 0 ? mBounds.height : 1;
++
++  // Clear the whole target to white first so any area RenderDocument does not cover
++  // (e.g. a viewport smaller than the buffer) reads white, not the initial black.
++  mDrawTarget->FillRect(mozilla::gfx::Rect(0, 0, mDrawTarget->GetSize().width,
++                                           mDrawTarget->GetSize().height),
++                        mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
++
++  RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(mDrawTarget);
++  if (!ctx) {
++    return false;
++  }
++  // Pinch/fit ZOOM (Jihad): magnify the capture by aZoom WITHOUT reflowing layout. Pre-scale
++  // the target context by Z and render only the 1/Z-reduced visible region, so w/Z x h/Z CSS
++  // px fill the w x h device buffer at Z x magnification. RenderDocument's own internal scale
++  // (AppUnitsPerDevPixel/AppUnitsPerCSSPixel) is 1 here (layout viewport left at the window
++  // width, no engine zoom), so the net paint scale is exactly Z. RenderDocument clips to the
++  // rect using the CURRENT (pre-scaled) matrix, so the clip lands at w x h device px. Z==1 is
++  // the identity path (unchanged). This is why SetFullZoom/SetResolution were wrong: they made
++  // the engine zoom, which RenderDocument's internal scale then cancels back into a 1/Z quadrant.
++  // RENDER_CARET draws the text caret when an editable is focused (Jihad: the on-screen
++  // keyboard needs a visible cursor).
++  double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  uint32_t flags = nsIPresShell::RENDER_CARET;
++  nsRect r;
++  if (Z < 0.99 || Z > 1.01 || aPanX != 0.0 || aPanY != 0.0) {
++    // Zoomed / panned (|Z-1|>1%, matching the daemon's is-zoomed threshold so a near-1 fit-zoom
++    // like 1.0052 stays on the engine-scroll path and keeps window.onscroll/fixed/sticky correct):
++    // magnify by Z and render an ABSOLUTE DOCUMENT rect (aPanX,aPanY,w/Z,h/Z),
++    // IGNORING the engine scroll (RENDER_IGNORE_VIEWPORT_SCROLLING | RENDER_DOCUMENT_RELATIVE).
++    // This is a pure visual viewport: the whole page is reachable in BOTH axes with no display-
++    // list culling and no dependence on the engine scroll, so there is no blank-past-the-first-
++    // screen, no engine-parking echo, and zoom-OUT (Z<1, rect > viewport) is not clipped.
++    // RenderDocument clips to aRect.width/height in the (pre-scaled) matrix, so the clip lands at
++    // exactly w x h device px. RenderDocument's internal AppUnitsPerDevPixel/AppUnitsPerCSSPixel
++    // scale is 1 (no engine zoom — layout viewport stays device-width), so the net paint scale
++    // is exactly Z (zoom fix 2026-07-27; Codex review F2-F6 -> document-relative).
++    ctx->SetMatrix(ctx->CurrentMatrix().Scale(Z, Z));
++    flags |= nsIPresShell::RENDER_IGNORE_VIEWPORT_SCROLLING | nsIPresShell::RENDER_DOCUMENT_RELATIVE;
++    r = nsRect(nsPresContext::CSSPixelsToAppUnits((float)aPanX),
++               nsPresContext::CSSPixelsToAppUnits((float)aPanY),
++               nsPresContext::CSSPixelsToAppUnits((float)(w / Z)),
++               nsPresContext::CSSPixelsToAppUnits((float)(h / Z)));
++  } else {
++    // Unzoomed (Z==1, no pan): viewport-relative, the engine scroll drives position (so
++    // window.onscroll + position:fixed/sticky stay correct). Byte-identical to the pre-zoom-fix
++    // capture.
++    r = nsRect(0, 0,
++               nsPresContext::CSSPixelsToAppUnits((float)w),
++               nsPresContext::CSSPixelsToAppUnits((float)h));
++  }
++  nsresult rv = presShell->RenderDocument(r, flags, NS_RGB(255, 255, 255), ctx);
++  return NS_SUCCEEDED(rv);
++}
++
++// C entry points for the frozen-API render daemon. Exported from libxul so the
++// daemon (which cannot see internal classes like PuppetWidget) can create an
++// offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
++// drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
++extern "C" {
++
++MOZ_EXPORT nsIWidget*
++jihad_offscreen_create(int aWidth, int aHeight)
++{
++  if (aWidth > 0)  sJihadScreenWidth = aWidth;
++  if (aHeight > 0) sJihadScreenHeight = aHeight;
++  RefPtr<PuppetWidget> w = new PuppetWidget(nullptr);
++  LayoutDeviceIntRect bounds(0, 0, aWidth, aHeight);
++  nsWidgetInitData initData;
++  initData.mWindowType = eWindowType_toplevel;
++  w->Create(nullptr, nullptr, bounds, &initData);
++  w->Resize(aWidth, aHeight, false);
++  w->Show(true);
++  w->JihadEnsureDrawTarget();
++  return w.forget().take();
++}
++
++MOZ_EXPORT void
++jihad_offscreen_resize(nsIWidget* aWidget, int aWidth, int aHeight)
++{
++  if (aWidget) {
++    if (aWidth > 0)  sJihadScreenWidth = aWidth;
++    if (aHeight > 0) sJihadScreenHeight = aHeight;
++    aWidget->Resize(aWidth, aHeight, true);
++  }
++}
++
++MOZ_EXPORT void
++jihad_offscreen_paint(nsIWidget* aWidget)
++{
++  if (aWidget) {
++    static_cast<PuppetWidget*>(aWidget)->PaintNowIfNeeded();
++  }
++}
++
++// True (and clears the flag) if content invalidated since the last call — layout
++// invalidations from incremental page render, JS/SPA DOM updates, async image
++// decode, CSS animation. The daemon polls this each tick and repaints on dirty,
++// giving the offscreen embedding the engine-driven frame delivery the stock
++// QtWebKit BrowserServer got from Qt paint events (BrowserPage::paintEvent).
++MOZ_EXPORT bool
++jihad_offscreen_take_dirty(nsIWidget* aWidget)
++{
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadTakeDirty();
++}
++
++// Render the docShell's document into the widget's offscreen DrawTarget via the
++// presShell (canonical offscreen render). The daemon passes the content nsIDocShell
++// it already resolves. Returns true if the document rendered.
++MOZ_EXPORT bool
++jihad_offscreen_render_document_v2(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
++                                   double aPanX, double aPanY)
++{
++  // Versioned symbol (Codex F1): the zoom/pan args were added to an extern-C function, which has
++  // no parameter mangling — an old daemon vs new libxul (or vice versa) would pass garbage or
++  // silently drop the args. The rename makes any stale-binary mismatch fail LOUDLY at RTLD_NOW
++  // load (undefined symbol) instead of mis-rendering.
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadRenderDocument(aDocShell, aZoom, aPanX, aPanY);
++}
++
++MOZ_EXPORT bool
++jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
++                         int aWidth, int aHeight)
++{
++  if (!aWidget || !aDest) {
++    return false;
++  }
++  PuppetWidget* pw = static_cast<PuppetWidget*>(aWidget);
++  // NOTE: do NOT call PaintNowIfNeeded() here — the widget Paint() path does not
++  // paint the embedded document into this offscreen widget (it clears mDrawTarget to
++  // black). The daemon renders the document via jihad_offscreen_render_document
++  // (presShell->RenderDocument) just before this readback; we only snapshot.
++  RefPtr<SourceSurface> snap = pw->JihadSnapshot();
++  if (!snap) {
++    return false;
++  }
++  RefPtr<DataSourceSurface> data = snap->GetDataSurface();
++  if (!data) {
++    return false;
++  }
++  size_t length;
++  int32_t srcStride;
++  mozilla::UniquePtr<char[]> buf =
++    nsContentUtils::GetSurfaceData(WrapNotNull(data.get()), &length, &srcStride);
++  if (!buf) {
++    return false;
++  }
++  IntSize sz = data->GetSize();
++  int rows = aHeight < sz.height ? aHeight : sz.height;
++  int rowBytes = (aWidth < sz.width ? aWidth : sz.width) * 4;
++  for (int y = 0; y < rows; ++y) {
++    memcpy(static_cast<uint8_t*>(aDest) + (size_t)y * aStride,
++           buf.get() + (size_t)y * srcStride, rowBytes);
++  }
++  return true;
++}
++
++// Render an ABSOLUTE document region straight into caller-owned memory (the
++// daemon's shared buffer). Unlike jihad_offscreen_render_document_v2 this is not
++// bounded by the widget's DrawTarget size, so the daemon can paint a region
++// TALLER than the viewport (viewport + overscan) and give the adapter real pan
++// headroom (scroll pan headroom fix 2026-08-02: painting exactly the viewport
++// left zero headroom, so one pixel of pan exposed undrawn grey).
++// aDocX/aDocY are CSS px (document-absolute); the region is aWidth x aHeight
++// DEVICE px rendered at aZoom, i.e. it covers aWidth/Z x aHeight/Z CSS px.
++// Always RENDER_DOCUMENT_RELATIVE + RENDER_IGNORE_VIEWPORT_SCROLLING: the engine
++// scroll does not shift the output, and position:fixed content is NOT placed at
++// the current scroll — at z~1 the daemon overlays a viewport-relative band
++// (render_document_v2 + readback) over the visible rows to keep fixed/sticky
++// correct on screen; the overscan strips only ever show transiently mid-pan.
++MOZ_EXPORT bool
++jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, double aZoom,
++                              double aDocX, double aDocY, void* aDest, int aStride,
++                              int aWidth, int aHeight)
++{
++  if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return false;
++  }
++  nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++  if (!presShell) {
++    return false;
++  }
++  presShell->FlushPendingNotifications(Flush_Layout);
++  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++  if (!dt || !dt->IsValid()) {
++    return false;
++  }
++  // Opaque white base: RenderDocument's over-op on an opaque base keeps alpha at
++  // 255 everywhere, which the adapter's raw-word blit requires (no post-pass
++  // alpha forcing on this path — the pixels land directly in the shared buffer).
++  dt->FillRect(mozilla::gfx::Rect(0, 0, aWidth, aHeight),
++               mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
++  RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++  if (!ctx) {
++    return false;
++  }
++  double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  ctx->SetMatrix(ctx->CurrentMatrix().Scale(Z, Z));
++  uint32_t flags = nsIPresShell::RENDER_CARET |
++                   nsIPresShell::RENDER_IGNORE_VIEWPORT_SCROLLING |
++                   nsIPresShell::RENDER_DOCUMENT_RELATIVE;
++  nsRect r(nsPresContext::CSSPixelsToAppUnits((float)aDocX),
++           nsPresContext::CSSPixelsToAppUnits((float)aDocY),
++           nsPresContext::CSSPixelsToAppUnits((float)(aWidth / Z)),
++           nsPresContext::CSSPixelsToAppUnits((float)(aHeight / Z)));
++  nsresult rv = presShell->RenderDocument(r, flags, NS_RGB(255, 255, 255), ctx);
++  if (NS_FAILED(rv)) {
++    return false;
++  }
++  // ENFORCE alpha == 255 over every pixel (adversarial review 2026-08-02 F3): the
++  // adapter raw-blits these words into the card surface, so any a<255 pixel is a
++  // see-through hole. The opaque-white base + OP_OVER argument holds on the paths
++  // we traced, but it is an engine-internal invariant across the whole display
++  // list — enforce it here rather than trust it (a few ms of byte stores).
++  dt->Flush();
++  for (int y = 0; y < aHeight; ++y) {
++    unsigned char* row = static_cast<unsigned char*>(aDest) + (size_t)y * aStride;
++    for (int x = 0; x < aWidth; ++x) {
++      row[(size_t)x * 4 + 3] = 0xff;
++    }
++  }
++  return true;
++}
++
++// Composite every OPEN XUL popup over an already-painted buffer.
++//
++// WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
++// is a SEPARATE DISPLAY ROOT — nsLayoutUtils::GetDisplayRootFrame returns the popup
++// frame itself, not the document root — so RenderDocument on the content docShell
++// never contains it, no matter how it is sized or positioned. On a desktop build the
++// popup would be its own toplevel OS window and the window manager would put it on
++// screen; headless there is no such window, so the pixels have to be composited by
++// hand. The daemon calls this after its main paint, so a popup lands on top of the
++// page exactly where the engine placed it.
++//
++// aOriginX/aOriginY are the document-space CSS coords of the buffer's top-left (the
++// same origin the main render used) and aZoom the scale it rendered at, so a popup
++// is placed with the identical transform as the content underneath it.
++//
++// Returns the number of popups composited (0 = nothing open, the overwhelmingly
++// common case, and the reason this is cheap enough to call every frame).
++MOZ_EXPORT int
++jihad_offscreen_composite_popups(nsIWidget* /*aWidget*/, void* aDest, int aStride,
++                                 int aWidth, int aHeight, double aOriginX,
++                                 double aOriginY, double aZoom)
++{
++  if (!aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return 0;
++  }
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return 0;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return 0;      // no popup open: pay nothing beyond this check
++  }
++
++  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++  if (!dt || !dt->IsValid()) {
++    return 0;
++  }
++  const double Z = (aZoom > 0.0) ? aZoom : 1.0;
++  int painted = 0;
++
++  // GetVisiblePopups walks the chain innermost-first; paint in reverse so a submenu
++  // lands on top of the menu that opened it.
++  for (int32_t i = popups.Length() - 1; i >= 0; --i) {
++    nsIFrame* frame = popups[i];
++    if (!frame) {
++      continue;
++    }
++    // The popup's own rect, in the same document space the buffer was rendered in.
++    // GetScreenRectInAppUnits() is what the widget code positions the popup window
++    // with, and in this embedding the "screen" IS the document surface: PuppetScreen
++    // reports the offscreen bounds, so screen coords and document coords agree.
++    nsRect screen = frame->GetScreenRectInAppUnits();
++    const double cssX = nsPresContext::AppUnitsToFloatCSSPixels(screen.x);
++    const double cssY = nsPresContext::AppUnitsToFloatCSSPixels(screen.y);
++    const double cssW = nsPresContext::AppUnitsToFloatCSSPixels(screen.width);
++    const double cssH = nsPresContext::AppUnitsToFloatCSSPixels(screen.height);
++    if (cssW <= 0 || cssH <= 0) {
++      // A popup that is open but has no size is the "0x0 popup" failure this whole
++      // path was built for — say so rather than silently drawing nothing.
++      if (getenv("JIHAD_OFFSCREEN")) {
++        fprintf(stderr, "[jihad-popup] composite: frame=%p is OPEN but %gx%g — skipped\n",
++                (void*)frame, cssW, cssH);
++      }
++      continue;
++    }
++    // Device px in the destination buffer.
++    const double dx = (cssX - aOriginX) * Z;
++    const double dy = (cssY - aOriginY) * Z;
++    if (dx >= aWidth || dy >= aHeight || dx + cssW * Z <= 0 || dy + cssH * Z <= 0) {
++      continue;                                   // entirely off this buffer
++    }
++
++    RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++    if (!ctx) {
++      continue;
++    }
++    // Clip to the popup's own box so a display list that paints outside its bounds
++    // (shadows, overflow) cannot scribble over the page around it.
++    ctx->Save();
++    ctx->Clip(mozilla::gfx::Rect(dx, dy, cssW * Z, cssH * Z));
++    // cairo semantics: each call pre-multiplies, i.e. it applies FIRST in user
++    // space. Scale then translate => device = css * Z + (dx, dy), which places the
++    // popup's own coordinate space at its spot in this buffer.
++    ctx->SetMatrix(ctx->CurrentMatrix().Translate(gfxPoint(dx, dy)).Scale(Z, Z));
++    nsRenderingContext rc(ctx);
++    // Frame-relative dirty region covering the whole popup. PAINT_DOCUMENT_RELATIVE
++    // is deliberately NOT set: we want the popup drawn at its own origin, which the
++    // transform above has already placed.
++    nsRect dirty(nsPoint(0, 0), screen.Size());
++    nsresult rv = nsLayoutUtils::PaintFrame(
++        &rc, frame, nsRegion(dirty), NS_RGBA(0, 0, 0, 0),
++        nsDisplayListBuilderMode::PAINTING,
++        nsLayoutUtils::PaintFrameFlags::PAINT_SYNC_DECODE_IMAGES |
++        nsLayoutUtils::PaintFrameFlags::PAINT_IGNORE_SUPPRESSION |
++        nsLayoutUtils::PaintFrameFlags::PAINT_HIDE_CARET);
++    ctx->Restore();
++    if (NS_FAILED(rv)) {
++      if (getenv("JIHAD_OFFSCREEN")) {
++        fprintf(stderr, "[jihad-popup] composite: PaintFrame failed frame=%p rv=0x%x\n",
++                (void*)frame, (unsigned)rv);
++      }
++      continue;
++    }
++    ++painted;
++    if (getenv("JIHAD_MENU_DEBUG")) {
++      // Which row does the engine consider active, and does it carry the attribute the
++      // highlight rule keys on? Without this, "no highlight" cannot be told apart from
++      // "no active item" — the two look identical on screen.
++      nsMenuPopupFrame* mpf = do_QueryFrame(frame);
++      nsMenuFrame* cur = mpf ? mpf->GetCurrentMenuItem() : nullptr;
++      nsIContent* c = cur ? cur->GetContent() : nullptr;
++      nsAutoString act;
++      if (c) c->GetAttr(kNameSpaceID_None, nsGkAtoms::menuactive, act);
++      fprintf(stderr, "[jihad-popup] active item=%p content=%p _moz-menuactive=[%s]\n",
++              (void*)cur, (void*)c, NS_ConvertUTF16toUTF8(act).get());
++    }
++    if (getenv("JIHAD_OFFSCREEN")) {
++      fprintf(stderr, "[jihad-popup] composite: frame=%p at %g,%g %gx%g (dev %g,%g z=%g)\n",
++              (void*)frame, cssX, cssY, cssW, cssH, dx, dy, Z);
++    }
++  }
++
++  if (painted) {
++    // Same alpha invariant the region render enforces: the adapter raw-blits these
++    // words into the card surface, so a popup pixel with a<255 is a see-through hole.
++    dt->Flush();
++    for (int y = 0; y < aHeight; ++y) {
++      unsigned char* row = static_cast<unsigned char*>(aDest) + (size_t)y * aStride;
++      for (int x = 0; x < aWidth; ++x) {
++        row[(size_t)x * 4 + 3] = 0xff;
++      }
++    }
++  }
++  return painted;
++}
++
++// How many popups are open right now. The daemon uses this straight after dispatching a
++// tap to tell "that tap opened a menu" from "it did not", which is what lets it drop the
++// DUPLICATE delivery of the same physical tap instead of letting it close the menu again.
++MOZ_EXPORT int
++jihad_offscreen_popup_count()
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return 0;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  return (int)popups.Length();
++}
++
++// Close every open popup ("roll up").
++//
++// On a desktop build this happens by itself: the popup's widget takes a native mouse
++// capture, so a click anywhere else reaches the popup manager as a rollup. There is no
++// native capture in this headless embedding — the daemon synthesises taps straight into
++// the content document's presShell — so tapping outside a menu left it open (measured;
++// it closed only sometimes, depending on what the tap happened to hit). The daemon calls
++// this explicitly for a tap that lands outside every popup, which is what a user means.
++MOZ_EXPORT bool
++jihad_offscreen_popup_rollup()
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return false;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return false;
++  }
++  // aCount 0 = roll up the whole chain; aFlush = run the close synchronously so the next
++  // paint no longer contains the popup.
++  bool rolled = pm->Rollup(0, true, nullptr, nullptr);
++  if (getenv("JIHAD_OFFSCREEN")) {
++    fprintf(stderr, "[jihad-popup] rollup: closed=%d (%u were open)\n",
++            (int)rolled, (unsigned)popups.Length());
++  }
++  return rolled;
++}
++
++// Route a mouse event into an OPEN popup.
++//
++// The same separate-display-root property that keeps a popup out of the main render
++// also keeps it out of the main document's hit-testing: the daemon's normal input path
++// resolves a tap with elementFromPoint on the CONTENT document, which walks the content
++// display root and cannot see popup frames. Measured: with the tools menu open, a tap on
++// its first row resolved to the <vbox> UNDER the menu. So a popup that is visible is not
++// operable unless its events are dispatched against its own display root, which is what
++// this does.
++//
++// aX/aY are document CSS px (same space the composite places the popup in). Returns true
++// if a visible popup contained the point and the event was dispatched to it — the caller
++// then does NOT run its normal content-document dispatch for that tap.
++// aMsg: 0 = move, 1 = down, 2 = up.
++MOZ_EXPORT bool
++jihad_offscreen_popup_mouse(int aMsg, double aX, double aY)
++{
++  nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
++  if (!pm) {
++    return false;
++  }
++  nsTArray<nsIFrame*> popups;
++  pm->GetVisiblePopups(popups);
++  if (popups.IsEmpty()) {
++    return false;
++  }
++  const nscoord appX = nsPresContext::CSSPixelsToAppUnits((float)aX);
++  const nscoord appY = nsPresContext::CSSPixelsToAppUnits((float)aY);
++
++  // Innermost first: GetVisiblePopups walks the chain from the deepest submenu out, so
++  // the first hit is the one the user is actually pointing at.
++  for (uint32_t i = 0; i < popups.Length(); ++i) {
++    nsIFrame* frame = popups[i];
++    if (!frame) {
++      continue;
++    }
++    nsRect screen = frame->GetScreenRectInAppUnits();
++    if (screen.width <= 0 || screen.height <= 0 ||
++        appX < screen.x || appX >= screen.XMost() ||
++        appY < screen.y || appY >= screen.YMost()) {
++      continue;
++    }
++    nsIPresShell* presShell = frame->PresContext()->PresShell();
++    if (!presShell) {
++      return false;
++    }
++    // The event's refPoint is widget-relative; a popup's own widget has the popup's
++    // top-left as its origin, so subtract the popup's screen position.
++    nsIWidget* widget = frame->GetNearestWidget();
++    if (!widget) {
++      return false;
++    }
++    const int32_t localX = nsPresContext::AppUnitsToIntCSSPixels(appX - screen.x);
++    const int32_t localY = nsPresContext::AppUnitsToIntCSSPixels(appY - screen.y);
++
++    EventMessage msg = (aMsg == 1) ? eMouseDown : (aMsg == 2) ? eMouseUp : eMouseMove;
++    WidgetMouseEvent event(true, msg, widget, WidgetMouseEvent::eReal);
++    event.mRefPoint = LayoutDeviceIntPoint(localX, localY);
++    event.mClickCount = (msg == eMouseMove) ? 0 : 1;
++    event.button = WidgetMouseEvent::eLeftButton;
++    if (msg != eMouseMove) {
++      event.mFlags.mIsSynthesizedForTests = false;
++    }
++    nsEventStatus status = nsEventStatus_eIgnore;
++    presShell->HandleEvent(frame, &event, false, &status);
++    if (getenv("JIHAD_OFFSCREEN")) {
++      fprintf(stderr, "[jihad-popup] mouse msg=%d doc=%g,%g -> popup-local %d,%d status=%d\n",
++              aMsg, aX, aY, localX, localY, (int)status);
++    }
++    return true;
++  }
++  return false;
++}
++
++MOZ_EXPORT void
++jihad_offscreen_release(nsIWidget* aWidget)
++{
++  if (aWidget) {
++    PuppetWidget* pw = static_cast<PuppetWidget*>(aWidget);
++    pw->Destroy();
++    pw->Release();
++  }
++}
++
++// Force PSM/NSS (TLS) to initialize on the CURRENT (main) thread. The frozen-API
++// render daemon can't resolve the PSM contract via do_GetService, but this internal
++// libxul code can (EnsureNSSInitializedChromeOrContent -> do_GetService(PSM)). Without
++// this, the first https:// request lazily constructs nsNSSComponent from the necko
++// socket thread, whose ctor does MOZ_RELEASE_ASSERT(NS_IsMainThread()) -> daemon abort
++// ("loads forever"). The daemon calls this on its main thread before an https load.
++MOZ_EXPORT bool
++jihad_init_nss()
++{
++  // Per the crash backtrace: on the first https:// load, necko's SOCKET thread does
++  // nsSocketTransport::Init -> GetSocketProvider("ssl") -> nsSSLSocketProviderConstructor
++  // -> EnsureNSSInitialized -> do_GetService(PSM) -> nsNSSComponent ctor, which asserts
++  // NS_IsMainThread() and crashes. Direct do_GetService(PSM) fails on the main thread
++  // (PSM registers only when the ssl socket provider is first built). So build the SSL
++  // socket provider HERE on the main thread — it runs the exact same EnsureNSSInitialized
++  // chain, constructing nsNSSComponent on the main thread; the socket thread then reuses
++  // the singleton and no longer constructs it. (Idempotent — cached after first call.)
++  nsresult rv = NS_ERROR_FAILURE;
++  nsCOMPtr<nsISupports> ssl =
++    do_GetService("@mozilla.org/network/socket;2?type=ssl", &rv);
++  nsCOMPtr<nsISupports> tls =
++    do_GetService("@mozilla.org/network/socket;2?type=starttls");
++  fprintf(stderr, "[jihad-bs] jihad_init_nss(ssl provider): main=%d rv=0x%x got=%p\n",
++          (int)NS_IsMainThread(), (unsigned)rv, (void*)ssl.get());
++  return NS_SUCCEEDED(rv);
++}
++
++} // extern "C"
++
+ nsresult
+ PuppetWidget::RequestIMEToCommitComposition(bool aCancel)
+ {
+@@ -1086,13 +1737,25 @@ PuppetWidget::Paint()
+         mTabChild->NotifyPainted();
+       }
+     } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
++      if (JihadOffscreen()) {
++        JihadEnsureDrawTarget();
++      }
+       RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(mDrawTarget);
+       if (!ctx) {
+         gfxDevCrash(LogReason::InvalidContext) << "PuppetWidget context problem " << gfx::hexa(mDrawTarget);
+         return NS_ERROR_FAILURE;
+       }
+-      ctx->Rectangle(gfxRect(0,0,0,0));
+-      ctx->Clip();
++      if (JihadOffscreen()) {
++        // Jihad offscreen render: paint the FULL widget area into mDrawTarget. The
++        // stock path below clips to an EMPTY rect because in the content process the
++        // real pixels come from the compositor and this BASIC branch intentionally
++        // draws nothing — but we bypass the compositor and need the actual pixels.
++        ctx->Rectangle(gfxRect(0, 0, mBounds.width, mBounds.height));
++        ctx->Clip();
++      } else {
++        ctx->Rectangle(gfxRect(0,0,0,0));
++        ctx->Clip();
++      }
+       AutoLayerManagerSetup setupLayerManager(this, ctx,
+                                               BufferMode::BUFFER_NONE);
+       GetCurrentWidgetListener()->PaintWindow(this, region);
+@@ -1349,6 +2012,16 @@ NS_IMETHODIMP
+ PuppetScreen::GetRect(int32_t *outLeft,  int32_t *outTop,
+                       int32_t *outWidth, int32_t *outHeight)
+ {
++  if (PuppetWidget::JihadOffscreen()) {
++    // Answer directly from the stored offscreen dimensions. Going through
++    // ScreenConfig()/hal here would recurse back into the fallback hal, which
++    // queries this same screen manager, overflowing the stack.
++    *outLeft = 0;
++    *outTop = 0;
++    *outWidth = sJihadScreenWidth;
++    *outHeight = sJihadScreenHeight;
++    return NS_OK;
++  }
+   nsIntRect r = ScreenConfig().rect();
+   *outLeft = r.x;
+   *outTop = r.y;
+@@ -1367,6 +2040,11 @@ PuppetScreen::GetAvailRect(int32_t *outLeft,  int32_t *outTop,
+ NS_IMETHODIMP
+ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
+ {
++  if (PuppetWidget::JihadOffscreen()) {
++    // Fixed depth; ScreenConfig()/hal would recurse back into this object.
++    *aPixelDepth = 24;
++    return NS_OK;
++  }
+   *aPixelDepth = ScreenConfig().pixelDepth();
+   return NS_OK;
+ }
+@@ -1374,6 +2052,10 @@ PuppetScreen::GetPixelDepth(int32_t *aPixelDepth)
+ NS_IMETHODIMP
+ PuppetScreen::GetColorDepth(int32_t *aColorDepth)
+ {
++  if (PuppetWidget::JihadOffscreen()) {
++    *aColorDepth = 24;
++    return NS_OK;
++  }
+   *aColorDepth = ScreenConfig().colorDepth();
+   return NS_OK;
+ }
+@@ -1452,8 +2134,23 @@ PuppetScreenManager::GetSystemDefaultScale(float *aDefaultScale)
+ nsIWidgetListener*
+ PuppetWidget::GetCurrentWidgetListener()
+ {
+-  if (!mPreviouslyAttachedWidgetListener ||
+-      !mAttachedWidgetListener) {
++  // JIHAD: fall back to mWidgetListener when nothing is ATTACHED, exactly as the real
++  // widget does (widget/gtk/nsWindow.cpp GetListener:
++  // `mAttachedWidgetListener ? mAttachedWidgetListener : mWidgetListener`). PuppetWidget
++  // was written for the content-process case, where the view is always attached to a
++  // top-level widget, so it only ever consulted the attached listener — and in this
++  // standalone offscreen embedding nothing attaches, leaving mAttachedWidgetListener null.
++  //
++  // Everything routed through DispatchEvent was therefore silently DROPPED. Mouse input
++  // hid the problem because nsIDOMWindowUtils has `…SendMouseEventToWindow`, which goes to
++  // the presShell directly; there is no `SendKeyEventToWindow`, so SendKeyEvent went
++  // widget->DispatchEvent and vanished. That is why text could only be inserted through
++  // the editor (SetValue/SetSelectionRange) and why anything reacting to real key events —
++  // XUL <key> elements, tree type-ahead, Escape/Enter handling — got nothing at all.
++  if (!mAttachedWidgetListener) {
++    return mWidgetListener;
++  }
++  if (!mPreviouslyAttachedWidgetListener) {
+     return mAttachedWidgetListener;
+   }
+ 
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index ab52dfca86..07a102c20d 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -25,6 +25,8 @@
+ #include "mozilla/ContentCache.h"
+ #include "mozilla/EventForwards.h"
+ 
++class nsIDocShell;   // Jihad offscreen render (JihadRenderDocument)
++
+ namespace mozilla {
+ 
+ namespace dom {
+@@ -200,6 +202,47 @@ public:
+   // Paint the widget immediately if any paints are queued up.
+   void PaintNowIfNeeded();
+ 
++  // --- Jihad offscreen render support ---
++  // When the env var JIHAD_OFFSCREEN is set, a (null-TabChild) PuppetWidget
++  // renders through an in-process CPU BasicLayerManager into an in-memory
++  // DrawTarget (no compositor, no native window, no X/GTK), so a headless
++  // render daemon can read the pixels straight out. See the extern "C"
++  // jihad_offscreen_* entry points in PuppetWidget.cpp.
++  static bool JihadOffscreen();
++  void JihadEnsureDrawTarget();
++  already_AddRefed<mozilla::gfx::SourceSurface> JihadSnapshot();
++  // Render the docShell's document straight into mDrawTarget via the presShell
++  // (the canonical offscreen path, like canvas drawWindow / tab thumbnails). The
++  // widget Paint() path does NOT paint the embedded content into this widget, so
++  // relying on it produced a black frame; this renders the actual document.
++  bool JihadRenderDocument(nsIDocShell* aDocShell, double aZoom = 1.0,
++                           double aPanX = 0.0, double aPanY = 0.0);
++  // Sticky invalidation flag for the render daemon (jihad_offscreen_take_dirty):
++  // set on every Invalidate() so the daemon knows CONTENT CHANGED and a repaint is
++  // due — the offscreen embedding has no compositor/paint-event feedback loop, so
++  // without this the daemon's frame delivery is input-driven only and JS/SPA DOM
++  // updates, async image decode, and incremental page render leave the shared
++  // buffer stale (the on-device "old page sticks around until you drag" bug).
++  // Deliberately separate from mDirtyRegion, which the PaintTask self-clears.
++  //
++  // DRAINS THE CHILD CHAIN: the embedding's view hierarchy does not paint through
++  // the top-level widget the daemon created — nsView::CreateWidgetForParent goes
++  // through PuppetWidget::CreateChild, which makes a SEPARATE child PuppetWidget
++  // (linked back via SetChild). Every Invalidate() from the view manager lands on
++  // that CHILD, setting the child's mJihadDirty, while the daemon polls the
++  // top-level parent — whose flag nothing ever set. That inert dirty loop is why
++  // anything that became visually ready after the last load/input-driven paint
++  // (async image decode — the about:addons icons — JS/SPA DOM updates) never
++  // appeared on the device: no repaint was ever triggered. Draining the chain
++  // here makes the poll see the child's invalidations.
++  bool JihadTakeDirty() {
++    bool d = mJihadDirty; mJihadDirty = false;
++    for (PuppetWidget* c = mChild.get(); c; c = c->mChild.get()) {
++      if (c->mJihadDirty) { d = true; c->mJihadDirty = false; }
++    }
++    return d;
++  }
++
+   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
+ 
+   void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
+@@ -342,6 +385,7 @@ private:
+   // event handler.
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
++  bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
+   nsRevocableEventPtr<PaintTask> mPaintTask;
+   RefPtr<MemoryPressureObserver> mMemoryPressureObserver;
+   // XXX/cjones: keeping this around until we teach LayerManager to do
+diff --git a/widget/gtk/gtk2drawing.c b/widget/gtk/gtk2drawing.c
+index 7fcac4de63..9de7d566a4 100644
+--- a/widget/gtk/gtk2drawing.c
++++ b/widget/gtk/gtk2drawing.c
+@@ -87,12 +87,26 @@ moz_gtk_enable_style_props(style_prop_t styleGetProp)
+     return MOZ_GTK_SUCCESS;
+ }
+ 
++/* Jihad: realizing a widget creates a GdkWindow, which requires an X display.
++ * The headless (JIHAD_OFFSCREEN, on-device) daemon has no X server; it only
++ * queries widget STYLES for theme metrics/colors (which work on unrealized
++ * widgets) and never DRAWS native controls (disabled via
++ * nsNativeThemeGTK::ThemeSupportsWidget). Skip realization when there is no
++ * display so these queries don't crash in gtk_widget_realize -> gdk_window_new. */
++static void
++moz_gtk_maybe_realize(GtkWidget* aWidget)
++{
++    if (gdk_screen_get_default()) {
++        gtk_widget_realize(aWidget);
++    }
++}
++
+ static gint
+ ensure_window_widget()
+ {
+     if (!gProtoWindow) {
+         gProtoWindow = gtk_window_new(GTK_WINDOW_POPUP);
+-        gtk_widget_realize(gProtoWindow);
++        moz_gtk_maybe_realize(gProtoWindow);
+         moz_gtk_set_widget_name(gProtoWindow);
+     }
+     return MOZ_GTK_SUCCESS;
+@@ -108,7 +122,7 @@ setup_widget_prototype(GtkWidget* widget)
+     }
+ 
+     gtk_container_add(GTK_CONTAINER(gProtoLayout), widget);
+-    gtk_widget_realize(widget);
++    moz_gtk_maybe_realize(widget);
+     g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     return MOZ_GTK_SUCCESS;
+ }
+@@ -163,7 +177,7 @@ ensure_button_arrow_widget()
+ 
+         gButtonArrowWidget = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_OUT);
+         gtk_container_add(GTK_CONTAINER(gToggleButtonWidget), gButtonArrowWidget);
+-        gtk_widget_realize(gButtonArrowWidget);
++        moz_gtk_maybe_realize(gButtonArrowWidget);
+     }
+     return MOZ_GTK_SUCCESS;
+ }
+@@ -253,7 +267,7 @@ moz_gtk_get_combo_box_inner_button(GtkWidget *widget, gpointer client_data)
+         gComboBoxButtonWidget = widget;
+         g_object_add_weak_pointer(G_OBJECT(widget),
+                                   (gpointer) &gComboBoxButtonWidget);
+-        gtk_widget_realize(widget);
++        moz_gtk_maybe_realize(widget);
+         g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+ }
+@@ -272,7 +286,7 @@ moz_gtk_get_combo_box_button_inner_widgets(GtkWidget *widget,
+                                   (gpointer) &gComboBoxArrowWidget);
+     } else
+         return;
+-    gtk_widget_realize(widget);
++    moz_gtk_maybe_realize(widget);
+     g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+ }
+ 
+@@ -312,7 +326,7 @@ ensure_combo_box_widgets()
+             gComboBoxArrowWidget = buttonChild;
+             g_object_add_weak_pointer(G_OBJECT(buttonChild), (gpointer)
+                                       &gComboBoxArrowWidget);
+-            gtk_widget_realize(gComboBoxArrowWidget);
++            moz_gtk_maybe_realize(gComboBoxArrowWidget);
+             g_object_set_data(G_OBJECT(gComboBoxArrowWidget),
+                               "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+         }
+@@ -363,7 +377,7 @@ moz_gtk_get_combo_box_entry_inner_widgets(GtkWidget *widget,
+                                   (gpointer) &gComboBoxEntryTextareaWidget);
+     } else
+         return;
+-    gtk_widget_realize(widget);
++    moz_gtk_maybe_realize(widget);
+     g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+ }
+ 
+@@ -374,7 +388,7 @@ moz_gtk_get_combo_box_entry_arrow(GtkWidget *widget, gpointer client_data)
+         gComboBoxEntryArrowWidget = widget;
+         g_object_add_weak_pointer(G_OBJECT(widget),
+                                   (gpointer) &gComboBoxEntryArrowWidget);
+-        gtk_widget_realize(widget);
++        moz_gtk_maybe_realize(widget);
+         g_object_set_data(G_OBJECT(widget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+ }
+@@ -425,7 +439,7 @@ ensure_combo_box_entry_widgets()
+             gComboBoxEntryArrowWidget = buttonChild;
+             g_object_add_weak_pointer(G_OBJECT(buttonChild), (gpointer)
+                                       &gComboBoxEntryArrowWidget);
+-            gtk_widget_realize(gComboBoxEntryArrowWidget);
++            moz_gtk_maybe_realize(gComboBoxEntryArrowWidget);
+             g_object_set_data(G_OBJECT(gComboBoxEntryArrowWidget),
+                               "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+         }
+@@ -466,7 +480,7 @@ ensure_toolbar_widget()
+         ensure_handlebox_widget();
+         gToolbarWidget = gtk_toolbar_new();
+         gtk_container_add(GTK_CONTAINER(gHandleBoxWidget), gToolbarWidget);
+-        gtk_widget_realize(gToolbarWidget);
++        moz_gtk_maybe_realize(gToolbarWidget);
+         g_object_set_data(G_OBJECT(gToolbarWidget), "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+     return MOZ_GTK_SUCCESS;
+@@ -488,7 +502,7 @@ ensure_tooltip_widget()
+ {
+     if (!gTooltipWidget) {
+         gTooltipWidget = gtk_window_new(GTK_WINDOW_POPUP);
+-        gtk_widget_realize(gTooltipWidget);
++        moz_gtk_maybe_realize(gTooltipWidget);
+         moz_gtk_set_widget_name(gTooltipWidget);
+     }
+     return MOZ_GTK_SUCCESS;
+@@ -531,7 +545,7 @@ ensure_frame_widget()
+         ensure_statusbar_widget();
+         gFrameWidget = gtk_frame_new(NULL);
+         gtk_container_add(GTK_CONTAINER(gStatusbarWidget), gFrameWidget);
+-        gtk_widget_realize(gFrameWidget);
++        moz_gtk_maybe_realize(gFrameWidget);
+     }
+     return MOZ_GTK_SUCCESS;
+ }
+@@ -554,7 +568,7 @@ ensure_menu_bar_item_widget()
+         gMenuBarItemWidget = gtk_menu_item_new();
+         gtk_menu_shell_append(GTK_MENU_SHELL(gMenuBarWidget),
+                               gMenuBarItemWidget);
+-        gtk_widget_realize(gMenuBarItemWidget);
++        moz_gtk_maybe_realize(gMenuBarItemWidget);
+         g_object_set_data(G_OBJECT(gMenuBarItemWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+@@ -569,7 +583,7 @@ ensure_menu_popup_widget()
+         gMenuPopupWidget = gtk_menu_new();
+         gtk_menu_item_set_submenu(GTK_MENU_ITEM(gMenuBarItemWidget),
+                                   gMenuPopupWidget);
+-        gtk_widget_realize(gMenuPopupWidget);
++        moz_gtk_maybe_realize(gMenuPopupWidget);
+         g_object_set_data(G_OBJECT(gMenuPopupWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+@@ -584,7 +598,7 @@ ensure_menu_item_widget()
+         gMenuItemWidget = gtk_menu_item_new_with_label("M");
+         gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
+                               gMenuItemWidget);
+-        gtk_widget_realize(gMenuItemWidget);
++        moz_gtk_maybe_realize(gMenuItemWidget);
+         g_object_set_data(G_OBJECT(gMenuItemWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+@@ -599,7 +613,7 @@ ensure_image_menu_item_widget()
+         gImageMenuItemWidget = gtk_image_menu_item_new();
+         gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
+                               gImageMenuItemWidget);
+-        gtk_widget_realize(gImageMenuItemWidget);
++        moz_gtk_maybe_realize(gImageMenuItemWidget);
+         g_object_set_data(G_OBJECT(gImageMenuItemWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+@@ -614,7 +628,7 @@ ensure_menu_separator_widget()
+         gMenuSeparatorWidget = gtk_separator_menu_item_new();
+         gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
+                               gMenuSeparatorWidget);
+-        gtk_widget_realize(gMenuSeparatorWidget);
++        moz_gtk_maybe_realize(gMenuSeparatorWidget);
+         g_object_set_data(G_OBJECT(gMenuSeparatorWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+@@ -629,7 +643,7 @@ ensure_check_menu_item_widget()
+         gCheckMenuItemWidget = gtk_check_menu_item_new_with_label("M");
+         gtk_menu_shell_append(GTK_MENU_SHELL(gMenuPopupWidget),
+                               gCheckMenuItemWidget);
+-        gtk_widget_realize(gCheckMenuItemWidget);
++        moz_gtk_maybe_realize(gCheckMenuItemWidget);
+         g_object_set_data(G_OBJECT(gCheckMenuItemWidget),
+                           "transparent-bg-hint", GINT_TO_POINTER(TRUE));
+     }
+diff --git a/widget/gtk/nsLookAndFeel.cpp b/widget/gtk/nsLookAndFeel.cpp
+index e206f43e8c..e51b83da2c 100644
+--- a/widget/gtk/nsLookAndFeel.cpp
++++ b/widget/gtk/nsLookAndFeel.cpp
+@@ -1060,6 +1060,21 @@ nsLookAndFeel::Init()
+     GdkColor colorValue;
+     GdkColor *colorValuePtr;
+ 
++    // Jihad: headless (no X display, JIHAD_OFFSCREEN daemon on the device). The
++    // GTK theme cannot be queried; every gtk_invisible_new()/gtk_widget_realize()
++    // below would crash (gdk_window_new asserts 'GDK_IS_SCREEN'/'GDK_IS_WINDOW'
++    // and then a null-deref). Provide a default GtkStyle so GetColor()'s mStyle
++    // reads stay valid, and skip all widget realization. System colours fall back
++    // to GTK defaults; CSS-styled web content does not depend on them.
++    if (!gdk_display_get_default()) {
++#if (MOZ_WIDGET_GTK == 2)
++        if (!mStyle) {
++            mStyle = gtk_style_new();
++        }
++#endif
++        return;
++    }
++
+ #if (MOZ_WIDGET_GTK == 2)
+     NS_ASSERTION(!mStyle, "already initialized");
+     // GtkInvisibles come with a refcount that is not floating
+diff --git a/widget/gtk/nsNativeThemeGTK.cpp b/widget/gtk/nsNativeThemeGTK.cpp
+index eceee1b53d..ed32dd6aaa 100644
+--- a/widget/gtk/nsNativeThemeGTK.cpp
++++ b/widget/gtk/nsNativeThemeGTK.cpp
+@@ -1838,6 +1838,14 @@ nsNativeThemeGTK::ThemeSupportsWidget(nsPresContext* aPresContext,
+                                       nsIFrame* aFrame,
+                                       uint8_t aWidgetType)
+ {
++  // Jihad: headless (no X display, JIHAD_OFFSCREEN daemon on the device). Native
++  // GTK theming draws through gtk2drawing.c, which realizes GTK widgets
++  // (ensure_window_widget -> gtk_widget_realize -> gdk_window_new) and crashes
++  // without a display. Report no native-theme support so Gecko falls back to its
++  // own non-native control rendering. Controls look non-native; content is fine.
++  if (!gdk_display_get_default())
++    return false;
++
+   if (IsWidgetTypeDisabled(mDisabledWidgetTypes, aWidgetType))
+     return false;
+ 
+diff --git a/widget/moz.build b/widget/moz.build
+index 6b49e35270..525922e7ea 100644
+--- a/widget/moz.build
++++ b/widget/moz.build
+@@ -56,6 +56,10 @@ if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT']:
+             CONFIG['MOZ_ENABLE_NPAPI_GTK2']):
+         DIRS += ['gtkxtbin']
+ 
++# Jihad: X/GTK-free headless widget backend (PuppetWidget-based).
++if toolkit == 'headless':
++    DIRS += ['headless']
++
+ XPIDL_SOURCES += [
+     'nsIAppShell.idl',
+     'nsIBaseWindow.idl',
+@@ -229,7 +233,7 @@ if toolkit in ('cocoa', 'windows'):
+         'nsBaseClipboard.cpp',
+     ]
+ 
+-if toolkit in {'gtk2', 'gtk3', 'cocoa', 'windows'}:
++if toolkit in {'gtk2', 'gtk3', 'cocoa', 'windows', 'headless'}:
+     UNIFIED_SOURCES += [
+         'nsBaseFilePicker.cpp',
+         'nsNativeTheme.cpp',
+diff --git a/xpcom/threads/BackgroundHangMonitor.cpp b/xpcom/threads/BackgroundHangMonitor.cpp
+index b0b41e291e..847373132b 100644
+--- a/xpcom/threads/BackgroundHangMonitor.cpp
++++ b/xpcom/threads/BackgroundHangMonitor.cpp
+@@ -531,7 +531,20 @@ BackgroundHangMonitor::BackgroundHangMonitor(const char* aName,
+   : mThread(aThreadType == THREAD_SHARED ? BackgroundHangThread::FindThread() : nullptr)
+ {
+ #ifdef MOZ_ENABLE_BACKGROUND_HANG_MONITOR
+-  if (!BackgroundHangManager::sDisabled && !mThread) {
++  // sInstance is null in a process that never initialized XPCOM — Startup() is called from
++  // NS_InitXPCOM2/NS_InitMinimalXPCOM and from nowhere else, and XRE_InitChildProcess calls
++  // neither. sDisabled does NOT cover that case: it is only set by Shutdown(), so in a
++  // never-started process it is false while sInstance is null, and BackgroundHangThread's
++  // constructor dereferences the manager immediately (mInterval(mManager->mIntervalNow)) for
++  // an instant null crash. FindThread() already makes exactly this check; the named
++  // constructor is missing it.
++  //
++  // Reachable here because MessagePumpDefault::Run constructs one of these unconditionally,
++  // and the plugin child uses a TYPE_UI loop, which on a non-GTK build is a MessagePumpDefault
++  // rather than the glib pump upstream would get. Result: the NPAPI child died with SIGSEGV
++  // the instant it entered its message loop, before answering NP_Initialize.
++  if (!BackgroundHangManager::sDisabled && !mThread &&
++      BackgroundHangManager::sInstance) {
+     mThread = new BackgroundHangThread(aName, aTimeoutMs, aMaxTimeoutMs,
+                                        aThreadType);
+   }
+diff --git a/xulrunner/configure.in b/xulrunner/configure.in
+index 825faaddd1..d78c5ee72c 100644
+--- a/xulrunner/configure.in
++++ b/xulrunner/configure.in
+@@ -4,6 +4,20 @@ dnl This Source Code Form is subject to the terms of the Mozilla Public
+ dnl License, v. 2.0. If a copy of the MPL was not distributed with this
+ dnl file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
++dnl ========================================================
++dnl = Enable AppCompat GUID Support (mirrors palemoon/configure.in:19-28)
++dnl ========================================================
++MOZ_ARG_ENABLE_BOOL(appcompat-guid,
++[  --enable-appcompat-guid           Enable AppCompat GUID Support],
++    UXP_APPCOMPAT_GUID=1,
++    UXP_APPCOMPAT_GUID=)
++
++if test -n "$UXP_APPCOMPAT_GUID"; then
++    AC_DEFINE(UXP_APPCOMPAT_GUID)
++fi
++
++AC_SUBST(UXP_APPCOMPAT_GUID)
++
+ dnl Things we need to carry from confvars.sh
+ AC_SUBST(MOZ_XULRUNNER)
+ AC_DEFINE(MOZ_XULRUNNER)
+diff --git a/xulrunner/confvars.sh b/xulrunner/confvars.sh
+index e122d1c374..ca39eb0033 100644
+--- a/xulrunner/confvars.sh
++++ b/xulrunner/confvars.sh
+@@ -6,4 +6,14 @@
+ MOZ_APP_NAME=xulrunner
+ MOZ_APP_DISPLAYNAME=XULRunner
+ MOZ_APP_VERSION=$MOZILLA_VERSION
+-MOZ_XULRUNNER=1
+\ No newline at end of file
++MOZ_XULRUNNER=1
++
++# Jihad: AppCompat GUID (Pale Moon's UXP_APPCOMPAT_GUID feature, palemoon/confvars.sh:71).
++# Our app GUID is frozen and named by ZERO existing extensions, so without this every real XPI
++# arrives appDisabled and the web-install path treats that as a failed install
++# (amWebInstallListener.js:112-115) -- i.e. XPI support is structurally unreachable. With it,
++# XPIProvider.jsm accepts a targetApplication naming extensions.guid.appCompatId and
++# substitutes extensions.guid.appCompatVersion (XPIProvider.jsm:6357-6377, extensions only --
++# themes are deliberately excluded upstream). Basilisk solves the same problem by shipping
++# Firefox's GUID outright; that is not open to us, the app ID is frozen by user decision.
++UXP_APPCOMPAT_GUID=1

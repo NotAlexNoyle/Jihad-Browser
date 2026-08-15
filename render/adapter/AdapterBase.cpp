@@ -1267,6 +1267,14 @@ void* AdapterBase::NPN_GetValue(NPNVariable variable)
     return res;
 }
 
+NPError AdapterBase::NPN_SetValue(NPPVariable variable, void* value)
+{
+    if (!sBrowserFuncs.setvalue)
+        return NPERR_GENERIC_ERROR;
+
+    return sBrowserFuncs.setvalue(mInstance, variable, value);
+}
+
 NPError AdapterBase::NPN_GetURL(const char* url, const char* target)
 {
     return sBrowserFuncs.geturl(mInstance, url, target);

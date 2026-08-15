@@ -103,6 +103,10 @@ protected:
     // Async Commands
     virtual void asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier) = 0;
     virtual void asyncCmdSetWindowSize(YapProxy* proxy, int32_t width, int32_t height) = 0;
+    // Jihad addition (0x1600). Deliberately NOT pure virtual: a server that does not implement a
+    // third buffer must still compile and must simply ignore the command.
+    virtual void asyncCmdSetExtraBuffer(YapProxy* proxy, int32_t sharedBufferKey3, int32_t sharedBufferSize)
+        { (void)proxy; (void)sharedBufferKey3; (void)sharedBufferSize; }
     virtual void asyncCmdSetUserAgent(YapProxy* proxy, const char* userAgent) = 0;
     virtual void asyncCmdOpenUrl(YapProxy* proxy, const char* url) = 0;
     virtual void asyncCmdSetHtml(YapProxy* proxy, const char* url, const char* body) = 0;

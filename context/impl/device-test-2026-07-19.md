@@ -61,7 +61,7 @@ re-assert restore after resize settles; suppress engine scrollIntoView.
 ## 🔴 U5 — Landscape mode broken (explicit user ask)
 Adapter rotation-guard (white frame on orientation mismatch) is a stopgap;
 real fix = adapter handlePaint honoring buffer orientation vs dst (stride) or
-daemon emitting rotated buffer. See DEVICE-HANDOFF 2026-07-06 landscape notes.
+daemon emitting rotated buffer. See docs/PICKUP.md (the 2026-07-06 landscape notes were folded in).
 
 ## 🟡 U6 — Self-drive requirement (explicit user ask)
 "Learn how to drive the touchpad yourself": build an on-device input injector
@@ -194,6 +194,16 @@ Working the OPEN kit acceptance criteria as the goal list.
 ## Still open (hard)
 - **U4/T1 VKB jank** — white band on top, rendering "snaps around", page shoved
   off-screen on VKB raise (942↔602 reflow fight). Not fixed.
+  **2026-08-10 (T-133): the "942↔602 reflow fight" framing is SUPERSEDED for the WHITE BAND**
+  (the "shoved off-screen" half is untouched and still open). Traced from source, no device:
+  the band is rows `BrowserAdapter::handlePaint` never draws, because the adapter moves its own
+  composite pan at the instant of the resize — on a VKB-DOWN, `KineticScroller::setViewport-`
+  `Dimensions` spring-clamps a bottom-of-page pan up by dh=340 — and composites it against the
+  buffer painted for the old height. Band height is `dh - ovAbove`, which is exactly why it
+  appears only sometimes. Also found: the adapter's `scrollCaretIntoViewAfterResize` is DEAD
+  CODE in this port (`asyncCmdGetTextCaretBounds` is a no-op, TODO T-016), so it can be no part
+  of any VKB explanation. Full write-up plus the daemon-side instrument that measures the band
+  in rows: cavekit-input-bridging.md R2.
 - **U5 landscape** — needs adapter composite rebuild + physical rotation test.
 - Keyboard-focus-on-start (focusing the app input did not raise the VKB) and
   URL-bar off-white shade (mochi's white decorator override resisted; reverted to

@@ -116,6 +116,52 @@ paint, then read the BasicLayerManager/compositor buffer into the shmem.
   (js appends `-Werror=format` after the warnings list) — fixed with a source
   pragma instead (patches/0002). See git log T-010.
 
+## webOS audio is POLICY-gated — a working cubeb/ALSA/pulse stream is still silent (2026-08-15)
+
+The cubeb ALSA backend is built into ARM libxul and DEMONSTRABLY reaches pulseaudio on device:
+`<audio>` reports `err=0 readyState=4`, and `pactl list` shows our sink-inputs at
+`s16le 2ch 44100Hz` ("ALSA Playback"). Yet no sound. The pulse sinks stay `State: SUSPENDED` and
+our sink-inputs read `Volume: 0% / -inf dB`. The hardware PCM (`/proc/asound/card0/pcm0p`) is owned
+by Android's `mediaserver` HAL, and webOS un-suspends/routes a sink only when its audio POLICY
+manager grants an app a playback "scenario" over LunaService (`com.palm.audio` / audiod). Do NOT
+chase this as a cubeb, ALSA-config, or decoder bug — the pipe works; the app is unmuted only after a
+policy request. Same family as "webOS Flash isn't a generic NPAPI plugin". Corollaries proven the
+same day: `paplay --device=pmedia` from a shell HANGS identically; `pactl suspend-sink pcm_output 0`
+returns `Failure: Invalid argument`; and killing `mediaserver` does not free the PCM (it respawns
+and re-grabs). Also: the "bundle Jessie's libasound" plan is wrong for this hardware — the Jessie
+1.0.28 lib gives `err=3` against the device's 0.9.8 pulse plugin ABI, the DEVICE's own
+`/usr/lib/libasound.so.2` gives `err=0`, and cryptofs forbids the bundling symlink anyway.
+
+## A `file://` XPI navigation does NOT trigger the install flow on device (2026-08-15)
+
+Navigating the card to `file:///tmp/foo.xpi` loads it as a document (`STOP`), with no
+`InstallTrigger`, no `addon-install-*` — so the T-103 install-refusal observer is never reached that
+way. The 2026-08-03 device XPI proof used the card's own install affordance / an http-served
+trigger. To exercise the install path on device, serve the XPI over http or drive the card's install
+UI; a bare `file://` navigation is not an install trigger. (Desktop harness reproduces the observer
+because it drives the install through AddonManager directly.)
+
+## `javascript:` URLs are dead in ALL chrome documents, not just XUL ones (2026-08-15)
+
+The 2026-08-04 measurement ("javascript: does not execute in a chrome document",
+GoannaRenderPage.cpp:749-755) was taken on about:addons (XUL). Re-measured 2026-08-15 on a chrome
+HTML document (about:preferences): same silent no-op. So the dead end covers chrome documents
+generally, whatever the markup language. Consequence nobody had noticed: anything the daemon
+drives THROUGH a javascript: URL is a silent no-op on a chrome page — concretely
+`GoannaRenderPage::ScrollTo` (drives `window.scrollTo` that way). This cost one full harness run:
+a button at y≈854 in a 768-tall viewport could not be scrolled to, the tap landed on `<null>`, and
+it read as "the button does nothing". Use the C++ `Resize()` path (or element-relative taps) on
+chrome pages; do not "fix" it by trying another javascript: variant.
+
+## Stale desktop profile fakes a prefs regression (2026-08-15)
+
+`build/desktop/out/.jihad/default/profile/prefs.js` accumulates `user_pref` lines from old runs
+(e.g. `browser.cache.disk.capacity=358400` from before `smart_size` was pinned off) that OVERRIDE
+the shared platform prefs and read as "the shared file did not take". Any prefs assertion on the
+desktop harness must run with a fresh, dedicated `JIHAD_STATE_DIR` (both 2026-08-15 runners
+`rm -rf` theirs per run). Same family as "an empty log passes every check": the instrument's own
+leftovers impersonate the defect.
+
 ## input2_test holdAt/insert pixel checks — desktop harness paint (pre-existing, 2026-07-18)
 
 input2_test reports `holdAt green=-1` / `insertStringAtCursor green=-1` = ZERO

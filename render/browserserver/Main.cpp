@@ -144,7 +144,18 @@ int main(int argc, char** argv) {
 
   // Pump Goanna's event queue + paint on the server's GLib context (~60 Hz).
   GMainContext* ctx = server.mainLoop() ? g_main_loop_get_context(server.mainLoop()) : nullptr;
-  GSource* src = g_timeout_source_new(16);
+  // TICK PERIOD. A frame can only be published on a tick, so this is the quantiser on every
+  // frame gap: a plugin frame that arrives just after maybePaint() waits a whole period, which
+  // is why an evenly-produced 26 ms stream still reached the card uneven. 16 ms was chosen when
+  // the tick cost 12 ms of pump per iteration; PumpReady removed that (device-measured: work
+  // avg 12 ms -> 1 ms idle), so the budget for a shorter period now exists. 8 ms halves the
+  // worst-case wait. Env-tunable because the right value depends on what else the device is
+  // doing, and clamped so a typo cannot spin the daemon or stall it.
+  // One definition, in BrowserPageGoanna.cpp: the plugin pull expresses its request period in
+  // whole ticks, so a second env read here could drift from the one the pacer uses.
+  int tickMs = jihad::jihadTickPeriodMs();
+  printf("[jihad-bs] tick period %d ms\n", tickMs);
+  GSource* src = g_timeout_source_new(tickMs);
   g_source_set_callback(src, (GSourceFunc)tick_cb, nullptr, nullptr);
   g_source_attach(src, ctx);
   g_source_unref(src);

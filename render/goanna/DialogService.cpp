@@ -249,6 +249,81 @@ static JihadXpiConfirmObserver& XpiObserver() {
   return o;
 }
 
+// ── the non-blocking channel (gre-widgets R5) ────────────────────────────────────────────
+// See DialogService.h for why this exists next to the blocking one.
+static NotificationSink* gNotify = nullptr;
+
+void SetNotificationSink(NotificationSink* sink) { gNotify = sink; }
+
+void PostNotification(const char* category, const char* text) {
+  const char* cat = (category && *category) ? category : "info";
+  const char* msg = text ? text : "";
+  if (!gNotify) {
+    // The degrade path, and it is deliberately ONE line rather than silence: on desktop this
+    // is the only record that the message was raised at all, and on device an unexpected
+    // "no channel" here is how a broken Luna registration announces itself. It is a log
+    // write, not a dialog — nothing blocks and the caller carries on either way.
+    fprintf(stderr, "[jihad-bs] notify (no channel): %s: %s\n", cat, msg);
+    return;
+  }
+  gNotify->OnNotification(cat, msg);
+}
+
+// The JS-facing door to PostNotification. Bundled components (components/*.js) raise
+// "jihad-notify" with a property bag carrying `category` and `text`.
+//
+// UNLIKE "jihad-xpi-confirm" this observer writes NOTHING back and answers nothing: the
+// notifyObservers call returns as soon as the payload has been handed to the sink, so a JS
+// component can report something without its own execution being parked on a card.
+class JihadNotifyObserver final : public nsIObserver {
+ public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) ||
+        aIID.Equals(NS_GET_IID(nsIObserver))) {
+      *aResult = static_cast<nsIObserver*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+
+  NS_IMETHOD Observe(nsISupports* aSubject, const char* aTopic,
+                     const char16_t* /*aData*/) override {
+    if (!aTopic || strcmp(aTopic, "jihad-notify") != 0) return NS_OK;
+    nsCOMPtr<nsIPropertyBag2> bag = do_QueryInterface(aSubject);
+    if (!bag) return NS_OK;
+    nsAutoString category, text;
+    bag->GetPropertyAsAString(NS_LITERAL_STRING("category"), category);
+    bag->GetPropertyAsAString(NS_LITERAL_STRING("text"), text);
+    // Same sanitising, and the same reason, as the XPI confirm above: an add-on name comes
+    // out of install.rdf, i.e. from content, so it can carry control characters (which would
+    // break the JSON line this becomes on the wire) or be long enough to fill the card.
+    for (uint32_t i = 0; i < text.Length(); ++i) {
+      char16_t c = text.CharAt(i);
+      if (c < 0x20 || c == 0x7f) text.SetCharAt(' ', i);
+    }
+    if (text.Length() > 200) { text.Truncate(197); text.AppendLiteral("..."); }
+    for (uint32_t i = 0; i < category.Length(); ++i) {
+      char16_t c = category.CharAt(i);
+      if (c < 0x20 || c == 0x7f) category.SetCharAt(' ', i);
+    }
+    if (category.Length() > 32) category.Truncate(32);
+    NS_ConvertUTF16toUTF8 cat8(category);
+    NS_ConvertUTF16toUTF8 txt8(text);
+    PostNotification(cat8.get(), txt8.get());
+    return NS_OK;
+  }
+};
+
+static JihadNotifyObserver& NotifyObserver() {
+  static JihadNotifyObserver o;
+  return o;
+}
+
 bool InstallDialogService() {
   static bool installed = false;
   if (installed) return true;
@@ -264,6 +339,25 @@ bool InstallDialogService() {
     nsCOMPtr<nsIObserverService> obs =
         do_GetService("@mozilla.org/observer-service;1");
     if (obs) obs->AddObserver(&XpiObserver(), "jihad-xpi-confirm", false);
+    // The non-blocking channel's JS door (gre-widgets R5). Registered here rather than in
+    // its own installer because it shares this one's lifecycle exactly and because the very
+    // first consumer — components/jihadInstallPrompt.js — is force-instantiated below.
+    if (obs) obs->AddObserver(&NotifyObserver(), "jihad-notify", false);
+    // R3 "clear reason": components/jihadInstallPrompt.js ALSO observes "addon-install-failed",
+    // which is the ONLY notification an incompatible (appDisabled) XPI produces. That refusal
+    // happens inside amWebInstallListener BEFORE any confirm prompt is reached, so nothing would
+    // otherwise construct the component in time and the observer would never be registered.
+    // Force it into existence here, where XPCOM is up and no install can have run yet. Safe this
+    // early even though this precedes InstallAppInfoService(): the component imports only
+    // XPCOMUtils.jsm and Services.jsm (never AddonManager.jsm), and its one Services.appinfo read
+    // is inside observe(), which cannot run until a web install does. Non-fatal: without it the
+    // add-on is still refused, the user is just not told why.
+    nsCOMPtr<nsISupports> xpiPrompt =
+        do_GetService("@mozilla.org/addons/web-install-prompt;1");
+    if (!xpiPrompt) {
+      fprintf(stderr, "[jihad-bs] xpi: web-install-prompt component absent, an incompatible "
+                      "add-on will be refused with no reason shown\n");
+    }
   }
   return installed;
 }
@@ -277,6 +371,7 @@ void SetDialogSink(DialogSink* sink) {
     nsCOMPtr<nsIObserverService> obs =
         do_GetService("@mozilla.org/observer-service;1");
     if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
+    if (obs) obs->RemoveObserver(&NotifyObserver(), "jihad-notify");
   }
 }
 

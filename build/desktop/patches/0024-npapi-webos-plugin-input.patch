@@ -1,0 +1,810 @@
+Jihad Browser — webOS NPAPI plugin INPUT, the frozen plugin YAP commands, and the frame path
+that makes ANIMATED plugin content run (addons R7).
+
+Applies on top of 0005, 0008 and 0016-0023. Supersedes the earlier 0024, which carried only the
+input half.
+
+── INPUT ───────────────────────────────────────────────────────────────────────────────────
+1. npapi.h — NPEvent becomes Palm's real 48-byte event union on a headless XP_UNIX build
+   instead of `typedef void*`. That typedef was not a harmless placeholder: NPRemoteEvent is a
+   raw memcpy of sizeof(NPEvent), so the parent shipped four bytes of its own address space to
+   the child. No event could ever have carried a payload. With a real POD the stock
+   NPP_HandleEvent path carries a Palm event unmodified, with no paramtraits change.
+2. nsPluginInstanceOwner.cpp — ProcessEvent gains the arm this toolkit never had. Its whole
+   body was inside XP_MACOSX / XP_WIN / MOZ_X11, so on cairo-headless it reduced to
+   `return eIgnore` and a windowless plugin got nothing for its entire lifetime. Mouse maps to
+   npPalmPen{Down,Up,Move,Click,DoubleClick}, keys to npPalmKey{Down,Up,Press}, focus/blur to
+   the npPalmSystemEvent pair, reusing the MOZ_X11 arm's plugin-local coordinate recipe and
+   adding no zoom or scroll arithmetic of its own — which is what makes plugin input land where
+   page content does.
+3. PluginInstanceChild.{cpp,h} — drops the truncated private JihadNpPalm* mirrors for that
+   NPEvent, asserts every offset against the libWebKitLuna address it was read from, and adds a
+   capped input-delivery breadcrumb.
+4. nsPluginHost.{cpp,h} — jihad_plugin_palm_spotlight, a MOZ_EXPORT'd C entry point (the
+   jihad_offscreen_* precedent) so the daemon can deliver npPalmSpotlightStart/EndEvent for the
+   frozen asyncCmdPluginSpotlight* commands. nsNPAPIPluginInstance::HandleEvent is neither
+   exported nor virtual, so there is no other route.
+
+── ANIMATION ───────────────────────────────────────────────────────────────────────────────
+5. nsPluginInstanceOwner.cpp — the windowless invalidate now names the PLUGIN's box instead of
+   the whole widget. 0021 invalidated nearest->GetBounds() on the reasoning that the daemon
+   repainted everything anyway; once the daemon learned to repaint only damaged rows, that
+   reasoning inverted and a full-viewport damage box forced the expensive path on every frame.
+6. PuppetWidget.{cpp,h} — accumulate the bounding box of everything invalidated since the last
+   drain, exposed as jihad_offscreen_take_dirty_rect beside the existing flag, so the daemon can
+   repaint 320x240 (~2 ms) instead of the whole viewport (~38 ms).
+7. PluginInstanceChild.cpp — the Palm draw event always covers the WHOLE plugin surface. The
+   PGContext is built for the full surface, so pairing it with a dstBuffer offset into the
+   middle of that surface made the plugin's blit run off the end — SIGBUS in the plugin child
+   the moment the host started sending partial invalidations. Palm's own host never sent a
+   partial rect either.
+8. PluginInstanceParent.cpp — a bounded RecvShow frame-rate line, so the rate frames actually
+   cross the process boundary can be compared against the rate the plugin was asked to draw.
+
+Device-measured with a purpose-built 30fps SWF (render/goanna/test/make-anim-swf.py): the
+plugin draws at 27-31 fps, every frame crosses IPC, and the card composites at 28.3 fps with an
+average frame gap of 31-35 ms. Before this work the same content drew at 30 fps inside the
+plugin and reached the screen 5 times in 25 seconds.
+
+--- a/dom/plugins/base/npapi.h
++++ b/dom/plugins/base/npapi.h
+@@ -577,6 +577,166 @@
+ } NPEvent;
+ #elif defined(XP_UNIX) && defined(MOZ_X11)
+ typedef XEvent NPEvent;
++#elif defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
++/*
++ * JIHAD (webOS, cavekit-addons-extensions.md R7) — THE PALM EVENT PROTOCOL.
++ *
++ * webOS plugins do not speak X11. Palm's own npapi.h defines NPEvent, under XP_WEBOS, as the
++ * union below; the device's Adobe Flash was compiled against exactly that header and its
++ * NPP_HandleEvent reads these fields. Reproduced here from the webOS WebKit fork's
++ * WebCore/plugins/npapi.h (the XP_WEBOS block, NpPalmEventsEnum through the NPEvent union),
++ * so that the shape crossing our NPAPI boundary is the shape the plugin was built to read.
++ *
++ * This replaces `typedef void* NPEvent` for the headless toolkit, and that arm was not merely
++ * a placeholder — it was load-bearing in the wrong direction. NPRemoteEvent is a raw memcpy of
++ * sizeof(NPEvent) (dom/plugins/ipc/NPEventUnix.h), so with a void* NPEvent the parent shipped
++ * four bytes of its own address space to the child and the child handed the plugin a pointer
++ * into a foreign process. No event could ever have carried a payload. Making NPEvent a real
++ * POD is what lets the whole existing NPP_HandleEvent path work unmodified, parent to child.
++ *
++ * Gated on MOZ_WIDGET_HEADLESS because that is precisely the configuration this port builds
++ * (--enable-default-toolkit=cairo-headless, no X anywhere in the bundle) and the only one that
++ * reaches this arm. A non-webOS headless embedding would get these structs too; that is
++ * harmless, since the alternative it loses is an NPEvent that could not carry an event.
++ *
++ * POINTER-BEARING MEMBERS DO NOT SURVIVE IPC. dstBuffer/graphicsContext (draw),
++ * touches (touch) and reserved (system) are process-local. Pen, key and system events use
++ * none of them; the draw event is built inside the child (PluginInstanceChild.cpp) and never
++ * crosses the boundary, which is why it stays valid.
++ *
++ * One deliberate omission from Palm's union: NpPalmAccelerometerEvent. It is 16 bytes against
++ * NpPalmDrawEvent's 44, so leaving it out changes sizeof(NPEvent) by nothing — and the union
++ * is only ever read through the plugin's OWN copy of this declaration, so an unused member
++ * here is unobservable. It is left out rather than copied because it carries a struct-scoped
++ * `enum Orientation` whose tag would leak to file scope, for no gain.
++ */
++typedef enum NpPalmEventsEnum
++{
++  npPalmPenDownEvent        = 1 << 0,
++  npPalmPenUpEvent          = 1 << 1,
++  npPalmPenMoveEvent        = 1 << 2,
++  npPalmKeyDownEvent        = 1 << 3,
++  npPalmKeyUpEvent          = 1 << 4,
++  npPalmKeyRepeatEvent      = 1 << 5,
++  npPalmKeyPressEvent       = 1 << 6,
++  npPalmDrawEvent           = 1 << 7,
++  npPalmSystemEvent         = 1 << 8,
++  npPalmGestureEvent        = 1 << 9,
++  npPalmAccelerometerEvent  = 1 << 10,
++  npPalmTouchStartEvent     = 1 << 11,
++  npPalmTouchMoveEvent      = 1 << 12,
++  npPalmTouchEndEvent       = 1 << 13,
++  npPalmTouchCancelledEvent = 1 << 14,
++  npPalmPenDoubleClickEvent = 1 << 15,
++  npPalmPenClickEvent       = 1 << 16
++} NpPalmEventsEnum;
++
++typedef enum NpPalmSystemEventsEnum
++{
++  npPalmPauseEvent            = 1,
++  npPalmResumeEvent           = 2,
++  npPalmGainFocusEvent        = 3,
++  npPalmLoseFocusEvent        = 4,
++  npPalmDimmedEvent           = 5,
++  npPalmSetFullScreenEvent    = 6,
++  npPalmUnsetFullScreenEvent  = 7,
++  npPalmPageLoadingEvent      = 8,
++  npPalmPageLoadCompleteEvent = 9,
++  npPalmViewPortChangedEvent  = 10,
++  npPalmSpotlightStartEvent   = 11,
++  npPalmSpotlightEndEvent     = 12
++} NpPalmSystemEventsEnum;
++
++typedef enum NpPalmKeyModifiersEnum
++{
++  npPalmCtrlKeyModifier  = 1 << 0,
++  npPalmAltKeyModifier   = 1 << 1,
++  npPalmShiftKeyModifier = 1 << 2,
++  npPalmMetaKeyModifier  = 1 << 3
++} NpPalmKeyModifiersEnum;
++
++typedef struct NpPalmKeyEvent
++{
++  int32_t chr;         /* 32-bit so any Unicode character fits */
++  int32_t modifiers;
++  int32_t rawkeyCode;
++  int32_t rawModifier;
++} NpPalmKeyEvent;
++
++typedef struct NpPalmPenEvent
++{
++  int32_t xCoord, yCoord;   /* plugin-local, in the plugin's own unscaled pixels */
++  int32_t modifiers;
++} NpPalmPenEvent;
++
++typedef struct NpPalmTouchPoint
++{
++  int32_t xCoord, yCoord;
++} NpPalmTouchPoint;
++
++typedef struct NpPalmTouchEvent
++{
++  int32_t           touchCount;
++  NpPalmTouchPoint* touches;   /* process-local — never send over IPC */
++  int32_t           modifiers;
++} NpPalmTouchEvent;
++
++typedef struct NpPalmDrawEvent
++{
++  void*    dstBuffer;        /* process-local; API 1.0 raster destination */
++  uint32_t dstRowBytes;
++  int32_t  srcLeft;
++  int32_t  srcRight;
++  int32_t  srcTop;
++  int32_t  srcBottom;
++  void*    graphicsContext;  /* process-local; the Piranha PGContext, API 2.0 */
++  int32_t  dstLeft;
++  int32_t  dstRight;
++  int32_t  dstTop;
++  int32_t  dstBottom;
++} NpPalmDrawEvent;
++
++typedef struct NpPalmSystemEvent
++{
++  NpPalmSystemEventsEnum type;
++  int32_t  value;
++  int32_t  viewLeft;
++  int32_t  viewRight;
++  int32_t  viewTop;
++  int32_t  viewBottom;
++  void*    reserved;         /* process-local */
++} NpPalmSystemEvent;
++
++typedef enum NpPalmGestureEventEnum
++{
++  npPalmGestureStartEvent     = 1,
++  npPalmGestureChangeEvent    = 2,
++  npPalmGestureEndEvent       = 3,
++  npPalmGestureSingleTapEvent = 4
++} NpPalmGestureEventEnum;
++
++typedef struct NpPalmGestureEvent
++{
++  NpPalmGestureEventEnum type;
++  int32_t x, y;
++  float   scale, rotate;
++  int32_t center_x, center_y;
++  int32_t modifiers;
++} NpPalmGestureEvent;
++
++typedef struct NPEvent
++{
++  NpPalmEventsEnum eventType;
++
++  union {
++    NpPalmKeyEvent     keyEvent;
++    NpPalmPenEvent     penEvent;
++    NpPalmDrawEvent    drawEvent;
++    NpPalmSystemEvent  systemEvent;
++    NpPalmGestureEvent gestureEvent;
++    NpPalmTouchEvent   touchEvent;
++  } data;
++} NPEvent;
+ #else
+ typedef void*  NPEvent;
+ #endif
+--- a/dom/plugins/base/nsPluginInstanceOwner.cpp
++++ b/dom/plugins/base/nsPluginInstanceOwner.cpp
+@@ -582,12 +582,60 @@
+   // render_region fired ONCE (at load) so the card froze on the pre-content frame. The control
+   // plugin only appeared to work because its static fill was already present at that single
+   // capture. Invalidate the nearest real widget here so every async plugin frame marks the daemon
+-  // dirty and gets composited to the card. The daemon re-renders the whole document per capture,
+-  // so invalidating the widget bounds (rather than a precise sub-rect) is sufficient and correct.
++  // dirty and gets composited to the card.
++  //
++  // THE RECT MATTERS, and the first version of this got it wrong. It invalidated
++  // nearest->GetBounds() — the WIDGET's bounds, i.e. the whole viewport — on the reasoning
++  // that the daemon re-renders the whole document per capture anyway. That reasoning stopped
++  // being true when the daemon learned to repaint only the damaged rows: a whole-viewport
++  // software render costs ~40 ms on this hardware against ~4 ms for a 320x240 plugin box, and
++  // a full-viewport damage box silently forced the expensive path on every single frame.
++  // Measured: an animated SWF ran at 19 fps with 1 partial repaint in 39, and the damage box
++  // logged as 768x942 with the plugin's own 320x240 unioned uselessly into it.
++  //
++  // So invalidate the plugin's own area, translated from plugin-local into the widget's
++  // coordinates the same way the rest of this file does it: content-box origin relative to the
++  // frame, offset to the widget, in device px.
+   if (!mWidget) {
+     nsIWidget* nearest = mPluginFrame->GetNearestWidget();
+     if (nearest) {
+-      nearest->Invalidate(nearest->GetBounds());
++      nsIntRect widgetRect = rect;
++      nsPresContext* pc = mPluginFrame->PresContext();
++      // Offset to the ROOT frame, which is what the widget's coordinates are relative to.
++      // GetReferenceFrame() was the first attempt and it is wrong here: for a plugin it
++      // resolves to a frame that makes the offset come out 0, so every invalidation landed at
++      // the viewport's top-left corner instead of on the plugin. That is not a small error —
++      // the damage-only repaint then faithfully refreshed the wrong 320x240 box and the
++      // plugin's own area never updated again, which reads on screen as the animation
++      // freezing after its first frame. This is the same offset nsPluginFrame itself uses to
++      // build NPWindow.x/y.
++      nsIFrame* rootFrame = nullptr;
++      if (nsIPresShell* ps = mPluginFrame->PresContext()->GetPresShell()) {
++        rootFrame = ps->GetRootFrame();
++      }
++      nsPoint origin = mPluginFrame->GetContentRectRelativeToSelf().TopLeft() +
++                       (rootFrame ? mPluginFrame->GetOffsetToCrossDoc(rootFrame) : nsPoint());
++      widgetRect.MoveBy(pc->AppUnitsToDevPixels(origin.x),
++                        pc->AppUnitsToDevPixels(origin.y));
++      // A plugin is entitled to report an invalid rect larger than itself, and an empty one
++      // would invalidate nothing at all; clamp to the plugin's own box, and fall back to the
++      // widget bounds if that leaves nothing (correctness before speed).
++      nsIntRect pluginBox(pc->AppUnitsToDevPixels(origin.x),
++                          pc->AppUnitsToDevPixels(origin.y),
++                          pc->AppUnitsToDevPixels(
++                              mPluginFrame->GetContentRectRelativeToSelf().width),
++                          pc->AppUnitsToDevPixels(
++                              mPluginFrame->GetContentRectRelativeToSelf().height));
++      widgetRect = widgetRect.Intersect(pluginBox);
++      if (widgetRect.IsEmpty()) {
++        widgetRect = pluginBox;
++      }
++      if (widgetRect.IsEmpty()) {
++        nearest->Invalidate(nearest->GetBounds());
++      } else {
++        nearest->Invalidate(LayoutDeviceIntRect(widgetRect.x, widgetRect.y,
++                                                widgetRect.width, widgetRect.height));
++      }
+     }
+   }
+   return NS_OK;
+@@ -2551,6 +2599,122 @@
+     rv = nsEventStatus_eConsumeNoDefault;
+ #endif
+ 
++// Guard MUST match the one npapi.h uses to define NPEvent as Palm's union. Any other
++// predicate compiles this against `typedef void* NPEvent` and does not build.
++#if defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
++  // JIHAD (webOS, cavekit-addons-extensions.md R7) — DELIVER INPUT IN THE PALM PROTOCOL.
++  //
++  // Everything above this point is a platform arm: XP_MACOSX, XP_WIN, MOZ_X11. A
++  // cairo-headless build matches none of them, so this function used to reduce to
++  // `return nsEventStatus_eIgnore;` and a windowless plugin received no mouse, key, focus or
++  // blur event in its whole lifetime. Measured on the TouchPad before this branch existed: a
++  // tap hit-tested the <EMBED>, the daemon logged `mouseSend <EMBED> ... : down`, and the
++  // plugin's NPP_HandleEvent was called exactly once ever — for the child's own gain-focus
++  // injection. Nothing upstream is at fault; the DOM listeners, the hit test, the windowless
++  // guards and the IPC hop are all live and correct (see the Dispatch*ToPlugin callers).
++  //
++  // The event shape is Palm's, because NPEvent on this platform IS Palm's union (npapi.h) and
++  // the device's Flash was compiled against that declaration.
++  {
++    NPEvent pluginEvent;
++    memset(&pluginEvent, 0, sizeof(pluginEvent));
++
++    if (anEvent.mClass == eMouseEventClass) {
++      const WidgetMouseEvent& mouseEvent = *anEvent.AsMouseEvent();
++
++      switch (anEvent.mMessage) {
++        case eMouseDown:   pluginEvent.eventType = npPalmPenDownEvent; break;
++        case eMouseUp:     pluginEvent.eventType = npPalmPenUpEvent;   break;
++        case eMouseMove:   pluginEvent.eventType = npPalmPenMoveEvent; break;
++        // The synthesized click/dblclick that follows a down/up pair. Palm's host sends these
++        // as their own event types rather than swallowing them (libWebKitLuna
++        // handleMouseEvent 0x4e946c-0x4e94d8 maps click -> 65536 and dblclick -> 32768, in
++        // ADDITION to the down/up pair, not instead of it), so this is what a plugin written
++        // for webOS was built to see. The X11 arm above drops them instead, which is right
++        // for X11 and wrong here.
++        //
++        // Flash itself ignores both: its NPP_HandleEvent jump table (libflashplayer.so
++        // 0x4514c-0x4522c) compares only against 1/2/4/8/16/64/128/256/512, and anything
++        // else falls through to "not handled" — confirmed on device, where a tap logs
++        // `palm event 0x10000 ... handled=0` between two handled pen events. Sending them
++        // anyway is deliberate: the contract is the host's, not this one plugin's, and a
++        // plugin that acts only on the click is otherwise silently unusable.
++        case eMouseClick:       pluginEvent.eventType = npPalmPenClickEvent;       break;
++        case eMouseDoubleClick: pluginEvent.eventType = npPalmPenDoubleClickEvent; break;
++        default: break;   // over/out/wheel/aux: no Palm equivalent, drop
++      }
++
++      if (pluginEvent.eventType) {
++        // The plugin-local point, computed exactly as the MOZ_X11 arm above computes it. This
++        // is also what Palm's own host does — PluginView's webOS block uses the renderer's
++        // absoluteToLocal() on the same absolute location — so the two hosts agree on the
++        // space without either being ported to the other.
++        //
++        // Deliberately NO zoom or scroll arithmetic here. The card's fit-zoom is not an engine
++        // zoom (it is applied when the daemon scales the capture context), layout.css.
++        // devPixelsPerPx is pinned to 1.0, and the daemon has already mapped card px to CSS
++        // viewport px before dispatching. Adding a factor here is how plugin input drifts away
++        // from where page content thinks it was clicked; the criterion is that both go through
++        // the same transform, and they do precisely because this arm adds none.
++        const nsPresContext* presContext = mPluginFrame->PresContext();
++        nsPoint appPoint =
++          nsLayoutUtils::GetEventCoordinatesRelativeTo(&anEvent, mPluginFrame) -
++          mPluginFrame->GetContentRectRelativeToSelf().TopLeft();
++        pluginEvent.data.penEvent.xCoord =
++          presContext->AppUnitsToDevPixels(appPoint.x);
++        pluginEvent.data.penEvent.yCoord =
++          presContext->AppUnitsToDevPixels(appPoint.y);
++        pluginEvent.data.penEvent.modifiers =
++          (mouseEvent.IsControl() ? npPalmCtrlKeyModifier  : 0) |
++          (mouseEvent.IsAlt()     ? npPalmAltKeyModifier   : 0) |
++          (mouseEvent.IsShift()   ? npPalmShiftKeyModifier : 0) |
++          (mouseEvent.IsMeta()    ? npPalmMetaKeyModifier  : 0);
++      }
++    } else if (anEvent.mClass == eKeyboardEventClass) {
++      const WidgetKeyboardEvent& keyEvent = *anEvent.AsKeyboardEvent();
++
++      switch (anEvent.mMessage) {
++        case eKeyDown:  pluginEvent.eventType = npPalmKeyDownEvent;  break;
++        case eKeyUp:    pluginEvent.eventType = npPalmKeyUpEvent;    break;
++        case eKeyPress: pluginEvent.eventType = npPalmKeyPressEvent; break;
++        default: break;
++      }
++
++      if (pluginEvent.eventType) {
++        // There is no native key event to copy from on this platform (mPluginEvent is a
++        // Windows concept), so the Palm fields are synthesized from the widget event.
++        // rawkeyCode/rawModifier are Palm's "pass the unprocessed event through" pair, which
++        // for a synthesized event is the same key code and modifier set.
++        int32_t mods =
++          (keyEvent.IsControl() ? npPalmCtrlKeyModifier  : 0) |
++          (keyEvent.IsAlt()     ? npPalmAltKeyModifier   : 0) |
++          (keyEvent.IsShift()   ? npPalmShiftKeyModifier : 0) |
++          (keyEvent.IsMeta()    ? npPalmMetaKeyModifier  : 0);
++        pluginEvent.data.keyEvent.chr =
++          static_cast<int32_t>(keyEvent.PseudoCharCode());
++        pluginEvent.data.keyEvent.modifiers   = mods;
++        pluginEvent.data.keyEvent.rawkeyCode  = static_cast<int32_t>(keyEvent.mKeyCode);
++        pluginEvent.data.keyEvent.rawModifier = mods;
++      }
++    } else if (anEvent.mMessage == eFocus || anEvent.mMessage == eBlur) {
++      // Focus arrives as a bare WidgetGUIEvent with a null widget (see DispatchFocusToPlugin),
++      // so it must not touch the coordinate path above.
++      pluginEvent.eventType = npPalmSystemEvent;
++      pluginEvent.data.systemEvent.type =
++        (anEvent.mMessage == eFocus) ? npPalmGainFocusEvent : npPalmLoseFocusEvent;
++    }
++
++    if (pluginEvent.eventType) {
++      int16_t response = kNPEventNotHandled;
++      mInstance->HandleEvent(&pluginEvent, &response,
++                             NS_PLUGIN_CALL_SAFE_TO_REENTER_GECKO);
++      if (response == kNPEventHandled) {
++        rv = nsEventStatus_eConsumeNoDefault;
++      }
++    }
++  }
++#endif
++
+   return rv;
+ }
+ 
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -207,6 +207,7 @@
+     , mAccumulatedInvalidRect(0,0,0,0)
+     , mIsTransparent(false)
+     , mJihadSentPalmGainFocus(false)
++    , mJihadInputEventsLogged(0)
+     , mSurfaceType(gfxSurfaceType::Max)
+     , mPendingPluginCall(false)
+     , mDoAlphaExtraction(false)
+@@ -288,29 +289,42 @@
+ // WebCore::PluginView compiled from PluginViewPalm.cpp into /usr/lib/libWebKitLuna.so, which
+ // is unstripped on the device and can simply be read. Offsets cited below are into that
+ // library. Get these wrong and the plugin reads garbage, silently.
+-struct JihadNpPalmDrawEvent {
+-    void*    dstBuffer;
+-    uint32_t dstRowBytes;
+-    int32_t  srcLeft, srcRight, srcTop, srcBottom;
+-    void*    graphicsContext;
+-    int32_t  dstLeft, dstRight, dstTop, dstBottom;
+-};
+-// Confirmed against PluginView::paint (libWebKitLuna 0x4e7e30-0x4e7e44): it stores
+-// platformContext() at frame+52 and the four scaled dst coords at +56/+60/+64/+68, which pins
+-// graphicsContext and the dst quadruple to exactly these offsets.
+-
+-struct JihadNpPalmSystemEvent {
+-    int32_t type;   // NpPalmSystemEventsEnum
+-};
+-
+-struct JihadNpPalmEvent {
+-    uint32_t eventType;
+-    union {
+-        JihadNpPalmDrawEvent   drawEvent;
+-        JihadNpPalmSystemEvent systemEvent;
+-        unsigned char          pad[256];   // ≥ the largest member of Palm's union
+-    } data;
+-};
++//
++// The event union itself now lives in npapi.h as the real `NPEvent` for this platform, so the
++// parent (nsPluginInstanceOwner::ProcessEvent) and the child cannot drift and the type survives
++// the NPRemoteEvent memcpy. What used to be here was a TRUNCATED private mirror —
++// systemEvent held only `type`, which is enough for gain-focus and silently wrong for a
++// spotlight event, whose rect lives in the four fields the mirror did not have.
++//
++// These assertions are the actual contract. Each offset was read out of the shipped host's
++// machine code, and a mismatch here means the plugin reads a different field than the one
++// written — a failure with no symptom other than wrong behaviour.
++#if defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
++static_assert(sizeof(NPEvent) == 48, "webOS NPEvent is 48 bytes");
++static_assert(offsetof(NPEvent, data) == 4, "eventType is a 4-byte field at 0");
++// PluginView::handleMouseEvent (libWebKitLuna 0x4e9458/0x4e9460/0x4e9464) stores x, y and
++// modifiers to [sp+4], [sp+8], [sp+12] with eventType at [sp].
++static_assert(offsetof(NPEvent, data.penEvent.xCoord) == 4, "penEvent.xCoord @4");
++static_assert(offsetof(NPEvent, data.penEvent.yCoord) == 8, "penEvent.yCoord @8");
++static_assert(offsetof(NPEvent, data.penEvent.modifiers) == 12, "penEvent.modifiers @12");
++// PluginView::handleKeyboardEvent (0x4e8ebc/0x4e8e80/0x4e8ef4/0x4e8f04).
++static_assert(offsetof(NPEvent, data.keyEvent.chr) == 4, "keyEvent.chr @4");
++static_assert(offsetof(NPEvent, data.keyEvent.modifiers) == 8, "keyEvent.modifiers @8");
++static_assert(offsetof(NPEvent, data.keyEvent.rawkeyCode) == 12, "keyEvent.rawkeyCode @12");
++static_assert(offsetof(NPEvent, data.keyEvent.rawModifier) == 16, "keyEvent.rawModifier @16");
++// PluginView::handlePluginSpotlightStart (0x4e6cec-0x4e6d20) writes 0x100 at [sp], 11 at
++// [sp+4], then left/right/top/bottom at [sp+12]/[sp+16]/[sp+20]/[sp+24] — note it never
++// initialises `value` at [sp+8].
++static_assert(offsetof(NPEvent, data.systemEvent.type) == 4, "systemEvent.type @4");
++static_assert(offsetof(NPEvent, data.systemEvent.viewLeft) == 12, "systemEvent.viewLeft @12");
++static_assert(offsetof(NPEvent, data.systemEvent.viewRight) == 16, "systemEvent.viewRight @16");
++static_assert(offsetof(NPEvent, data.systemEvent.viewTop) == 20, "systemEvent.viewTop @20");
++static_assert(offsetof(NPEvent, data.systemEvent.viewBottom) == 24, "systemEvent.viewBottom @24");
++// PluginView::paint (0x4e7e30-0x4e7e44) stores platformContext() at frame+52 and the four
++// scaled dst coords at +56/+60/+64/+68, i.e. +24/+28/+32/+36 inside the draw member.
++static_assert(offsetof(NPEvent, data.drawEvent.graphicsContext) == 28, "drawEvent.gc @28");
++static_assert(offsetof(NPEvent, data.drawEvent.dstLeft) == 32, "drawEvent.dstLeft @32");
++#endif  // XP_UNIX && MOZ_WIDGET_HEADLESS
+ 
+ // NPWindow.window for a webOS plugin. Palm's host never calls setwindow without one:
+ // PluginView::setNPWindowRect (libWebKitLuna 0x4e74e0) builds it as a STACK LOCAL, points
+@@ -1067,6 +1081,35 @@
+     else
+         *handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&evcopy));
+ 
++    // Guard MUST match the one npapi.h uses to define NPEvent as Palm's union. Any other
++    // predicate compiles this against `typedef void* NPEvent` and does not build.
++#if defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
++    // JIHAD (webOS R7): the only field-visible evidence that host input reached the plugin.
++    // A closed-source plugin acknowledges nothing — Flash returns its `handled` flag before it
++    // even looks at the event (its NPP_HandleEvent sets the return, then dispatches), so this
++    // line proves DELIVERY and nothing more. Capped, because a pen-move stream would otherwise
++    // flood the daemon log, which is the only channel this device has.
++    if (mJihadInputEventsLogged < 24) {
++        mJihadInputEventsLogged++;
++        if (evcopy.eventType == npPalmKeyDownEvent ||
++            evcopy.eventType == npPalmKeyUpEvent ||
++            evcopy.eventType == npPalmKeyPressEvent) {
++            fprintf(stderr, "[jihad-npapi-child] palm key 0x%x chr=%d raw=%d mods=0x%x "
++                            "handled=%d\n",
++                    (unsigned)evcopy.eventType, (int)evcopy.data.keyEvent.chr,
++                    (int)evcopy.data.keyEvent.rawkeyCode,
++                    (unsigned)evcopy.data.keyEvent.modifiers, (int)*handled);
++        } else {
++            fprintf(stderr, "[jihad-npapi-child] palm event 0x%x at %d,%d mods=0x%x "
++                            "handled=%d\n",
++                    (unsigned)evcopy.eventType, (int)evcopy.data.penEvent.xCoord,
++                    (int)evcopy.data.penEvent.yCoord,
++                    (unsigned)evcopy.data.penEvent.modifiers, (int)*handled);
++        }
++        fflush(stderr);
++    }
++#endif
++
+ #ifdef XP_MACOSX
+     // Release any reference counted objects created in the child process.
+     if (evcopy.type == NPCocoaEventKeyDown ||
+@@ -3904,10 +3947,10 @@
+         // UpdateWindowAttributes runs on every resize and every scroll.
+         if (mPluginIface->event && !mJihadSentPalmGainFocus) {
+             mJihadSentPalmGainFocus = true;
+-            JihadNpPalmEvent ev;
++            NPEvent ev;
+             memset(&ev, 0, sizeof(ev));
+-            ev.eventType = 1 << 8;              // npPalmSystemEvent
+-            ev.data.systemEvent.type = 3;       // npPalmGainFocusEvent
++            ev.eventType = npPalmSystemEvent;
++            ev.data.systemEvent.type = npPalmGainFocusEvent;
+             int16_t handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&ev));
+             fprintf(stderr, "[jihad-npapi-child] npPalmSystemEvent gainFocus handled=%d\n",
+                     (int)handled);
+@@ -4270,21 +4313,30 @@
+         int32_t stride = img->Stride();
+ 
+         if (data && stride > 0) {
+-            // JihadNpPalmEvent / JihadNpPalmDrawEvent are declared at the top of this file,
+-            // where the offsets are justified against both Palm's npapi.h and libWebKitLuna.
+-            const uint32_t kNpPalmDrawEvent = 1 << 7;   // npPalmDrawEvent
+-
+-            JihadNpPalmEvent ev;
++            // NPEvent is Palm's own event union on this platform (npapi.h); the offsets it
++            // depends on are asserted at the top of this file against libWebKitLuna.
++            // THE DRAW ALWAYS COVERS THE WHOLE SURFACE, whatever sub-rect was requested.
++            //
++            // Two things forced this. The PGContext below is built for the FULL surface
++            // (PGSurface::wrap takes width/height and assumes tightly packed rows), so pairing
++            // it with a dstBuffer offset into the middle of that surface makes the plugin's
++            // blit start partway in and run off the end — measured as `FAULT sig=7` (SIGBUS)
++            // in the plugin child the moment the host began sending partial invalidations.
++            // And Palm's own host never sent a partial rect either: PluginView::paint passes
++            // the plugin's whole frame rect, which is why a 2.0 plugin is entitled to assume
++            // the two agree. Redrawing the whole plugin box costs the plugin nothing it was
++            // not already doing every frame.
++            nsIntRect drawRect(0, 0, img->Width(), img->Height());
++            NPEvent ev;
+             memset(&ev, 0, sizeof(ev));
+-            ev.eventType = kNpPalmDrawEvent;
++            ev.eventType = npPalmDrawEvent;
+             // "points to top-left of area to paint"
+-            ev.data.drawEvent.dstBuffer =
+-                data + (ptrdiff_t)aRect.y * stride + (ptrdiff_t)aRect.x * 4;
++            ev.data.drawEvent.dstBuffer = data;
+             ev.data.drawEvent.dstRowBytes = (uint32_t)stride;
+-            ev.data.drawEvent.srcLeft   = aRect.x;
+-            ev.data.drawEvent.srcTop    = aRect.y;
+-            ev.data.drawEvent.srcRight  = aRect.XMost();
+-            ev.data.drawEvent.srcBottom = aRect.YMost();
++            ev.data.drawEvent.srcLeft   = drawRect.x;
++            ev.data.drawEvent.srcTop    = drawRect.y;
++            ev.data.drawEvent.srcRight  = drawRect.XMost();
++            ev.data.drawEvent.srcBottom = drawRect.YMost();
+             ev.data.drawEvent.dstLeft   = ev.data.drawEvent.srcLeft;
+             ev.data.drawEvent.dstTop    = ev.data.drawEvent.srcTop;
+             ev.data.drawEvent.dstRight  = ev.data.drawEvent.srcRight;
+@@ -4326,6 +4378,26 @@
+             gJihadPalmDrawEvents++;
+ 
+             static int sLogged = 0;
++            // FRAME-RATE READOUT. A static SWF and a 30fps game are indistinguishable from
++            // a per-event log (capped) or a screenshot (one instant), and the difference is
++            // the whole question for animated content. One line every 2s costs nothing and
++            // is the only way to see the plugin's real cadence in the field.
++            {
++                static uint32_t sDraws = 0;
++                static uint32_t sLastReport = 0;
++                sDraws++;
++                uint32_t nowMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
++                if (!sLastReport) {
++                    sLastReport = nowMs;
++                } else if (nowMs - sLastReport >= 2000) {
++                    fprintf(stderr, "[jihad-npapi-child] palm draw: %u in %ums (%.1f fps)\n",
++                            sDraws, nowMs - sLastReport,
++                            sDraws * 1000.0 / double(nowMs - sLastReport));
++                    fflush(stderr);
++                    sDraws = 0;
++                    sLastReport = nowMs;
++                }
++            }
+             if (sLogged < 3) {
+                 sLogged++;
+                 // handled= is reported but means nothing on its own: Flash's NPP_HandleEvent
+@@ -4335,7 +4407,7 @@
+                 fprintf(stderr, "[jihad-npapi-child] npPalmDrawEvent %s %d,%d %dx%d "
+                                 "stride=%d ctx=%p handled=%d\n",
+                         ev.data.drawEvent.graphicsContext ? "pgcontext" : "raster",
+-                        aRect.x, aRect.y, aRect.width, aRect.height,
++                        drawRect.x, drawRect.y, drawRect.width, drawRect.height,
+                         (int)stride, ev.data.drawEvent.graphicsContext, (int)handled);
+                 fflush(stderr);
+             }
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -645,6 +645,10 @@
+     // setwindow that carries it runs again on every resize and scroll.
+     bool mJihadSentPalmGainFocus;
+ 
++    // Jihad R7 (webOS): cap on the input-delivery breadcrumb in AnswerNPP_HandleEvent. A
++    // pen-move stream is unbounded; the daemon log is the only field-debug channel there is.
++    uint32_t mJihadInputEventsLogged;
++
+ public:
+     // Jihad R7 (webOS): repaint this instance from the host's own clock. See
+     // JihadGlibPumpTask::Run — a webOS plugin is not obliged to ask for repaints, because the
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -4210,3 +4210,62 @@
+ 
+   return false;
+ }
++
++// ── JIHAD (webOS, cavekit-addons-extensions.md R7) ────────────────────────────────────────
++//
++// A C entry point for the render daemon, following the jihad_offscreen_* precedent in
++// widget/PuppetWidget.cpp: the daemon links against libxul but cannot see internal classes,
++// and nsNPAPIPluginInstance::HandleEvent is neither exported nor virtual, so there is no
++// other way to reach a plugin from outside.
++//
++// This exists for the frozen YAP command pair asyncCmdPluginSpotlightStart/End. The card
++// scrims and smart-zooms to a plugin, then tells the server the rect it settled on; the
++// server's job is to pass that on to the plugin as Palm's npPalmSpotlightStartEvent(11) /
++// npPalmSpotlightEndEvent(12). It is not cosmetic: Flash routes 11 to the same handler as
++// npPalmSetFullScreenEvent(6) and 12 to the same as npPalmUnsetFullScreenEvent(7)
++// (libflashplayer.so jump table at 0x44e0c — entries 10 and 11 target 0x44fa0/0x44e80,
++// identical to entries 5 and 6), so this is how a plugin is told it went fullscreen.
++//
++// Broadcast to every running instance rather than targeting one: the spotlight is a
++// page-level, one-plugin-at-a-time state, this daemon serves a single card, and the
++// alternative — matching the rect against each instance's frame — would invent a
++// disambiguation rule that the contract does not define. Returns how many instances were
++// told, so a caller can tell "no plugin" from "delivered".
++extern "C" MOZ_EXPORT int
++jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight, int aBottom)
++{
++#ifdef MOZ_ENABLE_NPAPI
++  RefPtr<nsPluginHost> host = nsPluginHost::GetInst();
++  if (!host) {
++    return 0;
++  }
++
++  NPEvent ev;
++  memset(&ev, 0, sizeof(ev));
++  ev.eventType = npPalmSystemEvent;
++  ev.data.systemEvent.type = aOn ? npPalmSpotlightStartEvent : npPalmSpotlightEndEvent;
++  // Palm's host leaves systemEvent.value uninitialised here and fills only the rect
++  // (libWebKitLuna handlePluginSpotlightStart 0x4e6cec-0x4e6d24, which never writes [sp+8]).
++  // The memset above zeroes it, which is strictly tidier and observably the same.
++  ev.data.systemEvent.viewLeft   = aLeft;
++  ev.data.systemEvent.viewTop    = aTop;
++  ev.data.systemEvent.viewRight  = aRight;
++  ev.data.systemEvent.viewBottom = aBottom;
++
++  int delivered = 0;
++  // Copy the instance list first: HandleEvent re-enters the plugin, which may run script and
++  // tear an instance down underneath us.
++  nsTArray<RefPtr<nsNPAPIPluginInstance>> instances(host->JihadRunningInstances());
++  for (uint32_t i = 0; i < instances.Length(); ++i) {
++    int16_t response = kNPEventNotHandled;
++    if (NS_SUCCEEDED(instances[i]->HandleEvent(&ev, &response,
++                                               NS_PLUGIN_CALL_SAFE_TO_REENTER_GECKO))) {
++      delivered++;
++    }
++  }
++  return delivered;
++#else
++  (void)aOn; (void)aLeft; (void)aTop; (void)aRight; (void)aBottom;
++  return 0;
++#endif
++}
+--- a/dom/plugins/base/nsPluginHost.h
++++ b/dom/plugins/base/nsPluginHost.h
+@@ -274,6 +274,13 @@
+                              InfallibleTArray<nsCString>& result,
+                              bool firstMatchOnly);
+ 
++  // Jihad R7 (webOS): a snapshot of the live instances, for jihad_plugin_palm_spotlight.
++  // A COPY, not a reference: dispatching an event re-enters the plugin, which can run script
++  // and destroy an instance, and mInstances is mutated by that teardown.
++  const nsTArray<RefPtr<nsNPAPIPluginInstance>>& JihadRunningInstances() const {
++    return mInstances;
++  }
++
+ private:
+   friend class nsPluginUnloadRunnable;
+ 
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -924,6 +924,27 @@
+ 
+     MOZ_ASSERT(!IsUsingDirectDrawing());
+ 
++    // FRAME-RATE READOUT, parent side. Paired with the child's `palm draw:` line: the child
++    // reports how often the plugin was ASKED to draw, this reports how many of those frames
++    // actually crossed the process boundary. A gap between the two numbers is the difference
++    // between "the plugin is slow" and "we are dropping its frames", which are opposite bugs.
++    {
++        static uint32_t sShows = 0;
++        static uint32_t sLastReport = 0;
++        sShows++;
++        uint32_t nowMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
++        if (!sLastReport) {
++            sLastReport = nowMs;
++        } else if (nowMs - sLastReport >= 2000) {
++            fprintf(stderr, "[jihad-npapi] RecvShow: %u in %ums (%.1f fps)\n",
++                    sShows, nowMs - sLastReport,
++                    sShows * 1000.0 / double(nowMs - sLastReport));
++            fflush(stderr);
++            sShows = 0;
++            sLastReport = nowMs;
++        }
++    }
++
+     // XXXjwatt rewrite to use Moz2D
+     RefPtr<gfxASurface> surface;
+     if (newSurface.type() == SurfaceDescriptor::TShmem) {
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -343,6 +343,7 @@
+   // Jihad: record that content changed so the offscreen render daemon repaints
+   // (jihad_offscreen_take_dirty). Sticky — only the daemon's drain clears it.
+   mJihadDirty = true;
++  mJihadDirtyRect = mJihadDirtyRect.IsEmpty() ? aRect : mJihadDirtyRect.Union(aRect);
+ 
+   mDirtyRegion.Or(mDirtyRegion, aRect);
+ 
+@@ -832,6 +833,19 @@
+   return static_cast<PuppetWidget*>(aWidget)->JihadTakeDirty();
+ }
+ 
++// The bounding box of what changed, so the daemon can repaint only those rows. See
++// PuppetWidget::JihadTakeDirtyRect. Returns false when nothing is dirty, leaving the outs
++// untouched; a caller that ignores this simply keeps doing full-frame repaints.
++MOZ_EXPORT bool
++jihad_offscreen_take_dirty_rect(nsIWidget* aWidget, int32_t* aX, int32_t* aY,
++                                int32_t* aW, int32_t* aH)
++{
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadTakeDirtyRect(aX, aY, aW, aH);
++}
++
+ // Render the docShell's document into the widget's offscreen DrawTarget via the
+ // presShell (canonical offscreen render). The daemon passes the content nsIDocShell
+ // it already resolves. Returns true if the document rendered.
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -243,6 +243,31 @@
+     return d;
+   }
+ 
++  // The BOUNDING BOX of everything invalidated since the last drain, in the widget's own
++  // device px, drained with the flag. A whole-viewport software repaint costs ~40 ms on this
++  // hardware, which caps anything animated at ~20 fps no matter how fast the source runs; a
++  // plugin animating in a 320x240 box only needs those rows. Accumulated as a bounding box
++  // rather than a region on purpose: the consumer can only issue rectangular renders, so a
++  // precise region would be discarded at the first use anyway.
++  bool JihadTakeDirtyRect(int32_t* aX, int32_t* aY, int32_t* aW, int32_t* aH) {
++    LayoutDeviceIntRect r = mJihadDirtyRect;
++    mJihadDirtyRect.SetEmpty();
++    for (PuppetWidget* c = mChild.get(); c; c = c->mChild.get()) {
++      if (!c->mJihadDirtyRect.IsEmpty()) {
++        r = r.IsEmpty() ? c->mJihadDirtyRect : r.Union(c->mJihadDirtyRect);
++        c->mJihadDirtyRect.SetEmpty();
++      }
++    }
++    if (r.IsEmpty()) {
++      return false;
++    }
++    if (aX) *aX = r.x;
++    if (aY) *aY = r.y;
++    if (aW) *aW = r.width;
++    if (aH) *aH = r.height;
++    return true;
++  }
++
+   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
+ 
+   void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
+@@ -386,6 +411,10 @@
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
+   bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
++  // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
++  // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a
++  // full repaint, and must keep working unchanged if the rect is ignored.
++  LayoutDeviceIntRect mJihadDirtyRect;
+   nsRevocableEventPtr<PaintTask> mPaintTask;
+   RefPtr<MemoryPressureObserver> mMemoryPressureObserver;
+   // XXX/cjones: keeping this around until we teach LayerManager to do

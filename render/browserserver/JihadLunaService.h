@@ -37,10 +37,17 @@
 
 namespace jihad {
 
-// Registers `palm://<serviceName>/` with clearCache + clearCookies and attaches it to the
-// daemon's GLib loop. Returns false (having logged why) if the library, the bus, or the
-// registration is unavailable; the daemon runs on regardless — this is an added capability,
-// never a startup requirement.
+// Registers `palm://<serviceName>/` with clearCache + clearCookies + notifications and
+// attaches it to the daemon's GLib loop. Returns false (having logged why) if the library, the
+// bus, or the registration is unavailable; the daemon runs on regardless — this is an added
+// capability, never a startup requirement.
+//
+// `notifications` is the SUBSCRIBED method behind the non-blocking message channel
+// (cavekit-gre-widgets.md R5). A card calls it once with {"subscribe":true} at startup and is
+// then pushed one payload per jihad::PostNotification. On success this installs a
+// jihad::NotificationSink; LunaServiceStop clears it again. Same argument as every other
+// method here: this is a LUNA surface, so the byte-frozen YAP command/message interface
+// (cavekit-ipc-contract.md R1) is untouched and no card gains an adapter call.
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop);
 
 // Best-effort unregister. Safe if Start() failed or was never called.

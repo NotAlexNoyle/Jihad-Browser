@@ -426,6 +426,132 @@ function status(msg) {
 	s.appendChild(document.createTextNode(msg || ""));
 }
 
+// --- the message bar (the GRE's notificationbox) -----------------------------
+// The one thing this page could not do before: say something that outlives a glance,
+// without a modal. The footer #status line is transient and is wiped on every pane
+// switch, and msgDialog* BLOCKS the daemon until the card answers, which is far too
+// heavy for "I just reset seven settings" or "that write did not take".
+//
+// This is a XUL element inside an HTML document, built from JS because HTML markup has
+// no way to spell a namespace. Read out of the sheets, NOT measured here:
+// minimal-xul.css is already loaded for every HTML document and gives every XUL element
+// `display: -moz-box`, so the box lays out; xul.css carries the -moz-binding (:182) and
+// is pulled into a non-XUL document on demand when the first non-minimal XUL element is
+// bound (third_party/uxp/dom/xul/nsXULElement.cpp, BindToTree). Pulling it in cannot
+// restyle this page: its default namespace is XUL and its only html|-prefixed rules are
+// two textbox-internal ones. The cost is that sheet's memory on a 512 MB device, paid
+// only while this page is open.
+const NOTIFY_XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+let gNotifyBox = null;
+
+//* Built at load, not at first message: the XBL binding is installed during FRAME
+//* CONSTRUCTION, not during appendChild, so a box created and used in the same turn can
+//* still have no appendNotification. getBoundingClientRect() forces the layout flush that
+//* runs that construction; notification.xml is a chrome URI and
+//* nsXBLService::FetchBindingDocument forces a SYNC load for those (source read, not run),
+//* so the implementation should be present by the time the flush returns.
+function initNotifyBox() {
+	let host = document.getElementById("msgbar");
+	if (!host) { return; }
+	try {
+		let box = document.createElementNS(NOTIFY_XUL_NS, "notificationbox");
+		host.appendChild(box);
+		box.getBoundingClientRect();
+		gNotifyBox = box;
+	} catch (e) {
+		gNotifyBox = null;
+	}
+}
+
+//* The honest test for "the binding attached" is the METHOD, not the element: an unbound
+//* <notificationbox> is a styled box with no implementation at all. Re-tested on every
+//* use rather than latched at startup, because it can attach later than init().
+function notifyBox() {
+	return (gNotifyBox && typeof gNotifyBox.appendNotification === "function") ? gNotifyBox : null;
+}
+
+//* Remove a bar and MEAN it. removeNotification(item, true) is the skipAnimation path and
+//* calls _removeNotificationElement() straight away. The default path only sets
+//* margin-top/opacity and finishes in a transitionend handler, and nothing in this
+//* embedding has ever shown that a transition fires in an offscreen, daemon-driven
+//* document. If it does not, _animating stays true and the bar stays in the DOM at
+//* opacity 0: dismissed to the eye, present to the DOM. cavekit-gre-widgets.md R5 judges
+//* this by the DOM, so the parentNode sweep below is the real test, not a nicety.
+function dismissNotification(item) {
+	if (!item) { return; }
+	let box = notifyBox();
+	try {
+		if (box) { box.removeNotification(item, true); }
+	} catch (e) { /* fall through; the DOM check below is what decides */ }
+	if (item.parentNode) {
+		try { item.parentNode.removeChild(item); } catch (e2) {}
+	}
+}
+
+function dismissAllNotifications() {
+	let box = notifyBox();
+	if (!box) { return; }
+	try { box.removeAllNotifications(true); } catch (e) {}
+	// Sweep by tag afterwards rather than trusting that call, for the same
+	// DOM-not-appearance reason as above. The collection is live, so walk it backwards.
+	let left = box.getElementsByTagNameNS(NOTIFY_XUL_NS, "notification");
+	for (let i = left.length - 1; i >= 0; i--) {
+		try { left[i].parentNode.removeChild(left[i]); } catch (e2) {}
+	}
+}
+
+//* Say something that outlives a glance. Mirrored into the footer line unconditionally,
+//* so a build where the binding never attaches is no worse off than before the bar
+//* existed: this is additive, not a replacement.
+function announce(value, label, isWarning) {
+	status(label);
+	let box = notifyBox();
+	if (!box) { return false; }
+	try {
+		dismissNotification(box.getNotificationWithValue(value));   // replace, never stack
+		let item = box.appendNotification(label, value, null,
+			isWarning ? box.PRIORITY_WARNING_HIGH : box.PRIORITY_INFO_MEDIUM,
+			[{
+				label: "Dismiss",
+				// No accessKey: this device has no keyboard, and an underlined letter that
+				// nothing can press is a lie about the control.
+				// Returning TRUE suppresses the binding's own close(), which is the animated
+				// path; we remove synchronously instead.
+				callback: function (n) { dismissNotification(n); return true; }
+			}]);
+		// The binding's built-in X routes through dismiss() -> close() ->
+		// removeNotification(item) with NO skipAnimation, i.e. the transitionend path above.
+		// Shipping a control that may not do what it says is the decorative-control trap
+		// this file already names for the user-agent row, so it is hidden and Dismiss is the
+		// only affordance. Un-hide it the day somebody MEASURES that transitions fire here.
+		item.setAttribute("hideclose", "true");
+		// Tap anywhere on the bar to dismiss. Touch affordance and belt-and-braces at once:
+		// the XUL <button> command path has never been exercised in this shell, and this is a
+		// plain DOM listener. Both ends call the same idempotent remover.
+		item.addEventListener("click", function () { dismissNotification(item); }, false);
+		return true;
+	} catch (e) {
+		// Never leave a half-inserted bar behind: that is exactly the present-but-invisible
+		// state the DOM test exists to catch.
+		dismissAllNotifications();
+		return false;
+	}
+}
+
+//* Echo one row's write. SUCCESS is a transient echo and stays in the footer; FAILURE
+//* gets the bar, because the control is now showing a value that is NOT in effect and a
+//* footer line the user may have scrolled past is not enough to say so.
+function echoWrite(row, value) {
+	if (writePref(row, value)) {
+		status(row.pref + " = " + value);
+		return;
+	}
+	announce("pref-write-failed",
+	         "Could not save " + row.pref + ". The control above is showing a value that is "
+	         + "not in effect: the profile may be read-only, or that setting locked.",
+	         true);
+}
+
 function buildRow(row) {
 	let wrap = el("div", "row");
 	let known = prefExists(row.pref);
@@ -446,7 +572,7 @@ function buildRow(row) {
 		control.checked = row.invert ? !value : !!value;
 		control.addEventListener("change", function () {
 			let v = row.invert ? !control.checked : control.checked;
-			status(writePref(row, v) ? row.pref + " = " + v : "Could not write " + row.pref);
+			echoWrite(row, v);
 		}, false);
 	} else if (row.type === "choice") {
 		control = document.createElement("select");
@@ -459,8 +585,7 @@ function buildRow(row) {
 		}
 		if (value !== null) { control.value = String(value); }
 		control.addEventListener("change", function () {
-			status(writePref(row, control.value) ? row.pref + " = " + control.value
-			                                    : "Could not write " + row.pref);
+			echoWrite(row, control.value);
 		}, false);
 	} else {
 		control = document.createElement("input");
@@ -468,8 +593,7 @@ function buildRow(row) {
 		control.className = "txt";
 		control.value = (value === null) ? "" : String(value);
 		control.addEventListener("change", function () {
-			status(writePref(row, control.value) ? row.pref + " = " + control.value
-			                                    : "Could not write " + row.pref);
+			echoWrite(row, control.value);
 		}, false);
 	}
 
@@ -606,6 +730,10 @@ function renderPane(id) {
 	}
 	let host = document.getElementById("content");
 	while (host.firstChild) { host.removeChild(host.firstChild); }
+	// A message raised about the pane you just left must not survive into the next one,
+	// the same reason the footer line is cleared below. This is also the second dismissal
+	// path, and like the button one it does not wait on a transition.
+	dismissAllNotifications();
 	if (!pane) { return; }
 
 	// The Browser pane is a form over one JSON pref, not a table of prefs.
@@ -662,7 +790,7 @@ function resetPane() {
 	if (pane.chrome) {
 		saveChrome(chromeDefaults());
 		renderPane(gPane);
-		status("Home page and start page links restored to their defaults.");
+		announce("prefs-reset", "Home page and start page links restored to their defaults.", false);
 		return;
 	}
 	let n = 0;
@@ -679,8 +807,15 @@ function resetPane() {
 	}
 	try { Services.prefs.savePrefFile(null); } catch (e) {}
 	renderPane(gPane);
-	status(n ? ("Restored " + n + " setting" + (n === 1 ? "" : "s") + " to the default.")
-	         : "Everything in this pane was already at its default.");
+	if (n) {
+		// A bulk reset is the one thing on this page the user cannot see the result of by
+		// looking, so it gets the bar rather than a line that the next tap wipes.
+		announce("prefs-reset",
+		         "Restored " + n + " setting" + (n === 1 ? "" : "s") + " in this pane to the default.",
+		         false);
+	} else {
+		status("Everything in this pane was already at its default.");
+	}
 }
 
 function init() {
@@ -691,6 +826,7 @@ function init() {
 		document.title = "Settings";
 		document.getElementById("page-title").textContent = "Settings";
 	}
+	initNotifyBox();
 	buildTabs();
 	renderPane(PANES[0].id);
 	document.getElementById("reset-pane").addEventListener("click", resetPane, false);

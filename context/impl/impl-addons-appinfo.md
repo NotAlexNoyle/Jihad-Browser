@@ -173,3 +173,75 @@ address, maps captured.
   and is registered `category profile-after-change`, so the add-on modules are **not** cleanly
   separable at the file level — deleting them would break the blocklist service in the same startup
   window. Only the *registration* is separable.
+
+---
+
+## 2026-08-15 — T-103: the install-refusal observer, RUN for the first time
+
+`cavekit-addons-extensions.md` R3's last criterion ("rejected with a clear reason"). The observer
+in `render/goanna/components/jihadInstallPrompt.js` was written 2026-08-10 and, in that session's
+own words, *never compiled or run*. It has now been executed on the desktop harness. **No device:
+novacom was down.**
+
+**The harness.** `render/goanna/test/xpi_mismatch_test.cpp` +
+`build/desktop/build-xpi-mismatch-test.sh`. It builds BOTH add-ons from one recipe so the only
+difference between them is the single field under test — `install.rdf`'s
+`<em:targetApplication><em:id>` — then installs one through `InstallTrigger.install()` from a
+`file://` page and records every dialog off a `DialogSink`, which is the same seam
+`dialog_test.cpp` uses. A fresh `JIHAD_STATE_DIR` per run, because an add-on left behind by an
+earlier run changes what the manager does with the next one.
+
+### Result: the observer FIRES, and the message is the one that was written
+
+    [xpi] DIALOG ALERT text=[Jihad T103 Mismatch could not be installed because it is
+                             not compatible with Jihad Browser 1.0.]
+    [xpi] title=[XPI:status=-210] page-status=[status=-210] dialogs=1
+    -- profile extensions after the run --
+    (none)
+
+Six checks, zero failures. Specifically:
+
+- the refusal happens **before any confirm prompt** — 0 confirms, which is correct: an add-on that
+  cannot be installed has nothing to ask the user about;
+- the page callback still gets **-210** (legacy `USER_CANCELLED`), UNCHANGED BY DECISION — the
+  full trace for why that number cannot be altered from anything we own is inline in
+  `jihadInstallPrompt.js`;
+- exactly **one** card alert is raised, it NAMES THE ADD-ON, and it says why. That string travelled
+  the whole intended path: the JS observer → `@mozilla.org/prompter;1` →
+  `JihadPrompter::Alert` → `DialogSink` (→ `msgDialogAlert` and the variant's own dialog on a real
+  card);
+- nothing is installed.
+
+The force-instantiation in `DialogService.cpp` is load-bearing and works: the component is
+constructed at daemon start, so its `addon-install-failed` observer is registered before any
+install can run. Its "web-install-prompt component absent" warning did not fire.
+
+### The control that gives the result its meaning
+
+`JIHAD_XPI_GOOD=1` installs the MATCHING add-on and declines it at the confirm:
+
+    [xpi] DIALOG CONFIRM text=[Install add-on: Jihad T103 Good]
+    [xpi] title=[XPI:status=-210] page-status=[status=-210] dialogs=1
+
+**One confirm, ZERO alerts — and the same -210.** Two things fall out of that pair, both worth
+keeping:
+
+1. the observer's `addon.appDisabled` filter is doing real work; it is not alerting on every
+   failed or cancelled install;
+2. **the page-facing status genuinely cannot tell the two cases apart.** "Incompatible" and "the
+   user said no" are the same number to the page. That is the concrete argument for why the
+   user-facing alert IS the clear reason here, rather than a consolation prize for not having
+   changed the int.
+
+### Deliberate-failure control
+
+`JIHAD_XPI_GOOD=1 JIHAD_XPI_ASSERT_MISMATCH=1` runs the positive (mismatch) assertions against the
+matching add-on — a premise that is false by construction. 4 of 6 checks fail, exit 4. The
+instrument can fail.
+
+### What is still open on the criterion
+
+The DEVICE half. The desktop run proves the component loads, the observer registers and fires, the
+filter discriminates, and the text reaches the `DialogSink`. What it does not show is the card
+actually rendering that alert on a TouchPad — the criterion's own named closer is a screenshot of
+it. Nothing else is outstanding.

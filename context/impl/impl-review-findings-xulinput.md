@@ -31,7 +31,7 @@ of the defects below originate.
 | F-3 | P1 | `GoannaRenderPage.cpp:1758-1789` | The submit fallback fires **exactly when the engine deliberately declined**: `onsubmit` returning false runs the handler twice per tap; a `preventDefault`ed submit click still navigates; and a **disabled** submit button submits, because the classifier checks the `type` attribute but never `GetDisabled` (unlike the checkbox branch). The busy-flag interlock's *timing* was verified sound — `OnLinkClickSync` sets `mBusyFlags` synchronously inside the mouseup dispatch — so the hole is not a race; it is that "nothing started loading" includes every legitimate refusal. | **FIXED** (same probe + `GetDisabled`; `xul_test` L2/L3) |
 | F-4 | P1 | `GoannaRenderPage.cpp:1302-1345, 1636-1640` | **The named root cause cannot explain the recorded SIGSEGV — a dropped event cannot dump core.** Either the 2026-07-20 "SendMouseEvent on XUL SIGSEGVs (core dumped)" attribution was wrong (and what produced the core is still unknown), or the device path differs from desktop in a way the analysis misses. The code comments claim "the underlying fault is fixed"; the evidence supports only "the dropped-event defect is fixed". Meanwhile the new path executes **strictly more** XUL frame code on device than anything that ever ran there — `holdAt` → `contextmenu` → the XUL `<menupopup>` open path, tree frames, column pickers — none of which the 12-tap desktop run exercised, on a device whose widget probe shows theme components ABSENT. | **FIXED** (comments corrected; claim reduced to what is established) |
 | F-5 | P2 | `build-xul-test.sh:61-65`, `xul_test.cpp:79` | **The R6 harness cannot fail.** `rc` is initialised to 0 and never assigned by any phase; the script prints `"xul_test exit: $?"` as its last command and exits 0 — even a SIGSEGV (139) becomes script-exit 0. This is the **ninth** fail-open instance found in this project's verification code. Phase I, the one double-toggle guard, tests only the single-`ClickAt` path and structurally cannot see F-1. | **FIXED** (every phase gates; failure path demonstrated 3 ways; phases K+L added) |
-| F-6 | P2 | `docs/DEVICE-HANDOFF.md:41-46` | "`about:config` is fully operable on desktop" overstates what was measured: no test selects a tree row or changes a pref value (R6 AC3's back half), and **keyboard into XUL is only `SetValue`-based text insertion** — `KeyEvent` still goes through `SendKeyEvent` → the widget → dropped, as the code itself admits. The promised `PuppetWidget::DispatchEvent` fallback patch **does not exist in the tree** (grepped `build/desktop/patches/` and `build/webos-oe/`). So R6 AC6 is not met by any shipped pathway. | **FIXED** (docs + kit corrected; AC3/AC6 now `[~]` with what was measured) |
+| F-6 | P2 | `docs/PICKUP.md:41-46` | "`about:config` is fully operable on desktop" overstates what was measured: no test selects a tree row or changes a pref value (R6 AC3's back half), and **keyboard into XUL is only `SetValue`-based text insertion** — `KeyEvent` still goes through `SendKeyEvent` → the widget → dropped, as the code itself admits. The promised `PuppetWidget::DispatchEvent` fallback patch **does not exist in the tree** (grepped `build/desktop/patches/` and `build/webos-oe/`). So R6 AC6 is not met by any shipped pathway. | **FIXED** (docs + kit corrected; AC3/AC6 now `[~]` with what was measured) |
 | F-7 | P3 | `GoannaRenderPage.cpp:1708-1718` | Post-click focus adoption fights the tap-away policy in the same function: if a page cancels `mousedown` (common in drag/custom-UI libraries), focus never moves, the code re-adopts the still-focused **password** field the user just tapped away from, and the VKB pops back up. | **FIXED** (adoption requires the tap to have caused the focus) |
 | F-8 | P3 | `EngineHost.cpp:650-655` | The console-bridge "is this ours" filter passes `about:`-sourced **and empty-source** scripts, so content in an `about:blank` iframe can echo page data into the persistent device log — the F-163 class the filter exists to prevent. | **FIXED** (chrome/resource always, about: allowlist, empty source only for non-script messages) |
 
@@ -64,7 +64,7 @@ should be assumed guilty until its failure path has been demonstrated.**
 Fixed in the working tree (uncommitted). Files touched: `render/goanna/GoannaRenderPage.cpp`,
 `render/goanna/GoannaRenderPage.h`, `render/goanna/EngineHost.cpp`,
 `render/goanna/test/xul_test.cpp`, `build/desktop/build-xul-test.sh`,
-`docs/DEVICE-HANDOFF.md`, `context/kits/cavekit-input-bridging.md`.
+`docs/PICKUP.md`, `context/kits/cavekit-input-bridging.md`.
 **The adapter was NOT touched** — see F-1 below for why that was a decision, not an omission.
 
 ## F-1 (P0) — one tap now delivers ONE click sequence
@@ -185,7 +185,7 @@ checked, by the process not dying.
 
 ## F-6 (P2) — docs corrected
 
-`docs/DEVICE-HANDOFF.md`: "about:config is fully operable on desktop" → what was measured (warning
+`docs/PICKUP.md`: "about:config is fully operable on desktop" → what was measured (warning
 button `oncommand` runs and the prefs tree replaces the deck; typing filters the list), what was
 not (selecting a tree row, changing a pref value — R6 AC3's back half), that the filter text goes in
 via `InsertText`/the engine editor while `KeyEvent` is still widget-dropped, and that none of it has

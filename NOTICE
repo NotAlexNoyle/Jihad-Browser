@@ -17,6 +17,13 @@ isis-project BrowserServer / BrowserAdapter / AdapterBase (render daemon + IPC)
   Copyright (c) 2012-2014 LG Electronics, Inc.
   Licensed under the Apache License, Version 2.0.
   Origin: https://github.com/isis-project/{BrowserServer,BrowserAdapter,AdapterBase}
+  Includes the YAP interface generator, vendored at
+  render/browserserver/CodeGen/YapCodeGen.cpp from BrowserServer's CodeGen/YapCodeGen.cpp
+  and MODIFIED by the Jihad Browser project (2026-08-15): a non-terminating scan over
+  leading whitespace was fixed, and the definition syntax gained an "optional" flag that
+  emits an async command's server-side declaration with an empty default body instead of
+  "= 0;". The file carries a notice of those changes in its header, and the modifications
+  are the Jihad Browser project's own.
 
 Enyo 1.0 framework (UI runtime dependency)
   Copyright (c) 2012 Hewlett-Packard Development Company, L.P.
@@ -66,6 +73,13 @@ Atlas Browser (parallel isis-browser fork) — ported fixes
       QPainter/PGContext deref that segfaults LunaSysMgr), out-of-buffer white
       fill, tall-buffer pan, pinch-zoom scaled blit, and scroll indicator —
       Atlas BrowserAdapter commits 7b91ab8, aefab6d, dbc897c, 27b54a5, 77ab724.
+    - BrowserAdapter key-focus gating: handleKeyDown/handleKeyUp returned
+      bEditorFocused alone, so a page that auto-focuses an input on load left the
+      adapter consuming every keystroke even after the user tapped the chrome
+      address bar. Gated on mPageFocused as well — Atlas BrowserAdapter commit
+      ce199bc. Jihad extends the same expression with mFlashGestureLock so a Flash
+      game (which focuses no HTML editor) also receives its keys instead of
+      leaking them to the chrome; that extension is the Jihad project's own.
     - BrowserAdapter rotation-aware composite: useGraphicsContext=true + bitblt
       the offscreen (wrapped as a Piranha PGSurface) THROUGH the WebKit-provided
       PGContext, which carries the card's rotation/scale transform. This makes

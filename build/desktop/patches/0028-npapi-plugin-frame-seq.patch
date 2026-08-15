@@ -1,0 +1,62 @@
+Jihad Browser — export a plugin frame counter so the embedder can be 1:1 with the plugin.
+
+WHY. The daemon's only signal that something changed is PuppetWidget's sticky dirty boolean,
+and the refresh driver and ordinary page damage set the same flag, so "there is damage" cannot
+answer "did the plugin draw again". With no way to tell a new plugin frame from a repeat, BOTH
+publish policies are wrong, and both were measured on device 2026-08-10 with a 30 fps SWF:
+publishing on every dirty tick sent ~78 card frames for ~60 plugin frames (duplicates, and
+deferred 22-44 because the adapter could not drain that rate), while pacing on a fixed 33 ms
+grid sent ~57 for ~68 and DROPPED frames, so the animation stepped two positions at once.
+
+The stock webOS host never had to choose: PluginViewPalm pulls the plugin synchronously inside
+the page paint, so it is 1:1 by construction. This counter is the minimum needed to get the same
+property while still sampling: the daemon compares it against the value it saw at its last
+publish. Measured with it: done=91 against palm draw=92, deferred=0.
+
+Weak-linked on the daemon side exactly like jihad_offscreen_take_dirty, so a libxul without it
+degrades to the old dirty-flag behaviour rather than failing to load.
+
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp	2026-08-10 17:18:13.605735380 -0400
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp	2026-08-10 17:18:13.605896727 -0400
+@@ -911,6 +911,23 @@
+ }
+ #endif // MOZ_ENABLE_NPAPI
+ 
++// Jihad: monotonic count of plugin frames that have reached the parent. Process-wide rather
++// than per-instance, matching how the daemon consumes it — the embedding is single-page and the
++// question it answers is "has ANY plugin produced a new frame since I last published". A plain
++// uint32_t incremented and read on the same (main) thread; the daemon reads it from the same
++// thread inside its tick, so no atomics are needed and none are used elsewhere in this bridge.
++static uint32_t gJihadPluginFrameSeq = 0;
++
++extern "C" {
++// Weak-linked from the daemon (render/goanna/GoannaRenderPage.cpp), the same way
++// jihad_offscreen_take_dirty is: an older libxul simply does not export it, and the daemon then
++// falls back to its dirty-flag behaviour instead of failing to load.
++MOZ_EXPORT uint32_t jihad_plugin_frame_seq(void)
++{
++    return gJihadPluginFrameSeq;
++}
++}
++
+ bool
+ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+                                const SurfaceDescriptor& newSurface,
+@@ -1105,6 +1122,17 @@
+     }
+ 
+     mFrontSurface = surface;
++    // Jihad: count DELIVERED plugin frames so the embedder can tell a new one from a repeat.
++    // The daemon's only frame signal is PuppetWidget's sticky dirty boolean, which carries no
++    // identity: the refresh driver and ordinary page damage set the same flag, so "there is
++    // damage" cannot answer "did the plugin draw again". Measured 2026-08-10 on a 30 fps SWF,
++    // that ambiguity is what made both available policies wrong — publishing on every dirty
++    // tick sent ~78 card frames for ~60 plugin frames (duplicates, and 22-44 deferred because
++    // the adapter could not drain them), while pacing on a fixed 33 ms grid sent ~57 for ~68
++    // (dropped frames, so the animation stepped two positions at once). The stock webOS host
++    // never had to choose: it pulls the plugin synchronously inside the page paint, so it is
++    // 1:1 by construction. This counter is what lets the daemon be 1:1 too.
++    ++gJihadPluginFrameSeq;
+     RecvNPN_InvalidateRect(updatedRect);
+ 
+     PLUGIN_LOG_DEBUG(("   (RecvShow invalidated for surface %p)",

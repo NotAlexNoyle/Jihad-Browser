@@ -1,17 +1,50 @@
-# PICKUP — Jihad Browser, current state (2026-08-10, delta 2026-08-15 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 + 2026-08-16 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
-Nothing is committed; the tree is dirty and that is expected. ~~The TouchPad is connected over
-novacom and runs exactly the binaries described here.~~ **2026-08-15: the TouchPad was ABSENT the
-whole session (not on USB; novacomd needs root). The device still runs the 2026-08-10 binaries
-described in the body below — nothing this session touched it — but the TREE is now well ahead of
-the device. Read the delta section next.**
+---
+
+## 2026-08-16 session delta — bitbake `.ipk`s ship + the media scrubber is fixed (read first)
+
+The two biggest open items are CLOSED, and this session's work IS committed (branch
+`jihad/about-preferences-and-settings-merge`; engine mods on `third_party/uxp` branch
+`jihad-engine-mods`).
+
+- **OE bitbake produces all three `.ipk`s (device-build R3 DONE).** `bitbake
+  net.riverstonerelay.jihad-browser{,-mochi,-mojo}` → `639 tasks ... all succeeded`, zero errors;
+  each `.ipk` extracted + verified COMPLETE by content (daemon, libxul, plugin-container, ld-2.23,
+  goanna.js, 1104-file chrome). Five recipe gaps were fixed to get here — see `../context/plans/build-site.md`
+  T-154 and `../context/impl/dead-ends.md`. **Trap that ate two "successful" builds:** a goanna
+  SRCREV bump does NOT re-fetch in this bitbake-1.18 setup (do_unpack keeps the old checkout); a
+  chrome-only change needs `bitbake -c cleansstate goanna jihad-deviceroot
+  net.riverstonerelay.jihad-browser{,-mochi,-mojo}` (after pre-warming the DL_DIR git mirror) + a
+  CONTENT check of the packaged file, never mtime/size.
+- **Media scrubber jitter/flash/no-settle FIXED (gre-widgets R1 back to `[x]`), device-confirmed.**
+  Instrumentation proved the media/DOM state is perfect — the defect was the daemon's offscreen
+  paint: damage-only repaint into three rotating buffers left GHOST thumbs (each buffer got only the
+  latest frame's damage though it was several frames stale). Fixed with per-buffer damage
+  accumulation (`BrowserPageGoanna` `BufFrame.dmg*`). Plus videocontrols: `ended` snaps the thumb to
+  `duration`, and a 40ms interval interpolates the thumb from the live currentTime clock. 40ms is
+  the ceiling — faster (25ms) overruns the adapter round-trip and FREEZES (checked against Atlas
+  BrowserServer's identical double-buffer + wait-for-return model). Residual un-smoothness is the
+  ~25–30fps software-paint cap, i.e. hardware.
+- **Audio plays** through the cubeb PULSE backend (`JIHAD_PULSE_SINK=pmedia`), device-confirmed
+  audible — the ALSA-bridged path was policy-muted; the pulse-native path gets 100%.
+- **Engine provenance changed:** the jihad engine delta is now a durable commit `0c10df5c` on
+  `third_party/uxp` branch `jihad-engine-mods` (pristine UXP `b2594a4` + the delta), pinned by the
+  goanna recipe SRCREV — not only the desktop patch queue. Reproducibility caveat: that commit is
+  local-only; push `jihad-engine-mods` to the UXP fork remote for a fresh clone to build.
+- **Dotted-mochi `.ipk` was a 07-29 orphan (removed).** Current recipes emit only the HYPHENATED
+  ids (`…-mochi` / `…-mojo`).
+
+Device was used this session (TouchPad on novacom); it runs the pulse-audio libxul + per-buffer-fix
+daemon + scrubber-fixed videocontrols. The 2026-08-15 and 2026-08-10 sections below are retained as
+history — where they say "nothing is committed" or "the device is absent", read this delta instead.
 
 ---
 
-## 2026-08-15 DEVICE session — the TouchPad reappeared near the end (read this first of the delta)
+## 2026-08-15 DEVICE session — the TouchPad reappeared near the end (historical delta)
 
 Full transcript: `context/impl/impl-device-2026-08-15.md`. The device was plugged in mid-session and
 the enyo variant was redeployed (ipk 1.0.4 + current daemon/adapter). Verified ON HARDWARE:

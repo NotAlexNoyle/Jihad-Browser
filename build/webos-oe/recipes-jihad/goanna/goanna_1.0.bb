@@ -23,13 +23,18 @@ require ../jihad-common.inc
 # compiled into the engine. Captured difference: none — shared ARMv7 softfp binary.
 COMPATIBLE_MACHINE = "(tenderloin|opal)"
 
-# UXP source. Default: clone the pinned commit from the in-repo submodule (third_party/uxp,
-# bound in the chroot) — fast, and it IS the pin, cloned pristine (working-tree dirt ignored).
-# For a fully-upstream-reproducible build instead, swap to the palemoon URL (commented) — same
-# SRCREV, just a large first fetch:
+# UXP source. Clones the jihad-engine-mods commit from the in-repo submodule (third_party/uxp,
+# bound in the chroot). That commit is pristine UXP b2594a4 (upstream master) + the full jihad
+# engine delta captured as one durable commit — it IS the exact tree the desktop host build
+# (build-goanna-arm.sh) compiles, so the OE clone builds identical source. nobranch=1: SRCREV
+# alone pins the checkout (the commit lives on the jihad-engine-mods branch, not master, and a
+# file:// mirror need not track a branch). The patch queue (do_apply_jihad_patches) is already
+# baked into this commit, so it now dry-run-gate skips as a redundant safety net.
+# For a fully-upstream base instead, clone pristine b2594a4 from palemoon (commented) and let the
+# patch queue rebuild the delta — but the queue drifted from pristine UXP, so that path is stale:
 #   SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;branch=master"
-SRC_URI = "git://${JIHAD_REPO}/third_party/uxp;protocol=file;branch=master"
-SRCREV = "b2594a4ace4556b0a953c079a8c1bc350fc095ec"
+SRC_URI = "git://${JIHAD_REPO}/third_party/uxp;protocol=file;nobranch=1"
+SRCREV = "07259a27f058fd042849bc4379bdfa886b338694"
 S = "${WORKDIR}/git"
 
 # Modern C++14 toolchain (device-build R1) — the stock dylan/device gcc cannot build UXP.
@@ -56,6 +61,13 @@ JIHAD_MOZCONFIG_TMPL = "${JIHAD_REPO}/build/webos-oe/mozconfig.goanna-arm"
 do_apply_jihad_patches[file-checksums] = "${JIHAD_PATCHES}/*.patch"
 do_configure[file-checksums] = "${JIHAD_MOZCONFIG_TMPL} ${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
 do_compile[file-checksums] = "${JIHAD_TC_SIG} ${JIHAD_SYS_SIG}"
+# Wipe + recreate the mozilla objdir before every configure so each build starts clean. A
+# do_configure that failed AFTER `mach configure` (e.g. the do_qa_configure LIC check) leaves a
+# populated objdir; on the next build `mach build`'s AUTOCLOBBER then chokes on it with
+# `rm: cannot remove 'dist/bin': Directory not empty`. A fresh objdir means AUTOCLOBBER never has a
+# stale tree to clobber. (The host dev-loop build-goanna-arm.sh keeps its objdir for incremental
+# rebuilds; the OE recipe does a clean build, which is the OE norm anyway.) 2026-08-15, T-154.
+do_configure[cleandirs] = "${MOZ_OBJDIR}"
 do_install[file-checksums] = "${JIHAD_TC_SIG}"
 
 # The cross env for mach (mirrors build-goanna-arm.sh). Exported to every task shell. The
@@ -102,12 +114,18 @@ jihad_gen_mozconfig() {
 }
 
 # Apply the Jihad patch queue in its OWN task after do_patch (which is a python task — can't
-# append shell to it) and before do_configure. Runs ONCE on the freshly-unpacked pristine tree,
-# so it is not re-applied onto an already-patched tree the way a do_configure loop would be.
+# append shell to it) and before do_configure. The SRCREV commit already has the whole queue
+# baked in, so every patch is already applied here; the dry-run gate (mirroring the host build's
+# build-goanna-arm.sh loop) skips a patch that does not apply cleanly instead of half-applying its
+# hunks with `|| true`. A stale/partially-drifted patch therefore leaves the baked-in source
+# untouched rather than corrupting it. If SRCREV is ever swapped back to pristine b2594a4, this
+# same loop applies the queue for real.
 do_apply_jihad_patches() {
     cd ${S}
     for p in ${JIHAD_PATCHES}/*.patch; do
-        patch -p1 --forward < "$p" || true
+        if patch -p1 --forward --dry-run < "$p" >/dev/null 2>&1; then
+            patch -p1 --forward < "$p" || true
+        fi
     done
 }
 addtask apply_jihad_patches after do_patch before do_configure

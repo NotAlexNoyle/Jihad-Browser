@@ -10,7 +10,7 @@ FILESEXTRAPATHS_prepend := "${JIHAD_REPO}:"
 
 # One license anchor for all Jihad recipes (the composite Apache-2.0 + MPL-2.0 text at the
 # repo root). Recipes still set their own LICENSE string; this is the change-detection file.
-LIC_FILES_CHKSUM ?= "file://${JIHAD_REPO}/LICENSE;md5=be353ef4e243581e528e4524ffa92d97"
+LIC_FILES_CHKSUM ?= "file://${JIHAD_REPO}/LICENSE;md5=1266b786093b7d67c8ec3219657b8012"
 
 # webOS on-device install locations (this 2014 meta-webos has no webos-app class; the app
 # dir is the standard webOS 3 path).

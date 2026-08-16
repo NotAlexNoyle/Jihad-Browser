@@ -1,11 +1,30 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-15"
+last_edited: "2026-08-16"
 ---
 
 # Cavekit: Device Build & Packaging
 
-## 2026-07-29 — OE BUILD stands up + produces `.ipk`s, but R3 is NOT complete (READ FIRST)
+## 2026-08-16 — R3 CLOSED: clean full bitbake, three complete `.ipk`s (READ FIRST)
+
+The OE build now runs end to end: `bitbake net.riverstonerelay.jihad-browser{,-mochi,-mojo}`
+reports `639 tasks ... all succeeded`, zero errors, and produces all three product `.ipk`s
+(enyo 45M / mochi 46M / mojo 44M). Each was extracted and verified COMPLETE by content, not size:
+`jihad-browserserver` (with the per-buffer scrubber fix), `libxul.so`, `plugin-container`,
+`ld-2.23.so`, `goanna.js`, and the full loose chrome (1104 files incl. the scrubber-fixed
+`videocontrols.xml`). This is the build-VERIFIED result the 2026-07-29 note below said was still
+outstanding — R3 is now DONE.
+
+Five real recipe gaps were found+fixed getting here (all in `build/webos-oe/recipes-jihad/`, and
+each recorded in `../plans/build-site.md` T-154 + `dead-ends.md`): a stale patch queue vs pristine
+UXP (captured the jihad delta as a durable `jihad-engine-mods` commit + SRCREV, not a drifting
+queue); the daemon recipe had drifted from `build-daemon-arm.sh` and was missing three source
+files at link; `plugin-container` and the loose GRE dirs (chrome) were not staged into the engine
+dist; and a bitbake-1.18 quirk where a SRCREV bump does NOT re-fetch (do_unpack keeps the old
+checkout) so a chrome-only change needs `cleansstate` + a content check to actually land. The
+`.ipk` app ids are the HYPHENATED form (`…-mochi` / `…-mojo`); the dotted form is dead.
+
+## 2026-07-29 — OE BUILD stands up + produces `.ipk`s, but R3 is NOT complete (superseded above)
 
 The reproducible Open webOS path (previously "aspirational, not runnable") now **stands up and
 produces `.ipk`s** under `build-webos` + `meta-webos` (2013 "dylan" / bitbake 1.18). But an

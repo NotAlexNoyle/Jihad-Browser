@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-04"
+last_edited: "2026-08-16"
 ---
 
 # Cavekit Overview
@@ -52,6 +52,14 @@ Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 pa
 >   0x1600 — the one additive change to an otherwise frozen contract, cavekit-ipc-contract.md R1)
 >   took `deferred` from 77 to **0** with `wanted == done`; composite **27.1-32.2 fps**, frame gap
 >   avg 31-36 / **max 127 ms → 52-57 ms**. Verified against the build the `.ipk` actually ships.
+>   **Update 2026-08-16 — a stale-frame source in the SAME paint path was found + fixed.** The
+>   damage-only repaint rotates three buffers but applied only the damage since the last GLOBAL
+>   paint to a buffer last painted several frames earlier, so each buffer kept a GHOST of a moving
+>   element at its own stale position — surfaced as a jittery, skip-back media scrubber (fixed +
+>   device-confirmed, cavekit-gre-widgets.md R1) and, because the same path composites plugin
+>   frames, is expected to steady Flash too (per-buffer damage accumulation, `BrowserPageGoanna`
+>   `BufFrame.dmg*`, commit `36ddb80a`). Flash was not re-measured, so the histogram numbers above
+>   stand as the last Flash-specific figures; the ceiling remains the ~25–30fps software paint.
 > - **keyboard — DONE at the content level.** A SWF's own AVM1 `onClipEvent(keyDown)` runs on a
 >   keypress (green 11768 → red 11750). The adapter's key arbitration is fixed and deployed (one
 >   fix ported from Atlas). Still unverified: that the CARD does not also consume the key —

@@ -188,3 +188,103 @@ a real finger tap must set the field as `activeElement` (human, = T-150); the te
 scripted `.focus()`. Also found: bare `about:preferences` renders only header/footer — the card's
 `#chrome=` fragment is required to render the panes. The fix rides `push-engine-update.sh` (it is in
 `jihad-browserserver`, not the adapter).
+
+## Media controls SCRUBBER jitter + no-settle — diagnosis (2026-08-15, user-reported, fix pending bitbake)
+
+User at the device reported the `<audio>`/`<video>` seek bar is jittery and "at the end of a clip it
+doesn't come to rest." Ruled out playback logic: at clip end the daemon reads `t=duration paused=true
+ended=true` — the ELEMENT settles correctly. So it is a videocontrols RENDERING issue on the offscreen
+surface. Mechanism, read from `device-bundle/.../videocontrols.xml`:
+- Thumb: `timeupdate` (~4 Hz) → `showPosition()` → `this.scrubber.value = currentTime` (a XUL `<scale>`),
+  which relayouts the control bar and repaints the thumb; the repaint is composited on the next daemon
+  tick (`JIHAD_TICK_MS`). Uneven if timeupdate dispatch is uneven OR the small-region repaints are
+  batched/dropped unevenly by the offscreen pipeline (same domain as the Flash frame-pacing work,
+  addons R7 / offscreen-rendering).
+- End: the `ended` handler does `setPlayButtonState(true)` + `showPosition(currentTime,duration)` (it
+  RE-sets the thumb to the end, comment: "the thumb might not be exactly at the end … throttle") +
+  **`startFadeIn(this.controlBar)`** — a CSS opacity FADE.
+- **Prime suspect for "doesn't come to rest": the CSS fades (`startFadeIn`/`startFadeOut`/
+  `setupStatusFader`).** This project already established that CSS transitions do not settle reliably
+  on the offscreen surface — the notificationbox dismissal had to be driven by a TIMER instead of the
+  `transitionend` event for exactly this reason (gre-widgets R5, T-139 hazard 2). A control-bar fade
+  that never fires `transitionend`/never settles reads as the controls perpetually animating at the
+  end. The jitter during play is the thumb-repaint cadence.
+- **Fix direction (implement after the bitbake, verify with the user's eyes):** (1) neutralise the
+  videocontrols fades on this embedding — a patch/pref that makes `startFadeIn`/`startFadeOut` set
+  opacity immediately (no transition) or a UA-sheet override zeroing the transition-duration on
+  `.controlBar`/`.statusOverlay`, so the bar snaps rather than animates; (2) if thumb jitter persists
+  after the fades are settled, look at whether the scrubber's per-timeupdate repaint is being coalesced
+  unevenly by the paint tick and whether a lighter update (thumb-only, not a full control-bar relayout)
+  helps. Both are chrome/offscreen-composite changes shipped in the bundle (need a bundle/.ipk push,
+  not `push-engine-update.sh`).
+
+**Confirmed the transitionend dependency (2026-08-15).** videocontrols.xml registers `transitionend`
+listeners — `onTransitionEnd` (:987) and `onControlBarTransitioned` (:1601) — that run the post-fade
+CLEANUP (e.g. `controlBar.hidden = true` after fade-out, adjustControlSize). On this offscreen
+embedding `transitionend` is unreliable (the very reason T-139's notificationbox dismissal is
+timer-driven, gre-widgets R5 hazard 2), so those cleanups do not complete and the control bar sits in
+a half-faded state — "doesn't come to rest." The `.controlBar:not([immediate])` CSS transition
+(opacity, 1ms) is what should fire it. **Concrete fix (bundle change, deploy + user's eyes):** make
+the videocontrols fade path deterministic without transitionend on this build — either force the
+`immediate` attribute on `startFade` for the controlBar/statusOverlay so state changes are instant
+(no transition, no transitionend needed), or a UA-sheet/patch setting `transition-duration: 0` on
+`.controlBar`/`.statusOverlay`/`.volumeStack` so the state settles synchronously. That removes the
+half-faded "not at rest" state; then re-check whether the thumb still jitters during play (the 4 Hz
+timeupdate repaint cadence) and, if so, address the repaint coalescing separately. Ships in the
+device bundle (bundle/.ipk push, not push-engine-update.sh).
+
+**ROOT CAUSE MEASURED (2026-08-15) — for `<audio>` the scrubber jitter is UNEVEN timeupdate dispatch,
+not the fades.** For audio-only the control bar is always shown (no auto-hide), so the fade path is
+not in play; it is the thumb. Logged the `timeupdate` inter-event intervals on device over a 20 s
+non-looping clip: **398, 374, 284, 528, 460, 294, 322, 254, 340, 450, 234, 298 ms** — spec is a steady
+~250 ms (4 Hz). The thumb advances by (elapsed media time) on each event, so uneven intervals produce
+uneven thumb JUMPS = the visible jitter; a 528 ms gap is a skipped update followed by a double jump.
+The dispatch is irregular because `timeupdate` rides the daemon's main-thread/pump cadence, which is
+itself uneven — the SAME root as the Flash frame-pacing problem (addons R7, offscreen-rendering;
+partially unsolved). So a robust fix is in the paint/pump cadence, not videocontrols. A cheaper
+palliative worth trying first, and verifiable by the user's eye: patch videocontrols to drive the
+thumb by INTERPOLATION from `video.currentTime` on the daemon paint tick (which is more frequent than
+the 4 Hz timeupdate) instead of stepping on `timeupdate` — currentTime advances smoothly even when the
+event dispatch is lumpy, so the thumb would move smoothly between the sparse events. That is a
+videocontrols.xml change shipped in the bundle; it does not fix the underlying cadence but should mask
+the jitter for media scrubbing. The "doesn't come to rest at end" is the last, clustered timeupdates
+(measured 56/54 ms near the end) plus, for `<video>`, the transitionend-cleanup gap noted above.
+
+## Scrubber palliative ATTEMPTED, REVERTED — the defect is deeper (offscreen rendering, needs visual iteration)
+
+Implemented the thumb-interpolation palliative (a 60 ms timer setting `scrubber.value` from
+`currentTime` on play, cleared on pause/ended) in the device-bundle videocontrols.xml and deployed it.
+**User verdict, watching live: it did NOT fix it and surfaced more of the picture** — "there is a 0:00
+indicator at the start that flashes in and out of existence, and the seeker that does move jitters,
+plus its cut off above the seek bar plane." So the videocontrols scrubber has MULTIPLE offscreen
+defects, not just update cadence: (a) the thumb is LAID OUT wrong — clipped above the track plane (a
+CSS/skin/geometry problem, which my timer does not touch, so it is pre-existing); (b) the position
+label (0:00) flashes in and out (a repaint/visibility flicker, possibly aggravated by the 16 Hz timer
+relayouts); (c) the thumb still jitters. The palliative was REVERTED (device-bundle videocontrols.xml
+restored to pristine and re-pushed, daemon restarted) so the device is back to baseline.
+
+**Honest limitation:** this is a visual offscreen-rendering bug across layout AND composite, and fixing
+it needs tight see-change-repeat iteration — which is impractical over this remote interface: I cannot
+see the card's surface (device screenshots capture the FOREGROUND card, and the double-launch dance +
+the user's own navigation mean the capture is often the launcher or the wrong card, as happened here).
+A developer at the device who can watch the scrubber while editing videocontrols.xml/.css would close
+this quickly; blind iteration will not. Precise starting points for that person: (1) the thumb clip —
+check `.scrubber`/`.scale-thumb` geometry and the control-bar `overflow` on this skin
+(`videocontrols.css`), the thumb is rendering above its track; (2) the 0:00 flicker — the
+`positionLabel` visibility/repaint, and whether `setupStatusFader`/the fade attributes touch it; (3)
+the jitter — the uneven timeupdate/pump cadence measured above (234-528 ms), the deep root shared with
+Flash frame pacing.
+
+**Thumb-clip geometry analyzed (2026-08-15).** The clip is NOT the thumb's own geometry: skin
+`videocontrols.css` gives `.controlBar{height:28px}`, `.timeThumb{min-height:28px}` (image
+`scrubberThumb.png` is 33x28, verified present), and `.scrubber .scale-slider{margin-top:-10px;
+margin-bottom:10px}` overhanging an 8px bar — the comment's invariant (|mt|+mb+bar==thumb height)
+holds (10+10+8==28), so the 28px thumb fills the 28px control bar exactly, no self-overflow. The clip
+"above the seek bar plane" therefore points at the CONTAINER: most likely the `<audio>` element box
+renders SHORTER than the 28px control bar on this offscreen layout (or a parent `overflow:hidden`
+crops the thumb's top). Fix candidates for a session with eyes on the surface: give the audio
+controls a hard `min-height`/`height` >= 28px on the mediaControlsFrame/controlsContainer for
+audio-only, or set `overflow: visible` on the scrubberStack/controlBar so the thumb top is not
+cropped — then confirm by glance. This, the 0:00 flicker, and the timeupdate jitter are all
+offscreen-layout/composite work that needs local see-edit-repeat; the diagnosis here is complete
+enough to start immediately.

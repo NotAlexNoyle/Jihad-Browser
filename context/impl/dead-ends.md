@@ -175,3 +175,22 @@ desktop Xvfb harness is dead. Prime suspect: the desktop libxul in
 build/desktop/out is stale vs the current UXP tree (this session only rebuilt ARM
 libxul). Rebuild desktop libxul before trusting input2/scroll/geo pixel asserts.
 Does not affect device (ARM libxul is current + the daemon renders on /dev/fb1).
+
+## OE bitbake rebuilds the engine from a DRIFTED patch queue, not the working tree (2026-08-16)
+
+The `goanna` recipe cloned pristine UXP `b2594a4` (SRCREV) and rebuilt the entire jihad engine
+delta with `do_apply_jihad_patches` (`patch -p1 --forward < "$p" || true`). Two silent traps:
+(1) the desktop patch queue in `build/desktop/patches/` has DRIFTED from pristine UXP — 6/13 hunks
+of the PuppetWidget offscreen-zoom patch, plus PuppetWidget.h / moz.build / three gtk files, no
+longer apply; (2) the `|| true` swallowed every failure, so the OE clone compiled a HALF-patched
+`PuppetWidget.cpp` (popup code present, its `nsXULPopupManager`/`nsIFrame`/`nsLayoutUtils` includes
+missing) and `do_compile` died with "not declared" errors. The desktop HOST build (build-goanna-arm.sh)
+hid this completely: it compiles the already-patched `third_party/uxp` WORKING TREE, where the mods
+live as uncommitted dirt, and its own patch loop is dry-run-gated so it skips them as "already applied".
+So "the host build compiles this file fine" is NOT evidence the OE build will — they build different
+source (committed pristine + drifted queue vs. dirty working tree). Do NOT chase the compile error by
+adding includes to the working-tree file: the OE clone never sees the working tree. The fix is to make
+the OE source == the host source: commit the working-tree delta durably (branch `jihad-engine-mods`,
+`07259a27`), point SRCREV there with `nobranch=1`, and dry-run-gate the apply loop. Meta-lesson: a
+`|| true` on a patch loop turns "patch no longer applies" into a silent half-apply that only shows up
+as a compile error 300 tasks later.

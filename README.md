@@ -15,31 +15,28 @@ replaces it, so nothing you rely on breaks.
 
 ---
 
-## Why Jihad
+## What only Jihad does
 
-The TouchPad has three browsers worth considering. They are good at different things.
+Every one of these is a webOS first — no other browser for the platform, past or present, has
+had it:
 
-| | **stock / isis** | **Atlas** | **Jihad** |
-|---|---|---|---|
-| Engine | QtWebKit (2011) | WPE WebKit 2.52 | UXP / Goanna |
-| Modern sites | ✗ | ✓ | ✓ |
-| **Browser extensions** | ✗ | ✗ | **✓ — install real XPI add-ons** |
-| **Adobe Flash** | ✓ (system plugin) | ✗ | **✓ — the device's own Flash, in a modern engine** |
-| Full preferences UI | ✗ | ✗ | **✓ — `about:preferences` + `about:config`** |
-| Choice of interface | Enyo 1 | Enyo 1 | **Enyo 1, Enyo 2/Mochi, or Mojo** |
-| Keeps your USB volume clean | — | engine on `/media/internal` | **nothing written to `/media/internal`** |
-| Coexists with stock browser | — | ✓ | ✓ |
+- **Browser extensions.** Install a real XPI add-on straight from a web page, manage it in
+  `about:addons`, enable/disable/remove it, and keep it across restarts. Each app keeps its own
+  add-ons. No webOS browser before Jihad has ever run extensions.
+- **Flash *and* the modern web in one engine.** Goanna renders today's sites and loads the
+  TouchPad's own `libflashplayer.so` in-process — animation, touch, keyboard, and **sound**. The
+  stock browser has Flash but cannot open a modern site; every modern-engine browser dropped NPAPI,
+  so none of them can run Flash at all. Jihad is the only one that does both, and a crashing
+  plugin cannot take the browser down with it.
+- **A real settings surface.** `about:preferences` for everyday options and `about:config` for
+  everything else — the full Gecko/Goanna preference system, on a 2011 tablet.
+- **Your choice of three interfaces.** The classic **Enyo 1** shell, a modern **Enyo 2 / Mochi**
+  shell, or a lightweight **Mojo** shell — three independent apps that install side by side.
+- **Modern TLS with the device's own trust store.** Current HTTPS, an SSL-exception dialog for an
+  untrusted certificate, and accepted certificates written into the platform certificate store.
 
-**Where Atlas is stronger:** it has a JIT'd ES2022 JavaScript engine and more mature text
-selection and clipboard handling. If you mainly want raw speed on modern JavaScript, look at
-[Atlas](https://github.com/Herrie82) — it is an excellent browser and Jihad borrowed its
-good-citizen install model and its Piranha compositing approach outright.
-
-**Where Jihad is unique:** it is the only modern-engine TouchPad browser that runs **Flash**
-and **extensions**. Modern WebKit dropped NPAPI years ago, so Flash content — the games, the
-players, the embedded video that make up a lot of what is left of the 2011 web — cannot run
-there at all. Jihad loads the TouchPad's own `libflashplayer.so` inside Goanna: it renders
-animation, takes touch and keyboard input, and **plays sound**.
+Jihad installs **alongside** the stock browser and never replaces it, runs entirely from its own
+bundle, and writes nothing to your USB storage volume — so nothing you rely on breaks.
 
 ---
 
@@ -65,8 +62,8 @@ Install the `.ipk` for the interface you want with **Preware** or **WebOS Quick 
 | Interface | Package |
 |---|---|
 | Enyo 1 (classic) | `net.riverstonerelay.jihad-browser` |
-| Enyo 2 / Mochi | `net.riverstonerelay.jihad-browser.mochi` |
-| Mojo (lightweight) | `net.riverstonerelay.jihad-browser.mojo` |
+| Enyo 2 / Mochi | `net.riverstonerelay.jihad-browser-mochi` |
+| Mojo (lightweight) | `net.riverstonerelay.jihad-browser-mojo` |
 
 They are independent — installing, updating or removing one never affects another or the stock
 browser.
@@ -76,8 +73,11 @@ browser.
 Jihad is usable day to day on real hardware, and it is still being worked on. Two things are
 known to be imperfect right now:
 
-- **Flash animation is not perfectly smooth yet.** It runs at the right average frame rate, but
-  frame *spacing* is still uneven enough to notice next to the stock browser.
+- **Motion is capped by software rendering.** The engine paints offscreen in software and the
+  card composites the result, so animation — Flash, media-control scrubbers, CSS — tops out at
+  roughly 25–30 fps. A recent compositor fix removed the frame *ghosting* that made moving
+  elements skip and flash (verified on the media controls; the same paint path serves Flash), so
+  what is left is an even but hardware-limited frame rate, not the uneven spacing it used to be.
 - **Physical-keyboard behaviour with Flash is unverified**, because the test device has no
   keyboard to verify it with.
 
@@ -97,7 +97,7 @@ replaced: QtWebKit out, Goanna in.
 | `app/`, `app-mochi/`, `app-mojo/` | the three UI shells (Apache-2.0) |
 | `render/browserserver/` | engine-agnostic daemon + YAP IPC (Apache-2.0) |
 | `render/goanna/` | the Goanna backend (MPL-2.0) |
-| `third_party/uxp` | the engine, as a pinned submodule; our changes are patches in `build/desktop/patches/` |
+| `third_party/uxp` | the engine, a submodule pinned to the `jihad-engine-mods` commit (pristine UXP + our delta); the desktop build applies the same delta as patches in `build/desktop/patches/` |
 | `build/desktop/`, `build/webos-oe/` | x86_64 and webOS ARMv7 build wiring |
 | `context/` | Cavekit kits (requirements) and the build site (plan) |
 | `docs/` | build, toolchain and IPC reference; `PICKUP.md` is the current handoff |

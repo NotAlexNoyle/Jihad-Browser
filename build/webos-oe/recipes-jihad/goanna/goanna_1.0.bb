@@ -157,14 +157,34 @@ do_install() {
     # ONLY the .so closure + GRE files from dist/bin — NOT the x86 host build tools (nsinstall,
     # xpcshell, …) which would break OE's ARM objcopy during do_package.
     cp -aL ${MOZ_OBJDIR}/dist/bin/*.so ${ED}/bin/
-    for f in goanna.js omni.ja dependentlibs.list platform.ini greprefs.js; do
+    # plugin-container is the OOP NPAPI host executable (the ONLY path in UXP that renders a
+    # windowless plugin like Flash out of process) — an ARM binary, not a .so/.dat, so the globs
+    # above miss it. The jihad-deviceroot bundler hard-requires it (device-build/addons R7) and
+    # aborts do_compile without it. Named explicitly, exactly as make-device-bundle.sh stages it.
+    for f in goanna.js omni.ja dependentlibs.list platform.ini greprefs.js plugin-container; do
         [ -e ${MOZ_OBJDIR}/dist/bin/$f ] && cp -L ${MOZ_OBJDIR}/dist/bin/$f ${ED}/bin/ || true
     done
     for f in ${MOZ_OBJDIR}/dist/bin/*.dat; do [ -e "$f" ] && cp -L "$f" ${ED}/bin/ || true; done
+    # Loose GRE resource dirs (chrome/components/defaults/modules/res/…). A mach build links these
+    # back to the source tree, so dist/bin/<d> is a real dir full of symlinks into the git checkout
+    # under ${WORKDIR} — which resolve HERE inside the build (unlike on the host, where the same dist
+    # dangles). Dereference them (-L) into real files so the deviceroot bundler ships chrome; without
+    # them XPCOM registration fails and the daemon aborts on every start (u_init/XPCOMInit). The stray
+    # genuinely-dangling build artifact is tolerated and swept.
+    for d in chrome components defaults dictionaries hyphenation modules res; do
+        [ -d ${MOZ_OBJDIR}/dist/bin/$d ] || continue
+        cp -rL ${MOZ_OBJDIR}/dist/bin/$d ${ED}/bin/$d 2>/dev/null || true
+        find ${ED}/bin/$d -name '.mkdir.done' -delete 2>/dev/null || true
+        find ${ED}/bin/$d -xtype l -delete 2>/dev/null || true
+        find ${ED}/bin/$d -type d -empty -delete 2>/dev/null || true
+    done
+    [ -e ${MOZ_OBJDIR}/dist/bin/chrome.manifest ] && cp -L ${MOZ_OBJDIR}/dist/bin/chrome.manifest ${ED}/bin/ || true
     cp -aL ${MOZ_OBJDIR}/dist/sdk/lib/*.a ${ED}/sdk/lib/
     cp -rL ${MOZ_OBJDIR}/dist/include/. ${ED}/include/
     # Strip the ~1.1G debug libxul to device size (dynsym kept so the daemon still links).
     ${JIHAD_TC}/bin/arm-webos-linux-gnueabi-strip --strip-debug ${ED}/bin/libxul.so
+    # plugin-container ships stripped too (~1.4M debug -> small); it dlopens nothing of its own.
+    [ -e ${ED}/bin/plugin-container ] && ${JIHAD_TC}/bin/arm-webos-linux-gnueabi-strip ${ED}/bin/plugin-container || true
 }
 # The engine libs are already built/stripped by us — don't let OE re-strip/split-debug them
 # (it would run objcopy over the whole prebuilt dist).

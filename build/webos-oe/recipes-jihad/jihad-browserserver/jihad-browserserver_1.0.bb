@@ -65,20 +65,30 @@ do_compile() {
     $CXX $CXXFLAGS $YAPINC $GLIB -c "${BS}/Src/BrowserServerBase.cpp" -o "${O}/arm-BrowserServerBase.o"
 
     echo "== [ARM] Goanna backend =="
-    for f in EngineHost DialogService DownloadService GoannaRenderPage BrowserPageGoanna; do
+    for f in EngineHost DialogService DownloadService JihadCertStore GoannaRenderPage BrowserPageGoanna; do
         $CXX $CXXFLAGS $ENGINC $YAPINC $GLIB -c "${R}/goanna/$f.cpp" -o "${O}/arm-$f.o"
     done
 
+    echo "== [ARM] PmLogLib named-semaphore interposition =="
+    # Plain C, and it must live in the PROGRAM IMAGE rather than any library: a plugin dlopened
+    # later resolves its PLT against the global scope, which the executable heads. Without it the
+    # daemon deadlocks in PmLogLib's constructor on a glibc-2.8 named semaphore our 2.23 misreads.
+    # See render/goanna/JihadPmLogSem.c.
+    CC="${JIHAD_TC}/bin/arm-webos-linux-gnueabi-gcc"
+    $CC -std=gnu99 -fPIC -Os -g0 $ARMFLAGS -c "${R}/goanna/JihadPmLogSem.c" -o "${O}/arm-JihadPmLogSem.o"
+
     echo "== [ARM] JihadBrowserServer + Main =="
     $CXX $CXXFLAGS $YAPINC $GLIB -c "${BS}/JihadBrowserServer.cpp" -o "${O}/arm-JihadBrowserServer.o"
+    $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "${BS}/JihadLunaService.cpp" -o "${O}/arm-JihadLunaService.o"
     $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "${BS}/Main.cpp" -o "${O}/arm-bs_main.o"
 
     echo "== [ARM] linking jihad-browserserver =="
     $CXX $ARMFLAGS \
-        "${O}/arm-bs_main.o" "${O}/arm-JihadBrowserServer.o" "${O}/arm-BrowserServerBase.o" \
+        "${O}/arm-bs_main.o" "${O}/arm-JihadBrowserServer.o" "${O}/arm-JihadLunaService.o" "${O}/arm-BrowserServerBase.o" \
+        "${O}/arm-JihadPmLogSem.o" \
         "${O}/arm-YapPacket.o" "${O}/arm-YapProxy.o" "${O}/arm-YapServer.o" \
         "${O}/arm-BrowserPageGoanna.o" "${O}/arm-GoannaRenderPage.o" "${O}/arm-EngineHost.o" \
-        "${O}/arm-DialogService.o" "${O}/arm-DownloadService.o" \
+        "${O}/arm-DialogService.o" "${O}/arm-DownloadService.o" "${O}/arm-JihadCertStore.o" \
         "${GOANNA_A}/libxpcomglue_s.a" -L"${GOANNA_LIB}" -Wl,-rpath-link,"${GOANNA_LIB}" \
         -lxul "${GOANNA_A}/libmozglue.a" -lnspr4 -lplc4 -lplds4 \
         ${SYSLIB} ${GLIBL} -ldl -lpthread \

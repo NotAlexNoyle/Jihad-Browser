@@ -437,8 +437,37 @@ private:
     int    scrollX = 0, scrollY = 0;
     int    paintedX = 0, paintedTop = 0, paintedH = 0;
     long   bandRow = 0;      // first visible row of the band inside the buffer
+    // Damage accumulated since THIS buffer was last painted, in viewport device px. A
+    // damage-only repaint must cover everything the buffer missed, not just the newest frame:
+    // buffers alternate, so a buffer painted N frames ago skipped every intermediate frame's
+    // damage. Using the single global since-last-paint rect instead left a trail of stale
+    // copies of a small moving element (the media scrubber thumb) that flickered as the
+    // buffers cycled (2026-08-16). Reset when this buffer is painted (full or partial).
+    bool   dmgValid = false;
+    int    dmgX = 0, dmgY = 0, dmgW = 0, dmgH = 0;
   };
   BufFrame           mBufFull[3];
+  // Union a new viewport-px damage rect into EVERY buffer's pending-damage box: each buffer
+  // needs to repaint that region the next time it is the paint target, whenever that is.
+  void accumulateBufDamage(int x, int y, int w, int h) {
+    for (int i = 0; i < 3; ++i) {
+      BufFrame& b = mBufFull[i];
+      if (!b.dmgValid) { b.dmgX = x; b.dmgY = y; b.dmgW = w; b.dmgH = h; b.dmgValid = true; }
+      else {
+        int x0 = b.dmgX < x ? b.dmgX : x;
+        int y0 = b.dmgY < y ? b.dmgY : y;
+        int x1 = (b.dmgX + b.dmgW) > (x + w) ? (b.dmgX + b.dmgW) : (x + w);
+        int y1 = (b.dmgY + b.dmgH) > (y + h) ? (b.dmgY + b.dmgH) : (y + h);
+        b.dmgX = x0; b.dmgY = y0; b.dmgW = x1 - x0; b.dmgH = y1 - y0;
+      }
+    }
+  }
+  void clearBufDamage(int slot) {
+    if (slot >= 0 && slot < 3) {
+      BufFrame& b = mBufFull[slot];
+      b.dmgValid = false; b.dmgX = b.dmgY = b.dmgW = b.dmgH = 0;
+    }
+  }
   // Drop the ACTIVE slot's record: this buffer no longer provably holds a complete frame, so
   // it must not become the base for a damage-only repaint. Called on every paint path that
   // returns without publishing, and wherever the segments themselves change underneath us.

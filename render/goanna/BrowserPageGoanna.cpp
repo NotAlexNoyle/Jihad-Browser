@@ -2065,6 +2065,10 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
         mDamageX = dx; mDamageY = dy; mDamageW = dw; mDamageH = dh;
         mDamageValid = true;
       }
+      // AND into every buffer's own pending box — the global rect above is only the damage
+      // since the LAST paint (any buffer); a buffer painted several frames ago needs the union
+      // since ITS last paint or it repaints a stale frame minus one box (the scrubber-ghost bug).
+      accumulateBufDamage(dx, dy, dw, dh);
     }
   }
   if (mDirtyPending) {
@@ -2457,7 +2461,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   }
   if (kPartialPaint && mDamageValid && !mDamageForceFull) {
     int slot = slotForKey(mActiveKey);
-    if (slot >= 0 && mBufFull[slot].valid &&
+    if (slot >= 0 && mBufFull[slot].valid && mBufFull[slot].dmgValid &&
         mBufFull[slot].w == w && mBufFull[slot].h == h &&
         mBufFull[slot].zeff == Zeff &&
         mBufFull[slot].scrollX == mAdapterScrollX &&
@@ -2465,10 +2469,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const BufFrame& bf = mBufFull[slot];
       // The damage box arrives in VIEWPORT device px; the buffer's rows are the painted
       // band, whose first visible row is bandRow. Clamp into the visible band and bail to
-      // the full path on anything degenerate rather than guessing.
-      long dTop = (long)bf.bandRow + mDamageY;
-      long dLeft = (long)mDamageX;
-      long dW = mDamageW, dH = mDamageH;
+      // the full path on anything degenerate rather than guessing. Use THIS buffer's own
+      // accumulated damage (bf.dmg*), not the global since-last-paint rect — see
+      // accumulateBufDamage — so a buffer painted several frames ago repaints everything it
+      // missed, not just the newest box.
+      long dTop = (long)bf.bandRow + bf.dmgY;
+      long dLeft = (long)bf.dmgX;
+      long dW = bf.dmgW, dH = bf.dmgH;
       if (dLeft < 0) { dW += dLeft; dLeft = 0; }
       if (dTop < bf.bandRow) { dH -= (bf.bandRow - dTop); dTop = bf.bandRow; }
       if (dLeft + dW > w) dW = w - dLeft;
@@ -2497,6 +2504,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gJihadPaintPartial++;
           JihadRecordFrameGap(mLastPaintDoneMs);
           mDamageValid = false; mDamageX = mDamageY = mDamageW = mDamageH = 0;
+          // This buffer is now current through its accumulated damage; drop its pending box so
+          // the next partial into it starts from the damage that arrives AFTER this frame.
+          clearBufDamage(slot);
           {
             static int64_t sLastP = 0;
             int64_t nowP = jihadNowMs();
@@ -2749,6 +2759,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       mBufFull[fs].scrollX = mAdapterScrollX; mBufFull[fs].scrollY = mAdapterScrollY;
       mBufFull[fs].paintedX = paintedX; mBufFull[fs].paintedTop = paintedTop;
       mBufFull[fs].paintedH = paintedH; mBufFull[fs].bandRow = region ? bandRow : 0;
+      // A full paint repainted the whole band: this buffer is completely current, so it has no
+      // pending per-buffer damage. (dmgValid is cleared even when valid=false — a blank buffer
+      // has nothing to catch up either.)
+      clearBufDamage(fs);
     }
   }
 

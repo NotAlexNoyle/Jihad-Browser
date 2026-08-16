@@ -194,3 +194,23 @@ the OE source == the host source: commit the working-tree delta durably (branch 
 `07259a27`), point SRCREV there with `nobranch=1`, and dry-run-gate the apply loop. Meta-lesson: a
 `|| true` on a patch loop turns "patch no longer applies" into a silent half-apply that only shows up
 as a compile error 300 tasks later.
+
+## A goanna SRCREV bump does NOT re-fetch — do_unpack keeps the old checkout (2026-08-16)
+
+Bumping `SRCREV` in `goanna_1.0.bb` and re-running bitbake looked like it worked (`639 tasks
+... all succeeded`, `do_compile` re-ran), but the produced .ipk still carried the OLD engine
+chrome. Cause: in this build-webos / bitbake 1.18 setup a SRCREV change re-runs `do_compile`
+(the recipe hash is in its signature) but NOT `do_fetch`/`do_unpack` — their stamps stayed valid,
+so `do_unpack` kept `git checkout`-ing the previous SRCREV and `do_compile` rebuilt the stale tree.
+The .ipk was byte-plausible (right size, complete file set) so only a CONTENT check caught it
+(grep the staged/​packaged file for a marker unique to the new commit — never trust "build
+succeeded" + file size for a chrome-only change).
+
+Two things are needed to actually land a goanna SRCREV bump:
+  1. the DL_DIR git mirror must contain the new commit — pre-warm it:
+     `cd build/webos-oe/oe-downloads/git2/.oe.Jihad-Browser.third_party.uxp && \
+      git fetch <repo>/third_party/uxp jihad-engine-mods` (or the fetch below will pull it);
+  2. force the stale tasks + downstream sstate to clear, because a mere re-run reuses stale sstate:
+     `bitbake -c cleansstate goanna jihad-deviceroot \
+        net.riverstonerelay.jihad-browser{,-mochi,-mojo} && bitbake net.riverstonerelay.jihad-browser{,-mochi,-mojo}`
+Verify by extracting the .ipk and grepping the packaged file, not by mtime (TZ-shifted, misleading).

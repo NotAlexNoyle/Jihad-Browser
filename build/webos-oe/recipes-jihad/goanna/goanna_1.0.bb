@@ -34,7 +34,7 @@ COMPATIBLE_MACHINE = "(tenderloin|opal)"
 # patch queue rebuild the delta — but the queue drifted from pristine UXP, so that path is stale:
 #   SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;branch=master"
 SRC_URI = "git://${JIHAD_REPO}/third_party/uxp;protocol=file;nobranch=1"
-SRCREV = "07259a27f058fd042849bc4379bdfa886b338694"
+SRCREV = "0c10df5c94221fd92b87162a2df0c9d352f961ae"
 S = "${WORKDIR}/git"
 
 # Modern C++14 toolchain (device-build R1) — the stock dylan/device gcc cannot build UXP.

@@ -5,6 +5,35 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-08-17 session delta — speaker route + live volume SOLVED, Mochi safeUrl done (read first)
+
+The non-human-gated engineering surface is essentially exhausted this session. Kit-wide only **2**
+criteria remain open (`grep -rn '\- \[ \]' context/kits`), BOTH keyboard/hardware-gated (there is no
+keyboard on the device — open work item 1). PICKUP **open work item 3 is STALE**: R8's last criterion
+is `[x]`, decided 2026-08-10 (geometry guards + the sub-rect argument bound the partial path; no blank
+check needed).
+
+- **Engine media now plays on the built-in SPEAKER at the system volume, and volume buttons track it
+  live** (`render/goanna/BrowserPageGoanna.cpp`, commit `ed6cced6`; pairs with UXP-Jihad cubeb
+  `bd49435b`). audiod refuses to route/scale OUR stream (its media volume is a PULSE control, proven by
+  an `amixer contents` diff showing zero ALSA change on a button press), so the daemon drives the
+  WM8994 mixer directly: a poll thread on `jihad_pulse_active_streams()` runs state-dir shell scripts
+  it (re)writes from embedded constants — `audio-on.sh` (level `numid=74/86` from `getVolume`, then the
+  DAC1→speaker switches `191/186/237/235/87`), `audio-off.sh` (mute amp `87` at rest → no max-volume
+  burst), and `audio-vol.sh` every ~400ms (re-mirror `getVolume` → live tracking). `pulse.props` keeps
+  the stream on `pcm_output` (NOT `media.role`/pmedia, which the forced route can't reach). Full detail
+  + the dead ends: `context/impl/impl-audio-backend.md` §2026-08-17. Ear-confirmed: speaker ✓, no burst
+  ✓, ~volume ✓. **RESIDUALS (human-gated, not shipped-blocking):** the volume OSD/HUD does not show for
+  direct mixer writes (audiod-bypass, cosmetic); HTML5 video-controls taps are the separate offscreen
+  hit-test item. **SHIP GATE:** parent gitlink + OE SRCREV stay at `81e10aa3` until UXP-Jihad
+  `bd49435b` is pushed — the .ipk engine keeps the counter inert (audio unchanged) until then; the
+  device runs the full hand-deployed stack now.
+- **Mochi `safeUrl` allowlist done** (`app-mochi/source/JihadChromePrefs.js`): `http(s)://` or
+  `about:(preferences|settings|jihad|isis|blank)` pass, everything else → `""`, applied in
+  cleanLinks/loadHome/saveHome.
+
+---
+
 ## 2026-08-16 session delta — bitbake `.ipk`s ship + the media scrubber is fixed (read first)
 
 The two biggest open items are CLOSED, and this session's work IS committed (branch
@@ -509,8 +538,11 @@ Two things worth keeping from this even if `0029` is later reverted:
    Measure with the gap histogram, NOT with average fps: the average was 35-42 fps throughout the
    whole period the animation looked worst, and `0029` IMPROVED the average and the max while
    making the histogram flatter.
-3. **The partial-paint path publishes with no blank check** (cavekit-offscreen-rendering.md R8,
-   last criterion). Anything that corrupts a partial frame is invisible to the daemon.
+3. **~~The partial-paint path publishes with no blank check~~ — STALE, resolved 2026-08-10.** R8's
+   last criterion is `[x]`: the second pass decided NO blank check is needed. The geometry guards
+   (segment-size check) catch the corruption class, and a partial paint only ever rewrites a sub-rect
+   of a frame that already passed the full path's non-blank check, so it cannot publish a blank frame
+   invisibly. Do not re-open. (Full reasoning: cavekit-offscreen-rendering.md R8, lines ~200-218.)
 4. **`plugin-container` aborts on teardown.** Every navigation away from a Flash page ends in
    `mozalloc_abort` (pc 0xc35c in plugin-container's own text) — a deliberate Gecko abort, not a
    segfault. Harmless today (the child is going away) but it is noise in every log.

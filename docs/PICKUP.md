@@ -34,7 +34,9 @@ The two biggest open items are CLOSED, and this session's work IS committed (bra
 - **Engine provenance changed:** the jihad engine delta is now a durable commit `0c10df5c` on
   `third_party/uxp` branch `jihad-engine-mods` (pristine UXP `b2594a4` + the delta), pinned by the
   goanna recipe SRCREV — not only the desktop patch queue. Reproducibility caveat: that commit is
-  local-only; push `jihad-engine-mods` to the UXP fork remote for a fresh clone to build.
+  now pushed to the fork `https://github.com/NotAlexNoyle/UXP-Jihad` (`.gitmodules` points there,
+  branch `jihad-engine-mods`, parent gitlink bumped to `81e10aa3`), so a fresh clone + submodule
+  update resolves the SRCREV.
 - **Dotted-mochi `.ipk` was a 07-29 orphan (removed).** Current recipes emit only the HYPHENATED
   ids (`…-mochi` / `…-mojo`).
 

@@ -647,3 +647,40 @@ tuned on-device without a rebuild; default (no file) sets NOTHING = upstream = a
 
 Reverted the cubeb default to no-role (audible `pcm_output`) so the shipped/default behaviour is
 not regressed; the proplist-from-file code stays as the tuning harness.
+
+## 2026-08-17 — speaker route + live volume SOLVED (daemon-side, direct WM8994 mixer)
+
+The 2026-08-16 wall (`Route: 0`, "fights audiod") is resolved, but NOT by making audiod route our
+stream — that path never opened. Empirically established this session:
+
+- **audiod's media volume is a PULSE control, not an ALSA mixer.** Diffing `amixer contents` across a
+  volume-button press showed ZERO ALSA controls change; audiod scales a pulse sink/stream volume that
+  only bites a stream it classified as media. Our forced route deliberately keeps the stream on
+  `pcm_output` (via `pulse.props` = `application.name=…`, NOT `media.role`), so audiod's volume never
+  touches it. Classifying it as media (`media.role=music`) still left the sink-input at 100% AND put
+  it on the null `pmedia` policy sink the forced mixer can't reach — a dead end, reverted.
+- **The real output level is `numid=74` (Output Volume) and `numid=86` (Speaker Volume), 0–63.** The
+  DAC1→speaker chain is `numid=191/186` (SPKL/SPKR DAC1 Switch) + `237/235` (boost) + `87` (Speaker
+  Switch). Forcing those switches on + setting 74/86 = `system_media_volume * 63/100` produces speaker
+  output at the system volume. Ear-confirmed by the user 2026-08-17 ("speaker ✓, no burst ✓, ~volume ✓").
+
+**Shipped mechanism** (`render/goanna/BrowserPageGoanna.cpp`, commit ed6cced6; pairs with UXP-Jihad
+cubeb bd49435b): a daemon poll thread watches `jihad_pulse_active_streams()` and on the 0↔N
+transition runs `audio-on.sh` (level from `getVolume`, then close the switches) / `audio-off.sh`
+(mute `numid=87`), and every ~400ms while playing runs `audio-vol.sh` (re-mirror `getVolume` onto
+74/86) so volume buttons TRACK live. All four files + `pulse.props` are (re)written from embedded
+constants into the daemon state dir every startup — device edits are not durable by design. Muting
+the amp at rest kills the max-volume burst the hold-scenario approach had. Non-ear verified: scripts
+provision after deletion, level tracks 20→12 and 60→37, daemon does not crash.
+
+**KNOWN RESIDUALS (human-gated, not shipped-blocking):**
+- The system volume **OSD/HUD does not appear** when volume buttons are pressed on a browser page, and
+  the direct mixer writes are invisible to it. This is sysmgr/card key-routing + the audiod-bypass; a
+  "good citizen" fix means audiod actually managing our stream, which it declines to for a forced
+  route. Cosmetic — the volume itself changes.
+- HTML5 **video-controls taps** (play/pause, scrubber, volume slider) don't respond — the SEPARATE
+  offscreen hit-test residual for the media element's anonymous/shadow content, unaffected by any
+  audio change (fails identically with `media.role` on or off).
+- **Ship gate:** the parent gitlink + OE `SRCREV` stay at 81e10aa3 until UXP-Jihad `bd49435b`
+  (the `jihad_pulse_active_streams` counter) is pushed; the .ipk engine keeps the counter inert and
+  audio unchanged until then. Device currently runs the full stack (hand-deployed libxul + daemon).

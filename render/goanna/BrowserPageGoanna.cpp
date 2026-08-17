@@ -27,6 +27,8 @@
 #include <fcntl.h>      // open() the dialog reply FIFO
 #include <poll.h>       // wait for the card's answer with a deadline
 #include <unistd.h>
+#include <pthread.h>    // Jihad audio-scenario poll thread
+#include <sys/wait.h>   // waitpid for the detached audio-route helper
 #include <cerrno>
 #include <cstring>
 
@@ -48,6 +50,135 @@ struct BrowserPageGoanna::UrlRule {
   bool redirect;
 };
 
+// ── Jihad/webOS media audio routing ──────────────────────────────────────────────────────────
+// webOS's audiod never routes OUR stream to the built-in speaker (it only manages registered media
+// apps), and it will not scale our volume either — its media volume lives in pulse and only bites a
+// stream it classified as media, which the forced route below deliberately is not. So the daemon
+// drives the WM8994 mixer directly: while engine media plays it sets the speaker output level
+// (numid 74/86) from the system media volume and closes the DAC1->speaker switches; at rest it
+// mutes the speaker amp (numid 87) so the NEXT playback is silent until the level is set, which is
+// what kills the max-volume burst. libcubeb (linked into this daemon) counts PLAYING output streams
+// in jihad_pulse_active_streams(); a background thread polls it and runs the scripts on the 0<->N
+// transition. The scripts live in the daemon's state dir and are (re)written from the constants
+// below on every startup — edit them HERE, not on the device (a restart overwrites device edits).
+// All best-effort: absent symbol / no state dir / exec failure => silent no-op. Because the amp is
+// shared with system sounds, audio-off only mutes it and audiod turns it back on for its own
+// scenarios (notifications/calls). See context/impl/impl-audio-backend.md. UNVERIFIED gaps: the
+// system volume OSD does not track these direct mixer writes, and video-controls taps are the
+// separate offscreen hit-test residual.
+extern "C" int jihad_pulse_active_streams(void) __attribute__((weak));
+
+// application.name (not media.role): keeps our cubeb stream OFF the pmedia media-policy sink and on
+// pcm_output (the real DAC), which is what the forced speaker mixer actually drives. media.role
+// would send it to a null policy sink the mixer route never reaches.
+static const char* const kJihadPulseProps = "application.name=Jihad Browser\n";
+
+static const char* const kJihadAudioOnScript =
+  "#!/bin/sh\n"
+  "# Written by the daemon (BrowserPageGoanna.cpp). Runs when engine media starts. Sets the WM8994\n"
+  "# speaker output level from the system media volume, then routes DAC1 -> speaker.\n"
+  "A=\"/usr/bin/amixer -c 0\"; L=\"/usr/bin/luna-send -n 1\"\n"
+  "V=$($L palm://com.palm.audio/media/getVolume '{}' 2>/dev/null | sed -n 's/.*\"volume\":\\([0-9]\\{1,3\\}\\).*/\\1/p')\n"
+  "[ -z \"$V\" ] && V=50\n"
+  "lvl=$((V*63/100))\n"
+  "$A cset numid=74 $lvl >/dev/null 2>&1\n"   // Output Volume  (0-63)
+  "$A cset numid=86 $lvl >/dev/null 2>&1\n"   // Speaker Volume (0-63)
+  "$A cset numid=191 on >/dev/null 2>&1\n"    // SPKL DAC1 Switch
+  "$A cset numid=186 on >/dev/null 2>&1\n"    // SPKR DAC1 Switch
+  "$A cset numid=237 on >/dev/null 2>&1\n"    // SPKL Boost SPKL Switch
+  "$A cset numid=235 on >/dev/null 2>&1\n"    // SPKR Boost SPKR Switch
+  "$A cset numid=87  on >/dev/null 2>&1\n"    // Speaker Switch
+  "exit 0\n";
+
+static const char* const kJihadAudioOffScript =
+  "#!/bin/sh\n"
+  "# Written by the daemon. Runs at startup and when engine media stops. Mutes the speaker amp so\n"
+  "# the next playback stays silent until audio-on.sh sets the level (kills the max-volume burst).\n"
+  "# audiod re-enables the amp for its own scenarios, so system sounds are unaffected.\n"
+  "/usr/bin/amixer -c 0 cset numid=87 off >/dev/null 2>&1\n"
+  "exit 0\n";
+
+// Runs repeatedly WHILE media plays. audiod moves a pulse volume that our forced pcm_output->speaker
+// route bypasses, so the level would otherwise freeze at its playback-start value; mirror the live
+// system media volume onto the speaker output level (numid 74/86) so volume-button presses track.
+static const char* const kJihadAudioVolScript =
+  "#!/bin/sh\n"
+  "A=\"/usr/bin/amixer -c 0\"; L=\"/usr/bin/luna-send -n 1\"\n"
+  "V=$($L palm://com.palm.audio/media/getVolume '{}' 2>/dev/null | sed -n 's/.*\"volume\":\\([0-9]*\\).*/\\1/p')\n"
+  "[ -z \"$V\" ] && exit 0\n"
+  "lvl=$((V*63/100))\n"
+  "$A cset numid=74 $lvl >/dev/null 2>&1\n"
+  "$A cset numid=86 $lvl >/dev/null 2>&1\n"
+  "exit 0\n";
+
+static void jihadWriteFile(const std::string& path, const char* content, mode_t mode) {
+  if (path.empty()) { return; }
+  FILE* f = fopen(path.c_str(), "w");
+  if (!f) { return; }
+  fwrite(content, 1, strlen(content), f);
+  fclose(f);
+  chmod(path.c_str(), mode);
+}
+
+static void jihadRunAudioScript(const char* script) {
+  // fork twice so the grandchild (the script) is reparented to init: no zombie to reap, and we
+  // never waitpid(-1) which would steal plugin-container's exit. Only async-signal-safe calls
+  // between fork and exec. Clean env: an inherited (bundled glibc-2.23) LD_LIBRARY_PATH segfaults
+  // /bin/sh + the device luna-send/amixer, so hand exec a minimal device PATH and nothing else.
+  pid_t pid = fork();
+  if (pid == 0) {
+    if (fork() == 0) {
+      char* const env[] = { (char*)"PATH=/usr/bin:/bin:/usr/sbin:/sbin", nullptr };
+      execle("/bin/sh", "sh", script, (char*)nullptr, env);
+      _exit(127);
+    }
+    _exit(0);
+  } else if (pid > 0) {
+    waitpid(pid, nullptr, 0);   // reap only our short-lived intermediate child
+  }
+}
+
+static void* jihadAudioPollThread(void*) {
+  const std::string& sd = jihad::RuntimeStateDir();
+  if (sd.empty()) { return nullptr; }
+  const std::string onp = sd + "/audio-on.sh";
+  const std::string offp = sd + "/audio-off.sh";
+  const std::string volp = sd + "/audio-vol.sh";
+  int prev = 0, tick = 0;
+  for (;;) {
+    usleep(200 * 1000);
+    if (!jihad_pulse_active_streams) { continue; }
+    int n = jihad_pulse_active_streams();
+    if (n > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
+    else if (n == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
+    else if (n > 0 && (++tick % 2) == 0) { jihadRunAudioScript(volp.c_str()); }  // ~400ms live track
+    prev = n;
+  }
+  return nullptr;
+}
+
+static void jihadStartAudioPoll() {
+  static bool started = false;
+  if (started) { return; }
+  started = true;
+  const std::string& sd = jihad::RuntimeStateDir();
+  if (sd.empty()) { return; }   // desktop / no state dir: inert
+  // Export the resolved dir so libcubeb (same process, but it cannot call RuntimeStateDir) finds
+  // pulse.props via getenv; setenv(,,0) leaves an explicit harness override in place. Provision all
+  // three files and mute the amp SYNCHRONOUSLY here, in the page constructor, so pulse.props exists
+  // before cubeb opens any stream and the resting state is muted before the first playback — only
+  // then hand the steady-state polling to a background thread.
+  setenv("JIHAD_STATE_DIR", sd.c_str(), 0);
+  jihadWriteFile(sd + "/pulse.props", kJihadPulseProps, 0644);
+  jihadWriteFile(sd + "/audio-on.sh", kJihadAudioOnScript, 0755);
+  jihadWriteFile(sd + "/audio-vol.sh", kJihadAudioVolScript, 0755);
+  const std::string offp = sd + "/audio-off.sh";
+  jihadWriteFile(offp, kJihadAudioOffScript, 0755);
+  jihadRunAudioScript(offp.c_str());
+  pthread_t t;
+  if (pthread_create(&t, nullptr, jihadAudioPollThread, nullptr) == 0) { pthread_detach(t); }
+}
+
 BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   : mHost(host), mSink(sink), mPage(nullptr),
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
@@ -57,6 +188,8 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false), mGeometryTries(0),
     mNavGen(0), mLastScrollMs(0) {
   for (int i = 0; i < 3; ++i) { mShmBuf[i] = nullptr; mShmId[i] = -1; }
+  jihadStartAudioPoll();   // Jihad: hold the audiod media scenario + speaker route during playback
+
   mTouchSeqActive = false; mTouchSeqConsumed = false;
   mTouchAnchorX = 0; mTouchAnchorY = 0;
   mTouchSeqStartMs = 0; mTouchSuppressUntilMs = 0;

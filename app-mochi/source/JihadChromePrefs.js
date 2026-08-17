@@ -49,6 +49,20 @@ enyo.jihadChrome = (function () {
 		];
 	}
 
+	//* Only http(s) and our own about: pages may be navigated to from a stored setting.
+	//* Anything else — javascript:, data:, file: — is DROPPED rather than sanitised: these
+	//* values end up in the home button and the start page's shortcut list, one tap from the
+	//* user, and a javascript: target runs script in page context (the daemon's url fixup
+	//* passes javascript: through). Byte-identical allowlist to the Enyo and Mojo shells'
+	//* safeUrl and to the settings page's own safeUrl (packaging/prefsui/content/preferences.js);
+	//* the four must stay in step, or a value one accepts and another drops reads to the user as
+	//* "settings did not save". Applied on the way OUT (loadLinks/loadHome) as well as in, so a
+	//* store written before this allowlist existed, or hand-edited, is neutralised on read.
+	function safeUrl(u) {
+		var v = trim(u);
+		return (/^https?:\/\//i.test(v) || /^about:(preferences|settings|jihad|isis|blank)$/i.test(v)) ? v : "";
+	}
+
 	//* Keep only rows that have both a label and a target. Anything else came from
 	//* a half-finished edit or a corrupt store and must not reach the page.
 	function cleanLinks(list) {
@@ -56,7 +70,7 @@ enyo.jihadChrome = (function () {
 		if (!list || !list.length) { return out; }
 		for (i = 0; i < list.length && out.length < MAX; i++) {
 			t = trim(list[i] && list[i].title);
-			u = trim(list[i] && list[i].url);
+			u = safeUrl(list[i] && list[i].url);
 			if (t && u) { out.push({title: t, url: u}); }
 		}
 		return out;
@@ -111,15 +125,18 @@ enyo.jihadChrome = (function () {
 			return kept.length ? kept : defaultLinks();
 		},
 
-		//* Always a loadable url: an unset or blanked home falls back to the default.
+		//* Always a loadable url: an unset, blanked or DISALLOWED home falls back to the
+		//* default. safeUrl on READ as well as write, so a store written before the allowlist
+		//* existed cannot leave a javascript: target on the home button.
 		loadHome: function () {
-			return trim(read(HOME_KEY)) || HOME_DEFAULT;
+			return safeUrl(read(HOME_KEY)) || HOME_DEFAULT;
 		},
 
 		//* An empty value clears the override rather than storing a home that goes
-		//* nowhere. Returns what is now in effect.
+		//* nowhere. Returns what is now in effect. A value outside safeUrl's allowlist is
+		//* treated as empty — dropped, not sanitised.
 		saveHome: function (url) {
-			var u = trim(url);
+			var u = safeUrl(url);
 			write(HOME_KEY, u || null);
 			return u || HOME_DEFAULT;
 		}

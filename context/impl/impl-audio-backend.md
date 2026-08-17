@@ -612,3 +612,38 @@ sets it (debug why `JIHAD_PULSE_SINK=pmedia` fell back to pcm_output — likely 
 connect needs the policy hook, or the sink name/target); or (b) the daemon sets the two ALSA mixer
 switches itself around media playback (simplest, but fights audiod's ownership — do it only if (a)
 proves intractable). Everything UPSTREAM of that last link is proven working.
+
+## 2026-08-17 — media.role classifies the stream + applies the media volume, but the DAC→speaker route is still not powered (device-tested)
+
+Built libxul with a cubeb change that sets a `pa_proplist` on the playback stream, read from a
+WRITABLE file `$JIHAD_STATE_DIR/pulse.props` (`key=value` per line) so the routing property can be
+tuned on-device without a rebuild; default (no file) sets NOTHING = upstream = audible on
+`pcm_output`. Device findings, all via `pactl` + `audiod` LunaService + the daemon log:
+
+- **`media.role=music` DOES get the stream classified as media.** With it set, `audiod` logs
+  `_pulseStatus: sink 4-media opened (stream N)` and the stream reaches the `pmedia` path — this is
+  the classification the 2026-08-15 analysis said was missing (our stream used to sit on
+  `pcm_output` as an unknown app at a fixed 100%).
+- **The system media volume IS then respected.** With the media scenario pre-active
+  (`palm://com.palm.audio/media/{enableScenario,setCurrentScenario media_front_speaker,setVolume 80}`)
+  the daemon log shows `sink 4-media opened Volume: 80` — i.e. the media-scenario volume is applied
+  to the stream, which is exactly what the default `pcm_output` path does NOT do (it ignores the
+  system media volume and plays 100%). So routing through the media policy is what "respects the
+  system volume level".
+- **But `Route: 0` — the WM8994 DAC→speaker route is still not powered**, even with the stream
+  media-classified AND the `media_front_speaker` scenario active with a non-zero volume. `pmedia`
+  stays `SUSPENDED`. This is the same wall the 2026-08-15 analysis hit; classification+scenario are
+  necessary but still not sufficient. The remaining piece is the `SPKL/SPKR DAC1` mixer route that
+  `audiod` does not flip for our stream (kit note gre-widgets R7: forcing those switches completes
+  the chain, "fights audiod").
+- **Two coupled requirements, one root.** Both "route to the built-in speaker" and "respect the
+  system volume" need the stream on the media-policy path. The blocker for BOTH is: the media
+  scenario must be HELD ACTIVE (with the right front/back-speaker selection) *while the stream is
+  connecting/uncorked*, wired from the **daemon** (LunaService, ref-counted over playback), not via
+  one-shot luna-send at test time — plus resolving `Route: 0`. That is a real daemon change
+  (`JihadLunaService` already exists for the cert store; the scenario-hold + a stream-lifecycle
+  signal from libxul/cubeb are the new plumbing) and can only be *validated by ear*. PARKED here as
+  a focused follow-up; the `pulse.props` knob + these exact luna-send calls are the harness for it.
+
+Reverted the cubeb default to no-role (audible `pcm_output`) so the shipped/default behaviour is
+not regressed; the proplist-from-file code stays as the tuning harness.

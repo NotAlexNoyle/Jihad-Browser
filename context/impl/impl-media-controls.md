@@ -63,3 +63,37 @@ player volume widget inert regardless of input.
    tap — otherwise dragging the scrubber/volume won't work even when a single tap does.
 4. Volume HUD: greenfield feature — build on the `com.palm.mediad` / audiod media-session hook (the
    only existing lever), not a quick fix.
+
+## 2026-08-20 device diagnosis — scrubber freeze = media currentTime never advances
+
+Drove the device directly (screenshots via takeScreenShot + a state-readout test page). CONFIRMED, not
+inferred:
+- An HTML5 `<audio>` element reports `paused=false rs=4 dur=15` (loaded + "playing") yet
+  **`currentTime` stays 0.0** — even after a real user tap (gesture) and after a clean reboot. The
+  scrubber thumb is therefore frozen at the far-left "0:00"; the scrubber CODE is fine.
+- ALSA `/proc/asound/card0/pcm0p/sub0/status` = **`state: PREPARED, hw_ptr: 0`** — the cubeb output
+  stream is created but **never reaches RUNNING**, so no samples flow and the audio clock (which drives
+  an audio-only element's currentTime — `pulse_stream_get_position` → `pa_stream_get_time`) stays 0.
+- `document.hidden=false`, `visibilityState=visible` — so it is NOT the page-visibility/decoder-dormant
+  gate (`HTMLMediaElement` IsHidden/NotifyOwnerDocumentActivityChanged). `nsIDocument::IsActive()` is
+  `mDocumentContainer && !mRemovedFromDocShell` (container presence, always true), so the docshell
+  active flag is a red herring.
+
+Dead ends this session (reverted / noted):
+- `GoannaRenderPage::Create` `docShell->SetIsActive(true)` — **broke offscreen rendering entirely**
+  (blank page, work avg=0). Reverted. It also doesn't touch the suspend gate (see IsActive above).
+- `media.block-autoplay-until-in-foreground=false` (device-bundle/goanna.js, UNTRACKED build artifact,
+  deployed only) — did not start playback; a real gesture didn't either, so autoplay-gating is NOT the
+  cause. Reasonable to keep for a single-card browser but unverified; the source is make-device-bundle,
+  not git.
+
+Leading hypothesis (unconfirmed): the stream stays PREPARED because module-palm-policy isn't
+powering/resuming pcm_output for our stream, OR the media-decoder→AudioSink never calls
+cubeb_stream_start for this content. Note the tension with the user's earlier report that on the .ipk
+"hardware volume moves the tone" (audio DID output) while the scrubber was stuck — i.e. on the .ipk the
+audio may have PLAYED but currentTime still froze (clock decoupled), whereas after my push-experiments
+the stream is PREPARED (no output). The device engine (libxul/daemon/goanna.js) was overwritten by
+push-engine-update during this session and no longer matches the pristine .ipk — reset by reinstalling
+the .ipk before the next diagnosis pass, then re-check whether audio OUTPUTS while currentTime freezes
+(clock-feedback bug) vs never outputs (stream-start bug). Next trace target: the MediaDecoderStateMachine
+→ AudioSink → cubeb_stream_start path, and whether pa_stream_get_time advances when audio is audible.

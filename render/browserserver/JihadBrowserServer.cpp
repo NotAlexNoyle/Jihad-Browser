@@ -160,6 +160,13 @@ void JihadBrowserServer::OnDownloadError(jihad::DownloadOrigin origin, const cha
 }
 
 jihad::BrowserPageGoanna* JihadBrowserServer::pageFor(YapProxy* proxy) {
+  // Every card command resolves its page through here, so this is the one place that knows a
+  // card just asked for something. That keeps the tick at the frame period (see tick()) and, if
+  // the daemon had backed off to the quiet tick, brings it back NOW rather than a quiet period
+  // later — a tap or a key must not wait for a timer that was slowed down because nothing was
+  // happening. Cheap when already fast: one compare in the hook.
+  mActivity = true;
+  if (mWakeHook) mWakeHook();
   auto it = mPages.find(proxy);
   return it == mPages.end() ? nullptr : it->second.page;
 }
@@ -469,7 +476,8 @@ void JihadBrowserServer::processInjectFile() {
 }
 #endif  // !JIHAD_NO_INJECT
 
-static const uint64_t kTickStatsMinWorkMs = 20;
+static const uint64_t kTickStatsMinPaintMs = 10;
+static const uint32_t kTickStatsLongTickMs = 40;
 
 void JihadBrowserServer::tick() {
   // Re-entrancy guard (device crash: BeginLoad this=0xa, SIGBUS). A synchronous
@@ -497,8 +505,13 @@ void JihadBrowserServer::tick() {
 #ifndef JIHAD_NO_INJECT
   // With no page the tick is the 1 s idle tick (Main.cpp), so poll on every one: the channel
   // must still be able to say "no page", and 20 idle ticks would be 20 s.
-  if (!mInjectPath.empty() && (snap.empty() || ++mInjectThrottle >= 20)) {
-    mInjectThrottle = 0; processInjectFile();
+  // By the clock, not by counting ticks: the tick period is no longer one number (frame period,
+  // quiet, idle), and "every 20th tick" would be anything from 160 ms to 20 s.
+  if (!mInjectPath.empty()) {
+    const int64_t nowPoll = jihadTickNowMs();
+    if (snap.empty() || nowPoll - mLastInjectPollMs >= 160) {
+      mLastInjectPollMs = nowPoll; processInjectFile();
+    }
   }
 #endif
 
@@ -507,6 +520,7 @@ void JihadBrowserServer::tick() {
   // from folding a 1000 ms idle period into the first report after a card connects.
   if (snap.empty()) {
     mTickStatsReset = true;
+    mTickBusy = false; mActivity = false;
     mInTick = false;
     for (auto& e : mReap) { delete e.page; delete e.sink; }
     mReap.clear();
@@ -541,6 +555,11 @@ void JihadBrowserServer::tick() {
     // — an off-tick call would shift the request off the tick grid it exists to stay on.
     pg->requestNextPluginFrame();
   }
+  // Busy = a card spoke since the last tick, or a page still has something to do AFTER this
+  // tick's pump and paint. main() reads it to choose between the frame period and the quiet one.
+  mTickBusy = mActivity;
+  mActivity = false;
+  for (auto* pg : snap) if (pg->isBusy()) { mTickBusy = true; break; }
   int64_t tickT1 = jihadTickNowMs();
   {
     static int64_t sPrevStart = 0, sReport = 0;
@@ -562,12 +581,12 @@ void JihadBrowserServer::tick() {
     sPrevStart = tickT0;
     if (!sReport) sReport = tickT1;
     else if (tickT1 - sReport >= 2000) {
-      // Only when the loop actually worked in this window (>= kTickStatsMinWorkMs of pump +
-      // paint in 2 s). A connected card showing a static page ticks with work=0, and a
-      // statistics line with nothing to report, every 2 s for as long as the card is open, is
-      // log growth and nothing else. Every case this line exists to diagnose — a load, an
-      // animation, video, a plugin — clears the threshold many times over.
-      if (sN && sWorkSum >= kTickStatsMinWorkMs) {
+      // Only when the loop actually PAINTED in this window (>= kTickStatsMinPaintMs of paint
+      // in 2 s) or one tick ran long. A connected card showing a static page still spends a
+      // millisecond or two per tick pumping, and a statistics line with nothing to report,
+      // every 2 s for as long as the card is open, is log growth and nothing else. Every case
+      // this line exists to diagnose — a load, an animation, video, a plugin — paints.
+      if (sN && ((sWorkSum - sPumpSum) >= kTickStatsMinPaintMs || sWorkMax >= kTickStatsLongTickMs)) {
         // pump vs paint, split: the tick is WORK-bound, not timer-bound, whenever work
         // approaches the 16 ms period, and then the frame grid can only land on multiples of
         // the work time. Knowing which half to attack is the difference between shrinking the

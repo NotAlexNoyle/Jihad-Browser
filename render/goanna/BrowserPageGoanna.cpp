@@ -2456,6 +2456,27 @@ static bool jihadPluginPullEnabled() {
   return s_on != 0;
 }
 
+bool BrowserPageGoanna::isBusy() const {
+  if (!mPage) return false;
+  // Engine media is playing somewhere in this process: its main-thread events (timeupdate,
+  // buffering, the state machine's hops through the main thread) ride the pump.
+  if (jihad_pulse_active_streams && jihad_pulse_active_streams() > 0) return true;
+  // A backgrounded card paints nothing (maybePaint returns early), and mNeedsPaint can stay set
+  // for as long as it is frozen — which must not hold the fast tick for a card nobody can see.
+  if (mFrozen) return false;
+  if (mNeedsPaint || mDirtyPending || mGeometryDirty || mBlankRetryAtMs) return true;
+  if (mLoadStartMs != 0 && !mLoadWasDone) return true;            // a load is running
+  if (!mPendingMouse.empty() || !mPendingEditActions.empty()) return true;
+  if (!mEmittedFlashRects.empty()) return true;                   // plugin: the pull needs the grid
+  const int64_t now = jihadNowMs();
+  // Stay fast for a moment after the last paint or scroll: animation and panning arrive as a
+  // stream of small events, and dropping to the quiet period between two of them would put
+  // every other frame up to a quiet period late. 200 ms spans the gap between frames of
+  // anything animating at 5 fps or more; a page that changes once a second is allowed to go
+  // quiet in between.
+  return (now - mLastPaintDoneMs) < 200 || (now - mLastScrollMs) < 200;
+}
+
 void BrowserPageGoanna::requestNextPluginFrame() {
   if (!mPage) return;
   if (!jihadPluginPullEnabled()) return;

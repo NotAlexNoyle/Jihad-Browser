@@ -17,7 +17,7 @@ NOVACOM=(novacom)
 
 bash "$ASSETS/make-media-assets.sh" "$STAGE"
 cp "$ASSETS/jihad-media.html" "$ASSETS/jihad-codecs.html" "$ASSETS/jihad-input-echo.html" \
-   "$ASSETS/jihad-settings.html" "$STAGE/"
+   "$ASSETS/jihad-settings.html" "$ASSETS/jihad-ticker.html" "$STAGE/"
 
 "${NOVACOM[@]}" run file://bin/mkdir -- -p /tmp/jm >/dev/null 2>&1 || true
 fail=0

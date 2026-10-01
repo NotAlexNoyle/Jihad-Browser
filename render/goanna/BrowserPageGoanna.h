@@ -264,6 +264,10 @@ public:
   // itself by COUNTING calls, and maybePaint() is also reached from returnBuffer(), which would
   // put requests off the tick grid — the exact phase noise this exists to remove.
   void requestNextPluginFrame();
+  // Whether this page needs the frame-rate tick right now: something to paint, a load running,
+  // queued input, a plugin, media playing, or a paint/scroll in the last moment. The daemon
+  // backs its tick off while every page says no (Main.cpp, the quiet tick).
+  bool isBusy() const;
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages

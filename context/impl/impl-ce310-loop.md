@@ -44,6 +44,8 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | (found) | FIXED | Upgrade crash: postinst `cp` over the mapped adapter shim → LunaSysMgr SIGSEGV at the next card launch (seen once). postinst now replaces shim + impl by rename; verified on three upgrades. New kit criterion in device-build R4, `[x]`. |
 | T-238 | DONE | Scrubber: stuck `0:00` bubble reproduced on `<audio>`, cause = engine damage rect excludes the bubble above the bar; daemon now grows the damage box by 32 CSS px (no plugin on page). Bubble tracks 0:04/0:10/0:15; click-seek works (audio 3.5→13.2 s, video 4.9→30.9 s). gre-widgets R1 controls-render + scrubber boxes → `[x]`. Engine-side overflow union tried, no effect, reverted (rebuild reproduced md5 `65e3cc84`). Daemon now `73cbc3a2dbc37b4446de955a92f2cd14` on all three. |
 | T-239 | DONE (agent part) | Volume widget: mute + slider change `muted`/`volume`; pulse sink-input follows (100→54/96/78%, 0% muted); codec level untouched. T-241 (engine volume wiring) is MOOT. Kit box `[~]` for the finger (T-285). |
+| T-292 | DONE | Quiet tick: frame period → 100 ms after ~0.2 s with no busy page and no card command; commands wake it from `pageFor()`; inject polled by the clock; tick-stats line only when the loop painted or a tick ran ≥40 ms. `JIHAD_QUIET_TICK_MS` (0 disables). Daemon `2786380985b928f05480419b6141aa6b` on all three. |
+| T-293 | DONE except Flash | Static page 2.2% (was 12.3%), 11.5 wakeups/s; clicks ≤20 ms; video 149/0; 1 Hz timer page: max 216 / mean 65 ms late, 9.3% CPU. Flash histogram check rides the plugin sweep (T-247). engine R3 stays `[~]` until then. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

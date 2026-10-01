@@ -78,6 +78,39 @@ static void teardown_bailout(int sig) {
 // last page go; waking is NOT left to the next idle tick — the server calls jihadWakeTick() from
 // the card's connect, so the first frame is not held up to a second behind the old timer.
 static const int kJihadIdleTickMs = 1000;
+
+// ── AND A CONNECTED CARD WITH NOTHING TO DO IS QUIET (cavekit-engine-embedding.md R3) ─────────
+// Measured 2026-10-01 with a card open on a static page and no input: 12.3% of a core, all of it
+// this tick — ~125 pump-and-bookkeeping passes a second at ~1 ms each on a CPU sitting at its
+// idle clock. A browser left open on a page was costing an eighth of a core for as long as the
+// card existed.
+//
+// So there is a third period between "frame" and "idle": after kJihadQuietAfterTicks consecutive
+// ticks in which no page was busy and no card sent a command, the tick drops to the quiet
+// period. It goes back to the frame period the moment either changes — a command wakes it
+// directly from the server (the same hook a connect uses), page-side activity (a timer that
+// touches the DOM, a load, media, a plugin) is seen by the next quiet tick, i.e. at most one
+// quiet period late, and from then on it is fast again. Neither transition is logged: a page
+// with a one-second clock would flip twice a second for ever.
+//
+// 100 ms, not 50: measured on the device, 50 ms left a static page at 3.5% of a core (each pass
+// costs ~1.75 ms at the idle clock) and 100 ms brings it under 2%. The price is that a page-side
+// event with no command behind it — a timer firing — is noticed up to 100 ms late, once, before
+// the tick is fast again; a command is never late.
+// $JIHAD_QUIET_TICK_MS overrides the quiet period (20-500); 0 disables the quiet tick.
+static int jihadQuietTickMs() {
+  static const int v = [] {
+    int q = 100;
+    if (const char* e = getenv("JIHAD_QUIET_TICK_MS")) {
+      int n = atoi(e);
+      if (n == 0) q = 0; else if (n >= 20 && n <= 500) q = n;
+    }
+    return q;
+  }();
+  return v;
+}
+static const int kJihadQuietAfterTicks = 25;   // ~0.2 s of the frame tick with nothing to do
+static int g_quietTicks = 0;
 static GMainContext* g_tickCtx = nullptr;
 static GSource*      g_tickSrc = nullptr;
 static int           g_tickFastMs = 8;
@@ -93,8 +126,10 @@ static void arm_tick(int ms) {
 }
 
 static void jihadWakeTick() {
+  g_quietTicks = 0;
   if (g_tickArmedMs == g_tickFastMs) return;
-  printf("[jihad-bs] tick: card connected — %d ms\n", g_tickFastMs);
+  if (g_tickArmedMs == kJihadIdleTickMs)
+    printf("[jihad-bs] tick: card connected — %d ms\n", g_tickFastMs);
   arm_tick(g_tickFastMs);
 }
 
@@ -104,9 +139,21 @@ static gboolean tick_cb(gpointer) {
     return FALSE;
   }
   if (g_server) g_server->tick();
-  if (g_server && !g_server->hasPages() && g_tickArmedMs != kJihadIdleTickMs) {
-    printf("[jihad-bs] tick: no card — idling at %d ms\n", kJihadIdleTickMs);
-    arm_tick(kJihadIdleTickMs);     // destroys the source this callback is running in
+  if (!g_server) return TRUE;
+  if (!g_server->hasPages()) {
+    if (g_tickArmedMs != kJihadIdleTickMs) {
+      printf("[jihad-bs] tick: no card — idling at %d ms\n", kJihadIdleTickMs);
+      arm_tick(kJihadIdleTickMs);   // destroys the source this callback is running in
+      return FALSE;
+    }
+    return TRUE;
+  }
+  if (g_server->tickWasBusy()) {
+    g_quietTicks = 0;
+    if (g_tickArmedMs != g_tickFastMs) { arm_tick(g_tickFastMs); return FALSE; }
+  } else if (g_tickArmedMs == g_tickFastMs && jihadQuietTickMs() > 0 &&
+             ++g_quietTicks >= kJihadQuietAfterTicks) {
+    arm_tick(jihadQuietTickMs());
     return FALSE;
   }
   return TRUE;

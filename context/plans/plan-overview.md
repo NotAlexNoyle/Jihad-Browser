@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-10"
+last_edited: "2026-10-01"
 ---
 
 # Plan Overview
@@ -8,32 +8,31 @@ last_edited: "2026-08-10"
 ## Build Sites
 | Site | File | Tasks | Done | Status |
 |------|------|-------|------|--------|
-| Jihad Browser — remaining open criteria | build-site.md | 56 | 1 | ACTIVE |
+| Jihad Browser — CE 3.1.0 open criteria (2026-10-01) | build-site.md | 91 | 0 | ACTIVE |
+| Jihad Browser — remaining open criteria (2026-08-10) | build-site-2026-08-10.archived.md | 56 | — | ARCHIVED |
 | Jihad Browser port (original, 2026-06-30) | build-site-2026-06-30.archived.md | 54 | — | ARCHIVED |
 
-**The active site covers ONLY the criteria that are still open** — the 41 boxes marked `[~]` or
-`[ ]` across `context/kits/` on 2026-08-10. The other 327 are `[x]` and are recorded as met on the
-criteria themselves; restating them here would be a second source of truth that can drift from the
-kits, which is the failure this project has hit repeatedly in its own docs.
+**The active site covers ONLY the criteria that are still open** — the 53 boxes marked `[~]` (31)
+or `[ ]` (22) across `context/kits/` on 2026-10-01, after the kits were brought in line with the
+device (now webOS CE 3.1.0). The other 338 are `[x]` and are recorded as met on the criteria
+themselves; restating them here would be a second source of truth that can drift from the kits.
 
-The 2026-06-30 site is archived rather than deleted. It planned the port from nothing and is the
-record of how the project got here, but as a work driver it is obsolete: it predates essentially
-everything now built, so every one of its 54 tasks is either long done or re-scoped.
+The two older sites are archived rather than deleted: 2026-06-30 planned the port from nothing,
+2026-08-10 (T-101…T-156) drove the 3.0.5-era open criteria. New rows that say "continues T-1xx"
+inherit that task's remaining work and gating.
 
 ## Where the open work actually is
 
-Eight of the 56 tasks are quarantined in the final tier as **BLOCKED-EXTERNAL** — they need
-hardware this device does not have (no keyboard, no TouchPad Go), a human physically at the device
-(a real tap, a real pinch, an untrusted-cert session), an interactive sudo password, or a user
-decision. They are not schedulable and must never sit in front of work that is.
+- **One device, one lane.** 51 of the 91 tasks touch the TouchPad and form a single total order
+  (the site's `## Device lane`); host work runs beside it. All three variants stay on one engine +
+  daemon build: fixes are batched, built, and pushed to all three together.
+- **Order (the user's):** housekeeping → `<video>` decode fix (engine push 1a, verified before the
+  daemon changes land) → idle daemon (log bound, idle tick; daemon push 1b) → `about:blank` repaint
+  storm → fresh install / Luna registration / Atlas → TLS version capture → media controls → the
+  remaining partials and the CE 3.1.0 re-verification sweep → batch 2.
+- **13 tasks are BLOCKED-EXTERNAL** in the final tier: a human finger/eye/ear at the device, a
+  keyboard that does not exist, a credentialed push, or an owner decision. They are not
+  schedulable and never sit in front of work that is. A daemon-level inject is never counted as
+  the human test.
 
-Two ordering facts drive the graph:
-- The **codec verdict** (T-101) gates the whole `<video>` chain and is cheap — half the answer is
-  already in `mozconfig.goanna-arm` (`--disable-alsa`/`--disable-pulseaudio`, so no cubeb output
-  backend) against `MOZ_FFVPX`/`MOZ_FFMPEG`/`MOZ_FMP4` in `autoconf.mk` (decoders present).
-- The **frame-pacing chain** (T-105 → T-123 → T-136) is the user-visible one. T-105 is DONE and
-  its answer changed the shape of the rest: see its row.
-
-Next: `/ck:make` to implement, or work Tier 0 directly. Judge the pacing tasks by the frame-gap
-HISTOGRAM, never by average fps — the average read 35-42 fps for 30 fps content throughout the
-entire period the animation looked worst.
+Next: `/ck:make`. Judge any pacing task by the frame-gap HISTOGRAM, never by average fps.

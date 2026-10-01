@@ -1,0 +1,622 @@
+---
+created: "2026-10-01"
+last_edited: "2026-10-01"
+---
+
+# Build Site
+
+91 tasks across 54 tiers (Tier 0-52 plus a final BLOCKED-EXTERNAL tier), covering exactly the 53 acceptance criteria that are `[~]` (31) or `[ ]` (22) in `context/kits/` on 2026-10-01 - nothing else; the 338 `[x]` criteria are recorded as met in the kits and are not restated. Task IDs start at T-201; a row that says "continues T-1xx" inherits that task's remaining work and gating from `build-site-2026-08-10.archived.md`. **Device lane:** there is ONE TouchPad, so every agent-run task with `Device: yes` sits in a single total order (see `## Device lane`): each is `blockedBy` the previous lane task in addition to its real blockers, and the lane is why the tier count is high - the tiers below are mostly one device sitting each, with host work running in parallel beside them. Host tasks run in parallel except that engine builds (libxul) and daemon builds are one at a time; the daemon build follows the engine build because it links the same objdir. **Batch rule:** all three variants stay on one engine + daemon build. Code fixes are batched - implement, build, ONE push to all three (`build/webos-oe/push-engine-update.sh enyo mochi mojo`, or an `.ipk` upgrade of all three when the adapter or bundled files change) - then the device verifications run in lane order. Batch 1 carries every fix known today; batch 2 carries the plugin VKB adapter work plus whichever [CONDITIONAL] fixes the lane triggers. **Gates:** the 13 tasks in the last tier need a person at the device, hardware that does not exist (no keyboard), a credential, or a product-owner decision; their `Device` column reads `human` because no agent runs them and they are outside the lane. A daemon-level inject is never counted as the human test. Every device row names its observable; "Pre" means: assert the daemon log GREW and the card is CONNECTED before believing a reading, and record the libxul md5 beside the result.
+
+## Tier 0 — No Dependencies (Start Here)
+
+| Task | Title | Cavekit | Requirement | Device | Effort |
+|------|-------|---------|-------------|--------|--------|
+| T-201 | Housekeeping and baselines before any push: `df /var` first; remove enyo's leftover `MOZ_LOG=...` from `/etc/event.d/jihad` then `stop jihad; start jihad`; confirm `JIHAD_INJECT=1` in all three jobs; record each libxul md5 (enyo traced `cb514e9e...`, mochi/mojo `78c3b51a...`); check whether `org.webosinternals.ipkgservice` exists on CE. Record PRE-CHANGE figures: no-card CPU from `/proc/<pid>/stat` over 60 s, log bytes/min, `about:blank` `painted` lines per 30 s, connect-to-first-`painted` ms on a static page. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R8/R4 | yes | M |
+| T-202 | Engine fix for the `<video>` MEDIA_ERR_DECODE race: in `third_party/uxp/gfx/layers/basic/BasicImages.cpp` `BasicPlanarYCbCrImage::CopyData`, return the base `RecyclingPlanarYCbCrImage::CopyData` result and `true` under delayed conversion (PICKUP NEW DEFECT 1); commit on `jihad-engine-mods` so the OE SRCREV can follow. Observable is T-220. | cavekit-gre-widgets.md | gre-widgets R1 | no | S |
+| T-203 | Daemon idle state: with no card connected stop the 8 ms frame tick (nothing pumped, painted or paced; wake ~1/s or less), keep polling the inject channel at the idle cadence so it can still answer `no page`, wake to the full tick on connect without delaying the first frame, return to idle on disconnect. | cavekit-device-build.md<br>cavekit-engine-embedding.md | device-build R8<br>engine-embedding R3 | no | M |
+| T-204 | Bound the log while running: stop the periodic `tick period` line when there is nothing to report; enforce the 2 x 2 MB cap inside the daemon (rotate/reopen or stop writing, same PID, with a test knob that lowers the cap); write the three-variant worst case into the job comment (`packaging/gen-variant-scripts.sh`) and the `docs/` footprint list. | cavekit-device-build.md | device-build R8 | no | M |
+| T-205 | Blank-page settle in the full paint path (`BrowserPageGoanna`): record that a zero-content frame was refused as FINAL for this document/load and stop retrying until an invalidation, navigation or resize; keep the blank-over-good suppression for a blank frame mid-load of a page that later has content; no per-paint log line while settled. | cavekit-offscreen-rendering.md<br>cavekit-engine-embedding.md | offscreen-rendering R8/R3<br>engine-embedding R3 | no | M |
+| T-206 | Confirm or refute the fresh-install -1027 from source: `packaging/gen-variant-scripts.sh` postinst starts the job (`start @@JOB@@`) before ls-hubd has read the new role (its own comment says the role is live only after the requested reboot); read `JihadLunaService.cpp` for any retry. If real, fix so the service registers without a hand restart (daemon-side `LSRegisterPalmService` retry with backoff so it rides the daemon build, and/or a postinst hub rescan before `start`). | cavekit-device-build.md | device-build R4 | no | M |
+| T-207 | Prepare R9's two device items (continues T-104): build the `PTHREAD_PROCESS_SHARED` `__kind` probe dynamically linked with the PDK gcc 4.3.3 so it runs against the device's own glibc 2.8 libpthread, and a script that pulls `libflashplayer.so`'s DT_NEEDED closure off the device (`novacom get`) for a host `readelf --dyn-syms` scan for `sem_open`/`*attr_setpshared`. | cavekit-device-build.md | device-build R9 | no | S |
+| T-208 | Clean-clone residuals (continues T-115/T-154): `git ls-files build/webos-oe/toolchain/` - `git add` the three crosstool recipe files if still untracked; `git ls-remote` the `UXP-Jihad` fork for `jihad-engine-mods` and confirm the parent gitlink is a pushed commit. If it is not pushed, the push is T-279. | cavekit-device-build.md | device-build R3 | no | S |
+| T-209 | Test assets: regenerate >=10 s clips with ffmpeg (VP8, VP9, Theora, Vorbis, Opus, WAV, FLAC, MP3, AAC, H.264) per PICKUP's recipes; extend `render/goanna/test/jihad-media.html` `#state` with ended/error/currentTime/duration/decoded+dropped frames/volume/muted plus a fixed-width variant; add an input-echo page (plain `<input>`, `<textarea>`, controlled re-set-from-state input); stage via `stage-test-pages.sh`. | cavekit-gre-widgets.md<br>cavekit-input-bridging.md | gre-widgets R1<br>input-bridging R2a | no | M |
+| T-210 | Refresh `app-mochi/PARITY.md` against today's `app/` and `app-mochi/` (safeUrl, settings entry, toast and other post-2026-07-31 changes) so the human sign-off (T-291) is on a current checklist. Continues T-113. | cavekit-mochi-ui.md | mochi-ui R2 | no | S |
+| T-211 | Adapter latch instrument (continues T-124): a `g_message` on every `mFlashGestureLock` set/clear with its call site in `render/adapter/BrowserAdapter.cpp` (DEBUG/TRACEF compile to nothing today), so the runtime value is readable via palm-log; ships in the batch-1 `.ipk`s (PDK build). | cavekit-input-bridging.md | input-bridging R7 | no | S |
+| T-212 | Plugin VKB raise (continues T-144): in the adapter raise the VKB when the plugin latch engages on a plugin that wants text and lower it when the latch clears, mirroring the `msgEditorFocused` path; document what signals "wants text" and that the latch is double-tap only. Batch 2 (adapter, `.ipk`). | cavekit-input-bridging.md | input-bridging R7 | no | M |
+| T-213 | Keycode follow-ups in `BrowserPageGoanna::keyDown` (continues T-127/T-109): extend the PUA swallow to the real `0xE0E2`-`0xE0E7` codes so they stop inserting invisible glyphs; add an env-gated log of the raw `(key, chr, modifiers)` triple at `asyncCmdKeyDown` (codes only, suppressed for password fields) - the instrument the human VKB session (T-282) needs. | cavekit-gre-widgets.md | gre-widgets R3 | no | S |
+| T-214 | From source, explain and fix the two 2026-08-15 inject findings: `key 57346` (0xE0A2) did not move the caret in a `<textarea>` (`abcd` + 2 x Left + `X` gave `abcdX`), and the first `text` after a focus change into a `<textarea>` was dropped; state whether the inject `key` path reaches the keycode map at all. | cavekit-gre-widgets.md<br>cavekit-input-bridging.md | gre-widgets R3<br>input-bridging R2a | no | M |
+| T-215 | Settings-command instrument (continues T-116): one log line per frozen handler (`SetEnableJavaScript`, `SetBlockPopups`, `SetAcceptCookies`, `SetMinFontSize`, `SetUserAgent`) with the received value; a test page that opens its popup from a click handler (not during load, the 2026-08-15 confound) and a script-marker page. | cavekit-preferences-ui.md | preferences-ui R5 | no | S |
+
+## Tier 1 — Depends on Tier 0
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-216 | Engine build, batch 1: incremental libxul in the podman container (`build-goanna-arm.sh build`); record its md5. The only engine build in flight. | cavekit-gre-widgets.md | gre-widgets R1 | T-202 | no | S |
+
+## Tier 2 — host work
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-217 | Daemon build, batch 1 (`build-daemon-arm.sh`) with every batch-1 daemon change; `check-yap-contract.sh` passes (73 commands incl. 0x1600, 58 messages). Serialized after T-216 because it links against the same objdir. | cavekit-device-build.md | device-build R8/R4 | T-203, T-204, T-205, T-206, T-213, T-214, T-215, T-216 | no | S |
+
+## Tier 3 — device sitting: Batch-1 push to all three variants
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-218 | Batch-1 packages: `build-adapter-pdk.sh` AND `build-adapter-arm.sh` (with T-211), then `build-variant-ipk.sh` for enyo/mochi/mojo carrying T-216's libxul, T-217's daemon and T-206's postinst; verify each payload's libxul/daemon md5 equals the built ones and `libasound.so.2` is present. | cavekit-device-build.md | device-build R4/R3 | T-211, T-217 | no | S |
+| T-219 | Batch-1a ENGINE push (split from the daemon push 2026-10-01 so the `<video>` verification is not confounded by — or held up behind — the daemon changes): push the T-216 libxul to all three variants with the daemon left exactly as it is; read back libxul md5 on all three (= T-216; enyo leaves the traced build) and the unchanged daemon md5; `JIHAD_INJECT=1` intact; clean restart of each job; push T-209's pages and clips to `/tmp/jm/`. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R1 | T-201, T-216, T-209 | yes | S |
+
+## Tier 4 — device sitting: Verify: <video> plays to the end (VP8+Theora, file+http, 3 runs)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-220 | `<video>` plays to the end (continues T-101/T-125): VP8/WebM and Theora/Ogg >=10 s clips over `file://` and `http://`, three consecutive runs each; read `#state` via `gettext`: `ended=true`, `error=null`, `currentTime` within one frame of `duration`, decoded frames of the order of the clip's frame count (not 10-60); libxul md5 recorded for all three variants. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R1/R7 | T-219 | yes | M |
+
+## Tier 5 — device sitting: Verify: codec reality table + undecodable-media degradation
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-221 | Codec reality (continues T-101): per format (VP8, VP9, Theora, Vorbis, Opus, WAV, FLAC, MP3, AAC, H.264) record `canPlayType`, plays-to-end, and the reason where not (missing decoder vs defect) from `#state`; `anon video` shows the videocontrols `controlBar` attached; screenshot the error overlay for an H.264 `<video>` and an MP3 `<audio>`. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md<br>cavekit-device-build.md | gre-widgets R1<br>device-build R4 | T-220 | yes | M |
+
+## Tier 6 — device sitting: Verify: play/pause both directions by daemon click
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-222 | Play/pause both directions by daemon-level `clickat` on the control bar (continues T-145): long clip, reveal the auto-hidden bar before each click, read `paused`/`currentTime` before and after; both directions must change state. The finger test stays human (T-285). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R1 | T-221 | yes | S |
+| T-223 | Bring `packaging/prefs/jihad-platform-prefs.js` in line with T-220/T-221: the `<video>` reason is true again, and the stale "no audio output" reasoning becomes the 2026-09-27 measured state (continues T-138). | cavekit-gre-widgets.md | gre-widgets R7 | T-221 | no | S |
+
+## Tier 7 — device sitting: Measure: does engine media need the CPU boost (R10)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-224 | R10 media measurement (continues T-118/T-134): stock tunables read back, `scaling_cur_freq` once a second across a >=10 s `<video>` with dropped/decoded counts; floor + drops means extend, otherwise record the numbers and close "do not extend"; tunables read back stock afterwards; `scaling_governor` READ only. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R10 | T-222 | yes | S |
+
+## Tier 8 — device sitting: Verify: idle daemon CPU, wakeups, connect latency, re-idle
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-225 | Batch-1b DAEMON push first: `push-engine-update.sh enyo mochi mojo` with the T-217 daemon (libxul unchanged from T-219), md5 read back on all three, `JIHAD_INJECT=1` intact, clean restart of each job. Then idle daemon: all cards closed, per variant `/proc/<pid>/stat` utime+stime over >=60 s (<0.5% of a core) and wakeups from the `voluntary_ctxt_switches` delta (~1/s or less); an inject `url` with no card still answers `no page`; reconnect, connect-to-first-`painted` vs T-201's baseline; close the card and see the idle figures return without a restart. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R8 | T-224, T-217 | yes | M |
+| T-226 | [CONDITIONAL] Only if T-224 shows the clock at the floor with frames dropping: extend the boost to engine media with its own owner, release path and post-stop restore (patch `0027` model); batch 2. | cavekit-device-build.md | device-build R10 | T-224 | no | M |
+
+## Tier 9 — device sitting: Verify: log bounded idle (10 min) and past the cap (same PID)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-227 | Log bound: (a) no card, a 10-minute window, `daemon.log` growth per variant of at most a few hundred bytes; (b) one variant with the cap lowered by T-204's knob and a noisy page drives the log past the cap in one lifetime: it rotates or stops with the same PID and logs again afterwards, then restore the job; (c) the worst-case number is in the job comment. Assert the log GREW during (b). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R8 | T-225 | yes | M |
+
+## Tier 10 — device sitting: Verify: about:blank settles; real page still paints; no white flash
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-228 | Blank settle: `about:blank` for 30 s, `painted` lines vs the static-content control and T-201's baseline (a handful, not hundreds); then navigate to a real page and see its first frame promptly; a page blank mid-load that then gets content must not publish the blank over the previous good frame (frame capture). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-offscreen-rendering.md | offscreen-rendering R8/R3 | T-227 | yes | M |
+
+## Tier 11 — device sitting: Measure: idle CPU with a static page loaded
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-229 | Engine idle: static page loaded, no input, `/proc/<pid>/stat` CPU over 60 s per variant; record the figure on engine-embedding R3. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-engine-embedding.md | engine-embedding R3 | T-228 | yes | S |
+
+## Tier 12 — device sitting: CE baseline md5s + Atlas identity columns
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-230 | Fresh CE baseline: md5 of the stock file set plus Atlas's files (replaces the 3.0.5 `baseline-v2`); read Atlas's identity columns off the device (NPAPI MIME, shim filename, YAP name, socket, upstart job, Luna name) and compare with all three Jihad variants - no column may be equal. | cavekit-device-build.md | device-build R4/R8 | T-229 | yes | S |
+
+## Tier 13 — device sitting: Removal audit #1 to a role-less start
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-231 | Removal audit #1 and role-less start: remove the three variants one at a time through the supported installer (the remaining ones keep serving after each removal; `prerm` removes exactly what postinst created, naming any failing assertion; rootfs read-only again); then show no app dir, job, shim/impl, role/service file or state dir remains and the hub has forgotten the name (rescan, or reboot with unmodified shipped jobs); re-read Atlas md5s. | cavekit-device-build.md | device-build R4/R7/R8 | T-230, T-218 | yes | M |
+
+## Tier 14 — device sitting: Fresh install Enyo (supported path): daemon, socket, render, Luna
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-232 | Fresh install, Enyo: install T-218's `.ipk` via the supported installer and do only what postinst asks; observe the daemon running from the app's own deviceroot (`/proc/<pid>/exe`), its YAP socket, the card launching and rendering (screenshot); grep the serving PID's log for `LSRegisterPalmService ... FAILED` / a later success; `luna-send -P` `clearCookies` or `getChromePrefs` to the variant service is answered. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-231 | yes | M |
+
+## Tier 15 — device sitting: Fresh install Mochi + Mojo; db8 kinds; Mojo framework
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-233 | Fresh install, Mochi then Mojo: the same observables as T-232 per variant, plus Mochi's db8 kinds (bookmarks, history, downloads) registered and Mojo launching against `/usr/palm/frameworks/mojo` with no framework error. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-232 | yes | M |
+
+## Tier 16 — device sitting: Postinst reboot: Luna recovered?, sem_t across reboot, probes
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-234 | The reboot postinst asks for (shipped, unmodified jobs only): per variant state whether the Luna service registered on first start or recovered (same-PID success, public-bus call answered); `sem_t` containment holds across the reboot (`engine up; serving YAP`, no PmLogLib hang); `plugin_mime_probe` and `alsa_probe` under both loaders. Afterwards re-add `JIHAD_INJECT=1` and restage `/tmp` assets. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-233 | yes | M |
+
+## Tier 17 — device sitting: Atlas coexistence: md5s, both serve, kill either, own connects only
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-235 | Atlas coexistence (2)-(4): Atlas md5s after install equal T-230's; with Atlas's daemon and a Jihad daemon both running each card loads and renders a page; killing either daemon leaves the other serving; each daemon's log shows only its own card's connect. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-234 | yes | M |
+| T-236 | [CONDITIONAL] Only if T-232/T-233/T-234 show a variant whose service neither registered on first start nor recovered without a hand restart: revise T-206's fix (daemon retry and/or postinst); batch 2. | cavekit-device-build.md | device-build R4 | T-234 | no | S |
+
+## Tier 18 — device sitting: Capture negotiated TLS version from a real page load
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-237 | TLS capture: load `https://www.howsmyssl.com/a/check` in a card, `gettext body` through the card-connected daemon, record the literal `tls_version` string with date and libxul md5; an empty readout is no measurement. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-browser-services.md | browser-services R5 | T-235 | yes | S |
+
+## Tier 19 — device sitting: Verify: controls render, scrubber tracks/rests/seeks
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-238 | Media controls render + scrubber (continues T-137): one screenshot per element type (`<video controls>`, `<audio controls>`) with the thumb off 0 while `currentTime` > 0; two screenshots >=3 s apart show increasing thumb positions and no stray `0:00` bubble at the far left; thumb rests at the end at `ended`; a `clickat` on the track moves `currentTime` to that position. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R1 | T-237 | yes | M |
+
+## Tier 20 — device sitting: Verify: volume widget input + pulse sink-input volume
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-239 | In-player volume: daemon-level click on mute toggles `muted`, a click on the slider changes `volume` (read from `#state`); the daemon stream's pulse sink-input volume (`pacmd list-sink-inputs`) moves with it, composed with the mirrored system volume. Record which half fails, if any. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R1 | T-238 | yes | M |
+
+## Tier 21 — device sitting: Investigate: volume HUD for the daemon's stream; write decision
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-240 | Volume HUD: read the CE audio policy config on the device for which stream roles get the system HUD, and either identify a change that makes the daemon's stream HUD-eligible (route it into batch 2) or write the decision (what was tried, why the platform will not show it, cosmetic residual) on gre-widgets R1. The key press itself is human (T-286). | cavekit-gre-widgets.md | gre-widgets R1 | T-239 | yes | S |
+| T-241 | [CONDITIONAL] Only if T-239 shows input reaching the widget but the sink-input volume not moving: make element `volume`/`muted` reach the cubeb pulse stream composed with the system-volume mirror; batch 2. | cavekit-gre-widgets.md | gre-widgets R1 | T-239 | no | M |
+
+## Tier 22 — device sitting: Verify: Cookies-cleared toast in all three shells
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-242 | Toast channel: with the Luna service confirmed registered, `luna-send -P` `clearCookies` per variant gives the daemon's `notify: ... (pushed)` line AND a visible toast in a screenshot of each of the three shells (continues T-146/T-148). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-gre-widgets.md | gre-widgets R5 | T-240 | yes | S |
+| T-243 | [CONDITIONAL] Engine build, batch 2: only if T-226 or T-241 changed the engine; record md5. | cavekit-device-build.md<br>cavekit-gre-widgets.md | device-build R10<br>gre-widgets R1 | T-226, T-241 | no | S |
+
+## Tier 23 — device sitting: CE cert store + cert/dialog/download flows
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-244 | Cert store on CE + R4 flows (continues T-135/T-152): `libPmCertificateMgr.so` md5 and nine symbols resolve; self-signed HTTPS endpoint on the host raises SSL-confirm with non-empty certFile; Trust Once via the reply FIFO gives `CertAddTrustedCert rc=0` and the page loads; an `application/octet-stream` download lands in `/media/internal/downloads` with matching md5. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-browser-services.md<br>cavekit-device-build.md | browser-services R5<br>device-build R4 | T-242 | yes | M |
+
+## Tier 24 — device sitting: Run R9 probes: __kind on glibc 2.8; Flash closure; CE closure resolves
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-245 | R9 on the device (continues T-104): run T-207's probe and read `__kind` after a `PTHREAD_PROCESS_SHARED` init on glibc 2.8; walk `libflashplayer.so`'s closure (incl. `libPmLogLib.so`) for other `sem_open` users; confirm the closure still resolves on CE (libssl/libcrypto 0.9.8, libcurl, libWebKitLuna, libPiranha). | cavekit-device-build.md | device-build R9/R4 | T-244, T-207 | yes | S |
+
+## Tier 25 — device sitting: Plugin/Flash sweep + R10 boost taken/released
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-246 | Plugin sweep (addons R7, device-build R10): `about:plugins` and the NPAPI path; `jihad-anim.swf` instantiates and renders; the windowless control plugin composites at the right position/size/zoom and logs mouse/key input; plugin YAP commands; a plugin crash leaves the daemon serving; tunables read back stock at rest, boost taken on Flash and released on navigate-away and on daemon kill; `scaling_governor` read only. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-addons-extensions.md | device-build R4/R10<br>addons-extensions R7 | T-245 | yes | M |
+
+## Tier 26 — device sitting: Re-measure Flash frame-gap histograms on CE (pull vs Flash-alone)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-247 | Flash pacing on CE (continues T-123/T-136): clean-restart `jihad-anim.swf` runs in the `0029` pull config and in Flash-alone (`JIHAD_PLUGIN_PULL=0 JIHAD_PLUGIN_SELF_DRIVE=0`) with the boost confirmed engaged; record the frame-gap HISTOGRAMS, not averages; leave the device in Flash-alone for the human comparison (T-287). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-addons-extensions.md | addons-extensions R7 | T-246 | yes | M |
+
+## Tier 27 — device sitting: about:addons + extension lifecycle sweep
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-248 | Add-ons sweep R1/R2/R4/R5: `engine up; serving YAP` with no SIGSEGV; `about:addons` renders and lists items; enable/disable/remove persist across a restart; SIGTERM flushes `prefs.js` and `extensions.json`; operable via the synthesized input path incl. the tools menu; a test extension alters a page and disable/enable removes/restores the effect; extensions live in the variant's own profile. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-addons-extensions.md | device-build R4<br>addons-extensions R1/R2/R4/R5 | T-247 | yes | M |
+
+## Tier 28 — device sitting: XPI install flow + mismatched-XPI toast + installed toast
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-249 | XPI sweep R3 + mismatch (continues T-103): opening an `.xpi` raises the install prompt naming the extension; accept via the dialog reply path, then it is listed and active; a mismatched-`targetApplication` XPI is refused with the incompatibility message visible on the card (now a toast; screenshot) and nothing installed; the add-on-installed toast observed once. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-addons-extensions.md<br>cavekit-gre-widgets.md<br>cavekit-device-build.md | addons-extensions R3<br>gre-widgets R5<br>device-build R4 | T-248 | yes | M |
+
+## Tier 29 — device sitting: Preferences sweep + pref read-side + chrome-page typing on CE
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-250 | Prefs sweep (continues T-117/T-131/T-143): `about:preferences` renders in each variant and `about:settings` aliases it (settle the bare-URL header/footer-only case); panes present; a change persists to that variant's `prefs.js` only; page-to-card by COORDINATE click; dropdown via card popup; no horizontal overflow; `network.cookie.cookieBehavior` set from the page survives a card relaunch as a `user_pref` and in `about:config`; text typed into a focused chrome field lands. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-preferences-ui.md | device-build R4<br>preferences-ui R2/R6 | T-249 | yes | M |
+
+## Tier 30 — device sitting: Verify: page-written javascript.enabled=false stops script after navigation
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-251 | JavaScript from the page (continues T-142/T-130): write `javascript.enabled=false` through `about:preferences`' own write path, NAVIGATE to the script-marker page, read `gettext #j` (`NOSCRIPT` expected); re-enable and see `SCRIPT-RAN`; state which 2026-08-05 explanation was true. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-preferences-ui.md | preferences-ui R3 | T-250 | yes | S |
+
+## Tier 31 — device sitting: Verify: frozen YAP settings commands toggle at runtime
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-252 | Frozen settings commands (continues T-116): drive each command through a temporary card hook (`push-card-js.sh`), read T-215's handler line and the effect (click-opened popup blocked/allowed, script marker after navigation, cookie count, computed min font size); revert the hook and prove the card JS is back to shipping. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-preferences-ui.md | preferences-ui R5 | T-251, T-215 | yes | M |
+| T-253 | [CONDITIONAL] Only if T-251 shows the page's write stopping script on the next load (else first fix the page write path): restore the JavaScript row in `packaging/prefsui/content/preferences.js` (continues T-147); ships in the batch-2 `.ipk`. | cavekit-preferences-ui.md | preferences-ui R2 | T-251 | no | S |
+
+## Tier 32 — device sitting: Verify: Mojo adopts an edit made on about:preferences
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-254 | Mojo editable settings (continues T-112/T-156): navigate the Mojo card to its `settingsUrl()` (`about:preferences#chrome=...`), change the home URL by coordinate click + inserted text, return to the start page and read the adopted value (card log / start-page screenshot). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-mojo-ui.md | mojo-ui R7 | T-252 | yes | S |
+
+## Tier 33 — device sitting: Verify: input-event echo, arrow/PUA keys, first-word-after-focus
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-255 | Input-event and typing checks: on the echo page, focus by click and insert text into a plain `<input>`, a `<textarea>` and the controlled input, read the echo (event seen?); inject Left/Right, Up/Down (settles the daemon side of the 0xE0A0/A1 order), `0xE0E2`-`0xE0E7` (no glyph), single-line Up/Down degrade to Home/End, and a first word after focus into a `<textarea>`. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-input-bridging.md<br>cavekit-gre-widgets.md | input-bridging R2a<br>gre-widgets R3 | T-254, T-209 | yes | M |
+
+## Tier 34 — device sitting: Input sweep R1/R2/R2a/R5 on CE
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-256 | Input sweep R1/R2/R2a/R5: `clickAt` hits the element, click count kept, checkbox/radio toggle with one `change`, XUL chrome taps do not crash, XUL buttons activate; key events, ASCII/symbol/non-ASCII typing, `insertStringAtCursor`, visible caret (screenshot); Backspace/Delete by code point, typing over a selection, Enter/Tab, number/email accept text; a click at zoom != 1 lands on the link. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-input-bridging.md | device-build R4<br>input-bridging R1/R2/R2a/R5 | T-255 | yes | M |
+| T-257 | [CONDITIONAL] Only if T-255 shows no echo: fix `FlushPendingInputEvent`/the pending-input path so a bubbling `input` event reaches page script for all three field kinds; batch 2. | cavekit-input-bridging.md | input-bridging R2a | T-255 | no | M |
+
+## Tier 35 — device sitting: VKB on every page in a session + uncovered-pan instrument
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-258 | VKB session (continues T-119/T-133): in one session focus an editable by `clickid` on >=3 different pages and screenshot the VKB raised each time; a top-of-page field stays visible on raise (`JIHAD_T1_LOG=1`); at a long page's bottom raise and dismiss the VKB and read the `[jihad-bs] uncovered pan ... gapTop/gapBot sinceResize dh` lines. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-input-bridging.md | input-bridging R2 | T-256 | yes | M |
+| T-259 | [CONDITIONAL] Daemon build, batch 2: only if a batch-2 daemon change exists (T-236, T-257) or T-243 ran; contract check passes. | cavekit-device-build.md<br>cavekit-input-bridging.md | device-build R4<br>input-bridging R2a | T-243, T-236, T-257 | no | S |
+
+## Tier 36 — device sitting: Touch struct on CE libWebKitLuna + touchEvent sweep
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-260 | Touch sweep R3: pull CE `libWebKitLuna.so`, re-read `NpPalmTouchEvent` size/offsets from `PluginView::handleTouchEvent` (28 bytes on 3.0.5) BEFORE enabling anything; then `touchEvent` delivers DOM touch events with the right count and coordinates on a user-scalable=no page. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-input-bridging.md | device-build R4<br>input-bridging R3 | T-258 | yes | M |
+| T-261 | [CONDITIONAL] Only if T-258's lines show `sinceResize` in single-digit ms with `dh=+340`: in both `handlePaint` paths shift the source window instead of clipping the dst when the buffer has the rows (sticky edge, not white); batch 2. | cavekit-input-bridging.md | input-bridging R2 | T-258 | no | M |
+
+## Tier 37 — device sitting: about:config/XUL sweep + date pref + richlistbox/tree
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-262 | XUL sweep: `about:config` end to end (warning button, filter text, toggle, value in `prefs.js` after stop), `about:addons` buttons, XUL default actions, Escape closes the tools menu, no regression to HTML input; with the date/time pref off a date field is `type=text`; `richlistbox`/`tree` select, toggle and persist in `about:addons`/`about:config`. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-input-bridging.md<br>cavekit-gre-widgets.md | device-build R4<br>input-bridging R6<br>gre-widgets R2/R4 | T-260 | yes | M |
+| T-263 | Batch-2 packages: both adapters (with T-212 and any T-261), then all three `.ipk`s carrying the current libxul/daemon and any T-253/T-236 change; verify payload md5s. | cavekit-input-bridging.md<br>cavekit-preferences-ui.md | input-bridging R7/R2<br>preferences-ui R2 | T-259, T-212, T-261, T-253 | no | S |
+
+## Tier 38 — device sitting: Offscreen sweep R1-R6 + PG symbols on CE libWebKitLuna
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-264 | Offscreen sweep R1-R6: windowless render and surface size tracks the window; non-blank frame, pixel format/stride, no channel swap or flip; one paint notification per frame, no buffer reuse before return, content change repaints without input; contents-size/scrolled-to/meta-viewport messages; size/scroll/zoom-and-scroll with input mapped at the new scale; `PGContext::bitblt`/`PGSurface::wrap` resolve in CE `libWebKitLuna.so`. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-offscreen-rendering.md | device-build R4<br>offscreen-rendering R1/R2/R3/R4/R5/R6 | T-262 | yes | M |
+
+## Tier 39 — device sitting: Offscreen sweep R7/R8: select, tools menu, popups, scroll frame
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-265 | Offscreen sweep R7/R8: a `<select>` reaches the card in each variant; the `about:addons` tools menu opens, composites, dismisses and its items ACTIVATE; an open popup is interactive (first verification ever); an engine-initiated scroll forces one full frame. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-offscreen-rendering.md | device-build R4<br>offscreen-rendering R7/R8 | T-264 | yes | M |
+
+## Tier 40 — device sitting: Enyo shell sweep (no-finger items)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-266 | Enyo shell sweep: launches to start page, icon/splash (screenshot); launch with a target issues `openUrl` and paints on this variant's own socket/adapter only; stored shortcut list rendered; home control right of forward; `<select>` list anchored under the control; page `alert` reaches the card; `find` gives 1/0; usable 1024x768 layout. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-265 | yes | M |
+
+## Tier 41 — device sitting: Mochi shell sweep (no-finger items)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-267 | Mochi shell sweep: the same no-finger checks as T-266 on the Mochi card (db8 kinds were checked at install). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-266 | yes | S |
+
+## Tier 42 — device sitting: Mojo shell sweep incl. command-row geometry probe
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-268 | Mojo shell sweep: the same no-finger checks as T-266, plus the command row's documented buttons and geometry (the geometry probe) and load state / title / committed URL / failed-load error shown (screenshots). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-267 | yes | M |
+
+## Tier 43 — device sitting: Daemon sweep A: cookies+cache persist, low-mem, four dialogs
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-269 | Daemon-side sweep A (browser-services R2/R3): cookies AND the HTTP disk cache persist across a daemon restart; the low-memory guardrail fires with a raised threshold; `clearCache`/`clearCookies` on the public bus; `alert`, `confirm`, `prompt` and HTTP-auth each emit their dialog and the page stays blocked until the reply arrives over the pipe. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-268 | yes | M |
+
+## Tier 44 — device sitting: Daemon sweep B: ipc R4/R5, engine R2 shutdown, nav R4/R6
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-270 | Daemon-side sweep B: `clearCookies` lowers the cookie count on an install-started daemon; adapter connects and completes load + paint; a pref written seconds before `stop` lands; `stop` with a card connected exits without a fault and the job file carries `stop on runlevel [06]`; an HTTP 3xx is followed in-browser with the final location reported; a coordinate tap on a link emits link-clicked with the absolute URL. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-269 | yes | M |
+
+## Tier 45 — device sitting: Device-build sweep: toolchain program, lib load, navigation
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-271 | Device-build sweep R1/R2/R4: a C++14 program from the toolchain runs; engine libraries load with no missing-symbol/ABI error and FP/SIMD attributes (`readelf -A`) match the CPU; URL load, back/forward/reload and load-complete on each variant. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-270 | yes | S |
+
+## Tier 46 — device sitting: Device-build sweep R5: memory budget, freeze, no OOM
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-272 | Memory sweep R5: RSS on a typical page within budget; `freeze` reclaims memory (before/after); the defined browsing scenario runs with no OOM kill (`dmesg`). Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-271 | yes | M |
+
+## Tier 47 — device sitting: Removal audit #2 with extensions in two variants; reinstall
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-273 | Removal audit #2: with the test extension installed in two variants, remove one via the supported installer; its extensions go, the other's stay; nothing outside its profile written on removal; the others keep serving; nothing in `/media/internal` beyond the download carve-out; footprint limited to the enumerated paths; runtime state removed; `prerm` exact; rootfs read-only on every exit; Atlas md5s unchanged; reinstall it. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-addons-extensions.md | device-build R4<br>addons-extensions R5/R6 | T-272 | yes | M |
+
+## Tier 48 — device sitting: Investigate why hidd does not forward a uinput keyboard
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-274 | hidd investigation (continues T-108): why the uinput test keyboard (`event3`, opened by hidd and LunaSysMgr) is never dispatched to the card - `/etc/hidd/HidPlugins.xml`, `libhidinputdev.so`, `/var/run/hidd/InputDevEventSocket`; observable is a daemon `palm key` line from a uinput `KEY_A`. Time-boxed; outcome feeds T-288. | cavekit-input-bridging.md<br>cavekit-addons-extensions.md | input-bridging R7<br>addons-extensions R7 | T-273 | yes | M |
+
+## Tier 49 — device sitting: Execute the novacom-get procedure for the 7 device .so files
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-275 | Run the written `novacom get` procedure for the seven device `.so`s in `adapter-deps.manifest`, confirm their `/usr/lib/...` paths on CE and compare sha256 against the manifest (continues T-115). | cavekit-device-build.md | device-build R3 | T-274 | yes | S |
+
+## Tier 50 — device sitting: Batch-2 upgrade install of all three variants
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-276 | Batch-2 install: upgrade all three variants with T-263's packages through the supported installer; read back libxul, daemon and adapter md5 on each; re-add `JIHAD_INJECT=1`; clean restart. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md | device-build R4 | T-275, T-263 | yes | S |
+
+## Tier 51 — device sitting: [DYNAMIC] Re-verify whatever batch 2 changed
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-277 | [DYNAMIC] Re-run the observables of whichever conditional fired: T-224's clock/drop numbers, the Luna checks of T-232, the echo page of T-255, the uncovered-pan lines of T-258, the sink-input reading of T-239. Scope is the set of conditionals that produced a change. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-device-build.md<br>cavekit-gre-widgets.md<br>cavekit-input-bridging.md | device-build R4/R10<br>gre-widgets R1<br>input-bridging R2/R2a | T-276 | yes | M |
+
+## Tier 52 — device sitting: Verify: the four frozen-contract settings from about:preferences
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-278 | Four settings from the page (continues T-147): JS enable, popup blocking, cookie acceptance and minimum font size each changed on `about:preferences` and shown on a real page (script marker, click-opened popup, cookie count, computed font size), read back in `prefs.js`. If T-253 did not fire, record JS as still blocked. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-preferences-ui.md | preferences-ui R2/R3 | T-277, T-253 | yes | M |
+
+## Tier 53 — BLOCKED-EXTERNAL (human at the device, absent hardware, or a decision)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Reason |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-279 | Push `jihad-engine-mods` to the UXP-Jihad fork and bump the parent gitlink, if T-208 shows it unpushed. | cavekit-device-build.md | device-build R3 | T-208 | human | S | GitHub auth here is an interactive GUI askpass; the user does the push. |
+| T-280 | Look at the download T-244 landed, in the Downloads app and over USB (continues T-152). | cavekit-device-build.md | device-build R4 | T-244 | human | S | A look by a person; the file's bytes are already machine-verified. |
+| T-281 | Finger session per shell: back/forward/reload/stop, address-field typing, the menu entry that opens preferences (Mojo's Settings item and the edit round trip), the card-side preferences panels, Mojo new-card/share/history, picking and dismissing a popup item, answering a card dialog (incl. XPI confirm, SSL confirm) by tap. | cavekit-device-build.md<br>cavekit-mojo-ui.md | device-build R4<br>mojo-ui R7 | T-268, T-254 | human | M | Taps on card chrome go through LunaSysMgr; no inject path reaches them. |
+| T-282 | On-screen-keyboard session (continues T-141): finger tap raises the VKB on every page; with T-213's instrument on, type printable/Backspace/Delete/Enter/Tab/four arrows and read the raw triples (settles 0xE0A0/A1); caret visible while typing; held-Backspace acceleration; Enter submits. Its data gates any GRE key-path handover. | cavekit-gre-widgets.md<br>cavekit-input-bridging.md<br>cavekit-device-build.md | gre-widgets R3<br>input-bridging R2/R2a<br>device-build R4 | T-258, T-255 | human | M | VKB keys are delivered in-process by LunaSysMgr; only a finger produces them. |
+| T-283 | Real finger drag-scroll, a two-finger pinch that changes zoom (continues T-151), and physical rotation portrait/landscape with the composite and the prefs page checked in both orientations. | cavekit-input-bridging.md<br>cavekit-device-build.md | input-bridging R3<br>device-build R4 | T-260 | human | S | No gesture or rotation injection into LunaSysMgr exists. |
+| T-284 | Finger taps on `about:preferences` controls (continues T-150) and a tap that focuses a text field before typing. | cavekit-preferences-ui.md | preferences-ui R6 | T-250 | human | S | The inject click enters below the card touch handler and adapter transform. |
+| T-285 | Finger on the media controls: play/pause both directions, mute tap, volume slider drag, scrubber thumb drag. | cavekit-gre-widgets.md | gre-widgets R1 | T-222, T-238, T-239 | human | S | A daemon-level click is not a finger; the kit forbids counting it. |
+| T-286 | Engine `<audio>` heard on the speaker; Flash sound heard; hardware volume keys pressed during page media - level changes and whether the HUD appears. | cavekit-gre-widgets.md<br>cavekit-device-build.md | gre-widgets R1<br>device-build R4 | T-240, T-246 | human | S | Hardware key presses and hearing need a person. |
+| T-287 | Look at Flash-alone vs the pull config and decide whether to delete the host frame clock for self-invalidating plugins (the follow-on engine change rides a later batch). | cavekit-addons-extensions.md | addons-extensions R7 | T-247 | human | S | The eye is the only instrument that has detected this defect; deletion is a product decision. |
+| T-288 | Run the 2026-08-15 keyboard-arbitration procedure (continues T-149/T-124): human double-tap sets the latch (read in T-211's log), a real key press, compare URL-field screenshots. | cavekit-input-bridging.md<br>cavekit-addons-extensions.md | input-bridging R7<br>addons-extensions R7 | T-274, T-218 | human | M | No keyboard exists (gpio-keys/pwrkey/headset only); the latch needs a real double-tap. |
+| T-289 | Double-tap a text-wanting plugin and see the VKB raised by T-212; decide whether double-tap engagement is acceptable UX. | cavekit-input-bridging.md | input-bridging R7 | T-276 | human | S | Needs a real double-tap; the single-vs-double-tap question is a design decision. |
+| T-290 | Decide whether to drop the card panel's Block Popups / Accept Cookies rows, which become decorative once the page sets those prefs. | cavekit-preferences-ui.md | preferences-ui R2 | T-250 | human | S | Deletes a shipped card control - a product-owner decision. |
+| T-291 | Sign off the refreshed Mochi parity checklist (continues T-155). | cavekit-mochi-ui.md | mochi-ui R2 | T-210 | human | S | The criterion is marked [human-review]. |
+
+## Summary
+
+| Tier | Tasks | Effort |
+|------|-------|--------|
+| Tier 0 | 15 | 7S / 8M |
+| Tier 1 | 1 | 1S |
+| Tier 2 | 1 | 1S |
+| Tier 3 | 2 | 2S |
+| Tier 4 | 1 | 1M |
+| Tier 5 | 1 | 1M |
+| Tier 6 | 2 | 2S |
+| Tier 7 | 1 | 1S |
+| Tier 8 | 2 | 2M |
+| Tier 9 | 1 | 1M |
+| Tier 10 | 1 | 1M |
+| Tier 11 | 1 | 1S |
+| Tier 12 | 1 | 1S |
+| Tier 13 | 1 | 1M |
+| Tier 14 | 1 | 1M |
+| Tier 15 | 1 | 1M |
+| Tier 16 | 1 | 1M |
+| Tier 17 | 2 | 1S / 1M |
+| Tier 18 | 1 | 1S |
+| Tier 19 | 1 | 1M |
+| Tier 20 | 1 | 1M |
+| Tier 21 | 2 | 1S / 1M |
+| Tier 22 | 2 | 2S |
+| Tier 23 | 1 | 1M |
+| Tier 24 | 1 | 1S |
+| Tier 25 | 1 | 1M |
+| Tier 26 | 1 | 1M |
+| Tier 27 | 1 | 1M |
+| Tier 28 | 1 | 1M |
+| Tier 29 | 1 | 1M |
+| Tier 30 | 1 | 1S |
+| Tier 31 | 2 | 1S / 1M |
+| Tier 32 | 1 | 1S |
+| Tier 33 | 1 | 1M |
+| Tier 34 | 2 | 2M |
+| Tier 35 | 2 | 1S / 1M |
+| Tier 36 | 2 | 2M |
+| Tier 37 | 2 | 1S / 1M |
+| Tier 38 | 1 | 1M |
+| Tier 39 | 1 | 1M |
+| Tier 40 | 1 | 1M |
+| Tier 41 | 1 | 1S |
+| Tier 42 | 1 | 1M |
+| Tier 43 | 1 | 1M |
+| Tier 44 | 1 | 1M |
+| Tier 45 | 1 | 1S |
+| Tier 46 | 1 | 1M |
+| Tier 47 | 1 | 1M |
+| Tier 48 | 1 | 1M |
+| Tier 49 | 1 | 1S |
+| Tier 50 | 1 | 1S |
+| Tier 51 | 1 | 1M |
+| Tier 52 | 1 | 1M |
+| Tier 53 (BLOCKED-EXTERNAL) | 13 | 10S / 3M |
+
+**Total: 91 tasks, 54 tiers** (41S / 50M / 0L); 51 device-lane tasks, 13 BLOCKED-EXTERNAL.
+
+## Device lane
+
+The single order in which agent-run device tasks execute (each is blockedBy its predecessor). Priority order: housekeeping and the batch-1 push, `<video>`, the idle daemon, the blank-page storm, fresh install / Luna registration / Atlas, TLS, media controls, then the remaining partials and the CE 3.1.0 sweep, then batch 2.
+
+T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 -> T-229 -> T-230 -> T-231 -> T-232 -> T-233 -> T-234 -> T-235 -> T-237 -> T-238 -> T-239 -> T-240 -> T-242 -> T-244 -> T-245 -> T-246 -> T-247 -> T-248 -> T-249 -> T-250 -> T-251 -> T-252 -> T-254 -> T-255 -> T-256 -> T-258 -> T-260 -> T-262 -> T-264 -> T-265 -> T-266 -> T-267 -> T-268 -> T-269 -> T-270 -> T-271 -> T-272 -> T-273 -> T-274 -> T-275 -> T-276 -> T-277 -> T-278
+
+## Coverage Matrix
+
+| Cavekit | Req | Criterion (abbreviated) | Task(s) | Status |
+|---------|-----|-------------------------|---------|--------|
+| cavekit-engine-embedding.md | R3 | No busy-wait/spin; CPU idle when no work is pending | T-203, T-205, T-225, T-228, T-229 | COVERED |
+| cavekit-device-build.md | R3 | Every declared input obtainable from a clean clone | T-208, T-275, T-279 | COVERED |
+| cavekit-device-build.md | R4 | Cert/dialog/download flows function with the device services | T-244, T-280 | COVERED |
+| cavekit-device-build.md | R4 | Fresh install on CE 3.1.0 via the supported path, all three variants | T-201, T-231, T-232, T-233, T-234 | COVERED |
+| cavekit-device-build.md | R4 | Luna service registered after a fresh install without a hand restart | T-206, T-232, T-233, T-234, T-236, T-277 | COVERED |
+| cavekit-device-build.md | R4 | Coexistence with Atlas (identity, md5s, both serve, own connects) | T-230, T-231, T-235, T-273 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - this kit (R1-R5, R7-R10 on CE) | T-271, T-231, T-232, T-233, T-234, T-244, T-272, T-246, T-273 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - cavekit-offscreen-rendering.md | T-264, T-265 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - cavekit-gre-widgets.md (binding, degradation, date, richlistbox/tree) | T-221, T-262 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - cavekit-addons-extensions.md | T-248, T-249, T-245, T-246, T-273 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - cavekit-preferences-ui.md | T-250 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - cavekit-input-bridging.md | T-256, T-260, T-262 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - card front-ends (ui-shell, mochi-ui, mojo-ui) | T-233, T-266, T-267, T-268 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - daemon-side kits (services, ipc, engine, navigation) | T-269, T-270 | COVERED |
+| cavekit-device-build.md | R4 | Sweep - human-only residue | T-280, T-281, T-282, T-283, T-284, T-285, T-286 | COVERED |
+| cavekit-device-build.md | R8 | Daemon log bounded WHILE the daemon runs | T-204, T-227 | COVERED |
+| cavekit-device-build.md | R8 | An idle daemon is idle | T-201, T-203, T-225 | COVERED |
+| cavekit-device-build.md | R9 | Remaining cross-ABI surfaces enumerated (two device items) | T-207, T-245 | COVERED |
+| cavekit-device-build.md | R10 | Whether the boost should extend beyond plugins (media) | T-224, T-226, T-277 | COVERED |
+| cavekit-input-bridging.md | R2 | Tapping an editable raises the VKB on EVERY page; no scroll-off | T-258, T-261, T-282 | COVERED |
+| cavekit-input-bridging.md | R2a | Left/Right by code point; Home/End; Up/Down by line | T-214, T-255, T-282 | COVERED |
+| cavekit-input-bridging.md | R2a | Programmatic edit dispatches a bubbling DOM input event | T-209, T-255, T-257, T-277 | COVERED |
+| cavekit-input-bridging.md | R3 | A pinch changes page zoom; a tap maps to a click | T-283 | COVERED |
+| cavekit-input-bridging.md | R7 | Keys swallowed for content when a PLUGIN has focus | T-211, T-288 | COVERED |
+| cavekit-input-bridging.md | R7 | Verified on device with an interactive plugin (no leak; chrome regains keys) | T-274, T-288 | COVERED |
+| cavekit-input-bridging.md | R7 | VKB can be raised deliberately for a text-wanting plugin | T-212, T-263, T-289 | COVERED |
+| cavekit-gre-widgets.md | R1 | Controls render into the offscreen surface (thumb off 0) | T-238 | COVERED |
+| cavekit-gre-widgets.md | R1 | Play/pause operable by tap; state changes | T-222, T-285 | COVERED |
+| cavekit-gre-widgets.md | R1 | Codec reality measured and written down | T-221 | COVERED |
+| cavekit-gre-widgets.md | R1 | A <video> clip plays TO THE END with no error | T-202, T-216, T-219, T-220 | COVERED |
+| cavekit-gre-widgets.md | R1 | The in-player volume control works (input + output) | T-239, T-241, T-285 | COVERED |
+| cavekit-gre-widgets.md | R1 | The scrubber tracks playback and seeks, on a clean install | T-238, T-285 | COVERED |
+| cavekit-gre-widgets.md | R1 | Hardware volume keys: level changes AND HUD shown, or a named limit | T-240, T-286 | COVERED |
+| cavekit-gre-widgets.md | R3 | platformHTMLBindings are REACHED for a focused text field | T-213, T-282 | COVERED |
+| cavekit-gre-widgets.md | R3 | Hand-rolled keycode map reduced to the VKB's own codes | T-213, T-255, T-282 | COVERED |
+| cavekit-gre-widgets.md | R3 | No regression to typing on device | T-214, T-255, T-282 | COVERED |
+| cavekit-gre-widgets.md | R5 | Non-modal messages use the toast (three shells, add-on toast) | T-242, T-249 | COVERED |
+| cavekit-gre-widgets.md | R7 | Every content-facing capability working or off with the reason | T-220, T-221, T-223 | COVERED |
+| cavekit-browser-services.md | R5 | Negotiated TLS version CAPTURED from a real page load | T-237 | COVERED |
+| cavekit-browser-services.md | R5 | Platform cert store path still works on CE 3.1.0 | T-244 | COVERED |
+| cavekit-mochi-ui.md | R2 | Parity checklist vs ../app [human-review] | T-210, T-291 | COVERED |
+| cavekit-mojo-ui.md | R7 | Mojo chrome-owned settings are editable | T-254, T-281 | COVERED |
+| cavekit-addons-extensions.md | R3 | Mismatched targetApplication rejected with a clear reason | T-249 | COVERED |
+| cavekit-addons-extensions.md | R7 | Flash holds a SMOOTH sustained composite frame rate | T-247, T-287 | COVERED |
+| cavekit-addons-extensions.md | R7 | Keyboard reaches a focused plugin and not the card chrome | T-274, T-288 | COVERED |
+| cavekit-offscreen-rendering.md | R3 | Invalidations coalesced; no redundant full repaints | T-205, T-228 | COVERED |
+| cavekit-offscreen-rendering.md | R8 | A genuinely blank page SETTLES | T-205, T-228 | COVERED |
+| cavekit-preferences-ui.md | R2 | Every control maps to a real engine pref - no decorative toggles | T-250, T-290 | COVERED |
+| cavekit-preferences-ui.md | R2 | The four frozen-contract settings present and correct | T-251, T-253, T-278 | COVERED |
+| cavekit-preferences-ui.md | R3 | A change takes effect without a daemon restart, on a real page | T-251, T-278 | COVERED |
+| cavekit-preferences-ui.md | R5 | Frozen YAP settings commands keep working | T-215, T-252 | COVERED |
+| cavekit-preferences-ui.md | R6 | Controls hit-testable by touch at 1024x768 | T-284 | COVERED |
+| cavekit-preferences-ui.md | R6 | Keyboard entry works in any text field the page offers | T-250, T-284 | COVERED |
+
+**Coverage: 53/53 criteria (100%)**
+
+## Dependency Graph
+
+```mermaid
+graph LR
+    T-201
+    T-202
+    T-203
+    T-204
+    T-205
+    T-206
+    T-207
+    T-208
+    T-209
+    T-210
+    T-211
+    T-212
+    T-213
+    T-214
+    T-215
+    T-202 --> T-216
+    T-203 --> T-217
+    T-204 --> T-217
+    T-205 --> T-217
+    T-206 --> T-217
+    T-213 --> T-217
+    T-214 --> T-217
+    T-215 --> T-217
+    T-216 --> T-217
+    T-211 --> T-218
+    T-217 --> T-218
+    T-201 --> T-219
+    T-216 --> T-219
+    T-217 --> T-225
+    T-209 --> T-219
+    T-219 --> T-220
+    T-220 --> T-221
+    T-221 --> T-222
+    T-221 --> T-223
+    T-222 --> T-224
+    T-224 --> T-225
+    T-224 --> T-226
+    T-225 --> T-227
+    T-227 --> T-228
+    T-228 --> T-229
+    T-229 --> T-230
+    T-230 --> T-231
+    T-218 --> T-231
+    T-231 --> T-232
+    T-232 --> T-233
+    T-233 --> T-234
+    T-234 --> T-235
+    T-234 --> T-236
+    T-235 --> T-237
+    T-237 --> T-238
+    T-238 --> T-239
+    T-239 --> T-240
+    T-239 --> T-241
+    T-240 --> T-242
+    T-226 --> T-243
+    T-241 --> T-243
+    T-242 --> T-244
+    T-244 --> T-245
+    T-207 --> T-245
+    T-245 --> T-246
+    T-246 --> T-247
+    T-247 --> T-248
+    T-248 --> T-249
+    T-249 --> T-250
+    T-250 --> T-251
+    T-251 --> T-252
+    T-215 --> T-252
+    T-251 --> T-253
+    T-252 --> T-254
+    T-254 --> T-255
+    T-209 --> T-255
+    T-255 --> T-256
+    T-255 --> T-257
+    T-256 --> T-258
+    T-243 --> T-259
+    T-236 --> T-259
+    T-257 --> T-259
+    T-258 --> T-260
+    T-258 --> T-261
+    T-260 --> T-262
+    T-259 --> T-263
+    T-212 --> T-263
+    T-261 --> T-263
+    T-253 --> T-263
+    T-262 --> T-264
+    T-264 --> T-265
+    T-265 --> T-266
+    T-266 --> T-267
+    T-267 --> T-268
+    T-268 --> T-269
+    T-269 --> T-270
+    T-270 --> T-271
+    T-271 --> T-272
+    T-272 --> T-273
+    T-273 --> T-274
+    T-274 --> T-275
+    T-275 --> T-276
+    T-263 --> T-276
+    T-276 --> T-277
+    T-277 --> T-278
+    T-253 --> T-278
+    T-208 --> T-279
+    T-244 --> T-280
+    T-268 --> T-281
+    T-254 --> T-281
+    T-258 --> T-282
+    T-255 --> T-282
+    T-260 --> T-283
+    T-250 --> T-284
+    T-222 --> T-285
+    T-238 --> T-285
+    T-239 --> T-285
+    T-240 --> T-286
+    T-246 --> T-286
+    T-247 --> T-287
+    T-274 --> T-288
+    T-218 --> T-288
+    T-276 --> T-289
+    T-250 --> T-290
+    T-210 --> T-291
+```

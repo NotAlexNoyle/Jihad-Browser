@@ -1362,6 +1362,26 @@ void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply*
   reply->accept = false;
   reply->promptValue.clear();
 
+  // The engine's own connection-error alert for a certificate we are about to ASK about.
+  // With no error pages in this embedding the docshell reports a failed load through an alert —
+  // "An error occurred during a connection to <host>. … (Error code: SSL_ERROR_…)" — and for a
+  // certificate failure it arrives first, so the user got an unexplained modal about a
+  // "malformed Server Hello" and only then, after dismissing it, the trust question that
+  // actually matters (device screenshot 2026-10-01; unattended it also cost the full dialog
+  // deadline before the SSL confirm appeared). The SSL confirm is the report of that failure.
+  // Matched narrowly — a captured certificate error AND an NSS error identifier in the text —
+  // so a page's own alert() is never swallowed.
+  if (kind == DialogKind::Alert && mPage && text) {
+    std::string h; int c = 0;
+    if (mPage->GetCertError(&h, &c) &&
+        (strstr(text, "SSL_ERROR_") || strstr(text, "SEC_ERROR_") || strstr(text, "MOZILLA_PKIX_ERROR_"))) {
+      fprintf(stderr, "[jihad-bs] dialog alert suppressed — the certificate error on %s is reported "
+                      "by the SSL confirm instead\n", h.c_str());
+      reply->accept = true;
+      return;
+    }
+  }
+
   std::string path = makeDialogPipe();
   if (path.empty()) return;
 
@@ -1637,7 +1657,14 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
                                                 : jihad::certstore::kTrustSession,
                                       this);
           }
-          std::string retry = mPage->CurrentUri();
+          // Retry the load that FAILED, not the current document. CurrentUri() is the last
+          // page that committed — when the certificate error came from a navigation away from
+          // a page (the ordinary case: a link, a typed address), that is the page the user was
+          // LEAVING, so "trust this site" reloaded the old page and the site never appeared
+          // (device, 2026-10-01: trusted https://…:8443 from a file:// page, got the file://
+          // page back). It only worked when the failed load was the card's first, where the
+          // current document is still about:blank and the Reload() arm below is taken.
+          std::string retry = (failed && !furl.empty()) ? furl : mPage->CurrentUri();
           fprintf(stderr, "[jihad-bs] ssl: %s override remembered for %s — reloading\n",
                   permanent ? "permanent" : "session", chost.c_str());
           // Reload through the normal load path so the retry reports load state as usual.

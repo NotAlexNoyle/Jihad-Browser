@@ -1272,7 +1272,8 @@ std::string BrowserPageGoanna::makeDialogPipe() {
 // "1" accept / "0" cancel / "2" SSL trust-once, arg1 prompt text or username).
 // The deadline is load-bearing: a card that never answers must not wedge the daemon.
 bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* what,
-                                         bool* accept, std::string* value, int* answer) {
+                                         bool* accept, std::string* value, int* answer,
+                                         std::string* value2) {
   int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
     fprintf(stderr, "[jihad-bs] dialog: cannot open reply pipe (%s)\n", strerror(errno));
@@ -1370,6 +1371,7 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
   if (accept) *accept = (raw != 0);
   if (answer) *answer = raw;
   if (args.size() > 1 && value) *value = args[1];
+  if (args.size() > 2 && value2) *value2 = args[2];   // user-name/password dialog: the password
   fprintf(stderr, "[jihad-bs] dialog %s -> %s (answer=%d)\n", what,
           raw ? "ACCEPT" : "cancel", raw);
   return true;
@@ -1417,7 +1419,8 @@ void BrowserPageGoanna::OnDialog(DialogKind kind, const char* text, DialogReply*
     default:                  mSink.msgDialogUserPassword(path.c_str(), text ? text : ""); break;
   }
 
-  awaitDialogReply(path, kindName, &reply->accept, &reply->promptValue);
+  awaitDialogReply(path, kindName, &reply->accept, &reply->promptValue, nullptr,
+                   kind == DialogKind::Auth ? &reply->password : nullptr);
 }
 
 bool BrowserPageGoanna::popupsOpen() const {

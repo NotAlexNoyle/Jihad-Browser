@@ -22,12 +22,15 @@
 namespace jihad {
 
 // Kind of dialog raised by content, matching the YAP msgDialog* surface.
-enum class DialogKind { Alert, Confirm, Prompt };
+// Auth is an HTTP (or proxy) authentication challenge: the card shows its user-name/password
+// dialog (msgDialogUserPassword) and the reply carries both.
+enum class DialogKind { Alert, Confirm, Prompt, Auth };
 
 // A canned/desired outcome the sink supplies back to the engine.
 struct DialogReply {
   bool accept = true;            // confirm/prompt OK vs Cancel; ignored for alert
-  std::string promptValue;       // prompt() input text (UTF-8), when accepted
+  std::string promptValue;       // prompt() input text (UTF-8), when accepted; the user name for Auth
+  std::string password;          // Auth only: the password, when accepted
 };
 
 // Process-wide receiver of content dialogs. Not owned by the service.

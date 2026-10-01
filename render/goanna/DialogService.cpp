@@ -11,6 +11,10 @@
 #include "nsIFactory.h"
 #include "nsIPromptFactory.h"
 #include "nsIPrompt.h"
+#include "nsIAuthPrompt2.h"       // HTTP authentication challenges (necko asks for this, not nsIPrompt)
+#include "nsIAuthInformation.h"
+#include "nsIChannel.h"
+#include "nsIURI.h"
 #include "nsIComponentRegistrar.h"
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
 #include "mozilla/RefCountType.h" // MozExternalRefCountType
@@ -37,7 +41,8 @@ static const char* kPrompterContract = "@mozilla.org/prompter;1";
 // prompt itself. It never really refcounts (static storage, process lifetime).
 class JihadPrompter final : public nsIFactory,
                             public nsIPromptFactory,
-                            public nsIPrompt {
+                            public nsIPrompt,
+                            public nsIAuthPrompt2 {
  public:
   // nsISupports (hand-rolled: static singleton, no real refcount).
   NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override;
@@ -47,6 +52,7 @@ class JihadPrompter final : public nsIFactory,
   NS_DECL_NSIFACTORY
   NS_DECL_NSIPROMPTFACTORY
   NS_DECL_NSIPROMPT
+  NS_DECL_NSIAUTHPROMPT2
 
  private:
   // Route one dialog to the sink and read back the reply.
@@ -72,6 +78,8 @@ JihadPrompter::QueryInterface(const nsIID& aIID, void** aResult) {
     *aResult = static_cast<nsIPromptFactory*>(this);
   } else if (aIID.Equals(NS_GET_IID(nsIPrompt))) {
     *aResult = static_cast<nsIPrompt*>(this);
+  } else if (aIID.Equals(NS_GET_IID(nsIAuthPrompt2))) {
+    *aResult = static_cast<nsIAuthPrompt2*>(this);
   } else {
     *aResult = nullptr;
     return NS_NOINTERFACE;
@@ -163,6 +171,43 @@ JihadPrompter::Select(const char16_t*, const char16_t* text, uint32_t,
   DialogReply r; Dispatch(DialogKind::Confirm, text, &r);
   if (_retval) *_retval = false;
   return NS_OK;
+}
+
+// --- nsIAuthPrompt2: an HTTP / proxy authentication challenge ---
+// Necko does not go through nsIPrompt for a 401/407: it asks the docshell for nsIAuthPrompt2,
+// which the window watcher fetches from this same factory. Until this existed the factory
+// answered NS_NOINTERFACE, so a challenge raised no dialog at all and the user was shown the
+// server's 401 page — measured on the device 2026-10-01 (cavekit-browser-services.md R3 had the
+// box checked on the strength of PromptUsernameAndPassword, which nothing in the HTTP path
+// calls). The card's user-name/password dialog and its three-field reply were already there.
+// The async form is declined so necko falls back to the synchronous one, which is the shape
+// every other dialog here has: block on the card, bounded by the dialog deadline.
+NS_IMETHODIMP
+JihadPrompter::PromptAuth(nsIChannel* aChannel, uint32_t, nsIAuthInformation* aAuthInfo,
+                          bool* _retval) {
+  if (_retval) *_retval = false;
+  if (!aAuthInfo) return NS_ERROR_INVALID_ARG;
+  nsAutoString text;
+  nsAutoCString hostPort;
+  if (aChannel) {
+    nsCOMPtr<nsIURI> uri; aChannel->GetURI(getter_AddRefs(uri));
+    if (uri) uri->GetHostPort(hostPort);
+  }
+  nsAutoString realm; aAuthInfo->GetRealm(realm);
+  text.Append(NS_ConvertUTF8toUTF16(hostPort));
+  if (!realm.IsEmpty()) { text.AppendLiteral(" - "); text.Append(realm); }
+  DialogReply r; Dispatch(DialogKind::Auth, text.get(), &r);
+  if (!r.accept) return NS_OK;
+  aAuthInfo->SetUsername(NS_ConvertUTF8toUTF16(r.promptValue.c_str()));
+  aAuthInfo->SetPassword(NS_ConvertUTF8toUTF16(r.password.c_str()));
+  if (_retval) *_retval = true;
+  return NS_OK;
+}
+NS_IMETHODIMP
+JihadPrompter::AsyncPromptAuth(nsIChannel*, nsIAuthPromptCallback*, nsISupports*, uint32_t,
+                               nsIAuthInformation*, nsICancelable** _retval) {
+  if (_retval) *_retval = nullptr;
+  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 // --- installation ---

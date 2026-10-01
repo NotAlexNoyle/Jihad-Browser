@@ -155,8 +155,11 @@ public:
   // `answer` receives the RAW three-way choice the card sent (0 reject, 1 trust
   // always, 2 trust once) — `accept` collapses 1 and 2, which is right for every
   // dialog except the SSL confirm, where the two arms mean different things.
+  // `value2` receives the third argument when there is one (the password of a user-name/password
+  // reply).
   bool awaitDialogReply(const std::string& path, const char* what,
-                        bool* accept, std::string* value, int* answer = nullptr);
+                        bool* accept, std::string* value, int* answer = nullptr,
+                        std::string* value2 = nullptr);
  public:
 
   // --- lifecycle / surface (YAP: connect/setWindowSize) ---

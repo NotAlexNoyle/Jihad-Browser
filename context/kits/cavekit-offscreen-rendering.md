@@ -34,7 +34,7 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 **Acceptance Criteria:**
 - [x] Each completed frame yields exactly one paint-ready notification naming the buffer that was filled.
 - [x] A buffer is not reused for the next frame until the client returns it.
-- [~] Invalidations are coalesced so transient changes do not produce redundant full repaints. *(**DOWNGRADED `[x]`→`[~]` 2026-10-01.** True of a page with content — a static page is quiet, 16 log lines in 30 s — and FALSE of a blank one: on `about:blank` the daemon performs ~22 full repaints a second forever (663 in 30 s, measured on webOS CE 3.1.0), every one redundant, because a frame it refuses to publish is retried on the next tick. That is not a coalescing failure in the invalidation path itself, but it is exactly the outcome this criterion exists to rule out, so the box cannot stay checked while it happens. Closes with R8's "a genuinely blank page settles" criterion.)*
+- [x] Invalidations are coalesced so transient changes do not produce redundant full repaints. *(**RE-CLOSED `[~]`→`[x]` 2026-10-01 (later): the blank-page repaint storm this was downgraded for is fixed and device-verified — 0 paints in 30 s on a settled `about:blank`, see R8's last criterion.**)* *(**DOWNGRADED `[x]`→`[~]` 2026-10-01 (earlier).** True of a page with content — a static page is quiet, 16 log lines in 30 s — and FALSE of a blank one: on `about:blank` the daemon performs ~22 full repaints a second forever (663 in 30 s, measured on webOS CE 3.1.0), every one redundant, because a frame it refuses to publish is retried on the next tick. That is not a coalescing failure in the invalidation path itself, but it is exactly the outcome this criterion exists to rule out, so the box cannot stay checked while it happens. Closes with R8's "a genuinely blank page settles" criterion.)*
 - [x] **A content change produces a repaint without user input.** *(FIXED: UXP patch 0012 adds a sticky PuppetWidget::Invalidate() dirty flag drained by `jihad_offscreen_take_dirty`; the daemon polls it each tick after PumpFor and repaints on dirty — the engine-driven frame delivery the stock QtWebKit server got from Qt paint events; plus progress-increase→repaint during loads. Verified on device 2026-07-19: example.com renders with zero input, alternating double-buffer `painted` frames in the log. The earlier "old page sticks around / overload" that masked this was the daemon crash — fixed separately (see cavekit-navigation-events R6). See context/impl/device-test-2026-07-19.md.)*
 **Dependencies:** cavekit-ipc-contract.md (R2), cavekit-engine-embedding.md (R3)
 
@@ -222,8 +222,24 @@ width, height, zoom and the adapter's scroll position all identical while invali
       no cheap detector for that which does not fire on legitimate white (see the previous note).
       `JIHAD_NO_PARTIAL_PAINT=1` remains the kill switch if a real corruption is ever observed.
       Closing `[x]` on the written justification, NOT on an added guard.)*
-- [ ] **A genuinely blank page SETTLES: a frame the full path will not publish must not be
-      retried every tick forever.** *(Added 2026-10-01 — defect measured on the device, webOS CE
+- [x] **A genuinely blank page SETTLES: a frame the full path will not publish must not be
+      retried every tick forever.** *(**MET 2026-10-01 — fixed and DEVICE-VERIFIED on webOS CE
+      3.1.0, daemon `3e29f045…`, Enyo card connected, `inject: no page` = 0, log growth asserted.**
+      A blank-over-good frame is now treated as transient only while the load is running; 500 ms
+      after the load is done a blank that persists is published once, and a blank that is still
+      being refused is re-rendered on a 100 ms grid instead of every tick. Four runs:*
+      *(1) `about:blank`: 4 blank renders, then `blank frame settled after 558 ms — publishing
+      it`, then **0 paints in the next 30 s** (was 663).*
+      *(2) blank → real page: first non-blank `painted` 0.78 s after the navigation was injected,
+      one blank render before it — the settle did not become "never paints again".*
+      *(3) WHITE-FLASH PROTECTION, a page whose body arrives 2.5 s after its headers, loaded over
+      a good frame: 12 blank renders while the load ran (≈5 a second, where it used to be ≈22),
+      **zero** `blank frame settled` lines — nothing blank was published over the previous page —
+      and the content painted once it arrived.*
+      *(4) a page that is blank when its load completes and writes its content from a timer 3 s
+      later: the blank settles and is published at 515 ms, and the late content then paints and
+      reads back. So a document that is blank at load and fills in later is not stuck either.)*
+      *(Original criterion follows.)* **A genuinely blank page SETTLES.** *(Added 2026-10-01 — defect measured on the device, webOS CE
       3.1.0, 2026-09-27/10-01. On `about:blank` the daemon logs `painted shmid=… bytes=0 … ms=35`
       about 22 times a second indefinitely: 663 full paints in 30 s, 2.4 KB/s of log (~210 MB/day
       against a 62 MB `/var`), a full ~35 ms software render each time. The full path produces a
@@ -255,6 +271,9 @@ that assumed otherwise reached a right conclusion for the wrong reason.
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-10-01 (later): R8 "a blank page settles" `[ ]`→`[x]` and R3 "invalidations are coalesced"
+  back to `[x]` — device-verified: about:blank settles in ~0.5 s then 0 paints in 30 s; a blank
+  frame mid-load is still never published.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** R8 gained an open criterion: a blank
   page must settle (the `about:blank` repaint storm — ~22 unpublishable full paints a second,
   forever); R3's "invalidations are coalesced" `[x]`→`[~]` for the same measurement. Every device-verified box in this kit is 3.0.5 evidence and is listed in

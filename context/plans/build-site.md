@@ -368,6 +368,13 @@ last_edited: "2026-10-01"
 | T-290 | Decide whether to drop the card panel's Block Popups / Accept Cookies rows, which become decorative once the page sets those prefs. | cavekit-preferences-ui.md | preferences-ui R2 | T-250 | human | S | Deletes a shipped card control - a product-owner decision. |
 | T-291 | Sign off the refreshed Mochi parity checklist (continues T-155). | cavekit-mochi-ui.md | mochi-ui R2 | T-210 | human | S | The criterion is marked [human-review]. |
 
+## Added during the loop (2026-10-01)
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-292 | Quiet tick with a card connected: T-229 measured 12.3% of a core on a static page (the 8 ms frame tick doing ~1 ms of pump/bookkeeping 125 times a second). Back the tick off when ticks do no work (nothing to paint, no load, no pending input, no plugin, no recent command) and return to the frame period at once on any incoming adapter command or page activity. Batch 2 (feeds T-259). | cavekit-engine-embedding.md | engine-embedding R3 | T-229 | no | M |
+| T-293 | Verify T-292 on the device after the batch-2 install: static page, card connected, no input → about 2% of a core or less over 60 s; a click, a key, a scroll and a timer-driven DOM change still reach `painted` as promptly as before; `<video>` still plays to the end with 0 dropped frames and the Flash gap histogram is unchanged. Lane position: after T-277, before T-278. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-engine-embedding.md | engine-embedding R3 | T-277, T-292 | yes | M |
+
 ## Summary
 
 | Tier | Tasks | Effort |
@@ -433,7 +440,7 @@ last_edited: "2026-10-01"
 
 The single order in which agent-run device tasks execute (each is blockedBy its predecessor). Priority order: housekeeping and the batch-1 push, `<video>`, the idle daemon, the blank-page storm, fresh install / Luna registration / Atlas, TLS, media controls, then the remaining partials and the CE 3.1.0 sweep, then batch 2.
 
-T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 -> T-229 -> T-230 -> T-231 -> T-232 -> T-233 -> T-234 -> T-235 -> T-237 -> T-238 -> T-239 -> T-240 -> T-242 -> T-244 -> T-245 -> T-246 -> T-247 -> T-248 -> T-249 -> T-250 -> T-251 -> T-252 -> T-254 -> T-255 -> T-256 -> T-258 -> T-260 -> T-262 -> T-264 -> T-265 -> T-266 -> T-267 -> T-268 -> T-269 -> T-270 -> T-271 -> T-272 -> T-273 -> T-274 -> T-275 -> T-276 -> T-277 -> T-278
+T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 -> T-229 -> T-230 -> T-231 -> T-232 -> T-233 -> T-234 -> T-235 -> T-237 -> T-238 -> T-239 -> T-240 -> T-242 -> T-244 -> T-245 -> T-246 -> T-247 -> T-248 -> T-249 -> T-250 -> T-251 -> T-252 -> T-254 -> T-255 -> T-256 -> T-258 -> T-260 -> T-262 -> T-264 -> T-265 -> T-266 -> T-267 -> T-268 -> T-269 -> T-270 -> T-271 -> T-272 -> T-273 -> T-274 -> T-275 -> T-276 -> T-277 -> T-293 -> T-278
 
 ## Coverage Matrix
 

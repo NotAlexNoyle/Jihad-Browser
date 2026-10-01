@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>jihad-touch</title>
+<style>html,body{margin:0;height:100%;background:#012;color:#fff;font:18px monospace}#e{padding:12px;white-space:pre-wrap}</style></head>
+<body><div id="e">touch: nothing yet</div>
+<script>
+// cavekit-input-bridging.md R3. Each touch event appends "<type> n=<touches.length> <x,y …>" for
+// the points still down (TouchEvent.touches lists REMAINING contacts, so touchend shows n=0 for
+// the last finger). user-scalable=no, so the card passes gestures through instead of zooming.
+var log = [];
+['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function (t) {
+  document.addEventListener(t, function (e) {
+    var p = []; for (var i = 0; i < e.touches.length; i++) p.push(Math.round(e.touches[i].clientX) + ',' + Math.round(e.touches[i].clientY));
+    log.push(t.replace('touch', '') + ' n=' + e.touches.length + (p.length ? ' ' + p.join(' ') : ''));
+    document.getElementById('e').textContent = log.slice(-8).join(' | ');
+  }, false);
+});
+</script></body></html>

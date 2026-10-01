@@ -1062,12 +1062,19 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     // settle a conflict: the table above says the RAW webOS forward-Delete code is 0x2E and only
     // its keyIdentifier is "U+007F". If 127 only ever arrives in `chr`, a raw 0x2E types '.'.
     const int kBackspace = 8, kTab = 9, kEnter = 13, kDelete = 127;
-    // webOS's own special-key block. The BLOCK is certain (2026-07-15 keyprobe AND the binary
-    // table). The Up/Down LABELS are NOT: the binary reads 0xE0A0="Up" 0xE0A1="Down", the reverse
-    // of the 2026-07-15 note these names come from; Left/Right agree. Left exactly as measured on
-    // purpose - swapping on binary evidence alone could invert a path that works today. One
-    // keypress under T-141 settles it; AGENTS.md carries the same possibly-swapped pair.
-    const int kWebDown = 0xE0A0, kWebUp = 0xE0A1, kWebLeft = 0xE0A2, kWebRight = 0xE0A3;
+    // webOS's own special-key block, MEASURED 2026-10-01 on webOS CE 3.1.0 with a kernel input
+    // keyboard (render/goanna/test/uinput_kbd.c — LunaSysMgr takes it for a Bluetooth keyboard),
+    // read at this daemon's key command with JIHAD_LOG_KEYS: every key arrives in `key` with
+    // chr == 0, and
+    //     Up 0xE0A0   Down 0xE0A1   Left 0xE0A2   Right 0xE0A3
+    //     Home 0xE0B1 End 0xE0B2    PageUp 0xE0B3 PageDown 0xE0B4
+    //     Delete 0x7F Backspace 0x08 Tab 0x09     Enter 0x0D        (Escape never arrives)
+    // That SETTLES the Up/Down question this block carried since 2026-07-15: the device binary's
+    // table was right and the names here were swapped (0xE0A0 was called Down). It also retires
+    // two readings of that table — 0xE0B1/0xE0B2 are a keyboard's Home and End, not only the
+    // device's Home button and Launcher, and forward Delete is 0x7F in `key`, not 0x2E.
+    const int kWebUp = 0xE0A0, kWebDown = 0xE0A1, kWebLeft = 0xE0A2, kWebRight = 0xE0A3;
+    const int kWebHome = 0xE0B1, kWebEnd = 0xE0B2;
     const bool shift = (modifiers & (1 << 2)) != 0;   // npPalmShiftKeyModifier
     auto km = [key, chr](int v) { return key == v || chr == v; };
     if (!km(kBackspace)) mBackspaceRun = 0;   // any non-Backspace key breaks the accelerate run
@@ -1094,13 +1101,11 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
     else if (km(kWebRight)) { mPage->EditKey(GRP::EK_RIGHT); mNeedsPaint = true; }
     else if (km(kWebUp))    { mPage->EditKey(GRP::EK_UP);    mNeedsPaint = true; }
     else if (km(kWebDown))  { mPage->EditKey(GRP::EK_DOWN);  mNeedsPaint = true; }
-    // No Home/End branch, and that is a REMOVAL of behaviour rather than a tidy-up. They were
-    // reachable only from Qt 0x01000010/11 and NSEvent 0xF729/0xF72B, neither of which this
-    // platform can deliver, so EK_HOME/EK_END were already dead code (now unreferenced;
-    // GoannaRenderPage.h:222 keeps the enum for whenever a real source appears).
-    // keyIdentifierForPalmCode has no End code at all and its "Home" is the device button.
-    // Field start/end is still reachable in a single-line <input>: EditKey's EK_UP/EK_DOWN
-    // degrade to Home/End when the value has no newline, and Up/Down DO arrive.
+    else if (km(kWebHome))  { mPage->EditKey(GRP::EK_HOME);  mNeedsPaint = true; }
+    else if (km(kWebEnd))   { mPage->EditKey(GRP::EK_END);   mNeedsPaint = true; }
+    // Home/End are back as of 2026-10-01, on the codes a keyboard really sends (see above); the
+    // Qt and NSEvent codes they were once wired to cannot arrive here. On-screen keyboard users
+    // have neither key and still get field start/end from Up/Down in a single-line field.
     else {
       // The webOS VKB puts the printable character (letters, digits, symbols, and non-ASCII) in
       // `key` (rawkeyCode) with `chr`==0 on device; accept it from whichever field carries it, for

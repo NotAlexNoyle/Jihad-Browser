@@ -1517,8 +1517,9 @@ void GoannaRenderPage::EditKey(int action) {
                    else if (c > 0)   edSetCaret(el, c - (edIsPairBoundaryLow(v, c - 1) ? 2 : 1)); break;
     case EK_RIGHT: if (hasSel) edSetCaret(el, e);
                    else if (c < len) edSetCaret(el, c + (edIsPairBoundaryLow(v, c + 1) ? 2 : 1)); break;
-    case EK_HOME:  edSetCaret(el, 0);   break;
-    case EK_END:   edSetCaret(el, len); break;
+    // Home/End: the start/end of the caret's LINE (the whole value for a single-line field).
+    case EK_HOME: { int32_t ls = c; while (ls > 0 && v.CharAt(ls - 1) != '\n') ls--; edSetCaret(el, ls); break; }
+    case EK_END:  { int32_t le = c; while (le < len && v.CharAt(le) != '\n') le++; edSetCaret(el, le); break; }
     case EK_UP: case EK_DOWN: {
       // Move to the same column on the adjacent line. For a single-line <input> (no '\n') this
       // degrades to Home (up) / End (down), which is the expected behaviour.
@@ -3370,15 +3371,16 @@ bool GoannaRenderPage::TakeClickNav(std::string* url) {
 //     keypress carried charCode 0 and a lower-case letter's keydown carried its ASCII value,
 //     which is a DIFFERENT key in DOM terms ('a' = 97 = VK_NUMPAD1).
 //   * the modifier mask is npPalm's (Ctrl 1, Alt 2, Shift 4, Meta 8); the DOM's has Alt 1, Ctrl 2.
-// The Up/Down pair follows keyDown's EditKey mapping (0xE0A1 Up, 0xE0A0 Down), so the two paths
-// cannot disagree; which way round a real keyboard sends them is cavekit-input-bridging.md R2a's
-// open question, and it is one constant in each place if the answer is "the other".
+// The codes are the ones a keyboard was MEASURED to send (see BrowserPageGoanna::keyDown): the
+// Up/Down pair in particular was the other way round here until that measurement.
 // This path runs only when NO text field is the edit target — typing is keyDown/InsertText.
 static void jihadMapKey(int raw, int chr, int* domKey, int* domChar) {
   *domKey = 0; *domChar = 0;
   switch (raw) {
-    case 0xE0A0: *domKey = 40; return;   // Down
-    case 0xE0A1: *domKey = 38; return;   // Up
+    case 0xE0A0: *domKey = 38; return;   // Up     (measured from a kernel keyboard, 2026-10-01)
+    case 0xE0A1: *domKey = 40; return;   // Down
+    case 0xE0B1: *domKey = 36; return;   // Home
+    case 0xE0B2: *domKey = 35; return;   // End
     case 0xE0A2: *domKey = 37; return;   // Left
     case 0xE0A3: *domKey = 39; return;   // Right
     case 0xE0B3: *domKey = 33; return;   // PageUp

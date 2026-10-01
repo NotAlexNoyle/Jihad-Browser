@@ -1,7 +1,163 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 + 2026-08-16 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
+
+---
+
+## 2026-10-01 session delta — device is now webOS CE 3.1.0, Cavekit is now v3.1.0, kits NOT yet updated (read first)
+
+This was a stock-take plus one finished diagnosis. **No kit was edited and nothing was fixed** — the
+user's standing instruction is "update the kit criteria to reflect the current state BEFORE completing
+tasks", and the session ended by moving the tooling to Cavekit 3, which needs a restart. Everything
+below is input for that kit update. Nothing here is committed except what `git log` shows.
+
+### Process: Cavekit v3.1.0 (was v2.0.0)
+
+- `~/.cavekit` is on branch `cavekit-3.1.0` (tag `v3.1.0`, `9aa1905`). The two local v2 edits are saved
+  as commits on `local/v2.0.0-edits-2026-10-01` (`a833abf` codex-review invocation, `b062631` findings).
+  **v3.1.0's `scripts/codex-review.sh` still carries the stale `codex --approval-mode … -p` call and
+  `o4-mini`**, so Codex review degrades until `a833abf` is cherry-picked onto it.
+- **Start Claude Code from `Jihad-Browser/`, not from the parent `Jihad/`.** v3 resolves `context/` and
+  `.cavekit/` against the CWD (`cavekit-tools.cjs`: `CAVEKIT_PROJECT_ROOT || process.cwd()`), and both
+  live here. The parent's `CLAUDE.md` still loads from a subdirectory.
+- First commands: `/ck:init` (idempotent — creates the v3 runtime state next to the existing v2
+  `.cavekit/config`), then the kit update below, then `/ck:map`, then `/ck:make`. `/ck:status` and
+  `/ck:resume` are new. The `bp:` alias is gone.
+- **TRAP — v3's tool cache will serve stale device readings.** While a loop is active
+  (`.cavekit/.loop.json` exists) a PreToolUse hook answers `Read`/`Grep`/`Glob`, and any Bash command
+  that BEGINS with `ls|find|cat|head|tail|wc|which|file|git status|log|diff|show…`, from a 120 s cache.
+  A device probe or a re-read of a growing log that starts with one of those words returns the previous
+  output. Commands that begin with `novacom`, `cd`, or a variable assignment are never cached — keep
+  device commands in that shape.
+
+### The device: webOS CE 3.1.0 (build 86, BUILDTIME 20260830), freshly installed
+
+Measured on the device, not assumed:
+
+- Kernel `2.6.35-palm-tenderloin` and **glibc 2.8 are unchanged**, so every cross-ABI statement in
+  cavekit-device-build.md R9 still describes this device.
+- Stock OpenSSL 0.9.8 is still `/usr/lib/libssl.so.0.9.8`; the new stack is side-by-side OpenSSL 1.1.1w
+  (`ssl11`, `ssl11dl`, `ssl11mail`; `curl 7.88.1 … OpenSSL/1.1.1w`). **Jihad uses neither** — page TLS is
+  the engine's own NSS 3.90 (`security.tls.version.max=4`). HTTPS loads work (`https://example.com`,
+  `https://www.howsmyssl.com/a/check`), but **the negotiated `tls_version` string was never captured**
+  (the grep for it came back empty on 2026-09-27) — that one read is still owed before any kit says
+  "TLS 1.3 verified".
+- CE preinstalls the **Atlas** browser (`org.webosports.app.atlas`, `BrowserAdapterAtlas.so`,
+  `/tmp/yapserver.atlas`, its own daemon). A fourth browser now coexists; R7 independence has not been
+  re-checked against it.
+- Flash is still present (`com.palm.app.flashplugin-001`, same `libflashplayer.so`), the
+  `com.palm.flashgraphics` role name is in the stock browserServer role files, and there is still no
+  keyboard (`gpio-keys`, `pmic8058_pwrkey`, `headset` only).
+- **Every `[x]` that says "device-verified" was verified on webOS 3.0.5.** None has been re-run on CE
+  3.1.0 except what is listed in this delta.
+
+### What the interrupted 2026-09-27 session did (recovered from its transcript)
+
+Rebuilt the daemon (YAP contract OK, 73 commands), built all three `.ipk`s (enyo 1.0.4, mochi/mojo
+1.0.0) and deployed all three with `push-variant.sh` (the real postinst, as root). On CE 3.1.0 that
+gave: three daemons running, three YAP sockets, card renders, pages load over HTTP and HTTPS.
+
+- **`<audio>` works on a clean install.** Vorbis: `paused=false t=9.926 dur=15`, ALSA `state: RUNNING`,
+  pulse sink-input RUNNING at 100%. The 2026-08-20 "currentTime never advances, stream stuck PREPARED"
+  finding in `context/impl/impl-media-controls.md` was an artifact of the hand-pushed engine that
+  session left behind — it does not reproduce. The scrubber/volume-widget/volume-HUD items in that file
+  have NOT been re-tested.
+- **Fresh-install LS2 ordering — unverified, looks real.** The first daemon start after postinst logged
+  `LSRegisterPalmService('net.riverstonerelay.jihadBrowser') FAILED (code=-1027)`; it registered after
+  `ls-control scan-services` plus a daemon restart. If postinst starts the daemon before the hub has
+  rescanned the role files, the toast channel and `clearCookies`/`getChromePrefs` are dead until the
+  next restart. Read `packaging/gen-variant-scripts.sh` before believing either way.
+
+### NEW DEFECT 1 — `<video>` dies with MEDIA_ERR_DECODE after 10–60 frames. ROOT CAUSE FOUND, fix NOT applied
+
+Symptom, every codec (VP8, Theora), `file://` and `http://`:
+`err=3:0x8007000e: DoDecode`, `vq=9/0/0` … `57/0/0`, then playback stops. The frame count at failure
+varies run to run, which is the tell.
+
+Cause, from two rounds of temporary stderr traces plus the source:
+
+1. `BasicImageLayer::Paint` (`gfx/layers/basic/BasicImageLayer.cpp:72`) swaps the `ImageContainer`'s
+   factory to the BasicLayerManager's `BasicImageFactory` **for the duration of the paint** and restores
+   it afterwards. `IsCompositingCheap()` is false for BasicLayers, and BasicLayers is what paints here
+   because OMTC is off (`JIHAD_DISABLE_OMTC=1`).
+2. The decoder thread calls `ImageContainer::CreatePlanarYCbCrImage()` concurrently. Inside that window
+   it gets a `BasicPlanarYCbCrImage`.
+3. `VideoData::SetVideoDataToImage` always does `SetDelayedConversion(true)` then `CopyData()`, and
+   `BasicPlanarYCbCrImage::CopyData` (`gfx/layers/basic/BasicImages.cpp:88`) does
+   `RecyclingPlanarYCbCrImage::CopyData(aData); if (mDelayedConversion) { return false; }` — it reports
+   failure for a copy that succeeded.
+4. `CreateAndCopyData` returns null → the decoder returns `NS_ERROR_OUT_OF_MEMORY` → MEDIA_ERR_DECODE.
+
+On desktop the paint window is microseconds; on the TouchPad a software paint is 40–160 ms, so a decode
+lands inside it within a second or two. Evidence: the trace fired `CreateAndCopyData:
+SetVideoDataToImage/CopyData FAILED` with NONE of the inner allocation/lock/size traces — i.e. the base
+copy succeeded and the `false` came from the delayed-conversion line.
+
+Proposed fix (three lines, engine, **not built, not verified**): in `BasicPlanarYCbCrImage::CopyData`,
+return the base class's result and return `true` under delayed conversion. A delayed image is fully
+usable — `GetAsSourceSurface()` already converts on demand when `mDecodedBuffer` is null.
+
+This also re-dates two kit boxes: "VP8 plays" (2026-08-10) and the play/pause `[~]` (2026-08-15,
+`t=0.73`) were both read inside the first second, before the failure.
+
+Test assets: device `/tmp/jm/` (volatile) holds `jihad-media.html` (state readout in `#state`, pick the
+clip with `?v=clip10v.webm`), `clip10{,v,a,g,op}.webm`, `clip10.ogv`, `tone15.{ogg,wav}`. Regenerate:
+`ffmpeg -f lavfi -i "testsrc=size=320x240:rate=15:duration=10" -c:v libvpx -b:v 200k -an clip10v.webm`,
+`ffmpeg -f lavfi -i "sine=frequency=440:duration=15" -c:a libvorbis -q:a 3 tone15.ogg`. The page itself
+was pulled off the device and is now `render/goanna/test/jihad-media.html` (untracked, md5-matched to
+the device copy); the clips are regenerated, not stored.
+
+### NEW DEFECT 2 — an idle daemon fills `/var`
+
+A daemon with NO card connected writes one `tick period` line every 2 s and nothing else: **82 B/s,
+~7 MB/day per variant** while the device is awake. mochi and mojo had reached **10.1 MB each** after
+3.6 days idle, on a 62 MB `/var`. Three variants idle is ~21 MB/day. The job rotates the log only at
+start. Same family as `jihad-var-full-kills-daemon-log`: a full `/var` freezes the log and a frozen log
+reads as a live one. The same lines show the idle daemon ticking at 8 ms with no page (`n≈241` per 2 s,
+~2.8% CPU each, indefinitely).
+
+### NEW DEFECT 3 — `about:blank` is a repaint storm
+
+On `about:blank` the daemon logs `painted shmid=… bytes=0 … ms=35` about 22 times a second forever
+(663 full paints in 30 s, 2.4 KB/s of log, ~210 MB/day). The full path gets a zero-byte frame, will not
+publish it, and tries again every tick. `about:blank` is an allowlisted home page (`safeUrl`), so a user
+can select this state. A static page with real content is quiet (16 lines / 30 s).
+
+### Seen, NOT verified
+
+On the media test page the card and daemon traded `emitGeometry contentSize=…` / `setZoomAndScroll
+zoom=…` continuously (1662 → 2102 → 2022 → 2012 → 1972 → 2042 px). The page's `#state` is
+`white-space:pre` and its event line grows, so the content width really does change every 500 ms —
+this is probably the page and not a fit-width feedback loop. Do not record it as a defect without a
+page whose content width is fixed.
+
+### Kit work owed before any task (this is the next step, not optional)
+
+- cavekit-device-build.md R4: the target is now CE 3.1.0; add criteria for fresh install, LS2
+  registration on first start, coexistence with Atlas, and a re-verification sweep of the 3.0.5-only
+  `[x]` boxes. R8: a log-growth bound and an idle-tick criterion (defect 2).
+- cavekit-gre-widgets.md R1: `<video>` is broken past the first second (defect 1) — the "VP8 plays"
+  and play/pause boxes are overstated. R7 still says "the engine has NO audio output at all", which
+  has been false since 2026-08-15.
+- cavekit-offscreen-rendering.md R8: a genuinely blank page must settle (defect 3).
+- cavekit-browser-services.md R5: record the engine-NSS TLS position and the uncaptured `tls_version`.
+- `context/impl/impl-media-controls.md`: the 2026-08-20 diagnosis is superseded (see above).
+
+### Device and tree state as left
+
+- All three variants installed from the 2026-09-27 `.ipk` payloads. **enyo runs a TRACED libxul**
+  (md5 `cb514e9e11f34a6db94ceb1d44222cce`, prints `[jihad-media-trace]` on a failed frame copy); mochi
+  and mojo run the `.ipk` build (`78c3b51a60d9959cbe313696e8ae26a7`). A push of all three puts them
+  back in step.
+- `/etc/event.d/jihad{,-mochi,-mojo}` all carry the device-local `JIHAD_INJECT=1`. **enyo's also carries
+  `MOZ_LOG=sync,MediaDecoder:5,…`** from 2026-09-27 — it produced zero lines and should be removed
+  (`sed -i 's/ MOZ_LOG=[^ ]*//' /etc/event.d/jihad`, then `stop jihad; start jihad`).
+- The enyo card is parked on `/tmp/jihad-plain.html` (static). **Do not park on `about:blank`** — defect 3.
+- mochi and mojo logs were truncated at 05:31 device time; `/var` is at 12% (54.7 MB free). At the
+  idle rate that is days, not weeks — check `df /var` first thing.
+- `third_party/uxp` is clean at `bd49435b`; the trace edits were reverted. The out-arm objdir libxul
+  (2026-10-01 08:25) is the traced build and is stale against the tree until the next engine build.
 
 ---
 

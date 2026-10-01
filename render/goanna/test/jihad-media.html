@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-media</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
+#state{white-space:pre;color:#ff0;margin-top:8px}audio,video{display:block;margin:8px 0;width:480px}</style></head>
+<body>
+<p id="hdr">jihad-media test page</p>
+<audio id="a" controls src="tone15.ogg"></audio>
+<video id="v" controls src="clip10.webm" data-x="1" width="320" height="240"></video>
+<div id="state">state: init</div>
+<script>
+var a=document.getElementById('a'), v=document.getElementById('v'), s=document.getElementById('state'); var Q=(location.search.match(/[?&]v=([^&]+)/)||[])[1]; if(Q){ v.src=Q; document.getElementById('hdr').textContent+=' video='+v.src; }
+var log=[];
+function ev(el,tag){['play','playing','pause','timeupdate','ended','error','stalled','waiting','canplay','loadedmetadata','durationchange','suspend','abort','emptied'].forEach(function(n){el.addEventListener(n,function(){ if(n!=='timeupdate'||log.length<40) log.push(tag+':'+n+'@'+el.currentTime.toFixed(2)); });});}
+ev(a,'A'); ev(v,'V');
+function fmt(el,tag){return tag+' paused='+el.paused+' rs='+el.readyState+' ns='+el.networkState+' t='+el.currentTime.toFixed(3)+' dur='+(el.duration||0).toFixed(2)+' vol='+el.volume+' muted='+el.muted+' err='+(el.error?el.error.code+':'+(el.error.message||'').replace(/\s+/g,'_'):0)+' ended='+el.ended+(el.getVideoPlaybackQuality?(function(q){return ' vq='+q.totalVideoFrames+'/'+q.droppedVideoFrames+'/'+q.corruptedVideoFrames;})(el.getVideoPlaybackQuality()):'')+' vw='+(el.videoWidth||0)+'x'+(el.videoHeight||0);}
+function tick(){ s.textContent='STATE hidden='+document.hidden+' vis='+document.visibilityState+' now='+(performance.now()/1000).toFixed(1)+'\n'+fmt(a,'A')+'\n'+fmt(v,'V')+'\nEV '+log.slice(-12).join(' '); }
+setInterval(tick,500); tick();
+var HASH=!!Q; setTimeout(function(){ if(HASH) return; var p=a.play(); log.push("A:play()->"+(p&&p.then?"promise":String(p))); if(p&&p.then) p.then(function(){log.push("A:resolved")},function(e){log.push("A:rejected:"+e.name)}); },2000);
+setTimeout(function(){ var p=v.play(); log.push("V:play()->"+(p&&p.then?"promise":String(p))); if(p&&p.then) p.then(function(){log.push("V:resolved")},function(e){log.push("V:rejected:"+e.name)}); },HASH?3000:25000);
+window.jmPlayA=function(){return a.play();}; window.jmPlayV=function(){return v.play();};
+</script></body></html>

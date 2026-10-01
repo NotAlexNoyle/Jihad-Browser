@@ -2701,7 +2701,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (jihad_offscreen_popup_mouse) {
     double cssX = x, cssY = y;
     double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
-    if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+    // x,y are ALREADY viewport CSS px — the caller's docToViewport divided by the zoom and took
+    // the pan off. A popup is positioned in document CSS px, so only the pan goes back on. This
+    // line used to divide by the zoom a second time: measured on the device 2026-10-01 at the
+    // 0.78 fit zoom about:addons gets in portrait, a tap on the menu's second item at CSS 601,73
+    // reached the popup as `doc=766.9,93.2 -> popup-local 330,52` — the far edge of a different
+    // row. At zoom 1 the division was a no-op, which is the only zoom it had been tried at.
+    if (Z != 1.0) { cssX = x + mPanX; cssY = y + mPanY; }
     // Probe-only (move) first: it tells us the point is inside a popup WITHOUT
     // activating anything, so a duplicate tap can be dropped rather than acted on.
     if (jihad_offscreen_popup_mouse(0, cssX, cssY)) {
@@ -3724,7 +3730,7 @@ bool GoannaRenderPage::PopupHover(int x, int y) {
   if (!jihad_offscreen_popup_mouse) return false;
   double cssX = x, cssY = y;
   double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
-  if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+  if (Z != 1.0) { cssX = x + mPanX; cssY = y + mPanY; }   // viewport CSS -> document CSS (see ClickAt)
   return jihad_offscreen_popup_mouse(0, cssX, cssY);
 }
 
@@ -3733,7 +3739,7 @@ bool GoannaRenderPage::PopupActivate(int x, int y) {
   if (!jihad_offscreen_popup_mouse) return false;
   double cssX = x, cssY = y;
   double Z = (mRenderZoom >= 0.05 && mRenderZoom <= 20.0) ? mRenderZoom : 1.0;
-  if (Z != 1.0) { cssX = x / Z + mPanX; cssY = y / Z + mPanY; }
+  if (Z != 1.0) { cssX = x + mPanX; cssY = y + mPanY; }   // viewport CSS -> document CSS (see ClickAt)
   if (!jihad_offscreen_popup_mouse(0, cssX, cssY)) return false;   // outside every popup
   jihad_offscreen_popup_mouse(1, cssX, cssY);
   jihad_offscreen_popup_mouse(2, cssX, cssY);

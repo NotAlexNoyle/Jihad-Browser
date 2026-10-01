@@ -422,6 +422,7 @@ private:
   int64_t            mLastPaintDoneMs = 0;    // pan-cadence refresh (fixed-content drift bound)
   int                mLastContentW, mLastContentH;  // last emitted content size
   // last meta-viewport sent to the card (emitGeometry sends it only on change)
+  bool               mPopupWasOpen = false;   // a XUL popup was open at the last pump (repaint on change)
   bool               mViewportSent = false;
   double             mVpIs = 0, mVpMn = 0, mVpMx = 0; int mVpW = 0, mVpH = 0; bool mVpUs = true;
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset

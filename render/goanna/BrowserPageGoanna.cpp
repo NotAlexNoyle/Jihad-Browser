@@ -1855,6 +1855,8 @@ bool BrowserPageGoanna::emitGeometry() {
   if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us)) {
     if (!mViewportSent || is != mVpIs || mn != mVpMn || mx != mVpMx || vw != mVpW || vh != mVpH || us != mVpUs) {
       mViewportSent = true; mVpIs = is; mVpMn = mn; mVpMx = mx; mVpW = vw; mVpH = vh; mVpUs = us;
+      fprintf(stderr, "[jihad-bs] metaViewport -> card: initial=%.4f min=%.4f max=%.4f %dx%d userScalable=%d\n",
+              is, mn, mx, vw, vh, (int)us);
       mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);
     }
   } else {
@@ -2048,7 +2050,10 @@ void BrowserPageGoanna::emitScrollIfChanged() {
     long dx = (long)sx - (long)((double)mAdapterScrollX / z); if (dx < 0) dx = -dx;
     bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
                          dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
-    if (!adapterDriven) mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)
+    if (!adapterDriven) {
+      fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (content-initiated)\n", sx, sy);
+      mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)
+    }
   }
 }
 
@@ -2063,6 +2068,14 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   mPage->FlushPendingInputEvent();
   mPage->FlushPendingChangeEvent();
   { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(nw.c_str()); }
+  // A menu that opened or closed since the last pump changes the picture without damaging the
+  // page: it is its own display root, composited over the frame at paint time, and XUL opens it
+  // ASYNCHRONOUSLY — after the tap that asked for it has already been painted. Measured on the
+  // device 2026-10-01: about:addons' tools menu was open (`popups=1`) and four seconds later
+  // nothing had been painted (`0 composites`); it appeared only when the next event forced a
+  // frame. A finger sends several events per tap, which is presumably why this went unseen.
+  { bool open = mPage->PopupsOpen();
+    if (open != mPopupWasOpen) { mPopupWasOpen = open; mNeedsPaint = true; mDamageForceFull = true; } }
   // Process a queued tap next — inside the tick's page-lifetime guard, and BEFORE
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +

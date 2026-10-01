@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jihad-transition</title>
+<style>body{margin:0;background:#111;color:#0f0;font:18px monospace;padding:12px}
+#box{width:100px;height:80px;background:#c0f;transition:width 1s linear, height 1s linear}
+#box.big{width:600px;height:300px}
+#row{overflow:hidden;height:60px;background:#063;transition:height 1s, opacity 0.8s}
+#row.gone{height:0;opacity:0}
+button{font:20px monospace;padding:12px 24px;margin:8px 8px 8px 0}</style></head>
+<body>
+<p>jihad-transition: a CSS transition must reach the screen to its LAST frame with no input</p>
+<button id="go">grow the box / collapse the row</button><span id="s">idle</span> <span id="r">raf=?</span>
+<div id="box"></div>
+<div id="row">this row collapses to nothing in one second</div>
+<p id="after">text below the row: it moves up when the row has collapsed</p>
+<script>
+// cavekit-offscreen-rendering.md R3/R8. One tap starts two one-second transitions; nothing else is
+// sent. #s reads "done N" when N transitionend events have fired (the ENGINE finished); the
+// SCREEN must then show a 600x300 box and no green row. A frame stuck part-way means the daemon
+// stopped painting before the animation stopped changing.
+var n = 0;
+document.getElementById('go').addEventListener('click', function () {
+  document.getElementById('box').className = 'big';
+  document.getElementById('row').className = 'gone';
+  document.getElementById('s').textContent = 'running';
+});
+// How often the engine itself ticks: requestAnimationFrame callbacks in the two seconds after the
+// tap. ~120 means the refresh driver runs at 60 Hz and any shortfall on screen is the paint path;
+// a handful means the engine is not being driven.
+var raf = 0, t0 = 0;
+function tick(t) { if (!t0) t0 = t; if (t - t0 < 2000) { raf++; requestAnimationFrame(tick); }
+  else document.getElementById('r').textContent = 'raf=' + raf + ' in 2s'; }
+document.getElementById('go').addEventListener('click', function () { raf = 0; t0 = 0; requestAnimationFrame(tick); });
+document.addEventListener('transitionend', function () {
+  n++; document.getElementById('s').textContent = 'done ' + n;
+}, true);
+</script></body></html>

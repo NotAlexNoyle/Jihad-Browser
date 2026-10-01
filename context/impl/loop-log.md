@@ -112,3 +112,7 @@ Build site: context/plans/build-site.md
 - T-223 prefs media block — DONE. Kit R7 [x].
 - Display was off/locked → woke via display/control. Screenshots archived.
 - Next: T-224 R10 media clock measurement; daemon batch (T-203..T-206).
+
+### Iteration — 2026-10-01 (third session, prefs/input lane)
+- T-250/251/252/253/254/255/214/278: DONE on device, 3 variants. Fixes: change event, number-field target, native scroll, JS default branch + row, location.replace, window.open → new card, meta-viewport only when declared, adapter late-identifier reconnect + 0x0 window. T-212 built (needs human double tap). T-257 N/A.
+- Daemon now `4cdc0846…`, adapter impls enyo `20b9dead…` mochi `42d58021…` mojo `a187efbd…` (live-swapped). `.ipk`s still stale → T-263.

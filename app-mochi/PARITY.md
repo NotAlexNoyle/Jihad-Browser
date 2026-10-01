@@ -5,10 +5,18 @@
 Maps every user-facing feature of the Enyo 1.0 UI (`../app/source`) to its Enyo 2
 + Mochi equivalent in `app-mochi/source`, or records an intentional omission.
 
-**Contract note.** The Mochi UI drives the engine ONLY through the frozen
-`callBrowserAdapter` literal set `{findInPage, goBack, goForward, reloadPage,
-stopLoad}` plus the `palm://com.palm.browserServer/{clearCache,clearCookies}`
-URIs. Dialog answers use the adapter's existing scriptable `sendDialogResponse`
+**Refreshed 2026-10-01 against `app/source` and `app-mochi/source` as they are today** (the
+previous revision was 2026-08-10 and predated the own-service URIs, the toast channel, the home
+control, the stored start-page shortcuts, the shared settings page and the `<select>` list).
+Rows added or corrected in this pass are marked *(2026-10-01)*.
+
+**Contract note.** The Mochi UI drives the engine ONLY through the `callBrowserAdapter` literal
+set `{findInPage, goBack, goForward, reloadPage, stopLoad, selectPopupMenuItem}` — the last one
+is the reply to the adapter's own `showPopupMenu` callback, the same pair the stock Enyo 1.0
+WebView uses — plus THIS VARIANT'S OWN Luna service,
+`palm://net.riverstonerelay.jihadBrowserMochi/{clearCache,clearCookies,notifications}`
+*(2026-10-01: not `com.palm.browserServer`, which is the stock daemon — calling it clears the
+wrong browser; cavekit-ipc-contract.md R4)*. Dialog answers use the adapter's existing scriptable `sendDialogResponse`
 routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 1.0 app's `viewCall(...)` fallback does), so they do **not** widen that grep-audited
 literal set. Persistence uses THIS PACKAGE'S OWN db8 kinds:
@@ -43,6 +51,10 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | New card | `Browser.openNewCard` | `JihadBrowser.openCard` (`window.open` + webOS `attributes=`) | Ported [device-gated] — Enyo 2 has no `enyo.windows`; see audit F-A03 |
 | Engine-created page (link `target` / `window.open`) | `BasicWebView.createPage` → `Browser.openNewCardWithIdentifier` | `JihadWebView.createPage` → `onNewPage` → `JihadBrowser.newPageRequested` → `openCard({webviewId})` | Ported [device-gated] — see audit F-A05 |
 | Reflect title/URL + history state | `Browser.pageTitleChanged` | `JihadBrowser.pageInfoChanged` | Ported (shell) |
+| Home control *(2026-10-01)* | `ActionBar.js` home `ToolButton` → `ChromePrefs.loadHome` | `JihadBrowser.js` `home` nav button, immediately right of forward → `goHome` → `enyo.jihadChrome.loadHome()` | Ported |
+| Start-page shortcuts from the stored list *(2026-10-01)* | `StartPage.js` + `ChromePrefs.loadLinks` | `JihadBrowser.js` start-page overlay + `JihadChromePrefs.loadLinks` (card `localStorage`, `safeUrl` allowlist on read and write) | Ported |
+| `<select>` list *(2026-10-01)* | stock `enyo.WebView` popup (framework) | `JihadWebView.showPopupMenu` → app overlay list → `selectPopupMenuItem(id, idx\|-1)` — Enyo 2 has no framework popup, so the list is app code | Ported |
+| Transient notices ("Cookies cleared.", add-on installed/incompatible) *(2026-10-01)* | `Browser.js` toast fed by the daemon's `notifications` subscription | `JihadToast.js` + `JihadBrowser.js` subscription to `jihadBrowserMochi/notifications` | Ported |
 
 ## Bookmarks
 
@@ -92,7 +104,9 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | --- | --- | --- | --- |
 | Block Popups / Accept Cookies / Enable JavaScript toggles | `Preferences.js` ToggleButtons | `JihadPreferences.js` `mochi.ToggleButton`s | Ported (persistence) |
 | Persist preferences | `BrowserApp.preferenceChanged` (db8 merge) | `JihadPreferences.toggleChanged` (`dbMergeQuery` on preferences kind) + default seeding | Ported |
-| Clear Cookies / Clear Cache | `Browser.clearCookies/clearCache` | Preferences → `JihadBrowser.clearCookies/clearCache` (`browserServer` URIs) | Ported |
+| Clear Cookies / Clear Cache | `Browser.clearCookies/clearCache` (`palm://net.riverstonerelay.jihadBrowser/…`) | Preferences → `JihadBrowser.clearCookies/clearCache` (`palm://net.riverstonerelay.jihadBrowserMochi/…`) *(2026-10-01: own-service URIs on both sides)* | Ported |
+| Home page + start-page shortcut EDITING *(2026-10-01)* | card Preferences rows (name, address, remove) AND `about:preferences` | NOT in this panel by design: edited in the shared `about:preferences` page (menu **Settings**), adopted back from the page's url fragment (`JihadChromePrefs.adoptFromUrl`) | Ported (single editor — cavekit-mochi-ui.md R7) |
+| Settings page entry *(2026-10-01)* | app menu → `about:preferences` | menu **Settings** → `about:preferences#chrome=…` | Ported |
 | Clear Bookmarks / Clear History | `Preferences` prompts | Preferences → `clearBookmarks/clearHistory` (db8) | Ported |
 | **Apply** toggles to the live engine | `Browser.setEnableJavascript/setBlockPopups/setAcceptCookies` | — | **Omitted (contract)** — pushing toggle values to the engine would require new `callBrowserAdapter` methods, widening the frozen literal set (cavekit-ipc-contract R1). Values are persisted to db8; live engine application is deferred to a contract-scope change. |
 | Enable Flash (system pref) | `Preferences` `flashplugins` | — | Omitted — system-preference/Flash plumbing is out of parity-views scope. |
@@ -101,18 +115,15 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 
 ## Engine-driven dialogs
 
-> **Answer path is app-side-correct but not yet live end-to-end (audit F-A12).**
-> The argument shapes below are exactly what the adapter's `js_sendDialogResponse`
-> accepts, and Mochi is *more* correct than Enyo 1.0 here: `Browser.sendDialogResponse`
-> calls `viewCall("acceptDialog"/"cancelDialog")`, and neither name exists in
-> `BasicWebView` or in the adapter's exposed method table, so the Enyo 1.0
-> alert/confirm/prompt/auth answers are dead upstream (only its SSL path uses the
-> real `sendDialogResponse`). What is NOT live is the daemon side: no production
-> `DialogSink` is installed (`render/goanna/DialogService.cpp` dispatches only to
-> a sink the desktop test installs), so `msgDialogAlert/Confirm/Prompt/UserPassword`
-> are never emitted; and `JihadBrowserServer`'s SSL sink passes an EMPTY
-> `syncPipePath`, which makes `js_sendDialogResponse` bail with "Invalid state".
-> Both are daemon-side (not app-mochi) work.
+> **Answer path — live end to end since 2026-08 (corrected 2026-10-01).** The previous revision of
+> this note (audit F-A12) said the daemon installed no `DialogSink` and that the SSL sink passed an
+> empty `syncPipePath`. Both were fixed on the daemon side: `BrowserPageGoanna` is the production
+> dialog sink over the frozen FIFO contract (cavekit-browser-services.md R3) and the SSL confirm
+> has carried a reply pipe since 2026-08-03. What remains true: Mochi is more correct than Enyo 1.0
+> here — `Browser.sendDialogResponse` calls `viewCall("acceptDialog"/"cancelDialog")`, names that
+> exist in neither `BasicWebView` nor the adapter's method table. Device evidence on THIS variant
+> is an `alert()` reaching the card (2026-08); confirm / prompt / auth / SSL on Mochi are
+> code-equivalent and have not each been watched on a device.
 
 | Feature | Enyo 1.0 source | Mochi equivalent | Status |
 | --- | --- | --- | --- |
@@ -151,3 +162,9 @@ to sign a statement the project had already disproved.
 Structural correctness — kinds, the frozen adapter method set, `node --check`, grep-clean, and the
 `build-mochi-ipk.sh` end-to-end build — is verified, and remains the right gate for this document.
 Per-criterion status lives in `context/kits/cavekit-mochi-ui.md`, not here.
+
+**What a sign-off of this document asserts (2026-10-01):** that every user-facing feature of the
+Enyo 1.0 shell appears above as Ported, Simplified or Omitted with its reason, as of the sources on
+that date. It is a product-owner judgement on the OMISSIONS (bookmark editing, thumbnails,
+auto-download, share sheet, add-to-launcher, print, certificate detail, live-apply of the three
+toggles, the Flash and search-engine preferences) and is not something a device run can decide.

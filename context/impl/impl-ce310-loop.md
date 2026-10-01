@@ -31,6 +31,9 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-217 | DONE | ARM daemon built, YAP contract OK (73 commands, 58 messages). Stripped md5 `3e29f045cf0f9bb392ef96f8eb8a7139`. |
 | T-218 | DONE | PDK + crosstool adapters and three `.ipk`s (enyo 1.0.4, mochi/mojo 1.0.0); each payload verified: libxul `65e3cc84`, daemon `3e29f045`, ffvpx libs, `libasound.so.2`, goanna.js `01154654`, postinst carries the hub rescan. |
 | T-225 | DONE | Daemon push ×3 (md5 read back). Idle: 0.05% CPU, ~1 wakeup/s, 0 log bytes per variant; inject answers `no page`; connect latency unchanged; re-idle on card close, same PID. device-build R8 idle box → `[x]`. |
+| T-207 | DONE | `build/webos-oe/r9-device-probes.sh` (build / mutex / closure); PDK-linked dynamic `mtx_dump_pdk` built (NEEDED libpthread.so.0, libc.so.6). Device run: T-245. |
+| T-208 | DONE | The three toolchain recipe files are tracked. `UXP-Jihad` `jihad-engine-mods` head = `bd49435b` = parent gitlink = OE SRCREV (checked with `git ls-remote` over https). Today's engine fix `1fff8023` is local only → push + gitlink/SRCREV bump is T-279 (needs the user's credential; no push this session). |
+| T-210 | DONE | `app-mochi/PARITY.md` refreshed: own-service URIs, `selectPopupMenuItem`, home control, stored shortcuts, settings entry, toast, corrected dialog note. Human sign-off stays T-291. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

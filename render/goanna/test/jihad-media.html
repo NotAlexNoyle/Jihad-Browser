@@ -8,6 +8,7 @@
 <div id="state">state: init</div>
 <script>
 var a=document.getElementById('a'), v=document.getElementById('v'), s=document.getElementById('state'); var Q=(location.search.match(/[?&]v=([^&]+)/)||[])[1]; if(Q){ v.src=Q; document.getElementById('hdr').textContent+=' video='+v.src; }
+var QA=(location.search.match(/[?&]a=([^&]+)/)||[])[1]; if(QA){ a.src=QA; document.getElementById('hdr').textContent+=' audio='+QA; }
 var log=[];
 function ev(el,tag){['play','playing','pause','timeupdate','ended','error','stalled','waiting','canplay','loadedmetadata','durationchange','suspend','abort','emptied'].forEach(function(n){el.addEventListener(n,function(){ if(n!=='timeupdate'||log.length<40) log.push(tag+':'+n+'@'+el.currentTime.toFixed(2)); });});}
 ev(a,'A'); ev(v,'V');

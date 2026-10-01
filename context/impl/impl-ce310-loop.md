@@ -42,6 +42,8 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-231 | BLOCKED (permission) | Removing a variant (prerm + payload `rm -rf`) was refused by the session's permission gate as irreversible deletion. Not attempted another way. Needs the owner's go-ahead. |
 | T-232/T-233 | PARTIAL | Supported-path installs (ipkgservice) done for enyo, mochi, mojo — but as install-OVER. Luna registered on first start ×3 (Enyo from a hub with the role hidden). All three now ipkg-registered. Fresh-from-nothing and the reboot remain (blocked on T-231). |
 | (found) | FIXED | Upgrade crash: postinst `cp` over the mapped adapter shim → LunaSysMgr SIGSEGV at the next card launch (seen once). postinst now replaces shim + impl by rename; verified on three upgrades. New kit criterion in device-build R4, `[x]`. |
+| T-238 | DONE | Scrubber: stuck `0:00` bubble reproduced on `<audio>`, cause = engine damage rect excludes the bubble above the bar; daemon now grows the damage box by 32 CSS px (no plugin on page). Bubble tracks 0:04/0:10/0:15; click-seek works (audio 3.5→13.2 s, video 4.9→30.9 s). gre-widgets R1 controls-render + scrubber boxes → `[x]`. Engine-side overflow union tried, no effect, reverted (rebuild reproduced md5 `65e3cc84`). Daemon now `73cbc3a2dbc37b4446de955a92f2cd14` on all three. |
+| T-239 | DONE (agent part) | Volume widget: mute + slider change `muted`/`volume`; pulse sink-input follows (100→54/96/78%, 0% muted); codec level untouched. T-241 (engine volume wiring) is MOOT. Kit box `[~]` for the finger (T-285). |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 
@@ -79,5 +81,12 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
   to see which build is loaded. The shim itself is only reloaded by a LunaSysMgr restart.
 - `ipkgservice/install` returns to `luna-send -n N` after N messages while the install is still
   running; poll for the daemon before reading results.
+- After a LunaSysMgr restart a system "Connected — USB Drive" dialog sits over everything and the
+  card behind it is not recomposited: screenshots show a frozen, dimmed card. Dismissed by closing
+  the two extra `com.palm.systemui` windows (`applicationManager/close` on their processids).
+- A stale, disconnected card of the same app (left over from a daemon restart) is what
+  `takeScreenShot` captures if it is in front — a dim scrim with a spinner. `fresh-card` pattern:
+  close every card of the app, launch one, wait for `load done`, then test.
+- `takeScreenShot` takes ~2 s; budget for it when timing against playback.
 - Cards can be closed remotely: `applicationManager/running` → `processid`, then
   `applicationManager/close {"processId": …}`. Used for the connect-latency baseline.

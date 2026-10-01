@@ -329,6 +329,11 @@ static int64_t jihadNowMs() {
 static const int64_t kJihadBlankSettleMs = 500;
 static const int64_t kJihadBlankRetryMs  = 100;
 
+// How far (CSS px, scaled by the page zoom) the engine's damage box is grown before a
+// damage-only repaint — see where TakeDirtyRect is consumed. 32 covers the media controls' time
+// bubble (about 22 px above the bar and half a bubble either side of the thumb) with room.
+static const double kJihadDamageMarginCssPx = 32.0;
+
 // The daemon's tick period. Defined HERE rather than in Main.cpp, which used to own it, because
 // the plugin pull has to express its request period in whole ticks — a request grid that is not
 // a tick multiple beats against the tick and reintroduces the uneven spacing it exists to
@@ -2195,6 +2200,24 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   {
     int dx = 0, dy = 0, dw = 0, dh = 0;
     if (mPage->TakeDirtyRect(&dx, &dy, &dw, &dh)) {
+      // GROW THE BOX BY A MARGIN before trusting it for a damage-only repaint (2026-10-01).
+      // The engine's rect is the bounding box of what it invalidated, and that is not always
+      // everything that changed on screen: decoration that overflows the frame being updated
+      // can be left out. Device-measured on an <audio controls> element — the scrubber's time
+      // bubble sits ABOVE the 28 px control bar, every damage rect the engine reported started
+      // at the bar's top edge (y=53, never above), so each buffer kept the bubble exactly
+      // where its last FULL paint had drawn it: "0:00" pinned at the far left while the thumb
+      // moved on, which is the user's "glitchy 0:00 stuck at the left of the scrubber".
+      // (Unioning the controls' overflow into nsVideoFrame's was tried and changed nothing.)
+      // A damage-only repaint re-renders its rect from the document, so a superset is always
+      // correct; the margin only costs pixels. Not applied while a plugin is on the page: there
+      // the box is the plugin's own rect, exact by construction, and the 30 fps path is priced
+      // per pixel.
+      if (mEmittedFlashRects.empty()) {
+        const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+        const int m = (int)(kJihadDamageMarginCssPx * z + 0.5);
+        dx -= m; dy -= m; dw += 2 * m; dh += 2 * m;   // clamped into the band by the partial path
+      }
       // Union with anything not yet painted: several ticks of damage can accumulate behind
       // one paint, and repainting only the newest box would leave the older ones stale.
       if (mDamageValid) {

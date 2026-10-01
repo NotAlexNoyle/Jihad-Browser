@@ -10,7 +10,7 @@ reference material for a specific subsystem, not a status document.
 Kits were brought in line with CE 3.1.0 first (commit `f12c1111`), the build site regenerated
 (`context/plans/build-site.md`, T-201…T-293), then `/ck:make` ran inline. Per-task record with every
 number: `context/impl/impl-ce310-loop.md`. Screenshots: `context/impl/evidence-2026-10-01/`.
-Nothing was pushed. The Cavekit loop is still armed (`.cavekit/.loop.json`); `/ck:resume` continues it.
+Nothing was pushed. The Cavekit loop was torn down at the stop (usage limit); the task registry (`.cavekit/task-status.json`, 37/91 complete) is intact and `/ck:resume` picks it up.
 
 **Verified on the device (webOS CE 3.1.0), kit boxes closed:**
 - `<video>` plays to the end — engine fix `1fff8023` on `third_party/uxp` `jihad-engine-mods`

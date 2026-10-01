@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-16"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Input Bridging
@@ -49,7 +49,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 - [x] Enter inserts a newline in a `<textarea>` and submits the form for a single-line `<input>`. Tab inserts a tab character in a `<textarea>` but moves focus to the next/prev text field in a single-line `<input>` (Shift+Tab goes back) — inserting a control char into a search/login value is wrong. *(2026-07-18: T2 root found + fixed. Submit went through DOMClick(), which MOZ_CRASHes from native code (SubjectPrincipal, no JSContext) — Enter SIGSEGV'd the daemon, read on-device as the stuck loading overlay. And SendMouseEvent fires the click event but NOT the submit default action in this embedding. Fix: FireFormSubmit — validate + cancelable `submit` event + form->Submit(), crash-safe. Enter + tapped submit buttons both navigate. focus_test D/E PASS on desktop; pending device retest.)*
 - [x] Enter submission runs the form's constraint validation first: an INVALID form is not submitted and keeps focus + the keyboard so the user can correct it (never discards the edit target before knowing submission succeeded). *(2026-07 Codex F-290.)*
 - [x] When a page focus/blur handler moves focus off the tapped/next field to a NON-text control (button/checkbox), the keystroke target is cleared rather than left on the old field — typing must never silently mutate a field that is no longer focused. Retargeting only follows focus to another text control. *(2026-07 Codex F-270/F-292.)*
-- [x] After a programmatic value edit, a bubbling DOM `input` event is dispatched (from the guarded loop) so controlled/framework (React) inputs keep the edit instead of reverting it.
+- [~] After a programmatic value edit, a bubbling DOM `input` event is dispatched (from the guarded loop) so controlled/framework (React) inputs keep the edit instead of reverting it. *(**DOWNGRADED `[x]`→`[~]` 2026-10-01 — a later DEVICE observation contradicts this box and was never reconciled with it.** cavekit-preferences-ui.md R6 (2026-08-15, keyboard-entry note): on a content-page test the field's value visibly changed and the page's own `input` listener NEVER fired (`echo: (none)`), although the insert path sets the pending-input element and the tick flushes it first thing. That note calls it "wider than this page — any site doing live validation, search-as-you-type or a controlled React input sees nothing" and leaves it unexplained. This box carried no evidence note of its own (its basis is the 2026-07-04 desktop harness), so the device reading is the stronger one. **To close, on the device (webOS CE 3.1.0):** a page whose `<input>` has an `input` listener that echoes into the DOM; focus the field by a click, insert text through the normal text path, read the echo back. Either the echo shows the event (then find why the 2026-08-15 page did not see it and say so here) or it does not (then it is a defect to fix). Check a plain `<input>`, a `<textarea>`, and a framework-style controlled input that re-sets its value from state.)*
 - [x] A held Backspace accelerates to whole-word deletion after it auto-repeats for a short interval.
 - [x] `<input type=number>`/`email` etc. (no text-selection API) still accept typed characters.
 - [x] Focus/blur handlers that navigate or submit run in the page-lifetime-protected pump/tick context, never synchronously in the YAP key callback (same crash class as R1).
@@ -176,6 +176,13 @@ are NOT covered by `push-engine-update.sh` — they require rebuilding and insta
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2a's "bubbling DOM `input` event is
+  dispatched" `[x]`→`[~]`: a 2026-08-15 device run (recorded in cavekit-preferences-ui.md R6) saw
+  the value change with the page's `input` listener never firing, and the two were never
+  reconciled. Every other device-verified box in this kit is 3.0.5 evidence and is listed in
+  cavekit-device-build.md R4's re-verification sweep; the touch-event ABI and key table this kit
+  cites were read from a 3.0.5 `libWebKitLuna.so` and must be re-read from the CE binary before
+  either is relied on.
 - 2026-06-30: Initial draft.
 - 2026-07-04: Reconciled — R1 click/hold, R4 drag-scroll, R5 coord-mapping-under-zoom all verified (INPUT/INPUT2/COORDMAP PASS); R2 keyDown/keyUp verified. Pending on-device: R2 field typing + insertStringAtCursor, all of R3 touch/pinch/tap (offscreen widget does not route synth touch on desktop).
 - 2026-07-15: R2 field typing DONE + verified on-device — the engine editor works headless after UXP patch 0010, so typing runs through the real engine caret (SetValue + SetSelectionRange), not the old append-only content-attribute path. Added R2a (full editable navigation/editing): arrows, Home/End, Up/Down, forward-Delete, selection-replace, Enter (newline in textarea / submit in input, deferred to pump per R1's crash rule), Tab-inserts-tab, held-Backspace word acceleration, `<input type=number>` fallback, surrogate-pair safety — all verified on-device via the VKB, reviewed by codex gpt-5.6-sol (F-219..F-225) then the cavekit inspector while codex is rate-limited. Visible caret required a UXP change (patch 0011: offscreen RenderDocument must pass `nsIPresShell::RENDER_CARET`). webOS VKB arrow keycodes measured on-device: Down=0xE0A0, Up=0xE0A1, Left=0xE0A2, Right=0xE0A3 (a private-use block, not Apple/Qt ranges). R5 has a REPORTED link-hit-test miss on real sites (see R5) — open.

@@ -2,6 +2,20 @@
 
 Build site: n/a (investigation). Started 2026-08-20.
 
+> **2026-10-01 — THE 2026-08-20 DIAGNOSIS AT THE BOTTOM OF THIS FILE IS SUPERSEDED. Do not build on it.**
+> "`currentTime` never advances, cubeb stream stuck PREPARED" was an artifact of the hand-pushed engine
+> that session left on the device (its own last paragraph says the device no longer matched the `.ipk`).
+> On a clean install of all three variants on webOS CE 3.1.0 (2026-09-27) an Ogg/Vorbis `<audio>` read
+> `paused=false t=9.926 dur=15`, ALSA `state: RUNNING`, pulse sink-input RUNNING at 100% — the media
+> clock advances and the stream runs. See `docs/PICKUP.md` §2026-10-01.
+> **What that does and does not settle:** it removes the *explanation* for the stuck scrubber, not the
+> user's three reports. The volume widget, the scrubber thumb and the volume HUD have NOT been re-tested
+> since; they are now acceptance criteria in `../kits/cavekit-gre-widgets.md` R1 (added 2026-10-01) and
+> must be re-run on CE 3.1.0 with all three variants on one engine build. A separate, real `<video>`
+> defect was found in the same stock-take (MEDIA_ERR_DECODE after 10–60 frames — a
+> `BasicPlanarYCbCrImage::CopyData` return-value bug, not a media-clock one); it is tracked in the same
+> requirement and must be fixed before any `<video>` controls result is believed.
+
 ## What the user reports (on the bitbake .ipk, engine SRCREV bd49435b)
 
 1. **Player volume widget doesn't work at all** (the in-player mute button + volume slider).
@@ -64,7 +78,7 @@ player volume widget inert regardless of input.
 4. Volume HUD: greenfield feature — build on the `com.palm.mediad` / audiod media-session hook (the
    only existing lever), not a quick fix.
 
-## 2026-08-20 device diagnosis — scrubber freeze = media currentTime never advances
+## 2026-08-20 device diagnosis — scrubber freeze = media currentTime never advances (SUPERSEDED 2026-10-01 — does not reproduce on a clean install; kept as the record of a contaminated-device reading)
 
 Drove the device directly (screenshots via takeScreenShot + a state-readout test page). CONFIRMED, not
 inferred:

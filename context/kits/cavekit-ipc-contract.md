@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-15"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: IPC Contract Preservation
@@ -83,6 +83,12 @@ that leaves every command/message signature untouched. Reference:
 - See also: cavekit-offscreen-rendering.md, cavekit-engine-embedding.md, cavekit-browser-services.md, cavekit-ui-shell.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state. R4's Luna-service
+  box is 3.0.5 evidence, and a fresh install on CE logged the service FAILING to register on first
+  start (-1027) — tracked as its own criterion in cavekit-device-build.md R4, and R4/R5 here are
+  listed in that requirement's re-verification sweep. R1's first criterion says the interface is
+  "unchanged from upstream"; read it with R1's second criterion, which records the one authorised
+  addition (0x1600).
 - 2026-06-30: Initial draft.
 - 2026-08-15: R1's last criterion closed. The YAP generator is vendored into the tree and patched, so regeneration from the in-tree `.defs` reproduces the shipped interface — including the 0x1600 empty default body — with no hand edit. `context/impl/impl-yap-codegen.md`.
 - 2026-07-04: Reconciled — R1 byte-identical YAP, R2 shmem double-buffer, R3 daemon lifecycle/freeze-thaw all verified (ROUND-TRIP + FREEZE-THAW PASS). R4 device LunaService registration and R5 real NPAPI BrowserAdapter rebuild remain device-integration work (desktop compiles the service layer out).

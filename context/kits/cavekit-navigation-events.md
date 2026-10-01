@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-07-31"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Navigation, Loading & Events
@@ -74,6 +74,10 @@ the engine's progress/URI listeners. Reference: `docs/IPC-CONTRACT.md`
 - See also: cavekit-ipc-contract.md, cavekit-offscreen-rendering.md, cavekit-browser-services.md, cavekit-ui-shell.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state. The two boxes with
+  device evidence (R4 redirect followed in-browser, R6 link-clicked on a tap) are listed in
+  cavekit-device-build.md R4's re-verification sweep; with Atlas preinstalled there is now a
+  second browser a redirect hand-off could wrongly land in.
 - 2026-06-30: Initial draft.
 - 2026-07-04: Status reconciled to implementation — all R1–R6 verified (NAV/FAIL/HISTORY/REDIRECT/RULES/LINK PASS).
 - 2026-07-17: R3 progress is now real incremental byte-progress (fixes frozen "loading screen"); the stall timeout is UI-only and never aborts the engine load (Codex F-288). R6 content-initiated POST navs are adopted (tracked to completion + repaint) without re-issuing the body (Codex F-289).

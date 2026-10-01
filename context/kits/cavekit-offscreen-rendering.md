@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-03"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Offscreen Rendering
@@ -34,7 +34,7 @@ Reference: `docs/IPC-CONTRACT.md` (framebuffer model), `render/goanna/PORT-MAP.m
 **Acceptance Criteria:**
 - [x] Each completed frame yields exactly one paint-ready notification naming the buffer that was filled.
 - [x] A buffer is not reused for the next frame until the client returns it.
-- [x] Invalidations are coalesced so transient changes do not produce redundant full repaints.
+- [~] Invalidations are coalesced so transient changes do not produce redundant full repaints. *(**DOWNGRADED `[x]`→`[~]` 2026-10-01.** True of a page with content — a static page is quiet, 16 log lines in 30 s — and FALSE of a blank one: on `about:blank` the daemon performs ~22 full repaints a second forever (663 in 30 s, measured on webOS CE 3.1.0), every one redundant, because a frame it refuses to publish is retried on the next tick. That is not a coalescing failure in the invalidation path itself, but it is exactly the outcome this criterion exists to rule out, so the box cannot stay checked while it happens. Closes with R8's "a genuinely blank page settles" criterion.)*
 - [x] **A content change produces a repaint without user input.** *(FIXED: UXP patch 0012 adds a sticky PuppetWidget::Invalidate() dirty flag drained by `jihad_offscreen_take_dirty`; the daemon polls it each tick after PumpFor and repaints on dirty — the engine-driven frame delivery the stock QtWebKit server got from Qt paint events; plus progress-increase→repaint during loads. Verified on device 2026-07-19: example.com renders with zero input, alternating double-buffer `painted` frames in the log. The earlier "old page sticks around / overload" that masked this was the daemon crash — fixed separately (see cavekit-navigation-events R6). See context/impl/device-test-2026-07-19.md.)*
 **Dependencies:** cavekit-ipc-contract.md (R2), cavekit-engine-embedding.md (R3)
 
@@ -222,6 +222,25 @@ width, height, zoom and the adapter's scroll position all identical while invali
       no cheap detector for that which does not fire on legitimate white (see the previous note).
       `JIHAD_NO_PARTIAL_PAINT=1` remains the kill switch if a real corruption is ever observed.
       Closing `[x]` on the written justification, NOT on an added guard.)*
+- [ ] **A genuinely blank page SETTLES: a frame the full path will not publish must not be
+      retried every tick forever.** *(Added 2026-10-01 — defect measured on the device, webOS CE
+      3.1.0, 2026-09-27/10-01. On `about:blank` the daemon logs `painted shmid=… bytes=0 … ms=35`
+      about 22 times a second indefinitely: 663 full paints in 30 s, 2.4 KB/s of log (~210 MB/day
+      against a 62 MB `/var`), a full ~35 ms software render each time. The full path produces a
+      frame with zero non-blank bytes, the blank-over-good suppression above refuses to publish
+      it, nothing records that the refusal was FINAL for this content, and so the next tick tries
+      again. The suppression is right about a blank frame that follows real content (a white
+      flash mid-load); it is wrong about a document that is blank on purpose. `about:blank` is an
+      allowlisted home page (`safeUrl`, all three shells), so an ordinary user setting selects
+      this state — it is not a debug-only corner. A static page with real content is quiet (16
+      log lines / 30 s), which is the control.*
+      *To close, on the device, card connected, log growth asserted: with `about:blank` loaded
+      and nothing animating, full paints over a 30 s window after load fall to a bounded handful
+      (same order as the static-content control, not hundreds), the per-paint log line stops, and
+      a subsequent navigation to a real page still paints its first frame promptly — i.e. the
+      settle must not become "never paints again". The white-flash protection this requirement's
+      first criterion exists for must survive: a blank frame arriving DURING a load of a page
+      that goes on to have content must still not be published over the previous good frame.)*
 
 **Dependencies:** R1, R2, cavekit-addons-extensions.md (R7)
 **Kill switch:** `JIHAD_NO_PARTIAL_PAINT=1` disables the damage-only branch. NOTE it gates exactly
@@ -236,6 +255,10 @@ that assumed otherwise reached a right conclusion for the wrong reason.
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R8 gained an open criterion: a blank
+  page must settle (the `about:blank` repaint storm — ~22 unpublishable full paints a second,
+  forever); R3's "invalidations are coalesced" `[x]`→`[~]` for the same measurement. Every device-verified box in this kit is 3.0.5 evidence and is listed in
+  cavekit-device-build.md R4's re-verification sweep.
 - 2026-08-03: Added **R7** (engine popups reach the user), which collects the "popup is a separate
   display root" defect that had been tracked only in impl notes and referenced loosely from the UI
   kits. Its `<select>` AC is met on all three variants (card-side list, isis JSON shape, anchored

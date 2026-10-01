@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-15"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Browser Services
@@ -126,6 +126,8 @@ later reader gets sent to re-fix something that works.
   **Trap for whoever greps next:** `render/browserserver/Src/BrowserServer.cpp:161` and `Src/Main.cpp:274-281` still carry the upstream `USE_CERT_MGR` block, and NEITHER FILE IS COMPILED — `build/desktop/build-daemon.sh` and `build/webos-oe/build-daemon-arm.sh` list only `Src/BrowserServerBase.cpp`, `JihadBrowserServer.cpp`, `JihadLunaService.cpp` and the top-level `render/browserserver/Main.cpp`. Finding `CertInitCertMgr` in our tree is not evidence that anything calls it.
 
   **The one fact that needs hardware:** whether `libPmCertificateMgr.so` is present on webOS 3.0.5 at all — the recipe above is Open-webOS-era and the TouchPad runs HP's 3.0.5 build. One device line settles it (`ls /usr/lib/libPmCertificateMgr.so*` plus `nm -D` for the nine symbols). If it is absent, the fallback is file-level: write the PEM into the store directory ourselves and let `com.palm.certificatemanager/listcertificates` prove it took.
+- [ ] **The TLS stack page loads actually use is stated, and the negotiated protocol version is CAPTURED from a real page load on the device — not inferred from a pref.** *(Added 2026-10-01 with the move to webOS CE 3.1.0. **The position, measured on the device 2026-09-27/10-01:** page TLS is the ENGINE'S OWN NSS (3.90, `security.tls.version.max=4`, i.e. TLS 1.3 offered) and is independent of the platform's OpenSSL in both directions — stock OpenSSL 0.9.8 is still `/usr/lib/libssl.so.0.9.8`, CE 3.1.0 adds a side-by-side OpenSSL 1.1.1w (`ssl11`, `ssl11dl`, `ssl11mail`; `curl 7.88.1 … OpenSSL/1.1.1w`), and Jihad links NEITHER (the daemon must not link OpenSSL at all — see the dlopen note on the cert-store criterion above). So CE's "new TLS 1.3 stack" neither helps nor constrains Jihad's page loads; it matters only to the platform cert store (`libPmCertificateMgr.so`, which links the device's own libssl) and to anything that shells out to `curl`. **What is NOT yet evidence:** HTTPS pages load on CE 3.1.0 (`https://example.com`, `https://www.howsmyssl.com/a/check`, 2026-09-27), but the negotiated `tls_version` string was never recorded — the grep for it came back empty — so no document may say "TLS 1.3 verified". **To close:** load a page that reports the negotiated version (e.g. `howsmyssl.com/a/check`, which returns it as JSON `tls_version`), read it back from the page through the card-connected daemon, and record the literal string, the date and the engine build here. Assert the log grew and the card was connected first; an empty readout is "no measurement", not a version.)*
+- [ ] **The platform cert store path still works on webOS CE 3.1.0.** *(Added 2026-10-01. The cert-store criterion above was closed on webOS 3.0.5 (`libPmCertificateMgr.so` dated Dec 2011, linking OpenSSL 0.9.8). CE 3.1.0 ships a new TLS stack beside the old one; whether `libPmCertificateMgr.so` is the same binary, still resolves all nine symbols under our loader, and still accepts `CertInitCertMgr`/`CertInstallKeyPackage`/`CertAddTrustedCert` has not been re-run. Re-run the 2026-08-15 procedure (self-signed HTTPS endpoint → SSL-confirm → Trust Once → `CertAddTrustedCert rc=0` → page loads) on CE 3.1.0. The dialog answer may be supplied over the reply FIFO as it was on 2026-08-15; that proves the daemon/store half, and the card's rendering of the dialog stays covered by cavekit-device-build.md R4.)*
 **Dependencies:** none (desktop TLS-confirm flow stands alone; device cert-store integration is tracked one-way in cavekit-device-build.md R4)
 
 ## Out of Scope
@@ -136,6 +138,11 @@ later reader gets sent to re-fix something that works.
 - See also: cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-engine-embedding.md, cavekit-device-build.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R5 gained two open criteria: the TLS
+  position (engine NSS 3.90, independent of the device's OpenSSL 0.9.8 and of CE's side-by-side
+  1.1.1w) with the still-uncaptured negotiated `tls_version`, and a CE 3.1.0 re-run of the
+  platform cert-store path, whose `[x]` is 3.0.5-only evidence. The 3.0.5-only device boxes in
+  the rest of this kit are listed in cavekit-device-build.md R4's re-verification sweep.
 - 2026-06-30: Initial draft.
 - 2026-07-04: Reconciled — R1 settings + R2 clear cache/cookies + R3 JS dialogs (blocking) verified (SETTINGS2/SERVICES/DIALOG PASS); R4 MIME/download handoff captured (DOWNLOAD PASS); R5 invalid-cert->SSL-confirm + reject-aborts (TLS PASS). Pending: device LunaService cache/cookie methods, download start/progress/finished + cancel, SSL accept-proceeds + webOS cert store (device).
 - 2026-07-17: R2 gained cookie/disk-cache PERSISTENCE (profile dir provider) and the low-memory guardrail (memory-pressure watcher), both ported patterns from Atlas/stock BrowserServer — see NOTICE. goanna.js gained Arctic-Fox/Mypal68-style JS-heap + media/network low-RAM prefs (build/webos-oe/make-device-bundle.sh).

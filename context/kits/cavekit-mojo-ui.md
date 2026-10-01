@@ -1,6 +1,6 @@
 ---
 created: "2026-07-31"
-last_edited: "2026-08-03"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Mojo UI Variant
@@ -139,6 +139,10 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
   R8 install footprint), cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** The Scope line's "ships with webOS 3.0.5"
+  describes the framework this variant was verified against; whether CE 3.1.0's
+  `/usr/palm/frameworks/mojo` is the same build is part of cavekit-device-build.md R4's
+  re-verification sweep, where every device-verified box in this kit is listed.
 - 2026-08-05: R6 extended (find as a magnifying-glass icon, home right of forward, the row
   scrolling, and the buttons circular + centred) and **R7 added** for the two chrome-owned
   settings. Four platform constraints recorded, all found by measuring on device rather than

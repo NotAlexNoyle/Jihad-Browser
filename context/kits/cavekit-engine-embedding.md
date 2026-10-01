@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-04"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Engine Embedding & Build
@@ -64,7 +64,7 @@ integrating the engine's event loop with the daemon's. Reference:
 **Description:** Engine processing and the daemon's command/IPC loop coexist without starvation.
 **Acceptance Criteria:**
 - [x] Page loads make progress while the daemon stays responsive to incoming YAP commands.
-- [x] No busy-wait/spin; CPU is idle when no work is pending.
+- [~] No busy-wait/spin; CPU is idle when no work is pending. *(**DOWNGRADED `[x]`→`[~]` 2026-10-01 — measured false on the device (webOS CE 3.1.0) in two states.** (1) A daemon with NO card connected runs its frame tick at the 8 ms default forever: its own statistics lines show ~241 ticks per 2 s and ~2.8% of a core per variant, with nothing to pump or paint. (2) On `about:blank` the daemon performs a full ~35 ms software paint about 22 times a second forever, because a frame it will not publish is retried every tick. Neither is a spin in the tight-loop sense — the loop does sleep between ticks — but "CPU is idle when no work is pending" is exactly what both violate. The box had no evidence note; its basis was the 2026-07 desktop harness, which never held a daemon idle with no client. **Closes with** cavekit-device-build.md R8 "an idle daemon is idle" and cavekit-offscreen-rendering.md R8 "a genuinely blank page settles"; when both are met, re-measure idle CPU with a static page loaded and no input and record it here.)*
 - [x] Timers/async engine work fire on schedule (e.g., animated content advances).
 **Dependencies:** none (foundational; Tier-2 domains build on this event loop)
 
@@ -85,6 +85,10 @@ integrating the engine's event loop with the daemon's. Reference:
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md, cavekit-desktop-build.md, cavekit-device-build.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R3 "CPU is idle when no work is pending"
+  `[x]`→`[~]`: an idle daemon ticks at 8 ms with no card, and `about:blank` repaints ~22 times a
+  second forever (both measured on the device). R2's device-verified boxes are 3.0.5 evidence and
+  are listed in cavekit-device-build.md R4's re-verification sweep.
 - 2026-06-30: Initial draft.
 - 2026-08-04: R2 corrected and extended. The "shuts down cleanly at exit" criterion had been met in error — `main()` never returned, so `XRE_TermEmbedding` never ran and the engine's deferred savers never flushed; SIGTERM is now handled. Two new criteria record what that exposed: pages must be destroyed before the runtime (the caution in `EngineHost::Shutdown` was never enforced, and violating it crashed on device), and `~YapServer`'s never-executed teardown was itself broken.
 - 2026-07-04: Status reconciled to implementation — all R1–R4 verified: libxul builds out-of-tree (+ ARM cross-build this session), init/shutdown + 20/20 create-destroy no-leak, event loop integrated, engine not vendored (docs/ENGINE-SOURCE.md).

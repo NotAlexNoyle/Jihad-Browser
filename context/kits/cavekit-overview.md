@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-16"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit Overview
@@ -25,6 +25,35 @@ storage (**R8**).
 
 Grounding: `context/refs/refs-overview.md`, `docs/IPC-CONTRACT.md`,
 `render/goanna/PORT-MAP.md`.
+
+### 2026-10-01 — TARGET PLATFORM: webOS CE 3.1.0 (read before the status table)
+
+The TouchPad is now on **webOS CE 3.1.0** (build 86; was HP webOS 3.0.5 until 2026-09). Kernel
+`2.6.35-palm-tenderloin` and glibc 2.8 are unchanged; CE adds a side-by-side OpenSSL 1.1.1w stack
+(Jihad uses neither it nor the stock 0.9.8 — page TLS is the engine's own NSS) and preinstalls the
+**Atlas** browser, so up to five browsers now coexist. Details: cavekit-device-build.md header.
+
+**What that does to every status below:** each "device-verified" in this file and in the kits
+dated before 2026-09-27 is **3.0.5 evidence**. Those boxes stay `[x]` as "met on 3.0.5" and are
+enumerated, kit by kit, in cavekit-device-build.md **R4's re-verification sweep**; a box closes on
+CE 3.1.0 evidence from here on. The status table below was last reconciled row by row on
+2026-08-16 and several of its cells are stale against the kits (Mochi R2/R4, Navigation R6,
+Browser Services R4/R5, IPC R4) — **the kit files are authoritative, the table is a summary.**
+
+**Open defects found in the CE stock-take, each now a criterion (none known to be CE-specific):**
+
+| defect | criterion |
+|---|---|
+| `<video>` fails with `MEDIA_ERR_DECODE` after 10–60 frames, every codec (root cause found: a frame-copy return value under software compositing; fix not yet applied) | cavekit-gre-widgets.md R1 "plays to the end"; R7 |
+| idle daemon writes a log line every 2 s forever (~7 MB/day per variant on a 62 MB `/var`) and ticks at 8 ms with no card | cavekit-device-build.md R8 (two criteria); cavekit-engine-embedding.md R3 |
+| `about:blank` repaints ~22 times a second forever | cavekit-offscreen-rendering.md R8, R3 |
+| first daemon start after a fresh install fails Luna registration (-1027) — observed once, plausible from the packaging source, not yet reproduced | cavekit-device-build.md R4 |
+| negotiated TLS version never captured | cavekit-browser-services.md R5 |
+| media controls: volume widget, scrubber, volume HUD (user report 2026-08-20, never re-tested; its one diagnosis is superseded) | cavekit-gre-widgets.md R1 |
+| a page's `input` listener did not fire after a programmatic text insert (device, 2026-08-15) | cavekit-input-bridging.md R2a |
+
+**No longer true anywhere in the kits:** "the engine has no audio output" (engine `<audio>` plays
+on the speaker at the system volume since 2026-08-17) and "VP8/WebM plays" (see the first row).
 
 ## Domain Index
 Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 partial · ⬜ not started.
@@ -137,7 +166,7 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | In-Browser Preferences | cavekit-preferences-ui.md | 7 | 🟡 11/26 met, 4 partial. **`about:preferences` + `about:settings` render on device**, built as an `nsIAboutModule` JS component + `chrome://jihad-prefs/` package — no C++ change, no daemon rebuild. In-content HTML (Basilisk's shape, Pale Moon's panes): `<prefwindow>` is a chrome-WINDOW binding and there is no window here. R3 3/4 device-proven from the PROFILE. **Adversarial review 2026-08-06 pulled three marks back**: "no decorative toggles" (the UA row was reverted by EngineHost every start; `intl.accept_languages` is a LOCALIZED pref that displayed a chrome:// url; and the card re-applies popups/cookies/min-font-size from db8 at every launch, overwriting the page), "opens in all three variants" (only two were loaded), and it disproved the recorded reason the Luna route was abandoned — **the public role file is already installed by `gen-variant-scripts.sh`**. Does not exist on the desktop build at all. **R5 is the blocking item** | An engine-side settings page the three shells can share |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 
-Totals: **15 domains, 94 requirements, 348 acceptance criteria — 313 met, 11 partial, 24 open**
+Totals (recounted from the kit files 2026-10-01): **15 domains, 98 requirements, 391 acceptance criteria — 338 met, 31 partial, 22 open.** Of the 22 open, 9 are the CE 3.1.0 re-verification sweep boxes (cavekit-device-build.md R4), one of which — the human-only residue — no agent can close. ~~Totals: 15 domains, 94 requirements, 348 acceptance criteria — 313 met, 11 partial, 24 open~~
 *(2026-08-06 session 2, all device-verified: preferences-ui R5's two criteria (the settings page's
 edits reach the shells), R1 AC3 (the page opens in all three variants), R3 AC4 (per-variant profile
 isolation, cross-proven both ways), R4 AC2/AC3 (normal navigation path, frozen adapter set
@@ -167,7 +196,13 @@ The bulk of what remains sits in two kits — add-ons (8 open, 4 partial: the NP
 Pale Moon/Basilisk cross-validation) and device-build (6 open, 8 partial: clean-clone
 reproducibility, Opal, memory budget) — plus the XUL-zoom gesture. Every open item is
 hardware-gated, a named debug lead, or an engine port.
-**Current priorities — see `../impl/impl-NEXT-AGENT-START-HERE.md`
+**Current priorities (2026-10-01): `docs/PICKUP.md` is the only current handoff and
+`../plans/build-site.md` the task graph; the list below and `../impl/impl-NEXT-AGENT-START-HERE.md`
+are 2026-08 history.** In order: the `<video>` decode fix; the idle daemon (log growth, idle
+tick); the `about:blank` repaint storm; the fresh-install Luna registration; the TLS version
+capture; the media-controls re-test; then the CE 3.1.0 sweep.
+
+**Older priority queue — see `../impl/impl-NEXT-AGENT-START-HERE.md`
 for the detailed queue:**
 (1) **XUL zoom on `about:addons`** — see below; the one open user-reported defect. Note the
 OTHER user-reported defect from that session, "clicking the button to install the add-on doesn't
@@ -340,6 +375,21 @@ Notes:
   verification, not construction.
 
 ## Changelog
+- 2026-10-01 (webOS CE 3.1.0 becomes the target; kits brought back in line with the device BEFORE
+  any task, per the standing instruction): the platform header above; every kit read criterion by
+  criterion and each box's evidence classified (device / host / human), which produced
+  cavekit-device-build.md R4's nine sweep boxes. **Added (22 criteria):** device-build R4 fresh
+  install `[~]`, first-start Luna registration, Atlas coexistence, nine sweep boxes; device-build
+  R8 log bounded while running, idle daemon is idle; offscreen R8 a blank page settles; gre-widgets
+  R1 `<video>` plays to the end, in-player volume control, scrubber, volume HUD;
+  browser-services R5 TLS position + negotiated version, cert store on CE. **Downgraded (7):**
+  gre-widgets R1 "controls render" and "codec reality", gre-widgets R5 toast (one shell, one
+  toast, 3.0.5), offscreen R3 "invalidations are coalesced", engine-embedding R3 "CPU is idle",
+  device-build R10 "extend the boost" (never measured on media), input-bridging R2a "`input`
+  event is dispatched" (contradicted by a later device run). **Amended, no state change:**
+  gre-widgets R1 play/pause and "degrades visibly", gre-widgets R7 (stale "no audio output"
+  struck; the open half is now `<video>`), ui-shell R2 and mochi R3 (own service name, branding
+  carve-out). `../impl/impl-media-controls.md`'s 2026-08-20 diagnosis marked superseded.
 - 2026-08-10 (Flash as a first-class target): the requirement changed from "NPAPI plugins load and
   run" to "Flash games are playable", so the kits changed with it rather than being marked done.
   - **cavekit-addons-extensions.md R7** gained three UNCHECKED criteria — sustained composite frame

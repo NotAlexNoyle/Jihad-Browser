@@ -1,6 +1,6 @@
 ---
 created: "2026-08-05"
-last_edited: "2026-08-16"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: In-Browser Preferences (`about:preferences`)
@@ -350,6 +350,13 @@ as the F-9/holdAt items in docs/PICKUP.md). A human scroll closed it.
   call throws.
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state here. R1's banner
+  "RE-VERIFIED 2026-08-10 on the CURRENT binaries … proceed without re-checking R1" is about 3.0.5
+  and no longer licenses skipping R1. Device-verified boxes are listed in
+  cavekit-device-build.md R4's re-verification sweep. Two notes in R5 are now traps: "trust a log
+  only if it is still growing" (an idle daemon's log grows forever, so growth does not prove a
+  live page) and "the daemon now registers … and serves both buses" (not on the first start after
+  a fresh install, as observed on CE).
 - 2026-08-05: R1, R2 and R7 met; R3/R4/R6 partially. `about:preferences` and `about:settings`
   both render on device. Two corrections worth keeping: (a) R1's "build it on `<prefwindow>`"
   criterion prescribed a HOW, against the kit conventions, AND prescribed the wrong thing —

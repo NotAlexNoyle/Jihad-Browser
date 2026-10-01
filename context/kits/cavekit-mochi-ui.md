@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-03"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Mochi UI Variant
@@ -41,7 +41,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 **Acceptance Criteria:**
 - [x] An Enyo-2 WebView-equivalent control binds to a BrowserAdapter NPAPI plugin speaking the same contract the Enyo UI uses. *(2026-07-19, T-051: `app-mochi/source/JihadWebView.js` renders an `<object>` whose type is the Jihad MIME, `node.eventListener=this`, callback arg orders verified against render/adapter/BrowserAdapter.cpp. The R7 reopening is CLOSED: the control binds to this variant's own `application/x-jihad-browser-mochi`, and the live daemon handshake was verified on device 2026-08-03 (`client connected` on `/tmp/yapserver.jihad-browser-mochi`, then paints).)*
 - [x] The `callBrowserAdapter(...)` method set and `palm://com.palm.browserServer/*` URIs used are identical to the Enyo variant (no additions/renames). *(Verified 2026-07-19: set {findInPage, goBack, goForward, reloadPage, stopLoad} + URIs {clearCache, clearCookies} — diff empty both.)*
-- [x] No Goanna/UXP-specific identifiers appear in `app-mochi/`. *(grep clean 2026-07-19.)*
+- [x] No Goanna/UXP-specific identifiers appear in `app-mochi/`. *(grep clean 2026-07-19.)* *(**AMENDED 2026-10-01:** no longer literally grep-clean — the start page prints "Mochi UI ★ Goanna/6.9 UXP/…" (`app-mochi/source/JihadBrowser.js`). User-facing branding text, not an API identifier; same carve-out as cavekit-mojo-ui.md R3. Likewise the criterion above it: the card's Luna calls go to this variant's own service name (`jihadBrowserMochi/{clearCookies,clearCache,notifications}`), not `com.palm.browserServer` — deliberate, cavekit-ipc-contract.md R4.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5), cavekit-ui-shell.md (R2)
 
 ### R4: Built with Mochi controls; layout fits both TouchPad models
@@ -97,6 +97,9 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - See also: cavekit-ui-shell.md (Enyo variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-browser-services.md, cavekit-device-build.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R3 amended (branding carve-out and the
+  own-service-name decision recorded; no box changed state). Device-verified boxes are 3.0.5
+  evidence and are listed in cavekit-device-build.md R4's re-verification sweep.
 - 2026-08-05: **R7 added** (home button, customizable start-page links) and met. The storage
   choice is the point worth keeping: these two live in the card's `localStorage` rather than the
   db8 preferences kind this package already owns, because the start page reads them

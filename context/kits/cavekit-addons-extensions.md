@@ -1,6 +1,6 @@
 ---
 created: "2026-08-01"
-last_edited: "2026-08-03"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: Add-ons, Extensions & Plugins
@@ -864,6 +864,12 @@ enabled. Signature policy needs no work at all: UXP builds no enforcement.
   cavekit-licensing-branding.md (R3 — identity must not reintroduce stripped branding).
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state here. Every
+  device-verified box in this kit is 3.0.5 evidence (all dated 2026-08-01…08-10) and is listed in
+  cavekit-device-build.md R4's re-verification sweep. Two things must be re-established on CE
+  before any R7 box is re-read: that `libflashplayer.so`'s dependency closure still resolves, and
+  what frame-driver configuration the device is in — the "left in Flash-alone" state recorded
+  under R7 did not survive the reflash.
 - 2026-08-03: R2 gains an explicit tools-menu criterion, pointing at
   cavekit-offscreen-rendering.md **R7** (engine popups reach the user) rather than leaving the
   `<menupopup>` work tracked only in impl notes. R3's card-side blocker is gone — the XPI confirm

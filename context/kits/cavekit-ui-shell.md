@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-08-03"
+last_edited: "2026-10-01"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -31,8 +31,8 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 **Description:** The UI talks to the renderer exclusively through the same calls upstream isis-browser used.
 **Acceptance Criteria:**
 - [x] The set of `callBrowserAdapter(...)` method names used by the UI equals the upstream isis-browser set (no additions, removals, or renames).
-- [x] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream.
-- [x] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`.
+- [x] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream. *(**AMENDED 2026-10-01 — the criterion as worded has been deliberately untrue since 2026-08-04, and the kit never said so.** `clearCookies` / `clearCache` go to this variant's OWN service, `palm://net.riverstonerelay.jihadBrowser/…` (`app/source/Browser.js`), because the upstream URI is the STOCK daemon and calling it clears the wrong browser — cavekit-ipc-contract.md R4 owns that decision. The card also subscribes to that service's `notifications` method for toasts (cavekit-gre-widgets.md R5). What this criterion now requires: the METHOD names and payloads are upstream's; only the service NAME differs, and it is this variant's own.)*
+- [x] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`. *(**AMENDED 2026-10-01:** a grep is no longer literally clean — the start page prints an engine line, "Enyo UI ★ Goanna/6.9 UXP/…" (`app/source/StartPage.js`). That is user-facing branding text, not an API identifier, and the Mojo kit has carried the same carve-out since it was written (cavekit-mojo-ui.md R3). The criterion is about the card not depending on the engine; it does not.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5)
 
 ### R3: Apache-2.0 provenance preserved on forked UI files
@@ -83,6 +83,11 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - See also: cavekit-mochi-ui.md (the Enyo-2/Mochi sibling variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2: two criteria amended, no box changed
+  state — the service-URI criterion now records the own-service-name decision (ipc R4), and the
+  "no engine identifiers" criterion gains the start-page branding carve-out the Mojo kit already
+  had. R4–R6's device-verified boxes are 3.0.5 evidence and are listed in
+  cavekit-device-build.md R4's re-verification sweep.
 - 2026-08-05: **R6 added** (home button, customizable start-page links) and met. Stored in the
   card's own `localStorage`, so nothing was added to the frozen adapter set. Note this panel is
   not the final home for them — cavekit-preferences-ui.md R5 merges the per-variant panels into

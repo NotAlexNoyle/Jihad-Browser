@@ -37,6 +37,7 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-227 | DONE | Log bounded: 0 bytes in a 603 s idle window ×3; two in-lifetime rotations on PID 15840 at a 64 KB test cap (1,400,842 then 66,193 bytes), `.old` exact, daemon kept logging. Job restored (no `JIHAD_LOG_MAX`), restarted. device-build R8 log box → `[x]`. |
 | T-228 | DONE | Blank settle: about:blank 4 renders → settled at 558 ms → 0 paints/30 s; blank→plain first paint 0.78 s; slow load 12 suppressed blanks, 0 published; late-content page paints after settling. offscreen R8 box + R3 box → `[x]`. |
 | T-229 | DONE (measured, NOT idle) | Card on a static page, display on: 12.3% of a core (main thread; tick `work avg 0–1 ms` × ~205 ticks/2 s). engine-embedding R3 stays `[~]`; fix is T-292 (quiet tick with a card connected), batch 2. |
+| T-237 | DONE | TLS capture (run ahead of its lane slot — independent of the install cycle): howsmyssl `"tls_version":"TLS 1.3"` rating Improvable (no session tickets; no insecure suites; 21 suites); Cloudflare trace `tls=TLSv1.3 http=http/2`. browser-services R5 TLS box → `[x]`. Readback method: `jsurl` puts the extracted field in `document.title`, `title` prints it (gettext truncates the JSON). |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

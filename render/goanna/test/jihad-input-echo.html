@@ -1,0 +1,41 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-input-echo</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
+input,textarea{display:block;font:20px monospace;width:600px;margin:8px 0}
+#echo{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0}</style></head>
+<body>
+<p>jihad-input-echo: does a programmatic text insert fire the page's own `input` listener?</p>
+<input id="plain" type="text" placeholder="plain input">
+<textarea id="area" rows="2" placeholder="textarea"></textarea>
+<input id="ctl" type="text" placeholder="controlled (re-set from state)">
+<div id="echo">echo: (none)</div>
+<script>
+// cavekit-input-bridging.md R2a. Three fields, each with an `input` listener that echoes into
+// #echo; read it with `gettext #echo`. #ctl is the framework shape: its value is OWNED by a
+// state variable and re-written from it on a timer, so an insert the listener never heard about
+// is visibly reverted -- which is how a controlled React input loses text.
+var n = { plain: 0, area: 0, ctl: 0 }, last = { plain: '', area: '', ctl: '' }, state = '';
+var foc = '-', keys = 0;
+function show() {
+  document.getElementById('echo').textContent =
+    'plain n=' + n.plain + ' last=[' + last.plain + '] value=[' + document.getElementById('plain').value + ']\n' +
+    'area n=' + n.area + ' last=[' + last.area + '] value=[' + document.getElementById('area').value + ']\n' +
+    'ctl n=' + n.ctl + ' last=[' + last.ctl + '] state=[' + state + '] value=[' + document.getElementById('ctl').value + ']\n' +
+    'focus=' + foc + ' keydowns=' + keys;
+}
+['plain', 'area', 'ctl'].forEach(function (id) {
+  var el = document.getElementById(id);
+  el.addEventListener('input', function (e) {
+    n[id]++; last[id] = el.value;
+    if (id === 'ctl') state = el.value;
+    show();
+  });
+  el.addEventListener('focus', function () { foc = id; show(); });
+});
+window.addEventListener('keydown', function () { keys++; show(); }, true);
+setInterval(function () {
+  var c = document.getElementById('ctl');
+  if (c.value !== state) c.value = state;          // the controlled re-render
+  show();
+}, 500);
+show();
+</script></body></html>

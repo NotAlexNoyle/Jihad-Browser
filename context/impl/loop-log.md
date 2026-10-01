@@ -94,3 +94,14 @@ Build site: context/plans/build-site.md
 - FIXED: InsertText recovers null mFocusedEditable from document.activeElement (per-doc, dodges focus-manager window-scoping; gated on edIsTextInput so content/unfocused pages untouched). GoannaRenderPage.cpp.
 - Rebuilt daemon (contract OK), deployed (md5 24251922→35fdba44), device-verified: typing into about:preferences home field → "recovered editable from document.activeElement" + branch=value/sel before=29 want=32 readback=32 (value grew by inserted length). Chrome-page keyboard entry WORKS.
 - Residual: real-finger tap to focus (human, =T-150). preferences-ui R6 keyboard-entry advanced. Deployed daemon now carries the T-131 fix (rides push-engine-update). Device clean, test hooks reverted.
+
+## Build site 2026-10-01 (webOS CE 3.1.0) — context/plans/build-site.md
+
+### Iteration 1 — 2026-10-01
+- T-202 engine CopyData fix — DONE. Files: third_party/uxp gfx/layers/basic/BasicImages.cpp (`1fff8023`). Build P.
+- T-216 libxul build — DONE. md5 65e3cc84.
+- T-201 housekeeping + baselines — DONE. MOZ_LOG gone; idle 2.4%/117 wakeups/s/48 B/s; connect→paint ~1.0 s.
+- T-209 test assets — DONE. make-media-assets.sh, jihad-codecs.html, jihad-input-echo.html, stage-media-pages.sh.
+- T-219 engine push ×3 — DONE. All three 65e3cc84, daemon unchanged.
+- T-220 `<video>` to end — DONE. 12/12, ended=true err=0 vq=149/0/0. Kit box `[x]`.
+- Next: T-221 codec table.

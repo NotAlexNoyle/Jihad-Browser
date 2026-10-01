@@ -1,0 +1,61 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-codecs</title>
+<style>body{margin:0;background:#111;color:#0f0;font:14px monospace;padding:12px}
+#state{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0;margin-top:8px}
+video,audio{display:block;margin:8px 0;width:320px}</style></head>
+<body>
+<p id="hdr">jihad-codecs: one row per format, played to the end in turn</p>
+<div id="host"></div>
+<div id="state">state: init</div>
+<script>
+// Codec reality (cavekit-gre-widgets.md R1). Plays each clip in turn and records, per format:
+// canPlayType, whether it reached `ended`, where it stopped, and the error if any. Read #state
+// with the inject channel's `gettext #state`. DONE appears on the last line when every row is in.
+// Clips come from make-media-assets.sh; ?only=<name> runs a single row.
+var CLIPS = [
+  ['vp8',    'video', 'video/webm; codecs="vp8"',          'clip10v.webm'],
+  ['vp9',    'video', 'video/webm; codecs="vp9"',          'clip10vp9.webm'],
+  ['theora', 'video', 'video/ogg; codecs="theora"',        'clip10.ogv'],
+  ['h264',   'video', 'video/mp4; codecs="avc1.42E01E"',   'clip10h264.mp4'],
+  ['vp8+vorbis', 'video', 'video/webm; codecs="vp8, vorbis"', 'clip12av.webm'],
+  ['vorbis', 'audio', 'audio/ogg; codecs="vorbis"',        'tone15.ogg'],
+  ['opus',   'audio', 'audio/ogg; codecs="opus"',          'tone10.opus'],
+  ['wav',    'audio', 'audio/wav',                         'tone10.wav'],
+  ['flac',   'audio', 'audio/flac',                        'tone10.flac'],
+  ['mp3',    'audio', 'audio/mpeg',                        'tone10.mp3'],
+  ['aac',    'audio', 'audio/mp4; codecs="mp4a.40.2"',     'tone10.m4a']
+];
+var only = (location.search.match(/[?&]only=([^&]+)/) || [])[1];
+if (only) CLIPS = CLIPS.filter(function (c) { return c[0] === decodeURIComponent(only); });
+var rows = [], host = document.getElementById('host'), s = document.getElementById('state');
+function show(extra) { s.textContent = rows.join('\n') + (extra ? '\n' + extra : ''); }
+function run(i) {
+  if (i >= CLIPS.length) { show('DONE ' + rows.length + ' rows'); return; }
+  var c = CLIPS[i], el = document.createElement(c[1]);
+  var can = el.canPlayType(c[2]) || 'no';
+  el.controls = true; el.volume = 0.2; el.src = c[3];
+  host.textContent = ''; host.appendChild(el);
+  var done = false, t0 = Date.now();
+  function finish(how) {
+    if (done) return; done = true;
+    var q = el.getVideoPlaybackQuality ? el.getVideoPlaybackQuality() : null;
+    rows.push(c[0] + ' canPlay=' + can + ' result=' + how +
+      ' t=' + el.currentTime.toFixed(2) + '/' + (el.duration || 0).toFixed(2) +
+      ' err=' + (el.error ? el.error.code + ':' + (el.error.message || '').replace(/\s+/g, '_') : 0) +
+      (q ? ' frames=' + q.totalVideoFrames + '/' + q.droppedVideoFrames : '') +
+      (c[1] === 'video' ? ' vw=' + el.videoWidth + 'x' + el.videoHeight : ''));
+    show('RUNNING ' + (i + 1) + '/' + CLIPS.length);
+    setTimeout(function () { run(i + 1); }, 500);
+  }
+  el.addEventListener('ended', function () { finish('ended'); });
+  el.addEventListener('error', function () { finish('error'); });
+  var p = el.play(); if (p && p.catch) p.catch(function (e) { finish('rejected:' + e.name); });
+  // A clip that neither ends nor errors is its own result, not a hang of the whole table.
+  (function watch() {
+    if (done) return;
+    var limit = ((el.duration && isFinite(el.duration)) ? el.duration : 15) + 10;
+    if ((Date.now() - t0) / 1000 > limit) finish('timeout');
+    else { show('RUNNING ' + (i + 1) + '/' + CLIPS.length + ' ' + c[0] + ' t=' + el.currentTime.toFixed(1)); setTimeout(watch, 500); }
+  })();
+}
+setTimeout(function () { run(0); }, 1500);
+</script></body></html>

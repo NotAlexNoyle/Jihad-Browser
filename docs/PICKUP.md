@@ -1,11 +1,77 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 ×2 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-01 session delta — device is now webOS CE 3.1.0, Cavekit is now v3.1.0, kits NOT yet updated (read first)
+## 2026-10-01 (second session) delta — kits updated, six defects fixed and device-verified; STOPPED EARLY on the usage limit (read first)
+
+Kits were brought in line with CE 3.1.0 first (commit `f12c1111`), the build site regenerated
+(`context/plans/build-site.md`, T-201…T-293), then `/ck:make` ran inline. Per-task record with every
+number: `context/impl/impl-ce310-loop.md`. Screenshots: `context/impl/evidence-2026-10-01/`.
+Nothing was pushed. The Cavekit loop is still armed (`.cavekit/.loop.json`); `/ck:resume` continues it.
+
+**Verified on the device (webOS CE 3.1.0), kit boxes closed:**
+- `<video>` plays to the end — engine fix `1fff8023` on `third_party/uxp` `jihad-engine-mods`
+  (LOCAL, unpushed; gitlink and OE SRCREV still `bd49435b`). 12/12 runs, VP8 + Theora, file + http.
+- Codec table measured (VP8/VP9/Theora/Vorbis/Opus/WAV/FLAC play; H.264/MP3/AAC refused). FLAC needed
+  the ffvpx libs, which were built but never bundled — now in `make-device-bundle.sh` and the push script.
+- Idle daemon: 0.05% CPU, ~1 wakeup/s, 0 log bytes (was 2.4%, 117/s, 48 B/s). Log capped while running
+  (copy-then-truncate, two in-lifetime rotations shown). `about:blank` settles (0 paints / 30 s).
+- Card open on a static page: 2.2% CPU (was 12.3%) — quiet tick.
+- Luna -1027 on fresh install: CONFIRMED, fixed in postinst (hub rescan) and daemon (retry), verified
+  through `org.webosinternals.ipkgservice` on all three variants.
+- Upgrade crash found and fixed: postinst `cp` over the mapped adapter shim killed LunaSysMgr at the
+  next card launch; it now replaces by rename (three upgrades since, LunaSysMgr survived).
+- TLS: `TLS 1.3` captured from howsmyssl and Cloudflare trace.
+- Media controls: the stuck `0:00` scrubber bubble reproduced and fixed (daemon grows the damage box);
+  click-seek works; mute/slider reach the pulse stream. Play/pause both directions.
+- Cert store on CE works; two daemon fixes (retry the FAILED url after trust; drop the redundant
+  engine error alert before the SSL confirm). Toast seen in all three shells.
+- R9 probes: glibc 2.8 writes the same pshared-mutex `__kind` as 2.23 (the "second trap" was a
+  2.5-proxy artefact); Flash's 67-lib closure resolves on CE.
+- Flash on CE: works once `libflashplayer.so` is in the profile. The shipped build was pacing it on
+  the 8 ms tick (worst histogram); the daemon now uses 16 ms while a plugin is on the page.
+
+**Still open, and why:**
+- **Fresh install from NOTHING + the postinst reboot (T-231…T-234, T-273):** removing a variant was
+  refused by the session's permission gate (irreversible deletion). Needs the owner's go-ahead. The
+  installs done today were install-OVER through ipkgservice.
+- **Human-only (not attempted, not counted):** finger on the media controls / volume slider, volume
+  HUD (needs a hardware key press), Flash B-vs-C eyeball, Downloads-app look, card-chrome taps, VKB.
+- **Not reached (usage limit):** Atlas coexistence run (identity columns ARE checked: all distinct),
+  volume-HUD write-up (T-240), add-ons/XPI sweep, preferences sweep, input sweep, offscreen sweep,
+  shell sweeps, daemon sweeps, memory sweep, T-212 (plugin VKB), T-214 (arrow-key inject finding),
+  rebuild of the three `.ipk`s.
+- **Decisions for the owner:** how a user is meant to get Flash (nothing ships or installs
+  `libflashplayer.so`; the CE profile had none); push `1fff8023` to the fork and bump gitlink + SRCREV.
+- v3.1.0 `scripts/codex-review.sh` still needs `a833abf` cherry-picked; no Codex tier gate ran.
+
+**Device state as left:**
+- All three variants ipkg-registered, libxul `65e3cc84891c59e9ede40cc7b3de0802`, daemon
+  `46d3714d430162502b3630cf63d4854b`, goanna.js `01154654…`, ffvpx libs present. **The `.ipk`s in
+  `build/webos-oe/out-ipk/` are STALE** (daemon `3e29f045`, old Mojo toast): run `build-variant-ipk.sh`.
+- Jobs are the shipped ones plus `JIHAD_INJECT=1` (all three). No pacing or log-cap env left behind.
+  Enyo's `MOZ_LOG` is gone.
+- Enyo profile has `plugins/libflashplayer.so` (hand-copied, stock md5). Mochi/Mojo have none.
+- Mojo toast fix (`bottom: 84px`) is on the device but the card runs cached JS until LunaSysMgr restarts.
+- LunaSysMgr crashed and restarted once today (the upgrade defect, 14:49 UTC; report in
+  `/var/log/reports/librdx/`). The USB dialog it brought up was dismissed. Display set
+  `onWhenConnected:true`.
+- Residue to delete: `/media/internal/downloads/jihad-testfile{,-1,-2}.bin`; `/tmp/jm/*` and
+  `/tmp/*.sh`/`*.png` are volatile. Other people's ipks in `/media/internal/.developer/` were left alone.
+- `/` is mounted read-write at rest on this CE image (found that way). `/var` at 13%.
+- Platform cert store holds session serials 1–3 from the tests (swept at daemon teardown/startup).
+
+**Traps found today (all in `impl-ce310-loop.md`):** display off/locked or a system dialog makes
+`takeScreenShot` return a stale frame; a second disconnected card is what gets photographed; inject
+`click` takes CARD px, `clickoff`/`clickid` bypass the input queue; a `launch` in the first minute
+after an ipkgservice install is dropped; `ipkgservice/install` returns before it is finished.
+
+---
+
+## 2026-10-01 session delta — device is now webOS CE 3.1.0, Cavekit is now v3.1.0 (SUPERSEDED by the delta above; kept as the stock-take)
 
 This was a stock-take plus one finished diagnosis. **No kit was edited and nothing was fixed** — the
 user's standing instruction is "update the kit criteria to reflect the current state BEFORE completing

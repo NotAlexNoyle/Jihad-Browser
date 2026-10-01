@@ -3342,6 +3342,46 @@ bool GoannaRenderPage::TakeClickNav(std::string* url) {
   return true;
 }
 
+// webOS raw key -> what the DOM calls it (T-109's "mapping any GRE handover has to build first").
+// The three fields used to be forwarded raw, and none is in the namespace SendKeyEvent expects:
+//   * arrows arrive as 0xE0A0-0xE0A3; DOM VK_LEFT is 37. Measured on the device 2026-10-01: a
+//     document keydown listener saw `keyCode 57507` for Right. Nothing that matches on a VK_*
+//     value — a page's own handler, the engine's arrow-key scrolling, a XUL <key>, a tree — could
+//     ever match a key this platform sends.
+//   * the VKB (and a Bluetooth keyboard) put a printable character in `key` with chr == 0, so the
+//     keypress carried charCode 0 and a lower-case letter's keydown carried its ASCII value,
+//     which is a DIFFERENT key in DOM terms ('a' = 97 = VK_NUMPAD1).
+//   * the modifier mask is npPalm's (Ctrl 1, Alt 2, Shift 4, Meta 8); the DOM's has Alt 1, Ctrl 2.
+// The Up/Down pair follows keyDown's EditKey mapping (0xE0A1 Up, 0xE0A0 Down), so the two paths
+// cannot disagree; which way round a real keyboard sends them is cavekit-input-bridging.md R2a's
+// open question, and it is one constant in each place if the answer is "the other".
+// This path runs only when NO text field is the edit target — typing is keyDown/InsertText.
+static void jihadMapKey(int raw, int chr, int* domKey, int* domChar) {
+  *domKey = 0; *domChar = 0;
+  switch (raw) {
+    case 0xE0A0: *domKey = 40; return;   // Down
+    case 0xE0A1: *domKey = 38; return;   // Up
+    case 0xE0A2: *domKey = 37; return;   // Left
+    case 0xE0A3: *domKey = 39; return;   // Right
+    case 0xE0B3: *domKey = 33; return;   // PageUp
+    case 0xE0B4: *domKey = 34; return;   // PageDown
+    case 127:    *domKey = 46; return;   // forward Delete
+    case 8: case 9: case 13: case 27: *domKey = raw; return;   // same value in both namespaces
+    case 0x80:   *domKey = 16; return;   // Shift
+    case 0x81: case 0x83: *domKey = 18; return;   // Alt / Option
+    case 0x82:   *domKey = 17; return;   // Ctrl
+    default: break;
+  }
+  unsigned c = (chr >= 0x20 && chr != 0x7f) ? (unsigned)chr
+             : (raw >= 0x20 && raw != 0x7f) ? (unsigned)raw : 0u;
+  if (c >= 0xE000 && c <= 0xF8FF) c = 0u;        // an unmapped special key, not text
+  if (c >= 0xD800 && c <= 0xDFFF) c = 0u;
+  if (!c) return;
+  *domChar = (int)c;
+  if (c >= 'a' && c <= 'z') *domKey = (int)c - 32;
+  else if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ') *domKey = (int)c;
+}
+
 void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {
   if (!mChrome) return;
   // When the user is typing into a field we tracked via ClickAt (mFocusedEditable), DO NOT
@@ -3371,8 +3411,8 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // listener and nothing attaches in this embedding. That is fixed in the engine now (patch
   // 0005, mirroring nsWindow's `mAttachedWidgetListener ? … : mWidgetListener`), so synthesized
   // key events reach the DOM: verified 2026-08-04, a document keydown/keyup listener sees them.
-  // T-109 (2026-08-10, SOURCE READ ONLY): all three fields are forwarded RAW and none of them is in
-  // the namespace this API expects — this is the mapping any GRE handover has to build first.
+  // T-109 (2026-08-10, SOURCE READ ONLY) recorded that all three fields were forwarded RAW; as of
+  // 2026-10-01 they are mapped first (jihadMapKey above). The bullets are kept as the reason why.
   //  * keyCode is NpPalmKeyEvent::rawkeyCode, so the webOS arrows arrive as 0xE0A0-0xE0A3 while DOM
   //    VK_LEFT is 37. nsXBLPrototypeHandler::KeyEventMatched compares against the VK_* value, so NO
   //    keycode handler in platformHTMLBindings.xml can ever match a key this VKB sends.
@@ -3383,7 +3423,12 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   //    CONTROL 2 / SHIFT 4 / META 8: Shift and Meta agree by coincidence, Ctrl and Alt are SWAPPED.
   //    Unobservable today only because the VKB emits neither Ctrl nor Alt; a Bluetooth keyboard
   //    would expose it. Left as-is on purpose — no device here to verify a live-path change.
-  u->SendKeyEvent(t, keyCode, charCode, modifiers, 0, &ret);
+  int domKey = 0, domChar = 0;
+  jihadMapKey(keyCode, charCode, &domKey, &domChar);
+  int mods = (modifiers & ~3) | ((modifiers & 1) << 1) | ((modifiers & 2) >> 1);   // Ctrl <-> Alt
+  // A keypress carries the character (and then no keyCode); keydown/keyup carry the key.
+  if (strcmp(type, "keypress") == 0) u->SendKeyEvent(t, domChar ? 0 : domKey, domChar, mods, 0, &ret);
+  else                               u->SendKeyEvent(t, domKey, 0, mods, 0, &ret);
 }
 
 bool GoannaRenderPage::TouchEvent(const char* type, int x, int y) {

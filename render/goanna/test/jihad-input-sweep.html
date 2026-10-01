@@ -1,0 +1,58 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-input-sweep</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
+input[type=text],input[type=number],input[type=email],textarea{font:20px monospace;width:420px;margin:6px 0;display:block}
+button,input[type=submit]{font:20px monospace;padding:10px 20px}
+input[type=checkbox],input[type=radio]{width:32px;height:32px}
+.e{white-space:pre-wrap;word-break:break-all;color:#ff0;width:900px}a{color:#8cf;font-size:24px}</style></head>
+<body>
+<p>jihad-input-sweep: clicks, toggles, keys and text entry (cavekit-input-bridging.md R1/R2/R2a/R5)</p>
+<button id="b">button</button>
+<input type="checkbox" id="cb"> <input type="radio" name="r" id="r1"> <input type="radio" name="r" id="r2">
+<div class="e" id="e1">-</div>
+<input id="t" type="text" placeholder="t: plain">
+<input id="sel" type="text" value="OLD">
+<input id="num" type="number" placeholder="num">
+<input id="em" type="email" placeholder="em">
+<form id="f"><input id="fi" type="text" name="q" placeholder="fi"><input id="fj" type="text" name="r" placeholder="fj"><input type="submit" id="fs" value="go"></form>
+<textarea id="ta" rows="2" placeholder="ta"></textarea>
+<input id="dt" type="date" style="display:none">
+<div class="e" id="e2">-</div>
+<div class="e" id="e3">-</div>
+<p><a id="lnk" href="jihad-plain.html">a link, tapped at a zoom other than 1</a></p>
+<script>
+// No viewport tag ON PURPOSE: the card lays this out 980 wide and fit-zooms it (0.78 in portrait),
+// so every coordinate tap here is "a click at zoom != 1" until a field takes focus (the card then
+// zooms to 1.0). Three read-outs, each short enough for one `gettext`:
+//   #e1  click count + the last click's `detail`, dblclick count, checkbox/radio `change` counts
+//   #e2  field values; t also shows its UTF-16 length, so a surrogate pair is visible as 2 units
+//   #e3  document-level key events (the daemon edits a focused text field itself, so these count
+//        keys sent while no text field has focus): `last` is the last keydown's keyCode,
+//        `press` the last keypress's charCode/keyCode; then form submits, the focus id, and
+//        what an <input type=date> reports as its type ("text" while the date/time pref is off)
+var $ = function (id) { return document.getElementById(id); };
+var s = { click: 0, detail: 0, dbl: 0, cb: 0, r: 0, rid: '-', kd: 0, kp: 0, ku: 0, kc: '-', pc: '-', sub: 0, subv: '-', foc: '-' };
+function esc(v) { return String(v).replace(/\n/g, '\\n'); }
+function show() {
+  $('e1').textContent = 'click n=' + s.click + ' detail=' + s.detail + ' dbl=' + s.dbl +
+    ' | cb change=' + s.cb + ' checked=' + ($('cb').checked ? 1 : 0) + ' | radio change=' + s.r + ' on=' + s.rid;
+  $('e2').textContent = 't=[' + $('t').value + '] len=' + $('t').value.length + ' sel=[' + $('sel').value +
+    '] num=[' + $('num').value + '] em=[' + $('em').value + '] ta=[' + esc($('ta').value) + ']';
+  $('e3').textContent = 'keys kd=' + s.kd + ' kp=' + s.kp + ' ku=' + s.ku + ' last=' + s.kc + ' press=' + s.pc +
+    ' | submit n=' + s.sub + ' ' + s.subv + ' | focus=' + s.foc + ' | date=' + $('dt').type;
+}
+$('b').addEventListener('click', function (e) { s.click++; s.detail = e.detail; show(); });
+$('b').addEventListener('dblclick', function () { s.dbl++; show(); });
+$('cb').addEventListener('change', function () { s.cb++; show(); });
+['r1', 'r2'].forEach(function (id) { $(id).addEventListener('change', function () { s.r++; s.rid = id; show(); }); });
+document.addEventListener('keydown', function (e) { s.kd++; s.kc = e.keyCode; show(); }, true);
+document.addEventListener('keypress', function (e) { s.kp++; s.pc = e.charCode + '/' + e.keyCode; show(); }, true);
+document.addEventListener('keyup', function (e) { s.ku++; show(); }, true);
+$('sel').addEventListener('focus', function () { this.select(); });
+$('f').addEventListener('submit', function (e) {
+  e.preventDefault(); s.sub++; s.subv = 'q=' + $('fi').value + ' r=' + $('fj').value; show();
+});
+document.addEventListener('focus', function (e) { if (e.target && e.target.id) { s.foc = e.target.id; show(); } }, true);
+document.addEventListener('blur', function (e) { if (e.target && e.target.id) { s.foc = '-'; show(); } }, true);
+setInterval(show, 400);
+show();
+</script></body></html>

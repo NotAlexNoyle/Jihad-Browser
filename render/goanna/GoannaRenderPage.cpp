@@ -3334,6 +3334,18 @@ bool GoannaRenderPage::TakeSameDocumentLocation() {
   return true;
 }
 
+bool GoannaRenderPage::FocusedEditableBox(int* top, int* bottom) {
+  if (!mChrome || !mChrome->mFocusedEditable) return false;
+  nsCOMPtr<nsIDOMClientRect> r;
+  mChrome->mFocusedEditable->GetBoundingClientRect(getter_AddRefs(r));
+  if (!r) return false;
+  float t = 0, b = 0;
+  r->GetTop(&t); r->GetBottom(&b);
+  if (top) *top = (int)t - (t < 0 ? 1 : 0);
+  if (bottom) *bottom = (int)(b + 0.999f);
+  return true;
+}
+
 bool GoannaRenderPage::TakeNewWindowUrl(std::string* url) {
   if (!mChrome || mChrome->mNewWindowUrl.IsEmpty()) return false;
   if (url) *url = mChrome->mNewWindowUrl.get();

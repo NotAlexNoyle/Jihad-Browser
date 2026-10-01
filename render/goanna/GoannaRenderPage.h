@@ -226,6 +226,8 @@ public:
   bool TakeClickNav(std::string* url);
   // The address a script asked to open in a new window since the last call (window.open).
   bool TakeNewWindowUrl(std::string* url);
+  // Top and bottom of the focused text field in viewport CSS px (false when none is focused).
+  bool FocusedEditableBox(int* top, int* bottom);
   // If a tap changed editable-element focus, returns the new state so the caller can emit
   // msgEditorFocused (isis raises/hides the VKB). Drains the change; returns false if none.
   bool TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions);

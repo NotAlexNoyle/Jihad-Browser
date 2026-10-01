@@ -586,7 +586,45 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
     // port: its first clause tests m_textCaretRect, which is only written by
     // msgGetTextCaretBoundsResponse, and JihadBrowserServer::asyncCmdGetTextCaretBounds is a
     // (void)proxy; no-op (TODO T-016), so that response never arrives and the rect stays (0,0).
-    if (sy1 > sy0) mPage->ScrollTo(sx0, sy0);
+    // 2026-10-01 (T-258): the guard is IMPLEMENTED now, with the device run that was missing.
+    // Measured on a page four screens tall, scrolled to the end: the bottom field sat at
+    // viewport y=829, the keyboard shrank the window to 651, the engine did not move the scroll at
+    // all (`scroll 0,1758 -> 0,1758`) and the field stayed at y=829 — under the keyboard, typed
+    // into blind. So the engine's reflow cannot be relied on to lift a covered field either.
+    // Decide from where the field would be if the page stayed put:
+    //   still fully inside the shrunken window -> keep the page exactly where it was (the T1 fix:
+    //     the user tapped a visible field, nothing should move);
+    //   covered by the keyboard (or pushed off the top) -> scroll just enough to bring its
+    //     bottom edge a margin above the keyboard, and TELL THE ADAPTER, whose pan position is
+    //     what the user sees. Sent directly rather than left to emitScrollIfChanged: that path
+    //     suppresses anything near a recent adapter scroll, and a tap right after a pan is
+    //     exactly this case.
+    // Only at zoom 1 — the card zooms to 1.0 when a field takes focus, and elsewhere the engine
+    // scroll is parked and the render pan carries the position.
+    int ft = 0, fb = 0;
+    const bool unzoomed = (mZoom >= 0.99 && mZoom <= 1.01);
+    if (unzoomed && mPage->FocusedEditableBox(&ft, &fb)) {
+      const int kMargin = 16;
+      const int vh = (int)height;
+      const int topAtOld = ft + (sy1 - sy0), botAtOld = fb + (sy1 - sy0);
+      if (topAtOld >= 0 && botAtOld <= vh - kMargin) {
+        if (sy1 != sy0) mPage->ScrollTo(sx0, sy0);
+      } else {
+        int target = sy0 + (botAtOld - (vh - kMargin));          // bottom edge above the keyboard
+        if (topAtOld - (target - sy0) < kMargin) target = sy0 + topAtOld - kMargin;   // tall field: its top wins
+        if (target < 0) target = 0;
+        mPage->ScrollTo(sx0, target);
+        int sx2 = 0, sy2 = 0;
+        if (mPage->GetScrollXY(&sx2, &sy2)) {
+          fprintf(stderr, "[jihad-bs] keyboard would cover the focused field (y=%d..%d in a %d px window): "
+                          "scrolled %d -> %d\n", topAtOld, botAtOld, vh, sy0, sy2);
+          mLastScrollX = sx2; mLastScrollY = sy2;
+          mSink.msgScrolledTo(sx2, sy2);
+        }
+      }
+    } else if (sy1 > sy0) {
+      mPage->ScrollTo(sx0, sy0);
+    }
   }
   if (mLastWinH != (int)height) { mLastWinResizeDh = (int)height - mLastWinH; mLastWinResizeMs = jihadNowMs(); }
   mLastWinH = (int)height;

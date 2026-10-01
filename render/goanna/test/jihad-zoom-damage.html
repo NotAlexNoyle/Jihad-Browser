@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-zoom-damage</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace}
+#b{position:absolute;left:700px;top:800px;width:150px;height:100px;background:#f00}</style></head>
+<body><!-- cavekit-offscreen-rendering.md R8. NO viewport tag on purpose: the card fit-zooms this
+980-wide layout (0.78 in portrait), so the block's layout position (700,800) is NOT its position
+in the buffer (548,627). It changes colour by itself six times and ends GREEN; nothing else on
+the page changes, so every repaint is damage-only. A screenshot taken after "done" must show the
+whole block green. Any red or blue left in it means the damage box was applied at the wrong
+place or scale. -->
+<p id="s">jihad-zoom-damage: running</p>
+<div id="b"></div>
+<script>
+var n = 0, cols = ['#00f', '#f00', '#00f', '#f00', '#00f', '#0f0'];
+var t = setInterval(function () {
+  document.getElementById('b').style.background = cols[n++];
+  if (n >= cols.length) { clearInterval(t); document.getElementById('s').textContent = 'jihad-zoom-damage: done'; }
+}, 700);
+</script></body></html>

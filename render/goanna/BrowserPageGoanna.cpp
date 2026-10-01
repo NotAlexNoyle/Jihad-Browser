@@ -2317,6 +2317,28 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   {
     int dx = 0, dy = 0, dw = 0, dh = 0;
     if (mPage->TakeDirtyRect(&dx, &dy, &dw, &dh)) {
+      // The engine reports damage in LAYOUT px; everything below — the margin, the per-buffer
+      // boxes, the partial repaint — works in the buffer's px, which at any zoom but 1 are the
+      // layout px scaled and shifted by the render pan (the engine scroll is parked at 0 then).
+      // At zoom 1 the two are the same number, which is the only zoom the damage path had been
+      // looked at with. Measured on the device 2026-10-01 at the 0.78 fit zoom of a page with
+      // no viewport tag: a windowless plugin at layout 100,120 200x150 belongs at buffer
+      // 78,94 157x118, was repainted through the UNSCALED box, and showed only the part of
+      // itself inside it (x 101-234, y +120-+210 in the screenshot); the strip to its left and
+      // above stayed whatever the last full frame had there. Any element away from the page
+      // origin that changes by itself — a clock, a ticker, an animated image — is the same case.
+      {
+        const double zr = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
+                        : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
+        if (zr != 1.0) {
+          double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
+          const double x0 = (dx - px) * zr, y0 = (dy - py) * zr;
+          const double x1 = (dx + dw - px) * zr, y1 = (dy + dh - py) * zr;
+          const int ix0 = (int)x0 - (x0 < 0 ? 1 : 0), iy0 = (int)y0 - (y0 < 0 ? 1 : 0);
+          dx = ix0; dy = iy0;
+          dw = (int)(x1 + 0.999) - ix0; dh = (int)(y1 + 0.999) - iy0;
+        }
+      }
       // GROW THE BOX BY A MARGIN before trusting it for a damage-only repaint (2026-10-01).
       // The engine's rect is the bounding box of what it invalidated, and that is not always
       // everything that changed on screen: decoration that overflows the frame being updated

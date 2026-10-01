@@ -18,10 +18,13 @@ button{font:20px monospace;padding:12px 24px;margin:8px 0}
 //   #p  the popup is opened from a CLICK handler, never during load — a load-time window.open is
 //       blocked by the popup blocker for a different reason (no user gesture) and told the
 //       2026-08-15 run nothing about the setting.
-//   #pl the same call made DURING LOAD, with no user gesture: the popup blocker returns null
-//       ("blocked") when it is on; when it is off the engine goes on to try to create a window.
-//       This embedding has no new-window path, so that attempt fails too — but differently
-//       ("attempted" + the error), which is what shows the setting reached the engine.
+//   #pl the same call made DURING LOAD, with no user gesture. It reads "blocked" whenever no
+//       window came back — which, since window.open became "open a new card" (2026-10-01), is
+//       every case for this about:blank target: the blocker returns null, and with the blocker
+//       off the daemon refuses a non-web address and also returns null. An error name after it
+//       means window.open THREW, which is the defect to look for. To see the blocker's effect
+//       use jihad-popup.html?load=1, whose target is a web address: no card with the blocker
+//       on, a new card with it off.
 //   #c  whether a cookie set by script is readable back (accept-cookies).
 //   #f  the computed size of 6 px text and the HEIGHT of its line. A minimum font size does not
 //       change the computed value (it stays 6px); it changes what is drawn, so read h=.

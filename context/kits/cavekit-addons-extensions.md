@@ -427,7 +427,17 @@ criteria below are new and deliberately start unchecked. What changed under them
 - Spotlight delivery is now suppressed by default (see the superseded note above) and several
   frame-path defects were fixed (cavekit-offscreen-rendering.md R8).
 
-- [~] **Flash content holds a smooth, sustained frame rate on the card — the COMPOSITE rate, not the
+- [~] **Flash content holds a smooth, sustained frame rate on the card — the COMPOSITE rate, not the *(**2026-10-01 — RE-MEASURED ON webOS CE 3.1.0, and a shipping-configuration defect found and fixed. Stays `[~]`: the remaining question is still the human one (does evenly spaced 26 fps look better than bunched 33?).** Flash had to be put back first: the CE install has a fresh profile and `profile/plugins/` was EMPTY — on 3.0.5 `libflashplayer.so` had been copied there by hand, and nothing ships or installs it (the engine deliberately searches only the variant's own profile and bundle). With the device's own stock library copied into the Enyo profile (md5 `14c20ba9…`, its 67-library closure resolving on CE): it loads through the bundled loader (`NP_Initialize rv=0`), renders (`../impl/evidence-2026-10-01/` — blue stage, green square), takes mouse events (`palm event 0x1/0x2 at 128,102`), survives `kill -SEGV` of plugin-container (daemon PID unchanged, a new container on reload), and the CPU boost is taken (`up_threshold=40`, `sampling_rate=50000`) and released on navigating away (95 / 200000); `scaling_governor` was only read. Flash's db8 prefs kind is not registered on this install (`kind not registered: 'com.palm.app.flashplayer.prefs:1'`), the harmless per-instantiation error the 3.0.5 device had been cured of by hand.*
+  ***Frame-gap HISTOGRAMS, `jihad-anim.swf` (30 fps authored), clean restart per row, 20 s, boost engaged, card connected, log growth asserted:***
+
+  | configuration | daemon fps | <16 | 16–23 | 24–31 | 32–39 | 40–55 | 56+ | deferred |
+  |---|---|---|---|---|---|---|---|---|
+  | A — what the package SHIPPED until today: 8 ms tick, pull on | 39.7 | 107 | 296 | 295 | 138 | 38 | 6 | 27 |
+  | B — 16 ms tick, 33 ms frame (the 3.0.5 device-local job) | 32.8 | 60 | 119 | 123 | **328** | 97 | 1 | 0 |
+  | C — Flash alone (pull off, self-drive off), 16 ms tick | 26.4 | 3 | 7 | 44 | **321** | 149 | 12 | 0 |
+  | A2 — shipped build AFTER today's fix, no overrides | 32.6 | 59 | 113 | 107 | **366** | 78 | 1 | 0 |
+
+  ***The defect:*** *every pacing number in this kit was measured with `JIHAD_TICK_MS=16` — but that lived only in the test device's job file as a local edit, which any reinstall drops. The shipped job has no such line and the code default is 8 ms, so a real install ran row A: the plugin drawn ~39 times a second for 30 fps content with the gaps spread flat, the worst of the three. The daemon now runs its tick at 16 ms while a plugin is on a page (8 ms otherwise; an explicit `JIHAD_TICK_MS` still wins), and row A2 — no environment overrides — reproduces row B. C remains the cleanest and the slowest, exactly as on 3.0.5; choosing between B and C is the eyeball decision this criterion has been waiting on, and it needs a person.)*
       plugin's draw rate.**
       *(**2026-08-10, REOPENED from `[x]` — the RATE half is met, the SMOOTH half is not.** Patch
       `0027` genuinely closed "matched, and both at the content's authored rate", and nothing below
@@ -864,6 +874,11 @@ enabled. Signature policy needs no work at all: UXP builds no enforcement.
   cavekit-licensing-branding.md (R3 — identity must not reintroduce stripped branding).
 
 ## Changelog
+- 2026-10-01: **Target platform is now webOS CE 3.1.0 — R7 re-run on it.** Flash loads, renders, takes
+  input and survives a plugin crash on CE once `libflashplayer.so` is in the profile (the CE install
+  had none). Frame-gap histograms re-measured in three configurations; the shipped build was found
+  running the worst one (8 ms tick) because the 16 ms tick had only ever been a device-local job
+  edit — fixed in the daemon (16 ms tick while a plugin is on the page).
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state here. Every
   device-verified box in this kit is 3.0.5 evidence (all dated 2026-08-01…08-10) and is listed in
   cavekit-device-build.md R4's re-verification sweep. Two things must be re-established on CE

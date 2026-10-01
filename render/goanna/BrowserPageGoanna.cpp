@@ -350,6 +350,24 @@ int jihadTickPeriodMs() {
   return s_ms;
 }
 
+// The tick period WHILE A PLUGIN IS ON THE PAGE: 16 ms, unless $JIHAD_TICK_MS says otherwise.
+//
+// The 8 ms default above is right for pages and wrong for a plugin, and that has now been
+// measured on both OS versions. With an 8 ms timer and a plugin animating, the tick cannot hold
+// its period (work is 11-18 ms), the 33 ms request grid becomes "4 ticks of whatever the tick
+// actually took", and the plugin is drawn ~39 times a second for 30 fps content: webOS CE 3.1.0,
+// 2026-10-01, jihad-anim.swf, 880 frames — gaps <16 ms 12%, 16-23 34%, 24-31 34%, 32-39 16%. At
+// 16 ms the same clip gives 32.8 fps with 45% of gaps in the 32-39 ms bucket and nothing
+// deferred. Every Flash measurement before 2026-10 was taken at 16 ms — but only because the
+// device's job file carried JIHAD_TICK_MS=16 as a local edit, which a reinstall silently drops;
+// the shipped build ran Flash on the 8 ms tick. This makes the measured configuration the
+// shipped one, for plugin pages only. An explicit $JIHAD_TICK_MS still wins, for A/B runs.
+int jihadPluginTickPeriodMs() {
+  static int s_ms = -1;
+  if (s_ms < 0) s_ms = getenv("JIHAD_TICK_MS") ? jihadTickPeriodMs() : 16;
+  return s_ms;
+}
+
 static int jihadShmResolve(int keyOrId);   // defined below
 
 int BrowserPageGoanna::slotForKey(int key) const {
@@ -2517,7 +2535,7 @@ void BrowserPageGoanna::requestNextPluginFrame() {
   // needs re-driving, turning a recoverable wedge into a permanent one. The engine-side call is
   // already the cheapest possible no-op with no plugin (a null weak symbol, or an empty list),
   // so paying it per grid slot on every page costs less than the gate would.
-  const int tick = jihadTickPeriodMs();
+  const int tick = jihadPluginTickPeriodMs();       // the period the tick runs at with a plugin
   int ticksPerFrame = (period + tick / 2) / tick;   // whole ticks, nearest
   if (ticksPerFrame < 1) ticksPerFrame = 1;
 

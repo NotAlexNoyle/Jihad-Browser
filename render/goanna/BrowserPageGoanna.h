@@ -33,6 +33,8 @@ class EngineHost;
 // The daemon's tick period in ms ($JIHAD_TICK_MS, clamped 4-64, default 8). One definition,
 // shared by the tick that consumes it and the plugin pull that has to be a multiple of it.
 int jihadTickPeriodMs();
+// ... and the period while a plugin is on a page (16 unless $JIHAD_TICK_MS is set).
+int jihadPluginTickPeriodMs();
 
 // Sink for the server->adapter YAP messages. In the daemon this is implemented
 // by the BrowserServer (which forwards over YAP to BrowserAdapter). Decoupled
@@ -268,6 +270,8 @@ public:
   // queued input, a plugin, media playing, or a paint/scroll in the last moment. The daemon
   // backs its tick off while every page says no (Main.cpp, the quiet tick).
   bool isBusy() const;
+  // A plugin instance is on this page (its rect has been reported to the card).
+  bool hasPlugin() const { return !mEmittedFlashRects.empty(); }
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages

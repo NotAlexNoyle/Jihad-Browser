@@ -520,7 +520,7 @@ void JihadBrowserServer::tick() {
   // from folding a 1000 ms idle period into the first report after a card connects.
   if (snap.empty()) {
     mTickStatsReset = true;
-    mTickBusy = false; mActivity = false;
+    mTickBusy = false; mActivity = false; mTickPlugin = false;
     mInTick = false;
     for (auto& e : mReap) { delete e.page; delete e.sink; }
     mReap.clear();
@@ -560,6 +560,8 @@ void JihadBrowserServer::tick() {
   mTickBusy = mActivity;
   mActivity = false;
   for (auto* pg : snap) if (pg->isBusy()) { mTickBusy = true; break; }
+  mTickPlugin = false;
+  for (auto* pg : snap) if (pg->hasPlugin()) { mTickPlugin = true; break; }
   int64_t tickT1 = jihadTickNowMs();
   {
     static int64_t sPrevStart = 0, sReport = 0;

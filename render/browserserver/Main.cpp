@@ -127,7 +127,10 @@ static void arm_tick(int ms) {
 
 static void jihadWakeTick() {
   g_quietTicks = 0;
-  if (g_tickArmedMs == g_tickFastMs) return;
+  // Already on a frame-class period (the page tick or the plugin tick): nothing to wake from.
+  // Without the second half every card command would re-arm the page tick over the plugin tick
+  // and the next tick would put it back — twice per frame, for every frame of a Flash page.
+  if (g_tickArmedMs == g_tickFastMs || g_tickArmedMs == jihad::jihadPluginTickPeriodMs()) return;
   if (g_tickArmedMs == kJihadIdleTickMs)
     printf("[jihad-bs] tick: card connected — %d ms\n", g_tickFastMs);
   arm_tick(g_tickFastMs);
@@ -148,10 +151,15 @@ static gboolean tick_cb(gpointer) {
     }
     return TRUE;
   }
+  // The frame-class period for THIS state: the plugin tick while a plugin is on a page (see
+  // jihadPluginTickPeriodMs — a plugin is paced on a grid of whole ticks and 8 ms is the wrong
+  // grid), the page tick otherwise. A plugin page is always busy, so it never goes quiet.
+  const int frameMs = g_server->tickHadPlugin() ? jihad::jihadPluginTickPeriodMs() : g_tickFastMs;
   if (g_server->tickWasBusy()) {
     g_quietTicks = 0;
-    if (g_tickArmedMs != g_tickFastMs) { arm_tick(g_tickFastMs); return FALSE; }
-  } else if (g_tickArmedMs == g_tickFastMs && jihadQuietTickMs() > 0 &&
+    if (g_tickArmedMs != frameMs) { arm_tick(frameMs); return FALSE; }
+  } else if ((g_tickArmedMs == g_tickFastMs || g_tickArmedMs == jihad::jihadPluginTickPeriodMs()) &&
+             jihadQuietTickMs() > 0 &&
              ++g_quietTicks >= kJihadQuietAfterTicks) {
     arm_tick(jihadQuietTickMs());
     return FALSE;

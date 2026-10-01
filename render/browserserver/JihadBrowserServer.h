@@ -93,6 +93,7 @@ public:
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
   bool tickWasBusy() const { return mTickBusy; }
+  bool tickHadPlugin() const { return mTickPlugin; }
 
   void syncCmdRenderToFile(YapProxy* proxy, const char* filename, int32_t viewX, int32_t viewY, int32_t viewW, int32_t viewH, int32_t& result) override;
   void asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier) override;
@@ -190,6 +191,7 @@ private:
   bool                             mInTick;
   bool                             mTickStatsReset = false;   // an idle stretch ended: restart the cadence window
   bool                             mTickBusy = false;         // result of the last tick, for main()'s period choice
+  bool                             mTickPlugin = false;       // some page had a plugin at the last tick
   bool                             mActivity = false;         // a card command arrived since the last tick
   int64_t                          mLastInjectPollMs = 0;
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)

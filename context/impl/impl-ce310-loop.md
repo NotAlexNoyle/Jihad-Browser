@@ -21,6 +21,16 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-223 | DONE | `packaging/prefs/jihad-platform-prefs.js` media block rewritten to the measured state (comment-only + unchanged pin). gre-widgets R7 first box → `[x]`. Reaches the device with the next goanna.js push (T-225). |
 | T-224 | DONE | R10 on media: stock tunables untouched (read back 95/200000 before and after). 640x360@24 VP8: 648–1188 MHz, 473/0 frames; 320x240: 384–1188 MHz, 0 dropped. Decision: do not extend the boost. device-build R10 box → `[x]`. |
 | T-226 | MOOT | Conditional on T-224 finding drops at the clock floor; it found neither. Nothing to build. |
+| T-203 | DONE | Idle tick: `Main.cpp` arms the frame tick while a card has a page and a 1 s tick otherwise; `JihadBrowserServer::setWakeHook` re-arms on connect; inject polled on every idle tick; no stats window across an idle stretch. |
+| T-204 | DONE (code) | No tick-stats line with no page or < 20 ms work per 2 s; `log_cap_cb` every 30 s, copy-then-truncate at 2 MB (`JIHAD_LOG_MAX` test knob), one kept generation; numbers in the job comment + `packaging/README.md`. Device verification: T-227. |
+| T-205 | DONE (code) | Blank settle: 500 ms after load done a persisting blank frame is published once; refused blanks retried on a 100 ms grid. Device verification: T-228. |
+| T-206 | DONE (code) | Confirmed from source: postinst wrote the role then started the daemon with no hub rescan, and the daemon registered exactly once. Fixed both ends: `ls-control scan-services` in postinst before `start`; registration retry with backoff (5→60 s, ~11 min) in `JihadLunaService.cpp`. Real reinstall: T-231..T-234. |
+| T-211 | DONE | `g_message("jihad: flashGestureLock -> …")` at the single transition point in the adapter. |
+| T-213 | DONE | PUA swallow extended to 0xE0E2–0xE0E7; `JIHAD_LOG_KEYS` logs non-printing key triples only (printable keys are never logged). |
+| T-215 | DONE | One log line per frozen settings command; `render/goanna/test/jihad-settings.html` (click-opened popup, script marker, cookie, min-font). |
+| T-217 | DONE | ARM daemon built, YAP contract OK (73 commands, 58 messages). Stripped md5 `3e29f045cf0f9bb392ef96f8eb8a7139`. |
+| T-218 | DONE | PDK + crosstool adapters and three `.ipk`s (enyo 1.0.4, mochi/mojo 1.0.0); each payload verified: libxul `65e3cc84`, daemon `3e29f045`, ffvpx libs, `libasound.so.2`, goanna.js `01154654`, postinst carries the hub rescan. |
+| T-225 | DONE | Daemon push ×3 (md5 read back). Idle: 0.05% CPU, ~1 wakeup/s, 0 log bytes per variant; inject answers `no page`; connect latency unchanged; re-idle on card close, same PID. device-build R8 idle box → `[x]`. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

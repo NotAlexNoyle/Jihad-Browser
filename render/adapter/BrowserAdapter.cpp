@@ -5636,6 +5636,14 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
     if (gestureLockEnabled != mFlashGestureLock) {
         mFlashGestureLock = gestureLockEnabled;
 
+        // Jihad: this is the ONLY place the latch changes, and the keyboard-arbitration gate
+        // (handleKeyDown/Up) reads it. TRACEF below compiles to nothing, so until this line the
+        // latch's runtime value was unobservable on a device — and the open arbitration
+        // criterion (cavekit-input-bridging.md R7) is precisely "is it true during play".
+        // g_message reaches the system log, readable with palm-log / /var/log/messages.
+        g_message("jihad: flashGestureLock -> %d (mouseInFlashRect=%d)",
+                  (int)gestureLockEnabled, (int)mMouseInFlashRect);
+
         // Send a pen up if necessary since we get a penDown before gestureStart
         if (!gestureLockEnabled && mLastPointSentToFlash.x != -1 && mLastPointSentToFlash.y != -1) {
             gettimeofday(&m_lastPassedEventTime, NULL);

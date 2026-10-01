@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>xpi-trigger</title>
+<style>body{font:20px monospace;padding:20px}button{font:22px monospace;padding:14px 28px;display:block;margin:12px 0}</style></head>
+<body><p>xpi-trigger: InstallTrigger.install from a click</p>
+<button id="effect">install jihad-effect.xpi</button>
+<button id="mismatch">install jihad-t103-mismatch.xpi</button>
+<a id="link" href="jihad-effect.xpi">plain link to jihad-effect.xpi</a>
+<div id="r">r: idle</div>
+<script>
+function go(name, file) {
+  var r = document.getElementById('r');
+  if (!window.InstallTrigger) { r.textContent = 'r: no InstallTrigger'; return; }
+  try {
+    var o = {}; o[name] = new URL(file, location.href).href;
+    var ok = InstallTrigger.install(o, function (url, status) { r.textContent = 'r: callback status=' + status + ' ' + name; });
+    r.textContent = 'r: install() returned ' + ok + ' ' + name;
+  } catch (e) { r.textContent = 'r: threw ' + e; }
+}
+document.getElementById('effect').addEventListener('click', function () { go('Jihad Effect Test', 'jihad-effect.xpi'); });
+document.getElementById('mismatch').addEventListener('click', function () { go('Jihad T103 Mismatch', 'jihad-t103-mismatch.xpi'); });
+</script></body></html>

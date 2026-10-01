@@ -676,6 +676,7 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   clearPluginRects();
   mAdapterScrollX = 0; mAdapterScrollY = 0;       // stale band origin + adY band extension
   if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
+  mViewportSent = false;                          // the new page's meta-viewport is sent afresh
   mLastContentW = -1; mLastContentH = -1;         // old page's clamp/bound inputs; also forces a
                                                   // re-emit at load-done even if the size repeats
   mLastScrollX = 0; mLastScrollY = 0;             // emitScrollIfChanged dedup cache
@@ -1846,9 +1847,19 @@ bool BrowserPageGoanna::emitGeometry() {
     mLastContentW = cw; mLastContentH = ch;
     mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
   }
+  // R4: meta-viewport — when the page declares one, and only when it CHANGES. This used to go
+  // out on every call (the pump retries emitGeometry on every tick while geometry is dirty), and
+  // a card that acts on the message — the Mojo WebView re-applies the initial scale each time —
+  // was being told to reset its zoom several times a second.
   double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
-  if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us))
-    mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);   // R4: meta-viewport
+  if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us)) {
+    if (!mViewportSent || is != mVpIs || mn != mVpMn || mx != mVpMx || vw != mVpW || vh != mVpH || us != mVpUs) {
+      mViewportSent = true; mVpIs = is; mVpMn = mn; mVpMx = mx; mVpW = vw; mVpH = vh; mVpUs = us;
+      mSink.msgMetaViewportSet(is, mn, mx, vw, vh, us);
+    }
+  } else {
+    mViewportSent = false;   // a later page (or a tag added by script) reports afresh
+  }
   return got && cw > 0 && ch > 0;   // a valid content size was available (deferred-emit can stop retrying)
 }
 
@@ -2051,6 +2062,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // not in keyDown, since onChange/oninput run page JS.
   mPage->FlushPendingInputEvent();
   mPage->FlushPendingChangeEvent();
+  { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(nw.c_str()); }
   // Process a queued tap next — inside the tick's page-lifetime guard, and BEFORE
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +

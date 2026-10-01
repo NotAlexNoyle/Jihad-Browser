@@ -168,6 +168,13 @@ enyo.kind({
 	create: function() {
 		this.inherited(arguments);
 		enyo.log("[JIHAD-BOOT] stamp=" + this.jihadBuildStamp);
+		//* A card the ENGINE asked for (window.open -> createPage) has to CONNECT carrying its
+		//* page identifier, and the view connects as soon as it renders — before rendered()
+		//* gets to applyLaunchParams. Hand the identifier over now, while nothing is connected.
+		//* Measured 2026-10-01: without this the new card connected with no identifier, the
+		//* daemon had no way to tell it from an ordinary card, and it came up empty.
+		var early = this.readLaunchParams();
+		if (early && early.webviewId) { this.$.view.setIdentifier(early.webviewId); }
 		this.buildStartLinks();
 		//* After the toolbar has actually been laid out, not during create().
 		enyo.job("jihadUrlGeom", enyo.bind(this, "logUrlGeometry"), 2500);

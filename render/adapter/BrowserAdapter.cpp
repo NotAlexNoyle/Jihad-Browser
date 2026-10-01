@@ -1344,6 +1344,14 @@ void BrowserAdapter::handleWindowChange(NPWindow* window)
     TRACEF("BrowserAdapter::handleWindowChange: %u, %u\n", mWindow.width, mWindow.height);
     TRACEF("scroll %d,%d", mScrollPos.x, mScrollPos.y);
 
+    // Jihad: a 0x0 window is not a size. The Mojo WebView sizes this node to page x scale, and
+    // a window resize that lands between two pages (the on-screen keyboard coming up while the
+    // widget holds no page dimensions yet) makes that 0 x 0 — measured 2026-10-01,
+    // `windowChange 0x0 (vp was 768x705)`. Taking it as the viewport zeroed the fit-zoom inputs
+    // and told the server its window was empty; keep the last real geometry instead.
+    if (mWindow.width == 0 || mWindow.height == 0)
+        return;
+
     m_pageOffset.set(window->x, window->y);
 
     int oldWindowWidth = mViewportWidth;
@@ -5041,7 +5049,23 @@ void BrowserAdapter::msgPurgePage()
 
 void BrowserAdapter::setPageIdentifier(int32_t identifier)
 {
+    // Jihad: the identifier only ever travelled inside Connect, and the adapter connects by
+    // itself as soon as it is activated. A card that hands the identifier over AFTER that —
+    // any card whose plugin node is not scriptable until adapterInitialized fires, which is how
+    // the Mochi shell's view comes up — therefore connected as an ordinary card (-1), and the
+    // page the engine had asked a new card for (msgCreatePage, i.e. window.open) was never
+    // claimed: the card came up empty. Measured 2026-10-01: the card's
+    // setPageIdentifier("5") and connectBrowserServer() both returned success and the daemon
+    // logged `connect ... id=-1`.
+    // A real identifier (> 0; an ordinary card passes its DOM id, which atoi()s to 0) arriving
+    // on an already-connected adapter re-sends the connect state. Same command, same wire: the
+    // server replaces this proxy's page, exactly as it does for any second Connect.
+    bool late = mBrowserServerConnected && identifier > 0 && identifier != mPageIdentifier;
     mPageIdentifier = identifier;
+    if (late) {
+        g_message("jihad: page identifier %d arrived after connect - reconnecting with it", identifier);
+        sendStateToServer();
+    }
 }
 
 void BrowserAdapter::enableFastScaling(bool enable)
@@ -5643,6 +5667,23 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
         // g_message reaches the system log, readable with palm-log / /var/log/messages.
         g_message("jihad: flashGestureLock -> %d (mouseInFlashRect=%d)",
                   (int)gestureLockEnabled, (int)mMouseInFlashRect);
+
+        // Jihad (cavekit-input-bridging.md R7): the keyboard for a plugin. The VKB is driven by
+        // the card's editorFocused handler, which only an HTML editor ever triggers
+        // (msgEditorFocused) — a plugin never does, so on a device with no hardware keyboard a
+        // plugin that takes keys (a game, a Flash text field) could be engaged and still not be
+        // typed into. Nothing in this NPAPI tells the host that a plugin WANTS text, so the
+        // signal is the user's own: the latch, i.e. the double tap that engages the plugin
+        // (handlePenDoubleClick, and the card's smartZoom; a single tap does not set it). Engaging raises the keyboard through
+        // the same handler an HTML field uses; releasing the latch (a tap outside the plugin)
+        // lowers it again unless an HTML editor still has focus.
+        {
+            NPVariant kb[3];
+            BOOLEAN_TO_NPVARIANT(gestureLockEnabled || bEditorFocused, kb[0]);
+            INT32_TO_NPVARIANT(0, kb[1]);
+            INT32_TO_NPVARIANT(0, kb[2]);
+            InvokeEventListener(gEditorFocusedHandler, kb, G_N_ELEMENTS(kb), 0);
+        }
 
         // Send a pen up if necessary since we get a penDown before gestureStart
         if (!gestureLockEnabled && mLastPointSentToFlash.x != -1 && mLastPointSentToFlash.y != -1) {

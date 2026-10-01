@@ -70,6 +70,9 @@ public:
     (void)syncPipePath; msgSSLConfirm(host, code, certFile);
   }
   virtual void msgLinkClicked(const char* url) { (void)url; }
+  // A script asked for a new window on `url`. The server turns this into the frozen
+  // msgCreatePage(identifier) and opens the address in the card that connects with it.
+  virtual void msgNewPageRequested(const char* url) { (void)url; }
   // Content opened a JS dialog (alert/confirm/prompt/auth). syncPipePath is a FIFO the
   // daemon is about to block on: the adapter stashes it, shows the card's dialog, and the
   // card's sendDialogResponse writes the answer back through it. Frozen contract — the
@@ -418,6 +421,9 @@ private:
   double             mPaintedZoom = 1.0;
   int64_t            mLastPaintDoneMs = 0;    // pan-cadence refresh (fixed-content drift bound)
   int                mLastContentW, mLastContentH;  // last emitted content size
+  // last meta-viewport sent to the card (emitGeometry sends it only on change)
+  bool               mViewportSent = false;
+  double             mVpIs = 0, mVpMn = 0, mVpMx = 0; int mVpW = 0, mVpH = 0; bool mVpUs = true;
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)
   // Absolute finger position during a drag. The adapter sends dragProcess as DELTAS, which

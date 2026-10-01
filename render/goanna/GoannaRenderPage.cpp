@@ -37,6 +37,7 @@
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
+#include "nsIWindowProvider.h"      // window.open -> a new card (PageChrome::ProvideWindow)
 #include "nsIChannel.h"
 #include "nsIHttpChannel.h"         // content-nav request method (POST vs GET re-drive)
 #include "nsISSLStatus.h"
@@ -113,6 +114,7 @@ class PageChrome final : public nsIWebBrowserChrome,
                          public nsIWebProgressListener,
                          public nsIBadCertListener2,
                          public nsIDOMEventListener,
+                         public nsIWindowProvider,
                          public nsSupportsWeakReference
 {
 public:
@@ -123,6 +125,7 @@ public:
   NS_DECL_NSIWEBPROGRESSLISTENER
   NS_DECL_NSIBADCERTLISTENER2
   NS_DECL_NSIDOMEVENTLISTENER   // engine focus/blur -> VKB state (Atlas IM-context port)
+  NS_DECL_NSIWINDOWPROVIDER     // window.open -> msgCreatePage (a new card)
 
   PageChrome(int w, int h) : mDone(false), mLoadFailed(false), mRedirected(false),
                              mCertError(false),
@@ -162,6 +165,7 @@ public:
   // fires `change` when the field is left. FlushPendingChangeEvent does it instead.
   nsCOMPtr<nsIDOMElement> mEditedEl;
   nsString mEditedBaseline;
+  nsCString mNewWindowUrl;   // address a script asked to open in a new window (ProvideWindow)
   void NoteValueEdit(nsIDOMElement* el, const nsAString& before) {
     if (el == mEditedEl) return;
     mEditedEl = el; mEditedBaseline = before;
@@ -189,7 +193,50 @@ private:
 
 NS_IMPL_ISUPPORTS(PageChrome, nsIWebBrowserChrome, nsIEmbeddingSiteWindow,
                   nsIInterfaceRequestor, nsIWebProgressListener,
-                  nsIBadCertListener2, nsIDOMEventListener, nsISupportsWeakReference)
+                  nsIBadCertListener2, nsIDOMEventListener, nsIWindowProvider,
+                  nsISupportsWeakReference)
+
+// A page asked for a new window. The engine consults the embedder's nsIWindowProvider (reached
+// through this object's GetInterface) before it tries to create one itself — and this embedding
+// has no window creator, so until this existed every window.open() threw NS_ERROR_FAILURE and the
+// popup setting changed nothing a user could see (measured 2026-10-01: `POPUP:blocked
+// NS_ERROR_FAILURE` with the blocker on AND off).
+//
+// The frozen contract already has the answer: msgCreatePage(identifier), which every card turns
+// into a new card that connects carrying that identifier. So:
+//   * script (window.open) with a web address  -> remember the address, refuse the window here
+//     (NS_ERROR_ABORT makes window.open return null rather than throw), and let the pump tell the
+//     card. The new card is a separate page: the opener gets no window handle. That is the same
+//     shape as a blocked popup to the page, and a working "open in a new card" to the user.
+//   * a link or form with a target (not script)   -> the window that asked. A form may be a POST,
+//     which an address handed to a new card cannot carry, and the tap path already opens
+//     target=_blank links in place.
+//   * anything else (no address, or a scheme a page has no business sending a card to — the
+//     card-side openUrl does not run the engine's load-URI check) -> refused.
+// The popup blocker runs BEFORE this: with it on, only a call made from a user gesture gets here.
+// Called inside page script: record only.
+NS_IMETHODIMP PageChrome::ProvideWindow(mozIDOMWindowProxy* aParent, uint32_t, bool aCalledFromJS,
+                                        bool, bool, nsIURI* aURI, const nsAString&,
+                                        const nsACString&, bool, bool* aWindowIsNew,
+                                        mozIDOMWindowProxy** aReturn) {
+  NS_ENSURE_ARG_POINTER(aReturn);
+  *aReturn = nullptr;
+  if (aWindowIsNew) *aWindowIsNew = false;
+  if (!aCalledFromJS) {
+    if (!aParent) return NS_ERROR_ABORT;
+    NS_ADDREF(*aReturn = aParent);
+    return NS_OK;
+  }
+  nsAutoCString scheme, spec;
+  if (aURI) { aURI->GetScheme(scheme); aURI->GetSpec(spec); }
+  if (scheme.EqualsLiteral("http") || scheme.EqualsLiteral("https") || scheme.EqualsLiteral("ftp")) {
+    mNewWindowUrl = spec;
+    fprintf(stderr, "[jihad-bs] window.open: handing the address to a new card\n");
+  } else {
+    fprintf(stderr, "[jihad-bs] window.open: refused (scheme [%s])\n", scheme.get());
+  }
+  return NS_ERROR_ABORT;
+}
 
 // Cert error hook (R5): called during a bad TLS handshake with the SSL status
 // (which carries the untrusted server cert) BEFORE the connection fails. We
@@ -1852,12 +1899,30 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
   if (!mChrome) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
+  // Only a page that DECLARES a viewport has one to report. The engine answers GetViewportInfo
+  // for every document, and for one with no <meta name=viewport> the "initial scale" it returns is
+  // not a scale at all: it is "unset" (0) clamped to the engine's minimum, 0.1. Forwarded as the
+  // page's initial scale, the Mojo shell's WebView applied it literally — measured on the device
+  // 2026-10-01: `metaViewport is=0.1 ... 980x1271`, the widget sized its node to a tenth of the
+  // page (76x99) and every page without a viewport tag drew as a thumbnail in the corner. The
+  // stock BrowserServer sends this message only for a page that carries the tag.
+  if (mWidth <= 0 || mHeight <= 0) return false;
+  nsAutoString declared;
+  if (NS_FAILED(u->GetDocumentMetadata(NS_LITERAL_STRING("viewport"), declared)) || declared.IsEmpty())
+    return false;
   double dz = 1.0, mn = 1.0, mx = 1.0;
   bool allow = true, autoSize = true;
   uint32_t vw = 0, vh = 0;
   if (NS_FAILED(u->GetViewportInfo((uint32_t)mWidth, (uint32_t)mHeight,
                                    &dz, &allow, &mn, &mx, &vw, &vh, &autoSize)))
     return false;
+  // A tag that names a width but no initial-scale comes back the same way (unset, clamped to the
+  // minimum). What that means is "fit the declared width", so say so.
+  if (dz <= mn * 1.001 && vw > 0) {
+    double fit = (double)mWidth / (double)vw;
+    if (fit > dz) dz = fit;
+    if (dz > mx) dz = mx;
+  }
   if (initialScale) *initialScale = dz;
   if (minScale) *minScale = mn;
   if (maxScale) *maxScale = mx;
@@ -3260,6 +3325,13 @@ void GoannaRenderPage::PollEngineFocus() {
 bool GoannaRenderPage::TakeSameDocumentLocation() {
   if (!mChrome || !mChrome->mSameDocLocation) return false;
   mChrome->mSameDocLocation = false;
+  return true;
+}
+
+bool GoannaRenderPage::TakeNewWindowUrl(std::string* url) {
+  if (!mChrome || mChrome->mNewWindowUrl.IsEmpty()) return false;
+  if (url) *url = mChrome->mNewWindowUrl.get();
+  mChrome->mNewWindowUrl.Truncate();
   return true;
 }
 

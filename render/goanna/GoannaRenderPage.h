@@ -224,6 +224,8 @@ public:
   // navigate via the normal load path — the click default-action does not fire in the
   // offscreen embedding, and calling LoadUrl inside the click handler stalls the load.
   bool TakeClickNav(std::string* url);
+  // The address a script asked to open in a new window since the last call (window.open).
+  bool TakeNewWindowUrl(std::string* url);
   // If a tap changed editable-element focus, returns the new state so the caller can emit
   // msgEditorFocused (isis raises/hides the VKB). Drains the change; returns false if none.
   bool TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions);

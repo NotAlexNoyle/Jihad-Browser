@@ -1,0 +1,29 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-popup</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
+button{font:20px monospace;padding:12px 24px;margin:8px 0;display:block}</style></head>
+<body>
+<p>jihad-popup: window.open from a tap, and from page load (served over http)</p>
+<button id="pop">open a new window (tap)</button>
+<div id="p">POPUP:untested</div>
+<div id="pl">LOADPOPUP:untested</div>
+<script>
+// cavekit-browser-services.md R1 / cavekit-preferences-ui.md R2. window.open with a web address
+// becomes a NEW CARD (the frozen msgCreatePage); the opener gets null, never an exception.
+//   #p   after a tap on the button: "POPUP:null" (a card was asked for) — an error name after it
+//        means window.open threw, which is the defect this page exists to catch.
+//   #pl  the same call during load: "blocked" stays if the popup blocker is on (no card);
+//        with it off a second card opens.
+// Add ?load=1 to make the load-time call; without it the page opens nothing by itself, so it is
+// safe to leave a card on.
+function open_() {
+  var w = null, err = '';
+  try { w = window.open('jihad-popup-target.html', '_blank'); } catch (e) { err = ' ' + e.name; }
+  return (w ? 'window' : 'null') + err;
+}
+document.getElementById('pop').addEventListener('click', function () {
+  document.getElementById('p').textContent = 'POPUP:' + open_();
+});
+if (/[?&]load=1/.test(location.search)) {
+  document.getElementById('pl').textContent = 'LOADPOPUP:' + open_();
+}
+</script></body></html>

@@ -47,6 +47,7 @@ public:
   void msgDialogPrompt(const char* syncPipePath, const char* msg, const char* defaultValue) override;
   void msgDialogUserPassword(const char* syncPipePath, const char* msg) override;
   void msgLinkClicked(const char* url) override;
+  void msgNewPageRequested(const char* url) override;
   void msgPopupMenuShow(const char* identifier, const char* menuDataFileName) override;
   void msgMimeHandoffUrl(const char* mimeType, const char* url) override;
   void msgDownloadStart(const char* url) override;
@@ -89,6 +90,7 @@ public:
   // wake hook is how a connecting card gets the frame-rate tick back without waiting for the
   // next idle tick.
   bool hasPages() const { return !mPages.empty(); }
+  void newPageRequested(YapProxy* proxy, const char* url);   // window.open -> msgCreatePage
   void setWakeHook(void (*hook)()) { mWakeHook = hook; }
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
@@ -195,6 +197,10 @@ private:
   bool                             mActivity = false;         // a card command arrived since the last tick
   int64_t                          mLastInjectPollMs = 0;
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
+  // window.open: addresses waiting for the card msgCreatePage asked for. That card connects
+  // with the identifier; a card that never comes leaves an entry, so the list is bounded.
+  struct PendingNewPage { int32_t id; std::string url; };
+  std::vector<PendingNewPage>      mPendingNewPages;
   // Connect order, oldest first. mPages is keyed by pointer, so it cannot answer
   // "which card is newest"; this can, which is what lets reap() RE-ELECT
   // mLastProxy instead of nulling it (F-1) and gives pageForDownload a sane

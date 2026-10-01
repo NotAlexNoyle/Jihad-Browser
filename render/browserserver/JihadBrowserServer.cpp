@@ -48,6 +48,7 @@ void ProxySink::msgDialogConfirm(const char* p, const char* m) { mSrv->msgDialog
 void ProxySink::msgDialogPrompt(const char* p, const char* m, const char* d) { mSrv->msgDialogPrompt(mProxy, p, m, d); }
 void ProxySink::msgDialogUserPassword(const char* p, const char* m) { mSrv->msgDialogUserPassword(mProxy, p, m); }
 void ProxySink::msgLinkClicked(const char* url) { mSrv->msgLinkClicked(mProxy, url); }
+void ProxySink::msgNewPageRequested(const char* url) { mSrv->newPageRequested(mProxy, url); }
 void ProxySink::msgPopupMenuShow(const char* id, const char* file) { mSrv->msgPopupMenuShow(mProxy, id, file); }
 void ProxySink::msgMimeHandoffUrl(const char* mimeType, const char* url) { mSrv->msgMimeHandoffUrl(mProxy, mimeType, url); }
 void ProxySink::msgDownloadStart(const char* url) { mSrv->msgDownloadStart(mProxy, url); }
@@ -216,6 +217,7 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   addon <id> on|off  -> enable/disable an installed add-on
 //   cookie set H N V   -> store a persistent cookie;  cookie count -> list/count them
 //   rect <id>          -> report an element's viewport rect
+//   popupsel ID IDX    -> answer a card <select> list (popupMenuSelect), ID from `popupMenuShow id=`
 //   scroll X Y         -> setScrollPosition
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
 //   size W H           -> setWindowSize (VKB-resize / rotation simulation)
@@ -407,6 +409,16 @@ void JihadBrowserServer::processInjectFile() {
       std::string q = c.substr(5);
       while (!q.empty() && (q.back()=='\n' || q.back()=='\r')) q.pop_back();
       printf("[jihad-bs] inject find \"%s\" -> %d\n", q.c_str(), (int)p->findString(q.c_str(), true));
+    } else if (strncmp(c.c_str(), "popupsel ", 9) == 0) {
+      // DEBUG: `popupsel <identifier> <index>` — answer an open card <select> list the way the
+      // card does (asyncCmdPopupMenuSelect), with the identifier popupMenuShow logged. The list
+      // itself lives in the card and only a finger can pick from it, so without this no test can
+      // carry a <select> change through to the page's `change` handler.
+      char pid[64] = {0}; int idx = -1;
+      if (sscanf(c.c_str(), "popupsel %63s %d", pid, &idx) == 2) {
+        printf("[jihad-bs] inject popupsel %s %d\n", pid, idx);
+        p->popupMenuSelect(pid, idx);
+      }
     } else if (strncmp(c.c_str(), "popups", 6) == 0) {
       // DEBUG: how many XUL popups are open. Readback for tests that drive a menu — and the
       // only cheap way to observe a XUL-only KEY reaction (Escape rolls a menu up), since a
@@ -614,8 +626,7 @@ void JihadBrowserServer::tick() {
 // ---- core commands wired to the Goanna backend -----------------------------
 void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier)
 {
-  (void)identifier;
-  printf("[jihad-bs] connect %dx%d keys=0x%x,0x%x sz=%d\n", pageWidth, pageHeight, (unsigned)sharedBufferKey1, (unsigned)sharedBufferKey2, sharedBufferSize);
+  printf("[jihad-bs] connect %dx%d keys=0x%x,0x%x sz=%d id=%d\n", pageWidth, pageHeight, (unsigned)sharedBufferKey1, (unsigned)sharedBufferKey2, sharedBufferSize, (int)identifier);
   reap(proxy);                                     // replace any existing page
   ProxySink* sink = new ProxySink(this, proxy);
   jihad::BrowserPageGoanna* page = new jihad::BrowserPageGoanna(mHost, *sink);
@@ -626,6 +637,28 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
   mConnectOrder.push_back(proxy);
   mLastProxy = proxy;   // newest connect = active card = self-drive inject target
   if (mWakeHook) mWakeHook();   // a page exists now: leave the idle tick at once (Main.cpp)
+  // The card msgCreatePage asked for: it carries the identifier we sent, and the page a script
+  // wanted in a new window is opened in it. (The engine page itself is created here like any
+  // other — the opener was told its window.open returned null, so nothing is waiting on it.)
+  for (size_t i = 0; i < mPendingNewPages.size(); ++i) {
+    if (mPendingNewPages[i].id != identifier) continue;
+    printf("[jihad-bs] connect: card for createPage id=%d — opening the requested address\n", identifier);
+    page->openUrl(mPendingNewPages[i].url.c_str());
+    mPendingNewPages.erase(mPendingNewPages.begin() + i);
+    break;
+  }
+}
+
+void JihadBrowserServer::newPageRequested(YapProxy* proxy, const char* url)
+{
+  if (!url || !*url) return;
+  static int32_t sNextId = 1;   // process-wide and never 0: 0 is what an ordinary card connects with
+  int32_t id = sNextId++;
+  if (sNextId <= 0) sNextId = 1;
+  if (mPendingNewPages.size() >= 8) mPendingNewPages.erase(mPendingNewPages.begin());
+  mPendingNewPages.push_back(PendingNewPage{ id, url });
+  printf("[jihad-bs] createPage -> card: id=%d\n", id);
+  msgCreatePage(proxy, id);
 }
 void JihadBrowserServer::asyncCmdOpenUrl(YapProxy* proxy, const char* url)
 { printf("[jihad-bs] openUrl %s\n", url ? url : "(null)"); if (auto* p = pageFor(proxy)) p->openUrl(url); }

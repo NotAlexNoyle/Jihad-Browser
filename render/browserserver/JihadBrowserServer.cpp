@@ -469,6 +469,8 @@ void JihadBrowserServer::processInjectFile() {
 }
 #endif  // !JIHAD_NO_INJECT
 
+static const uint64_t kTickStatsMinWorkMs = 20;
+
 void JihadBrowserServer::tick() {
   // Re-entrancy guard (device crash: BeginLoad this=0xa, SIGBUS). A synchronous
   // navigation started from INSIDE pump() — Enter form-submit (FireFormSubmit),
@@ -493,10 +495,23 @@ void JihadBrowserServer::tick() {
   // Disabled is the default (T-057): mInjectPath is empty, so this whole thing
   // is one predictable branch per tick — the counter never even increments.
 #ifndef JIHAD_NO_INJECT
-  if (!mInjectPath.empty() && ++mInjectThrottle >= 20) {
+  // With no page the tick is the 1 s idle tick (Main.cpp), so poll on every one: the channel
+  // must still be able to say "no page", and 20 idle ticks would be 20 s.
+  if (!mInjectPath.empty() && (snap.empty() || ++mInjectThrottle >= 20)) {
     mInjectThrottle = 0; processInjectFile();
   }
 #endif
+
+  // Nothing to pump, paint or measure without a page. Returning here also keeps the cadence
+  // statistics below from logging a line every 2 s for the whole life of an idle daemon, and
+  // from folding a 1000 ms idle period into the first report after a card connects.
+  if (snap.empty()) {
+    mTickStatsReset = true;
+    mInTick = false;
+    for (auto& e : mReap) { delete e.page; delete e.sink; }
+    mReap.clear();
+    return;
+  }
 
   // 4 ms of engine pump per tick, not 10.
   //
@@ -531,6 +546,11 @@ void JihadBrowserServer::tick() {
     static int64_t sPrevStart = 0, sReport = 0;
     static uint32_t sPerMin = 0, sPerMax = 0, sWorkMax = 0, sN = 0;
     static uint64_t sPerSum = 0, sWorkSum = 0, sPumpSum = 0;
+    if (mTickStatsReset) {            // first tick after an idle stretch: start a clean window
+      mTickStatsReset = false;
+      sPrevStart = sReport = 0;
+      sPerMin = sPerMax = sWorkMax = sN = 0; sPerSum = sWorkSum = sPumpSum = 0;
+    }
     if (sPrevStart) {
       uint32_t per = (uint32_t)(tickT0 - sPrevStart);
       uint32_t work = (uint32_t)(tickT1 - tickT0);
@@ -542,7 +562,12 @@ void JihadBrowserServer::tick() {
     sPrevStart = tickT0;
     if (!sReport) sReport = tickT1;
     else if (tickT1 - sReport >= 2000) {
-      if (sN) {
+      // Only when the loop actually worked in this window (>= kTickStatsMinWorkMs of pump +
+      // paint in 2 s). A connected card showing a static page ticks with work=0, and a
+      // statistics line with nothing to report, every 2 s for as long as the card is open, is
+      // log growth and nothing else. Every case this line exists to diagnose — a load, an
+      // animation, video, a plugin — clears the threshold many times over.
+      if (sN && sWorkSum >= kTickStatsMinWorkMs) {
         // pump vs paint, split: the tick is WORK-bound, not timer-bound, whenever work
         // approaches the 16 ms period, and then the frame grid can only land on multiples of
         // the work time. Knowing which half to attack is the difference between shrinking the
@@ -579,6 +604,7 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
   mPages[proxy] = Page{ page, sink };
   mConnectOrder.push_back(proxy);
   mLastProxy = proxy;   // newest connect = active card = self-drive inject target
+  if (mWakeHook) mWakeHook();   // a page exists now: leave the idle tick at once (Main.cpp)
 }
 void JihadBrowserServer::asyncCmdOpenUrl(YapProxy* proxy, const char* url)
 { printf("[jihad-bs] openUrl %s\n", url ? url : "(null)"); if (auto* p = pageFor(proxy)) p->openUrl(url); }
@@ -605,6 +631,7 @@ void JihadBrowserServer::syncCmdRenderToFile(YapProxy* proxy, const char* filena
 
 void JihadBrowserServer::asyncCmdSetUserAgent(YapProxy* proxy, const char* userAgent)
 {
+  printf("[jihad-bs] setUserAgent [%.120s]\n", userAgent ? userAgent : "(null)");
   (void)proxy; jihad::SetUserAgentOverride(userAgent);   // process-global pref
 }
 
@@ -621,6 +648,21 @@ void JihadBrowserServer::asyncCmdClickAt(YapProxy* proxy, int32_t contentX, int3
 
 void JihadBrowserServer::asyncCmdKeyDown(YapProxy* proxy, int32_t key, int32_t modifiers, int32_t chr)
 {
+  // $JIHAD_LOG_KEYS instrument (cavekit-gre-widgets.md R3): the raw triple the adapter sends for
+  // a NON-PRINTING key, which is the one thing a session at the on-screen keyboard needs in
+  // order to settle what the arrow/Home/End/navigation keys really are on this OS build.
+  // Printable keys are never logged, gate or no gate — a control code or a private-use code
+  // identifies a key, a printable one is the user's text (cavekit-input-bridging.md R2a), so
+  // nothing typed into a field, password or otherwise, can reach the log through this.
+  static const bool kLogKeys = getenv("JIHAD_LOG_KEYS") != nullptr;
+  if (kLogKeys) {
+    auto nonPrinting = [](uint32_t c) {
+      return c < 0x20 || c == 0x7F || (c >= 0x80 && c < 0xA0) || (c >= 0xE000 && c <= 0xF8FF);
+    };
+    if (nonPrinting((uint32_t)key) && nonPrinting((uint32_t)chr))
+      printf("[jihad-bs] keyDown key=0x%X chr=0x%X mod=0x%X\n",
+             (unsigned)key, (unsigned)chr, (unsigned)modifiers);
+  }
   if (auto* p = pageFor(proxy)) p->keyDown(key, modifiers, chr);
 }
 
@@ -690,6 +732,7 @@ void JihadBrowserServer::asyncCmdDragEnd(YapProxy* proxy, int32_t contentX, int3
 
 void JihadBrowserServer::asyncCmdSetMinFontSize(YapProxy* proxy, int32_t minFontSizePt)
 {
+  printf("[jihad-bs] setMinFontSize %d\n", (int)minFontSizePt);
   (void)proxy; jihad::SetMinFontSize(minFontSizePt);
 }
 
@@ -720,16 +763,22 @@ void JihadBrowserServer::asyncCmdPopupMenuSelect(YapProxy* proxy, const char* id
 
 void JihadBrowserServer::asyncCmdSetEnableJavaScript(YapProxy* proxy, bool enable)
 {
+  // One line per frozen settings command with the value RECEIVED (T-215): the card sends these
+  // on every connect and on a toggle, and "did the toggle reach the daemon" is otherwise only
+  // answerable by its effect on the next page, which confounds the command with the pref.
+  printf("[jihad-bs] setEnableJavaScript %d\n", (int)enable);
   if (auto* p = pageFor(proxy)) p->settingsJavaScriptEnabled(enable);
 }
 
 void JihadBrowserServer::asyncCmdSetBlockPopups(YapProxy* proxy, bool enable)
 {
+  printf("[jihad-bs] setBlockPopups %d\n", (int)enable);
   (void)proxy; jihad::SetBlockPopups(enable);
 }
 
 void JihadBrowserServer::asyncCmdSetAcceptCookies(YapProxy* proxy, bool enable)
 {
+  printf("[jihad-bs] setAcceptCookies %d\n", (int)enable);
   (void)proxy; jihad::SetAcceptCookies(enable);
 }
 

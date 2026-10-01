@@ -395,7 +395,9 @@ std::string LunaServiceNameFor(const char* yapName) {
   return std::string("net.riverstonerelay.") + camel;
 }
 
-bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
+// One registration attempt. `verbose` is false on retries, so a role that never appears costs one
+// failure line, not one per attempt.
+static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verbose) {
   if (!loop) return false;
   if (!loadApi()) return false;
 
@@ -409,9 +411,10 @@ bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (gApi.RegisterPalmService && gApi.PalmServiceRegisterCategory &&
       gApi.GmainAttachPalmService) {
     if (!gApi.RegisterPalmService(serviceName.c_str(), &gPalm, &err)) {
-      printf("[jihad-bs] luna: LSRegisterPalmService('%s') FAILED (code=%d) — invalid name (no "
-             "hyphens allowed) or no matching role in /usr/share/ls2/roles/{pub,prv}\n",
-             serviceName.c_str(), errCode(err));
+      if (verbose)
+        printf("[jihad-bs] luna: LSRegisterPalmService('%s') FAILED (code=%d) — invalid name (no "
+               "hyphens allowed) or no matching role in /usr/share/ls2/roles/{pub,prv}\n",
+               serviceName.c_str(), errCode(err));
       if (gApi.ErrorFree) gApi.ErrorFree(&err);
       gPalm = nullptr;
       return false;
@@ -449,9 +452,10 @@ bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
     //  - a missing/incorrect role file: the hub refuses a name the process may not own, and
     //    the role is keyed on the loader path (/proc/pid/exe is ld-2.23.so, NOT
     //    jihad-browserserver, because the job execs through the bundled loader).
-    printf("[jihad-bs] luna: LSRegister('%s') FAILED (code=%d) — invalid name (no hyphens "
-           "allowed) or no matching role in /usr/share/ls2/roles\n",
-           serviceName.c_str(), errCode(err));
+    if (verbose)
+      printf("[jihad-bs] luna: LSRegister('%s') FAILED (code=%d) — invalid name (no hyphens "
+             "allowed) or no matching role in /usr/share/ls2/roles\n",
+             serviceName.c_str(), errCode(err));
     if (gApi.ErrorFree) gApi.ErrorFree(&err);
     gHandle = nullptr;
     return false;
@@ -478,7 +482,64 @@ bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   return true;
 }
 
+// ── REGISTRATION IS RETRIED (cavekit-device-build.md R4, 2026-10-01) ─────────────────────────
+// It used to be attempted exactly once, at daemon start. The hub only grants a name whose role
+// file it has READ, and it reads role files at its own startup or on a rescan — so a daemon
+// started before the hub knows the role (first install: postinst writes the role and starts the
+// job; a hub restart racing a respawn; a role file pushed after the daemon) got -1027 and then
+// ran for its whole life with no service: clearCache/clearCookies from the card, getChromePrefs
+// and every toast silently dead until someone restarted it by hand. Observed on webOS CE 3.1.0
+// on 2026-09-27.
+//
+// The retry makes the daemon converge by itself once the hub learns the role. Backoff 5 s
+// doubling to 60 s, for about ten minutes: long enough to cover an install and the hub rescan
+// that follows it, bounded so a daemon that genuinely has no role (a hand-launched test) does
+// not poll the bus for ever. One line when it starts retrying, one when it succeeds or gives up.
+namespace {
+GSource*    gRetrySrc = nullptr;
+GMainLoop*  gRetryLoop = nullptr;
+std::string gRetryName;
+int         gRetryAttempt = 0;
+const int   kRetryMaxAttempts = 14;          // 5+10+20+40+60*10 s ≈ 11 min
+
+gboolean retryRegister(gpointer);
+void scheduleRetry() {
+  int delay = 5 << (gRetryAttempt < 4 ? gRetryAttempt : 4);
+  if (delay > 60) delay = 60;
+  gRetrySrc = g_timeout_source_new_seconds(delay);
+  g_source_set_callback(gRetrySrc, retryRegister, nullptr, nullptr);
+  g_source_attach(gRetrySrc, g_main_loop_get_context(gRetryLoop));
+}
+gboolean retryRegister(gpointer) {
+  g_source_unref(gRetrySrc); gRetrySrc = nullptr;     // one-shot: returning FALSE destroys it
+  ++gRetryAttempt;
+  if (jihad::startOnce(gRetryName, gRetryLoop, /*verbose*/false)) {
+    printf("[jihad-bs] luna: registered on retry %d — the hub has the role now\n", gRetryAttempt);
+  } else if (gRetryAttempt >= kRetryMaxAttempts) {
+    printf("[jihad-bs] luna: still not registered after %d retries — giving up; no Luna service "
+           "(clear cache/cookies and toasts are OFF) until this daemon is restarted\n",
+           gRetryAttempt);
+  } else {
+    scheduleRetry();
+  }
+  return FALSE;
+}
+}  // namespace
+
+bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
+  if (startOnce(serviceName, loop, /*verbose*/true)) return true;
+  // Retry only when there is a bus library to retry with; "no liblunaservice.so" (the desktop
+  // build) is permanent.
+  if (loop && gApi.lib && (gApi.RegisterPalmService || gApi.Register)) {
+    gRetryName = serviceName; gRetryLoop = loop; gRetryAttempt = 0;
+    printf("[jihad-bs] luna: will retry the registration (5 s, backing off to 60 s)\n");
+    scheduleRetry();
+  }
+  return false;
+}
+
 void LunaServiceStop() {
+  if (gRetrySrc) { g_source_destroy(gRetrySrc); g_source_unref(gRetrySrc); gRetrySrc = nullptr; }
   // Clear the sink FIRST: after this point PostNotification takes its no-channel path, so an
   // engine message raised during shutdown cannot reach a handle that is about to be freed.
   SetNotificationSink(nullptr);

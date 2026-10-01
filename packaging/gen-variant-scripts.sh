@@ -275,10 +275,23 @@ chown 0:0 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME
 chmod 0644 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
            /usr/share/dbus-1/system-services/$LSNAME.service \
            /usr/share/dbus-1/services/$LSNAME.service
-# ls-hubd reads roles at startup, so the service becomes reachable after the reboot this
-# postinst already asks for — not the moment these files land. It can also be done live, with
-# no reboot: `ls-control scan-services` is nothing but `kill -HUP $(pidof ls-hubd)`, and the hub
-# re-reads its whole config including roles. Verified 2026-08-07 (bus stayed healthy across it).
+# ls-hubd reads roles at startup OR on a rescan — not the moment these files land. So tell it
+# now, before the daemon is started further down: `ls-control scan-services` is nothing but
+# `kill -HUP $(pidof ls-hubd)`, and the hub re-reads its whole config including roles (verified
+# 2026-08-07 and again on webOS CE 3.1.0 2026-09-27; the bus stays healthy across it).
+#
+# Until 2026-10-01 this script only DESCRIBED that and left the role to "the reboot this postinst
+# already asks for". The daemon it starts a few lines later therefore asked a hub that had never
+# seen its role for the name, got -1027, and — registration being attempted exactly once — ran
+# with no Luna service until the next restart: Clear Cache / Clear Cookies from the card, and
+# every toast, silently dead on a first install (seen on CE 3.1.0, 2026-09-27; an UPGRADE never
+# showed it because the hub already knew the role). The daemon also retries the registration
+# now (JihadLunaService.cpp), so a failed rescan here is a delay, not a dead service.
+if [ -x /usr/bin/ls-control ] && /usr/bin/ls-control scan-services >/dev/null 2>&1; then
+	log "ls-hubd rescanned: role for $LSNAME is live"
+else
+	log "WARNING: could not rescan ls-hubd — $LSNAME registers when the daemon's retry succeeds or after a reboot"
+fi
 #
 # ── WHY com.palm.flashgraphics IS IN allowedNames ────────────────────────────────────────────
 # The device's Flash plugin calls LSRegisterPalmService("com.palm.flashgraphics") and attaches
@@ -697,6 +710,17 @@ script
 	# normally — and a frozen log reads exactly like a live one. A stale line read out of one
 	# cost the previous session a whole false diagnosis. Rotate at 2 MB keeping one generation,
 	# so the worst case across three variants is 12 MB rather than the whole partition.
+	#
+	# THIS CHECK ONLY RUNS AT JOB START, and a daemon stays up for days: two idle daemons wrote
+	# 10 MB each in 3.6 days (2026-10-01). So the same cap is ALSO enforced by the daemon while
+	# it runs (render/browserserver/Main.cpp, log_cap_cb: every 30 s, copy to daemon.log.old
+	# then truncate in place, because plugin-container inherits this descriptor). The numbers:
+	#   per variant, at any uptime   daemon.log <= 2 MB (+ ~70 KB overshoot) and one kept
+	#                                generation <= 2 MB                          => ~4 MB
+	#   three variants               ~12 MB of the 62 MB /var, worst case
+	#   idle (no card connected)     nothing is written at all
+	# Keep LOGMAX here and the daemon's default cap equal; $JIHAD_LOG_MAX lowers the daemon's
+	# for a test.
 	if [ "$LOG" != /dev/null ]; then
 		LOGMAX=2097152
 		# `tr -d ' '`: some wc builds pad the count, and a padded value makes `[ -ge ]` fail

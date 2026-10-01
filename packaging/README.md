@@ -117,7 +117,7 @@ both scripts declare the same set at the top of the file.
 
 | | Path | Why |
 |---|---|---|
-| daemon log + debug channels | `/var/palm/jihad/<variant>/` | Kilobytes of operational state for a root daemon; correctly on ext3, root-owned. **Nothing else** goes here — `/var` has 49.6 MB free and is shared with system state. |
+| daemon log + debug channels | `/var/palm/jihad/<variant>/` | Operational state for a root daemon, **bounded at any uptime**: `daemon.log` is capped at 2 MB with one kept generation (`daemon.log.old`), enforced by the upstart job at start AND by the daemon while it runs — ~4 MB per variant, ~12 MB across three, worst case; an idle daemon (no card connected) writes nothing. (Until 2026-10-01 the cap was checked only at job start, and two idle daemons reached 10 MB each in under four days.); correctly on ext3, root-owned. **Nothing else** goes here — `/var` has 49.6 MB free and is shared with system state. |
 | engine profile (`ProfD`) | `$APP/profile/` | cookies.sqlite, prefs.js, permissions, cert overrides. |
 | engine local profile (`ProfLD`) | `$APP/cache/` | `cache2`, `startupCache`. Capped at **50 MB** (`browser.cache.disk.capacity`). |
 | finished downloads | `/media/internal/downloads` | USER data — see below. |

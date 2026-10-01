@@ -221,10 +221,23 @@ chown 0:0 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME
 chmod 0644 /usr/share/ls2/roles/prv/$LSNAME.json /usr/share/ls2/roles/pub/$LSNAME.json \
            /usr/share/dbus-1/system-services/$LSNAME.service \
            /usr/share/dbus-1/services/$LSNAME.service
-# ls-hubd reads roles at startup, so the service becomes reachable after the reboot this
-# postinst already asks for — not the moment these files land. It can also be done live, with
-# no reboot: `ls-control scan-services` is nothing but `kill -HUP $(pidof ls-hubd)`, and the hub
-# re-reads its whole config including roles. Verified 2026-08-07 (bus stayed healthy across it).
+# ls-hubd reads roles at startup OR on a rescan — not the moment these files land. So tell it
+# now, before the daemon is started further down: `ls-control scan-services` is nothing but
+# `kill -HUP $(pidof ls-hubd)`, and the hub re-reads its whole config including roles (verified
+# 2026-08-07 and again on webOS CE 3.1.0 2026-09-27; the bus stays healthy across it).
+#
+# Until 2026-10-01 this script only DESCRIBED that and left the role to "the reboot this postinst
+# already asks for". The daemon it starts a few lines later therefore asked a hub that had never
+# seen its role for the name, got -1027, and — registration being attempted exactly once — ran
+# with no Luna service until the next restart: Clear Cache / Clear Cookies from the card, and
+# every toast, silently dead on a first install (seen on CE 3.1.0, 2026-09-27; an UPGRADE never
+# showed it because the hub already knew the role). The daemon also retries the registration
+# now (JihadLunaService.cpp), so a failed rescan here is a delay, not a dead service.
+if [ -x /usr/bin/ls-control ] && /usr/bin/ls-control scan-services >/dev/null 2>&1; then
+	log "ls-hubd rescanned: role for $LSNAME is live"
+else
+	log "WARNING: could not rescan ls-hubd — $LSNAME registers when the daemon's retry succeeds or after a reboot"
+fi
 #
 # ── WHY com.palm.flashgraphics IS IN allowedNames ────────────────────────────────────────────
 # The device's Flash plugin calls LSRegisterPalmService("com.palm.flashgraphics") and attaches

@@ -85,6 +85,11 @@ public:
   virtual void clientDisconnected(YapProxy* proxy);
 
   void tick();   // engine + paint pump for all pages (GLib timeout)
+  // Whether any card currently has a page. main() idles the tick while this is false, and the
+  // wake hook is how a connecting card gets the frame-rate tick back without waiting for the
+  // next idle tick.
+  bool hasPages() const { return !mPages.empty(); }
+  void setWakeHook(void (*hook)()) { mWakeHook = hook; }
 
   void syncCmdRenderToFile(YapProxy* proxy, const char* filename, int32_t viewX, int32_t viewY, int32_t viewW, int32_t viewH, int32_t& result) override;
   void asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int32_t pageHeight, int32_t sharedBufferKey1, int32_t sharedBufferKey2, int32_t sharedBufferSize, int32_t identifier) override;
@@ -180,6 +185,7 @@ private:
   std::map<YapProxy*, Page>        mPages;
   std::vector<Page>                mReap;    // deleted after the tick loop
   bool                             mInTick;
+  bool                             mTickStatsReset = false;   // an idle stretch ended: restart the cadence window
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
   // Connect order, oldest first. mPages is keyed by pointer, so it cannot answer
   // "which card is newest"; this can, which is what lets reap() RE-ELECT
@@ -189,6 +195,7 @@ private:
 #ifndef JIHAD_NO_INJECT
   std::string                      mInjectPath;           // "" = channel disabled (default)
   int                              mInjectThrottle = 0;   // check the file ~5x/s, not per-tick
+  void                           (*mWakeHook)() = nullptr;  // main()'s "leave the idle tick now"
 #endif
 };
 

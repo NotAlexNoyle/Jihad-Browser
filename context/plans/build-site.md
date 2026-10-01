@@ -37,7 +37,7 @@ last_edited: "2026-10-01"
 
 | Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
 |------|-------|---------|-------------|-----------|--------|--------|
-| T-217 | Daemon build, batch 1 (`build-daemon-arm.sh`) with every batch-1 daemon change; `check-yap-contract.sh` passes (73 commands incl. 0x1600, 58 messages). Serialized after T-216 because it links against the same objdir. | cavekit-device-build.md | device-build R8/R4 | T-203, T-204, T-205, T-206, T-213, T-214, T-215, T-216 | no | S |
+| T-217 | Daemon build, batch 1 (`build-daemon-arm.sh`) with every batch-1 daemon change; `check-yap-contract.sh` passes (73 commands incl. 0x1600, 58 messages). Serialized after T-216 because it links against the same objdir. | cavekit-device-build.md | device-build R8/R4 | T-203, T-204, T-205, T-206, T-213, T-215, T-216 | no | S |
 
 ## Tier 3 — device sitting: Batch-1 push to all three variants
 
@@ -520,7 +520,7 @@ graph LR
     T-205 --> T-217
     T-206 --> T-217
     T-213 --> T-217
-    T-214 --> T-217
+    T-214 --> T-259
     T-215 --> T-217
     T-216 --> T-217
     T-211 --> T-218

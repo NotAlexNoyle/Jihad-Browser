@@ -185,7 +185,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLoadWasDone(false), mNeedsPaint(false),
     mLastContentW(-1), mLastContentH(-1),
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
-    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mGeometryDirty(false), mGeometryTries(0),
+    mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mBlankSinceMs(0), mBlankRetryAtMs(0), mGeometryDirty(false), mGeometryTries(0),
     mNavGen(0), mLastScrollMs(0) {
   for (int i = 0; i < 3; ++i) { mShmBuf[i] = nullptr; mShmId[i] = -1; }
   jihadStartAudioPoll();   // Jihad: hold the audiod media scenario + speaker route during playback
@@ -320,6 +320,14 @@ static int64_t jihadNowMs() {
   struct timeval tv; gettimeofday(&tv, NULL);
   return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
+
+// Blank-over-good suppression (paintToSharedBuffer): how long a blank frame must persist AFTER
+// the load completed before it is accepted as the page itself, and how often a still-suppressed
+// blank is re-rendered. 500 ms is long enough to cover a reflow that momentarily renders white
+// after load, short enough that a blank page appears to load at once; 100 ms keeps the first
+// content frame of a slow load within one retry of when it became available.
+static const int64_t kJihadBlankSettleMs = 500;
+static const int64_t kJihadBlankRetryMs  = 100;
 
 // The daemon's tick period. Defined HERE rather than in Main.cpp, which used to own it, because
 // the plugin pull has to express its request period in whole ticks — a request grid that is not
@@ -1050,13 +1058,14 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
       // (which read as "arrows type characters" + repaint lag + Backspace eating the invisible
       // chars). 0xE0A0-0xE0BF is webOS's live block, no longer a guess: keyIdentifierForPalmCode
       // (libWebKitLuna @0x53fc78) defines 0xE0A0-A3 arrows, 0xE0B1 Home button, 0xE0B2 Launcher,
-      // 0xE0B3/B4 PageUp/PageDown. GAP, deliberately not changed under T-127: the real codes
-      // 0xE0E2-0xE0E7 (Previous/Next/Menu/Meta) sit PAST 0xE0BF and still fall through here.
+      // 0xE0B3/B4 PageUp/PageDown. The same table's 0xE0E2-0xE0E7 (Previous/Next/Menu/Meta)
+      // sit past 0xE0BF and are swallowed by their own range below (T-213, 2026-10-01) — until
+      // then they fell through and inserted an invisible glyph like any other PUA code.
       // 0xF700-0xF8FF is now a GUARD ONLY - its mapping constants were deleted because nothing on
       // this platform emits them (same table, no 0xF7xx anywhere). Kept because the asymmetry is
       // one-sided: one compare, versus re-opening the invisible-glyph bug above if that binary
       // read is wrong. Do NOT read its presence as evidence that webOS uses the NSEvent range.
-      else if (c >= 0xE0A0 && c <= 0xE0BF) c = 0u;
+      else if ((c >= 0xE0A0 && c <= 0xE0BF) || (c >= 0xE0E2 && c <= 0xE0E7)) c = 0u;
       else if (c >= 0xF700 && c <= 0xF8FF) c = 0u;
       if (c) {
         char buf[5] = {0};
@@ -2473,6 +2482,9 @@ void BrowserPageGoanna::requestNextPluginFrame() {
 
 void BrowserPageGoanna::paintToSharedBuffer() {
   if (!mPage || !mActiveKey) return;
+  // A frame just refused as blank-over-good is retried on a grid, not every tick (see the
+  // blank-settle block below). mNeedsPaint stays set, so nothing is lost by waiting.
+  if (mBlankRetryAtMs && jihadNowMs() < mBlankRetryAtMs) return;
   // Flow control (F-211): never overwrite a buffer the adapter still holds. If the target buffer
   // was msgPainted but not yet returned, defer this paint (mNeedsPaint stays set, so the next
   // pump tick / returnBuffer retries) — the typed text is already in the DOM, only the frame is
@@ -2867,19 +2879,49 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       }
     }
   }
-  // mNeedsPaint stays true -> retried until content lands. The record must go too: this
-  // buffer holds white, and a damage-only repaint into it would publish that white.
-  if (nb == 0 && mHadContent) { invalidateBufRecord(); return; }
-  if (nb > 0) mHadContent = true;
+  // A GENUINELY blank page must settle (cavekit-offscreen-rendering.md R8, 2026-10-01).
+  //
+  // The suppression above is right about a blank that is TRANSIENT — a mid-load or mid-reflow
+  // render over a good frame — and it used to assume every blank was: it returned with
+  // mNeedsPaint still set, unconditionally, so the next tick re-rendered the whole viewport and
+  // refused it again. On a document that is blank on purpose that never ends: device-measured
+  // on about:blank, 663 full ~35 ms paints in 30 s, forever, each logging a line (~210 MB/day
+  // into a 62 MB /var). about:blank is an allowlisted home page, so a user setting selects it.
+  //
+  // Two changes, and the white-flash protection survives both:
+  //  - A blank is transient only WHILE THE LOAD IS RUNNING. Once the load is done and the frame
+  //    has stayed blank for kJihadBlankSettleMs, the blank IS the page: publish it once and
+  //    stop. A blank arriving during a load is still never published over the good frame.
+  //  - While it is still being suppressed, retry on a kJihadBlankRetryMs grid rather than every
+  //    tick — a load stalled on a blank document must not cost a full render per tick either.
+  if (nb > 0) {
+    mHadContent = true;
+    mBlankSinceMs = 0; mBlankRetryAtMs = 0;
+  } else if (nb == 0 && mHadContent) {
+    const int64_t now = jihadNowMs();
+    if (!mLoadWasDone) mBlankSinceMs = 0;            // still loading: transient by definition
+    else if (!mBlankSinceMs) mBlankSinceMs = now;
+    if (!(mBlankSinceMs && now - mBlankSinceMs >= kJihadBlankSettleMs)) {
+      // mNeedsPaint stays true -> retried until content lands or the blank settles. The record
+      // must go too: this buffer holds white, and a damage-only repaint into it would publish
+      // that white.
+      invalidateBufRecord();
+      mBlankRetryAtMs = now + kJihadBlankRetryMs;
+      return;
+    }
+    fprintf(stderr, "[jihad-bs] blank frame settled after %lld ms — publishing it (the page is blank)\n",
+            (long long)(now - mBlankSinceMs));
+    mBlankSinceMs = 0; mBlankRetryAtMs = 0;
+  }
 
   // Record what this buffer now holds, so a later damage-only repaint can prove it is
   // painting into a complete frame of the same geometry. Deliberately HERE — past every
   // early return above — so only a frame that is actually about to be published can become
   // the base for a partial paint.
   //
-  // valid = (nb > 0), not (nb >= 0): the only nb==0 frame that reaches this point is the
-  // genuinely-never-rendered first one (mHadContent still false), which is a blank buffer
-  // and must never be a partial-paint base.
+  // valid = (nb > 0), not (nb >= 0): the only nb==0 frames that reach this point are the
+  // genuinely-never-rendered first one (mHadContent still false) and a settled blank page
+  // (above). Both are blank buffers and must never be a partial-paint base.
   //
   // bandRow only means anything when the tall-region render ran. In the fallback the frame
   // was read to buffer row 0 (ReadPixels(pixels, ...)) while bandRow still holds the tall

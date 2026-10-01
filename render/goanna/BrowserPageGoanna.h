@@ -342,6 +342,8 @@ private:
   int64_t            mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
   bool               mFrozen;           // card backgrounded: skip painting
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
+  int64_t            mBlankSinceMs;     // first blank-over-good refusal since the load finished (0=none)
+  int64_t            mBlankRetryAtMs;   // do not re-render a refused blank frame before this (0=no gate)
   bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles
   int                mGeometryTries;    // bounded retries while the size is still degenerate
   // Queued tap: clickAt (a YAP socket callback) only records the point; pump() does the

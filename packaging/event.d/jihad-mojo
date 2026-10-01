@@ -59,6 +59,17 @@ script
 	# normally — and a frozen log reads exactly like a live one. A stale line read out of one
 	# cost the previous session a whole false diagnosis. Rotate at 2 MB keeping one generation,
 	# so the worst case across three variants is 12 MB rather than the whole partition.
+	#
+	# THIS CHECK ONLY RUNS AT JOB START, and a daemon stays up for days: two idle daemons wrote
+	# 10 MB each in 3.6 days (2026-10-01). So the same cap is ALSO enforced by the daemon while
+	# it runs (render/browserserver/Main.cpp, log_cap_cb: every 30 s, copy to daemon.log.old
+	# then truncate in place, because plugin-container inherits this descriptor). The numbers:
+	#   per variant, at any uptime   daemon.log <= 2 MB (+ ~70 KB overshoot) and one kept
+	#                                generation <= 2 MB                          => ~4 MB
+	#   three variants               ~12 MB of the 62 MB /var, worst case
+	#   idle (no card connected)     nothing is written at all
+	# Keep LOGMAX here and the daemon's default cap equal; $JIHAD_LOG_MAX lowers the daemon's
+	# for a test.
 	if [ "$LOG" != /dev/null ]; then
 		LOGMAX=2097152
 		# `tr -d ' '`: some wc builds pad the count, and a padded value makes `[ -ge ]` fail

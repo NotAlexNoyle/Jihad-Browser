@@ -16,6 +16,9 @@
 #include <cstring>
 #include <csignal>
 #include <unistd.h>              // write/_exit/alarm in the teardown bailout
+#include <sys/stat.h>            // fstat for the runtime log cap
+#include <fcntl.h>
+#include <string>
 
 #include "JihadBrowserServer.h"
 #include "../goanna/EngineHost.h"
@@ -62,12 +65,108 @@ static void teardown_bailout(int sig) {
   _exit(0);
 }
 
+// ── AN IDLE DAEMON IS IDLE (cavekit-device-build.md R8, 2026-10-01) ─────────────────────────
+// The tick exists to pump and paint PAGES. With no card connected there is no page, yet the
+// timer kept firing at the frame period: device-measured, ~120 wakeups a second and ~2.4% of a
+// core per variant, for as long as the device was awake — three installed variants cost the
+// battery ~7% of a core whether or not a browser had been opened since boot.
+//
+// So the period follows the state: the frame period while any card has a page, kJihadIdleTickMs
+// while none does. The idle tick is not zero because two things still ride it — the SIGTERM
+// check below (so `stop` is honoured within a second) and the development inject channel, which
+// has to be able to answer "no page". Going idle is decided here, after the tick that saw the
+// last page go; waking is NOT left to the next idle tick — the server calls jihadWakeTick() from
+// the card's connect, so the first frame is not held up to a second behind the old timer.
+static const int kJihadIdleTickMs = 1000;
+static GMainContext* g_tickCtx = nullptr;
+static GSource*      g_tickSrc = nullptr;
+static int           g_tickFastMs = 8;
+static int           g_tickArmedMs = 0;
+static gboolean tick_cb(gpointer);
+
+static void arm_tick(int ms) {
+  if (g_tickSrc) { g_source_destroy(g_tickSrc); g_source_unref(g_tickSrc); }
+  g_tickSrc = g_timeout_source_new(ms);
+  g_source_set_callback(g_tickSrc, (GSourceFunc)tick_cb, nullptr, nullptr);
+  g_source_attach(g_tickSrc, g_tickCtx);
+  g_tickArmedMs = ms;
+}
+
+static void jihadWakeTick() {
+  if (g_tickArmedMs == g_tickFastMs) return;
+  printf("[jihad-bs] tick: card connected — %d ms\n", g_tickFastMs);
+  arm_tick(g_tickFastMs);
+}
+
 static gboolean tick_cb(gpointer) {
   if (g_termSignal) {
     if (g_server && g_server->mainLoop()) g_main_loop_quit(g_server->mainLoop());
     return FALSE;
   }
   if (g_server) g_server->tick();
+  if (g_server && !g_server->hasPages() && g_tickArmedMs != kJihadIdleTickMs) {
+    printf("[jihad-bs] tick: no card — idling at %d ms\n", kJihadIdleTickMs);
+    arm_tick(kJihadIdleTickMs);     // destroys the source this callback is running in
+    return FALSE;
+  }
+  return TRUE;
+}
+
+// ── THE LOG IS BOUNDED WHILE THE DAEMON RUNS (cavekit-device-build.md R8, 2026-10-01) ───────
+// The upstart job caps daemon.log at 2 MB — but only at job START, and a daemon stays up for
+// days. Device-measured: two idle daemons had written 10 MB each in 3.6 days on a 62 MB /var
+// shared with db8 and the Luna prefs. A full /var makes every write fail with ENOSPC silently,
+// the log freezes, and a frozen log reads exactly like a live one.
+//
+// Copy-then-truncate, not rename-and-reopen: stdout/stderr were opened by the job's shell with
+// `>>` (O_APPEND) and are INHERITED by plugin-container, so a renamed file would keep growing
+// under its new name through every descriptor we do not own. Truncating the one file every
+// writer shares moves them all back to offset 0. One kept generation, so the worst case is
+// 2 x cap per variant — 12 MB across three with the default cap, as the job's comment promises.
+// $JIHAD_LOG_MAX (bytes, 64 KB-16 MB) lowers the cap so the rotation can be exercised on a device
+// in a minute instead of a day.
+static off_t jihadLogCap() {
+  long v = 2 * 1024 * 1024;
+  if (const char* e = getenv("JIHAD_LOG_MAX")) {
+    long n = atol(e);
+    if (n >= 64 * 1024 && n <= 16 * 1024 * 1024) v = n;
+  }
+  return (off_t)v;
+}
+
+static gboolean log_cap_cb(gpointer) {
+  static const off_t cap = jihadLogCap();
+  struct stat st;
+  if (fstat(2, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < cap) return TRUE;
+
+  char path[512];
+  ssize_t n = readlink("/proc/self/fd/2", path, sizeof path - 1);
+  bool kept = false;
+  if (n > 0) {
+    path[n] = 0;
+    const std::string old = std::string(path) + ".old";
+    unlink(old.c_str());                       // free the previous generation before copying
+    int in = open(path, O_RDONLY);
+    int out = open(old.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (in >= 0 && out >= 0) {
+      char buf[65536];
+      off_t left = st.st_size;
+      kept = true;
+      while (left > 0) {
+        ssize_t r = read(in, buf, left < (off_t)sizeof buf ? (size_t)left : sizeof buf);
+        if (r <= 0) break;
+        if (write(out, buf, (size_t)r) != r) { kept = false; break; }   // ENOSPC: drop the copy
+        left -= r;
+      }
+    }
+    if (in >= 0) close(in);
+    if (out >= 0) close(out);
+    if (!kept) unlink(old.c_str());            // never leave a partial generation eating /var
+  }
+  // Bounded matters more than kept: truncate even if the copy failed.
+  if (ftruncate(2, 0) == 0 && !(fcntl(2, F_GETFL) & O_APPEND)) lseek(2, 0, SEEK_SET);
+  fprintf(stderr, "[jihad-bs] log reached %ld bytes (cap %ld) — rotated in place%s\n",
+          (long)st.st_size, (long)cap, kept ? ", previous kept as .old" : ", previous NOT kept");
   return TRUE;
 }
 
@@ -154,11 +253,17 @@ int main(int argc, char** argv) {
   // One definition, in BrowserPageGoanna.cpp: the plugin pull expresses its request period in
   // whole ticks, so a second env read here could drift from the one the pacer uses.
   int tickMs = jihad::jihadTickPeriodMs();
-  printf("[jihad-bs] tick period %d ms\n", tickMs);
-  GSource* src = g_timeout_source_new(tickMs);
-  g_source_set_callback(src, (GSourceFunc)tick_cb, nullptr, nullptr);
-  g_source_attach(src, ctx);
-  g_source_unref(src);
+  printf("[jihad-bs] tick period %d ms with a card, %d ms idle\n", tickMs, kJihadIdleTickMs);
+  g_tickCtx = ctx; g_tickFastMs = tickMs;
+  server.setWakeHook(jihadWakeTick);
+  arm_tick(tickMs);       // starts fast; the first tick drops to idle if no card has connected
+
+  // Log cap: checked every 30 s, on the same loop. At the worst rate ever measured (2.4 KB/s)
+  // that is an overshoot of ~70 KB past the cap.
+  GSource* capSrc = g_timeout_source_new_seconds(30);
+  g_source_set_callback(capSrc, log_cap_cb, nullptr, nullptr);
+  g_source_attach(capSrc, ctx);
+  g_source_unref(capSrc);
 
   // Installed AFTER engine init: EngineHost::Init re-arms the fatal-signal
   // handlers, and this must sit on top of whatever it leaves behind. SA_RESTART

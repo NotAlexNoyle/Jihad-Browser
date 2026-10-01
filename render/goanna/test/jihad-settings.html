@@ -1,0 +1,35 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-settings</title>
+<style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
+button{font:20px monospace;padding:12px 24px;margin:8px 0}
+#tiny{font-size:6px;color:#888}div{margin:4px 0}</style></head>
+<body>
+<p>jihad-settings: what the four frozen settings commands actually change</p>
+<div id="j">JS:OFF</div>
+<button id="pop">open a popup (click)</button>
+<div id="p">POPUP:untested</div>
+<div id="c">COOKIE:untested</div>
+<div id="tiny">six pixel text</div>
+<div id="f">FONT:untested</div>
+<script>
+// cavekit-preferences-ui.md R5 (frozen YAP settings commands). Each line is readable with
+// `gettext #<id>`:
+//   #j  "JS:ON" only if this script ran. Left as the static "JS:OFF" when script is disabled.
+//   #p  the popup is opened from a CLICK handler, never during load — a load-time window.open is
+//       blocked by the popup blocker for a different reason (no user gesture) and told the
+//       2026-08-15 run nothing about the setting.
+//   #c  whether a cookie set by script is readable back (accept-cookies).
+//   #f  the computed size of 6 px text (min-font-size raises it).
+document.getElementById('j').textContent = 'JS:ON';
+document.getElementById('pop').addEventListener('click', function () {
+  var w = null, err = '';
+  try { w = window.open('about:blank', '_blank'); } catch (e) { err = ' ' + e.name; }
+  document.getElementById('p').textContent = (w ? 'POPUP:opened' : 'POPUP:blocked') + err;
+  if (w && w.close) w.close();
+});
+var k = 'jihadset' + Date.now();
+document.cookie = k + '=1; path=/';
+document.getElementById('c').textContent =
+  document.cookie.indexOf(k + '=1') >= 0 ? 'COOKIE:kept' : 'COOKIE:refused';
+document.getElementById('f').textContent =
+  'FONT:' + getComputedStyle(document.getElementById('tiny')).fontSize;
+</script></body></html>

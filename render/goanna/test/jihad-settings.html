@@ -7,6 +7,7 @@ button{font:20px monospace;padding:12px 24px;margin:8px 0}
 <div id="j">JS:OFF</div>
 <button id="pop">open a popup (click)</button>
 <div id="p">POPUP:untested</div>
+<div id="pl">LOADPOPUP:untested</div>
 <div id="c">COOKIE:untested</div>
 <div id="tiny">six pixel text</div>
 <div id="f">FONT:untested</div>
@@ -17,8 +18,13 @@ button{font:20px monospace;padding:12px 24px;margin:8px 0}
 //   #p  the popup is opened from a CLICK handler, never during load — a load-time window.open is
 //       blocked by the popup blocker for a different reason (no user gesture) and told the
 //       2026-08-15 run nothing about the setting.
+//   #pl the same call made DURING LOAD, with no user gesture: the popup blocker returns null
+//       ("blocked") when it is on; when it is off the engine goes on to try to create a window.
+//       This embedding has no new-window path, so that attempt fails too — but differently
+//       ("attempted" + the error), which is what shows the setting reached the engine.
 //   #c  whether a cookie set by script is readable back (accept-cookies).
-//   #f  the computed size of 6 px text (min-font-size raises it).
+//   #f  the computed size of 6 px text and the HEIGHT of its line. A minimum font size does not
+//       change the computed value (it stays 6px); it changes what is drawn, so read h=.
 document.getElementById('j').textContent = 'JS:ON';
 document.getElementById('pop').addEventListener('click', function () {
   var w = null, err = '';
@@ -26,10 +32,18 @@ document.getElementById('pop').addEventListener('click', function () {
   document.getElementById('p').textContent = (w ? 'POPUP:opened' : 'POPUP:blocked') + err;
   if (w && w.close) w.close();
 });
+(function () {
+  var w = null, err = '';
+  try { w = window.open('about:blank', '_blank'); } catch (e) { err = ' ' + e.name; }
+  document.getElementById('pl').textContent =
+    'LOADPOPUP:' + (w ? 'opened' : (err ? 'attempted' + err : 'blocked'));
+  if (w && w.close) w.close();
+}());
 var k = 'jihadset' + Date.now();
 document.cookie = k + '=1; path=/';
 document.getElementById('c').textContent =
   document.cookie.indexOf(k + '=1') >= 0 ? 'COOKIE:kept' : 'COOKIE:refused';
 document.getElementById('f').textContent =
-  'FONT:' + getComputedStyle(document.getElementById('tiny')).fontSize;
+  'FONT:' + getComputedStyle(document.getElementById('tiny')).fontSize +
+  ' h=' + document.getElementById('tiny').offsetHeight;
 </script></body></html>

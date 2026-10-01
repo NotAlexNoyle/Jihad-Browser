@@ -1871,6 +1871,7 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
 // never bleeds into the next one (Codex P1). Called from every nav entry point.
 void GoannaRenderPage::BeginLoad() {
   if (!mChrome) return;
+  SyncScriptGate();   // a JavaScript switch made on about:preferences takes hold with this load
   mChrome->mDone = false;
   mChrome->mLoadFailed = false;
   mChrome->mRedirected = false;
@@ -2284,11 +2285,11 @@ bool GetChromeSettings(std::string* outJson) {
 // on a profile with no user pref the effective value is identical to before this change.
 // KNOWN CORNER, recorded rather than hidden: once the user HAS set one of these from
 // about:preferences, the card panel's own toggle for it stops having a visible effect. That is
-// the price of one authoritative writer. enableJavascript is deliberately NOT here — the
-// daemon gates script per docShell as well as by pref, so the card command is the only thing
-// that actually stops a script (R3), and the page ships no JS row.
-// NOT DEVICE-VERIFIED: written with no device available. What is unproven is the read side —
-// that a page-written user pref is what the engine honours after a card relaunch.
+// the price of one authoritative writer.
+// DEVICE-VERIFIED 2026-10-01 (webOS CE 3.1.0, all three variants): a checkbox and a typed number
+// written by about:preferences were still user prefs, and still the effective values, after a
+// card relaunch that re-sent `setBlockPopups 1 / setAcceptCookies 1 / setMinFontSize 2`.
+// enableJavascript joined them the same day — see GoannaRenderPage::SetJavaScriptEnabled.
 static already_AddRefed<nsIPrefBranch> CardDefaultsBranch() {
   nsCOMPtr<nsIPrefBranch> pb;
   nsCOMPtr<nsIPrefService> ps = do_GetService("@mozilla.org/preferences-service;1");
@@ -3347,13 +3348,31 @@ bool GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py
 }
 
 void GoannaRenderPage::SetJavaScriptEnabled(bool enabled) {
-  // Global pref (read by the JS engine when a page's context is created) — must
-  // be set before the page loads. Also set the per-docShell flag when present.
-  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
-  if (pb) pb->SetBoolPref("javascript.enabled", enabled);
+  // The card's value is the DEFAULT, exactly as for the three settings above
+  // (CardDefaultsBranch): a value the user set on about:preferences is a user pref and wins.
+  // This used to write the user branch, and the card sends it on every connect, so a
+  // JavaScript switch on the settings page was undone by the next card launch — measured
+  // 2026-10-01: the page wrote false, a page loaded afterwards ran no script, the card was
+  // relaunched (`setEnableJavaScript 1`) and script was back on. That, not the docShell, is why
+  // the page could not carry the row.
+  nsCOMPtr<nsIPrefBranch> def = CardDefaultsBranch();
+  if (def) def->SetBoolPref("javascript.enabled", enabled);
+  SyncScriptGate();
+}
+
+// Script is gated twice: by the pref, read when a page's global is created, and by the
+// docShell's own flag, which acts on the page already loaded. Keep the flag equal to the
+// EFFECTIVE pref so the two never disagree — called when the card sends its value and at the
+// start of every load the daemon issues, which is how a change made on about:preferences
+// (a pref write this code never sees) reaches the docShell. Chrome pages are immune to both.
+void GoannaRenderPage::SyncScriptGate() {
   if (!mChrome) return;
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  bool on = true;
+  if (!pb || NS_FAILED(pb->GetBoolPref("javascript.enabled", &on))) return;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-  if (ds) ds->SetAllowJavascript(enabled);
+  bool cur = true;
+  if (ds && NS_SUCCEEDED(ds->GetAllowJavascript(&cur)) && cur != on) ds->SetAllowJavascript(on);
 }
 
 // JSON string escape for the HitTest reply (quotes, backslash, control chars). The values

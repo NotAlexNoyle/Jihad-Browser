@@ -290,6 +290,7 @@ public:
 
   // --- settings (YAP: setEnableJavaScript) — per-page via the docShell ---
   void SetJavaScriptEnabled(bool enabled);
+  void SyncScriptGate();   // docShell allowJavascript := effective javascript.enabled
 
   // Read the current painted content into dst as ARGB32 (native LE B,G,R,A),
   // width*height*4 bytes. dst must be at least that large. Returns the number

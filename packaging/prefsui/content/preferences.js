@@ -78,14 +78,14 @@ const PANES = [
 				rows: [
 					{pref: "permissions.default.image", type: "choice", label: "Load images",
 					 options: [[1, "Always"], [2, "Never"], [3, "Only from the originating site"]]},
-					// NO JavaScript toggle here, deliberately. `javascript.enabled` is written by
-					// this page fine, but script still ran on a real page afterwards
-					// (device-measured 2026-08-05): the daemon gates script per-PAGE on the
-					// docShell as well — `GoannaRenderPage::SetJavaScriptEnabled` does
-					// `ds->SetAllowJavascript()` alongside the pref — and this page cannot reach
-					// a docShell. A control that does nothing is worse than an absent one
-					// (cavekit-preferences-ui.md R2), so it is absent until the page can drive
-					// the daemon (the R5 merge), at which point it belongs here.
+					// The JavaScript row. Absent from 2026-08-05 to 2026-10-01 on a wrong diagnosis
+					// ("the page cannot reach a docShell"). Measured on the device 2026-10-01: this
+					// page's own write DOES stop script on the next page loaded; what undid it was
+					// the card, which re-sent its own value to the USER branch on every launch. The
+					// daemon now takes the card's value as the default, like the three settings
+					// below, and re-reads the effective pref at every load it starts.
+					{pref: "javascript.enabled", type: "bool", label: "Enable JavaScript",
+					 help: "Applies to pages opened after the change."},
 					{pref: "dom.disable_open_during_load", type: "bool", label: "Block pop-up windows"},
 					{pref: "plugin.default.state", type: "choice", label: "Plugins",
 					 options: [[0, "Never activate"], [1, "Ask to activate"], [2, "Always activate"]]},
@@ -310,7 +310,11 @@ function publishToFragment(cfg) {
 	try {
 		// Replaces the fragment in place: same document, no reload, and the card sees the
 		// new url. Written even when unchanged so a card that missed one still catches up.
-		window.location.hash = "chrome=" + encodeURIComponent(JSON.stringify(cfg));
+		// location.replace, NOT `location.hash = …`: assigning the hash PUSHES a session-history
+		// entry per edit. Measured on the device 2026-10-01 (Mojo card): after two edits Back did
+		// not leave this page — it stepped to the previous fragment, the card was handed that
+		// OLDER payload as a committed url and adopted it, silently undoing the second edit.
+		window.location.replace("#chrome=" + encodeURIComponent(JSON.stringify(cfg)));
 	} catch (e) { /* never let publishing break the editor */ }
 }
 

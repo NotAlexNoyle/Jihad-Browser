@@ -412,7 +412,9 @@ Flash outage that read as a code regression on binaries nobody had touched.
       dlopen; `render/goanna/test/alsa_probe.c` did it for audio and cleared our runtime of blame
       by playing an audible tone from both. `strace` EXISTS on the device (`/usr/bin/strace`) and
       settled the semaphore case in one run.)*
-- [~] The remaining cross-ABI surfaces are enumerated rather than discovered one outage at a time —
+- [x] The remaining cross-ABI surfaces are enumerated rather than discovered one outage at a time — *(**CLOSED `[~]`→`[x]` 2026-10-01 — the two device items this box was waiting on were run on the device (webOS CE 3.1.0, glibc 2.8), with `build/webos-oe/r9-device-probes.sh`.***
+      *(1) **`PTHREAD_PROCESS_SHARED` mutex `__kind`, measured against the device's OWN libpthread** (the probe built with the PDK gcc, dynamically linked, run under the device loader — `/lib/libpthread.so.0 -> libpthread-2.8.so`): a process-shared mutex initialises with `__kind = 128` and `lock()` on a mutex whose `__kind` is 128 returns 0. **So glibc 2.8 and the bundled 2.23 AGREE, and the "second armed trap" recorded below does not exist on this device.** It was an artefact of the proxy: the PDK sysroot's glibc 2.5 writes `__kind = 0` and rejects 128, and the earlier host-only measurement (rightly flagged at the time as "2.5 is a proxy, not the device") was read as if it described 2.8. A shared mutex created on either side of the boundary is usable on the other.*
+      *(2) **`libflashplayer.so`'s dependency closure, pulled off the CE device and scanned** (`out-arm/r9-closure`, 67 libraries, SHA256SUMS beside them; every `DT_NEEDED` resolved on CE, including `libssl`/`libcrypto` 0.9.8, `libcurl.so.4`, `libWebKitLuna.so`, `libPiranha.so`; `libflashplayer.so` itself is byte-identical to the 3.0.5 one, md5 `14c20ba9…`). The cross-ABI entry points in it, exhaustively: **named semaphores** (`sem_open`) — `libPmLogLib.so` only, the one already contained by `JihadPmLogSem.c`; **process-shared mutexes** (`pthread_mutexattr_setpshared`) — `libLunaSysMgrIpc.so`, `libWebOsProxy.so`, `liblunaservice.so`, compatible per (1); **a semaphore in shared memory** — `libpowerd.so.0` imports `shm_open` + `mmap` + `sem_init` + `sem_post`/`sem_wait` and is a DIRECT dependency of `libflashplayer.so`: if that `sem_t` is shared with a glibc-2.8 process it is the same value-word layout split as the PmLogLib one. It is ARMED, not sprung — Flash has rendered, taken input and played sound through this runtime without a hang — and it is now named, so a future Flash hang that follows a power-management call has a first suspect; **plain shared memory** (`shm_open`, layout application-defined) — `libWebKitLuna.so`, `liblunaservice.so`, `librt`. Unnamed in-process semaphores (`libnapp`, `libremoteplugin`, `libv8`) are created and used by one libc and do not cross the boundary.)* *(Earlier notes follow; where they say the mutex trap is armed, (1) above is the device measurement.)* —
       at minimum: `pthread_mutex_t`/`pthread_cond_t` in shared memory (`ProcessMutex` is compiled
       into the adapter as `PTHREAD_PROCESS_SHARED` and instantiated by nothing today, so it is the
       next one that would need this analysis), any struct passed through SysV shm, and any device
@@ -649,6 +651,10 @@ snapping to 1188000 the moment the page was navigated away, with the whole syste
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-01 (later still): R9 enumeration `[~]`→`[x]` — device probes run: glibc 2.8 writes the same
+  process-shared mutex `__kind` as 2.23 (the "second trap" was a 2.5-proxy artefact), and Flash's
+  67-library closure resolves on CE with its cross-ABI entry points listed (new named suspect:
+  `libpowerd`'s semaphore in shared memory).
 - 2026-10-01 (later still): R4 — Luna registration `[ ]`→`[x]` (the -1027 confirmed on the device,
   fixed in postinst and in the daemon, verified on the supported install path); a new criterion
   "an upgrade install does not take LunaSysMgr down" added and met (postinst overwrote the mapped

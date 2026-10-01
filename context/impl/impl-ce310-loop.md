@@ -38,6 +38,10 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-228 | DONE | Blank settle: about:blank 4 renders → settled at 558 ms → 0 paints/30 s; blank→plain first paint 0.78 s; slow load 12 suppressed blanks, 0 published; late-content page paints after settling. offscreen R8 box + R3 box → `[x]`. |
 | T-229 | DONE (measured, NOT idle) | Card on a static page, display on: 12.3% of a core (main thread; tick `work avg 0–1 ms` × ~205 ticks/2 s). engine-embedding R3 stays `[~]`; fix is T-292 (quiet tick with a card connected), batch 2. |
 | T-237 | DONE | TLS capture (run ahead of its lane slot — independent of the install cycle): howsmyssl `"tls_version":"TLS 1.3"` rating Improvable (no session tickets; no insecure suites; 21 suites); Cloudflare trace `tls=TLSv1.3 http=http/2`. browser-services R5 TLS box → `[x]`. Readback method: `jsurl` puts the extracted field in `document.title`, `title` prints it (gettext truncates the JSON). |
+| T-230 | DONE | CE snapshot `out-audit/ce-3installed-pushvariant.txt` (audit script now also md5s Atlas's files). Atlas identity columns, read off the device: MIME `application/x-atlas-browser`, shim `BrowserAdapterAtlas.so`, socket `/tmp/yapserver.atlas`, jobs `atlas` + `atlas-sensord`, Luna `org.webosports.browserserver`, app `org.webosports.app.atlas` — none equals a Jihad column. |
+| T-231 | BLOCKED (permission) | Removing a variant (prerm + payload `rm -rf`) was refused by the session's permission gate as irreversible deletion. Not attempted another way. Needs the owner's go-ahead. |
+| T-232/T-233 | PARTIAL | Supported-path installs (ipkgservice) done for enyo, mochi, mojo — but as install-OVER. Luna registered on first start ×3 (Enyo from a hub with the role hidden). All three now ipkg-registered. Fresh-from-nothing and the reboot remain (blocked on T-231). |
+| (found) | FIXED | Upgrade crash: postinst `cp` over the mapped adapter shim → LunaSysMgr SIGSEGV at the next card launch (seen once). postinst now replaces shim + impl by rename; verified on three upgrades. New kit criterion in device-build R4, `[x]`. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 
@@ -68,5 +72,12 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
   page zoom) and go through the input queue; `clickoff dx dy n <id>` / `rect <id>` take a bare
   element id (or `sel:<css>`), CSS px, and bypass the queue — `clickoff` on the video play button
   returned `ok=1` and did not toggle it. `gettext` truncates long text (~330 chars).
+- **A `launch` in the first ~minute after an `ipkgservice` install is silently dropped**
+  (`returnValue:true`, no card). Wait a minute before concluding a card does not connect.
+- The adapter shim loads its impl from a fresh `/tmp/jihad-<v>-adapter-XXXXXX` copy (unlinked) and
+  hot-reloads a changed impl when no card of that variant is open; LunaSysMgr's maps are the way
+  to see which build is loaded. The shim itself is only reloaded by a LunaSysMgr restart.
+- `ipkgservice/install` returns to `luna-send -n N` after N messages while the install is still
+  running; poll for the daemon before reading results.
 - Cards can be closed remotely: `applicationManager/running` → `processid`, then
   `applicationManager/close {"processId": …}`. Used for the connect-latency baseline.

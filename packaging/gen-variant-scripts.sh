@@ -204,18 +204,33 @@ mkdir -p /usr/lib/BrowserPlugins "$IMPLDIR" "$STATE"
 # 0755, NOT world-writable — see the footprint note above.
 chown 0:0 /usr/lib/jihad "$IMPLDIR" /var/palm/jihad "$STATE" 2>/dev/null || true
 chmod 0755 /usr/lib/jihad "$IMPLDIR" /var/palm/jihad "$STATE"
-cp -a "$DR/BrowserPlugins/@@SHIM@@" "$SHIM"
+# ── REPLACE THE ADAPTER BY RENAME, NEVER IN PLACE (2026-10-01) ───────────────────────────────
+# On an UPGRADE, LunaSysMgr may still have the previous shim and impl MAPPED: an NPAPI library
+# stays loaded after its last card closes. `cp` onto the same path rewrites the bytes of the
+# inode that mapping is backed by, so LunaSysMgr's loaded copy turns into a mix of old and new
+# pages — and the next plugin load walks its symbol tables. Measured on webOS CE 3.1.0: an
+# install-over through the supported installer, then one card launch, and LunaSysMgr died with
+# SIGSEGV in ld.so's do_lookup_x under WebCore::PluginPackage::load, taking every card of every
+# app with it. Writing the new file beside the old one and renaming it over leaves the old inode
+# intact for whoever has it mapped; the new file is what the next LunaSysMgr start loads, which
+# is the reboot this script asks for anyway. Ownership and mode are set on the temp name so the
+# file is never visible at its real path with the wrong ones.
+SHIMTMP=/usr/lib/BrowserPlugins/.@@SHIM@@.new
+IMPLTMP=$IMPLDIR/.BrowserAdapterImpl.so.new
+cp -a "$DR/BrowserPlugins/@@SHIM@@" "$SHIMTMP"
 # F-7: `cp -a` preserves the SOURCE's ownership, and the source is the app bundle on cryptofs —
 # an untrusted 0777 filesystem. LunaSysMgr dlopens this shim as root with no trust check of its
 # own, so it must be root-owned exactly like the impl it loads.
-chown 0:0 "$SHIM" 2>/dev/null || true
-chmod 0755 "$SHIM"
-cp -a "$APP/BrowserAdapterImpl.so" "$IMPL"
+chown 0:0 "$SHIMTMP" 2>/dev/null || true
+chmod 0755 "$SHIMTMP"
+mv -f "$SHIMTMP" "$SHIM"
+cp -a "$APP/BrowserAdapterImpl.so" "$IMPLTMP"
 # The shim REJECTS an impl that is not root-owned or is group/world-writable, and `cp -a`
 # preserves the source's cryptofs-reported 777 — so set both explicitly, or the adapter will
 # refuse to load its own implementation.
-chown 0:0 "$IMPL" 2>/dev/null || true
-chmod 0644 "$IMPL"
+chown 0:0 "$IMPLTMP" 2>/dev/null || true
+chmod 0644 "$IMPLTMP"
+mv -f "$IMPLTMP" "$IMPL"
 # The interactive-widget-rect JSON schema, NEXT TO the impl because the impl finds it with
 # dladdr on itself (jihadAppFile in BrowserAdapter.cpp). The adapter validates every
 # msgAddFlashRects payload against this file and DROPS the whole message if it cannot be
@@ -563,8 +578,8 @@ if [ "$ROOTFS_WAS_RW" = no ]; then
 else
 	log "/ was already read-write (installer-driven) — leaving the mount state to the caller"
 fi
-rm -f "$SHIM"
-rm -f "$IMPL"
+rm -f "$SHIM" "/usr/lib/BrowserPlugins/.@@SHIM@@.new"     # .new: an interrupted postinst's temp
+rm -f "$IMPL" "$IMPLDIR/.BrowserAdapterImpl.so.new"
 rm -f "$RECTSCHEMA"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone

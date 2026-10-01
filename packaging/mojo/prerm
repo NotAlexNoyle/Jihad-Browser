@@ -140,8 +140,8 @@ if [ "$ROOTFS_WAS_RW" = no ]; then
 else
 	log "/ was already read-write (installer-driven) — leaving the mount state to the caller"
 fi
-rm -f "$SHIM"
-rm -f "$IMPL"
+rm -f "$SHIM" "/usr/lib/BrowserPlugins/.BrowserAdapterJihadMojo.so.new"     # .new: an interrupted postinst's temp
+rm -f "$IMPL" "$IMPLDIR/.BrowserAdapterImpl.so.new"
 rm -f "$RECTSCHEMA"
 rmdir "$IMPLDIR" 2>/dev/null || true
 rmdir /usr/lib/jihad 2>/dev/null || true    # succeeds only once the LAST variant is gone

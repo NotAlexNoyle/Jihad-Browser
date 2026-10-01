@@ -64,6 +64,19 @@ snap() {
 			/usr/bin/BrowserServer \
 			/usr/bin/BrowserServerMojo | sort
 
+		# webOS CE 3.1.0 preinstalls a FOURTH browser, Atlas. Its files are "stock" in exactly the
+		# sense above: ours to leave byte-identical (cavekit-device-build.md R4, Atlas coexistence).
+		# On a 3.0.5 device these simply do not exist and md5sum prints nothing for them.
+		echo "## --- Atlas files that must never change (md5; webOS CE only) ---"
+		nc /usr/bin/md5sum \
+			/usr/lib/BrowserPlugins/BrowserAdapterAtlas.so \
+			/etc/event.d/atlas \
+			/etc/event.d/atlas-sensord \
+			/usr/share/ls2/roles/prv/org.webosports.browserserver.json \
+			/usr/share/ls2/roles/pub/org.webosports.browserserver.json \
+			/media/cryptofs/apps/usr/palm/applications/org.webosports.app.atlas/appinfo.json \
+			/media/cryptofs/apps/usr/palm/applications/org.webosports.app.atlas/deviceroot/wpe-252/BrowserServer-atlas | sort
+
 		echo "## --- /usr/lib/BrowserPlugins (names + sizes) ---"
 		nc /bin/ls -la /usr/lib/BrowserPlugins | awk '{print $5, $9}' | sort
 

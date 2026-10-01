@@ -19,6 +19,8 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-221 | DONE | Codec table on device (jihad-codecs.html): VP8/VP9/Theora/VP8+Vorbis/Vorbis/Opus/WAV play to the end; H.264/MP3/AAC refused (no decoder). FOUND: FLAC advertised but failed — ffvpx libs (`libmozavcodec.so`, `libmozavutil.so`) are dlopen'd, were never bundled. Fixed in make-device-bundle.sh + push-engine-update.sh; libs pushed to all three (md5 `a4eaef65…`, `d65eaf82…`); FLAC plays, others unchanged. `anon video`/`anon audio` show `videocontrols[1]` (binding attached). Error-overlay screenshots archived in `evidence-2026-10-01/`. gre-widgets R1 codec box → `[x]`. |
 | T-222 | DONE (agent part) | Play/pause both directions via inject `click` (adapter clickAt entry): pause t=11.370 held 3 s; resume → 17.65. Kit box stays `[~]` for the finger (T-285). |
 | T-223 | DONE | `packaging/prefs/jihad-platform-prefs.js` media block rewritten to the measured state (comment-only + unchanged pin). gre-widgets R7 first box → `[x]`. Reaches the device with the next goanna.js push (T-225). |
+| T-224 | DONE | R10 on media: stock tunables untouched (read back 95/200000 before and after). 640x360@24 VP8: 648–1188 MHz, 473/0 frames; 320x240: 384–1188 MHz, 0 dropped. Decision: do not extend the boost. device-build R10 box → `[x]`. |
+| T-226 | MOOT | Conditional on T-224 finding drops at the clock floor; it found neither. Nothing to build. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

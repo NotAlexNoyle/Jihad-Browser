@@ -29,6 +29,8 @@ ff -f lavfi -i "testsrc=size=320x240:rate=15:duration=12" -f lavfi -i "sine=freq
    -c:v libvpx -b:v 200k -c:a libvorbis -q:a 3 clip12av.webm
 # 60 s, video only: long enough to pause and resume mid-play (play/pause, scrubber, seek tests).
 ff -f lavfi -i "testsrc=size=320x240:rate=15:duration=60" -c:v libvpx -b:v 150k -an clip60v.webm
+# 640x360 @ 24 fps: the heaviest clip here, for the CPU-clock measurement (device-build R10).
+ff -f lavfi -i "testsrc2=size=640x360:rate=24:duration=20" -c:v libvpx -b:v 700k -an clip20hd.webm
 ff -f lavfi -i "sine=frequency=440:duration=15" -c:a libvorbis -q:a 3 tone15.ogg
 ff -f lavfi -i "$A" -c:a libopus -b:a 48k tone10.opus
 ff -f lavfi -i "$A" -c:a pcm_s16le tone10.wav
@@ -55,6 +57,7 @@ check clip10.ogv     theora 150
 check clip10h264.mp4 h264   150
 check clip12av.webm  vp8    180
 check clip60v.webm   vp8    900
+check clip20hd.webm  vp8    480
 check clip12av.webm  vorbis "" a:0
 check tone15.ogg     vorbis "" a:0
 check tone10.opus    opus   "" a:0

@@ -560,10 +560,31 @@ snapping to 1188000 the moment the page was navigated away, with the whole syste
       `0027` holds the boost for the life of an NPAPI plugin instance and restores the values it
       read; the variant's upstart job restores stock from `post-stop` so a crashed daemon cannot
       strand a system-wide tuning. Both halves device-verified.)*
-- [~] Whether the boost should extend beyond plugins — video, heavy JS, page load — is UNDECIDED.
+- [x] Whether the boost should extend beyond plugins — video, heavy JS, page load — is UNDECIDED.
       Nothing else in the browser currently raises the clock, so any non-plugin workload still
       runs against `up_threshold=95`.
-      *(**DOWNGRADED `[x]`→`[~]` 2026-10-01 — the 2026-08-10 decision below was measured on ONE of
+      *(**RE-CLOSED `[~]`→`[x]` 2026-10-01 (later the same day): DO NOT EXTEND IT — now measured
+      on media as well, on the device (webOS CE 3.1.0, fixed engine `65e3cc84…`).** Stock tunables
+      read back before and after (`ondemandtcl`, `up_threshold=95`, `sampling_rate=200000`),
+      nothing written, `scaling_governor` only READ; `scaling_cur_freq` sampled once a second
+      while an engine `<video>` played, Enyo card connected, log growth asserted:*
+
+      | workload | clock during playback (MHz, 1 Hz samples) | decoded / dropped |
+      |---|---|---|
+      | static page, idle (control) | 384 192 192 192 192 192 432 384 | — |
+      | VP8 640x360 @ 24 fps, 700 kb/s | 864 1134 864 864 648 918 864 1026 918 1188 918 1188 864 864 918 1026 864 648 | 473 / 0 at t=19.6 s (24 fps × 19.6 = 471) |
+      | VP8 320x240 @ 15 fps | 384 384 384 384 384 972 540 1188 384 648 540 432 756 648 918 | 254 / 0 at t=16.8 s |
+      | Theora 320x240 @ 15 fps | 648 384 918 540 540 384 1188 540 432 432 192 384 | 149 / 0, played to the end |
+
+      *Engine media does NOT sit at the 192 MHz floor: the governor ramps by itself — to
+      648–1188 MHz for the 640x360 clip, and as far as the light clips need — and not one frame
+      was dropped in any run. The software video decode thread is evidently busy enough on one
+      core to cross `up_threshold`, which is what the plugin case never does. So the worry in the
+      downgrade note below ("passive media is the floor class") is answered by measurement: it is
+      not, for decode at these sizes. Patch `0027` stays scoped to plugin-instance lifetime, and
+      there is still no second consumer. Not measured: clips larger than 640x360, which this
+      software path was never expected to carry.)*
+      *(**DOWNGRADED `[x]`→`[~]` 2026-10-01 (earlier) — the 2026-08-10 decision below was measured on ONE of
       the three workloads this criterion names.** It benchmarked a single-threaded JS loop, which
       saturates one core and so ramps the governor by itself. HTML5 `<video>`/`<audio>` playback
       was never measured — it could not have been: `<video>` failed inside the first second on
@@ -615,6 +636,8 @@ snapping to 1188000 the moment the page was navigated away, with the whole syste
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-01 (later): R10 "extend the boost beyond plugins" re-closed `[x]` — measured on engine
+  `<video>` under stock tunables: the clock ramps by itself and no frame is dropped; do not extend.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0** (header at the top). R4: description
   updated; three criteria added (fresh install on the supported path `[~]`, first-start Luna
   registration `[ ]`, coexistence with Atlas `[ ]`) plus the CE 3.1.0 re-verification sweep, one

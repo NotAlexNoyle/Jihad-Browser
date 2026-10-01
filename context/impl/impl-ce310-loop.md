@@ -52,6 +52,7 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-246 | DONE | Plugin sweep (Enyo, CE): `profile/plugins/` was EMPTY after the CE install — stock `libflashplayer.so` copied in by hand (test setup; nothing ships it). Loads, renders (screenshot), mouse events reach it, SIGSEGV of plugin-container leaves the daemon up, boost 40/50000 taken and 95/200000 restored. Not run: the control plugin, about:plugins text readout (`gettext body` returns the page's script), plugin key input. |
 | T-247 | DONE (agent part) | Histograms A/B/C on CE (see addons kit R7 table). FOUND: shipped build ran the 8 ms tick for plugins (the 16 ms tick was a device-local job edit). FIXED: `jihadPluginTickPeriodMs()` = 16 while a plugin is on a page. A2 (no env) = 32.6 fps, 366/724 gaps in 32–39 ms, deferred 0. Daemon `46d3714d430162502b3630cf63d4854b` on all three. Device left on the SHIPPED job (no pacing env). B-vs-C is T-287 (human). |
 | T-293 | DONE | Flash part closed by T-247. engine-embedding R3 → `[x]`. |
+| T-235 | DONE (install half) | Atlas coexistence: identity columns distinct; stock + Atlas md5 identical after three ipkgservice installs; both browsers serve; stopping either daemon leaves the other on the same PID; no cross-connect. Removal half blocked with T-231. device-build R4 Atlas box → `[~]`. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

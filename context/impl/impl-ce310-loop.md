@@ -46,6 +46,7 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-239 | DONE (agent part) | Volume widget: mute + slider change `muted`/`volume`; pulse sink-input follows (100→54/96/78%, 0% muted); codec level untouched. T-241 (engine volume wiring) is MOOT. Kit box `[~]` for the finger (T-285). |
 | T-292 | DONE | Quiet tick: frame period → 100 ms after ~0.2 s with no busy page and no card command; commands wake it from `pageFor()`; inject polled by the clock; tick-stats line only when the loop painted or a tick ran ≥40 ms. `JIHAD_QUIET_TICK_MS` (0 disables). Daemon `2786380985b928f05480419b6141aa6b` on all three. |
 | T-293 | DONE except Flash | Static page 2.2% (was 12.3%), 11.5 wakeups/s; clicks ≤20 ms; video 149/0; 1 Hz timer page: max 216 / mean 65 ms late, 9.3% CPU. Flash histogram check rides the plugin sweep (T-247). engine R3 stays `[~]` until then. |
+| T-242 | DONE | Toast in all three shells (public-bus `clearCookies` → `(pushed)` → screenshot). gre-widgets R5 toast box → `[x]`. Mojo toast overlapped by the command row → `bottom: 84px` in `jihad-toast.js`, pushed with `push-card-js.sh mojo --no-sysmgr`; the card still runs the cached script until LunaSysMgr restarts (not re-photographed). |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

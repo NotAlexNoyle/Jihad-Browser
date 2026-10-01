@@ -54,7 +54,10 @@ var JihadToast = (function () {
 		// past the screen edge the way width:100% plus padding would.
 		s.left = "24px";
 		s.right = "24px";
-		s.bottom = "24px";
+		// 84px, not 24: this shell has a command row along the bottom edge (~60px) and it is
+		// drawn OVER a fixed node — at 24px the toast's text sat behind the row's icons (device
+		// screenshot 2026-10-01). 84 clears the row with the same 24px gap the other shells use.
+		s.bottom = "84px";
 		s.padding = "10px 16px";
 		s.background = "rgba(0,0,0,0.82)";
 		s.color = "#ffffff";

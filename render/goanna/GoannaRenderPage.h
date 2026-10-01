@@ -268,6 +268,9 @@ public:
   // the keyDown YAP callback (F-219) — controlled/React inputs otherwise discard the programmatic
   // SetValue edit and restore the old value (Codex F-238).
   void FlushPendingInputEvent();
+  // Dispatch `change` on a field this daemon edited, once it has lost focus (or now, with force).
+  // Guarded pump only — it runs page script.
+  void FlushPendingChangeEvent(bool force = false);
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
   // Resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON (isNull/isLink/

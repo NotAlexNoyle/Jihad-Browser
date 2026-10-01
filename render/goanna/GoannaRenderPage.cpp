@@ -65,6 +65,7 @@
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
+#include "nsIDOMHTMLDocument.h"      // body: the viewport scroller of a quirks-mode document (ScrollTo)
 #include "nsIDOMDocumentXBL.h"       // reach XBL anonymous content (chrome UI controls)
 #include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
 #include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
@@ -155,6 +156,16 @@ public:
   nsCOMPtr<nsIX509Cert> mCertCert;   // the untrusted server cert (for override)
   nsCOMPtr<nsIDOMElement> mFocusedEditable;  // last-tapped editable, marked for InsertText DOM mutation
   nsCOMPtr<nsIDOMElement> mPendingInputEl;   // element that was edited + needs an 'input' event (F-266)
+  // The field whose VALUE this daemon has edited since it took focus, and what the value was before
+  // the first of those edits. Every edit here goes through the value setter, which the engine treats
+  // as a script write: it moves the control's own "value at focus" along with it, so the engine never
+  // fires `change` when the field is left. FlushPendingChangeEvent does it instead.
+  nsCOMPtr<nsIDOMElement> mEditedEl;
+  nsString mEditedBaseline;
+  void NoteValueEdit(nsIDOMElement* el, const nsAString& before) {
+    if (el == mEditedEl) return;
+    mEditedEl = el; mEditedBaseline = before;
+  }
   // Engine-driven focus state (Atlas IM-context port): capture-phase focus/blur on the top
   // document land in HandleEvent, which records the ENGINE's view of whether a text control is
   // focused. GoannaRenderPage::PollEngineFocus merges this into the VKB state machine each pump
@@ -997,9 +1008,35 @@ static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);
 
 void GoannaRenderPage::ScrollTo(int x, int y) {
   if (!mChrome) return;
-  // No scroll entry point in the frozen embedding API; a javascript: URL runs in
-  // the page's context without navigating (window.scrollTo returns undefined, so
-  // the load is not replaced). Requires JS enabled (the default).
+  // Scroll the viewport through the DOM, natively: scrollLeft/scrollTop on the element that
+  // carries the viewport's scroll (the root element; <body> in a quirks-mode document). This used
+  // to be ONLY the javascript: URL below, and that never runs in a chrome document nor with
+  // script switched off, so on about:preferences / about:addons / about:config — and on every
+  // page once the user disabled JavaScript — the engine stayed at 0,0 however far the card had
+  // panned. The picture still moved (the adapter pans its own buffer) but every tap below the
+  // first screenful was hit-tested against the unscrolled viewport and landed on nothing: measured
+  // 2026-10-01 in the Mochi card (655 px window), `scroll 0 400` left a field's rect at y=767 and
+  // the tap on it resolved to `<null>`. It is also one DOM call instead of a URL load per pan step.
+  {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+    nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
+    nsCOMPtr<nsIDOMElement> target;
+    if (doc) {
+      doc->GetDocumentElement(getter_AddRefs(target));
+      nsAutoString mode; doc->GetCompatMode(mode);
+      if (mode.EqualsLiteral("BackCompat")) {
+        nsCOMPtr<nsIDOMHTMLDocument> hdoc = do_QueryInterface(doc);
+        nsCOMPtr<nsIDOMHTMLElement> body; if (hdoc) hdoc->GetBody(getter_AddRefs(body));
+        nsCOMPtr<nsIDOMElement> b = do_QueryInterface(body);
+        if (b) target = b;
+      }
+    }
+    if (target && NS_SUCCEEDED(target->SetScrollLeft(x)) && NS_SUCCEEDED(target->SetScrollTop(y)))
+      return;
+  }
+  // Fallback (no document element yet): a javascript: URL runs in the page's context without
+  // navigating (window.scrollTo returns undefined, so the load is not replaced).
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
   if (!nav) return;
   char js[96];
@@ -1096,6 +1133,29 @@ static bool edIsEditable(nsIDOMElement* el) {
   return ce;
 }
 
+// The control a focused element BELONGS to. An <input type=number> is drawn by an anonymous text
+// field inside it, and that inner field — not the control — is what the engine focuses and what
+// the focus manager reports. Editing the inner field changes what is on screen and nothing else:
+// the control's own value never moves, so a form submits the old number and `change` never reaches
+// the page (the control swallows the inner field's own events by design). Measured on the device
+// 2026-10-01: a number typed into an about:preferences field logged
+// `insert: branch=value/sel tag=[INPUT] type=[text] ... inDoc=0` — an anonymous text field, where
+// the row is type=number — showed in the field, and was never saved. Every place that adopts "what
+// is focused" as the edit target goes through here, so the target is always the page's own control.
+// Trivial getters only: safe from the focus listener.
+static already_AddRefed<nsIDOMElement> edHostControl(nsIDOMElement* el) {
+  nsCOMPtr<nsIDOMElement> out = el;
+  nsCOMPtr<nsIDOMNode> n = do_QueryInterface(el);
+  nsCOMPtr<nsIDOMDocument> doc; if (n) n->GetOwnerDocument(getter_AddRefs(doc));
+  nsCOMPtr<nsIDOMDocumentXBL> xbl = do_QueryInterface(doc);
+  if (xbl) {
+    nsCOMPtr<nsIDOMElement> host; xbl->GetBindingParent(n, getter_AddRefs(host));
+    nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(host);
+    if (in) out = host;
+  }
+  return out.forget();
+}
+
 // Engine focus/blur observer (Atlas IM-context port). Runs SYNCHRONOUSLY inside engine event
 // dispatch (during PumpFor), so it must only flip flags/swap COMPtrs — no engine calls, no
 // navigation (the F-219 crash class). The VKB emission happens later, from PollEngineFocus in
@@ -1105,8 +1165,9 @@ NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
   if (!aEvent) return NS_OK;
   nsAutoString type; aEvent->GetType(type);
   nsCOMPtr<nsIDOMEventTarget> t; aEvent->GetTarget(getter_AddRefs(t));
-  nsCOMPtr<nsIDOMElement> el = do_QueryInterface(t);
-  if (!el) return NS_OK;   // window/document focus transitions — not a field
+  nsCOMPtr<nsIDOMElement> raw = do_QueryInterface(t);
+  if (!raw) return NS_OK;   // window/document focus transitions — not a field
+  nsCOMPtr<nsIDOMElement> el = edHostControl(raw);
   if (type.EqualsLiteral("focus")) {
     bool text = edIsEditable(el);
     mEngineFocusIsText = text;
@@ -1172,6 +1233,43 @@ void GoannaRenderPage::FlushPendingInputEvent() {
   bool dummy = false; if (tgt) tgt->DispatchEvent(ev, &dummy);
 }
 
+// Dispatch the `change` the engine will not: see PageChrome::mEditedEl. Due once the edited field
+// is no longer its document's active element (the user tapped elsewhere, Tab moved on, script
+// moved focus), or at once when `force` is set (Enter, just before an implicit form submission —
+// the order a page's own validation expects). Nothing is dispatched when the value is back to what
+// it was before the first edit, which is what a browser does. Like `input`, this runs page script,
+// so it is called only from the guarded pump loop, never from a key callback.
+// Measured before this existed (2026-10-01, about:preferences on the device): a number typed into
+// a settings field showed in the field and was never saved, because that page — like most forms —
+// saves on `change`.
+void GoannaRenderPage::FlushPendingChangeEvent(bool force) {
+  if (!mChrome || !mChrome->mEditedEl) return;
+  nsCOMPtr<nsIDOMElement> el = mChrome->mEditedEl;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  nsCOMPtr<nsIDOMDocument> doc; if (node) node->GetOwnerDocument(getter_AddRefs(doc));
+  // A field in a document that has since been navigated away from gets no event: nobody is
+  // listening, and holding its element would keep the old document alive.
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+  nsCOMPtr<nsIDOMDocument> cur; if (cv) cv->GetDOMDocument(getter_AddRefs(cur));
+  if (!doc || doc != cur) { mChrome->mEditedEl = nullptr; mChrome->mEditedBaseline.Truncate(); return; }
+  if (!force) {
+    nsCOMPtr<nsIDOMElement> act; doc->GetActiveElement(getter_AddRefs(act));
+    act = edHostControl(act);
+    if (act == el) return;   // still being edited
+  }
+  nsAutoString now;
+  bool changed = edGetValue(el, now) && !now.Equals(mChrome->mEditedBaseline);
+  mChrome->mEditedEl = nullptr; mChrome->mEditedBaseline.Truncate();
+  if (!changed) return;
+  nsCOMPtr<nsIDOMEvent> ev;
+  doc->CreateEvent(NS_LITERAL_STRING("Event"), getter_AddRefs(ev));
+  if (!ev) return;
+  ev->InitEvent(NS_LITERAL_STRING("change"), true, false);   // bubbles, non-cancelable
+  nsCOMPtr<nsIDOMEventTarget> tgt = do_QueryInterface(el);
+  bool dummy = false; if (tgt) tgt->DispatchEvent(ev, &dummy);
+}
+
 // T-131 (cavekit-preferences-ui.md R6) DIAGNOSIS INSTRUMENT — deliberately NOT a fix.
 // The recorded fact this exists to explain: typing lands on an ordinary file:// page and does NOT on
 // about:preferences, where the tap IS classified correctly (the daemon logged `editorFocused=1
@@ -1225,6 +1323,7 @@ void GoannaRenderPage::InsertText(const char* text) {
     nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
     nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
     nsCOMPtr<nsIDOMElement> act; if (doc) doc->GetActiveElement(getter_AddRefs(act));
+    act = edHostControl(act);
     if (act && edIsTextInput(act)) {
       mChrome->mFocusedEditable = act;
       if (kLogInsert)
@@ -1250,6 +1349,7 @@ void GoannaRenderPage::InsertText(const char* text) {
       // caret just past it. Replacing the selection is what makes onfocus=this.select() fields (e.g.
       // a search box) type correctly instead of appending to the selected text (Codex F-221).
       nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(t); nv.Append(Substring(v, e));
+      mChrome->NoteValueEdit(el, v);
       edSetValue(el, nv);
       int32_t nc = s + (int32_t)t.Length();
       edSetCaret(el, nc);
@@ -1262,7 +1362,9 @@ void GoannaRenderPage::InsertText(const char* text) {
       // invalid prefix (a lone leading "-", or "1." mid-decimal) is dropped — typing "-1" yields
       // "1". Faithfully supporting that needs the engine's own text-control editor buffer, which we
       // bypass; acceptable for now since numeric entry is normally left-to-right and valid.
-      nsAutoString nv(v); nv.Append(t); edSetValue(el, nv); el->SetScrollLeft(1 << 24);
+      nsAutoString nv(v); nv.Append(t);
+      mChrome->NoteValueEdit(el, v);
+      edSetValue(el, nv); el->SetScrollLeft(1 << 24);
       if (kLogInsert) jihadLogInsertBranch(el, "value/append", (int)v.Length(), (int)nv.Length());
     }
     return;
@@ -1300,14 +1402,19 @@ void GoannaRenderPage::DeleteBackward() {
     if (edGetSelection(el, v, &s, &e)) {
       if (s != e) {   // a range is selected: Backspace deletes the whole selection (Codex F-221)
         nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+        mChrome->NoteValueEdit(el, v);
         edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; return;
       }
       if (s == 0) return;   // nothing before the caret: no mutation, no input event
       int32_t drop = edIsPairBoundaryLow(v, s - 1) ? 2 : 1; if (drop > s) drop = s;
       nsAutoString nv; nv.Append(Substring(v, 0, s - drop)); nv.Append(Substring(v, s));
+      mChrome->NoteValueEdit(el, v);
       edSetValue(el, nv); edSetCaret(el, s - drop); mChrome->mPendingInputEl = el; return;
     }
-    if (!v.IsEmpty()) { jihadTrimLastChar(v); edSetValue(el, v); mChrome->mPendingInputEl = el; }
+    if (!v.IsEmpty()) {
+      mChrome->NoteValueEdit(el, v);
+      jihadTrimLastChar(v); edSetValue(el, v); mChrome->mPendingInputEl = el;
+    }
     return;
   }
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);   // contentEditable
@@ -1329,6 +1436,7 @@ void GoannaRenderPage::DeleteBackwardWord() {
   if (edGetValue(el, v) && edGetSelection(el, v, &s, &e)) {
     if (s != e) {   // selection present: delete it
       nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+      mChrome->NoteValueEdit(el, v);
       edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; return;
     }
     if (s == 0) return;   // nothing before the caret: no mutation (F-267)
@@ -1338,6 +1446,7 @@ void GoannaRenderPage::DeleteBackwardWord() {
     if (i >= s) i = s - 1;                                    // guarantee progress
     if (edIsPairBoundaryLow(v, i)) i--;                       // never split a surrogate pair (F-187)
     nsAutoString nv; nv.Append(Substring(v, 0, i)); nv.Append(Substring(v, s));
+    mChrome->NoteValueEdit(el, v);
     edSetValue(el, nv); edSetCaret(el, i); mChrome->mPendingInputEl = el;
     return;
   }
@@ -1389,11 +1498,13 @@ void GoannaRenderPage::EditKey(int action) {
     case EK_DELETE: {
       if (hasSel) {   // forward-Delete with a selection removes the selection
         nsAutoString nv; nv.Append(Substring(v, 0, s)); nv.Append(Substring(v, e));
+        mChrome->NoteValueEdit(el, v);
         edSetValue(el, nv); edSetCaret(el, s); mChrome->mPendingInputEl = el; break;
       }
       if (c >= len) break;   // nothing after the caret: no mutation, no input event (F-267)
       int32_t drop = edIsPairBoundaryLow(v, c + 1) ? 2 : 1; if (c + drop > len) drop = len - c;
       nsAutoString nv; nv.Append(Substring(v, 0, c)); nv.Append(Substring(v, c + drop));
+      mChrome->NoteValueEdit(el, v);
       edSetValue(el, nv); edSetCaret(el, c); mChrome->mPendingInputEl = el;
       break;
     }
@@ -1412,6 +1523,10 @@ bool GoannaRenderPage::HandleEnter() {
   if (ta) { InsertText("\n"); return false; }   // newline, not a submit
   nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
   if (!in) return false;
+  // Enter commits the field: `change` first, whether or not there is a form to submit (a search
+  // box or a settings field with no form saves on exactly this).
+  FlushPendingChangeEvent(true);
+  if (!mChrome || !mChrome->mFocusedEditable) return true;   // the handler moved focus / navigated
   nsCOMPtr<nsIDOMHTMLFormElement> form; in->GetForm(getter_AddRefs(form));
   if (!form) return false;
   // Implicit form submission: validate (honoring novalidate), fire the cancelable 'submit' event so
@@ -1488,6 +1603,7 @@ void GoannaRenderPage::FocusNextField(bool backward) {
     nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
+      foc = edHostControl(foc);
       if (foc && foc != nel) {
         if (edIsTextInput(foc)) { mChrome->mFocusedEditable = foc; nel = foc; }
         else {
@@ -2623,6 +2739,13 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   nsAutoString tag; if (el) el->GetTagName(tag);
   fprintf(stderr, "[jihad-bs] clickAt (%d,%d) <%s> href=%s nav=%d\n",
           x, y, el ? NS_ConvertUTF16toUTF8(tag).get() : "null", navigable ? h : "-", navigable);
+  // A tap anywhere but the field being typed into commits that field FIRST: `change` before the
+  // click, the order a browser gives a page. A Save button's handler reads what the field's
+  // change handler stored, and a link navigates away, after which there is nobody to tell.
+  if (mChrome->mEditedEl && el != mChrome->mEditedEl) {
+    FlushPendingChangeEvent(true);
+    if (!mChrome) return;
+  }
   if (navigable) {
     // F-1: if the pen pair already delivered this tap's click, the ENGINE has already started the
     // anchor's load (measured — xul_test K3 ends on the link target with no clickAt involved).
@@ -2757,6 +2880,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
       nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
       if (fm) {
         nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
+        foc = edHostControl(foc);
         if (foc && foc != effEl) {
           if (edIsTextInput(foc)) {
             mChrome->mFocusedEditable = foc;
@@ -2924,6 +3048,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
       bool causedByThisTap = (foc.get() != focBefore) || jihadIsSelfOrInside(foc, effEl);
+      foc = edHostControl(foc);   // after the identity test, which is on the raw focus
       if (causedByThisTap && edIsTextInput(foc)) {
         mChrome->mFocusedEditable = foc;
         mEditorFocused = true; mEditorFieldType = 0; mEditorFocusDirty = true;

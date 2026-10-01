@@ -1,34 +1,42 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-input-echo</title>
 <style>body{margin:0;background:#111;color:#0f0;font:16px monospace;padding:12px}
 input,textarea{display:block;font:20px monospace;width:600px;margin:8px 0}
-#echo{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0}</style></head>
+#echo{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0}#num{width:200px}</style></head>
 <body>
 <p>jihad-input-echo: does a programmatic text insert fire the page's own `input` listener?</p>
 <input id="plain" type="text" placeholder="plain input">
 <textarea id="area" rows="2" placeholder="textarea"></textarea>
 <input id="ctl" type="text" placeholder="controlled (re-set from state)">
+<input id="num" type="number" placeholder="number">
 <div id="echo">echo: (none)</div>
 <script>
 // cavekit-input-bridging.md R2a. Three fields, each with an `input` listener that echoes into
 // #echo; read it with `gettext #echo`. #ctl is the framework shape: its value is OWNED by a
 // state variable and re-written from it on a timer, so an insert the listener never heard about
 // is visibly reverted -- which is how a controlled React input loses text.
-var n = { plain: 0, area: 0, ctl: 0 }, last = { plain: '', area: '', ctl: '' }, state = '';
+// c= counts `change` (fired when an edited field is left, or on Enter): a form that validates or
+// saves on change sees nothing without it. #num is an <input type=number>, whose on-screen text is
+// an anonymous inner field -- value=[] after typing means the edit went to that inner field and
+// never became the control's value.
+var n = { plain: 0, area: 0, ctl: 0, num: 0 }, c = { plain: 0, area: 0, ctl: 0, num: 0 };
+var last = { plain: '', area: '', ctl: '', num: '' }, state = '';
 var foc = '-', keys = 0;
 function show() {
   document.getElementById('echo').textContent =
-    'plain n=' + n.plain + ' last=[' + last.plain + '] value=[' + document.getElementById('plain').value + ']\n' +
-    'area n=' + n.area + ' last=[' + last.area + '] value=[' + document.getElementById('area').value + ']\n' +
-    'ctl n=' + n.ctl + ' last=[' + last.ctl + '] state=[' + state + '] value=[' + document.getElementById('ctl').value + ']\n' +
+    'plain n=' + n.plain + ' c=' + c.plain + ' last=[' + last.plain + '] value=[' + document.getElementById('plain').value + ']\n' +
+    'area n=' + n.area + ' c=' + c.area + ' last=[' + last.area + '] value=[' + document.getElementById('area').value + ']\n' +
+    'ctl n=' + n.ctl + ' c=' + c.ctl + ' last=[' + last.ctl + '] state=[' + state + '] value=[' + document.getElementById('ctl').value + ']\n' +
+    'num n=' + n.num + ' c=' + c.num + ' last=[' + last.num + '] value=[' + document.getElementById('num').value + ']\n' +
     'focus=' + foc + ' keydowns=' + keys;
 }
-['plain', 'area', 'ctl'].forEach(function (id) {
+['plain', 'area', 'ctl', 'num'].forEach(function (id) {
   var el = document.getElementById(id);
   el.addEventListener('input', function (e) {
     n[id]++; last[id] = el.value;
     if (id === 'ctl') state = el.value;
     show();
   });
+  el.addEventListener('change', function () { c[id]++; show(); });
   el.addEventListener('focus', function () { foc = id; show(); });
 });
 window.addEventListener('keydown', function () { keys++; show(); }, true);

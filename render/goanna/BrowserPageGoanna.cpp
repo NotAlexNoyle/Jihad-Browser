@@ -2050,6 +2050,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // still-current document before openUrl swaps it out (Codex F-266/F-291). Runs here (guarded pump),
   // not in keyDown, since onChange/oninput run page JS.
   mPage->FlushPendingInputEvent();
+  mPage->FlushPendingChangeEvent();
   // Process a queued tap next — inside the tick's page-lifetime guard, and BEFORE
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +

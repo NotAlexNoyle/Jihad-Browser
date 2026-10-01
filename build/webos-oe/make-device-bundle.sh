@@ -90,6 +90,18 @@ for s in libnssckbi.so libsoftokn3.so libfreebl3.so libfreeblpriv3.so; do
   [ -e "$DIST/bin/$s" ] && cp "$DIST/bin/$s" "$OUT/$s" && echo "  NSS module: $s"
 done
 
+# ffvpx (libmozavcodec + libmozavutil): ALSO runtime-dlopen'd and in no NEEDED list —
+# FFVPXRuntimeLinker loads them from the directory liblgpllibs.so lives in. The closure walk
+# therefore never saw them and no bundle shipped them until 2026-10-01, which went unnoticed
+# because VP8/VP9 decode through libvpx inside libxul and Vorbis/Opus/Theora/WAV through the
+# agnostic decoders. FLAC is the format that has no other decoder: without these two files the
+# engine ADVERTISES it (canPlayType "maybe", gated on a pref and the build flag only) and then
+# fails every load with MEDIA_ERR_SRC_NOT_SUPPORTED — measured on the device, and measured fixed
+# by shipping them (cavekit-gre-widgets.md R1, codec reality). -L: both are objdir symlinks.
+for s in libmozavutil.so libmozavcodec.so; do
+  cp -L "$DIST/bin/$s" "$OUT/$s" && echo "  ffvpx: $s"
+done
+
 # GRE resource files the engine loads from greDir (= the bundle dir).
 #
 # `cp -L` and the REQUIRED check are both load-bearing (found on-device 2026-07-31, the hard way):
@@ -371,7 +383,7 @@ done
 # not a packed omni.ja; the direct build treats it as optional too.)
 REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
           libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
-          libmozsqlite3.so goanna.js plugin-container)
+          libmozsqlite3.so goanna.js plugin-container libmozavutil.so libmozavcodec.so)
 _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }

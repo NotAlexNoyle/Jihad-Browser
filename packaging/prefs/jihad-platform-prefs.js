@@ -101,71 +101,42 @@ pref("browser.cache.disk.smart_size.enabled", false); // never autosize from fre
 // does not rewrite that file, an edit to THIS file is silently not re-appended. Check for the
 // value, not the marker, before concluding the desktop dist has what you just wrote.
 
-// --- HTML5 media: <video> STAYS ON. The hole is AUDIO, and no pref can express it --------
-// (cavekit-gre-widgets.md R1 last criterion + R7. Decided 2026-08-10 from source; NO DEVICE.)
+// --- HTML5 media: ON, because it WORKS — measured on the device, per format ------------------
+// (cavekit-gre-widgets.md R1 "codec reality" + R7. Device-measured 2026-10-01 on webOS CE 3.1.0
+// with render/goanna/test/jihad-codecs.html; this block replaces the 2026-08-10/08-15 text, which
+// said "VP8 plays" before it did and "no engine audio" after there was.)
 //
-// Device-measured 2026-08-10 and recorded on R1: WebM/VP8 video PLAYS (readyState=4, 160x120,
-// currentTime advancing), H.264/MP4 is not offered, MP3 is refused outright (error.code=4).
-// Video is VIABLE, so a blanket <video> disable would be WRONG. Nothing is turned off here —
-// this block is the "working, with the reason recorded" half of R7.
+//   plays to the end   VP8/WebM, VP9/WebM, Theora/Ogg, VP8+Vorbis/WebM (picture and sound),
+//                      Vorbis/Ogg, Opus/Ogg, WAV, FLAC
+//   refused cleanly    H.264/MP4, MP3, AAC — canPlayType "" and MEDIA_ERR_SRC_NOT_SUPPORTED at
+//                      load, because ffvpx is built with CONFIG_H264_DECODER 0, CONFIG_MP3_DECODER 0
+//                      and CONFIG_AAC_DECODER 0 and the device has no system libavcodec to fall
+//                      back to. A missing DECODER, not a defect, and the refusal is the behaviour
+//                      we want: nothing is advertised that cannot play.
 //
-// media.webm.enabled is already the default; it is pinned because it is the ONE media path
-// that works, and a future trimming pass must not be able to take it silently. media.mp4 is
-// deliberately left alone: H.264 is refused by the decoder chain regardless (ffvpx is built
-// with CONFIG_H264_DECODER 0, config_components_audio_video.h:127) and that refusal IS the
-// behaviour we want.
+// So nothing media-related is turned off here, and this block is the "working, with the reason
+// recorded" half of R7. Three things made that true, none of them a pref:
+//   1. <video> past the first second — an engine fix (BasicPlanarYCbCrImage::CopyData reported
+//      failure for a successful copy under delayed conversion; every clip died with
+//      MEDIA_ERR_DECODE after 10-60 frames until 2026-10-01).
+//   2. Audio output — the cubeb PULSE backend (mozconfig --enable-pulseaudio), with the daemon
+//      routing its stream to the speaker at the system media volume (context/impl/
+//      impl-audio-backend.md). The ALSA backend that preceded it was policy-muted on this platform.
+//   3. FLAC — ffvpx (libmozavcodec/libmozavutil) is dlopen'd at runtime and was built but never
+//      SHIPPED until 2026-10-01, so FLAC was advertised ("maybe") and failed every load. It is
+//      the one format with no other decoder. make-device-bundle.sh now bundles both files.
+//
+// media.webm.enabled is already the default; it is pinned so a future trimming pass cannot take
+// the main video path silently. media.mp4 is deliberately left alone: H.264 is refused by the
+// decoder chain regardless, and that refusal is correct.
 pref("media.webm.enabled", true);
 
-// WHY <video> NEEDS NO "DEGRADE VISIBLY" WORK FROM US: the GRE already does it and the assets
-// ship. videocontrols.xml's "error" branch (:612-632) sets statusIcon type="error", picks the
-// label off video.error.code in updateErrorText (:694-726) — MEDIA_ERR_SRC_NOT_SUPPORTED
-// renders "Video format or MIME type is not supported." — shows the status overlay, and fades
-// the control bar OUT when no frame was ever shown. Present in build/webos-oe/device-bundle:
-// videocontrols.xml, videocontrols.dtd (the error.* entities are there, so the anonymous
-// content parses at all), skin/classic/global/media/videocontrols.css and error.png.
-// SOURCE-READ ONLY: that the binding attaches and composites is R1's first two criteria,
-// still open.
+// WHY AN UNDECODABLE CLIP NEEDS NO WORK FROM US: the GRE degrades visibly and the assets ship.
+// videocontrols' error branch shows its status overlay with the label picked off
+// video.error.code ("Video format or MIME type is not supported.") — seen on the device for an
+// H.264 <video> and, since the 2026-08-16 videocontrols change that stopped suppressing the
+// overlay for audio-only content on a real error, for an MP3 <audio> too.
 //
-// THE HOLE, and a pref cannot close it. videocontrols suppresses the error overlay for
-// audio-only content BY CONSTRUCTION: setupStatusFader forces show=false when isAudioOnly
-// (:336-339), and "loadedmetadata" sets isAudioOnly=true for any <video> whose videoWidth or
-// videoHeight is 0 (:524-531), after which dynamicControls (:451-461) force-shows the control
-// bar. So an audio-only resource — <audio>, or a <video> pointed at one — renders exactly the
-// "blank box with working-looking controls" R1 forbids.
-//
-// The second half of this paragraph used to read "and no engine audio can EVER play: cubeb_init's
-// backend dispatch table is empty with both backends configured out (media/libcubeb/src/cubeb.c
-// :114), so AudioStream::Init returns CUBEB_INITIALIZATION_ERR (dom/media/AudioStream.cpp
-// :337-341)". THAT IS NO LONGER TRUE OF THE BUILD, as of 2026-08-15: the ARM build now compiles
-// cubeb_alsa.c and links libxul against libasound, so the dispatch table has an entry and
-// AudioStream::Init has something to open. It has NOT been heard on hardware yet — no device was
-// connected that day — so the honest status is "the output path is built, not yet demonstrated".
-// See context/impl/impl-audio-backend.md and the mozconfig note below.
-//
-// TURNING AUDIO OFF AT A PREF IS NOT AVAILABLE — the codec prefs are CONTAINER-scoped, not
-// track-scoped. media.wave.enabled and media.flac.enabled could go (audio-only containers),
-// but media.ogg.enabled also carries Theora video and media.webm.enabled carries the VP8 that
-// works, and audio/ogg + audio/webm are offered with no output check whatsoever
-// (OggDecoder.cpp:27-30 and WebMDecoder.cpp:29-32 read only the pref; AgnosticDecoderModule
-// .cpp:26-46 advertises Vorbis/Opus/Wave/Theora/VPX regardless). Flipping the two that CAN go
-// would leave audio/wav refused and audio/ogg accepted without closing anything, so nothing
-// is flipped. RULED OUT, not overlooked.
-//
-// THE FIX WAS ONE BUILD FLAG, AND IT IS DONE — 2026-08-15. build/webos-oe/mozconfig.goanna-arm
-// passed --disable-alsa, and its stated reason ("Headless render daemon: no audio output needed
-// (offscreen render only)") was STALE: offscreen rendering has nothing to do with audio output.
-// It now passes --enable-alsa, with alsa-lib staged into the cross sysroot from Debian-Jessie
-// armel libasound2/libasound2-dev 1.0.28-1. media/libcubeb/src compiled cubeb_alsa.o for the
-// first time and libxul.so imports snd_pcm_open. No pref changed, exactly as predicted.
-//
-// WHAT IS STILL OPEN, and it is why nothing here is marked done: the backend is BUILT, not HEARD.
-// Nobody has played a sound through the engine on hardware. Two things could still fail on the
-// device and neither is visible from the build — which libasound the daemon binds at runtime,
-// and whether ALSA "default" opens under our bundled glibc. Both are analysed, with the fallback
-// for each, in context/impl/impl-audio-backend.md.
-//
-// SEPARATELY, AND NOT FIXED BY THIS: the missing DECODERS. ffvpx is compiled with
-// CONFIG_MP3_DECODER 0, CONFIG_AAC_DECODER 0 and CONFIG_H264_DECODER 0, so audio/mpeg and
-// H.264 stay refused however well the output path works. The backend only helps the formats
-// that already decode — audio/ogg, audio/webm, audio/wav, audio/flac (Vorbis/Opus/Wave/FLAC
-// via AgnosticDecoderModule, plus ffvpx's FLAC). Do not read "audio works now" as "MP3 works".
+// THE CODEC PREFS ARE CONTAINER-SCOPED, NOT TRACK-SCOPED — recorded because it is why a pref was
+// never the answer to an audio problem: media.ogg.enabled carries Theora as well as Vorbis and
+// media.webm.enabled carries VP8, so audio cannot be turned off without taking video with it.

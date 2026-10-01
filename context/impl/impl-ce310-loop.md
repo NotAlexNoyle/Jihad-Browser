@@ -16,6 +16,9 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-216 | DONE | libxul rebuilt (incremental, 1 min). Stripped md5 `65e3cc84891c59e9ede40cc7b3de0802`. |
 | T-219 | DONE | Engine-only push to enyo/mochi/mojo; all three read back `65e3cc84…`; daemon unchanged `cf92f351…`; goanna.js unchanged `5874eafd…`. Enyo is off the traced build. |
 | T-220 | DONE | `<video>` plays to the end: 12/12 (VP8 + Theora × file + http × 3). gre-widgets R1 criterion → `[x]`. |
+| T-221 | DONE | Codec table on device (jihad-codecs.html): VP8/VP9/Theora/VP8+Vorbis/Vorbis/Opus/WAV play to the end; H.264/MP3/AAC refused (no decoder). FOUND: FLAC advertised but failed — ffvpx libs (`libmozavcodec.so`, `libmozavutil.so`) are dlopen'd, were never bundled. Fixed in make-device-bundle.sh + push-engine-update.sh; libs pushed to all three (md5 `a4eaef65…`, `d65eaf82…`); FLAC plays, others unchanged. `anon video`/`anon audio` show `videocontrols[1]` (binding attached). Error-overlay screenshots archived in `evidence-2026-10-01/`. gre-widgets R1 codec box → `[x]`. |
+| T-222 | DONE (agent part) | Play/pause both directions via inject `click` (adapter clickAt entry): pause t=11.370 held 3 s; resume → 17.65. Kit box stays `[~]` for the finger (T-285). |
+| T-223 | DONE | `packaging/prefs/jihad-platform-prefs.js` media block rewritten to the measured state (comment-only + unchanged pin). gre-widgets R7 first box → `[x]`. Reaches the device with the next goanna.js push (T-225). |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 
@@ -36,5 +39,15 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
   `/usr/palm/services/`; `org.webosinternals.preware` IS installed as an app. Locate the service
   before the fresh-install cycle (T-230/T-231).
 - Other CE apps present: `org.webosarchive.atlas-default-browser`, `org.webosarchive.open-in-atlas`.
+- **The display was OFF and the device LOCKED** for the first hour of this session
+  (`com.palm.display/control/status` → `"state":"off"`); `takeScreenShot` then returns the stale
+  lock screen — three "different" screenshots with the same md5 were the tell. Woken with
+  `display/control/setState {"state":"unlock"}` + `setProperty {"onWhenConnected":true}`.
+  The engine runs page timers, decodes and paints with the display off (the `<video>` matrix was
+  taken that way; a later run with the display on agrees), but ANY pixel evidence needs it on.
+- Inject coordinate spaces, measured: `click x y n` and `move x y` take CARD pixels (CSS px ×
+  page zoom) and go through the input queue; `clickoff dx dy n <id>` / `rect <id>` take a bare
+  element id (or `sel:<css>`), CSS px, and bypass the queue — `clickoff` on the video play button
+  returned `ok=1` and did not toggle it. `gettext` truncates long text (~330 chars).
 - Cards can be closed remotely: `applicationManager/running` → `processid`, then
   `applicationManager/close {"processId": …}`. Used for the connect-latency baseline.

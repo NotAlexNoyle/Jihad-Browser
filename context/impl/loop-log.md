@@ -105,3 +105,10 @@ Build site: context/plans/build-site.md
 - T-219 engine push ×3 — DONE. All three 65e3cc84, daemon unchanged.
 - T-220 `<video>` to end — DONE. 12/12, ended=true err=0 vq=149/0/0. Kit box `[x]`.
 - Next: T-221 codec table.
+
+### Iteration 2 — 2026-10-01
+- T-221 codec table — DONE. 8 formats play to end, 3 refused (no decoder). FLAC fixed: ffvpx libs now bundled + pushed ×3. Kit codec box [x].
+- T-222 play/pause — DONE (agent part). Both directions via `click` card px. Kit stays [~] for finger.
+- T-223 prefs media block — DONE. Kit R7 [x].
+- Display was off/locked → woke via display/control. Screenshots archived.
+- Next: T-224 R10 media clock measurement; daemon batch (T-203..T-206).

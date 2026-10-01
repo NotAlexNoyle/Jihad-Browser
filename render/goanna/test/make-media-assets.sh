@@ -27,6 +27,8 @@ ff -f lavfi -i "$V" -c:v libx264 -pix_fmt yuv420p -an clip10h264.mp4  # H.264 (n
 # the mute/volume controls enabled on a <video>.
 ff -f lavfi -i "testsrc=size=320x240:rate=15:duration=12" -f lavfi -i "sine=frequency=440:duration=12" \
    -c:v libvpx -b:v 200k -c:a libvorbis -q:a 3 clip12av.webm
+# 60 s, video only: long enough to pause and resume mid-play (play/pause, scrubber, seek tests).
+ff -f lavfi -i "testsrc=size=320x240:rate=15:duration=60" -c:v libvpx -b:v 150k -an clip60v.webm
 ff -f lavfi -i "sine=frequency=440:duration=15" -c:a libvorbis -q:a 3 tone15.ogg
 ff -f lavfi -i "$A" -c:a libopus -b:a 48k tone10.opus
 ff -f lavfi -i "$A" -c:a pcm_s16le tone10.wav
@@ -52,6 +54,7 @@ check clip10vp9.webm vp9    150
 check clip10.ogv     theora 150
 check clip10h264.mp4 h264   150
 check clip12av.webm  vp8    180
+check clip60v.webm   vp8    900
 check clip12av.webm  vorbis "" a:0
 check tone15.ogg     vorbis "" a:0
 check tone10.opus    opus   "" a:0

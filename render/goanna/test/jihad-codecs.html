@@ -1,6 +1,6 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>jihad-codecs</title>
 <style>body{margin:0;background:#111;color:#0f0;font:14px monospace;padding:12px}
-#state{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0;margin-top:8px}
+#state,.row{white-space:pre-wrap;word-break:break-all;width:720px;color:#ff0;margin-top:4px}
 video,audio{display:block;margin:8px 0;width:320px}</style></head>
 <body>
 <p id="hdr">jihad-codecs: one row per format, played to the end in turn</p>
@@ -9,7 +9,7 @@ video,audio{display:block;margin:8px 0;width:320px}</style></head>
 <script>
 // Codec reality (cavekit-gre-widgets.md R1). Plays each clip in turn and records, per format:
 // canPlayType, whether it reached `ended`, where it stopped, and the error if any. Read #state
-// with the inject channel's `gettext #state`. DONE appears on the last line when every row is in.
+// with the inject channel: `gettext #state` says RUNNING n/N or DONE, `gettext #r<k>` reads row k.
 // Clips come from make-media-assets.sh; ?only=<name> runs a single row.
 var CLIPS = [
   ['vp8',    'video', 'video/webm; codecs="vp8"',          'clip10v.webm'],
@@ -27,7 +27,16 @@ var CLIPS = [
 var only = (location.search.match(/[?&]only=([^&]+)/) || [])[1];
 if (only) CLIPS = CLIPS.filter(function (c) { return c[0] === decodeURIComponent(only); });
 var rows = [], host = document.getElementById('host'), s = document.getElementById('state');
-function show(extra) { s.textContent = rows.join('\n') + (extra ? '\n' + extra : ''); }
+// One element per row (#r0, #r1, ...): the inject channel's `gettext` truncates long text, so
+// the whole table cannot be read back in one call. #state carries only the progress line.
+function show(extra) {
+  rows.forEach(function (r, k) {
+    var d = document.getElementById('r' + k);
+    if (!d) { d = document.createElement('div'); d.id = 'r' + k; d.className = 'row'; s.parentNode.insertBefore(d, s); }
+    d.textContent = r;
+  });
+  s.textContent = extra || '';
+}
 function run(i) {
   if (i >= CLIPS.length) { show('DONE ' + rows.length + ' rows'); return; }
   var c = CLIPS[i], el = document.createElement(c[1]);

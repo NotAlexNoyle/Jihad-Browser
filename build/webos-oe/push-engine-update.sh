@@ -42,7 +42,15 @@ novacom -l >/dev/null 2>&1 || die "no device on novacom"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 cp -L "$XUL" "$TMP/libxul.so"; cp -L "$DAEMON" "$TMP/jihad-browserserver"
 cp -L "$PREFS" "$TMP/goanna.js"
-"$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" 2>/dev/null || true
+# ffvpx is dlopen'd at runtime from the engine directory and is part of the engine build, so it
+# travels with libxul (see make-device-bundle.sh). FLAC has no other decoder.
+for f in libmozavutil.so libmozavcodec.so; do
+  [ -e "$DIST/bin/$f" ] || die "no $f at $DIST/bin — run build-goanna-arm.sh build"
+  cp -L "$DIST/bin/$f" "$TMP/$f"
+done
+"$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" "$TMP/libmozavutil.so" "$TMP/libmozavcodec.so" 2>/dev/null || true
+AVU_MD5=$(md5sum "$TMP/libmozavutil.so" | cut -c1-32)
+AVC_MD5=$(md5sum "$TMP/libmozavcodec.so" | cut -c1-32)
 XUL_MD5=$(md5sum "$TMP/libxul.so" | cut -c1-32)
 BS_MD5=$(md5sum "$TMP/jihad-browserserver" | cut -c1-32)
 PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
@@ -77,9 +85,15 @@ for v in $VARIANTS; do
   push_verified "$TMP/jihad-browserserver" "$HL/.jihad-browserserver.new" "$BS_MD5"
   say "[$v] pushing goanna.js"
   push_verified "$TMP/goanna.js" "$HL/.goanna.js.new" "$PREFS_MD5"
+  say "[$v] pushing ffvpx (libmozavutil, libmozavcodec)"
+  push_verified "$TMP/libmozavutil.so" "$HL/.libmozavutil.so.new" "$AVU_MD5"
+  push_verified "$TMP/libmozavcodec.so" "$HL/.libmozavcodec.so.new" "$AVC_MD5"
   novacom run file://bin/mv -- "$HL/.libxul.so.new" "$HL/libxul.so"
   novacom run file://bin/mv -- "$HL/.jihad-browserserver.new" "$HL/jihad-browserserver"
   novacom run file://bin/mv -- "$HL/.goanna.js.new" "$HL/goanna.js"
+  novacom run file://bin/mv -- "$HL/.libmozavutil.so.new" "$HL/libmozavutil.so"
+  novacom run file://bin/mv -- "$HL/.libmozavcodec.so.new" "$HL/libmozavcodec.so"
+  novacom run file://bin/chmod -- 755 "$HL/libmozavutil.so" "$HL/libmozavcodec.so"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
   say "[$v] starting $J"
   novacom run file://sbin/start -- "$J" >/dev/null 2>&1 || true

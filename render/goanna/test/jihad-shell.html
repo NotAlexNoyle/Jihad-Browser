@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jihad-shell</title>
+<style>body{margin:0;background:#123;color:#fff;font:20px sans-serif;padding:16px}
+select,button{font:22px sans-serif;padding:10px 18px;margin:10px 0;display:block}</style></head>
+<body>
+<p>jihad-shell: what a card must show for a page — a select list, an alert, a find hit.</p>
+<select id="s"><option>Apple</option><option>Banana</option><option selected>Cherry</option><option>Damson</option></select>
+<button id="al">alert</button>
+<p id="r">alert: not shown</p>
+<p>the find token is FINDTOKENQ7 and it appears once.</p>
+<script>
+// cavekit-ui-shell.md / cavekit-mochi-ui.md / cavekit-mojo-ui.md sweep page. The alert is raised
+// from a tap, and #r changes only AFTER it returns — "alert: answered" proves the page was held
+// until the card replied.
+document.getElementById('al').addEventListener('click', function () {
+  document.getElementById('r').textContent = 'alert: open';
+  alert('shell-alert from the page');
+  document.getElementById('r').textContent = 'alert: answered';
+});
+document.getElementById('s').addEventListener('change', function () {
+  document.getElementById('r').textContent = 'select: ' + this.value;
+});
+</script></body></html>

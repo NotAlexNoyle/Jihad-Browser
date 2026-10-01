@@ -75,6 +75,20 @@ pref("dom.forms.datetime.others", false);       // month/week — same story, sa
 // harness running a 256 MB disk cache with an uncapped refresh driver cannot reproduce what the
 // device does. The stock value each one overrides is named so the next reader can see the delta
 // without opening all.js.
+// Selection colours. There is no native theme in this build (headless widget), so the engine
+// takes them from its stand-in palette — which has no entry for the TEXT-selection colours and
+// answers white for every one it does not list: selected text was white on white. Measured on the
+// device 2026-10-01: a find-in-page hit drew as a solid white box with the word gone, in all three
+// shells. These are the stand-in palette's own `highlight` / `highlighttext` pair for a normal
+// selection, the stock green for the "attention" selection find-in-page uses, and the stock
+// magenta for highlight-all.
+pref("ui.textSelectBackground", "#3399ff");
+pref("ui.textSelectForeground", "#ffffff");
+pref("ui.textSelectBackgroundDisabled", "#b0b0b0");
+pref("ui.textSelectBackgroundAttention", "#38d878");
+pref("ui.textHighlightBackground", "#ef0fff");
+pref("ui.textHighlightForeground", "#ffffff");
+
 pref("general.smoothScroll", false);                 // no smooth-scroll compositing (no GRE default)
 pref("browser.sessionhistory.max_entries", 20);      // bound history depth (no GRE default)
 pref("browser.cache.memory.capacity", 16384);        // 16 MB in-RAM HTTP cache (no GRE default)

@@ -29,5 +29,9 @@ StageAssistant.prototype.launchUrl = function () {
 	} catch (e) {
 		Mojo.Log.logException(e, "StageAssistant#launchUrl");
 	}
-	return (params && params.url) || "";
+	// `target` first: that is the key the system uses when it hands a link to a browser
+	// (applicationManager open / launch with {target: url}) and the one the Enyo and Mochi
+	// shells read. Only `url` was read here, so a launch with a target opened the start page
+	// instead of the link — measured 2026-10-01.
+	return (params && (params.target || params.url)) || "";
 };

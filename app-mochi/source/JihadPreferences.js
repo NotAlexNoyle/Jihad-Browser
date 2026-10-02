@@ -2,20 +2,23 @@
 // Licensed under the Apache License, Version 2.0; see ../../LICENSE.
 //
 // JihadPreferences — the Enyo 2 / Mochi port of ../../app/source/Preferences.js.
-// A full-card overlay panel with mochi.ToggleButton content switches and the
-// clear-data actions. Preferences are read from and written to the SAME db8 kind
-// this package owns (net.riverstonerelay.jihad-browser-mochi.preferences:1, via
-// enyo.jihad.db*), seeded with the same defaults BrowserApp.js seeds. Clear
-// actions bubble to the shell (onClearBookmarks/onClearHistory/onClearCookies/
-// onClearCache) so the shell drives the db8 delByQuery + the
-// palm://com.palm.browserServer/{clearCookies,clearCache} URIs it already owns.
+// A full-card overlay panel holding what the CARD itself owns:
 //
-// INTENTIONAL OMISSION (see PARITY.md): pushing toggle values into the live engine
-// (the Enyo 1.0 setEnableJavascript/setBlockPopups/setAcceptCookies adapter calls)
-// is NOT done here — that would widen the frozen callBrowserAdapter method set
-// (cavekit-ipc-contract R1, verified {findInPage,goBack,goForward,reloadPage,
-// stopLoad}). Preferences are persisted to db8; engine application is deferred to
-// a contract-scope change.
+//   * the default search engine (kept in the card's own store, enyo.jihad.*SearchEngine);
+//   * the Flash switch — the daemon's stored value, read and written through this variant's
+//     own Luna service (getFlash / enableFlash / disableFlash), the same value the settings
+//     page shows;
+//   * an entry that opens the settings page;
+//   * the clear-data actions, each behind a confirmation.
+//
+// NO Block Popups / Accept Cookies / Enable JavaScript switches (owner decision 2026-10-02,
+// cavekit-preferences-ui.md R2). The settings page owns those three values. The switches
+// that used to be here were stored in db8 and never reached the engine, so they changed
+// nothing — and had they been wired up they would have set a default the page's value
+// silently overrode. Either way: a control that can lose without saying so.
+//
+// Clear actions bubble to the shell (onClearBookmarks / onClearHistory / onClearCookies /
+// onClearCache), which owns the db8 delByQuery and the daemon calls.
 
 enyo.kind({
 	name: "JihadPreferences",
@@ -24,19 +27,22 @@ enyo.kind({
 	showing: false,
 	events: {
 		onPreferenceChanged: "",
+		//* The user asked for the settings page.
+		onOpenSettings: "",
 		onClearBookmarks: "",
 		onClearHistory: "",
 		onClearCookies: "",
 		onClearCache: "",
 		onClose: ""
 	},
-	//* Default browser preferences, identical to BrowserApp.gotInitialBrowserPreferences.
-	defaults: [
-		{key: "blockPopups", value: true},
-		{key: "acceptCookies", value: true},
-		{key: "enableJavascript", value: true},
-		{key: "rememberPasswords", value: true}
-	],
+	//* What each clear action asks before it runs, and the event it fires on OK. The wording
+	//* follows the Enyo shell's prompts.
+	clearActions: {
+		bookmarks: {ask: "Would you like to clear your bookmarks?",                              fire: "doClearBookmarks"},
+		history:   {ask: "Would you like to clear your browser history?",                        fire: "doClearHistory"},
+		cookies:   {ask: "Would you like to clear your browser cookies and local plug-in data?", fire: "doClearCookies"},
+		cache:     {ask: "Would you like to clear your browser cache?",                          fire: "doClearCache"}
+	},
 	components: [
 		{kind: "FittableColumns", classes: "jihad-panel-header", components: [
 			{name: "doneBtn", classes: "jihad-panel-btn jihad-panel-done", ontap: "closeTapped", content: "Done"},
@@ -45,99 +51,144 @@ enyo.kind({
 		]},
 		{kind: "enyo.Scroller", fit: true, touch: true, classes: "jihad-panel-scroller", components: [
 			{classes: "jihad-prefs-group", components: [
+				{classes: "jihad-prefs-caption", content: "Default Web Search Engine"},
+				//* One row per engine, built in create(); the chosen one carries a tick.
+				{name: "engines"}
+			]},
+			{classes: "jihad-prefs-group", components: [
 				{classes: "jihad-prefs-caption", content: "Content"},
 				{kind: "FittableColumns", classes: "jihad-prefs-row", components: [
-					{fit: true, classes: "jihad-prefs-label", content: "Block Popups"},
-					{kind: "mochi.ToggleButton", name: "blockPopups", onChange: "toggleChanged", preference: "blockPopups"}
+					{fit: true, components: [
+						{classes: "jihad-prefs-label", content: "Enable Flash"},
+						{name: "flashNote", classes: "jihad-prefs-note", showing: false}
+					]},
+					{kind: "mochi.ToggleButton", name: "flash", onChange: "flashChanged"}
 				]},
-				{kind: "FittableColumns", classes: "jihad-prefs-row", components: [
-					{fit: true, classes: "jihad-prefs-label", content: "Accept Cookies"},
-					{kind: "mochi.ToggleButton", name: "acceptCookies", onChange: "toggleChanged", preference: "acceptCookies"}
-				]},
-				{kind: "FittableColumns", classes: "jihad-prefs-row", components: [
-					{fit: true, classes: "jihad-prefs-label", content: "Enable JavaScript"},
-					{kind: "mochi.ToggleButton", name: "enableJavascript", onChange: "toggleChanged", preference: "enableJavascript"}
-				]}
+				{name: "moreSettings", classes: "jihad-prefs-btn", ontap: "moreSettingsTapped", content: "More Settings"}
 			]},
-			// NO home-page or start-page-links rows here. Both moved to about:preferences
-			// (cavekit-preferences-ui.md R5): it is the one editing surface, and a copy here
-			// made this variant a SECOND WRITER for the same two settings — exactly the state
-			// R5 exists to end. Removed 2026-08-06 after review. The overflow menu's
-			// "Settings" opens that page; this panel keeps only what the card itself owns.
 			{classes: "jihad-prefs-group", components: [
 				{classes: "jihad-prefs-caption", content: "Clear Data"},
-				{name: "clearBookmarks", classes: "jihad-prefs-btn", ontap: "clearBookmarksTapped", content: "Clear Bookmarks"},
-				{name: "clearHistory", classes: "jihad-prefs-btn", ontap: "clearHistoryTapped", content: "Clear History"},
-				{name: "clearCookies", classes: "jihad-prefs-btn", ontap: "clearCookiesTapped", content: "Clear Cookies"},
-				{name: "clearCache", classes: "jihad-prefs-btn", ontap: "clearCacheTapped", content: "Clear Cache"}
+				{name: "clearBookmarks", classes: "jihad-prefs-btn", ontap: "clearTapped", clearKey: "bookmarks", content: "Clear Bookmarks"},
+				{name: "clearHistory", classes: "jihad-prefs-btn", ontap: "clearTapped", clearKey: "history", content: "Clear History"},
+				{name: "clearCookies", classes: "jihad-prefs-btn", ontap: "clearTapped", clearKey: "cookies", content: "Clear Cookies"},
+				{name: "clearCache", classes: "jihad-prefs-btn", ontap: "clearTapped", clearKey: "cache", content: "Clear Cache"}
+			]}
+		]},
+		// The confirmation. Its own overlay: JihadDialogs' confirm answers the ENGINE (its
+		// buttons write to the page's dialog pipe), so it cannot be borrowed for a question
+		// the card is asking.
+		{name: "ask", classes: "jihad-modal-overlay", showing: false, components: [
+			{classes: "jihad-dialog-box", components: [
+				{name: "askMsg", classes: "jihad-dialog-message"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Cancel", ontap: "askCancel"},
+					{name: "askOk", classes: "jihad-btn", content: "Clear", ontap: "askOk"}
+				]}
 			]}
 		]}
 	],
 	create: function() {
 		this.inherited(arguments);
-		// Persistence is SUPPRESSED until the stored prefs have been read back
-		// (load -> applyPrefs / seedDefaults clears this). mochi.ToggleButton fires
-		// onChange from valueChanged, and its rendered() calls valueChanged TWICE —
-		// so every toggle emits onChange with its default `false` the moment this
-		// (initially hidden) panel is rendered at app start. Without this gate that
-		// startup burst ran toggleChanged and merged value:false over the user's
-		// stored preferences on every single launch.
+		// mochi.ToggleButton fires onChange from valueChanged, and its rendered() calls
+		// valueChanged twice — so the switch emits onChange with its default the moment
+		// this (initially hidden) panel is rendered at app start. Nothing may be SENT from
+		// a change until the stored value has been read back and shown.
 		this._applying = true;
+		this._pendingClear = null;
+		this.buildEngines();
 	},
 	open: function() {
-		this.load();
+		this.buildEngines();
+		this.loadFlash();
 		this.show();
+		this.resize();      // see JihadBookmarkList.open
 	},
-	//* Read prefs from db8; seed defaults if the kind is empty (BrowserApp parity).
-	load: function() {
+
+	// --- default search engine ----------------------------------------------
+	buildEngines: function() {
+		var list = enyo.jihad.searchEngines, cur = enyo.jihad.loadSearchEngine().id;
+		this.$.engines.destroyClientControls();
+		for (var i = 0; i < list.length; i++) {
+			this.$.engines.createComponent({
+				classes: "jihad-prefs-row jihad-prefs-choice" + (list[i].id === cur ? " chosen" : ""),
+				content: list[i].name, engineId: list[i].id, ontap: "engineTapped"
+			}, {owner: this});
+		}
+		if (this.generated) { this.$.engines.render(); }
+	},
+	engineTapped: function(inSender) {
+		if (!inSender || !inSender.engineId) { return true; }
+		enyo.jihad.saveSearchEngine(inSender.engineId);
+		this.buildEngines();
+		this.doPreferenceChanged({preference: "defaultSearch", value: inSender.engineId});
+		return true;
+	},
+
+	// --- Flash switch ---------------------------------------------------------
+	//* Show the daemon's value. `available: false` (no Flash plugin on the device) leaves the
+	//* switch showing the stored value and says why it has no effect — hiding it would make
+	//* the panel differ between devices for no reason a user could see.
+	loadFlash: function() {
 		var self = this;
-		enyo.jihad.dbFind(enyo.jihad.kinds.preferences, null, null, false, function(results) {
-			if (results && results.length) {
-				self.applyPrefs(results);
-			} else {
-				self.seedDefaults();
-			}
-		});
+		enyo.jihad.own("getFlash", {}, function(resp) { self.showFlash(resp); });
 	},
-	seedDefaults: function() {
-		var self = this, kind = enyo.jihad.kinds.preferences;
-		var objs = [];
-		for (var i = 0, d; (d = this.defaults[i]); i++) {
-			objs.push({_kind: kind, key: d.key, value: d.value});
-		}
-		enyo.jihad.dbPut(objs, function() {
-			self.applyPrefs(objs);
-		});
-	},
-	//* Reflect stored values onto the toggles WITHOUT firing persistence (the
-	//* mochi toggle emits onChange even on programmatic set — guard it).
-	applyPrefs: function(results) {
+	showFlash: function(resp) {
+		var ok = Boolean(resp && resp.returnValue);
 		this._applying = true;
-		for (var i = 0, p; (p = results[i]); i++) {
-			var t = this.$[p.key];
-			if (t && t.setValue) {
-				t.setValue(Boolean(p.value));
-			}
+		if (ok || (resp && typeof resp.enabled === "boolean")) {
+			this.$.flash.setValue(Boolean(resp.enabled));
 		}
+		var note = "";
+		if (!resp || resp.offline || (!ok && typeof resp.enabled !== "boolean")) {
+			note = "The browser engine is not answering; the switch cannot be changed now.";
+		} else if (resp.available === false) {
+			note = "No Flash plugin is installed on this device.";
+		}
+		this.$.flashNote.setContent(note);
+		this.$.flashNote.setShowing(Boolean(note));
 		var self = this;
 		enyo.asyncMethod(this, function() { self._applying = false; });
 	},
-	toggleChanged: function(inSender, inEvent) {
-		if (this._applying) {
-			return;
-		}
-		var key = inSender.preference;
-		var value = inEvent && typeof inEvent.value === "boolean" ? inEvent.value : inSender.getValue();
-		// Persist to db8 (same shape as BrowserApp.preferenceChanged merge).
-		enyo.jihad.dbMergeQuery(enyo.jihad.kinds.preferences,
-			[{prop: "key", op: "=", val: key}], {value: value});
-		this.doPreferenceChanged({preference: key, value: value});
+	flashChanged: function(inSender, inEvent) {
+		if (this._applying) { return; }
+		var on = inEvent && typeof inEvent.value === "boolean" ? inEvent.value : inSender.getValue();
+		var self = this;
+		// The reply carries the value now in effect, so a refused or failed change puts the
+		// switch back instead of leaving it showing something that is not true.
+		enyo.jihad.own(on ? "enableFlash" : "disableFlash", {}, function(resp) {
+			self.showFlash(resp);
+			self.doPreferenceChanged({preference: "flash", value: Boolean(resp && resp.enabled)});
+		});
 	},
-	clearBookmarksTapped: function() { this.doClearBookmarks(); },
-	clearHistoryTapped:   function() { this.doClearHistory(); },
-	clearCookiesTapped:   function() { this.doClearCookies(); },
-	clearCacheTapped:     function() { this.doClearCache(); },
+
+	moreSettingsTapped: function() {
+		this.hide();
+		this.doOpenSettings();
+	},
+
+	// --- clear data, behind a confirmation -------------------------------------
+	clearTapped: function(inSender) {
+		var act = inSender && this.clearActions[inSender.clearKey];
+		if (!act) { return true; }
+		this._pendingClear = act;
+		this.$.askMsg.setContent(act.ask);
+		this.$.ask.show();
+		return true;
+	},
+	askCancel: function() {
+		this._pendingClear = null;
+		this.$.ask.hide();
+		return true;
+	},
+	askOk: function() {
+		var act = this._pendingClear;
+		this._pendingClear = null;
+		this.$.ask.hide();
+		if (act && this[act.fire]) { this[act.fire](); }
+		return true;
+	},
 	closeTapped: function() {
+		this.askCancel();
 		this.hide();
 		this.doClose();
 	}

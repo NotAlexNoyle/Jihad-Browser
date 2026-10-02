@@ -91,7 +91,14 @@ enyo.kind({
 			onDialogSSLConfirm:   "showSSLDialog",
 			onDialogUserPassword: "showLoginDialog",
 			// Engine <select> dropdown -> the card-side list (Atlas model).
-			onOpenSelect:         "showSelectPopup"
+			onOpenSelect:         "showSelectPopup",
+			// A download the page started: the engine saves it and reports here.
+			onDownloadStart:      "engineDownloadStart",
+			onDownloadProgress:   "engineDownloadProgress",
+			onDownloadFinished:   "engineDownloadFinished",
+			onDownloadError:      "engineDownloadError",
+			// A finger held on a link or an image -> the long-press menu.
+			onHold:               "showHoldMenu"
 		},
 		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
 		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
@@ -119,10 +126,10 @@ enyo.kind({
 				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
 				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
 				// TWO entries, mirroring the Enyo shell: "Settings" is the engine's
-				// about:preferences — the one surface the three shells share, and the only
-				// place the home target and start-page links are edited. "Browser Settings"
-				// is this card's own panel, which still owns the content toggles and the
-				// clear-data actions that about:preferences cannot do yet.
+				// about:preferences — the one surface the three shells share, and where the
+				// home target, the start-page links and the content settings (popups,
+				// cookies, JavaScript) are edited. "Browser Settings" is this card's own
+				// panel: the search engine, the Flash switch and the clear-data actions.
 				{classes: "jihad-menu-item", ontap: "menuSettings",     content: "Settings"},
 				{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Browser Settings"}
 			]}
@@ -133,9 +140,10 @@ enyo.kind({
 		{kind: "JihadHistoryList", name: "historyList",
 			onSelectItem: "navigateTo", onClearHistory: "clearHistory", onClose: "panelClosed"},
 		{kind: "JihadDownloadList", name: "downloadList",
-			onOpenItem: "openDownload", onCancelItem: "cancelDownload", onClearAll: "clearDownloads", onClose: "panelClosed"},
+			onOpenItem: "openDownload", onCancelItem: "cancelDownload", onRetryItem: "retryDownload",
+			onClearAll: "clearDownloads", onClose: "panelClosed"},
 		{kind: "JihadPreferences", name: "preferences",
-			onPreferenceChanged: "preferenceChanged",
+			onPreferenceChanged: "preferenceChanged", onOpenSettings: "menuSettings",
 			onClearBookmarks: "clearBookmarks", onClearHistory: "clearHistory",
 			onClearCookies: "clearCookies", onClearCache: "clearCache", onClose: "panelClosed"},
 		// Engine <select> popup (msgPopupMenuShow -> JihadWebView.onOpenSelect):
@@ -145,6 +153,18 @@ enyo.kind({
 		{name: "selectPopup", classes: "jihad-menu-overlay", showing: false,
 			ontap: "selectPopupDismiss", components: [
 			{name: "selectBox", classes: "jihad-menu-box jihad-select-box"}
+		]},
+		// Action sheet: one overlay for the share entries and for the long-press menu. The
+		// rows are built per use in openSheet; a tap outside a row, or Cancel, closes it.
+		{name: "sheet", classes: "jihad-modal-overlay", showing: false, ontap: "sheetDismiss", components: [
+			{classes: "jihad-dialog-box jihad-sheet", components: [
+				{name: "sheetTitle", classes: "jihad-dialog-title"},
+				{name: "sheetSub", classes: "jihad-sheet-sub"},
+				{name: "sheetItems", classes: "jihad-sheet-items"},
+				{classes: "jihad-dialog-buttons", components: [
+					{classes: "jihad-btn jihad-btn-alt", content: "Cancel", ontap: "sheetDismiss"}
+				]}
+			]}
 		]},
 		// Engine-driven dialog set (alert / confirm / prompt / auth / SSL).
 		{kind: "JihadDialogs", name: "dialogs", onDialogAnswer: "answerDialog"},
@@ -178,9 +198,11 @@ enyo.kind({
 		this.buildStartLinks();
 		//* After the toolbar has actually been laid out, not during create().
 		enyo.job("jihadUrlGeom", enyo.bind(this, "logUrlGeometry"), 2500);
-		//* Session download records (download-manager status + history), rendered
-		//* by the DownloadList view.
+		//* Download records rendered by the DownloadList view: the engine's own (a page
+		//* started them; kept across launches in the card's store) and the download
+		//* manager's (files this card asked the system to fetch).
 		this.downloads = [];
+		this.engineDownloads = this.loadEngineDownloads();
 		//* Latest page title (from the engine), used when saving a bookmark/history.
 		this._title = "";
 		//* Chrome state initialised here (not lazily in the callbacks) so an engine
@@ -468,8 +490,9 @@ enyo.kind({
 		}
 		return /^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}(:\d+)?([\/?#].*)?$/i.test(v);
 	},
+	//* The engine chosen in Browser Settings (DuckDuckGo until the user picks another).
 	searchUrl: function(text) {
-		return "https://duckduckgo.com/?q=" + encodeURIComponent(text);
+		return enyo.jihad.searchUrlFor(text);
 	},
 
 	// --- overflow menu (scaffold) -------------------------------------------
@@ -584,7 +607,163 @@ enyo.kind({
 		var id = inEvent && inEvent.identifier;
 		if (id) { this.openCard({webviewId: id}); }
 	},
-	doShare: function() { this.openDialog("Share", "Copy the address from the bar to share this page."); },
+	//* Toolbar share button: the share entries for the page on screen.
+	doShare: function() {
+		if (this.isTransientUrl(this.url)) {
+			this.openDialog("Share", "Open a page first: there is nothing to share on the start page.");
+			return;
+		}
+		this.openShareSheet({title: this._title || this.url, url: this.url});
+	},
+
+	// --- action sheet (share entries, long-press menu) -----------------------
+	//* Show `items` ([{label, action}]) under a title; a tapped row closes the sheet and
+	//* calls this[action](ctx). `ctx` is whatever the rows act on (a page, a link, an image).
+	openSheet: function(title, sub, items, ctx) {
+		this._sheetCtx = ctx || {};
+		this.$.sheetTitle.setContent(title || "");
+		this.$.sheetSub.setContent(sub || "");
+		this.$.sheetSub.setShowing(Boolean(sub));
+		this.$.sheetItems.destroyClientControls();
+		for (var i = 0; i < items.length; i++) {
+			this.$.sheetItems.createComponent({
+				classes: "jihad-menu-item", content: items[i].label, allowHtml: false,
+				sheetAction: items[i].action, ontap: "sheetPick"
+			}, {owner: this});
+		}
+		this.$.sheet.setShowing(true);
+		this.$.sheetItems.render();
+	},
+	sheetDismiss: function() {
+		this.$.sheet.setShowing(false);
+		return true;
+	},
+	sheetPick: function(inSender) {
+		var action = inSender && inSender.sheetAction, ctx = this._sheetCtx;
+		this.$.sheet.setShowing(false);
+		if (action && this[action]) { this[action](ctx); }
+		return true;                       // do not bubble into sheetDismiss
+	},
+
+	// --- share (ShareLinkDialog.js parity) + Add to Launcher ------------------
+	openShareSheet: function(page) {
+		this.openSheet("Share", page.url, [
+			{label: "Email",           action: "shareByEmail"},
+			{label: "Text Message",    action: "shareByMessage"},
+			{label: "Copy Address",    action: "shareCopy"},
+			{label: "Add to Launcher", action: "shareAddToLauncher"}
+		], page);
+	},
+	htmlEscape: function(s) {
+		return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+	},
+	shareByEmail: function(page) {
+		// The email app takes HTML body text, so the title and address ARE escaped here.
+		enyo.jihad.launch({id: "com.palm.app.email", params: {
+			summary: "Check out this web page...",
+			text: "Here's a website I think you'll like: <a href=\"" + this.htmlEscape(page.url) + "\">" +
+				this.htmlEscape(page.title || page.url) + "</a>"
+		}}, enyo.bind(this, "shareLaunched", "Email"));
+	},
+	shareByMessage: function(page) {
+		enyo.jihad.launch({id: "com.palm.app.messaging", params: {
+			compose: {messageText: "Check out this web page: " + page.url}
+		}}, enyo.bind(this, "shareLaunched", "Messaging"));
+	},
+	shareLaunched: function(what, resp) {
+		if (!resp || resp.returnValue === false) {
+			enyo.jihad.toast("info", what + " could not be opened.");
+		}
+	},
+	shareCopy: function(page) {
+		enyo.jihad.toast("info", enyo.jihad.setClipboard(page.url) ? "Address copied." : "The address could not be copied.");
+	},
+	//* A launcher entry that opens `page` in THIS variant (BrowserApp.addToLauncher). The
+	//* launch point carries {url}, which applyLaunchParams reads like any other launch.
+	shareAddToLauncher: function(page) {
+		var base = String(window.location.href || "").replace(/^file:\/\//, "").replace(/[^\/]*$/, "");
+		enyo.jihad.addLaunchPoint({
+			id: enyo.jihad.appId(),
+			title: page.title || page.url,
+			icon: page.icon || (base + "icon.png"),
+			params: {url: page.url}
+		}, function(resp) {
+			enyo.jihad.toast("info", (resp && resp.returnValue !== false) ? "Added to Launcher." : "The page could not be added to the Launcher.");
+		});
+	},
+
+	// --- long-press menu (BrowserContextMenu.js parity) -----------------------
+	//* JihadWebView.onHold: the user held on a link and/or an image. An image inside a
+	//* link gets both groups, link entries first.
+	showHoldMenu: function(inSender, inEvent) {
+		var e = inEvent || {}, items = [];
+		if (e.linkUrl) {
+			items.push({label: "Open in New Card", action: "holdOpenInNewCard"});
+			items.push({label: "Share Link",       action: "holdShareLink"});
+			items.push({label: "Copy Address",     action: "holdCopyLink"});
+		}
+		if (e.imageUrl) {
+			items.push({label: "Save Image",        action: "holdSaveImage"});
+			items.push({label: "Share Image",       action: "holdShareImage"});
+			items.push({label: "Set as Wallpaper",  action: "holdSetWallpaper"});
+		}
+		if (!items.length) { return true; }
+		this.openSheet(e.linkUrl ? (e.linkText || "Link") : (e.altText || "Image"), e.linkUrl || e.imageUrl, items, e);
+		return true;
+	},
+	holdOpenInNewCard: function(e) { this.openCard({url: e.linkUrl}); },
+	holdShareLink:     function(e) { this.openShareSheet({title: e.linkText || e.linkUrl, url: e.linkUrl}); },
+	holdCopyLink:      function(e) { this.shareCopy({url: e.linkUrl}); },
+	//* Fetch the image into the downloads folder with the system download manager, then
+	//* hand its path to `then`. The download manager does the writing, into the one place
+	//* on the user volume this browser may add a file to (cavekit-device-build.md R8).
+	//* Only http(s) images can be fetched this way; an inline (data:) image cannot.
+	fetchImage: function(e, then) {
+		var self = this, done = false;
+		if (!/^https?:\/\//i.test(e.imageUrl || "")) {
+			enyo.jihad.toast("info", "This image cannot be saved.");
+			return;
+		}
+		enyo.jihad.fetchToDownloads(e.imageUrl, function(resp) {
+			if (done || !resp) { return; }
+			if (resp.returnValue === false || resp.aborted ||
+			    (resp.completed && resp.completionStatusCode && resp.completionStatusCode != 200)) {
+				done = true;
+				enyo.jihad.toast("info", "The image could not be saved.");
+				return;
+			}
+			if (resp.completed) {
+				done = true;
+				self.refreshDownloads();
+				then(resp.target || ((resp.destPath || "") + (resp.destFile || "")));
+			}
+		});
+	},
+	holdSaveImage: function(e) {
+		this.fetchImage(e, function(path) {
+			enyo.jihad.toast("info", "Image saved to downloads.");
+		});
+	},
+	holdShareImage: function(e) {
+		var self = this;
+		this.fetchImage(e, function(path) {
+			enyo.jihad.launch({id: "com.palm.app.email", params: {attachments: [{fullPath: path}]}},
+				enyo.bind(self, "shareLaunched", "Email"));
+		});
+	},
+	holdSetWallpaper: function(e) {
+		this.fetchImage(e, function(path) {
+			enyo.jihad.importWallpaper(path, function(resp) {
+				if (!resp || resp.returnValue === false || !resp.wallpaper) {
+					enyo.jihad.toast("info", "The wallpaper could not be set.");
+					return;
+				}
+				enyo.jihad.setSystemPreferences({wallpaper: resp.wallpaper}, function(r2) {
+					enyo.jihad.toast("info", (r2 && r2.returnValue !== false) ? "Wallpaper set." : "The wallpaper could not be set.");
+				});
+			});
+		});
+	},
 	//* Toolbar menu button opens the overflow menu.
 	doBookmarks: function() { this.openMenu(); },
 
@@ -592,12 +771,13 @@ enyo.kind({
 	menuNewCard:     function() { this.$.menuPopup.hide(); this.doNewCard(); },
 	menuBookmarks:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.bookmarkList.open(); },
 	menuHistory:     function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.historyList.open(); },
-	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.setDownloads(this.downloads); this.$.downloadList.open(); this.refreshDownloads(); },
+	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.open(); this.refreshDownloads(); },
 	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
 	menuAddBookmark: function() { this.$.menuPopup.hide(); this.addCurrentBookmark(); },
 	//* The only preference the SHELL has to react to: the start page's shortcut row
-	//* is already rendered, so it has to be rebuilt when the list is edited. The
-	//* toggles are persisted by the panel itself and read by the engine elsewhere.
+	//* is already rendered, so it has to be rebuilt when the list is edited. The search
+	//* engine and the Flash switch are stored by the panel itself (the card's own store
+	//* and the daemon), and searchUrl reads the engine choice at each use.
 	preferenceChanged: function(inSender, inEvent) {
 		if (inEvent && inEvent.preference === "startPageLinks") {
 			this.buildStartLinks();
@@ -772,14 +952,104 @@ enyo.kind({
 		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.bookmarks, null);
 		this.$.bookmarkList.setItems([]);
 	},
+	//* Clear History: the saved list AND the engine's own back/forward history for this
+	//* card (Browser.clearHistory parity) — otherwise Back still walks the pages the user
+	//* just asked to forget. The engine sends no history update for a purge, so the two
+	//* controls are set here; the next navigation reports the real state again.
 	clearHistory: function() {
 		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.history, null);
 		this.$.historyList.setItems([]);
+		this.$.view.clearEngineHistory();
+		this.$.back.addRemoveClass("disabled", true);
+		this.$.forward.addRemoveClass("disabled", true);
 	},
 
-	// --- downloads (palm://com.palm.downloadmanager) ------------------------
+	// --- downloads ------------------------------------------------------------
+	// Two sources, shown as one list (JihadDownloadList explains the two record shapes):
+	// downloads a PAGE started, which the engine saves and reports over the adapter, and
+	// files this card asked the system download manager to fetch.
+	//
+	// The engine's are the Enyo shell's "auto-started" downloads. That shell answers the
+	// engine's hand-off by asking the download manager to fetch the URL — but this engine
+	// saves the file itself as well, so there every such file is fetched TWICE (the
+	// `name-1`, `name-2` copies in the downloads folder). Here the hand-off is not
+	// answered: one fetch, by the engine, tracked from its own reports.
+	ENGINE_DOWNLOADS_KEY: "jihad.mochi.downloads",
+	ENGINE_DOWNLOADS_MAX: 40,
+	loadEngineDownloads: function() {
+		var list = null;
+		try {
+			list = window.localStorage ? enyo.json.parse(window.localStorage.getItem(this.ENGINE_DOWNLOADS_KEY) || "[]") : [];
+		} catch (e) { list = null; }
+		if (!list || !list.length) { return []; }
+		// A transfer that was running when the card last closed did not finish under it.
+		for (var i = 0; i < list.length; i++) {
+			if (!list[i].completed && !list[i].failed) { list[i].failed = true; list[i].error = "interrupted"; }
+		}
+		return list;
+	},
+	saveEngineDownloads: function() {
+		try {
+			if (window.localStorage) {
+				window.localStorage.setItem(this.ENGINE_DOWNLOADS_KEY,
+					enyo.json.stringify(this.engineDownloads.slice(0, this.ENGINE_DOWNLOADS_MAX)));
+			}
+		} catch (e) { /* a full store must not break a download */ }
+	},
+	//* The record for `url`, newest first; created when `create` is set.
+	engineDownloadFor: function(url, create) {
+		for (var i = 0; i < this.engineDownloads.length; i++) {
+			if (this.engineDownloads[i].url === url && !this.engineDownloads[i].completed) { return this.engineDownloads[i]; }
+		}
+		if (!create) { return null; }
+		var rec = {engine: true, url: url, received: 0, total: 0, completed: false, failed: false, date: (new Date()).getTime()};
+		this.engineDownloads.unshift(rec);
+		return rec;
+	},
+	showDownloads: function() {
+		this.$.downloadList.setDownloads(this.engineDownloads.concat(this.downloads));
+		this.$.downloadList.renderList();
+	},
+	engineDownloadStart: function(inSender, inEvent) {
+		var url = inEvent && inEvent.url;
+		if (!url) { return; }
+		var rec = this.engineDownloadFor(url, true);
+		rec.failed = false; rec.error = ""; rec.received = 0;
+		this.saveEngineDownloads();
+		this.showDownloads();
+		enyo.jihad.toast("info", "Download started.");
+	},
+	engineDownloadProgress: function(inSender, inEvent) {
+		var rec = inEvent && this.engineDownloadFor(inEvent.url, true);
+		if (!rec) { return; }
+		rec.received = inEvent.received || 0;
+		rec.total = inEvent.total || 0;
+		// Not persisted per tick; redraw only while the list is on screen.
+		if (this.$.downloadList.getShowing()) { this.showDownloads(); }
+	},
+	engineDownloadFinished: function(inSender, inEvent) {
+		var rec = inEvent && this.engineDownloadFor(inEvent.url, true);
+		if (!rec) { return; }
+		rec.completed = true; rec.failed = false;
+		rec.path = inEvent.path || "";
+		rec.mimeType = inEvent.mimeType || "";
+		if (rec.total) { rec.received = rec.total; }
+		this.saveEngineDownloads();
+		this.showDownloads();
+		enyo.jihad.toast("info", "Download finished.");
+	},
+	engineDownloadError: function(inSender, inEvent) {
+		var rec = inEvent && this.engineDownloadFor(inEvent.url, true);
+		if (!rec) { return; }
+		rec.failed = true;
+		rec.error = inEvent.message || "";
+		this.saveEngineDownloads();
+		this.showDownloads();
+		enyo.jihad.toast("info", "Download failed.");
+	},
 	refreshDownloads: function() {
 		var self = this;
+		this.showDownloads();
 		enyo.jihad.downloadHistory(enyo.jihad.appId(), function(resp) {
 			var items = (resp && resp.items) || [];
 			var list = [];
@@ -789,11 +1059,15 @@ enyo.kind({
 				}
 			}
 			self.downloads = list;
-			self.$.downloadList.setDownloads(list);
+			self.showDownloads();
 		});
 	},
 	openDownload: function(inSender, inEvent) {
 		var d = inEvent && inEvent.item;
+		if (d && d.engine) {
+			if (d.completed && !d.failed && d.path) { enyo.jihad.launch({target: "file://" + d.path}); }
+			return;
+		}
 		// BrowserApp.openDownloadedFile parity: completed, not aborted, not interrupted.
 		if (d && d.completed && !d.aborted && !d.interrupted) {
 			enyo.jihad.launch({target: (d.destPath || "") + (d.destFile || "")});
@@ -803,9 +1077,33 @@ enyo.kind({
 		var d = inEvent && inEvent.item;
 		if (d && d.ticket) { enyo.jihad.cancelDownload(d.ticket); }
 	},
+	//* Fetch a failed download again. An engine download is re-driven the way it began —
+	//* by loading its address, which the engine turns into a save again; the failed record
+	//* is dropped so the new attempt is the only row for that file.
+	retryDownload: function(inSender, inEvent) {
+		var d = inEvent && inEvent.item;
+		if (!d) { return; }
+		if (d.engine) {
+			var i = enyo.indexOf(d, this.engineDownloads);
+			if (i >= 0) { this.engineDownloads.splice(i, 1); }
+			this.saveEngineDownloads();
+			this.showDownloads();
+			this.$.view.load(d.url);
+			return;
+		}
+		var target = d.target || d.url;
+		if (target) {
+			var self = this;
+			enyo.jihad.fetchToDownloads(target, function(resp) {
+				if (resp && resp.completed) { self.refreshDownloads(); }
+			});
+		}
+	},
 	clearDownloads: function() {
 		enyo.jihad.clearDownloads(enyo.jihad.appId());
 		this.downloads = [];
+		this.engineDownloads = [];
+		this.saveEngineDownloads();
 		this.$.downloadList.setDownloads([]);
 	},
 

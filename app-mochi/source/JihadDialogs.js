@@ -82,12 +82,16 @@ enyo.kind({
 				]}
 			]}
 		]},
-		// SSL confirm: message + Trust Always / Trust Once / Don't Trust. (The Enyo
-		// 1.0 "View Certificate" detail is intentionally omitted — see PARITY.md;
-		// the security-critical trust decision is fully answerable here.)
+		// SSL confirm: message + View Certificate + Trust Always / Trust Once / Don't Trust.
+		// The certificate is read while this dialog is OPEN: the daemon writes the server's
+		// certificate to a file for the duration of the question and deletes it when the
+		// question is answered, so the details are fetched as soon as the dialog shows and
+		// the button only reveals what was fetched.
 		{name: "ssl", classes: "jihad-modal-overlay", showing: false, components: [
 			{classes: "jihad-dialog-box jihad-dialog-ssl", components: [
 				{name: "sslMsg", classes: "jihad-dialog-message"},
+				{name: "sslCert", classes: "jihad-cert", showing: false, allowHtml: false},
+				{name: "sslView", classes: "jihad-cert-link", content: "View Certificate", ontap: "sslViewTapped", showing: false},
 				{classes: "jihad-dialog-buttons", components: [
 					{classes: "jihad-btn jihad-btn-alt", content: "Don't Trust", ontap: "sslDontTrust"},
 					{classes: "jihad-btn", content: "Trust Once", ontap: "sslTrustOnce"},
@@ -119,8 +123,54 @@ enyo.kind({
 	},
 	showSSL: function(host, code, certFile) {
 		this._sslCertFile = certFile;
+		this._sslCertText = "";
 		this.$.sslMsg.setContent(this.sslMessage(host, code));
+		this.$.sslCert.hide();
+		this.$.sslView.hide();
 		this.$.ssl.show();
+		if (certFile) {
+			var self = this, asked = certFile;
+			enyo.jihad.certDetails(certFile, function(resp) {
+				// A reply for a certificate that is no longer the one on screen is dropped.
+				if (self._sslCertFile !== asked) { return; }
+				var text = self.certText(resp);
+				self._sslCertText = text;
+				self.$.sslView.setShowing(Boolean(text));
+			});
+		}
+	},
+	sslViewTapped: function() {
+		var open = !this.$.sslCert.getShowing();
+		this.$.sslCert.setContent(this._sslCertText || "");
+		this.$.sslCert.setShowing(open);
+		this.$.sslView.setContent(open ? "Hide Certificate" : "View Certificate");
+		return true;
+	},
+	//* The certificate manager's reply as readable lines — the fields the Enyo certificate
+	//* view shows (CertificateDetail.js): who it was issued to and by, validity, serial,
+	//* version and algorithms. Anything the reply lacks is left out, and a reply with nothing
+	//* usable gives "" (the button then never appears).
+	certText: function(resp) {
+		if (!resp || resp.returnValue === false) { return ""; }
+		var lines = [];
+		function party(label, p) {
+			if (!p) { return; }
+			var bits = [], keys = ["commonname", "organization", "unit", "location", "state", "country", "altname"];
+			for (var i = 0; i < keys.length; i++) {
+				if (p[keys[i]]) { bits.push(String(p[keys[i]])); }
+			}
+			if (bits.length) { lines.push(label + ": " + bits.join(", ")); }
+		}
+		party("Issued to", resp.subject);
+		party("Issued by", resp.issuer);
+		if (resp.startdate)    { lines.push("Valid from: " + resp.startdate); }
+		if (resp.expiredate)   { lines.push("Valid until: " + resp.expiredate); }
+		if (resp.serialNumber !== undefined && resp.serialNumber !== "") { lines.push("Serial number: " + resp.serialNumber); }
+		if (resp.version !== undefined && resp.version !== "")           { lines.push("Version: " + resp.version); }
+		if (resp.sha256) { lines.push("SHA-256 fingerprint: " + resp.sha256); }
+		if (resp.signature && resp.signature.algorithm) { lines.push("Signature: " + resp.signature.algorithm); }
+		if (resp.publicKey && resp.publicKey.algorithm) { lines.push("Public key: " + resp.publicKey.algorithm); }
+		return lines.join("\n");
 	},
 	//* SSL warning text keyed on the adapter's error code bands (Browser.js).
 	sslMessage: function(host, code) {
@@ -157,7 +207,7 @@ enyo.kind({
 	promptCancel:  function() { this.answer(this.$.prompt, ["0"]); },
 	loginOk:       function() { this.answer(this.$.login, ["1", this.$.userInput.getValue() || "", this.$.passInput.getValue() || ""]); },
 	loginCancel:   function() { this.answer(this.$.login, ["0"]); },
-	sslTrustAlways: function() { this.answer(this.$.ssl, ["1"]); },
-	sslTrustOnce:   function() { this.answer(this.$.ssl, ["2"]); },
-	sslDontTrust:   function() { this.answer(this.$.ssl, ["0"]); }
+	sslTrustAlways: function() { this._sslCertFile = null; this.answer(this.$.ssl, ["1"]); },
+	sslTrustOnce:   function() { this._sslCertFile = null; this.answer(this.$.ssl, ["2"]); },
+	sslDontTrust:   function() { this._sslCertFile = null; this.answer(this.$.ssl, ["0"]); }
 });

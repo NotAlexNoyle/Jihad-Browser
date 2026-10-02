@@ -454,3 +454,90 @@ input.jihad-address {
 	-webkit-flex: none;
 	flex: none;
 }
+
+/* --- parity work of 2026-10-02 ------------------------------------------------------ */
+/* A line of explanation under a preference label or in a dialog. */
+.jihad-prefs-note {
+	font-size: 13px;
+	line-height: 1.3;
+	color: #c9a45c;
+	margin: 2px 0 8px;
+}
+/* One-of-many rows (default search engine). The chosen row carries a tick. */
+.jihad-prefs-choice {
+	font-size: 17px;
+	line-height: 34px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.jihad-prefs-choice:active { background: #3d3d3d; }
+.jihad-prefs-choice.chosen { color: #8fd08f; }
+/* The mark is drawn, not a character: the device font has no check-mark glyph (it rendered as
+   an empty box). */
+.jihad-prefs-choice.chosen:after {
+	content: "";
+	float: right;
+	width: 12px; height: 12px;
+	margin: 11px 4px 0 0;
+	background: #8fd08f;
+	-webkit-border-radius: 6px; border-radius: 6px;
+}
+/* History date-group heading. */
+.jihad-row-divider {
+	padding: 6px 14px;
+	font-size: 13px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #8cafbe;
+	background: #232323;
+	border-bottom: 1px solid #2f2f2f;
+}
+/* Bookmark thumbnail. */
+.jihad-row-thumb {
+	width: 64px;
+	height: 48px;
+	margin-right: 10px;
+	border: 1px solid #444;
+	background: #111;
+	vertical-align: middle;
+}
+/* Action sheet (share entries, long-press menu): a dialog box holding menu rows. */
+.jihad-dialog-box.jihad-sheet { padding-bottom: 14px; }
+.jihad-sheet-sub {
+	font-size: 13px;
+	color: #8cafbe;
+	margin-bottom: 10px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.jihad-sheet-items {
+	margin: 0 -18px 12px;
+	border-top: 1px solid #3a3a3a;
+}
+/* Certificate details inside the SSL warning. */
+.jihad-cert {
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre-line;
+	word-wrap: break-word;
+	color: #d0d0d0;
+	background: #1f1f1f;
+	border: 1px solid #3a3a3a;
+	padding: 8px 10px;
+	margin-bottom: 12px;
+	max-height: 220px;
+	overflow: auto;
+}
+.jihad-cert-link {
+	font-size: 15px;
+	color: #7fb2e6;
+	margin-bottom: 14px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+}
+/* Dialog fields stack, one per line, at the dialog's width (the decorator is inline-block by
+   default, which put the title and address fields of the bookmark editor side by side). */
+.jihad-dialog-inputbox { display: block; }

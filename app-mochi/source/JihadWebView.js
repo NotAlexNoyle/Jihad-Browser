@@ -79,7 +79,17 @@ enyo.kind({
 		onDialogConfirm: "",
 		onDialogPrompt: "",
 		onDialogSSLConfirm: "",
-		onDialogUserPassword: ""
+		onDialogUserPassword: "",
+		//* A download the PAGE started (the engine saves the file itself and reports it):
+		//* {url} / {url, received, total} / {url, mimeType, path} / {url, message}.
+		onDownloadStart: "",
+		onDownloadProgress: "",
+		onDownloadFinished: "",
+		onDownloadError: "",
+		//* The user held a finger on a link or an image:
+		//* {linkUrl, linkText, imageUrl, altText, pageX, pageY}. Fired only for those two;
+		//* any other hold is left to the engine.
+		onHold: ""
 	},
 
 	// --- lifecycle ----------------------------------------------------------
@@ -212,6 +222,20 @@ enyo.kind({
 		return this._call("sendDialogResponse", args);
 	},
 
+	//* Empty the ENGINE's back/forward history for this card (the adapter's clearHistory,
+	//* the method the Enyo shell reaches through Browser.clearHistory). Variable-method
+	//* path, like sendDialogResponse above.
+	clearEngineHistory: function() {
+		return this._call("clearHistory", []);
+	},
+	//* Load `url` even if it is what the `url` property already holds — a published setter
+	//* does nothing for an unchanged value, and "fetch this again" is exactly that case.
+	load: function(url) {
+		if (!url) { return; }
+		this.url = url;
+		return this._call("openURL", [url]);
+	},
+
 	// --- WebView-internal plugin path (kept OUT of the app call set) --------
 	// Queue-aware node invoker, mirroring BasicWebView.callBrowserAdapter. Used
 	// by both the public proxy above and the internal handshake/setup. Because
@@ -335,6 +359,52 @@ enyo.kind({
 		}
 		this.doOpenSelect({id: inId, items: menu.items,
 			selectedIdx: menu.selectedIdx, rect: menu.rect});
+	},
+
+	// --- downloads the page started (adapter -> app) ------------------------
+	// The engine saves a file it cannot show into the downloads folder and reports the
+	// transfer here (render/goanna/DownloadService.cpp -> the adapter's msgDownload*).
+	// Arg orders verified against render/adapter/BrowserAdapter.cpp.
+	downloadStart: function(url) {
+		this.doDownloadStart({url: url});
+	},
+	downloadProgress: function(url, soFar, total) {
+		this.doDownloadProgress({url: url, received: soFar, total: total});
+	},
+	downloadFinished: function(url, mimeType, path) {
+		this.doDownloadFinished({url: url, mimeType: mimeType, path: path});
+	},
+	downloadError: function(url, message) {
+		this.doDownloadError({url: url, message: message});
+	},
+	// (adapter callback) the engine is handing a resource off. The Enyo 1 framework answers
+	// this by asking the system download manager to fetch the URL — but this engine has
+	// ALREADY started saving the file itself (the download* callbacks above), so answering
+	// would fetch every file twice. Deliberately nothing.
+	mimeHandoffUrl: function(mimeType, url) {
+	},
+
+	// --- taps and holds the adapter asks about (adapter -> app) -------------
+	// The adapter calls this with the hit-test result before it acts on a tap or a hold;
+	// a true return means "the card dealt with it", anything else lets the adapter carry
+	// on (click the page / raise the engine's own context event). ONLY a hold on a link or
+	// an image is claimed. A tap must always fall through: claiming it would stop every tap
+	// on the page from working.
+	eventFired: function(inEvent, inInfo) {
+		if (!inEvent || inEvent.type !== "mousehold" || !inInfo || inInfo.isNull) {
+			return false;
+		}
+		var link = inInfo.isLink ? (inInfo.linkUrl || "") : "";
+		var image = inInfo.isImage ? (inInfo.imageUrl || "") : "";
+		if (!link && !image) {
+			return false;
+		}
+		this.doHold({
+			linkUrl: link, linkText: inInfo.linkText || "",
+			imageUrl: image, altText: inInfo.altText || "",
+			pageX: inEvent.pageX, pageY: inEvent.pageY
+		});
+		return true;
 	},
 
 	// --- engine-driven dialog callbacks (adapter -> app) --------------------

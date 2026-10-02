@@ -1,11 +1,107 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 ×3 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-02 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-01 (third session) delta — every agent-doable sweep run on CE 3.1.0; what is left needs the owner or a person at the device (read first)
+## 2026-10-02 delta — owner decisions carried out; the Mochi parity omissions built (read first)
+
+The owner answered the open decisions and gave a go-ahead for the removal audit, the engine push
+and a reboot. Per-task record: `context/impl/impl-ce310-loop.md` (rows from "2026-10-02" on);
+evidence: `context/impl/evidence-2026-10-02/`; plan: tiers 54–61 of `context/plans/build-site.md`.
+**Nothing was pushed** (see "Waiting on the owner").
+
+**Decisions taken, and done:**
+- The card panels lose Block Popups / Accept Cookies / Enable JavaScript (Enyo, Mochi); the settings
+  page owns them; "More Settings" opens it. The Enyo card no longer replays its stored copies.
+- Flash comes from the device's own plugin folder (`/media/cryptofs/apps/usr/lib/BrowserServerPlugins`,
+  the HP Flash plugin app) — scanned after the profile folder, skipped when the profile has its own
+  copy. One stored on/off value (`plugin.state.flash`): a row on the settings page, a real switch in
+  the Enyo and Mochi panels through the variant's Luna service (`getFlash` / `enableFlash` /
+  `disableFlash`; the setters accept only the variant's own card).
+- No Mochi parity omission was accepted. Built and shown on the device: bookmark editing, bookmark
+  thumbnails, downloads a page starts (one fetch, with retry), long-press menu, share sheet and Add
+  to Launcher, certificate details, search-engine choice, Flash switch, Clear History that clears the
+  engine too, a confirmation before each clear, grouped history dates. `app-mochi/PARITY.md` is
+  refreshed. **Print is not built**: no printer the device can reach, so nothing could be verified.
+
+**Defects found on the way and fixed:**
+- Closing ANY card unregistered the add-on install prompt and the JS notification door for the rest
+  of the daemon's life (the page destructor cleared a process-wide sink, and clearing it dropped
+  once-per-process observers). Installs were downloaded and then cancelled with no prompt.
+- The Mochi bookmarks list could never show a row (ordered by an un-indexed db8 property), and a
+  Mochi panel hidden at layout time opened blank (never measured).
+- With a profile copy and the system folder both scanned, Flash was registered twice.
+- The Enyo certificate view could never open on webOS CE (see traps) and threw on a certificate with
+  no common name.
+
+**Waiting on the owner (approved, but the session's permission gate refused both again):**
+- Engine push: `git -C third_party/uxp push fork jihad-engine-mods`, then bump the gitlink and the OE
+  SRCREV (T-279). Two local engine commits: `1fff802335`, `9dedcd5fe5`.
+- Variant removal (T-231…T-234, T-273): the audit script is on the device —
+  `/tmp/rm1.sh <variant> <appid> <job> <luna name> <shim>` (volatile: re-push it from the scratch
+  copy or rewrite it if `/tmp` was cleared). The test extension is installed in the Enyo and Mochi
+  profiles for the "its extensions go, the other's stay" check. Profile backups of all three variants
+  were taken to the host before anything else.
+- A printer the device can reach, for Print (T-310).
+- The human checklist (T-317): hands-on steps, listed at the end of the session's report.
+
+**Traps found this session:**
+- `/tmp` on the device is a 40 MB tmpfs. Three profile tarballs filled it; `novacom put` then fails
+  with "No space left on device". Stream large things straight to the host instead.
+- A card may load a local file ONLY from its own application directory or `/media/internal`
+  (LunaSysMgr `isAllowedFileAccess`), and its WebKit refuses a local file over XMLHttpRequest. A
+  script or image tag pointing into the app directory works. `/var/…` and `/tmp/…` do not.
+- `com.palm.certificatemanager` does not exist for a card on webOS CE ("Service does not exist").
+- While an engine dialog is up the daemon answers nothing over Luna either.
+- This Enyo 2 has `resize()`, not `resized()`; a panel shown after layout needs it.
+- db8 refuses an ordered query on a property the kind has no index for (`-3965`), and an Enyo 2 card
+  shows that as an empty list, not an error.
+- `pkill -f <pattern>` kills the shell that runs it if the pattern is in its own command line.
+- An upgrade `.ipk` install overwrites the package's files but does NOT remove an extra file: a
+  pushed test hook's manifest edit is undone by an install, its `JihadSelfTest.js` is left lying in
+  the app directory. Always finish a hook session with `card-selftest.sh <shell> restore`.
+
+**Tools added:** `build/webos-oe/card-selftest.sh` (+ `render/goanna/test/{mochi,enyo}-selftest.js`)
+drives a shell's own chrome on the device through its handlers; `build/webos-oe/prefs-row-walk.sh`
+walks every settings-page row.
+
+**Device state as left:**
+- All three variants installed through `org.webosinternals.ipkgservice`: libxul
+  `65e3cc84891c59e9ede40cc7b3de0802`, daemon `1a70344214e9e266c894782ed10286b9`, goanna.js `97f981b3bc03…`,
+  PDK adapter impls unchanged (enyo `6a35d778…`, mochi `44ab2e23…`, mojo `25aa85a4…`). Shell sources
+  on the device compare equal (md5) to the repo at the last commit. The Enyo package installed is
+  `690d8c3c…`; Mochi and Mojo were installed from an earlier build of the same payload
+  (`a9ca38d8…`, `59d727a0…`) — the copies now in `build/webos-oe/out-ipk/` are a later rebuild whose
+  payload is identical but whose package bytes are not.
+- **The device was rebooted once** (owner-approved) with the shipped, unmodified jobs: all three
+  daemons came up, Luna registered at first start, extensions survived. Afterwards `JIHAD_INJECT=1`
+  was re-added to the three jobs (remount rw → edit → remount ro) and the daemons restarted. The
+  root filesystem is READ-ONLY at rest now (it was read-write before the reboot, found that way).
+- Flash: no variant has a copy in its profile any more (the hand-copied one was removed from Enyo);
+  all three get it from the system folder; the value is ON in all three.
+- **The test extension `jihad-effect@riverstonerelay.net` is installed in the Enyo and Mochi profiles
+  on purpose** (for the removal audit) — it turns every page's background magenta in those two
+  variants. Remove it from `about:addons` once the audit is done.
+- `/tmp` was wiped by the reboot. Restaged: the test pages (`stage-test-pages.sh`), `fresh-card.sh`,
+  `inst3.sh`, `fin1.sh`, `ps.sh` and the removal audit script `rm1.sh`. NOT restaged: the media clips
+  (`stage-media-pages.sh`), the Flash test movies except `jihad-anim`, `uinput_kbd`.
+- Cards open: Enyo and Mochi on `file:///tmp/jihad-plain.html`. No test hook on the device: both
+  manifests are the shipped ones and no `JihadSelfTest.js` is left (an upgrade install leaves an
+  extra file behind — it was removed by hand).
+- Mochi card data left from the tests: a few history rows and downloads-view rows (their files are
+  deleted); the search engine is back on DuckDuckGo; no bookmarks.
+- Four fault reports in `/var/log/reports/librdx/`; the new one is `BrowserServer-atlas` SIGBUS at
+  the moment of the reboot — Atlas's daemon, not ours. LunaSysMgr was restarted about a dozen times
+  by `card-selftest.sh push` / `restore` (by design: it caches card JS).
+- `/var` 23%. Residue still to delete by hand: `/media/internal/downloads/jihad-testfile{,-1,-2}.bin`.
+- Cavekit: registry 96 complete, 18 blocked (owner / person / printer), 1 pending behind them. The
+  loop was torn down at the stop. `.cavekit/config` carries an uncommitted edit of the owner's.
+
+---
+
+## 2026-10-01 (third session) delta — every agent-doable sweep run on CE 3.1.0 (SUPERSEDED where the delta above disagrees)
 
 `/ck:make` ran the rest of the build site inline. Registry: 72 complete, 18 blocked (owner / human),
 1 pending behind a blocked task (T-236). Per-task record: `context/impl/impl-ce310-loop.md`; the kits

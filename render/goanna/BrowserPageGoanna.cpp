@@ -1725,6 +1725,39 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     std::string der;
     if (mPage->GetCertDer(&der))
       certFile = jihad::certstore::WriteCertPem(der.data(), der.size());
+    // …and the certificate's readable details, for the card to show. On webOS CE a card
+    // cannot reach com.palm.certificatemanager at all ("Service does not exist" on the public
+    // bus, measured 2026-10-02), and while this dialog is up the daemon is parked on the reply
+    // pipe and can answer nothing over Luna either — so a file the card reads is the one
+    // channel that works inside the window. Two constraints shape it, both measured:
+    //   * WHERE: LunaSysMgr lets a card load local files only from its own application
+    //     directory ("isAllowedFileAccess: NOT ALLOWING FILE ACCESS … target: /var/ssl/…"),
+    //     so it goes in <appdir>/certinfo/, beside the profile this daemon already keeps there.
+    //   * WHAT: a SCRIPT, one call carrying one JSON object. The card's WebKit refuses the
+    //     same bytes over XMLHttpRequest ("Cross origin requests are only supported for HTTP").
+    // The strings in it come from the server's certificate, so the JSON writer escapes
+    // everything that could end a string or a line. Named after the PEM so the card can
+    // derive it from the certFile it is handed; removed when the dialog resolves.
+    std::string certInfoFile;
+    if (!certFile.empty()) {
+      std::string info;
+      std::string appDir = jihad::RuntimeProfileDir();
+      const size_t cut = appDir.find_last_of('/');
+      const size_t base = certFile.find_last_of('/');
+      if (cut != std::string::npos && cut > 0 && mPage->GetCertInfoJson(&info)) {
+        const std::string dir = appDir.substr(0, cut) + "/certinfo";
+        mkdir(dir.c_str(), 0755);
+        const std::string side = dir + "/" + certFile.substr(base == std::string::npos ? 0 : base + 1) + ".js";
+        certInfoFile = side;
+        FILE* f = fopen(side.c_str(), "w");
+        if (f) {
+          fputs("if(window.jihadCertInfo){window.jihadCertInfo(", f);
+          fwrite(info.data(), 1, info.size(), f);
+          fputs(");}\n", f);
+          fclose(f); chmod(side.c_str(), 0644);
+        }
+      }
+    }
 
     // …and the error code has to be in the card's numbering space. mErrorStatus
     // is an nsresult; the card matches Palm's small ordinals, so an unmapped
@@ -1784,6 +1817,7 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     // which is strictly inside the window we are blocked in, and the store has
     // already copied whatever it installed.
     jihad::certstore::ForgetCertPem(certFile);
+    if (!certInfoFile.empty()) unlink(certInfoFile.c_str());
   }
   else if (failed) mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
   std::string uri = emitLocationAndTitleCore();

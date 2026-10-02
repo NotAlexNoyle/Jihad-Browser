@@ -37,6 +37,8 @@
 #include "nsIWebProgress.h"
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
+#include "JihadRuntimePaths.h"      // RuntimeProfileDir (Flash availability)
+#include <unistd.h>                 // access
 #include "nsIWindowProvider.h"      // window.open -> a new card (PageChrome::ProvideWindow)
 #include "nsIChannel.h"
 #include "nsIHttpChannel.h"         // content-nav request method (POST vs GET re-drive)
@@ -2197,6 +2199,55 @@ bool GoannaRenderPage::GetCertProblem(jihad::certstore::Problem* out) {
   return true;
 }
 
+static void jihadJsonField(std::string& out, const char* key, const nsAString& value, bool* first) {
+  NS_ConvertUTF16toUTF8 v(value);
+  if (v.IsEmpty()) return;
+  if (!*first) out += ',';
+  *first = false;
+  out += '"'; out += key; out += "\":\"";
+  for (const char* p = v.get(); *p; ++p) {
+    unsigned char c = (unsigned char)*p;
+    if (c == '"' || c == '\\') { out += '\\'; out += (char)c; }
+    else if (c < 0x20 || c == 0x7f) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); out += b; }
+    // U+2028 / U+2029 (E2 80 A8 / A9) end a line in JavaScript; this JSON is also loaded as a
+    // script, and '<' is escaped so the value can never look like markup to anything.
+    else if (c == 0xE2 && (unsigned char)p[1] == 0x80 && ((unsigned char)p[2] == 0xA8 || (unsigned char)p[2] == 0xA9)) {
+      out += ((unsigned char)p[2] == 0xA8) ? "\\u2028" : "\\u2029"; p += 2;
+    }
+    else if (c == '<') out += "\\u003c";
+    else out += (char)c;
+  }
+  out += '"';
+}
+
+bool GoannaRenderPage::GetCertInfoJson(std::string* json) {
+  if (!json || !mChrome || !mChrome->mCertCert) return false;
+  nsIX509Cert* c = mChrome->mCertCert;
+  nsAutoString s;
+  std::string subject, issuer, top;
+  bool f = true;
+  s.Truncate(); c->GetCommonName(s);         jihadJsonField(subject, "commonname", s, &f);
+  s.Truncate(); c->GetOrganization(s);       jihadJsonField(subject, "organization", s, &f);
+  s.Truncate(); c->GetOrganizationalUnit(s); jihadJsonField(subject, "unit", s, &f);
+  f = true;
+  s.Truncate(); c->GetIssuerCommonName(s);       jihadJsonField(issuer, "commonname", s, &f);
+  s.Truncate(); c->GetIssuerOrganization(s);     jihadJsonField(issuer, "organization", s, &f);
+  s.Truncate(); c->GetIssuerOrganizationUnit(s); jihadJsonField(issuer, "unit", s, &f);
+  f = true;
+  nsCOMPtr<nsIX509CertValidity> validity;
+  c->GetValidity(getter_AddRefs(validity));
+  if (validity) {
+    s.Truncate(); validity->GetNotBeforeLocalTime(s); jihadJsonField(top, "startdate", s, &f);
+    s.Truncate(); validity->GetNotAfterLocalTime(s);  jihadJsonField(top, "expiredate", s, &f);
+  }
+  s.Truncate(); c->GetSerialNumber(s);      jihadJsonField(top, "serialNumber", s, &f);
+  s.Truncate(); c->GetSha256Fingerprint(s); jihadJsonField(top, "sha256", s, &f);
+  *json = "{\"returnValue\":true,\"subject\":{" + subject + "},\"issuer\":{" + issuer + "}";
+  if (!top.empty()) { *json += ","; *json += top; }
+  *json += "}";
+  return true;
+}
+
 bool GoannaRenderPage::GetCertDer(std::string* der) {
   if (!mChrome || !mChrome->mCertCert) return false;
   uint32_t len = 0;
@@ -2326,6 +2377,36 @@ bool GetChromeSettings(std::string* outJson) {
   free(val);
   return ok;
 }
+// ── Flash on/off (cavekit-addons-extensions.md R7, owner decision 2026-10-02) ───────────────
+void GetFlashState(bool* available, bool* enabled) {
+  if (available) {
+    *available = false;
+    const std::string dirs[] = { jihad::RuntimeProfileDir() + "/plugins", std::string(kSystemPluginDir) };
+    for (const std::string& d : dirs) {
+      if (access((d + "/libflashplayer.so").c_str(), R_OK) == 0) { *available = true; break; }
+    }
+  }
+  if (enabled) {
+    *enabled = true;
+    nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+    int32_t state = 2;
+    if (pb && NS_FAILED(pb->GetIntPref("plugin.state.flash", &state))) {
+      state = 2;
+      pb->GetIntPref("plugin.default.state", &state);
+    }
+    *enabled = (state != 0);
+  }
+}
+
+void SetFlashEnabled(bool enabled) {
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb) return;
+  // The USER branch, i.e. the same value the settings page's row writes: one stored value with
+  // two places to change it, never a default that the other place silently overrides.
+  pb->SetIntPref("plugin.state.flash", enabled ? 2 : 0);
+  fprintf(stderr, "[jihad-bs] flash: %s (plugin.state.flash=%d)\n", enabled ? "ON" : "OFF", enabled ? 2 : 0);
+}
+
 // ── cavekit-preferences-ui.md R2/R5 (T-143) — WHO OWNS A PREF THE CARD AND THE PAGE BOTH SET ─
 //
 // These three prefs have TWO writers: the card, over the frozen YAP settings commands that

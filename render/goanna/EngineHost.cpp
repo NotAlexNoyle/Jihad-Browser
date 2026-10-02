@@ -778,18 +778,22 @@ EngineHost::Init(const char* greDir)
   // nsPluginHost reads MOZ_PLUGIN_PATH once during its first scan, so this has to
   // be in the environment before XRE comes up, not after.
   //
-  // Two directories, in precedence order, and BOTH are inside this variant's own
-  // footprint — the R8 storage contract applies to plugins exactly as it does to
-  // the profile:
+  // Three directories, in precedence order:
   //   <profile>/plugins   user-installed, variant-scoped, removed with the profile
   //                       by this variant's prerm (Gecko's own convention)
+  //   kSystemPluginDir    the device's own NPAPI plugin folder for the stock browser SERVER,
+  //                       where the HP Flash plugin app installs libflashplayer.so — READ
+  //                       ONLY, and only if it exists (owner decision 2026-10-02,
+  //                       cavekit-addons-extensions.md R7). Until then nothing we shipped
+  //                       gave a user Flash: the profile folder is empty after an install and
+  //                       every Flash run had depended on a hand-copied library. Nothing is
+  //                       copied or written there; removing that app removes Flash from us.
   //   <greDir>/plugins    anything shipped in the bundle
-  // Nothing points at a system directory. /usr/lib/BrowserPlugins is the STOCK
-  // browser's, and reading it would make us load another app's binaries and give a
-  // plugin crash a cross-app blast radius; a user who wants a plugin puts it in the
-  // profile. The profile directory is created so the path is real rather than
-  // aspirational — an absent directory is silently skipped and looks identical to a
-  // plugin that failed to load.
+  // /usr/lib/BrowserPlugins is still NOT scanned: that is LunaSysMgr's adapter-shim folder
+  // (BrowserAdapter*.so), not content plugins. The profile directory is created so the path
+  // is real rather than aspirational — an absent directory is silently skipped and looks
+  // identical to a plugin that failed to load. The profile comes first, so a copy there wins
+  // over the system one and the host's same-name de-duplication keeps a single entry.
   if (!getenv("MOZ_PLUGIN_PATH")) {
     const std::string& prof = jihad::RuntimeProfileDir();
     std::string path;
@@ -797,6 +801,11 @@ EngineHost::Init(const char* greDir)
       std::string pdir = prof + "/plugins";
       mkdir(pdir.c_str(), 0755);          // harmless if it exists
       path = pdir;
+    }
+    struct stat sysSt;
+    if (stat(jihad::kSystemPluginDir, &sysSt) == 0 && S_ISDIR(sysSt.st_mode)) {
+      if (!path.empty()) path += ":";
+      path += jihad::kSystemPluginDir;
     }
     if (!path.empty()) path += ":";
     path += std::string(greDir) + "/plugins";

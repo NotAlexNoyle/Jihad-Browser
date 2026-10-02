@@ -335,6 +335,9 @@ int main(int argc, char** argv) {
   // GLib loop) and treated as optional: no bus, no library, or no role file means no service
   // and a daemon that still runs. See JihadLunaService.h for why the name is not
   // com.palm.browserServer.
+  // The YAP name is the app id's last component in every variant (jihad-browser,
+  // jihad-browser-mochi, jihad-browser-mojo), so the card's app id follows from it.
+  jihad::LunaServiceSetOwnAppId(std::string("net.riverstonerelay.") + name);
   jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
 
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);

@@ -89,6 +89,11 @@ const PANES = [
 					{pref: "dom.disable_open_during_load", type: "bool", label: "Block pop-up windows"},
 					{pref: "plugin.default.state", type: "choice", label: "Plugins",
 					 options: [[0, "Never activate"], [1, "Ask to activate"], [2, "Always activate"]]},
+					// The same stored value as the card's Flash switch (the daemon's getFlash /
+					// enableFlash / disableFlash): one value, two places to change it.
+					{pref: "plugin.state.flash", type: "choice", label: "Adobe Flash",
+					 options: [[2, "On"], [0, "Off"]],
+					 help: "Used when the HP Flash plugin is installed on this device. Applies to pages opened after the change."},
 					{pref: "media.autoplay.enabled", type: "bool", label: "Allow media to play automatically"},
 					{pref: "webgl.disabled", type: "bool", label: "Disable WebGL"},
 					{pref: "dom.storage.enabled", type: "bool", label: "Allow sites to store data locally"}

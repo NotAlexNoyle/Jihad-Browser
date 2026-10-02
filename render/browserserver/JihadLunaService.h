@@ -50,6 +50,11 @@ namespace jihad {
 // (cavekit-ipc-contract.md R1) is untouched and no card gains an adapter call.
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop);
 
+// The app id of THIS variant's card ("net.riverstonerelay.jihad-browser[-variant]"). The methods
+// that change something on the public bus (enableFlash / disableFlash) accept a call only from
+// it. Call before LunaServiceStart; unset means those methods refuse everyone.
+void LunaServiceSetOwnAppId(const std::string& appId);
+
 // Best-effort unregister. Safe if Start() failed or was never called.
 void LunaServiceStop();
 

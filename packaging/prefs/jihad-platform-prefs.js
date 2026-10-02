@@ -154,3 +154,11 @@ pref("media.webm.enabled", true);
 // THE CODEC PREFS ARE CONTAINER-SCOPED, NOT TRACK-SCOPED — recorded because it is why a pref was
 // never the answer to an audio problem: media.ogg.enabled carries Theora as well as Vorbis and
 // media.webm.enabled carries VP8, so audio cannot be turned off without taking video with it.
+
+// FLASH ON/OFF (cavekit-addons-extensions.md R7, owner decision 2026-10-02). One stored value:
+// 2 = on, 0 = off. It is given a DEFAULT here for two reasons: the settings page only offers a
+// row for a pref that exists (a row for an unknown pref is shown inert), and the card switch
+// reads the same value through the variant's Luna service. The plugin itself is not shipped —
+// the daemon scans the device's own plugin folder — so with no Flash installed this is a
+// switch for something absent, and the card says so rather than hiding it.
+pref("plugin.state.flash", 2);

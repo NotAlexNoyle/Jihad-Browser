@@ -509,6 +509,12 @@ inline std::string RuntimeAppScopedDir(const char* env, const char* leaf, mode_t
 // ProfD — durable: cookies.sqlite, prefs.js, permissions, cert overrides.
 // 0700 on a real filesystem; on cryptofs the mode is advisory (it reports 0777
 // for everything), which is precisely why nothing privileged reads this tree.
+// Where the device keeps NPAPI content plugins for the stock browser server — the HP Flash
+// plugin app installs libflashplayer.so here. READ ONLY for us: the daemon scans it in addition
+// to the profile's own plugin folder (cavekit-addons-extensions.md R7, owner decision
+// 2026-10-02); nothing is ever written or copied there.
+static const char* const kSystemPluginDir = "/media/cryptofs/apps/usr/lib/BrowserServerPlugins";
+
 inline const std::string& RuntimeProfileDir() {
   static const std::string dir = []() -> std::string {
     const std::string d = RuntimeAppScopedDir(getenv("JIHAD_PROFILE_DIR"), "profile", 0700);

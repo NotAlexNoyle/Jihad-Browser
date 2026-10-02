@@ -55,6 +55,13 @@ void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
 // single method. Returns false if the pref is unset, leaving *outJson untouched.
 bool GetChromeSettings(std::string* outJson);
 
+// Flash on/off (cavekit-addons-extensions.md R7). ONE stored value — the user pref
+// `plugin.state.flash` (2 = on, 0 = off; unset follows `plugin.default.state`) — which the
+// settings page shows as a row and a card switch reads and writes through the variant's own
+// Luna service. `available` says whether a libflashplayer.so is in a folder this daemon scans.
+void GetFlashState(bool* available, bool* enabled);
+void SetFlashEnabled(bool enabled);
+
 // DEBUG ONLY (self-drive inject channel, off by default — see JihadBrowserServer.cpp).
 // Runs a javascript: URL against the LAST-CREATED page with the SYSTEM principal, so a
 // probe can execute inside privileged chrome documents (about:addons/about:config) where
@@ -373,6 +380,11 @@ public:
   // into the PEM that both the card's View Certificate button and the platform
   // store want. False when no certificate was captured.
   bool GetCertDer(std::string* der);
+  // The untrusted server certificate as a small JSON object for a card to show: who it was
+  // issued to and by, its validity window, serial number and SHA-256 fingerprint. Same field
+  // names as the platform certificate manager's reply (subject / issuer / startdate /
+  // expiredate / serialNumber), because that is what the Enyo certificate view reads.
+  bool GetCertInfoJson(std::string* json);
   // What is actually wrong with that certificate, for choosing the card's
   // message. False when the last load had no cert error.
   bool GetCertProblem(jihad::certstore::Problem* out);

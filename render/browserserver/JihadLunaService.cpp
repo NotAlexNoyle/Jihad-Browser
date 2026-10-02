@@ -93,6 +93,7 @@ typedef bool (*fn_LSUnregisterPalmService)(LSPalmService*, void*);
 // rule for this file (see loadApi below).
 typedef bool (*fn_LSSubscriptionAdd)(LSHandle*, const char*, LSMessage*, void*);
 typedef bool (*fn_LSSubscriptionReply)(LSHandle*, const char*, const char*, void*);
+typedef const char* (*fn_LSMessageGetApplicationID)(LSMessage*);
 
 struct LunaApi {
   void* lib = nullptr;
@@ -109,6 +110,7 @@ struct LunaApi {
   fn_LSUnregisterPalmService       UnregisterPalmService       = nullptr;
   fn_LSSubscriptionAdd             SubscriptionAdd             = nullptr;
   fn_LSSubscriptionReply           SubscriptionReply           = nullptr;
+  fn_LSMessageGetApplicationID     MessageGetApplicationID     = nullptr;
 };
 
 LunaApi        gApi;
@@ -216,6 +218,55 @@ bool onGetChromePrefs(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
+// getFlash / enableFlash / disableFlash — the card's Flash switch
+// (cavekit-addons-extensions.md R7, cavekit-mochi-ui.md R2).
+//
+// The value is the user pref `plugin.state.flash`, the SAME one the settings page's row writes,
+// so there is one stored value and two places to change it. These are on the PUBLIC bus because
+// that is where a card is — which means any app on the device can call them, so the two that
+// change something check WHO is calling: the hub stamps each message with the caller's app id,
+// and only this variant's own card is accepted. Reading is open (it reveals whether Flash is
+// installed and on, nothing about the user).
+std::string gOwnAppId;   // "net.riverstonerelay.jihad-browser[-variant]", set by LunaServiceStart
+
+bool callerIsOwnCard(LSMessage* msg) {
+  if (!gApi.MessageGetApplicationID || gOwnAppId.empty()) return false;
+  const char* id = gApi.MessageGetApplicationID(msg);     // "<appid> <pid>" for a card
+  if (!id) return false;
+  const size_t n = gOwnAppId.size();
+  return strncmp(id, gOwnAppId.c_str(), n) == 0 && (id[n] == '\0' || id[n] == ' ');
+}
+
+void replyFlash(LSHandle* sh, LSMessage* msg, bool ok) {
+  bool available = false, enabled = true;
+  jihad::GetFlashState(&available, &enabled);
+  if (!gApi.MessageReply) return;
+  std::string out = ok ? "{\"returnValue\":true" : "{\"returnValue\":false,\"errorText\":\"not permitted\"";
+  out += std::string(",\"available\":") + (available ? "true" : "false");
+  out += std::string(",\"enabled\":") + (enabled ? "true" : "false") + "}";
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  gApi.MessageReply(sh, msg, out.c_str(), &e);
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
+}
+
+bool onGetFlash(LSHandle* sh, LSMessage* msg, void*) {
+  printf("[jihad-bs] luna: getFlash\n");
+  replyFlash(sh, msg, true);
+  return true;
+}
+
+bool setFlashFrom(LSHandle* sh, LSMessage* msg, bool enabled) {
+  const bool allowed = callerIsOwnCard(msg);
+  printf("[jihad-bs] luna: %sFlash (%s)\n", enabled ? "enable" : "disable",
+         allowed ? "own card" : "REFUSED: caller is not this variant's card");
+  if (allowed) jihad::SetFlashEnabled(enabled);
+  replyFlash(sh, msg, allowed);
+  return true;
+}
+bool onEnableFlash(LSHandle* sh, LSMessage* msg, void*)  { return setFlashFrom(sh, msg, true); }
+bool onDisableFlash(LSHandle* sh, LSMessage* msg, void*) { return setFlashFrom(sh, msg, false); }
+
 // notifications — the CARD's non-blocking message channel (cavekit-gre-widgets.md R5).
 //
 // The card calls this ONCE at startup with {"subscribe":true} and leaves the call open; the
@@ -306,9 +357,15 @@ LunaNotifier gNotifier;
 //   - notifications is PUBLIC because the card is the consumer and cards are on the public
 //     bus; see the long note on onNotifications for what that does and does not expose. Also
 //     private, so `luna-send -i` can watch the stream while debugging.
+//   - getFlash / enableFlash / disableFlash are PUBLIC for the card's Flash switch; the two
+//     that change the value accept only this variant's own card (see callerIsOwnCard). They
+//     are not on the private table: a debugging `luna-send` has no app id to be checked.
 LSMethod gMethodsPublic[] = {
   { "clearCache",     onClearCache,     0 },
   { "clearCookies",   onClearCookies,   0 },
+  { "disableFlash",   onDisableFlash,   0 },
+  { "enableFlash",    onEnableFlash,    0 },
+  { "getFlash",       onGetFlash,       0 },
   { "notifications",  onNotifications,  0 },
   { 0, 0, 0 },
 };
@@ -316,6 +373,7 @@ LSMethod gMethodsPrivate[] = {
   { "clearCache",     onClearCache,     0 },
   { "clearCookies",   onClearCookies,   0 },
   { "getChromePrefs", onGetChromePrefs, 0 },
+  { "getFlash",       onGetFlash,       0 },
   { "notifications",  onNotifications,  0 },
   { 0, 0, 0 },
 };
@@ -350,6 +408,9 @@ bool loadApi() {
   // no toast channel, which is a smaller loss than refusing to serve anything at all.
   gApi.SubscriptionAdd       = (fn_LSSubscriptionAdd)      dlsym(gApi.lib, "LSSubscriptionAdd");
   gApi.SubscriptionReply     = (fn_LSSubscriptionReply)    dlsym(gApi.lib, "LSSubscriptionReply");
+  // Optional: without it the Flash switch can be read but not changed from a card.
+  gApi.MessageGetApplicationID = (fn_LSMessageGetApplicationID)
+                                   dlsym(gApi.lib, "LSMessageGetApplicationID");
   if (!gApi.SubscriptionAdd || !gApi.SubscriptionReply) {
     // Named individually because "the toasts do not work" is otherwise a hunt across two
     // processes, and this is the one line that settles it at the daemon end.
@@ -437,8 +498,9 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     // message posted before that has nowhere to go, and a sink installed early would report
     // "no subscribers" for a window in which there could not have been any.
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
-    printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications} "
-           "private{clearCache,clearCookies,getChromePrefs,notifications} (toast channel %s)\n",
+    printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
+           "getFlash,enableFlash,disableFlash} "
+           "private{clearCache,clearCookies,getChromePrefs,getFlash,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");
     return true;
@@ -525,6 +587,8 @@ gboolean retryRegister(gpointer) {
   return FALSE;
 }
 }  // namespace
+
+void LunaServiceSetOwnAppId(const std::string& appId) { gOwnAppId = appId; }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (startOnce(serviceName, loop, /*verbose*/true)) return true;

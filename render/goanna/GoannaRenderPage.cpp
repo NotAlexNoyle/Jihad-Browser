@@ -3402,7 +3402,8 @@ static void jihadMapKey(int raw, int chr, int* domKey, int* domChar) {
   else if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ') *domKey = (int)c;
 }
 
-void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers) {
+void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers,
+                                bool evenIfEditing) {
   if (!mChrome) return;
   // When the user is typing into a field we tracked via ClickAt (mFocusedEditable), DO NOT
   // dispatch a synthesized key event through the engine. SendKeyEvent routes to the focused
@@ -3420,7 +3421,7 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // aAdditionalFlags == 0), and patch 0005 already guards it — so the stated reason is PROBABLY
   // obsolete. It has never been re-tested, and "probably" does not justify removing a guard on the
   // most-used path in the browser. NB the "patch 0010" above is stale numbering: it is 0005.
-  if (mChrome->mFocusedEditable)
+  if (mChrome->mFocusedEditable && !evenIfEditing)
     return;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;

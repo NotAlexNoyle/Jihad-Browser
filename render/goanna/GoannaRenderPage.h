@@ -245,7 +245,9 @@ public:
   // produces no load lifecycle and so no completion boundary. Drains the flag.
   bool TakeSameDocumentLocation();
   void MouseEvent(const char* type, int x, int y, int button); // type = "mousedown"/"mouseup"/"mousemove"
-  void KeyEvent(const char* type, int keyCode, int charCode, int modifiers); // "keydown"/"keyup"/"keypress"
+  // `evenIfEditing` dispatches to the engine although a text field is the edit target — used only
+  // by the JIHAD_GRE_KEYS experiment (BrowserPageGoanna::keyDown).
+  void KeyEvent(const char* type, int keyCode, int charCode, int modifiers, bool evenIfEditing = false); // "keydown"/"keyup"/"keypress"
   // Both forms RETURN the preventDefault result of sendTouchEventToWindow, i.e. "the page
   // consumed this gesture". That is the only signal the double-activation suppressor in
   // BrowserPageGoanna has: on this platform the same finger also produces pen events, which

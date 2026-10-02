@@ -1033,6 +1033,26 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   // into the field via the engine editor (caret-aware value edits + SetSelectionRange), and render
   // IMMEDIATELY (don't wait for the ~16ms tick) so typing feels responsive. Non-editable focus
   // falls through to normal engine key dispatch.
+  // JIHAD_GRE_KEYS — AN EXPERIMENT SWITCH, default off, for cavekit-gre-widgets.md R3: hand the
+  // keys of a focused text field to the ENGINE's editor (mapped to DOM codes first) instead of
+  // editing the field here. It exists to answer, on the device, the questions that criterion says
+  // must be answered before any handover — does a synthesized keypress reach the focused editor,
+  // and does lifting the guard in GoannaRenderPage::KeyEvent bring back the crash it was put
+  // there for — and to give a person with the on-screen keyboard something to compare. Nothing
+  // ships with it on; the kit records what the run showed.
+  // Enter and Tab are NOT handed over, on purpose: the engine's Enter in a single-line field
+  // clicks the form's submit control from inside this key callback (the crash FireFormSubmit
+  // exists to avoid, and a navigation outside pump()), and its Enter in a <textarea> inserts
+  // nothing because a synthesized keypress cannot carry the key name the editor tests for.
+  { static const bool kGreKeys = getenv("JIHAD_GRE_KEYS") != nullptr;
+    const bool enterOrTab = key == 13 || chr == 13 || key == 9 || chr == 9;
+    if (kGreKeys && !enterOrTab && mPage->HasFocusedEditable()) {
+      mPage->KeyEvent("keydown", key, chr, modifiers, true);
+      mPage->KeyEvent("keypress", key, chr, modifiers, true);
+      mNeedsPaint = true;
+      maybePaint();
+      return;
+    } }
   if (mPage->HasFocusedEditable()) {
     // webOS delivers editing keys as ASCII control codes where they exist (ESC=27, Backspace=8,
     // Tab=9, Enter=13, DEL=127) and, for the arrows, its own private-use block 0xE0A0-0xE0A3.
@@ -1161,7 +1181,8 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
-  if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers); mNeedsPaint = true; }
+  static const bool kGreKeys = getenv("JIHAD_GRE_KEYS") != nullptr;   // see keyDown
+  if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
 }
 // Shared enqueue for every input kind (F-9). Records only — pump() dispatches.
 void BrowserPageGoanna::queueInput(int type, int x, int y, int detail) {

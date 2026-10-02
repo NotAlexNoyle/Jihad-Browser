@@ -1095,7 +1095,7 @@ EngineHost::Shutdown()
   // leaving them as residue (R8). Nothing in the engine will call us back after
   // this, so the service terminates them itself rather than waiting.
   ShutdownDownloadService();
-  SetDialogSink(nullptr);
+  ShutdownDialogService();
   SetDownloadSink(nullptr);
   // CAUTION (Codex P1): XRE_TermEmbedding tears down the process-wide runtime.
   // The caller MUST have released every nsIWebBrowser and listener first. In the

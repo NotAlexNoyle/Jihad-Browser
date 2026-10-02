@@ -31,10 +31,20 @@
 #include <sys/wait.h>   // waitpid for the detached audio-route helper
 #include <cerrno>
 #include <cstring>
+#include <algorithm>   // std::remove (live-page registry)
+#include <vector>
 
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
 namespace jihad {
+
+class BrowserPageGoanna;
+// Every page that is alive, oldest first. Its only job is to decide who owns the process-wide
+// dialog sink when a page goes away (see the constructor and destructor).
+static std::vector<BrowserPageGoanna*>& jihadLivePages() {
+  static std::vector<BrowserPageGoanna*> pages;
+  return pages;
+}
 
 // How long after the last adapter scroll/zoom update an engine-driven repaint is held back. Long
 // enough to cover the gaps between setScrollPosition messages during a fling, short enough that a
@@ -203,6 +213,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   // Engine dialogs are process-wide (one prompter service), so the LAST page created owns
   // them — the same single-page-embedding assumption DebugRunChromeJs already makes. Without
   // this nothing implements DialogSink and every dialog silently takes its default.
+  jihadLivePages().push_back(this);
   SetDialogSink(this);
   // Session certificates a previous daemon died holding are removed here, before
   // this page can install any of its own. It is idempotent and runs on the first
@@ -450,8 +461,15 @@ void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
-  // Never leave the process-wide sink pointing at a destroyed page.
-  SetDialogSink(nullptr);
+  // Never leave the process-wide sink pointing at a destroyed page — and never take it away
+  // from a page that is still alive. If this page owned the dialogs they pass to the newest
+  // remaining one; if it did not (an older card closing while a newer one is open), nothing
+  // changes. Before 2026-10-02 any closing page nulled the sink, so with two Enyo cards open
+  // closing the first left the second's dialogs taking their silent defaults.
+  { std::vector<BrowserPageGoanna*>& live = jihadLivePages();
+    live.erase(std::remove(live.begin(), live.end(), this), live.end());
+    if (GetDialogSink() == static_cast<DialogSink*>(this))
+      SetDialogSink(live.empty() ? nullptr : static_cast<DialogSink*>(live.back())); }
   // "Trust once" ends with the page that asked, exactly as upstream's dtor did.
   // The startup sweep is what covers the case this one cannot: dying without
   // running at all.

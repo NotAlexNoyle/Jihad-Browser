@@ -91,6 +91,19 @@ bool InstallDialogService();
 // EngineHost::Shutdown clears it as a process-lifetime backstop.
 void SetDialogSink(DialogSink* sink);
 
+// The sink dialogs currently go to (null if none). A sink that is going away uses this to step
+// down only if it is still the current one — a page that closes must not take the dialogs away
+// from a newer page that owns them.
+DialogSink* GetDialogSink();
+
+// Process shutdown only: clear the sink and drop the observers InstallDialogService registered.
+// This used to hang off SetDialogSink(nullptr), which every closing PAGE also calls — so the
+// first card a user closed unregistered the add-on install prompt and the JS notification door
+// for the rest of the daemon's life (measured on the device 2026-10-02: after one card close an
+// InstallTrigger install was downloaded and then cancelled with no prompt, status -210, and the
+// "installed" notice never reached a card; a daemon restart cured it until the next close).
+void ShutdownDialogService();
+
 } // namespace jihad
 
 #endif // JIHAD_DIALOG_SERVICE_H

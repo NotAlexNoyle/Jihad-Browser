@@ -407,17 +407,18 @@ bool InstallDialogService() {
   return installed;
 }
 
-void SetDialogSink(DialogSink* sink) {
-  gSink = sink;
-  // Shutdown symmetry (review 2026-08-02 F13): the XPI observer holds no state, but an
-  // observer left registered across XPCOM teardown is a needless dangling registration.
-  // Clearing the sink at shutdown is the existing lifecycle hook — drop the observer with it.
-  if (!sink) {
-    nsCOMPtr<nsIObserverService> obs =
-        do_GetService("@mozilla.org/observer-service;1");
-    if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
-    if (obs) obs->RemoveObserver(&NotifyObserver(), "jihad-notify");
-  }
+void SetDialogSink(DialogSink* sink) { gSink = sink; }
+
+DialogSink* GetDialogSink() { return gSink; }
+
+void ShutdownDialogService() {
+  gSink = nullptr;
+  // Shutdown symmetry (review 2026-08-02 F13): the observers hold no state, but one left
+  // registered across XPCOM teardown is a needless dangling registration. They are dropped
+  // HERE and nowhere else — see the header for what dropping them on a sink change cost.
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
+  if (obs) obs->RemoveObserver(&NotifyObserver(), "jihad-notify");
 }
 
 } // namespace jihad

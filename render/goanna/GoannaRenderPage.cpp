@@ -3421,6 +3421,11 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // aAdditionalFlags == 0), and patch 0005 already guards it — so the stated reason is PROBABLY
   // obsolete. It has never been re-tested, and "probably" does not justify removing a guard on the
   // most-used path in the browser. NB the "patch 0010" above is stale numbering: it is 0005.
+  // RE-TESTED 2026-10-01 on the device (webOS CE 3.1.0) with JIHAD_GRE_KEYS, which passes
+  // `evenIfEditing`: typing, arrows, Home/End, Backspace and Delete reached the focused editor and
+  // nothing crashed. The guard's reason IS obsolete; it stays because the daemon's own editing is
+  // still the shipping path, and two paths editing one field is worse than either (the kit has
+  // the measurements).
   if (mChrome->mFocusedEditable && !evenIfEditing)
     return;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);

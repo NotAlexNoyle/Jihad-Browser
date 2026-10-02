@@ -116,3 +116,12 @@ Build site: context/plans/build-site.md
 ### Iteration — 2026-10-01 (third session, prefs/input lane)
 - T-250/251/252/253/254/255/214/278: DONE on device, 3 variants. Fixes: change event, number-field target, native scroll, JS default branch + row, location.replace, window.open → new card, meta-viewport only when declared, adapter late-identifier reconnect + 0x0 window. T-212 built (needs human double tap). T-257 N/A.
 - Daemon now `4cdc0846…`, adapter impls enyo `20b9dead…` mochi `42d58021…` mojo `a187efbd…` (live-swapped). `.ipk`s still stale → T-263.
+
+### Iteration — 2026-10-01 (third session, sweeps + packages)
+- T-256/258/260/262/264/265/266/267/268/269/270/271/272/274/275/277: DONE on device (CE 3.1.0). Fixes found by the sweeps: DOM key codes for page key events; field under the keyboard lifted; popup tap double zoom + repaint on popup open; Mojo launch `target`; selection colours; HTTP auth (`nsIAuthPrompt2`); Up/Down swap + Home/End; damage scaled at a fit zoom.
+- T-263/T-276: three `.ipk`s built + installed via ipkgservice, twice (batch 2, then final). Payload md5s read back.
+- T-240: HUD appears on a volume KEY press during page audio (kernel keyboard); streams sit on `pcm_output`. Box `[~]` (rocker = human).
+- T-261 N/A (sinceResize 94–129 ms). T-236 stays blocked behind T-234.
+- Experiment: `JIHAD_GRE_KEYS` (off by default) — engine editor takes field keys; results in gre-widgets R3.
+- Prefs: all 56 table rows of `about:preferences` walked through their own control on the device — 56 change the engine pref, 55 restored by the control, 1 by the test's `prefs.js` copy (preferences-ui R2). Real key path (kernel keyboard) types into a settings field.
+- Blocked on owner: T-231–T-234, T-273 (removal refused by permission gate), T-279 (push), T-280–T-291 (finger / eye / decisions).

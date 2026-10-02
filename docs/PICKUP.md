@@ -1,11 +1,103 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 ×2 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-01 ×3 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-01 (second session) delta — kits updated, six defects fixed and device-verified; STOPPED EARLY on the usage limit (read first)
+## 2026-10-01 (third session) delta — every agent-doable sweep run on CE 3.1.0; what is left needs the owner or a person at the device (read first)
+
+`/ck:make` ran the rest of the build site inline. Registry: 72 complete, 18 blocked (owner / human),
+1 pending behind a blocked task (T-236). Per-task record: `context/impl/impl-ce310-loop.md`; the kits
+carry the evidence on each criterion; screenshots in `context/impl/evidence-2026-10-01/`.
+**Nothing was pushed.** Engine commits `1fff802335` and `9dedcd5fe5` on `third_party/uxp`
+`jihad-engine-mods` are LOCAL; the parent gitlink and the OE SRCREV still say `bd49435b` (T-279).
+
+**Verified on the device (webOS CE 3.1.0), all three variants unless said:**
+- Preferences: the page renders and writes only its own variant's `prefs.js`; typed values save on
+  blur and on Enter; JavaScript row is back and survives a card relaunch and a daemon restart; the four
+  frozen settings work from the page and from the shipping Enyo card; Mojo/Enyo/Mochi adopt page edits.
+  Every one of the 56 table rows was then walked on the device through its own control
+  (`build/webos-oe/prefs-row-walk.sh`): all 56 change the engine pref they name. A real key path
+  (the kernel keyboard) types into a settings field.
+- `window.open` from a tap opens a new card (new, `nsIWindowProvider` → `msgCreatePage`).
+- Input sweep (taps, click count, toggles, key events, non-ASCII, selection, Enter/Tab, zoomed link),
+  `about:config` end to end, the `about:addons` tools menu, touch events with one and two fingers.
+- Offscreen sweep (size tracking, exact colours, buffer rotation, messages), `<select>` → card list.
+- Shell sweeps: launch target on the variant's own socket, find, alert, failed load, 302, HTTP auth.
+- Daemon sweeps: cookie + disk-cache persistence, low-memory guardrail, public `clearCookies` /
+  `clearCache` on install-started daemons, dialogs hold the page.
+- Device-build sweep: C++14 program, ELF attributes = CPU, memory (126 MB after eight sites, cap 150),
+  the seven adapter-deps libraries match the manifest on CE.
+- Key codes MEASURED from a real key path. `render/goanna/test/uinput_kbd.c` makes a kernel keyboard
+  that LunaSysMgr on CE takes for a Bluetooth one; its keys reach the card and the daemon.
+- Volume HUD: a volume KEY press during page audio changes the level and raises the HUD.
+- Flash 33 fps; the in-tree control plugin loads, draws at the right place, takes a tap and a key.
+
+**Defects found by the sweeps and fixed (all device-verified, all committed):**
+no `change` event after typing; number fields edited the wrong element; chrome pages never scrolled
+natively; the card re-enabled JavaScript on every connect; settings edits reverted on Back;
+pages without a viewport tag drew as a thumbnail in Mojo; page key events carried raw webOS codes;
+Up/Down were swapped, no Home/End; a field low on a tall page stayed under the keyboard; popup taps
+were divided by the zoom twice and an opened menu was not painted; Mojo ignored a launch `target`;
+find/selection was white on white; HTTP auth raised no dialog at all; damage rectangles were not
+scaled at a fit zoom (clipped plugin, inexact Flash box).
+
+**Still open, and why:**
+- **Needs the owner's word:** removing a variant (T-231–T-234, T-273 — the permission gate refused
+  it as irreversible deletion, so fresh-from-nothing install, the removal audit and "extensions of a
+  removed variant" are untested); pushing the engine branch and bumping gitlink + SRCREV (T-279);
+  how a user gets Flash; which rows the card's own settings panel should keep (T-290); Flash pacing
+  B-vs-C (T-287); anything that needs a reboot (no reboot was made).
+- **Needs a person at the device (T-280–T-291):** finger on card chrome, media controls, VKB typing
+  and held Backspace, pinch, a real double tap on a plugin (T-212 is built and on the device), the
+  physical volume rocker, the Mochi parity sign-off.
+- **Known and recorded, not fixed:** arrow keys do not scroll a fit-zoomed page; the keyboard-cover
+  check runs only at zoom 1; LunaSysMgr sometimes keeps Up/Left/Right from the kernel keyboard for
+  itself; a failed load shows the engine's alert AND the shell's error panel; `window.open` gives
+  the opener no window handle.
+- **GRE key handover (gre-widgets R3):** `JIHAD_GRE_KEYS=1` in a job file turns it on for a session.
+  It works for typing/arrows/Home/End/Backspace/Delete and does not crash; Enter/Tab stay on the
+  daemon path. A clean handover needs two engine changes — see the kit.
+
+**Device state as left:**
+- All three variants installed through `org.webosinternals.ipkgservice` from the packages now in
+  `build/webos-oe/out-ipk/` (enyo 1.0.4 `a0df34da…`, mochi 1.0.0 `dbe4f747…`, mojo 1.0.0 `074be9d3…`):
+  libxul `65e3cc84891c59e9ede40cc7b3de0802`, daemon `50615b82ba73f06bb72cdbfc30a663fd`, goanna.js
+  `82f9bbb3150b…`, PDK adapter impls enyo `6a35d778…` mochi `44ab2e23…` mojo `25aa85a4…`. Daemons were
+  started by the installs; LunaSysMgr was not restarted by them (same pids before and after).
+- Jobs are the shipped ones plus `JIHAD_INJECT=1` (re-added by hand after each install — an install
+  writes the shipped job). No `JIHAD_GRE_KEYS`, `PULSE_SINK`, pacing or log env left behind.
+- Enyo profile has `plugins/libflashplayer.so` (hand-copied, stock md5); the test plugin was removed.
+  Mochi/Mojo have none. No test pref is left in any `prefs.js` (Enyo's was compared against a copy
+  after the row walk).
+- Cards left open: Enyo on `about:preferences`, Mochi and Mojo on `file:///tmp/jihad-shell.html` (none on `about:blank`).
+- The uinput test keyboard is not running. `/tmp` holds test pages, scripts, `uinput_kbd` and
+  screenshots (volatile). Residue to delete by hand: `/media/internal/downloads/jihad-testfile{,-1,-2}.bin`.
+  `/media/internal/.developer/` holds our three `.ipk`s next to other people's.
+- No reboot was made all session. `/` is read-write at rest (as found). `/var` at 21%.
+- Three fault reports in `/var/log/reports/librdx/`, all from before this session's sweeps (the
+  upgrade crash of the second session and two deliberate kills); none new.
+- Cavekit: the loop is torn down (`teardown-loop`). The default `session_budget` of 500,000 stopped
+  it at 1.1M tokens; the owner raised the live number in `.cavekit/token-ledger.json` to 10,000,000.
+  `.cavekit/config.json` still says 500,000 and is what a NEW ledger starts from. `.cavekit/config` is
+  a `key=value` file (it holds `codex_model`) and has an uncommitted edit of the owner's.
+
+**Traps found this session:**
+- Inject `click X Y` takes DOCUMENT px × zoom; `rect` answers in viewport CSS px. The card zooms to
+  1.0 when a field takes focus, so coordinates taken before the first focus are wrong after it.
+- `57346` is `0xE002`, not `0xE0A2` (57506). Arrow codes: Up 57504, Down 57505, Left 57506, Right 57507.
+- Card JS is cached in LunaSysMgr until it restarts; `push-card-js.sh` handles it.
+- `takeScreenShot` writes asynchronously: wait two seconds before reading the file.
+- The `partial paint` log line is rate-limited to one per 2 s — it is not a frame counter.
+- A banned port (e.g. 9) raises an engine alert that holds the daemon until the pipe is answered.
+- An engine dialog holds the daemon: answer the FIFO named in the `dialog … -> card (pipe …)` line.
+- `goanna.js` on the device comes from `make-device-bundle.sh`; a pref edit needs it re-run.
+- A pref SET through the page while its value equals the default leaves no line in `prefs.js`.
+
+---
+
+## 2026-10-01 (second session) delta — kits updated, six defects fixed and device-verified; stopped early on the usage limit (SUPERSEDED where the delta above disagrees)
 
 Kits were brought in line with CE 3.1.0 first (commit `f12c1111`), the build site regenerated
 (`context/plans/build-site.md`, T-201…T-293), then `/ck:make` ran inline. Per-task record with every

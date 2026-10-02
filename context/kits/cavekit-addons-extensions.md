@@ -675,7 +675,7 @@ criteria below are new and deliberately start unchecked. What changed under them
       **To listen to MP3 audio QUALITY, use `jihad-audio-long.swf`** — 30 s, `--loops 1`, so it has
       no loop point at all. Every other MP3 asset here is a LOOPING asset and will click once per
       iteration no matter how healthy the port is.)*
-- [~] **Keyboard input reaches a focused plugin and does not simultaneously drive the card chrome.**
+- [~] **Keyboard input reaches a focused plugin and does not simultaneously drive the card chrome.** *(2026-10-01 (third session), CE: the in-tree control plugin was run on the device for the first time on this OS — `NP_Initialize ok`, `NPP_New ok windowless=1 async=1 size=200x150`, a tap reached it at its own 100,75 and `key 65` as `NPP_HandleEvent key … raw=65`; its block sits where the page puts it (100,120 200x150 at zoom 1; 78,94 157x118 at the 0.78 fit zoom after the damage fix in cavekit-offscreen-rendering.md R8). `about:plugins` reads back "Adobe Flash / libflashplayer.so / application/x-shockwave-flash". The spotlight commands answer `SUPPRESSED (JIHAD_PLUGIN_SPOTLIGHT unset)`, as documented. A keyboard now EXISTS for the arbitration test — the kernel keyboard LunaSysMgr accepts on CE (cavekit-input-bridging.md R2a) — but the latch still needs a real double tap on the plugin, so the chrome half stays open.)*
       A Flash game focuses no HTML editor, so the editor-focus test the adapter used cannot describe
       it. *(2026-08-10 — key events themselves already reach the plugin at the right codes; what was
       wrong is arbitration. `handleKeyDown`/`handleKeyUp` returned `bEditorFocused` alone, so every

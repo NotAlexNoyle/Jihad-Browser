@@ -32,6 +32,10 @@ enyo.kind({
 		{name: "bookmarksService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.bookmarks:1", reCallWatches: true},
 		{name: "historyService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.history:1", reCallWatches: true},
 		{name: "systemPrefsService", kind: "SystemService"},
+		// The Flash switch: this variant's own daemon service holds the value (the same one
+		// the settings page shows). getFlash reads it; enableFlash / disableFlash set it and
+		// reply with the value now in effect.
+		{name: "flashService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/", onSuccess: "gotFlash", onFailure: "gotFlash"},
 		{name: "browserPrefsService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.preferences:1", reCallWatches: true},
 		{name: "universalSearchService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "getUniversalSearchList", onSuccess: "gotUniversalSearchList", onFailure: "universalSearchFailed", subscribe: true, resubscribe: true},
 		{name: "setSearchPreferenceService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "setSearchPreference"},
@@ -71,6 +75,7 @@ enyo.kind({
 			},
 			{name: "preferences", kind: "Preferences",
 				onPreferenceChanged: "preferenceChanged",
+				onOpenSettings: "openSettings",
 				onShow: "preferencesShown",
 				onClose: "backHandler"
 			}
@@ -289,6 +294,8 @@ enyo.kind({
 	},
 	preferencesShown: function(inSender) {
 		this.$.preferences.updatePreferences(this.preferences);
+		// The settings page can change the Flash value too; show what is in effect now.
+		this.$.flashService.call({}, {method: "getFlash"});
 	},
 	//* Settings live in ONE place now (cavekit-preferences-ui.md R5): the engine's own
 	//* about:preferences. Opened through the ordinary navigation path — the same setUrl a
@@ -322,25 +329,23 @@ enyo.kind({
 		this.$.printMenuItem.setDisabled(!browser || this.isBrowserLoading());
 		this.$.preferencesItem.setDisabled(this.isPreferencesShowing());
 	},
-	// OWNERSHIP, decided 2026-08-10 (cavekit-preferences-ui.md R2/R5, task T-143). blockPopups
-	// and acceptCookies are also editable in about:preferences, and the page's edit used to be
-	// overwritten at the next card launch. THE FIX IS NOT IN THIS FILE, and deleting this replay
-	// would have made it worse: enyo's own BasicWebView.initView() re-sends setBlockPopups /
-	// setAcceptCookies / setEnableJavascript / setMinFontSize from its published defaults on
-	// EVERY adapter connect — framework code no app edit can reach — so removing the loop that
-	// calls this would drop the only writer carrying a user choice and leave the one carrying a
-	// constant. The daemon now writes those three to the pref DEFAULT branch, so a page-written
-	// user pref shadows them and survives a restart (jihad::SetBlockPopups in
-	// render/goanna/GoannaRenderPage.cpp). enableJavascript stays CARD-owned: the daemon gates
-	// script per docShell too, so this command is the only thing that really stops a script.
-	// NB minFontSize is in neither this map nor db8 — its only source is `minFontSize: 2` on the
-	// WebView in Browser.js, which is why removing rows here could never have fixed it.
+	// OWNERSHIP (cavekit-preferences-ui.md R2/R5). blockPopups, acceptCookies and
+	// enableJavascript are owned by the SETTINGS PAGE. Since 2026-10-02 (owner decision) this
+	// card has no rows for them and no longer re-applies the copy an older version stored in
+	// db8 — which is why the three names are gone from the map below: a stored
+	// `blockPopups: false` with no row left to change it would otherwise keep being sent at
+	// every launch. What still reaches the engine from the card side is enyo's own
+	// BasicWebView.initView(), which sends its published defaults (all true) on every adapter
+	// connect; the daemon files those on the pref DEFAULT branch, so the page's value wins
+	// (jihad::SetBlockPopups / SetJavaScriptEnabled in render/goanna/GoannaRenderPage.cpp).
+	// NB minFontSize was never in this map nor in db8 — its only source is `minFontSize: 2` on
+	// the WebView in Browser.js.
 	applyPreference: function(inPreference, inValue) {
 		this.log(inPreference, inValue);
 		var preferenceMap = {
-			enableJavascript: "setEnableJavascript",
-			blockPopups: "setBlockPopups",
-			acceptCookies: "setAcceptCookies",
+		}
+		if (inPreference == "enableJavascript" || inPreference == "blockPopups" || inPreference == "acceptCookies") {
+			return;
 		}
 		this.$.pane.viewByName("browser");
 		var o = inPreference == "clearHistory" || inPreference == "clearBookmarks" ? this : this.$.browser;
@@ -391,9 +396,6 @@ enyo.kind({
 	gotInitialBrowserPreferences: function(inSender, inResponse) {
 		var kind = this.$.browserPrefsService.dbKind;
 		var defaultBrowserPreferences = [
-			{_kind: kind, key: "blockPopups", value: true},
-			{_kind: kind, key: "acceptCookies", value: true},
-			{_kind: kind, key: "enableJavascript", value: true},
 			{_kind: kind, key: "rememberPasswords", value: true}
 		];
 		if (inResponse.results.length == 0) {
@@ -413,6 +415,15 @@ enyo.kind({
 		this.$.systemPrefsService.call({keys: systemPreferences}, {method: "getPreferences", onSuccess: "gotSystemPreferences", subscribe: true});
 		this.$.browserPrefsService.call(undefined, {method: "find", onSuccess: "gotBrowserPreferences", subscribe: true});
 		this.$.universalSearchService.call();
+		this.$.flashService.call({}, {method: "getFlash"});
+	},
+	//* Every reply of the Flash service carries the value in effect, so a refused or failed
+	//* change puts the switch back instead of leaving it showing something untrue.
+	gotFlash: function(inSender, inResponse) {
+		var r = inResponse || {};
+		if (typeof r.enabled === "boolean") {
+			this.$.pane.viewByName("preferences").setFlashState({enabled: r.enabled, available: r.available});
+		}
 	},
 	gotUniversalSearchList: function(inSender, inResponse) {
 		this.searchPreferences = [];
@@ -463,6 +474,8 @@ enyo.kind({
 			this.browserPreferences[inPreference] = inValue;
 			this.$.browserPrefsService.call({props: {value: inValue}, query: {from: this.$.browserPrefsService.dbKind, where: [{prop:"key","op":"=","val":inPreference}]}}, {method: "merge"});
 			this.applyPreference(inPreference, inValue);
+		} else if (inType === "Flash") {
+			this.$.flashService.call({}, {method: inValue ? "enableFlash" : "disableFlash"});
 		} else if (inType === "Search") {
 			this.$.setSearchPreferenceService.call({key: "defaultSearchEngine", value: inValue});
 			this.setDefaultSearch(inValue);

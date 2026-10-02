@@ -20,10 +20,14 @@ enyo.kind({
 		browserPreferences: {},
 		systemPreferences: {},
 		searchPreferences: [],
-		defaultSearch: ""
+		defaultSearch: "",
+		//* The daemon's Flash state: {enabled, available} from getFlash / enableFlash /
+		//* disableFlash on this variant's own Luna service.
+		flashState: null
 	},
 	events: {
 		onPreferenceChanged: "",
+		onOpenSettings: "",
 		onClose: ""
 	},
 	components: [
@@ -36,25 +40,29 @@ enyo.kind({
 				{kind: "RowGroup", caption: $L("Default Web Search Engine"), components: [
 					{kind: "ListSelector", name: "searchPreference", value: $L("Google"), onChange: "searchPreferenceChange"}
 				]},
+				// NO Block Popups / Accept Cookies / Enable JavaScript rows here any more (owner
+				// decision 2026-10-02, cavekit-preferences-ui.md R2). The settings page owns those
+				// three values; a switch here only set a default that the page's value silently
+				// overrode — a control that can lose without saying so. "More Settings" below
+				// opens the page.
 				{kind: "RowGroup", caption: $L("Content"), style: "margin-bottom: 10px", components: [
-					{kind: "LabeledContainer", caption: $L("Block Popups"), components: [
-						{kind: "ToggleButton", name: "blockPopups", onChange: "togglePreferenceClick", preference: "blockPopups", type: "Browser"}
-					]},
-					{kind: "LabeledContainer", caption: $L("Accept Cookies"), components: [
-						{kind: "ToggleButton", name: "acceptCookies", onChange: "togglePreferenceClick", preference: "acceptCookies", type: "Browser"}
-					]},
-					{kind: "LabeledContainer", caption: $L("Enable JavaScript"), components: [
-						{kind: "ToggleButton", name: "enableJavascript", onChange: "togglePreferenceClick", preference: "enableJavascript", type: "Browser"}
-					]},
+					// A REAL switch since 2026-10-02 (cavekit-addons-extensions.md R7). It used to be
+					// named `flashplugins` and write the system preference of that name, which
+					// nothing in this browser reads — the stock browser's switch, kept by the
+					// fork and doing nothing. It is now the daemon's stored value, the same one
+					// the settings page shows, and is renamed so the system preference no longer
+					// sets its position.
 					{kind: "LabeledContainer", caption: $L("Enable Flash"), components: [
-						{kind: "ToggleButton", name: "flashplugins", onChange: "togglePreferenceClick", preference: "flashplugins", type: "System"}
+						{kind: "ToggleButton", name: "flashSwitch", onChange: "togglePreferenceClick", preference: "flash", type: "Flash"}
 					]},
+					{name: "flashNote", content: "", className: "enyo-item-secondary", style: "padding: 0 14px 8px;", showing: false},
 				]},
 				// NO home-page or start-page-links rows here any more. Both moved to
 				// about:preferences (cavekit-preferences-ui.md R5): they are stored by the
 				// ENGINE and read back by this card over Luna, so a copy here would be a
 				// second writer for the same setting. "Preferences" in the app menu opens
 				// that page; this panel keeps only what the card itself owns.
+				{kind: "Button", caption: $L("More Settings"), onclick: "openSettingsClick"},
 				{kind: "Button", caption: $L("Clear Bookmarks"), onclick: "promptButtonClick", dialog: "clearBookmarksPrompt"},
 				{kind: "Button", caption: $L("Clear History"), onclick: "promptButtonClick", dialog: "clearHistoryPrompt"},
 				{kind: "Button", caption: $L("Clear Cookies"), onclick: "promptButtonClick", dialog: "clearCookiesPrompt"},
@@ -122,6 +130,15 @@ enyo.kind({
 	defaultSearchChanged: function() {
 		this.$.searchPreference.setValue(this.defaultSearch);
 	},
+	flashStateChanged: function() {
+		var s = this.flashState || {};
+		if (typeof s.enabled === "boolean") {
+			this.$.flashSwitch.setState(s.enabled);
+		}
+		var note = (s.available === false) ? $L("No Flash plugin is installed on this device.") : "";
+		this.$.flashNote.setContent(note);
+		this.$.flashNote.setShowing(Boolean(note));
+	},
 	updatePreferences: function(inPreferences) {
 		for (key in inPreferences) {
 			var value = inPreferences[key];
@@ -140,6 +157,9 @@ enyo.kind({
 		} else {
 			this.fireChange(inSender.preference, inSender.type, inState);
 		}
+	},
+	openSettingsClick: function() {
+		this.doOpenSettings();
 	},
 	promptButtonClick: function(inSender) {
 		this.$[inSender.dialog].openAtCenter();

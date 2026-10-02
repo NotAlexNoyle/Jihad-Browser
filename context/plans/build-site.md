@@ -1,6 +1,6 @@
 ---
 created: "2026-10-01"
-last_edited: "2026-10-01"
+last_edited: "2026-10-02"
 ---
 
 # Build Site
@@ -374,6 +374,44 @@ last_edited: "2026-10-01"
 |------|-------|---------|-------------|-----------|--------|--------|
 | T-292 | Quiet tick with a card connected: T-229 measured 12.3% of a core on a static page (the 8 ms frame tick doing ~1 ms of pump/bookkeeping 125 times a second). Back the tick off when ticks do no work (nothing to paint, no load, no pending input, no plugin, no recent command) and return to the frame period at once on any incoming adapter command or page activity. Batch 2 (feeds T-259). | cavekit-engine-embedding.md | engine-embedding R3 | T-229 | no | M |
 | T-293 | Verify T-292 on the device after the batch-2 install: static page, card connected, no input → about 2% of a core or less over 60 s; a click, a key, a scroll and a timer-driven DOM change still reach `painted` as promptly as before; `<video>` still plays to the end with 0 dropped frames and the Flash gap histogram is unchanged. Lane position: after T-277, before T-278. Pre: daemon log GREW and card CONNECTED before any reading. | cavekit-engine-embedding.md | engine-embedding R3 | T-277, T-292 | yes | M |
+
+## Tiers 54–61 — owner go-ahead of 2026-10-02 (added to the 2026-10-01 site, not a regeneration)
+
+The owner answered the open decisions: remove the three card rows (T-290 → T-294), take Flash from the device's own plugin folder (T-295/T-296), and build every Mochi parity omission (T-291 → T-297…T-310). The go-ahead for the removal audit (T-231…T-234, T-273) and the engine push (T-279) was given too, but the session's permission gate refused both actions again, so those stay BLOCKED-EXTERNAL with the owner as the one who runs them.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-294 | Remove the Block Popups / Accept Cookies / Enable JavaScript rows from the Enyo and Mochi card panels (owner decision, closes T-290); stop re-applying a card-stored value for them at launch; each shell keeps its entry that opens the settings page. | cavekit-preferences-ui.md | preferences-ui R2 | — | no | S |
+| T-295 | Flash from the device's own folder: the daemon also scans `/media/cryptofs/apps/usr/lib/BrowserServerPlugins/` when it exists; a copy in the profile folder must not load twice. | cavekit-addons-extensions.md | addons-extensions R7 | — | no | S |
+| T-296 | Flash on/off as ONE stored value: a row on the settings page, and a way for a card to read and set the same value (private Luna method on the variant's own service). | cavekit-addons-extensions.md | addons-extensions R7 | T-295 | no | M |
+| T-297 | Mochi: bookmark editing (edit affordance per row, overlay dialog, db8 merge; address stored as typed). | cavekit-mochi-ui.md | mochi-ui R2 | — | no | S |
+| T-298 | Mochi: grouped history dates (Today, Yesterday, weekday, weeks, month names) without `enyo.g11n`. | cavekit-mochi-ui.md | mochi-ui R2 | — | no | S |
+| T-299 | Mochi: a confirmation overlay before Clear History / Bookmarks / Cookies / Cache (its own overlay, not the engine-dialog path). | cavekit-mochi-ui.md | mochi-ui R2 | — | no | S |
+| T-300 | Mochi: Clear History also clears the engine's session history (`clearHistory` on the adapter) and the back/forward controls update at once (the daemon reports history state after the purge). | cavekit-mochi-ui.md | mochi-ui R2 | — | no | S |
+| T-301 | Mochi: search-engine choice in the card settings (stored with the card's own prefs; the address bar uses it). | cavekit-mochi-ui.md | mochi-ui R2 | T-294 | no | S |
+| T-302 | Mochi: share sheet (email, messaging via `applicationManager/open`) and Add to Launcher (`addLaunchPoint`). | cavekit-mochi-ui.md | mochi-ui R2 | — | no | M |
+| T-303 | Mochi: certificate details on the SSL warning (`certificatemanager/getcertificatedetails` while the dialog is open). | cavekit-mochi-ui.md | mochi-ui R2 | — | no | S |
+| T-304 | Mochi: downloads that start from a page — handle the engine's download callbacks, show progress and result in the downloads view, retry a failed one; exactly one fetch per file. | cavekit-mochi-ui.md | mochi-ui R2 | — | no | M |
+| T-305 | Daemon + adapter: implement render-to-file (PNG of the current view) and the adapter's icon/resize helpers that are compiled out today. | cavekit-mochi-ui.md<br>cavekit-ui-shell.md | mochi-ui R2 | — | no | M |
+| T-306 | Mochi: bookmark thumbnails and icons (uses T-305), stored in a directory this variant owns. | cavekit-mochi-ui.md | mochi-ui R2 | T-305, T-297 | no | S |
+| T-307 | Daemon: implement save-image-at-point, image-info-at-point and inspect-url-at-point (no-op stubs today); saves land in the download carve-out only. | cavekit-mochi-ui.md<br>cavekit-device-build.md | mochi-ui R2<br>device-build R8 | — | no | M |
+| T-308 | Mochi: long-press menu for links and images (uses T-307 and T-302); a tap must be unaffected. | cavekit-mochi-ui.md | mochi-ui R2 | T-307, T-302 | no | M |
+| T-309 | Mochi: Flash switch in the card settings (uses T-296). | cavekit-mochi-ui.md | mochi-ui R2 | T-296, T-294 | no | S |
+| T-311 | Batch 3 build: daemon, both adapters, device bundle, three `.ipk`s; YAP contract check passes; payload md5s recorded. | cavekit-device-build.md | device-build R4 | T-294, T-295, T-296, T-297, T-298, T-299, T-300, T-301, T-302, T-303, T-304, T-306, T-308, T-309 | no | S |
+| T-312 | Batch 3 upgrade install on all three variants through the supported installer; payload read back; quick regression (load, paint, Luna, add-on prompt after a card close). | cavekit-device-build.md | device-build R4 | T-311 | yes | M |
+| T-313 | Device: card panels without the three rows (screenshots, both shells); Flash loads from the system folder with the profile copy removed; Flash switch off/on on a real Flash page. | cavekit-preferences-ui.md<br>cavekit-addons-extensions.md | preferences-ui R2<br>addons-extensions R7 | T-312 | yes | M |
+| T-314 | Device: each Mochi parity feature shown working on the Mochi card, one evidence line or screenshot per criterion; a finger-only step is listed for the human session rather than counted. | cavekit-mochi-ui.md | mochi-ui R2 | T-312 | yes | L |
+| T-315 | Refresh `app-mochi/PARITY.md` to the built state and close the kit boxes the evidence supports. | cavekit-mochi-ui.md | mochi-ui R2 | T-314 | no | S |
+| T-316 | Reboot with the shipped, unmodified jobs after batch 3: Luna service registers at boot, `engine up; serving YAP`, extensions survive, then re-add `JIHAD_INJECT=1` and restage `/tmp` assets. | cavekit-device-build.md<br>cavekit-addons-extensions.md | device-build R4/R9<br>addons-extensions R5 | T-312 | yes | M |
+
+Blocked-external additions:
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Reason |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-310 | Print: daemon print command and a print dialog for Mochi. | cavekit-mochi-ui.md | mochi-ui R2 | — | human | L | No printer the device can reach: nothing about a print path can be verified, and a blind implementation would be a box checked on no evidence. |
+| T-317 | Human session after the agent work: one numbered checklist covering T-280…T-289 plus the finger steps of the new Mochi features. | cavekit-device-build.md | device-build R4 | T-314 | human | M | Needs a person at the device. |
+
+Coverage of the new criteria: preferences-ui R2 (card rows) → T-294, T-313 · addons R7 (Flash found / Flash switch) → T-295, T-296, T-313 · mochi-ui R2: bookmark editing → T-297, T-314 · thumbnails → T-305, T-306, T-314 · downloads from a page → T-304, T-314 · long-press menu → T-307, T-308, T-314 · share / launcher → T-302, T-314 · print → T-310 · certificate details → T-303, T-314 · search engine → T-301, T-314 · Flash switch → T-309, T-313 · clear history → T-300, T-314 · confirmation → T-299, T-314 · history dates → T-298, T-314 · parity checklist → T-315.
 
 ## Summary
 

@@ -840,6 +840,8 @@ criteria below are new and deliberately start unchecked. What changed under them
       - `#fo` reading `box` at any point → INVALID: `bEditorFocused` carried the gate and the latch
       was never under test.
 
+- [ ] **Flash is found where the device keeps it.** *(OWNER DECISION 2026-10-02. Nothing we ship gave a user Flash: the profile's plugin folder is empty after an install and the 2026-10-01 runs worked only because the library had been copied in by hand.)* The daemon also scans the device's own plugin folder — `/media/cryptofs/apps/usr/lib/BrowserServerPlugins/`, where the HP Flash plugin app installs `libflashplayer.so` — so Flash works whenever that app is installed, nothing is copied or redistributed, and removing that app removes Flash from this browser. A copy in the profile folder does not make it load twice.
+- [ ] **Flash can be switched off and on.** One stored value, shown on the settings page and by the card switch the Mochi parity work adds (cavekit-mochi-ui.md R2); off means a page with Flash content instantiates no plugin.
 **Dependencies:** cavekit-offscreen-rendering.md (R2, R5, R6, R8), cavekit-input-bridging.md (R5, R7), cavekit-device-build.md (R8, R9)
 
 ### R8: The XPI implementation is validated against Pale Moon and Basilisk

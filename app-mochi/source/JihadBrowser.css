@@ -493,14 +493,20 @@ input.jihad-address {
 	background: #232323;
 	border-bottom: 1px solid #2f2f2f;
 }
-/* Bookmark thumbnail. */
-.jihad-row-thumb {
-	width: 64px;
-	height: 48px;
+/* Bookmark thumbnail: a fixed box, the image filling it. */
+.jihad-row-thumbbox {
+	width: 64px !important;
+	height: 48px !important;
 	margin-right: 10px;
 	border: 1px solid #444;
 	background: #111;
+	overflow: hidden;
 	vertical-align: middle;
+}
+.jihad-row-thumb {
+	display: block;
+	width: 64px;
+	height: 48px;
 }
 /* Action sheet (share entries, long-press menu): a dialog box holding menu rows. */
 .jihad-dialog-box.jihad-sheet { padding-bottom: 14px; }

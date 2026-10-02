@@ -460,6 +460,39 @@ void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
   if (cy) *cy = clamp((double)sy / z + scrollY);
 }
 
+// Ask for a thumbnail of what this page is showing, written to `path` at its next real paint
+// (one is forced). Asynchronous on purpose: the pixels only exist inside a paint.
+void BrowserPageGoanna::requestThumbnail(const std::string& path) {
+  mThumbPath = path;
+  mDamageForceFull = true;
+  mNeedsPaint = true;
+}
+
+// Box-filter `src` (w x h BGRA rows) down to at most 192 px wide and 144 px high — the top of
+// the view, at the view's own aspect — and write it as a PNG.
+bool BrowserPageGoanna::writeThumbnail(const unsigned char* src, int w, int h, const std::string& path) {
+  const int TW = 192, THMAX = 144;
+  if (!src || w < TW || h <= 0) return false;
+  const int step = w / TW;                       // whole source pixels per thumbnail pixel
+  int th = h / step; if (th > THMAX) th = THMAX;
+  if (step <= 0 || th <= 0) return false;
+  std::vector<unsigned char> out((size_t)TW * th * 4);
+  for (int ty = 0; ty < th; ++ty) {
+    for (int tx = 0; tx < TW; ++tx) {
+      unsigned long b = 0, g = 0, r = 0;
+      for (int yy = 0; yy < step; ++yy) {
+        const unsigned char* p = src + ((size_t)(ty * step + yy) * w + (size_t)tx * step) * 4;
+        for (int xx = 0; xx < step; ++xx, p += 4) { b += p[0]; g += p[1]; r += p[2]; }
+      }
+      const unsigned long n = (unsigned long)step * step;
+      unsigned char* o = &out[((size_t)ty * TW + tx) * 4];
+      o[0] = (unsigned char)(b / n); o[1] = (unsigned char)(g / n); o[2] = (unsigned char)(r / n);
+      o[3] = 255;                                // opaque, whatever the buffer's alpha byte held
+    }
+  }
+  return jihad::WritePngBgra(path.c_str(), out.data(), TW, th, TW * 4);
+}
+
 BrowserPageGoanna::~BrowserPageGoanna() {
   // Never leave the process-wide sink pointing at a destroyed page — and never take it away
   // from a page that is still alive. If this page owned the dialogs they pass to the newest
@@ -3096,6 +3129,16 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // device, NEVER the old /media/internal/jihad/frame.ppm (T-057, R8: the user's
     // vfat volume is not ours to write). Resolved once: getenv + the state-dir
     // derivation must not run on every paint.
+    // A thumbnail someone asked for (requestThumbnail): the part of this frame the card is
+    // showing — the viewport band, not the off-screen strips — scaled down and written as a
+    // PNG. Taken from a real, non-empty frame, so it is what the user was looking at.
+    if (!mThumbPath.empty() && nb > 0) {
+      const long tr = region ? bandRow : 0;
+      long rows = (long)paintedH - tr; if (rows > h) rows = h;
+      const std::string out = mThumbPath; mThumbPath.clear();
+      const bool ok = rows > 0 && writeThumbnail(pixels + (size_t)tr * w * 4, w, (int)rows, out);
+      fprintf(stderr, "[jihad-bs] thumbnail %s -> %s\n", ok ? "written" : "FAILED", out.c_str());
+    }
     static const std::string dumpPath = jihad::RuntimeResolvePath(getenv("JIHAD_DUMP"), "frame.ppm");
     if (!dumpPath.empty() && nb > 0) {
       FILE* f = fopen(dumpPath.c_str(), "wb");

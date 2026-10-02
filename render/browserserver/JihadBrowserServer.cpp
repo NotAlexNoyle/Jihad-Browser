@@ -189,6 +189,7 @@ void JihadBrowserServer::reap(YapProxy* proxy) {
   // thing to "the card the user is on".
   if (proxy == mLastProxy)
     mLastProxy = mConnectOrder.empty() ? nullptr : mConnectOrder.back();
+  if (proxy == mFocusProxy) mFocusProxy = nullptr;
   if (mInTick) mReap.push_back(pg);          // defer delete out of the tick loop
   else { delete pg.page; delete pg.sink; }
 }
@@ -727,7 +728,21 @@ void JihadBrowserServer::asyncCmdKeyUp(YapProxy* proxy, int32_t key, int32_t mod
 
 void JihadBrowserServer::asyncCmdPageFocused(YapProxy* proxy, bool focused)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  // Remembered as "the card the user is in": a request that arrives over Luna (a bookmark
+  // thumbnail) carries no page, and a card says which page it means by sending this first.
+  if (focused && pageFor(proxy)) mFocusProxy = proxy;
+}
+
+// A thumbnail of the page the user is in, written to `path` at that page's next paint. The
+// card sends pageFocused(true) immediately before asking, so this is its own page even with
+// several cards open; with no such card it falls back to the newest connection.
+bool JihadBrowserServer::thumbnailForActivePage(const std::string& path) {
+  jihad::BrowserPageGoanna* p = pageFor(mFocusProxy);
+  if (!p) p = pageFor(mLastProxy);
+  if (!p) return false;
+  p->requestThumbnail(path);
+  if (mWakeHook) mWakeHook();
+  return true;
 }
 
 void JihadBrowserServer::asyncCmdExit(YapProxy* proxy)

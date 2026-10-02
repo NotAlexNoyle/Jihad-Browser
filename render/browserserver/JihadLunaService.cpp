@@ -9,7 +9,13 @@
 #include "../goanna/GoannaRenderPage.h"   // jihad::ClearCache / ClearCookies
 #include "../goanna/DialogService.h"      // jihad::NotificationSink / SetNotificationSink
 
+#include "../goanna/JihadRuntimePaths.h"   // RuntimeProfileDir (the app directory, for thumbnails)
+
 #include <dlfcn.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 #include <cctype>
@@ -94,6 +100,7 @@ typedef bool (*fn_LSUnregisterPalmService)(LSPalmService*, void*);
 typedef bool (*fn_LSSubscriptionAdd)(LSHandle*, const char*, LSMessage*, void*);
 typedef bool (*fn_LSSubscriptionReply)(LSHandle*, const char*, const char*, void*);
 typedef const char* (*fn_LSMessageGetApplicationID)(LSMessage*);
+typedef const char* (*fn_LSMessageGetPayload)(LSMessage*);
 
 struct LunaApi {
   void* lib = nullptr;
@@ -111,6 +118,7 @@ struct LunaApi {
   fn_LSSubscriptionAdd             SubscriptionAdd             = nullptr;
   fn_LSSubscriptionReply           SubscriptionReply           = nullptr;
   fn_LSMessageGetApplicationID     MessageGetApplicationID     = nullptr;
+  fn_LSMessageGetPayload           MessageGetPayload           = nullptr;
 };
 
 LunaApi        gApi;
@@ -267,6 +275,104 @@ bool setFlashFrom(LSHandle* sh, LSMessage* msg, bool enabled) {
 bool onEnableFlash(LSHandle* sh, LSMessage* msg, void*)  { return setFlashFrom(sh, msg, true); }
 bool onDisableFlash(LSHandle* sh, LSMessage* msg, void*) { return setFlashFrom(sh, msg, false); }
 
+// saveThumbnail / deleteThumbnail / clearThumbnails — bookmark thumbnails
+// (cavekit-mochi-ui.md R2).
+//
+// A card can only show an image from its own application directory, and only the daemon has
+// the page's pixels — so the daemon renders the active page to <appdir>/thumbnails/t-….png and
+// hands back the path. Own card only, like the Flash setters: a thumbnail shows what the user
+// is looking at. The card sends pageFocused(true) down the adapter just before saveThumbnail,
+// which is how the daemon knows which of several cards is asking (Luna carries no page).
+jihad::LunaThumbnailFn gThumbnailFn = nullptr;
+
+std::string thumbnailDir() {
+  std::string d = jihad::RuntimeProfileDir();              // <appdir>/profile
+  const size_t cut = d.find_last_of('/');
+  if (cut == std::string::npos || cut == 0) return std::string();
+  return d.substr(0, cut) + "/thumbnails";
+}
+
+// "t-<digits>-<digits>.png" and nothing else: the only names saveThumbnail ever hands out, so
+// the only names deleteThumbnail will touch.
+bool isThumbnailName(const std::string& n) {
+  if (n.size() < 9 || n.size() > 48 || n.compare(0, 2, "t-") != 0) return false;
+  if (n.compare(n.size() - 4, 4, ".png") != 0) return false;
+  for (size_t i = 2; i + 4 < n.size(); ++i) {
+    const char c = n[i];
+    if (!((c >= '0' && c <= '9') || c == '-')) return false;
+  }
+  return true;
+}
+
+void replyJson(LSHandle* sh, LSMessage* msg, const std::string& out) {
+  if (!gApi.MessageReply) return;
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  gApi.MessageReply(sh, msg, out.c_str(), &e);
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
+}
+
+bool onSaveThumbnail(LSHandle* sh, LSMessage* msg, void*) {
+  static unsigned seq = 0;
+  const std::string dir = thumbnailDir();
+  bool ok = callerIsOwnCard(msg) && gThumbnailFn && !dir.empty();
+  std::string path;
+  if (ok) {
+    mkdir(dir.c_str(), 0755);
+    char name[64];
+    snprintf(name, sizeof name, "t-%ld-%u.png", (long)time(nullptr), ++seq);
+    path = dir + "/" + name;
+    ok = gThumbnailFn(path);
+  }
+  printf("[jihad-bs] luna: saveThumbnail (%s)\n", ok ? path.c_str() : "refused or no page");
+  std::string out = ok ? "{\"returnValue\":true,\"path\":" : "{\"returnValue\":false";
+  if (ok) appendJsonString(out, path);
+  out += "}";
+  replyJson(sh, msg, out);
+  return true;
+}
+
+bool onDeleteThumbnail(LSHandle* sh, LSMessage* msg, void*) {
+  bool ok = false;
+  std::string name;
+  if (callerIsOwnCard(msg) && gApi.MessageGetPayload) {
+    // The request is {"name":"t-….png"} (a full path is accepted and its last component
+    // used). Not a JSON parser: the value is pulled out and then held to isThumbnailName,
+    // which is what actually decides.
+    const char* pl = gApi.MessageGetPayload(msg);
+    const char* k = pl ? strstr(pl, "\"name\"") : nullptr;
+    const char* q = k ? strchr(k + 6, '"') : nullptr;
+    const char* e = q ? strchr(q + 1, '"') : nullptr;
+    if (q && e) {
+      name.assign(q + 1, e - q - 1);
+      const size_t slash = name.find_last_of('/');
+      if (slash != std::string::npos) name = name.substr(slash + 1);
+      const std::string dir = thumbnailDir();
+      if (isThumbnailName(name) && !dir.empty()) ok = (unlink((dir + "/" + name).c_str()) == 0);
+    }
+  }
+  printf("[jihad-bs] luna: deleteThumbnail (%s)\n", ok ? name.c_str() : "refused or not found");
+  reply(sh, msg, ok);
+  return true;
+}
+
+bool onClearThumbnails(LSHandle* sh, LSMessage* msg, void*) {
+  int n = 0;
+  const std::string dir = thumbnailDir();
+  const bool allowed = callerIsOwnCard(msg) && !dir.empty();
+  if (allowed) {
+    if (DIR* d = opendir(dir.c_str())) {
+      while (struct dirent* de = readdir(d)) {
+        if (isThumbnailName(de->d_name) && unlink((dir + "/" + de->d_name).c_str()) == 0) ++n;
+      }
+      closedir(d);
+    }
+  }
+  printf("[jihad-bs] luna: clearThumbnails (%s, %d removed)\n", allowed ? "own card" : "REFUSED", n);
+  reply(sh, msg, allowed);
+  return true;
+}
+
 // notifications — the CARD's non-blocking message channel (cavekit-gre-widgets.md R5).
 //
 // The card calls this ONCE at startup with {"subscribe":true} and leaves the call open; the
@@ -363,10 +469,13 @@ LunaNotifier gNotifier;
 LSMethod gMethodsPublic[] = {
   { "clearCache",     onClearCache,     0 },
   { "clearCookies",   onClearCookies,   0 },
+  { "clearThumbnails", onClearThumbnails, 0 },
+  { "deleteThumbnail", onDeleteThumbnail, 0 },
   { "disableFlash",   onDisableFlash,   0 },
   { "enableFlash",    onEnableFlash,    0 },
   { "getFlash",       onGetFlash,       0 },
   { "notifications",  onNotifications,  0 },
+  { "saveThumbnail",  onSaveThumbnail,  0 },
   { 0, 0, 0 },
 };
 LSMethod gMethodsPrivate[] = {
@@ -411,6 +520,8 @@ bool loadApi() {
   // Optional: without it the Flash switch can be read but not changed from a card.
   gApi.MessageGetApplicationID = (fn_LSMessageGetApplicationID)
                                    dlsym(gApi.lib, "LSMessageGetApplicationID");
+  // Optional: only deleteThumbnail reads its request.
+  gApi.MessageGetPayload = (fn_LSMessageGetPayload) dlsym(gApi.lib, "LSMessageGetPayload");
   if (!gApi.SubscriptionAdd || !gApi.SubscriptionReply) {
     // Named individually because "the toasts do not work" is otherwise a hunt across two
     // processes, and this is the one line that settles it at the daemon end.
@@ -499,7 +610,7 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     // "no subscribers" for a window in which there could not have been any.
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
     printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
-           "getFlash,enableFlash,disableFlash} "
+           "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails} "
            "private{clearCache,clearCookies,getChromePrefs,getFlash,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");
@@ -589,6 +700,7 @@ gboolean retryRegister(gpointer) {
 }  // namespace
 
 void LunaServiceSetOwnAppId(const std::string& appId) { gOwnAppId = appId; }
+void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (startOnce(serviceName, loop, /*verbose*/true)) return true;

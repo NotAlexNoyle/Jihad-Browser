@@ -55,6 +55,11 @@ bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop);
 // it. Call before LunaServiceStart; unset means those methods refuse everyone.
 void LunaServiceSetOwnAppId(const std::string& appId);
 
+// Who renders a bookmark thumbnail: given a path, arrange for a PNG of the active page to be
+// written there and say whether a page was found. Set by the server before LunaServiceStart.
+typedef bool (*LunaThumbnailFn)(const std::string& path);
+void LunaServiceSetThumbnailFn(LunaThumbnailFn fn);
+
 // Best-effort unregister. Safe if Start() failed or was never called.
 void LunaServiceStop();
 

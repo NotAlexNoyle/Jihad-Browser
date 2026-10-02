@@ -92,6 +92,8 @@ public:
   bool hasPages() const { return !mPages.empty(); }
   void newPageRequested(YapProxy* proxy, const char* url);   // window.open -> msgCreatePage
   void setWakeHook(void (*hook)()) { mWakeHook = hook; }
+  // See the definition: a thumbnail of the page the user is in, at its next paint.
+  bool thumbnailForActivePage(const std::string& path);
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
   bool tickWasBusy() const { return mTickBusy; }
@@ -197,6 +199,7 @@ private:
   bool                             mActivity = false;         // a card command arrived since the last tick
   int64_t                          mLastInjectPollMs = 0;
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
+  YapProxy*                        mFocusProxy = nullptr; // last card that sent pageFocused(true)
   // window.open: addresses waiting for the card msgCreatePage asked for. That card connects
   // with the identifier; a card that never comes leaves an entry, so the list is bounded.
   struct PendingNewPage { int32_t id; std::string url; };

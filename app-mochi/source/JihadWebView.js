@@ -228,6 +228,11 @@ enyo.kind({
 	clearEngineHistory: function() {
 		return this._call("clearHistory", []);
 	},
+	//* Tell the daemon this card's page is the one the user is in (the adapter's pageFocused).
+	//* Sent just before a request that goes over Luna and so cannot say which page it means.
+	markActive: function() {
+		return this._call("pageFocused", [true]);
+	},
 	//* Load `url` even if it is what the `url` property already holds — a published setter
 	//* does nothing for an unchanged value, and "fetch this again" is exactly that case.
 	load: function(url) {

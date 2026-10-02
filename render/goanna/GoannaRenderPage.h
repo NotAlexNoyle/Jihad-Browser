@@ -59,6 +59,10 @@ bool GetChromeSettings(std::string* outJson);
 // `plugin.state.flash` (2 = on, 0 = off; unset follows `plugin.default.state`) — which the
 // settings page shows as a row and a card switch reads and writes through the variant's own
 // Luna service. `available` says whether a libflashplayer.so is in a folder this daemon scans.
+// Write `bgra` (w x h, `stride` bytes per row, 32-bit BGRA as the offscreen buffers hold it) to
+// `path` as a PNG, using the engine's own encoder. Alpha is written as given. Mode 0644.
+bool WritePngBgra(const char* path, const unsigned char* bgra, int w, int h, int stride);
+
 void GetFlashState(bool* available, bool* enabled);
 void SetFlashEnabled(bool enabled);
 

@@ -38,6 +38,10 @@
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
 #include "JihadRuntimePaths.h"      // RuntimeProfileDir (Flash availability)
+#include "imgIEncoder.h"            // PNG out of a frame (bookmark thumbnails)
+#include "nsComponentManagerUtils.h" // do_CreateInstance
+#include "nsIInputStream.h"
+#include <sys/stat.h>               // chmod
 #include <unistd.h>                 // access
 #include "nsIWindowProvider.h"      // window.open -> a new card (PageChrome::ProvideWindow)
 #include "nsIChannel.h"
@@ -2377,6 +2381,34 @@ bool GetChromeSettings(std::string* outJson) {
   free(val);
   return ok;
 }
+// ── PNG out of a frame (bookmark thumbnails) ─────────────────────────────────────────────────
+bool WritePngBgra(const char* path, const unsigned char* bgra, int w, int h, int stride) {
+  if (!path || !*path || !bgra || w <= 0 || h <= 0 || stride < w * 4) return false;
+  nsCOMPtr<imgIEncoder> enc = do_CreateInstance("@mozilla.org/image/encoder;2?type=image/png");
+  if (!enc) return false;
+  // HOSTARGB is a 32-bit 0xAARRGGBB word in host order, which on this little-endian target is
+  // exactly the B,G,R,A byte order of the offscreen buffer.
+  nsresult rv = enc->InitFromData(bgra, (uint32_t)stride * (uint32_t)h, (uint32_t)w, (uint32_t)h,
+                                  (uint32_t)stride, imgIEncoder::INPUT_FORMAT_HOSTARGB, EmptyString());
+  if (NS_FAILED(rv)) return false;
+  nsCOMPtr<nsIInputStream> in = do_QueryInterface(enc);
+  if (!in) return false;
+  FILE* f = fopen(path, "wb");
+  if (!f) return false;
+  bool ok = true;
+  char buf[8192];
+  for (;;) {
+    uint32_t n = 0;
+    rv = in->Read(buf, sizeof buf, &n);
+    if (NS_FAILED(rv)) { ok = false; break; }
+    if (n == 0) break;
+    if (fwrite(buf, 1, n, f) != n) { ok = false; break; }
+  }
+  fclose(f);
+  if (ok) chmod(path, 0644); else unlink(path);
+  return ok;
+}
+
 // ── Flash on/off (cavekit-addons-extensions.md R7, owner decision 2026-10-02) ───────────────
 void GetFlashState(bool* available, bool* enabled) {
   if (available) {

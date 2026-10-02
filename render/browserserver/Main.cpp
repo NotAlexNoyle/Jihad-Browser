@@ -338,6 +338,11 @@ int main(int argc, char** argv) {
   // The YAP name is the app id's last component in every variant (jihad-browser,
   // jihad-browser-mochi, jihad-browser-mojo), so the card's app id follows from it.
   jihad::LunaServiceSetOwnAppId(std::string("net.riverstonerelay.") + name);
+  static JihadBrowserServer* sThumbServer = nullptr;
+  sThumbServer = &server;
+  jihad::LunaServiceSetThumbnailFn([](const std::string& path) -> bool {
+    return sThumbServer && sThumbServer->thumbnailForActivePage(path);
+  });
   jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
 
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);

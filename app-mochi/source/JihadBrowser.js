@@ -136,7 +136,7 @@ enyo.kind({
 		]},
 		// Parity views (full-card overlays, hidden until opened).
 		{kind: "JihadBookmarkList", name: "bookmarkList",
-			onSelectItem: "navigateTo", onAddBookmark: "addCurrentBookmark", onClose: "panelClosed"},
+			onSelectItem: "navigateTo", onAddBookmark: "addCurrentBookmark", onDeleteBookmark: "bookmarkDeleted", onClose: "panelClosed"},
 		{kind: "JihadHistoryList", name: "historyList",
 			onSelectItem: "navigateTo", onClearHistory: "clearHistory", onClose: "panelClosed"},
 		{kind: "JihadDownloadList", name: "downloadList",
@@ -917,11 +917,16 @@ enyo.kind({
 	},
 
 	// --- bookmarks / history (Jihad db8 kinds) ------------------------------
+	//* Bookmark the page on screen, with a thumbnail of it. The thumbnail is rendered by the
+	//* DAEMON (it has the page's pixels) into this app's own directory (the only place a card
+	//* may load an image from) and the record keeps its path. The view tells the daemon which
+	//* page is meant by sending pageFocused down the adapter first — a Luna request carries no
+	//* page. No thumbnail is not a failure: the bookmark is saved either way.
 	addCurrentBookmark: function() {
 		// Never bookmark the start page / an inline document (isTransientUrl).
 		if (this.isTransientUrl(this.url)) { return; }
-		var date = (new Date()).getTime();
-		enyo.jihad.dbPut([{
+		var self = this, date = (new Date()).getTime();
+		var rec = {
 			_kind: enyo.jihad.kinds.bookmarks,
 			title: this._title || this.url,
 			url: this.url,
@@ -930,7 +935,23 @@ enyo.kind({
 			defaultEntry: false,
 			visitCount: 0,
 			idx: null
-		}]);
+		};
+		function save() {
+			enyo.jihad.dbPut([rec], function() {
+				if (self.$.bookmarkList.getShowing()) { self.$.bookmarkList.load(); }
+				enyo.jihad.toast("info", "Bookmark added.");
+			});
+		}
+		this.$.view.markActive();
+		enyo.jihad.own("saveThumbnail", {}, function(resp) {
+			if (resp && resp.returnValue && resp.path) { rec.thumbnailFile = resp.path; }
+			save();
+		});
+	},
+	//* A bookmark was deleted from the list: its thumbnail goes with it.
+	bookmarkDeleted: function(inSender, inEvent) {
+		var it = inEvent && inEvent.item;
+		if (it && it.thumbnailFile) { enyo.jihad.own("deleteThumbnail", {name: it.thumbnailFile}); }
 	},
 	//* BrowserApp.updateHistory parity: replace any prior row for this URL with a
 	//* fresh one. Chained so the delete completes before the insert.
@@ -950,6 +971,7 @@ enyo.kind({
 	},
 	clearBookmarks: function() {
 		enyo.jihad.dbDelByQuery(enyo.jihad.kinds.bookmarks, null);
+		enyo.jihad.own("clearThumbnails", {});
 		this.$.bookmarkList.setItems([]);
 	},
 	//* Clear History: the saved list AND the engine's own back/forward history for this

@@ -37,7 +37,11 @@ enyo.kind({
 			{name: "list", kind: "enyo.Repeater", onSetupItem: "setupRow", components: [
 				{name: "row", classes: "jihad-row", ontap: "rowTapped", components: [
 					{kind: "FittableColumns", components: [
-						{name: "thumb", tag: "img", classes: "jihad-row-thumb", showing: false},
+						// The image sits in a fixed box: a bare <img> as a fittable column is
+						// stretched to the row's height by the layout (seen on the device).
+						{name: "thumbBox", classes: "jihad-row-thumbbox", showing: false, components: [
+							{name: "thumb", tag: "img", classes: "jihad-row-thumb"}
+						]},
 						{fit: true, components: [
 							{name: "title", classes: "jihad-row-title"},
 							{name: "url", classes: "jihad-row-url"}
@@ -113,7 +117,7 @@ enyo.kind({
 		inEvent.item.$.title.setContent(it.title || it.url || "");
 		inEvent.item.$.url.setContent(it.url || "");
 		var thumb = it.thumbnailFile || "";
-		inEvent.item.$.thumb.setShowing(Boolean(thumb));
+		inEvent.item.$.thumbBox.setShowing(Boolean(thumb));
 		if (thumb) { inEvent.item.$.thumb.setAttribute("src", "file://" + thumb); }
 		return true;
 	},

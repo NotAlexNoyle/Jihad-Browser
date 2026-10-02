@@ -226,6 +226,8 @@ public:
   void queueInput(int type, int x, int y, int detail);
   void touchEvent(int type, int touchCount, int modifiers, const char* touchesJson);
   void holdAt(int x, int y);                       // YAP: holdAt (long-press)
+  // A scaled PNG of what this page is showing, written to `path` at its next real paint.
+  void requestThumbnail(const std::string& path);
   // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
   // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
   void hitTest(int x, int y, std::string* json);
@@ -491,6 +493,9 @@ private:
   // Drop the ACTIVE slot's record: this buffer no longer provably holds a complete frame, so
   // it must not become the base for a damage-only repaint. Called on every paint path that
   // returns without publishing, and wherever the segments themselves change underneath us.
+  // Bookmark thumbnails: the path the next real paint should write a scaled PNG of itself to.
+  std::string mThumbPath;
+  bool writeThumbnail(const unsigned char* src, int w, int h, const std::string& path);
   void invalidateBufRecord() {
     int fs = slotForKey(mActiveKey);
     if (fs >= 0) mBufFull[fs].valid = false;

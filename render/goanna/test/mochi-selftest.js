@@ -239,6 +239,28 @@
 			// A refused local load may fire neither event: report what is known after a while.
 			later(4000, function() { if (left > 0) { log(name, out.join(" ; ") + " ; no event for " + left + " path(s) DONE"); } });
 		},
+		// Add Bookmark on a real page: the record, its thumbnail file, the row showing it;
+		// then delete the bookmark and see the file go.
+		thumb: function(app, name) {
+			enyo.jihad.dbDelByQuery(enyo.jihad.kinds.bookmarks, null, function() {
+				app.addCurrentBookmark();
+				later(4000, function() {
+					enyo.jihad.dbFind(enyo.jihad.kinds.bookmarks, null, "_rev", true, function(res) {
+						var r = (res || [])[0] || {};
+						log(name, "bookmark=" + j([r.title, r.url, r.thumbnailFile]));
+						var im = new Image();
+						im.onload = function() { log(name, "thumbnail loads in the card: " + im.width + "x" + im.height); };
+						im.onerror = function() { log(name, "thumbnail REFUSED or missing"); };
+						if (r.thumbnailFile) { im.src = "file://" + r.thumbnailFile; }
+						app.menuBookmarks();
+						later(9000, function() {
+							app.$.bookmarkList.deleteTapped(null, {index: 0});
+							later(1500, function() { log(name, "deleted; rows=" + app.$.bookmarkList.items.length + " DONE"); });
+						});
+					});
+				});
+			});
+		},
 		// The long-press menu's "Open in New Card": a second card, opened on the link.
 		newcard: function(app, name) {
 			app.holdOpenInNewCard({linkUrl: "file:///tmp/jihad-shell.html"});

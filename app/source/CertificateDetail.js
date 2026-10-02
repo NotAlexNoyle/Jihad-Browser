@@ -83,6 +83,13 @@ enyo.kind({
 //			{name:"publicKey", kind: "RichText", richContent: false}
 //		]}
 	],
+	formatCertDate: function(inText) {
+		var d = new Date(inText);
+		if (isNaN(d.getTime())) {
+			return enyo.string.escapeHtml(String(inText));
+		}
+		return new enyo.g11n.DateFmt({date:'long'}).format(d);
+	},
 	certChanged: function() {
 		var alternate_name="";
 		this.cert.displayCommonName = "";
@@ -102,21 +109,23 @@ enyo.kind({
 			for(var j in this.cert.subject.altname){
 				alternate_name += this.cert.subject.altname[j] + ' ';
 			}
-			this.$.certName.setContent(enyo.string.escapeHtml(alternate_name));
+			// (was `this.$.certName`, a control that does not exist: a certificate with neither
+			// a common name nor an organization threw here and the view never opened)
+			this.$.commonName.setContent(enyo.string.escapeHtml(alternate_name));
 		}
 		
 		if(this.cert.displayIssuerCommonName) {
 			this.$.displayIssuerCommonName.setContent(enyo.string.escapeHtml(this.cert.displayIssuerCommonName));
 		}
 		
+		// The dates arrive as text. Formatted when they parse; shown as given when they do not
+		// (the daemon sends the engine's own local-time string, which this WebKit may not parse).
 		if(this.cert.startdate) {
-			var dateFormatter = new enyo.g11n.DateFmt({date:'long'});
-			this.$.startDate.setContent(dateFormatter.format(new Date(this.cert.startdate)));
+			this.$.startDate.setContent(this.formatCertDate(this.cert.startdate));
 		}
 		
 		if(this.cert.expiredate) {
-			var dateFormatter = new enyo.g11n.DateFmt({date:'long'});
-			this.$.expirationDate.setContent(dateFormatter.format(new Date(this.cert.expiredate)));
+			this.$.expirationDate.setContent(this.formatCertDate(this.cert.expiredate));
 		}
 		
 		if(this.cert.subject) {
@@ -206,11 +215,39 @@ enyo.kind({
 			{kind: "Button", caption: $L("Done"), flex: 1, className: "enyo-button-dark", onclick: "doClose"}
 		]}
 	],
+	// WHERE THE DETAILS COME FROM. The stock browser asks com.palm.certificatemanager (the
+	// service component above, kept for a device where that works). On webOS CE a card gets
+	// "Service does not exist" from it, so View Certificate never enabled. The daemon therefore
+	// writes the details of the certificate it is warning about into THIS app's own directory —
+	// certinfo/<name of the certificate file>.js, one call to window.jihadCertInfo — for as
+	// long as the warning is open: a card may load a local file only from its own directory,
+	// and only as a script (measured 2026-10-02; see render/goanna/BrowserPageGoanna.cpp).
 	certFileChanged: function() {
 //		this.warn("cert file: ", this.certFile);
 		this.validateComponents();
 		if(this.certFile) {
-			this.$.getCertificateDetails.call({'certificateFilename': this.certFile});
+			var self = this, asked = this.certFile, done = false, tag = null;
+			var finish = function(o) {
+				if (done) { return; }
+				done = true;
+				window.jihadCertInfo = null;
+				if (tag && tag.parentNode) { tag.parentNode.removeChild(tag); }
+				if (o && self.certFile === asked) {
+					self.handleCertificate(self, o);
+				} else if (!o && self.certFile === asked) {
+					self.$.getCertificateDetails.call({'certificateFilename': asked});
+				}
+			};
+			try {
+				window.jihadCertInfo = function(o) { finish(o); };
+				tag = document.createElement("script");
+				tag.onerror = function() { finish(null); };
+				tag.src = "certinfo/" + String(asked).replace(/^.*\//, "") + ".js";
+				document.getElementsByTagName("head")[0].appendChild(tag);
+				window.setTimeout(function() { finish(null); }, 3000);
+			} catch (e) {
+				finish(null);
+			}
 		}
 	},
 	handleCertificate: function(inSender, inResponse) {

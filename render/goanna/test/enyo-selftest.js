@@ -43,6 +43,25 @@
 				});
 			});
 		},
+		// The SSL warning must already be on screen (launch on a self-signed https target):
+		// is View Certificate enabled, what does the certificate view show, then refuse.
+		cert: function(app, name) {
+			later(5000, function() {
+				var b = app.$.browser;
+				log(name, "viewCertButton disabled=" + b.$.viewCertButton.getDisabled());
+				b.viewSSLCertificate();
+				later(2500, function() {
+					var d = b.$.sslCertDialog.$.certDetail;
+					log(name, "issued to=[" + d.$.commonName.getContent() + "] issuer CN=[" + d.$.issuerCommonName.getContent() +
+						"] from=[" + d.$.startDate.getContent() + "] until=[" + d.$.expirationDate.getContent() + "] serial=[" + d.$.serialNumber.getContent() + "]");
+					later(6000, function() {
+						b.$.sslCertDialog.close();
+						b.closeSSLConfirmBox({response: "0"});
+						log(name, "answered DONE");
+					});
+				});
+			});
+		},
 		// More Settings in the panel: the settings page opens in the card.
 		more: function(app, name) {
 			app.preferencesClick();

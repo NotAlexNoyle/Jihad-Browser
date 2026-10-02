@@ -792,8 +792,8 @@ EngineHost::Init(const char* greDir)
   // /usr/lib/BrowserPlugins is still NOT scanned: that is LunaSysMgr's adapter-shim folder
   // (BrowserAdapter*.so), not content plugins. The profile directory is created so the path
   // is real rather than aspirational — an absent directory is silently skipped and looks
-  // identical to a plugin that failed to load. The profile comes first, so a copy there wins
-  // over the system one and the host's same-name de-duplication keeps a single entry.
+  // identical to a plugin that failed to load. The profile comes first, and a Flash copy
+  // there REPLACES the system one rather than joining it (see below).
   if (!getenv("MOZ_PLUGIN_PATH")) {
     const std::string& prof = jihad::RuntimeProfileDir();
     std::string path;
@@ -802,8 +802,13 @@ EngineHost::Init(const char* greDir)
       mkdir(pdir.c_str(), 0755);          // harmless if it exists
       path = pdir;
     }
+    // The system folder is skipped when the profile already has its own libflashplayer.so:
+    // the plugin host does NOT fold two copies at different paths into one — with both
+    // scanned, about:plugins listed both files under one "Adobe Flash" and every MIME type
+    // twice (seen on the device 2026-10-02). Flash is the only thing that folder holds.
     struct stat sysSt;
-    if (stat(jihad::kSystemPluginDir, &sysSt) == 0 && S_ISDIR(sysSt.st_mode)) {
+    const bool ownFlash = !prof.empty() && access((prof + "/plugins/libflashplayer.so").c_str(), R_OK) == 0;
+    if (!ownFlash && stat(jihad::kSystemPluginDir, &sysSt) == 0 && S_ISDIR(sysSt.st_mode)) {
       if (!path.empty()) path += ":";
       path += jihad::kSystemPluginDir;
     }

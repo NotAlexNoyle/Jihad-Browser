@@ -87,6 +87,24 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-240 | DONE | Volume HUD: daemon streams sit on `pcm_output` (sink 0), not a Palm role sink; `PULSE_SINK=pmedia` does not move them. Not needed: `KEY_VOLUMEDOWN`/`UP` from the kernel keyboard during page audio changes audiod's media volume (70 → 59 → 70), the stream follows, and the HUD is on the screenshot. gre-widgets box `[ ]`→`[~]` (physical rocker = T-286). |
 | (new) | DONE | `build/webos-oe/prefs-row-walk.sh`: all 56 table rows of `about:preferences` changed through their own control and read back from the engine; real key path (kernel keyboard) types into a settings field. preferences-ui R2 page side met; box stays `[~]` for T-290. |
 | (new) | DONE (experiment) | `JIHAD_GRE_KEYS` (default off): engine's editor takes a focused field's keys. Typing, arrows, Home/End, Backspace, Delete work and nothing crashes; engine Enter in a textarea inserts nothing; mixed model double-fires `change`. Enter/Tab kept on the daemon path. gre-widgets R3 box `[ ]`→`[~]`. |
+| (2026-10-02) | — | **Owner go-ahead and decisions.** Remove the three card rows; Flash from the device's own folder; build every Mochi parity omission. Removal audit and engine push approved but refused again by the session's permission gate → the owner runs them (staged: `/tmp/rm1.sh` on the device; `git -C third_party/uxp push fork jihad-engine-mods`). |
+| (found) | FIXED | Closing any card unregistered the add-on install prompt and the JS notification door for the daemon's life (`SetDialogSink(nullptr)` in every page destructor dropped once-per-process observers): `InstallTrigger` → download → cancel, `-210`, no prompt. Now dropped only at shutdown; a closing page steps down only if it owns the dialogs. Verified after 3 connects / 2 disconnects. `7191edaa`. |
+| T-290 / T-294 | DONE | Card rows removed (Enyo `Preferences.js`, Mochi `JihadPreferences.js`); stored copies no longer re-applied; "More Settings" opens the page. |
+| T-295 | DONE | Daemon scans `/media/cryptofs/apps/usr/lib/BrowserServerPlugins` after the profile folder. Mochi (no profile copy) plays the test movie. |
+| T-296 / T-309 | DONE | `plugin.state.flash` (default 2) + page row; Luna `getFlash` / `enableFlash` / `disableFlash` (setters: own card only — `luna-send` and another variant's id refused). Card switch real in Mochi and Enyo. |
+| T-297 | DONE | Mochi bookmark edit (stored as typed). FOUND + FIXED: bookmarks list always empty (ordered by un-indexed `date`); hidden panels never laid out. |
+| T-298 | DONE | History groups (14/14 bucket cases on host; 7 groups on device). |
+| T-299 | DONE | Confirmation overlay before each clear (panel + history view). |
+| T-300 | DONE | Clear History purges the engine's history too; controls disabled at once; engine `goBack` goes nowhere. |
+| T-301 | DONE | Search engine choice (card store); address bar uses it. |
+| T-302 | DONE (agent part) | Share sheet (Email, Text Message, Copy Address, Add to Launcher). Clipboard copy and `addLaunchPoint` verified; app launches by finger. |
+| T-303 | DONE | Certificate details via `<appdir>/certinfo/<pem>.js` (certificate manager unreachable for a card on CE; XHR and `/var` refused). |
+| T-304 | DONE | Engine downloads tracked from the adapter's download callbacks; retry re-drives the address. |
+| T-305 / T-306 | DONE | Thumbnails: Luna `saveThumbnail` → 192x144 PNG of the next real paint into `<appdir>/thumbnails/`; adapter path untouched (it writes only under `/var`, `/tmp`). |
+| T-307 | NOT NEEDED | Long-press image actions use the system download manager (writes into the downloads carve-out); the daemon's image stubs stay stubs. Limit: `data:` images cannot be saved. |
+| T-308 | DONE (agent part) | Long-press menu via `eventFired` (hold on link/image claimed, tap and plain hold not). Open in New Card, Copy, Save Image verified; a real hold, Share Image and Set as Wallpaper are for a finger. |
+| T-310 | BLOCKED (hardware) | Print: no printer reachable from the device. |
+| T-311 / T-312 | DONE | Batch 3: daemon `78fb52e8…`, goanna.js `97f981b3…`, libxul `65e3cc84…`; three `.ipk`s installed through ipkgservice; LunaSysMgr pids unchanged. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)
 

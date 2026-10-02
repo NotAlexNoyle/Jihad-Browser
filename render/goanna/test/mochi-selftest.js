@@ -5,7 +5,7 @@
 //
 // A card's own chrome (its panels, sheets and dialogs) lives in LunaSysMgr; nothing on the
 // daemon's inject channel reaches it, and a finger is not always at hand. This file is pushed
-// next to the shell's sources FOR A TEST RUN ONLY (build/webos-oe/mochi-selftest.sh adds it to
+// next to the shell's sources FOR A TEST RUN ONLY (build/webos-oe/card-selftest.sh adds it to
 // the device copy of source/package.js and removes it again). It runs ONE named scenario,
 // chosen by the launch parameter `jihadTest`, drives the shell's own handlers — the functions
 // a tap would call — and writes what it sees to the device log as "[JIHAD-TEST] <name>: ...".
@@ -137,10 +137,15 @@
 			var ok = enyo.jihad.setClipboard(app.url);
 			log(name, "setClipboard=" + ok + " url=" + app.url + " DONE");
 		},
+		// Email / Text Message from the share sheet: the launch request and its reply.
 		sharemail: function(app, name, arg) {
 			var page = {title: app._title || app.url, url: app.url};
-			if (arg === "sms") { app.shareByMessage(page); } else { app.shareByEmail(page); }
-			log(name, "launch requested for " + (arg || "email") + " DONE");
+			var id = (arg === "sms") ? "com.palm.app.messaging" : "com.palm.app.email";
+			var params = (arg === "sms") ? {compose: {messageText: "Check out this web page: " + page.url}}
+				: {summary: "Check out this web page...", text: "Here's a website I think you'll like: " + page.url};
+			enyo.jihad.launch({id: id, params: params}, function(r) {
+				log(name, "open " + id + " -> " + j(r) + " DONE");
+			});
 		},
 		launcher: function(app, name) {
 			var base = String(window.location.href || "").replace(/^file:\/\//, "").replace(/[^\/]*$/, "");

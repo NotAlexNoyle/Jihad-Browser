@@ -1,22 +1,30 @@
 #!/bin/bash
-# Drive the Mochi shell's own chrome on the device without a finger, for a TEST RUN.
+# Drive a shell's own chrome on the device without a finger, for a TEST RUN.
 #
-#   mochi-selftest.sh push                 push the working-tree Mochi sources plus the test
-#                                          hook (render/goanna/test/mochi-selftest.js), restart
-#                                          LunaSysMgr so the card loads them
-#   mochi-selftest.sh run <scenario[:arg]> [target-url] [seconds] [shot.png]
+#   card-selftest.sh [mochi|enyo] push     push the working-tree sources of that shell plus its
+#                                          test hook (render/goanna/test/<shell>-selftest.js),
+#                                          restart LunaSysMgr so the card loads them
+#   card-selftest.sh [mochi|enyo] run <scenario[:arg]> [target-url] [seconds] [shot.jpg]
 #                                          close the card, launch it on target-url with that
 #                                          scenario, wait, print the "[JIHAD-TEST]" lines and
 #                                          save a screenshot (portrait, already rotated)
-#   mochi-selftest.sh restore              put the shipped package.js back, delete the hook,
+#   card-selftest.sh [mochi|enyo] restore  put the shipped manifest back, delete the hook,
 #                                          restart LunaSysMgr
 #
+# The shell defaults to mochi.
 # The hook is never packaged: it exists on the device only between `push` and `restore` (or
 # until the next .ipk install, which replaces the app directory). What a scenario proves and
 # what it cannot is written at the top of the hook file.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-ID=net.riverstonerelay.jihad-browser-mochi
+SHELL_NAME=mochi
+case "${1:-}" in mochi|enyo) SHELL_NAME=$1; shift;; esac
+case $SHELL_NAME in
+  mochi) ID=net.riverstonerelay.jihad-browser-mochi; APPDIR=app-mochi; MANIFEST=source/package.js
+         MANIFEST_SED='s|"JihadBrowser.js"|"JihadBrowser.js",\n\t"JihadSelfTest.js"|';;
+  enyo)  ID=net.riverstonerelay.jihad-browser;       APPDIR=app;       MANIFEST=depends.js
+         MANIFEST_SED='s|"source/tld.js"|"source/tld.js",\n\t"source/JihadSelfTest.js"|';;
+esac
 DEV=/media/cryptofs/apps/usr/palm/applications/$ID
 NOVACOM=(novacom)
 [ -n "${JIHAD_DEVICE:-}" ] && NOVACOM=(novacom -d "$JIHAD_DEVICE")
@@ -28,18 +36,20 @@ restart_sysmgr() { echo "restarting LunaSysMgr (card JS is cached in it)..."; "$
 case "${1:-}" in
 push)
   STAMP=$(date +%m%d-%H%M%S)
-  for f in app-mochi/source/*.js app-mochi/source/*.css; do
-    n=$(basename "$f")
-    if [ "$n" = package.js ]; then
-      # the hook loads last, after the shell that creates window.jihadApp's kind
-      sed 's|"JihadBrowser.js"|"JihadBrowser.js",\n\t"JihadSelfTest.js"|' "$f" > "$TMP/$n"
+  for f in $APPDIR/source/*.js $APPDIR/source/*.css $APPDIR/$MANIFEST; do
+    [ -f "$f" ] || continue
+    rel=${f#$APPDIR/}; n=$(basename "$f")
+    if [ "$rel" = "$MANIFEST" ]; then
+      # the hook loads last, after the shell's own sources
+      sed "$MANIFEST_SED" "$f" > "$TMP/$n"
+      grep -q JihadSelfTest "$TMP/$n" || { echo "could not add the hook to $MANIFEST" >&2; exit 1; }
     else
       sed "s/@DEV@/$STAMP/g" "$f" > "$TMP/$n"
     fi
-    put "$TMP/$n" "$DEV/source/$n"
+    put "$TMP/$n" "$DEV/$rel"
   done
-  put render/goanna/test/mochi-selftest.js "$DEV/source/JihadSelfTest.js"
-  echo "pushed Mochi sources + test hook (stamp $STAMP)"
+  put render/goanna/test/$SHELL_NAME-selftest.js "$DEV/source/JihadSelfTest.js"
+  echo "pushed $SHELL_NAME sources + test hook (stamp $STAMP)"
   restart_sysmgr
   ;;
 run)
@@ -70,10 +80,10 @@ Image.open('$TMP/st.png').rotate(-90, expand=True).convert('RGB').resize((576,76
   "${NOVACOM[@]}" run file://bin/rm -- -f /tmp/st.png >/dev/null 2>&1 || true
   ;;
 restore)
-  put app-mochi/source/package.js "$DEV/source/package.js"
+  put $APPDIR/$MANIFEST "$DEV/$MANIFEST"
   "${NOVACOM[@]}" run file://bin/rm -- -f "$DEV/source/JihadSelfTest.js"
-  echo "shipped package.js restored, test hook deleted"
+  echo "shipped $MANIFEST restored, test hook deleted"
   restart_sysmgr
   ;;
-*) sed -n 2,14p "$0"; exit 2;;
+*) sed -n 2,17p "$0"; exit 2;;
 esac

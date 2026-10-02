@@ -5,6 +5,8 @@
 Maps every user-facing feature of the Enyo 1.0 UI (`../app/source`) to its Enyo 2
 + Mochi equivalent in `app-mochi/source`, or records an intentional omission.
 
+**Refreshed 2026-10-02 after the owner's review.** The owner was shown every Omitted and Simplified row and accepted none: each was to be built. Rows changed by that work are marked *(2026-10-02)*; the one row still open is Print, which cannot be verified without a printer the device can reach.
+
 **Refreshed 2026-10-01 against `app/source` and `app-mochi/source` as they are today** (the
 previous revision was 2026-08-10 and predated the own-service URIs, the toast channel, the home
 control, the stored start-page shortcuts, the shared settings page and the `<select>` list).
@@ -21,6 +23,7 @@ routed through JihadWebView's variable-method `_call` path (exactly as the Enyo
 1.0 app's `viewCall(...)` fallback does), so they do **not** widen that grep-audited
 literal set. Persistence uses THIS PACKAGE'S OWN db8 kinds:
 `net.riverstonerelay.jihad-browser-mochi.{history,bookmarks,preferences}:1`.
+*(2026-10-02: the parity work added `clearHistory` and `pageFocused` (through the variable-method `_call` path, like `sendDialogResponse`), the adapter's download callbacks and its `eventFired` hold callback, and six methods on this variant's own Luna service — `getFlash`, `enableFlash`, `disableFlash`, `saveThumbnail`, `deleteThumbnail`, `clearThumbnails`. Every adapter method and callback is one the Enyo shell already uses on the unchanged adapter; nothing was added to the YAP wire.)*
 
 > **Persistence ownership (audit F-A01, superseded by review F-1 on 2026-08-01).**
 > F-A01's fix was a permission grant: the kinds stayed owned by the Enyo package
@@ -60,13 +63,13 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 
 | Feature | Enyo 1.0 source | Mochi equivalent | Status |
 | --- | --- | --- | --- |
-| List saved bookmarks | `BookmarkList.js` (DbService find/subscribe) | `JihadBookmarkList.js` (`enyo.jihad.dbFind` on bookmarks kind) | Ported |
+| List saved bookmarks | `BookmarkList.js` (DbService find/subscribe) | `JihadBookmarkList.js` (`enyo.jihad.dbFind` on bookmarks kind, newest first by `_rev`) | Ported *(2026-10-02: until then this list was always EMPTY on a device — it ordered by `date`, which the kind has no index for, and db8 refuses such a query)* |
 | Open a bookmark | `BookmarkList.itemClick` → `selectItem` | `JihadBookmarkList` `onSelectItem` → `JihadBrowser.navigateTo` | Ported |
 | Delete a bookmark | `BookmarkList` swipe → `deleteBookmark` | row **Delete** → `enyo.jihad.dbDel` | Ported |
 | Add current page as bookmark | `BrowserApp.addBookmark` | menu **Add Bookmark** → `JihadBrowser.addCurrentBookmark` (db8 put, same record shape) | Ported |
 | Clear all bookmarks | `Preferences` → `BrowserApp.clearBookmarks` | Preferences **Clear Bookmarks** → `JihadBrowser.clearBookmarks` (db8 delByQuery) | Ported |
-| Edit bookmark (rename / re-URL) | `BookmarkDialog.js`, `BrowserApp.editBookmark` | — | Omitted — delete + re-add covers the need; a dedicated edit dialog is deferred. |
-| Bookmark thumbnails / 32-64px icons | `BrowserApp.createPageImages` (`saveViewToFile`/`generateIconFromFile`) | — | Omitted — thumbnail generation uses non-frozen engine node methods and a writable `/var/luna/data/browser/icons`; bookmarks store title + URL only. |
+| Edit bookmark (rename / re-URL) *(2026-10-02)* | `BookmarkDialog.js`, `BrowserApp.editBookmark` | row **Edit** → overlay dialog in `JihadBookmarkList.js` → `enyo.jihad.dbMerge`. Title and address are stored as typed (the Enyo dialog HTML-escapes them, which corrupts `&` in an address; not copied) | Ported |
+| Bookmark thumbnails *(2026-10-02)* | `BrowserApp.createPageImages` (`saveViewToFile`/`generateIconFromFile`) | `JihadBrowser.addCurrentBookmark` → `markActive` + own service `saveThumbnail` → the daemon writes a 192x144 PNG of the page into this app's `thumbnails/` folder; the row shows it; deleted with the bookmark | Ported — by a different route: the adapter path writes only under `/var` or `/tmp`, which a card may not load from, and its icon helpers are compiled out, so the Enyo shell gets no thumbnails on this engine at all. No separate 32/64 px icons. |
 
 ## History
 
@@ -76,8 +79,8 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Record a visit on load-stop | `BrowserApp.updateHistory` | `JihadBrowser.updateHistory` (delByQuery url → put; same kind/shape) | Ported |
 | Open a history entry | `HistoryList.itemClick` | `onSelectItem` → `navigateTo` | Ported |
 | Delete a history entry | `HistoryList` swipe | row **Delete** → `dbDel` | Ported |
-| Clear all history | `BrowserApp.clearHistory` | header **Clear** / Preferences **Clear History** → `JihadBrowser.clearHistory` (db8 delByQuery) | Simplified — clears the db8 kind only. Enyo 1.0 additionally clears the ENGINE's own history (`Browser.clearHistory` → `viewCall("clearHistory")`), so back/forward and global history survive a Mochi clear. Adding it would widen the frozen `callBrowserAdapter` literal set (audit F-A14a). |
-| Relative-date dividers ("Last Week", month names) | `HistoryList.getDivider` (`enyo.g11n`) | inline `M/D/YY` date label | Simplified — `enyo.g11n` is not in the Enyo 2 stack; a compact date replaces the grouped dividers. |
+| Clear all history *(2026-10-02)* | `BrowserApp.clearHistory` | header **Clear** / Preferences **Clear History** → confirmation → `JihadBrowser.clearHistory` (db8 delByQuery + the adapter's `clearHistory`; back/forward controls disabled at once) | Ported |
+| Relative-date dividers *(2026-10-02)* | `HistoryList.getDivider` (`enyo.g11n`) | `JihadHistoryList.groupLabel`: Today, Yesterday, weekday, Last Week / N Weeks Ago, month, year — built without `enyo.g11n`. The Enyo view's week bucket never appears (misspelt constant); here it does | Ported |
 
 ## Downloads
 
@@ -87,8 +90,8 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Open a completed download | `BrowserApp.openDownloadedFile` | `onOpenItem` → `JihadBrowser.openDownload` (`applicationManager/open`) | Ported |
 | Cancel an in-progress download | `BrowserApp.cancelDownload` | `onCancelItem` → `cancelDownload` (`downloadmanager/cancelDownload`) | Ported |
 | Clear the downloads list | `BrowserApp.clearDownloads` | header **Clear** → `clearDownloads` (`downloadmanager/clearHistory`) | Ported |
-| Auto-start a download for a non-renderable resource | `BrowserApp.handleResource`/`downloadResource` (`onUrlRedirected`/`onFileLoad`, `resourceInfoService`) | — | Omitted — auto-initiation needs WebView resource-handoff callbacks not yet surfaced by `JihadWebView` (navigation-events scope). The list/open/cancel/clear management is functional against the download manager. |
-| Retry a failed download | `DownloadList.itemRetry` | — | Omitted — follows the auto-initiation omission above. |
+| Download started by a page *(2026-10-02)* | `BrowserApp.handleResource`/`downloadResource` | the engine saves the file itself and reports it; `JihadWebView.download*` → `JihadBrowser.engineDownload*` → the downloads view (progress, result, kept across launches) | Ported — and fetched ONCE: the Enyo shell answers the engine's hand-off with a download-manager fetch of the same URL, so there every such file is fetched twice |
+| Retry a failed download *(2026-10-02)* | `DownloadList.itemRetry` | row **Retry** → `JihadBrowser.retryDownload` (re-drives the address; download-manager items are fetched again) | Ported. An engine download cannot be CANCELLED from a card — the adapter has no command for it — so its row offers no Cancel |
 
 ## Find in page
 
@@ -102,16 +105,16 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 
 | Feature | Enyo 1.0 source | Mochi equivalent | Status |
 | --- | --- | --- | --- |
-| Block Popups / Accept Cookies / Enable JavaScript toggles | `Preferences.js` ToggleButtons | `JihadPreferences.js` `mochi.ToggleButton`s | Ported (persistence) |
-| Persist preferences | `BrowserApp.preferenceChanged` (db8 merge) | `JihadPreferences.toggleChanged` (`dbMergeQuery` on preferences kind) + default seeding | Ported |
+| Block Popups / Accept Cookies / Enable JavaScript toggles *(2026-10-02)* | removed from `Preferences.js` | removed from `JihadPreferences.js` | Removed in BOTH shells (owner decision): the settings page owns the three values; **More Settings** opens it |
+| Persist preferences | `BrowserApp.preferenceChanged` (db8 merge) | search engine: the card's own store; Flash: the daemon | Ported *(2026-10-02: the db8 preferences kind is still owned and registered but nothing is stored in it now)* |
 | Clear Cookies / Clear Cache | `Browser.clearCookies/clearCache` (`palm://net.riverstonerelay.jihadBrowser/…`) | Preferences → `JihadBrowser.clearCookies/clearCache` (`palm://net.riverstonerelay.jihadBrowserMochi/…`) *(2026-10-01: own-service URIs on both sides)* | Ported |
 | Home page + start-page shortcut EDITING *(2026-10-01)* | card Preferences rows (name, address, remove) AND `about:preferences` | NOT in this panel by design: edited in the shared `about:preferences` page (menu **Settings**), adopted back from the page's url fragment (`JihadChromePrefs.adoptFromUrl`) | Ported (single editor — cavekit-mochi-ui.md R7) |
 | Settings page entry *(2026-10-01)* | app menu → `about:preferences` | menu **Settings** → `about:preferences#chrome=…` | Ported |
 | Clear Bookmarks / Clear History | `Preferences` prompts | Preferences → `clearBookmarks/clearHistory` (db8) | Ported |
-| **Apply** toggles to the live engine | `Browser.setEnableJavascript/setBlockPopups/setAcceptCookies` | — | **Omitted (contract)** — pushing toggle values to the engine would require new `callBrowserAdapter` methods, widening the frozen literal set (cavekit-ipc-contract R1). Values are persisted to db8; live engine application is deferred to a contract-scope change. |
-| Enable Flash (system pref) | `Preferences` `flashplugins` | — | Omitted — system-preference/Flash plumbing is out of parity-views scope. |
-| Default search-engine selector | `Preferences` ListSelector, `com.palm.universalsearch` | — | Omitted — the address bar uses a fixed default search (`JihadBrowser.searchUrl`, DuckDuckGo), matching the shell. |
-| Confirmation prompt before a clear | `BrowserPreferencePrompt` | immediate action (button label is explicit) | Simplified — clears act immediately; the extra confirm popup is dropped. |
+| **Apply** toggles to the live engine | `Browser.setEnableJavascript/setBlockPopups/setAcceptCookies` | — | Not applicable since 2026-10-02: the toggles are gone from both shells |
+| Enable Flash *(2026-10-02)* | `Preferences` switch → own service `enableFlash`/`disableFlash` | `JihadPreferences` switch → own service `getFlash`/`enableFlash`/`disableFlash` | Ported — a real switch in both shells now (it used to write the system preference `flashplugins`, which nothing in this browser reads) |
+| Default search-engine selector *(2026-10-02)* | `Preferences` ListSelector, `com.palm.universalsearch` | `JihadPreferences` engine rows (DuckDuckGo, Google, Wikipedia — the Enyo shell's fallback list) → `enyo.jihad.saveSearchEngine`; `JihadBrowser.searchUrl` uses it | Ported — the choice is this card's own; it does not change the system-wide search engine |
+| Confirmation prompt before a clear *(2026-10-02)* | `BrowserPreferencePrompt` | `JihadPreferences` / `JihadHistoryList` confirmation overlay, Enyo's wording | Ported |
 
 ## Engine-driven dialogs
 
@@ -132,17 +135,17 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Prompt | `Browser.showPromptDialog` | `dialogPrompt` → `showPrompt` → `["1", text]`/`["0"]` | Ported |
 | HTTP auth (user/password) | `Browser.showUserPasswordDialog` | `dialogUserPassword` → `showLogin` → `["1", user, pass]`/`["0"]` | Ported |
 | SSL confirm (trust always/once/deny) | `Browser.showSSLConfirmDialog` | `dialogSSLConfirm` → `showSSL` → `["1"]`/`["2"]`/`["0"]` | Ported |
-| SSL "View Certificate" detail | `CertificateDetail.js`, `Browser.viewSSLCertificate` | — | Omitted — the security-critical trust decision is fully answerable; the X.509 detail viewer is deferred. |
-| Page/engine error dialogs | `Browser.browserError` | — | Omitted — `JihadBrowser.openDialog` (a generic info popup) exists but NOTHING routes engine errors to it: `JihadWebView` handles none of the adapter's `failedLoad` / `setMainDocumentError` / `reportError` callbacks, so a failed load is silent. Surfacing them is navigation-events scope (audit F-A14c). |
+| SSL "View Certificate" detail *(2026-10-02)* | `CertificateDetail.js` (`com.palm.certificatemanager`) | `JihadDialogs` **View Certificate** → details the daemon writes into this app's `certinfo/` folder while the warning is open | Ported — by a different route: on webOS CE a card cannot reach the certificate manager at all, so the Enyo button never enables there |
+| Page/engine error dialogs | `Browser.browserError` | the engine's own alert, presented by `JihadDialogs.showAlert` | Ported in effect *(corrected 2026-10-02: a failed load is NOT silent — the engine raises an alert naming the failure and the card shows it; seen on the device 2026-10-01)* |
 
 ## Context menu, sharing, launcher, print (intentional omissions)
 
 | Feature | Enyo 1.0 source | Status |
 | --- | --- | --- |
-| Long-press context menu (copy/share link, copy-to-photos, set wallpaper, share image) | `BrowserContextMenu.js`, `Browser.openContextMenu`, `saveImageAtPoint` | Omitted — needs the WebView `onMousehold`/tap-info + `saveImageAtPoint`/wallpaper node methods (not surfaced; outside the parity-views + frozen-set scope). |
-| Share link sheet (email / messaging) | `ShareLinkDialog.js`, `com.palm.stservice` | Omitted — reduced to a "copy the address to share" note; the multi-channel share sheet is deferred. |
-| Add to Launcher | `BrowserApp.addToLauncher` (`addLaunchPoint` + page images) | Omitted — depends on the omitted thumbnail generation and `applicationManager/addLaunchPoint`. |
-| Print | `Browser.printFrame`, `PrintDialog` | Omitted — `printFrame` is a non-frozen engine node method and `PrintDialog` is not in the Mochi set. |
+| Long-press context menu *(2026-10-02)* | `BrowserContextMenu.js`, `Browser.openContextMenu`, `saveImageAtPoint` | Ported — `JihadWebView.eventFired` (hold on a link or image) → action sheet: Open in New Card, Share Link, Copy Address; Save Image, Share Image, Set as Wallpaper. Images are fetched by the system download manager into the downloads folder (the daemon's `saveImageAtPoint` is a stub), so an inline `data:` image cannot be saved. |
+| Share link sheet *(2026-10-02)* | `ShareLinkDialog.js` | Ported — toolbar share → Email, Text Message, Copy Address (no Facebook entry: the app it launched is not on webOS CE). |
+| Add to Launcher *(2026-10-02)* | `BrowserApp.addToLauncher` | Ported — in the share sheet; `applicationManager/addLaunchPoint` with this app's icon. |
+| Print | `Browser.printFrame`, `PrintDialog` | **Open** — the owner asked for it; the daemon's print command is a stub, the dialog is an Enyo 1 library, and nothing about a print path can be verified without a printer the device can reach. |
 
 ## R2 acceptance summary
 
@@ -150,7 +153,7 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 - Bookmarks, history, downloads views present and functional — **met** (downloads auto-initiation noted as omitted; management is functional).
 - Find-in-page, preferences, start page present — **met**.
 - Alert/confirm/prompt/auth + SSL-confirm dialogs presented and answerable — **met**.
-- Parity checklist with no undocumented missing feature — **this document**.
+- Parity checklist with no missing feature — **one row open (Print)**; every other Enyo feature is Ported as of 2026-10-02.
 
 ~~On-device functional verification (rendering, live db8/download-manager/adapter round-trips) is
 **DEVICE-GATED** and pending hardware.~~ **CORRECTED 2026-08-10 — that has been false since
@@ -163,8 +166,4 @@ Structural correctness — kinds, the frozen adapter method set, `node --check`,
 `build-mochi-ipk.sh` end-to-end build — is verified, and remains the right gate for this document.
 Per-criterion status lives in `context/kits/cavekit-mochi-ui.md`, not here.
 
-**What a sign-off of this document asserts (2026-10-01):** that every user-facing feature of the
-Enyo 1.0 shell appears above as Ported, Simplified or Omitted with its reason, as of the sources on
-that date. It is a product-owner judgement on the OMISSIONS (bookmark editing, thumbnails,
-auto-download, share sheet, add-to-launcher, print, certificate detail, live-apply of the three
-toggles, the Flash and search-engine preferences) and is not something a device run can decide.
+**Owner review, 2026-10-02.** The owner reviewed the omissions and simplifications this document listed on 2026-10-01 and accepted none of them; all but Print have since been built and exercised on the device (`context/impl/evidence-2026-10-02/`, driven by `build/webos-oe/mochi-selftest.sh`). What that evidence does not cover is a finger reaching each control — those steps are on the human checklist.

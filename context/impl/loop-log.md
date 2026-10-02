@@ -125,3 +125,10 @@ Build site: context/plans/build-site.md
 - Experiment: `JIHAD_GRE_KEYS` (off by default) — engine editor takes field keys; results in gre-widgets R3.
 - Prefs: all 56 table rows of `about:preferences` walked through their own control on the device — 56 change the engine pref, 55 restored by the control, 1 by the test's `prefs.js` copy (preferences-ui R2). Real key path (kernel keyboard) types into a settings field.
 - Blocked on owner: T-231–T-234, T-273 (removal refused by permission gate), T-279 (push), T-280–T-291 (finger / eye / decisions).
+
+### Iteration — 2026-10-02 (owner go-ahead)
+- Decisions: card rows out (T-290→T-294), Flash from system folder + real switch (T-295/296/309), all Mochi omissions built (T-297…T-308). Print blocked (no printer).
+- Removal audit + engine push: approved, refused by permission gate twice → owner runs (`/tmp/rm1.sh`, `git push fork`).
+- Found + fixed: dialog-sink teardown killed add-on prompt after first card close; Mochi bookmarks list never returned rows; hidden panels never laid out.
+- New tools: `card-selftest.sh` (+ `mochi-selftest.js`, `enyo-selftest.js`), `prefs-row-walk.sh`.
+- Batch 3 built + installed ×3 (daemon `78fb52e8…`).

@@ -125,6 +125,7 @@ enyo.kind({
 				{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
 				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
 				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
+				{classes: "jihad-menu-item", ontap: "menuPrint",        content: "Print"},
 				// TWO entries, mirroring the Enyo shell: "Settings" is the engine's
 				// about:preferences — the one surface the three shells share, and where the
 				// home target, the start-page links and the content settings (popups,
@@ -166,6 +167,8 @@ enyo.kind({
 				]}
 			]}
 		]},
+		// Print: printers the daemon finds, and the job's progress (JihadPrintDialog.js).
+		{kind: "JihadPrintDialog", name: "printDialog", onFindPrinters: "printFind", onPrintPage: "printPage"},
 		// Engine-driven dialog set (alert / confirm / prompt / auth / SSL).
 		{kind: "JihadDialogs", name: "dialogs", onDialogAnswer: "answerDialog"},
 		// Generic info dialog (page/engine errors, Share placeholder).
@@ -402,6 +405,13 @@ enyo.kind({
 				// `text` and is NOT a message — showing it would put an empty toast on screen
 				// at every card launch.
 				if (!resp || !resp.text) { return; }
+				// What the daemon says about printing belongs in the print dialog while it is
+				// open. With it closed, a job still running reports by toast; a list of
+				// printers nobody is looking at is dropped (it is JSON, not a sentence).
+				if (String(resp.category).indexOf("print-") === 0) {
+					if (this.$.printDialog.isOpen()) { this.$.printDialog.notification(resp.category, resp.text); return; }
+					if (resp.category === "print-printers") { return; }
+				}
 				enyo.jihad.toast(resp.category, resp.text);
 			}));
 	},
@@ -774,6 +784,33 @@ enyo.kind({
 	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.open(); this.refreshDownloads(); },
 	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
 	menuAddBookmark: function() { this.$.menuPopup.hide(); this.addCurrentBookmark(); },
+
+	// --- print (BrowserApp.js printClick parity; see JihadPrintDialog.js) -----
+	menuPrint: function() {
+		this.$.menuPopup.hide();
+		if (this.isTransientUrl(this.url)) {
+			this.openDialog("Print", "Open a page first: there is nothing to print on the start page.");
+			return;
+		}
+		this.$.printDialog.open();
+	},
+	printFind: function(inSender, inEvent) {
+		var dialog = this.$.printDialog;
+		enyo.jihad.own("findPrinters", inEvent && inEvent.address ? {address: inEvent.address} : {}, function(r) {
+			if (!r || !r.returnValue) { dialog.notification("print-error", "Printing is not available in this build."); }
+		});
+		return true;
+	},
+	printPage: function(inSender, inEvent) {
+		var dialog = this.$.printDialog;
+		// The request goes over Luna and cannot say which page it means; the daemon prints
+		// the page of the card that last said it has the user's attention.
+		this.$.view.markActive();
+		enyo.jihad.own("printPage", {printer: inEvent.printer}, function(r) {
+			if (!r || !r.returnValue) { dialog.notification("print-error", "The page could not be sent to the printer."); }
+		});
+		return true;
+	},
 	//* The only preference the SHELL has to react to: the start page's shortcut row
 	//* is already rendered, so it has to be rebuilt when the list is edited. The search
 	//* engine and the Flash switch are stored by the panel itself (the card's own store

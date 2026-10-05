@@ -69,7 +69,7 @@ novacom put file:///tmp/luna-restart.sh < "$DEV"
 # sleep that can be killed gets both: novacom returns the moment the device script ends.
 run_held() { # run_held <max seconds> <args for the device script...>
   local max=$1; shift
-  exec 3< <(sleep "$max"); local holder=$!
+  exec 3< <(exec sleep "$max" 2>/dev/null); local holder=$!      # stdout IS the pipe: leave it
   novacom run file://bin/sh -- /tmp/luna-restart.sh "$@" <&3 2>&1 | tail -1
   exec 3<&-; kill "$holder" 2>/dev/null || true
 }

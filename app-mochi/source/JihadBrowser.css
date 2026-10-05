@@ -547,3 +547,9 @@ input.jihad-address {
 /* Dialog fields stack, one per line, at the dialog's width (the decorator is inline-block by
    default, which put the title and address fields of the bookmark editor side by side). */
 .jihad-dialog-inputbox { display: block; }
+/* Print dialog: one row per printer (name, then model and address). */
+.jihad-dialog-box.jihad-print { min-width: 440px; max-width: 560px; }
+.jihad-dialog-box.jihad-print .jihad-sheet-sub { white-space: normal; }
+.jihad-print-row { padding-top: 9px; padding-bottom: 9px; }
+.jihad-print-name { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jihad-print-sub  { font-size: 12px; color: #8cafbe; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

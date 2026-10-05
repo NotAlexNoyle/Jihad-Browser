@@ -413,6 +413,27 @@ Blocked-external additions:
 
 Coverage of the new criteria: preferences-ui R2 (card rows) → T-294, T-313 · addons R7 (Flash found / Flash switch) → T-295, T-296, T-313 · mochi-ui R2: bookmark editing → T-297, T-314 · thumbnails → T-305, T-306, T-314 · downloads from a page → T-304, T-314 · long-press menu → T-307, T-308, T-314 · share / launcher → T-302, T-314 · print → T-310 · certificate details → T-303, T-314 · search engine → T-301, T-314 · Flash switch → T-309, T-313 · clear history → T-300, T-314 · confirmation → T-299, T-314 · history dates → T-298, T-314 · parity checklist → T-315.
 
+## Tiers 62–65 — owner direction of 2026-10-05 (added to the site, not a regeneration)
+
+The owner ran the two commands the session could not (engine push; Mochi removal through the installer), deferred the hands-on checklist, and asked for: printing in depth ("I do have a network printer, so why can't the TouchPad see it?"), Share Image and Set as Wallpaper tried on the device, the reason the root filesystem had become read-write, and a reading of the Atlas fault report. During the work the owner also asked for the Enyo toolbar's Home and Bookmarks/History icons to be redrawn, and for a way to close the USB alert a LunaSysMgr restart leaves on screen. One task was found, not planned (T-326).
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-318 | Gitlink + OE SRCREV bumped to the pushed engine head `9dedcd5fe5` (closes T-279). | cavekit-device-build.md | device-build R3 | — | no | S |
+| T-319 | Mochi fresh install after the owner's removal: audit snapshot before/after, Luna at first start, db8 kinds, first card. | cavekit-device-build.md | device-build R4 | — | yes | M |
+| T-321 | Printing: what the device has, and why the owner's printer is not offered (the stock daemon discards non-HP printers). | cavekit-mochi-ui.md | mochi-ui R2 | — | yes | S |
+| T-322 | Why the root filesystem was read-write at rest (the installer service leaves it so; measured from a read-only start). | cavekit-device-build.md | device-build R8 | — | yes | S |
+| T-323 | Atlas fault report at the 2026-10-02 reboot: Atlas's own, at shutdown; Atlas and Jihad side by side again. | cavekit-device-build.md | device-build R4 | — | yes | S |
+| T-327 | Enyo toolbar: Home and Bookmarks/History icons in the family of the stock icons (three rounds of owner feedback). | cavekit-ui-shell.md | ui-shell (toolbar) | — | yes | S |
+| T-328 | `luna-restart.sh` (closes the USB alert after a LunaSysMgr restart) and `dev-sh.sh` (device script runner). | cavekit-device-build.md | tooling | — | yes | S |
+| T-320 | Mochi long-press: Share Image and Set as Wallpaper driven through the sheet's own handlers; wallpaper restored. | cavekit-mochi-ui.md | mochi-ui R2 | T-319 | yes | S |
+| T-324 | Print path in the daemon: find IPP printers, draw JPEG sheets, send over IPP/IPPS; own-card-only Luna methods; a test sink. (Replaces the blocked T-310.) | cavekit-mochi-ui.md | mochi-ui R2 | T-321 | yes | L |
+| T-326 | [FOUND] An upgrade must run the scripts it installed: drop the engine's compiled-script cache when the bundle changed. | cavekit-device-build.md | device-build R4 | — | yes | M |
+| T-325 | Print dialog in the Enyo and Mochi shells; device check against the owner's printers and the sink. | cavekit-mochi-ui.md | mochi-ui R2 | T-324, T-319 | yes | M |
+| T-329 | All three variants on one build through the installer (Mochi fresh, Enyo and Mojo upgraded); payload read back. | cavekit-device-build.md | device-build R4 | T-325, T-326 | yes | M |
+
+All twelve are done. Still open from earlier tiers and NOT closable by an agent: T-231 / T-232 / T-233 / T-273 (Enyo and Mojo removal and install from nothing — only the owner can run a removal on this device; the Mochi parts are done), T-234 / T-236 (the reboot after a from-nothing install), T-280…T-289 and T-317 (a person at the device).
+
 ## Summary
 
 | Tier | Tasks | Effort |

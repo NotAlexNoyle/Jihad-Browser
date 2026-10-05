@@ -176,6 +176,31 @@
 					" sheet=" + app.$.sheet.getShowing() + " rows=" + j(labels) + " DONE");
 			});
 		},
+		// A long press on an image, then the row of the sheet a finger would tap — both through
+		// the doors a finger uses (the view's eventFired, the sheet's own row handler).
+		//   holdpick:share       "Share Image": the picture is fetched and handed to Email
+		//   holdpick:wallpaper   "Set as Wallpaper": fetched, imported, made the wallpaper
+		// The wallpaper one CHANGES THE DEVICE'S WALLPAPER: save the current one first and put
+		// it back afterwards (card-selftest.sh does not do that for you).
+		holdpick: function(app, name, arg) {
+			var want = (arg === "wallpaper") ? "holdSetWallpaper" : "holdShareImage";
+			var claimed = app.$.view.eventFired({type: "mousehold", pageX: 100, pageY: 100},
+				{isNull: false, isLink: false, linkUrl: "", isImage: true, imageUrl: HOST + "jihad-test.png", altText: "A picture"});
+			later(900, function() {
+				var rows = app.$.sheetItems.getClientControls(), row = null, labels = [];
+				for (var i = 0; i < rows.length; i++) { labels.push(rows[i].getContent()); if (rows[i].sheetAction === want) { row = rows[i]; } }
+				log(name, "hold claimed=" + claimed + " sheet=" + app.$.sheet.getShowing() + " rows=" + j(labels));
+				if (!row) { log(name, "no such row DONE"); return; }
+				app.sheetPick(row);                  // what a tap on that row does
+				log(name, "picked [" + row.getContent() + "]; sheet=" + app.$.sheet.getShowing());
+				later(14000, function() {
+					var t = document.getElementById("jihad-toast");
+					enyo.jihad.luna("palm://com.palm.systemservice/getPreferences", {keys: ["wallpaper"]}, function(r) {
+						log(name, "toast=[" + (t ? t.textContent : "") + "] wallpaper now=" + j(r && r.wallpaper && r.wallpaper.wallpaperName) + " DONE");
+					});
+				});
+			});
+		},
 		saveimage: function(app, name) {
 			app.holdSaveImage({imageUrl: HOST + "jihad-test.png"});
 			later(9000, function() {

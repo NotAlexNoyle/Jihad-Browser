@@ -640,7 +640,8 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     // "no subscribers" for a window in which there could not have been any.
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
     printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
-           "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails} "
+           "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails,"
+           "findPrinters,printPage} "
            "private{clearCache,clearCookies,getChromePrefs,getFlash,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");

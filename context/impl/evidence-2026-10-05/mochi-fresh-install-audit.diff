@@ -1,0 +1,68 @@
+--- /dev/fd/63	2026-10-05 09:32:13.936373216 -0400
++++ /dev/fd/62	2026-10-05 09:32:13.936373216 -0400
+@@ -24,11 +24,15 @@
+ 68659 RemoteAdapter.so
+ 7668 BrowserAdapterJihad.so
+ 7680 BrowserAdapterJihadMojo.so
++7704 BrowserAdapterJihadMochi.so
+ ## --- /usr/lib/jihad tree (every entry) ---
+ /usr/lib/jihad
+ /usr/lib/jihad/enyo
+ /usr/lib/jihad/enyo/BrowserAdapterImpl.so
+ /usr/lib/jihad/enyo/InteractiveWidgetRect.schema
++/usr/lib/jihad/mochi
++/usr/lib/jihad/mochi/BrowserAdapterImpl.so
++/usr/lib/jihad/mochi/InteractiveWidgetRect.schema
+ /usr/lib/jihad/mojo
+ /usr/lib/jihad/mojo/BrowserAdapterImpl.so
+ /usr/lib/jihad/mojo/InteractiveWidgetRect.schema
+@@ -86,6 +90,7 @@
+ hostname
+ imtransport
+ jihad
++jihad-mochi
+ jihad-mojo
+ keymanager
+ lnsawait
+@@ -159,6 +164,15 @@
+ /var/palm/jihad/enyo/jihad-menu.css
+ /var/palm/jihad/enyo/moz.log
+ /var/palm/jihad/enyo/pulse.props
++/var/palm/jihad/mochi
++/var/palm/jihad/mochi/Desktop
++/var/palm/jihad/mochi/audio-off.sh
++/var/palm/jihad/mochi/audio-on.sh
++/var/palm/jihad/mochi/audio-vol.sh
++/var/palm/jihad/mochi/certs
++/var/palm/jihad/mochi/daemon.log
++/var/palm/jihad/mochi/jihad-menu.css
++/var/palm/jihad/mochi/pulse.props
+ /var/palm/jihad/mojo
+ /var/palm/jihad/mojo/Desktop
+ /var/palm/jihad/mojo/audio-off.sh
+@@ -183,7 +197,6 @@
+ /media/internal/.developer/jihad-browser.ipk
+ /media/internal/.developer/jihad-mochi.ipk
+ /media/internal/.developer/jihad-mojo.ipk
+-/media/internal/.developer/net.riverstonerelay.jihad-browser-mochi_1.0.0_all.ipk
+ /media/internal/.developer/net.riverstonerelay.jihad-browser_1.0.2_all.ipk
+ /media/internal/.developer/net.riverstonerelay.jihad-browser_1.0.3_all.ipk
+ /media/internal/.developer/org.webosinternals.openssl-updater_0.9.8-6_armv7.ipk
+@@ -522,8 +535,16 @@
+ /media/internal/wpe-glibc/cb-store
+ ## --- installed jihad apps ---
+ net.riverstonerelay.jihad-browser
++net.riverstonerelay.jihad-browser-mochi
+ net.riverstonerelay.jihad-browser-mojo
+ ## --- per-app engine profile + cache trees (dirs only; contents churn) ---
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache/cache2
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache/cache2/doomed
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache/cache2/entries
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache/startupCache
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile
++/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/plugins
+ /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/cache
+ /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/cache/cache2
+ /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/cache/cache2/doomed
+DIFFERS: pre-mochi-fresh-1005b vs post-mochi-fresh-1005

@@ -120,6 +120,16 @@ snap() {
 		echo "## --- installed jihad apps ---"
 		nc /bin/ls /media/cryptofs/apps/usr/palm/applications | grep -i jihad | sort
 
+		# The installer's own registry of packages. Each .ipk ships
+		# usr/palm/packages/<id>/{icon.png,packageinfo.json}; ipkg removes the two files on
+		# removal and LEAVES THE DIRECTORY (seen 2026-10-05 after the owner removed the Mochi
+		# variant through the installer: an empty …/packages/…-mochi). Earlier snapshots did not
+		# look here, so that residue went unreported. Listed with contents so an empty directory
+		# is distinguishable from a populated one.
+		echo "## --- package registry entries (the directory itself is residue if it outlives the package) ---"
+		nc /usr/bin/find /media/cryptofs/apps/usr/palm/packages -name 'net.riverstonerelay.*' -prune -print | sort |
+			while read -r d; do echo "$d"; nc /bin/ls -A "$d" | sed 's|^|  |'; done
+
 		# The engine's profile lives in each app's OWN cryptofs directory, both halves:
 		#   $APP/profile   ProfD  — cookies.sqlite, prefs.js, permissions
 		#   $APP/cache     ProfLD — cache2, startupCache

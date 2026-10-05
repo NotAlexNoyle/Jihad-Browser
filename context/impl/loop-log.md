@@ -132,3 +132,13 @@ Build site: context/plans/build-site.md
 - Found + fixed: dialog-sink teardown killed add-on prompt after first card close; Mochi bookmarks list never returned rows; hidden panels never laid out.
 - New tools: `card-selftest.sh` (+ `mochi-selftest.js`, `enyo-selftest.js`), `prefs-row-walk.sh`.
 - Batch 3 built + installed ×3 (daemon `78fb52e8…`).
+
+### Iteration — 2026-10-05 (owner direction: printing, wallpaper/share, root rw, Atlas report)
+- Print: stock stack SEES Epson, drops non-HP (`not HP printer and doing printer filtering`). Built own path: `jihadPrint.js` (mDNS from :5353, IPP/IPPS, JPEG sheets) + `JihadPrintDialog` Enyo + Mochi. Device: real printers listed; sheets verified on `ipp-sink.py`. Mochi Print box `[x]`. T-321/324/325.
+- ACCIDENT: dry-run test printed 1 dark sheet on owner's Epson. Cause = stale `startupCache` served old component. Fix: daemon drops cache when bundle fingerprint changes (T-326, new R4 criterion `[x]`). Rule: sink first.
+- Mochi fresh install from nothing (owner removed it): clean; launcher needs installer `rescan`; empty `packages/<id>` dir = removal residue (R8 note). T-319.
+- Root rw: installer service remounts `/` rw and leaves it; ours leave as found. T-322. Atlas report: Atlas's own, at shutdown; side by side OK; Atlas box `[x]`. T-323.
+- Share Image / Set as Wallpaper run via sheet handlers; wallpaper restored. T-320.
+- Icons: Home + Bookmarks/History redrawn (3 rounds). `luna-restart.sh` closes USB alert (`-m com.palm.lunasend`). `dev-sh.sh`. T-327/328.
+- All three variants on bundle `a4a2f8e2…`, daemon `889263013e40…`. T-329.
+- Open, owner/human only: T-231–T-234, T-236, T-273 (Enyo/Mojo removal), T-280–T-289, T-317.

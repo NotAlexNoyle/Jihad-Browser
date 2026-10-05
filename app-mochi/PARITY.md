@@ -5,6 +5,8 @@
 Maps every user-facing feature of the Enyo 1.0 UI (`../app/source`) to its Enyo 2
 + Mochi equivalent in `app-mochi/source`, or records an intentional omission.
 
+**Refreshed 2026-10-05: Print is built; no row is open.** Both shells print through the engine daemon's own IPP path and their own dialog, because webOS's print dialog accepts HP printers only (see the Print row).
+
 **Refreshed 2026-10-02 after the owner's review.** The owner was shown every Omitted and Simplified row and accepted none: each was to be built. Rows changed by that work are marked *(2026-10-02)*; the one row still open is Print, which cannot be verified without a printer the device can reach.
 
 **Refreshed 2026-10-01 against `app/source` and `app-mochi/source` as they are today** (the
@@ -145,7 +147,7 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 | Long-press context menu *(2026-10-02)* | `BrowserContextMenu.js`, `Browser.openContextMenu`, `saveImageAtPoint` | Ported — `JihadWebView.eventFired` (hold on a link or image) → action sheet: Open in New Card, Share Link, Copy Address; Save Image, Share Image, Set as Wallpaper. Images are fetched by the system download manager into the downloads folder (the daemon's `saveImageAtPoint` is a stub), so an inline `data:` image cannot be saved. |
 | Share link sheet *(2026-10-02)* | `ShareLinkDialog.js` | Ported — toolbar share → Email, Text Message, Copy Address (no Facebook entry: the app it launched is not on webOS CE). |
 | Add to Launcher *(2026-10-02)* | `BrowserApp.addToLauncher` | Ported — in the share sheet; `applicationManager/addLaunchPoint` with this app's icon. |
-| Print | `Browser.printFrame`, `PrintDialog` | **Open** — the owner asked for it; the daemon's print command is a stub, the dialog is an Enyo 1 library, and nothing about a print path can be verified without a printer the device can reach. |
+| Print *(2026-10-05)* | was `Browser.printFrame` + the system `PrintDialog`; now `JihadPrintDialog.js` in BOTH shells | Ported — menu → Print opens `JihadPrintDialog`: printers the daemon finds are listed as each answers, an address can be typed for one discovery cannot see, a tap prints, the dialog shows progress and the result. Not the system dialog on purpose: webOS's print daemon discards every printer that is not HP (it found the owner's Epson and logged "not HP printer and doing printer filtering"), and the daemon's `printFrame` is a stub, so the Enyo shell's stock Print could not print on anything either — it now uses the same dialog. The daemon prints the page as JPEG sheets over IPP (`render/goanna/components/jihadPrint.js`). |
 
 ## R2 acceptance summary
 
@@ -153,7 +155,7 @@ documented reduction · **Omitted** = intentionally not built (rationale given).
 - Bookmarks, history, downloads views present and functional — **met** (downloads auto-initiation noted as omitted; management is functional).
 - Find-in-page, preferences, start page present — **met**.
 - Alert/confirm/prompt/auth + SSL-confirm dialogs presented and answerable — **met**.
-- Parity checklist with no missing feature — **one row open (Print)**; every other Enyo feature is Ported as of 2026-10-02.
+- Parity checklist with no missing feature — **met as of 2026-10-05**: every Enyo feature is Ported, Print last.
 
 ~~On-device functional verification (rendering, live db8/download-manager/adapter round-trips) is
 **DEVICE-GATED** and pending hardware.~~ **CORRECTED 2026-08-10 — that has been false since
@@ -165,5 +167,7 @@ to sign a statement the project had already disproved.
 Structural correctness — kinds, the frozen adapter method set, `node --check`, grep-clean, and the
 `build-mochi-ipk.sh` end-to-end build — is verified, and remains the right gate for this document.
 Per-criterion status lives in `context/kits/cavekit-mochi-ui.md`, not here.
+
+**2026-10-05.** Print was built and exercised on the device the same way (`context/impl/evidence-2026-10-05/`, `build/webos-oe/card-selftest.sh mochi run print[:address]`), against the owner's real printers for discovery and against a test sink for the sheets. Share Image and Set as Wallpaper were also run through the long-press sheet's own row handler on the device: the wallpaper was set (and put back), and Share Image fetched the picture and opened Email.
 
 **Owner review, 2026-10-02.** The owner reviewed the omissions and simplifications this document listed on 2026-10-01 and accepted none of them; all but Print have since been built and exercised on the device (`context/impl/evidence-2026-10-02/`, driven by `build/webos-oe/mochi-selftest.sh`). What that evidence does not cover is a finger reaching each control — those steps are on the human checklist.

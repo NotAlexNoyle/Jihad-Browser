@@ -1,7 +1,94 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-02 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-05 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
+
+---
+
+## 2026-10-05 delta — printing built; a stale-script defect found and fixed; Mochi installed from nothing (read first)
+
+Per-task record: `context/impl/impl-ce310-loop.md` (rows from "2026-10-05"); evidence:
+`context/impl/evidence-2026-10-05/`; plan: tiers 62–65 of `context/plans/build-site.md`.
+**Nothing was pushed.** 10 local commits since `c726e8a7`.
+
+**What the owner asked, and the answers:**
+- *"I have a network printer, so why can't the TouchPad see it?"* It can. webOS's print daemon
+  resolved the Epson over mDNS and logged `not HP printer and doing printer filtering` — the stock
+  print stack discards every printer that is not HP. So the browser now prints by itself:
+  `render/goanna/components/jihadPrint.js` finds IPP printers (mDNS, or a typed address), draws the
+  page as JPEG sheets and sends them over IPP/IPPS; both the Enyo and the Mochi shell have a Print
+  dialog (`JihadPrintDialog.js`) in place of the system one. On the device both dialogs list the
+  Epson ET-2800 (192.168.1.253) and a Mac-shared ET-2720. Mochi's Print box is `[x]`; the parity
+  list has no open row.
+- *Share Image / Set as Wallpaper:* both run on the Mochi card through the long-press sheet's own
+  handlers. The wallpaper changed and was put back (`19.jpg`); Share Image opened Email.
+- *Why was `/` read-write?* The installer service (`org.webosinternals.ipkgservice`, Preware's
+  backend) remounts `/` read-write before running a package's script and never restores it. Measured
+  from a read-only start. Our scripts leave the state as found. A reboot, or
+  `mount -o remount,ro /`, puts it back.
+- *The Atlas fault report:* Atlas's own — a SIGBUS in its allocator thread at the 2026-10-02
+  shutdown, nothing of ours in it. Atlas and a Jihad card rendered side by side again today.
+
+**An accident, and the defect behind it.** A print test meant as a dry run put one full dark sheet
+through the owner's Epson. The new print component was on the device and the daemon had been
+restarted, but the engine ran the PREVIOUS version from its compiled-script cache
+(`$APP/cache/startupCache`, keyed by path, never invalidated in an embedding — and untouched by an
+`.ipk` upgrade, so every upgraded script was exposed to the same thing). Fixed in the daemon
+(commit `c4e9bb9e`): it fingerprints the bundle at start and drops that cache when the bundle
+changed. Look for `startup cache: bundle …` in the daemon log.
+
+**Traps found this session:**
+- **Test printing against `render/goanna/test/ipp-sink.py` first**, never the real printer:
+  `python3 render/goanna/test/ipp-sink.py --port 8090 --out DIR`, then
+  `card-selftest.sh <shell> run print:192.168.1.245:8090 <url> 66`. It keeps each sheet as a JPEG.
+- After pushing ANY engine script by hand, confirm `startup cache: bundle CHANGED … dropped` before
+  believing the new code is what runs.
+- mDNS from an ephemeral port gets no answers on this device: the firewall admits only
+  `udp dpt:5353` and established flows. Ask from port 5353.
+- The Luna hub forwards a bus SIGNAL only from a sender named `com.palm.*`, and the device's
+  `luna-send -s` needs `-m com.palm.lunasend` for that. Without it the signal shows in `ls-monitor`
+  and reaches nobody.
+- `ipkgservice/install` wants BOTH `filename` (the bare name) and
+  `url` (`file:///media/internal/.developer/<name>`), and after a FIRST install the launcher does not
+  know the app until `ipkgservice/rescan` (Preware calls it; a script must too).
+- A card's `luna-send` on the device quits before its answer if its stdin is at end-of-file — which
+  is what a carelessly held novacom session gives it. Use `build/webos-oe/dev-sh.sh`.
+- `com.palm.display/control/setState off` is refused while on USB (`blockDisplay`), and there is no
+  touch input device to inject a tap into.
+
+**Tools added:** `build/webos-oe/luna-restart.sh` (restart LunaSysMgr and close the USB alert it
+leaves over the top right of the screen; `--close` for the alert alone), `build/webos-oe/dev-sh.sh`
+(run a local script on the device, all output, returns when it ends),
+`render/goanna/test/ipp-sink.py`, `packaging/branding/make-enyo-toolbar-icons.py` (the Home and
+Bookmarks/History toolbar icons, redrawn at the owner's request), print scenarios in both test
+hooks, `holdpick` in the Mochi hook. `device-citizen-audit.sh` now lists the installer's package
+directories.
+
+**Still open, and why:**
+- Enyo and Mojo removal and install from nothing (T-231…T-234, T-236, T-273): only the owner can run
+  a removal on this device. Mochi's half is done. When that happens, look at
+  `/media/cryptofs/apps/usr/palm/packages/<id>` afterwards: Mochi's removal left it as an empty
+  directory (recorded in cavekit-device-build.md R8, not fixed — `prerm` cannot `rmdir` a directory
+  ipkg still has files in). The test extension is no longer installed in any profile; T-273 needs it
+  put back in two variants first.
+- A sheet of paper printed from the dialog, seen by a person; a real long-press; and the rest of
+  the hands-on checklist (T-280…T-289, T-317) — deferred by the owner.
+- Not built yet: the daemon's "luna: serving" log line now names `findPrinters` / `printPage` in
+  source, but the installed daemon predates that one-string change.
+
+**Device state as left (2026-10-05):**
+- All three variants installed from the same build through the installer: bundle id
+  `a4a2f8e2b8bf…`, libxul `65e3cc84891c…`, daemon `889263013e40…`. Mochi was a fresh install, Enyo
+  (1.0.4) and Mojo upgrades. Each daemon runs from its own deviceroot and answers on the public bus.
+- Jobs: Enyo and Mojo as shipped; **Mochi's job carries `JIHAD_INJECT=1`** (added by the install
+  helper). No test hook in any app directory. No extension in any profile.
+- `/` is read-only (put back by hand after the installs). Wallpaper `19.jpg`, as found. No Email or
+  Atlas card left open; one Enyo browser card is open.
+- `/tmp` keeps the helpers (`fresh-card.sh`, `inst3.sh`, `rm1.sh`) and the test pages, including
+  `jihad-print.html` and `jihad-print-tall.html`. `/tmp` is a tmpfs: all of it goes at a reboot.
+- Old staged packages are still in `/media/internal/.developer/` from earlier sessions
+  (`jihad-browser.ipk`, `jihad-mochi.ipk`, `jihad-mojo.ipk`, the 1.0.2 and 1.0.3 Enyo `.ipk`s) —
+  about 230 MB of the user's volume that nothing uses. Left for the owner to delete.
 
 ---
 

@@ -292,6 +292,26 @@ MANIFEST
 	done
 	echo "  printing: @riverstonerelay.net/jihad/print;1 registered (IPP, any driverless printer)"
 fi
+# --- long-press menu: the page's half (cavekit-ui-shell.md, context menu) -----------------------
+# components/jihadPageCommands.js selects the word under a long-press and carries out Select
+# All / Copy / Cut on the page. Created by the daemon at startup through its contract id.
+PAGECMD_JS="$REPO/render/goanna/components/jihadPageCommands.js"
+if [ -f "$PAGECMD_JS" ]; then
+	mkdir -p "$OUT/components"
+	cp -L "$PAGECMD_JS" "$OUT/components/jihadPageCommands.js"
+	cat > "$OUT/components/jihad-page-commands.manifest" <<'MANIFEST'
+# Jihad Browser — the page's half of the long-press menu. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {4e0c1b7a-6a53-4a5e-9d0f-0f6a3d1b8c27} jihadPageCommands.js
+contract @riverstonerelay.net/jihad/page-commands;1 {4e0c1b7a-6a53-4a5e-9d0f-0f6a3d1b8c27}
+MANIFEST
+	if ! grep -q '^manifest components/jihad-page-commands.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest components/jihad-page-commands.manifest' >> "$OUT/chrome.manifest"
+	fi
+	for f in components/jihadPageCommands.js components/jihad-page-commands.manifest; do
+		[ -s "$OUT/$f" ] || { echo "ERROR: page-commands component file missing/empty in bundle: $f" >&2; exit 1; }
+	done
+	echo "  long-press: @riverstonerelay.net/jihad/page-commands;1 registered (select, copy, cut)"
+fi
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

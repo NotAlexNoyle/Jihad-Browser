@@ -182,6 +182,10 @@ enyo.kind({
 		// the sentence to show arrive together; the lists are db8 kinds this app owns.
 		if (inResponse.category === "chrome-clear-bookmarks") { this.clearBookmarks(); }
 		if (inResponse.category === "chrome-clear-history") { this.clearHistory(); }
+		// The long-press menu's traffic with the engine: what is under the finger, and where
+		// the copied text was put. Neither is a sentence to show.
+		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }
+		if (inResponse.category === "page-copied") { this.$.browser.pageCopied(inResponse.text); return; }
 		enyo.jihadToast.show(inResponse.category, inResponse.text);
 	},
 	//* A failed subscription is not worth a dialog: it costs the user their status toasts and

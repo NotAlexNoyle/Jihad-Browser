@@ -44,6 +44,39 @@ enyo.kind({
 			this.openNear(this.tapPosition);
 		}
 	},
+	//* The long-press menu on anything that is not a link or an image: what a desktop browser
+	//* offers on a right-click. `inState` is what the engine found under the finger —
+	//* {editable, selected} — plus what this card knows: {canGoBack, canGoForward}.
+	//* The values are method names on the Browser kind, as for links and images.
+	openForPage: function(inPosition, inState) {
+		var s = inState || {}, items = [];
+		if (s.editable) {
+			items.push({caption: $L("Paste"), value: "pagePasteClick"});
+			if (s.selected) {
+				items.push({caption: $L("Copy"), value: "pageCopyClick"});
+				items.push({caption: $L("Cut"), value: "pageCutClick"});
+			}
+			items.push({caption: $L("Select All"), value: "pageSelectAllClick"});
+		} else {
+			if (s.selected) {
+				items.push({caption: $L("Copy"), value: "pageCopyClick"});
+			}
+			items.push({caption: $L("Select All"), value: "pageSelectAllClick"});
+			if (s.canGoBack) {
+				items.push({caption: $L("Back"), value: "goBack"});
+			}
+			if (s.canGoForward) {
+				items.push({caption: $L("Forward"), value: "goForward"});
+			}
+			items.push({caption: $L("Reload"), value: "reloadClick"});
+			items.push({caption: $L("Add Bookmark"), value: "pageBookmarkClick"});
+			items.push({caption: $L("Find on Page"), value: "showFind"});
+		}
+		this.tapPosition = inPosition;
+		this.tapInfo = {};
+		this.setItems(items);
+		this.openNear(this.tapPosition);
+	},
 	makeItems: function() {
 		var items;
 		if (this.tapInfo.isLink) {

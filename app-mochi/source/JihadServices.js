@@ -249,6 +249,32 @@ enyo.jihad = enyo.jihad || {};
 		return ok;
 	};
 
+	//* Read the clipboard and hand its text to `callback`: a throwaway textarea and the
+	//* system's paste into it, which is what enyo.dom.getClipboard does in Enyo 1. The paste
+	//* is NOT synchronous and takes anything from a few milliseconds to more than 60
+	//* (measured: the first read after the keyboard came up was still empty at 60 ms), so
+	//* the textarea is watched for up to 600 ms; only then is the clipboard called empty.
+	scope.getClipboard = function(callback) {
+		var ta = null, tries = 0;
+		try {
+			ta = document.createElement("textarea");
+			ta.style.position = "absolute"; ta.style.left = "-2000px"; ta.style.top = "0";
+			ta.value = "";
+			document.body.appendChild(ta);
+			ta.select();
+			if (window.PalmSystem && window.PalmSystem.paste) { window.PalmSystem.paste(); }
+			else { document.execCommand("paste"); }
+		} catch (e) {}
+		function look() {
+			var text = ta ? ta.value : "";
+			if (!text && ta && ++tries < 15) { setTimeout(look, 40); return; }
+			try { if (ta) { ta.blur(); } } catch (e) {}
+			if (ta && ta.parentNode) { ta.parentNode.removeChild(ta); }
+			callback(text);
+		}
+		setTimeout(look, 20);
+	};
+
 	// --- default search engine -------------------------------------------------
 	// These three, by id. WHICH one is chosen on the settings page (about:preferences, Browser
 	// pane) and cached by JihadChromePrefs; this is only the map from id to search url. The

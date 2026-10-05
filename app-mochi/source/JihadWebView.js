@@ -89,7 +89,11 @@ enyo.kind({
 		//* The user held a finger on a link or an image:
 		//* {linkUrl, linkText, imageUrl, altText, pageX, pageY}. Fired only for those two;
 		//* any other hold is left to the engine.
-		onHold: ""
+		onHold: "",
+		//* The user held on anything else. The hold is left to the engine, which answers
+		//* with a "page-hold" notification saying what it found; the shell opens the page
+		//* menu on that. This event only tells the shell an answer is on its way.
+		onPageHold: ""
 	},
 
 	// --- lifecycle ----------------------------------------------------------
@@ -402,6 +406,7 @@ enyo.kind({
 		var link = inInfo.isLink ? (inInfo.linkUrl || "") : "";
 		var image = inInfo.isImage ? (inInfo.imageUrl || "") : "";
 		if (!link && !image) {
+			this.doPageHold({pageX: inEvent.pageX, pageY: inEvent.pageY});
 			return false;
 		}
 		this.doHold({

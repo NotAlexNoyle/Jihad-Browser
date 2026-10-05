@@ -19,9 +19,11 @@
 // callBrowserAdapter() below is the ONLY app-facing adapter surface, and the set of
 // method-name literals routed through it is a strict SUBSET of the Enyo-1.0 app's
 // set in ../../../app/source/Browser.js —
-//     Mojo : {goBack, goForward, reloadPage, stopLoad}
-//     Enyo : {findInPage, goBack, goForward, reloadPage, stopLoad}
-// — no additions, no renames. This variant uses no palm://com.palm.browserServer/*
+//     Mojo : {copy, cut, findInPage, goBack, goForward, insertStringAtCursor, reloadPage,
+//             selectAll, stopLoad}
+//     Enyo : those and more (dialogs, images, printing, privacy switches)
+// — no additions, no renames. (copy, cut, selectAll and insertStringAtCursor arrived in both
+// shells on 2026-10-05 with the long-press menu; all four were already adapter methods.) This variant uses no palm://com.palm.browserServer/*
 // URI at all (the empty set is a subset of Enyo's {clearCache, clearCookies}).
 // Since 2026-08-15 it does hold ONE subscription to its OWN per-variant service,
 // palm://net.riverstonerelay.jihadBrowserMojo/notifications — see subscribeNotifications
@@ -381,7 +383,155 @@ MainAssistant.prototype.handleNotification = function (response) {
 	if (response.category === "chrome-clear-history") {
 		JihadHistory.clear();
 	}
+	// The long-press menu's traffic with the engine: what is under the finger, and where the
+	// copied text was put. Neither is a sentence to show.
+	if (response.category === "page-hold") {
+		this.handlePageHold(response.text);
+		return;
+	}
+	if (response.category === "page-copied") {
+		this.handlePageCopied(response.text);
+		return;
+	}
 	JihadToast.show(response.category, response.text);
+};
+
+// --- long-press menu -----------------------------------------------------------------------
+//* A finger held on the page. Mojo.Widget.WebView claims no hold, so every one goes to the
+//* engine, which gives the page its contextmenu event, selects the word under the finger (or
+//* focuses the text field) and says what it found: {editable, selected}. The menu is what a
+//* desktop browser offers on a right-click. Every card of this variant hears the report; only
+//* the one the user is in acts on it.
+MainAssistant.prototype.handlePageHold = function (text) {
+	var sc = this.controller.stageController, s = null, items = [];
+	var active = sc.isActiveAndHasScenes ? sc.isActiveAndHasScenes() : sc.active;
+	if (!active) {
+		return;
+	}
+	try { s = JSON.parse(text); } catch (e) { s = null; }
+	s = s || {};
+	if (s.editable) {
+		items.push({label: $L("Paste"), command: "page-paste"});
+		if (s.selected) {
+			items.push({label: $L("Copy"), command: "page-copy"});
+			items.push({label: $L("Cut"), command: "page-cut"});
+		}
+		items.push({label: $L("Select All"), command: "page-select-all"});
+	} else {
+		if (s.selected) {
+			items.push({label: $L("Copy"), command: "page-copy"});
+		}
+		items.push({label: $L("Select All"), command: "page-select-all"});
+		if (this.canGoBack) {
+			items.push({label: $L("Back"), command: "page-back"});
+		}
+		if (this.canGoForward) {
+			items.push({label: $L("Forward"), command: "page-forward"});
+		}
+		items.push({label: $L("Reload"), command: "page-reload"});
+		items.push({label: $L("Find on Page"), command: "page-find"});
+	}
+	this.controller.popupSubmenu({
+		onChoose: this.handlePageMenuChoice.bind(this),
+		items: items
+	});
+};
+
+MainAssistant.prototype.handlePageMenuChoice = function (command) {
+	switch (command) {
+	case "page-select-all":
+		this.callBrowserAdapter("selectAll");
+		break;
+	case "page-copy":
+		// The text comes back by way of handlePageCopied.
+		this.callBrowserAdapter("copy");
+		break;
+	case "page-cut":
+		this.callBrowserAdapter("cut");
+		break;
+	case "page-paste":
+		this.pasteIntoPage();
+		break;
+	case "page-back":
+		this.callBrowserAdapter("goBack");
+		break;
+	case "page-forward":
+		this.callBrowserAdapter("goForward");
+		break;
+	case "page-reload":
+		this.hideError();
+		this.callBrowserAdapter("reloadPage");
+		break;
+	case "page-find":
+		this.showFind();
+		break;
+	}
+};
+
+//* The engine has written the selected text where this card may load it: a one-call script in
+//* the app's own clip/ directory (a card can load a local file from nowhere else, and the
+//* clipboard is the card's to write). `name` is that file's name.
+MainAssistant.prototype.handlePageCopied = function (name) {
+	var win = this.controller.window, doc = this.controller.document, sc = this.controller.stageController;
+	var script;
+	if (!/^copy-[0-9-]+\.js$/.test(String(name))) {
+		return;
+	}
+	script = doc.createElement("script");
+	win.jihadClip = function (text) {
+		win.jihadClip = null;
+		sc.setClipboard(String(text), false);
+		JihadToast.show("info", $L("Copied."));
+	};
+	script.onload = script.onerror = function () {
+		if (script.parentNode) {
+			script.parentNode.removeChild(script);
+		}
+	};
+	script.src = "clip/" + name;
+	doc.body.appendChild(script);
+};
+
+//* Paste: the clipboard is read here (only a card can) — the system's paste into a throwaway
+//* textarea — and typed into the page's focused field. The paste is not synchronous and
+//* takes anything from a few milliseconds to more than 60 (measured in the Mochi shell, same
+//* platform call), so the textarea is watched for up to 600 ms before the clipboard is
+//* called empty.
+MainAssistant.prototype.pasteIntoPage = function () {
+	var doc = this.controller.document, win = this.controller.window, self = this, tries = 0;
+	var ta = doc.createElement("textarea");
+	ta.style.position = "absolute";
+	ta.style.left = "-2000px";
+	ta.style.top = "0";
+	ta.value = "";
+	doc.body.appendChild(ta);
+	try {
+		ta.select();
+		if (win.PalmSystem && win.PalmSystem.paste) {
+			win.PalmSystem.paste();
+		} else {
+			doc.execCommand("paste");
+		}
+	} catch (e) {
+		Mojo.Log.error("[Jihad] paste: %s", e);
+	}
+	function look() {
+		var text = ta.value;
+		if (!text && ++tries < 15) {
+			win.setTimeout(look, 40);
+			return;
+		}
+		try { ta.blur(); } catch (e) {}
+		if (ta.parentNode) {
+			ta.parentNode.removeChild(ta);
+		}
+		if (text) {
+			self.callBrowserAdapter("insertStringAtCursor", [String(text)]);
+		} else {
+			JihadToast.show("info", $L("The clipboard is empty."));
+		}
+	}
+	win.setTimeout(look, 20);
 };
 
 //* This card must run on THIS variant's adapter and no other (cavekit-mojo-ui.md R3).

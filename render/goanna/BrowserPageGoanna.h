@@ -250,6 +250,10 @@ public:
 
  public:
   void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
+  // YAP: selectAll / copy / cut — the long-press menu's page actions. Done by the bundled
+  // component components/jihadPageCommands.js (selection and editing are a few lines of
+  // script there and pages of C++ here); this hands it the page and the command.
+  void pageCommand(const char* cmd, const std::string& extraJson = std::string());
   void dragStart(int x, int y);                    // YAP: dragStart
   void dragProcess(int deltaX, int deltaY);        // YAP: dragProcess (scroll)
   void dragEnd(int x, int y);                      // YAP: dragEnd

@@ -98,7 +98,8 @@ enyo.kind({
 			onDownloadFinished:   "engineDownloadFinished",
 			onDownloadError:      "engineDownloadError",
 			// A finger held on a link or an image -> the long-press menu.
-			onHold:               "showHoldMenu"
+			onHold:               "showHoldMenu",
+			onPageHold:           "pageHoldPending"
 		},
 		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
 		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
@@ -416,6 +417,10 @@ enyo.kind({
 				// request and the sentence to show arrive together.
 				if (resp.category === "chrome-clear-bookmarks") { this.clearBookmarks(); }
 				if (resp.category === "chrome-clear-history") { this.clearHistory(); }
+				// The long-press menu's traffic with the engine: what is under the finger,
+				// and where the copied text was put. Neither is a sentence to show.
+				if (resp.category === "page-hold") { this.pageHold(resp.text); return; }
+				if (resp.category === "page-copied") { this.pageCopied(resp.text); return; }
 				enyo.jihad.toast(resp.category, resp.text);
 			}));
 	},
@@ -563,9 +568,11 @@ enyo.kind({
 			this._title = inEvent.title;
 		}
 		if (typeof inEvent.canGoBack === "boolean") {
+			this._canGoBack = inEvent.canGoBack;
 			this.$.back.addRemoveClass("disabled", !inEvent.canGoBack);
 		}
 		if (typeof inEvent.canGoForward === "boolean") {
+			this._canGoForward = inEvent.canGoForward;
 			this.$.forward.addRemoveClass("disabled", !inEvent.canGoForward);
 		}
 	},
@@ -724,6 +731,70 @@ enyo.kind({
 		if (!items.length) { return true; }
 		this.openSheet(e.linkUrl ? (e.linkText || "Link") : (e.altText || "Image"), e.linkUrl || e.imageUrl, items, e);
 		return true;
+	},
+	//* JihadWebView.onPageHold: a hold on anything that is not a link or an image went to the
+	//* engine. Its answer arrives as a "page-hold" notification; every card of this variant
+	//* hears that, so only the one waiting for it opens a menu.
+	pageHoldPending: function() {
+		this._pageHold = Date.now();
+		return true;
+	},
+	//* The engine's answer: {editable, selected}. What a desktop browser offers on a
+	//* right-click — on a text field the editing commands, elsewhere the page's.
+	pageHold: function(text) {
+		var at = this._pageHold, s = null, items = [];
+		this._pageHold = 0;
+		if (!at || Date.now() - at > 3000) { return; }
+		try { s = enyo.json.parse(text); } catch (e) { s = null; }
+		s = s || {};
+		if (s.editable) {
+			items.push({label: "Paste", action: "pagePaste"});
+			if (s.selected) {
+				items.push({label: "Copy", action: "pageCopy"});
+				items.push({label: "Cut",  action: "pageCut"});
+			}
+			items.push({label: "Select All", action: "pageSelectAll"});
+			this.openSheet("Text Field", "", items, {});
+			return;
+		}
+		if (s.selected) { items.push({label: "Copy", action: "pageCopy"}); }
+		items.push({label: "Select All", action: "pageSelectAll"});
+		if (this._canGoBack)    { items.push({label: "Back",    action: "goBack"}); }
+		if (this._canGoForward) { items.push({label: "Forward", action: "goForward"}); }
+		items.push({label: "Reload",       action: "pageReload"});
+		items.push({label: "Add Bookmark", action: "addCurrentBookmark"});
+		items.push({label: "Find in Page", action: "pageFind"});
+		this.openSheet(this._title || "Page", this.url || "", items, {});
+	},
+	pageSelectAll: function() { this.$.view.callBrowserAdapter("selectAll"); },
+	//* Copy and Cut ask the engine for the selected text; it comes back by way of pageCopied.
+	pageCopy:      function() { this.$.view.callBrowserAdapter("copy"); },
+	pageCut:       function() { this.$.view.callBrowserAdapter("cut"); },
+	pageReload:    function() { this.$.view.callBrowserAdapter("reloadPage"); },
+	pageFind:      function() { this.$.findBar.show(); },
+	//* The engine has written the selected text where this card may load it: a one-call
+	//* script in the app's own clip/ directory (a card can load a local file from nowhere
+	//* else, and the clipboard is the card's to write). `name` is that file's name.
+	pageCopied: function(name) {
+		if (!/^copy-[0-9-]+\.js$/.test(String(name))) { return; }
+		var s = document.createElement("script");
+		window.jihadClip = function(text) {
+			window.jihadClip = null;
+			enyo.jihad.toast("info", enyo.jihad.setClipboard(String(text)) ? "Copied." : "The text could not be copied.");
+		};
+		s.onload = s.onerror = function() {
+			if (s.parentNode) { s.parentNode.removeChild(s); }
+		};
+		s.src = "clip/" + name;
+		document.body.appendChild(s);
+	},
+	//* Paste: the clipboard is read here (only a card can) and typed into the focused field.
+	pagePaste: function() {
+		var view = this.$.view;
+		enyo.jihad.getClipboard(function(text) {
+			if (text) { view.callBrowserAdapter("insertStringAtCursor", [String(text)]); }
+			else { enyo.jihad.toast("info", "The clipboard is empty."); }
+		});
 	},
 	holdOpenInNewCard: function(e) { this.openCard({url: e.linkUrl}); },
 	holdShareLink:     function(e) { this.openShareSheet({title: e.linkText || e.linkUrl, url: e.linkUrl}); },

@@ -954,24 +954,34 @@ void JihadBrowserServer::asyncCmdGetElementInfoAtPoint(YapProxy* proxy, int32_t 
   (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
 }
 
+// The long-press menu's page actions. The card raises the menu and sends these; the bundled
+// component components/jihadPageCommands.js carries them out on the page.
 void JihadBrowserServer::asyncCmdSelectAll(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->pageCommand("selectAll");
 }
 
 void JihadBrowserServer::asyncCmdCopy(YapProxy* proxy, int32_t queryNum)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  // "Copy" here means: hand the selected text to the card, which owns the clipboard (it lives
+  // in LunaSysMgr; a daemon has no way to write it). The reply below only releases the
+  // adapter's callback record for this query — whether anything was selected is told to the
+  // card separately, with the text.
+  auto* p = pageFor(proxy);
+  if (p) p->pageCommand("copy");
+  msgCopySuccessResponse(proxy, queryNum, p != nullptr);
 }
 
 void JihadBrowserServer::asyncCmdPaste(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  // Deliberately nothing. The clipboard is the card's to read, so a card pastes by reading it
+  // and sending the text with insertStringAtCursor; this command carries no text.
+  (void)proxy;
 }
 
 void JihadBrowserServer::asyncCmdCut(YapProxy* proxy)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->pageCommand("cut");
 }
 
 void JihadBrowserServer::asyncCmdSetMouseMode(YapProxy* proxy, int32_t mode)

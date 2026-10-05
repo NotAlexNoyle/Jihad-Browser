@@ -3720,6 +3720,29 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   *json = out;
 }
 
+bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused) {
+  if (isFocused) *isFocused = false;
+  if (!mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  nsCOMPtr<nsIDOMElement> el;
+  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  if (!el) return false;
+  // The press lands on the anonymous text inside an <input>; its host is the control.
+  nsCOMPtr<nsIDOMElement> host = edHostControl(el);
+  // contentEditable is inherited: a press on a <b> inside an editable <div> is editable.
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(host);
+  for (int depth = 0; node && depth < 64; ++depth) {
+    nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
+    if (e && edIsEditable(e)) {
+      if (isFocused) *isFocused = (mChrome->mFocusedEditable == e);
+      return true;
+    }
+    nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p;
+  }
+  return false;
+}
+
 // Serialize a dropdown <select>'s options to the JSON the card popup consumes, and hold a
 // reference to the element so a later popupMenuSelect can apply the choice. Returns false
 // (fall back to a normal click) if the select is empty or the DOM read fails.

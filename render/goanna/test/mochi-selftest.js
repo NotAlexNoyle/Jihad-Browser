@@ -57,6 +57,28 @@
 					wait = 1200;
 				} else if (st === "?") {              // report the state now
 					state("now", function() {});
+				} else if (st.charAt(0) === "h") {    // hX,Y: a long-press at view X,Y, from the point the
+					// card has passed it on: the card is marked as waiting, the engine is sent the hold.
+					// NOT a finger: it skips the adapter's own gesture timing and hit test.
+					var hs = st.slice(1).split(",");
+					app.pageHoldPending();
+					app.$.view.callBrowserAdapter("mouseHoldAt", [parseInt(hs[0], 10), parseInt(hs[1], 10)]);
+					log(name, "hold " + st.slice(1));
+				} else if (st.charAt(0) === "m") {    // m: list the open long-press sheet; mN: choose entry N
+					var its = app.$.sheetItems.getClientControls(), caps = [];
+					for (var q = 0; q < its.length; q++) { caps.push(its[q].getContent()); }
+					log(name, "sheet showing=" + app.$.sheet.getShowing() + " title=[" + app.$.sheetTitle.getContent() + "] items=[" + caps.join(" | ") + "]");
+					if (st.length > 1 && its[parseInt(st.slice(1), 10)]) {
+						log(name, "sheet pick [" + its[parseInt(st.slice(1), 10)].getContent() + "]");
+						app.sheetPick(its[parseInt(st.slice(1), 10)]);                 // what a tap on the row does
+					}
+				} else if (st === "p") {              // the menu's Paste, without the menu
+					log(name, "paste (direct)");
+					app.pagePaste();
+				} else if (st === "c") {              // what is on the clipboard now
+					enyo.jihad.getClipboard(function(t) { log(name, "clipboard=[" + String(t).slice(0, 160) + "] length=" + String(t).length); });
+				} else if (st.charAt(0) === "k") {    // kTEXT: put TEXT on the clipboard (to have something to paste)
+					log(name, "clipboard set=" + enyo.jihad.setClipboard(st.slice(1)));
 				} else if (st.charAt(0) === "s") {
 					var want = parseInt(st.slice(1), 10), rows = app.$.selectBox.getClientControls(), row = null;
 					for (var k = 0; k < rows.length; k++) { if (rows[k]._optIndex === want) { row = rows[k]; } }

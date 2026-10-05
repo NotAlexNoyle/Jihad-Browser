@@ -502,11 +502,13 @@ PROFILE=$APP/profile
 CACHE=$APP/cache
 # Two more directories the DAEMON creates at runtime inside the app's own directory, because a
 # card may load a local file only from there (LunaSysMgr's file-access rule, measured
-# 2026-10-02): bookmark thumbnails it renders on request, and the readable details of a
-# certificate while an SSL warning is open. Not in any package file list, so the installer does
-# not know them; they go with the profile.
+# 2026-10-02): bookmark thumbnails it renders on request, the readable details of a
+# certificate while an SSL warning is open, and text the long-press menu's Copy is handing to
+# the card (each such file lives fifteen seconds). Not in any package file list, so the
+# installer does not know them; they go with the profile.
 THUMBS=$APP/thumbnails
 CERTINFO=$APP/certinfo
+CLIP=$APP/clip
 log() { echo "jihad-prerm($V): $*"; }
 
 # ── 0. is this a REMOVAL or an UPGRADE? ──────────────────────────────────────────────────────
@@ -626,7 +628,7 @@ sync
 # The engine profile + cache are on cryptofs, not the rootfs, so they need no rw window — but
 # they do need to go, for the reason at $PROFILE above. Exact paths, both inside THIS variant's
 # own app directory; no glob could reach a sibling's.
-rm -rf "$PROFILE" "$CACHE" "$THUMBS" "$CERTINFO"
+rm -rf "$PROFILE" "$CACHE" "$THUMBS" "$CERTINFO" "$CLIP"
 # F-9: a failed restore-to-read-only is REPORTED, never swallowed (R8 requires `/` back to ro on
 # every exit path). It does not by itself fail the removal — the removal above already happened,
 # and the EXIT trap gets one more attempt — but it does not get to be silent either.
@@ -651,7 +653,7 @@ fi
 # job to respawn against an app directory that no longer exists. postinst already refuses to
 # report a deploy it cannot see on disk; this is the same rule applied to the reverse operation.
 rc=0
-for f in "$SHIM" "$IMPL" "$JOB" "$SOCK" "$STATE" "$PROFILE" "$CACHE" "$THUMBS" "$CERTINFO"; do
+for f in "$SHIM" "$IMPL" "$JOB" "$SOCK" "$STATE" "$PROFILE" "$CACHE" "$THUMBS" "$CERTINFO" "$CLIP"; do
 	if [ -e "$f" ]; then log "ERROR: $f still present after removal"; rc=1; fi
 done
 if [ "$rc" != 0 ]; then

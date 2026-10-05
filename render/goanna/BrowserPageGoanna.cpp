@@ -1593,6 +1593,22 @@ void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx)
   mNeedsPaint = true;
 }
 
+void BrowserPageGoanna::pageCommand(const char* cmd, const std::string& extraJson) {
+  if (!mPage || !cmd) return;
+  // Copied text reaches the card as a file in the card's own application directory (the only
+  // place a card may load a local file from — see the certificate details above for the same
+  // constraint); the component is told where that is.
+  std::string dir = jihad::RuntimeProfileDir();
+  const size_t cut = dir.find_last_of('/');
+  dir = (cut != std::string::npos && cut > 0) ? dir.substr(0, cut) + "/clip" : std::string();
+  std::string json = std::string("{\"cmd\":\"") + cmd + "\",\"dir\":\"" + dir + "\"";
+  if (!extraJson.empty()) { json += ","; json += extraJson; }
+  json += "}";
+  if (!mPage->NotifyChrome("jihad-page-command", json.c_str()))
+    fprintf(stderr, "[jihad-bs] page command %s: no page window to act on\n", cmd);
+  mNeedsPaint = true;
+}
+
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
   // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is redirected
   // to a persistent, user-readable file on device (Jihad review F-163).
@@ -2381,6 +2397,29 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
                     : (e.type == PM_UP)   ? "mouseup"
                     : (e.type == PM_MOVE) ? "mousemove" : "contextmenu";
       mPage->MouseEvent(t, e.x, e.y, e.detail);
+      if (e.type == PM_CONTEXTMENU) {
+        // The long-press, after the page has had its contextmenu event. The card raises the
+        // menu; what it offers depends on what is under the finger, which only this side
+        // knows — so say. (The card claims links and images itself and never sends holdAt
+        // for those, so this is plain content or a field.)
+        if (!mPage || mNavGen != gen) break;      // the page's handler navigated
+        bool focused = false;
+        const bool editable = mPage->EditableAt(e.x, e.y, &focused);
+        if (editable && !focused) {
+          // As a right-click does on a desktop: the field takes the focus and the caret goes
+          // where the press was, so Paste has a target and the keyboard comes up.
+          mPage->ClickAt(e.x, e.y, 1);
+          bool efoc = false; int eft = 0, efa = 0;
+          if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
+          if (!mPage || mNavGen != gen) break;
+        }
+        char extra[128];
+        snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d,\"editable\":%s,\"focusedNow\":%s",
+                 e.x, e.y, editable ? "true" : "false", (editable && !focused) ? "true" : "false");
+        fprintf(stderr, "[jihad-bs] hold at %d,%d editable=%d wasFocused=%d\n", e.x, e.y,
+                (int)editable, (int)focused);
+        pageCommand("hold", extra);
+      }
     }
     mNeedsPaint = true;
   }

@@ -409,6 +409,10 @@ bool InstallDialogService() {
     // before the first request. Absent means printing answers "not available", nothing worse.
     nsCOMPtr<nsISupports> printer = do_GetService("@riverstonerelay.net/jihad/print;1");
     if (!printer) fprintf(stderr, "[jihad-bs] print: component absent, printing is unavailable\n");
+    // The page's half of the long-press menu (components/jihadPageCommands.js) waits on
+    // "jihad-page-command". Absent means a long-press raises no menu on plain content.
+    nsCOMPtr<nsISupports> pageCmds = do_GetService("@riverstonerelay.net/jihad/page-commands;1");
+    if (!pageCmds) fprintf(stderr, "[jihad-bs] long-press: component absent, no page menu\n");
     nsCOMPtr<nsISupports> xpiPrompt =
         do_GetService("@mozilla.org/addons/web-install-prompt;1");
     if (!xpiPrompt) {

@@ -239,6 +239,7 @@ enyo.kind({
 	},
 	gotHistoryState: function(inBack, inForward) {
 		this.canGoBack = inBack;
+		this.canGoForward = inForward;
 		this.$.actionbar.setCanGoBack(inBack);
 		this.$.actionbar.setCanGoForward(inForward);
 	},
@@ -352,6 +353,69 @@ enyo.kind({
 			this.$.context.openAtTap(inEvent, inTapInfo);
 			return true;
 		}
+		// Anything else is the page's own long-press. Not claimed: the engine then gets the
+		// hold (the page's contextmenu event; a word selected under the finger, or a text
+		// field focused) and reports what it found as a "page-hold" notification, which is
+		// when the menu opens — see pageHold. Several cards share one daemon and all of them
+		// hear that report, so only the card that is waiting for one acts on it.
+		this._pageHold = {left: inEvent.pageX, top: inEvent.pageY, at: Date.now()};
+	},
+	//* The engine's answer to a long-press this card passed on: {editable, selected}.
+	pageHold: function(inText) {
+		var h = this._pageHold, s = null;
+		this._pageHold = null;
+		if (!h || Date.now() - h.at > 3000) {
+			return;
+		}
+		try { s = enyo.json.parse(inText); } catch (e) { s = null; }
+		s = s || {};
+		this.$.context.openForPage({left: h.left, top: h.top}, {
+			editable: !!s.editable, selected: !!s.selected,
+			canGoBack: !!this.canGoBack, canGoForward: !!this.canGoForward
+		});
+	},
+	pageSelectAllClick: function() {
+		this.$.view.callBrowserAdapter("selectAll");
+	},
+	//* Copy and Cut ask the engine for the selected text; it comes back by way of pageCopied.
+	pageCopyClick: function() {
+		this.$.view.callBrowserAdapter("copy");
+	},
+	pageCutClick: function() {
+		this.$.view.callBrowserAdapter("cut");
+	},
+	//* The engine has written the selected text where this card may load it: a one-call
+	//* script in the app's own clip/ directory (a card can load a local file from nowhere
+	//* else, and the clipboard is the card's to write). `inName` is that file's name.
+	pageCopied: function(inName) {
+		if (!/^copy-[0-9-]+\.js$/.test(String(inName))) {
+			return;
+		}
+		var s = document.createElement("script");
+		window.jihadClip = function(inText) {
+			window.jihadClip = null;
+			enyo.dom.setClipboard(String(inText));
+			enyo.jihadToast.show("info", $L("Copied."));
+		};
+		s.onload = s.onerror = function() {
+			if (s.parentNode) { s.parentNode.removeChild(s); }
+		};
+		s.src = "clip/" + inName;
+		document.body.appendChild(s);
+	},
+	//* Paste: the clipboard is read here (only a card can) and typed into the focused field.
+	pagePasteClick: function() {
+		var view = this.$.view;
+		enyo.jihadGetClipboard(function(inText) {
+			if (inText) {
+				view.callBrowserAdapter("insertStringAtCursor", [String(inText)]);
+			} else {
+				enyo.jihadToast.show("info", $L("The clipboard is empty."));
+			}
+		});
+	},
+	pageBookmarkClick: function() {
+		this.doAddBookmark();
 	},
 	contextItemClick: function(inSender, inValue, inTapInfo, inPosition) {
 		if (this[inValue]) {

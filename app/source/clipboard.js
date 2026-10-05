@@ -21,3 +21,34 @@ enyo.setClipboard = function(inText) {
 	document.execCommand("cut");
 	document.body.removeChild(n);
 }
+
+//* Read the clipboard and hand its text to inCallback: a throwaway textarea and the system's
+//* paste into it. enyo.dom.getClipboard does the same and reads the textarea one tick later,
+//* but the paste takes anything from a few milliseconds to more than 60 (measured in the
+//* Mochi shell, same platform call), so this watches the textarea for up to 600 ms before
+//* calling the clipboard empty.
+enyo.jihadGetClipboard = function(inCallback) {
+	var n = document.createElement("textarea"), tries = 0;
+	n.style.cssText = "position: absolute; height: 0px; width: 0px;";
+	n.value = "";
+	document.body.appendChild(n);
+	enyo.keyboard.suspend();
+	n.select();
+	if (window.PalmSystem && PalmSystem.paste) {
+		PalmSystem.paste();
+	} else {
+		document.execCommand("paste");
+	}
+	function look() {
+		if (!n.value && ++tries < 15) {
+			setTimeout(look, 40);
+			return;
+		}
+		var text = n.value;
+		n.blur();
+		enyo.keyboard.resume();
+		document.body.removeChild(n);
+		inCallback(text);
+	}
+	setTimeout(look, 20);
+};

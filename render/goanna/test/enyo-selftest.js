@@ -66,6 +66,28 @@
 					wait = 1200;
 				} else if (st === "?") {              // report the state now
 					state("now", function() {});
+				} else if (st.charAt(0) === "h") {    // hX,Y: a long-press at view X,Y, from the point the
+					// card has passed it on: the card is marked as waiting, the engine is sent the hold.
+					// NOT a finger: it skips the adapter's own gesture timing and hit test.
+					var hs = st.slice(1).split(",");
+					app.$.browser._pageHold = {left: parseInt(hs[0], 10), top: parseInt(hs[1], 10) + 82, at: Date.now()};
+					view.callBrowserAdapter("mouseHoldAt", [parseInt(hs[0], 10), parseInt(hs[1], 10)]);
+					log(name, "hold " + st.slice(1));
+				} else if (st.charAt(0) === "m") {    // m: list the open long-press menu; mN: choose entry N
+					var cm = app.$.browser.$.context, its = cm.items || [], caps = [];
+					for (var q = 0; q < its.length; q++) { caps.push(its[q].caption); }
+					log(name, "menu open=" + Boolean(cm.isOpen) + " items=[" + caps.join(" | ") + "]");
+					if (st.length > 1 && its[parseInt(st.slice(1), 10)]) {
+						var it = its[parseInt(st.slice(1), 10)];
+						log(name, "menu pick [" + it.caption + "]");
+						app.$.browser.contextItemClick(cm, it.value, cm.tapInfo, cm.tapPosition);   // what a tap on the row does
+						cm.close();
+					}
+				} else if (st === "c") {              // what is on the clipboard now
+					enyo.jihadGetClipboard(function(t) { log(name, "clipboard=[" + String(t).slice(0, 160) + "] length=" + String(t).length); });
+				} else if (st.charAt(0) === "k") {    // kTEXT: put TEXT on the clipboard (to have something to paste)
+					enyo.dom.setClipboard(st.slice(1));
+					log(name, "clipboard set");
 				} else if (st.charAt(0) === "s") {
 					// The framework's own drop-down (enyo.WebView's PopupList): choose and close,
 					// which is what a tap on one of its rows does.

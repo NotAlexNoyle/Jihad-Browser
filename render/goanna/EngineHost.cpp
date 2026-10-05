@@ -22,6 +22,9 @@
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include <sys/stat.h>               // chmod (menu highlight sheet)
+#include <dirent.h>                 // bundle fingerprint (stale startup cache)
+#include <time.h>
+#include <stdint.h>
 #include <unistd.h>                 // access (bundled child-process loader probe)
 #include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
@@ -764,6 +767,106 @@ static void initStep(const char* what) {
   fflush(stderr);
 }
 
+// ── the startup cache must not outlive the scripts it was compiled from ──────────────────────
+// The engine keeps COMPILED chrome scripts (JS components, .jsm modules, XUL) in
+// <ProfLD>/startupCache, keyed by path alone. A desktop application throws that cache away when
+// its version or build id changes (nsAppRunner's compatibility check). An embedder has no such
+// check, and this one keeps ProfLD in $APP/cache, which an upgrade does not touch.
+//
+// Measured 2026-10-05: a changed components/jihadPrint.js was on disk, the daemon had been
+// restarted, and it ran the PREVIOUS version out of the cache. That version had no dry-run
+// branch, so a test meant to send nothing printed a sheet on a real printer. The same would
+// happen to every script changed by an upgrade.
+//
+// So the bundle is fingerprinted and the fingerprint kept beside the cache; a different
+// fingerprint, or none, removes the cache before the engine can read it. The fingerprint is:
+//   - the bundle id: <gre>/jihad-bundle.id, one line written by make-device-bundle.sh from the
+//     CONTENT of every file in the bundle. This is what an upgrade changes.
+//   - size and modification time of every file directly in the GRE directory (the engine
+//     library, the daemon, the manifests) and of this project's own components/jihad*: the
+//     files a developer pushes by hand, which the bundle id knows nothing about.
+// About seventy stat() calls. Fingerprinting every script (two thousand files) was tried first
+// and measured on the device at 1.3 to 2.9 s per start; cryptofs is slow at this.
+static void FingerprintDir(const std::string& dir, const std::string& rel, const char* prefix,
+                           uint64_t* sum, unsigned* files) {
+  DIR* d = opendir(dir.c_str());
+  if (!d) return;
+  const size_t plen = prefix ? strlen(prefix) : 0;
+  while (struct dirent* e = readdir(d)) {
+    if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+    if (plen && strncmp(e->d_name, prefix, plen) != 0) continue;
+    const std::string path = dir + "/" + e->d_name;
+    const std::string name = rel.empty() ? std::string(e->d_name) : rel + "/" + e->d_name;
+    struct stat st;
+    if (lstat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+    // FNV-1a over "name|size|mtime"; the per-file values are ADDED, so the order readdir
+    // happens to return them in does not matter.
+    char rec[64];
+    snprintf(rec, sizeof rec, "|%lld|%lld", (long long)st.st_size, (long long)st.st_mtime);
+    uint64_t h = 1469598103934665603ULL;
+    for (const char* c = name.c_str(); *c; ++c) { h ^= (unsigned char)*c; h *= 1099511628211ULL; }
+    for (const char* c = rec; *c; ++c)          { h ^= (unsigned char)*c; h *= 1099511628211ULL; }
+    *sum += h;
+    ++*files;
+  }
+  closedir(d);
+}
+
+static void DropStaleStartupCache(const char* greDir, const std::string& cacheDir) {
+  struct timespec t0; clock_gettime(CLOCK_MONOTONIC, &t0);
+  uint64_t sum = 0; unsigned files = 0;
+  const std::string gre(greDir);
+  FingerprintDir(gre, "", nullptr, &sum, &files);
+  FingerprintDir(gre + "/components", "components", "jihad", &sum, &files);
+  char id[80] = "";
+  if (FILE* f = fopen((gre + "/jihad-bundle.id").c_str(), "r")) {
+    if (!fgets(id, sizeof id, f)) id[0] = 0;
+    fclose(f);
+    id[strcspn(id, "\r\n")] = 0;
+  }
+  {
+    uint64_t h = 1469598103934665603ULL;
+    for (const char* c = id; *c; ++c) { h ^= (unsigned char)*c; h *= 1099511628211ULL; }
+    sum += h;
+  }
+  char now[32]; snprintf(now, sizeof now, "%016llx", (unsigned long long)sum);
+  struct timespec t1; clock_gettime(CLOCK_MONOTONIC, &t1);
+  const long ms = (t1.tv_sec - t0.tv_sec) * 1000L + (t1.tv_nsec - t0.tv_nsec) / 1000000L;
+
+  const std::string stampPath = cacheDir + "/startupCache.bundle";
+  char was[32] = "";
+  if (FILE* f = fopen(stampPath.c_str(), "r")) {
+    if (!fgets(was, sizeof was, f)) was[0] = 0;
+    fclose(f);
+    was[strcspn(was, "\r\n")] = 0;
+  }
+  if (!strcmp(was, now)) {
+    fprintf(stderr, "[jihad-bs] startup cache: bundle unchanged (id %s, %u files, %s, %ld ms) — kept\n",
+            id[0] ? id : "none", files, now, ms);
+    return;
+  }
+  // Remove the cache FIRST and record the fingerprint only once it is gone: a failure in
+  // between leaves no stamp, and the next start tries again.
+  const std::string dir = cacheDir + "/startupCache";
+  unsigned removed = 0; bool clean = true;
+  if (DIR* d = opendir(dir.c_str())) {
+    while (struct dirent* e = readdir(d)) {
+      if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+      const std::string path = dir + "/" + e->d_name;
+      struct stat st;
+      if (lstat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+      if (unlink(path.c_str()) == 0) ++removed; else clean = false;
+    }
+    closedir(d);
+  }
+  if (clean) {
+    if (FILE* f = fopen(stampPath.c_str(), "w")) { fprintf(f, "%s\n", now); fclose(f); }
+  }
+  fprintf(stderr, "[jihad-bs] startup cache: bundle %s (id %s, %u files, %s -> %s, %ld ms) — %u cached file(s) %s\n",
+          was[0] ? "CHANGED" : "not seen before", id[0] ? id : "none", files, was[0] ? was : "none", now, ms,
+          removed, clean ? "dropped" : "could NOT be dropped");
+}
+
 bool
 EngineHost::Init(const char* greDir)
 {
@@ -901,6 +1004,10 @@ EngineHost::Init(const char* greDir)
       }
       sJihadDirProvider = new JihadDirProvider(prof, local);
       NS_ADDREF(sJihadDirProvider);
+    }
+    if (!cacheDir.empty()) {
+      initStep("checking the startup cache against the bundle");
+      DropStaleStartupCache(greDir, cacheDir);
     }
   }
   initStep("XRE_InitEmbedding2");

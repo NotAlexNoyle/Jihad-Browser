@@ -388,6 +388,16 @@ _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }
 
-echo "=== bundle assembled: $OUT ==="
+# ── bundle id ─────────────────────────────────────────────────────────────────────────────────
+# One line that names exactly this set of file contents. The daemon compares it at every start
+# with the one it last ran under and, when they differ, throws away the engine's compiled-script
+# cache (which is keyed by path alone and would otherwise keep serving the previous version of
+# every script an upgrade replaced — see DropStaleStartupCache in render/goanna/EngineHost.cpp).
+rm -f "$OUT/jihad-bundle.id"
+BUNDLE_ID=$(cd "$OUT" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-32)
+[ ${#BUNDLE_ID} -eq 32 ] || { echo "!! could not compute the bundle id" >&2; exit 31; }
+echo "$BUNDLE_ID" > "$OUT/jihad-bundle.id"
+
+echo "=== bundle assembled: $OUT (id $BUNDLE_ID) ==="
 echo "files: $(ls "$OUT" | wc -l), size: $(du -sh "$OUT" | cut -f1)"
 echo "libxul: $(du -h "$OUT/libxul.so" | cut -f1)"

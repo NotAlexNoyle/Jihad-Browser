@@ -9,6 +9,13 @@
 # them, staged to a temp dir (never stripping the build outputs in place). Every push is
 # md5-verified on both sides (the 2026-08-02 zero-byte-daemon lesson).
 #
+# It also pushes the chrome scripts THIS PROJECT adds to the engine — components/jihad*.js with
+# their manifests, and the chrome.manifest that registers them — from the assembled bundle.
+# They are part of the engine build as far as a variant is concerned: on 2026-10-05 a new
+# daemon that expected components/jihadPrint.js was on two variants and the component on one.
+# (A changed script is picked up at the next start: the daemon drops the engine's compiled-
+# script cache when the bundle's files change. See DropStaleStartupCache in EngineHost.cpp.)
+#
 # Usage: build/webos-oe/push-engine-update.sh [enyo] [mochi] [mojo]
 set -euo pipefail
 
@@ -23,6 +30,7 @@ DAEMON="$HERE/out-arm/jihad-browserserver-arm"
 # and the device silently kept the old file, which would have failed add-on installs there
 # for a reason already diagnosed.)
 PREFS="$HERE/device-bundle/goanna.js"
+BUNDLE="$HERE/device-bundle"
 TC_DEFAULT="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi"
 STRIP="${STRIP:-$TC_DEFAULT/bin/arm-webos-linux-gnueabi-strip}"
 
@@ -55,6 +63,11 @@ XUL_MD5=$(md5sum "$TMP/libxul.so" | cut -c1-32)
 BS_MD5=$(md5sum "$TMP/jihad-browserserver" | cut -c1-32)
 PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
 say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5; goanna.js md5=$PREFS_MD5"
+
+# This project's own chrome scripts, relative to the bundle root.
+OWN="chrome.manifest jihad-bundle.id $(cd "$BUNDLE" && ls components/jihad* 2>/dev/null | tr '\n' ' ')"
+[ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
+[ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 
 push_verified() { # push_verified <local> <devpath> <md5>
   local ok=""
@@ -95,6 +108,10 @@ for v in $VARIANTS; do
   novacom run file://bin/mv -- "$HL/.libmozavcodec.so.new" "$HL/libmozavcodec.so"
   novacom run file://bin/chmod -- 755 "$HL/libmozavutil.so" "$HL/libmozavcodec.so"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
+  say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
+  for f in $OWN; do
+    push_verified "$BUNDLE/$f" "$HL/$f" "$(md5sum "$BUNDLE/$f" | cut -c1-32)"
+  done
   say "[$v] starting $J"
   novacom run file://sbin/start -- "$J" >/dev/null 2>&1 || true
   trap 'rm -rf "$TMP"' EXIT           # variant done: back to plain temp cleanup

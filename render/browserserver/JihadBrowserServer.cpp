@@ -733,6 +733,15 @@ void JihadBrowserServer::asyncCmdPageFocused(YapProxy* proxy, bool focused)
   if (focused && pageFor(proxy)) mFocusProxy = proxy;
 }
 
+bool JihadBrowserServer::printActivePage(const std::string& requestJson) {
+  jihad::BrowserPageGoanna* p = pageFor(mFocusProxy);
+  if (!p) p = pageFor(mLastProxy);
+  if (!p) return false;
+  const bool ok = p->notifyChrome("jihad-print-job", requestJson);
+  if (mWakeHook) mWakeHook();
+  return ok;
+}
+
 // A thumbnail of the page the user is in, written to `path` at that page's next paint. The
 // card sends pageFocused(true) immediately before asking, so this is its own page even with
 // several cards open; with no such card it falls back to the newest connection.

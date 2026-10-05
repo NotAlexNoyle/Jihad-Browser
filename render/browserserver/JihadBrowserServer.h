@@ -94,6 +94,8 @@ public:
   void setWakeHook(void (*hook)()) { mWakeHook = hook; }
   // See the definition: a thumbnail of the page the user is in, at its next paint.
   bool thumbnailForActivePage(const std::string& path);
+  // Hand the page the user is in to the printing component with the card's request (JSON).
+  bool printActivePage(const std::string& requestJson);
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
   bool tickWasBusy() const { return mTickBusy; }

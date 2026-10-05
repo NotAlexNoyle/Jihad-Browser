@@ -63,6 +63,9 @@ bool GetChromeSettings(std::string* outJson);
 // `path` as a PNG, using the engine's own encoder. Alpha is written as given. Mode 0644.
 bool WritePngBgra(const char* path, const unsigned char* bgra, int w, int h, int stride);
 
+// An observer notification for a bundled JS component, with no page as its subject.
+bool NotifyChromeGlobal(const char* topic, const char* data);
+
 void GetFlashState(bool* available, bool* enabled);
 void SetFlashEnabled(bool enabled);
 
@@ -208,6 +211,9 @@ public:
   void Reload();
   void Stop();
   void ClearHistory();   // YAP: clearHistory — purge session history
+  // Raise an observer notification whose SUBJECT is this page's content window — how a bundled
+  // JS component is asked to do something with THIS page (printing: components/jihadPrint.js).
+  bool NotifyChrome(const char* topic, const char* data);
 
   // Pump the event loop for up to msBudget milliseconds (paint/idle work).
   // SPENDS the budget: it keeps spinning even with an empty queue, which is what a caller

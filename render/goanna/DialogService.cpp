@@ -351,7 +351,14 @@ class JihadNotifyObserver final : public nsIObserver {
       char16_t c = text.CharAt(i);
       if (c < 0x20 || c == 0x7f) text.SetCharAt(' ', i);
     }
-    if (text.Length() > 200) { text.Truncate(197); text.AppendLiteral("..."); }
+    // A toast is one short line. The printing component's results ride the same door under
+    // "print-…" categories and are JSON (a list of printers), which a card parses rather than
+    // shows — so those get room, and are NOT cut in the middle with an ellipsis (a truncated
+    // JSON string is not JSON); anything over the limit is dropped whole.
+    const bool isPrint = StringBeginsWith(category, NS_LITERAL_STRING("print-"));
+    if (isPrint) {
+      if (text.Length() > 6000) text.AssignLiteral("[]");
+    } else if (text.Length() > 200) { text.Truncate(197); text.AppendLiteral("..."); }
     for (uint32_t i = 0; i < category.Length(); ++i) {
       char16_t c = category.CharAt(i);
       if (c < 0x20 || c == 0x7f) category.SetCharAt(' ', i);
@@ -397,6 +404,11 @@ bool InstallDialogService() {
     // XPCOMUtils.jsm and Services.jsm (never AddonManager.jsm), and its one Services.appinfo read
     // is inside observe(), which cannot run until a web install does. Non-fatal: without it the
     // add-on is still refused, the user is just not told why.
+    // The printing component (components/jihadPrint.js) waits on "jihad-print-find" and
+    // "jihad-print-job"; like the install prompt it is created here so its observers exist
+    // before the first request. Absent means printing answers "not available", nothing worse.
+    nsCOMPtr<nsISupports> printer = do_GetService("@riverstonerelay.net/jihad/print;1");
+    if (!printer) fprintf(stderr, "[jihad-bs] print: component absent, printing is unavailable\n");
     nsCOMPtr<nsISupports> xpiPrompt =
         do_GetService("@mozilla.org/addons/web-install-prompt;1");
     if (!xpiPrompt) {

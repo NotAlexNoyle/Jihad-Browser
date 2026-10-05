@@ -343,6 +343,9 @@ int main(int argc, char** argv) {
   jihad::LunaServiceSetThumbnailFn([](const std::string& path) -> bool {
     return sThumbServer && sThumbServer->thumbnailForActivePage(path);
   });
+  jihad::LunaServiceSetPrintFn([](const std::string& requestJson) -> bool {
+    return sThumbServer && sThumbServer->printActivePage(requestJson);
+  });
   jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
 
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);

@@ -228,6 +228,8 @@ public:
   void holdAt(int x, int y);                       // YAP: holdAt (long-press)
   // A scaled PNG of what this page is showing, written to `path` at its next real paint.
   void requestThumbnail(const std::string& path);
+  // Hand this page to a bundled JS component (see GoannaRenderPage::NotifyChrome).
+  bool notifyChrome(const char* topic, const std::string& data) { return mPage && mPage->NotifyChrome(topic, data.c_str()); }
   // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
   // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
   void hitTest(int x, int y, std::string* json);

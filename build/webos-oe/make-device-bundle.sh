@@ -272,6 +272,26 @@ MANIFEST
 	done
 	echo "  xpi prompt: @mozilla.org/addons/web-install-prompt;1 registered (card-side confirm)"
 fi
+# --- printing (cavekit-mochi-ui.md R2) -----------------------------------------------------------
+# components/jihadPrint.js prints the page itself over IPP (the platform's print manager accepts
+# HP printers only). Created by the daemon at startup through its contract id.
+PRINT_JS="$REPO/render/goanna/components/jihadPrint.js"
+if [ -f "$PRINT_JS" ]; then
+	mkdir -p "$OUT/components"
+	cp -L "$PRINT_JS" "$OUT/components/jihadPrint.js"
+	cat > "$OUT/components/jihad-print.manifest" <<'MANIFEST'
+# Jihad Browser — printing over IPP. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {b7f1a6f0-0c5e-4d0b-9a55-3f6f2f7c1d42} jihadPrint.js
+contract @riverstonerelay.net/jihad/print;1 {b7f1a6f0-0c5e-4d0b-9a55-3f6f2f7c1d42}
+MANIFEST
+	if ! grep -q '^manifest components/jihad-print.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest components/jihad-print.manifest' >> "$OUT/chrome.manifest"
+	fi
+	for f in components/jihadPrint.js components/jihad-print.manifest; do
+		[ -s "$OUT/$f" ] || { echo "ERROR: print component file missing/empty in bundle: $f" >&2; exit 1; }
+	done
+	echo "  printing: @riverstonerelay.net/jihad/print;1 registered (IPP, any driverless printer)"
+fi
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

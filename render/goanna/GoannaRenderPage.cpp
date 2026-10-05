@@ -38,6 +38,7 @@
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
 #include "JihadRuntimePaths.h"      // RuntimeProfileDir (Flash availability)
+#include "nsIObserverService.h"     // NotifyChrome: hand a page to a bundled JS component
 #include "imgIEncoder.h"            // PNG out of a frame (bookmark thumbnails)
 #include "nsComponentManagerUtils.h" // do_CreateInstance
 #include "nsIInputStream.h"
@@ -2222,6 +2223,22 @@ static void jihadJsonField(std::string& out, const char* key, const nsAString& v
     else out += (char)c;
   }
   out += '"';
+}
+
+bool GoannaRenderPage::NotifyChrome(const char* topic, const char* data) {
+  if (!mChrome || !mChrome->mBrowser || !topic) return false;
+  nsCOMPtr<mozIDOMWindowProxy> win;
+  mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (!win || !obs) return false;
+  return NS_SUCCEEDED(obs->NotifyObservers(win, topic, NS_ConvertUTF8toUTF16(data ? data : "").get()));
+}
+
+// Notification with no page behind it (printer discovery).
+bool NotifyChromeGlobal(const char* topic, const char* data) {
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (!obs || !topic) return false;
+  return NS_SUCCEEDED(obs->NotifyObservers(nullptr, topic, NS_ConvertUTF8toUTF16(data ? data : "").get()));
 }
 
 bool GoannaRenderPage::GetCertInfoJson(std::string* json) {

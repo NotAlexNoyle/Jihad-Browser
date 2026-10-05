@@ -60,6 +60,11 @@ void LunaServiceSetOwnAppId(const std::string& appId);
 typedef bool (*LunaThumbnailFn)(const std::string& path);
 void LunaServiceSetThumbnailFn(LunaThumbnailFn fn);
 
+// Who prints: given the card's request (JSON naming the printer), hand the active page to the
+// printing component. Set by the server before LunaServiceStart.
+typedef bool (*LunaPrintFn)(const std::string& requestJson);
+void LunaServiceSetPrintFn(LunaPrintFn fn);
+
 // Best-effort unregister. Safe if Start() failed or was never called.
 void LunaServiceStop();
 

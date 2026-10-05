@@ -373,6 +373,34 @@ bool onClearThumbnails(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
+// findPrinters / printPage — printing (cavekit-mochi-ui.md R2; components/jihadPrint.js).
+//
+// Both only START something: finding printers takes seconds and a print job many, and a Luna
+// handler runs on the daemon's main loop, so the answers come back over the notifications
+// channel the card already holds open (categories print-printers / print-progress /
+// print-done / print-error). Own card only: printPage sends a picture of the user's page.
+// The request is passed to the component as received; the component validates it (a printer
+// address must be a literal on the local network).
+jihad::LunaPrintFn gPrintFn = nullptr;
+
+bool onFindPrinters(LSHandle* sh, LSMessage* msg, void*) {
+  const bool allowed = callerIsOwnCard(msg);
+  const char* pl = (allowed && gApi.MessageGetPayload) ? gApi.MessageGetPayload(msg) : nullptr;
+  const bool ok = allowed && jihad::NotifyChromeGlobal("jihad-print-find", pl ? pl : "{}");
+  printf("[jihad-bs] luna: findPrinters (%s)\n", ok ? "started" : (allowed ? "no print component" : "REFUSED: caller is not this variant's card"));
+  reply(sh, msg, ok);
+  return true;
+}
+
+bool onPrintPage(LSHandle* sh, LSMessage* msg, void*) {
+  const bool allowed = callerIsOwnCard(msg);
+  const char* pl = (allowed && gApi.MessageGetPayload) ? gApi.MessageGetPayload(msg) : nullptr;
+  const bool ok = allowed && pl && gPrintFn && gPrintFn(pl);
+  printf("[jihad-bs] luna: printPage (%s)\n", ok ? "started" : (allowed ? "no page or no print component" : "REFUSED: caller is not this variant's card"));
+  reply(sh, msg, ok);
+  return true;
+}
+
 // notifications — the CARD's non-blocking message channel (cavekit-gre-widgets.md R5).
 //
 // The card calls this ONCE at startup with {"subscribe":true} and leaves the call open; the
@@ -473,8 +501,10 @@ LSMethod gMethodsPublic[] = {
   { "deleteThumbnail", onDeleteThumbnail, 0 },
   { "disableFlash",   onDisableFlash,   0 },
   { "enableFlash",    onEnableFlash,    0 },
+  { "findPrinters",   onFindPrinters,   0 },
   { "getFlash",       onGetFlash,       0 },
   { "notifications",  onNotifications,  0 },
+  { "printPage",      onPrintPage,      0 },
   { "saveThumbnail",  onSaveThumbnail,  0 },
   { 0, 0, 0 },
 };
@@ -701,6 +731,7 @@ gboolean retryRegister(gpointer) {
 
 void LunaServiceSetOwnAppId(const std::string& appId) { gOwnAppId = appId; }
 void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
+void LunaServiceSetPrintFn(LunaPrintFn fn) { gPrintFn = fn; }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (startOnce(serviceName, loop, /*verbose*/true)) return true;

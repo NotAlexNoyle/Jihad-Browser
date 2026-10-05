@@ -312,6 +312,36 @@ MANIFEST
 	done
 	echo "  long-press: @riverstonerelay.net/jihad/page-commands;1 registered (select, copy, cut)"
 fi
+# --- add-ons that come with the browser ----------------------------------------------------------
+# Third-party add-ons ship as their authors' own, UNMODIFIED XPI files (third_party/<name>/README.md
+# records origin, version, licence and hash). Each is pinned here by SHA-256: a file that is not
+# exactly the published one does not go into a package under that notice. They are offered to a
+# profile once, by components/jihadBundledAddons.js, through the engine's own add-on manager.
+BUNDLED_JS="$REPO/render/goanna/components/jihadBundledAddons.js"
+PALEFILL_XPI="$REPO/third_party/palefill/palefill-1.30.xpi"
+PALEFILL_SHA256=5ba4b1bd90f7f37b47115595a9a4cd52e10bfc64eed650241c1754c3a0782993
+if [ -f "$BUNDLED_JS" ]; then
+	[ -f "$PALEFILL_XPI" ] || { echo "ERROR: $PALEFILL_XPI is missing" >&2; exit 1; }
+	got=$(sha256sum "$PALEFILL_XPI" | cut -c1-64)
+	[ "$got" = "$PALEFILL_SHA256" ] || { echo "ERROR: $PALEFILL_XPI is not the published v1.30 file (sha256 $got)" >&2; exit 1; }
+	mkdir -p "$OUT/bundled-addons" "$OUT/components"
+	cp -L "$PALEFILL_XPI" "$OUT/bundled-addons/palefill@addons.martoks-place.de.xpi"
+	cp -L "$REPO/third_party/palefill/README.md" "$OUT/bundled-addons/palefill-README.md"
+	cp -L "$BUNDLED_JS" "$OUT/components/jihadBundledAddons.js"
+	cat > "$OUT/components/jihad-bundled-addons.manifest" <<'MANIFEST'
+# Jihad Browser — offers the add-ons that come with the browser. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {0b9f6a4e-2f3d-4c6e-8f0a-6d2c9b1e7a55} jihadBundledAddons.js
+contract @riverstonerelay.net/jihad/bundled-addons;1 {0b9f6a4e-2f3d-4c6e-8f0a-6d2c9b1e7a55}
+MANIFEST
+	if ! grep -q '^manifest components/jihad-bundled-addons.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+		echo 'manifest components/jihad-bundled-addons.manifest' >> "$OUT/chrome.manifest"
+	fi
+	for f in components/jihadBundledAddons.js components/jihad-bundled-addons.manifest \
+	         "bundled-addons/palefill@addons.martoks-place.de.xpi"; do
+		[ -s "$OUT/$f" ] || { echo "ERROR: bundled add-on file missing/empty in bundle: $f" >&2; exit 1; }
+	done
+	echo "  bundled add-ons: Palefill 1.30 (unmodified, sha256 verified), offered once per profile"
+fi
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

@@ -75,7 +75,9 @@ PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
 say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5; goanna.js md5=$PREFS_MD5"
 
 # This project's own chrome scripts, relative to the bundle root.
-OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest $(cd "$BUNDLE" && ls components/jihad* prefsui/content/* 2>/dev/null | tr '\n' ' ')"
+# ...and the engine's own script modules that this project's engine branch changes (they are
+# loose files in the bundle, so a libxul push does not carry them): the add-on manager's provider.
+OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm $(cd "$BUNDLE" && ls components/jihad* prefsui/content/* bundled-addons/* 2>/dev/null | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 
@@ -125,6 +127,8 @@ for v in $VARIANTS; do
   novacom run file://bin/mv -- "$HL/.jihad-browserserver.new" "$HL/jihad-browserserver"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
   say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
+  # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet)
+  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" >/dev/null 2>&1 || true
   for f in $OWN; do
     push_verified "$BUNDLE/$f" "$HL/$f" "$(md5sum "$BUNDLE/$f" | cut -c1-32)"
   done

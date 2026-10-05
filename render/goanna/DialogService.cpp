@@ -417,6 +417,10 @@ bool InstallDialogService() {
     // "jihad-page-command". Absent means a long-press raises no menu on plain content.
     nsCOMPtr<nsISupports> pageCmds = do_GetService("@riverstonerelay.net/jihad/page-commands;1");
     if (!pageCmds) fprintf(stderr, "[jihad-bs] long-press: component absent, no page menu\n");
+    // The add-ons that come with the browser (components/jihadBundledAddons.js): offered to
+    // the profile once, a few seconds after start. Absent means they are simply not offered.
+    nsCOMPtr<nsISupports> bundledAddons = do_GetService("@riverstonerelay.net/jihad/bundled-addons;1");
+    if (!bundledAddons) fprintf(stderr, "[jihad-bs] bundled add-ons: component absent, none offered\n");
     nsCOMPtr<nsISupports> xpiPrompt =
         do_GetService("@mozilla.org/addons/web-install-prompt;1");
     if (!xpiPrompt) {

@@ -35,7 +35,13 @@
 #   - pressed: solid white in a glow of rgb(83,183,255), half strength beside a stroke and
 #     gone four pixels out, so the middle of the body stays dark.
 # So here the clock's ring is the outlined body (18 px across, standing on the same rows),
-# its hands are 2 px, and the ribbon is the accent, where the plus and the arrow are. The stock icon
+# its hands are 2 px, and the ribbon is the accent, where the plus and the arrow are.
+# ONE THING IS NOT COPIED: the neighbours cut their outline away around the accent, and a
+# circle treated that way reads as a broken circle (the owner's words: "the circle is
+# incomplete, gap just below the bookmark glyph" — the ring resumed under the ribbon's notch,
+# so the notch and the cut added up to a hole). The ring is left whole and the ribbon is laid
+# over its right edge, placed so that the ring runs into the ribbon's left tail rather than
+# under its notch. The stock icon
 # had the ribbon at the lower right, hanging two rows below the line; a first redraw
 # (2026-10-05) kept that and made the strokes heavy like the house, which left it bolder and
 # higher than the two icons it stands next to.
@@ -79,10 +85,10 @@ def bookmark_mask():
     # hands: twelve o'clock and nine o'clock, meeting at the centre
     poly(d, [(cx - 1, cy - 5.5), (cx + 1, cy - 5.5), (cx + 1, cy + 1), (cx - 1, cy + 1)])
     poly(d, [(cx - 4.5, cy - 1), (cx + 1, cy - 1), (cx + 1, cy + 1), (cx - 4.5, cy + 1)])
-    # the ribbon, where the neighbours carry their plus and arrow; the ring is cleared for
-    # 2 px around it and picks up again at row 18, as their outlines do
-    rx0, rx1, ry0, ry1, notch, gap = 21.0, 28.0, 5.0, 16.0, 3.5, 2.0
-    poly(d, [(rx0 - gap, 0), (rx1 + gap, 0), (rx1 + gap, ry1 + gap), (rx0 - gap, ry1 + gap)], fill=0)
+    # the ribbon, where the neighbours carry their plus and arrow, laid over the ring's right
+    # edge. The ring is not cut around it; only the notch is kept clear, so it stays a notch.
+    rx0, rx1, ry0, ry1, notch = 22.0, 28.0, 5.0, 16.0, 3.0
+    poly(d, [(rx0, ry1), (rx1, ry1), ((rx0 + rx1) / 2, ry1 - notch)], fill=0)
     poly(d, [(rx0, ry0), (rx1, ry0), (rx1, ry1), ((rx0 + rx1) / 2, ry1 - notch), (rx0, ry1)])
     return finish(big)
 

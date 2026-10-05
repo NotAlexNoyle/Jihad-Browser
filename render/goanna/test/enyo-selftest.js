@@ -63,6 +63,36 @@
 			});
 		},
 		// More Settings in the panel: the settings page opens in the card.
+		// Print: open the dialog from the menu and report what the daemon finds. With an
+		// argument (an address, or address:port) that address is typed into the dialog's own
+		// field, searched for, and the page is printed on the printer found there. Point it at
+		// render/goanna/test/ipp-sink.py, NOT at a real printer:  run print:192.168.1.245:8090
+		print: function(app, name) {
+			app.printClick();
+			var d = app.$.printDialog, OPEN = d.isOpen;
+			var want = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "";
+			function rows() {
+				var out = [], l = d._printers || [];
+				for (var i = 0; i < l.length; i++) { out.push(l[i].name + " @ " + l[i].address + ":" + l[i].port + (l[i].tls ? " tls" : "")); }
+				return out.join(" ; ");
+			}
+			log(name, "dialog open=" + OPEN + " status=[" + d.$.status.getContent() + "]");
+			later(16000, function() {
+				log(name, "after search: status=[" + d.$.status.getContent() + "] printers=[" + rows() + "]");
+				if (!want) { log(name, "DONE"); return; }
+				d.$.address.setValue(want);
+				d.search();
+				later(12000, function() {
+					log(name, "after address search: status=[" + d.$.status.getContent() + "] printers=[" + rows() + "]");
+					var idx = -1, l = d._printers || [];
+					for (var i = 0; i < l.length; i++) { if (l[i].address + ":" + l[i].port === want || l[i].address === want) { idx = i; } }
+					if (idx < 0) { log(name, "printer " + want + " is not in the list DONE"); return; }
+					d.pick({printerIndex: idx});          // what a tap on that row does
+					log(name, "picked " + l[idx].name + "; status=[" + d.$.status.getContent() + "]");
+					later(22000, function() { log(name, "end: status=[" + d.$.status.getContent() + "] DONE"); });
+				});
+			});
+		},
 		more: function(app, name) {
 			app.preferencesClick();
 			later(3000, function() {

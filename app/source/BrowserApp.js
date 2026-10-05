@@ -123,7 +123,9 @@ enyo.kind({
 			acceptCaption: $L("Clear List"),
 			onAccept: "clearDownloads"
 		},
-		{kind: "PrintDialog", lazy: false, duplexOption: true, colorOption: true, onRenderDocument: "renderDocument", appName: "Browser"},
+		// Print. Upstream used the system PrintDialog here; it accepts HP printers only, so
+		// the engine daemon prints by itself and this is its dialog (JihadPrintDialog.js).
+		{name: "printDialog", kind: "JihadPrintDialog", lazy: false, onFindPrinters: "printFind", onPrintPage: "printPage"},
 		{kind: "AppMenu", onBeforeOpen: "toggleAppMenuItems", components: [
 			// Upstream isis shipped this COMMENTED OUT, and this fork inherited it — so the
 			// FindBar, its handlers and the frozen findInPage command were all present and
@@ -171,6 +173,13 @@ enyo.kind({
 	//* put an empty toast on screen at every card launch.
 	gotNotification: function(inSender, inResponse) {
 		if (!inResponse || !inResponse.text) { return; }
+		// What the daemon says about printing belongs in the print dialog while it is open.
+		// With it closed, a job still running reports by toast; a list of printers nobody is
+		// looking at is dropped (it is JSON, not a sentence).
+		if (String(inResponse.category).indexOf("print-") === 0) {
+			if (this.$.printDialog.isOpen) { this.$.printDialog.notification(inResponse.category, inResponse.text); return; }
+			if (inResponse.category === "print-printers") { return; }
+		}
 		enyo.jihadToast.show(inResponse.category, inResponse.text);
 	},
 	//* A failed subscription is not worth a dialog: it costs the user their status toasts and
@@ -664,12 +673,27 @@ enyo.kind({
 		}
 	},
 	printClick: function() {
-		this.$.printDialog.openAtCenter();
+		this.$.printDialog.openPrint();
 	},
-	renderDocument: function(inSender, inJobID, inPrintParams) {
-		if (this.isBrowserShowing()) {
-			this.$.browser.printFrame(inJobID, inPrintParams);
-		}
+	//* The print dialog asks for printers / for the page to be printed. Both go to this
+	//* variant's own daemon service; the answers come back as "print-…" notifications.
+	printFind: function(inSender, inEvent) {
+		this.$.flashService.call(inEvent && inEvent.address ? {address: inEvent.address} : {},
+			{method: "findPrinters", onSuccess: "printAsked", onFailure: "printUnavailable"});
+	},
+	printPage: function(inSender, inEvent) {
+		// The request goes over Luna and cannot say which page it means; the daemon prints
+		// the page of the card that last said it has the user's attention.
+		if (this.isBrowserShowing()) { this.$.browser.viewCall("pageFocused", [true]); }
+		this.$.flashService.call({printer: inEvent.printer},
+			{method: "printPage", onSuccess: "printAsked", onFailure: "printRefused"});
+	},
+	printAsked: function() {},
+	printUnavailable: function() {
+		this.$.printDialog.notification("print-error", $L("Printing is not available in this build."));
+	},
+	printRefused: function() {
+		this.$.printDialog.notification("print-error", $L("The page could not be sent to the printer."));
 	},
 	setupBookmarkDialog: function() {
 	},

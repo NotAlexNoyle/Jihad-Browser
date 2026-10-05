@@ -13,7 +13,6 @@
 //   limitations under the License.
 
 enyo.depends(
-	"$enyo-lib/printdialog/",
 	"css/browser.css",
 	"source/JihadEngineOverride.js",
 	"source/JihadToast.js",
@@ -37,6 +36,7 @@ enyo.depends(
 	"source/VerticalAcceptCancelPopup.js",
 	"source/BrowserPrompt.js",
 	"source/BookmarkDialog.js",
+	"source/JihadPrintDialog.js",
     "source/ShareLinkDialog.js",
 	"source/NoFocusButton.js",
 	"source/clipboard.js",

@@ -59,6 +59,11 @@
 					bb.call("palm://com.palm.db/put", enyo.json.stringify({objects: [{_kind: "net.riverstonerelay.jihad-browser.bookmarks:1", title: "jihad test bookmark", url: "http://example.invalid/jihad-test", date: (new Date()).getTime()}]}));
 					window.__jihadTestBridges.push(bb);
 					log(name, "test bookmark added");
+				} else if (st.charAt(0) === "z") {    // zZOOM,X,Y: zoom and scroll, as a pinch or a pan ends up
+					var zs = st.slice(1).split(",");
+					view.callBrowserAdapter("pageScaleAndScroll", [parseFloat(zs[0]), parseInt(zs[1], 10), parseInt(zs[2], 10)]);
+					log(name, "zoom/scroll " + st.slice(1));
+					wait = 1200;
 				} else if (st === "?") {              // report the state now
 					state("now", function() {});
 				} else if (st.charAt(0) === "s") {
@@ -75,7 +80,9 @@
 				}
 				later(wait, function() { step(i + 1); });
 			}
-			app.openSettings();
+			// `page:<steps>` runs the same steps on the page the card was launched on, without
+			// opening the settings page first.
+			if (String(name).indexOf("page") !== 0) { app.openSettings(); }
 			later(8000, function() { state("opened", function() { step(0); }); });
 		},
 		// Print: open the dialog from the menu and report what the daemon finds. With an
@@ -124,6 +131,7 @@
 			later(12000, function() { try { app.$.appMenu.close(); } catch (e) {} look("12s"); log(name, "DONE"); });
 		}
 	};
+	scenarios.page = scenarios.settings;
 	function run() {
 		var p = enyo.windowParams || null;
 		if (!p || !p.jihadTest) { try { p = enyo.json.parse(window.PalmSystem.launchParams); } catch (e) { p = null; } }

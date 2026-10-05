@@ -12,6 +12,7 @@
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
 #include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
+#include "JihadCrashGuard.h"        // do not reopen a page that just killed the daemon twice
 #include "JihadCertStore.h"         // webOS platform certificate store (R5)
 
 #include <cstdio>
@@ -1012,6 +1013,47 @@ void BrowserPageGoanna::openUrl(const char* url) {
     return;
   }
   mAliasUrl.clear();
+  // A page that took the last two daemons down is not opened a third time by itself: the
+  // card reopens its address whenever a daemon comes back, and that made a crash a loop
+  // (JihadCrashGuard.h). Shown once; the link on it, a reload or the address bar loads it.
+  if (jihad::CrashGuardShouldRefuse(url)) {
+    std::string safe;
+    for (const char* c = url; *c && safe.size() < 1200; ++c) {
+      switch (*c) {
+        case '&': safe += "&amp;"; break;   case '<': safe += "&lt;"; break;
+        case '>': safe += "&gt;"; break;    case '"': safe += "&quot;"; break;
+        default: safe += *c;
+      }
+    }
+    const std::string html =
+      "<!DOCTYPE html><html><head><meta charset=utf-8><title>Page stopped</title>"
+      "<meta name=viewport content='width=device-width, initial-scale=1'>"
+      "<style>body{font:18px/1.5 sans-serif;background:#1c1c1c;color:#e6e6e6;margin:0;padding:48px 36px}"
+      "h1{font-size:24px;margin:0 0 14px}p{margin:0 0 16px;color:#bdbdbd}"
+      "a{color:#7fb2e6}.u{word-wrap:break-word;color:#8cafbe;font-size:15px}</style></head><body>"
+      "<h1>This page stopped the browser</h1>"
+      "<p>It did so twice in a row, so it was not opened again automatically.</p>"
+      "<p class=u>" + safe + "</p>"
+      "<p><a id=retry href=\"" + safe + "\">Try again</a></p></body></html>";
+    // setHTML appends its argument to "data:text/html," as it is, so a '#' would start a
+    // fragment and cut the page off there (the first version of this page was blank for
+    // exactly that reason: its colours), and a '%' in the address would be decoded. Escape
+    // everything that is not plainly safe.
+    std::string enc; enc.reserve(html.size() * 2);
+    static const char* kHex = "0123456789ABCDEF";
+    for (unsigned char c : html) {
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+          c == '-' || c == '_' || c == '.' || c == '~') {
+        enc += (char)c;
+      } else {
+        enc += '%'; enc += kHex[c >> 4]; enc += kHex[c & 15];
+      }
+    }
+    mAliasUrl = url;
+    setHTML(url, enc.c_str());
+    return;
+  }
+  jihad::CrashGuardNoteLoad(url);
   // R6: a matching redirect rule hands the URL to the client (msgUrlRedirected)
   // and, if it is a redirect, is not loaded in the browser at all.
   if (applyRedirectRules(url)) return;
@@ -2990,14 +3032,30 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // Bias the headroom toward the pan DIRECTION ("content blips in and out when I scroll",
   // device 2026-08-02): the strip behind the pan is dead weight; the strip ahead is what
   // the user is about to expose. Direction from the adapter scroll delta since last paint.
-  long ovAbove = h / 2, ovBelow = h;
-  if (adY > mPrevPaintScrollY + 8)      { ovAbove = h / 8; ovBelow = h + h / 2; }
-  else if (adY < mPrevPaintScrollY - 8) { ovAbove = h + h / 2; ovBelow = h / 8; }
+  //
+  // HOW MUCH (owner, 2026-10-05: "pages only load when observed … the entire page should
+  // stay rendered at once unless it's very long"). The headroom used to be a fraction of the
+  // VIEWPORT (half above, one below), whatever the buffer could hold — so a page a screen
+  // and a half long was painted as a window that followed the finger, repainted on the way,
+  // and showed undrawn rows whenever the finger won. Now the whole row budget is spent:
+  //   - a page that fits the budget is painted WHOLE, top to bottom. Nothing is ever
+  //     uncovered and a scroll needs no repaint at all (setScrollPosition's coverage test
+  //     finds every position covered) — the adapter just pans the frame it has;
+  //   - a longer page gets the full budget around the viewport, most of it ahead of the pan.
+  long slackRows = maxRows - (long)h; if (slackRows < 0) slackRows = 0;
+  long ovAbove = slackRows / 3, ovBelow = slackRows - slackRows / 3;
+  if (adY > mPrevPaintScrollY + 8)      { ovAbove = slackRows / 6; ovBelow = slackRows - ovAbove; }
+  else if (adY < mPrevPaintScrollY - 8) { ovBelow = slackRows / 6; ovAbove = slackRows - ovBelow; }
   mPrevPaintScrollY = adY;
   long lo = (bandY < adY ? bandY : adY) - ovAbove;
   long hi = (bandY > adY ? bandY : adY) + h + ovBelow;
-  if (lo < 0) lo = 0;
-  if (contentRows > 0 && hi > contentRows) hi = contentRows;
+  if (contentRows > 0 && contentRows <= maxRows) {
+    lo = 0; hi = contentRows;                 // the whole page
+  } else {
+    // Headroom that falls off one end of the page is given to the other end.
+    if (lo < 0) { hi -= lo; lo = 0; }
+    if (contentRows > 0 && hi > contentRows) { lo -= (hi - contentRows); hi = contentRows; if (lo < 0) lo = 0; }
+  }
   if (hi < lo + h) hi = lo + h;               // never less than one viewport
   if (hi - lo > maxRows) {                    // over budget: trim overscan…
     lo = bandY - (maxRows - (long)h) / 3;     // keep ~2/3 of the slack below the band

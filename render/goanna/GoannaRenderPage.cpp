@@ -38,6 +38,7 @@
 #include "nsIWebProgressListener.h"
 #include "nsIURI.h"
 #include "JihadRuntimePaths.h"      // RuntimeProfileDir (Flash availability)
+#include "JihadCrashGuard.h"        // note each top-level load that starts
 #include "nsIObserverService.h"     // NotifyChrome: hand a page to a bundled JS component
 #include "imgIEncoder.h"            // PNG out of a frame (bookmark thumbnails)
 #include "nsComponentManagerUtils.h" // do_CreateInstance
@@ -360,6 +361,9 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) {
       nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
+      // A load the PAGE started (a tapped link, a redirect, script): the crash guard has to
+      // know about these too, or it would blame the address the card last asked for.
+      if (u && !mLinkUrl.IsEmpty()) jihad::CrashGuardNoteLoad(mLinkUrl.get());
       // Capture the method: a POST content-nav is NOT re-driven (the body may already be on the
       // wire — re-issuing would double the request, Codex F-262); only GET-class navs get the
       // re-drive. The engine completes POSTs; the load watchdog clears the overlay if one stalls.

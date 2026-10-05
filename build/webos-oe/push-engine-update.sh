@@ -17,8 +17,12 @@
 # (A changed script is picked up at the next start: the daemon drops the engine's compiled-
 # script cache when the bundle's files change. See DropStaleStartupCache in EngineHost.cpp.)
 #
-# Usage: build/webos-oe/push-engine-update.sh [enyo] [mochi] [mojo]
+# Usage: build/webos-oe/push-engine-update.sh [--daemon-only] [enyo] [mochi] [mojo]
+#   --daemon-only   push just the daemon binary (and this project's chrome scripts): the loop
+#                   after a daemon-only rebuild, without re-sending 45 MB of libxul per variant.
 set -euo pipefail
+DAEMON_ONLY=0
+if [ "${1:-}" = "--daemon-only" ]; then DAEMON_ONLY=1; shift; fi
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 DIST="$HERE/out-arm/obj-jihad-goanna-arm/dist"
@@ -57,7 +61,12 @@ for f in libmozavutil.so libmozavcodec.so; do
   [ -e "$DIST/bin/$f" ] || die "no $f at $DIST/bin — run build-goanna-arm.sh build"
   cp -L "$DIST/bin/$f" "$TMP/$f"
 done
-"$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" "$TMP/libmozavutil.so" "$TMP/libmozavcodec.so" 2>/dev/null || true
+# plugin-container is the NPAPI (Flash) child process: its own binary, built with the engine.
+# It was not pushed until 2026-10-05, when a fix in it would otherwise have stayed on the host.
+[ -e "$DIST/bin/plugin-container" ] || die "no plugin-container at $DIST/bin — run build-goanna-arm.sh build"
+cp -L "$DIST/bin/plugin-container" "$TMP/plugin-container"
+"$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" "$TMP/libmozavutil.so" "$TMP/libmozavcodec.so" "$TMP/plugin-container" 2>/dev/null || true
+PC_MD5=$(md5sum "$TMP/plugin-container" | cut -c1-32)
 AVU_MD5=$(md5sum "$TMP/libmozavutil.so" | cut -c1-32)
 AVC_MD5=$(md5sum "$TMP/libmozavcodec.so" | cut -c1-32)
 XUL_MD5=$(md5sum "$TMP/libxul.so" | cut -c1-32)
@@ -93,21 +102,27 @@ for v in $VARIANTS; do
   novacom run file://sbin/stop -- "$J" >/dev/null 2>&1 || true
   # Push to a temp name then move: the daemon may respawn mid-push; an atomic-ish rename keeps
   # a half-written libxul from ever being what upstart execs.
-  say "[$v] pushing libxul.so"
-  push_verified "$TMP/libxul.so" "$HL/.libxul.so.new" "$XUL_MD5"
   say "[$v] pushing jihad-browserserver"
   push_verified "$TMP/jihad-browserserver" "$HL/.jihad-browserserver.new" "$BS_MD5"
-  say "[$v] pushing goanna.js"
-  push_verified "$TMP/goanna.js" "$HL/.goanna.js.new" "$PREFS_MD5"
-  say "[$v] pushing ffvpx (libmozavutil, libmozavcodec)"
-  push_verified "$TMP/libmozavutil.so" "$HL/.libmozavutil.so.new" "$AVU_MD5"
-  push_verified "$TMP/libmozavcodec.so" "$HL/.libmozavcodec.so.new" "$AVC_MD5"
-  novacom run file://bin/mv -- "$HL/.libxul.so.new" "$HL/libxul.so"
+  if [ "$DAEMON_ONLY" = 0 ]; then
+    say "[$v] pushing libxul.so"
+    push_verified "$TMP/libxul.so" "$HL/.libxul.so.new" "$XUL_MD5"
+    say "[$v] pushing goanna.js"
+    push_verified "$TMP/goanna.js" "$HL/.goanna.js.new" "$PREFS_MD5"
+    say "[$v] pushing ffvpx (libmozavutil, libmozavcodec)"
+    push_verified "$TMP/libmozavutil.so" "$HL/.libmozavutil.so.new" "$AVU_MD5"
+    push_verified "$TMP/libmozavcodec.so" "$HL/.libmozavcodec.so.new" "$AVC_MD5"
+    say "[$v] pushing plugin-container"
+    push_verified "$TMP/plugin-container" "$HL/.plugin-container.new" "$PC_MD5"
+    novacom run file://bin/mv -- "$HL/.libxul.so.new" "$HL/libxul.so"
+    novacom run file://bin/mv -- "$HL/.goanna.js.new" "$HL/goanna.js"
+    novacom run file://bin/mv -- "$HL/.libmozavutil.so.new" "$HL/libmozavutil.so"
+    novacom run file://bin/mv -- "$HL/.libmozavcodec.so.new" "$HL/libmozavcodec.so"
+    novacom run file://bin/mv -- "$HL/.plugin-container.new" "$HL/plugin-container"
+    novacom run file://bin/chmod -- 755 "$HL/plugin-container"
+    novacom run file://bin/chmod -- 755 "$HL/libmozavutil.so" "$HL/libmozavcodec.so"
+  fi
   novacom run file://bin/mv -- "$HL/.jihad-browserserver.new" "$HL/jihad-browserserver"
-  novacom run file://bin/mv -- "$HL/.goanna.js.new" "$HL/goanna.js"
-  novacom run file://bin/mv -- "$HL/.libmozavutil.so.new" "$HL/libmozavutil.so"
-  novacom run file://bin/mv -- "$HL/.libmozavcodec.so.new" "$HL/libmozavcodec.so"
-  novacom run file://bin/chmod -- 755 "$HL/libmozavutil.so" "$HL/libmozavcodec.so"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
   say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
   for f in $OWN; do

@@ -25,6 +25,7 @@
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 #include "../goanna/JihadCrashReport.h"    // self-reporting fatal-signal dump
 #include "JihadLunaService.h"              // this variant's own palm:// service (IPC R4)
+#include "../goanna/JihadCrashGuard.h"     // a clean exit clears the crash guard's note
 
 static JihadBrowserServer* g_server = nullptr;
 
@@ -352,6 +353,8 @@ int main(int argc, char** argv) {
   server.run();   // GLib main loop (patched YapServer::run)
   if (g_termSignal)
     printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);
+  // Leaving on purpose: whatever was loading is not to blame for this exit.
+  jihad::CrashGuardCleanExit();
   jihad::LunaServiceStop();
   g_server = nullptr;
   }   // every page destroyed here, before the runtime goes away

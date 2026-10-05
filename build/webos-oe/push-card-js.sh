@@ -127,8 +127,8 @@ fi
 
 if [ "$RESTART_SYSMGR" = 1 ]; then
   echo "restarting LunaSysMgr..."
-  novacom run file://usr/bin/killall -- LunaSysMgr
-  sleep 25
+  # waits for the system UI and closes the USB alert the restart leaves on screen
+  bash "$(dirname "$0")/luna-restart.sh"
 fi
 
 [ "$DO_LAUNCH" = 1 ] || exit 0

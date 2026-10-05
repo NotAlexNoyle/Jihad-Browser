@@ -31,7 +31,15 @@ NOVACOM=(novacom)
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 dev() { ( sleep "${HOLD:-6}" | "${NOVACOM[@]}" run file://bin/sh -- "$@" ) 2>&1; }
 put() { "${NOVACOM[@]}" put "file://$2" < "$1"; }
-restart_sysmgr() { echo "restarting LunaSysMgr (card JS is cached in it)..."; "${NOVACOM[@]}" run file://usr/bin/killall -- LunaSysMgr || true; sleep 28; }
+# luna-restart.sh waits for the system UI and closes the "Connected — USB Drive" alert that
+# every restart leaves over the top right of the screen (it covered the Enyo toolbar in
+# screenshots). It talks to the default device only; with $JIHAD_DEVICE set, fall back to a
+# plain restart and a wait.
+restart_sysmgr() {
+  echo "restarting LunaSysMgr (card JS is cached in it)..."
+  if [ -z "${JIHAD_DEVICE:-}" ]; then bash "$(dirname "$0")/luna-restart.sh" || true
+  else "${NOVACOM[@]}" run file://usr/bin/killall -- LunaSysMgr || true; sleep 28; fi
+}
 
 case "${1:-}" in
 push)

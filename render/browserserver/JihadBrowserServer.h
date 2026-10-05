@@ -33,6 +33,7 @@ public:
   void msgTitleChanged(const char* t) override;
   void msgTitleAndUrlChanged(const char* title, const char* uri, bool b, bool f) override;
   void msgEditorFocused(bool focused, int fieldType, int fieldActions) override;
+  void msgCopySuccessResponse(int queryNum, bool success) override;
   void msgContentsSizeChanged(int32_t w, int32_t h) override;
   void msgScrolledTo(int32_t x, int32_t y) override;
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;
@@ -96,6 +97,8 @@ public:
   bool thumbnailForActivePage(const std::string& path);
   // Hand the page the user is in to the printing component with the card's request (JSON).
   bool printActivePage(const std::string& requestJson);
+  // The certificate of the page the user is in, as JSON. False if it is not a TLS page.
+  bool certificateForActivePage(std::string* json);
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
   bool tickWasBusy() const { return mTickBusy; }

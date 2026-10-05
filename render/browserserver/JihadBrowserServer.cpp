@@ -34,6 +34,7 @@ void ProxySink::msgLocationChanged(const char* uri, bool b, bool f) { mSrv->msgL
 void ProxySink::msgTitleChanged(const char* t) { mSrv->msgTitleChanged(mProxy, t); }
 void ProxySink::msgTitleAndUrlChanged(const char* title, const char* uri, bool b, bool f) { mSrv->msgTitleAndUrlChanged(mProxy, title, uri, b, f); }
 void ProxySink::msgEditorFocused(bool focused, int fieldType, int fieldActions) { mSrv->msgEditorFocused(mProxy, focused, fieldType, fieldActions); }
+void ProxySink::msgCopySuccessResponse(int queryNum, bool success) { mSrv->msgCopySuccessResponse(mProxy, queryNum, success); }
 void ProxySink::msgContentsSizeChanged(int32_t w, int32_t h) { mSrv->msgContentsSizeChanged(mProxy, w, h); }
 void ProxySink::msgScrolledTo(int32_t x, int32_t y) { mSrv->msgScrolledTo(mProxy, x, y); }
 void ProxySink::msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) { mSrv->msgMetaViewportSet(mProxy, is, mn, mx, w, h, us); }
@@ -730,7 +731,17 @@ void JihadBrowserServer::asyncCmdPageFocused(YapProxy* proxy, bool focused)
 {
   // Remembered as "the card the user is in": a request that arrives over Luna (a bookmark
   // thumbnail) carries no page, and a card says which page it means by sending this first.
-  if (focused && pageFor(proxy)) mFocusProxy = proxy;
+  // One line when the answer changes: "which card do Luna requests mean" is otherwise
+  // invisible, and getting it wrong shows one page's thumbnail or certificate in another.
+  if (focused && pageFor(proxy)) {
+    if (mFocusProxy != proxy) printf("[jihad-bs] focus: Luna requests are now answered for the card that just said it has the focus\n");
+    mFocusProxy = proxy;
+  } else if (!focused && proxy == mFocusProxy && mFocusProxy) {
+    // The focused card says it no longer is. Until a card claims the focus, requests go to
+    // the newest connection (the fallback every such request already has).
+    printf("[jihad-bs] focus: the focused card gave it up\n");
+    mFocusProxy = nullptr;
+  }
 }
 
 bool JihadBrowserServer::printActivePage(const std::string& requestJson) {
@@ -740,6 +751,12 @@ bool JihadBrowserServer::printActivePage(const std::string& requestJson) {
   const bool ok = p->notifyChrome("jihad-print-job", requestJson);
   if (mWakeHook) mWakeHook();
   return ok;
+}
+
+bool JihadBrowserServer::certificateForActivePage(std::string* json) {
+  jihad::BrowserPageGoanna* p = pageFor(mFocusProxy);
+  if (!p) p = pageFor(mLastProxy);
+  return p && p->pageCertificate(json);
 }
 
 // A thumbnail of the page the user is in, written to `path` at that page's next paint. The
@@ -955,21 +972,20 @@ void JihadBrowserServer::asyncCmdGetElementInfoAtPoint(YapProxy* proxy, int32_t 
 }
 
 // The long-press menu's page actions. The card raises the menu and sends these; the bundled
-// component components/jihadPageCommands.js carries them out on the page.
+// component components/jihadPageCommands.js carries them out on the page — from the pump
+// tick, not from here (BrowserPageGoanna::pageCommand queues them).
 void JihadBrowserServer::asyncCmdSelectAll(YapProxy* proxy)
 {
-  if (auto* p = pageFor(proxy)) p->pageCommand("selectAll");
+  if (auto* p = pageFor(proxy)) { p->pageCommand("selectAll"); if (mWakeHook) mWakeHook(); }
 }
 
 void JihadBrowserServer::asyncCmdCopy(YapProxy* proxy, int32_t queryNum)
 {
   // "Copy" here means: hand the selected text to the card, which owns the clipboard (it lives
-  // in LunaSysMgr; a daemon has no way to write it). The reply below only releases the
-  // adapter's callback record for this query — whether anything was selected is told to the
-  // card separately, with the text.
-  auto* p = pageFor(proxy);
-  if (p) p->pageCommand("copy");
-  msgCopySuccessResponse(proxy, queryNum, p != nullptr);
+  // in LunaSysMgr; a daemon has no way to write it). The adapter's callback for this query is
+  // answered when the command has run, with whether any text was handed over.
+  if (auto* p = pageFor(proxy)) { p->pageCommand("copy", queryNum); if (mWakeHook) mWakeHook(); }
+  else msgCopySuccessResponse(proxy, queryNum, false);
 }
 
 void JihadBrowserServer::asyncCmdPaste(YapProxy* proxy)
@@ -981,7 +997,10 @@ void JihadBrowserServer::asyncCmdPaste(YapProxy* proxy)
 
 void JihadBrowserServer::asyncCmdCut(YapProxy* proxy)
 {
-  if (auto* p = pageFor(proxy)) p->pageCommand("cut");
+  // The SECOND half of a cut: delete the text the last copy handed to the card. A card asks
+  // for it only once that text is on the clipboard; the component refuses unless the
+  // selection is still exactly what it copied.
+  if (auto* p = pageFor(proxy)) { p->pageCommand("cut"); if (mWakeHook) mWakeHook(); }
 }
 
 void JihadBrowserServer::asyncCmdSetMouseMode(YapProxy* proxy, int32_t mode)

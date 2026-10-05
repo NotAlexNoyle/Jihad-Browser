@@ -1168,7 +1168,11 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                 double cz = (gi->contentZoom > 0.0) ? gi->contentZoom : 1.0;
                 double iv = (mZoomLevel > 0.0) ? (cz / mZoomLevel) : 1.0;
                 bool nearUnity = iv > 0.98 && iv < 1.02;
-                if (nearUnity && mWindow.width > 0 && gi->renderedWidth != (int)mWindow.width)
+                // bufferWidth, not renderedWidth: since 2026-10-05 the painted region may be
+                // WIDER than the viewport when zoomed in (sideways pan headroom), and what
+                // this guard asks is which viewport the frame was rendered for. The two are
+                // equal in every frame from a daemon that predates that.
+                if (nearUnity && mWindow.width > 0 && gi->bufferWidth != (int)mWindow.width)
                     return;
             }
             PGSurface* surf = PGSurface::wrap((uint32_t)gi->renderedWidth, (uint32_t)gi->renderedHeight,
@@ -1275,7 +1279,8 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
         double cz  = (info->contentZoom > 0.0) ? info->contentZoom : 1.0;
         double inv = (mZoomLevel > 0.0) ? (cz / mZoomLevel) : 1.0;
         bool nearUnity = inv > 0.98 && inv < 1.02;
-        if (nearUnity && mWindow.width > 0 && info->renderedWidth != (int)mWindow.width)
+        // bufferWidth is the viewport the frame was rendered for (see the PGContext path).
+        if (nearUnity && mWindow.width > 0 && info->bufferWidth != (int)mWindow.width)
             return;
     }
 
@@ -2300,6 +2305,21 @@ const char* BrowserAdapter::js_addUrlRedirect(AdapterBase *adapterBase, const NP
 
 const char* BrowserAdapter::js_pageFocused(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
+    // Jihad: this was an empty stub, and three things were built on the belief that it was not.
+    // A request a card makes over Luna (a bookmark thumbnail, printing, the padlock's
+    // certificate) cannot say which card it comes from, so the card calls pageFocused(true)
+    // first and the daemon answers for the page that said so last. With the stub, "last" was
+    // whichever card last CONNECTED or was given the plugin focus — with two cards open, not
+    // necessarily the one asking, and the padlock would then have shown another page's
+    // certificate (review 2026-10-05). The message is the adapter's own existing
+    // asyncCmdPageFocused; nothing is added to the contract.
+    BrowserAdapter *a = GetAndInitAdapter(adapter);
+    if (!a->mBrowserServerConnected)
+        return NULL;
+    bool focused = true;
+    if (argCount >= 1 && IsBooleanVariant(args[0]))
+        focused = VariantToBoolean(args[0]);
+    a->asyncCmdPageFocused(focused);
     return NULL;
 }
 

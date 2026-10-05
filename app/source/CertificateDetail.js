@@ -78,6 +78,17 @@ enyo.kind({
 //		]},
 		{kind:"RowGroup", caption:$L("Public Key Algorithm"), components:[
 			{name:"publicKeyAlgorithm"}
+		]},
+		// What the daemon adds for a page that is loaded (the address bar's padlock): the
+		// certificate's fingerprint, and the connection the page came over.
+		{kind:"RowGroup", name:"fingerprintGroup", caption:$L("SHA-256 Fingerprint"), showing: false, components:[
+			{name:"fingerprint", style: "word-wrap: break-word; font-size: 14px;"}
+		]},
+		{kind:"RowGroup", name:"connectionGroup", caption:$L("Connection"), showing: false, components:[
+			{name:"connection"}
+		]},
+		{kind:"RowGroup", name:"trustGroup", caption:$L("Trust"), showing: false, components:[
+			{name:"trust"}
 		]}
 //		{kind:"RowGroup", caption:$L("Public Key"), components:[
 //			{name:"publicKey", kind: "RichText", richContent: false}
@@ -114,19 +125,14 @@ enyo.kind({
 			this.$.commonName.setContent(enyo.string.escapeHtml(alternate_name));
 		}
 		
-		if(this.cert.displayIssuerCommonName) {
-			this.$.displayIssuerCommonName.setContent(enyo.string.escapeHtml(this.cert.displayIssuerCommonName));
-		}
+		// (Set whether or not present: the view is reused, and a certificate lacking a field
+		// must not show the previous certificate's.)
+		this.$.displayIssuerCommonName.setContent(enyo.string.escapeHtml(this.cert.displayIssuerCommonName || ""));
 		
 		// The dates arrive as text. Formatted when they parse; shown as given when they do not
 		// (the daemon sends the engine's own local-time string, which this WebKit may not parse).
-		if(this.cert.startdate) {
-			this.$.startDate.setContent(this.formatCertDate(this.cert.startdate));
-		}
-		
-		if(this.cert.expiredate) {
-			this.$.expirationDate.setContent(this.formatCertDate(this.cert.expiredate));
-		}
+		this.$.startDate.setContent(this.cert.startdate ? this.formatCertDate(this.cert.startdate) : "");
+		this.$.expirationDate.setContent(this.cert.expiredate ? this.formatCertDate(this.cert.expiredate) : "");
 		
 		if(this.cert.subject) {
 		
@@ -170,8 +176,33 @@ enyo.kind({
 			this.$.issuerCommonName.setContent(enyo.string.escapeHtml(this.cert.issuer.commonname));
 		}
 		
-		this.$.serialNumber.setContent(enyo.string.escapeHtml(this.cert.serialNumber));
-		this.$.version.setContent(enyo.string.escapeHtml(this.cert.version));
+		this.$.serialNumber.setContent(enyo.string.escapeHtml(this.cert.serialNumber !== undefined ? String(this.cert.serialNumber) : ""));
+		this.$.version.setContent(enyo.string.escapeHtml(this.cert.version !== undefined ? String(this.cert.version) : ""));
+		// A view is reused: whatever the last certificate set here must not outlive it.
+		this.$.signatureAlgorithm.setContent("");
+		this.$.publicKeyAlgorithm.setContent("");
+
+		this.$.fingerprintGroup.setShowing(this.cert.sha256 ? true : false);
+		this.$.fingerprint.setContent(enyo.string.escapeHtml(this.cert.sha256 ? String(this.cert.sha256) : ""));
+		var conn = this.cert.connection, bits = [];
+		if (conn) {
+			if (conn.protocol) { bits.push(String(conn.protocol)); }
+			if (conn.cipher) { bits.push(String(conn.cipher)); }
+			if (conn.keyLength) { bits.push(conn.keyLength + $L("-bit keys")); }
+		}
+		this.$.connectionGroup.setShowing(bits.length > 0);
+		this.$.connection.setContent(enyo.string.escapeHtml(bits.join(", ")));
+		// Whether the certificate was believed, and whether the page counts as secure.
+		var warn = [];
+		if (this.cert.overridden || this.cert.untrusted || this.cert.mismatch || this.cert.badTime) {
+			warn.push(this.cert.mismatch ? $L("This certificate was issued for a different site.") :
+				this.cert.badTime ? $L("This certificate is not valid at this time.") :
+				$L("This certificate could not be verified."));
+			if (this.cert.overridden) { warn.push($L("You chose to trust it.")); }
+		}
+		if (this.cert.broken) { warn.push($L("This page is not fully secure: part of it, or the connection itself, is not protected.")); }
+		this.$.trustGroup.setShowing(warn.length > 0);
+		this.$.trust.setContent(enyo.string.escapeHtml(warn.join(" ")));
 		
 		if(this.cert.signature) {
 			if(this.cert.signature.algorithm) {
@@ -249,6 +280,13 @@ enyo.kind({
 				finish(null);
 			}
 		}
+	},
+	//* Show a certificate the caller already has — the loaded page's own, which the address
+	//* bar's padlock asks the daemon for. (certFile, above, is the other way in: the
+	//* certificate a failed load is asking about.)
+	showCertificate: function(inCert) {
+		this.validateComponents();
+		this.$.certDetail.setCert(inCert);
 	},
 	handleCertificate: function(inSender, inResponse) {
 //		this.warn("cert details: ", enyo.json.stringify(inResponse));

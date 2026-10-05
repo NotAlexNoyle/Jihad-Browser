@@ -265,6 +265,7 @@ enyo.jihad = enyo.jihad || {};
 			if (window.PalmSystem && window.PalmSystem.paste) { window.PalmSystem.paste(); }
 			else { document.execCommand("paste"); }
 		} catch (e) {}
+		// Whatever happened above, the textarea goes and the callback is called exactly once.
 		function look() {
 			var text = ta ? ta.value : "";
 			if (!text && ta && ++tries < 15) { setTimeout(look, 40); return; }
@@ -273,6 +274,28 @@ enyo.jihad = enyo.jihad || {};
 			callback(text);
 		}
 		setTimeout(look, 20);
+	};
+
+	//* `inText` as the pieces a paste is sent in. One message to the engine holds 16 KB and a
+	//* longer string is dropped whole (the IPC's own limit), so each piece is at most 12000
+	//* bytes of UTF-8, and no piece ends inside a surrogate pair.
+	scope.pasteChunks = function(inText) {
+		var out = [], start = 0, bytes = 0, i, c, n;
+		for (i = 0; i < inText.length; i++) {
+			c = inText.charCodeAt(i);
+			n = c < 0x80 ? 1 : (c < 0x800 ? 2 : 3);
+			// A low surrogate stays with the high one before it.
+			if (bytes + n > 12000 && !(c >= 0xDC00 && c <= 0xDFFF)) {
+				out.push(inText.substring(start, i));
+				start = i;
+				bytes = 0;
+			}
+			bytes += n;
+		}
+		if (start < inText.length) {
+			out.push(inText.substring(start));
+		}
+		return out;
 	};
 
 	// --- default search engine -------------------------------------------------

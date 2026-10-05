@@ -401,6 +401,29 @@ bool onPrintPage(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
+// pageCertificate — what the padlock in the address bar shows: whose certificate the page
+// the user is in was served with, who issued it, its dates, and the connection's protocol
+// and cipher. Answered in the reply itself — which, unlike the notification channel, goes
+// to the caller alone — and only to this variant's own card: which site a user is on is
+// not something for any app on the device to ask. The card sends pageFocused(true) first,
+// so the daemon knows which of its cards is asking.
+//   <-  {"returnValue":true,"secure":true,"subject":{…},"issuer":{…},"startdate":…,
+//        "expiredate":…,"serialNumber":…,"sha256":…,"connection":{…},
+//        "broken":false,"overridden":false,"untrusted":false,"mismatch":false,"badTime":false}
+//   <-  {"returnValue":true,"secure":false}          (not a TLS page)
+jihad::LunaCertificateFn gCertificateFn = nullptr;
+bool onPageCertificate(LSHandle* sh, LSMessage* msg, void*) {
+  const bool allowed = callerIsOwnCard(msg);
+  std::string out;
+  const bool secure = allowed && gCertificateFn && gCertificateFn(&out) && !out.empty();
+  printf("[jihad-bs] luna: pageCertificate (%s)\n",
+         !allowed ? "REFUSED: caller is not this variant's card" : secure ? "sent" : "not a TLS page");
+  if (!allowed) { reply(sh, msg, false); return true; }
+  if (!secure) out = "{\"returnValue\":true,\"secure\":false}";
+  replyJson(sh, msg, out);
+  return true;
+}
+
 // notifications — the CARD's non-blocking message channel (cavekit-gre-widgets.md R5).
 //
 // The card calls this ONCE at startup with {"subscribe":true} and leaves the call open; the
@@ -504,6 +527,7 @@ LSMethod gMethodsPublic[] = {
   { "findPrinters",   onFindPrinters,   0 },
   { "getFlash",       onGetFlash,       0 },
   { "notifications",  onNotifications,  0 },
+  { "pageCertificate", onPageCertificate, 0 },
   { "printPage",      onPrintPage,      0 },
   { "saveThumbnail",  onSaveThumbnail,  0 },
   { 0, 0, 0 },
@@ -641,7 +665,7 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
     printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
            "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails,"
-           "findPrinters,printPage} "
+           "findPrinters,printPage,pageCertificate} "
            "private{clearCache,clearCookies,getChromePrefs,getFlash,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");
@@ -733,6 +757,7 @@ gboolean retryRegister(gpointer) {
 void LunaServiceSetOwnAppId(const std::string& appId) { gOwnAppId = appId; }
 void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
 void LunaServiceSetPrintFn(LunaPrintFn fn) { gPrintFn = fn; }
+void LunaServiceSetCertificateFn(LunaCertificateFn fn) { gCertificateFn = fn; }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
   if (startOnce(serviceName, loop, /*verbose*/true)) return true;

@@ -33,6 +33,13 @@ struct BrowserOffscreenInfo
     // is baked into these dimensions. For eg: renderedX = renderedZoom * pageX
     // renderedWidth == bufferWidth;
     // renderedHeight == renderedHeight (<= bufferHeight)
+    //
+    // Jihad Browser, 2026-10-05 (layout unchanged, one meaning narrowed): bufferWidth is the
+    // width of the VIEWPORT the frame was rendered for, and renderedWidth the width of the
+    // region actually painted, which is also the pixel rows' stride. They are equal except
+    // when the page is zoomed in, where the region may be up to two viewports wide so that
+    // a sideways pan has something to show. The adapter's rotation guard compares
+    // bufferWidth with its window; everything that reads pixels uses renderedWidth.
     int renderedX;
     int renderedY;
     int renderedWidth;

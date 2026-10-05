@@ -43,7 +43,7 @@ enyo.JihadIcons = {
 
 // Dark reload/stop for INSIDE the light URL bar (the white nav icons would be
 // invisible there).
-enyo.JihadInlineIcons = { reload: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAADxElEQVR4nO2ay0tVQRzHP9PLpKxVEZkakQaRpUUaQpBB0GMRFEGL2kQQIf0JUYlEraJWUcuWtewdIWb0pNIWQWGBi6S6YtENobJ+LeZcmnvuufe8Zm7d8gsDc65n5vf9nJk5Zx4qEeFf1pQ/bcC1JgH/dimlFpf6e0UDKqXqgdul7qlYQA+uF1hS6r6KBIwKBzDNkYEqoAPoBJqBZcACYDaggCzwDhgCngL9wB0R+R4xxD4iwAEgItYSsAY4B3wCJGYaA84DrRHiHDXLlrzXEthq4EYCqGLpGtBiAzBVF1VKVQMngC5gapHbhoAXwDAwjh4W87y0AqgLKLMZ2KSUOg0cFpHxxCZTtNoy4DnBLdAH7AcWRqynC3hQpK5BYGlZuyjQDowGmLkMrEnx0DYQ3NVHgbayAHpwWZ+B98B2G+PZi7GHwhdVFmh3Cuh1J3/L3Y/SFRNA1gOPfbEyQKMTQKA6YMzdBGbZhjNizvUeoBlzAOhxAXg6oOWcwRlxa4BHvtj3rAKiv3MTvjFnvVuWiL/ENyZ/2gb0v9m2lwvO8LA74O2aHhA9/cr7FJQbzvDSGxcwymrigO/6SIQyrtQdu0TIE6siv+/3WWyNeuA1RbpdnJSmBTvQr+qcLsR+ggGKs55LqzDATt/11bQBywkH4QvelUZ+SERGLMTcClxMWUcHMN3LZ0rdGAbYZORfpHGUk4ictVFPVIV10flGftilEVcKA6wx8lmXRlypInfV4igM0Gy1OS6NuFIY4AcjX+/SiCuFAb4y8stdGnGlMMBBI79UKbXQpRkXCgPs9V1vc2XElcIA76Mn2zntdWfFjUoCishX8qdV65VSa91asqso30H/1OqYCyOuFAooIk+B68ZPW5RSO9xZsivlLT5L36RUC3qPMjc5z6BPgd66s5YXvxa9GZzTBHBGohy3xViBnyJ/Jf0QmF2GfZhZwBNf7J7I5WMEmonedDUD3XIJiZ7s+zeaBoAZ1gG9gI3o7ulvyVoHcHUUbviOAA2x6kkQuI3Cw5cMsNMi3C4Kz0A+k+DkKqmBtoCWFPTbti1JnUa9twLqHQFWJ6ozhZnGgDGZS/3o/dRFEepZBBzEd95gpGfA4qQ+I30mikkpNRM4Dhyi+P7OG34fYX/xfpsL1KI3tRqKlJsATgLdIvItsUlLY2YVcAXfoUjC9BO4BDRb8WajEgO0FT21G0sA9g44YwvMShctJqXUDGAdsBHdDZvQ/whUA/wAPnoP4SV6hvQAuCsiP6x7cQH4N+m/31WreE0CVromAStdvwC9z4Jb+d27LgAAAABJRU5ErkJggg==", stop: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACXklEQVR4nO2VsW4TQRCG/53ZQ0LCgJJHyBtgWfJd5nQOPIPLFEiJhWiQeAHnKlpEgxIXUJOWJuVhUxoRpFyZio6CDiXO7Q4Fd9LhOMnFoUHKL22zmp3v/rmZXeBWt/rXGg6H1O/3uUEoATDlWlpUBzeJK3V9aAUQkUREBgCQJImdj6v2wjCMkiT5GEVR69rQEmZE5Ekcxz97vZ7Gcbw1D63BOnEc/9jY2FAR+dbtdldUdWF5z30xAOR5bgB4AGvM/LAoihkzj0TEZFk2qkBZlhVhGHaCIDjw3j/w3sMY87XVap3u7OwYADqf+0Lbw+GQ0jT1URRtBUEw8t6fEVHgnBtMJpNR5ayCWWvJOTcaj8eDWu7mwKpkWZYVIrLNzHs16CYRHarqJ1W9X4f1+33e39/3i2BXAueh1to95xy89x7ALyK6Z61FURSNYI2Ac9BNY8xbVb0LgIjIqeqb8Xj8sgkMOD8/l0pVvxhjTvGnoWYA4L0/BIDj42O6CtYIWLkLw7DDzJ9VdcUYY4nojvfeWGvfi8hgOp2etdvt4EbAOiwIggNVbVlroaqvVfUpM5NzrmDmXRHZnk6nZ4suh7quHIvLWl9EBsy8u2BkFo7EhcASpiLymIg+lDCut/7R0RHneT6rRsY5VxCR9d4/Z+ZRr9fzaZr6RiUtbxoFsEZEKyVsr976eZ7P2u12MJlMRs65ARFZYwwAvDo5OVlN01Qvq+BClwCwvr7+QkTe1fb+SlL9syiKniVJ8r3b7T6qn7+u6ocufOuq5J1OZ7UWu7QIzea1gizlbFndyNmt/g/9Bn89SYCL2k6MAAAAAElFTkSuQmCC" };
+enyo.JihadInlineIcons = { lock: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAADbElEQVR42u2aO2sUURTHf/OIjRoTkohiEwSNL0Q/RRqRQGo7sRNrtTIWNjaCWFiJfgBtBMXCRhBFrCIIoiJIQBKjJhKT7M6MxZ6Lh2FM5nXv7MIcGHaZnXvv+Z/X/Z87C6200kqT4jW4VuJi0cABqFA+49Rvvlo/GTQPegIgSgHaI99/A52UoWMbQD1L4Iyie4EZYBo4DkzI/Z/Ae+AZ8BD4oowQ93NO+/IZAleBbwJ2q+sXcBPY7ShtKoPbD7xQADrAOrAp3olT98xz78TLfQnSl9DcB8yLwptAN4cHuwroAnAsZbC+2GoCYAh4qcBF6vs9YBY4ARwFzgC3gRV5JhKvJsAnYEQZrXEx4XQ5A9xr4NQWYw8CTxRI48m7/RKqxsLjwHLKE2+BnaroBOIVs/+Fap7HKlzNHFP9EKpGyQuqoMTAhsqloRzjJ4AlGWu8eCP1TKPh+UiUWxfl7hdQzjwzJ2M35PNNA3QyMzwD4IPKvwQ4q2haHiN5wGmVi2Z/HKsKso74HlaKGEAfRck8rMRQtK/AquiUyLzj/QAwrSyKknkFImFEFaXawtK3nJtFx9Sujy2AiaMxuStY3R2Jl7q2G+9tM08jAAPZmDsZv3XVxr2dmJ4xax5DGsKybVRYIbS7isWkrTwCjIoRohxzxaoSaxkTbtpJ9ZlWG16j0CxwBZhU5NjIak7v8Z+OH7UXLgC3hJ9ab4hNdZzJ0QbVfV20TcA91RrNK94YZygTl7yy5ulImC/J5m+NvplJR4EfSgHbntNrHCm6vZXdB8vmQVJhvys11q/ozSISqTCPHK3prJlMJHfX6Z2JOuvUXQCMxfp3pEs/DFyrGOrYLjLLOYuMYTTPM+Z7kHomT5GZclVkihLop8Kadsg1JOcw1kh2nWQ7j9dPiqdM996Vewx6iOozz3Oqik4LnYtyzFEpRF0ANM+sCWcF+Jw6fxnYHNSypoy0gaMXoC4B+jka3IEGWJWqDQRA54e4oUNQw8ArKRqTrgzs8tw/AA659qBfIZfK8tLY5ZphyZDzG8j5UuuGJRZZAb5LTsUyR2Ixf43H/9D7U4NV/mr6uPMNHDrN2T50SofZJXpvhKItDo2qnsVEwCJwnX/vLryiIVA2dBJgF3DAskEXhfs6l2AQ1vJqKAK22YlzetdKK620klv+ApEHo1gvv6f2AAAAAElFTkSuQmCC", reload: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAADxElEQVR4nO2ay0tVQRzHP9PLpKxVEZkakQaRpUUaQpBB0GMRFEGL2kQQIf0JUYlEraJWUcuWtewdIWb0pNIWQWGBi6S6YtENobJ+LeZcmnvuufe8Zm7d8gsDc65n5vf9nJk5Zx4qEeFf1pQ/bcC1JgH/dimlFpf6e0UDKqXqgdul7qlYQA+uF1hS6r6KBIwKBzDNkYEqoAPoBJqBZcACYDaggCzwDhgCngL9wB0R+R4xxD4iwAEgItYSsAY4B3wCJGYaA84DrRHiHDXLlrzXEthq4EYCqGLpGtBiAzBVF1VKVQMngC5gapHbhoAXwDAwjh4W87y0AqgLKLMZ2KSUOg0cFpHxxCZTtNoy4DnBLdAH7AcWRqynC3hQpK5BYGlZuyjQDowGmLkMrEnx0DYQ3NVHgbayAHpwWZ+B98B2G+PZi7GHwhdVFmh3Cuh1J3/L3Y/SFRNA1gOPfbEyQKMTQKA6YMzdBGbZhjNizvUeoBlzAOhxAXg6oOWcwRlxa4BHvtj3rAKiv3MTvjFnvVuWiL/ENyZ/2gb0v9m2lwvO8LA74O2aHhA9/cr7FJQbzvDSGxcwymrigO/6SIQyrtQdu0TIE6siv+/3WWyNeuA1RbpdnJSmBTvQr+qcLsR+ggGKs55LqzDATt/11bQBywkH4QvelUZ+SERGLMTcClxMWUcHMN3LZ0rdGAbYZORfpHGUk4ictVFPVIV10flGftilEVcKA6wx8lmXRlypInfV4igM0Gy1OS6NuFIY4AcjX+/SiCuFAb4y8stdGnGlMMBBI79UKbXQpRkXCgPs9V1vc2XElcIA76Mn2zntdWfFjUoCishX8qdV65VSa91asqso30H/1OqYCyOuFAooIk+B68ZPW5RSO9xZsivlLT5L36RUC3qPMjc5z6BPgd66s5YXvxa9GZzTBHBGohy3xViBnyJ/Jf0QmF2GfZhZwBNf7J7I5WMEmonedDUD3XIJiZ7s+zeaBoAZ1gG9gI3o7ulvyVoHcHUUbviOAA2x6kkQuI3Cw5cMsNMi3C4Kz0A+k+DkKqmBtoCWFPTbti1JnUa9twLqHQFWJ6ozhZnGgDGZS/3o/dRFEepZBBzEd95gpGfA4qQ+I30mikkpNRM4Dhyi+P7OG34fYX/xfpsL1KI3tRqKlJsATgLdIvItsUlLY2YVcAXfoUjC9BO4BDRb8WajEgO0FT21G0sA9g44YwvMShctJqXUDGAdsBHdDZvQ/whUA/wAPnoP4SV6hvQAuCsiP6x7cQH4N+m/31WreE0CVromAStdvwC9z4Jb+d27LgAAAABJRU5ErkJggg==", stop: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACXklEQVR4nO2VsW4TQRCG/53ZQ0LCgJJHyBtgWfJd5nQOPIPLFEiJhWiQeAHnKlpEgxIXUJOWJuVhUxoRpFyZio6CDiXO7Q4Fd9LhOMnFoUHKL22zmp3v/rmZXeBWt/rXGg6H1O/3uUEoATDlWlpUBzeJK3V9aAUQkUREBgCQJImdj6v2wjCMkiT5GEVR69rQEmZE5Ekcxz97vZ7Gcbw1D63BOnEc/9jY2FAR+dbtdldUdWF5z30xAOR5bgB4AGvM/LAoihkzj0TEZFk2qkBZlhVhGHaCIDjw3j/w3sMY87XVap3u7OwYADqf+0Lbw+GQ0jT1URRtBUEw8t6fEVHgnBtMJpNR5ayCWWvJOTcaj8eDWu7mwKpkWZYVIrLNzHs16CYRHarqJ1W9X4f1+33e39/3i2BXAueh1to95xy89x7ALyK6Z61FURSNYI2Ac9BNY8xbVb0LgIjIqeqb8Xj8sgkMOD8/l0pVvxhjTvGnoWYA4L0/BIDj42O6CtYIWLkLw7DDzJ9VdcUYY4nojvfeWGvfi8hgOp2etdvt4EbAOiwIggNVbVlroaqvVfUpM5NzrmDmXRHZnk6nZ4suh7quHIvLWl9EBsy8u2BkFo7EhcASpiLymIg+lDCut/7R0RHneT6rRsY5VxCR9d4/Z+ZRr9fzaZr6RiUtbxoFsEZEKyVsr976eZ7P2u12MJlMRs65ARFZYwwAvDo5OVlN01Qvq+BClwCwvr7+QkTe1fb+SlL9syiKniVJ8r3b7T6qn7+u6ocufOuq5J1OZ7UWu7QIzea1gizlbFndyNmt/g/9Bn89SYCL2k6MAAAAAElFTkSuQmCC" };
 
 enyo.kind({
 	name: "JihadBrowser",
@@ -67,6 +67,9 @@ enyo.kind({
 			{name: "home",    classes: "jihad-nav-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.home + "'>", ontap: "goHome"},
 			// Address field with the reload/stop control INSIDE it (Enyo-parity).
 			{kind: "mochi.InputDecorator", name: "addressBox", classes: "jihad-address-box", fit: true, components: [
+				// The padlock: shown on a page that came over TLS; a tap says whose
+				// certificate it was served with (showPageCertificate).
+				{name: "lock", classes: "jihad-inline-btn jihad-lock-btn", showing: false, allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadInlineIcons.lock + "'>", ontap: "showPageCertificate"},
 				{kind: "mochi.Input", name: "address", classes: "jihad-address", placeholder: "Search or type a URL", onchange: "addressEntered", onkeydown: "addressKeydown", attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false", type: "url"}},
 				{name: "reloadStop", classes: "jihad-inline-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadInlineIcons.reload + "'>", ontap: "reloadOrStop"}
 			]},
@@ -81,6 +84,7 @@ enyo.kind({
 			onLoadStarted:     "loadStarted",
 			onLoadProgress:    "loadProgress",
 			onLoadStopped:     "loadStopped",
+			onLoadFailed:      "loadFailed",
 			onPageInfoChanged: "pageInfoChanged",
 			// Engine-created page (link with target / window.open) -> its own card.
 			onNewPage:         "newPageRequested",
@@ -421,6 +425,10 @@ enyo.kind({
 				// and where the copied text was put. Neither is a sentence to show.
 				if (resp.category === "page-hold") { this.pageHold(resp.text); return; }
 				if (resp.category === "page-copied") { this.pageCopied(resp.text); return; }
+				// What the engine says about a copy or a cut is broadcast to every card;
+				// it is shown by the one that asked.
+				if (resp.category === "page-copy-empty" && !this.takeCopyAsked()) { return; }
+				if ((resp.category === "page-cut" || resp.category === "page-cut-refused") && !this.takeCutAsked()) { return; }
 				enyo.jihad.toast(resp.category, resp.text);
 			}));
 	},
@@ -524,7 +532,14 @@ enyo.kind({
 
 	// --- WebView (JihadWebView) callbacks -> chrome state -------------------
 	hideStartPage: function() { if (this.$.startPage && this.$.startPage.hide) this.$.startPage.hide(); },
+	//* What is on screen is now the engine's error page, not the site in the address bar.
+	loadFailed: function() {
+		this._loadFailed = true;
+		this.updateLock();
+	},
 	loadStarted: function() {
+		this._loadFailed = false;
+		this.updateLock();
 		this.hideStartPage();
 		this._lastProgress = 0;
 		this.$.progress.setProgress(0);
@@ -567,6 +582,7 @@ enyo.kind({
 		if (typeof inEvent.title === "string" && inEvent.title) {
 			this._title = inEvent.title;
 		}
+		this.updateLock();
 		if (typeof inEvent.canGoBack === "boolean") {
 			this._canGoBack = inEvent.canGoBack;
 			this.$.back.addRemoveClass("disabled", !inEvent.canGoBack);
@@ -593,6 +609,43 @@ enyo.kind({
 			         " glyph.left=" + Math.round(br.left) +
 			         " overlap=" + Math.round((ir.right - pad) - br.left));
 		} catch (e) { enyo.log("[JIHAD-URLGEOM] " + e); }
+	},
+	//* The padlock is there when the page on screen has an https address and its load did
+	//* not fail (a failed load shows the engine's error page under that address).
+	updateLock: function() {
+		var secure = !this._loadFailed && /^https:\/\//i.test(this.url || "");
+		this.$.lock.setShowing(secure);
+		this.$.addressBox.addRemoveClass("jihad-secure", secure);
+	},
+	//* The padlock was tapped: ask this browser's own daemon whose certificate the page was
+	//* served with (it answers this variant's own card only). markActive first — the
+	//* question goes over Luna, which cannot say which card is asking.
+	showPageCertificate: function() {
+		var self = this;
+		this.$.view.markActive();
+		enyo.jihad.own("pageCertificate", {}, function(r) {
+			var text = (r && r.returnValue && r.secure) ? self.$.dialogs.certText(r) : "";
+			var c = r && r.connection, bits = [];
+			if (!text) {
+				self.openDialog("Certificate", "No certificate information is available for this page.");
+				return;
+			}
+			if (c) {
+				if (c.protocol) { bits.push(String(c.protocol)); }
+				if (c.cipher) { bits.push(String(c.cipher)); }
+				if (c.keyLength) { bits.push(c.keyLength + "-bit keys"); }
+			}
+			if (bits.length) { text += "\nConnection: " + bits.join(", "); }
+			// Whether the certificate was believed, and whether the page counts as secure.
+			if (r.overridden || r.untrusted || r.mismatch || r.badTime) {
+				text += "\n" + (r.mismatch ? "This certificate was issued for a different site." :
+					r.badTime ? "This certificate is not valid at this time." :
+					"This certificate could not be verified.") + (r.overridden ? " You chose to trust it." : "");
+			}
+			if (r.broken) { text += "\nThis page is not fully secure: part of it, or the connection itself, is not protected."; }
+			self.openDialog("Certificate", text);
+		});
+		return true;
 	},
 	//* Swap the reload/stop affordance during a load.
 	setStopVisible: function(loading) {
@@ -740,11 +793,15 @@ enyo.kind({
 		return true;
 	},
 	//* The engine's answer: {editable, selected}. What a desktop browser offers on a
-	//* right-click — on a text field the editing commands, elsewhere the page's.
+	//* right-click — on a text field the editing commands, elsewhere the page's. The answer
+	//* names no card, so it is taken only by the one that is on screen and passed a hold on
+	//* within the last four seconds — which, a finger being in one place, is one card. (The
+	//* answer normally takes 0.1-0.5 s; once, on a card started seconds earlier, it was not
+	//* acted on at 2.5 s.)
 	pageHold: function(text) {
 		var at = this._pageHold, s = null, items = [];
 		this._pageHold = 0;
-		if (!at || Date.now() - at > 3000) { return; }
+		if (!at || Date.now() - at > 4000 || (window.PalmSystem && window.PalmSystem.isActivated === false)) { return; }
 		try { s = enyo.json.parse(text); } catch (e) { s = null; }
 		s = s || {};
 		if (s.editable) {
@@ -767,33 +824,73 @@ enyo.kind({
 		this.openSheet(this._title || "Page", this.url || "", items, {});
 	},
 	pageSelectAll: function() { this.$.view.callBrowserAdapter("selectAll"); },
-	//* Copy and Cut ask the engine for the selected text; it comes back by way of pageCopied.
-	pageCopy:      function() { this.$.view.callBrowserAdapter("copy"); },
-	pageCut:       function() { this.$.view.callBrowserAdapter("cut"); },
+	//* Copy asks the engine for the selected text; it comes back by way of pageCopied. Cut is
+	//* a copy, and then — only once the text is on the clipboard — the adapter's cut, which
+	//* tells the engine to delete what it handed over. What the engine says about either is
+	//* broadcast to every card, so the card remembers that it asked.
+	pageCopy:      function() { this._copyAsked = {at: Date.now(), cut: false}; this.$.view.callBrowserAdapter("copy"); },
+	pageCut:       function() { this._copyAsked = {at: Date.now(), cut: true};  this.$.view.callBrowserAdapter("copy"); },
 	pageReload:    function() { this.$.view.callBrowserAdapter("reloadPage"); },
 	pageFind:      function() { this.$.findBar.show(); },
+	//* The copy this card asked for within the last five seconds, once.
+	takeCopyAsked: function() {
+		var a = this._copyAsked;
+		this._copyAsked = null;
+		return (a && Date.now() - a.at < 5000) ? a : null;
+	},
+	//* How a cut this card asked for ended ("Cut.", or why not): its to show, nobody else's.
+	takeCutAsked: function() {
+		var at = this._cutAsked;
+		this._cutAsked = 0;
+		return !!(at && Date.now() - at < 5000);
+	},
 	//* The engine has written the selected text where this card may load it: a one-call
 	//* script in the app's own clip/ directory (a card can load a local file from nowhere
 	//* else, and the clipboard is the card's to write). `name` is that file's name.
 	pageCopied: function(name) {
-		if (!/^copy-[0-9-]+\.js$/.test(String(name))) { return; }
+		var asked = this.takeCopyAsked(), view = this.$.view, self = this, done = false;
+		if (!asked || !/^copy-[0-9a-f-]+\.js$/.test(String(name))) { return; }
 		var s = document.createElement("script");
-		window.jihadClip = function(text) {
+		var failed = function() {
+			if (done) { return; }
+			done = true;
 			window.jihadClip = null;
-			enyo.jihad.toast("info", enyo.jihad.setClipboard(String(text)) ? "Copied." : "The text could not be copied.");
+			enyo.jihad.toast("info", "The text could not be copied.");
 		};
-		s.onload = s.onerror = function() {
+		window.jihadClip = function(text) {
+			if (done) { return; }
+			done = true;
+			window.jihadClip = null;
+			if (!enyo.jihad.setClipboard(String(text))) { enyo.jihad.toast("info", "The text could not be copied."); return; }
+			// True from this moment whatever the cut does; "Cut." replaces it if the engine
+			// confirms the deletion (the "page-cut" notification).
+			enyo.jihad.toast("info", "Copied.");
+			if (asked.cut) { self._cutAsked = Date.now(); view.callBrowserAdapter("cut"); }
+		};
+		s.onload = function() {
 			if (s.parentNode) { s.parentNode.removeChild(s); }
+			failed();                       // it loaded and never called: not a clip script
+		};
+		s.onerror = function() {
+			if (s.parentNode) { s.parentNode.removeChild(s); }
+			failed();
 		};
 		s.src = "clip/" + name;
 		document.body.appendChild(s);
 	},
 	//* Paste: the clipboard is read here (only a card can) and typed into the focused field.
+	//* Another app decides what is on the clipboard, so its size is bounded here; and one
+	//* message to the engine holds 16 KB, so the text goes in pieces (enyo.jihad.pasteChunks).
 	pagePaste: function() {
 		var view = this.$.view;
 		enyo.jihad.getClipboard(function(text) {
-			if (text) { view.callBrowserAdapter("insertStringAtCursor", [String(text)]); }
-			else { enyo.jihad.toast("info", "The clipboard is empty."); }
+			var parts, i;
+			if (!text) { enyo.jihad.toast("info", "The clipboard is empty."); }
+			else if (text.length > 262144) { enyo.jihad.toast("info", "The clipboard holds too much text to paste here."); }
+			else {
+				parts = enyo.jihad.pasteChunks(String(text));
+				for (i = 0; i < parts.length; i++) { view.callBrowserAdapter("insertStringAtCursor", [parts[i]]); }
+			}
 		});
 	},
 	holdOpenInNewCard: function(e) { this.openCard({url: e.linkUrl}); },

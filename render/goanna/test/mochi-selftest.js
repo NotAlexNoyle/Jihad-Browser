@@ -28,6 +28,16 @@
 		//                            click opened; wN waits N seconds; b adds a test bookmark; ? reports.
 		// Reports the cache, the toast and the sizes of the bookmark and history lists at the end.
 		settings: function(app, name) {
+			// When the engine's answer to a hold reaches this card, and in what state: the one
+			// place a "the menu did not open" can be told apart (late, not asked, or not on screen).
+			if (!app.__holdProbe) {
+				app.__holdProbe = app.pageHold;
+				app.pageHold = function(t) {
+					log(name, "hold answer arrives: asked " + (this._pageHold ? (Date.now() - this._pageHold) + " ms ago" : "never") +
+						", card activated=" + (window.PalmSystem ? window.PalmSystem.isActivated : "n/a") + ", answer=" + t);
+					return app.__holdProbe.apply(this, arguments);
+				};
+			}
 			var spec = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "";
 			var steps = spec ? spec.split(";") : [];
 			function count(kind, cb) { enyo.jihad.dbFind(kind, null, "_rev", true, function(r) { cb((r || []).length); }); }
@@ -50,11 +60,52 @@
 				} else if (st === "b") {              // a bookmark of the test's own, to have one to clear
 					enyo.jihad.dbPut([{_kind: enyo.jihad.kinds.bookmarks, title: "jihad test bookmark", url: "http://example.invalid/jihad-test", date: (new Date()).getTime()}]);
 					log(name, "test bookmark added");
-				} else if (st.charAt(0) === "z") {    // zZOOM,X,Y: zoom and scroll, as a pinch or a pan ends up
-					var zs = st.slice(1).split(",");
-					app.$.view.callBrowserAdapter("pageScaleAndScroll", [parseFloat(zs[0]), parseInt(zs[1], 10), parseInt(zs[2], 10)]);
-					log(name, "zoom/scroll " + st.slice(1));
-					wait = 1200;
+				} else if (st.charAt(0) === "f") {    // fVX,VY: a flick, as the adapter's scroller gets it when a
+					// finger lets go — the real kinetic scroll, at the adapter's own frame rate. (The
+					// adapter's pageScaleAndScroll, which an earlier "z" step called, is an empty stub:
+					// that step never moved anything, and what it was thought to prove it did not.)
+					var fv = st.slice(1).split(",");
+					app.$.view.callBrowserAdapter("handleFlick", [parseInt(fv[0], 10), parseInt(fv[1], 10)]);
+					log(name, "flick " + st.slice(1));
+					wait = 2500;
+				} else if (st.charAt(0) === "d") {    // dX,Y,DX,DY[,VX,VY]: a drag from view X,Y by DX,DY as DOM
+					// mouse events on the plugin node (what one finger becomes), in eight moves; with
+					// VX,VY the release is a flick of that velocity. Whether the platform passes
+					// script-made mouse events on to a plugin is itself something this step finds out.
+					var dp = st.slice(1).split(","), dnode = app.$.view.hasNode(), drect = dnode.getBoundingClientRect();
+					var dx0 = drect.left + parseInt(dp[0], 10), dy0 = drect.top + parseInt(dp[1], 10);
+					var ddx = parseInt(dp[2], 10), ddy = parseInt(dp[3], 10), dn = 0;
+					var dfire = function(type, x, y) {
+						var e = document.createEvent("MouseEvents");
+						e.initMouseEvent(type, true, true, window, 1, x, y, x, y, false, false, false, false, 0, null);
+						dnode.dispatchEvent(e);
+					};
+					dfire("mousedown", dx0, dy0);
+					(function dtick() {
+						dn++;
+						dfire("mousemove", dx0 + ddx * dn / 8, dy0 + ddy * dn / 8);
+						if (dn < 8) { setTimeout(dtick, 30); return; }
+						if (dp.length >= 6) { app.$.view.callBrowserAdapter("handleFlick", [parseInt(dp[4], 10), parseInt(dp[5], 10)]); }
+						dfire("mouseup", dx0 + ddx, dy0 + ddy);
+					})();
+					log(name, "drag " + st.slice(1));
+					wait = 2500;
+				} else if (st.charAt(0) === "g") {    // gSCALE,X,Y: a pinch to SCALE about view X,Y, in eight
+					// steps through the adapter's own gesture calls. The scale and rotation must be
+					// non-integers: the adapter refuses an integer where it expects a double.
+					var gp = st.slice(1).split(","), gTarget = parseFloat(gp[0]), gx = parseInt(gp[1], 10), gy = parseInt(gp[2], 10), gn = 0;
+					app.$.view.callBrowserAdapter("gestureStart", [gx, gy, 1.0001, 0.0001, gx, gy]);
+					(function gtick() {
+						gn++;
+						var sc = 1 + (gTarget - 1) * gn / 8 + 0.00001;
+						if (gn < 8) { app.$.view.callBrowserAdapter("gestureChange", [gx, gy, sc, 0.0001, gx, gy]); setTimeout(gtick, 60); }
+						else { app.$.view.callBrowserAdapter("gestureEnd", [gx, gy, sc, 0.0001, gx, gy]); }
+					})();
+					log(name, "pinch " + st.slice(1));
+					wait = 3500;
+				} else if (st === "x") {              // close this card (a second card that only needed to connect)
+					log(name, "closing this card");
+					window.close();
 				} else if (st === "?") {              // report the state now
 					state("now", function() {});
 				} else if (st.charAt(0) === "h") {    // hX,Y: a long-press at view X,Y, from the point the
@@ -72,11 +123,20 @@
 						log(name, "sheet pick [" + its[parseInt(st.slice(1), 10)].getContent() + "]");
 						app.sheetPick(its[parseInt(st.slice(1), 10)]);                 // what a tap on the row does
 					}
+				} else if (st === "l") {              // the padlock: is it showing, and what does its tap bring up?
+					log(name, "padlock showing=" + app.$.lock.getShowing() + " field has room for it=" + app.$.addressBox.hasClass("jihad-secure"));
+					app.showPageCertificate();                   // the padlock's own ontap handler
+					later(2500, function() {
+						log(name, "dialog showing=" + app.$.dialog.getShowing() + " title=[" + app.$.dialogTitle.getContent() + "] text=[" + String(app.$.dialogMessage.getContent()).replace(/\n/g, " | ").slice(0, 420) + "]");
+					});
 				} else if (st === "p") {              // the menu's Paste, without the menu
 					log(name, "paste (direct)");
 					app.pagePaste();
-				} else if (st === "c") {              // what is on the clipboard now
-					enyo.jihad.getClipboard(function(t) { log(name, "clipboard=[" + String(t).slice(0, 160) + "] length=" + String(t).length); });
+				} else if (st.charAt(0) === "c") {    // c=TEXT: is TEXT what is on the clipboard now? Only the
+					// answer and the length are logged — the clipboard is the user's, the log is kept.
+					(function(want) {
+						enyo.jihad.getClipboard(function(t) { log(name, "clipboard is the expected text: " + (String(t) === want) + " (length " + String(t).length + ", expected " + want.length + ")"); });
+					})(st.slice(2));
 				} else if (st.charAt(0) === "k") {    // kTEXT: put TEXT on the clipboard (to have something to paste)
 					log(name, "clipboard set=" + enyo.jihad.setClipboard(st.slice(1)));
 				} else if (st.charAt(0) === "s") {

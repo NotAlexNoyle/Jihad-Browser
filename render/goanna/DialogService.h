@@ -76,6 +76,12 @@ void SetNotificationSink(NotificationSink* sink);
 // null or empty becomes "info". `text` is one short UTF-8 line meant to be read at a glance.
 void PostNotification(const char* category, const char* text);
 
+// How many "page-copied" notifications have gone through PostNotification. The long-press
+// menu's Copy is carried out by a script component whose only way to say "text was handed to
+// the card" is that notification, raised synchronously; the daemon reads this before and
+// after to learn the result.
+unsigned PageCopiedCount();
+
 // Install the override of "@mozilla.org/prompter;1". Call once after the engine
 // is initialised (XRE_InitEmbedding2). Idempotent; returns false on failure.
 //

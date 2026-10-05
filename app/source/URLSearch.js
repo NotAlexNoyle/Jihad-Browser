@@ -19,14 +19,16 @@ enyo.kind({
 		url: "",
 		searchPreferences: [],
 		defaultSearch: "",
-		loading: false
+		loading: false,
+		loadFailed: false
 	},
 	maxSearchResults: 32,
 	className: "addressbar",
 	events: {
 		onLoad: "",
 		onStopLoad: "",
-		onRefresh: ""
+		onRefresh: "",
+		onSecureInfo: ""
 	},
 	components: [
 		{name: "bookmarksService", kind: "DbService", method: "search", dbKind: "net.riverstonerelay.jihad-browser.bookmarks:1", onSuccess: "gotBookmarksData", onFailure: "finishShowSearchResults"},
@@ -35,7 +37,8 @@ enyo.kind({
 			onInputChange: "startSearch",
 			onGo: "go",
 			onStop: "doStopLoad",
-			onRefresh: "doRefresh"
+			onRefresh: "doRefresh",
+			onSecureInfo: "doSecureInfo"
 		},
 		{name: "searchPopup", kind: "Menu", lazy: false, modal: false, className: "addressbar-popup", components: [
 			{name: "providersList", className: "addressbar-providerslist", kind: "VirtualRepeater", onSetupRow: "providersListGetItem", components: [
@@ -78,6 +81,9 @@ enyo.kind({
 	},
 	cacheBoxSize: function() {
 		this._boxSize = enyo.fetchControlSize(this);
+	},
+	loadFailedChanged: function() {
+		this.$.address.setLoadFailed(this.loadFailed);
 	},
 	urlChanged: function() {
 		this.$.address.setUrl(this.url);

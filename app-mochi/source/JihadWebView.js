@@ -93,7 +93,10 @@ enyo.kind({
 		//* The user held on anything else. The hold is left to the engine, which answers
 		//* with a "page-hold" notification saying what it found; the shell opens the page
 		//* menu on that. This event only tells the shell an answer is on its way.
-		onPageHold: ""
+		onPageHold: "",
+		//* A load failed: {code, url, message}. What the view shows now is the engine's
+		//* error page under the address that failed.
+		onLoadFailed: ""
 	},
 
 	// --- lifecycle ----------------------------------------------------------
@@ -330,6 +333,13 @@ enyo.kind({
 			canGoBack: canGoBack,
 			canGoForward: canGoForward
 		});
+	},
+	// (adapter callback) a load failed (adapter msgFailedLoad -> "failedLoad": domain, code,
+	// failing url, description). 1000 is a cancelled load, which is not a failure.
+	failedLoad: function(domain, code, url, message) {
+		if (code !== 1000) {
+			this.doLoadFailed({code: code, url: url, message: message});
+		}
 	},
 	// (adapter callback) the engine created a page for a link with a target /
 	// window.open (adapter msgCreatePage -> "createPage", one string arg: the new

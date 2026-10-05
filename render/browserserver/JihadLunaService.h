@@ -65,6 +65,11 @@ void LunaServiceSetThumbnailFn(LunaThumbnailFn fn);
 typedef bool (*LunaPrintFn)(const std::string& requestJson);
 void LunaServiceSetPrintFn(LunaPrintFn fn);
 
+// Who knows the active page's certificate: fills `json` (one object, returnValue included)
+// and says whether the page came over TLS. Set by the server before LunaServiceStart.
+typedef bool (*LunaCertificateFn)(std::string* json);
+void LunaServiceSetCertificateFn(LunaCertificateFn fn);
+
 // Best-effort unregister. Safe if Start() failed or was never called.
 void LunaServiceStop();
 

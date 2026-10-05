@@ -88,6 +88,11 @@ input.jihad-address {
 	cursor: pointer;
 }
 .jihad-inline-btn .jihad-nav-img { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+/* The padlock: the same inline control at the field's LEFT edge, there only on a TLS page;
+   the text makes room for it the way it does for the reload glyph on the right. */
+.jihad-lock-btn { right: auto; left: 6px; }
+.jihad-secure .jihad-address input,
+.jihad-secure input.jihad-address { padding-left: 40px; }
 .jihad-address-box { position: relative; }
 
 /* Scale the base64 SVG glyphs to fill the Mochi icon box cleanly. */
@@ -151,6 +156,10 @@ input.jihad-address {
 	font-size: 16px;
 	line-height: 1.4;
 	margin-bottom: 14px;
+	/* A message may be several lines (a certificate's details) and may hold one long word
+	   (a fingerprint). */
+	white-space: pre-line;
+	word-wrap: break-word;
 }
 .jihad-dialog-inputbox { margin-bottom: 12px; }
 .jihad-dialog-input { width: 100%; -webkit-box-sizing: border-box; box-sizing: border-box; }

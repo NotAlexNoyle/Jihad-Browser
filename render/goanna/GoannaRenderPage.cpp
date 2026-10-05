@@ -79,6 +79,7 @@
 #include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
 #include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
 #include "nsISSLStatusProvider.h"    // pull the server cert off a failed TLS channel
+#include "nsISecureBrowserUI.h"       // the loaded page's certificate (the address-bar padlock)
 #include "nsISSLStatus.h"
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
@@ -426,6 +427,20 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
             fprintf(stderr, "[jihad-bs] ssl: cert error on %s:%d secInfo=%d prov=%d status=%d cert=%d\n",
                     mCertHost.get(), mCertPort, (int)!!secInfo, (int)!!prov, (int)!!st,
                     (int)!!mCertCert);
+            // NO CERTIFICATE, NO CERTIFICATE QUESTION. The security module also reports
+            // failures that have nothing to do with a certificate — a handshake that broke
+            // (SSL_ERROR_RX_MALFORMED_SERVER_HELLO, measured 2026-10-05 on a first
+            // connection that succeeded on the next try), a protocol the server will not
+            // speak. For those there is no certificate to show or to trust, and the dialog
+            // ("The security certificate … sent is invalid", with Trust Always) was both
+            // untrue and unanswerable: accepting had nothing to accept. They are failed
+            // loads, and are reported as one.
+            if (!mCertCert) {
+              mCertError = false;
+              mCertHost.Truncate();
+              fprintf(stderr, "[jihad-bs] ssl: no certificate came with that failure — "
+                              "reporting a failed connection, not a certificate question\n");
+            }
           }
         }
       }
@@ -2245,9 +2260,11 @@ bool NotifyChromeGlobal(const char* topic, const char* data) {
   return NS_SUCCEEDED(obs->NotifyObservers(nullptr, topic, NS_ConvertUTF8toUTF16(data ? data : "").get()));
 }
 
-bool GoannaRenderPage::GetCertInfoJson(std::string* json) {
-  if (!json || !mChrome || !mChrome->mCertCert) return false;
-  nsIX509Cert* c = mChrome->mCertCert;
+// A certificate as the fields a card shows — the shape com.palm.certificatemanager answers
+// with (subject / issuer / dates / serial), which is what both shells' certificate views
+// were written against. `extra`, when not empty, is further top-level members.
+static bool jihadCertJson(nsIX509Cert* c, const std::string& extra, std::string* json) {
+  if (!c || !json) return false;
   nsAutoString s;
   std::string subject, issuer, top;
   bool f = true;
@@ -2269,8 +2286,66 @@ bool GoannaRenderPage::GetCertInfoJson(std::string* json) {
   s.Truncate(); c->GetSha256Fingerprint(s); jihadJsonField(top, "sha256", s, &f);
   *json = "{\"returnValue\":true,\"subject\":{" + subject + "},\"issuer\":{" + issuer + "}";
   if (!top.empty()) { *json += ","; *json += top; }
+  if (!extra.empty()) { *json += ","; *json += extra; }
   *json += "}";
   return true;
+}
+
+bool GoannaRenderPage::GetCertInfoJson(std::string* json) {
+  if (!json || !mChrome || !mChrome->mCertCert) return false;
+  return jihadCertJson(mChrome->mCertCert, std::string(), json);
+}
+
+// The certificate of the page that is LOADED (the padlock in the address bar), as opposed
+// to the one a failed load is asking about (above). It comes from the docshell's security
+// UI, which follows the document through back/forward and bfcache; the connection's
+// protocol and cipher ride along, and whether the page pulled in anything insecure.
+bool GoannaRenderPage::GetPageCertInfoJson(std::string* json) {
+  if (!json || !mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  nsCOMPtr<nsISecureBrowserUI> ui;
+  ds->GetSecurityUI(getter_AddRefs(ui));
+  nsCOMPtr<nsISSLStatusProvider> prov = do_QueryInterface(ui);
+  nsCOMPtr<nsISSLStatus> st;
+  if (prov) prov->GetSSLStatus(getter_AddRefs(st));
+  nsCOMPtr<nsIX509Cert> cert;
+  if (st) st->GetServerCert(getter_AddRefs(cert));
+  if (!cert) return false;
+  uint32_t state = 0;
+  ui->GetState(&state);
+  nsAutoCString cipher; st->GetCipherName(cipher);
+  uint32_t bits = 0; st->GetSecretKeyLength(&bits);
+  uint16_t ver = 0; st->GetProtocolVersion(&ver);
+  const char* proto = ver == nsISSLStatus::TLS_VERSION_1_3 ? "TLS 1.3"
+                    : ver == nsISSLStatus::TLS_VERSION_1_2 ? "TLS 1.2"
+                    : ver == nsISSLStatus::TLS_VERSION_1_1 ? "TLS 1.1"
+                    : ver == nsISSLStatus::TLS_VERSION_1   ? "TLS 1.0"
+                    : ver == nsISSLStatus::SSL_VERSION_3   ? "SSL 3" : "";
+  std::string extra = "\"secure\":true";
+  // What a certificate SAYS is half of it; whether it was believed is the other half.
+  //   broken      the engine does not count the page as secure although it came over TLS:
+  //               it loaded something that did not, or the connection itself is weak
+  //               (STATE_IS_BROKEN covers both and does not say which);
+  //   overridden  the certificate did not verify and the user chose to accept it — it gets
+  //               a padlock like any other, and this is the only thing that tells them apart;
+  //   untrusted / mismatch / badTime   why it did not verify.
+  bool untrusted = false, mismatch = false, badTime = false;
+  st->GetIsUntrusted(&untrusted);
+  st->GetIsDomainMismatch(&mismatch);
+  st->GetIsNotValidAtThisTime(&badTime);
+  const bool overridden = (state & nsIWebProgressListener::STATE_CERT_USER_OVERRIDDEN) != 0;
+  extra += (state & nsIWebProgressListener::STATE_IS_BROKEN) ? ",\"broken\":true" : ",\"broken\":false";
+  extra += overridden ? ",\"overridden\":true" : ",\"overridden\":false";
+  extra += untrusted ? ",\"untrusted\":true" : ",\"untrusted\":false";
+  extra += mismatch ? ",\"mismatch\":true" : ",\"mismatch\":false";
+  extra += badTime ? ",\"badTime\":true" : ",\"badTime\":false";
+  std::string conn; bool f = true;
+  jihadJsonField(conn, "protocol", NS_ConvertASCIItoUTF16(proto), &f);
+  jihadJsonField(conn, "cipher", NS_ConvertUTF8toUTF16(cipher), &f);
+  char kb[40]; snprintf(kb, sizeof kb, "%s\"keyLength\":%u", conn.empty() ? "" : ",", (unsigned)bits);
+  extra += ",\"connection\":{" + conn + kb + "}";
+  return jihadCertJson(cert, extra, json);
 }
 
 bool GoannaRenderPage::GetCertDer(std::string* der) {
@@ -3735,6 +3810,14 @@ bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused) {
   for (int depth = 0; node && depth < 64; ++depth) {
     nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
     if (e && edIsEditable(e)) {
+      // A control that refuses edits is not a place to paste or cut: its text is the
+      // page's, and gets the page's menu (Copy, Select All).
+      bool ro = false, dis = false;
+      nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(e);
+      nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(e);
+      if (in) { in->GetReadOnly(&ro); in->GetDisabled(&dis); }
+      else if (ta) { ta->GetReadOnly(&ro); ta->GetDisabled(&dis); }
+      if (ro || dis) return false;
       if (isFocused) *isFocused = (mChrome->mFocusedEditable == e);
       return true;
     }
@@ -3943,6 +4026,14 @@ bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return false;
   return jihad_offscreen_render_region(mWidget, ds, zoom, docX, docY, dst, stride, w, h);
+}
+
+uint64_t GoannaRenderPage::CurrentDocId() {
+  if (!mChrome || !mChrome->mBrowser) return 0;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  uint64_t id = 0;
+  if (u) u->GetCurrentInnerWindowID(&id);
+  return id;
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {

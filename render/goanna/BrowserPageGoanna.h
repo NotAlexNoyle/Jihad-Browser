@@ -106,6 +106,11 @@ public:
   virtual void msgEditorFocused(bool focused, int fieldType, int fieldActions) {
     (void)focused; (void)fieldType; (void)fieldActions;
   }
+  // The answer to the adapter's copy(queryNum) (YAP 0x2032): whether selected text was
+  // handed to the card. Sent once the queued command has actually run.
+  virtual void msgCopySuccessResponse(int queryNum, bool success) {
+    (void)queryNum; (void)success;
+  }
   // A navigation resolved to a non-displayable resource (download / MIME handoff).
   // Drives BrowserServerBase::msgMimeHandoffUrl (YAP 0x2015) -> adapter
   // mimeHandoffUrl -> BasicWebView.doFileLoad -> app handleResource, which routes
@@ -230,6 +235,8 @@ public:
   void requestThumbnail(const std::string& path);
   // Hand this page to a bundled JS component (see GoannaRenderPage::NotifyChrome).
   bool notifyChrome(const char* topic, const std::string& data) { return mPage && mPage->NotifyChrome(topic, data.c_str()); }
+  // The loaded page's certificate and connection, as JSON for the card (the padlock).
+  bool pageCertificate(std::string* json) { return mPage && mPage->GetPageCertInfoJson(json); }
   // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
   // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
   void hitTest(int x, int y, std::string* json);
@@ -252,8 +259,11 @@ public:
   void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
   // YAP: selectAll / copy / cut — the long-press menu's page actions. Done by the bundled
   // component components/jihadPageCommands.js (selection and editing are a few lines of
-  // script there and pages of C++ here); this hands it the page and the command.
-  void pageCommand(const char* cmd, const std::string& extraJson = std::string());
+  // script there and pages of C++ here). QUEUED, like every other input command: two of
+  // them can run page script (an `input` event, a selection listener), which must not
+  // happen inside the socket callback. queryNum >= 0 is a copy whose result the adapter is
+  // waiting for.
+  void pageCommand(const char* cmd, int queryNum = -1);
   void dragStart(int x, int y);                    // YAP: dragStart
   void dragProcess(int deltaX, int deltaY);        // YAP: dragProcess (scroll)
   void dragEnd(int x, int y);                      // YAP: dragEnd
@@ -375,6 +385,10 @@ private:
   // could tear the page down under us (Codex F-219). A QUEUE, not a single slot, so several presses
   // between pump ticks aren't dropped (Codex F-241); see the PEA_* constants in the .cpp.
   std::vector<int>   mPendingEditActions;
+  struct PendingPageCmd { std::string cmd; int queryNum; unsigned navGen; };
+  std::vector<PendingPageCmd> mPendingPageCmds;        // drained in the guarded pump
+  // Hand one command to the component NOW (pump only). True if it handed text to the card.
+  bool runPageCommand(const char* cmd, const std::string& extraJson = std::string());
   // Queued raw mouse events (F-9). mouseEvent()/holdAt() are YAP socket callbacks with no
   // page-lifetime protection, exactly like clickAt: a mousedown/mouseup/contextmenu runs page JS
   // (onmousedown -> location/document.open) that can tear the document down mid-callback, after
@@ -428,6 +442,18 @@ private:
   // Last painted region (zoomed px + its zoom) — coverage-aware repaint: a scroll whose
   // viewport is still well inside this region needs NO repaint (the adapter pans locally).
   int                mPaintedX = 0;
+  int                mPaintedW = 0;          // width of the painted region (>= the viewport's)
+  // Composed frames (paintToSharedBuffer): the slot of the newest published frame, the
+  // newest generation of off-screen rows, and what maintenance is owed — the region still
+  // has rows to grow by, or mSweepLeft of its off-screen rows may predate a change.
+  int                mLatestSlot = -1;
+  uint32_t           mStripGen = 0;
+  bool               mGrowOwed = false;
+  long               mSweepLeft = 0, mSweepRow = 0;
+  long               mSweepStep = 512;       // rows per sweep frame (128..1024, by measured cost)
+  int64_t            mSweepNotBeforeMs = 0;  // pause after a completed sweep
+  int                mMaintenance = 0;       // 1 grow, 2 sweep: the paint being asked for is one
+  bool               panCovered(int x, int y);   // is the adapter's viewport inside the painted region?
   long               mPaintedLo = 0, mPaintedHi = 0;
   double             mPaintedZoom = 1.0;
   int64_t            mLastPaintDoneMs = 0;    // pan-cadence refresh (fixed-content drift bound)
@@ -464,7 +490,15 @@ private:
     double zeff = 1.0;
     int    scrollX = 0, scrollY = 0;
     int    paintedX = 0, paintedTop = 0, paintedH = 0;
+    int    paintedW = 0;     // the region's width = the buffer's row stride in px (>= w)
     long   bandRow = 0;      // first visible row of the band inside the buffer
+    long   bandCol = 0;      // first visible column (0 unless the region is wider than w)
+    // For composing the next frame from this one (paintToSharedBuffer, "build on the frame
+    // already painted"): which document the rows are of, which generation of off-screen
+    // rows they are, and whether a popup was drawn over them.
+    uint64_t docId = 0;
+    uint32_t stripGen = 0;
+    bool   overlay = false;
     // Damage accumulated since THIS buffer was last painted, in viewport device px. A
     // damage-only repaint must cover everything the buffer missed, not just the newest frame:
     // buffers alternate, so a buffer painted N frames ago skipped every intermediate frame's

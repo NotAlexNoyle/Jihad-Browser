@@ -186,6 +186,10 @@ enyo.kind({
 		// the copied text was put. Neither is a sentence to show.
 		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }
 		if (inResponse.category === "page-copied") { this.$.browser.pageCopied(inResponse.text); return; }
+		// What the engine says about a copy or a cut is broadcast to every card; it is
+		// shown by the one that asked.
+		if (inResponse.category === "page-copy-empty" && !this.$.browser.pageCopyEmpty()) { return; }
+		if ((inResponse.category === "page-cut" || inResponse.category === "page-cut-refused") && !this.$.browser.pageCutResult()) { return; }
 		enyo.jihadToast.show(inResponse.category, inResponse.text);
 	},
 	//* A failed subscription is not worth a dialog: it costs the user their status toasts and

@@ -19,8 +19,8 @@
 // callBrowserAdapter() below is the ONLY app-facing adapter surface, and the set of
 // method-name literals routed through it is a strict SUBSET of the Enyo-1.0 app's
 // set in ../../../app/source/Browser.js —
-//     Mojo : {copy, cut, findInPage, goBack, goForward, insertStringAtCursor, reloadPage,
-//             selectAll, stopLoad}
+//     Mojo : {copy, cut, findInPage, goBack, goForward, insertStringAtCursor, pageFocused,
+//             reloadPage, selectAll, stopLoad}
 //     Enyo : those and more (dialogs, images, printing, privacy switches)
 // — no additions, no renames. (copy, cut, selectAll and insertStringAtCursor arrived in both
 // shells on 2026-10-05 with the long-press menu; all four were already adapter methods.) This variant uses no palm://com.palm.browserServer/*
@@ -281,6 +281,7 @@ MainAssistant.prototype.bindHandlers = function () {
 	this.handleCreatePage = this.handleCreatePage.bind(this);
 	this.handleMimeUnsupported = this.handleMimeUnsupported.bind(this);
 	this.handleServerDisconnect = this.handleServerDisconnect.bind(this);
+	this.handleAddressTap = this.handleAddressTap.bind(this);
 	this.handleAddressSubmit = this.handleAddressSubmit.bind(this);
 	this.handleRetry = this.handleRetry.bind(this);
 };
@@ -311,6 +312,7 @@ MainAssistant.prototype.listen = function () {
 	for (var i = 0; i < events.length; i++) {
 		Mojo.Event.listen(view, events[i][0], events[i][1]);
 	}
+	Mojo.Event.listen(this.controller.get(this.ADDRESS_ID), Mojo.Event.tap, this.handleAddressTap, true);
 	Mojo.Event.listen(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.listen(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
@@ -393,7 +395,100 @@ MainAssistant.prototype.handleNotification = function (response) {
 		this.handlePageCopied(response.text);
 		return;
 	}
+	// What the engine says about a copy or a cut is broadcast to every card; it is shown by
+	// the one that asked.
+	if (response.category === "page-copy-empty" && !this.takeCopyAsked()) {
+		return;
+	}
+	if ((response.category === "page-cut" || response.category === "page-cut-refused") && !this.takeCutAsked()) {
+		return;
+	}
 	JihadToast.show(response.category, response.text);
+};
+
+// --- the padlock ---------------------------------------------------------------------------
+//* On a page that came over TLS the address field carries a padlock at its left edge (drawn
+//* as the field's background: the field is a framework widget and redraws its own children).
+MainAssistant.prototype.updateLock = function () {
+	var field = this.controller.get(this.ADDRESS_ID);
+	this.secure = !this.loadFailed && /^https:\/\//i.test(this.url || "");
+	if (field) {
+		if (this.secure) {
+			field.addClassName("jihad-secure");
+		} else {
+			field.removeClassName("jihad-secure");
+		}
+	}
+};
+
+//* A tap on the padlock (the left 40 px of a field that shows one) says whose certificate the
+//* page was served with, instead of starting an edit. Asked of this browser's own daemon,
+//* which answers this variant's own card only; pageFocused first, because the question goes
+//* over Luna and cannot say which card is asking.
+MainAssistant.prototype.handleAddressTap = function (event) {
+	var field = this.controller.get(this.ADDRESS_ID), down = event && event.down, rect;
+	if (!this.secure || !field || !down || down.pageX === undefined) {
+		return;
+	}
+	rect = field.getBoundingClientRect();
+	if (down.pageX - rect.left > 40) {
+		return;
+	}
+	event.stop();
+	this.callBrowserAdapter("pageFocused", [true]);
+	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {
+		method: "pageCertificate",
+		parameters: {},
+		onSuccess: this.showPageCertificate.bind(this),
+		onFailure: this.showPageCertificate.bind(this)
+	});
+};
+
+MainAssistant.prototype.showPageCertificate = function (r) {
+	var lines = [], c = r && r.connection, bits = [];
+	function party(label, p) {
+		var out = [], keys = ["commonname", "organization", "unit"], i;
+		if (!p) {
+			return;
+		}
+		for (i = 0; i < keys.length; i++) {
+			if (p[keys[i]]) {
+				out.push(String(p[keys[i]]));
+			}
+		}
+		if (out.length) {
+			lines.push(label + ": " + out.join(", "));
+		}
+	}
+	if (r && r.returnValue && r.secure) {
+		party($L("Issued to"), r.subject);
+		party($L("Issued by"), r.issuer);
+		if (r.startdate) { lines.push($L("Valid from") + ": " + r.startdate); }
+		if (r.expiredate) { lines.push($L("Valid until") + ": " + r.expiredate); }
+		if (r.serialNumber) { lines.push($L("Serial number") + ": " + r.serialNumber); }
+		if (r.sha256) { lines.push($L("SHA-256 fingerprint") + ": " + r.sha256); }
+		if (c) {
+			if (c.protocol) { bits.push(String(c.protocol)); }
+			if (c.cipher) { bits.push(String(c.cipher)); }
+			if (c.keyLength) { bits.push(c.keyLength + $L("-bit keys")); }
+		}
+		if (bits.length) { lines.push($L("Connection") + ": " + bits.join(", ")); }
+		// Whether the certificate was believed, and whether the page counts as secure.
+		if (r.overridden || r.untrusted || r.mismatch || r.badTime) {
+			lines.push((r.mismatch ? $L("This certificate was issued for a different site.") :
+				r.badTime ? $L("This certificate is not valid at this time.") :
+				$L("This certificate could not be verified.")) + (r.overridden ? " " + $L("You chose to trust it.") : ""));
+		}
+		if (r.broken) { lines.push($L("This page is not fully secure: part of it, or the connection itself, is not protected.")); }
+	}
+	this.controller.showAlertDialog({
+		title: $L("Certificate"),
+		// The dialog takes text, not markup: the certificate's own strings are shown as they are.
+		message: lines.length ? lines.join("\n") : $L("No certificate information is available for this page."),
+		allowHTMLMessage: false,
+		choices: [{label: $L("OK"), value: "ok"}],
+		onChoose: function () {}
+	});
 };
 
 // --- long-press menu -----------------------------------------------------------------------
@@ -443,11 +538,16 @@ MainAssistant.prototype.handlePageMenuChoice = function (command) {
 		this.callBrowserAdapter("selectAll");
 		break;
 	case "page-copy":
-		// The text comes back by way of handlePageCopied.
+		// The text comes back by way of handlePageCopied. What the engine says about a copy
+		// is broadcast to every card, so the card remembers that it asked.
+		this.copyAsked = {at: Date.now(), cut: false};
 		this.callBrowserAdapter("copy");
 		break;
 	case "page-cut":
-		this.callBrowserAdapter("cut");
+		// A copy, and then — only once the text is on the clipboard — the adapter's cut,
+		// which tells the engine to delete what it handed over (handlePageCopied).
+		this.copyAsked = {at: Date.now(), cut: true};
+		this.callBrowserAdapter("copy");
 		break;
 	case "page-paste":
 		this.pasteIntoPage();
@@ -468,28 +568,94 @@ MainAssistant.prototype.handlePageMenuChoice = function (command) {
 	}
 };
 
+//* The copy this card asked for within the last five seconds, once.
+MainAssistant.prototype.takeCopyAsked = function () {
+	var a = this.copyAsked;
+	this.copyAsked = null;
+	return (a && Date.now() - a.at < 5000) ? a : null;
+};
+
+//* How a cut this card asked for ended ("Cut.", or why not): its to show, nobody else's.
+MainAssistant.prototype.takeCutAsked = function () {
+	var at = this.cutAsked;
+	this.cutAsked = 0;
+	return !!(at && Date.now() - at < 5000);
+};
+
 //* The engine has written the selected text where this card may load it: a one-call script in
 //* the app's own clip/ directory (a card can load a local file from nowhere else, and the
 //* clipboard is the card's to write). `name` is that file's name.
 MainAssistant.prototype.handlePageCopied = function (name) {
 	var win = this.controller.window, doc = this.controller.document, sc = this.controller.stageController;
-	var script;
-	if (!/^copy-[0-9-]+\.js$/.test(String(name))) {
+	var script, asked = this.takeCopyAsked(), self = this, done = false;
+	if (!asked || !/^copy-[0-9a-f-]+\.js$/.test(String(name))) {
 		return;
+	}
+	function failed() {
+		if (done) {
+			return;
+		}
+		done = true;
+		win.jihadClip = null;
+		JihadToast.show("info", $L("The text could not be copied."));
 	}
 	script = doc.createElement("script");
 	win.jihadClip = function (text) {
+		if (done) {
+			return;
+		}
+		done = true;
 		win.jihadClip = null;
-		sc.setClipboard(String(text), false);
+		try {
+			sc.setClipboard(String(text), false);
+		} catch (e) {
+			JihadToast.show("info", $L("The text could not be copied."));
+			return;
+		}
+		// True from this moment whatever the cut does; "Cut." replaces it if the engine
+		// confirms the deletion (the "page-cut" notification).
 		JihadToast.show("info", $L("Copied."));
+		if (asked.cut) {
+			self.cutAsked = Date.now();
+			self.callBrowserAdapter("cut");
+		}
 	};
-	script.onload = script.onerror = function () {
+	script.onload = function () {
 		if (script.parentNode) {
 			script.parentNode.removeChild(script);
 		}
+		failed();                           // it loaded and never called: not a clip script
+	};
+	script.onerror = function () {
+		if (script.parentNode) {
+			script.parentNode.removeChild(script);
+		}
+		failed();
 	};
 	script.src = "clip/" + name;
 	doc.body.appendChild(script);
+};
+
+//* `text` as the pieces a paste is sent in. One message to the engine holds 16 KB and a longer
+//* string is dropped whole (the IPC's own limit), so each piece is at most 12000 bytes of
+//* UTF-8, and no piece ends inside a surrogate pair.
+MainAssistant.prototype.pasteChunks = function (inText) {
+	var out = [], start = 0, bytes = 0, i, c, n;
+	for (i = 0; i < inText.length; i++) {
+		c = inText.charCodeAt(i);
+		n = c < 0x80 ? 1 : (c < 0x800 ? 2 : 3);
+		// A low surrogate stays with the high one before it.
+		if (bytes + n > 12000 && !(c >= 0xDC00 && c <= 0xDFFF)) {
+			out.push(inText.substring(start, i));
+			start = i;
+			bytes = 0;
+		}
+		bytes += n;
+	}
+	if (start < inText.length) {
+		out.push(inText.substring(start));
+	}
+	return out;
 };
 
 //* Paste: the clipboard is read here (only a card can) — the system's paste into a throwaway
@@ -499,7 +665,7 @@ MainAssistant.prototype.handlePageCopied = function (name) {
 //* called empty.
 MainAssistant.prototype.pasteIntoPage = function () {
 	var doc = this.controller.document, win = this.controller.window, self = this, tries = 0;
-	var ta = doc.createElement("textarea");
+	var ta = doc.createElement("textarea"), parts, i;
 	ta.style.position = "absolute";
 	ta.style.left = "-2000px";
 	ta.style.top = "0";
@@ -515,6 +681,7 @@ MainAssistant.prototype.pasteIntoPage = function () {
 	} catch (e) {
 		Mojo.Log.error("[Jihad] paste: %s", e);
 	}
+	// Another app decides what is on the clipboard, so its size is bounded here.
 	function look() {
 		var text = ta.value;
 		if (!text && ++tries < 15) {
@@ -525,10 +692,15 @@ MainAssistant.prototype.pasteIntoPage = function () {
 		if (ta.parentNode) {
 			ta.parentNode.removeChild(ta);
 		}
-		if (text) {
-			self.callBrowserAdapter("insertStringAtCursor", [String(text)]);
-		} else {
+		if (!text) {
 			JihadToast.show("info", $L("The clipboard is empty."));
+		} else if (text.length > 262144) {
+			JihadToast.show("info", $L("The clipboard holds too much text to paste here."));
+		} else {
+			parts = self.pasteChunks(String(text));
+			for (i = 0; i < parts.length; i++) {
+				self.callBrowserAdapter("insertStringAtCursor", [parts[i]]);
+			}
 		}
 	}
 	win.setTimeout(look, 20);
@@ -560,6 +732,7 @@ MainAssistant.prototype.cleanup = function () {
 	for (var i = 0; i < events.length; i++) {
 		Mojo.Event.stopListening(view, events[i][0], events[i][1]);
 	}
+	Mojo.Event.stopListening(this.controller.get(this.ADDRESS_ID), Mojo.Event.tap, this.handleAddressTap, true);
 	Mojo.Event.stopListening(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.stopListening(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
@@ -731,6 +904,8 @@ MainAssistant.prototype.handleCreatePage = function (event) {
 // --- load state -------------------------------------------------------------
 
 MainAssistant.prototype.handleLoadStarted = function () {
+	this.loadFailed = false;
+	this.updateLock();
 	this.hideError();
 	this.setLoading(true);
 	this.setProgress(0);
@@ -760,6 +935,9 @@ MainAssistant.prototype.handleLoadFailed = function (event) {
 		return;
 	}
 	this.failedUrl = (event && event.failingURL) || this.url;
+	// What is on screen is an error now, not the site in the address field: no padlock.
+	this.loadFailed = true;
+	this.updateLock();
 	this.showError(code, event && event.message);
 };
 
@@ -802,6 +980,7 @@ MainAssistant.prototype.handleTitleUrlChanged = function (event) {
 		return;
 	}
 	this.url = event.url || this.url;
+	this.updateLock();
 	this.title = event.title || this.title;
 	this.canGoBack = !!event.canGoBack;
 	this.canGoForward = !!event.canGoForward;
@@ -833,6 +1012,7 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 		return;
 	}
 	this.url = event.url || this.url;
+	this.updateLock();
 	this.canGoBack = !!event.canGoBack;
 	this.canGoForward = !!event.canGoForward;
 	this.syncChrome();

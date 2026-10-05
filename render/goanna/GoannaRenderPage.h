@@ -323,6 +323,9 @@ public:
   // width*height*4 bytes. dst must be at least that large. Returns the number
   // of non-near-white pixels (a cheap "did it render" signal), or -1 on error.
   long ReadPixels(unsigned char* dst, size_t dstBytes);
+  // Identifies the document now in the window (its inner window id; 0 if unknown). Two
+  // frames with the same id are of the same document, so rows of one can stand in the other.
+  uint64_t CurrentDocId();
 
   // Render an ABSOLUTE document region (document-relative, engine scroll ignored)
   // directly into dst: w x h DEVICE px at zoom Z, covering the CSS rect
@@ -399,6 +402,9 @@ public:
   // names as the platform certificate manager's reply (subject / issuer / startdate /
   // expiredate / serialNumber), because that is what the Enyo certificate view reads.
   bool GetCertInfoJson(std::string* json);
+  // The certificate of the page now loaded, plus the connection it came over, in the same
+  // shape. False when the page did not come over TLS (or there is no page).
+  bool GetPageCertInfoJson(std::string* json);
   // What is actually wrong with that certificate, for choosing the card's
   // message. False when the last load had no cert error.
   bool GetCertProblem(jihad::certstore::Problem* out);

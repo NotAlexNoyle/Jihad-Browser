@@ -55,6 +55,17 @@
 
 /* The TextField widget builds its own inner markup at render time; keep it inside
    the row whatever padding it brings. */
+/* A page that came over TLS: a padlock at the field's left edge, drawn as the field's own
+   background (the field is a framework widget and redraws its children), with the text moved
+   clear of it. The field's width does not change, so the toolbar's does not either. */
+.jihad-address.jihad-secure {
+	background-image: url(../images/secure-lock.png);
+	background-repeat: no-repeat;
+	background-position: 8px center;
+	-webkit-background-size: 22px 22px; background-size: 22px 22px;
+	padding-left: 40px;
+}
+
 .jihad-address * {
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 	max-width: 100%;

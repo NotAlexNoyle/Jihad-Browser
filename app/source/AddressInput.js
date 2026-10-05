@@ -18,19 +18,24 @@ enyo.kind({
 	align: "center", 
 	published: {
 		url: "",
-		loading: false
+		loading: false,
+		//* The load of `url` failed: what is on screen is an error, not that site, and it
+		//* gets no padlock whatever the address says.
+		loadFailed: false
 	},
 	events: {
 		onBlur: "",
 		onInputChange: "",
 		onGo: "",
 		onStop: "",
-		onRefresh: ""
+		onRefresh: "",
+		//* The padlock was tapped: whose certificate is this page's?
+		onSecureInfo: ""
 	},
 	chrome: [
 		
 		{kind: "InputBox", layoutKind: "HFlexLayout", flex: 1, className: "enyo-tool-input", focusClassName: "enyo-tool-input-focus", spacingClassName: "enyo-tool-input-spacing", components: [
-			{name: "secureLock", kind: enyo.CustomButton, showing: false, className: "secure-lock"},
+			{name: "secureLock", kind: enyo.CustomButton, showing: false, className: "secure-lock", onclick: "doSecureInfo"},
 			
 			{name: "userinput", kind: "Input", flex: 1, styled: false, inputType: "url", width: "100%", spellcheck: false, autocorrect: false, autoCapitalize: "lowercase", autoWordComplete: false, hint: $L("Enter URL or search terms"), selectAllOnFocus: true,
 				onfocus: "selectInput",
@@ -76,12 +81,15 @@ enyo.kind({
 	loadingChanged: function() {
 		this.changeButtons();
 	},
+	loadFailedChanged: function() {
+		this.changeButtons();
+	},
 	changeButtons: function() {
 		this.showLeftButton("");
 		if (this.hasFocus() && this.$.userinput.getValue().length >= 0) {
 			this.showRightButton("clearButton");
 		} else {
-			if (this.url.toLowerCase().substring(0, 8) === "https://") {
+			if (!this.loadFailed && this.url.toLowerCase().substring(0, 8) === "https://") {
 				this.showLeftButton("secureLock");
 			}
 			if (this.loading) {

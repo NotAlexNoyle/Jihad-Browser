@@ -300,6 +300,9 @@ static NotificationSink* gNotify = nullptr;
 
 void SetNotificationSink(NotificationSink* sink) { gNotify = sink; }
 
+static unsigned gPageCopied = 0;
+unsigned PageCopiedCount() { return gPageCopied; }
+
 void PostNotification(const char* category, const char* text) {
   const char* cat = (category && *category) ? category : "info";
   const char* msg = text ? text : "";
@@ -309,8 +312,9 @@ void PostNotification(const char* category, const char* text) {
     // "no channel" here is how a broken Luna registration announces itself. It is a log
     // write, not a dialog — nothing blocks and the caller carries on either way.
     fprintf(stderr, "[jihad-bs] notify (no channel): %s: %s\n", cat, msg);
-    return;
+    return;                       // nothing was handed to any card: PageCopiedCount stays
   }
+  if (strcmp(cat, "page-copied") == 0) ++gPageCopied;
   gNotify->OnNotification(cat, msg);
 }
 

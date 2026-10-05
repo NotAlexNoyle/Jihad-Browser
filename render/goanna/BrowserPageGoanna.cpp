@@ -26,6 +26,7 @@
 #include <sys/shm.h>
 #include <sys/stat.h>   // chmod (popup menu data file 0644), mkfifo (dialog reply pipe)
 #include <fcntl.h>      // open() the dialog reply FIFO
+#include <sys/statvfs.h> // room on /tmp before an on-request frame dump
 #include <poll.h>       // wait for the card's answer with a deadline
 #include <unistd.h>
 #include <pthread.h>    // Jihad audio-scenario poll thread
@@ -593,6 +594,7 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0;
   mDamageValid = false; mDamageForceFull = true;
   if (!mPage) return;
   // The BrowserAdapter owns the shared framebuffer and its size (Codex P1/P2);
@@ -719,6 +721,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   // plugin animating, mDamageValid is true on essentially every tick, so that is the
   // guaranteed first frame after thaw, not a rare one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0;
   mDamageValid = false; mDamageForceFull = true;
   mFrozen = false;
   mNeedsPaint = true;
@@ -759,6 +762,7 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   // those identical while replacing all the pixels — so geometry alone cannot catch it and
   // the record has to be dropped explicitly.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0;
   mDamageValid = false; mDamageForceFull = true;
   // The old page's plugins are gone; their rects must not outlive them. The adapter never
   // clears mFlashRects itself, so leaving them behind makes the NEW page carry invisible
@@ -771,9 +775,52 @@ void BrowserPageGoanna::resetScrollForNavigation() {
                                                   // re-emit at load-done even if the size repeats
   mLastScrollX = 0; mLastScrollY = 0;             // emitScrollIfChanged dedup cache
   mLastScrollMs = 0;                              // disarm the adapter-driven suppression window
-  mPaintedX = 0; mPaintedLo = 0; mPaintedHi = 0;  // no stale coverage claim (setScrollPosition)
+  mPaintedX = 0; mPaintedW = 0; mPaintedLo = 0; mPaintedHi = 0;  // no stale coverage claim (setScrollPosition)
   mPrevPaintScrollY = 0;                          // overscan direction bias
   mSink.msgScrolledTo(0, 0);                      // the adapter-side half of the reset
+}
+
+// Is the adapter's viewport at (x,y) — zoomed px, its own scroll — inside the region the last
+// paint covered, with room to spare? Repaint only when it nears the region's edge or leaves
+// it: panning inside the buffer is exactly what the headroom is for.
+bool BrowserPageGoanna::panCovered(int x, int y) {
+  if (!mPage) return false;
+  double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  long h2 = (long)mPage->Height(), w2 = (long)mPage->Width();
+  long slack = h2 / 2;   // trigger EARLY: the repaint takes real time on this CPU and the
+                         // fling keeps consuming rows while it renders ("content doesn't
+                         // stay consistently visible" — h/4 triggered too late)
+  // ...but never more than the region can give. The paint puts as little as a sixth of its
+  // spare rows behind the pan, and a region that is two viewports WIDE has half the rows:
+  // with a fixed half-viewport margin the position just painted counted as uncovered, and
+  // every pan message asked for another paint. An eighth of the spare rows always fits.
+  {
+    const long spare = (mPaintedHi - mPaintedLo) - h2;
+    if (spare > 0 && spare / 8 < slack) slack = spare / 8;
+    if (spare <= 0) slack = 0;
+  }
+  double Zc = (z >= 0.99 && z <= 1.01) ? 1.0 : z;   // the zoom the paint path would use
+  long contentRows = (mLastContentH > 0) ? (long)((double)mLastContentH * Zc) : 0;
+  long loBound = (mPaintedLo <= 0) ? 0 : mPaintedLo + slack;             // page top: no slack
+  long hiBound = (contentRows > 0 && mPaintedHi >= contentRows)
+                     ? mPaintedHi : mPaintedHi - slack;                   // page end: no slack
+  // Columns. A region exactly one viewport wide (every unzoomed frame) is covered only at the
+  // x it was painted for, as before. A wider one (zoomed in) is covered anywhere inside it,
+  // less a quarter viewport of warning at any edge that is not the page's own.
+  bool xCovered;
+  if (mPaintedW <= w2) {
+    xCovered = (x == mPaintedX);
+  } else {
+    long contentCols = (mLastContentW > 0) ? (long)((double)mLastContentW * Zc) : 0;
+    long xs = w2 / 4;
+    long loX = (mPaintedX <= 0) ? 0 : (long)mPaintedX + xs;
+    long hiX = (long)mPaintedX + mPaintedW;
+    if (!(contentCols > 0 && hiX >= contentCols)) hiX -= xs;
+    xCovered = (long)x >= loX && (long)x + w2 <= hiX;
+  }
+  return mPaintedHi > mPaintedLo && xCovered &&
+         (mPaintedZoom > Zc - 0.001 && mPaintedZoom < Zc + 0.001) &&
+         (long)y >= loBound && (long)y + h2 <= hiBound;
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
@@ -822,18 +869,11 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
   // h/4) or leaves it — panning inside the buffer is exactly what the headroom is for.
   {
     long h2 = (long)mPage->Height();
-    long slack = h2 / 2;   // trigger EARLY: the repaint takes real time on this CPU and the
-                           // fling keeps consuming rows while it renders ("content doesn't
-                           // stay consistently visible" — h/4 triggered too late)
     double Zc = (z >= 0.99 && z <= 1.01) ? 1.0 : z;   // the zoom the paint path would use
-    long contentRows = (mLastContentH > 0) ? (long)((double)mLastContentH * Zc) : 0;
-    long loBound = (mPaintedLo <= 0) ? 0 : mPaintedLo + slack;             // page top: no slack
-    long hiBound = (contentRows > 0 && mPaintedHi >= contentRows)
-                       ? mPaintedHi : mPaintedHi - slack;                   // page end: no slack
-    bool covered = mPaintedHi > mPaintedLo &&
-                   x == mPaintedX &&
-                   (mPaintedZoom > Zc - 0.001 && mPaintedZoom < Zc + 0.001) &&
-                   (long)y >= loBound && (long)y + h2 <= hiBound;
+    // Covered by rows that may predate a change to the page (a sweep is owed) is not
+    // covered: the viewport is repainted where it now is, so what is on screen is the page
+    // as it stands and not as it was. The sweep itself waits for the pan to end.
+    bool covered = panCovered(x, y) && mSweepLeft <= 0;
     if (!covered) mNeedsPaint = true;   // covered: keep whatever was already pending
     // T-133 INSTRUMENT: the white band on a VKB toggle, counted in ROWS instead of inferred.
     // This is the only point in the daemon holding the adapter's pan and the painted band in one
@@ -919,7 +959,10 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     mPage->SetRenderPan(0.0, 0.0);
     mPage->ScrollTo((int)(x / z), (int)(y / z));
   }
-  mNeedsPaint = true;
+  // The card re-sends the zoom with every pan while zoomed. When the zoom is the one the
+  // last frame was painted at and the viewport is still inside that frame, there is nothing
+  // to paint — which is what lets a pan across a zoomed page run on the frame it has.
+  if (!panCovered(x, y) || mSweepLeft > 0) mNeedsPaint = true;   // (stale rows: see setScrollPosition)
   // NB: do NOT emitGeometry() here. A zoom-only command does not change the page's
   // intrinsic CSS content size, but re-reporting it fed the adapter's fit-zoom, which sent
   // a new zoom, which re-reported size... a cross-process oscillation (mZoom flapped
@@ -1000,6 +1043,10 @@ void BrowserPageGoanna::openUrl(const char* url) {
   // generation bump stops an in-flight drain from continuing into the superseded page.
   mPendingMouse.clear(); ++mNavGen;
   mPendingEditActions.clear();   // queued Tab/Enter for the old page are stale after a navigation
+  // So are queued page commands — but a copy the adapter is waiting on still gets its answer.
+  for (const PendingPageCmd& c : mPendingPageCmds)
+    if (c.queryNum >= 0) mSink.msgCopySuccessResponse(c.queryNum, false);
+  mPendingPageCmds.clear();
   // Any navigation lowers the VKB (covers link tap, JS location.href re-drive, form submit,
   // typed URL, back/forward) — otherwise the keyboard stays up over the new page (F-005).
   if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false, 0, 0);
@@ -1593,8 +1640,19 @@ void BrowserPageGoanna::popupMenuSelect(const char* identifier, int selectedIdx)
   mNeedsPaint = true;
 }
 
-void BrowserPageGoanna::pageCommand(const char* cmd, const std::string& extraJson) {
-  if (!mPage || !cmd) return;
+void BrowserPageGoanna::pageCommand(const char* cmd, int queryNum) {
+  if (!cmd) return;
+  // A queue a card cannot grow without bound: sixteen is a great many menu taps per tick.
+  if (!mPage || mPendingPageCmds.size() >= 16) {
+    if (queryNum >= 0) mSink.msgCopySuccessResponse(queryNum, false);
+    return;
+  }
+  PendingPageCmd c; c.cmd = cmd; c.queryNum = queryNum; c.navGen = mNavGen;
+  mPendingPageCmds.push_back(c);
+}
+
+bool BrowserPageGoanna::runPageCommand(const char* cmd, const std::string& extraJson) {
+  if (!mPage || !cmd) return false;
   // Copied text reaches the card as a file in the card's own application directory (the only
   // place a card may load a local file from — see the certificate details above for the same
   // constraint); the component is told where that is.
@@ -1604,9 +1662,13 @@ void BrowserPageGoanna::pageCommand(const char* cmd, const std::string& extraJso
   std::string json = std::string("{\"cmd\":\"") + cmd + "\",\"dir\":\"" + dir + "\"";
   if (!extraJson.empty()) { json += ","; json += extraJson; }
   json += "}";
+  // The component reports a hand-over through the notification door, synchronously, so the
+  // count moving across this call is the result.
+  const unsigned before = jihad::PageCopiedCount();
   if (!mPage->NotifyChrome("jihad-page-command", json.c_str()))
     fprintf(stderr, "[jihad-bs] page command %s: no page window to act on\n", cmd);
   mNeedsPaint = true;
+  return jihad::PageCopiedCount() != before;
 }
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
@@ -2396,6 +2458,10 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       const char* t = (e.type == PM_DOWN) ? "mousedown"
                     : (e.type == PM_UP)   ? "mouseup"
                     : (e.type == PM_MOVE) ? "mousemove" : "contextmenu";
+      // The component listens for what the page does with its contextmenu event: a page
+      // that claims it (preventDefault) has a menu of its own and gets no second one.
+      if (e.type == PM_CONTEXTMENU) runPageCommand("holdArm");
+      if (!mPage || mNavGen != gen) break;
       mPage->MouseEvent(t, e.x, e.y, e.detail);
       if (e.type == PM_CONTEXTMENU) {
         // The long-press, after the page has had its contextmenu event. The card raises the
@@ -2413,12 +2479,12 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
           if (!mPage || mNavGen != gen) break;
         }
-        char extra[128];
-        snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d,\"editable\":%s,\"focusedNow\":%s",
-                 e.x, e.y, editable ? "true" : "false", (editable && !focused) ? "true" : "false");
+        char extra[96];
+        snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d,\"editable\":%s", e.x, e.y,
+                 editable ? "true" : "false");
         fprintf(stderr, "[jihad-bs] hold at %d,%d editable=%d wasFocused=%d\n", e.x, e.y,
                 (int)editable, (int)focused);
-        pageCommand("hold", extra);
+        runPageCommand("hold", extra);
       }
     }
     mNeedsPaint = true;
@@ -2427,6 +2493,21 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // that may move focus or submit a form (navigate), which is unsafe in the keyDown YAP callback
   // (Codex F-219). A form submit navigates via the engine and is completed by the TakeLinkClicked
   // re-drive below, exactly like any content-initiated navigation.
+  // The long-press menu's page commands (selectAll / copy / cut), in the same guard and for
+  // the same reason: the component may run page script. A navigation in the middle ends the
+  // batch; a copy the adapter is waiting on is answered either way.
+  if (!mPendingPageCmds.empty()) {
+    std::vector<PendingPageCmd> cmds;
+    cmds.swap(mPendingPageCmds);
+    for (const PendingPageCmd& c : cmds) {
+      // Asked of one document, run on that document or not at all: every navigation — back,
+      // forward and reload included — moves mNavGen, and a Copy or a Cut that was queued
+      // before it must not land on the page that replaced it.
+      bool ok = false;
+      if (mPage && mNavGen == c.navGen) ok = runPageCommand(c.cmd.c_str());
+      if (c.queryNum >= 0) mSink.msgCopySuccessResponse(c.queryNum, ok);
+    }
+  }
   if (!mPendingEditActions.empty()) {
     // Process every queued Tab/Enter in press order (a swap-and-clear so a handler that queues more
     // doesn't reenter this loop). Stop early once an editable is gone (a submit navigated away).
@@ -2714,6 +2795,40 @@ void BrowserPageGoanna::maybePaint() {
   // exists precisely because the pan is about to run out of painted rows — holding it
   // until the fling ended guaranteed the white gap it was trying to avoid (every scroll
   // message reset the gate, so a continuous fling starved paints entirely).
+  // MAINTENANCE FRAMES — asked for here, when nothing else wants a paint:
+  //   grow   the region is smaller than it should be (it is built a step per frame);
+  //   sweep  its off-screen rows may predate a change to the page; redraw the next few.
+  // Growing waits only for the last frame to have been taken; sweeping waits for the page
+  // to be loaded and still, and never runs during a pan — that is when the daemon's time
+  // is worth most. A maintenance frame that could not run (the adapter still holds the
+  // buffer) is simply asked for again on a later tick: mMaintenance still set means that.
+  // A frame dump was asked for (<state>/dump-request, see the dump in paintToSharedBuffer):
+  // paint one, so the dump is of the frame as it stands and not of whenever the page next
+  // changes. Looked for twice a second, not every tick.
+  if (!mNeedsPaint) {
+    static int64_t sDumpLookMs = 0;
+    const int64_t now = jihadNowMs();
+    if (now - sDumpLookMs >= 500) {
+      sDumpLookMs = now;
+      static const std::string req = jihad::RuntimeStateDir().empty()
+          ? std::string() : jihad::RuntimeStateDir() + "/dump-request";
+      if (!req.empty() && access(req.c_str(), F_OK) == 0) mNeedsPaint = true;
+    }
+  }
+  if (!mNeedsPaint && (mGrowOwed || mSweepLeft > 0)) {
+    const int64_t now = jihadNowMs();
+    int kind = 0;
+    if (mGrowOwed && now - mLastPaintDoneMs >= 60) kind = 1;
+    else if (mSweepLeft > 0 && mLoadWasDone && now >= mSweepNotBeforeMs &&
+             now - mLastScrollMs >= 500 && now - mLastPaintDoneMs >= 250) kind = 2;
+    if (kind) {
+      mMaintenance = kind;
+      mNeedsPaint = true;
+      paintToSharedBuffer();
+      if (mMaintenance) { mMaintenance = 0; mNeedsPaint = false; }
+      return;
+    }
+  }
   if (mNeedsPaint) paintToSharedBuffer();    // only when there is a new frame
 }
 
@@ -2791,8 +2906,11 @@ bool BrowserPageGoanna::isBusy() const {
   // for as long as it is frozen — which must not hold the fast tick for a card nobody can see.
   if (mFrozen) return false;
   if (mNeedsPaint || mDirtyPending || mGeometryDirty || mBlankRetryAtMs) return true;
+  // Maintenance frames (maybePaint). A sweep that is only waiting out its pause does not
+  // need the fast tick; any tick after the pause finds it.
+  if (mGrowOwed || (mSweepLeft > 0 && mLoadWasDone && jihadNowMs() >= mSweepNotBeforeMs)) return true;
   if (mLoadStartMs != 0 && !mLoadWasDone) return true;            // a load is running
-  if (!mPendingMouse.empty() || !mPendingEditActions.empty()) return true;
+  if (!mPendingMouse.empty() || !mPendingEditActions.empty() || !mPendingPageCmds.empty()) return true;
   if (!mEmittedFlashRects.empty()) return true;                   // plugin: the pull needs the grid
   const int64_t now = jihadNowMs();
   // Stay fast for a moment after the last paint or scroll: animation and panning arrive as a
@@ -2888,6 +3006,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   int w = mPage->Width(), h = mPage->Height();
   const size_t hdr = sizeof(BrowserOffscreenInfo);
   if (w <= 0 || h <= 0 || segSize < hdr + (size_t)w * h * 4) { return; }
+  // From here the paint runs. maybePaint reads mMaintenance == 0 as "it ran".
+  const int maintenanceKind = mMaintenance; mMaintenance = 0;
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)buf;
   unsigned char* pixels = buf + hdr;
 
@@ -2907,13 +3027,15 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // renderedWidth/Height (baseY = srcTop - renderedY, FILL outside) and holds only on a
   // WIDTH mismatch, so a taller-than-window buffer is safe on both composite paths.
   long maxRows = (long)((segSize - hdr) / ((size_t)w * 4));
-  // SGX540/Piranha cap (review 2026-08-02 F1): the adapter's PRIMARY composite path wraps
-  // the WHOLE painted region as one PGSurface and bitblts it through the GPU compositor.
-  // Piranha is closed source and the SGX540's max texture dimension is 2048 — a portrait
-  // region of 2355 rows would be the only configuration to cross it, and it is exactly the
-  // configuration the desktop round-trip cannot exercise. Cap until a device run proves a
-  // taller PGSurface blits.
-  if (maxRows > 2048) maxRows = 2048;
+  // The whole segment is the budget. Until 2026-10-05 this was capped at 2048 rows, on the
+  // worry (review 2026-08-02 F1) that the adapter's PGSurface wrap of the region might be a
+  // GPU texture and the SGX540's limit is 2048. It is not a texture: JIHAD_REGION_ROWS_CAP
+  // unset, a 4096-row portrait region wraps and blits on the device. The variable stays as
+  // the way back (a number of rows) if some configuration ever disagrees.
+  {
+    static const long kRowsCap = getenv("JIHAD_REGION_ROWS_CAP") ? atol(getenv("JIHAD_REGION_ROWS_CAP")) : 0;
+    if (kRowsCap >= (long)h && maxRows > kRowsCap) maxRows = kRowsCap;
+  }
 
   // Where the viewport-relative band actually is, in ZOOMED px. At z~1 the engine scroll
   // is authoritative for Y (ScrollTo is an async javascript: — it can lag the adapter's
@@ -2979,9 +3101,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     if (slot >= 0 && mBufFull[slot].valid && mBufFull[slot].dmgValid &&
         mBufFull[slot].w == w && mBufFull[slot].h == h &&
         mBufFull[slot].zeff == Zeff &&
+        mBufFull[slot].stripGen == mStripGen &&      // its off-screen rows are the newest there are
         mBufFull[slot].scrollX == mAdapterScrollX &&
         mBufFull[slot].scrollY == mAdapterScrollY) {
       const BufFrame& bf = mBufFull[slot];
+      // The buffer's rows are pw px wide (the region's width: w, or more when zoomed in) and
+      // the viewport starts bandCol px into each.
+      const long pw = bf.paintedW > 0 ? (long)bf.paintedW : (long)w;
       // The damage box arrives in VIEWPORT device px; the buffer's rows are the painted
       // band, whose first visible row is bandRow. Clamp into the visible band and bail to
       // the full path on anything degenerate rather than guessing. Use THIS buffer's own
@@ -2995,15 +3121,49 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       if (dTop < bf.bandRow) { dH -= (bf.bandRow - dTop); dTop = bf.bandRow; }
       if (dLeft + dW > w) dW = w - dLeft;
       if (dTop + dH > (long)bf.bandRow + h) dH = (long)bf.bandRow + h - dTop;
-      // A damage box that covers essentially the whole viewport saves nothing and adds a
-      // code path; take the ordinary paint for it.
+      // A damage box that covers essentially the whole viewport saves nothing over painting
+      // the viewport...
       bool worthIt = dW > 0 && dH > 0 && (double)(dW * dH) < 0.6 * (double)(w * h);
-      if (worthIt) {
+      // ...but the region is usually far more than the viewport (the whole page, or every
+      // row the segment holds), and re-rendering all of it because the SCREEN changed is
+      // what made a page that animates, or one still loading, cost 100-250 ms a frame.
+      // BAND-ONLY: redraw the visible rows, exactly as the full path draws them, and keep
+      // the rest of this buffer's frame. Sound for the reason the small box is: the buffer
+      // holds a complete frame of this geometry at this scroll. What it gives up is the
+      // freshness of the rows nobody is looking at, which the idle sweep (mSweepLeft) pays
+      // back once the page is still.
+      const bool bandOnly = !worthIt && dW > 0 && dH > 0 && mThumbPath.empty() &&
+                            bf.paintedH > h && bf.bandRow + (long)h <= (long)bf.paintedH &&
+                            bf.bandCol + (long)w <= pw;
+      if (worthIt || bandOnly) {
         int64_t pt0 = jihadNowMs();
-        bool ok = mPage->RenderRegion(pixels + ((size_t)dTop * w + dLeft) * 4, w * 4,
-                                      (int)dW, (int)dH,
-                                      (double)(bf.paintedX + dLeft) / Zeff,
-                                      (double)(bf.paintedTop + dTop) / Zeff, Zeff);
+        bool ok = false;
+        if (worthIt) {
+          ok = mPage->RenderRegion(pixels + ((size_t)dTop * pw + bf.bandCol + dLeft) * 4, (int)pw * 4,
+                                   (int)dW, (int)dH,
+                                   (double)(bf.paintedX + bf.bandCol + dLeft) / Zeff,
+                                   (double)(bf.paintedTop + dTop) / Zeff, Zeff);
+        } else {
+          if (!zoomed) {
+            // Viewport-relative, so position:fixed content and the caret are where the user
+            // sees them. A blank read is a mid-reflow white: not published; the full path
+            // below repaints the buffer and applies its own blank rules.
+            ok = mPage->ReadPixels(pixels + (size_t)bf.bandRow * w * 4, (size_t)w * h * 4) > 0;
+          } else {
+            ok = mPage->RenderRegion(pixels + ((size_t)bf.bandRow * pw + bf.bandCol) * 4, (int)pw * 4,
+                                     w, h, (double)(bf.paintedX + bf.bandCol) / Zeff,
+                                     (double)(bf.paintedTop + bf.bandRow) / Zeff, Zeff);
+          }
+          if (ok) {
+            mPage->CompositePopups(pixels, (int)pw * 4, (int)pw, bf.paintedH,
+                                   (double)bf.paintedX / Zeff, (double)bf.paintedTop / Zeff, Zeff);
+            dLeft = 0; dTop = bf.bandRow; dW = w; dH = h;
+            // The off-screen rows now predate a change this big: sweep them when idle.
+            mSweepLeft = bf.paintedH;
+            // Enough changed to have changed the page's size too (see the full path).
+            mGeometryDirty = true;
+          }
+        }
         if (ok) {
           // Re-stamp the SAME geometry the buffer was last fully painted with. The pixels
           // outside the damage box are that frame's and are still current, which is the
@@ -3011,8 +3171,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           oi->bufferWidth = w; oi->bufferHeight = bf.paintedH;
           oi->contentZoom = Zeff;
           oi->renderedX = bf.paintedX; oi->renderedY = bf.paintedTop;
-          oi->renderedWidth = w; oi->renderedHeight = bf.paintedH;
-          mPaintedX = bf.paintedX; mPaintedLo = bf.paintedTop;
+          oi->renderedWidth = (int)pw; oi->renderedHeight = bf.paintedH;
+          mPaintedX = bf.paintedX; mPaintedW = (int)pw; mPaintedLo = bf.paintedTop;
           mPaintedHi = (long)bf.paintedTop + bf.paintedH; mPaintedZoom = Zeff;
           mLastPaintDoneMs = jihadNowMs();
           gJihadPaintDone++;
@@ -3027,11 +3187,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             int64_t nowP = jihadNowMs();
             if (nowP - sLastP >= 2000) {
               sLastP = nowP;
-              fprintf(stderr, "[jihad-bs] partial paint %ldx%ld at %ld,%ld in %dms\n",
-                      dW, dH, dLeft, dTop, (int)(nowP - pt0));
+              fprintf(stderr, "[jihad-bs] %s paint %ldx%ld at %ld,%ld in %dms\n",
+                      bandOnly ? "band-only" : "partial", dW, dH, dLeft, dTop, (int)(nowP - pt0));
               fflush(stderr);
             }
           }
+          mLatestSlot = slot;
           mSink.msgPainted(mActiveKey);
           {
             int ps = slotForKey(mActiveKey);
@@ -3044,6 +3205,15 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       }
     }
   }
+  // Anything known to have changed on screen since the last frame? A maintenance paint
+  // (maybePaint: growing the region, or sweeping its off-screen rows) is one that was asked
+  // for when nothing had.
+  const bool hadDamage = mDamageValid || mDamageForceFull;
+  const int  maintKind = hadDamage ? 0 : maintenanceKind;
+  // A change the engine could put a small box round (a caret, a spinner) is not a reason to
+  // think the rest of the page moved; anything bigger, or of unknown extent, is.
+  const bool smallDamage = mDamageValid && !mDamageForceFull &&
+                           (double)mDamageW * (double)mDamageH < 0.6 * (double)w * (double)h;
   mDamageValid = false; mDamageForceFull = false;
 
   long bandX = mAdapterScrollX, bandY = mAdapterScrollY;
@@ -3062,6 +3232,33 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // the transient CONTENT lag during a horizontal pan is the pre-existing behavior.
   // (When zoomed, bandX is the clamped pan — the render x — which is exact.)
   if (!zoomed) bandX = mAdapterScrollX;
+
+  // Columns [loX, loX+regW). One viewport wide unless ZOOMED IN on content wider than the
+  // screen — the one case where there is anything to the left or right. There the region
+  // was one viewport wide too, so every sideways pan exposed an undrawn column and waited
+  // for a repaint (owner, 2026-10-05: "if I scroll … left, or right, the page is grey").
+  // Now it is the content's width, up to two viewports, centred on the view; the rows it can
+  // have shrink in proportion, since the segment is what it is. The adapter is told the
+  // viewport width in bufferWidth and the region's in renderedWidth (its rotation guard
+  // compares the former; an adapter older than 2026-10-05 compares the latter and holds the
+  // frame, so the two ship together).
+  long regW = w, loX = bandX;
+  if (zoomed) {
+    const long contentCols = (mLastContentW > 0) ? (long)((double)mLastContentW * Zeff) : 0;
+    if (contentCols > (long)w) {
+      regW = contentCols < 2L * w ? contentCols : 2L * w;
+      const long adX = (long)mAdapterScrollX;
+      loX = bandX - (regW - (long)w) / 2;
+      if (adX < loX) loX = adX;                                  // the adapter's own view…
+      if (adX + (long)w > loX + regW) loX = adX + (long)w - regW;  // …stays inside
+      if (loX + regW > contentCols) loX = contentCols - regW;
+      if (loX < 0) loX = 0;
+      if (bandX < loX || bandX + (long)w > loX + regW) { regW = w; loX = bandX; }
+      const long rowsFor = (long)((segSize - hdr) / ((size_t)regW * 4));
+      if (rowsFor < (long)h) { regW = w; loX = bandX; }          // no room: one viewport wide
+      else if (rowsFor < maxRows) maxRows = rowsFor;
+    }
+  }
 
   // Painted rows [lo, hi): cover the band AND the adapter's pan target, plus overscan
   // (half a viewport above, one below — scrolling down dominates), bounded by the segment
@@ -3083,8 +3280,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   //   - a longer page gets the full budget around the viewport, most of it ahead of the pan.
   long slackRows = maxRows - (long)h; if (slackRows < 0) slackRows = 0;
   long ovAbove = slackRows / 3, ovBelow = slackRows - slackRows / 3;
-  if (adY > mPrevPaintScrollY + 8)      { ovAbove = slackRows / 6; ovBelow = slackRows - ovAbove; }
-  else if (adY < mPrevPaintScrollY - 8) { ovBelow = slackRows / 6; ovAbove = slackRows - ovBelow; }
+  const int panDir = (adY > mPrevPaintScrollY + 8) ? 1 : (adY < mPrevPaintScrollY - 8) ? -1 : 0;
+  if (panDir > 0)      { ovAbove = slackRows / 6; ovBelow = slackRows - ovAbove; }
+  else if (panDir < 0) { ovBelow = slackRows / 6; ovAbove = slackRows - ovBelow; }
   mPrevPaintScrollY = adY;
   long lo = (bandY < adY ? bandY : adY) - ovAbove;
   long hi = (bandY > adY ? bandY : adY) + h + ovBelow;
@@ -3111,6 +3309,80 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     if (contentRows > 0 && hi > contentRows) hi = contentRows;
     if (hi < lo + h) hi = lo + h;
   }
+  // ── BUILD ON THE FRAME ALREADY PAINTED (2026-10-05) ─────────────────────────────────────
+  //
+  // [lo, hi) above is the region this page SHOULD have: all of it, or as many rows as the
+  // segment holds. Rendering that whole region for every frame is what the paint used to
+  // do, and it does not survive the region getting big: 4096 rows of a real page measured
+  // 300-1400 ms on this hardware, with the daemon deaf to input for the duration, to redraw
+  // rows that had not changed. So a frame is now COMPOSED:
+  //
+  //   - rows the most recent frame already holds (same document, zoom, width and columns)
+  //     are COPIED from its buffer — a memcpy of a few MB, tens of ms at worst;
+  //   - rows it does not hold are rendered, at most kGrowRows of them per frame, so the
+  //     region reaches its full size over a few frames instead of in one long one
+  //     (mGrowOwed asks maybePaint for the next step);
+  //   - the visible band is drawn as it always was (viewport-relative at z~1);
+  //   - at z~1 the band of the frame copied FROM carries viewport-relative content (a fixed
+  //     header, the caret) that is wrong anywhere but under the viewport, so where that band
+  //     is no longer this one's it is redrawn from the document.
+  //
+  // What a copy cannot know is whether the page changed somewhere nobody was looking — the
+  // engine reports damage for the viewport only. So after any frame that reacted to a change
+  // the off-screen rows are owed a SWEEP (mSweepLeft): redrawn kSweepRows at a time, by
+  // maintenance frames, once the page has been still for a moment.
+  const long kInitialRows = (long)h * 5 / 2;      // with nothing to build on: what a first frame is worth
+  const long kGrowRows = 768;
+  const long kSweepRows = mSweepStep;             // adapts to what a step costs on this page
+  const int      xs = slotForKey(mActiveKey);
+  const uint64_t docId = mPage->CurrentDocId();
+  const BufFrame* src = nullptr; const unsigned char* srcPix = nullptr;
+  if (bandKnown && docId != 0 && mLatestSlot >= 0 && mLatestSlot != xs) {
+    const BufFrame& y = mBufFull[mLatestSlot];
+    const int ykey = mLatestSlot == 0 ? mKey1 : (mLatestSlot == 1 ? mKey2 : mKey3);
+    if (ykey && y.valid && !y.overlay && y.docId == docId && y.w == w && y.h == h &&
+        y.zeff == Zeff && y.paintedW == (int)regW && y.paintedX == (int)loX && y.paintedH > 0) {
+      if (unsigned char* yb = attachShm(ykey)) { src = &y; srcPix = yb + hdr; }
+    }
+  }
+  bool growOwed = false;
+  {
+    const long mustLo = (bandY < adY ? bandY : adY);            // the band and the adapter's
+    const long mustHi = (bandY > adY ? bandY : adY) + h;        // own viewport: never optional
+    long cLo = lo, cHi = hi;
+    if (src) {
+      const long sLo = src->paintedTop, sHi = sLo + src->paintedH;
+      const long needAbove = sLo > mustLo ? sLo - mustLo : 0;
+      const long needBelow = mustHi > sHi ? mustHi - sHi : 0;
+      // The viewport has left what that frame holds by more than a couple of steps (a jump
+      // to an anchor, a long fling): bridging the gap would mean rendering all of it.
+      if (needAbove + needBelow > 2 * kGrowRows || sHi <= lo || sLo >= hi) src = nullptr;
+    }
+    if (src) {
+      const long sLo = src->paintedTop, sHi = sLo + src->paintedH;
+      long newAbove = sLo > lo ? sLo - lo : 0, newBelow = hi > sHi ? hi - sHi : 0;
+      long allowAbove, allowBelow;
+      if (panDir < 0) {
+        allowAbove = newAbove < kGrowRows ? newAbove : kGrowRows;
+        allowBelow = newBelow < kGrowRows - allowAbove ? newBelow : kGrowRows - allowAbove;
+      } else {
+        allowBelow = newBelow < kGrowRows ? newBelow : kGrowRows;
+        allowAbove = newAbove < kGrowRows - allowBelow ? newAbove : kGrowRows - allowBelow;
+      }
+      if (sLo - allowAbove > cLo) cLo = sLo - allowAbove;
+      if (sHi + allowBelow < cHi) cHi = sHi + allowBelow;
+    } else if (hi - lo > kInitialRows) {
+      cLo = mustLo - (kInitialRows - (mustHi - mustLo)) / 3;
+      if (cLo < lo) cLo = lo;
+      cHi = cLo + kInitialRows;
+      if (cHi > hi) { cHi = hi; cLo = cHi - kInitialRows; if (cLo < lo) cLo = lo; }
+    }
+    if (mustLo < cLo) cLo = mustLo < lo ? lo : mustLo;
+    if (mustHi > cHi) cHi = mustHi > hi ? hi : mustHi;
+    if (cHi < cLo + h) { cHi = cLo + h; if (cHi > hi) { cHi = hi; cLo = cHi - h; } }
+    growOwed = (cLo > lo || cHi < hi);
+    lo = cLo; hi = cHi;
+  }
   int tallH = (int)(hi - lo);
   if (!bandKnown) tallH = h;                  // F9: unknown band → viewport-exact fallback
 
@@ -3118,65 +3390,119 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // NO fling-mode fast path (tried 2026-08-02, removed the same day): skipping the band
   // overlay during flings painted position:fixed content at its DOCUMENT position in
   // those frames while full frames painted it at the viewport — two models alternating,
-  // so a fixed banner "flew around" mid-scroll (user report). A full region+band paint
-  // measured 66 ms on device, cheap enough to be every frame's model: fixed content bakes
-  // at the band position each frame, swims with the pan between paints, snaps per paint —
-  // the classic webOS-era behavior.
+  // so a fixed banner "flew around" mid-scroll (user report). Fixed content bakes at the
+  // band position each frame, swims with the pan between paints, snaps per paint — the
+  // classic webOS-era behavior.
   long nb = -1;
   int paintedX = (int)bandX, paintedTop = (int)bandY, paintedH = h;
+  int paintedW = w;                           // the buffer's row stride in px
+  long bandCol = 0;                           // where the viewport starts in each row
   bool region = false;
+  bool fresh = false;                         // every row of the region was rendered now
+  bool stripsChanged = false;                 // rows outside the band differ from the source's
+  long rowsRendered = 0, rowsCopied = 0;
   long bandRow = bandY - lo;
   if (bandRow < 0) bandRow = 0;
   if (bandRow > (long)tallH - h) bandRow = (long)tallH - h;
-  if (tallH > h) {
-    // Absolute document rows straight into the shared buffer (not bounded by the widget
-    // DrawTarget). docX/docY are css px = zoomed px / Zeff.
-    if (!zoomed) {
-      // Render ONLY the strips doc-relative — the band rows come from the viewport-relative
-      // overlay below, so rendering them here too was pure duplicate work (~30% of the
-      // frame: 2048-row frame = 2990 rows rendered, now 2048 — "trim the paint cost",
-      // device 2026-08-02, measured 185 ms before this change at the region cap).
-      bool okAbove = true, okBelow = true;
-      if (bandRow > 0) {
-        okAbove = mPage->RenderRegion(pixels, w * 4, w, (int)bandRow,
-                                      (double)bandX / Zeff, (double)lo / Zeff, Zeff);
-      }
-      long belowRows = (long)tallH - h - bandRow;
-      if (belowRows > 0) {
-        okBelow = mPage->RenderRegion(pixels + (size_t)(bandRow + h) * w * 4, w * 4,
-                                      w, (int)belowRows, (double)bandX / Zeff,
-                                      (double)(lo + bandRow + h) / Zeff, Zeff);
-      }
-      region = okAbove && okBelow;
-    } else {
-      // Zoomed: single-pass region (there is no separate band pass at zoom).
-      region = mPage->RenderRegion(pixels, w * 4, w, tallH,
-                                   (double)bandX / Zeff, (double)lo / Zeff, Zeff);
+  if (tallH > h || regW > (long)w) {
+    const size_t stride = (size_t)regW * 4;
+    const double dX = (double)loX / Zeff;     // css px; loX == bandX unless zoomed and wide
+    const long bandLo = bandRow, bandHi = bandRow + h;
+    // Region rows [r0, r1), straight from the document (docY css px = zoomed px / Zeff).
+    auto rows = [&](long r0, long r1) -> bool {
+      if (r0 < 0) r0 = 0;
+      if (r1 > (long)tallH) r1 = tallH;
+      if (r1 <= r0) return true;
+      rowsRendered += r1 - r0;
+      return mPage->RenderRegion(pixels + (size_t)r0 * stride, (int)stride, (int)regW,
+                                 (int)(r1 - r0), dX, (double)(lo + r0) / Zeff, Zeff);
+    };
+    // The same, less the visible band: at z~1 those rows come from the viewport-relative
+    // overlay below, and rendering them here too is pure duplicate work.
+    auto strips = [&](long r0, long r1) -> bool {
+      if (zoomed) return rows(r0, r1);
+      return rows(r0, r1 < bandLo ? r1 : bandLo) && rows(r0 > bandHi ? r0 : bandHi, r1);
+    };
+    bool ok = true;
+    long a = 0, b = 0;                        // document rows [a, b) the source can give
+    if (src) {
+      const long sLo = src->paintedTop, sHi = sLo + src->paintedH;
+      a = lo > sLo ? lo : sLo; b = hi < sHi ? hi : sHi;
+      if (b <= a) src = nullptr;
     }
-    if (region) { paintedTop = (int)lo; paintedH = tallH; }
+    if (!src) {
+      fresh = true;
+      ok = strips(0, tallH);
+    } else {
+      const long sLo = src->paintedTop;
+      memcpy(pixels + (size_t)(a - lo) * stride, srcPix + (size_t)(a - sLo) * stride,
+             (size_t)(b - a) * stride);
+      rowsCopied = b - a;
+      const long before = rowsRendered;
+      ok = strips(0, a - lo) && strips(b - lo, tallH);          // rows it did not have
+      if (ok && !zoomed) {
+        // Its band, where that is not this frame's band (see the header comment).
+        const long ob0 = (sLo + src->bandRow) - lo, ob1 = ob0 + h;
+        if (ob0 != bandLo) {
+          long c0 = ob0 > a - lo ? ob0 : a - lo, c1 = ob1 < b - lo ? ob1 : b - lo;
+          if (c1 > c0) ok = strips(c0, c1);
+        }
+      }
+      if (ok && maintKind == 2) {
+        // One step of the sweep.
+        long s0 = mSweepRow; if (s0 >= (long)tallH || s0 < 0) s0 = 0;
+        long s1 = s0 + kSweepRows; if (s1 > (long)tallH) s1 = tallH;
+        ok = strips(s0, s1);
+        mSweepRow = (s1 >= (long)tallH) ? 0 : s1;
+        mSweepLeft -= (s1 - s0);
+        if (mSweepLeft < 0) mSweepLeft = 0;
+      }
+      stripsChanged = (rowsRendered != before);
+    }
+    region = ok;
+    if (region) {
+      paintedTop = (int)lo; paintedH = tallH;
+      paintedX = (int)loX; paintedW = (int)regW; bandCol = bandX - loX;
+    }
+  }
+  // The band a maintenance frame copied is still the screen: nothing has changed on it.
+  const bool bandSame = region && src && !fresh && maintKind != 0 &&
+                        (long)src->paintedTop + src->bandRow == lo + bandRow &&
+                        (long)src->paintedX + src->bandCol == loX + bandCol &&
+                        src->paintedTop <= lo + bandRow &&
+                        (long)src->paintedTop + src->paintedH >= lo + bandRow + h;
+  if (region && zoomed && !fresh && !bandSame) {
+    // Zoomed: the copied rows under the viewport may predate what is on screen now.
+    rowsRendered += h;
+    if (!mPage->RenderRegion(pixels + ((size_t)bandRow * paintedW + bandCol) * 4, paintedW * 4,
+                             w, h, (double)bandX / Zeff, (double)(lo + bandRow) / Zeff, Zeff)) {
+      region = false; paintedX = (int)bandX; paintedW = w; bandCol = 0;
+    }
   }
   if (region && !zoomed) {
     // Overlay the viewport-relative band over the visible rows so position:fixed/sticky
     // and the caret stay correct on screen; the doc-relative strips around it only show
     // transiently mid-pan. ReadPixels renders v2 (viewport-relative at z~1) + readback,
     // forces alpha and returns the nonblank count — same "did it render" signal as before.
-    nb = mPage->ReadPixels(pixels + (size_t)bandRow * w * 4, (size_t)w * h * 4);
+    if (bandSame) nb = 1;
+    else nb = mPage->ReadPixels(pixels + (size_t)bandRow * w * 4, (size_t)w * h * 4);
   } else if (region) {
-    // Zoomed: the region render IS the frame (pure visual viewport, same semantics as the
-    // old single-pass zoomed paint; fixed content already doc-positioned when zoomed).
-    // Count nonblank over the visible band rows only — same signal, 1/tallH the cost.
+    // Zoomed: the region render IS the frame (pure visual viewport; fixed content already
+    // doc-positioned when zoomed). Count nonblank over the visible band only.
     nb = 0;
-    for (long y = bandRow; y < bandRow + h; ++y) {
-      unsigned char* row = pixels + (size_t)y * w * 4;
+    for (long y = bandRow; y < bandRow + h && !bandSame; ++y) {
+      unsigned char* row = pixels + ((size_t)y * paintedW + bandCol) * 4;
       for (int x = 0; x < w; ++x) {
         unsigned char* p = row + (size_t)x * 4;
         if (!(p[0] > 240 && p[1] > 240 && p[2] > 240)) ++nb;
       }
     }
+    if (bandSame) nb = 1;
   } else {
     // Region render unavailable (old libxul: weak symbol absent / render failed / no room
     // for overscan): the previous viewport-exact paint, stamped at the band's true position.
     paintedTop = (int)bandY; paintedH = h;
+    fresh = true; growOwed = false;
     nb = mPage->ReadPixels(pixels, segSize - hdr);
   }
 
@@ -3185,10 +3511,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // painted, at the same origin/zoom. Costs one popup-manager query when none is open,
   // which is the normal case. Must come AFTER the band overlay: that overlay rewrites
   // the visible rows and would erase a popup drawn before it.
+  int popupsDrawn = 0;
   if (nb >= 0) {
-    int popups = mPage->CompositePopups(pixels, w * 4, w, paintedH,
+    int popups = mPage->CompositePopups(pixels, paintedW * 4, paintedW, paintedH,
                                         (double)paintedX / Zeff, (double)paintedTop / Zeff,
                                         Zeff);
+    popupsDrawn = popups;
     if (popups > 0) {
       fprintf(stderr, "[jihad-bs] composited %d popup(s) over the frame\n", popups);
       // A popup is content: an otherwise-blank frame carrying one must not be
@@ -3197,12 +3525,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     }
   }
 
-  oi->bufferWidth = w; oi->bufferHeight = paintedH;
+  oi->bufferWidth = w; oi->bufferHeight = paintedH;     // bufferWidth: the VIEWPORT's width
   oi->contentZoom = Zeff;
   oi->renderedX = paintedX; oi->renderedY = paintedTop;
-  oi->renderedWidth = w; oi->renderedHeight = paintedH;
+  oi->renderedWidth = paintedW; oi->renderedHeight = paintedH;
   // Record the painted region for the coverage-aware repaint skip (setScrollPosition).
-  mPaintedX = paintedX; mPaintedLo = paintedTop; mPaintedHi = (long)paintedTop + paintedH;
+  mPaintedX = paintedX; mPaintedW = paintedW;
+  mPaintedLo = paintedTop; mPaintedHi = (long)paintedTop + paintedH;
   mPaintedZoom = Zeff;
   // NB: what this buffer now holds is recorded LOWER DOWN, past the blank-over-good
   // suppression — see the comment there. Recording it here marked a frame that is about to
@@ -3213,9 +3542,11 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   gJihadPaintDone++;
   JihadRecordFrameGap(mLastPaintDoneMs);
   if (nb >= 0) {
-    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld) mZoom=%.4f contentZoom=%.4f ms=%ld\n",
-            (unsigned)mActiveKey, nb, w, paintedH, paintedTop, bandY, mZoom, oi->contentZoom,
-            (long)(jihadNowMs() - paintT0));
+    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld left=%d) mZoom=%.4f contentZoom=%.4f ms=%ld"
+                    " rows new=%ld copied=%ld%s\n",
+            (unsigned)mActiveKey, nb, paintedW, paintedH, paintedTop, bandY, paintedX, mZoom,
+            oi->contentZoom, (long)(jihadNowMs() - paintT0), rowsRendered, rowsCopied,
+            maintKind == 1 ? " (grow)" : maintKind == 2 ? " (sweep)" : "");
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0
@@ -3233,22 +3564,66 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const long tr = region ? bandRow : 0;
       long rows = (long)paintedH - tr; if (rows > h) rows = h;
       const std::string out = mThumbPath; mThumbPath.clear();
-      const bool ok = rows > 0 && writeThumbnail(pixels + (size_t)tr * w * 4, w, (int)rows, out);
+      bool ok = false;
+      if (rows > 0 && paintedW == w) {
+        ok = writeThumbnail(pixels + (size_t)tr * w * 4, w, (int)rows, out);
+      } else if (rows > 0) {
+        // A region wider than the viewport: the thumbnail writer reads w-wide rows, so give
+        // it the visible columns on their own.
+        std::vector<unsigned char> band((size_t)w * rows * 4);
+        for (long y = 0; y < rows; ++y)
+          memcpy(&band[(size_t)y * w * 4], pixels + ((size_t)(tr + y) * paintedW + bandCol) * 4, (size_t)w * 4);
+        ok = writeThumbnail(band.data(), w, (int)rows, out);
+      }
       fprintf(stderr, "[jihad-bs] thumbnail %s -> %s\n", ok ? "written" : "FAILED", out.c_str());
     }
     static const std::string dumpPath = jihad::RuntimeResolvePath(getenv("JIHAD_DUMP"), "frame.ppm");
-    if (!dumpPath.empty() && nb > 0) {
-      FILE* f = fopen(dumpPath.c_str(), "wb");
+    // ...or ONE frame, on request: create <state>/dump-request and the next non-empty frame
+    // is written to /tmp (RAM — a 4096-row frame is 9 MB and /var is a 62 MB partition) and
+    // the request removed. This is how a composed frame's OFF-SCREEN rows are looked at: no
+    // screenshot shows them, and the environment variable means editing a generated job on
+    // the root filesystem. The request lives in the state directory, which only root writes.
+    static const std::string dumpReq = jihad::RuntimeStateDir().empty()
+        ? std::string() : jihad::RuntimeStateDir() + "/dump-request";
+    bool dumpOnce = nb > 0 && !dumpReq.empty() && access(dumpReq.c_str(), F_OK) == 0;
+    if (dumpOnce) {
+      // /tmp is a 40 MB RAM disk the whole system uses (it was filled once by dumps left
+      // lying there, and nothing on the device could write a temporary file until they
+      // were removed). Replace the previous dump, and refuse unless what is free afterwards
+      // is twice what this one needs.
+      unlink(dumpReq.c_str());
+      unlink("/tmp/jihad-frame.ppm");
+      struct statvfs vfs;
+      const unsigned long long need = (unsigned long long)paintedW * paintedH * 3 + 32;
+      if (statvfs("/tmp", &vfs) != 0 || (unsigned long long)vfs.f_bavail * vfs.f_frsize < 2 * need) {
+        fprintf(stderr, "[jihad-bs] frame dump refused: /tmp has too little room for %llu bytes\n", need);
+        dumpOnce = false;
+      }
+    }
+    const std::string outPath = dumpOnce ? std::string("/tmp/jihad-frame.ppm") : dumpPath;
+    if (!outPath.empty() && nb > 0) {
+      int dfd = open(outPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+      FILE* f = dfd >= 0 ? fdopen(dfd, "wb") : nullptr;
+      if (!f && dfd >= 0) close(dfd);
       if (f) {
-        fprintf(f, "P6\n%d %d\n255\n", w, paintedH);     // buffer is BGRA -> write RGB
-        for (long i = 0, px = (long)w * paintedH; i < px; i++) {
-          unsigned char* p = pixels + i * 4; fputc(p[2], f); fputc(p[1], f); fputc(p[0], f);
+        fprintf(f, "P6\n%d %d\n255\n", paintedW, paintedH);     // buffer is BGRA -> write RGB
+        std::vector<unsigned char> line((size_t)paintedW * 3);
+        for (long y = 0; y < (long)paintedH; ++y) {
+          const unsigned char* p = pixels + (size_t)y * paintedW * 4;
+          for (int x = 0; x < paintedW; ++x) {
+            line[(size_t)x * 3] = p[(size_t)x * 4 + 2];
+            line[(size_t)x * 3 + 1] = p[(size_t)x * 4 + 1];
+            line[(size_t)x * 3 + 2] = p[(size_t)x * 4];
+          }
+          fwrite(line.data(), 1, line.size(), f);
         }
         fclose(f);
         // Pin 0644 rather than inherit the daemon's umask (T-057 (d): root-owned
         // 0755 dirs / 0644 files — never a world-writable artifact).
-        chmod(dumpPath.c_str(), 0644);
-        fprintf(stderr, "[jihad-bs] dumped frame -> %s\n", dumpPath.c_str());
+        chmod(outPath.c_str(), 0644);
+        fprintf(stderr, "[jihad-bs] dumped frame -> %s (%dx%d top=%d left=%d bandRow=%ld bandCol=%ld)\n",
+                outPath.c_str(), paintedW, paintedH, paintedTop, paintedX, region ? bandRow : 0L,
+                region ? bandCol : 0L);
       }
     }
   }
@@ -3268,8 +3643,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // sample the strips (every 8th row, every 4th px) and publish if anything is there.
     for (long y = 0; y < (long)paintedH && nb == 0; y += 8) {
       if (y >= bandRow && y < bandRow + h) continue;    // the band was already counted
-      unsigned char* row = pixels + (size_t)y * w * 4;
-      for (int x = 0; x < w; x += 4) {
+      unsigned char* row = pixels + (size_t)y * paintedW * 4;
+      for (int x = 0; x < paintedW; x += 4) {
         unsigned char* p = row + (size_t)x * 4;
         if (!(p[0] > 240 && p[1] > 240 && p[2] > 240)) { nb = 1; break; }
       }
@@ -3330,6 +3705,32 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       mBufFull[fs].scrollX = mAdapterScrollX; mBufFull[fs].scrollY = mAdapterScrollY;
       mBufFull[fs].paintedX = paintedX; mBufFull[fs].paintedTop = paintedTop;
       mBufFull[fs].paintedH = paintedH; mBufFull[fs].bandRow = region ? bandRow : 0;
+      mBufFull[fs].paintedW = paintedW; mBufFull[fs].bandCol = region ? bandCol : 0;
+      mBufFull[fs].docId = docId;
+      // A popup drawn over this frame is in its pixels, band and strips alike, and a later
+      // frame must not copy it: such a frame is nobody's source.
+      mBufFull[fs].overlay = popupsDrawn > 0;
+      // Off-screen rows identical to the source's keep its generation, so three buffers
+      // that were copied one from another all count as current (the fast path's test).
+      mBufFull[fs].stripGen = (src && !fresh && !stripsChanged) ? src->stripGen : ++mStripGen;
+      mLatestSlot = (nb > 0) ? fs : -1;
+      // Another step is owed only if this frame can be built on — otherwise each "step"
+      // would be a first frame again, for ever.
+      mGrowOwed = growOwed && nb > 0 && docId != 0 && !mBufFull[fs].overlay &&
+                  !(maintKind == 1 && rowsCopied == 0);
+      if (fresh) { mSweepLeft = 0; mSweepRow = 0; }                 // nothing here is old
+      // Owed a sweep: a frame that reacted to a change of unknown or large extent. Not one
+      // that was painted only because the viewport moved — nothing changed for that.
+      else if (maintKind == 0 && hadDamage && !smallDamage) mSweepLeft = paintedH;
+      if (maintKind == 2) {
+        // Keep a sweep step short: the daemon hears nothing while it renders. And once a
+        // sweep has gone all the way round, leave the page alone for a while — one that
+        // changes every few seconds must not be swept continuously.
+        const long took = (long)(jihadNowMs() - paintT0);
+        if (took > 200 && mSweepStep > 128) mSweepStep /= 2;
+        else if (took < 70 && mSweepStep < 1024) mSweepStep *= 2;
+        if (mSweepLeft <= 0) mSweepNotBeforeMs = jihadNowMs() + 8000;
+      }
       // A full paint repainted the whole band: this buffer is completely current, so it has no
       // pending per-buffer damage. (dmgValid is cleared even when valid=false — a blank buffer
       // has nothing to catch up either.)

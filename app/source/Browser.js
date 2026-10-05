@@ -49,8 +49,13 @@ enyo.kind({
 			onAddToLauncher: "doAddToLauncher",
 			onShareLink: "doShareLink",
 			onOpenBookmarks: "doOpenBookmarks",
-			onNewCard: "openNewCard"
+			onNewCard: "openNewCard",
+			onSecureInfo: "showPageCertificate"
 		},
+		// The padlock: this browser's own daemon says whose certificate the page was served
+		// with (its pageCertificate method answers this variant's own card only).
+		{name: "certService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/",
+			method: "pageCertificate", onSuccess: "gotPageCertificate", onFailure: "gotPageCertificate"},
 		{name: "view", kind: "WebView", flex: 1, height: "100%",
 			onMousehold: "openContextMenu",
 			onPageTitleChanged: "pageTitleChanged",
@@ -323,6 +328,20 @@ enyo.kind({
 		this.$.sslCertDialog.validateComponents();
 		this.$.sslCertDialog.openAtCenter();
 	},
+	//* The address bar's padlock was tapped. pageFocused first: the question goes over Luna,
+	//* which cannot say which card is asking, and the daemon answers for the focused one.
+	showPageCertificate: function() {
+		this.$.view.callBrowserAdapter("pageFocused", [true]);
+		this.$.certService.call({});
+	},
+	gotPageCertificate: function(inSender, inResponse) {
+		if (inResponse && inResponse.returnValue && inResponse.secure && inResponse.subject) {
+			this.$.sslCertDialog.showCertificate(inResponse);
+			this.$.sslCertDialog.openAtCenter();
+		} else {
+			enyo.jihadToast.show("info", $L("No certificate information is available for this page."));
+		}
+	},
 	closeSSLCertificate: function(inSender) {
 		this.$.sslCertDialog.close();
 	},
@@ -360,11 +379,15 @@ enyo.kind({
 		// hear that report, so only the card that is waiting for one acts on it.
 		this._pageHold = {left: inEvent.pageX, top: inEvent.pageY, at: Date.now()};
 	},
-	//* The engine's answer to a long-press this card passed on: {editable, selected}.
+	//* The engine's answer to a long-press this card passed on: {editable, selected}. The
+	//* answer is broadcast to every card of this browser and names no card, so it is taken
+	//* only by the one that is on screen and passed a hold on within the last four seconds —
+	//* which, a finger being in one place, is one card. (The answer normally takes 0.1-0.5 s;
+	//* once, on a card started seconds earlier, it was not acted on at 2.5 s.)
 	pageHold: function(inText) {
 		var h = this._pageHold, s = null;
 		this._pageHold = null;
-		if (!h || Date.now() - h.at > 3000) {
+		if (!h || Date.now() - h.at > 4000 || (window.PalmSystem && PalmSystem.isActivated === false)) {
 			return;
 		}
 		try { s = enyo.json.parse(inText); } catch (e) { s = null; }
@@ -377,40 +400,95 @@ enyo.kind({
 	pageSelectAllClick: function() {
 		this.$.view.callBrowserAdapter("selectAll");
 	},
-	//* Copy and Cut ask the engine for the selected text; it comes back by way of pageCopied.
+	//* Copy asks the engine for the selected text; it comes back by way of pageCopied. What
+	//* the engine says about a copy is broadcast too, so the card remembers that it asked.
 	pageCopyClick: function() {
+		this._copyAsked = {at: Date.now(), cut: false};
 		this.$.view.callBrowserAdapter("copy");
 	},
+	//* Cut is a copy, and then — only once the text is on the clipboard — the adapter's cut,
+	//* which tells the engine to delete what it handed over (see pageCopied).
 	pageCutClick: function() {
-		this.$.view.callBrowserAdapter("cut");
+		this._copyAsked = {at: Date.now(), cut: true};
+		this.$.view.callBrowserAdapter("copy");
+	},
+	//* The copy this card asked for within the last five seconds, once.
+	takeCopyAsked: function() {
+		var a = this._copyAsked;
+		this._copyAsked = null;
+		return (a && Date.now() - a.at < 5000) ? a : null;
+	},
+	//* "Nothing is selected." and the like are for the card that asked.
+	pageCopyEmpty: function() {
+		return !!this.takeCopyAsked();
+	},
+	//* So is how a cut ended ("Cut.", or why not).
+	pageCutResult: function() {
+		var at = this._cutAsked;
+		this._cutAsked = 0;
+		return !!(at && Date.now() - at < 5000);
 	},
 	//* The engine has written the selected text where this card may load it: a one-call
 	//* script in the app's own clip/ directory (a card can load a local file from nowhere
 	//* else, and the clipboard is the card's to write). `inName` is that file's name.
 	pageCopied: function(inName) {
-		if (!/^copy-[0-9-]+\.js$/.test(String(inName))) {
+		var asked = this.takeCopyAsked(), view = this.$.view, self = this, done = false;
+		if (!asked || !/^copy-[0-9a-f-]+\.js$/.test(String(inName))) {
 			return;
 		}
 		var s = document.createElement("script");
-		window.jihadClip = function(inText) {
+		var failed = function() {
+			if (done) { return; }
+			done = true;
 			window.jihadClip = null;
-			enyo.dom.setClipboard(String(inText));
-			enyo.jihadToast.show("info", $L("Copied."));
+			enyo.jihadToast.show("info", $L("The text could not be copied."));
 		};
-		s.onload = s.onerror = function() {
+		window.jihadClip = function(inText) {
+			if (done) { return; }
+			done = true;
+			window.jihadClip = null;
+			if (!enyo.jihadSetClipboard(String(inText))) {
+				enyo.jihadToast.show("info", $L("The text could not be copied."));
+				return;
+			}
+			// True from this moment whatever the cut does; "Cut." replaces it if the
+			// engine confirms the deletion (BrowserApp.gotNotification, "page-cut").
+			enyo.jihadToast.show("info", $L("Copied."));
+			if (asked.cut) {
+				self._cutAsked = Date.now();
+				view.callBrowserAdapter("cut");
+			}
+		};
+		s.onload = function() {
 			if (s.parentNode) { s.parentNode.removeChild(s); }
+			failed();                       // it loaded and never called: not a clip script
+		};
+		s.onerror = function() {
+			if (s.parentNode) { s.parentNode.removeChild(s); }
+			failed();
 		};
 		s.src = "clip/" + inName;
 		document.body.appendChild(s);
 	},
 	//* Paste: the clipboard is read here (only a card can) and typed into the focused field.
+	//* Another app decides what is on the clipboard, so its size is bounded here: more than
+	//* a quarter of a million characters is not something to push through a text field.
+	//* One message to the engine holds 16 KB, and a longer string is dropped
+	//* whole, so the text goes in pieces of at most 12000 bytes of UTF-8, never cut inside a
+	//* surrogate pair.
 	pagePasteClick: function() {
 		var view = this.$.view;
 		enyo.jihadGetClipboard(function(inText) {
-			if (inText) {
-				view.callBrowserAdapter("insertStringAtCursor", [String(inText)]);
-			} else {
+			var parts, i;
+			if (!inText) {
 				enyo.jihadToast.show("info", $L("The clipboard is empty."));
+			} else if (inText.length > 262144) {
+				enyo.jihadToast.show("info", $L("The clipboard holds too much text to paste here."));
+			} else {
+				parts = enyo.jihadPasteChunks(String(inText));
+				for (i = 0; i < parts.length; i++) {
+					view.callBrowserAdapter("insertStringAtCursor", [parts[i]]);
+				}
 			}
 		});
 	},
@@ -541,6 +619,7 @@ enyo.kind({
 		   this._timeoutHandle = null;
 	   }
 	   this.isErrorLoadFailed = false;
+	   this.$.actionbar.setLoadFailed(false);
 	   this.$.actionbar.setLoading(true);
 	},
 	loadProgress: function(inSender, inProgress) {
@@ -565,6 +644,11 @@ enyo.kind({
 		this._timeoutHandle = null;
 	},
 	browserError: function(inSender, inErrorCode, inMsg) {
+		// What is on screen now is an error, not the site in the address bar: no padlock.
+		// (A cancelled load is not an error and leaves the page that was there.)
+		if (inErrorCode !== this.WebKitErrors.ERR_WK_FLOADER_CANCELLED) {
+			this.$.actionbar.setLoadFailed(true);
+		}
 		
 		switch(inErrorCode){
 			case this.WebKitErrors.ERR_SYS_FILE_DOESNT_EXIST:

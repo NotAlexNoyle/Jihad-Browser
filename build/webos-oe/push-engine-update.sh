@@ -10,7 +10,8 @@
 # md5-verified on both sides (the 2026-08-02 zero-byte-daemon lesson).
 #
 # It also pushes the chrome scripts THIS PROJECT adds to the engine — components/jihad*.js with
-# their manifests, and the chrome.manifest that registers them — from the assembled bundle.
+# their manifests, the settings page (prefsui/content), and the chrome.manifest that registers
+# them — from the assembled bundle.
 # They are part of the engine build as far as a variant is concerned: on 2026-10-05 a new
 # daemon that expected components/jihadPrint.js was on two variants and the component on one.
 # (A changed script is picked up at the next start: the daemon drops the engine's compiled-
@@ -65,7 +66,7 @@ PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
 say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5; goanna.js md5=$PREFS_MD5"
 
 # This project's own chrome scripts, relative to the bundle root.
-OWN="chrome.manifest jihad-bundle.id $(cd "$BUNDLE" && ls components/jihad* 2>/dev/null | tr '\n' ' ')"
+OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest $(cd "$BUNDLE" && ls components/jihad* prefsui/content/* 2>/dev/null | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 

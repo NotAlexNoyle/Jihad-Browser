@@ -22,7 +22,6 @@ enyo.depends(
 	"source/AddressInput.js",
 	"source/FindBar.js",
 	"source/StartPage.js",
-	"source/Preferences.js",
 	"source/Browser.js",
 	"source/BookmarkList.js",
 	"source/CertificateDetail.js",

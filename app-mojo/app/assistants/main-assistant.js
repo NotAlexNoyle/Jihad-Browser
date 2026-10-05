@@ -376,6 +376,11 @@ MainAssistant.prototype.handleNotification = function (response) {
 	if (!response || !response.text) {
 		return;
 	}
+	// The settings page asking this card to clear the history list it keeps (this shell has
+	// no bookmarks). The request and the sentence to show arrive together.
+	if (response.category === "chrome-clear-history") {
+		JihadHistory.clear();
+	}
 	JihadToast.show(response.category, response.text);
 };
 

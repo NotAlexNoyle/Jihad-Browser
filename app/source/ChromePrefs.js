@@ -1,8 +1,8 @@
 // Copyright 2026 NotAlexNoyle.
 // Licensed under the Apache License, Version 2.0; see ../LICENSE.
 //
-// ChromePrefs — the two settings this shell owns rather than the engine: the start
-// page's shortcut list and the home button's target.
+// ChromePrefs — the settings this shell owns rather than the engine: the start page's
+// shortcut list, the home button's target and (since 2026-10-05) the default search engine.
 //
 // SOURCE OF TRUTH IS THE ENGINE, not this card (cavekit-preferences-ui.md R5): they are
 // edited in about:preferences, which stores them in one engine pref
@@ -28,6 +28,14 @@ enyo.jihadChrome = (function () {
 	var KEY = "jihad.chromeSettings";
 	var MAX = 12;
 	var HOME_DEFAULT = "https://start.duckduckgo.com/";
+	//* The ids the settings page offers (packaging/prefsui/content/preferences.js
+	//* SEARCH_ENGINES); the first is the default. BrowserApp.defaultWebSearchEngines maps
+	//* each to its search url.
+	var SEARCH_IDS = ["duckduckgo", "google", "wikipedia"];
+	function safeEngine(id) {
+		for (var i = 0; i < SEARCH_IDS.length; i++) { if (SEARCH_IDS[i] === id) { return id; } }
+		return "";
+	}
 	var cache = null;   // null until the first successful read
 
 	function trim(s) {
@@ -66,6 +74,7 @@ enyo.jihadChrome = (function () {
 	function normalize(o) {
 		var links = cleanLinks(o && o.startLinks);
 		return {
+			searchEngine: safeEngine(o && o.searchEngine) || SEARCH_IDS[0],
 			homeUrl: safeUrl(o && o.homeUrl) || HOME_DEFAULT,
 			startLinks: links.length ? links : defaultLinks()
 		};
@@ -97,6 +106,10 @@ enyo.jihadChrome = (function () {
 		loadHome: function () {
 			return this.load().homeUrl;
 		},
+		//* The id of the engine the address bar searches with.
+		loadSearchEngine: function () {
+			return this.load().searchEngine;
+		},
 
 		//* Persisted here as a CACHE of what about:preferences holds — see the header.
 		//* localStorage, so the start page can build synchronously on a cold start.
@@ -115,7 +128,7 @@ enyo.jihadChrome = (function () {
 		//* values so the page opens on what the user is actually using.
 		settingsUrl: function () {
 			var cfg = this.load();
-			return "about:preferences#chrome=" +
+			return "about:settings#chrome=" +
 				encodeURIComponent(enyo.json.stringify(cfg));
 		},
 

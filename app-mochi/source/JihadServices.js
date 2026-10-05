@@ -250,27 +250,21 @@ enyo.jihad = enyo.jihad || {};
 	};
 
 	// --- default search engine -------------------------------------------------
-	// The Enyo shell asks com.palm.universalsearch for the system list and writes the choice
-	// back system-wide; when that list is empty it falls back to exactly these three. This
-	// shell keeps the choice in the card's own store instead: a browser variant changing the
-	// search engine Just Type uses is not something its settings panel should do quietly.
+	// These three, by id. WHICH one is chosen on the settings page (about:preferences, Browser
+	// pane) and cached by JihadChromePrefs; this is only the map from id to search url. The
+	// ids must match the page's SEARCH_ENGINES. Not the system's "Just Type" list: a browser
+	// changing the search engine every app on the device uses is not something to do quietly.
 	scope.searchEngines = [
 		{id: "duckduckgo", name: "DuckDuckGo", url: "https://duckduckgo.com/?q={q}"},
 		{id: "google",     name: "Google",     url: "https://www.google.com/search?q={q}"},
 		{id: "wikipedia",  name: "Wikipedia",  url: "https://en.m.wikipedia.org/wiki/Special:Search?search={q}"}
 	];
-	var SEARCH_KEY = "jihad.mochi.searchEngine";
 	scope.loadSearchEngine = function() {
-		var id = null;
-		try { id = window.localStorage ? window.localStorage.getItem(SEARCH_KEY) : null; } catch (e) { id = null; }
+		var id = enyo.jihadChrome ? enyo.jihadChrome.loadSearchEngine() : null;
 		for (var i = 0; i < scope.searchEngines.length; i++) {
 			if (scope.searchEngines[i].id === id) { return scope.searchEngines[i]; }
 		}
 		return scope.searchEngines[0];
-	};
-	scope.saveSearchEngine = function(id) {
-		try { if (window.localStorage) { window.localStorage.setItem(SEARCH_KEY, id); } } catch (e) {}
-		return scope.loadSearchEngine();
 	};
 	scope.searchUrlFor = function(text) {
 		return scope.loadSearchEngine().url.replace("{q}", encodeURIComponent(text));

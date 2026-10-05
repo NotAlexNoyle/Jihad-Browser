@@ -18,49 +18,56 @@
 	var HOST = "http://192.168.1.245:8090/";
 
 	var scenarios = {
-		// The card's own settings panel: engines, Flash switch, More Settings, clear buttons.
-		prefs: function(app, name) {
-			app.menuPreferences();
-			later(2500, function() {
-				var p = app.$.preferences;
-				log(name, "engine=" + enyo.jihad.loadSearchEngine().id + " flash=" + p.$.flash.getValue() +
-					" note=[" + p.$.flashNote.getContent() + "] rows=" + p.$.engines.getClientControls().length +
-					" hasToggle(blockPopups)=" + Boolean(p.$.blockPopups) + " DONE");
-			});
-		},
-		engine: function(app, name, arg) {
-			app.menuPreferences();
-			later(1500, function() {
-				var rows = app.$.preferences.$.engines.getClientControls();
-				for (var i = 0; i < rows.length; i++) { if (rows[i].engineId === arg) { app.$.preferences.engineTapped(rows[i]); } }
-				log(name, "chosen=" + enyo.jihad.loadSearchEngine().id + " url=" + app.normalizeUrl("hello world") + " DONE");
-			});
-		},
-		flash: function(app, name, arg) {
-			app.menuPreferences();
-			later(2000, function() {
-				var p = app.$.preferences, want = (arg === "on");
-				log(name, "before=" + p.$.flash.getValue());
-				p.$.flash.setValue(want);          // what a tap on the switch does
-				later(2500, function() {
-					enyo.jihad.own("getFlash", {}, function(r) {
-						log(name, "switch=" + p.$.flash.getValue() + " daemon=" + j(r) + " DONE");
+		// The settings page (about:preferences), which since 2026-10-05 carries what the card's
+		// own panel used to: the search engine, Flash, the clear actions. Opened from the menu's
+		// own handler, then driven with REAL CLICKS through the adapter — clickAt is what a tap
+		// on the page becomes.
+		//   settings                 open it and report the card's cache of its settings
+		//   settings:x,y;x,y;...     ...then click each point (view pixels), 3 s apart. A step
+		//                            written sN picks entry N of the drop-down list the previous
+		//                            click opened; wN waits N seconds; b adds a test bookmark; ? reports.
+		// Reports the cache, the toast and the sizes of the bookmark and history lists at the end.
+		settings: function(app, name) {
+			var spec = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "";
+			var steps = spec ? spec.split(";") : [];
+			function count(kind, cb) { enyo.jihad.dbFind(kind, null, "_rev", true, function(r) { cb((r || []).length); }); }
+			function state(tag, then) {
+				count(enyo.jihad.kinds.bookmarks, function(nb) {
+					count(enyo.jihad.kinds.history, function(nh) {
+						var t = document.getElementById("jihad-toast");
+						log(name, tag + ": url=" + String(app.url).split("#")[0] + " engine=" + enyo.jihadChrome.loadSearchEngine() +
+							" searchUrl=" + enyo.jihad.searchUrlFor("a b") + " home=" + enyo.jihadChrome.loadHome() +
+							" bookmarks=" + nb + " history=" + nh + " toast=[" + (t ? t.textContent : "") + "]");
+						then();
 					});
 				});
-			});
+			}
+			function step(i) {
+				if (i >= steps.length) { later(3000, function() { state("end", function() { log(name, "DONE"); }); }); return; }
+				var st = steps[i], wait = 3000;
+				if (st.charAt(0) === "w") {
+					wait = (parseInt(st.slice(1), 10) || 1) * 1000;
+				} else if (st === "b") {              // a bookmark of the test's own, to have one to clear
+					enyo.jihad.dbPut([{_kind: enyo.jihad.kinds.bookmarks, title: "jihad test bookmark", url: "http://example.invalid/jihad-test", date: (new Date()).getTime()}]);
+					log(name, "test bookmark added");
+				} else if (st === "?") {              // report the state now
+					state("now", function() {});
+				} else if (st.charAt(0) === "s") {
+					var want = parseInt(st.slice(1), 10), rows = app.$.selectBox.getClientControls(), row = null;
+					for (var k = 0; k < rows.length; k++) { if (rows[k]._optIndex === want) { row = rows[k]; } }
+					log(name, "list showing=" + app.$.selectPopup.getShowing() + " rows=" + rows.length + " pick " + want + (row ? " [" + row.getContent() + "]" : " (no such row)"));
+					if (row) { app.selectPopupPick(row); }
+				} else {
+					var xy = st.split(",");
+					app.$.view.callBrowserAdapter("clickAt", [parseInt(xy[0], 10), parseInt(xy[1], 10), 1]);
+					log(name, "click " + st);
+				}
+				later(wait, function() { step(i + 1); });
+			}
+			app.menuSettings();
+			later(8000, function() { state("opened", function() { step(0); }); });
 		},
-		clearask: function(app, name, arg) {
-			app.menuPreferences();
-			later(1500, function() {
-				var p = app.$.preferences;
-				p.clearTapped({clearKey: arg || "history"});
-				log(name, "asking=[" + p.$.askMsg.getContent() + "] showing=" + p.$.ask.getShowing());
-				later(6000, function() {
-					p.askCancel();
-					log(name, "cancelled, overlay showing=" + p.$.ask.getShowing() + " DONE");
-				});
-			});
-		},
+
 		bookmarks: function(app, name) {
 			enyo.jihad.dbDelByQuery(enyo.jihad.kinds.bookmarks, null, function(delResp) {
 				log(name, "del=" + j(delResp));

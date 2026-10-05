@@ -32,14 +32,14 @@ enyo.kind({
 		{name: "bookmarksService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.bookmarks:1", reCallWatches: true},
 		{name: "historyService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.history:1", reCallWatches: true},
 		{name: "systemPrefsService", kind: "SystemService"},
-		// The Flash switch: this variant's own daemon service holds the value (the same one
-		// the settings page shows). getFlash reads it; enableFlash / disableFlash set it and
-		// reply with the value now in effect.
-		{name: "flashService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/", onSuccess: "gotFlash", onFailure: "gotFlash"},
+		// This variant's own daemon service, for the calls that are not subscriptions (print).
+		{name: "ownService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/"},
 		{name: "browserPrefsService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.preferences:1", reCallWatches: true},
-		{name: "universalSearchService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "getUniversalSearchList", onSuccess: "gotUniversalSearchList", onFailure: "universalSearchFailed", subscribe: true, resubscribe: true},
-		{name: "setSearchPreferenceService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "setSearchPreference"},
-		{name: "clearOptionalSearchListService", kind: enyo.PalmService, service: "palm://com.palm.universalsearch/", method: "clearOptionalSearchList"},
+		// NO com.palm.universalsearch services any more (2026-10-05). Upstream took the search
+		// engine list from the system's "Just Type" settings, WROTE the system-wide default
+		// whenever the browser's choice changed, and wiped the system's optional engine list
+		// whenever browser history was cleared. The choice is now this browser's own, made on
+		// the settings page and stored with the rest of its settings (ChromePrefs.js).
 		{name: "stService", kind: "PalmService", service: "palm://com.palm.stservice/", timeout: 500},
 		{name: "launchApplicationService", kind: "PalmService", service: enyo.palmServices.application, method: "open", onFailure: "gotResourceError"},
 		{name: "addToLauncherService", kind: "PalmService", service: enyo.palmServices.application, method: "addLaunchPoint"},
@@ -73,12 +73,9 @@ enyo.kind({
 				onShow: "browserShown",
 				onHide: "browserHidden"
 			},
-			{name: "preferences", kind: "Preferences",
-				onPreferenceChanged: "preferenceChanged",
-				onOpenSettings: "openSettings",
-				onShow: "preferencesShown",
-				onClose: "backHandler"
-			}
+			// NO "preferences" view any more (2026-10-05, owner: "merge browser settings into
+			// settings"). What it held — the search engine, the Flash switch, the four clear
+			// actions — is on the settings page, which is the "Settings" menu entry.
 		]},
 		{kind: enyo.Toaster, flyInFrom: "right", style: "top: 0px; bottom: 0px", lazy: false, components: [
 			{className: "enyo-sliding-view-shadow"},
@@ -126,23 +123,24 @@ enyo.kind({
 		// Print. Upstream used the system PrintDialog here; it accepts HP printers only, so
 		// the engine daemon prints by itself and this is its dialog (JihadPrintDialog.js).
 		{name: "printDialog", kind: "JihadPrintDialog", lazy: false, onFindPrinters: "printFind", onPrintPage: "printPage"},
-		{kind: "AppMenu", onBeforeOpen: "toggleAppMenuItems", components: [
+		{name: "printNothing", kind: "BrowserPrompt", caption: $L("Print"),
+			message: $L("Open a page first: there is nothing to print on the start page."), cancelCaption: ""},
+		{kind: "AppMenu", components: [
 			// Upstream isis shipped this COMMENTED OUT, and this fork inherited it — so the
 			// FindBar, its handlers and the frozen findInPage command were all present and
 			// wired, with nothing anywhere to open them. Re-enabled 2026-08-05, now that
 			// findInPage actually searches (it used to abort the daemon: patch 0015).
 			{caption: $L("Find on Page"), onclick: "showFindOnPage"},
-			// TWO entries on purpose, until cavekit-preferences-ui.md R5's merge is finished.
-			// "Settings" is the engine's about:preferences — the one surface the three shells
-			// share. "Browser Settings" is this card's own panel, which still owns the things
-			// about:preferences cannot do yet: the default search engine (it comes from a
-			// webOS service, not from an engine pref) and the four clear-data actions. Pointing
-			// the single old entry at the page removed all of those from the product, plus the
-			// JavaScript and Flash toggles — a regression caught in review, 2026-08-06.
+			// ONE settings entry (cavekit-preferences-ui.md R5, finished 2026-10-05): the engine's
+			// about:preferences, the surface the three shells share. The card's own "Browser
+			// Settings" panel is gone; so is Help, which launched the system help app at an HP
+			// address that no longer exists.
 			{caption: $L("Settings"), onclick: "openSettings"},
-			{name: "preferencesItem", caption: $L("Browser Settings"), onclick: "preferencesClick"},
-			{name: "printMenuItem", caption: $L("Print"), onclick: "printClick"},
-			{caption: $L("Help"), onclick: "helpClick"}
+			// Never greyed out. Upstream disabled it while a page was loading and off a page;
+			// a slow page then left Print dead for as long as its last image took, with nothing
+			// to say why (owner, 2026-10-05: "print is greyed out"). What is on screen can be
+			// printed as it is, and off a page printClick says so.
+			{name: "printMenuItem", caption: $L("Print"), onclick: "printClick"}
 		]}
 	],
 	//* @protected
@@ -180,6 +178,10 @@ enyo.kind({
 			if (this.$.printDialog.isOpen) { this.$.printDialog.notification(inResponse.category, inResponse.text); return; }
 			if (inResponse.category === "print-printers") { return; }
 		}
+		// The settings page asking this card to clear a list the card keeps. The request and
+		// the sentence to show arrive together; the lists are db8 kinds this app owns.
+		if (inResponse.category === "chrome-clear-bookmarks") { this.clearBookmarks(); }
+		if (inResponse.category === "chrome-clear-history") { this.clearHistory(); }
 		enyo.jihadToast.show(inResponse.category, inResponse.text);
 	},
 	//* A failed subscription is not worth a dialog: it costs the user their status toasts and
@@ -243,9 +245,6 @@ enyo.kind({
 	isStartPageShowing: function() {
 		return this.$.pane.getViewName() === "startPage";
 	},
-	isPreferencesShowing: function() {
-		return this.$.pane.getViewName() === "preferences";
-	},
 	isDownloadListShowing: function() {
 		return this.$.toaster.isOpen && this.$.drawerPane.getViewName() === "downloads";
 	},
@@ -301,11 +300,6 @@ enyo.kind({
 	downloadListShown: function(inSender) {
 		this.$.downloads.setDownloads(this.downloads);
 	},
-	preferencesShown: function(inSender) {
-		this.$.preferences.updatePreferences(this.preferences);
-		// The settings page can change the Flash value too; show what is in effect now.
-		this.$.flashService.call({}, {method: "getFlash"});
-	},
 	//* Settings live in ONE place now (cavekit-preferences-ui.md R5): the engine's own
 	//* about:preferences. Opened through the ordinary navigation path — the same setUrl a
 	//* typed address takes — so no adapter call is added. The url carries THIS card's
@@ -319,8 +313,10 @@ enyo.kind({
 	noteUrlForChromePrefs: function(inUrl) {
 		// startPage is a LAZY pane view: a card launched straight at a url selects "browser"
 		// and never instantiates it, so this must not assume it exists.
-		if (enyo.jihadChrome.adoptFromUrl(inUrl) && this.$.startPage) {
-			this.$.startPage.buildLinks();
+		if (enyo.jihadChrome.adoptFromUrl(inUrl)) {
+			if (this.$.startPage) { this.$.startPage.buildLinks(); }
+			// The search engine is one of the adopted settings: the address bars follow it.
+			this.setDefaultSearch(enyo.jihadChrome.loadSearchEngine());
 		}
 		// COUNTS ONLY, never the values: this carries the user's home page and shortcut
 		// list, and /var/log/messages is world-readable. The count is what tells you the
@@ -332,11 +328,6 @@ enyo.kind({
 	},
 	startPageShown: function() {
 		this.$.startPage.setUrl("");
-	},
-	toggleAppMenuItems: function() {
-		var browser = this.isBrowserShowing();
-		this.$.printMenuItem.setDisabled(!browser || this.isBrowserLoading());
-		this.$.preferencesItem.setDisabled(this.isPreferencesShowing());
 	},
 	// OWNERSHIP (cavekit-preferences-ui.md R2/R5). blockPopups, acceptCookies and
 	// enableJavascript are owned by the SETTINGS PAGE. Since 2026-10-02 (owner decision) this
@@ -371,23 +362,21 @@ enyo.kind({
 			this.log(key, this.systemPreferences[key]);
 			this.applyPreference(key, this.systemPreferences[key]);
 		}
-		this.$.pane.viewByName("preferences").setSystemPreferences(this.systemPreferences);
 	},
 	browserPreferencesChanged: function() {
 		for (var key in this.browserPreferences) {
 			this.applyPreference(key, this.browserPreferences[key]);
 		}
-		this.$.pane.viewByName("preferences").setBrowserPreferences(this.browserPreferences);
 	},
 	searchPreferencesChanged: function() {
-		var views = ["browser", "startPage", "preferences"];
+		var views = ["browser", "startPage"];
 		for (var i=0, v;v=views[i];i++) {
 			this.$.pane.viewByName(v).setSearchPreferences(this.searchPreferences);
 		}
 	},
 	defaultSearchChanged: function() {
 		this.log(this.defaultSearch);
-		var views = ["browser", "startPage", "preferences"];
+		var views = ["browser", "startPage"];
 		for (var i=0, v;v=views[i];i++) {
 			this.$.pane.viewByName(v).setDefaultSearch(this.defaultSearch);
 		}
@@ -423,37 +412,18 @@ enyo.kind({
 		];
 		this.$.systemPrefsService.call({keys: systemPreferences}, {method: "getPreferences", onSuccess: "gotSystemPreferences", subscribe: true});
 		this.$.browserPrefsService.call(undefined, {method: "find", onSuccess: "gotBrowserPreferences", subscribe: true});
-		this.$.universalSearchService.call();
-		this.$.flashService.call({}, {method: "getFlash"});
+		this.applySearchEngines();
 	},
-	//* Every reply of the Flash service carries the value in effect, so a refused or failed
-	//* change puts the switch back instead of leaving it showing something untrue.
-	gotFlash: function(inSender, inResponse) {
-		var r = inResponse || {};
-		if (typeof r.enabled === "boolean") {
-			this.$.pane.viewByName("preferences").setFlashState({enabled: r.enabled, available: r.available});
-		}
-	},
-	gotUniversalSearchList: function(inSender, inResponse) {
-		this.searchPreferences = [];
-		var list = (inResponse && inResponse.UniversalSearchList) || [];
-		for (var i=0, s;s=list[i];i++) {
-			if (s.type === "web" && s.enabled) {
-				this.searchPreferences.push(s);
-			}
-		}
-		// com.palm.universalsearch may not be provisioned with web engines for this app
-		// (or may return nothing). Seed built-in defaults so the URL bar can search and
-		// the search dropdown is populated.
-		if (this.searchPreferences.length === 0) {
-			this.searchPreferences = this.defaultWebSearchEngines();
-		}
+	//* The engines the address bar can search with, and which one is the default. The list
+	//* is this browser's own; the default is the one chosen on the settings page
+	//* (ChromePrefs.loadSearchEngine), which falls back to the first when nothing is stored.
+	applySearchEngines: function() {
+		this.searchPreferences = this.defaultWebSearchEngines();
 		this.searchPreferencesChanged();
-		this.setDefaultSearch((inResponse && inResponse.defaultSearchEngine) ||
-		                      this.searchPreferences[0].id);
+		this.setDefaultSearch(enyo.jihadChrome.loadSearchEngine());
 	},
-	// Fallback web search engines when the system universal-search list is empty.
-	// Kept in sync with URLSearch.defaultSearchPreferences.
+	// The ids are the ones the settings page offers (packaging/prefsui/content/preferences.js
+	// SEARCH_ENGINES) — keep the two in step. Also mirrored by URLSearch.defaultSearchPreferences.
 	defaultWebSearchEngines: function() {
 		return [
 			{id: "duckduckgo", type: "web", enabled: true, displayName: "DuckDuckGo",
@@ -463,34 +433,6 @@ enyo.kind({
 			{id: "wikipedia", type: "web", enabled: true, displayName: "Wikipedia",
 			 url: "https://en.m.wikipedia.org/wiki/Special:Search?search={$query}", iconFilePath: ""}
 		];
-	},
-	universalSearchFailed: function(inSender, inError) {
-		// No system search list at all — fall back to built-in defaults.
-		if (!this.searchPreferences || this.searchPreferences.length === 0) {
-			this.searchPreferences = this.defaultWebSearchEngines();
-			this.searchPreferencesChanged();
-			this.setDefaultSearch(this.searchPreferences[0].id);
-		}
-	},
-	preferenceChanged: function(inSender, inPreference, inType, inValue) {
-		if (inType === "System") {
-			this.systemPreferences[inPreference] = inValue;
-			var p = {};
-			p[inPreference] = inValue;
-			this.$.systemPrefsService.call(p, {method: "setPreferences"});
-			this.applyPreference(inPreference, inValue);
-		} else if (inType === "Browser") {
-			this.browserPreferences[inPreference] = inValue;
-			this.$.browserPrefsService.call({props: {value: inValue}, query: {from: this.$.browserPrefsService.dbKind, where: [{prop:"key","op":"=","val":inPreference}]}}, {method: "merge"});
-			this.applyPreference(inPreference, inValue);
-		} else if (inType === "Flash") {
-			this.$.flashService.call({}, {method: inValue ? "enableFlash" : "disableFlash"});
-		} else if (inType === "Search") {
-			this.$.setSearchPreferenceService.call({key: "defaultSearchEngine", value: inValue});
-			this.setDefaultSearch(inValue);
-		} else {
-			this.applyPreference(inPreference, inValue);
-		}
 	},
 	processUrlChange: function(inSender, inUrl) {
 		this.setUrl(inUrl);
@@ -663,9 +605,6 @@ enyo.kind({
 		if (this.$.browser) {
 			this.$.browser.clearHistory();
 		}
-		// remove when open search is redesigned - clearing history
-		// also clears user added search engines
-		this.$.clearOptionalSearchListService.call();
 	},
 	showFindOnPage: function() {
 		if (this.isBrowserShowing()) {
@@ -673,19 +612,20 @@ enyo.kind({
 		}
 	},
 	printClick: function() {
+		if (!this.isBrowserShowing()) { this.$.printNothing.openAtCenter(); return; }
 		this.$.printDialog.openPrint();
 	},
 	//* The print dialog asks for printers / for the page to be printed. Both go to this
 	//* variant's own daemon service; the answers come back as "print-…" notifications.
 	printFind: function(inSender, inEvent) {
-		this.$.flashService.call(inEvent && inEvent.address ? {address: inEvent.address} : {},
+		this.$.ownService.call(inEvent && inEvent.address ? {address: inEvent.address} : {},
 			{method: "findPrinters", onSuccess: "printAsked", onFailure: "printUnavailable"});
 	},
 	printPage: function(inSender, inEvent) {
 		// The request goes over Luna and cannot say which page it means; the daemon prints
 		// the page of the card that last said it has the user's attention.
 		if (this.isBrowserShowing()) { this.$.browser.viewCall("pageFocused", [true]); }
-		this.$.flashService.call({printer: inEvent.printer},
+		this.$.ownService.call({printer: inEvent.printer},
 			{method: "printPage", onSuccess: "printAsked", onFailure: "printRefused"});
 	},
 	printAsked: function() {},
@@ -775,12 +715,6 @@ enyo.kind({
 	bookmarksClick: function() {
 		this.$.toaster.open();
 		this.$.drawerPane.selectView(this.$.drawerPane.getView());
-	},
-	preferencesClick: function() {
-		this.gotoView("preferences");
-	},
-	helpClick: function() {
-		this.$.launchApplicationService.call({params: {target: "http://help.palm.com/web/index.html"}, id: "com.palm.app.help"});
 	},
 	showBookmarks: function() {
 		this.$.radioGroup.setValue("bookmarks");

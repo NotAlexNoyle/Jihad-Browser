@@ -21,48 +21,63 @@
 		window.__jihadTestBridge = b;
 	}
 	var scenarios = {
-		// The card's settings panel: which rows it has, the Flash switch, More Settings.
-		prefs: function(app, name) {
-			app.preferencesClick();
-			later(3500, function() {
-				var p = app.$.pane.viewByName("preferences");
-				log(name, "rows: blockPopups=" + Boolean(p.$.blockPopups) + " acceptCookies=" + Boolean(p.$.acceptCookies) +
-					" enableJavascript=" + Boolean(p.$.enableJavascript) + " flashSwitch=" + Boolean(p.$.flashSwitch) +
-					" flash state=" + (p.$.flashSwitch ? p.$.flashSwitch.getState() : "?") + " note=[" + p.$.flashNote.getContent() + "] DONE");
-			});
-		},
-		flash: function(app, name, arg) {
-			app.preferencesClick();
-			later(3500, function() {
-				var p = app.$.pane.viewByName("preferences"), want = (arg === "on");
-				log(name, "before=" + p.$.flashSwitch.getState());
-				p.$.flashSwitch.setState(want);
-				p.togglePreferenceClick(p.$.flashSwitch, want);     // what a tap on the switch does
-				later(3000, function() {
-					flashQuery(function(payload) { log(name, "switch=" + p.$.flashSwitch.getState() + " daemon=" + payload + " DONE"); });
-				});
-			});
-		},
-		// The SSL warning must already be on screen (launch on a self-signed https target):
-		// is View Certificate enabled, what does the certificate view show, then refuse.
-		cert: function(app, name) {
-			later(5000, function() {
-				var b = app.$.browser;
-				log(name, "viewCertButton disabled=" + b.$.viewCertButton.getDisabled());
-				b.viewSSLCertificate();
-				later(2500, function() {
-					var d = b.$.sslCertDialog.$.certDetail;
-					log(name, "issued to=[" + d.$.commonName.getContent() + "] issuer CN=[" + d.$.issuerCommonName.getContent() +
-						"] from=[" + d.$.startDate.getContent() + "] until=[" + d.$.expirationDate.getContent() + "] serial=[" + d.$.serialNumber.getContent() + "]");
-					later(6000, function() {
-						b.$.sslCertDialog.close();
-						b.closeSSLConfirmBox({response: "0"});
-						log(name, "answered DONE");
+		// The settings page (about:preferences), which since 2026-10-05 carries what the card's
+		// own panel used to. Opened from the app menu's own handler, then driven with REAL CLICKS
+		// through the adapter — clickAt is what a tap on the page becomes.
+		//   settings                 open it and report the card's cache of its settings
+		//   settings:x,y;x,y;...     ...then click each point (view pixels), 3 s apart. A step
+		//                            written sN picks entry N of the drop-down list the previous
+		//                            click opened; wN waits N seconds; b adds a test bookmark; ? reports.
+		settings: function(app, name) {
+			var spec = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "";
+			var steps = spec ? spec.split(";") : [];
+			function count(kind, cb) {
+				var b = new PalmServiceBridge();
+				b.onservicecallback = function(p) { var r = null; try { r = enyo.json.parse(p); } catch (e) {} cb(r && r.results ? r.results.length : -1); };
+				b.call("palm://com.palm.db/find", enyo.json.stringify({query: {from: kind}}));
+				(window.__jihadTestBridges = window.__jihadTestBridges || []).push(b);
+			}
+			function state(tag, then) {
+				count("net.riverstonerelay.jihad-browser.bookmarks:1", function(nb) {
+					count("net.riverstonerelay.jihad-browser.history:1", function(nh) {
+						var t = document.getElementById("jihad-toast");
+						log(name, tag + ": view=" + app.$.pane.getViewName() + " url=" + String(app.$.browser.getUrl()).split("#")[0] +
+							" engine=" + enyo.jihadChrome.loadSearchEngine() + " defaultSearch=" + app.getDefaultSearch() +
+							" home=" + enyo.jihadChrome.loadHome() + " bookmarks=" + nb + " history=" + nh +
+							" toast=[" + (t ? t.textContent : "") + "]");
+						then();
 					});
 				});
-			});
+			}
+			function step(i) {
+				if (i >= steps.length) { later(3000, function() { state("end", function() { log(name, "DONE"); }); }); return; }
+				var st = steps[i], wait = 3000, view = app.$.browser.$.view;
+				if (st.charAt(0) === "w") {
+					wait = (parseInt(st.slice(1), 10) || 1) * 1000;
+				} else if (st === "b") {              // a bookmark of the test's own, to have one to clear
+					var bb = new PalmServiceBridge();
+					bb.call("palm://com.palm.db/put", enyo.json.stringify({objects: [{_kind: "net.riverstonerelay.jihad-browser.bookmarks:1", title: "jihad test bookmark", url: "http://example.invalid/jihad-test", date: (new Date()).getTime()}]}));
+					window.__jihadTestBridges.push(bb);
+					log(name, "test bookmark added");
+				} else if (st === "?") {              // report the state now
+					state("now", function() {});
+				} else if (st.charAt(0) === "s") {
+					// The framework's own drop-down (enyo.WebView's PopupList): choose and close,
+					// which is what a tap on one of its rows does.
+					var want = parseInt(st.slice(1), 10), pop = null, c = view.getComponents();
+					for (var k = 0; k < c.length; k++) { if (c[k].name && c[k].name.indexOf("select-") === 0 && c[k].isOpen) { pop = c[k]; } }
+					log(name, "list open=" + Boolean(pop) + " items=" + (pop && pop.items ? pop.items.length : "?") + " pick " + want);
+					if (pop) { view.selectPopupSelect(pop, want); pop.close(); }
+				} else {
+					var xy = st.split(",");
+					view.callBrowserAdapter("clickAt", [parseInt(xy[0], 10), parseInt(xy[1], 10), 1]);
+					log(name, "click " + st);
+				}
+				later(wait, function() { step(i + 1); });
+			}
+			app.openSettings();
+			later(8000, function() { state("opened", function() { step(0); }); });
 		},
-		// More Settings in the panel: the settings page opens in the card.
 		// Print: open the dialog from the menu and report what the daemon finds. With an
 		// argument (an address, or address:port) that address is typed into the dialog's own
 		// field, searched for, and the page is printed on the printer found there. Point it at
@@ -93,13 +108,20 @@
 				});
 			});
 		},
-		more: function(app, name) {
-			app.preferencesClick();
-			later(3000, function() {
-				var p = app.$.pane.viewByName("preferences");
-				p.openSettingsClick();
-				later(5000, function() { log(name, "view=" + app.$.pane.getViewName() + " url=" + app.$.browser.getUrl() + " DONE"); });
-			});
+		// The app menu's Print entry as a finger finds it: is it enabled once a page has loaded?
+		// Reports what the menu's own enable rule sees, 4 s and 12 s after the hook starts.
+		menu: function(app, name) {
+			function look(tag) {
+				try {
+					var b = app.$.browser, bar = b && b.$.actionbar;
+					log(name, tag + ": view=" + app.$.pane.getViewName() + " progress=" + (bar ? bar.getProgress() : "?") +
+						" lastProgress=" + (b ? b._lastProgress : "?") + " url=" + (b ? b.getUrl() : "?"));
+					app.$.appMenu.open();                        // the real menu: builds its items, runs its enable rule
+					log(name, tag + ": menu open; printDisabled=" + app.$.printMenuItem.getDisabled());
+				} catch (e) { log(name, tag + ": THREW " + e); }
+			}
+			later(4000, function() { look("4s"); });
+			later(12000, function() { try { app.$.appMenu.close(); } catch (e) {} look("12s"); log(name, "DONE"); });
 		}
 	};
 	function run() {

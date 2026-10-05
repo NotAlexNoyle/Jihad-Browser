@@ -126,13 +126,11 @@ enyo.kind({
 				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
 				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
 				{classes: "jihad-menu-item", ontap: "menuPrint",        content: "Print"},
-				// TWO entries, mirroring the Enyo shell: "Settings" is the engine's
-				// about:preferences — the one surface the three shells share, and where the
-				// home target, the start-page links and the content settings (popups,
-				// cookies, JavaScript) are edited. "Browser Settings" is this card's own
-				// panel: the search engine, the Flash switch and the clear-data actions.
-				{classes: "jihad-menu-item", ontap: "menuSettings",     content: "Settings"},
-				{classes: "jihad-menu-item", ontap: "menuPreferences",  content: "Browser Settings"}
+				// ONE settings entry: the engine's about:preferences, the surface the three
+				// shells share. The card's own "Browser Settings" panel was merged into it on
+				// 2026-10-05 (owner decision): the search engine and the clear-data actions are
+				// on its Browser pane, the Flash switch is its "Adobe Flash" row.
+				{classes: "jihad-menu-item", ontap: "menuSettings",     content: "Settings"}
 			]}
 		]},
 		// Parity views (full-card overlays, hidden until opened).
@@ -143,10 +141,6 @@ enyo.kind({
 		{kind: "JihadDownloadList", name: "downloadList",
 			onOpenItem: "openDownload", onCancelItem: "cancelDownload", onRetryItem: "retryDownload",
 			onClearAll: "clearDownloads", onClose: "panelClosed"},
-		{kind: "JihadPreferences", name: "preferences",
-			onPreferenceChanged: "preferenceChanged", onOpenSettings: "menuSettings",
-			onClearBookmarks: "clearBookmarks", onClearHistory: "clearHistory",
-			onClearCookies: "clearCookies", onClearCache: "clearCache", onClose: "panelClosed"},
 		// Engine <select> popup (msgPopupMenuShow -> JihadWebView.onOpenSelect):
 		// the same overlay idiom as menuPopup (mochi.Popup crashes on this engine).
 		// Items are built per-popup in showSelectPopup; the box is anchored under
@@ -235,9 +229,15 @@ enyo.kind({
 		// clearCookies from a launch target would otherwise raise its toast before anything
 		// was listening.
 		this.subscribeNotifications();
-		this.applyLaunchParams(this.readLaunchParams());
-		// Start with the address bar focused so the keyboard is up (all variants).
-		enyo.asyncMethod(this, function() { if (this.$.address && this.$.address.focus) { this.$.address.focus(); } });
+		var launch = this.readLaunchParams();
+		this.applyLaunchParams(launch);
+		// On the START PAGE the address bar is focused so the keyboard is up (all variants).
+		// Not when the card was opened ON a page (a link from another app, Open in New Card, a
+		// launcher shortcut): there the keyboard came up over the lower half of the page the
+		// user had asked for, and stayed until they dismissed it.
+		if (!(launch && (launch.target || launch.url || launch.webviewId))) {
+			enyo.asyncMethod(this, function() { if (this.$.address && this.$.address.focus) { this.$.address.focus(); } });
+		}
 	},
 	//* Read the initial launch parameters. Enyo 2 does NOT populate the Enyo-1
 	//* `enyo.windowParams`; the webOS way is to parse PalmSystem.launchParams
@@ -412,6 +412,10 @@ enyo.kind({
 					if (this.$.printDialog.isOpen()) { this.$.printDialog.notification(resp.category, resp.text); return; }
 					if (resp.category === "print-printers") { return; }
 				}
+				// The settings page asking this card to clear a list the card keeps. The
+				// request and the sentence to show arrive together.
+				if (resp.category === "chrome-clear-bookmarks") { this.clearBookmarks(); }
+				if (resp.category === "chrome-clear-history") { this.clearHistory(); }
 				enyo.jihad.toast(resp.category, resp.text);
 			}));
 	},
@@ -811,15 +815,6 @@ enyo.kind({
 		});
 		return true;
 	},
-	//* The only preference the SHELL has to react to: the start page's shortcut row
-	//* is already rendered, so it has to be rebuilt when the list is edited. The search
-	//* engine and the Flash switch are stored by the panel itself (the card's own store
-	//* and the daemon), and searchUrl reads the engine choice at each use.
-	preferenceChanged: function(inSender, inEvent) {
-		if (inEvent && inEvent.preference === "startPageLinks") {
-			this.buildStartLinks();
-		}
-	},
 	//* The shared settings page, opened through the ordinary navigation path — no adapter
 	//* call is added. Carries this card's current chrome settings so the page opens on what
 	//* the user is actually using (cavekit-preferences-ui.md R4/R5).
@@ -828,14 +823,12 @@ enyo.kind({
 		this.hidePanels();
 		this.openUrl(enyo.jihadChrome.settingsUrl());
 	},
-	menuPreferences: function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.preferences.open(); },
 
 	//* Hide every full-card overlay view.
 	hidePanels: function() {
 		this.$.bookmarkList.hide();
 		this.$.historyList.hide();
 		this.$.downloadList.hide();
-		this.$.preferences.hide();
 		this.$.findBar.hide();
 	},
 	//* A list view selected an item (bookmark/history) — navigate to it.

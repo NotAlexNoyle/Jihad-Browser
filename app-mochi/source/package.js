@@ -25,7 +25,6 @@ enyo.depends(
 	"JihadHistoryList.js",
 	"JihadDownloadList.js",
 	"JihadFindBar.js",
-	"JihadPreferences.js",
 	"JihadDialogs.js",
 	"JihadPrintDialog.js",
 	"JihadBrowser.js"

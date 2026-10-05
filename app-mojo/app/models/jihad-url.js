@@ -40,9 +40,15 @@ var JihadUrl = {
 		return /^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}(:\d+)?([\/?#].*)?$/i.test(v);
 	},
 
-	//* Default search provider, matching the other two variants' default.
+	//* Search with the engine chosen on the settings page (JihadChromePrefs caches the choice;
+	//* this file loads before it, hence the lookup at call time). DuckDuckGo when there is no
+	//* choice yet, matching the other two variants' default.
 	searchUrl: function (text) {
-		return "https://duckduckgo.com/?q=" + encodeURIComponent(this.trim(text));
+		var v = this.trim(text);
+		if (typeof JihadChromePrefs !== "undefined" && JihadChromePrefs.searchUrl) {
+			return JihadChromePrefs.searchUrl(v);
+		}
+		return "https://duckduckgo.com/?q=" + encodeURIComponent(v);
 	},
 
 	//* Address-bar entry -> the URL to open, or "" when there is nothing to do.

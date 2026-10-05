@@ -13,6 +13,19 @@
 var JihadChromePrefs = (function () {
 	var LINKS_KEY = "jihad.startPageLinks";
 	var HOME_KEY  = "jihad.homeUrl";
+	var SEARCH_KEY = "jihad.searchEngine";
+	//* The engines the settings page offers (packaging/prefsui/content/preferences.js
+	//* SEARCH_ENGINES), by id, and where each one searches. The first is the default. The
+	//* page stores only the id; this is the Mojo shell's map from id to url.
+	var SEARCH = [
+		["duckduckgo", "https://duckduckgo.com/?q="],
+		["google",     "https://www.google.com/search?q="],
+		["wikipedia",  "https://en.m.wikipedia.org/wiki/Special:Search?search="]
+	];
+	function safeEngine(id) {
+		for (var i = 0; i < SEARCH.length; i++) { if (SEARCH[i][0] === id) { return id; } }
+		return "";
+	}
 	// A start page with a hundred rows is not a start page; the cap also bounds
 	// what a corrupt or hand-edited store can make the page render.
 	var MAX = 12;
@@ -131,8 +144,8 @@ var JihadChromePrefs = (function () {
 		//* the Settings command menu entry (user reversed the 2026-08-05 "no settings icon in
 		//* mojo" direction).
 		settingsUrl: function () {
-			var cfg = { homeUrl: this.loadHome(), startLinks: this.loadLinks() };
-			return "about:preferences#chrome=" + encodeURIComponent(JSON.stringify(cfg));
+			var cfg = { searchEngine: this.loadSearchEngine(), homeUrl: this.loadHome(), startLinks: this.loadLinks() };
+			return "about:settings#chrome=" + encodeURIComponent(JSON.stringify(cfg));
 		},
 
 		//* True when this url is the settings page. PATH ONLY — see adoptFromUrl for why the
@@ -182,7 +195,23 @@ var JihadChromePrefs = (function () {
 			var beforeHome = this.loadHome();
 			this.saveHome(o.homeUrl);
 			this.saveLinks(o.startLinks);
+			// The search engine travels in the same payload (since 2026-10-05). It is read at
+			// each search, so a change needs no redraw and is not part of the return value. A
+			// page older than the search row sends none: keep the card's.
+			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); }
 			return JSON.stringify(this.loadLinks()) !== beforeLinks || this.loadHome() !== beforeHome;
+		},
+
+		//* The id of the engine the address bar searches with.
+		loadSearchEngine: function () {
+			return safeEngine(read(SEARCH_KEY)) || SEARCH[0][0];
+		},
+
+		//* Where a search for `text` goes with the chosen engine.
+		searchUrl: function (text) {
+			var id = this.loadSearchEngine(), base = SEARCH[0][1];
+			for (var i = 0; i < SEARCH.length; i++) { if (SEARCH[i][0] === id) { base = SEARCH[i][1]; } }
+			return base + encodeURIComponent(text);
 		}
 	};
 }());

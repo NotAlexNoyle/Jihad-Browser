@@ -199,6 +199,11 @@ main {
 .link-remove { flex: 0 0 auto; min-height: 44px; padding: 10px 14px; }
 /* The add / restore pair sits in a plain row, so give the buttons some air. */
 .row > .btn { margin-right: 10px; }
+/* Clear Data rows: the label takes the room, the buttons sit at the right. While a row is
+   asking its question, the question stands out and the confirming button is the red one. */
+.clear-row > .btn { flex: 0 0 auto; margin-right: 0; margin-left: 10px; min-width: 96px; }
+.clear-row.asking .row-help { color: #f0c36a; font-size: 15px; }
+.btn-go { background: #7a2a2a; border-color: #9a3a3a; }
 
 /* The fields opt back into selection — a home page or a link address is exactly the kind
    of value a user wants to select, copy and paste. */

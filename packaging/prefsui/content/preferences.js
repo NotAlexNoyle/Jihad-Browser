@@ -19,12 +19,16 @@
  * Their prefs still exist in the engine and remain reachable in about:config;
  * they are just not surfaced here.
  *
- * The two settings the SHELL owns — the start page's shortcut list and the home
- * button's target — ARE here, in the Browser pane, because this page is meant to be
- * the one settings surface (R5). They are stored in one string pref,
- * `jihad.chrome.settings`, and reach the cards through the url fragment. The default
- * SEARCH ENGINE is still not here: its list comes from a webOS service, not from an
- * engine pref, so only the card can offer it.
+ * What the SHELL owns is here too, in the Browser pane, because this page is the one
+ * settings surface (R5) — since 2026-10-05 the ONLY one: the cards' own "Browser
+ * Settings" panels are gone (owner: "merge browser settings into settings").
+ *   - the home button's target, the start page's shortcut list and the default search
+ *     engine are stored in one string pref, `jihad.chrome.settings`, and reach the cards
+ *     through the url fragment;
+ *   - Clear Bookmarks and Clear History act on lists the CARD keeps, so the page asks
+ *     the cards to do it, over the daemon's notification channel (see tellCards);
+ *     Clear Cookies and Clear Cache are the engine's and are done here.
+ * The Flash switch the card panels carried is the "Adobe Flash" row in Content.
  */
 "use strict";
 
@@ -263,8 +267,28 @@ const PANES = [
 const CHROME_PREF = "jihad.chrome.settings";
 const CHROME_MAX_LINKS = 12;
 
+// The engines a card's address bar can search with. The page stores only the ID; each shell
+// maps it to its own search url (app/source/BrowserApp.js defaultWebSearchEngines,
+// app-mochi/source/JihadServices.js searchEngines, app-mojo/app/models/jihad-url.js) — keep
+// the ids in step with those three. Not the webOS "Just Type" list: that is the SYSTEM's
+// setting, and the Enyo shell used to change it for every app on the device whenever the
+// browser's own choice was changed.
+const SEARCH_ENGINES = [
+	["duckduckgo", "DuckDuckGo"],
+	["google",     "Google"],
+	["wikipedia",  "Wikipedia"]
+];
+
+function safeEngine(id) {
+	for (var i = 0; i < SEARCH_ENGINES.length; i++) {
+		if (SEARCH_ENGINES[i][0] === id) { return id; }
+	}
+	return "";
+}
+
 function chromeDefaults() {
 	return {
+		searchEngine: SEARCH_ENGINES[0][0],
 		homeUrl: "https://start.duckduckgo.com/",
 		startLinks: [
 			{title: "DuckDuckGo",    url: "https://duckduckgo.com/"},
@@ -337,6 +361,7 @@ function loadChrome() {
 function normalizeChrome(o, d) {
 	var links = cleanLinks(o.startLinks);
 	return {
+		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
 		startLinks: links.length ? links : d.startLinks
 	};
@@ -347,6 +372,7 @@ function normalizeChrome(o, d) {
 function saveChrome(o) {
 	var d = chromeDefaults();
 	var kept = {
+		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
 		startLinks: cleanLinks(o.startLinks)
 	};
@@ -357,6 +383,112 @@ function saveChrome(o) {
 	} catch (e) { /* a read-only profile must not break the rest of the page */ }
 	publishToFragment(kept);
 	return kept;
+}
+
+// --- clear data --------------------------------------------------------------
+// Four actions the cards' own panels used to carry. Two are the engine's and are done right
+// here; two act on lists the CARD keeps (its bookmarks and its history list live in the
+// card's store, which this page cannot reach), so the page asks the cards to do them.
+//
+// THE ASKING goes over the daemon's notification channel — the same door a toast uses
+// (DialogService's "jihad-notify" observer -> the variant's Luna subscription -> every card
+// of this variant). A card treats a "chrome-…" category as a request, carries it out and
+// shows `text` as its toast; any other category is just shown. Only chrome code can raise
+// this observer topic, so a web page cannot ask a card to clear anything.
+//
+// Why not the url fragment the settings above travel in: that carries STATE, and a card
+// adopts whatever state a settings url shows it — including an old url reached again with
+// Back. An action must happen once.
+function tellCards(category, text) {
+	try {
+		let bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
+		bag.setPropertyAsAString("category", category);
+		bag.setPropertyAsAString("text", text);
+		Services.obs.notifyObservers(bag, "jihad-notify", null);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+const CLEAR_ACTIONS = [
+	{id: "bookmarks", label: "Bookmarks", ask: "Clear all your bookmarks?",
+	 help: "The bookmarks saved in this browser.",
+	 run: function () { return tellCards("chrome-clear-bookmarks", "Bookmarks cleared."); }},
+	{id: "history", label: "History", ask: "Clear your browsing history?",
+	 help: "The history list, each card's back and forward pages, and the engine's own record of visited pages.",
+	 run: function () {
+		// The engine's Places record first; the cards then drop their own lists.
+		try {
+			Cc["@mozilla.org/browser/nav-history-service;1"].getService(Ci.nsIBrowserHistory).removeAllPages();
+		} catch (e) { /* no Places in this build: the cards' lists are the history */ }
+		return tellCards("chrome-clear-history", "History cleared.");
+	 }},
+	{id: "cookies", label: "Cookies", ask: "Clear all cookies? You will be signed out of sites.",
+	 help: "Every cookie sites have stored.",
+	 run: function () {
+		try {
+			Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager).removeAll();
+		} catch (e) { return false; }
+		tellCards("privacy", "Cookies cleared.");
+		return true;
+	 }},
+	{id: "cache", label: "Cache", ask: "Clear the cache of downloaded pages and images?",
+	 help: "Copies of pages and images kept to load them faster.",
+	 run: function () {
+		try {
+			Cc["@mozilla.org/netwerk/cache-storage-service;1"].getService(Ci.nsICacheStorageService).clear();
+		} catch (e) { return false; }
+		tellCards("privacy", "Cache cleared.");
+		return true;
+	 }}
+];
+
+//* One row per action. A tap on Clear does not clear: it turns the row into the question,
+//* with Clear and Cancel — on the page, not as an engine dialog, which would block the
+//* daemon until a card answered it.
+function buildClearRow(act) {
+	var row = el("div", "row clear-row");
+	var label = el("label", "row-label");
+	var title = document.createTextNode(act.label);
+	label.appendChild(title);
+	var help = el("div", "row-help", act.help);
+	label.appendChild(help);
+	var go = el("button", "btn", "Clear");
+	go.setAttribute("type", "button");
+	go.id = "clear-" + act.id;
+	var yes = el("button", "btn btn-go", "Clear");
+	yes.setAttribute("type", "button");
+	yes.id = "clear-" + act.id + "-yes";
+	var no = el("button", "btn", "Cancel");
+	no.setAttribute("type", "button");
+	no.id = "clear-" + act.id + "-no";
+
+	function asking(on) {
+		go.style.display = on ? "none" : "";
+		yes.style.display = on ? "" : "none";
+		no.style.display = on ? "" : "none";
+		help.textContent = on ? act.ask : act.help;
+		row.className = on ? "row clear-row asking" : "row clear-row";
+	}
+	go.addEventListener("click", function () { asking(true); }, false);
+	no.addEventListener("click", function () { asking(false); }, false);
+	yes.addEventListener("click", function () {
+		var ok = act.run();
+		asking(false);
+		if (ok) {
+			status(act.label + " cleared.");
+		} else {
+			announce("clear-failed", act.label + " could not be cleared.", true);
+		}
+	}, false);
+	asking(false);
+
+	row.appendChild(label);
+	row.appendChild(go);
+	row.appendChild(yes);
+	row.appendChild(no);
+	return row;
 }
 
 // --- pref plumbing ----------------------------------------------------------
@@ -624,6 +756,34 @@ function buildRow(row) {
 function renderChromePane(host) {
 	var cfg = loadChrome();
 
+	var search = el("section", "group");
+	search.appendChild(el("h2", "group-title", "Search"));
+	var srow = el("div", "row");
+	var slabel = el("label", "row-label");
+	slabel.appendChild(document.createTextNode("Default search engine"));
+	slabel.appendChild(el("div", "row-help",
+		"Used when you type words instead of an address into a card's address bar."));
+	var ssel = document.createElement("select");
+	ssel.className = "sel";
+	ssel.id = "search-engine";
+	for (var e = 0; e < SEARCH_ENGINES.length; e++) {
+		var opt = document.createElement("option");
+		opt.setAttribute("value", SEARCH_ENGINES[e][0]);
+		opt.appendChild(document.createTextNode(SEARCH_ENGINES[e][1]));
+		ssel.appendChild(opt);
+	}
+	ssel.value = cfg.searchEngine;
+	ssel.addEventListener("change", function () {
+		cfg.searchEngine = ssel.value;
+		var now = saveChrome(cfg);
+		ssel.value = now.searchEngine;
+		status("Search engine saved.");
+	}, false);
+	srow.appendChild(slabel);
+	srow.appendChild(ssel);
+	search.appendChild(srow);
+	host.appendChild(search);
+
 	var home = el("section", "group");
 	home.appendChild(el("h2", "group-title", "Home Page"));
 	var hrow = el("div", "row");
@@ -645,6 +805,15 @@ function renderChromePane(host) {
 	hrow.appendChild(hinput);
 	home.appendChild(hrow);
 	host.appendChild(home);
+
+	// Before the link editor, not after it: that list can be twelve rows long, and these
+	// four are what people come to this page for.
+	var clear = el("section", "group");
+	clear.appendChild(el("h2", "group-title", "Clear Data"));
+	for (var c = 0; c < CLEAR_ACTIONS.length; c++) {
+		clear.appendChild(buildClearRow(CLEAR_ACTIONS[c]));
+	}
+	host.appendChild(clear);
 
 	var box = el("section", "group");
 	box.appendChild(el("h2", "group-title", "Start Page Links"));
@@ -724,8 +893,8 @@ function renderChromePane(host) {
 	note.appendChild(el("h2", "group-title", "Where these apply"));
 	var n = el("div", "row");
 	n.appendChild(el("div", "row-help",
-		"These two are the card shell's, not the engine's — the home button and the start " +
-		"page live in the app, so they are read back over this variant's own Luna service. " +
+		"The search engine, the home button and the start page are the app's, not the " +
+		"engine's: an open card picks up a change here at once. Flash is in Content. " +
 		"Every other pane on this page changes the engine directly."));
 	note.appendChild(n);
 	host.appendChild(note);
@@ -799,7 +968,7 @@ function resetPane() {
 	if (pane.chrome) {
 		saveChrome(chromeDefaults());
 		renderPane(gPane);
-		announce("prefs-reset", "Home page and start page links restored to their defaults.", false);
+		announce("prefs-reset", "Search engine, home page and start page links restored to their defaults.", false);
 		return;
 	}
 	let n = 0;

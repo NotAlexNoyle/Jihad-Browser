@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0; see ../../LICENSE.
 //
 // JihadChromePrefs — the settings this front-end owns by itself: the start page's
-// shortcut list and the home button's target.
+// shortcut list, the home button's target and (since 2026-10-05) the default search engine.
+// All three are EDITED on the settings page (about:preferences); what is here is the card's
+// cache of them, refreshed by adoptFromUrl.
 //
 // Storage is the CARD's own localStorage, not the db8 preferences kind this
 // package owns: those two settings are pure chrome state, they are read while
@@ -14,6 +16,17 @@
 enyo.jihadChrome = (function () {
 	var LINKS_KEY = "jihad.startPageLinks";
 	var HOME_KEY  = "jihad.homeUrl";
+	var SEARCH_KEY = "jihad.searchEngine";
+	//* Where the card's own settings panel kept the choice before the panel was merged into
+	//* the settings page. Read once as the starting value, never written again.
+	var SEARCH_KEY_OLD = "jihad.mochi.searchEngine";
+	//* The ids the settings page offers (packaging/prefsui/content/preferences.js
+	//* SEARCH_ENGINES); the first is the default. enyo.jihad.searchEngines maps each to a url.
+	var SEARCH_IDS = ["duckduckgo", "google", "wikipedia"];
+	function safeEngine(id) {
+		for (var i = 0; i < SEARCH_IDS.length; i++) { if (SEARCH_IDS[i] === id) { return id; } }
+		return "";
+	}
 	// A start page with a hundred rows is not a start page; the cap also bounds
 	// what a corrupt or hand-edited store can make the page render.
 	var MAX = 12;
@@ -95,8 +108,8 @@ enyo.jihadChrome = (function () {
 
 		//* The settings url for the one editing surface, carrying THIS card's values.
 		settingsUrl: function () {
-			return "about:preferences#chrome=" + encodeURIComponent(JSON.stringify({
-				homeUrl: this.loadHome(), startLinks: this.loadLinks()
+			return "about:settings#chrome=" + encodeURIComponent(JSON.stringify({
+				searchEngine: this.loadSearchEngine(), homeUrl: this.loadHome(), startLinks: this.loadLinks()
 			}));
 		},
 
@@ -111,10 +124,18 @@ enyo.jihadChrome = (function () {
 			var o = null;
 			try { o = JSON.parse(decodeURIComponent(m[1])); } catch (e) { return false; }
 			if (!o) { return false; }
-			var before = JSON.stringify(this.loadLinks()) + this.loadHome();
+			var before = JSON.stringify(this.loadLinks()) + this.loadHome() + this.loadSearchEngine();
 			this.saveHome(o.homeUrl);
 			this.saveLinks(o.startLinks);
-			return (JSON.stringify(this.loadLinks()) + this.loadHome()) !== before;
+			// A page older than the search row sends no engine: keep the card's.
+			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); }
+			return (JSON.stringify(this.loadLinks()) + this.loadHome() + this.loadSearchEngine()) !== before;
+		},
+
+		//* The id of the engine the address bar searches with: the one adopted from the
+		//* settings page, else the one the old card panel stored, else the default.
+		loadSearchEngine: function () {
+			return safeEngine(read(SEARCH_KEY)) || safeEngine(read(SEARCH_KEY_OLD)) || SEARCH_IDS[0];
 		},
 
 		//* Returns the cleaned list actually stored. Saving an empty list clears the

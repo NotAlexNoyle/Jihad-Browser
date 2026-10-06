@@ -546,13 +546,13 @@ MainAssistant.prototype.handlePageMenuChoice = function (command) {
 		// The text comes back by way of handlePageCopied. What the engine says about a copy
 		// is broadcast to every card, so the card remembers that it asked.
 		this.copyAsked = {at: Date.now(), cut: false};
-		this.callBrowserAdapter("copy");
+		this.askCopy();
 		break;
 	case "page-cut":
 		// A copy, and then — only once the text is on the clipboard — the adapter's cut,
 		// which tells the engine to delete what it handed over (handlePageCopied).
 		this.copyAsked = {at: Date.now(), cut: true};
-		this.callBrowserAdapter("copy");
+		this.askCopy();
 		break;
 	case "page-paste":
 		this.pasteIntoPage();
@@ -571,6 +571,29 @@ MainAssistant.prototype.handlePageMenuChoice = function (command) {
 		this.showFind();
 		break;
 	}
+};
+
+//* Ask the engine to copy the selection. The WebView widget's copy(callback) hands its one
+//* argument to the adapter as given, and the adapter takes one argument only when it is an
+//* object: called with none, the widget passes `undefined`, the adapter answers "Bad
+//* arguments" and nothing is copied (device 2026-10-06). So the call always carries a
+//* function. The engine's yes/no arrives here; the text itself comes by handlePageCopied. A
+//* no means nothing is coming: if the engine's own word on why ("Nothing is selected.", on the
+//* notification channel, which may land before or after this) has not shown by then, the
+//* card says so itself, so the user is not left waiting on a Copy that did nothing.
+MainAssistant.prototype.askCopy = function () {
+	var self = this, win = this.controller.window;
+	this.callBrowserAdapter("copy", [function (ok) {
+		if (ok) {
+			return;
+		}
+		Mojo.Log.error("[Jihad] copy: the engine handed nothing over");
+		win.setTimeout(function () {
+			if (self.takeCopyAsked()) {
+				JihadToast.show("info", $L("The text could not be copied."));
+			}
+		}, 1500);
+	}]);
 };
 
 //* The copy this card asked for within the last five seconds, once.
@@ -752,13 +775,37 @@ MainAssistant.prototype.cleanup = function () {
 //* exposed method of the same name (widget.goBack() -> adapter.goBack(), and so on).
 //* The set of method-name LITERALS passed here is grep-audited against the Enyo-1.0
 //* app and must stay a subset of it — see the file header.
+//*
+//* The widget wraps the adapter methods of its day and no others: it has no cut and no
+//* pageFocused (both existed in the stock adapter; the widget simply never exposed them),
+//* so those two calls went to the warning below and nothing happened — Cut copied and
+//* deleted nothing, and the padlock's question was asked without saying whose card it was
+//* (device 2026-10-06). A method the widget does not wrap is called on the plugin element
+//* the widget made — the one <object> inside the widget's element, carrying this variant's
+//* MIME type — which is what every wrapper does inside (`element.mojo` is the widget's
+//* exposed face, not the widget, and does not carry its `adapter`). The literal set above is
+//* unchanged by this. On the device's framework build the widget wraps copy, selectAll,
+//* insertStringAtCursor, goBack, goForward, reloadPage and stopLoad of this set; cut,
+//* pageFocused AND findInPage take the plugin road — so Find on Page, too, had never reached
+//* the engine from this shell. A plugin method answers a failure by throwing its message
+//* (the widget's wrappers catch theirs); caught here and logged, the same as a missing one.
 MainAssistant.prototype.callBrowserAdapter = function (method, args) {
 	var view = this.controller.get(this.WEB_VIEW_ID);
-	var widget = view && view.mojo;
+	var widget = view && view.mojo, plugin = view && view.querySelector("object");
 	if (widget && typeof widget[method] === "function") {
 		return widget[method].apply(widget, args || []);
 	}
-	Mojo.Log.warn("[Jihad] BrowserAdapter method unavailable: %s", method);
+	if (plugin && typeof plugin[method] === "function") {
+		try {
+			return plugin[method].apply(plugin, args || []);
+		} catch (e) {
+			Mojo.Log.error("[Jihad] BrowserAdapter %s: %s", method, e);
+			return undefined;
+		}
+	}
+	// Error level: warn is below the device log's threshold, and this line silent is how
+	// a Cut that did nothing passed for a day.
+	Mojo.Log.error("[Jihad] BrowserAdapter method unavailable: %s", method);
 };
 
 // --- navigation -------------------------------------------------------------

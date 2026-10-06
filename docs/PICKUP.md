@@ -1,9 +1,76 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-05 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
+
+## 2026-10-06 (later) delta — Mojo's Copy/Cut/padlock never reached the engine; wide zoomed regions seen; three test hooks
+
+**Why this session existed:** "Is there anything else you can do without me using the device
+physically?" — the items that did not need a finger: the Mochi padlock after a failed load, a
+pinch through the adapter's own gesture entry points, and a test hook for the Mojo shell. Each
+turned up something.
+
+**Found and fixed (device-verified, scripted):**
+- **Mojo Copy, Cut and the padlock's `pageFocused` had never reached the engine.** The Mojo WebView
+  widget (framework, not ours) implements `copy(callback)` as `this.adapter.copy(callback)`, so the
+  shell's `callBrowserAdapter("copy")` handed the adapter one `undefined` argument, which
+  `js_copy` refuses ("Bad arguments") — silently, because the shell's "method unavailable" line
+  was at `Mojo.Log.warn`, which never reaches the device log (a trap already in the Mojo kit).
+  And the widget wraps no `cut` and no `pageFocused` at all. Fix (`app-mojo/app/assistants/
+  main-assistant.js`): `askCopy()` always passes a function; a method the widget does not wrap is
+  called on the plugin element itself (`view.querySelector("object")` — `element.mojo` is the
+  widget's exposed face and does not carry its `adapter`); the unavailable line is now `error`.
+  The method-name set is unchanged (kit mojo-ui R3). Verified: word Copy → clipboard; field Paste;
+  Select All → Copy/Cut appear; Cut → clipboard has the text, field empty, engine says "Cut.";
+  padlock tap on Wikipedia → the Certificate alert; `pageFocused` logged by the daemon.
+- **Wide zoomed regions were thrown away at the content's right edge.** The pinch hook (`g` step:
+  adapter `gestureStart/Change/End`) does zoom (`setZoomAndScroll zoom=1.2434 scroll=658,686`),
+  and the first wide frame came out one viewport wide: `mLastContentW * Zeff` gave 1387 while the
+  band (clamped in CSS px, scaled the other way) ended at 1388, and the band-inside-region test
+  dropped the wide region. `BrowserPageGoanna.cpp`: the content is at least as wide as the band.
+  Verified: `region columns: content 1388 px wide at zoom 1.2434 ... -> [0, +1388), rows up to
+  2266`, the composite on screen is right, pinch back to 0.8447 → 943x3335 with sweeps. The
+  `region columns:` line logs only when the decision changes (kept; it is what made this visible).
+- **Mochi padlock after a failed load** (`page:w6;l;a;w3;l;w3` over `https://no-such-host.invalid/`):
+  showing before the engine's alert is answered, gone after, the tap then says "No certificate
+  information is available for this page." Mochi hook gained `a` (answer the engine's alert).
+
+**New: a Mojo test hook** — `render/goanna/test/mojo-selftest.js`, `card-selftest.sh mojo push|run|restore`
+(the script now knows each shell's sources, manifest and hook path). Steps: `hX,Y` hold, `m`/`mN`
+read/pick the open `popupSubmenu` (its model's items; a pick calls the model's `onChoose` with the
+item's command, the popup's element removed first — this framework build's submenu has no
+`mojo.close`), `l` padlock (`handleAddressTap` at x=12), `d`/`a` read and answer the open
+`showAlertDialog`, `k`/`c=`/`p` clipboard, `W`/`P` list the widget's and the plugin's methods,
+`?` state. The scenario comes from `PalmSystem.launchParams.jihadTest` (the stage hands the scene
+only the url). Every `callBrowserAdapter` call is logged with the road it took (widget / plugin /
+nowhere) — that is how the Copy defect showed.
+
+**Review:** Codex still out of credits (retry 6:46 AM) → `ck:inspector` on the diff; findings and
+what was done with them are in `context/impl/impl-review-findings-6.md` (round 5).
+
+**Still open (unchanged in kind):** owner-only finger tests (T-341: pan/pinch feel, a hold on a link
+per shell, the glyph itself), removal/reinstall (T-231…), hands-on checklist (T-280…), one real
+print, pushing the engine branch. The sideways pan still has no script (it is the adapter's drag).
+Agent-doable when Codex's credits return (6:46 AM local): a Codex pass over the inspector-only
+rounds (3 and 5 in `impl-review-findings-6.md`; the scratch wrapper is described under "Codex
+gate" in the delta below). Nothing else of the owner's list is reachable without a finger.
+
+**Device state:** all three variants installed through the installer from the packages built at
+this commit (bundle `622ea210…`, daemon `59c72b75…`, libxul unchanged `ddf8cc70…`, adapters
+unchanged; packages `build/webos-oe/out-ipk/*.ipk`, md5 `c0273e34 / 3956cd95 / d7b7c1cd`) — the device is
+the repository head. Each variant smoke-tested on Wikipedia from the package (title and frames
+in its daemon log). Palefill XPI in each profile. Root filesystem read-only. Test hooks: none
+loaded, manifests shipped. Staged packages and my `/tmp` files removed (`/tmp` 688 KB used). No
+crash reports of mine (`/var/log/reports` holds only `librdx`). No card open.
+
+**Review fixes applied after the inspector (same commit):** see `impl-review-findings-6.md`
+round 5. The things to know: the Mojo hook answers an alert through the dialog's own
+`close(value)` (a page `confirm()` → "answered yes" on the device) and taps a submenu node with
+`Mojo.Event.tap`; Find on Page in Mojo had also never reached the engine (no `findInPage`
+wrapper) and now does (`find 'charlie' -> 1`); a copy the engine answers `false` to gets its own
+"could not be copied" toast after 1.5 s unless the engine's word came first.
 
 ## 2026-10-06 delta — the 2026-10-05 work finished, reviewed, packaged, device cleaned
 

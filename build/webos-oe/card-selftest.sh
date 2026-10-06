@@ -1,14 +1,14 @@
 #!/bin/bash
 # Drive a shell's own chrome on the device without a finger, for a TEST RUN.
 #
-#   card-selftest.sh [mochi|enyo] push     push the working-tree sources of that shell plus its
+#   card-selftest.sh [mochi|enyo|mojo] push push the working-tree sources of that shell plus its
 #                                          test hook (render/goanna/test/<shell>-selftest.js),
 #                                          restart LunaSysMgr so the card loads them
-#   card-selftest.sh [mochi|enyo] run <scenario[:arg]> [target-url] [seconds] [shot.jpg]
+#   card-selftest.sh [mochi|enyo|mojo] run <scenario[:arg]> [target-url] [seconds] [shot.jpg]
 #                                          close the card, launch it on target-url with that
 #                                          scenario, wait, print the "[JIHAD-TEST]" lines and
 #                                          save a screenshot (portrait, already rotated)
-#   card-selftest.sh [mochi|enyo] restore  put the shipped manifest back, delete the hook,
+#   card-selftest.sh [mochi|enyo|mojo] restore  put the shipped manifest back, delete the hook,
 #                                          restart LunaSysMgr
 #
 # The shell defaults to mochi.
@@ -18,12 +18,18 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 SHELL_NAME=mochi
-case "${1:-}" in mochi|enyo) SHELL_NAME=$1; shift;; esac
+case "${1:-}" in mochi|enyo|mojo) SHELL_NAME=$1; shift;; esac
+# SRC_GLOBS: the shell's sources to push (working tree); HOOK: where the hook lives in the app dir.
 case $SHELL_NAME in
   mochi) ID=net.riverstonerelay.jihad-browser-mochi; APPDIR=app-mochi; MANIFEST=source/package.js
-         MANIFEST_SED='s|"JihadBrowser.js"|"JihadBrowser.js",\n\t"JihadSelfTest.js"|';;
+         MANIFEST_SED='s|"JihadBrowser.js"|"JihadBrowser.js",\n\t"JihadSelfTest.js"|'
+         SRC_GLOBS="source/*.js source/*.css"; HOOK=source/JihadSelfTest.js;;
   enyo)  ID=net.riverstonerelay.jihad-browser;       APPDIR=app;       MANIFEST=depends.js
-         MANIFEST_SED='s|"source/tld.js"|"source/tld.js",\n\t"source/JihadSelfTest.js"|';;
+         MANIFEST_SED='s|"source/tld.js"|"source/tld.js",\n\t"source/JihadSelfTest.js"|'
+         SRC_GLOBS="source/*.js source/*.css"; HOOK=source/JihadSelfTest.js;;
+  mojo)  ID=net.riverstonerelay.jihad-browser-mojo;  APPDIR=app-mojo;  MANIFEST=sources.json
+         MANIFEST_SED='s|{ "source": "app/assistants/history-assistant.js" }|{ "source": "app/assistants/history-assistant.js" },\n\t{ "source": "app/assistants/JihadSelfTest.js" }|'
+         SRC_GLOBS="app/assistants/*.js app/models/*.js app/views/*/*.html stylesheets/*.css index.html"; HOOK=app/assistants/JihadSelfTest.js;;
 esac
 DEV=/media/cryptofs/apps/usr/palm/applications/$ID
 NOVACOM=(novacom)
@@ -44,7 +50,7 @@ restart_sysmgr() {
 case "${1:-}" in
 push)
   STAMP=$(date +%m%d-%H%M%S)
-  for f in $APPDIR/source/*.js $APPDIR/source/*.css $APPDIR/$MANIFEST; do
+  for f in $(for g in $SRC_GLOBS; do echo $APPDIR/$g; done) $APPDIR/$MANIFEST; do
     [ -f "$f" ] || continue
     rel=${f#$APPDIR/}; n=$(basename "$f")
     if [ "$rel" = "$MANIFEST" ]; then
@@ -56,7 +62,7 @@ push)
     fi
     put "$TMP/$n" "$DEV/$rel"
   done
-  put render/goanna/test/$SHELL_NAME-selftest.js "$DEV/source/JihadSelfTest.js"
+  put render/goanna/test/$SHELL_NAME-selftest.js "$DEV/$HOOK"
   echo "pushed $SHELL_NAME sources + test hook (stamp $STAMP)"
   restart_sysmgr
   ;;
@@ -89,7 +95,7 @@ Image.open('$TMP/st.png').rotate(-90, expand=True).convert('RGB').resize((576,76
   ;;
 restore)
   put $APPDIR/$MANIFEST "$DEV/$MANIFEST"
-  "${NOVACOM[@]}" run file://bin/rm -- -f "$DEV/source/JihadSelfTest.js"
+  "${NOVACOM[@]}" run file://bin/rm -- -f "$DEV/$HOOK"
   echo "shipped $MANIFEST restored, test hook deleted"
   restart_sysmgr
   ;;

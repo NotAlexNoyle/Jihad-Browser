@@ -449,6 +449,7 @@ private:
   int                mLatestSlot = -1;
   uint32_t           mStripGen = 0;
   bool               mGrowOwed = false;
+  long               mRegionColsLogged = -1;   // region width last logged ("region columns:")
   long               mSweepLeft = 0, mSweepRow = 0;
   long               mSweepStep = 512;       // rows per sweep frame (128..1024, by measured cost)
   int64_t            mSweepNotBeforeMs = 0;  // pause after a completed sweep

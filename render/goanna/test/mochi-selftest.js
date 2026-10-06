@@ -103,6 +103,10 @@
 					})();
 					log(name, "pinch " + st.slice(1));
 					wait = 3500;
+				} else if (st === "a") {              // answer OK to the engine alert that is open (its own handler)
+					var alertUp = !!(app.$.dialogs.$.alert && app.$.dialogs.$.alert.getShowing());
+					log(name, "engine alert showing=" + alertUp + (alertUp ? "; answering OK" : "; nothing to answer"));
+					if (alertUp) { app.$.dialogs.alertOk(); }
 				} else if (st === "x") {              // close this card (a second card that only needed to connect)
 					log(name, "closing this card");
 					window.close();

@@ -455,6 +455,20 @@ The owner's requests in order: "long pressing on the page doesn't do anything bu
 
 T-330–T-339 are done (T-333 after two review rounds: Codex, then the inspector when Codex's credits ran out). T-340 is the 2026-10-06 reinstall. T-341 needs a finger. Still open from earlier tiers and NOT closable by an agent: T-231 / T-232 / T-233 / T-234 / T-236 / T-273 (Enyo and Mojo removal + install from nothing), T-280–T-289, T-317.
 
+## Tier 70 — "anything else without the device in hand?" (2026-10-06, later; added to the site, not a regeneration)
+
+The items of T-341 that a test hook can drive, driven — and what they found.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-342 | Mochi padlock after a failed load, device-verified (hook `a` step answers the engine's alert). | cavekit-ui-shell.md | ui-shell R8 | T-340 | yes | S |
+| T-343 | Pinch through the adapter's gesture entry points (hook `g`): zoom and scroll happen; [FOUND] the wide region was dropped at the content's right edge (one-px rounding of the content width against the band) — fixed, wide regions seen composited at 1388 and 943 columns. | cavekit-offscreen-rendering.md | offscreen R9 | T-334 | yes | S |
+| T-344 | Mojo test hook (`render/goanna/test/mojo-selftest.js`, `card-selftest.sh mojo`): holds, submenu read/pick, padlock tap, alerts, clipboard, every adapter call logged with its road. | cavekit-mojo-ui.md | mojo-ui R6 | T-340 | yes | M |
+| T-345 | [FOUND] Mojo Copy, Cut and `pageFocused` never reached the engine: the WebView widget's `copy(undefined)` is refused by the adapter, and it wraps no `cut`/`pageFocused`. Shell passes a callback and calls unwrapped methods on the plugin element; method set unchanged. Menu, copy, paste, select-all, cut and padlock tap device-verified. | cavekit-mojo-ui.md | mojo-ui R3/R6, ui-shell R7/R8 | T-344 | yes | M |
+| T-346 | Packages rebuilt (daemon + Mojo shell) and installed on all three variants; hooks removed; inspector round 5 (Codex out of credits). | cavekit-device-build.md | device-build R4 | T-343, T-345 | yes | S |
+
+T-341 keeps what only a finger can judge: the feel of a pan and a pinch, a hold on a link in each shell, a finger on the glyph itself.
+
 ## Summary
 
 | Tier | Tasks | Effort |
@@ -579,8 +593,34 @@ T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 ->
 | cavekit-preferences-ui.md | R5 | Frozen YAP settings commands keep working | T-215, T-252 | COVERED |
 | cavekit-preferences-ui.md | R6 | Controls hit-testable by touch at 1024x768 | T-284 | COVERED |
 | cavekit-preferences-ui.md | R6 | Keyboard entry works in any text field the page offers | T-250, T-284 | COVERED |
+| cavekit-ui-shell.md | R7 | Hold on text selects the word; menu offers Copy / Select All / page actions | T-332, T-333 | COVERED |
+| cavekit-ui-shell.md | R7 | Hold on a field: focus + caret; Paste / Select All, Copy / Cut once selected | T-332, T-333, T-345 | COVERED |
+| cavekit-ui-shell.md | R7 | A press inside the selection keeps it (Select All → Copy copies the page) | T-333 | COVERED |
+| cavekit-ui-shell.md | R7 | A page handling its own contextmenu gets no second menu | T-332 | COVERED |
+| cavekit-ui-shell.md | R7 | Cut deletes only once the card has the text, whole; the card is told | T-333, T-345 | COVERED |
+| cavekit-ui-shell.md | R7 | Inside the frozen contract (adapter's selectAll/copy/cut/insertStringAtCursor) | T-332 | COVERED |
+| cavekit-ui-shell.md | R7 | A real finger on text / field / link in all three shells | T-341 | COVERED (owner) |
+| cavekit-ui-shell.md | R7 | Fields inside iframes get the page menu (known gap, owner's call) | T-341 | COVERED (owner) |
+| cavekit-ui-shell.md | R8 | `pageCertificate` answered to the own card only, in the reply | T-335 | COVERED |
+| cavekit-ui-shell.md | R8 | Padlock opens the certificate view with fingerprint / connection / trust rows | T-335 | COVERED |
+| cavekit-ui-shell.md | R8 | No padlock over a failed load | T-335, T-338, T-342 | COVERED |
+| cavekit-ui-shell.md | R8 | Several cards: the answer is for the card that asked (`pageFocused`) | T-336 | COVERED |
+| cavekit-ui-shell.md | R8 | Mojo padlock tap; Mochi padlock after a failed load | T-342, T-345 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | Region uses the whole segment; a page that fits is painted whole | T-334 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | Frames are composed; ≤ 768 new rows a frame; maintenance frames | T-334 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | Off-screen rows swept once loaded and still, with pauses | T-334 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | Every row of a composed frame is row-exact after jumps | T-334 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | Zoomed in, the region is as wide as the content up to two viewports | T-334, T-343 | COVERED |
+| cavekit-offscreen-rendering.md | R9 | A real pan and pinch judged by eye | T-341 | COVERED (owner) |
+| cavekit-offscreen-rendering.md | R9 | Wide regions seen on the device | T-343 | COVERED |
+| cavekit-addons-extensions.md | R9 | Palefill 1.30 vendored byte for byte, licence and hash | T-337 | COVERED |
+| cavekit-addons-extensions.md | R9 | Offered once per profile through the add-on manager | T-337 | COVERED |
+| cavekit-addons-extensions.md | R9 | Installs enabled (AppCompat rule) | T-337 | COVERED |
+| cavekit-addons-extensions.md | R9 | It does something (debug output on a fixed site) | T-337 | COVERED |
+| cavekit-addons-extensions.md | R9 | Known and accepted: the settings window it cannot open; whole-response buffering | T-337 | COVERED |
+| cavekit-mojo-ui.md | R6 | Long-press menu and padlock in the Mojo shell | T-344, T-345, T-341 | COVERED |
 
-**Coverage: 53/53 criteria (100%)**
+**Coverage: 80/80 criteria (100%)** *(27 rows added 2026-10-06 for ui-shell R7/R8, offscreen R9, addons R9 and mojo-ui R6; "(owner)" marks a criterion only a finger can close.)*
 
 ## Dependency Graph
 

@@ -3246,7 +3246,20 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // frame, so the two ship together).
   long regW = w, loX = bandX;
   if (zoomed) {
-    const long contentCols = (mLastContentW > 0) ? (long)((double)mLastContentW * Zeff) : 0;
+    long contentCols = (mLastContentW > 0) ? (long)((double)mLastContentW * Zeff) : 0;
+    // The band was clamped to the content in css px and scaled; this is the same number
+    // rounded the other way. At the content's right edge that came out one px short of the
+    // band (1387 against a band ending at 1388, measured), and the band-inside-region test
+    // below then threw the wide region away exactly where a sideways pan ends. The band is
+    // inside the content by construction: let it say how wide the content is. The adapter's
+    // own x may round the same way, by a pixel or two; past that it is a real overshoot, left
+    // to the clamps below.
+    if (contentCols > 0) {
+      long edge = bandX + (long)w;
+      const long adEdge = (long)mAdapterScrollX + (long)w;
+      if (adEdge > edge && adEdge <= edge + 2) edge = adEdge;
+      if (contentCols < edge) contentCols = edge;
+    }
     if (contentCols > (long)w) {
       regW = contentCols < 2L * w ? contentCols : 2L * w;
       const long adX = (long)mAdapterScrollX;
@@ -3259,6 +3272,15 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const long rowsFor = (long)((segSize - hdr) / ((size_t)regW * 4));
       if (rowsFor < (long)h) { regW = w; loX = bandX; }          // no room: one viewport wide
       else if (rowsFor < maxRows) maxRows = rowsFor;
+      // One line when the WIDTH decision changes (a zoom, or the content's width), with the
+      // numbers behind it — the decision was invisible, and a wrong one looked like a slow
+      // sweep. Not on every left edge: a sideways pan of content wider than two viewports
+      // moves loX every frame, and a line per frame is how the log once filled /var.
+      if (regW != mRegionColsLogged) {
+        mRegionColsLogged = regW;
+        fprintf(stderr, "[jihad-bs] region columns: content %ld px wide at zoom %.4f, band x=%ld, adapter x=%d -> [%ld, +%ld), rows up to %ld\n",
+                contentCols, Zeff, bandX, (int)mAdapterScrollX, loX, regW, maxRows);
+      }
     }
   }
 

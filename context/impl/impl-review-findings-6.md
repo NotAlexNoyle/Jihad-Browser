@@ -136,3 +136,40 @@ Inspector, on the last fix round (no P0/P1):
 - Checked and found sound by the inspector: certificate JSON escaping, security UI presence,
   SSL status cleared on https→http, the clip file's ASCII literal and partial-write removal,
   the startup cache covering a pushed provider, ES5 in the shells, the certificate view's reuse.
+
+## Round 5 — the inspector on the 2026-10-06 (later) diff (Codex out of credits until 6:46 AM)
+
+Scope: the region-columns block (`BrowserPageGoanna.cpp`), the Mojo shell's `askCopy` /
+`callBrowserAdapter`, the Mochi hook's `a` step, `card-selftest.sh`'s Mojo support, and the new
+Mojo hook. The inspector read the framework's own `widget_submenu.js` / `widget_alert.js` /
+`widget_webview.js` (the 506 build in `build/webos-oe/pdk/`) against the hook and the shell.
+No P0/P1.
+
+| Severity | File | Description |
+|---|---|---|
+| P2 | `render/goanna/test/mojo-selftest.js` | `a`/`d` closed the alert with `mojo.close()` (which calls `onChoose(undefined)`) and then called `onChoose(value)` again: a page `confirm()` was answered Cancel, and the second answer hit the adapter after its pipe was cleared. |
+| P2 | `app-mojo/app/assistants/main-assistant.js` | The plugin road wakes every method the widget never wrapped, not only `cut` and `pageFocused`: `findInPage` too, so Find on Page in Mojo — a silent no-op until now — starts working untested; plugin-path errors (thrown strings) would propagate where the widget's wrappers swallowed theirs. |
+| P3 | `mojo-selftest.js` | `m` pick: close-then-onChoose is not a tap's order; removing the element by hand leaves the widget's container/commander registered on the scene. |
+| P3 | `BrowserPageGoanna.cpp` | The diff's static log gate keyed on `(regW, loX)` prints every frame of a sideways pan on content wider than two viewports. (The working tree already had the per-page `mRegionColsLogged` keyed on width.) |
+| P3 | `main-assistant.js` | A copy the engine answers `false` to leaves `copyAsked` set for 5 s and shows nothing. |
+| P3 | `BrowserPageGoanna.cpp` | The right-edge fix covers the band but not the adapter's own x, which may round a pixel past the floored content edge (a suspicion, not observed). |
+| P3 | `render/goanna/test/mochi-selftest.js` | `a` answered whether or not an alert was up. |
+| P3 | `build/webos-oe/card-selftest.sh` | Mojo push left out `app/views/**/*.html` and `index.html`. |
+
+**Dispositions:** all applied. The hook now answers an alert through the dialog's own
+`close(value)` (device: a page `confirm()` → "answered yes") and picks a submenu entry by
+sending `Mojo.Event.tap` to its `x-mojo-menu-cmd` node, so the widget's own handler chooses and
+cleans up. The shell's comment names the methods that take the plugin road on this framework
+build (`cut`, `pageFocused`, `findInPage`); the plugin call is in `try/catch` and logged at
+error level; Find on Page exercised on the device from the hook (`f` step: `find 'charlie' -> 1`,
+the selection copies as "charlie"). A copy answered `false` shows "The text could not be
+copied." 1.5 s later unless the engine's own word (`page-copy-empty`) got there first. The
+region edge takes the adapter's x when it overshoots the band's edge by at most 2 px. The Mochi
+`a` step reports whether an alert is showing and answers only then. Mojo push includes the
+views and `index.html`.
+
+**Suspicions the inspector dropped:** the region maths (the raise cannot widen a page that
+fits; the clamps keep the band inside), the plugin lookup (the single `<object>`), the
+`card-selftest.sh` expansion, the hook's wrappers (the adapter-call probe rethrows; the
+hold probe's swallow is test-only), the copy callback's lifetime (`CopySuccessCallbackArgs`
+retains and releases it; the daemon always answers).

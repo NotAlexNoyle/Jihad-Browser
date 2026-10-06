@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -82,7 +82,33 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 ## Cross-References
 - See also: cavekit-mochi-ui.md (the Enyo-2/Mochi sibling variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-licensing-branding.md
 
+### R7: A long-press on page content raises a context menu, as a right-click does on a desktop
+**Description:** Holding a finger on a page does something everywhere, not only on links and images. The menu is the desktop browser's: editing commands on a field, the page's actions elsewhere.
+**Added 2026-10-05 (owner: "long pressing on the page doesn't do anything but it should, like on a desktop browser").** Applies to all three shells (cavekit-mochi-ui.md R2, cavekit-mojo-ui.md R6).
+**Acceptance Criteria:**
+- [x] On text: the word under the finger is selected; the menu offers Copy, Select All, Back/Forward (when there is somewhere to go), Reload, Add Bookmark, Find on Page. On empty space: the same without Copy. *(Device, Enyo + Mochi, scripted holds through the adapter's own `mouseHoldAt`: 2026-10-05.)*
+- [x] On a text field: the field takes the focus with the caret under the finger, and the menu offers Paste, Select All, and Copy/Cut once something in it is selected. A read-only or disabled field, or a password field's contents, is never offered for editing or copying. *(Device, Enyo + Mochi, 2026-10-05.)*
+- [x] A press inside what is already selected keeps the selection, so Select All → press → Copy copies the page. *(Device, 2026-10-05.)*
+- [x] A page that handles its own `contextmenu` event (preventDefault) gets no second menu. *(Device, 2026-10-05.)*
+- [x] Cut deletes only once the card confirms the text is on the clipboard, and only what was copied, whole; the card is told how it ended ("Cut.", or why not). Paste is bounded and sent in pieces the IPC can carry (one message holds 16 KB). *(Device, 2026-10-05.)*
+- [x] All of it inside the frozen contract: the adapter's own `selectAll` / `copy` / `cut` / `insertStringAtCursor` (they were stubs in the daemon), one bundled component (`components/jihadPageCommands.js`) and the notification channel; copied text reaches the card as a one-call script in the app's own `clip/` directory, under a random name, in plain ASCII. Commands act on the page they were asked of and run from the daemon's guarded tick.
+- [ ] A real finger: hold on text, on a field, on a link, in all three shells; Mojo's menu has no test hook at all. [human at the device]
+- [ ] Fields inside iframes get the page's menu, not the editing one (editability is hit-tested in the top document). Known gap; decide whether it matters. [decision]
+**Dependencies:** cavekit-ipc-contract.md (R1), cavekit-gre-widgets.md (R5 — the notification channel)
+
+### R8: The padlock shows whose certificate the page was served with
+**Description:** Tapping the address bar's padlock shows the loaded page's certificate (subject, issuer, validity, serial, fingerprint), the connection (TLS version, cipher, key size) and whether the certificate was believed.
+**Added 2026-10-05 (owner: "add clicking on the lock to view certificate information").**
+**Acceptance Criteria:**
+- [x] The daemon's own Luna service answers `pageCertificate` to this variant's own card only, in the reply itself (not on the public notification channel), from the docshell's security UI: certificate fields, connection, and `broken` / `overridden` / `untrusted` / `mismatch` / `badTime`. *(Device, 2026-10-05: *.wikipedia.org, YE2, TLS 1.3, AES-GCM, 128-bit keys.)*
+- [x] Enyo's existing padlock is the button; the certificate view it opens is the one the SSL warning uses, with fingerprint, connection and trust rows added. Mochi and Mojo, which had no padlock, get one in the address field (Mojo's drawn as the field's background, tapped at its left edge). *(Enyo + Mochi device-verified; Mojo drawn, tap untested.)*
+- [x] No padlock over a failed load: what is on screen is an error page, not that site. *(Enyo, device, 2026-10-05.)*
+- [x] With several cards open the answer is for the card that asked: the adapter's `pageFocused` — an empty stub until now, on which thumbnails and printing already relied — sends the daemon the adapter's existing message, and the daemon clears the focus when a card gives it up. *(Device, 2026-10-05: a card's own call seen reaching the daemon right before its request.)*
+- [ ] Mojo: a finger on the padlock; Mochi: the padlock after a failed load. [human at the device]
+**Dependencies:** cavekit-gre-widgets.md (the SSL warning's certificate view), cavekit-ipc-contract.md (R1)
+
 ## Changelog
+- 2026-10-06: Added R7 (long-press menu) and R8 (padlock → certificate) for the 2026-10-05 work, with the device evidence and what still needs a finger.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2: two criteria amended, no box changed
   state — the service-URI criterion now records the own-service-name decision (ipc R4), and the
   "no engine identifiers" criterion gains the start-page branding carve-out the Mojo kit already

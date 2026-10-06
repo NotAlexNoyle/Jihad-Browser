@@ -1,6 +1,6 @@
 ---
 created: "2026-07-31"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit: Mojo UI Variant
@@ -48,7 +48,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 ### R3: Drives the unchanged BrowserAdapter contract
 **Description:** The Mojo UI talks to the engine only through the existing contract; no engine or IPC change.
 **Acceptance Criteria:**
-- [x] The `callBrowserAdapter(...)` method set and the `palm://com.palm.browserServer/*` URIs it uses are a subset of the set the Enyo variant uses — no additions, no renames. *(Mojo: `{goBack, goForward, reloadPage, stopLoad}`; it uses no `browserServer` URI at all. The share action launches `com.palm.app.email` through the application manager, which is an app-launch service, not an engine call.)*
+- [x] The `callBrowserAdapter(...)` method set and the `palm://com.palm.browserServer/*` URIs it uses are a subset of the set the Enyo variant uses — no additions, no renames. *(2026-10-05: Mojo `{copy, cut, findInPage, goBack, goForward, insertStringAtCursor, pageFocused, reloadPage, selectAll, stopLoad}` — every one also called by the Enyo shell; the five new ones arrived with the long-press menu and the padlock. Mojo: `{goBack, goForward, reloadPage, stopLoad}` was the 2026-08 set; it uses no `browserServer` URI at all. The share action launches `com.palm.app.email` through the application manager, which is an app-launch service, not an engine call.)*
 - [x] The render surface is created with THIS variant's MIME type only; it never loads another variant's adapter or the stock `application/x-palm-browser`. *(`app/models/jihad-engine-override.js`; `verifyEngineRouting()` asserts it at runtime and surfaces a visible error if it ever regressed.)*
 - [x] No Goanna/UXP-specific identifiers appear in `app-mojo/`. *(The start page's engine line is user-facing branding text, not an API identifier.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5), cavekit-ui-shell.md (R2)
@@ -80,6 +80,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 - [x] **Find** is in the row, as an icon (a magnifying glass), not a text item. *(Added 2026-08-05 on user report "there is no find UI", then "make find a magnifying glass instead of text": a text item is the one thing in the row that cannot be circular, and the row reads as a set of round controls.)*
 - [x] **Home** sits immediately right of forward and opens the configured home page. It is never disabled — unlike back/forward it does not depend on page history. *(Added 2026-08-05 by user request. Device-verified.)*
 - [x] The row **scrolls horizontally** rather than overflowing, so it can hold as many controls as the Enyo and Mochi shells. *(Device-verified 2026-08-05: 8 buttons, `client=768 scroll=768 overflowX=auto`.)*
+- [~] **Long-press menu and padlock** (cavekit-ui-shell.md R7, R8): every hold goes to the engine (Mojo's web view claims none), and the card the user is in opens a `popupSubmenu` with the page's or the field's commands; the padlock is the address field's background on an https page, its tap answered with `showAlertDialog`. *(2026-10-05: code in; the padlock is seen drawn on an https page; the menu and the tap have no hook and need a finger.)* [human at the device]
 - [x] The buttons are **circular and centred** as a group, with tight spacing. *(Device-verified 2026-08-05: 50x50 each, `btn0` at x=170 — (768-8*54)/2 — i.e. centred.)*
 **Dependencies:** cavekit-ui-shell.md (behavioral baseline)
 
@@ -140,6 +141,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
   R8 install footprint), cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-06: R6 gains the long-press menu and the padlock (code in, finger needed); R3's method set updated.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** The Scope line's "ships with webOS 3.0.5"
   describes the framework this variant was verified against; whether CE 3.1.0's
   `/usr/palm/frameworks/mojo` is the same build is part of cavekit-device-build.md R4's

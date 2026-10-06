@@ -1,6 +1,6 @@
 ---
 created: "2026-08-05"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit: In-Browser Preferences (`about:preferences`)
@@ -155,6 +155,8 @@ The precedent and the mechanism both exist; see cavekit-addons-extensions.md R2.
 **Acceptance Criteria:**
 - [x] For every setting exposed in both places, there is ONE source of truth, and it is written down which one. The current split — Enyo pushes to the engine, Mochi persists to db8 without pushing, Mojo has nothing — is the state this criterion exists to end. *(MET. `jihad.chrome.settings` (engine pref) is written ONLY by the settings page; each shell keeps a read-only `localStorage` cache so its start page can build synchronously on a cold start. Mochi's duplicate EDITOR — the genuine second writer — was removed. Written down in the "ONE writer now, three caches" note below and in each shell's ChromePrefs header.)*
 - [x] Changing a setting in one surface is reflected in the other, or the other stops offering that setting. Either resolution is acceptable; silently disagreeing is not. *(**MET, device-verified end to end 2026-08-06**, on the real page rather than a stand-in: a real click on the page's own "Restore this pane's defaults" control (inject `clickid reset-pane`, `ok=1`) → `saveChrome()` → `publishToFragment()` → daemon `same-document location -> about:preferences#chrome=%7B…%7D` → `msgTitleAndUrlChanged` → the card. Proven from the CARD's own state, not from the url: seeded with a one-link payload the card logged `links=1`, and after the click it logged `links=3` — the cache moved because of the page's edit. Needed one fix, `PageChrome::OnLocationChange` (see the corrected note below).)*
+
+**Merge status 2026-10-05 — DONE.** Each card's own "Browser Settings" panel is gone; the app menu has one **Settings** entry that opens `about:settings`, whose Browser pane carries search engine, home page, Clear Data (bookmarks, history, cookies, cache — the card-owned lists cleared through the notification door) and the start-page links; the card adopts the chrome settings from the page's URL fragment. Help is removed. Device-verified on Enyo and Mochi with real clicks (commit `b38a87fc`); Mojo's merged settings ran on the device only from 2026-10-05's package install on. The 2026-08 note below is history.
 
 **Merge status 2026-08-05/06 — built, one link short.**
 - The **one editing surface exists**: `about:preferences` gained a **Browser** pane (first tab)
@@ -357,6 +359,7 @@ as the F-9/holdAt items in docs/PICKUP.md). A human scroll closed it.
   call throws.
 
 ## Changelog
+- 2026-10-06: R5 recorded as done (one Settings page, 2026-10-05).
 - 2026-10-01 (third session): prefs sweep on CE in three variants. R2 contract-minimum box, R3 live-effect box and R5 frozen-commands box closed with device evidence. JavaScript row restored (the card's value is now a default). Found and fixed: typed text never saved (no `change`; number rows edited an inner field), taps below the first screen missed on chrome pages (engine never scrolled), each edit pushed a history entry and Back undid the latest edit in the card, `window.open` had no path at all.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** No box changed state here. R1's banner
   "RE-VERIFIED 2026-08-10 on the CURRENT binaries … proceed without re-checking R1" is about 3.0.5

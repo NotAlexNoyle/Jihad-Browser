@@ -1,6 +1,6 @@
 ---
 created: "2026-08-01"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit: Add-ons, Extensions & Plugins
@@ -875,7 +875,19 @@ enabled. Signature policy needs no work at all: UXP builds no enforcement.
   cavekit-input-bridging.md (the XUL input hazard in R2),
   cavekit-licensing-branding.md (R3 — identity must not reintroduce stripped branding).
 
+### R9: Palefill ships with the browser, unmodified, under its own licence
+**Description:** The Palefill Web Technologies Polyfill add-on (Martok & contributors, MPL-2.0) comes with all three variants, so sites that need polyfills get them without the user finding the add-on.
+**Added 2026-10-05 (owner: "add palefill add-on to all 3 stock browsers, while respecting its software license").**
+**Acceptance Criteria:**
+- [x] The author's release file (v1.30) is vendored byte for byte (`third_party/palefill/`, README with origin, version, licence, SHA-256); the bundle script refuses any other hash; `NOTICE` names authors, licence and origin and says the file is unmodified; every package carries `licenses/MPL-2.0.txt`; `about:jihad` credits it.
+- [x] It is offered to a profile ONCE, through the engine's own add-on manager (`components/jihadBundledAddons.js`, the same path as a user opening the file): listed in the add-ons manager, removable there, not put back once removed; a newer bundled version upgrades a copy the user kept.
+- [x] It installs ENABLED. It did not: the engine preferred the add-on's Firefox-GUID entry (written for Basilisk 52.9.*) over its toolkit entry, and this engine's AppCompat version is 56.9. The engine rule now uses the GUID entry only if it fits or there is no toolkit entry (`third_party/uxp` `db070f0003`); Palefill is unmodified and keeps working through its own updates. *(Device, all three variants, 2026-10-05: installed on first start, active.)*
+- [x] It does something: with its debug output on for one run, "applied fixes to https://developer.apple.com/: std-customElements". *(Device, 2026-10-05.)*
+- [x] Known and accepted: on first install it tries to open its settings in a browser window this embedding does not have; the engine logs one exception and the add-on runs. Its "generic UXP" support is limited by its author's own account; site problems in Jihad Browser are not Palefill issues.
+**Dependencies:** R1–R4 (the add-on manager), cavekit-licensing-branding.md
+
 ## Changelog
+- 2026-10-06: Added R9 (Palefill bundled). R7: a plugin embedded with the default `wmode=window` is "windowed", and the engine then created a widget this build has none of and dereferenced it — every Flash page not written with `wmode=opaque` killed the daemon, and the card's reconnect-and-reopen turned that into a loop (~40 crash reports in minutes; what the owner saw as "I can't click any links on lite.duckduckgo.com", both tapped results being Flash pages). Engine fix `0048d50fa9` (such an instance is windowless); `628ee50c99` keeps the bundled library path from the shell Flash spawns (one crash report per Flash page); a daemon crash guard refuses the third automatic reopen of an address that took two daemons down (cavekit-device-build.md R4). R3: the AppCompat preference fix above also means a compatibility check is no longer decided by an entry that cannot fit.
 - 2026-10-01 (later): R2–R6 re-run on CE 3.1.0 with a real extension (`jihad-effect.xpi`): install prompt,
   accept, listed in about:addons, effect on pages, disable / enable / remove through the row buttons with
   each state surviving a daemon restart, variant-scoped storage. R3 mismatch box `[~]`→`[x]` (toast on the

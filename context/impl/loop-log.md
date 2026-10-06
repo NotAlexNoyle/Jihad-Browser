@@ -142,3 +142,15 @@ Build site: context/plans/build-site.md
 - Icons: Home + Bookmarks/History redrawn (3 rounds). `luna-restart.sh` closes USB alert (`-m com.palm.lunasend`). `dev-sh.sh`. T-327/328.
 - All three variants on bundle `a4a2f8e2…`, daemon `889263013e40…`. T-329.
 - Open, owner/human only: T-231–T-234, T-236, T-273 (Enyo/Mojo removal), T-280–T-289, T-317.
+
+### Iteration — 2026-10-05 (evening) → 2026-10-06 (owner: long-press, keep pages painted, DDG links + Palefill, padlock, Codex gate)
+- DDG "links don't work" = Flash destination pages killing the daemon in a reopen loop → engine windowless fix + child env + crash guard. T-330.
+- Settings merged into one page; Help gone. T-331.
+- Long-press menu, all shells, frozen contract (component + notification channel + clip files). Device Enyo/Mochi scripted. T-332; two review rounds of fixes T-333.
+- Composed frames: 4096 rows, copy+render, sweeps, grow, wide when zoomed, adapter guard by viewport width. Dumped frames row-perfect after jumps; heavy page 110-180 ms. Pans need a finger. Correction: earlier "scroll test" was a stub call. T-334.
+- Padlock → certificate (daemon `pageCertificate`, own-card-only). T-335. Found adapter `pageFocused` stub → fixed, verified. T-336. TLS-failure misclassification fixed. T-338.
+- Palefill bundled unmodified (MPL-2.0 notice, hash-pinned) + engine AppCompat rule fix; active in all three. T-337.
+- Codex gate: Cavekit 3.1 script incompatible with Codex 0.160 (silent pass) → Codex run directly; inspector when credits ran out. Findings + dispositions: `impl-review-findings-6.md`. T-339.
+- Frame dumps filled the 40 MB `/tmp` once (cleared; guard added). Root fs needs a LunaSysMgr restart before it remounts ro after an adapter upgrade.
+- 2026-10-06: three packages rebuilt at `707795de` and installed (T-340, in progress at the time of writing); kits/registry/docs updated.
+

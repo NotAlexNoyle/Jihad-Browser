@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit: Offscreen Rendering
@@ -271,7 +271,21 @@ that assumed otherwise reached a right conclusion for the wrong reason.
 ## Cross-References
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md
 
+### R9: The page stays painted while it is panned and zoomed
+**Description:** A pan or a zoom shows the page, not grey. The painted region is as much of the page as the shared segment holds — the whole page when it fits — and keeping it painted must not cost a whole-region render per frame on this CPU.
+**Added 2026-10-05 (owner: "pages only load when observed. if I scroll up, down, left, or right, the page is grey for a substantial amount of time while it re renders. the entire page should stay rendered at once unless its very long so that navigation and zooming is smooth").**
+**Acceptance Criteria:**
+- [x] The region uses the whole segment (4096 rows in portrait, 3072 in landscape); a page that fits is painted whole. The 2048-row cap is gone: a 4096-row region wraps and blits on the device (the texture-limit worry behind the cap did not hold). `JIHAD_REGION_ROWS_CAP` is the way back. *(Device, 2026-10-05.)*
+- [x] Frames are COMPOSED: rows the newest frame holds are copied from its buffer (same document, zoom, width, columns), rows it lacks are rendered — at most 768 a frame, the region grown by maintenance frames — the visible band is drawn as before, and at z~1 the copied frame's band is redrawn from the document where it is no longer the band. A frame on a heavy page costs 110-180 ms instead of 300-1400 ms. *(Device, Wikipedia, 2026-10-05.)*
+- [x] Off-screen rows that may predate a change are swept a few hundred rows at a time once the page is loaded and still, with a pause between sweeps; rows owed a sweep do not count as covering a pan. A large change at the same scroll repaints the band only. *(Device, 2026-10-05: sweep frames 40-250 ms; the step adapts.)*
+- [x] Every row of a composed frame holds what the page has there: on a colour-coded 16000-row page with a fixed header, after jumps by anchor links, dumped whole frames (`<state>/dump-request`) show no wrong row, the header only at the top of the visible band, and no stray header. *(Device, 2026-10-05, `render/goanna/test` has no checker yet — the script lived in the session's scratch; see the loop log.)*
+- [x] Zoomed in, the region is as wide as the content up to two viewports, centred on the view, so a sideways pan has something to show; the adapter's rotation guard compares the viewport width (`bufferWidth`) and not the region's. Rows shrink in proportion. *(Code and adapter in; never exercised on the device — see below.)*
+- [ ] A real pan and a real pinch, judged by eye: scrolling fast through a long page, zooming in and panning sideways. Script-made pointer events do not reach the plugin and the adapter's flick entry needs a drag in progress, so this is the owner's. [human at the device]
+- [ ] Wide (zoomed-in) regions on the device: a dumped frame while zoomed in and panned sideways. [human at the device, or a pinch hook that works]
+**Dependencies:** cavekit-ipc-contract.md (R1 — the frozen header layout), cavekit-device-build.md (R5 — the segment is the memory budget)
+
 ## Changelog
+- 2026-10-06: Added R9 (the page stays painted: full budget, composed frames, sweeps, wide when zoomed) for the 2026-10-05 work. R8's partial path gained the band-only repaint and a strip-generation test, within its own rules.
 - 2026-10-01 (later): R8 "a blank page settles" `[ ]`→`[x]` and R3 "invalidations are coalesced"
   back to `[x]` — device-verified: about:blank settles in ~0.5 s then 0 paints in 30 s; a blank
   frame mid-load is still never published.

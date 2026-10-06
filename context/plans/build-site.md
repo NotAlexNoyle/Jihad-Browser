@@ -434,6 +434,27 @@ The owner ran the two commands the session could not (engine push; Mochi removal
 
 All twelve are done. Still open from earlier tiers and NOT closable by an agent: T-231 / T-232 / T-233 / T-273 (Enyo and Mojo removal and install from nothing — only the owner can run a removal on this device; the Mochi parts are done), T-234 / T-236 (the reboot after a from-nothing install), T-280…T-289 and T-317 (a person at the device).
 
+## Tiers 66–69 — owner direction of 2026-10-05 (evening) and 2026-10-06 (added to the site, not a regeneration)
+
+The owner's requests in order: "long pressing on the page doesn't do anything but it should, like on a desktop browser"; "pages only load when observed … the entire page should stay rendered at once unless its very long"; "I cant click any links on lite.duckduckgo.com. fix this, and add palefill add-on to all 3 stock browsers, while respecting its software license"; "add clicking on the lock to view certificate information"; "make sure you are using cavekit 3.1 with codex adversarial review (cavekit backup inspector if codex runs out of credits)". Found on the way: T-336, T-338, T-339.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-330 | Flash pages killed the daemon (a windowed plugin got a widget this build has none of) and the card looped it; engine fix, plugin child env, crash-loop guard. | cavekit-addons-extensions.md | addons R7 / device-build R4 | — | yes | M |
+| T-331 | One Settings: the cards' "Browser Settings" panels merged into the settings page; Help removed; Print never greyed. | cavekit-preferences-ui.md | preferences-ui R5 | — | yes | M |
+| T-332 | Long-press on page content raises a context menu in all three shells (Copy / Cut / Paste / Select All / page actions) inside the frozen contract. | cavekit-ui-shell.md | ui-shell R7 | — | yes | L |
+| T-333 | Review fixes to the long-press menu (Codex round 1, inspector round 2): guarded tick, two-step Cut, per-page state, bounded reads, random clip names, chunked paste. | cavekit-ui-shell.md | ui-shell R7 | T-332 | yes | M |
+| T-334 | The page stays painted: full row budget, composed frames (copy, then render only new rows), maintenance frames, wide region when zoomed, adapter guard by viewport width. | cavekit-offscreen-rendering.md | offscreen R9 | — | yes | L |
+| T-335 | Padlock shows the page's certificate, connection and trust state in all three shells; daemon `pageCertificate` (own card only). | cavekit-ui-shell.md | ui-shell R8 | — | yes | M |
+| T-336 | [FOUND] The adapter's `pageFocused` was an empty stub: a card's Luna requests could be answered for another card. Fixed; focus hand-over verified. | cavekit-device-build.md | device-build R4 | T-335 | yes | S |
+| T-337 | Palefill 1.30 bundled unmodified under MPL-2.0 with notice; offered once per profile; engine AppCompat rule fixed so it installs enabled. | cavekit-addons-extensions.md | addons R9 | — | yes | M |
+| T-338 | [FOUND] A TLS failure with no certificate raised the certificate dialog; now a failed load. | cavekit-device-build.md | device-build R4 | — | yes | S |
+| T-339 | [FOUND] Cavekit 3.1's Codex review script passes a flag Codex CLI 0.160 rejects and reports success; Codex run directly with its prompt; inspector as the fallback. | cavekit-device-build.md | tooling | — | no | S |
+| T-340 | All three variants reinstalled from the packages at the committed tree; device cleaned (hooks restored, scratch and dumps removed, adapter backup gone). | cavekit-device-build.md | device-build R4 | T-333, T-334, T-335, T-337 | yes | M |
+| T-341 | [OWNER] Finger tests: pan and pinch smoothness, Mojo long-press menu and padlock tap, Mochi padlock after a failed load, a hold on a link in each shell. | cavekit-ui-shell.md | ui-shell R7/R8, offscreen R9 | T-340 | yes | M |
+
+T-330–T-339 are done (T-333 after two review rounds: Codex, then the inspector when Codex's credits ran out). T-340 is the 2026-10-06 reinstall. T-341 needs a finger. Still open from earlier tiers and NOT closable by an agent: T-231 / T-232 / T-233 / T-234 / T-236 / T-273 (Enyo and Mojo removal + install from nothing), T-280–T-289, T-317.
+
 ## Summary
 
 | Tier | Tasks | Effort |

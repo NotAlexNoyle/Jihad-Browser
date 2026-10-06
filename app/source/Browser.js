@@ -393,7 +393,7 @@ enyo.kind({
 		try { s = enyo.json.parse(inText); } catch (e) { s = null; }
 		s = s || {};
 		this.$.context.openForPage({left: h.left, top: h.top}, {
-			editable: !!s.editable, selected: !!s.selected,
+			editable: !!s.editable, readOnly: !!s.readOnly, selected: !!s.selected,
 			canGoBack: !!this.canGoBack, canGoForward: !!this.canGoForward
 		});
 	},

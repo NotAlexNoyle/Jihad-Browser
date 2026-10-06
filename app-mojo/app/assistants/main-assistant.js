@@ -506,10 +506,15 @@ MainAssistant.prototype.handlePageHold = function (text) {
 	try { s = JSON.parse(text); } catch (e) { s = null; }
 	s = s || {};
 	if (s.editable) {
-		items.push({label: $L("Paste"), command: "page-paste"});
+		// A field that takes no edits (read-only, disabled) is for copying only.
+		if (!s.readOnly) {
+			items.push({label: $L("Paste"), command: "page-paste"});
+		}
 		if (s.selected) {
 			items.push({label: $L("Copy"), command: "page-copy"});
-			items.push({label: $L("Cut"), command: "page-cut"});
+			if (!s.readOnly) {
+				items.push({label: $L("Cut"), command: "page-cut"});
+			}
 		}
 		items.push({label: $L("Select All"), command: "page-select-all"});
 	} else {

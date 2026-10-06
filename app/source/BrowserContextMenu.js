@@ -51,10 +51,15 @@ enyo.kind({
 	openForPage: function(inPosition, inState) {
 		var s = inState || {}, items = [];
 		if (s.editable) {
-			items.push({caption: $L("Paste"), value: "pagePasteClick"});
+			// A field that takes no edits (read-only, disabled) is for copying only.
+			if (!s.readOnly) {
+				items.push({caption: $L("Paste"), value: "pagePasteClick"});
+			}
 			if (s.selected) {
 				items.push({caption: $L("Copy"), value: "pageCopyClick"});
-				items.push({caption: $L("Cut"), value: "pageCutClick"});
+				if (!s.readOnly) {
+					items.push({caption: $L("Cut"), value: "pageCutClick"});
+				}
 			}
 			items.push({caption: $L("Select All"), value: "pageSelectAllClick"});
 		} else {

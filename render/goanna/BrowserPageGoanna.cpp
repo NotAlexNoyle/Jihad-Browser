@@ -2471,8 +2471,8 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
         // knows — so say. (The card claims links and images itself and never sends holdAt
         // for those, so this is plain content or a field.)
         if (!mPage || mNavGen != gen) break;      // the page's handler navigated
-        bool focused = false;
-        const bool editable = mPage->EditableAt(e.x, e.y, &focused);
+        bool focused = false, readOnly = false;
+        const bool editable = mPage->EditableAt(e.x, e.y, &focused, &readOnly);
         if (editable && !focused) {
           // As a right-click does on a desktop: the field takes the focus and the caret goes
           // where the press was, so Paste has a target and the keyboard comes up.
@@ -2481,9 +2481,9 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           if (mPage->TakeEditorFocus(&efoc, &eft, &efa)) mSink.msgEditorFocused(efoc, eft, efa);
           if (!mPage || mNavGen != gen) break;
         }
-        char extra[96];
-        snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d,\"editable\":%s", e.x, e.y,
-                 editable ? "true" : "false");
+        char extra[128];
+        snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d,\"editable\":%s,\"readOnly\":%s", e.x, e.y,
+                 editable ? "true" : "false", readOnly ? "true" : "false");
         fprintf(stderr, "[jihad-bs] hold at %d,%d editable=%d wasFocused=%d\n", e.x, e.y,
                 (int)editable, (int)focused);
         runPageCommand("hold", extra);

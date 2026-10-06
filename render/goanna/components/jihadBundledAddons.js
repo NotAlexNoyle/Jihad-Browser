@@ -64,6 +64,15 @@ function install(AddonManager, b, why) {
   if (!f.exists()) { log(b.id + ": the bundled file is missing from this package"); return; }
   AddonManager.getInstallForFile(f, function(inst) {
     if (!inst) { log(b.id + ": the add-on manager would not read the bundled file"); return; }
+    // The manager has read the file and judged it: one it would disable at once (the
+    // engine moved on, or the add-on did) is not installed — a disabled add-on is worse
+    // than none, and on an upgrade it would replace a copy that works. Not recorded as
+    // offered, so a package whose engine fits again offers it then.
+    if (inst.addon && inst.addon.appDisabled) {
+      log(b.id + " " + b.version + ": not compatible with this engine; not installed (" + why + ")");
+      try { inst.cancel(); } catch (e) {}
+      return;
+    }
     inst.addListener({
       onInstallEnded: function(i, addon) {
         markOffered(b);

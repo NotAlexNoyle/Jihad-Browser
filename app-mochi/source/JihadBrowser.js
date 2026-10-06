@@ -805,10 +805,11 @@ enyo.kind({
 		try { s = enyo.json.parse(text); } catch (e) { s = null; }
 		s = s || {};
 		if (s.editable) {
-			items.push({label: "Paste", action: "pagePaste"});
+			// A field that takes no edits (read-only, disabled) is for copying only.
+			if (!s.readOnly) { items.push({label: "Paste", action: "pagePaste"}); }
 			if (s.selected) {
 				items.push({label: "Copy", action: "pageCopy"});
-				items.push({label: "Cut",  action: "pageCut"});
+				if (!s.readOnly) { items.push({label: "Cut",  action: "pageCut"}); }
 			}
 			items.push({label: "Select All", action: "pageSelectAll"});
 			this.openSheet("Text Field", "", items, {});

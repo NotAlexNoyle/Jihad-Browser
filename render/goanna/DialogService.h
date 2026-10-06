@@ -64,7 +64,8 @@ class NotificationSink {
   virtual ~NotificationSink() {}
   // Called on the engine (main) thread. Must NOT block: it runs inside whatever engine
   // operation produced the message.
-  virtual void OnNotification(const char* category, const char* text) = 0;
+  // Returns how many subscribers the message was handed to (-1 if the sink cannot know).
+  virtual int OnNotification(const char* category, const char* text) = 0;
 };
 
 // Set (or clear, with nullptr) the process-wide notification sink. Not owned. Same threading

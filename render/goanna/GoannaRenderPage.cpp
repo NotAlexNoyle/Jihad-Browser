@@ -2316,7 +2316,10 @@ bool GoannaRenderPage::GetPageCertInfoJson(std::string* json) {
   ui->GetState(&state);
   nsAutoCString cipher; st->GetCipherName(cipher);
   uint32_t bits = 0; st->GetSecretKeyLength(&bits);
-  uint16_t ver = 0; st->GetProtocolVersion(&ver);
+  // Unknown stays unknown: 0 is SSL_VERSION_3, and the call fails when the status was
+  // restored without its cipher suite (a cache hit).
+  int32_t ver = -1;
+  { uint16_t v = 0; if (NS_SUCCEEDED(st->GetProtocolVersion(&v))) ver = v; }
   const char* proto = ver == nsISSLStatus::TLS_VERSION_1_3 ? "TLS 1.3"
                     : ver == nsISSLStatus::TLS_VERSION_1_2 ? "TLS 1.2"
                     : ver == nsISSLStatus::TLS_VERSION_1_1 ? "TLS 1.1"
@@ -3795,8 +3798,9 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   *json = out;
 }
 
-bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused) {
+bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused, bool* readOnly) {
   if (isFocused) *isFocused = false;
+  if (readOnly) *readOnly = false;
   if (!mChrome || !mChrome->mBrowser) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
@@ -3810,14 +3814,15 @@ bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused) {
   for (int depth = 0; node && depth < 64; ++depth) {
     nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
     if (e && edIsEditable(e)) {
-      // A control that refuses edits is not a place to paste or cut: its text is the
-      // page's, and gets the page's menu (Copy, Select All).
+      // A control that refuses edits is still a text control: its text can be selected and
+      // copied only through it (the window's selection never sees a control's own), so it
+      // stays on the field path, and the card is told it takes no Paste or Cut.
       bool ro = false, dis = false;
       nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(e);
       nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(e);
       if (in) { in->GetReadOnly(&ro); in->GetDisabled(&dis); }
       else if (ta) { ta->GetReadOnly(&ro); ta->GetDisabled(&dis); }
-      if (ro || dis) return false;
+      if (readOnly) *readOnly = ro || dis;
       if (isFocused) *isFocused = (mChrome->mFocusedEditable == e);
       return true;
     }

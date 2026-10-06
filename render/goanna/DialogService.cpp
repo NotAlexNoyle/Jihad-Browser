@@ -314,8 +314,9 @@ void PostNotification(const char* category, const char* text) {
     fprintf(stderr, "[jihad-bs] notify (no channel): %s: %s\n", cat, msg);
     return;                       // nothing was handed to any card: PageCopiedCount stays
   }
-  if (strcmp(cat, "page-copied") == 0) ++gPageCopied;
-  gNotify->OnNotification(cat, msg);
+  // "page-copied" counts as a hand-over only if some card was actually told the name.
+  const int delivered = gNotify->OnNotification(cat, msg);
+  if (strcmp(cat, "page-copied") == 0 && delivered != 0) ++gPageCopied;
 }
 
 // The JS-facing door to PostNotification. Bundled components (components/*.js) raise

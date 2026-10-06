@@ -305,7 +305,7 @@ public:
   // Long-press: is the element at VIEWPORT (x,y) a text control or contentEditable region,
   // and if so is it already the one typing goes to? (A hold on a field that is not focused
   // focuses it first, as a right-click does on a desktop, so Paste has somewhere to go.)
-  bool EditableAt(int x, int y, bool* isFocused);
+  bool EditableAt(int x, int y, bool* isFocused, bool* readOnly);
 
   // <select> dropdown -> card-native popup (Atlas msgPopupMenuShow/selectPopupMenuItem model,
   // impl-menupopup-2026-08-02.md). BuildSelectPopup (called from ClickAt when a dropdown

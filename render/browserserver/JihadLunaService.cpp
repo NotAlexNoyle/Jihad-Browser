@@ -475,8 +475,8 @@ bool onNotifications(LSHandle* sh, LSMessage* msg, void*) {
 // which is the whole difference from the msgDialog* path.
 class LunaNotifier final : public jihad::NotificationSink {
  public:
-  void OnNotification(const char* category, const char* text) override {
-    if (!gApi.SubscriptionReply) return;
+  int OnNotification(const char* category, const char* text) override {
+    if (!gApi.SubscriptionReply) return 0;
     std::string payload = "{\"category\":";
     appendJsonString(payload, category ? category : "info");
     payload += ",\"text\":";
@@ -495,6 +495,7 @@ class LunaNotifier final : public jihad::NotificationSink {
     // otherwise unattributable across two processes.
     printf("[jihad-bs] notify: %s: %s (%s)\n", category ? category : "info", text ? text : "",
            sent ? "pushed" : "no subscribers");
+    return sent;
   }
 };
 LunaNotifier gNotifier;

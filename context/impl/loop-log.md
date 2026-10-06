@@ -153,4 +153,5 @@ Build site: context/plans/build-site.md
 - Codex gate: Cavekit 3.1 script incompatible with Codex 0.160 (silent pass) → Codex run directly; inspector when credits ran out. Findings + dispositions: `impl-review-findings-6.md`. T-339.
 - Frame dumps filled the 40 MB `/tmp` once (cleared; guard added). Root fs needs a LunaSysMgr restart before it remounts ro after an adapter upgrade.
 - 2026-10-06: three packages rebuilt at `707795de` and installed (T-340, in progress at the time of writing); kits/registry/docs updated.
+- 2026-10-06 (later): Codex on Palefill (1 P1 accepted/documented, 3 P2 fixed, 1 P3 fixed); credits out again → inspector on the last fix round (3 P2 fixed: `<body>` passed the pressed-field rule, Cut claimed success over non-editable targets, read-only fields had lost Copy; P3s fixed/documented). Device: read-only Select All → Copy lands; no Paste/Cut. Daemon `b7be3e3c…` pushed to all three; packages rebuilt + installed last (T-340).
 

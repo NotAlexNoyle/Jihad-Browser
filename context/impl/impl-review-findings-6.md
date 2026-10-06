@@ -99,6 +99,40 @@ Inspector findings (no P0/P1) and dispositions:
 - Left as known: `editable` requires the field in the top document (same as before the change);
   one `window.jihadClip` per card.
 
-## Round 4 — Codex on 2026-10-06 (Palefill installer; last round of fixes)
+## Round 4 — Codex on the Palefill installer (2026-10-06); the inspector on the last fix round
 
-See the loop log entry of 2026-10-06 for the outcome; filled in below once the run returned.
+Codex (before its credits ran out again, at 6:46 AM local they come back):
+
+| Severity | File | Line | Description |
+|---|---|---:|---|
+| P1 | `render/goanna/components/jihadBundledAddons.js` | 103 | Automatically enabling Palefill exposes its `TracingListener`, which buffers every byte of matching HTML/script responses until EOF and then creates several additional full-size copies while joining, rewriting, and streaming them. A large or indefinitely streamed response from a matched site can exhaust the 512 MB target’s memory and kill the daemon; it also prevents progressive rendering. |
+| P2 | `render/goanna/components/jihadBundledAddons.js` | 78 | `inst.install()` is called without rejecting `inst.addon.appDisabled`. Unlike the normal web-install path, this installs incompatible add-ons in a disabled state; during an upgrade it can replace a working older copy and then mark the incompatible replacement as offered, contradicting the claimed compatibility check. |
+| P2 | `build/webos-oe/make-device-bundle.sh` | 323 | The mandatory Palefill block is conditional on the component source existing. If `jihadBundledAddons.js` is absent, packaging succeeds silently without the XPI or component even though `NOTICE` guarantees every package carries it; the component should be required just like the XPI. |
+| P2 | `render/goanna/DialogService.cpp` | 317 | `gPageCopied` is incremented merely because a notification sink exists, before knowing whether `OnNotification` delivered anything. `LunaNotifier` may have zero subscribers or fail every `LSSubscriptionReply`, yet `runPageCommand()` reports copy success over IPC even though no card received the filename. |
+| P3 | `build/webos-oe/push-engine-update.sh` | 80 | `--daemon-only` now unconditionally pushes the engine-internal `XPIProvider.jsm` while deliberately leaving `libxul.so` unchanged. A bundle assembled from a different engine revision can therefore pair the new provider with an old runtime and break add-on startup despite the option promising a daemon-only update. |
+
+**Dispositions:** P1 Palefill buffers whole responses of the sites it rewrites → the add-on's
+own design, the same for any user who installs it; the daemon has its low-memory watcher; left
+and documented (addons R9). P2 `inst.install()` without rejecting `appDisabled` → an add-on the
+manager would disable is not installed and not recorded as offered. P2 component optional in the
+bundle → required, like the file. P2 `gPageCopied` counted on a sink's existence → counted only
+when the sink handed the message to at least one subscriber (`OnNotification` now returns the
+count). P3 provider pushed with `--daemon-only` → pushed only when the libxul on the device after
+the push is the bundle's; `XPIProviderUtils.js` goes with it.
+
+Inspector, on the last fix round (no P0/P1):
+- P2 the "pressed field must be the focused one" rule passed for `<body>` (contains everything) →
+  the focused element must be a text control or inside an editing host.
+- P2 `deleteSelection` said "Cut." over a non-editable target → refuses unless an editing host,
+  and reports true only if the selection is gone.
+- P2 read-only fields had lost Copy (a control's selection is invisible to the window's) → they
+  stay on the field path; `readOnly` rides the hold answer and the menus drop Paste and Cut.
+  Device, Enyo: Select All → Copy of a read-only field lands; no Paste, no Cut.
+- P3 script/style text in the bounded copy walk → skipped. P3 protocol 0 read as "SSL 3" when the
+  call fails → unknown stays unknown. P3 `ls bundled-addons/*` killing the push script on an old
+  bundle → `|| true`. P3 provider guard against dist's libxul → against the bundle's.
+- P3 "delivered" means any subscriber, not the asking card; P3 a card blurring between its
+  `pageFocused(true)` and its Luna request → speculative; both left as documented.
+- Checked and found sound by the inspector: certificate JSON escaping, security UI presence,
+  SSL status cleared on https→http, the clip file's ASCII literal and partial-write removal,
+  the startup cache covering a pushed provider, ES5 in the shells, the certificate view's reuse.

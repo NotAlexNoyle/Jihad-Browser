@@ -320,6 +320,8 @@ fi
 BUNDLED_JS="$REPO/render/goanna/components/jihadBundledAddons.js"
 PALEFILL_XPI="$REPO/third_party/palefill/palefill-1.30.xpi"
 PALEFILL_SHA256=5ba4b1bd90f7f37b47115595a9a4cd52e10bfc64eed650241c1754c3a0782993
+# NOTICE says every package carries it, so both halves are required, not optional.
+[ -f "$BUNDLED_JS" ] || { echo "ERROR: $BUNDLED_JS is missing (NOTICE promises the bundled add-on)" >&2; exit 1; }
 if [ -f "$BUNDLED_JS" ]; then
 	[ -f "$PALEFILL_XPI" ] || { echo "ERROR: $PALEFILL_XPI is missing" >&2; exit 1; }
 	got=$(sha256sum "$PALEFILL_XPI" | cut -c1-64)

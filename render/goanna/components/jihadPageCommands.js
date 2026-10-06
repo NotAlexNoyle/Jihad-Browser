@@ -14,14 +14,15 @@
  *                            data = {"cmd": …, "dir": …, …}
  *
  *         holdArm     a long-press is about to be given to the page as a contextmenu event.
- *         hold        it has been (viewport x,y; `editable`: on a text field). If the page
+ *         hold        it has been (viewport x,y; `editable`: on a text field; `readOnly`: one
+ *                     that takes no edits — copyable, nothing else). If the page
  *                     claimed the event (preventDefault — it has a menu of its own) nothing
  *                     more happens. Otherwise: on text, the word under the finger is
  *                     selected — unless the press is inside what is already selected, which
  *                     is then kept, as a right-click keeps it; in a field, the caret goes to
  *                     the finger on the same rule. Answers with the notification
- *                     "page-hold", {"editable":…,"selected":…}; the card builds its menu
- *                     from that.
+ *                     "page-hold", {"editable":…,"readOnly":…,"selected":…}; the card builds
+ *                     its menu from that.
  *         selectAll   select everything in what the last press was on: the field, or the page
  *         copy        hand the text selected there to the card
  *         cut         delete the text the last copy handed over — the SECOND half of Cut,
@@ -122,6 +123,12 @@ function isTextField(el) {
   return n === "textarea" || n === "input";
 }
 
+//* Something typing could go into: a text control, or an element inside an editing host.
+function isEditingTarget(el) {
+  if (isTextField(el)) { return true; }
+  try { return !!el && !!el.isContentEditable; } catch (e) { return false; }
+}
+
 function isPassword(el) {
   try { return !!el && String(el.type).toLowerCase() === "password"; } catch (e) { return false; }
 }
@@ -175,9 +182,12 @@ function walkSelection(w, sel, maxNodes, fn) {
       try { rel = r.comparePoint(n, 0); } catch (e) { rel = 1; }
       if (rel > 0) { break; }
       if (++visited > maxNodes) { return false; }
+      // What a selection's text leaves out: the source of scripts and styles.
+      let pn = n.parentNode ? String(n.parentNode.localName || "").toLowerCase() : "";
+      let skip = pn === "script" || pn === "style" || pn === "noscript" || pn === "template";
       let a = (n === r.startContainer) ? r.startOffset : 0;
       let b = (n === r.endContainer) ? r.endOffset : n.length;
-      if (b > a && fn(n, a, b) === false) { return false; }
+      if (!skip && b > a && fn(n, a, b) === false) { return false; }
       if (n === r.endContainer) { break; }
     }
   }
@@ -363,8 +373,12 @@ function deleteSelection(f) {
     f.el.dispatchEvent(ev);
     return true;
   }
+  // Only an editing host can lose its selection; the body of a page cannot, and saying
+  // "Cut." over it would be a lie.
+  if (!isEditingTarget(f.el)) { return false; }
+  if (!hasDocSelection(f.win)) { return false; }
   docShellOf(f.win).doCommand("cmd_delete");
-  return true;
+  return !hasDocSelection(f.win);
 }
 
 function docShellOf(win) {
@@ -504,16 +518,19 @@ JihadPageCommands.prototype = {
         let x = Number(req.x) || 0, y = Number(req.y) || 0;
         // The editing commands act on the FOCUSED field. If the page kept the press from
         // focusing the field it landed on (a custom editor that cancels mousedown), that is
-        // some other field: offer the page's menu rather than edit the wrong one.
+        // some other field — or nothing at all, with <body> as the active element, which
+        // contains everything and is not a field: offer the page's menu rather than edit
+        // the wrong thing.
         let f = req.editable ? focusOf(win) : null, editable = false;
-        if (f && f.el && f.win === win) {
+        if (f && f.el && f.win === win && isEditingTarget(f.el)) {
           let at = null;
           try { at = win.document.elementFromPoint(x, y); } catch (e) { at = null; }
           editable = !!at && (at === f.el || f.el.contains(at));
         }
         let selected = editable ? holdInField(st, f, x, y) : holdSelect(st, win, x, y);
-        notify("page-hold", JSON.stringify({editable: editable, selected: selected}));
-        log("hold: editable=" + editable + " selected=" + selected);
+        let readOnly = editable && !!req.readOnly;
+        notify("page-hold", JSON.stringify({editable: editable, readOnly: readOnly, selected: selected}));
+        log("hold: editable=" + editable + " readOnly=" + readOnly + " selected=" + selected);
       } else if (req.cmd === "selectAll") {
         selectAll(target(pageState(win, false), win));
       } else if (req.cmd === "copy") {

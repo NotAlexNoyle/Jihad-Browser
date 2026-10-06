@@ -77,7 +77,7 @@ say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$T
 # This project's own chrome scripts, relative to the bundle root.
 # ...and the engine's own script modules that this project's engine branch changes (they are
 # loose files in the bundle, so a libxul push does not carry them): the add-on manager's provider.
-OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm $(cd "$BUNDLE" && ls components/jihad* prefsui/content/* bundled-addons/* 2>/dev/null | tr '\n' ' ')"
+OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm modules/addons/XPIProviderUtils.js $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 
@@ -130,6 +130,24 @@ for v in $VARIANTS; do
   # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet)
   novacom run file://bin/mkdir -- -p "$HL/bundled-addons" >/dev/null 2>&1 || true
   for f in $OWN; do
+    # The add-on manager's provider belongs to the engine it was built with. A daemon-only
+    # push leaves libxul alone, so the provider goes only when the device already runs the
+    # bundle's libxul (else it waits for the next full push with it).
+    case "$f" in modules/addons/*)
+      # Compared with the BUNDLE's libxul (what the provider was staged with), not dist's:
+      # a bundle staged from an older engine build must not pair its provider with a newer
+      # libxul either. On a full push the device gets dist's libxul, so the same test holds.
+      BUNDLE_XUL=$(md5sum "$BUNDLE/libxul.so" | cut -c1-32)
+      if [ "$DAEMON_ONLY" = 1 ]; then
+        DEV_XUL=$(novacom run file://usr/bin/md5sum -- "$HL/libxul.so" 2>/dev/null | cut -c1-32 || true)
+      else
+        DEV_XUL=$XUL_MD5
+      fi
+      if [ "$DEV_XUL" != "$BUNDLE_XUL" ]; then
+        say "[$v] NOT pushing $f: libxul on the device after this push ($DEV_XUL) is not the bundle's ($BUNDLE_XUL); rerun make-device-bundle.sh"
+        continue
+      fi;;
+    esac
     push_verified "$BUNDLE/$f" "$HL/$f" "$(md5sum "$BUNDLE/$f" | cut -c1-32)"
   done
   say "[$v] starting $J"

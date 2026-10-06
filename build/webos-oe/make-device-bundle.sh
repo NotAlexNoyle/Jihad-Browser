@@ -344,6 +344,27 @@ MANIFEST
 	done
 	echo "  bundled add-ons: Palefill 1.30 (unmodified, sha256 verified), offered once per profile"
 fi
+# Lightweight themes ("personas" — Firefox 52 / Pale Moon / Basilisk): the browser's half of
+# the engine's LightweightThemeManager (components/jihadPersonas.js). Required: the kit promises
+# the feature (cavekit-addons-extensions.md R10).
+PERSONAS_JS="$REPO/render/goanna/components/jihadPersonas.js"
+[ -f "$PERSONAS_JS" ] || { echo "ERROR: $PERSONAS_JS is missing" >&2; exit 1; }
+mkdir -p "$OUT/components"
+cp -L "$PERSONAS_JS" "$OUT/components/jihadPersonas.js"
+cat > "$OUT/components/jihad-personas.manifest" <<'MANIFEST'
+# Jihad Browser — lightweight themes (personas): web install, apply, tell the cards. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02} jihadPersonas.js
+contract @riverstonerelay.net/jihad/personas;1 {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02}
+MANIFEST
+if ! grep -q '^manifest components/jihad-personas.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+	echo 'manifest components/jihad-personas.manifest' >> "$OUT/chrome.manifest"
+fi
+# The manager's modules travel with libxul (modules/LightweightThemeManager.jsm,
+# modules/addons/LightweightThemeImageOptimizer.jsm — both in the dist tree the loop above copied).
+for f in modules/LightweightThemeManager.jsm modules/addons/LightweightThemeImageOptimizer.jsm; do
+	[ -s "$OUT/$f" ] || { echo "ERROR: the engine's theme manager is missing from the bundle: $f" >&2; exit 1; }
+done
+echo "  personas: components/jihadPersonas.js + the engine's LightweightThemeManager"
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

@@ -55,6 +55,12 @@ void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
 // single method. Returns false if the pref is unset, leaving *outJson untouched.
 bool GetChromeSettings(std::string* outJson);
 
+// The current lightweight theme ("persona") as components/jihadPersonas.js last recorded it
+// (pref `jihad.theme.current`: the manager's JSON, with the persisted image files once the
+// engine has them). False when there is no theme. The card asks at start over Luna (getTheme);
+// changes reach it on the notification channel ("theme").
+bool GetThemeJson(std::string* outJson);
+
 // Flash on/off (cavekit-addons-extensions.md R7). ONE stored value — the user pref
 // `plugin.state.flash` (2 = on, 0 = off; unset follows `plugin.default.state`) — which the
 // settings page shows as a row and a card switch reads and writes through the variant's own
@@ -254,6 +260,10 @@ public:
   // SetTitle, which fires for load-time and later changes alike). The daemon re-sends the title
   // outside a load; during one the load boundary sends it.
   bool TakeTitleChanged();
+  // A lightweight-theme request the page made (InstallBrowserTheme / PreviewBrowserTheme /
+  // ResetBrowserThemePreview): kind "install" | "preview" | "reset", json the element's
+  // data-browsertheme (empty for reset). The daemon hands it to components/jihadPersonas.js.
+  bool TakeThemeEvent(std::string* kind, std::string* json);
   // Clear editor focus (a navigation happened); returns true if it WAS focused so the
   // caller can emit msgEditorFocused(false) to lower the VKB over the new page.
   bool ClearEditorFocus();

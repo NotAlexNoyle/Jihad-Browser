@@ -103,10 +103,11 @@
 					})();
 					log(name, "pinch " + st.slice(1));
 					wait = 3500;
-				} else if (st === "a") {              // answer OK to the engine alert that is open (its own handler)
+				} else if (st === "a") {              // answer OK to the engine alert or confirm that is open (its own handler)
 					var alertUp = !!(app.$.dialogs.$.alert && app.$.dialogs.$.alert.getShowing());
-					log(name, "engine alert showing=" + alertUp + (alertUp ? "; answering OK" : "; nothing to answer"));
-					if (alertUp) { app.$.dialogs.alertOk(); }
+					var confirmUp = !!(app.$.dialogs.$.confirm && app.$.dialogs.$.confirm.getShowing());
+					log(name, "engine alert showing=" + alertUp + " confirm showing=" + confirmUp + (confirmUp ? " [" + String(app.$.dialogs.$.confirmMsg ? app.$.dialogs.$.confirmMsg.getContent() : "").slice(0, 120) + "]" : "") + ((alertUp || confirmUp) ? "; answering OK" : "; nothing to answer"));
+					if (alertUp) { app.$.dialogs.alertOk(); } else if (confirmUp) { app.$.dialogs.confirmOk(); }
 				} else if (st === "x") {              // close this card (a second card that only needed to connect)
 					log(name, "closing this card");
 					window.close();
@@ -134,6 +135,21 @@
 				} else if (st === "L") {              // the padlock, read now — no tap, no wait
 					log(name, "padlock showing=" + app.$.lock.getShowing() + " address=[" + String(app.url).slice(0, 60) + "]");
 					wait = 1000;
+				} else if (st === "Z") {              // take the painted theme off the toolbar (card side only), so the next notification's painting shows
+					app.applyTheme(null);
+					log(name, "toolbar cleared (card side)");
+				} else if (st === "Y") {              // probe: what getTheme answers, and what a direct applyTheme does to the node
+					enyo.jihad.own("getTheme", {}, function(r) { log(name, "getTheme answered: " + JSON.stringify(r).slice(0, 300)); });
+					try {
+						app.applyTheme({accentcolor: "#1e2f5c", headerURL: "http://192.168.1.245:8091/persona-header.png", textcolor: "#ffffff", name: "probe"});
+						var tbp = app.$.actionBar.hasNode();
+						log(name, "after direct applyTheme: background=[" + (tbp ? tbp.style.background : "?").slice(0, 160) + "] color=[" + (tbp ? tbp.style.color : "?") + "] cssText=[" + (tbp ? tbp.style.cssText : "?").slice(0, 200) + "]");
+					} catch (e) { log(name, "direct applyTheme THREW " + e); }
+				} else if (st === "T") {              // the toolbar's theme as painted (inline style set by applyTheme)
+					var tb = app.$.actionBar.hasNode();
+					var ic0 = tb ? tb.querySelector("img.jihad-nav-img") : null;
+					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
+						" first icon: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "] src=" + (ic0 ? String(ic0.getAttribute("src")).slice(0, 22) : "?"));
 				} else if (st === "l") {              // the padlock: is it showing, and what does its tap bring up?
 					log(name, "padlock showing=" + app.$.lock.getShowing() + " field has room for it=" + app.$.addressBox.hasClass("jihad-secure"));
 					app.showPageCertificate();                   // the padlock's own ontap handler

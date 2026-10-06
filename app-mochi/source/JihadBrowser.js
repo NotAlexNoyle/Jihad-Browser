@@ -234,6 +234,9 @@ enyo.kind({
 		// clearCookies from a launch target would otherwise raise its toast before anything
 		// was listening.
 		this.subscribeNotifications();
+		// The lightweight theme ("persona") in force, once at start; changes come on the
+		// notification channel as category "theme".
+		enyo.jihad.own("getTheme", {}, enyo.bind(this, function(r) { this.applyTheme(r && r.theme ? r.theme : null); }));
 		var launch = this.readLaunchParams();
 		this.applyLaunchParams(launch);
 		// On the START PAGE the address bar is focused so the keyboard is up (all variants).
@@ -425,6 +428,12 @@ enyo.kind({
 				if (resp.category === "chrome-clear-history") { this.clearHistory(); }
 				// The long-press menu's traffic with the engine: what is under the finger,
 				// and where the copied text was put. Neither is a sentence to show.
+				if (resp.category === "theme") {
+					var t = null;
+					try { t = enyo.json.parse(resp.text); } catch (e) { t = null; }
+					this.applyTheme(t);
+					return;
+				}
 				if (resp.category === "page-hold") { this.pageHold(resp.text); return; }
 				if (resp.category === "page-copied") { this.pageCopied(resp.text); return; }
 				// What the engine says about a copy or a cut is broadcast to every card;
@@ -625,6 +634,52 @@ enyo.kind({
 		var secure = !this._loadFailed && !this._pendingUrl && /^https:\/\//i.test(this.url || "");
 		this.$.lock.setShowing(secure);
 		this.$.addressBox.addRemoveClass("jihad-secure", secure);
+	},
+	//* Paint the lightweight theme ("persona") on the toolbar, or take it off (null): the header
+	//* image anchored top right behind the bar, accentcolor where it does not reach, textcolor
+	//* on the text — as Firefox 52 / Pale Moon / Basilisk drew one. The image is the file the
+	//* engine persisted in the profile (inside this app's directory, so the card may load it),
+	//* or the site's URL until then. Colours are kept to CSS colour syntax.
+	applyTheme: function(theme) {
+		var node = this.$.actionBar.hasNode();
+		if (!node) { this._pendingTheme = theme; return; }
+		// The nav glyphs are inline <img>s (JihadIcons data URIs): with a theme the image becomes
+		// the img's MASK, textcolor its background and a transparent pixel its src, so the glyph
+		// takes the theme's text colour; the button boxes go translucent so the header shows
+		// through. The original src is kept on the element to put back.
+		var imgs = node.querySelectorAll("img.jihad-nav-img"), btns = node.querySelectorAll(".jihad-nav-btn"), i;
+		if (!theme || typeof theme !== "object") {
+			node.style.background = ""; node.style.color = "";
+			for (i = 0; i < imgs.length; i++) {
+				if (imgs[i].getAttribute("data-jihad-src")) { imgs[i].src = imgs[i].getAttribute("data-jihad-src"); }
+				imgs[i].style.webkitMaskImage = ""; imgs[i].style.backgroundColor = "";
+			}
+			for (i = 0; i < btns.length; i++) { btns[i].style.background = ""; btns[i].style.borderColor = ""; }
+			return;
+		}
+		var color = function(c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
+		var url = function(u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
+		var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
+		node.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
+		node.style.color = text;
+		for (i = 0; i < imgs.length; i++) {
+			var src = imgs[i].getAttribute("data-jihad-src") || imgs[i].getAttribute("src");
+			if (!src) { continue; }
+			imgs[i].setAttribute("data-jihad-src", src);
+			if (text) {
+				imgs[i].style.webkitMaskImage = "url(" + src + ")"; imgs[i].style.webkitMaskRepeat = "no-repeat";
+				imgs[i].style.webkitMaskPosition = "center"; imgs[i].style.webkitMaskSize = "contain";
+				imgs[i].style.backgroundColor = text;
+				imgs[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+			} else {
+				imgs[i].src = src; imgs[i].style.webkitMaskImage = ""; imgs[i].style.backgroundColor = "";
+			}
+		}
+		for (i = 0; i < btns.length; i++) { btns[i].style.background = "rgba(0,0,0,0.22)"; btns[i].style.borderColor = "rgba(128,128,128,0.45)"; }
+	},
+	rendered: function() {
+		this.inherited(arguments);
+		if (this._pendingTheme !== undefined) { var t = this._pendingTheme; delete this._pendingTheme; this.applyTheme(t); }
 	},
 	//* The padlock was tapped: ask this browser's own daemon whose certificate the page was
 	//* served with (it answers this variant's own card only). markActive first — the

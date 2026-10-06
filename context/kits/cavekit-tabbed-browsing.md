@@ -41,6 +41,7 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 - [ ] Closing the active tab activates its neighbour (the one to its left, else to its right); closing the last tab leaves one tab on the start page — a card never has zero tabs.
 - [ ] A long-press on a link offers "Open in New Tab" beside the existing "Open in New Card" (cavekit-ui-shell.md R7's menu). `window.open` / `target=_blank` opens a NEW TAB by default (owner, 2026-10-06; the daemon's `msgCreatePage` path stays for "Open in New Card" and for the preference in R5 set to cards).
 - [ ] The strip is invisible when a card has one tab (owner, 2026-10-06), and appears with the second.
+- [ ] The strip is THEMED like the rest of the top chrome (owner, 2026-10-06: "buttons and tabs should also be themed"): with a lightweight theme in force (cavekit-addons-extensions.md R10) the strip's background is the theme's header image / accentcolor like the toolbar's, tab titles and the × and + controls take textcolor, and the active tab is told apart with the same colours (not a hard-coded one); without a theme it wears the shell's own colours.
 **Dependencies:** cavekit-ipc-contract.md (R1, R4), cavekit-ui-shell.md (R7), cavekit-mochi-ui.md, cavekit-mojo-ui.md, cavekit-preferences-ui.md (R5)
 
 ### R2: Tabs within the frozen contract

@@ -156,6 +156,11 @@
 						if (al.el.mojo && typeof al.el.mojo.close === "function") { al.el.mojo.close(v); }
 						else { if (al.model.onChoose) { al.model.onChoose(v); } if (al.el.parentNode) { al.el.parentNode.removeChild(al.el); } }
 					}
+				} else if (st === "T") {              // the toolbar's theme as painted (inline style set by applyTheme)
+					var tb = sc.get("jihad-toolbar");
+					var ic0 = doc.querySelector(".jihad-cmdmenu .palm-menu-button");
+					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
+						" first button: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "]");
 				} else if (st.charAt(0) === "f") {
 					var fin = sc.get("jihad-find-input");
 					app.showFind();

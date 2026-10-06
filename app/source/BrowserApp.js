@@ -51,6 +51,10 @@ enyo.kind({
 		// clearCache below in Browser.js — never palm://com.palm.browserServer/, which is the
 		// stock daemon we coexist with. resubscribe:true so a daemon restart re-arms it
 		// instead of leaving the card permanently deaf.
+		// The lightweight theme ("persona") in force, asked once at start; changes come on the
+		// notification channel as category "theme" (cavekit-addons-extensions.md R10).
+		{name: "themeService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/",
+			method: "getTheme", onSuccess: "gotTheme"},
 		{name: "notificationService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/", method: "notifications", onSuccess: "gotNotification", onFailure: "notificationServiceFailed", subscribe: true, resubscribe: true},
 		{kind: enyo.Pane, flex: 1, height: "100%", lazyViews: [
 			{name: "startPage", kind: "StartPage", 
@@ -164,6 +168,11 @@ enyo.kind({
 		// framework's own docs say passing subscribe in params directly is not supported
 		// (enyo/1.0/framework/source/palm/services/PalmService.js, makeRequestProps).
 		this.$.notificationService.call({});
+		this.$.themeService.call({});
+	},
+	//* The theme at start (getTheme): null when there is none.
+	gotTheme: function(inSender, inResponse) {
+		this.$.browser.applyTheme(inResponse && inResponse.theme ? inResponse.theme : null);
 	},
 	//* Every reply on that subscription lands here — the immediate
 	//* {"returnValue":true,"subscribed":true} handshake as well as each later push. Only a
@@ -184,6 +193,12 @@ enyo.kind({
 		if (inResponse.category === "chrome-clear-history") { this.clearHistory(); }
 		// The long-press menu's traffic with the engine: what is under the finger, and where
 		// the copied text was put. Neither is a sentence to show.
+		if (inResponse.category === "theme") {
+			var t = null;
+			try { t = enyo.json.parse(inResponse.text); } catch (e) { t = null; }
+			this.$.browser.applyTheme(t);
+			return;
+		}
 		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }
 		if (inResponse.category === "page-copied") { this.$.browser.pageCopied(inResponse.text); return; }
 		// What the engine says about a copy or a cut is broadcast to every card; it is

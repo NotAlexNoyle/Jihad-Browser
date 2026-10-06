@@ -226,6 +226,29 @@ bool onGetChromePrefs(LSHandle* sh, LSMessage* msg, void*) {
   return true;
 }
 
+// getTheme — the current lightweight theme ("persona"), for a card that starts after it was
+// set; later changes arrive on the notification channel as category "theme". The value is the
+// theme manager's own JSON, handed over as a parsed object (it was written by the component, so
+// it is well-formed; a card that cannot parse it treats it as no theme). Public: a theme is not
+// a secret, and the card is on the public bus.
+bool onGetTheme(LSHandle* sh, LSMessage* msg, void*) {
+  std::string json;
+  bool have = jihad::GetThemeJson(&json);
+  // A pref the component wrote is JSON already; anything that does not look like an object is
+  // treated as "no theme" rather than spliced into the reply.
+  if (have && !(json.size() > 2 && json[0] == '{' && json[json.size() - 1] == '}')) have = false;
+  printf("[jihad-bs] luna: getTheme (%s)\n", have ? "set" : "none");
+  if (!gApi.MessageReply) return true;
+  std::string out = "{\"returnValue\":true,\"theme\":";
+  out += have ? json : std::string("null");
+  out += "}";
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  gApi.MessageReply(sh, msg, out.c_str(), &e);
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
+  return true;
+}
+
 // getFlash / enableFlash / disableFlash — the card's Flash switch
 // (cavekit-addons-extensions.md R7, cavekit-mochi-ui.md R2).
 //
@@ -527,6 +550,7 @@ LSMethod gMethodsPublic[] = {
   { "enableFlash",    onEnableFlash,    0 },
   { "findPrinters",   onFindPrinters,   0 },
   { "getFlash",       onGetFlash,       0 },
+  { "getTheme",       onGetTheme,       0 },
   { "notifications",  onNotifications,  0 },
   { "pageCertificate", onPageCertificate, 0 },
   { "printPage",      onPrintPage,      0 },
@@ -538,6 +562,7 @@ LSMethod gMethodsPrivate[] = {
   { "clearCookies",   onClearCookies,   0 },
   { "getChromePrefs", onGetChromePrefs, 0 },
   { "getFlash",       onGetFlash,       0 },
+  { "getTheme",       onGetTheme,       0 },
   { "notifications",  onNotifications,  0 },
   { 0, 0, 0 },
 };
@@ -666,8 +691,8 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
     printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
            "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails,"
-           "findPrinters,printPage,pageCertificate} "
-           "private{clearCache,clearCookies,getChromePrefs,getFlash,notifications} (toast channel %s)\n",
+           "findPrinters,printPage,pageCertificate,getTheme} "
+           "private{clearCache,clearCookies,getChromePrefs,getFlash,getTheme,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");
     return true;

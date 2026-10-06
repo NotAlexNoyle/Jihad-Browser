@@ -355,6 +355,14 @@ MainAssistant.prototype.subscribeNotifications = function () {
 	if (!window.PalmSystem) {
 		return;
 	}
+	// The lightweight theme ("persona") in force, once at start; changes come on the
+	// notification channel as category "theme".
+	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {
+		method: "getTheme",
+		parameters: {},
+		onSuccess: function (r) { this.applyTheme(r && r.theme ? r.theme : null); }.bind(this),
+		onFailure: function () {}
+	});
 	this.notificationRequest = this.controller.serviceRequest(
 		"palm://net.riverstonerelay.jihadBrowserMojo", {
 			method: "notifications",
@@ -376,6 +384,57 @@ MainAssistant.prototype.subscribeNotifications = function () {
 //* Every reply on that subscription: the immediate {"returnValue":true,"subscribed":true}
 //* handshake as well as each later push. Only a payload carrying `text` is a message — the
 //* handshake is not one, and showing it would put an empty toast up at every card launch.
+//* Paint the lightweight theme ("persona") on the toolbar, or take it off (null): the header
+//* image anchored top right behind the bar, accentcolor where it does not reach, textcolor on
+//* the text — as Firefox 52 / Pale Moon / Basilisk drew one. The image is the file the engine
+//* persisted in the profile (inside this app's own directory, so the card may load it), or the
+//* site's URL until then. Colours are kept to CSS colour syntax.
+MainAssistant.prototype.applyTheme = function (theme) {
+	var bar = this.controller.get("jihad-toolbar");
+	if (!bar) {
+		return;
+	}
+	this.theme = theme || null;
+	// The command row's glyphs are the framework's sprites (background-image on each
+	// .palm-menu-button): with a theme the sprite becomes the button's MASK and textcolor its
+	// background, so the glyph takes the theme's text colour. The sprite is kept on the element
+	// to put back. The framework redraws the row when its model changes, so updateCommandMenu
+	// re-applies (themeCommandRow).
+	if (!theme || typeof theme !== "object") {
+		bar.style.background = ""; bar.style.color = "";
+		this.themeCommandRow(null);
+		return;
+	}
+	var color = function (c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
+	var url = function (u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
+	var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
+	bar.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
+	bar.style.color = text;
+	this.themeCommandRow(text);
+};
+
+//* Tint (textcolor) or restore (null) the command row's button glyphs — see applyTheme.
+MainAssistant.prototype.themeCommandRow = function (text) {
+	var doc = this.controller.document, win = this.controller.window;
+	var btns = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button"), i, b, img;
+	for (i = 0; i < btns.length; i++) {
+		b = btns[i];
+		img = b.getAttribute("data-jihad-sprite");
+		if (!img) {
+			img = win.getComputedStyle(b, null).backgroundImage;
+			if (!img || img === "none") { continue; }
+			b.setAttribute("data-jihad-sprite", img);
+		}
+		if (text) {
+			b.style.webkitMaskImage = img; b.style.webkitMaskRepeat = "no-repeat";
+			b.style.webkitMaskPosition = win.getComputedStyle(b, null).backgroundPosition || "center top";
+			b.style.backgroundImage = "none"; b.style.backgroundColor = text;
+		} else {
+			b.style.webkitMaskImage = ""; b.style.backgroundImage = ""; b.style.backgroundColor = "";
+		}
+	}
+};
+
 MainAssistant.prototype.handleNotification = function (response) {
 	if (!response || !response.text) {
 		return;
@@ -387,6 +446,12 @@ MainAssistant.prototype.handleNotification = function (response) {
 	}
 	// The long-press menu's traffic with the engine: what is under the finger, and where the
 	// copied text was put. Neither is a sentence to show.
+	if (response.category === "theme") {
+		var theme = null;
+		try { theme = JSON.parse(response.text); } catch (e) { theme = null; }
+		this.applyTheme(theme);
+		return;
+	}
 	if (response.category === "page-hold") {
 		this.handlePageHold(response.text);
 		return;
@@ -1178,6 +1243,8 @@ MainAssistant.prototype.syncCommandMenu = function () {
 	];
 	if (this.commandMenuReady) {
 		this.controller.modelChanged(this.commandMenuModel);
+		// The framework has redrawn the row's buttons: give them the theme again, once the DOM is in.
+		if (this.theme) { var self = this; this.controller.window.setTimeout(function () { self.applyTheme(self.theme); }, 0); }
 	}
 };
 

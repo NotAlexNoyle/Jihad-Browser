@@ -2740,6 +2740,22 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       fprintf(stderr, "[jihad-bs] engine editorFocused=%d\n", (int)efoc);
       mSink.msgEditorFocused(efoc, eft, efa);
     } }
+  // A lightweight theme ("persona") the page offers: the component asks the user and applies
+  // it through the engine's LightweightThemeManager; the cards hear of the result on the
+  // notification channel ("theme"). The JSON is content: escaped as one JSON string.
+  { std::string kind, tjson;
+    if (mPage->TakeThemeEvent(&kind, &tjson)) {
+      std::string esc; esc.reserve(tjson.size() + 16);
+      for (unsigned char c : tjson) {
+        if (c == '"' || c == '\\') { esc += '\\'; esc += (char)c; }
+        else if (c < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); esc += b; }
+        else esc += (char)c;
+      }
+      std::string origin = mPage->CurrentUri();
+      std::string oesc; for (char c : origin) { if (c == '"' || c == '\\') oesc += '\\'; oesc += c; }
+      fprintf(stderr, "[jihad-bs] theme: page asks to %s a theme (%zu bytes)\n", kind.c_str(), tjson.size());
+      runPageCommand("theme", "\"kind\":\"" + kind + "\",\"json\":\"" + esc + "\",\"origin\":\"" + oesc + "\"");
+    } }
   // A title the page changed after its load: the same message the load boundary sends, so the
   // card's title bar, its history row and the strip-to-be follow the page (not a location
   // change: nothing moved). Rare per page, so no coalescing beyond the one flag.

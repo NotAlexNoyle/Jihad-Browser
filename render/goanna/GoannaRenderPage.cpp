@@ -188,6 +188,13 @@ public:
   bool mEngineFocusIsText;    // engine focus currently on a text control / contentEditable
   bool mEngineFocusEvent;     // focus/blur seen since the last PollEngineFocus drain
   bool mTitleChanged = false; // SetTitle seen since the last TakeTitleChanged drain
+  // A lightweight-theme ("persona") request from the page: the InstallBrowserTheme /
+  // PreviewBrowserTheme / ResetBrowserThemePreview events a theme site dispatches on an element
+  // carrying the theme's JSON in data-browsertheme (Firefox 52, Pale Moon and Basilisk all do
+  // it this way). Kept until the pump drains it (TakeThemeEvent); a newer one replaces an
+  // undrained one — the last request is the one the user made.
+  std::string mThemeKind;     // "install" | "preview" | "reset" | "" (none pending)
+  std::string mThemeJson;
   bool mUserInteracted;       // a tap happened since this page's load started (Atlas autofocus
                               // gate: a page that AUTOFOCUSES on load must not grab the VKB)
   // A same-document location change (fragment edit, pushState/replaceState) happened since the
@@ -1245,6 +1252,16 @@ NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
   nsAutoString type; aEvent->GetType(type);
   nsCOMPtr<nsIDOMEventTarget> t; aEvent->GetTarget(getter_AddRefs(t));
   nsCOMPtr<nsIDOMElement> raw = do_QueryInterface(t);
+  if (type.EqualsLiteral("InstallBrowserTheme") || type.EqualsLiteral("PreviewBrowserTheme") ||
+      type.EqualsLiteral("ResetBrowserThemePreview")) {
+    if (type.EqualsLiteral("ResetBrowserThemePreview")) { mThemeKind = "reset"; mThemeJson.clear(); return NS_OK; }
+    if (!raw) return NS_OK;                              // the theme rides on an element
+    nsAutoString json; raw->GetAttribute(NS_LITERAL_STRING("data-browsertheme"), json);
+    if (json.IsEmpty() || json.Length() > 65536) return NS_OK;   // no theme, or not a theme
+    mThemeKind = type.EqualsLiteral("InstallBrowserTheme") ? "install" : "preview";
+    mThemeJson = NS_ConvertUTF16toUTF8(json).get();
+    return NS_OK;
+  }
   if (!raw) return NS_OK;   // window/document focus transitions — not a field
   nsCOMPtr<nsIDOMElement> el = edHostControl(raw);
   if (type.EqualsLiteral("focus")) {
@@ -2085,6 +2102,14 @@ int PumpReadyMainThread(int msBudget) {
 
 void GoannaRenderPage::PumpReady(int msBudget) { PumpReadyMainThread(msBudget); }
 
+bool GoannaRenderPage::TakeThemeEvent(std::string* kind, std::string* json) {
+  if (!mChrome || mChrome->mThemeKind.empty()) return false;
+  if (kind) *kind = mChrome->mThemeKind;
+  if (json) *json = mChrome->mThemeJson;
+  mChrome->mThemeKind.clear(); mChrome->mThemeJson.clear();
+  return true;
+}
+
 bool GoannaRenderPage::TakeTitleChanged() {
   if (!mChrome || !mChrome->mTitleChanged) return false;
   mChrome->mTitleChanged = false;
@@ -2502,6 +2527,17 @@ bool GetChromeSettings(std::string* outJson) {
   // caller owns, and freeing it here keeps this file's include set untouched.
   char* val = nullptr;
   if (NS_FAILED(pb->GetCharPref("jihad.chrome.settings", &val)) || !val) return false;
+  bool ok = (*val != '\0');
+  if (ok) outJson->assign(val);
+  free(val);
+  return ok;
+}
+bool GetThemeJson(std::string* outJson) {
+  if (!outJson) return false;
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb) return false;
+  char* val = nullptr;
+  if (NS_FAILED(pb->GetCharPref("jihad.theme.current", &val)) || !val) return false;
   bool ok = (*val != '\0');
   if (ok) outJson->assign(val);
   free(val);
@@ -3540,12 +3576,18 @@ void GoannaRenderPage::RegisterEngineFocusListener() {
   if (!doc) return;
   nsCOMPtr<nsIDOMEventTarget> tgt = do_QueryInterface(doc);
   if (!tgt || tgt == mChrome->mFocusListenTarget) return;   // same doc: already registered
+  static const char* const kThemeEvents[] = {"InstallBrowserTheme", "PreviewBrowserTheme", "ResetBrowserThemePreview"};
   if (mChrome->mFocusListenTarget) {
     mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
     mChrome->mFocusListenTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+    for (const char* ev : kThemeEvents)
+      mChrome->mFocusListenTarget->RemoveEventListener(NS_ConvertASCIItoUTF16(ev), mChrome, true);
   }
   tgt->AddEventListener(NS_LITERAL_STRING("focus"), mChrome, true);
   tgt->AddEventListener(NS_LITERAL_STRING("blur"), mChrome, true);
+  // The theme sites' events bubble from the element to the document; a capture listener on
+  // the document sees them (unlike DOMTitleChanged, which goes to chrome only).
+  for (const char* ev : kThemeEvents) tgt->AddEventListener(NS_ConvertASCIItoUTF16(ev), mChrome, true);
   mChrome->mFocusListenTarget = tgt;
 }
 

@@ -5,6 +5,70 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-06 (evening) delta — personas IN PROGRESS, stopped at the usage limit (READ FIRST)
+
+**Owner's asks this session, in order:** fix the slow add-on manager (DONE, see commit `fb8d2cfc`);
+"ensure all options in about:config that are relevant are working" (DONE: effect audit, same
+commit); tabs decisions (DONE in the kit/design: `window.open` → new tab, strip invisible with
+one tab, no cap — responsive scrolling strip, Atlas `TabLayer.js` as the UI reference, "buttons
+and tabs should also be themed" added to R1); **personas** — "support firefox 52 personas, pale
+moon personas, and basilisk personas", then "use the persona water-like by stick177 to test all
+3 variants. buttons and tabs should also be themed" — IN PROGRESS, uncommitted parts committed
+as they stand in the commit after this one.
+
+**What is built and device-verified (Mochi only):**
+- Engine/daemon: `GoannaRenderPage` catches the theme sites' `InstallBrowserTheme` /
+  `PreviewBrowserTheme` / `ResetBrowserThemePreview` events on the content document; the pump
+  hands them to `components/jihadPersonas.js` (new) as page command `theme`; the component asks
+  the user through the existing `jihad-xpi-confirm` door (wording "Allow <host> to change the
+  browser's look to the theme: <name>"), applies through the engine's `LightweightThemeManager`
+  (which persists the header image into the profile), records the theme in pref
+  `jihad.theme.current` and pushes category `theme` on the notification channel; Luna
+  `getTheme` (new, both buses) answers a starting card. The notification door now lets `theme`
+  JSON through whole (it was cut at 200 chars — the card parsed nothing; the first bug found).
+- Mochi card: the toolbar is painted (accent + persisted header file, `rgb(92,30,47) url(file:///…/profile/lightweighttheme-header…)`) both at start (getTheme) and live on install. Test site:
+  scratch `echo-server.py` `/persona?v=N` (and `?v=water` = Water-Like by stick177, from AMO's
+  converted static theme: `theme_frame` jpg, frame `#00ccff`, text `#000000`); hook steps `T`
+  (toolbar style), `Z` (clear card-side), `Y`/`a` (confirm answers).
+- Settings page: an "Appearance" section (current theme + Remove; used themes with Use/Forget)
+  in the Browser pane — CODE ONLY, not yet seen on the device.
+- Static-theme XPIs (what AMO serves every former persona as): `jihadInstallPrompt.js` hands a
+  -207 corrupt install's file to `jihadPersonas.js`, which reads a theme-only `manifest.json`,
+  unpacks the image under `<profile>/jihad-themes/` (served as `resource://jihad-themes/…`),
+  and applies it as a lightweight theme with the user's yes — CODE ONLY, untested. Test link on
+  the site: "Install the AMO static-theme XPI" (`/water-like.xpi`, sha256 `c6b8b50d…`).
+- Button tinting in all three shells (`-webkit-mask-image` of the glyph + textcolor; Enyo
+  `.enyo-button-icon`, Mochi `img.jihad-nav-img` with a transparent src, Mojo the command row's
+  sprites, re-applied after the row's model changes) — CODE ONLY, untested on the device
+  (whether this WebKit honours `-webkit-mask-image` is the first thing to check: hook `T` reports
+  the first icon's mask/background).
+- Enyo and Mojo `applyTheme` + `getTheme` + `theme` routing — CODE ONLY, untested.
+
+**Next steps, in order:** `card-selftest.sh {enyo,mochi,mojo} push`; per shell run
+`page:w6;Z;T;107,146;w3;a;w3;T;w5;T;w1` on `http://192.168.1.245:8091/persona?v=water` (the
+echo server must be running on the host: `python3 <scratch>/echo-server.py 8091`; the Water-Like
+header jpg and xpi live in the scratch dir — copy them somewhere durable, e.g.
+`render/goanna/test/personas/`, before the scratch dir is lost); screenshots of the themed bar
+and buttons on each shell; the Mochi click coordinates differ per shell (Enyo/Mojo: read the
+page's button position from a screenshot: image (80,168) at 576x768 → view x = 107, y =
+168·1.333 − view top); then the AMO XPI link; then `about:preferences` Appearance section;
+then `restore` all three hooks, rebuild bundle + packages (`build-variant-ipk.sh`), install
+as upgrades, remount ro; kit cavekit-addons-extensions.md gains **R10 (lightweight themes)**
+with these criteria (not yet written); PARITY rows; Codex/inspector review of the persona code
+(`jihadPersonas.js`, `jihadInstallPrompt.js` hook, `GoannaRenderPage` theme events, the three
+`applyTheme`s); PICKUP.
+
+**Device state as left (NOT clean):** all three daemons run the hand-pushed bundle
+`9feea335…` (daemon with idle drain, referrer, title, DNT, theme-door; components incl.
+`jihadPersonas.js`), NOT the installed packages (those are at `3bafb9bb…`). **The Mochi test
+hook is LOADED** (`card-selftest.sh mochi restore` before anything else); Enyo and Mojo shells
+on the device are the OLD ones (no `applyTheme`). Mochi's profile holds test personas
+`jihad-test-persona-1/2/3` as used themes and persona 3 as current — remove via the Appearance
+section or `LightweightThemeManager.currentTheme = null`. Mochi's `prefs.js` is back to its
+20 user prefs (the effect-audit batches were restored). The host echo server may still be
+running (pid in `pgrep -f echo-server`). Root fs: rw after the hand pushes? — check
+(`mount | grep store-root`), remount ro. No card open.
+
 ## 2026-10-06 (go-ahead) delta — everything that needed no hands: reinstall audit, reboot, a real sheet, Codex round 6, SDK 0.4, tabs groundwork
 
 **The owner's word:** "You have my go ahead for all remaining tasks that you can achieve without me

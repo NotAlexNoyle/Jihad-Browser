@@ -753,6 +753,72 @@ function buildRow(row) {
 
 //* The Browser pane. Not built from the pref table: these two settings live in one JSON
 //* pref and are edited as a form, so they get their own renderer.
+function themeManager() {
+	try { return Cu.import("resource://gre/modules/LightweightThemeManager.jsm", {}).LightweightThemeManager; }
+	catch (e) { return null; }
+}
+
+function buildThemeSection() {
+	var box = el("section", "group");
+	box.appendChild(el("h2", "group-title", "Appearance"));
+	var LWTM = themeManager();
+	if (!LWTM) {
+		box.appendChild(el("div", "row-help", "Themes are not available in this build."));
+		return box;
+	}
+	var current = null, used = [];
+	try { current = LWTM.currentTheme; } catch (e) { current = null; }
+	try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
+
+	var row = el("div", "row");
+	var label = el("label", "row-label");
+	label.appendChild(document.createTextNode("Theme"));
+	label.appendChild(el("div", "row-help", current
+		? (current.name || current.id) + (current.author ? " — by " + current.author : "")
+		: "None. A theme site's button (a persona for Firefox 52, Pale Moon or Basilisk) installs one here."));
+	row.appendChild(label);
+	if (current) {
+		var off = el("button", "btn", "Remove");
+		off.setAttribute("type", "button");
+		off.id = "theme-remove";
+		off.addEventListener("click", function () {
+			try { LWTM.currentTheme = null; } catch (e) { status("The theme could not be removed."); return; }
+			status("Theme removed.");
+			renderPane(gPane);
+		}, false);
+		row.appendChild(off);
+	}
+	box.appendChild(row);
+
+	for (var i = 0; i < used.length; i++) {
+		(function (t) {
+			if (current && t.id === current.id) { return; }
+			var r = el("div", "row");
+			var l = el("label", "row-label");
+			l.appendChild(document.createTextNode(t.name || t.id));
+			if (t.author) { l.appendChild(el("div", "row-help", "by " + t.author)); }
+			r.appendChild(l);
+			var use = el("button", "btn btn-go", "Use");
+			use.setAttribute("type", "button");
+			use.addEventListener("click", function () {
+				try { LWTM.currentTheme = t; } catch (e) { status("The theme could not be applied."); return; }
+				status("Theme applied: " + (t.name || t.id));
+				renderPane(gPane);
+			}, false);
+			var forget = el("button", "btn", "Forget");
+			forget.setAttribute("type", "button");
+			forget.addEventListener("click", function () {
+				try { LWTM.forgetUsedTheme(t.id); } catch (e) {}
+				renderPane(gPane);
+			}, false);
+			r.appendChild(use);
+			r.appendChild(forget);
+			box.appendChild(r);
+		})(used[i]);
+	}
+	return box;
+}
+
 function renderChromePane(host) {
 	var cfg = loadChrome();
 
@@ -805,6 +871,13 @@ function renderChromePane(host) {
 	hrow.appendChild(hinput);
 	home.appendChild(hrow);
 	host.appendChild(home);
+
+	// Appearance: the lightweight theme ("persona") in force and the ones used before. The
+	// engine's LightweightThemeManager is the one store (it is what a theme site's "install"
+	// writes, through components/jihadPersonas.js); the cards repaint on its notification, so
+	// a change here shows on the open card at once. No theme is installed from here — that is
+	// a theme site's button (Firefox 52 / Pale Moon / Basilisk personas all use the same one).
+	host.appendChild(buildThemeSection());
 
 	// Before the link editor, not after it: that list can be twelve rows long, and these
 	// four are what people come to this page for.

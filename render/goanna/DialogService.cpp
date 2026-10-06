@@ -243,9 +243,10 @@ class JihadXpiConfirmObserver final : public nsIObserver {
     nsCOMPtr<nsIPropertyBag2> bag = do_QueryInterface(aSubject);
     nsCOMPtr<nsIWritablePropertyBag2> wbag = do_QueryInterface(aSubject);
     if (!bag || !wbag) return NS_OK;               // wrong subject: leave accept=false
-    nsAutoString host, names;
+    nsAutoString host, names, kind;
     bag->GetPropertyAsAString(NS_LITERAL_STRING("host"), host);
     bag->GetPropertyAsAString(NS_LITERAL_STRING("names"), names);
+    bag->GetPropertyAsAString(NS_LITERAL_STRING("kind"), kind);   // "" = an add-on; "theme" = a persona
     // Sanitize CONTENT-CONTROLLED text (review 2026-08-02 F12): an install.rdf name can
     // embed "\nfrom addons.example.org" to forge the origin line, or be multi-KB to push
     // the real origin off the card dialog. Control chars become spaces, both strings get
@@ -265,12 +266,13 @@ class JihadXpiConfirmObserver final : public nsIObserver {
     Clean::Run(host, 80);
     Clean::Run(names, 160);
     nsAutoString text;
+    const bool theme = kind.EqualsLiteral("theme");
     if (!host.IsEmpty()) {
       text.AssignLiteral("Allow ");
       text.Append(host);
-      text.AppendLiteral(" to install add-on: ");
+      text.AppendLiteral(theme ? " to change the browser's look to the theme: " : " to install add-on: ");
     } else {
-      text.AssignLiteral("Install add-on: ");
+      text.AssignLiteral(theme ? "Use the theme: " : "Install add-on: ");
     }
     text.Append(names);
     DialogReply reply;
@@ -360,9 +362,15 @@ class JihadNotifyObserver final : public nsIObserver {
     // "print-…" categories and are JSON (a list of printers), which a card parses rather than
     // shows — so those get room, and are NOT cut in the middle with an ellipsis (a truncated
     // JSON string is not JSON); anything over the limit is dropped whole.
+    // The same for "theme": the lightweight theme's JSON (components/jihadPersonas.js), which a
+    // card parses and paints — cut at 200 characters it parsed as nothing and the card stayed
+    // unthemed (device 2026-10-06). Over its room it becomes "null": no theme, not a broken one.
     const bool isPrint = StringBeginsWith(category, NS_LITERAL_STRING("print-"));
+    const bool isTheme = category.EqualsLiteral("theme");
     if (isPrint) {
       if (text.Length() > 6000) text.AssignLiteral("[]");
+    } else if (isTheme) {
+      if (text.Length() > 6000) text.AssignLiteral("null");
     } else if (text.Length() > 200) { text.Truncate(197); text.AppendLiteral("..."); }
     for (uint32_t i = 0; i < category.Length(); ++i) {
       char16_t c = category.CharAt(i);
@@ -422,6 +430,11 @@ bool InstallDialogService() {
     // the profile once, a few seconds after start. Absent means they are simply not offered.
     nsCOMPtr<nsISupports> bundledAddons = do_GetService("@riverstonerelay.net/jihad/bundled-addons;1");
     if (!bundledAddons) fprintf(stderr, "[jihad-bs] bundled add-ons: component absent, none offered\n");
+    // Lightweight themes (components/jihadPersonas.js): catches the theme sites' events the
+    // pages hand up, applies through the engine's manager, tells the cards. Absent means a
+    // theme site's button does nothing.
+    nsCOMPtr<nsISupports> personas = do_GetService("@riverstonerelay.net/jihad/personas;1");
+    if (!personas) fprintf(stderr, "[jihad-bs] themes: component absent, personas cannot be installed\n");
     nsCOMPtr<nsISupports> xpiPrompt =
         do_GetService("@mozilla.org/addons/web-install-prompt;1");
     if (!xpiPrompt) {

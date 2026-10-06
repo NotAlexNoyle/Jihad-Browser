@@ -162,6 +162,11 @@
 					app.$.browser.setUrl(st.slice(1));
 					log(name, "navigate (typed) to " + st.slice(1));
 					wait = 50;
+				} else if (st === "T") {              // the action bar's theme as painted (inline style set by applyTheme)
+					var tb = app.$.browser.$.actionbar.hasNode();
+					var ic0 = tb ? tb.querySelector(".enyo-button-icon") : null;
+					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
+						" first icon: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "] image=" + (ic0 ? String(ic0.style.backgroundImage).slice(0, 30) : "?"));
 				} else if (st === "L") {              // the padlock, read now — no click, no wait
 					var lk0 = app.$.browser.$.actionbar.$.search.$.address.$.secureLock;
 					log(name, "padlock showing=" + Boolean(lk0 && lk0.showing) + " address=[" + String(app.$.browser.$.actionbar.url).slice(0, 60) + "]");

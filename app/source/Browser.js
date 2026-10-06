@@ -417,6 +417,56 @@ enyo.kind({
 		this._copyAsked = {at: Date.now(), cut: true};
 		this.$.view.callBrowserAdapter("copy");
 	},
+	//* Paint the lightweight theme ("persona") on the top chrome, or take it off (null). As
+	//* Firefox 52 / Pale Moon / Basilisk draw one: the header image anchored to the top right
+	//* behind the toolbar, accentcolor where the image does not reach, textcolor on the text.
+	//* The image is the file the engine persisted in the profile (inside this app's own
+	//* directory, so the card may load it) or the site's URL until then; a URL that is neither
+	//* is not applied. Colours are kept to CSS colour syntax (no url(), no quotes, no ';').
+	applyTheme: function(theme) {
+		var bar = this.$.actionbar, node = bar && bar.hasNode();
+		if (!node) { this._pendingTheme = theme; return; }   // before render: applied from rendered()
+		var title = bar.$.title && bar.$.title.hasNode();
+		// The buttons' glyphs are background images (IconButton.applyIconImage): with a theme the
+		// image becomes the element's MASK and textcolor its background, so the glyph takes the
+		// theme's text colour; the original image is kept on the element to put back.
+		var icons = node.querySelectorAll(".enyo-button-icon"), i, ic;
+		if (!theme || typeof theme !== "object") {
+			node.style.background = ""; node.style.color = ""; node.style.borderColor = "";
+			if (title) { title.style.color = ""; }
+			for (i = 0; i < icons.length; i++) {
+				ic = icons[i];
+				if (ic.getAttribute("data-jihad-icon")) { ic.style.backgroundImage = ic.getAttribute("data-jihad-icon"); }
+				ic.style.webkitMaskImage = ""; ic.style.backgroundColor = "";
+			}
+			this.log("theme: none");
+			return;
+		}
+		var color = function(c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
+		var url = function(u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
+		var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
+		node.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
+		node.style.color = text;
+		if (title) { title.style.color = text; }
+		for (i = 0; i < icons.length; i++) {
+			ic = icons[i];
+			var img = ic.getAttribute("data-jihad-icon") || ic.style.backgroundImage;
+			if (!img || img === "none") { continue; }
+			ic.setAttribute("data-jihad-icon", img);
+			if (text) {
+				ic.style.webkitMaskImage = img; ic.style.webkitMaskRepeat = "no-repeat";
+				ic.style.webkitMaskPosition = ic.style.backgroundPosition || "center";
+				ic.style.backgroundImage = "none"; ic.style.backgroundColor = text;
+			} else {
+				ic.style.backgroundImage = img; ic.style.webkitMaskImage = ""; ic.style.backgroundColor = "";
+			}
+		}
+		this.log("theme: " + (theme.name || theme.id) + (header ? " (header image)" : " (colours only)"));
+	},
+	rendered: function() {
+		this.inherited(arguments);
+		if (this._pendingTheme !== undefined) { var t = this._pendingTheme; delete this._pendingTheme; this.applyTheme(t); }
+	},
 	//* The copy this card asked for within the last five seconds, once.
 	takeCopyAsked: function() {
 		var a = this._copyAsked;

@@ -1,6 +1,6 @@
 ---
 created: "2026-10-01"
-last_edited: "2026-10-02"
+last_edited: "2026-10-06"
 ---
 
 # Build Site
@@ -469,6 +469,25 @@ The items of T-341 that a test hook can drive, driven — and what they found.
 
 T-341 keeps what only a finger can judge: the feel of a pan and a pinch, a hold on a link in each shell, a finger on the glyph itself.
 
+### 2026-10-06 (later still) — the owner's go-ahead for everything that needs no hands
+
+With "You have my go ahead for all remaining tasks that you can achieve without me physically touching the device": T-231 / T-232 / T-233 / T-273 (Enyo and Mojo removed through the installer and installed from nothing, audited; Palefill of the removed variant gone, the others' kept), T-234 (reboot: all three daemons up from the shipped jobs, Luna registered on first start, cards render, root read-only, no crash reports; T-236's condition did not arise), one real print (Mochi dialog → Epson ET-2800 over IPPS, job accepted; the sink first), T-279's SRCREV bump (`db070f0003`, the gitlink's commit). The pushes themselves were refused by the session's permission gate and are the owner's. Also this session: Codex round 6 on the inspector-only range (`impl-review-findings-6.md`) with four fixes (padlock only for a committed address; Cut bound to the field the copy came from; copied text let go after 15 s; host test sinks compile; push script refuses a stale bundle), packaged and installed as an upgrade; the community SDK updated to 0.4 (owner ran the root step); tabbed-browsing groundwork (Tier 71 above, pending by the owner's word).
+
+## Tier 71 — Tabbed browsing (GROUNDWORK ONLY, 2026-10-06; every task PENDING by the owner's word: "lay the groundwork … but don't implement it yet")
+
+Kit: `context/kits/cavekit-tabbed-browsing.md`. Design: `docs/TABS-GROUNDWORK.md` (plan B: pages in the daemon, one connection per card, tab commands over the variant's own Luna service; the YAP contract untouched).
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-347 | Preferences `jihad.tabs.{enabled,max,showStripAlways,openLinksIn}` as real engine prefs with rows on the settings page; read by the daemon. | cavekit-tabbed-browsing.md | tabs R5 | — | yes | S |
+| T-348 | Daemon tab set per connection: `TabSet`/`Tab` in `JihadBrowserServer`, sink by pointer and `attachBuffers`/`detachBuffers` in `BrowserPageGoanna`, `maybePaint` no-op when unbound, `docShell->SetIsActive` on bind/unbind; `tabs/new`, `tabs/switch`, `tabs/close`, `tabs/list` on the own Luna service answered for the focused card only; the `tabs` notification; the switch sequence (sentinel, geometry, title/url, history, load state, frame); reap on disconnect. | cavekit-tabbed-browsing.md | tabs R2 | T-347 | yes | L |
+| T-349 | Recording sink for background tabs: title/url/load/history recorded and replayed on switch; engine dialogs from a background tab held in the daemon (the prompter waits on its pipe) and shown on switch; downloads/createPage attributed by docshell key. | cavekit-tabbed-browsing.md | tabs R3 | T-348 | yes | M |
+| T-350 | Tab strips in the three shells (Enyo ActionBar kind, Mochi inline strip, Mojo row above the command row): taps → `pageFocused(true)` then the Luna call; "Open in New Tab" on the link long-press; strip hidden with one tab unless the pref says otherwise; "New Card" untouched. | cavekit-tabbed-browsing.md | tabs R1, R4 | T-348 | yes | L |
+| T-351 | Memory on the device: eight tabs on typical pages against the low-memory watcher; the cap's default from the figure; the unload-oldest-background-tab step if needed; idle rules with eight idle tabs. | cavekit-tabbed-browsing.md | tabs R3 | T-349, T-350 | yes | M |
+| T-352 | Test hooks (`T`, `tN`, `xN`, `?`) in the three hooks and `card-selftest.sh`; device verification of the kit's R6 list by hook, with frame dumps against colour-coded pages after each switch. | cavekit-tabbed-browsing.md | tabs R6 | T-350 | yes | M |
+| T-353 | Review (Codex adversarial, inspector as backup) of T-348–T-350; fixes. | cavekit-tabbed-browsing.md | tabs R2/R3 | T-352 | no | M |
+| T-354 | [OWNER] Finger: tab taps, close controls, "Open in New Tab", the feel of a switch. | cavekit-tabbed-browsing.md | tabs R6 | T-353 | yes | S |
+
 ## Summary
 
 | Tier | Tasks | Effort |
@@ -619,8 +638,14 @@ T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 ->
 | cavekit-addons-extensions.md | R9 | It does something (debug output on a fixed site) | T-337 | COVERED |
 | cavekit-addons-extensions.md | R9 | Known and accepted: the settings window it cannot open; whole-response buffering | T-337 | COVERED |
 | cavekit-mojo-ui.md | R6 | Long-press menu and padlock in the Mojo shell | T-344, T-345, T-341 | COVERED |
+| cavekit-tabbed-browsing.md | R1 | Tab strip in every shell: switch / new / close / long-press "Open in New Tab" / hidden with one tab | T-350 | COVERED (pending) |
+| cavekit-tabbed-browsing.md | R2 | Tabs are daemon pages; YAP and the adapter untouched; Luna commands for the own card; switch sequence; state kept; set dies with the card | T-348 | COVERED (pending) |
+| cavekit-tabbed-browsing.md | R3 | Background tabs quiet and bounded: held dialogs, attribution, cap, memory, idle | T-349, T-351 | COVERED (pending) |
+| cavekit-tabbed-browsing.md | R4 | Tabs and cards coexist: New Card unchanged, two cards two sets, thumbnail, move to card | T-350, T-352 | COVERED (pending) |
+| cavekit-tabbed-browsing.md | R5 | Preferences as real engine prefs on the settings page | T-347 | COVERED (pending) |
+| cavekit-tabbed-browsing.md | R6 | Hooks and device evidence; the finger | T-352, T-354 | COVERED (pending) |
 
-**Coverage: 80/80 criteria (100%)** *(27 rows added 2026-10-06 for ui-shell R7/R8, offscreen R9, addons R9 and mojo-ui R6; "(owner)" marks a criterion only a finger can close.)*
+**Coverage: 86/86 criteria (100%)** *(6 rows added 2026-10-06 for cavekit-tabbed-browsing.md, groundwork only: every task pending.)* *(27 rows added 2026-10-06 for ui-shell R7/R8, offscreen R9, addons R9 and mojo-ui R6; "(owner)" marks a criterion only a finger can close.)*
 
 ## Dependency Graph
 

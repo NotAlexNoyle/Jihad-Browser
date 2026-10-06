@@ -91,10 +91,12 @@ struct RecSink : DialogSink {
 // the alert used to be.
 struct NoteSink : NotificationSink {
   std::vector<std::string> cats, texts;
-  void OnNotification(const char* category, const char* text) override {
+  // One subscriber, this recorder (the sink reports how many it handed the message to).
+  int OnNotification(const char* category, const char* text) override {
     cats.push_back(category ? category : "");
     texts.push_back(text ? text : "");
     printf("[xpi] NOTIFY category=[%s] text=[%s]\n", category ? category : "", text ? text : "");
+    return 1;
   }
   std::string first() const { return texts.empty() ? std::string() : texts[0]; }
 };

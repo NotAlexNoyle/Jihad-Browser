@@ -173,3 +173,21 @@ fits; the clamps keep the band inside), the plugin lookup (the single `<object>`
 `card-selftest.sh` expansion, the hook's wrappers (the adapter-call probe rethrows; the
 hold probe's swallow is test-only), the copy callback's lifetime (`CopySuccessCallbackArgs`
 retains and releases it; the daemon always answers).
+
+## Round 6 — Codex on the inspector-only rounds (2026-10-06, after its credits came back; they ran out again before the second range — retry 2:53 PM)
+
+Range reviewed: `657282c4..31c5f445` (the padlock + review-fix commits the inspector alone had
+seen; 3798 diff lines). The second range (`19c5cdfa..ab07c1b7`) hit the usage limit and was not
+reviewed by Codex; the inspector's round 5 stands for it.
+
+| Severity | File | Description | Disposition |
+|---|---|---:|---|
+| P1 | `app/source/Browser.js`, `app-mochi/source/JihadBrowser.js` | A load start clears `loadFailed` and the padlock follows the REQUESTED url: typed `https://…` shows a padlock while the previous page is still on screen, and a tap shows that page's certificate under the new address. | Fixed: both shells track the url the engine last committed; the padlock needs the address to be committed (`pending` on Enyo's AddressInput, `_pendingUrl` in Mochi). Device: typed https → padlock gone at once, back only when the new document commits; a stalled request leaves the old page's padlock with the old page. Mojo was already committed-based (its `url` comes only from engine events). |
+| P1 | `app-mojo/.../main-assistant.js` | `pageFocused` dropped by the widget (not wrapped) → another card's certificate. | Already fixed in `ab07c1b7` (plugin road). |
+| P2 | `app-mojo/.../main-assistant.js` | Copy/Cut cannot reach the adapter (`copy(undefined)`, no `cut`). | Already fixed in `ab07c1b7`. |
+| P1 | `render/goanna/components/jihadPageCommands.js` | Cut compares only the TEXT of the current selection with the copied text, not the element: focus moved to another field holding the same text between Copy and Cut deletes from the wrong field. | Fixed: the copy keeps a weak reference to the field it came from and its time; a cut needs the same element, the same text and a copy under 15 s old. Device: Select All → Cut in a field still cuts. |
+| P2 | `jihadPageCommands.js` | `st.copied` keeps up to `MAX_COPY` characters per page indefinitely (16 pages → tens of MB). | Fixed: a 15 s timer lets the copied text go (the card asks for the cut well under a second after the copy). |
+| P1 | `render/goanna/components/jihadBundledAddons.js` | Palefill's response buffering. | Accepted and documented (round 4). |
+| P2 | `render/goanna/DialogService.h` | `OnNotification` now returns `int`; `services_test.cpp` and `xpi_mismatch_test.cpp` still override it as `void` and no longer compile. | Fixed: both sinks return 1. `xpi_mismatch_test` passes 8/8; `services_test` compiles and passes 7/8 — its pixel check reads a black GTK window under Xvfb before any click, as `input_test` does too: the desktop (non-offscreen) harness, not today's change; recorded in PICKUP, not chased. |
+| P2 | `build/webos-oe/push-engine-update.sh` | A full push with a stale bundle installs dist's libxul, withholds the provider and restarts: new engine, old `XPIProvider`. | Fixed: a full push dies before touching the device when the bundle's libxul is not dist's. |
+| P3 | `render/goanna/BrowserPageGoanna.cpp` | `contentCols` truncation at the content's right edge drops the wide region. | Already fixed in `ab07c1b7`. |

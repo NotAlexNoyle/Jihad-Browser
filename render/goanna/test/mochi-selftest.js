@@ -127,6 +127,13 @@
 						log(name, "sheet pick [" + its[parseInt(st.slice(1), 10)].getContent() + "]");
 						app.sheetPick(its[parseInt(st.slice(1), 10)]);                 // what a tap on the row does
 					}
+				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (openUrl); "L" right after reads the padlock at once
+					app.openUrl(st.slice(1));
+					log(name, "navigate (typed) to " + st.slice(1));
+					wait = 50;
+				} else if (st === "L") {              // the padlock, read now — no tap, no wait
+					log(name, "padlock showing=" + app.$.lock.getShowing() + " address=[" + String(app.url).slice(0, 60) + "]");
+					wait = 1000;
 				} else if (st === "l") {              // the padlock: is it showing, and what does its tap bring up?
 					log(name, "padlock showing=" + app.$.lock.getShowing() + " field has room for it=" + app.$.addressBox.hasClass("jihad-secure"));
 					app.showPageCertificate();                   // the padlock's own ontap handler

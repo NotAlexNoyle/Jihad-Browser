@@ -20,7 +20,8 @@ enyo.kind({
 		searchPreferences: [],
 		defaultSearch: "",
 		loading: false,
-		loadFailed: false
+		loadFailed: false,
+		pending: false
 	},
 	maxSearchResults: 32,
 	className: "addressbar",
@@ -84,6 +85,9 @@ enyo.kind({
 	},
 	loadFailedChanged: function() {
 		this.$.address.setLoadFailed(this.loadFailed);
+	},
+	pendingChanged: function() {
+		this.$.address.setPending(this.pending);
 	},
 	urlChanged: function() {
 		this.$.address.setUrl(this.url);

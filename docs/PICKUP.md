@@ -1,9 +1,70 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 (go-ahead) below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
+
+## 2026-10-06 (go-ahead) delta — everything that needed no hands: reinstall audit, reboot, a real sheet, Codex round 6, SDK 0.4, tabs groundwork
+
+**The owner's word:** "You have my go ahead for all remaining tasks that you can achieve without me
+physically touching the device. Also lay the groundwork for tabbed browsing but dont implement it
+yet." Then: "Update to the latest community sdk" and "Pause completely when you need a sudo
+command from me" (saved as a memory rule).
+
+**Done, device-verified:**
+- **SDK 0.4** (`~/eclipse-workspace/webos-sdk-redux` at tag `0.4-Release`; the owner ran
+  `sudo ./install.sh`): `/opt/PalmSDK/Current → 0.4`, new `novacomd` (built 09:50) running, device
+  seen. Among its fixes: novacom no longer drops a packet whose payload trails its header at
+  close — the "output after stdin EOF is lost" trap may be softer now; `dev-sh.sh` stays the rule.
+- **Enyo and Mojo removed through the installer and installed from nothing** (T-231–T-233, T-273;
+  Mochi was 2026-10-05). Each removal left no app dir / job / shim / impl / role / service / state
+  dir / socket, the hub forgot the name, the other daemons kept their PIDs, the citizen-audit diff
+  shows only the variant's own entries (the empty package-registry dir stays, known). Each fresh
+  postinst rescanned the hub, started the daemon from its deviceroot, registered Luna on first
+  start, a card rendered Wikipedia, Palefill landed (Mojo's after ~70 s of an open card — the
+  add-on manager is slow to come ready; the installer retries each start). Enyo's db8 history
+  exported and put back (69 rows); Mojo's localStorage history restored. Backup of both profiles,
+  state dirs and localStorage: `~/eclipse-workspace/Jihad/device-backups/jihad-backup-20261006.tgz`
+  (+ `db8-enyo-*.json`). Snapshots in `build/webos-oe/out-audit/*-1006.txt` (git-ignored, host only).
+- **Reboot (T-234):** `com.palm.power/shutdown/machineReboot`; back on novacom in ~40 s; 2.5 min
+  later all three jobs running from the shipped upstart files, each daemon `luna: serving` with
+  no `FAILED` and no retry, public-bus answered, sockets up, no D-state threads, `/` read-only, no
+  crash reports, a card per variant rendering a live page. T-236's condition did not arise. The
+  standalone `alsa_probe`/`plugin_mime_probe` were not re-run (diagnostic programs from closed
+  investigations; the daemon itself plays media and scans plugins).
+- **One real print** (T-310's last box): the small page printed to the IPP sink first
+  (`evidence-2026-10-06/mochi_print-small-page-as-the-sink-received-it.jpg`, 0.7 % ink), then the
+  same dialog to the Epson ET-2800 at 192.168.1.253 over IPPS: `sheet 1 accepted after 456 ms,
+  job-id 32`. **The owner should find one sheet with three lines of text in the tray.**
+- **Codex round 6** on the inspector-only range (its credits came back, then ran out again before
+  the second range — retry 2:53 PM): nine findings, four already fixed, one accepted, four fixed
+  now and installed as an upgrade: the padlock follows the COMMITTED address (typed https showed
+  the old page's padlock, and its certificate, under the new address — Enyo `pending` through
+  ActionBar/URLSearch/AddressInput, Mochi `_pendingUrl`; hook steps `U`/`L` drive it); Cut is bound
+  to the field the copy came from and the copy must be under 15 s old; copied text is let go after
+  15 s; `services_test`/`xpi_mismatch_test` sinks return `int`; `push-engine-update.sh` refuses a
+  full push from a stale bundle before touching the device. Record: `impl-review-findings-6.md`.
+- **Tabbed browsing — GROUNDWORK ONLY:** `context/kits/cavekit-tabbed-browsing.md` (R1–R6),
+  `docs/TABS-GROUNDWORK.md` (plan B: pages in the daemon, one connection per card, `tabs/*` over
+  the variant's own Luna service, YAP untouched; why not one adapter per tab: 37.7 MB of shared
+  memory per connection), Tier 71 (T-347…T-354) all PENDING, overview row. Three questions for
+  the owner at the end of the design note. Nothing built.
+
+**Host test note:** `services_test` and `input_test` (desktop GTK path under Xvfb) read a black
+window before any click — the desktop harness, not the device path; not chased.
+
+**Not done, and why:** the two pushes (`git -C third_party/uxp push fork jihad-engine-mods`;
+`git push origin jihad/about-preferences-and-settings-merge`) were refused by the session's
+permission gate as outward publication — the owner runs them. The OE SRCREV is bumped to
+`db070f0003` (the gitlink's commit; the recipe clones the in-repo submodule, so it needs no
+push). T-341 / T-354 and T-280–T-289 / T-317 need a finger.
+
+**Device state:** all three variants from the packages at this commit (bundle `3bafb9bb…`, daemon
+`59c72b75…`, libxul `ddf8cc70…`; md5 `cf2fe975 / 5887986c / a5a78d55`), installed as upgrades
+after the fresh installs, then REBOOTED and checked. Root read-only (the reboot did it). No hooks,
+no staged packages, no backup copy on the device, `/tmp` holds nothing of mine. Palefill in all
+three profiles. No card open. Enyo history 70 rows (69 restored + Wikipedia).
 
 ## 2026-10-06 (later) delta — Mojo's Copy/Cut/padlock never reached the engine; wide zoomed regions seen; three test hooks
 

@@ -59,10 +59,12 @@ struct RecDialogSink : jihad::DialogSink {
 // The NON-blocking channel. On device this is the Luna subscription; here it just records.
 struct RecNotifySink : jihad::NotificationSink {
   std::vector<std::string> cats, texts;
-  void OnNotification(const char* category, const char* text) override {
+  // One subscriber, this recorder (the sink reports how many it handed the message to).
+  int OnNotification(const char* category, const char* text) override {
     cats.push_back(category ? category : "");
     texts.push_back(text ? text : "");
     printf("[svc] NOTIFY category=[%s] text=[%s]\n", category ? category : "", text ? text : "");
+    return 1;
   }
   bool has(const std::string& t) const {
     for (const std::string& s : texts) if (s == t) return true;

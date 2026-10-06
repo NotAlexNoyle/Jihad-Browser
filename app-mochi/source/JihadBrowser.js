@@ -330,8 +330,10 @@ enyo.kind({
 	urlChanged: function() {
 		if (this.url) {
 			this.rememberStartPageDoc(this.url);
+			this._pendingUrl = (this.url !== this._committedUrl);
 			this.$.view.setUrl(this.url);
 			this.$.address.setValue(this.addressTextFor(this.url));
+			this.updateLock();
 		}
 	},
 
@@ -465,7 +467,11 @@ enyo.kind({
 		}
 		this.url = url;
 		this.rememberStartPageDoc(url);
+		// Until the engine commits it, the page on screen is the previous one: no padlock
+		// for the new address (it would be the old page's certificate under it).
+		this._pendingUrl = (url !== this._committedUrl);
 		this.$.view.setUrl(url);
+		this.updateLock();
 	},
 	//* Turn an address-bar entry into a URL, mirroring app/source/URLSearch.js
 	//* (go / looksLikeHost): pass known navigational schemes through untouched
@@ -575,6 +581,8 @@ enyo.kind({
 		}
 		if (inEvent.url) {
 			this.url = inEvent.url;
+			this._committedUrl = inEvent.url;
+			this._pendingUrl = false;
 			// The start-page document has no location to show (see addressTextFor).
 			this.$.address.setValue(this.addressTextFor(inEvent.url));
 			this._lastSubmit = null;
@@ -610,10 +618,11 @@ enyo.kind({
 			         " overlap=" + Math.round((ir.right - pad) - br.left));
 		} catch (e) { enyo.log("[JIHAD-URLGEOM] " + e); }
 	},
-	//* The padlock is there when the page on screen has an https address and its load did
-	//* not fail (a failed load shows the engine's error page under that address).
+	//* The padlock is there when the page on screen has an https address, the engine has
+	//* committed that address (not merely been asked for it), and its load did not fail (a
+	//* failed load shows the engine's error page under that address).
 	updateLock: function() {
-		var secure = !this._loadFailed && /^https:\/\//i.test(this.url || "");
+		var secure = !this._loadFailed && !this._pendingUrl && /^https:\/\//i.test(this.url || "");
 		this.$.lock.setShowing(secure);
 		this.$.addressBox.addRemoveClass("jihad-secure", secure);
 	},

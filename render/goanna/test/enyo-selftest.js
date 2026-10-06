@@ -158,6 +158,14 @@
 				} else if (st.charAt(0) === "k") {    // kTEXT: put TEXT on the clipboard (to have something to paste)
 					enyo.dom.setClipboard(st.slice(1));
 					log(name, "clipboard set");
+				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (setUrl); "L" right after reads the padlock at once
+					app.$.browser.setUrl(st.slice(1));
+					log(name, "navigate (typed) to " + st.slice(1));
+					wait = 50;
+				} else if (st === "L") {              // the padlock, read now — no click, no wait
+					var lk0 = app.$.browser.$.actionbar.$.search.$.address.$.secureLock;
+					log(name, "padlock showing=" + Boolean(lk0 && lk0.showing) + " address=[" + String(app.$.browser.$.actionbar.url).slice(0, 60) + "]");
+					wait = 1000;
 				} else if (st === "l") {              // the padlock: is it showing, and what does a click on it bring up?
 					var lk = app.$.browser.$.actionbar.$.search.$.address.$.secureLock, ln = lk && lk.hasNode();
 					log(name, "padlock showing=" + Boolean(lk && lk.showing));

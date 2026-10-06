@@ -21,7 +21,11 @@ enyo.kind({
 		loading: false,
 		//* The load of `url` failed: what is on screen is an error, not that site, and it
 		//* gets no padlock whatever the address says.
-		loadFailed: false
+		loadFailed: false,
+		//* `url` is a request the engine has not committed yet: the page on screen is still
+		//* the previous one, so its padlock (and its certificate) must not be shown under
+		//* the new address. Cleared when the engine reports the committed url.
+		pending: false
 	},
 	events: {
 		onBlur: "",
@@ -84,12 +88,15 @@ enyo.kind({
 	loadFailedChanged: function() {
 		this.changeButtons();
 	},
+	pendingChanged: function() {
+		this.changeButtons();
+	},
 	changeButtons: function() {
 		this.showLeftButton("");
 		if (this.hasFocus() && this.$.userinput.getValue().length >= 0) {
 			this.showRightButton("clearButton");
 		} else {
-			if (!this.loadFailed && this.url.toLowerCase().substring(0, 8) === "https://") {
+			if (!this.loadFailed && !this.pending && this.url.toLowerCase().substring(0, 8) === "https://") {
 				this.showLeftButton("secureLock");
 			}
 			if (this.loading) {

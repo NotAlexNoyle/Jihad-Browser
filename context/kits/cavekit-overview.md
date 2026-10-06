@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-01"
+last_edited: "2026-10-06"
 ---
 
 # Cavekit Overview
@@ -165,6 +165,7 @@ Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless
 | GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🟡 8/22 met, 2 partial. **R2 closed by decision**: date/time input is OFF at the pref with the reason recorded (device-verified degrading to `type=text`) — note the side effect that `valueAsDate` leaves the DOM. **R6's recorded diagnosis was WRONG and is corrected**: `FindNext` did not SIGSEGV on a missing selection controller, it hit `MOZ_CRASH` in `SubjectPrincipal()` (no JSContext on an embedder call); fixed in patch 0015 — though `find_test.cpp` still only PRINTS its result and asserts nothing, so it is not yet a gate. R1 (media/codecs) is the big open block | Widgets the engine already gives us, used or explicitly declined |
 | In-Browser Preferences | cavekit-preferences-ui.md | 7 | 🟡 11/26 met, 4 partial. **`about:preferences` + `about:settings` render on device**, built as an `nsIAboutModule` JS component + `chrome://jihad-prefs/` package — no C++ change, no daemon rebuild. In-content HTML (Basilisk's shape, Pale Moon's panes): `<prefwindow>` is a chrome-WINDOW binding and there is no window here. R3 3/4 device-proven from the PROFILE. **Adversarial review 2026-08-06 pulled three marks back**: "no decorative toggles" (the UA row was reverted by EngineHost every start; `intl.accept_languages` is a LOCALIZED pref that displayed a chrome:// url; and the card re-applies popups/cookies/min-font-size from db8 at every launch, overwriting the page), "opens in all three variants" (only two were loaded), and it disproved the recorded reason the Luna route was abandoned — **the public role file is already installed by `gen-variant-scripts.sh`**. Does not exist on the desktop build at all. **R5 is the blocking item** | An engine-side settings page the three shells can share |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
+| Tabbed Browsing | cavekit-tabbed-browsing.md | 6 | ⚪ 0/6 — GROUNDWORK ONLY (2026-10-06, owner: "don't implement it yet"); design in `docs/TABS-GROUNDWORK.md`, Tier 71 pending | Several pages per card with a tab strip; pages held in the daemon, tab commands over the variant's own Luna service, YAP contract untouched |
 
 Totals (recounted from the kit files 2026-10-01): **15 domains, 98 requirements, 391 acceptance criteria — 338 met, 31 partial, 22 open.** Of the 22 open, 9 are the CE 3.1.0 re-verification sweep boxes (cavekit-device-build.md R4), one of which — the human-only residue — no agent can close. ~~Totals: 15 domains, 94 requirements, 348 acceptance criteria — 313 met, 11 partial, 24 open~~
 *(2026-08-06 session 2, all device-verified: preferences-ui R5's two criteria (the settings page's
@@ -314,6 +315,7 @@ Device-Build R2, and advances Device-Build R4/R5. Detail in
 | Mochi UI Variant | IPC Contract / UI Shell | same contract; parity with Enyo UI |
 | Mochi UI Variant | Device Build | second .ipk packaged + on both TouchPad models |
 | Mojo UI Variant | IPC Contract / UI Shell | same contract; behavioral baseline is the Enyo shell |
+| Tabbed Browsing | IPC Contract / all three shells / Browser Services / Preferences | adds Luna methods on the own service (R4 precedent), never YAP; strips in each shell; held dialogs via the dialog sink; prefs on the settings page |
 | Mojo UI Variant | Device Build | third independent .ipk (own MIME/adapter/socket/upstart/daemon) |
 | IPC Contract | Offscreen Rendering | framebuffer + paint protocol |
 | IPC Contract | Engine Embedding | page lifecycle / page manager |

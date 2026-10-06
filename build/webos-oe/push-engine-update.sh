@@ -80,6 +80,15 @@ say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$T
 OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm modules/addons/XPIProviderUtils.js $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
+# The add-on manager's provider (modules/addons/*) belongs to the engine it was staged with.
+# A FULL push sends dist's libxul: if the bundle was assembled from another engine build, the
+# provider would be withheld and the device left running a new libxul with its old provider —
+# so a stale bundle stops the push here, before anything on the device is touched. (A
+# daemon-only push leaves libxul alone; its per-variant check is below.)
+BUNDLE_XUL=$(md5sum "$BUNDLE/libxul.so" 2>/dev/null | cut -c1-32)
+if [ "$DAEMON_ONLY" = 0 ] && [ "$BUNDLE_XUL" != "$XUL_MD5" ]; then
+  die "the bundle's libxul ($BUNDLE_XUL) is not dist's ($XUL_MD5): rerun make-device-bundle.sh before a full push"
+fi
 
 push_verified() { # push_verified <local> <devpath> <md5>
   local ok=""
@@ -136,8 +145,8 @@ for v in $VARIANTS; do
     case "$f" in modules/addons/*)
       # Compared with the BUNDLE's libxul (what the provider was staged with), not dist's:
       # a bundle staged from an older engine build must not pair its provider with a newer
-      # libxul either. On a full push the device gets dist's libxul, so the same test holds.
-      BUNDLE_XUL=$(md5sum "$BUNDLE/libxul.so" | cut -c1-32)
+      # libxul either. A full push already proved bundle == dist above; a daemon-only push
+      # asks the device what it runs.
       if [ "$DAEMON_ONLY" = 1 ]; then
         DEV_XUL=$(novacom run file://usr/bin/md5sum -- "$HL/libxul.so" 2>/dev/null | cut -c1-32 || true)
       else

@@ -64,6 +64,14 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 const MAX_COPY = 1024 * 1024;       // characters; a page is text, not a file transfer
+// How long a copy is kept for the cut that may follow it (the card asks for the cut as soon
+// as the text is on its clipboard — well under a second on the device).
+const CUT_WINDOW_MS = 15000;
+
+function forgetCopied(st) {
+  st.copied = null; st.copiedField = null; st.copiedAt = 0; st.truncated = false;
+  if (st.copyTimer) { try { st.copyTimer.cancel(); } catch (e) {} st.copyTimer = null; }
+}
 let gSeq = 0;
 let gTimers = [];
 
@@ -97,7 +105,7 @@ function pageState(top, create) {
   gPages = live;
   if (!found && create) {
     found = {top: Cu.getWeakReference(top), win: null, editable: false,
-             copied: null, truncated: false, arm: null};
+             copied: null, copiedField: null, copiedAt: 0, truncated: false, arm: null};
     gPages.push(found);
     if (gPages.length > 16) { gPages.shift(); }
   }
@@ -535,12 +543,20 @@ JihadPageCommands.prototype = {
         selectAll(target(pageState(win, false), win));
       } else if (req.cmd === "copy") {
         let st = pageState(win, true);
-        let got = selectedOf(target(st, win), MAX_COPY);
-        st.copied = null; st.truncated = false;
+        let t = target(st, win);
+        let got = selectedOf(t, MAX_COPY);
+        forgetCopied(st);
         if (!got.text) { notify("page-copy-empty", "Nothing is selected."); return; }
         if (!req.dir) { notify("page-copy-empty", "Copying is not available."); return; }
         let name = writeClip(req.dir, got.text);
-        st.copied = got.text; st.truncated = !got.whole;
+        // Kept for the cut that may follow — which must come from the card within a few
+        // seconds, so the text is let go after CUT_WINDOW_MS: a page is otherwise holding
+        // up to MAX_COPY characters per copy for as long as it lives. The field it came
+        // from is kept too (weakly): a cut deletes from that field or from nothing.
+        st.copied = got.text; st.truncated = !got.whole; st.copiedAt = Date.now();
+        st.copiedField = t.field && t.field.el ? Cu.getWeakReference(t.field.el) : null;
+        st.copyTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+        st.copyTimer.initWithCallback({notify: function() { forgetCopied(st); }}, CUT_WINDOW_MS, Ci.nsITimer.TYPE_ONE_SHOT);
         notify("page-copied", name);
         log("copy: " + got.text.length + " characters handed to the card" + (got.whole ? "" : " (the selection is longer)"));
       } else if (req.cmd === "cut") {
@@ -548,13 +564,18 @@ JihadPageCommands.prototype = {
         let st = pageState(win, false);
         let t = target(st, win);
         let was = st ? st.copied : null, cut = st ? st.truncated : false;
-        if (st) { st.copied = null; st.truncated = false; }
-        if (!t.field || was === null) {                 // a page's own text: Cut is a copy
+        let fromEl = null;
+        if (st && st.copiedField) { try { fromEl = st.copiedField.get(); } catch (e) { fromEl = null; } }
+        let stale = st ? (Date.now() - st.copiedAt > CUT_WINDOW_MS) : true;
+        if (st) { forgetCopied(st); }
+        if (!t.field || was === null || !fromEl) {      // a page's own text: Cut is a copy
           notify("page-cut-refused", "Copied. This text cannot be removed from the page.");
           return;
         }
         if (cut) { notify("page-cut-refused", "Too much text to cut at once. It was copied in part and left in place."); return; }
-        if (selectedOf(t, MAX_COPY + 1).text !== was) {
+        // The same text in another field is not what was copied: the field must be the one
+        // the copy came from, and the copy recent.
+        if (stale || t.field.el !== fromEl || selectedOf(t, MAX_COPY + 1).text !== was) {
           notify("page-cut-refused", "Copied. The selection changed, so nothing was removed.");
           return;
         }

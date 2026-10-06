@@ -224,6 +224,9 @@ enyo.kind({
 		this.$.view.setUrl(this.url);
 		this.$.actionbar.setLoading(true);
 		this.$.actionbar.setUrl(this.url);
+		// Until the engine commits this url the page on screen is the previous one; a
+		// padlock for the new address would be the old page's certificate under it.
+		this.$.actionbar.setPending(this.url !== this._committedUrl);
 	},
 	searchPreferencesChanged: function() {
 		this.$.actionbar.setSearchPreferences(this.searchPreferences);
@@ -233,6 +236,8 @@ enyo.kind({
 	},
 	pageTitleChanged: function(inSender, inTitle, inUrl, inBack, inForward) {
 		this.log(inUrl, inTitle, inBack, inForward);
+		this._committedUrl = inUrl;
+		this.$.actionbar.setPending(false);
 		this.url = inUrl;
 		this.title = inTitle || $L("Untitled");
 		if (!this.$.dialog.isOpen) {

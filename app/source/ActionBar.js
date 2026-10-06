@@ -28,7 +28,8 @@ enyo.kind({
 		defaultSearch: "",
 		progress: 0,
 		loading: false,
-		loadFailed: false
+		loadFailed: false,
+		pending: false
 	},
 	events: {
 		onBack: "",
@@ -87,6 +88,9 @@ enyo.kind({
 	},
 	loadFailedChanged: function() {
 		this.$.search.setLoadFailed(this.loadFailed);
+	},
+	pendingChanged: function() {
+		this.$.search.setPending(this.pending);
 	},
 	urlChanged: function() {
 		this.$.search.setUrl(this.url);

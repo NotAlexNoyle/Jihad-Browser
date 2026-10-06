@@ -145,12 +145,25 @@ const char* JihadPerDomainUaForUrl(const char* url) {
   return jihadUaForHost(h);
 }
 
+// Do Not Track. UXP removed the DNT header (and navigator.doNotTrack) from the engine; the pref
+// `privacy.donottrackheader.enabled` still exists in its defaults and the settings page offers
+// it as "Send a Do Not Track signal" — a row that changed nothing (device 2026-10-06: the header
+// never left the device with the pref on). The daemon sends the header itself, from the same
+// observer, so the row means what it says. Read per request: the page flips the pref live.
+static bool jihadDntEnabled() {
+  nsCOMPtr<nsIPrefBranch> prefs = do_GetService("@mozilla.org/preferences-service;1");
+  bool on = false;
+  if (prefs) prefs->GetBoolPref("privacy.donottrackheader.enabled", &on);
+  return on;
+}
+
 class JihadUaOverride final : public nsIObserver {
 public:
   NS_DECL_ISUPPORTS
   NS_IMETHOD Observe(nsISupports* aSubject, const char* aTopic, const char16_t*) override {
     nsCOMPtr<nsIHttpChannel> chan = do_QueryInterface(aSubject);
     if (!chan) return NS_OK;
+    if (jihadDntEnabled()) chan->SetRequestHeader(NS_LITERAL_CSTRING("DNT"), NS_LITERAL_CSTRING("1"), false);
     nsCOMPtr<nsIURI> uri; chan->GetURI(getter_AddRefs(uri));
     if (!uri) return NS_OK;
     nsAutoCString host; uri->GetAsciiHost(host);

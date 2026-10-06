@@ -62,8 +62,10 @@ function bundledFile(b) {
 function install(AddonManager, b, why) {
   let f = bundledFile(b);
   if (!f.exists()) { log(b.id + ": the bundled file is missing from this package"); return; }
+  log(b.id + ": asking the add-on manager to read the bundled file (" + since() + " ms after start)");
   AddonManager.getInstallForFile(f, function(inst) {
     if (!inst) { log(b.id + ": the add-on manager would not read the bundled file"); return; }
+    log(b.id + ": read; installing (" + since() + " ms)");
     // The manager has read the file and judged it: one it would disable at once (the
     // engine moved on, or the add-on did) is not installed — a disabled add-on is worse
     // than none, and on an upgrade it would replace a copy that works. Not recorded as
@@ -74,9 +76,10 @@ function install(AddonManager, b, why) {
       return;
     }
     inst.addListener({
+      onInstallStarted: function() { log(b.id + ": install started (" + since() + " ms)"); },
       onInstallEnded: function(i, addon) {
         markOffered(b);
-        log(b.id + " " + addon.version + " installed (" + why + "); active=" + addon.isActive +
+        log(b.id + " " + addon.version + " installed (" + why + ", " + since() + " ms after start); active=" + addon.isActive +
             (addon.isCompatible ? "" : "; NOT compatible with this engine"));
       },
       // Not recorded as offered: the next start tries again.
@@ -99,8 +102,10 @@ function offerAll(attempt) {
     else { log("the add-on manager never became ready: " + e); }
     return;
   }
+  log("the add-on manager is ready (attempt " + attempt + ", " + since() + " ms after start)");
   BUNDLED.forEach(function(b) {
     AddonManager.getAddonByID(b.id, function(existing) {
+      log(b.id + ": " + (existing ? "already installed, " + existing.version : "not installed") + " (" + since() + " ms)");
       try {
         if (existing) {
           // The user has it. Upgrade an older copy from the package; otherwise leave it be.
@@ -114,6 +119,9 @@ function offerAll(attempt) {
     });
   });
 }
+
+let gStartMs = Date.now();
+function since() { return Date.now() - gStartMs; }
 
 function later(fn, ms) {
   gTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);

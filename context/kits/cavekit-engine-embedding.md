@@ -85,6 +85,7 @@ integrating the engine's event loop with the daemon's. Reference:
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md, cavekit-desktop-build.md, cavekit-device-build.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-10-06: R3's idle rule gained a clause (code + device): with no card the daemon still drains the engine main thread's READY events once per tick (one call when the queue is empty), and ticks at a 20 ms work period while events keep arriving (kept one second past the last one). Before, nothing on the chrome side — timers, async file I/O completions — ran until a card connected. Idle CPU with no card measured afterwards: 0.9–1.6 % of a core over a minute, no log lines.
 - 2026-10-01 (end of day): R3 `[~]`→`[x]` — Flash pacing re-measured with the quiet tick in the build.
 - 2026-10-01 (later still): R3 — quiet tick implemented and measured: a card open on a static page
   costs 2.2% of a core (was 12.3%). Stays `[~]` until the plugin frame pacing is re-measured with it.

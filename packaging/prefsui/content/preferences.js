@@ -99,7 +99,9 @@ const PANES = [
 					 options: [[2, "On"], [0, "Off"]],
 					 help: "Used when the HP Flash plugin is installed on this device. Applies to pages opened after the change."},
 					{pref: "media.autoplay.enabled", type: "bool", label: "Allow media to play automatically"},
-					{pref: "webgl.disabled", type: "bool", label: "Disable WebGL"},
+					// NO WebGL row. `webgl.disabled` exists, but WebGL is never available on this device
+					// (the offscreen surface has no GL: getContext("webgl") is null with the pref off —
+					// device 2026-10-06), so the row could not change anything a page sees.
 					{pref: "dom.storage.enabled", type: "bool", label: "Allow sites to store data locally"}
 				]
 			},
@@ -123,13 +125,11 @@ const PANES = [
 					 label: "Preferred languages for web pages",
 					 help: "A comma-separated list, most preferred first — for example: en-us,en"}
 				]
-			},
-			{
-				title: "Zoom",
-				rows: [
-					{pref: "browser.zoom.full", type: "bool", label: "Zoom text and images together"}
-				]
 			}
+			// NO zoom row. `browser.zoom.full` ("zoom text and images together") is read by a
+			// browser front-end's zoom code, not by the engine; this browser's zoom is the
+			// daemon's own render-time scale of the laid-out page, so the pref changed nothing
+			// (2026-10-06).
 		]
 	},
 	{

@@ -529,10 +529,21 @@ void JihadBrowserServer::tick() {
   }
 #endif
 
-  // Nothing to pump, paint or measure without a page. Returning here also keeps the cadence
+  // Nothing to paint or measure without a page. Returning here also keeps the cadence
   // statistics below from logging a line every 2 s for the whole life of an idle daemon, and
   // from folding a 1000 ms idle period into the first report after a card connects.
+  //
+  // But the engine's main-thread queue still has to be drained: it is drained only by the page
+  // pumps and by this, so with no page every nsITimer the chrome side armed — the bundled
+  // add-on installer's 4 s timer, pref flushes, anything time-based — waited for the first card
+  // to connect (device 2026-10-06: Palefill's first-start install ran at 41 s, the moment a card
+  // appeared, and took 2.6 s once it did). Ready events only, a few ms at most, once per idle
+  // tick: an empty queue costs one call, so an idle daemon stays idle. When events DID run the
+  // engine has work in flight — a chain that hops through worker-thread replies (an XPI install
+  // is dozens of such hops) would otherwise advance one hop per second — so main() ticks at the
+  // quiet period until a tick finds nothing (mIdleHadWork).
   if (snap.empty()) {
+    mIdleHadWork = jihad::PumpReadyMainThread(4) > 0;
     mTickStatsReset = true;
     mTickBusy = false; mActivity = false; mTickPlugin = false;
     mInTick = false;

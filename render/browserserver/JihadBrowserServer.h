@@ -91,6 +91,10 @@ public:
   // wake hook is how a connecting card gets the frame-rate tick back without waiting for the
   // next idle tick.
   bool hasPages() const { return !mPages.empty(); }
+  // With no page: did the last tick's drain of the engine's main thread run anything? main()
+  // keeps the tick at the quiet period while it did, so chrome-side work (an add-on install, a
+  // pref flush) finishes in seconds rather than one event per idle second.
+  bool idleHadWork() const { return mIdleHadWork; }
   void newPageRequested(YapProxy* proxy, const char* url);   // window.open -> msgCreatePage
   void setWakeHook(void (*hook)()) { mWakeHook = hook; }
   // See the definition: a thumbnail of the page the user is in, at its next paint.
@@ -200,6 +204,7 @@ private:
   bool                             mInTick;
   bool                             mTickStatsReset = false;   // an idle stretch ended: restart the cadence window
   bool                             mTickBusy = false;         // result of the last tick, for main()'s period choice
+  bool                             mIdleHadWork = false;   // see idleHadWork()
   bool                             mTickPlugin = false;       // some page had a plugin at the last tick
   bool                             mActivity = false;         // a card command arrived since the last tick
   int64_t                          mLastInjectPollMs = 0;

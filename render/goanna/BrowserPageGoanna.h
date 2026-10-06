@@ -210,7 +210,7 @@ public:
   void setZoomAndScroll(double zoom, int x, int y);   // YAP: setZoomAndScroll
 
   // --- navigation (YAP: openUrl/back/forward/reload/stop) ---
-  void openUrl(const char* url);
+  void openUrl(const char* url, const char* referrer = nullptr);   // referrer: see GoannaRenderPage::LoadUrl
   void setHTML(const char* url, const char* body);
   void pageBackward();
   void pageForward();

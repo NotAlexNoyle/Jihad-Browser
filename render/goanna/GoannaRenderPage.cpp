@@ -187,6 +187,7 @@ public:
   nsCOMPtr<nsIDOMEventTarget> mFocusListenTarget;  // doc the focus/blur pair is registered on
   bool mEngineFocusIsText;    // engine focus currently on a text control / contentEditable
   bool mEngineFocusEvent;     // focus/blur seen since the last PollEngineFocus drain
+  bool mTitleChanged = false; // SetTitle seen since the last TakeTitleChanged drain
   bool mUserInteracted;       // a tap happened since this page's load started (Atlas autofocus
                               // gate: a page that AUTOFOCUSES on load must not grab the VKB)
   // A same-document location change (fragment edit, pushState/replaceState) happened since the
@@ -309,7 +310,12 @@ NS_IMETHODIMP PageChrome::SetFocus() { return NS_OK; }
 NS_IMETHODIMP PageChrome::GetVisibility(bool* v) { *v = true; return NS_OK; }
 NS_IMETHODIMP PageChrome::SetVisibility(bool) { return NS_OK; }
 NS_IMETHODIMP PageChrome::GetTitle(char16_t** t) { *t = nullptr; return NS_OK; }
-NS_IMETHODIMP PageChrome::SetTitle(const char16_t*) { return NS_OK; }
+// The engine calls this on EVERY title change of the top document (nsDocument::
+// DoNotifyPossibleTitleChange -> the docshell's nsIBaseWindow -> here), load-time or later. A
+// page that changes document.title after its load (a mail count, a chat, a test page
+// reporting a result) used to keep the card's old title: the daemon sent the title only at the
+// load boundary. Noted here; the pump re-sends it (TakeTitleChanged). Device 2026-10-06.
+NS_IMETHODIMP PageChrome::SetTitle(const char16_t*) { mTitleChanged = true; return NS_OK; }
 NS_IMETHODIMP PageChrome::GetSiteWindow(void** w) { *w = nullptr; return NS_OK; }
 NS_IMETHODIMP PageChrome::Blur() { return NS_OK; }
 // NS_BINDING_ABORTED — a cancelled navigation (e.g. navigating away / teardown),
@@ -1992,7 +1998,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mFocusedEditable = nullptr;   // the marked field belongs to the old document
 }
 
-bool GoannaRenderPage::LoadUrl(const char* url) {
+bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer) {
   if (!mChrome) return false;
   // Force PSM/NSS (TLS) to construct on THIS main thread before the load. Necko
   // otherwise lazily constructs nsNSSComponent from the socket-transport thread on the
@@ -2032,7 +2038,17 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
     if (ds) ds->SetCustomUserAgent(NS_ConvertUTF8toUTF16(domUa ? domUa : JIHAD_USER_AGENT));
   }
   NS_ConvertUTF8toUTF16 u(fixed.c_str());
-  return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr));
+  // A re-driven content navigation carries the page it came from as the referrer, as the
+  // engine's own load would have (device 2026-10-06: a same-origin location.href navigation
+  // reached the server with NO Referer, because the re-drive was a plain programmatic load).
+  // The referrer policy prefs (network.http.sendRefererHeader, trimming, spoofing) still
+  // apply — necko reads them when it builds the header from this URI.
+  nsCOMPtr<nsIURI> ref;
+  if (referrer && *referrer) {
+    nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
+    if (ios) ios->NewURI(nsDependentCString(referrer), nullptr, nullptr, getter_AddRefs(ref));
+  }
+  return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref, nullptr, nullptr));
 }
 
 // Drain the engine's ready work and RETURN. This is the tick's pump, and it exists because
@@ -2051,17 +2067,28 @@ bool GoannaRenderPage::LoadUrl(const char* url) {
 // Not sleeping costs nothing in throughput: if the queue is empty there is by definition no
 // engine work to do, and the next tick is 16 ms away. The budget is kept as a CEILING so a
 // pathological event storm still cannot hold the tick indefinitely.
-void GoannaRenderPage::PumpReady(int msBudget) {
+int PumpReadyMainThread(int msBudget) {
   nsCOMPtr<nsIThread> thread;
   NS_GetCurrentThread(getter_AddRefs(thread));
   struct timespec ts0; clock_gettime(CLOCK_MONOTONIC, &ts0);
+  int ran = 0;
   for (;;) {
     if (!NS_ProcessNextEvent(thread, false)) break;   // nothing ready: do not wait for more
+    ++ran;
     JIHAD_GTK_PUMP();
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     long ms = (ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000;
     if (ms >= msBudget) break;
   }
+  return ran;
+}
+
+void GoannaRenderPage::PumpReady(int msBudget) { PumpReadyMainThread(msBudget); }
+
+bool GoannaRenderPage::TakeTitleChanged() {
+  if (!mChrome || !mChrome->mTitleChanged) return false;
+  mChrome->mTitleChanged = false;
+  return true;
 }
 
 void GoannaRenderPage::PumpFor(int msBudget) {

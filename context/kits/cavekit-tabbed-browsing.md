@@ -35,11 +35,12 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 **Description:** The card shows which pages it has open and lets the user switch, open and close them with a finger.
 **Acceptance Criteria:**
 - [ ] A strip of tabs, each with the page's title (or host, until there is a title) and a close control, plus a "new tab" control; the active tab is told apart from the rest. In all three shells, in the shell's own idiom (Enyo `app/`, Mochi, Mojo), hit-testable at 1024x768 with a finger (controls at least 44 px tall).
+- [ ] The strip fits the screen it is on and SCROLLS: tabs take the width available (portrait and landscape, TouchPad and TouchPad Go), shrink to a minimum width as they multiply, and beyond that the row scrolls horizontally with a finger; the active tab is scrolled into view on a switch. There is NO fixed cap on the number of tabs (owner, 2026-10-06); memory is bounded by R3's unload step instead.
 - [ ] A tap on a tab makes it the active one: the page it holds is what the card renders and what the address bar, title, back/forward state, padlock and progress describe, within one frame of the switch being asked (no grey, no stale page — cavekit-offscreen-rendering.md R9 applies to the switch).
 - [ ] "New tab" opens the shell's start page (or an address the caller gives) in a new tab and makes it active; the previous tab's page keeps its state (scroll, zoom, form text, history).
 - [ ] Closing the active tab activates its neighbour (the one to its left, else to its right); closing the last tab leaves one tab on the start page — a card never has zero tabs.
-- [ ] A long-press on a link offers "Open in New Tab" beside the existing "Open in New Card" (cavekit-ui-shell.md R7's menu); `window.open` / `target=_blank` keeps opening a NEW CARD as today (the daemon's `msgCreatePage` path), unless the preference in R5 says tabs.
-- [ ] The strip hides when a card has one tab, unless the preference in R5 says always show it.
+- [ ] A long-press on a link offers "Open in New Tab" beside the existing "Open in New Card" (cavekit-ui-shell.md R7's menu). `window.open` / `target=_blank` opens a NEW TAB by default (owner, 2026-10-06; the daemon's `msgCreatePage` path stays for "Open in New Card" and for the preference in R5 set to cards).
+- [ ] The strip is invisible when a card has one tab (owner, 2026-10-06), and appears with the second.
 **Dependencies:** cavekit-ipc-contract.md (R1, R4), cavekit-ui-shell.md (R7), cavekit-mochi-ui.md, cavekit-mojo-ui.md, cavekit-preferences-ui.md (R5)
 
 ### R2: Tabs within the frozen contract
@@ -58,8 +59,7 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 **Acceptance Criteria:**
 - [ ] An alert / confirm / prompt / HTTP-auth / SSL dialog raised by a background tab's page is HELD in the daemon until that tab is active, then shown; the tab in the strip shows it has something to say. Nothing from a background tab ever appears over the active page. (cavekit-browser-services.md R3's dialog interception is where this attaches.)
 - [ ] Downloads, notifications (`page-copied`, `print-*`, …) and `msgCreatePage` from a background tab are attributed to that tab (the daemon's `pageForDownload` by docshell key already does this for downloads) and do not disturb the active one.
-- [ ] A hard cap on tabs per card, default 8, from a pref (`jihad.tabs.max`); "new tab" beyond it is refused with a toast, not silently dropped.
-- [ ] Memory: a background tab holds no shared buffer and no compose cache (`BufFrame` slots are the connection's, not the page's), so its cost is its Goanna docshell alone. Measured on the device: eight tabs on typical pages keep the daemon under the low-memory watcher's threshold (cavekit-engine-embedding.md; the figure recorded in the design note once measured), and the daemon's existing low-memory response may additionally UNLOAD the oldest background tab's document (keeping its url, title and history) and reload it when it is switched to — shown in the strip as a dimmed tab.
+- [ ] No cap on the number of tabs (owner, 2026-10-06). Memory is bounded instead: a background tab holds no shared buffer and no compose cache (`BufFrame` slots are the connection's, not the page's), so its cost is its Goanna docshell alone; the daemon's low-memory response (cavekit-engine-embedding.md's watcher) UNLOADS the least recently used background tab's document first (keeping its url, title, scroll position and history; reloaded when switched to; shown dimmed in the strip), one tab per pressure event until the pressure clears. Measured on the device: the point at which the first unload happens on typical pages (the figure recorded in the design note), and twenty tabs open without the daemon dying.
 - [ ] The idle rules hold with tabs: a card with eight tabs, none loading, ticks and logs no more than a card with one (cavekit-device-build.md R8 "an idle daemon is idle").
 **Dependencies:** cavekit-browser-services.md (R3), cavekit-engine-embedding.md, cavekit-device-build.md (R8)
 
@@ -75,7 +75,7 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 ### R5: Preferences
 **Description:** The few choices a user may want, on the settings page like every other preference (cavekit-preferences-ui.md R5: one Settings).
 **Acceptance Criteria:**
-- [ ] `jihad.tabs.enabled` (default on once built; the groundwork ships nothing, so no pref exists yet), `jihad.tabs.max` (default 8), `jihad.tabs.showStripAlways` (default off), `jihad.tabs.openLinksIn` (`card` | `tab`, default `card`, governs `window.open` and the long-press default).
+- [ ] `jihad.tabs.enabled` (default on once built; the groundwork ships nothing, so no pref exists yet) and `jihad.tabs.openLinksIn` (`tab` | `card`, default `tab` — owner, 2026-10-06 — governs `window.open` / `target=_blank`; the long-press menu always offers both). No cap pref and no "always show the strip" pref: the owner decided both (R1).
 - [ ] Each is a real engine pref the daemon reads (cavekit-preferences-ui.md R2: no decorative toggles); a change applies to the next tab action without a daemon restart.
 **Dependencies:** cavekit-preferences-ui.md (R2, R5)
 
@@ -83,7 +83,7 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 **Description:** Everything a hook can drive is driven before a finger is asked for.
 **Acceptance Criteria:**
 - [ ] The three test hooks (`render/goanna/test/*-selftest.js`) gain steps for new / switch / close / list through the shells' own handlers, and a `?` that reports the strip (tab count, active index, titles).
-- [ ] Device-verified by hook, per shell: open three tabs on three pages, switch between them with the right address/title/padlock after each switch and a frame that is the right page (frame dump colour check against colour-coded test pages — the `jihad-long.html` method), close the middle one, close the last, background load finishing while another tab is active, a background `alert()` held then shown on switch, the cap refusing the ninth tab, two cards with independent sets.
+- [ ] Device-verified by hook, per shell: open three tabs on three pages, switch between them with the right address/title/padlock after each switch and a frame that is the right page (frame dump colour check against colour-coded test pages — the `jihad-long.html` method), close the middle one, close the last, background load finishing while another tab is active, a background `alert()` held then shown on switch, `window.open` from a page landing in a new tab, twenty tabs with the strip scrolling and the active one scrolled into view, the unload step under memory pressure, two cards with independent sets.
 - [ ] A finger: tab taps, the strip's close controls, "Open in New Tab" from a long-press on a link, the feel of a switch. [human at the device]
 **Dependencies:** cavekit-device-build.md (R4)
 
@@ -91,6 +91,8 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 - **Why not one adapter instance per tab (several `<object>`s in one card):** each adapter connection allocates two shared buffers of 12.6 MB (`connect … sz=12582944`, two keys, plus an extra buffer) — eight tabs would pin ~300 MB of shared memory on a 1 GB device whose daemon already runs near the low-memory watcher; the stock WebKit also destroys an NPAPI instance that goes `display:none`, so hidden tabs could not be hidden. Pages in the daemon share the connection's one buffer set. Decided 2026-10-06; the measurement is in the design note.
 - **What a switch cannot keep:** the adapter's own view state (zoom level, scroll offset as it believes them) is reset by the "new page" sentinel; the daemon re-sends the page's geometry and the card re-fits, so the user sees the page where they left it, but the transition is a document change in the adapter's eyes — a full frame, not a flip. Acceptable; stated.
 - **Mojo's WebView widget** wraps only some adapter methods (cavekit-mojo-ui.md R3): tab commands go over Luna anyway, so this does not bite; the strip is plain Mojo UI.
+- **Atlas as a reference (owner, 2026-10-06):** Atlas's `source/engine/TabLayer.js` (in `~/eclipse-workspace/Jihad/Atlas/atlas-browser-app`) builds in-app tabs for its Chromium host — an `AtlasTabStrip` Enyo kind (a flex row with `overflow-x: auto`, hidden until a second tab), tabs tracked by view name with `this.$.browser` re-pointed at the active one so the rest of the app is untouched, background views suspended (`setEngineActive(false)`), the last tab closed reopening the start page, `window.open` routed to a tab. Its PAGE model (one engine view per tab) is plan A — right for an engine host with cheap views, not for this adapter (37.7 MB per connection); its UI model carries over to the Enyo shell almost as is, and its rules (hidden with one tab, neighbour on close, never zero) are the ones R1 states.
 
 ## Changelog
 - 2026-10-06: Created as groundwork only (owner's direction). Nothing built; design in `docs/TABS-GROUNDWORK.md`; Tier 71 tasks pending.
+- 2026-10-06 (later): the owner's answers folded in — `window.open` → new tab by default, strip invisible with one tab, no cap (a responsive, horizontally scrolling strip; memory bounded by the unload step); Atlas's `TabLayer.js` named as the UI reference.

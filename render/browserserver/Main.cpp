@@ -79,6 +79,19 @@ static void teardown_bailout(int sig) {
 // last page go; waking is NOT left to the next idle tick — the server calls jihadWakeTick() from
 // the card's connect, so the first frame is not held up to a second behind the old timer.
 static const int kJihadIdleTickMs = 1000;
+// No card, but the engine's main thread ran events on the last tick — chrome-side work in flight
+// (an add-on install, a pref flush: chains that hop through worker-thread replies). The tick runs
+// at this period until a tick finds nothing, then drops back to the idle period. Measured on the
+// device 2026-10-06, Palefill's first-start install with no card: never (no drain at all) → 13 s
+// at the 100 ms quiet period → 9.6 s at 20 ms WITHOUT hysteresis (a worker-thread reply that
+// missed the 20 ms window waited a full idle second: hops of 0.2 s and 1.3 s, nothing between) →
+// about 2 s with it. The work period is kept for kJihadIdleWorkKeepTicks empty ticks (one
+// second) after the last event, then the tick idles. A chrome timer that fires once a second
+// therefore keeps the tick at 20 ms while it is active — that is the cost of the fix, and it is
+// bounded by the page-pump tick a card costs anyway.
+static const int kJihadIdleWorkTickMs = 20;
+static const int kJihadIdleWorkKeepTicks = 50;
+static int g_idleWorkEmpty = 0;
 
 // ── AND A CONNECTED CARD WITH NOTHING TO DO IS QUIET (cavekit-engine-embedding.md R3) ─────────
 // Measured 2026-10-01 with a card open on a static page and no input: 12.3% of a core, all of it
@@ -145,9 +158,18 @@ static gboolean tick_cb(gpointer) {
   if (g_server) g_server->tick();
   if (!g_server) return TRUE;
   if (!g_server->hasPages()) {
-    if (g_tickArmedMs != kJihadIdleTickMs) {
-      printf("[jihad-bs] tick: no card — idling at %d ms\n", kJihadIdleTickMs);
-      arm_tick(kJihadIdleTickMs);   // destroys the source this callback is running in
+    // No card, but the engine's main thread had events to run on this tick: something is in
+    // flight on the chrome side. Tick at the work period until a second's worth of ticks found
+    // nothing, then idle. Not logged: it would flip for every timer a chrome script arms.
+    if (g_server->idleHadWork()) g_idleWorkEmpty = 0;
+    else if (g_tickArmedMs == kJihadIdleWorkTickMs) ++g_idleWorkEmpty;
+    const bool working = g_server->idleHadWork() ||
+                         (g_tickArmedMs == kJihadIdleWorkTickMs && g_idleWorkEmpty < kJihadIdleWorkKeepTicks);
+    const int want = working ? kJihadIdleWorkTickMs : kJihadIdleTickMs;
+    if (g_tickArmedMs != want) {
+      if (want == kJihadIdleTickMs && g_tickArmedMs != kJihadIdleWorkTickMs)
+        printf("[jihad-bs] tick: no card — idling at %d ms\n", kJihadIdleTickMs);
+      arm_tick(want);   // destroys the source this callback is running in
       return FALSE;
     }
     return TRUE;

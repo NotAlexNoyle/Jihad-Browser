@@ -93,8 +93,12 @@ Why:
   `msgContentsSizeChanged(0,0)` (the sentinel), content size, meta-viewport, `msgTitleAndUrlChanged`,
   history state, load started/progress or stopped as recorded, then paint. The adapter and the
   card arrive at the same state a navigation would have left. One frame, no grey (R2).
-- **New (`tabs/new {url?}`)**: cap check (`jihad.tabs.max`), construct a page unbound, open the
-  url (or the shell's start page: the shell passes it), then switch to it.
+- **New (`tabs/new {url?}`)**: construct a page unbound, open the url (or the shell's start page:
+  the shell passes it), then switch to it. No cap (owner, 2026-10-06).
+- **`window.open` / `target=_blank`**: with `jihad.tabs.openLinksIn = tab` (the default, owner's
+  decision) the page's `msgNewPageRequested` becomes a `tabs/new` inside the same connection
+  instead of `msgCreatePage` to the card — the daemon decides, the card sees a `tabs` notification;
+  with `card` it is today's path. "Open in New Card" on the long-press keeps `msgCreatePage`.
 - **Close (`tabs/close {id}`)**: if active, switch to the left neighbour (else right) first; destroy
   the page the way `reap` does today (deferred to after the tick). Closing the last tab opens a
   new one on the start page first (R1: never zero).
@@ -136,7 +140,15 @@ notification category. Nothing on the private bus (shells use the public one).
 - **Enyo (`app/source/`)**: a `TabStrip` kind under the `ActionBar` (hidden with one tab), its
   rows from `tabs/list` / the `tabs` notification via `PalmService`, taps → `pageFocused(true)`
   then the Luna call (the `certService` pattern in `Browser.js`); long-press menu gains "Open
-  in New Tab" (`BrowserContextMenu.js`) → `tabs/new {url}`; "New Card" untouched.
+  in New Tab" (`BrowserContextMenu.js`) → `tabs/new {url}`; "New Card" untouched. **Start from
+  Atlas's `AtlasTabStrip`** (`~/eclipse-workspace/Jihad/Atlas/atlas-browser-app/source/engine/TabLayer.js`
+  and `css/chromium-tabs.css`, Apache-2.0 like `app/`): a flex row, `overflow-x: auto`, 34 px
+  tall there — ours at least 44 px for a finger — labels as title-or-host clipped with an
+  ellipsis, a `×` per tab and a `+` at the end, hidden until a second tab, neighbour selected on
+  close, the start page when the last tab closes. What does NOT carry over is its page model
+  (one Browser view and one engine view per tab, `this.$.browser` re-pointed): here one Browser
+  view stays and the daemon swaps pages, so the strip is fed by `tabs/list` and the view's
+  address/title/padlock are re-fed by the switch sequence.
 - **Mochi (`app-mochi/source/JihadBrowser.js`)**: the same as an inline strip above the view
   (`JihadServices.js` carries the Luna calls); the hold sheet gains the item.
 - **Mojo (`app-mojo/app/assistants/main-assistant.js`)**: a strip row above the command row (it
@@ -146,8 +158,8 @@ notification category. Nothing on the private bus (shells use the public one).
 - All three: the `tabs` notification is routed in the notification switch next to `page-hold`.
 
 ### Preferences — `packaging/prefs`, `render/goanna/components/jihadAboutPreferences.js`
-`jihad.tabs.enabled`, `jihad.tabs.max`, `jihad.tabs.showStripAlways`, `jihad.tabs.openLinksIn`
-as real prefs with rows on the settings page (cavekit-preferences-ui.md R2/R5).
+`jihad.tabs.enabled` and `jihad.tabs.openLinksIn` (`tab` default) as real prefs with rows on the
+settings page (cavekit-preferences-ui.md R2/R5). No cap pref, no strip-always pref (owner).
 
 ### Test hooks — `render/goanna/test/*-selftest.js`, `build/webos-oe/card-selftest.sh`
 Steps `T` (new tab, optional url), `tN` (switch), `xN` (close), `?` reporting the strip; frame
@@ -160,8 +172,10 @@ is the right page.
   they left it, but as a full frame, not an instant flip. (A flip would need a per-tab buffer
   set — plan A's memory.)
 - A background page keeps its docshell: memory per background tab is the document (a few MB
-  for text, tens for image-heavy pages). The cap (8) and the unload step are the guard; the
-  numbers must be MEASURED on the device before the cap is final (T-351).
+  for text, tens for image-heavy pages). There is NO cap (owner): the guard is the unload step —
+  under memory pressure the least recently used background tab's document is unloaded (url,
+  title, scroll, history kept; reloaded on switch; dimmed in the strip), one per pressure event.
+  The pressure point must be MEASURED on the device (T-351); twenty tabs must not kill the daemon.
 - A tab cannot move to another card live: "Move to New Card" carries url + history, not the
   DOM (R4 says so).
 - Cards of the same variant each have a set; a card of ANOTHER variant is another daemon —
@@ -175,8 +189,9 @@ Luna, notifications → T-349 recording sink: held dialogs, replay → T-350 the
 "Open in New Tab" → T-351 memory measurement, cap, unload step → T-352 hooks + device
 verification → T-353 review (Codex / inspector) → T-354 owner's finger test.
 
-## 6. Open questions for the owner (not blocking the groundwork)
-1. Default for `window.open` / `target=_blank`: new card (today's behaviour) or new tab?
-2. Should the strip be visible with one tab (desktop habit) or hidden (webOS habit)? Default
-   proposed: hidden.
-3. Cap default 8 — fine, or lower for the TouchPad Go?
+## 6. The owner's answers (2026-10-06)
+1. `window.open` / `target=_blank` → **new tab** by default (`jihad.tabs.openLinksIn = tab`).
+2. The strip is **invisible with one tab**.
+3. **No cap.** The strip is responsive to the screen (tabs shrink to a minimum, then the row
+   scrolls horizontally); memory is bounded by the unload step, measured on the device.
+4. Atlas's tab code is the UI reference (section 3, Shells).

@@ -199,7 +199,9 @@ public:
 
   // Navigate. LoadUrlAndWait pumps the event loop until the load reaches
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
-  bool LoadUrl(const char* url);
+  // referrer: the document the navigation came from, for a load the daemon re-drives on the
+  // page's behalf (a content navigation it intercepted). Empty/null for a typed address.
+  bool LoadUrl(const char* url, const char* referrer = nullptr);
   bool LoadUrlAndWait(const char* url, int timeoutSec);
   bool SetHtml(const char* body);       // load inline HTML (YAP: setHtml)
   bool CanGoBack();
@@ -248,6 +250,10 @@ public:
   // If a tap changed editable-element focus, returns the new state so the caller can emit
   // msgEditorFocused (isis raises/hides the VKB). Drains the change; returns false if none.
   bool TakeEditorFocus(bool* focused, int* fieldType, int* fieldActions);
+  // The page changed document.title since the last call (the engine's nsIEmbeddingSiteWindow
+  // SetTitle, which fires for load-time and later changes alike). The daemon re-sends the title
+  // outside a load; during one the load boundary sends it.
+  bool TakeTitleChanged();
   // Clear editor focus (a navigation happened); returns true if it WAS focused so the
   // caller can emit msgEditorFocused(false) to lower the VKB over the new page.
   bool ClearEditorFocus();
@@ -475,6 +481,15 @@ private:
   GoannaRenderPage(const GoannaRenderPage&) = delete;
   GoannaRenderPage& operator=(const GoannaRenderPage&) = delete;
 };
+
+// Drain the engine main thread's READY events, up to msBudget ms, without a page: the same
+// work as GoannaRenderPage::PumpReady, for the daemon's idle tick. The main-thread queue is
+// drained only from here and from the page pumps — with no page nothing drained it, and every
+// nsITimer the chrome side armed (the bundled add-on installer's 4 s timer, pref flushes,
+// anything on a timer) waited for the first card to connect (device 2026-10-06: 41 s).
+// Returns how many events it ran: the idle tick uses that to tell "the engine has work in
+// flight" (a chain hopping through worker-thread replies) from "nothing at all".
+int PumpReadyMainThread(int msBudget);
 
 } // namespace jihad
 

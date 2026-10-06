@@ -1039,7 +1039,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
   return false;
 }
 
-void BrowserPageGoanna::openUrl(const char* url) {
+void BrowserPageGoanna::openUrl(const char* url, const char* referrer) {
   if (!mPage || !url) return;
   // A newer explicit navigation supersedes ALL queued input aimed at the old document, and the
   // generation bump stops an in-flight drain from continuing into the superseded page.
@@ -1111,7 +1111,7 @@ void BrowserPageGoanna::openUrl(const char* url) {
   mNeedsPaint = false;
   mLastProgress = 0;
   mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
-  if (!mPage->LoadUrl(url)) {
+  if (!mPage->LoadUrl(url, referrer)) {
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
     // and don't leave the adapter permanently "loading" (Codex P2 + R3).
     mSink.msgFailedLoad("Goanna", 0, url, "Load failed");
@@ -2405,7 +2405,9 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           // contract owes the card (navigation-events R6) — and it is otherwise invisible.
           fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", clickNav.c_str());
           mSink.msgLinkClicked(clickNav.c_str());
-          openUrl(clickNav.c_str());   // bumps mNavGen -> the loop above stops next iteration
+          // The tapped page is the referrer, as for any link the engine itself would follow.
+          std::string from = mPage->CurrentUri();
+          openUrl(clickNav.c_str(), from.c_str());   // bumps mNavGen -> the loop above stops next iteration
         }
         // A dropdown <select> tap queued a card-native popup instead of a click (Atlas model):
         // write the option data to a temp file and emit msgPopupMenuShow(id, file). The adapter
@@ -2545,8 +2547,11 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // Re-drive a GET-class nav through the programmatic load path, which completes and supersedes
       // the stalled content load. openUrl marks the load programmatic so it won't re-trigger
       // TakeLinkClicked -> no loop.
-      fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s\n", linkUrl.c_str());
-      openUrl(linkUrl.c_str());
+      // With the page it came from as the referrer: the engine's own load would have sent one,
+      // and a plain openUrl did not (device 2026-10-06, Referer absent on every content nav).
+      std::string from = mPage->CurrentUri();
+      fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s (from %s)\n", linkUrl.c_str(), from.c_str());
+      openUrl(linkUrl.c_str(), from.c_str());
     } else {
       // A POST content-nav (form submit) is NOT re-driven: the original request has already reached
       // STATE_START — the body may already be on the wire — so re-issuing it would DOUBLE the POST
@@ -2735,6 +2740,16 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       fprintf(stderr, "[jihad-bs] engine editorFocused=%d\n", (int)efoc);
       mSink.msgEditorFocused(efoc, eft, efa);
     } }
+  // A title the page changed after its load: the same message the load boundary sends, so the
+  // card's title bar, its history row and the strip-to-be follow the page (not a location
+  // change: nothing moved). Rare per page, so no coalescing beyond the one flag.
+  if (mPage->TakeTitleChanged() && mLoadStartMs == 0) {   // during a load the boundary sends it
+    std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
+    std::string title = mPage->GetTitle();
+    if (title.empty()) title = uri;
+    fprintf(stderr, "[jihad-bs] title changed by the page: [%s]\n", title.c_str());
+    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+  }
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
   // reflow just re-defers via the guard until a real size is available.

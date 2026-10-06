@@ -5,55 +5,46 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-05 (evening) delta — stopped at a usage limit, mid-wrap-up
+## 2026-10-06 delta — the 2026-10-05 work finished, reviewed, packaged, device cleaned
 
-**Commits (local, NOT pushed):** `657282c4` long-press menu, `debd1934` composed frames +
-padlock + review fixes, `afb0db6e` Palefill. Engine branch `jihad-engine-mods` (local, owner
-pushes, then bump the OE SRCREV): `0048d50fa9`, `628ee50c99`, `db070f0003`.
+**Commits (local, NOT pushed):** `657282c4` long-press menu · `debd1934` composed frames + padlock +
+review fixes · `afb0db6e` Palefill · `707795de` / `bb16ea4a` docs · `31c5f445` review round 4
+(Codex on Palefill, inspector on the last fixes). Engine branch `jihad-engine-mods` (local; owner pushes, then bump the OE SRCREV in
+`build/webos-oe/recipes-jihad/goanna/goanna_1.0.bb`): `0048d50fa9` (windowless plugin),
+`628ee50c99` (plugin child env), `db070f0003` (AppCompat vs toolkit target).
 
-**Verified on the device (Enyo + Mochi by scripted hook, not a finger):**
-- Long-press menu: word copy, field paste / select all / cut (engine-confirmed "Cut."), page
-  Select All + Copy, no Copy/Cut on a password field, page menu on a read-only field, no menu on
-  a page that handles `contextmenu` itself.
-- Padlock -> certificate (subject, issuer, dates, fingerprint, TLS version/cipher) in Enyo and
-  Mochi; gone after a failed https load (Enyo); a card's `pageFocused` now reaches the daemon
-  (the adapter method was an empty stub).
-- Composed frames: dumped whole frames of `/tmp/jihad-long.html` are right on every row after
-  anchor jumps; Wikipedia frames 110-180 ms instead of 300-1400 ms; Flash page still fine.
-- Palefill 1.30 installed + active in all three profiles; applies a fix on developer.apple.com.
-- Crash-loop guard: third automatic reopen refused with the "This page stopped the browser" page.
+**What the owner asked for and what it is now** (kits: ui-shell R7/R8, offscreen R9, addons R9,
+device-build R4; `context/impl/impl-review-findings-6.md` has every review finding):
+- Long-press menu on any content, all three shells (Copy/Cut/Paste/Select All, page actions).
+  Device, Enyo + Mochi, scripted holds. Mojo needs a finger.
+- "Pages only load when observed": frames are composed (copy then render ≤ 768 new rows), region
+  is the whole segment, sweeps, wide when zoomed. Row-exact after jumps. A real pan needs a finger.
+- DDG "links don't work" = Flash pages killing the daemon in a loop → engine fix + crash guard.
+- Padlock → certificate (+ connection, trust state). Enyo + Mochi device-verified; Mojo drawn.
+- Palefill 1.30 bundled unmodified (MPL-2.0, hash-pinned, NOTICE); installed enabled in all three.
+- Codex gate: Cavekit 3.1's script is silently incompatible with Codex CLI 0.160 — run
+  `codex exec` directly with its prompt; `ck:inspector` when Codex's credits run out (they did,
+  twice). Memory: `codex-gate-needs-direct-invocation.md`, `device-test-limits.md`.
 
-**NOT verified / needs a finger:** any real pan or pinch (scripted pointer events do not reach
-the plugin; `pageScaleAndScroll` is a stub — an earlier "scroll test" proved nothing, corrected
-in `debd1934`); Mojo's long-press menu and padlock TAP (padlock is drawn; no hook in Mojo);
-Mochi padlock on a failed load; wide (zoomed-in) regions were never exercised.
+**Device state:** all three variants installed through the installer from the packages built at
+`31c5f445` (bundle `4887551a…`, daemon `b7be3e3c…`, libxul `ddf8cc70…`, adapters `88303cfc /
+51d10886 / 1b0ac09d`, Palefill in each) — the device IS the repository head; nothing hand-pushed
+on top. Packages: `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser{,-mochi,-mojo}_*.ipk`
+(Enyo 1.0.4, the others 1.0.0). Root filesystem read-only. Test hooks restored (none loaded). `/tmp` holds nothing of
+mine (39 MB free). `/var/palm/jihad/adapter-backup-20261005` removed; the 2026-08-10 backup is
+still there. Crash reports: all of 2026-10-05's were mine (Flash loop, busybox, one
+`media-pipeline.real` SIGSEGV at 15:18 during the first package install) and were deleted;
+my attempt to copy them to the host first produced empty files, so they are gone unread.
+Palefill in every profile. No card open.
 
-**Review gate:** Cavekit 3.1's `codex-review.sh` passes `--approval-mode`, which Codex CLI 0.160
-rejects, so the gate silently skipped. Run Codex as `codex exec -m gpt-5.6-sol -s read-only`
-with the script's prompt. Codex reviewed long-press (round 1) and rendering; it then hit its
-usage limit, and `ck:inspector` did the long-press re-review and the padlock/fix review (no
-P0/P1 left open). Not reviewed by anyone: Palefill installer component, the last round of fixes
-(focus hand-over, trust flags, `walkSelection` rewrite). Known and left: fields inside iframes
-get the page menu; one global `window.jihadClip` per card.
-
-**STILL TO DO (in order):**
-1. Rebuild the three `.ipk`s and install them: the device runs daemon `cce94243` pushed by hand
-   (same on all three, newer than the installed packages), and the Mojo padlock's dark glyph +
-   CSS are in the tree only.
-2. Clean the device: `card-selftest.sh enyo restore` and `mochi restore` (both cards run
-   hand-pushed sources with the test hook); delete `/tmp/jihad-hold.html`, `/tmp/jihad-long.html`
-   and the older `/tmp` scratch scripts; delete `/var/palm/jihad/adapter-backup-20261005/`;
-   today's crash reports in `/var/log/reports/librdx` (counter at 45).
-3. Kits / PARITY / build-site / registry are NOT updated for today's work (long-press menu,
-   padlock, composed frames, Palefill, crash guard, one Settings) — add requirements and tasks.
-4. Owner only: hands-on checklist, Enyo/Mojo removal + install from nothing, one real print.
-
-**Device state now:** all three variants installed from packages built at `debd1934`-era tree,
-then daemon + components re-pushed (`cce94243`, bundle carries Palefill and the patched add-on
-provider); adapters are the new builds; root filesystem read-only; `/tmp` has 38 MB free; Enyo
-and Mochi cards carry the test hook; Mojo card open on Wikipedia; Palefill installed in every
-profile; trap: after an upgrade that replaces the adapter, `/` cannot be remounted read-only
-until LunaSysMgr restarts (it still maps the old file).
+**Still open:**
+- Owner only: finger tests (pan/pinch smoothness; Mojo menu + padlock tap; Mochi padlock after a
+  failed load; a hold on a link per shell) — T-341; Enyo/Mojo removal + install from nothing
+  (T-231…); hands-on checklist (T-280…); one real print.
+- Known gaps left on purpose: fields inside iframes get the page menu; Palefill buffers whole
+  responses of the sites it rewrites (its own design); one `window.jihadClip` per card.
+- Trap: after an upgrade that replaces the adapter, `/` will not remount read-only until
+  LunaSysMgr restarts.
 
 ## 2026-10-05 delta — printing built; a stale-script defect found and fixed; Mochi installed from nothing (read first)
 

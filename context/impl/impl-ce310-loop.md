@@ -129,7 +129,7 @@ Device: HP TouchPad (topaz), webOS CE 3.1.0 build 86. One device — every devic
 | T-337 | DONE | Palefill 1.30 (`afb0db6e`): vendored, hash-pinned, NOTICE, credits; `jihadBundledAddons.js` offers once per profile. Blocked by the engine's AppCompat preference (Basilisk entry 52.9.* vs AppCompat 56.9) → engine `db070f0003`. Device, all three: installed enabled; "applied fixes to developer.apple.com: std-customElements". |
 | T-338 | DONE | `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` once on a first connection → was a "certificate invalid — Trust Always?" dialog with no certificate; now a failed load. Not reproduced in 3 fresh starts. |
 | T-339 | DONE | Cavekit 3.1 `codex-review.sh` → `--approval-mode` rejected by Codex CLI 0.160 → silent "fallback", exit 0. Codex run directly with the script's prompt; `ck:inspector` when Codex's credits ran out. |
-| T-340 | IN PROGRESS | Reinstall of the three packages built at `707795de`; cleanup. See the 2026-10-06 loop-log entry. |
+| T-340 | DONE | Packages rebuilt at `31c5f445` and installed through the installer, all three: bundle `4887551a…`, daemon `b7be3e3c…`, libxul `ddf8cc70…`, adapters `88303cfc / 51d10886 / 1b0ac09d`, Palefill in each; root ro; hooks restored; `/tmp`, stale sockets, adapter backup and my crash reports removed. |
 | T-341 | BLOCKED (owner) | Finger: pan/pinch smoothness, Mojo menu + padlock tap, Mochi padlock after a failed load, a hold on a link per shell. |
 
 ## Baselines (T-201, daemon `cf92f351…`, before any daemon change)

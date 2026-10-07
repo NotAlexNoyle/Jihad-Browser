@@ -57,6 +57,9 @@
 				var st = steps[i], wait = 3000;
 				if (st.charAt(0) === "w") {
 					wait = (parseInt(st.slice(1), 10) || 1) * 1000;
+				} else if (st === "T") {              // the toolbar's theme as painted (settings scenario)
+					var tbs = app.$.actionBar.hasNode();
+					log(name, "toolbar style: background=[" + (tbs ? tbs.style.background : "?").slice(0, 80) + "] color=[" + (tbs ? tbs.style.color : "?") + "]");
 				} else if (st === "b") {              // a bookmark of the test's own, to have one to clear
 					enyo.jihad.dbPut([{_kind: enyo.jihad.kinds.bookmarks, title: "jihad test bookmark", url: "http://example.invalid/jihad-test", date: (new Date()).getTime()}]);
 					log(name, "test bookmark added");
@@ -145,11 +148,16 @@
 						var tbp = app.$.actionBar.hasNode();
 						log(name, "after direct applyTheme: background=[" + (tbp ? tbp.style.background : "?").slice(0, 160) + "] color=[" + (tbp ? tbp.style.color : "?") + "] cssText=[" + (tbp ? tbp.style.cssText : "?").slice(0, 200) + "]");
 					} catch (e) { log(name, "direct applyTheme THREW " + e); }
+				} else if (st.charAt(0) === "E") {    // TEST ONLY: evaluate an expression in the card and log the result (no ';' — steps split on it)
+					var ev; try { ev = String(eval(st.slice(1))); } catch (e) { ev = "THREW " + e; }
+					log(name, "eval: " + ev.slice(0, 400));
 				} else if (st === "T") {              // the toolbar's theme as painted (inline style set by applyTheme)
 					var tb = app.$.actionBar.hasNode();
 					var ic0 = tb ? tb.querySelector("img.jihad-nav-img") : null;
 					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
-						" first icon: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "] src=" + (ic0 ? String(ic0.getAttribute("src")).slice(0, 22) : "?"));
+						" glyphs: " + (function() { var n = 0, d = 0, all = tb ? tb.querySelectorAll("img.jihad-nav-img") : [], j, k;
+							for (j = 0; j < all.length; j++) { n++; for (k in enyo.JihadIconsDark) { if (all[j].getAttribute("src") === enyo.JihadIconsDark[k]) { d++; break; } } }
+							return d + " of " + n + " ink"; })());
 				} else if (st === "l") {              // the padlock: is it showing, and what does its tap bring up?
 					log(name, "padlock showing=" + app.$.lock.getShowing() + " field has room for it=" + app.$.addressBox.hasClass("jihad-secure"));
 					app.showPageCertificate();                   // the padlock's own ontap handler

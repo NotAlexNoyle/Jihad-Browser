@@ -31,7 +31,7 @@ enyo.jihadChrome = (function () {
 	//* The ids the settings page offers (packaging/prefsui/content/preferences.js
 	//* SEARCH_ENGINES); the first is the default. BrowserApp.defaultWebSearchEngines maps
 	//* each to its search url.
-	var SEARCH_IDS = ["duckduckgo", "google", "wikipedia"];
+	var SEARCH_IDS = ["duckduckgo-lite", "duckduckgo-html", "duckduckgo", "google", "wikipedia"];
 	function safeEngine(id) {
 		for (var i = 0; i < SEARCH_IDS.length; i++) { if (SEARCH_IDS[i] === id) { return id; } }
 		return "";
@@ -71,9 +71,21 @@ enyo.jihadChrome = (function () {
 		return (/^https?:\/\//i.test(v) || /^about:(preferences|settings|jihad|isis|blank)$/i.test(v)) ? v : "";
 	}
 
+	//* "duckduckgo" was the only DuckDuckGo and the default until 2026-10-06; a stored
+	//* "duckduckgo" from before that day is the old default, not a choice against Lite, so it
+	//* moves to Lite once. The flag records the move, so a later deliberate choice of the full
+	//* site stays.
+	function migrateEngine(o) {
+		if (!o) { return; }
+		if (o.searchEngine === "duckduckgo" && !o.liteMigrated) { o.searchEngine = "duckduckgo-lite"; }
+		o.liteMigrated = true;
+	}
+
 	function normalize(o) {
 		var links = cleanLinks(o && o.startLinks);
+		migrateEngine(o);
 		return {
+			liteMigrated: true,
 			searchEngine: safeEngine(o && o.searchEngine) || SEARCH_IDS[0],
 			homeUrl: safeUrl(o && o.homeUrl) || HOME_DEFAULT,
 			startLinks: links.length ? links : defaultLinks()

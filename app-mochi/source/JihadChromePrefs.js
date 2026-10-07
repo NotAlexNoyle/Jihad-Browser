@@ -20,9 +20,10 @@ enyo.jihadChrome = (function () {
 	//* Where the card's own settings panel kept the choice before the panel was merged into
 	//* the settings page. Read once as the starting value, never written again.
 	var SEARCH_KEY_OLD = "jihad.mochi.searchEngine";
+	var LITE_MIGRATED_KEY = "jihad.searchEngine.liteMigrated";
 	//* The ids the settings page offers (packaging/prefsui/content/preferences.js
 	//* SEARCH_ENGINES); the first is the default. enyo.jihad.searchEngines maps each to a url.
-	var SEARCH_IDS = ["duckduckgo", "google", "wikipedia"];
+	var SEARCH_IDS = ["duckduckgo-lite", "duckduckgo-html", "duckduckgo", "google", "wikipedia"];
 	function safeEngine(id) {
 		for (var i = 0; i < SEARCH_IDS.length; i++) { if (SEARCH_IDS[i] === id) { return id; } }
 		return "";
@@ -128,14 +129,23 @@ enyo.jihadChrome = (function () {
 			this.saveHome(o.homeUrl);
 			this.saveLinks(o.startLinks);
 			// A page older than the search row sends no engine: keep the card's.
-			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); }
+			// From the settings page the engine is the user's choice, never the pre-Lite default.
+			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); write(LITE_MIGRATED_KEY, "1"); }
 			return (JSON.stringify(this.loadLinks()) + this.loadHome() + this.loadSearchEngine()) !== before;
 		},
 
 		//* The id of the engine the address bar searches with: the one adopted from the
 		//* settings page, else the one the old card panel stored, else the default.
+		//* A stored "duckduckgo" from before 2026-10-06 (when it was the only DuckDuckGo and the
+		//* default) is the old default, not a choice against Lite: moved to Lite once, the move
+		//* recorded so a later deliberate choice of the full site stays.
 		loadSearchEngine: function () {
-			return safeEngine(read(SEARCH_KEY)) || safeEngine(read(SEARCH_KEY_OLD)) || SEARCH_IDS[0];
+			var id = safeEngine(read(SEARCH_KEY)) || safeEngine(read(SEARCH_KEY_OLD));
+			if (!read(LITE_MIGRATED_KEY)) {
+				if (id === "duckduckgo") { id = "duckduckgo-lite"; write(SEARCH_KEY, id); }
+				write(LITE_MIGRATED_KEY, "1");
+			}
+			return id || SEARCH_IDS[0];
 		},
 
 		//* Returns the cleaned list actually stored. Saving an empty list clears the

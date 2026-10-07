@@ -395,14 +395,9 @@ MainAssistant.prototype.applyTheme = function (theme) {
 		return;
 	}
 	this.theme = theme || null;
-	// The command row's glyphs are the framework's sprites (background-image on each
-	// .palm-menu-button): with a theme the sprite becomes the button's MASK and textcolor its
-	// background, so the glyph takes the theme's text colour. The sprite is kept on the element
-	// to put back. The framework redraws the row when its model changes, so updateCommandMenu
-	// re-applies (themeCommandRow).
 	if (!theme || typeof theme !== "object") {
 		bar.style.background = ""; bar.style.color = "";
-		this.themeCommandRow(null);
+		this.themeCommandRow(false);
 		return;
 	}
 	var color = function (c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
@@ -410,28 +405,49 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
 	bar.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
 	bar.style.color = text;
-	this.themeCommandRow(text);
+	this.themeCommandRow(this.isDarkColor(text));
 };
 
-//* Tint (textcolor) or restore (null) the command row's button glyphs — see applyTheme.
-MainAssistant.prototype.themeCommandRow = function (text) {
+//* Whether a CSS colour (a theme's textcolor, in any form the browser accepts) is dark: the
+//* browser resolves it on a detached element. Unreadable → not dark.
+MainAssistant.prototype.isDarkColor = function (c) {
+	if (!c) {
+		return false;
+	}
+	var doc = this.controller.document, d = doc.createElement("div"), m;
+	d.style.color = c;
+	doc.body.appendChild(d);
+	m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(this.controller.window.getComputedStyle(d, null).color || "");
+	doc.body.removeChild(d);
+	return !!m && (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) < 128;
+};
+
+//* The command row's glyphs: the framework's sprites (back, forward, refresh, stop, new) and
+//* this shell's own (home, history, share, find), each a background-image sprite on the button.
+//* With a dark theme text colour they switch to the ink set in images/dark/ (same file names;
+//* the framework's five drawn from isis-browser's Apache-2.0 art), as Firefox 52 / Pale Moon /
+//* Basilisk switch icon sets on the theme's text colour. The sprite position the framework
+//* slides for the pressed state is left alone. The framework redraws the row when its model
+//* changes, so updateCommandMenu re-applies.
+MainAssistant.prototype.themeCommandRow = function (ink) {
 	var doc = this.controller.document, win = this.controller.window;
-	var btns = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button"), i, b, img;
-	for (i = 0; i < btns.length; i++) {
-		b = btns[i];
-		img = b.getAttribute("data-jihad-sprite");
+	var els = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button, .jihad-cmdmenu .palm-menu-icon"), i, e, img, m;
+	for (i = 0; i < els.length; i++) {
+		e = els[i];
+		img = e.getAttribute("data-jihad-sprite");
 		if (!img) {
-			img = win.getComputedStyle(b, null).backgroundImage;
-			if (!img || img === "none") { continue; }
-			b.setAttribute("data-jihad-sprite", img);
+			img = win.getComputedStyle(e, null).backgroundImage;
+			if (!img || img === "none") {
+				continue;
+			}
+			m = /menu-icon-(back|forward|refresh|stop|new|home|history|share|find)\.png/.exec(img);
+			if (!m) {
+				continue;
+			}
+			e.setAttribute("data-jihad-sprite", img);
+			e.setAttribute("data-jihad-dark", "url(images/dark/menu-icon-" + m[1] + ".png)");
 		}
-		if (text) {
-			b.style.webkitMaskImage = img; b.style.webkitMaskRepeat = "no-repeat";
-			b.style.webkitMaskPosition = win.getComputedStyle(b, null).backgroundPosition || "center top";
-			b.style.backgroundImage = "none"; b.style.backgroundColor = text;
-		} else {
-			b.style.webkitMaskImage = ""; b.style.backgroundImage = ""; b.style.backgroundColor = "";
-		}
+		e.style.backgroundImage = ink ? e.getAttribute("data-jihad-dark") : "";
 	}
 };
 

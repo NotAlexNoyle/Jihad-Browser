@@ -273,11 +273,27 @@ const CHROME_MAX_LINKS = 12;
 // the ids in step with those three. Not the webOS "Just Type" list: that is the SYSTEM's
 // setting, and the Enyo shell used to change it for every app on the device whenever the
 // browser's own choice was changed.
+// The first is the default. DuckDuckGo Lite first (owner, 2026-10-06: "add lite/html duckduckgo
+// as a default search engine option and make it the default") — the plain-HTML results pages,
+// which this engine renders fast and whose links work without script; the full DuckDuckGo stays
+// an option. Every shell keeps its own id → url map in step with this list.
 const SEARCH_ENGINES = [
-	["duckduckgo", "DuckDuckGo"],
-	["google",     "Google"],
-	["wikipedia",  "Wikipedia"]
+	["duckduckgo-lite", "DuckDuckGo Lite"],
+	["duckduckgo-html", "DuckDuckGo HTML"],
+	["duckduckgo",      "DuckDuckGo"],
+	["google",          "Google"],
+	["wikipedia",       "Wikipedia"]
 ];
+// "duckduckgo" was the only DuckDuckGo and the default until 2026-10-06, so a stored
+// "duckduckgo" is the old default, not a choice against Lite: moved to Lite once (the
+// flag records that the move was made, so a later deliberate choice of the full site stays).
+function migrateEngine(cfg) {
+	if (cfg && cfg.searchEngine === "duckduckgo" && !cfg.liteMigrated) {
+		cfg.searchEngine = "duckduckgo-lite"; cfg.liteMigrated = true; return true;
+	}
+	if (cfg && !cfg.liteMigrated) { cfg.liteMigrated = true; }
+	return false;
+}
 
 function safeEngine(id) {
 	for (var i = 0; i < SEARCH_ENGINES.length; i++) {
@@ -360,10 +376,12 @@ function loadChrome() {
 
 function normalizeChrome(o, d) {
 	var links = cleanLinks(o.startLinks);
+	migrateEngine(o);
 	return {
 		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
-		startLinks: links.length ? links : d.startLinks
+		startLinks: links.length ? links : d.startLinks,
+		liteMigrated: true
 	};
 }
 
@@ -374,7 +392,8 @@ function saveChrome(o) {
 	var kept = {
 		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
-		startLinks: cleanLinks(o.startLinks)
+		startLinks: cleanLinks(o.startLinks),
+		liteMigrated: true
 	};
 	if (!kept.startLinks.length) { kept.startLinks = d.startLinks; }
 	try {

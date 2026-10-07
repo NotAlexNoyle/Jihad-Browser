@@ -125,9 +125,14 @@
 					// padlock — can be seen claiming it in the daemon's log.
 					view.callBrowserAdapter("pageFocused", [false]);
 					log(name, "said pageFocused(false)");
-				} else if (st === "a") {              // answer OK to the engine dialog that is open (an alert)
-					app.$.browser.viewCall("acceptDialog", []);
-					log(name, "answered the engine's dialog");
+				} else if (st === "a") {              // answer OK to the engine dialog that is open: the alert ($.dialog) or the confirm ($.confirmDialog)
+					var br = app.$.browser, al = br.$.dialog, cf = br.$.confirmDialog;
+					var alOpen = !!(al && al.isOpen), cfOpen = !!(cf && cf.isOpen);
+					log(name, "engine alert open=" + alOpen + " confirm open=" + cfOpen + (cfOpen ? " [" + String(cf.$.confirmMessage ? cf.$.confirmMessage.getContent() : "").slice(0, 120) + "]" : "") + ((alOpen || cfOpen) ? "; answering OK" : "; nothing to answer"));
+					try {
+						if (cfOpen) { cf.acceptClick(); }                                    // the popup's own Accept button handler
+						else if (alOpen) { br.viewCall("acceptDialog", []); }
+					} catch (e) { log(name, "answering THREW " + e); }
 				} else if (st === "x") {              // close this card (a second card that only needed to connect)
 					log(name, "closing this card");
 					window.close();
@@ -166,7 +171,9 @@
 					var tb = app.$.browser.$.actionbar.hasNode();
 					var ic0 = tb ? tb.querySelector(".enyo-button-icon") : null;
 					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
-						" first icon: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "] image=" + (ic0 ? String(ic0.style.backgroundImage).slice(0, 30) : "?"));
+						" glyphs: " + (function() { var n = 0, d = 0, all = tb ? tb.querySelectorAll(".enyo-button-icon") : [], j;
+							for (j = 0; j < all.length; j++) { if (/menu-icon-/.test(all[j].style.backgroundImage)) { n++; if (/\/dark\//.test(all[j].style.backgroundImage)) { d++; } } }
+							return d + " of " + n + " ink"; })());
 				} else if (st === "L") {              // the padlock, read now — no click, no wait
 					var lk0 = app.$.browser.$.actionbar.$.search.$.address.$.secureLock;
 					log(name, "padlock showing=" + Boolean(lk0 && lk0.showing) + " address=[" + String(app.$.browser.$.actionbar.url).slice(0, 60) + "]");

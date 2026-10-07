@@ -303,7 +303,22 @@ enyo.jihad = enyo.jihad || {};
 	// pane) and cached by JihadChromePrefs; this is only the map from id to search url. The
 	// ids must match the page's SEARCH_ENGINES. Not the system's "Just Type" list: a browser
 	// changing the search engine every app on the device uses is not something to do quietly.
+//* Whether a CSS colour (a lightweight theme's textcolor: "#000", "#00ccff", "rgb(...)", a name)
+	//* is dark: Firefox 52 / Pale Moon / Basilisk pick the ink icon set when it is. The browser
+	//* resolves the colour (any form it accepts) on a detached element; unreadable → not dark.
+	scope.isDarkColor = function(c) {
+		if (!c) { return false; }
+		var d = document.createElement("div"), m;
+		d.style.color = c;
+		document.body.appendChild(d);
+		m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(window.getComputedStyle(d, null).color || "");
+		document.body.removeChild(d);
+		return !!m && (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) < 128;
+	};
+
 	scope.searchEngines = [
+		{id: "duckduckgo-lite", name: "DuckDuckGo Lite", url: "https://lite.duckduckgo.com/lite/?q={q}"},
+		{id: "duckduckgo-html", name: "DuckDuckGo HTML", url: "https://html.duckduckgo.com/html/?q={q}"},
 		{id: "duckduckgo", name: "DuckDuckGo", url: "https://duckduckgo.com/?q={q}"},
 		{id: "google",     name: "Google",     url: "https://www.google.com/search?q={q}"},
 		{id: "wikipedia",  name: "Wikipedia",  url: "https://en.m.wikipedia.org/wiki/Special:Search?search={q}"}

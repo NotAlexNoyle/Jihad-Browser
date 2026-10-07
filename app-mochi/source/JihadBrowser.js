@@ -40,6 +40,19 @@ enyo.JihadIcons = {
 	home: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAQAAADYBBcfAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAACYktHRAD/h4/MvwAAAAd0SU1FB+oIBRMsCFUv1wIAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMDgtMDVUMTk6NDQ6MDgrMDA6MDCd0orgAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTA4LTA1VDE5OjQ0OjA4KzAwOjAw7I8yXAAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAAMjAyNi0wOC0wNVQxOTo0NDowOCswMDowMLuaE4MAAAGvSURBVDjLndTNb0xRGMfxZ2YuCzSNSVUXUgmqGiJCQmJjwYKFVS0kbP0b/gGxsPISXWgFGxIhEsFCvVSQCAsRqxKNdOGlSVfM9GNx78ykM3Nnpn53c5/nd77nPOc599yI/1ShfVrXIcUOWF8MNk/SUdKn3xWPbU+j3rGyCfDMWE9ohm0wqaYZu7uiGTbkFvjkOXhrX0c0w4bdBe8dsMkd8MHBXDTDtnkE3tgrhI1ugs8Ot0UzbNQ0eGmXWm7ANTDraAuaDdnpBZi2o46FsN5VS/jq+DI0s/d4DZ4Yadj1M72oijnjdS+z9nsH7tm8vKDMX+ecP5h3KvOFcMhHVN0w2NqCDF3trEX8cEYiihExEpdjLCJ+xUKcjP7mz7oQEVGKE7E2vocox/k4ls7X55KKKTP4Zrj1tIRVHmLOBYue2lIrtey0IffxJRd8gFlbjRsVIomIiJ9xPZL2V6yp6r9xO30tFhrJFagQSUr0fFnrK3QvL0dJSx8qbdevNCebwTVxJOZb6hBJ+v/JBwdiImfDSX5YqrUrV6V2YDUm41UsdWzn71hoBNkmeteKDrxV/wDUNmqziiwduwAAAABJRU5ErkJggg==",
 	bookmarks: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAD9klEQVR4nN2VT2gjdRTH3/vNJI3NJKZIi7KHkoOwuD2IK+LBlQraw4IHkV4UFC8eRBCPnnQ9qujV9eZJaPUiqOAWuwcF0d5qFE8BPSxJmpk3md/8SebP10N/U9JsGrrS0z4IGea93/fz3vv9fm+I7nfjixICoIhIzXHlzIyL4tyznbtCAEzHFZys2d3dxfb2NjFz7nneZqvV2vQ8r2BmBQCNRoO11l+urKx0AShmLs4F2t/ftxf4LQCW67ofAUBRFJg2rfVWGUdEdKaQCSqzygA4WusnATxVrVbtPM/9SqXya6fTOdzY2JiISEBEme/7mdEt6vW6AjCZ1lyUuWLmYjAYNOr1+rtxHL/pOM6l2bh2u/3H0dHRB0SkANhERMxsAyiY+dQWnAksYf1+/wnHcb6o1WpX4zgmEfkFwC2l1JiIHrIs67rjOBvLy8tfi8hAa01EZAHIZ0EL2wiAe73ew6PR6A4A+L6/Px6Pr8yJtbTWW1EU/ZvnOVzXLcIwBACISDaZTIogCJ4rY88EEhF5nvedgX1VtgoAi8h7eZ4HruteK9f0+/1HtNaHSZLkItL1ff9DrTUAYDQaPTsNVDMwi5kLz/M2Hce5HkXRnyLyFjNnAGrmAleVUg4d75kCUF9bW7uTpum3S0tLipm52WzeyLLshSRJIgDONGPeZCBmftW2bRqPxzfX19c9ABUiyoy7OM4NqTnBEQC2bft2GIYHzWZzXUReb7Vae1rrFwEMynrmAQsASwA2kySZKKW+Nxc+n4qZEBEsy3IANIjoQSKqNhqNW+Px+GOTzDUA1urq6k+tVut3U0RxCgiAmRki8gARXUqSZJymac+0sfwRgMdNO38QkWGWZUci8gwAValUekTESql1Zs4B2CbhE7vrWgCAUqqYDZzyH2ZZ9jQzd81BYGb2mbkYjUblkC5HWLFwcANgALaIHKRpmoZheNUcjFNHutvt1uas4yAI3gZQiMhn5v1dBc3uocXMGRHt2bZtJ0nyMjMXnU7nBAiA2+12YhIpk7GZGWmavmIq/rEMP7M6I6aIiEaj0eUoiiZJkgyGw+GG8VXLNk/9KwBVIiLXdV9L07QQkb8B1MqqFwKNiGUEPgGAMAwPfN9/dDqpchqV70RkK45jL01TeJ730rTOeYBsBG3P8342n5ie1vqNMAxPDe8kSS5rrd+P4xgAMBwOP70n2BxoMwzDm+W3TUQiz/Nui8ie67q/lXMziqKx7/vvlLBztXIetHwOguD5OI6/CYLAm/m4/hMEwedBEFyZXXOWLQwoBcq7JCIrSqnHarWaNZlMdL1e/4uZ47IyZs4X6Z3bTJvmzt1FvosAswFYOzs7/2+v7nv7D6hZPMoW7YwgAAAAAElFTkSuQmCC"
 };
+//* The same glyphs in ink, for a lightweight theme whose text colour is dark (applyTheme): Firefox
+//* 52, Pale Moon and Basilisk switch their toolbar icons between a light and a dark set on the
+//* theme's text colour the same way. Generated from the set above (luminance inverted).
+enyo.JihadIconsDark = {
+	back: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAABN0lEQVR42u2WTU4DMQyFX1J7pnKCR5lWmkt0hdQNl2FVBJfhAJyDDafg5wzskCo2XUDLmM0gjVjQojYjVeBNFEXJZ8fJs4F/O7CNDnCG70Y3hMP+2zwrlACgruuzoihuU0onOaEEACmleVEULwAshPAEoO6Abtcr2RW2SSnNV6vVHRHVzjkAeJhOp2+HjrAf2VJEPgBYjPEmRx63wUZHC/ODw2KM87Isl+Px2ACYiGSBfQFZVe+991aW5VpErveB/fQtHADr8jdh5rZtWxDRY2+vZdFaVT333lsIYeO9t6qqLgBgNptxNoFX1QURmYisichUddF/wVmkrAd9/7NQNwR0zcwWY7zq1nxWKDMbEVkI4VVEmm3laW9oVVWXzPysqqd7lLzfCUfTNJMh+xo3RGQYsnk6LvsEXq9M3ABkKKsAAAAASUVORK5CYII=",
+	forward: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAA9UlEQVR42u3WvU4EIRQF4MNPIDlD7oRmnmAqe2uLfQ67XVufZ218I9/En8JmJ4vYUIzR2OhFjXsSEgLFx70UAJzyw7EAXE/so7keJiIXKaWrtuY1MSMimxjjI4AqIltN1AFAq6ySPHjvq4jsNFELAOM4br33leTSA/XtHnf/HrWqqLW2kizd0JTSZYzxmWQheRyG4ewz9Msncc7dATgYY16WZXGlFKpVl3M+DyE8kSwAakppP89z+O6WrrGHFXbT9k0bXTD3ZzELANM0dcOMiGxCCPckj5rYu9eivRh7LexNS3PO1yRv15X3+mIYbWyNWpzym/IKbc5JmxBPCKEAAAAASUVORK5CYII=",
+	reload: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAAEEklEQVR42u2aXYhVVRTHf6OTFo7KoIY0fy3ED4qacUbUHAg0plJTtESfmpfQFKKX3nxIcSC1xyJF8FEfIskoHEtUFBMcdBxHAsEapIml5Rg5okkfij2cfXGzuTP33LnnXL2Hu+DCPnufs8/+3bX3WmvvdWoGBwfJsowi41IFfNxF0nOZBZQ0HTieSUAHdwKYkTnAuHAAtSkNYCzQCiwBXgLmAFOBOqAGuA38DvQBPcAPwCkz+y/mK96NA5c4oKR5wEZgHTBxmFvr3e95YKWruynpK2C3mV14rKyopBZJR4BuYEMBuOGg1wM9kr6TNDeJsdWWCPYUsBN4Hxg9xG19wCWgH7jr3jnF/V4EpuV5ZinwmqRPgY/M7G7ZASXNAQ64NRbKKWAfcNjMrsXopw1oBxZ6TaOBD4E2SWvMrK9sgJIWAp3ApKCpE9hqZufj9mVml4HLwC5Ji4HNwOveLY1Al6TlZnY29TXo4I4FcAPAajNbUQxcHtiTZvaG0+Ytr2kScNy9Oz1AN506nbnPSRfQbGbfJGX5zGy/01y3V10HHJI0KxVAZ1AOBJo7CrQVWmcjhPzVrc0ur3qyG0NtGhrcGRiULuAtM/srrYjFzG659XjOq24CXo3bR02cDa+kFuCs5woG3LS8RhlE0gwX8eT86wMXEeX+iJpSNbgj8HPvlQvOAVwBNvmKSWyKuvDLN9udSRqUIiC/AE6mYUU3BtdbH+FGoiNRR+92Bev8CKUUPzfSLU+awXZrEDjvqyS4OIBLguvDlQQXJxZt9HcFCVnO5c5ZlyKtwBOufKMUwNle+VJC1nBPOa1SoSn6tFfur8Tzm0KA473y7SwCVrwUAvS1NiGLgANeeXoWAX/yyi9kEfCiV54p6ZmsAZ4Irt/MGuAZwN8Rt2cK0Mz+CcKqVyTNz5ofDEOrbZkCNLMe4HuvapmktysFMO6h01yik61aL4JvNrOr5RikpAbgHa/qHvBZnHRbrFDNzHqBz72qKcBBSXVlgBsHfEt0bJn71cfNJRYTi24O/OIC4Os0ISWNBw4BLYFv7kjSyOS0+DewFvjDq24jyhk0pAA3jegDg8Ve9W/AKjP7N5XdhJn97Jz9nUCTvZLWJAi3FrgAzA8C/5Vm1p+4kckzgAVESZjJQdMRYMtI0lxevx+7mUGguRXOopM6oBvMLBcENOVpPg3sJzoktgL9iChP3w4synNLL1EO5JfU3MQwg3sS2A58MMz5zhUeprBzU3si0EB0qPXsEM/dAz4BOopZc4kCeqBNDnQZReQNhpAHwEFgm5n9WBZHXwRoMw8/I6kv8vHrwJfA3iTAUgH0QMcALxPl8RqJjh+nEh1i3QduAn8S5ebPEeUaT5vZ/UcSqlWyVL8XrQJWAauAVcBS5H/6XlDd0tcfPAAAAABJRU5ErkJggg==",
+	stop: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAABx0lEQVR42u2Vv24TQRDGv13vzp1mhzmdY9kv4NI0SDQ0FHkNkChiK6nyJlBDg5RnyHMgwTPQIUgkaPLHDM06OluXyHd2hTzSSafT6H7z7XwzCxziEB1jsEWOz49tkQcAbpeC/CPvT+X1hnoAUNXXIrLI30JLXgCA4XD4iogu67p+1gfqAThVPS6K4gqAqepJCzQAQF3XL4noBwBLKX0DMMxA16m3WZkx800IwVR13gA1Yb+Yeemcs5TSxWg0SquiOx9pVVUnIQRj5tsN6BoMgInIp137GHIf5yuo995E5I2qPieiqxbYYFenPkC991aWpanqUkR+l2Vp+cj3BluDishbIvqTUlqKiBHRPTO/7wLznbbEYPDFOXdjZn8B3JoZQghfG/+yvanLBrkuy9KKorAYo6WUlt57q6pqAQCz2SzuE9Z04wdVfZeNdNcyMv3X2ng8XoM1DAIRWTwyMq4PzKnqMRH9ZOb7TetPp1PaGJm7GKOJyFlW6TvfIqtNk5V93HTjqmeqOo8xWgjBUkrXzDzputoejrSu63Nm/txU3tbnqqpOY4zfVfVFnwloG5unKvYAMJlMjvZ1J25TrdtFWd9wOMR/H/8A1M9qP6IS71UAAAAASUVORK5CYII=",
+	share: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACSklEQVR42t2Wu24TQRSG/zm7Y6/WJyeMm1hpIkVIpEFKkxfg8gK8AA0NDSWioUS8AxUCngNqUCRcUKRJ4Q4pDVpkxdnLORTMRhaRL9hOhPil1c5oZuebc5sd4H9XssZ3CQC7iU26Bf2NghwA9Hq9R977J/v7+1txjK4DlgAAM7+JrrQ8zz8PBoP+pqGuXayFMXMpIhfOOcvz/Mvu7m7YFPQKTERKZjZmNhHRFioi25uIKQFImPlttEzzPDcRURFpmPlHnudGRMbM35i5Px3rWQsukhHRMLa/p2n6vK5rm0wmjogeE9FHVQWA4yzLLta1cDpZnoYQjkTkbpqmlqapMfNRCEF6vd7LaysTZn7gvTfvvYnI/VViNE8ZgBAToguAiKiZGtdoUSeEsAUg9Pt9XgWYAoCIPANwCuB4Z2eHpwAAgLquEWuyrKrqHYDTsizfz1s7nbcbVc0BBFWFmbUgA9BMtVttAwjxPVPpApc2MUury1M7SXxVVQkAdLtdf+kqojrOrdcBtjXlnHMGAE3TnHnvP0UPnMVxU1UHwMX3ysBLjcdjBYCiKL4CuAcAVVW1sVr6N7U00MzSOJ/29vYcAIxGozaJdNn6WxZo4/H4rO2MRqOr6U5Urg0kIvc7VJqJyGtVPScip6r2R5xNVW8753RdCyk+UhTFi7knRJbBzEBE2SpAjRn3odPpPKyq6o6I1LPipKqmquS9/6mqr/7mfnJFJycn7uDg4JaI2KyUJyIrisIdHh5OhsPh+SYvTGufz+4aoDdydfx39Qt4pss/HCZquAAAAABJRU5ErkJggg==",
+	newtab: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACqUlEQVR42u1WPW8UMRB9Hns3m7UzYYNCC00ERZBogihBCCkNfwEhRE1JAbSU/An+AgKJKgUFBUg0R0MDVBSAIpa7Y7O2xzQ+FJTosvkQFSO9xmvvzDzPvDHw307Y1Ant2W3pOAHpI55Rx4l+EUDFzElE9t1PRKltWzBzatv2x1HoUgCUtfaB9/5uWZaLRDQ3OBFJGS+01vcnk8n3oRRrAHDOPQSQiCjlQwdCKZUAJGZ+CYAy5maoAKBpGhdj/DCdTlfrun4nIs+IiERE8r4wY3MXBMAl7/1NETFa68td173JCcS5FDvnVpj5K4Bkrb0/tFqaptkwxqSiKISZr+9XeDSntAUAlFI1AAOgBlBYa1edcx8B/My0FwDc+vp64b1fVkrNAt83KxpQUJIp/AXAl2XZEdEyAJej9wB+jUYjT0TxoII0Q+my1p5WSsUY4zKAoJRKRFQx86m2bRcAfBtSkUMchkztWxGpc3usWGuViNwDcEcppZeWlm6IyDilhEwrjpVh13VnQwizbKG1xnQ6tSEEm/twkYh2TiJDAoCqqh6JiCaiCsC9rutsVVVbALYmk0lRFMVn7/25E3M4Ho8fzxaY+Xbf94tlWT4fj8dPAGB7exvMfGEenYdxqLOm+qZpVmKMK3n9DICFjOkQbTYHjRkimuaeGudMvjDzZQAlgI8AdjIgIm0umqS1Ht4WWT8NEUURucLM1/L9xRBCEpGJc04AnGfmhdk3AFe11hJjpL7v46HmGTM/BZDquk5FUfwFY0wiopRl7A+qqkoAknPuAwA7mzqDBqwx5pXW+mIIYW2PBCkFItrTbyklaK3fG2Nu9X3/Kd9zOtQArqpqI4Tg6rqerw4hIMYY19bWXo9GI5//fajnhjrCe2aIRs+3zc1NnakfCoX/9i/tN3/FGh+cWyfRAAAAAElFTkSuQmCC",
+	home: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAACAklEQVR42r3WzW+MURTH8c/tDAs0jabKQipBVUNESEhsLFiwsKqFhK1/wz8gFlZewoIKNiRCJIKFeg0SYSFihRDpwltiReta9I7cPqbm6dMxN7mLec7vnO/cl3POpcMjzEYcY2weJJQP01UFFkLoDiH0t/ojlUeM8c9ED07iFtYUbG2H9eI0Ypp3Mdw2aCHQEpzNYI35EBvmDC0EWIaLGeQV7mW/n2JzZWjBcQBXsuDPsRXLcTn7/gLbZg0tOKzGzSzoE2zK7EtxIbO/xo7S0IJwCGNZsAdYn2uSrg9nMt0b7GoJLQjW4X4WZAxri7BMvxin8Cvp32HPjNCCYSMeZ7DbGGzm3CQ/j2Ey+X3AyF9+hQ9b8CyDXcWKf21PwbYIh/Ej+Y9j/zRNJt6Ol0k4ifPoL3MBCpr5OITvKdYnHEQ9xjhVS0MIgziB4RTjC75hXwihp1WBbthCCDXsxUJ8TMBeHMHuvPB24zgmMJqqR8R7DJTJqaSZhxvZGR5NK72DlcUt7cWBVFWuJae3FYDXs/RYhREMNTj1zOEzzoUQ6rNpWy167c8Y46Vp/bDJ2QT/aYQQplbYgLa9kTZ5EXTp8Ki3ugvp5pZd/UTyqQxcgJ0hhPESuxFTvP65APuyJ0Vbdm0mYy27sfWKx1UrC5xMb5dHqd1UzcGvqTzOnHOdSIuOj9/s87uHrHNeowAAAABJRU5ErkJggg==",
+	bookmarks: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAADlklEQVR42t1WTWgkRRT+qrq6unxdecPEi5LA5hBhcfcguxI8uBJBw7DgQbwpKF48iCAePflz1EWvrjdPXvQiqMENugcFiblFFCEQ0CFLiDLsbKfMdPdUebBm6R1nNrOai1vQdFPv5+v3/4C7/YgT1CXjM36GAML/wkIRLbgp0+l0wvr6OgAMmXm13++vMrOPfME5J4joo36/vxvv/ExAKysr6jb0BEDCzO8ACEKIEF0YAAQiWmvwQc0QF7+5uVkDsET0sBBipSxLlSTJ9bquv19aWtre2dkpvfc3ANRzc3N11OudcxJA2VSojgNrt9tzzrnXALzknFsYEauqAgB0u90f2+32m1VVSSGEAgDvvZJS+vEQ3A5wBHbu8PDww7Isz2dZBmb+DsAV7/0AwL3e+4vOubNHR0efMPMBEQFAIqUc3kl+SABifn7+vjzPrwEI1tpv0jQ9Myl+RLSWZdlvQojAzN4YE6JMrZTyRPR4M4bTAMHMn0fBjxueENba14UQN5j5wkig3W7fT0TbaZoOrbW71tq3iSgACHmeP9YElBMyzjPzqnPuojHmJ2Z+GUANwMTM0yEE2yj0vNfrXVNKfVZVlQQgiqJ4S0r5pNbaCSHsP6wZP9775+q6htb68t7eXg9AGkERaykIIar47QCIuq6vEtFWURSnmPmFoig28jx/CsBBlAuTAD2ATEq5qrUuvfdfxOAPGzwlgDAcDi2AOQAtANo5dyVN03ej4gsAkl6v93VRFD80dN8CKAAEZr4HwIIxZpCm6X6ziAFASvnQ3y/5JTP/oZT6nZkfBSDrut4HILz3p+JPqlnKInjvvZRyWlpvK6Ue8d7vSimTCHB95OqmNWN3U/ulstZuKaUqY8z56IVbUnpxcdFMkBNE9AoAb619f5pBk7K0BrBR17XKsuwZAH55ebkJKLrd7lEjS5OoOCilno3gXzUT5biiR57np7MsK9M0PWi1WmcjTTfiIRr8Otbt80opb639JZaQmLXbJFHBJQDBGLNlrX1gwqC9qcxau6a17imlAjM/fVxnmTb3FDN/G0fMPhG9aIxZaDKmaXqaiN7QWgcAodVqvXenYOOgbIy5PCoLa61j5qvW2g1m3hz1zSzLBtbaVxtg4j9tA0T0hNb6UyLqjQ3XX4noAyI6M+sGIWakhxirdgjhwcFgkGitC+fczwD+bFg2PKndJ5nWd4+hncjSlQBIOp3Ov47V3X3+Ah/mOHMuGFg0AAAAAElFTkSuQmCC"
+};
 
 // Dark reload/stop for INSIDE the light URL bar (the white nav icons would be
 // invisible there).
@@ -643,16 +656,19 @@ enyo.kind({
 	applyTheme: function(theme) {
 		var node = this.$.actionBar.hasNode();
 		if (!node) { this._pendingTheme = theme; return; }
-		// The nav glyphs are inline <img>s (JihadIcons data URIs): with a theme the image becomes
-		// the img's MASK, textcolor its background and a transparent pixel its src, so the glyph
-		// takes the theme's text colour; the button boxes go translucent so the header shows
-		// through. The original src is kept on the element to put back.
-		var imgs = node.querySelectorAll("img.jihad-nav-img"), btns = node.querySelectorAll(".jihad-nav-btn"), i;
+		// The nav glyphs are inline <img>s (JihadIcons data URIs). A theme with a dark text colour
+		// gets the ink set (JihadIconsDark), as Firefox/Pale Moon/Basilisk switch icon sets on the
+		// theme's text colour; the button boxes go translucent so the header shows through. The
+		// original src is kept on each img to put back.
+		var imgs = node.querySelectorAll("img.jihad-nav-img"), btns = node.querySelectorAll(".jihad-nav-btn"), i, k;
+		if (!this._darkGlyph) {
+			this._darkGlyph = {};
+			for (k in enyo.JihadIcons) { if (enyo.JihadIconsDark[k]) { this._darkGlyph[enyo.JihadIcons[k]] = enyo.JihadIconsDark[k]; } }
+		}
 		if (!theme || typeof theme !== "object") {
 			node.style.background = ""; node.style.color = "";
 			for (i = 0; i < imgs.length; i++) {
 				if (imgs[i].getAttribute("data-jihad-src")) { imgs[i].src = imgs[i].getAttribute("data-jihad-src"); }
-				imgs[i].style.webkitMaskImage = ""; imgs[i].style.backgroundColor = "";
 			}
 			for (i = 0; i < btns.length; i++) { btns[i].style.background = ""; btns[i].style.borderColor = ""; }
 			return;
@@ -662,20 +678,17 @@ enyo.kind({
 		var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
 		node.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
 		node.style.color = text;
+		var ink = enyo.jihad.isDarkColor(text);
 		for (i = 0; i < imgs.length; i++) {
-			var src = imgs[i].getAttribute("data-jihad-src") || imgs[i].getAttribute("src");
-			if (!src) { continue; }
-			imgs[i].setAttribute("data-jihad-src", src);
-			if (text) {
-				imgs[i].style.webkitMaskImage = "url(" + src + ")"; imgs[i].style.webkitMaskRepeat = "no-repeat";
-				imgs[i].style.webkitMaskPosition = "center"; imgs[i].style.webkitMaskSize = "contain";
-				imgs[i].style.backgroundColor = text;
-				imgs[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-			} else {
-				imgs[i].src = src; imgs[i].style.webkitMaskImage = ""; imgs[i].style.backgroundColor = "";
-			}
+			var orig = imgs[i].getAttribute("data-jihad-src") || imgs[i].getAttribute("src");
+			if (!orig) { continue; }
+			imgs[i].setAttribute("data-jihad-src", orig);
+			imgs[i].src = (ink && this._darkGlyph[orig]) ? this._darkGlyph[orig] : orig;
 		}
-		for (i = 0; i < btns.length; i++) { btns[i].style.background = "rgba(0,0,0,0.22)"; btns[i].style.borderColor = "rgba(128,128,128,0.45)"; }
+		for (i = 0; i < btns.length; i++) {
+			btns[i].style.background = ink ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)";
+			btns[i].style.borderColor = ink ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)";
+		}
 	},
 	rendered: function() {
 		this.inherited(arguments);

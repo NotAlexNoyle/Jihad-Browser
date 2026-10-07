@@ -214,6 +214,21 @@ JihadPersonas.prototype = {
       // or "null" when the theme was removed. Remembered for cards that start later; sent
       // to the ones listening now.
       let json = (aData && aData !== "null") ? String(aData) : "";
+      // A converted static theme's images are served to the manager as resource://jihad-themes/…
+      // (it takes no file: URL from us); the cards cannot load resource:, so they get the file
+      // that URL stands for — inside this app's directory, which a card may read.
+      if (json) {
+        try {
+          let t = JSON.parse(json), changed = false;
+          ["headerURL", "footerURL"].forEach(function(k) {
+            if (typeof t[k] === "string" && t[k].indexOf("resource://" + THEMES_RESOURCE + "/") === 0) {
+              let rph = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+              t[k] = rph.resolveURI(Services.io.newURI(t[k], null, null)); changed = true;
+            }
+          });
+          if (changed) { json = JSON.stringify(t); }
+        } catch (e) { log("theme image could not be resolved: " + e); }
+      }
       try {
         if (json) { Services.prefs.setCharPref(PREF_CURRENT, json); }
         else if (Services.prefs.prefHasUserValue(PREF_CURRENT)) { Services.prefs.clearUserPref(PREF_CURRENT); }

@@ -52,12 +52,14 @@ class H(http.server.BaseHTTPRequestHandler):
             else:
                 theme = {"id": "jihad-test-persona-" + v, "name": "Jihad Test Persona " + v, "author": "the test server",
                          "headerURL": "http://192.168.1.245:8091/persona-header.png", "textcolor": "#ffffff", "accentcolor": "#1e2f5c" if v == "1" else "#5c1e2f"}
-            body = ("""<!doctype html><html><head><meta charset="utf-8"><title>persona test site</title></head><body>
+            body = ("""<!doctype html><html><head><meta charset="utf-8"><title>persona test site</title><style>body{margin:0}</style></head><body>
+<!-- The buttons are big blocks at fixed places from the top, so a scripted tap lands on them at any zoom:
+     install 0-150, xpi 150-300, preview 300-400, reset 400-500 (css px). -->
+<a id="install" href="#" data-browsertheme='%s' style="display:block;height:150px;line-height:150px;margin:0;background:#1e2f5c;color:#fff;font-size:28px;text-align:center;text-decoration:none">Add this persona</a>
+<a id="xpi" href="/water-like.xpi" style="display:block;height:150px;line-height:150px;margin:0;background:#06a;color:#fff;font-size:28px;text-align:center;text-decoration:none">Install the AMO static-theme XPI</a>
+<a id="preview" href="#" data-browsertheme='%s' style="display:block;height:100px;line-height:100px;margin:0;background:#555;color:#fff;font-size:24px;text-align:center;text-decoration:none">Preview</a>
+<a id="reset" href="#" style="display:block;height:100px;line-height:100px;margin:0;background:#333;color:#fff;font-size:24px;text-align:center;text-decoration:none">Reset preview</a>
 <h1>A theme site, as Firefox 52 / Pale Moon / Basilisk expect one</h1>
-<p><a id="install" href="#" data-browsertheme='%s' style="display:inline-block;padding:20px 30px;background:#1e2f5c;color:#fff;font-size:20px">Add this persona</a></p>
-<p><a id="xpi" href="/water-like.xpi" style="display:inline-block;padding:20px 30px;background:#06a;color:#fff;font-size:20px">Install the AMO static-theme XPI</a></p>
-<p><a id="preview" href="#" data-browsertheme='%s' style="display:inline-block;padding:20px 30px;background:#555;color:#fff;font-size:20px">Preview</a>
-<a id="reset" href="#" style="display:inline-block;padding:20px 30px;background:#555;color:#fff;font-size:20px">Reset preview</a></p>
 <script>
 function fire(node, name){ var e=document.createEvent("Events"); e.initEvent(name, true, false); node.dispatchEvent(e); }
 document.getElementById("install").addEventListener("click", function(ev){ ev.preventDefault(); fire(this, "InstallBrowserTheme"); document.title="persona: install asked"; }, false);

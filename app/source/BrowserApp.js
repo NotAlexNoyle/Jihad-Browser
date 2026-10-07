@@ -449,6 +449,10 @@ enyo.kind({
 	// SEARCH_ENGINES) — keep the two in step. Also mirrored by URLSearch.defaultSearchPreferences.
 	defaultWebSearchEngines: function() {
 		return [
+			{id: "duckduckgo-lite", type: "web", enabled: true, displayName: "DuckDuckGo Lite",
+			 url: "https://lite.duckduckgo.com/lite/?q={$query}", iconFilePath: ""},
+			{id: "duckduckgo-html", type: "web", enabled: true, displayName: "DuckDuckGo HTML",
+			 url: "https://html.duckduckgo.com/html/?q={$query}", iconFilePath: ""},
 			{id: "duckduckgo", type: "web", enabled: true, displayName: "DuckDuckGo",
 			 url: "https://duckduckgo.com/?q={$query}", iconFilePath: ""},
 			{id: "google", type: "web", enabled: true, displayName: "Google",

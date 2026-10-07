@@ -62,6 +62,14 @@ enyo.kind({
 	],
 	//* @protected
 	defaultSearchPreferences: [{
+		title: "DuckDuckGo Lite",
+		url: "https://lite.duckduckgo.com/lite/?q={$query}",
+		icon: "list-icon-google.png"
+	}, {
+		title: "DuckDuckGo HTML",
+		url: "https://html.duckduckgo.com/html/?q={$query}",
+		icon: "list-icon-google.png"
+	}, {
 		title: "DuckDuckGo",
 		url: "https://duckduckgo.com/?q={$query}",
 		icon: "list-icon-google.png"

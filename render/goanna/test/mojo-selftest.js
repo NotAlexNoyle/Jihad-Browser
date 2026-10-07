@@ -125,6 +125,11 @@
 			try {
 				if (st.charAt(0) === "w") {
 					wait = (parseInt(st.slice(1), 10) || 1) * 1000;
+				} else if (/^\d+,\d+$/.test(st)) {   // tap at view X,Y through the adapter's clickAt (what a tap on the page becomes)
+					o = plugin();
+					var cxy = st.split(",");
+					if (o && typeof o.clickAt === "function") { o.clickAt(parseInt(cxy[0], 10), parseInt(cxy[1], 10), 1); log(name, "click " + st); }
+					else { log(name, "click: no plugin element with clickAt"); }
 				} else if (st.charAt(0) === "h") {
 					o = plugin();
 					var hv = st.slice(1).split(",");
@@ -156,11 +161,17 @@
 						if (al.el.mojo && typeof al.el.mojo.close === "function") { al.el.mojo.close(v); }
 						else { if (al.model.onChoose) { al.model.onChoose(v); } if (al.el.parentNode) { al.el.parentNode.removeChild(al.el); } }
 					}
+				} else if (st === "B") {              // take the focus off the address field (the keyboard covers the command row)
+					try { sc.get(app.ADDRESS_ID).mojo.blur(); } catch (e) {}
+					try { if (doc.activeElement && doc.activeElement.blur) { doc.activeElement.blur(); } } catch (e) {}
+					log(name, "address field blurred");
 				} else if (st === "T") {              // the toolbar's theme as painted (inline style set by applyTheme)
 					var tb = sc.get("jihad-toolbar");
 					var ic0 = doc.querySelector(".jihad-cmdmenu .palm-menu-button");
 					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
-						" first button: mask=" + (ic0 && ic0.style.webkitMaskImage ? "set" : "none") + " bg=[" + (ic0 ? ic0.style.backgroundColor : "?") + "]");
+						" glyphs: " + (function() { var n = 0, d = 0, all = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button, .jihad-cmdmenu .palm-menu-icon"), j;
+							for (j = 0; j < all.length; j++) { if (all[j].getAttribute("data-jihad-sprite")) { n++; if (/\/dark\//.test(all[j].style.backgroundImage)) { d++; } } }
+							return d + " of " + n + " ink"; })());
 				} else if (st.charAt(0) === "f") {
 					var fin = sc.get("jihad-find-input");
 					app.showFind();

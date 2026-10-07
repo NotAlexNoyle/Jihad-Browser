@@ -14,11 +14,14 @@ var JihadChromePrefs = (function () {
 	var LINKS_KEY = "jihad.startPageLinks";
 	var HOME_KEY  = "jihad.homeUrl";
 	var SEARCH_KEY = "jihad.searchEngine";
+	var LITE_MIGRATED_KEY = "jihad.searchEngine.liteMigrated";
 	//* The engines the settings page offers (packaging/prefsui/content/preferences.js
 	//* SEARCH_ENGINES), by id, and where each one searches. The first is the default. The
 	//* page stores only the id; this is the Mojo shell's map from id to url.
 	var SEARCH = [
-		["duckduckgo", "https://duckduckgo.com/?q="],
+		["duckduckgo-lite", "https://lite.duckduckgo.com/lite/?q="],
+		["duckduckgo-html", "https://html.duckduckgo.com/html/?q="],
+		["duckduckgo",      "https://duckduckgo.com/?q="],
 		["google",     "https://www.google.com/search?q="],
 		["wikipedia",  "https://en.m.wikipedia.org/wiki/Special:Search?search="]
 	];
@@ -198,13 +201,22 @@ var JihadChromePrefs = (function () {
 			// The search engine travels in the same payload (since 2026-10-05). It is read at
 			// each search, so a change needs no redraw and is not part of the return value. A
 			// page older than the search row sends none: keep the card's.
-			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); }
+			// From the settings page the engine is the user's choice, never the pre-Lite default.
+			if (safeEngine(o.searchEngine)) { write(SEARCH_KEY, o.searchEngine); write(LITE_MIGRATED_KEY, "1"); }
 			return JSON.stringify(this.loadLinks()) !== beforeLinks || this.loadHome() !== beforeHome;
 		},
 
-		//* The id of the engine the address bar searches with.
+		//* The id of the engine the address bar searches with. A stored "duckduckgo" from before
+		//* 2026-10-06 (when it was the only DuckDuckGo and the default) is the old default, not a
+		//* choice against Lite: moved to Lite once, the move recorded so a later deliberate
+		//* choice of the full site stays.
 		loadSearchEngine: function () {
-			return safeEngine(read(SEARCH_KEY)) || SEARCH[0][0];
+			var id = safeEngine(read(SEARCH_KEY));
+			if (!read(LITE_MIGRATED_KEY)) {
+				if (id === "duckduckgo") { id = "duckduckgo-lite"; write(SEARCH_KEY, id); }
+				write(LITE_MIGRATED_KEY, "1");
+			}
+			return id || SEARCH[0][0];
 		},
 
 		//* Where a search for `text` goes with the chosen engine.

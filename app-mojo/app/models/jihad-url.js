@@ -48,7 +48,7 @@ var JihadUrl = {
 		if (typeof JihadChromePrefs !== "undefined" && JihadChromePrefs.searchUrl) {
 			return JihadChromePrefs.searchUrl(v);
 		}
-		return "https://duckduckgo.com/?q=" + encodeURIComponent(v);
+		return "https://lite.duckduckgo.com/lite/?q=" + encodeURIComponent(v);
 	},
 
 	//* Address-bar entry -> the URL to open, or "" when there is nothing to do.

@@ -108,13 +108,15 @@ JihadInstallPrompt.prototype = {
     let names = [];
     for (let install of installs) {
       try {
-        // A package the engine could not read (-207, ERROR_CORRUPT_FILE) may be a theme-only
-        // WebExtension "static theme" — what addons.mozilla.org serves every former persona as.
+        // A package the engine would not install as an add-on — ERROR_WEBEXT_FILE (-9: it has a
+        // manifest.json; "does not support WebExtensions") or ERROR_CORRUPT_FILE (-3) — may be a
+        // theme-only WebExtension "static theme": what addons.mozilla.org serves every former
+        // persona as (device 2026-10-06: Water-Like's 2.0 package failed with -9).
         // components/jihadPersonas.js reads it and, with the user's yes, makes it the
         // lightweight theme; the failed install's file is still on disk at this point (the
         // provider removes it after its listeners return). Converted or declined, it was a
         // theme, not a failed add-on, so nothing more is said about it here.
-        if (!complete && install.error == -3 && install.file) {
+        if (!complete && (install.error == -9 || install.error == -3) && install.file) {
           let bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
           bag.setPropertyAsBool("converted", false);
           bag.setPropertyAsAString("path", install.file.path);

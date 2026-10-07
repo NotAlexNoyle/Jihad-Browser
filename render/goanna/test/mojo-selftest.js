@@ -161,6 +161,69 @@
 						if (al.el.mojo && typeof al.el.mojo.close === "function") { al.el.mojo.close(v); }
 						else { if (al.model.onChoose) { al.model.onChoose(v); } if (al.el.parentNode) { al.el.parentNode.removeChild(al.el); } }
 					}
+				} else if (st === "O") {              // the WebView widget's own zoom model: scale, page size, node size, scene scroll
+					var wv = sc.get(app.WEB_VIEW_ID), wa = wv && wv._mojoController && wv._mojoController.assistant, ob2 = plugin();
+					var sp = wa && wa.sceneScroller ? wa.sceneScroller.getScrollPosition() : null;
+					log(name, "widget: " + (wa ? "scale=" + wa.currScale + " page=" + wa.currPageWidth + "x" + wa.currPageHeight + " fitWidth=" + wa.fitWidth +
+						" inPinch=" + wa.inPinchZoom + " manip=" + wa.pageManipulated : "UNREACHABLE") +
+						" node=" + (ob2 ? ob2.offsetWidth + "x" + ob2.offsetHeight + " style=" + ob2.style.width + "x" + ob2.style.height : "?") +
+						" scroll=" + (sp ? sp.left + "," + sp.top : "?") + " win=" + win.innerWidth + "x" + win.innerHeight);
+				} else if (st.charAt(0) === "Z") {    // ZSCALE: a two-finger pinch as the hardware delivers one — the first finger down on
+					// the page (WebKit hands the plugin its pen-down, which arms the adapter's 350 ms hold
+					// timer), then the gesture through the WebView widget's own document listeners, held for
+					// 1.4 s, then the finger up. A hold answer during it is the bug this step exists for.
+					// Z0 is the CONTROL: the same finger down, held still 1.2 s, no gesture — it must give a
+					// hold, or this step cannot reach the adapter's pen-down and proves nothing.
+					var zs = parseFloat(st.slice(1)), zob = plugin();
+					var zx = Math.round(win.innerWidth / 2), zy = Math.round(win.innerHeight / 2);
+					var zmouse = function (type) {
+						var me = doc.createEvent("MouseEvents");
+						me.initMouseEvent(type, true, true, win, 1, zx, zy, zx, zy, false, false, false, false, 0, null);
+						if (zob) { zob.dispatchEvent(me); }
+					};
+					var zgest = function (type, scale) {
+						var ge = doc.createEvent("Event");
+						ge.initEvent(type, true, true);
+						ge.scale = scale; ge.rotation = 0; ge.centerX = zx; ge.centerY = zy;
+						doc.dispatchEvent(ge);
+					};
+					log(name, "pinch to " + zs + " at " + zx + "," + zy + " (plugin " + (zob ? "present" : "MISSING") + ")");
+					zmouse("mousedown");
+					if (!zs) {
+						win.setTimeout(function () { zmouse("mouseup"); log(name, "held still: popupOpen=" + Boolean(lastOpenPopup())); }, 1200);
+						wait = 3500;
+					} else win.setTimeout(function () {
+						zgest("gesturestart", 1);
+						var zk = 0;
+						(function more() {
+							zk++;
+							zgest("gesturechange", 1 + (zs - 1) * zk / 12);
+							if (zk < 12) { win.setTimeout(more, 110); return; }
+							zgest("gestureend", zs);
+							zmouse("mouseup");
+							log(name, "pinch done: popupOpen=" + Boolean(lastOpenPopup()));
+						})();
+					}, 120);
+					wait = 3500;
+				} else if (st === "J") {              // the address field's reload/stop button: where it is, what it shows, then tap it
+					var rbt = sc.get("jihad-reload"), rr = rbt ? rbt.getBoundingClientRect() : null, ar = sc.get("jihad-address").getBoundingClientRect();
+					log(name, "urlbar button " + (rbt ? "[" + rbt.className + "] at " + Math.round(rr.left) + "," + Math.round(rr.top) + " " + Math.round(rr.width) + "x" + Math.round(rr.height) +
+						" field " + Math.round(ar.left) + "-" + Math.round(ar.right) + " loading=" + app.loading + " row=" + app.commandMenuModel.items.length + " items" : "MISSING"));
+					if (rbt) { app.handleReloadTap(); }
+				} else if (st.charAt(0) === "C") {    // tap a command-row circle as a finger does: Cshare, Clibrary, CnewCard (the item's own model)
+					var want = app[st.slice(1) + "Item"], all = sc.document.getElementsByTagName("div"), cel = null, ci;
+					for (ci = 0; ci < all.length && !cel; ci++) { if (all[ci]._mojoMenuItemModel === want) { cel = all[ci]; } }
+					log(name, "circle tap " + st.slice(1) + " (button " + (cel ? "present" : "MISSING") + (want && want.disabled ? ", disabled" : "") + ")");
+					if (cel) { Mojo.Event.send(cel, Mojo.Event.tap, {}); }
+				} else if (st.charAt(0) === "A") {    // an app-menu / command-row command, as the menu sends it: Ajihad-print, Ajihad-find, ...
+					log(name, "command " + st.slice(1));
+					app.handleCommand({type: Mojo.Event.command, command: st.slice(1)});
+				} else if (st === "V") {              // the scene on top and its text
+					var as = sc.stageController.activeScene();
+					log(name, "scene=" + (as ? as.sceneName : "?") + " text=[" + (as && as.sceneElement ? String(as.sceneElement.innerText).replace(/\s+/g, " ").slice(0, 300) : "") + "]");
+				} else if (st === "Q") {              // back out of the scene on top (a back gesture)
+					log(name, "pop scene");
+					sc.stageController.popScene();
 				} else if (st === "B") {              // take the focus off the address field (the keyboard covers the command row)
 					try { sc.get(app.ADDRESS_ID).mojo.blur(); } catch (e) {}
 					try { if (doc.activeElement && doc.activeElement.blur) { doc.activeElement.blur(); } } catch (e) {}

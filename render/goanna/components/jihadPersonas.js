@@ -75,6 +75,29 @@ function confirmTheme(host, name) {
   try { return bag.getPropertyAsBool("accept"); } catch (e) { return false; }
 }
 
+// What a card is given: the fields it paints with, each bounded, so the message always fits the
+// notification channel (DialogService passes "theme" whole up to 6000 characters) and a card
+// that starts later (getTheme) sees exactly what a running card saw.
+function cardTheme(t) {
+  // Control characters out first: JSON writes each as six characters, which is how three short
+  // fields could still overflow the channel (inspector 2026-10-06).
+  let out = {}, str = function(v, max) {
+    return (typeof v === "string" && v.length <= max) ? v.replace(/[\x00-\x1f\x7f]/g, " ") : undefined;
+  };
+  out.id = str(t.id, 200) || "theme";
+  out.name = str(t.name, 200);
+  out.author = str(t.author, 200);
+  out.headerURL = str(t.headerURL, 2048);
+  out.footerURL = str(t.footerURL, 2048);
+  out.textcolor = str(t.textcolor, 40);
+  out.accentcolor = str(t.accentcolor, 40);
+  // Quotes and backslashes still escape to two characters: if what is left would not fit the
+  // channel (6000), drop what a card can live without, in order, rather than send "null".
+  let drop = ["footerURL", "author", "name", "headerURL"];
+  for (let i = 0; i < drop.length && JSON.stringify(out).length > 5800; i++) { delete out[drop[i]]; }
+  return out;
+}
+
 function themesDir() {
   let d = Services.dirsvc.get("ProfD", Ci.nsIFile);
   d.append(THEMES_DIR);
@@ -104,15 +127,62 @@ function cssColor(c) {
 // WebExtension — the XPI fails as corrupt — but a theme-ONLY package describes exactly a
 // lightweight theme, so it is read here and handed to the manager as one. Anything that would
 // need WebExtension machinery (scripts, actions, permissions) is left to fail as before.
-// Returns the lightweight theme, or null when the file is not a theme-only package.
+//
+// The package is content: a manifest over 64 KB or an image over 4 MB is not a theme. The
+// sizes a zip DECLARES are the attacker's to write, so they are only a first filter: the image
+// is copied through the reader's own stream (which stops at the declared size) with a hard
+// byte cap, never `extract`ed (which inflates to the end of the data and recreates symlink
+// entries as symlinks — inspector 2026-10-06, P2). It lands in a PENDING file that only becomes
+// the theme's after the user's yes (and is deleted on a no), and the theme is named by a hash
+// of its image, so two packages that share a name cannot overwrite each other's image
+// (Codex 2026-10-06).
+const MAX_MANIFEST = 64 * 1024, MAX_IMAGE = 4 * 1024 * 1024;
+
+// Copy one zip entry into `out`, at most `max` bytes, as a plain file.
+function copyEntry(zr, name, out, max) {
+  let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+  bis.setInputStream(zr.getInputStream(name));
+  let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+  fos.init(out, 0x02 | 0x08 | 0x20, 0o644, 0);          // write, create, truncate
+  let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+  bos.setOutputStream(fos);
+  let total = 0;
+  try {
+    for (;;) {
+      let n = Math.min(bis.available(), 65536);
+      if (n <= 0) { break; }
+      total += n;
+      if (total > max) { throw new Error("the image is larger than " + max + " bytes"); }
+      bos.writeByteArray(bis.readByteArray(n), n);
+    }
+  } finally {
+    try { bos.close(); } catch (e) {}
+    try { bis.close(); } catch (e) {}
+  }
+}
+
+function sha256Hex(file) {
+  let ch = Cc["@mozilla.org/security/hash;1"].createInstance(Ci.nsICryptoHash);
+  ch.init(ch.SHA256);
+  let is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+  is.init(file, 0x01, 0, 0);
+  ch.updateFromStream(is, -1);
+  is.close();
+  let raw = ch.finish(false), hex = "";
+  for (let i = 0; i < raw.length; i++) { hex += ("0" + raw.charCodeAt(i).toString(16)).slice(-2); }
+  return hex;
+}
+
+// Returns {theme, pending (nsIFile), finalName} or null when the file is not a theme-only package.
 function staticThemeFromXpi(path, origin) {
   let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
   try { file.initWithPath(path); } catch (e) { return null; }
   if (!file.exists()) { return null; }
   let zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
   try { zr.open(file); } catch (e) { return null; }
+  let pending = null;
   try {
-    if (!zr.hasEntry("manifest.json")) { return null; }
+    if (!zr.hasEntry("manifest.json") || zr.getEntry("manifest.json").realSize > MAX_MANIFEST) { return null; }
     let is = zr.getInputStream("manifest.json");
     let text = NetUtil.readInputStreamToString(is, is.available(), {charset: "UTF-8"});
     is.close();
@@ -124,28 +194,28 @@ function staticThemeFromXpi(path, origin) {
     let header = images.theme_frame || images.headerURL;
     if (typeof header !== "string") { return null; }
     header = header.replace(/^\.?\//, "");
-    if (!zr.hasEntry(header)) { return null; }
+    let ext = (/\.(png|jpe?g|gif)$/i.exec(header) || [null, ""])[1].toLowerCase();
+    if (!ext || !zr.hasEntry(header) || zr.getEntry(header).realSize > MAX_IMAGE) { return null; }
+    pending = themesDir();
+    pending.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
+    copyEntry(zr, header, pending, MAX_IMAGE);
+    let hash = sha256Hex(pending).slice(0, 24);
     let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
-    let host = hostOf(origin) || "local";
-    let id = "static-theme:" + name.replace(/[^A-Za-z0-9._-]+/g, "-").toLowerCase() + "@" + host;
-    let ext = (/\.(png|jpe?g|gif|webp|bmp)$/i.exec(header) || [null, "img"])[1].toLowerCase();
-    let out = themesDir();
-    out.append(id.replace(/[^A-Za-z0-9._-]+/g, "_") + "-header." + ext);
-    if (out.exists()) { out.remove(false); }
-    zr.extract(header, out);
-    ensureThemesResource();
-    let theme = {id: id, name: name, headerURL: "resource://" + THEMES_RESOURCE + "/" + out.leafName};
+    let finalName = hash + "-header." + ext;
+    let theme = {id: "static-theme:" + hash, name: name, headerURL: "resource://" + THEMES_RESOURCE + "/" + finalName};
     let accent = cssColor(colors.frame || colors.accentcolor), textc = cssColor(colors.tab_background_text || colors.textcolor || colors.toolbar_text);
     if (accent) { theme.accentcolor = accent; }
     if (textc) { theme.textcolor = textc; }
-    if (typeof m.description === "string") { theme.description = m.description.slice(0, 200); }
     if (m.author && typeof m.author === "string") { theme.author = m.author.slice(0, 80); }
-    return theme;
+    let out = {theme: theme, pending: pending, finalName: finalName};
+    pending = null;                                   // handed over
+    return out;
   } catch (e) {
     log("static theme could not be read: " + e);
     return null;
   } finally {
     try { zr.close(); } catch (e) {}
+    if (pending) { try { pending.remove(false); } catch (e) {} }
   }
 }
 
@@ -156,27 +226,70 @@ function handleStaticTheme(bag) {
   let path = "", origin = "";
   try { path = bag.getPropertyAsAString("path"); } catch (e) {}
   try { origin = bag.getPropertyAsAString("origin"); } catch (e) {}
-  let theme = staticThemeFromXpi(String(path), String(origin));
-  if (!theme) { return; }
+  let got = staticThemeFromXpi(String(path), String(origin));
+  if (!got) { return; }
   let host = hostOf(origin);
-  if (!confirmTheme(host, theme.name)) {
-    log("static theme [" + theme.name + "] from " + host + " declined");
+  if (!confirmTheme(host, got.theme.name)) {
+    log("static theme [" + got.theme.name + "] from " + host + " declined");
+    try { got.pending.remove(false); } catch (e) {}
     bag.setPropertyAsBool("converted", true);          // it was a theme; the user said no
     return;
   }
+  let dest = themesDir();
+  dest.append(got.finalName);
+  try {
+    if (dest.exists()) { got.pending.remove(false); }  // the same image, already here
+    else { got.pending.moveTo(null, got.finalName); }
+  } catch (e) {
+    log("static theme image could not be kept: " + e);
+    try { got.pending.remove(false); } catch (e2) {}
+    return;
+  }
+  ensureThemesResource();
   let LWTM = manager();
+  previewId = null;
   LWTM.resetPreview();
-  LWTM.currentTheme = theme;
+  LWTM.currentTheme = got.theme;
   bag.setPropertyAsBool("converted", true);
-  log("static theme [" + theme.name + "] from " + host + " is the theme now");
-  notify("info", "Theme applied: " + theme.name);
+  log("static theme [" + got.theme.name + "] from " + host + " is the theme now");
+  notify("info", "Theme applied: " + got.theme.name);
+}
+
+// Whether a page may PREVIEW a theme (repaint the browser's chrome without asking): Firefox
+// 52's rule (LightWeightThemeWebInstaller._isAllowed), which Pale Moon and Basilisk keep — an
+// https page whose site holds the "install" permission. Anything else is ignored: a page must
+// not be able to repaint the chrome around it at will (Codex 2026-10-06: chrome spoofing).
+// An INSTALL is always put to the user instead (confirmTheme), wherever it comes from.
+// The theme a page is previewing (its id) and until when: an update carrying that id is not
+// remembered as installed — a preview may reuse the installed theme's id (inspector
+// 2026-10-06). The manager ends a preview by itself; the time bound keeps a stale mark from
+// blocking a later, real choice of that theme for long.
+let previewId = null, previewUntil = 0;
+
+function previewAllowed(origin) {
+  let uri = null;
+  try { uri = Services.io.newURI(String(origin || ""), null, null); } catch (e) { return false; }
+  if (!uri.schemeIs("https")) { return false; }
+  try { return Services.perms.testPermission(uri, "install") === Services.perms.ALLOW_ACTION; }
+  catch (e) { return false; }
 }
 
 function handle(req) {
   let LWTM = manager();
-  if (req.kind === "reset") { LWTM.resetPreview(); return; }
+  if (req.kind === "reset") { previewId = null; LWTM.resetPreview(); return; }
+  // A theme comes from a SITE: a request from a document with none (about:blank, about:srcdoc,
+  // data:) would put a nameless "Use the theme" on the confirm (inspector 2026-10-06).
+  if (!hostOf(req.origin)) {
+    log("theme request from a document with no site ignored (" + (req.kind || "?") + ")");
+    return;
+  }
+  if (req.kind === "preview" && !previewAllowed(req.origin)) {
+    log("preview from " + hostOf(req.origin) + " ignored (not an allowed theme site)");
+    return;
+  }
   let theme = null;
-  try { theme = LWTM.parseTheme(String(req.json || ""), req.origin ? String(req.origin) : null); }
+  // Relative image URLs resolve against the dispatching document's base, captured with the event.
+  try { theme = LWTM.parseTheme(String(req.json || ""), req.base ? String(req.base) : (req.origin ? String(req.origin) : null)); }
   catch (e) { theme = null; }
   if (!theme) {
     log("the page's theme could not be read (" + (req.kind || "?") + ")");
@@ -184,10 +297,12 @@ function handle(req) {
     return;
   }
   if (req.kind === "preview") {
+    previewId = theme.id; previewUntil = Date.now() + 60000;
     LWTM.previewTheme(theme);     // the manager times a preview out on its own
     return;
   }
   // install
+  previewId = null;
   LWTM.resetPreview();
   let host = hostOf(req.origin), name = String(theme.name || theme.id || "theme");
   if (!confirmTheme(host, name)) { log("install of [" + name + "] from " + host + " declined"); return; }
@@ -202,6 +317,14 @@ function JihadPersonas() {
   Services.obs.addObserver(this, "jihad-static-theme", false);
   // The resource:// root for themes already on disk — a current theme's image may be one.
   try { ensureThemesResource(); } catch (e) {}
+  // Images unpacked for a theme the user never answered (the daemon stopped mid-question).
+  try {
+    let en = themesDir().directoryEntries;
+    while (en.hasMoreElements()) {
+      let f = en.getNext().QueryInterface(Ci.nsIFile);
+      if (/^pending-/.test(f.leafName)) { try { f.remove(false); } catch (e) {} }
+    }
+  } catch (e) {}
 }
 
 JihadPersonas.prototype = {
@@ -214,26 +337,41 @@ JihadPersonas.prototype = {
       // or "null" when the theme was removed. Remembered for cards that start later; sent
       // to the ones listening now.
       let json = (aData && aData !== "null") ? String(aData) : "";
+      let LWTM = null, cur = null;
+      try { LWTM = manager(); cur = LWTM.currentTheme; } catch (e) { cur = null; }
       // A converted static theme's images are served to the manager as resource://jihad-themes/…
       // (it takes no file: URL from us); the cards cannot load resource:, so they get the file
       // that URL stands for — inside this app's directory, which a card may read.
+      let rawId = null;
       if (json) {
         try {
           let t = JSON.parse(json), changed = false;
+          rawId = t.id;
           ["headerURL", "footerURL"].forEach(function(k) {
             if (typeof t[k] === "string" && t[k].indexOf("resource://" + THEMES_RESOURCE + "/") === 0) {
               let rph = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
               t[k] = rph.resolveURI(Services.io.newURI(t[k], null, null)); changed = true;
             }
           });
-          if (changed) { json = JSON.stringify(t); }
-        } catch (e) { log("theme image could not be resolved: " + e); }
+          json = JSON.stringify(cardTheme(t));
+        } catch (e) { log("theme could not be read: " + e); json = ""; }
       }
-      try {
-        if (json) { Services.prefs.setCharPref(PREF_CURRENT, json); }
-        else if (Services.prefs.prefHasUserValue(PREF_CURRENT)) { Services.prefs.clearUserPref(PREF_CURRENT); }
-        Services.prefs.savePrefFile(null);
-      } catch (e) { log("could not remember the theme: " + e); }
+      // Only the INSTALLED theme is remembered (a preview is not: it would otherwise survive a
+      // restart as if chosen), and the pref file is written only when it actually changes.
+      // Decided on the theme's OWN id (cardTheme may have replaced an oversized one), and never
+      // for an update that is the page's preview.
+      let previewing = previewId !== null && rawId === previewId && Date.now() < previewUntil;
+      let isCurrent = json ? !!(cur && rawId === cur.id && !previewing) : !cur;
+      if (isCurrent) {
+        try {
+          let had = Services.prefs.prefHasUserValue(PREF_CURRENT) ? Services.prefs.getCharPref(PREF_CURRENT) : "";
+          if (had !== json) {
+            if (json) { Services.prefs.setCharPref(PREF_CURRENT, json); }
+            else { Services.prefs.clearUserPref(PREF_CURRENT); }
+            Services.prefs.savePrefFile(null);
+          }
+        } catch (e) { log("could not remember the theme: " + e); }
+      }
       notify("theme", json || "null");
       return;
     }

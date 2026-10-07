@@ -13,8 +13,14 @@
 <div id="jihad-main" class="jihad-main">
 
 	<div id="jihad-toolbar" class="jihad-toolbar" x-mojo-focus-highlight="true">
-		<div x-mojo-element="TextField" id="jihad-address" class="jihad-address"
-			name="jihadAddress"></div>
+		<!-- Reload (Stop while loading) sits INSIDE the field's right end, as in the Enyo and
+		     Mochi shells' address bars (owner, 2026-10-06). A sibling laid over the field, not a
+		     child: the TextField widget redraws its own children. -->
+		<div class="jihad-address-wrap">
+			<div x-mojo-element="TextField" id="jihad-address" class="jihad-address"
+				name="jihadAddress"></div>
+			<div id="jihad-reload" class="jihad-urlbar-btn jihad-urlbar-refresh"></div>
+		</div>
 		<div x-mojo-element="ProgressBar" id="jihad-progress" class="jihad-progress"
 			name="jihadProgress" style="display: none;"></div>
 	</div>

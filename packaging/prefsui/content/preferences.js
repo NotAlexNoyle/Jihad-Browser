@@ -367,16 +367,19 @@ function loadChrome() {
 	var d = chromeDefaults(), raw = null, o = chromeFromFragment();
 	// The card's copy WINS on arrival: it is what the shells are actually using, and the
 	// engine pref is this page's own store for when it is opened by typing the url.
+	// A card's payload is already migrated (each shell moves its own pre-Lite default once and
+	// records it), so it is taken as the user's choice — re-migrating here turned a deliberate
+	// "full DuckDuckGo" back into Lite every time the page was opened (Codex 2026-10-06).
 	if (o) { return normalizeChrome(o, d); }
 	try { raw = Services.prefs.getCharPref(CHROME_PREF); } catch (e) { raw = null; }
 	if (raw) { try { o = JSON.parse(raw); } catch (e2) { o = null; } }
 	if (!o) { return d; }
+	migrateEngine(o);                                  // only this page's own stored copy
 	return normalizeChrome(o, d);
 }
 
 function normalizeChrome(o, d) {
 	var links = cleanLinks(o.startLinks);
-	migrateEngine(o);
 	return {
 		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,

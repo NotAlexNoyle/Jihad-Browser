@@ -22,6 +22,41 @@
 	border-bottom: 1px solid #101010;
 }
 
+/* Reload / Stop inside the address field's right end. The glyphs are the ink (dark) set —
+   the field is white whatever the theme — as 32x64 two-state sprites (top: normal, bottom:
+   pressed). */
+.jihad-address-wrap {
+	position: relative;
+}
+.jihad-urlbar-btn {
+	position: absolute;
+	top: 1px;
+	right: 2px;
+	width: 36px;
+	height: 32px;
+	background-repeat: no-repeat;
+	background-position: 2px 0;
+}
+.jihad-urlbar-btn.jihad-urlbar-pressed {
+	background-position: 2px -32px;
+}
+.jihad-urlbar-refresh {
+	background-image: url(../images/urlbar-refresh.png);
+}
+.jihad-urlbar-stop {
+	background-image: url(../images/urlbar-stop.png);
+}
+
+/* Print scene (app/views/print/): the history scene's look plus a status line and a field. */
+.jihad-print-status {
+	padding: 10px 12px;
+	font-size: 15px;
+	color: #c8c8c8;
+}
+.jihad-print-manual {
+	padding: 8px 12px 0 12px;
+}
+
 .jihad-title {
 	padding: 0 4px 2px 4px;
 	font-size: 15px;
@@ -46,7 +81,7 @@
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 	position: relative;
 	height: 34px;
-	padding: 0 8px;
+	padding: 0 40px 0 8px;          /* the right end is the reload button's (.jihad-urlbar-btn) */
 	background-color: #ffffff;
 	border: 1px solid #101010;
 	-webkit-border-radius: 6px; border-radius: 6px;

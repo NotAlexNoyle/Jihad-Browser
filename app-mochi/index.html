@@ -40,6 +40,12 @@
 				var o = (typeof p === "string" && p) ? JSON.parse(p) : (p || null);
 				var url = o && (o.target || o.url);
 				var x = app();
+				// The card's title-bar tap: sysmgr relaunches with this command and expects the
+				// app menu (Enyo 1 maps it to enyo.appMenu.toggle; this shell has its own).
+				if (o && o["palm-command"] === "open-app-menu") {
+					if (x && x.toggleAppMenu) { x.toggleAppMenu(); }
+					return true;
+				}
 				if (url && x && x.openUrl) { x.openUrl(url); }
 			} catch (e) { /* a malformed param must not break the relaunch handshake */ }
 			return true;

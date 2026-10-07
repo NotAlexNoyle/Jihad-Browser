@@ -56,7 +56,7 @@ enyo.kind({
 		{name: "themeService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/",
 			method: "getTheme", onSuccess: "gotTheme"},
 		{name: "notificationService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/", method: "notifications", onSuccess: "gotNotification", onFailure: "notificationServiceFailed", subscribe: true, resubscribe: true},
-		{kind: enyo.Pane, flex: 1, height: "100%", lazyViews: [
+		{kind: enyo.Pane, flex: 1, height: "100%", onSelectView: "paneViewSelected", lazyViews: [
 			{name: "startPage", kind: "StartPage", 
 				onUrlChange: "processUrlChange",
 				onOpenBookmarks: "bookmarksClick",
@@ -172,7 +172,18 @@ enyo.kind({
 	},
 	//* The theme at start (getTheme): null when there is none.
 	gotTheme: function(inSender, inResponse) {
-		this.$.browser.applyTheme(inResponse && inResponse.theme ? inResponse.theme : null);
+		this.setTheme(inResponse && inResponse.theme ? inResponse.theme : null);
+	},
+	//* The theme in force, painted on whichever of the pane's views exist. The views are LAZY
+	//* (the browser view does not exist while the start page shows), so the theme is kept and
+	//* given to a view again whenever the pane selects one (paneViewSelected).
+	setTheme: function(theme) {
+		this._theme = theme;
+		if (this.$.browser) { this.$.browser.applyTheme(theme); }
+		if (this.$.startPage && this.$.startPage.applyTheme) { this.$.startPage.applyTheme(theme); }
+	},
+	paneViewSelected: function(inSender, inView) {
+		if (this._theme !== undefined && inView && inView.applyTheme) { inView.applyTheme(this._theme); }
 	},
 	//* Every reply on that subscription lands here — the immediate
 	//* {"returnValue":true,"subscribed":true} handshake as well as each later push. Only a
@@ -196,7 +207,7 @@ enyo.kind({
 		if (inResponse.category === "theme") {
 			var t = null;
 			try { t = enyo.json.parse(inResponse.text); } catch (e) { t = null; }
-			this.$.browser.applyTheme(t);
+			this.setTheme(t);
 			return;
 		}
 		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }

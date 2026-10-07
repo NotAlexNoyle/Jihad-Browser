@@ -160,7 +160,7 @@ def place_object2(depth, char_id=None, translate=None, move=False):
     return tag(26, body)
 
 
-def build(width_px, height_px, frames, fps, square_px):
+def build(width_px, height_px, frames, fps, square_px, grid=0):
     stage_w, stage_h = width_px * TWIPS, height_px * TWIPS
     sq = square_px * TWIPS
 
@@ -170,10 +170,19 @@ def build(width_px, height_px, frames, fps, square_px):
 
     # The sweep is full-width and wraps, so the square's x position is a direct readout of
     # which frame is on screen: two screenshots that agree mean the timeline is not advancing.
+    # --grid COLS (2026-10-06): the square steps through a COLS x rows grid instead, one cell per
+    # frame, so the frame number survives far longer than one sweep — two screenshots taken
+    # seconds apart then give the CONTENT frame rate (frames advanced / time), which is what a
+    # game's speed follows, as opposed to how often the host redraws the same frame.
     span = stage_w - sq
     y = (stage_h - sq) // 2
+    cols = grid
+    rows = (stage_h // sq) if grid else 0
     for i in range(frames):
         x = (span * i) // max(1, frames - 1)
+        if grid:
+            x = (i % cols) * sq
+            y = ((i // cols) % rows) * sq
         if i == 0:
             body += place_object2(1, char_id=1, translate=(x, y))
         else:
@@ -197,9 +206,10 @@ def main():
     ap.add_argument('--frames', type=int, default=60)
     ap.add_argument('--fps', type=float, default=30.0)
     ap.add_argument('--square', type=int, default=48)
+    ap.add_argument('--grid', type=int, default=0, help='COLS: step through a grid, one cell per frame')
     a = ap.parse_args()
 
-    data = build(a.width, a.height, a.frames, a.fps, a.square)
+    data = build(a.width, a.height, a.frames, a.fps, a.square, a.grid)
     with open(a.out, 'wb') as f:
         f.write(data)
 

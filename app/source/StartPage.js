@@ -47,6 +47,10 @@ enyo.kind({
 		]}
 	],
 	//* @protected
+	//* The lightweight theme ("persona") on the start page's action bar, like the browser's.
+	applyTheme: function(theme) {
+		this.$.actionbar.applyTheme(theme);
+	},
 	create: function() {
 		this.inherited(arguments);
 		this.buildLinks();

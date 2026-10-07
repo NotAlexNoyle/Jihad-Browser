@@ -210,7 +210,7 @@ public:
   void setZoomAndScroll(double zoom, int x, int y);   // YAP: setZoomAndScroll
 
   // --- navigation (YAP: openUrl/back/forward/reload/stop) ---
-  void openUrl(const char* url, const char* referrer = nullptr);   // referrer: see GoannaRenderPage::LoadUrl
+  void openUrl(const char* url, const char* referrer = nullptr, uint32_t referrerPolicy = 0, bool fromPage = false);   // see GoannaRenderPage::LoadUrl
   void setHTML(const char* url, const char* body);
   void pageBackward();
   void pageForward();
@@ -364,6 +364,7 @@ private:
   // --- plugin PULL state (requestNextPluginFrame) ---
   uint32_t           mLastRequestedSeq;    // seq when we last checked; a change clears outstanding
   int64_t            mPluginReqMs;         // when the outstanding request went out (ms)
+  int64_t            mPluginLastFrameMs = 0; // when the plugin's frame seq last moved (any producer)
   int                mPluginReqTicks;      // ticks since the last request, for the whole-tick grid
   bool               mPluginReqOutstanding; // asked, no frame back yet — do not stack another
   std::string        mAliasUrl;         // non-empty when the current page is an internal
@@ -372,6 +373,10 @@ private:
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   int64_t            mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
+  std::string        mThemePreviewDoc;         // the page showing a theme preview (no #fragment), "" = none
+  bool               mTitleDirty = false;      // the page changed its title since the last send
+  int64_t            mLastTitleEmitMs = 0;     // when a title last went to the card
+  std::string        mLastTitleSent;           // and which (a repeat is not sent)
   bool               mFrozen;           // card backgrounded: skip painting
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
   int64_t            mBlankSinceMs;     // first blank-over-good refusal since the load finished (0=none)

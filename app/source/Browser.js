@@ -417,69 +417,9 @@ enyo.kind({
 		this._copyAsked = {at: Date.now(), cut: true};
 		this.$.view.callBrowserAdapter("copy");
 	},
-	//* Paint the lightweight theme ("persona") on the top chrome, or take it off (null). As
-	//* Firefox 52 / Pale Moon / Basilisk draw one: the header image anchored to the top right
-	//* behind the toolbar, accentcolor where the image does not reach, textcolor on the text.
-	//* The image is the file the engine persisted in the profile (inside this app's own
-	//* directory, so the card may load it) or the site's URL until then; a URL that is neither
-	//* is not applied. Colours are kept to CSS colour syntax (no url(), no quotes, no ';').
+	//* The lightweight theme ("persona") on this view's action bar (ActionBar.applyTheme).
 	applyTheme: function(theme) {
-		var bar = this.$.actionbar, node = bar && bar.hasNode();
-		if (!node) { this._pendingTheme = theme; return; }   // before render: applied from rendered()
-		var title = bar.$.title && bar.$.title.hasNode();
-		// The tool buttons' glyphs are background images (IconButton.applyIconImage,
-		// images/chrome/menu-icon-*.png). A theme with a dark text colour gets the ink set
-		// (images/chrome/dark/, same names), as Firefox 52 / Pale Moon / Basilisk switch icon sets
-		// on the theme's text colour. The original image is kept on each element to put back.
-		var icons = node.querySelectorAll(".enyo-button-icon"), i, ic, img;
-		var restore = function() {
-			for (i = 0; i < icons.length; i++) {
-				ic = icons[i];
-				if (ic.getAttribute("data-jihad-icon")) { ic.style.backgroundImage = ic.getAttribute("data-jihad-icon"); }
-			}
-		};
-		if (!theme || typeof theme !== "object") {
-			node.style.background = ""; node.style.color = ""; node.style.borderColor = ""; node.style.webkitBorderImage = "";
-			if (title) { title.style.color = ""; }
-			restore();
-			this.log("theme: none");
-			return;
-		}
-		var color = function(c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
-		var url = function(u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
-		var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
-		node.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
-		// The Onyx toolbar is drawn by -webkit-border-image (toolbar.png, stretched over the whole
-		// box), which paints over any background: off while a theme is in force.
-		node.style.webkitBorderImage = "none";
-		node.style.color = text;
-		if (title) { title.style.color = text; }
-		restore();
-		if (this.isDarkColor(text)) {
-			for (i = 0; i < icons.length; i++) {
-				ic = icons[i];
-				img = ic.style.backgroundImage;
-				if (!img || img === "none" || !/images\/chrome\/menu-icon-/.test(img)) { continue; }
-				ic.setAttribute("data-jihad-icon", img);
-				ic.style.backgroundImage = img.replace(/images\/chrome\/menu-icon-/, "images/chrome/dark/menu-icon-");
-			}
-		}
-		this.log("theme: " + (theme.name || theme.id) + (header ? " (header image)" : " (colours only)"));
-	},
-	rendered: function() {
-		this.inherited(arguments);
-		if (this._pendingTheme !== undefined) { var t = this._pendingTheme; delete this._pendingTheme; this.applyTheme(t); }
-	},
-	//* Whether a CSS colour (a theme's textcolor, in any form the browser accepts) is dark: the
-	//* browser resolves it on a detached element. Unreadable → not dark.
-	isDarkColor: function(c) {
-		if (!c) { return false; }
-		var d = document.createElement("div"), m;
-		d.style.color = c;
-		document.body.appendChild(d);
-		m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(window.getComputedStyle(d, null).color || "");
-		document.body.removeChild(d);
-		return !!m && (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) < 128;
+		this.$.actionbar.applyTheme(theme);
 	},
 	//* The copy this card asked for within the last five seconds, once.
 	takeCopyAsked: function() {

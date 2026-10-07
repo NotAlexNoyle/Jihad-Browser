@@ -153,8 +153,12 @@ MainAssistant.prototype.setupChrome = function () {
 MainAssistant.prototype.setupAppMenu = function () {
 	this.appMenuModel = {
 		visible: true,
+		// The same app menu as the Enyo and Mochi shells (and Atlas's, minus what this
+		// browser has not got): Find on Page, Settings, Print.
 		items: [
-			{ label: $L("Settings"), command: "jihad-settings" }
+			{ label: $L("Find on Page"), command: "jihad-find" },
+			{ label: $L("Settings"), command: "jihad-settings" },
+			{ label: $L("Print"), command: "jihad-print" }
 		]
 	};
 	this.controller.setupWidget(Mojo.Menu.appMenu, { omitDefaultItems: true }, this.appMenuModel);
@@ -172,16 +176,17 @@ MainAssistant.prototype.setupCommandMenu = function () {
 	// (default https://start.duckduckgo.com/). Never disabled — unlike back/forward
 	// it does not depend on page history.
 	this.homeItem = {iconPath: "images/menu-icon-home.png", command: "jihad-home"};
-	this.reloadItem = {icon: "refresh", command: "jihad-reload"};
-	this.stopItem = {icon: "stop", command: "jihad-stop"};
 	this.newCardItem = {icon: "new", command: "jihad-new-card"};
-	this.historyItem = {iconPath: "images/menu-icon-history.png", command: "jihad-history"};
-	this.shareItem = {iconPath: "images/menu-icon-share.png", command: "jihad-share"};
+	// Share and Bookmarks open their submenus (setupSubmenus): Add Bookmark · Share Link · Add to
+	// Launcher, and Bookmarks · History · Downloads — the upper-right menu of the other shells.
+	this.libraryItem = {iconPath: "images/menu-icon-bookmark.png", submenu: "jihad-library-menu"};
+	this.shareItem = {iconPath: "images/menu-icon-share.png", submenu: "jihad-share-menu"};
 	// The row scrolls now (see the jihad-cmdmenu rules), so find lives here with the rest of
 	// the controls rather than being tucked into the app menu for want of space. An icon, not
 	// a label: a text item is the one thing in this row that cannot be a circle, and the row
 	// reads as a set of round controls.
 	this.findItem = {iconPath: "images/menu-icon-find.png", command: "jihad-find"};
+	this.setupSubmenus();
 	this.commandMenuModel = {visible: true, items: []};
 	this.syncCommandMenu();
 	// jihad-cmdmenu carries the horizontal-scroll rules in stylesheets/jihad-browser.css, so
@@ -284,6 +289,11 @@ MainAssistant.prototype.bindHandlers = function () {
 	this.handleAddressTap = this.handleAddressTap.bind(this);
 	this.handleAddressSubmit = this.handleAddressSubmit.bind(this);
 	this.handleRetry = this.handleRetry.bind(this);
+	this.handleReloadTap = this.handleReloadTap.bind(this);
+	this.handleReloadDown = this.handleReloadDown.bind(this);
+	this.handleReloadUp = this.handleReloadUp.bind(this);
+	this.handleDownloadFinished = this.handleDownloadFinished.bind(this);
+	this.handleMimeHandoff = this.handleMimeHandoff.bind(this);
 };
 
 //* WebView events are dispatched on the widget element (Mojo.Event.send(this.adapter,
@@ -301,7 +311,12 @@ MainAssistant.prototype.webViewEvents = function () {
 		[Mojo.Event.webViewUrlChanged, this.handleUrlChanged],
 		[Mojo.Event.webViewCreatePage, this.handleCreatePage],
 		[Mojo.Event.webViewMimeNotSupported, this.handleMimeUnsupported],
-		[Mojo.Event.webViewMimeHandoff, this.handleMimeUnsupported],
+		// A hand-off is a DOWNLOAD the engine has already started (it saves the file itself
+		// and reports it through the download callbacks — see hookDownloads), not a page that
+		// failed: it used to put up "This content type can't be displayed" over a transfer
+		// that was in fact under way.
+		[Mojo.Event.webViewMimeHandoff, this.handleMimeHandoff],
+		[Mojo.Event.webViewDownloadFinished, this.handleDownloadFinished],
 		[Mojo.Event.webViewServerDisconnect, this.handleServerDisconnect]
 	];
 };
@@ -316,6 +331,13 @@ MainAssistant.prototype.listen = function () {
 	Mojo.Event.listen(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.listen(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
+	var rb = this.controller.get("jihad-reload");
+	if (rb) {
+		Mojo.Event.listen(rb, Mojo.Event.tap, this.handleReloadTap);
+		rb.addEventListener("mousedown", this.handleReloadDown, false);
+		rb.addEventListener("mouseup", this.handleReloadUp, false);
+		rb.addEventListener("mouseout", this.handleReloadUp, false);
+	}
 };
 
 //* `result` is what a scene we pushed handed back when it popped — the history
@@ -324,6 +346,7 @@ MainAssistant.prototype.activate = function (result) {
 	if (result && result.url) {
 		this.openUrl(result.url);
 	}
+	this.hookDownloads();
 	if (!this.checkedEngine) {
 		this.checkedEngine = true;
 		this.verifyEngineRouting();
@@ -459,6 +482,21 @@ MainAssistant.prototype.handleNotification = function (response) {
 	// no bookmarks). The request and the sentence to show arrive together.
 	if (response.category === "chrome-clear-history") {
 		JihadHistory.clear();
+	}
+	if (response.category === "chrome-clear-bookmarks") {
+		JihadBookmarks.clear();
+	}
+	// What the daemon says about printing belongs to the Print scene while it is up; with it
+	// closed a job still running reports by toast, and a printer list nobody is looking at is
+	// dropped (it is JSON, not a sentence).
+	if (String(response.category).indexOf("print-") === 0) {
+		if (typeof PrintAssistant !== "undefined" && PrintAssistant.current) {
+			PrintAssistant.current.notification(response.category, response.text);
+			return;
+		}
+		if (response.category === "print-printers") {
+			return;
+		}
 	}
 	// The long-press menu's traffic with the engine: what is under the finger, and where the
 	// copied text was put. Neither is a sentence to show.
@@ -845,6 +883,13 @@ MainAssistant.prototype.cleanup = function () {
 	Mojo.Event.stopListening(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.stopListening(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
+	var rbc = this.controller.get("jihad-reload");
+	if (rbc) {
+		Mojo.Event.stopListening(rbc, Mojo.Event.tap, this.handleReloadTap);
+		rbc.removeEventListener("mousedown", this.handleReloadDown, false);
+		rbc.removeEventListener("mouseup", this.handleReloadUp, false);
+		rbc.removeEventListener("mouseout", this.handleReloadUp, false);
+	}
 	// The toast holds a node in this scene's document and a pending timer in its window; both
 	// have to go with the scene or the timer fires against a torn-down document.
 	JihadToast.detach();
@@ -951,17 +996,24 @@ MainAssistant.prototype.handleCommand = function (event) {
 		case "jihad-new-card":
 			this.openNewCard();
 			break;
-		case "jihad-history":
-			this.controller.stageController.pushScene("history", {history: JihadHistory.all()});
+		case "share-bookmark":
+		case "share-link":
+		case "share-launcher":
+			this.handleShareChoice(event.command);
 			break;
-		case "jihad-share":
-			this.shareCurrentPage();
+		case "lib-bookmarks":
+		case "lib-history":
+		case "lib-downloads":
+			this.openLibrary(event.command);
 			break;
 		case "jihad-find":
 			this.showFind();
 			break;
 		case "jihad-settings":
 			this.openUrl(JihadChromePrefs.settingsUrl());
+			break;
+		case "jihad-print":
+			this.openPrint();
 			break;
 		}
 		// The command event is deliberately NOT stopped: nothing further up the chain
@@ -1024,6 +1076,207 @@ MainAssistant.prototype.shareCurrentPage = function () {
 			Mojo.Log.warn("[Jihad] share failed: %j", response);
 		}
 	});
+};
+
+// --- Reload / Stop, in the address field ------------------------------------------
+// The same command the row's circle used to send; the glyph says which (syncCommandMenu).
+
+MainAssistant.prototype.handleReloadTap = function () {
+	this.handleCommand({type: Mojo.Event.command, command: this.loading ? "jihad-stop" : "jihad-reload"});
+};
+
+MainAssistant.prototype.handleReloadDown = function (event) {
+	var el = event && event.currentTarget;
+	if (el && el.className.indexOf("jihad-urlbar-pressed") < 0) { el.className += " jihad-urlbar-pressed"; }
+};
+
+MainAssistant.prototype.handleReloadUp = function (event) {
+	var el = event && event.currentTarget;
+	if (el) { el.className = el.className.replace(/\s*jihad-urlbar-pressed/g, ""); }
+};
+
+// --- Share ▾ and Bookmarks ▾ on the command row ------------------------------------
+// The same options as the Enyo shell's and Atlas's upper-right menu (and the Mochi shell's),
+// the owner's request: "the upper right menu has the same options on all 3 variants". In this
+// shell they live on the bottom row's circles — "mojo should have no top toolbar icons next to
+// url. bottom circular buttons only" (owner, 2026-10-06): the Share circle and the Bookmarks
+// circle are the framework's own SUBMENU items (setupSubmenus), which pop their menu at the
+// tapped circle and send the choice back here as a command (handleCommand).
+
+MainAssistant.prototype.setupSubmenus = function () {
+	this.controller.setupWidget("jihad-share-menu", undefined, {items: [
+		{label: $L("Add Bookmark"), command: "share-bookmark"},
+		{label: $L("Share Link"), command: "share-link"},
+		{label: $L("Add to Launcher"), command: "share-launcher"}
+	]});
+	this.controller.setupWidget("jihad-library-menu", undefined, {items: [
+		{label: $L("Bookmarks"), command: "lib-bookmarks"},
+		{label: $L("History"), command: "lib-history"},
+		{label: $L("Downloads"), command: "lib-downloads"}
+	]});
+};
+
+MainAssistant.prototype.handleShareChoice = function (command) {
+	var title = this.title || this.url;
+	if (command === "share-bookmark") {
+		JihadToast.show("info", JihadBookmarks.add(this.url, title) ? $L("Bookmark added.") : $L("The bookmark could not be saved."));
+	} else if (command === "share-link") {
+		this.controller.popupSubmenu({
+			onChoose: this.handleShareLinkChoice.bind(this),
+			items: [
+				{label: $L("Email"), command: "link-email"},
+				{label: $L("Text Message"), command: "link-message"},
+				{label: $L("Copy Address"), command: "link-copy"}
+			]
+		});
+	} else if (command === "share-launcher") {
+		this.addToLauncher(this.url, title);
+	}
+};
+
+MainAssistant.prototype.handleShareLinkChoice = function (command) {
+	if (command === "link-email") {
+		this.shareCurrentPage();
+	} else if (command === "link-message") {
+		this.controller.serviceRequest("palm://com.palm.applicationManager", {
+			method: "launch",
+			parameters: {id: "com.palm.app.messaging", params: {compose: {messageText: $L("Check out this web page: ") + this.url}}},
+			onFailure: function () { JihadToast.show("info", $L("Messaging could not be opened.")); }
+		});
+	} else if (command === "link-copy") {
+		try {
+			this.controller.stageController.setClipboard(this.url, false);
+			JihadToast.show("info", $L("Address copied."));
+		} catch (e) {
+			JihadToast.show("info", $L("The address could not be copied."));
+		}
+	}
+};
+
+//* A launcher entry that opens `url` in THIS variant (the Enyo shell's addToLauncher): the
+//* launch point carries {url}, which the stage reads like any other launch.
+MainAssistant.prototype.addToLauncher = function (url, title) {
+	var base = String(Mojo.appPath || "").replace(/^file:\/\//, "");
+	this.controller.serviceRequest("palm://com.palm.applicationManager", {
+		method: "addLaunchPoint",
+		parameters: {id: Mojo.appInfo.id, title: String(title || url), icon: base + "icon.png", params: {url: url}},
+		onSuccess: function () { JihadToast.show("info", $L("Added to Launcher.")); },
+		onFailure: function () { JihadToast.show("info", $L("The page could not be added to the Launcher.")); }
+	});
+};
+
+MainAssistant.prototype.openLibrary = function (command) {
+	if (command === "lib-bookmarks") {
+		this.controller.stageController.pushScene("bookmarks");
+	} else if (command === "lib-history") {
+		this.controller.stageController.pushScene("history", {history: JihadHistory.all()});
+	} else if (command === "lib-downloads") {
+		this.controller.stageController.pushScene("downloads");
+	}
+};
+
+// --- Print (the app menu) --------------------------------------------------------
+
+MainAssistant.prototype.openPrint = function () {
+	if (this.isStartPage(this.url)) {
+		JihadToast.show("info", $L("Open a page first: there is nothing to print on the start page."));
+		return;
+	}
+	this.controller.stageController.pushScene("print", {main: this});
+};
+
+//* The daemon looks for printers (mDNS, or `address`); the result comes back on the
+//* notification channel as "print-printers".
+MainAssistant.prototype.findPrinters = function (address) {
+	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {
+		method: "findPrinters",
+		parameters: address ? {address: address} : {},
+		onFailure: function () {
+			if (PrintAssistant.current) { PrintAssistant.current.notification("print-error", $L("Printing is not available in this build.")); }
+		}
+	});
+};
+
+//* Print this card's page on `printer`. The request goes over Luna, which cannot say which
+//* card is asking: pageFocused first, as for the padlock.
+MainAssistant.prototype.printPage = function (printer) {
+	this.callBrowserAdapter("pageFocused", [true]);
+	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {
+		method: "printPage",
+		parameters: {printer: printer},
+		onFailure: function () {
+			if (PrintAssistant.current) { PrintAssistant.current.notification("print-error", $L("The page could not be sent to the printer.")); }
+		}
+	});
+};
+
+// --- downloads the page started ------------------------------------------------
+// The engine saves the file and reports it through the adapter's download callbacks on the
+// plugin's event listener — the WebView widget (the <object>'s `eventListener`). The widget
+// implements downloadFinished (it fires webViewDownloadFinished) and none of the other three,
+// so they are added to it here, once, calling into this scene.
+
+MainAssistant.prototype.hookDownloads = function () {
+	var view = this.controller.get(this.WEB_VIEW_ID), obj = view && view.querySelector("object");
+	var widget = obj && obj.eventListener, self = this;
+	if (!widget || widget.__jihadDownloads) {
+		return;
+	}
+	widget.__jihadDownloads = true;
+	if (typeof widget.downloadStart !== "function") {
+		widget.downloadStart = function (url) { self.handleDownloadStart(url); };
+	}
+	if (typeof widget.downloadProgress !== "function") {
+		widget.downloadProgress = function (url, soFar, total) { self.handleDownloadProgress(url, soFar, total); };
+	}
+	if (typeof widget.downloadError !== "function") {
+		widget.downloadError = function (url, message) { self.handleDownloadError(url, message); };
+	}
+};
+
+MainAssistant.prototype.refreshDownloads = function () {
+	if (typeof DownloadsAssistant !== "undefined" && DownloadsAssistant.current) {
+		DownloadsAssistant.current.refresh();
+	}
+};
+
+MainAssistant.prototype.handleDownloadStart = function (url) {
+	JihadDownloads.start(url);
+	JihadToast.show("info", $L("Downloading ") + JihadDownloads.nameOf(url) + "…");
+	this.refreshDownloads();
+};
+
+MainAssistant.prototype.handleDownloadProgress = function (url, soFar, total) {
+	// Only the numbers; storing on every chunk would write localStorage hundreds of times
+	// for a large file, so it is written at most every 5% — per transfer: two downloads at
+	// once must not throttle each other.
+	var pct = total > 0 ? Math.floor(100 * soFar / total) : 0, key = String(url || "");
+	this._dlPct = this._dlPct || {};
+	if (pct - (this._dlPct[key] || 0) < 5 && pct < 100) {
+		return;
+	}
+	this._dlPct[key] = pct;
+	JihadDownloads.update(url, {received: soFar, total: total});
+	this.refreshDownloads();
+};
+
+MainAssistant.prototype.handleDownloadFinished = function (event) {
+	var rec = JihadDownloads.update(event && event.url, {state: "done", path: event && event.tmpFilePath, mimeType: event && event.mimeType});
+	if (this._dlPct) { delete this._dlPct[String((event && event.url) || "")]; }
+	JihadToast.show("info", $L("Downloaded ") + (rec ? rec.name : "") + ".");
+	this.refreshDownloads();
+};
+
+MainAssistant.prototype.handleDownloadError = function (url, message) {
+	JihadDownloads.update(url, {state: "failed", message: String(message || "")});
+	if (this._dlPct) { delete this._dlPct[String(url || "")]; }
+	JihadToast.show("info", $L("The download failed: ") + JihadDownloads.nameOf(url));
+	this.refreshDownloads();
+};
+
+//* webViewMimeHandoff: the engine is downloading what it cannot show (see webViewEvents).
+MainAssistant.prototype.handleMimeHandoff = function (event) {
+	this.setLoading(false);
 };
 
 MainAssistant.prototype.handleCreatePage = function (event) {
@@ -1250,13 +1503,18 @@ MainAssistant.prototype.syncCommandMenu = function () {
 		this.backItem,
 		this.forwardItem,
 		this.homeItem,
-		this.loading ? this.stopItem : this.reloadItem,
 		this.newCardItem,
-		this.historyItem,
+		this.libraryItem,
 		this.shareItem,
 		this.findItem,
 		{}
 	];
+	// Reload/Stop is in the address field, not this row: its glyph follows the load the same way.
+	var rb = this.controller.get("jihad-reload");
+	if (rb) {
+		rb.className = rb.className.replace(/\s*jihad-urlbar-(refresh|stop)/g, "") +
+			(this.loading ? " jihad-urlbar-stop" : " jihad-urlbar-refresh");
+	}
 	if (this.commandMenuReady) {
 		this.controller.modelChanged(this.commandMenuModel);
 		// The framework has redrawn the row's buttons: give them the theme again, once the DOM is in.

@@ -528,7 +528,30 @@ criteria below are new and deliberately start unchecked. What changed under them
       revert.)*
       **This criterion is met when the gap histogram concentrates**, not when fps looks right: a
       clear mode at the authored period with the `<16 ms` and `40+ ms` buckets near empty, on a
-      clean-restart run of `jihad-anim.swf`. Record the histogram, not min/avg/max.)* *(2026-08-10, THIRD BUFFER LANDED — the binding constraint is gone.
+      clean-restart run of `jihad-anim.swf`. Record the histogram, not min/avg/max.)* *(**2026-10-06 — "optimize flash player for gaming performance" (owner). Two findings, both
+      device-measured on the 3.0.5 TouchPad, `jihad-anim.swf`, clean restarts, card connected:**
+      **(1) A REGRESSION had halved Flash: 15-16 fps, every frame a FULL paint.** The composed-frame
+      work of 2026-10-05 (`debd1934`) gave each buffer a strip generation and lets a partial paint
+      into a buffer only while its generation is current; every full frame bumped it, so the other
+      two buffers always looked stale and the partial path never ran — `partial=0` of 32, paint
+      ~25 ms, tick ~35 ms. A frame with no off-screen rows (a page no taller than the screen) now
+      leaves the generation alone. After: **34 fps, all partial, paint 4-5 ms, tick work 12-13 ms.**
+      The stats line now says why a frame missed the partial path (`full: nodmg/force/slot/geom/small`).
+      **(2) The host frame drivers are gone by default — measured, not assumed.** Shipped now: the
+      child's free-running timer off (`JIHAD_PLUGIN_SELF_DRIVE=0` set by the daemon for the child it
+      starts; an explicit value still wins) and the daemon's pull only after 150 ms of plugin silence
+      (`JIHAD_PLUGIN_QUIET_MS`, 0 = the old every-slot pull), so a plugin that never invalidates is
+      still drawn and a wedged one re-driven. Draws then equal Flash's own (`hostinval=0`), the
+      histogram gathers at 32-39 ms with `<16` empty, and tick work drops to 6-8 ms. The decisive
+      number is the CONTENT rate — what a game's speed follows — taken with a grid SWF
+      (`make-anim-swf.py --grid 32`, frame number = cell) from two timed screenshots: **22.5 fps
+      Flash-alone vs 22.1 fps with both old drivers on** (640x480 stage). The drivers re-drew
+      frames; they never advanced the game. A shorter plugin tick (10 / 12 ms) changed nothing:
+      the remaining spread is Flash's own frame timing. Same build on all three variants (Enyo
+      26-27 fps, Mochi 25-26, Mojo ~20 with its heavier card) for `jihad-anim.swf`.
+      **Still `[~]`**: "smooth" remains an eye judgement; what is left is Flash's own rate on this
+      CPU (~27 fps for a 30 fps 320x240 SWF, ~22 at 640x480), and the background load on the test
+      device (`sensord` ~15-20 % CPU at all times — not ours) is part of that.)* *(2026-08-10, THIRD BUFFER LANDED — the binding constraint is gone.
       Two shared buffers meant the daemon could only paint into the one the adapter was not
       holding, so every frame cost a full adapter round trip: `deferred` climbed 11 → 38 → 77 as
       the plugin sped up while completed paints stayed pinned near 26/s. A third buffer
@@ -886,7 +909,38 @@ enabled. Signature policy needs no work at all: UXP builds no enforcement.
 - [x] Known and accepted: on first install it tries to open its settings in a browser window this embedding does not have; the engine logs one exception and the add-on runs. Its "generic UXP" support is limited by its author's own account; site problems in Jihad Browser are not Palefill issues.
 **Dependencies:** R1–R4 (the add-on manager), cavekit-licensing-branding.md
 
+### R10: Lightweight themes (personas) from Firefox 52, Pale Moon and Basilisk sites and AMO
+**Description:** A theme site's "Add" (and preview) works as it does in Firefox 52 / Pale Moon /
+Basilisk, an AMO static theme (what AMO serves every former persona as) installs as the same
+lightweight theme, and all three shells wear it — toolbar, buttons, and (when built) tabs.
+**Added 2026-10-06 (owner: "support firefox 52 personas, pale moon personas, and basilisk
+personas"; "use the persona water-like by stick177 to test all 3 variants. buttons and tabs should
+also be themed").**
+**Acceptance Criteria:**
+- [x] A site's `InstallBrowserTheme` asks the user (the daemon's blocking confirm, naming the site
+  and the theme), and a yes makes it the theme; a no changes nothing. *(Device, all three shells,
+  Water-Like.)*
+- [x] The theme is painted on every shell's toolbar, with the ink glyph set when the theme's text
+  colour is dark (Firefox's light/dark icon sets): Mochi 6/8, Enyo 6/6, Mojo 8/8 glyphs. A card
+  that starts later gets the theme from Luna `getTheme`; a running card follows the `theme`
+  notification. Enyo paints both the browser and the start page bar, whichever exists (its views
+  are lazy). *(Device.)*
+- [x] An AMO static-theme XPI (theme-only `manifest.json`) installs as the lightweight theme after
+  the same confirm; anything needing WebExtension machinery still fails as before. Package limits:
+  manifest ≤ 64 KB, image ≤ 4 MB, png/jpeg/gif only; the image is unpacked to a pending file kept
+  only on a yes; the theme is named by a hash of its image. *(Device, Mochi, Water-Like 2.0 XPI.)*
+- [x] A PREVIEW is honoured only from an https page whose site holds the "install" permission
+  (Firefox 52's rule) and is reset when the page that showed it is left; only the installed theme
+  is remembered. *(Device: an http preview is logged as ignored.)*
+- [x] Settings → Appearance: current theme with Remove; used themes with Use / Forget. *(Device, Mochi.)*
+- [ ] Tabs are themed — waits on tabbed browsing (cavekit-tabbed-browsing.md R1).
+**Dependencies:** cavekit-preferences-ui.md (Appearance), cavekit-tabbed-browsing.md
+
 ## Changelog
+- 2026-10-06 (night): R7 — partial-paint regression fixed (Flash 16 → 34 fps paints) and the host
+  frame drivers off by default, with the content-rate measurement that justifies it. R10 added
+  (personas, AMO static themes) with the Codex round-7 hardening: preview gating and reset, theme
+  origin taken at the event, bounded JSON and packages, persistence of the installed theme only.
 - 2026-10-06 (later): R9 — the bundled add-on now lands within seconds of the daemon's start with NO card open (Mojo, reset profile: manager ready at 4.8 s, Palefill installed at 7.5 s). It used to wait for the first card: the daemon's idle tick drained nothing from the engine's main thread, so every chrome-side timer waited for a card (41 s measured), and once draining, a worker-thread reply that missed a 20 ms tick waited a whole idle second (hops of 0.2 s and 1.3 s). Fixed in the daemon (`PumpReadyMainThread` on the idle tick; a 20 ms work period with a one-second hysteresis). The installer logs its timeline (`bundled add-ons: … ms after start`).
 - 2026-10-06: Added R9 (Palefill bundled). R7: a plugin embedded with the default `wmode=window` is "windowed", and the engine then created a widget this build has none of and dereferenced it — every Flash page not written with `wmode=opaque` killed the daemon, and the card's reconnect-and-reopen turned that into a loop (~40 crash reports in minutes; what the owner saw as "I can't click any links on lite.duckduckgo.com", both tapped results being Flash pages). Engine fix `0048d50fa9` (such an instance is windowless); `628ee50c99` keeps the bundled library path from the shell Flash spawns (one crash report per Flash page); a daemon crash guard refuses the third automatic reopen of an address that took two daemons down (cavekit-device-build.md R4). R3: the AppCompat preference fix above also means a compatibility check is no longer decided by an entry that cannot fit.
 - 2026-10-01 (later): R2–R6 re-run on CE 3.1.0 with a real extension (`jihad-effect.xpi`): install prompt,

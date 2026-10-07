@@ -961,6 +961,16 @@ EngineHost::Init(const char* greDir)
     }
   }
 
+  // The plugin child's own free-running repaint timer (patch 0026) is OFF unless asked for.
+  // Measured 2026-10-06 on jihad-anim.swf: Flash invalidates itself at its content rate (~28/s),
+  // so that timer and the daemon's pull were second and third producers beating against it —
+  // 34 draws/s for 30 fps content, a gap histogram spread from <16 to 55 ms. With Flash as the
+  // only producer the gaps gather in one bucket (32-39 ms) and each tick does a third less
+  // work. The daemon still asks for a frame when the plugin goes quiet (requestNextPluginFrame),
+  // so a plugin that never invalidates itself is drawn, slowly, and a wedged one recovers.
+  // The child reads this from the environment it inherits; an explicit value still wins (A/B).
+  setenv("JIHAD_PLUGIN_SELF_DRIVE", "0", 0);
+
   initStep("resolving greDir");
   nsCOMPtr<nsIFile> dir;
   nsresult rv = NS_NewNativeLocalFile(nsDependentCString(greDir),

@@ -207,7 +207,9 @@ public:
   // STATE_STOP or timeoutSec elapses; returns true if it completed.
   // referrer: the document the navigation came from, for a load the daemon re-drives on the
   // page's behalf (a content navigation it intercepted). Empty/null for a typed address.
-  bool LoadUrl(const char* url, const char* referrer = nullptr);
+  // fromPage: a load the page started (a daemon re-drive) — it carries the page's principal
+  // (see the .cpp); false for a load the user started.
+  bool LoadUrl(const char* url, const char* referrer = nullptr, uint32_t referrerPolicy = 0, bool fromPage = false);
   bool LoadUrlAndWait(const char* url, int timeoutSec);
   bool SetHtml(const char* body);       // load inline HTML (YAP: setHtml)
   bool CanGoBack();
@@ -248,7 +250,8 @@ public:
   // If the last ClickAt landed on a link, its href is returned here so the caller can
   // navigate via the normal load path — the click default-action does not fire in the
   // offscreen embedding, and calling LoadUrl inside the click handler stalls the load.
-  bool TakeClickNav(std::string* url);
+  // referrer/policy: what the link's own rules say to send (see jihadLinkReferrer).
+  bool TakeClickNav(std::string* url, std::string* referrer = nullptr, uint32_t* policy = nullptr);
   // The address a script asked to open in a new window since the last call (window.open).
   bool TakeNewWindowUrl(std::string* url);
   // Top and bottom of the focused text field in viewport CSS px (false when none is focused).
@@ -263,7 +266,8 @@ public:
   // A lightweight-theme request the page made (InstallBrowserTheme / PreviewBrowserTheme /
   // ResetBrowserThemePreview): kind "install" | "preview" | "reset", json the element's
   // data-browsertheme (empty for reset). The daemon hands it to components/jihadPersonas.js.
-  bool TakeThemeEvent(std::string* kind, std::string* json);
+  // origin/base: the dispatching document's URI and base URI, captured at the event.
+  bool TakeThemeEvent(std::string* kind, std::string* json, std::string* origin = nullptr, std::string* base = nullptr);
   // Clear editor focus (a navigation happened); returns true if it WAS focused so the
   // caller can emit msgEditorFocused(false) to lower the VKB over the new page.
   bool ClearEditorFocus();
@@ -400,7 +404,8 @@ public:
   bool DidRedirect() const;
   // If a content-initiated (link) navigation was seen, return its URL and clear
   // the flag (R6 link-clicked). Returns false if none pending.
-  bool TakeLinkClicked(std::string* url, bool* isPost = nullptr);
+  // referrer/policy: exactly what the engine's own request carried (empty = none).
+  bool TakeLinkClicked(std::string* url, bool* isPost = nullptr, std::string* referrer = nullptr, uint32_t* policy = nullptr);
   // Whether the last load hit an overridable certificate error (R5). On accept,
   // AcceptCurrentCert adds a validity override so a reload of the host proceeds.
   bool GetCertError(std::string* host, int* code);
@@ -449,6 +454,8 @@ private:
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
   std::string mClickNavUrl;   // href from the last link tap, drained by TakeClickNav
+  std::string mClickNavReferrer;   // and the referrer/policy its link's rules give it
+  uint32_t mClickNavPolicy = 0;
   // <select> card-native popup state (see BuildSelectPopup):
   std::string mSelectPopupJson;               // options serialized for the card
   std::string mSelectPopupId;                 // id echoed back by popupMenuSelect

@@ -284,6 +284,11 @@ static uint32_t gJihadPaintWanted = 0;
 static uint32_t gJihadPaintDeferInFlight = 0;
 static uint32_t gJihadPaintDone = 0;
 static uint32_t gJihadPaintPartial = 0;
+// Why a frame took the FULL path instead of a partial one (reported next to partial=):
+// nodmg = no damage box, force = a forced full repaint, slot = no valid buffer for this key,
+// geom = the buffer's size/zoom/strip/scroll differ, small = the box was neither worth a
+// partial nor eligible for band-only.
+static uint32_t gJihadPartialMiss[5] = {0, 0, 0, 0, 0};
 static uint32_t gJihadTicks = 0;
 static uint32_t gJihadDirtyTrue = 0;
 
@@ -1039,7 +1044,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
   return false;
 }
 
-void BrowserPageGoanna::openUrl(const char* url, const char* referrer) {
+void BrowserPageGoanna::openUrl(const char* url, const char* referrer, uint32_t referrerPolicy, bool fromPage) {
   if (!mPage || !url) return;
   // A newer explicit navigation supersedes ALL queued input aimed at the old document, and the
   // generation bump stops an in-flight drain from continuing into the superseded page.
@@ -1111,7 +1116,7 @@ void BrowserPageGoanna::openUrl(const char* url, const char* referrer) {
   mNeedsPaint = false;
   mLastProgress = 0;
   mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted();
-  if (!mPage->LoadUrl(url, referrer)) {
+  if (!mPage->LoadUrl(url, referrer, referrerPolicy, fromPage)) {
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
     // and don't leave the adapter permanently "loading" (Codex P2 + R3).
     mSink.msgFailedLoad("Goanna", 0, url, "Load failed");
@@ -1983,6 +1988,30 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
 // same-document path: GetLoadError/GetCertError report the state of the last real LOAD, so
 // running them again for a fragment change would re-raise the previous load's failure dialog
 // (or re-emit msgFailedLoad) on a page that never reloaded.
+// A page title as it may go to the card: control characters become spaces and it is cut at
+// 1024 bytes on a UTF-8 boundary. The YAP packet is a fixed 16 KiB; a page can make its title as
+// long as it likes, and an oversized field was skipped while the fields after it were still
+// written — a malformed message (Codex 2026-10-06). No browser shows a 1 KB title anyway.
+static std::string jihadBoundedTitle(const std::string& in) {
+  std::string t = in;
+  for (char& c : t) if ((unsigned char)c < 0x20 || c == 0x7f) c = ' ';
+  if (t.size() > 1024) {
+    size_t n = 1024;
+    while (n > 0 && ((unsigned char)t[n] & 0xC0) == 0x80) --n;   // not inside a UTF-8 sequence
+    t.resize(n);
+  }
+  return t;
+}
+
+// The address as it may go to the card: at most 8 KiB. A page can make its own URL as long as it
+// likes (history.replaceState with a 20 000-character query) and the YAP packet is a fixed
+// 16 KiB, in which an oversized field is skipped while the ones after it are still written —
+// the malformed message jihadBoundedTitle exists to prevent (inspector 2026-10-06, P3). The full
+// address stays the engine's; the card shows and stores this one.
+static std::string jihadBoundedUri(const std::string& in) {
+  return in.size() > 8192 ? in.substr(0, 8192) : in;
+}
+
 std::string BrowserPageGoanna::emitLocationAndTitleCore() {
   // For internal about: pages, report the typed about: URL, not the data: URL the engine loaded
   // (keeps the bar showing about:jihad and avoids a huge data: history entry). NB: never emit
@@ -1990,16 +2019,18 @@ std::string BrowserPageGoanna::emitLocationAndTitleCore() {
   // openResource -> the DEFAULT (stock) browser, so a normal redirect (google.com -> www.google.com)
   // would leave Jihad. A redirect is just a location change, reported here.
   std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
-  mSink.msgLocationChanged(uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+  const std::string wireUri = jihadBoundedUri(uri);
+  mSink.msgLocationChanged(wireUri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
 
   // The isis address bar updates on the title+url message (BasicWebView.titleURLChange ->
   // urlTitleChanged -> ActionBar.setUrl), NOT on msgLocationChanged. If the page has no <title>, fall
   // back to the URL so the bar still shows where we are (review #6 F-003).
-  { std::string title = mPage->GetTitle();
-    if (title.empty()) title = uri;
+  { std::string title = jihadBoundedTitle(mPage->GetTitle());
+    if (title.empty()) title = jihadBoundedTitle(wireUri);
+    mLastTitleSent = title; mLastTitleEmitMs = jihadNowMs();
     bool cb = mPage->CanGoBack(), cf = mPage->CanGoForward();
-    fprintf(stderr, "[jihad-bs] titleAndUrl title=[%s] uri=%s back=%d fwd=%d\n", title.c_str(), uri.c_str(), (int)cb, (int)cf);
-    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), cb, cf); }
+    fprintf(stderr, "[jihad-bs] titleAndUrl title=[%.300s] uri=%.300s back=%d fwd=%d\n", title.c_str(), wireUri.c_str(), (int)cb, (int)cf);
+    mSink.msgTitleAndUrlChanged(title.c_str(), wireUri.c_str(), cb, cf); }
   return uri;
 }
 
@@ -2395,8 +2426,8 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           fprintf(stderr, "[jihad-bs] editorFocused=%d fieldType=%d\n", (int)efoc, eft);
           mSink.msgEditorFocused(efoc, eft, efa);
         }
-        std::string clickNav;
-        if (mPage->TakeClickNav(&clickNav)) {
+        std::string clickNav, clickRef; uint32_t clickPolicy = 0;
+        if (mPage->TakeClickNav(&clickNav, &clickRef, &clickPolicy)) {
           // R6 (navigation-events): report the intercepted link activation, THEN navigate via
           // the load path. openUrl marks the load programmatic, so OnStateChange won't ALSO
           // flag it link-clicked — this msg is the single R6 notification for the tap.
@@ -2405,9 +2436,9 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           // contract owes the card (navigation-events R6) — and it is otherwise invisible.
           fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", clickNav.c_str());
           mSink.msgLinkClicked(clickNav.c_str());
-          // The tapped page is the referrer, as for any link the engine itself would follow.
-          std::string from = mPage->CurrentUri();
-          openUrl(clickNav.c_str(), from.c_str());   // bumps mNavGen -> the loop above stops next iteration
+          // The referrer the link's own rules give it (rel=noreferrer, its referrerpolicy, the
+          // document's meta policy), as if the engine had followed it.
+          openUrl(clickNav.c_str(), clickRef.c_str(), clickPolicy, /*fromPage*/true);   // bumps mNavGen -> the loop above stops next iteration
         }
         // A dropdown <select> tap queued a card-native popup instead of a click (Atlas model):
         // write the option data to a temp file and emit msgPopupMenuShow(id, file). The adapter
@@ -2536,8 +2567,8 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // reported by the emitLoadAndLocation below. Doing this AFTER PumpFor raced: a fast POST that fired
   // STATE_START+STATE_STOP inside PumpFor was already done, and adopting it then reset mDone=false
   // after its only STOP — no completion until the 12 s watchdog (Codex F-323).
-  std::string linkUrl; bool linkIsPost = false;
-  if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost)) {
+  std::string linkUrl, linkRef; bool linkIsPost = false; uint32_t linkPolicy = 0;
+  if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost, &linkRef, &linkPolicy)) {
     fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", linkUrl.c_str());
     mSink.msgLinkClicked(linkUrl.c_str());
     // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET/POST,
@@ -2547,11 +2578,12 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // Re-drive a GET-class nav through the programmatic load path, which completes and supersedes
       // the stalled content load. openUrl marks the load programmatic so it won't re-trigger
       // TakeLinkClicked -> no loop.
-      // With the page it came from as the referrer: the engine's own load would have sent one,
-      // and a plain openUrl did not (device 2026-10-06, Referer absent on every content nav).
-      std::string from = mPage->CurrentUri();
-      fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s (from %s)\n", linkUrl.c_str(), from.c_str());
-      openUrl(linkUrl.c_str(), from.c_str());
+      // With exactly the referrer the engine's own request carried (none if the page withheld
+      // it): a plain openUrl sent none at all (device 2026-10-06), and a synthesised one would
+      // ignore rel=noreferrer and the page's referrer policy (Codex 2026-10-06).
+      fprintf(stderr, "[jihad-bs] content-nav re-drive GET -> %s (referrer %s)\n", linkUrl.c_str(),
+              linkRef.empty() ? "none" : "kept");
+      openUrl(linkUrl.c_str(), linkRef.c_str(), linkPolicy, /*fromPage*/true);
     } else {
       // A POST content-nav (form submit) is NOT re-driven: the original request has already reached
       // STATE_START — the body may already be on the wire — so re-issuing it would DOUBLE the POST
@@ -2743,28 +2775,49 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // A lightweight theme ("persona") the page offers: the component asks the user and applies
   // it through the engine's LightweightThemeManager; the cards hear of the result on the
   // notification channel ("theme"). The JSON is content: escaped as one JSON string.
-  { std::string kind, tjson;
-    if (mPage->TakeThemeEvent(&kind, &tjson)) {
-      std::string esc; esc.reserve(tjson.size() + 16);
-      for (unsigned char c : tjson) {
-        if (c == '"' || c == '\\') { esc += '\\'; esc += (char)c; }
-        else if (c < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); esc += b; }
-        else esc += (char)c;
-      }
-      std::string origin = mPage->CurrentUri();
-      std::string oesc; for (char c : origin) { if (c == '"' || c == '\\') oesc += '\\'; oesc += c; }
+  if (!mThemePreviewDoc.empty()) {
+    std::string now = mPage->CurrentUri();
+    if (now.substr(0, now.find('#')) != mThemePreviewDoc) {
+      mThemePreviewDoc.clear();
+      fprintf(stderr, "[jihad-bs] theme: the previewing page is gone — preview reset\n");
+      runPageCommand("theme", "\"kind\":\"reset\"");
+    }
+  }
+  { std::string kind, tjson, origin, base;
+    if (mPage->TakeThemeEvent(&kind, &tjson, &origin, &base)) {
+      auto esc = [](const std::string& in) {
+        std::string out; out.reserve(in.size() + 16);
+        for (unsigned char c : in) {
+          if (c == '"' || c == '\\') { out += '\\'; out += (char)c; }
+          else if (c < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", c); out += b; }
+          else out += (char)c;
+        }
+        return out;
+      };
       fprintf(stderr, "[jihad-bs] theme: page asks to %s a theme (%zu bytes)\n", kind.c_str(), tjson.size());
-      runPageCommand("theme", "\"kind\":\"" + kind + "\",\"json\":\"" + esc + "\",\"origin\":\"" + oesc + "\"");
+      // A preview belongs to the page that showed it: remembered here so that leaving that
+      // page takes it off (below), as Firefox resets a preview when its page is hidden.
+      mThemePreviewDoc = (kind == "preview") ? origin.substr(0, origin.find('#')) : std::string();
+      runPageCommand("theme", "\"kind\":\"" + kind + "\",\"json\":\"" + esc(tjson) + "\",\"origin\":\"" + esc(origin) +
+                     "\",\"base\":\"" + esc(base) + "\"");
     } }
   // A title the page changed after its load: the same message the load boundary sends, so the
-  // card's title bar, its history row and the strip-to-be follow the page (not a location
-  // change: nothing moved). Rare per page, so no coalescing beyond the one flag.
-  if (mPage->TakeTitleChanged() && mLoadStartMs == 0) {   // during a load the boundary sends it
-    std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
-    std::string title = mPage->GetTitle();
-    if (title.empty()) title = uri;
-    fprintf(stderr, "[jihad-bs] title changed by the page: [%s]\n", title.c_str());
-    mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+  // card's title bar (and the tab strip to come) follows the page — not a location change,
+  // nothing moved. History rows keep the title the page had when it finished loading. A page
+  // can change its title on every frame (a ticker, a counter), so changes are coalesced: at
+  // most one message per 500 ms, the latest title, nothing when it is the one last sent, and
+  // a log line only when one is sent.
+  if (mPage->TakeTitleChanged()) mTitleDirty = true;
+  if (mTitleDirty && mLoadStartMs == 0 && jihadNowMs() - mLastTitleEmitMs >= 500) {   // during a load the boundary sends it
+    mTitleDirty = false;
+    std::string uri = jihadBoundedUri(mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl);
+    std::string title = jihadBoundedTitle(mPage->GetTitle());
+    if (title.empty()) title = jihadBoundedTitle(uri);
+    if (title != mLastTitleSent) {
+      mLastTitleSent = title; mLastTitleEmitMs = jihadNowMs();
+      fprintf(stderr, "[jihad-bs] title changed by the page: [%.120s]\n", title.c_str());
+      mSink.msgTitleAndUrlChanged(title.c_str(), uri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
+    }
   }
   // Emit deferred resize geometry now that PumpFor has let the reflow settle (review #7 P2).
   // emitGeometry itself guards against a still-degenerate 0x0 (P1), so a not-yet-settled
@@ -2803,9 +2856,10 @@ void BrowserPageGoanna::maybePaint() {
                       "(%.1f fps)\n",
               gJihadPaintWanted, gJihadPaintDeferInFlight, gJihadPaintDone,
               (int)(nowMs - sLast), gJihadPaintDone * 1000.0 / double(nowMs - sLast));
-      fprintf(stderr, "[jihad-bs]   partial=%u ticks=%u dirty=%u | frame gap ms "
+      fprintf(stderr, "[jihad-bs]   partial=%u (full: nodmg=%u force=%u slot=%u geom=%u small=%u) ticks=%u dirty=%u | frame gap ms "
                       "min=%u avg=%u max=%u\n",
-              gJihadPaintPartial, gJihadTicks, gJihadDirtyTrue,
+              gJihadPaintPartial, gJihadPartialMiss[0], gJihadPartialMiss[1], gJihadPartialMiss[2],
+              gJihadPartialMiss[3], gJihadPartialMiss[4], gJihadTicks, gJihadDirtyTrue,
               gJihadGapMin, gJihadGapN ? (uint32_t)(gJihadGapSum / gJihadGapN) : 0,
               gJihadGapMax);
       fprintf(stderr, "[jihad-bs]   gap hist ms %s=%u %s=%u %s=%u %s=%u %s=%u %s=%u\n",
@@ -2817,6 +2871,7 @@ void BrowserPageGoanna::maybePaint() {
       for (int gi = 0; gi < kGapBuckets; ++gi) gJihadGapHist[gi] = 0;
       fflush(stderr);
       gJihadPaintPartial = 0;
+      for (int mi = 0; mi < 5; ++mi) gJihadPartialMiss[mi] = 0;
       gJihadPaintWanted = gJihadPaintDeferInFlight = gJihadPaintDone = 0;
       sLast = nowMs;
     }
@@ -2904,6 +2959,28 @@ void BrowserPageGoanna::maybePaint() {
 // kJihadPluginReqTimeoutMs with no frame we ask again regardless.
 static const int kJihadPluginReqTimeoutMs = 250;   // ~8 periods; cannot fire while animating
 
+// The pull is a FALLBACK, not a clock (device 2026-10-06). Flash invalidates itself at its own
+// content rate; asking for frames on top of that only adds draws of unchanged content that land
+// between its own, which is exactly the beat the gap histogram showed (34 draws/s for a 30 fps
+// SWF, spread from <16 to 55 ms; with the plugin alone, 28/s gathered at 32-39 ms). So the
+// daemon asks only once the plugin has produced nothing for this long — a plugin that does
+// not invalidate itself is still drawn (at about 1000/this per second), a still Flash movie
+// costs a few draws a second, and a wedged plugin is re-driven exactly as before.
+static int jihadPluginQuietMs() {
+  static int s_ms = -1;
+  if (s_ms < 0) {
+    s_ms = 150;
+    // A/B knob, like the ones above: 0 asks on every grid slot again (the pull as it was before
+    // 2026-10-06), up to 1000.
+    if (const char* e = getenv("JIHAD_PLUGIN_QUIET_MS")) {
+      int v = atoi(e);
+      if (v >= 0 && v <= 1000) s_ms = v;
+      fprintf(stderr, "[jihad-bs] plugin pull after %d ms of plugin silence (JIHAD_PLUGIN_QUIET_MS)\n", s_ms);
+    }
+  }
+  return s_ms;
+}
+
 // Disable the PULL ONLY, leaving the publish policy exactly as it is. $JIHAD_PLUGIN_PULL=0.
 //
 // This exists because the obvious way to A/B the pull — JIHAD_PLUGIN_FRAME_MS=0 — cannot answer
@@ -2978,13 +3055,15 @@ void BrowserPageGoanna::requestNextPluginFrame() {
   ++mPluginReqTicks;
 
   const uint32_t seq = mPage->PluginFrameSeq();
+  const int64_t now = jihadNowMs();
   if (seq != mLastRequestedSeq) {
     mPluginReqOutstanding = false;    // the frame we asked for arrived
     mLastRequestedSeq = seq;
+    mPluginLastFrameMs = now;         // ...or the plugin drew on its own: it needs no asking
   }
   if (mPluginReqTicks < ticksPerFrame) return;
+  if (now - mPluginLastFrameMs < jihadPluginQuietMs()) { mPluginReqTicks = 0; return; }
 
-  const int64_t now = jihadNowMs();
   if (mPluginReqOutstanding && (now - mPluginReqMs) < kJihadPluginReqTimeoutMs) {
     // The plugin still owes us a frame, so it is drawing slower than the grid. SKIP this slot
     // and stay on the grid (reset the counter) rather than firing the instant the frame lands:
@@ -3129,6 +3208,17 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       mDamageForceFull = true;
     }
   }
+  if (kPartialPaint) {
+    if (!mDamageValid) gJihadPartialMiss[0]++;
+    else if (mDamageForceFull) gJihadPartialMiss[1]++;
+    else {
+      int ms = slotForKey(mActiveKey);
+      if (ms < 0 || !mBufFull[ms].valid || !mBufFull[ms].dmgValid) gJihadPartialMiss[2]++;
+      else if (mBufFull[ms].w != w || mBufFull[ms].h != h || mBufFull[ms].zeff != Zeff ||
+               mBufFull[ms].stripGen != mStripGen || mBufFull[ms].scrollX != mAdapterScrollX ||
+               mBufFull[ms].scrollY != mAdapterScrollY) gJihadPartialMiss[3]++;
+    }
+  }
   if (kPartialPaint && mDamageValid && !mDamageForceFull) {
     int slot = slotForKey(mActiveKey);
     if (slot >= 0 && mBufFull[slot].valid && mBufFull[slot].dmgValid &&
@@ -3168,6 +3258,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const bool bandOnly = !worthIt && dW > 0 && dH > 0 && mThumbPath.empty() &&
                             bf.paintedH > h && bf.bandRow + (long)h <= (long)bf.paintedH &&
                             bf.bandCol + (long)w <= pw;
+      if (!worthIt && !bandOnly) gJihadPartialMiss[4]++;
       if (worthIt || bandOnly) {
         int64_t pt0 = jihadNowMs();
         bool ok = false;
@@ -3766,8 +3857,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // frame must not copy it: such a frame is nobody's source.
       mBufFull[fs].overlay = popupsDrawn > 0;
       // Off-screen rows identical to the source's keep its generation, so three buffers
-      // that were copied one from another all count as current (the fast path's test).
-      mBufFull[fs].stripGen = (src && !fresh && !stripsChanged) ? src->stripGen : ++mStripGen;
+      // that were copied one from another all count as current (the fast path's test). A
+      // frame with NO off-screen rows (the viewport only: a page no taller than the screen)
+      // renders no strips, so it makes nobody's strips older — it must not bump the
+      // generation. It did, on every frame, and so on a short page with a plugin every frame
+      // took the full path: the other buffers always looked stale (device 2026-10-06,
+      // jihad-anim.swf: partial=0 of 32 frames, paint ~25 ms, 15-16 fps).
+      mBufFull[fs].stripGen = !region ? mStripGen
+                            : (src && !fresh && !stripsChanged) ? src->stripGen : ++mStripGen;
       mLatestSlot = (nb > 0) ? fs : -1;
       // Another step is owed only if this frame can be built on — otherwise each "step"
       // would be a first frame again, for ever.

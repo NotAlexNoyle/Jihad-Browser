@@ -557,6 +557,8 @@ private:
     void sendStateToServer();
 
     // gesture handling
+    // A pinch the Mojo WebView widget is zooming itself (js_gesture*): see the definition.
+    void widgetGestureStart();
     void doGestureStart(int cx, int cy, float scale, float rotate, int center_x, int center_y);
     void doGestureChange(int cx, int cy, float scale, float rotate, int center_x, int center_y, bool isGestureEnd=false);
     void doGestureEnd(int cx, int cy, float scale, float rotate, int center_x, int center_y);
@@ -636,6 +638,11 @@ private:
     void stopClickTimer();
 
     GSource *m_mouseHoldTimerSource;
+    // A long-press is asked of the engine asynchronously (hit test, then the hold). A pinch
+    // that begins in between must win: the gesture generation at the time the hold was asked
+    // is kept, and a hold whose answer arrives after a newer gesture began is dropped.
+    unsigned int m_gestureGen;
+    unsigned int m_holdGestureGen;
     static gboolean mouseHoldTimeoutCb(gpointer data);
     void startMouseHoldTimer();
     void stopMouseHoldTimer();

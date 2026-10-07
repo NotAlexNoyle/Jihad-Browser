@@ -133,22 +133,17 @@ enyo.kind({
 			// open on the same page. Straight to openUrl — the path the address bar uses.
 			{name: "spLinks", classes: "jihad-sp-links"}
 		]},
-		// Overflow menu (opened from the toolbar menu button). Items launch the
-		// T-053 parity views below.
+		// The drop-down menus, one overlay rebuilt per menu (openMenuWith). The SAME menus in
+		// all three shells, laid out as Atlas and the Enyo shell lay them out (owner,
+		// 2026-10-06: "the upper right menu has the same options on all 3 variants"):
+		//   share button    Add Bookmark · Share Link · Add to Launcher      (APP_MENUS.share)
+		//   bookmarks button Bookmarks · History · Downloads                 (APP_MENUS.library)
+		//   the app menu    Find on Page · Settings · Print                  (APP_MENUS.app)
+		// with New Card its own button. Settings is the engine's about:preferences, the surface
+		// the three shells share (the card's own panel was merged into it, 2026-10-05).
 		{name: "menuPopup", classes: "jihad-menu-overlay", showing: false, ontap: "closeMenu", components: [
-			{classes: "jihad-menu-box", components: [
-				{classes: "jihad-menu-item", ontap: "menuNewCard",      content: "New Card"},
-				{classes: "jihad-menu-item", ontap: "menuBookmarks",    content: "Bookmarks"},
-				{classes: "jihad-menu-item", ontap: "menuHistory",      content: "History"},
-				{classes: "jihad-menu-item", ontap: "menuDownloads",    content: "Downloads"},
-				{classes: "jihad-menu-item", ontap: "menuFind",         content: "Find in Page"},
-				{classes: "jihad-menu-item", ontap: "menuAddBookmark",  content: "Add Bookmark"},
-				{classes: "jihad-menu-item", ontap: "menuPrint",        content: "Print"},
-				// ONE settings entry: the engine's about:preferences, the surface the three
-				// shells share. The card's own "Browser Settings" panel was merged into it on
-				// 2026-10-05 (owner decision): the search engine and the clear-data actions are
-				// on its Browser pane, the Flash switch is its "Adobe Flash" row.
-				{classes: "jihad-menu-item", ontap: "menuSettings",     content: "Settings"}
+			{name: "menuBox", classes: "jihad-menu-box", components: [
+				{name: "menuItems"}
 			]}
 		]},
 		// Parity views (full-card overlays, hidden until opened).
@@ -340,7 +335,9 @@ enyo.kind({
 		if (url) { this.setUrl(url); }   // else the app-chrome start page overlay stays visible
 	},
 	relaunchHandler: function() {
-		this.applyLaunchParams(this.readLaunchParams());
+		var p = this.readLaunchParams();
+		if (p && p["palm-command"] === "open-app-menu") { this.toggleAppMenu(); return true; }
+		this.applyLaunchParams(p);
 		return true;
 	},
 	urlChanged: function() {
@@ -552,10 +549,39 @@ enyo.kind({
 
 	// --- overflow menu (scaffold) -------------------------------------------
 	closeMenu: function() { this.$.menuPopup.hide(); },
-	openMenu: function(inSender) {
-		// Show the overflow-menu overlay (a scrim + item box; not a mochi.Popup, which
-		// crashes this engine). Tapping the scrim or any item closes it.
+	//* The menus (see the menuPopup component). Each row: [label, handler].
+	APP_MENUS: {
+		app:     {side: "left",  rows: [["Find on Page", "menuFind"], ["Settings", "menuSettings"], ["Print", "menuPrint"]]},
+		share:   {side: "right", rows: [["Add Bookmark", "menuAddBookmark"], ["Share Link", "menuShareLink"], ["Add to Launcher", "menuAddToLauncher"]]},
+		library: {side: "right", rows: [["Bookmarks", "menuBookmarks"], ["History", "menuHistory"], ["Downloads", "menuDownloads"]]}
+	},
+	//* Open one of APP_MENUS as a drop-down (a scrim + item box; not a mochi.Popup, which
+	//* crashes this engine). Tapping the scrim or any item closes it.
+	openMenuWith: function(which) {
+		var m = this.APP_MENUS[which], i;
+		if (!m) { return; }
+		this._menuName = which;
+		this.$.menuBox.addRemoveClass("jihad-menu-left", m.side === "left");
+		this.$.menuItems.destroyClientControls();
+		for (i = 0; i < m.rows.length; i++) {
+			this.$.menuItems.createComponent({classes: "jihad-menu-item", content: m.rows[i][0],
+				menuAction: m.rows[i][1], ontap: "menuPick"}, {owner: this});
+		}
+		this.$.menuItems.render();
 		this.$.menuPopup.show();
+	},
+	menuPick: function(inSender) {
+		var action = inSender && inSender.menuAction;
+		this.$.menuPopup.hide();
+		if (action && this[action]) { this[action](); }
+		return true;                       // do not bubble into closeMenu
+	},
+	//* The system's app menu (the card's name at the top left): webOS relaunches the card
+	//* with {"palm-command": "open-app-menu"} — Enyo 1 turns that into enyo.appMenu.toggle;
+	//* Enyo 2 does not, so the shell does (relaunchHandler).
+	toggleAppMenu: function() {
+		if (this.$.menuPopup.getShowing() && this._menuName === "app") { this.$.menuPopup.hide(); return; }
+		this.openMenuWith("app");
 	},
 
 	// --- WebView (JihadWebView) callbacks -> chrome state -------------------
@@ -764,7 +790,7 @@ enyo.kind({
 			this.openDialog("Share", "Open a page first: there is nothing to share on the start page.");
 			return;
 		}
-		this.openShareSheet({title: this._title || this.url, url: this.url});
+		this.openMenuWith("share");
 	},
 
 	// --- action sheet (share entries, long-press menu) -----------------------
@@ -1025,10 +1051,22 @@ enyo.kind({
 		});
 	},
 	//* Toolbar menu button opens the overflow menu.
-	doBookmarks: function() { this.openMenu(); },
+	doBookmarks: function() { this.openMenuWith("library"); },
 
-	// --- overflow menu actions ----------------------------------------------
-	menuNewCard:     function() { this.$.menuPopup.hide(); this.doNewCard(); },
+	// --- menu actions (APP_MENUS) -------------------------------------------
+	//* Share ▸ Share Link: how to send the address (ShareLinkDialog parity).
+	menuShareLink: function() {
+		if (this.isTransientUrl(this.url)) { return; }
+		this.openSheet("Share Link", this.url, [
+			{label: "Email",           action: "shareByEmail"},
+			{label: "Text Message",    action: "shareByMessage"},
+			{label: "Copy Address",    action: "shareCopy"}
+		], {title: this._title || this.url, url: this.url});
+	},
+	menuAddToLauncher: function() {
+		if (this.isTransientUrl(this.url)) { return; }
+		this.shareAddToLauncher({title: this._title || this.url, url: this.url});
+	},
 	menuBookmarks:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.bookmarkList.open(); },
 	menuHistory:     function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.historyList.open(); },
 	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.open(); this.refreshDownloads(); },

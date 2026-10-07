@@ -148,6 +148,21 @@
 						var tbp = app.$.actionBar.hasNode();
 						log(name, "after direct applyTheme: background=[" + (tbp ? tbp.style.background : "?").slice(0, 160) + "] color=[" + (tbp ? tbp.style.color : "?") + "] cssText=[" + (tbp ? tbp.style.cssText : "?").slice(0, 200) + "]");
 					} catch (e) { log(name, "direct applyTheme THREW " + e); }
+				} else if (st.charAt(0) === "M") {    // open a toolbar menu as its button does: Mshare, Mlibrary, Mapp
+					var which = st.slice(1);
+					if (which === "share") { app.doShare(); } else if (which === "library") { app.doBookmarks(); } else { app.toggleAppMenu(); }
+					var rows = [], mc = app.$.menuItems.getControls(), mi;
+					for (mi = 0; mi < mc.length; mi++) { rows.push(mc[mi].getContent()); }
+					log(name, "menu " + which + " open=" + app.$.menuPopup.getShowing() + " left=" + app.$.menuBox.hasClass("jihad-menu-left") + " rows=[" + rows.join(" | ") + "]");
+				} else if (st.charAt(0) === "K") {    // tap row N of the open menu (its own handler)
+					var kc = app.$.menuItems.getControls(), kn = parseInt(st.slice(1), 10);
+					if (kc[kn]) { log(name, "menu tap [" + kc[kn].getContent() + "]"); app.menuPick(kc[kn]); } else { log(name, "menu: no row " + kn); }
+				} else if (st === "R") {              // what is showing: the menu, the sheet, the panels
+					var sh = app.$.sheet.getShowing(), srows = [], sc2 = app.$.sheetItems.getControls(), si;
+					for (si = 0; si < sc2.length; si++) { srows.push(sc2[si].getContent()); }
+					log(name, "menu open=" + app.$.menuPopup.getShowing() + " sheet=" + sh + (sh ? " [" + app.$.sheetTitle.getContent() + ": " + srows.join(" | ") + "]" : "") +
+						" bookmarks=" + app.$.bookmarkList.getShowing() + " history=" + app.$.historyList.getShowing() + " downloads=" + app.$.downloadList.getShowing() +
+						" find=" + app.$.findBar.getShowing() + " print=" + (app.$.printDialog.isOpen ? app.$.printDialog.isOpen() : "?") + " url=" + String(app.url).slice(0, 50));
 				} else if (st.charAt(0) === "E") {    // TEST ONLY: evaluate an expression in the card and log the result (no ';' — steps split on it)
 					var ev; try { ev = String(eval(st.slice(1))); } catch (e) { ev = "THREW " + e; }
 					log(name, "eval: " + ev.slice(0, 400));

@@ -266,13 +266,19 @@ class JihadXpiConfirmObserver final : public nsIObserver {
     Clean::Run(host, 80);
     Clean::Run(names, 160);
     nsAutoString text;
+    // One literal per call: AssignLiteral/AppendLiteral take array references, and a ?: of two
+    // literals of different lengths is a plain pointer (this tree has a char* overload, an
+    // engine update may not — Codex 2026-10-06).
     const bool theme = kind.EqualsLiteral("theme");
     if (!host.IsEmpty()) {
       text.AssignLiteral("Allow ");
       text.Append(host);
-      text.AppendLiteral(theme ? " to change the browser's look to the theme: " : " to install add-on: ");
+      if (theme) text.AppendLiteral(" to change the browser's look to the theme: ");
+      else text.AppendLiteral(" to install add-on: ");
+    } else if (theme) {
+      text.AssignLiteral("Use the theme: ");
     } else {
-      text.AssignLiteral(theme ? "Use the theme: " : "Install add-on: ");
+      text.AssignLiteral("Install add-on: ");
     }
     text.Append(names);
     DialogReply reply;

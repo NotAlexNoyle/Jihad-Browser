@@ -564,6 +564,8 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , m_sentToBS(false)
     , m_clickTimerSource(0)
     , m_mouseHoldTimerSource(0)
+    , m_gestureGen(0)
+    , m_holdGestureGen(0)
     , m_zoomTimerSource(0)
     , m_zoomPt(0,0)
     , m_zoomTarget(0.0)
@@ -1922,11 +1924,51 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
     return true;
 }
 
+// The Mojo WebView widget does its own pinch (widget_webview.js _doPinchZoom): it scales the
+// plugin node to page x scale and scrolls the SCENE, and only then calls these JS entry points.
+// The adapter used to zoom as well — the centred zoom below, which also leaves fit mode and moves
+// the adapter's own scroll — so the two offsets added up and the visible part of the node landed
+// on rows the engine never painted: a grey card after every pinch (device 2026-10-06, the
+// owner's report; widget scroll 154,374 against adapter scroll 422,547). In the Mojo model the
+// widget owns zoom and pan, and the engine's zoom follows the node (fit mode: zoom = node width
+// / page width, handleWindowChange), exactly as before the pinch. So a widget-driven gesture only
+// does what a gesture must do whoever zooms: cancel the long-press (the first finger armed it),
+// hide the spelling widget, break a Flash gesture lock. Mojo builds only: no Enyo or Mochi shell
+// calls these entry points (their pinches arrive as native gesture events, handleGesture ->
+// doGesture*), but their TEST HOOKS do (the `g` step), and there the adapter must still zoom.
+static bool jihadWidgetZooms()
+{
+    static const bool sMojo = (strcmp(JIHAD_VARIANT, "mojo") == 0);
+    return sMojo;
+}
+
+void BrowserAdapter::widgetGestureStart()
+{
+    stopMouseHoldTimer();
+    ++m_gestureGen;
+    asyncCmdHideSpellingWidget();
+    updateFlashGestureLockStatus(false);
+    if (mShowHighlight)
+        removeHighlight();
+    mZoomFit = true;
+    mInGestureChange = true;
+}
+
 void BrowserAdapter::doGestureStart(int cx, int cy, float scale, float rotate,
                                     int centerX, int centerY)
 {
     cy -= m_headerHeight;
     centerY -= m_headerHeight;
+
+    // A pinch starts as one finger down, which armed the long-press timer. The native gesture
+    // event path (handleGesture) stops it, but the Mojo WebView widget drives a pinch through
+    // the JS entry points (js_gestureStart), which come straight here — so the timer ran on and
+    // the hold fired mid-pinch: the engine selected a word and Mojo put its long-press menu up
+    // over a dimmed page (device report 2026-10-06: "pinch to zoom is broken. the page turns
+    // grey and I get the copy/select all/reload/find on page menu instead"). Stop it here, for
+    // every caller, and drop a hold already asked of the engine (m_holdGestureGen).
+    stopMouseHoldTimer();
+    ++m_gestureGen;
 
     m_recordedGestures.clear();
     recordGesture(scale, rotate, centerX, centerY);
@@ -3438,6 +3480,10 @@ const char* BrowserAdapter::js_gestureStart(AdapterBase *adapter, const NPVarian
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
+    if (jihadWidgetZooms()) {
+        a->widgetGestureStart();
+        return NULL;
+    }
     a->doGestureStart(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
                       VariantToInteger(args[1]) / a->mZoomLevel, //contentY
                       VariantToDouble(args[2]), // zoomScale
@@ -3470,6 +3516,11 @@ const char* BrowserAdapter::js_gestureChange(AdapterBase *adapter, const NPVaria
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
+    if (jihadWidgetZooms()) {
+        // The widget zooms (widgetGestureStart): nothing for the adapter to do mid-pinch.
+        a->mInGestureChange = true;
+        return NULL;
+    }
     a->doGestureChange(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
                        VariantToInteger(args[1]) / a->mZoomLevel, //contentY
                        VariantToDouble(args[2]), // zoomScale
@@ -3502,6 +3553,12 @@ const char* BrowserAdapter::js_gestureEnd(AdapterBase *adapter, const NPVariant 
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
+    if (jihadWidgetZooms()) {
+        // The widget has set the node to the page at its new scale; the engine's zoom follows
+        // that node (fit mode, handleWindowChange). Nothing to undo here.
+        a->mInGestureChange = false;
+        return NULL;
+    }
     a->doGestureEnd(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
                     VariantToInteger(args[1]) / a->mZoomLevel, //contentY
                     VariantToDouble(args[2]), // zoomScale
@@ -5983,8 +6040,13 @@ void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
                     if (!strcmp(args->m_type, "click")) {
                         asyncCmdClickAt(args->m_pt.x, args->m_pt.y, 1, 1);
                     } else if (!strcmp(args->m_type, "mousehold")) {
-                        m_didHold = true;
-                        asyncCmdHoldAt(args->m_pt.x, args->m_pt.y);
+                        if (m_holdGestureGen != m_gestureGen) {
+                            // A pinch began after this hold was asked for (see doGestureStart).
+                            TRACEF("hold at %d,%d dropped: a gesture began since", args->m_pt.x, args->m_pt.y);
+                        } else {
+                            m_didHold = true;
+                            asyncCmdHoldAt(args->m_pt.x, args->m_pt.y);
+                        }
                     }
                 }
 
@@ -6078,6 +6140,7 @@ gboolean BrowserAdapter::mouseHoldTimeoutCb(gpointer arg)
             && !a->flashRectContainsPoint(a->m_penDownDoc)) {
         int q = a->mBsQueryNum++;
         HitTestArgs *callArgs = new HitTestArgs("mousehold", a->m_penDownDoc, 0, q);
+        a->m_holdGestureGen = a->m_gestureGen;
         a->m_hitTestArgs.add(callArgs);
         TRACEF("x: %d, y: %d, q: %d", a->m_penDownDoc.x, a->m_penDownDoc.y, q);
         a->asyncCmdHitTest(q, a->m_penDownDoc.x, a->m_penDownDoc.y);

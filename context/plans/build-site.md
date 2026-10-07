@@ -473,6 +473,23 @@ T-341 keeps what only a finger can judge: the feel of a pan and a pinch, a hold 
 
 With "You have my go ahead for all remaining tasks that you can achieve without me physically touching the device": T-231 / T-232 / T-233 / T-273 (Enyo and Mojo removed through the installer and installed from nothing, audited; Palefill of the removed variant gone, the others' kept), T-234 (reboot: all three daemons up from the shipped jobs, Luna registered on first start, cards render, root read-only, no crash reports; T-236's condition did not arise), one real print (Mochi dialog → Epson ET-2800 over IPPS, job accepted; the sink first), T-279's SRCREV bump (`db070f0003`, the gitlink's commit). The pushes themselves were refused by the session's permission gate and are the owner's. Also this session: Codex round 6 on the inspector-only range (`impl-review-findings-6.md`) with four fixes (padlock only for a committed address; Cut bound to the field the copy came from; copied text let go after 15 s; host test sinks compile; push script refuses a stale bundle), packaged and installed as an upgrade; the community SDK updated to 0.4 (owner ran the root step); tabbed-browsing groundwork (Tier 71 above, pending by the owner's word).
 
+## Tier 72 — 2026-10-06 (night): Codex r7, menu parity, Flash for games, DuckDuckGo Lite, Mojo pinch (added to the site, not a regeneration)
+
+Owner: "continue implementing everything you can using cavekit 3.1 with codex adversarial review … Make sure the upper right menu has the same options on all 3 variants (see atlas for reference). optimize flash player for gaming performance, and add lite/html duckduckgo as a default search engine option and make it the default", then the three Mojo directions (no toolbar icons by the url; refresh inside the url bar; pinch broken).
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-355 | Codex round 7 fixes: referrer/policy on re-drives, theme origin at the event, preview gating/reset, persist installed theme only, title bound+coalesce, static-theme limits/pending/hash id, bounded card JSON, Enyo lazy views, settings migration, overload-proof confirm text | cavekit-addons-extensions.md | addons R10; engine-embedding | T-340 | yes | M |
+| T-356 | Mochi menu parity with Atlas/Enyo: Share ▾ / New Card / Bookmarks ▾, app menu Find · Settings · Print, sysmgr open-app-menu relaunch | cavekit-mochi-ui.md | mochi R2 | T-355 | yes | S |
+| T-357 | Mojo menu parity on the bottom circles (Share ▸, Bookmarks ▸ submenus), Bookmarks/Downloads/Print scenes and models, app menu Find · Settings · Print | cavekit-mojo-ui.md | mojo R6 | T-355 | yes | M |
+| T-358 | Mojo reload/stop embedded at the right of the address field (owner) | cavekit-mojo-ui.md | mojo R6 | T-357 | yes | S |
+| T-359 | [FOUND] Flash: strip-generation regression made every frame a full paint (16 fps) — fixed; miss-reason counters | cavekit-addons-extensions.md | addons R7 | T-355 | yes | S |
+| T-360 | Flash gaming: host frame drivers off by default (child timer off, pull only after plugin silence); content-rate measurement (grid SWF) shows no game-speed loss | cavekit-addons-extensions.md | addons R7 | T-359 | yes | M |
+| T-361 | [FOUND] Mojo pinch: hold fired mid-pinch and adapter zoom fought the widget's (grey page) — adapter fixed, hook Z step with control | cavekit-mojo-ui.md | mojo R6 | T-357 | yes | M |
+| T-362 | DuckDuckGo Lite default + HTML option in every shell and the settings page, one-time migration | cavekit-preferences-ui.md | prefs R2 | T-340 | yes | S |
+| T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
+| T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
+
 ## Tier 71 — Tabbed browsing (GROUNDWORK ONLY, 2026-10-06; every task PENDING by the owner's word: "lay the groundwork … but don't implement it yet")
 
 Kit: `context/kits/cavekit-tabbed-browsing.md`. Design: `docs/TABS-GROUNDWORK.md` (plan B: pages in the daemon, one connection per card, tab commands over the variant's own Luna service; the YAP contract untouched).
@@ -638,6 +655,11 @@ T-201 -> T-219 -> T-220 -> T-221 -> T-222 -> T-224 -> T-225 -> T-227 -> T-228 ->
 | cavekit-addons-extensions.md | R9 | It does something (debug output on a fixed site) | T-337 | COVERED |
 | cavekit-addons-extensions.md | R9 | Known and accepted: the settings window it cannot open; whole-response buffering | T-337 | COVERED |
 | cavekit-mojo-ui.md | R6 | Long-press menu and padlock in the Mojo shell | T-344, T-345, T-341 | COVERED |
+| cavekit-addons-extensions.md | R10 | Personas: site install with confirm, painted on all shells with ink glyphs, AMO static themes, preview gating, Appearance section; tabs themed | T-355 (tabs: T-350) | COVERED |
+| cavekit-mojo-ui.md | R6 | Upper-right menu options on the circles; reload in the url field; app menu; pinch | T-357, T-358, T-361, T-364 | COVERED |
+| cavekit-mochi-ui.md | R2 | Upper-right and app menus = Atlas/Enyo | T-356 | COVERED |
+| cavekit-preferences-ui.md | R2 | DuckDuckGo Lite default, HTML option | T-362 | COVERED |
+| cavekit-addons-extensions.md | R7 | Flash pacing for games: one producer, content rate measured | T-359, T-360, T-364 | COVERED (eye test pending) |
 | cavekit-tabbed-browsing.md | R1 | Tab strip in every shell: switch / new / close / long-press "Open in New Tab" / hidden with one tab | T-350 | COVERED (pending) |
 | cavekit-tabbed-browsing.md | R2 | Tabs are daemon pages; YAP and the adapter untouched; Luna commands for the own card; switch sequence; state kept; set dies with the card | T-348 | COVERED (pending) |
 | cavekit-tabbed-browsing.md | R3 | Background tabs quiet and bounded: held dialogs, attribution, cap, memory, idle | T-349, T-351 | COVERED (pending) |

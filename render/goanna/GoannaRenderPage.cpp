@@ -48,6 +48,7 @@
 #include "nsIWindowProvider.h"      // window.open -> a new card (PageChrome::ProvideWindow)
 #include "nsIChannel.h"
 #include "nsIHttpChannel.h"         // content-nav request method (POST vs GET re-drive)
+#include "nsIDOMNodeList.h"
 #include "nsISSLStatus.h"
 #include "nsIBadCertListener2.h"
 #include "nsIX509Cert.h"
@@ -112,11 +113,14 @@
 #include "nsServiceManagerUtils.h"
 #include "nsIScriptSecurityManager.h" // DebugRunChromeJs: system principal for javascript: probes
 #include "nsIPrincipal.h"
+#include "nsIScriptObjectPrincipal.h"   // a document's own principal (a re-driven load's trigger)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 
 namespace jihad {
 
 // XPCOM chrome + progress listener for one page. Refcounted; owns the browser.
+static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);   // defined further down
+
 class PageChrome final : public nsIWebBrowserChrome,
                          public nsIEmbeddingSiteWindow,
                          public nsIInterfaceRequestor,
@@ -160,6 +164,17 @@ public:
   bool mLinkClicked;         // a content-initiated (link) navigation was seen
   bool mLinkIsPost;          // ...and it was a non-GET (POST) request (not re-driven — F-262)
   nsCString mLinkUrl;        // its target URL
+  // The referrer the engine's own request carried, and its policy: a re-drive repeats
+  // exactly these (empty = the page sent none: rel=noreferrer, a no-referrer policy).
+  nsCString mLinkReferrer;
+  uint32_t mLinkReferrerPolicy = 0;
+  // ...and WHO started it: the principal of the document the navigation leaves. A re-drive
+  // must load as that page, never as the system — with no referrer and no explicit principal,
+  // docshell uses the SYSTEM principal (nsDocShell::LoadURI), which would let a page reach
+  // file: or a top-level data: document through us (inspector 2026-10-06, P1).
+  nsCOMPtr<nsIPrincipal> mLinkTrigger;
+  nsCOMPtr<nsIPrincipal> mClickTrigger;   // the same for a tapped link: its own document's
+  nsCOMPtr<nsIPrincipal> mNextTrigger;    // the one the next page-initiated LoadUrl uses
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
@@ -195,6 +210,8 @@ public:
   // undrained one — the last request is the one the user made.
   std::string mThemeKind;     // "install" | "preview" | "reset" | "" (none pending)
   std::string mThemeJson;
+  std::string mThemeOrigin;   // the document that dispatched it, read AT the event (the page
+  std::string mThemeBase;     // may navigate before the pump drains it) and its base URI
   bool mUserInteracted;       // a tap happened since this page's load started (Atlas autofocus
                               // gate: a page that AUTOFOCUSES on load must not grab the VKB)
   // A same-document location change (fragment edit, pushState/replaceState) happened since the
@@ -383,6 +400,22 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
       // re-drive. The engine completes POSTs; the load watchdog clears the overlay if one stalls.
       nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(ch);
       if (http) { nsAutoCString m; http->GetRequestMethod(m); mLinkIsPost = !m.EqualsLiteral("GET"); }
+      // The referrer the engine computed for this request — rel=noreferrer, the document's and
+      // the link's referrer policy all applied — which the daemon's re-drive must repeat rather
+      // than re-derive (Codex 2026-10-06: a synthesised one leaked urls a page withheld).
+      mLinkReferrer.Truncate(); mLinkReferrerPolicy = 0;
+      mLinkTrigger = nullptr;
+      if (nsCOMPtr<nsIDocShell> ds = GetDocShell(mBrowser)) {    // still the OLD document here
+        nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+        nsCOMPtr<nsIDOMDocument> od; if (cv) cv->GetDOMDocument(getter_AddRefs(od));
+        nsCOMPtr<nsIScriptObjectPrincipal> sop = do_QueryInterface(od);
+        if (sop) mLinkTrigger = sop->GetPrincipal();
+      }
+      if (http) {
+        nsCOMPtr<nsIURI> r; http->GetReferrer(getter_AddRefs(r));
+        if (r) r->GetSpec(mLinkReferrer);
+        uint32_t p = 0; http->GetReferrerPolicy(&p); mLinkReferrerPolicy = p;
+      }
     }
   }
   if (top && (f & (STATE_START | STATE_STOP))) {
@@ -1257,9 +1290,20 @@ NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
     if (type.EqualsLiteral("ResetBrowserThemePreview")) { mThemeKind = "reset"; mThemeJson.clear(); return NS_OK; }
     if (!raw) return NS_OK;                              // the theme rides on an element
     nsAutoString json; raw->GetAttribute(NS_LITERAL_STRING("data-browsertheme"), json);
-    if (json.IsEmpty() || json.Length() > 65536) return NS_OK;   // no theme, or not a theme
+    if (json.IsEmpty() || json.Length() > 16384) return NS_OK;   // no theme, or not a theme
+    // Who asked, taken NOW from the element's own document — not from whatever the page is
+    // by the time the pump runs (Codex 2026-10-06: dispatch then navigate would have put
+    // another site's name on the confirm, and relative image URLs would resolve against it).
+    nsCOMPtr<nsIDOMNode> rn = do_QueryInterface(raw);
+    nsCOMPtr<nsIDOMDocument> od; if (rn) rn->GetOwnerDocument(getter_AddRefs(od));
+    nsAutoString du, bu;
+    if (od) od->GetDocumentURI(du);
+    if (rn) rn->GetDOMBaseURI(bu);
+    if (du.IsEmpty()) return NS_OK;
     mThemeKind = type.EqualsLiteral("InstallBrowserTheme") ? "install" : "preview";
     mThemeJson = NS_ConvertUTF16toUTF8(json).get();
+    mThemeOrigin = NS_ConvertUTF16toUTF8(du).get();
+    mThemeBase = NS_ConvertUTF16toUTF8(bu.IsEmpty() ? du : bu).get();
     return NS_OK;
   }
   if (!raw) return NS_OK;   // window/document focus transitions — not a field
@@ -2015,7 +2059,7 @@ void GoannaRenderPage::BeginLoad() {
   mChrome->mFocusedEditable = nullptr;   // the marked field belongs to the old document
 }
 
-bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer) {
+bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t referrerPolicy, bool fromPage) {
   if (!mChrome) return false;
   // Force PSM/NSS (TLS) to construct on THIS main thread before the load. Necko
   // otherwise lazily constructs nsNSSComponent from the socket-transport thread on the
@@ -2065,7 +2109,24 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer) {
     nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
     if (ios) ios->NewURI(nsDependentCString(referrer), nullptr, nullptr, getter_AddRefs(ref));
   }
-  return NS_SUCCEEDED(nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref, nullptr, nullptr));
+  // A load the PAGE started (a re-drive) carries the page's principal — the one the last
+  // TakeLinkClicked / TakeClickNav handed over; a load the USER started (typed, home, a card
+  // command) carries none, which docshell treats as the system's, as it always has. Without a
+  // principal for a page load, fail closed to the current page's origin: the URI as referrer
+  // (docshell makes the principal from it) with the no-referrer policy (no header is sent).
+  nsCOMPtr<nsIPrincipal> trigger;
+  if (mChrome) { if (fromPage) trigger = mChrome->mNextTrigger; mChrome->mNextTrigger = nullptr; }
+  if (fromPage && !trigger && !ref) {
+    std::string cur = CurrentUri();
+    if (!cur.empty()) {
+      nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
+      if (ios) ios->NewURI(nsDependentCString(cur.c_str()), nullptr, nullptr, getter_AddRefs(ref));
+      referrerPolicy = nsIHttpChannel::REFERRER_POLICY_NO_REFERRER;
+    }
+  }
+  return NS_SUCCEEDED(nav->LoadURIWithOptions(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref,
+                                              ref ? referrerPolicy : nsIHttpChannel::REFERRER_POLICY_DEFAULT,
+                                              nullptr, nullptr, nullptr, trigger));
 }
 
 // Drain the engine's ready work and RETURN. This is the tick's pump, and it exists because
@@ -2102,11 +2163,13 @@ int PumpReadyMainThread(int msBudget) {
 
 void GoannaRenderPage::PumpReady(int msBudget) { PumpReadyMainThread(msBudget); }
 
-bool GoannaRenderPage::TakeThemeEvent(std::string* kind, std::string* json) {
+bool GoannaRenderPage::TakeThemeEvent(std::string* kind, std::string* json, std::string* origin, std::string* base) {
   if (!mChrome || mChrome->mThemeKind.empty()) return false;
   if (kind) *kind = mChrome->mThemeKind;
   if (json) *json = mChrome->mThemeJson;
-  mChrome->mThemeKind.clear(); mChrome->mThemeJson.clear();
+  if (origin) *origin = mChrome->mThemeOrigin;
+  if (base) *base = mChrome->mThemeBase;
+  mChrome->mThemeKind.clear(); mChrome->mThemeJson.clear(); mChrome->mThemeOrigin.clear(); mChrome->mThemeBase.clear();
   return true;
 }
 
@@ -2232,10 +2295,13 @@ void GoannaRenderPage::ClearProgrammaticLoad() {
 
 bool GoannaRenderPage::DidRedirect() const { return mChrome && mChrome->mRedirected; }
 
-bool GoannaRenderPage::TakeLinkClicked(std::string* url, bool* isPost) {
+bool GoannaRenderPage::TakeLinkClicked(std::string* url, bool* isPost, std::string* referrer, uint32_t* policy) {
   if (!mChrome || !mChrome->mLinkClicked) return false;
   if (url) *url = std::string(mChrome->mLinkUrl.get());
   if (isPost) *isPost = mChrome->mLinkIsPost;
+  if (referrer) *referrer = std::string(mChrome->mLinkReferrer.get());
+  if (policy) *policy = mChrome->mLinkReferrerPolicy;
+  mChrome->mNextTrigger = mChrome->mLinkTrigger;
   mChrome->mLinkClicked = false;   // consume
   mChrome->mLinkUrl.Truncate();
   return true;
@@ -2926,6 +2992,72 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
 // is also the correct browser sequence (mousedown, mouseup, click). Measured (xul_test K1/K3) that
 // the pair alone activates a checkbox AND navigates an <a href> via the engine's own default
 // action, so nothing is lost by standing down here.
+// The referrer a link the daemon follows ON THE PAGE'S BEHALF carries — what the engine would
+// have sent had it followed the link itself: none for rel="noreferrer" or a no-referrer policy;
+// else the policy from the link's referrerpolicy attribute, else the document's last
+// <meta name="referrer">, else the default (necko applies no-referrer-when-downgrade). The
+// referrer is the link's own document. NOT seen from here: a Referrer-Policy HTTP header on the
+// document — the default stands in for it (a known gap; a content navigation the engine starts
+// itself carries the engine's exact referrer, see OnStateChange).
+// A referrer-policy token, ASCII-lowercased and trimmed, to nsIHttpChannel's constant; `legacy`
+// also takes the <meta> spellings. kUnset when it names no policy. (Local rather than
+// mozilla/net/ReferrerPolicy.h: that header lowercases through an engine-internal symbol
+// libxul does not export to an embedder.)
+static const uint32_t kJihadRPUnset = 0xFFFFFFFFu;
+static uint32_t jihadReferrerPolicy(const nsAString& value, bool legacy) {
+  NS_ConvertUTF16toUTF8 v8(value);
+  std::string v = v8.get();
+  for (char& c : v) c = (char)tolower((unsigned char)c);
+  size_t a = v.find_first_not_of(" \t\n\r\f"), b = v.find_last_not_of(" \t\n\r\f");
+  v = (a == std::string::npos) ? std::string() : v.substr(a, b - a + 1);
+  if (v == "no-referrer" || (legacy && v == "never")) return nsIHttpChannel::REFERRER_POLICY_NO_REFERRER;
+  if (v == "origin") return nsIHttpChannel::REFERRER_POLICY_ORIGIN;
+  if (v == "no-referrer-when-downgrade" || (legacy && v == "default")) return nsIHttpChannel::REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE;
+  if (v == "origin-when-cross-origin" || (legacy && v == "origin-when-crossorigin")) return nsIHttpChannel::REFERRER_POLICY_ORIGIN_WHEN_XORIGIN;
+  if (v == "unsafe-url" || (legacy && v == "always")) return nsIHttpChannel::REFERRER_POLICY_UNSAFE_URL;
+  if (v == "same-origin") return nsIHttpChannel::REFERRER_POLICY_SAME_ORIGIN;
+  if (v == "strict-origin") return nsIHttpChannel::REFERRER_POLICY_STRICT_ORIGIN;
+  if (v == "strict-origin-when-cross-origin") return nsIHttpChannel::REFERRER_POLICY_STRICT_ORIGIN_WHEN_XORIGIN;
+  return kJihadRPUnset;
+}
+
+static void jihadLinkReferrer(nsIDOMElement* anchor, std::string* referrer, uint32_t* policy) {
+  referrer->clear(); *policy = nsIHttpChannel::REFERRER_POLICY_DEFAULT;
+  if (!anchor) return;
+  {
+    nsAutoString rel; anchor->GetAttribute(NS_LITERAL_STRING("rel"), rel);
+    NS_ConvertUTF16toUTF8 r8(rel);
+    std::string r = std::string(" ") + r8.get() + " ";
+    for (char& c : r) { c = (char)tolower((unsigned char)c); if (c == '\t' || c == '\n' || c == '\r' || c == '\f') c = ' '; }
+    if (r.find(" noreferrer ") != std::string::npos) return;
+  }
+  uint32_t p = kJihadRPUnset;
+  nsAutoString attr; anchor->GetAttribute(NS_LITERAL_STRING("referrerpolicy"), attr);
+  if (!attr.IsEmpty()) p = jihadReferrerPolicy(attr, false);
+  nsCOMPtr<nsIDOMDocument> doc; { nsCOMPtr<nsIDOMNode> n = do_QueryInterface(anchor); if (n) n->GetOwnerDocument(getter_AddRefs(doc)); }
+  if (p == kJihadRPUnset && doc) {
+    nsCOMPtr<nsIDOMNodeList> metas; doc->GetElementsByTagName(NS_LITERAL_STRING("meta"), getter_AddRefs(metas));
+    uint32_t n = 0; if (metas) metas->GetLength(&n);
+    for (uint32_t i = 0; i < n && i < 256; ++i) {
+      nsCOMPtr<nsIDOMNode> nd; metas->Item(i, getter_AddRefs(nd));
+      nsCOMPtr<nsIDOMElement> m = do_QueryInterface(nd);
+      if (!m) continue;
+      nsAutoString name; m->GetAttribute(NS_LITERAL_STRING("name"), name);
+      if (!name.LowerCaseEqualsLiteral("referrer")) continue;
+      nsAutoString content; m->GetAttribute(NS_LITERAL_STRING("content"), content);
+      uint32_t mp = jihadReferrerPolicy(content, true);
+      if (mp != kJihadRPUnset) p = mp;          // the last one processed wins
+    }
+  }
+  if (p == nsIHttpChannel::REFERRER_POLICY_NO_REFERRER) return;
+  *policy = (p == kJihadRPUnset) ? nsIHttpChannel::REFERRER_POLICY_DEFAULT : p;
+  if (doc) {
+    nsAutoString du; doc->GetDocumentURI(du);
+    NS_ConvertUTF16toUTF8 d8(du);
+    referrer->assign(d8.get());
+  }
+}
+
 void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   if (!mChrome) return;
   mChrome->mUserInteracted = true;   // Atlas autofocus gate: a real tap unlocks VKB raises
@@ -3032,10 +3164,11 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   // inside the anchor). The parent chain terminates at the document (null parent); the
   // depth cap is just a cycle guard for a malformed tree.
   nsAutoString href;
+  nsCOMPtr<nsIDOMElement> anchorEl;   // the <a> the href came from (its referrer rules)
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
   for (int depth = 0; node && depth < 256 && href.IsEmpty(); ++depth) {
     nsCOMPtr<nsIDOMHTMLAnchorElement> a = do_QueryInterface(node);
-    if (a) a->GetHref(href);
+    if (a) { a->GetHref(href); if (!href.IsEmpty()) anchorEl = do_QueryInterface(node); }
     if (href.IsEmpty()) { nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p; }
   }
   // Touch-target tolerance: a small link is easy to miss by a few px (the tap lands on the
@@ -3058,7 +3191,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
         nsCOMPtr<nsIDOMNode> nd; near->Item(i, getter_AddRefs(nd));
         for (int d = 0; nd && d < 64 && href.IsEmpty(); ++d) {
           nsCOMPtr<nsIDOMHTMLAnchorElement> a = do_QueryInterface(nd);
-          if (a) a->GetHref(href);
+          if (a) { a->GetHref(href); if (!href.IsEmpty()) anchorEl = do_QueryInterface(nd); }
           if (href.IsEmpty()) { nsCOMPtr<nsIDOMNode> p; nd->GetParentNode(getter_AddRefs(p)); nd = p; }
         }
       }
@@ -3110,6 +3243,14 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // load or, done synchronously in the socket callback, re-enters + crashes. Skip the
     // mouse events for a link too — they made the anchor start its own (aborting) load.
     mClickNavUrl = h;
+    jihadLinkReferrer(anchorEl, &mClickNavReferrer, &mClickNavPolicy);
+    if (mChrome) {
+      mChrome->mClickTrigger = nullptr;
+      nsCOMPtr<nsIDOMNode> an = do_QueryInterface(anchorEl);
+      nsCOMPtr<nsIDOMDocument> ad; if (an) an->GetOwnerDocument(getter_AddRefs(ad));
+      nsCOMPtr<nsIScriptObjectPrincipal> sop = do_QueryInterface(ad);
+      if (sop) mChrome->mClickTrigger = sop->GetPrincipal();
+    }
     if (mEditorFocused) { mEditorFocused = false; mEditorFocusDirty = true; }  // page change -> hide VKB
     return;
   }
@@ -3635,10 +3776,13 @@ bool GoannaRenderPage::TakeNewWindowUrl(std::string* url) {
   return true;
 }
 
-bool GoannaRenderPage::TakeClickNav(std::string* url) {
+bool GoannaRenderPage::TakeClickNav(std::string* url, std::string* referrer, uint32_t* policy) {
   if (mClickNavUrl.empty()) return false;
   if (url) *url = mClickNavUrl;
-  mClickNavUrl.clear();
+  if (referrer) *referrer = mClickNavReferrer;
+  if (policy) *policy = mClickNavPolicy;
+  if (mChrome) mChrome->mNextTrigger = mChrome->mClickTrigger;
+  mClickNavUrl.clear(); mClickNavReferrer.clear(); mClickNavPolicy = 0;
   return true;
 }
 

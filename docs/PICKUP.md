@@ -1,11 +1,75 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 (go-ahead) below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 (night) below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-06 (evening) delta — personas IN PROGRESS, stopped at the usage limit (READ FIRST)
+## 2026-10-06 (night) delta — Codex r7 fixed; menus match on all three; Flash regression fixed and drivers off; Mojo pinch fixed (READ FIRST)
+
+**Owner's asks this session:** "continue implementing everything you can using cavekit 3.1 with
+codex adversarial review" plus: the upper-right menu the same on all three (Atlas as reference);
+"optimize flash player for gaming performance"; DuckDuckGo Lite/HTML as search options, Lite the
+default. Mid-session: "mojo should have no top toolbar icons next to url. bottom circular buttons
+only"; "put the mojo refresh icon embedded in the right of the urlbar instead of the bottom as a
+circular button"; "pinch to zoom is broken. the page turns grey and I get the copy/select
+all/reload/find on page menu instead". The (evening) delta below is superseded: personas are done
+and committed (`20310b3e`), and all three shells were device-verified with Water-Like.
+
+**Verified on the device (TouchPad 3.0.5, one task at a time):**
+- **Codex round 7 (12 findings) fixed** — table and device evidence in
+  `context/impl/impl-review-findings-6.md` (round 7): referrer/policy carried on re-driven
+  navigations (6 cases on the echo server's `/ref?v=`), title flood bounded and coalesced
+  (`/titleflood`: 12 sends in ~6 s, ≤1024 bytes), theme preview only from https+"install"
+  (http preview ignored), static-theme package limits/pending file/hash id, theme origin taken at
+  the event, Enyo theme on the lazily created views (start page and browser bars both painted).
+- **Menus:** Mochi's upper-right is now Share ▾ / New Card / Bookmarks ▾ and its title-bar app
+  menu (Find on Page · Settings · Print) opens from a real sysmgr relaunch. Mojo has NO icons by
+  the URL (owner) — Share ▸ and Bookmarks ▸ are submenus on the bottom circles (History circle
+  became Bookmarks), reload/stop sits inside the address field, the app menu is Find · Settings ·
+  Print; new Bookmarks / Downloads / Print scenes. Enyo was already the reference.
+- **Flash, gaming:** a regression from `debd1934` made every frame a full paint (15-16 fps,
+  ~25 ms paints); fixed (34 fps paints, 4-5 ms, all partial). The child's own timer is now off by
+  default and the daemon only pulls after 150 ms of plugin silence: one producer, histogram at
+  32-39 ms, a third less tick work — and the CONTENT rate (what a game's speed is), measured with
+  a grid SWF and two timed screenshots, is the same as with the old drivers (22.5 vs 22.1 fps):
+  they only re-drew frames. Knobs: `JIHAD_PLUGIN_SELF_DRIVE=1`, `JIHAD_PLUGIN_QUIET_MS=0` restore
+  the old behaviour for an A/B. Shorter plugin ticks (10/12 ms) changed nothing.
+- **Mojo pinch:** two adapter defects on the path only the Mojo widget uses (JS `gestureStart`):
+  the first finger's hold timer was never cancelled (→ the long-press menu with Mojo's grey scrim),
+  and the adapter zoomed/scrolled itself on top of the widget's own pinch (→ grey page). Fixed in
+  `BrowserAdapter.cpp` (`widgetGestureStart`, hold dropped if a gesture began since). Verified with
+  the hook's finger-like `Z` step (a held-still control does raise the menu; the pinch does not;
+  engine zoom tracks the widget 1.01 → 1.20; page drawn in and back out). **A real finger pinch by
+  the owner is still the final word.**
+- DuckDuckGo Lite default (Mochi reads `duckduckgo-lite`), HTML listed, one-time migration.
+
+**Not done / open:**
+- **Codex is out of credits until Oct 7 1:53 AM** — round 8 (all of the above) was reviewed by the
+  `ck:inspector` backup: 1 P1 (a re-drive without a referrer ran as the SYSTEM principal — could
+  reach `file:` / top-level `data:`), 1 P2 (static-theme zip sizes trusted), 5 P3; all fixed and
+  the P1/P2 verified on the device (round 8 in the findings file). **Owed: Codex on this
+  session's commit (`20310b3e..HEAD`) once its credits are back** — the memory note
+  `codex-gate-needs-direct-invocation.md` has the invocation.
+- Flash's own rate on this CPU (~27 fps for a 30 fps 320x240 SWF, ~22 at 640x480) is the limit
+  now; `sensord` takes ~15-20 % CPU on the test device at all times (not ours). Whether evenly
+  paced 27 fps reads well in a real game is an eye test for the owner.
+- One unexplained miss: a static theme's live notification did not paint Mochi's bar once (two
+  later runs did). Tabs: groundwork only, as asked.
+- Finger tests remain the owner's: pinch on Mojo, the menus by touch, the in-field reload.
+
+**Device state as left:** all three daemons run the same hand-pushed build (this session's final
+bundle; the packages under `build/webos-oe/out-ipk/` are built from the night commit, the same
+tree, but NOT installed as packages — the device has the pushed files). Adapter on the rootfs for all three
+(`/usr/lib/jihad/<V>/BrowserAdapterImpl.so`, md5 enyo `d9144bc4…`, mochi `831549b7…`, mojo
+`8f1a90bd…`; Mojo-only widget pinch), rootfs **ro** (checked). Test hooks **restored** on all three
+(shipped manifests, no hook files). No Jihad card open; no plugin-container. Host echo server
+stopped.
+`/tmp` holds `jihad-anim.*`, `jihad-grid.*`, `jihad-plain.html` (small). Mochi's current theme is
+the static Water-Like (`static-theme:0dff6242…`), Enyo and Mojo Water-Like. The Enyo daemon is
+on its job again (it was hand-started for the A/B runs).
+
+## 2026-10-06 (evening) delta — personas IN PROGRESS, stopped at the usage limit (superseded by the night delta above)
 
 **Owner's asks this session, in order:** fix the slow add-on manager (DONE, see commit `fb8d2cfc`);
 "ensure all options in about:config that are relevant are working" (DONE: effect audit, same

@@ -167,6 +167,11 @@
 					app.$.browser.setUrl(st.slice(1));
 					log(name, "navigate (typed) to " + st.slice(1));
 					wait = 50;
+				} else if (st === "P") {              // show the start page (a LAZY view: created now) and read its action bar's theme
+					var hadSp = !!app.$.startPage;
+					app.$.pane.selectViewByName("startPage");
+					var spb = app.$.startPage && app.$.startPage.$.actionbar.hasNode();
+					log(name, "start page (" + (hadSp ? "existed" : "created now") + ") bar: background=[" + (spb ? spb.style.background : "?").slice(0, 100) + "] color=[" + (spb ? spb.style.color : "?") + "]");
 				} else if (st === "T") {              // the action bar's theme as painted (inline style set by applyTheme)
 					var tb = app.$.browser.$.actionbar.hasNode();
 					var ic0 = tb ? tb.querySelector(".enyo-button-icon") : null;

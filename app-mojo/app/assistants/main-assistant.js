@@ -343,6 +343,7 @@ MainAssistant.prototype.listen = function () {
 //* `result` is what a scene we pushed handed back when it popped — the history
 //* scene returns {url} for the entry the user tapped.
 MainAssistant.prototype.activate = function (result) {
+	this.adoptViewportModel();
 	if (result && result.url) {
 		this.openUrl(result.url);
 	}
@@ -354,6 +355,113 @@ MainAssistant.prototype.activate = function (result) {
 };
 
 MainAssistant.prototype.deactivate = function () {};
+
+// --- the WebView as a screen-sized view (2026-10-07) ----------------------------------------
+// Mojo.Widget.WebView was written for an adapter that is PAGE-sized: it sizes the plugin node
+// to page x scale, pans by scrolling the scene, and pinches by resizing that node and scrolling
+// the scene again. This browser's adapter is the Enyo one, which is VIEWPORT-sized and pans and
+// zooms by itself (as it does in the Enyo and Mochi shells, where pinch is smooth and sharp).
+// The two models met in every pinch: a grey card after pinching in and out, pages shrinking to
+// a stripe (owner reports 2026-10-06/07). So this shell keeps the node the size of the visible
+// area and hands every pinch step to the adapter, exactly as the other shells' views do:
+//   _setDimensions   — whatever the widget asks (page size, a pinch step, a resize), the node
+//                      stays the visible area, and the adapter fit-zooms the page into it;
+//   pageDimensions / metaViewportSet — recorded, nothing resized (the adapter keeps the page's
+//                      viewport limits itself);
+//   gesture events   — the widget's own handlers are replaced by ones that pass start / change /
+//                      end to the adapter in the node's own pixels, and keep a drag from
+//                      scrolling the scene while two fingers are down.
+// The node is the WebView's <object>; the widget instance is element._mojoController.assistant.
+MainAssistant.prototype.adoptViewportModel = function () {
+	var view = this.controller.get(this.WEB_VIEW_ID);
+	var wa = view && view._mojoController && view._mojoController.assistant;
+	if (!wa || wa._jihadViewport) {
+		return;
+	}
+	wa._jihadViewport = true;
+	var self = this, doc = this.controller.document;
+	wa._setDimensions = function () { self.fitWebViewToScreen(); };
+	wa.pageDimensions = function (width, height) {
+		this.pageGotSize = width > 0 && height > 0;
+		this.currPageWidth = width;
+		this.currPageHeight = height;
+		self.fitWebViewToScreen();
+	};
+	wa.metaViewportSet = function (initialScale, minimumScale, maximumScale, width, height, userScalable) {
+		this.metaViewport = new Mojo.WebView.MetaViewport(initialScale, minimumScale, maximumScale,
+			width, height, userScalable);
+	};
+	var at = function (event) {
+		var node = wa.adapter, r = node.getBoundingClientRect();
+		return {x: Math.round(event.centerX - r.left), y: Math.round(event.centerY - r.top)};
+	};
+	var start = function (event) {
+		event.stop();
+		if (!wa.pageGotSize) {
+			return;
+		}
+		if (wa._removeElementHighlight) { wa._removeElementHighlight(); }
+		wa.inPinchZoom = true;      // the widget's drag handler stops the scene scrolling on this
+		wa.pageManipulated = true;
+		var c = at(event);
+		wa.adapter.gestureStart(c.x, c.y, event.scale, event.rotation || 0, c.x, c.y);
+	};
+	var change = function (event) {
+		event.stop();
+		if (!wa.inPinchZoom) {
+			return;
+		}
+		var c = at(event);
+		wa.adapter.gestureChange(c.x, c.y, event.scale, event.rotation || 0, c.x, c.y);
+	};
+	var end = function (event) {
+		event.stop();
+		if (!wa.inPinchZoom) {
+			return;
+		}
+		wa.inPinchZoom = false;
+		var c = at(event);
+		wa.adapter.gestureEnd(c.x, c.y, event.scale, event.rotation || 0, c.x, c.y);
+	};
+	// Off with the widget's (it listens on the document from its _activate), on with ours — and
+	// ours under the widget's own handler names, so its later _activate/_deactivate add and
+	// remove these instead.
+	Mojo.Event.stopListening(doc, "gesturestart", wa._gestureStartHandler, false);
+	Mojo.Event.stopListening(doc, "gesturechange", wa._gestureChangeHandler, false);
+	Mojo.Event.stopListening(doc, "gestureend", wa._gestureEndHandler, false);
+	wa._gestureStartHandler = start;
+	wa._gestureChangeHandler = change;
+	wa._gestureEndHandler = end;
+	Mojo.Event.listen(doc, "gesturestart", start, false);
+	Mojo.Event.listen(doc, "gesturechange", change, false);
+	Mojo.Event.listen(doc, "gestureend", end, false);
+	this.fitWebViewToScreen();
+	if (!this._fitOnResize) {
+		this._fitOnResize = this.fitWebViewToScreen.bind(this);
+		this.controller.window.addEventListener("resize", this._fitOnResize, false);
+	}
+	Mojo.Log.error("[Jihad] WebView in the screen-sized model");
+};
+
+//* The node is exactly the visible area under the toolbar: full width, down to the bottom of
+//* the window (the command row floats over its foot, as before). The scene then has nothing to
+//* scroll, so a drag reaches the adapter, which pans the page itself.
+MainAssistant.prototype.fitWebViewToScreen = function () {
+	var view = this.controller.get(this.WEB_VIEW_ID);
+	var wa = view && view._mojoController && view._mojoController.assistant;
+	var node = wa && wa.adapter, win = this.controller.window;
+	if (!node) {
+		return;
+	}
+	var top = Math.max(0, Math.round(node.getBoundingClientRect().top));
+	var w = win.innerWidth, h = Math.max(100, win.innerHeight - top);
+	if (node.style.width !== w + "px") { node.style.width = w + "px"; }
+	if (node.style.height !== h + "px") { node.style.height = h + "px"; }
+	if (wa.sceneScroller && wa.sceneScroller.scrollTo) {
+		var p = wa.sceneScroller.getScrollPosition && wa.sceneScroller.getScrollPosition();
+		if (p && (p.left || p.top)) { wa.sceneScroller.scrollTo(0, 0); }
+	}
+};
 
 //* THE DAEMON'S NON-BLOCKING MESSAGE CHANNEL (cavekit-gre-widgets.md R5).
 //*
@@ -459,13 +567,18 @@ MainAssistant.prototype.themeCommandRow = function (ink, accent) {
 	// properly"): its accent colour as the fill, so the glyph set chosen for the theme's text
 	// colour (ink on a light accent, light on a dark one) sits on the colour it was chosen for.
 	// Without a theme the framework's own dark circle comes back.
-	var circles = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button");
+	// The framework draws each circle as a BORDER IMAGE with 25px side borders, and the glyph is
+	// laid out inside those borders; replacing the image with a 1px border shifted every glyph
+	// half a circle left and let the circles overlap (owner 2026-10-07: "still broken"). So the
+	// borders keep their 25px, transparent, and the theme colour fills the circle beneath them
+	// (jihad-themed in the stylesheet; the colour itself varies, so it is set here).
+	var menus = doc.querySelectorAll(".jihad-cmdmenu"), circles = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button");
+	for (i = 0; i < menus.length; i++) {
+		menus[i].className = menus[i].className.replace(/\s*jihad-themed(-ink)?/g, "") +
+			(accent ? " jihad-themed" + (ink ? " jihad-themed-ink" : "") : "");
+	}
 	for (i = 0; i < circles.length; i++) {
-		e = circles[i];
-		e.style.webkitBorderImage = accent ? "none" : "";
-		e.style.backgroundColor = accent || "";
-		e.style.border = accent ? "1px solid " + (ink ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.30)") : "";
-		e.style.webkitBoxShadow = accent ? "0 1px 3px rgba(0,0,0,0.35)" : "";
+		circles[i].style.backgroundColor = accent || "";
 	}
 	for (i = 0; i < els.length; i++) {
 		e = els[i];
@@ -886,6 +999,10 @@ MainAssistant.prototype.verifyEngineRouting = function () {
 };
 
 MainAssistant.prototype.cleanup = function () {
+	if (this._fitOnResize) {
+		this.controller.window.removeEventListener("resize", this._fitOnResize, false);
+		this._fitOnResize = null;
+	}
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	var events = this.webViewEvents();
 	for (var i = 0; i < events.length; i++) {

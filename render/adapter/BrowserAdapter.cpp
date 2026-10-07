@@ -1870,7 +1870,7 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
     stopMouseHoldTimer();
 
     // Any gesture start, whoever handles it (passed to the page or zoomed here), overtakes a
-    // long-press already asked of the engine (doGestureStart / widgetGestureStart do the same).
+    // long-press already asked of the engine (doGestureStart does the same).
     if (event->type == npPalmGestureStartEvent)
         ++m_gestureGen;
 
@@ -1929,36 +1929,6 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
     return true;
 }
 
-// The Mojo WebView widget does its own pinch (widget_webview.js _doPinchZoom): it scales the
-// plugin node to page x scale and scrolls the SCENE, and only then calls these JS entry points.
-// The adapter used to zoom as well — the centred zoom below, which also leaves fit mode and moves
-// the adapter's own scroll — so the two offsets added up and the visible part of the node landed
-// on rows the engine never painted: a grey card after every pinch (device 2026-10-06, the
-// owner's report; widget scroll 154,374 against adapter scroll 422,547). In the Mojo model the
-// widget owns zoom and pan, and the engine's zoom follows the node (fit mode: zoom = node width
-// / page width, handleWindowChange), exactly as before the pinch. So a widget-driven gesture only
-// does what a gesture must do whoever zooms: cancel the long-press (the first finger armed it),
-// hide the spelling widget, break a Flash gesture lock. Mojo builds only: no Enyo or Mochi shell
-// calls these entry points (their pinches arrive as native gesture events, handleGesture ->
-// doGesture*), but their TEST HOOKS do (the `g` step), and there the adapter must still zoom.
-static bool jihadWidgetZooms()
-{
-    static const bool sMojo = (strcmp(JIHAD_VARIANT, "mojo") == 0);
-    return sMojo;
-}
-
-void BrowserAdapter::widgetGestureStart()
-{
-    stopMouseHoldTimer();
-    ++m_gestureGen;
-    asyncCmdHideSpellingWidget();
-    updateFlashGestureLockStatus(false);
-    if (mShowHighlight)
-        removeHighlight();
-    mZoomFit = true;
-    mInGestureChange = true;
-}
-
 void BrowserAdapter::doGestureStart(int cx, int cy, float scale, float rotate,
                                     int centerX, int centerY)
 {
@@ -1966,12 +1936,12 @@ void BrowserAdapter::doGestureStart(int cx, int cy, float scale, float rotate,
     centerY -= m_headerHeight;
 
     // A pinch starts as one finger down, which armed the long-press timer. The native gesture
-    // event path (handleGesture) stops it, but the Mojo WebView widget drives a pinch through
-    // the JS entry points (js_gestureStart), which come straight here — so the timer ran on and
-    // the hold fired mid-pinch: the engine selected a word and Mojo put its long-press menu up
-    // over a dimmed page (device report 2026-10-06: "pinch to zoom is broken. the page turns
-    // grey and I get the copy/select all/reload/find on page menu instead"). Stop it here, for
-    // every caller, and drop a hold already asked of the engine (m_holdGestureGen).
+    // event path (handleGesture) stops it, but the Mojo shell drives a pinch through the JS
+    // entry points (js_gestureStart), which come straight here — so the timer ran on and the
+    // hold fired mid-pinch: the engine selected a word and Mojo put its long-press menu up over a
+    // dimmed page (device report 2026-10-06: "pinch to zoom is broken. the page turns grey and I
+    // get the copy/select all/reload/find on page menu instead"). Stop it here, for every
+    // caller, and drop a hold already asked of the engine (the per-request gesture generation).
     stopMouseHoldTimer();
     ++m_gestureGen;
 
@@ -3485,16 +3455,16 @@ const char* BrowserAdapter::js_gestureStart(AdapterBase *adapter, const NPVarian
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
-    if (jihadWidgetZooms()) {
-        a->widgetGestureStart();
-        return NULL;
-    }
-    a->doGestureStart(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
-                      VariantToInteger(args[1]) / a->mZoomLevel, //contentY
+    // The pinch centre is in the plugin's own (window) pixels, as the native gesture event's is
+    // (handleGesture passes event->center_x straight through): dividing it by the zoom, as this
+    // entry point used to, anchored a JS-driven pinch at the wrong point whenever the page was
+    // not at 1:1. The Mojo shell drives every pinch through here since 2026-10-07.
+    a->doGestureStart(VariantToInteger(args[0]), //x
+                      VariantToInteger(args[1]), //y
                       VariantToDouble(args[2]), // zoomScale
                       VariantToDouble(args[3]), // rotation
-                      VariantToInteger(args[4]) / a->mZoomLevel, // centerX
-                      VariantToInteger(args[5]) / a->mZoomLevel); // centerY
+                      VariantToInteger(args[4]), // centerX
+                      VariantToInteger(args[5])); // centerY
 
     return NULL;
 }
@@ -3521,17 +3491,12 @@ const char* BrowserAdapter::js_gestureChange(AdapterBase *adapter, const NPVaria
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
-    if (jihadWidgetZooms()) {
-        // The widget zooms (widgetGestureStart): nothing for the adapter to do mid-pinch.
-        a->mInGestureChange = true;
-        return NULL;
-    }
-    a->doGestureChange(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
-                       VariantToInteger(args[1]) / a->mZoomLevel, //contentY
+    a->doGestureChange(VariantToInteger(args[0]), //x
+                       VariantToInteger(args[1]), //y
                        VariantToDouble(args[2]), // zoomScale
                        VariantToDouble(args[3]), // rotation
-                       VariantToInteger(args[4]) / a->mZoomLevel, // centerX
-                       VariantToInteger(args[5]) / a->mZoomLevel); // centerY
+                       VariantToInteger(args[4]), // centerX (window px; see js_gestureStart)
+                       VariantToInteger(args[5])); // centerY
 
     return NULL;
 }
@@ -3558,18 +3523,12 @@ const char* BrowserAdapter::js_gestureEnd(AdapterBase *adapter, const NPVariant 
            (int)(VariantToInteger(args[4]) / a->mZoomLevel), // centerX
            (int)(VariantToInteger(args[5]) / a->mZoomLevel));
 
-    if (jihadWidgetZooms()) {
-        // The widget has set the node to the page at its new scale; the engine's zoom follows
-        // that node (fit mode, handleWindowChange). Nothing to undo here.
-        a->mInGestureChange = false;
-        return NULL;
-    }
-    a->doGestureEnd(VariantToInteger(args[0]) / a->mZoomLevel, //contentX
-                    VariantToInteger(args[1]) / a->mZoomLevel, //contentY
+    a->doGestureEnd(VariantToInteger(args[0]), //x
+                    VariantToInteger(args[1]), //y
                     VariantToDouble(args[2]), // zoomScale
                     VariantToDouble(args[3]), // rotation
-                    VariantToInteger(args[4]) / a->mZoomLevel, // centerX
-                    VariantToInteger(args[5]) / a->mZoomLevel); // centerY
+                    VariantToInteger(args[4]), // centerX (window px; see js_gestureStart)
+                    VariantToInteger(args[5])); // centerY
 
     return NULL;
 }

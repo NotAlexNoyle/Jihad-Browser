@@ -57,8 +57,16 @@ stylesheets load (the offscreen renderer does not honour paint suppression); Moj
 address field (keyboard up) when launched with a URL; the Mochi profile carries test personas in
 its used-themes list (Forget them in Settings → Appearance).
 
+**Later the same day (owner: "long press works", "proceed with mojo pinch fix", "mojo themed
+buttons are still broken", "the buttons and virtual keyboard should not be touching"):** Mojo's
+WebView is now a screen-sized view with the adapter owning pan and zoom (mojo-ui R6 — verified pinch
+in/out by script; **panning needs the owner's finger**); the themed circles keep the framework's
+25 px borders so glyphs stay centred; the command row sits 23 px above the keyboard. Adapter: one
+gesture path for every shell, pinch centre in window pixels. Long-press: confirmed working by the
+owner.
+
 **Device state:** all three daemons on this round's build; adapter on the rootfs for all three
-(md5 enyo `91274f84…`, mochi `925e9976…`, mojo `baac7742…`); rootfs ro; test hooks restored on all
+(md5 enyo `c38477ef…`, mochi `1d29118b…`, mojo `0ee7a33a…`); rootfs ro; test hooks restored on all
 three (shipped manifests); Flash test page + bookmarks
 as above; theme Water-Like on all three.
 

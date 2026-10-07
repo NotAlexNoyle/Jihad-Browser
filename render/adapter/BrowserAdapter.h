@@ -558,8 +558,6 @@ private:
     void sendStateToServer();
 
     // gesture handling
-    // A pinch the Mojo WebView widget is zooming itself (js_gesture*): see the definition.
-    void widgetGestureStart();
     void doGestureStart(int cx, int cy, float scale, float rotate, int center_x, int center_y);
     void doGestureChange(int cx, int cy, float scale, float rotate, int center_x, int center_y, bool isGestureEnd=false);
     void doGestureEnd(int cx, int cy, float scale, float rotate, int center_x, int center_y);

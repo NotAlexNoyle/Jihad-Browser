@@ -167,6 +167,22 @@
 					app.$.browser.setUrl(st.slice(1));
 					log(name, "navigate (typed) to " + st.slice(1));
 					wait = 50;
+				} else if (st === "Q") {              // bookmark the open page through the app's own Add Bookmark (BrowserApp.addBookmark)
+					app.addBookmark();
+					log(name, "bookmarked [" + app.$.browser.title + "] " + app.$.browser.url);
+				} else if (st.charAt(0) === "J") {   // J or JMS: hold MS (default 1500) before the lift              // a FINGER-LIKE long-press: mousedown on the plugin node, held 1.2 s, then
+					// mouseup + click (the lift a scripted hold never had) — is the menu still open after it?
+					var jv = app.$.browser.$.view, jn = jv && (jv.hasNode() && (jv.hasNode().tagName === "OBJECT" ? jv.hasNode() : jv.hasNode().querySelector("object")));
+					var jx = Math.round(window.innerWidth / 2), jy = Math.round(window.innerHeight / 2);
+					var jm = function (type) { var me = document.createEvent("MouseEvents"); me.initMouseEvent(type, true, true, window, 1, jx, jy, jx, jy, false, false, false, false, 0, null); if (jn) { jn.dispatchEvent(me); } };
+					log(name, "finger hold at " + jx + "," + jy + " (plugin " + (jn ? "present" : "MISSING") + ")");
+					jm("mousedown");
+					setTimeout(function () {
+						var ctx = app.$.browser.$.context, openBefore = !!(ctx && ctx.isOpen);
+						jm("mouseup"); jm("click");
+						setTimeout(function () { log(name, "finger hold: menu open before lift=" + openBefore + " after lift=" + !!(ctx && ctx.isOpen)); }, 600);
+					}, parseInt(st.slice(1), 10) || 1500);
+					wait = (parseInt(st.slice(1), 10) || 1500) + 2000;
 				} else if (st === "P") {              // show the start page (a LAZY view: created now) and read its action bar's theme
 					var hadSp = !!app.$.startPage;
 					app.$.pane.selectViewByName("startPage");

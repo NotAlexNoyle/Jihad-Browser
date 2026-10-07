@@ -175,6 +175,12 @@ public:
   nsCOMPtr<nsIPrincipal> mLinkTrigger;
   nsCOMPtr<nsIPrincipal> mClickTrigger;   // the same for a tapped link: its own document's
   nsCOMPtr<nsIPrincipal> mNextTrigger;    // the one the next page-initiated LoadUrl uses
+  // A script's history.back()/go() is a TRAVERSAL into an entry this session already loaded —
+  // possibly a file:, data: or privileged about: one the page itself could never load. Docshell
+  // does not check a traversal against the calling page, so neither may the re-drive: it keeps
+  // its old system-principal behaviour for these (inspector 2026-10-07).
+  bool mLinkIsHistory = false;
+  bool mNextIsHistory = false;
   nsresult mErrorStatus;     // the failing nsresult
   nsCString mFailedUrl;      // URL that failed
   nsCString mCertHost;       // host of the cert error
@@ -404,12 +410,14 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
       // the link's referrer policy all applied — which the daemon's re-drive must repeat rather
       // than re-derive (Codex 2026-10-06: a synthesised one leaked urls a page withheld).
       mLinkReferrer.Truncate(); mLinkReferrerPolicy = 0;
-      mLinkTrigger = nullptr;
+      mLinkTrigger = nullptr; mLinkIsHistory = false;
       if (nsCOMPtr<nsIDocShell> ds = GetDocShell(mBrowser)) {    // still the OLD document here
+        uint32_t lt = 0; ds->GetLoadType(&lt);                       // ...but already the NEW load's type
+        mLinkIsHistory = ((lt & 0xffff) == nsIDocShell::LOAD_CMD_HISTORY);
         nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
         nsCOMPtr<nsIDOMDocument> od; if (cv) cv->GetDOMDocument(getter_AddRefs(od));
         nsCOMPtr<nsIScriptObjectPrincipal> sop = do_QueryInterface(od);
-        if (sop) mLinkTrigger = sop->GetPrincipal();
+        if (sop && !mLinkIsHistory) mLinkTrigger = sop->GetPrincipal();
       }
       if (http) {
         nsCOMPtr<nsIURI> r; http->GetReferrer(getter_AddRefs(r));
@@ -2115,8 +2123,12 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
   // principal for a page load, fail closed to the current page's origin: the URI as referrer
   // (docshell makes the principal from it) with the no-referrer policy (no header is sent).
   nsCOMPtr<nsIPrincipal> trigger;
-  if (mChrome) { if (fromPage) trigger = mChrome->mNextTrigger; mChrome->mNextTrigger = nullptr; }
-  if (fromPage && !trigger && !ref) {
+  bool history = false;
+  if (mChrome) {
+    if (fromPage) { trigger = mChrome->mNextTrigger; history = mChrome->mNextIsHistory; }
+    mChrome->mNextTrigger = nullptr; mChrome->mNextIsHistory = false;
+  }
+  if (fromPage && !history && !trigger && !ref) {
     std::string cur = CurrentUri();
     if (!cur.empty()) {
       nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
@@ -2302,6 +2314,7 @@ bool GoannaRenderPage::TakeLinkClicked(std::string* url, bool* isPost, std::stri
   if (referrer) *referrer = std::string(mChrome->mLinkReferrer.get());
   if (policy) *policy = mChrome->mLinkReferrerPolicy;
   mChrome->mNextTrigger = mChrome->mLinkTrigger;
+  mChrome->mNextIsHistory = mChrome->mLinkIsHistory;
   mChrome->mLinkClicked = false;   // consume
   mChrome->mLinkUrl.Truncate();
   return true;
@@ -3781,7 +3794,7 @@ bool GoannaRenderPage::TakeClickNav(std::string* url, std::string* referrer, uin
   if (url) *url = mClickNavUrl;
   if (referrer) *referrer = mClickNavReferrer;
   if (policy) *policy = mClickNavPolicy;
-  if (mChrome) mChrome->mNextTrigger = mChrome->mClickTrigger;
+  if (mChrome) { mChrome->mNextTrigger = mChrome->mClickTrigger; mChrome->mNextIsHistory = false; }
   mClickNavUrl.clear(); mClickNavReferrer.clear(); mClickNavPolicy = 0;
   return true;
 }

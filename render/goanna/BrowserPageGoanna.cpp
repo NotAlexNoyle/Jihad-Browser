@@ -339,6 +339,18 @@ static int64_t jihadNowMs() {
   return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+// The address as it may go to the card: at most 8 KiB. A page can make its own URL as long as it
+// likes (history.replaceState with a 20 000-character query) and the YAP packet is a fixed
+// 16 KiB, in which an oversized field is skipped while the ones after it are still written —
+// the malformed message jihadBoundedTitle exists to prevent (inspector 2026-10-06, P3). EVERY
+// address the daemon sends goes through this (link clicked, history, failed load, redirect, new
+// page): a dropped field reached the adapter as NULL and its strlen crashed the card's host
+// (inspector 2026-10-07, P1). The full address stays the engine's; the card gets this one.
+static std::string jihadBoundedUri(const std::string& in) {
+  return in.size() > 8192 ? in.substr(0, 8192) : in;
+}
+
+
 // Blank-over-good suppression (paintToSharedBuffer): how long a blank frame must persist AFTER
 // the load completed before it is accepted as the page itself, and how often a still-suppressed
 // blank is re-rendered. 500 ms is long enough to cover a reflow that momentarily renders white
@@ -537,7 +549,7 @@ void BrowserPageGoanna::addUrlRedirect(const char* urlRe, int /*type*/,
 bool BrowserPageGoanna::applyRedirectRules(const char* url) {
   for (UrlRule* r : mRedirectRules) {
     if (regexec(&r->re, url, 0, nullptr, 0) == 0) {   // matched
-      mSink.msgUrlRedirected(url, r->userData.c_str());   // R6: notify the client
+      mSink.msgUrlRedirected(jihadBoundedUri(url ? url : "").c_str(), r->userData.c_str());   // R6: notify the client
       if (r->redirect) return true;   // handled externally; do not load it here
       break;
     }
@@ -1119,7 +1131,7 @@ void BrowserPageGoanna::openUrl(const char* url, const char* referrer, uint32_t 
   if (!mPage->LoadUrl(url, referrer, referrerPolicy, fromPage)) {
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
     // and don't leave the adapter permanently "loading" (Codex P2 + R3).
-    mSink.msgFailedLoad("Goanna", 0, url, "Load failed");
+    mSink.msgFailedLoad("Goanna", 0, jihadBoundedUri(url ? url : "").c_str(), "Load failed");
     mSink.msgLoadProgress(100);
     mSink.msgLoadStopped();
     mLoadWasDone = true;
@@ -1979,7 +1991,7 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     jihad::certstore::ForgetCertPem(certFile);
     if (!certInfoFile.empty()) unlink(certInfoFile.c_str());
   }
-  else if (failed) mSink.msgFailedLoad("Goanna", code, furl.c_str(), "Load failed");
+  else if (failed) mSink.msgFailedLoad("Goanna", code, jihadBoundedUri(furl).c_str(), "Load failed");
   std::string uri = emitLocationAndTitleCore();
   return failed ? std::string() : uri;
 }
@@ -2001,15 +2013,6 @@ static std::string jihadBoundedTitle(const std::string& in) {
     t.resize(n);
   }
   return t;
-}
-
-// The address as it may go to the card: at most 8 KiB. A page can make its own URL as long as it
-// likes (history.replaceState with a 20 000-character query) and the YAP packet is a fixed
-// 16 KiB, in which an oversized field is skipped while the ones after it are still written —
-// the malformed message jihadBoundedTitle exists to prevent (inspector 2026-10-06, P3). The full
-// address stays the engine's; the card shows and stores this one.
-static std::string jihadBoundedUri(const std::string& in) {
-  return in.size() > 8192 ? in.substr(0, 8192) : in;
 }
 
 std::string BrowserPageGoanna::emitLocationAndTitleCore() {
@@ -2043,7 +2046,7 @@ void BrowserPageGoanna::emitCompletion(bool emitProgress100) {
   if (emitProgress100) mSink.msgLoadProgress(100);
   std::string uri = emitLocationAndTitle();
   mSink.msgLoadStopped();   // records app history from the title/url just set (F-334)
-  if (!uri.empty() && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(uri.c_str(), false);  // R6
+  if (!uri.empty() && mAliasUrl.empty()) mSink.msgUpdateGlobalHistory(jihadBoundedUri(uri).c_str(), false);  // R6
   emitGeometry();      // R4: contents-size + meta-viewport once the page settled
   mNeedsPaint = true;  // paint the final frame once (dedup — Codex P2)
 }
@@ -2158,7 +2161,14 @@ bool BrowserPageGoanna::emitGeometry() {
   // was being told to reset its zoom several times a second.
   double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
   if (mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us)) {
-    if (!mViewportSent || is != mVpIs || mn != mVpMn || mx != mVpMx || vw != mVpW || vh != mVpH || us != mVpUs) {
+    // Again only when what the PAGE declares changes (width, limits, scalability) — not when the
+    // computed initial scale or height moves with the window. In the Mojo shell the "window" is
+    // the WebView's node, which the widget sizes to page x initial scale; a page that declares a
+    // width (Wikipedia: 1120) gets an initial scale of window / width, so every re-send shrank the
+    // node and the next scale with it — 768 -> 526 -> 360 -> ... -> 76 px, the page a stripe at the
+    // left (device 2026-10-07, en.m.wikipedia.org; the owner's report "glitch out and jump around
+    // and appear as a stripe at the left"). The stock server sends this once per page.
+    if (!mViewportSent || mn != mVpMn || mx != mVpMx || vw != mVpW || us != mVpUs) {
       mViewportSent = true; mVpIs = is; mVpMn = mn; mVpMx = mx; mVpW = vw; mVpH = vh; mVpUs = us;
       fprintf(stderr, "[jihad-bs] metaViewport -> card: initial=%.4f min=%.4f max=%.4f %dx%d userScalable=%d\n",
               is, mn, mx, vw, vh, (int)us);
@@ -2372,7 +2382,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // not in keyDown, since onChange/oninput run page JS.
   mPage->FlushPendingInputEvent();
   mPage->FlushPendingChangeEvent();
-  { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(nw.c_str()); }
+  { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(jihadBoundedUri(nw).c_str()); }
   // A menu that opened or closed since the last pump changes the picture without damaging the
   // page: it is its own display root, composited over the frame at paint time, and XUL opens it
   // ASYNCHRONOUSLY — after the tap that asked for it has already been painted. Measured on the
@@ -2435,7 +2445,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
           // Logged because this MESSAGE, not the navigation it precedes, is what the
           // contract owes the card (navigation-events R6) — and it is otherwise invisible.
           fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", clickNav.c_str());
-          mSink.msgLinkClicked(clickNav.c_str());
+          mSink.msgLinkClicked(jihadBoundedUri(clickNav).c_str());
           // The referrer the link's own rules give it (rel=noreferrer, its referrerpolicy, the
           // document's meta policy), as if the engine had followed it.
           openUrl(clickNav.c_str(), clickRef.c_str(), clickPolicy, /*fromPage*/true);   // bumps mNavGen -> the loop above stops next iteration
@@ -2570,7 +2580,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   std::string linkUrl, linkRef; bool linkIsPost = false; uint32_t linkPolicy = 0;
   if (mPage->TakeLinkClicked(&linkUrl, &linkIsPost, &linkRef, &linkPolicy)) {
     fprintf(stderr, "[jihad-bs] linkClicked -> card: %s\n", linkUrl.c_str());
-    mSink.msgLinkClicked(linkUrl.c_str());
+    mSink.msgLinkClicked(jihadBoundedUri(linkUrl).c_str());
     // Content-initiated navigation (JS `location.href`/`location.assign`, a form GET/POST,
     // meta-refresh, or a button onclick that sets location) STARTS but does NOT COMPLETE on its own
     // in this offscreen embedding (verified: it fires STATE_START for the target but never load-done).

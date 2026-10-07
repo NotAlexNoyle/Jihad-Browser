@@ -173,7 +173,7 @@ MainAssistant.prototype.setupCommandMenu = function () {
 	this.backItem = {icon: "back", command: "jihad-back", disabled: true};
 	this.forwardItem = {icon: "forward", command: "jihad-forward", disabled: true};
 	// Home: immediately right of forward, goes to the page JihadChromePrefs holds
-	// (default https://start.duckduckgo.com/). Never disabled — unlike back/forward
+	// (default https://lite.duckduckgo.com/lite/). Never disabled — unlike back/forward
 	// it does not depend on page history.
 	this.homeItem = {iconPath: "images/menu-icon-home.png", command: "jihad-home"};
 	this.newCardItem = {icon: "new", command: "jihad-new-card"};
@@ -420,7 +420,7 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	this.theme = theme || null;
 	if (!theme || typeof theme !== "object") {
 		bar.style.background = ""; bar.style.color = "";
-		this.themeCommandRow(false);
+		this.themeCommandRow(false, "");
 		return;
 	}
 	var color = function (c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
@@ -428,7 +428,7 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
 	bar.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
 	bar.style.color = text;
-	this.themeCommandRow(this.isDarkColor(text));
+	this.themeCommandRow(this.isDarkColor(text), accent);
 };
 
 //* Whether a CSS colour (a theme's textcolor, in any form the browser accepts) is dark: the
@@ -452,9 +452,21 @@ MainAssistant.prototype.isDarkColor = function (c) {
 //* Basilisk switch icon sets on the theme's text colour. The sprite position the framework
 //* slides for the pressed state is left alone. The framework redraws the row when its model
 //* changes, so updateCommandMenu re-applies.
-MainAssistant.prototype.themeCommandRow = function (ink) {
+MainAssistant.prototype.themeCommandRow = function (ink, accent) {
 	var doc = this.controller.document, win = this.controller.window;
 	var els = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button, .jihad-cmdmenu .palm-menu-icon"), i, e, img, m;
+	// The circles wear the theme too (owner 2026-10-07: "they do not take on the persona themes
+	// properly"): its accent colour as the fill, so the glyph set chosen for the theme's text
+	// colour (ink on a light accent, light on a dark one) sits on the colour it was chosen for.
+	// Without a theme the framework's own dark circle comes back.
+	var circles = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button");
+	for (i = 0; i < circles.length; i++) {
+		e = circles[i];
+		e.style.webkitBorderImage = accent ? "none" : "";
+		e.style.backgroundColor = accent || "";
+		e.style.border = accent ? "1px solid " + (ink ? "rgba(0,0,0,0.30)" : "rgba(255,255,255,0.30)") : "";
+		e.style.webkitBoxShadow = accent ? "0 1px 3px rgba(0,0,0,0.35)" : "";
+	}
 	for (i = 0; i < els.length; i++) {
 		e = els[i];
 		img = e.getAttribute("data-jihad-sprite");
@@ -463,7 +475,7 @@ MainAssistant.prototype.themeCommandRow = function (ink) {
 			if (!img || img === "none") {
 				continue;
 			}
-			m = /menu-icon-(back|forward|refresh|stop|new|home|history|share|find)\.png/.exec(img);
+			m = /menu-icon-(back|forward|refresh|stop|new|home|history|share|find|bookmark)\.png/.exec(img);
 			if (!m) {
 				continue;
 			}

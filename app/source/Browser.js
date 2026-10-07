@@ -509,8 +509,16 @@ enyo.kind({
 			this[inValue](inTapInfo, inPosition);
 		}
 	},
+	//* A link the PAGE showed, opened in a new card: web addresses only, as window.open is. The
+	//* new card opens it as a typed address would (no page behind it), so a page's file: or
+	//* data: link must not get there by a long-press (inspector 2026-10-07).
 	newCardClick: function(inTapInfo) {
-		enyo.windows.openWindow("index.html", null, {url: inTapInfo.linkUrl});
+		var url = String((inTapInfo && inTapInfo.linkUrl) || "");
+		if (!/^(https?|ftp):/i.test(url)) {
+			this.warn("not opened in a new card (not a web address): " + url.slice(0, 80));
+			return;
+		}
+		enyo.windows.openWindow("index.html", null, {url: url});
 	},
 	openNewCard: function() {
 		enyo.windows.openWindow("index.html", null, null);
@@ -599,7 +607,7 @@ enyo.kind({
 		}
 	},
 	//* Home goes to the page configured in Preferences (default
-	//* https://start.duckduckgo.com/), by exactly the path a typed address takes
+	//* https://lite.duckduckgo.com/lite/), by exactly the path a typed address takes
 	//* (ActionBar onLoad -> goClick).
 	goHome: function() {
 		this.setUrl(enyo.jihadChrome.loadHome());

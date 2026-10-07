@@ -227,3 +227,14 @@ explained.
 | P3 | test hooks | The Enyo/Mochi `g` pinch step drives the JS gesture entry points, which widget mode had made inert. | Fixed: widget mode is the Mojo build only (`JIHAD_VARIANT`). **Device:** Enyo `g1.6` → zoom 0.69 → 0.91. |
 
 Codex to re-review this session's range when its credits return (the owner's standing rule).
+
+## Round 8b — the inspector on the round-8 fixes (Codex out of credits again until 12:41 PM; its run on `20310b3e..86f0eee1` stopped mid-review with no findings)
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `render/browserserver/Yap/YapPacket.cpp`, `BrowserPageGoanna.cpp` | URLs were still sent unbounded on `msgLinkClicked`, `msgUpdateGlobalHistory`, `msgFailedLoad`, `msgUrlRedirected`, `msgNewPageRequested`; an oversized string was SKIPPED by the YAP writer, the adapter read NULL and `STRINGZ_TO_NPVARIANT(NULL)` = `strlen(NULL)` in the card host (a page could crash it with `replaceState` + reload). | Fixed both ways: every URL the daemon sends goes through `jihadBoundedUri` (8 KiB); the shared YAP writer sends an empty string in place of one that does not fit (later fields stay aligned) and the reader never yields NULL (`""` on any failure) — which also covers page-controlled dialog text and popup payloads. |
+| P3 | `GoannaRenderPage.cpp` | Script history traversal (`history.back()`) re-driven with the page's principal fails into file:/data:/privileged entries. | Fixed: a traversal (`loadType & 0xffff == LOAD_CMD_HISTORY`, read at STATE_START) is re-driven as before, without a page principal — docshell does not check traversals against the caller either. |
+| P3 | `app/source/Browser.js`, `app-mochi/source/JihadBrowser.js` | "Open In New Card" on a long-pressed link opened file:/data: as a typed (system) load. | Fixed: web addresses only (http/https/ftp), as window.open. |
+| P3 | `jihadPersonas.js` | The preview mark (60 s) outlived the engine's preview (30 s) and could block persisting a real choice. | Fixed: 30 s, cleared as soon as another theme is shown. |
+| P3 | `BrowserAdapter.cpp` | The hold generation was one slot for the whole adapter. | Fixed: per request (`HitTestArgs::m_gestureGen`). |
+| P3 | `BrowserAdapter.cpp` | Pass-through native gestures did not bump the generation. | Fixed: every `npPalmGestureStartEvent` bumps it. |

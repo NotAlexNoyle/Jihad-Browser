@@ -75,7 +75,7 @@ enyo.kind({
 			{name: "back",    classes: "jihad-nav-btn disabled", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.back + "'>", ontap: "goBack"},
 			{name: "forward", classes: "jihad-nav-btn disabled", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.forward + "'>", ontap: "goForward"},
 			// Home: immediately right of forward, goes to the page set in Preferences
-			// (enyo.jihadChrome.loadHome(), default https://start.duckduckgo.com/).
+			// (enyo.jihadChrome.loadHome(), default https://lite.duckduckgo.com/lite/).
 			// Never disabled — unlike back/forward it does not depend on page history.
 			{name: "home",    classes: "jihad-nav-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.home + "'>", ontap: "goHome"},
 			// Address field with the reload/stop control INSIDE it (Enyo-parity).
@@ -997,7 +997,13 @@ enyo.kind({
 			}
 		});
 	},
-	holdOpenInNewCard: function(e) { this.openCard({url: e.linkUrl}); },
+	//* Web addresses only, as window.open is: the new card opens the link as a typed address
+	//* would, so a page's file: or data: link must not get there by a long-press.
+	holdOpenInNewCard: function(e) {
+		var url = String((e && e.linkUrl) || "");
+		if (!/^(https?|ftp):/i.test(url)) { enyo.jihad.toast("info", "Only web addresses open in a new card."); return; }
+		this.openCard({url: url});
+	},
 	holdShareLink:     function(e) { this.openShareSheet({title: e.linkText || e.linkUrl, url: e.linkUrl}); },
 	holdCopyLink:      function(e) { this.shareCopy({url: e.linkUrl}); },
 	//* Fetch the image into the downloads folder with the system download manager, then

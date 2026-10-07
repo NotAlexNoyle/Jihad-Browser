@@ -251,6 +251,11 @@ const PANES = [
 				]
 			}
 		]
+	},
+	{
+		id: "about",
+		title: "About",
+		about: true    // rendered by renderAboutPane(): facts read at run time, no prefs
 	}
 ];
 
@@ -288,11 +293,16 @@ const SEARCH_ENGINES = [
 // "duckduckgo" is the old default, not a choice against Lite: moved to Lite once (the
 // flag records that the move was made, so a later deliberate choice of the full site stays).
 function migrateEngine(cfg) {
+	var moved = false;
+	if (cfg && cfg.homeUrl === "https://start.duckduckgo.com/" && !cfg.homeLiteMigrated) {
+		cfg.homeUrl = "https://lite.duckduckgo.com/lite/"; moved = true;   // the old default home (2026-10-07)
+	}
+	if (cfg) { cfg.homeLiteMigrated = true; }
 	if (cfg && cfg.searchEngine === "duckduckgo" && !cfg.liteMigrated) {
 		cfg.searchEngine = "duckduckgo-lite"; cfg.liteMigrated = true; return true;
 	}
 	if (cfg && !cfg.liteMigrated) { cfg.liteMigrated = true; }
-	return false;
+	return moved;
 }
 
 function safeEngine(id) {
@@ -305,7 +315,7 @@ function safeEngine(id) {
 function chromeDefaults() {
 	return {
 		searchEngine: SEARCH_ENGINES[0][0],
-		homeUrl: "https://start.duckduckgo.com/",
+		homeUrl: "https://lite.duckduckgo.com/lite/",
 		startLinks: [
 			{title: "DuckDuckGo",    url: "https://duckduckgo.com/"},
 			{title: "Wikipedia",     url: "https://en.m.wikipedia.org/"},
@@ -384,7 +394,8 @@ function normalizeChrome(o, d) {
 		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
 		startLinks: links.length ? links : d.startLinks,
-		liteMigrated: true
+		liteMigrated: true,
+		homeLiteMigrated: true
 	};
 }
 
@@ -396,7 +407,8 @@ function saveChrome(o) {
 		searchEngine: safeEngine(o.searchEngine) || d.searchEngine,
 		homeUrl: safeUrl(o.homeUrl) || d.homeUrl,
 		startLinks: cleanLinks(o.startLinks),
-		liteMigrated: true
+		liteMigrated: true,
+		homeLiteMigrated: true
 	};
 	if (!kept.startLinks.length) { kept.startLinks = d.startLinks; }
 	try {
@@ -1009,6 +1021,13 @@ function renderPane(id) {
 	dismissAllNotifications();
 	if (!pane) { return; }
 
+	if (pane.about) {
+		renderAboutPane(host);
+		markTab(id);
+		status("");
+		return;
+	}
+
 	// The Browser pane is a form over one JSON pref, not a table of prefs.
 	if (pane.chrome) {
 		renderChromePane(host);
@@ -1029,6 +1048,83 @@ function renderPane(id) {
 
 	markTab(id);
 	status("");
+}
+
+// --- About (owner 2026-10-07: "add an about page to the settings page") -----------------------
+// Facts read at run time, so the page can never disagree with what is installed: which of the
+// three apps this is and its version (the app's own appinfo.json, beside this variant's profile),
+// the engine underneath, and the Flash plugin the engine found.
+function readAppInfo() {
+	try {
+		let f = Services.dirsvc.get("ProfD", Ci.nsIFile).parent;   // <app>/profile -> <app>
+		f.append("appinfo.json");
+		if (!f.exists()) { return null; }
+		let is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+		is.init(f, 0x01, 0, 0);
+		let ss = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(Ci.nsIScriptableInputStream);
+		ss.init(is);
+		let text = ss.read(Math.min(is.available(), 65536));
+		ss.close();
+		return JSON.parse(text);
+	} catch (e) {
+		return null;
+	}
+}
+
+function renderAboutPane(host) {
+	let app = readAppInfo() || {};
+	let shells = {
+		"net.riverstonerelay.jihad-browser": "Enyo 1 (classic)",
+		"net.riverstonerelay.jihad-browser-mochi": "Enyo 2 / Mochi",
+		"net.riverstonerelay.jihad-browser-mojo": "Mojo"
+	};
+	let flash = "";
+	try {
+		for (let i = 0; i < navigator.plugins.length; i++) {
+			let pl = navigator.plugins[i];
+			if (/flash/i.test(pl.name)) { flash = pl.description || pl.name; }
+		}
+	} catch (e) {}
+
+	let head = el("section", "group about-head");
+	head.appendChild(el("h2", "about-name", "Jihad Browser"));
+	head.appendChild(el("div", "about-tag", "Goanna inside, webOS alive."));
+	head.appendChild(el("p", "about-blurb",
+		"A modern web browser for the HP TouchPad and webOS 3: the UXP / Goanna engine under the " +
+		"webOS browser you know, with Flash, real add-ons and themes, modern TLS and printing to " +
+		"today's network printers. It installs beside the stock browser and never replaces it."));
+	host.appendChild(head);
+
+	let facts = el("section", "group");
+	facts.appendChild(el("h2", "group-title", "This browser"));
+	let rows = [
+		["Interface", shells[app.id] || (app.title || "unknown")],
+		["Version", app.version || "unknown"],
+		["App id", app.id || "unknown"],
+		["Engine", "Goanna " + Services.appinfo.platformVersion + " (UXP)"],
+		["Engine build", Services.appinfo.platformBuildID],
+		["Flash", flash || "not installed"],
+		["User agent", navigator.userAgent]
+	];
+	for (let i = 0; i < rows.length; i++) {
+		let r = el("div", "about-row");
+		r.appendChild(el("span", "about-key", rows[i][0]));
+		r.appendChild(el("span", "about-val", String(rows[i][1])));
+		facts.appendChild(r);
+	}
+	host.appendChild(facts);
+
+	let lic = el("section", "group");
+	lic.appendChild(el("h2", "group-title", "Licences and credits"));
+	let credits = [
+		"The browser's interface and its IPC daemon: Apache License 2.0 — built on HP/Palm's isis-browser for webOS.",
+		"The engine (UXP / Goanna) and its Jihad backend: Mozilla Public License 2.0. Pale Moon, Basilisk and Moonchild trademarks are removed from this build.",
+		"Palefill (web technologies polyfill), by Martok and contributors: Mozilla Public License 2.0, shipped unmodified.",
+		"Adobe Flash Player is the device's own plugin; Jihad loads it, it does not ship it.",
+		"webOS, Enyo and Mojo are the frameworks of Palm / HP webOS; Mochi is Enyo 2's webOS-styled library."
+	];
+	for (let i = 0; i < credits.length; i++) { lic.appendChild(el("p", "about-credit", credits[i])); }
+	host.appendChild(lic);
 }
 
 function markTab(id) {

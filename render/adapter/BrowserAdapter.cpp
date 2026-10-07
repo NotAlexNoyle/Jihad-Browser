@@ -565,7 +565,6 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , m_clickTimerSource(0)
     , m_mouseHoldTimerSource(0)
     , m_gestureGen(0)
-    , m_holdGestureGen(0)
     , m_zoomTimerSource(0)
     , m_zoomPt(0,0)
     , m_zoomTarget(0.0)
@@ -830,7 +829,8 @@ BrowserAdapter::HitTestArgs::HitTestArgs(const char *type, const Point& pt,
     BrowserServerCallArgs(queryNum),
     m_type(type),
     m_pt(pt),
-    m_modifiers(modifiers)
+    m_modifiers(modifiers),
+    m_gestureGen(0)
 {
 }
 
@@ -1868,6 +1868,11 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
 
     mShowHighlight = false;
     stopMouseHoldTimer();
+
+    // Any gesture start, whoever handles it (passed to the page or zoomed here), overtakes a
+    // long-press already asked of the engine (doGestureStart / widgetGestureStart do the same).
+    if (event->type == npPalmGestureStartEvent)
+        ++m_gestureGen;
 
     // do not handle gestures in page to page transition (page size is zero)
     if (mPageWidth == 0 || mPageHeight == 0)
@@ -6040,7 +6045,7 @@ void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
                     if (!strcmp(args->m_type, "click")) {
                         asyncCmdClickAt(args->m_pt.x, args->m_pt.y, 1, 1);
                     } else if (!strcmp(args->m_type, "mousehold")) {
-                        if (m_holdGestureGen != m_gestureGen) {
+                        if (args->m_gestureGen != m_gestureGen) {
                             // A pinch began after this hold was asked for (see doGestureStart).
                             TRACEF("hold at %d,%d dropped: a gesture began since", args->m_pt.x, args->m_pt.y);
                         } else {
@@ -6140,7 +6145,7 @@ gboolean BrowserAdapter::mouseHoldTimeoutCb(gpointer arg)
             && !a->flashRectContainsPoint(a->m_penDownDoc)) {
         int q = a->mBsQueryNum++;
         HitTestArgs *callArgs = new HitTestArgs("mousehold", a->m_penDownDoc, 0, q);
-        a->m_holdGestureGen = a->m_gestureGen;
+        callArgs->m_gestureGen = a->m_gestureGen;
         a->m_hitTestArgs.add(callArgs);
         TRACEF("x: %d, y: %d, q: %d", a->m_penDownDoc.x, a->m_penDownDoc.y, q);
         a->asyncCmdHitTest(q, a->m_penDownDoc.x, a->m_penDownDoc.y);

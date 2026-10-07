@@ -192,11 +192,17 @@ input.jihad-address {
 	background: #2b2b2b;
 	color: #f0f0f0;
 	border: 1px solid #444;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+	-webkit-border-radius: 10px; border-radius: 10px;   /* rounded, as webOS menus are (owner 2026-10-07) */
+	overflow: hidden;
+	-webkit-box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
-/* The app menu (the card's name at the top left) drops from the left edge instead. */
+.jihad-menu-box .jihad-menu-item:last-child { border-bottom: none; }
+/* The app menu (the card's name at the top left) drops from the left edge instead — flush
+   with it, as the system's own app menus are (owner: "a gap on the left side where it
+   shouldn't"); only its lower corners are rounded, the top meets the title bar. */
 .jihad-menu-box.jihad-menu-left {
-	top: 0; right: auto; left: 6px;
+	top: 0; right: auto; left: 0;
+	-webkit-border-radius: 0 0 10px 10px; border-radius: 0 0 10px 10px;
 }
 /* Dialog box: centered horizontally via auto margins, near the top. */
 .jihad-dialog-box {

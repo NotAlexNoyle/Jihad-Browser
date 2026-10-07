@@ -52,7 +52,7 @@ enyo.kind({
 			{kind: "ToolButton", name: "forward", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-forward.png", onclick: "doForward"},
 			// Home sits immediately right of forward and goes to the page set in
 			// Preferences (enyo.jihadChrome.loadHome(), default
-			// https://start.duckduckgo.com/). Never disabled: home is always reachable.
+			// https://lite.duckduckgo.com/lite/). Never disabled: home is always reachable.
 			{kind: "ToolButton", name: "home", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-home.png", onclick: "doHome"},
 			{kind: "ToolButton", name: "search", className: "actionbar-tool-button", flex: 1, kind: "URLSearch", onLoad: "doLoad", onStopLoad: "doStopLoad", onRefresh: "doRefresh", onSecureInfo: "doSecureInfo"},
 			{kind: "ToolButton", name: "share", className: "actionbar-tool-button", icon: "images/chrome/menu-icon-share.png", onclick: "showSharePopup"},

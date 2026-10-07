@@ -249,7 +249,12 @@ enyo.kind({
 	},
 	go: function(inSender, inValue) {
 		var uri = enyo.uri.parseUri(inValue);
-		if ((enyo.uri.isValidScheme(uri) && this.isUri(inValue, uri)) || (enyo.windowParams.allowAllSchemes && uri.scheme)) {
+		// A typed file:/// address is a place on this device the user means to open (a page
+		// they saved, the Flash test page); the framework's scheme list does not have file:,
+		// so it went to a web search (owner 2026-10-07).
+		if (/^file:\/\/\//i.test(enyo.string.trim(inValue))) {
+			this.doLoad(enyo.string.trim(inValue));
+		} else if ((enyo.uri.isValidScheme(uri) && this.isUri(inValue, uri)) || (enyo.windowParams.allowAllSchemes && uri.scheme)) {
 			this.doLoad(inValue);
 		} else if (this.looksLikeHost(inValue)) {
 			// A schemeless host like "example.com" or "192.168.0.1/x" is a navigation,

@@ -23,10 +23,10 @@ case "${1:-}" in mochi|enyo|mojo) SHELL_NAME=$1; shift;; esac
 case $SHELL_NAME in
   mochi) ID=net.riverstonerelay.jihad-browser-mochi; APPDIR=app-mochi; MANIFEST=source/package.js
          MANIFEST_SED='s|"JihadBrowser.js"|"JihadBrowser.js",\n\t"JihadSelfTest.js"|'
-         SRC_GLOBS="source/*.js source/*.css"; HOOK=source/JihadSelfTest.js;;
+         SRC_GLOBS="source/*.js source/*.css index.html"; HOOK=source/JihadSelfTest.js;;
   enyo)  ID=net.riverstonerelay.jihad-browser;       APPDIR=app;       MANIFEST=depends.js
          MANIFEST_SED='s|"source/tld.js"|"source/tld.js",\n\t"source/JihadSelfTest.js"|'
-         SRC_GLOBS="source/*.js source/*.css"; HOOK=source/JihadSelfTest.js;;
+         SRC_GLOBS="source/*.js source/*.css css/*.css"; HOOK=source/JihadSelfTest.js;;
   mojo)  ID=net.riverstonerelay.jihad-browser-mojo;  APPDIR=app-mojo;  MANIFEST=sources.json
          MANIFEST_SED='s|{ "source": "app/assistants/history-assistant.js" }|{ "source": "app/assistants/history-assistant.js" },\n\t{ "source": "app/assistants/JihadSelfTest.js" }|'
          SRC_GLOBS="app/assistants/*.js app/models/*.js app/views/*/*.html stylesheets/*.css index.html"; HOOK=app/assistants/JihadSelfTest.js;;

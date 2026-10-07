@@ -27,7 +27,10 @@
 enyo.jihadChrome = (function () {
 	var KEY = "jihad.chromeSettings";
 	var MAX = 12;
-	var HOME_DEFAULT = "https://start.duckduckgo.com/";
+	// DuckDuckGo Lite since 2026-10-07 (owner: "make the default home button target lite
+	// duckduckgo"). The old default, stored, moves once (migrateEngine), as the search engine did.
+	var HOME_DEFAULT = "https://lite.duckduckgo.com/lite/";
+	var HOME_OLD_DEFAULT = "https://start.duckduckgo.com/";
 	//* The ids the settings page offers (packaging/prefsui/content/preferences.js
 	//* SEARCH_ENGINES); the first is the default. BrowserApp.defaultWebSearchEngines maps
 	//* each to its search url.
@@ -79,6 +82,8 @@ enyo.jihadChrome = (function () {
 		if (!o) { return; }
 		if (o.searchEngine === "duckduckgo" && !o.liteMigrated) { o.searchEngine = "duckduckgo-lite"; }
 		o.liteMigrated = true;
+		if (o.homeUrl === HOME_OLD_DEFAULT && !o.homeLiteMigrated) { o.homeUrl = HOME_DEFAULT; }
+		o.homeLiteMigrated = true;
 	}
 
 	function normalize(o) {
@@ -86,6 +91,7 @@ enyo.jihadChrome = (function () {
 		migrateEngine(o);
 		return {
 			liteMigrated: true,
+			homeLiteMigrated: true,
 			searchEngine: safeEngine(o && o.searchEngine) || SEARCH_IDS[0],
 			homeUrl: safeUrl(o && o.homeUrl) || HOME_DEFAULT,
 			startLinks: links.length ? links : defaultLinks()

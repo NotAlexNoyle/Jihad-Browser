@@ -1,9 +1,66 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-06 (night) below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-07 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
+
+## 2026-10-07 delta — owner's finger test: Mojo width loop fixed, menus polished, About page, README, Flash games (READ FIRST)
+
+**The owner's finger-test report (2026-10-07) and what came of each item:**
+- **Mojo "Wikipedia glitches, jumps, a stripe at the left"** — FIXED (daemon): the meta viewport was
+  re-sent whenever its computed initial scale changed; Mojo sizes its node from that scale, so the
+  page shrank each round (768 → 526 → … → 76 px). Re-sent now only when the page's declaration
+  changes. Verified on en.m.wikipedia.org.
+- **Long-press "not working on anything", all three** — NOT REPRODUCED. The owner's holds DID reach
+  the engine (`hold at …`, `page-hold … (pushed)` in all three logs). A finger-like scripted
+  press → hold → lift (new hook steps: Enyo/Mochi `J[ms]`, Mojo `Z0`) opens and keeps the menu in
+  all three, whether it opens before or after the lift. The engine's answer takes ~1 s from
+  finger-down. **Needs the owner:** does nothing appear at all, or does something flash and vanish,
+  and how long was the finger held?
+- **Mojo circles not themed** — FIXED: accent-colour fill, glyph set by text colour, bookmark glyph
+  included.
+- **Mochi dropdowns** — rounded corners; the app menu now flush with the left edge.
+- **Mochi pinch makes text blurry** — OPEN, partly characterised: the daemon re-renders at the new
+  zoom (frames at `contentZoom` = zoom, 1:1), unpinched text is equally sharp in Mochi and Enyo
+  (edge metric 34.2 / 34.5), Mochi at 1.25 and Enyo at 1.28, 1.35 and 1.87 are crisp, Mochi at
+  1.43 is soft. Not a stretched bitmap (the card's scaler is nearest-neighbour). Cause not found.
+- **Home button default** — DuckDuckGo Lite in all three and on the settings page; a stored old
+  default (`start.duckduckgo.com`) moves once, a home the user set is kept.
+- **Enyo refresh icon** — 2 px higher (measured: field rows 38–66, glyph 47–59).
+- **Flash test bookmark** — the page lives at `/media/internal/jihad-flash-test/` (survives reboots
+  and reinstalls; a copy is in `render/goanna/test/flash-test-page/`), bookmarked in all three
+  through each shell's own Add Bookmark. It now also links five real games on archive.org (direct
+  SWFs: Helicopter, Bloxorz, Motherload, QWOP, Alien Hominid). **Bloxorz verified running** as a
+  full-page plugin document. Enyo's address bar sent a typed `file:///` address to search — fixed.
+- **Flash games / Bluetooth** — research in the session scratch (`flash-research.md`): Armor Games
+  embeds the real SWF (should run natively), Y8 needs a UA tweak, Kongregate/CrazyGames/Newgrounds/
+  archive.org item pages force Ruffle, archive.org DIRECT downloads work. webOS 3 pairs Bluetooth
+  KEYBOARDS natively (keys reach the card and the adapter forwards them to the page) but has NO
+  Bluetooth mouse support at all (pairing refused for non-keyboard HID) — a mouse is not feasible
+  without OS changes; the touchscreen is Flash's mouse (double-tap for gesture lock). Keyboard +
+  Flash still needs a real keyboard to verify (`key.html` on the test page).
+- **About page** — Settings → About: interface, version, app id, engine and build, Flash version,
+  user agent, licences and credits, read at run time. Verified (Mochi).
+- **README** — rewritten around what only Jihad does on webOS, with screenshots in
+  `docs/screenshots/`.
+
+**Review:** Codex ran out of credits mid-review again (retry 12:41 PM) → inspector on the round-8
+fixes (round 8b in `impl-review-findings-6.md`): one P1 — URLs still unbounded on other messages,
+and an oversized YAP string reached the adapter as NULL → `strlen(NULL)` in the card host; fixed in
+the daemon and in the shared YAP codec — plus five P3s, all fixed.
+
+**Still open:** Mojo pinch (pinch in then out → grey; structural — see mojo-ui R6; proposed:
+viewport-sized node in Mojo with the adapter owning pan/zoom, as in Enyo/Mochi); Mochi blur at
+~1.43; long-press by finger (needs the owner's detail); slow pages can paint unstyled while their
+stylesheets load (the offscreen renderer does not honour paint suppression); Mojo focuses the
+address field (keyboard up) when launched with a URL; the Mochi profile carries test personas in
+its used-themes list (Forget them in Settings → Appearance).
+
+**Device state:** all three daemons on this round's build; adapter on the rootfs for all three
+(md5 enyo `91274f84…`, mochi `925e9976…`, mojo `baac7742…`); rootfs ro; test hooks restored on all
+three (shipped manifests); Flash test page + bookmarks
+as above; theme Water-Like on all three.
 
 ## 2026-10-06 (night) delta — Codex r7 fixed; menus match on all three; Flash regression fixed and drivers off; Mojo pinch fixed (READ FIRST)
 

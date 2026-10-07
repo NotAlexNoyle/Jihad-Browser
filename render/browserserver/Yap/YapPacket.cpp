@@ -187,6 +187,14 @@ void YapPacket::operator<<(const char* val)
     int strLen = val ? strlen(val) : 0;
 
     g_return_if_fail(m_forWriting);
+    // Jihad (inspector 2026-10-07, P1): a string that does not fit used to be SKIPPED while the
+    // fields after it were still written, so the reader took the next field for this one and the
+    // adapter got a NULL string — whose strlen crashed the card's host. Send an EMPTY string in
+    // its place (the type byte and a zero length) so every later field stays where it belongs.
+    if ((m_currWritePos + strLen + 3) > kMaxMsgLen) {
+        g_warning("YapPacket: a %d-byte string does not fit; sent empty", strLen);
+        strLen = 0;
+    }
     g_return_if_fail((m_currWritePos + strLen + 3) <= kMaxMsgLen);
 
     m_buffer[m_currWritePos++] = kYapTypeString;
@@ -341,14 +349,24 @@ void YapPacket::operator>>(double& val)
     m_currReadPos += 8;
 }
 
+// Jihad (inspector 2026-10-07, P1): a string field that cannot be read leaves the caller with
+// "" — never NULL. Every handler passes what it read straight on (STRINGZ_TO_NPVARIANT does
+// strlen), so one malformed or truncated message must not become a NULL in the card's host.
+static void jihadYapEmptyString(char*& val)
+{
+    if (!val) val = (char*) calloc(1, 1);
+}
+
 void YapPacket::operator>>(char*& val)
 {
+    if (m_forWriting || (m_currReadPos + 3) > m_readTotalLen) { jihadYapEmptyString(val); }
     g_return_if_fail(!m_forWriting);
     g_return_if_fail((m_currReadPos + 3) <= m_readTotalLen);
 
     YapType_t type = (YapType_t) m_buffer[m_currReadPos++];
     if (type != kYapTypeString) {
         fprintf(stderr, "Arg type is not string: %d\n", type);
+        jihadYapEmptyString(val);
         g_return_if_fail(false);
     }
 
@@ -364,9 +382,11 @@ void YapPacket::operator>>(char*& val)
     pDst[1] = pSrc[0];
     m_currReadPos += 2;
 
+    if ((size_t)(m_currReadPos + strLen) > (size_t)m_readTotalLen) { jihadYapEmptyString(val); }
     g_return_if_fail((size_t)(m_currReadPos + strLen) <= (size_t)m_readTotalLen);
     char* strBuf = (char*) malloc((size_t)strLen + 1);
-    g_return_if_fail(strBuf != NULL);   // leave the out-param unchanged on OOM (caller pre-inits to 0)
+    if (!strBuf) { jihadYapEmptyString(val); }
+    g_return_if_fail(strBuf != NULL);   // on OOM the out-param is "" if calloc(1,1) managed, else unchanged
     val = strBuf;
 
     memcpy(val, m_buffer + m_currReadPos, strLen);

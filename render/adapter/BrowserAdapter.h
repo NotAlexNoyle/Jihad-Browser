@@ -355,6 +355,7 @@ private:
         const char *m_type;
         Point m_pt;
         int m_modifiers;
+        unsigned int m_gestureGen;   // a "mousehold": the gesture generation when it was asked
 
         HitTestArgs(const char *type, const Point& pt, int modifiers, int queryNum);
         virtual ~HitTestArgs();
@@ -639,10 +640,10 @@ private:
 
     GSource *m_mouseHoldTimerSource;
     // A long-press is asked of the engine asynchronously (hit test, then the hold). A pinch
-    // that begins in between must win: the gesture generation at the time the hold was asked
-    // is kept, and a hold whose answer arrives after a newer gesture began is dropped.
+    // that begins in between must win: each hold's own request carries the gesture generation
+    // it was asked in (HitTestArgs::m_gestureGen — per request, so an old hold's late answer
+    // cannot borrow a newer hold's generation), and an answer from an older one is dropped.
     unsigned int m_gestureGen;
-    unsigned int m_holdGestureGen;
     static gboolean mouseHoldTimeoutCb(gpointer data);
     void startMouseHoldTimer();
     void stopMouseHoldTimer();

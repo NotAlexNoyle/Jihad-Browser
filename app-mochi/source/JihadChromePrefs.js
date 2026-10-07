@@ -33,7 +33,11 @@ enyo.jihadChrome = (function () {
 	var MAX = 12;
 	// The home button's default. A real url, deliberately: about:home is not a page
 	// this engine serves, so a button pointing at it would go nowhere.
-	var HOME_DEFAULT = "https://start.duckduckgo.com/";
+	// DuckDuckGo Lite since 2026-10-07 (owner: "make the default home button target lite
+	// duckduckgo"). A stored old default moves once (loadHome), as the search engine did.
+	var HOME_DEFAULT = "https://lite.duckduckgo.com/lite/";
+	var HOME_OLD_DEFAULT = "https://start.duckduckgo.com/";
+	var HOME_LITE_KEY = "jihad.home.liteMigrated";
 
 	function trim(s) {
 		return (typeof s === "string") ? s.replace(/^\s+|\s+$/g, "") : "";
@@ -160,7 +164,12 @@ enyo.jihadChrome = (function () {
 		//* default. safeUrl on READ as well as write, so a store written before the allowlist
 		//* existed cannot leave a javascript: target on the home button.
 		loadHome: function () {
-			return safeUrl(read(HOME_KEY)) || HOME_DEFAULT;
+			var h = read(HOME_KEY);
+			if (!read(HOME_LITE_KEY)) {
+				if (h === HOME_OLD_DEFAULT) { h = null; write(HOME_KEY, null); }
+				write(HOME_LITE_KEY, "1");
+			}
+			return safeUrl(h) || HOME_DEFAULT;
 		},
 
 		//* An empty value clears the override rather than storing a home that goes
@@ -169,6 +178,7 @@ enyo.jihadChrome = (function () {
 		saveHome: function (url) {
 			var u = safeUrl(url);
 			write(HOME_KEY, u || null);
+			write(HOME_LITE_KEY, "1");             // a home the user set is theirs
 			return u || HOME_DEFAULT;
 		}
 	};

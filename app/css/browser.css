@@ -153,12 +153,14 @@
 	background-position: 0 32px;
 }
 
+/* 2 px higher than the stop glyph: the refresh arrow's weight sits low in its cell, and at 0 1px
+   it read as below the field's middle (owner 2026-10-07; measured: field rows 38-66, glyph 47-59). */
 .refresh-button {
-	background: url(../images/chrome/menu-icon-refresh.png) 0 1px no-repeat;
+	background: url(../images/chrome/menu-icon-refresh.png) 0 -1px no-repeat;
 }
 
 .refresh-button.enyo-button-down {
-	background-position: 0 -31px;
+	background-position: 0 -33px;
 }
 
 .stop-button {

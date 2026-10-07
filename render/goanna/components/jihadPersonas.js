@@ -297,7 +297,7 @@ function handle(req) {
     return;
   }
   if (req.kind === "preview") {
-    previewId = theme.id; previewUntil = Date.now() + 60000;
+    previewId = theme.id; previewUntil = Date.now() + 30000;   // the manager's own preview limit
     LWTM.previewTheme(theme);     // the manager times a preview out on its own
     return;
   }
@@ -361,6 +361,7 @@ JihadPersonas.prototype = {
       // Decided on the theme's OWN id (cardTheme may have replaced an oversized one), and never
       // for an update that is the page's preview.
       let previewing = previewId !== null && rawId === previewId && Date.now() < previewUntil;
+      if (previewId !== null && rawId !== previewId) { previewId = null; }   // something else is shown: the preview is over
       let isCurrent = json ? !!(cur && rawId === cur.id && !previewing) : !cur;
       if (isCurrent) {
         try {

@@ -148,6 +148,18 @@
 						var tbp = app.$.actionBar.hasNode();
 						log(name, "after direct applyTheme: background=[" + (tbp ? tbp.style.background : "?").slice(0, 160) + "] color=[" + (tbp ? tbp.style.color : "?") + "] cssText=[" + (tbp ? tbp.style.cssText : "?").slice(0, 200) + "]");
 					} catch (e) { log(name, "direct applyTheme THREW " + e); }
+				} else if (st.charAt(0) === "J") {   // J or JMS: hold MS (default 1500) before the lift              // a FINGER-LIKE long-press with the lift (see the Enyo hook's J)
+					var jv = app.$.view, jnode = jv && jv.hasNode(), jn = jnode && (jnode.tagName === "OBJECT" ? jnode : jnode.querySelector("object"));
+					var jx = Math.round(window.innerWidth / 2), jy = Math.round(window.innerHeight / 2);
+					var jm = function (type) { var me = document.createEvent("MouseEvents"); me.initMouseEvent(type, true, true, window, 1, jx, jy, jx, jy, false, false, false, false, 0, null); if (jn) { jn.dispatchEvent(me); } };
+					log(name, "finger hold at " + jx + "," + jy + " (plugin " + (jn ? "present" : "MISSING") + ")");
+					jm("mousedown");
+					setTimeout(function () {
+						var openBefore = app.$.sheet.getShowing();
+						jm("mouseup"); jm("click");
+						setTimeout(function () { log(name, "finger hold: sheet open before lift=" + openBefore + " after lift=" + app.$.sheet.getShowing() + (app.$.sheet.getShowing() ? " [" + app.$.sheetTitle.getContent() + "]" : "")); }, 600);
+					}, parseInt(st.slice(1), 10) || 1500);
+					wait = (parseInt(st.slice(1), 10) || 1500) + 2000;
 				} else if (st.charAt(0) === "M") {    // open a toolbar menu as its button does: Mshare, Mlibrary, Mapp
 					var which = st.slice(1);
 					if (which === "share") { app.doShare(); } else if (which === "library") { app.doBookmarks(); } else { app.toggleAppMenu(); }

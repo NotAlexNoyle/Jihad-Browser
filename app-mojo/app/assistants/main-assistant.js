@@ -448,14 +448,13 @@ MainAssistant.prototype.adoptViewportModel = function () {
 	wa._dragStartHandler = dragStart;
 	Mojo.Event.listen(wa.controller.element, Mojo.Event.dragStart, dragStart, false);
 	// A tap is the adapter's too: it takes the finger's own tap (as in the Enyo and Mochi shells)
-	// and the widget's tap handlers sent a SECOND click for every one (two identical clickAt per
-	// tap in the daemon log, 2026-10-08). The widget's handlers stand down; its double-tap stays
-	// (it is what asks the engine for the block to zoom to).
-	var noTap = function () {};
-	Mojo.Event.stopListening(wa.adapter, Mojo.Event.tap, wa._tapHandler, false);
+	// and the widget's single-tap handler sent a SECOND click for every one (two identical
+	// clickAt per tap in the daemon log, 2026-10-08). That handler stands down. Its plain tap
+	// handler stays: it clicks nothing, and it keeps the tap that linkClicked reports with
+	// webViewLinkClicked (Codex review 2026-10-08). The double-tap stays too (it is what asks
+	// the engine for the block to zoom to).
 	Mojo.Event.stopListening(wa.adapter, "singletap", wa._singleTapHandler, false);
-	wa._tapHandler = noTap;
-	wa._singleTapHandler = noTap;
+	wa._singleTapHandler = function () {};
 	// The adapter reports every scroll of the page to the widget it calls back (scrolledTo with
 	// the negated scroll); the top strip follows it.
 	wa.scrolledTo = function (x, y) { self.onPageScrolled(-y); };

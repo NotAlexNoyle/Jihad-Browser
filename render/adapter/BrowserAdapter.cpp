@@ -554,7 +554,6 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mFlashGestureLock(false)
     , mMouseInInteractiveRect(false)
     , m_spotlightHandle(0)
-    , m_hitTestSchema("{}")
     , m_ft(0)
     , m_clickPt(0, 0)
     , m_penDownDoc(0, 0)
@@ -578,13 +577,6 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , m_bufferLockName(0)
 {
 
-#ifdef ISIS_DESKTOP
-    QString schemaFile = QString("%1/.isis/conf/HitTest.schema").arg(QDir::homePath());
-#else
-    QString schemaFile("/etc/palm/browser/HitTest.schema");
-#endif
-
-    m_hitTestSchema = pbnjson::JSchemaFile(qPrintable(schemaFile));
 
     //openlog("browser-adapter", 0, LOG_USER);
     g_message("%s: %p", __PRETTY_FUNCTION__, this);
@@ -5995,6 +5987,35 @@ BrowserAdapter::msgSpellingWidgetVisibleRectUpdate(int32_t rectX, int32_t rectY,
     InvokeEventListener(gMsgSpellingWidgetVisibleRectUpdate, args, G_N_ELEMENTS(args), NULL);
 }
 
+// The hit-test answer's schema: isis's HitTest.schema fields, every one optional, nothing
+// else. The adapter carries it instead of reading the device's /etc/palm/browser/HitTest.schema:
+// that file does not compile in the pbnjson this adapter links (measured 2026-10-08 — it rejected
+// even "{}"), and a rejected parse leaves the hit-test object EMPTY, so the cards saw no link and no
+// image under any long-press and only ever offered the page's menu. Written in the dialect the
+// device's pbnjson reads ("optional", as packaging/conf/InteractiveWidgetRect.schema).
+static const char kJihadHitTestSchema[] =
+    "{\"type\":\"object\",\"properties\":{"
+    "\"isNull\":{\"type\":\"boolean\",\"optional\":true},"
+    "\"isLink\":{\"type\":\"boolean\",\"optional\":true},"
+    "\"isImage\":{\"type\":\"boolean\",\"optional\":true},"
+    "\"x\":{\"type\":\"number\",\"optional\":true},"
+    "\"y\":{\"type\":\"number\",\"optional\":true},"
+    "\"bounds\":{\"type\":\"object\",\"optional\":true,\"properties\":{"
+        "\"left\":{\"type\":\"number\",\"optional\":true},"
+        "\"top\":{\"type\":\"number\",\"optional\":true},"
+        "\"right\":{\"type\":\"number\",\"optional\":true},"
+        "\"bottom\":{\"type\":\"number\",\"optional\":true}}},"
+    "\"element\":{\"type\":\"string\",\"optional\":true},"
+    "\"title\":{\"type\":\"string\",\"optional\":true},"
+    "\"linkText\":{\"type\":\"string\",\"optional\":true},"
+    "\"linkUrl\":{\"type\":\"string\",\"optional\":true},"
+    "\"linkTitle\":{\"type\":\"string\",\"optional\":true},"
+    "\"altText\":{\"type\":\"string\",\"optional\":true},"
+    "\"imageUrl\":{\"type\":\"string\",\"optional\":true},"
+    "\"editable\":{\"type\":\"boolean\",\"optional\":true},"
+    "\"selected\":{\"type\":\"boolean\",\"optional\":true}},"
+    "\"additionalProperties\":false}";
+
 void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
                                         const char *hitTestResultJson)
 {
@@ -6013,20 +6034,15 @@ void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
                 static_cast<NPObjectEvent*>(event)->initialize(args->m_type,
                         args->m_pt.x * mZoomLevel - mScrollPos.x,
                         args->m_pt.y * mZoomLevel - mScrollPos.y, args->m_modifiers);
-                // The device's stock /etc/palm/browser/HitTest.schema rejects this daemon's
-                // answer, and a rejected parse leaves the object EMPTY: the card then saw no
-                // link and no image under any long-press and offered only the page menu
-                // (measured 2026-10-08: daemon "isLink":true, card {} ). This daemon is the
-                // only producer of the JSON, so on a rejection it is read without the schema.
-                if (!static_cast<JsonNPObject *>(hitTest)->initialize(
-                        m_hitTestSchema, hitTestResultJson)) {
-                    pbnjson::JSchemaFragment anyJson("{}");
-                    bool ok = static_cast<JsonNPObject *>(hitTest)->initialize(anyJson, hitTestResultJson);
-                    if (FILE* lf = jihadPaintLog()) {
-                        static int logged = 0;
-                        if (logged++ < 3)
-                            fprintf(lf, "[hit-test] stock schema rejected the answer; without it: %s (%.200s)\n",
-                                    ok ? "parsed" : "STILL REJECTED", hitTestResultJson ? hitTestResultJson : "(null)");
+                // Validated against the adapter's own copy of the answer's schema (above);
+                // an answer it rejects leaves the object empty and the hold falls back to
+                // the page's menu.
+                {
+                    pbnjson::JSchemaFragment schema(kJihadHitTestSchema);
+                    if (!static_cast<JsonNPObject *>(hitTest)->initialize(schema, hitTestResultJson)) {
+                        if (FILE* lf = jihadPaintLog())
+                            fprintf(lf, "[hit-test] answer rejected by the schema: %.200s\n",
+                                    hitTestResultJson ? hitTestResultJson : "(null)");
                     }
                 }
 

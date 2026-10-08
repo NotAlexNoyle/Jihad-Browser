@@ -788,6 +788,9 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   mAdapterScrollX = 0; mAdapterScrollY = 0;       // stale band origin + adY band extension
   if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
   mViewportSent = false;                          // the new page's meta-viewport is sent afresh
+  // The first-paint hold belongs to one document: a new one starts its own second, rather than
+  // inheriting the remainder of the old one's (Codex review 2026-10-08).
+  mWasSuppressed = false; mSuppressedSinceMs = 0;
   mLastContentW = -1; mLastContentH = -1;         // old page's clamp/bound inputs; also forces a
                                                   // re-emit at load-done even if the size repeats
   mLastScrollX = 0; mLastScrollY = 0;             // emitScrollIfChanged dedup cache
@@ -2632,6 +2635,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // arrives — otherwise the response silently stays on the old frame (Codex F-289).
       fprintf(stderr, "[jihad-bs] content-nav POST (engine-driven) %s\n", linkUrl.c_str());
       mPage->AdoptContentLoad();
+      mWasSuppressed = false; mSuppressedSinceMs = 0;   // its own first-paint hold (see resetScrollForNavigation)
       mLoadWasDone = false;
       mNeedsPaint = false;
       mLastProgress = 0;

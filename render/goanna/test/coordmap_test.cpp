@@ -74,12 +74,15 @@ int main(int argc, char** argv) {
     page.setZoomAndScroll(2.0, 0, 0);
     page.pump(1500);
 
-    // A SURFACE click at (240,240) must map to content (120,120) and hit the box.
-    page.clickAt(240, 240, 1);
+    // clickAt takes DOCUMENT coordinates (CSS px), as the adapter sends them: it has already
+    // undone its own pan and zoom. The box's centre, (120,120), is displayed at surface
+    // (240,240) at 2x, and a click there must hit it. (Until 2026-10-08 the daemon divided by
+    // the zoom a second time and this test clicked the surface point instead.)
+    page.clickAt(120, 120, 1);
     page.pump(1500);
     page.paintToSharedBuffer();               // paints into a buffer, emits msgPainted(key)
     long g = greenInShm(sink.lastKey, W*H);
-    printf("[cmap] surface-click(240,240)@2x green=%ld hit=%d\n", g, g > 50000);
+    printf("[cmap] doc-click(120,120)@2x green=%ld hit=%d\n", g, g > 50000);
 
     bool ok = g > 50000;
     printf("[cmap] %s\n", ok ? "COORDMAP PASS" : "COORDMAP FAIL");

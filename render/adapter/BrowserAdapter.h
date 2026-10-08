@@ -550,7 +550,6 @@ private:
     int m_spotlightAlpha; // 0~ 255
     BrowserRect m_spotlightRect;
 
-    pbnjson::JSchemaFile m_hitTestSchema;
 
     bool init();
     bool initializeIpcBuffer();

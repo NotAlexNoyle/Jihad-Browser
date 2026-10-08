@@ -558,6 +558,7 @@ private:
     void sendStateToServer();
 
     // gesture handling
+    int serverScrollY() const;   // our vertical scroll as the daemon means it (less the header)
     void doGestureStart(int cx, int cy, float scale, float rotate, int center_x, int center_y);
     void doGestureChange(int cx, int cy, float scale, float rotate, int center_x, int center_y, bool isGestureEnd=false);
     void doGestureEnd(int cx, int cy, float scale, float rotate, int center_x, int center_y);

@@ -39,6 +39,8 @@ public:
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;
   void msgFailedLoad(const char* domain, int32_t code, const char* url, const char* description) override;
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
+  void msgSmartZoomCalculateResponseSimple(int32_t px, int32_t py, int32_t l, int32_t t, int32_t r, int32_t b,
+                                           int32_t spot) override;
   void msgUrlRedirected(const char* url, const char* userData) override;
   void msgSSLConfirm(const char* host, int32_t code, const char* certFile) override;
   void msgSSLConfirm2(const char* syncPipePath, const char* host, int32_t code,

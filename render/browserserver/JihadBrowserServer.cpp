@@ -40,6 +40,10 @@ void ProxySink::msgScrolledTo(int32_t x, int32_t y) { mSrv->msgScrolledTo(mProxy
 void ProxySink::msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) { mSrv->msgMetaViewportSet(mProxy, is, mn, mx, w, h, us); }
 void ProxySink::msgFailedLoad(const char* d, int32_t c, const char* u, const char* desc) { mSrv->msgFailedLoad(mProxy, d, c, u, desc); }
 void ProxySink::msgUpdateGlobalHistory(const char* u, bool reload) { mSrv->msgUpdateGlobalHistory(mProxy, u, reload); }
+void ProxySink::msgSmartZoomCalculateResponseSimple(int32_t px, int32_t py, int32_t l, int32_t t, int32_t r, int32_t b,
+                                                    int32_t spot) {
+  mSrv->msgSmartZoomCalculateResponseSimple(mProxy, px, py, l, t, r, b, spot);
+}
 void ProxySink::msgUrlRedirected(const char* u, const char* ud) { mSrv->msgUrlRedirected(mProxy, u, ud); }
 // syncPipePath empty: the blocking accept/reject reply pipe is adapter/device work.
 void ProxySink::msgSSLConfirm(const char* host, int32_t code, const char* certFile) { mSrv->msgDialogSSLConfirm(mProxy, "", host, code, certFile); }
@@ -818,7 +822,7 @@ void JihadBrowserServer::asyncCmdInterrogateClicks(YapProxy* proxy, bool enable)
 
 void JihadBrowserServer::asyncCmdZoomSmartCalculateRequest(YapProxy* proxy, int32_t pointX, int32_t pointY)
 {
-  (void)proxy; // TODO(T-016): route to pageFor(proxy) / GoannaRenderPage per PORT-MAP.md
+  if (auto* p = pageFor(proxy)) p->smartZoomRequest(pointX, pointY);
 }
 
 void JihadBrowserServer::asyncCmdDragStart(YapProxy* proxy, int32_t contentX, int32_t contentY)

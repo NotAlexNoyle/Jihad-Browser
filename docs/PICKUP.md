@@ -65,8 +65,15 @@ in/out by script; **panning needs the owner's finger**); the themed circles keep
 gesture path for every shell, pinch centre in window pixels. Long-press: confirmed working by the
 owner.
 
+**Second Mojo pass (2026-10-07/08, owner: scrolling dead, double tap dead, circles flash at
+load, Wikipedia unstyled until touched, "I want mojo's toolbar to scroll off"):** all addressed —
+see mojo-ui R6. Two of them were not Mojo's: the daemon's double-tap (smart zoom) request had
+always been a stub (every shell), and the offscreen renderer ignored the engine's first-paint
+gate (every shell; now held up to 5 s and fully repainted on release). Panning by finger in the
+new Mojo model, and double tap in Enyo/Mochi, still want the owner's hands.
+
 **Device state:** all three daemons on this round's build; adapter on the rootfs for all three
-(md5 enyo `c38477ef…`, mochi `1d29118b…`, mojo `0ee7a33a…`); rootfs ro; test hooks restored on all
+(md5 enyo `83e2b9f0…`, mochi `5851cff3…`, mojo `77d28024…`); rootfs ro; test hooks restored on all
 three (shipped manifests); Flash test page + bookmarks
 as above; theme Water-Like on all three.
 

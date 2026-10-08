@@ -1421,6 +1421,29 @@ void BrowserPageGoanna::docToViewport(int* x, int* y) {
   *x = (int)(cx + 0.5); *y = (int)(cy + 0.5);
 }
 
+// Double-tap zoom (YAP ZoomSmartCalculateRequest → SmartZoomCalculateResponseSimple). The request
+// was a stub here until 2026-10-07, so a double tap did nothing in any shell (owner: "double
+// tapping to zoom does not work"). (x,y) arrive in CSS page px — the adapter has already added
+// its scroll and divided by its zoom (prvSmartZoom) — so only the scroll/pan is taken off here
+// (the second half of docToViewport), and put back on the answer. The adapter fits the block's
+// width to the screen, and a second double tap on it goes back to the page's fit.
+void BrowserPageGoanna::smartZoomRequest(int x, int y) {
+  if (!mPage) return;
+  double z = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0 : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
+  double ox = 0, oy = 0;
+  if (z != 1.0) { mPage->GetRenderPan(&ox, &oy); }
+  else { int ex = 0, ey = 0; if (mPage->GetScrollXY(&ex, &ey, false)) { ox = ex; oy = ey; } }
+  int vx = (int)(x - ox + 0.5), vy = (int)(y - oy + 0.5);
+  int l = 0, t = 0, r = 0, b = 0;
+  if (!mPage->SmartZoomBlockAt(vx, vy, &l, &t, &r, &b)) {
+    fprintf(stderr, "[jihad-bs] smartZoom at %d,%d: no block\n", x, y);
+    return;
+  }
+  l += (int)ox; r += (int)ox; t += (int)oy; b += (int)oy;
+  fprintf(stderr, "[jihad-bs] smartZoom at %d,%d -> block [%d,%d %d,%d]\n", x, y, l, t, r, b);
+  mSink.msgSmartZoomCalculateResponseSimple(x, y, l, t, r, b, 0);
+}
+
 void BrowserPageGoanna::hitTest(int x, int y, std::string* json) {
   // x,y arrive as DOCUMENT coords (the adapter's m_penDownDoc); the engine query wants
   // viewport-relative CSS px — same mapping as the input drain. Runs the DOM query inline
@@ -2855,6 +2878,27 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (mFrozen) return;                       // card backgrounded: don't paint
+  // The engine's own first-paint gate (GoannaRenderPage::PaintingSuppressed): while it holds a
+  // document back, so do we — the last frame stays up, as in any browser, instead of the page
+  // without its stylesheets. When it lets go, the WHOLE page is repainted: nothing else is
+  // certain to say the page changed then, and it stayed unstyled until a touch forced a paint
+  // (device 2026-10-07). Only once a page has been shown (mHadContent): a first page with
+  // nothing behind it may as well appear as it arrives.
+  {
+    bool sup = mPage && mHadContent && mPage->PaintingSuppressed();
+    // Never more than 5 s: a page the engine kept holding (a stalled stylesheet) is shown as
+    // it stands rather than leaving the previous page up for good.
+    const int64_t nowS = jihadNowMs();
+    if (sup && !mWasSuppressed) mSuppressedSinceMs = nowS;
+    if (sup && nowS - mSuppressedSinceMs > 5000) sup = false;
+    if (mWasSuppressed && !sup) {
+      fprintf(stderr, "[jihad-bs] first paint released — repainting the whole page\n");
+      mNeedsPaint = true;
+      mDamageValid = false; mDamageForceFull = true;
+    }
+    mWasSuppressed = sup;
+    if (sup) return;                           // mNeedsPaint stays set for the release
+  }
   gJihadTicks++;
   if (mNeedsPaint) {
     gJihadPaintWanted++;

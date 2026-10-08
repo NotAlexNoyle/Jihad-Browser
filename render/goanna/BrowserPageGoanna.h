@@ -58,6 +58,9 @@ public:
                              const char* url, const char* description) = 0;
   // Optional events (default no-op so existing sinks need not override).
   virtual void msgUpdateGlobalHistory(const char* url, bool reload) { (void)url; (void)reload; }
+  virtual void msgSmartZoomCalculateResponseSimple(int32_t pointX, int32_t pointY, int32_t left, int32_t top,
+                                                   int32_t right, int32_t bottom, int32_t spotlight) {
+    (void)pointX; (void)pointY; (void)left; (void)top; (void)right; (void)bottom; (void)spotlight; }
   virtual void msgUrlRedirected(const char* url, const char* userData) { (void)url; (void)userData; }
   virtual void msgSSLConfirm(const char* host, int32_t code, const char* certFile) {
     (void)host; (void)code; (void)certFile;
@@ -254,6 +257,10 @@ public:
   // resolved a screenful low. The earlier "no mapping" pass fixed the old double-ADD of
   // scroll but overshot to zero mapping.
   void docToViewport(int* x, int* y);
+ public:
+  // YAP ZoomSmartCalculateRequest: (x,y) in CSS page px; answers with the block to fit.
+  void smartZoomRequest(int x, int y);
+ private:
 
  public:
   void insertStringAtCursor(const char* text);     // YAP: insertStringAtCursor
@@ -379,6 +386,8 @@ private:
   std::string        mLastTitleSent;           // and which (a repeat is not sent)
   bool               mFrozen;           // card backgrounded: skip painting
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
+  bool               mWasSuppressed = false;   // the engine held its first paint at the last look
+  int64_t            mSuppressedSinceMs = 0;   // since when (the hold is capped at 5 s)
   int64_t            mBlankSinceMs;     // first blank-over-good refusal since the load finished (0=none)
   int64_t            mBlankRetryAtMs;   // do not re-render a refused blank frame before this (0=no gate)
   bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles

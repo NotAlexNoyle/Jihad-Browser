@@ -14,7 +14,17 @@
 /* Address row. Sits above the render surface inside the scene scroller, which is
    what Mojo.Widget.WebView scrolls; the navigation buttons are in the always
    visible command menu instead. */
+/* The floating top strip (see main-scene.html): over the page, above it in z, moved by a
+   transform as the page scrolls. */
+.jihad-topbar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 20;
+}
 .jihad-toolbar {
+	position: relative;
 	width: 100%;
 	padding: 6px 8px 4px 8px;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
@@ -129,10 +139,16 @@
 	color: #808080;
 }
 
-/* Progress is shown only while a load is in flight; the assistant toggles it. */
+/* Progress is shown only while a load is in flight; the assistant toggles it. It lies over the
+   toolbar's foot rather than in its flow, so the strip — and the header the adapter keeps for
+   it — is the same height loading or not (the page would otherwise jump at every load). */
 .jihad-progress {
-	width: 100%;
-	margin-top: 4px;
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	bottom: 0;
+	width: auto;
+	margin-top: 0;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 }
 .jihad-progress * {
@@ -310,10 +326,12 @@
 	margin-left: 6px;
 }
 
-/* A theme's colours on the command row (themeCommandRow). The framework's circle is a border
-   image over 25px side borders that the glyph is laid out inside; keep those borders (transparent)
-   so nothing moves, and let the theme colour (inline background-color) fill the circle. */
-.palm-menu.command-menu.jihad-cmdmenu.jihad-themed .palm-menu-button {
+/* Theme on the command row (themeCommandRow): classes on <body> plus one generated rule for
+   the accent colour, so buttons the menu widget rebuilds are themed the moment they appear.
+   The framework's circle is a border image over 25px side borders that the glyph is laid out
+   inside; keep those borders (transparent) so nothing moves, and let the theme colour fill the
+   circle beneath them. */
+body.jihad-themed .palm-menu.command-menu.jihad-cmdmenu .palm-menu-button {
 	-webkit-border-image: none;
 	border-style: solid;
 	border-color: transparent;
@@ -322,13 +340,23 @@
 	-webkit-box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 1px 3px rgba(0, 0, 0, 0.35);
 	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
-.palm-menu.command-menu.jihad-cmdmenu.jihad-themed-ink .palm-menu-button {
+body.jihad-themed-ink .palm-menu.command-menu.jihad-cmdmenu .palm-menu-button {
 	-webkit-box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.35);
 	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 /* Pressed: the framework shows it by sliding its border image; darken the fill instead. */
-.palm-menu.command-menu.jihad-cmdmenu.jihad-themed .palm-menu-button.selected {
+body.jihad-themed .palm-menu.command-menu.jihad-cmdmenu .palm-menu-button.selected {
 	-webkit-border-image: none;
 	-webkit-box-shadow: inset 0 0 0 25px rgba(0, 0, 0, 0.22);
 	box-shadow: inset 0 0 0 25px rgba(0, 0, 0, 0.22);
 }
+/* The ink glyph set (a theme with a dark text colour): the framework's own icons by class,
+   ours (iconPath, an inline background-image) by the file they name. */
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon.back    { background-image: url(../images/dark/menu-icon-back.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon.forward { background-image: url(../images/dark/menu-icon-forward.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon.new     { background-image: url(../images/dark/menu-icon-new.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-home.png"]     { background-image: url(../images/dark/menu-icon-home.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-bookmark.png"] { background-image: url(../images/dark/menu-icon-bookmark.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-share.png"]    { background-image: url(../images/dark/menu-icon-share.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-find.png"]     { background-image: url(../images/dark/menu-icon-find.png) !important; }
+body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-history.png"]  { background-image: url(../images/dark/menu-icon-history.png) !important; }

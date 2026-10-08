@@ -161,6 +161,35 @@
 						if (al.el.mojo && typeof al.el.mojo.close === "function") { al.el.mojo.close(v); }
 						else { if (al.model.onChoose) { al.model.onChoose(v); } if (al.el.parentNode) { al.el.parentNode.removeChild(al.el); } }
 					}
+				} else if (st.charAt(0) === "X") {    // XX,Y: a double tap on the plugin node at X,Y (two click pairs, then dblclick)
+					var xp = st.slice(1).split(","), xnode = plugin(), xr = xnode ? xnode.getBoundingClientRect() : {left: 0, top: 0};
+					var xx = xr.left + parseInt(xp[0], 10), xy = xr.top + parseInt(xp[1], 10);
+					var xfire = function (type, det) {
+						var e = doc.createEvent("MouseEvents");
+						e.initMouseEvent(type, true, true, win, det, xx, xy, xx, xy, false, false, false, false, 0, null);
+						if (xnode) { xnode.dispatchEvent(e); }
+					};
+					xfire("mousedown", 1); xfire("mouseup", 1); xfire("click", 1);
+					win.setTimeout(function () { xfire("mousedown", 2); xfire("mouseup", 2); xfire("click", 2); xfire("dblclick", 2); }, 120);
+					log(name, "double tap " + st.slice(1));
+					wait = 3000;
+				} else if (st.charAt(0) === "D") {    // DX,Y,DX,DY: a one-finger drag on the plugin node from X,Y by DX,DY (eight moves)
+					var dp = st.slice(1).split(","), dnode = plugin(), drect = dnode ? dnode.getBoundingClientRect() : {left: 0, top: 0};
+					var dx0 = drect.left + parseInt(dp[0], 10), dy0 = drect.top + parseInt(dp[1], 10), ddx = parseInt(dp[2], 10), ddy = parseInt(dp[3], 10), dn = 0;
+					var dfire = function (type, x, y) {
+						var e = doc.createEvent("MouseEvents");
+						e.initMouseEvent(type, true, true, win, 1, x, y, x, y, false, false, false, false, 0, null);
+						if (dnode) { dnode.dispatchEvent(e); }
+					};
+					dfire("mousedown", dx0, dy0);
+					(function dtick() {
+						dn++;
+						dfire("mousemove", dx0 + ddx * dn / 8, dy0 + ddy * dn / 8);
+						if (dn < 8) { win.setTimeout(dtick, 40); return; }
+						dfire("mouseup", dx0 + ddx, dy0 + ddy);
+					})();
+					log(name, "drag " + st.slice(1) + " (plugin " + (dnode ? "present" : "MISSING") + ")");
+					wait = 2500;
 				} else if (st === "O") {              // the WebView widget's own zoom model: scale, page size, node size, scene scroll
 					var wv = sc.get(app.WEB_VIEW_ID), wa = wv && wv._mojoController && wv._mojoController.assistant, ob2 = plugin();
 					var sp = wa && wa.sceneScroller ? wa.sceneScroller.getScrollPosition() : null;

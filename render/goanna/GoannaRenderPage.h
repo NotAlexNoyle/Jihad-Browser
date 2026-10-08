@@ -200,6 +200,7 @@ public:
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);
   // Parsed viewport meta info (for meta-viewport events). Any out-ptr may be null.
+  bool PaintingSuppressed();   // the engine is holding the document's first paint (see .cpp)
   bool GetViewport(double* initialScale, double* minScale, double* maxScale,
                    int* w, int* h, bool* userScalable);
 
@@ -322,6 +323,10 @@ public:
   // asyncCmdHoldAt), so this must always produce a valid document — on any miss it emits
   // {"isNull":true,...}.
   void HitTestAt(int x, int y, std::string* json);
+  // Double-tap zoom: the text block under viewport point (x,y) in CSS px — the nearest
+  // paragraph, list item, cell, heading, image… at least 60 px wide — as a viewport rect.
+  // False when there is nothing to zoom to.
+  bool SmartZoomBlockAt(int x, int y, int* left, int* top, int* right, int* bottom);
   // Long-press: is the element at VIEWPORT (x,y) a text control or contentEditable region,
   // and if so is it already the one typing goes to? (A hold on a field that is not focused
   // focuses it first, as a right-click does on a desktop, so Paste has somewhere to go.)

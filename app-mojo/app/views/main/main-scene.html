@@ -12,6 +12,11 @@
 -->
 <div id="jihad-main" class="jihad-main">
 
+	<!-- The top strip (address bar, find bar) floats over the page and slides off as the page
+	     scrolls (owner 2026-10-07: "I want mojo's toolbar to scroll off"): the adapter keeps a
+	     header of its height above the page (setHeaderHeight) and reports every scroll, and the
+	     strip moves with it (main-assistant.js onPageScrolled). -->
+	<div id="jihad-topbar" class="jihad-topbar">
 	<div id="jihad-toolbar" class="jihad-toolbar" x-mojo-focus-highlight="true">
 		<!-- Reload (Stop while loading) sits INSIDE the field's right end, as in the Enyo and
 		     Mochi shells' address bars (owner, 2026-10-06). A sibling laid over the field, not a
@@ -33,6 +38,7 @@
 			name="jihadFindInput"></div>
 		<div x-mojo-element="Button" id="jihad-find-next" class="jihad-find-btn"></div>
 		<div x-mojo-element="Button" id="jihad-find-done" class="jihad-find-btn"></div>
+	</div>
 	</div>
 
 	<div id="jihad-error" class="jihad-error" style="display: none;">

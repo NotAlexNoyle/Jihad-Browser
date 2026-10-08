@@ -213,6 +213,7 @@ MainAssistant.prototype.showFind = function () {
 	var bar = this.controller.get("jihad-find");
 	if (!bar) { return; }
 	bar.style.display = "";
+	this.applyHeaderHeight();
 	var input = this.controller.get("jihad-find-input");
 	if (input && input.mojo && input.mojo.focus) { input.mojo.focus(); }
 };
@@ -220,6 +221,7 @@ MainAssistant.prototype.showFind = function () {
 MainAssistant.prototype.hideFind = function () {
 	var bar = this.controller.get("jihad-find");
 	if (bar) { bar.style.display = "none"; }
+	this.applyHeaderHeight();
 };
 
 //* Issue the search. The engine's finder continues from the current match, so pressing Next
@@ -435,17 +437,69 @@ MainAssistant.prototype.adoptViewportModel = function () {
 	Mojo.Event.listen(doc, "gesturestart", start, false);
 	Mojo.Event.listen(doc, "gesturechange", change, false);
 	Mojo.Event.listen(doc, "gestureend", end, false);
+	// A drag on the page belongs to the adapter, which pans the page itself. Left to the scene
+	// scroller, the drag is CLAIMED there and the finger's moves are cancelled before they reach
+	// the plugin, so nothing pans (owner 2026-10-07: "scrolling does not work"). Stopping the
+	// drag at the WebView keeps the scroller out of it.
+	var dragStart = function (event) {
+		event.stop();
+	};
+	Mojo.Event.stopListening(wa.controller.element, Mojo.Event.dragStart, wa._dragStartHandler, false);
+	wa._dragStartHandler = dragStart;
+	Mojo.Event.listen(wa.controller.element, Mojo.Event.dragStart, dragStart, false);
+	// The adapter reports every scroll of the page to the widget it calls back (scrolledTo with
+	// the negated scroll); the top strip follows it.
+	wa.scrolledTo = function (x, y) { self.onPageScrolled(-y); };
 	this.fitWebViewToScreen();
+	this.applyHeaderHeight();
 	if (!this._fitOnResize) {
-		this._fitOnResize = this.fitWebViewToScreen.bind(this);
+		this._fitOnResize = function () { self.fitWebViewToScreen(); self.applyHeaderHeight(); };
 		this.controller.window.addEventListener("resize", this._fitOnResize, false);
 	}
 	Mojo.Log.error("[Jihad] WebView in the screen-sized model");
 };
 
-//* The node is exactly the visible area under the toolbar: full width, down to the bottom of
-//* the window (the command row floats over its foot, as before). The scene then has nothing to
-//* scroll, so a drag reaches the adapter, which pans the page itself.
+//* The adapter keeps a header strip as tall as the floating top strip above the page, so the
+//* page starts below it and the strip can scroll away with it. Re-sent whenever the strip's
+//* height changes (find bar, rotation); the error panel is pushed below the strip too.
+MainAssistant.prototype.applyHeaderHeight = function () {
+	var bar = this.controller.get("jihad-topbar"), view = this.controller.get(this.WEB_VIEW_ID);
+	var wa = view && view._mojoController && view._mojoController.assistant;
+	if (!bar || !wa || !wa.adapter) {
+		return;
+	}
+	var h = bar.offsetHeight;
+	var err = this.controller.get("jihad-error");
+	if (err) { err.style.marginTop = h + "px"; }
+	if (h === this._headerHeight) {
+		return;
+	}
+	try {
+		wa.adapter.setHeaderHeight(h);
+		this._headerHeight = h;
+	} catch (e) {
+		Mojo.Log.error("[Jihad] setHeaderHeight not ready: %s", e);
+	}
+};
+
+//* The page's scroll (from the adapter, header included): the strip slides up with the first
+//* `header` pixels of it and stays away below that; back at the top it is whole again.
+MainAssistant.prototype.onPageScrolled = function (y) {
+	var bar = this.controller.get("jihad-topbar");
+	if (!bar) {
+		return;
+	}
+	var h = this._headerHeight || bar.offsetHeight, off = Math.max(0, Math.min(h, y || 0));
+	if (off === this._topbarOff) {
+		return;
+	}
+	this._topbarOff = off;
+	bar.style.webkitTransform = off ? "translate3d(0,-" + off + "px,0)" : "";
+};
+
+//* The node is the whole card below the status bar: the top strip floats over its head and
+//* the command row over its foot. The scene then has nothing to scroll, so a drag reaches the
+//* adapter, which pans the page itself.
 MainAssistant.prototype.fitWebViewToScreen = function () {
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	var wa = view && view._mojoController && view._mojoController.assistant;
@@ -561,42 +615,21 @@ MainAssistant.prototype.isDarkColor = function (c) {
 //* slides for the pressed state is left alone. The framework redraws the row when its model
 //* changes, so updateCommandMenu re-applies.
 MainAssistant.prototype.themeCommandRow = function (ink, accent) {
-	var doc = this.controller.document, win = this.controller.window;
-	var els = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button, .jihad-cmdmenu .palm-menu-icon"), i, e, img, m;
-	// The circles wear the theme too (owner 2026-10-07: "they do not take on the persona themes
-	// properly"): its accent colour as the fill, so the glyph set chosen for the theme's text
-	// colour (ink on a light accent, light on a dark one) sits on the colour it was chosen for.
-	// Without a theme the framework's own dark circle comes back.
-	// The framework draws each circle as a BORDER IMAGE with 25px side borders, and the glyph is
-	// laid out inside those borders; replacing the image with a 1px border shifted every glyph
-	// half a circle left and let the circles overlap (owner 2026-10-07: "still broken"). So the
-	// borders keep their 25px, transparent, and the theme colour fills the circle beneath them
-	// (jihad-themed in the stylesheet; the colour itself varies, so it is set here).
-	var menus = doc.querySelectorAll(".jihad-cmdmenu"), circles = doc.querySelectorAll(".jihad-cmdmenu .palm-menu-button");
-	for (i = 0; i < menus.length; i++) {
-		menus[i].className = menus[i].className.replace(/\s*jihad-themed(-ink)?/g, "") +
-			(accent ? " jihad-themed" + (ink ? " jihad-themed-ink" : "") : "");
+	// All of it is STYLESHEET, keyed off classes on <body> plus one generated colour rule: the
+	// menu widget rebuilds the row's buttons whenever its model changes (every load start and
+	// stop), and theming set on the buttons themselves was wiped by each rebuild and put back a
+	// tick later — the circles flashed at every load (owner 2026-10-07). Rules apply to the
+	// rebuilt buttons as they appear. See "theme on the command row" in jihad-browser.css.
+	var doc = this.controller.document, body = doc.body;
+	body.className = body.className.replace(/\s*jihad-themed(-ink)?/g, "") +
+		(accent ? " jihad-themed" + (ink ? " jihad-themed-ink" : "") : "");
+	var css = doc.getElementById("jihad-theme-css");
+	if (!css) {
+		css = doc.createElement("style");
+		css.id = "jihad-theme-css";
+		doc.getElementsByTagName("head")[0].appendChild(css);
 	}
-	for (i = 0; i < circles.length; i++) {
-		circles[i].style.backgroundColor = accent || "";
-	}
-	for (i = 0; i < els.length; i++) {
-		e = els[i];
-		img = e.getAttribute("data-jihad-sprite");
-		if (!img) {
-			img = win.getComputedStyle(e, null).backgroundImage;
-			if (!img || img === "none") {
-				continue;
-			}
-			m = /menu-icon-(back|forward|refresh|stop|new|home|history|share|find|bookmark)\.png/.exec(img);
-			if (!m) {
-				continue;
-			}
-			e.setAttribute("data-jihad-sprite", img);
-			e.setAttribute("data-jihad-dark", "url(images/dark/menu-icon-" + m[1] + ".png)");
-		}
-		e.style.backgroundImage = ink ? e.getAttribute("data-jihad-dark") : "";
-	}
+	css.textContent = accent ? "body.jihad-themed .palm-menu.command-menu.jihad-cmdmenu .palm-menu-button { background-color: " + accent + "; }" : "";
 };
 
 MainAssistant.prototype.handleNotification = function (response) {
@@ -1470,6 +1503,10 @@ MainAssistant.prototype.handleMimeUnsupported = function (event) {
 };
 
 MainAssistant.prototype.setLoading = function (loading) {
+	if (loading && !this.loading) {
+		this.applyHeaderHeight();   // the adapter may have come up since; a new page starts at the top
+		this.onPageScrolled(0);
+	}
 	this.loading = !!loading;
 	var progress = this.controller.get(this.PROGRESS_ID);
 	if (progress) {
@@ -1645,9 +1682,7 @@ MainAssistant.prototype.syncCommandMenu = function () {
 			(this.loading ? " jihad-urlbar-stop" : " jihad-urlbar-refresh");
 	}
 	if (this.commandMenuReady) {
-		this.controller.modelChanged(this.commandMenuModel);
-		// The framework has redrawn the row's buttons: give them the theme again, once the DOM is in.
-		if (this.theme) { var self = this; this.controller.window.setTimeout(function () { self.applyTheme(self.theme); }, 0); }
+		this.controller.modelChanged(this.commandMenuModel);   // the theme is stylesheet: survives the redraw
 	}
 };
 

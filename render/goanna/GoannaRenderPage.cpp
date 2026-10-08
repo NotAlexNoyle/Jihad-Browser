@@ -1995,6 +1995,18 @@ bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   return true;
 }
 
+// The engine is holding back the first paint of a document (its stylesheets are still loading, or
+// the initial-paint delay has not run out). A browser shows nothing new then; our offscreen
+// render does not go through that gate, so it would publish the page UNSTYLED (device 2026-10-07:
+// "wikipedia loads as html at first, until I touch the screen").
+bool GoannaRenderPage::PaintingSuppressed() {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  bool sup = false;
+  if (!u || NS_FAILED(u->GetPaintingSuppressed(&sup))) return false;
+  return sup;
+}
+
 bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
                                    double* maxScale, int* w, int* h,
                                    bool* userScalable) {
@@ -4022,6 +4034,43 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   if (!imgAlt.IsEmpty())  { out += ",\"altText\":\"";  jihadJsonEscape(imgAlt, &out, 256);  out += "\""; }
   out += "}";
   *json = out;
+}
+
+bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* right, int* bottom) {
+  if (!mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  nsCOMPtr<nsIDOMElement> el;
+  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  static const char* const kBlocks[] = {
+    "p", "li", "td", "th", "dd", "dt", "pre", "blockquote", "figure", "img", "video", "canvas",
+    "h1", "h2", "h3", "h4", "h5", "h6", "article", "section", "div", "table", "ul", "ol", "form",
+    "aside", "nav", "header", "footer", "main", nullptr };
+  for (int depth = 0; node && depth < 64; ++depth) {
+    nsCOMPtr<nsIDOMElement> e = do_QueryInterface(node);
+    if (e) {
+      nsAutoString tag16; e->GetTagName(tag16);
+      NS_ConvertUTF16toUTF8 tag8(tag16);
+      std::string tag = tag8.get();
+      for (char& c : tag) c = (char)tolower((unsigned char)c);
+      if (tag == "body" || tag == "html") break;   // the whole page: no block
+      bool block = false;
+      for (int i = 0; kBlocks[i] && !block; ++i) block = (tag == kBlocks[i]);
+      if (block) {
+        nsCOMPtr<nsIDOMClientRect> r; e->GetBoundingClientRect(getter_AddRefs(r));
+        float l = 0, t = 0, w = 0, h = 0;
+        if (r) { r->GetLeft(&l); r->GetTop(&t); r->GetWidth(&w); r->GetHeight(&h); }
+        if (w >= 60.0f && h >= 8.0f) {
+          *left = (int)(l + 0.5f); *top = (int)(t + 0.5f);
+          *right = (int)(l + w + 0.5f); *bottom = (int)(t + h + 0.5f);
+          return true;
+        }
+      }
+    }
+    nsCOMPtr<nsIDOMNode> p; node->GetParentNode(getter_AddRefs(p)); node = p;
+  }
+  return false;
 }
 
 bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused, bool* readOnly) {

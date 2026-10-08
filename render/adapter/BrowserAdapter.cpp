@@ -884,7 +884,7 @@ void BrowserAdapter::sendStateToServer()
     asyncCmdSetBlockPopups(mBlockPopups);
     asyncCmdSetAcceptCookies(mAcceptCookies);
     asyncCmdSetShowClickedLink(mShowClickedLink);
-    asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, mScrollPos.y);
+    asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, serverScrollY());
 
     const char* identifier = (const char*) NPN_GetValue((NPNVariable) npPalmApplicationIdentifier);
     if (identifier)
@@ -1290,7 +1290,10 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
     // in the offscreen; dstBuffer points to the dst-box top-left.
     int dl = event->dstLeft, dt = event->dstTop, dr = event->dstRight, dbm = event->dstBottom;
     int sl = event->srcLeft, st = event->srcTop;
-    int panY = mScrollPos.y, panX = mScrollPos.x;      // pan within the tall buffer
+    // The page starts m_headerHeight below the window's top (the card's toolbar sits over that
+    // strip and scrolls off with the page — the Mojo shell, 2026-10-07); rows above the page's
+    // top are not page and are left to the fill below.
+    int panY = mScrollPos.y - m_headerHeight, panX = mScrollPos.x;      // pan within the tall buffer
     const unsigned int FILL = 0xffffffff;              // un-rendered area: white, not stale (ghosting)
 
     // Pinch/zoom: buffer holds the page at info->contentZoom; display at mZoomLevel. Scale by
@@ -1387,7 +1390,7 @@ void BrowserAdapter::handleWindowChange(NPWindow* window)
         mContentHeight = ::round(mZoomLevel * mPageHeight);
 
         mScroller->setContentDimensions(mContentWidth, mContentHeight + m_headerHeight);
-        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, mScrollPos.y);
+        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, serverScrollY());
     }
 
     scrollCaretIntoViewAfterResize(oldWindowWidth, oldWindowHeight, oldZoom);
@@ -1961,7 +1964,7 @@ void BrowserAdapter::doGestureStart(int cx, int cy, float scale, float rotate,
     mCenteredZoom->centerX = centerX;
     mCenteredZoom->centerY = centerY;
     mCenteredZoom->scrollX = mScrollPos.x;
-    mCenteredZoom->scrollY = mScrollPos.y;
+    mCenteredZoom->scrollY = mScrollPos.y - m_headerHeight;   // the PAGE's scroll (see serverScrollY)
     mCenteredZoom->zoomLevel = mZoomLevel;
 
     mZoomFit = false;
@@ -2040,7 +2043,7 @@ void BrowserAdapter::doGestureChange(int cx, int cy, float scale, float rotate,
     mContentWidth = ::round(mZoomLevel * mPageWidth);
     mContentHeight = ::round(mZoomLevel * mPageHeight);
     mScrollPos.x = ::round(x);
-    mScrollPos.y = ::round(y);
+    mScrollPos.y = ::round(y) + m_headerHeight;   // back to ours, header strip included
 
     mScroller->setContentDimensions(mContentWidth, mContentHeight + m_headerHeight);
     mScroller->scrollTo(-mScrollPos.x, -mScrollPos.y, false);
@@ -2067,7 +2070,7 @@ void BrowserAdapter::doGestureEnd(int cx, int cy, float scale, float rotate,
             mZoomFit = true;
     }
 
-    asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, mScrollPos.y);
+    asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, serverScrollY());
 }
 
 void BrowserAdapter::sendGestureStart(int cx, int cy, float scale, float rotate,
@@ -3206,8 +3209,12 @@ const char* BrowserAdapter::js_smartZoom(AdapterBase *adapter, const NPVariant *
     TRACEF("%d, %d\n", VariantToInteger(args[0]), VariantToInteger(args[1]));
     BrowserAdapter *a = GetAndInitAdapter(adapter);
 
-    Point docPt(VariantToInteger(args[0]) / a->mZoomLevel,
-                VariantToInteger(args[1]) / a->mZoomLevel);
+    // The point is in the plugin's own pixels: add the scroll (and take off the header strip)
+    // before dividing by the zoom, as the native double-tap (handlePenDoubleClick) and clickAt
+    // do. It was divided straight, which only held while the Mojo WebView sized this plugin to
+    // the whole page (its scroll was then always 0).
+    Point docPt((a->mScrollPos.x + VariantToInteger(args[0])) / a->mZoomLevel,
+                (a->mScrollPos.y + VariantToInteger(args[1]) - a->m_headerHeight) / a->mZoomLevel);
 
     bool inFlashRect = a->flashRectContainsPoint(docPt);
     if (a->flashGestureLock()) {
@@ -4287,7 +4294,7 @@ void BrowserAdapter::msgContentsSizeChanged(int32_t width, int32_t height)
 
     if (mZoomFit && mWindow.width != 0 && width != 0) {
         mZoomLevel = mWindow.width * 1.0 / width;
-        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, mScrollPos.y);
+        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, serverScrollY());
     }
 
     mPageWidth = width;
@@ -4397,7 +4404,9 @@ void BrowserAdapter::msgSmartZoomCalculateResponseSimple(int32_t inCenterX, int3
     left = MAX(left, 0);
     top = MAX(top, 0);
 
-    startZoomAnimation(zoom, left, top);
+    // Our scroll includes the header strip above the page (m_headerHeight, the Mojo shell's
+    // sliding toolbar): a block below the page's top is reached with the strip scrolled away.
+    startZoomAnimation(zoom, left, top > 0 ? top + m_headerHeight : 0);
 }
 
 void BrowserAdapter::msgMakePointVisible(int32_t x, int32_t y)
@@ -4446,7 +4455,14 @@ void BrowserAdapter::msgMakePointVisible(int32_t x, int32_t y)
 void BrowserAdapter::msgScrolledTo(int32_t scrollx, int32_t scrolly)
 {
     mScrollPos.x = MIN(::round(scrollx * mZoomLevel), MAX(mContentWidth - mViewportWidth, 0));;
-    mScrollPos.y = MIN(::round(scrolly * mZoomLevel), MAX(mContentHeight - mViewportHeight, 0));
+    // The engine's scroll is the PAGE's; ours includes the header strip above it (m_headerHeight,
+    // 0 unless the card has a scrolling toolbar). At the page's top keep however much of the
+    // header was showing; anywhere else the header has scrolled away.
+    {
+        int pageY = ::round(scrolly * mZoomLevel);
+        int y = (pageY > 0) ? pageY + m_headerHeight : MIN(mScrollPos.y, m_headerHeight);
+        mScrollPos.y = MIN(y, MAX(mContentHeight + m_headerHeight - mViewportHeight, 0));
+    }
     TRACEF("(%d, %d) (%d, %d) c %dx%d vp %dx%d", scrollx, scrolly, mScrollPos.x, mScrollPos.y, mContentWidth, mContentHeight, mViewportWidth, mViewportHeight);
     mScroller->scrollTo(-mScrollPos.x, -mScrollPos.y, false);
     /* FIXME: RR
@@ -6035,6 +6051,14 @@ bool BrowserAdapter::shouldPassTouchEvents()
     return m_passInputEvents || (mMetaViewport && !mMetaViewport->userScalable);
 }
 
+// What the daemon is told of our vertical scroll: the PAGE's, i.e. ours less the header strip
+// the card keeps above the page (m_headerHeight; 0 in the Enyo and Mochi shells).
+int BrowserAdapter::serverScrollY() const
+{
+    int y = mScrollPos.y - m_headerHeight;
+    return y > 0 ? y : 0;
+}
+
 void BrowserAdapter::fireScrolledToEvent(int x, int y)
 {
     if( gScrolledToHandler ) {
@@ -6056,9 +6080,9 @@ void BrowserAdapter::scrollTo(int x, int y)
     mScrollPos.x = (mContentWidth > (int) mWindow.width) ? -x : 0;
     mScrollPos.y = -y;
 
-    asyncCmdSetScrollPosition(mScrollPos.x, mScrollPos.y,
+    asyncCmdSetScrollPosition(mScrollPos.x, serverScrollY(),
                               mScrollPos.x + mWindow.width,
-                              mScrollPos.y + mWindow.height);
+                              serverScrollY() + mWindow.height);
     invalidate();
 
     fireScrolledToEvent(x, y);
@@ -6148,7 +6172,7 @@ bool BrowserAdapter::animateZoom()
             else
                 mZoomFit = false;
         }
-        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, mScrollPos.y);
+        asyncCmdSetZoomAndScroll(mZoomLevel, mScrollPos.x, serverScrollY());
         stopZoomAnimation();
     } else {
         if (::fabs(m_zoomTarget - mZoomLevel) < ::fabs(m_zoomLevelInterval)) {

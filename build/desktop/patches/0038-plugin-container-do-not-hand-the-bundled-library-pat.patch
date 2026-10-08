@@ -1,0 +1,58 @@
+From 628ee50c99dc43a8abc888306a1c97c371326ff5 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 5 Oct 2026 15:46:38 -0400
+Subject: [PATCH 38/39] plugin-container: do not hand the bundled library path
+ to what the plugin runs
+
+The plugin child is started through the bundled loader with an explicit
+--library-path, which is what its own dlopen()s search; the LD_LIBRARY_PATH it
+also inherits is not needed by it, but is inherited again by anything the
+plugin spawns. Flash for Linux runs sh -c "ps x | grep netscape" at start-up:
+the device's own /bin/sh (glibc 2.8) then loaded the bundled glibc 2.23 and
+died with SIGSEGV, leaving a crash report for every page with Flash on it.
+
+Unset it at child start-up, only when the bundled loader is in use
+(MOZ_CHILD_PROCESS_LOADER), so a desktop build keeps its environment.
+
+On the device: a Flash page loads and plays, and no report is written.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LcrVQFRMC2ANGDfVaRG9Ed
+---
+ ipc/contentproc/plugin-container.cpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/ipc/contentproc/plugin-container.cpp b/ipc/contentproc/plugin-container.cpp
+index 64946dc1e9..873e437248 100644
+--- a/ipc/contentproc/plugin-container.cpp
++++ b/ipc/contentproc/plugin-container.cpp
+@@ -3,6 +3,7 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include <stdlib.h>   // getenv / unsetenv (JIHAD: see main)
+ #include "nsXPCOM.h"
+ #include "nsXULAppAPI.h"
+ #include "nsAutoPtr.h"
+@@ -142,6 +143,18 @@ content_process_main(int argc, char* argv[])
+     }
+     fflush(stderr);
+ 
++    // JIHAD (2026-10-05): DO NOT HAND OUR LIBRARY PATH TO WHAT THE PLUGIN RUNS.
++    // This process is started through the bundled loader with an explicit --library-path,
++    // which is what its own later dlopen()s search; the LD_LIBRARY_PATH it also inherits
++    // is not needed by it. But it is inherited again by anything the plugin spawns, and
++    // Flash for Linux runs `sh -c "ps x | grep netscape"` at start-up: the device's own
++    // /bin/sh (built for its glibc 2.8) then loads the bundled glibc 2.23 and dies with
++    // SIGSEGV, leaving a crash report in /var/log/reports for every page with Flash on it.
++    // Only when the bundled loader is in use; a desktop build keeps its environment.
++    if (getenv("MOZ_CHILD_PROCESS_LOADER")) {
++      unsetenv("LD_LIBRARY_PATH");
++    }
++
+ #ifdef MOZ_GMP
+     XREChildData childData;
+ #endif
+-- 
+2.55.0
+

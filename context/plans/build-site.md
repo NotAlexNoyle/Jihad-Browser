@@ -490,6 +490,21 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 74 — Engine update readiness (2026-10-08; groundwork only)
+
+Owner: "lay the groundwork for a uxp/goanna update by making our interaction with it more modular and maintainable by humans." Kit: cavekit-engine-update.md.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-380 | Branch is the source of truth; patch-queue.sh --check/--add; repair the drift | cavekit-engine-update.md | R1 | — | no | M | done |
+| T-381 | engine-version.env + check-engine-pins.sh | cavekit-engine-update.md | R2 | — | no | S | done (generation open) |
+| T-382 | EngineCompat.h: every jihad_* export, startup report | cavekit-engine-update.md | R3 | — | yes | S | done |
+| T-383 | check-engine-api.py + baseline | cavekit-engine-update.md | R4 | T-382 | no | M | done |
+| T-384 | docs/ENGINE.md; ENGINE-SOURCE.md brought up to date | cavekit-engine-update.md | R5 | T-380..T-383 | no | M | done |
+| T-385 | Wrappers for the positional engine calls | cavekit-engine-update.md | R3 | T-382 | yes | M | pending |
+| T-386 | JS shim for engine modules and about:addons markup | cavekit-engine-update.md | R4b | — | yes | M | pending |
+| T-387 | Shared component install; derived push list; desktop tests for the uncovered paths | cavekit-engine-update.md | R6 | T-380 | no | L | pending |
+
 ## Tier 73 — Personas UI on about:addons (2026-10-08; added to the site, not a regeneration)
 
 Owner: "make it user friendly to manage and install personas, using about:addons as a base." Kit: cavekit-personas-ui.md.

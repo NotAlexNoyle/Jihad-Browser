@@ -1,0 +1,147 @@
+{
+ "idl_methods": {
+  "decodeImage": [
+   "in nsIInputStream aStream",
+   "in ACString aMimeType"
+  ],
+  "elementFromPoint": [
+   "in float aX",
+   "in float aY",
+   "in boolean aIgnoreRootScrollFrame",
+   "in boolean aFlushLayout"
+  ],
+  "encodeScaledImage": [
+   "in imgIContainer aContainer",
+   "in ACString aMimeType",
+   "in long aWidth",
+   "in long aHeight",
+   "[optional] in AString outputOptions"
+  ],
+  "getViewportInfo": [
+   "in uint32_t aDisplayWidth",
+   "in uint32_t aDisplayHeight",
+   "out double aDefaultZoom",
+   "out boolean aAllowZoom",
+   "out double aMinZoom",
+   "out double aMaxZoom",
+   "out uint32_t aWidth",
+   "out uint32_t aHeight",
+   "out boolean aAutoSize"
+  ],
+  "loadSheetUsingURIString": [
+   "in ACString sheetURI",
+   "in unsigned long type"
+  ],
+  "loadURIWithOptions": [
+   "in wstring aURI",
+   "in unsigned long aLoadFlags",
+   "in nsIURI aReferrer",
+   "in unsigned long aReferrerPolicy",
+   "in nsIInputStream aPostData",
+   "in nsIInputStream aHeaders",
+   "in nsIURI aBaseURI",
+   "[optional] in nsIPrincipal aTriggeringPrincipal"
+  ],
+  "nodesFromRect": [
+   "in float aX",
+   "in float aY",
+   "in float aTopSize",
+   "in float aRightSize",
+   "in float aBottomSize",
+   "in float aLeftSize",
+   "in boolean aIgnoreRootScrollFrame",
+   "in boolean aFlushLayout"
+  ],
+  "sendKeyEvent": [
+   "in AString aType",
+   "in long aKeyCode",
+   "in long aCharCode",
+   "in long aModifiers",
+   "[optional] in unsigned long aAdditionalFlags"
+  ],
+  "sendMouseEvent": [
+   "in AString aType",
+   "in float aX",
+   "in float aY",
+   "in long aButton",
+   "in long aClickCount",
+   "in long aModifiers",
+   "[optional] in boolean aIgnoreRootScrollFrame",
+   "[optional] in float aPressure",
+   "[optional] in unsigned short aInputSourceArg",
+   "[optional] in boolean aIsDOMEventSynthesized",
+   "[optional] in boolean aIsWidgetEventSynthesized",
+   "[optional] in long aButtons"
+  ],
+  "sendMouseEventToWindow": [
+   "in AString aType",
+   "in float aX",
+   "in float aY",
+   "in long aButton",
+   "in long aClickCount",
+   "in long aModifiers",
+   "[optional] in boolean aIgnoreRootScrollFrame",
+   "[optional] in float aPressure",
+   "[optional] in unsigned short aInputSourceArg",
+   "[optional] in boolean aIsDOMEventSynthesized",
+   "[optional] in boolean aIsWidgetEventSynthesized",
+   "[optional] in long aButtons"
+  ],
+  "sendTouchEventToWindow": [
+   "in AString aType",
+   "[array",
+   "size_is(count)] in uint32_t aIdentifiers",
+   "[array",
+   "size_is(count)] in int32_t aXs",
+   "[array",
+   "size_is(count)] in int32_t aYs",
+   "[array",
+   "size_is(count)] in uint32_t aRxs",
+   "[array",
+   "size_is(count)] in uint32_t aRys",
+   "[array",
+   "size_is(count)] in float aRotationAngles",
+   "[array",
+   "size_is(count)] in float aForces",
+   "in uint32_t count",
+   "in long aModifiers",
+   "[optional] in boolean aIgnoreRootScrollFrame"
+  ]
+ },
+ "implemented": {
+  "nsIPlatformInfo": [
+   "attr platformBuildID",
+   "attr platformVersion"
+  ],
+  "nsIXULAppInfo": [
+   "attr ID",
+   "attr UAName",
+   "attr appBuildID",
+   "attr name",
+   "attr vendor",
+   "attr version"
+  ],
+  "nsIXULRuntime": [
+   "attr OS",
+   "attr XPCOMABI",
+   "attr accessibilityEnabled",
+   "attr defaultUpdateChannel",
+   "attr distributionID",
+   "attr inSafeMode",
+   "attr is64Bit",
+   "attr isOfficial",
+   "attr isOfficialBranding",
+   "attr isReleaseOrBeta",
+   "attr lastRunCrashID",
+   "attr logConsoleErrors",
+   "attr processID",
+   "attr processType",
+   "attr replacedLockTime",
+   "attr uniqueProcessID",
+   "attr widgetToolkit",
+   "attr windowsDLLBlocklistStatus",
+   "method ensureContentProcess",
+   "method invalidateCachesOnRestart"
+  ]
+ }
+}

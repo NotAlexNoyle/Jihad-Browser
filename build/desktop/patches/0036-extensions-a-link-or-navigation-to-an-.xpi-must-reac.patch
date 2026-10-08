@@ -1,0 +1,64 @@
+From 9dedcd5fe553444631bc7f788ebf4afab1580bb4 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 1 Oct 2026 13:22:49 -0400
+Subject: [PATCH 36/39] extensions: a link or navigation to an .xpi must reach
+ the install flow in a chrome-less embedding
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+amContentHandler cancels the load and then hands the install to either a
+chrome-privileged frameElement above the page or the content frame message
+manager. This embedding has neither, so the hand-off threw after the load had
+already been cancelled: following a plain link to an .xpi, or typing its
+address, did nothing — no prompt, no error. InstallTrigger.install() was fixed
+the same way earlier; call the add-ons integration service directly here too.
+---
+ .../mozapps/extensions/amContentHandler.js    | 24 ++++++++++++-------
+ 1 file changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/toolkit/mozapps/extensions/amContentHandler.js b/toolkit/mozapps/extensions/amContentHandler.js
+index 8dc4dfecdc..4a1c90b83f 100644
+--- a/toolkit/mozapps/extensions/amContentHandler.js
++++ b/toolkit/mozapps/extensions/amContentHandler.js
+@@ -60,7 +60,7 @@ amContentHandler.prototype = {
+       // When running in the main process this might be a frame inside an
+       // in-content UI page, walk up to find the first frame element in a chrome
+       // privileged document
+-      let element = window.frameElement;
++      let element = window ? window.frameElement : null;
+       let ssm = Services.scriptSecurityManager;
+       while (element && !ssm.isSystemPrincipal(element.ownerDocument.nodePrincipal))
+         element = element.ownerDocument.defaultView.frameElement;
+@@ -77,13 +77,21 @@ amContentHandler.prototype = {
+       }
+     }
+ 
+-    // Fall back to sending through the message manager
+-    let messageManager = window.QueryInterface(Ci.nsIInterfaceRequestor)
+-                               .getInterface(Ci.nsIDocShell)
+-                               .QueryInterface(Ci.nsIInterfaceRequestor)
+-                               .getInterface(Ci.nsIContentFrameMessageManager);
+-
+-    messageManager.sendAsyncMessage(MSG_INSTALL_ADDONS, installs);
++    // JIHAD: this embedding is a single top-level content docShell with no browser chrome
++    // above it — no chrome-privileged frameElement to find above, and no
++    // nsIContentFrameMessageManager below — so both upstream paths fail, and the failure was
++    // silent: the load had already been cancelled above, so following a plain link to an
++    // .xpi (or typing its address) did nothing at all, with no prompt and no error
++    // (device, 2026-10-01). InstallTrigger.install() was fixed the same way in
++    // amInstallTrigger.js; this is the other door into the same room. Call the integration
++    // service directly — the object the parent process reaches when it handles
++    // MSG_INSTALL_ADDONS; only the transport is skipped, because there is no second process.
++    let integration = Cc["@mozilla.org/addons/integration;1"]
++                        .getService(Ci.nsIMessageListener).wrappedJSObject;
++    integration.installAddonsFromWebpage(installs.mimetype, null,
++                                         installs.triggeringPrincipal, installs.uris,
++                                         installs.hashes, installs.names, installs.icons,
++                                         null);
+   },
+ 
+   classID: Components.ID("{7beb3ba8-6ec3-41b4-b67c-da89b8518922}"),
+-- 
+2.55.0
+

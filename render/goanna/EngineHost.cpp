@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <unistd.h>                 // access (bundled child-process loader probe)
 #include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
+#include "EngineCompat.h"           // the engine's jihad_* exports: which optional ones are present
 #include "nsIObserver.h"             // per-domain UA override (http-on-modify-request)
 #include "nsIObserverService.h"
 #include "nsIDirectoryService.h"     // nsIDirectoryServiceProvider (profile dir — cookie persistence)
@@ -1037,6 +1038,9 @@ EngineHost::Init(const char* greDir)
   rv = XRE_InitEmbedding2(dir, dir, sJihadDirProvider);
   mInited = NS_SUCCEEDED(rv);
   initStep(mInited ? "XRE_InitEmbedding2 OK" : "XRE_InitEmbedding2 FAILED");
+  // Which of our own engine exports this libxul has (a missing optional one is otherwise
+  // silent — its feature just falls back). docs/ENGINE.md.
+  if (mInited) jihad::ReportEngineExports();
   // RE-ARM the fatal-signal dump. SpiderMonkey installs its own SIGSEGV handler
   // during engine init (the wasm/asm.js bounds-check trap) and replaces ours, so
   // the install in main() no longer covers anything from here on — which is

@@ -1,5 +1,10 @@
 # build/desktop — Phase 1 x86_64 Linux PoC
 
+> **Read [`docs/ENGINE.md`](../../docs/ENGINE.md) first** (2026-10-08): the engine is the submodule
+> `third_party/uxp` at our branch `jihad-engine-mods`, the patch queue here is generated from that
+> branch (`build/engine/patch-queue.sh`), and parts of this file (host OS, mount paths) predate that.
+
+
 Goal: prove the Goanna backend satisfies the BrowserServer contract on a normal
 desktop, before fighting the embedded toolchain. End state: launch
 `BrowserServer` (Goanna backend), point the isis UI (`app/`) or a thin test

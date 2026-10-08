@@ -6,6 +6,7 @@
  * Consolidates the proven embed_load pipeline (T-019/T-020/T-024) into a class.
  */
 #include "GoannaRenderPage.h"
+#include "EngineCompat.h"
 #include "EngineHost.h"
 #include "DialogService.h"   // jihad::PostNotification — the non-blocking message channel (R5)
 
@@ -561,72 +562,8 @@ NS_IMETHODIMP PageChrome::OnSecurityChange(nsIWebProgress*, nsIRequest*, uint32_
 
 // ── GoannaRenderPage ────────────────────────────────────────────────────────
 
-// Offscreen render entry points exported from libxul (patches/0005). Let the
-// frozen-API daemon create a memory-backed PuppetWidget (no X/GTK/native window),
-// hand it to nsIBaseWindow::InitWindow, drive a paint, and read the ARGB32 pixels.
-// Active when the env var JIHAD_OFFSCREEN is set (also switches PuppetWidget to a
-// BasicLayerManager). This is the path the on-device daemon uses.
-// (nsIWidget is forward-declared at global scope in GoannaRenderPage.h.)
-extern "C" {
-  nsIWidget* jihad_offscreen_create(int aWidth, int aHeight);
-  void jihad_offscreen_resize(nsIWidget* aWidget, int aWidth, int aHeight);
-  void jihad_offscreen_paint(nsIWidget* aWidget);
-  bool jihad_init_nss();   // force PSM/NSS init on the main thread (internal libxul code)
-  bool jihad_offscreen_render_document_v2(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
-                                          double aPanX, double aPanY);
-  // WEAK: on a pre-overscan libxul the symbol is absent and RenderRegion degrades to the
-  // viewport-exact paint (the caller's fallback) instead of failing the daemon at load.
-  // New-symbol-weak is safe (no signature change on an existing symbol — the F1 ABI lesson
-  // applies to CHANGED signatures, which still get a rename).
-  bool jihad_offscreen_render_region(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
-                                     double aDocX, double aDocY, void* aDest, int aStride,
-                                     int aWidth, int aHeight) __attribute__((weak));
-  bool jihad_offscreen_readback(nsIWidget* aWidget, void* aDest, int aStride,
-                                int aWidth, int aHeight);
-  // WEAK, same reasoning: hand every running NPAPI plugin Palm's spotlight system event
-  // (npPalmSpotlightStartEvent / npPalmSpotlightEndEvent), which is how a webOS plugin is
-  // told it went fullscreen. Absent the symbol — an older libxul — the frozen YAP spotlight
-  // commands stay the no-ops they have always been rather than failing the daemon at load.
-  // Returns the number of instances told.
-  int jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight,
-                                  int aBottom) __attribute__((weak));
-  // WEAK, same reasoning: composite any OPEN XUL popup (menupopup / context menu) over
-  // an already-painted buffer. A popup is a separate display root, so the main render
-  // never contains it; absent the symbol, popups simply do not appear (today's behaviour)
-  // rather than the daemon failing to load. Returns the number of popups drawn.
-  int jihad_offscreen_composite_popups(nsIWidget* aWidget, void* aDest, int aStride,
-                                       int aWidth, int aHeight, double aOriginX,
-                                       double aOriginY, double aZoom) __attribute__((weak));
-  // WEAK: dispatch a mouse event into an OPEN popup, whose separate display root the
-  // content document's hit-testing cannot see. True = the point was inside a popup and
-  // the event went there instead. Absent the symbol, taps behave as before (they land on
-  // whatever is under the popup).
-  bool jihad_offscreen_popup_mouse(int aMsg, double aX, double aY) __attribute__((weak));
-  // WEAK: how many popups are open. Used right after a tap is dispatched to tell "this
-  // tap opened a menu" from "it did not" — the duplicate delivery of that same tap is
-  // then dropped instead of closing the menu again.
-  int jihad_offscreen_popup_count() __attribute__((weak));
-  // WEAK: close every open popup. There is no native mouse capture in this embedding, so
-  // a tap outside a menu does not roll it up by itself — the daemon has to say so.
-  bool jihad_offscreen_popup_rollup() __attribute__((weak));
-  void jihad_offscreen_release(nsIWidget* aWidget);
-  // Sticky content-invalidation drain (patches/0012). WEAK so the daemon still
-  // loads against a pre-0012 libxul (then reports no dirty and paint falls back
-  // to the input/load-driven behavior instead of failing to start).
-  bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
-  // WEAK: the damage bounding box behind that flag. Absent on an older libxul, in which case
-  // the daemon keeps doing whole-viewport repaints — slower, never wrong.
-  bool jihad_offscreen_take_dirty_rect(nsIWidget* aWidget, int32_t* aX, int32_t* aY,
-                                       int32_t* aW, int32_t* aH) __attribute__((weak));
-  // Count of plugin frames that have crossed into this process (PluginInstanceParent::RecvShow).
-  // WEAK for the same reason as the two above: on a libxul without it the daemon keeps its
-  // dirty-flag behaviour, which is slower to settle but never wrong.
-  uint32_t jihad_plugin_frame_seq(void) __attribute__((weak));
-  // Ask every live NPAPI plugin for one frame. WEAK for the same reason: on a libxul without it
-  // the plugin child keeps its own repaint timer (patch 0026) and the daemon goes on SAMPLING it,
-  // which is what shipped before and is never wrong — only less evenly paced.
-  int jihad_plugin_request_frame(void) __attribute__((weak));
-}
+// The engine's jihad_* entry points (offscreen render, popups, plugin pacing, NSS start-up)
+// are declared in EngineCompat.h — the one list an engine update has to check.
 
 // DEBUG ONLY: last-created page, target of DebugRunChromeJs (single-page embedding;
 // the inject channel that calls it is compile-gated and off by default).

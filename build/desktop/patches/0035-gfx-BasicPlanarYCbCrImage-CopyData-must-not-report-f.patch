@@ -1,0 +1,50 @@
+From 1fff802335ca410fd75d1766b7d750f036a8763d Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 1 Oct 2026 09:12:50 -0400
+Subject: [PATCH 35/39] gfx: BasicPlanarYCbCrImage::CopyData must not report
+ failure under delayed conversion
+
+BasicImageLayer::Paint swaps the BasicLayerManager's image factory into the
+video ImageContainer for the duration of a paint. A decoder thread that calls
+CreatePlanarYCbCrImage() inside that window gets a BasicPlanarYCbCrImage, and
+VideoData::SetVideoDataToImage always requests delayed conversion before
+CopyData(). CopyData copied the planes and then returned false, so
+CreateAndCopyData returned null and the decoder reported
+NS_ERROR_OUT_OF_MEMORY -> MEDIA_ERR_DECODE.
+
+With OMTC off a software paint on the TouchPad takes 40-160 ms, so a decode
+landed in the window within the first 10-60 frames of every clip.
+
+Return the base copy's result, and true when conversion is delayed: the
+image is fully usable, GetAsSourceSurface() converts on demand.
+---
+ gfx/layers/basic/BasicImages.cpp | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/gfx/layers/basic/BasicImages.cpp b/gfx/layers/basic/BasicImages.cpp
+index fc1be6e9a1..4533f69c84 100644
+--- a/gfx/layers/basic/BasicImages.cpp
++++ b/gfx/layers/basic/BasicImages.cpp
+@@ -87,10 +87,17 @@ public:
+ bool
+ BasicPlanarYCbCrImage::CopyData(const Data& aData)
+ {
+-  RecyclingPlanarYCbCrImage::CopyData(aData);
++  if (!RecyclingPlanarYCbCrImage::CopyData(aData)) {
++    return false;
++  }
+ 
++  // The YCbCr copy above succeeded; delaying the RGB conversion is not a
++  // failure. GetAsSourceSurface() converts on demand when mDecodedBuffer is
++  // null. Returning false here made VideoData::CreateAndCopyData report OOM
++  // (MEDIA_ERR_DECODE) for any frame decoded while BasicImageLayer::Paint had
++  // swapped this factory into the video's ImageContainer.
+   if (mDelayedConversion) {
+-    return false;
++    return true;
+   }
+ 
+   // Do some sanity checks to prevent integer overflow
+-- 
+2.55.0
+

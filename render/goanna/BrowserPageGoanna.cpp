@@ -7,6 +7,7 @@
  * server->adapter messages via IPageMessageSink.
  */
 #include "BrowserPageGoanna.h"
+#include "EngineCompat.h"
 #include "EngineHost.h"
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
@@ -78,7 +79,7 @@ struct BrowserPageGoanna::UrlRule {
 // scenarios (notifications/calls). See context/impl/impl-audio-backend.md. UNVERIFIED gaps: the
 // system volume OSD does not track these direct mixer writes, and video-controls taps are the
 // separate offscreen hit-test residual.
-extern "C" int jihad_pulse_active_streams(void) __attribute__((weak));
+// jihad_pulse_active_streams: EngineCompat.h (optional engine export).
 
 // application.name (not media.role): keeps our cubeb stream OFF the pmedia media-policy sink and on
 // pcm_output (the real DAC), which is what the forced speaker mixer actually drives. media.role

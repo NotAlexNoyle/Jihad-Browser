@@ -254,7 +254,13 @@ function staticThemeFromXpi(path, origin) {
     pending = themesDir();
     pending.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
     copyEntry(zr, header, pending, MAX_IMAGE);
-    shrinkWallpaper(pending, ext);
+    // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
+    // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
+    try { shrinkWallpaper(pending, ext); }
+    catch (e) {
+      log("wallpaper kept at its own size: " + e);
+      try { let t = pending.clone(); t.leafName = pending.leafName + ".scaled"; if (t.exists()) { t.remove(false); } } catch (e2) {}
+    }
     let hash = sha256Hex(pending).slice(0, 24);
     let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
     let finalName = hash + "-header." + ext;
@@ -483,6 +489,7 @@ function noteCurrent(cur) {
 // manager says "none", then the new one), so the change is noted once they have settled —
 // otherwise Undo would go back to "none" instead of the Persona worn before.
 let notePending = null;
+let undoTimer = null;          // one redraw when the Undo bar's time is up
 function scheduleNote() {
   if (notePending) { return; }
   notePending = later(150, function() {
@@ -537,14 +544,18 @@ function imageSize(file) {
   return null;
 }
 
-// Whether a theme's picture (a file: or resource://jihad-themes/ URL) is a wallpaper.
+// Whether a theme's picture (a file: or resource://jihad-themes/ URL) is a wallpaper. Sizes are
+// remembered by file (a picture's file never changes: its name is its hash), so a pane redraw
+// does not read every picture again on the main thread (inspector 2026-10-08).
+let sizeCache = new Map();
 function isWallpaper(u) {
   try {
     if (typeof u !== "string") { return false; }
     if (u.indexOf("resource://" + THEMES_RESOURCE + "/") === 0) { u = resolveThemesUrl(u); }
     if (u.indexOf("file:") !== 0) { return false; }
     let f = Services.io.newURI(u, null, null).QueryInterface(Ci.nsIFileURL).file;
-    let sz = imageSize(f);
+    let sz = sizeCache.has(f.path) ? sizeCache.get(f.path) : imageSize(f);
+    sizeCache.set(f.path, sz);
     return !!(sz && sz.h >= WALLPAPER_MIN_HEIGHT);
   } catch (e) { return false; }
 }
@@ -602,10 +613,13 @@ function bundledPersonas() {
 }
 
 // The bundled set joins the Persona list once per profile, NOT worn: each is then an ordinary
-// row of about:addons → Personas — the same picture, Wear, Remove, author and version as the
+// row of about:addons → Personas — the same picture, Wear, Uninstall, author and version as the
 // others (owner 2026-10-08: "the aero themes dont display consistently in the persona preview
-// in about:addons like the others"). One the user removes stays removed.
+// in about:addons like the others"). One the user uninstalls stays uninstalled, through later
+// editions too: the names already offered are remembered, and a later edition adds only a
+// Persona new to the set, or one replacing its own earlier picture still in the list.
 const PREF_BUNDLED = "jihad.personas.bundled";
+const PREF_BUNDLED_NAMES = "jihad.personas.bundledNames";
 function offerBundledOnce() {
   let done = "";
   try { done = Services.prefs.getCharPref(PREF_BUNDLED); } catch (e) {}
@@ -613,43 +627,57 @@ function offerBundledOnce() {
   if (!all.length) { return; }
   let key = (all[0].collection || "bundled") + "/" + all[0].edition;
   if (done === key) { return; }
+  let offered = {};
+  try { JSON.parse(Services.prefs.getCharPref(PREF_BUNDLED_NAMES)).forEach(function(n) { offered[n] = true; }); }
+  catch (e) {
+    // A profile offered the set before the names were kept was offered every one of them.
+    if (done) { all.forEach(function(b) { offered[b.theme.name] = true; }); }
+  }
   let LWTM = manager();
   let used = [];
   try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
   let cur = null;
   try { cur = LWTM.currentTheme; } catch (e) {}
-  let have = {}, wear = null, dropped = [];
+  let have = {}, wear = null, dropped = {}, droppedIds = [], replacing = {};
   used.forEach(function(t) { have[t.id] = true; });
   // A newer edition replaces its own older pictures: an entry by "Jihad Browser" with a bundled
-  // Persona's name but not its picture is that Persona's earlier edition. It goes (its picture
-  // with it), and if it was the one worn, the new one is worn in its place.
+  // Persona's name but not its picture is that Persona's earlier edition.
   let newIds = {}, byName = {};
   all.forEach(function(b) { newIds[b.theme.id] = true; byName[b.theme.name] = b; });
-  used = used.filter(function(t) {
+  used.forEach(function(t) {
     let b = byName[t.name];
-    if (!b || t.author !== "Jihad Browser" || newIds[t.id]) { return true; }
-    dropped.push(t.id);
+    if (!b || t.author !== "Jihad Browser" || newIds[t.id]) { return; }
+    dropped[t.id] = true; droppedIds.push(t.id); replacing[t.name] = true;
     if (cur && cur.id === t.id) { wear = b; }
-    return false;
   });
-  let add = [];
-  all.forEach(function(b) {
-    if (have[b.theme.id]) { return; }
+  let add = all.filter(function(b) {
+    return !have[b.theme.id] && (!offered[b.theme.name] || replacing[b.theme.name]);
+  });
+  add.forEach(function(b) {
     let dest = themesDir();
     dest.append(b.finalName);
     if (!dest.exists()) { b.file.copyTo(themesDir(), b.finalName); }
-    add.push(b.theme);
   });
   ensureThemesResource();
-  if (add.length || dropped.length) {
+  // The new edition of a worn Persona is worn FIRST (the manager puts it at the head of its list,
+  // still "selected"), and only then is the list rewritten without the old edition — rewriting
+  // first left the manager briefly wearing whatever came next (inspector 2026-10-08).
+  if (wear) { previewId = null; LWTM.currentTheme = wear.theme; }
+  if (add.length || droppedIds.length) {
+    let now = [];
+    try { now = LWTM.usedThemes || []; } catch (e) { now = used; }
+    let present = {};
+    now = now.filter(function(t) { present[t.id] = true; return !dropped[t.id]; });
+    add.forEach(function(b) { if (!present[b.theme.id]) { now.push(b.theme); } });
     let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
-    str.data = JSON.stringify(used.concat(add));
+    str.data = JSON.stringify(now);
     Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
   }
-  dropped.forEach(function(id) { forgetThemeFiles(id); });
+  droppedIds.forEach(function(id) { forgetThemeFiles(id); });
+  all.forEach(function(b) { offered[b.theme.name] = true; });
+  Services.prefs.setCharPref(PREF_BUNDLED_NAMES, JSON.stringify(Object.keys(offered)));
   Services.prefs.setCharPref(PREF_BUNDLED, key);
-  if (wear) { previewId = null; LWTM.currentTheme = wear.theme; }
-  log("bundled Personas offered: " + add.length + ", replaced: " + dropped.length + " (" + key + ")");
+  log("bundled Personas offered: " + add.length + ", replaced: " + droppedIds.length + " (" + key + ")");
 }
 
 function installThemeFile(file) {
@@ -808,7 +836,9 @@ function decoratePane(win) {
   parts.undoBar.hidden = !undo;
   if (undo) {
     parts.undoLabel.setAttribute("value", "Now wearing " + undo.name + ".");
-    later(undo.until - Date.now() + 50, function() { if (paneWindows.has(win)) { decoratePane(win); } });
+    if (!undoTimer) {
+      undoTimer = later(undo.until - Date.now() + 50, function() { undoTimer = null; refreshPanes(); });
+    }
   }
   let byId = {}, unbound = 0;
   used.forEach(function(t) { byId[t.id] = t; });
@@ -818,7 +848,7 @@ function decoratePane(win) {
     // binding attaches, a moment after it is inserted: come back for it (owner 2026-10-08:
     // "dark fox preview in about:addons not working").
     if (!a) { unbound++; continue; }
-    if (a.type !== "theme") { continue; }
+    if (a.type !== "theme" || String(a.id).slice(-ID_SUFFIX.length) !== ID_SUFFIX) { continue; }   // a complete theme is not a Persona
     let tid = themeIdOf(a.id);
     try { decorateRow(doc, item, byId[tid] || null, !!(cur && cur.id === tid)); }
     catch (e) { log("persona row: " + e); }
@@ -881,7 +911,15 @@ function JihadPersonas() {
   try {
     let AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
     AM.addAddonListener({
-      onUninstalled: function(addon) { if (addon && addon.type === "theme") { forgetThemeFiles(themeIdOf(addon.id)); refreshPanes(); } },
+      onUninstalled: function(addon) {
+        if (!addon || addon.type !== "theme") { return; }
+        let id = themeIdOf(addon.id);
+        // Undo must not bring back a Persona that is gone (its picture is deleted next).
+        if (undo && undo.theme && undo.theme.id === id) { undo = null; }
+        if (lastSeen && lastSeen.id === id) { lastSeen = null; }
+        forgetThemeFiles(id);
+        refreshPanes();
+      },
       onEnabled: function() { refreshPanes(); },
       onDisabled: function() { refreshPanes(); }
     });

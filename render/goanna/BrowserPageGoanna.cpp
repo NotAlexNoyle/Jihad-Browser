@@ -2636,6 +2636,9 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       fprintf(stderr, "[jihad-bs] content-nav POST (engine-driven) %s\n", linkUrl.c_str());
       mPage->AdoptContentLoad();
       mWasSuppressed = false; mSuppressedSinceMs = 0;   // its own first-paint hold (see resetScrollForNavigation)
+      // The card drops the old page's meta viewport at msgLoadStarted (below), so the result
+      // page's must be sent afresh even when it declares the same one (inspector 2026-10-08).
+      mViewportSent = false;
       mLoadWasDone = false;
       mNeedsPaint = false;
       mLastProgress = 0;

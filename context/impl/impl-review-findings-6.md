@@ -257,3 +257,18 @@ Codex to re-review this session's range when its credits return (the owner's sta
 | P2 | `BrowserAdapter.cpp` / Mojo | A link followed from a scrolled position opened with the address bar hidden (the navigation reset's page scroll 0 kept as "header partly hidden"). | Valid, fixed: `msgLoadStarted` brings the header back when the page is at its top. **Device:** after the link above the toolbar shows. |
 | P2 | `BrowserAdapter.cpp` | `mMetaViewport` outlived its page (freed only on a contents-size sentinel this daemon never sends): one `user-scalable=no` page disabled pinch and double-tap everywhere after. | Valid, fixed: dropped at `msgLoadStarted`; the next page's tag arrives after it. |
 | P3 | `BrowserAdapter.cpp` | `setHeaderHeight` left the scroller's range and the daemon's scroll stale (Mojo's find bar). | Valid, fixed: range, clamp, scroller and daemon updated when the strip changes. |
+
+## Round 11 — the inspector on the Personas work (`faa34d13`, `09ec8432`, `94dec4ee`; Codex out of credits until 10:07 PM)
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `components/jihadPersonas.js` | Every edition bump re-added the bundled Personas a user had uninstalled. | Valid, fixed: the names offered are kept (`jihad.personas.bundledNames`; a profile offered before that is taken to have been offered all); an edition adds only a Persona new to the set or one replacing its own earlier picture. **Device:** Enyo, Aero Sky uninstalled, an edition-4 bundle pushed → "offered: 0". |
+| P2 | `BrowserAdapter.cpp` / `BrowserPageGoanna.cpp` | With the adapter dropping the meta viewport at every load start, the POST-adopt path (no navigation reset) never re-sent a result page's identical tag. | Valid, fixed: that path resets `mViewportSent`. Not exercised on the device. |
+| P3 | `jihadPersonas.js` | A failed shrink refused the whole Persona. | Valid, fixed: the picture is kept as it came. |
+| P3 | `jihadPersonas.js` | Undo could bring back a Persona uninstalled within the 30 s, without its picture. | Valid, fixed: Undo is withdrawn when its Persona is uninstalled. |
+| P3 | `jihadPersonas.js` | Undo could offer a stale change seen only when a pane opened. | Already fixed in `402cc925` (outside the reviewed range): changes are noted when the manager reports them, coalesced. |
+| P3 | `jihadPersonas.js` | Swapping in a worn new edition rewrote the list first, so the manager briefly wore an unrelated Persona (cards flickered, stray events). | Valid, fixed: the new edition is worn first, then the list rewritten. |
+| P3 | `jihadPersonas.js` | Every redraw read every picture's header from disk; an Undo timer per redraw. | Valid, fixed: sizes cached by file (a picture's name is its hash); one Undo timer. |
+| P3 | `jihadPersonas.js` | Complete (XUL) themes were dressed as Personas. | Valid, fixed: only `@personas.mozilla.org` ids are decorated. |
+
+Checked and sound per the inspector: re-driving about: pages by their original address gives web content no new reach; Persona fields cannot inject CSS or markup; file deletion is confined to 24-hex names in `jihad-themes`; windows, timers and observers are released.

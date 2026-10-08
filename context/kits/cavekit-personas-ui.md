@@ -78,6 +78,7 @@ safety with one button.)
   back the Persona (or the default look) worn before. *(Device: Enyo, Wear then Undo, back to the
   previous Persona; Mochi and Mojo show the bar.)*
 - [x] Undo's own change is not itself undoable (no ping-pong).
+- [x] Undo is withdrawn when the Persona it would restore is uninstalled.
 - [x] Undo's 30 s run from the change itself, wherever it was made (a Persona site, the pane,
   Settings), and a change that arrives as two updates (off, then on) is one change: Undo returns
   to the Persona worn before, not to none. *(Found on the device: the bar appeared for a change
@@ -139,6 +140,8 @@ browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for th
 - [x] A new edition of the set replaces its own older pictures (matched by name and author), and
   carries the choice over if the older one was worn. *(Device, Mochi: the earlier Aero Meadow
   retired, its picture deleted.)*
+- [x] An edition change never re-adds a bundled Persona the user uninstalled. *(Device, Enyo:
+  Aero Sky uninstalled, an edition-4 bundle → nothing added.)*
 **Dependencies:** R1, R2
 
 ## Out of Scope

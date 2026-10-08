@@ -1188,9 +1188,12 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                 int baseX = event->srcLeft - gi->renderedX;                       // buffer-x for content-x 0
                 int baseY = event->srcTop  - gi->renderedY;
                 int sL = (int)(baseX + mScrollPos.x * inv);
-                int sT = (int)(baseY + mScrollPos.y * inv);
+                // The page starts m_headerHeight below the window's top (the Mojo shell's sliding
+                // toolbar sits over that strip); the clamp below leaves rows above the page undrawn.
+                const int pageScrollY = mScrollPos.y - m_headerHeight;
+                int sT = (int)(baseY + pageScrollY * inv);
                 int sR = (int)(baseX + (mScrollPos.x + (dr - dl)) * inv);
-                int sB = (int)(baseY + (mScrollPos.y + (dbm - dt)) * inv);
+                int sB = (int)(baseY + (pageScrollY + (dbm - dt)) * inv);
                 // Clamp the SOURCE rect to the buffer on BOTH axes and shrink the DEST edges by the
                 // same scale (ceil = conservative), so a pan/zoom past the buffer edge leaves that
                 // region undrawn instead of feeding Piranha an out-of-bounds source (garbage/crash)

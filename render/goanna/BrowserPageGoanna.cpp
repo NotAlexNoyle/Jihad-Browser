@@ -1408,7 +1408,13 @@ void BrowserPageGoanna::docToViewport(int* x, int* y) {
   if (!mPage) return;
   double z = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
            : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
-  double cx = *x / z, cy = *y / z;              // zoomed doc px -> CSS doc px
+  // The adapter's document coords are already CSS px: every path that makes them divides by
+  // its own zoom first (clickAt, the native tap, the pen-down anchor: (scroll + point) / zoom).
+  // This divided AGAIN (since 2026-08-02, written for "zoomed doc px"), so on any page shown
+  // at a zoom other than 1 a tap landed 1/zoom too far right and down — desktop Wikipedia at
+  // its 0.69 fit took a tap at x=751 to x=1091, past the article (owner 2026-10-08: "mojo tap
+  // targets seem inaccurate … I get duckduckgo when I click wikipedia").
+  double cx = *x, cy = *y;
   if (z != 1.0) {
     // Zoomed: the engine scroll is parked at 0; the visual-viewport pan carries the offset.
     double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
@@ -2878,26 +2884,26 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (mFrozen) return;                       // card backgrounded: don't paint
-  // The engine's own first-paint gate (GoannaRenderPage::PaintingSuppressed): while it holds a
-  // document back, so do we — the last frame stays up, as in any browser, instead of the page
-  // without its stylesheets. When it lets go, the WHOLE page is repainted: nothing else is
-  // certain to say the page changed then, and it stayed unstyled until a touch forced a paint
-  // (device 2026-10-07). Only once a page has been shown (mHadContent): a first page with
-  // nothing behind it may as well appear as it arrives.
+  // The engine's own first-paint gate (GoannaRenderPage::PaintingSuppressed). Our offscreen
+  // render does not go through it, so a page could be drawn before its stylesheets applied —
+  // and then nothing said it changed, so it stayed unstyled until a touch forced a paint
+  // (device 2026-10-07). So: when the gate LIFTS, the whole page is repainted. And while it is
+  // down, the last frame is held — but only for a second: in this embedding the engine lets
+  // go only when the load ends (12 s on Wikipedia, at our load watchdog), and holding for
+  // that long made every page slow to appear (owner 2026-10-08: "using the url bar to search
+  // the web is slow"). After the second the page paints as it arrives, as before. Only once
+  // a page has been shown (mHadContent): a first page has nothing behind it to hold.
   {
-    bool sup = mPage && mHadContent && mPage->PaintingSuppressed();
-    // Never more than 5 s: a page the engine kept holding (a stalled stylesheet) is shown as
-    // it stands rather than leaving the previous page up for good.
+    const bool sup = mPage && mHadContent && mPage->PaintingSuppressed();
     const int64_t nowS = jihadNowMs();
     if (sup && !mWasSuppressed) mSuppressedSinceMs = nowS;
-    if (sup && nowS - mSuppressedSinceMs > 5000) sup = false;
     if (mWasSuppressed && !sup) {
       fprintf(stderr, "[jihad-bs] first paint released — repainting the whole page\n");
       mNeedsPaint = true;
       mDamageValid = false; mDamageForceFull = true;
     }
     mWasSuppressed = sup;
-    if (sup) return;                           // mNeedsPaint stays set for the release
+    if (sup && nowS - mSuppressedSinceMs < 1000) return;   // mNeedsPaint stays set
   }
   gJihadTicks++;
   if (mNeedsPaint) {

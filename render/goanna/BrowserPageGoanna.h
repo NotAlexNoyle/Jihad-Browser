@@ -387,7 +387,7 @@ private:
   bool               mFrozen;           // card backgrounded: skip painting
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
   bool               mWasSuppressed = false;   // the engine held its first paint at the last look
-  int64_t            mSuppressedSinceMs = 0;   // since when (the hold is capped at 5 s)
+  int64_t            mSuppressedSinceMs = 0;   // since when (frames are held at most 1 s of it)
   int64_t            mBlankSinceMs;     // first blank-over-good refusal since the load finished (0=none)
   int64_t            mBlankRetryAtMs;   // do not re-render a refused blank frame before this (0=no gate)
   bool               mGeometryDirty;    // a resize happened; emit geometry from pump once reflow settles

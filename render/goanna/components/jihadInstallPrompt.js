@@ -105,9 +105,22 @@ JihadInstallPrompt.prototype = {
     // -228 download), so surfacing those as well would change behaviour outside this criterion.
     // On the COMPLETE topic there is nothing to filter: amWebInstallListener only puts an
     // install in `this.installed` once it actually installed.
-    let names = [];
+    let names = [], themes = [];
     for (let install of installs) {
       try {
+        // A COMPLETE theme (a XUL/CSS skin package, install.rdf with internalName): Firefox's,
+        // Pale Moon's, Basilisk's. Jihad has no XUL window for one to dress — its look lives in
+        // the webOS cards, which only Personas reach — and wearing one would switch the Persona
+        // off, need a restart this embedding has no path for, and could stop the engine at
+        // start-up if the skin lacks a file the engine requires. Nearly all fail as
+        // incompatible anyway; the rare one that would install (aimed at the toolkit) is taken
+        // straight back out. Either way the user is told what to use instead.
+        // (docs/research/complete-themes.md)
+        if (install.addon && install.addon.type == "theme") {
+          if (complete) { try { install.addon.uninstall(); } catch (e) {} }
+          themes.push(install.addon.name || install.name || "That theme");
+          continue;
+        }
         // A package the engine would not install as an add-on — ERROR_WEBEXT_FILE (-9: it has a
         // manifest.json; "does not support WebExtensions") or ERROR_CORRUPT_FILE (-3) — may be a
         // theme-only WebExtension "static theme": what addons.mozilla.org serves every former
@@ -130,6 +143,12 @@ JihadInstallPrompt.prototype = {
           continue;
         names.push((install.addon && install.addon.name) || install.name || "The add-on");
       } catch (e) {}
+    }
+    if (themes.length) {
+      let t = themes.join(", ").replace(/[\x00-\x1f\x7f]/g, " ");
+      if (t.length > 80) t = t.substr(0, 77) + "...";
+      this._notify("addon", t + " is a complete theme, made for Firefox or Pale Moon. Jihad Browser " +
+                            "uses Personas instead: about:addons \u2192 Personas \u2192 Get Personas.");
     }
     if (names.length == 0)
       return;

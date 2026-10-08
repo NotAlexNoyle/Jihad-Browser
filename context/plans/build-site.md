@@ -494,14 +494,16 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 
 Owner: "make it user friendly to manage and install personas, using about:addons as a base." Kit: cavekit-personas-ui.md.
 
-| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
-|------|-------|---------|-------------|-----------|--------|--------|
-| T-365 | Themes pane rows show the theme's art (header over accent, name in text colour), In use first | cavekit-personas-ui.md | R1 | — | yes | M |
-| T-366 | Wear / Default look / Remove (with unpacked images deleted), finger-sized controls | cavekit-personas-ui.md | R2 | T-365 | yes | M |
-| T-367 | Try (engine preview) with Keep / Undo; never persisted | cavekit-personas-ui.md | R3 | T-366 | yes | S |
-| T-368 | Install from file (static-theme XPI), Get themes link (AMO listing in a card); additional_backgrounds accepted [done] | cavekit-personas-ui.md | R4 | T-366 | yes | M |
-| T-369 | Empty-state explanation; Settings → Appearance becomes a summary + Manage themes | cavekit-personas-ui.md | R5 | T-365 | yes | S |
-| T-370 | Hooks + device verification in all three shells; screenshots incl. no theme | cavekit-personas-ui.md | R6 | T-365,T-366,T-367,T-368,T-369 | yes | M |
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-365 | Rows show the Persona's art, author, version (1.0 default), In use first | cavekit-personas-ui.md | R1 | — | yes | M | done 2026-10-08 |
+| T-366 | Wear / Default look / Uninstall (picture deleted), finger-sized controls | cavekit-personas-ui.md | R2 | T-365 | yes | M | done (Default look's Wear untapped) |
+| T-367 | Undo bar for 30 s after any change (Try dropped: owner "duplicative") | cavekit-personas-ui.md | R3 | T-366 | yes | S | done |
+| T-368 | Install from file; Get Personas; additional_backgrounds; wallpaper fit | cavekit-personas-ui.md | R4 | T-366 | yes | M | done but Get Personas on AMO |
+| T-369 | Intro / empty state; Settings → Appearance summary + Manage Personas | cavekit-personas-ui.md | R5 | T-365 | yes | S | done (empty state code-only) |
+| T-370 | Device verification in all three shells; screenshots | cavekit-personas-ui.md | R6 | T-365..T-369 | yes | M | done but the owner's finger pass |
+| T-371 | Bundled Frutiger Aero set: drawn, shipped, offered once, editions replace | cavekit-personas-ui.md | R7 | T-365 | yes | M | done |
+
 
 ## Tier 71 — Tabbed browsing (GROUNDWORK ONLY, 2026-10-06; every task PENDING by the owner's word: "lay the groundwork … but don't implement it yet")
 

@@ -576,6 +576,7 @@ function bundledPersonas() {
       if (!f.exists()) { return; }
       let hash = sha256Hex(f).slice(0, 24), ext = /\.png$/.test(p.file) ? "png" : "jpg";
       out.push({file: f, finalName: hash + "-header." + ext, collection: String(d.collection || ""),
+                edition: String(d.edition || 1),
                 theme: {id: "static-theme:" + hash, name: String(p.name || p.slug).slice(0, 80),
                         headerURL: "resource://" + THEMES_RESOURCE + "/" + hash + "-header." + ext,
                         accentcolor: cssColor(p.accentcolor) || undefined, textcolor: cssColor(p.textcolor) || undefined,
@@ -595,12 +596,27 @@ function offerBundledOnce() {
   try { done = Services.prefs.getCharPref(PREF_BUNDLED); } catch (e) {}
   let all = bundledPersonas();
   if (!all.length) { return; }
-  let key = all[0].collection || "bundled";
+  let key = (all[0].collection || "bundled") + "/" + all[0].edition;
   if (done === key) { return; }
+  let LWTM = manager();
   let used = [];
-  try { used = manager().usedThemes || []; } catch (e) { used = []; }
-  let have = {};
+  try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
+  let cur = null;
+  try { cur = LWTM.currentTheme; } catch (e) {}
+  let have = {}, wear = null, dropped = [];
   used.forEach(function(t) { have[t.id] = true; });
+  // A newer edition replaces its own older pictures: an entry by "Jihad Browser" with a bundled
+  // Persona's name but not its picture is that Persona's earlier edition. It goes (its picture
+  // with it), and if it was the one worn, the new one is worn in its place.
+  let newIds = {}, byName = {};
+  all.forEach(function(b) { newIds[b.theme.id] = true; byName[b.theme.name] = b; });
+  used = used.filter(function(t) {
+    let b = byName[t.name];
+    if (!b || t.author !== "Jihad Browser" || newIds[t.id]) { return true; }
+    dropped.push(t.id);
+    if (cur && cur.id === t.id) { wear = b; }
+    return false;
+  });
   let add = [];
   all.forEach(function(b) {
     if (have[b.theme.id]) { return; }
@@ -610,13 +626,15 @@ function offerBundledOnce() {
     add.push(b.theme);
   });
   ensureThemesResource();
-  if (add.length) {
+  if (add.length || dropped.length) {
     let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
     str.data = JSON.stringify(used.concat(add));
     Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
   }
+  dropped.forEach(function(id) { forgetThemeFiles(id); });
   Services.prefs.setCharPref(PREF_BUNDLED, key);
-  log("bundled Personas offered: " + add.length + " (" + key + ")");
+  if (wear) { previewId = null; LWTM.currentTheme = wear.theme; }
+  log("bundled Personas offered: " + add.length + ", replaced: " + dropped.length + " (" + key + ")");
 }
 
 function installThemeFile(file) {
@@ -751,6 +769,13 @@ function decoratePane(win) {
   if (cat && cat.getAttribute("name") !== "Personas") { cat.setAttribute("name", "Personas"); }
   let listView = doc.getElementById("list-view"), list = doc.getElementById("addon-list");
   let box = doc.getElementById("jihad-themes-box");
+  // "Uninstall", not "Remove", on every add-on, in every category (owner 2026-10-08).
+  if (list) {
+    for (let i = 0; i < list.children.length; i++) {
+      let rm = doc.getAnonymousElementByAttribute(list.children[i], "anonid", "remove-btn");
+      if (rm && rm.getAttribute("label") !== "Uninstall") { rm.setAttribute("label", "Uninstall"); }
+    }
+  }
   if (!isThemes || !listView || !list) { if (box) { box.hidden = true; } return; }
   if (!box) { box = buildBox(win); listView.insertBefore(box, list); }
   box.hidden = false;

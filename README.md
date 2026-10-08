@@ -12,7 +12,7 @@
 <p align="center"><em>Goanna inside, webOS alive, inshallah.</em></p>
 
 <p align="center">
-  <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view: Jihad Enyo showing Wikipedia's article on Palm with no theme, Jihad Mochi showing the webOS article in the Aurora theme, and Jihad Mojo showing the webOS Archive home page with Field of flowers buttons" width="900">
+  <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view: Jihad Enyo showing Wikipedia's article on Palm with no Persona, Jihad Mochi showing the webOS article wearing the Aurora Persona, and Jihad Mojo showing the webOS Archive home page with Field of flowers buttons" width="900">
 </p>
 
 ---
@@ -46,22 +46,29 @@ else on your TouchPad.
 ### Personas: give your browser a look of its own
 
 <p align="center">
-  <img src="docs/screenshots/personas-strip.png" alt="Jihad Enyo's toolbar six times: no theme, Aurora Borealis Delights, Blue Nebula, Field of flowers, Running Foxes and Two little birds" width="860">
+  <img src="docs/screenshots/personas-strip.png" alt="Jihad Enyo's toolbar seven times: no Persona, Aero Aqua, Aero Meadow, Aero Ribbons, Field of flowers, Running Foxes and Two little birds" width="860">
 </p>
 
-addons.mozilla.org still carries thousands of themes, and the old **personas** galleries are still
-around. Jihad wears them.
+A **Persona** gives the browser's toolbar and buttons a picture and colours of their own. Jihad
+comes with five, and it wears the thousands made for Firefox over the years.
 
-- **Tap Add on a theme site.** Personas made for Firefox 52, Pale Moon and Basilisk install with one
-  confirmation. So do the **static themes from addons.mozilla.org**, which is where most of
-  the old personas live today.
-- **The whole browser changes.** The theme paints the toolbar in Enyo and Mochi and the round buttons
-  in Mojo. A light theme automatically gets dark icons so they stay readable.
-- **Switch or remove themes** in `about:addons` → Themes, or in Settings → Appearance. Each interface
-  keeps its own theme, so your three cards can each have a different look.
+- **Five Frutiger Aero Personas come with Jihad**: Aero Aqua, Aero Sky, Aero Meadow, Aero
+  Ribbons and Aero Orbs. Glossy water, bubbles, blue skies and green hills, drawn for this
+  project in the style of the screens the TouchPad grew up with.
+- **Tap Add on a Persona site.** Personas made for Firefox 52, Pale Moon and Basilisk install with
+  one confirmation. So do the Personas on **addons.mozilla.org**, which is where most of them live
+  today. Big wallpaper-sized pictures are fitted to the bar, not cropped to a corner.
+- **The whole browser changes.** The Persona paints the toolbar in Enyo and Mochi and the round
+  buttons in Mojo. A light Persona automatically gets dark icons so they stay readable.
+- **A real Personas manager.** In `about:addons` → **Personas**, every Persona shows its own picture,
+  its author and its version. Tap **Wear** to put one on. For 30 seconds an **Undo** takes you back
+  to the one before. There's **Default look** for no Persona at all, **Uninstall** to remove one, and
+  **Install from file** for a Persona you downloaded. **Get Personas** opens addons.mozilla.org.
+  Settings → Appearance shows the one you're wearing and links to the manager.
+- **Each interface keeps its own Persona**, so your three cards can each have a different look.
 
 <p align="center">
-  <img src="docs/screenshots/personas-install.webp" alt="Left: Jihad Mochi asking 'Allow 192.168.1.245 to change the browser's look to the theme: Running Foxes by MaDonna' with Cancel and OK. Right: about:addons in Jihad Enyo listing six installed themes" width="760">
+  <img src="docs/screenshots/personas-install.webp" alt="Left: Jihad Mochi asking 'Allow 192.168.1.245 to change the browser's look to the Persona: Field of flowers' with Cancel and OK. Right: about:addons → Personas in Jihad Enyo: Default look, Get Personas, Install from file, then Aero Ribbons in use and the other Personas, each with its picture, author, version, Wear and Uninstall" width="760">
 </p>
 
 ### Flash, as HP promised
@@ -230,7 +237,7 @@ date, so keep your clock set (or turn on network time). For the rest of your Tou
 > **Tip:** Type `about:config` in the address bar to see every engine setting. If you don't want the
 > warning page each time, turn it off in Settings → General.
 
-> **Tip:** Want a different look in each card? Every interface keeps its own theme. Try a dark one in
+> **Tip:** Want a different look in each card? Every interface keeps its own Persona. Try a dark one in
 > Mojo and a bright one in Enyo.
 
 ---
@@ -246,7 +253,7 @@ Install the `.ipk` for the interface you want with **Preware** or **WebOS Quick 
 | **Jihad Mojo** | `net.riverstonerelay.jihad-browser-mojo` | Lightweight, with round buttons along the bottom |
 
 Your TouchPad stays as it was. Each app runs entirely from its own folder and keeps its own engine
-profile, add-ons, themes, history and bookmarks. Installing, updating or removing one never touches
+profile, add-ons, Personas, history and bookmarks. Installing, updating or removing one never touches
 another app or the stock browser, and nothing is written to your USB drive.
 
 ---
@@ -317,7 +324,7 @@ build. Adobe Flash Player is your TouchPad's own plugin and is not distributed w
 
 <sub>Palm, webOS, Pre, TouchPad and Synergy are trademarks of their respective owners. Jihad Browser is
 an independent community project. HP, Palm and LG did not make it, endorse it or support it.
-Screenshots were taken on a real HP TouchPad. The theme gallery in the personas screenshot is a local
-test page; the themes themselves are from addons.mozilla.org.</sub>
+Screenshots were taken on a real HP TouchPad. The Persona gallery in the Personas screenshot is a
+local test page; the Personas on it are from addons.mozilla.org.</sub>
 
 <p align="center"><sub>Made with love for webOS, in 2026, for a tablet from 2011.</sub></p>

@@ -397,7 +397,18 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     }
     nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);
     if (ch) {
-      nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u)); if (u) u->GetSpec(mLinkUrl);
+      nsCOMPtr<nsIURI> u; ch->GetURI(getter_AddRefs(u));
+      // An about: page's channel already points at what it resolves to (about:addons is a
+      // file:///…/extensions.xul inside the bundle): the address the page asked for is the
+      // channel's ORIGINAL one. Re-driving the resolved file loaded XUL as a plain file, which
+      // the engine refuses ("This page uses an unsupported technology", device 2026-10-08,
+      // Settings → Manage Personas).
+      {
+        nsCOMPtr<nsIURI> orig; ch->GetOriginalURI(getter_AddRefs(orig));
+        bool isAbout = false;
+        if (orig && NS_SUCCEEDED(orig->SchemeIs("about", &isAbout)) && isAbout) u = orig;
+      }
+      if (u) u->GetSpec(mLinkUrl);
       // A load the PAGE started (a tapped link, a redirect, script): the crash guard has to
       // know about these too, or it would blame the address the card last asked for.
       if (u && !mLinkUrl.IsEmpty()) jihad::CrashGuardNoteLoad(mLinkUrl.get());

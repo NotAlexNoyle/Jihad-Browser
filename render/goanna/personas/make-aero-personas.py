@@ -165,11 +165,11 @@ def meadow():
         base = base * (1 - inside[..., None]) + colr * inside[..., None]
         lit = np.exp(-((yy - crest[None, :]) / (6 * K)) ** 2) * inside * 0.55
         return over(base, (220, 255, 190), lit)
-    a = hill(a, 58 * K, 18 * K, 1.4, 0.6, (90, 190, 60), (40, 120, 25))
-    a = hill(a, 78 * K, 16 * K, 2.2, 2.4, (120, 210, 70), (50, 140, 30))
+    a = hill(a, 34 * K, 12 * K, 1.4, 0.6, (90, 190, 60), (40, 120, 25))
+    a = hill(a, 50 * K, 11 * K, 2.2, 2.4, (120, 210, 70), (50, 140, 30))
     a = gloss(a, 0.28, 0.42)
     for i in range(5):
-        a = bubble(a, rnd.uniform(900, 1580) * K, rnd.uniform(6, 36) * K, rnd.choice([6, 9, 13]) * K, rim=0.6)
+        a = bubble(a, rnd.uniform(900, 1580) * K, rnd.uniform(4, 22) * K, rnd.choice([5, 7, 10]) * K, rim=0.6)
     return finish(a, "aero-meadow.jpg")
 
 
@@ -218,5 +218,8 @@ if __name__ == "__main__":
                     "textcolor": text, "author": "Jihad Browser", "version": "1.0"})
         print(path, os.path.getsize(path) // 1024, "KB")
     with open(os.path.join(HERE, "personas.json"), "w") as f:
-        json.dump({"collection": "Frutiger Aero", "personas": out}, f, indent=2)
+        # "edition" goes up whenever the set or its art changes: a profile offered an earlier
+        # edition gets the changed pictures, which replace their older ones (edition 2 drew the
+        # meadow lower; 3 is the same art, and retires edition 1's meadow wherever 2 left it).
+        json.dump({"collection": "Frutiger Aero", "edition": 3, "personas": out}, f, indent=2)
         f.write("\n")

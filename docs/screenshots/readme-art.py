@@ -164,14 +164,15 @@ def pair(a, b, out_name, width=1000):
 if __name__ == "__main__":
     cardview([shot("enyo-wiki-none"), shot("mochi-wiki"), shot("mojo-wosa")],
              ["Jihad Enyo", "Jihad Mochi", "Jihad Mojo"], "cardview.jpg")
-    theme_strip([(shot("sp-none"), "No theme", "the classic webOS look"),
-                 (shot("sp-aurora"), "Aurora Borealis Delights", "Firefox static theme"),
-                 (shot("sp-nebula"), "Blue Nebula", "Firefox static theme"),
-                 (shot("sp-flowers"), "Field of flowers", "Firefox static theme"),
+    theme_strip([(shot("sp-none"), "No Persona", "the classic webOS look"),
+                 (shot("sp-aero-aqua"), "Aero Aqua", "comes with Jihad"),
+                 (shot("sp-aero-meadow"), "Aero Meadow", "comes with Jihad"),
+                 (shot("sp-aero-ribbons"), "Aero Ribbons", "comes with Jihad"),
+                 (shot("sp-flowers"), "Field of flowers", "from addons.mozilla.org"),
                  (shot("sp-foxes"), "Running Foxes", "by MaDonna"),
-                 (shot("sp-birds"), "Two little birds", "a light theme gets dark icons")], "personas-strip.png")
+                 (shot("sp-birds"), "Two little birds", "a light Persona gets dark icons")], "personas-strip.png")
     save_webp(touchpad(shot("enyo-flash-game"), 520), "flash.webp")
-    pair(shot("mochi-persona-prompt"), shot("enyo-addons-none"), "personas-install.webp")
+    pair(shot("mochi-persona-prompt"), shot("enyo-personas-pane"), "personas-install.webp")
     pair(shot("enyo-addons"), shot("enyo-longpress-none"), "addons-longpress.webp")
     pair(shot("mochi-config"), shot("mochi-settings-privacy"), "customize.webp")
     pair(shot("mochi-acid3"), shot("enyo-html5test"), "standards.webp")

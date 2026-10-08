@@ -51,7 +51,7 @@ own nsITimer; the daemon re-drove a page's load of an about: page by its resolve
 **Reviews:** Codex r9 (taps/first paint/hit-test, 4 findings, all dispositioned); the inspector r10
 on the owed range `20310b3e..e7b9aa7d` (Codex ran out mid-run; P1 Mojo widget restoring zoom 1.0
 on Back/reload, pinch drift, header after a link, stale meta viewport, setHeaderHeight — all fixed,
-Back verified); the inspector r11 on the Personas work is running/recorded in
+Back verified); the inspector r11 on the Personas work (8 findings, all fixed or already fixed) in
 `context/impl/impl-review-findings-6.md`. **Codex owes a pass over `9e08c610..HEAD` when its credits
 return (it said 10:07 PM on 2026-10-08).**
 
@@ -61,12 +61,14 @@ state (needs every Persona uninstalled); double-tap speed and block choice; Moch
 ~1.43; the owner's finger pass over all of the above; coordmap_test (fixed to the contract, not run
 — no desktop engine build on this host).
 
-**Device state left:** daemons, components, settings page and the Aero set deployed to all three
-(bundle 133); adapters installed in /usr/lib/jihad/<variant>/ with md5 enyo a952549dafab, mochi 819269398a78, mojo 76f9d6979c55
-(rootfs ro). Personas worn: Enyo Aero Ribbons, Mochi Aero Ribbons, Mojo Aero Orbs. Test hooks
-restored to the shipped manifests at the end of the session (see below). Theme test server and
-`/tmp` http.server on the host were stopped. `/media/internal/downloads/dark_fox-2.0.xpi` was put
-there for the Install-from-file test.
+**Device state left:** daemons, components, settings page and the Aero set (edition 3) deployed
+to all three (bundle 137); adapters in `/usr/lib/jihad/<variant>/` with md5 enyo a952549dafab,
+mochi 819269398a78, mojo 76f9d6979c55 (rootfs ro). Personas worn: Enyo Aero Ribbons (its Aero Sky
+uninstalled for the edition test), Mochi Aero Ribbons, Mojo Aero Orbs. Test hooks restored to the
+shipped manifests in all three (Luna restarted). The host's theme test server (8091) and http.server
+(8092) are stopped. `/media/internal/downloads/dark_fox-2.0.xpi` is left there from the
+Install-from-file test. Reviews: the inspector's round 11 on the Personas work is in
+`impl-review-findings-6.md` (8 findings, all dispositioned).
 
 ---
 

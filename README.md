@@ -237,6 +237,9 @@ date, so keep your clock set (or turn on network time). For the rest of your Tou
 > **Tip:** Type `about:config` in the address bar to see every engine setting. If you don't want the
 > warning page each time, turn it off in Settings → General.
 
+> **Tip:** On addons.mozilla.org the big button on a Persona's page says "Download Firefox". Tap
+> **Download file** just under it instead, and Jihad asks whether to wear the Persona.
+
 > **Tip:** Want a different look in each card? Every interface keeps its own Persona. Try a dark one in
 > Mojo and a bright one in Enyo.
 

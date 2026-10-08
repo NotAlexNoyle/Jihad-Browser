@@ -1,7 +1,72 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-07 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-08 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
+
+---
+
+## 2026-10-08 delta — taps land where drawn, long-press menus back, the Personas manager, a Frutiger Aero set, the README (READ FIRST)
+
+**Owner's reports this day and what came of each** (all device-verified unless marked):
+- **"mojo tap targets seem inaccurate … I get duckduckgo when I click wikipedia"** — FIXED, three
+  causes: the daemon divided adapter coordinates by the zoom a second time (since 2026-08-02; every
+  shell, any zoom ≠ 1); Mojo's widget single-tap handler clicked a second time; the device's
+  PGContext blit ignored the header strip, so the page was drawn one strip higher than taps were
+  mapped. Mojo start page: one `clickAt` on the drawn Wikipedia link, opens it.
+- **"using the url bar to search the web is slow"** — the first-paint hold is at most 1 s per
+  document (it waited for load end, 12 s on Wikipedia). Owner's finger check pending.
+- **Long-press link/image menus never appeared (found while taking screenshots)** — FIXED: the
+  device's stock `/etc/palm/browser/HitTest.schema` does not compile in the pbnjson the adapter
+  links (rejects even `{}`), and a rejected parse left the hit-test object empty. The adapter now
+  validates against its own embedded schema. Enyo: link → Open In New Card / Share Link / Copy URL;
+  image → Copy To Photos / Share Image / Set Wallpaper; Mochi's link sheet opens.
+- **"make it user friendly to manage and install personas, using about:addons as a base"** — new kit
+  `cavekit-personas-ui.md`, built (Tier 73, T-365…T-371). `components/jihadPersonas.js` decorates
+  the engine's own about:addons (no engine change): category "Personas"; rows with the Persona's
+  picture, author, version (1.0 default), In use first; Wear / Take off / Uninstall (44 px);
+  Default look; an Undo bar for 30 s; Get Personas (AMO); Install from file (`.xpi` in
+  `/media/internal/downloads` or `/media/internal`). Settings → Appearance is a summary with
+  Manage Personas. Verified in Enyo, Mochi and Mojo. Owner direction folded in the same day: Try
+  dropped for Wear + Undo, author and version on all rows, "Persona" everywhere (confirm, toasts,
+  Settings, README), "Uninstall" not "Remove".
+- **"add fruiter aero style themes"** — five original Frutiger Aero Personas
+  (`render/goanna/personas/make-aero-personas.py` draws them; bundled under `personas/`), added once
+  to each profile's list (not worn); an edition bump replaces the set's older pictures.
+- **"blue nebula looks like it isnt working properly"** — wallpaper-sized pictures (AMO's
+  3840×2160) exceed the 32 MB image cache and never drew in the engine: kept 1600 px wide at
+  install, and the cards fit them to the bar (`headerFit`). Already-installed big ones need a
+  reinstall.
+- **"dark fox preview … not working"** — a row added while the pane is open is redecorated once its
+  XBL binding attaches.
+- **README** — rewritten as a webOS-era product page (card view, Personas strip, framed shots, the
+  sourced HTTPS-on-webOS history). Art rebuilt by `docs/screenshots/readme-art.py` from raw device
+  captures (Prelude fonts from the device, not in the repo). howsmyssl.com reports TLS 1.3.
+
+**Found on the way, fixed:** the `resource://jihad-themes` mapping was never made after a daemon
+restart (the constructor runs before the profile is known) — converted Personas lost their
+pictures; the pane's `window.setTimeout` from the component never fires — the component uses its
+own nsITimer; the daemon re-drove a page's load of an about: page by its resolved file address
+(about:addons → `file:///…/extensions.xul`, refused as XUL from a file) — now by the original.
+
+**Reviews:** Codex r9 (taps/first paint/hit-test, 4 findings, all dispositioned); the inspector r10
+on the owed range `20310b3e..e7b9aa7d` (Codex ran out mid-run; P1 Mojo widget restoring zoom 1.0
+on Back/reload, pinch drift, header after a link, stale meta viewport, setHeaderHeight — all fixed,
+Back verified); the inspector r11 on the Personas work is running/recorded in
+`context/impl/impl-review-findings-6.md`. **Codex owes a pass over `9e08c610..HEAD` when its credits
+return (it said 10:07 PM on 2026-10-08).**
+
+**Get Personas verified against the live AMO:** its Persona pages' **Download file** link installs
+through the usual confirm (the big button only offers Firefox). **Still open:** the empty
+state (needs every Persona uninstalled); double-tap speed and block choice; Mochi text soft at
+~1.43; the owner's finger pass over all of the above; coordmap_test (fixed to the contract, not run
+— no desktop engine build on this host).
+
+**Device state left:** daemons, components, settings page and the Aero set deployed to all three
+(bundle 133); adapters installed in /usr/lib/jihad/<variant>/ with md5 enyo a952549dafab, mochi 819269398a78, mojo 76f9d6979c55
+(rootfs ro). Personas worn: Enyo Aero Ribbons, Mochi Aero Ribbons, Mojo Aero Orbs. Test hooks
+restored to the shipped manifests at the end of the session (see below). Theme test server and
+`/tmp` http.server on the host were stopped. `/media/internal/downloads/dark_fox-2.0.xpi` was put
+there for the Install-from-file test.
 
 ---
 

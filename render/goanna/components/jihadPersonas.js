@@ -466,15 +466,30 @@ function cssUrl(u) {
 
 // The look before the last change, for Undo: {theme (null = default look), name, until}.
 let undo = null;
-let lastSeen = undefined;     // the current theme the panes last showed (undefined = not yet)
+let lastSeen = undefined;     // the Persona worn as of the last change seen (undefined = not yet)
 
+// Called when the worn Persona may have changed (the manager's styling update), so Undo's 30 s
+// run from the change itself, wherever it was made — not from when a pane was next opened.
 function noteCurrent(cur) {
   let id = cur ? cur.id : null;
   if (lastSeen !== undefined && (lastSeen ? lastSeen.id : null) !== id) {
-    undo = {theme: lastSeen, name: cur ? String(cur.name || "a theme") : "the default look", until: Date.now() + UNDO_MS};
+    undo = {theme: lastSeen, name: cur ? String(cur.name || "a Persona") : "the default look", until: Date.now() + UNDO_MS};
   }
   lastSeen = cur || null;
   if (undo && Date.now() > undo.until) { undo = null; }
+}
+
+// A change arrives as more than one update (wearing a Persona takes the old one off first: the
+// manager says "none", then the new one), so the change is noted once they have settled —
+// otherwise Undo would go back to "none" instead of the Persona worn before.
+let notePending = null;
+function scheduleNote() {
+  if (notePending) { return; }
+  notePending = later(150, function() {
+    notePending = null;
+    try { noteCurrent(manager().currentTheme); } catch (e) {}
+    refreshPanes();
+  });
 }
 
 function undoChange() {
@@ -780,7 +795,8 @@ function decoratePane(win) {
   if (!box) { box = buildBox(win); listView.insertBefore(box, list); }
   box.hidden = false;
   let LWTM = manager(), cur = LWTM.currentTheme, used = LWTM.usedThemes || [];
-  noteCurrent(cur);
+  if (lastSeen === undefined) { lastSeen = cur || null; }
+  if (undo && Date.now() > undo.until) { undo = null; }
   let parts = box._jihad;
   parts.intro.textContent = used.length ?
     "A Persona gives the browser's toolbar and buttons a picture and colours, in every card of this browser." :
@@ -895,6 +911,8 @@ JihadPersonas.prototype = {
       // document-element-inserted, so the page is recognised when it has loaded.
       let win = aSubject;
       try {
+        // The Persona worn when the first page opens is the baseline Undo compares against.
+        if (lastSeen === undefined) { try { lastSeen = manager().currentTheme || null; } catch (e) {} }
         // Before the page lists its add-ons: the bundled Personas join the list first.
         try { if (isAddonsDocument(win.document)) { offerBundledOnce(); } } catch (e) { log("bundled Personas: " + e); }
         win.addEventListener("load", function() {
@@ -904,6 +922,7 @@ JihadPersonas.prototype = {
       return;
     }
     if (aTopic === "lightweight-theme-styling-update") {
+      scheduleNote();
       refreshPanes();
       // aData: the theme's JSON (with the persisted file URIs once the engine has the images),
       // or "null" when the theme was removed. Remembered for cards that start later; sent

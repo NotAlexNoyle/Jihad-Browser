@@ -62,8 +62,8 @@ bundled set and the script that draws it), `render/goanna/test/personas/`.
   Mochi and Mojo, from the pane; the toolbar or Mojo's circles change.)*
 - [x] A **Default look** entry sits above the list, "In use" when no Persona is worn, with a Wear
   that takes the Persona off. *(Device, Enyo: In use after the worn Persona was uninstalled.)*
-- [~] Default look's own Wear, tapped. *(Code path is the manager's `currentTheme = null`, as
-  Settings' old Remove was; not tapped on the device yet.)*
+- [x] Default look's own Wear, tapped, takes the Persona off; Undo then brings it back. *(Device,
+  Enyo: "Persona taken off", then Undo → Aero Ribbons.)*
 - [x] **Uninstall** (the manager's Remove, relabelled on every add-on) forgets a Persona and deletes
   the picture the browser unpacked for it. *(Device, Enyo: the old Blue Nebula's file removed.)*
 - [x] Every control is at least 44 px tall and 64 px wide. *(Measured: the row buttons' box is 44 px.)*
@@ -78,6 +78,10 @@ safety with one button.)
   back the Persona (or the default look) worn before. *(Device: Enyo, Wear then Undo, back to the
   previous Persona; Mochi and Mojo show the bar.)*
 - [x] Undo's own change is not itself undoable (no ping-pong).
+- [x] Undo's 30 s run from the change itself, wherever it was made (a Persona site, the pane,
+  Settings), and a change that arrives as two updates (off, then on) is one change: Undo returns
+  to the Persona worn before, not to none. *(Found on the device: the bar appeared for a change
+  made earlier on AMO, and its Undo went to the wrong look; fixed and re-verified.)*
 **Dependencies:** R2
 
 ### R4: Installing, from where people find Personas
@@ -87,8 +91,11 @@ safety with one button.)
   `/media/internal`. Tapping one installs it through the same conversion and confirm as a download
   (R10 limits apply). *(Device, Enyo: an AMO Persona put in downloads → confirm → worn.)* The
   engine's own gear-menu entry needs a file picker this embedding does not have.
-- [ ] **Get Personas** opens addons.mozilla.org's listing in the card, and a Persona installed
-  there appears in the pane, worn. *(Built; the AMO page in this engine not yet tried.)*
+- [x] **Get Personas** opens addons.mozilla.org's Themes listing in the card, and a Persona
+  installed there is worn and listed. *(Device, Enyo, 2026-10-08: the listing renders; on a
+  Persona's page AMO's big button says "Download the new Firefox", and its **Download file** link
+  installs it here through the usual confirm — "Allow addons.mozilla.org to change the browser's
+  look to the Persona: Purple Night" — and it is worn.)*
 - [x] Persona sites using the classic `InstallBrowserTheme` event (Firefox 52 / Pale Moon /
   Basilisk) keep working. *(cavekit-addons-extensions.md R10, device 2026-10-06; Mochi's prompt
   re-checked 2026-10-08 with the new wording.)*
@@ -149,7 +156,7 @@ browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for th
 - 2026-10-08 (later): Built and device-verified in all three shells (R1–R5, R7), with the
   owner's same-day direction: one Wear with Undo (R3 rewritten), author and version on every
   row, Uninstall, "Persona" everywhere, the wallpaper fit, the bundled Frutiger Aero set (R7,
-  new). Open: Get Personas against AMO, Default look's own Wear tapped, the empty state, and
-  the owner's finger pass.
+  new). Get Personas verified against the live AMO; Default look's Wear tapped. Open: the
+  empty state, and the owner's finger pass.
 - 2026-10-08: Created. Baseline measured on the device: the Themes pane listed Personas with
   Enable / Disable / Remove and a generic icon; nothing else.

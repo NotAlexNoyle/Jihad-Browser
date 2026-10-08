@@ -365,6 +365,12 @@ for f in modules/LightweightThemeManager.jsm modules/addons/LightweightThemeImag
 	[ -s "$OUT/$f" ] || { echo "ERROR: the engine's theme manager is missing from the bundle: $f" >&2; exit 1; }
 done
 echo "  personas: components/jihadPersonas.js + the engine's LightweightThemeManager"
+# The Personas that come with the browser (a Frutiger Aero set drawn by
+# render/goanna/personas/make-aero-personas.py), offered in about:addons → Personas.
+mkdir -p "$OUT/personas"
+cp -L "$REPO/render/goanna/personas/personas.json" "$REPO"/render/goanna/personas/aero-*.jpg "$OUT/personas/"
+[ -s "$OUT/personas/personas.json" ] || { echo "ERROR: the bundled Personas are missing" >&2; exit 1; }
+echo "  bundled Personas: $(ls "$OUT/personas" | grep -c '\.jpg$') (Frutiger Aero)"
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

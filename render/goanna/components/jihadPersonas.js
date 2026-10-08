@@ -91,6 +91,7 @@ function cardTheme(t) {
   out.footerURL = str(t.footerURL, 2048);
   out.textcolor = str(t.textcolor, 40);
   out.accentcolor = str(t.accentcolor, 40);
+  if (t.headerFit === "cover") { out.headerFit = "cover"; }      // a wallpaper: fitted, not its corner
   // Quotes and backslashes still escape to two characters: if what is left would not fit the
   // channel (6000), drop what a card can live without, in order, rather than send "null".
   let drop = ["footerURL", "author", "name", "headerURL"];
@@ -108,6 +109,16 @@ function themesDir() {
 function ensureThemesResource() {
   let rph = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
   if (!rph.hasSubstitution(THEMES_RESOURCE)) { rph.setSubstitution(THEMES_RESOURCE, Services.io.newFileURI(themesDir())); }
+}
+
+// The file a resource://jihad-themes/… URL stands for. The mapping is made here when missing:
+// the component starts before the profile directory is known, so the constructor's attempt can
+// fail and leave it unset until a static theme is installed (measured 2026-10-08: after a daemon
+// restart every converted theme's picture failed to resolve, NS_ERROR_NOT_AVAILABLE).
+function resolveThemesUrl(u) {
+  ensureThemesResource();
+  let rph = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+  return rph.resolveURI(Services.io.newURI(u, null, null));
 }
 
 // A WebExtension colour: "#rrggbb", "rgb(...)", a name, or [r, g, b(, a)].
@@ -173,6 +184,46 @@ function sha256Hex(file) {
   return hex;
 }
 
+// A wallpaper-sized picture (AMO ships 3840x2160 ones) decodes to more than the engine's whole
+// image cache on this device (32 MB, make-device-bundle.sh), so it is never drawn anywhere the
+// engine paints it (the Personas pane, measured 2026-10-08). Kept at most WALLPAPER_WIDTH wide:
+// the engine's encoder decodes it straight at that size. A picture made for a toolbar is left
+// exactly as it is.
+const WALLPAPER_WIDTH = 1600;
+function shrinkWallpaper(file, ext) {
+  if (ext === "gif") { return; }
+  let sz = imageSize(file);
+  if (!sz || sz.h < WALLPAPER_MIN_HEIGHT || sz.w <= WALLPAPER_WIDTH) { return; }
+  let w = WALLPAPER_WIDTH, h = Math.max(1, Math.round(sz.h * WALLPAPER_WIDTH / sz.w));
+  let mime = ext === "png" ? "image/png" : "image/jpeg";
+  let tools = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools);
+  let src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+  src.init(file, 0x01, 0, 0);
+  let container = null;
+  try { container = tools.decodeImage(src, mime); } finally { try { src.close(); } catch (e) {} }
+  let scaled = tools.encodeScaledImage(container, mime, w, h, ext === "png" ? "" : "quality=88");
+  let tmp = file.clone();
+  tmp.leafName = file.leafName + ".scaled";
+  let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+  bis.setInputStream(scaled);
+  let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+  fos.init(tmp, 0x02 | 0x08 | 0x20, 0o644, 0);
+  let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+  bos.setOutputStream(fos);
+  try {
+    for (;;) {
+      let n = Math.min(bis.available(), 65536);
+      if (n <= 0) { break; }
+      bos.writeByteArray(bis.readByteArray(n), n);
+    }
+  } finally {
+    try { bos.close(); } catch (e) {}
+    try { bis.close(); } catch (e) {}
+  }
+  tmp.moveTo(null, file.leafName);
+  log("wallpaper " + sz.w + "x" + sz.h + " kept at " + w + "x" + h);
+}
+
 // Returns {theme, pending (nsIFile), finalName} or null when the file is not a theme-only package.
 function staticThemeFromXpi(path, origin) {
   let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
@@ -203,6 +254,7 @@ function staticThemeFromXpi(path, origin) {
     pending = themesDir();
     pending.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
     copyEntry(zr, header, pending, MAX_IMAGE);
+    shrinkWallpaper(pending, ext);
     let hash = sha256Hex(pending).slice(0, 24);
     let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
     let finalName = hash + "-header." + ext;
@@ -211,6 +263,7 @@ function staticThemeFromXpi(path, origin) {
     if (accent) { theme.accentcolor = accent; }
     if (textc) { theme.textcolor = textc; }
     if (m.author && typeof m.author === "string") { theme.author = m.author.slice(0, 80); }
+    if (typeof m.version === "string" && /^[\w.+-]{1,20}$/.test(m.version)) { theme.version = m.version; }
     let out = {theme: theme, pending: pending, finalName: finalName};
     pending = null;                                   // handed over
     return out;
@@ -226,13 +279,13 @@ function staticThemeFromXpi(path, origin) {
 // "jihad-static-theme" (from components/jihadInstallPrompt.js, with the failed install's file
 // still on disk): a theme-only static theme becomes the lightweight theme, with the user's
 // yes; `converted` goes back true so the install's own failure is not reported as one.
-function handleStaticTheme(bag) {
+function handleStaticTheme(bag, hostLabel) {
   let path = "", origin = "";
   try { path = bag.getPropertyAsAString("path"); } catch (e) {}
   try { origin = bag.getPropertyAsAString("origin"); } catch (e) {}
   let got = staticThemeFromXpi(String(path), String(origin));
   if (!got) { return; }
-  let host = hostOf(origin);
+  let host = hostLabel || hostOf(origin);
   if (!confirmTheme(host, got.theme.name)) {
     log("static theme [" + got.theme.name + "] from " + host + " declined");
     try { got.pending.remove(false); } catch (e) {}
@@ -256,7 +309,7 @@ function handleStaticTheme(bag) {
   LWTM.currentTheme = got.theme;
   bag.setPropertyAsBool("converted", true);
   log("static theme [" + got.theme.name + "] from " + host + " is the theme now");
-  notify("info", "Theme applied: " + got.theme.name);
+  notify("info", "Persona applied: " + got.theme.name);
 }
 
 // Whether a page may PREVIEW a theme (repaint the browser's chrome without asking): Firefox
@@ -297,7 +350,7 @@ function handle(req) {
   catch (e) { theme = null; }
   if (!theme) {
     log("the page's theme could not be read (" + (req.kind || "?") + ")");
-    if (req.kind === "install") { notify("info", "That theme could not be read."); }
+    if (req.kind === "install") { notify("info", "That Persona could not be read."); }
     return;
   }
   if (req.kind === "preview") {
@@ -308,14 +361,490 @@ function handle(req) {
   // install
   previewId = null;
   LWTM.resetPreview();
-  let host = hostOf(req.origin), name = String(theme.name || theme.id || "theme");
+  let host = hostOf(req.origin), name = String(theme.name || theme.id || "Persona");
   if (!confirmTheme(host, name)) { log("install of [" + name + "] from " + host + " declined"); return; }
   LWTM.currentTheme = theme;      // persists, downloads the images, notifies
   log("[" + name + "] from " + host + " is the theme now");
-  notify("info", "Theme applied: " + name);
+  notify("info", "Persona applied: " + name);
+}
+
+// ---------------------------------------------------------------------------------------------
+// The Themes pane of about:addons, made the home of personas (cavekit-personas-ui.md). The page
+// is the engine's own add-ons manager; this decorates it from here rather than changing it, so
+// the manager, its add-on model and the install path above stay exactly as they are:
+//   - each theme row shows the theme: its header over its accent colour, the name in its text
+//     colour, the one in use marked and first (R1);
+//   - Wear / Take off on the rows, a "Default look" entry above them, finger-sized controls (R2);
+//   - after any change of look, an Undo bar for 30 s brings the previous one back (R3; owner
+//     2026-10-08: "try and wear seem duplicative" — one Wear, made safe by Undo);
+//   - every row says who made the theme and its version (owner: "author and version fields
+//     should be shown for all personas", "default version 1.0");
+//   - a picture made as a wallpaper (taller than a toolbar by far) is fitted, not cropped to its
+//     corner (owner: "blue nebula looks like it isnt working properly");
+//   - Get Personas, and Install from file — the .xpi files already on the device (R4);
+//   - the Personas that come with Jihad (a Frutiger Aero set, owner 2026-10-08: "add fruiter
+//     aero style themes") join the list once, as ordinary rows;
+//   - a few sentences on what a persona is when there are none yet (R5).
+const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+const GET_THEMES_URL = "https://addons.mozilla.org/firefox/themes/";
+const UNDO_MS = 30000;
+// A theme picture this tall was made as a wallpaper (AMO's 3840x2160 ones): drawn at its own
+// size, a toolbar would show only its corner. Header art made for a toolbar is 100-300 px tall.
+const WALLPAPER_MIN_HEIGHT = 400;
+const ID_SUFFIX = "@personas.mozilla.org";   // the manager's add-on id is the theme's id + this
+function themeIdOf(addonId) {
+  let s = String(addonId || "");
+  return s.slice(-ID_SUFFIX.length) === ID_SUFFIX ? s.slice(0, -ID_SUFFIX.length) : s;
+}
+// Where a theme the user downloaded is: the browser's downloads folder, and the USB drive's top.
+const XPI_DIRS = ["/media/internal/downloads", "/media/internal"];
+const PANE_CSS =
+  "@namespace url(\"" + XUL_NS + "\");\n" +
+  "#addons-page button { min-height: 44px !important; min-width: 64px !important; }\n" +
+  "#addons-page .category { min-height: 52px; }\n" +
+  "#addons-page[jihad-themes-view=\"true\"] #addon-list-empty { display: none; }\n" +
+  "#jihad-themes-box { padding: 10px 12px 4px; }\n" +
+  "#jihad-themes-box .jihad-themes-intro { margin: 0 0 8px; font-size: 1.05em; }\n" +
+  "#jihad-themes-box .jihad-row { min-height: 64px; padding: 6px 10px; margin: 0 0 8px;\n" +
+  "  border: 1px solid rgba(0,0,0,0.25); border-radius: 6px; }\n" +
+  "#jihad-themes-box .jihad-row-name { font-weight: bold; font-size: 1.15em; }\n" +
+  "#jihad-themes-box .jihad-in-use { font-weight: bold; }\n" +
+  "#jihad-themes-box .jihad-files button { -moz-box-pack: start; }\n" +
+  "#jihad-default-row { background: #e8e8e8; color: #222; }\n" +
+  "#jihad-undo-bar { background: #2c5f8a; color: #fff; }\n";
+
+let paneWindows = new Set();
+
+// A callback on this component's own timer. The page's window.setTimeout, called from here, never
+// ran its callback (measured 2026-10-08: the pane was never redrawn after a Persona change).
+let timers = new Set();
+function later(ms, fn) {
+  let t = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+  timers.add(t);                                     // held until it fires (or it may be collected)
+  t.initWithCallback({notify: function() { timers.delete(t); try { fn(); } catch (e) { log("persona timer: " + e); } }},
+                     Math.max(0, ms), Ci.nsITimer.TYPE_ONE_SHOT);
+  return t;
+}
+
+function isAddonsDocument(doc) {
+  let u = "";
+  try { u = String(doc.documentURI || ""); } catch (e) { return false; }
+  return u.indexOf("about:addons") === 0 || u.indexOf("chrome://mozapps/content/extensions/extensions.xul") === 0;
+}
+
+function xul(doc, tag, attrs) {
+  let el = doc.createElementNS(XUL_NS, tag);
+  for (let k in attrs || {}) { el.setAttribute(k, attrs[k]); }
+  return el;
+}
+
+// Is this CSS colour light? (A theme's text colour decides the pane behind the row's text.)
+function isLight(color, doc) {
+  try {
+    let probe = xul(doc, "box");
+    probe.style.color = String(color || "");
+    doc.documentElement.appendChild(probe);
+    let c = doc.defaultView.getComputedStyle(probe, null).color;
+    probe.remove();
+    let m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c);
+    if (!m) { return false; }
+    return (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) > 150;
+  } catch (e) { return false; }
+}
+
+// A url() a stylesheet can take from a theme: only schemes a theme image can have, and nothing
+// that could end the url() early. A converted static theme's resource://jihad-themes/ picture is
+// given as the file it stands for (the page draws no resource: background; measured 2026-10-08).
+function cssUrl(u) {
+  if (typeof u === "string" && u.indexOf("resource://" + THEMES_RESOURCE + "/") === 0) {
+    try { u = resolveThemesUrl(u); } catch (e) { return null; }
+  }
+  if (typeof u !== "string" || u.length > 2048 || /["'\\()\s]/.test(u)) { return null; }
+  if (!/^(https?|resource|file):/i.test(u)) { return null; }
+  return "url(\"" + u + "\")";
+}
+
+// The look before the last change, for Undo: {theme (null = default look), name, until}.
+let undo = null;
+let lastSeen = undefined;     // the current theme the panes last showed (undefined = not yet)
+
+function noteCurrent(cur) {
+  let id = cur ? cur.id : null;
+  if (lastSeen !== undefined && (lastSeen ? lastSeen.id : null) !== id) {
+    undo = {theme: lastSeen, name: cur ? String(cur.name || "a theme") : "the default look", until: Date.now() + UNDO_MS};
+  }
+  lastSeen = cur || null;
+  if (undo && Date.now() > undo.until) { undo = null; }
+}
+
+function undoChange() {
+  let u = undo;
+  undo = null;
+  if (!u) { return; }
+  lastSeen = u.theme;                     // the change Undo makes is not itself undoable
+  manager().currentTheme = u.theme;
+  notify("info", u.theme ? "Persona applied: " + u.theme.name : "Persona taken off.");
+  refreshPanes();
+}
+
+// Width and height of a PNG, GIF or JPEG file, read from its header; null if unknown.
+function imageSize(file) {
+  let bis = null;
+  try {
+    let is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+    is.init(file, 0x01, 0, 0);
+    bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+    bis.setInputStream(is);
+    let b = bis.readByteArray(Math.min(bis.available(), 256 * 1024));
+    let be16 = function(o) { return (b[o] << 8) | b[o + 1]; };
+    if (b.length > 24 && b[0] === 0x89 && b[1] === 0x50) {                       // PNG: IHDR
+      return {w: be16(16) * 65536 + be16(18), h: be16(20) * 65536 + be16(22)};
+    }
+    if (b.length > 10 && b[0] === 0x47 && b[1] === 0x49) {                       // GIF
+      return {w: b[6] | (b[7] << 8), h: b[8] | (b[9] << 8)};
+    }
+    if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {                        // JPEG: SOFn
+      let o = 2;
+      while (o + 9 < b.length) {
+        if (b[o] !== 0xff) { o++; continue; }
+        let m = b[o + 1];
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+          return {w: be16(o + 7), h: be16(o + 5)};
+        }
+        if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { o += 2; continue; }
+        o += 2 + be16(o + 2);
+      }
+    }
+  } catch (e) {
+  } finally {
+    try { if (bis) { bis.close(); } } catch (e) {}
+  }
+  return null;
+}
+
+// Whether a theme's picture (a file: or resource://jihad-themes/ URL) is a wallpaper.
+function isWallpaper(u) {
+  try {
+    if (typeof u !== "string") { return false; }
+    if (u.indexOf("resource://" + THEMES_RESOURCE + "/") === 0) { u = resolveThemesUrl(u); }
+    if (u.indexOf("file:") !== 0) { return false; }
+    let f = Services.io.newURI(u, null, null).QueryInterface(Ci.nsIFileURL).file;
+    let sz = imageSize(f);
+    return !!(sz && sz.h >= WALLPAPER_MIN_HEIGHT);
+  } catch (e) { return false; }
+}
+
+function xpiFilesOnDevice() {
+  let out = [];
+  XPI_DIRS.forEach(function(p) {
+    try {
+      let d = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      d.initWithPath(p);
+      if (!d.exists() || !d.isDirectory()) { return; }
+      let en = d.directoryEntries;
+      while (en.hasMoreElements() && out.length < 40) {
+        let f = en.getNext().QueryInterface(Ci.nsIFile);
+        try { if (f.isFile() && /\.xpi$/i.test(f.leafName)) { out.push(f); } } catch (e) {}
+      }
+    } catch (e) {}
+  });
+  return out;
+}
+
+// The Personas that come with the browser (render/goanna/personas/: a Frutiger Aero set drawn
+// for this project), shipped in the bundle's personas/ folder beside components/. Wearing one
+// installs it exactly as a downloaded one: its picture copied into the profile, named by its hash.
+let bundledCache = null;
+function bundledPersonas() {
+  if (bundledCache) { return bundledCache; }
+  let out = bundledCache = [];
+  try {
+    let dir = __LOCATION__.parent.parent;            // <bundle>/components/jihadPersonas.js → <bundle>
+    dir.append("personas");
+    let listFile = dir.clone();
+    listFile.append("personas.json");
+    if (!listFile.exists()) { return out; }
+    let is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+    is.init(listFile, 0x01, 0, 0);
+    let text = NetUtil.readInputStreamToString(is, is.available(), {charset: "UTF-8"});
+    is.close();
+    let d = JSON.parse(text);
+    (d.personas || []).forEach(function(p) {
+      if (!p || typeof p.file !== "string" || !/^[\w.-]+\.(jpg|png)$/.test(p.file)) { return; }
+      let f = dir.clone();
+      f.append(p.file);
+      if (!f.exists()) { return; }
+      let hash = sha256Hex(f).slice(0, 24), ext = /\.png$/.test(p.file) ? "png" : "jpg";
+      out.push({file: f, finalName: hash + "-header." + ext, collection: String(d.collection || ""),
+                theme: {id: "static-theme:" + hash, name: String(p.name || p.slug).slice(0, 80),
+                        headerURL: "resource://" + THEMES_RESOURCE + "/" + hash + "-header." + ext,
+                        accentcolor: cssColor(p.accentcolor) || undefined, textcolor: cssColor(p.textcolor) || undefined,
+                        author: String(p.author || "Jihad Browser").slice(0, 80), version: String(p.version || "1.0").slice(0, 20)}});
+    });
+  } catch (e) { log("bundled Personas: " + e); }
+  return out;
+}
+
+// The bundled set joins the Persona list once per profile, NOT worn: each is then an ordinary
+// row of about:addons → Personas — the same picture, Wear, Remove, author and version as the
+// others (owner 2026-10-08: "the aero themes dont display consistently in the persona preview
+// in about:addons like the others"). One the user removes stays removed.
+const PREF_BUNDLED = "jihad.personas.bundled";
+function offerBundledOnce() {
+  let done = "";
+  try { done = Services.prefs.getCharPref(PREF_BUNDLED); } catch (e) {}
+  let all = bundledPersonas();
+  if (!all.length) { return; }
+  let key = all[0].collection || "bundled";
+  if (done === key) { return; }
+  let used = [];
+  try { used = manager().usedThemes || []; } catch (e) { used = []; }
+  let have = {};
+  used.forEach(function(t) { have[t.id] = true; });
+  let add = [];
+  all.forEach(function(b) {
+    if (have[b.theme.id]) { return; }
+    let dest = themesDir();
+    dest.append(b.finalName);
+    if (!dest.exists()) { b.file.copyTo(themesDir(), b.finalName); }
+    add.push(b.theme);
+  });
+  ensureThemesResource();
+  if (add.length) {
+    let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+    str.data = JSON.stringify(used.concat(add));
+    Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
+  }
+  Services.prefs.setCharPref(PREF_BUNDLED, key);
+  log("bundled Personas offered: " + add.length + " (" + key + ")");
+}
+
+function installThemeFile(file) {
+  let bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
+  bag.setPropertyAsAString("path", file.path);
+  bag.setPropertyAsAString("origin", "");
+  bag.setPropertyAsBool("converted", false);
+  handleStaticTheme(bag, "a file on this device");
+  let converted = false;
+  try { converted = bag.getPropertyAsBool("converted"); } catch (e) {}
+  if (!converted) { notify("info", file.leafName + " is not a Persona this browser can wear."); }
+}
+
+function buildBox(win) {
+  let doc = win.document;
+  let box = xul(doc, "vbox", {id: "jihad-themes-box"});
+  let intro = xul(doc, "description", {"class": "jihad-themes-intro"});
+  box.appendChild(intro);
+
+  let undoBar = xul(doc, "hbox", {id: "jihad-undo-bar", "class": "jihad-row", align: "center", hidden: "true"});
+  let undoLabel = xul(doc, "label", {flex: "1"});
+  let undoBtn = xul(doc, "button", {label: "Undo"});
+  undoBtn.addEventListener("command", function() { undoChange(); });
+  undoBar.appendChild(undoLabel); undoBar.appendChild(undoBtn);
+  box.appendChild(undoBar);
+
+  let row = xul(doc, "hbox", {id: "jihad-default-row", "class": "jihad-row", align: "center"});
+  let names = xul(doc, "vbox", {flex: "1"});
+  names.appendChild(xul(doc, "label", {"class": "jihad-row-name", value: "Default look"}));
+  names.appendChild(xul(doc, "label", {value: "The browser's own colours, no Persona."}));
+  let inUse = xul(doc, "label", {"class": "jihad-in-use", value: "In use"});
+  let wear = xul(doc, "button", {label: "Wear"});
+  wear.addEventListener("command", function() {
+    manager().currentTheme = null;
+    notify("info", "Persona taken off.");
+  });
+  row.appendChild(names); row.appendChild(inUse); row.appendChild(wear);
+  box.appendChild(row);
+
+  let actions = xul(doc, "hbox", {align: "center"});
+  let get = xul(doc, "button", {label: "Get Personas"});
+  get.addEventListener("command", function() { win.location.href = GET_THEMES_URL; });
+  let fromFile = xul(doc, "button", {label: "Install from file\u2026"});
+  let files = xul(doc, "vbox", {"class": "jihad-files", hidden: "true"});
+  fromFile.addEventListener("command", function() {
+    while (files.firstChild) { files.firstChild.remove(); }
+    let found = xpiFilesOnDevice();
+    if (!found.length) {
+      files.appendChild(xul(doc, "label", {value: "No .xpi files in " + XPI_DIRS.join(" or ") + "."}));
+    }
+    found.forEach(function(f) {
+      let b = xul(doc, "button", {label: f.leafName});
+      b.addEventListener("command", function() { files.hidden = true; installThemeFile(f); });
+      files.appendChild(b);
+    });
+    files.hidden = !files.hidden;
+  });
+  actions.appendChild(get); actions.appendChild(fromFile);
+  box.appendChild(actions);
+  box.appendChild(files);
+
+  box._jihad = {intro: intro, undoBar: undoBar, undoLabel: undoLabel, inUse: inUse, wear: wear};
+  return box;
+}
+
+function decorateRow(doc, item, theme, isCurrent) {
+  item.setAttribute("jihad-theme-row", "true");
+  let accent = theme && theme.accentcolor ? String(theme.accentcolor) : "";
+  let text = theme && theme.textcolor ? String(theme.textcolor) : "";
+  let header = theme ? cssUrl(theme.headerURL) : null;
+  item.style.setProperty("background-color", accent || "#3a3a3a", "important");
+  if (header) {
+    // A wallpaper is shown whole across the row, a toolbar picture from its top right corner
+    // (where Firefox anchors it) — both filling the row.
+    let wall = !!(theme && isWallpaper(theme.headerURL));
+    item.style.setProperty("background-image", header, "important");
+    item.style.setProperty("background-position", wall ? "center center" : "right top", "important");
+    item.style.setProperty("background-size", "cover", "important");
+    item.style.setProperty("background-repeat", "no-repeat", "important");
+  }
+  item.style.setProperty("color", text || "#ffffff", "important");
+  item.style.setProperty("min-height", "96px", "important");
+  item.style.MozBoxOrdinalGroup = isCurrent ? "0" : "1";
+  let anon = function(attr, val) { return doc.getAnonymousElementByAttribute(item, attr, val); };
+  // The text sits on a pane in the opposite of its colour, so the name reads over any picture.
+  let pane = anon("class", "content-inner-container");
+  if (pane) {
+    let light = isLight(text || "#ffffff", doc);
+    pane.style.setProperty("background-color", light ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.5)", "important");
+    pane.style.setProperty("border-radius", "6px", "important");
+    pane.style.setProperty("padding", "4px 8px", "important");
+  }
+  ["name", "description", "date-updated", "version"].forEach(function(a) {
+    let el = anon("anonid", a);
+    if (el) { el.style.setProperty("color", text || "#ffffff", "important"); }
+  });
+  // Every Persona says its version (1.0 when it names none) and, the one worn, "In use"; the
+  // manager's own "(disabled)" says the same thing less kindly and goes.
+  let version = anon("anonid", "version");
+  if (version) {
+    let v = (theme && typeof theme.version === "string" && theme.version.trim()) ? theme.version.trim().slice(0, 20) : "1.0";
+    version.setAttribute("value", v + (isCurrent ? "  \u2014 In use" : ""));
+    version.hidden = false;                           // the manager hides it when a theme names none
+    version.style.setProperty("font-weight", isCurrent ? "bold" : "normal", "important");
+  }
+  let postfix = anon("class", "disabled-postfix");
+  if (postfix) { postfix.style.setProperty("display", "none", "important"); }
+  // And who made it, under the name.
+  let desc = anon("anonid", "description");
+  if (desc) {
+    let who = (theme && typeof theme.author === "string" && theme.author.trim()) ? theme.author.trim().slice(0, 80) : "";
+    desc.setAttribute("value", who ? "by " + who : "Author unknown");
+    desc.hidden = false;                              // the manager hides an empty description
+  }
+  ["enable-btn", "disable-btn", "remove-btn"].forEach(function(a) {
+    let b = anon("anonid", a);
+    if (b) { b.style.setProperty("min-height", "44px", "important"); b.style.setProperty("min-width", "64px", "important"); }
+  });
+  let en = anon("anonid", "enable-btn"), dis = anon("anonid", "disable-btn");
+  if (en) { en.setAttribute("label", "Wear"); }
+  if (dis) { dis.setAttribute("label", "Take off"); }
+}
+
+function decoratePane(win) {
+  let doc = win.document;
+  let gVC = win.gViewController;
+  let viewId = String((gVC && gVC.currentViewId) || "");
+  let isThemes = viewId.indexOf("addons://list/theme") === 0;
+  doc.documentElement.setAttribute("jihad-themes-view", isThemes ? "true" : "false");
+  // The category is called Personas, as everywhere else in this browser (owner 2026-10-08).
+  let cat = doc.getElementById("category-theme");
+  if (cat && cat.getAttribute("name") !== "Personas") { cat.setAttribute("name", "Personas"); }
+  let listView = doc.getElementById("list-view"), list = doc.getElementById("addon-list");
+  let box = doc.getElementById("jihad-themes-box");
+  if (!isThemes || !listView || !list) { if (box) { box.hidden = true; } return; }
+  if (!box) { box = buildBox(win); listView.insertBefore(box, list); }
+  box.hidden = false;
+  let LWTM = manager(), cur = LWTM.currentTheme, used = LWTM.usedThemes || [];
+  noteCurrent(cur);
+  let parts = box._jihad;
+  parts.intro.textContent = used.length ?
+    "A Persona gives the browser's toolbar and buttons a picture and colours, in every card of this browser." :
+    "A Persona gives the browser's toolbar and buttons a picture and colours, in every card of this browser. " +
+    "You have none yet: tap Get Personas, pick one you like, and say yes when the browser asks. " +
+    "A Persona you downloaded as an .xpi file installs with Install from file.";
+  parts.inUse.hidden = !!cur;
+  parts.wear.hidden = !cur;
+  parts.undoBar.hidden = !undo;
+  if (undo) {
+    parts.undoLabel.setAttribute("value", "Now wearing " + undo.name + ".");
+    later(undo.until - Date.now() + 50, function() { if (paneWindows.has(win)) { decoratePane(win); } });
+  }
+  let byId = {}, unbound = 0;
+  used.forEach(function(t) { byId[t.id] = t; });
+  for (let i = 0; i < list.children.length; i++) {
+    let item = list.children[i], a = item.mAddon;
+    // A row just added (a Persona installed while the pane is open) gets its add-on when its
+    // binding attaches, a moment after it is inserted: come back for it (owner 2026-10-08:
+    // "dark fox preview in about:addons not working").
+    if (!a) { unbound++; continue; }
+    if (a.type !== "theme") { continue; }
+    let tid = themeIdOf(a.id);
+    try { decorateRow(doc, item, byId[tid] || null, !!(cur && cur.id === tid)); }
+    catch (e) { log("persona row: " + e); }
+  }
+  win._jihadRetries = unbound ? (win._jihadRetries || 0) + 1 : 0;
+  if (unbound && win._jihadRetries <= 20) {
+    later(150, function() { if (paneWindows.has(win)) { decoratePane(win); } });
+  }
+}
+
+function refreshPanes() {
+  paneWindows.forEach(function(win) {
+    try {
+      if (win.closed) { paneWindows.delete(win); return; }
+      later(60, function() { if (paneWindows.has(win)) { decoratePane(win); } });
+    } catch (e) { paneWindows.delete(win); }
+  });
+}
+
+function attachPane(win) {
+  if (paneWindows.has(win)) { return; }
+  paneWindows.add(win);
+  let doc = win.document;
+  try {
+    win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils)
+      .loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
+  } catch (e) { log("themes pane style: " + e); }
+  let again = function() { try { decoratePane(win); } catch (e) { log("themes pane: " + e); } };
+  doc.addEventListener("ViewChanged", again, true);
+  let list = doc.getElementById("addon-list");
+  if (list) {
+    let pending = 0;
+    new win.MutationObserver(function() {
+      if (pending) { return; }
+      pending = later(30, function() { pending = 0; again(); });
+    }).observe(list, {childList: true});
+  }
+  win.addEventListener("unload", function() {
+    paneWindows.delete(win);
+  });
+  again();
+}
+
+// A converted static theme's picture is the browser's own file: it goes when the theme does.
+function forgetThemeFiles(id) {
+  let m = /^static-theme:([0-9a-f]{24})$/.exec(String(id || ""));
+  if (!m) { return; }
+  try {
+    let en = themesDir().directoryEntries;
+    while (en.hasMoreElements()) {
+      let f = en.getNext().QueryInterface(Ci.nsIFile);
+      if (f.leafName.indexOf(m[1] + "-header.") === 0) { f.remove(false); log("removed " + f.leafName); }
+    }
+  } catch (e) { log("theme files could not be removed: " + e); }
 }
 
 function JihadPersonas() {
+  Services.obs.addObserver(this, "content-document-global-created", false);
+  Services.obs.addObserver(this, "chrome-document-global-created", false);
+  try {
+    let AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+    AM.addAddonListener({
+      onUninstalled: function(addon) { if (addon && addon.type === "theme") { forgetThemeFiles(themeIdOf(addon.id)); refreshPanes(); } },
+      onEnabled: function() { refreshPanes(); },
+      onDisabled: function() { refreshPanes(); }
+    });
+  } catch (e) { log("add-on listener: " + e); }
   Services.obs.addObserver(this, "jihad-page-command", false);
   Services.obs.addObserver(this, "lightweight-theme-styling-update", false);
   Services.obs.addObserver(this, "jihad-static-theme", false);
@@ -336,7 +865,21 @@ JihadPersonas.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver, Ci.nsISupportsWeakReference]),
 
   observe: function(aSubject, aTopic, aData) {
+    if (aTopic === "content-document-global-created" || aTopic === "chrome-document-global-created") {
+      // Every new window: about:addons is a XUL document, which never sends
+      // document-element-inserted, so the page is recognised when it has loaded.
+      let win = aSubject;
+      try {
+        // Before the page lists its add-ons: the bundled Personas join the list first.
+        try { if (isAddonsDocument(win.document)) { offerBundledOnce(); } } catch (e) { log("bundled Personas: " + e); }
+        win.addEventListener("load", function() {
+          try { if (isAddonsDocument(win.document)) { attachPane(win); } } catch (e) { log("themes pane: " + e); }
+        });
+      } catch (e) {}
+      return;
+    }
     if (aTopic === "lightweight-theme-styling-update") {
+      refreshPanes();
       // aData: the theme's JSON (with the persisted file URIs once the engine has the images),
       // or "null" when the theme was removed. Remembered for cards that start later; sent
       // to the ones listening now.
@@ -353,10 +896,10 @@ JihadPersonas.prototype = {
           rawId = t.id;
           ["headerURL", "footerURL"].forEach(function(k) {
             if (typeof t[k] === "string" && t[k].indexOf("resource://" + THEMES_RESOURCE + "/") === 0) {
-              let rph = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
-              t[k] = rph.resolveURI(Services.io.newURI(t[k], null, null)); changed = true;
+              t[k] = resolveThemesUrl(t[k]); changed = true;
             }
           });
+          if (isWallpaper(t.headerURL)) { t.headerFit = "cover"; }
           json = JSON.stringify(cardTheme(t));
         } catch (e) { log("theme could not be read: " + e); json = ""; }
       }

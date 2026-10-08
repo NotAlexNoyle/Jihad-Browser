@@ -703,6 +703,11 @@ enyo.kind({
 		var url = function(u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
 		var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
 		node.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
+		// A wallpaper-sized picture is fitted to the bar (headerFit, from the browser's Persona
+		// component); a picture made for a toolbar keeps its own size, anchored top right as Firefox did.
+		var fit = !!header && theme.headerFit === "cover";
+		node.style.backgroundSize = fit ? "cover" : "";
+		if (fit) { node.style.backgroundPosition = "center center"; }
 		node.style.color = text;
 		var ink = enyo.jihad.isDarkColor(text);
 		for (i = 0; i < imgs.length; i++) {

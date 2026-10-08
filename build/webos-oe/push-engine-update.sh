@@ -77,7 +77,7 @@ say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$T
 # This project's own chrome scripts, relative to the bundle root.
 # ...and the engine's own script modules that this project's engine branch changes (they are
 # loose files in the bundle, so a libxul push does not carry them): the add-on manager's provider.
-OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm modules/addons/XPIProviderUtils.js $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* 2>/dev/null || true; } | tr '\n' ' ')"
+OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm modules/addons/XPIProviderUtils.js $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 # The add-on manager's provider (modules/addons/*) belongs to the engine it was staged with.
@@ -136,8 +136,9 @@ for v in $VARIANTS; do
   novacom run file://bin/mv -- "$HL/.jihad-browserserver.new" "$HL/jihad-browserserver"
   novacom run file://bin/chmod -- 755 "$HL/jihad-browserserver"
   say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
-  # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet)
-  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" >/dev/null 2>&1 || true
+  # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet, nor one
+  # installed before 2026-10-08 a personas/ one)
+  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" >/dev/null 2>&1 || true
   for f in $OWN; do
     # The add-on manager's provider belongs to the engine it was built with. A daemon-only
     # push leaves libxul alone, so the provider goes only when the device already runs the

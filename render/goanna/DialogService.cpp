@@ -273,10 +273,10 @@ class JihadXpiConfirmObserver final : public nsIObserver {
     if (!host.IsEmpty()) {
       text.AssignLiteral("Allow ");
       text.Append(host);
-      if (theme) text.AppendLiteral(" to change the browser's look to the theme: ");
+      if (theme) text.AppendLiteral(" to change the browser's look to the Persona: ");
       else text.AppendLiteral(" to install add-on: ");
     } else if (theme) {
-      text.AssignLiteral("Use the theme: ");
+      text.AssignLiteral("Use the Persona: ");
     } else {
       text.AssignLiteral("Install add-on: ");
     }

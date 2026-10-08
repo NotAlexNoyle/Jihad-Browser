@@ -597,6 +597,11 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	var url = function (u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
 	var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
 	bar.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
+	// A wallpaper-sized picture is fitted to the bar (headerFit, from the browser's Persona
+	// component); a picture made for a toolbar keeps its own size, anchored top right as Firefox did.
+	var fit = !!header && theme.headerFit === "cover";
+	bar.style.backgroundSize = fit ? "cover" : "";
+	if (fit) { bar.style.backgroundPosition = "center center"; }
 	bar.style.color = text;
 	this.themeCommandRow(this.isDarkColor(text), accent);
 };

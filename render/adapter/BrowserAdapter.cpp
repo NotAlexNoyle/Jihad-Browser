@@ -1959,7 +1959,11 @@ void BrowserAdapter::doGestureStart(int cx, int cy, float scale, float rotate,
     mCenteredZoom->centerX = centerX;
     mCenteredZoom->centerY = centerY;
     mCenteredZoom->scrollX = mScrollPos.x;
-    mCenteredZoom->scrollY = mScrollPos.y - m_headerHeight;   // the PAGE's scroll (see serverScrollY)
+    // OUR scroll (header strip included): the centre has already had the header taken off
+    // above, so the point under the fingers is scrollY + centerY - header, as everywhere else
+    // (taking it off both counted it twice: every Mojo pinch drifted by (scale-1)*header —
+    // inspector 2026-10-08).
+    mCenteredZoom->scrollY = mScrollPos.y;
     mCenteredZoom->zoomLevel = mZoomLevel;
 
     mZoomFit = false;
@@ -2038,7 +2042,7 @@ void BrowserAdapter::doGestureChange(int cx, int cy, float scale, float rotate,
     mContentWidth = ::round(mZoomLevel * mPageWidth);
     mContentHeight = ::round(mZoomLevel * mPageHeight);
     mScrollPos.x = ::round(x);
-    mScrollPos.y = ::round(y) + m_headerHeight;   // back to ours, header strip included
+    mScrollPos.y = ::round(y);
 
     mScroller->setContentDimensions(mContentWidth, mContentHeight + m_headerHeight);
     mScroller->scrollTo(-mScrollPos.x, -mScrollPos.y, false);
@@ -3594,7 +3598,27 @@ const char* BrowserAdapter::js_setHeaderHeight(AdapterBase *adapter, const NPVar
     int height = VariantToInteger(args[0]);
     TRACEF("HeaderHeight: %d", height);
     BrowserAdapter *a = GetAndInitAdapter(adapter);
+    const int old = a->m_headerHeight;
+    if (height < 0) height = 0;
     a->m_headerHeight = height;
+    if (height != old) {
+        // The scroll range includes the strip, so it changes with it (the Mojo find bar opens
+        // and closes it — inspector 2026-10-08: the page's last strip-height of rows was out of
+        // reach with the bar open, and white past the end after it closed). A page shown below
+        // a visible header moves down with it; one scrolled under it stays where it is.
+        if (a->mScrollPos.y > old) a->mScrollPos.y += height - old;
+        const int maxY = MAX(a->mContentHeight + height - (int) a->mViewportHeight, 0);
+        a->mScrollPos.y = MAX(0, MIN(a->mScrollPos.y, maxY));
+        if (a->mScroller) {
+            a->mScroller->setContentDimensions(a->mContentWidth, a->mContentHeight + height);
+            a->mScroller->scrollTo(-a->mScrollPos.x, -a->mScrollPos.y, false);
+        }
+        if (a->mBrowserServerConnected)
+            a->asyncCmdSetScrollPosition(a->mScrollPos.x, a->serverScrollY(),
+                                         a->mScrollPos.x + a->mWindow.width,
+                                         a->serverScrollY() + a->mWindow.height);
+        a->fireScrolledToEvent(-a->mScrollPos.x, -a->mScrollPos.y);
+    }
     a->invalidate();
 
     return NULL;
@@ -4484,6 +4508,24 @@ void BrowserAdapter::msgLoadStarted()
     TRACE;
 
     mFirstPaintComplete = false;
+
+    // A new page does not inherit the last one's meta viewport. It was freed only on a (0,0)
+    // contents-size message, which this daemon never sends, and the daemon sends nothing for a
+    // page without the tag — so after one user-scalable=no page every later page refused pinch
+    // and double-tap (inspector 2026-10-08). The new page's tag, if any, arrives after this.
+    delete mMetaViewport;
+    mMetaViewport = 0;
+
+    // And it starts with the card's header (the Mojo toolbar) showing. The daemon's navigation
+    // reset reports page scroll 0, which msgScrolledTo keeps as "header partly hidden" when the
+    // old page had been scrolled, so a link followed from lower down opened with the address bar
+    // hidden (inspector 2026-10-08).
+    if (m_headerHeight > 0 && mScrollPos.y > 0 && mScrollPos.y <= m_headerHeight) {
+        mScrollPos.y = 0;
+        if (mScroller) mScroller->scrollTo(-mScrollPos.x, 0, false);
+        invalidate();
+        fireScrolledToEvent(-mScrollPos.x, 0);
+    }
 
     if ( NULL != gLoadStartedHandler ) {
         InvokeEventListener(gLoadStartedHandler, NULL, 0, NULL);

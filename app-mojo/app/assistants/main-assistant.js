@@ -455,6 +455,13 @@ MainAssistant.prototype.adoptViewportModel = function () {
 	// the engine for the block to zoom to).
 	Mojo.Event.stopListening(wa.adapter, "singletap", wa._singleTapHandler, false);
 	wa._singleTapHandler = function () {};
+	// The widget remembers each page's zoom at load start and puts it back at load stop. It
+	// keeps that zoom in currScale, which nothing maintains under this model (it stays 1), so
+	// a reload, Back/Forward or a revisit of any page whose fit is not 1 was forced to 1.0
+	// behind the adapter's back - drawn upscaled, the right and bottom of the page out of
+	// reach (inspector 2026-10-08, P1). The adapter keeps the page's zoom itself.
+	wa._saveCurrentPagePosition = function () {};
+	wa._restoreCurrentPagePosition = function () {};
 	// The adapter reports every scroll of the page to the widget it calls back (scrolledTo with
 	// the negated scroll); the top strip follows it.
 	wa.scrolledTo = function (x, y) { self.onPageScrolled(-y); };

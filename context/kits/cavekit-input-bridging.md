@@ -78,6 +78,7 @@ with correct coordinate mapping under zoom and scroll. Reference:
 **Acceptance Criteria:**
 - [x] With the page zoomed and scrolled, a click at a given content coordinate hits the element actually shown at that location. *(REPORTED 2026-07-15: a tap on example.com's sole link hit-tested to `<HTML>` (missed). ROOT (2026-07-27): the adapter-vs-daemon zoom DID disagree — the daemon rendered a near-1 fit-zoom at 1× but advertised `contentZoom=mZoom` (~1.005), so the adapter's composite scale and its screen→content click divisor were off by ~(mZoom−1), a few-px vertical offset that made small targets miss. FIXED alongside the zoom rework: the daemon now reports the EFFECTIVE render scale, and the new document-relative zoom keeps the render, display, and click coords consistent. Verified on-device — a tap on example.com's "Learn more" link hit-tests the anchor and navigates. See context/impl/zoom-fix-2026-07-27.md; the on-device link-tap confirmation itself is recorded in commit **d4f0842** ("Verified on-device: a tap on example.com's 'Learn more' link now hit-tests the anchor and navigates (contentZoom=1.0000)"), not in that impl doc.)*
 - [x] Mapping is consistent between input and the geometry the renderer reports.
+- [x] **No second division by the zoom** (owner 2026-10-08: "mojo tap targets seem inaccurate … I get duckduckgo when I click wikipedia"). The adapter's document coordinates are already CSS px; the daemon's `docToViewport` divided them by the zoom again (since 2026-08-02), so on any page shown at a zoom other than 1 a tap or long-press landed 1/zoom too far, in every shell. *(Device, 2026-10-08: Enyo, desktop Wikipedia at the 0.69 fit — a tap at view (300,400) maps to page (435,581) and hits the article's `<P>`; finger-like holds at 0.64 hit the `<A>` / `<IMG>` under the point.)*
 **Dependencies:** cavekit-offscreen-rendering.md (R5)
 
 ### R6: XUL/chrome documents accept input like any other page
@@ -178,6 +179,7 @@ are NOT covered by `push-engine-update.sh` — they require rebuilding and insta
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-10-08: R5 — the daemon divided adapter coordinates by the zoom a second time (since 2026-08-02); removed, device-verified at fit zooms 0.64 and 0.69 (new `[x]`).
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2a's "bubbling DOM `input` event is
   dispatched" `[x]`→`[~]`: a 2026-08-15 device run (recorded in cavekit-preferences-ui.md R6) saw
   the value change with the page's `input` listener never firing, and the two were never

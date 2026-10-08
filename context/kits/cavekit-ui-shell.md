@@ -92,6 +92,7 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] A page that handles its own `contextmenu` event (preventDefault) gets no second menu. *(Device, 2026-10-05.)*
 - [x] Cut deletes only once the card confirms the text is on the clipboard, and only what was copied, whole; the card is told how it ended ("Cut.", or why not). Paste is bounded and sent in pieces the IPC can carry (one message holds 16 KB). *(Device, 2026-10-05.)*
 - [x] All of it inside the frozen contract: the adapter's own `selectAll` / `copy` / `cut` / `insertStringAtCursor` (they were stubs in the daemon), one bundled component (`components/jihadPageCommands.js`) and the notification channel; copied text reaches the card as a one-call script in the app's own `clip/` directory, under a random name, in plain ASCII. Commands act on the page they were asked of and run from the daemon's guarded tick.
+- [x] A hold on a link or an image offers the link's / image's menu, not the page's: the adapter's hit-test answer reaches the card intact. *(Device, 2026-10-08, finger-like holds (`J`, `J@x,y`) through the adapter's own hold timer and hit test, page at fit zoom 0.64–0.69: Enyo on a link — Open In New Card / Share Link / Copy URL; on an image — Copy To Photos / Share Image / Set Wallpaper; on Wikipedia's linked infobox photo — all six; Mochi's link sheet opens. Root cause: the device's stock `/etc/palm/browser/HitTest.schema` rejected the daemon's answer and a rejected parse leaves the object empty, so every hold looked like plain page and only the page menu ever opened; the adapter now reads the answer without the schema when the stock one rejects it.)*
 - [ ] A real finger: hold on text, on a field, on a link, in all three shells; Mojo's menu has no test hook at all. [human at the device]
 - [ ] Fields inside iframes get the page's menu, not the editing one (editability is hit-tested in the top document). Known gap; decide whether it matters. [decision]
 **Dependencies:** cavekit-ipc-contract.md (R1), cavekit-gre-widgets.md (R5 — the notification channel)
@@ -108,6 +109,7 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 **Dependencies:** cavekit-gre-widgets.md (the SSL warning's certificate view), cavekit-ipc-contract.md (R1)
 
 ## Changelog
+- 2026-10-08: R7 — link and image holds had silently fallen back to the page menu everywhere (the stock hit-test schema rejected the daemon's answer); fixed in the adapter and device-verified (new `[x]`).
 - 2026-10-06 (later): R8 "Mojo padlock tap; Mochi padlock after a failed load" `[ ]`→`[x]` (device, from the test hooks). R7 unchanged in boxes; its Mojo path was found broken and fixed (cavekit-mojo-ui.md R3/R6).
 - 2026-10-06: Added R7 (long-press menu) and R8 (padlock → certificate) for the 2026-10-05 work, with the device evidence and what still needs a finger.
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2: two criteria amended, no box changed

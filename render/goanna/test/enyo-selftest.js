@@ -174,6 +174,8 @@
 					// mouseup + click (the lift a scripted hold never had) — is the menu still open after it?
 					var jv = app.$.browser.$.view, jn = jv && (jv.hasNode() && (jv.hasNode().tagName === "OBJECT" ? jv.hasNode() : jv.hasNode().querySelector("object")));
 					var jx = Math.round(window.innerWidth / 2), jy = Math.round(window.innerHeight / 2);
+					var jat = /@(\d+),(\d+)$/.exec(st);   // J[MS]@X,Y: hold at window X,Y instead of the centre
+					if (jat) { jx = parseInt(jat[1], 10); jy = parseInt(jat[2], 10); st = st.replace(/@.*$/, ""); }
 					var jm = function (type) { var me = document.createEvent("MouseEvents"); me.initMouseEvent(type, true, true, window, 1, jx, jy, jx, jy, false, false, false, false, 0, null); if (jn) { jn.dispatchEvent(me); } };
 					log(name, "finger hold at " + jx + "," + jy + " (plugin " + (jn ? "present" : "MISSING") + ")");
 					jm("mousedown");

@@ -6013,8 +6013,22 @@ void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
                 static_cast<NPObjectEvent*>(event)->initialize(args->m_type,
                         args->m_pt.x * mZoomLevel - mScrollPos.x,
                         args->m_pt.y * mZoomLevel - mScrollPos.y, args->m_modifiers);
-                static_cast<JsonNPObject *>(hitTest)->initialize(
-                    m_hitTestSchema, hitTestResultJson);
+                // The device's stock /etc/palm/browser/HitTest.schema rejects this daemon's
+                // answer, and a rejected parse leaves the object EMPTY: the card then saw no
+                // link and no image under any long-press and offered only the page menu
+                // (measured 2026-10-08: daemon "isLink":true, card {} ). This daemon is the
+                // only producer of the JSON, so on a rejection it is read without the schema.
+                if (!static_cast<JsonNPObject *>(hitTest)->initialize(
+                        m_hitTestSchema, hitTestResultJson)) {
+                    pbnjson::JSchemaFragment anyJson("{}");
+                    bool ok = static_cast<JsonNPObject *>(hitTest)->initialize(anyJson, hitTestResultJson);
+                    if (FILE* lf = jihadPaintLog()) {
+                        static int logged = 0;
+                        if (logged++ < 3)
+                            fprintf(lf, "[hit-test] stock schema rejected the answer; without it: %s (%.200s)\n",
+                                    ok ? "parsed" : "STILL REJECTED", hitTestResultJson ? hitTestResultJson : "(null)");
+                    }
+                }
 
                 InvokeEventListener(gEventFiredHandler, jsCallArgs, 2,
                                     &jsCallResult);

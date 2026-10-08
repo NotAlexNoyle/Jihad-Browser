@@ -490,6 +490,19 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 73 — Personas UI on about:addons (2026-10-08; added to the site, not a regeneration)
+
+Owner: "make it user friendly to manage and install personas, using about:addons as a base." Kit: cavekit-personas-ui.md.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort |
+|------|-------|---------|-------------|-----------|--------|--------|
+| T-365 | Themes pane rows show the theme's art (header over accent, name in text colour), In use first | cavekit-personas-ui.md | R1 | — | yes | M |
+| T-366 | Wear / Default look / Remove (with unpacked images deleted), finger-sized controls | cavekit-personas-ui.md | R2 | T-365 | yes | M |
+| T-367 | Try (engine preview) with Keep / Undo; never persisted | cavekit-personas-ui.md | R3 | T-366 | yes | S |
+| T-368 | Install from file (static-theme XPI), Get themes link (AMO listing in a card); additional_backgrounds accepted [done] | cavekit-personas-ui.md | R4 | T-366 | yes | M |
+| T-369 | Empty-state explanation; Settings → Appearance becomes a summary + Manage themes | cavekit-personas-ui.md | R5 | T-365 | yes | S |
+| T-370 | Hooks + device verification in all three shells; screenshots incl. no theme | cavekit-personas-ui.md | R6 | T-365,T-366,T-367,T-368,T-369 | yes | M |
+
 ## Tier 71 — Tabbed browsing (GROUNDWORK ONLY, 2026-10-06; every task PENDING by the owner's word: "lay the groundwork … but don't implement it yet")
 
 Kit: `context/kits/cavekit-tabbed-browsing.md`. Design: `docs/TABS-GROUNDWORK.md` (plan B: pages in the daemon, one connection per card, tab commands over the variant's own Luna service; the YAP contract untouched).

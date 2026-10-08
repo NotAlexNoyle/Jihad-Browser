@@ -937,6 +937,7 @@ also be themed").**
 **Dependencies:** cavekit-preferences-ui.md (Appearance), cavekit-tabbed-browsing.md
 
 ## Changelog
+- 2026-10-08: R10 — a static theme whose header art is only in `additional_backgrounds` (three of five popular AMO themes tried) now converts; device-verified installing five AMO themes in Enyo, Mochi and Mojo. The management UI is now its own kit, cavekit-personas-ui.md.
 - 2026-10-06 (night): R7 — partial-paint regression fixed (Flash 16 → 34 fps paints) and the host
   frame drivers off by default, with the content-rate measurement that justifies it. R10 added
   (personas, AMO static themes) with the Codex round-7 hardening: preview gating and reset, theme

@@ -35,6 +35,23 @@ class H(http.server.BaseHTTPRequestHandler):
         if p == "/water-like-header.jpg":
             data = open("water-like-header.jpg","rb").read()
             self.send_response(200); self.send_header("Content-Type", "image/jpeg"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
+        if p.startswith("/themes/") and p.endswith(".xpi"):
+            # AMO static themes for the README gallery (downloaded to the scratch themes dir).
+            import os
+            name = os.path.basename(p)
+            path = os.path.join(os.environ.get("JIHAD_THEMES_DIR", "."), name)
+            if not os.path.isfile(path):
+                self.send_response(404); self.end_headers(); return
+            data = open(path, "rb").read()
+            self.send_response(200); self.send_header("Content-Type", "application/x-xpinstall"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
+        if p == "/themes":
+            # One 150px block per theme, at fixed places from the top, so a scripted tap lands on them.
+            import os
+            d = os.environ.get("JIHAD_THEMES_DIR", ".")
+            files = sorted(f for f in os.listdir(d) if f.endswith(".xpi"))
+            rows = "".join('<a href="/themes/%s" style="display:block;height:150px;line-height:150px;margin:0;background:%s;color:#fff;font-size:24px;text-align:center;text-decoration:none">%s</a>' % (f, ["#1e2f5c", "#5c1e2f", "#1e5c2f", "#5c4b1e", "#3b1e5c"][i % 5], f) for i, f in enumerate(files))
+            body = ("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>theme gallery</title><style>body{margin:0}</style></head><body>%s</body></html>" % rows).encode()
+            self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(body); return
         if p == "/bomb.xpi":
             # A theme XPI whose image entry LIES: 6 MB of zeros deflated, the directory claiming
             # 1000 bytes (inspector 2026-10-06, P2). The theme code must not unpack more than it allows.

@@ -53,7 +53,7 @@ public:
      * \param json Json that represents the object.
      * \return True if successful.
      */
-    bool initialize(pbnjson::JSchemaFile &schema, const char *json);
+    bool initialize(pbnjson::JSchema &schema, const char *json);
 
     /**
      * Initialize the object with a parsed DOM

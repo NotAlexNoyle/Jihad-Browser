@@ -36,7 +36,7 @@ JsonNPObject::~JsonNPObject()
     }
 }
 
-bool JsonNPObject::initialize(pbnjson::JSchemaFile &schema, const char *json)
+bool JsonNPObject::initialize(pbnjson::JSchema &schema, const char *json)
 {
     pbnjson::JDomParser parser(NULL);
 

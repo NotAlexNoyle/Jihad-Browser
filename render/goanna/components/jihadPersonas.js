@@ -191,7 +191,11 @@ function staticThemeFromXpi(path, origin) {
     let notATheme = ["background", "content_scripts", "browser_action", "page_action", "sidebar_action", "permissions", "web_accessible_resources"];
     for (let i = 0; i < notATheme.length; i++) { if (notATheme[i] in m) { return null; } }
     let images = m.theme.images || {}, colors = m.theme.colors || {};
-    let header = images.theme_frame || images.headerURL;
+    // The header art: the classic theme_frame (headerURL in older manifests), or — what many
+    // newer AMO themes carry instead — the first of additional_backgrounds (owner 2026-10-08,
+    // a gallery of AMO themes for the README: three of five had only that).
+    let header = images.theme_frame || images.headerURL ||
+      (Array.isArray(images.additional_backgrounds) ? images.additional_backgrounds[0] : null);
     if (typeof header !== "string") { return null; }
     header = header.replace(/^\.?\//, "");
     let ext = (/\.(png|jpe?g|gif)$/i.exec(header) || [null, ""])[1].toLowerCase();

@@ -32,9 +32,10 @@ class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, f, *a): sys.stderr.write("%s %s\n" % (self.address_string(), f % a)); sys.stderr.flush()
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
-        if p == "/water-like-header.jpg":
-            data = open("water-like-header.jpg","rb").read()
-            self.send_response(200); self.send_header("Content-Type", "image/jpeg"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
+        if p == "/carbon-light-header.png":
+            # Carbon Light by Jaxivo, CC BY-SA 3.0 — one of the Personas Jihad bundles (render/goanna/personas/).
+            data = open("../../personas/carbon-light.png","rb").read()
+            self.send_response(200); self.send_header("Content-Type", "image/png"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
         if p.startswith("/themes/") and p.endswith(".xpi"):
             # AMO static themes for the README gallery (downloaded to the scratch themes dir).
             import os
@@ -74,8 +75,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 cd = data.find(b"PK\x01\x02", cd + 4)
             data = bytes(data)
             self.send_response(200); self.send_header("Content-Type", "application/x-xpinstall"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
-        if p == "/water-like.xpi":
-            data = open("water_like-2.0.xpi","rb").read()
+        if p == "/carbon-light.xpi":
+            data = open("carbon_light-2.0.xpi","rb").read()
             self.send_response(200); self.send_header("Content-Type", "application/x-xpinstall"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
         if p == "/persona-header.png":
             data = open("persona-header.png","rb").read()
@@ -83,11 +84,12 @@ class H(http.server.BaseHTTPRequestHandler):
         if p == "/persona":
             import json as _j
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query); v = (q.get("v") or ["1"])[0]
-            if v == "water":
-                # Water-Like by stick177 (addons.mozilla.org/firefox/addon/water-like/), as the persona it was:
-                # AMO's converted static theme carries theme_frame + frame #00ccff + tab_background_text #000000.
-                theme = {"id": "water-like@stick177", "name": "Water-Like", "author": "stick177",
-                         "headerURL": "http://192.168.1.245:8091/water-like-header.jpg", "textcolor": "#000000", "accentcolor": "#00ccff"}
+            if v in ("carbon", "water"):
+                # Carbon Light by Jaxivo (CC BY-SA 3.0; addons.mozilla.org/firefox/addon/carbon-light/), as the
+                # persona it was: frame #2e2e2e, tab_background_text #3b3b3b. ("water" is the old name of this
+                # route: the Water-Like test asset it served is All Rights Reserved and was removed.)
+                theme = {"id": "carbon-light@jaxivo", "name": "Carbon Light", "author": "Jaxivo",
+                         "headerURL": "http://192.168.1.245:8091/carbon-light-header.png", "textcolor": "#3b3b3b", "accentcolor": "#2e2e2e"}
             else:
                 theme = {"id": "jihad-test-persona-" + v, "name": "Jihad Test Persona " + v, "author": "the test server",
                          "headerURL": "http://192.168.1.245:8091/persona-header.png", "textcolor": "#ffffff", "accentcolor": "#1e2f5c" if v == "1" else "#5c1e2f"}
@@ -104,7 +106,7 @@ function fire(node, name){ var e=document.createEvent("Events"); e.initEvent(nam
 document.getElementById("install").addEventListener("click", function(ev){ ev.preventDefault(); fire(this, "InstallBrowserTheme"); document.title="persona: install asked"; }, false);
 document.getElementById("preview").addEventListener("click", function(ev){ ev.preventDefault(); fire(this, "PreviewBrowserTheme"); document.title="persona: preview asked"; }, false);
 document.getElementById("reset").addEventListener("click", function(ev){ ev.preventDefault(); fire(this, "ResetBrowserThemePreview"); document.title="persona: reset asked"; }, false);
-</script></body></html>""" % (_j.dumps(theme), "/bomb.xpi" if v == "bomb" else "/water-like.xpi", _j.dumps(theme))).encode()
+</script></body></html>""" % (_j.dumps(theme), "/bomb.xpi" if v == "bomb" else "/carbon-light.xpi", _j.dumps(theme))).encode()
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(body); return
         if p == "/titleflood":
             # A page that rewrites its title every 20 ms for 6 s, 5000 characters with control

@@ -392,7 +392,16 @@ function handle(req) {
 //     aero style themes") join the list once, as ordinary rows;
 //   - a few sentences on what a persona is when there are none yet (R5).
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
-const GET_THEMES_URL = "https://addons.mozilla.org/firefox/themes/";
+// "Get Personas" opens the browser's own gallery (about:personas), unless the pref Basilisk uses
+// for its "Get More Themes" names another place.
+const PREF_GET_MORE = "lightweightThemes.getMoreURL";
+function getPersonasURL() {
+  try {
+    let u = Services.prefs.getCharPref(PREF_GET_MORE);
+    if (/^(https:|about:personas$)/.test(u)) { return u; }
+  } catch (e) {}
+  return "about:personas";
+}
 const UNDO_MS = 30000;
 // A theme picture this tall was made as a wallpaper (AMO's 3840x2160 ones): drawn at its own
 // size, a toolbar would show only its corner. Header art made for a toolbar is 100-300 px tall.
@@ -603,6 +612,9 @@ function bundledPersonas() {
       let hash = sha256Hex(f).slice(0, 24), ext = /\.png$/.test(p.file) ? "png" : "jpg";
       out.push({file: f, finalName: hash + "-header." + ext, collection: String(d.collection || ""),
                 edition: String(d.edition || 1),
+                formerNames: Array.isArray(p.formerNames) ? p.formerNames.map(String) : [],
+                license: String(p.license || ""), licenseURL: String(p.licenseURL || ""),
+                source: String(p.source || ""), modified: p.modified ? String(p.modified) : "",
                 theme: {id: "static-theme:" + hash, name: String(p.name || p.slug).slice(0, 80),
                         headerURL: "resource://" + THEMES_RESOURCE + "/" + hash + "-header." + ext,
                         accentcolor: cssColor(p.accentcolor) || undefined, textcolor: cssColor(p.textcolor) || undefined,
@@ -610,6 +622,33 @@ function bundledPersonas() {
     });
   } catch (e) { log("bundled Personas: " + e); }
   return out;
+}
+
+// A Persona in the list with the same picture as a bundled one (installed from a site before it
+// was bundled, say) gets the bundled entry's name, author and version: it is that Persona.
+function sameDetails(t, fresh) {
+  return t.name === fresh.name && t.author === fresh.author && t.version === fresh.version &&
+         t.accentcolor === fresh.accentcolor && t.textcolor === fresh.textcolor;
+}
+function refreshBundledDetails(all) {
+  let LWTM = manager(), used = [], cur = null;
+  try { used = LWTM.usedThemes || []; cur = LWTM.currentTheme; } catch (e) { return; }
+  let byId = {}, changed = false, wear = null;
+  all.forEach(function(b) { byId[b.theme.id] = b.theme; });
+  let now = used.map(function(t) {
+    let fresh = byId[t.id];
+    if (!fresh || sameDetails(t, fresh)) { return t; }
+    changed = true;
+    if (cur && cur.id === t.id) { wear = fresh; }
+    return fresh;
+  });
+  if (!changed) { return; }
+  if (wear) { previewId = null; LWTM.currentTheme = wear; }
+  try { now = (LWTM.usedThemes || []).map(function(t) { return byId[t.id] || t; }); } catch (e) {}
+  let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+  str.data = JSON.stringify(now);
+  Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
+  log("bundled Personas: details brought up to date");
 }
 
 // The bundled set joins the Persona list once per profile, NOT worn: each is then an ordinary
@@ -626,32 +665,55 @@ function offerBundledOnce() {
   let all = bundledPersonas();
   if (!all.length) { return; }
   let key = (all[0].collection || "bundled") + "/" + all[0].edition;
-  if (done === key) { return; }
+  if (done === key) { refreshBundledDetails(all); return; }
   let offered = {};
   try { JSON.parse(Services.prefs.getCharPref(PREF_BUNDLED_NAMES)).forEach(function(n) { offered[n] = true; }); }
   catch (e) {
-    // A profile offered the set before the names were kept was offered every one of them.
-    if (done) { all.forEach(function(b) { offered[b.theme.name] = true; }); }
+    // A profile offered the set before the names were kept was offered the project's own five
+    // (then the whole set), under their names of the time — not Personas added since.
+    if (done) {
+      all.forEach(function(b) {
+        if (b.theme.author === "Jihad Browser") { [b.theme.name].concat(b.formerNames).forEach(function(n) { offered[n] = true; }); }
+      });
+    }
   }
   let LWTM = manager();
   let used = [];
   try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
   let cur = null;
   try { cur = LWTM.currentTheme; } catch (e) {}
-  let have = {}, wear = null, dropped = {}, droppedIds = [], replacing = {};
+  let have = {}, wear = null, dropped = {}, droppedIds = [], replacing = {}, renamed = false;
   used.forEach(function(t) { have[t.id] = true; });
-  // A newer edition replaces its own older pictures: an entry by "Jihad Browser" with a bundled
-  // Persona's name but not its picture is that Persona's earlier edition.
-  let newIds = {}, byName = {};
-  all.forEach(function(b) { newIds[b.theme.id] = true; byName[b.theme.name] = b; });
-  used.forEach(function(t) {
+  // An entry by "Jihad Browser" under a bundled Persona's name (or one of its earlier names) is
+  // that Persona: with the same picture it is brought up to date in place (a renamed one keeps
+  // its place, and stays worn if it was); with another picture it is an earlier edition, which
+  // the new picture replaces.
+  let newIds = {}, byName = {}, wasOffered = function(b) {
+    return [b.theme.name].concat(b.formerNames).some(function(n) { return offered[n]; });
+  };
+  all.forEach(function(b) {
+    newIds[b.theme.id] = b;
+    [b.theme.name].concat(b.formerNames).forEach(function(n) { byName[n] = b; });
+  });
+  used = used.map(function(t) {
     let b = byName[t.name];
-    if (!b || t.author !== "Jihad Browser" || newIds[t.id]) { return; }
-    dropped[t.id] = true; droppedIds.push(t.id); replacing[t.name] = true;
+    if (!b || t.author !== "Jihad Browser") { return t; }
+    if (newIds[t.id]) {
+      let fresh = newIds[t.id].theme;
+      if (t.name !== fresh.name || t.version !== fresh.version || t.accentcolor !== fresh.accentcolor ||
+          t.textcolor !== fresh.textcolor) {
+        renamed = true;
+        if (cur && cur.id === t.id) { wear = newIds[t.id]; }
+        return fresh;
+      }
+      return t;
+    }
+    dropped[t.id] = true; droppedIds.push(t.id); replacing[b.theme.name] = true;
     if (cur && cur.id === t.id) { wear = b; }
+    return t;
   });
   let add = all.filter(function(b) {
-    return !have[b.theme.id] && (!offered[b.theme.name] || replacing[b.theme.name]);
+    return !have[b.theme.id] && (!wasOffered(b) || replacing[b.theme.name]);
   });
   add.forEach(function(b) {
     let dest = themesDir();
@@ -663,21 +725,26 @@ function offerBundledOnce() {
   // still "selected"), and only then is the list rewritten without the old edition — rewriting
   // first left the manager briefly wearing whatever came next (inspector 2026-10-08).
   if (wear) { previewId = null; LWTM.currentTheme = wear.theme; }
-  if (add.length || droppedIds.length) {
+  if (add.length || droppedIds.length || renamed) {
     let now = [];
     try { now = LWTM.usedThemes || []; } catch (e) { now = used; }
     let present = {};
-    now = now.filter(function(t) { present[t.id] = true; return !dropped[t.id]; });
+    now = now.filter(function(t) { present[t.id] = true; return !dropped[t.id]; })
+             .map(function(t) {                       // renamed in place (worn or not)
+               let b = newIds[t.id];
+               return (b && t.author === "Jihad Browser") ? b.theme : t;
+             });
     add.forEach(function(b) { if (!present[b.theme.id]) { now.push(b.theme); } });
     let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
     str.data = JSON.stringify(now);
     Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
   }
   droppedIds.forEach(function(id) { forgetThemeFiles(id); });
-  all.forEach(function(b) { offered[b.theme.name] = true; });
+  all.forEach(function(b) { [b.theme.name].concat(b.formerNames).forEach(function(n) { offered[n] = true; }); });
   Services.prefs.setCharPref(PREF_BUNDLED_NAMES, JSON.stringify(Object.keys(offered)));
   Services.prefs.setCharPref(PREF_BUNDLED, key);
-  log("bundled Personas offered: " + add.length + ", replaced: " + droppedIds.length + " (" + key + ")");
+  refreshBundledDetails(all);
+  log("bundled Personas offered: " + add.length + ", replaced: " + droppedIds.length + (renamed ? ", renamed" : "") + " (" + key + ")");
 }
 
 function installThemeFile(file) {
@@ -719,7 +786,7 @@ function buildBox(win) {
 
   let actions = xul(doc, "hbox", {align: "center"});
   let get = xul(doc, "button", {label: "Get Personas"});
-  get.addEventListener("command", function() { win.location.href = GET_THEMES_URL; });
+  get.addEventListener("command", function() { win.location.href = getPersonasURL(); });
   let fromFile = xul(doc, "button", {label: "Install from file\u2026"});
   let files = xul(doc, "vbox", {"class": "jihad-files", hidden: "true"});
   fromFile.addEventListener("command", function() {
@@ -766,7 +833,7 @@ function decorateRow(doc, item, theme, isCurrent) {
   let pane = anon("class", "content-inner-container");
   if (pane) {
     let light = isLight(text || "#ffffff", doc);
-    pane.style.setProperty("background-color", light ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.5)", "important");
+    pane.style.setProperty("background-color", light ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.72)", "important");
     pane.style.setProperty("border-radius", "6px", "important");
     pane.style.setProperty("padding", "4px 8px", "important");
   }
@@ -905,7 +972,62 @@ function forgetThemeFiles(id) {
   } catch (e) { log("theme files could not be removed: " + e); }
 }
 
+// about:personas (packaging/prefsui/content/personas.js) asks through "jihad-personas-gallery":
+//   list    → the bundled Personas, each with its credits and whether it is installed / worn;
+//   wear    → put a bundled one on (installing it if it is not in the list);
+//   install → a Persona from the online index: read like a site's, confirmed like a site's.
+function galleryRequest(bag) {
+  let action = "";
+  try { action = bag.getPropertyAsAString("action"); } catch (e) {}
+  let get = function(k) { try { return bag.getPropertyAsAString(k); } catch (e) { return ""; } };
+  let reply = function(v) { bag.setPropertyAsAString("result", JSON.stringify(v)); };
+  let LWTM = manager(), cur = null, used = [];
+  try { cur = LWTM.currentTheme; used = LWTM.usedThemes || []; } catch (e) {}
+  let installed = {};
+  used.forEach(function(t) { installed[t.id] = true; });
+  if (action === "list") {
+    reply(bundledPersonas().map(function(b) {
+      return {key: b.theme.id, name: b.theme.name, author: b.theme.author, version: b.theme.version,
+              license: b.license, licenseURL: b.licenseURL, source: b.source,
+              accentcolor: b.theme.accentcolor, textcolor: b.theme.textcolor,
+              preview: Services.io.newFileURI(b.file).spec,
+              installed: !!installed[b.theme.id], worn: !!(cur && cur.id === b.theme.id)};
+    }));
+    return;
+  }
+  if (action === "wear") {
+    let b = bundledPersonas().filter(function(x) { return x.theme.id === get("key"); })[0];
+    if (!b) { reply({ok: false}); return; }
+    let dest = themesDir();
+    dest.append(b.finalName);
+    if (!dest.exists()) { b.file.copyTo(themesDir(), b.finalName); }
+    ensureThemesResource();
+    previewId = null;
+    LWTM.resetPreview();
+    LWTM.currentTheme = b.theme;
+    notify("info", "Persona applied: " + b.theme.name);
+    reply({ok: true});
+    return;
+  }
+  if (action === "install") {
+    let origin = get("origin");
+    if (!/^https:\/\//.test(origin)) { reply({ok: false, message: "The gallery must be an https address."}); return; }
+    let theme = null;
+    try { theme = LWTM.parseTheme(get("json"), origin); } catch (e) { theme = null; }
+    if (!theme) { reply({ok: false, message: "That Persona could not be read."}); return; }
+    if (!confirmTheme(hostOf(origin), String(theme.name || "Persona"))) { reply({ok: false, message: "Not installed."}); return; }
+    previewId = null;
+    LWTM.resetPreview();
+    LWTM.currentTheme = theme;
+    notify("info", "Persona applied: " + theme.name);
+    reply({ok: true});
+    return;
+  }
+  reply(null);
+}
+
 function JihadPersonas() {
+  Services.obs.addObserver(this, "jihad-personas-gallery", false);
   Services.obs.addObserver(this, "content-document-global-created", false);
   Services.obs.addObserver(this, "chrome-document-global-created", false);
   try {
@@ -1003,6 +1125,12 @@ JihadPersonas.prototype = {
         } catch (e) { log("could not remember the theme: " + e); }
       }
       notify("theme", json || "null");
+      return;
+    }
+    if (aTopic === "jihad-personas-gallery") {
+      let bag = null;
+      try { bag = aSubject.QueryInterface(Ci.nsIWritablePropertyBag2); } catch (e) { bag = null; }
+      if (bag) { try { galleryRequest(bag); } catch (e) { log("gallery: " + e); } }
       return;
     }
     if (aTopic === "jihad-static-theme") {

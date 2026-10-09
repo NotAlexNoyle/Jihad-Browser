@@ -4,7 +4,7 @@
 green hill, light ribbons, lime orbs), the look of the late-2000s screens the TouchPad was born
 among. Every pixel is drawn here from gradients and shapes, so the art is this project's own.
 
-Output (beside this script): aero-*.jpg header pictures and personas.json, which the browser's
+Output (beside this script): one <slug>.jpg header picture per Persona and personas.json, which the browser's
 Persona component (components/jihadPersonas.js) offers in about:addons → Personas.
 
 A header is 1600 x 160: wide enough for a landscape card, tall enough for every shell's bar.
@@ -112,7 +112,7 @@ def finish(arr, name):
     return path
 
 
-def aqua():
+def aqua(out_name):
     rnd = random.Random(7)
     a = vgrad((0, 150, 220), (120, 225, 255), 0.8)
     a = hgrad_mul(a, 0.92, 1.05)
@@ -126,10 +126,10 @@ def aqua():
         y = rnd.uniform(-10, 150) * K
         r = rnd.choice([9, 12, 16, 22, 30, 44]) * K * rnd.uniform(0.8, 1.2)
         a = bubble(a, x, y, r)
-    return finish(a, "aero-aqua.jpg")
+    return finish(a, out_name)
 
 
-def sky():
+def sky(out_name):
     rnd = random.Random(11)
     a = vgrad((40, 130, 230), (160, 215, 255), 1.1)
     # clouds: clusters of soft white ellipses
@@ -147,10 +147,10 @@ def sky():
         fx, fy = lerp(1460, 1000, t) * K, lerp(18, 140, t) * K
         a = glow(a, fx, fy, rr * K, (200, 235, 255), s)
     a = gloss(a, 0.30, 0.40)
-    return finish(a, "aero-sky.jpg")
+    return finish(a, out_name)
 
 
-def meadow():
+def meadow(out_name):
     rnd = random.Random(3)
     a = vgrad((30, 120, 225), (150, 210, 250), 1.0)
     a = glow(a, 1300 * K, 0, 380 * K, (255, 255, 240), 0.55)
@@ -170,10 +170,10 @@ def meadow():
     a = gloss(a, 0.28, 0.42)
     for i in range(5):
         a = bubble(a, rnd.uniform(900, 1580) * K, rnd.uniform(4, 22) * K, rnd.choice([5, 7, 10]) * K, rim=0.6)
-    return finish(a, "aero-meadow.jpg")
+    return finish(a, out_name)
 
 
-def ribbons():
+def ribbons(out_name):
     a = vgrad((4, 28, 60), (0, 70, 110), 0.9)
     a = hgrad_mul(a, 0.7, 1.15)
     a = glow(a, 1350 * K, 60 * K, 420 * K, (0, 140, 200), 0.6)
@@ -183,10 +183,10 @@ def ribbons():
         (5.1, 28, 1.3, 50, 12, (0, 255, 170), 0.35)]:
         a = ribbon(a, ph, amp * K, fr, yc * K, th * K, col, s)
     a = gloss(a, 0.22, 0.38)
-    return finish(a, "aero-ribbons.jpg")
+    return finish(a, out_name)
 
 
-def orbs():
+def orbs(out_name):
     rnd = random.Random(21)
     a = vgrad((150, 225, 40), (40, 150, 20), 0.9)
     a = glow(a, 1250 * K, 30 * K, 400 * K, (240, 255, 170), 0.55)
@@ -199,27 +199,37 @@ def orbs():
     for i in range(10):
         a = bubble(a, rnd.uniform(560, 1590) * K, rnd.uniform(0, 150) * K, rnd.choice([5, 7, 10]) * K, tint=(240, 255, 220), rim=0.7)
     a = gloss(a, 0.40, 0.45)
-    return finish(a, "aero-orbs.jpg")
+    return finish(a, out_name)
 
 
+# slug (file name), name, drawing, accent colour, text colour, earlier names (a profile that has a
+# Persona under an earlier name gets it renamed in place, and one uninstalled under an earlier
+# name stays uninstalled — components/jihadPersonas.js offerBundledOnce).
 PERSONAS = [
-    ("aero-aqua", "Aero Aqua", aqua, "rgb(0, 150, 220)", "#0a2c4c"),
-    ("aero-sky", "Aero Sky", sky, "rgb(40, 130, 230)", "#0b2a52"),
-    ("aero-meadow", "Aero Meadow", meadow, "rgb(30, 120, 225)", "#0a2a12"),
-    ("aero-ribbons", "Aero Ribbons", ribbons, "rgb(4, 28, 60)", "#ffffff"),
-    ("aero-orbs", "Aero Orbs", orbs, "rgb(60, 160, 25)", "#0f2a05"),
+    ("bubble-lagoon", "Bubble Lagoon", aqua, "rgb(0, 150, 220)", "#0a2c4c", ["Aero Aqua"]),
+    ("cloud-nine", "Cloud Nine", sky, "rgb(40, 130, 230)", "#0b2a52", ["Aero Sky"]),
+    ("meadow-morning", "Meadow Morning", meadow, "rgb(30, 120, 225)", "#0a2a12", ["Aero Meadow"]),
+    ("aurora-silk", "Aurora Silk", ribbons, "rgb(4, 28, 60)", "#ffffff", ["Aero Ribbons"]),
+    ("lime-fizz", "Lime Fizz", orbs, "rgb(60, 160, 25)", "#0f2a05", ["Aero Orbs"]),
 ]
 
 if __name__ == "__main__":
     out = []
-    for slug, name, fn, accent, text in PERSONAS:
-        path = fn()
+    for slug, name, fn, accent, text, former in PERSONAS:
+        path = fn(slug + ".jpg")
         out.append({"slug": slug, "name": name, "file": os.path.basename(path), "accentcolor": accent,
-                    "textcolor": text, "author": "Jihad Browser", "version": "1.0"})
+                    "textcolor": text, "author": "Jihad Browser", "version": "1.0", "formerNames": former,
+                    "license": "MPL-2.0 (drawn for Jihad Browser)"})
         print(path, os.path.getsize(path) // 1024, "KB")
+    # Personas made by others that we may redistribute (import-third-party.py keeps their pictures
+    # and third-party.json their credits): offered the same way, credited on every card.
+    for p in json.load(open(os.path.join(HERE, "third-party.json")))["personas"]:
+        out.append({k: p[k] for k in ("slug", "name", "file", "accentcolor", "textcolor", "author", "version",
+                                       "license", "licenseURL", "source", "modified") if k in p})
     with open(os.path.join(HERE, "personas.json"), "w") as f:
-        # "edition" goes up whenever the set or its art changes: a profile offered an earlier
-        # edition gets the changed pictures, which replace their older ones (edition 2 drew the
-        # meadow lower; 3 is the same art, and retires edition 1's meadow wherever 2 left it).
-        json.dump({"collection": "Frutiger Aero", "edition": 3, "personas": out}, f, indent=2)
+        # "edition" goes up whenever the set, its names or its art change: a profile offered an
+        # earlier edition gets the changes — new pictures replace their older ones, new names
+        # rename in place (edition 2 drew the meadow lower; 3 retired edition 1's meadow; 4 gave
+        # the set its own names; 5 added the redistributable Personas made by others).
+        json.dump({"collection": "Jihad Browser", "edition": 5, "personas": out}, f, indent=2, ensure_ascii=False)
         f.write("\n")

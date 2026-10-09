@@ -115,6 +115,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ] && [ -d "$DISTBIN/components" ]; then
 component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
 contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
 contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+contract @mozilla.org/network/protocol/about;1?what=personas {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
 MANIFEST
   if ! grep -q '^manifest jihad-prefsui.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
     echo 'manifest jihad-prefsui.manifest' >> "$DISTBIN/chrome.manifest"

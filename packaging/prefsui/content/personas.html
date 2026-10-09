@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:personas — Jihad's own "Get Personas" gallery (cavekit-personas-ui.md R8). The
+     Personas that come with the browser and any it may redistribute, each with its picture,
+     author, licence and a Wear button; an online index the project publishes, when one is set
+     (pref jihad.personas.galleryURL); and the other places Personas live. Installs go through
+     components/jihadPersonas.js, the same path as every other Persona. -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta charset="UTF-8"/>
+	<meta name="viewport" content="width=device-width"/>
+	<title>Get Personas</title>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/preferences.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/personas.css" type="text/css"/>
+</head>
+<body>
+	<div class="hdr">
+		<h1>Get Personas</h1>
+		<div class="sub">Jihad Browser</div>
+	</div>
+	<p class="intro">A Persona gives the browser's toolbar and buttons a picture and colours, in every
+	card of this browser. Tap <b>Wear</b> to put one on; the Personas manager (about:addons &#8594;
+	Personas) has <b>Undo</b>.</p>
+	<div id="status" class="status" hidden="hidden"></div>
+	<section class="group">
+		<h2 class="group-title">Included with Jihad</h2>
+		<div id="bundled" class="gallery"></div>
+	</section>
+	<section class="group" id="online-group" hidden="hidden">
+		<h2 class="group-title">From the Jihad gallery</h2>
+		<div id="online" class="gallery"></div>
+	</section>
+	<section class="group">
+		<h2 class="group-title">More Personas</h2>
+		<div class="more">
+			<a href="https://addons.mozilla.org/firefox/themes/">addons.mozilla.org</a>: thousands of
+			Personas. On a Persona's page tap <b>Download file</b> (the big button only offers Firefox),
+			and Jihad asks whether to wear it.
+		</div>
+		<div class="more">Any site that offers Personas for Firefox, Pale Moon or Basilisk works too.</div>
+	</section>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/personas.js"></script>
+</body>
+</html>

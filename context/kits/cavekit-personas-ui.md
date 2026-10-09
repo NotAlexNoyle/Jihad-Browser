@@ -125,12 +125,14 @@ safety with one button.)
 **Acceptance Criteria:**
 - [x] Enyo, Mochi and Mojo each show the Personas pane and repaint on Wear. *(Device, 2026-10-08.)*
 - [x] Screenshots of the pane and of the bars, with no Persona and with several. *(README, `docs/screenshots/`.)*
-- [ ] A finger on the device: wear, undo, uninstall, install from file. [human at the device]
+- [ ] A finger on the device: wear, undo, uninstall, install from file. [human at the device — DEFERRED by the owner 2026-10-08: "Defer additional finger tests for later"]
 **Dependencies:** R1–R5
 
 ### R7: Personas that come with Jihad
 **Description:** A Frutiger Aero set (owner: "add fruiter aero style themes") ships with the
-browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for this project.
+browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for this project, with
+names of their own (owner: "rename aero personas to be more creatively titled"): Bubble Lagoon,
+Cloud Nine, Meadow Morning, Aurora Silk, Lime Fizz.
 **Acceptance Criteria:**
 - [x] Five Personas, drawn from gradients and shapes by `render/goanna/personas/make-aero-personas.py`
   (so the art is the project's own), 1600×160, interest in the top right where every bar shows it.
@@ -142,11 +144,53 @@ browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for th
   retired, its picture deleted.)*
 - [x] An edition change never re-adds a bundled Persona the user uninstalled. *(Device, Enyo:
   Aero Sky uninstalled, an edition-4 bundle → nothing added.)*
+- [x] A renamed Persona is renamed in place in every profile (same picture, same id), stays worn
+  if it was, and one uninstalled under its old name stays uninstalled (`formerNames`). *(Device:
+  all three renamed; Cloud Nine, uninstalled as Aero Sky in Enyo, stayed uninstalled.)*
 **Dependencies:** R1, R2
+
+### R8: Jihad's own "Get Personas" gallery
+**Description:** Owner: "implement custom 'get personas' repository similar to what other UXP
+browsers have." Pale Moon and Basilisk point their managers at their own Phoebus add-on sites
+(Pale Moon's Personas page is a list of `data-browsertheme` buttons; Basilisk's "Get More Themes"
+reads `lightweightThemes.getMoreURL`). Jihad has no server, so its repository is a page in the
+browser, ready to show an online index the project publishes later.
+**Acceptance Criteria:**
+- [x] `about:personas` lists the Personas that come with the browser as cards: picture, name,
+  version, author, licence, and Wear (In use for the one worn). *(Device, Enyo: 15 cards; Wear on
+  Space Fantasy → worn, toolbar repainted, "Wearing Space Fantasy.")*
+- [x] The Personas pane's **Get Personas** opens it; Basilisk's `lightweightThemes.getMoreURL` can
+  point it elsewhere (an https address).
+- [~] When `jihad.personas.galleryURL` names an https index (the bundled `personas.json` format),
+  its Personas are listed too and install through the usual confirm, naming the index's host.
+  *(Built; no index is published yet — the owner hosts it when wanted.)*
+- [x] Everything shown from an index is put in as text, and installs go through the same
+  component, conversion and confirm as every other Persona.
+**Dependencies:** R4, R7
+
+### R9: Only Personas we may share, credited
+**Description:** Owner: "remove personas we dont have a license to bundle, include by default
+those we do."
+**Acceptance Criteria:**
+- [x] The bundle carries only Personas the project drew or whose authors licensed them for
+  redistribution (CC BY / BY-SA); each package's sha256 is pinned (`third-party.json`,
+  `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`, and on every card.
+- [x] Ten such Personas are included by default (added to every profile's list once, not worn):
+  Space Fantasy, Linen Light, Pastel Gradient, Carbon Light, Summerwood, Autumn Forest, Mont Blanc
+  vu du Bettes St Gervais, Dream of Waves, Two little birds, Field of flowers. *(Device: all three
+  profiles.)*
+- [x] Persona art without such a licence is gone from the repository (the Water-Like test assets;
+  tests use Carbon Light) and from the README's screenshots (Running Foxes, Aurora Borealis
+  Delights, Blue Nebula, Dark Fox, Purple Night were removed from the device profiles too).
+- [x] The survey and the reasons others were left out: `docs/research/persona-licences.md`.
+**Dependencies:** R7
 
 ## Out of Scope
 - Full WebExtension themes (images per toolbar part, the `theme` API, dynamic themes). This engine
   installs no WebExtensions; theme-only packages are converted to Personas (R10).
+- Complete (XUL) themes: investigated 2026-10-08 (`docs/research/complete-themes.md`) — they cannot
+  reach the cards, would switch the Persona off and risk the engine's start-up; the install prompt
+  says so and points to Personas.
 - Animated Personas beyond their first frame.
 - Theming the engine's own pages (`about:addons` itself keeps the system look).
 
@@ -156,6 +200,9 @@ browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for th
 - cavekit-tabbed-browsing.md R1: tabs, when built, wear the Persona too.
 
 ## Changelog
+- 2026-10-08 (night): R8 (the gallery, about:personas) and R9 (licensed bundle, credits, unlicensed
+  art removed) added and built; R7 renamed set; complete themes ruled out of scope; finger checks
+  deferred by the owner.
 - 2026-10-08 (later): Built and device-verified in all three shells (R1–R5, R7), with the
   owner's same-day direction: one Wear with Undo (R3 rewritten), author and version on every
   row, Uninstall, "Persona" everywhere, the wallpaper fit, the bundled Frutiger Aero set (R7,

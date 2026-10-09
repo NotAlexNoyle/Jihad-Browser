@@ -32,6 +32,9 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 const PAGE_URL = "chrome://jihad-prefs/content/preferences.html";
+// about:personas — the browser's own "Get Personas" gallery (cavekit-personas-ui.md R8), in the
+// same chrome package, for the same reason: it acts through the browser's own components.
+const PERSONAS_URL = "chrome://jihad-prefs/content/personas.html";
 
 function JihadAboutPreferences() {}
 
@@ -40,7 +43,8 @@ JihadAboutPreferences.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIAboutModule]),
 
   newChannel: function(aURI, aLoadInfo) {
-    let uri = Services.io.newURI(PAGE_URL, null, null);
+    let what = String(aURI.path || "").replace(/[?#].*$/, "").toLowerCase();
+    let uri = Services.io.newURI(what === "personas" ? PERSONAS_URL : PAGE_URL, null, null);
     // newChannelFromURIWithLoadInfo keeps the caller's loadInfo, which is what
     // ESR52 expects from an about: module; the older two-argument form is gone.
     let channel = aLoadInfo

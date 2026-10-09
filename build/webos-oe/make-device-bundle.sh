@@ -218,6 +218,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
 contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
 contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
+contract @mozilla.org/network/protocol/about;1?what=personas {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
 MANIFEST
 	# Idempotent, same reason as the branding line above.
 	if ! grep -q '^manifest jihad-prefsui.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
@@ -229,7 +230,7 @@ MANIFEST
 	# Fail the BUILD, not the device: a half-landed package means about:preferences resolves to
 	# nothing, and "unknown protocol" points nowhere near this block.
 	for f in jihad-prefsui.manifest prefsui/content/preferences.html \
-	         prefsui/content/preferences.js prefsui/content/preferences.css \
+	         prefsui/content/preferences.js prefsui/content/preferences.css prefsui/content/personas.html prefsui/content/personas.js prefsui/content/personas.css \
 	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }
 	done
@@ -365,12 +366,16 @@ for f in modules/LightweightThemeManager.jsm modules/addons/LightweightThemeImag
 	[ -s "$OUT/$f" ] || { echo "ERROR: the engine's theme manager is missing from the bundle: $f" >&2; exit 1; }
 done
 echo "  personas: components/jihadPersonas.js + the engine's LightweightThemeManager"
-# The Personas that come with the browser (a Frutiger Aero set drawn by
-# render/goanna/personas/make-aero-personas.py), offered in about:addons → Personas.
+# The Personas that come with the browser (render/goanna/personas/: the project's own set drawn
+# by make-personas.py, plus any redistributable ones it lists), offered in about:addons → Personas.
 mkdir -p "$OUT/personas"
-cp -L "$REPO/render/goanna/personas/personas.json" "$REPO"/render/goanna/personas/aero-*.jpg "$OUT/personas/"
+rm -f "$OUT"/personas/*
+cp -L "$REPO/render/goanna/personas/personas.json" "$OUT/personas/"
+# Exactly the pictures the index names (render/goanna/personas/make-personas.py writes it).
+python3 -c 'import json,sys; [print(p["file"]) for p in json.load(open(sys.argv[1]))["personas"]]' \
+    "$REPO/render/goanna/personas/personas.json" | while read -r f; do cp -L "$REPO/render/goanna/personas/$f" "$OUT/personas/"; done
 [ -s "$OUT/personas/personas.json" ] || { echo "ERROR: the bundled Personas are missing" >&2; exit 1; }
-echo "  bundled Personas: $(ls "$OUT/personas" | grep -c '\.jpg$') (Frutiger Aero)"
+echo "  bundled Personas: $(ls "$OUT/personas" | grep -vc '\.json$')"
 # Ensure the OMTC-off pref (headless CPU paint) is present in goanna.js
 grep -q 'offmainthreadcomposition.force-disabled' "$OUT/goanna.js" 2>/dev/null || \
   echo 'pref("layers.offmainthreadcomposition.force-disabled", true);' >> "$OUT/goanna.js"

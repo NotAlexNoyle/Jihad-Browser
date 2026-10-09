@@ -1,5 +1,9 @@
 /* Copyright 2026 NotAlexNoyle. MPL-2.0. about:personas, on top of preferences.css. */
 
+/* preferences.css gives .group display:block, which beats the built-in [hidden] rule: the empty
+   online section showed on every device (inspector 2026-10-08). */
+[hidden] { display: none !important; }
+
 .intro, .more {
 	margin: 12px 20px;
 	line-height: 1.4;

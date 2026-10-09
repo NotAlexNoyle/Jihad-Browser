@@ -36,8 +36,9 @@ function cssColor(c) {
 	return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : "";
 }
 
-function cssUrl(u) {
-	return (typeof u === "string" && u.length < 2048 && /^(https?|file|resource):[^"'()\\\s]+$/i.test(u)) ? "url(\"" + u + "\")" : "";
+function cssUrl(u, httpsOnly) {
+	let schemes = httpsOnly ? /^https:[^"'()\\\s]+$/i : /^(https|file|resource):[^"'()\\\s]+$/i;
+	return (typeof u === "string" && u.length < 2048 && schemes.test(u)) ? "url(\"" + u + "\")" : "";
 }
 
 function isLight(c) {
@@ -49,11 +50,13 @@ function isLight(c) {
 	return !!m && (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) > 150;
 }
 
-function card(p, button) {
+function card(p, button, online) {
 	let c = document.createElement("div");
 	c.className = "card";
 	c.style.backgroundColor = cssColor(p.accentcolor) || "#3a3a3a";
-	let img = cssUrl(p.preview || p.headerURL);
+	// An online index's pictures must be https too (the index's https protects nothing if its
+	// pictures come over plain http — inspector 2026-10-08).
+	let img = cssUrl(p.preview || p.headerURL, !!online);
 	if (img) { c.style.backgroundImage = img; }
 	let text = cssColor(p.textcolor) || "#ffffff";
 	let names = document.createElement("div");
@@ -129,7 +132,7 @@ function renderOnline() {
 				let r = ask("install", {json: JSON.stringify(p), origin: url});
 				status(r && r.ok ? "Wearing " + (p.name || "the Persona") + "." : (r && r.message) || "Not installed.");
 				renderBundled();
-			})));
+			}), true));
 		});
 		if (!list.length) { status("The gallery has no Personas right now."); }
 	};

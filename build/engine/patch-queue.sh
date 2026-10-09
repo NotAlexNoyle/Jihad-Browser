@@ -19,17 +19,16 @@ UXP="$REPO/third_party/uxp"; Q="$REPO/build/desktop/patches"
 
 case "${1:-}" in
 --check)
-  idx=$(mktemp); trap 'rm -f "$idx"' EXIT
+  idx=$(mktemp); err=$(mktemp); trap 'rm -f "$idx" "$err"' EXIT
   export GIT_INDEX_FILE="$idx"
   git -C "$UXP" read-tree "$UXP_BASE"
   n=0
   for p in "$Q"/[0-9][0-9][0-9][0-9]-*.patch; do
-    if ! git -C "$UXP" apply --cached "$p" 2>/tmp/pq.$$; then
-      echo "FAIL: $(basename "$p") does not apply on top of the ones before it:"; sed 's/^/  /' /tmp/pq.$$; rm -f /tmp/pq.$$; exit 1
+    if ! git -C "$UXP" apply --cached "$p" 2>"$err"; then
+      echo "FAIL: $(basename "$p") does not apply on top of the ones before it:"; sed 's/^/  /' "$err"; exit 1
     fi
     n=$((n + 1))
   done
-  rm -f /tmp/pq.$$
   got=$(git -C "$UXP" write-tree); want=$(git -C "$UXP" rev-parse "$UXP_PIN^{tree}")
   unset GIT_INDEX_FILE
   if [ "$got" = "$want" ]; then

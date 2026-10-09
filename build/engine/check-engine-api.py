@@ -159,16 +159,23 @@ def check(uxp, rep):
                 "gfx/**/*.cpp", "layout/**/*.cpp", "toolkit/**/*.cpp", "xpcom/**/*.cpp"):
         sources += glob.glob(os.path.join(uxp, pat), recursive=True)
     texts = {}
+    def strip_comments(t):
+        t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)
+        return re.sub(r"//[^\n]*", " ", t)
     for n in names:
         found = False
+        # A DEFINITION: a return type, the name, the parameters, a body — at the start of a line,
+        # comments removed. (A call such as `if (name() > 0) {` must not count.)
+        defn = re.compile(r"(?m)^[ \t]*(?:extern\s+\"C\"\s+)?(?:static\s+|inline\s+|MOZ_EXPORT\s+|__attribute__\(\(.*?\)\)\s*)*"
+                          r"[A-Za-z_][\w:<>]*(?:\s+[A-Za-z_][\w:<>]*)*[\s\*&]+" + n + r"\s*\([^;{]*\)\s*\{")
         for s in sources:
             t = texts.get(s)
             if t is None:
                 try:
-                    t = texts[s] = read(s)
+                    t = texts[s] = strip_comments(read(s))
                 except OSError:
                     continue
-            if re.search(r"\b" + n + r"\s*\([^;{]*\)\s*\{", t):
+            if defn.search(t):
                 found = True
                 rep.ok("%s defined in %s" % (n, os.path.relpath(s, uxp)))
                 break
@@ -232,9 +239,12 @@ def check(uxp, rep):
 
     print("5. engine prefs the project sets")
     defaults = ""
-    for pat in ("modules/libpref/init/all.js", "**/*-prefs.js", "**/greprefs.js", "toolkit/**/*.js",
-                "xulrunner/**/*.js", "netwerk/**/*.js", "security/**/*.js", "dom/**/*.js"):
+    # Default-pref files only — not tests, which mention prefs that no longer exist.
+    for pat in ("modules/libpref/init/all.js", "**/*-prefs.js", "**/greprefs.js", "**/defaults/pref/*.js",
+                "xulrunner/app/*.js"):
         for f in glob.glob(os.path.join(uxp, pat), recursive=True):
+            if re.search(r"/tests?/", f):
+                continue
             try:
                 defaults += read(f)
             except OSError:
@@ -248,7 +258,8 @@ def check(uxp, rep):
     import subprocess
     def read_somewhere(name):
         try:
-            r = subprocess.run(["git", "-C", uxp, "grep", "-q", "-F", '"%s"' % name], timeout=60)
+            r = subprocess.run(["git", "-C", uxp, "grep", "-q", "-F", '"%s"' % name, "--",
+                                ":(exclude)**/test/**", ":(exclude)**/tests/**", ":(exclude)**/*test*"], timeout=60)
             return r.returncode == 0
         except Exception:
             return False
@@ -275,7 +286,9 @@ def check(uxp, rep):
     have = sorted(os.path.basename(p) for p in glob.glob(os.path.join(uxp, "config/external/icu/data/icudt*l.dat")))
     bundler = read(os.path.join(REPO, "build/webos-oe/make-device-bundle.sh"))
     want = sorted(set(re.findall(r"icudt\d+l\.dat", bundler)))
-    if want and have and want[0] not in have:
+    if not have:
+        rep.fail("the tree ships no ICU data file (config/external/icu/data/icudt*l.dat)")
+    elif want and want[0] not in have:
         rep.fail("make-device-bundle.sh expects %s; the tree ships %s" % (want, have))
     else:
         rep.ok("ICU data %s" % (have or "?"))

@@ -134,7 +134,7 @@ browser: glossy water, sky, a green hill, light ribbons, lime orbs, drawn for th
 names of their own (owner: "rename aero personas to be more creatively titled"): Bubble Lagoon,
 Cloud Nine, Meadow Morning, Aurora Silk, Lime Fizz.
 **Acceptance Criteria:**
-- [x] Five Personas, drawn from gradients and shapes by `render/goanna/personas/make-aero-personas.py`
+- [x] Five Personas, drawn from gradients and shapes by `render/goanna/personas/make-personas.py`
   (so the art is the project's own), 1600×160, interest in the top right where every bar shows it.
 - [x] They join each profile's Persona list once, not worn, as ordinary rows: the same picture,
   Wear, Uninstall, author ("Jihad Browser") and version ("1.0") as every other Persona. One the

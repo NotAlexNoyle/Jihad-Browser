@@ -5,6 +5,54 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-08 (night) delta — complete themes, the Persona gallery, a licensed bundle, engine-update groundwork (READ FIRST)
+
+**The owner's eight asks and what came of each:**
+1. **Complete themes** — investigated (`docs/research/complete-themes.md`): they skin XUL chrome,
+   and Jihad's look lives in the cards, which only Personas reach; wearing one would switch the
+   Persona off, needs a restart path this embedding lacks, and a skin missing a required file can
+   stop the engine at start-up. Decision: not supported. `jihadInstallPrompt.js` explains and
+   points to Personas; a toolkit-targeted one that would install is taken straight back out.
+   **Device (Enyo):** a Pale Moon complete theme → refused with the message; a toolkit one →
+   installed then removed, nothing left in the profile.
+2. **"Get Personas" repository** — `about:personas` (packaging/prefsui/content/personas.*), Jihad's
+   own gallery (Pale Moon/Basilisk use their Phoebus sites; Basilisk's `lightweightThemes.getMoreURL`
+   is honoured). Cards with picture, author, licence, Wear; an online https index
+   (`jihad.personas.galleryURL`, empty by default) installs through the usual confirm — **the owner
+   decides whether and where to publish one.** **Device:** Wear from the gallery works.
+3. **Licences** — survey `docs/research/persona-licences.md`. Bundled: our five + ten CC BY / BY-SA
+   Firefox-era Personas (pinned sha256, `import-third-party.py`; credits `CREDITS.md`, `NOTICE`,
+   cards). Removed: Water-Like test assets (ARR; tests use Carbon Light), every README picture with
+   an unlicensed Persona (retaken), and those Personas from the device profiles (Running Foxes,
+   Aurora Borealis Delights, Blue Nebula, Dark Fox, Purple Night, Water-Like, test Personas).
+4. **Names** — Bubble Lagoon, Cloud Nine, Meadow Morning, Aurora Silk, Lime Fizz (formerly Aero
+   Aqua/Sky/Meadow/Ribbons/Orbs; renamed in place on every profile, uninstalled ones stay so).
+5. **Clean-up** — see "Device state" below; scratch files deleted at the end of the session.
+6. **README** — 333 → 201 lines (features that matter; no long-press notes; dev notes → pointers).
+7. **Finger tests** — deferred by the owner; every `[human at the device]` box in the kits says so.
+8. **Engine-update groundwork** — `docs/ENGINE.md` (read it before touching the engine);
+   `build/engine/`: `engine-version.env` + `check-engine-pins.sh` (all pins agree),
+   `patch-queue.sh --check` (the 39-patch queue reproduces `UXP_PIN` exactly — it had drifted:
+   0031–0039 added, obsolete files removed), `check-engine-api.py` (0 FAIL on today's engine);
+   `render/goanna/EngineCompat.h` declares every `jihad_*` export; the daemon logs
+   "engine: 11 of 11 optional jihad_* exports present" at start-up. `docs/ENGINE-SOURCE.md` (the MPL
+   record) lists all 39 changes. Kit `cavekit-engine-update.md`, Tier 74 (next steps T-385…T-387).
+
+**Note:** the five renamed picture files landed in the engine-groundwork commit `30a4970b`
+(staged renames rode along); the content is right, the commit boundary is not.
+
+**Reviews:** the inspector's round 12 over `2cc01662..392c39e3`: ten P3s, all fixed (see
+`impl-review-findings-6.md`). Found while verifying: removing a complete theme left its skin selected
+and the Persona queued off for the next start — fixed (prompt clears both), Enyo's profile repaired.
+**Codex owes a pass over `9e08c610..HEAD`** (out of credits until 10:07 PM 2026-10-08).
+
+**Device state left:** all three variants on bundle 141+ (daemon with `EngineCompat.h`, the
+gallery, 15 bundled Personas); Personas worn: Enyo Space Fantasy, Mochi Aurora Silk, Mojo Lime
+Fizz; profiles hold only licensed Personas; test hooks restored to the shipped manifests;
+`/tmp` test pages and scripts removed from the device; host test servers stopped.
+
+---
+
 ## 2026-10-08 delta — taps land where drawn, long-press menus back, the Personas manager, a Frutiger Aero set, the README (READ FIRST)
 
 **Owner's reports this day and what came of each** (all device-verified unless marked):

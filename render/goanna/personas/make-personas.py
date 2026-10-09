@@ -225,7 +225,7 @@ if __name__ == "__main__":
     # and third-party.json their credits): offered the same way, credited on every card.
     for p in json.load(open(os.path.join(HERE, "third-party.json")))["personas"]:
         out.append({k: p[k] for k in ("slug", "name", "file", "accentcolor", "textcolor", "author", "version",
-                                       "license", "licenseURL", "source", "modified") if k in p})
+                                       "license", "licenseURL", "source", "modified", "formerNames") if k in p})
     with open(os.path.join(HERE, "personas.json"), "w") as f:
         # "edition" goes up whenever the set, its names or its art change: a profile offered an
         # earlier edition gets the changes — new pictures replace their older ones, new names

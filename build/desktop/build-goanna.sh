@@ -99,6 +99,26 @@ MANIFEST
   echo "  xpi prompt: registered in the desktop dist"
 fi
 
+# --- Personas (components/jihadPersonas.js + the bundled set), into the DESKTOP dist -------------
+# Mirrors make-device-bundle.sh, so about:addons → Personas and about:personas behave as on the
+# device (cavekit-gre-widgets.md R7; inspector 2026-10-08 found the desktop gallery empty).
+PERSONAS_JS=/jihad/render/goanna/components/jihadPersonas.js
+if [ -f "$PERSONAS_JS" ] && [ -d "$DISTBIN/components" ]; then
+  cp -L "$PERSONAS_JS" "$DISTBIN/components/jihadPersonas.js"
+  cat > "$DISTBIN/components/jihad-personas.manifest" <<'MANIFEST'
+component {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02} jihadPersonas.js
+contract @riverstonerelay.net/jihad/personas;1 {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02}
+MANIFEST
+  if ! grep -q '^manifest components/jihad-personas.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
+    echo 'manifest components/jihad-personas.manifest' >> "$DISTBIN/chrome.manifest"
+  fi
+  rm -rf "$DISTBIN/personas"; mkdir -p "$DISTBIN/personas"
+  cp -L /jihad/render/goanna/personas/personas.json "$DISTBIN/personas/"
+  python3 -c 'import json,sys; [print(p["file"]) for p in json.load(open(sys.argv[1]))["personas"]]' \
+      /jihad/render/goanna/personas/personas.json | while read -r f; do cp -L "/jihad/render/goanna/personas/$f" "$DISTBIN/personas/"; done
+  echo "  personas: component + $(ls "$DISTBIN/personas" | grep -vc '\.json$') bundled, in the desktop dist"
+fi
+
 # --- about:preferences / about:settings, into the DESKTOP dist ------------------------------------
 # Mirrors the block in build/webos-oe/make-device-bundle.sh. Without this the desktop dist has no
 # about:preferences at all, so EVERY criterion in cavekit-preferences-ui.md was device-only —

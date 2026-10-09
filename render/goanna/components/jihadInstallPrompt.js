@@ -117,7 +117,17 @@ JihadInstallPrompt.prototype = {
         // straight back out. Either way the user is told what to use instead.
         // (docs/research/complete-themes.md)
         if (install.addon && install.addon.type == "theme") {
-          if (complete) { try { install.addon.uninstall(); } catch (e) {} }
+          if (complete) {
+            try { install.addon.uninstall(); } catch (e) {}
+            // Installing it also made it the skin for the next start and queued "no Persona" for
+            // then (measured on the device 2026-10-08: general.skins.selectedSkin named the removed
+            // theme, extensions.lwThemeToSelect was "", and the next start dropped the Persona).
+            // Jihad has no complete themes, so both go back to how they were.
+            for (let pref of ["general.skins.selectedSkin", "extensions.lwThemeToSelect",
+                              "extensions.dss.switchPending", "extensions.lastSelectedSkin"]) {
+              try { if (Services.prefs.prefHasUserValue(pref)) Services.prefs.clearUserPref(pref); } catch (e) {}
+            }
+          }
           themes.push(install.addon.name || install.name || "That theme");
           continue;
         }

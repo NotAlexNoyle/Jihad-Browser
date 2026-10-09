@@ -22,8 +22,8 @@ upstream commits behind as of that date, a few of which touch the same files as 
 | Pins and version strings | **`build/engine/engine-version.env`** — the one file to edit |
 
 `build/engine/check-engine-pins.sh` fails when the gitlink, the recipe's `SRCREV`, the user
-agent (`render/goanna/JihadUserAgent.h`), the three start pages or the ICU data file name
-disagree with `engine-version.env`.
+agent (`render/goanna/JihadUserAgent.h`), the three start pages or the bundler's ICU data file
+name disagree with `engine-version.env`.
 
 ## 2. The rule: the branch is the source of truth
 

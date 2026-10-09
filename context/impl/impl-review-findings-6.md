@@ -272,3 +272,25 @@ Codex to re-review this session's range when its credits return (the owner's sta
 | P3 | `jihadPersonas.js` | Complete (XUL) themes were dressed as Personas. | Valid, fixed: only `@personas.mozilla.org` ids are decorated. |
 
 Checked and sound per the inspector: re-driving about: pages by their original address gives web content no new reach; Persona fields cannot inject CSS or markup; file deletion is confined to 24-hex names in `jihad-themes`; windows, timers and observers are released.
+
+## Round 12 — the inspector on `2cc01662..392c39e3` (engine groundwork, complete themes, the gallery, the licensed bundle; Codex out of credits until 10:07 PM)
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `personas.html` / `preferences.css` | The empty online section always showed (`.group{display:block}` beat `[hidden]`). | Fixed (`[hidden]{display:none !important}`). **Device:** gone. |
+| P3 | `jihadPersonas.js` | Re-wearing the same id (rename / details refresh) sends no styling update: cards and `jihad.theme.current` kept old details. | Fixed: `rewear()` sends the update itself. |
+| P3 | `jihadPersonas.js` | Adding bundled Personas ignored the manager's 30 limit; the next change would drop them as uninstalls and delete their pictures. | Fixed: added only while there is room; what does not fit is offered later. A worn Persona's new edition replaces the old in place (no transient growth). |
+| P3 | `make-personas.py` | `formerNames` of third-party entries were dropped. | Fixed. |
+| P3 | `personas.js` / `jihadPersonas.js` | An https index could still bring http/file pictures. | Fixed: online pictures and installed images must be https. |
+| P3 | `check-engine-api.py` | Check 1 counted a call or comment as a definition. | Fixed: comments stripped, a return type required (a call no longer matches — tested). |
+| P3 | `check-engine-api.py` | Check 7 passed with no ICU file. | Fixed: FAIL. |
+| P3 | `check-engine-api.py` | Check 5 searched test files. | Fixed: default-pref files only; the `git grep` fallback excludes tests. |
+| P3 | `check-engine-pins.sh` | The launch-scripts ICU check matched only a comment. | Dropped. |
+| P3 | `patch-queue.sh` | Predictable `/tmp/pq.$$`. | Fixed: `mktemp`, in the trap. |
+| kit | `cavekit-personas-ui.md`, desktop build | R7 named the old script; the desktop dist lacked the Persona component and bundle. | Fixed (desktop `build-goanna.sh` now ships them). |
+
+**Found on the device while verifying (not in the review):** taking a toolkit-targeted complete theme
+back out left `general.skins.selectedSkin` naming the removed theme and `extensions.lwThemeToSelect`
+queued as "none", so the next daemon start dropped the user's Persona. Fixed in `jihadInstallPrompt.js`
+(both cleared after the removal); **device:** install + removal + daemon restart → Persona still worn,
+skin prefs clean. Enyo's profile repaired by hand.

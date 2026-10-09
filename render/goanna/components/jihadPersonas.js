@@ -624,6 +624,24 @@ function bundledPersonas() {
   return out;
 }
 
+// Put a Persona on again with new details (same id). The manager does nothing for the id already
+// worn — no styling update — so the cards and jihad.theme.current would keep the old details
+// (inspector 2026-10-08): the update is sent here.
+function rewear(theme) {
+  let LWTM = manager();
+  previewId = null;
+  LWTM.currentTheme = theme;
+  try {
+    let shown = LWTM.currentThemeForDisplay || theme;
+    Services.obs.notifyObservers(null, "lightweight-theme-styling-update", JSON.stringify(shown));
+  } catch (e) { log("re-wear: " + e); }
+}
+
+// How many Personas the manager keeps (it drops the oldest beyond this, as uninstalls).
+function maxUsed() {
+  try { return Services.prefs.getIntPref("lightweightThemes.maxUsedThemes"); } catch (e) { return 30; }
+}
+
 // A Persona in the list with the same picture as a bundled one (installed from a site before it
 // was bundled, say) gets the bundled entry's name, author and version: it is that Persona.
 function sameDetails(t, fresh) {
@@ -643,7 +661,7 @@ function refreshBundledDetails(all) {
     return fresh;
   });
   if (!changed) { return; }
-  if (wear) { previewId = null; LWTM.currentTheme = wear; }
+  if (wear) { rewear(wear); }
   try { now = (LWTM.usedThemes || []).map(function(t) { return byId[t.id] || t; }); } catch (e) {}
   let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
   str.data = JSON.stringify(now);
@@ -715,32 +733,48 @@ function offerBundledOnce() {
   let add = all.filter(function(b) {
     return !have[b.theme.id] && (!wasOffered(b) || replacing[b.theme.name]);
   });
+  // Never past the manager's limit: beyond it the manager would drop the oldest entries — the
+  // ones just added — as uninstalls, deleting their pictures (inspector 2026-10-08). What does
+  // not fit is not marked as offered, so it is offered again when there is room.
+  let room = maxUsed() - used.filter(function(t) { return !dropped[t.id]; }).length;
+  if (add.length > Math.max(0, room)) { add = add.slice(0, Math.max(0, room)); }
   add.forEach(function(b) {
     let dest = themesDir();
     dest.append(b.finalName);
     if (!dest.exists()) { b.file.copyTo(themesDir(), b.finalName); }
   });
   ensureThemesResource();
-  // The new edition of a worn Persona is worn FIRST (the manager puts it at the head of its list,
-  // still "selected"), and only then is the list rewritten without the old edition — rewriting
-  // first left the manager briefly wearing whatever came next (inspector 2026-10-08).
-  if (wear) { previewId = null; LWTM.currentTheme = wear.theme; }
+  // The list is rewritten in place: a renamed Persona keeps its place, and a worn Persona's new
+  // edition takes the old one's place at the head (the manager wears usedThemes[0] while a theme
+  // is selected). Wearing the new one through the manager first grew the list for a moment,
+  // which at its limit drops the oldest as uninstalls; rewriting without the old one first left
+  // the manager wearing whatever came next (inspector 2026-10-08). Then the cards are told.
   if (add.length || droppedIds.length || renamed) {
     let now = [];
     try { now = LWTM.usedThemes || []; } catch (e) { now = used; }
     let present = {};
-    now = now.filter(function(t) { present[t.id] = true; return !dropped[t.id]; })
-             .map(function(t) {                       // renamed in place (worn or not)
+    now = now.map(function(t) {
+               if (wear && cur && t.id === cur.id) { return wear.theme; }   // worn: renamed, or its new edition
                let b = newIds[t.id];
-               return (b && t.author === "Jihad Browser") ? b.theme : t;
-             });
+               return (b && t.author === "Jihad Browser") ? b.theme : t;   // renamed in place
+             })
+             .filter(function(t) { present[t.id] = true; return !dropped[t.id]; });
     add.forEach(function(b) { if (!present[b.theme.id]) { now.push(b.theme); } });
     let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
     str.data = JSON.stringify(now);
     Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
   }
+  if (wear) { rewear(wear.theme); }
   droppedIds.forEach(function(id) { forgetThemeFiles(id); });
-  all.forEach(function(b) { [b.theme.name].concat(b.formerNames).forEach(function(n) { offered[n] = true; }); });
+  // Offered: what is in the list now, what was just added, and what was offered before.
+  let listed = {};
+  try { (LWTM.usedThemes || []).forEach(function(t) { listed[t.id] = true; }); } catch (e) {}
+  add.forEach(function(b) { listed[b.theme.id] = true; });
+  all.forEach(function(b) {
+    if (listed[b.theme.id] || wasOffered(b)) {
+      [b.theme.name].concat(b.formerNames).forEach(function(n) { offered[n] = true; });
+    }
+  });
   Services.prefs.setCharPref(PREF_BUNDLED_NAMES, JSON.stringify(Object.keys(offered)));
   Services.prefs.setCharPref(PREF_BUNDLED, key);
   refreshBundledDetails(all);
@@ -1015,6 +1049,10 @@ function galleryRequest(bag) {
     let theme = null;
     try { theme = LWTM.parseTheme(get("json"), origin); } catch (e) { theme = null; }
     if (!theme) { reply({ok: false, message: "That Persona could not be read."}); return; }
+    let badImage = ["headerURL", "footerURL"].some(function(k) {
+      return theme[k] && !/^https:/i.test(String(theme[k]));
+    });
+    if (badImage) { reply({ok: false, message: "That Persona's pictures are not served over https."}); return; }
     if (!confirmTheme(hostOf(origin), String(theme.name || "Persona"))) { reply({ok: false, message: "Not installed."}); return; }
     previewId = null;
     LWTM.resetPreview();

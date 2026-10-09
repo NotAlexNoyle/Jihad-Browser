@@ -46,10 +46,18 @@ reference material for a specific subsystem, not a status document.
 and the Persona queued off for the next start — fixed (prompt clears both), Enyo's profile repaired.
 **Codex owes a pass over `9e08c610..HEAD`** (out of credits until 10:07 PM 2026-10-08).
 
-**Device state left:** all three variants on bundle 141+ (daemon with `EngineCompat.h`, the
-gallery, 15 bundled Personas); Personas worn: Enyo Space Fantasy, Mochi Aurora Silk, Mojo Lime
-Fizz; profiles hold only licensed Personas; test hooks restored to the shipped manifests;
-`/tmp` test pages and scripts removed from the device; host test servers stopped.
+**Device state left:** all three variants on bundle 143 (daemon with `EngineCompat.h`, the
+gallery, 15 bundled Personas, the complete-theme fix); Personas worn: Enyo Space Fantasy, Mochi
+Aurora Silk, Mojo Lime Fizz; profiles hold only licensed Personas; test hooks restored to the shipped
+manifests (Luna restarted); the device's `/tmp` test pages and scripts removed, and 76 stale
+`/tmp/yapserver.jihad-browser*<pid>-<n>` sockets of dead processes removed (see below); host test
+servers stopped; session scratch (~900 MB) and `~/.cache/jihad-personas` deleted —
+`import-third-party.py` re-downloads and re-checks the pinned packages when run.
+
+**Minor, open:** each card connection creates `/tmp/yapserver.<app><pid>-<n>`; `YapClient`'s
+destructor unlinks it, but killing LunaSysMgr (every `luna-restart.sh`) skips that, so they pile up
+until a reboot (0-byte files on the 40 MB tmpfs). A daemon-side sweep of dead-pid sockets at start-up
+would fix it without touching the wire contract.
 
 ---
 

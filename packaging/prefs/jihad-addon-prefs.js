@@ -49,6 +49,9 @@ pref("extensions.install.requireSecureOrigin", false);
 // only when the user asks (owner, 2026-10-11): about:addons' own "Check for Updates", and
 // about:personas' "Check for updates" (cavekit-addons-site.md R13).
 pref("extensions.update.enabled", false);
+// The worn Persona's own check rides the same background timer (AddonManager.backgroundUpdateCheck)
+// and is off with it; named too, so it stays off if that gate ever moves.
+pref("lightweightThemes.update.enabled", false);
 // A check the user asks for offers what it finds ("Update now"); it does not install it by itself.
 pref("extensions.update.autoUpdateDefault", false);
 // The project's add-on site, addons.riverstonerelay.org — Phoebus, like Pale Moon's and Basilisk's

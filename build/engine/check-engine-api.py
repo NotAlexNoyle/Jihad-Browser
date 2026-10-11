@@ -73,6 +73,8 @@ OURS_ONLY = {
     "plugin.state.flash": "per-plugin pref the engine composes at run time (plugin.state.<name>)",
     "general.useragent.override": "read by nsHttpHandler through its UA_PREF(\"override\") macro",
     "lightweightThemes.maxUsedThemes": "read by LightweightThemeManager.jsm on its lightweightThemes. branch",
+    "lightweightThemes.update.enabled": "read by LightweightThemeManager.jsm as \"update.enabled\" on that branch",
+    "xpinstall.whitelist.add": "read by PermissionsUtils.importFromPrefs as <branch> + \"whitelist.add\"",
 }
 
 

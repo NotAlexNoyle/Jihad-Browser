@@ -496,20 +496,20 @@ Owner, choosing among the Persona-index options: a Phoebus site on the owner's d
 
 | Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
 |------|-------|---------|-------------|-----------|--------|--------|--------|
-| T-400 | Fork hygiene: README/NOTICE, licences, Moonchild skins/apps/mail/bans out of the tree | cavekit-addons-site.md | R1 | — | no | M | pending |
-| T-401 | PHP 8.2/8.4: error handler, E_STRICT, Smarty 4.5.8, SafeMySQL, librdf, mysqli, Persona preview fixes | cavekit-addons-site.md | R2 | T-400 | no | M | pending |
-| T-402 | Local stack: rootless containers (nginx, PHP-FPM 8.2 and 8.4, MariaDB), schema, owner account, up/down | cavekit-addons-site.md | R9 | T-401 | no | M | pending |
-| T-403 | Hardening: config out of the root, registration and `special` gone, panel path-only, CSRF, escaping, SQLi, downloads, headers, rate limit | cavekit-addons-site.md | R3, R8 | T-402 | no | L | pending |
-| T-404 | The Jihad application: id, UA token, features, https URLs | cavekit-addons-site.md | R4 | T-402 | no | S | pending |
-| T-405 | Personas: version/licence/source columns, importer from personas.json (sha256), safe page, AUS with version, previews at import | cavekit-addons-site.md | R5 | T-403, T-404 | no | M | pending |
-| T-406 | Feed component `?component=personas` (paged, UTF-8 search, escaped JSON, cache headers) | cavekit-addons-site.md | R6 | T-405 | no | M | pending |
-| T-407 | Palm-era skin `base/skin/jihad/`, front page, error pages; TouchPad/desktop/phone layouts | cavekit-addons-site.md | R7 | T-404 | yes | L | pending |
-| T-408 | Test CA for the device, in a test copy of a profile, removed after; site reachable from the TouchPad | cavekit-addons-site.md | R9 | T-402 | yes | S | pending |
-| T-409 | Browser prefs: getAddons/discover/update URLs, getMoreURL, galleryURL, the site's install permission, offline behaviour | cavekit-addons-site.md | R11 | T-404 | yes | S | pending |
-| T-410 | about:personas: the site's Personas paged, search, More on the web | cavekit-addons-site.md | R12 | T-406, T-409 | yes | M | pending |
-| T-411 | Updates on demand: Personas (Check for updates) and add-ons (about:addons) against the site | cavekit-addons-site.md | R13 | T-405, T-409 | yes | M | pending |
-| T-412 | Codex review of the site and the browser half; fixes | cavekit-addons-site.md | R3 | T-403..T-411 | no | M | pending |
-| T-413 | Deploy checklist and scripts for Devuan/nginx/OpenRC/PHP-FPM/MariaDB/certbot, backups | cavekit-addons-site.md | R10 | T-412 | no | M | pending |
+| T-400 | Fork hygiene: README/NOTICE, licences, Moonchild skins/apps/mail/bans out of the tree | cavekit-addons-site.md | R1 | — | no | M | done |
+| T-401 | PHP 8.2/8.4: error handler, E_STRICT, Smarty 4.5.8, SafeMySQL, librdf, mysqli, Persona preview fixes | cavekit-addons-site.md | R2 | T-400 | no | M | done |
+| T-402 | Local stack: rootless containers (nginx, PHP-FPM 8.2 and 8.4, MariaDB), schema, owner account, up/down | cavekit-addons-site.md | R9 | T-401 | no | M | done |
+| T-403 | Hardening: config out of the root, registration and `special` gone, panel path-only, CSRF, escaping, SQLi, downloads, headers, rate limit | cavekit-addons-site.md | R3, R8 | T-402 | no | L | done |
+| T-404 | The Jihad application: id, UA token, features, https URLs | cavekit-addons-site.md | R4 | T-402 | no | S | done |
+| T-405 | Personas: version/licence/source columns, importer from personas.json (sha256), safe page, AUS with version, previews at import | cavekit-addons-site.md | R5 | T-403, T-404 | no | M | done |
+| T-406 | Feed component `?component=personas` (paged, UTF-8 search, escaped JSON, cache headers) | cavekit-addons-site.md | R6 | T-405 | no | M | done |
+| T-407 | Palm-era skin `base/skin/jihad/`, front page, error pages; TouchPad/desktop/phone layouts | cavekit-addons-site.md | R7 | T-404 | yes | L | done (landscape/desktop/phone layouts not yet looked at) |
+| T-408 | Test CA for the device, in a test copy of a profile, removed after; site reachable from the TouchPad | cavekit-addons-site.md | R9 | T-402 | yes | S | done |
+| T-409 | Browser prefs: getAddons/discover/update URLs, getMoreURL, galleryURL, the site's install permission, offline behaviour | cavekit-addons-site.md | R11 | T-404 | yes | S | done (getMoreURL unset by design) |
+| T-410 | about:personas: the site's Personas paged, search, More on the web | cavekit-addons-site.md | R12 | T-406, T-409 | yes | M | done (typed search: owner's finger test) |
+| T-411 | Updates on demand: Personas (Check for updates) and add-ons (about:addons) against the site | cavekit-addons-site.md | R13 | T-405, T-409 | yes | M | done |
+| T-412 | Codex review of the site and the browser half; fixes | cavekit-addons-site.md | R3 | T-403..T-411 | no | M | done by the inspector (Codex owed when credits return) |
+| T-413 | Deploy checklist and scripts for Devuan/nginx/OpenRC/PHP-FPM/MariaDB/certbot, backups | cavekit-addons-site.md | R10 | T-412 | no | M | done |
 | T-414 | [OWNER] Server go-ahead, DNS for addons.riverstonerelay.org, root steps, smoke test | cavekit-addons-site.md | R10 | T-413 | human | S | owner |
 
 ## Tier 75 — More Persona formats (2026-10-11; added to the site, not a regeneration)
@@ -518,11 +518,11 @@ Owner's choice after the format survey: colour-only themes, layered pictures, mo
 
 | Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
 |------|-------|---------|-------------|-----------|--------|--------|--------|
-| T-390 | Extras beside a Persona (profile file, cleaned, deleted with it); colour-only packages get a drawn picture | cavekit-persona-formats.md | R1, R4 | — | yes | M | pending |
-| T-391 | Layered pictures: every picture kept (bounded), placed and tiled; the shells and the pane draw them | cavekit-persona-formats.md | R2 | T-390 | yes | M | pending |
-| T-392 | Colour slots in the shells: address field, menus, second bar, glyphs, start page; put back for classic Personas | cavekit-persona-formats.md | R3 | T-390 | yes | L | pending |
-| T-393 | Travel: getTheme, channel limit order, Undo/Default/uninstall/editions, index colour slots | cavekit-persona-formats.md | R4 | T-390..T-392 | yes | S | pending |
-| T-394 | Device verification in all three shells; screenshots; review | cavekit-persona-formats.md | R1–R4 | T-390..T-393 | yes | M | pending |
+| T-390 | Extras beside a Persona (profile file, cleaned, deleted with it); colour-only packages get a drawn picture | cavekit-persona-formats.md | R1, R4 | — | yes | M | done |
+| T-391 | Layered pictures: every picture kept (bounded), placed and tiled; the shells and the pane draw them | cavekit-persona-formats.md | R2 | T-390 | yes | M | done (SVG skip: code only) |
+| T-392 | Colour slots in the shells: address field, menus, second bar, glyphs, start page; put back for classic Personas | cavekit-persona-formats.md | R3 | T-390 | yes | L | done |
+| T-393 | Travel: getTheme, channel limit order, Undo/Default/uninstall/editions, index colour slots | cavekit-persona-formats.md | R4 | T-390..T-392 | yes | S | done (Undo/Default/editions: code only) |
+| T-394 | Device verification in all three shells; screenshots; review | cavekit-persona-formats.md | R1–R4 | T-390..T-393 | yes | M | done |
 
 ## Tier 74 — Engine update readiness (2026-10-08; groundwork only)
 

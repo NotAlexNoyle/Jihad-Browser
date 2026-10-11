@@ -115,7 +115,9 @@ function renderBundled() {
 // The feed answers {page, pages, total, personas}; a plain index ({personas}) is one page.
 const PREF_SITE = "jihad.personas.siteURL";
 const PER_PAGE = 12;
-let online = {url: "", page: 1, q: ""};
+// seq/checkSeq: only the newest request's answer is shown (quick Next, Previous or a second search
+// could otherwise paint an older page last; two update checks doubled the cards — inspector 2026-10-11).
+let online = {url: "", page: 1, q: "", seq: 0, checkSeq: 0};
 
 function galleryURL() {
 	let url = "";
@@ -152,7 +154,9 @@ function renderOnline() {
 	let group = document.getElementById("online-group"), box = document.getElementById("online");
 	group.hidden = false;
 	status("Loading Personas from the site…");
+	let mine = ++online.seq;
 	fetchJSON(feedURL(online.page, online.q), function (d) {
+		if (mine !== online.seq) { return; }               // a newer request is on its way
 		status("");
 		while (box.firstChild) { box.firstChild.remove(); }
 		let pager = document.getElementById("online-pager");
@@ -190,6 +194,7 @@ function renderOnline() {
 			box.appendChild(e);
 		}
 		let pages = Math.max(1, parseInt(d.pages, 10) || 1), page = Math.max(1, parseInt(d.page, 10) || 1);
+		online.page = page;                                  // what is shown is the page the buttons move from
 		pager.hidden = pages < 2;
 		document.getElementById("online-page").textContent = "Page " + page + " of " + pages;
 		document.getElementById("online-prev").disabled = page <= 1;
@@ -202,6 +207,7 @@ function renderOnline() {
 function checkUpdates() {
 	let box = document.getElementById("updates");
 	while (box.firstChild) { box.firstChild.remove(); }
+	let mineCheck = ++online.checkSeq;
 	let origin = "";
 	try { origin = Services.io.newURI(online.url, null, null).prePath; } catch (e) { origin = ""; }
 	let mine = installedState().list.filter(function (t) {
@@ -212,6 +218,7 @@ function checkUpdates() {
 	let found = 0, left = mine.length;
 	mine.forEach(function (t) {
 		fetchJSON(t.updateURL, function (p) {
+			if (mineCheck !== online.checkSeq) { return; }  // a newer check replaced this one
 			if (p && p.id === t.id && typeof p.version === "string" && p.version !== (t.version || "")) {
 				found++;
 				box.appendChild(card(p, button("Update", false, function () {

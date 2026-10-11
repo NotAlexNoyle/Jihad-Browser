@@ -10,8 +10,10 @@
 #           to a copy of the certificate database (certutil on this PC), writes a user.js that points
 #           the gallery, the site's Personas page, the install permission, the discover pane and the
 #           update service at the local copy, and starts the daemon again;
-#   restore stops the daemon, puts every backed-up file back, removes user.js and the backup, and
-#           starts the daemon again: the profile is as it was, the test CA gone.
+#   restore stops the daemon, puts every backed-up file back, deletes the ones that did not exist
+#           at setup, removes what the test added to jihad-themes/ and extensions/ (and restores
+#           extensions.json), removes user.js, starts the daemon, checks the test CA is gone — and only
+#           then deletes the backup: the profile is as it was.
 #   status  says whether a test setup is in place and whether the CA is in the profile.
 #
 # Usage: build/webos-oe/test-site-profile.sh setup|restore|status [enyo|mochi|mojo]   (default enyo)
@@ -27,12 +29,13 @@ case "$VARIANT" in
   *) echo "variant: enyo, mochi or mojo" >&2; exit 2;;
 esac
 ADDR="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
+[ -n "${SITE:-}" ] || [ -n "$ADDR" ] || { echo "no LAN address found: set SITE=https://<addr>:8443" >&2; exit 1; }
 SITE="${SITE:-https://$ADDR:8443}"
 CA="${CA:-$(cd .. && pwd)/Riverstone-Addons/deploy/local/state/tls/ca.crt}"
 APP=/media/cryptofs/apps/usr/palm/applications/$ID
 PROF=$APP/profile
 BAK=$APP/jihad-site-test-backup
-FILES="cert9.db key4.db pkcs11.txt prefs.js permissions.sqlite"
+FILES="cert9.db key4.db pkcs11.txt prefs.js permissions.sqlite extensions.json"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 # certutil from the engine's own NSS (3.90): a newer system certutil writes PKCS#11 v3.2 trust objects,
 # which this NSS does not read — the CA is then in the database but not trusted (measured 2026-10-11).
@@ -52,11 +55,17 @@ dev() {   # run a script on the device, its output back
 case "$ACTION" in
 setup)
   [ -f "$CA" ] || { echo "no CA at $CA (start the local copy first)" >&2; exit 1; }
+  [ -x "$UXP_CERTUTIL" ] || { echo "no engine-built certutil at $UXP_CERTUTIL (build the desktop engine)" >&2; exit 1; }
+  if dev "test -f $PROF/user.js && echo USERJS-EXISTS" 4 | grep -q USERJS-EXISTS; then
+    echo "$PROF/user.js already exists: this test would replace it. Move it away first." >&2; exit 1
+  fi
   if dev "test -d $BAK && echo BACKUP-EXISTS" 4 | grep -q BACKUP-EXISTS; then
     echo "a test setup is already in place for $VARIANT: restore first" >&2; exit 1
   fi
   say "stopping $JOB; backing up $FILES"
-  dev "stop $JOB >/dev/null 2>&1; sleep 2; mkdir -p $BAK && for f in $FILES; do [ -f $PROF/\$f ] && cp -p $PROF/\$f $BAK/\$f; done; ls $BAK | tr '\n' ' '" 8
+  # Each file is copied, or noted as absent (restore deletes it); what jihad-themes/ and extensions/
+  # hold is listed, so restore can remove what the test adds there.
+  dev "stop $JOB >/dev/null 2>&1; sleep 2; mkdir -p $BAK && : > $BAK/absent.list && for f in $FILES; do if [ -f $PROF/\$f ]; then cp -p $PROF/\$f $BAK/\$f; else echo \$f >> $BAK/absent.list; fi; done; ls $PROF/jihad-themes > $BAK/jihad-themes.list 2>/dev/null; ls $PROF/extensions > $BAK/extensions.list 2>/dev/null; ls $BAK | tr '\n' ' '" 8
   mkdir -p "$TMP/db"
   for f in cert9.db key4.db pkcs11.txt; do novacom get "file://$PROF/$f" > "$TMP/db/$f"; done
   certutil -A -n "Riverstone Add-ons LOCAL TEST CA" -t "C,," -i "$CA" -d "sql:$TMP/db"
@@ -84,11 +93,31 @@ EOF
 restore)
   dev "test -d $BAK || echo NO-BACKUP" 4 | grep -q NO-BACKUP && { echo "no test setup to restore for $VARIANT" >&2; exit 1; }
   say "stopping $JOB; putting the profile back"
-  dev "stop $JOB >/dev/null 2>&1; sleep 2; for f in $FILES; do [ -f $BAK/\$f ] && cp -p $BAK/\$f $PROF/\$f; done; rm -f $PROF/user.js; rm -rf $BAK; start $JOB >/dev/null 2>&1; sleep 3; status $JOB" 10
+  out=$(dev "stop $JOB >/dev/null 2>&1; sleep 2
+ok=1
+for f in $FILES; do if [ -f $BAK/\$f ]; then cp -p $BAK/\$f $PROF/\$f || ok=0; fi; done
+while read f; do [ -n \"\$f\" ] && rm -f $PROF/\$f; done < $BAK/absent.list
+# Membership in plain sh: the device's BusyBox 1.17 grep has no -x, and a grep that fails made
+# \"not listed\" true for every file — two restores emptied Enyo's jihad-themes/ and extensions/
+# (2026-10-11). The list must also find its own first line, or nothing is removed.
+inlist() { while IFS= read -r l; do [ \"\$l\" = \"\$1\" ] && return 0; done < \"\$2\"; return 1; }
+prune() {   # prune DIR LIST: remove what DIR holds that LIST did not
+  [ -f \"\$2\" ] && cd \"\$1\" 2>/dev/null || return 0
+  first=\$(head -n 1 \"\$2\"); if [ -n \"\$first\" ] && ! inlist \"\$first\" \"\$2\"; then echo \"PRUNE-CHECK-FAILED \$1\"; return 0; fi
+  for f in *; do [ -e \"\$f\" ] || continue; inlist \"\$f\" \"\$2\" || { echo \"removing \$1/\$f\"; rm -rf \"./\$f\"; }; done
+}
+prune $PROF/jihad-themes $BAK/jihad-themes.list
+prune $PROF/extensions $BAK/extensions.list
+rm -f $PROF/user.js
+start $JOB >/dev/null 2>&1; sleep 3; status $JOB
+[ \$ok = 1 ] && echo COPIED-BACK || echo COPY-FAILED" 12)
+  echo "$out" | grep -v -e COPIED-BACK -e COPY-FAILED || true
+  echo "$out" | grep -q COPIED-BACK || { echo "a file could not be copied back: the backup is kept at $BAK" >&2; exit 1; }
   mkdir -p "$TMP/db"
   for f in cert9.db key4.db pkcs11.txt; do novacom get "file://$PROF/$f" > "$TMP/db/$f"; done
-  if certutil -L -d "sql:$TMP/db" | grep -q "LOCAL TEST CA"; then echo "the test CA is STILL in the profile" >&2; exit 1; fi
-  say "restored: no test CA, no user.js"
+  if certutil -L -d "sql:$TMP/db" | grep -q "LOCAL TEST CA"; then echo "the test CA is STILL in the profile: the backup is kept at $BAK" >&2; exit 1; fi
+  dev "rm -rf $BAK" 4 >/dev/null
+  say "restored: no test CA, no user.js, nothing the test added; backup removed"
   ;;
 status)
   dev "test -d $BAK && echo 'test setup: IN PLACE' || echo 'test setup: none'; test -f $PROF/user.js && echo 'user.js: present' || echo 'user.js: none'" 4

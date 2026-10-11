@@ -92,6 +92,9 @@ function cardTheme(t) {
   out.textcolor = str(t.textcolor, 40);
   out.accentcolor = str(t.accentcolor, 40);
   if (t.headerFit === "cover") { out.headerFit = "cover"; }      // a wallpaper: fitted, not its corner
+  // A colour-only Persona's drawn picture (a frame-to-toolbar gradient) is stretched over the whole
+  // bar: scaled to cover, an 8x64 picture shows only its middle row (inspector 2026-10-11).
+  if (t.headerFit === "stretch") { out.headerFit = "stretch"; }
   // A theme package's extras (cavekit-persona-formats.md): where the header sits, the pictures
   // under it, and the colours for the rest of the shell. Each checked again here.
   if (POSITIONS.indexOf(t.headerPosition) >= 0) { out.headerPosition = t.headerPosition; }
@@ -287,12 +290,28 @@ function sha256Str(s) {
   return hexOf(ch.finish(false));
 }
 
-// A theme's colour slots, each kept only if it is a CSS colour; null when there are none.
+// A colour as the engine's own parser reads it, written back as rgb() or rgba(): a slot is put
+// into the shells' stylesheets, and text that merely uses colour characters ("red, 0 0 0 2000px
+// black", an unclosed "rgb(") would otherwise become a shadow over the card or swallow the rest of
+// the sheet (inspector 2026-10-11). Null when it is not one colour.
+function canonColor(c) {
+  let css = cssColor(c);
+  if (!css) { return null; }
+  try {
+    let v = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils).colorToRGBA(css);
+    if (!v) { return null; }
+    let r = Math.round(v.r), g = Math.round(v.g), b = Math.round(v.b), a = Number(v.a);
+    if ([r, g, b].some(function(x) { return !(x >= 0 && x <= 255); }) || !(a >= 0 && a <= 1)) { return null; }
+    return a < 1 ? "rgba(" + r + ", " + g + ", " + b + ", " + Math.round(a * 1000) / 1000 + ")" : "rgb(" + r + ", " + g + ", " + b + ")";
+  } catch (e) { return null; }
+}
+
+// A theme's colour slots, each kept only if it is one colour (canonColor); null when there are none.
 function slotColors(colors) {
   if (!colors || typeof colors !== "object") { return null; }
   let out = {}, n = 0;
   COLOR_SLOTS.forEach(function(k) {
-    let v = cssColor(k in colors ? colors[k] : colors[COLOR_OLD_NAMES[k]]);
+    let v = canonColor(k in colors ? colors[k] : colors[COLOR_OLD_NAMES[k]]);
     if (v) { out[k] = v; n++; }
   });
   return n ? out : null;
@@ -363,7 +382,7 @@ function writeGradientPng(file, top, bottom, w, h) {
 function cleanExtras(x) {
   if (!x || typeof x !== "object") { return null; }
   let out = {}, n = 0;
-  if (x.fit === "cover") { out.fit = "cover"; n++; }
+  if (x.fit === "cover" || x.fit === "stretch") { out.fit = x.fit; n++; }
   if (POSITIONS.indexOf(x.position) >= 0) { out.position = x.position; n++; }
   if (TILINGS.indexOf(x.repeat) >= 0) { out.repeat = x.repeat; n++; }
   if (Array.isArray(x.layers)) {
@@ -467,6 +486,8 @@ function staticThemeFromXpi(path, origin) {
       let ext = (/\.(png|jpe?g|gif)$/i.exec(p) || [null, ""])[1].toLowerCase();
       if (!ext) { log("picture " + shown + " left out: not a format this browser draws"); return; }
       if (!zr.hasEntry(p) || zr.getEntry(p).realSize > MAX_IMAGE) { log("picture " + shown + " left out: missing or over 4 MB"); return; }
+      // Once the Persona's budget is spent, the rest are not even copied (inspector 2026-10-11).
+      if (kept.length && pixels >= MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
       let f = pendingFile(ext);
       copyEntry(zr, p, f, MAX_IMAGE);
       let sz = imageSize(f);
@@ -474,6 +495,10 @@ function staticThemeFromXpi(path, origin) {
         log("the picture is " + (sz ? sz.w + "x" + sz.h : "of no size this browser can read") + ": not kept");
         return;
       }
+      // What it will cost once shrunk, from its header, before anything decodes it.
+      let after = (ext !== "gif" && sz.h >= WALLPAPER_MIN_HEIGHT && sz.w > WALLPAPER_WIDTH) ?
+        WALLPAPER_WIDTH * Math.max(1, Math.round(sz.h * WALLPAPER_WIDTH / sz.w)) : sz.w * sz.h;
+      if (kept.length && pixels + after > MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
       // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
       // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
       try { shrinkWallpaper(f, ext); }
@@ -499,7 +524,7 @@ function staticThemeFromXpi(path, origin) {
       let f = pendingFile("png");
       writeGradientPng(f, top, bottom, 8, 64);
       kept.push({file: f, ext: "png", position: null, repeat: null, sha: sha256Hex(f), made: true});
-      extras.fit = "cover";
+      extras.fit = "stretch";
     }
     // A Persona of one picture, placed as Firefox places a header, is named by that picture as it
     // always was (the same art is the same Persona); any other by everything that makes it up.
@@ -576,7 +601,7 @@ function handleStaticTheme(bag, hostLabel) {
   let LWTM = manager();
   previewId = null;
   LWTM.resetPreview();
-  LWTM.currentTheme = got.theme;
+  wearTheme(got.theme);
   bag.setPropertyAsBool("converted", true);
   log("static theme [" + got.theme.name + "] from " + host + " is the theme now");
   notify("info", "Persona applied: " + got.theme.name);
@@ -650,7 +675,7 @@ function handle(req) {
   let host = hostOf(req.origin), name = String(theme.name || theme.id || "Persona");
   if (!confirmTheme(host, name)) { log("install of [" + name + "] from " + host + " declined"); return; }
   keepIndexColors(theme.id, req.json);
-  LWTM.currentTheme = theme;      // persists, downloads the images, notifies
+  wearTheme(theme);               // persists, downloads the images, notifies
   log("[" + name + "] from " + host + " is the theme now");
   notify("info", "Persona applied: " + name);
 }
@@ -905,6 +930,17 @@ function bundledPersonas() {
   return out;
 }
 
+// Wear a Persona just installed or re-installed. One with the id already worn (the same picture
+// again with other colours, a site Persona with new colour slots) needs rewear(): the manager sends
+// no styling update for the id it is wearing, so the cards would keep the old look (inspector
+// 2026-10-11).
+function wearTheme(theme) {
+  let LWTM = manager(), cur = null;
+  try { cur = LWTM.currentTheme; } catch (e) { cur = null; }
+  if (cur && theme && cur.id === theme.id) { rewear(theme); }
+  else { LWTM.currentTheme = theme; }
+}
+
 // Put a Persona on again with new details (same id). The manager does nothing for the id already
 // worn — no styling update — so the cards and jihad.theme.current would keep the old details
 // (inspector 2026-10-08): the update is sent here.
@@ -1144,9 +1180,13 @@ function decorateRow(doc, item, theme, isCurrent) {
     // A wallpaper (or a colour-only Persona's own picture) is shown whole across the row, a
     // toolbar picture from its top right corner (where Firefox anchors it) — both filling the
     // row. A layered Persona's other pictures go under it, each where the theme puts it.
+    // A layered Persona's first picture keeps its own size and place (filling the row would hide
+    // the pictures under it); a colour-only one's drawn picture is stretched over the row.
     let wall = !!(theme && (isWallpaper(theme.headerURL) || (x && x.fit === "cover")));
+    let placed = !!(x && (x.layers || x.position));
     let imgs = [header], pos = [wall ? "center center" : ((x && x.position) || "right top")];
-    let rep = [(x && x.repeat) || "no-repeat"], size = ["cover"];
+    let rep = [(x && x.repeat) || "no-repeat"];
+    let size = [(x && x.fit === "stretch") ? "100% 100%" : ((placed && !wall) ? "auto" : "cover")];
     ((x && x.layers) || []).forEach(function(l) {
       let u = cssUrl("resource://" + THEMES_RESOURCE + "/" + l.file);
       if (u) { imgs.push(u); pos.push(l.position); rep.push(l.repeat); size.push("auto"); }
@@ -1360,7 +1400,7 @@ function galleryRequest(bag) {
     keepIndexColors(theme.id, get("json"));
     previewId = null;
     LWTM.resetPreview();
-    LWTM.currentTheme = theme;
+    wearTheme(theme);
     notify("info", "Persona applied: " + theme.name);
     reply({ok: true});
     return;
@@ -1481,7 +1521,7 @@ JihadPersonas.prototype = {
           if (isWallpaper(t.headerURL)) { t.headerFit = "cover"; }
           let x = readExtras(t.id);
           if (x) {
-            if (x.fit === "cover") { t.headerFit = "cover"; }
+            if (x.fit) { t.headerFit = x.fit; }
             if (x.position) { t.headerPosition = x.position; }
             if (x.repeat) { t.headerRepeat = x.repeat; }
             if (x.layers) {

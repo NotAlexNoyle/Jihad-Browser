@@ -308,3 +308,54 @@ skin prefs clean. Enyo's profile repaired by hand.
 | P3 | `main-assistant.js` (Mojo) | The ink glyph set is not applied when a Persona has no accent colour. | By design, no change: without an accent the command row keeps the framework's dark circles, where light glyphs are the readable ones. A comment now says so. |
 
 Device left: Enyo wearing Space Fantasy again (restored through about:personas after the Carbon Light control); all three variants on bundle `7a18305f…` (daemon-only push: the daemon binary is unchanged, the chrome scripts are new).
+
+## Round 14 — the inspector on the Persona formats and the add-on site (Codex out of credits until 4:59 PM, 2026-10-11)
+
+### Jihad Browser, `69c44675..efa6844a` (T-390–T-392, T-409–T-411)
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `jihadPersonas.js`, the three shells, the pane | A colour-only Persona's 8×64 frame-to-toolbar gradient was drawn `cover`, so a bar showed one blended row (#3b1d5e/#7a3fa8 → about #5a2e83). | Fixed: `fit: "stretch"` (100% 100%, left top) in the component, the shells and the pane. **Device:** Enyo's bar measures #3e2164 at the top, #7c3aa8 at the bottom; Mochi and Mojo the same by eye. |
+| P3 | `jihadPersonas.js` (pane) | A layered Persona's first picture was `cover` in its pane row, hiding the others. | Fixed: a placed picture keeps its own size. **Device:** the moon at its size with the hills and dots beside it (Enyo). |
+| P3 | `jihadPersonas.js` | Re-installing the worn Persona under the same id used `LWTM.currentTheme =`, which sends no styling update. | Fixed: `wearTheme()` goes through `rewear()` for the worn id (three sites). **Device:** Carbon Light re-installed with a red frame repainted the bar (#cc2222). |
+| P3 | `jihadPersonas.js` | Colour slots were checked for characters, not parsed: `red, 0 0 0 2000px black` reached the stylesheets. | Fixed: `canonColor()` (inIDOMUtils.colorToRGBA) → `rgb()`/`rgba()` or dropped. **Device:** `hsl(120, 60%, 30%)` arrived as `rgb(30, 122, 30)`, the shadow value was dropped. |
+| P3 | `jihadPersonas.js` | The pixel budget was checked after each picture was copied, shrunk and hashed. | Fixed: from the header's size (and the size after shrinking) first; once spent, the rest are skipped unread. |
+| P3 | `personas.js` | Overlapping feed or update requests could render out of order, and Check for updates twice listed each update twice. | Fixed: a sequence number per request; the page number comes from the reply. |
+| P3 | `test-site-profile.sh` | `restore` deleted the backup before checking the copies and the CA. | Fixed: copies verified, the CA checked gone, only then the backup removed. |
+| P3 | `test-site-profile.sh` | Files absent at setup, a user.js already there, what the test added to extensions/ and jihad-themes/, certutil missing after the daemon was stopped, an empty address. | Fixed: each. **But see below.** |
+| P3 | `jihad-addon-prefs.js` | `lightweightThemes.getMoreURL` not set (R11). | Kit narrowed: unset by design — the pane's "Get Personas" opens about:personas, which browses the site. `lightweightThemes.update.enabled` now named false too. |
+| kit | `cavekit-persona-formats.md` | R1/R2's about:personas card and R4's "same fields" for index Personas. | Kit narrowed: about:personas lists bundled and site Personas only; index Personas carry colour slots. |
+
+**Found on the device while verifying (not in the review), P1 in effect:** the new clean-up in
+`test-site-profile.sh restore` decided membership with `grep -qxF`; the device's BusyBox 1.17 grep
+has no `-x`, every test failed, and `|| rm` removed **every** file in Enyo's `profile/jihad-themes/`
+and `profile/extensions/` — twice (both Enyo restores of the day; Mochi and Mojo were never
+restored). Fixed: membership in plain sh, and the list must find its own first line before
+anything is removed (tested on the device in a scratch directory first). Enyo repaired: the 13
+pictures its prefs name copied from Mochi under the same names (Mochi's and Mojo's copies
+md5-identical), and Palefill re-offered by deleting `jihad.bundled-addons.palefill@….offered` —
+1.30 installed again, active, not user-disabled; Space Fantasy painted again. The jihad-site-test
+extension Enyo held from the update test is gone with it (a test add-on).
+
+### Riverstone-Addons, `upstream/TRUNK..aeb01fb`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `index.php` | The panel ran for any raw path starting `/panel/`: `/panel/../?path=/panel/administration/` reached its login through nginx's `/` location, without the rate limit or the allowlist. | Fixed: PHP takes the panel only when nginx's `/panel/` location sets `RIVERSTONE_PANEL`. Both path tricks answer 404 (smoke test). |
+| P2 | `addonDownload.php` | `?component=download&panel=1` checked passwords outside the panel. | Fixed: panel downloads are `/panel/download/`, inside the panel's login and limits. |
+| P2 | `riverstone-maps.conf` | X-Frame-Options/CSP dropped for any URL whose query said `component=discover`, panel pages included. | Fixed: keyed on path and component; smoke test checks a panel URL keeps the header. |
+| P2 | `classReadManifest.php` | `by-id`/`by-slug` served unreviewed add-ons publicly and to the update service. | Fixed: reviewed only. Checked: an unreviewed add-on's page and download are 404, its update check offers nothing, the panel still serves it. |
+| P2 | `classReadManifest.php` | Descriptions entity-encoded before Smarty escaped them (`&amp;amp;`, growing on each save). | Fixed: plain text; the content fallback escapes it once. |
+| P2 | `install.sh` | Re-running overwrote the owner's allowlist and site block. | Fixed: the allowlist is its own include written once; an edited site block is kept (`.new` beside it). |
+| P2 | `classWriteManifest.php` | Validator errors (with an install.rdf's values) went into the panel page as markup. | Fixed: error pages escape everything except the code's own few tags. |
+| P3 | `classPersona.php`, `personaFeed.php` | A huge page number overflowed into SQL. | Fixed: clamped; an empty page. |
+| P3 | `classGenerateContent.php` | update.rdf values unescaped; `]]>` could close addon.xml's CDATA. | Fixed: escaped; CDATA split. |
+| P3 | `addonSite.php` | `/search/` without terms logged a deprecation. | Fixed. |
+| P3 | `fundamentals.php` | A 404 had an empty body; error pages were not in the skin. | Fixed: a page; public errors in the site's skin (device: Enyo). |
+| P3 | `backup.sh`, `sync.sh`, `install.sh`, `riverstone.conf`, `DEPLOY.md` | No pipefail; no remote mkdir; the DB password in arguments; a world-readable php.log; a password on a command line. | Fixed: each. |
+| P3 | `persona-admin.php` | Delete followed a symlinked folder. | Fixed: links removed as links. Checked with planted symlinks. |
+| P3 | `deploy/local` | The local copy lacked the pool's open_basedir and disabled functions. | Fixed in `php-local.ini`. |
+| P3 | `classPersona.php` | Empty fields left out of the feed. | Fixed: every field present as a string. |
+| P3 | panel templates | Category labels and bulk-upload messages double-escaped. | Fixed. |
+
+Codex reviews both ranges again when its credits return (owed).

@@ -54,8 +54,10 @@ A **Persona** gives the toolbar and buttons a picture and colours of their own.
   Space Fantasy, Summerwood and Autumn Forest.
 - **Get Personas** opens Jihad's own gallery, `about:personas`, and thousands more install with
   one confirmation from Persona sites made for Firefox, Pale Moon and Basilisk, and from
-  addons.mozilla.org. (Complete themes, the kind that restyle a desktop browser's window, have
-  nothing to dress here; Jihad says so and points to Personas.)
+  addons.mozilla.org — today's themes too: picture themes, colour-only ones (Firefox Color,
+  Colorways) and layered ones, their colours reaching the address bar, the menus and the start page.
+  (Complete themes, the kind that restyle a desktop browser's window, have nothing to dress here;
+  Jihad says so and points to Personas.)
 - **A real manager** in `about:addons` → Personas: every Persona with its picture, author and
   version; **Wear** (with **Undo**), **Uninstall**, **Install from file**.
 - Each interface keeps its own, so every card can have a different look.

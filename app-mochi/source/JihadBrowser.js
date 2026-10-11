@@ -770,11 +770,12 @@ enyo.kind({
 		var POS = /^(left|center|right|top|bottom)( (left|center|right|top|bottom))?$/, REP = /^(no-repeat|repeat|repeat-x|repeat-y)$/;
 		var img = [], pos = [], rep = [], size = [], i, u;
 		var header = url(theme.headerURL), fit = !!header && theme.headerFit === "cover";
+		var stretch = !!header && theme.headerFit === "stretch";   // a colour-only Persona's drawn picture
 		if (header) {
 			img.push("url(" + header + ")");
-			pos.push(fit ? "center center" : (POS.test(theme.headerPosition) ? theme.headerPosition : "right top"));
+			pos.push(fit ? "center center" : (stretch ? "left top" : (POS.test(theme.headerPosition) ? theme.headerPosition : "right top")));
 			rep.push(REP.test(theme.headerRepeat) ? theme.headerRepeat : "no-repeat");
-			size.push(fit ? "cover" : "auto");
+			size.push(fit ? "cover" : (stretch ? "100% 100%" : "auto"));
 		}
 		var layers = (Object.prototype.toString.call(theme.layers) === "[object Array]") ? theme.layers.slice(0, 6) : [];   // parsed in another window: not this one's Array
 		for (i = 0; i < layers.length; i++) {

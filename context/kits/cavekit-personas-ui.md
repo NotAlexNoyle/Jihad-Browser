@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08"
-last_edited: "2026-10-08"
+last_edited: "2026-10-11"
 complexity: medium
 ---
 
@@ -161,9 +161,11 @@ browser, ready to show an online index the project publishes later.
   Space Fantasy → worn, toolbar repainted, "Wearing Space Fantasy.")*
 - [x] The Personas pane's **Get Personas** opens it; Basilisk's `lightweightThemes.getMoreURL` can
   point it elsewhere (an https address).
-- [~] When `jihad.personas.galleryURL` names an https index (the bundled `personas.json` format),
-  its Personas are listed too and install through the usual confirm, naming the index's host.
-  *(Built; no index is published yet — the owner hosts it when wanted.)*
+- [x] When `jihad.personas.galleryURL` names an https index (the bundled `personas.json` format,
+  or the add-on site's paged feed), its Personas are listed too and install through the usual
+  confirm, naming the index's host. *(Device, Enyo, 2026-10-11, against a local copy of the add-on
+  site: cavekit-addons-site.md R12. The pref now names addons.riverstonerelay.org, which is not live
+  yet: the page says the site cannot be reached.)*
 - [x] Everything shown from an index is put in as text, and installs go through the same
   component, conversion and confirm as every other Persona.
 **Dependencies:** R4, R7

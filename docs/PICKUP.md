@@ -1,9 +1,128 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-08 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-11 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
+
+## 2026-10-11 delta — Jihad's add-on site (built and tested locally, not deployed), three more Persona formats, review round 14 (READ FIRST)
+
+**The owner's choices** (the Persona-index options, 2026-10-11): a Phoebus add-on site at
+`addons.riverstonerelay.org`; colour-only themes, layered pictures and more colour slots; "Originals +
+vetted CC"; build it locally first, with nothing published; their Devuan + nginx + OpenRC server;
+the full Phoebus feature set, with Personas the only content for now; about:personas as a native
+gallery plus the site; a Palm-era skin; submissions from the owner only; updates only when asked.
+Kits: `cavekit-persona-formats.md`, `cavekit-addons-site.md`; build site Tiers 75–76 (T-390–T-414).
+
+**Built**
+- **Jihad** (`9e104699`, `7bf951a1`, `efa6844a`, `948e1c88`):
+  - Colour-only and layered theme packages install as Personas. Extras live beside the Persona in
+    `profile/jihad-themes/extras-<sha24>.json`.
+  - A theme's other colours reach the address field, the menus, Mojo's command row and the start
+    page.
+  - Prefs point at the site: getAddons, discover, update, `galleryURL`/`siteURL`, and the install
+    permission.
+  - about:personas pages through and searches the site's Personas, and has "Check for updates".
+  - No background update checks.
+- **The site** is in `../Riverstone-Addons`, branch `jihad`. **Its only remote is `upstream`, which
+  is Moonchild's Phoebus: never push there.** The owner creates the project's repository and adds
+  it as `origin`. What it has:
+  - the fork's hygiene, with licences and NOTICE;
+  - PHP 8.2/8.4;
+  - hardening;
+  - Personas with an importer from `render/goanna/personas/personas.json`;
+  - a JSON feed;
+  - the Jihad skin;
+  - a rootless local copy (`deploy/local/up.sh` / `down.sh`);
+  - the deploy kit (`deploy/DEPLOY.md`, `deploy/server/*.sh`).
+
+**Verified on the device** (against the local copy over the LAN, with its test CA in a test profile)
+- Colour-only and four-layer Personas in all three shells. The colour-only bar is now stretched:
+  Enyo measured #3e2164 at the top and #7c3aa8 at the bottom.
+- The colour slots in all three shells. A classic Persona puts every slot back.
+- Uninstall leaves nothing behind (Enyo).
+- Re-installing the worn Persona with new colours repaints it (#cc2222).
+- `hsl()` arrives as `rgb()`; a value carrying a shadow is dropped.
+- The site's feed in about:personas. Its pager goes from page 1 of 2 to 2 of 2; "More on the web"
+  opens `/personas/`.
+- Install from the feed. Check for updates → Update (the picture's md5 changed).
+- Wear on the site's page. The discover pane.
+- about:addons Check for Updates, 1.0 → 1.1.
+- Offline, about:personas says the site cannot be reached.
+- Screenshots in Enyo: the front page, `/personas/`, an add-on page and a 404 in the skin.
+
+**Verified on the local copy**
+- Smoke test 31/31 on PHP 8.4 and on 8.2, with every page type and the panel's pages; the PHP log
+  stayed empty.
+- A POST without the token, or from another origin, gets 403.
+- A hostile Persona name shows as text in the page, in the `data-browsertheme` JSON and in the feed.
+- An unreviewed add-on is 404 publicly and still served by the panel.
+- `persona-admin.php` hide, show and delete work; the delete leaves symlink targets alone.
+
+**Reviews**
+- Codex r13 (Jihad, morning): fixed.
+- Inspector round 14, standing in for Codex, on both repos: one P1 (the panel path) and the
+  P2/P3s, all fixed. See `context/impl/impl-review-findings-6.md`.
+- **Codex owes a review** of Jihad `69c44675..HEAD` and of the site's `upstream/TRUNK..jihad`.
+  Its credits came back at 4:59 PM on 2026-10-11.
+
+**TRAP — it did real damage.** The TouchPad's BusyBox 1.17 `grep` has **no `-x`**.
+`test-site-profile.sh restore` tested membership with `grep -qxF … || rm`. Every test errored, so
+both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` and
+`profile/extensions/`.
+- Fixed: membership is now plain sh, and nothing is removed unless the list finds its own first
+  line. The fix was run against a scratch directory on the device first.
+- Enyo repaired:
+  - its 13 pictures copied from Mochi under the same names (Mochi's and Mojo's copies are
+    md5-identical);
+  - Palefill re-offered by deleting `jihad.bundled-addons.palefill@addons.martoks-place.de.offered`,
+    which reinstalled 1.30, active.
+- The jihad-site-test add-on (a test file) went with it.
+- **After any device-side clean-up, count what is left, not only what was meant to go.**
+
+**Open, in order**
+1. **Codex re-review** of both ranges (above). Fix the findings, then re-test on the local copy and
+   on the device.
+2. **[OWNER] Deploy**, following `../Riverstone-Addons/deploy/DEPLOY.md`:
+   1. Create the site's repository.
+   2. Point DNS for `addons.riverstonerelay.org` at the server.
+   3. Run `deploy/server/sync.sh root@server`.
+   4. On the server, as root, run `install.sh`, `make-owner.php` (it asks for the password) and
+      `import-personas.php`.
+   5. Run `smoke-test.sh`.
+   6. Install a Persona from a desktop Pale Moon or Basilisk, and from Jihad (R10).
+
+   Until then, Jihad points at a site that does not exist. That is by design: about:personas says it
+   cannot be reached, and the discover pane shows its offline message.
+3. **[OWNER, finger]** Typed search in about:personas (the on-screen keyboard).
+4. **The site's other layouts** (R7): TouchPad landscape, a desktop, a phone. An agent can do the
+   desktop and phone ones with a headless browser.
+5. Optional: the SVG package on the device. Run `render/goanna/test/personas/make-format-tests.py`
+   to make `jihad-test-svg.xpi`, serve it over http on the LAN, and install it; the SVG layer
+   should be skipped.
+6. Undo, Default look and editions with the new formats have been checked in code only.
+
+**Testing against the local site**
+1. Run `../Riverstone-Addons/deploy/local/up.sh` (`PHP=8.2` for 8.2). The CA is at
+   `deploy/local/state/tls/ca.crt` and the owner password at `state/owner-password`, both
+   git-ignored.
+2. Run `build/webos-oe/test-site-profile.sh setup <variant>`, test, then `restore <variant>`.
+3. Run `status`, and count `jihad-themes/` and `extensions/`.
+
+Click coordinates: Enyo's and Mochi's `clickAt` take view pixels (device y − 82); Mojo's are
+card-relative (device y − 28). Only a finger pans, so jump with anchors (`about:personas#online-page`,
+`#check-updates`), and use a `U<url>` step to re-jump after a tap. Phoebus refuses curl's user agent;
+pass `-A JihadBrowser/1.0`.
+
+**Device state as left**
+- All three variants on bundle `f25fd654594abb20efc231e8219fc319` (daemon-only pushes), daemons
+  running.
+- No test hooks, no user.js, no test CA.
+- Enyo wears Space Fantasy, with 13 pictures and Palefill 1.30 active. Mochi wears Aurora Silk and
+  Mojo Lime Fizz.
+- Test Personas removed from all three. Carbon Light's bundled details restored in Enyo.
+- `/tmp` holds nothing of ours. The 18 stale YAP sockets of dead daemons were removed; the live
+  ones were kept.
 
 ## 2026-10-08 (night) delta — complete themes, the Persona gallery, a licensed bundle, engine-update groundwork (READ FIRST)
 

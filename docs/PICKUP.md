@@ -93,14 +93,21 @@ both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` 
 **Open, in order**
 1. **Codex re-review** of both ranges (above). Fix the findings, then re-test on the local copy and
    on the device.
-2. **[OWNER] Deploy**, following `../Riverstone-Addons/deploy/DEPLOY.md`:
-   1. Create the site's repository.
+2. **[OWNER] Deploy**, following `../Riverstone-Addons/deploy/DEPLOY.md`, which is now numbered
+   steps in the order they happen. **Every file goes over magic-wormhole** (the owner's rule,
+   2026-10-11): `deploy/server/pack.sh` sends the last commit, and `swap-in.sh` puts it in place on
+   the server; the Personas and the backups go the same way. `sync.sh` (rsync) is gone (site
+   `8535d3b`). In short:
+   1. Install magic-wormhole on the PC and on the server.
    2. Point DNS for `addons.riverstonerelay.org` at the server.
-   3. Run `deploy/server/sync.sh root@server`.
-   4. On the server, as root, run `install.sh`, `make-owner.php` (it asks for the password) and
-      `import-personas.php`.
-   5. Run `smoke-test.sh`.
-   6. Install a Persona from a desktop Pale Moon or Basilisk, and from Jihad (R10).
+   3. Send the site and put it in place with `swap-in.sh`.
+   4. On the server, as root, run `install.sh`, then `make-owner.php` (it asks for the password).
+   5. Send the Personas and import them.
+   6. Run `smoke-test.sh`.
+   7. Install a Persona from a desktop Pale Moon or Basilisk, and from Jihad (R10).
+
+   A repository of the site's own is optional (hosting doesn't need one); its only remote is still
+   Moonchild's `upstream`, which is never pushed to.
 
    Until then, Jihad points at a site that does not exist. That is by design: about:personas says it
    cannot be reached, and the discover pane shows its offline message.

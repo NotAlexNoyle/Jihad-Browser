@@ -120,7 +120,9 @@ enyo.kind({
 		node.style.color = text;
 		if (title) { title.style.color = text; }
 		restore();
-		if (this.isDarkColor(text)) {
+		// The glyph set follows the theme's own icon colour when it names one (R3), else its text colour.
+		var glyphs = color(theme.colors && theme.colors.icons) || text;
+		if (this.isDarkColor(glyphs)) {
 			for (i = 0; i < icons.length; i++) {
 				ic = icons[i];
 				img = ic.style.backgroundImage;

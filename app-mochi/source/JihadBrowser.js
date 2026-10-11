@@ -691,6 +691,7 @@ enyo.kind({
 			this._darkGlyph = {};
 			for (k in enyo.JihadIcons) { if (enyo.JihadIconsDark[k]) { this._darkGlyph[enyo.JihadIcons[k]] = enyo.JihadIconsDark[k]; } }
 		}
+		this.applyThemeColors(theme);
 		if (!theme || typeof theme !== "object") {
 			node.style.background = ""; node.style.color = "";
 			for (i = 0; i < imgs.length; i++) {
@@ -710,7 +711,8 @@ enyo.kind({
 		node.style.backgroundRepeat = bg.repeat;
 		node.style.backgroundSize = bg.size;
 		node.style.color = text;
-		var ink = enyo.jihad.isDarkColor(text);
+		// The glyph set follows the theme's own icon colour when it names one (R3), else its text colour.
+		var ink = enyo.jihad.isDarkColor(color(theme.colors && theme.colors.icons) || text);
 		for (i = 0; i < imgs.length; i++) {
 			var orig = imgs[i].getAttribute("data-jihad-src") || imgs[i].getAttribute("src");
 			if (!orig) { continue; }
@@ -721,6 +723,43 @@ enyo.kind({
 			btns[i].style.background = ink ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)";
 			btns[i].style.borderColor = ink ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)";
 		}
+	},
+	//* A Persona's other colours (cavekit-persona-formats.md R3): the address field, this card's
+	//* menus and sheets, the start page, as one stylesheet — the menus' rows are rebuilt each time
+	//* they open, so rules reach them as they appear. No colours (a classic Persona, or none): the
+	//* sheet is emptied and every part looks as before. Only CSS colour syntax gets in.
+	applyThemeColors: function(theme) {
+		var c = (theme && theme.colors && typeof theme.colors === "object") ? theme.colors : {};
+		var ok = function(v) { return (typeof v === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(v)) ? v : ""; };
+		var css = [], rule = function(sel, decls) {
+			var body = [];
+			for (var k in decls) { if (decls[k]) { body.push(k + ": " + decls[k] + " !important"); } }
+			if (body.length) { css.push(sel + " { " + body.join("; ") + "; }"); }
+		};
+		var field = ok(c.toolbar_field);
+		rule(".jihad-address-box.mochi-input-decorator", {"background": field, "border-color": ok(c.toolbar_field_border)});
+		rule(".jihad-address-box > input, .jihad-address-box input.jihad-address", {"color": ok(c.toolbar_field_text), "font-style": field ? "normal" : ""});
+		rule(".jihad-address-box.mochi-input-decorator.mochi-focused", {"background": ok(c.toolbar_field_focus)});
+		rule(".jihad-address-box.mochi-focused > input, .jihad-address-box.mochi-focused input.jihad-address", {"color": ok(c.toolbar_field_text_focus)});
+		// The lock and reload glyphs in the field are drawn in ink for a white field: on a dark one
+		// they sit on a light disc.
+		if (field && enyo.jihad.isDarkColor(field)) {
+			rule(".jihad-address-box img", {"background": "rgba(255,255,255,0.75)", "border-radius": "50%"});
+		}
+		var popup = ok(c.popup), popupText = ok(c.popup_text), popupBorder = ok(c.popup_border);
+		rule(".jihad-menu-box, .jihad-dialog-box.jihad-sheet", {"background": popup, "color": popupText, "border-color": popupBorder});
+		rule(".jihad-menu-box .jihad-menu-item, .jihad-sheet .jihad-menu-item, .jihad-sheet .jihad-dialog-title, .jihad-sheet .jihad-sheet-sub",
+			{"color": popupText, "border-color": popupBorder});
+		rule(".jihad-menu-box .jihad-menu-item:active, .jihad-sheet .jihad-menu-item:active", {"background": ok(c.popup_highlight), "color": ok(c.popup_highlight_text)});
+		rule(".jihad-startpage", {"background": ok(c.ntp_background)});
+		rule(".jihad-sp-title, .jihad-sp-sub, .jihad-sp-hint, .jihad-sp-link", {"color": ok(c.ntp_text)});
+		var sheet = document.getElementById("jihad-theme-colors");
+		if (!sheet) {
+			sheet = document.createElement("style");
+			sheet.id = "jihad-theme-colors";
+			document.getElementsByTagName("head")[0].appendChild(sheet);
+		}
+		sheet.textContent = css.join("\n");
 	},
 	//* The bar's background for a Persona, as CSS longhands with one entry per picture, top first:
 	//* the header (a wallpaper-sized one fitted to the bar, as the Persona component marks it with

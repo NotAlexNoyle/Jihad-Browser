@@ -160,6 +160,10 @@
 						setTimeout(function () { log(name, "finger hold: sheet open before lift=" + openBefore + " after lift=" + app.$.sheet.getShowing() + (app.$.sheet.getShowing() ? " [" + app.$.sheetTitle.getContent() + "]" : "")); }, 600);
 					}, parseInt(st.slice(1), 10) || 1500);
 					wait = (parseInt(st.slice(1), 10) || 1500) + 2000;
+				} else if (st === "P") {              // show the start page (an overlay a loaded page hides) and read its colours
+					app.$.startPage.show();
+					var spn = app.$.startPage.hasNode(), spc = spn ? window.getComputedStyle(spn, null) : null;
+					log(name, "start page shown: background=[" + (spc ? spc.backgroundColor : "?") + "]");
 				} else if (st.charAt(0) === "M") {    // open a toolbar menu as its button does: Mshare, Mlibrary, Mapp
 					var which = st.slice(1);
 					if (which === "share") { app.doShare(); } else if (which === "library") { app.doBookmarks(); } else { app.toggleAppMenu(); }

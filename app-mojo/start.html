@@ -97,7 +97,25 @@
 	// url fragment (main-assistant.js startPageUrl()). The markup above is the
 	// default, left in place so the page still shows shortcuts when opened directly
 	// with no fragment and when script is off.
-	(function () {
+	// A Persona's start-page colours (main-assistant.js applyThemeColors): CSS colours only. Applied
+	// at load and again when only the fragment changes — re-opening this page with a new fragment
+	// is a same-document navigation, so nothing else would run this again.
+	function applyColors() {
+		var m = /(?:^|[#&])ntp=([^&]*)/.exec(window.location.hash || ""), c = null, css = [];
+		if (m) { try { c = JSON.parse(decodeURIComponent(m[1])); } catch (e) { c = null; } }
+		var ok = function (v) { return (typeof v === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(v)) ? v : ""; };
+		if (c && ok(c.bg)) { css.push("html, body { background: " + ok(c.bg) + " !important; }"); }
+		if (c && ok(c.text)) { css.push("body, h1, .sub, .hint, a { color: " + ok(c.text) + " !important; }"); }
+		var st = document.getElementById("jihad-ntp");
+		if (!st) {
+			st = document.createElement("style");
+			st.id = "jihad-ntp";
+			document.getElementsByTagName("head")[0].appendChild(st);
+		}
+		while (st.firstChild) { st.removeChild(st.firstChild); }
+		st.appendChild(document.createTextNode(css.join("\n")));
+	}
+	function applyLinks() {
 		var m = /(?:^|[#&])links=([^&]*)/.exec(window.location.hash || "");
 		if (!m) { return; }
 		var list;
@@ -118,7 +136,10 @@
 			li.appendChild(a);
 			ul.appendChild(li);
 		}
-	}());
+	}
+	applyColors();
+	applyLinks();
+	window.addEventListener("hashchange", function () { applyColors(); applyLinks(); }, false);
 	</script>
 </body>
 </html>

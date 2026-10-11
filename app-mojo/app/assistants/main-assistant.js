@@ -598,6 +598,7 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	if (!theme || typeof theme !== "object") {
 		bar.style.background = ""; bar.style.color = "";
 		this.themeCommandRow(false, "");
+		this.applyThemeColors(null);
 		return;
 	}
 	var color = function (c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
@@ -611,7 +612,58 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	bar.style.backgroundRepeat = bg.repeat;
 	bar.style.backgroundSize = bg.size;
 	bar.style.color = text;
-	this.themeCommandRow(this.isDarkColor(text), accent);
+	// The command row is this shell's second bar (cavekit-persona-formats.md R3): the theme's toolbar
+	// colour fills its circles when it names one, else the accent; its glyphs follow the theme's icon
+	// colour, else the toolbar text colour, else the text colour.
+	var cols = (theme.colors && typeof theme.colors === "object") ? theme.colors : {};
+	this.themeCommandRow(this.isDarkColor(color(cols.icons) || color(cols.toolbar_text) || text), color(cols.toolbar) || accent);
+	this.applyThemeColors(theme);
+};
+
+//* A Persona's other colours (R3): the address field and this card's menus as one stylesheet (the
+//* menus exist only while open, and the field swaps its inner node on focus, so rules reach them as
+//* they appear), and the start page's two colours, which travel in its url like its shortcuts. No
+//* colours: the sheet is emptied and every part looks as before. Only CSS colour syntax gets in.
+MainAssistant.prototype.applyThemeColors = function (theme) {
+	var c = (theme && theme.colors && typeof theme.colors === "object") ? theme.colors : {};
+	var ok = function (v) { return (typeof v === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(v)) ? v : ""; };
+	var css = [], rule = function (sel, decls) {
+		var body = [], k;
+		for (k in decls) {
+			if (decls.hasOwnProperty(k) && decls[k]) { body.push(k + ": " + decls[k] + " !important"); }
+		}
+		if (body.length) { css.push(sel + " { " + body.join("; ") + "; }"); }
+	};
+	// background-color, not background: the padlock is the field's background-image.
+	rule("#jihad-toolbar .jihad-address", {"background-color": ok(c.toolbar_field), "border-color": ok(c.toolbar_field_border)});
+	rule("#jihad-toolbar .jihad-address input, #jihad-toolbar .jihad-address > div", {"color": ok(c.toolbar_field_text)});
+	rule("#jihad-toolbar.focused .jihad-address", {"background-color": ok(c.toolbar_field_focus)});
+	rule("#jihad-toolbar.focused .jihad-address input, #jihad-toolbar.focused .jihad-address > div", {"color": ok(c.toolbar_field_text_focus)});
+	var popup = ok(c.popup), popupText = ok(c.popup_text), popupBorder = ok(c.popup_border);
+	if (popup || popupBorder) {
+		rule(".palm-popup-container .palm-popup-wrapper", {"-webkit-border-image": "none", "background": popup,
+			"border": popupBorder ? "1px solid " + popupBorder : "", "border-radius": "10px"});
+	}
+	rule(".palm-popup-container .title, .palm-popup-container .palm-row-wrapper, .palm-popup-container .label", {"color": popupText});
+	rule(".palm-popup-container .palm-row", {"border-color": popupBorder});
+	rule(".palm-popup-container .palm-row.selected, .palm-popup-container .palm-row:active", {"background": ok(c.popup_highlight), "color": ok(c.popup_highlight_text)});
+	var doc = this.controller.document, sheet = doc.getElementById("jihad-theme-colors");
+	if (!sheet) {
+		sheet = doc.createElement("style");
+		sheet.id = "jihad-theme-colors";
+		doc.getElementsByTagName("head")[0].appendChild(sheet);
+	}
+	sheet.textContent = css.join("\n");
+	// The start page: re-open it now if it is showing, else when it next shows (as its shortcuts).
+	var ntp = (ok(c.ntp_background) || ok(c.ntp_text)) ? JSON.stringify({bg: ok(c.ntp_background), text: ok(c.ntp_text)}) : "";
+	if (ntp !== (this._ntpColors || "")) {
+		this._ntpColors = ntp;
+		if (this.url && this.isStartPage(this.url)) {
+			this.openUrl(this.startPageUrl());
+		} else {
+			this._chromePrefsStale = true;
+		}
+	}
 };
 
 //* The bar's background for a Persona, as CSS longhands with one entry per picture, top first:
@@ -1692,7 +1744,9 @@ MainAssistant.prototype.adoptChromePrefs = function () {
 //* a plain packaged file that talks to nothing.
 MainAssistant.prototype.startPageUrl = function () {
 	var links = JihadChromePrefs.loadLinks();
-	return this.startUrl + "#links=" + encodeURIComponent(JSON.stringify(links));
+	// A Persona's start-page colours ride along (applyThemeColors), checked again by start.html.
+	return this.startUrl + "#links=" + encodeURIComponent(JSON.stringify(links)) +
+		(this._ntpColors ? "&ntp=" + encodeURIComponent(this._ntpColors) : "");
 };
 
 //* Compare without the fragment: startPageUrl() appends one, and the engine reports

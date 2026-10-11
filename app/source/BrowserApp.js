@@ -179,8 +179,60 @@ enyo.kind({
 	//* given to a view again whenever the pane selects one (paneViewSelected).
 	setTheme: function(theme) {
 		this._theme = theme;
+		this.applyThemeColors(theme);
 		if (this.$.browser) { this.$.browser.applyTheme(theme); }
 		if (this.$.startPage && this.$.startPage.applyTheme) { this.$.startPage.applyTheme(theme); }
+	},
+	//* A Persona's other colours (cavekit-persona-formats.md R3): the address field, this card's
+	//* menus and the start page, as one stylesheet — the menus are rebuilt each time they open and
+	//* both action bars (start page, browser) carry a field, so rules reach them all as they appear.
+	//* No colours (a classic Persona, or none): the sheet is emptied and every part looks as before.
+	//* Only CSS colour syntax gets in (no ; { } or quotes).
+	applyThemeColors: function(theme) {
+		var c = (theme && theme.colors && typeof theme.colors === "object") ? theme.colors : {};
+		var ok = function(v) { return (typeof v === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(v)) ? v : ""; };
+		var css = [], rule = function(sel, decls) {
+			var body = [];
+			for (var k in decls) { if (decls[k]) { body.push(k + ": " + decls[k] + " !important"); } }
+			if (body.length) { css.push(sel + " { " + body.join("; ") + "; }"); }
+		};
+		var field = ok(c.toolbar_field), fieldText = ok(c.toolbar_field_text), fieldBorder = ok(c.toolbar_field_border);
+		var focus = ok(c.toolbar_field_focus), focusText = ok(c.toolbar_field_text_focus);
+		if (field || fieldBorder) {
+			rule(".addressbar .enyo-input.enyo-tool-input", {"-webkit-border-image": "none", "background": field,
+				"border": fieldBorder ? "1px solid " + fieldBorder : "", "border-radius": "6px"});
+		}
+		rule(".addressbar input, .addressbar .enyo-input-input", {"color": fieldText});
+		rule(".addressbar .enyo-input.enyo-tool-input.enyo-tool-input-focus", {"background": focus || ""});
+		rule(".addressbar .enyo-tool-input-focus input, .addressbar .enyo-input.enyo-tool-input .enyo-input-input:focus", {"color": focusText});
+		// The reload and stop glyphs inside the field are light: on a light field, the ink ones.
+		if (field && this.$.browser && this.$.browser.$.actionbar && !this.$.browser.$.actionbar.isDarkColor(field)) {
+			rule(".addressbar .refresh-button", {"background-image": "url(images/chrome/dark/menu-icon-refresh.png)"});
+			rule(".addressbar .stop-button", {"background-image": "url(images/chrome/dark/menu-icon-stop.png)"});
+		}
+		var popup = ok(c.popup), popupText = ok(c.popup_text), popupBorder = ok(c.popup_border);
+		var hi = ok(c.popup_highlight), hiText = ok(c.popup_highlight_text);
+		if (popup) {
+			// The framework draws these boxes with a border image whose widths (12-24 px) the content
+			// is laid out inside, with negative margins: the widths stay, filled with the theme's
+			// colour, and the theme's border is a 1 px outline around them.
+			rule(".enyo-popup.enyo-popup-menu, .enyo-popup.enyo-appmenu, .addressbar-popup, .launch-popup", {"-webkit-border-image": "none",
+				"border-style": "solid", "border-color": popup, "background": popup,
+				"-webkit-box-shadow": popupBorder ? "0 0 0 1px " + popupBorder + ", 0 3px 8px rgba(0,0,0,0.5)" : "", "border-radius": "10px"});
+			rule(".enyo-popup.enyo-appmenu", {"left": "0px", "border-radius": "0 0 10px 10px"});
+		}
+		rule(".enyo-popup-menu .enyo-item, .enyo-popup-menu .enyo-menuitem, .enyo-appmenu .enyo-item, .enyo-appmenu-item", {"color": popupText,
+			"border-color": popupBorder});
+		rule(".enyo-popup-menu .enyo-held, .enyo-appmenu .enyo-held, .enyo-popup-menu .enyo-item.enyo-held", {"background": hi, "color": hiText});
+		rule(".startpage", {"background": ok(c.ntp_background)});
+		rule(".startpage-title, .startpage-sub, .startpage-hint, .startpage-link", {"color": ok(c.ntp_text)});
+		var sheet = document.getElementById("jihad-theme-colors");
+		if (!sheet) {
+			sheet = document.createElement("style");
+			sheet.id = "jihad-theme-colors";
+			document.getElementsByTagName("head")[0].appendChild(sheet);
+		}
+		sheet.textContent = css.join("\n");
 	},
 	paneViewSelected: function(inSender, inView) {
 		if (this._theme !== undefined && inView && inView.applyTheme) { inView.applyTheme(this._theme); }

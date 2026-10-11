@@ -43,6 +43,7 @@ Kits: `cavekit-persona-formats.md`, `cavekit-addons-site.md`; build site Tiers 7
 - Uninstall leaves nothing behind (Enyo).
 - Re-installing the worn Persona with new colours repaints it (#cc2222).
 - `hsl()` arrives as `rgb()`; a value carrying a shadow is dropped.
+- An SVG-only theme: its picture is left out, and the Persona is offered and worn on its colours.
 - The site's feed in about:personas. Its pager goes from page 1 of 2 to 2 of 2; "More on the web"
   opens `/personas/`.
 - Install from the feed. Check for updates → Update (the picture's md5 changed).
@@ -97,10 +98,7 @@ both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` 
 3. **[OWNER, finger]** Typed search in about:personas (the on-screen keyboard).
 4. **[OWNER, hands]** The site in landscape on the TouchPad itself (R7). A desktop, a phone and
    1024×768 were checked in headless Firefox; they read well.
-5. Optional: the SVG package on the device. Run `render/goanna/test/personas/make-format-tests.py`
-   to make `jihad-test-svg.xpi`, serve it over http on the LAN, and install it; the SVG layer
-   should be skipped.
-6. Undo, Default look and editions with the new formats have been checked in code only.
+5. Undo, Default look and editions with the new formats have been checked in code only.
 
 **Testing against the local site**
 1. Run `../Riverstone-Addons/deploy/local/up.sh` (`PHP=8.2` for 8.2). The CA is at

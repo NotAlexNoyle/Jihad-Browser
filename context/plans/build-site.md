@@ -519,7 +519,7 @@ Owner's choice after the format survey: colour-only themes, layered pictures, mo
 | Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
 |------|-------|---------|-------------|-----------|--------|--------|--------|
 | T-390 | Extras beside a Persona (profile file, cleaned, deleted with it); colour-only packages get a drawn picture | cavekit-persona-formats.md | R1, R4 | — | yes | M | done |
-| T-391 | Layered pictures: every picture kept (bounded), placed and tiled; the shells and the pane draw them | cavekit-persona-formats.md | R2 | T-390 | yes | M | done (SVG skip: code only) |
+| T-391 | Layered pictures: every picture kept (bounded), placed and tiled; the shells and the pane draw them | cavekit-persona-formats.md | R2 | T-390 | yes | M | done |
 | T-392 | Colour slots in the shells: address field, menus, second bar, glyphs, start page; put back for classic Personas | cavekit-persona-formats.md | R3 | T-390 | yes | L | done |
 | T-393 | Travel: getTheme, channel limit order, Undo/Default/uninstall/editions, index colour slots | cavekit-persona-formats.md | R4 | T-390..T-392 | yes | S | done (Undo/Default/editions: code only) |
 | T-394 | Device verification in all three shells; screenshots; review | cavekit-persona-formats.md | R1–R4 | T-390..T-393 | yes | M | done |

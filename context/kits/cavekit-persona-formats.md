@@ -75,12 +75,13 @@ shows all of them, placed and tiled as the theme says, not only the first.
   three: the test theme drawn for this project — a moon at left top, a sun at right top, hills along
   the bottom repeating, dots tiled; Enyo's pane row too, its first picture at its own size since the
   inspector's 2026-10-11 review.)*
-- [~] Each layer is bounded as the single header is today (size cap, wallpapers shrunk, no
+- [x] Each layer is bounded as the single header is today (size cap, wallpapers shrunk, no
   symlinks or paths outside the package, nothing kept until the user says yes) and the total held
   for one Persona is bounded too (6 Mpx, checked from each picture's header before it is shrunk or
   decoded). A layer in a format the engine cannot draw (SVG) is skipped; the Persona is still offered
-  if anything drawable is left. *(Code; the SVG test package, `make-format-tests.py`, not yet run on
-  the device.)*
+  if anything drawable is left. *(Device, Enyo: `jihad-test-svg.xpi` — "picture h.svg left out: not a
+  format this browser draws", then offered through the confirm and worn on its colours alone; a
+  10000² PNG refused unread, Codex r13. The rest code.)*
 - [x] Classic Personas and single-picture themes look exactly as before. *(Device: the bundled set
   unchanged in all three.)*
 **Dependencies:** R1 (shares the "more than the engine keeps" storage)

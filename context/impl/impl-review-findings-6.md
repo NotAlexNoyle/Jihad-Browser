@@ -359,3 +359,40 @@ extension Enyo held from the update test is gone with it (a test add-on).
 | P3 | panel templates | Category labels and bulk-upload messages double-escaped. | Fixed. |
 
 Codex reviews both ranges again when its credits return (owed).
+
+## Round 15 — the inspector on the round-14 fixes (Codex ran out of credits again at 17:00 with no findings; retry 10:00 PM)
+
+Codex was started on both full ranges at 17:00 (Jihad `69c44675..HEAD`, the site
+`upstream/TRUNK..jihad`); both stopped at the usage limit before writing a finding. The inspector
+reviewed what nobody had: the site's `aeb01fb..87cf077` and Jihad's `948e1c88`. Both: APPROVE.
+
+### Riverstone-Addons, `aeb01fb..87cf077` — fixed in `c5867eb`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `riverstone-maps.conf` | `/?component=discover&component=site&path=/personas/` was frameable: nginx reads the first `component`, PHP the last. | Fixed: the exemption needs the whole query to be exactly `component=discover`. Smoke test checks that URL and that the discover pane stays frameable. |
+| P3 | `persona-admin.php` | Delete followed a symlinked `personas` folder (www-data owns it; the script may run as root): reproduced deleting `victim/ssh/*`. | Fixed: the folder must resolve to exactly `<root>/personas/<id>`. Re-run in the PHP container: refused, victim intact; normal deletes unchanged. |
+| P3 | `DEPLOY.md` | Optional allowlist pointed at the file install.sh rewrites. | Fixed: `riverstone-panel-allow.conf`. |
+| P3 | `developer-frontpage.xhtml` | The application id's braces compiled as a Smarty expression; the page failed. | Fixed: `{ldelim}`/`{rdelim}`; compiled with the bundled Smarty. |
+| P3 | `backup.sh` | A failed dump still left a valid-looking `db-*.sql.gz`. | Fixed: temporary name, moved into place when complete; a failing dump leaves nothing. |
+| P3 | `install.sh` | New DB password and RS_SECRET in `sed`'s argv. | Fixed: bash string operations and `printf`; output identical. |
+| P3 | `classGenerateContent.php` | gfSubst's sequential replacement undid the update.rdf escaping. | Fixed: `strtr` (one pass); update.rdf and the get API still parse. |
+| P3 | `make-owner.php` | Its own text suggested the password on the command line. | Fixed. |
+
+### Jihad Browser, `948e1c88`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `jihadPersonas.js` | `imageSize()` could under-report: a GIF's first frame enlarges it, JPEG fill bytes led the scan to a fake SOF (3000x3000 read as 1x1 / 100x100); MAX_PIXELS and the budget relied on it. | Fixed: the scan reads as the decoders do (first frame, fill bytes, SOS-before-SOF refused) and `pictureSize()` takes the larger of it and the engine's metadata decode (no pixels allocated); a picture whose content is not its extension's kind is left out. **xpcshell:** both lying files now 3000x3000; 15 bundled pictures agree both ways. **Device (Enyo):** the lying GIF package → picture left out, worn on its colours. |
+| P3 | `jihadPersonas.js` | The first picture was exempt from the 6 Mpx budget (1024x16384 kept). | Fixed: the budget counts it. **Device:** left out. |
+| P3 | `jihadPersonas.js` | `canonColor`: currentcolor/-moz-*/system colours came out black or invisible; `rgb(1 2 3 / 50%)` dropped. | Fixed: a bare word must be a colour name or `transparent`; `/` allowed; frame and text colours canonical too. **xpcshell:** 14 cases. |
+| P3 | `jihadPersonas.js` (pane) | A tiled pattern's first picture was drawn `cover` in its row. | Fixed: a repeating first picture keeps its own size. Code. |
+| P3 | `jihadPersonas.js` | Colour-only Personas from before the fix keep `fit: "cover"`. | Fixed: read as `stretch`. Code. |
+| P3 | `jihadPersonas.js` | The bundled gallery's Wear still set `currentTheme` directly. | Fixed: `wearTheme()`. **Device:** Linen Light then Space Fantasy worn from the gallery. |
+| P3 | `personas.js` | A second tap on Next before the reply asked for a page past the end. | Fixed: the pager is disabled while loading; a page past the end loads the last. **Device:** Next → Page 2 of 2 (a scripted double tap is taken as the zoom gesture, so the race itself is code). |
+| P3 | `personas.js` | Check for updates with no answers said "up to date". | Fixed: "could not be reached" (and a count when some fail). Code. |
+| P3 | `test-site-profile.sh` | No route → the script ended silently, restore included. | Fixed: the address is looked up only to set up without SITE, and cannot end the script. |
+| P3 | `test-site-profile.sh` | A setup cut short could leave an empty list, which restore read as "delete everything". | Fixed by design: no lists. Setup writes whole copies to `$BAK.tmp`, marks it complete and renames it; restore refuses an incomplete backup or a short folder copy. **Device, scratch profile:** both refused, nothing changed. |
+| P3 | `test-site-profile.sh` | `lightweighttheme-header/-footer`, rewritten extras and deleted pictures were not restored. | Fixed: backed up; the folders are swapped back from their copies. **Device, scratch profile:** added, deleted and rewritten files all md5-identical after restore; an interrupted restore finished on a second run. **Enyo:** two real cycles, md5-identical. |
+
+Codex is still owed on both full ranges (10:00 PM).

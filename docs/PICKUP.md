@@ -64,15 +64,24 @@ Kits: `cavekit-persona-formats.md`, `cavekit-addons-site.md`; build site Tiers 7
 - Codex r13 (Jihad, morning): fixed.
 - Inspector round 14, standing in for Codex, on both repos: one P1 (the panel path) and the
   P2/P3s, all fixed. See `context/impl/impl-review-findings-6.md`.
+- Inspector round 15, on the round-14 fixes: APPROVE for both. The P2 (picture sizes could be
+  under-read) and eighteen P3s are all fixed, and the dangerous ones were checked on the device.
 - **Codex owes a review** of Jihad `69c44675..HEAD` and of the site's `upstream/TRUNK..jihad`.
-  Its credits came back at 4:59 PM on 2026-10-11.
+  It ran out of credits again at 17:00 before writing a finding; retry at **10:00 PM, 2026-10-11**.
+  The wrapper is `codex exec -m gpt-5.6-sol -s read-only` with Cavekit's prompt and the diff (see
+  the codex-gate memory); give the site diff `--diff-filter=d` and leave out `libraries/`.
 
 **TRAP — it did real damage.** The TouchPad's BusyBox 1.17 `grep` has **no `-x`**.
 `test-site-profile.sh restore` tested membership with `grep -qxF … || rm`. Every test errored, so
 both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` and
 `profile/extensions/`.
-- Fixed: membership is now plain sh, and nothing is removed unless the list finds its own first
-  line. The fix was run against a scratch directory on the device first.
+- Fixed, and then redesigned in round 15: restore no longer decides what to delete by matching
+  names. Setup copies the whole of `jihad-themes/` and `extensions/` (and every profile file a test
+  touches) into a backup that is written as `$BAK.tmp` and renamed only when complete. Restore
+  refuses an incomplete backup or a short folder copy, and otherwise swaps the folders back.
+- Tested on a scratch profile on the device (`JIHAD_TEST_APP=/tmp/fakeapp`): a test's added,
+  deleted and rewritten files all came back md5-identical; the refusals changed nothing; an
+  interrupted restore finished on a second run. Then two real cycles on Enyo were md5-identical.
 - Enyo repaired:
   - its 13 pictures copied from Mochi under the same names (Mochi's and Mojo's copies are
     md5-identical);
@@ -113,8 +122,8 @@ card-relative (device y − 28). Only a finger pans, so jump with anchors (`abou
 pass `-A JihadBrowser/1.0`.
 
 **Device state as left**
-- All three variants on bundle `f25fd654594abb20efc231e8219fc319` (daemon-only pushes), daemons
-  running.
+- All three variants on bundle `e6f75a783e82e5717c7b1b9e8d487008` (daemon-only pushes, round-15
+  component), daemons running.
 - No test hooks, no user.js, no test CA.
 - Enyo wears Space Fantasy, with 13 pictures and Palefill 1.30 active. Mochi wears Aurora Silk and
   Mojo Lime Fizz.

@@ -77,8 +77,13 @@ shows all of them, placed and tiled as the theme says, not only the first.
   inspector's 2026-10-11 review.)*
 - [x] Each layer is bounded as the single header is today (size cap, wallpapers shrunk, no
   symlinks or paths outside the package, nothing kept until the user says yes) and the total held
-  for one Persona is bounded too (6 Mpx, checked from each picture's header before it is shrunk or
-  decoded). A layer in a format the engine cannot draw (SVG) is skipped; the Persona is still offered
+  for one Persona is bounded too: 6 Mpx, the first picture included, each picture's size being the
+  larger of what its bytes say (read as the decoders read them: a GIF grows to its first frame,
+  JPEG fill bytes are skipped) and what the engine's own decoder reports from its metadata, before
+  it is shrunk or kept; a picture whose content is not the kind its name says is left out.
+  *(Device, Enyo, round 15: a GIF declaring 1x1 that decodes to 3000x3000 and a 1024x16384 first
+  picture are both left out, the Persona worn on its colours; the 15 bundled pictures size the same
+  both ways in xpcshell.)* A layer in a format the engine cannot draw (SVG) is skipped; the Persona is still offered
   if anything drawable is left. *(Device, Enyo: `jihad-test-svg.xpi` — "picture h.svg left out: not a
   format this browser draws", then offered through the confirm and worn on its colours alone; a
   10000² PNG refused unread, Codex r13. The rest code.)*
@@ -94,7 +99,10 @@ palette theme does not stop at the toolbar.
   `toolbar`, `toolbar_text` (alias `bookmark_text`), `toolbar_field`, `toolbar_field_text`,
   `toolbar_field_border`, `toolbar_field_focus`, `toolbar_field_text_focus`, `popup`, `popup_text`,
   `popup_border`, `popup_highlight`, `popup_highlight_text`, `icons`, `ntp_background`, `ntp_text`.
-  Every value is one CSS colour or it is dropped, and is passed on as `rgb()`/`rgba()`. *(Device,
+  Every value is one CSS colour or it is dropped, and is passed on as `rgb()`/`rgba()`; a bare word
+  must be a colour name or `transparent` (`currentcolor`, `-moz-*` and system colours are dropped:
+  with no element they come out black or invisible), and `rgb(1 2 3 / 50%)` is read. The frame and
+  text colours go through the same check. *(xpcshell, round 15, fourteen cases.)* *(Device,
   Enyo: an `hsl()` value arrives as rgb(); "red, 0 0 0 2000px black" is dropped — inspector
   2026-10-11: text that merely used colour characters reached the stylesheets.)*
 - [x] The address field takes `toolbar_field`, `toolbar_field_text` and `toolbar_field_border`, and
@@ -126,6 +134,9 @@ palette theme does not stop at the toolbar.
   handle classic ones; re-installing one under the id already worn repaints the cards. *(Device,
   Enyo: uninstall, and the same picture re-installed with new colours repainted — inspector
   2026-10-11, it did not; Undo, Default look and editions code only.)*
+- [x] A Persona's settings written by an earlier build are read as the current build draws them: a
+  colour-only Persona converted before its gradient was stretched (`fit: "cover"`) is drawn
+  stretched. *(Code, round 15.)*
 - [~] An index Persona (about:personas, the add-on site) may carry the same colour slots (not
   pictures beyond its header), under the same checks. *(Code.)*
 **Dependencies:** R1–R3, cavekit-personas-ui.md R3, R8

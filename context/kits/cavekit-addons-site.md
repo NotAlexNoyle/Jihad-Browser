@@ -84,8 +84,10 @@ is not ours to use.
   panel's downloads are `/panel/download/`, inside its rate limit and allowlist. *(Smoke test; local
   copy: `?component=download&panel=1` no longer asks for a password.)* (Inspector, 2026-10-11.)
 - [x] Panel responses carry `X-Frame-Options` and `frame-ancestors` whatever their query string says;
-  only `/?component=discover` itself may be framed. *(Smoke test: `/panel/?component=discover`
-  keeps the header.)* (Inspector, 2026-10-11.)
+  only `/?component=discover` itself, with nothing else in its query, may be framed — a query that
+  names `component` twice (nginx reads the first, PHP the last) is framed by the stricter rule.
+  *(Smoke test: `/panel/?component=discover` and `/?component=discover&component=site&path=/personas/`
+  keep the header, `/?component=discover` has none.)* (Inspector, 2026-10-11, rounds 14 and 15.)
 - [x] Codex (or the inspector) reviews the site's code before any deploy, and no P0/P1 is open. *(Inspector, 2026-10-11, with Codex out of credits: one P1, the panel path, and the P2/P3s all fixed — `context/impl/impl-review-findings-6.md` round 14. Codex reviews it again when its credits return, before the deploy.)*
 **Dependencies:** R2
 
@@ -159,8 +161,11 @@ LAN, before anything touches the owner's server.
 - [x] One command brings up the site locally (rootless containers: nginx, PHP-FPM 8.2 or 8.4,
   MariaDB), seeded with the schema, the owner account and the Personas; one command takes it down.
 - [x] It serves https with a local test certificate authority that is trusted only in a test copy of
-  a device profile, which is put back afterwards. *(Device: the CA is gone from the profile at the
-  end of every test.)* *(Device, Enyo, three setup/restore cycles; status says the CA is gone. The restore's clean-up of what a test added deleted everything in `jihad-themes/` and `extensions/` twice before it was fixed (BusyBox grep has no -x) — recovered, see docs/PICKUP.md.)*
+  a device profile, which is put back afterwards: every file a test can change, the persisted
+  Persona pictures (`lightweighttheme-header`/`-footer`) and whole copies of `jihad-themes/` and
+  `extensions/`. A backup that is not complete, or a folder copy short of what was there, restores
+  nothing; a restore runs without a network route. *(Device: the CA is gone from the profile at the
+  end of every test.)* *(Device, Enyo. The first restore's name-matching clean-up deleted everything in `jihad-themes/` and `extensions/` twice (BusyBox grep has no -x) — recovered, see docs/PICKUP.md. Since round 15 a restore swaps the folders back from whole copies: on a scratch profile on the device a test's added, deleted and rewritten files all came back md5-identical, an incomplete backup and a short folder copy each restored nothing, and a restore interrupted halfway finished on a second run; on Enyo itself two real cycles left its pictures, Palefill and Persona pictures md5-identical.)*
 - [x] The same nginx server block, FPM pool settings and schema are used locally and in the deploy. *(The local PHP runs with the pool's open_basedir and disabled functions since 2026-10-11.)*
 **Dependencies:** R2
 
@@ -199,7 +204,8 @@ LAN, before anything touches the owner's server.
 **Description:** The gallery page shows the site's Personas, a page at a time, with a search.
 **Acceptance Criteria:**
 - [x] Below the Personas that come with Jihad, the site's Personas show as the same cards (picture,
-  name, version, author, licence, Install / In use), a page at a time, with Next and Previous. *(Device, Enyo, local copy: 16 Personas at 12 a page — "Page 1 of 2" with Previous off, Next → the last four, Space Fantasy marked In use, Next off.)*
+  name, version, author, licence, Install / In use), a page at a time, with Next and Previous; the
+  pager waits for each reply, and a page past the end shows the last one. *(Device, Enyo, local copy: 16 Personas at 12 a page — "Page 1 of 2" with Previous off, Next → the last four, Space Fantasy marked In use, Next off.)*
 - [~] A search field filters by name, author and description (the feed's `q`). *(Code, and the feed's `q` on the local copy. Typing into the field needs a finger on the on-screen keyboard: the owner's test.)*
 - [x] "More on the web" opens the site's `/personas/` page. *(Device, Enyo.)*
 - [x] Offline, slow or broken answers show a plain message; nothing from the feed is put in as markup;
@@ -213,7 +219,8 @@ LAN, before anything touches the owner's server.
   stay off, and nothing polls. *(Both set false; the second named since 2026-10-11.)*
 - [x] about:personas has "Check for updates": every installed Persona whose update address is the
   site's is checked; those with a new version are listed with an Update button; Update replaces it
-  (worn stays worn) through the usual confirm. *(Device, against the local copy.)* *(Device, Enyo: the test Persona's picture replaced, md5 changed.)*
+  (worn stays worn) through the usual confirm. When no answer comes it says the site could not be
+  reached, not that everything is up to date. *(Device, against the local copy.)* *(Device, Enyo: the test Persona's picture replaced, md5 changed.)*
 - [x] about:addons' own "Check for Updates" asks the site's update service for extensions.
   *(Device, against the local copy, with a test extension at two versions.)* *(Device, Enyo: 1.0 → 1.1.)*
 **Dependencies:** R5, R11

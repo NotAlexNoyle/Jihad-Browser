@@ -154,6 +154,10 @@ function renderOnline() {
 	let group = document.getElementById("online-group"), box = document.getElementById("online");
 	group.hidden = false;
 	status("Loading Personas from the site…");
+	// The pager waits for this reply: a second tap on Next before it came asked for a page past the
+	// end (inspector 2026-10-11, round 15).
+	document.getElementById("online-prev").disabled = true;
+	document.getElementById("online-next").disabled = true;
 	let mine = ++online.seq;
 	fetchJSON(feedURL(online.page, online.q), function (d) {
 		if (mine !== online.seq) { return; }               // a newer request is on its way
@@ -161,6 +165,8 @@ function renderOnline() {
 		while (box.firstChild) { box.firstChild.remove(); }
 		let pager = document.getElementById("online-pager");
 		if (!d) { pager.hidden = true; status("The site could not be reached. Check the connection and try again."); return; }
+		let pages = Math.max(1, parseInt(d.pages, 10) || 1), page = Math.max(1, parseInt(d.page, 10) || 1);
+		if (page > pages) { online.page = pages; renderOnline(); return; }   // past the end: the last page
 		let list = Array.isArray(d.personas) ? d.personas.slice(0, 50) : [];
 		let state = installedState();
 		// The site also lists the Personas that come with Jihad; one of those is worn as the
@@ -193,7 +199,6 @@ function renderOnline() {
 			e.textContent = online.q ? "No Personas match that." : "The site has no Personas right now.";
 			box.appendChild(e);
 		}
-		let pages = Math.max(1, parseInt(d.pages, 10) || 1), page = Math.max(1, parseInt(d.page, 10) || 1);
 		online.page = page;                                  // what is shown is the page the buttons move from
 		pager.hidden = pages < 2;
 		document.getElementById("online-page").textContent = "Page " + page + " of " + pages;
@@ -215,10 +220,11 @@ function checkUpdates() {
 	}).slice(0, 30);
 	if (!mine.length) { status("None of your Personas came from the site, so there is nothing to check."); return; }
 	status("Checking " + mine.length + (mine.length === 1 ? " Persona…" : " Personas…"));
-	let found = 0, left = mine.length;
+	let found = 0, failed = 0, left = mine.length;
 	mine.forEach(function (t) {
 		fetchJSON(t.updateURL, function (p) {
 			if (mineCheck !== online.checkSeq) { return; }  // a newer check replaced this one
+			if (!p) { failed++; }
 			if (p && p.id === t.id && typeof p.version === "string" && p.version !== (t.version || "")) {
 				found++;
 				box.appendChild(card(p, button("Update", false, function () {
@@ -229,7 +235,11 @@ function checkUpdates() {
 				}), true));
 			}
 			if (--left === 0) {
-				status(found ? found + (found === 1 ? " update is" : " updates are") + " ready." : "Your Personas are up to date.");
+				// No answer is not "up to date" (inspector 2026-10-11, round 15).
+				if (failed === mine.length) { status("The site could not be reached. Check the connection and try again."); return; }
+				let msg = found ? found + (found === 1 ? " update is" : " updates are") + " ready." : "Your Personas are up to date.";
+				if (failed) { msg += " " + failed + (failed === 1 ? " Persona" : " Personas") + " could not be checked."; }
+				status(msg);
 			}
 		});
 	});

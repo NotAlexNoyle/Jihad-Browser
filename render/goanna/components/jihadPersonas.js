@@ -139,14 +139,16 @@ function resolveThemesUrl(u) {
   return rph.resolveURI(Services.io.newURI(u, null, null));
 }
 
-// A WebExtension colour: "#rrggbb", "rgb(...)", a name, or [r, g, b(, a)].
+// A WebExtension colour: "#rrggbb", "rgb(...)", a name, or [r, g, b(, a)]. Only a first sieve:
+// canonColor() parses what passes and is what goes anywhere ("/" is let through for the
+// "rgb(1 2 3 / 50%)" form; canonColor's output never carries it).
 function cssColor(c) {
   if (Array.isArray(c) && c.length >= 3) {
     let n = c.slice(0, 4).map(function(v) { return Number(v); });
     if (n.some(isNaN)) { return null; }
     return n.length === 4 ? "rgba(" + n.join(",") + ")" : "rgb(" + n.join(",") + ")";
   }
-  if (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c.trim())) { return c.trim(); }
+  if (typeof c === "string" && /^[#a-zA-Z0-9(),.%\/\s-]{1,40}$/.test(c.trim())) { return c.trim(); }
   return null;
 }
 
@@ -219,7 +221,7 @@ function sha256Hex(file) {
 const WALLPAPER_WIDTH = 1600;
 function shrinkWallpaper(file, ext) {
   if (ext === "gif") { return; }
-  let sz = imageSize(file);
+  let sz = pictureSize(file);
   if (!sz || sz.h < WALLPAPER_MIN_HEIGHT || sz.w <= WALLPAPER_WIDTH) { return; }
   let w = WALLPAPER_WIDTH, h = Math.max(1, Math.round(sz.h * WALLPAPER_WIDTH / sz.w));
   let mime = ext === "png" ? "image/png" : "image/jpeg";
@@ -294,11 +296,18 @@ function sha256Str(s) {
 // into the shells' stylesheets, and text that merely uses colour characters ("red, 0 0 0 2000px
 // black", an unclosed "rgb(") would otherwise become a shadow over the card or swallow the rest of
 // the sheet (inspector 2026-10-11). Null when it is not one colour.
+// A bare word must be a CSS colour name or "transparent": the parser also takes currentcolor,
+// -moz-* keywords and system colours, which come out black or invisible with no element to resolve
+// them against (inspector 2026-10-11, round 15).
 function canonColor(c) {
   let css = cssColor(c);
   if (!css) { return null; }
   try {
-    let v = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils).colorToRGBA(css);
+    let du = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils);
+    if (/^[a-zA-Z-]+$/.test(css) && css.toLowerCase() !== "transparent") {
+      try { du.colorNameToRGB(css.toLowerCase()); } catch (e) { return null; }
+    }
+    let v = du.colorToRGBA(css);
     if (!v) { return null; }
     let r = Math.round(v.r), g = Math.round(v.g), b = Math.round(v.b), a = Number(v.a);
     if ([r, g, b].some(function(x) { return !(x >= 0 && x <= 255); }) || !(a >= 0 && a <= 1)) { return null; }
@@ -382,7 +391,9 @@ function writeGradientPng(file, top, bottom, w, h) {
 function cleanExtras(x) {
   if (!x || typeof x !== "object") { return null; }
   let out = {}, n = 0;
-  if (x.fit === "cover" || x.fit === "stretch") { out.fit = x.fit; n++; }
+  // "cover" was written only for a colour-only Persona's drawn gradient, before it was stretched
+  // (inspector 2026-10-11): read as what it is now.
+  if (x.fit === "cover" || x.fit === "stretch") { out.fit = "stretch"; n++; }
   if (POSITIONS.indexOf(x.position) >= 0) { out.position = x.position; n++; }
   if (TILINGS.indexOf(x.repeat) >= 0) { out.repeat = x.repeat; n++; }
   if (Array.isArray(x.layers)) {
@@ -490,15 +501,17 @@ function staticThemeFromXpi(path, origin) {
       if (kept.length && pixels >= MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
       let f = pendingFile(ext);
       copyEntry(zr, p, f, MAX_IMAGE);
-      let sz = imageSize(f);
-      if (!sz || sz.w < 1 || sz.h < 1 || sz.w * sz.h > MAX_PIXELS) {
-        log("the picture is " + (sz ? sz.w + "x" + sz.h : "of no size this browser can read") + ": not kept");
+      let sz = pictureSize(f);
+      if (!sz || sz.w * sz.h > MAX_PIXELS || sz.type !== (ext === "jpeg" ? "jpg" : ext)) {
+        log("the picture is " + (sz ? sz.w + "x" + sz.h + " " + sz.type : "of no size this browser can read") + ": not kept");
         return;
       }
       // What it will cost once shrunk, from its header, before anything decodes it.
       let after = (ext !== "gif" && sz.h >= WALLPAPER_MIN_HEIGHT && sz.w > WALLPAPER_WIDTH) ?
         WALLPAPER_WIDTH * Math.max(1, Math.round(sz.h * WALLPAPER_WIDTH / sz.w)) : sz.w * sz.h;
-      if (kept.length && pixels + after > MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
+      // The first picture counts too: shrinking narrows a wallpaper but leaves a tall one tall
+      // (1024x16384 passed as the first; inspector 2026-10-11, round 15).
+      if (pixels + after > MAX_PERSONA_PIXELS) { log("picture " + shown + " (" + sz.w + "x" + sz.h + ") left out: over the Persona's " + MAX_PERSONA_PIXELS + " pixels"); return; }
       // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
       // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
       try { shrinkWallpaper(f, ext); }
@@ -506,12 +519,12 @@ function staticThemeFromXpi(path, origin) {
         log("wallpaper kept at its own size: " + e);
         try { let t = f.clone(); t.leafName = f.leafName + ".scaled"; if (t.exists()) { t.remove(false); } } catch (e2) {}
       }
-      sz = imageSize(f) || sz;
-      if (kept.length && pixels + sz.w * sz.h > MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
+      sz = pictureSize(f) || sz;
+      if (pixels + sz.w * sz.h > MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
       pixels += sz.w * sz.h;
       kept.push({file: f, ext: ext, position: w.position, repeat: w.repeat, sha: sha256Hex(f)});
     });
-    let accent = cssColor(colors.frame || colors.accentcolor), textc = cssColor(colors.tab_background_text || colors.textcolor || colors.toolbar_text);
+    let accent = canonColor(colors.frame || colors.accentcolor), textc = canonColor(colors.tab_background_text || colors.textcolor || colors.toolbar_text);
     let slots = slotColors(colors);
     let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
     let extras = {};
@@ -824,7 +837,12 @@ function undoChange() {
   refreshPanes();
 }
 
-// Width and height of a PNG, GIF or JPEG file, read from its header; null if unknown.
+// Width, height and kind ("png", "gif", "jpg") of a picture, read from its bytes the way the
+// decoders read them; null if unknown. A GIF is as big as its first frame when that frame does not
+// fit the declared screen (or always, in a GIF87a): UXP's nsGIFDecoder2 and WebKit's GIF reader both
+// grow it. A JPEG's markers may be preceded by any number of 0xFF fill bytes, which libjpeg skips;
+// an SOS before any SOF is not a picture libjpeg reads (inspector 2026-10-11, round 15: the old scan
+// read a GIF's screen and stepped onto a fake SOF, so a 3000x3000 picture passed as 1x1).
 function imageSize(file) {
   let bis = null;
   try {
@@ -834,20 +852,38 @@ function imageSize(file) {
     bis.setInputStream(is);
     let b = bis.readByteArray(Math.min(bis.available(), 256 * 1024));
     let be16 = function(o) { return (b[o] << 8) | b[o + 1]; };
-    if (b.length > 24 && b[0] === 0x89 && b[1] === 0x50) {                       // PNG: IHDR
-      return {w: be16(16) * 65536 + be16(18), h: be16(20) * 65536 + be16(22)};
+    let le16 = function(o) { return b[o] | (b[o + 1] << 8); };
+    if (b.length > 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {   // PNG: IHDR
+      return {w: be16(16) * 65536 + be16(18), h: be16(20) * 65536 + be16(22), type: "png"};
     }
-    if (b.length > 10 && b[0] === 0x47 && b[1] === 0x49) {                       // GIF
-      return {w: b[6] | (b[7] << 8), h: b[8] | (b[9] << 8)};
+    if (b.length > 13 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) {                     // GIF
+      let sw = le16(6), sh = le16(8), v87 = b[4] === 0x37, o = 13;
+      if (b[10] & 0x80) { o += 3 * (1 << ((b[10] & 7) + 1)); }       // the global colour table
+      while (o < b.length) {
+        if (b[o] === 0x2c) {                                          // the first image descriptor
+          if (o + 9 > b.length) { return null; }
+          let fw = le16(o + 5), fh = le16(o + 7);
+          if (sh < fh || sw < fw || v87) { sw = fw; sh = fh; }
+          return {w: sw, h: sh, type: "gif"};
+        }
+        if (b[o] !== 0x21) { return null; }                           // the trailer, or not a GIF
+        o += 2;                                                       // an extension: its sub-blocks
+        while (o < b.length && b[o] !== 0) { o += b[o] + 1; }
+        o++;
+      }
+      return null;
     }
-    if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {                        // JPEG: SOFn
+    if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {                                       // JPEG: SOFn
       let o = 2;
       while (o + 9 < b.length) {
-        if (b[o] !== 0xff) { o++; continue; }
+        if (b[o] !== 0xff) { o++; continue; }                         // stray bytes: skipped, as libjpeg does
         let m = b[o + 1];
+        if (m === 0xff) { o++; continue; }                            // a fill byte
+        if (m === 0x00) { o += 2; continue; }
         if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
-          return {w: be16(o + 7), h: be16(o + 5)};
+          return {w: be16(o + 7), h: be16(o + 5), type: "jpg"};
         }
+        if (m === 0xda || m === 0xd9) { return null; }                // SOS or EOI before any SOF
         if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { o += 2; continue; }
         o += 2 + be16(o + 2);
       }
@@ -857,6 +893,36 @@ function imageSize(file) {
     try { if (bis) { bis.close(); } } catch (e) {}
   }
   return null;
+}
+
+// The size the engine's own decoder gives a picture: imgITools.decodeImage on an anonymous image
+// decodes only its metadata (RasterImage::OnImageDataComplete, a sync load) and allocates no
+// pixels. Null when the engine cannot read it as `type`.
+function decodedSize(file, type) {
+  let src = null;
+  try {
+    src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+    src.init(file, 0x01, 0, 0);
+    let c = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools).decodeImage(src, type === "jpg" ? "image/jpeg" : "image/" + type);
+    return (c && c.width > 0 && c.height > 0) ? {w: c.width, h: c.height} : null;
+  } catch (e) {
+    return null;
+  } finally {
+    try { if (src) { src.close(); } } catch (e) {}
+  }
+}
+
+// A theme package's picture, sized before anything keeps or shrinks it: the larger of what its bytes
+// say (imageSize) and what the engine's decoder says, so neither a lying header nor a decoder quirk
+// gets a picture past the bounds. A picture already over MAX_PIXELS by its bytes is not handed to
+// the decoder at all. Null when either cannot read it.
+function pictureSize(file) {
+  let s = imageSize(file);
+  if (!s || s.w < 1 || s.h < 1) { return null; }
+  if (s.w * s.h > MAX_PIXELS) { return s; }
+  let d = decodedSize(file, s.type);
+  if (!d) { return null; }
+  return {w: Math.max(s.w, d.w), h: Math.max(s.h, d.h), type: s.type};
 }
 
 // Whether a theme's picture (a file: or resource://jihad-themes/ URL) is a wallpaper. Sizes are
@@ -923,7 +989,7 @@ function bundledPersonas() {
                 source: String(p.source || ""), modified: p.modified ? String(p.modified) : "",
                 theme: {id: "static-theme:" + hash, name: String(p.name || p.slug).slice(0, 80),
                         headerURL: "resource://" + THEMES_RESOURCE + "/" + hash + "-header." + ext,
-                        accentcolor: cssColor(p.accentcolor) || undefined, textcolor: cssColor(p.textcolor) || undefined,
+                        accentcolor: canonColor(p.accentcolor) || undefined, textcolor: canonColor(p.textcolor) || undefined,
                         author: String(p.author || "Jihad Browser").slice(0, 80), version: String(p.version || "1.0").slice(0, 20)}});
     });
   } catch (e) { log("bundled Personas: " + e); }
@@ -1182,8 +1248,8 @@ function decorateRow(doc, item, theme, isCurrent) {
     // row. A layered Persona's other pictures go under it, each where the theme puts it.
     // A layered Persona's first picture keeps its own size and place (filling the row would hide
     // the pictures under it); a colour-only one's drawn picture is stretched over the row.
-    let wall = !!(theme && (isWallpaper(theme.headerURL) || (x && x.fit === "cover")));
-    let placed = !!(x && (x.layers || x.position));
+    let wall = !!(theme && isWallpaper(theme.headerURL));
+    let placed = !!(x && (x.layers || x.position || (x.repeat && x.repeat !== "no-repeat")));   // a tiled pattern too
     let imgs = [header], pos = [wall ? "center center" : ((x && x.position) || "right top")];
     let rep = [(x && x.repeat) || "no-repeat"];
     let size = [(x && x.fit === "stretch") ? "100% 100%" : ((placed && !wall) ? "auto" : "cover")];
@@ -1381,7 +1447,7 @@ function galleryRequest(bag) {
     ensureThemesResource();
     previewId = null;
     LWTM.resetPreview();
-    LWTM.currentTheme = b.theme;
+    wearTheme(b.theme);
     notify("info", "Persona applied: " + b.theme.name);
     reply({ok: true});
     return;

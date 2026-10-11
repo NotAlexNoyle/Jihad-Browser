@@ -597,6 +597,12 @@ function previewAllowed(origin) {
   let uri = null;
   try { uri = Services.io.newURI(String(origin || ""), null, null); } catch (e) { return false; }
   if (!uri.schemeIs("https")) { return false; }
+  // The add-on site's permission comes from the pref xpinstall.whitelist.add (cavekit-addons-site.md
+  // R11); the add-on manager imports it only when an install is checked, so it is imported here too
+  // (once per run; it does nothing after that).
+  try {
+    Cu.import("resource://gre/modules/PermissionsUtils.jsm", {}).PermissionsUtils.importFromPrefs("xpinstall.", "install");
+  } catch (e) {}
   try { return Services.perms.testPermission(uri, "install") === Services.perms.ALLOW_ACTION; }
   catch (e) { return false; }
 }
@@ -906,10 +912,15 @@ function rewear(theme) {
   let LWTM = manager();
   previewId = null;
   LWTM.currentTheme = theme;
-  try {
-    let shown = LWTM.currentThemeForDisplay || theme;
-    Services.obs.notifyObservers(null, "lightweight-theme-styling-update", JSON.stringify(shown));
-  } catch (e) { log("re-wear: " + e); }
+  // For the id already worn the manager neither fetches the pictures again nor tells the windows: an
+  // update from the add-on site kept the old picture in the profile (measured 2026-10-11).
+  // themeChanged does both: it persists the pictures and sends the styling update (twice: now, and
+  // once the files are in place).
+  try { LWTM.themeChanged(LWTM.currentTheme || theme); }
+  catch (e) {
+    log("re-wear: " + e);
+    try { Services.obs.notifyObservers(null, "lightweight-theme-styling-update", JSON.stringify(LWTM.currentThemeForDisplay || theme)); } catch (e2) {}
+  }
 }
 
 // How many Personas the manager keeps (it drops the oldest beyond this, as uninstalls).
@@ -1351,6 +1362,39 @@ function galleryRequest(bag) {
     LWTM.resetPreview();
     LWTM.currentTheme = theme;
     notify("info", "Persona applied: " + theme.name);
+    reply({ok: true});
+    return;
+  }
+  // The Personas installed and the one worn, for the gallery's buttons and its update check
+  // (cavekit-addons-site.md R12, R13).
+  if (action === "state") {
+    reply({worn: cur ? cur.id : null,
+           installed: used.slice(0, 50).map(function(t) {
+             return {id: t.id, name: t.name, version: t.version || "", updateURL: t.updateURL || ""};
+           })});
+    return;
+  }
+  // A newer version of an installed Persona, from its own update address: read like a site's,
+  // confirmed like a site's, put in the old one's place; worn stays worn.
+  if (action === "update") {
+    let origin = get("origin");
+    if (!/^https:\/\//.test(origin)) { reply({ok: false, message: "Updates come only over https."}); return; }
+    let theme = null;
+    try { theme = LWTM.parseTheme(get("json"), origin); } catch (e) { theme = null; }
+    if (!theme || !installed[theme.id]) { reply({ok: false, message: "That update could not be read."}); return; }
+    let badImage = ["headerURL", "footerURL"].some(function(k) { return theme[k] && !/^https:/i.test(String(theme[k])); });
+    if (badImage) { reply({ok: false, message: "That Persona's pictures are not served over https."}); return; }
+    if (!confirmTheme(hostOf(origin), String(theme.name || "Persona"))) { reply({ok: false, message: "Not updated."}); return; }
+    keepIndexColors(theme.id, get("json"));
+    if (cur && cur.id === theme.id) {
+      rewear(theme);                                  // the manager re-fetches its pictures
+    } else {
+      let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+      str.data = JSON.stringify(used.map(function(t) { return t.id === theme.id ? theme : t; }));
+      Services.prefs.getBranch("lightweightThemes.").setComplexValue("usedThemes", Ci.nsISupportsString, str);
+    }
+    log("[" + theme.name + "] updated to " + (theme.version || "?") + " from " + hostOf(origin));
+    refreshPanes();
     reply({ok: true});
     return;
   }

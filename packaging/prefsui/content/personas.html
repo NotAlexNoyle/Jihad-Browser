@@ -29,8 +29,22 @@
 		<div id="bundled" class="gallery"></div>
 	</section>
 	<section class="group" id="online-group" hidden="hidden">
-		<h2 class="group-title">From the Jihad gallery</h2>
+		<h2 class="group-title">From Jihad Browser Add-ons</h2>
+		<form id="online-search" class="search-row" action="#">
+			<input id="online-q" type="search" placeholder="Search Personas" maxlength="64"/>
+			<button type="submit">Search</button>
+		</form>
 		<div id="online" class="gallery"></div>
+		<div id="online-pager" class="pager" hidden="hidden">
+			<button id="online-prev" type="button">Previous</button>
+			<span id="online-page"></span>
+			<button id="online-next" type="button">Next</button>
+		</div>
+		<div class="more">
+			<a id="online-web" href="#" hidden="hidden">More on the web</a>
+			<button id="check-updates" type="button">Check for updates</button>
+		</div>
+		<div id="updates" class="gallery"></div>
 	</section>
 	<section class="group">
 		<h2 class="group-title">More Personas</h2>

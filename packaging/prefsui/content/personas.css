@@ -49,3 +49,17 @@
 	color: #111;
 }
 .card button[disabled] { background: #9a9a9a; color: #333; }
+
+/* The site's Personas: a search, a page at a time, updates (cavekit-addons-site.md R12, R13). */
+.search-row { display: flex; margin: 8px 12px 10px 12px; }
+.search-row input { flex: 1; min-height: 44px; font-size: 16px; padding: 6px 12px; border-radius: 22px; border: 1px solid #555; }
+.search-row button, .pager button, .more button {
+	min-height: 44px; min-width: 88px; margin-left: 8px; font-size: 16px; border-radius: 6px;
+	border: 1px solid #555; background: #f2f2f2; color: #111;
+}
+.search-row button { margin-left: 8px; }
+.pager { display: flex; align-items: center; justify-content: center; margin: 4px 12px 10px 12px; color: #cfcfcf; }
+.pager span { margin: 0 12px; }
+.pager button[disabled] { background: #9a9a9a; color: #333; }
+.more button { margin-left: 0; }
+#online-web { margin-right: 16px; }

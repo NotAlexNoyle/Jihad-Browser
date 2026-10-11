@@ -44,22 +44,33 @@ pref("xpinstall.whitelist.fileRequest", true);
 // accepted and recorded here rather than left implicit.
 pref("extensions.install.requireSecureOrigin", false);
 
-// No AMO, no update server, no blocklist server — we operate none, and the GRE ships no defaults
-// for these URLs (they are app-supplied in both forks). Left enabled, the daily background update
-// timer and the version-change blocklist validation burn cycles on a 512 MB device and throw
-// per-addon against URLs that do not exist. Out of scope per the kit.
+// No background update checks, no blocklist server. Left enabled, the daily background update timer
+// and the version-change blocklist validation burn cycles on a 512 MB device. Updates are checked
+// only when the user asks (owner, 2026-10-11): about:addons' own "Check for Updates", and
+// about:personas' "Check for updates" (cavekit-addons-site.md R13).
 pref("extensions.update.enabled", false);
-// The update URL must EXIST even though updates are off. XPIProvider's UpdateChecker reads it
-// with a ONE-ARGUMENT getCharPref (XPIProvider.jsm, PREF_EM_UPDATE_URL) whenever an add-on has
-// no updateURL of its own, and a one-arg getCharPref THROWS on an absent pref rather than
-// returning a default. The GRE ships no value (it is app-supplied in Firefox/Pale Moon), so
-// with this absent an install that reaches an update check dies with NS_ERROR_UNEXPECTED and
-// the add-on silently fails to install — measured 2026-08-04, and it is the same trap already
-// documented below for the AppCompat GUID prefs. The value is deliberately a non-resolving
-// placeholder: we operate no update server, and `extensions.update.enabled=false` means nothing
-// should ever fetch it. It exists so the read succeeds.
-pref("extensions.update.url", "data:text/plain,");
-pref("extensions.update.background.url", "data:text/plain,");
+// A check the user asks for offers what it finds ("Update now"); it does not install it by itself.
+pref("extensions.update.autoUpdateDefault", false);
+// The project's add-on site, addons.riverstonerelay.org — Phoebus, like Pale Moon's and Basilisk's
+// (cavekit-addons-site.md R11). The update URL must EXIST in any case: XPIProvider's UpdateChecker
+// reads it with a ONE-ARGUMENT getCharPref whenever an add-on has no updateURL of its own, and that
+// throws on an absent pref, which made an install die with NS_ERROR_UNEXPECTED (measured
+// 2026-08-04, when this was a data: placeholder because there was no server). The %…% fields are
+// the ones Pale Moon sends to its own site.
+pref("extensions.update.url", "https://addons.riverstonerelay.org/?component=aus&reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+pref("extensions.update.background.url", "https://addons.riverstonerelay.org/?component=aus&reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+pref("extensions.getAddons.get.url", "https://addons.riverstonerelay.org/?component=integration&type=internal&request=get&addonguid=%IDS%&os=%OS%&version=%VERSION%");
+pref("extensions.getAddons.search.url", "https://addons.riverstonerelay.org/?component=integration&type=internal&request=search&q=%TERMS%&locale=%LOCALE%&os=%OS%&version=%VERSION%");
+pref("extensions.getAddons.search.browseURL", "https://addons.riverstonerelay.org/search/?terms=%TERMS%");
+pref("extensions.getAddons.browseAddons", "https://addons.riverstonerelay.org/");
+pref("extensions.webservice.discoverURL", "https://addons.riverstonerelay.org/?component=discover");
+pref("extensions.getAddons.showPane", true);
+// The site may offer its Personas for preview and its add-ons for install, through the usual confirm
+// (imported into the permission manager as "install" for this https origin only).
+pref("xpinstall.whitelist.add", "https://addons.riverstonerelay.org");
+// about:personas reads the site's Personas feed, and links to its Personas page.
+pref("jihad.personas.galleryURL", "https://addons.riverstonerelay.org/?component=personas");
+pref("jihad.personas.siteURL", "https://addons.riverstonerelay.org/personas/");
 pref("extensions.blocklist.enabled", false);
 pref("extensions.getAddons.cache.enabled", false);
 

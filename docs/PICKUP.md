@@ -95,8 +95,8 @@ both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` 
    Until then, Jihad points at a site that does not exist. That is by design: about:personas says it
    cannot be reached, and the discover pane shows its offline message.
 3. **[OWNER, finger]** Typed search in about:personas (the on-screen keyboard).
-4. **The site's other layouts** (R7): TouchPad landscape, a desktop, a phone. An agent can do the
-   desktop and phone ones with a headless browser.
+4. **[OWNER, hands]** The site in landscape on the TouchPad itself (R7). A desktop, a phone and
+   1024×768 were checked in headless Firefox; they read well.
 5. Optional: the SVG package on the device. Run `render/goanna/test/personas/make-format-tests.py`
    to make `jihad-test-svg.xpi`, serve it over http on the LAN, and install it; the SVG layer
    should be skipped.

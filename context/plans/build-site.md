@@ -503,7 +503,7 @@ Owner, choosing among the Persona-index options: a Phoebus site on the owner's d
 | T-404 | The Jihad application: id, UA token, features, https URLs | cavekit-addons-site.md | R4 | T-402 | no | S | done |
 | T-405 | Personas: version/licence/source columns, importer from personas.json (sha256), safe page, AUS with version, previews at import | cavekit-addons-site.md | R5 | T-403, T-404 | no | M | done |
 | T-406 | Feed component `?component=personas` (paged, UTF-8 search, escaped JSON, cache headers) | cavekit-addons-site.md | R6 | T-405 | no | M | done |
-| T-407 | Palm-era skin `base/skin/jihad/`, front page, error pages; TouchPad/desktop/phone layouts | cavekit-addons-site.md | R7 | T-404 | yes | L | done (landscape/desktop/phone layouts not yet looked at) |
+| T-407 | Palm-era skin `base/skin/jihad/`, front page, error pages; TouchPad/desktop/phone layouts | cavekit-addons-site.md | R7 | T-404 | yes | L | done (on-device landscape: the owner's) |
 | T-408 | Test CA for the device, in a test copy of a profile, removed after; site reachable from the TouchPad | cavekit-addons-site.md | R9 | T-402 | yes | S | done |
 | T-409 | Browser prefs: getAddons/discover/update URLs, getMoreURL, galleryURL, the site's install permission, offline behaviour | cavekit-addons-site.md | R11 | T-404 | yes | S | done (getMoreURL unset by design) |
 | T-410 | about:personas: the site's Personas paged, search, More on the web | cavekit-addons-site.md | R12 | T-406, T-409 | yes | M | done (typed search: owner's finger test) |

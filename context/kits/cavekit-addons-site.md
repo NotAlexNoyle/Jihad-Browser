@@ -130,7 +130,7 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   rounded cards, the project's own logo and pictures, no third-party art without a licence that
   allows it (credited).
 - [~] Every page reads well on the TouchPad (1024×768 and 768×1024, a finger's tap targets) and on a
-  desktop and a phone; the error pages use the same skin. *(Device: portrait, Enyo; the public error pages in the skin since 2026-10-11. Landscape, a desktop and a phone not yet looked at.)*
+  desktop and a phone; the error pages use the same skin. *(Device: portrait, Enyo; the public error pages in the skin since 2026-10-11. Headless Firefox, 2026-10-11: 1024×768, a 1366-wide desktop and a 390-wide phone — front, Personas, add-on, search and 404 pages; on a phone the tabs wrap to two rows and the cards stack. Left: landscape on the TouchPad itself, which needs it turned by hand.)*
 - [x] Screenshots of the front page, the Personas page and an add-on page, taken in Jihad on the
   TouchPad. *(Device.)* *(Enyo, 2026-10-11, against the local copy: the front page, /personas/, an add-on page and a 404.)*
 **Dependencies:** R4
@@ -223,5 +223,5 @@ LAN, before anything touches the owner's server.
 ## Changelog
 - 2026-10-11 (later): Built; checked on the local copy and the TouchPad; the inspector's review fixed
   (the panel path P1 among them). R11 narrowed: `lightweightThemes.getMoreURL` stays unset by design.
-  Open: R7's other screen sizes, R12's typed search (a finger), R10's deploy (the owner's).
+  Open: R7's landscape on the device (turning it), R12's typed search (a finger), R10's deploy (the owner's).
 - 2026-10-11: Created from the owner's answers to the Persona-index options.

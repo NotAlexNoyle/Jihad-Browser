@@ -602,15 +602,46 @@ MainAssistant.prototype.applyTheme = function (theme) {
 	}
 	var color = function (c) { return (typeof c === "string" && /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(c)) ? c : ""; };
 	var url = function (u) { return (typeof u === "string" && /^(https?:\/\/|file:\/\/\/)[^\s"'()]+$/.test(u)) ? u : ""; };
-	var accent = color(theme.accentcolor), text = color(theme.textcolor), header = url(theme.headerURL);
-	bar.style.background = (accent || "") + (header ? " url(" + header + ") no-repeat right top" : "");
-	// A wallpaper-sized picture is fitted to the bar (headerFit, from the browser's Persona
-	// component); a picture made for a toolbar keeps its own size, anchored top right as Firefox did.
-	var fit = !!header && theme.headerFit === "cover";
-	bar.style.backgroundSize = fit ? "cover" : "";
-	if (fit) { bar.style.backgroundPosition = "center center"; }
+	var accent = color(theme.accentcolor), text = color(theme.textcolor);
+	var bg = this.themeBackground(theme, url, color);
+	bar.style.background = "";
+	bar.style.backgroundColor = bg.color;
+	bar.style.backgroundImage = bg.image;
+	bar.style.backgroundPosition = bg.position;
+	bar.style.backgroundRepeat = bg.repeat;
+	bar.style.backgroundSize = bg.size;
 	bar.style.color = text;
 	this.themeCommandRow(this.isDarkColor(text), accent);
+};
+
+//* The bar's background for a Persona, as CSS longhands with one entry per picture, top first:
+//* the header (a wallpaper-sized one fitted to the bar, as the Persona component marks it with
+//* headerFit; one made for a toolbar at its own size, top right as Firefox anchors it, unless the
+//* theme places it), then a layered theme's other pictures (cavekit-persona-formats.md R2), all
+//* over the accent colour. Positions and tilings are Firefox's own words only.
+MainAssistant.prototype.themeBackground = function (theme, url, color) {
+	var POS = /^(left|center|right|top|bottom)( (left|center|right|top|bottom))?$/, REP = /^(no-repeat|repeat|repeat-x|repeat-y)$/;
+	var img = [], pos = [], rep = [], size = [], i, u;
+	var header = url(theme.headerURL), fit = !!header && theme.headerFit === "cover";
+	if (header) {
+		img.push("url(" + header + ")");
+		pos.push(fit ? "center center" : (POS.test(theme.headerPosition) ? theme.headerPosition : "right top"));
+		rep.push(REP.test(theme.headerRepeat) ? theme.headerRepeat : "no-repeat");
+		size.push(fit ? "cover" : "auto");
+	}
+	var layers = (Object.prototype.toString.call(theme.layers) === "[object Array]") ? theme.layers.slice(0, 6) : [];   // parsed in another window: not this one's Array
+	for (i = 0; i < layers.length; i++) {
+		u = layers[i] && url(layers[i].url);
+		if (!u) {
+			continue;
+		}
+		img.push("url(" + u + ")");
+		pos.push(POS.test(layers[i].position) ? layers[i].position : "right top");
+		rep.push(REP.test(layers[i].repeat) ? layers[i].repeat : "no-repeat");
+		size.push("auto");
+	}
+	return {color: color(theme.accentcolor), image: img.length ? img.join(", ") : "none",
+		position: pos.join(", "), repeat: rep.join(", "), size: size.join(", ")};
 };
 
 //* Whether a CSS colour (a theme's textcolor, in any form the browser accepts) is dark: the

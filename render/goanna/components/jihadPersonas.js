@@ -92,9 +92,24 @@ function cardTheme(t) {
   out.textcolor = str(t.textcolor, 40);
   out.accentcolor = str(t.accentcolor, 40);
   if (t.headerFit === "cover") { out.headerFit = "cover"; }      // a wallpaper: fitted, not its corner
+  // A theme package's extras (cavekit-persona-formats.md): where the header sits, the pictures
+  // under it, and the colours for the rest of the shell. Each checked again here.
+  if (POSITIONS.indexOf(t.headerPosition) >= 0) { out.headerPosition = t.headerPosition; }
+  if (TILINGS.indexOf(t.headerRepeat) >= 0) { out.headerRepeat = t.headerRepeat; }
+  if (Array.isArray(t.layers)) {
+    let ls = t.layers.slice(0, MAX_LAYERS).map(function(l) {
+      let u = l && str(l.url, 2048);
+      return (u && /^(file:\/\/\/|https:\/\/)[^\s"'()\\]+$/.test(u)) ?
+        {url: u, position: POSITIONS.indexOf(l.position) >= 0 ? l.position : "right top",
+         repeat: TILINGS.indexOf(l.repeat) >= 0 ? l.repeat : "no-repeat"} : null;
+    }).filter(Boolean);
+    if (ls.length) { out.layers = ls; }
+  }
+  let colors = slotColors(t.colors);
+  if (colors) { out.colors = colors; }
   // Quotes and backslashes still escape to two characters: if what is left would not fit the
   // channel (6000), drop what a card can live without, in order, rather than send "null".
-  let drop = ["footerURL", "author", "name", "headerURL"];
+  let drop = ["colors", "layers", "footerURL", "author", "name", "headerURL"];
   for (let i = 0; i < drop.length && JSON.stringify(out).length > 5800; i++) { delete out[drop[i]]; }
   return out;
 }
@@ -190,9 +205,7 @@ function sha256Hex(file) {
   is.init(file, 0x01, 0, 0);
   ch.updateFromStream(is, -1);
   is.close();
-  let raw = ch.finish(false), hex = "";
-  for (let i = 0; i < raw.length; i++) { hex += ("0" + raw.charCodeAt(i).toString(16)).slice(-2); }
-  return hex;
+  return hexOf(ch.finish(false));
 }
 
 // A wallpaper-sized picture (AMO ships 3840x2160 ones) decodes to more than the engine's whole
@@ -235,66 +248,295 @@ function shrinkWallpaper(file, ext) {
   log("wallpaper " + sz.w + "x" + sz.h + " kept at " + w + "x" + h);
 }
 
-// Returns {theme, pending (nsIFile), finalName} or null when the file is not a theme-only package.
+// ---------------------------------------------------------------------------------------------
+// What a theme package says beyond what the engine keeps (cavekit-persona-formats.md). The
+// engine's theme manager keeps a Persona's own fields only (id, name, one header picture, an accent
+// and a text colour…) and refuses one without a picture. More pictures and where they sit (R2),
+// and more colours (R3), are kept BESIDE the Persona: extras-<hash of its id>.json in the
+// profile's jihad-themes folder, added to what the cards are sent, and deleted with the Persona
+// (forgetThemeFiles). A colour-only theme (R1) gets a small picture drawn from its colours, so the
+// manager has the header it insists on.
+const MAX_LAYERS = 6;                          // additional_backgrounds kept besides theme_frame
+// All of one Persona's pictures together, decoded: 6 Mpx is 24 MB, under the engine's 32 MB image
+// cache (a wallpaper is first shrunk to 1600 px wide). Pictures past it are left out.
+const MAX_PERSONA_PIXELS = 6 * 1024 * 1024;
+// Where a picture may sit and how it may repeat: Firefox's own words for these, nothing else.
+const POSITIONS = ["bottom", "center", "left", "right", "top", "center bottom", "center center", "center top",
+                   "left bottom", "left center", "left top", "right bottom", "right center", "right top"];
+const TILINGS = ["no-repeat", "repeat", "repeat-x", "repeat-y"];
+// The colour slots read beyond the frame and text colours (R3), with the older name of each.
+const COLOR_SLOTS = ["toolbar", "toolbar_text", "toolbar_field", "toolbar_field_text", "toolbar_field_border",
+                     "toolbar_field_focus", "toolbar_field_text_focus", "popup", "popup_text", "popup_border",
+                     "popup_highlight", "popup_highlight_text", "icons", "ntp_background", "ntp_text"];
+const COLOR_OLD_NAMES = {toolbar_text: "bookmark_text"};
+const EXTRA_FILE = /^[0-9a-f]{24}-layer[1-9]\.(png|jpe?g|gif)$/;
+
+function hexOf(raw) {
+  let hex = "";
+  for (let i = 0; i < raw.length; i++) { hex += ("0" + raw.charCodeAt(i).toString(16)).slice(-2); }
+  return hex;
+}
+
+function sha256Str(s) {
+  let conv = Cc["@mozilla.org/intl/scriptableunicodeconverter"].createInstance(Ci.nsIScriptableUnicodeConverter);
+  conv.charset = "UTF-8";
+  let data = conv.convertToByteArray(String(s), {});
+  let ch = Cc["@mozilla.org/security/hash;1"].createInstance(Ci.nsICryptoHash);
+  ch.init(ch.SHA256);
+  ch.update(data, data.length);
+  return hexOf(ch.finish(false));
+}
+
+// A theme's colour slots, each kept only if it is a CSS colour; null when there are none.
+function slotColors(colors) {
+  if (!colors || typeof colors !== "object") { return null; }
+  let out = {}, n = 0;
+  COLOR_SLOTS.forEach(function(k) {
+    let v = cssColor(k in colors ? colors[k] : colors[COLOR_OLD_NAMES[k]]);
+    if (v) { out[k] = v; n++; }
+  });
+  return n ? out : null;
+}
+
+// A CSS colour as {r, g, b} by the engine's own parser (names, #rgb, rgb(), hsl()…); null if none.
+function rgbOf(c) {
+  try {
+    let v = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils).colorToRGBA(String(c));
+    return v ? {r: v.r, g: v.g, b: v.b} : null;
+  } catch (e) { return null; }
+}
+
+// A small truecolour PNG, `h` rows going from colour `top` to colour `bottom`, `w` pixels wide.
+// The deflate stream is "stored" (uncompressed), so no compressor is needed: 8x64 is 1.6 KB.
+let crcTable = null;
+function crc32(bytes) {
+  if (!crcTable) {
+    crcTable = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) { c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); }
+      crcTable.push(c >>> 0);
+    }
+  }
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) { crc = crcTable[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8); }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function gradientPng(top, bottom, w, h) {
+  let be32 = function(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]; };
+  let raw = [];
+  for (let y = 0; y < h; y++) {
+    let f = h > 1 ? y / (h - 1) : 0;
+    raw.push(0);                                       // filter: none
+    for (let x = 0; x < w; x++) {
+      raw.push(Math.round(top.r + (bottom.r - top.r) * f), Math.round(top.g + (bottom.g - top.g) * f),
+               Math.round(top.b + (bottom.b - top.b) * f));
+    }
+  }
+  let z = [0x78, 0x01];                                // zlib header, then stored blocks
+  for (let i = 0; i < raw.length; i += 65535) {
+    let n = Math.min(65535, raw.length - i);
+    z.push(i + n >= raw.length ? 1 : 0, n & 255, (n >>> 8) & 255, ~n & 255, (~n >>> 8) & 255);
+    for (let j = 0; j < n; j++) { z.push(raw[i + j]); }
+  }
+  let a = 1, b = 0;
+  for (let i = 0; i < raw.length; i++) { a = (a + raw[i]) % 65521; b = (b + a) % 65521; }
+  z = z.concat([(b >>> 8) & 255, b & 255, (a >>> 8) & 255, a & 255]);
+  let chunk = function(type, data) {
+    let body = type.split("").map(function(ch) { return ch.charCodeAt(0); }).concat(data);
+    return be32(data.length).concat(body, be32(crc32(body)));
+  };
+  return [137, 80, 78, 71, 13, 10, 26, 10].concat(chunk("IHDR", be32(w).concat(be32(h), [8, 2, 0, 0, 0])),
+                                                  chunk("IDAT", z), chunk("IEND", []));
+}
+function writeGradientPng(file, top, bottom, w, h) {
+  let png = gradientPng(top, bottom, w, h);
+  let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+  fos.init(file, 0x02 | 0x08 | 0x20, 0o644, 0);
+  let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+  bos.setOutputStream(fos);
+  try { bos.writeByteArray(png, png.length); } finally { try { bos.close(); } catch (e) {} }
+}
+
+// The extras a Persona may have, checked field by field (they are read back from the profile, and
+// some come from an index): null when there is nothing.
+function cleanExtras(x) {
+  if (!x || typeof x !== "object") { return null; }
+  let out = {}, n = 0;
+  if (x.fit === "cover") { out.fit = "cover"; n++; }
+  if (POSITIONS.indexOf(x.position) >= 0) { out.position = x.position; n++; }
+  if (TILINGS.indexOf(x.repeat) >= 0) { out.repeat = x.repeat; n++; }
+  if (Array.isArray(x.layers)) {
+    let ls = x.layers.slice(0, MAX_LAYERS).filter(function(l) {
+      return l && typeof l.file === "string" && EXTRA_FILE.test(l.file);
+    }).map(function(l) {
+      return {file: l.file, position: POSITIONS.indexOf(l.position) >= 0 ? l.position : "right top",
+              repeat: TILINGS.indexOf(l.repeat) >= 0 ? l.repeat : "no-repeat"};
+    });
+    if (ls.length) { out.layers = ls; n++; }
+  }
+  let c = slotColors(x.colors);
+  if (c) { out.colors = c; n++; }
+  return n ? out : null;
+}
+
+function extrasFile(id) {
+  let f = themesDir();
+  f.append("extras-" + sha256Str(String(id)).slice(0, 24) + ".json");
+  return f;
+}
+
+let extrasCache = new Map();
+function readExtras(id) {
+  if (typeof id !== "string" || !id) { return null; }
+  if (extrasCache.has(id)) { return extrasCache.get(id); }
+  let x = null;
+  try {
+    let f = extrasFile(id);
+    if (f.exists() && f.fileSize <= MAX_MANIFEST) {
+      let is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+      is.init(f, 0x01, 0, 0);
+      let text = NetUtil.readInputStreamToString(is, is.available(), {charset: "UTF-8"});
+      is.close();
+      x = cleanExtras(JSON.parse(text));
+    }
+  } catch (e) { log("extras of a Persona could not be read: " + e); x = null; }
+  extrasCache.set(id, x);
+  return x;
+}
+
+// Keep (or, with nothing to keep, delete) a Persona's extras. Written before the Persona is worn:
+// the styling update that follows reads them.
+function writeExtras(id, x) {
+  extrasCache.delete(String(id));
+  let f = extrasFile(id);
+  x = cleanExtras(x);
+  if (!x) { try { if (f.exists()) { f.remove(false); } } catch (e) {} return; }
+  let text = JSON.stringify(x);                        // ASCII only: file names, CSS words, colours
+  let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+  fos.init(f, 0x02 | 0x08 | 0x20, 0o644, 0);
+  try { fos.write(text, text.length); } finally { try { fos.close(); } catch (e) {} }
+}
+
+// A theme-only package as a Persona: {theme, files: [{pending, finalName}], extras}, or null when
+// it is not one this browser can wear. Pictures (theme_frame, then additional_backgrounds in their
+// order, at most MAX_LAYERS of those) are copied into PENDING files that become the Persona's only
+// after the user's yes; one in a format the engine does not draw (SVG), too large, or past the
+// Persona's pixel budget is left out. With no picture left, its colours make one (R1).
 function staticThemeFromXpi(path, origin) {
   let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
   try { file.initWithPath(path); } catch (e) { return null; }
   if (!file.exists()) { return null; }
   let zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
   try { zr.open(file); } catch (e) { return null; }
-  let pending = null;
+  let pendings = [], handed = false;
+  let pendingFile = function(ext) {
+    let f = themesDir();
+    f.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
+    pendings.push(f);
+    return f;
+  };
   try {
     if (!zr.hasEntry("manifest.json") || zr.getEntry("manifest.json").realSize > MAX_MANIFEST) { return null; }
     let is = zr.getInputStream("manifest.json");
     let text = NetUtil.readInputStreamToString(is, is.available(), {charset: "UTF-8"});
     is.close();
-    let m = JSON.parse(text.replace(/^\uFEFF/, ""));
+    let m = JSON.parse(text.replace(/^﻿/, ""));
     if (!m || typeof m !== "object" || !m.theme || typeof m.theme !== "object") { return null; }
     let extra = Object.keys(m).filter(function(k) { return THEME_PACKAGE_KEYS.indexOf(k) < 0; });
     if (extra.length) { log("not a theme-only package: it also has " + extra.slice(0, 5).join(", ")); return null; }
-    let images = m.theme.images || {}, colors = m.theme.colors || {};
-    // The header art: the classic theme_frame (headerURL in older manifests), or — what many
-    // newer AMO themes carry instead — the first of additional_backgrounds (owner 2026-10-08,
-    // a gallery of AMO themes for the README: three of five had only that).
-    let header = images.theme_frame || images.headerURL ||
-      (Array.isArray(images.additional_backgrounds) ? images.additional_backgrounds[0] : null);
-    if (typeof header !== "string") { return null; }
-    header = header.replace(/^\.?\//, "");
-    let ext = (/\.(png|jpe?g|gif)$/i.exec(header) || [null, ""])[1].toLowerCase();
-    if (!ext || !zr.hasEntry(header) || zr.getEntry(header).realSize > MAX_IMAGE) { return null; }
-    pending = themesDir();
-    pending.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
-    copyEntry(zr, header, pending, MAX_IMAGE);
-    let sz = imageSize(pending);
-    if (!sz || sz.w < 1 || sz.h < 1 || sz.w * sz.h > MAX_PIXELS) {
-      log("the picture is " + (sz ? sz.w + "x" + sz.h : "of no size this browser can read") + ": not kept");
-      return null;
+    let obj = function(v) { return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; };
+    let images = obj(m.theme.images), colors = obj(m.theme.colors), props = obj(m.theme.properties);
+    // The pictures, top first: the classic theme_frame (headerURL in older manifests), then
+    // additional_backgrounds — many newer AMO themes carry only those (owner 2026-10-08) — each
+    // with its alignment and tiling (right top, no-repeat when the theme names none, as Firefox).
+    let wanted = [];
+    let frame = images.theme_frame || images.headerURL;
+    if (typeof frame === "string" && frame) { wanted.push({path: frame, position: null, repeat: null}); }
+    let more = Array.isArray(images.additional_backgrounds) ? images.additional_backgrounds : [];
+    let al = Array.isArray(props.additional_backgrounds_alignment) ? props.additional_backgrounds_alignment : [];
+    let ti = Array.isArray(props.additional_backgrounds_tiling) ? props.additional_backgrounds_tiling : [];
+    for (let i = 0; i < more.length && i < MAX_LAYERS; i++) {
+      if (typeof more[i] !== "string" || !more[i]) { continue; }
+      wanted.push({path: more[i], position: POSITIONS.indexOf(al[i]) >= 0 ? al[i] : "right top",
+                   repeat: TILINGS.indexOf(ti[i]) >= 0 ? ti[i] : "no-repeat"});
     }
-    // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
-    // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
-    try { shrinkWallpaper(pending, ext); }
-    catch (e) {
-      log("wallpaper kept at its own size: " + e);
-      try { let t = pending.clone(); t.leafName = pending.leafName + ".scaled"; if (t.exists()) { t.remove(false); } } catch (e2) {}
-    }
-    let hash = sha256Hex(pending).slice(0, 24);
-    let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
-    let finalName = hash + "-header." + ext;
-    let theme = {id: "static-theme:" + hash, name: name, headerURL: "resource://" + THEMES_RESOURCE + "/" + finalName};
+    let kept = [], pixels = 0;
+    wanted.forEach(function(w) {
+      let p = w.path.replace(/^\.?\//, ""), shown = p.slice(0, 60);
+      let ext = (/\.(png|jpe?g|gif)$/i.exec(p) || [null, ""])[1].toLowerCase();
+      if (!ext) { log("picture " + shown + " left out: not a format this browser draws"); return; }
+      if (!zr.hasEntry(p) || zr.getEntry(p).realSize > MAX_IMAGE) { log("picture " + shown + " left out: missing or over 4 MB"); return; }
+      let f = pendingFile(ext);
+      copyEntry(zr, p, f, MAX_IMAGE);
+      let sz = imageSize(f);
+      if (!sz || sz.w < 1 || sz.h < 1 || sz.w * sz.h > MAX_PIXELS) {
+        log("the picture is " + (sz ? sz.w + "x" + sz.h : "of no size this browser can read") + ": not kept");
+        return;
+      }
+      // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
+      // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
+      try { shrinkWallpaper(f, ext); }
+      catch (e) {
+        log("wallpaper kept at its own size: " + e);
+        try { let t = f.clone(); t.leafName = f.leafName + ".scaled"; if (t.exists()) { t.remove(false); } } catch (e2) {}
+      }
+      sz = imageSize(f) || sz;
+      if (kept.length && pixels + sz.w * sz.h > MAX_PERSONA_PIXELS) { log("picture " + shown + " left out: the Persona's pictures are big enough"); return; }
+      pixels += sz.w * sz.h;
+      kept.push({file: f, ext: ext, position: w.position, repeat: w.repeat, sha: sha256Hex(f)});
+    });
     let accent = cssColor(colors.frame || colors.accentcolor), textc = cssColor(colors.tab_background_text || colors.textcolor || colors.toolbar_text);
+    let slots = slotColors(colors);
+    let name = String(m.name || "Theme").replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 80);
+    let extras = {};
+    if (slots) { extras.colors = slots; }
+    if (!kept.length) {
+      // Colour-only (R1): the bar in its frame colour, going to its toolbar colour when it has one.
+      let top = accent ? rgbOf(accent) : null;
+      if (!top) { log("no picture and no frame colour: not a Persona"); return null; }
+      let bottom = (slots && slots.toolbar && rgbOf(slots.toolbar)) || top;
+      let f = pendingFile("png");
+      writeGradientPng(f, top, bottom, 8, 64);
+      kept.push({file: f, ext: "png", position: null, repeat: null, sha: sha256Hex(f), made: true});
+      extras.fit = "cover";
+    }
+    // A Persona of one picture, placed as Firefox places a header, is named by that picture as it
+    // always was (the same art is the same Persona); any other by everything that makes it up.
+    let head = kept[0];
+    let plain = kept.length === 1 && !head.made && (!head.position || head.position === "right top") &&
+                (!head.repeat || head.repeat === "no-repeat");
+    let hash = plain ? head.sha.slice(0, 24) :
+      sha256Str(JSON.stringify({name: name, pictures: kept.map(function(k) { return [k.sha, k.position, k.repeat]; }),
+                                accent: accent, text: textc, colors: slots})).slice(0, 24);
+    if (head.position && head.position !== "right top") { extras.position = head.position; }
+    if (head.repeat && head.repeat !== "no-repeat") { extras.repeat = head.repeat; }
+    let files = [{pending: head.file, finalName: hash + "-header." + head.ext}];
+    if (kept.length > 1) {
+      extras.layers = kept.slice(1).map(function(k, i) {
+        let fn = hash + "-layer" + (i + 1) + "." + k.ext;
+        files.push({pending: k.file, finalName: fn});
+        return {file: fn, position: k.position || "right top", repeat: k.repeat || "no-repeat"};
+      });
+    }
+    let theme = {id: "static-theme:" + hash, name: name, headerURL: "resource://" + THEMES_RESOURCE + "/" + files[0].finalName};
     if (accent) { theme.accentcolor = accent; }
     if (textc) { theme.textcolor = textc; }
     if (m.author && typeof m.author === "string") { theme.author = m.author.slice(0, 80); }
     if (typeof m.version === "string" && /^[\w.+-]{1,20}$/.test(m.version)) { theme.version = m.version; }
-    let out = {theme: theme, pending: pending, finalName: finalName};
-    pending = null;                                   // handed over
-    return out;
+    // The pictures left out go now; the rest are handed over.
+    pendings.forEach(function(f) {
+      if (files.some(function(x) { return x.pending === f; })) { return; }
+      try { if (f.exists()) { f.remove(false); } } catch (e) {}
+    });
+    handed = true;
+    return {theme: theme, files: files, extras: Object.keys(extras).length ? extras : null};
   } catch (e) {
     log("static theme could not be read: " + e);
     return null;
   } finally {
     try { zr.close(); } catch (e) {}
-    if (pending) { try { pending.remove(false); } catch (e) {} }
+    if (!handed) { pendings.forEach(function(f) { try { if (f.exists()) { f.remove(false); } } catch (e) {} }); }
   }
 }
 
@@ -308,20 +550,26 @@ function handleStaticTheme(bag, hostLabel) {
   let got = staticThemeFromXpi(String(path), String(origin));
   if (!got) { return; }
   let host = hostLabel || hostOf(origin);
+  let dropPending = function() {
+    got.files.forEach(function(x) { try { if (x.pending.exists()) { x.pending.remove(false); } } catch (e) {} });
+  };
   if (!confirmTheme(host, got.theme.name)) {
     log("static theme [" + got.theme.name + "] from " + host + " declined");
-    try { got.pending.remove(false); } catch (e) {}
+    dropPending();
     bag.setPropertyAsBool("converted", true);          // it was a theme; the user said no
     return;
   }
-  let dest = themesDir();
-  dest.append(got.finalName);
   try {
-    if (dest.exists()) { got.pending.remove(false); }  // the same image, already here
-    else { got.pending.moveTo(null, got.finalName); }
+    got.files.forEach(function(x) {
+      let dest = themesDir();
+      dest.append(x.finalName);
+      if (dest.exists()) { x.pending.remove(false); }  // the same picture, already here
+      else { x.pending.moveTo(null, x.finalName); }
+    });
+    writeExtras(got.theme.id, got.extras);
   } catch (e) {
-    log("static theme image could not be kept: " + e);
-    try { got.pending.remove(false); } catch (e2) {}
+    log("static theme pictures could not be kept: " + e);
+    dropPending();
     return;
   }
   ensureThemesResource();
@@ -351,6 +599,16 @@ function previewAllowed(origin) {
   if (!uri.schemeIs("https")) { return false; }
   try { return Services.perms.testPermission(uri, "install") === Services.perms.ALLOW_ACTION; }
   catch (e) { return false; }
+}
+
+// A Persona from a site or an index may name the same colour slots a theme package does
+// (`colors`, cavekit-persona-formats.md R4); pictures beyond its header it may not. Kept as its
+// extras — and a reinstall without them clears the old ones.
+function keepIndexColors(id, json) {
+  let raw = null;
+  try { raw = JSON.parse(String(json || "")); } catch (e) { raw = null; }
+  let colors = raw && typeof raw === "object" ? slotColors(raw.colors) : null;
+  try { writeExtras(id, colors ? {colors: colors} : null); } catch (e) { log("colours of a Persona could not be kept: " + e); }
 }
 
 function handle(req) {
@@ -385,6 +643,7 @@ function handle(req) {
   LWTM.resetPreview();
   let host = hostOf(req.origin), name = String(theme.name || theme.id || "Persona");
   if (!confirmTheme(host, name)) { log("install of [" + name + "] from " + host + " declined"); return; }
+  keepIndexColors(theme.id, req.json);
   LWTM.currentTheme = theme;      // persists, downloads the images, notifies
   log("[" + name + "] from " + host + " is the theme now");
   notify("info", "Persona applied: " + name);
@@ -868,15 +1127,23 @@ function decorateRow(doc, item, theme, isCurrent) {
   let accent = theme && theme.accentcolor ? String(theme.accentcolor) : "";
   let text = theme && theme.textcolor ? String(theme.textcolor) : "";
   let header = theme ? cssUrl(theme.headerURL) : null;
+  let x = theme ? readExtras(theme.id) : null;
   item.style.setProperty("background-color", accent || "#3a3a3a", "important");
   if (header) {
-    // A wallpaper is shown whole across the row, a toolbar picture from its top right corner
-    // (where Firefox anchors it) — both filling the row.
-    let wall = !!(theme && isWallpaper(theme.headerURL));
-    item.style.setProperty("background-image", header, "important");
-    item.style.setProperty("background-position", wall ? "center center" : "right top", "important");
-    item.style.setProperty("background-size", "cover", "important");
-    item.style.setProperty("background-repeat", "no-repeat", "important");
+    // A wallpaper (or a colour-only Persona's own picture) is shown whole across the row, a
+    // toolbar picture from its top right corner (where Firefox anchors it) — both filling the
+    // row. A layered Persona's other pictures go under it, each where the theme puts it.
+    let wall = !!(theme && (isWallpaper(theme.headerURL) || (x && x.fit === "cover")));
+    let imgs = [header], pos = [wall ? "center center" : ((x && x.position) || "right top")];
+    let rep = [(x && x.repeat) || "no-repeat"], size = ["cover"];
+    ((x && x.layers) || []).forEach(function(l) {
+      let u = cssUrl("resource://" + THEMES_RESOURCE + "/" + l.file);
+      if (u) { imgs.push(u); pos.push(l.position); rep.push(l.repeat); size.push("auto"); }
+    });
+    item.style.setProperty("background-image", imgs.join(", "), "important");
+    item.style.setProperty("background-position", pos.join(", "), "important");
+    item.style.setProperty("background-size", size.join(", "), "important");
+    item.style.setProperty("background-repeat", rep.join(", "), "important");
   }
   item.style.setProperty("color", text || "#ffffff", "important");
   item.style.setProperty("min-height", "96px", "important");
@@ -1012,15 +1279,21 @@ function attachPane(win) {
   again();
 }
 
-// A converted static theme's picture is the browser's own file: it goes when the theme does.
+// A converted static theme's pictures are the browser's own files, and any Persona's extras are
+// too: they go when the Persona does.
 function forgetThemeFiles(id) {
-  let m = /^static-theme:([0-9a-f]{24})$/.exec(String(id || ""));
+  if (!id) { return; }
+  try { let f = extrasFile(id); if (f.exists()) { f.remove(false); log("removed " + f.leafName); } } catch (e) {}
+  extrasCache.delete(String(id));
+  let m = /^static-theme:([0-9a-f]{24})$/.exec(String(id));
   if (!m) { return; }
   try {
     let en = themesDir().directoryEntries;
     while (en.hasMoreElements()) {
       let f = en.getNext().QueryInterface(Ci.nsIFile);
-      if (f.leafName.indexOf(m[1] + "-header.") === 0) { f.remove(false); log("removed " + f.leafName); }
+      if (f.leafName.indexOf(m[1] + "-header.") === 0 || f.leafName.indexOf(m[1] + "-layer") === 0) {
+        f.remove(false); log("removed " + f.leafName);
+      }
     }
   } catch (e) { log("theme files could not be removed: " + e); }
 }
@@ -1073,6 +1346,7 @@ function galleryRequest(bag) {
     });
     if (badImage) { reply({ok: false, message: "That Persona's pictures are not served over https."}); return; }
     if (!confirmTheme(hostOf(origin), String(theme.name || "Persona"))) { reply({ok: false, message: "Not installed."}); return; }
+    keepIndexColors(theme.id, get("json"));
     previewId = null;
     LWTM.resetPreview();
     LWTM.currentTheme = theme;
@@ -1161,6 +1435,18 @@ JihadPersonas.prototype = {
             }
           });
           if (isWallpaper(t.headerURL)) { t.headerFit = "cover"; }
+          let x = readExtras(t.id);
+          if (x) {
+            if (x.fit === "cover") { t.headerFit = "cover"; }
+            if (x.position) { t.headerPosition = x.position; }
+            if (x.repeat) { t.headerRepeat = x.repeat; }
+            if (x.layers) {
+              t.layers = x.layers.map(function(l) {
+                return {url: resolveThemesUrl("resource://" + THEMES_RESOURCE + "/" + l.file), position: l.position, repeat: l.repeat};
+              });
+            }
+            if (x.colors) { t.colors = x.colors; }
+          }
           json = JSON.stringify(cardTheme(t));
         } catch (e) { log("theme could not be read: " + e); json = ""; }
       }

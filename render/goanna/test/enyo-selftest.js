@@ -193,6 +193,11 @@
 				} else if (st === "T") {              // the action bar's theme as painted (inline style set by applyTheme)
 					var tb = app.$.browser.$.actionbar.hasNode();
 					var ic0 = tb ? tb.querySelector(".enyo-button-icon") : null;
+					var cs = tb ? window.getComputedStyle(tb, null) : null, th = app._theme;
+					log(name, "theme given: layers=" + (th && th.layers ? Object.prototype.toString.call(th.layers) + "/" + th.layers.length : "none") +
+						" colors=" + (th && th.colors ? "yes" : "no") + " headerPosition=" + (th ? th.headerPosition : "?") + " inline image=[" + (tb ? tb.style.backgroundImage : "?").replace(/file:\/\/\/[^)]*\//g, "") + "]");
+					log(name, "toolbar layers: image=[" + (cs ? cs.backgroundImage : "?").replace(/file:\/\/\/[^)]*\//g, "") + "] position=[" + (cs ? cs.backgroundPosition : "?") +
+						"] repeat=[" + (cs ? cs.backgroundRepeat : "?") + "] size=[" + (cs ? cs.webkitBackgroundSize || cs.backgroundSize : "?") + "] color=[" + (cs ? cs.backgroundColor : "?") + "]");
 					log(name, "toolbar style: background=[" + (tb ? tb.style.background : "?").slice(0, 160) + "] color=[" + (tb ? tb.style.color : "?") + "]" +
 						" glyphs: " + (function() { var n = 0, d = 0, all = tb ? tb.querySelectorAll(".enyo-button-icon") : [], j;
 							for (j = 0; j < all.length; j++) { if (/menu-icon-/.test(all[j].style.backgroundImage)) { n++; if (/\/dark\//.test(all[j].style.backgroundImage)) { d++; } } }

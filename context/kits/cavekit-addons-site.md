@@ -79,6 +79,13 @@ is not ours to use.
 - [x] The panel is behind a rate limit and, optionally, an address allowlist; responses carry HSTS,
   `X-Frame-Options`, `X-Content-Type-Options` and a Content-Security-Policy; forwarded-for headers
   are not trusted. *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane itself.)*
+- [x] A request whose normalised path is outside `/panel/` never reaches the panel or its login
+  check: `/panel/../?path=/panel/administration/` and `/panel/%2e%2e/?path=…` answer 404, and the
+  panel's downloads are `/panel/download/`, inside its rate limit and allowlist. *(Smoke test; local
+  copy: `?component=download&panel=1` no longer asks for a password.)* (Inspector, 2026-10-11.)
+- [x] Panel responses carry `X-Frame-Options` and `frame-ancestors` whatever their query string says;
+  only `/?component=discover` itself may be framed. *(Smoke test: `/panel/?component=discover`
+  keeps the header.)* (Inspector, 2026-10-11.)
 - [x] Codex (or the inspector) reviews the site's code before any deploy, and no P0/P1 is open. *(Inspector, 2026-10-11, with Codex out of credits: one P1, the panel path, and the P2/P3s all fixed — `context/impl/impl-review-findings-6.md` round 14. Codex reviews it again when its credits return, before the deploy.)*
 **Dependencies:** R2
 
@@ -118,7 +125,7 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   version, headerURL, previewURL, accentcolor, textcolor, updateURL, license, licenseURL` (and
   `footerURL`, `description`, `colors` when it has them), all URLs https. *(Every field is present since 2026-10-11, "" when a Persona has none.)*
 - [x] `q` matches name, author and description, in any language (UTF-8 kept); `per_page` is capped
-  (at most 50); an out-of-range page is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list.)*
+  (at most 50); an out-of-range page, however large its number, is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list.)*
 - [x] The response is cacheable for a few minutes and has the JSON content type; HTML-significant
   characters are escaped in the JSON.
 **Dependencies:** R5
@@ -165,6 +172,10 @@ LAN, before anything touches the owner's server.
   database and datastore backup, log rotation, and how to update the site.
 - [x] Every step that needs root is a command the owner runs; nothing is run on the server, and no
   DNS record is made, without the owner's go-ahead.
+- [~] Re-running `install.sh` keeps what the owner changed: the panel allowlist lives in its own
+  include, written only when absent, and an edited site block is kept with the new one written
+  beside it (`.new`). *(Code; install.sh runs as root on the server and has not been run here.)*
+  (Inspector, 2026-10-11.)
 - [ ] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
   from a desktop UXP browser and from Jihad) passes. [the owner's server and DNS: not yet]
 **Dependencies:** R3, R5, R6, R7, R8, R9
@@ -221,6 +232,8 @@ LAN, before anything touches the owner's server.
 - `docs/research/persona-archives.md`, `persona-licences.md`, `phoebus-analysis.md`.
 
 ## Changelog
+- 2026-10-11 (later): The inspector's proposed criteria added: R3's normalised panel path and
+  framing whatever the query, R6's large page numbers, R10's re-run keeping the owner's changes.
 - 2026-10-11 (later): Built; checked on the local copy and the TouchPad; the inspector's review fixed
   (the panel path P1 among them). R11 narrowed: `lightweightThemes.getMoreURL` stays unset by design.
   Open: R7's landscape on the device (turning it), R12's typed search (a finger), R10's deploy (the owner's).

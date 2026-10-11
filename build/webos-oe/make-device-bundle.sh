@@ -426,7 +426,8 @@ pref("javascript.options.mem.gc_low_frequency_heap_growth", 120); // grow the he
 pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 40); // treat >40 MB heaps as "large"
 // Media: never buffer half a video in RAM on a 512 MB device.
 pref("media.cache_size", 32768);                          // 32 MB media cache (kB; default 500 MB)
-pref("media.memory_cache_max_size", 4096);                // 4 MB in-memory media cache (kB)
+// (media.memory_cache_max_size used to be set here: UXP has no in-memory media cache and no such
+// pref, so it did nothing — check-engine-api.py found it, 2026-10-11.)
 // Network: fewer parallel sockets = less buffer memory + less CPU contention on
 // the single-core-class device; still plenty for one page. The other three that used to be
 // here - network.http.max-connections, network.prefetch-next, network.dns.disablePrefetch -

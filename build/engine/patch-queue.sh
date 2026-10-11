@@ -19,7 +19,9 @@ UXP="$REPO/third_party/uxp"; Q="$REPO/build/desktop/patches"
 
 case "${1:-}" in
 --check)
-  idx=$(mktemp); err=$(mktemp); trap 'rm -f "$idx" "$err"' EXIT
+  # The index must not exist yet: older git refuses an empty file ("index file smaller than
+  # expected"), which is what mktemp leaves (Codex r13).
+  tmp=$(mktemp -d); idx="$tmp/index"; err="$tmp/err"; trap 'rm -rf "$tmp"' EXIT
   export GIT_INDEX_FILE="$idx"
   git -C "$UXP" read-tree "$UXP_BASE"
   n=0

@@ -294,3 +294,17 @@ back out left `general.skins.selectedSkin` naming the removed theme and `extensi
 queued as "none", so the next daemon start dropped the user's Persona. Fixed in `jihadInstallPrompt.js`
 (both cleared after the removal); **device:** install + removal + daemon restart → Persona still worn,
 skin prefs clean. Enyo's profile repaired by hand.
+
+## Round 13 — Codex on `9e08c610..1fe88aa5` (the range the inspector covered in rounds 10–12; Codex credits back 2026-10-11)
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `jihadPersonas.js` | A wallpaper was decoded before shrinking with only its compressed size capped: a few KB can declare a picture that decodes to gigabytes and kills the daemon before the user is asked. | Valid, fixed: every picture's size is read from its own header first; unreadable or over 4096×4096 pixels → not kept. **Device (Enyo):** a 1.2 KB package with a 10000×10000 PNG → "the picture is 10000x10000: not kept", no prompt, daemon PID unchanged, log grew. |
+| P1 | `check-engine-api.py` | Check 1 found each `jihad_*` definition but never compared its types with `EngineCompat.h`; C linkage carries no types, so a changed signature links and corrupts at run time. | Valid, fixed: return and parameter types are normalised on both sides and compared (unit-tested: a changed parameter type is caught, names and spacing ignored). All 18 match today. |
+| P2 | `patch-queue.sh` | `mktemp` leaves an empty file, which older git refuses as an index. | Plausible (git 2.5x here accepts it; `--check` passed before and after), fixed anyway: the index path is in a fresh `mktemp -d`. |
+| P2 | `jihadPersonas.js` | When the bundled set did not all fit under the manager's limit, the edition was still marked done, so the rest was never offered. | Valid, fixed: the edition is marked done only when all of it found room. |
+| P2 | `jihadPersonas.js` | Theme-only packages were recognised by a short list of refused manifest keys; other behaviour (`chrome_url_overrides`, `commands`, protocol handlers…) passed as a Persona with its behaviour dropped. | Valid, fixed: an allowlist of the keys a theme package may carry. Checked against addons.mozilla.org's 50 most-used themes: every key they use is allowed. **Device (Enyo):** a package with `chrome_url_overrides` → "not a theme-only package"; Carbon Light still converts, asks, and is worn. |
+| P2 | `check-engine-api.py` | Check 5 read only `packaging/prefs/*.js`, missing the bundler's memory prefs and those the daemon sets at run time. | Valid, fixed: also scans `build/webos-oe/*.sh`, the daemon's `*.cpp` and the components. **It found one:** `media.memory_cache_max_size` (set by the bundler) does not exist in UXP — removed. Two prefs read through a macro or a branch are listed as known. 0 FAIL, 0 WARN. |
+| P3 | `main-assistant.js` (Mojo) | The ink glyph set is not applied when a Persona has no accent colour. | By design, no change: without an accent the command row keeps the framework's dark circles, where light glyphs are the readable ones. A comment now says so. |
+
+Device left: Enyo wearing Space Fantasy again (restored through about:personas after the Carbon Light control); all three variants on bundle `7a18305f…` (daemon-only push: the daemon binary is unchanged, the chrome scripts are new).

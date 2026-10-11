@@ -148,6 +148,17 @@ function cssColor(c) {
 // of its image, so two packages that share a name cannot overwrite each other's image
 // (Codex 2026-10-06).
 const MAX_MANIFEST = 64 * 1024, MAX_IMAGE = 4 * 1024 * 1024;
+// A picture's size in pixels is bounded too, read from its own header before anything decodes it:
+// a few compressed megabytes can declare a picture that decodes to gigabytes, which would kill the
+// daemon on this 512 MB device before the user was even asked (Codex r13, P1). 4096x4096 (64 MB
+// decoded) still takes the 3840x2160 wallpapers addons.mozilla.org serves.
+const MAX_PIXELS = 4096 * 4096;
+// What a theme-only package may say besides its theme. Anything else is behaviour this engine
+// would silently drop (an override page, commands, a protocol handler…), so such a package is not
+// treated as a Persona (Codex r13: a list of refused keys missed most of them).
+const THEME_PACKAGE_KEYS = ["manifest_version", "name", "short_name", "version", "version_name", "description",
+                            "author", "developer", "homepage_url", "icons", "theme", "dark_theme",
+                            "browser_specific_settings", "applications", "default_locale"];
 
 // Copy one zip entry into `out`, at most `max` bytes, as a plain file.
 function copyEntry(zr, name, out, max) {
@@ -239,8 +250,8 @@ function staticThemeFromXpi(path, origin) {
     is.close();
     let m = JSON.parse(text.replace(/^\uFEFF/, ""));
     if (!m || typeof m !== "object" || !m.theme || typeof m.theme !== "object") { return null; }
-    let notATheme = ["background", "content_scripts", "browser_action", "page_action", "sidebar_action", "permissions", "web_accessible_resources"];
-    for (let i = 0; i < notATheme.length; i++) { if (notATheme[i] in m) { return null; } }
+    let extra = Object.keys(m).filter(function(k) { return THEME_PACKAGE_KEYS.indexOf(k) < 0; });
+    if (extra.length) { log("not a theme-only package: it also has " + extra.slice(0, 5).join(", ")); return null; }
     let images = m.theme.images || {}, colors = m.theme.colors || {};
     // The header art: the classic theme_frame (headerURL in older manifests), or — what many
     // newer AMO themes carry instead — the first of additional_backgrounds (owner 2026-10-08,
@@ -254,6 +265,11 @@ function staticThemeFromXpi(path, origin) {
     pending = themesDir();
     pending.append("pending-" + Date.now() + "-" + Math.floor(Math.random() * 1e9) + "." + ext);
     copyEntry(zr, header, pending, MAX_IMAGE);
+    let sz = imageSize(pending);
+    if (!sz || sz.w < 1 || sz.h < 1 || sz.w * sz.h > MAX_PIXELS) {
+      log("the picture is " + (sz ? sz.w + "x" + sz.h : "of no size this browser can read") + ": not kept");
+      return null;
+    }
     // A picture that cannot be shrunk is kept as it came (it may not draw in the pane; the
     // cards draw it) rather than refusing the Persona (inspector 2026-10-08).
     try { shrinkWallpaper(pending, ext); }
@@ -737,7 +753,8 @@ function offerBundledOnce() {
   // ones just added — as uninstalls, deleting their pictures (inspector 2026-10-08). What does
   // not fit is not marked as offered, so it is offered again when there is room.
   let room = maxUsed() - used.filter(function(t) { return !dropped[t.id]; }).length;
-  if (add.length > Math.max(0, room)) { add = add.slice(0, Math.max(0, room)); }
+  let leftOver = add.length > Math.max(0, room);
+  if (leftOver) { add = add.slice(0, Math.max(0, room)); }
   add.forEach(function(b) {
     let dest = themesDir();
     dest.append(b.finalName);
@@ -776,7 +793,9 @@ function offerBundledOnce() {
     }
   });
   Services.prefs.setCharPref(PREF_BUNDLED_NAMES, JSON.stringify(Object.keys(offered)));
-  Services.prefs.setCharPref(PREF_BUNDLED, key);
+  // The edition is marked done only when all of it found room: otherwise the next visit would
+  // stop at the "done" check and never offer the rest once Personas are uninstalled (Codex r13).
+  if (!leftOver) { Services.prefs.setCharPref(PREF_BUNDLED, key); }
   refreshBundledDetails(all);
   log("bundled Personas offered: " + add.length + ", replaced: " + droppedIds.length + (renamed ? ", renamed" : "") + " (" + key + ")");
 }

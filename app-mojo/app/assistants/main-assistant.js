@@ -640,6 +640,8 @@ MainAssistant.prototype.themeCommandRow = function (ink, accent) {
 	// stop), and theming set on the buttons themselves was wiped by each rebuild and put back a
 	// tick later — the circles flashed at every load (owner 2026-10-07). Rules apply to the
 	// rebuilt buttons as they appear. See "theme on the command row" in jihad-browser.css.
+	// Without an accent colour the row keeps the framework's own dark circles, so it keeps their
+	// light glyphs too: ink glyphs on those circles would not read (Codex r13 asked for ink there).
 	var doc = this.controller.document, body = doc.body;
 	body.className = body.className.replace(/\s*jihad-themed(-ink)?/g, "") +
 		(accent ? " jihad-themed" + (ink ? " jihad-themed-ink" : "") : "");

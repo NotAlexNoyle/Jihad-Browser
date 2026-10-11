@@ -71,6 +71,8 @@ CLIPBOARD_IDL = "widget/nsIClipboardHelper.idl"
 OURS_ONLY = {
     "privacy.donottrackheader.enabled": "UXP dropped DNT; EngineHost.cpp sends the header itself",
     "plugin.state.flash": "per-plugin pref the engine composes at run time (plugin.state.<name>)",
+    "general.useragent.override": "read by nsHttpHandler through its UA_PREF(\"override\") macro",
+    "lightweightThemes.maxUsedThemes": "read by LightweightThemeManager.jsm on its lightweightThemes. branch",
 }
 
 
@@ -132,6 +134,38 @@ def idl_members(text, iface):
     return sorted(names)
 
 
+def strip_comments(t):
+    t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", t)
+
+
+# A C type, written one way: qualifiers that do not change the ABI dropped, "*" and "&" kept as
+# their own tokens, a parameter's name removed.
+BUILTIN = {"void", "bool", "char", "short", "int", "long", "float", "double", "signed", "unsigned"}
+NOT_TYPE = {"extern", "static", "inline", "MOZ_EXPORT", "C"}
+
+
+def ctype(text, is_param):
+    text = re.sub(r"__attribute__\s*\(\(.*?\)\)", " ", text)
+    text = re.sub(r"=.*$", "", text)                       # a default value
+    toks = [x for x in re.findall(r"[A-Za-z_][\w:]*|\*|&", text) if x not in NOT_TYPE]
+    words = [x for x in toks if x not in ("*", "&", "const")]
+    if is_param and len(words) >= 2 and toks and toks[-1] == words[-1] and words[-1] not in BUILTIN:
+        toks = toks[:-1]                                   # the parameter's name
+    return " ".join(toks)
+
+
+def signature(ret, params):
+    ps = [ctype(p, True) for p in params.split(",") if p.strip()]
+    if ps == ["void"]:
+        ps = []
+    return (ctype(ret, False), tuple(ps))
+
+
+def show(sig):
+    return "%s(%s)" % (sig[0], ", ".join(sig[1]))
+
+
 def gather(uxp):
     """Today's signatures, for the baseline."""
     out = {"idl_methods": {}, "implemented": {}}
@@ -152,22 +186,23 @@ def check(uxp, rep):
         rep.warn("no baseline (%s): run with --write-baseline on the engine you build today" % BASELINE)
 
     print("1. our engine exports (render/goanna/EngineCompat.h)")
-    compat = read(os.path.join(REPO, "render/goanna/EngineCompat.h"))
+    compat = strip_comments(read(os.path.join(REPO, "render/goanna/EngineCompat.h")))
     names = sorted(set(re.findall(r"\b(jihad_\w+)\s*\(", compat)))
     sources = []
     for pat in ("widget/**/*.cpp", "dom/plugins/**/*.cpp", "media/libcubeb/**/*.c", "security/manager/**/*.cpp",
                 "gfx/**/*.cpp", "layout/**/*.cpp", "toolkit/**/*.cpp", "xpcom/**/*.cpp"):
         sources += glob.glob(os.path.join(uxp, pat), recursive=True)
     texts = {}
-    def strip_comments(t):
-        t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)
-        return re.sub(r"//[^\n]*", " ", t)
     for n in names:
         found = False
+        # The daemon's declaration: C linkage carries no types, so a definition whose return or
+        # parameter types differ still links — and then corrupts memory at run time (Codex r13).
+        dm = re.search(r"([\w\s\*&:]*?)\b" + n + r"\s*\(([^;{}]*?)\)\s*(?:__attribute__\(\([^;]*?\)\))?\s*;", compat)
+        declared = signature(dm.group(1), dm.group(2)) if dm else None
         # A DEFINITION: a return type, the name, the parameters, a body — at the start of a line,
         # comments removed. (A call such as `if (name() > 0) {` must not count.)
-        defn = re.compile(r"(?m)^[ \t]*(?:extern\s+\"C\"\s+)?(?:static\s+|inline\s+|MOZ_EXPORT\s+|__attribute__\(\(.*?\)\)\s*)*"
-                          r"[A-Za-z_][\w:<>]*(?:\s+[A-Za-z_][\w:<>]*)*[\s\*&]+" + n + r"\s*\([^;{]*\)\s*\{")
+        defn = re.compile(r"(?m)^[ \t]*((?:extern\s+\"C\"\s+)?(?:static\s+|inline\s+|MOZ_EXPORT\s+|__attribute__\(\(.*?\)\)\s*)*"
+                          r"[A-Za-z_][\w:<>]*(?:\s+[A-Za-z_][\w:<>]*)*[\s\*&]+)" + n + r"\s*\(([^;{]*)\)\s*\{")
         for s in sources:
             t = texts.get(s)
             if t is None:
@@ -175,9 +210,18 @@ def check(uxp, rep):
                     t = texts[s] = strip_comments(read(s))
                 except OSError:
                     continue
-            if defn.search(t):
+            m = defn.search(t)
+            if m:
                 found = True
-                rep.ok("%s defined in %s" % (n, os.path.relpath(s, uxp)))
+                defined = signature(m.group(1), m.group(2))
+                where = os.path.relpath(s, uxp)
+                if declared is None:
+                    rep.fail("%s: no declaration EngineCompat.h's checker can read" % n)
+                elif defined != declared:
+                    rep.fail("%s: the engine defines %s (%s), EngineCompat.h declares %s — the types must match"
+                             % (n, show(defined), where, show(declared)))
+                else:
+                    rep.ok("%s %s defined in %s" % (n, show(defined), where))
                 break
         if not found:
             rep.fail("%s is not defined in this engine tree (our engine branch not applied, or the export was dropped)" % n)
@@ -249,9 +293,17 @@ def check(uxp, rep):
                 defaults += read(f)
             except OSError:
                 pass
+    # Every place the project names an engine pref: the pref files, the device bundler's own
+    # memory prefs (written into goanna.js), and the prefs the daemon and its components read or
+    # set at run time (Codex r13: the bundler's and EngineHost.cpp's were missed).
     ours = []
-    for f in glob.glob(os.path.join(REPO, "packaging/prefs/*.js")):
-        ours += re.findall(r'pref\(\s*"([^"]+)"', read(f))
+    for f in glob.glob(os.path.join(REPO, "packaging/prefs/*.js")) + glob.glob(os.path.join(REPO, "build/webos-oe/*.sh")):
+        ours += re.findall(r'\bpref\(\s*"([^"]+)"', read(f))
+    for f in glob.glob(os.path.join(REPO, "render/goanna/*.cpp")):
+        ours += re.findall(r'\b(?:Set|Get)(?:Bool|Int|Char|Cstring|String)?Pref\(\s*"([^"]+)"', read(f))
+        ours += re.findall(r'Preferences::(?:Set|Get)\w*\(\s*"([^"]+)"', read(f))
+    for f in glob.glob(os.path.join(REPO, "render/goanna/components/*.js")):
+        ours += re.findall(r'\.(?:get|set)(?:Bool|Int|Char|Complex)(?:Pref|Value)\(\s*"([^"]+)"', read(f))
     unknown = sorted(set(n for n in ours if not n.startswith("jihad.") and ('"%s"' % n) not in defaults))
     # A pref with no default may still be one the engine READS (Preferences::GetBool("…") and
     # the like): look for the name anywhere in the engine's sources before warning.

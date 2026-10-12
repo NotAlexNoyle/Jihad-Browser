@@ -1,0 +1,122 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+   Each shell's buttons on Jihad's own pages (cavekit-chrome-look.md R1): the page's root carries
+   data-shell (shell.js), and a button looks like one of the card it is shown in. Drawn here in CSS
+   from the shells' looks; no framework file is copied (Enyo 1's and Mojo's are Palm's, shipped only
+   on the device):
+     enyo  — webOS 3's dark pill: a rounded bar darker at the top than the bottom, a dark outline
+             with a light top edge, white text; red for the confirming Clear, mid-grey to go
+             somewhere; pressed is darker and sunk.
+     mojo  — webOS 1-2's glossy pill, split at its middle, in Mojo's dark-scene look (these pages are
+             dark; Mojo's light pill on them clashed): the command menu's glossy black, glossy
+             grey to go somewhere, glossy red for a confirming Clear, its blue when pressed.
+     mochi — the Mochi card's own flat buttons: grey, blue to go somewhere, dark red to clear.
+   Everything here is under html[data-shell=…], so it outranks the pages' own button rules and does
+   nothing where the attribute is absent. */
+
+/* ── Enyo 1 ───────────────────────────────────────────────────────────────────────────────────── */
+html[data-shell="enyo"] button {
+	-moz-appearance: none;
+	min-height: 45px;
+	padding: 0 20px;
+	font-family: Prelude, "Prelude Medium", Helvetica, Arial, sans-serif;
+	font-size: 18px;
+	color: #ffffff;
+	background: linear-gradient(to bottom, #2b2b2b, #434343);
+	border: 2px solid rgba(0, 0, 0, 0.55);
+	border-radius: 12px;
+	box-shadow: inset 0 1px 0 #5b5b5b, inset 0 -1px 0 #272727, 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+html[data-shell="enyo"] button:active {
+	background: linear-gradient(to bottom, #1d1d1d, #353535);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+html[data-shell="enyo"] button[disabled] {
+	color: #8a8a8a;
+	background: linear-gradient(to bottom, #3a3a3a, #474747);
+	box-shadow: inset 0 1px 0 #555555;
+}
+html[data-shell="enyo"] .btn-nav,
+html[data-shell="enyo"] .pane-tab.on {
+	background: linear-gradient(to bottom, #6c6c6c, #929292);
+	box-shadow: inset 0 1px 0 #aeaeae, inset 0 -1px 0 #646464, 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+html[data-shell="enyo"] .btn-nav:active {
+	background: linear-gradient(to bottom, #272727, #434343);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+html[data-shell="enyo"] .btn-go {
+	background: linear-gradient(to bottom, #c8362c, #e85c4e);
+	box-shadow: inset 0 1px 0 #eaa199, inset 0 -1px 0 #ad362e, 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+html[data-shell="enyo"] .btn-go:active {
+	background: linear-gradient(to bottom, #801c16, #c04437);
+}
+html[data-shell="enyo"] .pane-tab { border-radius: 12px; color: #ffffff; }
+
+/* ── Mojo ─────────────────────────────────────────────────────────────────────────────────────── */
+html[data-shell="mojo"] button {
+	-moz-appearance: none;
+	min-height: 46px;
+	padding: 0 20px;
+	font-family: Prelude, Helvetica, Arial, sans-serif;
+	font-size: 18px;
+	font-weight: bold;
+	color: #ffffff;
+	text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
+	background: linear-gradient(to bottom, #6a6a6a 0%, #2b2b2b 49%, #000000 51%, #2b2b2b 100%);
+	border: 1px solid #000000;
+	border-radius: 16px;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+html[data-shell="mojo"] button:active {
+	background: linear-gradient(to bottom, #a5cdf0 0%, #416e96 49%, #132c44 51%, #2d567a 100%);
+}
+html[data-shell="mojo"] button[disabled] {
+	color: #8a8a8a;
+	text-shadow: none;
+	background: linear-gradient(to bottom, #4a4a4a 0%, #2b2b2b 49%, #1a1a1a 51%, #262626 100%);
+}
+html[data-shell="mojo"] .btn-nav,
+html[data-shell="mojo"] .pane-tab.on {
+	background: linear-gradient(to bottom, #b4b4b4 0%, #7a7a7a 49%, #5c5c5c 51%, #6e6e6e 100%);
+	border-color: #2b2b2b;
+}
+html[data-shell="mojo"] .btn-go {
+	background: linear-gradient(to bottom, #f08a80 0%, #d9493d 49%, #c2291d 51%, #b52a20 100%);
+	border-color: #7a1a12;
+}
+html[data-shell="mojo"] .btn-go:active {
+	background: linear-gradient(to bottom, #b0453c, #801c16);
+}
+
+/* ── Mochi ────────────────────────────────────────────────────────────────────────────────────── */
+html[data-shell="mochi"] button {
+	-moz-appearance: none;
+	min-height: 44px;
+	padding: 10px 22px;
+	font-family: Prelude, Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	color: #ffffff;
+	background: #4a4a4a;
+	border: 0;
+	border-radius: 4px;
+	box-shadow: none;
+}
+html[data-shell="mochi"] button:active { background: #5a5a5a; }
+html[data-shell="mochi"] button[disabled] { opacity: 0.35; }
+html[data-shell="mochi"] .btn-nav,
+html[data-shell="mochi"] .pane-tab.on,
+html[data-shell="mochi"] button[type="submit"] { background: #3d6fb4; }
+html[data-shell="mochi"] .btn-nav:active,
+html[data-shell="mochi"] button[type="submit"]:active { background: #2f588f; }
+html[data-shell="mochi"] .btn-go { background: #5a2b2b; }
+html[data-shell="mochi"] .btn-go:active { background: #713636; }
+
+/* The pane tabs, in every shell: a little narrower than a button, so the seven fit one line on a
+   portrait card where they can (they wrap where they cannot; preferences.css). */
+html[data-shell] .pane-tab {
+	min-height: 44px;
+	padding: 0 14px;
+	font-size: 16px;
+}

@@ -1,0 +1,256 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+   about:addons as one of Jihad's own pages (cavekit-chrome-look.md R2): the same dark look as the
+   settings page and about:personas (packaging/prefsui/content/preferences.css) — a near-black page,
+   charcoal bars, dark rounded cards, the blue-grey of the chosen pane, controls a finger can hit
+   (44 px), Prelude where the device has it. (A light webOS look was tried first; beside Jihad's dark
+   pages it clashed — the owner, 2026-10-12: "there is a visual conflict that looks bad between dark
+   mode and light mode page style on about:addons".) components/jihadPersonas.js adds this sheet to
+   the page and marks its root with jihad-shell="enyo" | "mochi" | "mojo"; buttons then take that
+   shell's look, as on Jihad's other pages (shell.css; R1). Nothing in UXP's own files is changed, and
+   this build has no native theme (nothing drawn by -moz-appearance), so every control is drawn here. */
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+#addons-page {
+	background: #1c1c1c;
+	color: #e6e6e6;
+	font-family: Prelude, Helvetica, Arial, sans-serif;
+	font-size: 16px;
+}
+
+/* The bar: back, forward, the search and the gear. */
+#header {
+	background: #262626;
+	color: #f0f0f0;
+	padding: 6px 10px;
+	margin: 0;
+	min-height: 58px;
+	border-bottom: 1px solid #101010;
+}
+#header-search {
+	-moz-appearance: none;
+	min-height: 42px;
+	padding: 0 14px;
+	font-size: 16px;
+	color: #101010;
+	background: #f4f4f4;
+	border: 1px solid #101010;
+	border-radius: 21px;
+}
+
+/* The categories: a column of finger-sized rows; the one shown in the pages' blue-grey. */
+#categories {
+	-moz-appearance: none;
+	background: #202020;
+	border: 0;
+	border-right: 1px solid #2f2f2f;
+	margin: 0;
+	padding: 8px 0;
+}
+.category {
+	-moz-appearance: none;
+	min-height: 52px;
+	padding: 0 14px;
+	margin: 2px 8px;
+	color: #d8d8d8;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 8px;
+}
+.category[selected] {
+	color: #ffffff;
+	background: #3f5d6b;
+	border-color: #557a8c;
+}
+.category .category-name { font-size: 17px; }
+
+/* The lists: each add-on a dark rounded card, as the settings page's groups. */
+#view-port-container, #view-port, .view-pane, #list-view, #search-view, #updates-view, #detail-view {
+	-moz-appearance: none;
+	background: transparent;
+	border: 0;
+}
+.list, #addon-list, #search-list, #updates-list {
+	-moz-appearance: none;
+	background: transparent;
+	border: 0;
+	padding: 6px 8px;
+}
+.addon {
+	-moz-appearance: none;
+	margin: 6px 4px;
+	padding: 10px 12px;
+	color: #e6e6e6;
+	background: #232323;
+	border: 1px solid #2f2f2f;
+	border-radius: 8px;
+}
+.addon[selected] {
+	background: #232323;
+	color: #e6e6e6;
+	border-color: #557a8c;
+	box-shadow: 0 0 0 1px #557a8c;
+}
+.addon .name, .addon .name-container { font-size: 18px; font-weight: bold; color: #f0f0f0; }
+.addon .description, .addon .creator { color: #a8a8a8; }
+.addon[active="false"] .name { color: #8a8a8a; }
+.view-header, .global-warning-container, .sort-controls {
+	-moz-appearance: none;
+	background: transparent;
+	border: 0;
+	padding: 6px 12px;
+	color: #e6e6e6;
+}
+
+/* One add-on's page: a single large card. */
+#detail-view {
+	margin: 10px;
+	padding: 14px 18px;
+	background: #232323;
+	border: 1px solid #2f2f2f;
+	border-radius: 8px;
+}
+#detail-name { font-size: 22px; font-weight: bold; color: #f0f0f0; }
+.detail-row { min-height: 36px; }
+.detail-row-label { color: #a8a8a8; }
+
+/* Text: the engine's skin is Windows' classic one, which writes some labels in its own greys and
+   blacks; on this dark page every text is light, the secondary one a step dimmer (the owner,
+   2026-10-12: "text on about:addons is hard to read oftentimes"). */
+#addons-page label, #addons-page description, #addons-page .name, #addons-page .version,
+#addons-page .detail-row-value, #addons-page radio, #addons-page checkbox, #addons-page .view-header,
+#addons-page .global-warning, #addons-page .alert, #addons-page .alert * {
+	color: #e6e6e6;
+}
+#addons-page .description, #addons-page .creator, #addons-page .date-updated, #addons-page .detail-row-label,
+#addons-page .addon .status-container, #addons-page .jihad-themes-intro, #addons-page #search-filter-label {
+	color: #b8b8b8;
+}
+#addons-page radio[selected="true"] { color: #ffffff; font-weight: bold; }
+
+/* Messages: an alert or a "nothing here yet" on a card of its own. */
+.alert-container .alert, #addon-list-empty, #search-list-empty, #updates-list-empty {
+	-moz-appearance: none;
+	color: #e6e6e6;
+	background: #232323;
+	border: 1px solid #2f2f2f;
+	border-radius: 8px;
+	padding: 14px;
+}
+.text-link, .button-link { color: #8cc7ff; }
+
+/* ── Controls, in the look of the card the page is in ──────────────────────────────────────────
+   Buttons, the bar's toolbar buttons (back, forward, the gear — toolbarbuttons, not buttons) and the
+   dropdowns (a plugin's state, sort order) all take the shell's button (shell.css); the dropdowns add
+   an arrow. A "button-link" (More, Undo, Restart) is a link and is drawn as one. */
+button:not(.button-link), toolbarbutton, menulist {
+	-moz-appearance: none;
+	min-height: 44px;
+	min-width: 44px;
+	margin: 2px 4px;
+	padding: 0 14px;
+	font-family: Prelude, Helvetica, Arial, sans-serif;
+	font-size: 16px;
+}
+.button-box, .toolbarbutton-text, .menulist-label-box { -moz-appearance: none; border: 0; padding: 0; margin: 0; }
+#header toolbarbutton { min-width: 52px; margin: 0 6px 0 0; }
+#header toolbarbutton[disabled="true"] { opacity: 0.4; }
+/* The bar's icons (back, forward, the gear) are the skin's dark ones: light on the dark buttons. */
+#header .toolbarbutton-icon, #header .toolbarbutton-menu-dropmarker { filter: invert(100%); }
+#header .toolbarbutton-menu-dropmarker { display: none; }
+
+menulist { min-width: 200px; padding: 0 6px 0 14px; }
+menulist .menulist-label { margin: 0; }
+menulist .menulist-dropmarker {
+	-moz-appearance: none;
+	min-width: 26px;
+	padding: 0;
+	margin: 0 0 0 8px;
+	border: 0;
+	background: transparent;
+}
+/* The arrow: a small triangle drawn with borders (the skin's picture is for a native theme). */
+menulist .menulist-dropmarker .dropmarker-icon {
+	list-style-image: none;
+	width: 0;
+	height: 0;
+	border-left: 6px solid transparent;
+	border-right: 6px solid transparent;
+	border-top: 7px solid currentColor;
+}
+
+button.button-link {
+	-moz-appearance: none;
+	min-height: 0;
+	margin: 0 4px;
+	padding: 0;
+	color: #8cc7ff;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	text-decoration: underline;
+}
+
+/* Enyo 1: webOS 3's dark pill. */
+#addons-page[jihad-shell="enyo"] button:not(.button-link),
+#addons-page[jihad-shell="enyo"] toolbarbutton,
+#addons-page[jihad-shell="enyo"] menulist {
+	color: #ffffff;
+	background: linear-gradient(to bottom, #2b2b2b, #434343);
+	border: 2px solid rgba(0, 0, 0, 0.55);
+	border-radius: 12px;
+	box-shadow: inset 0 1px 0 #5b5b5b, inset 0 -1px 0 #272727, 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+#addons-page[jihad-shell="enyo"] button:not(.button-link):hover:active,
+#addons-page[jihad-shell="enyo"] toolbarbutton:hover:active,
+#addons-page[jihad-shell="enyo"] menulist[open="true"] { background: linear-gradient(to bottom, #1d1d1d, #353535); }
+#addons-page[jihad-shell="enyo"] button[disabled="true"] { color: #8a8a8a; }
+#addons-page[jihad-shell="enyo"] button.remove-btn,
+#addons-page[jihad-shell="enyo"] #detail-uninstall-btn {
+	background: linear-gradient(to bottom, #c8362c, #e85c4e);
+	box-shadow: inset 0 1px 0 #eaa199, inset 0 -1px 0 #ad362e, 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* Mojo: webOS 1-2's glossy pill, in Mojo's dark-scene look (shell.css). */
+#addons-page[jihad-shell="mojo"] button:not(.button-link),
+#addons-page[jihad-shell="mojo"] toolbarbutton,
+#addons-page[jihad-shell="mojo"] menulist {
+	color: #ffffff;
+	font-weight: bold;
+	background: linear-gradient(to bottom, #6a6a6a 0%, #2b2b2b 49%, #000000 51%, #2b2b2b 100%);
+	border: 1px solid #000000;
+	border-radius: 16px;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+#addons-page[jihad-shell="mojo"] button:not(.button-link):hover:active,
+#addons-page[jihad-shell="mojo"] toolbarbutton:hover:active,
+#addons-page[jihad-shell="mojo"] menulist[open="true"] {
+	background: linear-gradient(to bottom, #a5cdf0 0%, #416e96 49%, #132c44 51%, #2d567a 100%);
+}
+#addons-page[jihad-shell="mojo"] button[disabled="true"] { color: #8a8a8a; }
+#addons-page[jihad-shell="mojo"] button.remove-btn,
+#addons-page[jihad-shell="mojo"] #detail-uninstall-btn {
+	background: linear-gradient(to bottom, #f08a80 0%, #d9493d 49%, #c2291d 51%, #b52a20 100%);
+	border-color: #7a1a12;
+}
+
+/* Mochi: the Mochi card's own flat buttons. */
+#addons-page[jihad-shell="mochi"] button:not(.button-link),
+#addons-page[jihad-shell="mochi"] toolbarbutton,
+#addons-page[jihad-shell="mochi"] menulist {
+	color: #ffffff;
+	background: #4a4a4a;
+	border: 0;
+	border-radius: 4px;
+	box-shadow: none;
+}
+#addons-page[jihad-shell="mochi"] button:not(.button-link):hover:active,
+#addons-page[jihad-shell="mochi"] toolbarbutton:hover:active,
+#addons-page[jihad-shell="mochi"] menulist[open="true"] { background: #5a5a5a; }
+#addons-page[jihad-shell="mochi"] button[disabled="true"] { opacity: 0.35; }
+#addons-page[jihad-shell="mochi"] .addon button.enable-btn,
+#addons-page[jihad-shell="mochi"] #detail-enable-btn,
+#addons-page[jihad-shell="mochi"] #detail-prefs-btn { background: #3d6fb4; }
+#addons-page[jihad-shell="mochi"] button.remove-btn,
+#addons-page[jihad-shell="mochi"] #detail-uninstall-btn { background: #5a2b2b; }

@@ -10,12 +10,18 @@
 	color: #cfcfcf;
 }
 .intro a, .more a { color: #8cc7ff; }
+/* What an action came to: over the bottom of the page for a while, never in the flow above the list
+   (showing it there moved every card). */
 .status {
-	margin: 10px 20px;
-	padding: 10px 12px;
+	position: fixed;
+	left: 20px;
+	right: 20px;
+	bottom: 16px;
+	padding: 12px 14px;
 	background: #2c5f8a;
 	color: #fff;
 	border-radius: 6px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 .gallery { padding: 0 12px 6px 12px; }
 .card {
@@ -53,13 +59,20 @@
 /* The site's Personas: a search, a page at a time, updates (cavekit-addons-site.md R12, R13). */
 .search-row { display: flex; margin: 8px 12px 10px 12px; }
 .search-row input { flex: 1; min-height: 44px; font-size: 16px; padding: 6px 12px; border-radius: 22px; border: 1px solid #555; }
-.search-row button, .pager button, .more button {
+.search-row button, .more button {
 	min-height: 44px; min-width: 88px; margin-left: 8px; font-size: 16px; border-radius: 6px;
 	border: 1px solid #555; background: #f2f2f2; color: #111;
 }
 .search-row button { margin-left: 8px; }
-.pager { display: flex; align-items: center; justify-content: center; margin: 4px 12px 10px 12px; color: #cfcfcf; }
-.pager span { margin: 0 12px; }
-.pager button[disabled] { background: #9a9a9a; color: #333; }
 .more button { margin-left: 0; }
 #online-web { margin-right: 16px; }
+
+/* Your Personas: Remove asks again (the settings page's Clear does the same), the theme files on the
+   device as a list of buttons, and Undo inside the message at the bottom. */
+.card button.ask { background: #7a2a2a; border-color: #9a3a3a; color: #ffffff; }
+#files { padding: 4px 12px 8px 12px; }
+#files button.file { display: block; width: 100%; margin: 0 0 8px 0; text-align: left; }
+.status { display: flex; align-items: center; }
+.status #status-text { flex: 1; }
+.status #status-undo { flex: 0 0 auto; margin-left: 12px; min-height: 40px; }
+.status[hidden] { display: none !important; }

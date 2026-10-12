@@ -485,7 +485,7 @@ MainAssistant.prototype.applyHeaderHeight = function () {
 	}
 	var h = bar.offsetHeight;
 	var err = this.controller.get("jihad-error");
-	if (err) { err.style.marginTop = h + "px"; }
+	if (err) { err.style.top = h + "px"; }
 	if (h === this._headerHeight) {
 		return;
 	}

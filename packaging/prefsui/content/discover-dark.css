@@ -1,0 +1,22 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+   The add-on site's Get Add-ons pane, as about:addons shows it in Jihad: dark like the manager
+   around it and Jihad's other pages (the owner, 2026-10-12: "there is a visual conflict that looks
+   bad between dark mode and light mode page style on about:addons"). components/jihadPersonas.js
+   adds this sheet to that page only (the site's discover address); the site itself keeps its light
+   skin for every other browser. Selectors follow the site's components/discover/content/template.xhtml. */
+:root { color-scheme: dark; }
+body { background: #1c1c1c !important; color: #e6e6e6 !important; }
+a { color: #8cc7ff !important; }
+.card { background: #232323 !important; border-color: #2f2f2f !important; box-shadow: none !important; }
+h1, h2 { color: #f0f0f0 !important; }
+.intro p, .note, .tile .what span { color: #a8a8a8 !important; }
+.tile strong { color: #8cafbe !important; }
+.tile:active { background: #2c3a40 !important; }
+.tile::after { color: #6a6a6a !important; }
+.button {
+	background: #3f5d6b !important;
+	border-color: #557a8c !important;
+	color: #ffffff !important;
+}
+.button:active { background: #2f4752 !important; }

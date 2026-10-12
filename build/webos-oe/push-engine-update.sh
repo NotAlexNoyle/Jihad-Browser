@@ -139,6 +139,12 @@ for v in $VARIANTS; do
   # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet, nor one
   # installed before 2026-10-08 a personas/ one)
   novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" >/dev/null 2>&1 || true
+  # The bundled Personas are exactly the bundle's: a picture an earlier bundle shipped and this one
+  # does not (2026-10-12: fifteen became two, the rest on the add-on site) is removed, by name.
+  for f in $(sleep 2 | novacom run file://bin/ls -- "$HL/personas" 2>/dev/null || true); do
+    case "$f" in */*|.*|"") continue;; esac
+    [ -e "$BUNDLE/personas/$f" ] || { novacom run file://bin/rm -- -f "$HL/personas/$f" >/dev/null 2>&1 || true; say "[$v] removed personas/$f (no longer bundled)"; }
+  done
   for f in $OWN; do
     # The add-on manager's provider belongs to the engine it was built with. A daemon-only
     # push leaves libxul alone, so the provider goes only when the device already runs the

@@ -14,6 +14,8 @@
 	<title>Get Personas</title>
 	<link rel="stylesheet" href="chrome://jihad-prefs/content/preferences.css" type="text/css"/>
 	<link rel="stylesheet" href="chrome://jihad-prefs/content/personas.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/shell.css" type="text/css"/>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/shell.js"></script>
 </head>
 <body>
 	<div class="hdr">
@@ -21,41 +23,54 @@
 		<div class="sub">Jihad Browser</div>
 	</div>
 	<p class="intro">A Persona gives the browser's toolbar and buttons a picture and colours, in every
-	card of this browser. Tap <b>Wear</b> to put one on; the
-	<a id="personas-manager" href="about:addons">Personas manager</a> takes one off, removes it, and has
-	<b>Undo</b>.</p>
-	<div id="status" class="status" hidden="hidden"></div>
+	card of this browser. Wear one, take it off or remove it here; a change of look can be undone for
+	a short while.</p>
 	<section class="group">
+		<h2 class="group-title">Your Personas</h2>
+		<div id="mine" class="gallery"></div>
+		<div class="more">
+			<button id="from-file" type="button">Install from file…</button>
+		</div>
+		<div id="files" class="gallery" hidden="hidden"></div>
+	</section>
+	<section class="group" id="bundled-group" hidden="hidden">
 		<h2 class="group-title">Included with Jihad</h2>
 		<div id="bundled" class="gallery"></div>
 	</section>
 	<section class="group" id="online-group" hidden="hidden">
-		<h2 class="group-title">From Jihad Browser Add-ons</h2>
+		<h2 class="group-title">Jihad Browser Add-ons</h2>
 		<form id="online-search" class="search-row" action="#">
-			<input id="online-q" type="search" placeholder="Search Personas" maxlength="64"/>
+			<input id="online-q" type="search" placeholder="Search the site's Personas" maxlength="64"/>
 			<button type="submit">Search</button>
 		</form>
+		<div id="online-note" class="more" hidden="hidden"></div>
 		<div id="online" class="gallery"></div>
-		<div id="online-pager" class="pager" hidden="hidden">
-			<button id="online-prev" type="button">Previous</button>
-			<span id="online-page"></span>
-			<button id="online-next" type="button">Next</button>
-		</div>
+		<div class="more"><button id="online-more" type="button" hidden="hidden">More results</button></div>
 		<div class="more">
-			<a id="online-web" href="#" hidden="hidden">More on the web</a>
+			<a id="online-web" href="#" hidden="hidden">The add-on site</a>
 			<button id="check-updates" type="button">Check for updates</button>
 		</div>
 		<div id="updates" class="gallery"></div>
 	</section>
+	<section class="group" id="amo-group">
+		<h2 class="group-title">addons.mozilla.org</h2>
+		<form id="amo-search" class="search-row" action="#">
+			<input id="amo-q" type="search" placeholder="Search Firefox themes" maxlength="64"/>
+			<button type="submit">Search</button>
+		</form>
+		<div id="amo-note" class="more" hidden="hidden"></div>
+		<div id="amo" class="gallery"></div>
+		<div class="more"><button id="amo-more" type="button" hidden="hidden">More results</button></div>
+		<div class="more"><a href="https://addons.mozilla.org/firefox/themes/">addons.mozilla.org</a>: Firefox's
+		own gallery, searched above through its public catalogue (its web pages may stop this browser with a
+		robot check). Each card shows the theme's licence; Install asks first.</div>
+	</section>
 	<section class="group">
 		<h2 class="group-title">More Personas</h2>
-		<div class="more">
-			<a href="https://addons.mozilla.org/firefox/themes/">addons.mozilla.org</a>: thousands of
-			Personas. On a Persona's page tap <b>Download file</b> (the big button only offers Firefox),
-			and Jihad asks whether to wear it.
-		</div>
-		<div class="more">Any site that offers Personas for Firefox, Pale Moon or Basilisk works too.</div>
+		<div class="more">Any site that offers Personas for Firefox, Pale Moon or Basilisk works too, and a
+		Firefox theme file (.xpi) you downloaded installs with Install from file, above.</div>
 	</section>
+	<div id="status" class="status" hidden="hidden"><span id="status-text"></span><button id="status-undo" type="button" hidden="hidden">Undo</button></div>
 	<script type="application/javascript" src="chrome://jihad-prefs/content/personas.js"></script>
 </body>
 </html>

@@ -490,6 +490,26 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 78 — The server agent's work order, the gallery's flicker, each shell's buttons, Free Palestine (2026-10-12; added to the site, not a regeneration)
+
+Owner: "The active persona seems to flicker in about:personas. Fix that. Then there is a prompt from a claude agent on the riverstone relay server that you need to consider" (`/home/notalexnoyle/Documents/PROMPT-PC.md`); "buttons in mochi should be mochi style, buttons in enyo should be enyo style, buttons in mojo should be mojo style"; "draw a 'Free Palestine' persona for distribution with jihad browser". Answers: the flicker is while the page loads; bundle Free Palestine + Aurora Silk; every Jihad page takes the shell's buttons; MIT colour palettes allowed, credited. Kits: cavekit-personas-ui.md R8/R9, cavekit-persona-formats.md R4, cavekit-chrome-look.md (new), cavekit-addons-site.md. Site code in `../Riverstone-Addons` (branch `jihad`).
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-418 | about:personas: nothing moves or is redrawn while it loads | cavekit-personas-ui.md | R8 | — | yes | S | |
+| T-419 | Gallery: opens at once with the bundled two; the site searched in place (its full list stays on its page), no duplicates (owner: "bundled + site search only") | cavekit-personas-ui.md | R8 | T-418 | yes | M | |
+| T-430 | Gallery: addons.mozilla.org searched through its public API (its pages show this engine a bot check); Install fetched from AMO only, asks first naming it | cavekit-personas-ui.md | R8 | T-419 | yes | M | |
+| T-420 | Bundle Free Palestine (drawn: the land at dusk — terraced olive hills, Jerusalem and the Dome of the Rock, the flag; owner: "an artistic depiction of palestinian land") + Aurora Silk; the rest to the site's catalogue, credits split | cavekit-personas-ui.md | R9 | — | yes | M | |
+| T-421 | Index colours as a JSON string; the site page's Wear keeps colours too | cavekit-persona-formats.md | R4 | — | yes | S | |
+| T-422 | Momentum on Jihad's pages: no scroll echo while the card streams positions (daemon); Mochi hands flicks to the adapter | cavekit-chrome-look.md | R3 | — | yes (finger: owner) | M | |
+| T-423 | Each shell's buttons on Settings, about:personas, about:addons | cavekit-chrome-look.md | R1 | — | yes | M | |
+| T-424 | about:addons in the webOS style, every function kept | cavekit-chrome-look.md | R2 | T-423 | yes | L | |
+| T-425 | Site: kinds and colours (migration 001, importer, feed, page, update service), the catalogue's palettes | cavekit-addons-site.md | R5, R6 | T-420 | no | L | |
+| T-426 | Site: discover pane in the Jihad skin; panel text; fail2ban include; DEPLOY.md | cavekit-addons-site.md | R7, R10 | — | no | M | |
+| T-427 | Device, against the local copy: every kind from the gallery and the page — previews, Wear asks first, listed in about:addons, colours applied; the refusal of a theme with neither picture nor colour | cavekit-persona-formats.md | R1, R4 | T-419, T-421, T-425 | yes | M | |
+| T-428 | Pack the site and the catalogue, write the reply to the server agent, one wormhole code | cavekit-addons-site.md | R10 | T-425, T-426, T-429 | no | S | |
+| T-429 | Review: Codex (credits back 5:29 PM) or the inspector, and fixes | — | — | T-418..T-427 | no | M | |
+
 ## Tier 77 — Settings: a clear way to Personas, extensions and plugins (2026-10-12; added to the site, not a regeneration)
 
 Owner: "add a clear route to about:personas and extensions in browser settings on all 3 variants"; then no extension named as the row's subheading, a Plugins row with the Flash Player's details, and one button per row. Kit: cavekit-preferences-ui.md R8. One page (about:settings) serves all three shells, so one change covers them; each is checked on the device.

@@ -142,7 +142,11 @@ palette theme does not stop at the toolbar.
   colour-only Persona converted before its gradient was stretched (`fit: "cover"`) is drawn
   stretched. *(Code, round 15.)*
 - [~] An index Persona (about:personas, the add-on site) may carry the same colour slots (not
-  pictures beyond its header), under the same checks. *(Code.)*
+  pictures beyond its header), under the same checks. *(Code.)* The site sends them as `colors`, a
+  JSON string of the slot object (its feed keeps every field a string), with `kind` "classic",
+  "colors" or "layered"; a colour-only or layered theme arrives with a header the site drew or
+  merged, so every browser can wear it (2026-10-12). Jihad reads `colors` as an object or as such a
+  string, from the gallery and from the site's own Wear buttons alike.
 **Dependencies:** R1–R3, cavekit-personas-ui.md R3, R8
 
 ## Out of Scope

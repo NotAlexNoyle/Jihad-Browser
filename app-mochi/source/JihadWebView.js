@@ -122,6 +122,12 @@ enyo.kind({
 			// Lower the VKB when the plugin loses focus (BasicWebView blur).
 			this._blurBind = this._blurBind || enyo.bind(this, "blurHandler");
 			node.addEventListener("blur", this._blurBind);
+			// A flick carries on as momentum only if it reaches the adapter's scroller: webOS WebKit
+			// sends the finger's "flick" (xVel, yVel) to the node, and BasicWebView.flickHandler hands
+			// it on; this card had no such hand-off, so every flick stopped dead
+			// (cavekit-chrome-look.md R3).
+			this._flickBind = this._flickBind || enyo.bind(this, "flickHandler");
+			node.addEventListener("flick", this._flickBind);
 			if (this.adapterReady()) {
 				this.connect();
 			}
@@ -141,6 +147,12 @@ enyo.kind({
 	blurHandler: function() {
 		if (window.PalmSystem) {
 			window.PalmSystem.editorFocused(false, 0, 0);
+		}
+	},
+	//* BasicWebView.flickHandler: the flick's velocity to the adapter's kinetic scroller.
+	flickHandler: function(inEvent) {
+		if (inEvent && typeof inEvent.xVel === "number" && typeof inEvent.yVel === "number") {
+			this._call("handleFlick", [inEvent.xVel, inEvent.yVel]);
 		}
 	},
 

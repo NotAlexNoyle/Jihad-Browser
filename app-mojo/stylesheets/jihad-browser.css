@@ -156,8 +156,16 @@
 	max-width: 100%;
 }
 
-/* Error panel — what a failed load shows instead of an empty card. */
+/* Error panel — what a failed load (or a lost engine) shows. Over the page, just under the bar
+   (applyHeaderHeight sets its top), never in the flow: in the flow its showing and hiding moved the
+   page and the address bar with it (the owner, 2026-10-12: "the lost connection to the browser engine
+   message moves the urlbar when it shouldnt"). */
 .jihad-error {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 15;
 	width: 100%;
 	padding: 24px 8%;
 	-webkit-box-sizing: border-box; box-sizing: border-box;

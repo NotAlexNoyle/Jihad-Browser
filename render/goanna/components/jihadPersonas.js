@@ -661,7 +661,13 @@ function previewAllowed(origin) {
 function keepIndexColors(id, json) {
   let raw = null;
   try { raw = JSON.parse(String(json || "")); } catch (e) { raw = null; }
-  let colors = raw && typeof raw === "object" ? slotColors(raw.colors) : null;
+  let c = raw && typeof raw === "object" ? raw.colors : null;
+  // The add-on site's feed keeps every field a string, so its colours come as a JSON string of the
+  // slots (cavekit-persona-formats.md R4); a page's own theme object may carry them as an object.
+  if (typeof c === "string") {
+    try { c = c.length <= 8192 ? JSON.parse(c) : null; } catch (e) { c = null; }
+  }
+  let colors = slotColors(c);
   try { writeExtras(id, colors ? {colors: colors} : null); } catch (e) { log("colours of a Persona could not be kept: " + e); }
 }
 
@@ -716,12 +722,13 @@ function handle(req) {
 //     should be shown for all personas", "default version 1.0");
 //   - a picture made as a wallpaper (taller than a toolbar by far) is fitted, not cropped to its
 //     corner (owner: "blue nebula looks like it isnt working properly");
-//   - Get Personas, and Install from file — the .xpi files already on the device (R4);
+//   - a link to the gallery (about:personas), and Install from file — the .xpi files already on the
+//     device (R4);
 //   - the Personas that come with Jihad (a Frutiger Aero set, owner 2026-10-08: "add fruiter
 //     aero style themes") join the list once, as ordinary rows;
 //   - a few sentences on what a persona is when there are none yet (R5).
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
-// "Get Personas" opens the browser's own gallery (about:personas), unless the pref Basilisk uses
+// The gallery link opens the browser's own gallery (about:personas), unless the pref Basilisk uses
 // for its "Get More Themes" names another place.
 const PREF_GET_MORE = "lightweightThemes.getMoreURL";
 function getPersonasURL() {
@@ -744,9 +751,12 @@ function themeIdOf(addonId) {
 const XPI_DIRS = ["/media/internal/downloads", "/media/internal"];
 const PANE_CSS =
   "@namespace url(\"" + XUL_NS + "\");\n" +
-  "#addons-page button { min-height: 44px !important; min-width: 64px !important; }\n" +
+  "#addons-page button:not(.button-link) { min-height: 44px !important; min-width: 64px !important; }\n" +
   "#addons-page .category { min-height: 52px; }\n" +
   "#addons-page[jihad-themes-view=\"true\"] #addon-list-empty { display: none; }\n" +
+  // Only the worn Persona here: the list lives in the gallery, which the card can scroll (the owner,
+  // 2026-10-12: "I cant scroll down in personas in about:addons").
+  "#addons-page[jihad-themes-view=\"true\"] #addon-list > richlistitem:not([active=\"true\"]) { display: none !important; }\n" +
   "#jihad-themes-box { padding: 10px 12px 4px; }\n" +
   "#jihad-themes-box .jihad-themes-intro { margin: 0 0 8px; font-size: 1.05em; }\n" +
   "#jihad-themes-box .jihad-row { min-height: 64px; padding: 6px 10px; margin: 0 0 8px;\n" +
@@ -754,7 +764,11 @@ const PANE_CSS =
   "#jihad-themes-box .jihad-row-name { font-weight: bold; font-size: 1.15em; }\n" +
   "#jihad-themes-box .jihad-in-use { font-weight: bold; }\n" +
   "#jihad-themes-box .jihad-files button { -moz-box-pack: start; }\n" +
-  "#jihad-default-row { background: #e8e8e8; color: #222; }\n" +
+  "#jihad-default-row { background: #2a2a2a; color: #e6e6e6; border-color: #3a3a3a; }\n" +
+  "#jihad-gallery-link { background: #263239; color: #e6e6e6; border-color: #3f5d6b; cursor: pointer; }\n" +
+  "#jihad-gallery-link .jihad-row-name { color: #8cc7ff; }\n" +
+  "#jihad-gallery-link:hover:active { background: #2f4752; }\n" +
+  "#jihad-gallery-link .jihad-chevron { font-size: 30px; color: #8cafbe; margin: 0 6px; }\n" +
   "#jihad-undo-bar { background: #2c5f8a; color: #fff; }\n";
 
 let paneWindows = new Set();
@@ -768,6 +782,20 @@ function later(ms, fn) {
   t.initWithCallback({notify: function() { timers.delete(t); try { fn(); } catch (e) { log("persona timer: " + e); } }},
                      Math.max(0, ms), Ci.nsITimer.TYPE_ONE_SHOT);
   return t;
+}
+
+// The add-on site's Get Add-ons pane (extensions.webservice.discoverURL): dark inside Jihad, like the
+// manager around it (packaging/prefsui/content/discover-dark.css). Matched by its site and its
+// component=discover, whatever else the address carries.
+const DISCOVER_CSS = "chrome://jihad-prefs/content/discover-dark.css";
+function isDiscoverDocument(doc) {
+  let u = "", want = "";
+  try { u = String(doc.documentURI || ""); } catch (e) { return false; }
+  try { want = Services.prefs.getCharPref("extensions.webservice.discoverURL"); } catch (e) { return false; }
+  try {
+    let page = Services.io.newURI(u, null, null), pane = Services.io.newURI(want.replace(/%[A-Z_]+%/g, "x"), null, null);
+    return page.schemeIs("https") && page.prePath === pane.prePath && /[?&]component=discover(&|#|$)/.test(page.path);
+  } catch (e) { return false; }
 }
 
 function isAddonsDocument(doc) {
@@ -1196,8 +1224,18 @@ function installThemeFile(file) {
 function buildBox(win) {
   let doc = win.document;
   let box = xul(doc, "vbox", {id: "jihad-themes-box"});
+  // Finding Personas is the gallery's (about:personas): this pane manages the ones installed and
+  // leads there with one link, rather than doing the gallery's work again (the owner, 2026-10-12:
+  // "about:addons should not duplicate behavior from about:personas but instead link to it elegantly").
+  let gallery = xul(doc, "hbox", {id: "jihad-gallery-link", "class": "jihad-row", align: "center"});
+  let galleryText = xul(doc, "vbox", {flex: "1"});
+  galleryText.appendChild(xul(doc, "label", {"class": "jihad-row-name", value: "Your Personas, and more to find"}));
   let intro = xul(doc, "description", {"class": "jihad-themes-intro"});
-  box.appendChild(intro);
+  galleryText.appendChild(intro);
+  gallery.appendChild(galleryText);
+  gallery.appendChild(xul(doc, "label", {"class": "jihad-chevron", value: "\u203A"}));
+  gallery.addEventListener("click", function() { win.location.href = getPersonasURL(); });
+  box.appendChild(gallery);
 
   let undoBar = xul(doc, "hbox", {id: "jihad-undo-bar", "class": "jihad-row", align: "center", hidden: "true"});
   let undoLabel = xul(doc, "label", {flex: "1"});
@@ -1219,9 +1257,7 @@ function buildBox(win) {
   row.appendChild(names); row.appendChild(inUse); row.appendChild(wear);
   box.appendChild(row);
 
-  let actions = xul(doc, "hbox", {align: "center"});
-  let get = xul(doc, "button", {label: "Get Personas"});
-  get.addEventListener("command", function() { win.location.href = getPersonasURL(); });
+  let actions = xul(doc, "hbox", {align: "center", hidden: "true"});   // Install from file: in the gallery now
   let fromFile = xul(doc, "button", {label: "Install from file\u2026"});
   let files = xul(doc, "vbox", {"class": "jihad-files", hidden: "true"});
   fromFile.addEventListener("command", function() {
@@ -1237,7 +1273,7 @@ function buildBox(win) {
     });
     files.hidden = !files.hidden;
   });
-  actions.appendChild(get); actions.appendChild(fromFile);
+  actions.appendChild(fromFile);
   box.appendChild(actions);
   box.appendChild(files);
 
@@ -1284,7 +1320,8 @@ function decorateRow(doc, item, theme, isCurrent) {
     pane.style.setProperty("border-radius", "6px", "important");
     pane.style.setProperty("padding", "4px 8px", "important");
   }
-  ["name", "description", "date-updated", "version"].forEach(function(a) {
+  // "More" too: a link in the page's light blue vanished on a light Persona's row.
+  ["name", "description", "date-updated", "version", "details-btn"].forEach(function(a) {
     let el = anon("anonid", a);
     if (el) { el.style.setProperty("color", text || "#ffffff", "important"); }
   });
@@ -1341,10 +1378,8 @@ function decoratePane(win) {
   if (undo && Date.now() > undo.until) { undo = null; }
   let parts = box._jihad;
   parts.intro.textContent = used.length ?
-    "A Persona gives the browser's toolbar and buttons a picture and colours, in every card of this browser." :
-    "A Persona gives the browser's toolbar and buttons a picture and colours, in every card of this browser. " +
-    "You have none yet: tap Get Personas, pick one you like, and say yes when the browser asks. " +
-    "A Persona you downloaded as an .xpi file installs with Install from file.";
+    "In the gallery: wear, take off and remove the " + used.length + " you have, find more, and install from a file." :
+    "You have none yet. A Persona gives the toolbar and buttons a picture and colours: find one in the gallery.";
   parts.inUse.hidden = !!cur;
   parts.wear.hidden = !cur;
   parts.undoBar.hidden = !undo;
@@ -1382,14 +1417,32 @@ function refreshPanes() {
   });
 }
 
+// The add-ons manager's look (packaging/prefsui/content/addons.css), and the shell this variant's
+// daemon serves: its upstart job names it in JIHAD_BS_NAME (as packaging/prefsui/content/shell.js
+// reads it for Jihad's other pages). "" elsewhere: the desktop build keeps a plain look.
+const ADDONS_CSS = "chrome://jihad-prefs/content/addons.css";
+let shellCache = null;
+function shellName() {
+  if (shellCache === null) {
+    let name = "";
+    try { name = Cc["@mozilla.org/process/environment;1"].getService(Ci.nsIEnvironment).get("JIHAD_BS_NAME"); } catch (e) {}
+    shellCache = {"jihad-browser": "enyo", "jihad-browser-mochi": "mochi", "jihad-browser-mojo": "mojo"}[name] || "";
+  }
+  return shellCache;
+}
+
 function attachPane(win) {
   if (paneWindows.has(win)) { return; }
   paneWindows.add(win);
   let doc = win.document;
+  // The whole page in the webOS style, its buttons in the look of the card it is in
+  // (cavekit-chrome-look.md R1, R2); then the Personas pane's own rules on top.
+  if (shellName() && doc.documentElement) { doc.documentElement.setAttribute("jihad-shell", shellName()); }
   try {
-    win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils)
-      .loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
-  } catch (e) { log("themes pane style: " + e); }
+    let utils = win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
+    utils.loadSheetUsingURIString(ADDONS_CSS, Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
+    utils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
+  } catch (e) { log("add-ons manager style: " + e); }
   let again = function() { try { decoratePane(win); } catch (e) { log("themes pane: " + e); } };
   doc.addEventListener("ViewChanged", again, true);
   let list = doc.getElementById("addon-list");
@@ -1425,6 +1478,67 @@ function forgetThemeFiles(id) {
   } catch (e) { log("theme files could not be removed: " + e); }
 }
 
+// addons.mozilla.org's theme files: asked for only there, followed only to its own file hosts, and
+// no bigger than a theme package may be (the pictures inside are bounded again by the conversion).
+const AMO_FILE = /^https:\/\/addons\.mozilla\.org\/[^\s"'<>]+\.xpi$/;
+const AMO_HOSTS = ["addons.mozilla.org", "addons.cdn.mozilla.net"];
+const AMO_MAX_BYTES = 6 * 1024 * 1024;
+function fetchAmoTheme(url, name) {
+  let answer = function(ok, message) {
+    try { Services.obs.notifyObservers(null, "jihad-personas-amo", JSON.stringify({url: url, ok: ok, message: message})); } catch (e) {}
+  };
+  let label = String(name || "The theme").slice(0, 80);
+  let x = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nsIXMLHttpRequest);
+  x.open("GET", url, true);
+  x.responseType = "arraybuffer";
+  x.timeout = 60000;
+  x.onprogress = function(e) { if (e.loaded > AMO_MAX_BYTES) { x.abort(); answer(false, label + " is too big to be a theme."); } };
+  x.onerror = x.ontimeout = function() { answer(false, label + " could not be fetched from addons.mozilla.org."); };
+  x.onload = function() {
+    let host = "";
+    try { host = Services.io.newURI(String(x.responseURL || url), null, null).host; } catch (e) {}
+    let bytes = x.response ? new Uint8Array(x.response) : null;
+    if (x.status !== 200 || !bytes || AMO_HOSTS.indexOf(host) < 0 || bytes.length > AMO_MAX_BYTES) {
+      answer(false, label + " could not be fetched from addons.mozilla.org.");
+      return;
+    }
+    let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
+    file.append("jihad-amo-theme.xpi");
+    file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0o600);
+    try {
+      let out = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+      out.init(file, 0x02 | 0x08 | 0x20, 0o600, 0);
+      let bin = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+      bin.setOutputStream(out);
+      bin.writeByteArray(bytes, bytes.length);
+      bin.close();
+      let bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
+      bag.setPropertyAsAString("path", file.path);
+      bag.setPropertyAsAString("origin", "https://addons.mozilla.org");
+      bag.setPropertyAsBool("converted", false);
+      let before = null;
+      try { before = manager().currentTheme; } catch (e) {}
+      handleStaticTheme(bag, "addons.mozilla.org");
+      let converted = false;
+      try { converted = bag.getPropertyAsBool("converted"); } catch (e) {}
+      // Converted and then declined also says converted: what tells a yes is the theme worn now.
+      let worn = false;
+      try {
+        let cur = manager().currentTheme;
+        worn = !!cur && (!before || cur.id !== before.id || cur.name === label);
+      } catch (e) {}
+      answer(converted && worn, !converted ? label + " is not a theme this browser can wear."
+                                           : (worn ? "Wearing " + label + "." : "Not installed."));
+    } catch (e) {
+      log("theme from addons.mozilla.org: " + e);
+      answer(false, label + " could not be installed.");
+    } finally {
+      try { if (file.exists()) { file.remove(false); } } catch (e) {}
+    }
+  };
+  x.send();
+}
+
 // about:personas (packaging/prefsui/content/personas.js) asks through "jihad-personas-gallery":
 //   list    → the bundled Personas, each with its credits and whether it is installed / worn;
 //   wear    → put a bundled one on (installing it if it is not in the list);
@@ -1432,6 +1546,9 @@ function forgetThemeFiles(id) {
 function galleryRequest(bag) {
   let action = "";
   try { action = bag.getPropertyAsAString("action"); } catch (e) {}
+  // The installed Personas' pictures are resource://jihad-themes/ addresses, which resolve only once
+  // that root is set: the gallery opened first after a start showed them blank (the owner, 2026-10-12).
+  try { ensureThemesResource(); } catch (e) {}
   let get = function(k) { try { return bag.getPropertyAsAString(k); } catch (e) { return ""; } };
   let reply = function(v) { bag.setPropertyAsAString("result", JSON.stringify(v)); };
   let LWTM = manager(), cur = null, used = [];
@@ -1478,6 +1595,79 @@ function galleryRequest(bag) {
     LWTM.resetPreview();
     wearTheme(theme);
     notify("info", "Persona applied: " + theme.name);
+    reply({ok: true});
+    return;
+  }
+  // The Personas installed, managed in the gallery (the owner, 2026-10-12: about:addons' lists
+  // cannot be scrolled by the card, so its Personas category is short and this page holds them):
+  //   mine        → each installed Persona (its picture, colours, credits, whether worn) and Undo;
+  //   wearId      → wear one of them;  takeOff → the default look;  undo → back to the look before;
+  //   remove      → uninstall it (the add-on manager's own uninstall; its pictures go with it);
+  //   files / installFile → the theme files (.xpi) on the device, and installing one.
+  if (action === "mine") {
+    if (undo && Date.now() > undo.until) { undo = null; }
+    let credits = {};
+    bundledPersonas().forEach(function(b) { credits[b.theme.id] = b.license || ""; });
+    reply({undo: undo ? {name: String(undo.name || "")} : null,
+           list: used.slice(0, 60).map(function(t) {
+             return {id: t.id, name: t.name || "", author: t.author || "", version: t.version || "",
+                     accentcolor: t.accentcolor || "", textcolor: t.textcolor || "",
+                     preview: t.previewURL || t.headerURL || "", license: credits[t.id] || "",
+                     worn: !!(cur && cur.id === t.id)};
+           })});
+    return;
+  }
+  if (action === "wearId") {
+    let t = used.filter(function(x) { return x.id === get("id"); })[0];
+    if (!t) { reply({ok: false}); return; }
+    LWTM.currentTheme = t;
+    notify("info", "Persona applied: " + t.name);
+    reply({ok: true});
+    return;
+  }
+  if (action === "takeOff") {
+    LWTM.currentTheme = null;
+    notify("info", "Persona taken off.");
+    reply({ok: true});
+    return;
+  }
+  if (action === "undo") {
+    let had = !!undo;
+    undoChange();
+    reply({ok: had});
+    return;
+  }
+  if (action === "remove") {
+    let id = get("id");
+    if (!installed[id]) { reply({ok: false}); return; }
+    try {
+      let AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+      AM.getAddonByID(id + ID_SUFFIX, function(addon) {
+        try { if (addon) { addon.uninstall(); } } catch (e) { log("remove " + id + ": " + e); }
+        try { Services.obs.notifyObservers(null, "jihad-personas-mine", id); } catch (e) {}
+      });
+      reply({ok: true});
+    } catch (e) { reply({ok: false}); }
+    return;
+  }
+  if (action === "files") {
+    reply(xpiFilesOnDevice().slice(0, 40).map(function(f) { return {name: f.leafName, path: f.path}; }));
+    return;
+  }
+  if (action === "installFile") {
+    let f = xpiFilesOnDevice().filter(function(x) { return x.path === get("path"); })[0];
+    if (!f) { reply({ok: false}); return; }
+    installThemeFile(f);
+    reply({ok: true});
+    return;
+  }
+  // A theme from addons.mozilla.org's search (the gallery reads its public API; its web pages no
+  // longer open in this engine): fetched here, then converted like any theme file, asking first and
+  // naming addons.mozilla.org. The answer comes later, on "jihad-personas-amo".
+  if (action === "amo") {
+    let url = get("url");
+    if (!AMO_FILE.test(url)) { reply({ok: false, message: "That is not a theme file from addons.mozilla.org."}); return; }
+    fetchAmoTheme(url, get("name"));
     reply({ok: true});
     return;
   }
@@ -1566,8 +1756,24 @@ JihadPersonas.prototype = {
         if (lastSeen === undefined) { try { lastSeen = manager().currentTheme || null; } catch (e) {} }
         // Before the page lists its add-ons: the bundled Personas join the list first.
         try { if (isAddonsDocument(win.document)) { offerBundledOnce(); } } catch (e) { log("bundled Personas: " + e); }
-        win.addEventListener("load", function() {
+        // The manager is decorated once its document is there: at DOMContentLoaded, at load, and once
+        // more a moment later — a page reached by a link from about:personas was once left bare
+        // (attachPane does nothing a second time).
+        let attach = function() {
           try { if (isAddonsDocument(win.document)) { attachPane(win); } } catch (e) { log("themes pane: " + e); }
+        };
+        win.addEventListener("load", function() { attach(); later(1500, attach); });
+        win.addEventListener("DOMContentLoaded", attach);
+        // Before its first paint, so the light page never shows.
+        win.addEventListener("DOMContentLoaded", function() {
+          try {
+            // Only the site's Jihad-skinned pane (its tiles): an older pane keeps its own colours,
+            // which this sheet would leave light text on light cards.
+            if (isDiscoverDocument(win.document) && win.document.querySelector(".tiles")) {
+              win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils)
+                .loadSheetUsingURIString(DISCOVER_CSS, Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
+            }
+          } catch (e) { log("discover pane style: " + e); }
         });
       } catch (e) {}
       return;

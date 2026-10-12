@@ -2396,8 +2396,15 @@ void BrowserPageGoanna::emitScrollIfChanged() {
     double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
     long dy = (long)sy - (long)((double)mAdapterScrollY / z); if (dy < 0) dy = -dy;
     long dx = (long)sx - (long)((double)mAdapterScrollX / z); if (dx < 0) dx = -dx;
-    bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
-                         dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
+    // While the card is streaming positions (a drag, or a flick coasting: one every frame), nothing
+    // is echoed at all: an echo resets the card's kinetic scroller, so a coast that ran past where
+    // the engine stops (the page's end, or a page measured taller than it scrolls) would stop dead.
+    // Jihad's own pages are drawn at zoom 1, the only zoom this echo runs at, and their flicks were
+    // reported to stop dead (cavekit-chrome-look.md R3) — the likeliest cause, which only a finger
+    // can confirm. Once the stream pauses, a real difference is still reported.
+    int64_t sinceScroll = jihadNowMs() - mLastScrollMs;
+    bool adapterDriven = sinceScroll < 300 ||
+                         (sinceScroll < 1500 && dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2));
     if (!adapterDriven) {
       fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (content-initiated)\n", sx, sy);
       mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)

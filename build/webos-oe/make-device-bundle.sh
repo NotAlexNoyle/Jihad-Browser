@@ -231,6 +231,7 @@ MANIFEST
 	# nothing, and "unknown protocol" points nowhere near this block.
 	for f in jihad-prefsui.manifest prefsui/content/preferences.html \
 	         prefsui/content/preferences.js prefsui/content/preferences.css prefsui/content/personas.html prefsui/content/personas.js prefsui/content/personas.css \
+	         prefsui/content/shell.js prefsui/content/shell.css \
 	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }
 	done

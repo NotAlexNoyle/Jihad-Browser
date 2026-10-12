@@ -176,6 +176,25 @@ browser, ready to show an online index the project publishes later.
   yet: the page says the site cannot be reached.)*
 - [x] Everything shown from an index is put in as text, and installs go through the same
   component, conversion and confirm as every other Persona.
+- [ ] The page opens at once with the Personas that come with Jihad, and asks no site for anything
+  until the user searches (the owner, 2026-10-12, over the server agent's "show every page":
+  "the 'More on the web' riverstone relay page is showing all the same themes as the about:personas
+  page, but its slowing it down. reconcile these better" — answered "bundled + site search only"):
+  - the add-on site's Personas are searched in place (`q=`; an empty search shows the newest), a
+    page at a time with More results, none shown twice and none that comes with Jihad again (the
+    same id; an older site matched by name and author); its whole list stays on its own page,
+    "Browse them all on the web";
+  - addons.mozilla.org's themes are searched in place through its public API (its web pages show
+    this engine a bot check and list nothing — measured 2026-10-12): each card shows the theme's
+    preview, author and licence; Install fetches the theme file from addons.mozilla.org only (its
+    file hosts, at most 6 MB) and converts it as any theme file, asking first and naming
+    addons.mozilla.org. *(Device.)*
+- [ ] Nothing on the page moves or is drawn twice while it loads (the owner, 2026-10-12: "the
+  active persona seems to flicker in about:personas" while the page loads): no message is put above
+  the list while the site's Personas come in, and the cards already drawn are not drawn again.
+  *(Device.)*
+- [ ] Each card shows its picture (the site's previews) and Wear asks first, naming the site; a
+  Persona worn from the site is listed in about:addons → Personas. *(Device, against the site.)*
 **Dependencies:** R4, R7
 
 ### R9: Only Personas we may share, credited
@@ -190,7 +209,14 @@ those we do."
 - [x] Ten such Personas are included by default (added to every profile's list once, not worn):
   Space Fantasy, Linen Light, Pastel Gradient, Carbon Light, Summerwood, Autumn Forest, Mont Blanc
   vu du Bettes St Gervais, Dream of Waves, Two little birds, Field of flowers. *(Device: all three
-  profiles.)*
+  profiles.)* *(Superseded 2026-10-12 by the next criterion; they now come from the site.)*
+- [ ] Two come with the browser (the owner, 2026-10-12): **Free Palestine** — the owner asked for
+  "an artistic depiction of palestinian land", then "photo realistic": made by make-personas.py from
+  "Village of Battir" by Labour Palestine (CC BY 2.0, credited on its card, in CREDITS.md and NOTICE),
+  with the flag and the words drawn over it — and **Aurora Silk**; every other Persona comes from the add-on site, whose
+  catalogue (Riverstone-Addons `catalogue/`, with its own credits) now holds the rest. A profile
+  offered the earlier set keeps the ones it has; Free Palestine is added once, not worn.
+  *(Device, all three.)*
 - [x] Persona art without such a licence is gone from the repository (the Water-Like test assets;
   tests use Carbon Light) and from the README's screenshots (Running Foxes, Aurora Borealis
   Delights, Blue Nebula, Dark Fox, Purple Night were removed from the device profiles too).

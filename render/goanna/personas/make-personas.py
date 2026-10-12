@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 # Copyright 2026 NotAlexNoyle. Licensed under the Mozilla Public License 2.0.
-"""Draws the Personas that come with Jihad Browser: a Frutiger Aero set (glossy water, sky, a
-green hill, light ribbons, lime orbs), the look of the late-2000s screens the TouchPad was born
-among. Every pixel is drawn here from gradients and shapes, so the art is this project's own.
+"""Draws the project's own Personas: a Frutiger Aero set (glossy water, sky, a green hill, light
+ribbons, lime orbs), the look of the late-2000s screens the TouchPad was born among, drawn here from
+gradients and shapes, so the art is this project's own; and Free Palestine (the owner, 2026-10-12),
+made from a CC BY 2.0 photograph of Battir (see BATTIR below) with the flag and the words (Noto Sans
+Black, SIL Open Font License) drawn over it.
 
-Output (beside this script): one <slug>.jpg header picture per Persona and personas.json, which the browser's
-Persona component (components/jihadPersonas.js) offers in about:addons → Personas.
+Two come with the browser (the owner, 2026-10-12: Free Palestine and Aurora Silk); the add-on site
+carries the rest (Riverstone-Addons `catalogue/`, where the Personas made by others now live too).
+
+  make-personas.py                    the bundled two: <slug>.jpg beside this script and personas.json,
+                                      which components/jihadPersonas.js offers in about:addons → Personas
+  make-personas.py --catalogue DIR    also the other drawn pictures, into DIR, with their entries in
+                                      DIR/drawn.json for the catalogue's personas.json
+  --redraw                            draw pictures that exist already (their bytes name them: a new
+                                      picture is a new Persona id, so the default leaves them alone)
 
 A header is 1600 x 160: wide enough for a landscape card, tall enough for every shell's bar.
 The browser anchors it top right, as Firefox does, so the interest is in the top 80 px and the
@@ -13,7 +22,7 @@ right 1024 px.
 """
 import json, math, os, random
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 W, H, K = 1600, 160, 2            # final size, supersample factor
@@ -202,6 +211,177 @@ def orbs(out_name):
     return finish(a, out_name)
 
 
+FONT = "/usr/share/fonts/noto/NotoSans-Black.ttf"   # SIL Open Font License; only its rendering is kept
+
+
+def keffiyeh(base, y0, y1):
+    """The keffiyeh's fishnet: two sets of fine diagonals in a band, with its heavier edge lines."""
+    m = Image.new("L", (SW, SH), 0)
+    d = ImageDraw.Draw(m)
+    step = 14 * K
+    for x in range(-SH, SW + SH, step):
+        d.line([(x, y1), (x + (y1 - y0), y0)], fill=120, width=K)
+        d.line([(x, y0), (x + (y1 - y0), y1)], fill=120, width=K)
+    for yy in (y0, y0 + 4 * K, y1 - 4 * K, y1):
+        d.line([(0, yy), (SW, yy)], fill=200, width=2 * K)
+    # the "olive leaf" chain along the band: small leaves end to end
+    mid = (y0 + y1) // 2
+    for x in range(0, SW, 22 * K):
+        d.ellipse([x, mid - 4 * K, x + 18 * K, mid + 4 * K], fill=210)
+    band = np.zeros((SH, SW), np.float32)
+    band[y0:y1 + 1, :] = 1.0
+    return over(base, (235, 235, 228), np.asarray(m, np.float32) / 255.0 * band * 0.55)
+
+
+def flag(base, x0, y0, w, h, pole_x):
+    """The Palestinian flag waving from a pole: black, white and green bands, the red triangle at the
+    hoist, a soft wave and its shading."""
+    out = base.copy()
+    ys, xs = np.mgrid[0:SH, 0:SW].astype(np.float32)
+    u = (xs - x0) / w                                   # 0 at the hoist, 1 at the fly
+    wave = np.sin(u * 2.4 * math.pi - 0.6) * (6 * K) * np.clip(u * 1.6, 0, 1)
+    v = (ys - y0 - wave) / h                            # 0 at the top edge
+    inside = (u >= 0) & (u <= 1) & (v >= 0) & (v <= 1)
+    col = np.zeros((SH, SW, 3), np.float32)
+    col[v < 1 / 3] = (16, 16, 16)
+    col[(v >= 1 / 3) & (v < 2 / 3)] = (245, 245, 240)
+    col[v >= 2 / 3] = (0, 122, 61)
+    tri = u * 3.0 < (0.5 - np.abs(v - 0.5)) * 2.0       # the triangle, a third of the length deep
+    col[tri] = (206, 17, 38)
+    shade = 0.82 + 0.18 * np.cos(u * 2.4 * math.pi - 0.6)
+    col *= shade[..., None]
+    shape = Image.fromarray((inside * 255).astype(np.uint8))
+    # A faint light behind the cloth and a hairline rim, so its black band reads against the night.
+    halo = np.asarray(shape.filter(ImageFilter.GaussianBlur(9 * K)), np.float32) / 255.0
+    out = over(out, (150, 170, 160), halo * 0.35)
+    rim = np.asarray(shape.filter(ImageFilter.MaxFilter(2 * K + 1)), np.float32) / 255.0
+    out = over(out, (205, 210, 205), rim * 0.85)
+    a = np.asarray(shape.filter(ImageFilter.GaussianBlur(0.8 * K)), np.float32) / 255.0
+    out = over(out, col, a)
+    pole = mask_from(lambda d: d.rectangle([pole_x - 3 * K, 6 * K, pole_x + 1 * K, SH], fill=255), blur=0.5)
+    out = over(out, (196, 198, 192), pole)
+    knob = mask_from(lambda d: d.ellipse([pole_x - 5 * K, 2 * K, pole_x + 5 * K, 12 * K], fill=255), blur=0.5)
+    return over(out, (225, 205, 120), knob)
+
+
+def ridge_line(rnd, base_y, amps):
+    """A hill's skyline across the width: base_y plus a few long, gentle swells (final pixels)."""
+    x = np.linspace(0.0, 1.0, SW)
+    y = np.full(SW, float(base_y))
+    for amp, waves in amps:
+        y += amp * np.sin(x * waves * 2 * math.pi + rnd.uniform(0, 2 * math.pi))
+    return y * K
+
+
+def hill(base, line, top, bottom, terraces=0, rnd=None):
+    """Land below a skyline, lighter where the low sun catches its brow, with terrace lines when
+    asked: the stepped hillsides of the West Bank's olive country."""
+    ys = np.arange(SH, dtype=np.float32)[:, None]
+    depth = ys - line[None, :]
+    inside = (depth >= 0).astype(np.float32)
+    t = np.clip(depth / (40.0 * K), 0, 1)
+    col = (np.asarray(top, np.float32)[None, None, :] * (1 - t[..., None]) +
+           np.asarray(bottom, np.float32)[None, None, :] * t[..., None])
+    out = over(base, col, inside)
+    if terraces:
+        m = np.zeros((SH, SW), np.float32)
+        for i in range(terraces):
+            off = (8 + i * 9) * K
+            row = (line + off + 2 * K * np.sin(np.linspace(0, 9, SW) + i)).astype(int)
+            xs = np.arange(SW)
+            ok = (row >= 0) & (row < SH)
+            m[row[ok], xs[ok]] = 1.0
+        m = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)), np.float32) / 255.0
+        out = over(out, (0, 0, 0), m * inside * 0.26)
+        lit = np.roll(m, -K, axis=0)                      # each step's sunlit lip, just above its shadow
+        out = over(out, (255, 214, 150), lit * inside * 0.12)
+    return out
+
+
+def grove(rnd, d, line, x0, x1, size, avoid=()):
+    """Olive trees in clusters along a hillside, as they are planted: a few together, then open ground."""
+    x = x0
+    while x < x1:
+        n = rnd.randint(2, 5)
+        for _ in range(n):
+            xx = x + rnd.uniform(-6, 6)
+            if 0 <= xx < W and not any(lo <= xx <= hi for lo, hi in avoid):
+                olive_tree(d, xx * K, line[int(xx * K)] + rnd.uniform(5, 10) * K, size * rnd.uniform(0.75, 1.2), 255)
+            x += rnd.uniform(14, 24)
+        x += rnd.uniform(40, 110)
+
+
+def olive_tree(d, x, ground, size, fill):
+    """An olive tree's silhouette: a short twisted trunk and a broad, broken crown."""
+    s = size * K
+    d.polygon([(x - 0.12 * s, ground), (x + 0.12 * s, ground), (x + 0.05 * s, ground - 0.55 * s),
+               (x + 0.2 * s, ground - 0.8 * s), (x - 0.02 * s, ground - 0.6 * s), (x - 0.18 * s, ground - 0.85 * s),
+               (x - 0.06 * s, ground - 0.5 * s)], fill=fill)
+    for dx, dy, r in ((-0.42, -1.0, 0.36), (0.0, -1.18, 0.42), (0.4, -1.0, 0.36), (-0.2, -0.82, 0.3), (0.24, -0.8, 0.3)):
+        cx, cy, rr = x + dx * s, ground + dy * s, r * s
+        d.ellipse([cx - rr * 1.25, cy - rr * 0.8, cx + rr * 1.25, cy + rr * 0.8], fill=fill)
+
+
+def cypress(d, x, ground, size, fill):
+    """A cypress: a tall, narrow flame of dark green."""
+    s = size * K
+    d.polygon([(x, ground - 2.6 * s), (x + 0.32 * s, ground - 1.2 * s), (x + 0.24 * s, ground),
+               (x - 0.24 * s, ground), (x - 0.32 * s, ground - 1.2 * s)], fill=fill)
+
+
+def old_city(d, x0, ground, fill, gold):
+    """Jerusalem's old city on the far ridge: the wall with its crenellations, towers and roofs,
+    and the Dome of the Rock's octagon and golden dome rising above them."""
+    k = K
+    d.rectangle([x0, ground - 9 * k, x0 + 150 * k, ground], fill=fill)                 # the wall
+    for x in range(x0, x0 + 150 * k, 6 * k):
+        d.rectangle([x, ground - 12 * k, x + 3 * k, ground - 9 * k], fill=fill)         # crenellations
+    for x, h, w in ((14, 22, 9), (50, 16, 14), (98, 26, 7), (122, 18, 12)):          # towers and roofs
+        d.rectangle([x0 + x * k, ground - h * k, x0 + (x + w) * k, ground], fill=fill)
+    d.polygon([(x0 + 98 * k, ground - 26 * k), (x0 + 101.5 * k, ground - 34 * k), (x0 + 105 * k, ground - 26 * k)], fill=fill)
+    cx = x0 + 74 * k
+    d.rectangle([cx - 16 * k, ground - 22 * k, cx + 16 * k, ground - 9 * k], fill=fill)   # the octagon
+    d.rectangle([cx - 9 * k, ground - 27 * k, cx + 9 * k, ground - 22 * k], fill=fill)    # the drum
+    d.pieslice([cx - 10 * k, ground - 37 * k, cx + 10 * k, ground - 17 * k], 180, 360, fill=gold)
+    d.line([(cx, ground - 37 * k), (cx, ground - 42 * k)], fill=gold, width=k)
+
+
+# Free Palestine's land: "Village of Battir" by Labour Palestine, CC BY 2.0
+# (https://commons.wikimedia.org/wiki/File:Village_of_Battir.jpg, from
+# https://www.flickr.com/photos/labour2palestine/16428074717/) — Battir's terraces, the UNESCO site
+# "Palestine: Land of Olives and Vines". Kept here at 1600 px wide (source/village-of-battir.jpg) so the
+# Persona can be made again; credited on every card, in CREDITS.md and in NOTICE.
+BATTIR = os.path.join(HERE, "source", "village-of-battir.jpg")
+
+
+def palestine(out_name):
+    """Free Palestine (the owner, 2026-10-12: "an artistic depiction of palestinian land", then "photo
+    realistic"): a photograph of Battir's terraced hillside under a clear sky — olive trees, cypresses,
+    the village on the ridge — cut to a header's band; the sky deepened towards the top, where the
+    toolbar's light glyphs and the words sit; the flag on its pole at the right. Changes made to the
+    photograph: cropped, scaled, the sky deepened, the words and the flag drawn over it."""
+    photo = Image.open(BATTIR).convert("RGB")
+    photo = photo.resize((SW, round(photo.height * SW / photo.width)), Image.LANCZOS)
+    a = np.asarray(photo.crop((0, 230 * K, SW, 230 * K + SH)), np.float32)
+    # The sky deepened towards the top: a light glyph on a pale sky reads poorly.
+    t = np.clip(1.0 - np.arange(SH, dtype=np.float32) / (70.0 * K), 0, 1)[:, None, None]
+    a = a * (1.0 - 0.45 * t) + np.array([10, 30, 80], np.float32) * 0.45 * t
+    # The words, white with a soft shadow, a hairline of the flag's red beneath.
+    text = Image.new("L", (SW, SH), 0)
+    font = ImageFont.truetype(FONT, 34 * K)
+    words = "FREE PALESTINE"
+    tw = ImageDraw.Draw(text).textlength(words, font=font)
+    tx, ty = 1170 * K - tw, 4 * K
+    ImageDraw.Draw(text).text((tx, ty), words, font=font, fill=255)
+    shadow = np.asarray(text.filter(ImageFilter.GaussianBlur(3 * K)), np.float32) / 255.0
+    a = over(a, (0, 0, 0), np.roll(np.roll(shadow, 2 * K, 0), 2 * K, 1) * 0.75)
+    a = over(a, (250, 250, 246), np.asarray(text, np.float32) / 255.0)
+    rule = mask_from(lambda d: d.rectangle([tx, 53 * K, 1170 * K, 55 * K], fill=255))
+    a = over(a, (206, 17, 38), rule)
+    a = flag(a, 1214 * K, 10 * K, 360 * K, 86 * K, 1209 * K)
+    return finish(a, out_name)
+
+
 # slug (file name), name, drawing, accent colour, text colour, earlier names (a profile that has a
 # Persona under an earlier name gets it renamed in place, and one uninstalled under an earlier
 # name stays uninstalled — components/jihadPersonas.js offerBundledOnce).
@@ -211,25 +391,50 @@ PERSONAS = [
     ("meadow-morning", "Meadow Morning", meadow, "rgb(30, 120, 225)", "#0a2a12", ["Aero Meadow"]),
     ("aurora-silk", "Aurora Silk", ribbons, "rgb(4, 28, 60)", "#ffffff", ["Aero Ribbons"]),
     ("lime-fizz", "Lime Fizz", orbs, "rgb(60, 160, 25)", "#0f2a05", ["Aero Orbs"]),
+    ("free-palestine", "Free Palestine", palestine, "rgb(30, 64, 110)", "#ffffff", []),
 ]
+BUNDLED = ("free-palestine", "aurora-silk")    # in this order, first in the gallery
+# A Persona made from someone else's work carries that work's licence and credit (shown on its card).
+CREDIT = {
+    "free-palestine": {"license": "CC BY 2.0 (photo: Labour Palestine)",
+                       "licenseURL": "https://creativecommons.org/licenses/by/2.0/",
+                       "source": "https://commons.wikimedia.org/wiki/File:Village_of_Battir.jpg"},
+}
 
 if __name__ == "__main__":
-    out = []
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--catalogue")
+    ap.add_argument("--redraw", action="store_true")
+    args = ap.parse_args()
+    bundled, drawn = [], []
     for slug, name, fn, accent, text, former in PERSONAS:
-        path = fn(slug + ".jpg")
-        out.append({"slug": slug, "name": name, "file": os.path.basename(path), "accentcolor": accent,
-                    "textcolor": text, "author": "Jihad Browser", "version": "1.0", "formerNames": former,
-                    "license": "MPL-2.0"})
-        print(path, os.path.getsize(path) // 1024, "KB")
-    # Personas made by others that we may redistribute (import-third-party.py keeps their pictures
-    # and third-party.json their credits): offered the same way, credited on every card.
-    for p in json.load(open(os.path.join(HERE, "third-party.json")))["personas"]:
-        out.append({k: p[k] for k in ("slug", "name", "file", "accentcolor", "textcolor", "author", "version",
-                                       "license", "licenseURL", "source", "modified", "formerNames") if k in p})
+        where = HERE if slug in BUNDLED else args.catalogue
+        if not where:
+            continue
+        path = os.path.join(where, slug + ".jpg")
+        if args.redraw or not os.path.exists(path):
+            fn(path)
+            print("drew", path, os.path.getsize(path) // 1024, "KB")
+        entry = {"slug": slug, "name": name, "file": os.path.basename(path), "accentcolor": accent,
+                 "textcolor": text, "author": "Jihad Browser", "version": "1.0", "formerNames": former,
+                 "license": "MPL-2.0"}
+        entry.update(CREDIT.get(slug, {}))
+        drawn.append(entry)
+        if slug in BUNDLED:
+            bundled.append(entry)
+    bundled.sort(key=lambda e: BUNDLED.index(e["slug"]))
     with open(os.path.join(HERE, "personas.json"), "w") as f:
         # "edition" goes up whenever the set, its names or its art change: a profile offered an
         # earlier edition gets the changes — new pictures replace their older ones, new names
         # rename in place (edition 2 drew the meadow lower; 3 retired edition 1's meadow; 4 gave
-        # the set its own names; 5 added the redistributable Personas made by others).
-        json.dump({"collection": "Jihad Browser", "edition": 5, "personas": out}, f, indent=2, ensure_ascii=False)
+        # the set its own names; 5 added the redistributable Personas made by others; 6 kept two in
+        # the browser, Free Palestine new among them, and moved the rest to the add-on site — a
+        # profile keeps those it has; 7 drew Free Palestine as the land at dusk; 8 made it from a
+        # photograph of Battir).
+        json.dump({"collection": "Jihad Browser", "edition": 8, "personas": bundled}, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    if args.catalogue:
+        with open(os.path.join(args.catalogue, "drawn.json"), "w") as f:
+            json.dump({"personas": drawn}, f, indent=2, ensure_ascii=False)
+            f.write("\n")

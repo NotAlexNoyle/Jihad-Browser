@@ -67,7 +67,9 @@ Kits: `cavekit-persona-formats.md`, `cavekit-addons-site.md`; build site Tiers 7
 - Inspector round 15, on the round-14 fixes: APPROVE for both. The P2 (picture sizes could be
   under-read) and eighteen P3s are all fixed, and the dangerous ones were checked on the device.
 - **Codex owes a review** of Jihad `69c44675..HEAD` and of the site's `upstream/TRUNK..jihad`.
-  It ran out of credits again at 17:00 before writing a finding; retry at **10:00 PM, 2026-10-11**.
+  It ran out of credits again at 17:00, and again at 22:10 (after ~216k/243k tokens, before writing
+  a finding); retry at **3:07 AM, 2026-10-12**. The site range now includes the wormhole-rs deploy
+  (`8535d3b`..`def0c62`), which the inspector reviews as round 16 meanwhile.
   The wrapper is `codex exec -m gpt-5.6-sol -s read-only` with Cavekit's prompt and the diff (see
   the codex-gate memory); give the site diff `--diff-filter=d` and leave out `libraries/`.
 
@@ -130,6 +132,10 @@ card-relative (device y − 28). Only a finger pans, so jump with anchors (`abou
 pass `-A JihadBrowser/1.0`.
 
 **Device state as left**
+- **Not yet on the device:** bundle `b3476e74b62eb6202250da58e0020bc6` (the five project-drawn
+  Personas' licence reads plain `MPL-2.0`, without "(drawn for Jihad Browser)"; the owner's ask,
+  2026-10-11). The TouchPad was not connected (`novacom -l` empty); push it with
+  `build/webos-oe/push-engine-update.sh --daemon-only enyo mochi mojo` and check an about:personas card.
 - All three variants on bundle `e6f75a783e82e5717c7b1b9e8d487008` (daemon-only pushes, round-15
   component), daemons running.
 - No test hooks, no user.js, no test CA.

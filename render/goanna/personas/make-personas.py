@@ -219,7 +219,7 @@ if __name__ == "__main__":
         path = fn(slug + ".jpg")
         out.append({"slug": slug, "name": name, "file": os.path.basename(path), "accentcolor": accent,
                     "textcolor": text, "author": "Jihad Browser", "version": "1.0", "formerNames": former,
-                    "license": "MPL-2.0 (drawn for Jihad Browser)"})
+                    "license": "MPL-2.0"})
         print(path, os.path.getsize(path) // 1024, "KB")
     # Personas made by others that we may redistribute (import-third-party.py keeps their pictures
     # and third-party.json their credits): offered the same way, credited on every card.

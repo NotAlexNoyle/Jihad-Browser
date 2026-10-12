@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08"
-last_edited: "2026-10-11"
+last_edited: "2026-10-12"
 complexity: medium
 ---
 
@@ -83,6 +83,11 @@ safety with one button.)
   Settings), and a change that arrives as two updates (off, then on) is one change: Undo returns
   to the Persona worn before, not to none. *(Found on the device: the bar appeared for a change
   made earlier on AMO, and its Undo went to the wrong look; fixed and re-verified.)*
+- [x] A change of look means a change of WHICH Persona is worn (or to the default look). Updating
+  or re-installing the Persona already worn (the same id: a new version from the add-on site, the
+  same picture with other colours) replaces it, after its own confirm, and offers no Undo: the
+  version it replaced is gone from the list and, for a site Persona, its picture from the site, so
+  Undo could not bring it back. *(By design; Codex 2026-10-12 asked for Undo there.)*
 **Dependencies:** R2
 
 ### R4: Installing, from where people find Personas
@@ -202,6 +207,8 @@ those we do."
 - cavekit-tabbed-browsing.md R1: tabs, when built, wear the Persona too.
 
 ## Changelog
+- 2026-10-12: R3 says what a change of look is: which Persona is worn. An update or re-install of
+  the worn Persona is confirmed and replaces it, without Undo (Codex review round 17).
 - 2026-10-08 (night): R8 (the gallery, about:personas) and R9 (licensed bundle, credits, unlicensed
   art removed) added and built; R7 renamed set; complete themes ruled out of scope; finger checks
   deferred by the owner.

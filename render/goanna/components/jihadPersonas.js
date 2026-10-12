@@ -326,16 +326,19 @@ function slotColors(colors) {
   return n ? out : null;
 }
 
-// A CSS colour as {r, g, b} by the engine's own parser (names, #rgb, rgb(), hsl()…); null if none.
+// A CSS colour as {r, g, b, a} by the engine's own parser (names, #rgb, rgb(), hsl()…); null if none.
 function rgbOf(c) {
   try {
     let v = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils).colorToRGBA(String(c));
-    return v ? {r: v.r, g: v.g, b: v.b} : null;
+    return v ? {r: v.r, g: v.g, b: v.b, a: (v.a >= 0 && v.a <= 1) ? Number(v.a) : 1} : null;
   } catch (e) { return null; }
 }
 
 // A small truecolour PNG, `h` rows going from colour `top` to colour `bottom`, `w` pixels wide.
-// The deflate stream is "stored" (uncompressed), so no compressor is needed: 8x64 is 1.6 KB.
+// The deflate stream is "stored" (uncompressed), so no compressor is needed: 8x64 is 1.6 KB. When
+// either colour is translucent it carries alpha (2.1 KB), so the picture stays as see-through as the
+// theme's colours (Codex 2026-10-12, round 17); an opaque pair is written as before, byte for byte,
+// since its bytes name the Persona.
 let crcTable = null;
 function crc32(bytes) {
   if (!crcTable) {
@@ -352,6 +355,8 @@ function crc32(bytes) {
 }
 function gradientPng(top, bottom, w, h) {
   let be32 = function(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]; };
+  let ta = top.a === undefined ? 1 : top.a, ba = bottom.a === undefined ? 1 : bottom.a;
+  let alpha = ta < 1 || ba < 1;
   let raw = [];
   for (let y = 0; y < h; y++) {
     let f = h > 1 ? y / (h - 1) : 0;
@@ -359,6 +364,7 @@ function gradientPng(top, bottom, w, h) {
     for (let x = 0; x < w; x++) {
       raw.push(Math.round(top.r + (bottom.r - top.r) * f), Math.round(top.g + (bottom.g - top.g) * f),
                Math.round(top.b + (bottom.b - top.b) * f));
+      if (alpha) { raw.push(Math.round(255 * (ta + (ba - ta) * f))); }
     }
   }
   let z = [0x78, 0x01];                                // zlib header, then stored blocks
@@ -374,7 +380,7 @@ function gradientPng(top, bottom, w, h) {
     let body = type.split("").map(function(ch) { return ch.charCodeAt(0); }).concat(data);
     return be32(data.length).concat(body, be32(crc32(body)));
   };
-  return [137, 80, 78, 71, 13, 10, 26, 10].concat(chunk("IHDR", be32(w).concat(be32(h), [8, 2, 0, 0, 0])),
+  return [137, 80, 78, 71, 13, 10, 26, 10].concat(chunk("IHDR", be32(w).concat(be32(h), [8, alpha ? 6 : 2, 0, 0, 0])),
                                                   chunk("IDAT", z), chunk("IEND", []));
 }
 function writeGradientPng(file, top, bottom, w, h) {
@@ -597,17 +603,21 @@ function handleStaticTheme(bag, hostLabel) {
     bag.setPropertyAsBool("converted", true);          // it was a theme; the user said no
     return;
   }
+  // The pictures this install put in place, so a failure part-way takes them out again; one that
+  // was already here (the same picture, perhaps another Persona's) stays (Codex 2026-10-12, round 17).
+  let placed = [];
   try {
     got.files.forEach(function(x) {
       let dest = themesDir();
       dest.append(x.finalName);
       if (dest.exists()) { x.pending.remove(false); }  // the same picture, already here
-      else { x.pending.moveTo(null, x.finalName); }
+      else { x.pending.moveTo(null, x.finalName); placed.push(dest); }
     });
     writeExtras(got.theme.id, got.extras);
   } catch (e) {
     log("static theme pictures could not be kept: " + e);
     dropPending();
+    placed.forEach(function(f) { try { if (f.exists()) { f.remove(false); } } catch (e2) {} });
     return;
   }
   ensureThemesResource();

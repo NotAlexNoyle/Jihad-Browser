@@ -647,6 +647,10 @@ MainAssistant.prototype.applyThemeColors = function (theme) {
 	rule(".palm-popup-container .title, .palm-popup-container .palm-row-wrapper, .palm-popup-container .label", {"color": popupText});
 	rule(".palm-popup-container .palm-row", {"border-color": popupBorder});
 	rule(".palm-popup-container .palm-row.selected, .palm-popup-container .palm-row:active", {"background": ok(c.popup_highlight), "color": ok(c.popup_highlight_text)});
+	// The labels inside carry popup_text themselves, so the highlight's text colour is set on them
+	// too: inheriting it from the row never reaches them (Codex 2026-10-12, round 17).
+	rule(".palm-popup-container .palm-row.selected .palm-row-wrapper, .palm-popup-container .palm-row.selected .label, " +
+		".palm-popup-container .palm-row:active .palm-row-wrapper, .palm-popup-container .palm-row:active .label", {"color": ok(c.popup_highlight_text)});
 	var doc = this.controller.document, sheet = doc.getElementById("jihad-theme-colors");
 	if (!sheet) {
 		sheet = doc.createElement("style");

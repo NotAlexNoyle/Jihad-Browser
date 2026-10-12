@@ -205,8 +205,10 @@ enyo.kind({
 		rule(".addressbar input, .addressbar .enyo-input-input", {"color": fieldText});
 		rule(".addressbar .enyo-input.enyo-tool-input.enyo-tool-input-focus", {"background": focus || ""});
 		rule(".addressbar .enyo-tool-input-focus input, .addressbar .enyo-input.enyo-tool-input .enyo-input-input:focus", {"color": focusText});
-		// The reload and stop glyphs inside the field are light: on a light field, the ink ones.
-		if (field && this.$.browser && this.$.browser.$.actionbar && !this.$.browser.$.actionbar.isDarkColor(field)) {
+		// The reload and stop glyphs inside the field are light: on a light field, the ink ones. Asked
+		// of the kind, not of a bar: the browser view is lazy, and a theme set while the start page
+		// showed left the rules out for good (Codex 2026-10-12, round 17).
+		if (field && !ActionBar.prototype.isDarkColor(field)) {
 			rule(".addressbar .refresh-button", {"background-image": "url(images/chrome/dark/menu-icon-refresh.png)"});
 			rule(".addressbar .stop-button", {"background-image": "url(images/chrome/dark/menu-icon-stop.png)"});
 		}

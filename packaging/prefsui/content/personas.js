@@ -224,8 +224,14 @@ function checkUpdates() {
 	mine.forEach(function (t) {
 		fetchJSON(t.updateURL, function (p) {
 			if (mineCheck !== online.checkSeq) { return; }  // a newer check replaced this one
-			if (!p) { failed++; }
-			if (p && p.id === t.id && typeof p.version === "string" && p.version !== (t.version || "")) {
+			// An answer about another Persona, or with no version, is no answer; only a HIGHER
+			// version is an update, never an older or an equal one written differently (Codex
+			// 2026-10-12, round 17).
+			let usable = !!p && p.id === t.id && typeof p.version === "string" && p.version !== "";
+			if (!usable) { failed++; }
+			let newer = false;
+			try { newer = usable && Services.vc.compare(p.version, t.version || "0") > 0; } catch (e) { newer = false; }
+			if (newer) {
 				found++;
 				box.appendChild(card(p, button("Update", false, function () {
 					let r = ask("update", {json: JSON.stringify(p), origin: t.updateURL});

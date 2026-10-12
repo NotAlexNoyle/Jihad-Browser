@@ -5,7 +5,53 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (night) delta — Tier 79: the owner's evening list; review rounds 20–21 (READ FIRST)
+## 2026-10-12 (late night) delta — Tier 80: fonts in Settings; no Persona by default; card pictures in the background (READ FIRST)
+
+**The owner's rules this evening (both in auto-memory):**
+- All finger tests wait for one round at the end, collected in `docs/FINGER-TESTS.md`.
+- No Persona is worn by default in any variant. Tests may wear one, but put every variant back to
+  the Default look afterwards.
+
+**Done:**
+- **Fonts (T-438, `11f09e07`, preferences-ui R9).** Settings → Content → Fonts & Colors has fonts per
+  script, as Pale Moon's and Basilisk's Fonts & Colors and Advanced fonts dialog offer them: the
+  engine's own list of installed fonts, a sample line under each, and Restore default fonts. The
+  page link `about:settings#pane=content&section=fonts` opens the section.
+  - Licensing: no font is shipped. The device's fonts are used in place: HP's Prelude family, the
+    Microsoft core fonts, and the CJK fonts webOS carries. The code is our own MPL-2.0.
+  - Device, Enyo: Georgia was picked for Serif and the serif text was drawn in it; Restore default
+    fonts brought back Times New Roman. The section draws correctly in all three variants.
+- **Default look (T-440, `97f5e871`).** The test Personas were taken off in all three variants.
+  Fresh profiles already wore none: nothing sets `isThemeSelected`.
+- **Card pictures (T-441, `97f5e871`).**
+  - The cause: making pictures inside the gallery's own request held it 200–600 ms a card, the
+    budget ran out by the eighth, and decodes failed under image-cache pressure. Carbon Light kept
+    its full header, the one the owner saw flashing.
+  - The fix: a background queue makes them one at a time, takes the size from the decode, writes
+    natively and discards each decode.
+  - Device, Mojo: all 16 made in one opening; every card drawn.
+  - Mojo ignores `palm-launch`'s target parameter, so open its pages through the test hook.
+- **Server.** It replied (`41-savagery-shamrock`, kept in `scratchpad/server-reply/`): package
+  `5c1d54c` is live, migrations 001 and 002 are in, 24 Personas were imported (39 listed), the
+  smoke test passes, and the credits are served. Its notes:
+  - the Persona list's column drift: fixed (Riverstone-Addons `f148f1e`, which also records the
+    deploy in DEPLOY.md);
+  - Free Palestine's `license` stays a sentence, because the site's card shows that field as its
+    credit;
+  - Free Palestine's id matches in both repositories.
+  - Nothing more for the server until Codex round 22.
+
+**Device state as left:**
+- All three variants have the same `deviceroot/hl` contents (the chrome scripts are those of
+  `11f09e07`; `push-engine-update.sh` prints the id); daemon `644eba8a…`; libxul unchanged.
+- No test hooks.
+- Default look in all three (no Persona worn).
+- Enyo's Western font settings are at their defaults (Restore default fonts was run after the
+  Georgia test).
+
+**Open:** Codex round 22 at 22:31 (session cron), then the finger round when the owner calls it.
+
+## 2026-10-12 (night) delta — Tier 79: the owner's evening list; review rounds 20–21
 
 **The owner's list**
 - Select All in the URL bar's Cut/Copy bubble.

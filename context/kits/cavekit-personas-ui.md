@@ -220,6 +220,11 @@ those we do."
   redistribution (CC BY / BY-SA); each package's sha256 is pinned (since 2026-10-12 in the add-on
   site's `catalogue/third-party.json` and `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`,
   and on every card — those formerly bundled keep theirs on Your Personas' cards.
+- [x] No Persona is worn by default in any variant: a fresh profile lists the bundled Personas and
+  wears none (nothing sets `lightweightThemes.isThemeSelected`; only an edition update re-wears a
+  bundled Persona the user already wore). Tests may wear one but put every variant back to the
+  Default look (the owner, 2026-10-12). *(Code; device: the test Personas taken off in all three,
+  Default look "In use" in each.)*
 - [x] An installed Persona's card shows a small copy of its picture (1400 px wide — as sharp as the
   full header at the card's size — PNG kept PNG so transparency stays; made once beside it, kept
   while the Persona is installed, removed after; made in the background, one at a time, never

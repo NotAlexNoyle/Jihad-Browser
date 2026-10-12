@@ -60,6 +60,11 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] The add-on site on the TouchPad, portrait and landscape: tap targets, the Personas page's Wear
   buttons, the search field. (addons-site R7, R12)
 
+## Fonts (Settings → Content → Fonts & Colors)
+- [ ] In each variant, pick a different Serif, Sans-serif and Monospace font and a size from the lists:
+  the sample lines change, and a page drawn afterwards uses them; Restore default fonts puts them
+  back. Try another script (Japanese) too. (preferences-ui R9; Enyo measured by script)
+
 ## Media and sound
 - [ ] A video's play/pause and volume by tap. (gre-widgets R1)
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,

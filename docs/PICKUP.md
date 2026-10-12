@@ -94,11 +94,12 @@ both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` 
 1. **Codex re-review** of both ranges (above). Fix the findings, then re-test on the local copy and
    on the device.
 2. **[OWNER] Deploy**, following `../Riverstone-Addons/deploy/DEPLOY.md`, which is now numbered
-   steps in the order they happen. **Every file goes over magic-wormhole** (the owner's rule,
-   2026-10-11): `deploy/server/pack.sh` sends the last commit, and `swap-in.sh` puts it in place on
-   the server; the Personas and the backups go the same way. `sync.sh` (rsync) is gone (site
-   `8535d3b`). In short:
-   1. Install magic-wormhole on the PC and on the server.
+   steps in the order they happen. **Every file goes over magic-wormhole-rs** (`wormhole-rs`; the
+   owner's rule, 2026-10-11: no other wormhole may be installed, not the Python `magic-wormhole`
+   that apt and xbps offer). `deploy/server/pack.sh` sends the last commit, and `swap-in.sh` puts it
+   in place on the server; the Personas and the backups go the same way (a folder arrives as
+   `<name>.tar`). `sync.sh` (rsync) is gone (site `8535d3b`, `fd41f7e`). In short:
+   1. wormhole-rs is on the PC (`~/.cargo/bin`); install the project's x86_64 build on the server.
    2. Point DNS for `addons.riverstonerelay.org` at the server.
    3. Send the site and put it in place with `swap-in.sh`.
    4. On the server, as root, run `install.sh`, then `make-owner.php` (it asks for the password).

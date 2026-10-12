@@ -5,7 +5,76 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (later) delta — Settings: Personas, Extensions and Plugins, one button each (READ FIRST)
+## 2026-10-12 (evening) delta — Tier 78: the server agent's work order, the gallery, each shell's look (READ FIRST)
+
+**The inputs**
+- The owner's asks: the gallery's load flicker; each shell's own buttons; a Free Palestine Persona,
+  then "an artistic depiction of palestinian land", then "photo realistic".
+- The server agent's work order, `/home/notalexnoyle/Documents/PROMPT-PC.md`: the gallery showing
+  the site, bundling two, more catalogue formats, momentum, and about:addons in the webOS style.
+- The owner's answers along the way:
+  - bundle Free Palestine + Aurora Silk;
+  - MIT colour palettes allowed, credited;
+  - the gallery shows two previews per source, a full search of each and links to the websites,
+    with the site's whole list staying on its own page;
+  - addons.mozilla.org searched through its API, since its pages show this engine a robot check;
+  - Personas managed in the gallery, because the card cannot scroll about:addons' lists;
+  - about:addons dark, like Jihad's other pages: the light webOS look clashed.
+
+**Done (Jihad `89571fb6`, `6128e29b`; Riverstone-Addons `b939443`..`26a9fdf`, built by a subagent to a fixed feed contract)**
+- **about:personas:**
+  - opens at once, and nothing moves or redraws while it loads;
+  - Your Personas: wear, take off, remove (asks again), Undo in the toast, Default look, Install
+    from file;
+  - the bundled ones that aren't installed;
+  - the site and AMO, two previews each, searched in place, each with a link to its website;
+  - AMO Install fetches the theme from AMO's hosts only;
+  - `#site-q=WORDS` links to a site search.
+- **Bundle:** Free Palestine (from the CC BY 2.0 photo "Village of Battir" by Labour Palestine,
+  credited) and Aurora Silk, edition 8. The rest are in the site's `catalogue/`, and a push now
+  removes no-longer-bundled pictures from the device.
+- **Look:** each shell's buttons on Settings, about:personas and about:addons (`shell.js`/`shell.css`,
+  from `JIHAD_BS_NAME`). The settings tabs wrap. about:addons is dark with light text, the shell's
+  buttons, toolbar buttons and dropdowns, and links drawn as links. Its Personas category is the worn
+  one, Default look and a link to the gallery. The site's new discover pane is darkened inside it.
+- **Scrolling:**
+  - the daemon echoes no scroll while the card streams positions (an echo reset coasts on
+    zoom-1 pages);
+  - Mochi forwards flicks;
+  - about:addons' root grows to the length of the list it shows, so the card can pan it.
+- **Mojo:** the lost-connection panel floats under the bar instead of moving it.
+- **Site:**
+  - migration 001 (kind, colors);
+  - the importer's three kinds (a colour theme gets a drawn header, layered ones are merged);
+  - the feed's `kind`/`colors` strings;
+  - 23 MIT palettes;
+  - the discover pane in the Jihad skin;
+  - the panel's text;
+  - fail2ban's include;
+  - DEPLOY.md's "The update of 2026-10-12".
+
+**Verified on the device** (bundles up to `cddf3ea3…`, daemon `d200a97f…`, all three)
+- **Gallery, Enyo:** the gallery against the live site and AMO; an AMO install through the confirm;
+  Catppuccin Mocha from the local copy colouring the toolbar. Both profile tests were put back
+  md5-identical.
+- **Buttons and about:addons:** in all three.
+- **Mojo:** the bar holds still during a lost connection.
+
+**Needs a finger (the owner):** flicks coast on about:personas and Settings (Enyo, Mochi, Mojo); a
+long about:addons list pans; typing a search.
+
+**Device state as left:** all three on bundle `cddf3ea3941af6d8c055d7490c76d56e`, daemon
+`d200a97f…` (libxul unchanged), daemons running; no test hooks, no user.js, no test CA; `/tmp` holds
+nothing of ours; Enyo wears Space Fantasy (profile md5-identical to before the tests), Mochi Aurora
+Silk, Mojo Lime Fizz; each profile has Free Palestine added (not worn). Local copy running with the
+catalogue imported (40 Personas).
+
+**Open, in order**
+1. The inspector on both ranges (running), then Codex at 5:29 PM on the same ranges. Fix, record.
+2. Pack the site (the catalogue travels inside it), write the reply to the server agent, send both
+   with one wormhole code for the owner to relay.
+
+## 2026-10-12 (later) delta — Settings: Personas, Extensions and Plugins, one button each
 
 **Done** (`7cd6a158` and the round-19 fixes after it; `cavekit-preferences-ui.md` R8, build site
 Tier 77, all criteria met). The owner asked for:

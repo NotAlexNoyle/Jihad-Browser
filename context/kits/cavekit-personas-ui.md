@@ -176,7 +176,7 @@ browser, ready to show an online index the project publishes later.
   yet: the page says the site cannot be reached.)*
 - [x] Everything shown from an index is put in as text, and installs go through the same
   component, conversion and confirm as every other Persona.
-- [ ] The page opens at once with the Personas that come with Jihad, and asks no site for anything
+- [x] The page opens at once with the Personas that come with Jihad, and asks no site for anything
   until the user searches (the owner, 2026-10-12, over the server agent's "show every page":
   "the 'More on the web' riverstone relay page is showing all the same themes as the about:personas
   page, but its slowing it down. reconcile these better" — answered "bundled + site search only"):
@@ -189,12 +189,26 @@ browser, ready to show an online index the project publishes later.
     preview, author and licence; Install fetches the theme file from addons.mozilla.org only (its
     file hosts, at most 6 MB) and converts it as any theme file, asking first and naming
     addons.mozilla.org. *(Device.)*
-- [ ] Nothing on the page moves or is drawn twice while it loads (the owner, 2026-10-12: "the
+  Then (the owner, 2026-10-12: "preview only 2 personas per category + full, fast remote search and
+  links to websites"): each of the two shows two previews when the page opens (the site's first,
+  without the bundled ones; AMO's most popular), a full search in place, and a link to its website.
+  *(Device, Enyo: the live site's two and AMO's two with Install; AMO's empty search listed
+  "Activist – Balanced 2.1 … Creative Commons Attribution 3.0"; Install → the confirm → "Persona
+  applied: Activist – Balanced", profile put back md5-identical.)*
+- [x] Your Personas (the owner, 2026-10-12, because the card cannot scroll about:addons' list): the
+  installed ones, the worn one first, with Wear / Take off, Remove (asking again), Undo in the
+  message at the bottom, Default look, and Install from file; about:addons' Personas category shows
+  only the worn one, Default look and a link here. *(Device, Enyo: every installed picture drawn,
+  also when this page is the first opened after a start.)*
+- [x] Nothing on the page moves or is drawn twice while it loads (the owner, 2026-10-12: "the
   active persona seems to flicker in about:personas" while the page loads): no message is put above
   the list while the site's Personas come in, and the cards already drawn are not drawn again.
-  *(Device.)*
-- [ ] Each card shows its picture (the site's previews) and Wear asks first, naming the site; a
-  Persona worn from the site is listed in about:addons → Personas. *(Device, against the site.)*
+  *(Device, Enyo: frames taken through the load — the bundled cards unchanged while the site's arrive
+  below. The cause was a "Loading…" line shown and hidden above the list. Seen by the owner's eye:
+  pending.)*
+- [x] Each card shows its picture (the site's previews) and Wear asks first, naming the site; a
+  Persona worn from the site is listed in about:addons → Personas. *(Device, Enyo: the live site's
+  previews; Catppuccin Mocha from the local copy through the confirm.)*
 **Dependencies:** R4, R7
 
 ### R9: Only Personas we may share, credited
@@ -210,13 +224,15 @@ those we do."
   Space Fantasy, Linen Light, Pastel Gradient, Carbon Light, Summerwood, Autumn Forest, Mont Blanc
   vu du Bettes St Gervais, Dream of Waves, Two little birds, Field of flowers. *(Device: all three
   profiles.)* *(Superseded 2026-10-12 by the next criterion; they now come from the site.)*
-- [ ] Two come with the browser (the owner, 2026-10-12): **Free Palestine** — the owner asked for
+- [x] Two come with the browser (the owner, 2026-10-12): **Free Palestine** — the owner asked for
   "an artistic depiction of palestinian land", then "photo realistic": made by make-personas.py from
   "Village of Battir" by Labour Palestine (CC BY 2.0, credited on its card, in CREDITS.md and NOTICE),
   with the flag and the words drawn over it — and **Aurora Silk**; every other Persona comes from the add-on site, whose
   catalogue (Riverstone-Addons `catalogue/`, with its own credits) now holds the rest. A profile
   offered the earlier set keeps the ones it has; Free Palestine is added once, not worn.
-  *(Device, all three.)*
+  *(Device, all three: two pictures in each bundle folder, the fourteen others removed by the push;
+  Enyo's profile kept its fourteen and gained Free Palestine — "bundled Personas offered: 1"; its
+  card reads "Licence: CC BY 2.0 (photo: Labour Palestine)".)*
 - [x] Persona art without such a licence is gone from the repository (the Water-Like test assets;
   tests use Carbon Light) and from the README's screenshots (Running Foxes, Aurora Borealis
   Delights, Blue Nebula, Dark Fox, Purple Night were removed from the device profiles too).

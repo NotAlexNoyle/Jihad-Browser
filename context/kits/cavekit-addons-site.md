@@ -108,9 +108,23 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
 **Acceptance Criteria:**
 - [x] Personas have a version, a licence, a licence URL, a source URL and a credit line; ids are
   `[a-z0-9-]` only.
-- [x] An importer adds or updates Personas from Jihad's own `render/goanna/personas/personas.json` (the
-  fifteen bundled: the project's art and the vetted CC set), copying the pictures with their sha256
-  checked; running it twice changes nothing; a changed picture bumps the version.
+- [x] An importer adds or updates Personas from the site's own catalogue, `catalogue/personas.json`
+  (since 2026-10-12; before, Jihad's `render/goanna/personas/`, which now holds only the two the
+  browser bundles), copying the pictures with their sha256 checked; running it twice changes nothing;
+  a changed picture or colour slots bump the version. *(Local copy: 39 entries; a second run changes
+  nothing.)*
+- [x] The catalogue carries three kinds (the server agent's work order, 2026-10-12): classic (a
+  header picture), colour-only — the importer draws a 3000x200 header from the frame and toolbar
+  colours, so Pale Moon and Basilisk can wear it too — and layered (up to 7 pictures merged into one
+  header as a toolbar draws them, within cavekit-persona-formats.md R2's limits); any of them may
+  carry the 15 colour slots, each one CSS colour (cavekit-persona-formats.md R3's rules). Every kind
+  gets a preview; a colour theme's is a small toolbar swatch. *(Local copy; layered with a scratch
+  index only — no licensed layered art in the catalogue yet.)*
+- [x] 23 colour-only Personas from MIT-licensed palettes (the owner, 2026-10-12: allowed, credited):
+  Catppuccin ×4, Nord, Dracula, Solarized ×2, Gruvbox ×2, Tokyo Night ×3, Rosé Pine ×3,
+  Everforest ×2, Kanagawa ×3, One Dark, One Light; each credited with its licence and source in
+  `catalogue/CREDITS.md`. *(Device, Enyo, local copy: Catppuccin Mocha installed from the gallery
+  colours the toolbar rgb(17, 17, 27), its text rgb(205, 214, 244), the address field dark.)*
 - [x] `/personas/` lists them with picture, name, author, version and licence; each button installs
   the Persona (an `InstallBrowserTheme` event on an element whose `data-browsertheme` is valid JSON).
   *(Device: a tap-equivalent in Jihad installs one through the usual confirm.)* *(Device, Enyo: Wear on the site's page, through the usual confirm.)* Pale Moon and Basilisk: R10's smoke test.
@@ -126,6 +140,10 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   `{page, pages, total, personas: [...]}`; each Persona has string-valued `id, name, author,
   version, headerURL, previewURL, accentcolor, textcolor, updateURL, license, licenseURL` (and
   `footerURL`, `description`, `colors` when it has them), all URLs https. *(Every field is present since 2026-10-11, "" when a Persona has none.)*
+- [x] Since 2026-10-12 each also has `kind` ("classic", "colors" or "layered") and `colors` — "" or
+  a JSON string of the slot object, so every field stays a string; the update service and the
+  Personas page's `data-browsertheme` carry the same. *(Local copy: 40 entries, the same 17 string
+  fields each; Jihad reads `colors` as that string — cavekit-persona-formats.md R4.)*
 - [x] `q` matches name, author and description, in any language (UTF-8 kept); `per_page` is capped
   (at most 50); an out-of-range page, however large its number, is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list.)*
 - [x] The response is cacheable for a few minutes and has the JSON content type; HTML-significant
@@ -248,6 +266,10 @@ LAN, before anything touches the owner's server.
 - [x] Below the Personas that come with Jihad, the site's Personas show as the same cards (picture,
   name, version, author, licence, Install / In use), a page at a time, with Next and Previous; the
   pager waits for each reply, and a page past the end shows the last one. *(Device, Enyo, local copy: 16 Personas at 12 a page — "Page 1 of 2" with Previous off, Next → the last four, Space Fantasy marked In use, Next off.)*
+  *(Superseded 2026-10-12 by the owner's "preview only 2 personas per category + full, fast remote
+  search and links to websites" — cavekit-personas-ui.md R8: two previews, a full search in place
+  with More results, and a link to the site; `about:personas#site-q=WORDS` links to a search.
+  Device, Enyo, live site and local copy.)*
 - [~] A search field filters by name, author and description (the feed's `q`). *(Code, and the feed's `q` on the local copy. Typing into the field needs a finger on the on-screen keyboard: the owner's test.)*
 - [x] "More on the web" opens the site's `/personas/` page. *(Device, Enyo.)*
 - [x] Offline, slow or broken answers show a plain message; nothing from the feed is put in as markup;

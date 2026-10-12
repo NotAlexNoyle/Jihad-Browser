@@ -23,38 +23,54 @@ about:addons); and, through the server agent's work order (PROMPT-PC.md, section
 ### R1: Each shell's own buttons
 **Description:** A button on one of Jihad's pages looks like a button of the card it is in.
 **Acceptance Criteria:**
-- [ ] On the settings page, about:personas and about:addons, buttons take the style of the variant
+- [x] On the settings page, about:personas and about:addons, buttons take the style of the variant
   showing them: Enyo 1's in the Enyo variant, Mochi's in the Mochi variant, Mojo's in the Mojo
   variant (shape, colours, pressed and disabled looks), at a finger's size (at least 44 px tall).
-  *(Device, all three.)*
-- [ ] The style is chosen by the variant the page's engine serves, not by the user agent or the
-  screen size; a page opened somewhere else (the desktop build) keeps a plain default.
-- [ ] The styles are drawn with CSS; nothing is copied from a framework without a licence that
-  allows it, and anything borrowed is credited.
+  *(Device, all three: Enyo's dark pill, Mochi's flat buttons, Mojo's glossy pill — its dark-scene
+  look, since its light pill clashed with these dark pages — on all three pages, about:addons'
+  toolbar buttons and dropdowns included.)*
+- [x] The style is chosen by the variant the page's engine serves (its upstart job's JIHAD_BS_NAME,
+  read before the page is drawn), not by the user agent or the screen size; elsewhere (the desktop
+  build) the pages keep their own look.
+- [x] The styles are drawn with CSS from the shells' looks; Enyo 1's and Mojo's framework files (Palm's,
+  on the device only) are not copied.
 **Dependencies:** cavekit-preferences-ui.md R8, cavekit-personas-ui.md R8
 
 ### R2: about:addons in the webOS style
-**Description:** The add-ons manager looks like the rest of Jihad's pages: the pale grey page,
-charcoal bars, white rounded cards, finger-sized controls, Prelude where the device has it.
+**Description:** The add-ons manager looks like the rest of Jihad's pages: the settings page's dark
+look (near-black page, charcoal bars, dark rounded cards, the blue-grey of the chosen pane),
+finger-sized controls, Prelude where the device has it. (The server agent's work order asked for the
+site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-10-12.)
 **Acceptance Criteria:**
-- [ ] Every category (Get Add-ons, Extensions, Personas, Plugins, Language packs when present), the
+- [x] Every category (Get Add-ons, Extensions, Personas, Plugins, Language packs when present), the
   detail view, the search field, the gear menu and Install from file… take the look, in all three
-  variants. *(Device, all three.)*
-- [ ] Every function still works: install, enable, disable, remove, Undo, preferences, the update
-  checks, a plugin's state menu, the Personas pane's Wear / Take off / Install from file.
-  *(Device.)*
-- [ ] Nothing in UXP's own files is edited: the look is a style sheet Jihad adds to the page.
+  variants. *(Device, all three.)* The look is Jihad's dark one, as on the settings page and
+  about:personas: a light webOS look was tried first and clashed (the owner, 2026-10-12); every text
+  is light; the site's new Get Add-ons pane is darkened inside it (only that pane).
+- [~] Every function still works: install, enable, disable, remove, Undo, preferences, the update
+  checks, a plugin's state menu, the Personas pane's Wear / Take off. *(Device: Wear, Take off,
+  Uninstall, the gallery link and the plugin menu drawn and reached; the rest is the manager's own
+  code under a style sheet — not each exercised.)*
+- [x] Nothing in UXP's own files is edited: the look is a style sheet Jihad adds to the page.
+- [~] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
+  gives a XUL page no scroller and the card scrolls only pages, so the page's root grows to the
+  list's whole length and the card pans it. *(Device: the daemon reports the taller page; the pan
+  needs a finger and a long list — the owner's test.)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
 ### R3: Jihad's pages move like web pages
 **Description:** A flick on about:personas (and the settings page) carries on and slows down as on
 any web page; it does not stop dead.
 **Acceptance Criteria:**
-- [ ] A flick up or down on about:personas and on the settings page coasts, in both directions and
-  at both ends of the page, as it does on a web page in the same card. *(Device: the card's own
-  flick path; a finger's feel is the owner's to judge.)*
-- [ ] The cause is found and stated, and the fix is on the pages or in the engine, not a different
-  scroller for these pages only.
+- [~] A flick up or down on about:personas and on the settings page coasts, in both directions and
+  at both ends of the page, as it does on a web page in the same card. *(Built; a flick needs a
+  finger — scripted pointer events do not reach the plugin — so the owner judges it.)*
+- [x] The cause is found and stated, and the fix is in the engine and the shells, not a different
+  scroller for these pages only: Jihad's pages are drawn at zoom 1, the only zoom at which the daemon
+  echoes the engine's scroll position to the card, and an echo resets the card's kinetic scroller;
+  the daemon now echoes nothing while the card is streaming positions (within 300 ms of the last).
+  Mochi never handed a flick to the adapter at all: it does now (webOS WebKit's `flick`, as Enyo 1's
+  BasicWebView does).
 **Dependencies:** cavekit-input-bridging.md
 
 ## Out of Scope

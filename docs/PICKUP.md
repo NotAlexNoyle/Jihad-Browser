@@ -5,7 +5,70 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 delta — Codex round 17 on the Jihad range fixed; the site range still owed (READ FIRST)
+## 2026-10-12 (afternoon) delta — round 17 verified on the device; Codex round 18 on the deploy kit fixed (READ FIRST)
+
+**Verified on the device** (the TouchPad connected at 12:28; one task at a time)
+- Bundle `eaa828a1877aa3b441213d51b6c2524e` on all three variants (the id read back from each).
+  Enyo's `BrowserApp.js` and Mojo's `main-assistant.js` (round 17's UI fixes) were pushed with
+  `push-card-js.sh`, and each card's boot stamp showed in the log.
+- `test-site-profile.sh` under the device's BusyBox 1.17, on a scratch app
+  (`JIHAD_TEST_APP=/tmp/fakeapp`, a copy of Enyo's profile):
+  - setup, a test's changes, then restore → md5-identical;
+  - a stray file planted in the backup → restore refused, profile untouched;
+  - a restore cut off between its moves → finished.
+  Then real cycles on Enyo and Mojo: both profiles md5-identical afterwards, with no CA, no user.js
+  and no backup left.
+- about:personas update check (local copy): the test Persona installed at 1.0.3. The site at 1.0.2
+  → "Your Personas are up to date."; at 1.0.4 → an Update card for 1.0.4.
+- Enyo, on a card started on the start page with a light-field theme: the reload and stop glyphs are
+  drawn ink.
+- Mojo share menu: a highlighted row's label takes `popup_highlight_text`. This was read from the
+  stylesheet, with the row's `selected` class set by the hook, not under a finger.
+- about:personas shows "Licence: MPL-2.0" on the five project-drawn Personas.
+- Test tooling, now committed:
+  - Enyo hook step `G` (the glyphs; it runs on the start page);
+  - Mojo hook step `H` (a submenu's colours);
+  - `card-selftest.sh … run <scenario> -` launches with no address.
+
+**Codex round 18** (credits back at 12:28). The site range was split, because it never fits in one
+window:
+- **`deploy/`: done.** 2 P1, 5 P2, 1 P3, all fixed in site `9e5521b` and tested on the local copy
+  and scratch directories (`impl-review-findings-6.md`, round 18):
+  - php-cli installed by name;
+  - both nightly archives watched;
+  - a Persona import changes the files and the row together or not at all;
+  - the smoke test accepts the allowlist's 403;
+  - the owner account change is logged;
+  - the local copy imports the Personas at every start;
+  - unknown install.sh arguments are refused;
+  - swap-in also refuses empty directories and special files.
+- **The PHP part: ran out again.** Retry at **5:29 PM, 2026-10-12**.
+
+**Open, in order**
+1. Codex on the PHP part of the site. The prompt now tells it to stay off the web:
+   `DIFFOPTS=--diff-filter=d EXTRA="This part is the PHP site (everything outside deploy/, which was
+   reviewed separately)." scratchpad/codex/run.sh ../Riverstone-Addons upstream/TRUNK OUT LOG . ':!deploy'
+   ':!libraries' ':!*.png' ':!*.jpg' ':!*.gif' ':!*.ico'`. Then fix, record, and stop the local
+   copy (`deploy/local/down.sh`, no wipe).
+2. The deploy guide: the copy sent with round 17 (`41-confidence-breakup`) timed out unreceived.
+   DEPLOY.md is unchanged since `b9810ad`. Send it with wormhole-rs when the owner asks for a code.
+3. The owner's items from the 2026-10-11 delta (deploy, typed search, landscape) are unchanged. The
+   root-on-Devuan parts of the deploy kit (OpenRC, cron, nginx, the login message) are checked only
+   by reading the code.
+
+**Device state as left**
+- All three variants on bundle `eaa828a1…` (daemon `5183c623…`, libxul unchanged `ddf8cc70…`),
+  daemons running. Enyo's and Mojo's app sources are as committed, plus dev stamps from the pushes.
+- No test hooks: the shipped manifests are back, checked by md5. No user.js, no test CA.
+- Enyo wears Space Fantasy and Mojo Lime Fizz; both profiles md5-identical to before the tests.
+  Mochi was untouched and wears Aurora Silk.
+- `/tmp` holds nothing of ours (YAP sockets only). No Jihad card is open (the last LunaSysMgr restart
+  closed them).
+- Local copy `riverstone-local` running (PHP 8.4), 16 Personas; the test Persona is back at 1.0.3.
+
+---
+
+## 2026-10-12 delta — Codex round 17 on the Jihad range fixed; the site range still owed
 
 **Done**
 - The updated deploy guide reached the owner's desktop over wormhole-rs (the first send waited out

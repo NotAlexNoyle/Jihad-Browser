@@ -181,7 +181,9 @@ those we do."
 **Acceptance Criteria:**
 - [x] The bundle carries only Personas the project drew or whose authors licensed them for
   redistribution (CC BY / BY-SA); each package's sha256 is pinned (`third-party.json`,
-  `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`, and on every card.
+  `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`, and on every card. The five the
+  project drew carry a plain `MPL-2.0` licence line (the owner, 2026-10-11). *(Device, Enyo,
+  2026-10-12: "Licence: MPL-2.0" on their about:personas cards.)*
 - [x] Ten such Personas are included by default (added to every profile's list once, not worn):
   Space Fantasy, Linen Light, Pastel Gradient, Carbon Light, Summerwood, Autumn Forest, Mont Blanc
   vu du Bettes St Gervais, Dream of Waves, Two little birds, Field of flowers. *(Device: all three

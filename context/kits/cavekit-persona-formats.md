@@ -106,11 +106,15 @@ palette theme does not stop at the toolbar.
   Enyo: an `hsl()` value arrives as rgb(); "red, 0 0 0 2000px black" is dropped — inspector
   2026-10-11: text that merely used colour characters reached the stylesheets.)*
 - [x] The address field takes `toolbar_field`, `toolbar_field_text` and `toolbar_field_border`, and
-  the `_focus` pair while it is being typed in, in all three shells. *(Device, all three.)*
+  the `_focus` pair while it is being typed in, in all three shells. *(Device, all three.)* (Enyo's
+  reload and stop glyphs inside the field are the ink ones on a light field, also on a card started
+  on the start page. *(Device, Enyo, 2026-10-12: reload 2 of 2, stop 4 of 4 ink.)*)
 - [x] The browser's own menus (the app menu, the link and image menus, the page menu) take
   `popup`, `popup_text`, `popup_border`, and `popup_highlight` / `popup_highlight_text` for the item
   under the finger, in every shell where the shell draws them itself. *(Device: Enyo's and Mochi's
-  app menus, Mojo's share menu.)*
+  app menus, Mojo's share menu.)* *(Mojo, 2026-10-12: a highlighted row's label takes
+  `popup_highlight_text` — read from the stylesheet with the row's `selected` class set by the test
+  hook, not under a finger.)*
 - [x] A shell's second bar (Mojo's command menu, Mochi's lower bar where shown) takes `toolbar` and
   `toolbar_text`; the glyph set (light or dark) follows `icons` when given, else the text colour.
   *(Device, Mojo; Enyo and Mochi have no second bar.)*

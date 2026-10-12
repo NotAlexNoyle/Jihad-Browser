@@ -165,7 +165,10 @@ LAN, before anything touches the owner's server.
   Persona pictures (`lightweighttheme-header`/`-footer`) and whole copies of `jihad-themes/` and
   `extensions/`. A backup that is not complete, or a folder copy short of what was there, restores
   nothing; a restore runs without a network route. *(Device: the CA is gone from the profile at the
-  end of every test.)* *(Device, Enyo. The first restore's name-matching clean-up deleted everything in `jihad-themes/` and `extensions/` twice (BusyBox grep has no -x) — recovered, see docs/PICKUP.md. Since round 15 a restore swaps the folders back from whole copies: on a scratch profile on the device a test's added, deleted and rewritten files all came back md5-identical, an incomplete backup and a short folder copy each restored nothing, and a restore interrupted halfway finished on a second run; on Enyo itself two real cycles left its pictures, Palefill and Persona pictures md5-identical.)*
+  end of every test.)* *(Device, Enyo. The first restore's name-matching clean-up deleted everything in `jihad-themes/` and `extensions/` twice (BusyBox grep has no -x) — recovered, see docs/PICKUP.md. Since round 15 a restore swaps the folders back from whole copies: on a scratch profile on the device a test's added, deleted and rewritten files all came back md5-identical, an incomplete backup and a short folder copy each restored nothing, and a restore interrupted halfway finished on a second run; on Enyo itself two real cycles left its pictures, Palefill and Persona pictures md5-identical.)* *(Device,
+  2026-10-12, round 17's md5-judged script under BusyBox 1.17: a scratch app's setup, test changes and
+  restore left it md5-identical, a tampered backup was refused untouched, a restore cut off between
+  its moves finished; real cycles on Enyo and Mojo left both profiles md5-identical.)*
 - [x] The same nginx server block, FPM pool settings and schema are used locally and in the deploy. *(The local PHP runs with the pool's open_basedir and disabled functions since 2026-10-11.)*
 **Dependencies:** R2
 
@@ -215,7 +218,8 @@ LAN, before anything touches the owner's server.
   naming the change. The local copy restarted onto its existing database: 34/34.)
 - [x] A failing certificate renewal reaches the owner by some way other than Let's Encrypt mail,
   which ended in June 2025, without the owner having to run anything: a daily check on the server
-  (the served certificate has three weeks left; a backup ran in the last two days) puts what it
+  (the served certificate has three weeks left; both nightly archives, the database's and the
+  datastore's, were made in the last two days) puts what it
   finds on the panel's front page, which also says when the check itself stopped, and in the login
   message. The smoke test fails three weeks ahead too. (Inspector, 2026-10-12: the smoke test alone
   reached nobody. Scratch: the check's well, unreachable, near-expiry, old-backup and first-backup
@@ -256,9 +260,11 @@ LAN, before anything touches the owner's server.
 - [x] No background update check: `extensions.update.enabled` and `lightweightThemes.update.enabled`
   stay off, and nothing polls. *(Both set false; the second named since 2026-10-11.)*
 - [x] about:personas has "Check for updates": every installed Persona whose update address is the
-  site's is checked; those with a new version are listed with an Update button; Update replaces it
+  site's is checked; those with a higher version are listed with an Update button (never an older
+  or an equal one, nor an answer about another Persona); Update replaces it
   (worn stays worn) through the usual confirm. When no answer comes it says the site could not be
-  reached, not that everything is up to date. *(Device, against the local copy.)* *(Device, Enyo: the test Persona's picture replaced, md5 changed.)*
+  reached, not that everything is up to date. *(Device, against the local copy.)* *(Device, Enyo: the test Persona's picture replaced, md5 changed.)* *(Device, Enyo, 2026-10-12: installed
+  at 1.0.3, the site at 1.0.2 → "Your Personas are up to date.", at 1.0.4 → an Update card for 1.0.4.)*
 - [x] about:addons' own "Check for Updates" asks the site's update service for extensions.
   *(Device, against the local copy, with a test extension at two versions.)* *(Device, Enyo: 1.0 → 1.1.)*
 **Dependencies:** R5, R11
@@ -277,6 +283,11 @@ LAN, before anything touches the owner's server.
 - `docs/research/persona-archives.md`, `persona-licences.md`, `phoebus-analysis.md`.
 
 ## Changelog
+- 2026-10-12 (later): Codex's review of the deploy kit (round 18): both nightly archives watched,
+  php-cli installed by name, a Persona import changes files and row together or not at all, the
+  smoke test takes the panel allowlist's 403, the owner account is logged, the local copy imports
+  the Personas at every start, and swap-in also refuses empty directories and special files. R13's
+  update check device-verified (only a higher version offered).
 - 2026-10-12: R10 after the inspector's review of the round-16 deploy fixes: a rejected nginx rule is
   rolled back, the install stamp is cleared while install.sh runs, database changes go in before
   the code (add-only, dumped first, named on a rollback), a daily check reaches the owner through

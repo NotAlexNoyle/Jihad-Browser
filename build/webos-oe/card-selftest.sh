@@ -7,7 +7,8 @@
 #   card-selftest.sh [mochi|enyo|mojo] run <scenario[:arg]> [target-url] [seconds] [shot.jpg]
 #                                          close the card, launch it on target-url with that
 #                                          scenario, wait, print the "[JIHAD-TEST]" lines and
-#                                          save a screenshot (portrait, already rotated)
+#                                          save a screenshot (portrait, already rotated); a
+#                                          target-url of "-" launches with none (the start page)
 #   card-selftest.sh [mochi|enyo|mojo] restore  put the shipped manifest back, delete the hook,
 #                                          restart LunaSysMgr
 #
@@ -68,6 +69,7 @@ push)
   ;;
 run)
   SC="${2:?scenario}"; URL="${3:-file:///tmp/jihad-plain.html}"; WAIT="${4:-12}"; SHOT="${5:-}"
+  [ "$URL" != - ] || URL=""
   cat > "$TMP/sf.sh" <<DEVEOF
 ID=$ID
 luna-send -n 1 palm://com.palm.display/control/setState '{"state":"on"}' >/dev/null 2>&1

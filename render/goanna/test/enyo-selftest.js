@@ -27,7 +27,8 @@
 		//   settings                 open it and report the card's cache of its settings
 		//   settings:x,y;x,y;...     ...then click each point (view pixels), 3 s apart. A step
 		//                            written sN picks entry N of the drop-down list the previous
-		//                            click opened; wN waits N seconds; b adds a test bookmark; ? reports.
+		//                            click opened; wN waits N seconds; b adds a test bookmark; ? reports;
+		//                            G reports the address fields' reload/stop glyphs (works on the start page).
 		settings: function(app, name) {
 			var spec = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "";
 			var steps = spec ? spec.split(";") : [];
@@ -41,7 +42,7 @@
 				count("net.riverstonerelay.jihad-browser.bookmarks:1", function(nb) {
 					count("net.riverstonerelay.jihad-browser.history:1", function(nh) {
 						var t = document.getElementById("jihad-toast");
-						log(name, tag + ": view=" + app.$.pane.getViewName() + " url=" + String(app.$.browser.getUrl()).split("#")[0] +
+						log(name, tag + ": view=" + app.$.pane.getViewName() + " url=" + (app.$.browser ? String(app.$.browser.getUrl()).split("#")[0] : "(no browser view yet)") +
 							" engine=" + enyo.jihadChrome.loadSearchEngine() + " defaultSearch=" + app.getDefaultSearch() +
 							" home=" + enyo.jihadChrome.loadHome() + " bookmarks=" + nb + " history=" + nh +
 							" toast=[" + (t ? t.textContent : "") + "]");
@@ -51,7 +52,8 @@
 			}
 			function step(i) {
 				if (i >= steps.length) { later(3000, function() { state("end", function() { log(name, "DONE"); }); }); return; }
-				var st = steps[i], wait = 3000, view = app.$.browser.$.view;
+				// (the browser view is lazy: on a card launched to the start page it does not exist yet)
+				var st = steps[i], wait = 3000, view = app.$.browser && app.$.browser.$.view;
 				if (st.charAt(0) === "w") {
 					wait = (parseInt(st.slice(1), 10) || 1) * 1000;
 				} else if (st === "b") {              // a bookmark of the test's own, to have one to clear
@@ -164,7 +166,7 @@
 					enyo.dom.setClipboard(st.slice(1));
 					log(name, "clipboard set");
 				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (setUrl); "L" right after reads the padlock at once
-					app.$.browser.setUrl(st.slice(1));
+					(app.$.browser || app).setUrl(st.slice(1));   // from the start page, the app's own setUrl opens the browser view
 					log(name, "navigate (typed) to " + st.slice(1));
 					wait = 50;
 				} else if (st === "Q") {              // bookmark the open page through the app's own Add Bookmark (BrowserApp.addBookmark)
@@ -202,6 +204,17 @@
 						" glyphs: " + (function() { var n = 0, d = 0, all = tb ? tb.querySelectorAll(".enyo-button-icon") : [], j;
 							for (j = 0; j < all.length; j++) { if (/menu-icon-/.test(all[j].style.backgroundImage)) { n++; if (/\/dark\//.test(all[j].style.backgroundImage)) { d++; } } }
 							return d + " of " + n + " ink"; })());
+				} else if (st === "G") {              // the reload/stop glyphs in the address fields: the theme's rule, and as drawn
+					var gsh = document.getElementById("jihad-theme-colors"), gtx = gsh ? gsh.textContent : "";
+					var gcount = function(sel) {
+						var all = document.querySelectorAll(sel), ink = 0, k;
+						for (k = 0; k < all.length; k++) { if (/\/dark\/menu-icon-/.test(window.getComputedStyle(all[k], null).backgroundImage)) { ink++; } }
+						return ink + " of " + all.length + " ink";
+					};
+					log(name, "glyphs: browser view " + (app.$.browser ? "exists" : "not created") +
+						"; theme sheet's ink rule " + (gtx.indexOf("dark/menu-icon-refresh.png") >= 0 ? "present" : "absent") +
+						"; drawn: refresh " + gcount(".addressbar .refresh-button") + ", stop " + gcount(".addressbar .stop-button"));
+					wait = 1000;
 				} else if (st === "L") {              // the padlock, read now — no click, no wait
 					var lk0 = app.$.browser.$.actionbar.$.search.$.address.$.secureLock;
 					log(name, "padlock showing=" + Boolean(lk0 && lk0.showing) + " address=[" + String(app.$.browser.$.actionbar.url).slice(0, 60) + "]");

@@ -441,12 +441,12 @@ inspector reviews the round-16 fixes (`cdaed4c`) meanwhile.
 | P2 | `test-site-profile.sh` | `extensions.ini` (and `addons.json`) not backed up, though an add-on install rewrites them. | Fixed: both added (names checked in UXP's XPIProvider/AddonRepository). Simulation: a test's `addons.json` removed, `extensions.ini` put back. |
 | P2 | `test-site-profile.sh` | Backup completeness was `ls DIR \| wc -l`: hidden and nested entries uncounted, contents unchecked. | Fixed: entry count by `find` and every file's md5, checked against the profile at setup and before a restore touches anything. Simulation: a changed nested file, an added hidden file, a changed backed-up file and an old-format backup each → "nothing restored", profile untouched. |
 | P2 | `test-site-profile.sh` | `dev()` masked failures: a daemon that did not start after setup, or a backup that was not removed, were reported as done. | Fixed: markers for each (DAEMON-UP, BACKUP-GONE); cert9.db and user.js checked by md5 after the put; a setup stopped part-way says to run restore; each device script has its own name and removes itself. Simulation: a daemon that does not start → setup exits 1 saying so. |
-| P2 | `personas.js` | The update check offered any different version (a downgrade too) and counted wrong-id or versionless answers as checked. | Fixed: `Services.vc.compare(new, installed) > 0`; an unusable answer counts as not checked. Code (device pending). |
+| P2 | `personas.js` | The update check offered any different version (a downgrade too) and counted wrong-id or versionless answers as checked. | Fixed: `Services.vc.compare(new, installed) > 0`; an unusable answer counts as not checked. Device: round 18. |
 | P2 | `jihadPersonas.js` | Updating or re-installing the worn Persona (same id) recorded no Undo. | By design, written into `cavekit-personas-ui.md` R3: that replaces the Persona after its own confirm; the version it replaced is gone from the list and, for a site Persona, its picture from the site, so Undo could not bring it back. |
 | P3 | `jihadPersonas.js` | A colour-only Persona's drawn picture was opaque even for translucent colours. | Fixed: RGBA when either colour is translucent; an opaque pair is written byte for byte as before (its bytes name the Persona). Node: opaque output identical to the old function's; the translucent one decodes as RGBA with alpha 128→255. |
 | P3 | `jihadPersonas.js` | A multi-picture static theme failing part-way left the pictures already moved in `jihad-themes`. | Fixed: the pictures this install put in place are removed; one that was already there stays. Code. |
-| P3 | `BrowserApp.js` | The ink reload/stop glyphs for a light field were added only if the lazy browser view existed. | Fixed: asked of `ActionBar.prototype` (Enyo 1 makes the kind a global, `Oop.js:137`). Code (device pending). |
-| P3 | `main-assistant.js` (Mojo) | Highlighted menu labels kept `popup_text` (set on them with `!important`), never `popup_highlight_text`. | Fixed: the highlight colour set on the labels of a selected or pressed row. Code (device pending). Enyo checked: its held class is on the item itself, the caption inherits. |
+| P3 | `BrowserApp.js` | The ink reload/stop glyphs for a light field were added only if the lazy browser view existed. | Fixed: asked of `ActionBar.prototype` (Enyo 1 makes the kind a global, `Oop.js:137`). Device: round 18. |
+| P3 | `main-assistant.js` (Mojo) | Highlighted menu labels kept `popup_text` (set on them with `!important`), never `popup_highlight_text`. | Fixed: the highlight colour set on the labels of a selected or pressed row. Device: round 18. Enyo checked: its held class is on the item itself, the caption inherits. |
 
 Not verified on the device: the TouchPad was not connected. Owed there: `test-site-profile.sh` on
 a scratch app directory (`JIHAD_TEST_APP`) under the device's BusyBox 1.17 (the simulation used
@@ -471,3 +471,50 @@ dash and GNU tools), then the about:personas update check, the Enyo glyphs and t
 | P3 | `pack.sh` | Any branch carrying `swap-in.sh` was sent. | Fixed: only `jihad`. `pack.sh --no-send`: 1347 entries, the new scripts 0755. |
 
 Not verified: anything that needs root on Devuan (OpenRC's cron and nginx, `/etc/motd.d` at login).
+
+## Round 18 — Codex on the site's deploy kit (`upstream/TRUNK..b9810ad`, `deploy/` only; credits back 12:28 PM 2026-10-12); the device checks owed by round 17
+
+The site range has never fitted in one Codex window (it stopped at 150k–370k tokens three times), so
+it was split: the deploy kit (`deploy/`, 1878 diff lines) and the PHP site (the rest). The deploy
+part finished; the PHP part ran out again (retry 5:29 PM). Codex was also told to stay off the web
+(round 16's run spent its window on web searches).
+
+### Riverstone-Addons, deploy kit — 2 P1, 5 P2, 1 P3; all checked against the code, all fixed in `9e5521b`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `install.sh` | No `php-cli` in the package list, though install.sh's own config read, `make-owner.php` and `import-personas.php` run `php`. | Fixed: `php$PHPV-cli` installed by name, and listed by `--check`. Code (root on Devuan). |
+| P1 | `watch.sh` | Only the database dump was checked: a night whose datastore archive failed after a good dump looked healthy for good. | Fixed: both archives checked, each named in the problem. Scratch: datastore archive stale or never made → its problem only; a migration's `db-before-*` dump does not count as the database's backup. |
+| P2 | `up.sh` | The local copy never imported the Personas, so after `down.sh --wipe` it was not seeded as R9 says. | Fixed: imported at every start (stops if the import fails; unchanged entries not printed). Local restart: "0 changed". Not run on a wiped copy (it would lose the test Persona the device tests use). |
+| P2 | `import-personas.php` | Live files changed before the preview and the row: the other-format header deleted first; a failed preview or SQL left files and row disagreeing. | Fixed: picture and preview made as `.new` beside the live ones; row and log in a transaction; files swapped in by rename (the ones before kept as `.old`) and only then committed; a failure rolls the row back and puts the files back; the other format goes after the commit. Local, a throwaway Persona: an update the database refuses (a trigger) and one whose preview cannot be swapped in (a directory in its place) each left picture, preview, version and log as they were; an allowed update swapped both, no `.new`/`.old` left. |
+| P2 | `smoke-test.sh` | Required 401 from the panel: with the allowlist set, a test from the server gets 403 and every deploy "fails". | Fixed: 403 accepted as closed for the login page and registration (registration answered 403 too). Local: 34/34 without and with an allowlist (`deny all`). |
+| P2 | `install.sh` | An unknown argument (`--chek`) ran a real install. | Fixed: usage and exit 2. Scratch: `--chek` and `--check extra` refused. |
+| P2 | `make-owner.php` | Making the owner or resetting the password was not logged (R8: every change). | Fixed: a `log` row follows in the same input. Local: the row written at `up.sh`. |
+| P3 | `swap-in.sh` | `extras()` saw only files and links: an empty directory or a special file in a copy went unnoticed (and was deleted with `www.prev`). | Fixed: directories with nothing listed inside and anything not a plain file are listed with find's type letter. Scratch: an empty dir, a nested one, a pipe, a link and a dir holding only an unlisted file each listed; a real archive of HEAD lists nothing; swap-in on a scratch server: first copy, the same copy refused, an empty dir refused, two updates with links. |
+
+### Device, 2026-10-12 (the TouchPad connected; one task at a time)
+
+- Bundle `eaa828a1…` pushed to all three (`push-engine-update.sh --daemon-only`), the id read back
+  from each; Enyo `BrowserApp.js` and Mojo `main-assistant.js` pushed with `push-card-js.sh`, each
+  card's boot stamp seen in the device log.
+- `test-site-profile.sh` under BusyBox 1.17 on a scratch app (`JIHAD_TEST_APP=/tmp/fakeapp`, a copy
+  of Enyo's profile): setup → backup made, CA in, daemon up; a test's changes (a removed, a changed
+  and an added picture, a hidden nested file in each folder, prefs, two files that did not exist);
+  a stray file planted in the backup → restore refused, profile untouched, daemon up; the profile
+  left as a restore cut off between its moves leaves it → restore finished; the profile
+  md5-identical to before setup.
+- Real cycles on Enyo and Mojo: each profile (both folders, the certificate files, the Persona
+  picture) md5-identical afterwards; no CA, no user.js, no backup.
+- about:personas (Enyo, local copy): the test Persona installed from the site at 1.0.3; the site at
+  1.0.2 → "Your Personas are up to date."; at 1.0.4 → an Update card for 1.0.4 (round 17's P2).
+- Enyo glyphs: a card started on the start page, wearing a theme with a light address field: the
+  theme's ink rule present, reload 2 of 2 and stop 4 of 4 drawn ink; the screenshot shows the ink ×
+  (round 17's P3).
+- Mojo menu: the share menu with the colour test theme: a plain row's text rgb(251, 233, 255)
+  (popup_text), a row given the `selected` class rgb(42, 18, 64) on rgb(224, 168, 0)
+  (popup_highlight_text on popup_highlight) — the stylesheet's answer, the class set by the hook,
+  not a finger (round 17's P3).
+- about:personas shows "Licence: MPL-2.0" on the five Personas drawn for the project.
+- Test tooling: the Enyo hook reports the glyphs (`G`) and runs on the start page (the browser view
+  may not exist yet); the Mojo hook reads a submenu's colours (`H`); `card-selftest.sh` launches
+  with no address for `-`.

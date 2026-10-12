@@ -25,6 +25,7 @@
 //   kTEXT        put TEXT on the clipboard
 //   c=TEXT       is TEXT what is on the clipboard? (only the answer and the lengths are logged)
 //   p            Paste, as the menu entry does it (pasteIntoPage)
+//   H            the open submenu's colours: a plain row's, and a "selected" row's (the class added and removed)
 //   ?            report url, secure flag, open popups
 (function () {
 	function log(name, text) { Mojo.Log.error("[JIHAD-TEST] " + name + ": " + text); }
@@ -295,6 +296,24 @@
 					var wv2 = sc.get(app.WEB_VIEW_ID), wm2 = wv2 && wv2.mojo, ad = wm2 && wm2.adapter, ob2 = plugin(), ks = ["cut", "copy", "selectAll", "pageFocused", "mouseHoldAt", "insertStringAtCursor"], rep = [], k2;
 					for (k2 = 0; k2 < ks.length; k2++) { rep.push(ks[k2] + ": widget.adapter=" + (ad ? typeof ad[ks[k2]] : "-") + " dom=" + (ob2 ? typeof ob2[ks[k2]] : "-")); }
 					log(name, "same element=" + (ad === ob2) + " adapter.id=" + (ad && ad.id) + " type=" + (ad && ad.getAttribute && ad.getAttribute("type")) + " | " + rep.join("; "));
+				} else if (st === "H") {              // the open submenu's colours: a plain row, and a row with the "selected" class a
+					// touch gives it (added here and taken off again — the stylesheet's answer, not a finger)
+					p = lastOpenPopup();
+					var hrows = p ? p.el.querySelectorAll(".palm-row") : [];
+					var hcol = function (r) {
+						if (!r) { return "none"; }
+						var rw = r.querySelector(".palm-row-wrapper"), lb = r.querySelector(".label");
+						return "background " + win.getComputedStyle(r, null).backgroundColor + ", wrapper text " + (rw ? win.getComputedStyle(rw, null).color : "-") +
+							", label text " + (lb ? win.getComputedStyle(lb, null).color : "-");
+					};
+					log(name, "submenu rows=" + hrows.length + "; plain row: " + hcol(hrows[1]));
+					if (hrows[0]) {
+						var hcls = hrows[0].className;
+						hrows[0].className = hcls + " selected";
+						log(name, "highlighted row: " + hcol(hrows[0]));
+						hrows[0].className = hcls;
+					}
+					wait = 1000;
 				} else if (st === "?") {
 					state("now");
 				} else {

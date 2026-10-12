@@ -1,7 +1,53 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-11 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-12 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
+
+---
+
+## 2026-10-12 delta — Codex round 17 on the Jihad range fixed; the site range still owed (READ FIRST)
+
+**Done**
+- The updated deploy guide reached the owner's desktop over wormhole-rs (the first send waited out
+  its two hours unreceived; a fresh code worked).
+- **Codex finished the Jihad range** `69c44675..83f0e817`: 1 P1, 5 P2, 4 P3, all fixed in
+  `df590b3b` except one kept by design (`impl-review-findings-6.md`, round 17):
+  - `test-site-profile.sh` judges every copy by md5, never by `cp`'s status (the device's BusyBox
+    `cp` can report EBADF for a copy that landed). The backup records each folder's entry count
+    (hidden and nested entries too) and every file's md5; restore refuses a backup that does not
+    match, before touching anything. `extensions.ini` and `addons.json` are backed up too. A restore
+    that does not finish leaves the daemon **stopped** and the backup kept: run restore again.
+  - about:personas offers only a higher version as an update; an answer that is not about the
+    Persona counts as not checked.
+  - A colour-only Persona's drawn picture keeps translucent colours translucent (opaque ones are
+    byte-identical to before, so their ids do not change); a multi-picture theme failing part-way
+    removes the pictures it put in place.
+  - Enyo: the ink reload/stop glyphs on a light field no longer need the browser view to exist.
+    Mojo: highlighted menu labels take the theme's highlight text colour.
+  - By design: updating or re-installing the worn Persona has no Undo (`cavekit-personas-ui.md` R3).
+- Verified here: `test-site-profile.sh` in a local simulation (dash, a fake novacom and upstart, the
+  engine's certutil): a full cycle left the profile identical; a `cp` that copies and then reports
+  EBADF → setup and restore still succeed; a folder copy really cut short → daemon stopped, backup
+  kept, the second restore finished identical; a changed nested file, an added hidden file, a
+  changed backed-up file and an old-format backup are each refused with nothing touched. The
+  gradient: opaque output identical to the old code's, the translucent one decodes as RGBA.
+
+**Open, in order**
+1. **Codex on the site range** `upstream/TRUNK..jihad` (through `cdaed4c`): it ran out again at
+   ~150k tokens; retry **12:28 PM, 2026-10-12**. The inspector reviews the round-16 fixes
+   (`cdaed4c`) meanwhile.
+2. **When the TouchPad is connected** (one task at a time):
+   - push bundle `eaa828a1877aa3b441213d51b6c2524e` (it also carries the plain `MPL-2.0` licence
+     line) with `build/webos-oe/push-engine-update.sh --daemon-only enyo mochi mojo`;
+   - reinstall the Enyo and Mojo app packages (the glyph and menu fixes are UI code);
+   - run `test-site-profile.sh` on a scratch app directory first (`JIHAD_TEST_APP=/tmp/fakeapp`,
+     under the device's BusyBox 1.17; the simulation used dash), then a real cycle on Enyo;
+   - then check the about:personas update check against the local copy, the Enyo glyphs on a light
+     field, the Mojo highlighted menu text, and an about:personas card's "Licence: MPL-2.0".
+3. The owner's items from the 2026-10-11 delta (deploy, typed search, landscape) are unchanged.
+
+**Device state as left:** unchanged since 2026-10-11 (below); the TouchPad was not connected at
+00:32 or at 07:48 (`novacom -l` empty). Nothing was pushed.
 
 ---
 

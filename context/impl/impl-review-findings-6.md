@@ -426,3 +426,28 @@ The inspector reviewed that range: APPROVE, 2 P2 and 12 P3, all fixed in `cdaed4
 The inspector's open question, whether wormhole-rs's folder tar carries the folder's name as its
 prefix, was checked here: a test folder arrived as `dummy/…`, owner 0/0. Not verified: the OpenRC
 paths (the FPM reload, cron), which run only on the server.
+
+## Round 17 — Codex on `69c44675..83f0e817` (credits back 2026-10-12; the site range ran out again)
+
+Codex finished the Jihad range (1 P1, 5 P2, 4 P3; all checked against the code). On the site range
+(`upstream/TRUNK..jihad`) it stopped at the usage limit again (~150k tokens, retry 12:28 PM); the
+inspector reviews the round-16 fixes (`cdaed4c`) meanwhile.
+
+### Jihad-Browser, `69c44675..83f0e817` — fixed in `df590b3b`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `test-site-profile.sh` | Restore trusted `cp`'s exit status (the device's BusyBox `cp` can report EBADF for a copy that landed), went on swapping and restarted the daemon, and the host stopped before checking the CA. | Fixed: every copy judged by md5; a restore that did not finish leaves the daemon stopped and the backup kept, and still reports whether the CA is in the profile (an unreadable database is "unknown", never "gone"). Local simulation (dash, fake novacom/upstart): a `cp` that copies and then fails with EBADF → setup and restore succeed, profile identical; a folder copy really cut short → "did not go back", daemon stopped, backup kept; restore again → identical. |
+| P2 | `test-site-profile.sh` | `extensions.ini` (and `addons.json`) not backed up, though an add-on install rewrites them. | Fixed: both added (names checked in UXP's XPIProvider/AddonRepository). Simulation: a test's `addons.json` removed, `extensions.ini` put back. |
+| P2 | `test-site-profile.sh` | Backup completeness was `ls DIR \| wc -l`: hidden and nested entries uncounted, contents unchecked. | Fixed: entry count by `find` and every file's md5, checked against the profile at setup and before a restore touches anything. Simulation: a changed nested file, an added hidden file, a changed backed-up file and an old-format backup each → "nothing restored", profile untouched. |
+| P2 | `test-site-profile.sh` | `dev()` masked failures: a daemon that did not start after setup, or a backup that was not removed, were reported as done. | Fixed: markers for each (DAEMON-UP, BACKUP-GONE); cert9.db and user.js checked by md5 after the put; a setup stopped part-way says to run restore; each device script has its own name and removes itself. Simulation: a daemon that does not start → setup exits 1 saying so. |
+| P2 | `personas.js` | The update check offered any different version (a downgrade too) and counted wrong-id or versionless answers as checked. | Fixed: `Services.vc.compare(new, installed) > 0`; an unusable answer counts as not checked. Code (device pending). |
+| P2 | `jihadPersonas.js` | Updating or re-installing the worn Persona (same id) recorded no Undo. | By design, written into `cavekit-personas-ui.md` R3: that replaces the Persona after its own confirm; the version it replaced is gone from the list and, for a site Persona, its picture from the site, so Undo could not bring it back. |
+| P3 | `jihadPersonas.js` | A colour-only Persona's drawn picture was opaque even for translucent colours. | Fixed: RGBA when either colour is translucent; an opaque pair is written byte for byte as before (its bytes name the Persona). Node: opaque output identical to the old function's; the translucent one decodes as RGBA with alpha 128→255. |
+| P3 | `jihadPersonas.js` | A multi-picture static theme failing part-way left the pictures already moved in `jihad-themes`. | Fixed: the pictures this install put in place are removed; one that was already there stays. Code. |
+| P3 | `BrowserApp.js` | The ink reload/stop glyphs for a light field were added only if the lazy browser view existed. | Fixed: asked of `ActionBar.prototype` (Enyo 1 makes the kind a global, `Oop.js:137`). Code (device pending). |
+| P3 | `main-assistant.js` (Mojo) | Highlighted menu labels kept `popup_text` (set on them with `!important`), never `popup_highlight_text`. | Fixed: the highlight colour set on the labels of a selected or pressed row. Code (device pending). Enyo checked: its held class is on the item itself, the caption inherits. |
+
+Not verified on the device: the TouchPad was not connected. Owed there: `test-site-profile.sh` on
+a scratch app directory (`JIHAD_TEST_APP`) under the device's BusyBox 1.17 (the simulation used
+dash and GNU tools), then the about:personas update check, the Enyo glyphs and the Mojo menu.

@@ -69,7 +69,10 @@ Kits: `cavekit-persona-formats.md`, `cavekit-addons-site.md`; build site Tiers 7
 - **Codex owes a review** of Jihad `69c44675..HEAD` and of the site's `upstream/TRUNK..jihad`.
   It ran out of credits again at 17:00, and again at 22:10 (after ~216k/243k tokens, before writing
   a finding); retry at **3:07 AM, 2026-10-12**. The site range now includes the wormhole-rs deploy
-  (`8535d3b`..`def0c62`), which the inspector reviews as round 16 meanwhile.
+  (`8535d3b`..`cdaed4c`). The inspector reviewed it as round 16 (APPROVE, 2 P2 + 12 P3, all fixed in
+  `cdaed4c`: copies checked against a manifest before going live, `www.prev` as the way back, an
+  install stamp deciding when install.sh must run, `deploy/migrations/`, the certificate warned of
+  by the smoke test; `impl-review-findings-6.md`).
   The wrapper is `codex exec -m gpt-5.6-sol -s read-only` with Cavekit's prompt and the diff (see
   the codex-gate memory); give the site diff `--diff-filter=d` and leave out `libraries/`.
 

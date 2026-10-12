@@ -396,3 +396,33 @@ reviewed what nobody had: the site's `aeb01fb..87cf077` and Jihad's `948e1c88`. 
 | P3 | `test-site-profile.sh` | `lightweighttheme-header/-footer`, rewritten extras and deleted pictures were not restored. | Fixed: backed up; the folders are swapped back from their copies. **Device, scratch profile:** added, deleted and rewritten files all md5-identical after restore; an interrupted restore finished on a second run. **Enyo:** two real cycles, md5-identical. |
 
 Codex is still owed on both full ranges (10:00 PM).
+
+## Round 16 — the inspector on the wormhole deploy (Codex ran out of credits again at 22:10 with no findings; retry 3:07 AM 2026-10-12)
+
+Codex was started on both full ranges at 22:07 and stopped at the usage limit (~216k and ~243k
+tokens) before writing a finding. The owner had meanwhile asked for every file to go over
+magic-wormhole-rs: `sync.sh` became `pack.sh` + `swap-in.sh` (site `8535d3b`, `fd41f7e`, `def0c62`).
+The inspector reviewed that range: APPROVE, 2 P2 and 12 P3, all fixed in `cdaed4c`.
+
+### Riverstone-Addons, `c5867eb..def0c62` — fixed in `cdaed4c`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `swap-in.sh` | A real `datastore`/`.obj` folder in the old copy was deleted with it (only links were carried); install.sh refuses that state. | Fixed: refused with install.sh's message, nothing changed. Scratch: the planted picture survives. |
+| P2 | `DEPLOY.md` | Promised certificate-expiry mail Let's Encrypt no longer sends (June 2025). | Fixed: `certbot renew --dry-run` once; the smoke test fails three weeks before expiry. Local: 34/34; near-expiry and unreachable fail. |
+| P3 | `DEPLOY.md`, `pack.sh` | `tar -xzf` as root extracted members outside the copy's prefix (crafted archive could overwrite `www/` or write through the datastore link). | Fixed: extraction names the prefix (`tar -xzf X.tar.gz X/`). Scratch: a `www/index.php` member is not extracted. |
+| P3 | `swap-in.sh` | An incomplete copy could go live (only `index.php` checked; a tar ending between members extracts with exit 0), and the old copy was deleted at once. | Fixed: `pack.sh` adds `.pack-manifest` (every file's SHA-256) as the archive's last member; `swap-in.sh` refuses a copy without it, with a mismatch, or with extra files. The old copy is kept as `www.prev`; its own `swap-in.sh` swaps it back. Scratch: each refused; rollback and return worked. |
+| P3 | `swap-in.sh` | "Run install.sh" was guessed from what it could see (first copy, deploy/ diff). | Fixed: install.sh leaves `install.stamp` (hash of what it applies) when it finishes; swap-in compares it and checks the links. |
+| P3 | `swap-in.sh` | A docs-only change asked for install.sh (nginx and FPM restart for nothing). | Fixed by the stamp: only install.sh's inputs count. Scratch: DEPLOY.md-only update → smoke test. |
+| P3 | `swap-in.sh` | A run cut off after making the links left a copy every re-run refused. | Fixed: a link to the live target is accepted; any other is refused. Scratch. |
+| P3 | `swap-in.sh` | FPM reload: silent when skipped, `set -e` exit hid the next step, every PHP version reloaded. | Fixed: only the version with the site's pool; a failed reload warns and the script goes on. Code (OpenRC). |
+| P3 | `pack.sh` | Unknown arguments ignored (sent anyway); temp folder left on failure; any branch packed. | Fixed: usage error; trap; HEAD must carry `swap-in.sh`. |
+| P3 | `DEPLOY.md` | Updating never ran the smoke test. | Fixed: swap-in names it last, and the doc says so. |
+| P3 | `install.sh` | A schema change never reached an existing database (`CREATE TABLE IF NOT EXISTS`). | Fixed: `deploy/migrations/*.sql`, applied once each and recorded in `rs_migration`; a fresh database only records them. Throwaway MariaDB 10.11: all four cases. |
+| P3 | `DEPLOY.md` | The Personas were sent from the working tree. | Fixed: `git status --porcelain -- render/goanna/personas` must print nothing first. |
+| P3 | `DEPLOY.md` | Backups landed wherever the PC's shell was (maybe a repository). | Fixed: `--out-dir ~/riverstone-backups`, with why. |
+| P3 | `install.sh` | `cron` never installed, though the backup and certbot's renewal need it. | Fixed: installed and enabled. Code. |
+
+The inspector's open question, whether wormhole-rs's folder tar carries the folder's name as its
+prefix, was checked here: a test folder arrived as `dummy/…`, owner 0/0. Not verified: the OpenRC
+paths (the FPM reload, cron), which run only on the server.

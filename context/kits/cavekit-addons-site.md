@@ -183,6 +183,24 @@ LAN, before anything touches the owner's server.
   (Inspector, 2026-10-11.)
 - [ ] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
   from a desktop UXP browser and from Jihad) passes. [the owner's server and DNS: not yet]
+- [x] Every file reaches the server over magic-wormhole-rs, and no other wormhole is installed
+  (the owner's rule, 2026-10-11). (Scratch: a site package sent to this PC, unpacked and put in place.)
+- [x] An update replaces only the site's code: it refuses, never deletes, anything in a copy other
+  than the code and the two links into the server's data; it never puts in place a copy that differs
+  from its archive or is incomplete; and the copy before it comes back with one command until the
+  next update. (Inspector, 2026-10-11. Scratch runs: a real datastore folder, a cut archive, a tar
+  ending between members, a changed file and a stray file in the old copy were each refused with
+  nothing changed; a rollback and its return worked; the links survived every case.)
+- [x] An update says what to run next, from what the server has applied rather than from what
+  changed in the files: install.sh when it has never finished, when what it sets up changed, or when
+  a link is missing; otherwise the smoke test. A documentation-only change asks for nothing.
+  (Scratch runs.)
+- [x] An update applies the database changes it brings, once each; a database made from the current
+  schema only records them. (A throwaway MariaDB 10.11: recorded on a fresh database, applied once
+  on an existing one, nothing on a re-run, a bad file name refused.)
+- [x] A failing certificate renewal reaches the owner by some way other than Let's Encrypt mail,
+  which ended in June 2025: the smoke test fails three weeks before the certificate runs out.
+  (Local: passes at 34/34; the near-expiry and unreachable cases fail.)
 **Dependencies:** R3, R5, R6, R7, R8, R9
 
 ## Requirements — the browser's half

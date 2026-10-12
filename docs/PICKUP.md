@@ -99,7 +99,7 @@ both of the day's Enyo restores deleted *everything* in `profile/jihad-themes/` 
    that apt and xbps offer). `deploy/server/pack.sh` sends the last commit, and `swap-in.sh` puts it
    in place on the server; the Personas and the backups go the same way (a folder arrives as
    `<name>.tar`). `sync.sh` (rsync) is gone (site `8535d3b`, `fd41f7e`). In short:
-   1. wormhole-rs is on the PC (`~/.cargo/bin`); install the project's x86_64 build on the server.
+   1. wormhole-rs is already on the PC (`~/.cargo/bin`) and on the server.
    2. Point DNS for `addons.riverstonerelay.org` at the server.
    3. Send the site and put it in place with `swap-in.sh`.
    4. On the server, as root, run `install.sh`, then `make-owner.php` (it asks for the password).

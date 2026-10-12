@@ -5,7 +5,138 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (evening) delta — Tier 78: the server agent's work order, the gallery, each shell's look (READ FIRST)
+## 2026-10-12 (night) delta — Tier 79: the owner's evening list; review rounds 20–21 (READ FIRST)
+
+**The owner's list**
+- Select All in the URL bar's Cut/Copy bubble.
+- Momentum on Settings and about:personas.
+- Personas flashing (Carbon Light 2.0).
+- The keyboard down when Settings or about:personas opens.
+- Extension settings cut off.
+- A caret left in about:addons' search field after the keyboard closes.
+- Typing in text boxes works (the owner's finger).
+
+**Done (Jihad `272ce0cd`)**
+- **Keyboard down on Jihad's pages:** opening about:settings, about:preferences, about:personas or
+  about:addons from the address field or the app menu takes the focus off the address field.
+  - Enyo blurs in `Browser.urlChanged`.
+  - Mochi blurs in `keyboardAwayFor`, from `openUrl` and `urlChanged`.
+  - Mojo blurs in `keyboardAwayFor`, from `openUrl` and on arriving by a link.
+- **No caret left behind:** the daemon clears the page's focus when the window grows back by 120 px
+  or more at the same width while a field is focused (`BlurFocusedEditable`). The engine's blur
+  then reaches the shell as editor-unfocused.
+- **Card pictures:** an installed Persona's card draws an 800 px copy of its picture
+  (`<24 hex>-thumb.jpg` in `jihad-themes`), made at most 1.2 s' worth per opening and pruned.
+- **Add-on preferences:** each preference is its own block, text fields are dark, and the
+  desktop margins are trimmed.
+- **Mochi flicks:** Mochi now defines `Mojo.handleGesture`, LunaSysMgr's callback for a card's
+  gestures. Enyo 1 has it and Enyo 2 lacks it, so the earlier DOM `flick` listener could never fire.
+  Flicks are passed in whole numbers.
+- **Inspector round 20, fixed:**
+  - about:addons measures only the view it shows;
+  - a page's own scroll jump within 300 ms of a pan is now applied instead of lost;
+  - CREDITS covers the README strip's CC pictures;
+  - AMO card state, https-only redirects, and a full /tmp are handled;
+  - formerly bundled Personas keep their licence lines;
+  - the README is up to date;
+  - dead code removed.
+- **Site agent:** fixed the site's round-20 findings (`6845226`..`d66fbc5`). Colour Personas' ids
+  now come from their colours (kits updated). There is a Cloudflare real-IP conf, and the smoke
+  test checks the feed contract (37/37 locally).
+
+**Verified on the device** (bundle `219f12cd…` plus the project-drawn licence line; daemon rebuilt
+with the focus and echo changes; all three variants)
+- **Focus, all three:** after focusing the address field, opening a Jihad page left the focus on
+  BODY; example.org left it on INPUT. In Mochi and Mojo the window grew from 705 to 996 px, so the
+  keyboard went down.
+- **Card pictures, Enyo:** 2, then 9 copies were made over three openings. They are real
+  800x53 / 800x80 pictures, the cards draw them, and each shows its licence.
+- **Preferences, Mochi (Palefill):**
+  - Before: the controls ran past the right edge and the page zoomed out to 0.78.
+  - After: everything is inside the page, with no sideways scrollbar.
+  - The manager still scrolls its detail box down to the preferences, so the add-on's name sits
+    above, in a box the card cannot pan.
+
+**Needs a finger (the owner)**
+- Flicks coast in Mochi, Enyo and Mojo on Settings and about:personas.
+- Closing the keyboard over about:addons' search field leaves no caret. A scripted tap focuses the
+  field but raises no keyboard.
+- The flashing is gone.
+
+**Select All (T-436, `a90b7fe3`):** it can't be added to the URL bar's Cut/Copy bubble, because
+the system draws that bubble (none of the shells, Enyo 1 or LunaSysMgr's sources do). The owner
+chose select-on-tap for all three:
+- Enyo: `selectAllOnFocus`, already there.
+- Mochi: Enyo 2's `selectOnFocus`, new.
+- Mojo: `focusSelectMode`, already there.
+
+Verified on the device with hook steps `K` (focus), `S` (selection) and `RF` (refocus with a caret
+at 3, against a bare input):
+- Enyo and Mochi select 0–20 of 20 while the bare input keeps its caret.
+- Mojo, blurred (`B`) then focused, selects 0–20 of 20.
+- Don't use `RF` on Mojo: its widget swaps the input for a div and the address empties. It was
+  removed from that hook.
+
+**Reviews:** Codex ran out again at 17:3x after 389k tokens, before writing its findings; retry
+**10:29 PM**. Its notes named the focus-clearing path and the AMO install flow as the riskiest. The
+inspector is reviewing in its place (round 21): Jihad `6e7b31a0..a90b7fe3`, site `26a9fdf..d66fbc5`.
+
+**Round 21 fixed (`5ccc75a5`; site `2923301`..`5c1d54c`):**
+- **Daemon:** the keyboard-down blur moved into the guarded pump (it ran page script inside a
+  socket callback). A field in a frame is cleared and reported by the daemon itself.
+- **Card pictures:** PNG kept PNG, 1400 px, all pruned on each opening. Device, Enyo: the 800 px
+  ones are gone, the 14 Persona pictures intact, the cards drawn.
+- **about:addons:** hidden settings stay hidden; checkbox titles wrap. Device, Mochi: Palefill
+  still fits.
+- **Shells:** Mochi's blur no longer submits a half-typed address; Mojo no longer blurs twice.
+- **Site:**
+  - real IP in our own server block;
+  - UXP's colour grammar;
+  - migration 002 (unique `browserId`);
+  - smoke test 43/43 with `RS_SMOKE_CONNECT`;
+  - credits served at `/credits/*.txt`.
+- Free Palestine's licence line reads "based on "Village of Battir" by Labour Palestine, CC BY
+  2.0" in both repos.
+
+**Sent to the server agent:** folder `jihad-reply-2026-10-12`, holding `REPLY.md` and
+`riverstone-addons-5c1d54c.tar.gz` (sha256 `40a2dd4c147a899c…`). It went over wormhole-rs with
+code **46-determine-drunken**, for the owner to relay. REPLY.md has the owner's overrides, what
+was done per section, the feed contract, the deploy steps, and the memory-note changes.
+
+**Device state as left:**
+- All three variants on bundle `37c3757ca422b7bfddc35373b24b98fe`, daemon `644eba8a…`; libxul
+  unchanged (`ddf8cc70…`); daemons running.
+- Card scripts: Mochi `JihadBrowser.js`/`JihadWebView.js` and Mojo `main-assistant.js` as in
+  `5ccc75a5`; Enyo `Browser.js` as in `272ce0cd`.
+- No test hooks, no user.js, no test CA; `/tmp` 1% used.
+- Enyo wears Space Fantasy, and its `jihad-themes` now holds 11 card pictures beside the 14
+  Persona files. Mochi wears Aurora Silk, Mojo Lime Fizz.
+
+**Open, in order**
+1. **Codex round 22 at 10:29 PM.** A session cron (one-shot, 22:31) runs
+   `scratchpad/codex/r22.sh` in four slices, newest first:
+   - Jihad `6e7b31a0..HEAD`;
+   - site deploy;
+   - Jihad `4e480610..6e7b31a0`;
+   - site PHP.
+
+   A single run burned out at 389k tokens, so the range is split. If this session has ended, run
+   them by hand with `run.sh`; it now takes `HEADREF` for an end commit.
+2. **The owner's finger:**
+   - flicks coast (all three);
+   - closing the keyboard over a page field leaves no caret;
+   - the Personas no longer flash;
+   - a tap selects the whole address;
+   - a paste into a page field in Mochi with the keyboard up still lands (inspector note);
+   - a long Extensions list pans in about:addons.
+3. **Server:** the server agent deploys per REPLY.md.
+4. **Known gaps:**
+   - the same palette from AMO and from the site is two Personas;
+   - a layered Persona's id comes from the merged header;
+   - in about:addons, a Preferences tap scrolls the detail box past the add-on's name, which the
+     card cannot pan back to.
+
+## 2026-10-12 (evening) delta — Tier 78: the server agent's work order, the gallery, each shell's look
 
 **The inputs**
 - The owner's asks: the gallery's load flicker; each shell's own buttons; a Free Palestine Persona,

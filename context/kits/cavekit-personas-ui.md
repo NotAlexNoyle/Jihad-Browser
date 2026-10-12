@@ -176,8 +176,9 @@ browser, ready to show an online index the project publishes later.
   yet: the page says the site cannot be reached.)*
 - [x] Everything shown from an index is put in as text, and installs go through the same
   component, conversion and confirm as every other Persona.
-- [x] The page opens at once with the Personas that come with Jihad, and asks no site for anything
-  until the user searches (the owner, 2026-10-12, over the server agent's "show every page":
+- [x] The page opens at once with the Personas that come with Jihad; of each site it asks only a
+  preview (two Personas) until the user searches (the owner, 2026-10-12, over the server agent's
+  "show every page":
   "the 'More on the web' riverstone relay page is showing all the same themes as the about:personas
   page, but its slowing it down. reconcile these better" — answered "bundled + site search only"):
   - the add-on site's Personas are searched in place (`q=`; an empty search shows the newest), a
@@ -216,8 +217,16 @@ browser, ready to show an online index the project publishes later.
 those we do."
 **Acceptance Criteria:**
 - [x] The bundle carries only Personas the project drew or whose authors licensed them for
-  redistribution (CC BY / BY-SA); each package's sha256 is pinned (`third-party.json`,
-  `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`, and on every card. The five the
+  redistribution (CC BY / BY-SA); each package's sha256 is pinned (since 2026-10-12 in the add-on
+  site's `catalogue/third-party.json` and `import-third-party.py`); credits in `CREDITS.md`, `NOTICE`,
+  and on every card — those formerly bundled keep theirs on Your Personas' cards.
+- [x] An installed Persona's card shows a small copy of its picture (800 px wide, made once beside
+  it and removed with it), not the full header: full headers (up to 3000 px, wallpapers 1600) were
+  dropped from the device's small image cache and decoded again as the page moved, and the cards
+  flashed (the owner, 2026-10-12: "some personas are still flashing like carbon light 2.0"). Making
+  them is bounded per opening; one not made yet shows the full picture meanwhile. *(Device, Enyo:
+  2, then 9 copies made over three openings, real 800x53 and 800x80 pictures; the cards drawn
+  with them, licences on each. The flashing itself is the owner's eye.)* The five the
   project drew carry a plain `MPL-2.0` licence line (the owner, 2026-10-11). *(Device, Enyo,
   2026-10-12: "Licence: MPL-2.0" on their about:personas cards.)*
 - [x] Ten such Personas are included by default (added to every profile's list once, not worn):

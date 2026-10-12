@@ -1739,6 +1739,18 @@ bool GoannaRenderPage::HasFocusedEditable() const {
   return mChrome && mChrome->mFocusedEditable;
 }
 
+// The keyboard went away with a field still focused: the field gives up the focus, so no caret is
+// left in a page the keyboard no longer serves (the owner, 2026-10-12: "when the keyboard is closed
+// in about:addons the cursor in the search panel is still there").
+void GoannaRenderPage::BlurFocusedEditable() {
+  if (!mChrome || !mChrome->mFocusedEditable) return;
+  nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
+  nsCOMPtr<mozIDOMWindowProxy> win;
+  mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
+  if (fm && win) fm->ClearFocus(win);
+  mChrome->mFocusedEditable = nullptr;
+}
+
 bool GoannaRenderPage::GetScrollXY(int* x, int* y, bool flushLayout) {
   if (!mChrome) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);

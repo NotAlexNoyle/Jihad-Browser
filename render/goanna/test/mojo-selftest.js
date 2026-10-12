@@ -263,6 +263,15 @@
 				} else if (st === "Q") {              // back out of the scene on top (a back gesture)
 					log(name, "pop scene");
 					sc.stageController.popScene();
+				} else if (st === "K") {              // focus the address field as a tap does (the keyboard comes up)
+					try { sc.get(app.ADDRESS_ID).mojo.focus(); } catch (e) { log(name, "focus: " + e); }
+					log(name, "address field focus asked; window " + win.innerWidth + "x" + win.innerHeight);
+				} else if (st === "N") {              // what has the focus now, and the window's size
+					var ae = doc.activeElement;
+					log(name, "focus: " + (ae ? ae.tagName + (ae.className ? "." + String(ae.className).split(" ")[0] : "") : "none") + " window " + win.innerWidth + "x" + win.innerHeight);
+				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (openUrl)
+					app.openUrl(st.slice(1));
+					log(name, "navigate (typed) to " + st.slice(1));
 				} else if (st === "B") {              // take the focus off the address field (the keyboard covers the command row)
 					try { sc.get(app.ADDRESS_ID).mojo.blur(); } catch (e) {}
 					try { if (doc.activeElement && doc.activeElement.blur) { doc.activeElement.blur(); } } catch (e) {}

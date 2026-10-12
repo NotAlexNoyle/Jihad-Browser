@@ -1212,11 +1212,24 @@ MainAssistant.prototype.callBrowserAdapter = function (method, args) {
 //* Mochi shells do. Routed through the widget's own openURL — the WebView-internal
 //* plugin path — NOT through callBrowserAdapter, mirroring Enyo-1.0's BasicWebView
 //* (urlChanged -> openURL), so it does not widen the audited app-facing set.
+//* Jihad's own pages open with the keyboard away, so the whole page shows (the owner,
+//* 2026-10-12): the address field gives up the focus when one is opened.
+MainAssistant.prototype.isJihadPage = function (url) {
+	return /^about:(settings|preferences|personas|addons)(?:[#?]|$)/.test(url || "");
+};
+MainAssistant.prototype.keyboardAwayFor = function (url) {
+	if (this.isJihadPage(url)) {
+		var address = this.controller.get(this.ADDRESS_ID);
+		if (address && address.mojo && address.mojo.blur) { address.mojo.blur(); }
+	}
+};
+
 MainAssistant.prototype.openUrl = function (text) {
 	var url = JihadUrl.normalize(text);
 	if (!url) {
 		return;
 	}
+	this.keyboardAwayFor(url);
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	this.hideError();
 	if (view && view.mojo && view.mojo.openURL) {
@@ -1673,6 +1686,9 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 	if (!event) {
 		return;
 	}
+	// Arriving on one of Jihad's own pages by a link puts the keyboard away too (not a change
+	// within one, such as the settings page rewriting its fragment while the user types).
+	if (!this.isJihadPage(this.url)) { this.keyboardAwayFor(event.url); }
 	this.url = event.url || this.url;
 	this.updateLock();
 	this.canGoBack = !!event.canGoBack;

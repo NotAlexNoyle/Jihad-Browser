@@ -165,6 +165,14 @@
 				} else if (st.charAt(0) === "k") {    // kTEXT: put TEXT on the clipboard (to have something to paste)
 					enyo.dom.setClipboard(st.slice(1));
 					log(name, "clipboard set");
+				} else if (st === "K") {              // focus the address field as a tap does (the keyboard comes up), and report
+					var kb = app.$.browser || app.$.startPage;
+					var ka = kb && kb.$.actionbar && kb.$.actionbar.$.search && kb.$.actionbar.$.search.$.address;
+					if (ka) { ka.forceFocus(); }
+					log(name, "address field focused: " + !!(ka && document.activeElement && document.activeElement.tagName === "INPUT") + " window " + window.innerWidth + "x" + window.innerHeight);
+				} else if (st === "N") {              // what has the focus now, and the window's size (it shrinks under the keyboard)
+					var ae = document.activeElement;
+					log(name, "focus: " + (ae ? ae.tagName + (ae.className ? "." + String(ae.className).split(" ")[0] : "") : "none") + " window " + window.innerWidth + "x" + window.innerHeight);
 				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (setUrl); "L" right after reads the padlock at once
 					(app.$.browser || app).setUrl(st.slice(1));   // from the start page, the app's own setUrl opens the browser view
 					log(name, "navigate (typed) to " + st.slice(1));

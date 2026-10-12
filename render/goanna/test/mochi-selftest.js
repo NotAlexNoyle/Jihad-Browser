@@ -131,6 +131,15 @@
 						log(name, "sheet pick [" + its[parseInt(st.slice(1), 10)].getContent() + "]");
 						app.sheetPick(its[parseInt(st.slice(1), 10)]);                 // what a tap on the row does
 					}
+				} else if (st === "K") {              // focus the address field as a tap does (the keyboard comes up)
+					if (app.$.address.hasNode()) { app.$.address.node.focus(); }
+					log(name, "address field focus asked; window " + window.innerWidth + "x" + window.innerHeight);
+				} else if (st === "E") {              // the keyboard goes down with a page field still focused, as its hide key leaves it
+					if (window.PalmSystem) { window.PalmSystem.editorFocused(false, 0, 0); }
+					log(name, "keyboard lowered; window " + window.innerWidth + "x" + window.innerHeight);
+				} else if (st === "N") {              // what has the focus now, and the window's size
+					var ae = document.activeElement;
+					log(name, "focus: " + (ae ? ae.tagName + (ae.className ? "." + String(ae.className).split(" ")[0] : "") : "none") + " window " + window.innerWidth + "x" + window.innerHeight);
 				} else if (st.charAt(0) === "U") {    // navigate as a typed address does (openUrl); "L" right after reads the padlock at once
 					app.openUrl(st.slice(1));
 					log(name, "navigate (typed) to " + st.slice(1));

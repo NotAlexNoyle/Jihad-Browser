@@ -348,13 +348,9 @@ runs; until now it offered only a "Manage Personas" button that went to about:ad
   state 1 and state 0 each read the same on the Plugins row, the Content row, About and `getFlash`.)*
 - [x] The gallery's "Personas manager" link opens about:addons on its Personas list, the way on from
   Settings' one Personas button to taking a Persona off, removing it and Undo. *(Device, Enyo.)*
-- [x] Each button reaches its page in all three variants, on a settings page opened through each
-  shell's own Settings entry. *(Device: Enyo `openSettings`, Mochi `menuSettings`, Mojo's
-  `jihad-settings` command; each button tapped through the card — the adapter's clickAt in Enyo and
-  Mochi, a click pair on the page in Mojo, by the test hooks, not a finger — and the landing page
-  read back and photographed: about:personas, about:addons on Extensions, about:addons on Plugins.)*
-- [x] What the rows show is put in as text; a Persona's, an add-on's or a plugin's name cannot add
-  markup to the page. *(Code: text nodes and textContent only.)*
+  *(Superseded later on 2026-10-12: the card cannot scroll about:addons' list, so the gallery holds
+  the installed Personas itself — Your Personas, with Wear, Take off, Remove and Undo — and the link
+  went; cavekit-personas-ui.md R8.)*
 **Dependencies:** R1, R4, cavekit-personas-ui.md (R8, the gallery), cavekit-addons-extensions.md (R2, R7)
 
 ## Out of Scope

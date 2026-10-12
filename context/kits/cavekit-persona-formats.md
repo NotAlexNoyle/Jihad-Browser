@@ -146,7 +146,9 @@ palette theme does not stop at the toolbar.
   JSON string of the slot object (its feed keeps every field a string), with `kind` "classic",
   "colors" or "layered"; a colour-only or layered theme arrives with a header the site drew or
   merged, so every browser can wear it (2026-10-12). Jihad reads `colors` as an object or as such a
-  string, from the gallery and from the site's own Wear buttons alike.
+  string, from the gallery and from the site's own Wear buttons alike. A colour Persona's id comes
+  from its colours (cavekit-addons-site.md R6), so the same palette is the same Persona wherever
+  it is found, and a redrawn header is an update of it, not a new one.
 **Dependencies:** R1–R3, cavekit-personas-ui.md R3, R8
 
 ## Out of Scope

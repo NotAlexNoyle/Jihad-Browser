@@ -535,3 +535,24 @@ Checked clean by the inspector: every name goes in as text; nothing in the group
 of the pane from rendering; a late extension count writes to a detached node harmlessly;
 about:addons opens on `extensions.ui.lastCategory` for both lists, and the Plugins category is
 never hidden; the layout holds at 768 and 1024 wide.
+
+## Round 20 — the inspector on Tier 78 (Codex out of credits until 5:29 PM, 2026-10-12)
+
+Both ranges APPROVE (no P0/P1). Jihad `4e480610..6128e29b`: 3 P2, 8 P3; Riverstone-Addons
+`9e5521b..26a9fdf`: 2 P2, 11 P3 — the site's handed to the subagent that built it.
+
+### Jihad-Browser — fixed in the commit after `6e7b31a0`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `jihadPersonas.js` `growToList` | Every view of about:addons sits laid out in its deck, so the measure took the updates list and the detail view; a stretched list measured its own stretch, so the page only ever grew. | Fixed: the min-height cleared first; only the deck's selected panel; its visible items' extent, not its box; the detail view only when shown. Device: pending (a long list; the owner's finger). |
+| P2 | `BrowserPageGoanna.cpp` `emitScrollIfChanged` | A jump the page made within 300 ms of an adapter scroll was taken as seen and never echoed (a fragment, scrollIntoView, a focus scroll right after a pan): the card stayed put over an engine that had moved. | Fixed: inside the window the echo only waits — the engine's position is not taken as seen — and the old near/far test runs once the stream pauses (pump calls it every tick). |
+| P2 | `CREDITS.md` | Cutting the credits to the two bundled dropped those of three CC pictures still in the README's screenshot strip. | Fixed: a "shown in the README's screenshots" table with their licences and sources; the README's Personas text updated. |
+| P3 | `personas.js` | An AMO card drawn again while its theme was fetched offered Install again (a second fetch, a second confirm); after Undo it stayed "In use". | Fixed: a card for a file being fetched says Fetching; AMO cards offer Install again after any later change. |
+| P3 | `jihadPersonas.js` `fetchAmoTheme` | `createUnique` outside the try (a full /tmp left the button Fetching); a redirect to http on an allowed host passed; pictures not kept read as "not a theme". | Fixed: inside the try; the final URL must be https; a neutral message. The "worn" test stays (a re-install of the worn one under another name is a corner case, noted). |
+| P3 | `jihadPersonas.js` `mine` | The ten formerly bundled Personas lost their licence lines on Your Personas' cards. | Fixed: FORMER_CREDITS by name and author. |
+| P3 | `personas.js` | A bundled Persona worn from "Included" showed twice until the page reopened. | Fixed: that list is drawn again after a change. |
+| P3 | `JihadWebView.js` (Mochi) | The native "flick" listener rested on an unverified premise. | Confirmed wrong and replaced: LunaSysMgr calls `Mojo.handleGesture(type, props)`, which Enyo 1 defines (compatibility/webosGesture.js) and Enyo 2 does not, so no flick ever reached Mochi's adapter. Mochi now defines it the same way (the element last touched decides). |
+| P3 | `jihadPersonas.js` | addons.css and the pane's CSS in one try; the two sheets missing from the bundle's file check; addons.css applied on the desktop too. | Fixed: separate tries; checked in the bundle; addons.css only where a shell is named. |
+| P3 | dead code | The pane's hidden Install-from-file row; make-personas.py's landscape helpers. | Removed. |
+| P3 | kits/docs | R8 ("asks no site until a search"), R9 (third-party files moved), preferences-ui's gallery link, README, T-420, chrome-look R3's "[x] cause found". | Corrected (R3's cause criterion is [~] until a finger confirms). |

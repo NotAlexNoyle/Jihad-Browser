@@ -221,6 +221,12 @@ enyo.kind({
 	},
 	urlChanged: function() {
 		this.log(this.url);
+		// Jihad's own pages open with the keyboard away, so the whole page shows: the address field
+		// (focused on the start page, or by typing) gives up the focus (the owner, 2026-10-12).
+		if (/^about:(settings|preferences|personas|addons)(?:[#?]|$)/.test(this.url || "") &&
+				document.activeElement && document.activeElement.blur) {
+			document.activeElement.blur();
+		}
 		this.$.view.setUrl(this.url);
 		this.$.actionbar.setLoading(true);
 		this.$.actionbar.setUrl(this.url);

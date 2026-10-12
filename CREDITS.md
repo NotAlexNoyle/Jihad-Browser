@@ -20,6 +20,19 @@ Every other Persona comes from the add-on site, addons.riverstonerelay.org, and 
 in the site's catalogue (Riverstone-Addons `catalogue/CREDITS.md`). A profile that was offered the
 earlier, larger set keeps the ones it has.
 
+## Personas shown in the README's screenshots
+
+`docs/screenshots/personas-strip.png` (made by `docs/screenshots/readme-art.py`) shows three
+Personas made by others, which came with the browser until 2026-10-12 and are on the add-on site
+now. Each is used under its Creative Commons licence; the pictures are unmodified apart from being
+cut and scaled into the strip.
+
+| Persona | Author | Licence | Source | File | Changes |
+|---|---|---|---|---|---|
+| Space Fantasy | fx5800p | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/space-fantasy/) | `space-fantasy.jpg` | unmodified (the package's own picture) |
+| Two little birds | math3us.c | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/two-litle-birds/) | `two-little-birds.jpg` | unmodified (the package's own picture) |
+| Field of flowers | vc | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/flowers-dragonflies/) | `field-of-flowers.png` | unmodified (the package's own picture) |
+
 ## Everything else
 
 See `NOTICE` (third-party software) and `LICENSE`.

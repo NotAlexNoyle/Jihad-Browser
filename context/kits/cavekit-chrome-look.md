@@ -52,6 +52,12 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   Uninstall, the gallery link and the plugin menu drawn and reached; the rest is the manager's own
   code under a style sheet — not each exercised.)*
 - [x] Nothing in UXP's own files is edited: the look is a style sheet Jihad adds to the page.
+- [x] An add-on's preferences fit the card's width: each is a block of its own (title, description,
+  then its control), text fields are dark with light text, and nothing is cut off on the right or
+  needs a sideways scroll. *(Device, Mochi, Palefill's Preferences, 2026-10-12: before, its
+  controls ran past the right edge and the card zoomed out to 0.78 while the page loaded; after,
+  every control and the homepage address inside the page, no sideways scrollbar.)* (The owner:
+  "extension settings dont appear correctly (cut off)".)
 - [~] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
   gives a XUL page no scroller and the card scrolls only pages, so the page's root grows to the
   list's whole length and the card pans it. *(Device: the daemon reports the taller page; the pan
@@ -65,12 +71,36 @@ any web page; it does not stop dead.
 - [~] A flick up or down on about:personas and on the settings page coasts, in both directions and
   at both ends of the page, as it does on a web page in the same card. *(Built; a flick needs a
   finger — scripted pointer events do not reach the plugin — so the owner judges it.)*
-- [x] The cause is found and stated, and the fix is in the engine and the shells, not a different
-  scroller for these pages only: Jihad's pages are drawn at zoom 1, the only zoom at which the daemon
+- [~] The cause is found and stated, and the fix is in the engine and the shells, not a different
+  scroller for these pages only (the likeliest causes, from the code; a finger confirms): Jihad's pages are drawn at zoom 1, the only zoom at which the daemon
   echoes the engine's scroll position to the card, and an echo resets the card's kinetic scroller;
   the daemon now echoes nothing while the card is streaming positions (within 300 ms of the last).
-  Mochi never handed a flick to the adapter at all: it does now (webOS WebKit's `flick`, as Enyo 1's
-  BasicWebView does).
+  Mochi never handed a flick to the adapter at all: LunaSysMgr gives a card its gestures by calling
+  `Mojo.handleGesture(type, properties)`, which Enyo 1 defines (compatibility/webosGesture.js) and
+  Enyo 2 does not, so every flick in Mochi was dropped; Mochi now defines it the same way and hands
+  a flick that began on the web view to the adapter, in whole numbers (the adapter refuses others).
+  (The first attempt, a DOM `flick` listener, could never fire — inspector round 20.)
+**Dependencies:** cavekit-input-bridging.md
+
+### R4: The keyboard on Jihad's pages
+**Description:** Jihad's own pages open with the whole page in view, and a field the keyboard has
+left behind does not keep its caret (the owner, 2026-10-12: "when about:settings or about:personas
+is open the keyboard should be dismissed at first so the whole page is visible"; "when the
+keyboard is closed in about:addons the cursor in the search panel is still there").
+**Acceptance Criteria:**
+- [x] Opening about:settings, about:preferences, about:personas or about:addons from the address
+  field or the app menu takes the focus off the address field, so the keyboard goes down; opening
+  any other page leaves it where it was. *(Device, all three, 2026-10-12, the address field
+  focused by the card's own handler: Enyo and Mojo focus on BODY after a Jihad page, INPUT after
+  example.org; Mochi's and Mojo's windows grew back from 705 to 996 px — the keyboard went down.)*
+- [~] When the keyboard goes down while a field in the page has the focus, the field gives up the
+  focus (no caret left), and the shell is told the editor lost it. *(Built in the daemon: a window
+  that grows back by a keyboard's height at the same width clears the page's focus. A scripted tap
+  focuses the field but raises no keyboard, so only a finger can test it — the owner's.)*
+- [ ] Select All in the address field's Cut/Copy bubble: not satisfiable by the project. The bubble
+  is drawn by the system (none of the shells, Enyo 1 or LunaSysMgr's sources draw it); Enyo's
+  `selectAllOnFocus` already selects the address on a tap in the Enyo card. Offered instead: the same
+  select-on-tap in Mochi and Mojo, or an Edit entry in the app menu — the owner's choice.
 **Dependencies:** cavekit-input-bridging.md
 
 ## Out of Scope

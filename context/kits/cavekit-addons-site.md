@@ -144,6 +144,13 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   a JSON string of the slot object, so every field stays a string; the update service and the
   Personas page's `data-browsertheme` carry the same. *(Local copy: 40 entries, the same 17 string
   fields each; Jihad reads `colors` as that string — cavekit-persona-formats.md R4.)*
+- [x] A colour Persona's browser id comes from its colours, not from the header the site drew for it:
+  its catalogue entry's own `browserId` at first import, else `static-theme:` and 24 hex of the
+  sha256 of its frame, text and slot colours (compact JSON, fixed order), so two palettes sharing
+  a frame and toolbar are two Personas, and redrawing a header never changes an id. The version
+  goes up only when what a browser draws changes (picture, colours, kind, a colour Persona's name).
+  *(Local copy: the 23 palettes re-imported under these ids, all distinct; a second import changes
+  nothing; the smoke test checks the feed's contract on every page — round 20.)*
 - [x] `q` matches name, author and description, in any language (UTF-8 kept); `per_page` is capped
   (at most 50); an out-of-range page, however large its number, is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list.)*
 - [x] The response is cacheable for a few minutes and has the JSON content type; HTML-significant

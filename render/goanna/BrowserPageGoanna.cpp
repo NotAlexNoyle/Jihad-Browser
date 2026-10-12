@@ -645,6 +645,11 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   int sx0 = 0, sy0 = 0;
   if (t1log || (shrink && hadEditable)) mPage->GetScrollXY(&sx0, &sy0);
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
+  // The window grew back by about a keyboard's height, at the same width, with a field focused:
+  // the keyboard was put away, and the field gives up the focus with it (no caret left behind).
+  // A rotation to portrait also grows the height, but changes the width.
+  if (!shrink && hadEditable && mLastWinH != 0 && (int)width == mLastWinW && (int)height >= mLastWinH + 120)
+    mPage->BlurFocusedEditable();
   if (shrink && hadEditable) {
     int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
     // Counter an engine-induced downward push (field-into-view).
@@ -700,6 +705,7 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   }
   if (mLastWinH != (int)height) { mLastWinResizeDh = (int)height - mLastWinH; mLastWinResizeMs = jihadNowMs(); }
   mLastWinH = (int)height;
+  mLastWinW = (int)width;
   if (t1log) {
     int sx2 = 0, sy2 = 0; mPage->GetScrollXY(&sx2, &sy2);
     fprintf(stderr, "[jihad-bs] setWindowSize %ux%u scroll %d,%d -> %d,%d editable=%d shrink=%d\n",
@@ -2379,6 +2385,15 @@ void BrowserPageGoanna::emitScrollIfChanged() {
   // the engine scroll here would overwrite the adapter's horizontal pan and the vertical position
   // it is driving (Codex F2), so suppress the scrolled-to echo while zoomed.
   if (mZoom < 0.99 || mZoom > 1.01) return;
+  // While the card is streaming positions (a drag, or a flick coasting: one every frame), nothing
+  // is echoed: an echo resets the card's kinetic scroller, so a coast that ran past where the engine
+  // stops (the page's end, or a page measured taller than it scrolls) would stop dead. Jihad's own
+  // pages are drawn at zoom 1, the only zoom this echo runs at, and their flicks were reported to
+  // stop dead (cavekit-chrome-look.md R3). The engine's position is not taken as seen meanwhile: once
+  // the stream pauses (pump calls this every tick), a jump the page made in the window — a fragment,
+  // a scrollIntoView, a focus scroll — is judged like any other (inspector 2026-10-12: taking it as
+  // seen here lost it for good).
+  if (jihadNowMs() - mLastScrollMs < 300) return;
   int sx = 0, sy = 0;
   if (mPage->GetScrollXY(&sx, &sy) &&
       (sx != mLastScrollX || sy != mLastScrollY)) {
@@ -2396,15 +2411,8 @@ void BrowserPageGoanna::emitScrollIfChanged() {
     double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
     long dy = (long)sy - (long)((double)mAdapterScrollY / z); if (dy < 0) dy = -dy;
     long dx = (long)sx - (long)((double)mAdapterScrollX / z); if (dx < 0) dx = -dx;
-    // While the card is streaming positions (a drag, or a flick coasting: one every frame), nothing
-    // is echoed at all: an echo resets the card's kinetic scroller, so a coast that ran past where
-    // the engine stops (the page's end, or a page measured taller than it scrolls) would stop dead.
-    // Jihad's own pages are drawn at zoom 1, the only zoom this echo runs at, and their flicks were
-    // reported to stop dead (cavekit-chrome-look.md R3) — the likeliest cause, which only a finger
-    // can confirm. Once the stream pauses, a real difference is still reported.
-    int64_t sinceScroll = jihadNowMs() - mLastScrollMs;
-    bool adapterDriven = sinceScroll < 300 ||
-                         (sinceScroll < 1500 && dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2));
+    bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
+                         dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
     if (!adapterDriven) {
       fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (content-initiated)\n", sx, sy);
       mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)

@@ -48,18 +48,18 @@ installs **next to** the stock browser and changes nothing else on your TouchPad
 
 A **Persona** gives the toolbar and buttons a picture and colours of their own.
 
-- **Fifteen come with Jihad.** Five were drawn for it in the glossy style of the screens the
-  TouchPad grew up with (**Bubble Lagoon**, **Cloud Nine**, **Meadow Morning**, **Aurora Silk**,
-  **Lime Fizz**), and ten are Firefox classics whose authors licensed them for sharing, such as
-  Space Fantasy, Summerwood and Autumn Forest.
-- **Get Personas** opens Jihad's own gallery, `about:personas`, and thousands more install with
-  one confirmation from Persona sites made for Firefox, Pale Moon and Basilisk, and from
-  addons.mozilla.org — today's themes too: picture themes, colour-only ones (Firefox Color,
-  Colorways) and layered ones, their colours reaching the address bar, the menus and the start page.
-  (Complete themes, the kind that restyle a desktop browser's window, have nothing to dress here;
-  Jihad says so and points to Personas.)
-- **A real manager** in `about:addons` → Personas: every Persona with its picture, author and
-  version; **Wear** (with **Undo**), **Uninstall**, **Install from file**.
+- **Two come with Jihad**: **Free Palestine**, Battir's terraced olive hills from a CC BY 2.0
+  photograph by Labour Palestine, and **Aurora Silk**, drawn for Jihad in the glossy style of the
+  screens the TouchPad grew up with. Many more are on Jihad's add-on site,
+  addons.riverstonerelay.org: the project's own, Firefox classics whose authors licensed them for
+  sharing (Space Fantasy, Summerwood, Autumn Forest…) and colour-only themes from MIT-licensed
+  palettes (Catppuccin, Nord, Dracula, Solarized, Gruvbox and more).
+- **Jihad's own gallery**, `about:personas`: your Personas (**Wear**, **Take off**, **Remove**,
+  **Undo**, **Install from file**), and a search of the add-on site and of addons.mozilla.org — whose
+  themes install with one confirmation, picture themes, colour-only ones and layered ones alike,
+  their colours reaching the address bar, the menus and the start page. Persona sites made for
+  Firefox, Pale Moon and Basilisk work too. (Complete themes, the kind that restyle a desktop
+  browser's window, have nothing to dress here; Jihad says so and points to Personas.)
 - Each interface keeps its own, so every card can have a different look.
 
 <p align="center">

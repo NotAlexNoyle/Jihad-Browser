@@ -106,14 +106,52 @@
 /* One add-on's page: a single large card. */
 #detail-view {
 	margin: 10px;
-	padding: 14px 18px;
+	padding: 14px 8px;
 	background: #232323;
 	border: 1px solid #2f2f2f;
 	border-radius: 8px;
+	overflow-x: hidden;            /* the card cannot pan a box sideways: nothing may need it */
 }
+/* The skin's margins are a desktop window's: on the card they pushed the page past its right edge
+   (measured on the device, 2026-10-12: Palefill's page 9 px over when loaded, 175 px while its
+   update row and Contribute button were drawn, and the card zoomed out to fit). */
+#addons-page .detail-view-container { padding: 0 6px 16px 6px; }
+#addons-page #detail-grid > columns > column:first-child { min-width: 0; }
+#addons-page #detail-icon-container { width: 48px; -moz-margin-end: 8px; }
+#addons-page #detail-icon { max-width: 48px; max-height: 48px; }
 #detail-name { font-size: 22px; font-weight: bold; color: #f0f0f0; }
 .detail-row { min-height: 36px; }
 .detail-row-label { color: #a8a8a8; }
+
+/* An add-on's preferences: the manager lays each one out as a line of a two-column grid, the
+   controls' column as wide as its widest control; on the card that was wider than the page, and
+   the controls were cut off on the right (the owner, 2026-10-12: "extension settings dont appear
+   correctly (cut off)"). Here each preference is a block of its own instead: its title and
+   description, then its control under them across the page's width. */
+#detail-rows > setting {
+	display: -moz-box !important;
+	-moz-box-orient: vertical;
+	padding: 8px 0;
+	border-top: 1px solid #2f2f2f;
+}
+#detail-rows > setting[type="bool"], #detail-rows > setting[type="boolint"] {
+	-moz-box-orient: horizontal;   /* a checkbox stays beside its title */
+}
+#detail-rows > setting .preferences-alignment { min-height: 0; }
+#detail-rows > setting button, #detail-rows > setting textbox, #detail-rows > setting menulist { margin: 6px 0 0 0; }
+#detail-rows > setting description { white-space: normal; }
+
+/* Text fields on this dark page: dark, with light text and a caret to match. */
+#addons-page textbox:not([type="search"]) {
+	-moz-appearance: none;
+	background: #2e2e2e;
+	color: #f0f0f0;
+	border: 1px solid #5a5a5a;
+	border-radius: 4px;
+	padding: 4px 6px;
+	caret-color: #f0f0f0;
+}
+#addons-page textbox:not([type="search"]) .textbox-input { color: #f0f0f0; background: transparent; }
 
 /* Text: the engine's skin is Windows' classic one, which writes some labels in its own greys and
    blacks; on this dark page every text is light, the secondary one a step dimmer (the owner,

@@ -122,12 +122,8 @@ enyo.kind({
 			// Lower the VKB when the plugin loses focus (BasicWebView blur).
 			this._blurBind = this._blurBind || enyo.bind(this, "blurHandler");
 			node.addEventListener("blur", this._blurBind);
-			// A flick carries on as momentum only if it reaches the adapter's scroller: webOS WebKit
-			// sends the finger's "flick" (xVel, yVel) to the node, and BasicWebView.flickHandler hands
-			// it on; this card had no such hand-off, so every flick stopped dead
-			// (cavekit-chrome-look.md R3).
-			this._flickBind = this._flickBind || enyo.bind(this, "flickHandler");
-			node.addEventListener("flick", this._flickBind);
+			// The flicks that begin on this view go to the adapter's kinetic scroller (below).
+			enyo.jihadFlickView = this;
 			if (this.adapterReady()) {
 				this.connect();
 			}
@@ -151,8 +147,9 @@ enyo.kind({
 	},
 	//* BasicWebView.flickHandler: the flick's velocity to the adapter's kinetic scroller.
 	flickHandler: function(inEvent) {
+		// The adapter takes whole numbers only (js_handleFlick refuses anything else).
 		if (inEvent && typeof inEvent.xVel === "number" && typeof inEvent.yVel === "number") {
-			this._call("handleFlick", [inEvent.xVel, inEvent.yVel]);
+			this._call("handleFlick", [Math.round(inEvent.xVel), Math.round(inEvent.yVel)]);
 		}
 	},
 
@@ -461,3 +458,27 @@ enyo.kind({
 		this.doDialogUserPassword({message: msg});
 	}
 });
+
+// LunaSysMgr hands a card its gestures — the flick among them, with xVel and yVel — by calling
+// window.Mojo.handleGesture(type, properties). Enyo 1 defines it (compatibility/webosGesture.js:
+// the gesture goes to the element the finger last went down on, and BasicWebView.flickHandler
+// passes a flick to the adapter, whose kinetic scroller makes the coast). Enyo 2 defines nothing,
+// so in this card every flick was dropped and no page ever coasted (cavekit-chrome-look.md R3).
+// The same here: a flick that began on the web view is the web view's.
+if (window.PalmSystem) {
+	(function() {
+		var lastDown = null;
+		document.addEventListener("mousedown", function(e) { lastDown = e.target; }, true);
+		window.Mojo = window.Mojo || {};
+		var before = window.Mojo.handleGesture;
+		window.Mojo.handleGesture = function(type, properties) {
+			var view = enyo.jihadFlickView, node = view && view.hasNode && view.hasNode();
+			if (type === "flick" && node && lastDown && (lastDown === node || node.contains(lastDown))) {
+				view.flickHandler(properties || {});
+			}
+			if (before) { before.apply(this, arguments); }
+		};
+		// LunaSysMgr calls this too, and logs an error when it is missing (as Enyo 1 notes).
+		window.Mojo.screenOrientationChanged = window.Mojo.screenOrientationChanged || function() {};
+	})();
+}

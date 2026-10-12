@@ -282,6 +282,84 @@ function hexOf(raw) {
   return hex;
 }
 
+// A small picture for an installed Persona's card in the gallery: its header scaled to THUMB_WIDTH
+// wide, made once and kept beside it (<24 hex>-thumb.jpg). Cards drew the full headers — up to
+// 3000 px, some of them wallpapers shrunk only to 1600 — and the device's small image cache dropped
+// and decoded them again as the page moved: cards flashed and scrolling stalled (the owner,
+// 2026-10-12: "some personas are still flashing like carbon light 2.0"). A site's Persona keeps its
+// own preview, which is small already. Making them is bounded per call (THUMB_BUDGET_MS); one not
+// made in time is made the next time the page opens, and the full picture is drawn meanwhile.
+const THUMB_WIDTH = 800;
+const THUMB_BUDGET_MS = 1200;
+function headerFileOf(url) {
+  let m = /^resource:\/\/jihad-themes\/([^\/?#]+)$/.exec(url);
+  if (m) { let f = themesDir(); f.append(m[1]); return f; }
+  if (/^file:/i.test(url)) {
+    try { return Services.io.newURI(url, null, null).QueryInterface(Ci.nsIFileURL).file; } catch (e) {}
+  }
+  return null;
+}
+function thumbFor(t, budget, keep) {
+  if (t.previewURL) { return String(t.previewURL); }
+  let url = String(t.headerURL || "");
+  let file = headerFileOf(url);
+  let ext = file ? (/\.(png|jpe?g)$/i.exec(file.leafName) || [])[1] : null;
+  if (!file || !ext || !file.exists()) { return url; }
+  let thumb = themesDir();
+  thumb.append(sha256Str(file.path + "|" + file.lastModifiedTime + "|" + file.fileSize).slice(0, 24) + "-thumb.jpg");
+  keep[thumb.leafName] = true;
+  if (!thumb.exists()) {
+    if (Date.now() > budget.until) { return url; }
+    let sz = pictureSize(file);
+    if (!sz || sz.w <= THUMB_WIDTH) { return url; }              // small already
+    try {
+      let tools = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools);
+      let src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+      src.init(file, 0x01, 0, 0);
+      let container = null;
+      try { container = tools.decodeImage(src, /png/i.test(ext) ? "image/png" : "image/jpeg"); }
+      finally { try { src.close(); } catch (e) {} }
+      let h = Math.max(1, Math.round(sz.h * THUMB_WIDTH / sz.w));
+      let out = tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
+      let tmp = thumb.clone();
+      tmp.leafName = thumb.leafName + ".part";
+      let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+      bis.setInputStream(out);
+      let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+      fos.init(tmp, 0x02 | 0x08 | 0x20, 0o644, 0);
+      let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+      bos.setOutputStream(fos);
+      try {
+        for (;;) {
+          let n = Math.min(bis.available(), 65536);
+          if (n <= 0) { break; }
+          bos.writeByteArray(bis.readByteArray(n), n);
+        }
+      } finally {
+        try { bos.close(); } catch (e) {}
+        try { bis.close(); } catch (e) {}
+      }
+      tmp.moveTo(null, thumb.leafName);
+    } catch (e) {
+      log("card picture for " + t.name + ": " + e);
+      return url;
+    }
+  }
+  ensureThemesResource();
+  return "resource://jihad-themes/" + thumb.leafName;
+}
+
+// Card pictures no installed Persona uses any more.
+function pruneThumbs(keep) {
+  try {
+    let en = themesDir().directoryEntries;
+    while (en.hasMoreElements()) {
+      let f = en.getNext().QueryInterface(Ci.nsIFile);
+      if (/-thumb\.jpg(\.part)?$/.test(f.leafName) && !keep[f.leafName]) { f.remove(false); }
+    }
+  } catch (e) { log("card pictures: " + e); }
+}
+
 function sha256Str(s) {
   let conv = Cc["@mozilla.org/intl/scriptableunicodeconverter"].createInstance(Ci.nsIScriptableUnicodeConverter);
   conv.charset = "UTF-8";
@@ -1257,26 +1335,6 @@ function buildBox(win) {
   row.appendChild(names); row.appendChild(inUse); row.appendChild(wear);
   box.appendChild(row);
 
-  let actions = xul(doc, "hbox", {align: "center", hidden: "true"});   // Install from file: in the gallery now
-  let fromFile = xul(doc, "button", {label: "Install from file\u2026"});
-  let files = xul(doc, "vbox", {"class": "jihad-files", hidden: "true"});
-  fromFile.addEventListener("command", function() {
-    while (files.firstChild) { files.firstChild.remove(); }
-    let found = xpiFilesOnDevice();
-    if (!found.length) {
-      files.appendChild(xul(doc, "label", {value: "No .xpi files in " + XPI_DIRS.join(" or ") + "."}));
-    }
-    found.forEach(function(f) {
-      let b = xul(doc, "button", {label: f.leafName});
-      b.addEventListener("command", function() { files.hidden = true; installThemeFile(f); });
-      files.appendChild(b);
-    });
-    files.hidden = !files.hidden;
-  });
-  actions.appendChild(fromFile);
-  box.appendChild(actions);
-  box.appendChild(files);
-
   box._jihad = {intro: intro, undoBar: undoBar, undoLabel: undoLabel, inUse: inUse, wear: wear};
   return box;
 }
@@ -1359,24 +1417,30 @@ function decorateRow(doc, item, theme, isCurrent) {
 // the tall page as it pans any other (cavekit-chrome-look.md R3).
 function growToList(win) {
   let doc = win.document, root = doc.documentElement;
-  let view = null;
-  ["addon-list", "search-list", "updates-list"].forEach(function(id) {
-    let el = doc.getElementById(id);
-    if (el && el.getBoundingClientRect().height > 0) { view = el; }
-  });
+  let gVC = win.gViewController;
+  // Every view of the manager is laid out at full size inside its deck, shown or not: only the one
+  // shown counts (inspector 2026-10-12).
+  let panel = gVC && gVC.viewPort ? gVC.viewPort.selectedPanel : null;
+  root.style.minHeight = "";                      // measured as it lays out without the stretch
   let need = 0;
-  if (view) {
-    let top = view.getBoundingClientRect().top + (win.scrollY || 0);
-    let inner = view.scrollHeight || 0;
-    try { let sb = doc.getAnonymousElementByAttribute(view, "anonid", "main-box") || view; inner = Math.max(inner, sb.scrollHeight || 0); } catch (e) {}
-    need = Math.ceil(top + inner + 24);
+  if (panel) {
+    let list = panel.id === "detail-view" ? null : panel.querySelector("richlistbox");
+    if (list) {
+      // The list's items, not its box (a stretched box measures its own stretch).
+      let rect = list.getBoundingClientRect(), first = null, last = null;
+      Array.prototype.forEach.call(list.querySelectorAll("richlistitem"), function(it) {
+        let r = it.getBoundingClientRect();
+        if (r.height <= 0) { return; }                 // hidden (the Personas view's other rows)
+        if (!first || r.top < first) { first = r.top; }
+        if (!last || r.bottom > last) { last = r.bottom; }
+      });
+      let content = first === null ? 0 : (last - first) + 16;
+      if (content > rect.height) { need = Math.ceil(rect.top + content + 24); }
+    } else {
+      need = Math.ceil(panel.getBoundingClientRect().top + (panel.scrollHeight || 0) + 24);
+    }
   }
-  let detail = doc.getElementById("detail-view");
-  if (detail && detail.getBoundingClientRect().height > 0) {
-    need = Math.max(need, Math.ceil(detail.getBoundingClientRect().top + (detail.scrollHeight || 0) + 24));
-  }
-  let want = need > win.innerHeight ? need + "px" : "";
-  if (root.style.minHeight !== want) { root.style.minHeight = want; }
+  if (need > win.innerHeight) { root.style.minHeight = need + "px"; }
 }
 
 function decoratePane(win) {
@@ -1465,12 +1529,17 @@ function attachPane(win) {
   let doc = win.document;
   // The whole page in the webOS style, its buttons in the look of the card it is in
   // (cavekit-chrome-look.md R1, R2); then the Personas pane's own rules on top.
+  // On the device only (a shell is named): the desktop build keeps the manager's own look.
   if (shellName() && doc.documentElement) { doc.documentElement.setAttribute("jihad-shell", shellName()); }
-  try {
-    let utils = win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
-    utils.loadSheetUsingURIString(ADDONS_CSS, Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
-    utils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET);
-  } catch (e) { log("add-ons manager style: " + e); }
+  let utils = null;
+  try { utils = win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils); } catch (e) {}
+  if (utils && shellName()) {
+    try { utils.loadSheetUsingURIString(ADDONS_CSS, Ci.nsIDOMWindowUtils.AUTHOR_SHEET); } catch (e) { log("add-ons manager style: " + e); }
+  }
+  if (utils) {
+    try { utils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET); }
+    catch (e) { log("Personas pane style: " + e); }
+  }
   let again = function() { try { decoratePane(win); } catch (e) { log("themes pane: " + e); } };
   doc.addEventListener("ViewChanged", again, true);
   let list = doc.getElementById("addon-list");
@@ -1480,6 +1549,19 @@ function attachPane(win) {
       if (pending) { return; }
       pending = later(30, function() { pending = 0; again(); });
     }).observe(list, {childList: true});
+  }
+  // An add-on's preferences arrive in its page after the view has changed (the manager loads
+  // them): the page's height is measured again when they do.
+  let rows = doc.getElementById("detail-rows");
+  if (rows) {
+    let measuring = 0;
+    new win.MutationObserver(function() {
+      if (measuring) { return; }
+      measuring = later(150, function() {
+        measuring = 0;
+        try { growToList(win); } catch (e) { log("about:addons height: " + e); }
+      });
+    }).observe(rows, {childList: true, subtree: true});
   }
   win.addEventListener("unload", function() {
     paneWindows.delete(win);
@@ -1506,6 +1588,17 @@ function forgetThemeFiles(id) {
   } catch (e) { log("theme files could not be removed: " + e); }
 }
 
+// The licences of the Personas made by others that came with the browser until 2026-10-12 (they are
+// on the add-on site now, credited in its catalogue; CREDITS.md keeps the three its README shows).
+const FORMER_CREDITS = {
+  "Space Fantasy\u0000fx5800p": "CC BY-SA 3.0", "Linen Light\u0000DVemer": "CC BY-SA 3.0",
+  "Pastel Gradient\u0000Darrin Henein": "CC BY 3.0", "Carbon Light\u0000Jaxivo": "CC BY-SA 3.0",
+  "Summerwood\u0000Digital Blasphemy": "CC BY-SA 3.0", "Autumn Forest\u0000olylady": "CC BY-SA 3.0",
+  "Mont Blanc vu du Bettes St Gervais\u0000Gardfield75018": "CC BY-SA 3.0",
+  "Dream of Waves\u0000jrhd437": "CC BY-SA 3.0", "Two little birds\u0000math3us.c": "CC BY-SA 3.0",
+  "Field of flowers\u0000vc": "CC BY 4.0"
+};
+
 // addons.mozilla.org's theme files: asked for only there, followed only to its own file hosts, and
 // no bigger than a theme package may be (the pictures inside are bounded again by the conversion).
 const AMO_FILE = /^https:\/\/addons\.mozilla\.org\/[^\s"'<>]+\.xpi$/;
@@ -1523,17 +1616,22 @@ function fetchAmoTheme(url, name) {
   x.onprogress = function(e) { if (e.loaded > AMO_MAX_BYTES) { x.abort(); answer(false, label + " is too big to be a theme."); } };
   x.onerror = x.ontimeout = function() { answer(false, label + " could not be fetched from addons.mozilla.org."); };
   x.onload = function() {
-    let host = "";
-    try { host = Services.io.newURI(String(x.responseURL || url), null, null).host; } catch (e) {}
+    let host = "", secure = false;
+    try {
+      let final = Services.io.newURI(String(x.responseURL || url), null, null);
+      host = final.host;
+      secure = final.schemeIs("https");                // a redirect must not leave https
+    } catch (e) {}
     let bytes = x.response ? new Uint8Array(x.response) : null;
-    if (x.status !== 200 || !bytes || AMO_HOSTS.indexOf(host) < 0 || bytes.length > AMO_MAX_BYTES) {
+    if (x.status !== 200 || !bytes || !secure || AMO_HOSTS.indexOf(host) < 0 || bytes.length > AMO_MAX_BYTES) {
       answer(false, label + " could not be fetched from addons.mozilla.org.");
       return;
     }
-    let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
-    file.append("jihad-amo-theme.xpi");
-    file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0o600);
+    let file = null;
     try {
+      file = Services.dirsvc.get("TmpD", Ci.nsIFile);
+      file.append("jihad-amo-theme.xpi");
+      file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0o600);   // /tmp may be full: answered below
       let out = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
       out.init(file, 0x02 | 0x08 | 0x20, 0o600, 0);
       let bin = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
@@ -1555,13 +1653,15 @@ function fetchAmoTheme(url, name) {
         let cur = manager().currentTheme;
         worn = !!cur && (!before || cur.id !== before.id || cur.name === label);
       } catch (e) {}
-      answer(converted && worn, !converted ? label + " is not a theme this browser can wear."
+      // Not converted: either not a theme this browser wears, or one whose pictures could not be kept
+      // (handleStaticTheme logs which); the second would read wrong as the first, so say neither.
+      answer(converted && worn, !converted ? label + " could not be installed as a Persona."
                                            : (worn ? "Wearing " + label + "." : "Not installed."));
     } catch (e) {
       log("theme from addons.mozilla.org: " + e);
       answer(false, label + " could not be installed.");
     } finally {
-      try { if (file.exists()) { file.remove(false); } } catch (e) {}
+      try { if (file && file.exists()) { file.remove(false); } } catch (e) {}
     }
   };
   x.send();
@@ -1634,15 +1734,23 @@ function galleryRequest(bag) {
   //   files / installFile → the theme files (.xpi) on the device, and installing one.
   if (action === "mine") {
     if (undo && Date.now() > undo.until) { undo = null; }
+    // Credits on every card (R9): the bundled ones' from their index, and those of the ten that came
+    // with the browser until 2026-10-12 — a profile keeps them, and they keep their licences.
     let credits = {};
+    used.forEach(function(t) {
+      if (t.author && FORMER_CREDITS[t.name + "\u0000" + t.author]) { credits[t.id] = FORMER_CREDITS[t.name + "\u0000" + t.author]; }
+      else if (t.author === "Jihad Browser") { credits[t.id] = "MPL-2.0"; }   // the project's own drawings
+    });
     bundledPersonas().forEach(function(b) { credits[b.theme.id] = b.license || ""; });
-    reply({undo: undo ? {name: String(undo.name || "")} : null,
-           list: used.slice(0, 60).map(function(t) {
-             return {id: t.id, name: t.name || "", author: t.author || "", version: t.version || "",
-                     accentcolor: t.accentcolor || "", textcolor: t.textcolor || "",
-                     preview: t.previewURL || t.headerURL || "", license: credits[t.id] || "",
-                     worn: !!(cur && cur.id === t.id)};
-           })});
+    let budget = {until: Date.now() + THUMB_BUDGET_MS}, keep = {};
+    let list = used.slice(0, 60).map(function(t) {
+      return {id: t.id, name: t.name || "", author: t.author || "", version: t.version || "",
+              accentcolor: t.accentcolor || "", textcolor: t.textcolor || "",
+              preview: thumbFor(t, budget, keep), license: credits[t.id] || "",
+              worn: !!(cur && cur.id === t.id)};
+    });
+    if (Date.now() <= budget.until) { pruneThumbs(keep); }     // only when every picture was looked at
+    reply({undo: undo ? {name: String(undo.name || "")} : null, list: list});
     return;
   }
   if (action === "wearId") {

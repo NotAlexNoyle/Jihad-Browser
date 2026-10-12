@@ -342,6 +342,7 @@ enyo.kind({
 	},
 	urlChanged: function() {
 		if (this.url) {
+			this.keyboardAwayFor(this.url);
 			this.rememberStartPageDoc(this.url);
 			this._pendingUrl = (this.url !== this._committedUrl);
 			this.$.view.setUrl(this.url);
@@ -479,12 +480,20 @@ enyo.kind({
 		this._lastSubmit = text;
 		this.openUrl(text);
 	},
+	//* Jihad's own pages open with the keyboard away, so the whole page shows (the owner,
+	//* 2026-10-12): the address field gives up the focus when one is opened.
+	keyboardAwayFor: function(url) {
+		if (/^about:(settings|preferences|personas|addons)(?:[#?]|$)/.test(url || "") && this.$.address.hasNode()) {
+			this.$.address.node.blur();
+		}
+	},
 	openUrl: function(text) {
 		var url = this.normalizeUrl(text);
 		if (!url) {
 			return;
 		}
 		this.url = url;
+		this.keyboardAwayFor(url);
 		this.rememberStartPageDoc(url);
 		// Until the engine commits it, the page on screen is the previous one: no padlock
 		// for the new address (it would be the old page's certificate under it).

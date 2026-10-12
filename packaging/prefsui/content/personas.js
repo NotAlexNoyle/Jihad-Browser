@@ -121,8 +121,10 @@ function refreshButtons() {
 	(ask("list") || []).forEach(function (p) { showButton(p.key, p.worn, true); });
 	Object.keys(buttons).forEach(function (id) {
 		if (buttons[id].getAttribute("data-kind") === "site") { showButton(id, state.worn === id, !!state.ids[id]); }
-		// (a theme from addons.mozilla.org gets its id from its picture when converted: its card
-		// learns what became of it from the component's answer instead)
+		// A theme from addons.mozilla.org gets its id from its picture when converted, so its card
+		// cannot tell whether it is still worn after a later change: it offers Install again.
+		let b = buttons[id];
+		if (b.getAttribute("data-kind") === "amo" && b.textContent === "In use") { b.textContent = "Install"; b.disabled = false; }
 	});
 }
 
@@ -158,9 +160,10 @@ function renderMine() {
 	});
 }
 
-// After a change: Your Personas again, and every other card's button.
+// After a change: Your Personas and the bundled ones again, and every other card's button.
 function afterChange() {
 	renderMine();
+	renderBundled();
 	refreshButtons();
 }
 
@@ -200,9 +203,14 @@ function setupMine() {
 }
 
 // The Personas that come with Jihad and are not installed (one removed can be had again here); the
-// installed ones are under Your Personas.
+// installed ones are under Your Personas. Drawn again after a change, so one just worn moves there.
 function renderBundled() {
 	let box = document.getElementById("bundled");
+	while (box.firstChild) {
+		let id = box.firstChild.getAttribute && box.firstChild.getAttribute("data-id");
+		if (id) { delete buttons[id]; }
+		box.firstChild.remove();
+	}
 	let list = ask("list") || [];
 	list.filter(function (p) { return !p.installed; }).forEach(function (p) {
 		let b = button("Wear", false, function () {
@@ -404,9 +412,12 @@ function amoItem(r) {
 
 // Install: the component fetches the theme file from addons.mozilla.org and converts it as it does
 // any theme file, asking first; its answer comes back later ("jihad-personas-amo").
+// amoPending: the theme files being fetched, each with the card button to tell (a card drawn again
+// while its theme is fetched — a new search — takes the place of the old one and says Fetching too).
 let amoPending = {};
 function amoCard(it) {
-	let b = button("Install", false, function () {
+	let fetching = Object.prototype.hasOwnProperty.call(amoPending, it.file);
+	let b = button(fetching ? "Fetching\u2026" : "Install", fetching, function () {
 		let r = ask("amo", {url: it.file, name: it.name});
 		if (r && r.ok) {
 			amoPending[it.file] = b;
@@ -416,6 +427,7 @@ function amoCard(it) {
 			status((r && r.message) || "That theme could not be installed.");
 		}
 	});
+	if (fetching) { amoPending[it.file] = b; }
 	b.setAttribute("data-kind", "amo");
 	buttons[it.id] = b;
 	return card(it, b, true);
@@ -447,10 +459,10 @@ function setupAmo() {
 			if (!r || !amoPending[r.url]) { return; }
 			let b = amoPending[r.url];
 			delete amoPending[r.url];
-			b.textContent = r.ok ? "In use" : "Install";
-			b.disabled = !!r.ok;
 			status(r.message || (r.ok ? "Done." : "That theme could not be installed."), !!r.ok);
 			if (r.ok) { afterChange(); }
+			b.textContent = r.ok ? "In use" : "Install";
+			b.disabled = !!r.ok;
 		}
 	};
 	Services.obs.addObserver(watcher, "jihad-personas-amo", false);

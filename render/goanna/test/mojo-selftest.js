@@ -25,6 +25,7 @@
 //   kTEXT        put TEXT on the clipboard
 //   c=TEXT       is TEXT what is on the clipboard? (only the answer and the lengths are logged)
 //   p            Paste, as the menu entry does it (pasteIntoPage)
+//   tX,Y         a tap at card X,Y (device y - 28), as one click pair on the plugin node
 //   H            the open submenu's colours: a plain row's, and a "selected" row's (the class added and removed)
 //   ?            report url, secure flag, open popups
 (function () {
@@ -162,6 +163,14 @@
 						if (al.el.mojo && typeof al.el.mojo.close === "function") { al.el.mojo.close(v); }
 						else { if (al.model.onChoose) { al.model.onChoose(v); } if (al.el.parentNode) { al.el.parentNode.removeChild(al.el); } }
 					}
+				} else if (st.charAt(0) === "t") {    // tX,Y: a tap at card X,Y (device y - 28): one click pair on the plugin node
+					var tp = st.slice(1).split(","), tnode = plugin(), tx = parseInt(tp[0], 10), ty = parseInt(tp[1], 10);
+					["mousedown", "mouseup", "click"].forEach(function (type) {
+						var te = doc.createEvent("MouseEvents");
+						te.initMouseEvent(type, true, true, win, 1, tx, ty, tx, ty, false, false, false, false, 0, null);
+						if (tnode) { tnode.dispatchEvent(te); }
+					});
+					log(name, "tap " + st.slice(1) + (tnode ? "" : " (no plugin node)"));
 				} else if (st.charAt(0) === "X") {    // XX,Y: a double tap on the plugin node at X,Y (two click pairs, then dblclick)
 					var xp = st.slice(1).split(","), xnode = plugin(), xr = xnode ? xnode.getBoundingClientRect() : {left: 0, top: 0};
 					var xx = xr.left + parseInt(xp[0], 10), xy = xr.top + parseInt(xp[1], 10);

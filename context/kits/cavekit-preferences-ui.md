@@ -1,6 +1,6 @@
 ---
 created: "2026-08-05"
-last_edited: "2026-10-06"
+last_edited: "2026-10-12"
 ---
 
 # Cavekit: In-Browser Preferences (`about:preferences`)
@@ -319,6 +319,35 @@ as the F-9/holdAt items in docs/PICKUP.md). A human scroll closed it.
 - [x] Newly authored files carry an MPL-2.0 header, matching the rest of `render/goanna` and the packaging we already ship. *(All five: the component, the manifest, and the three chrome files.)*
 **Dependencies:** cavekit-licensing-branding.md (R1, R3)
 
+### R8: A clear way to Personas, extensions and plugins
+**Description:** Owner, 2026-10-12: "add a clear route to about:personas and extensions in browser
+settings on all 3 variants", then "palefill should not be listed as the subheading for extensions.
+also add plugins with flash player info to the settings page" and "one button per personas,
+extensions, plugins". The settings page is where people look for how the browser looks and what it
+runs; until now it offered only a "Manage Personas" button that went to about:addons.
+**Acceptance Criteria:**
+- [x] The Browser pane, the one the settings page opens on, starts with a "Personas, Extensions and
+  Plugins" group, above everything else in it, with one button on each row. *(Device, all three.)*
+- [x] The Personas row says which Persona is worn (or that none is) and how many are installed;
+  **Browse Personas** opens about:personas. *(Device, all three: "Wearing Space Fantasy by fx5800p.
+  13 installed." in Enyo, Aurora Silk in Mochi, Lime Fizz in Mojo.)*
+- [x] The Extensions row describes extensions rather than naming any, and says how many are
+  installed and how many are turned off; **Manage Extensions** opens about:addons on its Extensions
+  list. *(Device, all three: "Add features to web pages and to the browser. 1 installed.")*
+- [x] The Plugins row gives the Flash Player's version, whether it is on, plays when tapped or is
+  off, and where it comes from (or that it is not installed), and counts any other plugins;
+  **Manage Plugins** opens about:addons on its Plugins list, where Flash's state is set and its
+  details are. *(Device, all three: "Adobe Flash Player 10.3 d185, on. From the HP Flash plugin
+  installed on this device." The other wordings in node, with stand-in plugin entries.)*
+- [x] Each button reaches its page in all three variants, on a settings page opened through each
+  shell's own Settings entry. *(Device: Enyo `openSettings`, Mochi `menuSettings`, Mojo's
+  `jihad-settings` command; each button tapped through the card — the adapter's clickAt in Enyo and
+  Mochi, a click pair on the page in Mojo, by the test hooks, not a finger — and the landing page
+  read back and photographed: about:personas, about:addons on Extensions, about:addons on Plugins.)*
+- [x] What the rows show is put in as text; a Persona's, an add-on's or a plugin's name cannot add
+  markup to the page. *(Code: text nodes and textContent only.)*
+**Dependencies:** R1, R4, cavekit-personas-ui.md (R8, the gallery), cavekit-addons-extensions.md (R2, R7)
+
 ## Out of Scope
 - `about:config` itself — the raw pref editor is cavekit-input-bridging.md R6, and it is done.
 - Add-on management UI — `about:addons`, cavekit-addons-extensions.md R2.
@@ -363,6 +392,9 @@ as the F-9/holdAt items in docs/PICKUP.md). A human scroll closed it.
   call throws.
 
 ## Changelog
+- 2026-10-12: R8 added (the owner's asks): a Personas, Extensions and Plugins group heads the Browser
+  pane, one button per row, extensions described rather than named, the Flash Player's version and
+  state shown; device-verified in all three variants.
 - 2026-10-06 (night): R2 — DuckDuckGo Lite the default search engine, HTML added; one-time migration of the old default.
 - 2026-10-06: R2 effect audit (see the new criterion): 12 rows effect-verified both ways on the device; DNT made real in the daemon; WebGL and zoom rows removed as decorative on this engine/device; two daemon defects found and fixed (no Referer on re-driven navigations; title changes after load not reported).
 - 2026-10-06: R5 recorded as done (one Settings page, 2026-10-05).

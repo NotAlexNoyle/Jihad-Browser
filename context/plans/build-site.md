@@ -490,6 +490,16 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 77 — Settings: a clear way to Personas, extensions and plugins (2026-10-12; added to the site, not a regeneration)
+
+Owner: "add a clear route to about:personas and extensions in browser settings on all 3 variants"; then no extension named as the row's subheading, a Plugins row with the Flash Player's details, and one button per row. Kit: cavekit-preferences-ui.md R8. One page (about:settings) serves all three shells, so one change covers them; each is checked on the device.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-415 | Browser pane opens with "Personas, Extensions and Plugins", one button each: Browse Personas (about:personas), Manage Extensions and Manage Plugins (about:addons lists); what is worn, how many extensions, the Flash Player's version and state | cavekit-preferences-ui.md | R8 | — | no | S | done |
+| T-416 | Device: the group and each button, from each shell's own Settings entry, in all three variants | cavekit-preferences-ui.md | R8 | T-415 | yes | S | done |
+| T-417 | Review (Codex; the inspector when it is out of credits) and fixes | cavekit-preferences-ui.md | R8 | T-416 | no | S | |
+
 ## Tier 76 — Jihad's add-on site, addons.riverstonerelay.org (2026-10-11; added to the site, not a regeneration)
 
 Owner, choosing among the Persona-index options: a Phoebus site on the owner's domain, the owner's Devuan/nginx/OpenRC server, the full feature set with Personas first, owner-only content, originals + vetted CC, a native feed in about:personas plus the site's own buttons, updates on demand, a Palm-era skin, built locally first. Kit: cavekit-addons-site.md. Site code: `../Riverstone-Addons` (Phoebus fork). Nothing is deployed, pushed or put in DNS without the owner.

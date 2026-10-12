@@ -792,45 +792,132 @@ function themeManager() {
 	catch (e) { return null; }
 }
 
-// Appearance is a summary: the Persona worn, and the way to the Personas pane of about:addons,
-// which is where they are worn, taken off, removed and installed (cavekit-personas-ui.md R5 —
-// one place to manage them, not two).
-function buildThemeSection() {
-	var box = el("section", "group");
-	box.appendChild(el("h2", "group-title", "Appearance"));
-	var LWTM = themeManager();
-	if (!LWTM) {
-		box.appendChild(el("div", "row-help", "Personas are not available in this build."));
-		return box;
-	}
-	var current = null, used = [];
-	try { current = LWTM.currentTheme; } catch (e) { current = null; }
-	try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
+// about:addons opens on the list it last showed: that list is set first, then the page opened.
+function openAddons(category) {
+	try { Services.prefs.setCharPref("extensions.ui.lastCategory", category); } catch (e) {}
+	window.location.href = "about:addons";
+}
 
-	var row = el("div", "row");
-	var label = el("label", "row-label");
-	label.appendChild(document.createTextNode("Persona"));
-	label.appendChild(el("div", "row-help", current
-		? (current.name || current.id) + (current.author ? " \u2014 by " + current.author : "") +
-		  (used.length > 1 ? " (" + used.length + " Personas installed)" : "")
-		: (used.length ? "None worn (" + used.length + " installed)."
-		               : "None yet. A Persona gives the toolbar and buttons a picture and colours.")));
-	row.appendChild(label);
-	var manage = el("button", "btn btn-go", "Manage Personas");
-	manage.setAttribute("type", "button");
-	manage.id = "personas-manage";
-	manage.addEventListener("click", function () {
-		// about:addons opens on the category it last showed: make that the Personas.
-		try { Services.prefs.setCharPref("extensions.ui.lastCategory", "addons://list/theme"); } catch (e) {}
-		window.location.href = "about:addons";
-	}, false);
-	row.appendChild(manage);
-	box.appendChild(row);
+function goButton(text, id, go) {
+	var b = el("button", "btn btn-go", text);
+	b.setAttribute("type", "button");
+	b.id = id;
+	b.addEventListener("click", go, false);
+	return b;
+}
+
+// A plugin's state, as the add-on manager and the Content pane's Flash row set it.
+function pluginState(tag) {
+	if (tag.blocklisted) { return "blocked"; }
+	if (tag.disabled) { return "off"; }
+	return tag.clicktoplay ? "plays when you tap it" : "on";
+}
+
+// The plugins the engine found (the device's own Flash among them), from its plugin host.
+function pluginTags() {
+	try {
+		return Cc["@mozilla.org/plugin/host;1"].getService(Ci.nsIPluginHost).getPluginTags() || [];
+	} catch (e) {
+		return null;
+	}
+}
+
+function isFlash(tag) {
+	try { if (tag.niceName === "flash") { return true; } } catch (e) {}
+	try { return tag.getMimeTypes().indexOf("application/x-shockwave-flash") >= 0; } catch (e) { return false; }
+}
+
+// "Adobe Flash Player 10.3 d185, on. From the HP Flash plugin installed on this device." The HP
+// plugin leaves the version field empty and puts it in its description ("Shockwave Flash 10.3 d185").
+function flashSummary(tags) {
+	var flash = tags.filter(isFlash)[0];
+	if (!flash) {
+		return "Adobe Flash is not installed on this device. HP's Flash plugin for webOS puts it where this browser finds it." +
+			(tags.length ? " " + tags.length + (tags.length === 1 ? " other plugin." : " other plugins.") : "");
+	}
+	var version = String(flash.version || "");
+	if (!version) {
+		var m = /(\d+(?:\.\d+)+(?:\s+[a-z]\d+)?)/i.exec(String(flash.description || ""));
+		version = m ? m[1] : "";
+	}
+	var path = String(flash.fullpath || "");
+	var from = path.indexOf("/media/cryptofs/apps/usr/lib/BrowserServerPlugins/") === 0
+		? "the HP Flash plugin installed on this device"
+		: path ? "this browser's own plugins folder" : "";
+	var others = tags.length - 1;
+	// Named as people know it: the HP plugin describes itself as "Shockwave Flash".
+	return "Adobe Flash Player" + (version ? " " + version.slice(0, 30) : "") + ", " + pluginState(flash) + "." +
+		(from ? " From " + from + "." : "") +
+		(others > 0 ? " " + others + (others === 1 ? " other plugin." : " other plugins.") : "");
+}
+
+// Personas, Extensions and Plugins (R8): what the browser wears and runs, at the top of the pane the
+// settings page opens on, one button each (the owner, 2026-10-12): about:personas, where Personas are
+// found and worn; about:addons on its Extensions list, where they are turned on and off and removed;
+// about:addons on its Plugins list, where Flash shows its version and is set to on, tap to play or
+// off. Everything shown is text.
+function buildAddonsSection() {
+	var box = el("section", "group");
+	box.id = "addons-group";
+	box.appendChild(el("h2", "group-title", "Personas, Extensions and Plugins"));
+
+	var LWTM = themeManager(), current = null, used = [];
+	if (LWTM) {
+		try { current = LWTM.currentTheme; } catch (e) { current = null; }
+		try { used = LWTM.usedThemes || []; } catch (e) { used = []; }
+	}
+	var prow = el("div", "row go-row");
+	var plabel = el("label", "row-label");
+	plabel.appendChild(document.createTextNode("Personas"));
+	plabel.appendChild(el("div", "row-help", !LWTM ? "Personas are not available in this build." :
+		(current ? "Wearing " + String(current.name || current.id).slice(0, 60) +
+		           (current.author ? " by " + String(current.author).slice(0, 40) : "") + ". "
+		         : (used.length ? "None worn. " : "")) +
+		(used.length ? used.length + " installed."
+		             : "None installed yet: a Persona gives the toolbar and buttons a picture and colours.")));
+	prow.appendChild(plabel);
+	prow.appendChild(goButton("Browse Personas", "personas-open", function () { window.location.href = "about:personas"; }));
+	box.appendChild(prow);
+
+	// Extensions are described, not named (the owner, 2026-10-12: the one that comes with the
+	// browser is not what this row is about); the list is one tap away.
+	var xrow = el("div", "row go-row");
+	var xlabel = el("label", "row-label");
+	xlabel.appendChild(document.createTextNode("Extensions"));
+	var xdesc = "Add features to web pages and to the browser.";
+	var xhelp = el("div", "row-help", xdesc);
+	xlabel.appendChild(xhelp);
+	xrow.appendChild(xlabel);
+	xrow.appendChild(goButton("Manage Extensions", "extensions-manage", function () { openAddons("addons://list/extension"); }));
+	box.appendChild(xrow);
+	try {
+		var AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+		AM.getAddonsByTypes(["extension"], function (list) {
+			list = list || [];
+			var off = list.filter(function (a) { return !a.isActive; }).length;
+			xhelp.textContent = xdesc + " " + (!list.length ? "None installed." : list.length + " installed" +
+				(off ? ", " + off + " turned off." : "."));
+		});
+	} catch (e) {
+		// The add-on manager not started yet, or not in this build: the button still goes there.
+	}
+
+	var grow = el("div", "row go-row");
+	var glabel = el("label", "row-label");
+	glabel.appendChild(document.createTextNode("Plugins"));
+	var tags = pluginTags();
+	glabel.appendChild(el("div", "row-help", tags ? flashSummary(tags) : "The plugin list is not available."));
+	grow.appendChild(glabel);
+	grow.appendChild(goButton("Manage Plugins", "plugins-manage", function () { openAddons("addons://list/plugin"); }));
+	box.appendChild(grow);
 	return box;
 }
 
 function renderChromePane(host) {
 	var cfg = loadChrome();
+
+	// First: the way to Personas, extensions and plugins (R8).
+	host.appendChild(buildAddonsSection());
 
 	var search = el("section", "group");
 	search.appendChild(el("h2", "group-title", "Search"));
@@ -881,10 +968,6 @@ function renderChromePane(host) {
 	hrow.appendChild(hinput);
 	home.appendChild(hrow);
 	host.appendChild(home);
-
-	// Appearance: the Persona (lightweight theme) worn, and the way to the Personas pane of
-	// about:addons, where they are managed (see buildThemeSection).
-	host.appendChild(buildThemeSection());
 
 	// Before the link editor, not after it: that list can be twelve rows long, and these
 	// four are what people come to this page for.

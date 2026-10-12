@@ -204,6 +204,11 @@ main {
 .clear-row > .btn { flex: 0 0 auto; margin-right: 0; margin-left: 10px; min-width: 96px; }
 .clear-row.asking .row-help { color: #f0c36a; font-size: 15px; }
 .btn-go { background: #7a2a2a; border-color: #9a3a3a; }
+/* Personas and Extensions: the label takes the room, the buttons that go to each page sit at the
+   right, and wrap under it on a narrow card rather than squeezing it. */
+.go-row { flex-wrap: wrap; }
+.go-row > .row-label { flex: 1 1 220px; }
+.go-row > .btn { flex: 0 0 auto; margin: 4px 0 4px 10px; }
 
 /* The fields opt back into selection — a home page or a link address is exactly the kind
    of value a user wants to select, copy and paste. */

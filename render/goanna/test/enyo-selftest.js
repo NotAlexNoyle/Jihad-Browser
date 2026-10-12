@@ -264,6 +264,13 @@
 					var want = parseInt(st.slice(1), 10), pop = null, c = view.getComponents();
 					for (var k = 0; k < c.length; k++) { if (c[k].name && c[k].name.indexOf("select-") === 0 && c[k].isOpen) { pop = c[k]; } }
 					log(name, "list open=" + Boolean(pop) + " items=" + (pop && pop.items ? pop.items.length : "?") + " pick " + want);
+					if (pop && pop.items && isNaN(want)) {   // "s?" lists the rows instead of picking one
+						var rowsText = [];
+						for (var q = 0; q < pop.items.length; q++) { var it = pop.items[q]; rowsText.push(q + ":" + (it && (it.caption || it.label || it.value || (it.content)) || String(it))); }
+						log(name, "rows: " + rowsText.join(" | "));
+						pop.close();
+						pop = null;
+					}
 					if (pop) { view.selectPopupSelect(pop, want); pop.close(); }
 				} else {
 					var xy = st.split(",");

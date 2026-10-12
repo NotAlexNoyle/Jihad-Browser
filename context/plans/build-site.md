@@ -490,6 +490,17 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 80 — Fonts, as Pale Moon and Basilisk offer them; no Persona by default (2026-10-12; added to the site, not a regeneration)
+
+Owner: "Add a setting for adjusting font like pale moon / basilisk have. ensure software and font licensing / redistribution terms are respected"; "no theme should be applied to any variant by default"; "you can apply themes if you need to for testing purposes just make sure you put the variants back to default afterwards". Kits: cavekit-preferences-ui.md R9, cavekit-personas-ui.md R9.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-438 | Settings → Content → Fonts & Colors: fonts per script (proportional, serif, sans-serif, monospace, sizes, minimum), the engine's own list of installed fonts, samples, Restore defaults, a pane link | cavekit-preferences-ui.md | R9 | — | yes | M | DONE (device: Enyo effect; all three drawn) |
+| T-439 | Licensing: no font shipped; the device's fonts used in place; own MPL-2.0 code | cavekit-preferences-ui.md | R9 | T-438 | no | S | DONE |
+| T-440 | No Persona worn by default; the test Personas taken off in all three | cavekit-personas-ui.md | R9 | — | yes | S | DONE (device, all three) |
+| T-441 | Card pictures made in the background, one at a time (device: the per-request budget never finished them; decodes failed under cache pressure) | cavekit-personas-ui.md | R9 | — | yes | S | DONE (device, Mojo: all 16) |
+
 ## Tier 79 — The owner's evening list and review round 20 (2026-10-12; added to the site, not a regeneration)
 
 Owner: "add a select all to the navbar" (then: "it wasnt showing in the cut/copy menu upon selecting text in the urlbar"); "the scrolling on about:settings and about:personas lacks momentum and snappiness"; "some personas are still flashing like carbon light 2.0"; "when about:settings or about:personas is open the keyboard should be dismissed at first so the whole page is visible"; "extension settings dont appear correctly (cut off)"; "when the keyboard is closed in about:addons the cursor in the search panel is still there". Kits: cavekit-chrome-look.md R2–R4, cavekit-personas-ui.md R9.

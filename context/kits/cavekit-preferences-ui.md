@@ -353,6 +353,41 @@ runs; until now it offered only a "Manage Personas" button that went to about:ad
   went; cavekit-personas-ui.md R8.)*
 **Dependencies:** R1, R4, cavekit-personas-ui.md (R8, the gallery), cavekit-addons-extensions.md (R2, R7)
 
+### R9: Fonts, as Pale Moon and Basilisk offer them
+**Description:** The settings page lets the user choose the fonts pages are drawn in, as Pale Moon's and
+Basilisk's Fonts & Colors (and their Advanced fonts dialog) do, using only the fonts already on the
+device (the owner, 2026-10-12: "Add a setting for adjusting font like pale moon / basilisk have.
+ensure software and font licensing / redistribution terms are respected").
+**Acceptance Criteria:**
+- [x] For a chosen script ("Fonts for": Western by default, and the other groups the engine knows,
+  among them Cyrillic, Greek, Japanese, Korean and Chinese), the user sets the proportional font
+  (serif or sans-serif), the serif, sans-serif and monospace fonts, the proportional and monospace
+  sizes, and the minimum font size; each writes the engine's own `font.*` preference for that group,
+  and takes effect on the next page drawn. *(Device, Enyo, 2026-10-12: Serif set to Georgia from
+  the list, a page of serif text drawn after it in Georgia's old-style figures; Restore default fonts,
+  and the same page in Times New Roman again.)*
+- [x] Each font list is the engine's own enumeration of what is installed: "Default (<the font the
+  engine would use>)" first, then the fonts of that kind, then every other installed font. Choosing
+  Default clears the setting rather than writing a name. Fontconfig's generic aliases and names
+  the engine lists for no script are left out. *(Device, Enyo: Default, then the 14 installed —
+  Arial, Courier New, Dotum, Georgia, Hei S, Heisei Kaku Gothic, Lucida Console, Prelude, Prelude
+  Condensed, PreludeCompressedWGL, PreludeCondensedWGL, PreludeWGL, Times New Roman, Verdana; the
+  aliases and a "Noto Sans Thai" with no font file behind it are gone. The engine names no default on
+  this device, so the first entry reads "Default".)*
+- [x] Restore defaults puts the group's font settings back (the pane's Reset restores every script's);
+  a sample line shows each chosen font; `about:settings#pane=content&section=fonts` opens the section.
+  *(Device, all three: the section drawn in each shell's look.)*
+- [x] "Allow pages to choose their own fonts" and the page-colour settings stay where they are.
+- [x] Licensing: no font file is added to any package — the device's own fonts (HP's Prelude family,
+  the Microsoft core fonts and the CJK fonts webOS ships) are used where they are installed, never
+  copied, so their redistribution terms are not engaged. The page's code is the project's own
+  (MPL-2.0, like the rest of the settings page; it follows UXP's FontBuilder approach, MPL-2.0, and
+  copies no Pale Moon or Basilisk code, names or artwork beyond describing what they offer).
+- [~] Device: changing the serif font changes the serif text of a page drawn afterwards, in all three
+  variants; Restore defaults brings it back. *(Measured in Enyo; Mochi and Mojo draw the same page,
+  which writes the same engine preferences — the pick itself there is part of the finger round.)*
+**Dependencies:** R1–R3, R6
+
 ## Out of Scope
 - `about:config` itself — the raw pref editor is cavekit-input-bridging.md R6, and it is done.
 - Add-on management UI — `about:addons`, cavekit-addons-extensions.md R2.

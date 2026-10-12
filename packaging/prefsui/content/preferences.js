@@ -107,10 +107,12 @@ const PANES = [
 				]
 			},
 			{
+				// The fonts per script are a form of their own (buildFontsSection, R9); these rows
+				// follow them.
 				title: "Fonts & Colors",
+				build: buildFontsSection,
+				reset: resetFonts,
 				rows: [
-					{pref: "font.size.variable.x-western", type: "int", label: "Default font size (px)"},
-					{pref: "font.minimum-size.x-western", type: "int", label: "Minimum font size (px)"},
 					{pref: "browser.display.use_document_fonts", type: "choice", label: "Page fonts",
 					 options: [[1, "Allow pages to choose their own fonts"], [0, "Always use my fonts"]]},
 					{pref: "browser.display.document_color_use", type: "choice", label: "Page colors",
@@ -794,6 +796,225 @@ function buildRow(row) {
 	return wrap;
 }
 
+// --- Fonts (R9) -----------------------------------------------------------------------------------
+// The fonts pages are drawn in, per script, as Pale Moon's and Basilisk's Fonts & Colors and their
+// Advanced fonts dialog offer them (the owner, 2026-10-12). Only the fonts already on the device are
+// offered, as the engine enumerates them: this browser ships no font, so no font's redistribution
+// terms are engaged (the device's fonts — HP's Prelude, the Microsoft core fonts, the CJK fonts webOS
+// carries — are licensed with the device and are only used where they are). The lists follow UXP's
+// FontBuilder (toolkit/mozapps/preferences/fontbuilder.js): "Default (<font>)" first, then the fonts
+// of that kind, then every other installed font.
+const FONT_GROUPS = [
+	["x-western", "Latin (Western)", "The quick brown fox jumps over the lazy dog. 0123456789"],
+	["x-cyrillic", "Cyrillic", "Съешь же ещё этих мягких французских булок"],
+	["el", "Greek", "Ξεσκεπάζω την ψυχοφθόρα βδελυγμία"],
+	["he", "Hebrew", "דג סקרן שט בים מאוכזב"],
+	["ar", "Arabic", "نص حكيم له سر قاطع وذو شأن عظيم"],
+	["th", "Thai", "เป็นมนุษย์สุดประเสริฐเลิศคุณค่า"],
+	["ja", "Japanese", "いろはにほへと ちりぬるを 日本語"],
+	["ko", "Korean", "다람쥐 헌 쳇바퀴에 타고파"],
+	["zh-CN", "Chinese (Simplified)", "天地玄黄 宇宙洪荒 日月盈昃"],
+	["zh-TW", "Chinese (Traditional, Taiwan)", "天地玄黃 宇宙洪荒 日月盈昃"],
+	["zh-HK", "Chinese (Traditional, Hong Kong)", "天地玄黃 宇宙洪荒 日月盈昃"],
+	["x-unicode", "Other writing systems", "Aa Бб Γγ Ωω"]
+];
+const FONT_SIZES = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40, 44, 48, 56, 64, 72];
+const FONT_MIN_SIZES = [0, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24];
+let gFontGroup = null;
+
+function fontEnumerator() {
+	try { return Cc["@mozilla.org/gfx/fontenumerator;1"].createInstance(Ci.nsIFontEnumerator); }
+	catch (e) { return null; }
+}
+
+// What the engine would use for a kind of font in a script, the fonts of that kind, and the rest.
+function fontChoices(fe, group, generic) {
+	let kind = [], all = [], dflt = "";
+	try { kind = fe.EnumerateFonts(group, generic, {}) || []; } catch (e) {}
+	try { dflt = fe.getDefaultFont(group, kind.length ? generic : "") || ""; } catch (e) {}
+	try { all = fe.EnumerateAllFonts({}) || []; } catch (e) {}
+	// Only fonts that are installed: fontconfig's generic aliases (serif, sans-serif, monospace — what
+	// Default stands for) are left out, and so are names the engine lists for no script (on the device
+	// a "Noto Sans Thai" with no font file behind it): a font is offered when the engine lists it for
+	// Latin text or for the script chosen.
+	let scripts = {};
+	[["x-western", ""], [group, ""]].forEach(function (q) {
+		try { (fe.EnumerateFonts(q[0], q[1], {}) || []).forEach(function (n) { scripts[n] = true; }); } catch (e) {}
+	});
+	let installed = function (n) {
+		return !!n && !/^(serif|sans-serif|monospace|cursive|fantasy)$/i.test(n) && !!scripts[n];
+	};
+	kind = kind.filter(installed);
+	let seen = {};
+	kind.forEach(function (n) { seen[n] = true; });
+	return {dflt: installed(dflt) ? dflt : "", kind: kind, rest: all.filter(function (n) { return !seen[n] && installed(n); })};
+}
+
+function fontPrefValue(pref, type) {
+	try {
+		if (Services.prefs.getPrefType(pref) === Ci.nsIPrefBranch.PREF_INVALID) { return null; }
+		return type === "int" ? Services.prefs.getIntPref(pref) : Services.prefs.getCharPref(pref);
+	} catch (e) { return null; }
+}
+
+// "" clears the setting (the engine's own choice comes back); anything else is written.
+function fontWrite(pref, type, value) {
+	try {
+		if (value === "") {
+			if (Services.prefs.prefHasUserValue(pref)) { Services.prefs.clearUserPref(pref); }
+		} else if (type === "int") {
+			Services.prefs.setIntPref(pref, parseInt(value, 10) || 0);
+		} else {
+			Services.prefs.setCharPref(pref, String(value));
+		}
+		Services.prefs.savePrefFile(null);
+		status(pref + " = " + (value === "" ? "(default)" : value));
+		return true;
+	} catch (e) {
+		announce("pref-write-failed", "Could not save " + pref + ": the profile may be read-only, or that setting locked.", true);
+		return false;
+	}
+}
+
+function option(sel, value, text, disabled) {
+	let o = document.createElement("option");
+	o.setAttribute("value", String(value));
+	o.appendChild(document.createTextNode(text));
+	if (disabled) { o.disabled = true; }
+	sel.appendChild(o);
+	return o;
+}
+
+// One labelled control row, in the same shape as buildRow's.
+function fontRow(label, pref, control, help) {
+	let wrap = el("div", "row");
+	let l = el("label", "row-label");
+	l.appendChild(document.createTextNode(label));
+	l.appendChild(el("div", "row-pref", pref));
+	if (help) { l.appendChild(el("div", "row-help", help)); }
+	wrap.appendChild(l);
+	wrap.appendChild(control);
+	return wrap;
+}
+
+function fontSampleStyle(node, name, generic) {
+	node.style.fontFamily = name ? "\"" + String(name).replace(/["\\]/g, "") + "\", " + generic : generic;
+}
+
+// Every script's font settings back to the engine's (the pane's Reset); how many were set.
+function resetFonts() {
+	let n = 0;
+	FONT_GROUPS.forEach(function (g) {
+		["font.default.", "font.size.variable.", "font.size.fixed.", "font.minimum-size.",
+		 "font.name.serif.", "font.name.sans-serif.", "font.name.monospace."].forEach(function (pre) {
+			try { if (Services.prefs.prefHasUserValue(pre + g[0])) { Services.prefs.clearUserPref(pre + g[0]); n++; } } catch (e) {}
+		});
+	});
+	return n;
+}
+
+function buildFontsSection(group) {
+	let box = el("section", "group");
+	box.id = "section-fonts";
+	box.appendChild(el("h2", "group-title", group.title));
+	let fe = fontEnumerator();
+	if (!gFontGroup) {
+		let lg = "";
+		try { lg = Services.prefs.getComplexValue("font.language.group", Ci.nsIPrefLocalizedString).data; } catch (e) {}
+		gFontGroup = FONT_GROUPS.some(function (g) { return g[0] === lg; }) ? lg : "x-western";
+	}
+	let which = document.createElement("select");
+	which.className = "sel";
+	FONT_GROUPS.forEach(function (g) { option(which, g[0], g[1]); });
+	which.value = gFontGroup;
+	box.appendChild(fontRow("Fonts for", "font.*.<script>", which));
+	let body = el("div", "fonts-body");
+	box.appendChild(body);
+
+	function fill() {
+		while (body.firstChild) { body.removeChild(body.firstChild); }
+		let g = gFontGroup, sample = FONT_GROUPS.filter(function (x) { return x[0] === g; })[0][2];
+		if (!fe) {
+			body.appendChild(el("div", "row-help", "This build cannot list the fonts installed."));
+			return;
+		}
+		// Proportional: serif or sans-serif.
+		let prop = document.createElement("select");
+		prop.className = "sel";
+		option(prop, "serif", "Serif");
+		option(prop, "sans-serif", "Sans-serif");
+		prop.value = fontPrefValue("font.default." + g, "char") === "sans-serif" ? "sans-serif" : "serif";
+		prop.addEventListener("change", function () { fontWrite("font.default." + g, "char", prop.value); }, false);
+		body.appendChild(fontRow("Proportional", "font.default." + g, prop));
+		body.appendChild(sizeRow("Size", "font.size.variable." + g, FONT_SIZES));
+		[["serif", "Serif"], ["sans-serif", "Sans-serif"], ["monospace", "Monospace"]].forEach(function (k) {
+			body.appendChild(fontNameRow(g, k[0], k[1], sample));
+			if (k[0] === "monospace") { body.appendChild(sizeRow("Monospace size", "font.size.fixed." + g, FONT_SIZES)); }
+		});
+		body.appendChild(sizeRow("Minimum font size", "font.minimum-size." + g, FONT_MIN_SIZES));
+		let reset = el("button", "btn", "Restore default fonts");
+		reset.setAttribute("type", "button");
+		reset.addEventListener("click", function () {
+			["font.default.", "font.size.variable.", "font.size.fixed.", "font.minimum-size.",
+			 "font.name.serif.", "font.name.sans-serif.", "font.name.monospace."].forEach(function (pre) {
+				try { if (Services.prefs.prefHasUserValue(pre + g)) { Services.prefs.clearUserPref(pre + g); } } catch (e) {}
+			});
+			try { Services.prefs.savePrefFile(null); } catch (e) {}
+			status("The " + which.options[which.selectedIndex].textContent + " fonts are back to their defaults.");
+			fill();
+		}, false);
+		let actions = el("div", "row");
+		actions.appendChild(reset);
+		body.appendChild(actions);
+	}
+
+	function sizeRow(label, pref, sizes) {
+		let sel = document.createElement("select");
+		sel.className = "sel";
+		let cur = fontPrefValue(pref, "int");
+		sizes.forEach(function (n) { option(sel, n, n === 0 ? "None" : n + " px"); });
+		if (cur !== null && sizes.indexOf(cur) < 0) { option(sel, cur, cur + " px"); }
+		if (cur !== null) { sel.value = String(cur); }
+		sel.addEventListener("change", function () { fontWrite(pref, "int", sel.value); }, false);
+		return fontRow(label, pref, sel);
+	}
+
+	function fontNameRow(g, generic, label, sample) {
+		let pref = "font.name." + generic + "." + g;
+		let c = fontChoices(fe, g, generic);
+		let sel = document.createElement("select");
+		sel.className = "sel";
+		option(sel, "", c.dflt ? "Default (" + c.dflt + ")" : "Default");
+		c.kind.forEach(function (n) { option(sel, n, n); });
+		if (c.rest.length) {
+			option(sel, "-", "Other fonts", true);
+			c.rest.forEach(function (n) { option(sel, n, n); });
+		}
+		// The setting's own value only when the user chose it (the shipped "serif"/"sans-serif" generic
+		// names are the default); one no longer installed is still shown, as itself.
+		let cur = "";
+		try { if (Services.prefs.prefHasUserValue(pref)) { cur = Services.prefs.getCharPref(pref); } } catch (e) {}
+		if (cur && c.kind.indexOf(cur) < 0 && c.rest.indexOf(cur) < 0) { option(sel, cur, cur + " (not installed)"); }
+		sel.value = cur;
+		let sampleLine = el("div", "font-sample", sample);
+		fontSampleStyle(sampleLine, cur || c.dflt, generic);
+		sel.addEventListener("change", function () {
+			if (sel.value === "-") { sel.value = cur; return; }
+			if (fontWrite(pref, "char", sel.value)) { cur = sel.value; }
+			fontSampleStyle(sampleLine, sel.value || c.dflt, generic);
+		}, false);
+		let row = fontRow(label, pref, sel);
+		row.className = "row has-sample";
+		row.appendChild(sampleLine);
+		return row;
+	}
+
+	which.addEventListener("change", function () { gFontGroup = which.value; fill(); }, false);
+	fill();
+	for (let r = 0; r < group.rows.length; r++) { box.appendChild(buildRow(group.rows[r])); }
+	return box;
+}
+
 //* The Browser pane. Not built from the pref table: these two settings live in one JSON
 //* pref and are edited as a form, so they get their own renderer.
 function themeManager() {
@@ -1107,6 +1328,7 @@ function renderPane(id) {
 
 	for (let g = 0; g < pane.groups.length; g++) {
 		let group = pane.groups[g];
+		if (group.build) { host.appendChild(group.build(group)); continue; }
 		let box = el("section", "group");
 		box.appendChild(el("h2", "group-title", group.title));
 		for (let r = 0; r < group.rows.length; r++) {
@@ -1230,6 +1452,7 @@ function resetPane() {
 	}
 	let n = 0;
 	for (let g = 0; g < pane.groups.length; g++) {
+		if (pane.groups[g].reset) { n += pane.groups[g].reset(); }
 		for (let r = 0; r < pane.groups[g].rows.length; r++) {
 			let name = pane.groups[g].rows[r].pref;
 			try {
@@ -1253,6 +1476,18 @@ function resetPane() {
 	}
 }
 
+// about:settings#pane=content&section=fonts opens a pane, and a section of it, directly. A fragment
+// without pane= (the chrome= one the settings write) changes nothing here.
+function showHashTarget() {
+	let hash = String(window.location.hash || "");
+	let want = /(?:^#|&)pane=([a-z]+)/.exec(hash);
+	if (!want || !PANES.some(function (p) { return p.id === want[1]; })) { return; }
+	if (gPane !== want[1]) { renderPane(want[1]); }
+	let section = /(?:^#|&)section=([a-z]+)/.exec(hash);
+	let target = section ? document.getElementById("section-" + section[1]) : null;
+	if (target) { target.scrollIntoView(true); }
+}
+
 function init() {
 	// about:settings and about:preferences are the same document; say which one
 	// was asked for so the page does not look like it redirected somewhere else.
@@ -1264,6 +1499,9 @@ function init() {
 	initNotifyBox();
 	buildTabs();
 	renderPane(PANES[0].id);
+	showHashTarget();
+	// The same page asked for again with another fragment is not loaded again.
+	window.addEventListener("hashchange", showHashTarget, false);
 	document.getElementById("reset-pane").addEventListener("click", resetPane, false);
 }
 

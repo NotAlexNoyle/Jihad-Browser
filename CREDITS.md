@@ -29,9 +29,9 @@ cut and scaled into the strip.
 
 | Persona | Author | Licence | Source | File | Changes |
 |---|---|---|---|---|---|
-| Space Fantasy | fx5800p | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/space-fantasy/) | `space-fantasy.jpg` | unmodified (the package's own picture) |
-| Two little birds | math3us.c | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/two-litle-birds/) | `two-little-birds.jpg` | unmodified (the package's own picture) |
-| Field of flowers | vc | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/flowers-dragonflies/) | `field-of-flowers.png` | unmodified (the package's own picture) |
+| Space Fantasy | fx5800p | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/space-fantasy/) | `space-fantasy.jpg` | the package's own picture, shown in toolbar screenshots, cut and scaled |
+| Two little birds | math3us.c | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/two-litle-birds/) | `two-little-birds.jpg` | the package's own picture, shown in toolbar screenshots, cut and scaled |
+| Field of flowers | vc | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/flowers-dragonflies/) | `field-of-flowers.png` | the package's own picture, shown in toolbar screenshots, cut and scaled |
 
 ## Everything else
 

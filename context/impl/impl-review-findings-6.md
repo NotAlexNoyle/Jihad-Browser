@@ -556,3 +556,40 @@ Both ranges APPROVE (no P0/P1). Jihad `4e480610..6128e29b`: 3 P2, 8 P3; Riversto
 | P3 | `jihadPersonas.js` | addons.css and the pane's CSS in one try; the two sheets missing from the bundle's file check; addons.css applied on the desktop too. | Fixed: separate tries; checked in the bundle; addons.css only where a shell is named. |
 | P3 | dead code | The pane's hidden Install-from-file row; make-personas.py's landscape helpers. | Removed. |
 | P3 | kits/docs | R8 ("asks no site until a search"), R9 (third-party files moved), preferences-ui's gallery link, README, T-420, chrome-look R3's "[x] cause found". | Corrected (R3's cause criterion is [~] until a finger confirms). |
+
+## Round 21 — Codex out again (17:3x, 389k tokens, no findings written; retry 10:29 PM); the inspector on both ranges
+
+Codex's notes before it stopped named the keyboard-down blur and the AMO install flow as the
+riskiest paths. The inspector took its place.
+
+### Jihad-Browser `6e7b31a0..a90b7fe3` — APPROVE, 1 P2, 10 P3; fixed in the commit after `a90b7fe3`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `BrowserPageGoanna.cpp` / `GoannaRenderPage.cpp` | The keyboard-down blur ran page script (blur, focusout) inside the `setWindowSize` socket callback: a sync XHR in a blur handler spins a nested loop that can reap the page, and the callback then writes freed memory — the crash class that rebooted the device. It also nulled the type target after a handler refocused the field. | Fixed: `setWindowSize` only owes the blur (`mBlurOwed`); the pump does it after the input and change flushes; `isBusy` keeps the tick fast while owed; the type target is left to the engine's blur listener. |
+| P3 | `GoannaRenderPage.cpp` | A field in a frame: the listener (top document only) never sees its blur, so the shell was never told. | Fixed: when the listener saw nothing, the daemon clears the target and lowers the editor state itself. |
+| P3 | `addons.css` | `display:-moz-box !important` showed hidden and unsupported settings. | Fixed: no `!important` (the id rule outranks the skin), `:not([hidden="true"])`. |
+| P3 | `addons.css` | A checkbox row with a long description and horizontal radio groups could still overflow, now clipped. | Fixed: the title box flexes (wraps); radio groups stack. Device check needs an add-on with such settings. |
+| P3 | `addons.css` | A dead `.textbox-input` rule; editable drop-downs' text unthemed. | Fixed: `html\|*.menulist-editable-input { color: inherit }`, the dead rule removed. |
+| P3 | `jihadPersonas.js` | Card pictures as JPEG turned PNG transparency black; 800 px drew 15:1 headers 1.65x upscaled. | Fixed: PNG kept PNG; 1400 px; the width is part of the name, so the 800 px ones are replaced and pruned. |
+| P3 | `jihadPersonas.js` | Pruning deleted pictures of installed Personas past the 60 listed. | Fixed: their names are kept. |
+| P3 | `jihadPersonas.js` `growToList` | A phantom pan on short detail pages; a 0 px coordinate taken as unset. | Fixed: only overflow counts; `=== null`. |
+| P3 | Mochi `JihadBrowser.js` | The blur's change event submitted a half-typed address. | Fixed: the typed text is marked as already submitted before the blur. |
+| P3 | Mojo `main-assistant.js` | The commit of a Jihad page opened by `openUrl` blurred the address a second time. | Fixed: `openUrl` marks it done; the commit skips it once. |
+| P3 | docs | The flick comment's reason, R3's "(the adapter refuses others)", a misplaced doc comment, a dead PANE_CSS rule, CREDITS' "unmodified". | Fixed. |
+
+Not fixed, noted for the owner's device check: a paste into a page field in Mochi with the keyboard
+up (the clipboard read moves the focus; the expected order is safe).
+
+### Riverstone-Addons `26a9fdf..d66fbc5` — APPROVE, 1 P2, 7 P3; fixed by the site agent in `2923301`..`5c1d54c`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `install.sh` | Whether to install the real-IP file was decided by a grep across /etc/nginx, wrong both ways (another site's server-level snippet or a disabled file turned ours off; a symlinked http-level one was missed and nginx -t failed every run). | Fixed (`2923301`): the ranges are included in our own server block; the grep is gone; an old conf.d copy is removed. Scratch root: 5 cases; a throwaway nginx with an http-level setting of its own passes `nginx -t`. |
+| P3 | `import-personas.php` | rgb() mixing numbers and percentages in the space form passed (UXP refuses it); vertical tab taken as whitespace. | Fixed (`08265d4`), 17 cases. |
+| P3 | `import-personas.php` | A colour respelled bumped the version. | Fixed: canonical comparison. |
+| P3 | `import-personas.php` | A NULL browserId set later skipped the twin check. | Fixed; migration 002 adds a unique key where no duplicates exist. |
+| P3 | `smoke-test.sh` | php's stderr parsed; non-integer pages broke the arithmetic silently; page/total/https unchecked; an empty feed passed. | Fixed (`cf1abe4`): 43/43 locally, bad feeds refused, an empty feed fails. |
+| P3 | `smoke-test.sh` | Behind Cloudflare it read the edge certificate. | Fixed: `RS_SMOKE_CONNECT=127.0.0.1:443` on the server. |
+| P3 | credits | CREDITS, the MIT text and NOTICE unreachable by visitors; Free Palestine's credit lacked the title. | Fixed (`5c1d54c`): `/credits/*.txt`, palettes' licenseURL there, "based on "Village of Battir" by Labour Palestine, CC BY 2.0" (Jihad's bundle index matches). No version bumped. |
+| P3 | kits | R3 said forwarded headers are never trusted; R4 overstated one id everywhere; layered ids. | Fixed in the kits (R3 exception; R4 gaps recorded as open). |

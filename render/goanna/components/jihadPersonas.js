@@ -283,13 +283,16 @@ function hexOf(raw) {
 }
 
 // A small picture for an installed Persona's card in the gallery: its header scaled to THUMB_WIDTH
-// wide, made once and kept beside it (<24 hex>-thumb.jpg). Cards drew the full headers — up to
+// wide, made once and kept beside it (<24 hex>-thumb.jpg, or .png for a PNG header, whose
+// transparency a JPEG would turn black). THUMB_WIDTH is what a card ~1000x88 px needs to cover it
+// without upscaling a 15:1 header (inspector round 21: 800 drew them 1.65x up). Cards drew the full headers — up to
 // 3000 px, some of them wallpapers shrunk only to 1600 — and the device's small image cache dropped
 // and decoded them again as the page moved: cards flashed and scrolling stalled (the owner,
 // 2026-10-12: "some personas are still flashing like carbon light 2.0"). A site's Persona keeps its
 // own preview, which is small already. Making them is bounded per call (THUMB_BUDGET_MS); one not
 // made in time is made the next time the page opens, and the full picture is drawn meanwhile.
-const THUMB_WIDTH = 800;
+// Pictures no installed Persona names are removed on every opening.
+const THUMB_WIDTH = 1400;
 const THUMB_BUDGET_MS = 1200;
 function headerFileOf(url) {
   let m = /^resource:\/\/jihad-themes\/([^\/?#]+)$/.exec(url);
@@ -299,19 +302,33 @@ function headerFileOf(url) {
   }
   return null;
 }
+// The card picture's file for a header file (named from the header and the picture's width, so a
+// change of either makes a new one), or null when the header is not a picture kept here.
+function thumbFileOf(t) {
+  if (t.previewURL) { return null; }
+  let file = headerFileOf(String(t.headerURL || ""));
+  let ext = file ? (/\.(png|jpe?g)$/i.exec(file.leafName) || [])[1] : null;
+  if (!file || !ext || !file.exists()) { return null; }
+  let png = /png/i.test(ext);
+  let thumb = themesDir();
+  thumb.append(sha256Str(file.path + "|" + file.lastModifiedTime + "|" + file.fileSize + "|" + THUMB_WIDTH).slice(0, 24) +
+               "-thumb." + (png ? "png" : "jpg"));
+  return {header: file, thumb: thumb, png: png};
+}
+// Headers found to be no wider than THUMB_WIDTH: drawn as they are, and not decoded again on every
+// opening to learn that (it spent the budget, and nothing was ever pruned — device, 2026-10-12).
+const thumbNotNeeded = new Set();
 function thumbFor(t, budget, keep) {
   if (t.previewURL) { return String(t.previewURL); }
   let url = String(t.headerURL || "");
-  let file = headerFileOf(url);
-  let ext = file ? (/\.(png|jpe?g)$/i.exec(file.leafName) || [])[1] : null;
-  if (!file || !ext || !file.exists()) { return url; }
-  let thumb = themesDir();
-  thumb.append(sha256Str(file.path + "|" + file.lastModifiedTime + "|" + file.fileSize).slice(0, 24) + "-thumb.jpg");
+  let f = thumbFileOf(t);
+  if (!f) { return url; }
+  let file = f.header, thumb = f.thumb, ext = f.png ? "png" : "jpg";
   keep[thumb.leafName] = true;
   if (!thumb.exists()) {
-    if (Date.now() > budget.until) { return url; }
+    if (thumbNotNeeded.has(thumb.leafName) || Date.now() > budget.until) { return url; }
     let sz = pictureSize(file);
-    if (!sz || sz.w <= THUMB_WIDTH) { return url; }              // small already
+    if (!sz || sz.w <= THUMB_WIDTH) { thumbNotNeeded.add(thumb.leafName); return url; }   // small already
     try {
       let tools = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools);
       let src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
@@ -320,7 +337,8 @@ function thumbFor(t, budget, keep) {
       try { container = tools.decodeImage(src, /png/i.test(ext) ? "image/png" : "image/jpeg"); }
       finally { try { src.close(); } catch (e) {} }
       let h = Math.max(1, Math.round(sz.h * THUMB_WIDTH / sz.w));
-      let out = tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
+      let out = f.png ? tools.encodeScaledImage(container, "image/png", THUMB_WIDTH, h, "")
+                      : tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
       let tmp = thumb.clone();
       tmp.leafName = thumb.leafName + ".part";
       let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
@@ -355,7 +373,7 @@ function pruneThumbs(keep) {
     let en = themesDir().directoryEntries;
     while (en.hasMoreElements()) {
       let f = en.getNext().QueryInterface(Ci.nsIFile);
-      if (/-thumb\.jpg(\.part)?$/.test(f.leafName) && !keep[f.leafName]) { f.remove(false); }
+      if (/-thumb\.(jpg|png)(\.part)?$/.test(f.leafName) && !keep[f.leafName]) { f.remove(false); }
     }
   } catch (e) { log("card pictures: " + e); }
 }
@@ -841,7 +859,6 @@ const PANE_CSS =
   "  border: 1px solid rgba(0,0,0,0.25); border-radius: 6px; }\n" +
   "#jihad-themes-box .jihad-row-name { font-weight: bold; font-size: 1.15em; }\n" +
   "#jihad-themes-box .jihad-in-use { font-weight: bold; }\n" +
-  "#jihad-themes-box .jihad-files button { -moz-box-pack: start; }\n" +
   "#jihad-default-row { background: #2a2a2a; color: #e6e6e6; border-color: #3a3a3a; }\n" +
   "#jihad-gallery-link { background: #263239; color: #e6e6e6; border-color: #3f5d6b; cursor: pointer; }\n" +
   "#jihad-gallery-link .jihad-row-name { color: #8cc7ff; }\n" +
@@ -1431,13 +1448,13 @@ function growToList(win) {
       Array.prototype.forEach.call(list.querySelectorAll("richlistitem"), function(it) {
         let r = it.getBoundingClientRect();
         if (r.height <= 0) { return; }                 // hidden (the Personas view's other rows)
-        if (!first || r.top < first) { first = r.top; }
-        if (!last || r.bottom > last) { last = r.bottom; }
+        if (first === null || r.top < first) { first = r.top; }
+        if (last === null || r.bottom > last) { last = r.bottom; }
       });
       let content = first === null ? 0 : (last - first) + 16;
       if (content > rect.height) { need = Math.ceil(rect.top + content + 24); }
-    } else {
-      need = Math.ceil(panel.getBoundingClientRect().top + (panel.scrollHeight || 0) + 24);
+    } else if ((panel.scrollHeight || 0) > (panel.clientHeight || 0)) {   // only what overflows
+      need = Math.ceil(panel.getBoundingClientRect().top + panel.scrollHeight + 24);
     }
   }
   if (need > win.innerHeight) { root.style.minHeight = need + "px"; }
@@ -1749,7 +1766,11 @@ function galleryRequest(bag) {
               preview: thumbFor(t, budget, keep), license: credits[t.id] || "",
               worn: !!(cur && cur.id === t.id)};
     });
-    if (Date.now() <= budget.until) { pruneThumbs(keep); }     // only when every picture was looked at
+    // Those past the 60 listed are still installed: their pictures are kept too (inspector round 21).
+    // Every installed Persona's picture name is in keep whether or not it was made this time, so
+    // the rest can always go.
+    used.slice(60).forEach(function(t) { let f = thumbFileOf(t); if (f) { keep[f.thumb.leafName] = true; } });
+    pruneThumbs(keep);
     reply({undo: undo ? {name: String(undo.name || "")} : null, list: list});
     return;
   }

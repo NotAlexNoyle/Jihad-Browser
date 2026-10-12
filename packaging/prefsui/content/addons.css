@@ -128,15 +128,19 @@
    the controls were cut off on the right (the owner, 2026-10-12: "extension settings dont appear
    correctly (cut off)"). Here each preference is a block of its own instead: its title and
    description, then its control under them across the page's width. */
-#detail-rows > setting {
-	display: -moz-box !important;
+/* Only the settings the manager shows: an unsupported type and a setting the add-on hides keep
+   their display:none (no !important — this id rule already outranks the manager's own). */
+#detail-rows > setting:not([hidden="true"]) {
+	display: -moz-box;
 	-moz-box-orient: vertical;
 	padding: 8px 0;
 	border-top: 1px solid #2f2f2f;
 }
 #detail-rows > setting[type="bool"], #detail-rows > setting[type="boolint"] {
-	-moz-box-orient: horizontal;   /* a checkbox stays beside its title */
+	-moz-box-orient: horizontal;   /* a checkbox stays beside its title, which wraps */
 }
+#detail-rows > setting[type="bool"] > vbox, #detail-rows > setting[type="boolint"] > vbox { -moz-box-flex: 1; }
+#detail-rows > setting radiogroup { -moz-box-orient: vertical; }   /* long choices stack, not run off */
 #detail-rows > setting .preferences-alignment { min-height: 0; }
 #detail-rows > setting button, #detail-rows > setting textbox, #detail-rows > setting menulist { margin: 6px 0 0 0; }
 #detail-rows > setting description { white-space: normal; }
@@ -151,7 +155,8 @@
 	padding: 4px 6px;
 	caret-color: #f0f0f0;
 }
-#addons-page textbox:not([type="search"]) .textbox-input { color: #f0f0f0; background: transparent; }
+/* An editable drop-down's text: the skin passes the background down but not the colour. */
+#addons-page html|*.menulist-editable-input { color: inherit; }
 
 /* Text: the engine's skin is Windows' classic one, which writes some labels in its own greys and
    blacks; on this dark page every text is light, the secondary one a step dimmer (the owner,

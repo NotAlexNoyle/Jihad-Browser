@@ -1742,13 +1742,21 @@ bool GoannaRenderPage::HasFocusedEditable() const {
 // The keyboard went away with a field still focused: the field gives up the focus, so no caret is
 // left in a page the keyboard no longer serves (the owner, 2026-10-12: "when the keyboard is closed
 // in about:addons the cursor in the search panel is still there").
+// Runs page script (blur, focusout): called from the guarded pump only, never from a socket
+// callback (inspector 2026-10-12, round 21).
 void GoannaRenderPage::BlurFocusedEditable() {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
   nsCOMPtr<mozIDOMWindowProxy> win;
   mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
   if (fm && win) fm->ClearFocus(win);
-  mChrome->mFocusedEditable = nullptr;
+  // The engine's blur listener (on the top document) takes it from here: it clears the type target
+  // and lowers the editor state through PollEngineFocus — or sees a handler put the focus back, and
+  // keeps both. A field it cannot see (in a frame) is cleared here, and the shell told.
+  if (mChrome && !mChrome->mEngineFocusEvent) {
+    mChrome->mFocusedEditable = nullptr;
+    if (mEditorFocused) { mEditorFocused = false; mEditorFieldType = 0; mEditorFocusDirty = true; }
+  }
 }
 
 bool GoannaRenderPage::GetScrollXY(int* x, int* y, bool flushLayout) {

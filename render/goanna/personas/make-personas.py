@@ -295,7 +295,7 @@ PERSONAS = [
 BUNDLED = ("free-palestine", "aurora-silk")    # in this order, first in the gallery
 # A Persona made from someone else's work carries that work's licence and credit (shown on its card).
 CREDIT = {
-    "free-palestine": {"license": "CC BY 2.0 (photo: Labour Palestine)",
+    "free-palestine": {"license": "based on \"Village of Battir\" by Labour Palestine, CC BY 2.0",
                        "licenseURL": "https://creativecommons.org/licenses/by/2.0/",
                        "source": "https://commons.wikimedia.org/wiki/File:Village_of_Battir.jpg"},
 }

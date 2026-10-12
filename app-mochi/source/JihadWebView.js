@@ -147,7 +147,7 @@ enyo.kind({
 	},
 	//* BasicWebView.flickHandler: the flick's velocity to the adapter's kinetic scroller.
 	flickHandler: function(inEvent) {
-		// The adapter takes whole numbers only (js_handleFlick refuses anything else).
+		// Whole numbers, as LunaSysMgr's own flicks are (the scroller works in pixels).
 		if (inEvent && typeof inEvent.xVel === "number" && typeof inEvent.yVel === "number") {
 			this._call("handleFlick", [Math.round(inEvent.xVel), Math.round(inEvent.yVel)]);
 		}

@@ -487,6 +487,9 @@ enyo.kind({
 	//* 2026-10-12): the address field gives up the focus when one is opened.
 	keyboardAwayFor: function(url) {
 		if (/^about:(settings|preferences|personas|addons)(?:[#?]|$)/.test(url || "") && this.$.address.hasNode()) {
+			// The field's change event fires on blur: what is typed there is not an address the user
+			// asked for, so it must not be submitted (submitAddress skips the last submitted text).
+			this._lastSubmit = this.$.address.getValue();
 			this.$.address.node.blur();
 		}
 	},

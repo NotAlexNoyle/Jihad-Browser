@@ -1208,10 +1208,6 @@ MainAssistant.prototype.callBrowserAdapter = function (method, args) {
 
 // --- navigation -------------------------------------------------------------
 
-//* Open what the user typed. JihadUrl decides url-vs-search exactly as the Enyo and
-//* Mochi shells do. Routed through the widget's own openURL — the WebView-internal
-//* plugin path — NOT through callBrowserAdapter, mirroring Enyo-1.0's BasicWebView
-//* (urlChanged -> openURL), so it does not widen the audited app-facing set.
 //* Jihad's own pages open with the keyboard away, so the whole page shows (the owner,
 //* 2026-10-12): the address field gives up the focus when one is opened.
 MainAssistant.prototype.isJihadPage = function (url) {
@@ -1224,12 +1220,17 @@ MainAssistant.prototype.keyboardAwayFor = function (url) {
 	}
 };
 
+//* Open what the user typed. JihadUrl decides url-vs-search exactly as the Enyo and
+//* Mochi shells do. Routed through the widget's own openURL — the WebView-internal
+//* plugin path — NOT through callBrowserAdapter, mirroring Enyo-1.0's BasicWebView
+//* (urlChanged -> openURL), so it does not widen the audited app-facing set.
 MainAssistant.prototype.openUrl = function (text) {
 	var url = JihadUrl.normalize(text);
 	if (!url) {
 		return;
 	}
 	this.keyboardAwayFor(url);
+	this._keyboardAwayDone = this.isJihadPage(url);
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	this.hideError();
 	if (view && view.mojo && view.mojo.openURL) {
@@ -1687,8 +1688,10 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 		return;
 	}
 	// Arriving on one of Jihad's own pages by a link puts the keyboard away too (not a change
-	// within one, such as the settings page rewriting its fragment while the user types).
-	if (!this.isJihadPage(this.url)) { this.keyboardAwayFor(event.url); }
+	// within one, such as the settings page rewriting its fragment while the user types, nor the
+	// commit of one openUrl already put it away for: the user may have tapped the field since).
+	if (!this.isJihadPage(this.url) && !this._keyboardAwayDone) { this.keyboardAwayFor(event.url); }
+	this._keyboardAwayDone = false;
 	this.url = event.url || this.url;
 	this.updateLock();
 	this.canGoBack = !!event.canGoBack;

@@ -326,6 +326,7 @@ private:
   int                mKey3 = 0;
   int                mLastWinH = 0;     // last surface height (VKB-shrink scroll-restore, T1)
   int                mLastWinW = 0;     // last surface width (a rotation is not a keyboard)
+  bool               mBlurOwed = false; // keyboard down over a field: blur it in the next pump
   // When the surface height last CHANGED, and by how much. Diagnostic only (T-133): the white
   // band on a VKB toggle is rows the adapter composites from OUTSIDE the painted region, and the
   // only thing separating that from a fling which outran the overscan is whether a resize just

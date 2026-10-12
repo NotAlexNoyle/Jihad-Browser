@@ -647,9 +647,10 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
   // The window grew back by about a keyboard's height, at the same width, with a field focused:
   // the keyboard was put away, and the field gives up the focus with it (no caret left behind).
-  // A rotation to portrait also grows the height, but changes the width.
+  // A rotation to portrait also grows the height, but changes the width. The blur runs page script,
+  // so it is owed to the guarded pump: this is a socket callback (inspector round 21).
   if (!shrink && hadEditable && mLastWinH != 0 && (int)width == mLastWinW && (int)height >= mLastWinH + 120)
-    mPage->BlurFocusedEditable();
+    mBlurOwed = true;
   if (shrink && hadEditable) {
     int sx1 = 0, sy1 = 0; mPage->GetScrollXY(&sx1, &sy1);
     // Counter an engine-induced downward push (field-into-view).
@@ -2430,6 +2431,9 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // not in keyDown, since onChange/oninput run page JS.
   mPage->FlushPendingInputEvent();
   mPage->FlushPendingChangeEvent();
+  // The keyboard went down over a focused field (setWindowSize): the field gives up the focus here,
+  // after its input and change events, as a browser orders them.
+  if (mBlurOwed) { mBlurOwed = false; mPage->BlurFocusedEditable(); }
   { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(jihadBoundedUri(nw).c_str()); }
   // A menu that opened or closed since the last pump changes the picture without damaging the
   // page: it is its own display root, composited over the frame at paint time, and XUL opens it
@@ -3103,7 +3107,7 @@ bool BrowserPageGoanna::isBusy() const {
   // need the fast tick; any tick after the pause finds it.
   if (mGrowOwed || (mSweepLeft > 0 && mLoadWasDone && jihadNowMs() >= mSweepNotBeforeMs)) return true;
   if (mLoadStartMs != 0 && !mLoadWasDone) return true;            // a load is running
-  if (!mPendingMouse.empty() || !mPendingEditActions.empty() || !mPendingPageCmds.empty()) return true;
+  if (mBlurOwed || !mPendingMouse.empty() || !mPendingEditActions.empty() || !mPendingPageCmds.empty()) return true;
   if (!mEmittedFlashRects.empty()) return true;                   // plugin: the pull needs the grid
   const int64_t now = jihadNowMs();
   // Stay fast for a moment after the last paint or scroll: animation and panning arrive as a

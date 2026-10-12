@@ -53,8 +53,9 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   code under a style sheet — not each exercised.)*
 - [x] Nothing in UXP's own files is edited: the look is a style sheet Jihad adds to the page.
 - [x] An add-on's preferences fit the card's width: each is a block of its own (title, description,
-  then its control), text fields are dark with light text, and nothing is cut off on the right or
-  needs a sideways scroll. *(Device, Mochi, Palefill's Preferences, 2026-10-12: before, its
+  then its control), text fields and editable drop-downs are dark with light text, and nothing is
+  cut off on the right or needs a sideways scroll; a checkbox's title wraps beside it and a radio
+  group's choices stack; settings the manager or the add-on hides stay hidden. *(Device, Mochi, Palefill's Preferences, 2026-10-12: before, its
   controls ran past the right edge and the card zoomed out to 0.78 while the page loaded; after,
   every control and the homepage address inside the page, no sideways scrollbar.)* (The owner:
   "extension settings dont appear correctly (cut off)".)
@@ -78,7 +79,7 @@ any web page; it does not stop dead.
   Mochi never handed a flick to the adapter at all: LunaSysMgr gives a card its gestures by calling
   `Mojo.handleGesture(type, properties)`, which Enyo 1 defines (compatibility/webosGesture.js) and
   Enyo 2 does not, so every flick in Mochi was dropped; Mochi now defines it the same way and hands
-  a flick that began on the web view to the adapter, in whole numbers (the adapter refuses others).
+  a flick that began on the web view to the adapter, in whole numbers.
   (The first attempt, a DOM `flick` listener, could never fire — inspector round 20.)
 **Dependencies:** cavekit-input-bridging.md
 
@@ -94,7 +95,10 @@ keyboard is closed in about:addons the cursor in the search panel is still there
   focused by the card's own handler: Enyo and Mojo focus on BODY after a Jihad page, INPUT after
   example.org; Mochi's and Mojo's windows grew back from 705 to 996 px — the keyboard went down.)*
 - [~] When the keyboard goes down while a field in the page has the focus, the field gives up the
-  focus (no caret left), and the shell is told the editor lost it. *(Built in the daemon: a window
+  focus (no caret left), and the shell is told the editor lost it — a field in a frame too (the
+  daemon tells the shell itself when the engine's listener cannot see it). The blur runs from the
+  guarded pump, never in a socket callback, after the field's input and change events; a handler
+  that puts the focus back keeps the field as the type target. *(Built in the daemon: a window
   that grows back by a keyboard's height at the same width clears the page's focus. A scripted tap
   focuses the field but raises no keyboard, so only a finger can test it — the owner's.)*
 - [x] A tap on the address field selects the whole address, in all three variants (the owner's

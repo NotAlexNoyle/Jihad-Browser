@@ -78,7 +78,13 @@ is not ours to use.
   login; `debugOff` is gone; inactive and unreviewed packages are not public by direct URL. *(Panel downloads moved to /panel/download/, behind its login. Local copy: the test add-on set unreviewed → its page and public download 404, its update check offers nothing, the panel still serves it.)*
 - [x] The panel is behind a rate limit and, optionally, an address allowlist; responses carry HSTS,
   `X-Frame-Options`, `X-Content-Type-Options` and a Content-Security-Policy; forwarded-for headers
-  are not trusted. *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane itself.)*
+  are not trusted, with one exception: behind Cloudflare, `CF-Connecting-IP` is trusted from
+  Cloudflare's published ranges only, set in this site's own server block (whatever real-IP setup
+  other sites on the same nginx have), so the rate limit, the allowlist and fail2ban see visitors'
+  own addresses. The ranges carry the date they were fetched, and DEPLOY.md says how to refresh
+  them. *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane
+  itself. Real IP: round 21, inspector — a grep across /etc/nginx deciding whether to install it was
+  wrong both ways; moved into the server block.)*
 - [x] A request whose normalised path is outside `/panel/` never reaches the panel or its login
   check: `/panel/../?path=/panel/administration/` and `/panel/%2e%2e/?path=…` answer 404, and the
   panel's downloads are `/panel/download/`, inside its rate limit and allowlist. *(Smoke test; local

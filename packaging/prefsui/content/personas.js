@@ -340,7 +340,7 @@ function setupSite() {
 	online.url = galleryURL();
 	if (!online.url) { return; }
 	document.getElementById("online-group").hidden = false;
-	searchedList({
+	let src = searchedList({
 		list: document.getElementById("online"), note: document.getElementById("online-note"),
 		more: document.getElementById("online-more"), form: document.getElementById("online-search"),
 		input: document.getElementById("online-q"),
@@ -360,6 +360,16 @@ function setupSite() {
 		card: siteCard,
 		empty: function (q) { return q ? "No Personas match that." : "The site has no other Personas right now."; }
 	});
+	// A search can be linked to: about:personas#site-q=WORDS searches the site for WORDS when the
+	// page opens, and shows the results.
+	let linked = /^#site-q=(.{0,64})$/.exec(location.hash || "");
+	if (linked) {
+		let q = "";
+		try { q = decodeURIComponent(linked[1]); } catch (e) { q = ""; }
+		document.getElementById("online-q").value = q;
+		src.search(q.trim());
+		document.getElementById("online-group").scrollIntoView();
+	}
 	document.getElementById("check-updates").addEventListener("click", checkUpdates, false);
 	// The site's own Personas page, its website (its buttons work in this browser too).
 	let site = "";

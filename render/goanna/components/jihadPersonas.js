@@ -1352,8 +1352,36 @@ function decorateRow(doc, item, theme, isCurrent) {
   if (dis) { dis.setAttribute("label", "Take off"); }
 }
 
+// The card scrolls a page, never a box inside one, and the engine gives a XUL page no scroller of its
+// own: about:addons' lists (Extensions, Plugins, search results) scrolled only inside themselves,
+// out of a finger's reach (the owner, 2026-10-12). So the page is made as tall as the list it shows:
+// its root grows to fit the list's whole length, the list no longer scrolls inside, and the card pans
+// the tall page as it pans any other (cavekit-chrome-look.md R3).
+function growToList(win) {
+  let doc = win.document, root = doc.documentElement;
+  let view = null;
+  ["addon-list", "search-list", "updates-list"].forEach(function(id) {
+    let el = doc.getElementById(id);
+    if (el && el.getBoundingClientRect().height > 0) { view = el; }
+  });
+  let need = 0;
+  if (view) {
+    let top = view.getBoundingClientRect().top + (win.scrollY || 0);
+    let inner = view.scrollHeight || 0;
+    try { let sb = doc.getAnonymousElementByAttribute(view, "anonid", "main-box") || view; inner = Math.max(inner, sb.scrollHeight || 0); } catch (e) {}
+    need = Math.ceil(top + inner + 24);
+  }
+  let detail = doc.getElementById("detail-view");
+  if (detail && detail.getBoundingClientRect().height > 0) {
+    need = Math.max(need, Math.ceil(detail.getBoundingClientRect().top + (detail.scrollHeight || 0) + 24));
+  }
+  let want = need > win.innerHeight ? need + "px" : "";
+  if (root.style.minHeight !== want) { root.style.minHeight = want; }
+}
+
 function decoratePane(win) {
   let doc = win.document;
+  later(200, function() { try { growToList(win); } catch (e) { log("about:addons height: " + e); } });
   let gVC = win.gViewController;
   let viewId = String((gVC && gVC.currentViewId) || "");
   let isThemes = viewId.indexOf("addons://list/theme") === 0;

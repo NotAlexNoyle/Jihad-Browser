@@ -32,10 +32,21 @@ reference material for a specific subsystem, not a status document.
   changed backed-up file and an old-format backup are each refused with nothing touched. The
   gradient: opaque output identical to the old code's, the translucent one decodes as RGBA.
 
+- **The inspector on the round-16 deploy fixes** (`cdaed4c`): REVISE, 1 P1 + 3 P2 + 9 P3, all fixed
+  in site `b9810ad` (round 17 in the findings file). install.sh puts back nginx rules this server's
+  nginx rejects and stops (the P1: `nginx -t && …` never stopped it), clears its stamp while it
+  runs, runs only as the copy in place and needs cron. The new `migrate.sh` brings the database up
+  to a copy BEFORE `swap-in.sh` puts it live (dump first; a migration only adds and runs twice
+  harmlessly; a rollback names what it lacks). The new `watch.sh` (cron.daily) puts certificate and
+  backup trouble on the panel's front page and in the login message. `swap-in.sh` refuses three
+  more ways of losing the way back; `pack.sh` sends only `jihad`; the local copy re-issues its
+  certificates and applies migrations. Tested on a throwaway MariaDB 10.11, scratch copies and the
+  local copy (34/34); the root-on-Devuan parts are code only.
+
 **Open, in order**
-1. **Codex on the site range** `upstream/TRUNK..jihad` (through `cdaed4c`): it ran out again at
-   ~150k tokens; retry **12:28 PM, 2026-10-12**. The inspector reviews the round-16 fixes
-   (`cdaed4c`) meanwhile.
+1. **Codex on the site range** `upstream/TRUNK..jihad` (now through `b9810ad`): it ran out again at
+   ~150k tokens; retry **12:28 PM, 2026-10-12**. The owner's deploy guide changed with `b9810ad`:
+   send it to the desktop again.
 2. **When the TouchPad is connected** (one task at a time):
    - push bundle `eaa828a1877aa3b441213d51b6c2524e` (it also carries the plain `MPL-2.0` licence
      line) with `build/webos-oe/push-engine-update.sh --daemon-only enyo mochi mojo`;

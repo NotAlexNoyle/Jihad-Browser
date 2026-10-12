@@ -451,3 +451,23 @@ inspector reviews the round-16 fixes (`cdaed4c`) meanwhile.
 Not verified on the device: the TouchPad was not connected. Owed there: `test-site-profile.sh` on
 a scratch app directory (`JIHAD_TEST_APP`) under the device's BusyBox 1.17 (the simulation used
 dash and GNU tools), then the about:personas update check, the Enyo glyphs and the Mojo menu.
+
+### Riverstone-Addons, the inspector on `cdaed4c` (the round-16 fixes) — REVISE, fixed in `b9810ad`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `install.sh` | `nginx -t && rc-service nginx restart` does not stop a `set -e` script: rules this server's nginx rejects were left in /etc/nginx, the run stamped done, and the next nginx restart (a reboot) would fail for every site on the server. | Fixed: every nginx file the run writes is kept until `nginx -t` accepts the new ones; a rejection puts them back (a file that did not exist is removed) and stops. Scratch: with an nginx that rejects everything, the old files came back and nothing restarted. |
+| P2 | `install.sh`, `swap-in.sh` | The stamp was only written at the end, never cleared: a run that stopped part-way, then a rollback, was told "nothing else to set up". | Fixed: the stamp is removed when a run starts. Code (root on the server). |
+| P2 | `install.sh`, `DEPLOY.md` | A rollback across a migration: no dump, no warning; and new code went live before its migration (for the whole install.sh run, or for good if it failed). | Fixed: `deploy/server/migrate.sh`; `swap-in.sh` runs the NEW copy's before the swap, with a dump first (`db-before-*`); a migration only adds and runs twice harmlessly (kit R10, DEPLOY.md, migrate.sh); a rollback names the migrations the copy going back lacks. Throwaway MariaDB 10.11 through `swap-in.sh` (`RS_SRV` + `RS_MARIADB`): applied before the swap; rollback named it; a failing migration left the live copy alone. |
+| P2 | `smoke-test.sh`, `DEPLOY.md` | A failing renewal reached nobody: the smoke test runs only when the owner runs it, yet R10 was ticked. | Fixed: `watch.sh` (cron.daily): the served certificate (three weeks) and the backup (two days), to `state/health` and `/etc/motd.d`; the panel's front page shows it and says when the check stopped; install.sh stops without cron. Scratch: well, unreachable, near-expiry (an `openssl s_server` with a 10-day certificate), old and first backup; the panel on the local copy for each state, markup shown as text. |
+| P3 | `install.sh` | Migrations neither atomic nor idempotent; names checked after the database was touched; schema.sql before migrations. | Fixed in `migrate.sh`: names first; each migration and its record in one session; idempotent by rule; on an existing database migrations first, then schema.sql. MariaDB: a failing migration is not recorded and applies once fixed. |
+| P3 | `install.sh` | The stamp hashed the copy install.sh was in, but it applied `www`'s files. | Fixed: only the copy in place may run (except `--check`, `--inputs-hash`). Code. |
+| P3 | `swap-in.sh` | Sending the live commit again replaced the way back with a second copy of it. | Fixed: refused (same manifest). Scratch. |
+| P3 | `swap-in.sh` | www.prev was compared by names only: an edit made there was deleted. | Fixed: checked against its manifest too. Scratch: the edited file named, nothing changed. |
+| P3 | `swap-in.sh` | A cut-off run's advice deleted the copy one back; a failure in the renames ended silently. | Fixed: it names `rm -rf www.prev && mv www.old www.prev`; a failed rename puts the live copy back or says the site is down; a failed `www.prev` step warns and goes on. Scratch for the advice; the rename failures in code. |
+| P3 | `up.sh`, `smoke-test.sh` | The local 30-day test certificates would fail the new 21-day check from Oct 20. | Fixed: re-issued (the CA too) under three weeks. Scratch: 10-day → made again, 30-day → kept. |
+| P3 | `up.sh` | The local copy never applied migrations (schema.sql only on a new volume). | Fixed: `up.sh` runs `migrate.sh` (TCP, after the image's restart); the init-script schema is gone. Local: restarted onto its existing database, `rs_migration` made, 34/34. |
+| P3 | `install.sh`, `swap-in.sh` | A site block landing as `.new` still counted as applied. | Fixed: `swap-in.sh` names a pending `.new`. Code. |
+| P3 | `pack.sh` | Any branch carrying `swap-in.sh` was sent. | Fixed: only `jihad`. `pack.sh --no-send`: 1347 entries, the new scripts 0755. |
+
+Not verified: anything that needs root on Devuan (OpenRC's cron and nginx, `/etc/motd.d` at login).

@@ -1,6 +1,6 @@
 ---
 created: "2026-10-11"
-last_edited: "2026-10-11"
+last_edited: "2026-10-12"
 complexity: complex
 ---
 
@@ -190,17 +190,37 @@ LAN, before anything touches the owner's server.
   from its archive or is incomplete; and the copy before it comes back with one command until the
   next update. (Inspector, 2026-10-11. Scratch runs: a real datastore folder, a cut archive, a tar
   ending between members, a changed file and a stray file in the old copy were each refused with
-  nothing changed; a rollback and its return worked; the links survived every case.)
+  nothing changed; a rollback and its return worked; the links survived every case.) Sending the
+  live copy again does not replace the way back, an edit made on the server in the copy before last
+  stops the update rather than vanishing, and a run cut off part-way names the command that finishes
+  it. (Inspector, 2026-10-12; scratch runs.) Only the site's `jihad` branch is sent.
 - [x] An update says what to run next, from what the server has applied rather than from what
-  changed in the files: install.sh when it has never finished, when what it sets up changed, or when
-  a link is missing; otherwise the smoke test. A documentation-only change asks for nothing.
-  (Scratch runs.)
-- [x] An update applies the database changes it brings, once each; a database made from the current
-  schema only records them. (A throwaway MariaDB 10.11: recorded on a fresh database, applied once
-  on an existing one, nothing on a re-run, a bad file name refused.)
+  changed in the files: install.sh when it has never finished (a run that stopped part-way counts),
+  when what it sets up changed, or when a link is missing; otherwise the smoke test. A
+  documentation-only change asks for nothing. Only the copy in place may run install.sh. (Scratch
+  runs; the cleared stamp and the in-place rule in code: install.sh runs as root on the server.)
+- [x] install.sh never leaves nginx with rules it rejects: when `nginx -t` fails, the files before
+  are put back and it stops without restarting nginx or claiming to be done. It stops when cron is
+  not running. (Inspector, 2026-10-12. The rollback run on its own with an nginx that rejects
+  everything; cron in code.)
+- [x] An update applies the database changes it brings, once each, BEFORE its code goes live, after a
+  dump of the database; a database made from the current schema only records them. A change only
+  adds and runs twice harmlessly, so a rollback runs the copy before on the changed database (the
+  update names the changes the copy going back lacks), and a run cut off part-way finishes on the
+  next. Each change is recorded in the session that makes it. The local copy applies them the same
+  way. (Inspector, 2026-10-12. A throwaway MariaDB 10.11: recorded on a fresh database; dumped and
+  applied once on an existing one; nothing and no new dump on a re-run; a failing change not
+  recorded, applied when fixed; a bad file name refused before the database is touched; through
+  swap-in.sh: applied before the swap, a failing change leaving the live copy alone, a rollback
+  naming the change. The local copy restarted onto its existing database: 34/34.)
 - [x] A failing certificate renewal reaches the owner by some way other than Let's Encrypt mail,
-  which ended in June 2025: the smoke test fails three weeks before the certificate runs out.
-  (Local: passes at 34/34; the near-expiry and unreachable cases fail.)
+  which ended in June 2025, without the owner having to run anything: a daily check on the server
+  (the served certificate has three weeks left; a backup ran in the last two days) puts what it
+  finds on the panel's front page, which also says when the check itself stopped, and in the login
+  message. The smoke test fails three weeks ahead too. (Inspector, 2026-10-12: the smoke test alone
+  reached nobody. Scratch: the check's well, unreachable, near-expiry, old-backup and first-backup
+  cases; the panel's front page on the local copy for each state, markup shown as text. Cron and the
+  login message on the server: code.)
 **Dependencies:** R3, R5, R6, R7, R8, R9
 
 ## Requirements — the browser's half
@@ -257,6 +277,10 @@ LAN, before anything touches the owner's server.
 - `docs/research/persona-archives.md`, `persona-licences.md`, `phoebus-analysis.md`.
 
 ## Changelog
+- 2026-10-12: R10 after the inspector's review of the round-16 deploy fixes: a rejected nginx rule is
+  rolled back, the install stamp is cleared while install.sh runs, database changes go in before
+  the code (add-only, dumped first, named on a rollback), a daily check reaches the owner through
+  the panel and the login message, and the update refuses three more ways of losing the way back.
 - 2026-10-11 (later): The inspector's proposed criteria added: R3's normalised panel path and
   framing whatever the query, R6's large page numbers, R10's re-run keeping the owner's changes.
 - 2026-10-11 (later): Built; checked on the local copy and the TouchPad; the inspector's review fixed

@@ -122,13 +122,8 @@ was done per section, the feed contract, the deploy steps, and the memory-note c
 
    A single run burned out at 389k tokens, so the range is split. If this session has ended, run
    them by hand with `run.sh`; it now takes `HEADREF` for an end commit.
-2. **The owner's finger:**
-   - flicks coast (all three);
-   - closing the keyboard over a page field leaves no caret;
-   - the Personas no longer flash;
-   - a tap selects the whole address;
-   - a paste into a page field in Mochi with the keyboard up still lands (inspector note);
-   - a long Extensions list pans in about:addons.
+2. **Finger tests: deferred, all of them, to one round at the end** (the owner, 2026-10-12). They
+   are collected in `docs/FINGER-TESTS.md`. Add new ones there; don't ask the owner piecemeal.
 3. **Server:** the server agent deploys per REPLY.md.
 4. **Known gaps:**
    - the same palette from AMO and from the site is two Personas;

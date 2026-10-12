@@ -97,6 +97,7 @@ const PANES = [
 					// enableFlash / disableFlash): one value, two places to change it.
 					{pref: "plugin.state.flash", type: "choice", label: "Adobe Flash",
 					 options: [[2, "On"], [0, "Off"]],
+					 unlisted: {"1": "Ask to Activate (does not play here)"},
 					 help: "Used when the HP Flash plugin is installed on this device. Applies to pages opened after the change."},
 					{pref: "media.autoplay.enabled", type: "bool", label: "Allow media to play automatically"},
 					// NO WebGL row. `webgl.disabled` exists, but WebGL is never available on this device
@@ -758,6 +759,14 @@ function buildRow(row) {
 			opt.appendChild(document.createTextNode(row.options[i][1]));
 			control.appendChild(opt);
 		}
+		// A value set elsewhere (about:addons, about:config) that this row does not offer is shown as it
+		// is, not as an empty list; choosing an offered one replaces it (inspector 2026-10-12).
+		if (value !== null && !row.options.some(function (o) { return String(o[0]) === String(value); })) {
+			let opt = document.createElement("option");
+			opt.setAttribute("value", String(value));
+			opt.appendChild(document.createTextNode((row.unlisted && row.unlisted[String(value)]) || "Set elsewhere: " + value));
+			control.appendChild(opt);
+		}
 		if (value !== null) { control.value = String(value); }
 		control.addEventListener("change", function () {
 			echoWrite(row, control.value);
@@ -799,18 +808,20 @@ function openAddons(category) {
 }
 
 function goButton(text, id, go) {
-	var b = el("button", "btn btn-go", text);
+	var b = el("button", "btn btn-nav", text);
 	b.setAttribute("type", "button");
 	b.id = id;
 	b.addEventListener("click", go, false);
 	return b;
 }
 
-// A plugin's state, as the add-on manager and the Content pane's Flash row set it.
+// A plugin's state, as the add-on manager and the Content pane's Flash row set it. "Ask to Activate"
+// (click to play, state 1) is offered by about:addons, but this browser has nothing that activates a
+// plugin afterwards: set to it, Flash does not play at all, and it is said so (inspector 2026-10-12).
 function pluginState(tag) {
 	if (tag.blocklisted) { return "blocked"; }
 	if (tag.disabled) { return "off"; }
-	return tag.clicktoplay ? "plays when you tap it" : "on";
+	return tag.clicktoplay ? "set to Ask to Activate" : "on";
 }
 
 // The plugins the engine found (the device's own Flash among them), from its plugin host.
@@ -846,7 +857,9 @@ function flashSummary(tags) {
 		: path ? "this browser's own plugins folder" : "";
 	var others = tags.length - 1;
 	// Named as people know it: the HP plugin describes itself as "Shockwave Flash".
-	return "Adobe Flash Player" + (version ? " " + version.slice(0, 30) : "") + ", " + pluginState(flash) + "." +
+	return "Adobe Flash Player" + (version ? " " + version.slice(0, 30) : "") + ", " + pluginState(flash) +
+		(flash.clicktoplay && !flash.disabled && !flash.blocklisted
+			? ", which this browser cannot do, so it does not play: choose Always Activate in Manage Plugins." : ".") +
 		(from ? " From " + from + "." : "") +
 		(others > 0 ? " " + others + (others === 1 ? " other plugin." : " other plugins.") : "");
 }
@@ -854,8 +867,8 @@ function flashSummary(tags) {
 // Personas, Extensions and Plugins (R8): what the browser wears and runs, at the top of the pane the
 // settings page opens on, one button each (the owner, 2026-10-12): about:personas, where Personas are
 // found and worn; about:addons on its Extensions list, where they are turned on and off and removed;
-// about:addons on its Plugins list, where Flash shows its version and is set to on, tap to play or
-// off. Everything shown is text.
+// about:addons on its Plugins list, where Flash shows its version and is turned on or off. Everything
+// shown is text.
 function buildAddonsSection() {
 	var box = el("section", "group");
 	box.id = "addons-group";
@@ -1134,13 +1147,10 @@ function renderAboutPane(host) {
 		"net.riverstonerelay.jihad-browser-mochi": "Enyo 2 / Mochi",
 		"net.riverstonerelay.jihad-browser-mojo": "Mojo"
 	};
-	let flash = "";
-	try {
-		for (let i = 0; i < navigator.plugins.length; i++) {
-			let pl = navigator.plugins[i];
-			if (/flash/i.test(pl.name)) { flash = pl.description || pl.name; }
-		}
-	} catch (e) {}
+	// From the plugin host, as the Browser pane reads it: navigator.plugins leaves out a plugin that is
+	// turned off, which read as "not installed" (inspector 2026-10-12).
+	let flash = "", tags = pluginTags(), ft = tags ? tags.filter(isFlash)[0] : null;
+	if (ft) { flash = String(ft.description || ft.name || "Flash").slice(0, 60) + " (" + pluginState(ft) + ")"; }
 
 	let head = el("section", "group about-head");
 	head.appendChild(el("h2", "about-name", "Jihad Browser"));

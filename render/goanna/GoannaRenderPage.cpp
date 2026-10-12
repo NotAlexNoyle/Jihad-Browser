@@ -2627,7 +2627,10 @@ void GetFlashState(bool* available, bool* enabled) {
       state = 2;
       pb->GetIntPref("plugin.default.state", &state);
     }
-    *enabled = (state != 0);
+    // Only "always" plays: "ask to activate" (1), which about:addons offers, has nothing in this
+    // browser to activate the plugin afterwards, so Flash does not play and is not reported as on
+    // (inspector 2026-10-12).
+    *enabled = (state == 2);
   }
 }
 

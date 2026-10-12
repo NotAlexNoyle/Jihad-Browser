@@ -327,18 +327,27 @@ extensions, plugins". The settings page is where people look for how the browser
 runs; until now it offered only a "Manage Personas" button that went to about:addons.
 **Acceptance Criteria:**
 - [x] The Browser pane, the one the settings page opens on, starts with a "Personas, Extensions and
-  Plugins" group, above everything else in it, with one button on each row. *(Device, all three.)*
+  Plugins" group, above everything else in it, with one button on each row. *(Device, all three;
+  again on the final bundle `23953a34…`.)*
 - [x] The Personas row says which Persona is worn (or that none is) and how many are installed;
   **Browse Personas** opens about:personas. *(Device, all three: "Wearing Space Fantasy by fx5800p.
   13 installed." in Enyo, Aurora Silk in Mochi, Lime Fizz in Mojo.)*
 - [x] The Extensions row describes extensions rather than naming any, and says how many are
   installed and how many are turned off; **Manage Extensions** opens about:addons on its Extensions
   list. *(Device, all three: "Add features to web pages and to the browser. 1 installed.")*
-- [x] The Plugins row gives the Flash Player's version, whether it is on, plays when tapped or is
-  off, and where it comes from (or that it is not installed), and counts any other plugins;
-  **Manage Plugins** opens about:addons on its Plugins list, where Flash's state is set and its
-  details are. *(Device, all three: "Adobe Flash Player 10.3 d185, on. From the HP Flash plugin
-  installed on this device." The other wordings in node, with stand-in plugin entries.)*
+- [x] The Plugins row gives the Flash Player's version, whether it is on, off or blocked, and where
+  it comes from (or that it is not installed), and counts any other plugins; **Manage Plugins**
+  opens about:addons on its Plugins list, where Flash's state is set and its details are. *(Device,
+  all three: "Adobe Flash Player 10.3 d185, on. From the HP Flash plugin installed on this device."
+  The other wordings: `render/goanna/test/prefs-addons-rows.test.js`, 8 cases.)*
+- [x] Flash set to "Ask to Activate" (which about:addons offers, and which this browser cannot
+  carry out: nothing activates the plugin afterwards, so it does not play) is said to be so on the
+  Plugins row, shown as itself in the Content pane's Adobe Flash row (not as an empty list), and
+  reported as off by the cards' Flash switch; the About pane's Flash line reads the same plugin
+  host, so a Flash that is off is not called "not installed". *(Inspector 2026-10-12. Device, Enyo:
+  state 1 and state 0 each read the same on the Plugins row, the Content row, About and `getFlash`.)*
+- [x] The gallery's "Personas manager" link opens about:addons on its Personas list, the way on from
+  Settings' one Personas button to taking a Persona off, removing it and Undo. *(Device, Enyo.)*
 - [x] Each button reaches its page in all three variants, on a settings page opened through each
   shell's own Settings entry. *(Device: Enyo `openSettings`, Mochi `menuSettings`, Mojo's
   `jihad-settings` command; each button tapped through the card — the adapter's clickAt in Enyo and

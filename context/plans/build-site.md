@@ -498,7 +498,7 @@ Owner: "add a clear route to about:personas and extensions in browser settings o
 |------|-------|---------|-------------|-----------|--------|--------|--------|
 | T-415 | Browser pane opens with "Personas, Extensions and Plugins", one button each: Browse Personas (about:personas), Manage Extensions and Manage Plugins (about:addons lists); what is worn, how many extensions, the Flash Player's version and state | cavekit-preferences-ui.md | R8 | — | no | S | done |
 | T-416 | Device: the group and each button, from each shell's own Settings entry, in all three variants | cavekit-preferences-ui.md | R8 | T-415 | yes | S | done |
-| T-417 | Review (Codex; the inspector when it is out of credits) and fixes | cavekit-preferences-ui.md | R8 | T-416 | no | S | |
+| T-417 | Review (Codex; the inspector when it is out of credits) and fixes | cavekit-preferences-ui.md | R8 | T-416 | no | S | done (inspector round 19; Codex owed) |
 
 ## Tier 76 — Jihad's add-on site, addons.riverstonerelay.org (2026-10-11; added to the site, not a regeneration)
 

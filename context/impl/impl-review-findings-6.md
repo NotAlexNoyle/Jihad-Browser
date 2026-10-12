@@ -518,3 +518,20 @@ part finished; the PHP part ran out again (retry 5:29 PM). Codex was also told t
 - Test tooling: the Enyo hook reports the glyphs (`G`) and runs on the start page (the browser view
   may not exist yet); the Mojo hook reads a submenu's colours (`H`); `card-selftest.sh` launches
   with no address for `-`.
+
+## Round 19 — the inspector on `7cd6a158` (Settings: Personas, Extensions and Plugins; Codex out of credits until 5:29 PM)
+
+APPROVE with 1 P2 and 4 P3; all checked against the code and fixed in the commit after `7cd6a158`.
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `preferences.js`, `GoannaRenderPage.cpp` | Flash set to "Ask to Activate" (state 1, offered by about:addons) never plays here — nothing activates a click-to-play plugin — yet the new Plugins row said "plays when you tap it", the Content pane's Adobe Flash row (On/Off only) showed an empty list, and the cards' switch (`getFlash`, `state != 0`) said on. | Fixed: the row says it is set to Ask to Activate, which this browser cannot do, so it does not play, and to choose Always Activate; a choice row shows a stored value it does not offer as itself (the Flash row: "Ask to Activate (does not play here)"); the daemon reports only state 2 as on. Device, Enyo (daemon `4d8502ab…`, prefs.js edited with the daemon stopped and put back md5-identical): state 1 → the three panes say so, `getFlash` `enabled:false`; state 0 → "off" everywhere; unset → `enabled:true`. |
+| P3 | `preferences.js` (About) | About read `navigator.plugins`, which leaves out a disabled plugin: Flash off read "not installed" while the Browser pane said "off". | Fixed: About reads the plugin host. Device, Enyo: "Shockwave Flash 10.3 d185 (off)" with Flash off. |
+| P3 | kits | personas-ui R5 still described Settings → Appearance and Manage Personas; cross-references in personas-ui and addons-extensions R10 dangled; the overview counted 7 requirements in preferences-ui. Settings no longer led to the Personas manager (take off, remove, Undo). | Fixed: the kits name the new route; the overview says 8; about:personas' mention of the Personas manager is now a link that opens about:addons on its Personas list. Device, Enyo: the link lands on the Personas list (about:addons had last shown Plugins). |
+| P3 | tests | The Plugins wordings recorded as checked "in node" had no test in the repository. | Fixed: `render/goanna/test/prefs-addons-rows.test.js` (8 cases, the functions read from the page itself). |
+| P3 | `preferences.css` | The three navigation buttons used the red of a confirming Clear. | Fixed: their own neutral blue (`btn-nav`). Device, all three. |
+
+Checked clean by the inspector: every name goes in as text; nothing in the group can stop the rest
+of the pane from rendering; a late extension count writes to a detached node harmlessly;
+about:addons opens on `extensions.ui.lastCategory` for both lists, and the Plugins category is
+never hidden; the layout holds at 768 and 1024 wide.

@@ -5,7 +5,53 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (afternoon) delta — round 17 verified on the device; Codex round 18 on the deploy kit fixed (READ FIRST)
+## 2026-10-12 (later) delta — Settings: Personas, Extensions and Plugins, one button each (READ FIRST)
+
+**Done** (`7cd6a158` and the round-19 fixes after it; `cavekit-preferences-ui.md` R8, build site
+Tier 77, all criteria met). The owner asked for:
+- a clear route to about:personas and extensions in Settings on all three variants;
+- the extension not named as the row's subheading;
+- plugins with the Flash Player's details;
+- one button per row.
+
+The Browser pane of about:settings now starts with a "Personas, Extensions and Plugins" group (blue
+buttons). It replaces the old Appearance group:
+- **Personas:** what is worn and how many are installed. **Browse Personas** opens about:personas,
+  whose "Personas manager" link opens about:addons on its Personas list (take off, remove, Undo).
+- **Extensions:** "Add features to web pages and to the browser. N installed" (and how many are
+  off). **Manage Extensions** opens about:addons on its Extensions list.
+- **Plugins:** "Adobe Flash Player 10.3 d185, on. From the HP Flash plugin installed on this
+  device." **Manage Plugins** opens about:addons on its Plugins list.
+
+**The inspector (round 19):** APPROVE, with 1 P2 and 4 P3, all fixed.
+- Flash on "Ask to Activate" never plays here. The row now says so; the Content pane's Flash row shows
+  it instead of a blank list; and the daemon's `getFlash` reports only state 2 as on, which needed a
+  daemon rebuild.
+- About reads the plugin host, so a Flash that is off no longer reads "not installed".
+- The kits were updated for the new route.
+- `render/goanna/test/prefs-addons-rows.test.js` covers the wordings (8 cases).
+- The buttons are no longer the red of a confirming Clear.
+
+**Verified on the device**
+- All three variants: the group renders, on a page opened through each shell's own Settings entry,
+  and each button lands on its page. The taps came from the hooks, not a finger; the pages were read
+  back and photographed. The final bundle was re-checked on all three.
+- Enyo, with `prefs.js` edited while the daemon was stopped (then put back md5-identical): state 1
+  and state 0 each read the same in all four places. The manager link lands on the Personas list.
+
+**Open**
+1. Codex on `7cd6a158` and its fixes, when credits return (5:29 PM), together with the site's PHP
+   part (afternoon delta, item 1).
+2. The afternoon delta's other items are unchanged.
+
+**Device state as left**
+- All three variants on bundle `23953a34e209e90c358275c5e89c0dde`, daemon `4d8502ab…` (libxul
+  unchanged); daemons running.
+- No test hooks (the shipped manifests were checked by md5). No user.js, no test CA.
+- Enyo's `prefs.js` is as before the test; Flash is on everywhere.
+- Personas as below. `/tmp` holds nothing of ours. The test hooks gained Mojo's `t` (a tap).
+
+## 2026-10-12 (afternoon) delta — round 17 verified on the device; Codex round 18 on the deploy kit fixed
 
 **Verified on the device** (the TouchPad connected at 12:28; one task at a time)
 - Bundle `eaa828a1877aa3b441213d51b6c2524e` on all three variants (the id read back from each).

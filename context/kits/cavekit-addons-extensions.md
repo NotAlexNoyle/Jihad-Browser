@@ -932,9 +932,11 @@ also be themed").**
 - [x] A PREVIEW is honoured only from an https page whose site holds the "install" permission
   (Firefox 52's rule) and is reset when the page that showed it is left; only the installed theme
   is remembered. *(Device: an http preview is logged as ignored.)*
-- [x] Settings → Appearance: current theme with Remove; used themes with Use / Forget. *(Device, Mochi.)*
+- [x] Settings shows the theme worn and leads to the Personas (cavekit-preferences-ui.md R8; since
+  2026-10-12 the gallery, from which the Personas manager has Remove, Use and Undo — cavekit-personas-ui.md).
+  *(Device, Mochi; the Settings route device-checked in all three 2026-10-12.)*
 - [ ] Tabs are themed — waits on tabbed browsing (cavekit-tabbed-browsing.md R1).
-**Dependencies:** cavekit-preferences-ui.md (Appearance), cavekit-tabbed-browsing.md
+**Dependencies:** cavekit-preferences-ui.md (R8), cavekit-tabbed-browsing.md
 
 ## Changelog
 - 2026-10-08: R10 — a static theme whose header art is only in `additional_backgrounds` (three of five popular AMO themes tried) now converts; device-verified installing five AMO themes in Enyo, Mochi and Mojo. The management UI is now its own kit, cavekit-personas-ui.md.

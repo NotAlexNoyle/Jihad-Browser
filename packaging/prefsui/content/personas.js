@@ -274,5 +274,12 @@ function setupOnline() {
 	renderOnline();
 }
 
+// The Personas manager is about:addons on its Personas list: the list it opens on is the one it last
+// showed, so that is set first. Settings' one Personas button comes here, and this is the way on to
+// taking one off, removing it and Undo (cavekit-preferences-ui.md R8; inspector 2026-10-12).
+document.getElementById("personas-manager").addEventListener("click", function () {
+	try { Services.prefs.setCharPref("extensions.ui.lastCategory", "addons://list/theme"); } catch (e) {}
+}, false);
+
 renderBundled();
 setupOnline();

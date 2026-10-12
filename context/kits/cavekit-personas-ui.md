@@ -22,7 +22,7 @@ saying what a Persona is.
 
 This kit makes that category the home of Personas by decorating the add-ons manager's own page:
 the same manager, the same add-on model, the same install path R10 already secured. There is no
-second manager; Settings → Appearance is a summary that links here.
+second manager; Settings' Personas row goes to the gallery (about:personas), which links here.
 
 **Naming (owner, 2026-10-08: "call themes Personas consistently throughout the user interface and
 documentation"):** every word a person reads says "Persona": the category, the pane, the confirm,
@@ -119,10 +119,13 @@ safety with one button.)
 - [x] The pane opens with a sentence on what a Persona is. *(Device, all three.)*
 - [~] With no Personas installed, it also says how to get one (Get Personas, Install from file).
   *(Code; every profile now holds the bundled set, so the empty state needs them uninstalled.)*
-- [x] Settings → Appearance shows the Persona worn and how many are installed, with **Manage
-  Personas**, which opens the pane. *(Device, Mochi. Found on the way: the daemon re-drove the
-  page's load of about:addons by its resolved file address, which the engine refuses as XUL loaded
-  from a file; it now re-drives an about: page by its original address.)*
+- [x] Settings shows the Persona worn and how many are installed, with **Browse Personas**, which
+  opens the gallery (about:personas); the gallery's "Personas manager" link opens this pane
+  (cavekit-preferences-ui.md R8: one button per row, the owner, 2026-10-12). *(Device, all three,
+  2026-10-12: Browse Personas.)* *(Until 2026-10-12 a Manage Personas button opened the pane
+  directly — device, Mochi. Found on the way: the daemon re-drove the page's load of about:addons by
+  its resolved file address, which the engine refuses as XUL loaded from a file; it now re-drives an
+  about: page by its original address.)*
 **Dependencies:** R1, R4
 
 ### R6: The same in every shell, verified
@@ -205,7 +208,7 @@ those we do."
 
 ## Cross-References
 - cavekit-addons-extensions.md R10: what a Persona is here, install security, persistence.
-- cavekit-preferences-ui.md R2/R5: Settings' Appearance section is a summary.
+- cavekit-preferences-ui.md R8: Settings' Personas row, and the way from it to the gallery.
 - cavekit-tabbed-browsing.md R1: tabs, when built, wear the Persona too.
 
 ## Changelog

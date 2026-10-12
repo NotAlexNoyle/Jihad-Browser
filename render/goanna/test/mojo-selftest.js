@@ -266,6 +266,11 @@
 				} else if (st === "K") {              // focus the address field as a tap does (the keyboard comes up)
 					try { sc.get(app.ADDRESS_ID).mojo.focus(); } catch (e) { log(name, "focus: " + e); }
 					log(name, "address field focus asked; window " + win.innerWidth + "x" + win.innerHeight);
+				} else if (st === "S") {              // the focused field's selection: is the whole value selected? (B;K;S tests the
+					// address field's focusSelectMode: an API focus without it puts the caret at the end. Do not
+					// blur and refocus the raw input here — the widget swaps it for a div and the address empties.)
+					var se = doc.activeElement;
+					log(name, "selection: " + (se && typeof se.selectionStart === "number" ? se.selectionStart + "-" + se.selectionEnd + " of " + String(se.value).length + " [" + String(se.value).slice(0, 40) + "]" : "no text field focused"));
 				} else if (st === "N") {              // what has the focus now, and the window's size
 					var ae = doc.activeElement;
 					log(name, "focus: " + (ae ? ae.tagName + (ae.className ? "." + String(ae.className).split(" ")[0] : "") : "none") + " window " + win.innerWidth + "x" + win.innerHeight);

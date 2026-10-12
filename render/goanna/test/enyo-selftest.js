@@ -170,6 +170,24 @@
 					var ka = kb && kb.$.actionbar && kb.$.actionbar.$.search && kb.$.actionbar.$.search.$.address;
 					if (ka) { ka.forceFocus(); }
 					log(name, "address field focused: " + !!(ka && document.activeElement && document.activeElement.tagName === "INPUT") + " window " + window.innerWidth + "x" + window.innerHeight);
+				} else if (st === "RF") {             // refocus with a caret at 3: a tap's caret survives unless the field selects all on focus;
+					// a bare input made here is the control (WebKit restores its caret)
+					var yd = document, ya = yd.activeElement, yc = yd.createElement("input");
+					yc.value = "control value";
+					yc.style.cssText = "position:absolute;left:-2000px;top:0";
+					yd.body.appendChild(yc);
+					if (ya && ya.setSelectionRange) { ya.blur(); ya.setSelectionRange(3, 3); ya.focus(); }
+					setTimeout(function () {
+						var a = ya ? ya.selectionStart + "-" + ya.selectionEnd + " of " + String(ya.value).length : "none";
+						yc.setSelectionRange(3, 3); yc.focus();
+						setTimeout(function () {
+							log(name, "refocused address: " + a + "; control input: " + yc.selectionStart + "-" + yc.selectionEnd + " of " + yc.value.length);
+							yc.blur(); yc.parentNode.removeChild(yc);
+						}, 800);
+					}, 800);
+				} else if (st === "S") {              // the focused field's selection: is the whole value selected?
+					var se = document.activeElement;
+					log(name, "selection: " + (se && typeof se.selectionStart === "number" ? se.selectionStart + "-" + se.selectionEnd + " of " + String(se.value).length + " [" + String(se.value).slice(0, 40) + "]" : "no text field focused"));
 				} else if (st === "N") {              // what has the focus now, and the window's size (it shrinks under the keyboard)
 					var ae = document.activeElement;
 					log(name, "focus: " + (ae ? ae.tagName + (ae.className ? "." + String(ae.className).split(" ")[0] : "") : "none") + " window " + window.innerWidth + "x" + window.innerHeight);

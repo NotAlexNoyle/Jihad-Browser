@@ -83,7 +83,10 @@ enyo.kind({
 				// The padlock: shown on a page that came over TLS; a tap says whose
 				// certificate it was served with (showPageCertificate).
 				{name: "lock", classes: "jihad-inline-btn jihad-lock-btn", showing: false, allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadInlineIcons.lock + "'>", ontap: "showPageCertificate"},
-				{kind: "mochi.Input", name: "address", classes: "jihad-address", placeholder: "Search or type a URL", onchange: "addressEntered", onkeydown: "addressKeydown", attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false", type: "url"}},
+				{kind: "mochi.Input", name: "address", classes: "jihad-address", placeholder: "Search or type a URL", onchange: "addressEntered", onkeydown: "addressKeydown",
+					// A tap selects the whole address, as Enyo's selectAllOnFocus and Mojo's focusSelectMode
+					// do: the system's Cut/Copy bubble has no Select All (the owner, 2026-10-12).
+					selectOnFocus: true, attributes: {autocapitalize: "off", autocorrect: "off", spellcheck: "false", type: "url"}},
 				{name: "reloadStop", classes: "jihad-inline-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadInlineIcons.reload + "'>", ontap: "reloadOrStop"}
 			]},
 			{name: "share",     classes: "jihad-nav-btn", allowHtml: true, content: "<img class=jihad-nav-img src='" + enyo.JihadIcons.share + "'>", ontap: "doShare"},

@@ -501,7 +501,7 @@ Owner: "add a select all to the navbar" (then: "it wasnt showing in the cut/copy
 | T-433 | Small card pictures for installed Personas | cavekit-personas-ui.md | R9 | — | yes | M | DONE (device, Enyo) |
 | T-434 | An add-on's preferences fit the card | cavekit-chrome-look.md | R2 | — | yes | S | DONE (device, Mochi) |
 | T-435 | Mochi: LunaSysMgr's gestures (Mojo.handleGesture) reach the adapter; flick velocities whole | cavekit-chrome-look.md | R3 | — | yes (finger: owner) | S | BUILT |
-| T-436 | Select All in the URL bar's Cut/Copy bubble | cavekit-chrome-look.md | R4 | — | — | — | NOT SATISFIABLE (system bubble); alternatives to the owner |
+| T-436 | Select All in the URL bar's Cut/Copy bubble: not satisfiable (the system draws it); the owner chose select-on-tap in all three | cavekit-chrome-look.md | R4 | — | yes | S | DONE (device, all three) |
 | T-437 | Inspector round 20: Jihad's 3 P2 + 8 P3 and the site's 2 P2 + 11 P3 | — | — | — | no | M | DONE |
 
 ## Tier 78 — The server agent's work order, the gallery's flicker, each shell's buttons, Free Palestine (2026-10-12; added to the site, not a regeneration)

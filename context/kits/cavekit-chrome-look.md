@@ -97,10 +97,14 @@ keyboard is closed in about:addons the cursor in the search panel is still there
   focus (no caret left), and the shell is told the editor lost it. *(Built in the daemon: a window
   that grows back by a keyboard's height at the same width clears the page's focus. A scripted tap
   focuses the field but raises no keyboard, so only a finger can test it — the owner's.)*
-- [ ] Select All in the address field's Cut/Copy bubble: not satisfiable by the project. The bubble
-  is drawn by the system (none of the shells, Enyo 1 or LunaSysMgr's sources draw it); Enyo's
-  `selectAllOnFocus` already selects the address on a tap in the Enyo card. Offered instead: the same
-  select-on-tap in Mochi and Mojo, or an Edit entry in the app menu — the owner's choice.
+- [x] A tap on the address field selects the whole address, in all three variants (the owner's
+  choice, 2026-10-12: "do option 1 for all 3 variants"), since Select All cannot be added to the
+  Cut/Copy bubble — the system draws it (none of the shells, Enyo 1 or LunaSysMgr's sources do).
+  Enyo: `selectAllOnFocus` (already there); Mochi: Enyo 2's `selectOnFocus` (new); Mojo:
+  `focusSelectMode` (already there). *(Device, 2026-10-12: the field refocused with a caret at 3
+  selects 0–20 of 20 in Enyo and Mochi while a bare input beside it keeps its caret; Mojo, blurred
+  then focused, selects 0–20 of 20, where without the mode an API focus puts the caret at the end.
+  A finger's tap is the owner's to confirm.)*
 **Dependencies:** cavekit-input-bridging.md
 
 ## Out of Scope

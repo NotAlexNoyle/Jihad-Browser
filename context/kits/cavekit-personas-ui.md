@@ -222,7 +222,8 @@ those we do."
   and on every card — those formerly bundled keep theirs on Your Personas' cards.
 - [x] An installed Persona's card shows a small copy of its picture (1400 px wide — as sharp as the
   full header at the card's size — PNG kept PNG so transparency stays; made once beside it, kept
-  while the Persona is installed, removed after), not the full header: full headers (up to 3000 px, wallpapers 1600) were
+  while the Persona is installed, removed after; made in the background, one at a time, never
+  inside the page's own request), not the full header: full headers (up to 3000 px, wallpapers 1600) were
   dropped from the device's small image cache and decoded again as the page moved, and the cards
   flashed (the owner, 2026-10-12: "some personas are still flashing like carbon light 2.0"). Making
   them is bounded per opening; one not made yet shows the full picture meanwhile. *(Device, Enyo:

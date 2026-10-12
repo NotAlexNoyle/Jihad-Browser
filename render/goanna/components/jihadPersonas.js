@@ -230,7 +230,9 @@ function shrinkWallpaper(file, ext) {
   src.init(file, 0x01, 0, 0);
   let container = null;
   try { container = tools.decodeImage(src, mime); } finally { try { src.close(); } catch (e) {} }
-  let scaled = tools.encodeScaledImage(container, mime, w, h, ext === "png" ? "" : "quality=88");
+  let scaled = null;
+  try { scaled = tools.encodeScaledImage(container, mime, w, h, ext === "png" ? "" : "quality=88"); }
+  finally { try { container.requestDiscard(); } catch (e) {} }   // out of the image cache at once
   let tmp = file.clone();
   tmp.leafName = file.leafName + ".scaled";
   let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
@@ -289,11 +291,9 @@ function hexOf(raw) {
 // 3000 px, some of them wallpapers shrunk only to 1600 — and the device's small image cache dropped
 // and decoded them again as the page moved: cards flashed and scrolling stalled (the owner,
 // 2026-10-12: "some personas are still flashing like carbon light 2.0"). A site's Persona keeps its
-// own preview, which is small already. Making them is bounded per call (THUMB_BUDGET_MS); one not
-// made in time is made the next time the page opens, and the full picture is drawn meanwhile.
-// Pictures no installed Persona names are removed on every opening.
+// own preview, which is small already. They are made in the background (queueThumb), the full
+// picture drawn meanwhile. Pictures no installed Persona names are removed on every opening.
 const THUMB_WIDTH = 1400;
-const THUMB_BUDGET_MS = 1200;
 function headerFileOf(url) {
   let m = /^resource:\/\/jihad-themes\/([^\/?#]+)$/.exec(url);
   if (m) { let f = themesDir(); f.append(m[1]); return f; }
@@ -315,56 +315,86 @@ function thumbFileOf(t) {
                "-thumb." + (png ? "png" : "jpg"));
   return {header: file, thumb: thumb, png: png};
 }
-// Headers found to be no wider than THUMB_WIDTH: drawn as they are, and not decoded again on every
-// opening to learn that (it spent the budget, and nothing was ever pruned — device, 2026-10-12).
+// Headers found to be no wider than THUMB_WIDTH: drawn as they are, and not decoded again to learn
+// that.
 const thumbNotNeeded = new Set();
-function thumbFor(t, budget, keep) {
+
+// The card picture for an installed Persona: the small copy when it has been made, else its header,
+// with the copy queued. Nothing is decoded here: the gallery asks for its list as it loads, and
+// making copies inside that request held the page for seconds (device, 2026-10-12: 200-600 ms a
+// card, the budget gone by the eighth).
+function thumbFor(t, keep) {
   if (t.previewURL) { return String(t.previewURL); }
   let url = String(t.headerURL || "");
   let f = thumbFileOf(t);
   if (!f) { return url; }
-  let file = f.header, thumb = f.thumb, ext = f.png ? "png" : "jpg";
-  keep[thumb.leafName] = true;
-  if (!thumb.exists()) {
-    if (thumbNotNeeded.has(thumb.leafName) || Date.now() > budget.until) { return url; }
-    let sz = pictureSize(file);
-    if (!sz || sz.w <= THUMB_WIDTH) { thumbNotNeeded.add(thumb.leafName); return url; }   // small already
-    try {
-      let tools = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools);
-      let src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
-      src.init(file, 0x01, 0, 0);
-      let container = null;
-      try { container = tools.decodeImage(src, /png/i.test(ext) ? "image/png" : "image/jpeg"); }
-      finally { try { src.close(); } catch (e) {} }
-      let h = Math.max(1, Math.round(sz.h * THUMB_WIDTH / sz.w));
-      let out = f.png ? tools.encodeScaledImage(container, "image/png", THUMB_WIDTH, h, "")
-                      : tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
-      let tmp = thumb.clone();
-      tmp.leafName = thumb.leafName + ".part";
-      let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
-      bis.setInputStream(out);
-      let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
-      fos.init(tmp, 0x02 | 0x08 | 0x20, 0o644, 0);
-      let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
-      bos.setOutputStream(fos);
-      try {
-        for (;;) {
-          let n = Math.min(bis.available(), 65536);
-          if (n <= 0) { break; }
-          bos.writeByteArray(bis.readByteArray(n), n);
-        }
-      } finally {
-        try { bos.close(); } catch (e) {}
-        try { bis.close(); } catch (e) {}
-      }
-      tmp.moveTo(null, thumb.leafName);
-    } catch (e) {
-      log("card picture for " + t.name + ": " + e);
-      return url;
-    }
+  keep[f.thumb.leafName] = true;
+  if (f.thumb.exists()) {
+    ensureThemesResource();
+    return "resource://jihad-themes/" + f.thumb.leafName;
   }
-  ensureThemesResource();
-  return "resource://jihad-themes/" + thumb.leafName;
+  if (!thumbNotNeeded.has(f.thumb.leafName)) { queueThumb(f, String(t.name || "")); }
+  return url;
+}
+
+// Copies are made one at a time, THUMB_GAP_MS apart, so the gallery stays responsive while the first
+// openings make them; when the queue is done, an open gallery draws its cards again with them.
+const THUMB_GAP_MS = 700;
+let thumbQueue = [], thumbTimer = null, thumbsMade = 0;
+function queueThumb(f, name) {
+  if (thumbQueue.some(function(q) { return q.f.thumb.leafName === f.thumb.leafName; })) { return; }
+  thumbQueue.push({f: f, name: name});
+  if (!thumbTimer) { thumbTimer = later(THUMB_GAP_MS, nextThumb); }
+}
+function nextThumb() {
+  thumbTimer = null;
+  let q = thumbQueue.shift();
+  if (q && !q.f.thumb.exists() && q.f.header.exists() && makeThumb(q.f, q.name)) { thumbsMade++; }
+  if (thumbQueue.length) { thumbTimer = later(THUMB_GAP_MS, nextThumb); return; }
+  if (thumbsMade) {
+    thumbsMade = 0;
+    try { Services.obs.notifyObservers(null, "jihad-personas-mine", ""); } catch (e) {}
+  }
+}
+function makeThumb(f, name) {
+  let container = null;
+  try {
+    let tools = Cc["@mozilla.org/image/tools;1"].getService(Ci.imgITools);
+    let src = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+    src.init(f.header, 0x01, 0, 0);
+    try { container = tools.decodeImage(src, f.png ? "image/png" : "image/jpeg"); }
+    finally { try { src.close(); } catch (e) {} }
+    let w = container.width, h0 = container.height;
+    if (!(w > 0 && h0 > 0)) { return false; }
+    if (w <= THUMB_WIDTH) { thumbNotNeeded.add(f.thumb.leafName); return false; }   // small already
+    let h = Math.max(1, Math.round(h0 * THUMB_WIDTH / w));
+    let out = f.png ? tools.encodeScaledImage(container, "image/png", THUMB_WIDTH, h, "")
+                    : tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
+    let tmp = f.thumb.clone();
+    tmp.leafName = f.thumb.leafName + ".part";
+    let fos = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+    fos.init(tmp, 0x02 | 0x08 | 0x20, 0o644, 0);
+    // Copied natively (writeFrom), not through JavaScript arrays of bytes.
+    let bos = Cc["@mozilla.org/network/buffered-output-stream;1"].createInstance(Ci.nsIBufferedOutputStream);
+    bos.init(fos, 65536);
+    try {
+      for (let n = out.available(); n > 0; n = out.available()) { bos.writeFrom(out, n); }
+      bos.flush();
+    } finally {
+      try { bos.close(); } catch (e) {}
+      try { out.close(); } catch (e) {}
+    }
+    tmp.moveTo(null, f.thumb.leafName);
+    return true;
+  } catch (e) {
+    log("card picture for " + name + ": " + e);
+    return false;
+  } finally {
+    // The decoded header (2.4 MB for a 3000x200 one) leaves the image cache now, not at the next
+    // garbage collection: several held at once filled it, and the next decode failed
+    // (encodeScaledImage NS_ERROR_FAILURE on the device, 2026-10-12).
+    if (container) { try { container.requestDiscard(); } catch (e) {} }
+  }
 }
 
 // Card pictures no installed Persona uses any more.
@@ -1759,11 +1789,11 @@ function galleryRequest(bag) {
       else if (t.author === "Jihad Browser") { credits[t.id] = "MPL-2.0"; }   // the project's own drawings
     });
     bundledPersonas().forEach(function(b) { credits[b.theme.id] = b.license || ""; });
-    let budget = {until: Date.now() + THUMB_BUDGET_MS}, keep = {};
+    let keep = {};
     let list = used.slice(0, 60).map(function(t) {
       return {id: t.id, name: t.name || "", author: t.author || "", version: t.version || "",
               accentcolor: t.accentcolor || "", textcolor: t.textcolor || "",
-              preview: thumbFor(t, budget, keep), license: credits[t.id] || "",
+              preview: thumbFor(t, keep), license: credits[t.id] || "",
               worn: !!(cur && cur.id === t.id)};
     });
     // Those past the 60 listed are still installed: their pictures are kept too (inspector round 21).

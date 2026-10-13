@@ -60,6 +60,9 @@ page, and lets Jihad trust the certificates webOS trusts where that adds somethi
   relay proxy is installed but off by default" — trusting the Relay's CA is a setting, off by
   default, offered only while the Relay is the proxy in use.
 - **The Relay's access:** "It should be open" — no Relay-specific login handling.
+- **The Relay and users' addresses:** "I do want the relay to hide users addresses" (later the same
+  day, after the device showed Squid's `X-Forwarded-For` carrying the user's address on plain http).
+  A server change, sent to the server agent.
 - **A proxy's own CA (WebOne, a self-hosted bumping Squid):** "Ask when opening it" — opening the
   proxy's CA certificate link asks whether to trust it to identify websites (name and SHA-256 shown),
   the standard browser way; trusted in Jihad only, listed and removable in Settings.
@@ -109,8 +112,9 @@ in all three shells, without about:config.
 **Acceptance Criteria:**
 - [x] Choosing it sets `proxy.riverstonerelay.org`, port 3128, for HTTP and HTTPS, with no SOCKS and no
   login. The section says what the Relay is and that it is the owner's. *(Device: picked in Enyo's
-  and Mochi's section, the prefs as stated. Open: after the pick the card kept its old picture until
-  the next touch (T-465).)*
+  and Mochi's section, the prefs as stated; the section redraws within a second of the pick, 15 of
+  15 picks in both shells. The "old picture" first recorded here (T-465) was a screenshot taken
+  before the pick had run.)*
 - [x] A CONNECT from Jihad carries Jihad's User-Agent (`… JihadBrowser/1.0`), and the server agent is
   sent a Squid rule that splices (passes through untouched) every CONNECT carrying it, placed before
   the bump rules, with the commands to check and load it and to check the result. *(Device: the
@@ -139,6 +143,11 @@ in all three shells, without about:config.
   httpbin's front strips `Via`, so the server's address stands in for it. Over https the same pages
   show only `116.202.108.111` and no Squid header: the tunnel was not opened. The second half done,
   above.)*
+- [ ] The Relay does not tell sites who its users are: a plain http page and a re-signed (bumped)
+  https page fetched through it carry no `X-Forwarded-For` naming the user, and Jihad's spliced
+  https never did. The server agent is sent the Squid change (`forwarded_for delete`) with checks
+  before and after; then, on the device, http://httpbin.org/ip through the Relay shows only the
+  server's address. *(Sent 2026-10-13, received 13:35; waiting on the reply.)*
 **Dependencies:** R1
 
 ### R3: WebOne
@@ -239,4 +248,6 @@ by the user or by a community update.
   round 23 (inspector): only v3 CAs (R4, R6), the question only for a page itself and naming who
   offered it (R6), the Relay pinned in the component and recognised by key and subject (R2), its
   switch wherever it is in use (R2). Device evidence added. Same day: the server agent applied the
-  Relay's splice rule; R2 met on the device (the site's own certificate through the Relay).
+  Relay's splice rule; R2 met on the device (the site's own certificate through the Relay). Then
+  the owner: the Relay hides users' addresses (R2, a new criterion, sent to the server); the
+  stale-picture finding (T-465) withdrawn, a screenshot taken before the pick.

@@ -214,3 +214,15 @@ Two things are needed to actually land a goanna SRCREV bump:
      `bitbake -c cleansstate goanna jihad-deviceroot \
         net.riverstonerelay.jihad-browser{,-mochi,-mojo} && bitbake net.riverstonerelay.jihad-browser{,-mochi,-mojo}`
 Verify by extracting the .ipk and grepping the packaged file, not by mtime (TZ-shifted, misleading).
+
+## A screenshot taken before the step ran is not a redraw bug (2026-10-13, T-465)
+
+`card-selftest.sh run` takes its screenshot `seconds` after the launch, whether or not the
+scenario has finished. The hook starts about 14 s after the launch, and each step adds its own wait,
+so `page:w10;587,595;w2;s2;w6` with 30 s shot the card at the moment of the pick: the old state, once
+with the drop-down list still open. A later run that waited longer looked "fixed", and that was read
+as "the card keeps its old picture until the next touch". It cost a build-site entry and a finger-round
+item. `run` now prints the shot's UTC time and marks every hook line logged after it
+(`(after the screenshot)`); if the step a picture is meant to show is marked, the picture shows the
+state before it. Budget about 14 s plus the sum of the steps' waits (3 s per click or pick) before the
+shot. Also: BusyBox awk reads `buf (expr)` as a call to a function `buf`.

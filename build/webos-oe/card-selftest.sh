@@ -6,9 +6,13 @@
 #                                          restart LunaSysMgr so the card loads them
 #   card-selftest.sh [mochi|enyo|mojo] run <scenario[:arg]> [target-url] [seconds] [shot.jpg]
 #                                          close the card, launch it on target-url with that
-#                                          scenario, wait, print the "[JIHAD-TEST]" lines and
-#                                          save a screenshot (portrait, already rotated); a
-#                                          target-url of "-" launches with none (the start page)
+#                                          scenario, wait, print the "[JIHAD-TEST]" lines (UTC
+#                                          times; those logged after the screenshot are marked)
+#                                          and save a screenshot (portrait, already rotated); a
+#                                          target-url of "-" launches with none (the start page).
+#                                          The screenshot is taken `seconds` after the launch,
+#                                          whether or not the scenario has finished: give the
+#                                          steps time, or read the marks.
 #   card-selftest.sh [mochi|enyo|mojo] restore  put the shipped manifest back, delete the hook,
 #                                          restart LunaSysMgr
 #
@@ -78,14 +82,19 @@ for p in \$(luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>&1 
 sleep 4
 luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"$ID","params":{"target":"$URL","jihadTest":"$SC"}}' >/dev/null 2>&1
 sleep $WAIT
+SHOT_AT=\$(date -u +%H:%M:%S)
 luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{"file":"/tmp/st.png"}' >/dev/null 2>&1; sleep 2
 # /var/log/messages rotates within seconds on this device, so an offset taken before the launch
 # is not reliable: take every line of THIS scenario from both generations and keep what follows
-# its last "start".
-( zcat /var/log/messages.1.gz /var/log/messages.0.gz 2>/dev/null; cat /var/log/messages.0 /var/log/messages 2>/dev/null ) | grep 'JIHAD-TEST\] $SC: ' | sed 's/.*\(JIHAD-[A-Z]*\]\)/\1/; s/, file:.*//' | awk '/: start\$/{buf=""} {buf=buf \$0 "\n"} END{printf "%s", buf}' | cut -c1-900
+# its last "start". Each line keeps its UTC time, and a line logged after the screenshot says so:
+# a picture taken before a step ran is not that step's result (T-465 was such a picture).
+( zcat /var/log/messages.1.gz /var/log/messages.0.gz 2>/dev/null; cat /var/log/messages.0 /var/log/messages 2>/dev/null ) | grep 'JIHAD-TEST\] $SC: ' | sed 's/^[0-9-]*T\([0-9:]*\)[^ ]* .*\(JIHAD-[A-Z]*\]\)/\1 \2/; s/, file:.*//' | awk -v shot="\$SHOT_AT" '/: start\$/{buf=""} {m=""; if (substr(\$0,1,8) > shot) m="(after the screenshot) "; buf=buf m \$0 "\n"} END{printf "%s", buf}' | cut -c1-900
+echo "JIHAD-SHOT] screenshot taken at \$SHOT_AT UTC"
 DEVEOF
   put "$TMP/sf.sh" /tmp/mochi-sf.sh
-  HOLD=$((WAIT + 14)) dev /tmp/mochi-sf.sh | grep 'JIHAD-' || echo "(no [JIHAD-TEST] line — hook not loaded, or the log rotated)"
+  OUT=$(HOLD=$((WAIT + 14)) dev /tmp/mochi-sf.sh | grep 'JIHAD-' || true)
+  printf '%s\n' "$OUT"
+  printf '%s\n' "$OUT" | grep -q 'JIHAD-TEST' || echo "(no [JIHAD-TEST] line — hook not loaded, or the log rotated)"
   if [ -n "$SHOT" ]; then
     "${NOVACOM[@]}" get file:///tmp/st.png > "$TMP/st.png"
     python3 -c "

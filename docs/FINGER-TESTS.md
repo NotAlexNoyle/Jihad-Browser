@@ -89,9 +89,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] A proxy that asks for a login: type the user name and password in the card's dialog (each
   shell; Mojo's is webOS's own sheet) and the page loads. (R5; Enyo and Mochi answered through
   their own dialogs by script, Mojo not answered)
-- [ ] After choosing a proxy, the section redraws by itself, with no touch. (Known open: after
-  choosing Riverstone Relay the card kept its old picture until the next touch, Enyo and Mochi;
-  build site T-465.)
+- [ ] After choosing a proxy, the section redraws by itself, with no touch. (Scripted: within a
+  second, 15 of 15 picks in Enyo and Mochi; the earlier "old picture", T-465, was a screenshot taken
+  before the pick.)
 - [ ] The Riverstone Relay for everyday browsing (its pass-through rule is on the server since
   2026-10-13): https sites load with their own certificates; the padlock names the site's own
   issuer. (R2; scripted in Enyo with example.com)

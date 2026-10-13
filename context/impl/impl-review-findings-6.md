@@ -718,4 +718,7 @@ exists; the nss-ready order; the cmp fallback in the install scripts.
 - WebOne sends its CA as a download (`Content-Disposition: attachment`), which skips the engine's
   certificate import; Jihad opens a top-level CA certificate anyway (R6).
 - After a pick in a card's drop-down that grows the page (Riverstone Relay in Settings), the card
-  keeps its old picture until the next touch; open (T-465).
+  keeps its old picture until the next touch; open (T-465). **Withdrawn later the same day:** both
+  pictures were taken before the pick ran (the shot at 30 s, the pick at about 30 s). Replayed
+  exactly, a 30 s shot shows the old state and a 40 s one the new; 15 of 15 picks given time redrew
+  within a second (Enyo, Mochi). `card-selftest.sh run` now marks hook lines logged after the shot.

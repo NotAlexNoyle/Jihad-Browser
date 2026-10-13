@@ -5,7 +5,50 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-13 (later) delta — Tier 83: proxies and webOS's certificates (READ FIRST)
+## 2026-10-13 (evening) delta — the Relay hides users' addresses; T-465 withdrawn (READ FIRST)
+
+**The owner:** "I do want the relay to hide users addresses, and I want T-465 fixed."
+
+**The Relay and users' addresses (T-468, waiting on the server):**
+- Measured earlier today: through the Relay, http://httpbin.org/ip showed the user's home address
+  ahead of the server's. Squid's `forwarded_for` is at its default, so `X-Forwarded-For` names the user
+  on plain http, and on every https request it re-signs for other webOS clients. Jihad's spliced
+  https was never affected.
+- Sent as `jihad-relay-2026-10-13b` (RELAY2.md plus `riverstone-addons-d9359ea.tar.gz`, sha256
+  `ca773d7a…`), wormhole code **18-hazardous-classroom**, received 13:35. It asks for
+  `forwarded_for delete`, with `curl` checks before and after (from the server the client is
+  127.0.0.1). It also asks whether the archive peer on :3130 uses the header, and what Squid's access
+  log keeps about clients (report only; the owner decides). The site update (`d9359ea`, install.sh's
+  site-block line) rides along.
+- **On the reply:** on the device, the Relay chosen in Enyo, http://httpbin.org/ip must show only
+  `116.202.108.111`. Then close R2's new criterion and T-468.
+
+**T-465 withdrawn: not a redraw bug.**
+- Both "old picture" sightings were screenshots taken before the pick ran. `card-selftest.sh run`
+  shoots `seconds` after the launch: `page:w10;587,595;w2;s2;w6` with 30 s put the pick at about 30 s.
+- Replayed exactly on today's build: the 30 s shot shows the old state, and the pick is logged after
+  it; the same steps with 40 s show the new one.
+- 15 of 15 picks given time redrew within a second: Enyo and Mochi; No proxy ↔ Relay, My own proxy →
+  Relay, and the original Mochi case (own proxy saved, page scrolled deep, shrinks on the pick). The
+  adapter's paint log showed every `msgPainted` followed by a paint.
+- **`card-selftest.sh run` now prints the shot's UTC time and marks hook lines logged after it**
+  (`(after the screenshot)`). If the step a picture should show is marked, the picture is from before
+  it. Trap recorded in `context/impl/dead-ends.md`.
+
+**Device state as left**
+- All three on the same build (daemon `1a831adc`). No proxy, the adapter paint logs off (gates and
+  logs removed), `/` read-only.
+- Enyo and Mochi hooks restored (LunaSysMgr restarted).
+- **Mojo still has `app/assistants/JihadSelfTest.js` on the device**, from the 2026-10-13 morning
+  login test. It is not loaded (its `sources.json` names no hook). The earlier "no test hooks" check
+  missed it: BusyBox `find -name '*selftest*'` is case-sensitive. My `rm` was refused by the
+  permission classifier; it goes with the next Mojo install, or `card-selftest.sh mojo restore`, or
+  the owner removes it.
+
+**Open:** T-468 (the server's reply, then the device check); Codex on Tier 83 after Oct 18th, 11:59
+AM (T-466, now including `card-selftest.sh` and the site to `d9359ea`); the finger round.
+
+## 2026-10-13 (later) delta — Tier 83: proxies and webOS's certificates
 
 **The owner:** "add support for riverstone relay proxy, and webone, and self hosted proxies in jihad.
 also add support for system certificates including community patches if installed." Their answers:
@@ -112,8 +155,7 @@ P3s are fixed in `68caed1`. Details in impl-review-findings-6.md, round 23.
 - Test assets on `/media/internal`: `jihad-modern-web.html`, `jihad-blur-order.html`,
   `jihad-grow.html` (T-465).
 
-**Open**
-- T-465 (stale card picture after a growing pick).
+**Open** (superseded by the evening delta above: T-465 withdrawn)
 - Codex on Tier 83 and round 22 after Oct 18th, 11:59 AM (T-456, T-466).
 - The finger round (`docs/FINGER-TESTS.md`, a proxies section added).
 - The desktop build on the new engine.

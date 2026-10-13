@@ -223,6 +223,25 @@ so `page:w10;587,595;w2;s2;w6` with 30 s shot the card at the moment of the pick
 with the drop-down list still open. A later run that waited longer looked "fixed", and that was read
 as "the card keeps its old picture until the next touch". It cost a build-site entry and a finger-round
 item. `run` now prints the shot's UTC time and marks every hook line logged after it
-(`(after the screenshot)`); if the step a picture is meant to show is marked, the picture shows the
-state before it. Budget about 14 s plus the sum of the steps' waits (3 s per click or pick) before the
+(`(at or after the screenshot)`, by the second, across midnight, since review round 24); if the step a
+picture is meant to show is marked, the picture shows the state before it. Budget about 14 s plus the sum of the steps' waits (3 s per click or pick) before the
 shot. Also: BusyBox awk reads `buf (expr)` as a call to a function `buf`.
+
+## Removed roots cannot be matched by name and key (2026-10-13, review round 24)
+
+The inspector suggested refusing a re-issue of a root Mozilla removed by CCADB's "Subject + SPKI
+SHA256" (the SHA-256 of the subject and the key, DER, one after the other; it matched all 42 removed
+roots in webOS CE's store). Measured against that store, it also matches six roots Mozilla still
+trusts: GTS Root R1–R4, GlobalSign and Firmaprofesional, whose OLD issues Mozilla removed while it
+kept re-issues with the same name and key. Matching by name and key would refuse current roots.
+Removed roots stay matched by their own SHA-256; a CA under a removed root is no root and is refused
+as notRoot.
+
+## A certificate in webOS's store is not a CA because it says cA=TRUE (2026-10-13, review round 24)
+
+Trust Always (Jihad's SSL dialog, webOS's own browser, any app) installs the SITE's certificate into
+Certificate Manager's store, beside the CAs a user added, with the same hash link. A router's or NAS
+box's certificate made with `openssl req -x509` says cA=TRUE (openssl's default v3_ca) and often
+carries the device's address as a subjectAltName. Taken as a root, its key could vouch for any site.
+R4 takes only roots that say their key signs certificates (keyUsage keyCertSign) and name no site
+(no subjectAltName, no extendedKeyUsage), and never one Jihad's own dialog installed.

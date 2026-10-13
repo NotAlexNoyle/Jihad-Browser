@@ -43,8 +43,8 @@ finger-sized controls, Prelude where the device has it. (The server agent's work
 site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-10-12.)
 **Acceptance Criteria:**
 - [x] Every category (Get Add-ons, Extensions, Personas, Plugins, Language packs when present), the
-  detail view, the search field, the gear menu and Install from file… take the look, in all three
-  variants. *(Device, all three.)* The look is Jihad's dark one, as on the settings page and
+  detail view, the search field and the gear menu take the look, in all three variants. *(Device,
+  all three.)* (Install from file… moved to about:personas in Tier 78.) The look is Jihad's dark one, as on the settings page and
   about:personas: a light webOS look was tried first and clashed (the owner, 2026-10-12); every text
   is light; the site's new Get Add-ons pane is darkened inside it (only that pane).
 - [~] Every function still works: install, enable, disable, remove, Undo, preferences, the update

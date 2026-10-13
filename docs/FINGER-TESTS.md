@@ -66,6 +66,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   addons.mozilla.org (asks first, names the site). (personas-ui R6/R8)
 - [ ] about:addons: install, enable, disable, remove, Undo, an add-on's Preferences (Palefill's fit),
   the update check, a plugin's state menu. (chrome-look R2, addons-extensions R2)
+- [ ] about:addons: the link-style buttons ("More" on an add-on, "Undo" after a removal, "Restart
+  now") and about:personas' Undo in its message take a finger easily (44 px since review round 24).
+  (personas-ui R2, chrome-look R2)
 - [ ] The add-on site on the TouchPad, portrait and landscape: tap targets, the Personas page's Wear
   buttons, the search field. (addons-site R7, R12)
 

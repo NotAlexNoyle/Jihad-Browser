@@ -215,12 +215,22 @@ LAN, before anything touches the owner's server.
   database and datastore backup, log rotation, and how to update the site.
 - [x] Every step that needs root is a command the owner runs; nothing is run on the server, and no
   DNS record is made, without the owner's go-ahead.
-- [~] Re-running `install.sh` keeps what the owner changed: the panel allowlist lives in its own
-  include, written only when absent, and an edited site block is kept with the new one written
-  beside it (`.new`). *(Code; install.sh runs as root on the server and has not been run here.)*
-  (Inspector, 2026-10-11.)
-- [ ] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
-  from a desktop UXP browser and from Jihad) passes. [the owner's server and DNS: not yet]
+- [x] Re-running `install.sh` keeps what the owner changed: the panel allowlist lives in its own
+  include, written only when absent; the site block is replaced only while it is still what
+  install.sh last wrote (its hash in `/var/lib/riverstone-addons/site-block.sha256`, recorded once
+  nginx accepts it; before any hash, the copy before's version stands in), the one before kept as
+  `.prev`; any other block, including one that no longer includes `riverstone-site.conf`, is kept
+  with the repository's beside it (`.new`), and a `.new` goes once the live block is the
+  repository's; a missing certificate keeps the block before as `.prev`. (Inspector, 2026-10-11 and
+  rounds 23-24. Scratch harness of install.sh's site-block section: missing, already the
+  repository's with a stale `.new`, edited without the include, the challenge block left, no
+  certificate over the owner's block, untouched with a hash, edited after the hash. On the server,
+  2026-10-13: install.sh ran for `68caed1` and `d9359ea`, recorded the hash, and said so.)
+- [~] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
+  from a desktop UXP browser and from Jihad) passes. *(Server: 43/43 at every update since
+  2026-10-12, from the server itself; Pale Moon installed a Persona from the live site and Jihad read
+  the feed (the owner, 2026-10-12). Still the owner's: a colour Persona worn in Pale Moon and on the
+  TouchPad from the live site.)*
 - [x] Every file reaches the server over magic-wormhole-rs, and no other wormhole is installed
   (the owner's rule, 2026-10-11). (Scratch: a site package sent to this PC, unpacked and put in place.)
 - [x] An update replaces only the site's code: it refuses, never deletes, anything in a copy other

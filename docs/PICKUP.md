@@ -5,7 +5,75 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-13 (evening) delta — the Relay hides users' addresses; T-465 withdrawn (READ FIRST)
+## 2026-10-13 (night) delta — review round 24: the inspector does Codex's owed review (READ FIRST)
+
+**The owner:** "do the codex review with the cavekit 3.1 backup inspector agent instead. defer all
+finger tests. remove leftover mojo file." Codex is no longer owed anything: T-456 and T-466 are
+done by the inspector.
+
+**Reviewed** (five inspectors in parallel, read-only):
+- Jihad: `4e480610..6e7b31a0` (Tier 78), `6e7b31a0..5db7860c` (round 22), `5db7860c..9a38a708`
+  (Tier 83).
+- The site: `9e5521b..d9359ea` (deploy kit and credits) and `upstream/TRUNK..d9359ea` (the PHP fork).
+
+**Results.** Tier 83: REQUEST CHANGES (1 P1, 1 P2, 5 P3). Everything else: APPROVE with P3s. All
+fixed:
+- **Jihad, `cfbfbcf2` (T-469).** Details in impl-review-findings-6.md, round 24.
+  - **P1:** a router's certificate accepted with Trust Always lands in Certificate Manager's store
+    and says cA=TRUE. R4 would have made it a root for every site at the next start. Now R4 takes
+    only roots: self-issued, keyCertSign, no subjectAltName or extendedKeyUsage. It also never takes
+    a certificate the daemon's SSL dialog installed: the daemon raises `jihad-platform-cert`, and
+    the SHA-256 goes into `jihad.security.webos_certs.accepted`.
+  - **P2:** a blob: frame raised the CA question. The question now needs a one-use offer from a CA
+    certificate opened as the page itself.
+  - **Also:** the proxy-login marker is now "[proxy] ". webOS's proxy setting keeps its last plan
+    when a read fails. The gallery offers the bundled set. Link buttons are 44 px. The kits are
+    brought up to date.
+  - **Rejected:** matching removed roots by subject and key would refuse GTS R1–R4, GlobalSign and
+    Firmaprofesional (in dead-ends.md).
+- **The site, `71dd173` and `f9bcb79` (T-470).**
+  - install.sh keeps an owner's edited site block. DEPLOY.md step 11 is corrected.
+  - The MPL Personas have their licence and source links.
+  - The panel's open redirect is closed, and a database outage answers 503.
+  - The feed's order and per_page are fixed, and login timing no longer reveals user names.
+  - Local copy: smoke test 43/43, and each fix checked.
+
+**On the device** (CE 3.1.0; all three on daemon `06e75a68`, `jihadCerts.js` `7ee7ae12`):
+- R4 still trusts the same 5 roots.
+- Three certificates placed in Certificate Manager's store:
+  - a router's with an IP SAN: skipped as siteLike;
+  - one without keyUsage: skipped as noCertSign;
+  - a CA with keyCertSign: trusted. Removed again afterwards.
+- Trust Once on a router-certificate site logged the marker, and the session serial was swept.
+- A blob: CA frame: refused, no dialog.
+- The test CA as an HTTP link: asks ("Offered by 192.168.1.245:8896").
+- A router certificate as a link: refused.
+- Proxy logins read "The proxy …" in Enyo and Mochi; Mojo's sheet reads "[proxy] …".
+- The Enyo hook gained `D` (report open dialogs) and `VN` (answer the SSL dialog).
+
+**Not shown on the device:**
+- The gallery's bundled offer: every profile already has edition 8, so only a fresh profile shows
+  it.
+- jihadProxy's keep-last: a failed read cannot be brought about on demand.
+- The 44 px buttons: in the finger round.
+
+**The server:** the site update is sent as `jihad-site-2026-10-13c` (SITE.md plus
+`riverstone-addons-f9bcb79.tar.gz`, sha256 `13b43fe2…`), wormhole code **5-stupendous-solo**. The
+reply should give install.sh's site-block line, the import of the five MPL Personas (updated at
+1.0), the smoke test, and the feed check (`39 of 39`, Aurora Silk's links).
+
+**Device state as left**
+- All three on daemon `06e75a68`, no proxy, no hooks, `/` read-only.
+- Mojo's leftover `app/assistants/JihadSelfTest.js` (evening delta) is removed: no `*SelfTest*`
+  file in any of the three.
+- Certificate Manager's store as before: 0 files in /var/ssl/certs, 190 links.
+- The test fingerprint pref is cleared, and the device's /tmp test files are deleted.
+- LunaSysMgr restarted.
+
+**Open:** the server's reply to `5-stupendous-solo` (T-470), then the finger round (deferred, by the
+owner's word).
+
+## 2026-10-13 (evening) delta — the Relay hides users' addresses; T-465 withdrawn
 
 **The owner:** "I do want the relay to hide users addresses, and I want T-465 fixed."
 

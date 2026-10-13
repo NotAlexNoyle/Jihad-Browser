@@ -86,10 +86,14 @@ in all three shells, without about:config.
   daemon's own Luna connection when the daemon starts, when a card opens and when the section is
   shown, and applies it (manual → that proxy for HTTP and HTTPS; a PAC URL → that URL; auto-detect →
   the engine's WPAD; none → direct). The section shows what webOS said. If the service cannot be
-  reached, Jihad goes direct and says so. *(Device, Enyo: webOS set to the PC proxy with
+  reached, Jihad keeps following what webOS last said (kept across restarts) and says so; with
+  nothing followed yet, it goes direct and says so. (Inspector round 24: the daemon cannot ask until
+  it is on the bus, which can take minutes after a start, and going direct meanwhile sent pages past
+  the proxy the user chose.) *(Device, Enyo: webOS set to the PC proxy with
   `configureNwProxies`; Jihad followed it at the next card ("following webOS: … 8898"), the section
   read "Now: webOS's proxy: 192.168.1.245:8899", a page went through it; webOS's setting then
-  cleared. The unreachable path is code-read: the daemon answers returnValue false.)*
+  cleared. The unreachable path is code-read: the daemon answers returnValue false, and it cannot be
+  brought about on demand.)*
 - [x] What the section shows is read from the engine's own `network.proxy.*` prefs, so a value set in
   about:config shows here and the section never claims a proxy the engine is not using. The old
   single "Proxy" row is gone, and with it the engine's "system proxy", which does nothing in this
@@ -177,12 +181,21 @@ to trust it to identify websites, so a proxy's own CA can be added from the prox
 - [x] Opening such a link raises a question on the card naming the certificate (its name and
   organisation, sanitised), who offered it, its SHA-256, and that a proxy with this certificate can
   read the pages it carries. Yes adds it to Jihad's own certificate database, trusted for websites
-  only; No adds nothing. Only a v3 certificate whose basicConstraints says cA=TRUE is offered; any
-  other (a site's own, a v1 one the engine would call a CA) is refused with a reason. *(Device:
-  "Offered by 192.168.1.245:8897", Yes trusted it; a hand-built v1 self-signed certificate refused.)*
-- [x] The question appears only for a certificate opened as the page itself: one in a frame (HTTP,
-  data: or file:) is stopped, so a hidden frame cannot raise it. *(Device: a page with a data: and an
-  HTTP certificate frame raised nothing; both logged as stopped.)*
+  only; No adds nothing. Only a v3 certificate whose basicConstraints says cA=TRUE and that names no
+  site (no subjectAltName, no extendedKeyUsage) is offered; any other (a site's own, a router's that
+  also says cA=TRUE, a v1 one the engine would call a CA) is refused with a reason. *(Device:
+  "Offered by 192.168.1.245:8897", Yes trusted it; a hand-built v1 self-signed certificate refused.
+  Round 24, Enyo: the test CA as an HTTP link asked, "Offered by 192.168.1.245:8896", and unanswered
+  was declined; a router's certificate (cA=TRUE, IP subjectAltName) as a link was refused:
+  ""192.168.1.1" is not a certificate authority's certificate".)*
+- [x] The question appears only for a certificate opened as the page itself, once: one in a frame
+  (HTTP, data: or file:) is stopped, and anything else that reaches the engine's import without
+  being opened as a page (a blob: frame, whose type no address shows) finds no offer and is refused
+  without a word. A script's fetch of a certificate is left alone. *(Device: a page with a data: and
+  an HTTP certificate frame raised nothing; both logged as stopped. Round 24, Enyo: a hidden blob:
+  frame carrying the test CA reached the import and was refused, no dialog open.)* (Inspector round
+  24: the blob frame used to raise the question over the page. On this build a `.crt` opened from
+  `file:` is `application/octet-stream` and downloads, so it never asks.)
 - [x] The Relay's CA offered this way is refused (R2 is its one route), and so are a root Mozilla
   removed and a certificate Jihad already trusts from webOS. *(Device: the Relay's refused.)*
 - [x] Settings → Security lists the CAs added this way (name, SHA-256) with a Remove for each;
@@ -196,12 +209,24 @@ to trust it to identify websites, so a proxy's own CA can be added from the prox
 by the user or by a community update.
 **Acceptance Criteria:**
 - [x] Settings → Security has **Also trust certificates added to webOS** (on by default). With it on,
-  Jihad reads webOS's stores (above) and trusts, for identifying websites, each v3 CA certificate
-  (basicConstraints cA=TRUE) in them that is **not** one of HP's 3.0.5 roots, **not** a root Mozilla
-  removed, **not** already Jihad's, **not** expired, and **not** the Relay's or another
-  squid-for-webos CA (R2). A site's own certificate found there, v1 ones included, is not taken as a
-  root and is counted as skipped. *(Device: 190 read, 5 trusted; a v1 self-signed certificate in
-  Certificate Manager's store skipped as notCA.)*
+  Jihad reads webOS's stores (above) and trusts, for identifying websites, each **root** in them: a
+  v3 CA certificate (basicConstraints cA=TRUE) that is its own issuer, whose keyUsage allows signing
+  certificates, and that names no site (no subjectAltName, no extendedKeyUsage), and that is **not**
+  one of HP's 3.0.5 roots, **not** a root Mozilla removed, **not** already Jihad's, **not** expired,
+  **not** the Relay's or another squid-for-webos CA (R2), and **not** a certificate Jihad's own SSL
+  dialog put in webOS's store (Trust Always and Trust Once install the site's certificate there; its
+  SHA-256 is remembered). A site's own certificate found there — v1, or one that also says cA=TRUE
+  as a router's or a NAS box's usually does — and an intermediate are not taken, and are counted as
+  skipped; a CA made without keyUsage is not taken silently either (opening its file in Jihad asks,
+  R6). *(Device: 190 read, 5 trusted; a v1 self-signed certificate skipped as notCA. Round 24,
+  Enyo, three certificates placed as Certificate Manager places one: a router's with an IP
+  subjectAltName skipped as siteLike, one without keyUsage as noCertSign, a CA with keyCertSign
+  trusted (6); removed again, 5. Trust Once on a site with the router's certificate: the platform
+  store took serial 4 and the component logged its SHA-256 as never to be taken; the card closed,
+  the serial was swept.)* (Inspector round 24: the earlier cA=TRUE test let a Trust Always router
+  certificate become a root for every site at the next start.) Removed roots are matched by their
+  own SHA-256, not by name and key: Mozilla removed old issues of roots it still trusts with the
+  same name and key (GTS Root R1–R4, GlobalSign, Firmaprofesional; CCADB against CE's store).
 - [x] The lists it checks against are in the source with where each came from (HP's 3.0.5 doctor:
   212 files, 211 distinct roots; Mozilla's from CCADB, 103, fetched 2026-10-13), and a script
   rebuilds them (`render/goanna/certs/make-cert-lists.py`).
@@ -228,7 +253,10 @@ by the user or by a community update.
 - [x] The login dialog for a proxy challenge names the proxy (host and port) and says it is the proxy
   asking, not the site; a site's 401 is unchanged. *(Device: Enyo and Mochi "The proxy
   192.168.1.245:8898 - jihad-test requires a username and password"; Mojo's is webOS's own sheet,
-  titled "proxy 192.168.1.245:8898 - jihad-test".)*
+  titled "proxy 192.168.1.245:8898 - jihad-test". Round 24: the marker is "[proxy] ", which no site's
+  host can produce (a site named "proxy" could pose as one); Enyo and Mochi read "The proxy
+  192.168.1.245:8897 - jihad-test requires…", Mojo's sheet "[proxy] 192.168.1.245:8897 -
+  jihad-test".)*
 - [x] Device: a page through a PC proxy that demands a login raises the dialog naming the proxy, and
   the right login loads the page. *(Enyo and Mochi, answered through their own dialogs by script:
   407, then 200 with the login. Typing it is the finger round.)*
@@ -254,4 +282,7 @@ by the user or by a community update.
   switch wherever it is in use (R2). Device evidence added. Same day: the server agent applied the
   Relay's splice rule; R2 met on the device (the site's own certificate through the Relay). Then
   the owner: the Relay hides users' addresses (R2, a new criterion, applied and met); the
-  stale-picture finding (T-465) withdrawn, a screenshot taken before the pick.
+  stale-picture finding (T-465) withdrawn, a screenshot taken before the pick. Review round 24
+  (the inspector, for Codex): R4 takes roots only and never a certificate Jihad's SSL dialog put in
+  webOS's store; R6 asks once, only for a page, and refuses a site's certificate that says cA=TRUE;
+  R5's marker cannot be a site's host; R1 keeps following webOS's last setting when a read fails.

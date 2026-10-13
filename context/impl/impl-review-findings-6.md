@@ -722,3 +722,63 @@ exists; the nss-ready order; the cmp fallback in the install scripts.
   pictures were taken before the pick ran (the shot at 30 s, the pick at about 30 s). Replayed
   exactly, a 30 s shot shows the old state and a 40 s one the new; 15 of 15 picks given time redrew
   within a second (Enyo, Mochi). `card-selftest.sh run` now marks hook lines logged after the shot.
+
+## Round 24 — Codex's owed review, run by the inspector (the owner, 2026-10-13: "do the codex review with the cavekit 3.1 backup inspector agent instead")
+
+Five inspectors in parallel, read-only, over the ranges Codex was owed (build site T-456, T-466):
+Jihad `4e480610..6e7b31a0` (Tier 78), `6e7b31a0..5db7860c` (round 22), `5db7860c..9a38a708` (Tier 83);
+Riverstone-Addons `9e5521b..d9359ea` (deploy kit and credits) and `upstream/TRUNK..d9359ea` (the PHP
+fork). Codex is no longer owed these. Every finding was checked against the code before fixing.
+
+### Jihad-Browser Tier 83 — REQUEST CHANGES, 1 P1, 1 P2, 5 P3; fixed in `cfbfbcf2`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `jihadCerts.js` R4 | Trust Always installs the site's own certificate in Certificate Manager's store (CertAddAuthorizedCert, which makes the hash link R4 reads). A router's or NAS box's certificate from `openssl req -x509` is v3 with cA=TRUE, so round 23's test passed it and R4 would have made it a root for every site at the next start. | Fixed: R4 takes only roots (self-issued, keyUsage with keyCertSign, no subjectAltName, no extendedKeyUsage), and never a certificate the daemon's SSL dialog installed (`jihad-platform-cert` → SHA-256 in `jihad.security.webos_certs.accepted`). Device: router with IP SAN → siteLike, without keyUsage → noCertSign, CA with keyCertSign → trusted; Trust Once logged the marker and the session serial was swept. |
+| P2 | `jihadCerts.js` R6 | A blob: frame takes the Blob's type, reaches PSM's content listener, and raised the question over the page ("Offered by a file or page on this device", or a stale host). | Fixed: a one-use offer (20 s) is made only by a CA certificate opened as the page (HTTP in `_caLoad`; data:/file: in the content policy); without one the question is refused silently. Device: blob frame refused, no dialog; the HTTP link still asks. |
+| P3 | `jihadCerts.js`, `make-cert-lists.py` | Removed roots matched by exact certificate only; an intermediate in a store would be an anchor. | Intermediates: fixed (notRoot). Subject+SPKI matching: tried and dropped. Mozilla removed old issues of roots it still trusts with the same name and key (GTS Root R1–R4, GlobalSign, Firmaprofesional: CCADB against CE's store), so it would refuse current roots. |
+| P3 | `jihadCerts.js` `_caLoad` | Every non-document CA load cancelled, a script's fetch included. | Fixed: frames (subdocument, object) only. |
+| P3 | `DialogService.cpp`, shells | "proxy " marker could come from a site named `proxy`. | Fixed: "[proxy] ". Device: Enyo, Mochi "The proxy …"; Mojo's sheet "[proxy] …". |
+| P3 | `jihadProxy.js` | A failed read (daemon not yet on the bus, up to minutes) set direct. | Fixed: the last plan followed from webOS is kept (`jihad.proxy.webos.last`); direct only with none. Code: the failure cannot be brought about on demand. |
+| P3 | `card-selftest.sh` | Times compared to the second; midnight. | Fixed: seconds of the day, `>=`, wrap. Local awk test across midnight; the device runs used it. |
+
+Also fixed: the R6 question refuses a site's certificate that says cA=TRUE (device: ""192.168.1.1" is
+not a certificate authority's certificate").
+
+### Jihad-Browser round 22 — APPROVE, 2 P3; fixed in `cfbfbcf2`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `jihadPersonas.js`, `personas.js` | `jihad-personas-mine` with data "thumbs" also meant "Persona `thumbs` removed" (a site picks the id). | Fixed: its own topic, `jihad-personas-thumbs`. |
+| P3 | `jihadPersonas.js` | Card pictures are decoded on the engine's thread (200–600 ms each, one per 0.7 s). | Written down (comment, personas-ui R9): once per Persona. |
+
+### Jihad-Browser Tier 78 — APPROVE, 4 P3; fixed in `cfbfbcf2`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `jihadPersonas.js` | The bundled set was offered only when about:addons opened; a bundled Persona removed in the gallery came back there (R7). | Fixed: the gallery's list and mine requests offer it too. Code: every device profile already has edition 8, so only a fresh profile shows it. |
+| P3 | `echo-server.py` | Opened the deleted `carbon-light.png`. | Fixed: read from `carbon_light-2.0.xpi`; served 200 locally. |
+| P3 | `addons.css`, `personas.css` | `.button-link` (More, Undo, Restart now) and the toast's Undo under 44 px. | Fixed: 44 px. Finger round. |
+| P3 | kits, comments | personas-ui R4/R5/R8 and Out of Scope, chrome-look R2, two comments described the pane before Tier 78. | Rewritten. |
+
+### Riverstone-Addons deploy kit — APPROVE, 4 P3 + 1 kit gap; fixed in `71dd173`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `install.sh` | A block without the `riverstone-site.conf` include was overwritten silently (an owner's inlined edit); no certificate overwrote any block. | Fixed: only a missing block or the script's own challenge block is written over; any other is kept with `.new`; with no certificate the block before is kept as `.prev`. Scratch harness, seven cases. |
+| P3 | `install.sh` | A stale `.new` kept when the live block was already the repository's. | Fixed: removed whenever the live block ends as the repository's, after nginx accepts. |
+| P3 | `DEPLOY.md` | Step 11 said RS_SMOKE_CONNECT checks only the certificate locally; every request goes to the origin. | Fixed. |
+| P3 | `catalogue/personas.json` | The five MPL Personas had no licence or source address. | Fixed: MPL's address, the credits as source; the importer updates the rows at version 1.0 (local copy). |
+| gap | `cavekit-addons-site.md` R10 | Out of date. | Rewritten; R10's smoke criterion made [~] with what is the owner's. |
+
+### Riverstone-Addons PHP fork — APPROVE, 4 P3 + 1 upstream P3; fixed in `f9bcb79`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `developer.php` | Open redirect for the logged-in owner (raw REQUEST_URI after nginx normalised `//evil.example/%2E%2E%2Fpanel/addons/`). | Fixed: built from task/what/slug. Local copy: the crafted address → `/panel/administration/?task=submit&what=addon`. |
+| P3 | `classDatabase.php` | A database outage answered 200. | Fixed: 503 with Retry-After. Local copy: DB stopped → 503, started → 200. |
+| P3 | `classPersona.php` | Ordered by name only. | Fixed: name, id. |
+| P3 | `personaFeed.php` | per_page of four digits fell back to 24. | Fixed. |
+| P3 (upstream) | `classAccount.php` | Response time told whether a user name exists. | Fixed: a bcrypt check of the same cost for unknown names. Local copy: 0.22 s either way. |
+
+Local copy after both site commits: smoke test 43/43.

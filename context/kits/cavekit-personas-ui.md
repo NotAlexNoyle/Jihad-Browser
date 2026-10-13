@@ -93,12 +93,15 @@ safety with one button.)
 ### R4: Installing, from where people find Personas
 **Description:** Getting a new Persona does not require knowing which website still hosts them.
 **Acceptance Criteria:**
-- [x] **Install from file…** lists the `.xpi` files in `/media/internal/downloads` and
+- [x] **Install from file…** (about:personas → Your Personas since 2026-10-12, R8; the Personas pane
+  before) lists the `.xpi` files in `/media/internal/downloads` and
   `/media/internal`. Tapping one installs it through the same conversion and confirm as a download
   (R10 limits apply). *(Device, Enyo: an AMO Persona put in downloads → confirm → worn.)* The
   engine's own gear-menu entry needs a file picker this embedding does not have.
-- [x] **Get Personas** opens addons.mozilla.org's Themes listing in the card, and a Persona
-  installed there is worn and listed. *(Device, Enyo, 2026-10-08: the listing renders; on a
+- [x] addons.mozilla.org's Personas can be found and installed: since 2026-10-12 about:personas
+  searches them in place through AMO's API and installs one through the usual confirm (R8, device).
+  *(Until then the pane's **Get Personas** opened AMO's Themes listing in the card. Device, Enyo,
+  2026-10-08: the listing renders; on a
   Persona's page AMO's big button says "Download the new Firefox", and its **Download file** link
   installs it here through the usual confirm — "Allow addons.mozilla.org to change the browser's
   look to the Persona: Purple Night" — and it is worn.)*
@@ -117,11 +120,15 @@ safety with one button.)
 **Description:** Someone who has never heard of Personas understands them from the pane.
 **Acceptance Criteria:**
 - [x] The pane opens with a sentence on what a Persona is. *(Device, all three.)*
-- [~] With no Personas installed, it also says how to get one (Get Personas, Install from file).
-  *(Code; every profile now holds the bundled set, so the empty state needs them uninstalled.)*
+- [x] It says how to get one: about:personas, where the pane's link leads, shows the Personas
+  included with Jihad, the site's and addons.mozilla.org's, and says that a downloaded theme file
+  installs with Install from file (R8). *(The pane's own Get Personas and Install from file moved
+  there on 2026-10-12, Tier 78; inspector round 24.)*
 - [x] Settings shows the Persona worn and how many are installed, with **Browse Personas**, which
-  opens the gallery (about:personas); the gallery's "Personas manager" link opens this pane
-  (cavekit-preferences-ui.md R8: one button per row, the owner, 2026-10-12). *(Device, all three,
+  opens the gallery (about:personas) (cavekit-preferences-ui.md R8: one button per row, the owner,
+  2026-10-12); about:addons' Personas category links to the gallery. (The gallery's "Personas
+  manager" link back to this pane was taken out in Tier 78: Your Personas is managed in the gallery
+  itself.) *(Device, all three,
   2026-10-12: Browse Personas.)* *(Until 2026-10-12 a Manage Personas button opened the pane
   directly — device, Mochi. Found on the way: the daemon re-drove the page's load of about:addons by
   its resolved file address, which the engine refuses as XUL loaded from a file; it now re-drives an
@@ -167,8 +174,8 @@ browser, ready to show an online index the project publishes later.
 - [x] `about:personas` lists the Personas that come with the browser as cards: picture, name,
   version, author, licence, and Wear (In use for the one worn). *(Device, Enyo: 15 cards; Wear on
   Space Fantasy → worn, toolbar repainted, "Wearing Space Fantasy.")*
-- [x] The Personas pane's **Get Personas** opens it; Basilisk's `lightweightThemes.getMoreURL` can
-  point it elsewhere (an https address).
+- [x] about:addons' Personas category links to it (until Tier 78, the pane's **Get Personas**
+  opened it); Basilisk's `lightweightThemes.getMoreURL` can point it elsewhere (an https address).
 - [x] When `jihad.personas.galleryURL` names an https index (the bundled `personas.json` format,
   or the add-on site's paged feed), its Personas are listed too and install through the usual
   confirm, naming the index's host. *(Device, Enyo, 2026-10-11, against a local copy of the add-on
@@ -228,7 +235,9 @@ those we do."
 - [x] An installed Persona's card shows a small copy of its picture (1400 px wide — as sharp as the
   full header at the card's size — PNG kept PNG so transparency stays; made once beside it, kept
   while the Persona is installed, removed after; made in the background, one at a time, never
-  inside the page's own request), not the full header: full headers (up to 3000 px, wallpapers 1600) were
+  inside the page's own request — "background" for the page, not for the engine: each copy is a
+  200–600 ms decode on the engine's thread, one per 0.7 s while the queue runs, once per Persona
+  (inspector round 24)), not the full header: full headers (up to 3000 px, wallpapers 1600) were
   dropped from the device's small image cache and decoded again as the page moved, and the cards
   flashed (the owner, 2026-10-12: "some personas are still flashing like carbon light 2.0"). One not
   made yet shows the full picture meanwhile; when copies are made, only the cards whose picture
@@ -267,7 +276,8 @@ those we do."
   reach the cards, would switch the Persona off and risk the engine's start-up; the install prompt
   says so and points to Personas.
 - Animated Personas beyond their first frame.
-- Theming the engine's own pages (`about:addons` itself keeps the system look).
+- Theming the engine's own pages with a Persona: about:addons wears Jihad's own look
+  (cavekit-chrome-look.md R2), not the Persona's picture.
 
 ## Cross-References
 - cavekit-addons-extensions.md R10: what a Persona is here, install security, persistence.

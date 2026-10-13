@@ -58,7 +58,8 @@ fixed:
 - The 44 px buttons: in the finger round.
 
 **The server:** the site update is sent as `jihad-site-2026-10-13c` (SITE.md plus
-`riverstone-addons-f9bcb79.tar.gz`, sha256 `13b43fe2…`), wormhole code **5-stupendous-solo**. The
+`riverstone-addons-f9bcb79.tar.gz`, sha256 `13b43fe2…`), wormhole code **5-stupendous-solo**,
+received 15:36. The
 reply should give install.sh's site-block line, the import of the five MPL Personas (updated at
 1.0), the smoke test, and the feed check (`39 of 39`, Aurora Silk's links).
 

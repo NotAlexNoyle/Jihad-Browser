@@ -5,7 +5,105 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-13 delta — Tier 82: review round 22 (the inspector; Codex out until Oct 18th, 11:59 AM) (READ FIRST)
+## 2026-10-13 (later) delta — Tier 83: proxies and webOS's certificates (READ FIRST)
+
+**The owner:** "add support for riverstone relay proxy, and webone, and self hosted proxies in jihad.
+also add support for system certificates including community patches if installed." Their answers:
+- webOS's certificates: "Added + patched" (not HP's stock roots, not Mozilla-removed ones).
+- The Relay: HTTPS passes through untouched. Later the same day: "make using riverstone relay ca an
+  option if riverstone relay proxy is installed but off by default".
+- The Relay is open (no login).
+- A proxy's CA: ask when it is opened.
+- Default: No proxy.
+
+The kit is `context/kits/cavekit-proxies-certs.md`; build site Tier 83 (T-457..T-467).
+
+**Built** (Jihad `e223591f`, `9394c08b`, records `b33d5524`; nothing pushed)
+- **Settings → Advanced → Proxy:** No proxy (now the engine default too), Use webOS's proxy setting,
+  Riverstone Relay, WebOne, My own proxy (HTTP/HTTPS/SOCKS, a direct list), Automatic configuration
+  URL.
+  - The engine's "system proxy" (type 5) does nothing in the headless build and is gone.
+  - webOS's setting: the daemon reads `com.palm.connectionmanager/getNwProxiesConfig` on its own Luna
+    connection at start, at every card connect, and when the section is shown.
+    `components/jihadProxy.js` applies it.
+- **Settings → Security → Certificates** (`components/jihadCerts.js`): at the first page the daemon
+  raises `jihad-nss-ready`, and the v3 CAs (basicConstraints cA=TRUE) in webOS's stores are trusted in
+  memory, except:
+  - HP's 3.0.5 roots;
+  - roots Mozilla removed;
+  - roots Jihad already has;
+  - expired ones;
+  - any squid-for-webos CA.
+
+  The lists come from HP's doctor and CCADB (`render/goanna/certs/make-cert-lists.py`). On the CE 3.1.0
+  TouchPad it trusts the 5 roots newer than Jihad's NSS (TrustAsia ×2, OISTE ×2, SwissSign 2022-1).
+- **The Relay's CA:** pinned in the component; trusted only with the switch on and the Relay in use.
+- **Opening a CA certificate asks on the card** (a JS `nsICertificateDialogs`). The question names who
+  offered it and only appears for the page itself, never a frame. WebOne's download-marked CA opens
+  too. Added CAs are listed with Remove.
+- **A 407 names the proxy** (Enyo and Mochi say "The proxy …"; Mojo's webOS sheet is titled "proxy …").
+- **Test tools:** `render/goanna/test/jihad-test-proxy.py` (logging proxy; `--auth`; `--mitm` with a
+  test CA, serving `/test-ca.crt` and `/proxy.pac`). The Enyo hook gained `W<user>:<pass>` (answer the
+  login dialog).
+
+**Verified on the device** (CE 3.1.0; Enyo throughout, Mochi and Mojo for the import, the sections
+and a login proxy; kit evidence per criterion):
+- **Certificates:** the five roots trusted; nothing written to cert9.db; the SwissSign 2022-1 test site
+  loads with the switch on and fails off (TLS sessions cleared through the daemon); a CA in
+  Certificate Manager's store trusted after a start and gone after removal; a v1 self-signed
+  certificate skipped.
+- **Proxies:** manual, PAC, webOS's setting (set with `configureNwProxies`, then cleared), a login
+  proxy, WebOne 0.18.3 (PC container; its CA from its link, then https through it), and the Relay
+  (re-signing; fails with its CA off, loads on).
+- **Refusals:** the Relay's CA from a link, a v1 certificate, certificate frames; "Offered by" shown.
+
+**Review round 23** (inspector; Codex out until Oct 18th): REQUEST CHANGES, with 1 P1 (v1 self-signed
+taken as a root), 4 P2 and 10 P3; all fixed or noted in `9394c08b`, and device-checked. The site's 3
+P3s are fixed in `68caed1`. Details in impl-review-findings-6.md, round 23.
+
+**Found on the way**
+- JS components are read as **Latin-1**: non-ASCII in their strings came out garbled (the print
+  status's "…", the Persona importer's BOM strip). They are escaped now. **Use `\u` escapes in
+  components.**
+- Reinstalling over an adapter LunaSysMgr had mapped left `/` read-write (a deleted file still open).
+  The install scripts now leave a byte-identical adapter alone; Mochi, Mojo and Enyo pushes all left
+  `/` read-only.
+- **Open, T-465:** after picking Riverstone Relay in a card's drop-down (the page grows), the card
+  keeps its old picture, its own list included, until the next touch (Enyo, Mochi). The daemon did
+  paint. A page growing by itself redraws fine (`/media/internal/jihad-grow.html`, kept for this).
+
+**Server** (Riverstone-Addons `c322904`, `68caed1` on `jihad`, not pushed)
+- The server's round-22 reply (`~/Documents/jihad-reply-2026-10-13.tar`): `057dbad` live, smoke 43/43,
+  migrate silent. Its two suggestions are done:
+  - install.sh replaces an untouched site block in place (a stamped hash), `.new` only for an edited
+    one;
+  - DEPLOY.md notes `default_server`.
+- Sent as `jihad-relay-2026-10-13` (RELAY.md plus `riverstone-addons-68caed1.tar.gz`, sha256
+  `df511346…`), wormhole code **7-consensus-backward**. It holds:
+  - the Squid rule `acl jihad_browser browser JihadBrowser/` + `ssl_bump splice jihad_browser`
+    above the bump rules, with checks;
+  - the site update.
+
+  Waiting on the reply.
+
+**Device state as left**
+- All three pushed from the same build: daemon `1a831adc`, `jihadCerts.js` `cfb5cda3`, engine
+  unchanged. Daemons running, `/` read-only, no test hooks; LunaSysMgr restarted.
+- No proxy in all three, no Jihad-added CAs; the webOS-certificates switch at its default (on).
+  webOS's own proxy setting empty.
+- Default look in all three.
+- Test assets on `/media/internal`: `jihad-modern-web.html`, `jihad-blur-order.html`,
+  `jihad-grow.html` (T-465).
+
+**Open**
+- The Relay's pass-through, after the server rule: an https page through the Relay with the site's
+  own certificate (R2's last criterion).
+- T-465 (stale card picture after a growing pick).
+- Codex on Tier 83 and round 22 after Oct 18th, 11:59 AM (T-456, T-466).
+- The finger round (`docs/FINGER-TESTS.md`, a proxies section added).
+- The desktop build on the new engine.
+
+## 2026-10-13 delta — Tier 82: review round 22 (the inspector; Codex out until Oct 18th, 11:59 AM)
 
 **Codex** ran out at 22:32 on all four ranges of `scratchpad/codex/r22.sh` (146k tokens on the first,
 nothing written). Next retry: **Oct 18th, 2026 11:59 AM**, then run the same four ranges

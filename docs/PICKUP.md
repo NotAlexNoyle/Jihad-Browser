@@ -76,9 +76,19 @@ against the code and fixed or noted (context/impl/impl-review-findings-6.md, rou
 - Default look in all three; no `font.` prefs; `:has()` off.
 - Test assets on `/media/internal`: `jihad-modern-web.html`, `jihad-blur-order.html`.
 
+**The server's reply** (`~/Documents/jihad-reply-2026-10-13.tar`: REPLY.md and the deploy log): `057dbad`
+live 2026-10-13 13:10 UTC; smoke test 43/43 twice; the feed 39 of 39; `migrate.sh` silent (the
+`uq_browserId` key is there); the host check merged (helper `merge-site-block.sh`, the old block kept
+as `.conf.prev`). Step 4 printed 0, but another site's page answered: nginx there has an explicit
+`default_server` on :443 (`share.riverstonerelay.org`), so the host check is defence in depth and
+never fires. Its two suggestions for the next site package (T-463):
+1. install.sh should replace an unedited site block in place (compare with the previous copy's
+   version or a stamped hash) and write `.new` only for an edited one.
+2. DEPLOY.md should tell the reader to check `nginx -T | grep default_server` on :443.
+
 **Open:**
 - Codex on round 22's ranges after Oct 18th, 11:59 AM.
-- The server agent's reply to the follow-up.
+- T-463: the server's two suggestions, in the next site package.
 - The finger round (`docs/FINGER-TESTS.md`, three tests added).
 - The desktop build on the new engine.
 

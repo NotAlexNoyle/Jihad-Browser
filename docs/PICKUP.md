@@ -59,8 +59,10 @@ against the code and fixed or noted (context/impl/impl-review-findings-6.md, rou
 - :443 answers only `addons.riverstonerelay.org`.
 - Tested on the local copy and a throwaway nginx.
 - Sent to the server agent as `jihad-followup-2026-10-13` (FOLLOWUP.md, package sha256 `a5097cde…`),
-  wormhole-rs code **16-hazardous-suspense** (the first send, `9-determine-algol`, lost its
-  rendezvous connection at 01:28 before anyone received it). Its `install.sh` keeps the server's site block, so the host
+  wormhole-rs code **597-sympathy-checkup**, sent at 01:36. The public rendezvous server was
+  failing: it answered 502 and reset the first two sends (`9-determine-algol` at 01:28 after 68
+  minutes; `16-hazardous-suspense` at 01:30 after 2) before anyone received them. If this code dies
+  too, send the folder again. Its `install.sh` keeps the server's site block, so the host
   check is merged there by hand (the steps say how).
 
 **Not fixed, noted:**

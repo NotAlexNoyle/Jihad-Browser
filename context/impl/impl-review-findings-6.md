@@ -670,3 +670,52 @@ query, padding by characters).
   `/` rw and left it so. The restore (postinst and prerm) is tried for about ten seconds. BusyBox:
   succeeds on the fourth try, or warns after ten with the exit trap kept; all three pushed again from
   a read-only `/` — back to read-only after each.
+
+## Round 23 — Tier 83 (proxies and webOS's certificates); Codex out until Oct 18th, 2026 11:59 AM; the inspector
+
+The inspector reviewed Jihad `5db7860c..e223591f` and Riverstone-Addons `057dbad..c322904`. Codex is
+owed both ranges with round 22's (build site T-466).
+
+### Jihad-Browser `5db7860c..e223591f` — REQUEST CHANGES, 1 P1, 4 P2, 10 P3; fixed in `9394c08b`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P1 | `jihadCerts.js` | The only test against a site's own certificate was `certType == CA_CERT`, i.e. NSS's `CERT_IsCACert`, which counts any self-signed v1 certificate as a CA; mozilla::pkix takes a v1 anchor. A router's v1 certificate accepted in webOS would have become a root for every site, through R4 (on by default) and R6. | Fixed: both require a v3 certificate whose own basicConstraints says cA=TRUE, read from its DER. Device, Enyo: a hand-built v1 self-signed certificate refused by the question ("not a certificate authority's certificate") and skipped by the import (notCA 1). |
+| P2 | `jihadCerts.js` `dropSessions` | `logoutAndTeardown` logs out of every token, cancels every open TLS socket and forgets every temporary override (each Trust Once, the printer's). | Fixed: the daemon clears only NSS's session cache (`jihad-clear-tls-sessions` → `SSL_ClearSessionCache`, looked up in libssl3), plus idle connections. Device: "tls: session cache cleared", the next load asks. |
+| P2 | `jihadCerts.js` `_caInline` | `LOAD_DOCUMENT_URI` includes frames: a hidden frame could raise "Trust …?" over the page; the certificate's name was shown unchecked. | Fixed: an HTTP CA certificate that is not the page itself is cancelled; data:/file: frames refused by a content policy; the question names who offered it; names stripped of control characters and capped. Device: a page with both kinds of frame raised nothing; "Offered by 192.168.1.245:8897". Removed roots refused. |
+| P2 | `jihadCerts.js`, `make-cert-lists.py` | The Relay's CA excluded only by exact bytes from the list; a missing list let R6 accept it; the script derived the pin from the file it checked. | Fixed: fingerprint and key pinned in the component, the script refuses another; R4 never takes any squid-for-webos CA (subject); R6 says what such a certificate is. The CA is made per install by squid-for-webos's init script (research), so it is the owner's server's own. |
+| P2 | `preferences.js` | The Relay's switch only in the Relay choice, though the Relay can be in use through webOS's setting or a typed proxy. | Fixed: shown wherever it is in use. Device: webOS's setting on the Relay, the switch shown. |
+| P3 | `preferences.js` | WebOne decided by the mode alone; the Relay check ignored the HTTPS port; "webos" ignores the type. | Fixed the first two; "webos" left: the component rewrites the prefs at every read. |
+| P3 | `preferences.js` | Ports were number fields (letters became "", then the default). | Fixed: text fields checked as numbers. |
+| P3 | `preferences.js` | A locked pref could leave half a proxy written. | Fixed: checked before anything is written. |
+| P3 | `preferences.js` | webOS's setting not read again when the section is shown (R1). | Fixed. |
+| P3 | `jihadProxy.js` `pickEntry` | `networkTechnology` appears in no measurement. | Kept, harmless: the device's entry has none and is taken as "default". |
+| P3 | `JihadLunaService.cpp` | Logged 300 characters of webOS's reply, which can carry a login. | Fixed: the length only. |
+| P3 | `jihadCerts.js` | Switched off, the list and R6's "already trusted" still used the old list. | Fixed. |
+| P3 | `jihadCerts.js` | An unreadable store file counted but not logged (R4). | Fixed: once per file. |
+| P3 | `jihadCerts.js` | A revalidated (304) certificate was not seen. | Fixed: merged responses observed. |
+| P3 | kit | HP's count 211 vs 212. | Both stated: 212 files, 211 distinct. |
+
+Checked and fine (the inspector): no non-ASCII left in the components' strings; the 407 path uses
+`AUTH_PROXY` and the channel's proxy info; about:settings is not reachable from content; R4's
+temporary certificates stay in memory (UXP saves no intermediates on its own); the 1024-bit fallback
+exists; the nss-ready order; the cmp fallback in the install scripts.
+
+### Riverstone-Addons `057dbad..c322904` — APPROVE, 3 P3; fixed in `68caed1`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `install.sh` | Before a hash exists, a block older than the copy before still lands a `.new` once. | Documented in DEPLOY.md (move it in once; the next run records the hash). On the server now, the block is the copy before's, so the next run records the hash. |
+| P3 | `install.sh` | `.new` deleted before `nginx -t`. | Fixed: after it passes. |
+| P3 | `install.sh` | `live` not local. | Renamed. |
+
+### Found on the device while checking (not from a review)
+
+- JS components are read as Latin-1: non-ASCII in their strings was garbled on the card (the print
+  status's "…", and the Persona importer's BOM strip never matched). Escaped (T-467).
+- A reinstall that replaced an adapter LunaSysMgr had mapped left a deleted file on `/`, which kept it
+  read-write after all ten tries. The install scripts now leave a byte-identical adapter alone (T-467).
+- WebOne sends its CA as a download (`Content-Disposition: attachment`), which skips the engine's
+  certificate import; Jihad opens a top-level CA certificate anyway (R6).
+- After a pick in a card's drop-down that grows the page (Riverstone Relay in Settings), the card
+  keeps its old picture until the next touch; open (T-465).

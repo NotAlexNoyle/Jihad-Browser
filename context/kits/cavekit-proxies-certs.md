@@ -62,7 +62,8 @@ page, and lets Jihad trust the certificates webOS trusts where that adds somethi
 - **The Relay's access:** "It should be open" — no Relay-specific login handling.
 - **The Relay and users' addresses:** "I do want the relay to hide users addresses" (later the same
   day, after the device showed Squid's `X-Forwarded-For` carrying the user's address on plain http).
-  A server change, sent to the server agent.
+  A server change, sent to the server agent. The Relay's own access log (client addresses kept
+  about a week to ten days, which the server's abuse handling runs on): "1", keep it as it is.
 - **A proxy's own CA (WebOne, a self-hosted bumping Squid):** "Ask when opening it" — opening the
   proxy's CA certificate link asks whether to trust it to identify websites (name and SHA-256 shown),
   the standard browser way; trusted in Jihad only, listed and removable in Settings.

@@ -33,7 +33,8 @@ reference material for a specific subsystem, not a status document.
 - **On the device (Enyo, the Relay chosen):** http://httpbin.org/ip shows only `116.202.108.111`, and
   httpbin still sees Squid's `Cache-Control` (so the page went through the Relay). R2's criterion
   and T-468 are closed. Enyo is back on no proxy.
-- **The access log, the owner's to decide (nothing changed):** Squid's default `access_log` records
+- **The access log: the owner chose to keep it as it is** (option 1, 2026-10-13). Nothing goes to
+  the server. What it holds: Squid's default `access_log` records
   every client's address (field 3) with time, URL (a bumped https request's full URL; a spliced one
   only `CONNECT host:443`), status and bytes. `cache.log` names addresses in some errors.
   - Rotation is by size: logrotate hourly, `size 4500M`, `rotate 2`. That keeps roughly a week to
@@ -69,7 +70,7 @@ reference material for a specific subsystem, not a status document.
   permission classifier; it goes with the next Mojo install, or `card-selftest.sh mojo restore`, or
   the owner removes it.
 
-**Open:** the owner's word on the Relay's access log (above); Codex on Tier 83 after Oct 18th, 11:59
+**Open:** Codex on Tier 83 after Oct 18th, 11:59
 AM (T-466, now including `card-selftest.sh` and the site to `d9359ea`); the finger round.
 
 ## 2026-10-13 (later) delta — Tier 83: proxies and webOS's certificates

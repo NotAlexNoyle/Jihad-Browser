@@ -58,15 +58,12 @@ against the code and fixed or noted (context/impl/impl-review-findings-6.md, rou
 - The smoke test runs end to end on the server and is stricter on the feed.
 - :443 answers only `addons.riverstonerelay.org`.
 - Tested on the local copy and a throwaway nginx.
-- Sent to the server agent as `jihad-followup-2026-10-13` (FOLLOWUP.md, package sha256 `a5097cde…`),
-  **not received yet; no code is live.** The public rendezvous server reset the first two sends
-  (`9-determine-algol` at 01:28 after 68 minutes; `16-hazardous-suspense` at 01:30 after 2) and
-  answered 502. The third, `597-sympathy-checkup` (01:36), held but nobody received it, and it was
-  stopped at its time limit at 03:31. Fourth send at the owner's request: `4-october-fallout`,
-  replaced at 08:01 by **`4-revenue-transit`** (it waits up to two hours). If that one lapses too, send the folder again
-  (`wormhole-rs send scratchpad/jihad-followup-2026-10-13`, or re-pack from `057dbad` if the
-  scratchpad is gone) when the server agent is ready to receive. Its `install.sh` keeps the server's site block, so the host
-  check is merged there by hand (the steps say how).
+- Sent to the server agent as `jihad-followup-2026-10-13` (FOLLOWUP.md, package sha256 `a5097cde…`)
+  and **received at 08:02** with code `4-revenue-transit` (direct connection, wormhole-rs exit 0).
+  Earlier codes all lapsed unreceived: the public rendezvous server answered 502 and reset
+  `9-determine-algol` and `16-hazardous-suspense`; `597-sympathy-checkup` hit its time limit;
+  `4-october-fallout` was replaced at the owner's request. Its `install.sh` keeps the server's site
+  block, so the host check is merged there by hand (the steps say how).
 
 **Not fixed, noted:**
 - Following the same settings deep link again while it is the address does nothing. An about: page

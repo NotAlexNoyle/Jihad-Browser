@@ -84,6 +84,11 @@ MainAssistant.prototype.setup = function () {
 
 	this.setupWebView();
 	this.setupChrome();
+	// Mojo focuses a scene's first text field when the scene is shown: a card opened on a page (a
+	// link from another app, a launch with a target) came up with the keyboard over it (device
+	// 2026-10-12, howsmyssl.com). Opened on a page (or as one a page opened), nothing is focused;
+	// on the start page the address still is.
+	if (this.params && (this.params.url || this.params.pageIdentifier)) { this.controller.setInitialFocusedElement(null); }
 	this.setupAppMenu();
 	this.setupCommandMenu();
 	this.bindHandlers();
@@ -1230,7 +1235,7 @@ MainAssistant.prototype.openUrl = function (text) {
 		return;
 	}
 	this.keyboardAwayFor(url);
-	this._keyboardAwayDone = this.isJihadPage(url);
+	this._keyboardAwayUrl = this.isJihadPage(url) ? url : null;
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	this.hideError();
 	if (view && view.mojo && view.mojo.openURL) {
@@ -1690,8 +1695,13 @@ MainAssistant.prototype.handleUrlChanged = function (event) {
 	// Arriving on one of Jihad's own pages by a link puts the keyboard away too (not a change
 	// within one, such as the settings page rewriting its fragment while the user types, nor the
 	// commit of one openUrl already put it away for: the user may have tapped the field since).
-	if (!this.isJihadPage(this.url) && !this._keyboardAwayDone) { this.keyboardAwayFor(event.url); }
-	this._keyboardAwayDone = false;
+	// Only an arrival on a Jihad page uses openUrl's mark up, and only its own page (fragment aside):
+	// a pushState on the page being left must not (inspector, round 22).
+	var page = function (u) { return String(u || "").replace(/#.*$/, ""); };
+	var arriving = this.isJihadPage(event.url);
+	var awayDone = arriving && !!this._keyboardAwayUrl && page(event.url) === page(this._keyboardAwayUrl);
+	if (!this.isJihadPage(this.url) && !awayDone) { this.keyboardAwayFor(event.url); }
+	if (arriving) { this._keyboardAwayUrl = null; }
 	this.url = event.url || this.url;
 	this.updateLock();
 	this.canGoBack = !!event.canGoBack;

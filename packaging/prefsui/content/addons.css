@@ -128,15 +128,19 @@
    the controls were cut off on the right (the owner, 2026-10-12: "extension settings dont appear
    correctly (cut off)"). Here each preference is a block of its own instead: its title and
    description, then its control under them across the page's width. */
-/* Only the settings the manager shows: an unsupported type and a setting the add-on hides keep
-   their display:none (no !important — this id rule already outranks the manager's own). */
-#detail-rows > setting:not([hidden="true"]) {
+/* Only the settings the manager shows: the types it has a binding for (extensions.css shows those
+   and hides every other `setting`), and not one the add-on hides. No !important: this id rule
+   already outranks the manager's own, which is why the types are named here. */
+#detail-rows > setting:-moz-any([type="bool"], [type="boolint"], [type="integer"], [type="control"],
+                               [type="string"], [type="color"], [type="file"], [type="directory"],
+                               [type="radio"], [type="menulist"]):not([hidden="true"]) {
 	display: -moz-box;
 	-moz-box-orient: vertical;
 	padding: 8px 0;
 	border-top: 1px solid #2f2f2f;
 }
-#detail-rows > setting[type="bool"], #detail-rows > setting[type="boolint"] {
+/* As specific as the rule above (which it follows), so it wins there. */
+#detail-rows > setting:-moz-any([type="bool"], [type="boolint"]):not([hidden="true"]) {
 	-moz-box-orient: horizontal;   /* a checkbox stays beside its title, which wraps */
 }
 #detail-rows > setting[type="bool"] > vbox, #detail-rows > setting[type="boolint"] > vbox { -moz-box-flex: 1; }

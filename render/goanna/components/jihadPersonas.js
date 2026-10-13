@@ -315,9 +315,15 @@ function thumbFileOf(t) {
                "-thumb." + (png ? "png" : "jpg"));
   return {header: file, thumb: thumb, png: png};
 }
-// Headers found to be no wider than THUMB_WIDTH: drawn as they are, and not decoded again to learn
-// that.
-const thumbNotNeeded = new Set();
+// Headers found to be no wider than THUMB_WIDTH are drawn as they are: an empty <thumb>.small beside
+// them says so, so a restart does not decode them again to learn it. A header that would not decode
+// is not tried again until the daemon restarts (it was retried at every opening and every change).
+const thumbFailed = new Set();
+function smallMark(f) {
+  let m = f.thumb.clone();
+  m.leafName = f.thumb.leafName + ".small";
+  return m;
+}
 
 // The card picture for an installed Persona: the small copy when it has been made, else its header,
 // with the copy queued. Nothing is decoded here: the gallery asks for its list as it loads, and
@@ -333,27 +339,33 @@ function thumbFor(t, keep) {
     ensureThemesResource();
     return "resource://jihad-themes/" + f.thumb.leafName;
   }
-  if (!thumbNotNeeded.has(f.thumb.leafName)) { queueThumb(f, String(t.name || "")); }
+  if (!thumbFailed.has(f.thumb.leafName) && !smallMark(f).exists()) { queueThumb(f, String(t.name || "")); }
   return url;
 }
 
 // Copies are made one at a time, THUMB_GAP_MS apart, so the gallery stays responsive while the first
-// openings make them; when the queue is done, an open gallery draws its cards again with them.
+// openings make them; when the queue is done, an open gallery puts them on the cards ("thumbs": only
+// the pictures change, no card is drawn again).
 const THUMB_GAP_MS = 700;
 let thumbQueue = [], thumbTimer = null, thumbsMade = 0;
 function queueThumb(f, name) {
-  if (thumbQueue.some(function(q) { return q.f.thumb.leafName === f.thumb.leafName; })) { return; }
-  thumbQueue.push({f: f, name: name});
-  if (!thumbTimer) { thumbTimer = later(THUMB_GAP_MS, nextThumb); }
+  if (!thumbQueue.some(function(q) { return q.f.thumb.leafName === f.thumb.leafName; })) {
+    thumbQueue.push({f: f, name: name});
+  }
+  // Also when it was queued already: a queue a failure left without its timer starts again here.
+  if (!thumbTimer && thumbQueue.length) { thumbTimer = later(THUMB_GAP_MS, nextThumb); }
 }
 function nextThumb() {
   thumbTimer = null;
-  let q = thumbQueue.shift();
-  if (q && !q.f.thumb.exists() && q.f.header.exists() && makeThumb(q.f, q.name)) { thumbsMade++; }
-  if (thumbQueue.length) { thumbTimer = later(THUMB_GAP_MS, nextThumb); return; }
-  if (thumbsMade) {
+  try {
+    let q = thumbQueue.shift();
+    if (q && !q.f.thumb.exists() && q.f.header.exists() && makeThumb(q.f, q.name)) { thumbsMade++; }
+  } finally {
+    if (thumbQueue.length) { thumbTimer = later(THUMB_GAP_MS, nextThumb); }
+  }
+  if (!thumbQueue.length && thumbsMade) {
     thumbsMade = 0;
-    try { Services.obs.notifyObservers(null, "jihad-personas-mine", ""); } catch (e) {}
+    try { Services.obs.notifyObservers(null, "jihad-personas-mine", "thumbs"); } catch (e) {}
   }
 }
 function makeThumb(f, name) {
@@ -365,8 +377,11 @@ function makeThumb(f, name) {
     try { container = tools.decodeImage(src, f.png ? "image/png" : "image/jpeg"); }
     finally { try { src.close(); } catch (e) {} }
     let w = container.width, h0 = container.height;
-    if (!(w > 0 && h0 > 0)) { return false; }
-    if (w <= THUMB_WIDTH) { thumbNotNeeded.add(f.thumb.leafName); return false; }   // small already
+    if (!(w > 0 && h0 > 0)) { thumbFailed.add(f.thumb.leafName); return false; }
+    if (w <= THUMB_WIDTH) {                                                          // small already
+      try { smallMark(f).create(Ci.nsIFile.NORMAL_FILE_TYPE, 0o644); } catch (e) { thumbFailed.add(f.thumb.leafName); }
+      return false;
+    }
     let h = Math.max(1, Math.round(h0 * THUMB_WIDTH / w));
     let out = f.png ? tools.encodeScaledImage(container, "image/png", THUMB_WIDTH, h, "")
                     : tools.encodeScaledImage(container, "image/jpeg", THUMB_WIDTH, h, "quality=82");
@@ -388,6 +403,7 @@ function makeThumb(f, name) {
     return true;
   } catch (e) {
     log("card picture for " + name + ": " + e);
+    thumbFailed.add(f.thumb.leafName);
     return false;
   } finally {
     // The decoded header (2.4 MB for a 3000x200 one) leaves the image cache now, not at the next
@@ -403,7 +419,8 @@ function pruneThumbs(keep) {
     let en = themesDir().directoryEntries;
     while (en.hasMoreElements()) {
       let f = en.getNext().QueryInterface(Ci.nsIFile);
-      if (/-thumb\.(jpg|png)(\.part)?$/.test(f.leafName) && !keep[f.leafName]) { f.remove(false); }
+      let m = /^(.*-thumb\.(?:jpg|png))(\.part|\.small)?$/.exec(f.leafName);
+      if (m && !(keep[m[1]] && m[2] !== ".part")) { f.remove(false); }
     }
   } catch (e) { log("card pictures: " + e); }
 }

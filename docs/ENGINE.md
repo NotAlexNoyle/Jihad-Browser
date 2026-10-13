@@ -116,10 +116,9 @@ the checker): DNT (UXP dropped it; `EngineHost.cpp` sends the header) and `plugi
   identical-code folding, all off in "developer" mode) in **Thumb-2** (`--with-thumb=yes`), at
   `-Os`. (`--disable-npapi-gtk2` went with `RB_20261006`: upstream no longer offers GTK2 NPAPI to a
   headless toolkit.)
-- `make-device-bundle.sh` reads the ICU data file's name from `engine-version.env`.
 - `build-daemon-arm.sh` assumes the dist layout (`dist/{bin,include,sdk/lib}`).
-- `make-device-bundle.sh` hard-codes the ICU data file (from `engine-version.env`), the dlopened
-  NSS and ffvpx libraries, the GRE file list, and the component manifests.
+- `make-device-bundle.sh` reads the ICU data file's name from `engine-version.env` (`ICU_DATA`) and
+  hard-codes the dlopened NSS and ffvpx libraries, the GRE file list, and the component manifests.
 - `push-engine-update.sh` pushes the engine JS we change as loose files; today it names only
   `XPIProvider.jsm` explicitly — an engine change to other JS/XUL needs a full push.
 
@@ -143,29 +142,39 @@ Do not update the engine casually: it is a full rebuild (an hour or more), a ful
 a regression pass. When it is time (the owner decides):
 
 1. **Carry the changes across:** `build/engine/update-engine.sh [TAG]` (default: the newest
-   `RB_*` release). It fetches upstream, applies the queue to TAG in a worktree beside this
-   repository with `git am -3`, lists the files upstream **also** changed since our base, and runs
-   `check-engine-api.py` on the result. A conflict stops it: resolve in the worktree, `git add`,
-   `git am --continue`, until done. (`--abort` gives up.)
+   `RB_*` release). It refuses unless `third_party/uxp` is at `UXP_PIN` and the queue reproduces
+   it (an engine commit not yet in the queue would be left behind: `patch-queue.sh --add` it, then
+   `--pins`). It fetches upstream, lists the files upstream **also** changed since our base,
+   applies the queue to TAG in a worktree beside this repository with `git am -3`, and runs
+   `check-engine-api.py` on the result (a FAIL stops it). A conflict stops it too: resolve in the
+   worktree, `git add`, `git am --continue`, until done; `--finish` runs the API check then.
+   (`--abort` gives up, until `--finish` has checked the branch out.)
 2. **Read the overlaps** it lists: `git -C third_party/uxp diff UXP_BASE TAG -- <file>` against
    what our commit does there. A clean merge can still meet code that now behaves differently
    (2026-10-12: upstream moved the GTK2 NPAPI option under GTK toolkits; our mozconfig named it).
-   Fix in the worktree with a new commit or `git commit --amend` on the right one.
-3. **Finish:** `build/engine/update-engine.sh --finish` writes the queue again (so it applies to
-   the new base next time), checks the branch out in `third_party/uxp`, brings every pin along
-   (`engine-version.env`, the OE recipe, the user agent and the three start pages) and runs
-   `patch-queue.sh --check` and `check-engine-pins.sh` (the gitlink check passes once committed).
+   Fix in the worktree with a new commit, or fold the fix into the commit it belongs to:
+   `git commit --fixup <that commit>`, then `git rebase -i --autosquash <TAG>` (`--amend` only
+   reaches the last one).
+3. **Finish:** `build/engine/update-engine.sh --finish` checks the worktree (the API check too) and
+   that `third_party/uxp` has no local changes before it changes anything; then it checks the
+   branch out there, writes the queue again from it (so it applies to the new base next time),
+   brings every pin along (`engine-version.env`, the OE recipe, the user agent, the three start
+   pages and `.gitmodules`' branch) and runs `patch-queue.sh --check` and `check-engine-pins.sh`
+   (the gitlink check passes once committed). Stopped part-way, it can be run again.
    Bump `JIHAD_APP_BUILD_ID` in `render/goanna/JihadUserAgent.h` so add-on data is checked again.
-4. **Build** for ARM: the engine (`build/webos-oe/build-goanna-arm.sh all` in the build container,
+4. **Build and test on the desktop:** the desktop engine and the tests in §7
+   (`build/desktop/build-*-test.sh`); they guard the touchpoints the device checklist does not
+   reach one by one.
+5. **Build** for ARM: the engine (`build/webos-oe/build-goanna-arm.sh all` in the build container,
    `docs/DEVICE-BUILD.md`), then the daemon, `make-device-bundle.sh`, and
    `build-variant-ipk.sh` for each variant. Keep the old object directory for a rollback (on ZFS a
    `cp -a` costs nothing).
-5. **On the device:** a **full** variant push (`push-variant.sh <variant>`, each in turn) — not
+6. **On the device:** a **full** variant push (`push-variant.sh <variant>`, each in turn) — not
    `push-engine-update.sh`, which sends libxul but not the engine's loose JS, CSS and chrome that
    the release changed with it. Then the checklist in §7. The daemon's start-up line must say all
    optional exports are present.
-6. Re-write the checker's baseline (`check-engine-api.py --write-baseline`) once the device
-   checks pass; update `docs/ENGINE-SOURCE.md`; commit the queue, the pins and the gitlink
+7. Re-write the checker's baseline (`check-engine-api.py --write-baseline`) once the desktop
+   tests and the device checks pass; update `docs/ENGINE-SOURCE.md`; commit the queue, the pins and the gitlink
    together. Pushing the fork branch and the repository is the owner's.
 
 ## 7. What guards what
@@ -204,3 +213,5 @@ about:settings open; printing finds the test sink (`render/goanna/test/ipp-sink.
 - Derive `push-engine-update.sh`'s loose-file list from the engine branch's diff instead of
   naming `XPIProvider.jsm`.
 - Desktop tests for Personas, video controls and the media paths.
+- The desktop engine build and its tests (§6 step 4) on `RB_20261006`: the update of 2026-10-12
+  was checked on the device only (all three variants); the desktop build still runs the old base.

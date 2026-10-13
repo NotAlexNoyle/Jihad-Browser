@@ -35,6 +35,12 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   (chrome-look R4, T-436; scripted check passed)
 - [ ] Mochi: with the keyboard up over a page field, paste: the text lands in the field.
   (inspector round 21 note)
+- [ ] Type into a field of a page that saves when a field changes (a settings field, a form), then
+  close the keyboard with its own key: the value is kept and the caret is gone. (chrome-look R4;
+  scripted check passed with the system's own keyboard hide, round 22)
+- [ ] Mojo: open a link to the browser from another app (an email or a message): the card shows the
+  page with no keyboard over it; launched plainly, the address field is ready to type. (chrome-look
+  R4; scripted check passed)
 
 ## Chrome, menus and dialogs
 - [ ] Every button in each card's chrome: back, forward, home, reload/stop, padlock, share, new card,
@@ -53,6 +59,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 ## Personas and add-ons
 - [ ] about:personas: no card flashes while the page is open or scrolled (Carbon Light 2.0 was the
   example); cards show their pictures sharply. (personas-ui R9)
+- [ ] Right after installing a Persona with a large picture, tap its Remove once ("Remove it?") and
+  wait a few seconds: the question stays until answered while its card picture is made. (personas-ui
+  R9, round 22)
 - [ ] Wear, Take off, Undo, Remove (two taps), Install from file; wear one from the site and one from
   addons.mozilla.org (asks first, names the site). (personas-ui R6/R8)
 - [ ] about:addons: install, enable, disable, remove, Undo, an add-on's Preferences (Palefill's fit),

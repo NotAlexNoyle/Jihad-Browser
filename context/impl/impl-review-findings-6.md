@@ -593,3 +593,80 @@ up (the clipboard read moves the focus; the expected order is safe).
 | P3 | `smoke-test.sh` | Behind Cloudflare it read the edge certificate. | Fixed: `RS_SMOKE_CONNECT=127.0.0.1:443` on the server. |
 | P3 | credits | CREDITS, the MIT text and NOTICE unreachable by visitors; Free Palestine's credit lacked the title. | Fixed (`5c1d54c`): `/credits/*.txt`, palettes' licenseURL there, "based on "Village of Battir" by Labour Palestine, CC BY 2.0" (Jihad's bundle index matches). No version bumped. |
 | P3 | kits | R3 said forwarded headers are never trusted; R4 overstated one id everywhere; layered ids. | Fixed in the kits (R3 exception; R4 gaps recorded as open). |
+
+## Round 22 — Codex out again at 22:32 (all four ranges hit the limit; retry Oct 18th, 2026 11:59 AM); the inspector on what no one had reviewed
+
+Codex's first range ran 146k tokens and wrote nothing before the limit; the other three stopped at
+once. The inspector took the ranges no review had seen yet: Jihad `a90b7fe3..0821484f` (the round-21
+fixes, card pictures in the background, fonts), Jihad `23ffd9af` (the engine on RB_20261006 and its
+tooling) and Riverstone-Addons `d66fbc5..jihad` (the round-21 site fixes). Tier 78 and
+`6e7b31a0..a90b7fe3` had the inspector in rounds 20 and 21; Codex is owed all four ranges when its
+credits return.
+
+### Jihad-Browser `a90b7fe3..0821484f` — APPROVE, 1 P2, 11 P3; fixed in the commit after `23ffd9af`
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `BrowserPageGoanna.cpp` pump | The keyboard-down blur ran before the field's `change`: the unforced flush waits while the field is still the active element, so `change` came a tick after `blur`/`focusout` (chrome-look R4 says after). | Fixed: the owed branch forces the change, then blurs. Device, Enyo: a page logging its field's events, a tap, "abc" typed through the adapter, the keyboard put away by the system (`enyo.keyboard.forceHide`; the daemon saw 942 → 651 → 942) — title `order:focus,input,change,blur`. |
+| P3 | `GoannaRenderPage.cpp` `BlurFocusedEditable` | "Did the listener see the blur?" read a flag a focus event before it (a change handler) could have set. | Fixed: `PollEngineFocus()` drains it before `ClearFocus`. |
+| P3 | `addons.css` | The id rule showed settings of types the manager has no binding for (it hides every `setting` but those). | Fixed: only the ten known types. The first device look caught a regression of the fix (the bool rule lost on specificity, Palefill's checkbox fell under its title); the bool rule now matches the general one's specificity. Device, Enyo: Palefill's preferences, the checkbox beside its title. |
+| P3 | `preferences.js` | Font names written with `setCharPref` (UXP's narrows each character to a byte). | Fixed: `nsISupportsString` through `set/getComplexValue`, as UXP's own font preference. Device, Enyo: Georgia picked from the list → `user_pref("font.name.serif.x-western", "Georgia")`; Restore → no `font.` pref left. |
+| P3 | `preferences.js` | x-unicode lists every font, so the "phantom" Noto Sans Thai comes back. | Checked on the device, and it is no phantom: `/usr/share/fonts/HeiT_nb.ttf` is Noto Sans Thai (Google, Thai only; fontconfig's cache and `fc-query` agree). The filter is right; the comment and preferences-ui R9's evidence were wrong and are corrected. |
+| P3 | `preferences.js` | A size not in the list (the card's minimum of 2 px) was added at the end. | Fixed: sorted in. Device, Enyo: "None, 2 px, 9 px …". |
+| P3 | `preferences.js` | The same deep link followed twice does nothing (no hashchange). | Not fixed, noted: taking the link out of the address is not possible — `replaceState` throws on an about: page (UXP's docshell asks the URI for a user:password part an about: URI cannot give) and `location.replace` to an empty fragment scrolls to the top. A first try with `replaceState` was found dead on the device and removed. |
+| P3 | `jihadPersonas.js` / `personas.js` | The queue's "done" redrew every card (every picture requested again, a pending "Remove it?" reset). | Fixed: the notice says `thumbs`, and the gallery swaps only the pictures that changed. Device, Enyo: one card picture deleted, the gallery reopened — made again, no error, the cards drawn. |
+| P3 | `jihadPersonas.js` | A failure outside `makeThumb` could leave the queue without its timer, and re-queueing never restarted it. | Fixed: the timer is set after the duplicate check; `nextThumb` reschedules in a `finally`. |
+| P3 | `jihadPersonas.js` | Small headers decoded again after every restart; undecodable ones at every opening. | Fixed: an empty `<thumb>.small` marks a small header (kept and pruned with its picture); a failure is remembered until the daemon restarts. |
+| P3 | Mojo `main-assistant.js` | `_keyboardAwayDone` was a bare flag: a pushState on the page being left used it up. | Fixed: openUrl keeps the page it opened; only an arrival on that Jihad page uses it up. Device, Mojo: address focused (window 705), about:settings opened as typed → focus on the page, window 996. |
+| P3 | kit, tests | personas-ui R9's text (budget, 800 px JPEG evidence); no desktop test of the fonts section. | Kit corrected. The desktop test waits for the desktop build on RB_20261006 (docs/ENGINE.md §8). |
+
+### Jihad-Browser `23ffd9af` (the engine update) — APPROVE, 3 P2, 8 P3; fixed in the commit after `23ffd9af`
+
+The inspector checked every EngineCalls wrapper against the IDL and headers, every converted call
+site against its old values, the six overlapping files against upstream, that `format-patch` of the
+new branch is byte-identical to the queue, the generated install scripts, the tag sort, and gold's
+`--icf=safe` and Thumb-2 interworking on ARM (no address-comparison risk; JIT and Flash interwork).
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P2 | `update-engine.sh` | Started from the queue without checking it matches the branch: an engine commit not yet `--add`ed would be left behind. | Fixed: refuses unless `third_party/uxp` is at `UXP_PIN` and `patch-queue.sh --check` passes. Run here: both pass, then "already on RB_20261006". |
+| P2 | `update-engine.sh` | `--finish` rewrote the queue and removed the worktree before checking the submodule out; a failed checkout left `--abort` able to delete the only copy of the carried commits. | Fixed: checks first (worktree, a clean `third_party/uxp`, the API check), records `phase=finishing`, checks the branch out, then writes the queue and pins; a stopped run can be run again; `--abort` refuses once finishing. |
+| P2 | `cavekit-engine-update.md` R8 | "All three variants" ticked with Mochi and Mojo evidence for one page each. | The missing checks run on the device: Mochi and Mojo — howsmyssl.com TLS 1.3 "Good", Palefill 1.30 enabled, about:config, about:settings, a Persona worn (toolbar painted) and taken off; Enyo — about:addons and about:settings. |
+| P3 | `update-engine.sh` | On a conflict neither the overlap list nor the API check ran; the check's FAILs were cut to three lines and ignored. | Fixed: the overlap list comes from the old base and pin, before `git am`; the API check runs in full and stops on a FAIL, at the end of start and again in `--finish`. |
+| P3 | `update-engine.sh` `pins()` | Rewrote the four files one by one; a miss half-way left them mixed. | Fixed: every file must hold the old or the new string, checked before any is written. `--pins` run: nothing changed. |
+| P3 | `.gitignore` | `.update-in-progress` not ignored. | Fixed. |
+| P3 | `check-engine-api.py` | The ICU check read the bundler, which no longer names the file. | Fixed: one ICU file in the tree; a WARN when it is not `ICU_DATA` (the update moves it). |
+| P3 | `.gitmodules` and comments | `branch = jihad-engine-mods` and comments naming it. | Fixed: `jihad/uxp-RB_20261006`, rewritten by `pins()` and checked by `check-engine-pins.sh`; the recipe, `patch-queue.sh`, `EngineCompat.h` and `build/desktop/README.md` updated. |
+| P3 | `EngineCalls.h` | The header said the checker covers what it does not; one positional `LoadURI` left. | Fixed: `LoadURIPlain`; the checker records `loadURI` and checks `ResizeReflowIgnoreOverride` and 60 app units to a CSS pixel. 0 FAIL, 0 WARN. |
+| P3 | `docs/ENGINE.md` | Two contradicting §4.5 bullets; `--amend` for an earlier patch; the desktop step dropped from §6. | Fixed (fixup + autosquash; §6 step 4 is the desktop build and tests; §8 notes it is not done for RB_20261006). |
+| P3 | `patch-queue.sh --add` | Mails without `--zero-commit --no-signature`. | Fixed. |
+
+### Riverstone-Addons `d66fbc5..jihad` — APPROVE, 5 P3; fixed in `057dbad`
+
+The inspector confirmed the round-21 fixes (real addresses in our own block, colours read as UXP's
+parser reads them — 38 cases against `nsCSSParser.cpp`, credits at fixed paths, the parametrised twin
+query, padding by characters).
+
+| Severity | File | Description | Disposition |
+|---|---|---|---|
+| P3 | `migrations/002`, `migrate.sh` | Over an existing pair the key was skipped silently and the migration recorded, so it was never added. | Fixed: while the key is missing, every run tries again and names the pair. Local copy: a twin made → warning naming both; deleted → key added; a third run quiet. |
+| P3 | `smoke-test.sh` | A feed ignoring `?page=` or short of its total passed. | Fixed: the page answered must be the one asked; the pages must hold the total. A fake feed of each kind fails. |
+| P3 | `smoke-test.sh` | On the server most requests still went through Cloudflare (whose cache can answer for a broken server); a bare address meant port 4433. | Fixed: with `RS_SMOKE_CONNECT` every request goes to the server (`--connect-to`, the name and certificate kept); a bare address means 443. Local copy: 43/43 direct, a closed port fails. |
+| P3 | nginx, `DEPLOY.md`, kit R3 | Another Cloudflare zone pointed at the server could pick the address the panel's limits see. | Fixed: the :443 block answers only its own name (`return 444` otherwise), inside our block, so no default server clashes with the server's other sites; the address is called a defence in depth; Authenticated Origin Pulls is the owner's option. A throwaway nginx: the name in any case or with a trailing dot answers, another is closed; the full configuration passes `nginx -t`. |
+| P3 | `import-personas.php` | A listed Persona whose computed id another has was skipped whole. | Fixed: it keeps no id and is updated otherwise. Local copy: licence restored, id left empty, noted. |
+
+### Found on the device while checking (not from a review)
+
+- **The daemon** sent a page-made scroll before the page's new size, so the card clamped it to the
+  page it still had: about:settings' `#section=fonts` (and any page that jumps to an anchor while it
+  loads) stayed at the top ("scrolledTo 0,872" before "contentSize=768x2221"). The size now goes
+  first, and without a valid one the jump waits a tick. Device: Enyo and Mochi open on Fonts & Colors.
+- **Mojo** came up with the keyboard over the page when opened on one (Mojo focuses a scene's first
+  text field). A card opened on a page, or for one a page opened, focuses nothing; the start page
+  still focuses the address. Device: howsmyssl.com opened with the focus on the page, window 996;
+  the start page with the address focused, window 705.
+- **Install scripts**: one push could not put `/` back to read-only ("Device or resource busy" right
+  after ls-hubd's rescan and db8's kinds; two tries a second apart), and every later push then saw
+  `/` rw and left it so. The restore (postinst and prerm) is tried for about ten seconds. BusyBox:
+  succeeds on the fourth try, or warns after ten with the exit trap kept; all three pushed again from
+  a read-only `/` — back to read-only after each.

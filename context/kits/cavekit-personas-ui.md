@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08"
-last_edited: "2026-10-12"
+last_edited: "2026-10-13"
 complexity: medium
 ---
 
@@ -230,10 +230,13 @@ those we do."
   while the Persona is installed, removed after; made in the background, one at a time, never
   inside the page's own request), not the full header: full headers (up to 3000 px, wallpapers 1600) were
   dropped from the device's small image cache and decoded again as the page moved, and the cards
-  flashed (the owner, 2026-10-12: "some personas are still flashing like carbon light 2.0"). Making
-  them is bounded per opening; one not made yet shows the full picture meanwhile. *(Device, Enyo:
-  2, then 9 copies made over three openings, real 800x53 and 800x80 pictures; the cards drawn
-  with them, licences on each. The flashing itself is the owner's eye.)* The five the
+  flashed (the owner, 2026-10-12: "some personas are still flashing like carbon light 2.0"). One not
+  made yet shows the full picture meanwhile; when copies are made, only the cards whose picture
+  changed take the new one (no card is drawn again). A header no wider than the copy is marked and
+  drawn as it is, not decoded again after a restart; one that will not decode is not tried again
+  until the daemon restarts (inspector round 22). *(Device, Enyo, 2026-10-12/13: all copies made in
+  the background at 1400 px; one deleted and the gallery reopened — made again, no error, the
+  cards drawn. The flashing itself is the owner's eye.)* The five the
   project drew carry a plain `MPL-2.0` licence line (the owner, 2026-10-11). *(Device, Enyo,
   2026-10-12: "Licence: MPL-2.0" on their about:personas cards.)*
 - [x] Ten such Personas are included by default (added to every profile's list once, not worn):
@@ -248,7 +251,9 @@ those we do."
   offered the earlier set keeps the ones it has; Free Palestine is added once, not worn.
   *(Device, all three: two pictures in each bundle folder, the fourteen others removed by the push;
   Enyo's profile kept its fourteen and gained Free Palestine — "bundled Personas offered: 1"; its
-  card reads "Licence: CC BY 2.0 (photo: Labour Palestine)".)*
+  card read "Licence: CC BY 2.0 (photo: Labour Palestine)".)* *(Since round 21 the index's licence
+  line is "based on "Village of Battir" by Labour Palestine, CC BY 2.0", as on the site; the card shows
+  the index's line — not looked at on the device since.)*
 - [x] Persona art without such a licence is gone from the repository (the Water-Like test assets;
   tests use Carbon Light) and from the README's screenshots (Running Foxes, Aurora Borealis
   Delights, Blue Nebula, Dark Fox, Purple Night were removed from the device profiles too).

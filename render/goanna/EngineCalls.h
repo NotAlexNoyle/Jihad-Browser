@@ -5,12 +5,14 @@
  * Jihad Browser — the engine calls whose argument lists UXP changes between releases, each in one
  * place (docs/ENGINE.md §4.2, cavekit-engine-update.md R3).
  *
- * nsIDOMWindowUtils' event and hit-test methods, nsIWebNavigation::LoadURIWithOptions and
- * nsIPresShell::ResizeReflowIgnoreOverride take long positional argument lists, several of them
+ * nsIDOMWindowUtils' event and hit-test methods, nsIWebNavigation's LoadURI and LoadURIWithOptions
+ * and nsIPresShell::ResizeReflowIgnoreOverride take long positional argument lists, several of them
  * optional with a count ([optional_argc]). When an engine update adds, removes or reorders one,
  * the compiler may not say so (a bool where a float was, a count off by one), and every call site
- * would need the same edit. Here each argument is named, the values the daemon always passes are
- * set once, and build/engine/check-engine-api.py checks the IDL against what these wrappers expect.
+ * would need the same edit. Here each argument is named and the values the daemon always passes are
+ * set once. build/engine/check-engine-api.py compares the IDL methods with a recorded baseline, and
+ * checks that nsIPresShell.h still declares ResizeReflowIgnoreOverride as below and AppUnits.h still
+ * says 60 app units to a CSS pixel.
  */
 #ifndef JIHAD_ENGINE_CALLS_H
 #define JIHAD_ENGINE_CALLS_H
@@ -83,6 +85,12 @@ inline nsresult LoadURI(nsIWebNavigation* nav, const char16_t* uri, uint32_t loa
                         nsIURI* referrer, uint32_t referrerPolicy, nsIPrincipal* triggering) {
   return nav->LoadURIWithOptions(uri, loadFlags, referrer, referrerPolicy, /* aPostData */ nullptr,
                                  /* aHeaders */ nullptr, /* aBaseURI */ nullptr, triggering);
+}
+
+// A load with no referrer, post data or extra headers (the daemon's own javascript: scroll).
+inline nsresult LoadURIPlain(nsIWebNavigation* nav, const char16_t* uri, uint32_t loadFlags) {
+  return nav->LoadURI(uri, loadFlags, /* aReferrer */ nullptr, /* aPostData */ nullptr,
+                      /* aHeaders */ nullptr);
 }
 
 // Lay the document out for a viewport of w x h CSS pixels, whatever size override is set.

@@ -1,11 +1,85 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-12 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-13 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (night, later) delta — Tier 81: the engine on UXP RB_20261006 (READ FIRST)
+## 2026-10-13 delta — Tier 82: review round 22 (the inspector; Codex out until Oct 18th, 11:59 AM) (READ FIRST)
+
+**Codex** ran out at 22:32 on all four ranges of `scratchpad/codex/r22.sh` (146k tokens on the first,
+nothing written). Next retry: **Oct 18th, 2026 11:59 AM**, then run the same four ranges
+(T-456). The inspector reviewed what no one had: Jihad `a90b7fe3..0821484f`, Jihad `23ffd9af` (the
+engine update) and Riverstone-Addons `d66fbc5..jihad`. All three APPROVE; every finding was checked
+against the code and fixed or noted (context/impl/impl-review-findings-6.md, round 22).
+
+**Fixed and verified on the device**
+- **Keyboard-down blur:** `change` now fires before `blur`. Enyo: a test page's title read
+  `order:focus,input,change,blur` after the system put the keyboard away (`enyo.keyboard.forceHide`);
+  the daemon's window went 942 → 651 → 942.
+- **Settings fonts:**
+  - Names are stored as Unicode (`nsISupportsString`). Georgia was written to the profile, and
+    Restore left no `font.` pref.
+  - The 2 px minimum size is sorted into the list.
+  - "Noto Sans Thai" is not a phantom: `/usr/share/fonts/HeiT_nb.ttf` is that font, so the filter
+    was right and the kit's note was wrong.
+- **Deep links and anchors at load:** the daemon sent a page-made scroll before the page's new
+  size, so the card clamped it to the top. The size now goes first. Enyo and Mochi open
+  `about:settings#pane=content&section=fonts` on Fonts & Colors.
+- **about:addons:** only the setting types the manager knows are laid out. The device check caught
+  the first version breaking Palefill's checkbox row, which is now fixed.
+- **Card pictures:**
+  - The gallery swaps only the pictures that changed, so no card is redrawn.
+  - The queue restarts itself.
+  - Small headers get a `.small` mark, and failed decodes are not retried until restart.
+  - Checked by deleting one picture: it was made again, with no error.
+- **Mojo:**
+  - The keyboard-away mark is tied to the page `openUrl` opened.
+  - **New:** a card opened on a page no longer comes up with the keyboard over it. The start page
+    still focuses the address.
+- **Engine tooling:**
+  - `update-engine.sh` refuses to start unless the branch is at `UXP_PIN` and the queue matches it.
+  - `--finish` checks first and can be re-run; `--abort` cannot delete the branch once finishing.
+  - `pins()` checks every file before writing; `.gitmodules`' branch is now a pin.
+  - The checker covers `loadURI`, `ResizeReflowIgnoreOverride` and 60 app units, and reads ICU from
+    the pins. `LoadURIPlain` wraps the last positional call.
+  - Checks: 0 FAIL, 0 WARN; pins agree; the start path stopped at "already on RB_20261006".
+- **R8's missing device checks:**
+  - Mochi and Mojo: howsmyssl TLS 1.3 "Good", Palefill 1.30 enabled, about:config, about:settings,
+    and a Persona worn and taken off.
+  - Enyo: about:addons and about:settings.
+- **Install scripts:** one push left `/` rw ("Device or resource busy" right after ls-hubd and db8;
+  the later pushes then kept it rw). The restore is now retried for about 10 s; tested on BusyBox.
+  All three were pushed again from a read-only `/` and came back read-only.
+
+**Site (Riverstone-Addons `057dbad`, branch jihad, not pushed):**
+- Migration 002's key is retried until it holds.
+- The importer updates a Persona whose id is taken.
+- The smoke test runs end to end on the server and is stricter on the feed.
+- :443 answers only `addons.riverstonerelay.org`.
+- Tested on the local copy and a throwaway nginx.
+- Sent to the server agent as `jihad-followup-2026-10-13` (FOLLOWUP.md, package sha256 `a5097cde…`),
+  wormhole-rs code **9-determine-algol**. Its `install.sh` keeps the server's site block, so the host
+  check is merged there by hand (the steps say how).
+
+**Not fixed, noted:**
+- Following the same settings deep link again while it is the address does nothing. An about: page
+  cannot `replaceState` (UXP's docshell), and replacing the fragment would scroll.
+- A desktop test of the fonts section waits for the desktop build on RB_20261006.
+
+**Device state as left:**
+- All three pushed from the same build: daemon `7b02e00b`, engine `jihad/uxp-RB_20261006`.
+- Daemons running, `/` read-only, no test hooks; LunaSysMgr restarted after the last push.
+- Default look in all three; no `font.` prefs; `:has()` off.
+- Test assets on `/media/internal`: `jihad-modern-web.html`, `jihad-blur-order.html`.
+
+**Open:**
+- Codex on round 22's ranges after Oct 18th, 11:59 AM.
+- The server agent's reply to the follow-up.
+- The finger round (`docs/FINGER-TESTS.md`, three tests added).
+- The desktop build on the new engine.
+
+## 2026-10-12 (night, later) delta — Tier 81: the engine on UXP RB_20261006
 
 **The owner:** "Proceed with the UXP update, with a focus on making future updates easier, and
 optimizing the code where possible, while supporting modern web standards. target the latest

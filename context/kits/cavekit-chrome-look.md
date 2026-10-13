@@ -1,6 +1,6 @@
 ---
 created: "2026-10-12"
-last_edited: "2026-10-12"
+last_edited: "2026-10-13"
 complexity: medium
 ---
 
@@ -55,7 +55,9 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
 - [x] An add-on's preferences fit the card's width: each is a block of its own (title, description,
   then its control), text fields and editable drop-downs are dark with light text, and nothing is
   cut off on the right or needs a sideways scroll; a checkbox's title wraps beside it and a radio
-  group's choices stack; settings the manager or the add-on hides stay hidden. *(Device, Mochi, Palefill's Preferences, 2026-10-12: before, its
+  group's choices stack; settings the manager or the add-on hides stay hidden (only the ten types
+  the manager has a binding for are laid out — inspector round 22). *(Device, Enyo, 2026-10-13:
+  Palefill's preferences, its checkbox beside its title.)* *(Device, Mochi, Palefill's Preferences, 2026-10-12: before, its
   controls ran past the right edge and the card zoomed out to 0.78 while the page loaded; after,
   every control and the homepage address inside the page, no sideways scrollbar.)* (The owner:
   "extension settings dont appear correctly (cut off)".)
@@ -98,9 +100,15 @@ keyboard is closed in about:addons the cursor in the search panel is still there
   focus (no caret left), and the shell is told the editor lost it — a field in a frame too (the
   daemon tells the shell itself when the engine's listener cannot see it). The blur runs from the
   guarded pump, never in a socket callback, after the field's input and change events; a handler
-  that puts the focus back keeps the field as the type target. *(Built in the daemon: a window
-  that grows back by a keyboard's height at the same width clears the page's focus. A scripted tap
-  focuses the field but raises no keyboard, so only a finger can test it — the owner's.)*
+  that puts the focus back keeps the field as the type target. *(Device, Enyo, 2026-10-13: a page
+  logging its field's events; a tap raised the keyboard (the daemon's window 942 → 651), "abc" typed
+  through the adapter, the keyboard put away by the system call (`enyo.keyboard.forceHide`, 651 →
+  942): the page saw `focus, input, change, blur` and the caret was gone. Before round 22 `change`
+  came after `blur`. Closing it with the keyboard's own key is the owner's finger test.)*
+- [x] A card opened on a page (a link handed over by another app, a launch with a target, a page a
+  page opened) shows the page, not the keyboard; Mojo, which focuses a scene's first text field,
+  focuses nothing then (its start page still focuses the address). *(Device, Mojo, 2026-10-13:
+  howsmyssl.com — focus on the page, window 996; the start page — the address, window 705.)*
 - [x] A tap on the address field selects the whole address, in all three variants (the owner's
   choice, 2026-10-12: "do option 1 for all 3 variants"), since Select All cannot be added to the
   Cut/Copy bubble — the system draws it (none of the shells, Enyo 1 or LunaSysMgr's sources do).

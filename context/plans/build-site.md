@@ -490,6 +490,21 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 82 — Review round 22 and what the device checks found (2026-10-13; added to the site, not a regeneration)
+
+Codex ran out at 22:32 on all four ranges (retry Oct 18th, 2026 11:59 AM); the inspector reviewed the three ranges no one had (impl-review-findings-6.md, round 22).
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-449 | Round 22, Jihad: change before blur on keyboard-down; the focus flag drained first; only known setting types laid out; Unicode font names; odd sizes sorted in; card pictures swapped not redrawn, the queue self-restarting, small/failed headers remembered; Mojo's keyboard-away mark tied to its page | cavekit-chrome-look.md; cavekit-preferences-ui.md; cavekit-personas-ui.md | chrome-look R2, R4; prefs R9; personas R9 | T-448 | yes | M | DONE (device: Enyo, Mojo) |
+| T-450 | Round 22, engine tooling: update-engine.sh's guards and safe --finish/--abort, atomic pins, .gitmodules' branch a pin, the checker's ICU/loadURI/C++ checks, patch-queue --add's format, ENGINE.md §4.5/§6 | cavekit-engine-update.md | R2, R3, R4, R7 | T-448 | no | M | DONE |
+| T-451 | R8's missing device checks: Mochi and Mojo (https, Palefill, a Persona, about:addons/config/settings), Enyo (about:addons, about:settings) | cavekit-engine-update.md | R8 | T-448 | yes | S | DONE |
+| T-452 | [FOUND] Daemon: the page's size before a page-made scroll (anchors and deep links at load stayed at the top) | cavekit-preferences-ui.md | R9 | T-449 | yes | S | DONE (Enyo, Mochi) |
+| T-453 | [FOUND] Mojo: a card opened on a page comes up without the keyboard | cavekit-chrome-look.md | R4 | T-449 | yes | S | DONE |
+| T-454 | [FOUND] Install scripts: the read-only restore tried for ~10 s (one push left `/` rw) | cavekit-device-build.md | R8 | — | yes | S | DONE (BusyBox; three pushes from a read-only `/`) |
+| T-455 | Round 22, site: migration 002 retried and reported; the smoke test on the server itself and stricter on the feed; :443 answers only its name; the importer updates a Persona whose id is taken | cavekit-addons-site.md | R3, R4, R6, R10 | — | no | M | DONE (Riverstone-Addons `057dbad`, local copy; follow-up sent to the server agent) |
+| T-456 | Codex on round 22's four ranges when its credits return (Oct 18th, 2026 11:59 AM) | — | — | T-449, T-450, T-455 | no | M | |
+
 ## Tier 81 — The engine on UXP RB_20261006; updates made easy (2026-10-12; added to the site, not a regeneration)
 
 Owner: "Proceed with the UXP update, with a focus on making future updates easier, and optimizing the code where possible, while supporting modern web standards. target the latest release". Kit: cavekit-engine-update.md R2, R3, R4, R7, R8.
@@ -502,7 +517,7 @@ Owner: "Proceed with the UXP update, with a focus on making future updates easie
 | T-445 | Release build in Thumb-2 (`--enable-release --enable-gold --with-thumb=yes`) | cavekit-engine-update.md | R8 | T-442 | no | S | DONE (libxul -35%, code -43%) |
 | T-446 | Settings: a switch for CSS `:has()` (off, as upstream releases ship it) | cavekit-preferences-ui.md | — | — | yes | S | DONE (code) |
 | T-447 | Device: full variant push of the new engine to all three; the §7 checklist; the modern-web page before (old engine: no adoptedStyleSheets, URL.parse, revert-layer, :has) and after | cavekit-engine-update.md | R8 | T-445 | yes | M | DONE (all three; postinst's read-write test fixed on the way) |
-| T-448 | Review (Codex 22:31, or the inspector) of the update and the tooling | — | — | T-447 | no | M | |
+| T-448 | Review (Codex 22:31, or the inspector) of the update and the tooling | — | — | T-447 | no | M | DONE (Codex out at 22:32; the inspector — round 22, Tier 82) |
 
 ## Tier 80 — Fonts, as Pale Moon and Basilisk offer them; no Persona by default (2026-10-12; added to the site, not a regeneration)
 

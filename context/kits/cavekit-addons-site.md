@@ -1,6 +1,6 @@
 ---
 created: "2026-10-11"
-last_edited: "2026-10-12"
+last_edited: "2026-10-13"
 complexity: complex
 ---
 
@@ -82,7 +82,11 @@ is not ours to use.
   Cloudflare's published ranges only, set in this site's own server block (whatever real-IP setup
   other sites on the same nginx have), so the rate limit, the allowlist and fail2ban see visitors'
   own addresses. The ranges carry the date they were fetched, and DEPLOY.md says how to refresh
-  them. *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane
+  them. Those ranges carry every Cloudflare customer's traffic, so the site's :443 answers only
+  requests that name the site, and DEPLOY.md states that the address is a defence in depth for the
+  panel, not proof of origin (the login is the gate). *(Throwaway nginx, 2026-10-12: the site's name
+  in any case or with a trailing dot answered, another name was closed unanswered; the server's
+  configuration passes `nginx -t`.)* *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane
   itself. Real IP: round 21, inspector — a grep across /etc/nginx deciding whether to install it was
   wrong both ways; moved into the server block.)*
 - [x] A request whose normalised path is outside `/panel/` never reaches the panel or its login

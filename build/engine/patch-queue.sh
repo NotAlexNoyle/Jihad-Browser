@@ -2,13 +2,16 @@
 # Copyright 2026 NotAlexNoyle. Licensed under the Apache License, Version 2.0 (see ../../LICENSE).
 #
 # The engine's patch queue (build/desktop/patches/) and the engine branch (third_party/uxp,
-# jihad-engine-mods) must say the same thing. The BRANCH is the source of truth: every engine
+# jihad/uxp-<UXP_TAG>) must say the same thing. The BRANCH is the source of truth: every engine
 # change is a commit there; the queue is generated from those commits for builds that start from
-# pristine UXP (the desktop build, ENGINE-SOURCE.md's record).
+# pristine UXP (the desktop build, ENGINE-SOURCE.md's record) and to carry them to the next release
+# (update-engine.sh).
 #
 #   patch-queue.sh --check        apply the whole queue to UXP_BASE in a scratch git index and
 #                                 compare the result with UXP_PIN's tree (no checkout, ~1 min)
-#   patch-queue.sh --add <commit> write the next numbered patch from one engine commit
+#   patch-queue.sh --add <commit> write the next numbered patch from one engine commit, as
+#                                 update-engine.sh --finish writes them (then update-engine.sh --pins
+#                                 moves UXP_PIN to the branch's head)
 #
 # UXP_BASE / UXP_PIN come from build/engine/engine-version.env.
 set -euo pipefail
@@ -44,8 +47,8 @@ case "${1:-}" in
   c="${2:?commit}"
   last=$(ls "$Q" | grep -E '^[0-9]{4}-.*\.patch$' | sort | tail -1 | cut -c1-4)
   next=$((10#$last + 1))
-  git -C "$UXP" format-patch -q --start-number "$next" -o "$Q" -1 "$c"
+  git -C "$UXP" format-patch -q --zero-commit --no-signature --start-number "$next" -o "$Q" -1 "$c"
   ls "$Q" | grep -E "^$(printf %04d "$next")-" ;;
 *)
-  sed -n '4,15p' "$0"; exit 2 ;;
+  sed -n '4,16p' "$0"; exit 2 ;;
 esac

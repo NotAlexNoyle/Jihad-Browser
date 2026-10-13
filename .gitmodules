@@ -1,16 +1,13 @@
 [submodule "third_party/uxp"]
 	path = third_party/uxp
 	url = https://github.com/NotAlexNoyle/UXP-Jihad.git
-	branch = jihad-engine-mods
-	# The engine delta now lives as a DURABLE COMMIT on this fork's `jihad-engine-mods` branch
-	# (pristine Pale Moon UXP b2594a4 + the full jihad delta), and the parent gitlink pins it, so a
-	# fresh clone + `git submodule update --init` gets the exact source the builds compile. This is
-	# the change from the old model (url was upstream palemoon.org, delta was uncommitted working-
-	# tree dirt reproduced by re-applying build/desktop/patches/*.patch): committing to an upstream
-	# url would have been unclonable, so the fork exists precisely to make it clonable.
-	# The desktop/host build still applies build/desktop/patches/*.patch idempotently, but they are
-	# already baked into this commit, so `patch --forward` skips them and the tree stays clean.
-	# `ignore = dirty` remains, harmless: only the recorded COMMIT matters, and it is what the OE
+	branch = jihad/uxp-RB_20261006
+	# The engine: upstream UXP at a release tag (build/engine/engine-version.env, UXP_TAG) plus Jihad's
+	# commits on this fork's branch jihad/uxp-<tag>; the parent gitlink pins the exact commit, so a fresh
+	# clone + `git submodule update --init` gets the source the builds compile once that branch is pushed
+	# to the fork. build/engine/update-engine.sh --finish rewrites `branch` with the other pins, and
+	# check-engine-pins.sh checks it. build/desktop/patches/ is the same commits as git mails
+	# (docs/ENGINE.md §1–2). `ignore = dirty`: only the recorded COMMIT matters, and it is what the OE
 	# SRCREV (build/webos-oe/recipes-jihad/goanna/goanna_1.0.bb) and this gitlink both pin.
 	ignore = dirty
 [submodule "third_party/mochi"]

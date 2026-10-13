@@ -4,7 +4,7 @@
 
 // EngineCompat.h — every entry point this daemon takes from OUR OWN changes to the engine.
 //
-// The engine (third_party/uxp, branch jihad-engine-mods) exports a small C API that upstream
+// The engine (third_party/uxp, branch jihad/uxp-<UXP_TAG>) exports a small C API that upstream
 // UXP does not have: offscreen rendering, popup compositing, plugin frame pacing, NSS start-up,
 // the audio stream count. They are declared here and nowhere else, so an engine update has
 // one list to check (docs/ENGINE.md "The jihad_* exports"; build/engine/check-engine-api.py

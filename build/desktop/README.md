@@ -1,8 +1,9 @@
 # build/desktop — Phase 1 x86_64 Linux PoC
 
 > **Read [`docs/ENGINE.md`](../../docs/ENGINE.md) first** (2026-10-08): the engine is the submodule
-> `third_party/uxp` at our branch `jihad-engine-mods`, the patch queue here is generated from that
-> branch (`build/engine/patch-queue.sh`), and parts of this file (host OS, mount paths) predate that.
+> `third_party/uxp` at our branch `jihad/uxp-<UXP_TAG>` (a UXP release plus our commits), the patch
+> queue here is the same commits as git mails (`build/engine/update-engine.sh`, `patch-queue.sh`),
+> and parts of this file (host OS, mount paths) predate that.
 
 
 Goal: prove the Goanna backend satisfies the BrowserServer contract on a normal

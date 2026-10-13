@@ -18,6 +18,8 @@ if [ "$gl" = "$UXP_PIN" ]; then say ok "third_party/uxp gitlink is UXP_PIN"; els
 co=$(git -C "$REPO/third_party/uxp" rev-parse HEAD 2>/dev/null)
 if [ "$co" = "$UXP_PIN" ]; then say ok "third_party/uxp is checked out at UXP_PIN"; else say WARN "third_party/uxp is checked out at $co (git submodule update?)"; fi
 need build/webos-oe/recipes-jihad/goanna/goanna_1.0.bb "SRCREV = \"$UXP_PIN\"" "OE recipe SRCREV"
+br=$(git -C "$REPO" config -f .gitmodules submodule.third_party/uxp.branch 2>/dev/null)
+if [ "$br" = "jihad/uxp-$UXP_TAG" ]; then say ok ".gitmodules' branch is jihad/uxp-$UXP_TAG"; else say FAIL ".gitmodules' branch is '$br', not jihad/uxp-$UXP_TAG"; bad=1; fi
 if git -C "$REPO/third_party/uxp" merge-base --is-ancestor "$UXP_BASE" "$UXP_PIN" 2>/dev/null; then
   say ok "UXP_BASE is an ancestor of UXP_PIN"; else say FAIL "UXP_BASE is not an ancestor of UXP_PIN"; bad=1; fi
 case "$UXP_BASE" in "$UXP_SHORT"*) say ok "UXP_SHORT is UXP_BASE's prefix";; *) say FAIL "UXP_SHORT $UXP_SHORT is not UXP_BASE's prefix"; bad=1;; esac

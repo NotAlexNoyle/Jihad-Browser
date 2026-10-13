@@ -12,8 +12,10 @@ engine update (it lists what the update would break, by touchpoint):
 What it checks (docs/ENGINE.md "Touchpoints" explains each):
   1. our engine exports — every jihad_* symbol in render/goanna/EngineCompat.h is defined in the
      engine (they come from our engine branch; an upstream tree without our commits fails here,
-     which is the point: rebase jihad-engine-mods first);
-  2. IDL methods the daemon calls with long positional argument lists, against the baseline;
+     which is the point: put the queue on it first, build/engine/update-engine.sh);
+  2. IDL methods the daemon calls with long positional argument lists, against the baseline, and
+     the C++ declarations render/goanna/EngineCalls.h relies on (nsIPresShell's
+     ResizeReflowIgnoreOverride, 60 app units to a CSS pixel);
   3. interfaces the daemon implements or redeclares (JihadAppInfo, the hand-copied
      nsIClipboardHelper IID) — a new attribute or a changed IID breaks them silently;
   4. engine JS the components depend on (LightweightThemeManager, AddonManager, imgITools, the
@@ -21,7 +23,8 @@ What it checks (docs/ENGINE.md "Touchpoints" explains each):
   5. every engine pref the project sets still exists in the engine's defaults (a renamed pref is
      silently ignored);
   6. the mozconfig options still exist in the configure scripts;
-  7. the ICU data file the bundler hard-codes is the one the tree ships.
+  7. the tree ships one ICU data file; a WARN when it is not engine-version.env's ICU_DATA (an
+     update moves ICU_DATA to it: update-engine.sh --finish / --pins; the bundler reads ICU_DATA).
 Exit status: 0 when nothing FAILs (WARNs are for a human to read), 1 otherwise.
 """
 import argparse, glob, json, os, re, sys
@@ -32,6 +35,7 @@ BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine-api-
 # IDL methods called with positional argument lists: file, method.
 IDL_METHODS = [
     ("docshell/base/nsIWebNavigation.idl", "loadURIWithOptions"),
+    ("docshell/base/nsIWebNavigation.idl", "loadURI"),
     ("dom/interfaces/base/nsIDOMWindowUtils.idl", "sendMouseEventToWindow"),
     ("dom/interfaces/base/nsIDOMWindowUtils.idl", "sendMouseEvent"),
     ("dom/interfaces/base/nsIDOMWindowUtils.idl", "sendKeyEvent"),
@@ -42,6 +46,12 @@ IDL_METHODS = [
     ("dom/interfaces/base/nsIDOMWindowUtils.idl", "loadSheetUsingURIString"),
     ("image/imgITools.idl", "decodeImage"),
     ("image/imgITools.idl", "encodeScaledImage"),
+]
+# C++ declarations EngineCalls.h relies on (not IDL, so text that must still be there): file, texts.
+CXX_NEEDS = [
+    ("layout/base/nsIPresShell.h",
+     ["ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight, nscoord aOldWidth, nscoord aOldHeight)"]),
+    ("gfx/src/AppUnits.h", ["AppUnitsPerCSSPixel() { return 60; }"]),
 ]
 # Interfaces the daemon implements in full (JihadAppInfo, EngineHost.cpp): their member lists.
 IMPLEMENTED = [
@@ -244,6 +254,14 @@ def check(uxp, rep):
                     print("          baseline: %-60s now: %s" % (a, b))
         else:
             rep.ok("%s (%d params)" % (m, len(params)))
+    for f, needs in CXX_NEEDS:
+        p = os.path.join(uxp, f)
+        t = re.sub(r"\s+", " ", read(p)) if os.path.exists(p) else ""
+        missing = [n for n in needs if n not in t]
+        if missing:
+            rep.fail("%s: no longer has %s — EngineCalls.h's ResizeReflow assumes it" % (f, missing))
+        else:
+            rep.ok("%s (%d declarations)" % (f, len(needs)))
 
     print("3. interfaces the daemon implements or redeclares")
     for f, i in IMPLEMENTED:
@@ -338,14 +356,14 @@ def check(uxp, rep):
 
     print("7. ICU data file")
     have = sorted(os.path.basename(p) for p in glob.glob(os.path.join(uxp, "config/external/icu/data/icudt*l.dat")))
-    bundler = read(os.path.join(REPO, "build/webos-oe/make-device-bundle.sh"))
-    want = sorted(set(re.findall(r"icudt\d+l\.dat", bundler)))
-    if not have:
-        rep.fail("the tree ships no ICU data file (config/external/icu/data/icudt*l.dat)")
-    elif want and want[0] not in have:
-        rep.fail("make-device-bundle.sh expects %s; the tree ships %s" % (want, have))
+    env = read(os.path.join(REPO, "build/engine/engine-version.env"))
+    want = (re.search(r"^ICU_DATA=(\S+)", env, re.M) or [None, None])[1]
+    if len(have) != 1:
+        rep.fail("the tree ships %s ICU data files (config/external/icu/data/icudt*l.dat), not one" % (have or "no"))
+    elif have[0] != want:
+        rep.warn("the tree ships %s, engine-version.env's ICU_DATA is %s: update-engine.sh --finish (or --pins) moves it" % (have[0], want))
     else:
-        rep.ok("ICU data %s" % (have or "?"))
+        rep.ok("ICU data %s" % have[0])
 
 
 def main():

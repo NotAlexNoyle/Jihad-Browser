@@ -71,7 +71,7 @@ function card(p, button, online) {
 	// An online index's pictures must be https too (the index's https protects nothing if its
 	// pictures come over plain http — inspector 2026-10-08). The site's feed names a preview.
 	let img = cssUrl(p.previewURL || p.preview || p.headerURL, !!online);
-	if (img) { c.style.backgroundImage = img; }
+	if (img) { c.style.backgroundImage = img; c.setAttribute("data-pic", String(p.previewURL || p.preview || p.headerURL)); }
 	let text = cssColor(p.textcolor) || "#ffffff";
 	let names = document.createElement("div");
 	names.className = "names";
@@ -167,6 +167,20 @@ function afterChange() {
 	refreshButtons();
 }
 
+// The card pictures the component made in the background: only the cards whose picture changed take
+// the new one. Drawing every card again requested every picture again (the flash the owner saw) and
+// turned a pending "Remove it?" back into "Remove" (inspector, round 22).
+function updatePictures() {
+	let box = document.getElementById("mine"), cards = {};
+	for (let c = box.firstElementChild; c; c = c.nextElementSibling) { cards[c.getAttribute("data-id")] = c; }
+	((ask("mine") || {}).list || []).forEach(function (t) {
+		let c = cards[String(t.id)], pic = String(t.preview || "");
+		if (!c || !pic || c.getAttribute("data-pic") === pic) { return; }
+		let img = cssUrl(pic, false);
+		if (img) { c.style.backgroundImage = img; c.setAttribute("data-pic", pic); }
+	});
+}
+
 function setupMine() {
 	renderMine();
 	document.getElementById("status-undo").addEventListener("click", function () {
@@ -196,8 +210,8 @@ function setupMine() {
 		});
 		box.hidden = !box.hidden;
 	}, false);
-	// A removal finishes in the add-on manager a moment later.
-	let watcher = {observe: function () { afterChange(); }};
+	// A removal finishes in the add-on manager a moment later; card pictures are made in the background.
+	let watcher = {observe: function (subject, topic, data) { if (data === "thumbs") { updatePictures(); } else { afterChange(); } }};
 	Services.obs.addObserver(watcher, "jihad-personas-mine", false);
 	window.addEventListener("unload", function () { Services.obs.removeObserver(watcher, "jihad-personas-mine"); }, false);
 }

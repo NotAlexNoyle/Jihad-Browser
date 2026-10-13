@@ -372,16 +372,20 @@ sync
 # trap stays armed as a second attempt when this one fails.
 if [ "$ROOTFS_WAS_RW" = yes ]; then
 	log "leaving / read-write as found"
-elif mount -o remount,ro /; then
-	trap - EXIT
 else
-	# Retry: the usual cause is a write still settling on /, not a real failure.
-	sync; sleep 1
-	if mount -o remount,ro /; then
-		trap - EXIT
-	else
-		echo "jihad-postinst($V): WARNING: could not restore / to read-only" >&2
-	fi
+	# Retried for about ten seconds: the usual cause is a write still settling on / ("Device or
+	# resource busy" right after ls-hubd's rescan and db8's kind registrations, device 2026-10-12,
+	# when two tries a second apart both failed and / was left rw for every later install).
+	ro_try=0
+	until mount -o remount,ro / 2>/dev/null; do
+		ro_try=$((ro_try + 1))
+		if [ "$ro_try" -ge 10 ]; then
+			echo "jihad-postinst($V): WARNING: could not restore / to read-only" >&2
+			break
+		fi
+		sync; sleep 1
+	done
+	[ "$ro_try" -lt 10 ] && trap - EXIT
 fi
 
 # ── 3. verify the deploy actually landed ─────────────────────────────────────────────────────
@@ -644,15 +648,18 @@ rm -rf "$PROFILE" "$CACHE" "$THUMBS" "$CERTINFO" "$CLIP"
 # and the EXIT trap gets one more attempt — but it does not get to be silent either.
 if [ "$ROOTFS_WAS_RW" = yes ]; then
 	log "leaving / read-write as found"
-elif mount -o remount,ro /; then
-	trap - EXIT
 else
-	sync; sleep 1
-	if mount -o remount,ro /; then
-		trap - EXIT
-	else
-		echo "jihad-prerm($V): WARNING: could not restore / to read-only" >&2
-	fi
+	# Retried for about ten seconds, as postinst does: a write still settling on / makes it busy.
+	ro_try=0
+	until mount -o remount,ro / 2>/dev/null; do
+		ro_try=$((ro_try + 1))
+		if [ "$ro_try" -ge 10 ]; then
+			echo "jihad-prerm($V): WARNING: could not restore / to read-only" >&2
+			break
+		fi
+		sync; sleep 1
+	done
+	[ "$ro_try" -lt 10 ] && trap - EXIT
 fi
 
 # ── 3. verify the removal ACTUALLY happened — believe the filesystem, not $? ──────────────────

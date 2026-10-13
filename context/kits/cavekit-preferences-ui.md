@@ -1,6 +1,6 @@
 ---
 created: "2026-08-05"
-last_edited: "2026-10-12"
+last_edited: "2026-10-13"
 ---
 
 # Cavekit: In-Browser Preferences (`about:preferences`)
@@ -365,18 +365,29 @@ ensure software and font licensing / redistribution terms are respected").
   sizes, and the minimum font size; each writes the engine's own `font.*` preference for that group,
   and takes effect on the next page drawn. *(Device, Enyo, 2026-10-12: Serif set to Georgia from
   the list, a page of serif text drawn after it in Georgia's old-style figures; Restore default fonts,
-  and the same page in Times New Roman again.)*
+  and the same page in Times New Roman again.)* A font's name is stored as Unicode (UXP's
+  `setCharPref` narrows each character to a byte; a CJK family name would be garbled). *(Device,
+  Enyo, 2026-10-13: Georgia picked from the list → `user_pref("font.name.serif.x-western",
+  "Georgia")` through `nsISupportsString`; Restore → no `font.` pref left.)* A size the list does not
+  hold (the card's minimum of 2 px) takes its place in order. *(Device, Enyo: "None, 2 px, 9 px …".)*
 - [x] Each font list is the engine's own enumeration of what is installed: "Default (<the font the
   engine would use>)" first, then the fonts of that kind, then every other installed font. Choosing
-  Default clears the setting rather than writing a name. Fontconfig's generic aliases and names
-  the engine lists for no script are left out. *(Device, Enyo: Default, then the 14 installed —
+  Default clears the setting rather than writing a name. Fontconfig's generic aliases are left out,
+  and a font is offered for a script when the engine lists it for Latin text or for that script (so
+  one that cannot draw the script is not); "Other writing systems" names no language, so it lists
+  every font, as in Pale Moon. *(Device, Enyo: Default, then the 14 installed —
   Arial, Courier New, Dotum, Georgia, Hei S, Heisei Kaku Gothic, Lucida Console, Prelude, Prelude
   Condensed, PreludeCompressedWGL, PreludeCondensedWGL, PreludeWGL, Times New Roman, Verdana; the
-  aliases and a "Noto Sans Thai" with no font file behind it are gone. The engine names no default on
-  this device, so the first entry reads "Default".)*
+  aliases are gone, and so is Noto Sans Thai, which draws Thai only. (Recorded 2026-10-12 as a name
+  "with no font file behind it": wrong — `/usr/share/fonts/HeiT_nb.ttf` is Noto Sans Thai, Google's,
+  as fontconfig's cache and `fc-query` say; it belongs in the Thai list. Inspector round 22.) The
+  engine names no default on this device, so the first entry reads "Default".)*
 - [x] Restore defaults puts the group's font settings back (the pane's Reset restores every script's);
   a sample line shows each chosen font; `about:settings#pane=content&section=fonts` opens the section.
-  *(Device, all three: the section drawn in each shell's look.)*
+  *(Device, all three: the section drawn in each shell's look.)* *(2026-10-13: the page scrolled to it
+  but the card stayed at the top — the daemon sent the jump before the page's new size; fixed, and
+  Enyo and Mochi now open on Fonts & Colors.)* The same link followed again while it is the page's
+  address does nothing (no hashchange; an about: page cannot take it out of its address) — noted.
 - [x] "Allow pages to choose their own fonts" and the page-colour settings stay where they are.
 - [x] Licensing: no font file is added to any package — the device's own fonts (HP's Prelude family,
   the Microsoft core fonts and the CJK fonts webOS ships) are used where they are installed, never

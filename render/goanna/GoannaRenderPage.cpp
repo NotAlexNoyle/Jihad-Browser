@@ -1121,7 +1121,7 @@ void GoannaRenderPage::ScrollTo(int x, int y) {
   snprintf(js, sizeof js, "javascript:void(window.scrollTo(%d,%d))", x, y);
   NS_ConvertUTF8toUTF16 u(js);
   mChrome->mProgrammaticLoad = true;   // internal nav: never a link-click (Codex P1)
-  nav->LoadURI(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+  engine_calls::LoadURIPlain(nav, u.get(), nsIWebNavigation::LOAD_FLAGS_NONE);
 }
 
 bool GoannaRenderPage::Find(const char* text, bool forward) {
@@ -1752,6 +1752,9 @@ void GoannaRenderPage::BlurFocusedEditable() {
   nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
   nsCOMPtr<mozIDOMWindowProxy> win;
   mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
+  // A focus or blur the listener saw earlier (a change handler run just before this) is merged now,
+  // so the flag tested below says whether it saw THIS blur.
+  PollEngineFocus();
   if (fm && win) fm->ClearFocus(win);
   // The engine's blur listener (on the top document) takes it from here: it clears the type target
   // and lowers the editor state through PollEngineFocus — or sees a handler put the focus back, and

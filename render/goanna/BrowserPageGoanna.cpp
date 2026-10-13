@@ -2398,7 +2398,6 @@ void BrowserPageGoanna::emitScrollIfChanged() {
   int sx = 0, sy = 0;
   if (mPage->GetScrollXY(&sx, &sy) &&
       (sx != mLastScrollX || sy != mLastScrollY)) {
-    mLastScrollX = sx; mLastScrollY = sy;
     // Echo suppression ("scrolling is janky and skips around", device 2026-08-02): the
     // adapter's msgScrolledTo handler OVERWRITES its own pan position
     // (BrowserAdapter.cpp:4218 — mScrollPos + mScroller->scrollTo), and our engine scroll
@@ -2415,9 +2414,16 @@ void BrowserPageGoanna::emitScrollIfChanged() {
     bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
                          dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
     if (!adapterDriven) {
+      // The size first: the card clamps a scroll to the page size it knows, so a jump made while
+      // the page loads (an anchor, a scrollIntoView at DOMContentLoaded) went past the window-high
+      // page the card still had and stayed at the top (device 2026-10-12: about:settings'
+      // #section=fonts, "scrolledTo 0,872" sent before "contentSize=768x2221"). Without a valid
+      // size yet, the jump is not taken as seen and waits for the next tick.
+      if (!emitGeometry()) return;
       fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (content-initiated)\n", sx, sy);
       mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)
     }
+    mLastScrollX = sx; mLastScrollY = sy;
   }
 }
 
@@ -2432,8 +2438,13 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   mPage->FlushPendingInputEvent();
   mPage->FlushPendingChangeEvent();
   // The keyboard went down over a focused field (setWindowSize): the field gives up the focus here,
-  // after its input and change events, as a browser orders them.
-  if (mBlurOwed) { mBlurOwed = false; mPage->BlurFocusedEditable(); }
+  // after its input and change events, as a browser orders them. The change is forced: unforced it
+  // waits for the field to lose the focus, which would put it after the blur (inspector, round 22).
+  if (mBlurOwed) {
+    mBlurOwed = false;
+    mPage->FlushPendingChangeEvent(true);
+    mPage->BlurFocusedEditable();
+  }
   { std::string nw; if (mPage->TakeNewWindowUrl(&nw)) mSink.msgNewPageRequested(jihadBoundedUri(nw).c_str()); }
   // A menu that opened or closed since the last pump changes the picture without damaging the
   // page: it is its own display root, composited over the frame at paint time, and XUL opens it

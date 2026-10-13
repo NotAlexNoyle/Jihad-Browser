@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08"
-last_edited: "2026-10-08"
+last_edited: "2026-10-13"
 complexity: complex
 ---
 
@@ -109,6 +109,14 @@ target the latest release".
   same steps; `--pins` run for real.)*
 - [x] `docs/ENGINE.md` §6 is the procedure in those terms, with the device push the engine's own
   resources need (a full variant push).
+- [x] It cannot leave work behind or lose it (inspector, round 22): it refuses to start unless
+  `third_party/uxp` is at `UXP_PIN` and the queue reproduces it; the overlap list and the full API
+  check run on the conflict path too, and a FAIL stops it; `--finish` changes nothing until it has
+  checked the worktree and a clean `third_party/uxp`, can be run again when stopped, and `--abort`
+  never deletes the branch once `--finish` has checked it out; `pins()` checks every file before
+  writing any; `.gitmodules`' branch is a pin (rewritten, and checked by `check-engine-pins.sh`).
+  *(2026-10-13: start refused nothing and stopped at "already on RB_20261006"; `--pins` changed
+  nothing; `--finish`/`--abort` without an update refuse; the pins check passes.)*
 **Dependencies:** R1, R2, R4
 
 ### R8: The engine on RB_20261006
@@ -135,6 +143,10 @@ items, `:has()` (off in releases, a switch in Settings), typing speed, fewer lea
   revert-layer, :has; after: all yes, :has with its switch on (then off again); howsmyssl.com TLS 1.3
   "Good"; Space Fantasy worn and taken off; Palefill 1.30 enabled; about:config; Flash anim.swf at
   23–25 fps through the Thumb-2 plugin-container. Mochi: the feature page. Mojo: Wikipedia.)*
+  *(2026-10-13, the rest (inspector round 22): Mochi and Mojo — howsmyssl.com TLS 1.3 "Good",
+  Palefill 1.30 enabled in about:addons, about:config, about:settings, a Persona worn (Aurora Silk,
+  Lime Fizz: the toolbar painted) and taken off; Enyo — about:addons (Palefill's preferences) and
+  about:settings. All three on daemon `7b02e00b`.)*
 - [x] The checker's baseline re-written after the device checks (no signature changed).
 **Dependencies:** R7
 
@@ -142,5 +154,7 @@ items, `:has()` (off in releases, a switch in Settings), typing speed, fewer lea
 - (Until 2026-10-12: updating the engine itself. The owner started that on 2026-10-12 — R7, R8.)
 
 ## Changelog
+- 2026-10-13: Round 22 (inspector): R7's safety criterion; R8's device evidence completed; the
+  checker covers `loadURI`, `ResizeReflowIgnoreOverride` and the ICU file from the pins.
 - 2026-10-08: Created with the groundwork done the same day (R1, R2, R3, R4, R5 largely `[x]`);
   the open boxes are the next steps listed in `docs/ENGINE.md` §8.

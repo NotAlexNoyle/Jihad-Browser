@@ -23,16 +23,16 @@ require ../jihad-common.inc
 # compiled into the engine. Captured difference: none — shared ARMv7 softfp binary.
 COMPATIBLE_MACHINE = "(tenderloin|opal)"
 
-# UXP source. Clones the jihad-engine-mods commit from the in-repo submodule (third_party/uxp,
-# bound in the chroot). That commit is pristine UXP b2594a4 (upstream master) + the full jihad
-# engine delta captured as one durable commit — it IS the exact tree the desktop host build
-# (build-goanna-arm.sh) compiles, so the OE clone builds identical source. nobranch=1: SRCREV
-# alone pins the checkout (the commit lives on the jihad-engine-mods branch, not master, and a
-# file:// mirror need not track a branch). The patch queue (do_apply_jihad_patches) is already
-# baked into this commit, so it now dry-run-gate skips as a redundant safety net.
-# For a fully-upstream base instead, clone pristine b2594a4 from palemoon (commented) and let the
-# patch queue rebuild the delta — but the queue drifted from pristine UXP, so that path is stale:
-#   SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;branch=master"
+# UXP source. Clones the engine commit from the in-repo submodule (third_party/uxp, bound in the
+# chroot): upstream UXP at the release tag UXP_TAG plus Jihad's commits, the head of branch
+# jihad/uxp-<UXP_TAG> (build/engine/engine-version.env; docs/ENGINE.md §1). It IS the exact tree the
+# host build (build-goanna-arm.sh) compiles, so the OE clone builds identical source. nobranch=1:
+# SRCREV alone pins the checkout (a file:// mirror need not track a branch); update-engine.sh
+# --finish/--pins rewrites SRCREV and check-engine-pins.sh checks it. The patch queue
+# (do_apply_jihad_patches) is already in this commit, so its dry-run gate skips every patch.
+# For a pristine upstream base instead, clone the release tag from palemoon and let the queue apply
+# for real (build/engine/patch-queue.sh --check proves it reproduces SRCREV's tree):
+#   SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;tag=<UXP_TAG>"
 SRC_URI = "git://${JIHAD_REPO}/third_party/uxp;protocol=file;nobranch=1"
 SRCREV = "706d4782ba2cfc16d4e35df79475ccdce924accd"
 S = "${WORKDIR}/git"
@@ -118,7 +118,7 @@ jihad_gen_mozconfig() {
 # baked in, so every patch is already applied here; the dry-run gate (mirroring the host build's
 # build-goanna-arm.sh loop) skips a patch that does not apply cleanly instead of half-applying its
 # hunks with `|| true`. A stale/partially-drifted patch therefore leaves the baked-in source
-# untouched rather than corrupting it. If SRCREV is ever swapped back to pristine b2594a4, this
+# untouched rather than corrupting it. If SRCREV is ever swapped to the pristine release tag, this
 # same loop applies the queue for real.
 do_apply_jihad_patches() {
     cd ${S}

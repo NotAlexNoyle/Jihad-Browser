@@ -839,9 +839,10 @@ function fontChoices(fe, group, generic) {
 	try { dflt = fe.getDefaultFont(group, kind.length ? generic : "") || ""; } catch (e) {}
 	try { all = fe.EnumerateAllFonts({}) || []; } catch (e) {}
 	// Only fonts that are installed: fontconfig's generic aliases (serif, sans-serif, monospace — what
-	// Default stands for) are left out, and so are names the engine lists for no script (on the device
-	// a "Noto Sans Thai" with no font file behind it): a font is offered when the engine lists it for
-	// Latin text or for the script chosen.
+	// Default stands for) are left out, and a font is offered when the engine lists it for Latin text
+	// or for the script chosen, so one that cannot draw the script is not (the device's Noto Sans Thai,
+	// in /usr/share/fonts/HeiT_nb.ttf, draws Thai only). "Other writing systems" (x-unicode) names no
+	// language, so the engine lists every font there, as Pale Moon does.
 	let scripts = {};
 	[["x-western", ""], [group, ""]].forEach(function (q) {
 		try { (fe.EnumerateFonts(q[0], q[1], {}) || []).forEach(function (n) { scripts[n] = true; }); } catch (e) {}
@@ -855,10 +856,17 @@ function fontChoices(fe, group, generic) {
 	return {dflt: installed(dflt) ? dflt : "", kind: kind, rest: all.filter(function (n) { return !seen[n] && installed(n); })};
 }
 
+// Font names can be in any script (fontconfig gives localized family names), and this engine's
+// setCharPref keeps only the low byte of each character: names go through nsISupportsString, which
+// stores UTF-8, as UXP's own font preference does (toolkit/content/widgets/preferences.xml).
+function unicodePref(pref) {
+	return Services.prefs.getComplexValue(pref, Ci.nsISupportsString).data;
+}
+
 function fontPrefValue(pref, type) {
 	try {
 		if (Services.prefs.getPrefType(pref) === Ci.nsIPrefBranch.PREF_INVALID) { return null; }
-		return type === "int" ? Services.prefs.getIntPref(pref) : Services.prefs.getCharPref(pref);
+		return type === "int" ? Services.prefs.getIntPref(pref) : unicodePref(pref);
 	} catch (e) { return null; }
 }
 
@@ -870,7 +878,9 @@ function fontWrite(pref, type, value) {
 		} else if (type === "int") {
 			Services.prefs.setIntPref(pref, parseInt(value, 10) || 0);
 		} else {
-			Services.prefs.setCharPref(pref, String(value));
+			let str = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+			str.data = String(value);
+			Services.prefs.setComplexValue(pref, Ci.nsISupportsString, str);
 		}
 		Services.prefs.savePrefFile(null);
 		status(pref + " = " + (value === "" ? "(default)" : value));
@@ -977,8 +987,10 @@ function buildFontsSection(group) {
 		let sel = document.createElement("select");
 		sel.className = "sel";
 		let cur = fontPrefValue(pref, "int");
-		sizes.forEach(function (n) { option(sel, n, n === 0 ? "None" : n + " px"); });
-		if (cur !== null && sizes.indexOf(cur) < 0) { option(sel, cur, cur + " px"); }
+		// A size not in the list (the card sets a minimum of 2 px) takes its place in it.
+		let list = sizes.slice();
+		if (cur !== null && list.indexOf(cur) < 0) { list.push(cur); list.sort(function (a, b) { return a - b; }); }
+		list.forEach(function (n) { option(sel, n, n === 0 ? "None" : n + " px"); });
 		if (cur !== null) { sel.value = String(cur); }
 		sel.addEventListener("change", function () { fontWrite(pref, "int", sel.value); }, false);
 		return fontRow(label, pref, sel);
@@ -998,7 +1010,7 @@ function buildFontsSection(group) {
 		// The setting's own value only when the user chose it (the shipped "serif"/"sans-serif" generic
 		// names are the default); one no longer installed is still shown, as itself.
 		let cur = "";
-		try { if (Services.prefs.prefHasUserValue(pref)) { cur = Services.prefs.getCharPref(pref); } } catch (e) {}
+		try { if (Services.prefs.prefHasUserValue(pref)) { cur = unicodePref(pref); } } catch (e) {}
 		if (cur && c.kind.indexOf(cur) < 0 && c.rest.indexOf(cur) < 0) { option(sel, cur, cur + " (not installed)"); }
 		sel.value = cur;
 		let sampleLine = el("div", "font-sample", sample);
@@ -1491,6 +1503,10 @@ function showHashTarget() {
 	let section = /(?:^#|&)section=([a-z]+)/.exec(hash);
 	let target = section ? document.getElementById("section-" + section[1]) : null;
 	if (target) { target.scrollIntoView(true); }
+	// The same link followed again while it is the page's address changes nothing (an unchanged
+	// fragment fires no hashchange). The link is not taken out of the address to make room for that:
+	// replaceState refuses an about: page (UXP's docshell cannot read a user:password part of one),
+	// and location.replace to an empty fragment scrolls to the top (inspector, round 22; noted).
 }
 
 function init() {

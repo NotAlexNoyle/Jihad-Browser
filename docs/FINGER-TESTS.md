@@ -92,8 +92,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] After choosing a proxy, the section redraws by itself, with no touch. (Known open: after
   choosing Riverstone Relay the card kept its old picture until the next touch, Enyo and Mochi;
   build site T-465.)
-- [ ] The Riverstone Relay for everyday browsing once its pass-through rule is on the server:
-  https sites load with their own certificates. (R2)
+- [ ] The Riverstone Relay for everyday browsing (its pass-through rule is on the server since
+  2026-10-13): https sites load with their own certificates; the padlock names the site's own
+  issuer. (R2; scripted in Enyo with example.com)
 
 ## Media and sound
 - [ ] A video's play/pause and volume by tap. (gre-widgets R1)

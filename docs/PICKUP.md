@@ -84,8 +84,24 @@ P3s are fixed in `68caed1`. Details in impl-review-findings-6.md, round 23.
   - the Squid rule `acl jihad_browser browser JihadBrowser/` + `ssl_bump splice jihad_browser`
     above the bump rules, with checks;
   - the site update.
-
-  Waiting on the reply.
+- **The reply** (`~/Documents/jihad-reply-2026-10-13b.tar`, code 7-performance-bedlamp):
+  - The Relay rule is live since 17:07 UTC: `squid.conf` lines 31–33, above `ssl_bump peek step1`.
+    `squid -k parse` is clean, and Squid was reconfigured in place (pid 2631). Through the Relay,
+    example.com's issuer is Cloudflare TLS Issuing ECC CA 3 for `JihadBrowser/1.0` and `squid-proxy`
+    for any other agent. Rollback: `~/squid-hardening/jihad-splice.sh --undo`, or either
+    `squid.conf.bak.2026-10-13-jihad*`.
+  - Note for later checks: `curl -v` prints `issuer:` only after a good handshake, so the
+    bumped case needs `-k`.
+  - `68caed1` is live (17:06), smoke 43/43, the catalogue unchanged. `site-block.sha256` was
+    written, equal to the live block. `www.prev` is `057dbad`.
+  - Its suggestion, a line when the block is already the repository's, is done in Riverstone-Addons
+    `d9359ea`, not deployed: it rides the next site update.
+- **On the device (Enyo, the Relay chosen, its CA off):**
+  - https://example.com/ loads, and its padlock names Cloudflare TLS Issuing ECC CA 3 (TLS 1.3).
+  - http://httpbin.org/ip shows `108.52.189.109, 116.202.108.111`; https shows only the Relay's
+    address, with no Squid header.
+  - R2 is met. Squid forwards the client's address on plain http (`forwarded_for` at its
+    default): the server's business, noted for the owner.
 
 **Device state as left**
 - All three pushed from the same build: daemon `1a831adc`, `jihadCerts.js` `cfb5cda3`, engine
@@ -97,8 +113,6 @@ P3s are fixed in `68caed1`. Details in impl-review-findings-6.md, round 23.
   `jihad-grow.html` (T-465).
 
 **Open**
-- The Relay's pass-through, after the server rule: an https page through the Relay with the site's
-  own certificate (R2's last criterion).
 - T-465 (stale card picture after a growing pick).
 - Codex on Tier 83 and round 22 after Oct 18th, 11:59 AM (T-456, T-466).
 - The finger round (`docs/FINGER-TESTS.md`, a proxies section added).

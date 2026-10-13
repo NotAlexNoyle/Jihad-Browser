@@ -111,12 +111,14 @@ in all three shells, without about:config.
   login. The section says what the Relay is and that it is the owner's. *(Device: picked in Enyo's
   and Mochi's section, the prefs as stated. Open: after the pick the card kept its old picture until
   the next touch (T-465).)*
-- [~] A CONNECT from Jihad carries Jihad's User-Agent (`… JihadBrowser/1.0`), and the server agent is
+- [x] A CONNECT from Jihad carries Jihad's User-Agent (`… JihadBrowser/1.0`), and the server agent is
   sent a Squid rule that splices (passes through untouched) every CONNECT carrying it, placed before
   the bump rules, with the commands to check and load it and to check the result. *(Device: the
   CONNECT reads `Mozilla/5.0 (X11; Linux armv7l; rv:6.9) Goanna/20261012 JihadBrowser/1.0` (the
-  engine's network UA), page requests the page UA; both carry `JihadBrowser/`. The rule is written
-  (RELAY.md); waiting on the server agent.)*
+  engine's network UA), page requests the page UA; both carry `JihadBrowser/`. The server agent
+  applied it 2026-10-13 17:07 UTC, `squid.conf` lines 31–33 above `ssl_bump peek step1`;
+  `squid -k parse` clean; through the Relay, example.com's issuer is Cloudflare TLS Issuing ECC CA 3
+  for `JihadBrowser/1.0` and `squid-proxy` for any other agent; rollback `jihad-splice.sh --undo`.)*
 - [x] **The Relay's CA is trusted only by choice.** While the Relay is the proxy in use (chosen here,
   webOS's setting pointing at it, or a proxy typed by hand naming it), the section offers **Trust the
   Relay's certificate**, off by default, saying that with it on the Relay can read the pages it
@@ -127,10 +129,16 @@ in all three shells, without about:config.
   CA (a re-keyed Relay would look like one). *(Device, Enyo, the Relay bumping: example.com fails
   untrusted with the option off, loads with it on, fails at once when switched off; with webOS's
   setting on the Relay the switch is shown; the CA offered as a link is refused.)*
-- [ ] Device (after the server rule is in): an https page through the Relay loads, and its
+- [x] Device (after the server rule is in): an https page through the Relay loads, and its
   certificate is the site's own, not `squid-sslbump-for-webos`; a plain http page loads through it
   (`Via: … rs-relay-server`). With the rule missing, a bumped page asks about its certificate while
-  the setting is off, and loads with the setting on. *(The second half done, above.)*
+  the setting is off, and loads with the setting on. *(Device, Enyo, 2026-10-13, the Relay chosen and
+  its CA off: https://example.com/ loads (certErr=0) and the padlock shows issuer Cloudflare TLS
+  Issuing ECC CA 3, TLS 1.3. http://httpbin.org/ip says `108.52.189.109, 116.202.108.111` (the
+  forwarded client, then the Relay) and its headers carry Squid's `Cache-Control: max-age=259200`;
+  httpbin's front strips `Via`, so the server's address stands in for it. Over https the same pages
+  show only `116.202.108.111` and no Squid header: the tunnel was not opened. The second half done,
+  above.)*
 **Dependencies:** R1
 
 ### R3: WebOne
@@ -230,4 +238,5 @@ by the user or by a community update.
   default (R2), and opening a CA certificate asks (R6), from the owner's further answers. Review
   round 23 (inspector): only v3 CAs (R4, R6), the question only for a page itself and naming who
   offered it (R6), the Relay pinned in the component and recognised by key and subject (R2), its
-  switch wherever it is in use (R2). Device evidence added.
+  switch wherever it is in use (R2). Device evidence added. Same day: the server agent applied the
+  Relay's splice rule; R2 met on the device (the site's own certificate through the Relay).

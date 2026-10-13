@@ -1,4 +1,8 @@
-From: Jihad Browser engine branch (jihad-engine-mods)
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:41 -0400
+Subject: [PATCH] npapi child self drive switch
+
 Subject: [PATCH 0031] npapi: JIHAD_PLUGIN_SELF_DRIVE=0 turns the plugin child's own repaint timer off
 
 Part of the squashed engine commit 07259a27f0 that the per-subsystem queue (0001-0030) never
@@ -6,8 +10,14 @@ carried. The daemon sets JIHAD_PLUGIN_SELF_DRIVE=0 (EngineHost.cpp) so the host 
 frame clock. Regenerated 2026-10-08 so that the queue reproduces the engine branch exactly
 (build/engine/patch-queue.sh --check).
 ---
+
+Imported from build/desktop/patches/0031-npapi-child-self-drive-switch.patch.
+---
+ dom/plugins/ipc/PluginInstanceChild.cpp | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)
+
 diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
-index db424ca8ff..69282634f2 100644
+index ff275d9bd1..7ae75e0a43 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
 @@ -4076,6 +4076,27 @@ static const int kJihadGlibPumpMaxIters   = 20;   // bounded: never starve the M

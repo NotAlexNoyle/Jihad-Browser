@@ -118,7 +118,12 @@ log "installing shim + impl + upstart job + state dir (rootfs rw)..."
 # R8 violation this window exists to prevent. If it was already rw on entry, leave it to
 # whoever made it so; only a window WE opened is a window we must close.
 ROOTFS_WAS_RW=no
-mount | grep -q "on / .*[(,]rw[,)]" && ROOTFS_WAS_RW=yes
+# The mount that counts is the LAST one on / that is not the initramfs "rootfs" (always rw, listed
+# first): `mount | grep "on / .*rw"` matched that one, so a read-only root was taken for read-write
+# and nothing was remounted (device 2026-10-12: "chmod: /usr/lib/jihad: Read-only file system").
+if awk '$2 == "/" && $1 != "rootfs" { o = $4 } END { exit !(o ~ /^rw(,|$)/) }' /proc/mounts; then
+	ROOTFS_WAS_RW=yes
+fi
 if [ "$ROOTFS_WAS_RW" = no ]; then
 	trap 'mount -o remount,ro / 2>/dev/null || true' EXIT
 	mount -o remount,rw /

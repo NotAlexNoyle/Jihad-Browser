@@ -1,6 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:37 -0400
+Subject: [PATCH] npapi plugin repaint rate
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0026-npapi-plugin-repaint-rate.patch.
+---
+ dom/plugins/ipc/PluginInstanceChild.cpp | 29 +++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index b692076ae2..7f6de94e00 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
-@@ -4022,7 +4022,32 @@
+@@ -4022,7 +4022,32 @@ JihadPumpGlib(int aMaxIterations)
  // to run because of it.
  static const int kJihadGlibPumpIntervalMs = 16;   // ~60Hz, the rate a frame clock wants
  static const int kJihadGlibPumpMaxIters   = 20;   // bounded: never starve the MessageLoop
@@ -34,7 +48,7 @@
  
  // ── REPAINT A webOS PLUGIN FROM THE HOST'S CLOCK (Jihad, addons R7) ──────────────────────
  //
-@@ -4058,7 +4083,7 @@
+@@ -4058,7 +4083,7 @@ public:
  
          static uint64_t sRepaintTicks = 0;
          if (sJihadPalmInstance && gJihadNPNInvalidateRectCalls == 0 &&

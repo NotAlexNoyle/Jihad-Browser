@@ -1,6 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:30 -0400
+Subject: [PATCH] npapi webos palm host
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0017-npapi-webos-palm-host.patch.
+---
+ dom/plugins/ipc/JihadNPNInterpose.cpp   |  74 ++++
+ dom/plugins/ipc/PluginInstanceChild.cpp | 558 +++++++++++++++++++++++-
+ dom/plugins/ipc/PluginInstanceChild.h   |  12 +
+ dom/plugins/ipc/PluginModuleChild.cpp   |  45 +-
+ dom/plugins/ipc/moz.build               |   4 +
+ 5 files changed, 691 insertions(+), 2 deletions(-)
+ create mode 100644 dom/plugins/ipc/JihadNPNInterpose.cpp
+
+diff --git a/dom/plugins/ipc/JihadNPNInterpose.cpp b/dom/plugins/ipc/JihadNPNInterpose.cpp
+new file mode 100644
+index 0000000000..7dd1833441
+--- /dev/null
++++ b/dom/plugins/ipc/JihadNPNInterpose.cpp
+@@ -0,0 +1,74 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++/*
++ * NPN entry points exported as GLOBAL SYMBOLS, for plugins that expect the old Netscape
++ * convention where the host browser exports them rather than only passing an NPNetscapeFuncs
++ * table to NP_Initialize.
++ *
++ * WHY THIS IS ITS OWN TRANSLATION UNIT. The obvious place for these is PluginModuleChild.cpp,
++ * and it does not work: npapi.h already declares NPN_InvalidateRect, and every header in this
++ * build is compiled under `-include config/gcc_hidden.h`, which pushes hidden visibility. GCC
++ * takes visibility from the FIRST declaration it sees, so a later definition carrying
++ * __attribute__((visibility("default"))) is silently ignored and the symbol lands in the
++ * object as GLOBAL HIDDEN — present to `nm`, absent from the dynamic table, and therefore
++ * impossible to interpose. Verified with readelf. This file deliberately includes no NPAPI
++ * headers at all and describes the functions with void* so there is no prior declaration to
++ * inherit hidden visibility from.
++ *
++ * WHY IT MATTERS. webOS's Flash imports NPN_CreateObject and NPN_InvalidateRect as undefined
++ * dynamic symbols. Left alone they bind into libWebKitLuna.so — another browser engine that
++ * is in this process because Flash (and our Piranha drawing path) pull it in. Two consequences,
++ * both measured:
++ *   1. Flash's repaint requests go to LunaSysMgr's WebKit and never reach our engine, so the
++ *      plugin is only ever painted when something else happens to invalidate it. That alone
++ *      makes an animating plugin look frozen.
++ *   2. It is a latent crash: UXP stores a PluginInstanceChild* in NPP::ndata, while
++ *      libWebKitLuna's NPN_InvalidateRect casts that same field to a WebCore::PluginView* and
++ *      makes a virtual call on it — a wild vtable dispatch on the first repaint.
++ *
++ * The forwarding pointers are installed by PluginModuleChild once the browser function table
++ * exists; until then these are safe no-ops.
++ */
++
++#include <stdio.h>
++
++extern "C" {
++
++void  (*gJihadNPNInvalidateRect)(void* aNPP, void* aRect) = 0;
++void* (*gJihadNPNCreateObject)(void* aNPP, void* aClass)  = 0;
++
++// Read by the host repaint clock in PluginInstanceChild.cpp: while this is zero the plugin has
++// never asked to be repainted, so the host has to drive it.
++unsigned gJihadNPNInvalidateRectCalls = 0;
++
++__attribute__((visibility("default"))) void
++NPN_InvalidateRect(void* aNPP, void* aRect)
++{
++    // The first call is the signal that the plugin's frame clock is finally running; without
++    // it the plugin is only ever painted by an unrelated invalidation, which is
++    // indistinguishable on screen from a plugin that draws nothing. Log it once, and log the
++    // no-forwarder case too — arriving before PluginModuleChild installs the pointers is a
++    // dropped repaint, not a no-op.
++    gJihadNPNInvalidateRectCalls++;
++    static int sLogged = 0;
++    if (sLogged < 8) {
++        sLogged++;
++        fprintf(stderr, "[jihad-npapi-child] NPN_InvalidateRect npp=%p rect=%p fwd=%p\n",
++                aNPP, aRect, (void*)gJihadNPNInvalidateRect);
++        fflush(stderr);
++    }
++    if (gJihadNPNInvalidateRect) {
++        gJihadNPNInvalidateRect(aNPP, aRect);
++    }
++}
++
++__attribute__((visibility("default"))) void*
++NPN_CreateObject(void* aNPP, void* aClass)
++{
++    return gJihadNPNCreateObject ? gJihadNPNCreateObject(aNPP, aClass) : 0;
++}
++
++} // extern "C"
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index d94a5945bf..7e20901ff4 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
-@@ -31,6 +31,7 @@
+@@ -31,6 +31,7 @@ using mozilla::gfx::SharedDIBSurface;
  #endif
  #endif
  #include "gfxSharedImageSurface.h"
@@ -8,7 +107,7 @@
  #include "gfxUtils.h"
  #include "gfxAlphaRecovery.h"
  
-@@ -50,6 +51,18 @@
+@@ -50,6 +51,18 @@ using namespace mozilla::gfx;
  using namespace mozilla::widget;
  using namespace std;
  
@@ -27,7 +126,7 @@
  #ifdef MOZ_WIDGET_GTK
  
  #include <gtk/gtk.h>
-@@ -193,6 +206,7 @@
+@@ -193,6 +206,7 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
  #endif
      , mAccumulatedInvalidRect(0,0,0,0)
      , mIsTransparent(false)
@@ -35,7 +134,7 @@
      , mSurfaceType(gfxSurfaceType::Max)
      , mPendingPluginCall(false)
      , mDoAlphaExtraction(false)
-@@ -231,6 +245,11 @@
+@@ -231,6 +245,11 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
  
  PluginInstanceChild::~PluginInstanceChild()
  {
@@ -47,7 +146,7 @@
  #if defined(OS_WIN)
      NS_ASSERTION(!mPluginWindowHWND, "Destroying PluginInstanceChild without NPP_Destroy?");
      if (GetQuirks() & QUIRK_UNITY_FIXUP_MOUSE_CAPTURE) {
-@@ -260,6 +279,52 @@
+@@ -260,6 +279,52 @@ PluginInstanceChild::~PluginInstanceChild()
  #endif
  }
  
@@ -100,7 +199,7 @@
  NPError
  PluginInstanceChild::DoNPP_New()
  {
-@@ -286,6 +351,44 @@
+@@ -286,6 +351,44 @@ PluginInstanceChild::DoNPP_New()
          return rv;
      }
  
@@ -145,7 +244,7 @@
      Initialize();
  
  #if defined(XP_MACOSX) && defined(__i386__)
-@@ -2829,6 +2932,12 @@
+@@ -2829,6 +2932,12 @@ PluginInstanceChild::DoNPP_NewStream(BrowserStreamChild* actor,
      AssertPluginThread();
      AutoStackHelper guard(this);
      NPError rv = actor->StreamConstructed(mimeType, seekable, stype);
@@ -158,7 +257,7 @@
      return rv;
  }
  
-@@ -3743,8 +3852,329 @@
+@@ -3743,10 +3852,331 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
           mWindow.clipRect.left, mWindow.clipRect.top, mWindow.clipRect.right, mWindow.clipRect.bottom));
  
      if (mPluginIface->setwindow) {
@@ -223,9 +322,9 @@
 +                    (int)handled);
 +            fflush(stderr);
 +        }
-+    }
-+}
-+
+     }
+ }
+ 
 +// Run any work the plugin scheduled on glib.
 +//
 +// A webOS plugin is handed a GMainLoop through npPalmEventLoopValue and hangs its timers and
@@ -345,7 +444,7 @@
 +            RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
 +            kJihadGlibPumpIntervalMs);
 +        return NS_OK;
-     }
++    }
 +};
 +} // namespace
 +
@@ -485,10 +584,12 @@
 +    sCacheNext++;
 +    slot.data = aData; slot.w = aWidth; slot.h = aHeight; slot.ctx = ctx;
 +    return ctx;
- }
- 
++}
++
  void
-@@ -3801,7 +4231,133 @@
+ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+                                                 gfxASurface* aSurface)
+@@ -3801,7 +4231,133 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
      ::IntersectClipRect((HDC) mWindow.window, rect.left, rect.top, rect.right, rect.bottom);
      mPluginIface->event(&mData, reinterpret_cast<void*>(&paintEvent));
  #else
@@ -623,88 +724,8 @@
  #endif
  }
  
-diff --git a/dom/plugins/ipc/JihadNPNInterpose.cpp b/dom/plugins/ipc/JihadNPNInterpose.cpp
-new file mode 100644
-index 0000000000..7dd1833441
---- /dev/null
-+++ b/dom/plugins/ipc/JihadNPNInterpose.cpp
-@@ -0,0 +1,74 @@
-+/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-+/* This Source Code Form is subject to the terms of the Mozilla Public
-+ * License, v. 2.0. If a copy of the MPL was not distributed with this
-+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-+
-+/*
-+ * NPN entry points exported as GLOBAL SYMBOLS, for plugins that expect the old Netscape
-+ * convention where the host browser exports them rather than only passing an NPNetscapeFuncs
-+ * table to NP_Initialize.
-+ *
-+ * WHY THIS IS ITS OWN TRANSLATION UNIT. The obvious place for these is PluginModuleChild.cpp,
-+ * and it does not work: npapi.h already declares NPN_InvalidateRect, and every header in this
-+ * build is compiled under `-include config/gcc_hidden.h`, which pushes hidden visibility. GCC
-+ * takes visibility from the FIRST declaration it sees, so a later definition carrying
-+ * __attribute__((visibility("default"))) is silently ignored and the symbol lands in the
-+ * object as GLOBAL HIDDEN — present to `nm`, absent from the dynamic table, and therefore
-+ * impossible to interpose. Verified with readelf. This file deliberately includes no NPAPI
-+ * headers at all and describes the functions with void* so there is no prior declaration to
-+ * inherit hidden visibility from.
-+ *
-+ * WHY IT MATTERS. webOS's Flash imports NPN_CreateObject and NPN_InvalidateRect as undefined
-+ * dynamic symbols. Left alone they bind into libWebKitLuna.so — another browser engine that
-+ * is in this process because Flash (and our Piranha drawing path) pull it in. Two consequences,
-+ * both measured:
-+ *   1. Flash's repaint requests go to LunaSysMgr's WebKit and never reach our engine, so the
-+ *      plugin is only ever painted when something else happens to invalidate it. That alone
-+ *      makes an animating plugin look frozen.
-+ *   2. It is a latent crash: UXP stores a PluginInstanceChild* in NPP::ndata, while
-+ *      libWebKitLuna's NPN_InvalidateRect casts that same field to a WebCore::PluginView* and
-+ *      makes a virtual call on it — a wild vtable dispatch on the first repaint.
-+ *
-+ * The forwarding pointers are installed by PluginModuleChild once the browser function table
-+ * exists; until then these are safe no-ops.
-+ */
-+
-+#include <stdio.h>
-+
-+extern "C" {
-+
-+void  (*gJihadNPNInvalidateRect)(void* aNPP, void* aRect) = 0;
-+void* (*gJihadNPNCreateObject)(void* aNPP, void* aClass)  = 0;
-+
-+// Read by the host repaint clock in PluginInstanceChild.cpp: while this is zero the plugin has
-+// never asked to be repainted, so the host has to drive it.
-+unsigned gJihadNPNInvalidateRectCalls = 0;
-+
-+__attribute__((visibility("default"))) void
-+NPN_InvalidateRect(void* aNPP, void* aRect)
-+{
-+    // The first call is the signal that the plugin's frame clock is finally running; without
-+    // it the plugin is only ever painted by an unrelated invalidation, which is
-+    // indistinguishable on screen from a plugin that draws nothing. Log it once, and log the
-+    // no-forwarder case too — arriving before PluginModuleChild installs the pointers is a
-+    // dropped repaint, not a no-op.
-+    gJihadNPNInvalidateRectCalls++;
-+    static int sLogged = 0;
-+    if (sLogged < 8) {
-+        sLogged++;
-+        fprintf(stderr, "[jihad-npapi-child] NPN_InvalidateRect npp=%p rect=%p fwd=%p\n",
-+                aNPP, aRect, (void*)gJihadNPNInvalidateRect);
-+        fflush(stderr);
-+    }
-+    if (gJihadNPNInvalidateRect) {
-+        gJihadNPNInvalidateRect(aNPP, aRect);
-+    }
-+}
-+
-+__attribute__((visibility("default"))) void*
-+NPN_CreateObject(void* aNPP, void* aClass)
-+{
-+    return gJihadNPNCreateObject ? gJihadNPNCreateObject(aNPP, aClass) : 0;
-+}
-+
-+} // extern "C"
 diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
-index 57b88a30fb..18a59686a5 100644
+index 63fb92115e..f845645061 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.h
 +++ b/dom/plugins/ipc/PluginInstanceChild.h
 @@ -641,6 +641,18 @@ private:

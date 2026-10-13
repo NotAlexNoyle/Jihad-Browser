@@ -107,7 +107,7 @@ pref("dom.ipc.plugins.enabled", true);
 
 // The non-X windowless drawing model. NPDrawingModelAsyncBitmapSurface has the plugin draw into a
 // memory bitmap we own, which is exactly what this offscreen embedding wants and needs no X
-// server, no Drawable and no XEmbed — the reason `--disable-npapi-gtk2` is not a dead end.
+// server, no Drawable and no XEmbed — the reason a build without GTK2 NPAPI (the headless toolkit) is not a dead end.
 // PluginInstanceParent gates it on gfxPrefs::PluginAsyncDrawingEnabled() AND
 // gfxPlatform::SupportsPluginDirectBitmapDrawing(); gfxPlatformHeadless (our platform) already
 // returns true for the second, so this pref is the remaining half.

@@ -1,6 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:31 -0400
+Subject: [PATCH] npapi child process loader
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0018-npapi-child-process-loader.patch.
+---
+ ipc/glue/GeckoChildProcessHost.cpp | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/ipc/glue/GeckoChildProcessHost.cpp b/ipc/glue/GeckoChildProcessHost.cpp
+index c771b87eb0..24ace10d88 100644
 --- a/ipc/glue/GeckoChildProcessHost.cpp
 +++ b/ipc/glue/GeckoChildProcessHost.cpp
-@@ -662,6 +662,27 @@
+@@ -662,6 +662,27 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
  
    std::vector<std::string> childArgv;
  

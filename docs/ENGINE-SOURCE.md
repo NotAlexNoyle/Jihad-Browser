@@ -9,11 +9,11 @@ available is met.
 
 ## Origin
 
-- **Upstream:** UXP — https://repo.palemoon.org/MoonchildProductions/UXP, pristine at
-  `b2594a4ace4556b0a953c079a8c1bc350fc095ec` (master, 2026-06-30) — `UXP_BASE` in
-  `build/engine/engine-version.env`.
-- **Our modified engine:** the branch `jihad-engine-mods` of the fork `NotAlexNoyle/UXP-Jihad`,
-  at `UXP_PIN` (`db070f0003f22a50222f43b882499480d20c2ef7`), present in this repository as the
+- **Upstream:** UXP — https://repo.palemoon.org/MoonchildProductions/UXP, pristine at the release
+  `RB_20261006` (`5f290d1097a8350b56ce2092aa9d5fc9147c6661`, 2026-10-04) — `UXP_TAG` / `UXP_BASE` in
+  `build/engine/engine-version.env`. (Until 2026-10-12: master `b2594a4`, 2026-06-30.)
+- **Our modified engine:** the branch `jihad/uxp-RB_20261006` of the fork `NotAlexNoyle/UXP-Jihad`,
+  at `UXP_PIN` (`706d4782ba2cfc16d4e35df79475ccdce924accd`), present in this repository as the
   submodule `third_party/uxp`. The device build compiles that tree.
 - **The modifications as patches:** `build/desktop/patches/` holds every change as a patch
   against `UXP_BASE`. `build/engine/patch-queue.sh --check` proves the patches, applied in
@@ -22,7 +22,7 @@ available is met.
 ## Modifications to the engine (all MPL-2.0, source here)
 
 Every modified UXP file stays under the MPL-2.0. These patches are the source of the
-modifications; the same changes are the commits of `jihad-engine-mods`.
+modifications; the same changes are the commits of `jihad/uxp-RB_20261006`, one per patch.
 
 | Patch | Files | What it changes |
 |-------|-------|-----------------|

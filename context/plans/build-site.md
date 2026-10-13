@@ -490,6 +490,20 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 81 — The engine on UXP RB_20261006; updates made easy (2026-10-12; added to the site, not a regeneration)
+
+Owner: "Proceed with the UXP update, with a focus on making future updates easier, and optimizing the code where possible, while supporting modern web standards. target the latest release". Kit: cavekit-engine-update.md R2, R3, R4, R7, R8.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-442 | Split the squash into one commit per patch; carry the 39 onto RB_20261006 (three-way); read the six overlapping files | cavekit-engine-update.md | R7, R8 | — | no | M | DONE (no conflict; the NPAPI-GTK2 option dropped) |
+| T-443 | `build/engine/update-engine.sh` (start / --finish / --abort / --pins); `UXP_TAG` in the pins; the queue as git mails; the bundler reads the ICU name | cavekit-engine-update.md | R2, R7 | T-442 | no | M | DONE |
+| T-444 | `render/goanna/EngineCalls.h`: the 15 positional engine calls behind named wrappers | cavekit-engine-update.md | R3 | — | no | S | DONE (builds with the daemon) |
+| T-445 | Release build in Thumb-2 (`--enable-release --enable-gold --with-thumb=yes`) | cavekit-engine-update.md | R8 | T-442 | no | S | DONE (libxul -35%, code -43%) |
+| T-446 | Settings: a switch for CSS `:has()` (off, as upstream releases ship it) | cavekit-preferences-ui.md | — | — | yes | S | DONE (code) |
+| T-447 | Device: full variant push of the new engine to all three; the §7 checklist; the modern-web page before (old engine: no adoptedStyleSheets, URL.parse, revert-layer, :has) and after | cavekit-engine-update.md | R8 | T-445 | yes | M | DONE (all three; postinst's read-write test fixed on the way) |
+| T-448 | Review (Codex 22:31, or the inspector) of the update and the tooling | — | — | T-447 | no | M | |
+
 ## Tier 80 — Fonts, as Pale Moon and Basilisk offer them; no Persona by default (2026-10-12; added to the site, not a regeneration)
 
 Owner: "Add a setting for adjusting font like pale moon / basilisk have. ensure software and font licensing / redistribution terms are respected"; "no theme should be applied to any variant by default"; "you can apply themes if you need to for testing purposes just make sure you put the variants back to default afterwards". Kits: cavekit-preferences-ui.md R9, cavekit-personas-ui.md R9.

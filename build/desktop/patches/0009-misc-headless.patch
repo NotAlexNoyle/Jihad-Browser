@@ -1,7 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:25 -0400
+Subject: [PATCH] misc headless
+
 Misc headless build fixes (message_loop, XRE dir provider).
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
+
+Imported from build/desktop/patches/0009-misc-headless.patch.
+---
+ ipc/chromium/src/base/message_loop.cc | 6 ++++++
+ toolkit/xre/nsXREDirProvider.cpp      | 1 +
+ 2 files changed, 7 insertions(+)
 
 diff --git a/ipc/chromium/src/base/message_loop.cc b/ipc/chromium/src/base/message_loop.cc
 index 69493dccb1..ded952ea5a 100644

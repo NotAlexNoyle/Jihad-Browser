@@ -4,10 +4,11 @@ Jihad Browser renders with **Goanna**, the web engine of the **UXP** platform (P
 document is for the person who has to change or update that engine. Read it before touching
 `third_party/uxp`, `render/goanna/` or the engine parts of `build/`.
 
-Status: the groundwork for an update is in place (2026-10-08): one place for the pins, one list
-of the engine's own exports, a patch queue that provably equals the engine branch, and a checker
-that says what a candidate engine would break. **The engine has not been updated.** It is 76
-upstream commits behind as of that date, a few of which touch the same files as ours (§6).
+Status (2026-10-12): **the engine is on UXP's release `RB_20261006`** (it was on master
+`b2594a4` of 2026-06-30, five releases and about 170 upstream changes behind). The update was done
+with the procedure in §6, which is now two commands (`build/engine/update-engine.sh`): our 39
+commits carried across with git's three-way merge and no conflict, six files changed on both sides
+read by hand, `check-engine-api.py` 0 FAIL. The build is a release build in Thumb-2 (§4.5).
 
 ---
 
@@ -15,8 +16,8 @@ upstream commits behind as of that date, a few of which touch the same files as 
 
 | What | Where |
 |---|---|
-| Upstream | `https://repo.palemoon.org/MoonchildProductions/UXP`, pristine, at `UXP_BASE` |
-| Our branch | fork `NotAlexNoyle/UXP-Jihad`, branch **`jihad-engine-mods`**, at `UXP_PIN` |
+| Upstream | `https://repo.palemoon.org/MoonchildProductions/UXP`, pristine, at the release tag `UXP_TAG` (`UXP_BASE`) |
+| Our branch | fork `NotAlexNoyle/UXP-Jihad`, branch **`jihad/uxp-<UXP_TAG>`** (one per release; `jihad-engine-mods` is the old one, on `b2594a4`), at `UXP_PIN` |
 | In this repo | the submodule `third_party/uxp` (gitlink = `UXP_PIN`) |
 | The OE (device image) build | `build/webos-oe/recipes-jihad/goanna/goanna_1.0.bb`, `SRCREV` = `UXP_PIN` |
 | Pins and version strings | **`build/engine/engine-version.env`** — the one file to edit |
@@ -27,9 +28,10 @@ name disagree with `engine-version.env`.
 
 ## 2. The rule: the branch is the source of truth
 
-Every change to the engine is **a commit on `jihad-engine-mods`**. The patch queue
-(`build/desktop/patches/0001…`) is *generated* from those commits, for builds that start from
-pristine UXP (the desktop test build, and the MPL source record `docs/ENGINE-SOURCE.md`):
+Every change to the engine is **a commit on the engine branch**, one commit per patch. The patch
+queue (`build/desktop/patches/0001…`, git mails) is *generated* from those commits, for builds that
+start from pristine UXP (the desktop test build, the MPL source record `docs/ENGINE-SOURCE.md`) and
+to carry the changes to the next release (§6):
 
 ```bash
 build/engine/patch-queue.sh --add <commit>   # after committing an engine change: next patch
@@ -47,8 +49,9 @@ without committing there: the device build compiles the committed tree.
 
 ## 3. What our branch changes (the delta)
 
-The first commit, `07259a27f0`, is the original patch series squashed (patches 0001–0031); the
-rest are one commit each (0032–0039). Full list with files: `docs/ENGINE-SOURCE.md`.
+One commit per patch, 0001–0039 (until 2026-10-12 the first 31 were one squashed commit; they
+were split when the engine moved to `RB_20261006`, so each carries across on its own). Full list
+with files: `docs/ENGINE-SOURCE.md`.
 
 | Area | Patches | What and why |
 |---|---|---|
@@ -75,7 +78,11 @@ otherwise **silent**.
 
 ### 4.2 Engine internals the daemon calls — `render/goanna/*.cpp`
 The daemon is built "frozen-API" style (external strings, `libxpcomglue_s.a`, `-lxul`), but it
-also uses internals:
+also uses internals. The positional calls below go through **`render/goanna/EngineCalls.h`**
+(since 2026-10-12): one wrapper each, every argument named, the daemon's fixed values set once — a
+signature change upstream is one edit there. Headers can move too: since `RB_20261006`,
+`mozilla/StyleSheet.h` (reached through `nsIPresShell.h`) holds a `RefPtr<nsIDocument>` with inline
+users, so `GoannaRenderPage.cpp` includes `nsIDocument.h` first — the daemon did not build without.
 - **High:** `nsIDOMWindowUtils` with long positional argument lists (`sendMouseEventToWindow` 13
   args, `sendKeyEvent`, `sendTouchEventToWindow`, `getViewportInfo`, `nodesFromRect`);
   `nsIPresShell::ResizeReflowIgnoreOverride` (60 app units per pixel assumed); `GetPresShell` /
@@ -104,7 +111,12 @@ the checker): DNT (UXP dropped it; `EngineHost.cpp` sends the header) and `plugi
 
 ### 4.5 The build — `build/desktop/`, `build/webos-oe/`
 - mozconfigs (`mozconfig.goanna*`): `--enable-application=xulrunner`, `cairo-headless` (our
-  patch 0006), `--disable-npapi-gtk2`, audio options.
+  patch 0006), audio options; the device's `mozconfig.goanna-arm` is a **release** build
+  (`--enable-release --enable-gold`: per-function sections, the linker's dead-code removal and
+  identical-code folding, all off in "developer" mode) in **Thumb-2** (`--with-thumb=yes`), at
+  `-Os`. (`--disable-npapi-gtk2` went with `RB_20261006`: upstream no longer offers GTK2 NPAPI to a
+  headless toolkit.)
+- `make-device-bundle.sh` reads the ICU data file's name from `engine-version.env`.
 - `build-daemon-arm.sh` assumes the dist layout (`dist/{bin,include,sdk/lib}`).
 - `make-device-bundle.sh` hard-codes the ICU data file (from `engine-version.env`), the dlopened
   NSS and ffvpx libraries, the GRE file list, and the component manifests.
@@ -120,38 +132,41 @@ version add-ons are judged against — it follows the engine's compatibility lev
 
 | Tool | What it tells you |
 |---|---|
+| `build/engine/update-engine.sh [TAG] / --finish / --abort / --pins` | moves the engine to an upstream release: the queue carried across with a three-way merge, the overlaps listed, the API checked, every pin rewritten (§6) |
 | `build/engine/check-engine-pins.sh` | every pin and version string agrees with `engine-version.env` |
 | `build/engine/patch-queue.sh --check` | the patch queue reproduces the engine branch exactly |
 | `build/engine/check-engine-api.py [--uxp TREE]` | what in TREE no longer matches what Jihad uses: our exports (§4.1), IDL signatures and implemented interfaces (§4.2) against `engine-api-baseline.json`, the engine JS and about:addons markup (§4.3), prefs (§4.4), mozconfig options and the ICU file (§4.5). Run it on a candidate before building. |
 
 ## 6. Updating the engine (procedure)
 
-Do not update the engine casually: it is a full rebuild (hours), a full device push, and a
-regression pass. When it is time:
+Do not update the engine casually: it is a full rebuild (an hour or more), a full device push and
+a regression pass. When it is time (the owner decides):
 
-1. **Look first.** `git -C third_party/uxp fetch origin` and read `git log
-   UXP_BASE..origin/master`. Note commits touching files we change (`git diff --stat
-   UXP_BASE..origin/master -- $(git diff --name-only UXP_BASE UXP_PIN)`); as of 2026-10-08 these
-   were `old-configure.in` (`--disable-npapi-gtk2`), `PluginInstanceChild.{cpp,h}` (the
-   `gtk2xtbin` guard) and `toolkit/moz.configure` (skia).
-2. **Rebase our branch** onto the new upstream commit in the fork:
-   `git rebase --onto <new> UXP_BASE jihad-engine-mods`. Resolve per commit; the commit
-   messages and patch headers say why each change exists.
-3. **Check the candidate before building:** `build/engine/check-engine-api.py --uxp
-   third_party/uxp`. Every FAIL is a touchpoint to fix (in our code, or in the rebased branch).
-4. **Update the pins** in `engine-version.env` (`UXP_BASE`, `UXP_PIN`, `UXP_SHORT`, and
-   `GOANNA_VERSION` / `ICU_DATA` if they changed), then the gitlink, the recipe `SRCREV`, the user
-   agent and the start pages until `check-engine-pins.sh` passes.
-5. **Regenerate the queue** from the rebased commits (`git format-patch UXP_BASE..UXP_PIN`
-   into `build/desktop/patches/`, keeping the numbering), then `patch-queue.sh --check`.
-   Update `docs/ENGINE-SOURCE.md`.
-6. **Build** the engine and daemon for ARM (`docs/DEVICE-BUILD.md`), and the desktop test build;
-   run the tests in §7. Re-write the checker's baseline (`--write-baseline`) only once the build
-   and tests pass on the new engine.
-7. **On the device:** full engine push to all three variants (`push-engine-update.sh` without
-   `--daemon-only`), then the checklist in §7. The daemon's start-up line must say all optional
-   exports are present.
-8. Push the fork branch and the repo (the owner does pushes).
+1. **Carry the changes across:** `build/engine/update-engine.sh [TAG]` (default: the newest
+   `RB_*` release). It fetches upstream, applies the queue to TAG in a worktree beside this
+   repository with `git am -3`, lists the files upstream **also** changed since our base, and runs
+   `check-engine-api.py` on the result. A conflict stops it: resolve in the worktree, `git add`,
+   `git am --continue`, until done. (`--abort` gives up.)
+2. **Read the overlaps** it lists: `git -C third_party/uxp diff UXP_BASE TAG -- <file>` against
+   what our commit does there. A clean merge can still meet code that now behaves differently
+   (2026-10-12: upstream moved the GTK2 NPAPI option under GTK toolkits; our mozconfig named it).
+   Fix in the worktree with a new commit or `git commit --amend` on the right one.
+3. **Finish:** `build/engine/update-engine.sh --finish` writes the queue again (so it applies to
+   the new base next time), checks the branch out in `third_party/uxp`, brings every pin along
+   (`engine-version.env`, the OE recipe, the user agent and the three start pages) and runs
+   `patch-queue.sh --check` and `check-engine-pins.sh` (the gitlink check passes once committed).
+   Bump `JIHAD_APP_BUILD_ID` in `render/goanna/JihadUserAgent.h` so add-on data is checked again.
+4. **Build** for ARM: the engine (`build/webos-oe/build-goanna-arm.sh all` in the build container,
+   `docs/DEVICE-BUILD.md`), then the daemon, `make-device-bundle.sh`, and
+   `build-variant-ipk.sh` for each variant. Keep the old object directory for a rollback (on ZFS a
+   `cp -a` costs nothing).
+5. **On the device:** a **full** variant push (`push-variant.sh <variant>`, each in turn) — not
+   `push-engine-update.sh`, which sends libxul but not the engine's loose JS, CSS and chrome that
+   the release changed with it. Then the checklist in §7. The daemon's start-up line must say all
+   optional exports are present.
+6. Re-write the checker's baseline (`check-engine-api.py --write-baseline`) once the device
+   checks pass; update `docs/ENGINE-SOURCE.md`; commit the queue, the pins and the gitlink
+   together. Pushing the fork branch and the repository is the owner's.
 
 ## 7. What guards what
 
@@ -182,8 +197,6 @@ about:settings open; printing finds the test sink (`render/goanna/test/ipp-sink.
 
 ## 8. Next steps (not done yet)
 
-- Wrap the high-risk `nsIDOMWindowUtils` / reflow / `LoadURIWithOptions` calls behind small
-  functions in one file, so a signature change is one edit.
 - A JS shim for the engine modules the components import (LightweightThemeManager,
   AddonManager), and for the about:addons markup the Personas pane relies on.
 - One component-install script shared by `build-goanna.sh` and `make-device-bundle.sh` (their

@@ -112,11 +112,16 @@ done
 #   ###!!! ABORT: u_init() failed: file /src/uxp/xpcom/build/XPCOMInit.cpp, line 698
 # i.e. ICU could not initialize, which upstart dutifully respawned forever. A missing required
 # GRE file must fail the BUILD, not the device.
-REQUIRED_GRE="goanna.js dependentlibs.list platform.ini icudt78l.dat"
+# The ICU data file's name changes with ICU's version: it is read from the engine's pin file, the
+# one place an engine update edits (docs/ENGINE.md).
+# shellcheck disable=SC1091
+ICU_DATA_FILE=$(. "$REPO/build/engine/engine-version.env"; echo "$ICU_DATA")
+[ -n "$ICU_DATA_FILE" ] || { echo "ERROR: no ICU_DATA in build/engine/engine-version.env" >&2; exit 1; }
+REQUIRED_GRE="goanna.js dependentlibs.list platform.ini $ICU_DATA_FILE"
 for f in $REQUIRED_GRE; do
   src="$DIST/bin/$f"
   # Fall back to the in-tree source for a dist entry that is a container-only dangling symlink.
-  if [ ! -e "$src" ] && [ "$f" = "icudt78l.dat" ]; then
+  if [ ! -e "$src" ] && [ "$f" = "$ICU_DATA_FILE" ]; then
     src="$REPO/third_party/uxp/config/external/icu/data/$f"
   fi
   [ -e "$src" ] || { echo "ERROR: required GRE file missing: $f (looked in $DIST/bin)" >&2; exit 1; }

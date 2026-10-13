@@ -65,6 +65,11 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   the sample lines change, and a page drawn afterwards uses them; Restore default fonts puts them
   back. Try another script (Japanese) too. (preferences-ui R9; Enyo measured by script)
 
+## The engine on UXP RB_20261006 (2026-10-12)
+- [ ] Everyday browsing in each variant on the new engine: a few real sites, scrolling, typing in a
+  page's field, back and forward — nothing slower or odder than before. (cavekit-engine-update.md R8)
+- [ ] Flash with sound (jihad-audio-long), and a video with sound, on the new engine. (R8)
+
 ## Media and sound
 - [ ] A video's play/pause and volume by tap. (gre-widgets R1)
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,

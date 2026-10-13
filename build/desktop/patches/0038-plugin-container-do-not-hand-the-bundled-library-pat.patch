@@ -1,8 +1,8 @@
-From 628ee50c99dc43a8abc888306a1c97c371326ff5 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Mon, 5 Oct 2026 15:46:38 -0400
-Subject: [PATCH 38/39] plugin-container: do not hand the bundled library path
- to what the plugin runs
+Subject: [PATCH] plugin-container: do not hand the bundled library path to
+ what the plugin runs
 
 The plugin child is started through the bundled loader with an explicit
 --library-path, which is what its own dlopen()s search; the LD_LIBRARY_PATH it
@@ -53,6 +53,3 @@ index 64946dc1e9..873e437248 100644
  #ifdef MOZ_GMP
      XREChildData childData;
  #endif
--- 
-2.55.0
-

@@ -1,8 +1,8 @@
-From db070f0003f22a50222f43b882499480d20c2ef7 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Mon, 5 Oct 2026 18:11:17 -0400
-Subject: [PATCH 39/39] addons: an add-on naming both the AppCompat GUID and
- the toolkit is matched by the entry that fits
+Subject: [PATCH] addons: an add-on naming both the AppCompat GUID and the
+ toolkit is matched by the entry that fits
 
 matchingTargetApplication prefers, in order: this application's own id, the
 AppCompat GUID (extensions.guid.appCompatId, the Firefox GUID), the toolkit.
@@ -79,6 +79,3 @@ index 1b23267764..552a6266d8 100644
    get blocklistState() {
      let staticItem = findMatchingStaticBlocklistItem(this);
      if (staticItem)
--- 
-2.55.0
-

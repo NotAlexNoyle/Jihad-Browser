@@ -17,7 +17,8 @@ ac_add_options --enable-application=xulrunner
 # Jihad headless: X/GTK-free libxul (device has no X server / gtk). Fonts via the
 # sysroot's freetype+fontconfig; the widget backend is widget/headless (PuppetWidget).
 ac_add_options --enable-default-toolkit=cairo-headless
-ac_add_options --disable-npapi-gtk2
+# (No --disable-npapi-gtk2 since RB_20261006: upstream offers GTK2 NPAPI to GTK toolkits only, so a
+# headless build has none and the option no longer exists for it.)
 ac_add_options --disable-printing
 
 # --- cross target + host ---
@@ -26,6 +27,11 @@ ac_add_options --host=x86_64-pc-linux-gnu
 ac_add_options --with-arch=armv7-a
 ac_add_options --with-fpu=neon
 ac_add_options --with-float-abi=softfp
+# Thumb-2 code (2026-10-12, with the move to RB_20261006): about a quarter smaller than ARM code,
+# so less of the TouchPad's memory and instruction cache goes to the engine — what Mozilla built its
+# ARMv7 Android releases with. ARM-mode code (the JIT's, the HP Flash plugin) interworks through the
+# EABI as before.
+ac_add_options --with-thumb=yes
 
 # Point X11 detection at the sysroot, NOT the host. Otherwise AC_PATH_X finds the
 # build container's X headers and adds -I/usr/include, which pulls the HOST glibc
@@ -54,6 +60,12 @@ export CXXFLAGS="$CFLAGS"
 export LDFLAGS="-L/sysroot/usr/lib/arm-linux-gnueabi -L/sysroot/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/usr/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/lib/arm-linux-gnueabi"
 
 # --- release-shaped, trimmed for the device ---
+# A release build (2026-10-12): without --enable-release the build is in "developer" mode, which on
+# GCC leaves out -ffunction-sections/-fdata-sections and the linker's --gc-sections (dead code was
+# kept in libxul) and identical-code folding. Gold is named explicitly because developer mode was
+# what forced it, and folding (--icf=safe) needs it.
+ac_add_options --enable-release
+ac_add_options --enable-gold
 ac_add_options --enable-optimize=-Os
 ac_add_options --disable-debug
 ac_add_options --disable-warnings-as-errors

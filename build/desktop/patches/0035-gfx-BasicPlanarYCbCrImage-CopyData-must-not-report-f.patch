@@ -1,8 +1,8 @@
-From 1fff802335ca410fd75d1766b7d750f036a8763d Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Thu, 1 Oct 2026 09:12:50 -0400
-Subject: [PATCH 35/39] gfx: BasicPlanarYCbCrImage::CopyData must not report
- failure under delayed conversion
+Subject: [PATCH] gfx: BasicPlanarYCbCrImage::CopyData must not report failure
+ under delayed conversion
 
 BasicImageLayer::Paint swaps the BasicLayerManager's image factory into the
 video ImageContainer for the duration of a paint. A decoder thread that calls
@@ -45,6 +45,3 @@ index fc1be6e9a1..4533f69c84 100644
    }
  
    // Do some sanity checks to prevent integer overflow
--- 
-2.55.0
-

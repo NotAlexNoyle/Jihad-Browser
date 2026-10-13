@@ -1,6 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:34 -0400
+Subject: [PATCH] npapi recvshow copy frameid
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0022-npapi-recvshow-copy-frameid.patch.
+---
+ dom/plugins/ipc/PluginInstanceParent.cpp | 73 ++++++++++++++++++++++--
+ 1 file changed, 67 insertions(+), 6 deletions(-)
+
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index d2208e2f96..e38f6174aa 100644
 --- a/dom/plugins/ipc/PluginInstanceParent.cpp
 +++ b/dom/plugins/ipc/PluginInstanceParent.cpp
-@@ -1006,14 +1006,75 @@
+@@ -1006,14 +1006,75 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
                     updatedRect.bottom - updatedRect.top);
          surface->MarkDirty(ur);
  

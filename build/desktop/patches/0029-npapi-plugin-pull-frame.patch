@@ -1,3 +1,11 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:39 -0400
+Subject: [PATCH] npapi plugin pull frame
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
 Jihad Browser — pull the NPAPI plugin from the daemon's clock instead of sampling it.
 
 WHY. Patch 0028 made card delivery 1:1 with the plugin but left TWO clocks running: the plugin
@@ -54,9 +62,19 @@ just 0026 again.
 Also here: the per-call-site draw counters (`show req:`) that made all of the above visible, and
 that refuted the first hypothesis — the RecvUpdateBackground paths measured exactly zero.
 
+Imported from build/desktop/patches/0029-npapi-plugin-pull-frame.patch.
+---
+ dom/plugins/ipc/PPluginInstance.ipdl     |  23 ++++
+ dom/plugins/ipc/PluginInstanceChild.cpp  | 165 +++++++++++++++++++++++
+ dom/plugins/ipc/PluginInstanceChild.h    |   4 +
+ dom/plugins/ipc/PluginInstanceParent.cpp |  56 ++++++++
+ 4 files changed, 248 insertions(+)
+
+diff --git a/dom/plugins/ipc/PPluginInstance.ipdl b/dom/plugins/ipc/PPluginInstance.ipdl
+index d0d8acc78d..5e60af7aa5 100644
 --- a/dom/plugins/ipc/PPluginInstance.ipdl
 +++ b/dom/plugins/ipc/PPluginInstance.ipdl
-@@ -125,6 +125,29 @@
+@@ -125,6 +125,29 @@ child:
    // of its parent has changed
    async ContentsScaleFactorChanged(double aContentsScaleFactor);
  
@@ -86,22 +104,11 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
    // ********************** Async plugins rendering
    // see https://wiki.mozilla.org/Gecko:AsyncPluginPainting
    // **********************
---- a/dom/plugins/ipc/PluginInstanceChild.h
-+++ b/dom/plugins/ipc/PluginInstanceChild.h
-@@ -141,6 +141,10 @@
-     virtual bool
-     RecvContentsScaleFactorChanged(const double& aContentsScaleFactor) override;
- 
-+    // Jihad: the host is driving the frame clock — draw one now. See PPluginInstance.ipdl.
-+    virtual bool
-+    RecvJihadRequestFrame() override;
-+
-     virtual bool
-     AnswerNPP_Destroy(NPError* result) override;
- 
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 7f6de94e00..ff275d9bd1 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
-@@ -62,6 +62,49 @@
+@@ -62,6 +62,49 @@ static uint64_t gJihadPalmDrawEvents = 0;
  // Defined in JihadNPNInterpose.cpp, which deliberately includes no NPAPI headers.
  extern "C" unsigned gJihadNPNInvalidateRectCalls;
  
@@ -151,7 +158,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
  
  #ifdef MOZ_WIDGET_GTK
  
-@@ -3571,6 +3614,7 @@
+@@ -3571,6 +3614,7 @@ PluginInstanceChild::DoAsyncSetWindow(const gfxSurfaceType& aSurfaceType,
  #endif
  
      if (!mAccumulatedInvalidRect.IsEmpty()) {
@@ -159,7 +166,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
          AsyncShowPluginFrame();
      }
  }
-@@ -4070,7 +4114,93 @@
+@@ -4070,7 +4114,93 @@ PluginInstanceChild::JihadPalmRepaintTick()
      }
      NPRect windowRect = { 0, 0,
                            uint16_t(mWindow.height), uint16_t(mWindow.width) };
@@ -253,7 +260,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
  }
  
  namespace {
-@@ -4081,8 +4211,12 @@
+@@ -4081,8 +4211,12 @@ public:
      {
          int n = JihadPumpGlib(kJihadGlibPumpMaxIters);
  
@@ -266,7 +273,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
              (++sRepaintTicks % JihadRepaintEveryTicks()) == 0) {
              sJihadPalmInstance->JihadPalmRepaintTick();
          }
-@@ -4418,6 +4552,31 @@
+@@ -4418,6 +4552,31 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
                      fprintf(stderr, "[jihad-npapi-child] palm draw: %u in %ums (%.1f fps)\n",
                              sDraws, nowMs - sLastReport,
                              sDraws * 1000.0 / double(nowMs - sLastReport));
@@ -298,7 +305,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
                      fflush(stderr);
                      sDraws = 0;
                      sLastReport = nowMs;
-@@ -4919,6 +5078,7 @@
+@@ -4919,6 +5078,7 @@ PluginInstanceChild::InvalidateRectDelayed(void)
      }
  
      if (!ShowPluginFrame()) {
@@ -306,7 +313,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
          AsyncShowPluginFrame();
      }
  }
-@@ -4972,6 +5132,8 @@
+@@ -4972,6 +5132,8 @@ PluginInstanceChild::InvalidateRect(NPRect* aInvalidRect)
          mAccumulatedInvalidRect.UnionRect(r, mAccumulatedInvalidRect);
          // If we are able to paint and invalidate sent, then reset
          // accumulated rectangle
@@ -315,7 +322,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
          AsyncShowPluginFrame();
          return;
      }
-@@ -5015,6 +5177,7 @@
+@@ -5015,6 +5177,7 @@ PluginInstanceChild::RecvUpdateBackground(const SurfaceDescriptor& aBackground,
          IntSize bgSize = mBackground->GetSize();
          mAccumulatedInvalidRect.UnionRect(mAccumulatedInvalidRect,
                                            nsIntRect(0, 0, bgSize.width, bgSize.height));
@@ -323,7 +330,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
          AsyncShowPluginFrame();
          return true;
      }
-@@ -5024,6 +5187,7 @@
+@@ -5024,6 +5187,7 @@ PluginInstanceChild::RecvUpdateBackground(const SurfaceDescriptor& aBackground,
  
      // This must be asynchronous, because we may be nested within RPC messages
      // which do not expect to receiving paint events.
@@ -331,7 +338,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
      AsyncShowPluginFrame();
  
      return true;
-@@ -5056,6 +5220,7 @@
+@@ -5056,6 +5220,7 @@ PluginInstanceChild::RecvPPluginBackgroundDestroyerConstructor(
          // NB: we don't have to XSync here because only ShowPluginFrame()
          // uses mBackground, and it always XSyncs after finishing.
          mBackground = nullptr;
@@ -339,9 +346,26 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
          AsyncShowPluginFrame();
      }
  
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index 4bfc6cba37..db567059f5 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -141,6 +141,10 @@ protected:
+     virtual bool
+     RecvContentsScaleFactorChanged(const double& aContentsScaleFactor) override;
+ 
++    // Jihad: the host is driving the frame clock — draw one now. See PPluginInstance.ipdl.
++    virtual bool
++    RecvJihadRequestFrame() override;
++
+     virtual bool
+     AnswerNPP_Destroy(NPError* result) override;
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index a12814960e..6c55f4843f 100644
 --- a/dom/plugins/ipc/PluginInstanceParent.cpp
 +++ b/dom/plugins/ipc/PluginInstanceParent.cpp
-@@ -115,6 +115,16 @@
+@@ -115,6 +115,16 @@ PluginInstanceParent::LookupPluginInstanceByID(uintptr_t aId)
  }
  #endif
  
@@ -358,7 +382,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
  PluginInstanceParent::PluginInstanceParent(PluginModuleParent* parent,
                                             NPP npp,
                                             const nsCString& aMimeType,
-@@ -145,10 +155,24 @@
+@@ -145,10 +155,24 @@ PluginInstanceParent::PluginInstanceParent(PluginModuleParent* parent,
          sPluginInstanceList = new nsClassHashtable<nsVoidPtrHashKey, PluginInstanceParent>();
      }
  #endif
@@ -383,7 +407,7 @@ that refuted the first hypothesis — the RecvUpdateBackground paths measured ex
      if (mNPP)
          mNPP->pdata = nullptr;
  
-@@ -928,6 +952,38 @@
+@@ -928,6 +952,38 @@ MOZ_EXPORT uint32_t jihad_plugin_frame_seq(void)
  }
  }
  

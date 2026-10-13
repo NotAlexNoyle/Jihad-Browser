@@ -1,8 +1,8 @@
-From 0c10df5c94221fd92b87162a2df0c9d352f961ae Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Sun, 16 Aug 2026 10:05:39 -0400
-Subject: [PATCH 32/39] videocontrols: fix scrubber flicker/settle +
- interpolate the thumb
+Subject: [PATCH] videocontrols: fix scrubber flicker/settle + interpolate the
+ thumb
 
 On the offscreen webOS surface the media-controls scrubber had three defects, all fixed
 here (the flicker root cause was the daemon's per-buffer damage, fixed separately):
@@ -158,6 +158,3 @@ index 630f5a0226..18f82569fd 100644
                  showBuffered : function() {
                      function bsearch(haystack, needle, cmp) {
                          var length = haystack.length;
--- 
-2.55.0
-

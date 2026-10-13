@@ -1,6 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:33 -0400
+Subject: [PATCH] npapi composite without imagebridge
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0020-npapi-composite-without-imagebridge.patch.
+---
+ dom/plugins/ipc/PluginInstanceParent.cpp | 51 +++++++++++++++++++++++-
+ 1 file changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index c1efb1da12..d2208e2f96 100644
 --- a/dom/plugins/ipc/PluginInstanceParent.cpp
 +++ b/dom/plugins/ipc/PluginInstanceParent.cpp
-@@ -771,6 +771,51 @@
+@@ -771,6 +771,51 @@ PluginInstanceParent::RecvShowDirectBitmap(Shmem&& buffer,
          return false;
      }
  
@@ -52,7 +66,7 @@
      // Allocate a texture for the compositor.
      RefPtr<TextureClientRecycleAllocator> allocator = mParent->EnsureTextureAllocatorForDirectBitmap();
      RefPtr<TextureClient> texture = allocator->CreateOrRecycle(
-@@ -1303,7 +1348,11 @@
+@@ -1303,7 +1348,11 @@ PluginInstanceParent::GetImageContainer()
      return mImageContainer;
    }
  

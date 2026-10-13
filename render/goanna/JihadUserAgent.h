@@ -23,9 +23,10 @@
  * Token rationale (per project UA requirements):
  *   webOS/3.0.5; hpwOS/3.0.5; TouchPad  — the real HP webOS 3 platform tokens
  *   Goanna/6.9                          — the rendering engine (UXP/Goanna)
- *   UXP/b2594a4                         — the exact UXP commit this build embeds
+ *   UXP/<commit>                        — the upstream UXP release commit this build embeds
+ *                                         (UXP_SHORT in build/engine/engine-version.env)
  *   Firefox/52.9                        — site-compat token (UXP is ESR52-derived)
- *   ECMAScript/2024                     — the JS language level Goanna b2594a4 ships
+ *   ECMAScript/2024                     — the JS language level this Goanna ships
  *                                         (Object.groupBy, Promise.withResolvers,
  *                                          String.isWellFormed, Array toSorted/…)
  *   JihadBrowser/1.0                    — the product (never bare "Jihad")
@@ -62,11 +63,11 @@
 // rescan on every build and make the daemon binary non-reproducible. BUMP IT
 // when shipping a build whose chrome/components changed in a way that must
 // invalidate those caches.
-#define JIHAD_APP_BUILD_ID "20260801000000"
+#define JIHAD_APP_BUILD_ID "20261012000000"   // the engine moved to UXP RB_20261006
 
 #define JIHAD_USER_AGENT \
   "Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad) " \
-  "Goanna/6.9 UXP/b2594a4 Firefox/52.9 ECMAScript/2024 " \
+  "Goanna/6.9 UXP/5f290d1 Firefox/52.9 ECMAScript/2024 " \
   JIHAD_APP_NAME "/" JIHAD_APP_VERSION
 
 #endif // JIHAD_USER_AGENT_H

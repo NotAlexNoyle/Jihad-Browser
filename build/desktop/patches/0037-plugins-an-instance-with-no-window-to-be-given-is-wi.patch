@@ -1,7 +1,7 @@
-From 0048d50fa96110eb7493f2d8d8b5a44c9161a95c Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Mon, 5 Oct 2026 15:30:05 -0400
-Subject: [PATCH 37/39] plugins: an instance with no window to be given is
+Subject: [PATCH] plugins: an instance with no window to be given is
  windowless, not a null dereference
 
 nsPluginInstanceOwner::CreateWidget() creates a child-window widget for a
@@ -85,6 +85,3 @@ index efaf0e5510..5b3ba30708 100644
    }
  
    if (mPluginFrame) {
--- 
-2.55.0
-

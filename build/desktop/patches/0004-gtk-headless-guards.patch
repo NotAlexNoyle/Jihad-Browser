@@ -1,7 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:21 -0400
+Subject: [PATCH] gtk headless guards
+
 Guard gtk realize/theme/look-and-feel paths so libxul runs with NO X server (headless offscreen render).
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
+
+Imported from build/desktop/patches/0004-gtk-headless-guards.patch.
+---
+ widget/gtk/gtk2drawing.c        | 50 +++++++++++++++++++++------------
+ widget/gtk/nsLookAndFeel.cpp    | 15 ++++++++++
+ widget/gtk/nsNativeThemeGTK.cpp |  8 ++++++
+ 3 files changed, 55 insertions(+), 18 deletions(-)
 
 diff --git a/widget/gtk/gtk2drawing.c b/widget/gtk/gtk2drawing.c
 index 7fcac4de63..9de7d566a4 100644

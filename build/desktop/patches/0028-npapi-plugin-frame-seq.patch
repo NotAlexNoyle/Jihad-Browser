@@ -1,3 +1,11 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:38 -0400
+Subject: [PATCH] npapi plugin frame seq
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
 Jihad Browser — export a plugin frame counter so the embedder can be 1:1 with the plugin.
 
 WHY. The daemon's only signal that something changed is PuppetWidget's sticky dirty boolean,
@@ -16,9 +24,16 @@ publish. Measured with it: done=91 against palm draw=92, deferred=0.
 Weak-linked on the daemon side exactly like jihad_offscreen_take_dirty, so a libxul without it
 degrades to the old dirty-flag behaviour rather than failing to load.
 
---- a/dom/plugins/ipc/PluginInstanceParent.cpp	2026-08-10 17:18:13.605735380 -0400
-+++ b/dom/plugins/ipc/PluginInstanceParent.cpp	2026-08-10 17:18:13.605896727 -0400
-@@ -911,6 +911,23 @@
+Imported from build/desktop/patches/0028-npapi-plugin-frame-seq.patch.
+---
+ dom/plugins/ipc/PluginInstanceParent.cpp | 28 ++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index 01e2a1b1a9..a12814960e 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -911,6 +911,23 @@ PluginInstanceParent::RecvShowDirectDXGISurface(const WindowsHandle& handle,
  }
  #endif // MOZ_ENABLE_NPAPI
  
@@ -42,7 +57,7 @@ degrades to the old dirty-flag behaviour rather than failing to load.
  bool
  PluginInstanceParent::RecvShow(const NPRect& updatedRect,
                                 const SurfaceDescriptor& newSurface,
-@@ -1105,6 +1122,17 @@
+@@ -1105,6 +1122,17 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
      }
  
      mFrontSurface = surface;

@@ -1,3 +1,15 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:33 -0400
+Subject: [PATCH] npapi windowless invalidate offscreen
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0021-npapi-windowless-invalidate-offscreen.patch.
+---
+ dom/plugins/base/nsPluginInstanceOwner.cpp | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
 diff --git a/dom/plugins/base/nsPluginInstanceOwner.cpp b/dom/plugins/base/nsPluginInstanceOwner.cpp
 index e3fcc83f0d..5bb7a60a6b 100644
 --- a/dom/plugins/base/nsPluginInstanceOwner.cpp

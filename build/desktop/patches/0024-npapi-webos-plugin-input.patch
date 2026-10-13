@@ -1,3 +1,11 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:36 -0400
+Subject: [PATCH] npapi webos plugin input
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
 Jihad Browser — webOS NPAPI plugin INPUT, the frozen plugin YAP commands, and the frame path
 that makes ANIMATED plugin content run (addons R7).
 
@@ -46,9 +54,24 @@ plugin draws at 27-31 fps, every frame crosses IPC, and the card composites at 2
 average frame gap of 31-35 ms. Before this work the same content drew at 30 fps inside the
 plugin and reached the screen 5 times in 25 seconds.
 
+Imported from build/desktop/patches/0024-npapi-webos-plugin-input.patch.
+---
+ dom/plugins/base/npapi.h                   | 160 +++++++++++++++++++
+ dom/plugins/base/nsPluginHost.cpp          |  59 +++++++
+ dom/plugins/base/nsPluginHost.h            |   7 +
+ dom/plugins/base/nsPluginInstanceOwner.cpp | 170 ++++++++++++++++++++-
+ dom/plugins/ipc/PluginInstanceChild.cpp    | 150 +++++++++++++-----
+ dom/plugins/ipc/PluginInstanceChild.h      |   4 +
+ dom/plugins/ipc/PluginInstanceParent.cpp   |  21 +++
+ widget/PuppetWidget.cpp                    |  14 ++
+ widget/PuppetWidget.h                      |  29 ++++
+ 9 files changed, 572 insertions(+), 42 deletions(-)
+
+diff --git a/dom/plugins/base/npapi.h b/dom/plugins/base/npapi.h
+index b732265110..cd0bab5b25 100644
 --- a/dom/plugins/base/npapi.h
 +++ b/dom/plugins/base/npapi.h
-@@ -577,6 +577,166 @@
+@@ -577,6 +577,166 @@ typedef struct _NPEvent
  } NPEvent;
  #elif defined(XP_UNIX) && defined(MOZ_X11)
  typedef XEvent NPEvent;
@@ -215,9 +238,96 @@ plugin and reached the screen 5 times in 25 seconds.
  #else
  typedef void*  NPEvent;
  #endif
+diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
+index 61a608fc45..32eaa457fc 100644
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -4210,3 +4210,62 @@ PluginDestructionGuard::DelayDestroy(nsNPAPIPluginInstance *aInstance)
+ 
+   return false;
+ }
++
++// ── JIHAD (webOS, cavekit-addons-extensions.md R7) ────────────────────────────────────────
++//
++// A C entry point for the render daemon, following the jihad_offscreen_* precedent in
++// widget/PuppetWidget.cpp: the daemon links against libxul but cannot see internal classes,
++// and nsNPAPIPluginInstance::HandleEvent is neither exported nor virtual, so there is no
++// other way to reach a plugin from outside.
++//
++// This exists for the frozen YAP command pair asyncCmdPluginSpotlightStart/End. The card
++// scrims and smart-zooms to a plugin, then tells the server the rect it settled on; the
++// server's job is to pass that on to the plugin as Palm's npPalmSpotlightStartEvent(11) /
++// npPalmSpotlightEndEvent(12). It is not cosmetic: Flash routes 11 to the same handler as
++// npPalmSetFullScreenEvent(6) and 12 to the same as npPalmUnsetFullScreenEvent(7)
++// (libflashplayer.so jump table at 0x44e0c — entries 10 and 11 target 0x44fa0/0x44e80,
++// identical to entries 5 and 6), so this is how a plugin is told it went fullscreen.
++//
++// Broadcast to every running instance rather than targeting one: the spotlight is a
++// page-level, one-plugin-at-a-time state, this daemon serves a single card, and the
++// alternative — matching the rect against each instance's frame — would invent a
++// disambiguation rule that the contract does not define. Returns how many instances were
++// told, so a caller can tell "no plugin" from "delivered".
++extern "C" MOZ_EXPORT int
++jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight, int aBottom)
++{
++#ifdef MOZ_ENABLE_NPAPI
++  RefPtr<nsPluginHost> host = nsPluginHost::GetInst();
++  if (!host) {
++    return 0;
++  }
++
++  NPEvent ev;
++  memset(&ev, 0, sizeof(ev));
++  ev.eventType = npPalmSystemEvent;
++  ev.data.systemEvent.type = aOn ? npPalmSpotlightStartEvent : npPalmSpotlightEndEvent;
++  // Palm's host leaves systemEvent.value uninitialised here and fills only the rect
++  // (libWebKitLuna handlePluginSpotlightStart 0x4e6cec-0x4e6d24, which never writes [sp+8]).
++  // The memset above zeroes it, which is strictly tidier and observably the same.
++  ev.data.systemEvent.viewLeft   = aLeft;
++  ev.data.systemEvent.viewTop    = aTop;
++  ev.data.systemEvent.viewRight  = aRight;
++  ev.data.systemEvent.viewBottom = aBottom;
++
++  int delivered = 0;
++  // Copy the instance list first: HandleEvent re-enters the plugin, which may run script and
++  // tear an instance down underneath us.
++  nsTArray<RefPtr<nsNPAPIPluginInstance>> instances(host->JihadRunningInstances());
++  for (uint32_t i = 0; i < instances.Length(); ++i) {
++    int16_t response = kNPEventNotHandled;
++    if (NS_SUCCEEDED(instances[i]->HandleEvent(&ev, &response,
++                                               NS_PLUGIN_CALL_SAFE_TO_REENTER_GECKO))) {
++      delivered++;
++    }
++  }
++  return delivered;
++#else
++  (void)aOn; (void)aLeft; (void)aTop; (void)aRight; (void)aBottom;
++  return 0;
++#endif
++}
+diff --git a/dom/plugins/base/nsPluginHost.h b/dom/plugins/base/nsPluginHost.h
+index 6cfc258751..2ea627411f 100644
+--- a/dom/plugins/base/nsPluginHost.h
++++ b/dom/plugins/base/nsPluginHost.h
+@@ -274,6 +274,13 @@ public:
+                              InfallibleTArray<nsCString>& result,
+                              bool firstMatchOnly);
+ 
++  // Jihad R7 (webOS): a snapshot of the live instances, for jihad_plugin_palm_spotlight.
++  // A COPY, not a reference: dispatching an event re-enters the plugin, which can run script
++  // and destroy an instance, and mInstances is mutated by that teardown.
++  const nsTArray<RefPtr<nsNPAPIPluginInstance>>& JihadRunningInstances() const {
++    return mInstances;
++  }
++
+ private:
+   friend class nsPluginUnloadRunnable;
+ 
+diff --git a/dom/plugins/base/nsPluginInstanceOwner.cpp b/dom/plugins/base/nsPluginInstanceOwner.cpp
+index 5bb7a60a6b..efaf0e5510 100644
 --- a/dom/plugins/base/nsPluginInstanceOwner.cpp
 +++ b/dom/plugins/base/nsPluginInstanceOwner.cpp
-@@ -582,12 +582,60 @@
+@@ -582,12 +582,60 @@ NS_IMETHODIMP nsPluginInstanceOwner::InvalidateRect(NPRect *invalidRect)
    // render_region fired ONCE (at load) so the card froze on the pre-content frame. The control
    // plugin only appeared to work because its static fill was already present at that single
    // capture. Invalidate the nearest real widget here so every async plugin frame marks the daemon
@@ -281,7 +391,7 @@ plugin and reached the screen 5 times in 25 seconds.
      }
    }
    return NS_OK;
-@@ -2551,6 +2599,122 @@
+@@ -2551,6 +2599,122 @@ nsEventStatus nsPluginInstanceOwner::ProcessEvent(const WidgetGUIEvent& anEvent)
      rv = nsEventStatus_eConsumeNoDefault;
  #endif
  
@@ -404,9 +514,11 @@ plugin and reached the screen 5 times in 25 seconds.
    return rv;
  }
  
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 7e20901ff4..b692076ae2 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
-@@ -207,6 +207,7 @@
+@@ -207,6 +207,7 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
      , mAccumulatedInvalidRect(0,0,0,0)
      , mIsTransparent(false)
      , mJihadSentPalmGainFocus(false)
@@ -414,7 +526,7 @@ plugin and reached the screen 5 times in 25 seconds.
      , mSurfaceType(gfxSurfaceType::Max)
      , mPendingPluginCall(false)
      , mDoAlphaExtraction(false)
-@@ -288,29 +289,42 @@
+@@ -288,29 +289,42 @@ PluginInstanceChild::~PluginInstanceChild()
  // WebCore::PluginView compiled from PluginViewPalm.cpp into /usr/lib/libWebKitLuna.so, which
  // is unstripped on the device and can simply be read. Offsets cited below are into that
  // library. Get these wrong and the plugin reads garbage, silently.
@@ -480,7 +592,7 @@ plugin and reached the screen 5 times in 25 seconds.
  
  // NPWindow.window for a webOS plugin. Palm's host never calls setwindow without one:
  // PluginView::setNPWindowRect (libWebKitLuna 0x4e74e0) builds it as a STACK LOCAL, points
-@@ -1067,6 +1081,35 @@
+@@ -1067,6 +1081,35 @@ PluginInstanceChild::AnswerNPP_HandleEvent(const NPRemoteEvent& event,
      else
          *handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&evcopy));
  
@@ -516,7 +628,7 @@ plugin and reached the screen 5 times in 25 seconds.
  #ifdef XP_MACOSX
      // Release any reference counted objects created in the child process.
      if (evcopy.type == NPCocoaEventKeyDown ||
-@@ -3904,10 +3947,10 @@
+@@ -3904,10 +3947,10 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
          // UpdateWindowAttributes runs on every resize and every scroll.
          if (mPluginIface->event && !mJihadSentPalmGainFocus) {
              mJihadSentPalmGainFocus = true;
@@ -530,7 +642,7 @@ plugin and reached the screen 5 times in 25 seconds.
              int16_t handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&ev));
              fprintf(stderr, "[jihad-npapi-child] npPalmSystemEvent gainFocus handled=%d\n",
                      (int)handled);
-@@ -4270,21 +4313,30 @@
+@@ -4270,21 +4313,30 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
          int32_t stride = img->Stride();
  
          if (data && stride > 0) {
@@ -573,7 +685,7 @@ plugin and reached the screen 5 times in 25 seconds.
              ev.data.drawEvent.dstLeft   = ev.data.drawEvent.srcLeft;
              ev.data.drawEvent.dstTop    = ev.data.drawEvent.srcTop;
              ev.data.drawEvent.dstRight  = ev.data.drawEvent.srcRight;
-@@ -4326,6 +4378,26 @@
+@@ -4326,6 +4378,26 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
              gJihadPalmDrawEvents++;
  
              static int sLogged = 0;
@@ -600,7 +712,7 @@ plugin and reached the screen 5 times in 25 seconds.
              if (sLogged < 3) {
                  sLogged++;
                  // handled= is reported but means nothing on its own: Flash's NPP_HandleEvent
-@@ -4335,7 +4407,7 @@
+@@ -4335,7 +4407,7 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
                  fprintf(stderr, "[jihad-npapi-child] npPalmDrawEvent %s %d,%d %dx%d "
                                  "stride=%d ctx=%p handled=%d\n",
                          ev.data.drawEvent.graphicsContext ? "pgcontext" : "raster",
@@ -609,9 +721,11 @@ plugin and reached the screen 5 times in 25 seconds.
                          (int)stride, ev.data.drawEvent.graphicsContext, (int)handled);
                  fflush(stderr);
              }
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index f845645061..4bfc6cba37 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.h
 +++ b/dom/plugins/ipc/PluginInstanceChild.h
-@@ -645,6 +645,10 @@
+@@ -645,6 +645,10 @@ private:
      // setwindow that carries it runs again on every resize and scroll.
      bool mJihadSentPalmGainFocus;
  
@@ -622,90 +736,11 @@ plugin and reached the screen 5 times in 25 seconds.
  public:
      // Jihad R7 (webOS): repaint this instance from the host's own clock. See
      // JihadGlibPumpTask::Run — a webOS plugin is not obliged to ask for repaints, because the
---- a/dom/plugins/base/nsPluginHost.cpp
-+++ b/dom/plugins/base/nsPluginHost.cpp
-@@ -4210,3 +4210,62 @@
- 
-   return false;
- }
-+
-+// ── JIHAD (webOS, cavekit-addons-extensions.md R7) ────────────────────────────────────────
-+//
-+// A C entry point for the render daemon, following the jihad_offscreen_* precedent in
-+// widget/PuppetWidget.cpp: the daemon links against libxul but cannot see internal classes,
-+// and nsNPAPIPluginInstance::HandleEvent is neither exported nor virtual, so there is no
-+// other way to reach a plugin from outside.
-+//
-+// This exists for the frozen YAP command pair asyncCmdPluginSpotlightStart/End. The card
-+// scrims and smart-zooms to a plugin, then tells the server the rect it settled on; the
-+// server's job is to pass that on to the plugin as Palm's npPalmSpotlightStartEvent(11) /
-+// npPalmSpotlightEndEvent(12). It is not cosmetic: Flash routes 11 to the same handler as
-+// npPalmSetFullScreenEvent(6) and 12 to the same as npPalmUnsetFullScreenEvent(7)
-+// (libflashplayer.so jump table at 0x44e0c — entries 10 and 11 target 0x44fa0/0x44e80,
-+// identical to entries 5 and 6), so this is how a plugin is told it went fullscreen.
-+//
-+// Broadcast to every running instance rather than targeting one: the spotlight is a
-+// page-level, one-plugin-at-a-time state, this daemon serves a single card, and the
-+// alternative — matching the rect against each instance's frame — would invent a
-+// disambiguation rule that the contract does not define. Returns how many instances were
-+// told, so a caller can tell "no plugin" from "delivered".
-+extern "C" MOZ_EXPORT int
-+jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight, int aBottom)
-+{
-+#ifdef MOZ_ENABLE_NPAPI
-+  RefPtr<nsPluginHost> host = nsPluginHost::GetInst();
-+  if (!host) {
-+    return 0;
-+  }
-+
-+  NPEvent ev;
-+  memset(&ev, 0, sizeof(ev));
-+  ev.eventType = npPalmSystemEvent;
-+  ev.data.systemEvent.type = aOn ? npPalmSpotlightStartEvent : npPalmSpotlightEndEvent;
-+  // Palm's host leaves systemEvent.value uninitialised here and fills only the rect
-+  // (libWebKitLuna handlePluginSpotlightStart 0x4e6cec-0x4e6d24, which never writes [sp+8]).
-+  // The memset above zeroes it, which is strictly tidier and observably the same.
-+  ev.data.systemEvent.viewLeft   = aLeft;
-+  ev.data.systemEvent.viewTop    = aTop;
-+  ev.data.systemEvent.viewRight  = aRight;
-+  ev.data.systemEvent.viewBottom = aBottom;
-+
-+  int delivered = 0;
-+  // Copy the instance list first: HandleEvent re-enters the plugin, which may run script and
-+  // tear an instance down underneath us.
-+  nsTArray<RefPtr<nsNPAPIPluginInstance>> instances(host->JihadRunningInstances());
-+  for (uint32_t i = 0; i < instances.Length(); ++i) {
-+    int16_t response = kNPEventNotHandled;
-+    if (NS_SUCCEEDED(instances[i]->HandleEvent(&ev, &response,
-+                                               NS_PLUGIN_CALL_SAFE_TO_REENTER_GECKO))) {
-+      delivered++;
-+    }
-+  }
-+  return delivered;
-+#else
-+  (void)aOn; (void)aLeft; (void)aTop; (void)aRight; (void)aBottom;
-+  return 0;
-+#endif
-+}
---- a/dom/plugins/base/nsPluginHost.h
-+++ b/dom/plugins/base/nsPluginHost.h
-@@ -274,6 +274,13 @@
-                              InfallibleTArray<nsCString>& result,
-                              bool firstMatchOnly);
- 
-+  // Jihad R7 (webOS): a snapshot of the live instances, for jihad_plugin_palm_spotlight.
-+  // A COPY, not a reference: dispatching an event re-enters the plugin, which can run script
-+  // and destroy an instance, and mInstances is mutated by that teardown.
-+  const nsTArray<RefPtr<nsNPAPIPluginInstance>>& JihadRunningInstances() const {
-+    return mInstances;
-+  }
-+
- private:
-   friend class nsPluginUnloadRunnable;
- 
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index e38f6174aa..01e2a1b1a9 100644
 --- a/dom/plugins/ipc/PluginInstanceParent.cpp
 +++ b/dom/plugins/ipc/PluginInstanceParent.cpp
-@@ -924,6 +924,27 @@
+@@ -924,6 +924,27 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
  
      MOZ_ASSERT(!IsUsingDirectDrawing());
  
@@ -733,9 +768,11 @@ plugin and reached the screen 5 times in 25 seconds.
      // XXXjwatt rewrite to use Moz2D
      RefPtr<gfxASurface> surface;
      if (newSurface.type() == SurfaceDescriptor::TShmem) {
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index a680f0f3c1..6f066b1b33 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
-@@ -343,6 +343,7 @@
+@@ -343,6 +343,7 @@ PuppetWidget::Invalidate(const LayoutDeviceIntRect& aRect)
    // Jihad: record that content changed so the offscreen render daemon repaints
    // (jihad_offscreen_take_dirty). Sticky — only the daemon's drain clears it.
    mJihadDirty = true;
@@ -743,7 +780,7 @@ plugin and reached the screen 5 times in 25 seconds.
  
    mDirtyRegion.Or(mDirtyRegion, aRect);
  
-@@ -832,6 +833,19 @@
+@@ -832,6 +833,19 @@ jihad_offscreen_take_dirty(nsIWidget* aWidget)
    return static_cast<PuppetWidget*>(aWidget)->JihadTakeDirty();
  }
  
@@ -763,9 +800,11 @@ plugin and reached the screen 5 times in 25 seconds.
  // Render the docShell's document into the widget's offscreen DrawTarget via the
  // presShell (canonical offscreen render). The daemon passes the content nsIDocShell
  // it already resolves. Returns true if the document rendered.
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 07a102c20d..6d3c680c7b 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
-@@ -243,6 +243,31 @@
+@@ -243,6 +243,31 @@ public:
      return d;
    }
  
@@ -797,7 +836,7 @@ plugin and reached the screen 5 times in 25 seconds.
    virtual TabChild* GetOwningTabChild() override { return mTabChild; }
  
    void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -386,6 +411,10 @@
+@@ -386,6 +411,10 @@ private:
    RefPtr<PuppetWidget> mChild;
    LayoutDeviceIntRegion mDirtyRegion;
    bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()

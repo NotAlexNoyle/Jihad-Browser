@@ -1,3 +1,16 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:28 -0400
+Subject: [PATCH] xpi install embedding
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0013-xpi-install-embedding.patch.
+---
+ toolkit/mozapps/extensions/AddonManager.jsm   | 33 ++++++++++++++-----
+ .../mozapps/extensions/amInstallTrigger.js    | 32 +++++++++++++-----
+ 2 files changed, 49 insertions(+), 16 deletions(-)
+
 diff --git a/toolkit/mozapps/extensions/AddonManager.jsm b/toolkit/mozapps/extensions/AddonManager.jsm
 index aef5c6acba..fee45fa085 100644
 --- a/toolkit/mozapps/extensions/AddonManager.jsm

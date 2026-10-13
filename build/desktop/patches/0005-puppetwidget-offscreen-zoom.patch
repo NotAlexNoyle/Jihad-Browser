@@ -1,3 +1,16 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:22 -0400
+Subject: [PATCH] puppetwidget offscreen zoom
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0005-puppetwidget-offscreen-zoom.patch.
+---
+ widget/PuppetWidget.cpp | 709 +++++++++++++++++++++++++++++++++++++++-
+ widget/PuppetWidget.h   |  44 +++
+ 2 files changed, 747 insertions(+), 6 deletions(-)
+
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
 index 0294193adf..a680f0f3c1 100644
 --- a/widget/PuppetWidget.cpp

@@ -1,7 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:21 -0400
+Subject: [PATCH] gfx init and omtc
+
 Force in-process BasicLayerManager (JIHAD_DISABLE_OMTC) + init gfxPlatform in XRE_InitEmbedding2 so gfxVars/gfxConfig are ready before first paint.
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
+
+Imported from build/desktop/patches/0003-gfx-init-and-omtc.patch.
+---
+ gfx/thebes/gfxPlatform.cpp       | 11 +++++++++++
+ gfx/thebes/gfxPlatformGtk.cpp    | 18 +++++++++++++++---
+ toolkit/xre/nsEmbedFunctions.cpp |  8 ++++++++
+ 3 files changed, 34 insertions(+), 3 deletions(-)
 
 diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
 index d5eb69b410..ddad584b3e 100644

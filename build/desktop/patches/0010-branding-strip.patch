@@ -1,7 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:26 -0400
+Subject: [PATCH] branding strip
+
 Licensing/branding (cavekit-licensing-branding R3): strip Pale Moon / Basilisk / Moonchild branding URLs from the engine defaults; about:credits -> Jihad project page.
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
+
+Imported from build/desktop/patches/0010-branding-strip.patch.
+---
+ docshell/base/nsAboutRedirector.cpp | 2 +-
+ modules/libpref/init/all.js         | 8 ++++----
+ toolkit/xre/nsAppRunner.cpp         | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/docshell/base/nsAboutRedirector.cpp b/docshell/base/nsAboutRedirector.cpp
 index c393fdd13e..fc2e5c8b9a 100644
@@ -17,7 +29,7 @@ index c393fdd13e..fc2e5c8b9a 100644
      nsIAboutModule::MAKE_LINKABLE
    },
 diff --git a/modules/libpref/init/all.js b/modules/libpref/init/all.js
-index 4f7918c80d..d6d1e6c860 100644
+index 637ac13a7d..adff8b10dd 100644
 --- a/modules/libpref/init/all.js
 +++ b/modules/libpref/init/all.js
 @@ -245,7 +245,7 @@ pref("dom.compartment_per_addon", true);
@@ -38,7 +50,7 @@ index 4f7918c80d..d6d1e6c860 100644
  pref("dom.cycle_collector.incremental", false);
  
  // Parsing perf prefs. For now just mimic what the old code did.
-@@ -2232,7 +2232,7 @@ pref("extensions.blocklist.interval", 86400);
+@@ -2226,7 +2226,7 @@ pref("extensions.blocklist.interval", 86400);
  // Required blocklist freshness for OneCRL OCSP bypass
  // (default is 1.25x extensions.blocklist.interval, or 30 hours)
  pref("security.onecrl.maximum_staleness_in_seconds", 108000);

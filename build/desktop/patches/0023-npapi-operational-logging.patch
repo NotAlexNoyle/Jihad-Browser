@@ -1,40 +1,22 @@
---- a/ipc/glue/GeckoChildProcessHost.cpp
-+++ b/ipc/glue/GeckoChildProcessHost.cpp
-@@ -160,6 +160,13 @@
- 
-   exePath = exePath.AppendASCII(MOZ_CHILD_PROCESS_NAME);
- 
-+  // JIHAD DIAGNOSTIC (R7): the resolved child path, and which branch produced it. In this
-+  // embedding the daemon is exec'd as `./ld-2.23.so … ./jihad-browserserver`, so argv[0] is the
-+  // LOADER — if the directory-service branch is not taken, the fallback dirname(argv[0]) is
-+  // relative to that, not to the daemon.
-+  fprintf(stderr, "[jihad-npapi] child binary path=%s (dirService=%d)\n",
-+          exePath.value().c_str(), (int)ShouldHaveDirectoryService());
-+
-   return BinaryPathType::PluginContainer;
- }
- 
---- a/dom/plugins/base/nsNPAPIPlugin.cpp
-+++ b/dom/plugins/base/nsNPAPIPlugin.cpp
-@@ -341,6 +341,10 @@
-   RefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
- 
-   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
-+  // JIHAD DIAGNOSTIC (R7): GetNewPluginLibrary is where the OOP decision is made —
-+  // RunPluginOOP() ? PluginModuleParent::LoadModule (launches plugin-container) : a
-+  // PluginPRLibrary loaded in-process. A null here is the plugin-container launch failing.
-+  fprintf(stderr, "[jihad-npapi] GetNewPluginLibrary lib=%d\n", (int)!!pluginLib);
-   if (!pluginLib) {
-     return NS_ERROR_FAILURE;
-   }
-@@ -386,6 +390,7 @@
- #else
-   NPError pluginCallError;
-   nsresult rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
-+  fprintf(stderr, "[jihad-npapi] NP_Initialize rv=0x%x npErr=%d\n", (unsigned)rv, (int)pluginCallError);
-   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
-     return NS_ERROR_FAILURE;
-   }
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:35 -0400
+Subject: [PATCH] npapi operational logging
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0023-npapi-operational-logging.patch.
+---
+ dom/base/nsObjectLoadingContent.cpp    | 38 +++++++++--
+ dom/plugins/base/nsNPAPIPlugin.cpp     |  5 ++
+ dom/plugins/base/nsPluginHost.cpp      | 11 +++-
+ dom/plugins/ipc/BrowserStreamChild.cpp | 12 +++-
+ dom/plugins/ipc/PluginModuleParent.cpp |  7 +-
+ dom/plugins/ipc/PluginProcessChild.cpp |  5 ++
+ ipc/contentproc/plugin-container.cpp   | 89 ++++++++++++++++++++++++++
+ ipc/glue/GeckoChildProcessHost.cpp     |  7 ++
+ 8 files changed, 166 insertions(+), 8 deletions(-)
+
 diff --git a/dom/base/nsObjectLoadingContent.cpp b/dom/base/nsObjectLoadingContent.cpp
 index 986468b139..b064216329 100644
 --- a/dom/base/nsObjectLoadingContent.cpp
@@ -123,6 +105,29 @@ index 986468b139..b064216329 100644
 +    fprintf(stderr, "[jihad-npapi] ShouldPlay -> FALSE (eFallbackDisabled)\n");
      aReason = eFallbackDisabled;
      return false;
+   }
+diff --git a/dom/plugins/base/nsNPAPIPlugin.cpp b/dom/plugins/base/nsNPAPIPlugin.cpp
+index 9a49614571..9262fdb210 100644
+--- a/dom/plugins/base/nsNPAPIPlugin.cpp
++++ b/dom/plugins/base/nsNPAPIPlugin.cpp
+@@ -341,6 +341,10 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+   RefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
+ 
+   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
++  // JIHAD DIAGNOSTIC (R7): GetNewPluginLibrary is where the OOP decision is made —
++  // RunPluginOOP() ? PluginModuleParent::LoadModule (launches plugin-container) : a
++  // PluginPRLibrary loaded in-process. A null here is the plugin-container launch failing.
++  fprintf(stderr, "[jihad-npapi] GetNewPluginLibrary lib=%d\n", (int)!!pluginLib);
+   if (!pluginLib) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -386,6 +390,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
+ #else
+   NPError pluginCallError;
+   nsresult rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
++  fprintf(stderr, "[jihad-npapi] NP_Initialize rv=0x%x npErr=%d\n", (unsigned)rv, (int)pluginCallError);
+   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
+     return NS_ERROR_FAILURE;
    }
 diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
 index 11f54ab87f..61a608fc45 100644
@@ -342,3 +347,21 @@ index 5e5f6d8fbb..e627e21f5a 100644
  #ifdef MOZ_GMP
      XREChildData childData;
  #endif
+diff --git a/ipc/glue/GeckoChildProcessHost.cpp b/ipc/glue/GeckoChildProcessHost.cpp
+index 24ace10d88..eea8490219 100644
+--- a/ipc/glue/GeckoChildProcessHost.cpp
++++ b/ipc/glue/GeckoChildProcessHost.cpp
+@@ -160,6 +160,13 @@ GeckoChildProcessHost::GetPathToBinary(FilePath& exePath, GeckoProcessType proce
+ 
+   exePath = exePath.AppendASCII(MOZ_CHILD_PROCESS_NAME);
+ 
++  // JIHAD DIAGNOSTIC (R7): the resolved child path, and which branch produced it. In this
++  // embedding the daemon is exec'd as `./ld-2.23.so … ./jihad-browserserver`, so argv[0] is the
++  // LOADER — if the directory-service branch is not taken, the fallback dirname(argv[0]) is
++  // relative to that, not to the daemon.
++  fprintf(stderr, "[jihad-npapi] child binary path=%s (dirService=%d)\n",
++          exePath.value().c_str(), (int)ShouldHaveDirectoryService());
++
+   return BinaryPathType::PluginContainer;
+ }
+ 

@@ -1,3 +1,16 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:28 -0400
+Subject: [PATCH] badcertlistener embedding
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0014-badcertlistener-embedding.patch.
+---
+ docshell/base/nsDocShell.cpp              | 28 +++++++++++++++++++++++
+ embedding/browser/nsDocShellTreeOwner.cpp | 10 ++++++++
+ 2 files changed, 38 insertions(+)
+
 diff --git a/docshell/base/nsDocShell.cpp b/docshell/base/nsDocShell.cpp
 index 44d8bc308b..193fd56b39 100644
 --- a/docshell/base/nsDocShell.cpp
@@ -45,7 +58,7 @@ index 44d8bc308b..193fd56b39 100644
      nsCOMPtr<nsITabChild> tabChild =
        do_GetInterface(static_cast<nsIDocShell*>(this));
 diff --git a/embedding/browser/nsDocShellTreeOwner.cpp b/embedding/browser/nsDocShellTreeOwner.cpp
-index 70b7e9c075..374b7e6002 100644
+index da1dfe49da..72544afe56 100644
 --- a/embedding/browser/nsDocShellTreeOwner.cpp
 +++ b/embedding/browser/nsDocShellTreeOwner.cpp
 @@ -5,6 +5,7 @@

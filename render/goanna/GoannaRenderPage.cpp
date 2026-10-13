@@ -7,6 +7,7 @@
  */
 #include "GoannaRenderPage.h"
 #include "EngineCompat.h"
+#include "EngineCalls.h"
 #include "EngineHost.h"
 #include "DialogService.h"   // jihad::PostNotification — the non-blocking message channel (R5)
 
@@ -73,6 +74,9 @@
 #include "mozIDOMWindow.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIDocShell.h"
+// nsIDocument complete before nsIPresShell.h: since UXP RB_20261006 (constructable style sheets) the
+// StyleSheet.h it pulls in holds a RefPtr<nsIDocument> with inline users.
+#include "nsIDocument.h"
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
@@ -678,9 +682,8 @@ bool DebugRunChromeJs(const char* jsUrl) {
   nsCOMPtr<nsIPrincipal> system;
   if (NS_FAILED(ssm->GetSystemPrincipal(getter_AddRefs(system))) || !system) return false;
   NS_ConvertUTF8toUTF16 u(jsUrl);
-  return NS_SUCCEEDED(nav->LoadURIWithOptions(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE,
-                                              nullptr, 0, nullptr, nullptr, nullptr,
-                                              system));
+  return NS_SUCCEEDED(engine_calls::LoadURI(nav, u.get(), nsIWebNavigation::LOAD_FLAGS_NONE,
+                                            /* referrer */ nullptr, /* policy */ 0, system));
 }
 
 // DEBUG ONLY — see the header comment.
@@ -1071,7 +1074,7 @@ bool GoannaRenderPage::Resize(int width, int height) {
       // devicePixelRatio is pinned to 1 (layout.css.devPixelsPerPx), so 1 device px ==
       // 1 CSS px == 60 app units. (nsPresContext.h can't be included here -- it drags in
       // internal string headers unusable from the frozen-API daemon.)
-      ps->ResizeReflowIgnoreOverride((nscoord)width * 60, (nscoord)height * 60, 0, 0);
+      engine_calls::ResizeReflow(ps.get(), width, height);
     }
   }
   JIHAD_GTK_PUMP();
@@ -1995,8 +1998,8 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
   double dz = 1.0, mn = 1.0, mx = 1.0;
   bool allow = true, autoSize = true;
   uint32_t vw = 0, vh = 0;
-  if (NS_FAILED(u->GetViewportInfo((uint32_t)mWidth, (uint32_t)mHeight,
-                                   &dz, &allow, &mn, &mx, &vw, &vh, &autoSize)))
+  if (NS_FAILED(engine_calls::ViewportInfo(u, (uint32_t)mWidth, (uint32_t)mHeight,
+                                           &dz, &allow, &mn, &mx, &vw, &vh, &autoSize)))
     return false;
   // A tag that names a width but no initial-scale comes back the same way (unset, clamped to the
   // minimum). What that means is "fit the declared width", so say so.
@@ -2116,9 +2119,9 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
       referrerPolicy = nsIHttpChannel::REFERRER_POLICY_NO_REFERRER;
     }
   }
-  return NS_SUCCEEDED(nav->LoadURIWithOptions(u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref,
-                                              ref ? referrerPolicy : nsIHttpChannel::REFERRER_POLICY_DEFAULT,
-                                              nullptr, nullptr, nullptr, trigger));
+  return NS_SUCCEEDED(engine_calls::LoadURI(nav, u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref,
+                                            ref ? referrerPolicy : nsIHttpChannel::REFERRER_POLICY_DEFAULT,
+                                            trigger));
 }
 
 // Drain the engine's ready work and RETURN. This is the tick's pump, and it exists because
@@ -2956,8 +2959,7 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   int32_t buttons = (strcmp(type, "mouseup") == 0) ? 0 : 1;
   // ToWindow: routed via the presShell, not the widget (T-067). No preventDefault out-param.
   (void)ret;
-  u->SendMouseEventToWindow(t, (float)x, (float)y, button, /*clickCount*/1, /*mods*/0,
-                            false, 0.0f, 0, false, false, buttons, 6);
+  engine_calls::MouseEventToWindow(u, t, (float)x, (float)y, button, /*clickCount*/1, /*mods*/0, buttons);
 }
 
 // ── F-1 — ONE TAP MUST DELIVER ONE CLICK SEQUENCE ─────────────────────────────────────────────
@@ -3154,8 +3156,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
   //     competing loads cancelled each other (NS_BINDING_ABORTED) so nothing navigated.
   //   - anything else -> mouse events + DOM click() so buttons / form controls / JS
   //     onclick handlers activate.
-  nsCOMPtr<nsIDOMElement> el;
-  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
   // Walk up to the nearest <a href> ancestor (the tap often lands on inline content
   // inside the anchor). The parent chain terminates at the document (null parent); the
   // depth cap is just a cycle guard for a malformed tree.
@@ -3180,8 +3181,7 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // heading with its own handler, etc.) or a slightly-off tap could hijack the intended element
     // and navigate to a nearby link instead (Codex F-246). Small radius keeps it to true near-misses.
     if (dt == "HTML" || dt == "BODY") {
-      nsCOMPtr<nsIDOMNodeList> near;
-      u->NodesFromRect((float)x, (float)y, 10, 10, 10, 10, false, true, getter_AddRefs(near));
+      nsCOMPtr<nsIDOMNodeList> near = engine_calls::NodesAround(u, (float)x, (float)y, 10);
       uint32_t nn = 0; if (near) near->GetLength(&nn);
       for (uint32_t i = 0; i < nn && href.IsEmpty(); ++i) {
         nsCOMPtr<nsIDOMNode> nd; near->Item(i, getter_AddRefs(nd));
@@ -3490,9 +3490,9 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // offscreen PuppetWidget discards it (T-067 — see the block comment above). These go through
     // the presShell instead, which is what makes a tap actually reach the document.
     (void)ret;
-    u->SendMouseEventToWindow(down, (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 1, 6);
+    engine_calls::MouseEventToWindow(u, down, (float)x, (float)y, 0, numClicks, 0, /*buttons*/1);
     fprintf(stderr, "[jihad-bs] mouseSend : down ok, up\n");
-    u->SendMouseEventToWindow(up,   (float)x, (float)y, 0, numClicks, 0, false, 0.0f, 0, false, false, 0, 6);
+    engine_calls::MouseEventToWindow(u, up,   (float)x, (float)y, 0, numClicks, 0, /*buttons*/0);
     fprintf(stderr, "[jihad-bs] mouseSend done\n");
   }
   // One-shot: off again the moment the dispatch is over, so nothing of ours stays on the page.
@@ -3874,8 +3874,8 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   jihadMapKey(keyCode, charCode, &domKey, &domChar);
   int mods = (modifiers & ~3) | ((modifiers & 1) << 1) | ((modifiers & 2) >> 1);   // Ctrl <-> Alt
   // A keypress carries the character (and then no keyCode); keydown/keyup carry the key.
-  if (strcmp(type, "keypress") == 0) u->SendKeyEvent(t, domChar ? 0 : domKey, domChar, mods, 0, &ret);
-  else                               u->SendKeyEvent(t, domKey, 0, mods, 0, &ret);
+  if (strcmp(type, "keypress") == 0) engine_calls::KeyEvent(u, t, domChar ? 0 : domKey, domChar, mods, &ret);
+  else                               engine_calls::KeyEvent(u, t, domKey, 0, mods, &ret);
 }
 
 bool GoannaRenderPage::TouchEvent(const char* type, int x, int y) {
@@ -3904,7 +3904,7 @@ bool GoannaRenderPage::TouchEvent(const char* type, const int* px, const int* py
   // It used to be discarded; it is the input to the mouse suppressor.
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
-  nsresult rv = u->SendTouchEventToWindow(t, ids, xs, ys, rxs, rys, angs, forces, count, 0, false, &ret);
+  nsresult rv = engine_calls::TouchEventToWindow(u, t, ids, xs, ys, rxs, rys, angs, forces, count, 0, &ret);
   // A failed dispatch is not a consumed gesture. Reporting "consumed" on failure would suppress
   // the pen events too, and the tap would do nothing at all.
   if (NS_FAILED(rv)) return false;
@@ -3969,8 +3969,7 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   if (!mChrome || !mChrome->mBrowser) return;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return;
-  nsCOMPtr<nsIDOMElement> el;
-  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
   if (!el) return;
   nsAutoString tag; el->GetTagName(tag);
   // Nearest <a href> / <img> ancestors — the press usually lands on inline content inside
@@ -4011,8 +4010,7 @@ bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* 
   if (!mChrome || !mChrome->mBrowser) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
-  nsCOMPtr<nsIDOMElement> el;
-  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
   static const char* const kBlocks[] = {
     "p", "li", "td", "th", "dd", "dt", "pre", "blockquote", "figure", "img", "video", "canvas",
@@ -4050,8 +4048,7 @@ bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused, bool* readOnly)
   if (!mChrome || !mChrome->mBrowser) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
-  nsCOMPtr<nsIDOMElement> el;
-  u->ElementFromPoint((float)x, (float)y, false, true, getter_AddRefs(el));
+  nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
   if (!el) return false;
   // The press lands on the anonymous text inside an <input>; its host is the control.
   nsCOMPtr<nsIDOMElement> host = edHostControl(el);

@@ -1,3 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:36 -0400
+Subject: [PATCH] npapi pmlog named semaphore abi
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0025-npapi-pmlog-named-semaphore-abi.patch.
+---
+ ipc/app/moz.build                    |   8 ++
+ ipc/contentproc/JihadPmLogSem.c      | 135 +++++++++++++++++++++++++++
+ ipc/contentproc/moz.build            |   4 +
+ ipc/contentproc/plugin-container.cpp |  15 +++
+ 4 files changed, 162 insertions(+)
+ create mode 100644 ipc/contentproc/JihadPmLogSem.c
+
+diff --git a/ipc/app/moz.build b/ipc/app/moz.build
+index a67e9dc66d..a5e5174f8a 100644
 --- a/ipc/app/moz.build
 +++ b/ipc/app/moz.build
 @@ -6,6 +6,14 @@
@@ -15,51 +33,9 @@
      'MozillaRuntimeMain.cpp',
  ]
  
---- a/ipc/contentproc/moz.build
-+++ b/ipc/contentproc/moz.build
-@@ -9,6 +9,10 @@ SOURCES += [
-     'plugin-container.cpp',
- ]
- 
-+# JihadPmLogSem.c lives here next to its only caller but is compiled by ipc/app, which is
-+# where the plugin-container PROGRAM is linked; this directory only produces an archive that
-+# that link does not use. See ipc/app/moz.build.
-+
- include('/ipc/chromium/chromium-config.mozbuild')
- 
- if CONFIG['OS_ARCH'] == 'WINNT':
---- a/ipc/contentproc/plugin-container.cpp
-+++ b/ipc/contentproc/plugin-container.cpp
-@@ -7,6 +7,11 @@
- #include "nsXULAppAPI.h"
- #include "nsAutoPtr.h"
- 
-+// JihadPmLogSem.c — C, and deliberately carries no header, so it drops unchanged into both
-+// this build and the daemon's. Declared here rather than in one because that is the entire
-+// interface: one call whose only job is to keep the archive member in the link.
-+extern "C" int jihad_pmlog_sem_installed(void);
-+
- #ifdef XP_WIN
- #include <windows.h>
- // we want a wmain entry point
-@@ -118,6 +123,16 @@
-     jihad_install_child_fault_handler();
- #endif
- 
-+    // JIHAD (R7): force JihadPmLogSem.o into the link and say so. It interposes sem_open for
-+    // the single name "PmLogLib", without which dlopening the device's Flash deadlocks this
-+    // process forever — libPmLogLib's constructor waits on a named semaphore created by
-+    // webOS's glibc 2.8, whose sem_t value word our glibc 2.23 reads as "no tokens, waiters
-+    // pending". The call is also the only cheap proof the interposer survived the link: it
-+    // lives in a static archive, and an archive member with no undefined symbol to satisfy
-+    // is silently dropped. See render/goanna/JihadPmLogSem.c.
-+    fprintf(stderr, "[jihad-npapi-child] pmlog sem interposition=%d\n",
-+            jihad_pmlog_sem_installed());
-+
-     // JIHAD DIAGNOSTIC (R7): the child's own view of its argv. Doubles as the control that
-     // child stderr reaches the parent's log at all — every other child probe is worthless
-     // until this line is seen.
+diff --git a/ipc/contentproc/JihadPmLogSem.c b/ipc/contentproc/JihadPmLogSem.c
 new file mode 100644
+index 0000000000..b97fdf819f
 --- /dev/null
 +++ b/ipc/contentproc/JihadPmLogSem.c
 @@ -0,0 +1,135 @@
@@ -198,3 +174,51 @@ new file mode 100644
 +  if (!real_sem_close) return 0;
 +  return real_sem_close(sem);
 +}
+diff --git a/ipc/contentproc/moz.build b/ipc/contentproc/moz.build
+index d8ab397d21..18743bd54e 100644
+--- a/ipc/contentproc/moz.build
++++ b/ipc/contentproc/moz.build
+@@ -9,6 +9,10 @@ SOURCES += [
+     'plugin-container.cpp',
+ ]
+ 
++# JihadPmLogSem.c lives here next to its only caller but is compiled by ipc/app, which is
++# where the plugin-container PROGRAM is linked; this directory only produces an archive that
++# that link does not use. See ipc/app/moz.build.
++
+ include('/ipc/chromium/chromium-config.mozbuild')
+ 
+ if CONFIG['OS_ARCH'] == 'WINNT':
+diff --git a/ipc/contentproc/plugin-container.cpp b/ipc/contentproc/plugin-container.cpp
+index e627e21f5a..64946dc1e9 100644
+--- a/ipc/contentproc/plugin-container.cpp
++++ b/ipc/contentproc/plugin-container.cpp
+@@ -7,6 +7,11 @@
+ #include "nsXULAppAPI.h"
+ #include "nsAutoPtr.h"
+ 
++// JihadPmLogSem.c — C, and deliberately carries no header, so it drops unchanged into both
++// this build and the daemon's. Declared here rather than in one because that is the entire
++// interface: one call whose only job is to keep the archive member in the link.
++extern "C" int jihad_pmlog_sem_installed(void);
++
+ #ifdef XP_WIN
+ #include <windows.h>
+ // we want a wmain entry point
+@@ -118,6 +123,16 @@ content_process_main(int argc, char* argv[])
+     jihad_install_child_fault_handler();
+ #endif
+ 
++    // JIHAD (R7): force JihadPmLogSem.o into the link and say so. It interposes sem_open for
++    // the single name "PmLogLib", without which dlopening the device's Flash deadlocks this
++    // process forever — libPmLogLib's constructor waits on a named semaphore created by
++    // webOS's glibc 2.8, whose sem_t value word our glibc 2.23 reads as "no tokens, waiters
++    // pending". The call is also the only cheap proof the interposer survived the link: it
++    // lives in a static archive, and an archive member with no undefined symbol to satisfy
++    // is silently dropped. See render/goanna/JihadPmLogSem.c.
++    fprintf(stderr, "[jihad-npapi-child] pmlog sem interposition=%d\n",
++            jihad_pmlog_sem_installed());
++
+     // JIHAD DIAGNOSTIC (R7): the child's own view of its argv. Doubles as the control that
+     // child stderr reaches the parent's log at all — every other child probe is worthless
+     // until this line is seen.

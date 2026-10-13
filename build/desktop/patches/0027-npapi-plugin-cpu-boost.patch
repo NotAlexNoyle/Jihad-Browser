@@ -1,6 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:38 -0400
+Subject: [PATCH] npapi plugin cpu boost
+
+(no description in the patch)
+
+Imported from build/desktop/patches/0027-npapi-plugin-cpu-boost.patch.
+---
+ dom/plugins/ipc/PluginModuleParent.cpp | 184 +++++++++++++++++++++++++
+ 1 file changed, 184 insertions(+)
+
+diff --git a/dom/plugins/ipc/PluginModuleParent.cpp b/dom/plugins/ipc/PluginModuleParent.cpp
+index 4a1ff189e3..cccc37c72b 100755
 --- a/dom/plugins/ipc/PluginModuleParent.cpp
 +++ b/dom/plugins/ipc/PluginModuleParent.cpp
-@@ -1139,9 +1139,20 @@
+@@ -1139,9 +1139,20 @@ PluginModuleChromeParent::OnHangUIContinue()
  }
  #endif // XP_WIN
  
@@ -21,7 +35,7 @@
      switch (why) {
      case AbnormalShutdown: {
          mShutdown = true;
-@@ -1276,6 +1287,172 @@
+@@ -1276,6 +1287,172 @@ NP_BEGIN_MACRO                                                                 \
      return i->func;                                                            \
  NP_END_MACRO
  
@@ -194,7 +208,7 @@
  NPError
  PluginModuleParent::NPP_Destroy(NPP instance,
                                  NPSavedData** saved)
-@@ -1301,6 +1478,7 @@
+@@ -1301,6 +1478,7 @@ PluginModuleParent::NPP_Destroy(NPP instance,
      instance->pdata = nullptr;
  
      Unused << PluginInstanceParent::Call__delete__(parentInstance);
@@ -202,7 +216,7 @@
      return retval;
  }
  
-@@ -2297,6 +2475,12 @@
+@@ -2297,6 +2475,12 @@ PluginModuleParent::NPP_NewInternal(NPMIMEType pluginType, NPP instance,
  
      UpdatePluginTimeout();
  

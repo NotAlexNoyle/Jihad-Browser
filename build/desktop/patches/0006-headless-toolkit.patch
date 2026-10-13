@@ -1,7 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:23 -0400
+Subject: [PATCH] headless toolkit
+
 MOZ_WIDGET_TOOLKIT=headless: gfxPlatformHeadless + widget/headless backend + build wiring so libxul can link with no GTK/X (spike; Stage-1 GTK-bundled remains the shipping fallback).
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
+
+Imported from build/desktop/patches/0006-headless-toolkit.patch.
+---
+ embedding/components/printingui/moz.build |   3 +-
+ gfx/2d/2D.h                               |   2 +-
+ gfx/2d/Factory.cpp                        |   4 +-
+ gfx/2d/moz.build                          |   6 +-
+ gfx/skia/moz.build                        |   5 +-
+ gfx/thebes/gfxFcPlatformFontList.cpp      |   7 +
+ gfx/thebes/gfxPlatformHeadless.cpp        | 834 ++++++++++++++++++++++
+ gfx/thebes/gfxPlatformHeadless.h          | 150 ++++
+ gfx/thebes/moz.build                      |  16 +
+ old-configure.in                          |  14 +
+ toolkit/library/moz.build                 |   4 +
+ toolkit/moz.configure                     |   9 +-
+ uriloader/exthandler/moz.build            |   4 +-
+ widget/headless/GfxInfo.cpp               |  80 +++
+ widget/headless/GfxInfo.h                 |  73 ++
+ widget/headless/moz.build                 |  22 +
+ widget/headless/nsAppShell.cpp            |  27 +
+ widget/headless/nsAppShell.h              |  27 +
+ widget/headless/nsLookAndFeel.cpp         |  33 +
+ widget/headless/nsLookAndFeel.h           |  26 +
+ widget/headless/nsWidgetFactory.cpp       |  65 ++
+ widget/moz.build                          |   6 +-
+ 22 files changed, 1403 insertions(+), 14 deletions(-)
+ create mode 100644 gfx/thebes/gfxPlatformHeadless.cpp
+ create mode 100644 gfx/thebes/gfxPlatformHeadless.h
+ create mode 100644 widget/headless/GfxInfo.cpp
+ create mode 100644 widget/headless/GfxInfo.h
+ create mode 100644 widget/headless/moz.build
+ create mode 100644 widget/headless/nsAppShell.cpp
+ create mode 100644 widget/headless/nsAppShell.h
+ create mode 100644 widget/headless/nsLookAndFeel.cpp
+ create mode 100644 widget/headless/nsLookAndFeel.h
+ create mode 100644 widget/headless/nsWidgetFactory.cpp
 
 diff --git a/embedding/components/printingui/moz.build b/embedding/components/printingui/moz.build
 index c75471555e..f123f8c02b 100644
@@ -1158,10 +1199,10 @@ index 036df875cf..b4cdb46032 100644
      EXPORTS += [
          'gfxFT2FontBase.h',
 diff --git a/old-configure.in b/old-configure.in
-index 721cb87894..c8b0e8d0e6 100644
+index 0652d4e141..f08be8a332 100644
 --- a/old-configure.in
 +++ b/old-configure.in
-@@ -2187,6 +2187,12 @@ gtk2)
+@@ -2200,6 +2200,12 @@ gtk2)
      USE_FC_FREETYPE=1
      ;;
  
@@ -1174,7 +1215,7 @@ index 721cb87894..c8b0e8d0e6 100644
  cocoa)
      LDFLAGS="$LDFLAGS -framework Cocoa -lobjc"
      # Use -Wl as a trick to avoid -framework and framework names from
-@@ -4433,6 +4439,14 @@ if test "$MOZ_TREE_CAIRO"; then
+@@ -4438,6 +4444,14 @@ if test "$MOZ_TREE_CAIRO"; then
          MOZ_ENABLE_CAIRO_FT=1
          CAIRO_FT_CFLAGS="$FT2_CFLAGS"
          AC_SUBST_LIST(CAIRO_FT_CFLAGS)
@@ -1205,7 +1246,7 @@ index e32a1258bb..2024d653d7 100644
      OS_LIBS += [
          'sndio',
 diff --git a/toolkit/moz.configure b/toolkit/moz.configure
-index e77965d15c..04083ffe68 100644
+index 5993671e42..a4bbdead9d 100644
 --- a/toolkit/moz.configure
 +++ b/toolkit/moz.configure
 @@ -48,7 +48,7 @@ set_config('L10NBASEDIR', l10n_base)

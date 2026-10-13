@@ -1,10 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 12 Oct 2026 19:28:24 -0400
+Subject: [PATCH] plugin headless nativehandle
+
 dom/plugins/ipc: define a NativeWindowHandle for the headless/PGContext platform so plugin IPC compiles.
 
 Generated as a clean diff against UXP upstream  (Pale Moon); applies
 independently (distinct files) to the pristine third_party/uxp submodule.
 
+Imported from build/desktop/patches/0008-plugin-headless-nativehandle.patch.
+---
+ dom/plugins/ipc/PluginInstanceChild.cpp  | 6 ++++--
+ dom/plugins/ipc/PluginInstanceParent.cpp | 2 ++
+ dom/plugins/ipc/PluginMessageUtils.h     | 2 ++
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
 diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
-index 61e56a9438..16f81e29f1 100644
+index 6b7f5b0339..d94a5945bf 100644
 --- a/dom/plugins/ipc/PluginInstanceChild.cpp
 +++ b/dom/plugins/ipc/PluginInstanceChild.cpp
 @@ -717,8 +717,8 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)

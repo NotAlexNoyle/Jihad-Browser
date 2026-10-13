@@ -42,8 +42,10 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
   version, the short hash the user agent shows, and the ICU data file.
 - [x] `build/engine/check-engine-pins.sh` fails when the gitlink, the OE recipe's SRCREV, the user
   agent, the three start pages or the ICU file name disagree with it — passes today.
-- [ ] The build reads the values from that file instead of each place spelling them (today the
-  check catches a mismatch; generation would remove it).
+- [~] The build reads the values from that file instead of each place spelling them (today the
+  check catches a mismatch; generation would remove it). *(2026-10-12: the bundler reads the ICU
+  file's name from it; the user agent, the start pages and the OE recipe are rewritten by
+  `update-engine.sh --pins`/`--finish`, so an update no longer edits them by hand.)*
 **Dependencies:** R1
 
 ### R3: One list of the engine's own exports, and no silent loss
@@ -53,8 +55,9 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
   fallback.
 - [x] At start-up the daemon logs which optional exports the running engine lacks. *(Device,
   2026-10-08: "engine: 11 of 11 optional jihad_* exports present"; pages load.)*
-- [ ] The high-risk positional calls (`sendMouseEventToWindow` and friends, `ResizeReflow`,
-  `LoadURIWithOptions`) go through small wrappers in one file.
+- [x] The high-risk positional calls (`sendMouseEventToWindow` and friends, `ResizeReflow`,
+  `LoadURIWithOptions`) go through small wrappers in one file. *(`render/goanna/EngineCalls.h`,
+  2026-10-12: 15 call sites, every argument named, the fixed values set once.)*
 **Dependencies:** none
 
 ### R4: Know what a candidate engine breaks before building it
@@ -64,8 +67,8 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
   baseline (`engine-api-baseline.json`); the engine JS and about:addons markup our components
   rely on are there; the prefs we set exist (or are listed as ours on purpose); mozconfig
   options; the ICU file. Today's engine: 0 FAIL, 0 WARN.
-- [ ] It has been run against a real candidate (upstream master rebased with our branch) and its
-  findings fixed. [owner's decision: when to update]
+- [x] It has been run against a real candidate (upstream master rebased with our branch) and its
+  findings fixed. *(2026-10-12, the owner's go-ahead: our branch on `RB_20261006` — 0 FAIL, 0 WARN.)*
 **Dependencies:** R3
 
 ### R4b: The engine's JS surface
@@ -92,9 +95,51 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
 - [ ] Desktop tests cover Personas, video controls and the media paths.
 **Dependencies:** R1
 
+### R7: An update is two commands
+**Description:** The owner, 2026-10-12: "Proceed with the UXP update, with a focus on making future
+updates easier, and optimizing the code where possible, while supporting modern web standards.
+target the latest release".
+**Acceptance Criteria:**
+- [x] The engine follows upstream **releases** (`RB_*` tags), named in `engine-version.env`
+  (`UXP_TAG`), on one branch per release (`jihad/uxp-<tag>`), one commit per patch (the squash
+  of 0001–0031 split), the queue stored as git mails that `git am -3` carries across.
+- [x] `build/engine/update-engine.sh [TAG]` puts the queue on a release in a worktree, lists the
+  files both sides changed and runs the API check; `--finish` writes the queue again, checks the
+  branch out and rewrites every pin; `--abort` gives up. *(Used for RB_20261006 by hand first, the
+  same steps; `--pins` run for real.)*
+- [x] `docs/ENGINE.md` §6 is the procedure in those terms, with the device push the engine's own
+  resources need (a full variant push).
+**Dependencies:** R1, R2, R4
+
+### R8: The engine on RB_20261006
+**Description:** UXP's latest release (2026-10-04/06) under the browser, in all three variants:
+about 170 upstream changes — NSS 3.90.14 and many security fixes, constructable style sheets
+(`adoptedStyleSheets`, `replaceSync`), `URL.parse()`, CSS `revert-layer`, `aspect-ratio` for grid
+items, `:has()` (off in releases, a switch in Settings), typing speed, fewer leaks.
+**Acceptance Criteria:**
+- [x] Our 39 commits on `RB_20261006` with no conflict; the six files both sides changed read
+  (`PluginInstanceChild.{cpp,h}`, `nsDocShellTreeOwner.cpp`, `all.js`, `old-configure.in`,
+  `toolkit/moz.configure`): only the NPAPI-GTK2 option needed a change (gone from our mozconfigs).
+  `check-engine-api.py`: 0 FAIL; `patch-queue.sh --check`: the queue reproduces the branch.
+- [x] Built for ARM as a release build in Thumb-2 (`--enable-release --enable-gold --with-thumb=yes`),
+  smaller than before. *(libxul stripped 46.2 MB -> 30.2 MB (-35%), its code 36.4 -> 20.8 MB (-43%),
+  `Tag_THUMB_ISA_use: Thumb-2`; a variant payload 80 -> 73 MB; a daemon idle after start 33.8 MB
+  resident against 36.3/35.8 MB on the old engine. One daemon change: `nsIDocument.h` before
+  `nsIPresShell.h`, which the new StyleSheet.h needs.)*
+- [x] Device, all three variants: the daemon starts with all optional exports, pages load and paint,
+  an https page, Palefill enabled, a Persona painted, about:addons, about:config and about:settings
+  open, a modern-CSS test page renders (`adoptedStyleSheets`, `revert-layer`), and `:has()` works
+  when its switch is on. (The finger checks go to docs/FINGER-TESTS.md.) *(2026-10-12, a full
+  variant push to each: "11 of 11 optional jihad_* exports present" in all three. Enyo: the feature
+  page (render/goanna/test/modern-web.html) — before: no adoptedStyleSheets, replaceSync, URL.parse,
+  revert-layer, :has; after: all yes, :has with its switch on (then off again); howsmyssl.com TLS 1.3
+  "Good"; Space Fantasy worn and taken off; Palefill 1.30 enabled; about:config; Flash anim.swf at
+  23–25 fps through the Thumb-2 plugin-container. Mochi: the feature page. Mojo: Wikipedia.)*
+- [x] The checker's baseline re-written after the device checks (no signature changed).
+**Dependencies:** R7
+
 ## Out of Scope
-- Updating the engine itself (rebasing onto upstream, rebuilding, device regression) — a
-  separate, owner-initiated piece of work that this kit prepares for.
+- (Until 2026-10-12: updating the engine itself. The owner started that on 2026-10-12 — R7, R8.)
 
 ## Changelog
 - 2026-10-08: Created with the groundwork done the same day (R1, R2, R3, R4, R5 largely `[x]`);

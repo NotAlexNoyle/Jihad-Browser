@@ -5,7 +5,60 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-12 (late night) delta — Tier 80: fonts in Settings; no Persona by default; card pictures in the background (READ FIRST)
+## 2026-10-12 (night, later) delta — Tier 81: the engine on UXP RB_20261006 (READ FIRST)
+
+**The owner:** "Proceed with the UXP update, with a focus on making future updates easier, and
+optimizing the code where possible, while supporting modern web standards. target the latest
+release".
+
+**Done** (docs/ENGINE.md has the whole story)
+- **Engine:** on UXP release `RB_20261006` (was master `b2594a4`, 2026-06-30). Our 39 commits came
+  across with no conflict, one commit per patch now (the squash of 0001–0031 was split). The six
+  files both sides changed were read; only `--disable-npapi-gtk2` had to go from the mozconfigs.
+  `check-engine-api.py`: 0 FAIL, and the baseline was re-written with no signature changes. The
+  branch is `jihad/uxp-RB_20261006` at `706d4782ba`, not pushed.
+- **Future updates are two commands:**
+  - `build/engine/update-engine.sh [TAG]`: puts the queue on the release with a three-way merge,
+    lists the overlapping files and runs the API check.
+  - `--finish`: writes the queue again, checks out the new branch and rewrites every pin (the user
+    agent, start pages and OE recipe; the bundler reads the ICU name from `engine-version.env`).
+  - `UXP_TAG` is now in the pins.
+  - `render/goanna/EngineCalls.h` puts the 15 fragile positional engine calls behind named
+    wrappers.
+- **Optimised:** a release build (dead-code removal, identical-code folding) in Thumb-2.
+  - libxul, stripped: 46.2 → 30.2 MB (−35%); its code −43%.
+  - Payload: 80 → 73 MB per variant.
+  - Idle daemon: 33.8 MB resident, against 36 MB on the old engine.
+- **Modern web, measured with `render/goanna/test/modern-web.html`:** `adoptedStyleSheets`,
+  `replaceSync`, `URL.parse()` and `revert-layer` now work. `:has()` works with its new Settings
+  switch, and is off by default as in upstream releases, because it is slow on some pages. TLS 1.3
+  confirmed on howsmyssl.com.
+- **Fixed on the way:** `postinst`/`prerm` took the initramfs `rootfs` line for a read-write `/`,
+  never remounted it, and failed on a read-only root. The generator now reads the real root
+  mount. The daemon includes `nsIDocument.h`, which the new `StyleSheet.h` needs.
+
+**Verified on the device** (a full `push-variant.sh` to each)
+- All three: "11 of 11 optional jihad_* exports present".
+- Enyo: the feature page before and after; `:has()` switched on, then back off; TLS 1.3; a Persona
+  worn and taken off; Palefill enabled; about:config; Flash at 23–25 fps.
+- Mochi: the feature page. Mojo: Wikipedia.
+
+**Device state as left:**
+- All three on the new engine (bundle `71cef1fd…`; libxul from `jihad/uxp-RB_20261006`), daemons
+  running, `/` read-only, no test hooks.
+- Default look in all three; `:has()` off.
+- `/media/internal/jihad-modern-web.html` is left in place as a test asset.
+
+**Rollback:** the old engine build is `build/webos-oe/out-arm/obj-jihad-goanna-arm.RB-b2594a4` (with
+`jihad-browserserver-arm.RB-b2594a4`). Put it back as `obj-jihad-goanna-arm`, rebundle,
+`build-variant-ipk.sh`, then `push-variant.sh` each variant.
+
+**Open:**
+- Codex round 22 at 22:31 (session cron; the queue is kept out of its diff).
+- The finger round (`docs/FINGER-TESTS.md`, engine section added).
+- The desktop test build is not rebuilt on the new engine yet (docs/ENGINE.md §7).
+
+## 2026-10-12 (late night) delta — Tier 80: fonts in Settings; no Persona by default; card pictures in the background
 
 **The owner's rules this evening (both in auto-memory):**
 - All finger tests wait for one round at the end, collected in `docs/FINGER-TESTS.md`.

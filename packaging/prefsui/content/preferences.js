@@ -103,7 +103,12 @@ const PANES = [
 					// NO WebGL row. `webgl.disabled` exists, but WebGL is never available on this device
 					// (the offscreen surface has no GL: getContext("webgl") is null with the pref off —
 					// device 2026-10-06), so the row could not change anything a page sees.
-					{pref: "dom.storage.enabled", type: "bool", label: "Allow sites to store data locally"}
+					{pref: "dom.storage.enabled", type: "bool", label: "Allow sites to store data locally"},
+					// CSS :has() (UXP RB_20261006). Upstream ships it off in releases: on some pages it slows
+					// typing and scrolling, and this device is slower than any desktop. Off here too, with
+					// the choice left to the user (the owner, 2026-10-12: "supporting modern web standards").
+					{pref: "layout.css.has-pseudo.enabled", type: "bool", label: "Support the CSS :has() selector",
+					 help: "Newer sites use it in their layout. Off by default, as in Pale Moon: on some pages it slows typing and scrolling. Applies to pages opened after the change."}
 				]
 			},
 			{

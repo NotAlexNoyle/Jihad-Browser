@@ -62,8 +62,8 @@ against the code and fixed or noted (context/impl/impl-review-findings-6.md, rou
   **not received yet; no code is live.** The public rendezvous server reset the first two sends
   (`9-determine-algol` at 01:28 after 68 minutes; `16-hazardous-suspense` at 01:30 after 2) and
   answered 502. The third, `597-sympathy-checkup` (01:36), held but nobody received it, and it was
-  stopped at its time limit at 03:31. Fourth send at the owner's request: **`4-october-fallout`**
-  (it waits up to two hours). If that one lapses too, send the folder again
+  stopped at its time limit at 03:31. Fourth send at the owner's request: `4-october-fallout`,
+  replaced at 08:01 by **`4-revenue-transit`** (it waits up to two hours). If that one lapses too, send the folder again
   (`wormhole-rs send scratchpad/jihad-followup-2026-10-13`, or re-pack from `057dbad` if the
   scratchpad is gone) when the server agent is ready to receive. Its `install.sh` keeps the server's site block, so the host
   check is merged there by hand (the steps say how).

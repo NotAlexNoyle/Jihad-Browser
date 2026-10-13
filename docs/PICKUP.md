@@ -79,7 +79,8 @@ P3s are fixed in `68caed1`. Details in impl-review-findings-6.md, round 23.
     one;
   - DEPLOY.md notes `default_server`.
 - Sent as `jihad-relay-2026-10-13` (RELAY.md plus `riverstone-addons-68caed1.tar.gz`, sha256
-  `df511346…`), wormhole code **7-consensus-backward**. It holds:
+  `df511346…`), wormhole code **7-consensus-backward**; received 12:52 (the sender exited 0 after
+  connecting directly to the server). It holds:
   - the Squid rule `acl jihad_browser browser JihadBrowser/` + `ssl_bump splice jihad_browser`
     above the bump rules, with checks;
   - the site update.

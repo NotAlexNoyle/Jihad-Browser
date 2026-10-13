@@ -116,9 +116,9 @@ enyo.kind({
 		this.$.prompt.show();
 	},
 	showLogin: function(msg) {
-		// A proxy's login (a 407) comes as "proxy <host:port> - <realm>" (cavekit-proxies-certs.md R5).
-		var proxy = /^proxy /.test(String(msg || ""));
-		this.$.loginMsg.setContent(msg ? ((proxy ? "The proxy " + String(msg).slice(6) : "The server " + msg) +
+		// A proxy's login (a 407) comes as "[proxy] <host:port> - <realm>" (cavekit-proxies-certs.md R5).
+		var proxy = /^\[proxy\] /.test(String(msg || ""));
+		this.$.loginMsg.setContent(msg ? ((proxy ? "The proxy " + String(msg).slice(8) : "The server " + msg) +
 			" requires a username and password") : "Authentication required");
 		this.$.userInput.setValue("");
 		this.$.passInput.setValue("");

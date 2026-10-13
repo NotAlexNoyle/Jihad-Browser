@@ -344,8 +344,11 @@ function thumbFor(t, keep) {
 }
 
 // Copies are made one at a time, THUMB_GAP_MS apart, so the gallery stays responsive while the first
-// openings make them; when the queue is done, an open gallery puts them on the cards ("thumbs": only
-// the pictures change, no card is drawn again).
+// openings make them; when the queue is done, an open gallery puts them on the cards
+// ("jihad-personas-thumbs": only the pictures change, no card is drawn again). Each copy is a decode
+// and an encode on the engine's own thread (200-600 ms), so every page waits that long once per
+// copy while the queue runs: once per Persona, the first time after it is installed or the bundle
+// changes (the inspector, round 24).
 const THUMB_GAP_MS = 700;
 let thumbQueue = [], thumbTimer = null, thumbsMade = 0;
 function queueThumb(f, name) {
@@ -365,7 +368,9 @@ function nextThumb() {
   }
   if (!thumbQueue.length && thumbsMade) {
     thumbsMade = 0;
-    try { Services.obs.notifyObservers(null, "jihad-personas-mine", "thumbs"); } catch (e) {}
+    // Its own topic: a Persona's id comes from the site that offered it, so "jihad-personas-mine"
+    // with data "thumbs" could have been a Persona of that id being removed (the inspector, round 24).
+    try { Services.obs.notifyObservers(null, "jihad-personas-thumbs", ""); } catch (e) {}
   }
 }
 function makeThumb(f, name) {
@@ -865,10 +870,10 @@ function handle(req) {
 //     should be shown for all personas", "default version 1.0");
 //   - a picture made as a wallpaper (taller than a toolbar by far) is fitted, not cropped to its
 //     corner (owner: "blue nebula looks like it isnt working properly");
-//   - a link to the gallery (about:personas), and Install from file — the .xpi files already on the
-//     device (R4);
-//   - the Personas that come with Jihad (a Frutiger Aero set, owner 2026-10-08: "add fruiter
-//     aero style themes") join the list once, as ordinary rows;
+//   - a link to the gallery (about:personas), where Install from file (the .xpi files already on the
+//     device, R4) and the online galleries are since Tier 78;
+//   - the Personas that come with Jihad (render/goanna/personas/: Free Palestine and Aurora Silk
+//     since Tier 78) join the list once, as ordinary rows;
 //   - a few sentences on what a persona is when there are none yet (R5).
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 // The gallery link opens the browser's own gallery (about:personas), unless the pref Basilisk uses
@@ -1138,8 +1143,9 @@ function xpiFilesOnDevice() {
   return out;
 }
 
-// The Personas that come with the browser (render/goanna/personas/: a Frutiger Aero set drawn
-// for this project), shipped in the bundle's personas/ folder beside components/. Wearing one
+// The Personas that come with the browser (render/goanna/personas/: Free Palestine, from a CC BY
+// 2.0 photograph, and Aurora Silk, drawn for this project; credited there), shipped in the bundle's
+// personas/ folder beside components/. Wearing one
 // installs it exactly as a downloaded one: its picture copied into the profile, named by its hash.
 let bundledCache = null;
 function bundledPersonas() {
@@ -1741,6 +1747,12 @@ function galleryRequest(bag) {
   // The installed Personas' pictures are resource://jihad-themes/ addresses, which resolve only once
   // that root is set: the gallery opened first after a start showed them blank (the owner, 2026-10-12).
   try { ensureThemesResource(); } catch (e) {}
+  // The bundled set is offered (and a new edition's names remembered) here too, not only when
+  // about:addons opens: Settings → Browse Personas never opens it, so a bundled Persona removed in
+  // the gallery came back at the next about:addons (the inspector, round 24).
+  if (action === "list" || action === "mine") {
+    try { offerBundledOnce(); } catch (e) { log("bundled Personas: " + e); }
+  }
   let get = function(k) { try { return bag.getPropertyAsAString(k); } catch (e) { return ""; } };
   let reply = function(v) { bag.setPropertyAsAString("result", JSON.stringify(v)); };
   let LWTM = manager(), cur = null, used = [];

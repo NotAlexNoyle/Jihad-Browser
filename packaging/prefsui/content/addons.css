@@ -227,11 +227,13 @@ menulist .menulist-dropmarker .dropmarker-icon {
 	border-top: 7px solid currentColor;
 }
 
+/* A link look, but finger-sized: "More", "Undo" and "Restart now" are buttons of this class, and
+   "More" is the way into an add-on's page (inspector round 24). */
 button.button-link {
 	-moz-appearance: none;
-	min-height: 0;
+	min-height: 44px;
 	margin: 0 4px;
-	padding: 0;
+	padding: 0 8px;
 	color: #8cc7ff;
 	background: transparent;
 	border: 0;

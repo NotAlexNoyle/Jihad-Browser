@@ -14,7 +14,8 @@
  *      (or webOS CE) brought, and the CAs a user trusted in Certificate Manager. They are
  *      NSS temporary certificates: nothing is written to the profile, the stores are read again
  *      at every start, and the switch "jihad.security.webos_certs" takes the trust away at once.
- *      A site's own certificate found there is not taken: the engine never uses one as a root.
+ *      Only roots are taken (rootShape): never a site's own certificate, which Trust Always puts
+ *      in the same store, and never one Jihad's own SSL dialog put there.
  *
  *  R2  The Riverstone Relay's CA, carried here and pinned by SHA-256. Trusted, the same way, only
  *      while "jihad.proxy.relay.trust_ca" is on AND the Relay is the proxy in use. Found in a
@@ -40,6 +41,10 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 const PREF_WEBOS = "jihad.security.webos_certs";
+// The SHA-256s of the sites' own certificates Jihad's SSL dialog put into webOS's store (Trust
+// Always and Trust Once install there too): R4 never takes one. Kept to the last MAX_ACCEPTED.
+const PREF_ACCEPTED = "jihad.security.webos_certs.accepted";
+const MAX_ACCEPTED = 200;
 const PREF_RELAY_CA = "jihad.proxy.relay.trust_ca";
 const RELAY_HOST = "proxy.riverstonerelay.org";
 // The Riverstone Relay's CA (certs/riverstone-relay-ca.pem), pinned HERE, not only in the lists, so
@@ -146,12 +151,19 @@ function certsIn(file) {
   return out;
 }
 
-// Is this certificate (its DER bytes) a v3 certificate whose basicConstraints says cA=TRUE?
-// The engine's own test (CERT_IsCACert) also counts any self-signed v1 certificate as a CA, and
-// mozilla::pkix accepts a v1 trust anchor, so a router's or a NAS box's own v1 certificate that a
-// user once accepted in webOS would become a root able to vouch for any site (the inspector,
-// 2026-10-13). Only the certificate's own word that it is a CA counts here.
-function derIsV3CA(b) {
+// What a certificate (its DER bytes) says about itself:
+//   ca           a v3 certificate whose basicConstraints says cA=TRUE. The engine's own test
+//                (CERT_IsCACert) also counts any self-signed v1 certificate as a CA, and mozilla::pkix
+//                accepts a v1 trust anchor, so only the certificate's own word counts (the inspector,
+//                2026-10-13).
+//   keyCertSign  keyUsage is present and allows signing certificates.
+//   san, eku     it names sites (subjectAltName) or limits its key to uses (extendedKeyUsage):
+//                a site's own certificate does; a root does not (the CA/Browser Forum's rules).
+//   self         its issuer and subject are the same name: a root, not an intermediate.
+// Malformed or v1/v2 DER says nothing: every fact false.
+function derFacts(b) {
+  const NONE = {ca: false, keyCertSign: false, san: false, eku: false, self: false};
+  let f = {ca: false, keyCertSign: false, san: false, eku: false, self: false};
   function tlv(i) {
     if (i + 2 > b.length) { return null; }
     let tag = b[i], len = b[i + 1], p = i + 2;
@@ -164,42 +176,76 @@ function derIsV3CA(b) {
     if (p + len > b.length) { return null; }
     return {tag: tag, start: p, end: p + len};
   }
-  function basicConstraintsCA(exts) {
-    let seq = tlv(exts.start);
-    if (!seq || seq.tag !== 0x30) { return false; }
-    for (let j = seq.start; j < seq.end;) {
-      let ext = tlv(j);
-      if (!ext || ext.tag !== 0x30) { return false; }
-      let oid = tlv(ext.start);
-      if (!oid || oid.tag !== 0x06) { return false; }
-      if (oid.end - oid.start === 3 && b[oid.start] === 0x55 && b[oid.start + 1] === 0x1d && b[oid.start + 2] === 0x13) {
-        let v = tlv(oid.end);
-        if (v && v.tag === 0x01) { v = tlv(v.end); }           // critical
-        if (!v || v.tag !== 0x04) { return false; }            // extnValue
-        let bc = tlv(v.start);
-        if (!bc || bc.tag !== 0x30 || bc.start === bc.end) { return false; }   // cA absent: FALSE
-        let ca = tlv(bc.start);
-        return !!ca && ca.tag === 0x01 && ca.end - ca.start === 1 && b[ca.start] !== 0;
-      }
-      j = ext.end;
-    }
-    return false;
+  function extIs(oid, last) {          // 2.5.29.<last>: 55 1d <last>
+    return oid.end - oid.start === 3 && b[oid.start] === 0x55 && b[oid.start + 1] === 0x1d && b[oid.start + 2] === last;
   }
   let cert = tlv(0);
-  if (!cert || cert.tag !== 0x30) { return false; }
+  if (!cert || cert.tag !== 0x30) { return NONE; }
   let tbs = tlv(cert.start);
-  if (!tbs || tbs.tag !== 0x30) { return false; }
+  if (!tbs || tbs.tag !== 0x30) { return NONE; }
   let ver = tlv(tbs.start);
-  if (!ver || ver.tag !== 0xa0) { return false; }               // v1: no version field
+  if (!ver || ver.tag !== 0xa0) { return NONE; }               // v1: no version field
   let n = tlv(ver.start);
-  if (!n || n.tag !== 0x02 || n.end - n.start !== 1 || b[n.start] !== 2) { return false; }
+  if (!n || n.tag !== 0x02 || n.end - n.start !== 1 || b[n.start] !== 2) { return NONE; }
+  // serial, signature, issuer, validity, subject, key, then [1] [2] [3] if present
+  let fields = [];
   for (let i = ver.end; i < tbs.end;) {
     let t = tlv(i);
-    if (!t) { return false; }
-    if (t.tag === 0xa3) { return basicConstraintsCA(t); }
+    if (!t) { return NONE; }
+    fields.push(t);
     i = t.end;
   }
-  return false;
+  if (fields.length < 6 || fields[2].tag !== 0x30 || fields[4].tag !== 0x30) { return NONE; }
+  let is = fields[2], su = fields[4];
+  f.self = is.end - is.start === su.end - su.start;
+  for (let k = 0; f.self && k < is.end - is.start; k++) { f.self = b[is.start + k] === b[su.start + k]; }
+  let exts = null;
+  fields.forEach(function (t) { if (t.tag === 0xa3) { exts = t; } });
+  if (!exts) { return f; }
+  let seq = tlv(exts.start);
+  if (!seq || seq.tag !== 0x30) { return NONE; }
+  for (let j = seq.start; j < seq.end;) {
+    let ext = tlv(j);
+    if (!ext || ext.tag !== 0x30) { return NONE; }
+    let oid = tlv(ext.start);
+    if (!oid || oid.tag !== 0x06) { return NONE; }
+    let v = tlv(oid.end);
+    if (v && v.tag === 0x01) { v = tlv(v.end); }               // critical
+    if (!v || v.tag !== 0x04) { return NONE; }                 // extnValue
+    if (extIs(oid, 0x13)) {                                    // basicConstraints
+      let bc = tlv(v.start);
+      if (!bc || bc.tag !== 0x30) { return NONE; }
+      let ca = bc.start < bc.end ? tlv(bc.start) : null;       // cA absent: FALSE
+      f.ca = !!ca && ca.tag === 0x01 && ca.end - ca.start === 1 && b[ca.start] !== 0;
+    } else if (extIs(oid, 0x0f)) {                             // keyUsage: BIT STRING, keyCertSign is bit 5
+      let ku = tlv(v.start);
+      f.keyCertSign = !!ku && ku.tag === 0x03 && ku.end - ku.start >= 2 && (b[ku.start + 1] & 0x04) !== 0;
+    } else if (extIs(oid, 0x11)) {
+      f.san = true;
+    } else if (extIs(oid, 0x25)) {
+      f.eku = true;
+    }
+    j = ext.end;
+  }
+  return f;
+}
+function derIsV3CA(b) { return derFacts(b).ca; }
+// Removed roots are matched by their own fingerprint, not by name and key: Mozilla removed old
+// issues of roots it still trusts under the same name and key (GTS Root R1-R4, GlobalSign,
+// Firmaprofesional; measured against CCADB and webOS CE's store, round 24), so that match would
+// refuse current roots. A CA under a removed root is no root, and is refused as notRoot.
+// What R4 may trust without asking: a root that says its key signs certificates and names no site.
+// A site's own certificate a user accepted with Trust Always (here, in webOS's browser or in an app)
+// goes into Certificate Manager's store, and the usual router or NAS one (openssl req -x509) also says
+// cA=TRUE: taken as a root, its key could vouch for any site (the inspector, round 24).
+function rootShape(f) {
+  if (!f.ca) { return "notCA"; }
+  if (!f.self) { return "notRoot"; }
+  if (f.san || f.eku) { return "siteLike"; }
+  // A CA made without keyUsage (openssl's default) cannot be told from a router's certificate:
+  // not taken silently. Opened in Jihad, it is asked about (R6).
+  if (!f.keyCertSign) { return "noCertSign"; }
+  return "";
 }
 
 function rawDER(cert) {
@@ -264,6 +310,7 @@ function JihadCerts() {
   this._offer = null;          // the last top-level CA certificate load: {host, at}
   this._unreadLogged = {};
   Services.obs.addObserver(this, "jihad-nss-ready", false);
+  Services.obs.addObserver(this, "jihad-platform-cert", false);
   // A CA certificate opened as a page is the R6 question even when the server marks it as a
   // download: WebOne sends its CA with "Content-Disposition: attachment", and an attachment
   // skips every content listener, the engine's certificate import among them (nsURILoader's
@@ -287,6 +334,8 @@ JihadCerts.prototype = {
       if (topic === "http-on-examine-response" || topic === "http-on-examine-cached-response" ||
           topic === "http-on-examine-merged-response") {
         this._caLoad(subject);
+      } else if (topic === "jihad-platform-cert") {
+        this._platformCert(String(data || ""));
       } else if (topic === "jihad-nss-ready") {
         this._ready = true;
         this._applyWebos();
@@ -300,24 +349,26 @@ JihadCerts.prototype = {
     }
   },
 
-  // A CA certificate over HTTP. In a frame (or any load that is not the page itself) it is stopped:
-  // a hidden frame must never put "Trust ...?" over the page the user is looking at. The page
-  // itself: the offering host is remembered for the question, and a download marking is taken off.
+  // A CA certificate over HTTP. In a frame it is stopped: a hidden frame must never put "Trust ...?"
+  // over the page the user is looking at. A script's fetch or an image never reaches the question,
+  // so those are left alone (a router's page may fetch its CA to show it). The page itself: it may
+  // be asked about once (offer), and a download marking is taken off.
   _caLoad: function (subject) {
     let ch = subject.QueryInterface(Ci.nsIHttpChannel);
     let type = "";
     try { type = String(ch.contentType || "").toLowerCase(); } catch (e) { return; }
     if (type !== "application/x-x509-ca-cert") { return; }
-    let top = false;
-    try { top = ch.loadInfo.externalContentPolicyType === Ci.nsIContentPolicy.TYPE_DOCUMENT; } catch (e) {}
-    if (!top) {
+    let kind = -1;
+    try { kind = ch.loadInfo.externalContentPolicyType; } catch (e) {}
+    if (kind === Ci.nsIContentPolicy.TYPE_SUBDOCUMENT || kind === Ci.nsIContentPolicy.TYPE_OBJECT) {
       try { ch.cancel(Components.results.NS_BINDING_ABORTED); } catch (e) {}
-      log("a CA certificate in a frame or a sub-load was stopped (" + ch.URI.prePath.slice(0, 80) + ")");
+      log("a CA certificate in a frame was stopped (" + ch.URI.prePath.slice(0, 80) + ")");
       return;
     }
+    if (kind !== Ci.nsIContentPolicy.TYPE_DOCUMENT) { return; }
     let host = "";
     try { host = ch.URI.hostPort; } catch (e) {}
-    this._offer = {host: host, at: Date.now()};
+    this.offer(host);
     let disp = "";
     try { disp = ch.getResponseHeader("Content-Disposition"); } catch (e) { return; }   // none: already inline
     if (!/^\s*attachment/i.test(disp)) { return; }
@@ -325,12 +376,18 @@ JihadCerts.prototype = {
     log("a CA certificate sent as a download is opened, so its question is asked (" + ch.URI.prePath.slice(0, 80) + ")");
   },
 
-  // Who offered the certificate now being asked about: the page's host if one was opened in the
-  // last minute, otherwise a file or page on this device.
-  offeredBy: function () {
+  // The question may be asked only for a CA certificate opened as the page itself, once: an HTTP one
+  // offers here from _caLoad (with its host), a data: or file: one from JihadCertPolicy (no host).
+  // Anything else that reaches the engine's certificate import (a blob: frame, which no address
+  // check can see the type of) finds no offer and is refused (the inspector, round 24).
+  offer: function (host) {
+    this._offer = {host: String(host || ""), at: Date.now()};
+  },
+  // The offer, used up: null when there is none from the last 20 seconds.
+  takeOffer: function () {
     let o = this._offer;
     this._offer = null;
-    return (o && Date.now() - o.at < 60000 && o.host) ? o.host : "";
+    return (o && Date.now() - o.at < 20000) ? o : null;
   },
 
   lists: function () {
@@ -359,6 +416,30 @@ JihadCerts.prototype = {
   },
 
   // --- R4 ---
+  // The daemon's SSL dialog put a site's own certificate (PEM) into webOS's store: remember it, and
+  // if it is trusted from there now, stop at once.
+  _platformCert: function (pem) {
+    PEM_RE.lastIndex = 0;
+    let m = PEM_RE.exec(pem);
+    if (!m) { return; }
+    let fp = sha256Hex(base64Bytes(m[1].replace(/[^A-Za-z0-9+/=]/g, "")));
+    let list = this.acceptedList().filter(function (h) { return h !== fp; });
+    list.push(fp);
+    try { Services.prefs.setCharPref(PREF_ACCEPTED, list.slice(-MAX_ACCEPTED).join(",")); } catch (e) {}
+    let db = certDB(), was = this._webos.length;
+    this._webos = this._webos.filter(function (e) {
+      if (e.sha256 !== fp) { return true; }
+      try { db.setCertTrust(e.cert, Ci.nsIX509Cert.CA_CERT, 0); } catch (x) {}
+      return false;
+    });
+    if (this._webos.length !== was) { dropSessions(); }
+    log("a site's certificate went into webOS's store from the SSL dialog; never taken as a root (" + fp.slice(0, 16) + "...)");
+  },
+
+  acceptedList: function () {
+    return charPref(PREF_ACCEPTED).split(",").filter(function (h) { return /^[0-9a-f]{64}$/.test(h); });
+  },
+
   _applyWebos: function () {
     let on = boolPref(PREF_WEBOS, true);
     if (!on) { this._dropWebos(); return; }
@@ -388,7 +469,8 @@ JihadCerts.prototype = {
 
   _readWebos: function () {
     let lists = this.lists();
-    let skipped = {stock: 0, removed: 0, builtin: 0, expired: 0, notCA: 0, already: 0, relay: 0, unreadable: 0};
+    let skipped = {stock: 0, removed: 0, builtin: 0, expired: 0, notCA: 0, notRoot: 0, siteLike: 0, noCertSign: 0,
+                   accepted: 0, already: 0, relay: 0, unreadable: 0};
     let stores = [], seen = {}, found = [];
     if (lists.missing) { this._skipped = skipped; this._stores = stores; return; }
 
@@ -443,18 +525,24 @@ JihadCerts.prototype = {
       });
     }, this);
 
-    let db = certDB(), nowUs = Date.now() * 1000, trusted = [];
+    let db = certDB(), nowUs = Date.now() * 1000, trusted = [], accepted = {};
+    this.acceptedList().forEach(function (h) { accepted[h] = true; });
     found.forEach(function (c) {
       if (c.sha256 === RELAY_SHA256) { skipped.relay++; return; }
       if (lists.stock[c.sha256]) { skipped.stock++; return; }
       if (lists.removed[c.sha256]) { skipped.removed++; return; }
-      if (!derIsV3CA(c.der)) { skipped.notCA++; return; }
+      if (accepted[c.sha256]) { skipped.accepted++; return; }
       let cert;
       try { cert = db.constructX509FromBase64(c.b64); } catch (e) { skipped.unreadable++; return; }
       try {
         if (isRelayCert(cert) || isSquidWebosCert(cert)) { skipped.relay++; return; }
         if (cert.isBuiltInRoot) { skipped.builtin++; return; }
         if (cert.validity.notAfter < nowUs) { skipped.expired++; return; }
+        // Only a root: a v3 CA, its own issuer, whose key signs certificates and which names no
+        // site. An intermediate (a CA under a root Mozilla removed, say) or a site's own
+        // certificate is never made an anchor here.
+        let shape = rootShape(derFacts(c.der));
+        if (shape) { skipped[shape]++; return; }
         if (cert.certType !== Ci.nsIX509Cert.CA_CERT) { skipped.notCA++; return; }
         // A CA the user already trusts in Jihad's own database (R6) is theirs; leave it.
         if (trustedNow(db, cert)) { skipped.already++; return; }
@@ -592,18 +680,27 @@ JihadCertDialogs.prototype = {
     try { svc = Cc["@riverstonerelay.net/jihad/certs;1"].getService().wrappedJSObject; } catch (e) {}
     let fp = normFp(cert.sha256Fingerprint);
     let name = shownName(cert.commonName || cert.organization || cert.subjectName);
-    let from = svc ? svc.offeredBy() : "";
+    let offer = svc ? svc.takeOffer() : null;
+    if (!offer) {
+      // Not opened as a page: a frame or something else a page did. Nothing is asked or shown.
+      log("refused a CA certificate that was not opened as a page (" + fp.slice(0, 16) + "...)");
+      return false;
+    }
+    let from = offer.host;
     if (isRelayCert(cert)) {
       p.alert("Certificate", "This is the Riverstone Relay's certificate. Jihad trusts it only through " +
               "Settings \u2192 Advanced \u2192 Proxy, while the Relay is in use, and only if you turn that on.");
       log("refused the Relay's certificate offered by a link");
       return false;
     }
-    // The engine also lets a self-signed v1 site certificate through as a "CA" (CERT_IsCACert).
-    if (!derIsV3CA(rawDER(cert))) {
+    // The engine also lets a self-signed v1 site certificate through as a "CA" (CERT_IsCACert); and a
+    // site's own certificate that also says cA=TRUE (a router's, from openssl req -x509) names the
+    // site it is for. Neither is a certificate authority's.
+    let facts = derFacts(rawDER(cert));
+    if (!facts.ca || facts.san || facts.eku) {
       p.alert("Certificate", "\"" + name + "\" is not a certificate authority's certificate, so Jihad does not " +
               "take it as one. A site's own certificate is accepted when the site is opened.");
-      log("refused a certificate that is not a v3 CA (" + fp.slice(0, 16) + "...)");
+      log("refused a certificate that is not a CA's (" + fp.slice(0, 16) + "...)");
       return false;
     }
     let lists = svc ? svc.lists() : null;
@@ -638,10 +735,11 @@ JihadCertDialogs.prototype = {
   viewCert: function (ctx, cert) {}
 };
 
-// --- R6: a certificate file in a frame never reaches the question -----------------------------------
-// An HTTP one is stopped by JihadCerts._caLoad. A data: or file: frame is not an HTTP load, so it is
-// refused here, by its address, before it loads (a page could otherwise raise the question from a
-// hidden frame with a data: address carrying a CA certificate).
+// --- R6: which certificate files may be asked about -------------------------------------------------
+// An HTTP one is sorted by JihadCerts._caLoad. A data: or file: one is not an HTTP load, so it is
+// sorted here, by its address, before it loads: in a frame it is refused (a page could otherwise
+// raise the question from a hidden frame with a data: address carrying a CA certificate); opened as
+// the page itself it may be asked about once. Anything else (a blob: frame) never has an offer.
 function JihadCertPolicy() {}
 
 JihadCertPolicy.prototype = {
@@ -649,19 +747,25 @@ JihadCertPolicy.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIContentPolicy]),
 
   shouldLoad: function (type, location) {
-    if (type !== Ci.nsIContentPolicy.TYPE_SUBDOCUMENT || !location) { return Ci.nsIContentPolicy.ACCEPT; }
-    let refuse = false;
+    let frame = type === Ci.nsIContentPolicy.TYPE_SUBDOCUMENT, page = type === Ci.nsIContentPolicy.TYPE_DOCUMENT;
+    if ((!frame && !page) || !location) { return Ci.nsIContentPolicy.ACCEPT; }
+    let certFile = false;
     try {
       if (location.schemeIs("data")) {
-        refuse = /^data:\s*application\/(x-x509-ca-cert|pkix-cert)/i.test(location.spec);
+        certFile = /^data:\s*application\/(x-x509-ca-cert|pkix-cert)/i.test(location.spec);
       } else if (location.schemeIs("file")) {
         let ext = "";
         try { ext = location.QueryInterface(Ci.nsIURL).fileExtension; } catch (e) {}
-        refuse = /^(crt|cer|der|pem)$/i.test(ext);
+        certFile = /^(crt|cer|der|pem)$/i.test(ext);
       }
     } catch (e) {}
-    if (refuse) { log("a certificate file in a frame was not loaded (" + location.scheme + ":)"); }
-    return refuse ? Ci.nsIContentPolicy.REJECT_REQUEST : Ci.nsIContentPolicy.ACCEPT;
+    if (!certFile) { return Ci.nsIContentPolicy.ACCEPT; }
+    if (page) {
+      try { Cc["@riverstonerelay.net/jihad/certs;1"].getService().wrappedJSObject.offer(""); } catch (e) {}
+      return Ci.nsIContentPolicy.ACCEPT;
+    }
+    log("a certificate file in a frame was not loaded (" + location.scheme + ":)");
+    return Ci.nsIContentPolicy.REJECT_REQUEST;
   },
 
   shouldProcess: function () { return Ci.nsIContentPolicy.ACCEPT; }

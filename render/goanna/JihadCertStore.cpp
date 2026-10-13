@@ -231,6 +231,11 @@ void ForgetCertPem(const std::string& path) {
   if (!path.empty()) unlink(path.c_str());
 }
 
+std::string PemOf(const void* der, size_t derLen) {
+  if (!der || !derLen) return std::string();
+  return armourPem(static_cast<const unsigned char*>(der), derLen);
+}
+
 bool Install(const char* pemPath, Trust trust, const void* owner) {
   if (!pemPath || !*pemPath) return false;
   if (!loadApi()) return false;

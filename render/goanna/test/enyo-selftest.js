@@ -135,6 +135,16 @@
 						if (cfOpen) { cf.acceptClick(); }                                    // the popup's own Accept button handler
 						else if (alOpen) { br.viewCall("acceptDialog", []); }
 					} catch (e) { log(name, "answering THREW " + e); }
+				} else if (st === "D") {              // report the engine dialogs that are open, answering none
+					var db0 = app.$.browser, dal = db0.$.dialog, dcf = db0.$.confirmDialog, dss = db0.$.sslDialog;
+					// (the messages belong to the Browser, which declares them, not to their popups)
+					log(name, "dialogs: alert open=" + !!(dal && dal.isOpen) + (dal && dal.isOpen && db0.$.dialogMessage ? " [" + String(db0.$.dialogMessage.getContent()).slice(0, 140) + "]" : "") +
+						" confirm open=" + !!(dcf && dcf.isOpen) + (dcf && dcf.isOpen && db0.$.confirmMessage ? " [" + String(db0.$.confirmMessage.getContent()).slice(0, 160) + "]" : "") +
+						" ssl open=" + !!(dss && dss.isOpen));
+				} else if (st.charAt(0) === "V") {    // VN: answer the SSL dialog as its button N does (1 Trust Always, 2 Trust Once, 0 Don't Trust)
+					var vs = app.$.browser.$.sslDialog;
+					log(name, "ssl dialog open=" + !!(vs && vs.isOpen) + "; answering " + st.slice(1));
+					if (vs && vs.isOpen) { vs.response = st.slice(1); vs.close(); }
 				} else if (st.charAt(0) === "W") {    // WUSER:PASS: fill the open login dialog (a 401/407) and press OK,
 					// through the card's own fields and handler — what typing them and tapping OK does
 					var wu = st.slice(1).split(":"), wb = app.$.browser;

@@ -32,6 +32,11 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 const PREF_MODE = "jihad.proxy.mode";
+// The last proxy webOS's setting was followed to (JSON). When a read fails, Jihad keeps following it:
+// the daemon cannot ask until it is on the bus, which can take minutes after a start, and going
+// direct meanwhile sent the pages of someone who chose webOS's proxy past it (the inspector,
+// round 24). With nothing followed yet, a failed read goes direct as before.
+const PREF_LAST = "jihad.proxy.webos.last";
 
 function log(s) {
   try { Services.console.logStringMessage("proxy: " + s); } catch (e) {}
@@ -110,13 +115,26 @@ JihadProxy.prototype = {
   apply: function () {
     let a = this._answer;
     let p;
-    if (!a) {
-      p = {type: 0, said: "", error: "webOS's proxy setting has not been read yet."};
-    } else if (a.returnValue === false) {
-      p = {type: 0, error: "webOS's proxy setting could not be read (" + String(a.errorText || "no reason given") + "), so Jihad goes direct."};
+    if (!a || a.returnValue === false) {
+      let why = !a ? "webOS's proxy setting has not been read yet" :
+        "webOS's proxy setting could not be read (" + String(a.errorText || "no reason given") + ")";
+      let last = null;
+      try { last = JSON.parse(charPref(PREF_LAST) || "null"); } catch (e) { last = null; }
+      if (last && (last.type === 0 || last.type === 1 || last.type === 2 || last.type === 4)) {
+        p = {type: last.type, host: last.host, port: last.port, pac: last.pac, said: last.said || "",
+             error: why + "; Jihad keeps what it last followed."};
+      } else {
+        p = {type: 0, said: "", error: why + ", so Jihad goes direct."};
+      }
     } else {
       p = plan(pickEntry(a.proxyInfoList));
       if (p.error) { p.type = 0; p.error += " Jihad goes direct."; }
+      else {
+        try {
+          Services.prefs.setCharPref(PREF_LAST, JSON.stringify({type: p.type, host: p.host, port: p.port, pac: p.pac,
+                                                                 said: p.said}));
+        } catch (e) {}
+      }
     }
     this._said = p.said || "";
     this._error = p.error || "";

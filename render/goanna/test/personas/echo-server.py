@@ -33,8 +33,11 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
         if p == "/carbon-light-header.png":
-            # Carbon Light by Jaxivo, CC BY-SA 3.0 — one of the Personas Jihad bundles (render/goanna/personas/).
-            data = open("../../personas/carbon-light.png","rb").read()
+            # Carbon Light by Jaxivo, CC BY-SA 3.0, its picture read out of the theme's own package beside
+            # this script (the bundle no longer carries it; the inspector, round 24).
+            import os, zipfile
+            with zipfile.ZipFile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carbon_light-2.0.xpi")) as z:
+                data = z.read("header.png")
             self.send_response(200); self.send_header("Content-Type", "image/png"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
         if p.startswith("/themes/") and p.endswith(".xpi"):
             # AMO static themes for the README gallery (downloaded to the scratch themes dir).

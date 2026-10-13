@@ -197,14 +197,16 @@ JihadPrompter::PromptAuth(nsIChannel* aChannel, uint32_t, nsIAuthInformation* aA
   if (flags & nsIAuthInformation::AUTH_PROXY) {
     // A 407: the login is the proxy's, not the site's, and the channel's URI is the site
     // (cavekit-proxies-certs.md R5). Name the proxy, so a site never seems to ask for it. The
-    // text starts "proxy ": the Enyo and Mochi shells then say "The proxy … requires a username
-    // and password" instead of "The server …"; Mojo's dialog is the system framework's own.
+    // text starts "[proxy] ", which no site's host:port can (a site named "proxy" could pass for
+    // "proxy "; the inspector, round 24): the Enyo and Mochi shells then say "The proxy …
+    // requires a username and password" instead of "The server …"; Mojo's dialog is the system
+    // framework's own and shows the text as it is.
     nsCOMPtr<nsIProxiedChannel> proxied = do_QueryInterface(aChannel);
     nsCOMPtr<nsIProxyInfo> pi;
     if (proxied) proxied->GetProxyInfo(getter_AddRefs(pi));
     nsAutoCString phost; int32_t pport = -1;
     if (pi) { pi->GetHost(phost); pi->GetPort(&pport); }
-    text.AppendLiteral("proxy ");
+    text.AppendLiteral("[proxy] ");
     if (!phost.IsEmpty()) {
       hostPort = phost;
       if (pport > 0) { hostPort.Append(':'); hostPort.AppendInt(pport); }

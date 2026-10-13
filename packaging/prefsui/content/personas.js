@@ -211,9 +211,13 @@ function setupMine() {
 		box.hidden = !box.hidden;
 	}, false);
 	// A removal finishes in the add-on manager a moment later; card pictures are made in the background.
-	let watcher = {observe: function (subject, topic, data) { if (data === "thumbs") { updatePictures(); } else { afterChange(); } }};
+	let watcher = {observe: function (subject, topic) { if (topic === "jihad-personas-thumbs") { updatePictures(); } else { afterChange(); } }};
 	Services.obs.addObserver(watcher, "jihad-personas-mine", false);
-	window.addEventListener("unload", function () { Services.obs.removeObserver(watcher, "jihad-personas-mine"); }, false);
+	Services.obs.addObserver(watcher, "jihad-personas-thumbs", false);
+	window.addEventListener("unload", function () {
+		Services.obs.removeObserver(watcher, "jihad-personas-mine");
+		Services.obs.removeObserver(watcher, "jihad-personas-thumbs");
+	}, false);
 }
 
 // The Personas that come with Jihad and are not installed (one removed can be had again here); the

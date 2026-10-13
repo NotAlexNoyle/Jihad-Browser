@@ -2000,11 +2000,16 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
           // Write-through to the platform store so the rest of the device sees
           // the same decision. Absent or failing store = Goanna-only trust; it
           // must never turn an accepted certificate into a failed load.
-          if (!certFile.empty()) {
-            jihad::certstore::Install(certFile.c_str(),
-                                      permanent ? jihad::certstore::kTrustPermanent
-                                                : jihad::certstore::kTrustSession,
-                                      this);
+          if (!certFile.empty() &&
+              jihad::certstore::Install(certFile.c_str(),
+                                        permanent ? jihad::certstore::kTrustPermanent
+                                                  : jihad::certstore::kTrustSession,
+                                        this)) {
+            // The store now holds a site's own certificate, where webOS's other trusted ones
+            // are. components/jihadCerts.js reads that store for CAs (cavekit-proxies-certs R4)
+            // and must never take this one as a root (the inspector, round 24).
+            jihad::NotifyChromeGlobal("jihad-platform-cert",
+                                      jihad::certstore::PemOf(der.data(), der.size()).c_str());
           }
           // Retry the load that FAILED, not the current document. CurrentUri() is the last
           // page that committed — when the certificate error came from a navigation away from

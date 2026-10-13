@@ -65,6 +65,9 @@ std::string WriteCertPem(const void* der, size_t derLen);
 // Delete a PEM written by WriteCertPem (no-op for an empty path).
 void ForgetCertPem(const std::string& path);
 
+// `der` armoured as PEM text, as WriteCertPem writes it ("" for no bytes).
+std::string PemOf(const void* der, size_t derLen);
+
 // What is wrong with the certificate, as the engine can describe it. `haveFlags`
 // false means nothing but the nsresult is known.
 struct Problem {

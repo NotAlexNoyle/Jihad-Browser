@@ -1070,7 +1070,7 @@ const PROXY_PREFS = ["network.proxy.type", "network.proxy.http", "network.proxy.
 	"network.proxy.ssl_port", "network.proxy.socks", "network.proxy.socks_port", "network.proxy.socks_version",
 	"network.proxy.socks_remote_dns", "network.proxy.no_proxies_on", "network.proxy.autoconfig_url",
 	"network.proxy.share_proxy_settings", "jihad.proxy.mode", "jihad.proxy.webone.host", "jihad.proxy.webone.port",
-	"jihad.proxy.relay.trust_ca"];
+	"jihad.proxy.relay.trust_ca", "jihad.proxy.webos.last"];
 const PROXY_HOST_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$|^\d{1,3}(?:\.\d{1,3}){3}$|^[0-9A-Fa-f]*:[0-9A-Fa-f:.]+$/;
 
 function pInt(name, dflt) { try { return Services.prefs.getIntPref(name); } catch (e) { return dflt; } }
@@ -1452,7 +1452,12 @@ function buildCertsSection(group) {
 		if (k.stock) { parts.push(k.stock + " of HP's original roots"); }
 		if (k.removed) { parts.push(k.removed + " Mozilla removed"); }
 		if (k.expired) { parts.push(k.expired + " expired"); }
-		if (k.notCA) { parts.push(k.notCA + " site certificates (Jihad asks about those per site)"); }
+		let sites = (k.notCA || 0) + (k.siteLike || 0) + (k.accepted || 0);
+		if (sites) { parts.push(sites + " site certificates (Jihad asks about those per site)"); }
+		if (k.notRoot) { parts.push(k.notRoot + " intermediate certificates (only roots are taken)"); }
+		if (k.noCertSign) {
+			parts.push(k.noCertSign + " that do not say they sign certificates (to add such a CA, open its file in Jihad)");
+		}
 		if (k.already) { parts.push(k.already + " you added here as well"); }
 		if (k.relay) { parts.push("the Riverstone Relay's (see Advanced → Proxy)"); }
 		if (k.unreadable) { parts.push(k.unreadable + " unreadable files"); }

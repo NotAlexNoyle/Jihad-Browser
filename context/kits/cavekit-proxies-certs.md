@@ -143,11 +143,14 @@ in all three shells, without about:config.
   httpbin's front strips `Via`, so the server's address stands in for it. Over https the same pages
   show only `116.202.108.111` and no Squid header: the tunnel was not opened. The second half done,
   above.)*
-- [ ] The Relay does not tell sites who its users are: a plain http page and a re-signed (bumped)
+- [x] The Relay does not tell sites who its users are: a plain http page and a re-signed (bumped)
   https page fetched through it carry no `X-Forwarded-For` naming the user, and Jihad's spliced
   https never did. The server agent is sent the Squid change (`forwarded_for delete`) with checks
   before and after; then, on the device, http://httpbin.org/ip through the Relay shows only the
-  server's address. *(Sent 2026-10-13, received 13:35; waiting on the reply.)*
+  server's address. *(Server, 18:12 UTC: `squid.conf` line 103, parse clean; from 127.0.0.1, plain
+  http and bumped https went from `127.0.0.1,116.202.108.111` to `116.202.108.111`, spliced
+  unchanged. The archive peer on :3130 never read the header. Device, Enyo: http://httpbin.org/ip
+  through the Relay shows only `116.202.108.111`, and httpbin still sees Squid's header.)*
 **Dependencies:** R1
 
 ### R3: WebOne
@@ -249,5 +252,5 @@ by the user or by a community update.
   offered it (R6), the Relay pinned in the component and recognised by key and subject (R2), its
   switch wherever it is in use (R2). Device evidence added. Same day: the server agent applied the
   Relay's splice rule; R2 met on the device (the site's own certificate through the Relay). Then
-  the owner: the Relay hides users' addresses (R2, a new criterion, sent to the server); the
+  the owner: the Relay hides users' addresses (R2, a new criterion, applied and met); the
   stale-picture finding (T-465) withdrawn, a screenshot taken before the pick.

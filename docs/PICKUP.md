@@ -20,8 +20,32 @@ reference material for a specific subsystem, not a status document.
   127.0.0.1). It also asks whether the archive peer on :3130 uses the header, and what Squid's access
   log keeps about clients (report only; the owner decides). The site update (`d9359ea`, install.sh's
   site-block line) rides along.
-- **On the reply:** on the device, the Relay chosen in Enyo, http://httpbin.org/ip must show only
-  `116.202.108.111`. Then close R2's new criterion and T-468.
+- **The reply** (`~/Documents/jihad-reply-2026-10-13c.tar`, code 7-repellent-eyeglass):
+  - `forwarded_for delete` is live since 18:12 UTC (`squid.conf` line 103, above `cache deny all`).
+    Parse was clean, and Squid was reconfigured in place.
+  - From 127.0.0.1, plain http and bumped https went from `127.0.0.1,116.202.108.111` to
+    `116.202.108.111`; spliced (Jihad's UA) was unchanged.
+  - Rollback: `doas bash ~/squid-hardening/hide-client-addresses.sh --undo`, or the backup
+    `squid.conf.bak.2026-10-13-xff`.
+  - The archive (:3130) and setup (:3129) servers never read the header and log nothing.
+  - `d9359ea` is live (18:13), with install.sh's new line printed; smoke 43/43. `www.prev` is
+    `68caed1`.
+- **On the device (Enyo, the Relay chosen):** http://httpbin.org/ip shows only `116.202.108.111`, and
+  httpbin still sees Squid's `Cache-Control` (so the page went through the Relay). R2's criterion
+  and T-468 are closed. Enyo is back on no proxy.
+- **The access log, the owner's to decide (nothing changed):** Squid's default `access_log` records
+  every client's address (field 3) with time, URL (a bumped https request's full URL; a spliced one
+  only `CONNECT host:443`), status and bytes. `cache.log` names addresses in some errors.
+  - Rotation is by size: logrotate hourly, `size 4500M`, `rotate 2`. That keeps roughly a week to
+    ten days on disk (~2 GB a day).
+  - The server's abuse handling runs on those addresses: the bans of 06-08, 07-18 and 08-24 came
+    from them.
+  - Options:
+    - keep as is;
+    - shorten it, e.g. rotate daily and keep 1–2 days;
+    - Squid's `client_netmask 255.255.255.0`, which logs only each client's /24 (abuse handling by
+      network, not by address);
+    - no address at all.
 
 **T-465 withdrawn: not a redraw bug.**
 - Both "old picture" sightings were screenshots taken before the pick ran. `card-selftest.sh run`
@@ -45,7 +69,7 @@ reference material for a specific subsystem, not a status document.
   permission classifier; it goes with the next Mojo install, or `card-selftest.sh mojo restore`, or
   the owner removes it.
 
-**Open:** T-468 (the server's reply, then the device check); Codex on Tier 83 after Oct 18th, 11:59
+**Open:** the owner's word on the Relay's access log (above); Codex on Tier 83 after Oct 18th, 11:59
 AM (T-466, now including `card-selftest.sh` and the site to `d9359ea`); the finger round.
 
 ## 2026-10-13 (later) delta — Tier 83: proxies and webOS's certificates

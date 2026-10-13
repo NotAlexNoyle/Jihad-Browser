@@ -21,6 +21,7 @@
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
 #include "mozilla/RefCountType.h" // MozExternalRefCountType
 #include <cstring>                // strcmp (observer topic)
+#include <dlfcn.h>                // dlsym (SSL_ClearSessionCache, the TLS sessions observer)
 #include "nsIObserver.h"          // XPI web-install confirm round-trip (R3)
 #include "nsIObserverService.h"
 #include "nsIPropertyBag2.h"
@@ -451,6 +452,44 @@ static JihadWebosProxyObserver& WebosProxyObserver() {
   return o;
 }
 
+// TLS sessions checked under a trust that was just taken away (cavekit-proxies-certs.md R2, R4,
+// R6): components/jihadCerts.js raises "jihad-clear-tls-sessions" and this clears NSS's session
+// cache, so a resumed session cannot skip the new check. The script-reachable alternative,
+// nsISecretDecoderRing.logoutAndTeardown, also logs out of every token, cancels every open TLS
+// socket and forgets every temporary certificate override (each Trust Once) — the inspector's
+// finding, 2026-10-13. SSL_ClearSessionCache is libssl3's, which libxul already loaded; it is
+// looked up rather than linked so the daemon gains no build-time NSS dependency.
+class JihadTlsSessionsObserver final : public nsIObserver {
+ public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) ||
+        aIID.Equals(NS_GET_IID(nsIObserver))) {
+      *aResult = static_cast<nsIObserver*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+
+  NS_IMETHOD Observe(nsISupports*, const char* aTopic, const char16_t*) override {
+    if (!aTopic || strcmp(aTopic, "jihad-clear-tls-sessions") != 0) return NS_OK;
+    typedef void (*ClearFn)(void);
+    static ClearFn sClear = (ClearFn)dlsym(RTLD_DEFAULT, "SSL_ClearSessionCache");
+    if (sClear) sClear();
+    fprintf(stderr, "[jihad-bs] tls: session cache %s\n", sClear ? "cleared" : "NOT cleared (no SSL_ClearSessionCache)");
+    return NS_OK;
+  }
+};
+
+static JihadTlsSessionsObserver& TlsSessionsObserver() {
+  static JihadTlsSessionsObserver o;
+  return o;
+}
+
 bool InstallDialogService() {
   static bool installed = false;
   if (installed) return true;
@@ -472,6 +511,8 @@ bool InstallDialogService() {
     if (obs) obs->AddObserver(&NotifyObserver(), "jihad-notify", false);
     // components/jihadProxy.js asks for webOS's proxy setting again (a card's Settings).
     if (obs) obs->AddObserver(&WebosProxyObserver(), "jihad-webos-proxy-refresh", false);
+    // components/jihadCerts.js, after a trust is taken away.
+    if (obs) obs->AddObserver(&TlsSessionsObserver(), "jihad-clear-tls-sessions", false);
     // R3 "clear reason": components/jihadInstallPrompt.js ALSO observes "addon-install-failed",
     // which is the ONLY notification an incompatible (appDisabled) XPI produces. That refusal
     // happens inside amWebInstallListener BEFORE any confirm prompt is reached, so nothing would
@@ -530,6 +571,7 @@ void ShutdownDialogService() {
   if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
   if (obs) obs->RemoveObserver(&NotifyObserver(), "jihad-notify");
   if (obs) obs->RemoveObserver(&WebosProxyObserver(), "jihad-webos-proxy-refresh");
+  if (obs) obs->RemoveObserver(&TlsSessionsObserver(), "jihad-clear-tls-sessions");
   gWebosProxyReader = nullptr;
 }
 

@@ -1086,9 +1086,14 @@ function proxyMode() {
 	let type = pInt("network.proxy.type", 0), mode = pChar("jihad.proxy.mode");
 	if (mode === "webos") { return "webos"; }
 	if (type === 1) {
-		if (pChar("network.proxy.http").toLowerCase() === RELAY_HOST && pInt("network.proxy.http_port", 0) === RELAY_PORT &&
-		    pChar("network.proxy.ssl").toLowerCase() === RELAY_HOST && !pChar("network.proxy.socks")) { return "relay"; }
-		return mode === "webone" ? "webone" : "manual";
+		let http = pChar("network.proxy.http"), httpPort = pInt("network.proxy.http_port", 0);
+		if (http.toLowerCase() === RELAY_HOST && httpPort === RELAY_PORT && pChar("network.proxy.ssl").toLowerCase() === RELAY_HOST &&
+		    pInt("network.proxy.ssl_port", 0) === RELAY_PORT && !pChar("network.proxy.socks")) { return "relay"; }
+		// WebOne only while the engine really goes to the WebOne this section names; an about:config
+		// edit since makes it the user's own proxy again (the inspector, 2026-10-13).
+		if (mode === "webone" && http && http === pChar("jihad.proxy.webone.host") &&
+		    httpPort === pInt("jihad.proxy.webone.port", 8080)) { return "webone"; }
+		return "manual";
 	}
 	if (type === 2) { return "pac"; }
 	if (type === 4) { return "wpad"; }
@@ -1096,10 +1101,21 @@ function proxyMode() {
 }
 
 function validHost(h) { return PROXY_HOST_RE.test(String(h || "").trim()); }
-function validPort(p) { let n = Number(p); return n === Math.floor(n) && n >= 1 && n <= 65535; }
+function validPort(p) { p = String(p).trim(); return /^\d{1,5}$/.test(p) && Number(p) >= 1 && Number(p) <= 65535; }
 
 // Write a set of prefs as one change; an empty string or null clears a char pref's user value.
 function proxyWrite(values, mode, said) {
+	// All or nothing: a locked pref (an administrator's) stops the change before anything is written,
+	// so the engine is never left with half a proxy.
+	let names = Object.keys(values).concat(["jihad.proxy.mode"]);
+	for (let i = 0; i < names.length; i++) {
+		let locked = false;
+		try { locked = Services.prefs.prefIsLocked(names[i]); } catch (e) {}
+		if (locked) {
+			announce("pref-write-failed", "Could not change the proxy: " + names[i] + " is locked on this device.", true);
+			return false;
+		}
+	}
 	try {
 		for (let name in values) {
 			let v = values[name];
@@ -1133,6 +1149,12 @@ function textField(value, placeholder, kind) {
 	if (placeholder) { t.setAttribute("placeholder", placeholder); }
 	t.setAttribute("autocapitalize", "off");
 	t.setAttribute("spellcheck", "false");
+	if (kind === "port") {
+		// A text field, checked by validPort: a number field turns letters into "" without a word.
+		t.setAttribute("type", "text");
+		t.setAttribute("inputmode", "numeric");
+		t.setAttribute("maxlength", "5");
+	}
 	return t;
 }
 
@@ -1159,7 +1181,7 @@ function buildProxySection(group) {
 	let body = el("div", "proxy-body");
 	box.appendChild(body);
 
-	function fill(mode) {
+	function fill(mode, askWebos) {
 		while (body.firstChild) { body.removeChild(body.firstChild); }
 		let pending = mode !== proxyMode();
 		if (mode === "none") {
@@ -1168,7 +1190,7 @@ function buildProxySection(group) {
 				  "build cannot read, so it was direct already.)"
 				: "Jihad connects to sites directly."));
 		} else if (mode === "webos") {
-			fillWebos();
+			fillWebos(askWebos);
 		} else if (mode === "relay") {
 			fillRelay();
 		} else if (mode === "webone") {
@@ -1181,10 +1203,22 @@ function buildProxySection(group) {
 			body.appendChild(helpRow("The engine looks for a proxy auto-config file on the network (WPAD), as webOS's " +
 				"setting or about:config asked."));
 		}
+		// The Relay can be in use without being chosen here (webOS's setting, or a proxy typed by hand):
+		// its certificate switch is shown wherever it is (the inspector, 2026-10-13).
+		let certs = jihadService("@riverstonerelay.net/jihad/certs;1");
+		if (mode !== "relay" && !pending && certs && certs.report().relay.inUse) {
+			body.appendChild(helpRow("Jihad is going through the Riverstone Relay (" + RELAY_HOST + ")."));
+			body.appendChild(relayTrustRow());
+		}
 	}
 
-	function fillWebos() {
+	function fillWebos(ask) {
 		let svc = jihadService("@riverstonerelay.net/jihad/proxy;1");
+		// Read again whenever the section is shown, and draw it again once the answer is in.
+		if (ask && svc) {
+			svc.refresh();
+			window.setTimeout(function () { if (which.value === "webos") { fill("webos", false); } }, 1500);
+		}
 		body.appendChild(helpRow("Follows the proxy set for the whole TouchPad, which apps such as webOS Archive Proxy " +
 			"set. Read when Jihad starts and whenever a card opens."));
 		let st = svc ? svc.state() : null;
@@ -1198,7 +1232,7 @@ function buildProxySection(group) {
 		again.addEventListener("click", function () {
 			if (svc) { svc.refresh(); }
 			status("Asked webOS for its proxy setting.");
-			window.setTimeout(function () { if (which.value === "webos") { fill("webos"); } }, 1500);
+			window.setTimeout(function () { if (which.value === "webos") { fill("webos", false); } }, 1500);
 		}, false);
 		let actions = el("div", "row");
 		actions.appendChild(again);
@@ -1209,6 +1243,10 @@ function buildProxySection(group) {
 		body.appendChild(helpRow("The Riverstone Relay is a proxy run by Jihad's author at " + RELAY_HOST + ":" + RELAY_PORT +
 			". Pages travel through it. Secure (https) pages pass through it still encrypted, checked by Jihad as they " +
 			"would be without it."));
+		body.appendChild(relayTrustRow());
+	}
+
+	function relayTrustRow() {
 		let certs = jihadService("@riverstonerelay.net/jihad/certs;1");
 		let rep = certs ? certs.report() : null;
 		let cb = document.createElement("input");
@@ -1225,16 +1263,17 @@ function buildProxySection(group) {
 				announce("pref-write-failed", "Could not save that: the profile may be read-only.", true);
 			}
 		}, false);
-		body.appendChild(fontRow("Trust the Relay's certificate", "jihad.proxy.relay.trust_ca", cb,
+		return fontRow("Trust the Relay's certificate", "jihad.proxy.relay.trust_ca", cb,
 			"Off unless you turn it on. Only needed if the Relay re-signs secure pages with its own certificate " +
-			"(squid-sslbump-for-webos), which it does for webOS's own older browsers. With it on, the Relay can read " +
-			"and change the secure pages it carries." + (rep && rep.relay.fingerprint ? " SHA-256 " + rep.relay.fingerprint + "." : "")));
+			"(squid-sslbump-for-webos), which it does for webOS's own older browsers. While it is on and the Relay is " +
+			"in use, Jihad takes that certificate for every secure site, so the Relay can read and change the secure " +
+			"pages it carries." + (rep && rep.relay.fingerprint ? " SHA-256 " + rep.relay.fingerprint + "." : ""));
 	}
 
 	function hostPortRows(hostLabel, hostPref, host, port, portDefault, portPref) {
 		let h = textField(host, "host name or address");
 		// A port left empty takes the usual one, shown as the placeholder.
-		let p = textField(port || "", String(portDefault || ""), "number");
+		let p = textField(port || "", String(portDefault || ""), "port");
 		body.appendChild(fontRow(hostLabel, hostPref, h));
 		body.appendChild(fontRow("Port", portPref || hostPref + "_port", p));
 		return [h, p];
@@ -1261,9 +1300,10 @@ function buildProxySection(group) {
 			pInt("jihad.proxy.webone.port", 8080), 8080, "jihad.proxy.webone.port");
 		pendingNote(pending);
 		useButton("Use this WebOne", function () {
-			let host = f[0].value.trim(), port = Number(f[1].value || 8080);
+			let host = f[0].value.trim(), port = f[1].value.trim() || "8080";
 			if (!validHost(host)) { announce("proxy-bad", "WebOne's address must be a host name or an IP address.", true); return; }
 			if (!validPort(port)) { announce("proxy-bad", "The port must be a number from 1 to 65535.", true); return; }
+			port = Number(port);
 			if (proxyWrite({"jihad.proxy.webone.host": host, "jihad.proxy.webone.port": port,
 			                "network.proxy.http": host, "network.proxy.http_port": port,
 			                "network.proxy.ssl": host, "network.proxy.ssl_port": port,
@@ -1298,7 +1338,7 @@ function buildProxySection(group) {
 		body.appendChild(fontRow("Use it for secure (https) pages too", "network.proxy.ssl", share));
 		let sslBox = el("div", "proxy-ssl");
 		body.appendChild(sslBox);
-		let ssl = [textField(sslHost, "host name or address"), textField(sslPort || "", "3128", "number")];
+		let ssl = [textField(sslHost, "host name or address"), textField(sslPort || "", "3128", "port")];
 		sslBox.appendChild(fontRow("HTTPS proxy", "network.proxy.ssl", ssl[0]));
 		sslBox.appendChild(fontRow("Port", "network.proxy.ssl_port", ssl[1]));
 		sslBox.style.display = share.checked ? "none" : "";
@@ -1378,7 +1418,7 @@ function buildProxySection(group) {
 		}
 		fill(m);
 	}, false);
-	fill(current);
+	fill(current, true);
 	return box;
 }
 

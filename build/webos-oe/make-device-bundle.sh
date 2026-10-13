@@ -396,6 +396,9 @@ component {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63} jihadCerts.js
 contract @riverstonerelay.net/jihad/certs;1 {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63}
 component {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28} jihadCerts.js
 contract @mozilla.org/nsCertificateDialogs;1 {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28}
+component {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13} jihadCerts.js
+contract @riverstonerelay.net/jihad/cert-policy;1 {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13}
+category content-policy JihadCertPolicy @riverstonerelay.net/jihad/cert-policy;1
 MANIFEST
 cat > "$OUT/components/jihad-proxy.manifest" <<'MANIFEST'
 # Jihad Browser — following webOS's proxy setting. Copyright 2026 NotAlexNoyle. MPL-2.0.

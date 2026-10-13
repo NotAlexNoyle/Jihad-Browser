@@ -79,6 +79,22 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   page's field, back and forward — nothing slower or odder than before. (cavekit-engine-update.md R8)
 - [ ] Flash with sound (jihad-audio-long), and a video with sound, on the new engine. (R8)
 
+## Proxies and certificates (2026-10-13)
+- [ ] Settings → Advanced → Proxy → My own proxy: type a proxy's host and port on the on-screen
+  keyboard, tap Use this proxy, and browse through it; then No proxy. (proxies-certs R1; the
+  fields were filled from prefs for the device run, because a script cannot type past the keyboard)
+- [ ] WebOne: type a WebOne machine's address, tap Use this WebOne, then Open this WebOne's
+  certificate and say Yes; browse an https site through it. (R3, R6; scripted with the same
+  steps, with the address from prefs)
+- [ ] A proxy that asks for a login: type the user name and password in the card's dialog (each
+  shell; Mojo's is webOS's own sheet) and the page loads. (R5; Enyo and Mochi answered through
+  their own dialogs by script, Mojo not answered)
+- [ ] After choosing a proxy, the section redraws by itself, with no touch. (Known open: after
+  choosing Riverstone Relay the card kept its old picture until the next touch, Enyo and Mochi;
+  build site T-465.)
+- [ ] The Riverstone Relay for everyday browsing once its pass-through rule is on the server:
+  https sites load with their own certificates. (R2)
+
 ## Media and sound
 - [ ] A video's play/pause and volume by tap. (gre-widgets R1)
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,

@@ -36,6 +36,9 @@ import tarfile
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# The Relay's CA as the kit records it (cavekit-proxies-certs.md) and components/jihadCerts.js pins it
+# (RELAY_SHA256). A riverstone-relay-ca.pem that is anything else is refused, not written to the list.
+RELAY_SHA256 = "b48f324daca7da1dd3f8b737834a6a5d66c61aabd1a0a55bd36e8cfa27fb03bb"
 PEM_RE = re.compile(rb"-----BEGIN CERTIFICATE-----(.+?)-----END CERTIFICATE-----", re.S)
 
 
@@ -92,6 +95,10 @@ def main():
     stock = hp_stock(args.rootfs)
     removed = mozilla_removed(args.ccadb)
     relay_der = der_of_pem(open(os.path.join(HERE, "riverstone-relay-ca.pem"), "rb").read())[0]
+    if hashlib.sha256(relay_der).hexdigest() != RELAY_SHA256:
+        sys.exit("riverstone-relay-ca.pem is not the Relay CA the kit pins (%s); if the Relay was re-keyed, "
+                 "update RELAY_SHA256 here, RELAY_SHA256 and RELAY_SPKI in components/jihadCerts.js, and the kit"
+                 % hashlib.sha256(relay_der).hexdigest())
     # Re-armoured from the DER, so nothing but the one certificate reaches the list.
     relay_pem = subprocess.run(["openssl", "x509", "-inform", "DER"], input=relay_der,
                                capture_output=True, check=True).stdout

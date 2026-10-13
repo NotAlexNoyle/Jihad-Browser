@@ -812,7 +812,9 @@ void LunaServiceSetCertificateFn(LunaCertificateFn fn) { gCertificateFn = fn; }
 namespace {
 bool onWebosProxy(LSHandle*, LSMessage* msg, void*) {
   const char* pl = gApi.MessageGetPayload ? gApi.MessageGetPayload(msg) : nullptr;
-  printf("[jihad-bs] proxy: webOS's setting: %.300s\n", pl ? pl : "(no payload)");
+  // Not the payload itself: a proxy entry can carry a login (the inspector, 2026-10-13).
+  // components/jihadProxy.js logs what it applies, host and port only.
+  printf("[jihad-bs] proxy: webOS's setting read (%u bytes)\n", pl ? (unsigned)strlen(pl) : 0u);
   jihad::NotifyChromeGlobal("jihad-webos-proxy",
                             pl ? pl : "{\"returnValue\":false,\"errorText\":\"empty reply\"}");
   return true;

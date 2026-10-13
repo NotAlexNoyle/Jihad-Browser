@@ -25,6 +25,7 @@
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 #include "../goanna/JihadCrashReport.h"    // self-reporting fatal-signal dump
 #include "JihadLunaService.h"              // this variant's own palm:// service (IPC R4)
+#include "../goanna/DialogService.h"       // SetWebosProxyReader (webOS's proxy setting)
 #include "../goanna/JihadCrashGuard.h"     // a clean exit clears the crash guard's note
 
 static JihadBrowserServer* g_server = nullptr;
@@ -372,6 +373,9 @@ int main(int argc, char** argv) {
   jihad::LunaServiceSetCertificateFn([](std::string* json) -> bool {
     return sThumbServer && sThumbServer->certificateForActivePage(json);
   });
+  // webOS's proxy setting is read on this connection; a component asks for it again through
+  // DialogService (cavekit-proxies-certs.md R1).
+  jihad::SetWebosProxyReader(&jihad::LunaServiceReadWebosProxy);
   jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
 
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);

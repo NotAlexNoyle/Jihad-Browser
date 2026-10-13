@@ -476,7 +476,7 @@ function printWindow(win, printer, dryRun) {
              (truncated ? " The page is longer; only the first " + MAX_PAGES + " sheets were printed." : ""));
       return;
     }
-    notify("print-progress", "Printing page " + (page + 1) + " of " + pages + "…");
+    notify("print-progress", "Printing page " + (page + 1) + " of " + pages + "\u2026");
     let bytes, t0 = Date.now(), tDrawn = 0;
     try {
       ctx.setTransform(1, 0, 0, 1, 0, 0);

@@ -30,7 +30,14 @@ page, and lets Jihad trust the certificates webOS trusts where that adds somethi
   - `/etc/ssl/certs/ca-certificates.crt` — a bundle (one certificate on 3.0.5, the 190 on CE).
   - `/usr/lib/ssl/{cert.pem,certs}` — where the community OpenSSL 1.1.1 (`/usr/lib/ssl11`) looks;
     `certs` is a link to `/etc/ssl/certs`.
-  - No system-wide proxy setting exists on webOS 3 (see R1).
+  - webOS's proxy setting: `com.palm.connectionmanager/getNwProxiesConfig` (since webOS 2.2.4;
+    `{"returnValue":true,"proxyInfoList":[]}` on the device, nothing set); entries carry
+    `proxyConfigType` (`noProxy`, `manualProxy`, `autoConfigUrl`, `autoDetectFromNetwork`),
+    `proxyServer`, `proxyPort`, `proxyAutoConfigUrl`. The engine's own "system proxy" (type 5) reads
+    GNOME's settings and is not built into the headless engine, so it silently goes direct here.
+- **WebOne** (v0.18.3): an HTTP proxy on port 8080 that re-signs every HTTPS site it carries with
+  its own CA (SHA-1 by default, which the engine allows under a root a user added); the CA is served
+  at `/weboneca.crt` (DER) and `/weboneca.pem`, a PAC file at `/auto.pac`.
 - **Against the engine's own list** (NSS in UXP RB_20261006, 177 roots) and Mozilla's record of
   removed roots (CCADB "Removed CA Certificate Report", 103 entries, fetched 2026-10-13): of CE's 190,
   122 are already Jihad's, 63 are HP's, none is a removed root, and **5 are newer than Jihad's NSS**
@@ -48,8 +55,15 @@ page, and lets Jihad trust the certificates webOS trusts where that adds somethi
   and roots added by community patches or CE; skip HP's stock roots, roots Jihad already has, and
   roots Mozilla removed. One switch in Settings, on by default.
 - **The Relay and HTTPS:** "Pass-through only" — a Squid rule on the server lets Jihad's HTTPS pass
-  through untouched; **Jihad never trusts the Relay's CA**.
+  through untouched. Amended the same day: "make using riverstone relay ca an option if riverstone
+  relay proxy is installed but off by default" — trusting the Relay's CA is a setting, off by
+  default, offered only while the Relay is the proxy in use.
 - **The Relay's access:** "It should be open" — no Relay-specific login handling.
+- **A proxy's own CA (WebOne, a self-hosted bumping Squid):** "Ask when opening it" — opening the
+  proxy's CA certificate link asks whether to trust it to identify websites (name and SHA-256 shown),
+  the standard browser way; trusted in Jihad only, listed and removable in Settings.
+- **Default:** "No proxy". webOS's own proxy setting (`com.palm.connectionmanager`, which apps like
+  webOS Archive Proxy set) is offered as a choice, not the default.
 
 ## Requirements
 
@@ -58,15 +72,19 @@ page, and lets Jihad trust the certificates webOS trusts where that adds somethi
 in all three shells, without about:config.
 **Acceptance Criteria:**
 - [ ] Settings → Advanced has a **Proxy** section (`about:settings#pane=advanced&section=proxy` opens
-  it) offering: **No proxy**, **Riverstone Relay** (R2), **WebOne** (R3), **My own proxy** (manual:
-  an HTTP proxy, which may also carry HTTPS, or a separate HTTPS proxy; a SOCKS 4 or 5 proxy, with
-  DNS through the proxy for SOCKS 5; addresses that go direct), and **Automatic configuration URL**
-  (a PAC file).
+  it) offering: **No proxy** (the default), **Use webOS's proxy setting**, **Riverstone Relay** (R2),
+  **WebOne** (R3), **My own proxy** (manual: an HTTP proxy, which may also carry HTTPS, or a separate
+  HTTPS proxy; a SOCKS 4 or 5 proxy, with DNS through the proxy for SOCKS 5; addresses that go
+  direct), and **Automatic configuration URL** (a PAC file).
+- [ ] **Use webOS's proxy setting** reads `com.palm.connectionmanager/getNwProxiesConfig` through the
+  daemon's own Luna connection when the daemon starts, when a card opens and when the section is
+  shown, and applies it (manual → that proxy for HTTP and HTTPS; a PAC URL → that URL; auto-detect →
+  the engine's WPAD; none → direct). The section shows what webOS said. If the service cannot be
+  reached, Jihad goes direct and says so.
 - [ ] What the section shows is read from the engine's own `network.proxy.*` prefs, so a value set in
   about:config shows here and the section never claims a proxy the engine is not using. The old
-  single "Proxy" row is gone. "Use the system proxy" is not offered, because webOS has no proxy
-  setting for it to read (the engine's Linux system proxy is GNOME's or the `*_proxy` environment,
-  neither of which a webOS card has); a profile already set to it shows as "No proxy" with a note.
+  single "Proxy" row is gone, and with it the engine's "system proxy", which does nothing in this
+  build; a profile set to it is shown, and behaves, as No proxy.
 - [ ] A host must be a host name or address and a port 1–65535; a bad value is refused with a reason
   and nothing is changed. A change applies to the next request without restarting the card or the
   daemon.
@@ -82,12 +100,16 @@ in all three shells, without about:config.
 - [ ] A CONNECT from Jihad carries Jihad's User-Agent (`… JihadBrowser/1.0`), and the server agent is
   sent a Squid rule that splices (passes through untouched) every CONNECT carrying it, placed before
   the bump rules, with the commands to check and load it and to check the result.
-- [ ] **Jihad never trusts the Relay's CA.** Its SHA-256 is pinned in Jihad as a certificate never to
-  import (R4), whatever store it is found in. If the Relay re-signs a site, Jihad shows its normal
-  certificate error and accepting nothing changes that.
+- [ ] **The Relay's CA is trusted only by choice.** While the Relay is the proxy in use (chosen here,
+  or webOS's setting pointing at it), the section offers **Trust the Relay's certificate**, off by
+  default, saying that with it on the Relay can read the pages it carries. Jihad carries the CA
+  itself, pinned by its SHA-256, and trusts it in memory only while the setting is on and the Relay
+  is in use; switching either off stops the trust at once. Found in any webOS store, or offered
+  through R6, it is never imported by those routes.
 - [ ] Device (after the server rule is in): an https page through the Relay loads, and its
   certificate is the site's own, not `squid-sslbump-for-webos`; a plain http page loads through it
-  (`Via: … rs-relay-server`).
+  (`Via: … rs-relay-server`). With the rule missing, a bumped page asks about its certificate while
+  the setting is off, and loads with the setting on.
 **Dependencies:** R1
 
 ### R3: WebOne
@@ -95,11 +117,27 @@ in all three shells, without about:config.
 **Acceptance Criteria:**
 - [ ] Choosing it asks for the WebOne machine's address and port (WebOne's default port is filled in)
   and sets it as the HTTP and HTTPS proxy.
-- [ ] The section says plainly what WebOne does to pages and to HTTPS for Jihad, and what Jihad needs
-  for WebOne's HTTPS to work (its CA added in webOS's Certificate Manager, trusted through R4), from
-  WebOne's own documentation.
-- [ ] Device or PC: a page loads through a WebOne instance run on the PC.
-**Dependencies:** R1, R4
+- [ ] The section says plainly what WebOne does to pages and to HTTPS for Jihad, and links to the
+  WebOne machine's CA certificate (`http://<host>:<port>/weboneca.crt`), which opens R6's question.
+- [ ] Device: a page loads through a WebOne instance run on the PC, an https page after its CA is
+  trusted.
+**Dependencies:** R1, R6
+
+### R6: Opening a CA certificate asks whether to trust it
+**Description:** As in Pale Moon, opening a CA certificate (`application/x-x509-ca-cert`) asks whether
+to trust it to identify websites, so a proxy's own CA can be added from the proxy itself.
+**Acceptance Criteria:**
+- [ ] Opening such a link raises a question on the card naming the certificate (its name and
+  organisation), showing its SHA-256 and saying that a proxy with this certificate can read the
+  pages it carries. Yes adds it to Jihad's own certificate database, trusted for websites only; No
+  adds nothing. A certificate that is not a CA is refused with a reason.
+- [ ] The Relay's CA offered this way is refused (R2 is its one route), and so is a certificate
+  Jihad already trusts.
+- [ ] Settings → Security lists the CAs added this way (name, SHA-256) with a Remove for each;
+  Remove stops the trust at once.
+- [ ] Device: a CA served by the PC is trusted after Yes, and a page signed by it loads; after
+  Remove it asks again.
+**Dependencies:** none
 
 ### R4: The certificates webOS trusts, where they add something
 **Description:** Jihad also trusts the CA certificates webOS trusts that were added after HP's image,
@@ -108,8 +146,9 @@ by the user or by a community update.
 - [ ] Settings → Security has **Also trust certificates added to webOS** (on by default). With it on,
   Jihad reads webOS's stores (above) and trusts, for identifying websites, each CA certificate in
   them that is **not** one of HP's 3.0.5 roots, **not** a root Mozilla removed, **not** already
-  Jihad's, **not** expired, and **not** the Relay's CA (R2). A site's own certificate found there is
-  not taken as a root (the engine trusts those per site), and is counted as skipped.
+  Jihad's, **not** expired, and **not** the Relay's CA (R2 is its one route). A site's own
+  certificate found there is not taken as a root (the engine trusts those per site), and is counted
+  as skipped.
 - [ ] The lists it checks against are in the source with where each came from (HP's 212 from the
   3.0.5 doctor; Mozilla's from CCADB, with the date), and a script rebuilds them.
 - [ ] The trust lives in memory only: nothing is written to the profile's certificate database, the
@@ -136,7 +175,6 @@ by the user or by a community update.
 
 ## Out of Scope
 - Remembering a proxy's login across restarts (the engine keeps it for the daemon's life).
-- Trusting the Relay's CA in any form (the owner's decision).
 - A webOS-wide proxy for other apps; the stock browser's and Mail's TLS (the community updates).
 - Server-side changes other than the Relay's splice rule, which the server agent applies.
 
@@ -148,4 +186,5 @@ by the user or by a community update.
 
 ## Changelog
 - 2026-10-13: Created from the owner's request and decisions; the Relay, the device's stores and
-  HP's 3.0.5 image measured.
+  HP's 3.0.5 image measured. Same day: webOS's proxy setting (R1), the Relay's CA as an option off by
+  default (R2), and opening a CA certificate asks (R6), from the owner's further answers.

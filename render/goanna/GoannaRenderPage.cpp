@@ -2060,7 +2060,13 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
   // first https:// request, and its ctor MOZ_RELEASE_ASSERT(NS_IsMainThread()) crashes
   // the daemon ("loads forever"). PSM isn't registered yet at engine-init time, but it
   // is by first navigation, so do it here (idempotent — returns the singleton after).
-  jihad_init_nss();
+  // The first time it is up, components/jihadCerts.js is told, so the certificates it adds
+  // (webOS's, the Relay's when chosen) are trusted before this load makes its first connection.
+  static bool sNssAnnounced = false;
+  if (jihad_init_nss() && !sNssAnnounced) {
+    sNssAnnounced = true;
+    NotifyChromeGlobal("jihad-nss-ready", "");
+  }
   nsCOMPtr<nsIWebNavigation> nav = do_QueryInterface(mChrome->mBrowser);
   if (!nav) return false;
   // Pin the browser identity: a non-empty docShell customUserAgent is returned

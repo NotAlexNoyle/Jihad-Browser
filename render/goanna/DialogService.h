@@ -103,6 +103,14 @@ void SetDialogSink(DialogSink* sink);
 // from a newer page that owns them.
 DialogSink* GetDialogSink();
 
+// Who reads webOS's own proxy setting (com.palm.connectionmanager) on the daemon's Luna
+// connection; the answer comes back to the components as the observer topic
+// "jihad-webos-proxy" (components/jihadProxy.js). Set by the server before the engine serves
+// a page; components ask for a fresh read with the topic "jihad-webos-proxy-refresh", which
+// InstallDialogService routes here. Until it is set (the desktop harness), a request is dropped.
+typedef void (*WebosProxyReaderFn)();
+void SetWebosProxyReader(WebosProxyReaderFn fn);
+
 // Process shutdown only: clear the sink and drop the observers InstallDialogService registered.
 // This used to hang off SetDialogSink(nullptr), which every closing PAGE also calls — so the
 // first card a user closed unregistered the add-on install prompt and the JS notification door

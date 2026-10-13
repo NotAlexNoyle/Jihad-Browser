@@ -70,6 +70,11 @@ void LunaServiceSetPrintFn(LunaPrintFn fn);
 typedef bool (*LunaCertificateFn)(std::string* json);
 void LunaServiceSetCertificateFn(LunaCertificateFn fn);
 
+// Read webOS's own proxy setting (com.palm.connectionmanager/getNwProxiesConfig) once; the
+// answer, or a returnValue:false saying why there is none, is raised to the components as the
+// observer topic "jihad-webos-proxy" (cavekit-proxies-certs.md R1). Main loop only.
+void LunaServiceReadWebosProxy();
+
 // Best-effort unregister. Safe if Start() failed or was never called.
 void LunaServiceStop();
 

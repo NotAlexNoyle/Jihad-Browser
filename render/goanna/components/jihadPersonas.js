@@ -620,7 +620,7 @@ function staticThemeFromXpi(path, origin) {
     let is = zr.getInputStream("manifest.json");
     let text = NetUtil.readInputStreamToString(is, is.available(), {charset: "UTF-8"});
     is.close();
-    let m = JSON.parse(text.replace(/^﻿/, ""));
+    let m = JSON.parse(text.replace(/^\uFEFF/, ""));
     if (!m || typeof m !== "object" || !m.theme || typeof m.theme !== "object") { return null; }
     let extra = Object.keys(m).filter(function(k) { return THEME_PACKAGE_KEYS.indexOf(k) < 0; });
     if (extra.length) { log("not a theme-only package: it also has " + extra.slice(0, 5).join(", ")); return null; }

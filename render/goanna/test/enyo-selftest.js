@@ -135,6 +135,14 @@
 						if (cfOpen) { cf.acceptClick(); }                                    // the popup's own Accept button handler
 						else if (alOpen) { br.viewCall("acceptDialog", []); }
 					} catch (e) { log(name, "answering THREW " + e); }
+				} else if (st.charAt(0) === "W") {    // WUSER:PASS: fill the open login dialog (a 401/407) and press OK,
+					// through the card's own fields and handler — what typing them and tapping OK does
+					var wu = st.slice(1).split(":"), wb = app.$.browser;
+					wb.$.userInput.setValue(wu[0] || "");
+					wb.$.passwordInput.setValue(wu.slice(1).join(":"));
+					log(name, "login dialog: [" + wb.$.loginMessage.getContent() + "] answered as " + wu[0]);
+					wb.loginResponse(wb, true);
+					wb.$.loginDialog.close();
 				} else if (st === "x") {              // close this card (a second card that only needed to connect)
 					log(name, "closing this card");
 					window.close();

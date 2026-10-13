@@ -119,6 +119,33 @@ MANIFEST
   echo "  personas: component + $(ls "$DISTBIN/personas" | grep -vc '\.json$') bundled, in the desktop dist"
 fi
 
+# --- certificates and proxies (components/jihadCerts.js, jihadProxy.js), into the DESKTOP dist ------
+# Mirrors make-device-bundle.sh (cavekit-proxies-certs.md). The desktop has no webOS stores and no
+# Luna bus: the stores read as absent and webOS's proxy setting as unreadable, which is what the
+# settings page then says; the Relay's CA option and the CA question work as on the device.
+CERTS_JS=/jihad/render/goanna/components/jihadCerts.js
+PROXY_JS=/jihad/render/goanna/components/jihadProxy.js
+if [ -f "$CERTS_JS" ] && [ -f "$PROXY_JS" ] && [ -d "$DISTBIN/components" ]; then
+  cp -L "$CERTS_JS" "$DISTBIN/components/jihadCerts.js"
+  cp -L "$PROXY_JS" "$DISTBIN/components/jihadProxy.js"
+  mkdir -p "$DISTBIN/certs"
+  cp -L /jihad/render/goanna/certs/jihad-cert-lists.json "$DISTBIN/certs/"
+  cat > "$DISTBIN/components/jihad-certs.manifest" <<'MANIFEST'
+component {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63} jihadCerts.js
+contract @riverstonerelay.net/jihad/certs;1 {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63}
+component {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28} jihadCerts.js
+contract @mozilla.org/nsCertificateDialogs;1 {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28}
+MANIFEST
+  cat > "$DISTBIN/components/jihad-proxy.manifest" <<'MANIFEST'
+component {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14} jihadProxy.js
+contract @riverstonerelay.net/jihad/proxy;1 {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14}
+MANIFEST
+  for m in jihad-certs jihad-proxy; do
+    grep -q "^manifest components/$m.manifest$" "$DISTBIN/chrome.manifest" 2>/dev/null || echo "manifest components/$m.manifest" >> "$DISTBIN/chrome.manifest"
+  done
+  echo "  certificates and proxies: components + certs/jihad-cert-lists.json, in the desktop dist"
+fi
+
 # --- about:preferences / about:settings, into the DESKTOP dist ------------------------------------
 # Mirrors the block in build/webos-oe/make-device-bundle.sh. Without this the desktop dist has no
 # about:preferences at all, so EVERY criterion in cavekit-preferences-ui.md was device-only —

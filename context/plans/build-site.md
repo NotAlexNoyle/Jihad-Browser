@@ -497,10 +497,11 @@ The owner: "add support for riverstone relay proxy, and webone, and self hosted 
 | Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
 |------|-------|---------|-------------|-----------|--------|--------|--------|
 | T-457 | webOS's certificates: a component that reads webOS's stores at NSS start and trusts, in memory, the CA certificates not HP's, not removed by Mozilla, not Jihad's, not expired, not the Relay's; lists from HP's 3.0.5 doctor and CCADB with a rebuild script; the Settings switch and list | cavekit-proxies-certs.md | R4 | — | yes | L | |
-| T-458 | The Proxy section: No proxy / Riverstone Relay / WebOne / My own proxy / PAC, read from and written to `network.proxy.*`, validated, the old row gone | cavekit-proxies-certs.md | R1, R2, R3 | — | yes | M | |
+| T-458 | The Proxy section: No proxy (default) / webOS's setting / Riverstone Relay (its CA an option, off) / WebOne / My own proxy / PAC, read from and written to `network.proxy.*`, validated, the old row gone; the daemon reads webOS's setting over its Luna connection | cavekit-proxies-certs.md | R1, R2, R3 | — | yes | L | |
+| T-464 | Opening a CA certificate asks (a JS `nsICertificateDialogs` through the card's confirm), refusing the Relay's and non-CAs; the added CAs listed with Remove | cavekit-proxies-certs.md | R6 | — | yes | M | |
 | T-459 | A proxy's 407 names the proxy | cavekit-proxies-certs.md | R5 | — | yes | S | |
 | T-460 | The Relay's splice rule for the server agent (Squid `browser` acl on Jihad's UA, before the bump rules), sent over wormhole-rs | cavekit-proxies-certs.md | R2 | — | no | S | |
-| T-461 | Device: each proxy mode through a logging PC proxy (three shells), a login proxy, WebOne on the PC, the Relay after the rule; the stores' import (five newer roots, a Certificate Manager CA, the switch) | cavekit-proxies-certs.md | R1–R5 | T-457, T-458, T-459, T-460 | yes | M | |
+| T-461 | Device: each proxy mode through a logging PC proxy (three shells), webOS's setting, a login proxy, WebOne on the PC, the Relay (CA option off and on; after the rule); the stores' import (five newer roots, a Certificate Manager CA, the switch); a CA link | cavekit-proxies-certs.md | R1–R6 | T-457, T-458, T-459, T-460, T-464 | yes | M | |
 | T-462 | Review of Tier 83 (Codex when it has credits, the inspector before) and fixes | cavekit-proxies-certs.md | R1–R5 | T-461 | no | M | |
 | T-463 | The server's round-22 reply: install.sh replaces an unedited site block in place (`.new` only for an edited one); DEPLOY.md says to check `default_server` on :443 | cavekit-addons-site.md | R10 | — | no | S | |
 

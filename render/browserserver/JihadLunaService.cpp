@@ -102,6 +102,17 @@ typedef bool (*fn_LSSubscriptionReply)(LSHandle*, const char*, const char*, void
 typedef const char* (*fn_LSMessageGetApplicationID)(LSMessage*);
 typedef const char* (*fn_LSMessageGetPayload)(LSMessage*);
 
+// AN OUTBOUND CALL — webOS's proxy setting (cavekit-proxies-certs.md R1).
+//   LSCallOneReply(LSHandle*, const char* uri, const char* payload, LSFilterFunc, void* ctx,
+//                  LSMessageToken* token, LSError*)
+//   LSPalmServiceGetPrivateConnection(LSPalmService*) -> LSHandle*
+// Pointer-and-string calls, the same in both bus generations; both symbols are exported by the
+// TouchPad's liblunaservice.so (nm -D, 2026-10-13). LSMessageToken is an unsigned long.
+typedef bool (*LSFilterFunc)(LSHandle*, LSMessage*, void*);
+typedef bool (*fn_LSCallOneReply)(LSHandle*, const char*, const char*, LSFilterFunc, void*,
+                                  unsigned long*, void*);
+typedef LSHandle* (*fn_LSPalmServiceGetPrivateConnection)(LSPalmService*);
+
 struct LunaApi {
   void* lib = nullptr;
   fn_LSErrorInit        ErrorInit        = nullptr;
@@ -119,6 +130,8 @@ struct LunaApi {
   fn_LSSubscriptionReply           SubscriptionReply           = nullptr;
   fn_LSMessageGetApplicationID     MessageGetApplicationID     = nullptr;
   fn_LSMessageGetPayload           MessageGetPayload           = nullptr;
+  fn_LSCallOneReply                CallOneReply                = nullptr;
+  fn_LSPalmServiceGetPrivateConnection PalmServiceGetPrivateConnection = nullptr;
 };
 
 LunaApi        gApi;
@@ -602,6 +615,10 @@ bool loadApi() {
                                    dlsym(gApi.lib, "LSMessageGetApplicationID");
   // Optional: only deleteThumbnail reads its request.
   gApi.MessageGetPayload = (fn_LSMessageGetPayload) dlsym(gApi.lib, "LSMessageGetPayload");
+  // Optional: without them webOS's proxy setting cannot be read, and Jihad says so.
+  gApi.CallOneReply = (fn_LSCallOneReply) dlsym(gApi.lib, "LSCallOneReply");
+  gApi.PalmServiceGetPrivateConnection = (fn_LSPalmServiceGetPrivateConnection)
+                                           dlsym(gApi.lib, "LSPalmServiceGetPrivateConnection");
   if (!gApi.SubscriptionAdd || !gApi.SubscriptionReply) {
     // Named individually because "the toasts do not work" is otherwise a hunt across two
     // processes, and this is the one line that settles it at the daemon end.
@@ -769,6 +786,7 @@ gboolean retryRegister(gpointer) {
   ++gRetryAttempt;
   if (jihad::startOnce(gRetryName, gRetryLoop, /*verbose*/false)) {
     printf("[jihad-bs] luna: registered on retry %d — the hub has the role now\n", gRetryAttempt);
+    LunaServiceReadWebosProxy();
   } else if (gRetryAttempt >= kRetryMaxAttempts) {
     printf("[jihad-bs] luna: still not registered after %d retries — giving up; no Luna service "
            "(clear cache/cookies and toasts are OFF) until this daemon is restarted\n",
@@ -785,8 +803,46 @@ void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
 void LunaServiceSetPrintFn(LunaPrintFn fn) { gPrintFn = fn; }
 void LunaServiceSetCertificateFn(LunaCertificateFn fn) { gCertificateFn = fn; }
 
+// ── webOS's proxy setting (cavekit-proxies-certs.md R1) ──────────────────────────────────────
+// One read of com.palm.connectionmanager/getNwProxiesConfig on the private bus, answered to
+// components/jihadProxy.js as the observer topic "jihad-webos-proxy" with the service's own
+// JSON ({"returnValue":true,"proxyInfoList":[…]}). The reply arrives on the daemon's main loop,
+// the loop the engine runs on, so it may notify the engine directly. When the call cannot be
+// made the component is still answered, with returnValue false, so it can say why and go direct.
+namespace {
+bool onWebosProxy(LSHandle*, LSMessage* msg, void*) {
+  const char* pl = gApi.MessageGetPayload ? gApi.MessageGetPayload(msg) : nullptr;
+  printf("[jihad-bs] proxy: webOS's setting: %.300s\n", pl ? pl : "(no payload)");
+  jihad::NotifyChromeGlobal("jihad-webos-proxy",
+                            pl ? pl : "{\"returnValue\":false,\"errorText\":\"empty reply\"}");
+  return true;
+}
+}  // namespace
+
+void LunaServiceReadWebosProxy() {
+  LSHandle* h = gHandle;
+  if (!h && gPalm && gApi.PalmServiceGetPrivateConnection) h = gApi.PalmServiceGetPrivateConnection(gPalm);
+  if (!h || !gApi.CallOneReply || !gApi.MessageGetPayload) {
+    printf("[jihad-bs] proxy: cannot read webOS's proxy setting (%s)\n",
+           !h ? "not on the bus" : "liblunaservice.so lacks LSCallOneReply");
+    jihad::NotifyChromeGlobal("jihad-webos-proxy",
+                              "{\"returnValue\":false,\"errorText\":\"not connected to webOS's services\"}");
+    return;
+  }
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  unsigned long token = 0;
+  if (!gApi.CallOneReply(h, "palm://com.palm.connectionmanager/getNwProxiesConfig", "{}",
+                         onWebosProxy, nullptr, &token, &e)) {
+    printf("[jihad-bs] proxy: getNwProxiesConfig call failed (code=%d)\n", errCode(e));
+    jihad::NotifyChromeGlobal("jihad-webos-proxy",
+                              "{\"returnValue\":false,\"errorText\":\"webOS's network service did not answer\"}");
+  }
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
+}
+
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
-  if (startOnce(serviceName, loop, /*verbose*/true)) return true;
+  if (startOnce(serviceName, loop, /*verbose*/true)) { LunaServiceReadWebosProxy(); return true; }
   // Retry only when there is a bus library to retry with; "no liblunaservice.so" (the desktop
   // build) is permanent.
   if (loop && gApi.lib && (gApi.RegisterPalmService || gApi.Register)) {

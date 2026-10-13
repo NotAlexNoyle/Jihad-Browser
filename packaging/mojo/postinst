@@ -148,22 +148,37 @@ chmod 0755 /usr/lib/jihad "$IMPLDIR" /var/palm/jihad "$STATE"
 # intact for whoever has it mapped; the new file is what the next LunaSysMgr start loads, which
 # is the reboot this script asks for anyway. Ownership and mode are set on the temp name so the
 # file is never visible at its real path with the wrong ones.
+# An adapter that is byte-identical to the installed one is left alone (2026-10-13): the rename
+# leaves the old inode mapped in LunaSysMgr as a deleted file on /, and a deleted file still open
+# on / makes `mount -o remount,ro /` fail with EBUSY until LunaSysMgr restarts — measured on the
+# device, a reinstall of Mochi left / read-write after all ten tries below. Most installs carry
+# the same adapter, so most now replace nothing on / that anything has mapped.
 SHIMTMP=/usr/lib/BrowserPlugins/.BrowserAdapterJihadMojo.so.new
 IMPLTMP=$IMPLDIR/.BrowserAdapterImpl.so.new
-cp -a "$DR/BrowserPlugins/BrowserAdapterJihadMojo.so" "$SHIMTMP"
-# F-7: `cp -a` preserves the SOURCE's ownership, and the source is the app bundle on cryptofs —
-# an untrusted 0777 filesystem. LunaSysMgr dlopens this shim as root with no trust check of its
-# own, so it must be root-owned exactly like the impl it loads.
-chown 0:0 "$SHIMTMP" 2>/dev/null || true
-chmod 0755 "$SHIMTMP"
-mv -f "$SHIMTMP" "$SHIM"
-cp -a "$APP/BrowserAdapterImpl.so" "$IMPLTMP"
-# The shim REJECTS an impl that is not root-owned or is group/world-writable, and `cp -a`
-# preserves the source's cryptofs-reported 777 — so set both explicitly, or the adapter will
-# refuse to load its own implementation.
-chown 0:0 "$IMPLTMP" 2>/dev/null || true
-chmod 0644 "$IMPLTMP"
-mv -f "$IMPLTMP" "$IMPL"
+if cmp -s "$DR/BrowserPlugins/BrowserAdapterJihadMojo.so" "$SHIM"; then
+	chown 0:0 "$SHIM" 2>/dev/null || true
+	chmod 0755 "$SHIM"
+else
+	cp -a "$DR/BrowserPlugins/BrowserAdapterJihadMojo.so" "$SHIMTMP"
+	# F-7: `cp -a` preserves the SOURCE's ownership, and the source is the app bundle on cryptofs —
+	# an untrusted 0777 filesystem. LunaSysMgr dlopens this shim as root with no trust check of its
+	# own, so it must be root-owned exactly like the impl it loads.
+	chown 0:0 "$SHIMTMP" 2>/dev/null || true
+	chmod 0755 "$SHIMTMP"
+	mv -f "$SHIMTMP" "$SHIM"
+fi
+if cmp -s "$APP/BrowserAdapterImpl.so" "$IMPL"; then
+	chown 0:0 "$IMPL" 2>/dev/null || true
+	chmod 0644 "$IMPL"
+else
+	cp -a "$APP/BrowserAdapterImpl.so" "$IMPLTMP"
+	# The shim REJECTS an impl that is not root-owned or is group/world-writable, and `cp -a`
+	# preserves the source's cryptofs-reported 777 — so set both explicitly, or the adapter will
+	# refuse to load its own implementation.
+	chown 0:0 "$IMPLTMP" 2>/dev/null || true
+	chmod 0644 "$IMPLTMP"
+	mv -f "$IMPLTMP" "$IMPL"
+fi
 # The interactive-widget-rect JSON schema, NEXT TO the impl because the impl finds it with
 # dladdr on itself (jihadAppFile in BrowserAdapter.cpp). The adapter validates every
 # msgAddFlashRects payload against this file and DROPS the whole message if it cannot be

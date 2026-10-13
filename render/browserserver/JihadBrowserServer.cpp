@@ -4,6 +4,7 @@
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
+#include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -654,6 +655,9 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
   mConnectOrder.push_back(proxy);
   mLastProxy = proxy;   // newest connect = active card = self-drive inject target
   if (mWakeHook) mWakeHook();   // a page exists now: leave the idle tick at once (Main.cpp)
+  // webOS's proxy setting may have changed since the last card (an app such as webOS Archive
+  // Proxy sets it); components/jihadProxy.js applies it if the user chose to follow it.
+  jihad::LunaServiceReadWebosProxy();
   // The card msgCreatePage asked for: it carries the identifier we sent, and the page a script
   // wanted in a new window is opened in it. (The engine page itself is created here like any
   // other — the opener was told its window.open returned null, so nothing is waiting on it.)

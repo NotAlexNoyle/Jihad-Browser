@@ -14,6 +14,8 @@
 #include "nsIAuthPrompt2.h"       // HTTP authentication challenges (necko asks for this, not nsIPrompt)
 #include "nsIAuthInformation.h"
 #include "nsIChannel.h"
+#include "nsIProxiedChannel.h"    // a 407 names the proxy (proxies-certs R5)
+#include "nsIProxyInfo.h"
 #include "nsIURI.h"
 #include "nsIComponentRegistrar.h"
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
@@ -189,7 +191,26 @@ JihadPrompter::PromptAuth(nsIChannel* aChannel, uint32_t, nsIAuthInformation* aA
   if (!aAuthInfo) return NS_ERROR_INVALID_ARG;
   nsAutoString text;
   nsAutoCString hostPort;
-  if (aChannel) {
+  uint32_t flags = 0;
+  aAuthInfo->GetFlags(&flags);
+  if (flags & nsIAuthInformation::AUTH_PROXY) {
+    // A 407: the login is the proxy's, not the site's, and the channel's URI is the site
+    // (cavekit-proxies-certs.md R5). Name the proxy, so a site never seems to ask for it. The
+    // text starts "proxy ": the Enyo and Mochi shells then say "The proxy … requires a username
+    // and password" instead of "The server …"; Mojo's dialog is the system framework's own.
+    nsCOMPtr<nsIProxiedChannel> proxied = do_QueryInterface(aChannel);
+    nsCOMPtr<nsIProxyInfo> pi;
+    if (proxied) proxied->GetProxyInfo(getter_AddRefs(pi));
+    nsAutoCString phost; int32_t pport = -1;
+    if (pi) { pi->GetHost(phost); pi->GetPort(&pport); }
+    text.AppendLiteral("proxy ");
+    if (!phost.IsEmpty()) {
+      hostPort = phost;
+      if (pport > 0) { hostPort.Append(':'); hostPort.AppendInt(pport); }
+    } else {
+      hostPort.AssignLiteral("in use");
+    }
+  } else if (aChannel) {
     nsCOMPtr<nsIURI> uri; aChannel->GetURI(getter_AddRefs(uri));
     if (uri) uri->GetHostPort(hostPort);
   }
@@ -395,6 +416,41 @@ static JihadNotifyObserver& NotifyObserver() {
   return o;
 }
 
+// webOS's proxy setting, read again on a component's request (cavekit-proxies-certs.md R1).
+// The reader lives on the Luna side of the daemon; this is only the door from JS to it.
+static WebosProxyReaderFn gWebosProxyReader = nullptr;
+
+void SetWebosProxyReader(WebosProxyReaderFn fn) { gWebosProxyReader = fn; }
+
+class JihadWebosProxyObserver final : public nsIObserver {
+ public:
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aResult) override {
+    if (!aResult) return NS_ERROR_NULL_POINTER;
+    if (aIID.Equals(NS_GET_IID(nsISupports)) ||
+        aIID.Equals(NS_GET_IID(nsIObserver))) {
+      *aResult = static_cast<nsIObserver*>(this);
+      AddRef();
+      return NS_OK;
+    }
+    *aResult = nullptr;
+    return NS_NOINTERFACE;
+  }
+  NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override { return 2; }
+  NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return 1; }
+
+  NS_IMETHOD Observe(nsISupports*, const char* aTopic, const char16_t*) override {
+    if (!aTopic || strcmp(aTopic, "jihad-webos-proxy-refresh") != 0) return NS_OK;
+    if (gWebosProxyReader) gWebosProxyReader();
+    else fprintf(stderr, "[jihad-bs] proxy: no Luna connection to read webOS's proxy setting\n");
+    return NS_OK;
+  }
+};
+
+static JihadWebosProxyObserver& WebosProxyObserver() {
+  static JihadWebosProxyObserver o;
+  return o;
+}
+
 bool InstallDialogService() {
   static bool installed = false;
   if (installed) return true;
@@ -414,6 +470,8 @@ bool InstallDialogService() {
     // its own installer because it shares this one's lifecycle exactly and because the very
     // first consumer — components/jihadInstallPrompt.js — is force-instantiated below.
     if (obs) obs->AddObserver(&NotifyObserver(), "jihad-notify", false);
+    // components/jihadProxy.js asks for webOS's proxy setting again (a card's Settings).
+    if (obs) obs->AddObserver(&WebosProxyObserver(), "jihad-webos-proxy-refresh", false);
     // R3 "clear reason": components/jihadInstallPrompt.js ALSO observes "addon-install-failed",
     // which is the ONLY notification an incompatible (appDisabled) XPI produces. That refusal
     // happens inside amWebInstallListener BEFORE any confirm prompt is reached, so nothing would
@@ -441,6 +499,14 @@ bool InstallDialogService() {
     // theme site's button does nothing.
     nsCOMPtr<nsISupports> personas = do_GetService("@riverstonerelay.net/jihad/personas;1");
     if (!personas) fprintf(stderr, "[jihad-bs] themes: component absent, personas cannot be installed\n");
+    // Certificates and proxies (cavekit-proxies-certs.md): components/jihadCerts.js trusts what
+    // webOS added, and the Relay's CA when asked, once NSS is up ("jihad-nss-ready");
+    // components/jihadProxy.js applies webOS's proxy setting when the user chose it. Absent means
+    // Jihad trusts only its own roots, or does not follow webOS's proxy.
+    nsCOMPtr<nsISupports> certs = do_GetService("@riverstonerelay.net/jihad/certs;1");
+    if (!certs) fprintf(stderr, "[jihad-bs] certs: component absent, webOS's certificates are not trusted\n");
+    nsCOMPtr<nsISupports> proxy = do_GetService("@riverstonerelay.net/jihad/proxy;1");
+    if (!proxy) fprintf(stderr, "[jihad-bs] proxy: component absent, webOS's proxy setting is not followed\n");
     nsCOMPtr<nsISupports> xpiPrompt =
         do_GetService("@mozilla.org/addons/web-install-prompt;1");
     if (!xpiPrompt) {
@@ -463,6 +529,8 @@ void ShutdownDialogService() {
   nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
   if (obs) obs->RemoveObserver(&XpiObserver(), "jihad-xpi-confirm");
   if (obs) obs->RemoveObserver(&NotifyObserver(), "jihad-notify");
+  if (obs) obs->RemoveObserver(&WebosProxyObserver(), "jihad-webos-proxy-refresh");
+  gWebosProxyReader = nullptr;
 }
 
 } // namespace jihad

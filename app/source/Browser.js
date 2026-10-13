@@ -358,8 +358,11 @@ enyo.kind({
 	},
 	showUserPasswordDialog: function(inSender, inMsg) {
 		this.$.loginDialog.validateComponents();
-		var msg = $L("The server {$serverName} requires a username and password");
-		msg = enyo.macroize(msg, {serverName: inMsg});
+		// A proxy's login (a 407) comes as "proxy <host:port> - <realm>" (cavekit-proxies-certs.md R5).
+		var proxy = /^proxy /.test(String(inMsg || ""));
+		var msg = proxy ? $L("The proxy {$serverName} requires a username and password")
+		                : $L("The server {$serverName} requires a username and password");
+		msg = enyo.macroize(msg, {serverName: proxy ? String(inMsg).slice(6) : inMsg});
 		this.$.loginMessage.setContent(msg);
 		this.showPopup(this.$.loginDialog);
 	},

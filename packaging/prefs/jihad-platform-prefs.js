@@ -162,3 +162,18 @@ pref("media.webm.enabled", true);
 // the daemon scans the device's own plugin folder — so with no Flash installed this is a
 // switch for something absent, and the card says so rather than hiding it.
 pref("plugin.state.flash", 2);
+
+// PROXIES AND webOS's CERTIFICATES (cavekit-proxies-certs.md, the owner, 2026-10-13).
+// No proxy by default. The engine's own default, 5 ("use the system proxy"), reads GNOME's
+// settings, which this headless build does not have, so it went direct while saying otherwise;
+// webOS's own proxy setting is a choice on the settings page (jihad.proxy.mode "webos"), which
+// components/jihadProxy.js follows.
+pref("network.proxy.type", 0);
+pref("jihad.proxy.mode", "none");          // none | webos | relay | webone | manual | pac
+pref("jihad.proxy.webone.host", "");
+pref("jihad.proxy.webone.port", 8080);
+// The Riverstone Relay's CA: trusted only when chosen, and only while the Relay is in use (R2).
+pref("jihad.proxy.relay.trust_ca", false);
+// Trust the CA certificates webOS has that HP's image did not (a community update, Certificate
+// Manager), other than ones Mozilla removed (R4). components/jihadCerts.js.
+pref("jihad.security.webos_certs", true);

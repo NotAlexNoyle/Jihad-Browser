@@ -219,6 +219,19 @@ const PANES = [
 					 label: "When a site asks for my certificate",
 					 options: [["Select Automatically", "Select one automatically"], ["Ask Every Time", "Ask me every time"]]}
 				]
+			},
+			{
+				// The certificates Jihad trusts beyond its own (buildCertsSection, cavekit-proxies-certs.md
+				// R4, R6): webOS's added ones, and the ones the user added from a link.
+				title: "Certificates",
+				build: buildCertsSection,
+				reset: resetCerts,
+				rows: [
+					{pref: "jihad.security.webos_certs", type: "bool", label: "Also trust certificates added to webOS",
+					 help: "The roots a community update or webOS CE added, and the authorities you trusted in webOS's " +
+					       "Certificate Manager. Never HP's original roots and never a root Mozilla has removed. Read when " +
+					       "Jihad starts; turning it off stops the trust at once."}
+				]
 			}
 		]
 	},
@@ -246,10 +259,16 @@ const PANES = [
 					 label: "Speculative connections", help: "0 turns speculative connecting off."},
 					{pref: "network.dns.disablePrefetch", type: "bool", label: "Disable DNS prefetching"},
 					{pref: "network.dns.disableIPv6", type: "bool", label: "Disable IPv6"},
-					{pref: "network.prefetch-next", type: "bool", label: "Prefetch links the page suggests"},
-					{pref: "network.proxy.type", type: "choice", label: "Proxy",
-					 options: [[0, "No proxy"], [1, "Manual (set in about:config)"], [2, "Automatic proxy configuration URL"], [4, "Auto-detect"], [5, "Use the system proxy"]]}
+					{pref: "network.prefetch-next", type: "bool", label: "Prefetch links the page suggests"}
 				]
+			},
+			{
+				// How Jihad reaches the web: a form of its own (buildProxySection, cavekit-proxies-certs.md
+				// R1-R3), over the engine's network.proxy.* prefs and jihad.proxy.*.
+				title: "Proxy",
+				build: buildProxySection,
+				reset: resetProxy,
+				rows: []
 			},
 			{
 				title: "Images",
@@ -1029,6 +1048,409 @@ function buildFontsSection(group) {
 	which.addEventListener("change", function () { gFontGroup = which.value; fill(); }, false);
 	fill();
 	for (let r = 0; r < group.rows.length; r++) { box.appendChild(buildRow(group.rows[r])); }
+	return box;
+}
+
+// --- Proxy (cavekit-proxies-certs.md R1-R3) -------------------------------------------------------
+// One choice of how Jihad reaches the web. What the section shows is read back from the engine's own
+// network.proxy.* prefs (jihad.proxy.mode only says which of the choices that share a pref shape the
+// user picked), so a value set in about:config shows here and nothing claims a proxy not in use.
+const RELAY_HOST = "proxy.riverstonerelay.org";
+const RELAY_PORT = 3128;
+const PROXY_MODES = [
+	["none", "No proxy"],
+	["webos", "Use webOS's proxy setting"],
+	["relay", "Riverstone Relay"],
+	["webone", "WebOne"],
+	["manual", "My own proxy"],
+	["pac", "Automatic configuration URL"],
+	["wpad", "Find the proxy on the network (WPAD)"]
+];
+const PROXY_PREFS = ["network.proxy.type", "network.proxy.http", "network.proxy.http_port", "network.proxy.ssl",
+	"network.proxy.ssl_port", "network.proxy.socks", "network.proxy.socks_port", "network.proxy.socks_version",
+	"network.proxy.socks_remote_dns", "network.proxy.no_proxies_on", "network.proxy.autoconfig_url",
+	"network.proxy.share_proxy_settings", "jihad.proxy.mode", "jihad.proxy.webone.host", "jihad.proxy.webone.port",
+	"jihad.proxy.relay.trust_ca"];
+const PROXY_HOST_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$|^\d{1,3}(?:\.\d{1,3}){3}$|^[0-9A-Fa-f]*:[0-9A-Fa-f:.]+$/;
+
+function pInt(name, dflt) { try { return Services.prefs.getIntPref(name); } catch (e) { return dflt; } }
+function pChar(name) { try { return Services.prefs.getCharPref(name); } catch (e) { return ""; } }
+function pBool(name, dflt) { try { return Services.prefs.getBoolPref(name); } catch (e) { return dflt; } }
+
+function jihadService(contract) {
+	try { return Cc[contract].getService().wrappedJSObject || null; } catch (e) { return null; }
+}
+
+// Which choice the engine's prefs amount to.
+function proxyMode() {
+	let type = pInt("network.proxy.type", 0), mode = pChar("jihad.proxy.mode");
+	if (mode === "webos") { return "webos"; }
+	if (type === 1) {
+		if (pChar("network.proxy.http").toLowerCase() === RELAY_HOST && pInt("network.proxy.http_port", 0) === RELAY_PORT &&
+		    pChar("network.proxy.ssl").toLowerCase() === RELAY_HOST && !pChar("network.proxy.socks")) { return "relay"; }
+		return mode === "webone" ? "webone" : "manual";
+	}
+	if (type === 2) { return "pac"; }
+	if (type === 4) { return "wpad"; }
+	return "none";        // 0, and 5 (the engine's "system proxy", which goes direct in this build)
+}
+
+function validHost(h) { return PROXY_HOST_RE.test(String(h || "").trim()); }
+function validPort(p) { let n = Number(p); return n === Math.floor(n) && n >= 1 && n <= 65535; }
+
+// Write a set of prefs as one change; an empty string or null clears a char pref's user value.
+function proxyWrite(values, mode, said) {
+	try {
+		for (let name in values) {
+			let v = values[name];
+			if (typeof v === "number") { Services.prefs.setIntPref(name, v); }
+			else if (typeof v === "boolean") { Services.prefs.setBoolPref(name, v); }
+			else { Services.prefs.setCharPref(name, String(v)); }
+		}
+		Services.prefs.setCharPref("jihad.proxy.mode", mode);
+		Services.prefs.savePrefFile(null);
+		status(said);
+		return true;
+	} catch (e) {
+		announce("pref-write-failed", "Could not save the proxy: the profile may be read-only, or a setting locked.", true);
+		return false;
+	}
+}
+
+function resetProxy() {
+	let n = 0;
+	PROXY_PREFS.forEach(function (name) {
+		try { if (Services.prefs.prefHasUserValue(name)) { Services.prefs.clearUserPref(name); n++; } } catch (e) {}
+	});
+	return n;
+}
+
+function textField(value, placeholder, kind) {
+	let t = document.createElement("input");
+	t.setAttribute("type", kind || "text");
+	t.className = "txt";
+	t.value = value === null || value === undefined ? "" : String(value);
+	if (placeholder) { t.setAttribute("placeholder", placeholder); }
+	t.setAttribute("autocapitalize", "off");
+	t.setAttribute("spellcheck", "false");
+	return t;
+}
+
+function helpRow(text) {
+	let r = el("div", "row");
+	r.appendChild(el("div", "row-help", text));
+	return r;
+}
+
+function buildProxySection(group) {
+	let box = el("section", "group");
+	box.id = "section-proxy";
+	box.appendChild(el("h2", "group-title", group.title));
+	let current = proxyMode();
+	let which = document.createElement("select");
+	which.className = "sel";
+	PROXY_MODES.forEach(function (m) {
+		// WPAD is offered only when it is what the engine is doing (webOS or about:config set it).
+		if (m[0] === "wpad" && current !== "wpad") { return; }
+		option(which, m[0], m[1]);
+	});
+	which.value = current;
+	box.appendChild(fontRow("Connect through", "network.proxy.type", which));
+	let body = el("div", "proxy-body");
+	box.appendChild(body);
+
+	function fill(mode) {
+		while (body.firstChild) { body.removeChild(body.firstChild); }
+		let pending = mode !== proxyMode();
+		if (mode === "none") {
+			body.appendChild(helpRow(pInt("network.proxy.type", 0) === 5
+				? "Jihad connects to sites directly. (This profile was set to the engine's \"system proxy\", which this " +
+				  "build cannot read, so it was direct already.)"
+				: "Jihad connects to sites directly."));
+		} else if (mode === "webos") {
+			fillWebos();
+		} else if (mode === "relay") {
+			fillRelay();
+		} else if (mode === "webone") {
+			fillWebOne(pending);
+		} else if (mode === "manual") {
+			fillManual(pending);
+		} else if (mode === "pac") {
+			fillPac(pending);
+		} else if (mode === "wpad") {
+			body.appendChild(helpRow("The engine looks for a proxy auto-config file on the network (WPAD), as webOS's " +
+				"setting or about:config asked."));
+		}
+	}
+
+	function fillWebos() {
+		let svc = jihadService("@riverstonerelay.net/jihad/proxy;1");
+		body.appendChild(helpRow("Follows the proxy set for the whole TouchPad, which apps such as webOS Archive Proxy " +
+			"set. Read when Jihad starts and whenever a card opens."));
+		let st = svc ? svc.state() : null;
+		let line = !svc ? "This build cannot read webOS's proxy setting."
+			: st.error || st.said || "Reading webOS's setting…";
+		let now = el("div", "row");
+		now.appendChild(el("div", "row-help proxy-now", "Now: " + line));
+		body.appendChild(now);
+		let again = el("button", "btn", "Read webOS's setting again");
+		again.setAttribute("type", "button");
+		again.addEventListener("click", function () {
+			if (svc) { svc.refresh(); }
+			status("Asked webOS for its proxy setting.");
+			window.setTimeout(function () { if (which.value === "webos") { fill("webos"); } }, 1500);
+		}, false);
+		let actions = el("div", "row");
+		actions.appendChild(again);
+		body.appendChild(actions);
+	}
+
+	function fillRelay() {
+		body.appendChild(helpRow("The Riverstone Relay is a proxy run by Jihad's author at " + RELAY_HOST + ":" + RELAY_PORT +
+			". Pages travel through it. Secure (https) pages pass through it still encrypted, checked by Jihad as they " +
+			"would be without it."));
+		let certs = jihadService("@riverstonerelay.net/jihad/certs;1");
+		let rep = certs ? certs.report() : null;
+		let cb = document.createElement("input");
+		cb.setAttribute("type", "checkbox");
+		cb.className = "cb";
+		cb.checked = pBool("jihad.proxy.relay.trust_ca", false);
+		cb.addEventListener("change", function () {
+			try {
+				Services.prefs.setBoolPref("jihad.proxy.relay.trust_ca", cb.checked);
+				Services.prefs.savePrefFile(null);
+				status(cb.checked ? "Jihad trusts the Relay's certificate while the Relay is in use."
+				                  : "Jihad no longer trusts the Relay's certificate.");
+			} catch (e) {
+				announce("pref-write-failed", "Could not save that: the profile may be read-only.", true);
+			}
+		}, false);
+		body.appendChild(fontRow("Trust the Relay's certificate", "jihad.proxy.relay.trust_ca", cb,
+			"Off unless you turn it on. Only needed if the Relay re-signs secure pages with its own certificate " +
+			"(squid-sslbump-for-webos), which it does for webOS's own older browsers. With it on, the Relay can read " +
+			"and change the secure pages it carries." + (rep && rep.relay.fingerprint ? " SHA-256 " + rep.relay.fingerprint + "." : "")));
+	}
+
+	function hostPortRows(hostLabel, hostPref, host, port, portDefault, portPref) {
+		let h = textField(host, "host name or address");
+		// A port left empty takes the usual one, shown as the placeholder.
+		let p = textField(port || "", String(portDefault || ""), "number");
+		body.appendChild(fontRow(hostLabel, hostPref, h));
+		body.appendChild(fontRow("Port", portPref || hostPref + "_port", p));
+		return [h, p];
+	}
+
+	function useButton(text, go) {
+		let b = el("button", "btn", text);
+		b.setAttribute("type", "button");
+		b.addEventListener("click", go, false);
+		let r = el("div", "row");
+		r.appendChild(b);
+		body.appendChild(r);
+	}
+
+	function pendingNote(pending) {
+		if (pending) { body.appendChild(helpRow("Not in use until you tap the button below.")); }
+	}
+
+	function fillWebOne(pending) {
+		body.appendChild(helpRow("WebOne (github.com/atauenis/webone) is a proxy you run, made for old browsers: it " +
+			"converts pages and re-signs secure (https) pages with its own certificate. For secure pages through it, " +
+			"open its certificate once (below) and say Yes."));
+		let f = hostPortRows("WebOne at", "jihad.proxy.webone.host", pChar("jihad.proxy.webone.host"),
+			pInt("jihad.proxy.webone.port", 8080), 8080, "jihad.proxy.webone.port");
+		pendingNote(pending);
+		useButton("Use this WebOne", function () {
+			let host = f[0].value.trim(), port = Number(f[1].value || 8080);
+			if (!validHost(host)) { announce("proxy-bad", "WebOne's address must be a host name or an IP address.", true); return; }
+			if (!validPort(port)) { announce("proxy-bad", "The port must be a number from 1 to 65535.", true); return; }
+			if (proxyWrite({"jihad.proxy.webone.host": host, "jihad.proxy.webone.port": port,
+			                "network.proxy.http": host, "network.proxy.http_port": port,
+			                "network.proxy.ssl": host, "network.proxy.ssl_port": port,
+			                "network.proxy.socks": "", "network.proxy.share_proxy_settings": true,
+			                "network.proxy.type": 1}, "webone", "Jihad goes through WebOne at " + host + ":" + port + ".")) {
+				fill("webone");
+			}
+		});
+		let host = pChar("jihad.proxy.webone.host");
+		if (host && validHost(host)) {
+			let port = pInt("jihad.proxy.webone.port", 8080);
+			let open = el("button", "btn", "Open this WebOne's certificate");
+			open.setAttribute("type", "button");
+			open.addEventListener("click", function () {
+				window.location.href = "http://" + (host.indexOf(":") >= 0 ? "[" + host + "]" : host) + ":" + port + "/weboneca.crt";
+			}, false);
+			let r = el("div", "row");
+			r.appendChild(open);
+			body.appendChild(r);
+		}
+	}
+
+	function fillManual(pending) {
+		body.appendChild(helpRow("A proxy you run or were given: an HTTP proxy (which can also carry secure pages), " +
+			"and a SOCKS proxy if you have one."));
+		let http = hostPortRows("HTTP proxy", "network.proxy.http", pChar("network.proxy.http"), pInt("network.proxy.http_port", 0), 3128);
+		let share = document.createElement("input");
+		share.setAttribute("type", "checkbox");
+		share.className = "cb";
+		let sslHost = pChar("network.proxy.ssl"), sslPort = pInt("network.proxy.ssl_port", 0);
+		share.checked = !sslHost || (sslHost === pChar("network.proxy.http") && sslPort === pInt("network.proxy.http_port", 0));
+		body.appendChild(fontRow("Use it for secure (https) pages too", "network.proxy.ssl", share));
+		let sslBox = el("div", "proxy-ssl");
+		body.appendChild(sslBox);
+		let ssl = [textField(sslHost, "host name or address"), textField(sslPort || "", "3128", "number")];
+		sslBox.appendChild(fontRow("HTTPS proxy", "network.proxy.ssl", ssl[0]));
+		sslBox.appendChild(fontRow("Port", "network.proxy.ssl_port", ssl[1]));
+		sslBox.style.display = share.checked ? "none" : "";
+		share.addEventListener("change", function () { sslBox.style.display = share.checked ? "none" : ""; }, false);
+		let socks = hostPortRows("SOCKS proxy", "network.proxy.socks", pChar("network.proxy.socks"), pInt("network.proxy.socks_port", 0), 1080);
+		let ver = document.createElement("select");
+		ver.className = "sel";
+		option(ver, 5, "SOCKS 5");
+		option(ver, 4, "SOCKS 4");
+		ver.value = String(pInt("network.proxy.socks_version", 5) === 4 ? 4 : 5);
+		body.appendChild(fontRow("SOCKS version", "network.proxy.socks_version", ver));
+		let dns = document.createElement("input");
+		dns.setAttribute("type", "checkbox");
+		dns.className = "cb";
+		dns.checked = pBool("network.proxy.socks_remote_dns", false);
+		body.appendChild(fontRow("Look up site names through the SOCKS 5 proxy", "network.proxy.socks_remote_dns", dns));
+		let direct = textField(pChar("network.proxy.no_proxies_on") || "localhost, 127.0.0.1", "localhost, 127.0.0.1");
+		body.appendChild(fontRow("Go direct for", "network.proxy.no_proxies_on", direct,
+			"Host names, domains (.example.com) or networks (192.168.1.0/24), separated by commas."));
+		pendingNote(pending);
+		useButton("Use this proxy", function () {
+			let hh = http[0].value.trim(), hp = http[1].value.trim() || "3128";
+			let sh = share.checked ? hh : ssl[0].value.trim(), sp = share.checked ? hp : (ssl[1].value.trim() || "3128");
+			let xh = socks[0].value.trim(), xp = socks[1].value.trim() || "1080";
+			let bad = function (what) { announce("proxy-bad", what, true); };
+			if (!hh && !sh && !xh) { bad("Give at least one proxy: an HTTP, HTTPS or SOCKS host and its port."); return; }
+			let pairs = [[hh, hp, "HTTP"], [sh, sp, "HTTPS"], [xh, xp, "SOCKS"]];
+			for (let i = 0; i < pairs.length; i++) {
+				if (!pairs[i][0]) { continue; }
+				if (!validHost(pairs[i][0])) { bad("The " + pairs[i][2] + " proxy must be a host name or an IP address."); return; }
+				if (!validPort(pairs[i][1])) { bad("The " + pairs[i][2] + " proxy's port must be a number from 1 to 65535."); return; }
+			}
+			if (proxyWrite({"network.proxy.http": hh, "network.proxy.http_port": hh ? Number(hp) : 0,
+			                "network.proxy.ssl": sh, "network.proxy.ssl_port": sh ? Number(sp) : 0,
+			                "network.proxy.socks": xh, "network.proxy.socks_port": xh ? Number(xp) : 0,
+			                "network.proxy.socks_version": Number(ver.value),
+			                "network.proxy.socks_remote_dns": dns.checked,
+			                "network.proxy.share_proxy_settings": share.checked,
+			                "network.proxy.no_proxies_on": direct.value.trim(),
+			                "network.proxy.type": 1}, "manual",
+			               "Jihad goes through " + (hh ? hh + ":" + hp : sh ? sh + ":" + sp : xh + ":" + xp) + ".")) {
+				fill("manual");
+			}
+		});
+	}
+
+	function fillPac(pending) {
+		body.appendChild(helpRow("A proxy auto-config (PAC) file decides the proxy for each address. WebOne serves one " +
+			"at http://<its address>:8080/auto.pac."));
+		let url = textField(pChar("network.proxy.autoconfig_url"), "http://…/proxy.pac", "url");
+		body.appendChild(fontRow("Configuration URL", "network.proxy.autoconfig_url", url));
+		pendingNote(pending);
+		useButton("Use this configuration", function () {
+			let u = url.value.trim();
+			if (!/^(https?|file):\/\/\S+$/i.test(u)) { announce("proxy-bad", "The configuration URL must start with http://, https:// or file://.", true); return; }
+			if (proxyWrite({"network.proxy.autoconfig_url": u, "network.proxy.type": 2}, "pac",
+			               "Jihad asks " + u + " which proxy to use.")) {
+				fill("pac");
+			}
+		});
+	}
+
+	which.addEventListener("change", function () {
+		let m = which.value;
+		// The choices with nothing to type take effect at once; the others when their button is tapped.
+		if (m === "none") {
+			proxyWrite({"network.proxy.type": 0}, "none", "Jihad connects to sites directly.");
+		} else if (m === "webos") {
+			// components/jihadProxy.js reads webOS's setting again when the mode changes.
+			proxyWrite({}, "webos", "Jihad follows webOS's proxy setting.");
+			window.setTimeout(function () { if (which.value === "webos") { fill("webos"); } }, 1500);
+		} else if (m === "relay") {
+			proxyWrite({"network.proxy.http": RELAY_HOST, "network.proxy.http_port": RELAY_PORT,
+			            "network.proxy.ssl": RELAY_HOST, "network.proxy.ssl_port": RELAY_PORT,
+			            "network.proxy.socks": "", "network.proxy.share_proxy_settings": true,
+			            "network.proxy.type": 1}, "relay", "Jihad goes through the Riverstone Relay.");
+		}
+		fill(m);
+	}, false);
+	fill(current);
+	return box;
+}
+
+// --- Certificates (cavekit-proxies-certs.md R4, R6) ----------------------------------------------
+function resetCerts() {
+	// The switch is the group's one row (resetPane clears it); the CAs the user added are theirs,
+	// and are removed one by one, never by a pane reset.
+	return 0;
+}
+
+function buildCertsSection(group) {
+	let box = el("section", "group");
+	box.id = "section-certs";
+	box.appendChild(el("h2", "group-title", group.title));
+	for (let r = 0; r < group.rows.length; r++) { box.appendChild(buildRow(group.rows[r])); }
+	let svc = jihadService("@riverstonerelay.net/jihad/certs;1");
+	if (!svc) {
+		box.appendChild(helpRow("This build cannot add certificates beyond the engine's own."));
+		return box;
+	}
+	let rep = svc.report();
+	let lines = [];
+	if (rep.error) { lines.push(rep.error); }
+	else if (!rep.ready) { lines.push("webOS's certificates are read when the first page opens."); }
+	else if (!rep.enabled) { lines.push("Off: Jihad trusts only its own roots and the ones you added below."); }
+	else {
+		let found = rep.stores.filter(function (s) { return s.present; }).length;
+		lines.push(found ? "Trusted from webOS: " + rep.trusted.length + "." : "No webOS certificate store was found.");
+		let k = rep.skipped || {}, parts = [];
+		if (k.builtin) { parts.push(k.builtin + " Jihad has already"); }
+		if (k.stock) { parts.push(k.stock + " of HP's original roots"); }
+		if (k.removed) { parts.push(k.removed + " Mozilla removed"); }
+		if (k.expired) { parts.push(k.expired + " expired"); }
+		if (k.notCA) { parts.push(k.notCA + " site certificates (Jihad asks about those per site)"); }
+		if (k.already) { parts.push(k.already + " you added here as well"); }
+		if (k.relay) { parts.push("the Riverstone Relay's (see Advanced → Proxy)"); }
+		if (k.unreadable) { parts.push(k.unreadable + " unreadable files"); }
+		if (parts.length) { lines.push("Not taken: " + parts.join(", ") + "."); }
+	}
+	lines.forEach(function (t) { box.appendChild(helpRow(t)); });
+	rep.trusted.forEach(function (t) {
+		let r = el("div", "row cert-row");
+		let l = el("div", "row-label", t.name);
+		l.appendChild(el("div", "row-pref", t.from + " · SHA-256 " + t.fingerprint));
+		r.appendChild(l);
+		box.appendChild(r);
+	});
+
+	box.appendChild(el("h3", "group-subtitle", "Certificates you added"));
+	let added = svc.addedCAs();
+	if (!added.length) {
+		box.appendChild(helpRow("None. Opening a certificate authority's certificate (a .crt link, such as a proxy's) " +
+			"asks whether to trust it to identify websites."));
+	}
+	added.forEach(function (c) {
+		let r = el("div", "row cert-row");
+		let l = el("div", "row-label", c.name);
+		l.appendChild(el("div", "row-pref", (c.org && c.org !== c.name ? c.org + " · " : "") + "SHA-256 " + c.fingerprint));
+		r.appendChild(l);
+		let rm = el("button", "btn", "Remove");
+		rm.setAttribute("type", "button");
+		rm.addEventListener("click", function () {
+			if (svc.removeAdded(c.sha256)) {
+				status("\"" + c.name + "\" is no longer trusted.");
+				box.parentNode.replaceChild(buildCertsSection(group), box);
+			} else {
+				announce("cert-remove-failed", "Could not remove \"" + c.name + "\".", true);
+			}
+		}, false);
+		r.appendChild(rm);
+		box.appendChild(r);
+	});
 	return box;
 }
 

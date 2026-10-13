@@ -372,6 +372,40 @@ for f in modules/LightweightThemeManager.jsm modules/addons/LightweightThemeImag
 	[ -s "$OUT/$f" ] || { echo "ERROR: the engine's theme manager is missing from the bundle: $f" >&2; exit 1; }
 done
 echo "  personas: components/jihadPersonas.js + the engine's LightweightThemeManager"
+# Certificates and proxies (cavekit-proxies-certs.md). components/jihadCerts.js trusts the CA
+# certificates webOS added (checked against certs/jihad-cert-lists.json, made by
+# render/goanna/certs/make-cert-lists.py), the Riverstone Relay's CA when the user chooses it, and
+# takes over "@mozilla.org/nsCertificateDialogs;1" so opening a CA certificate asks on the card.
+# components/jihadProxy.js follows webOS's own proxy setting when the user chooses it. Both are
+# created by the daemon at startup. Required: the settings page offers what they do.
+CERTS_JS="$REPO/render/goanna/components/jihadCerts.js"
+PROXY_JS="$REPO/render/goanna/components/jihadProxy.js"
+CERT_LISTS="$REPO/render/goanna/certs/jihad-cert-lists.json"
+for f in "$CERTS_JS" "$PROXY_JS" "$CERT_LISTS"; do
+	[ -s "$f" ] || { echo "ERROR: $f is missing" >&2; exit 1; }
+done
+python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["hpStock"]["count"]>100 and j["mozillaRemoved"]["count"]>50 and len(j["relay"]["sha256"])==64' "$CERT_LISTS" \
+	|| { echo "ERROR: $CERT_LISTS is not a complete list (rebuild it with make-cert-lists.py)" >&2; exit 1; }
+mkdir -p "$OUT/components" "$OUT/certs"
+cp -L "$CERTS_JS" "$OUT/components/jihadCerts.js"
+cp -L "$PROXY_JS" "$OUT/components/jihadProxy.js"
+cp -L "$CERT_LISTS" "$OUT/certs/jihad-cert-lists.json"
+cat > "$OUT/components/jihad-certs.manifest" <<'MANIFEST'
+# Jihad Browser — certificates beyond the engine's own, and the CA question. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63} jihadCerts.js
+contract @riverstonerelay.net/jihad/certs;1 {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63}
+component {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28} jihadCerts.js
+contract @mozilla.org/nsCertificateDialogs;1 {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28}
+MANIFEST
+cat > "$OUT/components/jihad-proxy.manifest" <<'MANIFEST'
+# Jihad Browser — following webOS's proxy setting. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14} jihadProxy.js
+contract @riverstonerelay.net/jihad/proxy;1 {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14}
+MANIFEST
+for m in jihad-certs jihad-proxy; do
+	grep -q "^manifest components/$m.manifest$" "$OUT/chrome.manifest" 2>/dev/null || echo "manifest components/$m.manifest" >> "$OUT/chrome.manifest"
+done
+echo "  certificates: webOS's added CAs, the Relay's on request, the CA question; proxy: webOS's setting"
 # The Personas that come with the browser (render/goanna/personas/: the project's own set drawn
 # by make-personas.py, plus any redistributable ones it lists), offered in about:addons → Personas.
 mkdir -p "$OUT/personas"

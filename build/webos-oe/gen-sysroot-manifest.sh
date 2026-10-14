@@ -42,6 +42,19 @@ RECIPE="$HERE/arm-sysroot.recipe"
 REPO="$(cd "$HERE/../.." && pwd)"
 MIRROR="${DEBIAN_ARCHIVE_MIRROR:-http://archive.debian.org/debian}"
 
+# archive.debian.org sits behind a CDN that has been seen serving a cached 404 for a file the
+# archive has (2026-10-14: 32 of the 187 sysroot packages). The same URL with a query string goes
+# past the cache; the sha256 check after the download is what guarantees the content.
+fetch_url() { # <url> <file>
+  local i
+  curl -fsSL --retry 3 -m 600 -o "$2" "$1" 2>/dev/null && return 0
+  for i in 1 2 3 4 5; do
+    sleep "$i"
+    curl -fsSL --retry 3 -m 600 -o "$2" "$1?nocache=$RANDOM$RANDOM" 2>/dev/null && return 0
+  done
+  return 1
+}
+
 # Debian pool prefix: source packages starting with "lib" live under lib<x>/, all others
 # under <x>/ where <x> is the first letter.
 pool_prefix() {
@@ -185,7 +198,7 @@ fetch() {
       continue
     fi
     echo "fetching $base"
-    if ! curl -fsSL -o "$DEBS/$base.part" "$url"; then
+    if ! fetch_url "$url" "$DEBS/$base.part"; then
       echo "!! download failed: $url" >&2; rm -f "$DEBS/$base.part"; fail=$((fail + 1)); continue
     fi
     got="$(sha256sum "$DEBS/$base.part" | cut -d' ' -f1)"
@@ -206,6 +219,8 @@ check_urls() {
     [ "$n" -lt "$want" ] || break
     n=$((n + 1))
     code="$(curl -sS -o /dev/null -w '%{http_code}' -I -m 30 "$url" || echo 000)"
+    # past a cached 404 (see fetch_url)
+    [ "$code" = 200 ] || code="$(curl -sS -o /dev/null -w '%{http_code}' -I -m 30 "$url?nocache=$(date +%s)$$" || echo 000)"
     printf '%s  %s\n' "$code" "$url"
     [ "$code" = "200" ] || fail=$((fail + 1))
   done < <(manifest_rows)

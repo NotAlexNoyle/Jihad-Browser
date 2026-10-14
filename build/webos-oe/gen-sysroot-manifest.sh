@@ -22,6 +22,10 @@
 #   gen-sysroot-manifest.sh --check      verify the on-disk .debs against the manifest
 #   gen-sysroot-manifest.sh --fetch      download every .deb in the manifest from
 #                                        archive.debian.org and verify its sha256
+#   gen-sysroot-manifest.sh --fetch-device-libs
+#                                        copy libpulse.so.0 off a TouchPad (arm-sysroot.recipe)
+#   gen-sysroot-manifest.sh --assemble   unpack them all into arm-sysroot/root/ and apply
+#                                        arm-sysroot.recipe; fails unless the tree matches it
 #   gen-sysroot-manifest.sh --check-urls [N]
 #                                        HTTP-HEAD N manifest URLs (default 5) to confirm
 #                                        they still resolve on archive.debian.org
@@ -34,6 +38,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEBS="$HERE/arm-sysroot/debs"
 MANIFEST="$HERE/arm-sysroot-debs.manifest"
+RECIPE="$HERE/arm-sysroot.recipe"
+REPO="$(cd "$HERE/../.." && pwd)"
 MIRROR="${DEBIAN_ARCHIVE_MIRROR:-http://archive.debian.org/debian}"
 
 # Debian pool prefix: source packages starting with "lib" live under lib<x>/, all others
@@ -75,11 +81,13 @@ generate() {
 #   1. build/webos-oe/gen-sysroot-manifest.sh --fetch
 #        downloads every .deb below from archive.debian.org into
 #        build/webos-oe/arm-sysroot/debs/ and verifies each sha256.
-#   2. unpack each .deb's data member into build/webos-oe/arm-sysroot/root/
-#        for d in build/webos-oe/arm-sysroot/debs/*.deb; do
-#          m=$(ar t "$d" | grep '^data\.tar'); ar p "$d" "$m" | tar -C root -xf -
-#        done
-#   3. relativize the absolute symlinks and the .pc/.la prefixes as the sysroot needs.
+#   2. build/webos-oe/gen-sysroot-manifest.sh --fetch-device-libs
+#        copies libpulse.so.0 off a TouchPad (the one file not from Debian).
+#   3. build/webos-oe/gen-sysroot-manifest.sh --assemble
+#        unpacks every .deb into build/webos-oe/arm-sysroot/root/ and applies
+#        build/webos-oe/arm-sysroot.recipe (glibc 2.19 out, /lib copied into /usr/lib, six
+#        symlinks, PulseAudio 0.9.22's headers from the third_party/pulseaudio submodule), then
+#        checks the finished tree against the recipe's digest.
 #
 # Debian 8 "jessie" is END OF LIFE, so these exact versions are frozen on
 # archive.debian.org rather than moving under security updates — which is what makes a
@@ -205,10 +213,90 @@ check_urls() {
   [ "$fail" -eq 0 ]
 }
 
+# Deterministic digest of a tree: sha256 over a C-sorted "<sha256|symlink:target>\t<path>" listing
+# (the same as gen-adapter-deps-manifest.sh's tree_digest).
+tree_digest() {
+  ( cd "$1" && {
+      find . -type f | LC_ALL=C sort | while IFS= read -r p; do printf '%s\t%s\n' "$(sha256sum < "$p" | cut -d' ' -f1)" "$p"; done
+      find . -type l | LC_ALL=C sort | while IFS= read -r p; do printf 'symlink:%s\t%s\n' "$(readlink "$p")" "$p"; done
+    } | sha256sum | cut -d' ' -f1 )
+}
+
+# The one sysroot file that comes off a TouchPad (arm-sysroot.recipe's "device" rows), into
+# arm-sysroot/device/, checked by sha256. novacom's stdin is held open as in dev-sh.sh.
+fetch_device_libs() {
+  command -v "${NOVACOM:-novacom}" >/dev/null || { echo "!! novacom not found (tools/host/build-novacom.sh, or set NOVACOM)" >&2; exit 2; }
+  mkdir -p "$HERE/arm-sysroot/device"
+  local op src dst sum holder got
+  while IFS=$'\t' read -r op src dst sum; do
+    [ "$op" = device ] || continue
+    echo "get $src"
+    exec 3< <(exec sleep 600 2>/dev/null); holder=$!
+    "${NOVACOM:-novacom}" get "file://$src" > "$HERE/arm-sysroot/device/$(basename "$dst")" <&3 || { echo "!! novacom get $src failed" >&2; exit 3; }
+    exec 3<&-; kill "$holder" 2>/dev/null || true
+    got="$(sha256sum "$HERE/arm-sysroot/device/$(basename "$dst")" | cut -d' ' -f1)"
+    [ "$got" = "$sum" ] || { echo "!! $src: sha256 $got, recipe $sum" >&2; exit 4; }
+  done < <(grep -v '^#' "$RECIPE")
+  echo "device libraries ready in arm-sysroot/device/"
+}
+
+# Build arm-sysroot/root (or $SYSROOT_OUT): unpack every manifest package in manifest order from
+# the checked .debs, then apply arm-sysroot.recipe, then check the recipe's digest. Written to a
+# temporary tree and moved into place only when it matches.
+assemble() {
+  local out="${SYSROOT_OUT:-$HERE/arm-sysroot/root}" pkg ver arch sum size src base url m n=0
+  local tmp="$out.new"
+  rm -rf "${tmp:?}"; mkdir -p "$tmp"
+  while IFS=$'\t' read -r pkg ver arch sum size src base url; do
+    [ -f "$DEBS/$base" ] || { echo "!! $base missing: run --fetch first" >&2; exit 2; }
+    [ "$(sha256sum "$DEBS/$base" | cut -d' ' -f1)" = "$sum" ] || { echo "!! $base: sha256 mismatch" >&2; exit 2; }
+    m="$(ar t "$DEBS/$base" | grep -E '^data\.tar' | head -1)"
+    case "$m" in
+      *.xz)  ar p "$DEBS/$base" "$m" | tar -C "$tmp" -xJf - ;;
+      *.gz)  ar p "$DEBS/$base" "$m" | tar -C "$tmp" -xzf - ;;
+      *.bz2) ar p "$DEBS/$base" "$m" | tar -C "$tmp" -xjf - ;;
+      *)     ar p "$DEBS/$base" "$m" | tar -C "$tmp" -xf - ;;
+    esac
+    n=$((n + 1))
+  done < <(manifest_rows)
+  echo "unpacked $n packages"
+  local op a b c d e want="" ver_full
+  while IFS=$'\t' read -r op a b c d e; do
+    case "$op" in
+      ''|'#'*) ;;
+      rm) rm -rf "${tmp:?}/$a" ;;
+      cp) mkdir -p "$tmp/$(dirname "$b")"; cp -P "$tmp/$a" "$tmp/$b" ;;
+      ln) rm -f "$tmp/$a"; mkdir -p "$tmp/$(dirname "$a")"; ln -s "$b" "$tmp/$a" ;;
+      pulse-headers)
+        [ -d "$REPO/$a" ] || { echo "!! $a missing: git submodule update --init third_party/pulseaudio" >&2; exit 2; }
+        mkdir -p "$tmp/$b"
+        cp "$REPO/$a"/*.h "$tmp/$b/"
+        ver_full="$c"
+        sed -e "s/@PACKAGE_VERSION@/$ver_full/" -e "s/@PA_API_VERSION@/$d/" -e "s/@PA_PROTOCOL_VERSION@/$e/" \
+            -e "s/@PA_MAJOR@/${ver_full%%.*}/" -e "s/@PA_MINOR@/$(echo "$ver_full" | cut -d. -f2)/" \
+            -e "s/@PA_MICRO@/${ver_full##*.}/" "$REPO/$a/version.h.in" > "$tmp/$b/version.h" ;;
+      repo) mkdir -p "$tmp/$(dirname "$b")"; cp "$REPO/$a" "$tmp/$b" ;;
+      device)
+        [ -f "$HERE/arm-sysroot/device/$(basename "$b")" ] || { echo "!! $(basename "$b") missing: run --fetch-device-libs with a TouchPad attached" >&2; exit 2; }
+        mkdir -p "$tmp/$(dirname "$b")"; cp "$HERE/arm-sysroot/device/$(basename "$b")" "$tmp/$b" ;;
+      digest) want="$a" ;;
+      *) echo "!! unknown recipe op: $op" >&2; exit 2 ;;
+    esac
+  done < "$RECIPE"
+  local have; have="$(tree_digest "$tmp")"
+  if [ -n "$want" ] && [ "$have" != "$want" ]; then
+    echo "!! assembled sysroot digest $have, recipe $want (left in $tmp)" >&2; exit 4
+  fi
+  rm -rf "${out:?}"; mv "$tmp" "$out"
+  echo "assembled $out (digest $have)"
+}
+
 case "${1:-}" in
   "")           generate ;;
   --check)      check ;;
   --fetch)      fetch ;;
+  --assemble)   assemble ;;
+  --fetch-device-libs) fetch_device_libs ;;
   --check-urls) check_urls "${2:-5}" ;;
-  *) echo "usage: $0 [--check | --fetch | --check-urls [N]]" >&2; exit 1 ;;
+  *) echo "usage: $0 [--check | --fetch | --fetch-device-libs | --assemble | --check-urls [N]]" >&2; exit 1 ;;
 esac

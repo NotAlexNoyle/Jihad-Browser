@@ -1,0 +1,572 @@
+# arm-sysroot.recipe — how build/webos-oe/arm-sysroot/root is made from the 187 Debian jessie
+# armel packages in arm-sysroot-debs.manifest. Applied by
+#   build/webos-oe/gen-sysroot-manifest.sh --assemble
+# after --fetch (the .debs) and --fetch-device-libs (libpulse.so.0 off a TouchPad).
+#
+# Derived 2026-10-14 by comparing the sysroot every engine and daemon build since 2026-08-15 used
+# against a plain unpack of the same packages (cavekit-device-build.md R11). What it does:
+#   rm   Debian's glibc 2.19 runtime, its static/dev libraries, crt*.o and headers, the kernel
+#        headers (linux-libc-dev), libgcc_s.so.1 and libstdc++.so.6: the crosstool-NG toolchain
+#        brings its own glibc 2.23 and gcc 9.4 runtime, and two of each on the include and link
+#        paths break the build.
+#   cp   the remaining /lib/arm-linux-gnueabi libraries copied into /usr/lib/arm-linux-gnueabi,
+#        where the link step looks.
+#   ln   six development symlinks that pointed at /lib/... (absolute, so outside the sysroot)
+#        pointed at the copies instead.
+#   pulse-headers  PulseAudio 0.9.22's src/pulse/*.h from the third_party/pulseaudio submodule
+#        (the device's version, for cubeb_pulse), with version.h generated as its configure would.
+#   repo  a file kept in the repository (sysroot-extra/).
+#   device  a library copied off the TouchPad (dlopen'd at run time; its ABI is the device's).
+#   digest  sha256 over the finished tree, as gen-adapter-deps-manifest.sh's tree_digest: the
+#        assembled sysroot must match it, or --assemble fails.
+# TSV. Paths are relative to arm-sysroot/root.
+rm	lib/arm-linux-gnueabi/ld-2.19.so
+rm	lib/arm-linux-gnueabi/ld-linux.so.3
+rm	lib/arm-linux-gnueabi/libBrokenLocale-2.19.so
+rm	lib/arm-linux-gnueabi/libBrokenLocale.so.1
+rm	lib/arm-linux-gnueabi/libanl-2.19.so
+rm	lib/arm-linux-gnueabi/libanl.so.1
+rm	lib/arm-linux-gnueabi/libc-2.19.so
+rm	lib/arm-linux-gnueabi/libc.so.6
+rm	lib/arm-linux-gnueabi/libcrypt-2.19.so
+rm	lib/arm-linux-gnueabi/libcrypt.so.1
+rm	lib/arm-linux-gnueabi/libdl-2.19.so
+rm	lib/arm-linux-gnueabi/libdl.so.2
+rm	lib/arm-linux-gnueabi/libgcc_s.so.1
+rm	lib/arm-linux-gnueabi/libm-2.19.so
+rm	lib/arm-linux-gnueabi/libm.so.6
+rm	lib/arm-linux-gnueabi/libnsl-2.19.so
+rm	lib/arm-linux-gnueabi/libnsl.so.1
+rm	lib/arm-linux-gnueabi/libpthread-2.19.so
+rm	lib/arm-linux-gnueabi/libpthread.so.0
+rm	lib/arm-linux-gnueabi/libresolv-2.19.so
+rm	lib/arm-linux-gnueabi/libresolv.so.2
+rm	lib/arm-linux-gnueabi/librt-2.19.so
+rm	lib/arm-linux-gnueabi/librt.so.1
+rm	lib/arm-linux-gnueabi/libutil-2.19.so
+rm	lib/arm-linux-gnueabi/libutil.so.1
+rm	usr/include/_G_config.h
+rm	usr/include/aio.h
+rm	usr/include/aliases.h
+rm	usr/include/alloca.h
+rm	usr/include/ar.h
+rm	usr/include/argp.h
+rm	usr/include/argz.h
+rm	usr/include/arm-linux-gnueabi/a.out.h
+rm	usr/include/arm-linux-gnueabi/asm
+rm	usr/include/arm-linux-gnueabi/bits/a.out.h
+rm	usr/include/arm-linux-gnueabi/bits/auxv.h
+rm	usr/include/arm-linux-gnueabi/bits/byteswap-16.h
+rm	usr/include/arm-linux-gnueabi/bits/byteswap.h
+rm	usr/include/arm-linux-gnueabi/bits/cmathcalls.h
+rm	usr/include/arm-linux-gnueabi/bits/confname.h
+rm	usr/include/arm-linux-gnueabi/bits/dirent.h
+rm	usr/include/arm-linux-gnueabi/bits/dlfcn.h
+rm	usr/include/arm-linux-gnueabi/bits/elfclass.h
+rm	usr/include/arm-linux-gnueabi/bits/endian.h
+rm	usr/include/arm-linux-gnueabi/bits/environments.h
+rm	usr/include/arm-linux-gnueabi/bits/epoll.h
+rm	usr/include/arm-linux-gnueabi/bits/errno.h
+rm	usr/include/arm-linux-gnueabi/bits/error.h
+rm	usr/include/arm-linux-gnueabi/bits/eventfd.h
+rm	usr/include/arm-linux-gnueabi/bits/fcntl-linux.h
+rm	usr/include/arm-linux-gnueabi/bits/fcntl.h
+rm	usr/include/arm-linux-gnueabi/bits/fcntl2.h
+rm	usr/include/arm-linux-gnueabi/bits/fenv.h
+rm	usr/include/arm-linux-gnueabi/bits/fenvinline.h
+rm	usr/include/arm-linux-gnueabi/bits/huge_val.h
+rm	usr/include/arm-linux-gnueabi/bits/huge_valf.h
+rm	usr/include/arm-linux-gnueabi/bits/huge_vall.h
+rm	usr/include/arm-linux-gnueabi/bits/hwcap.h
+rm	usr/include/arm-linux-gnueabi/bits/in.h
+rm	usr/include/arm-linux-gnueabi/bits/inf.h
+rm	usr/include/arm-linux-gnueabi/bits/initspin.h
+rm	usr/include/arm-linux-gnueabi/bits/inotify.h
+rm	usr/include/arm-linux-gnueabi/bits/ioctl-types.h
+rm	usr/include/arm-linux-gnueabi/bits/ioctls.h
+rm	usr/include/arm-linux-gnueabi/bits/ipc.h
+rm	usr/include/arm-linux-gnueabi/bits/ipctypes.h
+rm	usr/include/arm-linux-gnueabi/bits/libc-lock.h
+rm	usr/include/arm-linux-gnueabi/bits/libio-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/link.h
+rm	usr/include/arm-linux-gnueabi/bits/local_lim.h
+rm	usr/include/arm-linux-gnueabi/bits/locale.h
+rm	usr/include/arm-linux-gnueabi/bits/math-finite.h
+rm	usr/include/arm-linux-gnueabi/bits/mathcalls.h
+rm	usr/include/arm-linux-gnueabi/bits/mathdef.h
+rm	usr/include/arm-linux-gnueabi/bits/mathinline.h
+rm	usr/include/arm-linux-gnueabi/bits/mman-linux.h
+rm	usr/include/arm-linux-gnueabi/bits/mman.h
+rm	usr/include/arm-linux-gnueabi/bits/monetary-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/mqueue.h
+rm	usr/include/arm-linux-gnueabi/bits/mqueue2.h
+rm	usr/include/arm-linux-gnueabi/bits/msq.h
+rm	usr/include/arm-linux-gnueabi/bits/nan.h
+rm	usr/include/arm-linux-gnueabi/bits/netdb.h
+rm	usr/include/arm-linux-gnueabi/bits/param.h
+rm	usr/include/arm-linux-gnueabi/bits/poll.h
+rm	usr/include/arm-linux-gnueabi/bits/poll2.h
+rm	usr/include/arm-linux-gnueabi/bits/posix1_lim.h
+rm	usr/include/arm-linux-gnueabi/bits/posix2_lim.h
+rm	usr/include/arm-linux-gnueabi/bits/posix_opt.h
+rm	usr/include/arm-linux-gnueabi/bits/printf-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/pthreadtypes.h
+rm	usr/include/arm-linux-gnueabi/bits/resource.h
+rm	usr/include/arm-linux-gnueabi/bits/sched.h
+rm	usr/include/arm-linux-gnueabi/bits/select.h
+rm	usr/include/arm-linux-gnueabi/bits/select2.h
+rm	usr/include/arm-linux-gnueabi/bits/sem.h
+rm	usr/include/arm-linux-gnueabi/bits/semaphore.h
+rm	usr/include/arm-linux-gnueabi/bits/setjmp.h
+rm	usr/include/arm-linux-gnueabi/bits/setjmp2.h
+rm	usr/include/arm-linux-gnueabi/bits/shm.h
+rm	usr/include/arm-linux-gnueabi/bits/sigaction.h
+rm	usr/include/arm-linux-gnueabi/bits/sigcontext.h
+rm	usr/include/arm-linux-gnueabi/bits/siginfo.h
+rm	usr/include/arm-linux-gnueabi/bits/signalfd.h
+rm	usr/include/arm-linux-gnueabi/bits/signum.h
+rm	usr/include/arm-linux-gnueabi/bits/sigset.h
+rm	usr/include/arm-linux-gnueabi/bits/sigstack.h
+rm	usr/include/arm-linux-gnueabi/bits/sigthread.h
+rm	usr/include/arm-linux-gnueabi/bits/sockaddr.h
+rm	usr/include/arm-linux-gnueabi/bits/socket.h
+rm	usr/include/arm-linux-gnueabi/bits/socket2.h
+rm	usr/include/arm-linux-gnueabi/bits/socket_type.h
+rm	usr/include/arm-linux-gnueabi/bits/stab.def
+rm	usr/include/arm-linux-gnueabi/bits/stat.h
+rm	usr/include/arm-linux-gnueabi/bits/statfs.h
+rm	usr/include/arm-linux-gnueabi/bits/statvfs.h
+rm	usr/include/arm-linux-gnueabi/bits/stdio-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/stdio-lock.h
+rm	usr/include/arm-linux-gnueabi/bits/stdio.h
+rm	usr/include/arm-linux-gnueabi/bits/stdio2.h
+rm	usr/include/arm-linux-gnueabi/bits/stdio_lim.h
+rm	usr/include/arm-linux-gnueabi/bits/stdlib-bsearch.h
+rm	usr/include/arm-linux-gnueabi/bits/stdlib-float.h
+rm	usr/include/arm-linux-gnueabi/bits/stdlib-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/stdlib.h
+rm	usr/include/arm-linux-gnueabi/bits/string.h
+rm	usr/include/arm-linux-gnueabi/bits/string2.h
+rm	usr/include/arm-linux-gnueabi/bits/string3.h
+rm	usr/include/arm-linux-gnueabi/bits/stropts.h
+rm	usr/include/arm-linux-gnueabi/bits/sys_errlist.h
+rm	usr/include/arm-linux-gnueabi/bits/syscall.h
+rm	usr/include/arm-linux-gnueabi/bits/sysctl.h
+rm	usr/include/arm-linux-gnueabi/bits/syslog-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/syslog-path.h
+rm	usr/include/arm-linux-gnueabi/bits/syslog.h
+rm	usr/include/arm-linux-gnueabi/bits/termios.h
+rm	usr/include/arm-linux-gnueabi/bits/time.h
+rm	usr/include/arm-linux-gnueabi/bits/timerfd.h
+rm	usr/include/arm-linux-gnueabi/bits/timex.h
+rm	usr/include/arm-linux-gnueabi/bits/types.h
+rm	usr/include/arm-linux-gnueabi/bits/typesizes.h
+rm	usr/include/arm-linux-gnueabi/bits/uio.h
+rm	usr/include/arm-linux-gnueabi/bits/unistd.h
+rm	usr/include/arm-linux-gnueabi/bits/ustat.h
+rm	usr/include/arm-linux-gnueabi/bits/utmp.h
+rm	usr/include/arm-linux-gnueabi/bits/utmpx.h
+rm	usr/include/arm-linux-gnueabi/bits/utsname.h
+rm	usr/include/arm-linux-gnueabi/bits/waitflags.h
+rm	usr/include/arm-linux-gnueabi/bits/waitstatus.h
+rm	usr/include/arm-linux-gnueabi/bits/wchar-ldbl.h
+rm	usr/include/arm-linux-gnueabi/bits/wchar.h
+rm	usr/include/arm-linux-gnueabi/bits/wchar2.h
+rm	usr/include/arm-linux-gnueabi/bits/wordsize.h
+rm	usr/include/arm-linux-gnueabi/bits/xopen_lim.h
+rm	usr/include/arm-linux-gnueabi/bits/xtitypes.h
+rm	usr/include/arm-linux-gnueabi/fpu_control.h
+rm	usr/include/arm-linux-gnueabi/gnu/lib-names.h
+rm	usr/include/arm-linux-gnueabi/gnu/libc-version.h
+rm	usr/include/arm-linux-gnueabi/gnu/stubs-soft.h
+rm	usr/include/arm-linux-gnueabi/gnu/stubs.h
+rm	usr/include/arm-linux-gnueabi/ieee754.h
+rm	usr/include/arm-linux-gnueabi/sys/acct.h
+rm	usr/include/arm-linux-gnueabi/sys/auxv.h
+rm	usr/include/arm-linux-gnueabi/sys/bitypes.h
+rm	usr/include/arm-linux-gnueabi/sys/cdefs.h
+rm	usr/include/arm-linux-gnueabi/sys/dir.h
+rm	usr/include/arm-linux-gnueabi/sys/elf.h
+rm	usr/include/arm-linux-gnueabi/sys/epoll.h
+rm	usr/include/arm-linux-gnueabi/sys/errno.h
+rm	usr/include/arm-linux-gnueabi/sys/eventfd.h
+rm	usr/include/arm-linux-gnueabi/sys/fanotify.h
+rm	usr/include/arm-linux-gnueabi/sys/fcntl.h
+rm	usr/include/arm-linux-gnueabi/sys/file.h
+rm	usr/include/arm-linux-gnueabi/sys/fsuid.h
+rm	usr/include/arm-linux-gnueabi/sys/gmon.h
+rm	usr/include/arm-linux-gnueabi/sys/gmon_out.h
+rm	usr/include/arm-linux-gnueabi/sys/inotify.h
+rm	usr/include/arm-linux-gnueabi/sys/io.h
+rm	usr/include/arm-linux-gnueabi/sys/ioctl.h
+rm	usr/include/arm-linux-gnueabi/sys/ipc.h
+rm	usr/include/arm-linux-gnueabi/sys/kd.h
+rm	usr/include/arm-linux-gnueabi/sys/kdaemon.h
+rm	usr/include/arm-linux-gnueabi/sys/klog.h
+rm	usr/include/arm-linux-gnueabi/sys/mman.h
+rm	usr/include/arm-linux-gnueabi/sys/mount.h
+rm	usr/include/arm-linux-gnueabi/sys/msg.h
+rm	usr/include/arm-linux-gnueabi/sys/mtio.h
+rm	usr/include/arm-linux-gnueabi/sys/param.h
+rm	usr/include/arm-linux-gnueabi/sys/pci.h
+rm	usr/include/arm-linux-gnueabi/sys/personality.h
+rm	usr/include/arm-linux-gnueabi/sys/poll.h
+rm	usr/include/arm-linux-gnueabi/sys/prctl.h
+rm	usr/include/arm-linux-gnueabi/sys/procfs.h
+rm	usr/include/arm-linux-gnueabi/sys/profil.h
+rm	usr/include/arm-linux-gnueabi/sys/ptrace.h
+rm	usr/include/arm-linux-gnueabi/sys/queue.h
+rm	usr/include/arm-linux-gnueabi/sys/quota.h
+rm	usr/include/arm-linux-gnueabi/sys/raw.h
+rm	usr/include/arm-linux-gnueabi/sys/reboot.h
+rm	usr/include/arm-linux-gnueabi/sys/resource.h
+rm	usr/include/arm-linux-gnueabi/sys/select.h
+rm	usr/include/arm-linux-gnueabi/sys/sem.h
+rm	usr/include/arm-linux-gnueabi/sys/sendfile.h
+rm	usr/include/arm-linux-gnueabi/sys/shm.h
+rm	usr/include/arm-linux-gnueabi/sys/signal.h
+rm	usr/include/arm-linux-gnueabi/sys/signalfd.h
+rm	usr/include/arm-linux-gnueabi/sys/socket.h
+rm	usr/include/arm-linux-gnueabi/sys/socketvar.h
+rm	usr/include/arm-linux-gnueabi/sys/soundcard.h
+rm	usr/include/arm-linux-gnueabi/sys/stat.h
+rm	usr/include/arm-linux-gnueabi/sys/statfs.h
+rm	usr/include/arm-linux-gnueabi/sys/statvfs.h
+rm	usr/include/arm-linux-gnueabi/sys/stropts.h
+rm	usr/include/arm-linux-gnueabi/sys/swap.h
+rm	usr/include/arm-linux-gnueabi/sys/syscall.h
+rm	usr/include/arm-linux-gnueabi/sys/sysctl.h
+rm	usr/include/arm-linux-gnueabi/sys/sysinfo.h
+rm	usr/include/arm-linux-gnueabi/sys/syslog.h
+rm	usr/include/arm-linux-gnueabi/sys/sysmacros.h
+rm	usr/include/arm-linux-gnueabi/sys/termios.h
+rm	usr/include/arm-linux-gnueabi/sys/time.h
+rm	usr/include/arm-linux-gnueabi/sys/timeb.h
+rm	usr/include/arm-linux-gnueabi/sys/timerfd.h
+rm	usr/include/arm-linux-gnueabi/sys/times.h
+rm	usr/include/arm-linux-gnueabi/sys/timex.h
+rm	usr/include/arm-linux-gnueabi/sys/ttychars.h
+rm	usr/include/arm-linux-gnueabi/sys/ttydefaults.h
+rm	usr/include/arm-linux-gnueabi/sys/types.h
+rm	usr/include/arm-linux-gnueabi/sys/ucontext.h
+rm	usr/include/arm-linux-gnueabi/sys/uio.h
+rm	usr/include/arm-linux-gnueabi/sys/ultrasound.h
+rm	usr/include/arm-linux-gnueabi/sys/un.h
+rm	usr/include/arm-linux-gnueabi/sys/unistd.h
+rm	usr/include/arm-linux-gnueabi/sys/user.h
+rm	usr/include/arm-linux-gnueabi/sys/ustat.h
+rm	usr/include/arm-linux-gnueabi/sys/utsname.h
+rm	usr/include/arm-linux-gnueabi/sys/vfs.h
+rm	usr/include/arm-linux-gnueabi/sys/vlimit.h
+rm	usr/include/arm-linux-gnueabi/sys/vt.h
+rm	usr/include/arm-linux-gnueabi/sys/vtimes.h
+rm	usr/include/arm-linux-gnueabi/sys/wait.h
+rm	usr/include/arm-linux-gnueabi/sys/xattr.h
+rm	usr/include/arpa/ftp.h
+rm	usr/include/arpa/inet.h
+rm	usr/include/arpa/nameser.h
+rm	usr/include/arpa/nameser_compat.h
+rm	usr/include/arpa/telnet.h
+rm	usr/include/arpa/tftp.h
+rm	usr/include/asm-generic
+rm	usr/include/assert.h
+rm	usr/include/byteswap.h
+rm	usr/include/complex.h
+rm	usr/include/cpio.h
+rm	usr/include/crypt.h
+rm	usr/include/ctype.h
+rm	usr/include/dirent.h
+rm	usr/include/dlfcn.h
+rm	usr/include/elf.h
+rm	usr/include/endian.h
+rm	usr/include/envz.h
+rm	usr/include/err.h
+rm	usr/include/errno.h
+rm	usr/include/error.h
+rm	usr/include/execinfo.h
+rm	usr/include/fcntl.h
+rm	usr/include/features.h
+rm	usr/include/fenv.h
+rm	usr/include/fmtmsg.h
+rm	usr/include/fnmatch.h
+rm	usr/include/fstab.h
+rm	usr/include/fts.h
+rm	usr/include/ftw.h
+rm	usr/include/gconv.h
+rm	usr/include/getopt.h
+rm	usr/include/glob.h
+rm	usr/include/gnu-versions.h
+rm	usr/include/grp.h
+rm	usr/include/gshadow.h
+rm	usr/include/iconv.h
+rm	usr/include/ifaddrs.h
+rm	usr/include/inttypes.h
+rm	usr/include/langinfo.h
+rm	usr/include/lastlog.h
+rm	usr/include/libgen.h
+rm	usr/include/libintl.h
+rm	usr/include/libio.h
+rm	usr/include/limits.h
+rm	usr/include/link.h
+rm	usr/include/linux
+rm	usr/include/locale.h
+rm	usr/include/malloc.h
+rm	usr/include/math.h
+rm	usr/include/mcheck.h
+rm	usr/include/memory.h
+rm	usr/include/mntent.h
+rm	usr/include/monetary.h
+rm	usr/include/mqueue.h
+rm	usr/include/mtd
+rm	usr/include/net/ethernet.h
+rm	usr/include/net/if.h
+rm	usr/include/net/if_arp.h
+rm	usr/include/net/if_packet.h
+rm	usr/include/net/if_ppp.h
+rm	usr/include/net/if_shaper.h
+rm	usr/include/net/if_slip.h
+rm	usr/include/net/ppp-comp.h
+rm	usr/include/net/ppp_defs.h
+rm	usr/include/net/route.h
+rm	usr/include/netash/ash.h
+rm	usr/include/netatalk/at.h
+rm	usr/include/netax25/ax25.h
+rm	usr/include/netdb.h
+rm	usr/include/neteconet/ec.h
+rm	usr/include/netinet/ether.h
+rm	usr/include/netinet/icmp6.h
+rm	usr/include/netinet/if_ether.h
+rm	usr/include/netinet/if_fddi.h
+rm	usr/include/netinet/if_tr.h
+rm	usr/include/netinet/igmp.h
+rm	usr/include/netinet/in.h
+rm	usr/include/netinet/in_systm.h
+rm	usr/include/netinet/ip.h
+rm	usr/include/netinet/ip6.h
+rm	usr/include/netinet/ip_icmp.h
+rm	usr/include/netinet/tcp.h
+rm	usr/include/netinet/udp.h
+rm	usr/include/netipx/ipx.h
+rm	usr/include/netiucv/iucv.h
+rm	usr/include/netpacket/packet.h
+rm	usr/include/netrom/netrom.h
+rm	usr/include/netrose/rose.h
+rm	usr/include/nfs/nfs.h
+rm	usr/include/nl_types.h
+rm	usr/include/nss.h
+rm	usr/include/obstack.h
+rm	usr/include/paths.h
+rm	usr/include/poll.h
+rm	usr/include/printf.h
+rm	usr/include/protocols/routed.h
+rm	usr/include/protocols/rwhod.h
+rm	usr/include/protocols/talkd.h
+rm	usr/include/protocols/timed.h
+rm	usr/include/pthread.h
+rm	usr/include/pty.h
+rm	usr/include/pwd.h
+rm	usr/include/rdma
+rm	usr/include/re_comp.h
+rm	usr/include/regex.h
+rm	usr/include/regexp.h
+rm	usr/include/resolv.h
+rm	usr/include/rpc/auth.h
+rm	usr/include/rpc/auth_des.h
+rm	usr/include/rpc/auth_unix.h
+rm	usr/include/rpc/clnt.h
+rm	usr/include/rpc/des_crypt.h
+rm	usr/include/rpc/key_prot.h
+rm	usr/include/rpc/netdb.h
+rm	usr/include/rpc/pmap_clnt.h
+rm	usr/include/rpc/pmap_prot.h
+rm	usr/include/rpc/pmap_rmt.h
+rm	usr/include/rpc/rpc.h
+rm	usr/include/rpc/rpc_des.h
+rm	usr/include/rpc/rpc_msg.h
+rm	usr/include/rpc/svc.h
+rm	usr/include/rpc/svc_auth.h
+rm	usr/include/rpc/types.h
+rm	usr/include/rpc/xdr.h
+rm	usr/include/rpcsvc/bootparam.h
+rm	usr/include/rpcsvc/bootparam_prot.h
+rm	usr/include/rpcsvc/bootparam_prot.x
+rm	usr/include/rpcsvc/key_prot.h
+rm	usr/include/rpcsvc/key_prot.x
+rm	usr/include/rpcsvc/klm_prot.h
+rm	usr/include/rpcsvc/klm_prot.x
+rm	usr/include/rpcsvc/mount.h
+rm	usr/include/rpcsvc/mount.x
+rm	usr/include/rpcsvc/nfs_prot.h
+rm	usr/include/rpcsvc/nfs_prot.x
+rm	usr/include/rpcsvc/nis.h
+rm	usr/include/rpcsvc/nis.x
+rm	usr/include/rpcsvc/nis_callback.h
+rm	usr/include/rpcsvc/nis_callback.x
+rm	usr/include/rpcsvc/nis_object.x
+rm	usr/include/rpcsvc/nis_tags.h
+rm	usr/include/rpcsvc/nislib.h
+rm	usr/include/rpcsvc/nlm_prot.h
+rm	usr/include/rpcsvc/nlm_prot.x
+rm	usr/include/rpcsvc/rex.h
+rm	usr/include/rpcsvc/rex.x
+rm	usr/include/rpcsvc/rquota.h
+rm	usr/include/rpcsvc/rquota.x
+rm	usr/include/rpcsvc/rstat.h
+rm	usr/include/rpcsvc/rstat.x
+rm	usr/include/rpcsvc/rusers.h
+rm	usr/include/rpcsvc/rusers.x
+rm	usr/include/rpcsvc/sm_inter.h
+rm	usr/include/rpcsvc/sm_inter.x
+rm	usr/include/rpcsvc/spray.h
+rm	usr/include/rpcsvc/spray.x
+rm	usr/include/rpcsvc/yp.h
+rm	usr/include/rpcsvc/yp.x
+rm	usr/include/rpcsvc/yp_prot.h
+rm	usr/include/rpcsvc/ypclnt.h
+rm	usr/include/rpcsvc/yppasswd.h
+rm	usr/include/rpcsvc/yppasswd.x
+rm	usr/include/rpcsvc/ypupd.h
+rm	usr/include/sched.h
+rm	usr/include/scsi
+rm	usr/include/search.h
+rm	usr/include/semaphore.h
+rm	usr/include/setjmp.h
+rm	usr/include/sgtty.h
+rm	usr/include/shadow.h
+rm	usr/include/signal.h
+rm	usr/include/sound
+rm	usr/include/spawn.h
+rm	usr/include/stab.h
+rm	usr/include/stdc-predef.h
+rm	usr/include/stdint.h
+rm	usr/include/stdio.h
+rm	usr/include/stdio_ext.h
+rm	usr/include/stdlib.h
+rm	usr/include/string.h
+rm	usr/include/strings.h
+rm	usr/include/stropts.h
+rm	usr/include/syscall.h
+rm	usr/include/sysexits.h
+rm	usr/include/syslog.h
+rm	usr/include/tar.h
+rm	usr/include/termio.h
+rm	usr/include/termios.h
+rm	usr/include/tgmath.h
+rm	usr/include/thread_db.h
+rm	usr/include/time.h
+rm	usr/include/ttyent.h
+rm	usr/include/uchar.h
+rm	usr/include/ucontext.h
+rm	usr/include/ulimit.h
+rm	usr/include/unistd.h
+rm	usr/include/ustat.h
+rm	usr/include/utime.h
+rm	usr/include/utmp.h
+rm	usr/include/utmpx.h
+rm	usr/include/values.h
+rm	usr/include/video
+rm	usr/include/wait.h
+rm	usr/include/wchar.h
+rm	usr/include/wctype.h
+rm	usr/include/wordexp.h
+rm	usr/include/xen
+rm	usr/include/xlocale.h
+rm	usr/lib/arm-linux-gnueabi/Mcrt1.o
+rm	usr/lib/arm-linux-gnueabi/Scrt1.o
+rm	usr/lib/arm-linux-gnueabi/crt1.o
+rm	usr/lib/arm-linux-gnueabi/crti.o
+rm	usr/lib/arm-linux-gnueabi/crtn.o
+rm	usr/lib/arm-linux-gnueabi/gcrt1.o
+rm	usr/lib/arm-linux-gnueabi/libBrokenLocale.a
+rm	usr/lib/arm-linux-gnueabi/libBrokenLocale.so
+rm	usr/lib/arm-linux-gnueabi/libanl.a
+rm	usr/lib/arm-linux-gnueabi/libanl.so
+rm	usr/lib/arm-linux-gnueabi/libc.a
+rm	usr/lib/arm-linux-gnueabi/libc.so
+rm	usr/lib/arm-linux-gnueabi/libc_nonshared.a
+rm	usr/lib/arm-linux-gnueabi/libcrypt.a
+rm	usr/lib/arm-linux-gnueabi/libcrypt.so
+rm	usr/lib/arm-linux-gnueabi/libdl.a
+rm	usr/lib/arm-linux-gnueabi/libdl.so
+rm	usr/lib/arm-linux-gnueabi/libm.a
+rm	usr/lib/arm-linux-gnueabi/libm.so
+rm	usr/lib/arm-linux-gnueabi/libnsl.a
+rm	usr/lib/arm-linux-gnueabi/libnsl.so
+rm	usr/lib/arm-linux-gnueabi/libpthread.a
+rm	usr/lib/arm-linux-gnueabi/libpthread.so
+rm	usr/lib/arm-linux-gnueabi/libpthread_nonshared.a
+rm	usr/lib/arm-linux-gnueabi/libresolv.a
+rm	usr/lib/arm-linux-gnueabi/libresolv.so
+rm	usr/lib/arm-linux-gnueabi/librt.a
+rm	usr/lib/arm-linux-gnueabi/librt.so
+rm	usr/lib/arm-linux-gnueabi/libstdc++.so.6
+rm	usr/lib/arm-linux-gnueabi/libstdc++.so.6.0.20
+rm	usr/lib/arm-linux-gnueabi/libutil.a
+rm	usr/lib/arm-linux-gnueabi/libutil.so
+cp	lib/arm-linux-gnueabi/libacl.so.1	usr/lib/arm-linux-gnueabi/libacl.so.1
+cp	lib/arm-linux-gnueabi/libacl.so.1.1.0	usr/lib/arm-linux-gnueabi/libacl.so.1.1.0
+cp	lib/arm-linux-gnueabi/libattr.so.1	usr/lib/arm-linux-gnueabi/libattr.so.1
+cp	lib/arm-linux-gnueabi/libattr.so.1.1.0	usr/lib/arm-linux-gnueabi/libattr.so.1.1.0
+cp	lib/arm-linux-gnueabi/libaudit.so.1	usr/lib/arm-linux-gnueabi/libaudit.so.1
+cp	lib/arm-linux-gnueabi/libaudit.so.1.0.0	usr/lib/arm-linux-gnueabi/libaudit.so.1.0.0
+cp	lib/arm-linux-gnueabi/libbz2.so.1	usr/lib/arm-linux-gnueabi/libbz2.so.1
+cp	lib/arm-linux-gnueabi/libbz2.so.1.0	usr/lib/arm-linux-gnueabi/libbz2.so.1.0
+cp	lib/arm-linux-gnueabi/libbz2.so.1.0.4	usr/lib/arm-linux-gnueabi/libbz2.so.1.0.4
+cp	lib/arm-linux-gnueabi/libcidn.so.1	usr/lib/arm-linux-gnueabi/libcidn.so.1
+cp	lib/arm-linux-gnueabi/libcom_err.so.2	usr/lib/arm-linux-gnueabi/libcom_err.so.2
+cp	lib/arm-linux-gnueabi/libcom_err.so.2.1	usr/lib/arm-linux-gnueabi/libcom_err.so.2.1
+cp	lib/arm-linux-gnueabi/libdbus-1.so.3	usr/lib/arm-linux-gnueabi/libdbus-1.so.3
+cp	lib/arm-linux-gnueabi/libdbus-1.so.3.8.14	usr/lib/arm-linux-gnueabi/libdbus-1.so.3.8.14
+cp	lib/arm-linux-gnueabi/libexpat.so.1	usr/lib/arm-linux-gnueabi/libexpat.so.1
+cp	lib/arm-linux-gnueabi/libexpat.so.1.6.0	usr/lib/arm-linux-gnueabi/libexpat.so.1.6.0
+cp	lib/arm-linux-gnueabi/libglib-2.0.so.0	usr/lib/arm-linux-gnueabi/libglib-2.0.so.0
+cp	lib/arm-linux-gnueabi/libglib-2.0.so.0.4200.1	usr/lib/arm-linux-gnueabi/libglib-2.0.so.0.4200.1
+cp	lib/arm-linux-gnueabi/libhistory.so.6	usr/lib/arm-linux-gnueabi/libhistory.so.6
+cp	lib/arm-linux-gnueabi/libhistory.so.6.3	usr/lib/arm-linux-gnueabi/libhistory.so.6.3
+cp	lib/arm-linux-gnueabi/libkeyutils.so.1	usr/lib/arm-linux-gnueabi/libkeyutils.so.1
+cp	lib/arm-linux-gnueabi/libkeyutils.so.1.5	usr/lib/arm-linux-gnueabi/libkeyutils.so.1.5
+cp	lib/arm-linux-gnueabi/liblzma.so.5	usr/lib/arm-linux-gnueabi/liblzma.so.5
+cp	lib/arm-linux-gnueabi/liblzma.so.5.0.0	usr/lib/arm-linux-gnueabi/liblzma.so.5.0.0
+cp	lib/arm-linux-gnueabi/liblzo2.so.2	usr/lib/arm-linux-gnueabi/liblzo2.so.2
+cp	lib/arm-linux-gnueabi/liblzo2.so.2.0.0	usr/lib/arm-linux-gnueabi/liblzo2.so.2.0.0
+cp	lib/arm-linux-gnueabi/libncursesw.so.5	usr/lib/arm-linux-gnueabi/libncursesw.so.5
+cp	lib/arm-linux-gnueabi/libncursesw.so.5.9	usr/lib/arm-linux-gnueabi/libncursesw.so.5.9
+cp	lib/arm-linux-gnueabi/libnss_compat.so.2	usr/lib/arm-linux-gnueabi/libnss_compat.so.2
+cp	lib/arm-linux-gnueabi/libnss_dns.so.2	usr/lib/arm-linux-gnueabi/libnss_dns.so.2
+cp	lib/arm-linux-gnueabi/libnss_files.so.2	usr/lib/arm-linux-gnueabi/libnss_files.so.2
+cp	lib/arm-linux-gnueabi/libnss_hesiod.so.2	usr/lib/arm-linux-gnueabi/libnss_hesiod.so.2
+cp	lib/arm-linux-gnueabi/libnss_nis.so.2	usr/lib/arm-linux-gnueabi/libnss_nis.so.2
+cp	lib/arm-linux-gnueabi/libnss_nisplus.so.2	usr/lib/arm-linux-gnueabi/libnss_nisplus.so.2
+cp	lib/arm-linux-gnueabi/libpam.so.0	usr/lib/arm-linux-gnueabi/libpam.so.0
+cp	lib/arm-linux-gnueabi/libpam.so.0.83.1	usr/lib/arm-linux-gnueabi/libpam.so.0.83.1
+cp	lib/arm-linux-gnueabi/libpam_misc.so.0	usr/lib/arm-linux-gnueabi/libpam_misc.so.0
+cp	lib/arm-linux-gnueabi/libpam_misc.so.0.82.0	usr/lib/arm-linux-gnueabi/libpam_misc.so.0.82.0
+cp	lib/arm-linux-gnueabi/libpamc.so.0	usr/lib/arm-linux-gnueabi/libpamc.so.0
+cp	lib/arm-linux-gnueabi/libpamc.so.0.82.1	usr/lib/arm-linux-gnueabi/libpamc.so.0.82.1
+cp	lib/arm-linux-gnueabi/libpcre.so.3	usr/lib/arm-linux-gnueabi/libpcre.so.3
+cp	lib/arm-linux-gnueabi/libpcre.so.3.13.1	usr/lib/arm-linux-gnueabi/libpcre.so.3.13.1
+cp	lib/arm-linux-gnueabi/libpng12.so.0.50.0	usr/lib/arm-linux-gnueabi/libpng12.so.0.50.0
+cp	lib/arm-linux-gnueabi/libreadline.so.6	usr/lib/arm-linux-gnueabi/libreadline.so.6
+cp	lib/arm-linux-gnueabi/libreadline.so.6.3	usr/lib/arm-linux-gnueabi/libreadline.so.6.3
+cp	lib/arm-linux-gnueabi/libselinux.so.1	usr/lib/arm-linux-gnueabi/libselinux.so.1
+cp	lib/arm-linux-gnueabi/libsepol.so.1	usr/lib/arm-linux-gnueabi/libsepol.so.1
+cp	lib/arm-linux-gnueabi/libslang.so.2	usr/lib/arm-linux-gnueabi/libslang.so.2
+cp	lib/arm-linux-gnueabi/libslang.so.2.3.0	usr/lib/arm-linux-gnueabi/libslang.so.2.3.0
+cp	lib/arm-linux-gnueabi/libthread_db.so.1	usr/lib/arm-linux-gnueabi/libthread_db.so.1
+cp	lib/arm-linux-gnueabi/libtinfo.so.5	usr/lib/arm-linux-gnueabi/libtinfo.so.5
+cp	lib/arm-linux-gnueabi/libtinfo.so.5.9	usr/lib/arm-linux-gnueabi/libtinfo.so.5.9
+cp	lib/arm-linux-gnueabi/libuuid.so.1	usr/lib/arm-linux-gnueabi/libuuid.so.1
+cp	lib/arm-linux-gnueabi/libuuid.so.1.3.0	usr/lib/arm-linux-gnueabi/libuuid.so.1.3.0
+cp	lib/arm-linux-gnueabi/libz.so.1	usr/lib/arm-linux-gnueabi/libz.so.1
+cp	lib/arm-linux-gnueabi/libz.so.1.2.8	usr/lib/arm-linux-gnueabi/libz.so.1.2.8
+ln	usr/lib/arm-linux-gnueabi/libdbus-1.so	libdbus-1.so.3.8.14
+ln	usr/lib/arm-linux-gnueabi/libexpat.so	libexpat.so.1.6.0
+ln	usr/lib/arm-linux-gnueabi/libglib-2.0.so	libglib-2.0.so.0
+ln	usr/lib/arm-linux-gnueabi/libpcre.so	libpcre.so.3
+ln	usr/lib/arm-linux-gnueabi/libpng12.so.0	libpng12.so.0.50.0
+ln	usr/lib/arm-linux-gnueabi/libz.so	libz.so.1.2.8
+pulse-headers	third_party/pulseaudio/src/pulse	usr/include/pulse	0.9.22	12	16
+repo	build/webos-oe/sysroot-extra/libpulse.pc	usr/lib/pkgconfig/libpulse.pc
+device	/usr/lib/libpulse.so.0	usr/lib/arm-linux-gnueabi/libpulse.so.0	4f14d462930587e1d403f13e83b8cad97b7f39159247c51784e2fc32d9584245
+ln	usr/lib/arm-linux-gnueabi/libpulse.so	libpulse.so.0
+digest	7862012c5e0085f3258b599511bb97a7b9563822a703c3dae4454c708817a956

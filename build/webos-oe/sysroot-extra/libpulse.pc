@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libpulse
+Description: PulseAudio Client Interface (webOS device 0.9.22, headers for cubeb_pulse; dlopen'd at runtime)
+Version: 0.9.22
+Libs: -L${libdir} -lpulse
+Cflags: -I${includedir}

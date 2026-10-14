@@ -50,3 +50,9 @@
 	url = https://github.com/openwebos/build-webos
 	update = none
 	ignore = all
+[submodule "third_party/pulseaudio"]
+	# PulseAudio 0.9.22 (the TouchPad's): its src/pulse/*.h go into the ARM sysroot
+	# (build/webos-oe/arm-sysroot.recipe) for cubeb_pulse.
+	path = third_party/pulseaudio
+	url = https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git
+	shallow = true

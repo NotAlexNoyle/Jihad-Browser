@@ -9,11 +9,13 @@
 #   1. build/webos-oe/gen-sysroot-manifest.sh --fetch
 #        downloads every .deb below from archive.debian.org into
 #        build/webos-oe/arm-sysroot/debs/ and verifies each sha256.
-#   2. unpack each .deb's data member into build/webos-oe/arm-sysroot/root/
-#        for d in build/webos-oe/arm-sysroot/debs/*.deb; do
-#          m=$(ar t "$d" | grep '^data\.tar'); ar p "$d" "$m" | tar -C root -xf -
-#        done
-#   3. relativize the absolute symlinks and the .pc/.la prefixes as the sysroot needs.
+#   2. build/webos-oe/gen-sysroot-manifest.sh --fetch-device-libs
+#        copies libpulse.so.0 off a TouchPad (the one file not from Debian).
+#   3. build/webos-oe/gen-sysroot-manifest.sh --assemble
+#        unpacks every .deb into build/webos-oe/arm-sysroot/root/ and applies
+#        build/webos-oe/arm-sysroot.recipe (glibc 2.19 out, /lib copied into /usr/lib, six
+#        symlinks, PulseAudio 0.9.22's headers from the third_party/pulseaudio submodule), then
+#        checks the finished tree against the recipe's digest.
 #
 # Debian 8 "jessie" is END OF LIFE, so these exact versions are frozen on
 # archive.debian.org rather than moving under security updates — which is what makes a

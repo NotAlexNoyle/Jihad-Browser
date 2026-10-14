@@ -37,7 +37,6 @@ ROOT=$(cd "$HERE/../.." && pwd)
 
 # Same PDK discovery as build-adapter-pdk.sh — proprietary, not in the repo.
 PDK="${PDK_ROOT:-$HERE/pdk/opt/PalmPDK}"
-[ -d "$PDK/arm-gcc" ] || PDK="$ROOT/toolchains/opt/PalmPDK"
 [ -d "$PDK/arm-gcc" ] || {
   echo "!! PDK not found. Run build/webos-oe/fetch-pdk.sh <palm-sdk_*.deb>, or set PDK_ROOT=<dir with arm-gcc/>." >&2
   exit 2

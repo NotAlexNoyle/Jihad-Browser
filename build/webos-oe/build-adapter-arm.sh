@@ -27,18 +27,17 @@
 # and every variant would resolve to it.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"     # Jihad-Browser repo root (derived)
-ROOT="$(cd "$REPO/.." && pwd)"                  # workspace root (legacy PDK sibling location)
 # PDK headers (Palm SDK). Proprietary — fetch with build/webos-oe/fetch-pdk.sh or set PDK_ROOT.
 PDK="${PDK_ROOT:-$REPO/build/webos-oe/pdk/opt/PalmPDK}"
-[ -d "$PDK/include" ] || PDK="$ROOT/toolchains/opt/PalmPDK"
-DEPS=$ROOT/Jihad-Browser/build/webos-oe/adapter-deps
-TCB=$ROOT/Jihad-Browser/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin
-SYSROOT=$ROOT/Jihad-Browser/build/webos-oe/arm-sysroot/root
+[ -d "$PDK/include" ] || { echo "!! PDK headers not found. Run build/webos-oe/fetch-pdk.sh, or set PDK_ROOT=<dir with include/>."; exit 2; }
+DEPS=$REPO/build/webos-oe/adapter-deps
+TCB=$REPO/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin
+SYSROOT=$REPO/build/webos-oe/arm-sysroot/root
 CXX=$TCB/arm-webos-linux-gnueabi-g++
 CC=$TCB/arm-webos-linux-gnueabi-gcc
 AR=$TCB/arm-webos-linux-gnueabi-ar
 QT=$DEPS/qt4-extract/usr/include/qt4
-ADAPTERDIR=$ROOT/Jihad-Browser/render/adapter
+ADAPTERDIR=$REPO/render/adapter
 OUT=$DEPS/build; mkdir -p "$OUT/common"; rm -f "$OUT/common"/*.o
 # Drop the pre-split artifacts so an incremental build can never ship a stale monolith instead of
 # the current shim+impl pair (the same trap as Jihad review F-181 on the PDK path). The loose *.o
@@ -72,12 +71,11 @@ COMMON="-fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -D
 GLIBINC="-I$SYSROOT/usr/include/glib-2.0 -I$SYSROOT/usr/lib/arm-linux-gnueabi/glib-2.0/include"
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"
-YAPDIR=$ROOT/Jihad-Browser/render/browserserver
+YAPDIR=$REPO/render/browserserver
 PBN=$DEPS/libpbnjson
 PBNINC="-I$PBN/include/public -I$PBN/include/public/pbnjson/cxx -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_cxx -I$PBN/src/pbnjson_c -I$DEPS/yajl-inc"
 INC="-I$DEPS/staging/include -I$DEPS/staging/include/webkit/npapi $PBNINC $GLIBINC $QTINC $PDKINC \
- -I$ROOT/Jihad-Browser/render/adapter -I$YAPDIR/Yap -I$YAPDIR/Src \
- -I$ROOT/Jihad-Browser/render/adapter"
+ -I$ADAPTERDIR -I$YAPDIR/Yap -I$YAPDIR/Src"
 
 compile(){ # <src> <obj>
   echo "  CC $(basename "$1")"

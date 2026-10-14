@@ -490,6 +490,26 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 84 — One repository builds Jihad on any Linux (2026-10-14; added to the site, not a regeneration)
+
+The owner: "is everything for jihad browser now centralized to …/Jihad-Browser or is there still
+code out of tree for the build etc?", then "yes. and try to integrate some of the host tools into
+the readme instructions for building jihad. it should be as self contained to its own repo as
+possible while running on a wide variety of linux distros", and "use git submodules for build
+dependencies for automation". Kit: cavekit-device-build.md R11.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-471 | Build scripts read only the repository: drop the sibling fallbacks (`../toolchains`, `../mochi-sampler`, `../../webos-stacks`) and the `…/Jihad-Browser/…` paths; `build-webos` inside the repository | cavekit-device-build.md | R11 | — | no | S | DONE (adapter rebuilt byte-identical; Enyo and Mojo packages identical in content; Mochi differs only in BUNDLED-VERSIONS, which now names repository-relative paths instead of the builder's home) |
+| T-472 | Build dependencies as submodules: crosstool-NG, libpbnjson, yajl, npapi-headers, webos-sdk-redux, build-webos (the heavy and optional ones not checked out by default); Jihad's own files for them moved into the repository; scripts and manifests pointed at them; the adapter rebuilt byte-identical | cavekit-device-build.md | R11 | T-471 | no | L | |
+| T-473 | `fetch-pdk.sh` downloads the Palm SDK `.deb` from the Internet Archive by itself and checks its sha256 | cavekit-device-build.md | R11, R3 | — | no | S | |
+| T-474 | The adapter (32-bit PDK gcc) and the three packages (palm-package, Java) build inside the container; `build-all-device.sh` needs only git and podman on the host; the output equals the host-run build | cavekit-device-build.md | R11 | T-472, T-473 | no | M | |
+| T-475 | novacom and novacomd from the `webos-sdk-redux` submodule with one script (`tools/host/`) | cavekit-device-build.md | R11 | T-472 | no | S | |
+| T-476 | The scratchpad's device helpers and the Codex review runner into `tools/`, with no session paths | cavekit-device-build.md | R11 | — | no | S | |
+| T-477 | The README's "Building" section: host packages per distribution family, clean clone to three `.ipk`s to the TouchPad; DEVICE-BUILD.md and TOOLCHAIN.md brought in line | cavekit-device-build.md | R11 | T-474, T-475, T-476 | no | M | |
+| T-478 | Outside the repository: the two reference clones (OpenSSL-legacyWebOS, squid-for-webos) from the scratchpad into `ref-forks/`; the Relay's two Squid scripts asked of the server agent, to keep in `deploy/relay/` | cavekit-device-build.md | R11 | — | no | S | |
+| T-479 | Review of Tier 84 (the inspector; Codex is out until Oct 18th) and fixes | cavekit-device-build.md | R11 | T-471…T-478 | no | M | |
+
 ## Tier 83 — Proxies and webOS's certificates (2026-10-13; added to the site, not a regeneration)
 
 The owner: "add support for riverstone relay proxy, and webone, and self hosted proxies in jihad. also add support for system certificates including community patches if installed." Kit: cavekit-proxies-certs.md (decisions recorded there).

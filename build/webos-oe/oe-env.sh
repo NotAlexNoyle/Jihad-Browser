@@ -66,8 +66,9 @@ PPA_KEY_SEED="${PPA_KEY_SEED:-$HERE/keys/ubuntu-toolchain-r.asc}"
 PPA_KEYSERVER="${PPA_KEYSERVER:-https://keyserver.ubuntu.com}"
 PPA_KEYRING="ubuntu-toolchain-r.gpg"                        # under /etc/apt/trusted.gpg.d/
 
-# build-webos orchestrator: reuse a sibling clone if present, else clone it pinned.
-BUILD_WEBOS="${BUILD_WEBOS:-$REPO/../../build-webos}"
+# build-webos orchestrator: a submodule of this repository (update = none, so a plain clone skips
+# it); checked out at the pin on first use. Its build output stays inside it, git-ignored.
+BUILD_WEBOS="${BUILD_WEBOS:-$HERE/build-webos}"
 BUILD_WEBOS_URL="https://github.com/openwebos/build-webos.git"
 BUILD_WEBOS_REV="37540e592d3419e94b054b0bd3fd2206405f0256"
 

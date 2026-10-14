@@ -29,12 +29,10 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"          # Jihad-Browser repo root (derived, not hardcoded)
-ROOT="$(cd "$REPO/.." && pwd)"             # workspace root (legacy PDK sibling location)
 DEPS=$REPO/build/webos-oe/adapter-deps
 # PDK (Palm SDK: gcc 4.3.3 + device sysroot). Proprietary — NOT in the repo; fetch it with
 # build/webos-oe/fetch-pdk.sh <palm-sdk_*.deb> into build/webos-oe/pdk/, or set PDK_ROOT.
 PDK="${PDK_ROOT:-$REPO/build/webos-oe/pdk/opt/PalmPDK}"
-[ -d "$PDK/arm-gcc" ] || PDK="$ROOT/toolchains/opt/PalmPDK"   # legacy sibling location fallback
 [ -d "$PDK/arm-gcc" ] || { echo "!! PDK not found. Run build/webos-oe/fetch-pdk.sh <palm-sdk_*.deb>, or set PDK_ROOT=<dir with arm-gcc/>."; exit 2; }
 CXX=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-g++
 CC=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-gcc
@@ -89,7 +87,7 @@ QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"
 PBNINC="-I$PBN/include/public"
 NPINC="-I$DEPS/staging/include -I$DEPS/staging/include/webkit/npapi"
-INC="$NPINC $PBNINC $GLIBINC $QTINC $PDKINC -I$ROOT/Jihad-Browser/render/adapter -I$YAPDIR/Yap -I$YAPDIR/Src -I$ROOT/Jihad-Browser/render/adapter"
+INC="$NPINC $PBNINC $GLIBINC $QTINC $PDKINC -I$ADAPTERDIR -I$YAPDIR/Yap -I$YAPDIR/Src"
 
 compile(){ echo "  CXX $(basename "$1")"; $CXX $COMMON $INC -c "$1" -o "$2" || { echo "!! FAILED: $1"; exit 20; }; }
 

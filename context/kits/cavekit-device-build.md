@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-06"
+last_edited: "2026-10-14"
 ---
 
 # Cavekit: Device Build & Packaging
@@ -648,6 +648,42 @@ snapping to 1188000 the moment the page was navigated away, with the whole syste
 
 **Dependencies:** cavekit-addons-extensions.md (R7, the first consumer)
 
+### R11: One repository builds Jihad on any x86_64 Linux
+**Description:** The owner, 2026-10-14: "it should be as self contained to its own repo as possible
+while running on a wide variety of linux distros", and "use git submodules for build dependencies
+for automation". Everything a build compiles, links or packages comes from this repository, a git
+submodule it pins, or a fetch script in it with a checksum; nothing is read from a sibling folder,
+a session scratchpad or an install under `/usr/local` or `/opt`. The host needs as little as
+possible, and the parts that depend on the host's age or libraries run in the build container.
+**Acceptance Criteria:**
+- [ ] No build, packaging or test script reads a path outside the repository: the fallbacks to
+  `../toolchains/`, `../mochi-sampler/` and `../../webos-stacks/` are gone, and no script names the
+  checkout folder (`…/Jihad-Browser/…`). The OE route's `build-webos` tree lives inside the
+  repository (git-ignored output).
+- [ ] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
+  and Mochi (already), and also crosstool-NG, libpbnjson, yajl, npapi-headers, webOS Archive's
+  `webos-sdk-redux` (palm-package, novacom, novacomd, the PDK headers) and openwebos `build-webos`.
+  The heavy or optional ones do not check out by default. A fresh `git clone --recurse-submodules`
+  gets the rest, and the files Jihad adds to a dependency live in the repository, not in the
+  dependency's checkout.
+- [ ] The inputs that are not in git are fetched by scripts in the repository and checked by sha256:
+  the Jessie sysroot and the Qt4 headers from archive.debian.org (already), and the Palm SDK `.deb`
+  (the PDK's gcc 4.3.3) from the Internet Archive. Only the seven device libraries need a TouchPad
+  (novacom, already in `adapter-deps.manifest`).
+- [ ] The host needs only git, podman (or docker) and the common tools every distribution has
+  (bash, coreutils, curl, tar, xz). The PDK's 32-bit compiler and palm-package's Java run inside
+  the build container, so a host without 32-bit libraries or Java builds the adapter and the three
+  packages, and the result is the same as the host-run build (same adapter `.so` bytes; same
+  package contents).
+- [ ] novacom and novacomd for talking to a TouchPad build from the `webos-sdk-redux` submodule
+  with one script, and the README names the packages it needs on the main distribution families.
+- [ ] The README has a "Building" section: the host packages for apt, dnf, pacman, zypper, xbps and
+  apk systems, then the steps from a clean clone to the three `.ipk`s and onto a TouchPad.
+- [ ] The device test helpers and the review runner that lived in a session scratchpad are in
+  `tools/`, with no session paths in them.
+
+**Dependencies:** R1, R3
+
 ## Out of Scope
 - Engine integration logic (covered by the Phase-1 domains; reused here).
 - Deep performance optimization beyond fitting the budget (Phase 3).
@@ -656,6 +692,8 @@ snapping to 1188000 the moment the page was navigated away, with the whole syste
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-14: R11 added (the owner): one repository builds Jihad on any x86_64 Linux, with build
+  dependencies as git submodules.
 - 2026-10-06 (later): R7/R8 re-verified on webOS CE 3.1.0 through the supported installer (`org.webosinternals.ipkgservice/remove`, then `/install` + `/rescan`) for Enyo and Mojo, Mochi's having been done on 2026-10-05: `prerm` left no app dir, job, shim, impl, role/service file, state dir or socket; the hub answered "Service does not exist" for the removed name; the other two daemons kept their PIDs; the citizen-audit diff around each removal shows only the variant's own entries (the package-registry directory stays, empty — known); the fresh install's postinst registered the role live (hub rescan), the db8 kinds (Enyo), and started the daemon from the app's own `deviceroot` with the Luna service up on first start (no `LSRegisterPalmService … FAILED`); a card rendered Wikipedia; Palefill landed in each fresh profile (Mojo's after ~70 s of an open card — the add-on manager comes ready late in this embedding; the installer retries at every start until it lands). Enyo's history was exported from db8 before and put back after; Mojo's localStorage history restored from the backup. The installer leaves `/` read-write (known); remounted read-only afterwards.
 - 2026-10-06: R4 gains the crash-loop guard, the TLS-failure classification, the adapter's `pageFocused` fix and the 2026-10-06 one-build install (with the remount trap).
 - 2026-10-05: R4 — a criterion ADDED and met, "an upgrade runs the scripts it installed" (the engine's

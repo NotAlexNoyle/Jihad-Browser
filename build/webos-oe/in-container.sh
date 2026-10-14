@@ -44,7 +44,17 @@ ensure_image() { # <name> <context dir>
 # Run as the invoking user, so what the build writes is the user's own; no SELinux relabelling of
 # the repository (label=disable), which would otherwise walk the whole tree on Fedora-like hosts.
 RUNOPTS=(--rm --security-opt label=disable -e HOME=/tmp -e JIHAD_IN_CONTAINER=1)
-if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
+# Who the container runs as. docker: the invoking user. podman: keep-id maps the invoking user into
+# the container but KEEPS the image's USER as the process; jihad-goanna-build's is `builder` (uid
+# 1000), so on a host whose user is not 1000 the process could not write the mounts (found
+# 2026-10-14 on a uid-1001 Fedora VM; the uid-1000 PC never showed it). keep-id's uid=/gid= maps the
+# invoking user ONTO builder, and what it writes lands on the host as the user. jihad-host-tools has
+# no USER, so plain keep-id runs it as the invoking user.
+if [ "$(basename "$ENGINE")" = podman ]; then
+	USERNS_HOST=(--userns=keep-id); USERNS_BUILDER=(--userns=keep-id:uid=1000,gid=1000)
+else
+	USERNS_HOST=(--user "$(id -u):$(id -g)"); USERNS_BUILDER=("${USERNS_HOST[@]}")
+fi
 [ -t 0 ] && [ -t 1 ] && RUNOPTS+=(-t)
 # The settings the scripts read are forwarded, but only values inside the repository: the container
 # sees nothing else, so a path outside it would quietly build from something other than what the
@@ -61,7 +71,7 @@ done
 if [ "$ARM" = 0 ]; then
 	ensure_image jihad-host-tools "$HERE/host-tools"
 	WD="$PWD"; case "$WD" in "$REPO"|"$REPO"/*) ;; *) WD="$REPO" ;; esac
-	exec "$ENGINE" run "${RUNOPTS[@]}" -v "$REPO:$REPO" -w "$WD" jihad-host-tools bash "$SCRIPT" "$@"
+	exec "$ENGINE" run "${RUNOPTS[@]}" "${USERNS_HOST[@]}" -v "$REPO:$REPO" -w "$WD" jihad-host-tools bash "$SCRIPT" "$@"
 fi
 
 TC="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi"
@@ -74,7 +84,7 @@ case "$SCRIPT" in
 	"$HERE"/*) INNER="/armcfg/${SCRIPT#"$HERE"/}" ;;
 	*) INNER="/jihad/${SCRIPT#"$REPO"/}" ;;
 esac
-exec "$ENGINE" run "${RUNOPTS[@]}" \
+exec "$ENGINE" run "${RUNOPTS[@]}" "${USERNS_BUILDER[@]}" \
 	-v "$REPO/third_party/uxp:/src/uxp" -v "$REPO:/jihad" -v "$TC:/tc" \
 	-v "$HERE/arm-sysroot/root:/sysroot" -v "$REPO/build/desktop:/cfg" \
 	-v "$HERE:/armcfg" -v "$HERE/out-arm:/out" \

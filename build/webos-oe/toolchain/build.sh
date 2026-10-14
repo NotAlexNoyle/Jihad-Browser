@@ -25,14 +25,20 @@ VER="${VER#crosstool-ng-}"
 OUT="${TOOLCHAIN_OUT:-$HERE/out-toolchain}"
 mkdir -p "$OUT"
 "$ENGINE" build -t jihad-xtool-build "$HERE"
-# The container runs as the invoking user, whatever its uid (podman: keep-id; docker: --user), so
-# /out is the user's own: the image's /home/builder is world-writable for ct-ng's working tree, and
-# HOME names it for a uid the image has no passwd entry for. ct-ng refuses to run as root, which is
-# why docker gets --user too. No SELinux relabelling of the mounts (label=disable, as
-# in-container.sh): the repository would otherwise be unreadable from the container on an enforcing
-# host. Rootless docker is not supported: its --user cannot write a bind mount the host user owns.
+# Who the container runs as, so that /out ends up the invoking user's whatever their uid:
+#   podman  keep-id maps the invoking user into the container, but it KEEPS the image's USER
+#           (`builder`, uid 1000) as the process, which then cannot write a mount the user owns
+#           when the user is not 1000 (found 2026-10-14 on a uid-1001 Fedora VM; the uid-1000 PC
+#           never showed it). keep-id's uid=/gid= maps the invoking user ONTO builder: the process
+#           is builder, and what it writes lands on the host as the user.
+#   docker  --user with the invoking uid; the image's /home/builder is world-writable and HOME
+#           names it, since that uid has no passwd entry there. Rootless docker is not supported:
+#           its --user cannot write a bind mount the host user owns.
+# ct-ng refuses to run as root, which is why docker gets --user at all. No SELinux relabelling of
+# the mounts (label=disable, as in-container.sh): the repository would otherwise be unreadable from
+# the container on an enforcing host (shown on that VM: Enforcing, no denial).
 RUNOPTS=(--rm --security-opt label=disable -e HOME=/home/builder -e CTNG_VERSION="$VER")
-if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
+if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id:uid=1000,gid=1000); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
 "$ENGINE" run "${RUNOPTS[@]}" \
   -v "$HERE:/cfg:ro" -v "$CTNG:/ctng-src:ro" -v "$OUT:/out" \
   jihad-xtool-build bash /cfg/build-toolchain.sh "$MODE"

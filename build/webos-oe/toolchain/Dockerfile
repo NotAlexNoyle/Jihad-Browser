@@ -27,9 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # only the host packages and the pin lives in git (cavekit-device-build.md R11). build.sh beside
 # this file does the mounts.
 
-# ct-ng refuses to run as root; work as an unprivileged user. build.sh runs the container as the
-# invoking host user, whose uid need not be 1000: the home is world-writable so that any uid can
-# make ct-ng's working tree there (the toolchain's paths stay /home/builder/..., as always).
+# ct-ng refuses to run as root; work as an unprivileged user. build.sh maps the invoking host user
+# onto builder under podman; under docker the process is the host uid itself, so the home is
+# world-writable for ct-ng's working tree (the toolchain's paths stay /home/builder/..., as always).
 RUN useradd -m -u 1000 builder && chmod 0777 /home/builder
 USER builder
 WORKDIR /home/builder

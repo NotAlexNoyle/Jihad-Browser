@@ -828,3 +828,13 @@ and the build re-run: libxul and the daemon built, the daemon `06e75a68`. Then t
 webos-sdk-redux) sat at its pin with an EMPTY working tree, left by the aborted first clone
 (`git status` shows ` m`). `git submodule update --init --force` restored the four; the build
 script now treats an emptied submodule as missing (finding 5's fix).
+
+**Found by the R11 VM run (2026-10-14, Fedora 44, SELinux Enforcing, user uid 1001, podman 5.8.1,
+KVM).** Finding 3's first fix did not hold: `--userns=keep-id` keeps the image's `USER builder` (uid
+1000) as the process and only adds the host uid as a group, so the toolchain container could not
+create `/out/src` ("Permission denied"; no SELinux denial). The uid-1000 PC never showed it, which
+is exactly what the criterion was for. Fixed: podman runs the images that set a USER
+(jihad-xtool-build, jihad-goanna-build) with `--userns=keep-id:uid=1000,gid=1000`, which maps the
+invoking user onto builder; the process is builder and its files land on the host as the user
+(shown in the VM). jihad-host-tools has no USER and keeps plain keep-id. The run was then started
+again from the same clone.

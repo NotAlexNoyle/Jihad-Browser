@@ -131,11 +131,12 @@ for V in $VARIANTS; do
   install -m 0644 "$REPO/packaging/event.d/$V_JOB" "$STAGE/deviceroot/event.d/$V_JOB"
 
   # ---- 5. licence/attribution payload ---------------------------------------------------
-  install -m 0644 "$REPO/LICENSE" "$STAGE/LICENSE"
-  install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
-  if [ -d "$REPO/licenses" ]; then
-    install -d "$STAGE/licenses"; install -m 0644 "$REPO"/licenses/*.txt "$STAGE/licenses/"
-  fi
+  install -m 0644 "$REPO/LICENSE"    "$STAGE/LICENSE"
+  install -m 0644 "$REPO/NOTICE"     "$STAGE/NOTICE"
+  install -m 0644 "$REPO/CREDITS.md" "$STAGE/CREDITS.md"   # NOTICE says "see CREDITS.md"
+  # All of licenses/: the project's two, the bundled runtime's (LGPL-2.1, GPL-3.0 with the GCC
+  # exception) and Debian's copyright files for the eight jessie libraries (licenses/runtime/).
+  rm -rf "$STAGE/licenses"; cp -a "$REPO/licenses" "$STAGE/licenses"; chmod -R a+rX "$STAGE/licenses"
 
   # ---- 6. payload preflight: exactly what this variant's postinst will demand ------------
   # Same list, same order as packaging/<V>/postinst's own preflight — catch a bad payload here,
@@ -235,7 +236,8 @@ for V in $VARIANTS; do
   DATA=$(ar p "$IPK" data.tar.gz | tar -tzf -)
   for f in "deviceroot/hl/jihad-browserserver" "deviceroot/hl/ld-2.23.so" \
            "deviceroot/BrowserPlugins/$V_SHIM" "deviceroot/event.d/$V_JOB" \
-           "BrowserAdapterImpl.so" "LICENSE" "NOTICE"; do
+           "BrowserAdapterImpl.so" "LICENSE" "NOTICE" "CREDITS.md" \
+           "licenses/LGPL-2.1.txt" "licenses/GCC-exception-3.1.txt" "licenses/runtime/libfreetype6.copyright.txt"; do
     case $'\n'"$DATA"$'\n' in
       *"/$f"$'\n'*) : ;;
       *) die "[$V] .ipk payload is missing $f" ;;

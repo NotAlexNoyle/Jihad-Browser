@@ -18,6 +18,9 @@
 *
 LICENSE@@@ */
 
+/* Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b): this file differs from
+ * HP's isis-project original. The changes are this repository's git history for this file. */
+
 #ifndef BROWSERSERVERBASE_H
 #define BROWSERSERVERBASE_H
 

@@ -9,7 +9,7 @@
   <sub>For HP TouchPad &nbsp;·&nbsp; webOS 3.0.5 and webOS CE 3.1.0 &nbsp;·&nbsp; Free &nbsp;·&nbsp; Open source</sub>
 </p>
 
-<p align="center"><em>Goanna inside, webOS alive, inshallah.</em></p>
+<p align="center"><em>A current engine for a 2011 tablet, inshallah.</em></p>
 
 <p align="center">
   <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view: Jihad Enyo showing Wikipedia's article on Palm with no Persona, Jihad Mochi showing the webOS article wearing Aurora Silk, and Jihad Mojo showing the webOS Archive home page with Lime Fizz buttons" width="900">
@@ -32,7 +32,7 @@ installs **next to** the stock browser and changes nothing else on your TouchPad
 <tr><td><b>Requires</b></td><td>HP TouchPad with webOS 3.0.5 or webOS CE 3.1.0, or HP TouchPad Go with webOS 3.0.5</td></tr>
 <tr><td><b>Engine</b></td><td>Goanna 6.9 (UXP), with its own NSS for TLS 1.2 and 1.3</td></tr>
 <tr><td><b>Flash</b></td><td>The Adobe Flash Player 10.3 already on your TouchPad</td></tr>
-<tr><td><b>Price</b></td><td>Free, under Apache-2.0 and MPL-2.0</td></tr>
+<tr><td><b>Price</b></td><td>Free, open source: Apache-2.0 and MPL-2.0 for Jihad's own code, the bundled libraries under their own licences (see <code>NOTICE</code>)</td></tr>
 </table>
 
 ---
@@ -257,11 +257,19 @@ HP's **isis-project** (the browser this forks), the **UXP** platform and **Palef
 
 ## Licensing
 
-**Apache-2.0** (UI, adapter, IPC daemon) and **MPL-2.0** (Goanna backend and engine). Palefill is
-MPL-2.0, shipped unmodified. Pale Moon, Basilisk and Moonchild trademarks are removed from the
-engine build. Flash Player is your TouchPad's own and is not distributed. The bundled Personas
-by other authors are Creative Commons BY / BY-SA, credited in `CREDITS.md`. See `LICENSE`,
-`NOTICE` and `CREDITS.md`.
+**Apache-2.0** (UI, adapter, IPC daemon) and **MPL-2.0** (Goanna backend, and the engine, which
+is modified: its source is the `jihad/uxp-RB_20261006` branch of
+[UXP-Jihad](https://github.com/NotAlexNoyle/UXP-Jihad), the patches in `build/desktop/patches/`).
+The packages also carry the libraries the engine runs on, each under its own licence: glibc
+(LGPL-2.1), the GCC runtime (GPL-3.0 with the Runtime Library Exception), ALSA and GLib (LGPL),
+Expat, fontconfig, PCRE, libpng, zlib (permissive), FreeType (FreeType License), the engine's own
+`about:license` contents, Lato (SIL OFL, Mochi package), and the Personas by other authors (CC BY /
+BY-SA, credited in `CREDITS.md`). `NOTICE` names every one, with where its text ships and where its
+source is. Palefill is MPL-2.0, shipped unmodified. Pale Moon, Basilisk and Moonchild branding is
+removed from the engine build; "Goanna" names the engine, Moonchild Productions' trademark, used
+to say what the browser runs on. Flash Player is your TouchPad's own and is not distributed. HP's
+SDK, downloaded by the build for its compiler, stays under HP's terms and nothing of it is
+redistributed. See `LICENSE`, `NOTICE` and `CREDITS.md`.
 
 <sub>Palm, webOS, Pre, TouchPad and Synergy are trademarks of their respective owners. Jihad Browser
 is an independent community project, not made, endorsed or supported by HP, Palm or LG. Screenshots

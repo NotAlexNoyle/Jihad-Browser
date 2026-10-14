@@ -1,4 +1,7 @@
 Jihad Browser — Enyo 1.0 UI shell
+
+Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b): this tree differs from
+HP's isis-browser original; the changes are this repository's git history.
 =================================
 
 This is the **Jihad Browser** fork of the isis-browser Enyo 1.0 app (Apache-2.0),

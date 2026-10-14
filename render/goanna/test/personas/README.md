@@ -13,3 +13,5 @@
 
 (Until 2026-10-08 these tests used Water-Like by stick177, which is All Rights Reserved; it was
 removed from the repository.)
+
+Carbon Light is CC BY-SA 3.0: https://creativecommons.org/licenses/by-sa/3.0/

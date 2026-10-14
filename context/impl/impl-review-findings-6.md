@@ -847,3 +847,29 @@ from that cache) and `toolchain/fetch-tarballs.sh`, run by `build.sh` before the
 gets `CT_FORBID_DOWNLOAD=y`, so a gap fails at once and by name. Every URL exercised from the PC:
 18 of 18 fetched and matched in 45 s. ct-ng's `build.log` is now kept as `out-toolchain/ct-ng-build.log`.
 `fetch_url` moved to `build/webos-oe/fetch-lib.sh`, sourced by the three fetchers.
+
+## Licensing audit — "ensure that all software patent and trademark licenses in the repo are being respected" (the owner, 2026-10-14)
+
+One read-only agent audited the working tree at `8ad1ff68`: what the three packages carry (the
+device bundle listing, `readelf -d`), the licence texts that reach them, trademark use against
+Moonchild's legal.shtml / redist.shtml / goanna.shtml fetched live, the codecs from the built
+configuration, the PDK and HP library handling. **No P0.** Dispositions:
+
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| 1 | P1 | glibc 2.23 (modified by crosstool-NG), the GCC 9.4.0 runtime (GPL-3.0 + RLE 3.1) and eight jessie libraries ship with no notice, no FreeType disclaimer, no MIT/BSD notice, no source directions. | Fixed: NOTICE "Runtime libraries bundled" section (files, versions, holders, licences, the FreeType sentence) and a corresponding-source paragraph (tarballs.manifest, the ct-ng patches, jihad.defconfig, archive.debian.org's source packages); `licenses/` gains LGPL-2.1, GPL-3.0, the GCC exception (from the pinned tarballs) and Debian's copyright files for the eight (from the sysroot's `usr/share/doc`); the packages ship all of `licenses/` (checked in the payload preflight). |
+| 2 | P1 | The shipped NOTICE names only pristine UXP; recipients are not told where the modified libxul's source is (MPL-2.0 3.2). | Fixed: the fork, branch, pinned commit, base release and the patches directory, in NOTICE's UXP section; covers the LGPL parts too. |
+| 3 | P1 | README and LICENSE call the packages "Apache-2.0 and MPL-2.0" only. | Fixed: both name the runtime components' licences and point to NOTICE and about:license. |
+| 4 | P1 | HP-derived files changed since import without an Apache 4(b) change notice. | Fixed on 29 files (the audit's 19 and 10 more by the same test: an HP header, more than one commit, no notice): a two-line notice after the licence header, pointing at the file's git history. |
+| 5 | P2 | Google's logo was the icon of the three DuckDuckGo engines; an unused Bing logo shipped. | Fixed: a drawn magnifier (`list-icon-search.png`) for DuckDuckGo; the Bing icon removed; Google's for Google only. |
+| 6 | P2 | The engine's `defaults/pref/services-sync.js` ships Moonchild's Sync, key-server and trusted add-on hosts. | Fixed at bundle time: `make-device-bundle.sh` blanks the six URLs and keeps only addons.mozilla.org in the trusted list, and fails if any palemoon.org line survives; the file stays so one-argument getCharPref reads still find a value. |
+| 7 | P2 | LICENSE and ENGINE-SOURCE.md cite the 404 `licensing.shtml`. | Fixed: the UXP LICENSE and TRADEMARK files, legal.shtml and redist.shtml. |
+| 8 | P2 | NOTICE says "see CREDITS.md", which did not ship. | Fixed: CREDITS.md in every package. |
+| 9–18 | P3 | Tagline using the Goanna mark as a slogan; R3's "no strings" wording; about:credits at an unresolvable host (patch 0010); about:rights' MPL-only sentence; the "Blazer" keyword; Lato and the hyphenation patterns unnamed; the logo's and the screenshot strip's provenance; `--disable-ffmpeg`; the HP-terms sentence and the device-binaries ignore rule; stray files (a 2.3 MB screenshot, a `.bak`, `__pycache__`). | Fixed: tagline, R3, Blazer, Lato and hyphenation in NOTICE, CREDITS (logo: supplied by the owner, to confirm; strip CC BY-SA 3.0; Carbon Light's URI), the HP sentence in fetch-pdk.sh and DEVICE-BUILD.md, the ignore rules, the stray files removed. Deferred to the next engine build, since the patches are commits on the engine branch: about:credits' URL, `--disable-ffmpeg` (the system-libavcodec dlopen path is dead on the device: no libavcodec there, none shipped). Accepted: about:rights. |
+
+**Patents:** nothing encumbered is built or shipped: ffvpx decodes VP8, VP9 and FLAC only; no
+libavcodec, openh264, GStreamer, x264, AAC or Widevine in the bundle; `MOZ_AV1=''`, `MOZ_GMP=''`,
+`MOZ_WEBRTC=''`; H.264 in Flash content is the device's own Adobe plugin, not shipped.
+**Trademarks:** Pale Moon / Basilisk / Moonchild identity is out of libxul (zero hits), no upstream
+logo ships, "Goanna" is used nominatively, HP/Palm/webOS nominatively with the README's disclaimer,
+no Adobe or HP binary is vendored.

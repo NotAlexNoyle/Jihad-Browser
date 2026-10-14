@@ -167,7 +167,8 @@ build/webos-oe/build-all-device.sh                               # TouchPad plug
 ```
 
 The host needs git, podman (or docker), curl, binutils and xz; README.md "Building" lists the
-packages per distribution. `build-all-device.sh` fetches what is missing and then builds the four artifact
+packages per distribution. The Palm SDK the build downloads for its compiler is HP's, under HP's
+terms, which the builder accepts by downloading it; nothing from it is redistributed. `build-all-device.sh` fetches what is missing and then builds the four artifact
 classes (model-agnostic ARMv7 softfp, so one build serves both models):
 
 | Input or step | How | Where it comes from |

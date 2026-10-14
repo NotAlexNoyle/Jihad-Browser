@@ -52,6 +52,14 @@ UXP — Unified XUL Platform / Goanna engine (rendering engine dependency)
   Licensed under the Mozilla Public License, Version 2.0, and other compatible
   licenses documented within the UXP source tree.
   Origin: https://repo.palemoon.org/MoonchildProductions/UXP
+  The engine in the packages is MODIFIED (MPL-2.0 section 3.2): its Source Code Form is the
+  branch jihad/uxp-RB_20261006 of https://github.com/NotAlexNoyle/UXP-Jihad (the pinned
+  commit is the third_party/uxp submodule of https://github.com/NotAlexNoyle/Jihad-Browser),
+  upstream base release RB_20261006; the changes are the patches in build/desktop/patches/ of
+  that repository, one commit each, listed in docs/ENGINE-SOURCE.md there. The same source
+  covers liblgpllibs (SoundTouch, LGPL-2.1) and libmozavcodec/libmozavutil (the FFmpeg subset
+  "ffvpx": VP8, VP9 and FLAC decoders only; LGPL-2.1). The engine's own about:license page,
+  installed with it, carries the licences of everything compiled into libxul.
   Jihad Browser's per-domain User-Agent override table (render/goanna/
   EngineHost.cpp, jihadUaTable) — the domain→Firefox-version site-compat
   choices — is derived from Basilisk / Pale-Moon's uaoverrides.inc:
@@ -146,3 +154,52 @@ Personas bundled with Jihad Browser (render/goanna/personas/)
     the words (Noto Sans Black, SIL Open Font License 1.1) drawn over it. CC BY 2.0.
   Aurora Silk: drawn for this project (MPL-2.0).
   The others come from addons.riverstonerelay.org, credited there. See CREDITS.md.
+
+--------------------------------------------------------------------------------
+Runtime libraries bundled in deviceroot/hl/ (every package)
+--------------------------------------------------------------------------------
+The engine and the daemon run in place from the app's own directory, with their own C runtime
+and the system libraries they need, because the TouchPad's are too old. Each is a third
+party's work under its own licence; the texts are in licenses/ of the package and this
+repository.
+
+  GNU C Library 2.23 (ld-2.23.so, ld-linux.so.3, libc.so.6, libm.so.6, libpthread.so.0,
+    libdl.so.2, librt.so.1, libresolv.so.2, libnss_dns.so.2, libnss_files.so.2)
+    Copyright (C) Free Software Foundation, Inc. LGPL-2.1 or later (licenses/LGPL-2.1.txt).
+    Built by crosstool-NG 1.25.0 with its 14 patches for glibc 2.23: MODIFIED.
+  GCC 9.4.0 runtime (libgcc_s.so.1, libstdc++.so.6)
+    Copyright (C) Free Software Foundation, Inc. GPL-3.0 or later with the GCC Runtime Library
+    Exception 3.1 (licenses/GPL-3.0.txt, licenses/GCC-exception-3.1.txt).
+  From Debian 8 "jessie" (armel), unmodified; Debian's copyright files, which carry the
+  authors' notices and licence terms, are in licenses/runtime/:
+    libasound.so.2       alsa-lib 1.0.28        LGPL-2.1 or later   (libasound2.copyright.txt)
+    libexpat.so.1        Expat 2.1.0            MIT                 (libexpat1.copyright.txt)
+    libfontconfig.so.1   fontconfig 2.11.0      MIT-style           (libfontconfig1.copyright.txt)
+    libfreetype.so.6     FreeType 2.5.2         FreeType License    (libfreetype6.copyright.txt)
+    libglib-2.0.so.0, libgthread-2.0.so.0  GLib 2.42.1  LGPL-2.0 or later (libglib2.0-0.copyright.txt)
+    libpcre.so.3         PCRE 8.35              BSD-3-Clause        (libpcre3.copyright.txt)
+    libpng12.so.0        libpng 1.2.50          libpng licence      (libpng12-0.copyright.txt)
+    libz.so.1            zlib 1.2.8             zlib licence        (zlib1g.copyright.txt)
+  Portions of this software are copyright (c) The FreeType Project (www.freetype.org). All
+  rights reserved. This software is based in part on the work of the FreeType Team.
+
+  Corresponding source (LGPL-2.1 section 4, GPL-3.0 section 6):
+    glibc 2.23 and GCC 9.4.0: the release tarballs named in
+      build/webos-oe/toolchain/tarballs.manifest (sha256-pinned, with their download URLs),
+      crosstool-NG 1.25.0's patches for them (third_party/crosstool-ng/packages/glibc/2.23/,
+      packages/gcc/9.4.0/) and the configuration build/webos-oe/toolchain/jihad.defconfig, all
+      in https://github.com/NotAlexNoyle/Jihad-Browser; build/webos-oe/toolchain/build.sh
+      rebuilds the toolchain from them.
+    The Debian libraries: the source packages of the versions named in
+      build/webos-oe/arm-sysroot-debs.manifest, at http://archive.debian.org/debian/pool/.
+    The engine's LGPL parts: the engine source named above.
+  These directions ship with the object code, in this file. Ask the project for a copy on a
+  medium if you cannot download: the address is in the README.
+
+Also in the packages
+  Hyphenation patterns (deviceroot/hl/hyphenation/hyph_*.dic, 36 languages), from the UXP tree
+    (intl/locales/*/hyphenation/), each under its own licence stated in the pattern file's
+    header or beside it there (LGPL, GPL, MPL, BSD-style and others, all permitting
+    redistribution).
+  Lato (Mochi package only, lib/mochi/fonts/), by Lukasz Dziedzic, SIL Open Font License 1.1
+    (lib/mochi/fonts/OFL.txt), bundled with the Mochi library it belongs to.

@@ -4,6 +4,8 @@
 # Fetch the Palm PDK (CodeSourcery arm-none-linux-gnueabi gcc 4.3.3 + the webOS-3 device
 # sysroot/headers) needed to build the NPAPI BrowserAdapter with the device-host-native
 # toolchain. The PDK is HP/Palm PROPRIETARY and is NOT redistributable, so it is not vendored in
+# Downloading it is the builder's own act under HP's terms for the SDK; this script accepts nothing on
+# anyone's behalf, and nothing from the SDK is redistributed by this project.
 # this repo. HP's SDK package (palm-sdk_3.0.5-svn528736-pho676_i386.deb) is preserved on the
 # Internet Archive (item webOSLegacySDK); with no argument this script downloads it from there
 # (357 MB, once, kept in build/webos-oe/pdk/.download/) and checks its sha256 before using it

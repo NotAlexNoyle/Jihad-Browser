@@ -11,6 +11,8 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
+// Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b): this file differs from
+// HP's isis-browser original. The changes are this repository's git history for this file.
 
 enyo.kind({
 	name: "URLSearch",
@@ -64,15 +66,15 @@ enyo.kind({
 	defaultSearchPreferences: [{
 		title: "DuckDuckGo Lite",
 		url: "https://lite.duckduckgo.com/lite/?q={$query}",
-		icon: "list-icon-google.png"
+		icon: "list-icon-search.png"
 	}, {
 		title: "DuckDuckGo HTML",
 		url: "https://html.duckduckgo.com/html/?q={$query}",
-		icon: "list-icon-google.png"
+		icon: "list-icon-search.png"
 	}, {
 		title: "DuckDuckGo",
 		url: "https://duckduckgo.com/?q={$query}",
-		icon: "list-icon-google.png"
+		icon: "list-icon-search.png"
 	}, {
 		title: "Google",
 		url: "https://www.google.com/search?q={$query}",

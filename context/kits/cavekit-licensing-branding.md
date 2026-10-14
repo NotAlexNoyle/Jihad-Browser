@@ -33,7 +33,12 @@ Reference: `LICENSE`, `NOTICE`, `licenses/`.
 **Acceptance Criteria:**
 - [x] The engine build is configured to remove Pale Moon/Basilisk branding (name, about pages, logos, default UA token).
 - [x] Shipped artifacts present only the "Jihad Browser" product name.
-- [x] A scan of shipped artifacts finds no "Pale Moon"/"Basilisk"/"Moonchild" branding strings.
+- [x] A scan of shipped artifacts finds no Pale Moon / Basilisk / Moonchild BRANDING: no identity
+  string, logo, UA token or vendor field (libxul: zero hits). The names do appear where they must
+  or may: the attribution on about:jihad, nominative mentions ("made for Firefox or Pale Moon",
+  the Settings credits, Readerable's host list), and comments in goanna.js. *(2026-10-14, the
+  licensing audit: wording corrected; the shipped services-sync.js defaults that pointed at
+  Moonchild's Sync and add-on hosts are blanked at bundle time.)*
 **Dependencies:** cavekit-engine-embedding.md (R1)
 
 ### R4: MPL source availability preserved
@@ -57,5 +62,15 @@ Reference: `LICENSE`, `NOTICE`, `licenses/`.
 - See also: cavekit-ui-shell.md, cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-browser-services.md
 
 ## Changelog
+- 2026-10-14 (the licensing audit, impl-review-findings-6.md "Licensing audit"): NOTICE gains the
+  bundled runtime libraries (glibc, the GCC runtime, eight Debian libraries) with their licences,
+  the FreeType disclaimer, Lato, the hyphenation patterns and a corresponding-source paragraph;
+  licenses/ gains LGPL-2.1, GPL-3.0, the GCC exception and Debian's copyright files, and the
+  packages ship all of licenses/ and CREDITS.md; the modified engine's source is named in NOTICE;
+  Apache change notices added to the 29 HP-derived files changed since import; Google's logo no
+  longer stands for DuckDuckGo; Moonchild's Sync endpoints blanked in the bundle; the dead
+  licensing.shtml references replaced; the "Blazer" keyword dropped; R3's wording corrected.
+  Deferred to the next engine build (the patch queue): about:credits' unresolvable URL and
+  --disable-ffmpeg for the dead system-libavcodec path; about:rights' MPL-only sentence accepted.
 - 2026-06-30: Initial draft.
 - 2026-07-04: Status reconciled to implementation — all R1–R5 done: headers, LICENSE/NOTICE, branding strip (0 strings in shipped libxul/daemon/goanna.js), MPL source docs, compatibility.

@@ -36,3 +36,16 @@ cut and scaled into the strip.
 ## Everything else
 
 See `NOTICE` (third-party software) and `LICENSE`.
+
+## The logo and the icons
+
+`docs/jihad-browser-logo.png` was supplied by the project owner (NotAlexNoyle) in 2026; the app
+icons (`app*/icon*.png`, `packaging/branding/content/*.png`) were derived from it by the project
+(a checkerboard keyed out, resized). They are the project's own, under the project's licence.
+
+## Screenshots
+
+`docs/screenshots/personas-strip.png` shows three Personas by other authors (credited above);
+as a derivative of CC BY-SA 3.0 works it is itself CC BY-SA 3.0
+(https://creativecommons.org/licenses/by-sa/3.0/). The other screenshots show web pages as a
+browser shows them.

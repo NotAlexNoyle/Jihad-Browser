@@ -171,6 +171,21 @@ EOF
   find "$OUT/$d" -name '.mkdir.done' -delete 2>/dev/null || true
   find "$OUT/$d" -type d -empty -delete 2>/dev/null || true
 done
+# An unendorsed build may not ship Moonchild's service endpoints (palemoon.org redist.shtml, 14):
+# the engine's defaults/pref/services-sync.js points Sync, its key server and the trusted add-on
+# hosts at palemoon.org (patch 0010 strips the branding, not this file). Jihad has no Sync, so the
+# URLs are blanked and the add-on host list keeps only addons.mozilla.org; the file stays, so a
+# one-argument getCharPref of these names still finds a value. Checked: every targeted line changed.
+SYNC="$OUT/defaults/pref/services-sync.js"
+if [ -f "$SYNC" ]; then
+  before=$(grep -c 'palemoon\.org' "$SYNC" || true)
+  sed -i -E \
+    -e 's#^(pref\("services\.sync\.(serverURL|termsURL|privacyURL|statusURL|syncKeyHelpURL|jpake\.serverURL)", )"[^"]*"#\1""#' \
+    -e 's#^(pref\("services\.sync\.addons\.trustedSourceHostnames", )"[^"]*"#\1"addons.mozilla.org"#' "$SYNC"
+  after=$(grep -c 'palemoon\.org' "$SYNC" || true)
+  echo "services-sync.js: $before palemoon.org lines before, $after after"
+  [ "$after" = 0 ] || { echo "!! services-sync.js still names palemoon.org" >&2; exit 1; }
+fi
 [ -e "$DIST/bin/chrome.manifest" ] && cp -L "$DIST/bin/chrome.manifest" "$OUT/"
 
 # --- our own chrome://branding/ package ---------------------------------------------------------

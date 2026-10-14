@@ -19,6 +19,7 @@
 #
 # ONE DEVICE: run nothing else against it while `mutex` or `closure` is running.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 PDK="${PDK_ROOT:-$HERE/pdk/opt/PalmPDK}"

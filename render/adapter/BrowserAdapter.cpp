@@ -1681,9 +1681,9 @@ bool BrowserAdapter::handleTouchCancelled(NpPalmTouchEvent *event)
 // TOUCH FORWARDING IS ON AS OF 2026-08-15 (T-120) BUT DEFAULT OFF AT RUNTIME. Read this whole
 // note before touching the block; the fence it replaces was there for a real reason.
 //
-// What changed: the ABI mismatch described below is FIXED — adapter-deps/staging/include/webkit/
-// npapi/npapi.h was re-staged with the 28-byte NpPalmTouchEvent (sha256 36b58a83…21c199, recorded
-// in build/webos-oe/adapter-deps.manifest), so the compile-time guard in doTouchEvent now passes
+// What changed: the ABI mismatch described below is FIXED — the staged webkit/npapi/npapi.h (since
+// 2026-10-14 build/webos-oe/adapter-include/npapi/webkit/npapi/npapi.h, in git) carries the 28-byte
+// NpPalmTouchEvent (sha256 36b58a83…21c199), so the compile-time guard in doTouchEvent now passes
 // and the body is compiled in. What has NOT changed: no device has ever run this. The runtime
 // switch is JIHAD_TOUCH_EVENTS=1 (mTouchEventsEnabled), default off, and with it off neither the
 // npPalmEnableTouchEvents opt-in in the constructor nor this body does anything at all.
@@ -1711,7 +1711,7 @@ bool BrowserAdapter::handleTouchCancelled(NpPalmTouchEvent *event)
 // that base to dispatchNPEvent. Three independent things agree with it: isis's own adapter
 // (../ref-BrowserAdapter) and Atlas's both read event->changedTouches, and the npapi-headers
 // checkout our header was staged from carries the 28-byte declaration in its debian INSTALL copy
-// (adapter-deps/npapi-headers/debian/npapiheaders/usr/include/npapi.h). The 12-byte declaration is
+// (third_party/npapi-headers/debian/npapiheaders/usr/include/npapi.h). The 12-byte declaration is
 // the repo-root file of that SAME checkout, so the two copies are out of sync and staging took the
 // wrong one.
 //

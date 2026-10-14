@@ -72,9 +72,10 @@ GLIBINC="-I$SYSROOT/usr/include/glib-2.0 -I$SYSROOT/usr/lib/arm-linux-gnueabi/gl
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"
 YAPDIR=$REPO/render/browserserver
-PBN=$DEPS/libpbnjson
-PBNINC="-I$PBN/include/public -I$PBN/include/public/pbnjson/cxx -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_cxx -I$PBN/src/pbnjson_c -I$DEPS/yajl-inc"
-INC="-I$DEPS/staging/include -I$DEPS/staging/include/webkit/npapi $PBNINC $GLIBINC $QTINC $PDKINC \
+PBN=$REPO/third_party/libpbnjson                 # submodule, pinned at submissions/10
+AINC=$REPO/build/webos-oe/adapter-include        # NPAPI, yajl and the pbnjson_c compat headers
+PBNINC="-I$PBN/include/public -I$PBN/include/public/pbnjson/cxx -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_cxx -I$PBN/src/pbnjson_c -I$AINC/pbnjson_c -I$AINC/yajl"
+INC="-I$AINC/npapi -I$AINC/npapi/webkit/npapi $PBNINC $GLIBINC $QTINC $PDKINC \
  -I$ADAPTERDIR -I$YAPDIR/Yap -I$YAPDIR/Src"
 
 compile(){ # <src> <obj>
@@ -110,11 +111,12 @@ done
 # validation subsystem). Compiling BOTH C and C++ layers from source makes the plugin
 # self-contained for JSON, depending on the device only for stable libyajl (1.x, its
 # API matched by the bundled yajl 1.0.7 headers) + glib. 6 generated feature headers
-# (pjson_syslog/regexp/strnlen/sys_malloc/isatty/assert_compat) live beside the sources.
+# (pjson_syslog/regexp/strnlen/sys_malloc/isatty/assert_compat) live in
+# adapter-include/pbnjson_c/, not in the submodule's checkout.
 echo "== [adapter] pbnjson C layer from source (submissions/10) =="
 PBNCFLAGS="-std=gnu99 -fvisibility=hidden -fPIC -O2 -g0 -DNDEBUG -DPJSON_EXPORT -DPJSON_NO_LOGGING $ARM -Wno-psabi -Wno-deprecated-declarations"
 # C-only includes: the pbnjson/c japi.h must win over the C++ one (which has `namespace`).
-PBNC_INC="-I$PBN/include/public -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_c -I$DEPS/yajl-inc $GLIBINC"
+PBNC_INC="-I$PBN/include/public -I$PBN/include/public/pbnjson/c -I$PBN/src/pbnjson_c -I$AINC/pbnjson_c -I$AINC/yajl $GLIBINC"
 for f in debugging jgen_stream jobject jparse_stream jschema jvalue/num_conversion; do
   echo "  CC (c) $f.c"
   $CC $PBNCFLAGS $PBNC_INC -c "$PBN/src/pbnjson_c/$f.c" -o "$OUT/common/pbn_$(basename $f).o" || { echo "!! FAILED pbn-c $f"; exit 12; }
@@ -181,7 +183,7 @@ for V in $VARIANTS; do
   # dlopen'd out of /usr/lib/jihad/$V/ per card open. Building only the monolith (as this script
   # used to) cannot express per-variant identity at all. Minimal deps: npapi headers + libdl.
   echo "== [adapter] shim BrowserAdapterShim.cpp -> $V_SHIM =="
-  $CXX $COMMON -I"$DEPS/staging/include" -I"$DEPS/staging/include/webkit/npapi" \
+  $CXX $COMMON -I"$AINC/npapi" -I"$AINC/npapi/webkit/npapi" \
     -DJIHAD_VARIANT="\"$V\"" -DJIHAD_MIME="\"$V_MIME\"" \
     -c "$ADAPTERDIR/BrowserAdapterShim.cpp" -o "$VOUT/BrowserAdapterShim.o" \
     || { echo "!! FAILED shim compile [$V]"; exit 15; }

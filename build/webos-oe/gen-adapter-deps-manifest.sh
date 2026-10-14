@@ -8,15 +8,15 @@
 # it, and until now nothing in the repo recorded what "it" even was. This records every
 # piece with a sha256 and a re-obtain procedure, which is what the R3 criterion asks for.
 #
-# WHAT IS IN adapter-deps, and it is FOUR different kinds of thing, not one:
+# WHAT IS IN adapter-deps (since 2026-10-14, cavekit-device-build.md R11, only two things):
 #   1. staging/lib/*.so*     ARM shared objects LIFTED OFF A TOUCHPAD. Not redistributable,
-#                            not rebuildable here. Re-obtained with novacom (procedure in
-#                            the manifest). These are what the adapter links against.
-#   2. staging/include/      NPAPI headers. Four of the five are byte-identical to the
-#                            npapi-headers checkout; nppalmdefs.h is Palm-only.
-#   3. qt4-extract/          Qt4 HEADERS. NOT a device drop — see below.
-#   4. libpbnjson/ yajl/     Public git checkouts, pinned by tag.
-#      npapi-headers/
+#                            not rebuildable here. --fetch-device-libs gets them over novacom.
+#                            These are what the adapter links against.
+#   2. qt4-extract/          Qt4 HEADERS. NOT a device drop — see below. --fetch-qt4 gets them.
+# What used to be here is now in git: the public checkouts libpbnjson, yajl and npapi-headers
+# are submodules under third_party/ (the parent repository pins their commits), and the headers
+# Jihad itself made (npapi.h with the device's touch event, the nppalmdefs.h shim, yajl's
+# generated yajl_version.h, six pbnjson_c compat headers) are in build/webos-oe/adapter-include/.
 #
 # CORRECTION THIS SCRIPT ESTABLISHED (2026-08-15): qt4-extract had been described as an HP
 # build off a TouchPad. It is not. It is three stock DEBIAN JESSIE armel packages
@@ -33,12 +33,21 @@
 #   gen-adapter-deps-manifest.sh --check-qt4-debs
 #                                           re-download the three Debian qt4 .debs and
 #                                           verify the pinned sha256s still hold
+#   gen-adapter-deps-manifest.sh --fetch-qt4
+#                                           download the three .debs, check them, and unpack
+#                                           qt4-extract/ (a clean clone's first build)
+#   gen-adapter-deps-manifest.sh --fetch-device-libs
+#                                           copy the seven libraries off a TouchPad over
+#                                           novacom ($NOVACOM, else novacom on PATH), name them,
+#                                           make the linker symlinks, and check them
 #
 # Output is DETERMINISTIC: no timestamps, C-collation sort, so a regeneration with no input
 # change produces a byte-identical file.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
 DEPS="$HERE/adapter-deps"
 MANIFEST="$HERE/adapter-deps.manifest"
 MIRROR="${DEBIAN_ARCHIVE_MIRROR:-http://archive.debian.org/debian}"
@@ -92,14 +101,9 @@ tree_counts() {
   printf '%s files, %s symlinks' "$f" "$l"
 }
 
-git_pin() {
-  # $1 = checkout dir; prints "commit<TAB>describe<TAB>remote" or "" if not a checkout
-  local d="$1"
-  [ -e "$d/.git" ] || return 0
-  printf '%s\t%s\t%s' \
-    "$(git -C "$d" rev-parse HEAD)" \
-    "$(git -C "$d" describe --tags --always 2>/dev/null || echo '-')" \
-    "$(git -C "$d" config --get remote.origin.url 2>/dev/null || echo '-')"
+gitlink() {
+  # $1 = submodule path; the commit the parent repository's index records for it
+  git -C "$REPO" ls-files -s -- "$1" | awk '$1=="160000"{print $2}'
 }
 
 generate() {
@@ -115,56 +119,35 @@ generate() {
 # checksummed form of that directory: cavekit-device-build.md R3 requires every prebuilt
 # input to be obtainable from a clean clone by an in-repo recipe or a documented procedure.
 #
-# THE SPLIT THAT MATTERS. Only ONE of the four parts below is genuinely device-gated:
-#
 #   part                        obtainable from a clean clone?
-#   staging/lib/*.so*           NO — needs a TouchPad. Procedure below; not redistributable.
-#   staging/include/webkit/     MOSTLY — 4 of 5 headers are the npapi-headers checkout.
-#                               nppalmdefs.h is Palm-only and travels with the device drop.
-#   qt4-extract/                YES — three stock Debian jessie .debs, pinned below.
-#   libpbnjson/ yajl/ npapi-headers/
-#                               YES — public git, pinned by tag+commit below.
+#   staging/lib/*.so*           NO — needs a TouchPad (--fetch-device-libs); not redistributable.
+#   qt4-extract/                YES — three stock Debian jessie .debs, pinned below (--fetch-qt4).
+#
+# Everything else the adapter compiles against is in git: libpbnjson, yajl and npapi-headers
+# are submodules (third_party/, listed in SUBMODULES below), and Jihad's own headers are in
+# build/webos-oe/adapter-include/.
 #
 # ============================================================================
 # PROCEDURE: RE-OBTAIN staging/lib FROM A TOUCHPAD
 # ============================================================================
 # These are HP's own builds off the device rootfs (webOS 3.0.5, ARMv7 softfp, glibc 2.8).
 # They cannot be vendored — they are HP proprietary — and they cannot be rebuilt, because
-# nothing reproduces HP's "nova" OE tree. With a device attached over novacom:
+# nothing reproduces HP's "nova" OE tree. With a TouchPad attached:
 #
-#   mkdir -p build/webos-oe/adapter-deps/staging/lib
-#   cd build/webos-oe/adapter-deps/staging/lib
-#   for f in libQtCore.so.4 libQtGui.so.4 libQtNetwork.so.4 \
-#            libpbnjson_c.so libpbnjson_cpp.so libyajl.so.1 libpng12.so.0; do
-#     novacom get file:///usr/lib/$f > $f
-#   done
+#   build/webos-oe/gen-adapter-deps-manifest.sh --fetch-device-libs
 #
-# Then rename each to the versioned name in the table below (the device ships the SONAME
-# path; the versioned filename is what the linker table here records) and recreate the
-# development symlinks listed in the SYMLINKS section — `ld -lQtGui` needs libQtGui.so to
-# exist, and the device rootfs has no -dev symlinks. Verify with --check afterwards: a
-# device that is not webOS 3.0.5 will produce different checksums, and that is the point.
-#
-# CAVEAT, stated rather than glossed: the /usr/lib paths above are the standard webOS 3
-# locations for these libraries and are how the set was originally obtained, but they were
-# NOT re-confirmed against hardware when this manifest was written (no device was attached).
-# If a path is wrong, `novacom get` fails loudly rather than silently producing a bad file.
-# [human-review on device]
+# copies each from the device path in the table below to its versioned name, makes the
+# development symlinks of the SYMLINKS section (`ld -lQtGui` needs libQtGui.so, and the
+# device rootfs has none), and checks every sha256 against this file: a device that is not
+# webOS 3.0.5 / CE 3.1.0 gives different checksums and the fetch fails, which is the point.
+# The device paths were confirmed on a TouchPad on CE 3.1.0 on 2026-10-01.
 #
 # ============================================================================
 # PROCEDURE: RE-OBTAIN qt4-extract FROM archive.debian.org
 # ============================================================================
 # Debian 8 "jessie" is end-of-life, so these versions are frozen rather than moving under
-# security updates. For each package in the QT4-DEBIAN-PACKAGES table:
-#
-#   curl -fsSLO <url>
-#   ar p <pkg>.deb data.tar.xz | tar -C build/webos-oe/adapter-deps/qt4-extract -xJf -
-#
-# ============================================================================
-# PROCEDURE: RE-OBTAIN THE GIT CHECKOUTS
-# ============================================================================
-# For each row of GIT-CHECKOUTS: git clone <remote> <dir> && git -C <dir> checkout <commit>.
-# Pin by COMMIT, not by tag — openwebos tags are mutable in principle and the commit is not.
+# security updates. `build/webos-oe/gen-adapter-deps-manifest.sh --fetch-qt4` downloads each
+# package in the QT4-DEBIAN-PACKAGES table, checks its sha256 and unpacks it into qt4-extract/.
 #
 # Regenerate with: build/webos-oe/gen-adapter-deps-manifest.sh
 # Verify on-disk:  build/webos-oe/gen-adapter-deps-manifest.sh --check
@@ -208,34 +191,6 @@ S2
       done < <(cd "$DEPS/staging/lib" && find . -maxdepth 1 -type l -printf '%f\n' | LC_ALL=C sort)
     fi
 
-    # ---- npapi headers ----
-    printf '#\n'
-    cat <<'S3'
-# ============================================================================
-# SECTION: NPAPI-HEADERS  (staging/include/webkit/npapi)
-# origin=npapi-headers means byte-identical to the pinned npapi-headers checkout, so a
-# clean clone regenerates it. origin=palm-only means it exists nowhere else in this repo
-# and travels with the device drop.
-# TSV: path  sha256  size_bytes  origin
-# ============================================================================
-S3
-    if [ -d "$DEPS/staging/include" ]; then
-      while IFS= read -r h; do
-        local hp match origin
-        hp="$DEPS/staging/include/$h"
-        origin='palm-only'
-        # Compare against EVERY same-named file in the checkout, not just the first. The
-        # checkout carries a debhelper staging copy (debian/npapiheaders/usr/include/) that
-        # sorts ahead of the real header and does NOT match — taking only the first hit
-        # misfiled npapi.h as palm-only.
-        while IFS= read -r match; do
-          [ -n "$match" ] || continue
-          if cmp -s "$hp" "$match"; then origin='npapi-headers'; break; fi
-        done < <(find "$DEPS/npapi-headers" -name "$(basename "$h")" -not -path '*/.git/*' 2>/dev/null | LC_ALL=C sort)
-        printf '%s\t%s\t%s\t%s\n' "$h" "$(sha_of "$hp")" "$(stat -c %s "$hp")" "$origin"
-      done < <(cd "$DEPS/staging/include" && find . -type f | LC_ALL=C sort | sed 's|^\./||')
-    fi
-
     # ---- qt4 debian packages ----
     printf '#\n'
     cat <<'S4'
@@ -265,7 +220,7 @@ S4
 # ============================================================================
 S5
     local t
-    for t in qt4-extract staging/lib staging/include yajl-inc; do
+    for t in qt4-extract staging/lib; do
       if [ -d "$DEPS/$t" ]; then
         printf '%s\t%s\t%s\n' "$t" "$(tree_digest "$DEPS/$t")" "$(tree_counts "$DEPS/$t")"
       else
@@ -273,31 +228,27 @@ S5
       fi
     done
 
-    # ---- git checkouts ----
-    printf '#\n'
+    # ---- submodules ----
+    printf '#
+'
     cat <<'S6'
 # ============================================================================
-# SECTION: GIT-CHECKOUTS  (public, fully reproducible — pin by commit)
-# TSV: dir  commit  describe  remote
+# SECTION: SUBMODULES  (public git, pinned by the parent repository's gitlinks)
+# TSV: path  commit  describe  url
 # ============================================================================
 S6
-    local d pin
-    for d in libpbnjson yajl npapi-headers; do
-      pin="$(git_pin "$DEPS/$d")"
-      if [ -n "$pin" ]; then printf '%s\t%s\n' "$d" "$pin"; else printf '# NOT-A-CHECKOUT\t%s\n' "$d"; fi
+    local d
+    for d in third_party/libpbnjson third_party/yajl third_party/npapi-headers; do
+      printf '%s	%s	%s	%s
+' "$d" "$(gitlink "$d")" \
+        "$(git -C "$REPO/$d" describe --tags --always 2>/dev/null || echo '-')" \
+        "$(git -C "$REPO" config -f .gitmodules --get "submodule.$d.url")"
     done
     cat <<'S7'
 #
-# yajl-inc/ is NOT a checkout: it is yajl/src/api/*.h copied flat under a yajl/ directory
-# so `#include <yajl/yajl_parse.h>` resolves. Three of its four headers are byte-identical
-# to the yajl checkout; yajl_version.h is absent from it because cmake GENERATES that one
-# from yajl_version.h.cmake at configure time. Regenerate yajl-inc by copying the three and
-# configuring yajl once for the fourth, or keep it as the small vendored drop it is — the
-# TREE-DIGESTS row above pins it either way.
-#
 # VERSION SKEW, recorded because it is load-bearing and easy to "fix" wrongly:
 #   pbnjson  headers submissions/10 (c4b0611)  vs  device library submission-38
-#   yajl     checkout tag 1.0.12               vs  device library 1.0.7
+#   yajl     submodule tag 1.0.12              vs  device library 1.0.7
 #   Qt       headers 4.8.6 (Debian)            vs  device libraries 4.8.0 (HP)
 # In each case the HEADERS are what this repo pins and the LIBRARY is whatever the device
 # has. build-adapter-pdk.sh chose submissions/10 deliberately ("the device era") so gcc4
@@ -325,17 +276,6 @@ check() {
     fi
   done < <(sed -n '/^# SECTION: DEVICE-ARM-SHARED-OBJECTS/,/^# SECTION: SYMLINKS/p' "$MANIFEST" | grep -v '^#')
 
-  # header rows: path sha256 size origin
-  local h
-  while IFS=$'\t' read -r h sum rest; do
-    p="$DEPS/staging/include/$h"
-    if [ ! -f "$p" ]; then echo "MISSING  staging/include/$h"; fail=$((fail + 1)); continue; fi
-    have="$(sha_of "$p")"
-    if [ "$have" = "$sum" ]; then ok=$((ok + 1)); else
-      echo "MISMATCH staging/include/$h"; fail=$((fail + 1))
-    fi
-  done < <(sed -n '/^# SECTION: NPAPI-HEADERS/,/^# SECTION: QT4-DEBIAN-PACKAGES/p' "$MANIFEST" | grep -v '^#')
-
   # tree digests
   local t dg
   while IFS=$'\t' read -r t dg rest; do
@@ -344,17 +284,17 @@ check() {
     if [ "$have" = "$dg" ]; then ok=$((ok + 1)); else
       echo "MISMATCH tree $t"; echo "  manifest $dg"; echo "  on disk  $have"; fail=$((fail + 1))
     fi
-  done < <(sed -n '/^# SECTION: TREE-DIGESTS/,/^# SECTION: GIT-CHECKOUTS/p' "$MANIFEST" | grep -v '^#')
+  done < <(sed -n '/^# SECTION: TREE-DIGESTS/,/^# SECTION: SUBMODULES/p' "$MANIFEST" | grep -v '^#')
 
-  # git pins
+  # submodules: checked out, at the commit the manifest and the parent repository record
   local d c
-  while IFS=$'\t' read -r d c rest; do
-    if [ ! -e "$DEPS/$d/.git" ]; then echo "MISSING  checkout $d"; fail=$((fail + 1)); continue; fi
-    have="$(git -C "$DEPS/$d" rev-parse HEAD)"
-    if [ "$have" = "$c" ]; then ok=$((ok + 1)); else
-      echo "MISMATCH checkout $d: manifest $c, on disk $have"; fail=$((fail + 1))
+  while IFS=$'	' read -r d c rest; do
+    if [ ! -e "$REPO/$d/.git" ]; then echo "MISSING  submodule $d (git submodule update --init $d)"; fail=$((fail + 1)); continue; fi
+    have="$(git -C "$REPO/$d" rev-parse HEAD)"
+    if [ "$have" = "$c" ] && [ "$(gitlink "$d")" = "$c" ]; then ok=$((ok + 1)); else
+      echo "MISMATCH submodule $d: manifest $c, gitlink $(gitlink "$d"), checked out $have"; fail=$((fail + 1))
     fi
-  done < <(sed -n '/^# SECTION: GIT-CHECKOUTS/,$p' "$MANIFEST" | grep -v '^#')
+  done < <(sed -n '/^# SECTION: SUBMODULES/,/^# VERSION SKEW/p' "$MANIFEST" | grep -v '^#')
 
   echo "checked: $ok ok, $fail bad"
   [ "$fail" -eq 0 ]
@@ -380,9 +320,84 @@ check_qt4_debs() {
   [ "$fail" -eq 0 ]
 }
 
+# Unpack one .deb's data member into a directory, whatever its compression (no dpkg needed).
+deb_extract() { # <deb> <dest>
+  local member
+  member="$(ar t "$1" | grep -E '^data\.tar' | head -1)"
+  [ -n "$member" ] || { echo "!! no data.tar member in $1" >&2; return 1; }
+  case "$member" in
+    *.xz)  ar p "$1" "$member" | tar -C "$2" -xJf - ;;
+    *.gz)  ar p "$1" "$member" | tar -C "$2" -xzf - ;;
+    *.bz2) ar p "$1" "$member" | tar -C "$2" -xjf - ;;
+    *)     ar p "$1" "$member" | tar -C "$2" -xf - ;;
+  esac
+}
+
+fetch_qt4() {
+  local tmp qp qsum qsize url got
+  tmp="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp'" EXIT
+  while IFS='|' read -r qp qsum qsize; do
+    [ -n "$qp" ] || continue
+    url="$MIRROR/pool/main/q/$QT4_SRC/${qp}_${QT4_VER}_armel.deb"
+    echo "fetch $qp"
+    curl -fsSL -m 600 -o "$tmp/$qp.deb" "$url" || { echo "!! download failed: $url" >&2; exit 3; }
+    got="$(sha_of "$tmp/$qp.deb")"
+    [ "$got" = "$qsum" ] || { echo "!! $qp: sha256 $got, pinned $qsum" >&2; exit 3; }
+  done <<< "$QT4_DEBS"
+  rm -rf "${DEPS:?}/qt4-extract.new"; mkdir -p "$DEPS/qt4-extract.new"
+  while IFS='|' read -r qp qsum qsize; do
+    [ -n "$qp" ] || continue
+    deb_extract "$tmp/$qp.deb" "$DEPS/qt4-extract.new"
+  done <<< "$QT4_DEBS"
+  if [ -f "$MANIFEST" ]; then
+    local want have
+    want="$(sed -n '/^# SECTION: TREE-DIGESTS/,/^# SECTION: SUBMODULES/p' "$MANIFEST" | awk -F'\t' '$1=="qt4-extract"{print $2}')"
+    have="$(tree_digest "$DEPS/qt4-extract.new")"
+    [ -z "$want" ] || [ "$want" = "$have" ] || { echo "!! qt4-extract digest $have, manifest $want" >&2; exit 4; }
+  fi
+  rm -rf "${DEPS:?}/qt4-extract"; mv "$DEPS/qt4-extract.new" "$DEPS/qt4-extract"
+  echo "qt4-extract ready ($(tree_counts "$DEPS/qt4-extract"))"
+}
+
+# novacom stops, dropping what the device had not yet sent, when its stdin reaches end-of-file;
+# hold stdin open with a sleep that is killed when the transfer ends (as build/webos-oe/dev-sh.sh).
+novacom_get() { # <device path> <local file>
+  local holder rc
+  exec 3< <(exec sleep 600 2>/dev/null); holder=$!
+  set +e; "${NOVACOM:-novacom}" get "file://$1" > "$2" <&3; rc=$?; set -e
+  exec 3<&-; kill "$holder" 2>/dev/null || true
+  return $rc
+}
+
+fetch_device_libs() {
+  [ -f "$MANIFEST" ] || { echo "!! no $MANIFEST" >&2; exit 2; }
+  command -v "${NOVACOM:-novacom}" >/dev/null || { echo "!! novacom not found (tools/host/build-novacom.sh, or set NOVACOM)" >&2; exit 2; }
+  local new="$DEPS/staging/lib.new" fn sum size soname upv devp note have fail=0
+  rm -rf "${new:?}"; mkdir -p "$new"
+  while IFS=$'\t' read -r fn sum size soname upv devp note; do
+    [ -n "$fn" ] || continue
+    echo "get $devp -> $fn"
+    novacom_get "$devp" "$new/$fn" || { echo "!! novacom get $devp failed" >&2; exit 3; }
+    have="$(sha_of "$new/$fn")"
+    if [ "$have" != "$sum" ]; then echo "MISMATCH $fn: device $have, manifest $sum"; fail=$((fail + 1)); fi
+  done < <(sed -n '/^# SECTION: DEVICE-ARM-SHARED-OBJECTS/,/^# SECTION: SYMLINKS/p' "$MANIFEST" | grep -v '^#')
+  [ "$fail" -eq 0 ] || { echo "!! $fail libraries differ from the manifest; left in $new" >&2; exit 4; }
+  local link target
+  while IFS=$'\t' read -r link target; do
+    [ -n "$link" ] || continue
+    ln -sfn "$target" "$new/$link"
+  done < <(sed -n '/^# SECTION: SYMLINKS/,/^# SECTION: QT4-DEBIAN-PACKAGES/p' "$MANIFEST" | grep -v '^#')
+  rm -rf "${DEPS:?}/staging/lib"; mv "$new" "$DEPS/staging/lib"
+  echo "staging/lib ready ($(tree_counts "$DEPS/staging/lib"))"
+}
+
 case "${1:-}" in
-  "")                generate ;;
-  --check)           check ;;
-  --check-qt4-debs)  check_qt4_debs ;;
-  *) echo "usage: $0 [--check | --check-qt4-debs]" >&2; exit 1 ;;
+  "")                  generate ;;
+  --check)             check ;;
+  --check-qt4-debs)    check_qt4_debs ;;
+  --fetch-qt4)         fetch_qt4 ;;
+  --fetch-device-libs) fetch_device_libs ;;
+  *) echo "usage: $0 [--check | --check-qt4-debs | --fetch-qt4 | --fetch-device-libs]" >&2; exit 1 ;;
 esac

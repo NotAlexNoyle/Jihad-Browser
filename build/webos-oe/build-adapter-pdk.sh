@@ -27,6 +27,7 @@
 # between one adapter build and three. The assumption is enforced below, not assumed — see the
 # "variant-macro containment" check, which fails the build if any other source starts using them.
 set -uo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"          # Jihad-Browser repo root (derived, not hardcoded)
 DEPS=$REPO/build/webos-oe/adapter-deps
@@ -40,7 +41,8 @@ STRIP=$PDK/arm-gcc/bin/arm-none-linux-gnueabi-strip
 SYSROOT=$PDK/arm-gcc/sysroot
 JSR=$REPO/build/webos-oe/arm-sysroot/root                    # jessie: glib headers only
 QT=$DEPS/qt4-extract/usr/include/qt4
-PBN=$DEPS/libpbnjson                                         # checked out at submissions/10
+PBN=$REPO/third_party/libpbnjson                             # submodule, pinned at submissions/10
+AINC=$REPO/build/webos-oe/adapter-include                     # NPAPI headers as the device wants them
 YAPDIR=$REPO/render/browserserver
 ADAPTERDIR=$REPO/render/adapter
 OUT=$DEPS/build-pdk; mkdir -p "$OUT/common"; rm -f "$OUT/common"/*.o
@@ -86,7 +88,7 @@ GLIBINC="-I$JSR/usr/include/glib-2.0 -I$JSR/usr/lib/arm-linux-gnueabi/glib-2.0/i
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"
 PBNINC="-I$PBN/include/public"
-NPINC="-I$DEPS/staging/include -I$DEPS/staging/include/webkit/npapi"
+NPINC="-I$AINC/npapi -I$AINC/npapi/webkit/npapi"
 INC="$NPINC $PBNINC $GLIBINC $QTINC $PDKINC -I$ADAPTERDIR -I$YAPDIR/Yap -I$YAPDIR/Src"
 
 compile(){ echo "  CXX $(basename "$1")"; $CXX $COMMON $INC -c "$1" -o "$2" || { echo "!! FAILED: $1"; exit 20; }; }

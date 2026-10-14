@@ -21,17 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 file patch autoconf automake gperf ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# --- crosstool-NG (pinned) -------------------------------------------------
-ARG CTNG_VER=1.25.0
-RUN cd /tmp \
-    && wget -q "http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-${CTNG_VER}.tar.xz" \
-    && tar xf "crosstool-ng-${CTNG_VER}.tar.xz" \
-    && cd "crosstool-ng-${CTNG_VER}" \
-    && ./configure --prefix=/opt/ctng \
-    && make -j"$(nproc)" \
-    && make install \
-    && rm -rf /tmp/crosstool-ng-*
-ENV PATH=/opt/ctng/bin:${PATH}
+# --- crosstool-NG -----------------------------------------------------------
+# Not in the image: it is the submodule third_party/crosstool-ng (pinned at crosstool-ng-1.25.0),
+# mounted at /ctng-src and built by build-toolchain.sh each run (a minute), so the image holds
+# only the host packages and the pin lives in git (cavekit-device-build.md R11). build.sh beside
+# this file does the mounts.
 
 # ct-ng refuses to run as root; work as an unprivileged user.
 RUN useradd -m -u 1000 builder

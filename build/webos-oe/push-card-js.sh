@@ -17,6 +17,7 @@
 #                        try; rerun without it on FAIL)
 #          --no-launch   push + close only
 set -u
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 cd "$(dirname "$0")/../.."
 
 VARIANT=enyo

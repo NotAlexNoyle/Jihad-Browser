@@ -4,6 +4,7 @@
 # The wrappers are generated here rather than kept in the repo -- they are three
 # lines each and the SWF they point at is the only thing that ever varies.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"

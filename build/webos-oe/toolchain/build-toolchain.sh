@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
 # Jihad Browser — build the webOS-3 ARM cross toolchain with crosstool-NG.
 #
-# Runs INSIDE the jihad-xtool-build image (see Dockerfile). The toolchain is
-# written to /out (bind-mount a persistent host dir there so it survives).
-#
-# Usage (from the host):
-#   podman run --rm -v <hostdir>:/out:Z jihad-xtool-build \
-#       bash /out/../build-toolchain.sh [config|build]
-# In practice we bind the toolchain/ dir read-only at /cfg and an output dir at /out:
-#   podman run --rm \
-#       -v $PWD:/cfg:ro \
-#       -v $PWD/out-toolchain:/out:Z \
-#       jihad-xtool-build bash /cfg/build-toolchain.sh build
+# Runs INSIDE the jihad-xtool-build image (see Dockerfile); start it with build.sh beside this
+# file, which mounts this directory at /cfg, the crosstool-NG submodule (third_party/crosstool-ng)
+# at /ctng-src and out-toolchain/ at /out, and passes CTNG_VERSION (the submodule's tag).
 #
 # Modes:
 #   config  - generate + validate .config only (fast; catches symbol errors)
@@ -20,6 +12,23 @@ set -euo pipefail
 
 MODE="${1:-config}"
 WORK=/home/builder/ctng-work
+
+# crosstool-NG from the submodule: copied (bootstrap writes into its tree), told its version (no
+# git in here; git-version-gen reads .tarball-version), bootstrapped and installed under $HOME.
+: "${CTNG_VERSION:?CTNG_VERSION is not set; run build.sh}"
+[ -f /ctng-src/bootstrap ] || { echo "!! /ctng-src is not the crosstool-NG submodule"; exit 2; }
+echo "== crosstool-NG $CTNG_VERSION from the submodule =="
+rm -rf /home/builder/ctng-src /home/builder/ctng
+cp -a /ctng-src /home/builder/ctng-src
+rm -f /home/builder/ctng-src/.git
+echo "$CTNG_VERSION" > /home/builder/ctng-src/.tarball-version
+( cd /home/builder/ctng-src && ./bootstrap && ./configure --prefix=/home/builder/ctng \
+  && make -j"$(nproc)" && make install ) > /home/builder/ctng-install.log 2>&1 \
+  || { tail -30 /home/builder/ctng-install.log; echo "!! crosstool-NG did not build"; exit 2; }
+export PATH="/home/builder/ctng/bin:$PATH"
+ct-ng version > /home/builder/ctng-version.txt
+sed -n 1p /home/builder/ctng-version.txt
+
 mkdir -p "$WORK"
 cd "$WORK"
 

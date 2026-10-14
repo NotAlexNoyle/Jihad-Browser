@@ -18,6 +18,7 @@
 #   remove variant ->  snap removed    ->  diff baseline removed
 #     (expect: EMPTY — exact reversal, no residue, no collateral deletion)
 set -uo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT="$HERE/out-audit"
 

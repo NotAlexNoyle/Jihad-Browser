@@ -11,6 +11,7 @@
 #
 # Usage: device-retest.sh [--restart] [--logs-only]
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 RESTART=0 LOGS_ONLY=0

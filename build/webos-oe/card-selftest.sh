@@ -21,6 +21,7 @@
 # until the next .ipk install, which replaces the app directory). What a scenario proves and
 # what it cannot is written at the top of the hook file.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 cd "$(dirname "$0")/../.."
 SHELL_NAME=mochi
 case "${1:-}" in mochi|enyo|mojo) SHELL_NAME=$1; shift;; esac

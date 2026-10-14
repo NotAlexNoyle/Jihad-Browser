@@ -59,12 +59,13 @@ JIHAD_SYS_SIG ?= "${JIHAD_ARM_SYSROOT}/usr/lib/arm-linux-gnueabi/pkgconfig/*.pc 
 
 # The Palm PDK (proprietary, fetched by fetch-pdk.sh — git-ignored) plus the vendored device
 # libs/headers the PDK adapter build compiles and links against. The PDK's gcc 4.3.3 drivers
-# stand in for the whole SDK tree. CAVEAT: build-adapter-pdk.sh also honours PDK_ROOT and a
-# legacy sibling location; those alternate roots are NOT covered by this signature.
+# stand in for the whole SDK tree. CAVEAT: build-adapter-pdk.sh also honours PDK_ROOT; that
+# alternate root is NOT covered by this signature.
 JIHAD_PDK ?= "${JIHAD_REPO}/build/webos-oe/pdk/opt/PalmPDK"
 JIHAD_PDK_SIG ?= "${JIHAD_PDK}/arm-gcc/bin/arm-none-linux-gnueabi-gcc*"
 JIHAD_DEPS ?= "${JIHAD_REPO}/build/webos-oe/adapter-deps"
-# The staged device .so's (the actual link inputs) + the npapi/pbnjson headers + the glib shim.
+# The staged device .so's (the actual link inputs) + the npapi headers (in the repository since
+# 2026-10-14) + the pbnjson headers (a submodule) + the glib shim.
 # The Qt4 header drop (15 MB / 2857 files) is deliberately NOT walked: it is extracted from the
 # same device Qt 4.8.0 package as the staged libQt*.so.4.8.0, which ARE hashed here.
-JIHAD_DEPS_SIG ?= "${JIHAD_DEPS}/staging/lib/*.so* ${JIHAD_DEPS}/staging/include ${JIHAD_DEPS}/libpbnjson/include/public ${JIHAD_DEPS}/glib_compat.c"
+JIHAD_DEPS_SIG ?= "${JIHAD_DEPS}/staging/lib/*.so* ${JIHAD_REPO}/build/webos-oe/adapter-include/npapi ${JIHAD_REPO}/third_party/libpbnjson/include/public ${JIHAD_DEPS}/glib_compat.c"

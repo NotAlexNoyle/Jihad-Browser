@@ -17,6 +17,7 @@
 # Needs: build/webos-oe/build-variant-ipk.sh already run (its out-ipk/work/<V>/ staging is the
 # payload source of truth — same bytes the .ipk would carry).
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)

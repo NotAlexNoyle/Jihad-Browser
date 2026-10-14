@@ -41,6 +41,7 @@
 #   adapter shim + impl    build-adapter-pdk.sh → adapter-deps/build-pdk/{<shim>.so,<V>/…}
 #   upstart job + control  packaging/event.d/<job>, packaging/<V>/{postinst,prerm}
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)

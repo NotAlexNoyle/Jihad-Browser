@@ -31,6 +31,7 @@
 #
 # Usage: device-purge-legacy.sh [--apply]     (default is a dry run that only prints)
 set -uo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1

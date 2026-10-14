@@ -37,6 +37,7 @@
 # opens the alert afterwards regardless. So this watches the bus for that call with ls-monitor
 # and sends the signal five seconds after it. About 30 s in all, where the blind wait was 75.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 MODE="${1:-restart}"
 
 DEV=$(mktemp); trap 'rm -f "$DEV"' EXIT

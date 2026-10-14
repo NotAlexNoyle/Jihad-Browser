@@ -70,7 +70,7 @@ PPA_KEYRING="ubuntu-toolchain-r.gpg"                        # under /etc/apt/tru
 # it); checked out at the pin on first use. Its build output stays inside it, git-ignored.
 BUILD_WEBOS="${BUILD_WEBOS:-$HERE/build-webos}"
 BUILD_WEBOS_URL="https://github.com/openwebos/build-webos.git"
-BUILD_WEBOS_REV="37540e592d3419e94b054b0bd3fd2206405f0256"
+BUILD_WEBOS_REV="37540e592d3419e94b054b0bd3fd2206405f0256"   # = the submodule's gitlink
 
 # The Jihad OE layer, as seen from INSIDE the chroot (repo is bound at /oe/Jihad-Browser).
 JIHAD_LAYER_CHROOT="/oe/Jihad-Browser/build/webos-oe"
@@ -261,12 +261,21 @@ mount_sources() {
 }
 
 ensure_build_webos() {
-  if [ ! -d "$BUILD_WEBOS/.git" ]; then
-    need git; say "cloning build-webos ($BUILD_WEBOS_REV) -> $BUILD_WEBOS ..."
-    git clone "$BUILD_WEBOS_URL" "$BUILD_WEBOS"
+  # -e, not -d: in a submodule .git is a file pointing into the parent's .git/modules/.
+  if [ ! -e "$BUILD_WEBOS/.git" ]; then
+    need git
+    if [ "$BUILD_WEBOS" = "$HERE/build-webos" ]; then
+      # The submodule's update mode is none (a plain clone skips this 2013 tree); --checkout
+      # overrides that for this one path.
+      say "checking out the build-webos submodule -> $BUILD_WEBOS ..."
+      git -C "$REPO" submodule update --init --checkout build/webos-oe/build-webos
+    else
+      say "cloning build-webos ($BUILD_WEBOS_REV) -> $BUILD_WEBOS ..."
+      git clone "$BUILD_WEBOS_URL" "$BUILD_WEBOS"
+    fi
     git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV"
   elif [ "$(git -C "$BUILD_WEBOS" rev-parse HEAD 2>/dev/null)" != "$BUILD_WEBOS_REV" ]; then
-    # review #10: an existing sibling checkout is reused in place — make sure it is the pinned rev,
+    # review #10: an existing checkout is reused in place — make sure it is the pinned rev,
     # not a stale/wrong/dirty tree, before we build against it.
     say "WARNING: build-webos HEAD != pinned $BUILD_WEBOS_REV — checking out the pin ..."
     git -C "$BUILD_WEBOS" fetch --quiet origin "$BUILD_WEBOS_REV" 2>/dev/null || true

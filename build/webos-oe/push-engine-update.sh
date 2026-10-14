@@ -21,6 +21,7 @@
 #   --daemon-only   push just the daemon binary (and this project's chrome scripts): the loop
 #                   after a daemon-only rebuild, without re-sending 45 MB of libxul per variant.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 DAEMON_ONLY=0
 if [ "${1:-}" = "--daemon-only" ]; then DAEMON_ONLY=1; shift; fi
 

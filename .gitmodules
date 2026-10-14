@@ -19,3 +19,34 @@
 [submodule "third_party/enyo-layout"]
 	path = third_party/enyo-layout
 	url = https://github.com/enyojs/layout
+[submodule "third_party/libpbnjson"]
+	# The adapter's pbnjson headers, at submissions/10 (the device era: build-adapter-pdk.sh).
+	path = third_party/libpbnjson
+	url = https://github.com/openwebos/libpbnjson
+[submodule "third_party/yajl"]
+	# yajl 1.0.12's API headers for the alternate gcc-9 adapter (build-adapter-arm.sh).
+	path = third_party/yajl
+	url = https://github.com/lloyd/yajl
+[submodule "third_party/npapi-headers"]
+	# isis NPAPI headers 0.4; build/webos-oe/adapter-include/npapi/ links three of them and
+	# carries Jihad's own npapi.h (the device's touch event) and the nppalmdefs.h shim.
+	path = third_party/npapi-headers
+	url = https://github.com/isis-project/npapi-headers
+[submodule "third_party/crosstool-ng"]
+	# crosstool-NG 1.25.0, built inside the toolchain container (build/webos-oe/toolchain/build.sh).
+	path = third_party/crosstool-ng
+	url = https://github.com/crosstool-ng/crosstool-ng
+[submodule "third_party/webos-sdk-redux"]
+	# webOS Archive's modern webOS SDK: palm-package & co (Java) and the novacom/novacomd
+	# sources (tools/host/build-novacom.sh). build/webos-oe/host-path.sh puts its bin/ on PATH.
+	path = third_party/webos-sdk-redux
+	url = https://github.com/webOSArchive/webos-sdk-redux
+	shallow = true
+[submodule "build/webos-oe/build-webos"]
+	# openwebos build-webos for the optional OpenEmbedded route (oe-env.sh checks it out on
+	# first use). Not checked out by a plain `git submodule update --init`; its build output
+	# stays inside it, so git does not look at its state.
+	path = build/webos-oe/build-webos
+	url = https://github.com/openwebos/build-webos
+	update = none
+	ignore = all

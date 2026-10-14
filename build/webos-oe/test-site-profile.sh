@@ -35,6 +35,7 @@
 #   SITE=https://<addr>:8443  the local copy (default: this PC's LAN address, port 8443)
 #   CA=<file>                 its CA (default: ../Riverstone-Addons/deploy/local/state/tls/ca.crt)
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 cd "$(dirname "$0")/../.."
 ACTION="${1:?setup|restore|status}"; VARIANT="${2:-enyo}"
 case "$VARIANT" in

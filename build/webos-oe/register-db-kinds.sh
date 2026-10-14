@@ -34,6 +34,7 @@
 #   register-db-kinds.sh              both variants that have a db layer (enyo mochi)
 #   register-db-kinds.sh mochi        just this one
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 

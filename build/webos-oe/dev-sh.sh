@@ -16,6 +16,7 @@
 # ends when the device script ends, and MAXSECONDS (default 600) is only a ceiling.
 #   - and `novacom run file://bin/sh -- -c '…'` mangles the quoting; a script file does not.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 MAX=600
 if [ "${1:-}" = "-t" ]; then MAX="$2"; shift 2; fi
 SRC="${1:?usage: dev-sh.sh [-t MAXSECONDS] <local script> [args...]}"; shift

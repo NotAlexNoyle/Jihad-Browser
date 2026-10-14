@@ -25,6 +25,7 @@
 #   device-independence-test.sh check   <variant>          assert this variant is alive + serving
 #   device-independence-test.sh matrix  <enyo.ipk> <mochi.ipk> <mojo.ipk>
 set -uo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE=$(cd "$(dirname "$0")" && pwd)
 AUDIT="$HERE/device-citizen-audit.sh"
 

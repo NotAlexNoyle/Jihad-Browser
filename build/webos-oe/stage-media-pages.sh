@@ -7,6 +7,7 @@
 #                                           serve the same files over http for the http:// runs:
 #                                           (cd <dir> && python3 -m http.server 8088)
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSETS="$(cd "$HERE/../.." && pwd)/render/goanna/test"
 if [ "${1:-}" = "--keep" ]; then STAGE="${2:?--keep <dir>}"; mkdir -p "$STAGE"

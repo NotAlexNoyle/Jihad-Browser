@@ -15,6 +15,7 @@
 # the daemon at the start and at the end: prefs.js is copied before the walk and compared after
 # it, and the copy is put back if a row was left changed.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom and palm-* first (R11)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 V="${1:-enyo}"; FILTER="${2:-.}"

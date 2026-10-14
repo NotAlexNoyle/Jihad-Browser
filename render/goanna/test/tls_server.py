@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 NotAlexNoyle. Apache-2.0 (see ../../../LICENSE).
 # Tiny self-signed HTTPS server for the G R5 TLS test. GET / -> 200 "tls-ok".
-# Args: <port> <certfile> <keyfile>
+# Args: <port> <certfile> <keyfile> [<bind address>, default 127.0.0.1; 0.0.0.0 for the TouchPad]
 import sys, ssl
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -22,6 +22,7 @@ if __name__ == "__main__":
     key = sys.argv[3] if len(sys.argv) > 3 else "key.pem"
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(cert, key)
-    srv = HTTPServer(("127.0.0.1", port), H)
+    host = sys.argv[4] if len(sys.argv) > 4 else "127.0.0.1"
+    srv = HTTPServer((host, port), H)
     srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
     srv.serve_forever()

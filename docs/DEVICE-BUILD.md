@@ -133,8 +133,7 @@ each device — the direct cross-build pipeline (NOT a full bitbake world-build;
 | daemon `jihad-browserserver` | `build-daemon-arm.sh` | ✓ same | ✓ same |
 | device bundle (daemon + .so closure + GRE) | `make-device-bundle.sh` | ✓ same | ✓ same |
 | adapter `BrowserAdapterJihad.so` | `build-adapter-pdk.sh` | ✓ same | ✓ same |
-| Enyo UI `.ipk` | `palm-package app/` | ✓ same | ✓ same |
-| Mochi UI `.ipk` | `build/webos-oe/build-mochi-ipk.sh` (T-049) | ✓ same | ✓ same |
+| the three `.ipk`s | `build-variant-ipk.sh enyo mochi mojo` | ✓ same | ✓ same |
 
 For a full OE tree the equivalent is `MACHINE=tenderloin bitbake …` / `MACHINE=opal
 bitbake …`; the machine confs above are what those invocations select. The machine confs
@@ -156,43 +155,60 @@ Goanna is heavier than the old QtWebKit; on a 1 GB device the mozconfig builds
 `freeze`/`purgePage` (wired: freeze suppresses paint, thaw reattaches) reclaims
 backgrounded cards. Deeper memory tuning is Phase 3.
 
-## To build (once the gates are satisfied)
+## To build
 
-**Working pipeline (direct cross-build — what actually runs today):** the artifacts are
-model-agnostic ARMv7 softfp, so build once and install on either model (see the
-per-machine table under "Machine configs" above):
+**One command, from a clean clone (2026-10-14, cavekit-device-build.md R11):**
 
-1. Stand up the cross-toolchain against the device sysroot (R1); verify a trivial
-   C++14 binary runs on the device/emulator.
-2. `build-goanna-arm.sh build` (engine `libxul.so`), then `build-daemon-arm.sh` (daemon).
+```bash
+git clone --recurse-submodules <repo> && cd Jihad-Browser
+tools/host/build-novacom.sh && sudo tools/host/bin/novacomd &   # novacom, once
+build/webos-oe/build-all-device.sh                               # TouchPad plugged in the first time
+```
 
-   **These two run INSIDE the container** — they use absolute container paths (`/out`, `/tc`,
-   `/sysroot`, `/jihad`, `/armcfg`) and running them on the host fails with a misleading
-   `ERROR: cross-build libxul first`, even when the ARM `libxul.so` is present. The exact
-   invocation (reconstructed on-device 2026-08-02; three details are easy to get wrong):
+The host needs git and podman (or docker); README.md "Building" lists the packages per
+distribution. `build-all-device.sh` fetches what is missing and then builds the four artifact
+classes (model-agnostic ARMv7 softfp, so one build serves both models):
 
-   ```bash
-   podman run --rm --userns=keep-id \
-     -v "$PWD/third_party/uxp:/src/uxp" \
-     -v "$PWD:/jihad" \
-     -v "$PWD/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi:/tc" \
-     -v "$PWD/build/webos-oe/arm-sysroot/root:/sysroot" \
-     -v "$PWD/build/desktop:/cfg" \
-     -v "$PWD/build/webos-oe:/armcfg" \
-     -v "$PWD/build/webos-oe/out-arm:/out" \
-     localhost/jihad-goanna-build bash /jihad/build/webos-oe/build-daemon-arm.sh
-   ```
+| Input or step | How | Where it comes from |
+|---|---|---|
+| submodules | `git submodule update --init` | `.gitmodules` (engine, Enyo 2, layout, Mochi, crosstool-NG, libpbnjson, yajl, npapi-headers, PulseAudio, webos-sdk-redux; build-webos only on demand) |
+| cross toolchain | `toolchain/build.sh` (about an hour) | crosstool-NG 1.25.0 from the submodule, in the jihad-xtool-build image |
+| Palm PDK | `fetch-pdk.sh` | HP's SDK `.deb` from the Internet Archive, sha256-pinned |
+| Qt4 headers | `gen-adapter-deps-manifest.sh --fetch-qt4` | archive.debian.org, sha256-pinned |
+| device libraries | `gen-adapter-deps-manifest.sh --fetch-device-libs`, `gen-sysroot-manifest.sh --fetch-device-libs` | the TouchPad over novacom, once (7 + libpulse.so.0) |
+| ARM sysroot | `gen-sysroot-manifest.sh --fetch`, `--assemble` | 187 Debian jessie armel `.deb`s + `arm-sysroot.recipe`, checked against the recipe's digest |
+| engine `libxul.so` | `in-container.sh --arm build-goanna-arm.sh build` (hours) | jihad-goanna-build |
+| daemon | `in-container.sh --arm build-daemon-arm.sh` | jihad-goanna-build |
+| adapter | `in-container.sh build-adapter-pdk.sh` | jihad-host-tools (32-bit libc for the PDK's gcc 4.3.3) |
+| packages | `in-container.sh build-variant-ipk.sh enyo mochi mojo` (runs `make-device-bundle.sh` and `build-mochi-ipk.sh`) | jihad-host-tools (Java for palm-package from the SDK submodule) |
 
-   - The image is **`jihad-goanna-build`**, not `jihad-xtool-build`: the latter has no
-     `pkg-config`, and the cross compiler comes from the `/tc` mount either way, so the Ubuntu
-     build image is the right host.
-   - `/sysroot` must be `arm-sysroot/**root**`, one level deeper than the directory name
-     suggests — mounting `arm-sysroot` finds no `glib-2.0.pc` and fails on `#include <glib.h>`.
-   - The crosstool-NG toolchain lives in the repo, not in the image or `~/x-tools`.
-3. `make-device-bundle.sh` (daemon + .so closure + GRE), `build-adapter-pdk.sh` (adapter).
-4. `palm-package app/` (Enyo `.ipk`); `build-mochi-ipk.sh` (Mochi `.ipk`, from T-049).
-5. Install on the TouchPad (verified) and the TouchPad Go (pending hardware); run the
-   on-device checklist (R4/R6).
+Then install the `.ipk`s from `out-ipk/` with Preware or WebOS Quick Install, or
+`push-variant.sh <enyo|mochi|mojo>` over novacom, and run the on-device checklist (R4/R6).
+
+`in-container.sh` builds both images on first use. With `--arm` it supplies the mounts
+`build-goanna-arm.sh` and `build-daemon-arm.sh` are written against (they use absolute container
+paths and fail on the host with a misleading `ERROR: cross-build libxul first`):
+
+```bash
+podman run --rm --userns=keep-id --security-opt label=disable \
+  -v "$PWD/third_party/uxp:/src/uxp" \
+  -v "$PWD:/jihad" \
+  -v "$PWD/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi:/tc" \
+  -v "$PWD/build/webos-oe/arm-sysroot/root:/sysroot" \
+  -v "$PWD/build/desktop:/cfg" \
+  -v "$PWD/build/webos-oe:/armcfg" \
+  -v "$PWD/build/webos-oe/out-arm:/out" \
+  jihad-goanna-build bash /armcfg/build-daemon-arm.sh
+```
+
+- The image is **`jihad-goanna-build`**, not `jihad-xtool-build`: the latter has no
+  `pkg-config`, and the cross compiler comes from the `/tc` mount either way.
+- `/sysroot` must be `arm-sysroot/**root**`, one level deeper than the directory name
+  suggests — mounting `arm-sysroot` finds no `glib-2.0.pc` and fails on `#include <glib.h>`.
+- The crosstool-NG toolchain lives in the repo, not in the image or `~/x-tools`.
+
+Without containers for the last two steps, `JIHAD_NO_CONTAINER=1 build-all-device.sh` runs the
+adapter and the packages on the host, which then needs 32-bit glibc and zlib and Java 8 or newer.
 
 ### Full-OE path (`build-webos` + `meta-webos` bitbake)
 

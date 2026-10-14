@@ -42,13 +42,17 @@ This repo provides one under `build/desktop/`:
   against the read-only source mount, writing artifacts to `/out`.
 
 ```
-docker build -t jihad-goanna-build build/desktop
-docker run --rm -it \
-  -v <abs>/Jihad/UXP:/src/uxp:ro \
-  -v <abs>/Jihad/Jihad-Browser/build/desktop:/cfg:ro \
-  -v $PWD/out:/out \
+podman build -t jihad-goanna-build build/desktop
+podman run --rm -it \
+  -v "$PWD/third_party/uxp:/src/uxp" \
+  -v "$PWD/build/desktop:/cfg:ro" \
+  -v "$PWD/out:/out" \
   jihad-goanna-build /cfg/build-goanna.sh all
 ```
+
+For the device, `build/webos-oe/in-container.sh --arm` runs the ARM engine and daemon builds in this
+image with the right mounts, and `build/webos-oe/build-all-device.sh` does the whole build
+(docs/DEVICE-BUILD.md, "To build").
 
 The same container is the basis for the Phase-2 ARM cross-build: add the
 cross-toolchain (below) and a target mozconfig.
@@ -66,7 +70,10 @@ libstdc++/binutils).
 
 **This was decided and built: option 2, a standalone crosstool-NG toolchain** — gcc 9.4, ARMv7-A +
 NEON, **softfp**, living in `build/webos-oe/toolchain/`. It is what every device build in this repo
-uses. The section that stood here weighed three options as if the choice were still open; it was
+uses. `build/webos-oe/toolchain/build.sh` builds it in the jihad-xtool-build image from the
+crosstool-NG submodule (`third_party/crosstool-ng`, 1.25.0) and `jihad.defconfig`, into
+`toolchain/out-toolchain/x-tools/` (git-ignored); `build-all-device.sh` runs it when the toolchain
+is missing. The section that stood here weighed three options as if the choice were still open; it was
 made in 2026-07 and the other two were not taken.
 
 The compatibility constraints it had to satisfy, all of which shaped the result and are still live

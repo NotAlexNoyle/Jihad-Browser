@@ -182,6 +182,71 @@ takes about a second to sharpen; Mochi's text can look soft at some zoom levels.
 
 ---
 
+## Building
+
+Jihad builds on any x86_64 Linux from this repository alone. Everything it compiles or packages is
+in the repository, in a git submodule it pins, or fetched by one of its scripts and checked by
+sha256. The parts that care about the host's age run in containers, so the host needs only git and
+podman (or docker). You need about 40 GB of disk, and the first build takes several hours, most of
+it the engine.
+
+**1. Host packages.** Pick your distribution's line. The second group of packages builds `novacom`,
+which talks to the TouchPad over USB.
+
+| Distribution | Build | For novacom |
+|---|---|---|
+| Debian, Ubuntu | `sudo apt install git podman curl` | `build-essential libusb-dev` |
+| Fedora, RHEL | `sudo dnf install git podman curl` | `gcc make libusb-compat-0.1-devel` |
+| Arch | `sudo pacman -S git podman curl` | `base-devel libusb-compat` |
+| openSUSE | `sudo zypper install git podman curl` | `gcc make libusb-compat-devel` |
+| Void | `sudo xbps-install git podman curl` | `base-devel libusb-compat-devel` |
+| Alpine | `sudo apk add bash git podman curl` | `build-base libusb-compat-dev` |
+
+Docker works too: set `CONTAINER_ENGINE=docker`.
+
+**2. Get the source and novacom.**
+
+```bash
+git clone --recurse-submodules https://github.com/NotAlexNoyle/Jihad-Browser.git
+cd Jihad-Browser
+tools/host/build-novacom.sh        # novacom + novacomd from webOS Archive's SDK, into tools/host/bin/
+sudo tools/host/bin/novacomd &     # keep it running while a TouchPad is plugged in
+```
+
+**3. Build.** Plug in a TouchPad the first time. Eight libraries that HP never published are copied
+from it once.
+
+```bash
+build/webos-oe/build-all-device.sh
+```
+
+It fetches what is missing, then builds in order:
+
+- the ARM cross toolchain, from the crosstool-NG submodule;
+- the Palm PDK, from the Internet Archive;
+- the Debian sysroot and Qt headers, from archive.debian.org;
+- the engine, the render daemon and the plugin adapter;
+- the three packages, in `build/webos-oe/out-ipk/`.
+
+Later runs rebuild only the daemon and the packages. Pass `--engine` or `--adapter` to rebuild those
+too.
+
+**4. Install.** Use Preware or WebOS Quick Install, which run each package's install script. From
+this machine, `build/webos-oe/push-variant.sh enyo` (or `mochi`, `mojo`) does the same over novacom.
+`palm-install` does not run install scripts, so a package installed with it does not work.
+
+| Comes from | What |
+|---|---|
+| this repository | the browser, the daemon, the adapter, packaging, build scripts |
+| submodules (`third_party/`) | the UXP engine, Enyo 2, layout, Mochi, crosstool-NG, libpbnjson, yajl, NPAPI headers, PulseAudio 0.9.22's headers, webOS Archive's SDK |
+| downloads, checked by sha256 | 187 Debian jessie armel packages and 3 Qt4 packages (archive.debian.org); HP's 2011 SDK for the PDK compiler (Internet Archive) |
+| a TouchPad, once | Qt 4.8.0, pbnjson, yajl, libpng and libpulse as HP built them |
+
+The OpenEmbedded route (`build/webos-oe/oe-env.sh`, `docs/OE-BUILD.md`) and the desktop test build
+(`build/desktop/`) are there too.
+
+---
+
 ## Thank you
 
 HP's **isis-project** (the browser this forks), the **UXP** platform and **Palefill**,

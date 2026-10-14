@@ -707,7 +707,7 @@ was done per section, the feed contract, the deploy steps, and the memory-note c
 **The inputs**
 - The owner's asks: the gallery's load flicker; each shell's own buttons; a Free Palestine Persona,
   then "an artistic depiction of palestinian land", then "photo realistic".
-- The server agent's work order, `/home/notalexnoyle/Documents/PROMPT-PC.md`: the gallery showing
+- The server agent's work order, `~/Documents/PROMPT-PC.md`: the gallery showing
   the site, bundling two, more catalogue formats, momentum, and about:addons in the webOS style.
 - The owner's answers along the way:
   - bundle Free Palestine + Aurora Silk;

@@ -7,17 +7,17 @@
 #     ssl_bump splice jihad_browser
 # Every other client is handled exactly as before.
 #
-#   doas /home/rr/squid-hardening/jihad-splice.sh          apply (or confirm), parse, reconfigure, check
-#   doas /home/rr/squid-hardening/jihad-splice.sh --undo   take the lines out, parse, reconfigure, check
+#   doas /home/<admin>/squid-hardening/jihad-splice.sh          apply (or confirm), parse, reconfigure, check
+#   doas /home/<admin>/squid-hardening/jihad-splice.sh --undo   take the lines out, parse, reconfigure, check
 #
 # Idempotent. squid.conf is backed up first (squid.conf.bak.<date>-jihad, never overwritten); if
 # `squid -k parse` rejects the result the backup is put back and nothing is reloaded. Evidence for
-# the reply to the PC lands world-readable in /home/rr/squid-diag/jihad-splice-<stamp>.txt.
+# the reply to the PC lands world-readable in /home/<admin>/squid-diag/jihad-splice-<stamp>.txt.
 set -euo pipefail
 SQ=/usr/local/squid
 CONF=$SQ/etc/squid.conf
 SQUID=$SQ/sbin/squid
-OUTDIR=/home/rr/squid-diag
+OUTDIR=/home/<admin>/squid-diag
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 OUT=$OUTDIR/jihad-splice-$STAMP.txt
 MARK='# Jihad Browser does its own TLS (1.3): its HTTPS passes through untouched (the owner, 2026-10-13).'

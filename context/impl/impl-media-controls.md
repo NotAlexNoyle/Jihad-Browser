@@ -24,7 +24,7 @@ Build site: n/a (investigation). Started 2026-08-20.
 3. **A glitchy `0:00` indicator is stuck at the far left of the scrubber** (the scrubber thumb bubble
    at position 0 — i.e. the thumb is not advancing).
 
-## Atlas reference (WPE/WebKit webOS browser, /home/notalexnoyle/eclipse-workspace/Jihad/Atlas)
+## Atlas reference (WPE/WebKit webOS browser, ~/eclipse-workspace/Jihad/Atlas)
 
 Surveyed for how a shipping offscreen webOS browser solved these:
 - **Media controls get input purely by synthesizing MOUSE (pointer) events from touch** —

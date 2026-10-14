@@ -673,14 +673,15 @@ possible, and the parts that depend on the host's age or libraries run in the bu
   `../toolchains/`, `../mochi-sampler/` and `../../webos-stacks/` are gone, and no script names the
   checkout folder (`…/Jihad-Browser/…`). The OE route's `build-webos` tree lives inside the
   repository (git-ignored output).
-- [~] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
+- [x] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
   and Mochi (already), and also crosstool-NG, libpbnjson, yajl, npapi-headers, webOS Archive's
   `webos-sdk-redux` (palm-package, novacom, novacomd, the PDK headers) and openwebos `build-webos`.
   The heavy or optional ones do not check out by default. A fresh `git clone --recurse-submodules`
   gets the rest, and the files Jihad adds to a dependency live in the repository, not in the
   dependency's checkout. *(2026-10-14, round 25: back to `[~]` — the engine pin `706d4782` is not
   on the public fork, `jihad/uxp-RB_20261006` was never pushed, so a clone anywhere but this PC
-  stops at the first submodule; `tools/host/check-pins.sh` shows it. `[x]` when every pin fetches.)*
+  stops at the first submodule; `tools/host/check-pins.sh` shows it. The owner pushed the branch
+  the same day: `check-pins.sh` now fetches every one of the eleven pins from its public URL.)*
 - [x] The inputs that are not in git are fetched by scripts in the repository and checked by sha256:
   the Jessie sysroot and the Qt4 headers from archive.debian.org (already), and the Palm SDK `.deb`
   (the PDK's gcc 4.3.3) from the Internet Archive. Only the eight device libraries need a TouchPad
@@ -700,9 +701,9 @@ possible, and the parts that depend on the host's age or libraries run in the bu
   apk systems, then the steps from a clean clone to the three `.ipk`s and onto a TouchPad.
 - [x] The device test helpers and the review runner that lived in a session scratchpad are in
   `tools/`, with no session paths in them.
-- [ ] Pins are public: every gitlink in `.gitmodules` fetches from its URL for someone without this
+- [x] Pins are public: every gitlink in `.gitmodules` fetches from its URL for someone without this
   machine's objects, checked by `tools/host/check-pins.sh` before a tier that moves a pin is called
-  done.
+  done. *(2026-10-14: eleven of eleven after the engine push.)*
 - [x] Builds do not depend on where the checkout is: no shipped binary or text names the checkout
   path or the builder's login name, and two checkouts at different paths give the same adapter
   bytes and package contents (BUNDLED-VERSIONS' date aside). *(2026-10-14, round 25: the impl

@@ -3,10 +3,11 @@
 The Riverstone Relay is the owner's Squid proxy (`squid-sslbump`, Squid 6.14 built from source at
 `/usr/local/squid`, on a Devuan server). Jihad offers it as a proxy choice (Settings → Advanced →
 Proxy → Riverstone Relay; `context/kits/cavekit-proxies-certs.md` R2). Two things on the Relay exist
-for Jihad, and both were made by the two scripts kept here, unchanged from the server
-(`sha256sum -c SHA256SUMS`; the server's own hashes are in the table). Nothing here runs from this
-repository: the scripts are the record, and the server copies in `~/squid-hardening/` are what the
-Relay's admin runs.
+for Jihad, and both were made by the two scripts kept here. They are the server's files with one
+change: the admin's home directory in their paths reads `/home/<admin>` (the owner ships no login
+name). `SHA256SUMS` is for the copies here; the server's own hashes are in the table. Nothing here
+runs from this repository: the scripts are the record, and the server copies in
+`~/squid-hardening/` are what the Relay's admin runs.
 
 | Script | What it does to `/usr/local/squid/etc/squid.conf` | Applied |
 |---|---|---|
@@ -32,9 +33,9 @@ report only, the last line of the access log (client address masked), `logrotate
 **Assumptions:** Squid from source at `/usr/local/squid`; root via `doas`; `curl`; the proxy on
 `127.0.0.1:3128`.
 
-**The admin's login name** appears in the scripts' absolute paths (`/home/<name>/squid-hardening`,
-`OUTDIR=/home/<name>/squid-diag`). The copies here are unchanged so that their hashes match the
-server's; the owner decides whether to keep them so in a public repository.
+**The admin's login name** was in the scripts' absolute paths (`/home/<name>/squid-hardening`,
+`OUTDIR=/home/<name>/squid-diag`) and is replaced by `<admin>` here, so these copies differ from the
+server's by those bytes only (the owner, 2026-10-14: no login names shipped).
 
 History: the splice rule and the `forwarded_for` change were asked of the server agent from the PC
 on 2026-10-13 (T-460 and T-468 in `context/plans/build-site.md`); the scripts came back on

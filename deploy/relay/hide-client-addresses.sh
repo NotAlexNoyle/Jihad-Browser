@@ -7,20 +7,20 @@
 # "unknown" instead, which still says an address was withheld). `via` is left alone: it names the
 # Relay, not the user. An existing forwarded_for line, if any, is changed rather than doubled.
 #
-#   doas bash /home/rr/squid-hardening/hide-client-addresses.sh          apply (or confirm), parse, reconfigure, check
-#   doas bash /home/rr/squid-hardening/hide-client-addresses.sh --undo   take the line out, parse, reconfigure, check
+#   doas bash /home/<admin>/squid-hardening/hide-client-addresses.sh          apply (or confirm), parse, reconfigure, check
+#   doas bash /home/<admin>/squid-hardening/hide-client-addresses.sh --undo   take the line out, parse, reconfigure, check
 #
 # Idempotent. squid.conf is backed up first (squid.conf.bak.<date>-xff, never overwritten); if
 # `squid -k parse` rejects the result the backup is put back and nothing is reloaded. Evidence for
 # the reply to the PC (the line in context, the parse result, what httpbin.org/ip sees for a plain,
 # a bumped and a spliced request before and after, and the access-log facts with addresses masked)
-# lands world-readable in /home/rr/squid-diag/hide-client-addresses-<stamp>.txt.
+# lands world-readable in /home/<admin>/squid-diag/hide-client-addresses-<stamp>.txt.
 set -euo pipefail
 SQ=/usr/local/squid
 CONF=$SQ/etc/squid.conf
 SQUID=$SQ/sbin/squid
 LOGS=$SQ/var/logs
-OUTDIR=/home/rr/squid-diag
+OUTDIR=/home/<admin>/squid-diag
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 OUT=$OUTDIR/hide-client-addresses-$STAMP.txt
 MARK="# Sites are not told who the Relay's users are (the owner, 2026-10-13)."

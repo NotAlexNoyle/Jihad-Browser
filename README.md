@@ -186,8 +186,8 @@ takes about a second to sharpen; Mochi's text can look soft at some zoom levels.
 
 Jihad builds on any x86_64 Linux from this repository alone. Everything it compiles or packages is
 in the repository, in a git submodule it pins, or fetched by one of its scripts and checked by
-sha256. The parts that care about the host's age run in containers, so the host needs only git and
-podman (or docker). You need about 40 GB of disk, and the first build takes several hours, most of
+sha256. The parts that care about the host's age run in containers, so the host needs only git,
+podman (or docker), curl, binutils and xz. You need about 40 GB of disk, and the first build takes several hours, most of
 it the engine.
 
 **1. Host packages.** Pick your distribution's line. The second group of packages builds `novacom`,
@@ -195,14 +195,16 @@ which talks to the TouchPad over USB.
 
 | Distribution | Build | For novacom |
 |---|---|---|
-| Debian, Ubuntu | `sudo apt install git podman curl` | `build-essential libusb-dev` |
-| Fedora, RHEL | `sudo dnf install git podman curl` | `gcc make libusb-compat-0.1-devel` |
-| Arch | `sudo pacman -S git podman curl` | `base-devel libusb-compat` |
-| openSUSE | `sudo zypper install git podman curl` | `gcc make libusb-compat-devel` |
-| Void | `sudo xbps-install git podman curl` | `base-devel libusb-compat-devel` |
-| Alpine | `sudo apk add bash git podman curl` | `build-base libusb-compat-dev` |
+| Debian, Ubuntu | `sudo apt install git podman curl binutils xz-utils` | `build-essential libusb-dev` |
+| Fedora, RHEL | `sudo dnf install git podman curl binutils xz` | `gcc make libusb-compat-0.1-devel` |
+| Arch | `sudo pacman -S git podman curl binutils xz` | `base-devel libusb-compat` |
+| openSUSE | `sudo zypper install git podman curl binutils xz` | `gcc make libusb-compat-devel` |
+| Void | `sudo xbps-install git podman curl binutils xz` | `base-devel libusb-compat-devel` |
+| Alpine | `sudo apk add bash git podman curl binutils xz` | `build-base libusb-compat-dev` |
 
-Docker works too: set `CONTAINER_ENGINE=docker`.
+Docker should work too, rootful, with `CONTAINER_ENGINE=docker`; rootless docker does not (its
+`--user` cannot write the repository's bind mount). Every build in this repository ran under podman,
+so docker is a claim, not a record.
 
 **2. Get the source and novacom.**
 
@@ -210,7 +212,7 @@ Docker works too: set `CONTAINER_ENGINE=docker`.
 git clone --recurse-submodules https://github.com/NotAlexNoyle/Jihad-Browser.git
 cd Jihad-Browser
 tools/host/build-novacom.sh        # novacom + novacomd from webOS Archive's SDK, into tools/host/bin/
-sudo tools/host/bin/novacomd &     # keep it running while a TouchPad is plugged in
+sudo -b tools/host/bin/novacomd    # in the background; keep it running while a TouchPad is plugged in
 ```
 
 **3. Build.** Plug in a TouchPad the first time. Eight libraries that HP never published are copied

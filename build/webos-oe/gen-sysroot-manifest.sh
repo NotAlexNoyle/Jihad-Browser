@@ -34,6 +34,7 @@
 # input change produces a byte-identical file. Git records when it changed; the file does
 # not claim a date of its own.
 set -euo pipefail
+. "$(dirname "$0")/host-path.sh"   # the repository's own novacom first (R11)
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEBS="$HERE/arm-sysroot/debs"
@@ -45,14 +46,20 @@ MIRROR="${DEBIAN_ARCHIVE_MIRROR:-http://archive.debian.org/debian}"
 # archive.debian.org sits behind a CDN that has been seen serving a cached 404 for a file the
 # archive has (2026-10-14: 32 of the 187 sysroot packages). The same URL with a query string goes
 # past the cache; the sha256 check after the download is what guarantees the content.
-fetch_url() { # <url> <file>
-  local i
-  curl -fsSL --retry 3 -m 600 -o "$2" "$1" 2>/dev/null && return 0
-  for i in 1 2 3 4 5; do
-    sleep "$i"
-    curl -fsSL --retry 3 -m 600 -o "$2" "$1?nocache=$RANDOM$RANDOM" 2>/dev/null && return 0
+# A cached 200 with the wrong bytes is retried the same way, and curl's own error stays visible.
+fetch_url() { # <url> <file> [sha256]: succeeds only with the file downloaded and, if given, matching
+  local i url got
+  for i in 0 1 2 3 4 5; do
+    if [ "$i" = 0 ]; then url="$1"; else sleep "$i"; url="$1?nocache=$RANDOM$RANDOM"; fi
+    rm -f "$2"
+    if curl -fsSL --retry 3 -m 600 -o "$2" "$url"; then
+      [ -n "${3:-}" ] || return 0
+      got="$(sha256sum "$2" | cut -d' ' -f1)"
+      [ "$got" = "$3" ] && return 0
+      echo "   sha256 $got is not the pinned $3; trying again past the cache" >&2
+    fi
   done
-  return 1
+  rm -f "$2"; return 1
 }
 
 # Debian pool prefix: source packages starting with "lib" live under lib<x>/, all others
@@ -198,13 +205,8 @@ fetch() {
       continue
     fi
     echo "fetching $base"
-    if ! fetch_url "$url" "$DEBS/$base.part"; then
-      echo "!! download failed: $url" >&2; rm -f "$DEBS/$base.part"; fail=$((fail + 1)); continue
-    fi
-    got="$(sha256sum "$DEBS/$base.part" | cut -d' ' -f1)"
-    if [ "$got" != "$sum" ]; then
-      echo "!! sha256 mismatch for $base (want $sum, got $got)" >&2
-      rm -f "$DEBS/$base.part"; fail=$((fail + 1)); continue
+    if ! fetch_url "$url" "$DEBS/$base.part" "$sum"; then
+      echo "!! download failed, or not the pinned sha256: $url" >&2; rm -f "$DEBS/$base.part"; fail=$((fail + 1)); continue
     fi
     mv "$DEBS/$base.part" "$DEBS/$base"
   done < <(manifest_rows)
@@ -242,15 +244,18 @@ tree_digest() {
 fetch_device_libs() {
   command -v "${NOVACOM:-novacom}" >/dev/null || { echo "!! novacom not found (tools/host/build-novacom.sh, or set NOVACOM)" >&2; exit 2; }
   mkdir -p "$HERE/arm-sysroot/device"
-  local op src dst sum holder got
+  local op src dst sum holder got f
   while IFS=$'\t' read -r op src dst sum; do
     [ "$op" = device ] || continue
     echo "get $src"
+    f="$HERE/arm-sysroot/device/$(basename "$dst")"
+    # To a .part first: a file an interrupted transfer left behind must not pass as fetched.
     exec 3< <(exec sleep 600 2>/dev/null); holder=$!
-    "${NOVACOM:-novacom}" get "file://$src" > "$HERE/arm-sysroot/device/$(basename "$dst")" <&3 || { echo "!! novacom get $src failed" >&2; exit 3; }
+    "${NOVACOM:-novacom}" get "file://$src" > "$f.part" <&3 || { rm -f "$f.part"; echo "!! novacom get $src failed" >&2; exit 3; }
     exec 3<&-; kill "$holder" 2>/dev/null || true
-    got="$(sha256sum "$HERE/arm-sysroot/device/$(basename "$dst")" | cut -d' ' -f1)"
-    [ "$got" = "$sum" ] || { echo "!! $src: sha256 $got, recipe $sum" >&2; exit 4; }
+    got="$(sha256sum "$f.part" | cut -d' ' -f1)"
+    [ "$got" = "$sum" ] || { rm -f "$f.part"; echo "!! $src: sha256 $got, recipe $sum" >&2; exit 4; }
+    mv "$f.part" "$f"
   done < <(grep -v '^#' "$RECIPE")
   echo "device libraries ready in arm-sysroot/device/"
 }
@@ -261,6 +266,8 @@ fetch_device_libs() {
 assemble() {
   local out="${SYSROOT_OUT:-$HERE/arm-sysroot/root}" pkg ver arch sum size src base url m n=0
   local tmp="$out.new"
+  # The finished tree replaces $out wholesale, so $out may only be under this directory.
+  case "$out" in "$HERE"/*) ;; *) echo "!! SYSROOT_OUT=$out is outside $HERE; refusing to replace it" >&2; exit 2 ;; esac
   rm -rf "${tmp:?}"; mkdir -p "$tmp"
   while IFS=$'\t' read -r pkg ver arch sum size src base url; do
     [ -f "$DEBS/$base" ] || { echo "!! $base missing: run --fetch first" >&2; exit 2; }
@@ -293,6 +300,7 @@ assemble() {
       repo) mkdir -p "$tmp/$(dirname "$b")"; cp "$REPO/$a" "$tmp/$b" ;;
       device)
         [ -f "$HERE/arm-sysroot/device/$(basename "$b")" ] || { echo "!! $(basename "$b") missing: run --fetch-device-libs with a TouchPad attached" >&2; exit 2; }
+        [ "$(sha256sum "$HERE/arm-sysroot/device/$(basename "$b")" | cut -d' ' -f1)" = "$c" ] || { echo "!! $(basename "$b") is not the file the recipe records (sha256); run --fetch-device-libs again" >&2; exit 2; }
         mkdir -p "$tmp/$(dirname "$b")"; cp "$HERE/arm-sysroot/device/$(basename "$b")" "$tmp/$b" ;;
       digest) want="$a" ;;
       *) echo "!! unknown recipe op: $op" >&2; exit 2 ;;

@@ -43,10 +43,10 @@ This repo provides one under `build/desktop/`:
 
 ```
 podman build -t jihad-goanna-build build/desktop
-podman run --rm -it \
+podman run --rm -it --userns=keep-id --security-opt label=disable \
   -v "$PWD/third_party/uxp:/src/uxp" \
   -v "$PWD/build/desktop:/cfg:ro" \
-  -v "$PWD/out:/out" \
+  -v "$PWD/build/desktop/out:/out" \
   jihad-goanna-build /cfg/build-goanna.sh all
 ```
 

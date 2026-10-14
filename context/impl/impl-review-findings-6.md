@@ -783,3 +783,48 @@ not a certificate authority's certificate").
 
 Local copy after both site commits: smoke test 43/43. Live since 2026-10-14 10:26 UTC (T-470): 43/43
 on the server and through Cloudflare; the five MPL Personas updated at 1.0; the feed 39 of 39.
+
+## Round 25 — Tier 84 (one repository builds Jihad; R11); the inspector, Codex out until Oct 18th
+
+Range `b37795fb..9ff7d71a` (T-471…T-477), read-only, launched twice: the first run died with the
+PC's reboot mid-read (no verdict), the second gave **REQUEST CHANGES, 2 P1, 7 P2, 16 P3**. Every
+finding was checked against the code before it was fixed. Fixes in the round-25 commit; the clean
+clone (`Jihad/.jihad-cleanclone-test`) is the test bed for the clone-side ones.
+
+| # | Severity | File | Finding | Disposition |
+|---|---|---|---|---|
+| 1 | P1 | `.gitmodules`, gitlink `third_party/uxp` | The engine pin `706d4782` is not on the public fork: `jihad/uxp-RB_20261006` was never pushed, so a clone anywhere else fails at the first submodule, and git's loop leaves the later ones unchecked too. | **Confirmed** (`git ls-remote`: only `jihad-engine-mods`). `tools/host/check-pins.sh` added: fetches every gitlink from its URL into a throwaway repository; it reports this one FAIL, the other ten ok. The push is the owner's call (nothing of this repository is pushed without being asked). R11 criterion 2 back to `[~]`; a criterion "pins are public" added. |
+| 2 | P1 | `toolchain/build.sh` | No `--security-opt label=disable`: on an SELinux-enforcing host the toolchain container cannot read `/cfg`, `/ctng-src` or `/out`. | Fixed: the same run options as `in-container.sh`. Not exercised here (no SELinux); the kit says so. |
+| 3 | P2 | `toolchain/build.sh`, `Dockerfile`, `build-toolchain.sh` | Only uid 1000 can build the toolchain: the image's `builder` is 1000 and `/home/builder` is its; the docker comment ("run as root") is wrong, ct-ng refuses root. | Fixed: `/home/builder` world-writable (ct-ng's paths unchanged, so the toolchain's bytes are), `HOME` set, podman keep-id with any uid, docker `--user`; rootless docker named unsupported. |
+| 4 | P2 | `build-adapter-pdk.sh`, `build-adapter-arm.sh` | Every shipped `BrowserAdapterImpl.so` holds `/home/notalexnoyle/…/qt4-extract/…/qstring.h`: `Q_ASSERT`'s `__FILE__`, active because `QT_NO_DEBUG` was not defined. The bytes depend on the checkout path, so "same adapter bytes" held on this PC only. | **Confirmed** (1 string). Fixed: `-DQT_NO_DEBUG` in both (what every release build of a Qt program has; the device's Qt is a release build, and an inline assert firing would have taken LunaSysMgr down). Rebuilt: no home string in any of the three impls (178,196 bytes each); the shims unchanged (`BrowserAdapterJihad.so` still `4f603df3`). R11 gains "builds do not depend on where the checkout is". |
+| 5 | P2 | `build-all-device.sh` | `git submodule update --init` with no paths resets every submodule when one is missing. | Fixed: only the missing ones, by path; and a submodule at its pin with an empty working tree counts as missing (`--force` restores it: the clean clone had four such, see below). |
+| 6 | P2 | `gen-sysroot-manifest.sh`, `build-all-device.sh` | A bad or interrupted `libpulse.so.0` transfer stays in place and the mere file counts as done; `--assemble` then fails on the digest without naming it. | Fixed: `.part` then `mv` after the sha256; the build script and `--assemble`'s `device` op both check the recipe's sha256. |
+| 7 | P2 | README | The host list omits binutils (`ar` unpacks the Debian and Palm packages on the host) and xz. | Fixed in the README, DEVICE-BUILD.md and the kit. |
+| 8 | P2 | `tools/review/codex-review.sh` | Fails open: a failed or empty `git diff` is reviewed as NO_FINDINGS, exit 0. | Fixed: `pipefail`, git's status checked, an empty diff refused. |
+| 9 | P2 | the kit | R11 ticked on evidence that does not cover the clean-clone claim (no submodule or toolchain step ran in the clone; no SELinux, other uid or docker run). | Agreed: criteria 2 and 4 back to `[~]` with what is missing named. The clone did build the engine and the daemon from its own inputs: its daemon is byte-identical to this checkout's and the device's (`06e75a68`). |
+| 10 | P3 | `build-all-device.sh` | `grep -q` on pipelines under pipefail. | Fixed: outputs captured, then tested. |
+| 11 | P3 | `build-all-device.sh` | The glob copies every stale package version into `out-all`. | Fixed: only this run's three, by each appinfo.json's version; stale copies removed. (My first version read the version through `\| head -1` — the very SIGPIPE trap of #10; replaced by one awk.) |
+| 12 | P3 | `gen-sysroot-manifest.sh` | Does not source `host-path.sh`, so standalone `--fetch-device-libs` misses the repository's novacom. | Fixed. |
+| 13 | P3 | `build-mochi-ipk.sh` | An outside source's "last two path parts" is the login name for a checkout under `$HOME`. | Fixed: basename only. |
+| 14 | P3 | `gen-sysroot-manifest.sh` | `rm -rf "$SYSROOT_OUT"` from the environment, unchecked. | Fixed: refused unless under `build/webos-oe`. |
+| 15 | P3 | `in-container.sh`, `build-all-device.sh` | No environment reaches the container; `PDK_ROOT` ignored by the PDK check. | Fixed: the eight settings the scripts read are forwarded, a value outside the repository refused with the reason; the PDK check honours `PDK_ROOT`. |
+| 16 | P3 | README | "Docker works too" untested. | Fixed: rootful only, and named a claim, not a record. |
+| 17 | P3 | README, DEVICE-BUILD.md, tools/README.md | `sudo … novacomd &` stops on the password prompt; the `&&` chain backgrounds the build too. | Fixed: `sudo -b`, on its own line. |
+| 18 | P3 | `.gitignore` | `qt4-extract.new` left by a digest mismatch shows as 2,922 untracked files. | Fixed: `qt4-extract*/`. |
+| 19 | P3 | `build-novacom.sh` | A host with `gcc` but no `cc` passes the check and then probes with `cc`. | Fixed: `CC` from the compiler found, exported for both makefiles. |
+| 20 | P3 | the kit | "seven device libraries": it is eight. | Fixed. |
+| 21 | P3 | both fetchers | The cache-buster retry runs only when curl fails; a cached 200 with wrong bytes fails outright; curl's error hidden. | Fixed: `fetch_url` takes the pin, retries a wrong-bytes download past the cache, bounded (6 tries), `-S` keeps curl's error visible. |
+| 22 | P3 | TOOLCHAIN.md | The desktop example writes to the repository root's `out/` (not ignored), without keep-id or the label option. | Fixed: `build/desktop/out`, the same options as `in-container.sh`. |
+| 23 | P3 | `in-container.sh`, `toolchain/build.sh`, Dockerfiles | Images never rebuilt after a Dockerfile change; no `.containerignore` for the 6.7 GB and 498 MB contexts. | Fixed: the image carries its Dockerfile's sha256 as a label and is rebuilt when it differs (once for the images built before the label, from cache); `.containerignore` (`*`) in all three contexts, since no Dockerfile copies anything. Base images stay by tag: a digest pin would be a separate decision. |
+| 24 | P3 | `build-all-device.sh` | The TouchPad check comes after the hour-long toolchain build. | Fixed: the container engine and, when libraries are needed, the device are checked first; the device-independent inputs fetched before the device ones. |
+| 25 | P3 | `oe-env.sh` | In single-prompt sudo mode the build-webos checkout is root-owned inside the user's repository. | Fixed: `as_user` (`setpriv`) for the checkout, clone and pin fetch. |
+
+**The clean clone, continued.** Its engine build died with the reboot and left `UnifiedBindings10.o`
+truncated (written 08:06:08, newer than its source, no symbols): `mach build` kept it and libxul
+failed to link on `MenuBoxObjectBinding::Wrap`. The 100 files written in that minute were deleted
+and the build re-run: libxul and the daemon built, the daemon `06e75a68`. Then the adapter failed:
+`nptypes.h`, `npruntime.h`, `npupp.h` under `adapter-include/npapi/webkit/npapi/` are symlinks into
+`third_party/npapi-headers`, and in the clone that submodule (with mochi, mochi-sampler and
+webos-sdk-redux) sat at its pin with an EMPTY working tree, left by the aborted first clone
+(`git status` shows ` m`). `git submodule update --init --force` restored the four; the build
+script now treats an emptied submodule as missing (finding 5's fix).

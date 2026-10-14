@@ -260,6 +260,9 @@ mount_sources() {
   bind_at "$HERE/oe-sstate"    "oe/sstate"
 }
 
+# The submodule checkout and clone stay the user's even in single-prompt sudo mode: a root-owned
+# .git/modules/... inside the user's repository would stop later user-mode runs (round 25).
+as_user() { if [ "$(id -u)" -eq 0 ]; then setpriv --reuid="$HOST_UID" --regid="$HOST_GID" --clear-groups "$@"; else "$@"; fi; }
 ensure_build_webos() {
   # -e, not -d: in a submodule .git is a file pointing into the parent's .git/modules/.
   if [ ! -e "$BUILD_WEBOS/.git" ]; then
@@ -268,18 +271,18 @@ ensure_build_webos() {
       # The submodule's update mode is none (a plain clone skips this 2013 tree); --checkout
       # overrides that for this one path.
       say "checking out the build-webos submodule -> $BUILD_WEBOS ..."
-      git -C "$REPO" submodule update --init --checkout build/webos-oe/build-webos
+      as_user git -C "$REPO" submodule update --init --checkout build/webos-oe/build-webos
     else
       say "cloning build-webos ($BUILD_WEBOS_REV) -> $BUILD_WEBOS ..."
-      git clone "$BUILD_WEBOS_URL" "$BUILD_WEBOS"
+      as_user git clone "$BUILD_WEBOS_URL" "$BUILD_WEBOS"
     fi
-    git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV"
+    as_user git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV"
   elif [ "$(git -C "$BUILD_WEBOS" rev-parse HEAD 2>/dev/null)" != "$BUILD_WEBOS_REV" ]; then
     # review #10: an existing checkout is reused in place — make sure it is the pinned rev,
     # not a stale/wrong/dirty tree, before we build against it.
     say "WARNING: build-webos HEAD != pinned $BUILD_WEBOS_REV — checking out the pin ..."
-    git -C "$BUILD_WEBOS" fetch --quiet origin "$BUILD_WEBOS_REV" 2>/dev/null || true
-    git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV" || say "WARNING: could not check out the pin; proceeding with existing HEAD"
+    as_user git -C "$BUILD_WEBOS" fetch --quiet origin "$BUILD_WEBOS_REV" 2>/dev/null || true
+    as_user git -C "$BUILD_WEBOS" checkout -q "$BUILD_WEBOS_REV" || say "WARNING: could not check out the pin; proceeding with existing HEAD"
   fi
   # Install our vendored layer config (2013 "dylan" pins + TouchPad machines) so the
   # build is reproducible from THIS repo, not from a hand-edited sibling checkout.

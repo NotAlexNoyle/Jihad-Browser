@@ -161,12 +161,13 @@ backgrounded cards. Deeper memory tuning is Phase 3.
 
 ```bash
 git clone --recurse-submodules <repo> && cd Jihad-Browser
-tools/host/build-novacom.sh && sudo tools/host/bin/novacomd &   # novacom, once
+tools/host/build-novacom.sh                                     # novacom, once
+sudo -b tools/host/bin/novacomd                                 # its USB daemon, in the background
 build/webos-oe/build-all-device.sh                               # TouchPad plugged in the first time
 ```
 
-The host needs git and podman (or docker); README.md "Building" lists the packages per
-distribution. `build-all-device.sh` fetches what is missing and then builds the four artifact
+The host needs git, podman (or docker), curl, binutils and xz; README.md "Building" lists the
+packages per distribution. `build-all-device.sh` fetches what is missing and then builds the four artifact
 classes (model-agnostic ARMv7 softfp, so one build serves both models):
 
 | Input or step | How | Where it comes from |

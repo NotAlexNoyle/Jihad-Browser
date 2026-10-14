@@ -673,27 +673,41 @@ possible, and the parts that depend on the host's age or libraries run in the bu
   `../toolchains/`, `../mochi-sampler/` and `../../webos-stacks/` are gone, and no script names the
   checkout folder (`…/Jihad-Browser/…`). The OE route's `build-webos` tree lives inside the
   repository (git-ignored output).
-- [x] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
+- [~] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
   and Mochi (already), and also crosstool-NG, libpbnjson, yajl, npapi-headers, webOS Archive's
   `webos-sdk-redux` (palm-package, novacom, novacomd, the PDK headers) and openwebos `build-webos`.
   The heavy or optional ones do not check out by default. A fresh `git clone --recurse-submodules`
   gets the rest, and the files Jihad adds to a dependency live in the repository, not in the
-  dependency's checkout.
+  dependency's checkout. *(2026-10-14, round 25: back to `[~]` — the engine pin `706d4782` is not
+  on the public fork, `jihad/uxp-RB_20261006` was never pushed, so a clone anywhere but this PC
+  stops at the first submodule; `tools/host/check-pins.sh` shows it. `[x]` when every pin fetches.)*
 - [x] The inputs that are not in git are fetched by scripts in the repository and checked by sha256:
   the Jessie sysroot and the Qt4 headers from archive.debian.org (already), and the Palm SDK `.deb`
-  (the PDK's gcc 4.3.3) from the Internet Archive. Only the seven device libraries need a TouchPad
-  (novacom, already in `adapter-deps.manifest`).
-- [x] The host needs only git, podman (or docker) and the common tools every distribution has
-  (bash, coreutils, curl, tar, xz). The PDK's 32-bit compiler and palm-package's Java run inside
-  the build container, so a host without 32-bit libraries or Java builds the adapter and the three
-  packages, and the result is the same as the host-run build (same adapter `.so` bytes; same
-  package contents).
+  (the PDK's gcc 4.3.3) from the Internet Archive. Only the eight device libraries need a TouchPad
+  (novacom; seven in `adapter-deps.manifest`, `libpulse.so.0` in `arm-sysroot.recipe`).
+- [~] The host needs only git, podman (or docker), curl, binutils (`ar` unpacks the Debian and Palm
+  packages) and the common tools every distribution has (bash, coreutils, tar, xz); the README's
+  list says exactly that. The PDK's 32-bit compiler and palm-package's Java run inside the build
+  container, so a host without 32-bit libraries or Java builds the adapter and the three packages,
+  and the result is the same as the host-run build (same adapter `.so` bytes; same package
+  contents). The run is shown once on an SELinux-enforcing host and once with a uid other than
+  1000; docker is verified or not claimed. *(2026-10-14, round 25: `[~]` — shown under podman on
+  this PC only, uid 1000, no SELinux; the toolchain container now takes any uid and disables
+  relabelling; the README calls docker rootful and unrecorded.)*
 - [x] novacom and novacomd for talking to a TouchPad build from the `webos-sdk-redux` submodule
   with one script, and the README names the packages it needs on the main distribution families.
 - [x] The README has a "Building" section: the host packages for apt, dnf, pacman, zypper, xbps and
   apk systems, then the steps from a clean clone to the three `.ipk`s and onto a TouchPad.
 - [x] The device test helpers and the review runner that lived in a session scratchpad are in
   `tools/`, with no session paths in them.
+- [ ] Pins are public: every gitlink in `.gitmodules` fetches from its URL for someone without this
+  machine's objects, checked by `tools/host/check-pins.sh` before a tier that moves a pin is called
+  done.
+- [~] Builds do not depend on where the checkout is: no shipped binary or text names the checkout
+  path or the builder's login name, and two checkouts at different paths give the same adapter
+  bytes and package contents (BUNDLED-VERSIONS' date aside). *(2026-10-14, round 25: the impl
+  carried a Qt header's `__FILE__` through `Q_ASSERT`, the checkout path and the login name in it;
+  `-DQT_NO_DEBUG` ends it. `[x]` when the clean clone's adapter equals this checkout's.)*
 
 **Dependencies:** R1, R3
 
@@ -705,6 +719,17 @@ possible, and the parts that depend on the host's age or libraries run in the bu
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-14 (round 25, the inspector on Tier 84; build site T-479): R11 criteria 2 and 4 back to
+  `[~]` (the engine pin is not on the public fork; the host criterion shown on one host only);
+  criterion 3 says eight libraries; two criteria added, public pins and path-independent builds.
+  Fixed: the toolchain container's SELinux option and uid (any uid, docker `--user`); `QT_NO_DEBUG`
+  (the impl carried the checkout path); only missing submodules are initialised; a device library
+  must match its sha256 (fetched to `.part`); the host list gains binutils and xz; the review runner
+  fails closed; the device gate comes before the hour-long steps; only this run's packages reach
+  `out-all`; `gen-sysroot-manifest.sh` sources `host-path.sh`, guards `SYSROOT_OUT`, retries a
+  wrong-bytes download; outside-repository sources named by basename; images rebuilt when their
+  Dockerfile changes, with `.containerignore`; `sudo -b` for novacomd; `oe-env.sh`'s sudo-mode
+  checkout as the user; `build-novacom.sh` uses the compiler it found.
 - 2026-10-14 (later): R11's seven criteria `[x]` (Tier 84, T-471…T-477; evidence per task in
   build-site.md and in PICKUP's 2026-10-14 (later) delta): every build output rebuilt byte-identical
   from the repository alone — the adapter (both compilers), the daemon `06e75a68`, the three

@@ -83,7 +83,10 @@ STRAY=$(grep -rl -E 'JIHAD_MIME|JIHAD_YAP_NAME|JIHAD_VARIANT|JIHAD_IMPL_PATH|JIH
 [ -z "$STRAY" ] || { echo "!! variant macros leaked into non-variant sources (would be built once and shared):"; echo "$STRAY"; echo "!! either move the use into BrowserAdapter.cpp/BrowserAdapterShim.cpp, or compile that file per-variant below."; exit 4; }
 
 ARM="-march=armv7-a -mfpu=neon -mfloat-abi=softfp"
-COMMON="--sysroot=$SYSROOT -fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG $ARM"
+# QT_NO_DEBUG, as every release build of a Qt program: Q_ASSERT compiles out. Without it the
+# asserts inlined from Qt's headers bake __FILE__ into the impl: the checkout's absolute path, the
+# builder's home in it, and adapter bytes that depend on where the repository sits (round 25).
+COMMON="--sysroot=$SYSROOT -fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG -DQT_NO_DEBUG $ARM"
 GLIBINC="-I$JSR/usr/include/glib-2.0 -I$JSR/usr/lib/arm-linux-gnueabi/glib-2.0/include"
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"

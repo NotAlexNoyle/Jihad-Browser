@@ -136,10 +136,11 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 		if [ -n "$status" ]; then dirty="-dirty"; fi
 		# Repository-relative path only — absolute host paths would leak the builder's username and
 		# layout into every distributed ipk (codex F-392). A source outside the repository (a *_SRC
-		# override) is named by its last two path parts.
+		# override) is named by its last path part only: the parent of a checkout under $HOME is the
+		# builder's login name (round 25).
 		case "$src" in
 			"$REPO"/*) where=${src#"$REPO"/} ;;
-			*) where="(outside the repository) $(basename "$(dirname "$src")")/$(basename "$src")" ;;
+			*) where="(outside the repository) $(basename "$src")" ;;
 		esac
 		echo "$name: $where @ $rev$dirty"
 	done

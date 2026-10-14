@@ -18,16 +18,18 @@
 #   apk (Alpine)              build-base libusb-compat-dev
 #
 # Then run the daemon as root while a TouchPad is plugged in, and talk to it as yourself:
-#   sudo tools/host/bin/novacomd &      (or your service manager)
+#   sudo -b tools/host/bin/novacomd     (in the background; or your service manager)
 #   tools/host/bin/novacom -l
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 SDK="$REPO/third_party/webos-sdk-redux"
 [ -f "$SDK/novacomd/makefile" ] || { echo "!! third_party/webos-sdk-redux is not checked out: git submodule update --init third_party/webos-sdk-redux" >&2; exit 2; }
-command -v cc >/dev/null || command -v gcc >/dev/null || { echo "!! no C compiler (see the package list at the top of this script)" >&2; exit 2; }
+CC="${CC:-$(command -v cc || command -v gcc || command -v clang || true)}"
+[ -n "$CC" ] || { echo "!! no C compiler (see the package list at the top of this script)" >&2; exit 2; }
+export CC   # the probe below and both makefiles use the compiler that was found
 command -v make >/dev/null || { echo "!! no make (see the package list at the top of this script)" >&2; exit 2; }
-if ! printf '#include <usb.h>\nint main(void){usb_init();return 0;}\n' | ${CC:-cc} -x c - -lusb -o /dev/null 2>/dev/null; then
+if ! printf '#include <usb.h>\nint main(void){usb_init();return 0;}\n' | "$CC" -x c - -lusb -o /dev/null 2>/dev/null; then
 	echo "!! libusb-compat (usb.h and -lusb) not found; see the package list at the top of this script" >&2
 	exit 2
 fi

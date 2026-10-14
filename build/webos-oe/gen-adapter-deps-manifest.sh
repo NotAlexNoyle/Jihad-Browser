@@ -80,14 +80,20 @@ libpng12.so.0|libpng 1.2.44 (2010-06-26)|/usr/lib/libpng12.so.0|version string r
 # archive.debian.org sits behind a CDN that has been seen serving a cached 404 for a file the
 # archive has (2026-10-14: 32 of the 187 sysroot packages). The same URL with a query string goes
 # past the cache; the sha256 check after the download is what guarantees the content.
-fetch_url() { # <url> <file>
-  local i
-  curl -fsSL --retry 3 -m 600 -o "$2" "$1" 2>/dev/null && return 0
-  for i in 1 2 3 4 5; do
-    sleep "$i"
-    curl -fsSL --retry 3 -m 600 -o "$2" "$1?nocache=$RANDOM$RANDOM" 2>/dev/null && return 0
+# A cached 200 with the wrong bytes is retried the same way, and curl's own error stays visible.
+fetch_url() { # <url> <file> [sha256]: succeeds only with the file downloaded and, if given, matching
+  local i url got
+  for i in 0 1 2 3 4 5; do
+    if [ "$i" = 0 ]; then url="$1"; else sleep "$i"; url="$1?nocache=$RANDOM$RANDOM"; fi
+    rm -f "$2"
+    if curl -fsSL --retry 3 -m 600 -o "$2" "$url"; then
+      [ -n "${3:-}" ] || return 0
+      got="$(sha256sum "$2" | cut -d' ' -f1)"
+      [ "$got" = "$3" ] && return 0
+      echo "   sha256 $got is not the pinned $3; trying again past the cache" >&2
+    fi
   done
-  return 1
+  rm -f "$2"; return 1
 }
 
 sha_of() { sha256sum "$1" | cut -d' ' -f1; }
@@ -321,7 +327,7 @@ check_qt4_debs() {
   while IFS='|' read -r qp qsum qsize; do
     [ -n "$qp" ] || continue
     url="$MIRROR/pool/main/q/$QT4_SRC/${qp}_${QT4_VER}_armel.deb"
-    if ! fetch_url "$url" "$tmp/$qp.deb"; then
+    if ! fetch_url "$url" "$tmp/$qp.deb"; then   # no pin here: a mismatch is reported below, not retried
       echo "DOWNLOAD-FAIL $qp  $url"; fail=$((fail + 1)); continue
     fi
     got="$(sha_of "$tmp/$qp.deb")"
@@ -355,7 +361,7 @@ fetch_qt4() {
     [ -n "$qp" ] || continue
     url="$MIRROR/pool/main/q/$QT4_SRC/${qp}_${QT4_VER}_armel.deb"
     echo "fetch $qp"
-    fetch_url "$url" "$tmp/$qp.deb" || { echo "!! download failed: $url" >&2; exit 3; }
+    fetch_url "$url" "$tmp/$qp.deb" "$qsum" || { echo "!! download failed, or not the pinned sha256: $url" >&2; exit 3; }
     got="$(sha_of "$tmp/$qp.deb")"
     [ "$got" = "$qsum" ] || { echo "!! $qp: sha256 $got, pinned $qsum" >&2; exit 3; }
   done <<< "$QT4_DEBS"

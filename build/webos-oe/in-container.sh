@@ -29,10 +29,16 @@ case "$SCRIPT" in "$REPO"/*) ;; *) echo "!! $SCRIPT is not in this repository" >
 
 ENGINE="${CONTAINER_ENGINE:-$(command -v podman || command -v docker || true)}"
 [ -n "$ENGINE" ] || { echo "!! need podman or docker" >&2; exit 2; }
+# An image is rebuilt when its Dockerfile changed: the image carries the Dockerfile's sha256 as a
+# label, compared on every use (an image built before the label existed is rebuilt once, from
+# cache). Each context has a .containerignore, since no Dockerfile here copies anything.
 ensure_image() { # <name> <context dir>
-	if [ "${JIHAD_REBUILD_IMAGES:-0}" = 1 ] || ! "$ENGINE" image inspect "$1" >/dev/null 2>&1; then
-		echo "== building image $1 from ${2#"$REPO"/} =="
-		"$ENGINE" build -t "$1" "$2"
+	local want have
+	want="$(sha256sum "$2/Dockerfile" | cut -c1-16)"
+	have="$("$ENGINE" image inspect --format '{{index .Config.Labels "net.riverstonerelay.jihad.dockerfile"}}' "$1" 2>/dev/null || true)"
+	if [ "${JIHAD_REBUILD_IMAGES:-0}" = 1 ] || [ "$have" != "$want" ]; then
+		echo "== building image $1 from ${2#"$REPO"/} (Dockerfile $want) =="
+		"$ENGINE" build --label "net.riverstonerelay.jihad.dockerfile=$want" -t "$1" "$2"
 	fi
 }
 # Run as the invoking user, so what the build writes is the user's own; no SELinux relabelling of
@@ -40,6 +46,17 @@ ensure_image() { # <name> <context dir>
 RUNOPTS=(--rm --security-opt label=disable -e HOME=/tmp -e JIHAD_IN_CONTAINER=1)
 if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
 [ -t 0 ] && [ -t 1 ] && RUNOPTS+=(-t)
+# The settings the scripts read are forwarded, but only values inside the repository: the container
+# sees nothing else, so a path outside it would quietly build from something other than what the
+# host run would. JIHAD_NO_CONTAINER=1 runs a step on the host instead.
+for v in PDK_ROOT ENYO_SRC MOCHI_SRC LAYOUT_SRC STAGE_ONLY JIHAD_TC DIST DAEMON; do
+	[ -n "${!v:-}" ] || continue
+	case "${!v}" in
+		"$REPO"/*|[!/]*) ;;
+		*) echo "!! $v=${!v} is outside the repository; the container cannot see it (JIHAD_NO_CONTAINER=1 builds on the host)" >&2; exit 2 ;;
+	esac
+	RUNOPTS+=(-e "$v=${!v}")
+done
 
 if [ "$ARM" = 0 ]; then
 	ensure_image jihad-host-tools "$HERE/host-tools"

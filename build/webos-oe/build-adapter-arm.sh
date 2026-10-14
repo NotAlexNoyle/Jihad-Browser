@@ -67,7 +67,8 @@ ARM="-march=armv7-a -mfpu=neon -mfloat-abi=softfp"
 # std::string ABI). gcc9 defaults to the C++11 SSO string ABI, which is layout-
 # incompatible and crashes when a std::string crosses into device pbnjson/Qt. Force
 # the old ABI so string interop with the device C++ libs is binary-compatible.
-COMMON="-fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=0 $ARM -Wno-psabi"
+# QT_NO_DEBUG, as every release build of a Qt program: Q_ASSERT compiles out (see build-adapter-pdk.sh).
+COMMON="-fno-exceptions -fno-rtti -fvisibility=hidden -fPIC -O2 -g0 -DXP_UNIX -DXP_WEBOS -DNDEBUG -DQT_NO_DEBUG -D_GLIBCXX_USE_CXX11_ABI=0 $ARM -Wno-psabi"
 GLIBINC="-I$SYSROOT/usr/include/glib-2.0 -I$SYSROOT/usr/lib/arm-linux-gnueabi/glib-2.0/include"
 QTINC="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtNetwork"
 PDKINC="-I$PDK/include"

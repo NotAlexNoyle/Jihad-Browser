@@ -5,7 +5,33 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-14 (later) delta — Tier 84: one repository builds Jihad; the PC rebooted mid-session (READ FIRST)
+## 2026-10-14 (round 25) delta — the inspector's review of Tier 84, fixed; cut off by the usage limit (READ FIRST)
+
+**Done this session:** the inspector reviewed `b37795fb..9ff7d71a` (REQUEST CHANGES: 2 P1, 7 P2,
+16 P3; round 25 in impl-review-findings-6.md, every finding with its disposition). All fixed in
+the code except P1 #1: **the engine pin `706d4782` is not on the public fork** (`jihad/uxp-RB_20261006`
+was never pushed); `tools/host/check-pins.sh` shows it FAIL and the other ten ok. **Pushing that
+branch is the owner's decision — ask.** The adapter impls were rebuilt with `-DQT_NO_DEBUG` (no home
+path any more, 178,196 bytes each; the shims unchanged, `BrowserAdapterJihad.so` `4f603df3`), and
+`build-all-device.sh --skip-arm` ran end to end: `out-all/` holds exactly this run's three packages
+(enyo 1.0.4 `7bd178a1`, mochi `19f5a5bd`, mojo `ccfb5b58`). The Relay's two Squid scripts are in
+`deploy/relay/` with a README (T-478 done; the server's hashes match).
+
+**The clean clone** (`Jihad/.jihad-cleanclone-test`, at `9ff7d71a` plus nothing): its engine and
+daemon built from its own inputs, **the daemon byte-identical (`06e75a68`)**; its adapter failed on
+dangling symlinks because four submodules had empty working trees from the aborted first clone
+(restored with `git submodule update --init --force`; the build script now catches that state).
+
+**Next, in order:** (1) `git -C Jihad/.jihad-cleanclone-test -c protocol.file.allow=always pull
+--ff-only`, then `build/webos-oe/build-all-device.sh` there; compare its impls and packages with
+this checkout's (the "path-independent builds" criterion `[x]` if the impls match byte for byte).
+(2) Push the three packages to the device: the runner is three `push-variant.sh` calls
+(enyo, mochi, mojo); then a card in each, and set T-479 DONE, R11's evidence, the "Device state"
+below. (3) The owner's answer on pushing the engine branch; then `check-pins.sh` again and
+criterion 2. The device was NOT touched this session beyond read-only novacom gets: all three
+variants still run the impls WITH the home path.
+
+## 2026-10-14 (later) delta — Tier 84: one repository builds Jihad; the PC rebooted mid-session
 
 **The owner:** "is everything for jihad browser now centralized to …/Jihad-Browser or is there still
 code out of tree for the build etc?", then "yes. and try to integrate some of the host tools into the

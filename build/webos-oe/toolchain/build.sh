@@ -25,9 +25,14 @@ VER="${VER#crosstool-ng-}"
 OUT="${TOOLCHAIN_OUT:-$HERE/out-toolchain}"
 mkdir -p "$OUT"
 "$ENGINE" build -t jihad-xtool-build "$HERE"
-# keep-id: the builder (uid 1000 in the image) writes /out as the invoking user. With docker, run
-# as root or with a uid-1000 user.
-USERNS=(); [ "$(basename "$ENGINE")" = podman ] && USERNS=(--userns=keep-id)
-"$ENGINE" run --rm "${USERNS[@]}" -e CTNG_VERSION="$VER" \
+# The container runs as the invoking user, whatever its uid (podman: keep-id; docker: --user), so
+# /out is the user's own: the image's /home/builder is world-writable for ct-ng's working tree, and
+# HOME names it for a uid the image has no passwd entry for. ct-ng refuses to run as root, which is
+# why docker gets --user too. No SELinux relabelling of the mounts (label=disable, as
+# in-container.sh): the repository would otherwise be unreadable from the container on an enforcing
+# host. Rootless docker is not supported: its --user cannot write a bind mount the host user owns.
+RUNOPTS=(--rm --security-opt label=disable -e HOME=/home/builder -e CTNG_VERSION="$VER")
+if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
+"$ENGINE" run "${RUNOPTS[@]}" \
   -v "$HERE:/cfg:ro" -v "$CTNG:/ctng-src:ro" -v "$OUT:/out" \
   jihad-xtool-build bash /cfg/build-toolchain.sh "$MODE"

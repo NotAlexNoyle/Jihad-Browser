@@ -781,4 +781,5 @@ not a certificate authority's certificate").
 | P3 | `personaFeed.php` | per_page of four digits fell back to 24. | Fixed. |
 | P3 (upstream) | `classAccount.php` | Response time told whether a user name exists. | Fixed: a bcrypt check of the same cost for unknown names. Local copy: 0.22 s either way. |
 
-Local copy after both site commits: smoke test 43/43.
+Local copy after both site commits: smoke test 43/43. Live since 2026-10-14 10:26 UTC (T-470): 43/43
+on the server and through Cloudflare; the five MPL Personas updated at 1.0; the feed 39 of 39.

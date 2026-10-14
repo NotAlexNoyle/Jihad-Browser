@@ -1,11 +1,46 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-13 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-14 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-13 (night) delta — review round 24: the inspector does Codex's owed review (READ FIRST)
+## 2026-10-14 delta — the site's round-24 update is live; T-470 done (READ FIRST)
+
+**The server's reply** (`4-souvenir-bluebird`, kept as `~/Documents/jihad-reply-2026-10-14.tar`,
+with the full deploy log): `f9bcb79` went live 2026-10-14 10:26 UTC through deploy-site.sh;
+`www.prev` is `d9359ea`.
+- install.sh: `… addons.riverstonerelay.org.conf is already the repository's; its hash is kept in
+  /var/lib/riverstone-addons/site-block.sha256`. No `.new` or `.prev` written.
+- The import: the five MPL Personas `updated (1.0), its pictures as they were`; the other 34
+  unchanged.
+- Smoke test on the server (`RS_SMOKE_CONNECT=127.0.0.1:443`): 43/43, exit 0. 39 Personas listed,
+  0 hidden; the fail2ban jail empty.
+- The feed check: `39 of 39`; Aurora Silk `https://mozilla.org/MPL/2.0/
+  https://addons.riverstonerelay.org/credits/personas.txt 1.0`.
+- Not tested on the server: the panel redirect and login timing (the panel's allowlist answers
+  403 first) and the 503 (the live database was not stopped). The PC's PHP 8.4 tests stand.
+
+**Checked from the PC** (through Cloudflare, no `RS_SMOKE_CONNECT`):
+- The smoke test: 43/43, exit 0.
+- The feed: 39 of 39, and every Persona's `homepageURL` equals its `sourceURL` (by design in
+  classPersona.php). The server thought the other 34 had an empty one; the live feed shows none
+  empty.
+
+**Recorded:** T-470 DONE in build-site.md; cavekit-addons-site.md R5, R6 and R10 evidence and
+changelog. R10's smoke criterion stays [~]: a colour Persona worn in Pale Moon and on the TouchPad
+from the live site is still the owner's.
+
+**To the server:** `jihad-confirm-2026-10-14` (CONFIRM.md: confirmed, homepageURL is meant, delete
+this round's incoming and outgoing folders, keep `www.prev`). Wormhole code **6-resistor-dragnet**;
+no reply needed. Copy in `~/Documents/jihad-confirm-2026-10-14.tar`.
+
+**Device:** not touched today; as the night delta below left it.
+
+**Open:** the finger round (docs/FINGER-TESTS.md; deferred, by the owner's word). Nothing is
+pending on the server. Codex owes no review.
+
+## 2026-10-13 (night) delta — review round 24: the inspector does Codex's owed review
 
 **The owner:** "do the codex review with the cavekit 3.1 backup inspector agent instead. defer all
 finger tests. remove leftover mojo file." Codex is no longer owed anything: T-456 and T-466 are

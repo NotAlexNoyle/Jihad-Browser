@@ -1,6 +1,6 @@
 ---
 created: "2026-10-11"
-last_edited: "2026-10-13"
+last_edited: "2026-10-14"
 complexity: complex
 ---
 
@@ -117,7 +117,8 @@ is not ours to use.
 Persona installs into Jihad, Pale Moon and Basilisk with one tap.
 **Acceptance Criteria:**
 - [x] Personas have a version, a licence, a licence URL, a source URL and a credit line; ids are
-  `[a-z0-9-]` only.
+  `[a-z0-9-]` only. *(Live, 2026-10-14: all 39 in the feed carry a licence URL and a source URL; the
+  five drawn for Jihad have the MPL's address and the credits page since `f9bcb79`.)*
 - [x] An importer adds or updates Personas from the site's own catalogue, `catalogue/personas.json`
   (since 2026-10-12; before, Jihad's `render/goanna/personas/`, which now holds only the two the
   browser bundles), copying the pictures with their sha256 checked; running it twice changes nothing;
@@ -162,7 +163,7 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   *(Local copy: the 23 palettes re-imported under these ids, all distinct; a second import changes
   nothing; the smoke test checks the feed's contract on every page — round 20.)*
 - [x] `q` matches name, author and description, in any language (UTF-8 kept); `per_page` is capped
-  (at most 50); an out-of-range page, however large its number, is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list.)*
+  (at most 50); an out-of-range page, however large its number, is an empty list, not an error. *(A page past the end, even 999999999999999999, is an empty list. Live, 2026-10-14: `per_page=9999` and `1000` give all 39 on one page, `per_page=1` page 1 of 39.)*
 - [x] The response is cacheable for a few minutes and has the JSON content type; HTML-significant
   characters are escaped in the JSON.
 **Dependencies:** R5
@@ -228,7 +229,8 @@ LAN, before anything touches the owner's server.
   2026-10-13: install.sh ran for `68caed1` and `d9359ea`, recorded the hash, and said so.)
 - [~] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
   from a desktop UXP browser and from Jihad) passes. *(Server: 43/43 at every update since
-  2026-10-12, from the server itself; Pale Moon installed a Persona from the live site and Jihad read
+  2026-10-12, from the server itself; for `f9bcb79` (2026-10-14) also 43/43 from the PC through
+  Cloudflare; Pale Moon installed a Persona from the live site and Jihad read
   the feed (the owner, 2026-10-12). Still the owner's: a colour Persona worn in Pale Moon and on the
   TouchPad from the live site.)*
 - [x] Every file reaches the server over magic-wormhole-rs, and no other wormhole is installed
@@ -332,6 +334,8 @@ LAN, before anything touches the owner's server.
 - `docs/research/persona-archives.md`, `persona-licences.md`, `phoebus-analysis.md`.
 
 ## Changelog
+- 2026-10-14: Review round 24's site fixes (`f9bcb79`) live: install.sh kept the block, the five MPL
+  Personas carry their links, smoke 43/43 on the server and through Cloudflare, the feed 39 of 39.
 - 2026-10-12 (later): Codex's review of the deploy kit (round 18): both nightly archives watched,
   php-cli installed by name, a Persona import changes files and row together or not at all, the
   smoke test takes the panel allowlist's 403, the owner account is logged, the local copy imports

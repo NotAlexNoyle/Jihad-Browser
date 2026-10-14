@@ -1,6 +1,6 @@
 ---
 created: "2026-10-01"
-last_edited: "2026-10-11"
+last_edited: "2026-10-14"
 ---
 
 # Build Site
@@ -509,7 +509,7 @@ The owner: "add support for riverstone relay proxy, and webone, and self hosted 
 | T-467 | [FOUND] JS components are read as Latin-1: non-ASCII in their strings came out garbled (the print status's ellipsis, the Persona importer's BOM strip); escaped. The install scripts leave a byte-identical adapter alone (a replaced one LunaSysMgr had mapped kept / read-write) | cavekit-device-build.md | R8 | — | yes | S | DONE (`e223591f`) |
 | T-468 | The Relay hides users' addresses (the owner): Squid's `forwarded_for delete`, sent to the server agent with checks before and after; then http://httpbin.org/ip through the Relay on the device shows only the server | cavekit-proxies-certs.md | R2 | T-461 | no | S | DONE (applied 18:12 UTC, `squid.conf` line 103; the device's http through the Relay shows only the server; `d9359ea` live, smoke 43/43) |
 | T-469 | Review round 24's fixes (the inspector, for Codex): R4 roots only and never a certificate the SSL dialog installed; R6 only for a page (offer), site certificates refused; the [proxy] marker; webOS's last proxy kept; the gallery offers the bundled set; finger-sized link buttons; the kits brought up to date | cavekit-proxies-certs.md, cavekit-personas-ui.md, cavekit-chrome-look.md | R1, R4, R5, R6; R7, R9; R2 | T-456, T-466 | yes | M | DONE (`cfbfbcf2`; device, all three on daemon 06e75a68) |
-| T-470 | The site's round-24 fixes (`71dd173`, `f9bcb79`) to the server agent: install.sh's site-block rules, DEPLOY.md step 11, the MPL Personas' links, the panel redirect, 503 on a database outage, the feed's order and per_page, login timing | cavekit-addons-site.md | R5, R10 | T-469 | no | S | |
+| T-470 | The site's round-24 fixes (`71dd173`, `f9bcb79`) to the server agent: install.sh's site-block rules, DEPLOY.md step 11, the MPL Personas' links, the panel redirect, 503 on a database outage, the feed's order and per_page, login timing | cavekit-addons-site.md | R5, R10 | T-469 | no | S | DONE (live 2026-10-14 10:26 UTC; install.sh kept the block as the repository's; the five MPL Personas updated at 1.0, pictures as they were; smoke 43/43 on the server and through Cloudflare; the feed 39 of 39 with Aurora Silk's MPL and credits links) |
 
 ## Tier 82 — Review round 22 and what the device checks found (2026-10-13; added to the site, not a regeneration)
 

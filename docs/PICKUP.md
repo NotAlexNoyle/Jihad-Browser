@@ -32,8 +32,8 @@ changelog. R10's smoke criterion stays [~]: a colour Persona worn in Pale Moon a
 from the live site is still the owner's.
 
 **To the server:** `jihad-confirm-2026-10-14` (CONFIRM.md: confirmed, homepageURL is meant, delete
-this round's incoming and outgoing folders, keep `www.prev`). Wormhole code **6-resistor-dragnet**;
-no reply needed. Copy in `~/Documents/jihad-confirm-2026-10-14.tar`.
+this round's incoming and outgoing folders, keep `www.prev`). Wormhole code **6-resistor-dragnet**,
+received 10:42 UTC; no reply needed. Copy in `~/Documents/jihad-confirm-2026-10-14.tar`.
 
 **Device:** not touched today; as the night delta below left it.
 

@@ -245,3 +245,13 @@ box's certificate made with `openssl req -x509` says cA=TRUE (openssl's default 
 carries the device's address as a subjectAltName. Taken as a root, its key could vouch for any site.
 R4 takes only roots that say their key signs certificates (keyUsage keyCertSign) and name no site
 (no subjectAltName, no extendedKeyUsage), and never one Jihad's own dialog installed.
+
+## archive.debian.org answers 404 for files it lists (2026-10-14, Tier 84)
+
+The clean-clone build's sysroot fetch failed on 32 of the 187 pinned `.deb` URLs with 404, although
+the pool directory listing shows every one. The CDN in front of archive.debian.org serves cached
+404s; the same URL with a query string, or the same URL a little later, returns the file. The old
+`--check-urls` probed only the first five, which happened to work, so "re-fetchable from a clean
+clone" had never been true. Both Debian fetchers now try up to five times with a fresh cache-buster
+and a short back-off; sha256 still decides what is accepted. Do not pin a mirror instead: the pool
+paths are the record.

@@ -5,7 +5,75 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-14 delta — the site's round-24 update is live; T-470 done (READ FIRST)
+## 2026-10-14 (later) delta — Tier 84: one repository builds Jihad; the PC rebooted mid-session (READ FIRST)
+
+**The owner:** "is everything for jihad browser now centralized to …/Jihad-Browser or is there still
+code out of tree for the build etc?", then "yes. and try to integrate some of the host tools into the
+readme instructions for building jihad. it should be as self contained to its own repo as possible
+while running on a wide variety of linux distros", and "use git submodules for build dependencies
+for automation". Kit: cavekit-device-build.md R11; build site Tier 84 (T-471…T-479).
+
+**Built** (`045c0fef` … `9ff7d71a`, nothing pushed):
+- T-471 `045c0fef`: the build scripts read only the repository (the `../toolchains`,
+  `../mochi-sampler`, `../../webos-stacks` fallbacks and the checkout-folder paths are gone;
+  `build-webos` lives inside, git-ignored). Mochi's BUNDLED-VERSIONS names repository-relative
+  paths, not the builder's home.
+- T-472 `61fe5974`, `f94af9c9`, `9ff7d71a`: submodules `third_party/{crosstool-ng, libpbnjson, yajl,
+  npapi-headers, webos-sdk-redux (shallow), pulseaudio (shallow)}` and `build/webos-oe/build-webos`
+  (update=none); Jihad's own headers in `build/webos-oe/adapter-include/`; `host-path.sh` puts the
+  SDK submodule's `palm-*` and `tools/host/bin` first on PATH; `gen-adapter-deps-manifest.sh
+  --fetch-qt4 / --fetch-device-libs`; `gen-sysroot-manifest.sh --fetch-device-libs / --assemble`
+  applying `arm-sysroot.recipe` (glibc 2.19 removed, `/lib` copied into `/usr/lib`, six symlinks,
+  PulseAudio 0.9.22's headers) and refusing a tree whose digest differs; `toolchain/build.sh` builds
+  crosstool-NG from the submodule.
+- T-473 `e1ae67c0`: `fetch-pdk.sh` downloads HP's `palm-sdk_3.0.5-svn528736-pho676_i386.deb` from
+  the Internet Archive (item `webOSLegacySDK`) and checks its sha256.
+- T-474 `00a82f35`: `host-tools/Dockerfile` (32-bit libc, Java, binutils), `in-container.sh` (the
+  repository mounted at its own path; `--arm` for the engine/daemon container), `build-all-device.sh`
+  as the single entry point that fetches what is missing.
+- T-475 `e3a5f4fc`: `tools/host/build-novacom.sh`. T-476 `e0f38f07`: `tools/device/`,
+  `tools/test-servers/`, `tools/review/`. T-477 `5cace42e`: README "Building", DEVICE-BUILD.md,
+  TOOLCHAIN.md.
+
+**Verified, byte for byte:** the adapter (gcc 4.3.3, and the gcc 9 alternate) from the submodules,
+in the container too; the three packages identical in content, host and container; the daemon
+`06e75a68` through `in-container.sh --arm`; the Qt4 headers and the seven device libraries equal to
+their pins; the sysroot assembled by the recipe digest-identical to the tree every build used; the
+PDK from the Internet Archive identical to the copy in use; the toolchain rebuilt from the submodule:
+same version string, identical compiler output, byte-identical `libc-2.23.so`, `ld-2.23.so` and
+`libstdc++`, 24 of 5,652 files differ (timestamps, generated headers, logs).
+
+**The clean-clone run** (`git clone --recurse-submodules` of this repository into
+`Jihad/.jihad-cleanclone-test`, then `build-all-device.sh`; logs `Jihad/.jihad-cleanclone-build*.log`):
+- The device phase matched all eight libraries. Then 32 of the 187 sysroot packages answered 404:
+  archive.debian.org's CDN serves cached 404s for files the pool lists (trap below). `9ff7d71a`
+  retries with a cache-buster; all 187 then came and `--check` passed.
+- The engine build (hours) had run seven minutes when the PC went down (08:06 local). **Resumed at
+  09:45 local, detached** (`setsid nohup bash build/webos-oe/build-all-device.sh`, log
+  `.jihad-cleanclone-build3.log`); `mach build` continues from the object directory. When it ends,
+  compare the clone's daemon, adapter and packages with the ones here (daemon `06e75a68`, adapter
+  `4f603df3`, `build/webos-oe/out-all/`) and record the result under T-474 and R11. libxul need not
+  match byte for byte (build paths); the daemon and the adapter must.
+
+**The reboot (between 08:02 and 09:22 local) killed** the clean-clone build (resumed), the
+inspector's Tier 84 review (its transcript stops mid-read, no verdict; relaunched at 09:46 on
+`b37795fb..9ff7d71a`, T-479), and the `wormhole-rs send` of the Relay-scripts request (code
+`76-almighty-briefcase` is dead; **resent as `11-informant-upshot`**;
+`~/Documents/jihad-request-2026-10-14.tar` is the copy). T-478 asks the server agent for
+`~/squid-hardening/jihad-splice.sh` and `hide-client-addresses.sh` unchanged, with sha256s, for
+`deploy/relay/` with a README.
+
+**Device:** read-only gets over novacom only (the eight libraries, twice); nothing installed; all
+three variants on daemon `06e75a68`, `/` read-only, as the night delta left it. After the reboot
+novacomd runs from `/usr/local/bin` (the repository's `tools/host/bin` one is the same source).
+
+**Not committed, on purpose:** `.cavekit/config` carries a JSON block (session_budget) the owner
+added; left alone.
+
+**Open:** the clean-clone build's end (T-474's last box); the inspector's verdict and fixes (T-479);
+the server's reply (T-478); the finger round (deferred, by the owner's word).
+
+## 2026-10-14 delta — the site's round-24 update is live; T-470 done
 
 **The server's reply** (`4-souvenir-bluebird`, kept as `~/Documents/jihad-reply-2026-10-14.tar`,
 with the full deploy log): `f9bcb79` went live 2026-10-14 10:26 UTC through deploy-site.sh;
@@ -2644,6 +2712,16 @@ Two things worth keeping from this even if `0029` is later reverted:
   down a "it must be a vtable" dead end.
 
 **Build / deploy**
+- **archive.debian.org's CDN serves cached 404s for files the pool lists.** 32 of the 187 pinned
+  `.deb`s failed on a clean clone though every one is there; the same URL with a query string, or a
+  later try, works. `--check-urls` used to probe five and pass. The fetchers now try five times with
+  a cache-buster (`9ff7d71a`); sha256 still decides.
+- **A PC reboot kills every background job of a session, and its wormhole-rs sends with them.** A
+  wormhole code is one-use and lives in the sender process: after a reboot, resend and hand over the
+  new code. The old session's subagent transcripts survive in
+  `~/.claude/projects/<project>/<session-id>/subagents/agent-*.jsonl` (one that stops short has no
+  verdict: run it again). A detached build (`setsid nohup … &`) survives a session, not a reboot;
+  `mach build` resumes from its object directory.
 - `push-engine-update.sh` pushes libxul + daemon + goanna.js. It does **NOT** push
   `plugin-container` or the adapter — **nor the loose JS components.**
   `components/jihadInstallPrompt.js` and `components/jihadAboutPreferences.js` live in each

@@ -173,14 +173,27 @@ manifests, `arm-sysroot-debs.manifest` (187 `.deb`s) and `adapter-deps.manifest`
 per artefact plus a re-obtain path: `--fetch` pulls the whole sysroot back from `archive.debian.org`,
 and the one part that genuinely needs hardware — 7 device `.so`s — gets a written `novacom get`
 procedure. `--check` re-verifies either against what is on disk.)*
+*(2026-10-14, R11/T-472–T-474: no longer true of ASSEMBLY either. Every input is now produced by a
+script in the repository, and `build-all-device.sh` runs each one that is missing: the toolchain by
+`toolchain/build.sh` from the crosstool-NG submodule; the sysroot by `gen-sysroot-manifest.sh
+--fetch` + `--assemble`, which applies `arm-sysroot.recipe` (what was done to the unpacked packages
+by hand — glibc 2.19 removed, `/lib` copied into `/usr/lib`, six symlinks, and PulseAudio 0.9.22's
+headers, an input the table below never listed) and refuses a tree whose digest differs; the PDK by
+`fetch-pdk.sh` from the Internet Archive; the Qt4 headers and the device libraries by
+`gen-adapter-deps-manifest.sh --fetch-qt4` / `--fetch-device-libs`. The libpbnjson, yajl and
+npapi-headers checkouts became submodules, and the headers Jihad made became files in git
+(`adapter-include/`). Device-gated, still: eight libraries (the seven below plus `libpulse.so.0`),
+fetched once over novacom and checked by sha256.)*
 
 | Input | Path (git-ignored) | Size | What it is | Rebuildable? |
 |---|---|---|---|---|
 | crosstool-NG toolchain | `build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi` | 219 MB (+279 MB tarball cache) | `arm-webos-linux-gnueabi-gcc (crosstool-NG 1.25.0) 9.4.0`, glibc 2.23, armv7-a NEON softfp. `jihad-cross-toolchain-native` only CHECKS it | **YES, from source.** `toolchain/{Dockerfile,build-toolchain.sh,jihad.defconfig}` build it; all inputs are FOSS |
 | Debian Jessie armel sysroot | `build/webos-oe/arm-sysroot/root`, assembled from `arm-sysroot/debs` | 127 MB, from 185 `.deb`s (62 MB) *(187 as of 2026-08-15 — ALSA added)* | GTK2/X11/cairo/pango/fontconfig/glib that the engine links against; the 89 `.pc` files are exactly what `PKG_CONFIG_LIBDIR` points at | **YES** — stock Jessie packages, still on `archive.debian.org`. ~~No in-repo script assembles it and no manifest is recorded~~ *(2026-08-15, T-115: superseded. `gen-sysroot-manifest.sh` + the checked-in `arm-sysroot-debs.manifest` record all 187 with sha256 + pool URL, and `--fetch` re-downloads and verifies them)* |
-| Palm PDK | `build/webos-oe/pdk/opt/PalmPDK` | 442 MB | CodeSourcery `arm-none-linux-gnueabi-gcc (GCC) 4.3.3` + its device sysroot + Palm's PDL headers and device libs (`libc-2.5.so`, SDL, GLES) | **NO — PERMANENT.** Proprietary HP/Palm SDK, not redistributable, original download gone |
+| Palm PDK | `build/webos-oe/pdk/opt/PalmPDK` | 442 MB | CodeSourcery `arm-none-linux-gnueabi-gcc (GCC) 4.3.3` + its device sysroot + Palm's PDL headers and device libs (`libc-2.5.so`, SDL, GLES) | **NO — PERMANENT.** Proprietary HP/Palm SDK, not redistributable, ~~original download gone~~ *(2026-10-14: HP's `palm-sdk_3.0.5-svn528736-pho676_i386.deb` is preserved on the Internet Archive, item `webOSLegacySDK`, byte-identical to the copy used here; `fetch-pdk.sh` downloads it and checks its sha256 — still not vendored)* |
 | adapter-deps | `build/webos-oe/adapter-deps/{staging,qt4-extract,libpbnjson,yajl,npapi-headers}` | 40 MB | ~~10~~ **7** device ARM `.so`s linked against (Qt 4.8.0, pbnjson, yajl, png12) + 10 dev symlinks made here + the 25 MB Qt4 header drop + FOSS checkouts (`libpbnjson` tag `submissions/10` = `c4b0611`, `yajl` `1.0.12` = `17b1790`, `npapi-headers` `0.4` = `9d35121`) *(counts corrected 2026-08-15)* | **MIXED.** The checkouts are public git; ~~the device binaries/headers are HP builds off a TouchPad~~ *(2026-08-15, T-115: only the 7 `.so`s are — the Qt4 drop is stock Debian jessie `qt4-x11 4:4.8.6+…+deb8u1`, proven byte-identical to `archive.debian.org` and now pinned; 4 of the 5 NPAPI headers are the `npapi-headers` checkout, only `nppalmdefs.h` is Palm-only)* — re-obtainable on a device, not redistributable. Declared in `adapter-deps.manifest` |
 
+*(2026-10-14: superseded — with no argument `fetch-pdk.sh` now downloads the pinned `.deb` from the
+Internet Archive and checks its sha256; a supplied copy is checked the same way.)*
 **`fetch-pdk.sh` does not fetch anything, and that is the point.** It takes a
 `palm-sdk_3.0.5-*_i386.deb` YOU supply on the command line and `ar p` + `tar`-extracts
 `opt/PalmPDK` out of it — no URL, no version pin, no checksum. Read it before assuming a network
@@ -656,30 +669,30 @@ submodule it pins, or a fetch script in it with a checksum; nothing is read from
 a session scratchpad or an install under `/usr/local` or `/opt`. The host needs as little as
 possible, and the parts that depend on the host's age or libraries run in the build container.
 **Acceptance Criteria:**
-- [ ] No build, packaging or test script reads a path outside the repository: the fallbacks to
+- [x] No build, packaging or test script reads a path outside the repository: the fallbacks to
   `../toolchains/`, `../mochi-sampler/` and `../../webos-stacks/` are gone, and no script names the
   checkout folder (`…/Jihad-Browser/…`). The OE route's `build-webos` tree lives inside the
   repository (git-ignored output).
-- [ ] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
+- [x] Every git-hosted build dependency is a submodule pinned by commit: the engine, Enyo 2, layout
   and Mochi (already), and also crosstool-NG, libpbnjson, yajl, npapi-headers, webOS Archive's
   `webos-sdk-redux` (palm-package, novacom, novacomd, the PDK headers) and openwebos `build-webos`.
   The heavy or optional ones do not check out by default. A fresh `git clone --recurse-submodules`
   gets the rest, and the files Jihad adds to a dependency live in the repository, not in the
   dependency's checkout.
-- [ ] The inputs that are not in git are fetched by scripts in the repository and checked by sha256:
+- [x] The inputs that are not in git are fetched by scripts in the repository and checked by sha256:
   the Jessie sysroot and the Qt4 headers from archive.debian.org (already), and the Palm SDK `.deb`
   (the PDK's gcc 4.3.3) from the Internet Archive. Only the seven device libraries need a TouchPad
   (novacom, already in `adapter-deps.manifest`).
-- [ ] The host needs only git, podman (or docker) and the common tools every distribution has
+- [x] The host needs only git, podman (or docker) and the common tools every distribution has
   (bash, coreutils, curl, tar, xz). The PDK's 32-bit compiler and palm-package's Java run inside
   the build container, so a host without 32-bit libraries or Java builds the adapter and the three
   packages, and the result is the same as the host-run build (same adapter `.so` bytes; same
   package contents).
-- [ ] novacom and novacomd for talking to a TouchPad build from the `webos-sdk-redux` submodule
+- [x] novacom and novacomd for talking to a TouchPad build from the `webos-sdk-redux` submodule
   with one script, and the README names the packages it needs on the main distribution families.
-- [ ] The README has a "Building" section: the host packages for apt, dnf, pacman, zypper, xbps and
+- [x] The README has a "Building" section: the host packages for apt, dnf, pacman, zypper, xbps and
   apk systems, then the steps from a clean clone to the three `.ipk`s and onto a TouchPad.
-- [ ] The device test helpers and the review runner that lived in a session scratchpad are in
+- [x] The device test helpers and the review runner that lived in a session scratchpad are in
   `tools/`, with no session paths in them.
 
 **Dependencies:** R1, R3
@@ -692,6 +705,13 @@ possible, and the parts that depend on the host's age or libraries run in the bu
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-14 (later): R11's seven criteria `[x]` (Tier 84, T-471…T-477; evidence per task in
+  build-site.md and in PICKUP's 2026-10-14 (later) delta): every build output rebuilt byte-identical
+  from the repository alone — the adapter (both compilers), the daemon `06e75a68`, the three
+  packages (in the containers too), the sysroot by the recipe, the PDK from the Internet Archive,
+  the toolchain from the crosstool-NG submodule. The clean-clone run (`Jihad/.jihad-cleanclone-test`)
+  got every input without the host's copies; its engine build was still running when this was
+  written. R3's prebuilt-inputs carve-out above is annotated accordingly. Review: T-479.
 - 2026-10-14: R11 added (the owner): one repository builds Jihad on any x86_64 Linux, with build
   dependencies as git submodules.
 - 2026-10-06 (later): R7/R8 re-verified on webOS CE 3.1.0 through the supported installer (`org.webosinternals.ipkgservice/remove`, then `/install` + `/rescan`) for Enyo and Mojo, Mochi's having been done on 2026-10-05: `prerm` left no app dir, job, shim, impl, role/service file, state dir or socket; the hub answered "Service does not exist" for the removed name; the other two daemons kept their PIDs; the citizen-audit diff around each removal shows only the variant's own entries (the package-registry directory stays, empty — known); the fresh install's postinst registered the role live (hub rescan), the db8 kinds (Enyo), and started the daemon from the app's own `deviceroot` with the Luna service up on first start (no `LSRegisterPalmService … FAILED`); a card rendered Wikipedia; Palefill landed in each fresh profile (Mojo's after ~70 s of an open card — the add-on manager comes ready late in this embedding; the installer retries at every start until it lands). Enyo's history was exported from db8 before and put back after; Mojo's localStorage history restored from the backup. The installer leaves `/` read-write (known); remounted read-only afterwards.

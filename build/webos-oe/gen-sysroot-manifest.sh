@@ -43,24 +43,7 @@ RECIPE="$HERE/arm-sysroot.recipe"
 REPO="$(cd "$HERE/../.." && pwd)"
 MIRROR="${DEBIAN_ARCHIVE_MIRROR:-http://archive.debian.org/debian}"
 
-# archive.debian.org sits behind a CDN that has been seen serving a cached 404 for a file the
-# archive has (2026-10-14: 32 of the 187 sysroot packages). The same URL with a query string goes
-# past the cache; the sha256 check after the download is what guarantees the content.
-# A cached 200 with the wrong bytes is retried the same way, and curl's own error stays visible.
-fetch_url() { # <url> <file> [sha256]: succeeds only with the file downloaded and, if given, matching
-  local i url got
-  for i in 0 1 2 3 4 5; do
-    if [ "$i" = 0 ]; then url="$1"; else sleep "$i"; url="$1?nocache=$RANDOM$RANDOM"; fi
-    rm -f "$2"
-    if curl -fsSL --retry 3 -m 600 -o "$2" "$url"; then
-      [ -n "${3:-}" ] || return 0
-      got="$(sha256sum "$2" | cut -d' ' -f1)"
-      [ "$got" = "$3" ] && return 0
-      echo "   sha256 $got is not the pinned $3; trying again past the cache" >&2
-    fi
-  done
-  rm -f "$2"; return 1
-}
+. "$(dirname "$0")/fetch-lib.sh"   # fetch_url: pinned downloads with the CDN retry
 
 # Debian pool prefix: source packages starting with "lib" live under lib<x>/, all others
 # under <x>/ where <x> is the first letter.

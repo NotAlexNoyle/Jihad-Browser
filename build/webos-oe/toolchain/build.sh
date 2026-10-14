@@ -24,6 +24,8 @@ VER="$(git -C "$CTNG" describe --tags --exact-match 2>/dev/null)" || { echo "!! 
 VER="${VER#crosstool-ng-}"
 OUT="${TOOLCHAIN_OUT:-$HERE/out-toolchain}"
 mkdir -p "$OUT"
+# The source tarballs first, by the repository's manifest (ct-ng is forbidden to download).
+bash "$HERE/fetch-tarballs.sh" "$OUT/src"
 "$ENGINE" build -t jihad-xtool-build "$HERE"
 # Who the container runs as, so that /out ends up the invoking user's whatever their uid:
 #   podman  keep-id maps the invoking user into the container, but it KEEPS the image's USER

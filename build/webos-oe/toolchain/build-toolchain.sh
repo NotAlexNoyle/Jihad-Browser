@@ -12,6 +12,8 @@ set -euo pipefail
 
 MODE="${1:-config}"
 WORK=/home/builder/ctng-work
+# ct-ng's own log is the only record of a failed step; the working tree is not on /out, so keep it.
+trap 'cp -f "$WORK/build.log" /out/ct-ng-build.log 2>/dev/null || true' EXIT
 
 # crosstool-NG from the submodule: copied (bootstrap writes into its tree), told its version (no
 # git in here; git-version-gen reads .tarball-version), bootstrapped and installed under $HOME.
@@ -62,12 +64,14 @@ set_cfg() { # $1=SYMBOL $2=value(with quotes already)
     fi
 }
 # Install prefix + local tarball cache inside the persistent /out mount
-# (${CT_TARGET} = arm-webos-linux-gnueabi). Pre-seeded tarballs (e.g. the kernel
-# headers that kernel.org blocks here) live in /out/src and are used as-is.
+# (${CT_TARGET} = arm-webos-linux-gnueabi). Every tarball is in /out/src already, fetched by the
+# repository's own manifest (fetch-tarballs.sh); ct-ng may not download, so a missing one fails
+# here, loudly, instead of on an upstream mirror that moved.
 mkdir -p /out/src
 set_cfg CT_PREFIX_DIR '"/out/x-tools/${CT_TARGET}"'
 set_cfg CT_LOCAL_TARBALLS_DIR '"/out/src"'
 set_cfg CT_SAVE_TARBALLS 'y'
+set_cfg CT_FORBID_DOWNLOAD 'y'
 ct-ng olddefconfig
 ct-ng "build.$(nproc)"
 

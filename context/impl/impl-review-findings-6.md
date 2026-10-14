@@ -838,3 +838,12 @@ is exactly what the criterion was for. Fixed: podman runs the images that set a 
 invoking user onto builder; the process is builder and its files land on the host as the user
 (shown in the VM). jihad-host-tools has no USER and keeps plain keep-id. The run was then started
 again from the same clone.
+
+**Second VM failure (2026-10-14):** with the uid fixed, crosstool-NG died in its own download
+step (zlib: zlib.net keeps only its newest release; ct-ng 1.25.0's mirror list is from 2022). On
+this PC every tarball sat in `out-toolchain/src/`, so no build here had downloaded one since the
+first. Fixed: `toolchain/tarballs.manifest` (18 tarballs, sha256, size, candidate URLs, generated
+from that cache) and `toolchain/fetch-tarballs.sh`, run by `build.sh` before the container; ct-ng
+gets `CT_FORBID_DOWNLOAD=y`, so a gap fails at once and by name. Every URL exercised from the PC:
+18 of 18 fetched and matched in 45 s. ct-ng's `build.log` is now kept as `out-toolchain/ct-ng-build.log`.
+`fetch_url` moved to `build/webos-oe/fetch-lib.sh`, sourced by the three fetchers.

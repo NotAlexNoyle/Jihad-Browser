@@ -5,6 +5,59 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-14 (evening) delta — public on GitHub; the licensing audit; R11 on a Fedora VM (READ FIRST)
+
+**The owner:** "Fix it so everyone can clone and build (redistributable webos app)", "Resolve R11 with
+qemu", "dont ship any secrets in the code including login names", "ensure that all software patent
+and trademark licenses in the repo are being respected".
+
+**Public.** The owner pushed the engine branch `jihad/uxp-RB_20261006` (`706d4782`) to
+`NotAlexNoyle/UXP-Jihad`, then this branch and `main` (fast-forward, 268 commits) to
+`NotAlexNoyle/Jihad-Browser`, both at `62df604c`. A clone from GitHub passes
+`tools/host/check-pins.sh`: eleven of eleven pins fetch from their public URLs. Every `git push` is
+the owner's: the permission classifier refuses them here (memory `pushes-are-the-owners`).
+
+**No login names.** `deploy/relay/` scripts read `/home/<admin>`; the builder's home in five docs is
+`~`. The owner's address stays as the author line of the 39 engine patch files (git's record).
+
+**Licensing** (impl-review-findings-6.md "Licensing audit", commit `62df604c`): a read-only audit
+of what the packages carry found no blocker. Closed: NOTICE names the bundled runtime (glibc 2.23
+as crosstool-NG modifies it, the GCC 9.4.0 runtime with the Runtime Library Exception, eight Debian
+jessie libraries, the FreeType disclaimer, Lato, the hyphenation patterns) with a corresponding-
+source paragraph; `licenses/` carries LGPL-2.1, GPL-3.0, the GCC exception and Debian's copyright
+files, and every package ships all of it plus CREDITS.md (payload preflight checks three of them);
+NOTICE names the modified engine's source; README and LICENSE name the component licences and the
+live Moonchild policy pages; Apache 4(b) change notices on 29 HP-derived files; DuckDuckGo's icon
+is a drawn magnifier (`list-icon-search.png`), Bing's logo gone; the engine's `services-sync.js`
+defaults are blanked at bundle time (`make-device-bundle.sh`, checked: 7 palemoon.org lines → 0);
+"Blazer" keyword and the Goanna-mark tagline gone; stray files removed. Patents: nothing encumbered
+built or shipped (ffvpx = VP8/VP9/FLAC; no libavcodec, H.264, AAC, AV1, Widevine). **Deferred to
+the next engine build** (the patches are commits on the engine branch): about:credits' unresolvable
+URL (patch 0010) and `--disable-ffmpeg`. **To confirm with the owner:** CREDITS.md says the logo
+was supplied by them in 2026 as the project's own.
+
+**R11 on another host (criterion 4), QEMU/KVM:** Fedora 44 Cloud, SELinux Enforcing, user
+`jihadbuild` uid 1001, podman 5.8.1 (`scratchpad/vm/`: `run-vm.sh`, `seed.iso` with the
+cloud-init user, `guest-build.sh`, `start-git-daemon.sh`; the guest clones this checkout over a
+host `git daemon` at 10.0.2.2 and the submodules from GitHub; the eight device libraries copied
+in). It found two clean-clone gaps the uid-1000 PC never could, both fixed and committed:
+- `--userns=keep-id` keeps the image's `USER builder` (1000) as the process, so a uid-1001 user
+  could not write the mounts: podman now maps the user onto builder
+  (`keep-id:uid=1000,gid=1000`) for the two images that set a USER (`a5acfd50`).
+- crosstool-NG's 2022 mirror list no longer serves zlib 1.2.12: `toolchain/tarballs.manifest`
+  (18 tarballs, sha256, URLs) and `fetch-tarballs.sh` run before ct-ng, which may no longer
+  download (`72ef295f`, `f8abe74e` — the first commit had the two files ignored by
+  `toolchain/*`, a trap).
+The third run is building (toolchain at "Installing C library" at the 14-minute mark; the engine
+follows). When it ends: compare its daemon, impls and packages with this checkout's; criterion 4
+`[x]` with "Fedora 44, SELinux Enforcing, uid 1001" as the evidence; then `sudo poweroff` the guest
+(`ssh -i scratchpad/vm/id_vm -p 2222 jihadbuild@127.0.0.1`) and stop the git daemon
+(`kill $(cat scratchpad/vm/git-daemon.pid)`). The VM lives in the session scratchpad (/tmp): a
+reboot loses it.
+
+**Device:** the three packages rebuilt with the licensing payload are being pushed (enyo done,
+mochi and mojo following); a check of impls, shims and a page load in each follows.
+
 ## 2026-10-14 (round 25) delta — the inspector's review of Tier 84, fixed, on the device; the clean clone matches (READ FIRST)
 
 **Done this session:** the inspector reviewed `b37795fb..9ff7d71a` (REQUEST CHANGES: 2 P1, 7 P2,

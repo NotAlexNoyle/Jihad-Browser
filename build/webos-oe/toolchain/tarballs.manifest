@@ -1,0 +1,24 @@
+# toolchain/tarballs.manifest — the source tarballs crosstool-NG 1.25.0 needs for jihad.defconfig
+# (gcc 9.4.0, glibc 2.23, binutils 2.38, kernel 4.4.302 headers, the companion libraries and the
+# debug tools), measured 2026-10-14 from the cache every toolchain build here used. Columns, tab
+# separated: file, sha256, size, candidate URLs (space separated; the sha256 decides). Fetched by
+# fetch-tarballs.sh into out-toolchain/src/ before ct-ng runs; ct-ng is then forbidden to download.
+# Regenerate: re-run the generator in the round-25 commit, or edit a row when a version moves.
+binutils-2.38.tar.xz	e316477a914f567eccc34d5d29785b8b0f5a10208d36bbacedcc39048ecfe024	23651408	https://ftpmirror.gnu.org/gnu/binutils/binutils-2.38.tar.xz https://ftp.gnu.org/gnu/binutils/binutils-2.38.tar.xz https://sourceware.org/pub/binutils/releases/binutils-2.38.tar.xz
+duma_2_5_15.tar.gz	baaf794854e3093ad1bddadbfb8ad4b220a7117d70359ee216bd59e353734e17	240479	https://downloads.sourceforge.net/project/duma/duma/2.5.15/duma_2_5_15.tar.gz
+expat-2.4.1.tar.xz	cf032d0dba9b928636548e32b327a2d66b1aab63c4f4a13dd132c2d1d2f2fb6a	445024	https://github.com/libexpat/libexpat/releases/download/R_2_4_1/expat-2.4.1.tar.xz https://downloads.sourceforge.net/project/expat/expat/2.4.1/expat-2.4.1.tar.xz
+gcc-9.4.0.tar.xz	c95da32f440378d7751dd95533186f7fc05ceb4fb65eb5b85234e6299eb9838e	72411232	https://ftpmirror.gnu.org/gnu/gcc/gcc-9.4.0/gcc-9.4.0.tar.xz https://ftp.gnu.org/gnu/gcc/gcc-9.4.0/gcc-9.4.0.tar.xz https://gcc.gnu.org/pub/gcc/releases/gcc-9.4.0/gcc-9.4.0.tar.xz
+gdb-11.2.tar.xz	1497c36a71881b8671a9a84a0ee40faab788ca30d7ba19d8463c3cc787152e32	22039420	https://ftpmirror.gnu.org/gnu/gdb/gdb-11.2.tar.xz https://ftp.gnu.org/gnu/gdb/gdb-11.2.tar.xz https://sourceware.org/pub/gdb/releases/gdb-11.2.tar.xz
+gettext-0.21.tar.xz	d20fcbb537e02dcf1383197ba05bd0734ef7bf5db06bdb241eb69b7d16b73192	9714352	https://ftpmirror.gnu.org/gnu/gettext/gettext-0.21.tar.xz https://ftp.gnu.org/gnu/gettext/gettext-0.21.tar.xz
+glibc-2.23.tar.xz	94efeb00e4603c8546209cefb3e1a50a5315c86fa9b078b6fad758e187ce13e9	13455260	https://ftpmirror.gnu.org/gnu/glibc/glibc-2.23.tar.xz https://ftp.gnu.org/gnu/glibc/glibc-2.23.tar.xz
+gmp-6.2.1.tar.xz	fd4829912cddd12f84181c3451cc752be224643e87fac497b69edddadc49b4f2	2027316	https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz https://ftpmirror.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
+isl-0.24.tar.bz2	fcf78dd9656c10eb8cf9fbd5f59a0b6b01386205fe1934b3b287a0a1898145c0	2261594	https://libisl.sourceforge.io/isl-0.24.tar.bz2 https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2
+libelf-0.8.13.tar.gz	591a9b4ec81c1f2042a97aa60564e0cb79d041c52faa7416acb38bc95bd2c76d	148529	https://fossies.org/linux/misc/old/libelf-0.8.13.tar.gz http://ftp.osuosl.org/pub/blfs/conglomeration/libelf/libelf-0.8.13.tar.gz
+libiconv-1.16.tar.gz	e6a1b1b589654277ee790cce3734f07876ac4ccfaecbee8afa0b649cf529cc04	5166734	https://ftpmirror.gnu.org/gnu/libiconv/libiconv-1.16.tar.gz https://ftp.gnu.org/gnu/libiconv/libiconv-1.16.tar.gz
+linux-4.4.302.tar.xz	35017bb40b604e0b577fc2b87e727632b46608a2ba3a4f5858b9177f58f376b3	90889740	https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.4.302.tar.xz https://mirrors.edge.kernel.org/pub/linux/kernel/v4.x/linux-4.4.302.tar.xz
+ltrace_0.7.3.orig.tar.bz2	0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503	482658	http://deb.debian.org/debian/pool/main/l/ltrace/ltrace_0.7.3.orig.tar.bz2 http://archive.debian.org/debian/pool/main/l/ltrace/ltrace_0.7.3.orig.tar.bz2
+mpc-1.2.1.tar.gz	17503d2c395dfcf106b622dc142683c1199431d095367c6aacba6eec30340459	838731	https://ftpmirror.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz http://www.multiprecision.org/downloads/mpc-1.2.1.tar.gz
+mpfr-4.1.0.tar.xz	0c98a3f1732ff6ca4ea690552079da9c597872d30e96ec28414ee23c95558a7f	1525476	https://www.mpfr.org/mpfr-4.1.0/mpfr-4.1.0.tar.xz https://ftpmirror.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
+ncurses-6.2.tar.gz	30306e0c76e0f9f1f0de987cf1c82a5c21e1ce6568b9227f7da5b71cbea86c9d	3425862	https://ftpmirror.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz https://invisible-mirror.net/archives/ncurses/ncurses-6.2.tar.gz
+strace-5.16.tar.xz	dc7db230ff3e57c249830ba94acab2b862da1fcaac55417e9b85041a833ca285	2265944	https://github.com/strace/strace/releases/download/v5.16/strace-5.16.tar.xz https://strace.io/files/5.16/strace-5.16.tar.xz
+zlib-1.2.12.tar.gz	91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9	1490071	https://www.zlib.net/fossils/zlib-1.2.12.tar.gz https://downloads.sourceforge.net/project/libpng/zlib/1.2.12/zlib-1.2.12.tar.gz

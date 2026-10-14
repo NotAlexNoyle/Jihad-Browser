@@ -703,11 +703,14 @@ possible, and the parts that depend on the host's age or libraries run in the bu
 - [ ] Pins are public: every gitlink in `.gitmodules` fetches from its URL for someone without this
   machine's objects, checked by `tools/host/check-pins.sh` before a tier that moves a pin is called
   done.
-- [~] Builds do not depend on where the checkout is: no shipped binary or text names the checkout
+- [x] Builds do not depend on where the checkout is: no shipped binary or text names the checkout
   path or the builder's login name, and two checkouts at different paths give the same adapter
   bytes and package contents (BUNDLED-VERSIONS' date aside). *(2026-10-14, round 25: the impl
   carried a Qt header's `__FILE__` through `Q_ASSERT`, the checkout path and the login name in it;
-  `-DQT_NO_DEBUG` ends it. `[x]` when the clean clone's adapter equals this checkout's.)*
+  `-DQT_NO_DEBUG` ends it. Shown: the clean clone at `Jihad/.jihad-cleanclone-test` and this
+  checkout give byte-identical shims (3), impls (3, `1bafcc0c`/`4b8c44ba`/`a5c205d1`) and daemon
+  (`06e75a68`), and the three packages hold the same files; libxul differs (its build paths), as
+  expected.)*
 
 **Dependencies:** R1, R3
 
@@ -719,6 +722,10 @@ possible, and the parts that depend on the host's age or libraries run in the bu
 - See also: cavekit-engine-embedding.md, cavekit-desktop-build.md, cavekit-browser-services.md, cavekit-ipc-contract.md, cavekit-ui-shell.md, cavekit-mochi-ui.md
 
 ## Changelog
+- 2026-10-14 (round 25, later): the new "path-independent builds" criterion `[x]`: the clean clone
+  at another path gives byte-identical shims, impls and daemon, and the same package contents
+  (libxul's build id apart). The round-25 impls are on the device, all three variants, example.com
+  loaded and painted in each. Criterion 2 waits on the engine push, criterion 4 on another host.
 - 2026-10-14 (round 25, the inspector on Tier 84; build site T-479): R11 criteria 2 and 4 back to
   `[~]` (the engine pin is not on the public fork; the host criterion shown on one host only);
   criterion 3 says eight libraries; two criteria added, public pins and path-independent builds.

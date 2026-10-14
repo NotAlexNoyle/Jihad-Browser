@@ -5,7 +5,7 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-14 (round 25) delta — the inspector's review of Tier 84, fixed; cut off by the usage limit (READ FIRST)
+## 2026-10-14 (round 25) delta — the inspector's review of Tier 84, fixed, on the device; the clean clone matches (READ FIRST)
 
 **Done this session:** the inspector reviewed `b37795fb..9ff7d71a` (REQUEST CHANGES: 2 P1, 7 P2,
 16 P3; round 25 in impl-review-findings-6.md, every finding with its disposition). All fixed in
@@ -17,19 +17,26 @@ path any more, 178,196 bytes each; the shims unchanged, `BrowserAdapterJihad.so`
 (enyo 1.0.4 `7bd178a1`, mochi `19f5a5bd`, mojo `ccfb5b58`). The Relay's two Squid scripts are in
 `deploy/relay/` with a README (T-478 done; the server's hashes match).
 
-**The clean clone** (`Jihad/.jihad-cleanclone-test`, at `9ff7d71a` plus nothing): its engine and
-daemon built from its own inputs, **the daemon byte-identical (`06e75a68`)**; its adapter failed on
-dangling symlinks because four submodules had empty working trees from the aborted first clone
-(restored with `git submodule update --init --force`; the build script now catches that state).
+**The clean clone** (`Jihad/.jihad-cleanclone-test`, now at `59040faf`): its engine and daemon built
+from its own inputs; its adapter first failed on dangling symlinks because four submodules had
+empty working trees from the aborted first clone (restored with `git submodule update --init
+--force`; the build script now catches that state). With the fixes pulled, `build-all-device.sh`
+ran end to end there: **shims (3), impls (3: `1bafcc0c`, `4b8c44ba`, `a5c205d1`) and the daemon
+(`06e75a68`) byte-identical to this checkout's**, the three packages' 2,235 / 2,485 / 2,179 files
+identical but libxul (its build id: `platform.ini` BuildID and `jihad-bundle.id` follow it) and
+Mochi's BUNDLED-VERSIONS date; the control scripts identical. R11's "path-independent builds" is
+`[x]`. The clone (several GB) can be deleted, or kept for the next R11 check.
 
-**Next, in order:** (1) `git -C Jihad/.jihad-cleanclone-test -c protocol.file.allow=always pull
---ff-only`, then `build/webos-oe/build-all-device.sh` there; compare its impls and packages with
-this checkout's (the "path-independent builds" criterion `[x]` if the impls match byte for byte).
-(2) Push the three packages to the device: the runner is three `push-variant.sh` calls
-(enyo, mochi, mojo); then a card in each, and set T-479 DONE, R11's evidence, the "Device state"
-below. (3) The owner's answer on pushing the engine branch; then `check-pins.sh` again and
-criterion 2. The device was NOT touched this session beyond read-only novacom gets: all three
-variants still run the impls WITH the home path.
+**On the device:** the three packages pushed with `push-variant.sh` (enyo, mochi, mojo, the real
+postinst each). `/usr/lib/jihad/<v>/BrowserAdapterImpl.so` is the round-25 impl in each (md5s above,
+no home string), the app copies the same, the shims unchanged (`4f603df3`, so no reboot was needed),
+daemon `06e75a68` on all three, `/` read-only. Each variant launched on https://example.com/ loaded
+("load done", the title) and painted. The cards were closed by the check script's close call.
+
+**Still open:** (1) the engine push — `jihad/uxp-RB_20261006` (`706d4782`) to the fork, the
+owner's decision, then `tools/host/check-pins.sh` and R11 criterion 2 `[x]`; (2) R11 criterion 4
+wants one run on an SELinux host or another uid; (3) the finger round (deferred). The server: the
+confirmation `46-intention-quota` sent, no reply needed; nothing pending there.
 
 ## 2026-10-14 (later) delta — Tier 84: one repository builds Jihad; the PC rebooted mid-session
 
@@ -2885,6 +2892,9 @@ prints each tag code and character ID is enough, and it is what caught the ID co
 
 ## Device state as left
 
+- **2026-10-14 (round 25):** all three variants on daemon `06e75a68` with the round-25 impls
+  (`1bafcc0c` enyo, `4b8c44ba` mochi, `a5c205d1` mojo; no home path), shims unchanged, no test
+  hooks, no proxy, `/` read-only. Each was launched once on https://example.com/ and closed.
 - **2026-08-10, later session:** the enyo daemon and libxul now also carry the frame-pacing work
   (`PumpReady`, the 1:1 seq gate, patch `0028`, the tick/gap counters). `/etc/event.d/jihad`
   carries `JIHAD_TICK_MS=16` and `JIHAD_PLUGIN_FRAME_MS=33` as device-local additions ALONGSIDE

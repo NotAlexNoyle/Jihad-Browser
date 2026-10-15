@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-content-blocking.md R1): loads from hosts on the lists and
+     from this page's own host. With blocking on, the listed ones are refused (the daemon logs
+     "blocked …", the page shows "refused"); the own-host ones load. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-blocking</title>
+<style>li{font:16px sans-serif;margin:6px} .ok{color:#060} .bad{color:#900}</style></head>
+<body><h1>jihad-blocking</h1><ul id="r"></ul>
+<script>
+var tests = [
+  ["script", "https://www.google-analytics.com/analytics.js", "EasyPrivacy ||google-analytics.com^"],
+  ["img",    "https://ad.doubleclick.net/ddm/ad/pixel.gif", "EasyList ||doubleclick.net^"],
+  ["script", "https://static.ads-twitter.com/uwt.js", "EasyPrivacy ||ads-twitter.com^"],
+  ["img",    "https://www.facebook.com/tr?id=1&ev=PageView", "EasyPrivacy ||facebook.com/tr? (a path rule: refused since compiler v2)"],
+  ["img",    location.href.replace(/[^\/]*$/, "") + "jihad-plain-ok.png", "own host (must load, or 404 — never 'refused')"]
+];
+function row(t, cls) { var li = document.createElement("li"); li.className = cls; li.textContent = t; document.getElementById("r").appendChild(li); }
+tests.forEach(function (t) {
+  var el = document.createElement(t[0]);
+  var done = false;
+  el.onload = function () { if (!done) { done = true; row("loaded   " + t[1] + "  (" + t[2] + ")", "ok"); } };
+  el.onerror = function () { if (!done) { done = true; row("refused/failed  " + t[1] + "  (" + t[2] + ")", "bad"); } };
+  el.src = t[1];
+  if (t[0] === "script") document.head.appendChild(el); else document.body.appendChild(el);
+});
+</script></body></html>

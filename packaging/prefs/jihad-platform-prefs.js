@@ -177,3 +177,18 @@ pref("jihad.proxy.relay.trust_ca", false);
 // Trust the CA certificates webOS has that HP's image did not (a community update, Certificate
 // Manager), other than ones Mozilla removed (R4). components/jihadCerts.js.
 pref("jihad.security.webos_certs", true);
+
+// --- The modern web on the device (cavekit-modern-web.md R2) ---
+// UXP stops a content script after dom.max_script_run_time seconds (15) and asks the user. On the
+// TouchPad's 1.2 GHz ARM, pages that finish in 3 s on a desktop take 20-40 s (The Verge's Next.js
+// chunk brought the dialog at 15 s on 2026-10-15), so working pages were interrupted. 60 s keeps
+// the guard for runaway scripts (render/goanna/test/jihad-busy.html still brings it) and lets slow
+// pages finish. Never 0: that removes the guard.
+pref("dom.max_script_run_time", 60);
+
+// --- Content blocking (cavekit-content-blocking.md) — components/jihadContentBlocker.js ---
+pref("jihad.blocking.enabled", true);      // refuse loads from EasyList/EasyPrivacy hosts
+pref("jihad.blocking.cosmetic", true);     // hide the frames adverts leave (EasyList's generic rules)
+pref("jihad.blocking.log", true);          // one daemon-log line per refused load
+pref("jihad.blocking.lastUpdate", 0);      // seconds; the lists are refreshed at most every 4 days
+pref("jihad.blocking.versions", "");       // "<easylist version>/<easyprivacy version>" in use

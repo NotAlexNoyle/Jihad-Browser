@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view: Jihad Mojo on Wikipedia's webOS article, Jihad Enyo on the webOS Archive's home page wearing the Free Palestine Persona, and Jihad Mochi on Wikipedia's Palm article wearing Aurora Silk" width="900">
+  <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view, on a Frutiger Aero backdrop: Jihad Mojo on the Internet Archive's home page, Jihad Enyo on MDN's CSS reference with its adverts blocked, and Jihad Mochi on BBC News" width="900">
 </p>
 
 ---
@@ -100,6 +100,14 @@ certificate checks need the right date.
 
 <br clear="right">
 
+### Ads and trackers, stopped in the engine
+
+Jihad refuses loads from the hosts on **EasyList** and **EasyPrivacy** before they leave the device,
+and hides the frames adverts leave, in all three interfaces, with no add-on to install. The lists
+are bundled and refreshed from easylist.to every four days; Settings → Privacy switches it, shows
+the list versions and counts what was refused. (The lists are by The EasyList authors, used under
+the GNU GPL v3 or later; see `CREDITS.md`.)
+
 ### And
 
 - **Three interfaces, one engine:** lightweight **Mojo** with round buttons, the classic **Enyo**
@@ -121,7 +129,11 @@ Install the `.ipk` for the interface you want with **Preware** or **WebOS Quick 
 | **Jihad Mochi** (newer design) | `net.riverstonerelay.jihad-browser-mochi` |
 
 **Known issues:** the engine draws in software, so frame rates are the device's; double-tap zoom
-takes about a second to sharpen; Mochi's text can look soft at some zoom levels.
+takes about a second to sharpen; Mochi's text can look soft at some zoom levels. Sites built as
+ES-module apps load their frame but not their script-driven parts (GitHub's commit list and
+README, Mastodon's timeline): the engine's module loading is behind them. Cloudflare's "verifying
+you are human" check does not pass yet. How today's sites behave, site by site, with causes and
+fixes: `docs/MODERN-WEB.md`.
 
 **Developers:** start at `docs/PICKUP.md` (current state), `docs/DEVICE-BUILD.md` (building) and
 `docs/ENGINE.md` (how Jihad uses the engine, and how to update it).

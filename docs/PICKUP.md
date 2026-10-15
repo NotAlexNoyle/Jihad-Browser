@@ -5,6 +5,84 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-15 (afternoon) delta — the modern web ledger; an ad and tracker blocker in the engine (READ FIRST)
+
+**The owner:** "dont show wikipedia. showcase the modern web", then, on three sites failing in one
+screenshot round: "dont just breeze past that. document and fix issues loading the modern web.
+build in an ad and tracker blocker if possible (following license terms)". Also "cardview.jpg
+should be unthemed screenshots with a frutiger aero background to the cards in the image".
+
+**Kits and tiers (new):** `context/kits/cavekit-modern-web.md` (R1 ledger, R2 slow-script guard,
+R3 Cloudflare, R4 GitHub, R5 Wikipedia) and `context/kits/cavekit-content-blocking.md` (R1–R7);
+build site Tier 85 (T-480…T-484) and Tier 86 (T-485…T-490); both in the overview.
+
+**The ledger** `docs/MODERN-WEB.md`: every site of the day with result, cause and disposition.
+Works: webosarchive, pivotce, howsmyssl, Bloxorz, codeberg, archive.org, mozilla.org, BBC News,
+DuckDuckGo Lite, MDN, The Verge (at the 60 s guard). Partial: GitHub (deferred parts stay grey),
+Mastodon (empty column), DuckDuckGo's full results page (an engine-feature case). Blocked:
+w3.org (Cloudflare's check, even with the UA rule — console output pending).
+
+**Fixed and device-verified:** T-481 `dom.max_script_run_time` 60 (`packaging/prefs/
+jihad-platform-prefs.js`; The Verge renders in full, the endless script `jihad-busy.html` still
+brings the dialog). **Built, not yet proven:** T-482 the `challenges.cloudflare.com` UA rule in
+`EngineHost.cpp` (daemon `out-arm/jihad-browserserver-arm` 10:55, on Mochi); w3.org still stops.
+
+**The blocker (T-485, T-486, T-488 in progress):** `render/goanna/components/jihadContentBlocker.js`
+— EasyList + EasyPrivacy (`third_party/easylist/`, snapshots 202610151429, GPLv3+, sha256-pinned,
+bundled raw under `blocklists/` by `make-device-bundle.sh`; NOTICE, CREDITS, about:jihad, the
+About pane) compiled on the device in JavaScript in slices (2.5 s), cached in
+`<profile>/jihad-blocklists/compiled.json`; `nsIContentPolicy` in the content-policy category;
+EasyList's hiding rules as one USER_SHEET; prefs `jihad.blocking.*`; 4-day updates from
+easylist.to; Settings → Privacy → "Content blocking" (two switches, a live text row, the first
+button row: `text`/`button` row types in `preferences.js`). First device test on Mochi: 91,924
+hosts, doubleclick and ads-twitter refused, the Settings rows live ("3 requests blocked since
+start"). Then widened (compiler v2) to typed rules (`$script,third-party`: google-analytics),
+`||host/path` prefixes (MDN's own `/pong/` adverts) and site-specific hiding rules
+(`@-moz-document domain()` blocks): retest pending. Test pages: `jihad-blocking.html`,
+`jihad-blocking-many.html`, `jihad-busy.html`; `tools/host/count-blocklist.py` is the independent
+count (host 48,717/43,229, typed 60/141, path 1,528/4,051, site selectors 8,051/23).
+
+**Dev loop for the blocker (no package rebuild):** the session's `push-blocker.sh`: every file
+`novacom put` to the device's `/tmp` (one session at a time — this novacomd answers a second
+session with "unexpected EOF from server"), then ONE `dev-sh.sh` script that stops the job, copies
+into `deviceroot/hl/` (`components/`, `blocklists/`, `prefsui/content/`, the daemon), appends the
+manifest line to `chrome.manifest`, clears `profile/jihad-blocklists` and `startupCache`, starts
+the job. A `stop` through a 4-second `novacom run` hold breaks the next session; hold longer.
+The blocking defaults were appended to Mochi's `goanna.js` by hand for the test (the package
+build writes them from `jihad-platform-prefs.js`).
+
+**Page errors on the device:** `JIHAD_JS_CONSOLE=all` — the job's `script` section copied to
+`/tmp/jihad-dbg.sh` with the variable on the `exec env` line and run in the background of a
+long-held `dev-sh.sh` while the job is stopped (the session's `console2.sh`); window the log by
+line number after the newest "bridge on" (it rotates at 2 MB); the method is in
+`docs/MODERN-WEB.md`. **What it showed (12:14–12:18):** w3.org — Cloudflare's Turnstile runs
+without a script error and fails on its own verdict (T-482's UA rule is not enough; the next
+experiment is a current Firefox token on the site's own requests = moving the base UA's
+`Firefox/52.9`, the owner's call); GitHub — `ReferenceError: Turbo is not defined`, and Mastodon
+— `SyntaxError: import.meta may only appear in a module`: ES-module loading, upstream UXP, no
+configuration applies (T-483 done, rows dispositioned).
+
+**The README:** "Ads and trackers, stopped in the engine" section; Known issues links the ledger;
+the hero to be retaken on modern sites that work (Internet Archive, MDN without adverts, BBC
+News) at the Default look on the Frutiger Aero backdrop (`readme-art.py` `wallpaper()` draws it
+with `make-personas.py`'s primitives) — not yet composed or committed.
+
+**Round 2 (T-491/T-492, the owner 2026-10-15: "browse the modern web as a pretend user for about
+30 minutes. document any issues you find and then tackle them … also address any performance
+issues you encounter"):** `tools/device/browse-round.sh` + `browse-round-sites.txt` (30 deep
+URLs, 28 min of dwell) run through `dev-sh.sh -t 2400` in Mochi with the console on all sources;
+one `@@` line per visit (load-done, paints, refusals, errors, first paint, load time, fps,
+worst tick, RSS, load average) and a shot `/tmp/shot-r2-<name>.png`; `tools/device/
+browse-round-analyse.py <log>` makes the ledger table and the issue list by the kit's thresholds
+(cavekit-modern-web.md R6). Runs after the final package push; its "Round 2" section goes into
+`docs/MODERN-WEB.md`, then the fixes.
+
+**Device:** Mochi runs the new daemon + blocker (dev push); Enyo and Mojo the packaged state;
+Mojo and Mochi profiles carry `dom.max_script_run_time=60` as user prefs; all variants at the
+Default look. **Open:** the retest, w3.org/GitHub console output, the memory and timing numbers
+(R6, R3), the package rebuild with everything (`build-all-device.sh --skip-arm` then
+`push-variant.sh` ×3), the inspector's review (T-490), the hero, the commit.
+
 ## 2026-10-15 delta — the README rewritten with new screenshots (READ FIRST)
 
 **The owner (2026-10-14 evening, the session the PC crash cut off):** "In the readme there should be

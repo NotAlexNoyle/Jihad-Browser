@@ -366,6 +366,34 @@ MANIFEST
 	done
 	echo "  bundled add-ons: Palefill 1.30 (unmodified, sha256 verified), offered once per profile"
 fi
+# Content blocking (cavekit-content-blocking.md): EasyList and EasyPrivacy ship RAW, unmodified,
+# pinned by SHA-256 like Palefill (third_party/easylist/README.md: origin, versions, the GPLv3+
+# choice of their dual licence). components/jihadContentBlocker.js compiles them on the device.
+EASYLIST_DIR="$REPO/third_party/easylist"
+EASYLIST_SHA256=241caa88e276e1707c605eb44bcf53053c2eaf8f108aabd278e29a5a2ee92102
+EASYPRIVACY_SHA256=744da111e46b1f0f14afc6423d09fd569dc86506272f2208c96ac820753392f8
+BLOCKER_JS="$REPO/render/goanna/components/jihadContentBlocker.js"
+[ -f "$BLOCKER_JS" ] || { echo "ERROR: $BLOCKER_JS is missing (NOTICE promises the content blocker)" >&2; exit 1; }
+for pair in "easylist.txt:$EASYLIST_SHA256" "easyprivacy.txt:$EASYPRIVACY_SHA256"; do
+	f="${pair%%:*}"; want="${pair#*:}"
+	[ -f "$EASYLIST_DIR/$f" ] || { echo "ERROR: $EASYLIST_DIR/$f is missing" >&2; exit 1; }
+	got=$(sha256sum "$EASYLIST_DIR/$f" | cut -c1-64)
+	[ "$got" = "$want" ] || { echo "ERROR: $EASYLIST_DIR/$f is not the snapshot named in its README and NOTICE (sha256 $got)" >&2; exit 1; }
+done
+mkdir -p "$OUT/blocklists" "$OUT/components"
+cp -L "$EASYLIST_DIR/easylist.txt" "$EASYLIST_DIR/easyprivacy.txt" "$OUT/blocklists/"
+cp -L "$EASYLIST_DIR/README.md" "$OUT/blocklists/README.md"
+cp -L "$BLOCKER_JS" "$OUT/components/jihadContentBlocker.js"
+cat > "$OUT/components/jihad-content-blocker.manifest" <<'MANIFEST'
+# Jihad Browser — ads and trackers blocked in the engine (EasyList, EasyPrivacy). Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {3c7e1b9a-5d24-4f6e-8a0b-9e2d4c6f1a37} jihadContentBlocker.js
+contract @riverstonerelay.net/jihad/content-blocker;1 {3c7e1b9a-5d24-4f6e-8a0b-9e2d4c6f1a37}
+category content-policy @riverstonerelay.net/jihad/content-blocker;1 @riverstonerelay.net/jihad/content-blocker;1
+MANIFEST
+if ! grep -q '^manifest components/jihad-content-blocker.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+	echo 'manifest components/jihad-content-blocker.manifest' >> "$OUT/chrome.manifest"
+fi
+echo "  content blocking: components/jihadContentBlocker.js + blocklists/ (EasyList, EasyPrivacy; sha256 verified)"
 # Lightweight themes ("personas" — Firefox 52 / Pale Moon / Basilisk): the browser's half of
 # the engine's LightweightThemeManager (components/jihadPersonas.js). Required: the kit promises
 # the feature (cavekit-addons-extensions.md R10).

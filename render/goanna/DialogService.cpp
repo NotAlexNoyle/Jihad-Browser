@@ -548,6 +548,12 @@ bool InstallDialogService() {
     // Jihad trusts only its own roots, or does not follow webOS's proxy.
     nsCOMPtr<nsISupports> certs = do_GetService("@riverstonerelay.net/jihad/certs;1");
     if (!certs) fprintf(stderr, "[jihad-bs] certs: component absent, webOS's certificates are not trusted\n");
+    // Content blocking (cavekit-content-blocking.md): components/jihadContentBlocker.js refuses
+    // loads from EasyList/EasyPrivacy hosts (it is also in the content-policy category, so the
+    // first load creates it even without this; created here so the lists compile off the
+    // start-up path, before the first page needs them). Absent means nothing is blocked.
+    nsCOMPtr<nsISupports> blocker = do_GetService("@riverstonerelay.net/jihad/content-blocker;1");
+    if (!blocker) fprintf(stderr, "[jihad-bs] blocker: component absent, ads and trackers are not blocked\n");
     nsCOMPtr<nsISupports> proxy = do_GetService("@riverstonerelay.net/jihad/proxy;1");
     if (!proxy) fprintf(stderr, "[jihad-bs] proxy: component absent, webOS's proxy setting is not followed\n");
     nsCOMPtr<nsISupports> xpiPrompt =

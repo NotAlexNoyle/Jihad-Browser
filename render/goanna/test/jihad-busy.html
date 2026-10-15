@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R2): an endless script. The engine's slow-script
+     guard (dom.max_script_run_time) must still bring the "script may be busy" dialog, and
+     "Stop script" must recover the card. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-busy</title></head>
+<body><h1>jihad-busy</h1><p>An endless script starts 2 s after load. The slow-script dialog must appear.</p>
+<script>setTimeout(function () { for (;;) {} }, 2000);</script></body></html>

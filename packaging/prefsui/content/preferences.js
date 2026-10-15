@@ -158,6 +158,19 @@ const PANES = [
 				]
 			},
 			{
+				title: "Content blocking",
+				rows: [
+					{pref: "jihad.blocking.enabled", type: "bool", label: "Block ads and trackers",
+					 help: "Loads from the hosts on EasyList and EasyPrivacy are refused in the engine, before they leave the device. The page you asked for always opens."},
+					{pref: "jihad.blocking.cosmetic", type: "bool", label: "Hide the frames adverts leave",
+					 help: "EasyList's generic hiding rules, applied as one stylesheet to every page."},
+					{type: "text", label: "The lists", value: blockerStatusText, live: true,
+					 help: "EasyList and EasyPrivacy, by The EasyList authors (GNU GPL v3 or later), refreshed from easylist.to every four days."},
+					{type: "button", label: "Update the lists now", button: "Update", action: blockerUpdate,
+					 help: "Downloads both lists from easylist.to and uses them if they are newer."}
+				]
+			},
+			{
 				title: "History",
 				rows: [
 					{pref: "places.history.enabled", type: "bool", label: "Remember my browsing history",
@@ -754,20 +767,57 @@ function echoWrite(row, value) {
 	         true);
 }
 
+// --- Content blocking (cavekit-content-blocking.md R4): the component's state, for the two text
+// and button rows of the Privacy pane. The component is the daemon's; absent means this build has
+// no blocker, and the line says so.
+let gLiveRows = [];
+function blocker() {
+	try { return Cc["@riverstonerelay.net/jihad/content-blocker;1"].getService(Ci.nsISupports).wrappedJSObject; }
+	catch (e) { return null; }
+}
+function blockerStatusText() {
+	let b = blocker();
+	if (!b) { return "Not available in this build."; }
+	let s = b.state();
+	if (!s.loaded) { return "Loading the lists\u2026"; }
+	let d = s.lastUpdate ? new Date(s.lastUpdate * 1000).toISOString().slice(0, 10) : "never";
+	return "EasyList " + (s.versions.easylist || "?") + " \u00b7 EasyPrivacy " + (s.versions.easyprivacy || "?") +
+		", updated " + d + "; " + s.count + " requests blocked since start" +
+		(s.updating ? " \u00b7 updating\u2026" : "") + (s.error ? " \u00b7 last update failed: " + s.error : "");
+}
+function blockerUpdate() { let b = blocker(); if (b) { b.update(); } }
+
 function buildRow(row) {
 	let wrap = el("div", "row");
-	let known = prefExists(row.pref);
-	let value = known ? readPref(row) : null;
+	// A row without a pref ("text": a line read from a component; "button": an action) is never
+	// "unavailable" for want of a pref; it says so itself when its component is absent.
+	let known = row.pref ? prefExists(row.pref) : true;
+	let value = (known && row.pref) ? readPref(row) : null;
 
 	let label = el("label", "row-label");
 	let labelText = (row.invert && row.labelWhenInverted) ? row.labelWhenInverted : row.label;
 	label.appendChild(document.createTextNode(labelText));
-	let name = el("div", "row-pref", row.pref);
-	label.appendChild(name);
+	if (row.pref) { label.appendChild(el("div", "row-pref", row.pref)); }
 	if (row.help) { label.appendChild(el("div", "row-help", row.help)); }
 
 	let control;
-	if (row.type === "bool") {
+	if (row.type === "text") {
+		control = el("div", "row-text", "");
+		let paint = function () { try { control.textContent = String(row.value()); } catch (e) { control.textContent = "—"; } };
+		paint();
+		control.addEventListener("repaint", paint, false);
+		// A live line (a counter) repaints while the pane is shown; renderPane clears these.
+		if (row.live) { gLiveRows.push(setInterval(paint, 3000)); }
+	} else if (row.type === "button") {
+		control = el("button", "btn", row.button || row.label);
+		control.setAttribute("type", "button");
+		control.addEventListener("click", function () {
+			try { row.action(); } catch (e) {}
+			// the text rows (the versions line) follow at once
+			let texts = document.querySelectorAll(".row-text");
+			setTimeout(function () { for (let i = 0; i < texts.length; i++) { texts[i].dispatchEvent(new Event("repaint")); } }, 500);
+		}, false);
+	} else if (row.type === "bool") {
 		control = document.createElement("input");
 		control.setAttribute("type", "checkbox");
 		control.className = "cb";
@@ -1782,6 +1832,8 @@ function renderChromePane(host) {
 }
 
 function renderPane(id) {
+	for (let i = 0; i < gLiveRows.length; i++) { clearInterval(gLiveRows[i]); }
+	gLiveRows = [];
 	gPane = id;
 	let pane = null;
 	for (let i = 0; i < PANES.length; i++) {
@@ -1892,6 +1944,7 @@ function renderAboutPane(host) {
 		"The browser's interface and its IPC daemon: Apache License 2.0 — built on HP/Palm's isis-browser for webOS.",
 		"The engine (UXP / Goanna) and its Jihad backend: Mozilla Public License 2.0. Pale Moon, Basilisk and Moonchild trademarks are removed from this build.",
 		"Palefill (web technologies polyfill), by Martok and contributors: Mozilla Public License 2.0, shipped unmodified.",
+		"EasyList and EasyPrivacy, the ad and tracker lists, by The EasyList authors (easylist.to): GNU General Public License v3 or later, shipped unmodified and refreshed from easylist.to.",
 		"Adobe Flash Player is the device's own plugin; Jihad loads it, it does not ship it.",
 		"webOS, Enyo and Mojo are the frameworks of Palm / HP webOS; Mochi is Enyo 2's webOS-styled library."
 	];

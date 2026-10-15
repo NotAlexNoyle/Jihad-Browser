@@ -81,6 +81,23 @@ Palefill Web Technologies Polyfill (bundled add-on)
   a zip of the add-on's source files, so the package contains its source form;
   the same file is published at the origin above. See third_party/palefill/README.md.
 
+EasyList and EasyPrivacy (bundled filter lists, data)
+  Copyright (c) The EasyList authors, https://easylist.to/
+  Dual-licensed by their authors under the GNU General Public License v3 or
+  later, or Creative Commons Attribution-ShareAlike 3.0 or later; Jihad Browser
+  takes them under the GPL v3 or later (licenses/GPL-3.0.txt).
+  Origin: https://easylist.to/easylist/easylist.txt
+          https://easylist.to/easylist/easyprivacy.txt
+  Snapshots of upstream version 202610151429 (15 Oct 2026), UNMODIFIED
+  (sha256 241caa88e276e1707c605eb44bcf53053c2eaf8f108aabd278e29a5a2ee92102 and
+   744da111e46b1f0f14afc6423d09fd569dc86506272f2208c96ac820753392f8).
+  Every Jihad Browser package carries both raw in the engine's blocklists/
+  directory; the content blocker (render/goanna/components/jihadContentBlocker.js,
+  MPL-2.0) compiles them on the device into the sets it blocks with and refreshes
+  them from the origin above. The lists are data the engine reads, not code linked
+  into it; the compiled form is a derivative of the lists under the same licence.
+  See third_party/easylist/README.md.
+
 Atlas Browser (parallel isis-browser fork) — ported fixes
   Copyright (c) Herman van Hazendonk (Herrie82) and the Atlas Browser project.
   Licensed under the Apache License, Version 2.0.

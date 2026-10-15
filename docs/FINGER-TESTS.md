@@ -112,3 +112,4 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 ## Not testable at all
 - Keyboard arbitration on the card side: hardware-blocked (no keyboard exists).
 - TouchPad Go: owner-accepted without hardware (device-build R6).
+- [ ] 2026-10-15, modern-web R2: open `file:///tmp/jihad-busy.html` (staged by stage-test-pages.sh or by hand), wait for the "script may be busy" dialog (about 60 s), tap **Stop script**: the card must come back and stay usable.

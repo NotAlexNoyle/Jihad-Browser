@@ -108,6 +108,11 @@ static const JihadUaRule kJihadUaTable[] = {
   { "gitlab.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
   { "microsoft.com",  "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
   { "office.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
+  // Cloudflare's bot check (cavekit-modern-web.md R3): sites behind it (w3.org, 2026-10-15) stayed on
+  // "Performing security verification" for ever. Pale Moon's forum (the CloudFlare thread, 2025)
+  // found it is user-agent sniffing: a per-host override for the challenge host passes it. A
+  // current Firefox ESR token, like the rest of this table; never a Pale Moon or Basilisk one.
+  { "challenges.cloudflare.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
 };
 
 // Return the override UA for a host, walking up the sub-domain chain (www.reddit.com -> reddit.com),

@@ -37,6 +37,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 // --- the pane table ---------------------------------------------------------
 // type: "bool" | "int" | "string" | "choice"
+//   "text" (a read-only line from a function, live if `live`), "button" (an action; `busy` disables it)
 //   choice rows carry `options: [[value, label], ...]`; values are ints when the
 //   pref is an int pref, strings when it is a string pref.
 // Every `pref` below is a real engine pref; nothing here is invented, so a row
@@ -163,10 +164,10 @@ const PANES = [
 					{pref: "jihad.blocking.enabled", type: "bool", label: "Block ads and trackers",
 					 help: "Loads from the hosts on EasyList and EasyPrivacy are refused in the engine, before they leave the device. The page you asked for always opens."},
 					{pref: "jihad.blocking.cosmetic", type: "bool", label: "Hide the frames adverts leave",
-					 help: "EasyList's generic hiding rules, applied as one stylesheet to every page."},
+					 help: "EasyList's hiding rules: the generic ones as one stylesheet for every page, a site's own ones for that site."},
 					{type: "text", label: "The lists", value: blockerStatusText, live: true,
 					 help: "EasyList and EasyPrivacy, by The EasyList authors (GNU GPL v3 or later), refreshed from easylist.to every four days."},
-					{type: "button", label: "Update the lists now", button: "Update", action: blockerUpdate,
+					{type: "button", label: "Update the lists now", button: "Update", action: blockerUpdate, busy: blockerBusy,
 					 help: "Downloads both lists from easylist.to and uses them if they are newer."}
 				]
 			},
@@ -779,6 +780,7 @@ function blockerStatusText() {
 	let b = blocker();
 	if (!b) { return "Not available in this build."; }
 	let s = b.state();
+	if (s.noLists) { return "No lists in this build: nothing is blocked."; }
 	if (!s.loaded) { return "Loading the lists\u2026"; }
 	let d = s.lastUpdate ? new Date(s.lastUpdate * 1000).toISOString().slice(0, 10) : "never";
 	return "EasyList " + (s.versions.easylist || "?") + " \u00b7 EasyPrivacy " + (s.versions.easyprivacy || "?") +
@@ -786,6 +788,7 @@ function blockerStatusText() {
 		(s.updating ? " \u00b7 updating\u2026" : "") + (s.error ? " \u00b7 last update failed: " + s.error : "");
 }
 function blockerUpdate() { let b = blocker(); if (b) { b.update(); } }
+function blockerBusy() { let b = blocker(); return b ? !!b.state().updating : true; }
 
 function buildRow(row) {
 	let wrap = el("div", "row");
@@ -803,7 +806,10 @@ function buildRow(row) {
 	let control;
 	if (row.type === "text") {
 		control = el("div", "row-text", "");
-		let paint = function () { try { control.textContent = String(row.value()); } catch (e) { control.textContent = "—"; } };
+		let paint = function () {
+			let t; try { t = String(row.value()); } catch (e) { t = "\u2014"; }
+			if (control.textContent !== t) { control.textContent = t; }      // no reflow when nothing changed
+		};
 		paint();
 		control.addEventListener("repaint", paint, false);
 		// A live line (a counter) repaints while the pane is shown; renderPane clears these.
@@ -811,8 +817,10 @@ function buildRow(row) {
 	} else if (row.type === "button") {
 		control = el("button", "btn", row.button || row.label);
 		control.setAttribute("type", "button");
+		if (row.busy) { let b = function () { try { control.disabled = !!row.busy(); } catch (e) {} }; b(); gLiveRows.push(setInterval(b, 1500)); }
 		control.addEventListener("click", function () {
 			try { row.action(); } catch (e) {}
+			control.disabled = true;
 			// the text rows (the versions line) follow at once
 			let texts = document.querySelectorAll(".row-text");
 			setTimeout(function () { for (let i = 0; i < texts.length; i++) { texts[i].dispatchEvent(new Event("repaint")); } }, 500);

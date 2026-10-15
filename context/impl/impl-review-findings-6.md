@@ -873,3 +873,40 @@ libavcodec, openh264, GStreamer, x264, AAC or Widevine in the bundle; `MOZ_AV1='
 **Trademarks:** Pale Moon / Basilisk / Moonchild identity is out of libxul (zero hits), no upstream
 logo ships, "Goanna" is used nominatively, HP/Palm/webOS nominatively with the README's disclaimer,
 no Adobe or HP binary is vendored.
+
+## Round 26 — Tier 86 (content blocking); the inspector, 2026-10-15
+
+The inspector read the kit, `jihadContentBlocker.js` (as of compiler v2), the Settings rows, the
+bundle and ipk scripts, the notices and the test pages, ran its own compiler over the pinned lists
+(it reproduced the device's counts exactly) and read the UXP sources the code depends on.
+**Verdict: REQUEST CHANGES** — 1 P1, 6 P2, 15 P3. Every finding and what was done (component v5,
+`4ccb91f4` → this commit):
+
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| F-1 | P1 | The "own host" short-circuit ran before path rules, so `\|\|developer.mozilla.org/pong/` never fired; MDN's advert stayed; the kit contradicted itself. | **Fixed in v3 before the report arrived** (path rules decided before the own-host accept; device: `blocked fetch developer.mozilla.org`, MDN clean, `cb3-mdn`). v5 orders: exceptions, path rules, then host rules with the own-host exemption. Kit R1 rewritten. |
+| F-2 | P2 | Exceptions with options (1,604) were skipped, turning EasyList's breakage fixes into blocks; `$generichide`/`$elemhide`/`$document` (173, LAN addresses among them) skipped; site exceptions against generic selectors (269) ignored. | **Fixed (v5):** optioned exceptions (path, types, party, `$domain=`, `~domain`) kept per host and checked first at every level; generichide sites and `://192.168.`-style prefixes scope the generic sheet away (`@-moz-document regexp` with a negative lookahead); a generic selector with site exceptions gets its own block excluding those sites. Kit R1/R3: "an exception is never silently dropped". |
+| F-3 | P2 | R5's "never while a page is loading" not implemented. | **Fixed (v5):** no update work within 20 s of a document starting (the `document-element-inserted` observer timestamps); the kit says so. |
+| F-4 | P2 | Cache path read both raw lists in full for the version, rewrote and re-parsed the sheet on every start; the compile tail did heavy single-tick work; v2's sheet 4.3× larger and unmeasured. | **Fixed:** the version from the first 2 KB; the sheet file written only when compiled and registered as it is on a cache load; the exception pass indexed by domain (v3: 21.6 s → 5.9 s); site rules out of the global sheet and loaded per document (v4/v5), so the global sheet is the generic 190 KB again. Memory re-measured on the device (the A/B in the ledger). |
+| F-5 | P2 | Dependent strings pin the raw list text after a compile; `_css` kept for life; three daemons compile and update in lockstep. | **Fixed (v5):** installed from the cache's own JSON parse, never from the source text; the CSS text dropped once written; a random offset on the update timer. |
+| F-6 | P2 | CREDITS.md and the README's alt text described a card view not yet on disk (Free Palestine still on the Enyo card). | **Open until the hero is retaken** (after the package push; the owner's brief: unthemed, Internet Archive / MDN without adverts / BBC News); the commit `4ccb91f4` carries the inconsistency knowingly, this commit fixes it or the next. |
+| F-7 | P2 | Tests could pass without testing: `doubleclick.net` is not a blocked host; a file:// page has no page host; labels wrong; 40 of the 200 images were not refused. | **Fixed:** `ad.doubleclick.net` in the kit; `jihad-blocking.html` rewritten with the rule and the expectation per line, served over http from the host for the party cases; `jihad-blocking-many.html` from twenty plain-rule hosts. |
+| F-8 | P3 | Typed rules for one host merged into one mask (click.aliexpress.com). | **Fixed (v5):** a list of `{types, party}` per host. |
+| F-9 | P3 | An exception on a parent domain did not beat a block on a subdomain. | **Fixed (v5):** all exception levels first. |
+| F-10 | P3 | Path rules dropped `$third-party` (154) and matched case-sensitively (428 with uppercase). | **Fixed (v5):** party per prefix; prefixes and paths case folded. |
+| F-11 | P3 | Type map: imageset unmapped, beacon vs ping, object-subrequest unmapped, a dead fetch bit, wrong labels, downloads blockable. | **Fixed (v5):** imageset→image, beacon and ping→ping, object-subrequest→object, fetch→xmlhttprequest, labels corrected, `TYPE_SAVEAS_DOWNLOAD` never refused; the kit's type list aligned. |
+| F-12 | P3 | A site selector with unbalanced brackets could swallow the rest of the sheet; procedural selectors emitted. | **Fixed (v5):** selectors with procedural pseudo-classes, `;`, `@`, `/*` or unbalanced brackets are counted as bad and dropped; site rules are per document anyway. |
+| F-13 | P3 | Updater: `_updating` cleared early; no background/anonymous/uncached flags; no truncation check; no try/catch; `lastUpdate` not flushed; future dates; 6-hourly retries; partial success. | **Fixed (v5):** `_updating` held through the compile; `mozBackgroundRequest`, `LOAD_ANONYMOUS`, `LOAD_BYPASS_CACHE`, `INHIBIT_CACHING`; a download with under half the rules is refused as truncated; try/catch around the finish; prefs saved; a future `lastUpdate` clamped; a failed attempt waits a day (`jihad.blocking.lastAttempt`); `lastUpdate` advances only on success. The button forces it. |
+| F-14 | P3 | The profile's download always preferred over a newer bundled snapshot; non-atomic writes; the plain-stream comment misdiagnosed the bug. | **Fixed (v5):** the newer of the two by version; atomic writes done right (flush, then finish); the comment says what happened. |
+| F-15 | P3 | The master switch left the sheet registered. | **Fixed (v5):** hiding gated on both prefs. |
+| F-16 | P3 | Refusals logged the page-chosen request host, by default, hundreds a page. | **Fixed (v5):** the matched list entry is logged, `jihad.blocking.log` off by default (on for test rounds). |
+| F-17 | P3 | The page host computed (eight Xray reads) on every load before any lookup. | **Fixed (v5):** lazy; computed only when a rule needs the party or the own-host check. |
+| F-18 | P3 | Redirects, preconnect and DNS prefetch bypass a content policy; the kit said "before they leave the device". | **Fixed (v5):** an `http-on-modify-request` check on `LOAD_REPLACE` channels; `network.dns.disablePrefetch` and `network.http.speculative-parallel-limit=0` as defaults; the kit says what is closed. |
+| F-19 | P3 | Settings: a reflow every 3 s; the button not disabled while updating; no "no lists" state; comments. | **Fixed:** `textContent` compared first; the button disabled while `state().updating`; "No lists in this build"; the row-type comment and the help text. |
+| F-20 | P3 | about:jihad, CREDITS and the lists' README incomplete; the bundle compared hashes with its own constants; REQUIRED and the ipk payload check without the lists, the component, the GPL text. | **Fixed:** about:jihad names the version, the dual licence and the choice, where the text ships; CREDITS the version and `blocklists/`; the README v5's sets; the bundle greps each hash in NOTICE and the README; REQUIRED and the ipk check list all three files and `licenses/GPL-3.0.txt`. |
+| F-21 | P3 | `count-blocklist.py` copies the compiler's regexes. | **Partly:** fixed test vectors with hand-counted expectations (`count-blocklist-vectors.txt`, `--check`); still the same regex family — an independent tokenizer is a later task. |
+
+Correct by the inspector's reading, kept: one instance (category cache + `do_GetService`), prefs at
+start-up, the external content types, the domain walk and party, CSS cannot be injected, failure
+handling of the cache and the updater, the plain-stream fix itself, the Settings rows' safety, the
+packaging and the NOTICE entry (complete), taking the lists under GPLv3+.

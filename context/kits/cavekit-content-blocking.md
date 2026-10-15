@@ -45,17 +45,23 @@ and about:jihad, and with the upstream version line of each snapshot kept.
 
 ### R1: Hosts on the lists are not loaded
 **Description:** A component in the GRE (`render/goanna/components/jihadContentBlocker.js`,
-registered in the `content-policy` category) implements `nsIContentPolicy.shouldLoad`. For a load
-of type script, image, stylesheet, subdocument, XMLHttpRequest, fetch, media, font, object, ping,
-beacon or websocket whose host — or any parent domain of it — is in the block set, it returns
-`REJECT_REQUEST`. Never blocked: the top-level document (a listed site still opens when the user
-asks for it), and a load whose host equals the document's own host. Rules marked `$third-party`
-block only when the request's base domain (the eTLD service) differs from the document's. Rules
-with type options and/or `third-party` (`||google-analytics.com^$script,third-party,xmlhttprequest`)
-block those types under that party rule; `||host/path` rules block loads whose path starts with the
-prefix (MDN's own advert server, `||developer.mozilla.org/pong/`). An exception rule `@@||host^`
-removes that host and its subdomains from blocking. *(The typed and path shapes were added after
-the first device test, 2026-10-15: without them google-analytics loaded and MDN's advert stayed.)*
+registered in the `content-policy` category) implements `nsIContentPolicy.shouldLoad`, and an
+`http-on-modify-request` observer repeats the decision for a REDIRECTED channel (which the policy
+never sees again). A load of any type but the document itself and a download the user asked for
+is refused (`REJECT_REQUEST`) when it matches:
+- a **host rule** (`||host^`): the host or any parent domain; never for the page's own host;
+- a **third-party host rule** (`||host^$third-party`): as above, only when the request's base
+  domain (the eTLD service) differs from the page's;
+- a **typed rule** (`||host^$script,third-party,xmlhttprequest`, ~200): those types under that party
+  rule, each rule for a host kept separately;
+- a **path rule** (`||host/path`, ~5,600; with or without `$third-party`): the request's path (case
+  folded) starts with the prefix — on the page's own host too (MDN's own `/pong/` advert server);
+unless an **exception** matches first, at any level of the domain walk: `@@||host^`, and its
+optioned forms with a path, types, a party and `$domain=` lists (~1,600). **An exception is never
+silently dropped**: the first device test with only bare exceptions turned EasyList's breakage
+fixes into blocks (inspector F-2). What a content policy cannot see is closed by prefs while the
+blocker ships: `network.dns.disablePrefetch` and `network.http.speculative-parallel-limit=0`, so a
+listed host is not contacted before a load is asked for.
 **Acceptance Criteria:**
 - [x] On the device, a page that references `https://www.google-analytics.com/analytics.js` and `https://doubleclick.net/…` (`render/goanna/test/jihad-blocking.html`) loads with those requests refused: the daemon log shows one `[jihad-bs] js-console (no source):0 blocker: blocked <type> <host> on <page host>` line per refusal (the component logs through Services.console, as the other components do) and the page's own script reports `onerror` for them; the page's first-party image and script load.
 - [ ] The top-level navigation to a listed host (e.g. `https://doubleclick.net/`) is NOT blocked (the page opens, or fails for its own reasons).
@@ -85,11 +91,15 @@ versions it came from, and rebuilt when the raw text or the compiler version cha
 (`##.ad-banner`, `###adbox`; ~13,000) — become one user stylesheet (`nsIStyleSheetService`,
 `USER_SHEET`) of `selector { display: none !important }`, limited to http(s) documents, registered
 when hiding is on and unregistered when it is off. Site-specific rules (`a.com,b.com##selector`,
-~8,000) go into the same sheet as `@-moz-document domain(a.com),domain(b.com)` blocks, one CSS rule
-per selector so a selector the engine cannot parse drops only itself (MDN's banner,
-`developer.mozilla.org##.page-layout__banner`). Generic exceptions (`#@#selector`) and site
-exceptions (`a.com#@#selector`) remove a selector. Complex generic selectors and `~domain`
-negations are counted as skipped.
+~8,000) are kept per domain and loaded into a document of that domain only
+(`nsIDOMWindowUtils.loadSheetUsingURIString`, one CSS rule per selector so a selector the engine
+cannot parse drops only itself; MDN's banner, `developer.mozilla.org##.page-layout__banner`):
+no page pays for the 8,000 rules it cannot match. Generic exceptions (`#@#selector`) remove a
+selector; a site exception against a generic selector (`53.com#@##ad-rotator`) scopes that
+selector away from the site; `$generichide`/`$elemhide`/`$document` exceptions take a site (or an
+address prefix such as `://192.168.`) out of the generic sheet. Selectors with procedural
+pseudo-classes, unbalanced brackets, `;`, `@` or `/*` are counted as bad; complex generic selectors
+and `~domain` negations as skipped.
 **Acceptance Criteria:**
 - [x] `developer.mozilla.org/en-US/docs/Web/CSS` on the device shows no advert and no empty advert frame in the sidebar (screenshot, before and after). *(Before: `enyo-wiki` 10:25 (banner + sidebar advert); after v3: `cb3-mdn` 12:34, neither — the banner by the site rule, the sidebar by the `/pong/` path rule.)*
 - [ ] The sheet's cost is measured: the daemon's `load done` time for a reference page (the MDN page, cached) with hiding on is within 15% of the time with it off, three runs each, numbers in the ledger.
@@ -113,20 +123,24 @@ effect-verified (cavekit-preferences-ui.md's rule), in all three variants.
 ### R5: The lists stay current
 **Description:** Both lists say `! Expires: 4 days`. The component fetches
 `https://easylist.to/easylist/easylist.txt` and `easyprivacy.txt` no more often than every 4 days
-(a timer off the start-up path, and never while a page is loading), keeps the download only if it
-parses and its `! Version:` is newer, compiles it (R2) and swaps the sets in place; on any failure
-it keeps what it has. The bundled snapshot is the fallback forever. Updates are logged.
+(a timer off the start-up path with a random offset so three daemons do not fetch together, and
+not within 20 s of a page starting), through an anonymous, uncached, background request (no
+cookies, no cache, no prompts), keeps the download only if it parses, its `! Version:` is newer and
+it is not truncated (at least half the rules it replaces), compiles it (R2) and swaps the sets in
+place; on any failure it keeps what it has and waits a day before the next try; a clock set back
+cannot postpone it. Whichever of the bundled snapshot and the download is newer is used, so a
+package upgrade's snapshot is not shadowed by an older download. Updates are logged.
 **Acceptance Criteria:**
 - [ ] A forced update on the device (the button, or `jihad.blocking.lastUpdate` cleared) downloads both files over HTTPS, logs the versions and the counts, and the next page is blocked by the new set (a rule present only in the new list is honoured).
 - [ ] With the network off, the update fails cleanly: a log line, no change, no dialog.
-- [ ] The download is not attempted more often than every 4 days (the timestamp pref, checked across a daemon restart).
+- [ ] The download is not attempted more often than every 4 days (the timestamp pref, checked across a daemon restart), and a failed attempt not more often than daily (`jihad.blocking.lastAttempt`).
 **Dependencies:** R2
 
 ### R6: It fits the device
 **Description:** Three daemons may run at once on a 1 GB TouchPad. The block set is kept compact
 and its cost measured.
 **Acceptance Criteria:**
-- [ ] The daemon's `VmRSS` (`/proc/<pid>/status`) with the sets loaded, minus without, is recorded for one variant and is under 12 MB; if it is not, the representation changes (a sorted joined string with binary search, or a typed-array hash) until it is. *(Measured 2026-10-15, Mochi idle after a cache load: 69.8 MB with, 33.4 MB without = **+36 MB**, over budget; the breakdown (sets vs the parsed stylesheet) is being measured, then the heavy part changes.)*
+- [ ] The daemon's `VmRSS` (`/proc/<pid>/status`) with the sets loaded, minus without, is recorded for one variant and is under 12 MB; if it is not, the representation changes (a sorted joined string with binary search, or a typed-array hash) until it is. *(Measured 2026-10-15, Mochi idle after a cache load: 69.8 MB with, 33.4 MB without = **+36 MB**, over budget. The breakdown: hiding on 70.3, hiding off 70.1, blocking and hiding off with the component loaded 69.8 — the stylesheet costs nothing; the cost is the sets and what the 3 MB cache parse leaves behind. v5.1 asks for a `memory-pressure heap-minimize` once the sets are installed; re-measured after the package push. If that is not enough, the sets move to one joined string with binary search.)*
 - [ ] `shouldLoad` adds no visible latency: a page with 200 third-party image requests (`render/goanna/test/jihad-blocking-many.html`) has a `load done` time within 10% of the time with blocking off.
 - [ ] The daemon's memory-pressure guardrail (cavekit-browser-services.md R2) is not triggered by the sets on a fresh start.
 **Dependencies:** R1, R2

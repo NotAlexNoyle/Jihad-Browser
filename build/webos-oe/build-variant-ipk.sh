@@ -237,7 +237,9 @@ for V in $VARIANTS; do
   for f in "deviceroot/hl/jihad-browserserver" "deviceroot/hl/ld-2.23.so" \
            "deviceroot/BrowserPlugins/$V_SHIM" "deviceroot/event.d/$V_JOB" \
            "BrowserAdapterImpl.so" "LICENSE" "NOTICE" "CREDITS.md" \
-           "licenses/LGPL-2.1.txt" "licenses/GCC-exception-3.1.txt" "licenses/runtime/libfreetype6.copyright.txt"; do
+           "licenses/LGPL-2.1.txt" "licenses/GCC-exception-3.1.txt" "licenses/runtime/libfreetype6.copyright.txt" \
+           "licenses/GPL-3.0.txt" "deviceroot/hl/components/jihadContentBlocker.js" \
+           "deviceroot/hl/blocklists/easylist.txt" "deviceroot/hl/blocklists/easyprivacy.txt"; do
     case $'\n'"$DATA"$'\n' in
       *"/$f"$'\n'*) : ;;
       *) die "[$V] .ipk payload is missing $f" ;;

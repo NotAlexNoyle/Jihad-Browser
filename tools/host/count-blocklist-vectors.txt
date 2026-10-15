@@ -1,0 +1,20 @@
+[Adblock Plus 2.0]
+! Version: 000000000000
+! Fixed test vectors for tools/host/count-blocklist.py (cavekit-content-blocking.md R2, inspector F-21):
+! expected: rules=16 host=2 host3p=1 hostTyped=2 path=2 exc=1 cosmetic=2 cosmeticExc=1 siteCosmetic=2 siteCosmeticExc=1 skipped=2
+||ads.example.com^
+||tracker.example.net^
+||cdn.example.org^$third-party
+||analytics.example.com^$script,third-party,xmlhttprequest
+||pixel.example.com^$image
+||www.example.com/pong/
+||www.example.com/ads/$third-party
+@@||good.example.com^
+##.ad-banner
+###adbox
+#@#.sponsored
+example.com,example.net##.site-ad
+example.org###sidebar-ad
+example.com#@#.site-ad
+||wild.example.com/*/ads.js
+||regex.example.com^$popup

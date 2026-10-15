@@ -5,6 +5,47 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-15 (evening) — WHERE IT STOPPED: the usage limit (READ FIRST)
+
+The session ended at its usage limit at about 13:35 with these exact next steps, in order:
+1. **Push the v5.1 packages** (`build/webos-oe/out-all/`, 13:20: enyo `71dc8063`, mochi `1440d170`,
+   mojo `34927e9f`; component v5.1, the daemon with the about:jihad text): the session's
+   `final-push.sh` was `push-variant.sh enyo; mochi; mojo` then a check of each variant's daemon
+   md5, `blocklists/`, `goanna.js` prefs, `chrome.manifest` line and the blocker's start line. One
+   novacom session at a time (memory `one-novacom-session-at-a-time`).
+2. **Verify v5.1** (the session's `verify5.sh`, recreate from PICKUP if the scratchpad is gone):
+   `python3 -m http.server 8077` in `render/goanna/test/` on the host (the device reaches
+   http://192.168.1.245:8077/), then in Mochi `jihad-blocking.html` over http (expect: the two host
+   rules and the typed script refused, the typed image loaded, the facebook `/tr?` path refused,
+   facebook's favicon and the page's own image loaded; the log lines say `blocked <type> by
+   <rule>` with `jihad.blocking.log` true as a user pref), MDN clean, Settings → Privacy in Enyo
+   and Mojo (the four rows), `about:jihad` (the lists' credit), `jihad-jsbench.html` in Mojo (the
+   title line carries the ms; host V8: loop 167 ms; a JIT on this ARM ≈ 10×, an interpreter ≥ 30×),
+   the memory A/B (Mochi idle after a cache load, with vs without the manifest line; v3 was
+   69.8 vs 33.4 MB; v5.1 asks for a heap-minimize after install), and the hero shot: Enyo on
+   https://www.bbc.com/news.
+3. **The hero:** raw shots for `readme-art.py` are in the session scratchpad only (lost):
+   retake Mojo on https://archive.org/, Mochi on MDN's CSS page (adverts blocked), Enyo on BBC
+   News, all at the Default look; `python3 -I docs/screenshots/readme-art.py <raw> <fonts> docs/screenshots .`
+   (Prelude fonts from the device's /usr/share/fonts). README alt text and CREDITS already describe
+   that image; `docs/screenshots/cardview.jpg` on disk is still the old themed one (inspector F-6).
+4. **Round 2's rows** (T-491): `docs/MODERN-WEB.md` "Round 2" has the reading and points at
+   `docs/rounds/round2-2026-10-15-analysis.md`; write the per-site rows with cause and
+   disposition; the shots are on the device's /tmp until it reboots (`shot-r2-<name>.png`).
+5. **The fixes (T-492), then the second run** with v5.1 (`tools/device/browse-round.sh` after
+   `novacom put file:///tmp/round2-sites.txt < tools/device/browse-round-sites.txt`,
+   `dev-sh.sh -t 2500`): first the JIT question (jsbench), then the `dom.max_script_run_time`
+   trade-off (60 s froze cards for the stall's length; 15 s asked), then the blocker's share
+   (v3 vs v5.1 on the same pages), then the per-site faults.
+6. Kit checkboxes (cavekit-content-blocking.md R1, R4, R5, R6; cavekit-modern-web.md R6) and the
+   build site (T-486…T-492), commit, push (the owner's).
+
+**Device at the end:** Mochi: component v3 (dev push), the job restored by the round script, Wi-Fi
+on; Enyo and Mojo: the morning's packages (no blocker); Mochi's `goanna.js` carries the blocking
+defaults by hand; Mojo and Mochi profiles carry `dom.max_script_run_time=60` and Mochi
+`jihad.blocking.log=true` as user prefs; all variants at the Default look. The host's test http
+server on port 8077 may still be running (harmless; `pkill -f 'http.server 8077'`).
+
 ## 2026-10-15 (afternoon) delta — the modern web ledger; an ad and tracker blocker in the engine (READ FIRST)
 
 **The owner:** "dont show wikipedia. showcase the modern web", then, on three sites failing in one
@@ -66,6 +107,21 @@ configuration applies (T-483 done, rows dispositioned).
 the hero to be retaken on modern sites that work (Internet Archive, MDN without adverts, BBC
 News) at the Default look on the Frutiger Aero backdrop (`readme-art.py` `wallpaper()` draws it
 with `make-personas.py`'s primitives) — not yet composed or committed.
+
+**The inspector's review of Tier 86 (T-490, round 26 in impl-review-findings-6.md):** REQUEST
+CHANGES — 1 P1 (path rules on the page's own host: already fixed in v3), 6 P2, 15 P3; every
+finding dispositioned there. **Component v5** carries the fixes: exceptions with options honoured
+first at every level, typed rules per host, path rules with party and case folding, the content
+types corrected, selector validation, a redirect check on `http-on-modify-request`, lazy page
+host, the master switch gating hiding, version-only header reads, atomic writes done right, the
+updater's flags, back-off, truncation check and jitter, logging the matched rule with the pref off
+by default, install from the cache's own parse; site hiding rules per document (v4). Prefs:
+`network.dns.disablePrefetch`, `network.http.speculative-parallel-limit=0`. The bundle greps the
+hashes in NOTICE and the README; REQUIRED and the ipk check carry the lists, the component and the
+GPL text. Test pages served over http from the host PC (`python3 -m http.server 8077` in
+`render/goanna/test/`, http://192.168.1.245:8077/jihad-blocking.html) for the party cases.
+v5 is in the packages built after 13:05 (`build-all-device.sh --skip-arm`) and verified by the
+session's `verify5.sh` after `push-variant.sh` ×3.
 
 **Round 2 (T-491/T-492, the owner 2026-10-15: "browse the modern web as a pretend user for about
 30 minutes. document any issues you find and then tackle them … also address any performance

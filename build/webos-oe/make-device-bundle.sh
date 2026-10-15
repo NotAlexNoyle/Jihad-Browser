@@ -378,7 +378,10 @@ for pair in "easylist.txt:$EASYLIST_SHA256" "easyprivacy.txt:$EASYPRIVACY_SHA256
 	f="${pair%%:*}"; want="${pair#*:}"
 	[ -f "$EASYLIST_DIR/$f" ] || { echo "ERROR: $EASYLIST_DIR/$f is missing" >&2; exit 1; }
 	got=$(sha256sum "$EASYLIST_DIR/$f" | cut -c1-64)
-	[ "$got" = "$want" ] || { echo "ERROR: $EASYLIST_DIR/$f is not the snapshot named in its README and NOTICE (sha256 $got)" >&2; exit 1; }
+	[ "$got" = "$want" ] || { echo "ERROR: $EASYLIST_DIR/$f is not the pinned snapshot (sha256 $got)" >&2; exit 1; }
+	# R7: the hash must be the one the notices carry — a changed file cannot ship under the old notice
+	grep -q "$got" "$REPO/NOTICE" || { echo "ERROR: NOTICE does not name sha256 $got for $f" >&2; exit 1; }
+	grep -q "$got" "$EASYLIST_DIR/README.md" || { echo "ERROR: third_party/easylist/README.md does not name sha256 $got for $f" >&2; exit 1; }
 done
 mkdir -p "$OUT/blocklists" "$OUT/components"
 cp -L "$EASYLIST_DIR/easylist.txt" "$EASYLIST_DIR/easyprivacy.txt" "$OUT/blocklists/"
@@ -574,7 +577,8 @@ done
 # not a packed omni.ja; the direct build treats it as optional too.)
 REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
           libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
-          libmozsqlite3.so goanna.js plugin-container libmozavutil.so libmozavcodec.so)
+          libmozsqlite3.so goanna.js plugin-container libmozavutil.so libmozavcodec.so \
+          components/jihadContentBlocker.js blocklists/easylist.txt blocklists/easyprivacy.txt)
 _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }

@@ -1049,7 +1049,9 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
     "<div class=row>&bull; <a href=https://github.com/martok/palefill>Palefill by Martok</a> "
     "&mdash; the bundled site-compatibility add-on, unmodified (Mozilla Public License 2.0)</div>"
     "<div class=row>&bull; <a href=https://easylist.to/>EasyList and EasyPrivacy</a> by The EasyList authors "
-    "&mdash; the ad and tracker lists the content blocker uses, unmodified (GNU GPL v3 or later)</div>";
+    "&mdash; the ad and tracker lists the content blocker uses, bundled unmodified as snapshots of version 202610151429 "
+    "(blocklists/ in the engine directory; refreshed from easylist.to). Their authors offer them under the GNU GPL v3 or later "
+    "or CC BY-SA 3.0 or later; this browser uses them under the GPL v3 or later (licenses/GPL-3.0.txt)</div>";
   if (u == "about:jihad") {
     std::string body =
       "<div class=hdr>" + logo +

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R6, performance): a JavaScript micro-benchmark
+     that tells a JIT from an interpreter. The same page on a desktop build is the reference: an
+     interpreter-only engine is 10-30 times slower than its JIT on these loops. Writes the result
+     into the page title (the daemon logs titles) and the page. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-jsbench</title></head>
+<body><h1>jihad-jsbench</h1><pre id="out">running…</pre>
+<script>
+function bench(name, fn) { var t = Date.now(); fn(); var ms = Date.now() - t; return name + " " + ms + " ms"; }
+setTimeout(function () {
+  var r = [];
+  r.push(bench("loop 50M", function () { var s = 0; for (var i = 0; i < 50000000; i++) { s = (s + i * 3) | 0; } if (s === 1) r.push("x"); }));
+  r.push(bench("objects 2M", function () { var a = []; for (var i = 0; i < 2000000; i++) { a.push({x: i, y: i * 2}); } var s = 0; for (var j = 0; j < a.length; j++) { s += a[j].x + a[j].y; } if (s === 1) r.push("x"); }));
+  r.push(bench("strings 200k", function () { var s = ""; for (var i = 0; i < 200000; i++) { s += (i % 10); } var n = 0; for (var k = 0; k < 20; k++) { n += s.split("5").length; } if (n === 1) r.push("x"); }));
+  r.push(bench("regex 100k", function () { var re = /(\d+)-(\w+)@([a-z.]+)/; var c = 0; for (var i = 0; i < 100000; i++) { if (re.test(i + "-user@example.com")) c++; } if (c === 1) r.push("x"); }));
+  r.push(bench("dom 20k", function () { var d = document.createElement("div"); for (var i = 0; i < 20000; i++) { var e = document.createElement("span"); e.textContent = "" + i; d.appendChild(e); } document.body.appendChild(d); var h = d.offsetHeight; d.remove(); if (h === -1) r.push("x"); }));
+  var ua = navigator.userAgent.replace(/^.*\) /, "");
+  var text = r.join("\n") + "\n" + ua;
+  document.getElementById("out").textContent = text;
+  document.title = "jihad-jsbench: " + r.join("; ");
+}, 500);
+</script></body></html>

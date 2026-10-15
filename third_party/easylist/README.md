@@ -23,9 +23,10 @@ here and in `make-device-bundle.sh`, and the lines in `NOTICE`.
 ## How they are used
 
 Every Jihad Browser package carries both files raw in the engine's `blocklists/` directory. The
-content blocker compiles them on the device, in JavaScript, into the sets it blocks with (hosts,
-third-party-only hosts, exceptions) and the generic element-hiding stylesheet, and caches the
-compiled form in the profile. The compiled form is a derivative of the lists and is covered by the
+content blocker compiles them on the device, in JavaScript, into what it blocks with — host rules,
+third-party-only and typed host rules, path-prefix rules, the exceptions (plain and optioned),
+the generichide sites — the generic element-hiding stylesheet and the per-site hiding rules, and
+caches the compiled form in the profile. The compiled form is a derivative of the lists and is covered by the
 same licence. The blocker refreshes both lists from easylist.to no more often than every four
 days (the lists' own `! Expires`); the bundled snapshot is the fallback when a download fails.
 

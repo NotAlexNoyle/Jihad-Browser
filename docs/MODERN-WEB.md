@@ -53,3 +53,40 @@ the variant launched with `{"target": url}`, 35–75 s of wait, `com.palm.system
 the daemon log's `load done uri=` line and paint counts read for the same window. The scripts live in
 the session scratchpad; `build/webos-oe/card-selftest.sh` does the same with a test hook when a card
 must be driven.
+
+
+## Round 2 — a pretend user's half hour (2026-10-15, 11:40–12:20 device time; T-491)
+
+Thirty visits in Mochi, the console bridge on all sources, the content blocker at v3 (the global
+sheet still carrying 8,000 site rules), `dom.max_script_run_time` 60. The script, the site list and
+the analysis: `tools/device/browse-round*.{sh,txt,py}`; the raw log and the table:
+`docs/rounds/round2-2026-10-15.log`, `docs/rounds/round2-2026-10-15-analysis.md`; the shots are
+`/tmp/shot-r2-<name>.png` on the device until it reboots (not pulled: the session ended).
+
+**What the half hour says, before the per-site rows are written:**
+- **Performance is the issue, on every site.** First paint comes in 1–5 s, but the page then
+  stalls the main thread: the worst tick per visit is 9–43 s (Guardian 9.2, NPR 15.2, AP 13.9,
+  Al Jazeera 17.4, Britannica 40.3, OSM 21.3, Reddit 32.5, Bluesky 37.5, GitLab 43.4, html5test
+  40.0) and webos-ports.org 125 s; the frame rate during the dwell averages 0.3–1.5 fps. Ten of
+  thirty never reached load-done within 45–65 s (Guardian, AP, Reddit, Vimeo, GitLab, npm,
+  webos-ports, webosnation, weather.com, Craigslist, Acid3). The stalls are JavaScript on the
+  main thread (each site's own bundles and ad-tech); with the guard at 60 s the card freezes for
+  that long instead of asking at 15 s — **the guard's value is a trade-off to decide with these
+  numbers**, and whether the JIT is live on this ARM build is the first thing to measure
+  (`render/goanna/test/jihad-jsbench.html`, in the verification script; host V8 reference: the
+  50M loop 167 ms).
+- **The blocker's share** is unknown until the second run with v5.1 (site rules per document,
+  no 21,000-rule global sheet): the round ran v3.
+- **Per-site faults seen in the console:** Al Jazeera loads an anti-adblock script
+  (`cdn.jsdelivr.net/gh/ad-shield/e/index.js`, "location is null"); Britannica embeds Cloudflare's
+  widget (`postMessage` to challenges.cloudflare.com fails); The Guardian's images refused by the
+  engine's CORS ("may not load data from uploads.guim.co.uk"); AP: `decodeAudioData` unknown
+  content type, `NS_ERROR_NOT_INITIALIZED`; OSM: WebGL refused by the blacklist (software
+  rendering; raster tiles should still draw); NPR: SVG `dur` values the engine does not parse.
+- **Refusals per visit** ranged 0–29 (AP 29, NPR 7, Reddit 5, Substack 5); seven visits had none.
+- **Memory per visit was not captured** (the hand-started daemon's pid was not found by BusyBox
+  `ps`; fixed in the script for the next run); the controlled A/B is in cavekit-content-blocking.md
+  R6.
+
+The per-site rows (cause and disposition each), the fixes (T-492) and the second run are the next
+session's; the analysis table is the ledger's input.

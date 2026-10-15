@@ -1,24 +1,30 @@
 <!DOCTYPE html>
-<!-- Jihad Browser test page (cavekit-content-blocking.md R1): loads from hosts on the lists and
-     from this page's own host. With blocking on, the listed ones are refused (the daemon logs
-     "blocked …", the page shows "refused"); the own-host ones load. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<!-- Jihad Browser test page (cavekit-content-blocking.md R1). Serve it over http from the host PC
+     (python3 -m http.server 8077 in render/goanna/test/, open http://<host ip>:8077/jihad-blocking.html)
+     so the page has a host: then the first-party, third-party and exception paths run. As a file://
+     page the page host is empty and every listed host counts as third-party.
+     Each line says the rule it exercises and what must happen. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
 <html><head><meta charset="utf-8"><title>jihad-blocking</title>
-<style>li{font:16px sans-serif;margin:6px} .ok{color:#060} .bad{color:#900}</style></head>
-<body><h1>jihad-blocking</h1><ul id="r"></ul>
+<style>li{font:15px sans-serif;margin:6px} .ok{color:#060} .bad{color:#900}</style></head>
+<body><h1>jihad-blocking</h1><p id="where"></p><ul id="r"></ul>
 <script>
+document.getElementById("where").textContent = "page host: " + (location.host || "(none: a file:// page)");
 var tests = [
-  ["script", "https://www.google-analytics.com/analytics.js", "EasyPrivacy ||google-analytics.com^"],
-  ["img",    "https://ad.doubleclick.net/ddm/ad/pixel.gif", "EasyList ||doubleclick.net^"],
-  ["script", "https://static.ads-twitter.com/uwt.js", "EasyPrivacy ||ads-twitter.com^"],
-  ["img",    "https://www.facebook.com/tr?id=1&ev=PageView", "EasyPrivacy ||facebook.com/tr? (a path rule: refused since compiler v2)"],
-  ["img",    location.href.replace(/[^\/]*$/, "") + "jihad-plain-ok.png", "own host (must load, or 404 — never 'refused')"]
+  // [tag, url, rule exercised, expected]
+  ["img",    "https://ad.doubleclick.net/ddm/ad/pixel.gif", "EasyList ||ad.doubleclick.net^ (host rule)", "refused"],
+  ["script", "https://static.ads-twitter.com/uwt.js", "EasyList ||static.ads-twitter.com^ (host rule)", "refused"],
+  ["script", "https://www.google-analytics.com/analytics.js", "EasyPrivacy ||google-analytics.com^$script,third-party,xmlhttprequest (typed: a script)", "refused"],
+  ["img",    "https://www.google-analytics.com/collect?v=1&t=pageview", "the same typed rule: an image is not in its types", "loaded or 404, never refused"],
+  ["img",    "https://www.facebook.com/tr?id=1&ev=PageView", "EasyPrivacy ||facebook.com/tr? (path rule)", "refused"],
+  ["img",    "https://www.facebook.com/favicon.ico", "facebook.com itself has no host rule (only paths)", "loaded or 404, never refused"],
+  ["img",    "https://ads.yahoo.com/pixel.gif", "EasyList ||ads.yahoo.com^$~image? (typed: not images) or a plain host rule", "see the daemon log"],
+  ["img",    location.protocol.indexOf("http") === 0 ? location.href.replace(/[^\/]*$/, "") + "jihad-plain-ok.png" : "jihad-plain-ok.png", "the page's own host (no host rule can refuse it)", "loaded or 404, never refused"]
 ];
 function row(t, cls) { var li = document.createElement("li"); li.className = cls; li.textContent = t; document.getElementById("r").appendChild(li); }
 tests.forEach(function (t) {
-  var el = document.createElement(t[0]);
-  var done = false;
-  el.onload = function () { if (!done) { done = true; row("loaded   " + t[1] + "  (" + t[2] + ")", "ok"); } };
-  el.onerror = function () { if (!done) { done = true; row("refused/failed  " + t[1] + "  (" + t[2] + ")", "bad"); } };
+  var el = document.createElement(t[0]), done = false;
+  el.onload = function () { if (!done) { done = true; row("loaded   " + t[1] + "  — " + t[2] + " — expected: " + t[3], "ok"); } };
+  el.onerror = function () { if (!done) { done = true; row("refused/failed  " + t[1] + "  — " + t[2] + " — expected: " + t[3], "bad"); } };
   el.src = t[1];
   if (t[0] === "script") document.head.appendChild(el); else document.body.appendChild(el);
 });

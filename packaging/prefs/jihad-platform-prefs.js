@@ -189,6 +189,11 @@ pref("dom.max_script_run_time", 60);
 // --- Content blocking (cavekit-content-blocking.md) — components/jihadContentBlocker.js ---
 pref("jihad.blocking.enabled", true);      // refuse loads from EasyList/EasyPrivacy hosts
 pref("jihad.blocking.cosmetic", true);     // hide the frames adverts leave (EasyList's generic rules)
-pref("jihad.blocking.log", true);          // one daemon-log line per refused load
+pref("jihad.blocking.log", false);         // a daemon-log line per refusal (the matched list entry); off: it churns the capped log
 pref("jihad.blocking.lastUpdate", 0);      // seconds; the lists are refreshed at most every 4 days
+pref("jihad.blocking.lastAttempt", 0);     // seconds; a failed attempt waits a day
 pref("jihad.blocking.versions", "");       // "<easylist version>/<easyprivacy version>" in use
+// What a content policy never sees (inspector F-18): DNS prefetch and speculative connections
+// happen before any load is asked for. Off, so a listed host is not contacted at all.
+pref("network.dns.disablePrefetch", true);
+pref("network.http.speculative-parallel-limit", 0);

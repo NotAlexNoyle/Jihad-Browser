@@ -40,9 +40,11 @@ apart from being cut and scaled into the gallery's rows:
 ## The filter lists
 
 The content blocker uses **EasyList** and **EasyPrivacy**, by The EasyList authors
-(https://easylist.to/), bundled as unmodified snapshots (`third_party/easylist/`) and refreshed from
-easylist.to. Their authors offer them under the GNU GPL v3 or later, or CC BY-SA 3.0 or later;
-Jihad Browser uses them under the GPL v3 or later (`licenses/GPL-3.0.txt`).
+(https://easylist.to/), bundled as unmodified snapshots of upstream version 202610151429 (in the
+source tree `third_party/easylist/`, in every package the engine's `blocklists/` directory) and
+refreshed from easylist.to. Their authors offer them under the GNU GPL v3 or later, or CC BY-SA 3.0
+or later; Jihad Browser uses them under the GPL v3 or later (`licenses/GPL-3.0.txt`, in every
+package).
 
 ## Everything else
 

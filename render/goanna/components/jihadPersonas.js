@@ -1610,7 +1610,9 @@ function attachPane(win) {
     try { utils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(PANE_CSS), Ci.nsIDOMWindowUtils.AUTHOR_SHEET); }
     catch (e) { log("Personas pane style: " + e); }
   }
-  let again = function() { try { decoratePane(win); } catch (e) { log("themes pane: " + e); } };
+  // The pane's window may be gone by the time a deferred call runs (a card closing while a
+  // page loads logged "themes pane: TypeError: can't access dead object", round 2, 2026-10-15).
+  let again = function() { try { if (Cu.isDeadWrapper(win) || win.closed) { return; } decoratePane(win); } catch (e) { log("themes pane: " + e); } };
   doc.addEventListener("ViewChanged", again, true);
   let list = doc.getElementById("addon-list");
   if (list) {
@@ -1976,7 +1978,7 @@ JihadPersonas.prototype = {
         // more a moment later — a page reached by a link from about:personas was once left bare
         // (attachPane does nothing a second time).
         let attach = function() {
-          try { if (isAddonsDocument(win.document)) { attachPane(win); } } catch (e) { log("themes pane: " + e); }
+          try { if (Cu.isDeadWrapper(win) || win.closed) { return; } if (isAddonsDocument(win.document)) { attachPane(win); } } catch (e) { log("themes pane: " + e); }
         };
         win.addEventListener("load", function() { attach(); later(1500, attach); });
         win.addEventListener("DOMContentLoaded", attach);

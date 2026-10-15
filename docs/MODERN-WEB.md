@@ -88,5 +88,64 @@ the analysis: `tools/device/browse-round*.{sh,txt,py}`; the raw log and the tabl
   `ps`; fixed in the script for the next run); the controlled A/B is in cavekit-content-blocking.md
   R6.
 
-The per-site rows (cause and disposition each), the fixes (T-492) and the second run are the next
-session's; the analysis table is the ledger's input.
+
+### Round 2, site by site (the analysis table has the numbers; this is the reading)
+
+A caveat on the console lines: the log window of a visit begins when the previous card closes,
+so the first lines of a visit can be the previous page's last (NPR's SVG warnings under AP,
+Vimeo's under Stack Overflow, the "scripts are blocked internally" lines of a page being closed).
+Every row below reads the lines against the address that produced them.
+
+| # | Visit | What happened | Cause | Disposition |
+|---|---|---|---|---|
+| 1 | Guardian | painted in 5 s, never load-done; a 9.2 s stall; the front page **renders** with pictures (shot); "Content at theguardian.com may not load data from uploads.guim.co.uk/…loop" | **slow script** (the site's bundle); an engine URI-check refusal for the animated loop media (named later) | works, slowly → T-492 (performance) |
+| 2 | NPR | load-done 25 s; a 15.2 s stall; SVG `dur=".8s"` not parsed | slow script; engine: SVG animation timing values without a leading zero | open; the SVG parser gap is upstream (cosmetic) |
+| 3 | AP News | never load-done (its page keeps loading); 13.9 s stall; **renders** (shot); 29 refusals; `decodeAudioData` unknown content type; `NS_ERROR_NOT_INITIALIZED` from its bundle | slow script; **engine feature**: an API that throws NS_ERROR_NOT_INITIALIZED to page script (four sites) — `jihad-apis.html` names it | works, slowly → T-492 |
+| 4 | Al Jazeera | load-done 36 s; 17.4 s stall; **renders** (shot: LIVE, headlines); the anti-adblock script `cdn.jsdelivr.net/gh/ad-shield/e/index.js` throws | slow script; an anti-adblock script from jsdelivr (not on the lists) | works, slowly |
+| 5 | Britannica | **Cloudflare's "Performing security verification"** page (shot), never passes; a 40.3 s stall before it | **bot challenge** (Cloudflare) | open: the UA question (below) |
+| 6 | OpenStreetMap | load-done 23 s; 21.3 s stall; **renders** the map tiles and its welcome dialog (shot); WebGL refused (blacklist) | slow script; WebGL expected without a GPU driver | works, slowly |
+| 7 | wikiHow | load-done 9 s; the site renders its "page doesn't exist" page (shot) — my address was wrong | not a browser fault | works |
+| 8 | Amazon search | load-done 37 s; 3.3 s stall; **renders** the results with pictures and prices (shot) | slow load; PerformanceObserver entry types missing (warnings) | works, slowly |
+| 9 | eBay search | eBay's **"SORRY, something went wrong"** page (shot); its bot script probes WebGL | **bot detection** (eBay) | open: the UA question |
+| 10 | Etsy search | **"Verification Required"** (DataDome, shot); `captcha-delivery.com` throws NS_ERROR_NOT_INITIALIZED | **bot challenge** (DataDome) + the engine API | open: the UA question |
+| 11 | old Reddit | redirected to **`old.reddit.com/login/?reason=lor2`** (a login gate Reddit now puts in front of old-reddit for unknown clients), whose form never rendered: the Snoo pattern background only (shot); 17.5 s stall | **bot/visitor gate** (Reddit) + the login page's app not rendering | open: the UA question, then the page |
+| 12 | Reddit | never load-done; 32.5 s stall; **renders r/webos with its posts** (shot) despite "Deferred script … nonce" and es-module-shims | slow script; the module shim compiles its own loader (asm.js) | works, slowly |
+| 13 | Bluesky | a **blank page with the Bluesky footer** (shot); 37.5 s stall | **engine feature**: a React app on ES modules | upstream |
+| 14 | YouTube watch | **"Please update your browser"** page (shot) | **user-agent sniffing**: YouTube rejects the Firefox/78 token the UA table sends it | open: the UA question |
+| 15 | Vimeo staff picks | the sidebar renders, the content area stays blank (shot); `NS_ERROR_NOT_INITIALIZED` ×5 from its Next.js chunk | **engine feature**: the same API | open → T-492 |
+| 16 | Stack Overflow tag page | first paint 13 s, load-done 21 s; 23.8 s stall; **renders** the question list (shot) | slow script | works, slowly |
+| 17 | GitLab explore | the frame renders ("Explore projects", filters) with an empty list (shot); 43.4 s stall; jQuery throws NS_ERROR_NOT_INITIALIZED | **engine feature**: the same API; the list is fetched by script | open → T-492 |
+| 18 | npm package page | the card shows **Jihad's start page**: the address was never opened (shot) | a launch race (the card launched before the previous one had closed, as The Verge's first run) — not the site | retest in the second run |
+| 19 | webos-ports.org | first paint 38 s, never load-done; a **125 s** stall; **renders** LuneOS's page (shot) | slow script — the worst of the round, on a WordPress theme | open → T-492 |
+| 20 | webosnation.com | **redirects to techradar.com**, which renders (shot) — the site was folded into TechRadar | not a browser fault | works |
+| 21 | Startpage results | **"Your connection has been suspended"** (shot): Startpage refuses the client as automated traffic | **bot detection** (Startpage) | open: the UA question |
+| 22 | Bing results | Bing's **"I'm not a robot"** page (shot) | **bot challenge** (the UA table sends Firefox/52.9 to bing.com) | open: the UA question |
+| 23 | Google results | Google's **`/sorry/` CAPTCHA** page (shot); "reCAPTCHA Timeout" | **bot challenge** (Google; the table sends Firefox/71) | open: the UA question |
+| 24 | weather.com | weather.com's own **"Please try again"** error page (shot) | the site's app failed in this engine (engine feature, unnamed) | open |
+| 25 | Medium topic | **Cloudflare's "Performing security verification"** (shot) | **bot challenge** (Cloudflare) | open: the UA question |
+| 26 | Substack discover | a **blank page** under a black header strip (shot); load-done 46 s | **engine feature** (its app did not render; unnamed) | open |
+| 27 | Craigslist SF | **renders** the category list (shot); never load-done (a late resource) | fine | works |
+| 28 | IMDb title | **renders** The Shawshank Redemption's page with poster and ratings (shot); AWS WAF's challenge script ran and passed | works; the WAF probe passed | works |
+| 29 | html5test | **450 of 588 points** (shot; the README said 447 from an earlier build) | — | works |
+| 30 | Acid3 | Jihad's own certificate dialog: "the security certificate acid3.acidtests.org isn't trustworthy" (shot) — the site's certificate | not a browser fault; the dialog works | closed |
+
+**Across the round, with the shots read:** 17 of 30 render as a user would want (slowly);
+**7 of 30 are stopped by bot detection** — Cloudflare (Medium, Britannica), DataDome (Etsy),
+Bing's captcha, Google's `/sorry/`, Startpage's "connection suspended", eBay's error page — and
+YouTube serves "update your browser": **the user-agent is the single biggest functional issue**
+of the round. The base UA carries `Firefox/52.9` and the override table sends Firefox 52.9–78 to
+the big sites; to today's bot filters that reads as a decade-old browser. The fix to try first
+is a current Firefox ESR token (128) on those hosts in the table (an experiment on the seven),
+then, with the result, the base UA itself — the owner's decision, since it changes what every
+site serves. (b) Every page stalls the main thread 9–43 s while its scripts run. **The benchmark**
+(`jihad-jsbench.html`, Mojo, 14:48; the host's V8 in brackets): loop 50M **976 ms** (167),
+objects 2M **6,854 ms** (200), strings 200k **8,280 ms** (19), regex 100k **902 ms** (17), DOM
+20k **10,156 ms**. The JIT is live (integer code at 6× the host); allocation-heavy code is
+34–436× slower: a garbage-collection or allocator problem (the ARM build has
+`--disable-jemalloc`; the daemon's low-memory guardrail is not it — its threshold is 48 MB
+available and the device sits near 470 MB). The GC log (`javascript.options.mem.log`) on the
+benchmark is the next measurement; then the guard's value.
+(c) One engine API throws `NS_ERROR_NOT_INITIALIZED` to page scripts on AP, Etsy, Vimeo and
+GitLab — `jihad-apis.html` probes the usual suspects. (d) ES-module apps (Bluesky, Substack?,
+weather.com?) are upstream until named. (e) Two visits were the test's own faults (wikiHow's
+address, npm's launch race).

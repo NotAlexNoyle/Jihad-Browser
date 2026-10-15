@@ -28,7 +28,7 @@ rm -f /tmp/shot-r2-*.png
 while IFS='|' read -r name url wait; do
   [ -z "$name" ] && continue
   m=$(wc -l < $L); t0=$(date +%s)
-  closeall
+  closeall; sleep 3     # a launch right behind the close lands on the start page (npm, round 1)
   host=$(echo "$url" | sed 's|https\?://||; s|/.*||')
   luna-send -n 1 palm://com.palm.applicationManager/launch "{\"id\":\"net.riverstonerelay.jihad-browser-mochi\",\"params\":{\"target\":\"$url\"}}" >/dev/null 2>&1
   # performance: poll once a second for the first paint and the first "load done" of this visit

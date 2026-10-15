@@ -195,5 +195,5 @@ if __name__ == "__main__":
     pair(shot("mojo-addons"), shot("mochi-personas"), "addons-personas.webp")
     pair(shot("enyo-privacy"), shot("mochi-config"), "settings.webp")
     save_webp(touchpad(shot("mojo-tls"), 520), "tls.webp")
-    for f in sorted(f for f in os.listdir(OUT) if os.path.isfile(os.path.join(OUT, f))):
+    for f in sorted(f for f in os.listdir(OUT) if f.endswith((".jpg", ".webp", ".png"))):
         print(f, os.path.getsize(os.path.join(OUT, f)) // 1024, "KB", Image.open(os.path.join(OUT, f)).size)

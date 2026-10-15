@@ -75,11 +75,11 @@ namespace jihad {
 // in jihadUaForHost so google.com also covers mail/drive/docs.google.com, reddit.com covers www., etc.
 struct JihadUaRule { const char* domain; const char* ua; };
 static const JihadUaRule kJihadUaTable[] = {
-  { "google.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:71.0) Gecko/20100101 Firefox/71.0" },
+  { "google.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/71.0)
   { "gstatic.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:71.0) Gecko/20100101 Firefox/71.0" },
   { "googleapis.com", "Mozilla/5.0 (X11; Linux armv7l; rv:61.9) Gecko/20100101 Firefox/61.9" },
-  { "youtube.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
-  { "bing.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:52.9) Gecko/20100101 Firefox/52.9" },
+  { "youtube.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/78.0)
+  { "bing.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/52.9)
   { "yahoo.com",      "Mozilla/5.0 (X11; Linux armv7l; rv:99.9) Gecko/20100101 Firefox/99.9" },
   { "live.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:52.9) Gecko/20100101 Firefox/52.9" },
   { "outlook.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:52.9) Gecko/20100101 Firefox/52.9" },
@@ -113,6 +113,19 @@ static const JihadUaRule kJihadUaTable[] = {
   // found it is user-agent sniffing: a per-host override for the challenge host passes it. A
   // current Firefox ESR token, like the rest of this table; never a Pale Moon or Basilisk one.
   { "challenges.cloudflare.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  // THE EXPERIMENT of round 2 (cavekit-modern-web.md R6, 2026-10-15): seven of thirty visits were
+  // stopped by bot detection (Cloudflare on medium.com and britannica.com, DataDome on etsy.com,
+  // bing.com's captcha, google.com's /sorry/, startpage.com's "connection suspended", ebay.com's
+  // error page) and youtube.com served "update your browser" — all to tokens of Firefox 52.9–78.
+  // A current Firefox ESR token for THOSE hosts, to measure before the base UA is touched (the
+  // owner's decision). google.com, bing.com, youtube.com and ebay.com above are overridden here:
+  // jihadUaForHost takes the first match, so these rows come first for those hosts.
+  { "medium.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "britannica.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "etsy.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "startpage.com",  "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "ebay.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "reddit.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
 };
 
 // Return the override UA for a host, walking up the sub-domain chain (www.reddit.com -> reddit.com),

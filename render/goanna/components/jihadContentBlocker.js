@@ -514,7 +514,17 @@ JihadContentBlocker.prototype = {
     // 2026-10-15, the stylesheet itself cost nothing). Ask for a collection and a purge once the
     // sets are in place: at start nothing is cached yet, after an update (every 4 days) the
     // engine's caches refill as the user browses.
-    setTimeout(() => { try { Services.obs.notifyObservers(null, "memory-pressure", "heap-minimize"); } catch (e) {} }, 2000);
+    setTimeout(() => {
+      try { Services.obs.notifyObservers(null, "memory-pressure", "heap-minimize"); } catch (e) {}
+      // Where the memory sits (R6): the JS GC heap and the allocator's heap, in MB, after the purge.
+      setTimeout(() => {
+        try {
+          let mr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
+          log("memory after install: resident " + (mr.residentFast >> 20) + " MB, heap-allocated " + (mr.heapAllocated >> 20) +
+              " MB, JS GC heap " + (mr.JSMainRuntimeGCHeap >> 20) + " MB, JS temporary " + (mr.JSMainRuntimeTemporaryPeak >> 20) + " MB");
+        } catch (e) { log("memory reporter: " + e); }
+      }, 3000);
+    }, 2000);
   },
 
   // ── hiding ──

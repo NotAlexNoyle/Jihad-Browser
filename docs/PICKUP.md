@@ -5,9 +5,9 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
-## 2026-10-15 (evening) — WHERE IT STOPPED: the usage limit (READ FIRST)
+## 2026-10-15 (evening) delta — the v5.1 push, the round's rows, the probes (READ FIRST)
 
-The session ended at its usage limit at about 13:35 with these exact next steps, in order:
+The session resumed after a usage-limit pause; the steps below were the plan at that pause and are being worked through in order (status in the build site, T-486…T-492):
 1. **Push the v5.1 packages** (`build/webos-oe/out-all/`, 13:20: enyo `71dc8063`, mochi `1440d170`,
    mojo `34927e9f`; component v5.1, the daemon with the about:jihad text): the session's
    `final-push.sh` was `push-variant.sh enyo; mochi; mojo` then a check of each variant's daemon
@@ -122,6 +122,33 @@ GPL text. Test pages served over http from the host PC (`python3 -m http.server 
 `render/goanna/test/`, http://192.168.1.245:8077/jihad-blocking.html) for the party cases.
 v5 is in the packages built after 13:05 (`build-all-device.sh --skip-arm`) and verified by the
 session's `verify5.sh` after `push-variant.sh` ×3.
+
+**v5.1 on the device (14:20–14:50):** Enyo and Mochi carry the v5.1 packages (`push-variant.sh`;
+the on-device checks pass: typed, path, own-host, first-party, MDN's `/pong/`). **Mojo's push
+failed four times**: the USB link drops mid-transfer of the 43 MB payload ("novacomd socket was
+closed prematurely", then "unable to find device", the device re-enumerating with a new novacom
+id each time; Enyo's and Mochi's transfers survived). Mojo runs the morning's package (no
+blocker, old Settings, old about:jihad) until a push gets through — try with nothing else on
+the bus, or after a device reboot. **The benchmark** (`jihad-jsbench.html`, Mojo, host V8 in
+brackets): loop 50M 976 ms (167), objects 2M 6,854 ms (200), strings 200k 8,280 ms (19), regex
+100k 902 ms (17), DOM 20k 10,156 ms — the JIT is live for integer code (6×) but allocation-heavy
+code is 34–436× slower: a garbage-collection or allocator problem, the first suspect for every
+stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
+logs the memory reporter's figures after install (see the kit's R6).
+
+**Round 2's first run is read (T-491 done):** 30 rows in `docs/MODERN-WEB.md`, shots in
+`docs/rounds/`. **The finding: 7 of 30 visits were stopped by bot detection** (Cloudflare on
+Medium and Britannica, DataDome on Etsy, Bing's captcha, Google's /sorry/, Startpage's
+"suspended", eBay's error page), YouTube served "update your browser", old Reddit a login gate —
+all to the Firefox 52.9–78 tokens the UA table sends. **The experiment (daemon build 4,
+`EngineHost.cpp`):** a Firefox/128 token for those ten hosts only (google, bing, youtube, ebay,
+reddit edited in place; medium, britannica, etsy, startpage added), to be measured in the second
+run before the base UA (`JihadUserAgent.h`, `Firefox/52.9`) is touched — the owner's decision.
+Performance: every page stalled the main thread 9–43 s (webos-ports.org 125 s); the JavaScript
+speed of the ARM build (`jihad-jsbench.html`, in the verification run) decides what to do about
+`dom.max_script_run_time`. One engine API throws `NS_ERROR_NOT_INITIALIZED` to page scripts on
+four sites (`jihad-apis.html` probes it, the second run's first visit). Jihad's own
+`jihadPersonas.js` logged "can't access dead object" when a card closed: guarded.
 
 **Round 2 (T-491/T-492, the owner 2026-10-15: "browse the modern web as a pretend user for about
 30 minutes. document any issues you find and then tackle them … also address any performance

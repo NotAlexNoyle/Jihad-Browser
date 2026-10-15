@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R6): which web APIs and language features this
+     engine has, as a page sees them. Each probe runs in a try/catch and reports ok / missing / the
+     error it threw; the summary goes into the title (the daemon logs titles) and the page.
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-apis</title>
+<style>body{font:14px monospace} .ok{color:#060} .no{color:#900} .err{color:#a60}</style></head>
+<body><h1>jihad-apis</h1><ul id="r"></ul>
+<script>
+var R = [];
+function probe(name, fn) {
+  var v;
+  try { v = fn(); if (v === false || v === null || v === undefined) { R.push([name, "missing", ""]); } else { R.push([name, "ok", typeof v === "string" ? v : ""]); } }
+  catch (e) { R.push([name, "throws", String(e).slice(0, 90)]); }
+}
+probe("localStorage set/get", function () { localStorage.setItem("jihad", "1"); return localStorage.getItem("jihad") === "1"; });
+probe("sessionStorage", function () { sessionStorage.setItem("jihad", "1"); return sessionStorage.getItem("jihad") === "1"; });
+probe("indexedDB.open", function () { return !!indexedDB.open("jihad-probe"); });
+probe("matchMedia", function () { var m = window.matchMedia("(max-width: 800px)"); return m && typeof m.matches === "boolean" ? "matches=" + m.matches : null; });
+probe("PerformanceObserver", function () { return typeof PerformanceObserver === "function" ? "types=" + (PerformanceObserver.supportedEntryTypes || []).join(",") : null; });
+probe("performance.now", function () { return performance.now() >= 0; });
+probe("IntersectionObserver", function () { return typeof IntersectionObserver === "function"; });
+probe("ResizeObserver", function () { return typeof ResizeObserver === "function"; });
+probe("MutationObserver", function () { return typeof MutationObserver === "function"; });
+probe("requestIdleCallback", function () { return typeof requestIdleCallback === "function"; });
+probe("requestAnimationFrame", function () { return typeof requestAnimationFrame === "function"; });
+probe("fetch", function () { return typeof fetch === "function"; });
+probe("ReadableStream", function () { return typeof ReadableStream === "function"; });
+probe("AbortController", function () { return typeof AbortController === "function"; });
+probe("Promise.allSettled", function () { return typeof Promise.allSettled === "function"; });
+probe("Promise.any", function () { return typeof Promise.any === "function"; });
+probe("queueMicrotask", function () { return typeof queueMicrotask === "function"; });
+probe("structuredClone", function () { return typeof structuredClone === "function"; });
+probe("globalThis", function () { return typeof globalThis === "object"; });
+probe("BigInt", function () { return typeof BigInt === "function"; });
+probe("WeakRef", function () { return typeof WeakRef === "function"; });
+probe("Array.prototype.at", function () { return typeof [].at === "function"; });
+probe("Array.prototype.flat", function () { return typeof [].flat === "function"; });
+probe("Object.fromEntries", function () { return typeof Object.fromEntries === "function"; });
+probe("String.replaceAll", function () { return typeof "".replaceAll === "function"; });
+probe("String.matchAll", function () { return typeof "".matchAll === "function"; });
+probe("optional chaining ?.", function () { return eval("({a:{b:1}}).a?.b === 1"); });
+probe("nullish ??", function () { return eval("(null ?? 7) === 7"); });
+probe("class fields", function () { return eval("(class { x = 1 })") && true; });
+probe("private fields #x", function () { return eval("(class { #x = 1; get x() { return this.#x; } })") && true; });
+probe("async/await", function () { return eval("(async () => 1)") && true; });
+probe("async iteration for await", function () { return eval("(async () => { for await (const x of []) {} })") && true; });
+probe("generators", function () { return eval("(function*(){})") && true; });
+probe("logical assignment ??=", function () { return eval("let q = null; q ??= 3; q === 3"); });
+probe("numeric separators 1_000", function () { return eval("1_000 === 1000"); });
+probe("regex lookbehind", function () { return eval("/(?<=a)b/.test('ab')"); });
+probe("regex named groups", function () { return eval("/(?<y>\\d{4})/.exec('2026').groups.y === '2026'"); });
+probe("regex /s flag", function () { return eval("/a.b/s.test('a\\nb')"); });
+probe("import() dynamic", function () { return eval("typeof import('data:text/javascript,export default 1') === 'object'"); });
+probe("customElements.define", function () { return typeof customElements === "object" && typeof customElements.define === "function"; });
+probe("Shadow DOM attachShadow", function () { return typeof document.createElement("div").attachShadow === "function"; });
+probe("template element", function () { return "content" in document.createElement("template"); });
+probe("CSS.supports", function () { return typeof CSS === "object" && typeof CSS.supports === "function"; });
+probe("CSS grid", function () { return CSS.supports("display", "grid"); });
+probe("CSS gap", function () { return CSS.supports("gap", "1px"); });
+probe("CSS custom properties", function () { return CSS.supports("--x", "1"); });
+probe("CSS :is()", function () { return CSS.supports("selector(:is(a))"); });
+probe("CSS :has()", function () { return CSS.supports("selector(:has(a))"); });
+probe("CSS aspect-ratio", function () { return CSS.supports("aspect-ratio", "1"); });
+probe("CSS position: sticky", function () { return CSS.supports("position", "sticky"); });
+probe("WebGL context", function () { var c = document.createElement("canvas"); return !!(c.getContext("webgl") || c.getContext("experimental-webgl")); });
+probe("canvas 2d", function () { return !!document.createElement("canvas").getContext("2d"); });
+probe("AudioContext", function () { var A = window.AudioContext || window.webkitAudioContext; return typeof A === "function"; });
+probe("navigator.sendBeacon", function () { return typeof navigator.sendBeacon === "function"; });
+probe("crypto.subtle", function () { return !!(window.crypto && crypto.subtle); });
+probe("crypto.randomUUID", function () { return typeof crypto.randomUUID === "function"; });
+probe("TextEncoder", function () { return typeof TextEncoder === "function"; });
+probe("Intl.DateTimeFormat", function () { return typeof Intl === "object" && typeof Intl.DateTimeFormat === "function"; });
+probe("Intl.RelativeTimeFormat", function () { return typeof Intl.RelativeTimeFormat === "function"; });
+probe("URL / URLSearchParams", function () { return typeof URL === "function" && typeof URLSearchParams === "function"; });
+probe("WebSocket", function () { return typeof WebSocket === "function"; });
+probe("Worker", function () { return typeof Worker === "function"; });
+probe("ServiceWorker", function () { return !!(navigator.serviceWorker); });
+probe("history.pushState", function () { return typeof history.pushState === "function"; });
+probe("navigator.userAgent", function () { return navigator.userAgent; });
+probe("devicePixelRatio / innerWidth", function () { return "dpr=" + window.devicePixelRatio + " w=" + innerWidth + " h=" + innerHeight; });
+var ok = R.filter(function (r) { return r[1] === "ok"; }).length;
+var bad = R.filter(function (r) { return r[1] !== "ok"; });
+var ul = document.getElementById("r");
+R.forEach(function (r) { var li = document.createElement("li"); li.className = r[1] === "ok" ? "ok" : (r[1] === "throws" ? "err" : "no"); li.textContent = r[1] + "  " + r[0] + (r[2] ? "  (" + r[2] + ")" : ""); ul.appendChild(li); });
+document.title = "jihad-apis: " + ok + "/" + R.length + " ok; " + bad.map(function (r) { return r[0] + "=" + r[1]; }).join(", ");
+</script>
+<script type="module">document.title += "; module-script=ok";</script>
+</body></html>

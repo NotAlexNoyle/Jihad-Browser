@@ -7,10 +7,6 @@
 <p align="center"><b>UXP inside, webOS alive, inshallah!</b></p>
 
 <p align="center">
-  <sub>For webOS &nbsp;·&nbsp; Free &nbsp;·&nbsp; Open source</sub>
-</p>
-
-<p align="center">
   <img src="docs/screenshots/cardview.jpg" alt="Three cards side by side, as in webOS card view, on a Frutiger Aero backdrop: Jihad Mojo on the Internet Archive's home page, Jihad Enyo on MDN's CSS reference with its adverts blocked, and Jihad Mochi on BBC News" width="900">
 </p>
 

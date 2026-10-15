@@ -138,6 +138,27 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
+**PAUSED 16:36 (the owner: "pause, youre about to run out of credit").** The round's second run
+(2c) was left running on the device (`tools/host/run-browse-round.sh docs/rounds/round2c-2026-10-15`,
+about 45 min from 16:33). If it finished: `docs/rounds/round2c-2026-10-15/{round.log,analysis.md,shots/}`
+exist and Mochi's job was restored by the script; compare with the first run by
+`python3 -I tools/device/browse-round-compare.py docs/rounds/round2-2026-10-15.log docs/rounds/round2c-2026-10-15/round.log`,
+read the probe shots (`probe-apis`: which APIs the engine lacks; `probe-jsbench`: the GC threshold
+at 64), judge the UA experiment on the seven bot-blocked sites (Medium, Britannica, Etsy, Bing,
+Google, Startpage, eBay) and YouTube — keep or revert the ten Firefox/128 rows in `EngineHost.cpp`
+(daemon + packages rebuilt either way only if reverted) — and write the rows and the comparison
+into `docs/MODERN-WEB.md`. If it was cut off: the Mochi daemon on the device is a HAND-STARTED one
+and the job sits in "stop/waiting" — clean up first (memory `hand-started-daemon-and-gc-threshold`:
+kill by /proc cmdline, stop, start, one process), delete `/tmp/shot-r2-*.png` on the device,
+re-run the round. The host's test http server on :8077 may still be running (harmless).
+
+**16:24–16:30: the v8 packages on all three variants** (`push-variant.sh` enyo/mochi/mojo, each
+alone on the bus, all three first-try; daemon `daf72924` = daemon 8: the UA experiment, the
+allocator trim, the card notifications; component v8; GC threshold 64; the Personas guard).
+Mochi's job had been left in upstart's "stop/waiting" with a daemon alive outside it after the
+hand-started round daemon — killed by cmdline, stop/start, clean. Device: 460 MB free idle.
+**The round's second run (2c)** started 16:33 into `docs/rounds/round2c-2026-10-15/`.
+
 **INCIDENT 15:50 (the owner: "the touchpad appears to be hung at 'sorry too many cards'"):** the
 second round's first visit took the Mochi daemon to 214 MB resident — the GC allocation threshold
 at 160 MB lets the heap grow that far before a major collection, three daemons share 1 GB with

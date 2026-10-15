@@ -143,6 +143,16 @@ static const char* jihadUaForHost(const nsACString& hostCStr) {
   return nullptr;
 }
 
+// Public (see EngineHost.h): a card connected or left → "jihad-client-connected" /
+// "jihad-client-disconnected", the client count as the data string.
+void JihadNotifyClients(bool connected, int clients) {
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (!obs) return;
+  char buf[16]; snprintf(buf, sizeof buf, "%d", clients);
+  NS_ConvertASCIItoUTF16 data(buf);
+  obs->NotifyObservers(nullptr, connected ? "jihad-client-connected" : "jihad-client-disconnected", data.get());
+}
+
 // Public (see EngineHost.h): extract the host from a URL string and return its per-domain UA
 // override, so LoadUrl can pin the docShell customUserAgent (navigator.userAgent) to the same value
 // the request-header observer sends — otherwise client-side UA gating sees a stale FF52 (F-240).

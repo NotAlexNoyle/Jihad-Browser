@@ -165,3 +165,13 @@ jemalloc on (hours, cavekit-engine-update.md) is the experiment that follows.
 GitLab — `jihad-apis.html` probes the usual suspects. (d) ES-module apps (Bluesky, Substack?,
 weather.com?) are upstream until named. (e) Two visits were the test's own faults (wikiHow's
 address, npm's launch race).
+
+## Round 2, second run — aborted at its first visit (2026-10-15, 15:40)
+
+Run on Mochi with blocker v6, the UA experiment daemon and the GC allocation threshold at 160 MB
+(`docs/rounds/round2b-2026-10-15/`). The API probe page loaded (first paint 11 s, load-done 14 s,
+three console lines) with the daemon at **214 MB resident**; the device then refused new cards
+("Sorry, too many cards") and the owner saw it hang. Cause: the threshold lets the heap grow to
+160 MB before a major collection, and three daemons share 1 GB with LunaSysMgr. Recovered with a
+LunaSysMgr restart; the shipped threshold is 64 MB; the blocker's lists now load only while a
+card is connected (v8). The run is repeated at that state.

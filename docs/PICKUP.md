@@ -138,6 +138,17 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
+**INCIDENT 15:50 (the owner: "the touchpad appears to be hung at 'sorry too many cards'"):** the
+second round's first visit took the Mochi daemon to 214 MB resident — the GC allocation threshold
+at 160 MB lets the heap grow that far before a major collection, three daemons share 1 GB with
+LunaSysMgr — and webOS refused new cards. Recovered: the round stopped, the hand-started daemon
+killed, the three jobs stopped (free 59 → 127 MB), cards closed, `luna-restart.sh` (the dialog and
+the cards gone), the jobs back, Mochi's 160/192 user prefs removed. **The shipped threshold is
+64 MB** (`jihad-platform-prefs.js`, rebuilt). Idle afterwards: ~30 MB free + 190 MB cache — thin:
+each daemon holding the lists costs ~27 MB (v6) and all three run at boot. Next: the lists loaded
+only while a card is connected and dropped after ten idle minutes (daemon notifications on
+connect/disconnect, component v8), then the round again at a safe level.
+
 **The performance work (15:00–15:35):** the GC log apportioned the stalls to NON-incremental full
 collections at the engine's 30 MB allocation threshold, and the blocker's 100,000 hostname
 strings made each one 3.5× longer. Fixed: `jihad-platform-prefs.js` ships

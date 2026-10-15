@@ -205,8 +205,10 @@ pref("network.http.speculative-parallel-limit", 0);
 //   30 MB: objects 2M 3,862 / 2,940 ms, strings 200k 612 / 510 ms — 5-7 full collections
 //   96 MB: objects 972 ms then 9,678 ms (an incremental collection landed inside the test)
 //  160 MB: objects 1,584 / 1,012 ms, strings 852 / 522 ms, regex 190 / 204 ms — no full collection
-// 160 MB, with the high-water mark above it so the engine does not fight the threshold. The
-// daemon's low-memory guardrail (EngineHost.cpp, 48 MB available) stays the safety net on a
-// 1 GB device running three daemons; the round's per-visit RSS watches it.
-pref("javascript.options.mem.gc_allocation_threshold_mb", 160);
-pref("javascript.options.mem.high_water_mark", 192);
+// 160 MB was tried first and ran the device out of memory within one page of the second round
+// ("Sorry, too many cards": the Mochi daemon at 214 MB resident — the heap may grow to the
+// threshold before a major collection, and three daemons share 1 GB with LunaSysMgr). 64 MB:
+// double the engine's default, well under the engine's own 128 MB high-water mark, and the
+// daemon's low-memory guardrail (EngineHost.cpp, 48 MB available) stays the safety net. The
+// round's per-visit RSS watches it; the benchmark at this value is in the ledger.
+pref("javascript.options.mem.gc_allocation_threshold_mb", 64);

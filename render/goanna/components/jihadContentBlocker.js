@@ -27,7 +27,8 @@
  * third_party/easylist/README.md). The package carries them raw in <GRE>/blocklists/. They are
  * compiled HERE, in JavaScript, in slices between timer ticks — one compiler for the bundled
  * snapshot and for updates — and the compiled form is cached in <profile>/jihad-blocklists/
- * compiled.json, keyed by the lists' "! Version:" and the compiler's version. Whichever of the
+ * (hosts.txt, tp.txt, exc.txt, cosmetic.css, meta.json), keyed by the lists' "! Version:" and
+ * the compiler's version. Whichever of the
  * bundled snapshot and the profile's downloaded copy is NEWER is used. Updates come from
  * easylist.to at most every 4 days (plus jitter, so three daemons do not fetch together), newer
  * version only, complete only (a list that lost more than a quarter of its rules is a truncated
@@ -40,7 +41,8 @@
  * unbalanced brackets, ids/classes that start with a digit. Sized for a 1 GB tablet running
  * three daemons: the three host sets are HostSets (one string and two typed arrays each, so a
  * full GC marks a handful of things, not 100,000 strings), the small maps stay Maps, the raw
- * list text is not kept (everything is built from the cache's own strings).
+ * list text is not kept (everything is built from the cache's own files), and the lists are
+ * held only while a card is connected (loaded on the first card, dropped after ten idle minutes).
  *
  * LOGGING: a refusal logs the LIST ENTRY that matched (never the page-chosen request host), and
  * only when jihad.blocking.log is on (off by default: hundreds of lines a page churn the capped
@@ -65,11 +67,12 @@ const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lis
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
 
-const COMPILER_VERSION = 6;                 // bump when the compiled form changes
+const COMPILER_VERSION = 8;                 // bump when the compiled form changes
 const UPDATE_EVERY_S   = 4 * 24 * 3600;     // the lists say "! Expires: 4 days"
 const RETRY_AFTER_S    = 24 * 3600;         // after a failed attempt
 const UPDATE_CHECK_MS  = 6 * 3600 * 1000;   // how often the timer looks at the clock
 const QUIET_AFTER_DOC_MS = 20 * 1000;       // no update work within 20 s of a page starting
+const UNLOAD_AFTER_IDLE_MS = 10 * 60 * 1000; // the lists are dropped ten minutes after the last card leaves
 const LISTS = [
   { name: "easylist",    url: "https://easylist.to/easylist/easylist.txt" },
   { name: "easyprivacy", url: "https://easylist.to/easylist/easyprivacy.txt" }
@@ -353,16 +356,29 @@ HostSet.prototype.has = function (name) {
 
 function mapToObj(m) { let o = {}; for (let [k, v] of m) o[k] = v; return o; }
 function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); return m; }
-function packCache(r, versions) {
-  return JSON.stringify({compiler: COMPILER_VERSION, versions: versions,
-    hosts: Array.from(r.hosts).join("\n"), tp: Array.from(r.tp).join("\n"), excHosts: Array.from(r.excHosts).join("\n"),
-    typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules),
-    css: r.css, site: r.site, counts: r.counts});
+// The cache: the three host blobs as their own files, read straight into the strings the HostSets
+// keep (a 3 MB JSON of everything cost a 3 MB string, its parse and what the allocator kept of
+// both: +13 MB resident on the device, 2026-10-15), and the small maps, the CSS and the counts in
+// meta.json.
+function writeCache(r, versions) {
+  writeFileText(profileFile("hosts.txt"), Array.from(r.hosts).join("\n"));
+  writeFileText(profileFile("tp.txt"), Array.from(r.tp).join("\n"));
+  writeFileText(profileFile("exc.txt"), Array.from(r.excHosts).join("\n"));
+  writeFileText(profileFile("cosmetic.css"), r.css);
+  writeFileText(profileFile("meta.json"), JSON.stringify({compiler: COMPILER_VERSION, versions: versions,
+    typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules), site: r.site, counts: r.counts}));
 }
-function unpackCache(c) {
-  return {hosts: new HostSet(c.hosts), tp: new HostSet(c.tp), excHosts: new HostSet(c.excHosts),
+// null when there is no cache for these versions and this compiler
+function readCache(versions) {
+  let mf = profileFile("meta.json");
+  if (!mf.exists()) return null;
+  let c = JSON.parse(readFileText(mf));
+  if (c.compiler !== COMPILER_VERSION || c.versions.easylist !== versions.easylist || c.versions.easyprivacy !== versions.easyprivacy) return null;
+  for (let n of ["hosts.txt", "tp.txt", "exc.txt", "cosmetic.css"]) if (!profileFile(n).exists()) return null;
+  return {hosts: new HostSet(readFileText(profileFile("hosts.txt"))), tp: new HostSet(readFileText(profileFile("tp.txt"))),
+          excHosts: new HostSet(readFileText(profileFile("exc.txt"))),
           typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),
-          css: c.css, site: c.site || {}, counts: c.counts};
+          css: null, site: c.site || {}, counts: c.counts};
 }
 
 function JihadContentBlocker() {
@@ -383,7 +399,14 @@ function JihadContentBlocker() {
   try { Services.prefs.addObserver("jihad.blocking.", this, false); } catch (e) {}
   try { Services.obs.addObserver(this, "document-element-inserted", false); } catch (e) {}
   try { Services.obs.addObserver(this, "http-on-modify-request", false); } catch (e) {}
-  setTimeout(() => this._load(), 1500);
+  // ON DEMAND (R6, 2026-10-15): every variant's daemon runs from boot, and three of them holding
+  // the lists cost ~80 MB of a 1 GB device that then refused new cards. The daemon says when a
+  // card connects and when the last one leaves (jihad-client-connected / -disconnected, the
+  // data the count of clients); the lists load on the first card and are dropped after ten idle
+  // minutes. The first page after a long idle gets its first seconds without blocking.
+  try { Services.obs.addObserver(this, "jihad-client-connected", false); } catch (e) {}
+  try { Services.obs.addObserver(this, "jihad-client-disconnected", false); } catch (e) {}
+  this._clients = 0; this._unloadTimer = null; this._loading = false;
   this._timer = setInterval(() => this._maybeUpdate(false), UPDATE_CHECK_MS);
   setTimeout(() => this._maybeUpdate(false), (90 + Math.floor(Math.random() * 120)) * 1000);
 }
@@ -394,6 +417,19 @@ JihadContentBlocker.prototype = {
 
   // ── nsIObserver ──
   observe: function (subject, topic, data) {
+    if (topic === "jihad-client-connected") {
+      this._clients = parseInt(data, 10) || (this._clients + 1);
+      if (this._unloadTimer) { clearTimeout(this._unloadTimer); this._unloadTimer = null; }
+      if (!this._hosts && !this._loading) { this._loading = true; this._load(); }
+      return;
+    }
+    if (topic === "jihad-client-disconnected") {
+      this._clients = parseInt(data, 10); if (isNaN(this._clients)) this._clients = Math.max(0, this._clients - 1);
+      if (this._clients === 0 && !this._unloadTimer) {
+        this._unloadTimer = setTimeout(() => { this._unloadTimer = null; if (this._clients === 0) this._unload(); }, UNLOAD_AFTER_IDLE_MS);
+      }
+      return;
+    }
     if (topic === "document-element-inserted") { this._lastDocAt = Date.now(); this._siteSheetFor(subject); return; }
     if (topic === "http-on-modify-request") { this._onRequest(subject); return; }
     if (topic !== "nsPref:changed") return;
@@ -517,30 +553,40 @@ JihadContentBlocker.prototype = {
         if (!f.exists()) { log("no list file: " + f.path); continue; }
         files[l.name] = f; versions[l.name] = versionOfFile(f);
       }
-      if (!files.easylist && !files.easyprivacy) { this._noLists = true; log("no lists: nothing is blocked"); return; }
-      let cacheFile = profileFile("compiled.json");
-      if (cacheFile.exists()) {
-        try {
-          let c = JSON.parse(readFileText(cacheFile));
-          if (c.compiler === COMPILER_VERSION && c.versions.easylist === versions.easylist && c.versions.easyprivacy === versions.easyprivacy) {
-            this._install(unpackCache(c), versions, "cache", false);
-            return;
-          }
-        } catch (e) { log("cache unreadable, recompiling: " + e); }
-      }
+      if (!files.easylist && !files.easyprivacy) { this._noLists = true; this._loading = false; log("no lists: nothing is blocked"); return; }
+      try {
+        let c = readCache(versions);
+        if (c) { this._loading = false; this._install(c, versions, "cache"); return; }
+      } catch (e) { log("cache unreadable, recompiling: " + e); }
       let texts = [files.easylist ? readFileText(files.easylist) : "", files.easyprivacy ? readFileText(files.easyprivacy) : ""];
-      compile(texts, (r) => this._afterCompile(r, versions, cacheFile, "compiled"));
-    } catch (e) { log("load failed: " + e); }
+      compile(texts, (r) => this._afterCompile(r, versions, "compiled"));
+    } catch (e) { this._loading = false; log("load failed: " + e); }
   },
-  // Installed from the cache's OWN parse, so the sets hold fresh strings and the raw list text
-  // can be collected (SpiderMonkey keeps split() pieces as dependent strings, inspector F-5).
-  _afterCompile: function (r, versions, cacheFile, how) {
-    let packed = packCache(r, versions);
+  // Written out, then installed from the cache's OWN files, so the sets hold fresh strings and the
+  // raw list text can be collected (SpiderMonkey keeps split() pieces as dependent strings,
+  // inspector F-5).
+  _afterCompile: function (r, versions, how) {
+    try { writeCache(r, versions); } catch (e) { log("cache not written: " + e); }
+    let c = null;
+    try { c = readCache(versions); } catch (e) { log("cache unreadable after writing: " + e); }
+    if (!c) {   // keep working from the compile's own sets, as a last resort
+      c = {hosts: new HostSet(Array.from(r.hosts).join("\n")), tp: new HostSet(Array.from(r.tp).join("\n")), excHosts: new HostSet(Array.from(r.excHosts).join("\n")),
+           typed: r.typed, paths: r.paths, excRules: r.excRules, css: null, site: r.site, counts: r.counts};
+    }
     r = null;
-    try { writeFileText(cacheFile, packed); } catch (e) { log("cache not written: " + e); }
-    this._install(unpackCache(JSON.parse(packed)), versions, how, true);
+    this._loading = false;
+    this._install(c, versions, how);
   },
-  _install: function (r, versions, how, writeSheet) {
+  _unload: function () {
+    if (!this._hosts) return;
+    this._hosts = null; this._tp = null; this._excHosts = null;
+    this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
+    this._applySheet();
+    log("idle ten minutes with no card: the lists dropped (they load again with the next card)");
+    try { Services.obs.notifyObservers(null, "jihad-blocker-installed", null); } catch (e) {}   // the daemon trims
+    setTimeout(() => { try { Services.obs.notifyObservers(null, "memory-pressure", "heap-minimize"); } catch (e) {} }, 500);
+  },
+  _install: function (r, versions, how) {
     this._hosts = r.hosts; this._tp = r.tp; this._excHosts = r.excHosts; this._typed = r.typed; this._paths = r.paths;
     this._excRules = r.excRules; this._site = r.site; this._counts = r.counts;
     this._versions = versions;
@@ -552,9 +598,7 @@ JihadContentBlocker.prototype = {
         ", generichide " + c.generichide + ", selectors " + c.cosmetic + " (less " + c.cosmeticExc + "), site selectors " + c.siteCosmetic +
         " (less " + c.siteCosmeticExc + ", per document), bad selectors " + c.badSelector + ", skipped " + c.skipped +
         (c.ms !== undefined ? ", " + c.ms + " ms" : ""));
-    // the generic sheet is a file: written when compiled, registered as it is after a cache load
-    if (writeSheet || !profileFile("cosmetic.css").exists()) { try { writeFileText(profileFile("cosmetic.css"), r.css); } catch (e) { log("sheet not written: " + e); } }
-    r.css = null;
+    // the generic sheet is the cache's cosmetic.css, registered as it is
     this._applySheet();
     // The parse of a 3 MB cache (or a compile) leaves the JS heap and the allocator holding what
     // it no longer needs; on a 1 GB tablet that showed as +36 MB of RSS at idle (device
@@ -640,7 +684,7 @@ JihadContentBlocker.prototype = {
         compile([texts.easylist, texts.easyprivacy], (r) => {
           try {
             for (let l of newer) { try { writeFileText(profileFile(l.name + ".txt"), got[l.name]); } catch (e) { log("update: " + l.name + " not kept: " + e); } }
-            self._afterCompile(r, versions, profileFile("compiled.json"), "update");
+            self._afterCompile(r, versions, "update");
             if (!self._lastError) setIntPref(PREF_LAST, t);
           } catch (e) { log("update: " + e); }
           self._updating = false;

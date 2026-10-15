@@ -64,6 +64,10 @@ private:
 // Same table the http-on-modify-request observer uses — so navigator.userAgent (set via the
 // docShell customUserAgent in LoadUrl) matches the request header for override domains (Codex F-240).
 const char* JihadPerDomainUaForUrl(const char* url);
+// A card connected or left: the components learn it through the observer service (the content
+// blocker holds its lists only while a card is connected — cavekit-content-blocking.md R6).
+// `clients` is the number still connected after this event.
+void JihadNotifyClients(bool connected, int clients);
 
 } // namespace jihad
 

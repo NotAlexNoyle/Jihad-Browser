@@ -4,6 +4,9 @@
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
+// A card connected or left → the engine side tells the components (render/goanna/EngineHost.cpp;
+// declared here as a plain prototype: EngineHost.h carries XPCOM headers this side is not built with).
+namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
 #include <algorithm>
 #include <cstdio>
@@ -202,10 +205,12 @@ void JihadBrowserServer::reap(YapProxy* proxy) {
 
 void JihadBrowserServer::clientConnected(YapProxy* proxy) {
   (void)proxy; printf("[jihad-bs] client connected\n");
+  jihad::JihadNotifyClients(true, (int)mConnectOrder.size() + 1);   // the page is created after this call
 }
 void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
   printf("[jihad-bs] client disconnected\n");
   reap(proxy);
+  jihad::JihadNotifyClients(false, (int)mConnectOrder.size());
 }
 
 #ifndef JIHAD_NO_INJECT

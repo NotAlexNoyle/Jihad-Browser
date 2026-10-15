@@ -197,3 +197,16 @@ pref("jihad.blocking.versions", "");       // "<easylist version>/<easyprivacy v
 // happen before any load is asked for. Off, so a listed host is not contacted at all.
 pref("network.dns.disablePrefetch", true);
 pref("network.http.speculative-parallel-limit", 0);
+
+// --- Garbage collection on the device (cavekit-modern-web.md R6, performance; 2026-10-15) ---
+// The GC log on jihad-jsbench.html showed every page's stalls to be NON-incremental full
+// collections at the engine's default allocation threshold (30 MB): five to seven per benchmark
+// run, 0.7-3.9 s each, 2.7-3.1 s of stalls a run. Measured on the TouchPad (Mojo, no lists):
+//   30 MB: objects 2M 3,862 / 2,940 ms, strings 200k 612 / 510 ms — 5-7 full collections
+//   96 MB: objects 972 ms then 9,678 ms (an incremental collection landed inside the test)
+//  160 MB: objects 1,584 / 1,012 ms, strings 852 / 522 ms, regex 190 / 204 ms — no full collection
+// 160 MB, with the high-water mark above it so the engine does not fight the threshold. The
+// daemon's low-memory guardrail (EngineHost.cpp, 48 MB available) stays the safety net on a
+// 1 GB device running three daemons; the round's per-visit RSS watches it.
+pref("javascript.options.mem.gc_allocation_threshold_mb", 160);
+pref("javascript.options.mem.high_water_mark", 192);

@@ -196,11 +196,32 @@ private:
 };
 NS_IMPL_ISUPPORTS(JihadUaOverride, nsIObserver)
 
+// The content blocker (components/jihadContentBlocker.js) says when its lists are in: the parse
+// of its 3 MB cache leaves the bundled glibc's heap holding pages it will not give back on its
+// own (this build has no jemalloc; +26 MB resident beyond the 12 MB JS heap, device 2026-10-15).
+// malloc_trim returns them, as the low-memory guardrail does under pressure (cavekit-content-
+// blocking.md R6).
+class JihadBlockerTrim final : public nsIObserver {
+public:
+  NS_DECL_ISUPPORTS
+  NS_IMETHOD Observe(nsISupports*, const char* aTopic, const char16_t*) override {
+    if (strcmp(aTopic, "jihad-blocker-installed") == 0) {
+      int freed = malloc_trim(0);
+      fprintf(stderr, "[jihad-bs] blocker installed: malloc_trim %s\n", freed ? "returned pages" : "returned nothing");
+    }
+    return NS_OK;
+  }
+private:
+  ~JihadBlockerTrim() {}
+};
+NS_IMPL_ISUPPORTS(JihadBlockerTrim, nsIObserver)
+
 static void jihadRegisterUaOverride() {
   static bool s_registered = false;
   if (s_registered) return;
   nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
   if (!obs) return;
+  { nsCOMPtr<nsIObserver> t = new JihadBlockerTrim(); obs->AddObserver(t, "jihad-blocker-installed", false); }
   nsCOMPtr<nsIObserver> o = new JihadUaOverride();
   // ownsWeak=false: the observer service keeps a strong ref for the process lifetime.
   if (NS_SUCCEEDED(obs->AddObserver(o, "http-on-modify-request", false))) s_registered = true;

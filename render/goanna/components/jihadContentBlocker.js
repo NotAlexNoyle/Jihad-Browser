@@ -38,8 +38,9 @@
  * $popup, $removeparam, …), wildcard and regex rules, ~domain negations in blocks, generic
  * cosmetic rules that are not a single id or class, selectors with procedural pseudo-classes or
  * unbalanced brackets, ids/classes that start with a digit. Sized for a 1 GB tablet running
- * three daemons: the sets are JS Sets and Maps of hostnames, the raw list text is not kept
- * (the sets are built from the cache's own strings, never from the source text's substrings).
+ * three daemons: the three host sets are HostSets (one string and two typed arrays each, so a
+ * full GC marks a handful of things, not 100,000 strings), the small maps stay Maps, the raw
+ * list text is not kept (everything is built from the cache's own strings).
  *
  * LOGGING: a refusal logs the LIST ENTRY that matched (never the page-chosen request host), and
  * only when jihad.blocking.log is on (off by default: hundreds of lines a page churn the capped
@@ -64,7 +65,7 @@ const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lis
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
 
-const COMPILER_VERSION = 5;                 // bump when the compiled form changes
+const COMPILER_VERSION = 6;                 // bump when the compiled form changes
 const UPDATE_EVERY_S   = 4 * 24 * 3600;     // the lists say "! Expires: 4 days"
 const RETRY_AFTER_S    = 24 * 3600;         // after a failed attempt
 const UPDATE_CHECK_MS  = 6 * 3600 * 1000;   // how often the timer looks at the clock
@@ -303,6 +304,53 @@ function compile(texts, onDone) {
   }
   setTimeout(slice, 0);
 }
+// ── HostSet: ~100,000 hostnames as ONE string and two typed arrays ──────────────────────────
+// A JS Set of 100,000 strings is 100,000 GC things: every full collection marks them all, and on
+// the device that made the first full GC 3.9 s instead of 1.1 s (the GC log, 2026-10-15). Here
+// the names live in one "\n"-joined string (one GC thing); a hash table of 32-bit FNV-1a hashes
+// (Uint32Array) and start offsets (Int32Array) finds a name without allocating: the probe
+// compares in place with startsWith and the terminator. Memory: the string plus 8 bytes per
+// slot at a load factor under 0.5.
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+function HostSet(blob) {
+  this.blob = blob || "";
+  this.size = 0;
+  let n = 0;
+  for (let i = 0; i < this.blob.length; i++) if (this.blob.charCodeAt(i) === 10) n++;
+  if (this.blob.length && this.blob[this.blob.length - 1] !== "\n") n++;
+  let cap = 1; while (cap < n * 2 + 8) cap <<= 1;
+  this.mask = cap - 1;
+  this.hashes = new Uint32Array(cap);
+  this.offsets = new Int32Array(cap).fill(-1);
+  let start = 0, len = this.blob.length;
+  for (let i = 0; i <= len; i++) {
+    if (i === len || this.blob.charCodeAt(i) === 10) {
+      if (i > start) {
+        let name = this.blob.slice(start, i), h = fnv1a(name), slot = h & this.mask;
+        while (this.offsets[slot] !== -1) slot = (slot + 1) & this.mask;
+        this.hashes[slot] = h; this.offsets[slot] = start; this.size++;
+      }
+      start = i + 1;
+    }
+  }
+}
+HostSet.prototype.has = function (name) {
+  if (!this.size) return false;
+  let h = fnv1a(name), slot = h & this.mask, off;
+  while ((off = this.offsets[slot]) !== -1) {
+    if (this.hashes[slot] === h && this.blob.startsWith(name, off)) {
+      let end = off + name.length;
+      if (end === this.blob.length || this.blob.charCodeAt(end) === 10) return true;
+    }
+    slot = (slot + 1) & this.mask;
+  }
+  return false;
+};
+
 function mapToObj(m) { let o = {}; for (let [k, v] of m) o[k] = v; return o; }
 function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); return m; }
 function packCache(r, versions) {
@@ -312,8 +360,7 @@ function packCache(r, versions) {
     css: r.css, site: r.site, counts: r.counts});
 }
 function unpackCache(c) {
-  let split = s => s ? s.split("\n") : [];
-  return {hosts: new Set(split(c.hosts)), tp: new Set(split(c.tp)), excHosts: new Set(split(c.excHosts)),
+  return {hosts: new HostSet(c.hosts), tp: new HostSet(c.tp), excHosts: new HostSet(c.excHosts),
           typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),
           css: c.css, site: c.site || {}, counts: c.counts};
 }
@@ -516,12 +563,16 @@ JihadContentBlocker.prototype = {
     // engine's caches refill as the user browses.
     setTimeout(() => {
       try { Services.obs.notifyObservers(null, "memory-pressure", "heap-minimize"); } catch (e) {}
+      try { Services.obs.notifyObservers(null, "jihad-blocker-installed", null); } catch (e) {}   // the daemon: malloc_trim
       // Where the memory sits (R6): the JS GC heap and the allocator's heap, in MB, after the purge.
       setTimeout(() => {
         try {
           let mr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
-          log("memory after install: resident " + (mr.residentFast >> 20) + " MB, heap-allocated " + (mr.heapAllocated >> 20) +
-              " MB, JS GC heap " + (mr.JSMainRuntimeGCHeap >> 20) + " MB, JS temporary " + (mr.JSMainRuntimeTemporaryPeak >> 20) + " MB");
+          // each figure on its own: heapAllocated is jemalloc's and this build has none (NS_ERROR_NOT_AVAILABLE)
+          let fig = (name) => { try { return (mr[name] / 1048576).toFixed(1) + " MB"; } catch (e) { return "n/a"; } };
+          log("memory after install: resident " + fig("residentFast") + ", heap-allocated " + fig("heapAllocated") +
+              ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", JS temporary peak " + fig("JSMainRuntimeTemporaryPeak") +
+              ", JS compartments " + (function () { try { return mr.JSMainRuntimeCompartmentsSystem + "+" + mr.JSMainRuntimeCompartmentsUser; } catch (e) { return "n/a"; } })());
         } catch (e) { log("memory reporter: " + e); }
       }, 3000);
     }, 2000);

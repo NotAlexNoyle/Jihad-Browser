@@ -125,16 +125,31 @@ session's `verify5.sh` after `push-variant.sh` ×3.
 
 **v5.1 on the device (14:20–14:50):** Enyo and Mochi carry the v5.1 packages (`push-variant.sh`;
 the on-device checks pass: typed, path, own-host, first-party, MDN's `/pong/`). **Mojo's push
-failed four times**: the USB link drops mid-transfer of the 43 MB payload ("novacomd socket was
-closed prematurely", then "unable to find device", the device re-enumerating with a new novacom
-id each time; Enyo's and Mochi's transfers survived). Mojo runs the morning's package (no
-blocker, old Settings, old about:jihad) until a push gets through — try with nothing else on
-the bus, or after a device reboot. **The benchmark** (`jihad-jsbench.html`, Mojo, host V8 in
+failed four times** (the USB link dropped mid-transfer of the 43 MB payload: "novacomd socket
+was closed prematurely", then "unable to find device", the device re-enumerating with a new
+novacom id each time) **and landed on the fifth, alone on the bus (14:53)**: all three variants
+carry the v5.1 packages. Mochi alone also runs the experiment daemon (`c2459f0d`: the
+Firefox/128 token for the ten bot-blocked hosts) and the component with the memory-reporter
+line, by dev push; the final packages for all three wait on the experiment's verdict, the
+Personas guard and the memory work (one rebuild, three pushes, each alone on the bus). **The benchmark** (`jihad-jsbench.html`, Mojo, host V8 in
 brackets): loop 50M 976 ms (167), objects 2M 6,854 ms (200), strings 200k 8,280 ms (19), regex
 100k 902 ms (17), DOM 20k 10,156 ms — the JIT is live for integer code (6×) but allocation-heavy
 code is 34–436× slower: a garbage-collection or allocator problem, the first suspect for every
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
+
+**The performance work (15:00–15:35):** the GC log apportioned the stalls to NON-incremental full
+collections at the engine's 30 MB allocation threshold, and the blocker's 100,000 hostname
+strings made each one 3.5× longer. Fixed: `jihad-platform-prefs.js` ships
+`javascript.options.mem.gc_allocation_threshold_mb` 160 + `high_water_mark` 192 (measured at
+30/96/160 on Mojo, the ledger has the numbers); component **v6** keeps each host set as one
+string plus typed-array hash tables (a full collection with the lists: 1,073 ms, was 3,878; idle
+memory +27.5 MB, was +40, JS heap 7 MB); daemon 5 `malloc_trim`s on "jihad-blocker-installed"
+(it returned pages). **The final packages** (v6, the Personas guard, daemon 5 — which also carries
+the UA experiment — and the GC prefs) are built in `out-all/` (15:25) and NOT pushed: the second
+round decides the UA experiment first; if it says revert, `EngineHost.cpp`'s ten Firefox/128
+rows go, daemon rebuilt, packages rebuilt. **The second round** runs on Mochi (v6, daemon 5, GC
+160, the probes first) into `docs/rounds/round2b-2026-10-15/` via `tools/host/run-browse-round.sh`.
 
 **Round 2's first run is read (T-491 done):** 30 rows in `docs/MODERN-WEB.md`, shots in
 `docs/rounds/`. **The finding: 7 of 30 visits were stopped by bot detection** (Cloudflare on

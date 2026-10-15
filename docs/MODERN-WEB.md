@@ -143,8 +143,24 @@ objects 2M **6,854 ms** (200), strings 200k **8,280 ms** (19), regex 100k **902 
 20k **10,156 ms**. The JIT is live (integer code at 6× the host); allocation-heavy code is
 34–436× slower: a garbage-collection or allocator problem (the ARM build has
 `--disable-jemalloc`; the daemon's low-memory guardrail is not it — its threshold is 48 MB
-available and the device sits near 470 MB). The GC log (`javascript.options.mem.log`) on the
-benchmark is the next measurement; then the guard's value.
+available and the device sits near 470 MB). **The GC log (`javascript.options.mem.log`, 14:57–15:02) apportions it:** the object test's time
+is garbage collection — four NON-incremental full collections ("GCBytesTrigger": the allocation
+threshold reached, `javascript.options.mem.gc_allocation_threshold_mb` 30) of 0.7–3.9 s each,
+about three quarters of the test; and the first full collection costs **3.9 s on Mochi with the
+blocker's 100,000 hostname strings in the heap against 1.1 s on Mojo without** — the blocker's own
+performance cost, fixed by keeping the hostnames in one string with a typed-array hash table
+(component v6) so a collection marks a handful of things. **The threshold measured on Mojo (15:05–15:20, two runs each):** at 30 MB (the engine's default)
+5–7 full non-incremental collections a run, 2.7–3.1 s of stalls, objects 3,862/2,940 ms; at
+96 MB one run good (objects 972 ms) and one terrible (9,678 ms: an incremental collection landed
+inside the test); at **160 MB no full collection**, objects 1,584/1,012 ms, strings 852/522 ms,
+regex 190/204 ms. **Shipped: 160 MB** with the high-water mark at 192 (`jihad-platform-prefs.js`),
+the daemon's low-memory guardrail as the safety net; the second run's per-visit RSS watches it. The run-to-run
+spread is wide (objects 3.7–9.5 s, strings 0.5–8.3 s): a collection landing inside a test
+dominates it. The ARM build's `--disable-jemalloc`
+was inherited from the desktop headless config with no stated reason (DEVICE-BUILD.md: "the
+platform allocator"); the engine allocates through the bundled glibc 2.23 malloc. If the GC log
+shows collection time small and the allocation tests still slow, an engine rebuild with
+jemalloc on (hours, cavekit-engine-update.md) is the experiment that follows.
 (c) One engine API throws `NS_ERROR_NOT_INITIALIZED` to page scripts on AP, Etsy, Vimeo and
 GitLab — `jihad-apis.html` probes the usual suspects. (d) ES-module apps (Bluesky, Substack?,
 weather.com?) are upstream until named. (e) Two visits were the test's own faults (wikiHow's

@@ -5,6 +5,53 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-15 delta — the README rewritten with new screenshots (READ FIRST)
+
+**The owner (2026-10-14 evening, the session the PC crash cut off):** "In the readme there should be
+one slogan only: 'UXP inside, webOS alive, inshallah!'. Simplify the technical sections. The sort
+order in text and images should be oldest to newest Mojo -> Enyo -> Mochi. Take all new screenshots
+and make the document shorter, mostly featuring things atlas browser and isis browser cant do, and
+as a member of the family of UXP browsers and projects"; "less emphasis on touchpad, its supposed to
+work on all webos devices but only touchpad is supported for now"; "dont mention HP unless necessary
+for attribution". Recovered 2026-10-15 from transcript `874e71a1` (it ended at the Mojo diagnosis;
+its ten raw shots died with the device's reboot).
+
+**Done:** README.md 278 → 178 lines: one slogan, "for webOS" with the TouchPad and TouchPad Go named
+as the only supported devices so far, Mojo → Enyo → Mochi everywhere, HP only in the attribution
+lines (isis-project, the SDK's terms, the trademark note), the UXP-family framing (engine, XPI
+add-ons, Personas, Pale Moon's Settings panes, the Phoebus-based add-on site), the "what only Jihad
+does" sections (Flash + modern web, add-ons and Personas, Settings and about:config, own NSS),
+the TLS history table, its sources and the Acid3/html5test numbers dropped, Building cut to the four
+commands. The per-distribution package table moved to `docs/DEVICE-BUILD.md` "To build" (it used to
+point at the README for it). `docs/screenshots/`: five images composed by `readme-art.py` from
+fresh raw shots — `cardview.jpg` (Mojo on Wikipedia's webOS article, Enyo on webosarchive.org
+wearing Free Palestine, Mochi on Wikipedia's Palm article wearing Aurora Silk), `flash.webp`
+(Bloxorz full-page in Enyo), `addons-personas.webp` (Mojo about:addons, Mochi about:personas),
+`settings.webp` (Enyo Privacy pane, Mochi about:config), `tls.webp` (howsmyssl in Mojo); the
+Persona strip, personas-install, customize and standards images deleted; CREDITS.md's screenshot
+sections rewritten (Space Fantasy and Linen Light show in the gallery shot, CC BY-SA 3.0).
+
+**Traps met:** (1) Wikipedia has no "Goanna (software)" article (a "no article" page was shot
+first). (2) howsmyssl.com now rates the client "Improvable" for the missing post-quantum key
+agreement; its Version box still says Good, TLS 1.3 — the README says exactly that. (3) Wearing a
+Persona from a script: the manager wears `usedThemes[0]` when `lightweightThemes.isThemeSelected`
+is true (UXP has no selectedThemeID), but the CARDS read `jihad.theme.current` (the `cardTheme()`
+JSON with the picture as a `file:///…/profile/jihad-themes/<hash>-header.jpg` URL) through
+`getTheme` at start — set all three with `tools/device/set-prefs.sh`, or the toolbar stays plain.
+(4) The about:config warning page: `general.warnOnAboutConfig=false` for the shot. (5) After the
+device's reboot its Wi-Fi came up disabled; the owner switched it on. (6) Launch with
+`{"target": url}` after closing every Jihad card (`applicationManager/close` per processid), or a
+relaunch lands on the existing card.
+
+**Device:** both variants back to the Default look (`isThemeSelected` false, `jihad.theme.current`
+dropped, Enyo's list order restored), Mochi's `general.warnOnAboutConfig` dropped, every card
+closed; nothing installed; daemon `06e75a68` on all three, `/` read-only. novacomd was started by
+the owner after the PC reboot.
+
+**Open:** unchanged from below (the engine push, R11 criterion 4's VM run — the VM was in /tmp and
+is gone with the reboot —, the finger round). `docs/research/persona-licences.md` line 454's
+"retake cardview.jpg, personas-strip.png…" note is now done (strip retired).
+
 ## 2026-10-14 (evening) delta — public on GitHub; the licensing audit; R11 on a Fedora VM (READ FIRST)
 
 **The owner:** "Fix it so everyone can clone and build (redistributable webos app)", "Resolve R11 with

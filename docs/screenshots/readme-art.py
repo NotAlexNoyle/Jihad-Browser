@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Compose the README's art from raw device screenshots: TouchPad-framed shots, a webOS-style
-card view, and a strip of themed toolbars.
+"""Compose the README's art from raw device screenshots: TouchPad-framed shots and a webOS-style
+card view, the interfaces in order of age (Mojo, Enyo, Mochi).
 
 Usage: readme-art.py SHOTS_DIR FONTS_DIR OUT_DIR REPO_DIR
 
@@ -119,8 +119,7 @@ def cardview(cards, titles, out_name, size=(1600, 900)):
     bg.alpha_composite(logo, (x0, 36))
     d = ImageDraw.Draw(bg)
     d.text((x0 + 104, 40), "Jihad Browser", font=F("PreludeWGL-Medium", 50), fill=(245, 247, 250))
-    d.text((x0 + 106, 98), "one engine  ·  three interfaces  ·  for HP TouchPad", font=F("PreludeWGL-Light", 24),
-           fill=(170, 190, 215))
+    d.text((x0 + 106, 98), "for webOS", font=F("PreludeWGL-Light", 24), fill=(170, 190, 215))
     for i, (im, t) in enumerate(zip(cards, titles)):
         x = x0 + i * (cw + gap)
         card = im.resize((cw, ch), Image.LANCZOS).convert("RGBA")
@@ -136,21 +135,6 @@ def cardview(cards, titles, out_name, size=(1600, 900)):
     bg.save(os.path.join(OUT, out_name), "JPEG", quality=86, optimize=True, progressive=True)
 
 
-def theme_strip(rows, out_name):
-    """Toolbars of one interface wearing different themes, stacked, each labelled on the left."""
-    label_w, bar_h, gap = 330, 54, 8
-    W = label_w + 768
-    H = len(rows) * (bar_h + gap) + gap
-    im = Image.new("RGB", (W, H), (22, 24, 28))
-    d = ImageDraw.Draw(im)
-    for i, (src, name, by) in enumerate(rows):
-        y = gap + i * (bar_h + gap)
-        im.paste(src.crop((0, 28, 768, 28 + bar_h)), (label_w, y))
-        d.text((24, y + 5 if by else y + 14), name, font=F("PreludeWGL-Medium", 23), fill=(236, 239, 244))
-        if by:
-            d.text((24, y + 32), by, font=F("PreludeWGL-Light", 16), fill=(150, 162, 178))
-    im.save(os.path.join(OUT, out_name), "PNG", optimize=True)
-
 
 def pair(a, b, out_name, width=1000):
     l = touchpad(a, width // 2)
@@ -162,19 +146,11 @@ def pair(a, b, out_name, width=1000):
 
 
 if __name__ == "__main__":
-    cardview([shot("enyo-wiki-none"), shot("mochi-wiki"), shot("mojo-wosa")],
-             ["Jihad Enyo", "Jihad Mochi", "Jihad Mojo"], "cardview.jpg")
-    theme_strip([(shot("sp-none"), "No Persona", "the classic webOS look"),
-                 (shot("sp-aero-aqua"), "Bubble Lagoon", "drawn for Jihad"),
-                 (shot("sp-aero-meadow"), "Meadow Morning", "drawn for Jihad"),
-                 (shot("sp-aero-ribbons"), "Aurora Silk", "drawn for Jihad"),
-                 (shot("sp-space"), "Space Fantasy", "by fx5800p, CC BY-SA 3.0"),
-                 (shot("sp-flowers"), "Field of flowers", "by vc, CC BY 4.0"),
-                 (shot("sp-birds"), "Two little birds", "by math3us.c, CC BY-SA 3.0")], "personas-strip.png")
-    save_webp(touchpad(shot("enyo-flash-game"), 520), "flash.webp")
-    pair(shot("mochi-persona-prompt"), shot("enyo-personas-pane"), "personas-install.webp")
-    pair(shot("mochi-config"), shot("mochi-settings-privacy"), "customize.webp")
-    pair(shot("mochi-acid3"), shot("enyo-html5test"), "standards.webp")
+    cardview([shot("mojo-wiki"), shot("enyo-wiki"), shot("mochi-wiki")],
+             ["Jihad Mojo", "Jihad Enyo", "Jihad Mochi"], "cardview.jpg")
+    save_webp(touchpad(shot("enyo-flash"), 520), "flash.webp")
+    pair(shot("mojo-addons"), shot("mochi-personas"), "addons-personas.webp")
+    pair(shot("enyo-privacy"), shot("mochi-config"), "settings.webp")
     save_webp(touchpad(shot("mojo-tls"), 520), "tls.webp")
-    for f in sorted(os.listdir(OUT)):
+    for f in sorted(f for f in os.listdir(OUT) if os.path.isfile(os.path.join(OUT, f))):
         print(f, os.path.getsize(os.path.join(OUT, f)) // 1024, "KB", Image.open(os.path.join(OUT, f)).size)

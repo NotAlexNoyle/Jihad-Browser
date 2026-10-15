@@ -166,8 +166,21 @@ sudo -b tools/host/bin/novacomd                                 # its USB daemon
 build/webos-oe/build-all-device.sh                               # TouchPad plugged in the first time
 ```
 
-The host needs git, podman (or docker), curl, binutils and xz; README.md "Building" lists the
-packages per distribution. The Palm SDK the build downloads for its compiler is HP's, under HP's
+The host needs git, podman (or docker), curl, binutils and xz; the second group of packages
+below builds `novacom`, which talks to the device over USB:
+
+| Distribution | Build | For novacom |
+|---|---|---|
+| Debian, Ubuntu | `sudo apt install git podman curl binutils xz-utils` | `build-essential libusb-dev` |
+| Fedora, RHEL | `sudo dnf install git podman curl binutils xz` | `gcc make libusb-compat-0.1-devel` |
+| Arch | `sudo pacman -S git podman curl binutils xz` | `base-devel libusb-compat` |
+| openSUSE | `sudo zypper install git podman curl binutils xz` | `gcc make libusb-compat-devel` |
+| Void | `sudo xbps-install git podman curl binutils xz` | `base-devel libusb-compat-devel` |
+| Alpine | `sudo apk add bash git podman curl binutils xz` | `build-base libusb-compat-dev` |
+
+Docker should work too, rootful, with `CONTAINER_ENGINE=docker`; rootless docker does not (its
+`--user` cannot write the repository's bind mount). Every build in this repository ran under podman,
+so docker is a claim, not a record. The Palm SDK the build downloads for its compiler is HP's, under HP's
 terms, which the builder accepts by downloading it; nothing from it is redistributed. `build-all-device.sh` fetches what is missing and then builds the four artifact
 classes (model-agnostic ARMv7 softfp, so one build serves both models):
 

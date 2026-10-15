@@ -22,16 +22,19 @@ earlier, larger set keeps the ones it has.
 
 ## Personas shown in the README's screenshots
 
-`docs/screenshots/personas-strip.png` (made by `docs/screenshots/readme-art.py`) shows three
-Personas made by others, which came with the browser until 2026-10-12 and are on the add-on site
-now. Each is used under its Creative Commons licence; the pictures are unmodified apart from being
-cut and scaled into the strip.
+The README's art (`docs/screenshots/`, composed by `docs/screenshots/readme-art.py` from raw
+device captures) shows the two bundled Personas worn: **Free Palestine** on Jihad Enyo's toolbar
+(`cardview.jpg`, `flash.webp`, `settings.webp`) and **Aurora Silk** on Jihad Mochi's
+(`cardview.jpg`, `addons-personas.webp`, `settings.webp`), both credited above. The `about:personas`
+gallery in `addons-personas.webp` also lists, with their thumbnails, the project's own Lime Fizz,
+Bubble Lagoon, Cloud Nine and Meadow Morning (MPL-2.0, drawn by `make-personas.py`) and two
+Personas by other authors, used under their Creative Commons licences, the pictures unmodified
+apart from being cut and scaled into the gallery's rows:
 
-| Persona | Author | Licence | Source | File | Changes |
-|---|---|---|---|---|---|
-| Space Fantasy | fx5800p | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/space-fantasy/) | `space-fantasy.jpg` | the package's own picture, shown in toolbar screenshots, cut and scaled |
-| Two little birds | math3us.c | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/two-litle-birds/) | `two-little-birds.jpg` | the package's own picture, shown in toolbar screenshots, cut and scaled |
-| Field of flowers | vc | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/flowers-dragonflies/) | `field-of-flowers.png` | the package's own picture, shown in toolbar screenshots, cut and scaled |
+| Persona | Author | Licence | Source |
+|---|---|---|---|
+| Space Fantasy | fx5800p | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/space-fantasy/) |
+| Linen Light | DVemer | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/linen-light/) |
 
 ## Everything else
 
@@ -45,7 +48,8 @@ icons (`app*/icon*.png`, `packaging/branding/content/*.png`) were derived from i
 
 ## Screenshots
 
-`docs/screenshots/personas-strip.png` shows three Personas by other authors (credited above);
-as a derivative of CC BY-SA 3.0 works it is itself CC BY-SA 3.0
-(https://creativecommons.org/licenses/by-sa/3.0/). The other screenshots show web pages as a
-browser shows them.
+`docs/screenshots/addons-personas.webp` shows two Personas by other authors (credited above); as a
+derivative of CC BY-SA 3.0 works it is itself CC BY-SA 3.0
+(https://creativecommons.org/licenses/by-sa/3.0/). `cardview.jpg`, `flash.webp` and `settings.webp`
+show Free Palestine, a derivative of a CC BY 2.0 photograph (credited above). The other screenshots
+show web pages as a browser shows them.

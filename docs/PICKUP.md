@@ -48,6 +48,17 @@ dropped, Enyo's list order restored), Mochi's `general.warnOnAboutConfig` droppe
 closed; nothing installed; daemon `06e75a68` on all three, `/` read-only. novacomd was started by
 the owner after the PC reboot.
 
+**Post-quantum TLS, deferred by the owner (2026-10-15): "forget the post quantum for now, I will
+wait and see if upstream adds it by december."** The facts: UXP ships NSS 3.90.14 (3.90 ESR + backports);
+X25519MLKEM768 (group 0x11EC) needs NSS ≥ 3.10x, default since NSS 3.118 (NSPR 4.37); UXP's PSM
+hard-codes the offered groups (`security/manager/ssl/nsNSSIOLayer.cpp:2364`). howsmyssl.com rates a
+client with no PQ group "Improvable" since 2026-06-14 and **"Bad" from 2026-12-14** (its
+`client_info.go`). If upstream has not moved by then, the plan: cross-build NSS ≥ 3.118 + NSPR 4.37
+for ARMv7 and swap the ten NSS/NSPR `.so` files the bundle ships separately (`make-device-bundle.sh`;
+the export tables carry no UXP additions, so a drop-in should hold), plus a ~3-line PSM patch on the
+engine branch (group 4588 first, `SSL_SendAdditionalKeyShares(fd, 1)`) and a libxul rebuild; test
+on the desktop build first. Or swap the README's howsmyssl image before December.
+
 **Open:** unchanged from below (the engine push, R11 criterion 4's VM run — the VM was in /tmp and
 is gone with the reboot —, the finger round). `docs/research/persona-licences.md` line 454's
 "retake cardview.jpg, personas-strip.png…" note is now done (strip retired).

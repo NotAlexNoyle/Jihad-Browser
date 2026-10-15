@@ -138,8 +138,9 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
-**PAUSED 16:36 (the owner: "pause, youre about to run out of credit").** The round's second run
-(2c) was left running on the device (`tools/host/run-browse-round.sh docs/rounds/round2c-2026-10-15`,
+**PAUSED 16:36 (the owner: "pause, youre about to run out of credit"); the round's second run
+(2c) then FINISHED on its own** — its log, analysis and shots are committed in
+`docs/rounds/round2c-2026-10-15/`; read them first, with the comparison script below. It was run on the device (`tools/host/run-browse-round.sh docs/rounds/round2c-2026-10-15`,
 about 45 min from 16:33). If it finished: `docs/rounds/round2c-2026-10-15/{round.log,analysis.md,shots/}`
 exist and Mochi's job was restored by the script; compare with the first run by
 `python3 -I tools/device/browse-round-compare.py docs/rounds/round2-2026-10-15.log docs/rounds/round2c-2026-10-15/round.log`,

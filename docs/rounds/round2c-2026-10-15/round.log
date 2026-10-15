@@ -1,1 +1,138 @@
 [jihad-bs] js-console bridge on (ALL sources)
+@@ probe-apis | http://192.168.1.245:8077/jihad-apis.html | 33s | shot=77808 | load-done=1 painted=11 blocked=0 errors=3 | first-paint=7s load=11s fps=avg 1.8 min 0.7 n=2 worst-tick=1096ms rss=153272kB load1=4.82 | last: http://192.168.1.245:8077/jihad-apis.html
+         1 http://192.168.1.245:8077/jihad-apis.html:65 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+         1 http://192.168.1.245:8077/jihad-apis.html:65 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 http://192.168.1.245:8077/jihad-apis.html:65 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+   /tmp used 8556 of 40960
+tail: short write
+@@ probe-jsbench | http://192.168.1.245:8077/jihad-jsbench.html | 93s | shot=45706 | load-done=1 painted=7 blocked=0 errors=0 | first-paint=8s load=9s fps=avg 0.4 min 0.1 n=3 worst-tick=12371ms rss=96960kB load1=2.66 | last: http://192.168.1.245:8077/jihad-jsbench.html
+   /tmp used 8604 of 40960
+@@ news-guardian | https://www.theguardian.com/international | 73s | shot=515516 | load-done=1 painted=23 blocked=5 errors=7 | first-paint=7s load=42s fps=avg 0.6 min 0.0 n=6 worst-tick=13222ms rss=214424kB load1=3.57 | last: https://www.theguardian.com/international
+         5 https://assets.guim.co.uk/assets/index.client.web.8c90b8b14f670ff82d94.js:1 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://assets.guim.co.uk/assets/index.client.web.8c90b8b14f670ff82d94.js" line: 1}]
+         1 (no source):0 Security Error: Content at https://www.theguardian.com/international may not load data from https://uploads.guim.co.uk/2026/10/15/151026_TiF_Latest_Front_Loop--12a59a82-64b4-44d6-96b6-a3fb1a7d20c3-2.1.vtt.
+         1 (no source):0 Security Error: Content at https://www.theguardian.com/international may not load data from https://uploads.guim.co.uk/2026/10/13/Dream_of_birds_loop--6a3918a9-bab5-4d53-861a-b8096a854cd5-2.2.vtt.
+   /tmp used 9116 of 40960
+@@ news-npr | https://www.npr.org/sections/news/ | 71s | shot=469734 | load-done=1 painted=23 blocked=10 errors=1 | first-paint=4s load=25s fps=avg 0.7 min 0.1 n=8 worst-tick=13022ms rss=275424kB load1=3.70 | last: https://www.npr.org/sections/news/
+         3 https://www.npr.org/sections/news/:0 [JavaScript Warning: "Unexpected value .8s parsing dur attribute." {file: "https://www.npr.org/sections/news/" line: 0}]
+         1 https://www.npr.org/sections/news/:76 [JavaScript Warning: "Use of setAttributeNode() is deprecated. Use setAttribute() instead." {file: "https://www.npr.org/sections/news/" line: 76}]
+         1 https://www.npr.org/sections/news/:76 [JavaScript Warning: "Use of document.createAttribute() is deprecated. Use element.setAttribute() instead." {file: "https://www.npr.org/sections/news/" line: 76}]
+         1 https://www.npr.org/sections/news/:0 [JavaScript Warning: "Unexpected value .3s parsing begin attribute." {file: "https://www.npr.org/sections/news/" line: 0}]
+         1 https://www.npr.org/sections/news/:0 [JavaScript Warning: "Unexpected value .12s parsing begin attribute." {file: "https://www.npr.org/sections/news/" line: 0}]
+         1 https://www.npr.org/PljktiUho/n4/Re/X4dZ-ZmttugMMo/cQab0fuz/KzpBLg/WzlCcy/YDCRQU?v=10e5c0f4-f21c-ad4a-4c4b-e503cf0e172e:1 [JavaScript Warning: "unreachable code after return statement" {file: "https://www.npr.org/PljktiUho/n4/Re/X4dZ-ZmttugMMo/cQab0fuz/KzpBLg/
+   /tmp used 9584 of 40960
+@@ news-apnews | https://apnews.com/ | 70s | shot=120558 | load-done=1 painted=14 blocked=0 errors=4 | first-paint=1s load=21s fps=avg 1.1 min 0.0 n=11 worst-tick=22096ms rss=255576kB load1=4.32 | last: https://apnews.com/
+         1 https://www.npr.org/sections/news/:0 [JavaScript Warning: "Cannot play media. No decoders for requested formats: audio/mpeg, audio/mpeg" {file: "https://www.npr.org/sections/news/" line: 0}]
+   /tmp used 9712 of 40960
+@@ news-aljazeera | https://www.aljazeera.com/ | 70s | shot=678359 | load-done=1 painted=34 blocked=5 errors=0 | first-paint=4s load=23s fps=avg 1.0 min 0.1 n=5 worst-tick=8564ms rss=289784kB load1=3.83 | last: https://www.aljazeera.com/
+   /tmp used 10384 of 40960
+@@ ref-britannica | https://www.britannica.com/topic/Palm-Inc | 70s | shot=123065 | load-done=1 painted=12 blocked=0 errors=4 | first-paint=3s load=22s fps=avg 0.6 min 0.1 n=8 worst-tick=35639ms rss=254068kB load1=3.60 | last: https://www.britannica.com/topic/Palm-Inc
+   /tmp used 10516 of 40960
+tail: short write
+@@ ref-osm | https://www.openstreetmap.org/#map=12/37.7749/-122.4194 | 77s | shot=485141 | load-done=1 painted=18 blocked=0 errors=4 | first-paint=8s load=22s fps=avg 0.9 min 0.1 n=5 worst-tick=3682ms rss=215256kB load1=3.28 | last: https://www.openstreetmap.org/#map=12/37.7749/-122.4194
+         1 https://matomo.openstreetmap.org/matomo.js:84 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "https://matomo.openstreetmap.org/matomo.js" line: 84}]
+         1 https://matomo.openstreetmap.org/matomo.js:84 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 https://matomo.openstreetmap.org/matomo.js:84 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "https://matomo.openstreetmap.org/matomo.js" line: 84}]
+   /tmp used 11000 of 40960
+@@ ref-wikihow | https://www.wikihow.com/Use-a-Tablet | 77s | shot=33700 | load-done=0 painted=5 blocked=0 errors=0 | first-paint=6s load=-s fps=avg 0.2 min 0.1 n=2 worst-tick=218ms rss=193852kB load1=2.47 | last: 
+   /tmp used 11036 of 40960
+@@ shop-amazon | https://www.amazon.com/s?k=hp+touchpad | 79s | shot=211995 | load-done=2 painted=30 blocked=2 errors=2 | first-paint=10s load=49s fps=avg 0.7 min 0.0 n=12 worst-tick=60165ms rss=228772kB load1=2.61 | last: https://www.amazon.com/s?k=hp+touchpad
+         2 https://www.amazon.com/s?k=hp+touchpad:7035 [JavaScript Warning: "Ignoring unsupported entryTypes: largest-contentful-paint." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7035}]
+         1 https://www.amazon.com/s?k=hp+touchpad:7035 [JavaScript Warning: "Ignoring unsupported entryTypes: longtask." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7035}]
+         1 https://www.amazon.com/s?k=hp+touchpad:7035 [JavaScript Warning: "Ignoring unsupported entryTypes: layout-shift." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7035}]
+         1 https://www.amazon.com/s?k=hp+touchpad:7035 [JavaScript Warning: "Ignoring unsupported entryTypes: first-input." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7035}]
+         1 https://www.amazon.com/s?k=hp+touchpad:7025 [JavaScript Warning: "No valid entryTypes; aborting registration." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7025}]
+         1 https://www.amazon.com/s?k=hp+touchpad:7025 [JavaScript Warning: "Ignoring unsupported entryTypes: paint." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7025}]
+   /tmp used 11252 of 40960
+@@ shop-ebay | https://www.ebay.com/sch/i.html?_nkw=hp+touchpad | 76s | shot=131622 | load-done=1 painted=11 blocked=1 errors=7 | first-paint=3s load=10s fps=avg 0.7 min 0.1 n=5 worst-tick=4505ms rss=216800kB load1=3.02 | last: https://www.ebay.com/sch/i.html?_nkw=hp+touchpad
+         2 https://www.ebay.com/-JM61y/YG/hT/b0UW/PqK8Wix9nh/hpuJbrO1Ni/c0MRHgE/Chs/cGVJGQnET?v=632433d8-f14a-44de-c6ef-383f550a172e:1 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "https://www.ebay.com/-
+         2 https://www.ebay.com/-JM61y/YG/hT/b0UW/PqK8Wix9nh/hpuJbrO1Ni/c0MRHgE/Chs/cGVJGQnET?v=632433d8-f14a-44de-c6ef-383f550a172e:1 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         2 https://www.ebay.com/-JM61y/YG/hT/b0UW/PqK8Wix9nh/hpuJbrO1Ni/c0MRHgE/Chs/cGVJGQnET?v=632433d8-f14a-44de-c6ef-383f550a172e:1 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "https://www.ebay.com/-JM61y/YG/hT/
+         1 https://www.ebay.com/sch/i.html?_nkw=hp+touchpad:0 [JavaScript Error: "The buffer passed to decodeAudioData contains an unknown content type." {file: "https://www.ebay.com/sch/i.html?_nkw=hp+touchpad" line: 0}]
+         1 https://www.ebay.com/-JM61y/YG/hT/b0UW/PqK8Wix9nh/hpuJbrO1Ni/c0MRHgE/Chs/cGVJGQnET?v=632433d8-f14a-44de-c6ef-383f550a172e:1 [JavaScript Warning: "unreachable code after return statement" {file: "https://www.ebay.com/-JM61y/YG/hT/b0UW/PqK8Wix9nh/hpuJbrO1Ni/c0MR
+         1 https://www.amazon.com/s?k=hp+touchpad:7035 [JavaScript Warning: "Ignoring unsupported entryTypes: largest-contentful-paint." {file: "https://www.amazon.com/s?k=hp+touchpad" line: 7035}]
+   /tmp used 11392 of 40960
+@@ shop-etsy | https://www.etsy.com/search?q=webos | 79s | shot=660300 | load-done=1 painted=55 blocked=16 errors=53 | first-paint=8s load=45s fps=avg 1.4 min 0.0 n=17 worst-tick=6781ms rss=245728kB load1=2.81 | last: https://www.etsy.com/search?q=webos
+        48 https://www.etsy.com/ac/viteEightB/js/en-US/collage/web-components/index.7WGKdbXz.js:68 [JavaScript Error: "TypeError: Element of DocumentOrShadowRoot.adoptedStyleSheets does not implement interface CSSStyleSheet." {file: "https://www.etsy.com/ac/viteEightB/js
+         4 https://www.etsy.com/search?q=webos:0 [JavaScript Warning: "All candidate resources failed to load. Media load paused." {file: "https://www.etsy.com/search?q=webos" line: 0}]
+         1 https://www.etsy.com/search?q=webos:43 [JavaScript Warning: "Ignoring unsupported entryTypes: element, longtask, paint, layout-shift." {file: "https://www.etsy.com/search?q=webos" line: 43}]
+         1 https://www.etsy.com/search?q=webos:0 [JavaScript Warning: "The video on this page can’t be played. Your system may not have the required video codecs for: video/mp4, video/mp4, video/mp4, video/mp4" {file: "https://www.etsy.com/search?q=webos" line: 0}]
+         1 https://www.etsy.com/search?q=webos:0 [JavaScript Warning: "Specified “type” attribute of “video/mp4” is not supported. Load of media resource https://v.etsystatic.com/e/videos/df35/898913ee-ca33-42e1-8ef2-eee0415735d6/vid_v1.mp4 failed." {file: "https
+         1 https://www.etsy.com/search?q=webos:0 [JavaScript Warning: "Specified “type” attribute of “video/mp4” is not supported. Load of media resource https://v.etsystatic.com/e/videos/a398/3bdbb946-2f72-410c-848c-23bac242dbbd/vid_v1.mp4 failed." {file: "https
+   /tmp used 12048 of 40960
+@@ social-oldreddit | https://old.reddit.com/r/webos/ | 72s | shot=52254 | load-done=1 painted=13 blocked=8 errors=1 | first-paint=4s load=39s fps=avg 0.6 min 0.0 n=6 worst-tick=17071ms rss=279748kB load1=3.52 | last: https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F
+         1 https://www.redditstatic.com/shreddit/polyfills/es-module-shims.0ad448105a7238e685087a02f870c658.js:0 [JavaScript Warning: "Successfully compiled asm.js code (total compilation time 122ms; unable to cache asm.js in synchronous scripts; try loading asm.js via <
+         1 https://www.gstatic.com/recaptcha/releases/4EDjxXf4knsx6UBM1L2V6cv8/recaptcha__en.js:300 [JavaScript Warning: "Ignoring unsupported entryTypes: longtask." {file: "https://www.gstatic.com/recaptcha/releases/4EDjxXf4knsx6UBM1L2V6cv8/recaptcha__en.js" line: 300}]
+         1 data:text/javascript,let%20navPromise%3Dnull%3Basync%20function%20getNavigation()%7Breturn%20navPromise%7C%7C(navPromise%3D_getNavigation())%2CnavPromise%7Dasync%20function%20_getNavigation()%7Bif(!window.navigation)try%7Blet%7BapplyPolyfill%3Ae%7D%3Dawait%20i
+   /tmp used 12100 of 40960
+@@ social-reddit | https://www.reddit.com/r/webos/ | 79s | shot=301872 | load-done=0 painted=16 blocked=4 errors=2 | first-paint=7s load=-s fps=avg 0.5 min 0.0 n=6 worst-tick=28973ms rss=444408kB load1=3.45 | last: 
+         2 (no source):0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+   /tmp used 12404 of 40960
+@@ social-bsky | https://bsky.app/profile/mozilla.org | 76s | shot=35799 | load-done=1 painted=15 blocked=2 errors=8 | first-paint=1s load=38s fps=avg 0.6 min 0.1 n=5 worst-tick=30152ms rss=577796kB load1=3.50 | last: https://bsky.app/profile/mozilla.org
+         6 https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,Dyg3q1gB6W,cO_SguL2TR:46 [JavaScript Error: "NS_ERROR_NOT_INITIALIZED: " {file: "https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,Dyg3q1gB6W,cO_SguL2TR" line: 46}]
+         2 (no source):0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+         1 https://www.redditstatic.com/shreddit/polyfills/es-module-shims.0ad448105a7238e685087a02f870c658.js:0 [JavaScript Warning: "Successfully compiled asm.js code (loaded from cache in 20798ms)" {file: "https://www.redditstatic.com/shreddit/polyfills/es-module-shim
+   /tmp used 12440 of 40960
+@@ video-youtube | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 85s | shot=304312 | load-done=1 painted=20 blocked=11 errors=1 | first-paint=1s load=53s fps=avg 0.5 min 0.1 n=12 worst-tick=13073ms rss=603628kB load1=5.96 | last: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+         1 https://web-cdn.bsky.app/static/_expo/static/js/web/index-81076605df5d2c364f6c66b563d34bf0.js:372 [JavaScript Error: "NS_ERROR_NOT_INITIALIZED: " {file: "https://web-cdn.bsky.app/static/_expo/static/js/web/index-81076605df5d2c364f6c66b563d34bf0.js" line: 372}]
+   /tmp used 12748 of 40960
+@@ video-vimeo | https://vimeo.com/channels/staffpicks | 80s | shot=56617 | load-done=0 painted=12 blocked=8 errors=0 | first-paint=7s load=-s fps=avg 0.5 min 0.0 n=6 worst-tick=17412ms rss=539268kB load1=4.11 | last: 
+         1 https://www.youtube.com/s/player/0229cd64/player_es6.vflset/en_US/base.js:1477 [JavaScript Warning: "An IndexedDB transaction that was not yet complete has been aborted due to page navigation." {file: "https://www.youtube.com/s/player/0229cd64/player_es6.vflse
+   /tmp used 12804 of 40960
+@@ dev-stackoverflow | https://stackoverflow.com/questions/tagged/javascript | 73s | shot=225408 | load-done=1 painted=22 blocked=4 errors=10 | first-paint=19s load=52s fps=avg 0.5 min 0.0 n=6 worst-tick=25309ms rss=569500kB load1=3.52 | last: https://stackoverflow.com/questions/tagged/javascript
+         5 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/261zsg23zpc8i.js:6 [JavaScript Error: "NS_ERROR_NOT_INITIALIZED: " {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/261zsg23zpc8i.js" line: 6}]
+         1 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/261zsg23zpc8i.js:6 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/261zsg23zpc8i.js" lin
+   /tmp used 13036 of 40960
+@@ dev-gitlab | https://gitlab.com/explore | 77s | shot=33593 | load-done=0 painted=11 blocked=0 errors=4 | first-paint=1s load=-s fps=avg 0.3 min 0.0 n=5 worst-tick=44773ms rss=564508kB load1=3.35 | last: 
+         3 (no source):0 [JavaScript Error: "https://gitlab.com/explore : Unable to run script because scripts are blocked internally."]
+         1 (no source):0 [JavaScript Error: "https://gitlab.com/explore/projects/explore : Unable to run script because scripts are blocked internally."]
+   /tmp used 13072 of 40960
+@@ dev-npm | https://www.npmjs.com/package/express | 70s | shot=123478 | load-done=1 painted=14 blocked=0 errors=5 | first-paint=1s load=24s fps=avg 0.7 min 0.1 n=10 worst-tick=23113ms rss=586124kB load1=3.73 | last: https://www.npmjs.com/package/express
+         1 (no source):0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+   /tmp used 13204 of 40960
+@@ webos-ports | https://www.webos-ports.org/ | 72s | shot=210656 | load-done=1 painted=34 blocked=0 errors=1 | first-paint=7s load=-s fps=avg 1.3 min 0.4 n=6 worst-tick=10812ms rss=532260kB load1=3.13 | last: https://webos-ports.org/
+   /tmp used 13420 of 40960
+@@ webos-nation | https://www.webosnation.com/ | 75s | shot=101329 | load-done=0 painted=9 blocked=0 errors=0 | first-paint=7s load=-s fps=avg 0.3 min 0.2 n=4 worst-tick=18204ms rss=530748kB load1=3.43 | last: 
+   /tmp used 13528 of 40960
+tail: short write
+@@ search-startpage | https://www.startpage.com/do/search?q=webos+touchpad | 70s | shot=42770 | load-done=1 painted=10 blocked=4 errors=2 | first-paint=1s load=7s fps=avg 18.7 min 0.1 n=28 worst-tick=14822ms rss=532732kB load1=4.60 | last: https://www.startpage.com/do/search?q=webos+touchpad
+         1 https://www.techradar.com/:3992 [JavaScript Error: "TypeError: window.matchMedia(...) is null" {file: "https://www.techradar.com/" line: 3992}]
+         1 https://www.techradar.com/:1 [JavaScript Error: "ReferenceError: handleHeaderError is not defined" {file: "https://www.techradar.com/" line: 1}]
+   /tmp used 13572 of 40960
+@@ search-bing | https://www.bing.com/search?q=webos+touchpad | 70s | shot=194412 | load-done=1 painted=17 blocked=3 errors=1 | first-paint=3s load=9s fps=avg 1.0 min 0.1 n=7 worst-tick=3308ms rss=515004kB load1=4.17 | last: https://www.bing.com/search?q=webos+touchpad
+         1 https://r.bing.com/rp/DWZSY9SRnkHaYWjJ109REMim90A.br.js:0 [JavaScript Warning: "Successfully compiled asm.js code (total compilation time 258ms; stored in cache)" {file: "https://r.bing.com/rp/DWZSY9SRnkHaYWjJ109REMim90A.br.js" line: 0}]
+   /tmp used 13772 of 40960
+@@ search-google | https://www.google.com/search?q=webos+touchpad | 77s | shot=184792 | load-done=1 painted=8 blocked=6 errors=0 | first-paint=7s load=10s fps=avg 0.3 min 0.1 n=2 worst-tick=999ms rss=507736kB load1=4.18 | last: https://www.google.com/search?q=webos+touchpad
+   /tmp used 13964 of 40960
+@@ app-weather | https://weather.com/weather/today/l/San+Francisco+CA | 76s | shot=29050 | load-done=1 painted=10 blocked=4 errors=0 | first-paint=3s load=32s fps=avg 0.4 min 0.1 n=5 worst-tick=10854ms rss=545828kB load1=3.12 | last: https://weather.com/weather/today/l/San+Francisco+CA
+   /tmp used 13996 of 40960
+@@ app-medium | https://medium.com/topic/technology | 70s | shot=121560 | load-done=1 painted=12 blocked=0 errors=7 | first-paint=3s load=16s fps=avg 0.8 min 0.0 n=9 worst-tick=27987ms rss=584844kB load1=2.95 | last: https://medium.com/topic/technology
+         2 https://medium.com/favicon.ico:0 [JavaScript Error: "Image corrupt or truncated." {file: "https://medium.com/favicon.ico" line: 0}]
+         1 https://weather.com/weather/today/l/San+Francisco+CA:6 [JavaScript Error: "NS_ERROR_NOT_INITIALIZED: " {file: "https://weather.com/weather/today/l/San+Francisco+CA" line: 6}]
+   /tmp used 14124 of 40960
+@@ app-substack | https://substack.com/discover | 75s | shot=48825 | load-done=0 painted=9 blocked=1 errors=4 | first-paint=40s load=-s fps=avg 0.5 min 0.2 n=5 worst-tick=55081ms rss=595356kB load1=3.71 | last: 
+         1 (no source):0 [JavaScript Error: "downloadable font: rejected by sanitizer (font-family: "Lucida Console" style:normal weight:normal stretch:normal src index:0) source: (invalid URI)"]
+         1 (no source):0 [JavaScript Error: "downloadable font: font load failed (font-family: "Lucida Console" style:normal weight:normal stretch:normal src index:0) source: (invalid URI)"]
+         1 (no source):0 [JavaScript Error: "downloadable font: Size of decompressed WOFF 2.0 is less than compressed size (font-family: "Lucida Console" style:normal weight:normal stretch:normal src index:0) source: (invalid URI)"]
+         1 (no source):0 Security Error: Content at https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/f/av0/rch/dum50/0x4AAAAAAADnPIDROrmt1Wwj/light/fbE/new/normal?lang=auto may not load data from https://example.org/.
+   /tmp used 14172 of 40960
+@@ app-craigslist | https://sfbay.craigslist.org/ | 71s | shot=71803 | load-done=1 painted=19 blocked=2 errors=0 | first-paint=7s load=-s fps=avg 0.6 min 0.1 n=7 worst-tick=16039ms rss=571892kB load1=3.58 | last: https://www.craigslist.org/area/sfbay
+   /tmp used 14252 of 40960
+@@ app-imdb | https://www.imdb.com/title/tt0111161/ | 76s | shot=543033 | load-done=1 painted=19 blocked=1 errors=3 | first-paint=7s load=14s fps=avg 0.4 min 0.1 n=8 worst-tick=10443ms rss=561368kB load1=4.09 | last: https://www.imdb.com/title/tt0111161/
+         1 https://fb423e1ef94f.6277d64d.us-east-1.token.awswaf.com/fb423e1ef94f/c3382d439950/916d943f6a58/challenge.js:1 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "https://fb423e1ef94f.6277d64d.us-ea
+         1 https://fb423e1ef94f.6277d64d.us-east-1.token.awswaf.com/fb423e1ef94f/c3382d439950/916d943f6a58/challenge.js:1 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 https://fb423e1ef94f.6277d64d.us-east-1.token.awswaf.com/fb423e1ef94f/c3382d439950/916d943f6a58/challenge.js:1 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "https://fb423e1ef94f.6277d64d.us-east-1.token.a
+   /tmp used 14792 of 40960
+@@ test-html5test | https://html5test.co/ | 77s | shot=147748 | load-done=1 painted=28 blocked=0 errors=9 | first-paint=1s load=35s fps=avg 2.2 min 0.1 n=6 worst-tick=40875ms rss=527272kB load1=3.68 | last: https://html5test.co/
+         2 https://www.imdb.com/title/tt0111161/:2619 [JavaScript Warning: "Ignoring unsupported entryTypes: largest-contentful-paint." {file: "https://www.imdb.com/title/tt0111161/" line: 2619}]
+         1 https://www.imdb.com/title/tt0111161/:2619 [JavaScript Warning: "Ignoring unsupported entryTypes: longtask." {file: "https://www.imdb.com/title/tt0111161/" line: 2619}]
+         1 https://www.imdb.com/title/tt0111161/:2619 [JavaScript Warning: "Ignoring unsupported entryTypes: layout-shift." {file: "https://www.imdb.com/title/tt0111161/" line: 2619}]
+         1 https://www.imdb.com/title/tt0111161/:2619 [JavaScript Warning: "Ignoring unsupported entryTypes: first-input." {file: "https://www.imdb.com/title/tt0111161/" line: 2619}]
+         1 https://www.imdb.com/title/tt0111161/:2609 [JavaScript Warning: "No valid entryTypes; aborting registration." {file: "https://www.imdb.com/title/tt0111161/" line: 2609}]
+         1 https://www.imdb.com/title/tt0111161/:2609 [JavaScript Warning: "Ignoring unsupported entryTypes: paint." {file: "https://www.imdb.com/title/tt0111161/" line: 2609}]
+   /tmp used 14948 of 40960
+@@ test-acid3 | https://acid3.acidtests.org/ | 68s | shot=56912 | load-done=1 painted=2 blocked=0 errors=1 | first-paint=6s load=-s fps=avg 0.2 min 0.2 n=1 worst-tick=284ms rss=515864kB load1=4.74 | last: about:blank
+         1 (no source):0 [JavaScript Error: "acid3.acidtests.org:443 uses an invalid security certificate.
+   /tmp used 15004 of 40960
+(27634/981371540) jihad-mochi (start) running, process 15375
+[jihad-bs] js-console bridge on (chrome/resource/about only)
+@@ END

@@ -58,6 +58,7 @@ const PANES = [
 					{pref: "jihad.ua.learn", type: "bool", label: "Give a site a current Firefox identity when its bot check turns the page away",
 					 help: "The browser is Firefox 52.9 by default. A site that answers with a bot challenge is loaded again as a current Firefox, header and script alike, and remembered; measured to pass Cloudflare's check on most sites."},
 					{type: "text", label: "Sites remembered", value: identityText, live: true},
+					{type: "text", label: "Sites with a set identity", value: identityRulesText, live: true},
 					{type: "button", label: "Forget the remembered sites", button: "Forget", action: identityForget}
 				]
 			},
@@ -804,6 +805,12 @@ function identityText() {
 	let s = i.state();
 	if (!s.hosts.length) { return "None yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here."; }
 	return s.hosts.length + " site" + (s.hosts.length === 1 ? "" : "s") + " given a current Firefox identity: " + s.hosts.join(", ");
+}
+function identityRulesText() {
+	let i = identity(); if (!i) { return "Not available in this build."; }
+	let s = i.state(), sites = s.sites || [];
+	if (!sites.length) { return "None."; }
+	return sites.map(function (x) { return x === "youtube.com" ? "YouTube is shown its mobile site (a mobile Firefox identity): a quarter of the desktop page's script" : x; }).join("; ");
 }
 function identityForget() { let i = identity(); if (i) { i.forget(); } }
 function blockerBusy() { let b = blocker(); return b ? !!b.state().updating : true; }

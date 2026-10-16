@@ -412,6 +412,21 @@ if ! grep -q '^manifest components/jihad-user-agent.manifest$' "$OUT/chrome.mani
 	echo 'manifest components/jihad-user-agent.manifest' >> "$OUT/chrome.manifest"
 fi
 echo "  identity: components/jihadUserAgent.js (52.9 by default; a learned current identity per site)"
+# Web compatibility shims (cavekit-modern-web.md R1/R6): components/jihadWebCompat.js supplies the
+# few platform pieces the engine lacks (CSSStyleSheet.replace, popover, inert, Intl.ListFormat …)
+# to each page before its scripts run; jihad.compat.trace is the diagnosis mode.
+COMPAT_JS="$REPO/render/goanna/components/jihadWebCompat.js"
+[ -f "$COMPAT_JS" ] || { echo "ERROR: $COMPAT_JS is missing" >&2; exit 1; }
+cp -L "$COMPAT_JS" "$OUT/components/jihadWebCompat.js"
+cat > "$OUT/components/jihad-web-compat.manifest" <<'MANIFEST'
+# Jihad Browser — web compatibility shims. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {5a1c7e2d-9b3f-4c6e-8d21-7f0a4b9c2e13} jihadWebCompat.js
+contract @riverstonerelay.net/jihad/web-compat;1 {5a1c7e2d-9b3f-4c6e-8d21-7f0a4b9c2e13}
+MANIFEST
+if ! grep -q '^manifest components/jihad-web-compat.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+	echo 'manifest components/jihad-web-compat.manifest' >> "$OUT/chrome.manifest"
+fi
+echo "  web compat: components/jihadWebCompat.js (shims for what the engine lacks, per page)"
 # Lightweight themes ("personas" — Firefox 52 / Pale Moon / Basilisk): the browser's half of
 # the engine's LightweightThemeManager (components/jihadPersonas.js). Required: the kit promises
 # the feature (cavekit-addons-extensions.md R10).
@@ -593,7 +608,8 @@ done
 REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
           libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
           libmozsqlite3.so goanna.js plugin-container libmozavutil.so libmozavcodec.so \
-          components/jihadContentBlocker.js blocklists/easylist.txt blocklists/easyprivacy.txt components/jihadUserAgent.js)
+          components/jihadContentBlocker.js blocklists/easylist.txt blocklists/easyprivacy.txt components/jihadUserAgent.js \
+          components/jihadWebCompat.js)
 _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }

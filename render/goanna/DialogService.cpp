@@ -558,6 +558,10 @@ bool InstallDialogService() {
     if (!identity) fprintf(stderr, "[jihad-bs] identity: component absent, no learned identities\n");
     nsCOMPtr<nsISupports> blocker = do_GetService("@riverstonerelay.net/jihad/content-blocker;1");
     if (!blocker) fprintf(stderr, "[jihad-bs] blocker: component absent, ads and trackers are not blocked\n");
+    // Web compatibility shims (cavekit-modern-web.md R1/R6): components/jihadWebCompat.js — the
+    // platform pieces the engine lacks, supplied to each page before its scripts run.
+    nsCOMPtr<nsISupports> compat = do_GetService("@riverstonerelay.net/jihad/web-compat;1");
+    if (!compat) fprintf(stderr, "[jihad-bs] compat: component absent, no web compatibility shims\n");
     nsCOMPtr<nsISupports> proxy = do_GetService("@riverstonerelay.net/jihad/proxy;1");
     if (!proxy) fprintf(stderr, "[jihad-bs] proxy: component absent, webOS's proxy setting is not followed\n");
     nsCOMPtr<nsISupports> xpiPrompt =

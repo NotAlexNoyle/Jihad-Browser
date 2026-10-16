@@ -1,0 +1,35 @@
+12:12:28 identity harness on port 8078
+12:12:29 GET /plain/ UA=Mozilla/5.0 (X11; Linux armv7l; rv:52.9) Gecko/20100101 Firefox/52.9 
+12:13:17 GET /xhr UA=Wget 
+12:14:15 GET /plain/ UA=<default identity> 
+12:14:16 GET /img.png?from=plain UA=<default identity> Referer=http://192.168.1.245:8078/plain/
+12:14:16 GET /s.js?from=plain UA=<default identity> Referer=http://192.168.1.245:8078/plain/
+12:14:16 POST /report?who=plain-top UA=<default identity> Referer=http://192.168.1.245:8078/plain/
+12:14:16 REPORT who=plain-top navigator.userAgent=<default identity>
+12:14:17 GET /xhr?from=plain UA=<default identity> Referer=http://192.168.1.245:8078/plain/
+12:14:17 GET /frame/?from=plain UA=<default identity> Referer=http://192.168.1.245:8078/plain/
+12:14:18 POST /report?who=plain-frame UA=<default identity> Referer=http://192.168.1.245:8078/frame/?from=plain
+12:14:18 REPORT who=plain-frame navigator.userAgent=<default identity>
+12:14:56 GET /challenge/ UA=<default identity> 
+12:14:57 GET /challenge/ UA=<Firefox 128 identity> 
+12:14:58 POST /report?who=challenge-shown UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/challenge/
+12:14:58 REPORT who=challenge-shown navigator.userAgent=<Firefox 128 identity>
+12:15:43 GET /challenge/ UA=<Firefox 128 identity> 
+12:15:44 POST /report?who=challenge-shown UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/challenge/
+12:15:44 REPORT who=challenge-shown navigator.userAgent=<Firefox 128 identity>
+12:16:25 GET /sp-gate/ UA=<Firefox 128 identity> 
+12:16:27 POST /report?who=sp-gate-passed UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/sp-gate/
+12:16:27 REPORT who=sp-gate-passed navigator.userAgent=<Firefox 128 identity>
+12:17:10 GET /site/ UA=<Firefox 128 identity> 
+12:17:11 GET /img.png?from=site UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/site/
+12:17:11 GET /s.js?from=site UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/site/
+12:17:11 POST /report?who=site-top UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/site/
+12:17:11 REPORT who=site-top navigator.userAgent=<Firefox 128 identity>
+12:17:11 GET /xhr?from=site UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/site/
+12:17:11 GET /frame/?from=site UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/site/
+12:17:13 POST /report?who=site-frame UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/frame/?from=site
+12:17:13 REPORT who=site-frame navigator.userAgent=<Firefox 128 identity>
+12:23:24 GET /sp-gate/ UA=<default identity> 
+12:23:30 GET /sp-gate/ UA=<Firefox 128 identity> 
+12:23:32 POST /report?who=sp-gate-passed UA=<Firefox 128 identity> Referer=http://192.168.1.245:8078/sp-gate/
+12:23:32 REPORT who=sp-gate-passed navigator.userAgent=<Firefox 128 identity>

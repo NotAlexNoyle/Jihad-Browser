@@ -1,0 +1,87 @@
+syntax ok
+daemon put ok
+== daemon: c2db8480 499228 bytes
+== original prefs:
+   user_pref("jihad.blocking.lastUpdate", 1792074540);
+   user_pref("jihad.blocking.log", true);
+   user_pref("jihad.blocking.memoryDump", true);
+   user_pref("jihad.blocking.versions", "202610151429/202610151429");
+   user_pref("jihad.ua.modernHosts", "w3.org,medium.com");
+== console daemon: 1 process(es); [jihad-bs] js-console bridge on (ALL sources)
+@@ ddg | https://duckduckgo.com/?q=webOS&ia=web | 77s | shot=193417 | load-done=1 painted=25 blocked=0 errors=0 | first-paint=13s load=39s fps=avg 0.7 min 0.2 n=8 worst-tick=13863ms rss=195744kB load1=3.25 | last: https://duckduckgo.com/?q=webOS&ia=web
+   identity: ready: 0 learned site(s)
+@@ youtube-A | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 87s | shot=429469 | load-done=1 painted=27 blocked=34 errors=0 | first-paint=7s load=-s fps=avg 0.7 min 0.1 n=11 worst-tick=24400ms rss=273964kB load1=4.85 | last: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+== B: the blocker off
+   daemon down after 18s (left: 0)
+== console daemon: 1 process(es); [jihad-bs] js-console bridge on (ALL sources)
+@@ youtube-B | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 83s | shot=243454 | load-done=1 painted=28 blocked=0 errors=0 | first-paint=7s load=37s fps=avg 0.9 min 0.2 n=15 worst-tick=11129ms rss=206680kB load1=4.04 | last: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+   identity: ready: 0 learned site(s)
+== C: the blocker on, youtube.com given a mobile Firefox identity
+   daemon down after 4s (left: 0)
+== console daemon: 1 process(es); [jihad-bs] js-console bridge on (ALL sources)
+@@ youtube-C | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 85s | shot=308130 | load-done=1 painted=16 blocked=1 errors=0 | first-paint=12s load=-s fps=avg 0.6 min 0.1 n=5 worst-tick=5038ms rss=150392kB load1=3.36 | last: https://m.youtube.com/watch?v=dQw4w9WgXcQ
+   identity: ready: 0 learned site(s)
+== the identity prefs back
+   daemon down after 6s (left: 0)
+== console daemon: 1 process(es); [jihad-bs] js-console bridge on (ALL sources)
+@@ gitlab | https://gitlab.com/explore | 91s | shot=52717 | load-done=1 painted=13 blocked=0 errors=4 | first-paint=11s load=-s fps=avg 0.2 min 0.1 n=4 worst-tick=43503ms rss=218000kB load1=3.11 | last: https://gitlab.com/explore/projects/active
+         3 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore : Unable to run script because scripts are blocked internally."]
+         1 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore/projects/explore : Unable to run script because scripts are blocked internally."]
+   identity: ready: 0 learned site(s)
+@@ apnews | https://apnews.com/ | 81s | shot=22892 | load-done=0 painted=7 blocked=9 errors=1 | first-paint=39s load=-s fps=avg 0.2 min 0.1 n=3 worst-tick=46115ms rss=212196kB load1=3.50 | last: 
+         1 (no source):0:0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+   identity: apnews.com: the site's bot check turned the page away (cf-mitigated: challenge); learned apnews.com, loading again with a current Firefox identity
+@@ vimeo | https://vimeo.com/channels/staffpicks | 81s | shot=56546 | load-done=0 painted=10 blocked=4 errors=0 | first-paint=8s load=-s fps=avg 0.3 min 0.1 n=7 worst-tick=15005ms rss=201104kB load1=3.61 | last: 
+@@ oldreddit | https://old.reddit.com/r/webos/ | 77s | shot=52492 | load-done=1 painted=14 blocked=5 errors=7 | first-paint=11s load=52s fps=avg 0.4 min 0.0 n=5 worst-tick=27749ms rss=218300kB load1=3.80 | last: https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F
+         1 data:text/javascript,let%20navPromise%3Dnull%3Basync%20function%20getNavigation()%7Breturn%20navPromise%7C%7C(navPromise%3D_getNavigation())%2CnavPromise%7Dasync%20function%20_getNavigation()%7Bif(!window.navigation)try%7Blet%7BapplyPolyfill%3Ae%7D%3Dawait%20import(%60https%3A%2F%2Fwww.redditstatic.
+@@ bsky | https://bsky.app/profile/mozilla.org | 79s | shot=36030 | load-done=1 painted=12 blocked=2 errors=2 | first-paint=11s load=52s fps=avg 0.3 min 0.0 n=5 worst-tick=29662ms rss=224352kB load1=3.71 | last: https://bsky.app/profile/mozilla.org
+         2 (no source):0:0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+@@ etsy | https://www.etsy.com/search?q=webos | 81s | shot=692376 | load-done=1 painted=42 blocked=16 errors=51 | first-paint=8s load=44s fps=avg 1.1 min 0.1 n=14 worst-tick=9558ms rss=288044kB load1=4.59 | last: https://www.etsy.com/search?q=webos
+== restore
+   daemon down after 5s (left: 0)
+== restored: (98062/140410195) jihad-mochi (start) running, process 20952; daemons: 1; [jihad-bs] js-console bridge on (chrome/resource/about only)
+== prefs now:
+   user_pref("jihad.blocking.lastUpdate", 1792074540);
+   user_pref("jihad.blocking.log", true);
+   user_pref("jihad.blocking.memoryDump", true);
+   user_pref("jihad.blocking.versions", "202610151429/202610151429");
+   user_pref("jihad.ua.modernHosts", "w3.org,medium.com");
+10
+tmpfs                    40960      3468     37492   8% /tmp
+=== round 3 exit 0
+== learned: jihad.ua.modernHosts", "startpage.com"
+t=30 s: shot 68502 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=60 s: shot 69901 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=90 s: shot 70132 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=120 s: shot 69249 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=150 s: shot 70313 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=180 s: shot 70081 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=210 s: shot 69739 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad 
+t=240 s: shot 255250 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad https://www.startpage.com/do/search?q=webos+touchpad 
+t=270 s: shot 258431 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad https://www.startpage.com/do/search?q=webos+touchpad 
+t=300 s: shot 258653 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad https://www.startpage.com/do/search?q=webos+touchpad 
+t=330 s: shot 258653 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad https://www.startpage.com/do/search?q=webos+touchpad 
+t=360 s: shot 258632 bytes | loads: https://www.startpage.com/do/search?q=webos+touchpad https://www.startpage.com/do/search?q=webos+touchpad 
+== cookies with anubis: 
+69249 /tmp/shot-sp-120.png
+70313 /tmp/shot-sp-150.png
+70081 /tmp/shot-sp-180.png
+69739 /tmp/shot-sp-210.png
+255250 /tmp/shot-sp-240.png
+258431 /tmp/shot-sp-270.png
+68502 /tmp/shot-sp-30.png
+258653 /tmp/shot-sp-300.png
+258653 /tmp/shot-sp-330.png
+258632 /tmp/shot-sp-360.png
+69901 /tmp/shot-sp-60.png
+70132 /tmp/shot-sp-90.png
+=== startpage wait exit 0
+r3-ddg 0
+r3-youtube-A 0
+r3-youtube-B 0
+r3-youtube-C 0
+r3-oldreddit 0
+sp-180 70081
+sp-360 258632
+
+[exited with code 0]

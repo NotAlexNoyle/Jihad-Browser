@@ -13,7 +13,7 @@ given.
 ## How to see a page's own JavaScript errors on the device
 
 The daemon bridges the engine's console to `/var/palm/jihad/<variant>/daemon.log` as
-`[jihad-bs] js-console <source>:<line> <message>` — but by default only chrome://, resource://
+`[jihad-bs] js-console <source>:<line>:<column> <message>` (the column since daemon 12, 2026-10-16: a one-line bundle is named by its column) — but by default only chrome://, resource://
 and the browser's own about: pages, because a page's errors carry page-controlled text and the
 device log is persistent (EngineHost.cpp, finding F-8). To see content errors for a diagnosis,
 start the daemon with `JIHAD_JS_CONSOLE=all` in its environment (the upstart job's `env` line in
@@ -27,7 +27,7 @@ a restart: find the newest `js-console bridge on` line by number (`grep -n`) and
 
 | Address | Variant | Result | Cause | Disposition |
 |---|---|---|---|---|
-| `https://duckduckgo.com/?q=webOS&ia=web` | Mochi | at the engine's 15 s guard: "A script on this page may be busy" over a half-built page (shot `mochi-wiki`, 10:30). With the guard at 60 s (`dom.max_script_run_time`, T-481): no dialog, but the page is wrong — its slide-out menu drawn as a plain list on a white page, no results (shot `t481-ddg`, 10:47) | **engine feature** (to be named with the console): DuckDuckGo's full results page is a JavaScript application the engine cannot finish; the slow-script dialog was only the first symptom | **workaround, in place**: Jihad searches DuckDuckGo **Lite** (`lite.duckduckgo.com`) by default, which is plain HTML and renders its results (shot `t481-lite`, 11:56); the full page stays *open* |
+| `https://duckduckgo.com/?q=webOS&ia=web` | Mochi | at the engine's 15 s guard: "A script on this page may be busy" over a half-built page (shot `mochi-wiki`, 10:30). With the guard at 60 s (`dom.max_script_run_time`, T-481): no dialog, but the page is wrong — its slide-out menu drawn as a plain list on a white page, no results (shot `t481-ddg`, 10:47) | **engine feature** (to be named with the console): DuckDuckGo's full results page is a JavaScript application the engine cannot finish; the slow-script dialog was only the first symptom | **workaround, in place**: Jihad searches DuckDuckGo **Lite** (`lite.duckduckgo.com`) by default, which is plain HTML and renders its results (shot `t481-lite`, 11:56). **2026-10-16 (T-498, the owner: "fix the regular duckduckgo"): the full page renders its results now** — with the 60 s guard, daemon 12 and the console on, the page loads in 39–42 s (a 13 s main-thread stall, 196–263 MB) with ZERO script errors; what was wrong in the shot was the popover attribute, which the engine lacks (its menu panel and a promo stood open at the top). The web-compat component's popover shim closes that (the trace round's shot). Slow, not broken. |
 | `https://github.com/NotAlexNoyle/Jihad-Browser` | Mojo, Mochi | the frame renders — header, file list with folder names, About with the description, Releases/Packages/Contributors/Languages headings, README/License tabs — but the commit messages and times, the README body and the sidebar counts stay grey loading bars after 75 s (shots `mojo-wiki` 10:30, `con-gh` 12:16) | **engine feature**, named from the console (`JIHAD_JS_CONSOLE=all`, 12:16): `ReferenceError: Turbo is not defined` at the page's line 68 — GitHub's Hotwire Turbo and its `include-fragment` elements are ES modules the engine never loads (the same module limitation Mastodon shows as `import.meta may only appear in a module`); the deferred parts are theirs to fill. Palefill 1.30 polyfills APIs, not module syntax | **upstream (UXP)**: ES-module loading (`import.meta`, modern module graphs); no configuration fixes it. A newer UA token would only make GitHub serve more of the same |
 | `https://www.w3.org/` | Enyo, Mochi | Cloudflare: "www.w3.org — Performing security verification … Why is this verification taking longer?", never passes (shots `enyo-wiki` 10:31; `cb-w3` 12:05 with the UA rule; `con-w3` 12:14 with the console on) | **bot challenge**: Cloudflare's Turnstile. The console shows no script error — the challenge runs: CSP warnings for `trusted-types` directives the engine does not know, and inside the challenge frame "Content at https://challenges.cloudflare.com/…/turnstile/… may not load data from https://example.org/" (one of its probes). It then fails on its own verdict (environment fingerprint; the main request carries Jihad's UA with `Firefox/52.9`). The per-host rule for `challenges.cloudflare.com` (T-482, Firefox/128) is in the daemon and did not change the outcome | **open**: the next experiment is a current Firefox ESR token on the SITE's own requests (the challenge is decided on the first request), which means deciding whether the base UA's `Firefox/52.9` should move to a current ESR for every site — the owner's call, since it changes what every site serves |
 | `https://developer.mozilla.org/en-US/docs/Web/CSS` | Enyo, Mochi | renders well: masthead, breadcrumb, article, sidebar (shot `enyo-wiki`, 10:25); an MDN promo banner at the top and a Twilio advert in the sidebar. **With the content blocker (v3, 12:34, `cb3-mdn`): neither** — the banner by EasyList's site rule, the sidebar advert by the `||developer.mozilla.org/pong/` path rule (the daemon logs `blocked fetch developer.mozilla.org`) | **adverts and trackers** | **fixed** (cavekit-content-blocking.md; the README's hero shows this page) |
@@ -106,19 +106,19 @@ Every row below reads the lines against the address that produced them.
 | 6 | OpenStreetMap | load-done 23 s; 21.3 s stall; **renders** the map tiles and its welcome dialog (shot); WebGL refused (blacklist) | slow script; WebGL expected without a GPU driver | works, slowly |
 | 7 | wikiHow | load-done 9 s; the site renders its "page doesn't exist" page (shot) — my address was wrong | not a browser fault | works |
 | 8 | Amazon search | load-done 37 s; 3.3 s stall; **renders** the results with pictures and prices (shot) | slow load; PerformanceObserver entry types missing (warnings) | works, slowly |
-| 9 | eBay search | eBay's **"SORRY, something went wrong"** page (shot); its bot script probes WebGL | **bot detection** (eBay) | open: the UA question |
+| 9 | eBay search | eBay's **"SORRY, something went wrong"** page (shot); its bot script probes WebGL | **bot detection** (eBay) | **not the identity** (T-496, 2026-10-16: curl from the host gets the same Akamai 403 page with the 52.9 and the 128 token alike, over HTTP/2 and 1.1, with a browser's full header set): Akamai's classification of the transport; open, no configuration applies |
 | 10 | Etsy search | **"Verification Required"** (DataDome, shot); `captcha-delivery.com` throws NS_ERROR_NOT_INITIALIZED | **bot challenge** (DataDome) + the engine API | open: the UA question |
-| 11 | old Reddit | redirected to **`old.reddit.com/login/?reason=lor2`** (a login gate Reddit now puts in front of old-reddit for unknown clients), whose form never rendered: the Snoo pattern background only (shot); 17.5 s stall | **bot/visitor gate** (Reddit) + the login page's app not rendering | open: the UA question, then the page |
+| 11 | old Reddit | redirected to **`old.reddit.com/login/?reason=lor2`** (a login gate Reddit now puts in front of old-reddit for unknown clients), whose form never rendered: the Snoo pattern background only (shot); 17.5 s stall | **bot/visitor gate** (Reddit) + the login page's app not rendering | **not the identity** (T-496: curl from the host is redirected the same way with either token — Reddit's gate for logged-out visitors from this network); open: the login page's app (an `NS_ERROR_NOT_INITIALIZED` thrower, see T-496) |
 | 12 | Reddit | never load-done; 32.5 s stall; **renders r/webos with its posts** (shot) despite "Deferred script … nonce" and es-module-shims | slow script; the module shim compiles its own loader (asm.js) | works, slowly |
 | 13 | Bluesky | a **blank page with the Bluesky footer** (shot); 37.5 s stall | **engine feature**: a React app on ES modules | upstream |
-| 14 | YouTube watch | **"Please update your browser"** page (shot) | **user-agent sniffing**: YouTube rejects the Firefox/78 token the UA table sends it | open: the UA question |
+| 14 | YouTube watch | **"Please update your browser"** page (shot) | **user-agent sniffing**: YouTube rejects the Firefox/78 token the UA table sends it | the Firefox/128 row made the desktop page render (2026-10-15); **T-497 (2026-10-16, the owner: "speed up youtube"): youtube.com now gets a MOBILE Firefox identity and YouTube serves its mobile site** — see T-497 below for the numbers |
 | 15 | Vimeo staff picks | the sidebar renders, the content area stays blank (shot); `NS_ERROR_NOT_INITIALIZED` ×5 from its Next.js chunk | **engine feature**: the same API | open → T-492 |
 | 16 | Stack Overflow tag page | first paint 13 s, load-done 21 s; 23.8 s stall; **renders** the question list (shot) | slow script | works, slowly |
 | 17 | GitLab explore | the frame renders ("Explore projects", filters) with an empty list (shot); 43.4 s stall; jQuery throws NS_ERROR_NOT_INITIALIZED | **engine feature**: the same API; the list is fetched by script | open → T-492 |
 | 18 | npm package page | the card shows **Jihad's start page**: the address was never opened (shot) | a launch race (the card launched before the previous one had closed, as The Verge's first run) — not the site | retest in the second run |
 | 19 | webos-ports.org | first paint 38 s, never load-done; a **125 s** stall; **renders** LuneOS's page (shot) | slow script — the worst of the round, on a WordPress theme | open → T-492 |
 | 20 | webosnation.com | **redirects to techradar.com**, which renders (shot) — the site was folded into TechRadar | not a browser fault | works |
-| 21 | Startpage results | **"Your connection has been suspended"** (shot): Startpage refuses the client as automated traffic | **bot detection** (Startpage) | open: the UA question |
+| 21 | Startpage results | **"Your connection has been suspended"** (shot): Startpage refuses the client as automated traffic | **bot detection** (Startpage) | **learned** (T-496, 2026-10-16: the 52.9 token is answered with a 303 to `/sp/captcha-block` on every page, a current token with the page — the second learn signature; on the device the home page is learned, loaded again and renders); the search then meets Anubis's proof of work, which is the same for every browser (see T-496 for how long it takes here) |
 | 22 | Bing results | Bing's **"I'm not a robot"** page (shot) | **bot challenge** (the UA table sends Firefox/52.9 to bing.com) | open: the UA question |
 | 23 | Google results | Google's **`/sorry/` CAPTCHA** page (shot); "reCAPTCHA Timeout" | **bot challenge** (Google; the table sends Firefox/71) | open: the UA question |
 | 24 | weather.com | weather.com's own **"Please try again"** error page (shot) | the site's app failed in this engine (engine feature, unnamed) | open |
@@ -199,7 +199,8 @@ decision.
 storage, matchMedia, PerformanceObserver (mark, measure, navigation, resource), the observers,
 fetch and streams, the ES2017–2022 syntax, dynamic import(), custom elements, Shadow DOM, CSS
 grid/gap/custom properties/:is()/aspect-ratio/sticky — except **CSS `:has()`** and **WebGL**
-(no GPU driver). So the `NS_ERROR_NOT_INITIALIZED` that AP News, Etsy's DataDome, Vimeo and
+(no GPU driver). *(`:has()` turned out to be in the engine behind a pref, and is on since
+2026-10-16 — T-498.)* So the `NS_ERROR_NOT_INITIALIZED` that AP News, Etsy's DataDome, Vimeo and
 GitLab's jQuery throw is not among these; `render/goanna/test/jihad-jquery-probe.html` loads
 jQuery 3.7.1 under `window.onerror` to get the stack and name the call.
 
@@ -346,14 +347,150 @@ renders** (the Technology topic page: the learned retry passes where the whole-p
 had not). `prefs.js` holds `jihad.ua.modernHosts = "w3.org,medium.com"`; after a daemon
 restart w3.org loads straight away with one load and no challenge. Settings → General → Browser
 identity: the switch, "2 sites given a current Firefox identity: w3.org, medium.com", the Forget
-button (a finger test, `docs/FINGER-TESTS.md`). Not exercised: the no-loop branch (no site
-challenged twice). The challenge host's own header was not read on the wire; the pass is the
-evidence (the frame apart from the page was measured to fail).
+button (a finger test, `docs/FINGER-TESTS.md`). Left for T-496 that day: the no-loop branch
+(no site challenged twice) and the challenge host's own header on the wire.
 
-**Still open under T-494:** Startpage's JS check ("Verifying your request…", no `cf-mitigated`
-header: a different vendor — a future learn rule needs its own signature), eBay's "something went
-wrong" page, old Reddit's login gate. AP News and w3.org/Medium/Britannica/npm are covered by
-the learned identity; Google, Bing, YouTube and Etsy by the daemon's table.
+**T-496 — the identity read on the wire; the second signature (2026-10-16 12:13–12:25, Enyo,
+component `e3628b84`).** `render/goanna/test/jihad-identity-server.py` is a site on the host PC
+(port 8078) that behaves like the bot checks: it logs every request with the User-Agent header it
+carried, every page reports its `navigator.userAgent` back, `/challenge/` answers EVERY load with
+`cf-mitigated: challenge`, `/sp-gate/` answers any token but a current Firefox's with Startpage's
+303 to `/sp/captcha-block`, `/site/` has a same-site frame, an image, a script, an XHR and a
+third-party frame (httpbin.org/user-agent, which prints the header it received). Measured, from
+the server's log and the shots (`docs/rounds/t496-2026-10-16/`):
+- **Baseline** (`/plain/`, nothing learned): the top document, its frame, the image, the script
+  and the XHR all carried the default identity (`… Goanna/6.9 UXP/5f290d1 Firefox/52.9
+  ECMAScript/2024 JihadBrowser/1.0`), and both documents reported it as `navigator.userAgent`.
+- **The no-loop branch**: `/challenge/` was loaded twice, one second apart — the default identity,
+  then the current one — and the second answer was shown as it is (the shot: "CHALLENGE PAGE …
+  served to Firefox/128", `navigator.userAgent` 128); the daemon logged "learned 192.168.1.245,
+  loading again" and then "challenged again with the current identity; the page is left to the
+  site". A new card on the same page 46 s later made ONE load, shown at once (the one retry per
+  ten minutes).
+- **The frames and subresources of a learned site** (`/site/`): the top document, the same-site
+  frame, the image, the script and the XHR all carried the current identity in the header; the
+  top document and the frame both reported it as `navigator.userAgent`; and **the third-party
+  frame — httpbin.org under the learned page, the shape of challenges.cloudflare.com under
+  w3.org — printed the current identity as the header it received.** The claim R3 made on
+  indirect evidence is now read on the wire.
+- **Settings → General** showed "1 site given a current Firefox identity: 192.168.1.245".
+- **The second signature, on the real site**: `https://www.startpage.com/` — the daemon logged
+  "www.startpage.com: the site's bot check turned the page away (a redirect to /sp/captcha-block);
+  learned startpage.com, loading again with a current Firefox identity" and **Startpage's home
+  renders** (the shot: the search box, "The world's most private search engine"). The search
+  (`/do/search?q=webos+touchpad`) is then met by **Anubis** (Techaro's proof-of-work check,
+  `main.mjs` v1.26.4: a Worker hashing with `crypto.subtle`, plain bundled JavaScript — it loads
+  and runs here): "Verifying your request…" with its progress bar half way after 90 s; left to run (Enyo,
+  12:58–13:04, a shot every 30 s): **the proof of work finished between 210 and 240 s and the
+  results page rendered** (the shot `sp-240`…`sp-360`: the results for "webos touchpad"). Anubis
+  keeps its pass in a cookie (a week by its default), so the four minutes are paid once per
+  profile per week; the TouchPad's two cores do what a laptop does in a second or two.
+- **eBay and old Reddit are not the identity's**: curl from the host PC gets eBay's Akamai 403
+  page with either token, over HTTP/2 and 1.1, with a browser's full header set; old Reddit
+  redirects curl to `/login/?reason=lor2` with either token. Rows 9 and 11 say so.
+- The harness address was taken off the learned list afterwards (the daemon stopped, the pref
+  edited); `startpage.com` stays learned on Enyo as product state.
+
+**T-497 — YouTube, sped up (2026-10-16 12:33–13:30, Mochi, daemon 12/13; the owner: "speed up
+youtube").** What YouTube hands the engine, measured from the host with the engine's own download
+behaviour (`curl --compressed`, the page plus every external script):
+
+| page | on the wire | decompressed | external scripts | inline script |
+|---|---|---|---|---|
+| `www.youtube.com/watch?v=…` (desktop, Firefox/128 token) | 3.6 MB | **13.7 MB** (the Polymer bundle 10.9 MB, the player 2.6 MB) + a 1.3 MB page | 10 | 0.55 MB |
+| `m.youtube.com/watch?v=…` (mobile Firefox token) | 1.07 MB | **3.0 MB** + a 0.73 MB page | 3 | 0.44 MB |
+
+On the device (the round script's metrics: first paint, load-done, the paint pipeline's worst
+tick = the longest main-thread stall, resident memory), the same watch page:
+
+| visit | first paint | load-done | worst stall | RSS | the shot |
+|---|---|---|---|---|---|
+| A: as shipped (desktop 128, blocker on, cold cache) | 7 s | none in 65 s | **24.4 s** | 274 MB | grey skeletons; only the pre-roll ad plays |
+| B: the same, blocker off (warm cache) | 7 s | 37 s | 11.1 s | 207 MB | — |
+| A2: as shipped again (warm cache) | 11 s | (log rotated) | — | 216 MB | still grey skeletons after 84 s, the ad at 0:11 |
+| C: **mobile identity → `m.youtube.com`** (blocker on) | 12 s | 34 s | **5.3 s** | **162 MB** | the player with its poster, "Open App" |
+| C: `m.youtube.com/` (the home feed) | **1 s** | **18 s** | 10.6 s | 228 MB | the feed rendered: chips, thumbnails, titles |
+
+A versus B is confounded by the cache (A downloaded the 13.7 MB); the blocker's share is at most
+the difference and is not the lever. The lever is the page itself: a quarter of the script. So
+youtube.com now gets a **mobile Firefox identity** (`jihad.ua.sites` in the platform prefs,
+applied by `components/jihadUserAgent.js` to the header AND `navigator.userAgent`, frames and
+subresources included; the daemon's desktop row for youtube.com is out of `EngineHost.cpp`).
+Settings → General → "Sites with a set identity" says so. Playback: the desktop page's pre-roll
+ad PLAYED (video decoding works on this build for that stream); the mobile page waits for a tap
+on the poster, which a script cannot give — a finger test (`docs/FINGER-TESTS.md`).
+
+**T-498 — the web compatibility shims (2026-10-16; the owner: "fix the regular duckduckgo").**
+`render/goanna/components/jihadWebCompat.js`: at `document-element-inserted` a sandbox with the
+page's principal defines on the page's own prototypes what the engine lacks and modern pages
+assume — each shim only where the engine has no native member, each small enough to read:
+`CSSStyleSheet.prototype.replace` (the engine has the constructor, `replaceSync` and
+`adoptedStyleSheets` — Lit tests `replace` and Etsy's components then hand `adoptedStyleSheets`
+undefined sheets: 47 TypeErrors per search page), `reportError`, `Intl.ListFormat` (English
+forms), `Element.checkVisibility`, `AbortSignal.any`, `URLSearchParams.size`, `Array.fromAsync`,
+the `inert` property, and the **popover** attribute with `showPopover`/`hidePopover`/
+`togglePopover`, `popovertarget` buttons, light dismiss, `beforetoggle`/`toggle` events — with one
+AGENT sheet for the two attributes' UA rules (`[popover]` hidden until shown; `[inert]` without
+pointer events). Prefs `jihad.compat.enabled` (on) and `jihad.compat.trace` (off: a diagnosis mode
+that wraps the engine calls which can throw an XPCOM result to a page and logs the name and the
+page's own stack — the console bridge sees such a throw only as "NS_ERROR_NOT_INITIALIZED: " at
+column 0, because the engine's Exception object has no column). What the engine HAS (checked in
+the engine's source, `third_party/uxp`, not guessed): `<dialog>`, `replaceChildren`,
+`structuredClone`, `crypto.randomUUID`, `toSorted`/`toReversed`/`findLast`, `Object.hasOwn`,
+`Object.groupBy`, `Promise.withResolvers`, `FinalizationRegistry`, `AbortSignal.timeout`,
+`URL.canParse`, `MediaSource`, `OffscreenCanvas`, `ResizeObserver`, CSS `:is`/`:where`,
+`color-mix()`, `inset-inline`, `dvh`; and `:has()` behind `layout.css.has-pseudo.enabled`
+(off upstream by default — **on in Jihad since 2026-10-16, all three variants, the owner's
+call: "enable :has() by default in all 3 variants"**; the platform prefs carry it; a rule whose
+selector uses `:has()` was dropped whole before, DuckDuckGo's stylesheets alone use it 33 times). What it lacks beyond the shims: container queries,
+`backdrop-filter`, `content-visibility`, `text-wrap`, `accent-color`, `Intl.Segmenter`,
+`navigator.locks`, `CompressionStream`, `requestVideoFrameCallback`, `ElementInternals`.
+**Measured (three trace rounds on Mochi, 2026-10-16 13:30–14:30, daemon 13/14, console on,
+`jihad.compat.trace` on):** the shims install on every page ("compat: <host>: CSSStyleSheet.replace,
+reportError, Intl.ListFormat, …, popover") and their own test page
+`render/goanna/test/jihad-compat.html` passes 16/16 (popover hidden until shown, shown, toggled,
+its events; inert; replace; ListFormat; reportError; checkVisibility; AbortSignal.any; size;
+fromAsync). **Etsy's search renders fully styled** — the 47 `adoptedStyleSheets` errors are gone,
+7 unrelated lines remain (WebGL refused, a consent script's own TypeError). **Bluesky's two
+"NetworkError when attempting to fetch resource"** are the blocker refusing `events.bsky.app`
+(telemetry) and `sentry.io` — EasyPrivacy, as designed. The second shim batch (`Blob.text`,
+`Response.json`, `Promise.try`, the Set methods, the iterator helpers, ReadableStream iteration,
+`crypto.randomUUID`, `scheduler.postTask`, `requestVideoFrameCallback`, `canvas.roundRect`)
+came from the API probe's full list (169 probes, the page posts its list to the harness server:
+missing are also CSS container queries, `backdrop-filter`, `content-visibility`, the individual
+`translate` property, `scroll-snap-type`, `overscroll-behavior`, `text-wrap`, `accent-color`,
+`::marker`, `subgrid`, nesting, `image-set()`, `Intl.Segmenter`/`DisplayNames`,
+`CompressionStream`, `OffscreenCanvas`, `ElementInternals`, `navigator.clipboard`/`locks`/
+`share`/`userAgentData`, `ServiceWorker`, `Symbol.dispose`, the regex `v` flag, WebGL — and in
+MSE **no H.264/AAC**, only WebM/VP9/Opus: `MSE mp4/avc1`, `MSE audio mp4a`, `video canPlayType
+mp4 h264` all missing). The third round caught the component's own two faults — the embedded sources were not strict,
+so a page's bare `matchMedia()` reached the wrapper with `this` set to the sandbox global, and the
+iterator helpers had been installed on the sandbox's own iterator prototype — fixed (strict
+sources; the page's `%IteratorPrototype%` reached through the page's `Array`), dry-run on the
+host; the shims' page on the device after that: **28/28 ok** (14:55, Mochi, the shipped component `47c33ff6`), the API probe 131/169 with `:has()` on (119 before the shims). **The
+`NS_ERROR_NOT_INITIALIZED` thrower** (AP, Etsy's DataDome, Vimeo, GitLab, old Reddit, Bluesky in
+round 2) did not throw again in the two trace rounds with the wrappers in place — Vimeo's chunk
+changes name with every deploy, the other pages' bundles too; the trace mode stays as the tool
+for the next time it does (`jihad.compat.trace`, and the console line's column).
+
+**T-499 — DuckDuckGo's menu panel: the daemon's fit-zoom shows a page's off-canvas parking
+(found 2026-10-16 14:10, OPEN, designed).** The trace probe walked the open panel's ancestors:
+`div.nav-menu--slideout` is `position: fixed` at x = 772 in a window whose `innerWidth` is 768 —
+DuckDuckGo parks its slide-out menu four pixels past the right edge with `translateX(262.8px)`,
+as every browser hides it. But the page lays out 1000 CSS px wide (its right rail), and this
+daemon's design is "the engine's layout viewport is the window width; content wider than it is
+fit-zoomed by the card" (`BrowserPageGoanna.cpp` emitGeometry, `GoannaRenderPage.cpp` SetZoom):
+the card shows the whole 1000 px at zoom 0.768, so the strip past `innerWidth` — where pages
+park things — is on screen. Not DuckDuckGo's doing, and not the popover's: any page that hides
+a drawer just past its right edge shows it here when its layout is wider than the window. The
+engine's `nsIDOMWindowUtils` has no CSS-viewport setter; the fix is an offscreen engine window
+as wide as the page's overflow (once per load: 1000 wide for DuckDuckGo, `innerWidth` 1000, the
+drawer parked at 1004, the card's fit-zoom unchanged) with the card's own size kept apart from
+the engine's in the pan and floor arithmetic — a daemon change through the code whose comments
+record the 2026-07/08 zoom-oscillation and rotation bugs, so a task of its own with device
+trials, not a patch for this round. Until then the regular DuckDuckGo page shows its results
+with the menu panel standing at the top (the shot `t-ddg`), and DuckDuckGo Lite stays the
+default search.
 
 **Measured with daemon 11 (2026-10-16 03:33–03:40, Mochi, the same three pages as daemon 10's
 run; `memory-report-read.py` on the dump):**

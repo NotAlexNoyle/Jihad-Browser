@@ -105,9 +105,12 @@ the list versions and counts what was refused. (The lists are by The EasyList au
 the GNU GPL v3 or later; see `CREDITS.md`.)
 
 Jihad says it is Firefox 52.9, which it is at heart. When a site's bot check turns that away
-(Cloudflare's "verifying you are human" page), Jihad comes back once as a current Firefox,
-header and script alike, and remembers the site; Settings → General lists the sites and forgets
-them on request.
+(Cloudflare's "verifying you are human" page, Startpage's captcha gate), Jihad comes back once as
+a current Firefox, header and script alike, and remembers the site; Settings → General lists the
+sites and forgets them on request. YouTube is shown its mobile site, a quarter of the desktop
+page's script. The few web platform pieces the engine lacks and modern pages assume (popover,
+`inert`, `CSSStyleSheet.replace`, `Intl.ListFormat` …) are supplied to each page before its
+scripts run, only where the engine has none.
 
 ### And
 

@@ -92,8 +92,13 @@ $CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-JihadLu
      -lnspr4 -lplc4 -lplds4 $SYSLIB $GLIBL -ldl -lpthread \
      -o "$OUT" || exit 17
 NM=/tc/bin/arm-webos-linux-gnueabi-nm
+# NOT `grep -q` here: this script runs with pipefail, and grep -q leaves at the first match, so the
+# writer (nm, or echo) takes SIGPIPE and the pipeline fails — at random, by the race (2026-10-16:
+# "does not export free", then "does not export jemalloc_stats", on a file that had both). A grep
+# that reads to the end has no such race.
+EXPORTS="$($NM -D "$OUT")"
 for sym in malloc free realloc calloc posix_memalign malloc_usable_size jemalloc_stats jemalloc_free_dirty_pages; do
-  $NM -D "$OUT" | grep -q " T $sym\$" || { echo "ERROR: $OUT does not export $sym — libxul.so could not resolve it on the device"; exit 19; }
+  printf '%s\n' "$EXPORTS" | grep " T $sym\$" >/dev/null || { echo "ERROR: $OUT does not export $sym — libxul.so could not resolve it on the device"; exit 19; }
 done
 echo "== jemalloc: the daemon exports the allocator (malloc … jemalloc_stats); the whole process allocates through it =="
 echo "== built: $OUT =="

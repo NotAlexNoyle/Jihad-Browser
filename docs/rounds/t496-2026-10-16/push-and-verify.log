@@ -1,0 +1,36 @@
+=== push enyo (13:15)
+(99906/731645837) jihad (start) running, process 8807
+jihad-postinst(enyo): daemon job jihad is running
+jihad-postinst(enyo): install complete.
+jihad-postinst(enyo): REBOOT the device before launching Enyo 1.0 for the first time: webOS WebKit builds its
+jihad-postinst(enyo): NPAPI MIME database at boot, so BrowserAdapterJihad.so stays unregistered until the next one.
+[push-enyo] DONE — net.riverstonerelay.jihad-browser deployed. NOTE: the NPAPI shim registers with WebKit only on a full REBOOT.
+=== push mochi (13:17)
+(100043/475620477) jihad-mochi (start) running, process 9881
+jihad-postinst(mochi): daemon job jihad-mochi is running
+jihad-postinst(mochi): install complete.
+jihad-postinst(mochi): REBOOT the device before launching Enyo 2 + Mochi for the first time: webOS WebKit builds its
+jihad-postinst(mochi): NPAPI MIME database at boot, so BrowserAdapterJihadMochi.so stays unregistered until the next one.
+[push-mochi] DONE — net.riverstonerelay.jihad-browser-mochi deployed. NOTE: the NPAPI shim registers with WebKit only on a full REBOOT.
+=== push mojo (13:19)
+(100164/388258083) jihad-mojo (start) running, process 10827
+jihad-postinst(mojo): daemon job jihad-mojo is running
+jihad-postinst(mojo): install complete.
+jihad-postinst(mojo): REBOOT the device before launching Mojo for the first time: webOS WebKit builds its
+jihad-postinst(mojo): NPAPI MIME database at boot, so BrowserAdapterJihadMojo.so stays unregistered until the next one.
+[push-mojo] DONE — net.riverstonerelay.jihad-browser-mojo deployed. NOTE: the NPAPI shim registers with WebKit only on a full REBOOT.
+=== verify (13:22)
+== enyo: daemon f481552f | identity affbb468 | compat c76e86be | blocker v10 | manifests: 11 | goanna.js: sites=1 compat=1 | job: running, process 8807 | processes: 1
+   prefs.js: jihad.ua.modernHosts", "startpage.com" | theme selected: isThemeSelected", false | compat prefs: 0
+   log: identity: ready: 1 learned site(s), 1 site rule(s)|compat: ready: shims on|
+== mochi: daemon f481552f | identity affbb468 | compat c76e86be | blocker v10 | manifests: 11 | goanna.js: sites=1 compat=1 | job: running, process 9881 | processes: 1
+   prefs.js: jihad.ua.modernHosts", "w3.org,medium.com" | theme selected: isThemeSelected", false | compat prefs: 0
+   log: identity: ready: 2 learned site(s), 1 site rule(s)|compat: ready: shims on|
+== mojo: daemon f481552f | identity affbb468 | compat c76e86be | blocker v10 | manifests: 11 | goanna.js: sites=1 compat=1 | job: running, process 10827 | processes: 1
+   prefs.js: no learned list | theme selected: isThemeSelected", false | compat prefs: 0
+   log: identity: ready: 0 learned site(s), 1 site rule(s)|compat: ready: shims on|
+== apis probe (Mochi's log): jihad-apis: 119/169 ok; CSS :has()=missing, WebGL context=missing, crypto.randomUUID=missing, ServiceWorker=missing, Promise.try=missing, Set.prototype.union=missing, Iterator helpers (map)=missing, Symbol.dispose / using=missing, regex /v flag=throws, Intl.Segmenter=mis
+tmpfs                    40960      1256     39704   3% /tmp
+Mem:        940368     803620     136748          0      38796     491792
+
+[exited with code 0]

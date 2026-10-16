@@ -1,0 +1,166 @@
+thumbs
+syntax ok
+probe server up
+puts ok
+== daemon ba48567b; compat eb035b6d; manifest lines: 72
+== [jihad-bs] js-console bridge on (ALL sources); daemons: 1
+[jihad-bs] js-console (no source):0:0 identity: ready: 0 learned site(s)
+[jihad-bs] js-console (no source):0:0 identity: ready: 0 learned site(s)
+[jihad-bs] js-console (no source):0:0 identity: ready: 0 learned site(s)
+[jihad-bs] js-console (no source):0:0 compat: ready: shims on, trace on
+@@ apis | 44s | shot=78069 | load-done=1 painted=15 errors=5 | first-paint=11s load=17s worst-tick=4539ms | title: titleAndUrl title=[jihad-apis: 119/169 ok; CSS :has()=missing, WebGL context=missing, crypto.randomUUID=missing, ServiceWorker=missing, Promise.try=missing, Set.prototype.union=missing, Iterator helpers (map)=missing, Symbol.dispose / using=missing, regex /v flag=throws, Intl.Segmenter=missing, Intl.DisplayNames=missi] uri=http://192.168.1.245:8077/jihad-apis.html back=0 fwd=0
+   compat: ready: shims on, trace on
+   compat: 192.168.1.245: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [192.168.1.245] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | @http://192.168.1.245:8077/jihad-apis.html:155:70
+   | probe@http://192.168.1.245:8077/jihad-apis.html:12:13
+   | @http://192.168.1.245:8077/jihad-apis.html:155:1
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+@@ etsy | 78s | shot=730558 | load-done=1 painted=50 errors=7 | first-paint=8s load=47s worst-tick=5037ms | title: 
+   compat: www.etsy.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [www.etsy.com] requestIdleCallback threw TypeError: 'requestIdleCallback' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | y/o.prototype.yieldToMain@https://www.etsy.com/include/tags.js:2:3738
+   | y/o.prototype.scheduleTask@https://www.etsy.com/include/tags.js:2:4218
+   | y/o.scheduleTask@https://www.etsy.com/include/tags.js:2:4307
+   | n@https://www.etsy.com/include/tags.js:2:133708
+   | DataDomeJsTag</</<@https://www.etsy.com/include/tags.js:2:136043
+   | y/o.prototype.runTask@https://www.etsy.com/include/tags.js:2:3963
+   | y/o.prototype.scheduleTask/n<@https://www.etsy.com/include/tags.js:2:4105
+   | y/o.prototype._initializeAsyncChannel/this._asyncChannel.port1.onmessage<@https://www.etsy.com/include/tags.js:2:3004
+         1 https://www.etsy.com/search?q=webos:0:0 [JavaScript Error: "The resource from “https://transcend-cdn.com/cm/ac71e058-41b7-4026-b482-3d9b8e31a6d0/airgap.js” was blocked due to MIME type mismatch (X-Content-Type-Options: nosniff)." {file:
+         1 https://www.etsy.com/ac/viteEightB/js/en-US/bootstrap/a11y/A11yHealthMetricsSetup.yL1Erqtp.js:2:4026 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "https://www.etsy.com/ac/v
+         1 https://www.etsy.com/ac/viteEightB/js/en-US/bootstrap/a11y/A11yHealthMetricsSetup.yL1Erqtp.js:2:4026 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 https://www.etsy.com/ac/viteEightB/js/en-US/bootstrap/a11y/A11yHealthMetricsSetup.yL1Erqtp.js:2:4026 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "https://www.etsy.com/ac/viteEightB/js
+         1 https://transcend-cdn.com/cm/ac71e058-41b7-4026-b482-3d9b8e31a6d0/airgap.js:5:10307 [JavaScript Error: "TypeError: U(...) is undefined" {file: "https://transcend-cdn.com/cm/ac71e058-41b7-4026-b482-3d9b8e31a6d0/airgap.js" line: 5}]
+@@ ddg | 76s | shot=213927 | load-done=1 painted=30 errors=3 | first-paint=9s load=56s worst-tick=12447ms | title: 
+   compat: duckduckgo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: duckduckgo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | [1548]/e.exports<@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:221777
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | [1548]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:221699
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [94483]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:182234
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [95636]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:166215
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [78100]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:232641
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | o[21197]@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1199422
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+@@ vimeo | 77s | shot=56467 | load-done=0 painted=13 errors=3 | first-paint=1s load=-s worst-tick=25176ms | title: 
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: vimeo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | te/<@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69340
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | te@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69313
+   | [71678]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69445
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [42176]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:99761
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [62188]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:109991
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [72296]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:318132
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [54701]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:730507
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | ee/<@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69229
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | ee@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69193
+   | [71678]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69676
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [42176]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:99761
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [62188]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:109991
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [72296]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:318132
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [54701]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:730507
+@@ gitlab | 78s | shot=23292 | load-done=0 painted=6 errors=7 | first-paint=19s load=-s worst-tick=25004ms | title: 
+   compat: gitlab.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+         5 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2w_i8pac2vn2-.js:6:0 [JavaScript Error: "NS_ERROR_NOT_INITIALIZED: " {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2w_i8pac2vn2-.js" line: 6}]
+         1 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2w_i8pac2vn2-.js:6:12453 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/ch
+@@ oldreddit | 72s | shot=52447 | load-done=1 painted=12 errors=18 | first-paint=1s load=43s worst-tick=41189ms | title: 
+   compat: trace [gitlab.com] requestIdleCallback threw TypeError: 'requestIdleCallback' called on an object that does not implement interface Window.
+   compat: trace [gitlab.com] requestIdleCallback threw TypeError: 'requestIdleCallback' called on an object that does not implement interface Window.
+   compat: old.reddit.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [old.reddit.com] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   compat: trace [old.reddit.com] window.postMessage threw TypeError: 'postMessage' called on an object that does not implement interface Window.
+   compat: www.google.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | rF@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:5:10580
+   | setupOnce@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:5:10900
+   | B@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:1245
+   | _setupIntegrations/this._integrations<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:40541
+   | _setupIntegrations@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:40526
+   | init@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:36951
+   | 169467/</<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:8520
+   | 169467/<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:8527
+   | 169467@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:34960
+   | t@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:145
+   | @https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:35015
+   | t.O@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:33165
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | o@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:4:21549
+   | 502194@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:1:229893
+   | t@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:145
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:126
+   | t.O@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:33165
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:144
+   | b@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:34119
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:54
+   | jihad-web-compat-trace.js:11:49 [JavaScript Error: "TypeError: 'requestIdleCallback' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 11}]
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:49
+   | o@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:4:21549
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:87
+   | Eg@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:51:2755
+   | connectedCallback@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:54:14458
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:49
+   | patchDefine/t.define@https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F:66:1025
+   | y/</<@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:22:1928
+   | y/<@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:22:1943
+   | S@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:23:380
+   | @https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:54:26600
+   | _evaluateModule@https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F:72:3171
+   | jihad-web-compat-trace.js:11:49 [JavaScript Error: "TypeError: 'matchMedia' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 11}]
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:11:49
+         3 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore : Unable to run script because scripts are blocked internally."]
+         2 jihad-web-compat-trace.js:11:49 [JavaScript Error: "TypeError: 'requestIdleCallback' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 11}]
+         2 jihad-web-compat-trace.js:11:49 [JavaScript Error: "TypeError: 'postMessage' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 11}]
+         1 jihad-web-compat-trace.js:11:49 [JavaScript Error: "TypeError: 'matchMedia' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 11}]
+         1 data:text/javascript,let%20navPromise%3Dnull%3Basync%20function%20getNavigation()%7Breturn%20navPromise%7C%7C(navPromise%3D_getNavigation())%2CnavPromise%7Dasync%20function%20_getNavigation()%7Bif(!window.navigation)try%7Blet%7BapplyPolyfil
+         1 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore/projects/explore : Unable to run script because scripts are blocked internally."]
+@@ bsky | 70s | shot=29044 | load-done=1 painted=11 errors=3 | first-paint=7s load=51s worst-tick=31065ms | title: 
+   compat: bsky.app: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+         2 (no source):0:0 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource."]
+== restored: (99777/216557714) jihad-mochi (start) running, process 7325; daemons: 1; [jihad-bs] js-console bridge on (chrome/resource/about only)
+78069 /tmp/shot-t-apis.png
+29044 /tmp/shot-t-bsky.png
+213927 /tmp/shot-t-ddg.png
+730558 /tmp/shot-t-etsy.png
+23292 /tmp/shot-t-gitlab.png
+52447 /tmp/shot-t-oldreddit.png
+56467 /tmp/shot-t-vimeo.png
+tmpfs                    40960      5880     35080  14% /tmp
+=== exit 0
+t-apis 78069
+t-etsy 730558
+t-ddg 213927
+t-vimeo 56467
+
+[exited with code 0]

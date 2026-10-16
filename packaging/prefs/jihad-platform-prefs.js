@@ -218,6 +218,27 @@ pref("javascript.options.mem.gc_allocation_threshold_mb", 64);
 pref("jihad.ua.learn", true);              // learn a site whose bot check turns the page away (cf-mitigated: challenge)
 pref("jihad.ua.modernHosts", "");          // the learned sites (base domains), persisted
 pref("jihad.ua.modern", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0");   // the identity they get
+// The component's own rules, "site=identity;…", header and script together (the daemon's table in
+// EngineHost.cpp sets the header only). youtube.com → a mobile Firefox identity: YouTube then
+// serves its mobile site, 3.0 MB of script instead of the desktop watch page's 13.7 MB — on the
+// TouchPad the desktop page stalls the main thread for 24 s and is still grey after a minute, the
+// mobile home feed renders in 18 s with a 5 s worst stall (T-497, 2026-10-16; the owner: "speed up
+// youtube").
+pref("jihad.ua.sites", "youtube.com=Mozilla/5.0 (Android 14; Mobile; rv:128.0) Gecko/128.0 Firefox/128.0");
+
+// --- Web compatibility shims (cavekit-modern-web.md R1/R6, 2026-10-16) — components/jihadWebCompat.js:
+// the few platform pieces the engine lacks (CSSStyleSheet.replace, the popover and inert
+// attributes, Intl.ListFormat, reportError, checkVisibility, AbortSignal.any …), defined on each
+// page before its scripts run, only where the engine has none. ---
+pref("jihad.compat.enabled", true);
+pref("jihad.compat.trace", false);         // a diagnosis mode: logs which engine call threw an XPCOM result to the page, with the page's stack
+
+// --- CSS :has() (the owner, 2026-10-16: "enable :has() by default in all 3 variants") — the engine
+// implements the selector but ships it off (layout/style/nsCSSPseudoClassList.h gates it on this
+// pref; upstream's default is false). A rule whose selector uses it is otherwise dropped whole:
+// DuckDuckGo's stylesheets use it 33 times, Etsy's and others too. Watch the style time on heavy
+// pages (the round script's worst tick) if a page ever gets slower for it. ---
+pref("layout.css.has-pseudo.enabled", true);
 
 // --- jemalloc (T-493, 2026-10-16): the allocator is in the daemon now; every memory-pressure
 // notification (the last card's, the low-memory guardrail's, the lists' unload) also returns

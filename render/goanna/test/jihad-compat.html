@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page: the web compatibility shims (components/jihadWebCompat.js) as a page
+     sees them — each line says whether the member is there and whether it behaves; the summary goes
+     into the title (the daemon logs titles). Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-compat</title>
+<style>body{font:15px monospace} .ok{color:#060} .no{color:#900} #pop{border:2px solid #06c;padding:8px;background:#eef}</style></head>
+<body><h1>jihad-compat</h1>
+<button popovertarget="pop" id="btn">toggle the popover</button>
+<div id="pop" popover>a popover — hidden until shown</div>
+<div id="inertbox" inert>an inert box</div>
+<ul id="r"></ul>
+<script>
+var R = [];
+function row(name, ok, detail) { R.push([name, ok, detail || ""]); }
+function cs(el, p) { return getComputedStyle(el).getPropertyValue(p); }
+(function () {
+  var pop = document.getElementById("pop");
+  row("popover: hidden at start", cs(pop, "display") === "none", "display=" + cs(pop, "display"));
+  row("popover: showPopover is a function", typeof pop.showPopover === "function");
+  var shown = null; try { pop.showPopover(); shown = cs(pop, "display"); } catch (e) { shown = "threw " + e; }
+  row("popover: shown after showPopover", shown !== "none" && !/threw/.test(shown), "display=" + shown);
+  row("popover: .popover reads 'auto'", pop.popover === "auto", String(pop.popover));
+  var toggled = null; try { toggled = pop.togglePopover(); } catch (e) { toggled = "threw " + e; }
+  row("popover: togglePopover closes it", toggled === false && cs(pop, "display") === "none", "returned " + toggled + ", display=" + cs(pop, "display"));
+  var got = []; pop.addEventListener("toggle", function (e) { got.push(e.oldState + ">" + e.newState); });
+  pop.showPopover(); pop.hidePopover();
+  row("popover: toggle events with oldState/newState", got.join(",") === "closed>open,open>closed", got.join(","));
+  var ib = document.getElementById("inertbox");
+  row("inert: pointer-events none", cs(ib, "pointer-events") === "none", "pointer-events=" + cs(ib, "pointer-events"));
+  row("inert: property reflects", ib.inert === true, String(ib.inert));
+  var rep = null; try { var sh = new CSSStyleSheet(); var p = sh.replace("b{color:red}"); rep = (p && typeof p.then === "function") ? "promise" : typeof p; } catch (e) { rep = "threw " + e; }
+  row("CSSStyleSheet.replace returns a promise", rep === "promise", rep);
+  var lf = null; try { lf = new Intl.ListFormat("en", {type: "conjunction"}).format(["a", "b", "c"]); } catch (e) { lf = "threw " + e; }
+  row("Intl.ListFormat en conjunction", lf === "a, b, and c", lf);
+  row("reportError is a function", typeof reportError === "function");
+  var vis = null; try { vis = document.body.checkVisibility() + "/" + pop.checkVisibility(); } catch (e) { vis = "threw " + e; }
+  row("Element.checkVisibility body/popover", vis === "true/false", vis);
+  var any = null; try { var c1 = new AbortController(); var s = AbortSignal.any([c1.signal]); c1.abort("x"); any = s.aborted; } catch (e) { any = "threw " + e; }
+  row("AbortSignal.any follows the first", any === true, String(any));
+  var sz = null; try { sz = new URLSearchParams("a=1&b=2").size; } catch (e) { sz = "threw " + e; }
+  row("URLSearchParams.size", sz === 2, String(sz));
+  row("Array.fromAsync is a function", typeof Array.fromAsync === "function");
+  // the second batch
+  var un = null; try { un = Array.from(new Set([1, 2]).union(new Set([2, 3]))).join(); } catch (e) { un = "threw " + e; }
+  row("Set.prototype.union", un === "1,2,3", un);
+  var im = null; try { im = [1, 2, 3].values().map(function (x) { return x * 2; }).filter(function (x) { return x > 2; }).toArray().join(); } catch (e) { im = "threw " + e; }
+  row("iterator helpers map/filter/toArray", im === "4,6", im);
+  var pt = null; try { pt = typeof Promise.try === "function" && typeof Promise.try(function () { return 1; }).then === "function"; } catch (e) { pt = "threw " + e; }
+  row("Promise.try", pt === true, String(pt));
+  var uu = null; try { uu = crypto.randomUUID(); } catch (e) { uu = "threw " + e; }
+  row("crypto.randomUUID v4 shape", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(uu), uu);
+  var rj = null; try { rj = Response.json({a: 1}).headers.get("content-type"); } catch (e) { rj = "threw " + e; }
+  row("Response.json static", rj === "application/json", String(rj));
+  var sc = null; try { sc = typeof scheduler.postTask(function () { return 1; }).then === "function"; } catch (e) { sc = "threw " + e; }
+  row("scheduler.postTask", sc === true, String(sc));
+  var rr = null; try { var cv = document.createElement("canvas").getContext("2d"); cv.beginPath(); cv.roundRect(1, 1, 10, 10, 2); rr = "ok"; } catch (e) { rr = "threw " + e; }
+  row("canvas roundRect", rr === "ok", rr);
+  row("video requestVideoFrameCallback", typeof document.createElement("video").requestVideoFrameCallback === "function");
+  row("ReadableStream async iterator", typeof ReadableStream === "function" && typeof ReadableStream.prototype[Symbol.asyncIterator] === "function");
+  var bt = new Blob(["xy"]).text ? new Blob(["xy"]).text() : Promise.resolve(null);
+  bt.then(function (t) { row("Blob.text resolves", t === "xy", String(t)); }, function (e) { row("Blob.text resolves", false, "rejected " + e); }).then(function () {
+  var mm = null; try { mm = matchMedia("(min-width: 1px)").matches; } catch (e) { mm = "threw " + e; }
+  row("bare matchMedia() call", mm === true, String(mm));
+  var scl = null; try { scl = structuredClone({a: 1}).a; } catch (e) { scl = "threw " + e; }
+  row("bare structuredClone() call", scl === 1, String(scl));
+  var pending = Array.fromAsync ? Array.fromAsync([Promise.resolve(1), 2]) : Promise.resolve(null);
+  pending.then(function (a) { row("Array.fromAsync resolves [1,2]", !!a && a.join() === "1,2", a ? a.join() : "null"); }, function (e) { row("Array.fromAsync resolves [1,2]", false, "rejected " + e); }).then(finish);
+  });
+  function finish() {
+    var ul = document.getElementById("r"), ok = 0;
+    R.forEach(function (r) { var li = document.createElement("li"); li.className = r[1] ? "ok" : "no"; li.textContent = (r[1] ? "ok   " : "FAIL ") + r[0] + (r[2] ? "  (" + r[2] + ")" : ""); ul.appendChild(li); if (r[1]) ok++; });
+    document.title = "jihad-compat: " + ok + "/" + R.length + " ok" + (ok < R.length ? "; FAIL: " + R.filter(function (r) { return !r[1]; }).map(function (r) { return r[0] + " (" + r[2] + ")"; }).join(", ") : "");
+  }
+})();
+</script></body></html>

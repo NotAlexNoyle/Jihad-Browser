@@ -1,0 +1,30 @@
+put ok
+== before: no modernHosts line; log 451822 bytes
+== reach: xhr ok
+== component: e3628b84 3 _challengeOf line(s)
+(96097/750757686) jihad (start) running, process 25063
+== ready: ready: 0 learned site(s)
+ih-plain 121398 bytes | load-done=12 painted=635 | load done uri=http://192.168.1.245:8078/plain/
+   identity: ready: 0 learned site(s)|
+ih-challenge 121655 bytes | load-done=13 painted=642 | load done uri=http://192.168.1.245:8078/challenge/
+   identity: 192.168.1.245: the site's bot check turned the page away (cf-mitigated: challenge); learned 192.168.1.245, loading again with a current Firefox identity|192.168.1.245: challenged again with the current identity; the page is left to the site|
+ih-challenge2 121781 bytes | load-done=14 painted=647 | load done uri=http://192.168.1.245:8078/challenge/
+   identity: 192.168.1.245: challenged again with the current identity; the page is left to the site|
+ih-spgate 103590 bytes | load-done=15 painted=652 | load done uri=http://192.168.1.245:8078/sp-gate/
+   identity: 
+ih-site 128348 bytes | load-done=16 painted=659 | load done uri=http://192.168.1.245:8078/site/
+   identity: 
+ih-settings 169449 bytes | load-done=17 painted=668 | load done uri=about:settings#pane=general
+   identity: 
+== learned after harness: jihad.ua.modernHosts", "192.168.1.245"
+ih-startpage 123115 bytes | load-done=18 painted=696 | load done uri=https://www.startpage.com/
+   identity: www.startpage.com: the site's bot check turned the page away (a redirect to /sp/captcha-block); learned startpage.com, loading again with a current Firefox iden|
+ih-startpage-search 69161 bytes | load-done=19 painted=703 | load done uri=https://www.startpage.com/do/search?q=webos+touchpad
+   identity: 
+== learned after startpage: jihad.ua.modernHosts", "192.168.1.245,startpage.com"
+(96595/286333886) jihad (start) running, process 28845
+== final: jihad.ua.modernHosts", "startpage.com"; ready: ready: 1 learned site(s)
+8
+tmpfs                    40960      2272     38688   6% /tmp
+
+[exited with code 0]

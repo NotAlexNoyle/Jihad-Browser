@@ -1,0 +1,169 @@
+put ok
+== enyo: has-pseudo line: 1; running, process 12313
+== mojo: has-pseudo line: 1; running, process 12469
+== mochi: has-pseudo line: 1
+== daemon f481552f; compat a9dfe164
+== [jihad-bs] js-console bridge on (ALL sources); daemons: 1
+[jihad-bs] js-console (no source):0:0 compat: ready: shims on
+[jihad-bs] js-console (no source):0:0 compat: ready: shims on, trace on
+@@ compat | 39s | shot=95881 | load-done=1 painted=9 errors=1 | first-paint=12s load=19s worst-tick=5713ms | title: 
+   compat: ready: shims on, trace on
+   compat: 192.168.1.245: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: 16/16 ok] uri=http://192.168.1.245:8077/jihad-compat.html back=0 fwd=0
+@@ apis | 44s | shot=78033 | load-done=1 painted=8 errors=6 | first-paint=7s load=14s worst-tick=4664ms | title: titleAndUrl title=[jihad-apis: 119/169 ok; CSS :has()=missing, WebGL context=missing, crypto.randomUUID=missing, ServiceWorker=missing, Promise.try=missing, Set.prototype.union=missing, Iterator helpers (map)=missing, Symbol.dispose / using=missing, regex /v flag=throws, Intl.Segmenter=missing, Intl.DisplayNames=missi] uri=http://192.168.1.245:8077/jihad-apis.html back=0 fwd=0
+   compat: probe [192.168.1.245] threw TypeError: can't access dead object
+   compat: 192.168.1.245: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [192.168.1.245] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | @http://192.168.1.245:8077/jihad-apis.html:155:70
+   | probe@http://192.168.1.245:8077/jihad-apis.html:12:13
+   | @http://192.168.1.245:8077/jihad-apis.html:155:1
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+   apis: jihad-apis: 119/169 ok; CSS :has()=missing, WebGL context=missing, crypto.randomUUID=missing, ServiceWorker=missing, Promise.try=missing, Set.prototype.union=missing, Iterator helpers (map)=missing, Symbol.dispose / using=missing, regex /v flag=throws, Intl.Segmenter=missing, Intl.DisplayNames=missi
+   title: jihad-compat: 16/16 ok
+@@ ddg | 76s | shot=205265 | load-done=1 painted=27 errors=3 | first-paint=6s load=46s worst-tick=11176ms | title: 
+   compat: duckduckgo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: duckduckgo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: probe [duckduckgo.com] html.class=has-zcm  is-link-style-exp is-link-order-exp is-link-breadcrumb-exp is-related-search-exp is-vertical-tabs-exp    js touch opacity csstransforms3d csstrans
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | [1548]/e.exports<@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:221777
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | [1548]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:221699
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [94483]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:182234
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [95636]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:166215
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [78100]@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:232641
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | o[21197]@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1199422
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   probe: probe [duckduckgo.com] html.class=has-zcm  is-link-style-exp is-link-order-exp is-link-breadcrumb-exp is-related-search-exp is-vertical-tabs-exp    js touch opacity csstransforms3d csstransitions svg cssfilters is-not-mobile-device full-urls breadcrumb-urls react has-footer has-right-rail-module body.class=body--serp   settings links=2 scrollY=0 inner=768x946
+         link 0: a. {block static vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,76 234x23} < li.nav-menu__item clear {list-item relative vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,76 234x23} < ul.nav-menu--theme {block static vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,0 234x129} < ul.nav-menu__list {block absolute vis=visible op=1 tf=none translate=- scale=- clip=none ov=hidden auto rect=772,0 259x946} < div.nav-menu--slideout js-me {block fixed vis=visible op=1 tf=matrix(1, 0, 0, 1, 262.8 translate=- 
+         link 1: a. {block static vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,99 234x23} < li.nav-menu__item {list-item relative vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,99 234x23} < ul.nav-menu--theme {block static vis=visible op=1 tf=none translate=- scale=- clip=none ov=visible rect=793,0 234x129} < ul.nav-menu__list {block absolute vis=visible op=1 tf=none translate=- scale=- clip=none ov=hidden auto rect=772,0 259x946} < div.nav-menu--slideout js-me {block fixed vis=visible op=1 tf=matrix(1, 0, 0, 1, 262.8 translate=- scale=
+      [jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+      [jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+      [jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+      [jihad-bs]   tick period ms min=9 avg=183 max=1262 | work avg=265 max=1687 (pump avg=183 paint avg=82) | n=13
+      [jihad-bs] emitGeometry contentSize=1000x2479 win=768x946 mZoom=0.7680
+      [jihad-bs] paint pipeline: wanted=1 deferred=0 done=4 in 4944ms (0.8 fps)
+      [jihad-bs]   partial=0 (full: nodmg=3 force=0 slot=0 geom=1 small=0) ticks=22 dirty=1 | frame gap ms min=508 avg=785 max=1365
+      [jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=4
+      [jihad-bs] painted shmid=0x44f000c bytes=53629 (768x1903 top=0 band=0 left=0) mZoom=0.7680 contentZoom=0.7680 ms=172 rows new=946 copied=1903
+      [jihad-bs] late load done uri=https://duckduckgo.com/?q=webOS&ia=web
+      
+@@ vimeo | 89s | shot=65253 | load-done=0 painted=17 errors=13 | first-paint=1s load=-s worst-tick=21974ms | title: 
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: trace [duckduckgo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: vimeo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: probe [vimeo.com] html.class= body.class=chakra-ui-light settings links=0 scrollY=0 inner=768x946
+   compat: trace [vimeo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   compat: trace [vimeo.com] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | te/<@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69340
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | te@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69313
+   | [71678]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69445
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [42176]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:99761
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [62188]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:109991
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [72296]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:318132
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [54701]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:730507
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | ee/<@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69229
+   | [79039]/e.exports@https://duckduckgo.com/dist/wpmv.79662baad210ee50f816.js:2:187736
+   | ee@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69193
+   | [71678]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:69676
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [42176]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:99761
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [62188]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:109991
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [72296]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:318132
+   | l@https://duckduckgo.com/dist/wpm.main.8feb86a3dd8de80fea72.js:1:1275856
+   | [54701]@https://duckduckgo.com/dist/wpm.3744.3b7e89922fe441accc8e.js:7:730507
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | Va<@https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:36982
+   | p@https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:2093
+   | @https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:36870
+   | @https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:546004
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | UL/<@https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:160228
+   | p@https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:2093
+   | UL@https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:160200
+   | @https://f.vimeocdn.com/p/4.46.126/js/barebone.js:4:160331
+         1 jihad-web-compat-trace.js:14:112 [JavaScript Error: "TypeError: 'matchMedia' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 14}]
+         1 https://transcend-cdn.com/cm/31e97cbf-355c-4f0d-8bad-9cd945121508/airgap.js:5:10380 [JavaScript Error: "TypeError: H(...) is undefined" {file: "https://transcend-cdn.com/cm/31e97cbf-355c-4f0d-8bad-9cd945121508/airgap.js" line: 5}]
+@@ bsky | 77s | shot=36334 | load-done=1 painted=11 errors=4 | first-paint=11s load=50s worst-tick=31537ms | title: 
+   compat: trace [vimeo.com] Response.text REJECTED with AbortError: The operation was aborted. 
+   compat: trace [vimeo.com] Response.json REJECTED with AbortError: The operation was aborted. 
+   compat: bsky.app: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: probe [bsky.app] html.class=theme--light body.class= settings links=0 scrollY=0 inner=768x946
+   | wrapAsync/obj[name]@jihad-web-compat-trace.js:37:21
+   | d/<@https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/3a8okhv_uuvg6.js:6:29809
+   | wrapAsync/obj[name]@jihad-web-compat-trace.js:37:21
+   | S/<@https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2n8cz781bhyf_.js:2:1456
+   | https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2388jg-jbjwm3.js:6:12453 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://f.vimeocdn.com/next-server/vimeo-
+         1 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2388jg-jbjwm3.js:6:12453 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/ch
+   blocked on bsky:       1 beacon by events.bsky.app|      1 fetch by events.bsky.app|      1 fetch by sentry.io$third-party|      1 script by googletagmanager.com|
+@@ oldreddit | 78s | shot=52880 | load-done=0 painted=9 errors=6 | first-paint=20s load=-s worst-tick=18165ms | title: 
+   compat: old.reddit.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   compat: trace [old.reddit.com] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   compat: probe [old.reddit.com] html.class=theme-beta body.class= settings links=0 scrollY=0 inner=768x946
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | Eg@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:51:2755
+   | connectedCallback@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:54:14458
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:112
+   | patchDefine/t.define@https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F:66:1025
+   | y/</<@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:22:1928
+   | y/<@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:22:1943
+   | S@https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:23:380
+   | @https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=BvOWmaNPEJ,CSditlBETu,Dyg3q1gB6W:54:26600
+   | _evaluateModule@https://old.reddit.com/login/?reason=lor2&dest=https%3A%2F%2Fold.reddit.com%2Fr%2Fwebos%2F:72:3171
+   | jihad-web-compat-trace.js:14:112 [JavaScript Error: "TypeError: 'matchMedia' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 14}]
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:112
+         1 jihad-web-compat-trace.js:39:22 [JavaScript Error: "TypeError: 'fetch' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 39}]
+         1 jihad-web-compat-trace.js:14:112 [JavaScript Error: "TypeError: 'matchMedia' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 14}]
+         1 https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=B3F08rxmAl,BuXmp0pa9z,CNdWMaFmBM:3:22240 [JavaScript Error: "TypeError: n is undefined" {file: "https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=B3F08rxmAl,BuXmp0pa9z,CN
+         1 data:text/javascript,let%20navPromise%3Dnull%3Basync%20function%20getNavigation()%7Breturn%20navPromise%7C%7C(navPromise%3D_getNavigation())%2CnavPromise%7Dasync%20function%20_getNavigation()%7Bif(!window.navigation)try%7Blet%7BapplyPolyfil
+@@ gitlab | 77s | shot=23546 | load-done=0 painted=8 errors=3 | first-paint=14s load=-s worst-tick=43621ms | title: 
+   compat: trace [old.reddit.com] window.postMessage threw TypeError: 'postMessage' called on an object that does not implement interface Window.
+   compat: gitlab.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover
+   | report@jihad-web-compat-trace.js:5:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:150
+   | @https://www.gstatic.com/recaptcha/releases/nY0xPItgwtlvjEjk2TqdwOQz/recaptcha__en.js:1691:309
+   | @https://www.gstatic.com/recaptcha/releases/nY0xPItgwtlvjEjk2TqdwOQz/recaptcha__en.js:1709:262
+   | jihad-web-compat-trace.js:14:112 [JavaScript Error: "TypeError: 'postMessage' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 14}]
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:14:112
+   | @https://www.gstatic.com/recaptcha/releases/nY0xPItgwtlvjEjk2TqdwOQz/recaptcha__en.js:1691:309
+   | @https://www.gstatic.com/recaptcha/releases/nY0xPItgwtlvjEjk2TqdwOQz/recaptcha__en.js:1709:262
+         1 jihad-web-compat-trace.js:14:112 [JavaScript Error: "TypeError: 'postMessage' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 14}]
+== restored: (100836/7215879) jihad-mochi (start) running, process 20099; daemons: 1; [jihad-bs] js-console bridge on (chrome/resource/about only)
+78033 /tmp/shot-t-apis.png
+36334 /tmp/shot-t-bsky.png
+95881 /tmp/shot-t-compat.png
+205265 /tmp/shot-t-ddg.png
+23546 /tmp/shot-t-gitlab.png
+52880 /tmp/shot-t-oldreddit.png
+65253 /tmp/shot-t-vimeo.png
+tmpfs                    40960      1844     39116   5% /tmp
+=== exit 0
+t2-t-compat 95881
+t2-t-ddg 205265
+t2-t-vimeo 65253
+t2-t-bsky 36334
+
+[exited with code 0]

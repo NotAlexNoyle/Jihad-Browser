@@ -1,0 +1,82 @@
+compat page: second batch + bare-call tests
+parses
+trace3 ok
+put ok
+== daemon f481552f; compat a5ecefc9
+== [jihad-bs] js-console bridge on (ALL sources); daemons: 1
+[jihad-bs] js-console (no source):0:0 compat: ready: shims on, trace on
+@@ compat | 45s | shot=150684 | load-done=1 painted=10 errors=3 | first-paint=10s load=18s worst-tick=6183ms | title: 
+   compat: ready: shims on, trace on
+   compat: 192.168.1.245: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, R
+   compat: 25/28 ok; FAIL: iterator helpers map/filter/toArray (threw TypeError: (intermediate value).values(...).map is not a function), bare matchMedia() call (threw TypeError: 'matchMedia' called o
+   compat: trace [192.168.1.245] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   compat: trace [192.168.1.245] structuredClone threw TypeError: 'structuredClone' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:4:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:150
+   | @http://192.168.1.245:8077/jihad-compat.html:61:29
+   | report@jihad-web-compat-trace.js:4:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:150
+   | @http://192.168.1.245:8077/jihad-compat.html:63:31
+   title: jihad-compat: 25/28 ok; FAIL: iterator helpers map/filter/toArray (threw TypeError: (intermediate value).values(...).map is not a function), bare matchMedia() call (threw TypeError: 'matchMedia' called on an object that does not implement interface Window.), bare structuredClone() call (threw TypeEr
+@@ apis | 44s | shot=77883 | load-done=1 painted=9 errors=5 | first-paint=7s load=11s worst-tick=1037ms | title: titleAndUrl title=[jihad-apis: 128/169 ok; CSS :has()=missing, WebGL context=missing, ServiceWorker=missing, Iterator helpers (map)=missing, Symbol.dispose / using=missing, regex /v flag=throws, Intl.Segmenter=missing, Intl.DisplayNames=missing, navigator.locks=missing, navigator.clipboard=missing, navigator.share=mis] uri=http://192.168.1.245:8077/jihad-apis.html back=0 fwd=0
+   compat: 192.168.1.245: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, R
+   compat: trace [192.168.1.245] matchMedia threw TypeError: 'matchMedia' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:4:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:150
+   | @http://192.168.1.245:8077/jihad-apis.html:155:70
+   | probe@http://192.168.1.245:8077/jihad-apis.html:12:13
+   | @http://192.168.1.245:8077/jihad-apis.html:155:1
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Refused to create native OpenGL context because of blacklist entry: " {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Failed to create WebGL context: WebGL creation failed: 
+         1 http://192.168.1.245:8077/jihad-apis.html:65:117 [JavaScript Warning: "Error: WebGL: Disallowing antialiased backbuffers due to blacklisting." {file: "http://192.168.1.245:8077/jihad-apis.html" line: 65}]
+@@ vimeo | 94s | shot=68875 | load-done=0 painted=17 errors=5 | first-paint=7s load=-s worst-tick=26818ms | title: 
+   compat: vimeo.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, Respo
+@@ oldreddit | 75s | shot=52436 | load-done=1 painted=9 errors=18 | first-paint=7s load=17s worst-tick=7434ms | title: 
+   compat: old.reddit.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, 
+        15 https://www.redditstatic.com/js/concat?prefix=en-US/&chunks=0NiU2bFh9Y,4oWZIpd_Xt,4sbhYneoz9,58i0g1KhUL,6Bxig_ABPI,BCGtq6uY6K,BKTG8cDdni,BO3oNOc9Ww,BOq_HM1Ghu,BT3ihbMlZP,BTejP8_sWy,BU_srOuIFz,BcuKrBNOlt,BdWkxITbpx,BycQZLZzzF,BzKdPmRDEj,C-Ea
+         1 https://f.vimeocdn.com/next-server/vimeo-next/_next/static/chunks/2388jg-jbjwm3.js:6:12453 [JavaScript Error: "TypeError: NetworkError when attempting to fetch resource." {file: "https://f.vimeocdn.com/next-server/vimeo-next/_next/static/ch
+         1 data:text/javascript,let%20navPromise%3Dnull%3Basync%20function%20getNavigation()%7Breturn%20navPromise%7C%7C(navPromise%3D_getNavigation())%2CnavPromise%7Dasync%20function%20_getNavigation()%7Bif(!window.navigation)try%7Blet%7BapplyPolyfil
+@@ gitlab | 77s | shot=52544 | load-done=0 painted=9 errors=9 | first-paint=11s load=-s worst-tick=40891ms | title: 
+   compat: gitlab.com: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, Resp
+   compat: trace [gitlab.com] requestIdleCallback threw TypeError: 'requestIdleCallback' called on an object that does not implement interface Window.
+   compat: trace [gitlab.com] requestIdleCallback threw TypeError: 'requestIdleCallback' called on an object that does not implement interface Window.
+   | report@jihad-web-compat-trace.js:4:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:150
+   | rF@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:5:10580
+   | setupOnce@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:5:10900
+   | B@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:1245
+   | _setupIntegrations/this._integrations<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:40541
+   | _setupIntegrations@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:40526
+   | init@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:1:36951
+   | 169467/</<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:8520
+   | 169467/<@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:8527
+   | 169467@https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:34960
+   | t@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:145
+   | @https://gitlab.com/assets/webpack/sentry.b018eca3.chunk.js:18:35015
+   | t.O@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:33165
+   | report@jihad-web-compat-trace.js:4:35
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:150
+   | o@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:4:21549
+   | 502194@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:1:229893
+   | t@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:145
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:126
+   | t.O@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:33165
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:144
+   | b@https://gitlab.com/assets/webpack/runtime.954d13cc.bundle.js:1:34119
+   | @https://gitlab.com/assets/webpack/main.e585fb93.chunk.js:1:54
+   | jihad-web-compat-trace.js:13:112 [JavaScript Error: "TypeError: 'requestIdleCallback' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 13}]
+   | wrapMethod/obj[name]@jihad-web-compat-trace.js:13:112
+   | o@https://gitlab.com/assets/webpack/main_shared.261fa734.chunk.js:4:21549
+         3 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore : Unable to run script because scripts are blocked internally."]
+         2 jihad-web-compat-trace.js:13:112 [JavaScript Error: "TypeError: 'requestIdleCallback' called on an object that does not implement interface Window." {file: "jihad-web-compat-trace.js" line: 13}]
+         1 (no source):0:0 [JavaScript Error: "https://gitlab.com/explore/projects/explore : Unable to run script because scripts are blocked internally."]
+== restored: (101637/672166538) jihad-mochi (start) running, process 31665; daemons: 1; [jihad-bs] js-console bridge on (chrome/resource/about only)
+77883 /tmp/shot-t-apis.png
+150684 /tmp/shot-t-compat.png
+52544 /tmp/shot-t-gitlab.png
+52436 /tmp/shot-t-oldreddit.png
+68875 /tmp/shot-t-vimeo.png
+tmpfs                    40960      1684     39276   4% /tmp
+=== exit 0
+
+[exited with code 0]

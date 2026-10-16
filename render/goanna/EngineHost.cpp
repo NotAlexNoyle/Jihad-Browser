@@ -89,7 +89,9 @@ static const JihadUaRule kJihadUaTable[] = {
   { "google.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/71.0)
   { "gstatic.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:71.0) Gecko/20100101 Firefox/71.0" },
   { "googleapis.com", "Mozilla/5.0 (X11; Linux armv7l; rv:61.9) Gecko/20100101 Firefox/61.9" },
-  { "youtube.com",    "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/78.0)
+  // youtube.com: no row here since T-497 (2026-10-16) — components/jihadUserAgent.js's rule table
+  // (jihad.ua.sites) gives it a MOBILE Firefox identity, header and navigator.userAgent together,
+  // so YouTube serves its mobile site (3.0 MB of script against the desktop page's 13.7 MB).
   { "bing.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment (was Firefox/52.9)
   { "yahoo.com",      "Mozilla/5.0 (X11; Linux armv7l; rv:99.9) Gecko/20100101 Firefox/99.9" },
   { "live.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:52.9) Gecko/20100101 Firefox/52.9" },
@@ -765,10 +767,15 @@ public:
     // char16_t* the caller owns (unlike nsIScriptError::sourceName, which is AString).
     char16_t* raw = nullptr;
     aMessage->GetMessageMoz(&raw);
-    uint32_t line = 0;
-    if (err) err->GetLineNumber(&line);
-    fprintf(stderr, "[jihad-bs] js-console %s:%u %s\n",
-            src8.get() && *src8.get() ? src8.get() : "(no source)", line,
+    // line AND column: a minified bundle is one line, and "line 2" of it names nothing — the
+    // column, with the same file fetched on the host, names the call that threw (2026-10-16: the
+    // NS_ERROR_NOT_INITIALIZED six sites throw from one-line bundles). An XPCOM result thrown to a
+    // page comes with column 0 (its Exception object has none); for those the web-compat
+    // component's trace mode (jihad.compat.trace) names the call from inside the page.
+    uint32_t line = 0, col = 0;
+    if (err) { err->GetLineNumber(&line); err->GetColumnNumber(&col); }
+    fprintf(stderr, "[jihad-bs] js-console %s:%u:%u %s\n",
+            src8.get() && *src8.get() ? src8.get() : "(no source)", line, col,
             raw ? NS_ConvertUTF16toUTF8(nsDependentString(raw)).get() : "");
     if (raw) NS_Free(raw);
     return NS_OK;

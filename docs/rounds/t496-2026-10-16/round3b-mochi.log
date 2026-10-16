@@ -1,0 +1,23 @@
+syntax ok
+@@ youtube-A2 | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 84s | shot=256004 | load-done=0 painted=0 blocked=0 errors=0 | first-paint=11s load=-s fps=- worst-tick=0ms rss=216420kB load1=4.55 | last: 
+@@ ddg | https://duckduckgo.com/?q=webOS&ia=web | 76s | shot=215301 | load-done=1 painted=27 blocked=2 errors=0 | first-paint=10s load=42s fps=avg 0.7 min 0.1 n=9 worst-tick=13410ms rss=263464kB load1=3.96 | last: https://duckduckgo.com/?q=webOS&ia=web
+== C: youtube.com given a mobile Firefox identity
+   daemon down (left: 0)
+@@ youtube-C2 | https://m.youtube.com/watch?v=dQw4w9WgXcQ | 81s | shot=308065 | load-done=1 painted=17 blocked=1 errors=0 | first-paint=12s load=34s fps=avg 0.6 min 0.0 n=5 worst-tick=5342ms rss=161936kB load1=3.26 | last: https://m.youtube.com/watch?v=dQw4w9WgXcQ
+   identity: ready: 0 learned site(s)
+   !! [jihad-bs] crash guard: the previous daemon did not exit cleanly; it was loading a page (1 in a row on that address)
+@@ youtube-C3 | https://m.youtube.com/ | 65s | shot=773406 | load-done=1 painted=24 blocked=1 errors=0 | first-paint=1s load=18s fps=avg 1.1 min 0.1 n=10 worst-tick=10624ms rss=227640kB load1=3.33 | last: https://m.youtube.com/
+== restore
+== restored: (98998/865469865) jihad-mochi (start) running, process 30099; daemons: 1
+user_pref("jihad.ua.modernHosts", "w3.org,medium.com");
+215301 /tmp/shot-r3-ddg.png
+256004 /tmp/shot-r3-youtube-A2.png
+308065 /tmp/shot-r3-youtube-C2.png
+773406 /tmp/shot-r3-youtube-C3.png
+=== exit 0
+r3-youtube-A2 256004
+r3-ddg 215301
+r3-youtube-C2 308065
+r3-youtube-C3 773406
+
+[exited with code 0]

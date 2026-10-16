@@ -5,6 +5,96 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-16 (afternoon) delta — the harness, the second signature, YouTube's mobile site, the web-compat shims (READ FIRST)
+
+**The owner:** "continue" (the open items of the morning), then "fix the regular duckduckgo, and
+speed up youtube". Everything below is in `docs/MODERN-WEB.md` T-496…T-498 with the numbers and
+shots (`docs/rounds/t496-2026-10-16/`).
+
+**T-496 — the identity read on the wire.** `render/goanna/test/jihad-identity-server.py` (host,
+port 8078) fakes `cf-mitigated: challenge` and Startpage's `/sp/captcha-block` redirect, logs every
+request's User-Agent header and takes each page's `navigator.userAgent` back. On Enyo: the no-loop
+branch held (two loads one second apart, the second challenge shown; a new card made one load);
+a learned site's top document, same-site frame, image, script, XHR AND a third-party frame
+(httpbin.org) all carried the current identity, script agreeing. `_challengeOf` in
+`components/jihadUserAgent.js` now has a second signature — a top-level 3xx to `/sp/captcha-block`
+— measured on the harness and on the real Startpage: home renders; the search then meets Anubis's
+proof of work, which finished in ~4 minutes and rendered the results (a cookie keeps the pass).
+**eBay and old Reddit are not the identity's**: curl from the host gets the same Akamai 403 /
+login redirect with either token (rows 9 and 11).
+
+**T-497 — YouTube sped up.** Measured: the desktop watch page is 13.7 MB of script decompressed
+(3.6 MB on the wire), the mobile site 3.0 MB; on the device the desktop page stalls the main
+thread for 24 s and is still grey skeletons after a minute (274 MB), the mobile site's worst stall
+is 5 s (162 MB) and its home feed renders in 18 s. So `jihad.ua.sites` (platform prefs) gives
+youtube.com a **mobile Firefox identity**, applied by the identity component to the header AND
+`navigator.userAgent` (frames and subresources too); the daemon's youtube.com row is OUT of
+`EngineHost.cpp` (daemon 14). Settings → General → "Sites with a set identity" says so. The tap
+on the mobile player is a finger test.
+
+**T-498 — the web compatibility shims.** `render/goanna/components/jihadWebCompat.js` (contract
+`@riverstonerelay.net/jihad/web-compat;1`, classID `{5a1c7e2d-…}`, manifest
+`components/jihad-web-compat.manifest`, in REQUIRED, created at daemon start): at
+`document-element-inserted` a sandbox with the page's principal and window defines on the page's
+own prototypes what the engine lacks — `CSSStyleSheet.prototype.replace` (Etsy's 47 TypeErrors:
+Lit tests `replace`, the engine has only `replaceSync`), `reportError`, `Intl.ListFormat`,
+`Element.checkVisibility`, `AbortSignal.any`, `URLSearchParams.size`, `Array.fromAsync`, `inert`,
+and the popover attribute with its methods and events — plus ONE agent sheet for the two
+attributes' UA rules. The regular DuckDuckGo page already renders its results (zero script
+errors, 39–42 s, a 13 s stall); the popover gap is what made its menu stand open. Prefs
+`jihad.compat.enabled` (on) and `jihad.compat.trace` (off): the trace mode wraps the engine calls
+that can throw an XPCOM result to a page and logs which one threw, with the page's own stack —
+the bridge sees such throws only as "NS_ERROR_NOT_INITIALIZED: " at column 0 (the engine's
+Exception object has no column; the daemon's console line now carries `source:line:column`
+anyway, since daemon 12). Engine facts checked in `third_party/uxp` (what it has and lacks) are in
+the ledger's T-498. The API probe page `render/goanna/test/jihad-apis.html` has a second list
+(169 probes; it posts its full list to the harness server). Three trace rounds: the shims'
+test page 16/16, Etsy's errors gone, Bluesky's NetworkErrors are the blocker's (telemetry
+hosts). TWO TRAPS in the component: (1) with `sandboxPrototype: win`, a method taken from `window`
+inside the sandbox comes bound to the prototype proxy and refuses the page's window as receiver
+("'matchMedia' called on an object that does not implement interface Window") — the shims now
+take the page's own window (`win.wrappedJSObject`) as an argument and the sandbox has NO
+prototype (the probe keeps one, for bare names); (2) a wrapper of a window function must give
+`this` back when the page called it bare. Both fixed in the final component (strict sources; the page's
+iterator prototype through the page's `Array`); `docs/rounds/t496-2026-10-16/` has the three
+trace logs, the harness server's log, the probe list and the shots.
+
+**T-499 — found, OPEN:** DuckDuckGo's menu panel stands open because the page is 1000 px wide,
+the engine's viewport is the 768 window, and the card fit-zooms the whole width: what a page
+parks just past `innerWidth` is on screen. The ledger's T-499 has the design (an offscreen engine
+window as wide as the overflow); the daemon's zoom/rotation history makes it a task of its own.
+
+**THE TRAP of the day:** `build/webos-oe/build-daemon-arm.sh` runs with `set -o pipefail`, and
+its export check used `grep -q`, which leaves at the first match — the writer took SIGPIPE and the
+check failed AT RANDOM ("does not export free", then "… jemalloc_stats", on a file that had both).
+Fixed (a grep that reads to the end). Also: the daemon is built against the EXTERNAL API — no
+`xpcpublic.h`, no `nsContentUtils`, no `AutoJSAPI`; a JSContext is not reachable from it (that is
+why the stack of a page error is printed from inside the page by the trace mode, not by the
+bridge). And `git checkout -- <file>` to drop one failed patch dropped the good one with it; the
+column change had to be re-applied.
+
+**Device state (2026-10-16 14:55):** all three variants run the 13:15–13:19 packages (daemon 14
+`f481552f`, identity component `affbb468` with the site rules, blocker v10) plus, by dev copy
+after them, the final web-compat component `47c33ff6` (the same file the rebuilt packages
+`build/webos-oe/out-all/` carry: enyo `ac14bfe7`, mochi `1bdc6189`, mojo `305fb1f6` — so a
+re-push is not needed; the only difference is `layout.css.has-pseudo.enabled` appended to each
+variant's `goanna.js` by hand where the package has it in the platform block) — jobs running,
+one process each, Default look, `/tmp` clear, nothing hand-started. Learned lists: Enyo
+`startpage.com`, Mochi `w3.org,medium.com`, Mojo none (product state). The shims' test page
+28/28 and the API probe 131/169 on Mochi (`:has()` on: the `true` line is at the END of each
+`goanna.js` — a guard that greps for the pref's NAME sees the engine's own `false` line at 2476 and
+appends nothing; grep for `", true` — the first attempt of the day did exactly that and reported
+"1 line" for the engine's). The host's two servers may still run: the probe
+server on 8077 and the identity harness on 8078 (`pkill -f 'http.server 8077'`, `pkill -f
+jihad-identity-server`).
+
+**Open after this:** the finger tests above; the `NS_ERROR_NOT_INITIALIZED` thrower named by the
+trace (see TRACE_PICKUP); `:has()` behind `layout.css.has-pseudo.enabled` untested; container
+queries, `backdrop-filter`, `content-visibility` are engine work, not shims; the kit memory goal
+(12 MB idle) unmet; the owner's push.
+
+---
+
 ## 2026-10-15 (evening) delta — the v5.1 push, the round's rows, the probes (READ FIRST)
 
 The session resumed after a usage-limit pause; the steps below were the plan at that pause and are being worked through in order (status in the build site, T-486…T-492):

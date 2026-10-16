@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R3, T-494): the cross-origin loads a challenge
+     frame makes (Cloudflare's logged "may not load data from https://example.org/"), each from
+     this page and from a sandboxed frame whose principal is null, each reporting its outcome into
+     the page and the title. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-challenge-probe</title>
+<style>body{font:14px monospace} li{margin:3px}</style></head>
+<body><h1>jihad-challenge-probe</h1><ul id="r"></ul>
+<script>
+var R = [];
+function say(name, result) { R.push(name + "=" + result); var li = document.createElement("li"); li.textContent = name + ": " + result; document.getElementById("r").appendChild(li); document.title = "jihad-challenge-probe: " + R.join("; "); }
+function probes(prefix, doc, win) {
+  var img = doc.createElement("img"); img.onload = function () { say(prefix + "img", "loaded"); }; img.onerror = function () { say(prefix + "img", "error"); }; img.src = "https://example.org/favicon.ico?" + Math.random(); doc.body.appendChild(img);
+  try { win.fetch("https://example.org/", {mode: "no-cors"}).then(function (r) { say(prefix + "fetch-no-cors", "ok type=" + r.type); }, function (e) { say(prefix + "fetch-no-cors", "rejected " + e); }); } catch (e) { say(prefix + "fetch-no-cors", "threw " + e); }
+  try { win.fetch("https://example.org/").then(function (r) { say(prefix + "fetch-cors", "ok status=" + r.status); }, function (e) { say(prefix + "fetch-cors", "rejected " + e); }); } catch (e) { say(prefix + "fetch-cors", "threw " + e); }
+  try { var x = new win.XMLHttpRequest(); x.open("GET", "https://example.org/"); x.onload = function () { say(prefix + "xhr", "status " + x.status); }; x.onerror = function () { say(prefix + "xhr", "error"); }; x.send(); } catch (e) { say(prefix + "xhr", "threw " + e); }
+  try { say(prefix + "beacon", win.navigator.sendBeacon("https://example.org/", "x") ? "queued" : "refused"); } catch (e) { say(prefix + "beacon", "threw " + e); }
+  var f = doc.createElement("iframe"); f.width = 200; f.height = 60; f.onload = function () { say(prefix + "iframe", "loaded"); }; f.onerror = function () { say(prefix + "iframe", "error"); }; f.src = "https://example.org/"; doc.body.appendChild(f);
+  var s = doc.createElement("script"); s.onload = function () { say(prefix + "script", "loaded"); }; s.onerror = function () { say(prefix + "script", "error"); }; s.src = "https://example.org/nonexistent.js?" + Math.random(); doc.head.appendChild(s);
+}
+probes("page-", document, window);
+// a sandboxed frame (scripts allowed, same-origin NOT allowed → a null principal, as a challenge
+// iframe without allow-same-origin has): it runs the loads ITSELF and posts each result up.
+var inner = "<body>sandbox<script>" +
+  "function say(n, r) { parent.postMessage('sandbox-' + n + '=' + r, '*'); }" +
+  "var i = new Image(); i.onload = function () { say('img', 'loaded'); }; i.onerror = function () { say('img', 'error'); }; i.src = 'https://example.org/favicon.ico?' + Math.random();" +
+  "try { fetch('https://example.org/', {mode: 'no-cors'}).then(function (r) { say('fetch-no-cors', 'ok type=' + r.type); }, function (e) { say('fetch-no-cors', 'rejected ' + e); }); } catch (e) { say('fetch-no-cors', 'threw ' + e); }" +
+  "try { var x = new XMLHttpRequest(); x.open('GET', 'https://example.org/'); x.onload = function () { say('xhr', 'status ' + x.status); }; x.onerror = function () { say('xhr', 'error'); }; x.send(); } catch (e) { say('xhr', 'threw ' + e); }" +
+  "var f = document.createElement('iframe'); f.onload = function () { say('iframe', 'loaded'); }; f.src = 'https://example.org/'; document.body.appendChild(f);" +
+  "var s = document.createElement('script'); s.onload = function () { say('script', 'loaded'); }; s.onerror = function () { say('script', 'error'); }; s.src = 'https://example.org/?' + Math.random(); document.head.appendChild(s);" +
+  "try { say('storage', (function () { try { localStorage.setItem('a', '1'); return 'ok'; } catch (e) { return 'throws ' + e.name; } })()); } catch (e) {}" +
+  "<\/script>";
+var sb = document.createElement("iframe"); sb.setAttribute("sandbox", "allow-scripts"); sb.width = 300; sb.height = 80;
+sb.src = "data:text/html;charset=utf-8," + encodeURIComponent(inner);
+window.addEventListener("message", function (ev) { if (typeof ev.data === "string" && ev.data.indexOf("sandbox-") === 0) { var kv = ev.data.split("="); say(kv[0], kv.slice(1).join("=")); } }, false);
+document.body.appendChild(sb);
+setTimeout(function () { say("done", R.length + " results"); }, 20000);
+</script></body></html>

@@ -397,6 +397,7 @@ function JihadContentBlocker() {
   this._lastDocAt = 0;
   this._noLists = false;
   try { Services.prefs.addObserver("jihad.blocking.", this, false); } catch (e) {}
+  try { Services.prefs.addObserver("jihad.ua.", this, false); } catch (e) {}
   try { Services.obs.addObserver(this, "document-element-inserted", false); } catch (e) {}
   try { Services.obs.addObserver(this, "http-on-modify-request", false); } catch (e) {}
   // ON DEMAND (R6, 2026-10-15): every variant's daemon runs from boot, and three of them holding
@@ -407,6 +408,7 @@ function JihadContentBlocker() {
   try { Services.obs.addObserver(this, "jihad-client-connected", false); } catch (e) {}
   try { Services.obs.addObserver(this, "jihad-client-disconnected", false); } catch (e) {}
   this._clients = 0; this._unloadTimer = null; this._loading = false;
+  this._consistentChallenge = boolPref("jihad.ua.consistentChallenge", false);
   this._timer = setInterval(() => this._maybeUpdate(false), UPDATE_CHECK_MS);
   setTimeout(() => this._maybeUpdate(false), (90 + Math.floor(Math.random() * 120)) * 1000);
 }
@@ -439,6 +441,7 @@ JihadContentBlocker.prototype = {
     if (topic === "document-element-inserted") { this._lastDocAt = Date.now(); this._siteSheetFor(subject); return; }
     if (topic === "http-on-modify-request") { this._onRequest(subject); return; }
     if (topic !== "nsPref:changed") return;
+    if (data === "jihad.ua.consistentChallenge") { this._consistentChallenge = boolPref(data, false); return; }
     if (data === PREF_ENABLED) { this._enabled = boolPref(PREF_ENABLED, true); log("blocking " + (this._enabled ? "on" : "off")); this._applySheet(); }
     else if (data === PREF_COSMETIC) { this._cosmetic = boolPref(PREF_COSMETIC, true); this._applySheet(); }
     else if (data === PREF_LOG) { this._log = boolPref(PREF_LOG, false); }
@@ -455,6 +458,24 @@ JihadContentBlocker.prototype = {
 
   // A redirected channel: the policy saw the first address only (inspector F-18).
   _onRequest: function (subject) {
+    // EXPERIMENT (T-494, 2026-10-16, pref jihad.ua.consistentChallenge, default off): the daemon's
+    // per-host table sends a Firefox/128 User-Agent to challenges.cloudflare.com, but the challenge
+    // frame's navigator.userAgent is the top document's (pinned per docShell) — header and script
+    // disagree inside the frame, a bot signal of our own making. With the pref on, the header for
+    // that host is set to the loading window's own navigator.userAgent so the two agree. The
+    // daemon's observer ran first (registered at start), so the header is overwritten here.
+    if (this._consistentChallenge) {
+      try {
+        let ch = subject.QueryInterface(Ci.nsIHttpChannel);
+        let h = ch.URI.asciiHost;
+        if (h === "challenges.cloudflare.com" || h.endsWith(".challenges.cloudflare.com")) {
+          let li = ch.loadInfo, ua = null;
+          try { let d = li && li.loadingDocument; if (d && d.defaultView) ua = d.defaultView.navigator.userAgent; } catch (e) {}
+          if (!ua) { try { ua = Cc["@mozilla.org/network/protocol;1?name=http"].getService(Ci.nsIHttpProtocolHandler).userAgent; } catch (e) {} }
+          if (ua) ch.setRequestHeader("User-Agent", ua, false);
+        }
+      } catch (e) {}
+    }
     if (!this._enabled || !this._hosts) return;
     try {
       let ch = subject.QueryInterface(Ci.nsIHttpChannel);

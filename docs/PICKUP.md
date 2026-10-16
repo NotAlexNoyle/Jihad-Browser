@@ -138,7 +138,29 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
-## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards (READ FIRST)
+## 2026-10-16 (later) delta — jemalloc engine build running; the challenges; the UA stays (READ FIRST)
+
+**The owner:** "Do the engine rebuild with jemalloc" (T-493), "Keep the firefox 52.9 user agent"
+(the base UA in `JihadUserAgent.h` stays; the four per-site rows that proved out stay as
+site-compat entries), "Try to fix the challenges blocking sites from loading including cloudflare
+and RECAPTCHA" (T-494, new).
+
+**T-493 running:** `mozconfig.goanna-arm` now `--enable-jemalloc` (the reason in the file);
+`build-daemon-arm.sh` links `-lmozglue` FIRST and dynamically (the allocator must be one for the
+whole process; the static `libmozglue.a` is gone from the link). The engine build was started
+detached at the time stamped in `build/webos-oe/out-arm/engine-jemalloc-build.log` (`setsid
+nohup … in-container.sh --arm build-goanna-arm.sh all`; hours; `pgrep -f build-goanna-arm.sh`
+to see it; resume per memory `recover-a-dead-session` if the PC reboots). After it: the daemon
+(`build-daemon-arm.sh`), `build-all-device.sh --skip-arm`, the three pushes, then the memory
+report after the last card (`heap-allocated` should now report) and the three-page RSS.
+
+**T-494, the challenges (reCAPTCHA is already past: google.com's row):** the one concrete lead is
+the security error inside Cloudflare's challenge frame, "content at challenges.cloudflare.com/…
+may not load data from https://example.org/" — if the challenge's connectivity probe is refused
+by this engine's load policy, the challenge fails on it. Investigation with a probe page that
+performs those loads and a console-on run of w3.org and Medium capturing every line.
+
+## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards
 
 **03:00, the memory question closed:** the full memory report after the last card (v9.1 writes
 it behind `jihad.blocking.memoryDump`; `tools/host/memory-report-read.py` reads it) shows one

@@ -62,13 +62,16 @@ $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/arm-JihadBr
 $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/JihadLunaService.cpp" -o /out/arm-JihadLunaService.o || exit 15
 $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/Main.cpp" -o /out/arm-bs_main.o || exit 16
 
+# libmozglue.so FIRST on the link line (T-493): with jemalloc the allocator lives there, and the
+# daemon frees buffers the engine allocated (GetCharPref's, NS_Free'd strings); the executable's
+# first NEEDED library wins symbol interposition for malloc/free, as Firefox's own binary links.
 echo "== [ARM] linking jihad-browserserver-arm =="
 $CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-JihadLunaService.o /out/arm-BrowserServerBase.o \
      /out/arm-JihadPmLogSem.o \
      /out/arm-YapPacket.o /out/arm-YapProxy.o /out/arm-YapServer.o \
      /out/arm-BrowserPageGoanna.o /out/arm-GoannaRenderPage.o /out/arm-EngineHost.o \
      /out/arm-DialogService.o /out/arm-DownloadService.o /out/arm-JihadCertStore.o \
-     "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -Wl,-rpath-link,"$DIST/bin" -lxul "$DIST/sdk/lib/libmozglue.a" \
+     -L"$DIST/bin" -Wl,-rpath-link,"$DIST/bin" -lmozglue "$DIST/sdk/lib/libxpcomglue_s.a" -lxul \
      -lnspr4 -lplc4 -lplds4 $SYSLIB $GLIBL -ldl -lpthread \
      -o "$OUT" || exit 17
 echo "== built: $OUT =="

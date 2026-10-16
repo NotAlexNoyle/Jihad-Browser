@@ -262,3 +262,30 @@ The device sat at 280–370 MB free after the closes at the 64 MB threshold and 
 card. **The one lever left for resident memory is an engine rebuild with jemalloc** (an hours-long
 build, cavekit-engine-update.md): proposed as T-493, the owner's call. The per-card purge and v9's
 collections stay (they bring a 428 MB daemon to 170 MB within seconds of the last close).
+
+## T-494 — the challenges (2026-10-16; the owner: "Try to fix the challenges blocking sites from loading including cloudflare and RECAPTCHA"; the base UA stays `Firefox/52.9`)
+
+**reCAPTCHA (Google's `/sorry/`):** past already — google.com's row in the daemon's UA table
+(a site-compat entry like the thirty others) makes Google serve its results page (run 2c).
+
+**Cloudflare's interstitial — what was established:**
+- HTTP/2 is on (UXP default, nothing of ours turns it off); cookies accepted (`cookieBehavior` 0);
+  referers sent.
+- `jihad-challenge-probe.html` from a page: a no-cors fetch to example.org returns an opaque
+  response, a beacon queues, an XHR fails on CORS as it should, the image and script "errors" are
+  example.org's own 404s — the engine's load policy does not refuse the challenge's connectivity
+  probe at page level. The earlier "may not load data from https://example.org/" came from inside
+  the challenge frame; the null-principal case is probed next (a `data:` frame that reports).
+- With the console on all sources, w3.org and Medium show NOTHING from the challenge frames in
+  60 s beyond CSP warnings for `trusted-types` (an unknown directive, harmless): no script error,
+  no verdict line; the frame runs and does not pass.
+- Pale Moon's long thread on the same loop (forum t=32045, 2025–2026): Cloudflare's own position is
+  that no browser-side release fixes it; a participant reproduced the loop in Firefox by disabling
+  HTTP/2 and sending Pale Moon's user-agent — the check keys on the transport and the token;
+  browsers "more than five years old" get "limited support" by Cloudflare's own page.
+- **A signal of our own making, found in the daemon:** the per-host table rewrites the User-Agent
+  header for `challenges.cloudflare.com` to Firefox/128, while `navigator.userAgent` inside that
+  frame is the top document's (the docShell pin is inherited): header and script disagree inside
+  the challenge — a textbook bot signal. v9.2 of the blocker component carries an experiment
+  (`jihad.ua.consistentChallenge`): the header for that host set to the loading window's own
+  `navigator.userAgent`. Measured next on w3.org, Britannica and Medium.

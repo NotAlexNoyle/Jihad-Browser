@@ -151,7 +151,7 @@ are also where a genuinely per-model difference (were one ever found) would live
 ## Runtime constraints
 
 Goanna is heavier than the old QtWebKit; on a 1 GB device the mozconfig builds
-`-Os`, strips libxul, and disables jemalloc for the platform allocator. Aggressive
+`-Os`, strips libxul, and builds jemalloc into the daemon (T-493, 2026-10-16: on Linux UXP puts the allocator in the program, and libxul takes `malloc` from it). Aggressive
 `freeze`/`purgePage` (wired: freeze suppresses paint, thaw reattaches) reclaims
 backgrounded cards. Deeper memory tuning is Phase 3.
 

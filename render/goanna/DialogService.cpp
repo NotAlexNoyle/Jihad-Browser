@@ -552,6 +552,10 @@ bool InstallDialogService() {
     // loads from EasyList/EasyPrivacy hosts (it is also in the content-policy category, so the
     // first load creates it even without this; created here so the lists compile off the
     // start-up path, before the first page needs them). Absent means nothing is blocked.
+    // The browser's identity (cavekit-modern-web.md R3): components/jihadUserAgent.js — 52.9 by
+    // default, a learned current identity for the sites whose bot check turns the page away.
+    nsCOMPtr<nsISupports> identity = do_GetService("@riverstonerelay.net/jihad/user-agent;1");
+    if (!identity) fprintf(stderr, "[jihad-bs] identity: component absent, no learned identities\n");
     nsCOMPtr<nsISupports> blocker = do_GetService("@riverstonerelay.net/jihad/content-blocker;1");
     if (!blocker) fprintf(stderr, "[jihad-bs] blocker: component absent, ads and trackers are not blocked\n");
     nsCOMPtr<nsISupports> proxy = do_GetService("@riverstonerelay.net/jihad/proxy;1");

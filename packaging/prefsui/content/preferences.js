@@ -53,6 +53,15 @@ const PANES = [
 		title: "General",
 		groups: [
 			{
+				title: "Browser identity",
+				rows: [
+					{pref: "jihad.ua.learn", type: "bool", label: "Give a site a current Firefox identity when its bot check turns the page away",
+					 help: "The browser is Firefox 52.9 by default. A site that answers with a bot challenge is loaded again as a current Firefox, header and script alike, and remembered; measured to pass Cloudflare's check on most sites."},
+					{type: "text", label: "Sites remembered", value: identityText, live: true},
+					{type: "button", label: "Forget the remembered sites", button: "Forget", action: identityForget}
+				]
+			},
+			{
 				title: "Browsing",
 				rows: [
 					{pref: "general.smoothScroll", type: "bool", label: "Use smooth scrolling"},
@@ -788,6 +797,15 @@ function blockerStatusText() {
 		(s.updating ? " \u00b7 updating\u2026" : "") + (s.error ? " \u00b7 last update failed: " + s.error : "");
 }
 function blockerUpdate() { let b = blocker(); if (b) { b.update(); } }
+// --- The browser's identity (cavekit-modern-web.md R3): the learned sites, for the General pane ---
+function identity() { try { return Cc["@riverstonerelay.net/jihad/user-agent;1"].getService(Ci.nsISupports).wrappedJSObject; } catch (e) { return null; } }
+function identityText() {
+	let i = identity(); if (!i) { return "Not available in this build."; }
+	let s = i.state();
+	if (!s.hosts.length) { return "None yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here."; }
+	return s.hosts.length + " site" + (s.hosts.length === 1 ? "" : "s") + " given a current Firefox identity: " + s.hosts.join(", ");
+}
+function identityForget() { let i = identity(); if (i) { i.forget(); } }
 function blockerBusy() { let b = blocker(); return b ? !!b.state().updating : true; }
 
 function buildRow(row) {

@@ -54,7 +54,18 @@
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
 #include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB, profile dir)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
-#include <malloc.h>                  // malloc_trim (memchute pattern)
+#include <malloc.h>                  // malloc_trim (what glibc's arena still holds: dlopen's own, little else)
+
+// jemalloc (T-493, 2026-10-16): the allocator is linked INTO this program (MOZ_GLUE_IN_PROGRAM —
+// build-daemon-arm.sh), so every malloc/free in the process is jemalloc's and the engine's own
+// purge is the one that matters: jemalloc_free_dirty_pages returns the freed runs' pages to the
+// kernel (madvise). malloc_trim stays for glibc's arena, which nothing but the loader uses now.
+extern "C" void jemalloc_free_dirty_pages(void);
+static void jihadPurgeHeap(const char* why) {
+  jemalloc_free_dirty_pages();
+  int glibc = malloc_trim(0);
+  fprintf(stderr, "[jihad-bs] %s: heap purged (jemalloc dirty pages returned%s)\n", why, glibc ? ", glibc's arena trimmed too" : "");
+}
 #include <cctype>                    // tolower (case-insensitive host match)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.
@@ -108,11 +119,12 @@ static const JihadUaRule kJihadUaTable[] = {
   { "gitlab.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
   { "microsoft.com",  "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
   { "office.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:78.0) Gecko/20100101 Firefox/78.0" },
-  // Cloudflare's bot check (cavekit-modern-web.md R3): sites behind it (w3.org, 2026-10-15) stayed on
-  // "Performing security verification" for ever. Pale Moon's forum (the CloudFlare thread, 2025)
-  // found it is user-agent sniffing: a per-host override for the challenge host passes it. A
-  // current Firefox ESR token, like the rest of this table; never a Pale Moon or Basilisk one.
-  { "challenges.cloudflare.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  // Cloudflare's bot check (cavekit-modern-web.md R3): a row for challenges.cloudflare.com was here
+  // 2026-10-15/16 and never passed — a modern header on the challenge host against a frame whose
+  // navigator.userAgent was the top document's is a bot signal of our own making. The check keys on
+  // the SITE's identity, header and script together; that is the learned identity of
+  // components/jihadUserAgent.js (a "cf-mitigated: challenge" response learns the site), which
+  // covers the challenge host as the learned page's subresource. This table stays hand-curated.
   { "etsy.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment: DataDome passed
   // ROUND 2's EXPERIMENT (cavekit-modern-web.md R6, 2026-10-15/16): seven of thirty visits were
   // stopped by bot detection and youtube.com served "update your browser", all to tokens of
@@ -151,13 +163,13 @@ void JihadNotifyClients(bool connected, int clients) {
   obs->NotifyObservers(nullptr, connected ? "jihad-client-connected" : "jihad-client-disconnected", data.get());
   // The last card gone: what its pages held stays resident otherwise (round 2c, 2026-10-15: the
   // daemon climbed to 589 MB by the YouTube visit and sat at 500-580 MB for every visit after,
-  // cards closed in between — this build has no jemalloc, and the engine keeps its caches until
-  // told). Ask the engine to drop what it can (the same reaction as the low-memory guardrail's)
-  // and hand the allocator's free pages back, once, now that nothing is on screen to suffer it.
+  // cards closed in between — the engine keeps its caches until told, and the glibc build of
+  // the time could not give fragmented pages back). Ask the engine to drop what it can (the same
+  // reaction as the low-memory guardrail's) and purge the heap, once, now that nothing is on
+  // screen to suffer it.
   if (!connected && clients == 0) {
     obs->NotifyObservers(nullptr, "memory-pressure", u"heap-minimize");
-    int freed = malloc_trim(0);
-    fprintf(stderr, "[jihad-bs] last card gone: caches dropped, malloc_trim %s\n", freed ? "returned pages" : "returned nothing");
+    jihadPurgeHeap("last card gone: caches dropped");
   }
 }
 
@@ -215,17 +227,15 @@ private:
 NS_IMPL_ISUPPORTS(JihadUaOverride, nsIObserver)
 
 // The content blocker (components/jihadContentBlocker.js) says when its lists are in: the parse
-// of its 3 MB cache leaves the bundled glibc's heap holding pages it will not give back on its
-// own (this build has no jemalloc; +26 MB resident beyond the 12 MB JS heap, device 2026-10-15).
-// malloc_trim returns them, as the low-memory guardrail does under pressure (cavekit-content-
-// blocking.md R6).
+// of its 3 MB cache leaves the heap holding freed pages (+26 MB resident beyond the 12 MB JS heap
+// on the glibc build, device 2026-10-15). The purge returns them, as the low-memory guardrail does
+// under pressure (cavekit-content-blocking.md R6).
 class JihadBlockerTrim final : public nsIObserver {
 public:
   NS_DECL_ISUPPORTS
   NS_IMETHOD Observe(nsISupports*, const char* aTopic, const char16_t*) override {
     if (strcmp(aTopic, "jihad-blocker-installed") == 0) {
-      int freed = malloc_trim(0);
-      fprintf(stderr, "[jihad-bs] blocker installed: malloc_trim %s\n", freed ? "returned pages" : "returned nothing");
+      jihadPurgeHeap("blocker installed");
     }
     return NS_OK;
   }
@@ -1383,7 +1393,7 @@ EngineHost::CheckMemoryPressure()
           avail, lowKb);
   nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
   if (obs) obs->NotifyObservers(nullptr, "memory-pressure", u"low-memory");
-  malloc_trim(0);   // return freed heap pages to the kernel (memchute pattern)
+  jihadPurgeHeap("memory pressure");   // return freed heap pages to the kernel (memchute pattern)
 }
 
 } // namespace jihad

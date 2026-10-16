@@ -212,3 +212,15 @@ pref("network.http.speculative-parallel-limit", 0);
 // daemon's low-memory guardrail (EngineHost.cpp, 48 MB available) stays the safety net. The
 // round's per-visit RSS watches it; the benchmark at this value is in the ledger.
 pref("javascript.options.mem.gc_allocation_threshold_mb", 64);
+
+// --- The browser's identity (cavekit-modern-web.md R3; the owner, 2026-10-16: "52.9 by default but
+// adjust based on the needs of the page") — components/jihadUserAgent.js ---
+pref("jihad.ua.learn", true);              // learn a site whose bot check turns the page away (cf-mitigated: challenge)
+pref("jihad.ua.modernHosts", "");          // the learned sites (base domains), persisted
+pref("jihad.ua.modern", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0");   // the identity they get
+
+// --- jemalloc (T-493, 2026-10-16): the allocator is in the daemon now; every memory-pressure
+// notification (the last card's, the low-memory guardrail's, the lists' unload) also returns
+// jemalloc's dirty pages to the kernel (AvailableMemoryTracker's watcher; off upstream, on for
+// 1 GB devices as Android's and B2G's builds had it) ---
+pref("memory.free_dirty_pages", true);

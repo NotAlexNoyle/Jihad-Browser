@@ -62,18 +62,40 @@ $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/arm-JihadBr
 $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/JihadLunaService.cpp" -o /out/arm-JihadLunaService.o || exit 15
 $CXX $CXXFLAGS $YAPINC $ENGINC $GLIB -c "$BS/Main.cpp" -o /out/arm-bs_main.o || exit 16
 
-# libmozglue.so FIRST on the link line (T-493): with jemalloc the allocator lives there, and the
-# daemon frees buffers the engine allocated (GetCharPref's, NS_Free'd strings); the executable's
-# first NEEDED library wins symbol interposition for malloc/free, as Firefox's own binary links.
-echo "== [ARM] linking jihad-browserserver-arm =="
+# jemalloc (T-493, 2026-10-16): on Linux UXP builds the allocator into the PROGRAM, not into libxul
+# (MOZ_GLUE_IN_PROGRAM: libxul.so has malloc/free/jemalloc_stats UNDEFINED and takes them from the
+# executable, which must export them — -rdynamic — exactly as xpcshell and Firefox link). The
+# dist's libmozglue.a / libmemory.a are expandlibs stubs (33 bytes, see the .a.desc beside them);
+# the objects come from the obj dir. The daemon frees buffers the engine allocated and vice versa,
+# so the one allocator for the whole process is a correctness matter, not only a memory one.
+OBJ=/out/obj-jihad-goanna-arm
+# expandlibs by hand: a stub .a with a .a.desc beside it stands for its OBJS and (recursively) LIBS
+expand_libs() {
+  local a; for a in "$@"; do
+    if [ -e "$a.desc" ]; then
+      sed -n 's/^OBJS = //p' "$a.desc"; expand_libs $(sed -n 's/^LIBS = //p' "$a.desc")
+    else echo "$a"; fi
+  done
+}
+[ -e "$OBJ/memory/mozjemalloc/jemalloc.o" ] || { echo "ERROR: memory/mozjemalloc/jemalloc.o is missing — the engine was built without jemalloc (mozconfig.goanna-arm --enable-jemalloc)"; exit 18; }
+# the same STATIC_LIBS xpcshell's backend.mk lists: libmozglue.a (arm, mozalloc, mozglue_misc, mfbt) + libmemory.a (jemalloc)
+JEMALLOC_OBJS="$(expand_libs "$OBJ/mozglue/build/libmozglue.a" "$OBJ/memory/build/libmemory.a" | tr '\n' ' ')"
+echo "   allocator + glue objects: $JEMALLOC_OBJS"
+echo "== [ARM] linking jihad-browserserver-arm (jemalloc in the program) =="
 $CXX $ARMFLAGS /out/arm-bs_main.o /out/arm-JihadBrowserServer.o /out/arm-JihadLunaService.o /out/arm-BrowserServerBase.o \
      /out/arm-JihadPmLogSem.o \
      /out/arm-YapPacket.o /out/arm-YapProxy.o /out/arm-YapServer.o \
      /out/arm-BrowserPageGoanna.o /out/arm-GoannaRenderPage.o /out/arm-EngineHost.o \
      /out/arm-DialogService.o /out/arm-DownloadService.o /out/arm-JihadCertStore.o \
-     -L"$DIST/bin" -Wl,-rpath-link,"$DIST/bin" -lmozglue "$DIST/sdk/lib/libxpcomglue_s.a" -lxul \
+     -rdynamic $JEMALLOC_OBJS \
+     "$DIST/sdk/lib/libxpcomglue_s.a" -L"$DIST/bin" -Wl,-rpath-link,"$DIST/bin" -lxul \
      -lnspr4 -lplc4 -lplds4 $SYSLIB $GLIBL -ldl -lpthread \
      -o "$OUT" || exit 17
+NM=/tc/bin/arm-webos-linux-gnueabi-nm
+for sym in malloc free realloc calloc posix_memalign malloc_usable_size jemalloc_stats jemalloc_free_dirty_pages; do
+  $NM -D "$OUT" | grep -q " T $sym\$" || { echo "ERROR: $OUT does not export $sym — libxul.so could not resolve it on the device"; exit 19; }
+done
+echo "== jemalloc: the daemon exports the allocator (malloc … jemalloc_stats); the whole process allocates through it =="
 echo "== built: $OUT =="
 /tc/bin/arm-webos-linux-gnueabi-strip "$OUT" 2>/dev/null || true
 file "$OUT" 2>/dev/null || true

@@ -289,3 +289,100 @@ collections stay (they bring a 428 MB daemon to 170 MB within seconds of the las
   the challenge — a textbook bot signal. v9.2 of the blocker component carries an experiment
   (`jihad.ua.consistentChallenge`): the header for that host set to the loading window's own
   `navigator.userAgent`. Measured next on w3.org, Britannica and Medium.
+
+**Measured (2026-10-16 11:45–11:55, v9.2):** the null-principal frame's loads to example.org
+behave exactly as a page's (no-cors fetch opaque, iframe loaded, script and image 404, XHR on
+CORS, storage a SecurityError as it must be): the engine's load policy is cleared for the
+challenge's probes. Making the challenge frame's header match its script identity changed
+nothing: w3.org and Britannica stayed on the interstitial ("Why is this verification taking
+longer?"); Medium's visit hit the launch race. Next, the decisive experiment on the cause: the
+whole page served a Firefox/128 identity (header and docShell pin, frames inheriting), pref
+`jihad.ua.experimentHosts` — if the challenge then passes, it keys on the 52.9 token (a 2017
+browser's token on a 2026 TLS stack), and the base UA is the trade-off; if it still fails, the
+token is not the lever.
+
+**The decisive experiment (12:00–12:10): the whole page given a Firefox/128 identity, header and
+script together — w3.org renders (the W3C home), Britannica renders (the Palm Inc. article), npm
+renders (the express package, README and versions); Medium alone stays on the interstitial.**
+The token is the lever: Cloudflare's check rejects a 2017 browser's token on this engine; given a
+current one the challenge passes on three of four. The owner's rule, "52.9 by default but adjust
+based on the needs of the page", becomes **T-495, the learned identity**
+(`render/goanna/components/jihadUserAgent.js`): a top-level response marked
+`cf-mitigated: challenge` puts the site's base domain on `jihad.ua.modernHosts` (persisted), the
+docShell is pinned and the page loaded again once with the current identity; from then on the
+site's requests and documents carry it. The daemon's table stays the hand-curated part. Settings →
+General → Browser identity: the switch, the remembered sites, Forget. Medium: open (its challenge
+level is higher, or the day's repeated visits from this address count against it).
+
+## T-493 — the engine rebuilt with jemalloc (2026-10-16; the owner: "Do the engine rebuild with jemalloc")
+
+**The build:** `mozconfig.goanna-arm` carried `--disable-jemalloc` from the first ARM config with
+no reason recorded; now `--enable-jemalloc`. The rebuild took **22 minutes**, not the hours the
+plan feared (incremental: `memory/` compiled, libxul relinked; `build/webos-oe/out-arm/
+engine-jemalloc-build.log`). **The trap, found at the daemon's link:** on Linux UXP builds the
+allocator INTO THE PROGRAM (`MOZ_GLUE_IN_PROGRAM=1` in the obj dir's `config/autoconf.mk`) — there
+is no `libmozglue.so`, the dist's `libmozglue.a` and `libmemory.a` are 33-byte expandlibs stubs
+(their `.a.desc` beside them lists the objects), and `libxul.so` leaves `malloc`, `free` and
+`jemalloc_stats` UNDEFINED for the executable to export. The first link line written (`-lmozglue`
+first, dynamic) was wrong; `build-daemon-arm.sh` now expands the two descriptors as xpcshell's
+`backend.mk` does (`libmozglue.a` → arm, mozalloc, mozglue_misc, mfbt; `libmemory.a` → jemalloc,
+mozmemory_wrap, jemalloc_config), links them with `-rdynamic`, and checks with nm that the daemon
+exports `malloc … jemalloc_stats`. An unversioned `malloc` in the executable satisfies libxul's
+`malloc@GLIBC_2.4` reference, and every library in the process binds to it — the one allocator
+the daemon's frees of engine-allocated buffers need. The daemon's three `malloc_trim` calls became
+`jihadPurgeHeap` (`jemalloc_free_dirty_pages` + the glibc trim for the loader's arena); its log
+line says what was purged. A libxul from this config with the previous daemon would die at the
+first `jemalloc_stats` (lazy binding: the memory report after the last card) — the two ship
+together. Daemon 11 `4c318d49`. Measured next: idle RSS, the three heavy pages, the purge at the
+last close, the dump with `heap-allocated`, the benchmark.
+
+**T-495 measured on the device (2026-10-16 12:15–12:25, Mochi, daemon 10 with the component
+installed by hand; `docs/rounds/t495-2026-10-16/`):** w3.org — turned away, the daemon logs
+"the site's bot check turned the page away (cf-mitigated: challenge); learned w3.org, loading
+again with a current Firefox identity", the page loads again by itself and **renders** (the W3C
+home). Britannica and npm — no challenge this visit (their clearance cookies from the
+experiment an hour earlier still stood), rendered. **Medium — challenged, learned, reloaded,
+renders** (the Technology topic page: the learned retry passes where the whole-page experiment
+had not). `prefs.js` holds `jihad.ua.modernHosts = "w3.org,medium.com"`; after a daemon
+restart w3.org loads straight away with one load and no challenge. Settings → General → Browser
+identity: the switch, "2 sites given a current Firefox identity: w3.org, medium.com", the Forget
+button (a finger test, `docs/FINGER-TESTS.md`). Not exercised: the no-loop branch (no site
+challenged twice). The challenge host's own header was not read on the wire; the pass is the
+evidence (the frame apart from the page was measured to fail).
+
+**Still open under T-494:** Startpage's JS check ("Verifying your request…", no `cf-mitigated`
+header: a different vendor — a future learn rule needs its own signature), eBay's "something went
+wrong" page, old Reddit's login gate. AP News and w3.org/Medium/Britannica/npm are covered by
+the learned identity; Google, Bing, YouTube and Etsy by the daemon's table.
+
+**Measured with daemon 11 (2026-10-16 03:33–03:40, Mochi, the same three pages as daemon 10's
+run; `memory-report-read.py` on the dump):**
+
+| | daemon 10 (glibc) | daemon 11 (jemalloc) |
+|---|---|---|
+| idle, no card | 34.8 MB | 36.0 MB |
+| YouTube open | 163 MB | 195 MB |
+| Reddit open (YouTube's card closed) | 339 MB | 333 MB |
+| Bluesky open | 428 MB | 422 MB |
+| after the last close, purge + collections | 170 MB (226 before v9's collections) | **149 MB**, still 149 a minute later |
+| `heap-allocated` | unavailable | **60.3 MB** (bin-unused 17.9, page-cache 10.5, bookkeeping 1.8) |
+| ghost windows / detached | 0 / the last page | 0 / the last page (Bluesky, 16.9 MB) |
+
+So the allocator was worth about 20 MB after the closes and nothing while a page is open (the
+pages' own working set is the pages'); above all the heap is now REPORTED: of 149 MB resident,
+60 MB is the malloc heap (28 MB of it jemalloc's own overhead), 25 MB the JS GC heap's committed
+chunks (the component's `JSMainRuntimeGCHeap` figure, 32 MB, counts the decommitted ones too),
+explicit memory 110 MB in all, and the rest libxul's mapped code and the engine's non-heap maps;
+jemalloc has 314 MB of address space mapped, most of it not resident. The dump and the reader's
+output: `docs/rounds/t493-2026-10-16/`. The purge order is right: the
+component's collections fire `jihad-blocker-installed`, so the daemon's `jihadPurgeHeap` runs
+after them (two "heap purged" lines per last card). Shipped besides: `memory.free_dirty_pages`
+true, so every memory-pressure notification returns jemalloc's dirty pages as well. The device
+sat at 415 MB free after the closes. The kit's 12 MB idle goal stays unmet (36 MB idle is the
+engine's floor with the components loaded); R6's row is closed as measured.
+
+**The benchmark under daemon 11 (03:50, `jihad-jsbench.html`, the JIT and the GC prefs unchanged):**
+loop 50M 554 ms; objects 2M 1,464 ms (1,186 under daemon 10 — the GC heap, not malloc, carries
+objects; run-to-run noise on a device with three daemons); strings 200k 1,150 ms (1,304); regex
+100k 152 ms (178); DOM 20k 5,312 ms (no earlier figure). The allocator moved nothing the user
+feels; its gain is the 20 MB after the closes and the heap that reports.

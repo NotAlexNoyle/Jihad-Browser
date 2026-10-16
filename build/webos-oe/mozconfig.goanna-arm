@@ -81,8 +81,10 @@ ac_add_options --disable-gamepad
 # glibc 2.23 neither returns fragmented pages nor reports its heap — heap-allocated is
 # unavailable); the engine's memory-pressure reaction (jemalloc_free_dirty_pages) did nothing.
 # With it: the engine's allocator, its reporter, and the purge at the last card's close all work.
-# The daemon must then link libmozglue FIRST so every malloc/free in the process is jemalloc's
-# (build-daemon-arm.sh).
+# On Linux the allocator goes into the PROGRAM, not libxul (MOZ_GLUE_IN_PROGRAM): libxul.so leaves
+# malloc/free/jemalloc_stats undefined and takes them from the executable, so the daemon links
+# memory/mozjemalloc/jemalloc.o + memory/build/*.o with -rdynamic (build-daemon-arm.sh), and a
+# libxul from this config needs that daemon — the two ship together.
 ac_add_options --enable-jemalloc
 # Audio OUTPUT for <audio>/<video>. Enabled 2026-08-15; it was --disable-alsa, and the reason
 # given there ("headless render daemon: no audio output needed, offscreen render only") was

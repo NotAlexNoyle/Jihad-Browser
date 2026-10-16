@@ -104,6 +104,11 @@ are bundled and refreshed from easylist.to every four days; Settings → Privacy
 the list versions and counts what was refused. (The lists are by The EasyList authors, used under
 the GNU GPL v3 or later; see `CREDITS.md`.)
 
+Jihad says it is Firefox 52.9, which it is at heart. When a site's bot check turns that away
+(Cloudflare's "verifying you are human" page), Jihad comes back once as a current Firefox,
+header and script alike, and remembers the site; Settings → General lists the sites and forgets
+them on request.
+
 ### And
 
 - **Three interfaces, one engine:** lightweight **Mojo** with round buttons, the classic **Enyo**
@@ -127,9 +132,8 @@ Install the `.ipk` for the interface you want with **Preware** or **WebOS Quick 
 **Known issues:** the engine draws in software, so frame rates are the device's; double-tap zoom
 takes about a second to sharpen; Mochi's text can look soft at some zoom levels. Sites built as
 ES-module apps load their frame but not their script-driven parts (GitHub's commit list and
-README, Mastodon's timeline): the engine's module loading is behind them. Cloudflare's "verifying
-you are human" check does not pass yet. How today's sites behave, site by site, with causes and
-fixes: `docs/MODERN-WEB.md`.
+README, Mastodon's timeline): the engine's module loading is behind them. How today's sites
+behave, site by site, with causes and fixes: `docs/MODERN-WEB.md`.
 
 **Developers:** start at `docs/PICKUP.md` (current state), `docs/DEVICE-BUILD.md` (building) and
 `docs/ENGINE.md` (how Jihad uses the engine, and how to update it).

@@ -397,6 +397,21 @@ if ! grep -q '^manifest components/jihad-content-blocker.manifest$' "$OUT/chrome
 	echo 'manifest components/jihad-content-blocker.manifest' >> "$OUT/chrome.manifest"
 fi
 echo "  content blocking: components/jihadContentBlocker.js + blocklists/ (EasyList, EasyPrivacy; sha256 verified)"
+# The browser's identity, adjusted to the page (cavekit-modern-web.md R3): components/jihadUserAgent.js
+# learns the sites whose bot check turns the page away and gives them a current Firefox identity.
+UA_JS="$REPO/render/goanna/components/jihadUserAgent.js"
+[ -f "$UA_JS" ] || { echo "ERROR: $UA_JS is missing" >&2; exit 1; }
+mkdir -p "$OUT/components"
+cp -L "$UA_JS" "$OUT/components/jihadUserAgent.js"
+cat > "$OUT/components/jihad-user-agent.manifest" <<'MANIFEST'
+# Jihad Browser — the browser's identity, adjusted to the needs of the page. Copyright 2026 NotAlexNoyle. MPL-2.0.
+component {8d4f2c6a-1b7e-4e3a-9f5c-2a6d8e0b4c71} jihadUserAgent.js
+contract @riverstonerelay.net/jihad/user-agent;1 {8d4f2c6a-1b7e-4e3a-9f5c-2a6d8e0b4c71}
+MANIFEST
+if ! grep -q '^manifest components/jihad-user-agent.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
+	echo 'manifest components/jihad-user-agent.manifest' >> "$OUT/chrome.manifest"
+fi
+echo "  identity: components/jihadUserAgent.js (52.9 by default; a learned current identity per site)"
 # Lightweight themes ("personas" — Firefox 52 / Pale Moon / Basilisk): the browser's half of
 # the engine's LightweightThemeManager (components/jihadPersonas.js). Required: the kit promises
 # the feature (cavekit-addons-extensions.md R10).
@@ -578,7 +593,7 @@ done
 REQUIRED=(jihad-browserserver libxul.so ld-2.23.so libc.so.6 libstdc++.so.6 libpthread.so.0 \
           libnss3.so libnssutil3.so libsoftokn3.so libfreebl3.so libnss_dns.so.2 libnss_files.so.2 \
           libmozsqlite3.so goanna.js plugin-container libmozavutil.so libmozavcodec.so \
-          components/jihadContentBlocker.js blocklists/easylist.txt blocklists/easyprivacy.txt)
+          components/jihadContentBlocker.js blocklists/easylist.txt blocklists/easyprivacy.txt components/jihadUserAgent.js)
 _missing=""
 for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 [ -z "$_missing" ] || { echo "!! device bundle is missing required files:$_missing" >&2; exit 30; }

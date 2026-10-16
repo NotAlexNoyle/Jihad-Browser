@@ -336,6 +336,6 @@ See impl-browserserver-import.md for the import detail.
 - Map the observed load lifecycle to YAP msgLoadStarted/Progress/Stopped.
 - T-016 (daemon wiring) reuses the embed link recipe; T-011 ARM toolchain parallel.
 - T-011 (ARMv7 cross-toolchain) in parallel; reuse the container base. For the
-  device, strip libxul and revisit jemalloc/optimize-for-size.
+  device, strip libxul and revisit optimize-for-size (jemalloc is on since 2026-10-16, T-493: the allocator linked into the daemon with `-rdynamic`).
 - Bucket-2 files (BrowserServer/Main/BrowserPageManager/Settings) compile once the
   Goanna backend provides `BrowserPage` and the event-loop integration lands.

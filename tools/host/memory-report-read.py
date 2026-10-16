@@ -12,7 +12,9 @@ def total(prefix):
     return sum(r["amount"] for r in reports if r["path"].startswith(prefix) and r["units"] == 0)
 print("resident:", KB(next((r["amount"] for r in reports if r["path"] == "resident"), 0)),
       "| heap-allocated:", KB(next((r["amount"] for r in reports if r["path"] == "heap-allocated"), 0)),
-      "| js-main-runtime gc-heap:", KB(total("explicit/js-non-window") + total("js-main-runtime")),
+      "| JS gc-heap committed:", KB(total("js-main-runtime-gc-heap-committed") or total("js-main-runtime/gc-heap")),
+      "| explicit:", KB(next((r["amount"] for r in reports if r["path"] == "explicit"), 0) or total("explicit/")),
+      "| heap-overhead:", KB(total("explicit/heap-overhead")),
       "| ghost-windows:", next((r["amount"] for r in reports if r["path"] == "ghost-windows"), "n/a"))
 # windows: explicit/window-objects/top(<url>, id=N)/active|cached|detached/window(<url>)/...
 wins = collections.defaultdict(int); kinds = collections.Counter()

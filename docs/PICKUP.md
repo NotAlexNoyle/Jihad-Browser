@@ -138,27 +138,57 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
-## 2026-10-16 (later) delta — jemalloc engine build running; the challenges; the UA stays (READ FIRST)
+## 2026-10-16 (later) delta — jemalloc shipped (daemon 11); the learned identity (T-495); the UA rule (READ FIRST)
 
-**The owner:** "Do the engine rebuild with jemalloc" (T-493), "Keep the firefox 52.9 user agent"
-(the base UA in `JihadUserAgent.h` stays; the four per-site rows that proved out stay as
-site-compat entries), "Try to fix the challenges blocking sites from loading including cloudflare
-and RECAPTCHA" (T-494, new).
+**The owner:** "Do the engine rebuild with jemalloc" (T-493), "Keep the firefox 52.9 user agent",
+then "I changed my mind the user agent should be 52.9 by default but adjust based on the needs
+of the page" (the base UA in `JihadUserAgent.h` stays 52.9; a per-page identity is sanctioned —
+the daemon's table for the hand-curated sites, and, if the running experiment shows Cloudflare
+passes with a current token, a learned per-host identity: a response marked `cf-mitigated:
+challenge` puts the host on a persisted list and the page is retried once with the modern
+identity, header and docShell pin together — T-495), "Try to fix the challenges blocking sites
+from loading including cloudflare and RECAPTCHA" (T-494).
 
-**T-493 running:** `mozconfig.goanna-arm` now `--enable-jemalloc` (the reason in the file);
-`build-daemon-arm.sh` links `-lmozglue` FIRST and dynamically (the allocator must be one for the
-whole process; the static `libmozglue.a` is gone from the link). The engine build was started
-detached at the time stamped in `build/webos-oe/out-arm/engine-jemalloc-build.log` (`setsid
-nohup … in-container.sh --arm build-goanna-arm.sh all`; hours; `pgrep -f build-goanna-arm.sh`
-to see it; resume per memory `recover-a-dead-session` if the PC reboots). After it: the daemon
-(`build-daemon-arm.sh`), `build-all-device.sh --skip-arm`, the three pushes, then the memory
-report after the last card (`heap-allocated` should now report) and the three-page RSS.
+**T-493 built:** `mozconfig.goanna-arm` now `--enable-jemalloc` (the reason in the file); the
+engine rebuild took 22 minutes, not hours (incremental: the allocator change rebuilt `memory/` and
+relinked libxul; log `build/webos-oe/out-arm/engine-jemalloc-build.log`). THE TRAP: on Linux UXP
+puts the allocator in the PROGRAM, not libxul (`MOZ_GLUE_IN_PROGRAM=1` in `config/autoconf.mk`):
+there is no `libmozglue.so`, the dist's `libmozglue.a`/`libmemory.a` are 33-byte expandlibs
+stubs, and libxul.so leaves `malloc`/`free`/`jemalloc_stats` UNDEFINED for the executable to
+export. `build-daemon-arm.sh` therefore links `memory/mozjemalloc/jemalloc.o` +
+`memory/build/mozmemory_wrap.o` + `jemalloc_config.o` with `-rdynamic` (as xpcshell's link does)
+and checks the exports with nm; a libxul from this config with an older daemon would fail at the
+first `jemalloc_stats` call. After the daemon: `build-all-device.sh --skip-arm`, the three
+pushes, then the memory report after the last card (`heap-allocated` reports now) and the
+three-page RSS.
 
-**T-494, the challenges (reCAPTCHA is already past: google.com's row):** the one concrete lead is
-the security error inside Cloudflare's challenge frame, "content at challenges.cloudflare.com/…
-may not load data from https://example.org/" — if the challenge's connectivity probe is refused
-by this engine's load policy, the challenge fails on it. Investigation with a probe page that
-performs those loads and a console-on run of w3.org and Medium capturing every line.
+**T-494 → T-495, the challenges — DONE (the learned identity):** the engine's load policy was
+cleared (probe page), the challenge frames emit nothing, and header/script consistency alone
+changed nothing; a whole-page current identity passed Cloudflare on three of four sites. So:
+`render/goanna/components/jihadUserAgent.js` — a top-level response marked `cf-mitigated:
+challenge` learns the site's base domain (`jihad.ua.modernHosts`, persisted), cancels the
+challenge page, pins the docShell to the Firefox/128 identity and loads the page again once; from
+then on the site's requests (and its frames' — the challenge host included) carry the identity
+in the header, and every document of it gets the docShell pin at `document-element-inserted`.
+Measured on the device: w3.org and Medium learned, reloaded and rendered; the list survives a
+restart; Settings → General → Browser identity shows the sites and has Forget (a finger test).
+The daemon's `challenges.cloudflare.com` row is OUT of the table (it made the inconsistency);
+the table stays hand-curated (google/bing/youtube/etsy rows at 128). Not covered: Startpage's own
+JS check (no `cf-mitigated` header — a second signature would be needed), eBay, old Reddit's
+login gate. The one-retry-per-ten-minutes branch was not exercised (no site challenged twice).
+
+**Device state (2026-10-16 03:50):** all three variants run the 03:44–03:48 packages: daemon 11
+`4c318d49` (jemalloc in the program), identity component `2196a37f`, blocker v10 (COMPILER_VERSION
+10 — the cache recompiles once per profile), `memory.free_dirty_pages` on, jobs running, Default
+look, `/` read-only, nothing hand-started, /tmp cleared. Mochi's profile holds the learned list
+`w3.org,medium.com` (product state, left in place); Enyo's and Mojo's have none yet. The source
+differs from the shipped component by ONE line: the "identity: ready" log now counts the learned
+sites at log time (the daemon creates the component before the profile's prefs.js is read; the
+pref observer brings the list in — the shipped line printed the creation-time 0). The next push
+carries it; no rebuild was spent on a log line. Benchmark and memory numbers: `docs/MODERN-WEB.md`
+(T-493). Open from this round: Startpage's own JS check (no `cf-mitigated` header — a second
+learn signature), eBay, old Reddit's login gate, the no-loop branch untested, kit R3's frame
+header unread on the wire; the memory kit goal (12 MB idle) stays unmet at 36 MB idle.
 
 ## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards
 

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R6): jQuery 3.7.1 throws NS_ERROR_NOT_INITIALIZED
+     while it initialises in this engine (round 2: GitLab; the same error on AP News, Etsy's DataDome
+     and Vimeo). window.onerror gets the Error with its stack, so the jQuery frame — and the DOM call
+     under it — is named. Loads jQuery from jsdelivr (not on the lists). Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-jquery-probe</title>
+<script>
+window.onerror = function (msg, url, line, col, err) {
+  var t = "jihad-jquery-probe: " + msg + " @ " + (url || "").replace(/^.*\//, "") + ":" + line + ":" + col + "\n" + (err && err.stack ? err.stack : "(no stack)");
+  document.title = t.split("\n").slice(0, 3).join(" | ").slice(0, 300);
+  var pre = document.getElementById("out"); if (pre) pre.textContent = t;
+  return true;
+};
+</script></head>
+<body><h1>jihad-jquery-probe</h1><pre id="out">loading jQuery 3.7.1…</pre>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script>
+if (window.jQuery) { document.getElementById("out").textContent = "jQuery " + jQuery.fn.jquery + " loaded without an error; support: " + JSON.stringify(jQuery.support || {}); document.title = "jihad-jquery-probe: loaded " + jQuery.fn.jquery; }
+</script></body></html>

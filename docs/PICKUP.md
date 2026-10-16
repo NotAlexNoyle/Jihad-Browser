@@ -138,6 +138,21 @@ code is 34–436× slower: a garbage-collection or allocator problem, the first 
 stall of the round. **Memory:** v5.1 +40 MB idle; heap-minimize did nothing; the component now
 logs the memory reporter's figures after install (see the kit's R6).
 
+## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards (READ FIRST)
+
+**Run 2c read** (`docs/MODERN-WEB.md` "Round 2, second run"): the Firefox/128 token made Google,
+Bing, Etsy and YouTube render (rows kept in `EngineHost.cpp`, the five that changed nothing
+removed; daemon 10); Cloudflare's challenge stops six sites now (it keys on the day's repeated
+visits too) and is not a token matter; the API probe found the engine complete but for CSS
+`:has()` and WebGL; the benchmark's allocation tests 5–6× faster with the GC fixes; the sites'
+stalls are their own scripts. **The open item is memory: the daemon climbed to 589 MB and never
+came back after cards closed** — daemon 9/10 purges (heap-minimize + malloc_trim) when the last
+card leaves; the session's `memcheck.sh` measures it across YouTube, Reddit and Bluesky and runs
+`jihad-jquery-probe.html` (the stack of the `NS_ERROR_NOT_INITIALIZED` thrower). Then: the
+packages rebuilt with daemon 10, pushed ×3 (alone on the bus), PICKUP, commit. **The owner's
+decision pending:** moving the base UA (`JihadUserAgent.h`, `Firefox/52.9`) to a current ESR —
+the four sites say what it gains; Cloudflare says what it does not.
+
 **PAUSED 16:36 (the owner: "pause, youre about to run out of credit"); the round's second run
 (2c) then FINISHED on its own** — its log, analysis and shots are committed in
 `docs/rounds/round2c-2026-10-15/`; read them first, with the comparison script below. It was run on the device (`tools/host/run-browse-round.sh docs/rounds/round2c-2026-10-15`,

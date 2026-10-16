@@ -175,3 +175,52 @@ three console lines) with the daemon at **214 MB resident**; the device then ref
 160 MB before a major collection, and three daemons share 1 GB with LunaSysMgr. Recovered with a
 LunaSysMgr restart; the shipped threshold is 64 MB; the blocker's lists now load only while a
 card is connected (v8). The run is repeated at that state.
+
+## Round 2, second run (2c) — 2026-10-15 16:33–17:34, read 2026-10-16
+
+Mochi, blocker **v8**, daemon 8 (the UA experiment, the allocator trim, the card notifications),
+GC allocation threshold **64 MB**; the two probes first, then the thirty sites. Log, analysis,
+shots: `docs/rounds/round2c-2026-10-15/`; side by side with the first run:
+`tools/device/browse-round-compare.py docs/rounds/round2-2026-10-15.log docs/rounds/round2c-2026-10-15/round.log`.
+
+**The user-agent experiment — four of the eight proved out.** With a Firefox/128 token for
+those hosts: **Google** renders its results (the `/sorry/` CAPTCHA before), **Bing** its results
+("I'm not a robot" before), **Etsy** its results (DataDome's "Verification Required" before),
+**YouTube** its watch page ("Please update your browser" before). Unchanged: Cloudflare's
+"Performing security verification" on Medium and Britannica — and this run also on AP News and
+npm, which the first run opened: the challenge fingerprints the engine and keys on the day's
+repeated visits, not the token; Startpage moved to "Verifying your request…" (a JS challenge);
+eBay still its error page; old Reddit still the login gate. The four rows stay in the daemon's
+table at 128 (`EngineHost.cpp`), the other five experimental rows are out. **The base UA still
+carries `Firefox/52.9`; the four say what moving it to a current ESR would gain** — the owner's
+decision.
+
+**The API probe (`jihad-apis.html`, shot):** every probed API and language feature is present —
+storage, matchMedia, PerformanceObserver (mark, measure, navigation, resource), the observers,
+fetch and streams, the ES2017–2022 syntax, dynamic import(), custom elements, Shadow DOM, CSS
+grid/gap/custom properties/:is()/aspect-ratio/sticky — except **CSS `:has()`** and **WebGL**
+(no GPU driver). So the `NS_ERROR_NOT_INITIALIZED` that AP News, Etsy's DataDome, Vimeo and
+GitLab's jQuery throw is not among these; `render/goanna/test/jihad-jquery-probe.html` loads
+jQuery 3.7.1 under `window.onerror` to get the stack and name the call.
+
+**The benchmark at the shipped threshold (Mochi, v8 lists loaded):** loop 50M 550 ms, objects
+2M **1,186 ms** (6,854 in the first run), strings 200k **1,304 ms** (8,280), regex 100k
+**178 ms** (902), DOM 20k 5,242 ms (10,156) — the garbage-collection fixes did what the GC log
+said they would.
+
+**The sites' stalls did not move** (worst tick better by 30% on 7, worse on 8; Amazon 60 s and
+Substack 55 s this time, webos-ports 125 → 11 s): a page's own scripts on this CPU, not the
+engine's collector. 20 of 30 render (Craigslist, IMDb, Amazon, Guardian, NPR, Al Jazeera, OSM,
+Stack Overflow, html5test 450, new Reddit, webos-ports, TechRadar, Google, Bing, Etsy, YouTube,
+weather.com's page this time, wikiHow (a timeout dialog on this run: transient), Startpage's
+challenge page counts as blocked), 6 stopped by challenges (Medium, Britannica, AP News, npm,
+Startpage, eBay), 4 blank apps (Bluesky, GitLab's list, Vimeo's content, Substack, old Reddit's
+login form).
+
+**Memory, the run's own finding:** the RSS column works now and the daemon **climbs and never
+comes back** — 149 MB at the probe, 209 after The Guardian, 433 after Reddit, 564 after Bluesky,
+**589 after YouTube**, then 500–580 MB for every later visit although each card is closed before
+the next opens. The engine keeps page memory and caches after a card closes and the bundled
+glibc returns nothing on its own. Fixed in daemon 9: when the last card leaves, a
+`memory-pressure heap-minimize` and a `malloc_trim` (the low-memory guardrail's reaction, run
+once at the moment nothing is on screen). To be measured across three heavy pages.

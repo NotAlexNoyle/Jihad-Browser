@@ -113,19 +113,17 @@ static const JihadUaRule kJihadUaTable[] = {
   // found it is user-agent sniffing: a per-host override for the challenge host passes it. A
   // current Firefox ESR token, like the rest of this table; never a Pale Moon or Basilisk one.
   { "challenges.cloudflare.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  // THE EXPERIMENT of round 2 (cavekit-modern-web.md R6, 2026-10-15): seven of thirty visits were
-  // stopped by bot detection (Cloudflare on medium.com and britannica.com, DataDome on etsy.com,
-  // bing.com's captcha, google.com's /sorry/, startpage.com's "connection suspended", ebay.com's
-  // error page) and youtube.com served "update your browser" — all to tokens of Firefox 52.9–78.
-  // A current Firefox ESR token for THOSE hosts, to measure before the base UA is touched (the
-  // owner's decision). google.com, bing.com, youtube.com and ebay.com above are overridden here:
-  // jihadUaForHost takes the first match, so these rows come first for those hosts.
-  { "medium.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  { "britannica.com", "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  { "etsy.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  { "startpage.com",  "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  { "ebay.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
-  { "reddit.com",     "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },
+  { "etsy.com",       "Mozilla/5.0 (X11; Linux armv7l; rv:128.0) Gecko/20100101 Firefox/128.0" },   // round-2 experiment: DataDome passed
+  // ROUND 2's EXPERIMENT (cavekit-modern-web.md R6, 2026-10-15/16): seven of thirty visits were
+  // stopped by bot detection and youtube.com served "update your browser", all to tokens of
+  // Firefox 52.9-78. A Firefox/128 token was tried on those hosts. It MADE google.com (its
+  // /sorry/ CAPTCHA before), bing.com (its "I'm not a robot"), etsy.com (DataDome's
+  // "Verification Required") and youtube.com render their real pages — those four rows above are
+  // edited in place to 128 and stay. It changed nothing for Cloudflare's "Performing security
+  // verification" (medium.com, britannica.com; the challenge fingerprints the engine, not the
+  // token), Startpage (now a JS challenge), eBay (its error page) or old Reddit (a login gate):
+  // those rows were removed again. The base UA (JihadUserAgent.h) still says Firefox/52.9 — moving
+  // it is the owner's decision; these four say what it would gain.
 };
 
 // Return the override UA for a host, walking up the sub-domain chain (www.reddit.com -> reddit.com),
@@ -151,6 +149,16 @@ void JihadNotifyClients(bool connected, int clients) {
   char buf[16]; snprintf(buf, sizeof buf, "%d", clients);
   NS_ConvertASCIItoUTF16 data(buf);
   obs->NotifyObservers(nullptr, connected ? "jihad-client-connected" : "jihad-client-disconnected", data.get());
+  // The last card gone: what its pages held stays resident otherwise (round 2c, 2026-10-15: the
+  // daemon climbed to 589 MB by the YouTube visit and sat at 500-580 MB for every visit after,
+  // cards closed in between — this build has no jemalloc, and the engine keeps its caches until
+  // told). Ask the engine to drop what it can (the same reaction as the low-memory guardrail's)
+  // and hand the allocator's free pages back, once, now that nothing is on screen to suffer it.
+  if (!connected && clients == 0) {
+    obs->NotifyObservers(nullptr, "memory-pressure", u"heap-minimize");
+    int freed = malloc_trim(0);
+    fprintf(stderr, "[jihad-bs] last card gone: caches dropped, malloc_trim %s\n", freed ? "returned pages" : "returned nothing");
+  }
 }
 
 // Public (see EngineHost.h): extract the host from a URL string and return its per-domain UA

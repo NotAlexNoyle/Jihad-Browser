@@ -140,6 +140,14 @@ logs the memory reporter's figures after install (see the kit's R6).
 
 ## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards (READ FIRST)
 
+**03:00, the memory question closed:** the full memory report after the last card (v9.1 writes
+it behind `jihad.blocking.memoryDump`; `tools/host/memory-report-read.py` reads it) shows one
+detached window — the last page, still being torn down — and no ghosts: closed pages are
+released; what stays resident is the allocator's retention and libxul's paging (no jemalloc in
+this build). **Proposed T-493:** an engine rebuild with jemalloc — the owner's call (hours).
+Shipping now: daemon 10 + component v9.1 (the on-demand lists, the purge and the collections at
+the last card's close, the memory line) in the final packages, pushed to the three variants.
+
 **02:00–02:11: daemon 10 on all three** (Mochi's binary had been truncated to 0 bytes by a `cp`
 over the running job — "file too short", a respawn loop; the package push repaired it; memory
 `hand-started-daemon-and-gc-threshold` item 3). **Measured:** idle with no card 34.8 MB (the

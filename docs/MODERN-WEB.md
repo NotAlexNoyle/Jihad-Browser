@@ -241,3 +241,24 @@ call those pages make later (an XHR, a storage or a crypto call under their sett
 jQuery's start. Unnamed; open. The next probe wraps `XMLHttpRequest.prototype.open/send`,
 `localStorage`, `crypto.subtle` and `navigator.sendBeacon` with logging and loads GitLab's
 explore page.
+
+**Zombie windows, confirmed (v9, 2026-10-16 02:30):** three heavy pages, each card closed before
+the next; after the last close and v9's CC → shrinking GC → CC: resident **169.8 MB**, JS GC heap
+**41 MB** (7 MB idle), **compartments 53 system + 3 user with no card open** — and 53 + 6 while
+the second card was open: every closed page leaves its window's compartments behind. The daemon's
+page teardown does not release the window; the allocator was never the story. Fix: in the
+daemon's close path, close the content window and destroy the web browser/docshell when a card
+goes (then the collections free them). Measured next.
+
+**The memory report, read (2026-10-16 03:00; `tools/host/memory-report-read.py` on the dump v9.1
+writes after the last card):** resident 161 MB, JS GC heap 33 MB, **one detached window — the
+last page (Bluesky, 16.5 MB), still being torn down; ghost windows 0**; YouTube's and Reddit's
+windows are gone. So the daemon does release closed pages; the "zombie" reading was the last
+page's teardown caught early. What stays: explicit memory of about 65 MB (compiled script data
+14.5 MB, the blocker's host blob 3.6 MB, atoms 4.1 MB, the strings cache 3.8 MB, sqlite 1.4 MB,
+ICU 1 MB) and, beyond it, the allocator's retention and libxul's paged-in code — a build without
+jemalloc neither reports its heap (`heap-allocated` is unavailable) nor returns fragmented pages.
+The device sat at 280–370 MB free after the closes at the 64 MB threshold and never refused a
+card. **The one lever left for resident memory is an engine rebuild with jemalloc** (an hours-long
+build, cavekit-engine-update.md): proposed as T-493, the owner's call. The per-card purge and v9's
+collections stay (they bring a 428 MB daemon to 170 MB within seconds of the last close).

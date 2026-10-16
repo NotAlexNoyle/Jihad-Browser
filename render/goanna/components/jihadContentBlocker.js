@@ -592,7 +592,15 @@ JihadContentBlocker.prototype = {
         let mr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
         let fig = (name) => { try { return (mr[name] / 1048576).toFixed(1) + " MB"; } catch (e) { return "n/a"; } };
         let comps = "n/a"; try { comps = mr.JSMainRuntimeCompartmentsSystem + "+" + mr.JSMainRuntimeCompartmentsUser; } catch (e) {}
-        log("after the last card: resident " + fig("residentFast") + ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", compartments " + comps + " (system+user; user > 0 with no card = a zombie window)");
+        let ghosts = "n/a"; try { ghosts = String(mr.ghostWindows); } catch (e) {}
+        log("after the last card: resident " + fig("residentFast") + ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", compartments " + comps + " (system+user; user > 0 with no card = a zombie window), ghost windows " + ghosts);
+        // The full report, for the investigation of what holds a closed window (R6, 2026-10-16):
+        // <profile>/jihad-blocklists/memory-last-card.json.gz, as about:memory would show it.
+        if (boolPref("jihad.blocking.memoryDump", false)) {
+          let f = profileFile("memory-last-card.json.gz");
+          let dumper = Cc["@mozilla.org/memory-info-dumper;1"].getService(Ci.nsIMemoryInfoDumper);
+          dumper.dumpMemoryReportsToNamedFile(f.path, () => log("memory report written: " + f.path), null, false);
+        }
       } catch (e) { log("memory reporter: " + e); }
     }, 2000);
   },

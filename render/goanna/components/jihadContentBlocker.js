@@ -67,7 +67,7 @@ const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lis
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
 
-const COMPILER_VERSION = 8;                 // bump when the compiled form changes
+const COMPILER_VERSION = 9;                 // bump when the compiled form changes
 const UPDATE_EVERY_S   = 4 * 24 * 3600;     // the lists say "! Expires: 4 days"
 const RETRY_AFTER_S    = 24 * 3600;         // after a failed attempt
 const UPDATE_CHECK_MS  = 6 * 3600 * 1000;   // how often the timer looks at the clock
@@ -425,8 +425,14 @@ JihadContentBlocker.prototype = {
     }
     if (topic === "jihad-client-disconnected") {
       this._clients = parseInt(data, 10); if (isNaN(this._clients)) this._clients = Math.max(0, this._clients - 1);
-      if (this._clients === 0 && !this._unloadTimer) {
-        this._unloadTimer = setTimeout(() => { this._unloadTimer = null; if (this._clients === 0) this._unload(); }, UNLOAD_AFTER_IDLE_MS);
+      if (this._clients === 0) {
+        if (!this._unloadTimer) this._unloadTimer = setTimeout(() => { this._unloadTimer = null; if (this._clients === 0) this._unload(); }, UNLOAD_AFTER_IDLE_MS);
+        // The last card gone (R6, 2026-10-16): after three heavy pages the daemon kept ~190 MB with
+        // nothing open, the daemon's purge notwithstanding. A closed window's compartment is freed
+        // only after a cycle collection, a GC and a cycle collection again; done here from chrome
+        // once the card's teardown has settled, with the compartment count logged so a zombie
+        // window shows as "user compartments > 0" with no card.
+        setTimeout(() => this._collectAfterLastCard(), 3000);
       }
       return;
     }
@@ -576,6 +582,19 @@ JihadContentBlocker.prototype = {
     r = null;
     this._loading = false;
     this._install(c, versions, how);
+  },
+  _collectAfterLastCard: function () {
+    if (this._clients !== 0) return;
+    try { Cu.forceCC(); Cu.forceShrinkingGC(); Cu.forceCC(); Cu.forceShrinkingGC(); } catch (e) { log("collect: " + e); }
+    try { Services.obs.notifyObservers(null, "jihad-blocker-installed", null); } catch (e) {}   // the daemon trims again
+    setTimeout(() => {
+      try {
+        let mr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
+        let fig = (name) => { try { return (mr[name] / 1048576).toFixed(1) + " MB"; } catch (e) { return "n/a"; } };
+        let comps = "n/a"; try { comps = mr.JSMainRuntimeCompartmentsSystem + "+" + mr.JSMainRuntimeCompartmentsUser; } catch (e) {}
+        log("after the last card: resident " + fig("residentFast") + ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", compartments " + comps + " (system+user; user > 0 with no card = a zombie window)");
+      } catch (e) { log("memory reporter: " + e); }
+    }, 2000);
   },
   _unload: function () {
     if (!this._hosts) return;

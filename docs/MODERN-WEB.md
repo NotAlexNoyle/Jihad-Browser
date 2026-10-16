@@ -224,3 +224,20 @@ the next opens. The engine keeps page memory and caches after a card closes and 
 glibc returns nothing on its own. Fixed in daemon 9: when the last card leaves, a
 `memory-pressure heap-minimize` and a `malloc_trim` (the low-memory guardrail's reaction, run
 once at the moment nothing is on screen). To be measured across three heavy pages.
+
+**Memory after cards, measured with daemon 10 (2026-10-16 02:05–02:11, Mochi, v8 lists on
+demand):** idle with no card **34.8 MB** (33.4 without the blocker at all: the on-demand lists
+cost nothing idle). With a card, each closed before the next: YouTube 163 MB, Reddit 339 MB,
+Bluesky 428 MB. After the last close the daemon's purge ("caches dropped, malloc_trim returned
+pages") brings it to **226 MB**, and it stays there (225 MB a minute later) with nothing open:
+~190 MB the purge does not reach — closed windows that no collection has freed yet, or the
+allocator's fragmentation. Component v9 runs cycle collection, a shrinking GC and cycle
+collection again three seconds after the last card leaves and logs the JS compartment count: a
+user compartment with no card is a zombie window.
+
+**The jQuery probe:** jQuery 3.7.1 loads from jsdelivr without any error (`loaded 3.7.1`), so
+the `NS_ERROR_NOT_INITIALIZED` on GitLab, AP News, Etsy's DataDome and Vimeo is thrown by a
+call those pages make later (an XHR, a storage or a crypto call under their settings), not by
+jQuery's start. Unnamed; open. The next probe wraps `XMLHttpRequest.prototype.open/send`,
+`localStorage`, `crypto.subtle` and `navigator.sendBeacon` with logging and loads GitLab's
+explore page.

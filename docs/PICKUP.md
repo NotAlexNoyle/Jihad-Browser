@@ -140,6 +140,16 @@ logs the memory reporter's figures after install (see the kit's R6).
 
 ## 2026-10-16 delta — the second run read; the UA verdict; the daemon's memory after cards (READ FIRST)
 
+**02:00–02:11: daemon 10 on all three** (Mochi's binary had been truncated to 0 bytes by a `cp`
+over the running job — "file too short", a respawn loop; the package push repaired it; memory
+`hand-started-daemon-and-gc-threshold` item 3). **Measured:** idle with no card 34.8 MB (the
+on-demand lists cost nothing); YouTube 163 / Reddit 339 / Bluesky 428 MB with the card; after
+the last close the purge brings it to 226 MB and it stays — ~190 MB the purge does not reach.
+Component **v9** adds CC → shrinking GC → CC after the last card and logs the compartment count
+(a user compartment with no card = a zombie window); the session's `v9.sh` measures it. The
+jQuery probe: jQuery loads clean; the NS_ERROR_NOT_INITIALIZED thrower is a later call the
+sites make (unnamed, open; the next probe wraps XHR/storage/crypto/sendBeacon).
+
 **Run 2c read** (`docs/MODERN-WEB.md` "Round 2, second run"): the Firefox/128 token made Google,
 Bing, Etsy and YouTube render (rows kept in `EngineHost.cpp`, the five that changed nothing
 removed; daemon 10); Cloudflare's challenge stops six sites now (it keys on the day's repeated

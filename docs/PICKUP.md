@@ -145,8 +145,18 @@ it behind `jihad.blocking.memoryDump`; `tools/host/memory-report-read.py` reads 
 detached window — the last page, still being torn down — and no ghosts: closed pages are
 released; what stays resident is the allocator's retention and libxul's paging (no jemalloc in
 this build). **Proposed T-493:** an engine rebuild with jemalloc — the owner's call (hours).
-Shipping now: daemon 10 + component v9.1 (the on-demand lists, the purge and the collections at
-the last card's close, the memory line) in the final packages, pushed to the three variants.
+**Shipped 02:27–02:35: the final packages on all three variants** (`out-all/`, 02:20: daemon 10
+`b6d5683a`, component v9.1 `36d0c18e`, the lists, the prefs with the 64 MB threshold, the
+Personas guard; `push-variant.sh` enyo/mochi/mojo each alone on the bus, all first-try), every
+job running, the rounds' test user prefs removed from the three profiles (`set-prefs.sh`),
+Default look everywhere, `/` read-only, nothing hand-started. The host's test http server on
+:8077 may still run (harmless; `pkill -f 'http.server 8077'`). **Open, the owner's decisions:**
+moving the base UA (`JihadUserAgent.h`, `Firefox/52.9` — four sites say what a current ESR
+token gains, Cloudflare says what it does not); T-493, the engine rebuild with jemalloc. **Open,
+work:** the NS_ERROR_NOT_INITIALIZED thrower (the next probe wraps XHR/storage/crypto/
+sendBeacon); the updater's forced-update and network-off tests (R5); the inspector's F-21
+(an independent list tokenizer); Cloudflare's challenge, Startpage's, eBay's, old Reddit's gate
+and the four ES-module apps stay open/upstream with their causes in the ledger.
 
 **02:00–02:11: daemon 10 on all three** (Mochi's binary had been truncated to 0 bytes by a `cp`
 over the running job — "file too short", a respawn loop; the package push repaired it; memory

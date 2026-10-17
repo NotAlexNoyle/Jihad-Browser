@@ -4423,6 +4423,29 @@ int GoannaRenderPage::CompositePopups(unsigned char* dst, int stride, int w, int
   return jihad_offscreen_composite_popups(mWidget, dst, stride, w, h, docX, docY, zoom);
 }
 
+bool GoannaRenderPage::SetGpuViewport(double zoom) {
+  if (!mGpu || !mChrome || !mChrome->mBrowser || zoom <= 0.0) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  if (!u) return false;
+  const float z = (float)zoom;
+  const float vw = (float)mWidth / z, vh = (float)mHeight / z;   // the visual viewport, CSS px
+  nsresult r1 = u->SetResolutionAndScaleTo(z);
+  nsresult r2 = u->SetScrollPositionClampingScrollPortSize(vw, vh);
+  nsresult r3 = NS_ERROR_FAILURE;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+  nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
+  nsCOMPtr<nsIDOMElement> root; if (doc) doc->GetDocumentElement(getter_AddRefs(root));
+  // margins in screen px: half a viewport sideways, a whole one up and down
+  if (root) r3 = u->SetDisplayPortMarginsForElement((float)mWidth * 0.5f, (float)mHeight,
+                                                    (float)mWidth * 0.5f, (float)mHeight, root, 0);
+  static int sLogged = 0;
+  if (sLogged++ < 30)
+    fprintf(stderr, "[jihad-gpu] viewport: resolution %.4f (rv 0x%x), scroll port %.0fx%.0f css (rv 0x%x), displayport margins (rv 0x%x)\n",
+            z, (unsigned)r1, vw, vh, (unsigned)r2, (unsigned)r3);
+  return NS_SUCCEEDED(r1);
+}
+
 uint32_t GoannaRenderPage::CompositorSeq() const {
   return (mGpu && jihad_offscreen_compositor_seq && mWidget) ? jihad_offscreen_compositor_seq(mWidget) : 0;
 }

@@ -610,6 +610,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 }
 
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
+  mGpuZoom = 0.0;   // T-502: the scroll port follows the card size; set again at the next zoom
   mLayoutFollowed = false;   // T-499: a new card size (rotation) starts from a layout viewport equal to it
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
@@ -857,6 +858,15 @@ bool BrowserPageGoanna::panCovered(int x, int y) {
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
+  if (mPage->GpuPath()) {
+    // T-502: the engine scrolls (CSS px = zoomed px over the zoom), the compositor follows.
+    double zg = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+    mAdapterScrollX = x; mAdapterScrollY = y;
+    mPage->SetRenderPan(0.0, 0.0);
+    mPage->ScrollTo((int)(x / zg), (int)(y / zg));
+    mNeedsPaint = true;
+    return;
+  }
   // The adapter's scroll (x,y) is in ZOOMED-content px (its mScrollPos / buffer space); the
   // engine scrolls in CSS px, so divide by the zoom — EXACTLY as setZoomAndScroll does. And keep
   // BrowserOffscreenInfo::renderedX/Y (= mAdapterScrollX/Y) in step so the adapter's composite pan
@@ -962,6 +972,17 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   // the engine scrolls in CSS px, so divide by the zoom. Keep the zoomed values for
   // BrowserOffscreenInfo::renderedX/Y so the adapter's pan math lines up (== mScrollPos).
   mAdapterScrollX = x; mAdapterScrollY = y;
+  if (mPage->GpuPath()) {
+    // T-502: no render pan on the compositor path. The zoom is the pres shell's resolution and
+    // the scroll is the engine's at every zoom (window.onscroll, position:fixed and sticky stay
+    // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
+    // displayport is an empty transaction plus a composite.
+    if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; }
+    mPage->SetRenderPan(0.0, 0.0);
+    mPage->ScrollTo((int)(x / z), (int)(y / z));
+    mNeedsPaint = true;
+    return;
+  }
   // When zoomed IN (z>1) the engine layout viewport is device-width, so it can't scroll
   // horizontally and can't reach past its unzoomed vertical range — drive the RENDER's
   // visual-viewport pan (CSS px) and park the engine scroll at 0 so the whole magnified page
@@ -2132,6 +2153,10 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
     emitCompletion(true);
+    if (mPage->GpuPath()) {   // T-502: resolution, scroll port and displayport for the new document
+      double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+      mPage->SetGpuViewport(z); mGpuZoom = z;
+    }
     // New document settled: hang the engine focus/blur listener on it so script-driven
     // focus changes drive the VKB (Atlas IM-context port, device T4). No-op if same doc.
     mPage->RegisterEngineFocusListener();

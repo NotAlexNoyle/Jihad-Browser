@@ -487,6 +487,11 @@ private:
 public:
   bool GpuPath() const { return mGpu; }   // T-502
   uint32_t CompositorSeq() const;         // T-502: moves when the compositor wants a frame
+  // T-502: the compositor's view of zoom and scroll. The card's zoom becomes the pres shell's
+  // resolution (the compositor scales the layer tree), the visual viewport the card's size over
+  // the zoom, and a displayport one viewport up and down so a scroll inside it is an empty
+  // transaction plus a composite. No render pan on this path: the engine scrolls at every zoom.
+  bool SetGpuViewport(double zoom);
 private:
   int mWidth;
   int mHeight;

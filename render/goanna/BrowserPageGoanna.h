@@ -362,6 +362,7 @@ private:
                                          // title/repaint without a fresh load-start/stop boundary (F-324)
   bool               mDirtyPending;      // engine invalidation seen, repaint owed once the rate-limit
   uint32_t           mGpuSeq = 0;        // T-502: the compositor's request count last pulled
+  double             mGpuZoom = 0.0;     // T-502: the zoom the compositor viewport was set for
                                          // window opens (inspector P2: cap dirty-driven full repaints)
   int64_t            mLastDirtyPaintMs;  // last dirty-driven repaint (ms), for the 150 ms cap
   // Next scheduled publish instant for plugin-driven damage. A GRID, deliberately not

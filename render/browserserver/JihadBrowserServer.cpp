@@ -9,6 +9,7 @@
 namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
 #include <algorithm>
+#include <string>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -500,6 +501,89 @@ void JihadBrowserServer::processInjectFile() {
 }
 #endif  // !JIHAD_NO_INJECT
 
+// ── The clock hold (T-500, 2026-10-16: "fix the stall") ──────────────────────────────────────
+//
+// The TouchPad's governor is Palm's "ondemandtcl": it ramps the clock on a TOUCH (a tickle from the
+// system UI), not on load. Measured 2026-10-16 while a DuckDuckGo page loaded with the load average
+// at 4: the clock sat at 192 or 384 MHz for most of the seconds, the chip doing 1188 — the engine
+// ran the page's script at a third to a sixth of its speed, and every stall (one long event in the
+// pump: the page's JavaScript, its compile, the collections) was that much longer. So: while the
+// engine has work, hold the frequency FLOOR (scaling_min_freq, both cores) at the top; after two
+// seconds of idle ticks let it go. The job runs as root, so sysfs takes the write; anywhere it
+// does not, this is silent. $JIHAD_CLOCK_HOLD=0 or the pref jihad.cpu.hold=false turns it off.
+bool gJihadClockHoldEnabled = true;   // EngineHost reads jihad.cpu.hold into this at start
+namespace {
+class JihadClockHold {
+public:
+  void busy(int64_t nowMs) {
+    if (!enabled()) return;
+    mLastBusyMs = nowMs;
+    if (!mHeld) set(true);
+  }
+  void idle(int64_t nowMs) {
+    if (!mHeld) return;
+    if (nowMs - mLastBusyMs >= 2000) set(false);
+  }
+  ~JihadClockHold() { if (mHeld) set(false); }
+private:
+  bool enabled() {
+    if (mDisabled) return false;
+    if (!gJihadClockHoldEnabled) return false;
+    if (!mProbed) probe();
+    return !mDisabled;
+  }
+  static bool readFile(const char* path, std::string* out) {
+    FILE* f = fopen(path, "r"); if (!f) return false;
+    char b[64] = {0}; size_t n = fread(b, 1, sizeof(b) - 1, f); fclose(f);
+    while (n && (b[n-1] == '\n' || b[n-1] == ' ')) b[--n] = 0;
+    *out = b; return n > 0;
+  }
+  static bool writeFile(const std::string& path, const std::string& v) {
+    FILE* f = fopen(path.c_str(), "w"); if (!f) return false;
+    bool ok = fputs(v.c_str(), f) >= 0; fclose(f); return ok;
+  }
+  void probe() {
+    mProbed = true;
+    const char* e = getenv("JIHAD_CLOCK_HOLD");
+    if (e && !strcmp(e, "0")) { mDisabled = true; return; }
+    std::string max;
+    if (!readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq", &max)) { mDisabled = true; return; }
+    mTop = max;
+    for (int c = 0; c < 2; c++) {
+      char p[96]; snprintf(p, sizeof(p), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", c);
+      std::string orig;
+      if (readFile(p, &orig)) { mMinPath[c] = p; mOrigMin[c] = orig; }
+    }
+    if (mMinPath[0].empty()) { mDisabled = true; return; }
+    // the write is tried once here: a daemon that may not write sysfs stays quiet about it
+    if (!writeFile(mMinPath[0], mOrigMin[0])) { mDisabled = true; fprintf(stderr, "[jihad-bs] clock hold: sysfs not writable (%s), off\n", strerror(errno)); return; }
+    std::string gov; readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", &gov);
+    fprintf(stderr, "[jihad-bs] clock hold on: the floor goes to %s kHz while the engine has work (governor %s, floor %s kHz otherwise)\n",
+            mTop.c_str(), gov.c_str(), mOrigMin[0].c_str());
+  }
+  void set(bool hold) {
+    // cpu1 is hot-plugged by this kernel (its cpufreq directory comes and goes with it), so its
+    // path is tried at every change rather than once at the probe; a missing file is not an error
+    for (int c = 0; c < 2; c++) {
+      if (c == 1 && mMinPath[1].empty()) {
+        std::string orig;
+        if (readFile("/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq", &orig)) { mMinPath[1] = "/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq"; mOrigMin[1] = orig; }
+      }
+      if (mMinPath[c].empty()) continue;
+      if (!writeFile(mMinPath[c], hold ? mTop : mOrigMin[c])) { if (c == 0) { mDisabled = true; return; } mMinPath[1].clear(); }
+    }
+    mHeld = hold;
+    if (hold) mHolds++;
+    if (mHolds <= 1) fprintf(stderr, "[jihad-bs] clock hold: %s\n", hold ? "held" : "released");
+  }
+  bool mProbed = false, mDisabled = false, mHeld = false;
+  int mHolds = 0;
+  int64_t mLastBusyMs = 0;
+  std::string mTop, mMinPath[2], mOrigMin[2];
+};
+JihadClockHold gClockHold;
+}  // namespace
+
 static const uint64_t kTickStatsMinPaintMs = 10;
 static const uint32_t kTickStatsLongTickMs = 40;
 
@@ -553,6 +637,7 @@ void JihadBrowserServer::tick() {
   // is dozens of such hops) would otherwise advance one hop per second — so main() ticks at the
   // quiet period until a tick finds nothing (mIdleHadWork).
   if (snap.empty()) {
+    gClockHold.idle(jihadTickNowMs());   // T-500: no page — the hold lets the clock go (this return came before its check, and the floor stayed up after the last card, 2026-10-16)
     mIdleHadWork = jihad::PumpReadyMainThread(4) > 0;
     mTickStatsReset = true;
     mTickBusy = false; mActivity = false; mTickPlugin = false;
@@ -595,6 +680,13 @@ void JihadBrowserServer::tick() {
   mTickBusy = mActivity;
   mActivity = false;
   for (auto* pg : snap) if (pg->isBusy()) { mTickBusy = true; break; }
+  // The clock hold: a busy page, or a tick that did real work (a stall is one long tick), holds
+  // the clock; two seconds of quiet ticks release it. A stall's first busy tick precedes it, so
+  // the hold is in place when the long event starts.
+  {
+    int64_t t = jihadTickNowMs();
+    if (mTickBusy || (t - tickT0) >= 8) gClockHold.busy(t); else gClockHold.idle(t);
+  }
   mTickPlugin = false;
   for (auto* pg : snap) if (pg->hasPlugin()) { mTickPlugin = true; break; }
   int64_t tickT1 = jihadTickNowMs();

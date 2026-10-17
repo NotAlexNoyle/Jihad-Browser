@@ -206,8 +206,9 @@ and the engine, which is modified: its source is the `jihad/uxp-RB_20261006` bra
 The packages also carry the libraries the engine runs on, each under its own licence: glibc
 (LGPL-2.1), the GCC runtime (GPL-3.0 with the Runtime Library Exception), ALSA and GLib (LGPL),
 Expat, fontconfig, PCRE, libpng, zlib (permissive), FreeType (FreeType License), the engine's own
-`about:license` contents, Lato (SIL OFL, Mochi package), and the Personas by other authors (CC BY /
-BY-SA, credited in `CREDITS.md`). `NOTICE` names every one, with where its text ships and where its
+`about:license` contents, FFmpeg 4.4.5's H.264/AAC/MP3 decoders (LGPL v2.1+, the two libraries
+built from unmodified source by `build/webos-oe/build-ffmpeg-arm.sh`), Lato (SIL OFL, Mochi
+package), and the Personas by other authors (CC BY / BY-SA, credited in `CREDITS.md`). `NOTICE` names every one, with where its text ships and where its
 source is. Palefill is MPL-2.0, shipped unmodified. Pale Moon, Basilisk and Moonchild branding is
 removed from the engine build; "Goanna" names the engine, Moonchild Productions' trademark, used
 to say what the browser runs on. Flash Player is the device's own and is not distributed. HP's SDK,

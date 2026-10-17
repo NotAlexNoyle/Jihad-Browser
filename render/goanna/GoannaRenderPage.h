@@ -39,6 +39,7 @@ void SetUserAgentOverride(const char* ua);
 void ClearCache();
 void ClearCookies();
 void SetMinFontSize(int px);        // YAP: setMinFontSize
+void JihadStallSamplerInit();       // $JIHAD_STALL_SAMPLER=<ms>: sample the pc of an event-loop event that runs longer (diagnosis; GoannaRenderPage.cpp)
 void SetBlockPopups(bool block);    // YAP: setBlockPopups
 void SetAcceptCookies(bool accept); // YAP: setAcceptCookies
 
@@ -157,6 +158,11 @@ public:
   // Resize the offscreen surface + content viewport (YAP: setWindowSize). The
   // page reflows to the new size; the next ReadPixels returns width*height*4.
   bool Resize(int width, int height);
+  // T-499: the engine's layout viewport set WIDER than the card (an offscreen window as wide as the
+  // page's overflow), so innerWidth and position:fixed follow the page's own width while the card
+  // fit-zooms the whole of it; Width()/Height() stay the card's. Resize() puts it back.
+  bool SetLayoutSize(int width, int height);
+  int LayoutWidth() const { return mLayoutW ? mLayoutW : mWidth; }
 
   // Scroll the content to an absolute CSS-pixel offset (YAP: setScrollPosition).
   void ScrollTo(int x, int y);
@@ -479,6 +485,7 @@ private:
   bool mOffscreen;         // true when rendering via the offscreen widget
   int mWidth;
   int mHeight;
+  int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)
   double mRenderZoom = 1.0;  // pinch/fit zoom applied as a gfxContext scale in the offscreen capture
   double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)
   double mPanY = 0.0;

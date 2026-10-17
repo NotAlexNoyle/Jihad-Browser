@@ -1,0 +1,206 @@
+
+[exited with code 0]
+daemon put ok
+== daemon 07cd73c4
+== console daemon: 1 process(es); [jihad-bs] js-console bridge on (ALL sources)
+== [jihad-bs] stall sampler on: an event longer than 1000 ms is sampled every 10 ms (the pc); samples to /tmp/jihad-stall.t
+@@ yt-home | 72s | load-done=1 | first-paint=12s load=31s worst-tick=8903ms | stalls: 6
+   stall 1: an event ran 5142 ms, 396 samples: libxul.so 89%, libmemcpy.so 7%, jihad-browserserver 1%, libc.so.6 0%, libpthread.so.0 0%, 
+   stall 2: an event ran 8565 ms, 738 samples: libxul.so 86%, jihad-browserserver 4%, libpthread.so.0 3%, libmemcpy.so 2%, ld-2.23.so 0%, libc.so.6 0%, JIT code 1%
+   stall 3: an event ran 1270 ms, 26 samples: libxul.so 57%, libc.so.6 19%, libpthread.so.0 19%, jihad-browserserver 3%, 
+   stall 4: an event ran 1331 ms, 32 samples: libxul.so 56%, libpthread.so.0 28%, jihad-browserserver 3%, libc.so.6 3%, JIT code 9%
+   stall 5: an event ran 1418 ms, 40 samples: libxul.so 80%, jihad-browserserver 5%, libc.so.6 2%, libpthread.so.0 2%, JIT code 10%
+   stall 6: an event ran 2902 ms, 184 samples: libxul.so 73%, libpthread.so.0 6%, jihad-browserserver 3%, libc.so.6 2%, libgcc_s.so.1 2%, libmemcpy.so 1%, JIT code 9%
+   GC worst:  | CC worst:  | GC lines 3 CC lines 2
+@@ ddg | 75s | load-done=0 | first-paint=23s load=-s worst-tick=34318ms | stalls: 9
+   stall 7: an event ran 32374 ms, 2958 samples: libxul.so 65%, libpthread.so.0 5%, jihad-browserserver 1%, libc.so.6 1%, libmemcpy.so 0%, ld-2.23.so 0%, JIT code 24%
+   stall 8: an event ran 1591 ms, 58 samples: libxul.so 94%, libmemcpy.so 3%, jihad-browserserver 1%, 
+   stall 9: an event ran 1294 ms, 29 samples: libxul.so 72%, jihad-browserserver 3%, libpthread.so.0 3%, ld-2.23.so 3%, libmemcpy.so 3%, JIT code 13%
+   stall 10: an event ran 1601 ms, 58 samples: libxul.so 81%, libc.so.6 3%, libpthread.so.0 1%, libmemcpy.so 1%, JIT code 12%
+   stall 11: an event ran 4501 ms, 335 samples: libxul.so 85%, jihad-browserserver 3%, libpthread.so.0 2%, libmemcpy.so 2%, libgcc_s.so.1 0%, libc.so.6 0%, JIT code 3%
+   stall 12: an event ran 2347 ms, 133 samples: libxul.so 75%, libpthread.so.0 9%, jihad-browserserver 1%, ld-2.23.so 0%, libgcc_s.so.1 0%, libmemcpy.so 0%, JIT code 11%
+   stall 13: an event ran 4684 ms, 349 samples: libxul.so 97%, libmemcpy.so 1%, jihad-browserserver 0%, libc.so.6 0%, 
+   stall 14: an event ran 8647 ms, 731 samples: libxul.so 76%, libpthread.so.0 6%, jihad-browserserver 2%, libc.so.6 2%, libmemcpy.so 0%, ld-2.23.so 0%, JIT code 8%
+   stall 15: an event ran 1092 ms, 9 samples: libxul.so 44%, libpthread.so.0 11%, JIT code 44%
+   GC worst:  | CC worst:  | GC lines 4 CC lines 2
+@@ gitlab | 92s | load-done=1 | first-paint=11s load=-s worst-tick=46435ms | stalls: 9
+   stall 16: an event ran 8799 ms, 750 samples: libxul.so 75%, libpthread.so.0 6%, jihad-browserserver 3%, libc.so.6 1%, libmemcpy.so 0%, ld-2.23.so 0%, JIT code 11%
+   stall 17: an event ran 5239 ms, 397 samples: libxul.so 91%, libpthread.so.0 4%, libc.so.6 1%, libmemcpy.so 1%, libgcc_s.so.1 0%, jihad-browserserver 0%, 
+   stall 18: an event ran 1580 ms, 57 samples: libxul.so 89%, libc.so.6 5%, jihad-browserserver 3%, libmemcpy.so 1%, 
+   stall 19: an event ran 1085 ms, 8 samples: libxul.so 100%, 
+   stall 20: an event ran 1071 ms, 7 samples: libxul.so 71%, jihad-browserserver 14%, ld-2.23.so 14%, 
+   stall 21: an event ran 44441 ms, 4167 samples: libxul.so 76%, libpthread.so.0 5%, jihad-browserserver 2%, libmemcpy.so 1%, libc.so.6 0%, ld-2.23.so 0%, JIT code 12%
+   stall 22: an event ran 1107 ms, 10 samples: libxul.so 100%, 
+   stall 23: an event ran 3617 ms, 248 samples: libxul.so 98%, libpthread.so.0 1%, libmemcpy.so 0%, 
+   stall 24: an event ran 1361 ms, 34 samples: libxul.so 76%, jihad-browserserver 8%, libpthread.so.0 5%, ld-2.23.so 2%, JIT code 5%
+   GC worst:  | CC worst:  | GC lines 5 CC lines 4
+@@ oldreddit | 73s | load-done=0 | first-paint=1s load=-s worst-tick=50833ms | stalls: 2
+   stall 25: an event ran 46124 ms, 4263 samples: libxul.so 71%, libpthread.so.0 4%, jihad-browserserver 1%, libmemcpy.so 0%, libc.so.6 0%, libgcc_s.so.1 0%, JIT code 19%
+   stall 26: an event ran 1018 ms, 1 samples: libfontconfig.so.1 100%, 
+   GC worst:  | CC worst:  | GC lines 3 CC lines 1
+@@ yt-watch | 74s | load-done=1 | first-paint=12s load=35s worst-tick=7688ms | stalls: 7
+   stall 27: an event ran 2082 ms, 94 samples: libxul.so 77%, libpthread.so.0 11%, jihad-browserserver 2%, libmemcpy.so 2%, libc.so.6 2%, JIT code 4%
+   stall 28: an event ran 4952 ms, 376 samples: libxul.so 91%, libmemcpy.so 5%, jihad-browserserver 1%, libpthread.so.0 0%, libc.so.6 0%, ld-2.23.so 0%, 
+   stall 29: an event ran 1054 ms, 5 samples: libxul.so 100%, 
+   stall 30: an event ran 3327 ms, 229 samples: libxul.so 91%, jihad-browserserver 3%, libmemcpy.so 1%, libpthread.so.0 1%, JIT code 1%
+   stall 31: an event ran 2572 ms, 153 samples: libxul.so 86%, libpthread.so.0 4%, jihad-browserserver 3%, ld-2.23.so 1%, libc.so.6 1%, libmemcpy.so 0%, JIT code 1%
+   stall 32: an event ran 7617 ms, 646 samples: libxul.so 84%, libmemcpy.so 4%, jihad-browserserver 4%, libpthread.so.0 3%, libgcc_s.so.1 0%, ld-2.23.so 0%, JIT code 2%
+   stall 33: an event ran 1345 ms, 34 samples: libxul.so 73%, libc.so.6 5%, libmemcpy.so 5%, libpthread.so.0 5%, jihad-browserserver 2%, JIT code 5%
+   GC worst:  | CC worst:  | GC lines 4 CC lines 2
+== samples file: 17588 lines, 343089 bytes
+== restored: (103783/365115456) jihad-mochi (start) running, process 3899; daemons: 1
+tmpfs                    40960      1608     39352   4% /tmp
+=== exit 0
+samples: 17698 lines
+=== stall 1: 5142 ms, 396 samples (10 ms each)
+--- by bucket:
+   38.9%  JS interpreter / runtime
+   27.0%  JIT compile (Ion/Baseline)
+   20.2%  other
+    7.6%  other module: libmemcpy.so
+    2.5%  GC
+    1.3%  other module: jihad-browserserver
+    0.8%  other module: libc.so.6
+    0.8%  other module: libpthread.so.0
+    0.8%  Memory (malloc, strings)
+    0.3%  Style (selectors, restyle)
+--- top 25 functions:
+    7.6%  libmemcpy.so
+    4.3%  js::LifoAlloc::allocImpl(unsigned int)
+    2.8%  js::jit::MacroAssemblerARM::ma_alu(js::jit::Register, js::jit::Imm32, js::jit::Register, js::jit::AutoGenericRegisterScope<js::jit::Register
+    2.5%  js::detail::BumpChunk::tryAlloc(unsigned int)
+    2.3%  js::irregexp::RegExpBuilder::AddAtom(js::irregexp::RegExpTree*)
+    2.3%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    2.0%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::putInt(unsigned int, bool)
+    1.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    1.8%  js::irregexp::TextNode::FilterASCII(int, bool, bool)
+    1.5%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::Add(js::LifoAlloc*, js::irregexp::RegExpTree*)
+    1.5%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertEntryForwards(unsigned int, unsign
+    1.5%  EmitSimpleCharacter(js::irregexp::RegExpCompiler*, char16_t, js::jit::Label*, int, bool, bool)
+    1.3%  js::jit::BufferSlice<1024>::putBytes(unsigned int, void const*)
+    1.3%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.3%  js::jit::Assembler::as_b(js::jit::Label*, js::jit::Assembler::Condition)
+    1.3%  js::irregexp::RegExpAlternative::RegExpAlternative(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    1.3%  ??
+    1.3%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::putBytes(unsigned int, void const*)
+    1.3%  jihad-browserserver
+    1.3%  js::irregexp::TextNode::TextEmitPass(js::irregexp::RegExpCompiler*, js::irregexp::TextNode::TextEmitPassType, bool, js::irregexp::Trace*, bo
+    1.0%  js::irregexp::TextNode::Emit(js::irregexp::RegExpCompiler*, js::irregexp::Trace*)
+    1.0%  js::jit::LabelBase::bound() const
+    1.0%  js::irregexp::RegExpParser<unsigned char>::Advance()
+    1.0%  void mozilla::detail::VectorImpl<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1>, true>::copyConstruct<js::irregexp::
+    1.0%  unsigned int mozilla::RotateLeft<unsigned int>(unsigned int, unsigned char)
+
+=== stall 2: 8565 ms, 738 samples (10 ms each)
+--- by bucket:
+   32.1%  other
+   20.7%  JS parse / bytecode
+   15.3%  JIT compile (Ion/Baseline)
+    9.8%  JS interpreter / runtime
+    8.1%  GC
+    4.1%  other module: jihad-browserserver
+    3.1%  other module: libpthread.so.0
+    2.3%  other module: libmemcpy.so
+    1.9%  JIT code (the page's compiled JavaScript)
+    0.9%  other module: ld-2.23.so
+    0.5%  other module: libc.so.6
+    0.5%  other module: libgcc_s.so.1
+    0.4%  Memory (malloc, strings)
+    0.1%  other module: libnspr4.so
+--- top 25 functions:
+    4.1%  jihad-browserserver
+    3.1%  libpthread.so.0
+    2.3%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    2.3%  libmemcpy.so
+    1.9%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    1.9%  <JIT code>
+    1.6%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.9%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    0.9%  js::frontend::TokenStream::getCharIgnoreEOL()
+    0.9%  js::TraceGenericPointerRoot(JSTracer*, js::gc::Cell**, char const*)
+    0.9%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    0.9%  ld-2.23.so
+    0.9%  js::BindingIter::settle()
+    0.8%  js::gc::Cell::getTraceKind() const
+    0.8%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    0.8%  js::jit::ICStubCompiler::ICStubCompiler(JSContext*, js::jit::ICStub::Kind, js::jit::ICStubCompiler::Engine)
+    0.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.8%  js::BindingIter::increment()
+    0.7%  js::frontend::Parser<js::frontend::SyntaxParseHandler>::assignExpr(js::frontend::InHandling, js::frontend::YieldHandling, js::frontend::Trip
+    0.7%  ReservedWordInfo const* FindReservedWord<char16_t>(char16_t const*, unsigned int)
+    0.7%  Fold(js::ExclusiveContext*, js::frontend::ParseNode**, js::frontend::Parser<js::frontend::FullParseHandler>&, bool)
+    0.7%  js::TaggedProto::TaggedProto(js::TaggedProto const&)
+    0.5%  libc.so.6
+    0.5%  js::frontend::TokenStream::getToken(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.5%  (anonymous namespace)::NameResolver::resolve(js::frontend::ParseNode*, JS::Handle<JSAtom*>)
+
+=== stall 3: 1270 ms, 26 samples (10 ms each)
+--- by bucket:
+   46.2%  other
+   19.2%  other module: libc.so.6
+   19.2%  other module: libpthread.so.0
+    7.7%  Memory (malloc, strings)
+    3.8%  other module: jihad-browserserver
+    3.8%  JIT compile (Ion/Baseline)
+--- top 25 functions:
+   19.2%  libc.so.6
+   19.2%  libpthread.so.0
+    7.7%  std::mutex::lock()
+    7.7%  mozilla::layers::DebugGLData::~DebugGLData()
+    3.8%  jihad-browserserver
+    3.8%  icu_78::internal::LocalOpenPointer<UResourceBundle, &ures_close_78>::~LocalOpenPointer()
+    3.8%  icu_78::Mutex::Mutex(icu_78::UMutex*)
+    3.8%  (anonymous namespace)::init_resb_result(UResourceDataEntry*, unsigned int, char const*, int, UResourceDataEntry*, char const*, int, UResourc
+    3.8%  makeResourceFrom16(ResourceData const*, int)
+    3.8%  ures_getNextResource_78
+    3.8%  icu_78::copyInvariantChars(icu_78::UnicodeString const&, icu_78::FixedString&, UErrorCode&)
+    3.8%  (anonymous namespace)::initFromResourceBundle(UErrorCode&)
+    3.8%  ??
+    3.8%  uprv_compareInvAscii_78
+    3.8%  res_getStringNoTrace_78
+    3.8%  js::jit::MacroAssemblerARM::ma_ldrb(js::jit::DTRAddr, js::jit::Register, js::jit::Index, js::jit::Assembler::Condition)
+
+=== stall 4: 1331 ms, 32 samples (10 ms each)
+--- by bucket:
+   31.2%  other
+   28.1%  other module: libpthread.so.0
+   15.6%  JS interpreter / runtime
+    9.4%  JIT code (the page's compiled JavaScript)
+    6.2%  JIT compile (Ion/Baseline)
+    3.1%  GC
+    3.1%  other module: jihad-browserserver
+    3.1%  other module: libc.so.6
+--- top 25 functions:
+   28.1%  libpthread.so.0
+    9.4%  <JIT code>
+    3.1%  js::detail::HashTable<js::HashMapEntry<js::gc::Cell*, unsigned long long>, js::HashMap<js::gc::Cell*, unsigned long long, js::PointerHasher<
+    3.1%  js::jit::ICEntry::pc(JSScript*) const
+    3.1%  js::NativeObject::addPropertyInternal(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, bool (*)(JSContext*, JS::Handl
+    3.1%  JS::Heap<JS::Value>::set(JS::Value const&)
+    3.1%  JSContext::runningWithTrustedPrincipals() const
+    3.1%  js::TaggedProto::isObject() const
+    3.1%  js::BindingIter::increment()
+    3.1%  jihad-browserserver
+    3.1%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    3.1%  js::MutableWrappedPtrOperations<JS::Value, JS::MutableHandle<JS::Value> >::set(JS::Value const&)
+    3.1%  js::TypeSet::ObjectKey::unknownProperties()
+    3.1%  js::HeapTypeSetKey::constant(js::CompilerConstraintList*, JS::Value*)
+    3.1%  libc.so.6
+    3.1%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    3.1%  js::jit::MLoadFixedSlot::op() const
+    3.1%  js::GCPtr<js::Shape*>::init(js::Shape* const&)
+    3.1%  js::TypeSet::baseObjectCount() const
+    3.1%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    3.1%  JS::Rooted<JSScript*>::~Rooted()
+    3.1%  js::jit::ScriptFromCalleeToken(void*)
+
+=== stall 5: 1418 ms, 40 samples (10 ms each)
+--- by bucket:
+   45.0%  other
+   27.5%  JS parse / bytecode
+   10.0%  JIT code (the page's compiled JavaScript)
+    5.0%  other module: jihad-browserserver
+    2.5%  other module: libc.so.6
+    2.5%  GC
+
+[exited with code 0]

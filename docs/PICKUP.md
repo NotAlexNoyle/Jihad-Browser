@@ -5,6 +5,51 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## 2026-10-16 (evening) delta — the README's caveats worked: the stall, H.264, the viewport (READ FIRST)
+
+**The owner:** "fix the stall"; then "move all caveats in the readme into a dedicated caveats section
+at the bottom. also change the language to be less corporate advertisement like while still being
+2011 era appropriate" (done, `4a76dbae`); then "work to address all of the caveats in the README.md
+which can reasonably be classified as solvable problems". The ledger (`docs/MODERN-WEB.md`) has
+T-499 (the viewport, built), T-500 (the stall) and T-501 (H.264/AAC) with the numbers.
+
+**T-500, the stall:** the daemon has a stall sampler (`$JIHAD_STALL_SAMPLER=<ms>`,
+`GoannaRenderPage.cpp`; resolve with `tools/host/stall-resolve.py` against the unstripped libxul in
+the obj dir — addr2line over ten thousand addresses takes ~10 min on the host). 33 stalls resolved:
+the pages' own JavaScript (JIT code + the runtime) two thirds, compile (baseline, Ion, regular
+expressions) and GC/CC the rest; two 5-s stalls are cycle collections. The clock: Palm's
+`ondemandtcl` governor (up_threshold 95, sampling 200 ms, max_tickle_window 3 s) kept the CPU at
+192–384 MHz through a page load. **The clock hold** (`JihadBrowserServer.cpp` tick loop, daemon 16/17,
+pref `jihad.cpu.hold`): the frequency floor (`scaling_min_freq`, both cores; cpu1 is hot-plugged)
+goes to the top while the engine has work, back after 2 s of idle ticks. **THE TRAP OF THE DAY** (a
+reboot): writing `scaling_governor` wedged the kernel's cpufreq lock — every cpufreq read and
+every `luna-send` hung, `reboot` hung, only `novacom run file://sbin/reboot -- -f` got out; memory
+`cpufreq-governor-switch-wedges-the-touchpad`. A floor write is safe (tested with capped reads).
+T500_PICKUP
+
+**T-501, H.264/AAC:** `build/webos-oe/fetch-ffmpeg.sh` (host, sha256 pinned) then
+`in-container.sh --arm build/webos-oe/build-ffmpeg-arm.sh` → `out-arm/ffmpeg-arm/lib/libavcodec.so.58`
++ `libavutil.so.56` (FFmpeg 4.4.5, H.264/AAC/MP3 decoders and parsers only, LGPL v2.1+, linked
+against the toolchain's own sysroot — the Debian one has no crt1.o). The bundle ships them when
+built; NOTICE and `licenses/runtime/ffmpeg-COPYING.LGPLv2.1`. Patents on H.264/AAC: the owner's
+call, noted in NOTICE. T501_PICKUP
+
+**T-499, the viewport:** `GoannaRenderPage::SetLayoutSize` + the once-per-page rule in
+`emitGeometry` (content wider than the card by 8 px, ≤ 1100 px, no meta viewport; pref
+`jihad.viewport.followOverflow`); reset on navigation and on `setWindowSize`. T499_PICKUP
+
+**Not solvable from here (the README's Caveats say so):** the device scope; the system's own TLS;
+WebGL (no GPU driver); Flash's availability; `palm-install`; Akamai's and Reddit's gates;
+GitHub's empty parts — its page uses an import map (120 module preloads under it), which the
+engine lacks, and GitHub's script policy allows only its asset host, so an import-map shim (which
+loads modules from blob URLs) cannot run there: engine work. Mastodon's timeline: not looked at
+again (needs a console-on visit). The double-tap/pinch sharpness: PICKUP's 2026-10 note stands
+(cause not found).
+
+**Device state:** DEVICE_STATE_EVENING
+
+---
+
 ## 2026-10-16 (afternoon) delta — the harness, the second signature, YouTube's mobile site, the web-compat shims (READ FIRST)
 
 **The owner:** "continue" (the open items of the morning), then "fix the regular duckduckgo, and

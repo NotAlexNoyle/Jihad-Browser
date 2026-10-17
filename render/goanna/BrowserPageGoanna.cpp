@@ -7,6 +7,7 @@
  * server->adapter messages via IPageMessageSink.
  */
 #include "BrowserPageGoanna.h"
+extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOverflow (T-499)
 #include "EngineCompat.h"
 #include "EngineHost.h"
 #include "GoannaRenderPage.h"
@@ -609,6 +610,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 }
 
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
+  mLayoutFollowed = false;   // T-499: a new card size (rotation) starts from a layout viewport equal to it
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
@@ -782,6 +784,7 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
 // scroll on back/forward either (restoreFrameStateRequested is an empty stub), so calling this
 // from all five nav commands reproduces stock exactly.
 void BrowserPageGoanna::resetScrollForNavigation() {
+  mLayoutFollowed = false;   // T-499: the next page decides its own layout viewport
   // A new document invalidates both buffers wholesale. The damage-only path proves its
   // premise from geometry (size, zoom, scroll), and a navigation can leave every one of
   // those identical while replacing all the pixels — so geometry alone cannot catch it and
@@ -2193,6 +2196,27 @@ bool BrowserPageGoanna::emitGeometry() {
   // already fits the layout viewport should composite at exactly 1.0 (identity blit). The
   // reported height is unchanged — only the width is floored at the window width.
   if (got && cw > 0 && cw < mPage->Width()) cw = mPage->Width();
+  // T-499: a page laid out wider than the card gets a layout viewport as wide as its content, ONCE
+  // per page and size (a reflow at the new width can change the content size; nothing follows that
+  // a second time, so there is no loop). Only a page without a meta viewport (one that declares a
+  // width is the card's business through initial-scale), only up to 1100 px (a desktop page's
+  // width; one overflowing element must not turn a phone layout into a desktop one), and only when
+  // the pref says so. Then innerWidth is the page's own width and what it parks just past that
+  // edge stays off screen while the card fit-zooms the whole width as before.
+  if (got && cw > mPage->Width() + 8 && cw <= 1100 && ch > 0 && ::gJihadViewportFollow && !mLayoutFollowed) {
+    double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
+    bool declares = mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us);
+    mLayoutFollowed = true;
+    if (!declares) {
+      int lw = cw, lh = (int)((int64_t)mPage->Height() * lw / mPage->Width());
+      if (mPage->SetLayoutSize(lw, lh)) {
+        int cw2 = 0, ch2 = 0;
+        if (mPage->GetContentSize(&cw2, &ch2) && cw2 > 0 && ch2 > 0) { cw = cw2; ch = ch2; }
+        if (cw < lw) cw = lw;
+        mNeedsPaint = true; mDamageForceFull = true;
+      }
+    }
+  }
   if (got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)) {
     // Log only on a REAL change. This used to log unconditionally, and emitGeometry is retried
     // from the pump on EVERY tick while mGeometryDirty is set — which made this line the single

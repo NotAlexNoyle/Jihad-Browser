@@ -102,6 +102,19 @@ for s in libmozavutil.so libmozavcodec.so; do
   cp -L "$DIST/bin/$s" "$OUT/$s" && echo "  ffvpx: $s"
 done
 
+# FFmpeg's H.264/AAC/MP3 decoders (T-501, 2026-10-16): libavcodec.so.58 + libavutil.so.56, cross-built
+# by build/webos-oe/build-ffmpeg-arm.sh (LGPL v2.1+, decoders and parsers only). The engine's
+# FFmpegRuntimeLinker dlopens libavcodec.so.58 from the library path at run time and gets H.264 and
+# AAC for <video>, <audio> and Media Source Extensions — until this every MP4 was "format not
+# supported" (only ffvpx's VP8/VP9/Opus/Vorbis/FLAC played). Shipped when built; the bundle is
+# whole without them (the formats are then refused as before).
+FFM="$REPO/build/webos-oe/out-arm/ffmpeg-arm"
+if [ -f "$FFM/lib/libavcodec.so.58" ] && [ -f "$FFM/lib/libavutil.so.56" ]; then
+  cp -L "$FFM/lib/libavcodec.so.58" "$OUT/libavcodec.so.58" && cp -L "$FFM/lib/libavutil.so.56" "$OUT/libavutil.so.56" && echo "  ffmpeg: libavcodec.so.58 + libavutil.so.56 (H.264, AAC, MP3; LGPL v2.1+)"
+else
+  echo "  ffmpeg: not built (build/webos-oe/fetch-ffmpeg.sh, then in-container.sh --arm build/webos-oe/build-ffmpeg-arm.sh) — H.264 and AAC stay unsupported in this bundle"
+fi
+
 # GRE resource files the engine loads from greDir (= the bundle dir).
 #
 # `cp -L` and the REQUIRED check are both load-bearing (found on-device 2026-07-31, the hard way):

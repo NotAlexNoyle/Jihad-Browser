@@ -478,6 +478,7 @@ private:
   // last meta-viewport sent to the card (emitGeometry sends it only on change)
   bool               mPopupWasOpen = false;   // a XUL popup was open at the last pump (repaint on change)
   bool               mViewportSent = false;
+  bool               mLayoutFollowed = false;   // T-499: this page already got its layout viewport
   double             mVpIs = 0, mVpMn = 0, mVpMx = 0; int mVpW = 0, mVpH = 0; bool mVpUs = true;
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

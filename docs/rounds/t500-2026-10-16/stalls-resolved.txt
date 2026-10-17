@@ -1,0 +1,1574 @@
+=== stall 1: 5142 ms, 396 samples (10 ms each)
+--- by bucket:
+   38.9%  JS interpreter / runtime
+   27.0%  JIT compile (Ion/Baseline)
+   20.2%  other
+    7.6%  other module: libmemcpy.so
+    2.5%  GC
+    1.3%  other module: jihad-browserserver
+    0.8%  other module: libc.so.6
+    0.8%  other module: libpthread.so.0
+    0.8%  Memory (malloc, strings)
+    0.3%  Style (selectors, restyle)
+--- top 40 functions:
+    7.6%  libmemcpy.so
+    4.3%  js::LifoAlloc::allocImpl(unsigned int)
+    2.8%  js::jit::MacroAssemblerARM::ma_alu(js::jit::Register, js::jit::Imm32, js::jit::Register, js::jit::AutoGenericRegisterScope<js::jit::Register
+    2.5%  js::detail::BumpChunk::tryAlloc(unsigned int)
+    2.3%  js::irregexp::RegExpBuilder::AddAtom(js::irregexp::RegExpTree*)
+    2.3%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    2.0%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::putInt(unsigned int, bool)
+    1.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    1.8%  js::irregexp::TextNode::FilterASCII(int, bool, bool)
+    1.5%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::Add(js::LifoAlloc*, js::irregexp::RegExpTree*)
+    1.5%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertEntryForwards(unsigned int, unsign
+    1.5%  EmitSimpleCharacter(js::irregexp::RegExpCompiler*, char16_t, js::jit::Label*, int, bool, bool)
+    1.3%  js::jit::BufferSlice<1024>::putBytes(unsigned int, void const*)
+    1.3%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.3%  js::jit::Assembler::as_b(js::jit::Label*, js::jit::Assembler::Condition)
+    1.3%  js::irregexp::RegExpAlternative::RegExpAlternative(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    1.3%  ??
+    1.3%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::putBytes(unsigned int, void const*)
+    1.3%  jihad-browserserver
+    1.3%  js::irregexp::TextNode::TextEmitPass(js::irregexp::RegExpCompiler*, js::irregexp::TextNode::TextEmitPassType, bool, js::irregexp::Trace*, bo
+    1.0%  js::irregexp::TextNode::Emit(js::irregexp::RegExpCompiler*, js::irregexp::Trace*)
+    1.0%  js::jit::LabelBase::bound() const
+    1.0%  js::irregexp::RegExpParser<unsigned char>::Advance()
+    1.0%  void mozilla::detail::VectorImpl<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1>, true>::copyConstruct<js::irregexp::
+    1.0%  unsigned int mozilla::RotateLeft<unsigned int>(unsigned int, unsigned char)
+    1.0%  js::irregexp::RegExpDisjunction::RegExpDisjunction(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    1.0%  js::jit::Imm8::EncodeImm(unsigned int)
+    1.0%  js::irregexp::NativeRegExpMacroAssembler::LoadCurrentCharacterUnchecked(int, int)
+    0.8%  js::irregexp::RegExpCharacterClass::ToNode(js::irregexp::RegExpCompiler*, js::irregexp::RegExpNode*)
+    0.8%  js::jit::MacroAssemblerARM::ma_cmp(js::jit::Register, js::jit::Imm32, js::jit::AutoGenericRegisterScope<js::jit::Register>&, js::jit::Assemb
+    0.8%  js::irregexp::Trace::RestoreAffectedRegisters(js::irregexp::RegExpMacroAssembler*, int, js::irregexp::OutSet&, js::irregexp::OutSet&)
+    0.8%  js::jit::MacroAssemblerARM::ma_add(js::jit::Register, js::jit::Imm32, js::jit::Register, js::jit::AutoGenericRegisterScope<js::jit::Register
+    0.8%  bool mozilla::Vector<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1> >::append<js::irregexp::RegExpTree* const&>(js::
+    0.8%  js::jit::MacroAssemblerARM::ma_ldrb(js::jit::DTRAddr, js::jit::Register, js::jit::Index, js::jit::Assembler::Condition)
+    0.8%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::length()
+    0.8%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::ensureSpace(unsigned int)
+    0.8%  libc.so.6
+    0.8%  js::jit::BOffImm::BOffImm(js::jit::Instruction const&)
+    0.8%  js::irregexp::Trace::PerformDeferredActions(js::LifoAlloc*, js::irregexp::RegExpMacroAssembler*, int, js::irregexp::OutSet&, js::irregexp::O
+    0.8%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::getInst(js::jit::BufferOffset)
+
+=== stall 2: 8565 ms, 738 samples (10 ms each)
+--- by bucket:
+   32.1%  other
+   20.7%  JS parse / bytecode
+   15.3%  JIT compile (Ion/Baseline)
+    9.8%  JS interpreter / runtime
+    8.1%  GC
+    4.1%  other module: jihad-browserserver
+    3.1%  other module: libpthread.so.0
+    2.3%  other module: libmemcpy.so
+    1.9%  JIT code (the page's compiled JavaScript)
+    0.9%  other module: ld-2.23.so
+    0.5%  other module: libc.so.6
+    0.5%  other module: libgcc_s.so.1
+    0.4%  Memory (malloc, strings)
+    0.1%  other module: libnspr4.so
+--- top 40 functions:
+    4.1%  jihad-browserserver
+    3.1%  libpthread.so.0
+    2.3%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    2.3%  libmemcpy.so
+    1.9%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    1.9%  <JIT code>
+    1.6%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.9%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    0.9%  js::frontend::TokenStream::getCharIgnoreEOL()
+    0.9%  js::TraceGenericPointerRoot(JSTracer*, js::gc::Cell**, char const*)
+    0.9%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    0.9%  ld-2.23.so
+    0.9%  js::BindingIter::settle()
+    0.8%  js::gc::Cell::getTraceKind() const
+    0.8%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    0.8%  js::jit::ICStubCompiler::ICStubCompiler(JSContext*, js::jit::ICStub::Kind, js::jit::ICStubCompiler::Engine)
+    0.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.8%  js::BindingIter::increment()
+    0.7%  js::frontend::Parser<js::frontend::SyntaxParseHandler>::assignExpr(js::frontend::InHandling, js::frontend::YieldHandling, js::frontend::Trip
+    0.7%  ReservedWordInfo const* FindReservedWord<char16_t>(char16_t const*, unsigned int)
+    0.7%  Fold(js::ExclusiveContext*, js::frontend::ParseNode**, js::frontend::Parser<js::frontend::FullParseHandler>&, bool)
+    0.7%  js::TaggedProto::TaggedProto(js::TaggedProto const&)
+    0.5%  libc.so.6
+    0.5%  js::frontend::TokenStream::getToken(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.5%  (anonymous namespace)::NameResolver::resolve(js::frontend::ParseNode*, JS::Handle<JSAtom*>)
+    0.5%  Interpret(JSContext*, js::RunState&)
+    0.5%  js::Shape::entryCount()
+    0.5%  js::jit::MacroAssemblerARMCompat::loadPtr(js::jit::Address const&, js::jit::Register)
+    0.5%  js::jit::ICStubCompiler::getStubCode()
+    0.5%  js::jit::JitCompartment::getStubCode(unsigned int)
+    0.5%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertEntryForwards(unsigned int, unsign
+    0.5%  js::detail::HashTable<js::HashMapEntry<unsigned int, js::ReadBarriered<js::jit::JitCode*> >, js::HashMap<unsigned int, js::ReadBarriered<js:
+    0.5%  libgcc_s.so.1
+    0.5%  js::jit::DoSetElemFallback(JSContext*, js::jit::BaselineFrame*, js::jit::ICSetElem_Fallback*, JS::Value*, JS::Handle<JS::Value>, JS::Handle<
+    0.4%  non-virtual thunk to js::frontend::FunctionBox::toObjectBox()
+    0.4%  CanStoreCharsAsLatin1(char16_t const*, unsigned int)
+    0.4%  js::frontend::Parser<js::frontend::FullParseHandler>::labelOrIdentifierReference(js::frontend::YieldHandling)
+    0.4%  void js::GCMarker::traverse<js::ObjectGroup*>(js::ObjectGroup*)
+    0.4%  js::frontend::TokenStream::peekToken(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.4%  js::frontend::TokenStream::TokenBuf::getRawChar()
+
+=== stall 3: 1270 ms, 26 samples (10 ms each)
+--- by bucket:
+   46.2%  other
+   19.2%  other module: libc.so.6
+   19.2%  other module: libpthread.so.0
+    7.7%  Memory (malloc, strings)
+    3.8%  other module: jihad-browserserver
+    3.8%  JIT compile (Ion/Baseline)
+--- top 40 functions:
+   19.2%  libc.so.6
+   19.2%  libpthread.so.0
+    7.7%  std::mutex::lock()
+    7.7%  mozilla::layers::DebugGLData::~DebugGLData()
+    3.8%  jihad-browserserver
+    3.8%  icu_78::internal::LocalOpenPointer<UResourceBundle, &ures_close_78>::~LocalOpenPointer()
+    3.8%  icu_78::Mutex::Mutex(icu_78::UMutex*)
+    3.8%  (anonymous namespace)::init_resb_result(UResourceDataEntry*, unsigned int, char const*, int, UResourceDataEntry*, char const*, int, UResourc
+    3.8%  makeResourceFrom16(ResourceData const*, int)
+    3.8%  ures_getNextResource_78
+    3.8%  icu_78::copyInvariantChars(icu_78::UnicodeString const&, icu_78::FixedString&, UErrorCode&)
+    3.8%  (anonymous namespace)::initFromResourceBundle(UErrorCode&)
+    3.8%  ??
+    3.8%  uprv_compareInvAscii_78
+    3.8%  res_getStringNoTrace_78
+    3.8%  js::jit::MacroAssemblerARM::ma_ldrb(js::jit::DTRAddr, js::jit::Register, js::jit::Index, js::jit::Assembler::Condition)
+
+=== stall 4: 1331 ms, 32 samples (10 ms each)
+--- by bucket:
+   31.2%  other
+   28.1%  other module: libpthread.so.0
+   15.6%  JS interpreter / runtime
+    9.4%  JIT code (the page's compiled JavaScript)
+    6.2%  JIT compile (Ion/Baseline)
+    3.1%  GC
+    3.1%  other module: jihad-browserserver
+    3.1%  other module: libc.so.6
+--- top 40 functions:
+   28.1%  libpthread.so.0
+    9.4%  <JIT code>
+    3.1%  js::detail::HashTable<js::HashMapEntry<js::gc::Cell*, unsigned long long>, js::HashMap<js::gc::Cell*, unsigned long long, js::PointerHasher<
+    3.1%  js::jit::ICEntry::pc(JSScript*) const
+    3.1%  js::NativeObject::addPropertyInternal(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, bool (*)(JSContext*, JS::Handl
+    3.1%  JS::Heap<JS::Value>::set(JS::Value const&)
+    3.1%  JSContext::runningWithTrustedPrincipals() const
+    3.1%  js::TaggedProto::isObject() const
+    3.1%  js::BindingIter::increment()
+    3.1%  jihad-browserserver
+    3.1%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    3.1%  js::MutableWrappedPtrOperations<JS::Value, JS::MutableHandle<JS::Value> >::set(JS::Value const&)
+    3.1%  js::TypeSet::ObjectKey::unknownProperties()
+    3.1%  js::HeapTypeSetKey::constant(js::CompilerConstraintList*, JS::Value*)
+    3.1%  libc.so.6
+    3.1%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    3.1%  js::jit::MLoadFixedSlot::op() const
+    3.1%  js::GCPtr<js::Shape*>::init(js::Shape* const&)
+    3.1%  js::TypeSet::baseObjectCount() const
+    3.1%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    3.1%  JS::Rooted<JSScript*>::~Rooted()
+    3.1%  js::jit::ScriptFromCalleeToken(void*)
+
+=== stall 5: 1418 ms, 40 samples (10 ms each)
+--- by bucket:
+   45.0%  other
+   27.5%  JS parse / bytecode
+   10.0%  JIT code (the page's compiled JavaScript)
+    5.0%  other module: jihad-browserserver
+    2.5%  other module: libc.so.6
+    2.5%  GC
+    2.5%  DOM bindings / XPCOM glue
+    2.5%  JIT compile (Ion/Baseline)
+    2.5%  other module: libpthread.so.0
+--- top 40 functions:
+   10.0%  <JIT code>
+    7.5%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    5.0%  js::BindingIter::settle()
+    5.0%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    5.0%  JSContext::runningWithTrustedPrincipals() const
+    5.0%  jihad-browserserver
+    2.5%  libc.so.6
+    2.5%  js::jit::MDefinition::setFlags(unsigned int)
+    2.5%  js::detail::BumpChunk::tryAlloc(unsigned int)
+    2.5%  js::detail::HashTable<js::HashMapEntry<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<js::frontend::NameLocation> >, js::HashMap<JSAto
+    2.5%  js::frontend::LexicalScopeNode::LexicalScopeNode(js::LexicalScope::Data*, js::frontend::ParseNode*)
+    2.5%  nsCOMPtr<mozilla::dom::EventTarget>::~nsCOMPtr()
+    2.5%  JS::Heap<JSObject*>::exposeToActiveJS() const
+    2.5%  NewArray<4294967295>
+    2.5%  JS::detail::CallArgsBase<JS::detail::IncludeUsedRval>::base() const
+    2.5%  js::BindingName::name() const
+    2.5%  js::jit::JitActivation::~JitActivation()
+    2.5%  js::frontend::BytecodeEmitter::emitN(JSOp, unsigned int, int*)
+    2.5%  JSScript::main() const
+    2.5%  js::BindingIter::increment()
+    2.5%  GetPropertyOperation
+    2.5%  js::frontend::BytecodeEmitter::updateSourceCoordNotes(unsigned int)
+    2.5%  js::MutableWrappedPtrOperations<JS::Value, JS::MutableHandle<JS::Value> >::set(JS::Value const&)
+    2.5%  js::jit::GetPropIRGenerator::GetPropIRGenerator(JSContext*, unsigned char*, JS::Handle<JS::Value>, JS::Handle<js::PropertyName*>, JS::Mutabl
+    2.5%  js::InlineMap<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<js::frontend::DeclaredNameInfo>, 24u, js::DefaultHasher<JSAtom*>, js::Sys
+    2.5%  js::frontend::FunctionBox::setStart(js::frontend::TokenStream const&)
+    2.5%  mozilla::TimeStamp::NowLoRes()
+    2.5%  nsFactoryEntry::GetFactory()
+    2.5%  mozilla::a11y::AccessibleOrProxy::AccessibleOrProxy(mozilla::a11y::ProxyAccessible*)
+    2.5%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    2.5%  libpthread.so.0
+
+=== stall 6: 2902 ms, 184 samples (10 ms each)
+--- by bucket:
+   35.9%  other
+   13.0%  JS interpreter / runtime
+   11.4%  JIT compile (Ion/Baseline)
+    9.8%  JIT code (the page's compiled JavaScript)
+    7.1%  GC
+    6.5%  other module: libpthread.so.0
+    3.8%  other module: jihad-browserserver
+    3.8%  JS parse / bytecode
+    2.2%  other module: libc.so.6
+    2.2%  other module: libgcc_s.so.1
+    1.6%  other module: libmemcpy.so
+    1.6%  DOM bindings / XPCOM glue
+    0.5%  HTML parse / DOM build
+    0.5%  other module: ld-2.23.so
+--- top 40 functions:
+    9.8%  <JIT code>
+    6.5%  libpthread.so.0
+    3.8%  jihad-browserserver
+    2.2%  libc.so.6
+    2.2%  Interpret(JSContext*, js::RunState&)
+    2.2%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    2.2%  libgcc_s.so.1
+    1.6%  js::BindingIter::settle()
+    1.6%  JSContext::runningWithTrustedPrincipals() const
+    1.6%  libmemcpy.so
+    1.6%  js::BindingIter::name() const
+    1.1%  js::Shape::searchLinear(jsid)
+    1.1%  js::TypeMonitorResult(JSContext*, JSScript*, unsigned char*, JS::Value const&)
+    1.1%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    1.1%  js::HeapSlot::post(js::NativeObject*, js::HeapSlot::Kind, unsigned int, JS::Value const&)
+    1.1%  js::jit::DoSetElemFallback(JSContext*, js::jit::BaselineFrame*, js::jit::ICSetElem_Fallback*, JS::Value*, JS::Handle<JS::Value>, JS::Handle<
+    1.1%  js::gc::TenuredCell::readBarrier(js::gc::TenuredCell*)
+    1.1%  js::BindingIter::increment()
+    1.1%  js::GetProperty(JSContext*, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>)
+    0.5%  void js::TraceEdge<js::Shape*>(JSTracer*, js::WriteBarrieredBase<js::Shape*>*, char const*)
+    0.5%  js::jit::BaselineCompiler::emitBody()
+    0.5%  js::jit::ValueOperand::operator==(js::jit::ValueOperand const&) const
+    0.5%  js::detail::HashTable<js::Shape* const, js::HashSet<js::Shape*, js::ShapeHasher, js::SystemAllocPolicy>::SetOps, js::SystemAllocPolicy>::loo
+    0.5%  js::jit::ICStubConstIterator::operator++()
+    0.5%  js::jit::TooManyActualArguments(unsigned int)
+    0.5%  js::jit::GetPcScript(JSContext*, JSScript**, unsigned char**)
+    0.5%  JS::Rooted<JS::Value>::Rooted<JSContext*, JS::Value>(JSContext* const&, JS::Value&&)
+    0.5%  js::InterpreterActivation::InterpreterActivation(js::RunState&, JSContext*, js::InterpreterFrame*)
+    0.5%  js::HeapTypeSetKey::instantiate(JSContext*)
+    0.5%  js::detail::HashTable<js::gc::StoreBuffer::SlotsEdge const, js::HashSet<js::gc::StoreBuffer::SlotsEdge, js::gc::StoreBuffer::SlotsEdge::Hash
+    0.5%  js::detail::HashTable<js::HashMapEntry<unsigned int, js::ReadBarriered<js::jit::JitCode*> >, js::HashMap<unsigned int, js::ReadBarriered<js:
+    0.5%  js::InterpreterActivation::~InterpreterActivation()
+    0.5%  js::frontend::NameOpEmitter::NameOpEmitter(js::frontend::BytecodeEmitter*, JSAtom*, js::frontend::NameLocation const&, js::frontend::NameOpE
+    0.5%  JSObject::taggedProto() const
+    0.5%  js::StringToLowerCase(JSContext*, JS::Handle<JSLinearString*>)
+    0.5%  js::jit::ICTypeMonitor_Fallback::addMonitorStubForValue(JSContext*, js::jit::SharedStubInfo*, JS::Handle<JS::Value>)
+    0.5%  JSScript::offsetToPC(unsigned int) const
+    0.5%  JSScript::types()
+    0.5%  js::ActivationIterator::settle()
+    0.5%  js::jit::DoCallFallback(JSContext*, js::jit::BaselineFrame*, js::jit::ICCall_Fallback*, unsigned int, JS::Value*, JS::MutableHandle<JS::Valu
+
+=== stall 7: 32374 ms, 2958 samples (10 ms each)
+--- by bucket:
+   31.3%  other
+   24.2%  JIT code (the page's compiled JavaScript)
+   14.9%  JS interpreter / runtime
+    8.2%  JIT compile (Ion/Baseline)
+    8.2%  GC
+    5.1%  other module: libpthread.so.0
+    1.3%  other module: jihad-browserserver
+    1.2%  other module: libc.so.6
+    1.0%  JS parse / bytecode
+    0.9%  other module: libmemcpy.so
+    0.8%  Memory (malloc, strings)
+    0.7%  other module: ld-2.23.so
+    0.7%  HTML parse / DOM build
+    0.7%  other module: libgcc_s.so.1
+    0.4%  DOM bindings / XPCOM glue
+    0.1%  Style (selectors, restyle)
+    0.1%  Cycle collector
+    0.1%  other module: libnspr4.so
+    0.0%  Paint / display list
+    0.0%  Events / timers / tasks
+    0.0%  Network / cache / sqlite
+--- top 40 functions:
+   24.2%  <JIT code>
+    5.1%  libpthread.so.0
+    1.7%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.3%  jihad-browserserver
+    1.2%  JSObject::getClass() const
+    1.2%  libc.so.6
+    0.9%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    0.9%  libmemcpy.so
+    0.7%  ld-2.23.so
+    0.7%  libgcc_s.so.1
+    0.6%  js::TraceGenericPointerRoot(JSTracer*, js::gc::Cell**, char const*)
+    0.6%  Interpret(JSContext*, js::RunState&)
+    0.5%  js::jit::GetPropertyIC::update(JSContext*, JS::Handle<JSScript*>, unsigned int, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::MutableHan
+    0.5%  js::jit::ScriptFromCalleeToken(void*)
+    0.5%  js::TypeSet::hasType(js::TypeSet::Type) const
+    0.4%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    0.4%  JS::Rooted<JSObject*>::registerWithRootLists(mozilla::EnumeratedArray<JS::RootKind, (JS::RootKind)15, JS::Rooted<void*>*>&)
+    0.4%  js::Class::isNative() const
+    0.4%  bool mozilla::BinarySearchIf<ICEntries, ComputeBinarySearchMid(js::jit::BaselineScript*, unsigned int)::{lambda(js::jit::BaselineICEntry&)#1
+    0.4%  js::TypeMonitorResult(JSContext*, JSScript*, unsigned char*, JS::Value const&)
+    0.4%  js::jit::DoCompareFallback(JSContext*, void*, js::jit::ICCompare_Fallback*, JS::Handle<JS::Value>, JS::Handle<JS::Value>, JS::MutableHandle<
+    0.3%  js::shadow::Object::numFixedSlots() const
+    0.3%  ??
+    0.3%  js::Shape::searchLinear(jsid)
+    0.3%  js::jit::DoGetNameFallback(JSContext*, js::jit::BaselineFrame*, js::jit::ICGetName_Fallback*, JS::Handle<JSObject*>, JS::MutableHandle<JS::V
+    0.3%  js::jit::ICTypeMonitor_Fallback::addMonitorStubForValue(JSContext*, js::jit::SharedStubInfo*, JS::Handle<JS::Value>)
+    0.3%  js::jit::SetPropertyIC::update(JSContext*, JS::Handle<JSScript*>, unsigned int, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::Handle<JS:
+    0.3%  js::jit::BaselineFrame::script() const
+    0.3%  JS::Rooted<JSObject*>::Rooted<JSContext*, JSObject*>(JSContext* const&, JSObject*&&)
+    0.3%  js::jit::JitCode::copyFrom(js::jit::MacroAssembler&)
+    0.3%  js::gc::Cell::getTraceKind() const
+    0.3%  bool js::GCMarker::mark<js::BaseShape>(js::BaseShape*)
+    0.3%  JS::Rooted<JSObject*>::rootLists(js::ContextFriendFields*)
+    0.3%  js::gc::FreeSpan::initAsEmpty()
+    0.2%  js::gc::TenuredCell::readBarrier(js::gc::TenuredCell*)
+    0.2%  js::BindingIter::settle()
+    0.2%  js::StackTypeSet* js::TypeScript::BytecodeTypes<js::StackTypeSet>(JSScript*, unsigned char*, unsigned int*, unsigned int*, js::StackTypeSet*
+    0.2%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    0.2%  JSObject::getOpsGetProperty() const
+    0.2%  js::Shape::hasTable() const
+
+=== stall 8: 1591 ms, 58 samples (10 ms each)
+--- by bucket:
+   55.2%  JS interpreter / runtime
+   24.1%  other
+   10.3%  Memory (malloc, strings)
+    3.4%  GC
+    3.4%  other module: libmemcpy.so
+    1.7%  other module: jihad-browserserver
+    1.7%  HTML parse / DOM build
+--- top 40 functions:
+   12.1%  js::LifoAlloc::allocImpl(unsigned int)
+   10.3%  js::irregexp::RegExpBuilder::AddAtom(js::irregexp::RegExpTree*)
+    5.2%  js::irregexp::RegExpText::AddElement(js::irregexp::TextElement)
+    5.2%  js::irregexp::RegExpAlternative::RegExpAlternative(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    3.4%  js::irregexp::RegExpParser<unsigned char>::ParseDisjunction()
+    3.4%  js::irregexp::RegExpBuilder::FlushTerms()
+    3.4%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::GetList(js::LifoAlloc*)
+    3.4%  js::irregexp::RegExpBuilder::FlushText()
+    3.4%  ConvertUTF8toUTF16::write(char const*, unsigned int)
+    3.4%  libmemcpy.so
+    1.7%  js::irregexp::RegExpParser<unsigned char>::ParseRawSurrogatePair(char16_t*, char16_t*)
+    1.7%  js::gc::GCRuntime::updateMallocCounter(JS::Zone*, unsigned int)
+    1.7%  js::irregexp::InfallibleVector<js::irregexp::CharacterRange, 1u>::append(js::irregexp::CharacterRange const&)
+    1.7%  UTF8CharEnumerator::NextChar(char const**, char const*, bool*)
+    1.7%  bool js::EqualChars<unsigned char, char16_t>(unsigned char const*, char16_t const*, unsigned int)
+    1.7%  void mozilla::detail::VectorImpl<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1>, true>::new_<js::irregexp::RegExpTre
+    1.7%  js::irregexp::RegExpTree** js::LifoAllocPolicy<(js::Fallibility)1>::pod_malloc<js::irregexp::RegExpTree*>(unsigned int)
+    1.7%  js::detail::AlignPtr(void*)
+    1.7%  js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>::append(js::irregexp::RegExpTree* const&)
+    1.7%  bool mozilla::Vector<js::irregexp::CharacterRange, 1u, js::LifoAllocPolicy<(js::Fallibility)1> >::append<js::irregexp::CharacterRange const&
+    1.7%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::Add(js::LifoAlloc*, js::irregexp::RegExpTree*)
+    1.7%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+    1.7%  js::irregexp::RegExpDisjunction::RegExpDisjunction(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    1.7%  js::irregexp::RegExpTree** js::LifoAllocPolicy<(js::Fallibility)1>::maybe_pod_malloc<js::irregexp::RegExpTree*>(unsigned int)
+    1.7%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::Clear()
+    1.7%  bool mozilla::Vector<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1> >::append<js::irregexp::RegExpTree* const&>(js::
+    1.7%  jihad-browserserver
+    1.7%  js::jit::JitFrameIterator::JitFrameIterator(js::ActivationIterator const&)
+    1.7%  bool mozilla::detail::CapacityHasExcessSpace<unsigned int>(unsigned int)
+    1.7%  mozilla::Vector<js::irregexp::CharacterRange, 1u, js::LifoAllocPolicy<(js::Fallibility)1> >::endNoCheck()
+    1.7%  js::gc::GetGCObjectKind(js::Class const*)
+    1.7%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::IsAutoArray() const
+    1.7%  nsTArrayInfallibleAllocator::ResultTypeProxy nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::SwapArrayElements<nsTArr
+    1.7%  nsTArray_Impl<nsTArray_Impl<unsigned char, nsTArrayInfallibleAllocator>, nsTArrayInfallibleAllocator>::~nsTArray_Impl()
+    1.7%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::Length() const
+    1.7%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::IncrementLength(unsigned int)
+    1.7%  TreeMatchContext::InitAncestors(mozilla::dom::Element*)
+
+=== stall 9: 1294 ms, 29 samples (10 ms each)
+--- by bucket:
+   24.1%  other
+   20.7%  JS interpreter / runtime
+   17.2%  JIT compile (Ion/Baseline)
+   13.8%  JIT code (the page's compiled JavaScript)
+   10.3%  JS parse / bytecode
+    3.4%  other module: jihad-browserserver
+    3.4%  other module: libpthread.so.0
+    3.4%  other module: ld-2.23.so
+    3.4%  other module: libmemcpy.so
+--- top 40 functions:
+   13.8%  <JIT code>
+    3.4%  void mozilla::detail::VectorImpl<unsigned char, 256u, js::TempAllocPolicy, true>::new_<>(unsigned char*)
+    3.4%  JSString::isFatInline() const
+    3.4%  jihad-browserserver
+    3.4%  js::ToObjectFromStack(JSContext*, JS::Handle<JS::Value>)
+    3.4%  js::detail::InlineTable<js::InlineMap<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<js::frontend::NameLocation>, 24u, js::DefaultHash
+    3.4%  js::TypeSet::ObjectKey* js::TypeHashSet::Lookup<js::TypeSet::ObjectKey*, js::TypeSet::ObjectKey, js::TypeSet::ObjectKey>(js::TypeSet::Object
+    3.4%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::oom() const
+    3.4%  js::Proxy::get(JSContext*, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>)
+    3.4%  js::frontend::BytecodeEmitter::newSrcNote(js::SrcNoteType, unsigned int*)
+    3.4%  js::jit::MacroAssembler::loadObjProto(js::jit::Register, js::jit::Register)
+    3.4%  Interpret(JSContext*, js::RunState&)
+    3.4%  libpthread.so.0
+    3.4%  js::frontend::Parser<js::frontend::FullParseHandler>::functionArguments(js::frontend::YieldHandling, js::frontend::FunctionSyntaxKind, js::f
+    3.4%  js::jit::MacroAssemblerARMCompat::movePtr(js::jit::ImmGCPtr, js::jit::Register)
+    3.4%  ld-2.23.so
+    3.4%  libmemcpy.so
+    3.4%  js::ShapeTable::getEntry(unsigned int) const
+    3.4%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    3.4%  JSRuntime::maybeWindowProxyClass() const
+    3.4%  js::jit::JitCode::copyFrom(js::jit::MacroAssembler&)
+    3.4%  js::StackShape::updateGetterSetter(bool (*)(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>), bool (*)(JSC
+    3.4%  js::NativeSetProperty(JSContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, JS::Handle<JS::Value>, JS::Handle<JS::Value>, js::Qualifi
+    3.4%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertNopFill()
+    3.4%  JSContext::runningWithTrustedPrincipals() const
+    3.4%  JS::Rooted<js::Shape*>::Rooted<JSContext*, js::Shape*>(JSContext* const&, js::Shape*&&)
+
+=== stall 10: 1601 ms, 58 samples (10 ms each)
+--- by bucket:
+   37.9%  other
+   24.1%  JS interpreter / runtime
+   12.1%  JIT code (the page's compiled JavaScript)
+   12.1%  JS parse / bytecode
+    3.4%  other module: libc.so.6
+    3.4%  GC
+    1.7%  other module: libpthread.so.0
+    1.7%  Memory (malloc, strings)
+    1.7%  other module: libmemcpy.so
+    1.7%  JIT compile (Ion/Baseline)
+--- top 40 functions:
+   12.1%  <JIT code>
+    5.2%  MOZ_Z_inflate_fast
+    3.4%  libc.so.6
+    3.4%  JSObject::getClass() const
+    3.4%  js::frontend::TokenStream::advance(unsigned int)
+    1.7%  void js::CopyChars<unsigned char>(unsigned char*, JSLinearString const&)
+    1.7%  js::WrappedPtrOperations<JS::Value, JS::Handle<JS::Value> >::toString() const
+    1.7%  ArgumentTypesMatch(js::jit::MDefinition*, js::StackTypeSet*)
+    1.7%  UpdateShapeTypeAndValue(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<js::Shape*>, JS::Value const&)
+    1.7%  js::jit::CheckScriptSize(JSContext*, JSScript*)
+    1.7%  js::GetBuiltinPrototype(js::ExclusiveContext*, JSProtoKey, JS::MutableHandle<JSObject*>)
+    1.7%  libpthread.so.0
+    1.7%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+    1.7%  js::TaggedProto::TaggedProto(js::TaggedProto const&)
+    1.7%  js::irregexp::RegExpStackScope::RegExpStackScope(JSRuntime*)
+    1.7%  js::MutableWrappedPtrOperations<JS::Value, JS::MutableHandle<JS::Value> >::set(JS::Value const&)
+    1.7%  mozilla::detail::CountLeadingZeroes64(unsigned long long)
+    1.7%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    1.7%  JSObject::getOpsDefineProperty() const
+    1.7%  JSContext::currentScript(unsigned char**, JSContext::MaybeAllowCrossCompartment) const
+    1.7%  js::MutableWrappedPtrOperations<js::StackShape, JS::Rooted<js::StackShape> >::updateGetterSetter(bool (*)(JSContext*, JS::Handle<JSObject*>,
+    1.7%  libmemcpy.so
+    1.7%  JS::Rooted<JSObject*>::rootLists(js::ContextFriendFields*)
+    1.7%  js::Nursery::allocate(unsigned int)
+    1.7%  bool JSObject::is<js::EnvironmentObject>() const
+    1.7%  js::shadow::Object::numFixedSlots() const
+    1.7%  js::Shape::hasTable() const
+    1.7%  js::frontend::FunctionScriptEmitter::prepareForParameters()
+    1.7%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    1.7%  js::AutoResolving::AutoResolving(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>, js::AutoResolving::Kind)
+    1.7%  js::jit::ICTypeMonitor_Fallback::addMonitorStubForValue(JSContext*, js::jit::SharedStubInfo*, JS::Handle<JS::Value>)
+    1.7%  js::detail::HashTable<js::ObjectGroupCompartment::NewEntry const, js::HashSet<js::ObjectGroupCompartment::NewEntry, js::ObjectGroupCompartme
+    1.7%  js::frontend::BytecodeEmitter::emitTree(js::frontend::ParseNode*, js::frontend::ValueUsage, js::frontend::BytecodeEmitter::EmitLineNumberNot
+    1.7%  mozilla::detail::CeilingLog2<unsigned int, 4u>::compute(unsigned int)
+    1.7%  js::frontend::PropertyEmitter::emitPopClassConstructor()
+    1.7%  js::NativeObject::getChildProperty(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<js::Shape*>, JS::MutableHandle<js::Stack
+    1.7%  JSObject::isNative() const
+    1.7%  js::detail::HashTable<js::Shape* const, js::HashSet<js::Shape*, js::ShapeHasher, js::SystemAllocPolicy>::SetOps, js::SystemAllocPolicy>::loo
+    1.7%  js::frontend::BytecodeEmitter::newSrcNote(js::SrcNoteType, unsigned int*)
+    1.7%  JS::Rooted<JSScript*>::registerWithRootLists(mozilla::EnumeratedArray<JS::RootKind, (JS::RootKind)15, JS::Rooted<void*>*>&)
+
+=== stall 11: 4501 ms, 335 samples (10 ms each)
+--- by bucket:
+   31.9%  other
+   23.6%  JS parse / bytecode
+   17.6%  JS interpreter / runtime
+    8.4%  JIT compile (Ion/Baseline)
+    3.9%  GC
+    3.9%  other module: jihad-browserserver
+    3.6%  JIT code (the page's compiled JavaScript)
+    2.4%  other module: libpthread.so.0
+    2.1%  other module: libmemcpy.so
+    0.9%  other module: libgcc_s.so.1
+    0.6%  other module: libc.so.6
+    0.3%  Memory (malloc, strings)
+    0.3%  DOM bindings / XPCOM glue
+    0.3%  other module: ld-2.23.so
+    0.3%  other module: libnspr4.so
+--- top 40 functions:
+    3.9%  jihad-browserserver
+    3.6%  <JIT code>
+    2.4%  libpthread.so.0
+    2.4%  js::detail::HashTable<js::HashMapEntry<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<js::frontend::DeclaredNameInfo> >, js::HashMap<J
+    2.1%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    2.1%  libmemcpy.so
+    1.8%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    1.5%  js::Shape::searchLinear(jsid)
+    1.5%  js::frontend::TokenStream::getChar()
+    1.2%  Interpret(JSContext*, js::RunState&)
+    1.2%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    0.9%  js::detail::HashTable<js::HashMapEntry<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<unsigned int> >, js::HashMap<JSAtom*, js::fronte
+    0.9%  js::detail::InlineTable<js::InlineMap<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<unsigned int>, 24u, js::DefaultHasher<JSAtom*>, j
+    0.9%  MOZ_Z_inflate_fast
+    0.9%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    0.9%  libgcc_s.so.1
+    0.9%  Fold(js::ExclusiveContext*, js::frontend::ParseNode**, js::frontend::Parser<js::frontend::FullParseHandler>&, bool)
+    0.6%  JSObject::getClass() const
+    0.6%  bool JSObject::is<js::GlobalObject>() const
+    0.6%  mozilla::detail::WrappingMultiplyHelper<unsigned int>::multiply(unsigned int, unsigned int)
+    0.6%  JSObject::setInitialSlotsMaybeNonNative(js::HeapSlot*)
+    0.6%  js::frontend::NameOpEmitter::emitGet()
+    0.6%  js::frontend::TokenStream::peekTokenSameLine(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.6%  JS::Rooted<JSObject*>::Rooted<JSContext*, JS::MutableHandle<JSObject*> >(JSContext* const&, JS::MutableHandle<JSObject*>&&)
+    0.6%  UpdateShapeTypeAndValue(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<js::Shape*>, JS::Value const&)
+    0.6%  js::AddTypePropertyId(js::ExclusiveContext*, js::ObjectGroup*, JSObject*, jsid, JS::Value const&)
+    0.6%  js::ShapeTable::Entry::shape() const
+    0.6%  js::PreliminaryObjectArray::PreliminaryObjectArray()
+    0.6%  js::jit::JitCode::copyFrom(js::jit::MacroAssembler&)
+    0.6%  JSObject::getOpsGetProperty() const
+    0.6%  js::StackUses(JSScript*, unsigned char*)
+    0.6%  js::detail::HashTable<js::HashMapEntry<js::ObjectGroupCompartment::AllocationSiteKey, js::ReadBarriered<js::ObjectGroup*> >, js::HashMap<js:
+    0.6%  JSObject::create(js::ExclusiveContext*, js::gc::AllocKind, js::gc::InitialHeap, JS::Handle<js::Shape*>, JS::Handle<js::ObjectGroup*>)
+    0.6%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    0.6%  js::frontend::TokenStream::advance(unsigned int)
+    0.6%  libc.so.6
+    0.6%  js::NativeHasProperty(JSContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, bool*)
+    0.3%  js::PointerHasher<js::gc::Cell*, 3u>::hash(js::gc::Cell* const&)
+    0.3%  js::jit::ICFallbackStub::numOptimizedStubs() const
+    0.3%  js::irregexp::RegExpBuilder::AddAtom(js::irregexp::RegExpTree*)
+
+=== stall 12: 2347 ms, 133 samples (10 ms each)
+--- by bucket:
+   39.1%  other
+   11.3%  JIT code (the page's compiled JavaScript)
+   10.5%  JS parse / bytecode
+    9.0%  other module: libpthread.so.0
+    8.3%  JIT compile (Ion/Baseline)
+    7.5%  JS interpreter / runtime
+    6.8%  Style (selectors, restyle)
+    1.5%  GC
+    1.5%  other module: jihad-browserserver
+    0.8%  HTML parse / DOM build
+    0.8%  Memory (malloc, strings)
+    0.8%  other module: ld-2.23.so
+    0.8%  DOM bindings / XPCOM glue
+    0.8%  other module: libgcc_s.so.1
+    0.8%  other module: libmemcpy.so
+--- top 40 functions:
+   11.3%  <JIT code>
+    9.0%  libpthread.so.0
+    1.5%  js::ActivationEntryMonitor::~ActivationEntryMonitor()
+    1.5%  MOZ_Z_inflate_fast
+    1.5%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    1.5%  jihad-browserserver
+    1.5%  nsCSSRuleUtils::SelectorMatches(mozilla::dom::Element*, nsCSSSelector*, NodeMatchContext&, TreeMatchContext&, SelectorMatchesFlags, bool*)
+    1.5%  ContentEnumFunc(RuleValue const&, nsCSSSelector*, ElementDependentRuleProcessorData*, NodeMatchContext&, AncestorFilter*)
+    0.8%  MOZ_Z_inflate_table
+    0.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.8%  js::Scope::hasEnvironment() const
+    0.8%  js::jit::Assembler::transferFloatReg(js::jit::VFPRegister)
+    0.8%  JSObject* js::gc::MaybeForwarded<JSObject*>(JSObject*)
+    0.8%  mozilla::Vector<js::jit::BaselineCompilerShared::PCMappingEntry, 16u, js::SystemAllocPolicy>::endNoCheck()
+    0.8%  js::frontend::Parser<js::frontend::FullParseHandler>::memberPropertyAccess(js::frontend::ParseNode*, js::frontend::Parser<js::frontend::Full
+    0.8%  js::jit::DebugModeOSRVolatileStub<js::jit::ICCall_Fallback*>::invalid() const
+    0.8%  js::TypedArrayObject::GetTemplateObjectForNative(JSContext*, bool (*)(JSContext*, unsigned int, JS::Value*), unsigned int, JS::MutableHandle
+    0.8%  nsTArray_Impl<nsHtml5AttributeEntry, nsTArrayInfallibleAllocator>::RemoveElementsAt(unsigned int, unsigned int)
+    0.8%  js::TypeMonitorResult(JSContext*, JSScript*, unsigned char*, JS::Value const&)
+    0.8%  js::Shape::hasTable() const
+    0.8%  jsid* js::TempAllocPolicy::pod_malloc<jsid>(unsigned int)
+    0.8%  js::jit::TypedRegisterSet<js::jit::VFPRegister>::takeRegisterIndex(js::jit::VFPRegister)
+    0.8%  ld-2.23.so
+    0.8%  mozilla::dom::EventTargetBinding::addEventListener(JSContext*, JS::Handle<JSObject*>, mozilla::dom::EventTarget*, JSJitMethodCallArgs const&
+    0.8%  js::BindingIter::name() const
+    0.8%  js::frontend::ParseNode::ParseNode(js::frontend::ParseNodeKind, JSOp, js::frontend::ParseNodeArity, js::frontend::TokenPos const&)
+    0.8%  js::frontend::Parser<js::frontend::FullParseHandler>::optionalExpr(js::frontend::YieldHandling, js::frontend::TripledotHandling, js::fronten
+    0.8%  js::RegExpShared::RegExpCompilation::compiled(js::RegExpShared::ForceByteCodeEnum) const
+    0.8%  GetObjectElementOperation
+    0.8%  Interpret(JSContext*, js::RunState&)
+    0.8%  JSScript::offsetToPC(unsigned int) const
+    0.8%  JS::Rooted<JS::Value>::~Rooted()
+    0.8%  js::SrcNoteLength(unsigned char*)
+    0.8%  js::WrappedPtrOperations<JS::PropertyDescriptor, JS::MutableHandle<JS::PropertyDescriptor> >::desc() const
+    0.8%  JS::CallArgsFromVp(unsigned int, JS::Value*)
+    0.8%  js::ObjectGroup::maybeGetProperty(jsid)
+    0.8%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.8%  js::jit::HasARMv7()
+    0.8%  JS::Rooted<JS::PropertyResult>::Rooted<JSContext*>(JSContext* const&)
+    0.8%  bool js::EqualChars<unsigned char, char16_t>(unsigned char const*, char16_t const*, unsigned int)
+
+=== stall 13: 4684 ms, 349 samples (10 ms each)
+--- by bucket:
+   58.2%  other
+   14.9%  Cycle collector
+   12.3%  JS interpreter / runtime
+    9.7%  GC
+    2.0%  Memory (malloc, strings)
+    1.4%  other module: libmemcpy.so
+    0.6%  JIT compile (Ion/Baseline)
+    0.3%  other module: jihad-browserserver
+    0.3%  HTML parse / DOM build
+    0.3%  other module: libc.so.6
+--- top 40 functions:
+    6.9%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)1>(void const*, unsigned int)
+    6.9%  js::gc::detail::CellIsMarkedGrayIfKnown(js::gc::Cell const*)
+    5.2%  TraversalTracer::onChild(JS::GCCellPtr const&)
+    4.0%  PLDHashTable::Add(void const*, mozilla::fallible_t const&)
+    2.9%  GCThingIsMarkedGray
+    2.6%  CCGraphBuilder::NoteJSChild(JS::GCCellPtr const&)
+    2.3%  CellIsMarkedGray
+    2.3%  js::ObjectGroup::getProperty(unsigned int)
+    2.0%  mozilla::layers::DebugGLData::~DebugGLData()
+    2.0%  JSObject* DoCallback<JSObject*>(JS::CallbackTracer*, JSObject**, char const*)
+    2.0%  CCGraphBuilder::AddNode(void*, nsCycleCollectionParticipant*)
+    1.7%  nsACString_internal::~nsACString_internal()
+    1.7%  PLDHashTable::FindFreeEntry(unsigned int)
+    1.7%  PLDHashTable::AddressEntry(unsigned int)
+    1.7%  JSObject::traceChildren(JSTracer*)
+    1.4%  JS::CallbackTracer::onObjectGroupEdge(js::ObjectGroup**)
+    1.4%  libmemcpy.so
+    1.4%  void DispatchToTracer<JS::Value>(JSTracer*, JS::Value*, char const*)
+    1.4%  mozilla::CycleCollectedJSContext::TraverseGCThing(mozilla::CycleCollectedJSContext::TraverseSelect, JS::GCCellPtr, nsCycleCollectionTraversa
+    1.4%  js::ObjectGroup::needsSweep()
+    1.4%  nsCycleCollector::CollectWhite()
+    1.1%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    1.1%  js::ObjectGroup::generation()
+    1.1%  PLDHashTable::ChangeTable(int)
+    1.1%  JS::GCCellPtr::mayBeOwnedByOtherRuntime() const
+    1.1%  JS::Value DoCallback<JS::Value>(JS::CallbackTracer*, JS::Value*, char const*)
+    1.1%  JSString* DoCallback<JSString*>(JS::CallbackTracer*, JSString**, char const*)
+    1.1%  JS::CallbackTracer::onObjectEdge(JSObject**)
+    1.1%  mozilla::CycleCollectedJSContext::NoteGCThingXPCOMChildren(js::Class const*, JSObject*, nsCycleCollectionTraversalCallback&) const
+    1.1%  JS::AutoTracingIndex::operator++()
+    1.1%  js::gc::TraceCycleCollectorChildren(JS::CallbackTracer*, js::Shape*)
+    1.1%  JS::GCCellPtr::kind() const
+    0.9%  XPCJSContext::NoteCustomGCThingXPCOMChildren(js::Class const*, JSObject*, nsCycleCollectionTraversalCallback&) const
+    0.9%  jsid DoCallbackFunctor<jsid>::operator()<JSString>(JSString*, JS::CallbackTracer*, char const*)
+    0.9%  jsid DoCallback<jsid>(JS::CallbackTracer*, jsid*, char const*)
+    0.9%  EdgePool::Builder::Add(PtrInfo*)
+    0.9%  void DispatchToTracer<js::TaggedProto>(JSTracer*, js::TaggedProto*, char const*)
+    0.9%  JS::GCThingTraceKind(void*)
+    0.9%  JS::AutoTracingIndex::AutoTracingIndex(JSTracer*, unsigned int)
+    0.9%  bool JS::GCCellPtr::is<JSObject>() const
+
+=== stall 14: 8647 ms, 731 samples (10 ms each)
+--- by bucket:
+   36.0%  other
+   12.4%  JS interpreter / runtime
+    8.8%  JIT code (the page's compiled JavaScript)
+    8.2%  JIT compile (Ion/Baseline)
+    6.6%  other module: libpthread.so.0
+    6.4%  JS parse / bytecode
+    3.6%  GC
+    3.6%  Memory (malloc, strings)
+    2.5%  other module: jihad-browserserver
+    2.3%  other module: libc.so.6
+    2.3%  Style (selectors, restyle)
+    1.4%  DOM bindings / XPCOM glue
+    1.2%  HTML parse / DOM build
+    1.2%  Layout (reflow, frames)
+    1.0%  other module: libmemcpy.so
+    0.7%  other module: ld-2.23.so
+    0.7%  other module: libgcc_s.so.1
+    0.3%  Events / timers / tasks
+    0.3%  other module: libnspr4.so
+    0.3%  Paint / display list
+    0.3%  other module: libfreetype.so.6
+    0.1%  other module: libm.so.6
+--- top 40 functions:
+    8.8%  <JIT code>
+    6.6%  libpthread.so.0
+    2.5%  jihad-browserserver
+    2.3%  libc.so.6
+    1.8%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.4%  Interpret(JSContext*, js::RunState&)
+    1.0%  libmemcpy.so
+    0.8%  js::Shape::searchLinear(jsid)
+    0.8%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    0.8%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+    0.7%  ??
+    0.7%  JSObject::getClass() const
+    0.7%  js::shadow::Object::numFixedSlots() const
+    0.7%  RuleHash::EnumerateAllRules(mozilla::dom::Element*, ElementDependentRuleProcessorData*, NodeMatchContext&)
+    0.7%  ld-2.23.so
+    0.7%  libgcc_s.so.1
+    0.7%  mozilla::CSSVariableResolver::Resolve(mozilla::CSSVariableValues const*, mozilla::CSSVariableDeclarations const*)
+    0.5%  ReleaseData(void*, unsigned int)
+    0.5%  js::AutoEnterAnalysis::~AutoEnterAnalysis()
+    0.5%  PodZero<bool>
+    0.4%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    0.4%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    0.4%  js::NativeDefineProperty(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, JS::Handle<JS::PropertyDescriptor>, JS::Obj
+    0.4%  js::gc::IsInsideNursery(js::gc::Cell const*)
+    0.4%  JS::Rooted<JSObject*>::Rooted<JSContext*, JSObject*>(JSContext* const&, JSObject*&&)
+    0.4%  js::LifoAlloc::allocImpl(unsigned int)
+    0.4%  js::gc::TenuredCell::writeBarrierPre(js::gc::TenuredCell*)
+    0.4%  JSScript::getScope(unsigned int) const
+    0.4%  nsAString_internal::Assign(nsAString_internal const&)
+    0.4%  AncestorFilter::PopAncestor()
+    0.4%  nsCharTraits<char16_t>::compare(char16_t const*, char16_t const*, unsigned int)
+    0.3%  js::frontend::ParserBase::pos() const
+    0.3%  js::frontend::ParseNode::name() const
+    0.3%  js::NewArrayOperationWithTemplate(JSContext*, JS::Handle<JSObject*>)
+    0.3%  js::gc::FreeSpan::initAsEmpty()
+    0.3%  js::GetObjectClass(JSObject const*)
+    0.3%  js::gc::GCRuntime::gcNumber() const
+    0.3%  JSString::isFatInline() const
+    0.3%  js::jit::VFPRegister::VFPRegister(unsigned int, js::jit::VFPRegister::RegType)
+    0.3%  js::frontend::TokenStream::getToken(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+
+=== stall 15: 1092 ms, 9 samples (10 ms each)
+--- by bucket:
+   44.4%  JIT code (the page's compiled JavaScript)
+   33.3%  other
+   11.1%  other module: libpthread.so.0
+   11.1%  JS interpreter / runtime
+--- top 40 functions:
+   44.4%  <JIT code>
+   11.1%  libpthread.so.0
+   11.1%  js::shadow::Object::numFixedSlots() const
+   11.1%  js::jit::JitContext::~JitContext()
+   11.1%  js::jit::MBasicBlock::add(js::jit::MInstruction*)
+   11.1%  js::RunScript(JSContext*, js::RunState&)
+
+=== stall 16: 8799 ms, 750 samples (10 ms each)
+--- by bucket:
+   38.4%  other
+   11.9%  JS interpreter / runtime
+   11.6%  JIT code (the page's compiled JavaScript)
+    6.9%  JIT compile (Ion/Baseline)
+    6.0%  other module: libpthread.so.0
+    5.2%  Style (selectors, restyle)
+    4.1%  GC
+    3.6%  other module: jihad-browserserver
+    2.5%  JS parse / bytecode
+    2.5%  Memory (malloc, strings)
+    1.9%  DOM bindings / XPCOM glue
+    1.2%  other module: libc.so.6
+    1.1%  HTML parse / DOM build
+    0.8%  other module: libmemcpy.so
+    0.5%  other module: ld-2.23.so
+    0.5%  Paint / display list
+    0.4%  other module: libgcc_s.so.1
+    0.3%  Cycle collector
+    0.3%  Layout (reflow, frames)
+    0.1%  Network / cache / sqlite
+    0.1%  other module: libfreetype.so.6
+--- top 40 functions:
+   11.6%  <JIT code>
+    6.0%  libpthread.so.0
+    3.6%  jihad-browserserver
+    1.5%  js::jit::MBasicBlock::BackupPoint::BackupPoint(js::jit::MBasicBlock*)
+    1.2%  JSObject::getClass() const
+    1.2%  libc.so.6
+    1.2%  nsCSSRuleUtils::SelectorMatches(mozilla::dom::Element*, nsCSSSelector*, NodeMatchContext&, TreeMatchContext&, SelectorMatchesFlags, bool*)
+    1.1%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.9%  mozilla::detail::AddU32ToHash(unsigned int, unsigned int)
+    0.8%  js::Shape::searchLinear(jsid)
+    0.8%  libmemcpy.so
+    0.8%  js::shadow::Object::numFixedSlots() const
+    0.8%  Interpret(JSContext*, js::RunState&)
+    0.7%  js::detail::HashTable<js::HashMapEntry<js::gc::Cell*, unsigned long long>, js::HashMap<js::gc::Cell*, unsigned long long, js::PointerHasher<
+    0.7%  js::jit::JitCode::copyFrom(js::jit::MacroAssembler&)
+    0.7%  mozilla::detail::WrappingMultiplyHelper<unsigned int>::multiply(unsigned int, unsigned int)
+    0.7%  nsCharTraits<char16_t>::compare(char16_t const*, char16_t const*, unsigned int)
+    0.5%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)0>(void const*, unsigned int)
+    0.5%  ld-2.23.so
+    0.5%  RuleHash::EnumerateAllRules(mozilla::dom::Element*, ElementDependentRuleProcessorData*, NodeMatchContext&)
+    0.5%  PLDHashTable::Search(void const*)
+    0.4%  libgcc_s.so.1
+    0.4%  js::TypeSet::hasType(js::TypeSet::Type) const
+    0.4%  EnterBaseline(JSContext*, js::jit::EnterJitData&)
+    0.4%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.4%  js::Shape::getter() const
+    0.4%  bool mozilla::BinarySearchIf<ICEntries, ComputeBinarySearchMid(js::jit::BaselineScript*, unsigned int)::{lambda(js::jit::BaselineICEntry&)#1
+    0.4%  nsStyleSet::FileRules(bool (*)(nsIStyleRuleProcessor*, void*), RuleProcessorData*, mozilla::dom::Element*, nsRuleWalker*)
+    0.4%  ContentEnumFunc(RuleValue const&, nsCSSSelector*, ElementDependentRuleProcessorData*, NodeMatchContext&, AncestorFilter*)
+    0.3%  js::TaggedProto::isObject() const
+    0.3%  JS::Rooted<JSObject*>::registerWithRootLists(mozilla::EnumeratedArray<JS::RootKind, (JS::RootKind)15, JS::Rooted<void*>*>&)
+    0.3%  JSScript::getScope(unsigned int) const
+    0.3%  js::CanReuseScriptForClone(JSCompartment*, JS::Handle<JSFunction*>, JS::Handle<JSObject*>)
+    0.3%  js::jit::Compile(JSContext*, JS::Handle<JSScript*>, js::jit::BaselineFrame*, unsigned char*, bool)
+    0.3%  mozilla::Array<JS::Rooted<void*>*, 15u>::operator[](unsigned int)
+    0.3%  js::Shape::base() const
+    0.3%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.3%  ??
+    0.3%  js::NativeObject::initSlotUnchecked(unsigned int, JS::Value const&)
+    0.3%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+
+=== stall 17: 5239 ms, 397 samples (10 ms each)
+--- by bucket:
+   49.1%  other
+   15.6%  GC
+   13.4%  JS interpreter / runtime
+   11.3%  Cycle collector
+    4.8%  other module: libpthread.so.0
+    1.3%  other module: libc.so.6
+    1.3%  other module: libmemcpy.so
+    1.0%  Memory (malloc, strings)
+    1.0%  JIT compile (Ion/Baseline)
+    0.8%  other module: libgcc_s.so.1
+    0.3%  other module: jihad-browserserver
+    0.3%  DOM bindings / XPCOM glue
+--- top 40 functions:
+    5.8%  js::gc::detail::CellIsMarkedGrayIfKnown(js::gc::Cell const*)
+    5.3%  TraversalTracer::onChild(JS::GCCellPtr const&)
+    4.8%  libpthread.so.0
+    4.5%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)1>(void const*, unsigned int)
+    4.0%  mozilla::layers::DebugGLData::~DebugGLData()
+    2.8%  PLDHashTable::FindFreeEntry(unsigned int)
+    2.3%  GCThingIsMarkedGray
+    2.0%  JS::GCCellPtr::kind() const
+    1.8%  CellIsMarkedGray
+    1.8%  PLDHashTable::Add(void const*, mozilla::fallible_t const&)
+    1.8%  js::ObjectGroup::getProperty(unsigned int)
+    1.8%  JSString* DoCallback<JSString*>(JS::CallbackTracer*, JSString**, char const*)
+    1.8%  JSObject::traceChildren(JSTracer*)
+    1.5%  nsCycleCollectionParticipant::TraverseNativeAndJS(void*, nsCycleCollectionTraversalCallback&)
+    1.5%  js::ObjectGroup::traceChildren(JSTracer*)
+    1.5%  nsDeque::PopFront()
+    1.3%  libc.so.6
+    1.3%  PLDHashTable::ChangeTable(int)
+    1.3%  CCGraphBuilder::BuildGraph(js::SliceBudget&)
+    1.3%  JS::TraceChildren(JSTracer*, JS::GCCellPtr)
+    1.3%  CCGraphBuilder::NoteJSChild(JS::GCCellPtr const&)
+    1.3%  libmemcpy.so
+    1.3%  JS::CallbackTracer::onObjectGroupEdge(js::ObjectGroup**)
+    1.0%  js::ObjectGroup::basePropertyCount()
+    1.0%  JS::CallbackTracer::onStringEdge(JSString**)
+    1.0%  jsid DoCallback<jsid>(JS::CallbackTracer*, jsid*, char const*)
+    1.0%  mozilla::CycleCollectedJSContext::DescribeGCThing(bool, JS::GCCellPtr, nsCycleCollectionTraversalCallback&) const
+    1.0%  JS::AutoTracingIndex::AutoTracingIndex(JSTracer*, unsigned int)
+    1.0%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.0%  js::GCMarker::processMarkStackTop(js::SliceBudget&)
+    1.0%  void js::GCMarker::traverse<js::ObjectGroup*>(js::ObjectGroup*)
+    0.8%  js::ObjectGroup::generation()
+    0.8%  nsAString_internal::Finalize()
+    0.8%  CCGraph::AddNodeToMap(void*)
+    0.8%  PLDHashTable::ComputeKeyHash(void const*)
+    0.8%  mozilla::CycleCollectedJSContext::NoteGCThingXPCOMChildren(js::Class const*, JSObject*, nsCycleCollectionTraversalCallback&) const
+    0.8%  JSObject* DoCallback<JSObject*>(JS::CallbackTracer*, JSObject**, char const*)
+    0.8%  TraversalTracer::TraversalTracer(JSContext*, nsCycleCollectionTraversalCallback&)
+    0.8%  bool JS::GCCellPtr::is<JSObject>() const
+    0.8%  PLDHashTable::AddressEntry(unsigned int)
+
+=== stall 18: 1580 ms, 57 samples (10 ms each)
+--- by bucket:
+   68.4%  other
+   10.5%  JS interpreter / runtime
+    5.3%  GC
+    5.3%  other module: libc.so.6
+    3.5%  other module: jihad-browserserver
+    3.5%  Memory (malloc, strings)
+    1.8%  JIT compile (Ion/Baseline)
+    1.8%  other module: libmemcpy.so
+--- top 40 functions:
+   12.3%  unsigned int js::PutEscapedStringImpl<char16_t>(char*, unsigned int, js::GenericPrinter*, char16_t const*, unsigned int, unsigned int)
+    5.3%  void DispatchToTracer<JS::Value>(JSTracer*, JS::Value*, char const*)
+    5.3%  void StatsCellCallback<(Granularity)0>(JSRuntime*, void*, void*, JS::TraceKind, unsigned int)
+    5.3%  js::detail::HashTable<js::HashMapEntry<JSString*, JS::StringInfo>, js::HashMap<JSString*, JS::StringInfo, js::InefficientNonFlatteningString
+    5.3%  libc.so.6
+    3.5%  void js::TraceRange<JS::Value>(JSTracer*, unsigned int, js::WriteBarrieredBase<JS::Value>*, char const*)
+    3.5%  JSObject::getClass() const
+    3.5%  jihad-browserserver
+    3.5%  MOZ_Z_deflate_slow
+    1.8%  decltype ({parm#1}(static_cast<JSObject*>((decltype(nullptr))0), (Forward<JS::CallbackTracer*&>)({parm#3}), (Forward<char const*&>)({parm#3}
+    1.8%  js::ObjectGroup* DoCallback<js::ObjectGroup*>(JS::CallbackTracer*, js::ObjectGroup**, char const*)
+    1.8%  JS::GCCellPtr::kind() const
+    1.8%  js::gc::TenuredCell::arena() const
+    1.8%  JSObject* DoCallback<JSObject*>(JS::CallbackTracer*, JSObject**, char const*)
+    1.8%  UnmarkGrayTracer::onChild(JS::GCCellPtr const&)
+    1.8%  js::gc::ChunkBitmap::unmark(js::gc::Cell const*, unsigned int)
+    1.8%  JS::AutoTracingDetails::~AutoTracingDetails()
+    1.8%  js::LazyScript::traceChildren(JSTracer*)
+    1.8%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    1.8%  JSObject::compartment() const
+    1.8%  JSObject::isNative() const
+    1.8%  js::detail::HashTable<js::HashMapEntry<char const*, JS::ClassInfo>, js::HashMap<char const*, JS::ClassInfo, js::CStringHashPolicy, js::Syste
+    1.8%  JS::ClassInfo::add(JS::ClassInfo const&)
+    1.8%  ??
+    1.8%  JSCompartment::compartmentStats()
+    1.8%  js::detail::HashTable<js::HashMapEntry<char const*, JS::ClassInfo>, js::HashMap<char const*, JS::ClassInfo, js::CStringHashPolicy, js::Syste
+    1.8%  js::Shape::addSizeOfExcludingThis(unsigned int (*)(void const*), JS::ShapeInfo*) const
+    1.8%  IterateCompartmentsArenasCellsUnbarriered(JSContext*, JS::Zone*, void*, void (*)(JSContext*, void*, JSCompartment*), void (*)(JSRuntime*, vo
+    1.8%  nsGZFileWriter::Write(nsACString_internal const&)
+    1.8%  RefPtr<nsXPConnect>::RefPtr(nsXPConnect*)
+    1.8%  js::jit::MacroAssemblerARMCompat::push(js::jit::Register)
+    1.8%  MOZ_Z_longest_match
+    1.8%  MOZ_Z_deflateStateCheck
+    1.8%  js::jit::BytecodeAnalysis::init(js::jit::TempAllocator&, js::GSNCache&)
+    1.8%  mozilla::dom::ContentChild::AppendProcessId(nsACString_internal&)
+    1.8%  crc32_little
+    1.8%  libmemcpy.so
+    1.8%  MOZ_Z_gzwrite
+    1.8%  MOZ_Z_gz_write
+
+=== stall 19: 1085 ms, 8 samples (10 ms each)
+--- by bucket:
+   62.5%  JS interpreter / runtime
+   25.0%  other
+   12.5%  Cycle collector
+--- top 40 functions:
+   25.0%  js::irregexp::RegExpParser<unsigned char>::ParseDisjunction()
+   12.5%  mozilla::CycleCollectedJSContext::Get()
+   12.5%  bool js::EqualChars<unsigned char, char16_t>(unsigned char const*, char16_t const*, unsigned int)
+   12.5%  js::irregexp::RegExpBuilder::FlushText()
+   12.5%  js::irregexp::RegExpBuilder::AddCharacter(char16_t)
+   12.5%  js::irregexp::RegExpBuilder::NewAlternative()
+   12.5%  mozilla::detail::UniqueSelector<unsigned char []>::UnknownBound mozilla::MakeUniqueFallible<unsigned char []>(unsigned int)
+
+=== stall 20: 1071 ms, 7 samples (10 ms each)
+--- by bucket:
+   42.9%  Memory (malloc, strings)
+   28.6%  other
+   14.3%  other module: jihad-browserserver
+   14.3%  other module: ld-2.23.so
+--- top 40 functions:
+   14.3%  jihad-browserserver
+   14.3%  nsCSSPropertyIDSet::AddProperty(nsCSSPropertyID)
+   14.3%  ld-2.23.so
+   14.3%  nsAString_internal::LowerCaseEqualsASCII(char const*, unsigned int) const
+   14.3%  nsAString_internal::Replace(unsigned int, unsigned int, char16_t const*, unsigned int)
+   14.3%  nsAString_internal::Capacity() const
+   14.3%  (anonymous namespace)::CSSParserImpl::GetToken(bool)
+
+=== stall 21: 44441 ms, 4167 samples (10 ms each)
+--- by bucket:
+   36.7%  other
+   13.3%  JS interpreter / runtime
+   12.4%  JIT code (the page's compiled JavaScript)
+    7.7%  JS parse / bytecode
+    7.5%  JIT compile (Ion/Baseline)
+    5.2%  other module: libpthread.so.0
+    4.8%  GC
+    4.7%  Memory (malloc, strings)
+    2.8%  other module: jihad-browserserver
+    1.4%  other module: libmemcpy.so
+    1.0%  other module: libc.so.6
+    0.6%  DOM bindings / XPCOM glue
+    0.5%  Style (selectors, restyle)
+    0.4%  other module: ld-2.23.so
+    0.4%  other module: libgcc_s.so.1
+    0.3%  HTML parse / DOM build
+    0.0%  Paint / display list
+    0.0%  Cycle collector
+    0.0%  Network / cache / sqlite
+    0.0%  other module: libfontconfig.so.1
+    0.0%  Layout (reflow, frames)
+    0.0%  other module: libnspr4.so
+    0.0%  other module: libm.so.6
+--- top 40 functions:
+   12.4%  <JIT code>
+    5.2%  libpthread.so.0
+    2.8%  jihad-browserserver
+    2.5%  PodZero<bool>
+    1.5%  mozilla::CSSVariableResolver::Resolve(mozilla::CSSVariableValues const*, mozilla::CSSVariableDeclarations const*)
+    1.4%  libmemcpy.so
+    1.3%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.0%  libc.so.6
+    1.0%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+    1.0%  nsAString_internal::Assign(nsAString_internal const&)
+    0.9%  js::Shape::searchLinear(jsid)
+    0.8%  JSObject::getClass() const
+    0.8%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.6%  unsigned int mozilla::detail::HashKnownLength<char16_t>(char16_t const*, unsigned int)
+    0.6%  Interpret(JSContext*, js::RunState&)
+    0.5%  js::shadow::Object::numFixedSlots() const
+    0.5%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    0.5%  JSString::isFatInline() const
+    0.4%  ld-2.23.so
+    0.4%  ??
+    0.4%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    0.4%  libgcc_s.so.1
+    0.4%  ReleaseData(void*, unsigned int)
+    0.4%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    0.4%  js::Shape::hasTable() const
+    0.4%  mozilla::detail::AddU32ToHash(unsigned int, unsigned int)
+    0.3%  mozilla::detail::WrappingMultiplyHelper<unsigned int>::multiply(unsigned int, unsigned int)
+    0.3%  nsStringBuffer::Release()
+    0.3%  js::ObjectGroup::defaultNewGroup(js::ExclusiveContext*, js::Class const*, js::TaggedProto, JSObject*)
+    0.3%  js::jit::GetPropertyIC::update(JSContext*, JS::Handle<JSScript*>, unsigned int, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::MutableHan
+    0.3%  js::frontend::TokenStream::getCharIgnoreEOL()
+    0.3%  js::TypeMonitorResult(JSContext*, JSScript*, unsigned char*, JS::Value const&)
+    0.3%  nsString::nsString(nsString const&)
+    0.3%  JS::Rooted<JSObject*>::Rooted<JSContext*, JSObject*>(JSContext* const&, JSObject*&&)
+    0.2%  js::gc::FreeSpan::initAsEmpty()
+    0.2%  MOZ_Z_inflate_fast
+    0.2%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.2%  LookupOwnPropertyInline<(js::AllowGC)1>
+    0.2%  nsAString_internal::Assign(nsAString_internal const&, mozilla::fallible_t const&)
+    0.2%  js::PropertyTree::getChild(js::ExclusiveContext*, js::Shape*, JS::Handle<js::StackShape>)
+
+=== stall 22: 1107 ms, 10 samples (10 ms each)
+--- by bucket:
+   70.0%  other
+   30.0%  Paint / display list
+--- top 40 functions:
+   50.0%  repeat
+   10.0%  pixman_composite_in_n_8_asm_neon
+   10.0%  fast_composite_tiled_repeat
+   10.0%  active_edges_to_traps
+   10.0%  pixman_composite_add_n_8_8_asm_neon
+   10.0%  mozilla::gfx::DrawTargetCairo::FillRect(mozilla::gfx::RectTyped<mozilla::gfx::UnknownUnits, float> const&, mozilla::gfx::Pattern const&, moz
+
+=== stall 23: 3617 ms, 248 samples (10 ms each)
+--- by bucket:
+   62.1%  other
+   15.3%  JS interpreter / runtime
+    8.9%  Cycle collector
+    8.5%  GC
+    2.0%  JIT compile (Ion/Baseline)
+    1.2%  other module: libpthread.so.0
+    0.8%  Memory (malloc, strings)
+    0.4%  Network / cache / sqlite
+    0.4%  other module: libmemcpy.so
+    0.4%  Events / timers / tasks
+--- top 40 functions:
+    5.2%  js::gc::detail::CellIsMarkedGrayIfKnown(js::gc::Cell const*)
+    4.8%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)1>(void const*, unsigned int)
+    4.0%  TraversalTracer::onChild(JS::GCCellPtr const&)
+    3.6%  js::ObjectGroup::getProperty(unsigned int)
+    3.2%  UnmarkGrayTracer::onChild(JS::GCCellPtr const&)
+    2.8%  void DispatchToTracer<JS::Value>(JSTracer*, JS::Value*, char const*)
+    2.8%  GCThingIsMarkedGray
+    2.4%  PLDHashTable::Add(void const*, mozilla::fallible_t const&)
+    2.4%  mozilla::layers::DebugGLData::~DebugGLData()
+    2.4%  JSObject::traceChildren(JSTracer*)
+    2.0%  JS::GCCellPtr::mayBeOwnedByOtherRuntime() const
+    2.0%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    2.0%  JSString* DoCallback<JSString*>(JS::CallbackTracer*, JSString**, char const*)
+    2.0%  JSObject* DoCallback<JSObject*>(JS::CallbackTracer*, JSObject**, char const*)
+    1.6%  js::ObjectGroup::basePropertyCount()
+    1.6%  JS::CallbackTracer::onObjectEdge(JSObject**)
+    1.6%  decltype ({parm#1}(static_cast<JSString*>((decltype(nullptr))0), (Forward<JS::CallbackTracer*&>)({parm#3}), (Forward<char const*&>)({parm#3}
+    1.2%  libpthread.so.0
+    1.2%  JS::GCCellPtr::asCell() const
+    1.2%  JS::Value DoCallback<JS::Value>(JS::CallbackTracer*, JS::Value*, char const*)
+    1.2%  CCGraphBuilder::BuildGraph(js::SliceBudget&)
+    1.2%  JS::AutoTracingName::~AutoTracingName()
+    1.2%  js::ObjectGroup::traceChildren(JSTracer*)
+    1.2%  nsCycleCollectionTraversalCallback::WantAllTraces() const
+    1.2%  js::ObjectGroup::flags()
+    1.2%  JS::GCCellPtr::checkedCast(void*, JS::TraceKind)
+    1.2%  js::Shape::hasGetterObject() const
+    1.2%  CCGraph::AddNodeToMap(void*)
+    1.2%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    1.2%  PLDHashTable::FindFreeEntry(unsigned int)
+    1.2%  PLDHashTable::~PLDHashTable()
+    0.8%  mozilla::CycleCollectedJSContext::TraverseGCThing(mozilla::CycleCollectedJSContext::TraverseSelect, JS::GCCellPtr, nsCycleCollectionTraversa
+    0.8%  PLDHashTable::HashVoidPtrKeyStub(void const*)
+    0.8%  PLDHashTable::ChangeTable(int)
+    0.8%  jsid DoCallbackFunctor<jsid>::operator()<JSString>(JSString*, JS::CallbackTracer*, char const*)
+    0.8%  jsid DoCallback<jsid>(JS::CallbackTracer*, jsid*, char const*)
+    0.8%  JS::CallbackTracer::dispatchToOnEdge(JSString**)
+    0.8%  JS::GCCellPtr::kind() const
+    0.8%  mozilla::AddToCCKind(JS::TraceKind)
+    0.8%  JS::CallbackTracer::onStringEdge(JSString**)
+
+=== stall 24: 1361 ms, 34 samples (10 ms each)
+--- by bucket:
+   29.4%  other
+   14.7%  JS interpreter / runtime
+   11.8%  Memory (malloc, strings)
+    8.8%  other module: jihad-browserserver
+    5.9%  JIT code (the page's compiled JavaScript)
+    5.9%  other module: libpthread.so.0
+    5.9%  GC
+    2.9%  JIT compile (Ion/Baseline)
+    2.9%  other module: ld-2.23.so
+    2.9%  Layout (reflow, frames)
+    2.9%  Style (selectors, restyle)
+    2.9%  HTML parse / DOM build
+    2.9%  DOM bindings / XPCOM glue
+--- top 40 functions:
+    8.8%  jihad-browserserver
+    5.9%  <JIT code>
+    5.9%  libpthread.so.0
+    2.9%  js::jit::SetEnterJitData(JSContext*, js::jit::EnterJitData&, js::RunState&, JS::MutableHandle<JS::GCVector<JS::Value, 0u, js::TempAllocPolic
+    2.9%  JSScript::maybeSweepTypes(js::AutoClearTypeInferenceStateOnOOM*)
+    2.9%  mozilla::EnableIf<js::detail::DefineComparisonOps<js::GCPtr<js::Shape*> >::value&&mozilla::IsPointer<js::GCPtr<js::Shape*>::ElementType>::va
+    2.9%  JS::Rooted<JS::PropertyResult>::rootLists(js::ContextFriendFields*)
+    2.9%  js::jit::MacroAssembler::loadObjProto(js::jit::Register, js::jit::Register)
+    2.9%  js::Shape::searchLinear(jsid)
+    2.9%  JS::Rooted<JS::PropertyResult>::Rooted<JSContext*>(JSContext* const&)
+    2.9%  js::ObjectGroup::Property* js::TypeHashSet::Lookup<jsid, js::ObjectGroup::Property, js::ObjectGroup::Property>(js::ObjectGroup::Property**, 
+    2.9%  js::NativeObject::lastProperty() const
+    2.9%  PerWeightDataListItem::operator new(unsigned int, PLArenaPool&)
+    2.9%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)1>(void const*, unsigned int)
+    2.9%  ld-2.23.so
+    2.9%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::IsAutoArray() const
+    2.9%  nsTArrayInfallibleAllocator::ResultTypeProxy nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::EnsureCapacity<nsTArrayI
+    2.9%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::IncrementLength(unsigned int)
+    2.9%  nsLayoutUtils::IsFirstContinuationOrIBSplitSibling(nsIFrame*)
+    2.9%  nsFrame::DoGetParentStyleContext(nsIFrame**) const
+    2.9%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::ShrinkCapacity(unsigned int, unsigned int)
+    2.9%  nsCSSRuleUtils::SelectorMatches(mozilla::dom::Element*, nsCSSSelector*, NodeMatchContext&, TreeMatchContext&, SelectorMatchesFlags, bool*)
+    2.9%  nsCSSRuleUtils::GetContentStateForVisitedHandling(mozilla::dom::Element*, TreeMatchContext const&, nsRuleWalker::VisitedHandlingType, bool)
+    2.9%  unsigned int nsTArray_Impl<nsCOMPtr<nsIAtom>, nsTArrayInfallibleAllocator>::IndexOf<nsIAtom*, nsDefaultComparator<nsCOMPtr<nsIAtom>, nsIAtom
+    2.9%  JSScript* js::gc::GCRuntime::tryNewTenuredThing<JSScript, (js::AllowGC)1>(js::ExclusiveContext*, js::gc::AllocKind, unsigned int)
+    2.9%  js::NewObjectWithClassProtoCommon(js::ExclusiveContext*, js::Class const*, JS::Handle<JSObject*>, js::gc::AllocKind, js::NewObjectKind)
+    2.9%  JS::Rooted<JSObject*>::Rooted<JSContext*, JSObject*>(JSContext* const&, JSObject*&&)
+    2.9%  js::FillBytecodeTypeMap(JSScript*, unsigned int*)
+    2.9%  Interpret(JSContext*, js::RunState&)
+    2.9%  JSObject::getClass() const
+
+=== stall 25: 46124 ms, 4263 samples (10 ms each)
+--- by bucket:
+   35.3%  other
+   19.4%  JIT code (the page's compiled JavaScript)
+   18.7%  JS interpreter / runtime
+    9.5%  GC
+    6.7%  JIT compile (Ion/Baseline)
+    4.2%  other module: libpthread.so.0
+    2.0%  other module: jihad-browserserver
+    1.0%  other module: libmemcpy.so
+    0.9%  other module: libc.so.6
+    0.6%  other module: libgcc_s.so.1
+    0.4%  Memory (malloc, strings)
+    0.4%  DOM bindings / XPCOM glue
+    0.4%  other module: ld-2.23.so
+    0.3%  HTML parse / DOM build
+    0.1%  JS parse / bytecode
+    0.1%  Cycle collector
+    0.0%  Network / cache / sqlite
+    0.0%  Style (selectors, restyle)
+    0.0%  other module: libnspr4.so
+    0.0%  Events / timers / tasks
+--- top 40 functions:
+   19.4%  <JIT code>
+    4.2%  libpthread.so.0
+    2.0%  jihad-browserserver
+    1.8%  JSObject::getClass() const
+    1.5%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.1%  js::ShapeTable::Entry& js::ShapeTable::searchUnchecked<(js::MaybeAdding)0>(jsid)
+    1.0%  libmemcpy.so
+    0.9%  libc.so.6
+    0.9%  js::Shape::searchLinear(jsid)
+    0.7%  JSString::isFatInline() const
+    0.6%  js::TraceGenericPointerRoot(JSTracer*, js::gc::Cell**, char const*)
+    0.6%  libgcc_s.so.1
+    0.6%  JS::Rooted<JSObject*>::Rooted<JSContext*, JSObject*>(JSContext* const&, JSObject*&&)
+    0.6%  js::detail::HashTable<js::HashMapEntry<js::gc::Cell*, unsigned long long>, js::HashMap<js::gc::Cell*, unsigned long long, js::PointerHasher<
+    0.6%  JS::Rooted<JSObject*>::rootLists(js::ContextFriendFields*)
+    0.6%  js::jit::GetPropertyIC::update(JSContext*, JS::Handle<JSScript*>, unsigned int, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::MutableHan
+    0.5%  js::shadow::Object::numFixedSlots() const
+    0.5%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    0.5%  JS::Rooted<JSObject*>::Rooted<JSContext*, JS::MutableHandle<JSObject*> >(JSContext* const&, JS::MutableHandle<JSObject*>&&)
+    0.5%  js::Shape::maybeCreateTableForLookup(js::ExclusiveContext*)
+    0.4%  JS::Rooted<JSObject*>::registerWithRootLists(mozilla::EnumeratedArray<JS::RootKind, (JS::RootKind)15, JS::Rooted<void*>*>&)
+    0.4%  js::DispatchWrapper<JS::PropertyResult>::DispatchWrapper<JS::PropertyResult>(JS::PropertyResult&&)
+    0.4%  ld-2.23.so
+    0.4%  js::jit::DoGetPropFallback(JSContext*, void*, js::jit::ICGetProp_Fallback*, JS::MutableHandle<JS::Value>, JS::MutableHandle<JS::Value>)
+    0.3%  js::jit::Compile(JSContext*, JS::Handle<JSScript*>, js::jit::BaselineFrame*, unsigned char*, bool)
+    0.3%  js::gc::FreeSpan::initAsEmpty()
+    0.3%  js::NativeDefineProperty(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, JS::Handle<JS::PropertyDescriptor>, JS::Obj
+    0.3%  AddOrChangeProperty(js::ExclusiveContext*, JS::Handle<js::NativeObject*>, JS::Handle<jsid>, JS::Handle<JS::PropertyDescriptor>)
+    0.3%  js::TypeMonitorResult(JSContext*, JSScript*, unsigned char*, JS::Value const&)
+    0.3%  js::GetProperty(JSContext*, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>)
+    0.3%  js::Shape::hasTable() const
+    0.3%  JS::Value::isMagic(JSWhyMagic) const
+    0.3%  JS::Rooted<JSObject*>::~Rooted()
+    0.3%  Interpret(JSContext*, js::RunState&)
+    0.3%  JSScript::getScope(unsigned int) const
+    0.3%  js::gc::TenuredCell::arena() const
+    0.3%  ??
+    0.3%  js::NativeObject::lastProperty() const
+    0.3%  js::gc::Cell::chunk() const
+    0.3%  js::ScriptedProxyHandler::get(JSContext*, JS::Handle<JSObject*>, JS::Handle<JS::Value>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>) cons
+
+=== stall 26: 1018 ms, 1 samples (10 ms each)
+--- by bucket:
+  100.0%  other module: libfontconfig.so.1
+--- top 40 functions:
+  100.0%  libfontconfig.so.1
+
+=== stall 27: 2082 ms, 94 samples (10 ms each)
+--- by bucket:
+   35.1%  other
+   13.8%  JS interpreter / runtime
+   11.7%  other module: libpthread.so.0
+   10.6%  JS parse / bytecode
+    7.4%  JIT compile (Ion/Baseline)
+    4.3%  JIT code (the page's compiled JavaScript)
+    3.2%  Memory (malloc, strings)
+    3.2%  GC
+    2.1%  other module: jihad-browserserver
+    2.1%  other module: libmemcpy.so
+    2.1%  other module: libc.so.6
+    2.1%  DOM bindings / XPCOM glue
+    1.1%  Style (selectors, restyle)
+    1.1%  HTML parse / DOM build
+--- top 40 functions:
+   11.7%  libpthread.so.0
+    4.3%  <JIT code>
+    3.2%  JSObject::getClass() const
+    3.2%  PLDHashTable::ChangeTable(int)
+    2.1%  jihad-browserserver
+    2.1%  libmemcpy.so
+    2.1%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    2.1%  libc.so.6
+    1.1%  RuleHash::AppendRule(RuleSelectorPair const&)
+    1.1%  nsTArrayInfallibleAllocator::ResultTypeProxy nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::EnsureCapacity<nsTArrayI
+    1.1%  MatchWeightEntry(PLDHashEntryHdr const*, void const*)
+    1.1%  js::frontend::ParseNode::ParseNode(js::frontend::ParseNodeKind, JSOp, js::frontend::ParseNodeArity, js::frontend::TokenPos const&)
+    1.1%  Fold(js::ExclusiveContext*, js::frontend::ParseNode**, js::frontend::Parser<js::frontend::FullParseHandler>&, bool)
+    1.1%  JSFunction::isNamedLambda() const
+    1.1%  JSScript* js::Allocate<JSScript, (js::AllowGC)1>(js::ExclusiveContext*)
+    1.1%  js::jit::ICStubCompiler::getStubCode()
+    1.1%  js::jit::JitcodeSkiplistTower::next(unsigned int) const
+    1.1%  js::AtomHasher::match(js::AtomStateEntry const&, js::AtomHasher::Lookup const&)
+    1.1%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.1%  js::ExclusiveContext::staticStrings()
+    1.1%  JSScript::getConst(unsigned int)
+    1.1%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+    1.1%  js::StackDefs(JSScript*, unsigned char*)
+    1.1%  js::NativeObject::slotSpan() const
+    1.1%  js::detail::HashTableEntry<js::HashMapEntry<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<unsigned int> > >::clear()
+    1.1%  js::NewObjectWithTaggedProtoIsCachable(js::ExclusiveContext*, JS::Handle<js::TaggedProto>, js::NewObjectKind, js::Class const*)
+    1.1%  js::detail::HashTable<js::gc::StoreBuffer::CellPtrEdge const, js::HashSet<js::gc::StoreBuffer::CellPtrEdge, js::gc::StoreBuffer::PointerEdge
+    1.1%  js::DefineProperty(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>, JS::Handle<JS::PropertyDescriptor>, JS::ObjectOpResult&)
+    1.1%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    1.1%  js::frontend::BytecodeEmitter::checkRunOnceContext()
+    1.1%  js::detail::InlineTable<js::InlineMap<JSAtom*, js::frontend::RecyclableAtomMapValueWrapper<unsigned int>, 24u, js::DefaultHasher<JSAtom*>, j
+    1.1%  js::SetPropertyByDefining(JSContext*, JS::Handle<jsid>, JS::Handle<JS::Value>, JS::Handle<JS::Value>, JS::ObjectOpResult&)
+    1.1%  js::UncompressedSourceCache::AutoHoldEntry::~AutoHoldEntry()
+    1.1%  js::jit::CheckScriptSize(JSContext*, JSScript*)
+    1.1%  js::jit::JitActivation::JitActivation(JSContext*, bool)
+    1.1%  decltype ({parm#1}(static_cast<JSObject*>((decltype(nullptr))0))) js::DispatchTyped<js::PreBarrierFunctor<JS::Value>>(js::PreBarrierFunctor<
+    1.1%  js::detail::BumpChunk::new_(unsigned int)
+    1.1%  js::jit::AttachBaselineCacheIRStub(JSContext*, js::jit::CacheIRWriter const&, js::jit::CacheKind, js::jit::ICFallbackStub*)
+    1.1%  js::HeapSlot::post(js::NativeObject*, js::HeapSlot::Kind, unsigned int, JS::Value const&)
+    1.1%  js::frontend::EmitterScope::enclosingScope(js::frontend::BytecodeEmitter*) const
+
+=== stall 28: 4952 ms, 376 samples (10 ms each)
+--- by bucket:
+   38.8%  JS interpreter / runtime
+   33.0%  JIT compile (Ion/Baseline)
+   16.2%  other
+    5.6%  other module: libmemcpy.so
+    2.1%  GC
+    1.6%  other module: jihad-browserserver
+    0.8%  other module: libpthread.so.0
+    0.5%  other module: libc.so.6
+    0.5%  Memory (malloc, strings)
+    0.3%  other module: ld-2.23.so
+    0.3%  HTML parse / DOM build
+    0.3%  Style (selectors, restyle)
+--- top 40 functions:
+    5.6%  libmemcpy.so
+    3.5%  js::irregexp::TextNode::TextEmitPass(js::irregexp::RegExpCompiler*, js::irregexp::TextNode::TextEmitPassType, bool, js::irregexp::Trace*, bo
+    3.2%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    3.2%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::putInt(unsigned int, bool)
+    2.9%  js::irregexp::RegExpBuilder::AddAtom(js::irregexp::RegExpTree*)
+    2.7%  js::LifoAlloc::allocImpl(unsigned int)
+    2.4%  js::jit::MacroAssemblerARM::ma_alu(js::jit::Register, js::jit::Imm32, js::jit::Register, js::jit::AutoGenericRegisterScope<js::jit::Register
+    2.1%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertEntryForwards(unsigned int, unsign
+    2.1%  js::irregexp::TextNode::FilterASCII(int, bool, bool)
+    1.9%  js::jit::MacroAssemblerARMCompat::load8ZeroExtend(js::jit::BaseIndex const&, js::jit::Register)
+    1.9%  js::irregexp::TextNode::Emit(js::irregexp::RegExpCompiler*, js::irregexp::Trace*)
+    1.9%  js::irregexp::RegExpAlternative::RegExpAlternative(js::irregexp::InfallibleVector<js::irregexp::RegExpTree*, 1u>*)
+    1.9%  void mozilla::detail::VectorImpl<js::irregexp::RegExpTree*, 1u, js::LifoAllocPolicy<(js::Fallibility)1>, true>::copyConstruct<js::irregexp::
+    1.6%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::putBytes(unsigned int, void const*)
+    1.6%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    1.6%  ??
+    1.6%  js::detail::BumpChunk::tryAlloc(unsigned int)
+    1.6%  jihad-browserserver
+    1.3%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertNopFill()
+    1.3%  js::jit::Assembler::oom() const
+    1.3%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::oom() const
+    1.3%  js::jit::Imm8::EncodeImm(unsigned int)
+    1.3%  js::irregexp::RegExpBuilder::FlushText()
+    1.1%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::Add(js::LifoAlloc*, js::irregexp::RegExpTree*)
+    1.1%  RangeAtom(js::LifoAlloc*, char16_t, char16_t)
+    1.1%  void js::jit::MacroAssembler::branch32<js::jit::Label*>(js::jit::Assembler::Condition, js::jit::Register, js::jit::Imm32, js::jit::Label*)
+    1.1%  js::irregexp::RegExpBuilder::AddCharacter(char16_t)
+    1.1%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::ensureSpace(unsigned int)
+    1.1%  js::irregexp::ChoiceNode::Emit(js::irregexp::RegExpCompiler*, js::irregexp::Trace*)
+    0.8%  js::irregexp::ChoiceNode::EatsAtLeastHelper(int, int, js::irregexp::RegExpNode*, bool)
+    0.8%  libpthread.so.0
+    0.8%  js::jit::Assembler::bind(js::jit::Label*, js::jit::BufferOffset)
+    0.8%  js::jit::LabelBase::bound() const
+    0.8%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::hasSpaceForInsts(unsigned int, unsigned 
+    0.8%  js::irregexp::BufferedVector<js::irregexp::RegExpTree, 2>::length()
+    0.8%  js::jit::Assembler::as_b(js::jit::Label*, js::jit::Assembler::Condition)
+    0.8%  unsigned int mozilla::RotateLeft<unsigned int>(unsigned int, unsigned char)
+    0.8%  js::irregexp::RegExpBuilder::NewAlternative()
+    0.8%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.5%  js::irregexp::SeqRegExpNode::SeqRegExpNode(js::irregexp::RegExpNode*)
+
+=== stall 29: 1054 ms, 5 samples (10 ms each)
+--- by bucket:
+   60.0%  Style (selectors, restyle)
+   20.0%  Memory (malloc, strings)
+   20.0%  other
+--- top 40 functions:
+   60.0%  RuleHash_MoveEntry(PLDHashTable*, PLDHashEntryHdr const*, PLDHashEntryHdr*)
+   20.0%  nsTArrayInfallibleAllocator::ResultTypeProxy nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::EnsureCapacity<nsTArrayI
+   20.0%  js::ExclusiveContext::staticStrings()
+
+=== stall 30: 3327 ms, 229 samples (10 ms each)
+--- by bucket:
+   35.4%  other
+   27.1%  JS parse / bytecode
+   13.5%  JIT compile (Ion/Baseline)
+   12.2%  JS interpreter / runtime
+    3.9%  other module: jihad-browserserver
+    3.5%  GC
+    1.7%  other module: libmemcpy.so
+    1.3%  other module: libpthread.so.0
+    1.3%  JIT code (the page's compiled JavaScript)
+--- top 40 functions:
+    4.8%  js::BindingIter::settle()
+    3.9%  jihad-browserserver
+    3.9%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    3.1%  js::Shape::searchLinear(jsid)
+    2.6%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    2.6%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.7%  libmemcpy.so
+    1.7%  js::BindingIter::name() const
+    1.7%  MOZ_Z_inflate_fast
+    1.3%  js::frontend::TokenStream::getStringOrTemplateToken(int, js::frontend::Token**)
+    1.3%  js::detail::HashTable<js::AtomStateEntry const, js::HashSet<js::AtomStateEntry, js::AtomHasher, js::SystemAllocPolicy>::SetOps, js::SystemAl
+    1.3%  libpthread.so.0
+    1.3%  <JIT code>
+    1.3%  JSString::isFatInline() const
+    1.3%  js::jit::BufferSlice<1024>::putBytes(unsigned int, void const*)
+    0.9%  JS::Rooted<JSString*>::Rooted<JSContext*, JSString*>(JSContext* const&, JSString*&&)
+    0.9%  js::frontend::Parser<js::frontend::SyntaxParseHandler>::assignExpr(js::frontend::InHandling, js::frontend::YieldHandling, js::frontend::Trip
+    0.9%  JS::Rooted<JSString*>::registerWithRootLists(mozilla::EnumeratedArray<JS::RootKind, (JS::RootKind)15, JS::Rooted<void*>*>&)
+    0.9%  js::frontend::TokenStream::SourceCoords::lineIndexOf(unsigned int) const
+    0.9%  js::frontend::TokenStream::getToken(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.9%  (anonymous namespace)::NameResolver::resolve(js::frontend::ParseNode*, JS::Handle<JSAtom*>)
+    0.9%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::putInt(unsigned int, bool)
+    0.9%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.9%  void mozilla::detail::VectorImpl<js::jit::BaselineCompilerShared::PCMappingEntry, 16u, js::SystemAllocPolicy, false>::new_<js::jit::Baseline
+    0.9%  js::jit::AutoFlushICache::flush(unsigned int, unsigned int)
+    0.9%  js::BindingIter::increment()
+    0.4%  js::frontend::TokenStream::seek(js::frontend::TokenStream::Position const&, js::frontend::TokenStream const&)
+    0.4%  ReservedWordInfo const* FindReservedWord<char16_t>(char16_t const*, unsigned int)
+    0.4%  js::frontend::Parser<js::frontend::FullParseHandler>::assignExpr(js::frontend::InHandling, js::frontend::YieldHandling, js::frontend::Triple
+    0.4%  bool js::frontend::Parser<js::frontend::FullParseHandler>::mustMatchTokenInternal<js::frontend::Parser<js::frontend::FullParseHandler>::must
+    0.4%  js::frontend::TokenStream::getCharIgnoreEOL()
+    0.4%  js::frontend::Parser<js::frontend::FullParseHandler>::functionExpr(unsigned int, js::frontend::ParserBase::InvokedPrediction, js::FunctionAs
+    0.4%  js::frontend::Parser<js::frontend::SyntaxParseHandler>::finishFunction(bool)
+    0.4%  js::detail::BumpChunk::tryAlloc(unsigned int)
+    0.4%  js::AtomHasher::match(js::AtomStateEntry const&, js::AtomHasher::Lookup const&)
+    0.4%  js::frontend::TokenStream::peekTokenSameLine(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    0.4%  js::frontend::Parser<js::frontend::FullParseHandler>::PossibleError::checkForExpressionError()
+    0.4%  js::frontend::Parser<js::frontend::SyntaxParseHandler>::functionArguments(js::frontend::YieldHandling, js::frontend::FunctionSyntaxKind, js:
+    0.4%  void js::TenuringTracer::traverse<JSObject>(JSObject**)
+    0.4%  void DoMarking<JSString>(js::GCMarker*, JSString*)
+
+=== stall 31: 2572 ms, 153 samples (10 ms each)
+--- by bucket:
+   43.1%  other
+   17.0%  JS parse / bytecode
+   10.5%  JIT compile (Ion/Baseline)
+    9.8%  JS interpreter / runtime
+    4.6%  other module: libpthread.so.0
+    3.9%  other module: jihad-browserserver
+    2.6%  GC
+    2.0%  JIT code (the page's compiled JavaScript)
+    2.0%  Memory (malloc, strings)
+    1.3%  other module: ld-2.23.so
+    1.3%  other module: libc.so.6
+    0.7%  other module: libmemcpy.so
+    0.7%  Style (selectors, restyle)
+    0.7%  DOM bindings / XPCOM glue
+--- top 40 functions:
+    6.5%  js::BindingIter::settle()
+    5.9%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    4.6%  libpthread.so.0
+    3.9%  jihad-browserserver
+    2.6%  js::BindingName::name() const
+    2.0%  js::detail::HashTable<js::HashMapEntry<unsigned int, jsid>, js::HashMap<unsigned int, jsid, js::DefaultHasher<unsigned int>, js::SystemAlloc
+    2.0%  js::shadow::Object::numFixedSlots() const
+    2.0%  <JIT code>
+    2.0%  JSObject::getClass() const
+    2.0%  js::BindingIter::increment()
+    1.3%  ??
+    1.3%  Interpret(JSContext*, js::RunState&)
+    1.3%  js::jit::FrameInfo::popRegsAndSync(unsigned int)
+    1.3%  JSScript::getScope(unsigned int) const
+    1.3%  ld-2.23.so
+    1.3%  js::jit::MacroAssemblerARM::ma_dtr(js::jit::LoadStore, js::jit::Register, js::jit::Address const&, js::jit::AutoGenericRegisterScope<js::jit
+    1.3%  js::frontend::Parser<js::frontend::FullParseHandler>::memberExpr(js::frontend::YieldHandling, js::frontend::TripledotHandling, js::frontend:
+    1.3%  libc.so.6
+    0.7%  js::jit::JitCode* js::jit::Linker::newCode<(js::AllowGC)1>(JSContext*, js::jit::CodeKind, bool)
+    0.7%  js::jit::SharedStubInfo::outerScript(JSContext*)
+    0.7%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    0.7%  js::Shape::entryCount()
+    0.7%  js::detail::HashTable<js::HashMapEntry<JS::Heap<JSObject*>, JS::Heap<JSObject*> >, js::HashMap<JS::Heap<JSObject*>, JS::Heap<JSObject*>, js:
+    0.7%  mozilla::detail::PairHelper<js::UnboxedLayout*, JS::DeletePolicy<js::UnboxedLayout>, (mozilla::detail::StorageType)1, (mozilla::detail::Stor
+    0.7%  libmemcpy.so
+    0.7%  js::frontend::Parser<js::frontend::FullParseHandler>::assignExpr(js::frontend::InHandling, js::frontend::YieldHandling, js::frontend::Triple
+    0.7%  js::frontend::BytecodeEmitter::updateSourceCoordNotes(unsigned int)
+    0.7%  NativeGetPropertyInline<(js::AllowGC)1>
+    0.7%  js::frontend::BytecodeEmitter::emitTree(js::frontend::ParseNode*, js::frontend::ValueUsage, js::frontend::BytecodeEmitter::EmitLineNumberNot
+    0.7%  js::ObjectGroup::getProperty(js::ExclusiveContext*, JSObject*, jsid)
+    0.7%  js::Shape::new_(js::ExclusiveContext*, JS::Handle<js::StackShape>, unsigned int)
+    0.7%  void mozilla::detail::VectorImpl<unsigned char, 256u, js::TempAllocPolicy, true>::new_<>(unsigned char*)
+    0.7%  PurgeEnvironmentChain(js::ExclusiveContext*, JS::Handle<JSObject*>, JS::Handle<jsid>)
+    0.7%  js::frontend::Parser<js::frontend::FullParseHandler>::optionalExpr(js::frontend::YieldHandling, js::frontend::TripledotHandling, js::fronten
+    0.7%  JSScript::innermostScope(unsigned char*)
+    0.7%  non-virtual thunk to js::frontend::FunctionBox::toObjectBox()
+    0.7%  js::jit::ICStubCompiler::ICStubCompiler(JSContext*, js::jit::ICStub::Kind, js::jit::ICStubCompiler::Engine)
+    0.7%  js::jit::MacroAssemblerARMCompat::moveValue(js::jit::ValueOperand const&, js::jit::ValueOperand const&)
+    0.7%  js::jit::EffectlesslyLookupProperty(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>, JS::MutableHandle<JSObject*>, JS::MutableHandle<JS:
+    0.7%  js::AutoEnterAnalysis::~AutoEnterAnalysis()
+
+=== stall 32: 7617 ms, 646 samples (10 ms each)
+--- by bucket:
+   34.2%  other
+   21.7%  JIT compile (Ion/Baseline)
+   12.8%  JS parse / bytecode
+   10.4%  JS interpreter / runtime
+    4.2%  other module: libmemcpy.so
+    4.0%  other module: jihad-browserserver
+    3.6%  GC
+    3.1%  other module: libpthread.so.0
+    2.5%  JIT code (the page's compiled JavaScript)
+    0.8%  Memory (malloc, strings)
+    0.8%  other module: libgcc_s.so.1
+    0.6%  other module: ld-2.23.so
+    0.6%  other module: libc.so.6
+    0.5%  DOM bindings / XPCOM glue
+    0.3%  Cycle collector
+--- top 40 functions:
+    4.2%  libmemcpy.so
+    4.0%  jihad-browserserver
+    3.1%  libpthread.so.0
+    2.5%  <JIT code>
+    2.0%  js::BindingIter::settle()
+    1.7%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    1.4%  js::BindingIter::increment()
+    1.2%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    1.2%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::nextOffset() const
+    1.1%  js::frontend::TokenStream::getTokenInternal(js::frontend::TokenKind*, js::frontend::Token::Modifier)
+    1.1%  JSObject::getClass() const
+    1.1%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    0.9%  MOZ_Z_inflate_fast
+    0.9%  ??
+    0.9%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::oom() const
+    0.9%  js::jit::ICEntry::pcOffset() const
+    0.8%  js::Shape::searchLinear(jsid)
+    0.8%  js::jit::ICStubCompiler::getStubCode()
+    0.8%  js::jit::BaselineCompiler::emitBody()
+    0.8%  InstIsGuard(js::jit::Instruction*, PoolHeader const**)
+    0.8%  libgcc_s.so.1
+    0.6%  JSScript::lookupScope(unsigned char*)
+    0.6%  js::jit::MacroAssemblerARM::ma_movPatchable(js::jit::Imm32, js::jit::Register, js::jit::Assembler::Condition)
+    0.6%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::insertEntryForwards(unsigned int, unsign
+    0.6%  ld-2.23.so
+    0.6%  libc.so.6
+    0.6%  bool mozilla::BinarySearchIf<ICEntries, ComputeBinarySearchMid(js::jit::BaselineScript*, unsigned int)::{lambda(js::jit::BaselineICEntry&)#1
+    0.5%  js::BindingName::name() const
+    0.5%  js::GetBytecodeLength(unsigned char*)
+    0.5%  JSCompartment::jitCompartment()
+    0.5%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::putInt(unsigned int, bool)
+    0.5%  js::jit::AssemblerBuffer<1024, js::jit::Instruction>::ensureSpace(unsigned int)
+    0.5%  js::jit::MacroAssemblerARM::ma_dataTransferN(js::jit::LoadStore, int, bool, js::jit::Register, js::jit::Imm32, js::jit::Register, js::jit::A
+    0.5%  js::jit::MacroAssemblerARMCompat::loadPtr(js::jit::Address const&, js::jit::Register)
+    0.5%  bool mozilla::Vector<unsigned char, 32u, js::SystemAllocPolicy>::append<unsigned int&>(unsigned int&)
+    0.5%  js::jit::BaselineCompiler::compile()
+    0.5%  js::jit::Assembler::PatchDataWithValueCheck(js::jit::CodeLocationLabel, js::jit::PatchedImmPtr, js::jit::PatchedImmPtr)
+    0.5%  js::jit::Instruction::extractCond()
+    0.5%  js::LookupPropertyPure(js::ExclusiveContext*, JSObject*, jsid, JSObject**, JS::PropertyResult*)
+    0.5%  js::detail::BumpChunk::tryAlloc(unsigned int)
+
+=== stall 33: 1345 ms, 34 samples (10 ms each)
+--- by bucket:
+   23.5%  other
+   17.6%  JIT compile (Ion/Baseline)
+   11.8%  JS parse / bytecode
+    8.8%  JS interpreter / runtime
+    8.8%  GC
+    5.9%  other module: libc.so.6
+    5.9%  JIT code (the page's compiled JavaScript)
+    5.9%  other module: libmemcpy.so
+    5.9%  other module: libpthread.so.0
+    2.9%  other module: jihad-browserserver
+    2.9%  Memory (malloc, strings)
+--- top 40 functions:
+    5.9%  libc.so.6
+    5.9%  <JIT code>
+    5.9%  libmemcpy.so
+    5.9%  libpthread.so.0
+    5.9%  js::jit::AssemblerBufferWithConstantPools<1024u, 4u, js::jit::Instruction, js::jit::Assembler, 0u>::allocEntry(unsigned int, unsigned int, u
+    5.9%  js::jit::TrackAllProperties(JSContext*, JSObject*)
+    5.9%  js::frontend::EmitterScope::searchInEnclosingScope(JSAtom*, js::Scope*, unsigned char)
+    2.9%  js::jit::ExecutableAllocator::cacheFlush(void*, unsigned int)
+    2.9%  js::frontend::PropOpEmitter::emitGet(JSAtom*)
+    2.9%  js::NativeGetProperty(JSContext*, JS::Handle<js::NativeObject*>, JS::Handle<JS::Value>, JS::Handle<jsid>, JS::MutableHandle<JS::Value>)
+    2.9%  js::jit::MIRGenerator::instrumentedProfiling()
+    2.9%  js::TypedArrayObject::fixedLengthMaybeOutOfBounds() const
+    2.9%  js::gc::AutoSuppressGC::AutoSuppressGC(js::ExclusiveContext*)
+    2.9%  void js::jit::MacroAssembler::addToStackPtr<js::jit::Imm32>(js::jit::Imm32)
+    2.9%  js::EnsureTrackPropertyTypes(JSContext*, JSObject*, jsid)
+    2.9%  js::ObjectGroup::Property* js::TypeHashSet::Lookup<jsid, js::ObjectGroup::Property, js::ObjectGroup::Property>(js::ObjectGroup::Property**, 
+    2.9%  js::detail::HashTable<js::HashMapEntry<unsigned int, jsid>, js::HashMap<unsigned int, jsid, js::DefaultHasher<unsigned int>, js::SystemAlloc
+    2.9%  js::detail::BumpChunk::BumpChunk(unsigned int)
+    2.9%  JS::detail::CallArgsBase<JS::detail::IncludeUsedRval>::callee() const
+    2.9%  js::frontend::PropOpEmitter::prepareAtomIndex(JSAtom*)
+    2.9%  jihad-browserserver
+    2.9%  js::Shape::searchLinear(jsid)
+    2.9%  js::gc::TenuredCell::writeBarrierPre(js::gc::TenuredCell*)
+    2.9%  js::jit::Assembler::addPendingJump(js::jit::BufferOffset, js::jit::ImmPtr, js::jit::Relocation::Kind)
+    2.9%  js::jit::BaselineFrame::reverseOffsetOfLocal(unsigned int)
+    2.9%  std::__atomic_base<unsigned int>::fetch_sub(unsigned int, std::memory_order)
+    2.9%  ??
+
+=== stall 34: 2116 ms, 109 samples (10 ms each)
+--- by bucket:
+   36.7%  other
+   16.5%  other module: libpthread.so.0
+   11.9%  GC
+   10.1%  JS interpreter / runtime
+   10.1%  Cycle collector
+    4.6%  Memory (malloc, strings)
+    2.8%  JIT compile (Ion/Baseline)
+    2.8%  other module: libc.so.6
+    1.8%  DOM bindings / XPCOM glue
+    1.8%  other module: jihad-browserserver
+    0.9%  other module: libmemcpy.so
+--- top 40 functions:
+   16.5%  libpthread.so.0
+    2.8%  js::gc::detail::CellIsMarkedGrayIfKnown(js::gc::Cell const*)
+    2.8%  js::jit::BaselineCompiler::emit_JSOP_RETRVAL()
+    2.8%  libc.so.6
+    1.8%  JS::AutoTracingIndex::operator++()
+    1.8%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)1>(void const*, unsigned int)
+    1.8%  js::ObjectGroup::newScript()
+    1.8%  EdgePool::Builder::Add(PtrInfo*)
+    1.8%  mozilla::CycleCollectedJSContext::NoteGCThingJSChildren(JS::GCCellPtr, nsCycleCollectionTraversalCallback&) const
+    1.8%  nsACString_internal::~nsACString_internal()
+    1.8%  PLDHashTable::AddressEntry(unsigned int)
+    1.8%  JSObject::traceChildren(JSTracer*)
+    1.8%  mozilla::CycleCollectedJSContext::NoteGCThingXPCOMChildren(js::Class const*, JSObject*, nsCycleCollectionTraversalCallback&) const
+    1.8%  TraversalTracer::onChild(JS::GCCellPtr const&)
+    1.8%  nsCycleCollector::CollectWhite()
+    1.8%  js::detail::HashTable<js::HashMapEntry<JS::Heap<JSObject*>, nsXPCWrappedJS*>, js::HashMap<JS::Heap<JSObject*>, nsXPCWrappedJS*, js::MovableC
+    1.8%  JS::Zone::shouldMarkInZone() const
+    1.8%  js::GCMarker::processMarkStackTop(js::SliceBudget&)
+    1.8%  jihad-browserserver
+    0.9%  js::gc::TenuredCell::arena() const
+    0.9%  mozilla::psm::OCSPVerificationTrustDomain::~OCSPVerificationTrustDomain()
+    0.9%  JS::GCThingTraceKind(void*)
+    0.9%  libmemcpy.so
+    0.9%  PLDHashTable::FindFreeEntry(unsigned int)
+    0.9%  js::ObjectGroup::traceChildren(JSTracer*)
+    0.9%  js::ObjectGroup::needsSweep()
+    0.9%  JSObject* DoCallback<JSObject*>(JS::CallbackTracer*, JSObject**, char const*)
+    0.9%  JS::GCCellPtr::asCell() const
+    0.9%  js::gc::TraceCycleCollectorChildren(JS::CallbackTracer*, js::Shape*)
+    0.9%  GCThingIsGrayCCThing(JS::GCCellPtr)
+    0.9%  fun_trace(JSTracer*, JSObject*)
+    0.9%  nsAString_internal::Finalize()
+    0.9%  bool JSObject::is<js::ShapedObject>() const
+    0.9%  mozilla::AddToCCKind(JS::TraceKind)
+    0.9%  CCGraph::AddNodeToMap(void*)
+    0.9%  JS_TraceShapeCycleCollectorChildren(JS::CallbackTracer*, JS::GCCellPtr)
+    0.9%  PLDHashTable::Add(void const*, mozilla::fallible_t const&)
+    0.9%  nsCycleCollectionParticipant::TraverseNativeAndJS(void*, nsCycleCollectionTraversalCallback&)
+    0.9%  js::NativeObject::denseElementsAreCopyOnWrite()
+    0.9%  mozilla::CycleCollectedJSContext::TraverseGCThing(mozilla::CycleCollectedJSContext::TraverseSelect, JS::GCCellPtr, nsCycleCollectionTraversa
+

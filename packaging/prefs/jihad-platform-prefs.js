@@ -240,6 +240,19 @@ pref("jihad.compat.trace", false);         // a diagnosis mode: logs which engin
 // pages (the round script's worst tick) if a page ever gets slower for it. ---
 pref("layout.css.has-pseudo.enabled", true);
 
+// --- The clock hold (T-500, 2026-10-16; the owner: "fix the stall") — the TouchPad's governor
+// (Palm's ondemandtcl) ramps the clock on a touch, not on load: a page loading ran at 192-384 MHz
+// of the 1188 the chip does. While the engine has work the daemon holds the frequency floor at the
+// top and lets it go after two seconds of idle (JihadBrowserServer.cpp). ---
+pref("jihad.cpu.hold", true);
+
+// --- The layout viewport follows a page's overflow (T-499, 2026-10-16) — a page laid out wider
+// than the card (DuckDuckGo: 1000 px in a 768 window) got innerWidth = 768 while the card showed
+// all 1000, so what the page parked just past its right edge (its slide-out menu) was on screen.
+// Now such a page, once, gets an engine window as wide as its content (up to 1100 px, no meta
+// viewport); the card's fit-zoom is unchanged. BrowserPageGoanna.cpp emitGeometry. ---
+pref("jihad.viewport.followOverflow", true);
+
 // --- jemalloc (T-493, 2026-10-16): the allocator is in the daemon now; every memory-pressure
 // notification (the last card's, the low-memory guardrail's, the lists' unload) also returns
 // jemalloc's dirty pages to the kernel (AvailableMemoryTracker's watcher; off upstream, on for

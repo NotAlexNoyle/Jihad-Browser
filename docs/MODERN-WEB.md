@@ -492,6 +492,61 @@ trials, not a patch for this round. Until then the regular DuckDuckGo page shows
 with the menu panel standing at the top (the shot `t-ddg`), and DuckDuckGo Lite stays the
 default search.
 
+**T-499, built (daemon 17, 2026-10-16 afternoon):** `GoannaRenderPage::SetLayoutSize` sets the
+engine's window apart from the card (the headless widget and the base window resized, the reflow
+forced as `Resize` does it; `Width()`/`Height()` stay the card's, so the pan, the buffer and the
+fit-zoom are untouched); `emitGeometry` calls it ONCE per page and card size when the content is
+wider than the card by more than 8 px, up to 1100 px, for a page that declares no meta viewport,
+then re-measures the content; `resetScrollForNavigation` and `setWindowSize` (rotation) reset
+the once. Pref `jihad.viewport.followOverflow` (on). T499_DEVICE_RESULT
+
+**T-500 — the stall, measured to the function (2026-10-16 15:00–16:30; the owner: "fix the
+stall").** The tick log already said every stall is in the PUMP (the 40.9 s GitLab tick: pump
+40.6 s, paint 0.3 s), and the pump is one `NS_ProcessNextEvent` at a time — one event holds the
+thread. This engine build has no Gecko profiler (`tools/profiler`: no objects), so the daemon got
+a sampler of its own (`GoannaRenderPage.cpp`, `$JIHAD_STALL_SAMPLER=<ms>`, diagnosis only): a
+thread sends SIGPROF to the main thread every 10 ms once the current event has run longer than
+the threshold, the handler records the program counter, and after the event every sample goes to
+`/tmp/jihad-stall.txt` as module+offset, which `tools/host/stall-resolve.py` resolves with the
+toolchain's addr2line against the unstripped libxul (1.1 GB of debug info, the same build) and
+sorts into buckets. 33 stalls over five pages (`docs/rounds/t500-2026-10-16/`):
+
+| stall | page | what held the thread (10 ms samples) |
+|---|---|---|
+| 32.4 s | DuckDuckGo results | the page's compiled JavaScript 24%, the JS runtime (shapes, property lookups, inline caches, `Interpret`) 15%, JIT compile 8%, GC 8%, the rest the long tail of the runtime |
+| 44.4 s | GitLab explore | JIT code 12%, runtime 13%, parse 8%, JIT compile 8%, GC 5%, style (`SelectorMatches`, CSS variables) 3% |
+| 46.1 s | old Reddit's login page | JIT code 19%, runtime 19%, GC 10%, compile 7% |
+| 5.1 s, 5.0 s | YouTube mobile (two) | **regular-expression compilation** (irregexp → ARM code) and baseline-JIT compile 27–33%, runtime 39% |
+| 4.7 s, 5.2 s | DuckDuckGo, GitLab (two) | **cycle collection** (graph build, `CellIsMarkedGray`, the purple buffer's hash tables) 11–15% plus its GC 10–16% — a full CC+GC pair of ~5 s each |
+| 8.6 s | DuckDuckGo | parse 21%, baseline compile 15%, runtime 10%, GC 8% |
+
+So the big stalls are the pages' own JavaScript running (two thirds, counting the runtime it
+calls into), with compile and the collections the rest; nothing in the daemon, the blocker or the
+paint. **And the clock:** while the DuckDuckGo page loaded, the CPU sat at **192 or 384 MHz for
+most of the seconds** (a sample a second: `1188 1188 1188 1026 384 192 192 192 192 192 384 918
+384 192 1188 384 192 …`) with the load average at 4 — the TouchPad's governor is Palm's
+`ondemandtcl`, which ramps on a touch tickle from the system UI, not on load; the chip does 1188.
+The engine ran the page's script at a third to a sixth of the device's speed. THE TRAP: an A/B
+that wrote `performance` to `scaling_governor` wedged the kernel's cpufreq lock — every cpufreq
+read and every `luna-send` hung, upstart still answered, `reboot` hung, only `reboot -f` got
+out (a reboot and an hour; memory `cpufreq-governor-switch-wedges-the-touchpad`). So the fix
+never touches the governor: **the clock hold** (`JihadBrowserServer.cpp`, daemon 16, pref
+`jihad.cpu.hold`) raises the frequency FLOOR to the top while the engine has work (a busy page or
+a tick with real work; a stall's first busy tick comes before it) and lets it go after two seconds
+of idle ticks. T500_HOLD_RESULT
+
+**T-501 — H.264 and AAC (the README's "H.264 in Media Source Extensions" caveat).** The engine
+is built with `MOZ_FFMPEG` and loads a system libavcodec 58–61 at run time for what its own
+ffvpx does not decode; the device has none. `build/webos-oe/build-ffmpeg-arm.sh` (after
+`fetch-ffmpeg.sh`, sha256 pinned) cross-builds FFmpeg 4.4.5 in the ARM container with the
+engine's flags: decoders and parsers for H.264, AAC and MP3 only, no demuxers, no GPL parts,
+LGPL v2.1+ — `libavcodec.so.58` (1.66 MB) and `libavutil.so.56` (0.59 MB), shipped by the bundle
+when built, their notice in `NOTICE` and the licence text in `licenses/runtime/`. One
+non-technical note for the owner: H.264 and AAC are patented in some countries; shipping a
+decoder is a distributor's question (Debian ships FFmpeg; Fedora did not until 2022). The
+container has no curl (the tarball is fetched on the host) and links against the toolchain's own
+sysroot (the Debian one has no C runtime objects for this gcc). T501_DEVICE_RESULT
+
 **Measured with daemon 11 (2026-10-16 03:33–03:40, Mochi, the same three pages as daemon 10's
 run; `memory-report-read.py` on the dump):**
 

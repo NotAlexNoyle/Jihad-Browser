@@ -60,6 +60,13 @@ UXP — Unified XUL Platform / Goanna engine (rendering engine dependency)
   covers liblgpllibs (SoundTouch, LGPL-2.1) and libmozavcodec/libmozavutil (the FFmpeg subset
   "ffvpx": VP8, VP9 and FLAC decoders only; LGPL-2.1). The engine's own about:license page,
   installed with it, carries the licences of everything compiled into libxul.
+  libavcodec.so.58 and libavutil.so.56 are FFmpeg 4.4.5 (https://ffmpeg.org/, LGPL v2.1 or
+  later; the text is licenses/runtime/ffmpeg-COPYING.LGPLv2.1), built by
+  build/webos-oe/build-ffmpeg-arm.sh with the H.264, AAC and MP3 decoders and parsers only, no
+  GPL or non-free parts, unmodified source (sha256 of ffmpeg-4.4.5.tar.xz pinned in the script);
+  the engine loads libavcodec at run time for the formats ffvpx does not decode. The H.264 and AAC
+  formats are covered by patents in some countries; whether a decoder may be distributed or used
+  there is a question for the distributor and the user, not something this notice can settle.
   Jihad Browser's per-domain User-Agent override table (render/goanna/
   EngineHost.cpp, jihadUaTable) — the domain→Firefox-version site-compat
   choices — is derived from Basilisk / Pale-Moon's uaoverrides.inc:

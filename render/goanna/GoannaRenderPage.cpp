@@ -1041,11 +1041,38 @@ std::string DebugElementRect(const char* elementId) {
   return std::string(buf);
 }
 
+// T-499 (2026-10-16): the layout viewport apart from the card. The card stays mWidth x mHeight (the
+// buffer, the pan arithmetic, the fit-zoom); only the engine's window — the thing innerWidth, vw
+// and position:fixed are measured against — is set to the page's overflow width, and the height
+// to what the card shows at that fit (card height / zoom). Measured need: DuckDuckGo lays out
+// 1000 px wide in a 768 window and parks its slide-out menu at innerWidth + 4, which the card's
+// fit-zoom of the whole 1000 px then shows; at a 1000-px layout viewport the menu parks at 1004.
+bool GoannaRenderPage::SetLayoutSize(int width, int height) {
+  if (!mChrome) return false;
+  if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
+  if (width == mLayoutW && height == mLayoutH) return true;
+  mLayoutW = width; mLayoutH = height;
+  if (mOffscreen) jihad_offscreen_resize(mWidget, width, height);
+  nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
+  if (bw) bw->SetPositionAndSize(0, 0, width, height, nsIBaseWindow::eRepaint);
+  // the reflow at the new size, as Resize() does it (the headless widget's resize does not reach
+  // the presShell by itself; engine_calls::ResizeReflow works in device px = CSS px here)
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (ds) {
+    nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+    if (ps) engine_calls::ResizeReflow(ps.get(), width, height);
+  }
+  JIHAD_GTK_PUMP();
+  fprintf(stderr, "[jihad-bs] layout viewport %dx%d (card %dx%d)\n", width, height, mWidth, mHeight);
+  return true;
+}
+
 bool GoannaRenderPage::Resize(int width, int height) {
   if (!mChrome) return false;
   if ((mOffscreen && !mWidget) || (!mOffscreen && !mWindow)) return false;
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
   mWidth = width; mHeight = height;
+  mLayoutW = mLayoutH = 0;   // T-499: a new card size starts from a layout viewport equal to it
   mChrome->mW = width; mChrome->mH = height;   // keep GetDimensions() consistent
   if (mOffscreen) {
     jihad_offscreen_resize(mWidget, width, height);
@@ -2133,6 +2160,109 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
                                             trigger));
 }
 
+// ── The stall sampler (diagnosis only; $JIHAD_STALL_SAMPLER=<ms>, 2026-10-16) ───────────────────
+//
+// The tick log says a stall is in the pump (work max=40891 pump avg=40614 paint avg=277 on
+// GitLab), and the pump is one NS_ProcessNextEvent at a time — a single event (a script, a
+// reflow, a collection) can hold the thread for forty seconds. This engine build has no Gecko
+// profiler (tools/profiler: no objects), so: a thread that, once the current event has run
+// longer than the threshold, sends SIGPROF to the main thread every 10 ms; the handler records
+// the program counter (the leaf, no unwinding — robust on ARM, and the leaf names the work:
+// parser, JIT compiler, GC, cycle collector, style, reflow, paint, interpreter, JIT code).
+// After the event: one summary line in the log (per module), and every sample as
+// module+offset appended to /tmp/jihad-stall.txt, which tools/host/stall-resolve.py turns into
+// function names and buckets with the unstripped libxul and the toolchain's addr2line.
+// Signal-safe by construction: the handler touches an array and two atomics; dladdr runs on the
+// main thread afterwards.
+#include <signal.h>
+#include <pthread.h>
+#include <ucontext.h>
+#include <dlfcn.h>
+#include <atomic>
+#include <algorithm>
+#include <vector>
+namespace {
+const int kStallSamplesMax = 8192;              // 82 s of a stall at 10 ms; a longer one is truncated
+static std::atomic<long> gStallEventStartMs{0}; // 0 = no event running
+static std::atomic<int>  gStallSampleCount{0};
+static uintptr_t         gStallSamples[kStallSamplesMax];
+static pthread_t         gStallMainThread;
+static int               gStallThresholdMs = 0;
+static int               gStallCount = 0;
+static long StallNowMs() { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000L + ts.tv_nsec / 1000000; }
+static void StallOnProf(int, siginfo_t*, void* aCtx) {
+  ucontext_t* uc = static_cast<ucontext_t*>(aCtx);
+  uintptr_t pc = static_cast<uintptr_t>(uc->uc_mcontext.arm_pc);
+  int n = gStallSampleCount.fetch_add(1);
+  if (n < kStallSamplesMax) gStallSamples[n] = pc;
+}
+static void* StallSamplerThread(void*) {
+  for (;;) {
+    usleep(10000);
+    long s = gStallEventStartMs.load();
+    if (s && StallNowMs() - s >= gStallThresholdMs) pthread_kill(gStallMainThread, SIGPROF);
+  }
+  return nullptr;
+}
+}  // namespace
+
+void JihadStallSamplerInit() {
+  const char* e = getenv("JIHAD_STALL_SAMPLER");
+  if (!e || !*e) return;
+  gStallThresholdMs = atoi(e);
+  if (gStallThresholdMs <= 0) return;
+  gStallMainThread = pthread_self();
+  struct sigaction sa; memset(&sa, 0, sizeof(sa));
+  sa.sa_sigaction = StallOnProf; sa.sa_flags = SA_SIGINFO | SA_RESTART; sigemptyset(&sa.sa_mask);
+  sigaction(SIGPROF, &sa, nullptr);
+  pthread_t t;
+  if (pthread_create(&t, nullptr, StallSamplerThread, nullptr) == 0) pthread_detach(t);
+  fprintf(stderr, "[jihad-bs] stall sampler on: an event longer than %d ms is sampled every 10 ms (the pc); samples to /tmp/jihad-stall.txt\n", gStallThresholdMs);
+}
+static inline void JihadStallEventBegin() {
+  if (!gStallThresholdMs) return;
+  gStallSampleCount.store(0);
+  gStallEventStartMs.store(StallNowMs());
+}
+static void JihadStallEventEnd() {
+  if (!gStallThresholdMs) return;
+  long s = gStallEventStartMs.exchange(0);
+  if (!s) return;
+  int n = gStallSampleCount.load();
+  if (n <= 0) return;
+  long ms = StallNowMs() - s;
+  if (n > kStallSamplesMax) n = kStallSamplesMax;
+  ++gStallCount;
+  // per-module histogram for the log; every sample to the file
+  struct Mod { const char* name; uintptr_t base; int count; };
+  std::vector<Mod> mods;
+  FILE* f = fopen("/tmp/jihad-stall.txt", "a");
+  if (f) fprintf(f, "stall %d: %ld ms, %d samples\n", gStallCount, ms, n);
+  int jit = 0;
+  for (int i = 0; i < n; i++) {
+    Dl_info di; memset(&di, 0, sizeof(di));
+    if (dladdr(reinterpret_cast<void*>(gStallSamples[i]), &di) && di.dli_fname) {
+      const char* nm = strrchr(di.dli_fname, '/'); nm = nm ? nm + 1 : di.dli_fname;
+      uintptr_t off = gStallSamples[i] - reinterpret_cast<uintptr_t>(di.dli_fbase);
+      if (f) fprintf(f, "%s+0x%lx\n", nm, static_cast<unsigned long>(off));
+      bool found = false;
+      for (auto& m : mods) if (m.base == reinterpret_cast<uintptr_t>(di.dli_fbase)) { m.count++; found = true; break; }
+      if (!found) mods.push_back({nm, reinterpret_cast<uintptr_t>(di.dli_fbase), 1});
+    } else {
+      ++jit;
+      if (f) fprintf(f, "jit+0x%lx\n", static_cast<unsigned long>(gStallSamples[i]));
+    }
+  }
+  if (f) fclose(f);
+  std::sort(mods.begin(), mods.end(), [](const Mod& a, const Mod& b) { return a.count > b.count; });
+  std::string line;
+  for (size_t i = 0; i < mods.size() && i < 6; i++) {
+    char b[160]; snprintf(b, sizeof(b), "%s %d%%, ", mods[i].name, mods[i].count * 100 / n); line += b;
+  }
+  if (jit) { char b[64]; snprintf(b, sizeof(b), "JIT code %d%%", jit * 100 / n); line += b; }
+  fprintf(stderr, "[jihad-bs] stall %d: an event ran %ld ms, %d samples: %s\n", gStallCount, ms, n, line.c_str());
+}
+
 // Drain the engine's ready work and RETURN. This is the tick's pump, and it exists because
 // PumpFor's contract is the opposite one: PumpFor SPENDS its budget, g_usleep(1000)ing between
 // events so that a test waiting on a load keeps the engine running for the full duration.
@@ -2155,7 +2285,10 @@ int PumpReadyMainThread(int msBudget) {
   struct timespec ts0; clock_gettime(CLOCK_MONOTONIC, &ts0);
   int ran = 0;
   for (;;) {
-    if (!NS_ProcessNextEvent(thread, false)) break;   // nothing ready: do not wait for more
+    JihadStallEventBegin();
+    bool ran1 = NS_ProcessNextEvent(thread, false);
+    JihadStallEventEnd();
+    if (!ran1) break;   // nothing ready: do not wait for more
     ++ran;
     JIHAD_GTK_PUMP();
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -2188,7 +2321,9 @@ void GoannaRenderPage::PumpFor(int msBudget) {
   NS_GetCurrentThread(getter_AddRefs(thread));
   struct timespec ts0; clock_gettime(CLOCK_MONOTONIC, &ts0);
   for (;;) {
+    JihadStallEventBegin();
     NS_ProcessNextEvent(thread, false);
+    JihadStallEventEnd();
     JIHAD_GTK_PUMP();
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     long ms = (ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000;
@@ -2203,7 +2338,9 @@ bool GoannaRenderPage::LoadUrlAndWait(const char* url, int timeoutSec) {
   NS_GetCurrentThread(getter_AddRefs(thread));
   time_t start = time(nullptr);
   while (!mChrome->mDone && (time(nullptr) - start) < timeoutSec) {
+    JihadStallEventBegin();
     NS_ProcessNextEvent(thread, false);
+    JihadStallEventEnd();
     JIHAD_GTK_PUMP();
     g_usleep(1000);
   }

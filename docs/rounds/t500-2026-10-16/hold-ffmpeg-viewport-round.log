@@ -1,0 +1,43 @@
+viewport script ok
+=== 1. the clock hold (daemon 16)
+== daemon b99349bf; governor ondemandtcl; floor before 192000
+== running, process 9609; 
+@@ ddg-H | governor=ondemandtcl | first-paint=15s load=53s worst-tick=10762ms | seconds at >=1 GHz: 51 of 60
+   floor during: 1188000; after 4 s idle:
+   floor now 1188000 (expected 192000 back)
+@@ gitlab-H | governor=ondemandtcl | first-paint=9s load=56s worst-tick=32219ms | seconds at >=1 GHz: 60 of 60
+@@ yt-home-H | governor=ondemandtcl | first-paint=1s load=42s worst-tick=33437ms | seconds at >=1 GHz: 50 of 50
+@@ yt-watch-H | governor=ondemandtcl | first-paint=1s load=50s worst-tick=23323ms | seconds at >=1 GHz: 60 of 60
+== floor after the round: 1188000; hold lines: 2
+=== 2. ffmpeg
+== libs: 1663636 592392 
+== running, process 13438
+== codecs page title: jihad-codecs.html back=0 fwd=0
+   ffmpeg lines: 
+   media errors: 
+== youtube: load-done=1; media lines: 
+99587 /tmp/shot-ff-codecs.png
+641782 /tmp/shot-ff-yt.png
+ff-codecs 99587
+ff-yt 641782
+=== 3. daemon 17: the layout viewport
+== daemon 67640a59
+== running, process 15330; clock hold: released
+@@ ddg | load-done=1 | viewport: layout viewport 980x1207 (card 768x946)  | geometry: contentSize=1000x3323 win=768x946 mZoom=0.7680;contentSize=1000x3320 win=768x946 mZoom=0.7680; | worst-tick=15556ms
+@@ wiki | load-done=1 | viewport:  | geometry: contentSize=768x18931 win=768x946 mZoom=1.0000;contentSize=768x16560 win=768x946 mZoom=1.0000; | worst-tick=5484ms
+@@ bbc | load-done=0 | viewport:  | geometry: contentSize=768x946 win=768x946 mZoom=1.0000;contentSize=768x7863 win=768x946 mZoom=1.0000; | worst-tick=3273ms
+@@ ytm | load-done=1 | viewport:  | geometry: contentSize=768x2420 win=768x946 mZoom=1.0000;contentSize=768x946 win=768x946 mZoom=1.0000; | worst-tick=6413ms
+@@ harness | load-done=0 | viewport:  | geometry:  | worst-tick=26672ms
+== floor after: 1188000; hold lines: 4; daemons 1
+204698 /tmp/shot-vp-bbc.png
+234587 /tmp/shot-vp-ddg.png
+115174 /tmp/shot-vp-harness.png
+326385 /tmp/shot-vp-wiki.png
+54894 /tmp/shot-vp-ytm.png
+vp-ddg 234587
+vp-wiki 326385
+vp-bbc 204698
+vp-ytm 54894
+vp-harness 115174
+
+[exited with code 0]

@@ -20,6 +20,8 @@
 #include "DialogService.h"           // InstallDialogService (dialog interception)
 #include "DownloadService.h"         // InstallDownloadService (download handoff)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
+extern bool gJihadClockHoldEnabled;   // JihadBrowserServer.cpp (global scope): the clock hold (T-500), jihad.cpu.hold
+bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a page's overflow (jihad.viewport.followOverflow); BrowserPageGoanna.cpp reads it
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include <sys/stat.h>               // chmod (menu highlight sheet)
 #include <dirent.h>                 // bundle fingerprint (stale startup cache)
@@ -787,6 +789,8 @@ private:
 bool JihadConsoleListener::sAll = false;
 NS_IMPL_ISUPPORTS(JihadConsoleListener, nsIConsoleListener)
 
+void JihadStallSamplerInit();   // GoannaRenderPage.cpp: $JIHAD_STALL_SAMPLER=<ms>, the stall sampler (diagnosis)
+
 static void InstallConsoleListener()
 {
   const char* e = getenv("JIHAD_JS_CONSOLE");
@@ -1142,6 +1146,15 @@ EngineHost::Init(const char* greDir)
     ProbeAppInfo("late-backstop");
     ProbeWidgetComponents();   // T-067/R6 — see the comment on the function
     InstallConsoleListener();  // T-067/R6 — chrome JS errors were being discarded entirely
+    JihadStallSamplerInit();   // off unless $JIHAD_STALL_SAMPLER is set (the stall rounds)
+    {  // the clock hold (T-500): jihad.cpu.hold, default on — JihadBrowserServer.cpp's tick loop
+      nsCOMPtr<nsIPrefBranch> p = do_GetService("@mozilla.org/preferences-service;1");
+      bool on = true;
+      if (p && NS_SUCCEEDED(p->GetBoolPref("jihad.cpu.hold", &on))) ::gJihadClockHoldEnabled = on;
+      bool follow = true;
+      if (p && NS_SUCCEEDED(p->GetBoolPref("jihad.viewport.followOverflow", &follow))) ::gJihadViewportFollow = follow;
+      if (!::gJihadClockHoldEnabled) fprintf(stderr, "[jihad-bs] clock hold off by pref (jihad.cpu.hold)\n");
+    }
     InstallClipboardHelper();  // T-067/R6 — without it chrome/global/content/config.js aborts
     // ── announce the profile ────────────────────────────────────────────────
     // XRE_InitEmbedding2 takes the directory provider but does NOT arm it:

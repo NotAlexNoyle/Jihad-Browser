@@ -7,6 +7,17 @@ reference material for a specific subsystem, not a status document.
 
 ## 2026-10-17 delta — the rendering pick: 2 + 4, a one-week spike first (READ FIRST)
 
+**End of session 2026-10-17 (rounds 31-32):** the compositor path's frames DO reach the adapter
+(a blit-time pixel probe in the adapter reads the page from the shared segment; the earlier
+"third process sees white" was timing: content frames only start after the fit zoom). The white
+screenshots are shot at 14 s, before the first content frame. Two open defects: the screenshot
+timing in the spike script, and every other content frame arriving either y-flipped or shifted
+down by ~742 px (three samples cannot tell which). Details and next steps in
+`docs/rounds/t502-2026-10-17/README.md`, "Rounds 31-32". The probing adapter is on the Enyo
+rootfs (stock one saved as `BrowserAdapterImpl.so.orig`); the engine's temporary diagnostics
+commit is still not folded into patch 0040, so `check-engine-pins.sh` disagrees.
+
+
 **The owner, this morning:** the rendering report (the Claude doc "Jihad rendering options: speed
 comparison", https://claude.ai/code/artifact/6436a954-170a-48b2-8b35-e87dc4b3fbf5; the same tables
 in `docs/RENDERING-OPTIONS.md`) was cut down step by step: dominated combinations out, 6 (CE-only

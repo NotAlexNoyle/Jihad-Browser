@@ -49,6 +49,27 @@ model. Everything it needs is upstream code; the entry points, all verified in `
 What the pick does to the 39 engine patches (0020 and 0035 no-ops, 0003 and 0005 half, 0006 and
 0021 change, the rest untouched): `docs/RENDERING-OPTIONS.md`, "The pick".
 
+**T-502 RESULT (the same day, five rounds):** the compositor runs on the Adreno 220 (EGL pbuffer,
+`CompositorOGL`, patch 0040 behind `JIHAD_GPU_COMPOSITOR`), composites four layers in 1–5 ms and
+animates a CSS transform without main-thread paints; the frame on the device is 54–96 ms against
+the 42 ms model because the readback is clock-bound (22–60 ms in the daemon, 12–21 in the bench),
+the snapshot road adds 12–18 ms and the swizzle 7–16. THE TRAPS: (1) the bundle's goanna.js
+carries `layers.offmainthreadcomposition.force-disabled=true` (the env now wins over it); (2) a
+child PuppetWidget's Destroy() tore down the SHARED ClientLayerManager (crash in
+BeginTransactionWithTarget; the child only drops its reference now); (3) a glReadPixels from a
+TEXTURE-backed FBO costs 370–640 ms on this driver — the stock offscreen GLScreenBuffer is one —
+so the spike draws into a plain pbuffer context (no screen buffer; a renderbuffer FBO reads even
+faster, 12 ms); (4) `CopyToTarget` flips unconditionally and an offscreen context has no view
+flip, so the frame was upside down: the direct read copies row 0 to row 0; (5) the content upload
+takes the tiled `glTexSubImage2D` path (180–240 ms a change) — must become whole-texture; (6) the
+compositor animates without dirtying the widget, so the daemon needs the compositor's own
+"composite due" signal (`JIHAD_GPU_FORCE_FPS` stands in). Numbers, table and verdict:
+`docs/RENDERING-OPTIONS.md` "T-502, the spike"; logs and screenshots `docs/rounds/t502-2026-10-17/`.
+**Next (option 4 proper, weeks 2–6):** a direct read into the YAP buffer on the compositor thread,
+the renderbuffer render target, whole-texture uploads, the composite-due signal, the clock hold
+around composition, the zoom/pan as the root layer's transform (T-499's layout viewport and the
+fit zoom today crop the frame), the plugin and video layers through the ImageBridge; then 2.
+
 **Carried over, unchanged:** daemon 18 (the hold's release fix) built, NOT deployed; FFmpeg libs on
 Mochi only; T-499's paint path restoring the card size; the placeholders in the evening delta below.
 **Device:** CE 3.1.0, the three daemons as the evening delta left them; `gpu-bench` ran twice more

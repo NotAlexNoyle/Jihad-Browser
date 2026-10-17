@@ -113,6 +113,33 @@ Daemon side: `JIHAD_DISABLE_OMTC=1` leaves the three `packaging/event.d` launche
 nothing: WebGL needs the EGL provider (present) and the feature not blocked (`webgl.force-enabled`
 until `GfxInfo` reports the Adreno).
 
+### T-502, the spike: what the device measured (2026-10-17)
+
+The OpenGL compositor runs in the headless daemon on the Adreno 220 through the vendor EGL (an EGL
+pbuffer context, `CompositorOGL`, backend 2), composites a four-layer page and animates a CSS
+transform with the main thread painting 0.1–2.8 ms a frame. Five rounds and a readback bench
+(`docs/rounds/t502-2026-10-17/`); the frame on the device against the model:
+
+| Stage | Model | Device (Enyo, 768×942 frame) |
+|---|---|---|
+| Composite four layers | 12.9 ms | 1–5 ms |
+| Read the frame back (`glReadPixels`) | 12.3 ms | 22–60 ms inside the daemon (clock-bound: 12–21 ms from the pbuffer and 12 ms from a renderbuffer FBO in the bench at a high clock); 370–640 ms from a texture-backed FBO, which the stock offscreen screen buffer is |
+| RGBA→BGRA (the driver refuses BGRA reads) | — | 7–16 ms NEON, 12–35 plain C |
+| The snapshot road (shmem, sync IPC, a cairo draw) | — | 12–18 ms, all removable |
+| Paint an animation frame on the main thread | 0 | 0.1–2.8 ms |
+| New content: CPU raster + upload | 53 + 10.3 ms | 60–64 + 180–240 ms (the upload takes the tiled `glTexSubImage2D` path the bench measured at 160 ms per 3 MB) |
+| Frame as the daemon sees it | 42 ms, 24 fps | 54–96 ms; the pipeline 7–9 fps on the daemon's 100 ms idle tick |
+
+Verdict: the 42 ms row is reachable, not free. Three things stand between 54–96 and 42: the clock
+hold during composition (the readback is a CPU copy inside the driver and tracks the clock), a
+direct read into the YAP buffer instead of the snapshot road (−12–18 ms), and a renderbuffer FBO
+as the render target (−9 ms). The content upload must become a whole-texture `glTexImage2D`
+(10 ms per 3 MB) or the new-content row falls from 9 fps to 4. `EGL_KHR_lock_surface` is a copy,
+not a mapping (26 ms), and `GL_EXT_read_format_bgra` is absent, so the swizzle stays (NEON, ~3 ms
+at a high clock). The compositor also composes on its own vsync beside the daemon's pull (wasted
+work to remove), and the daemon's tick must follow the compositor's "composite due" instead of
+the widget's dirty flag.
+
 ## Every combination, fastest first (the data behind the shortlist)
 
 The frame modeled is four full-screen layers, three blended; the CPU pays three blends (20.8 ms plain,

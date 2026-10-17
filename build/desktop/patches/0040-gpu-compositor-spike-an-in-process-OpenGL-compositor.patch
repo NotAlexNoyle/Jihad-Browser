@@ -20,13 +20,128 @@ two timings per frame. Without the env nothing changes.
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
- gfx/thebes/gfxPlatform.cpp         |  21 ++++-
- gfx/thebes/gfxPlatformHeadless.cpp |  13 ++++
- gfx/thebes/gfxPlatformHeadless.h   |   5 ++
- widget/PuppetWidget.cpp            | 118 +++++++++++++++++++++++++++--
- widget/PuppetWidget.h              |  13 ++++
- 5 files changed, 163 insertions(+), 7 deletions(-)
+ gfx/layers/client/ClientLayerManager.cpp  |  12 +++
+ gfx/layers/ipc/CompositorBridgeParent.cpp |   7 ++
+ gfx/layers/opengl/CompositorOGL.cpp       |  18 +++-
+ gfx/thebes/gfxPlatform.cpp                |  21 +++-
+ gfx/thebes/gfxPlatformHeadless.cpp        |  13 +++
+ gfx/thebes/gfxPlatformHeadless.h          |   5 +
+ widget/PuppetWidget.cpp                   | 125 ++++++++++++++++++++--
+ widget/PuppetWidget.h                     |  14 +++
+ 8 files changed, 206 insertions(+), 9 deletions(-)
 
+diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
+index 95af8fb5fc..fd485ddc67 100644
+--- a/gfx/layers/client/ClientLayerManager.cpp
++++ b/gfx/layers/client/ClientLayerManager.cpp
+@@ -556,17 +556,23 @@ ClientLayerManager::MakeSnapshotIfRequired()
+           RotateRect(bounds, outerBounds.ToUnknownRect(), mTargetRotation);
+       }
+ 
++      // Jihad T-502: the snapshot road timed (JIHAD_GPU_COMPOSITOR).
++      static const bool sJihadGpuLog = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++      TimeStamp jihadT0 = TimeStamp::Now();
++      TimeStamp jihadT1, jihadT2;
+       SurfaceDescriptor inSnapshot;
+       if (!bounds.IsEmpty() &&
+           mForwarder->AllocSurfaceDescriptor(bounds.Size(),
+                                              gfxContentType::COLOR_ALPHA,
+                                              &inSnapshot)) {
++        jihadT1 = TimeStamp::Now();
+ 
+         // Make a copy of |inSnapshot| because the call to send it over IPC
+         // will call forget() on the Shmem inside, and zero it out.
+         SurfaceDescriptor outSnapshot = inSnapshot;
+ 
+         if (remoteRenderer->SendMakeSnapshot(inSnapshot, bounds)) {
++          jihadT2 = TimeStamp::Now();
+           RefPtr<DataSourceSurface> surf = GetSurfaceForDescriptor(outSnapshot);
+           DrawTarget* dt = mShadowTarget->GetDrawTarget();
+ 
+@@ -583,6 +589,12 @@ ClientLayerManager::MakeSnapshotIfRequired()
+                           DrawSurfaceOptions(),
+                           DrawOptions(1.0f, CompositionOp::OP_OVER));
+           dt->SetTransform(oldMatrix);
++          if (sJihadGpuLog) {
++            fprintf(stderr, "[jihad-gpu] snapshot %dx%d: shmem alloc %.1f ms, compose round trip %.1f ms, draw into target %.1f ms\n",
++                    bounds.width, bounds.height,
++                    (jihadT1 - jihadT0).ToMilliseconds(), (jihadT2 - jihadT1).ToMilliseconds(),
++                    (TimeStamp::Now() - jihadT2).ToMilliseconds());
++          }
+         }
+         mForwarder->DestroySurfaceDescriptor(&outSnapshot);
+       }
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index f92e74c147..3ceafc9f85 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1208,6 +1208,13 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+   if (!aTarget) {
+     TimeStamp end = TimeStamp::Now();
+     DidComposite(start, end);
++  } else {
++    // Jihad T-502: the whole compose-to-target on the compositor thread (JIHAD_GPU_COMPOSITOR).
++    static const bool sJihadGpuLog = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++    if (sJihadGpuLog) {
++      fprintf(stderr, "[jihad-gpu] compose-to-target: %.1f ms on the compositor thread (incl. copy-to-target)\n",
++              (TimeStamp::Now() - start).ToMilliseconds());
++    }
+   }
+ 
+   // We're not really taking advantage of the stored composite-again-time here.
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 616a03ab77..d485a48237 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -4,6 +4,7 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "CompositorOGL.h"
++#include "mozilla/TimeStamp.h"   // Jihad T-502 timing
+ #include <stddef.h>                     // for size_t
+ #include <stdint.h>                     // for uint32_t, uint8_t
+ #include <stdlib.h>                     // for free, malloc
+@@ -652,9 +653,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+       mWidgetSize.height != height)
+   {
+     MakeCurrent(ForceMakeCurrent);
+-
+     mWidgetSize.width = width;
+     mWidgetSize.height = height;
++    // Jihad T-502: on an offscreen (pbuffer/FBO) context the screen buffer keeps the size it
++    // was created with; a taller frame (the portrait card) was clipped. Resize it with the
++    // frame.
++    if (mGLContext->IsOffscreen() &&
++        mGLContext->OffscreenSize() != gfx::IntSize(width, height)) {
++      mGLContext->ResizeScreenBuffer(gfx::IntSize(width, height));
++    }
+   } else {
+     MakeCurrent();
+   }
+@@ -1673,7 +1680,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+     return;
+   }
+ 
++  // Jihad T-502: the two halves of the readback, timed (JIHAD_GPU_COMPOSITOR).
++  static const bool sJihadGpuLog = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  TimeStamp jihadT0 = TimeStamp::Now();
+   ReadPixelsIntoDataSurface(mGLContext, source);
++  TimeStamp jihadT1 = TimeStamp::Now();
+ 
+   // Map from GL space to Cairo space and reverse the world transform.
+   Matrix glToCairoTransform = aTransform;
+@@ -1688,6 +1699,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+   Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
+   aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
+   aTarget->SetTransform(oldMatrix);
++  if (sJihadGpuLog) {
++    TimeStamp jihadT2 = TimeStamp::Now();
++    fprintf(stderr, "[jihad-gpu] copy-to-target %dx%d: glReadPixels(+convert) %.1f ms, flipped draw %.1f ms\n",
++            width, height, (jihadT1 - jihadT0).ToMilliseconds(), (jihadT2 - jihadT1).ToMilliseconds());
++  }
+   aTarget->Flush();
+ }
+ 
 diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
 index ddad584b3e..1163f2e7a9 100644
 --- a/gfx/thebes/gfxPlatform.cpp
@@ -114,7 +229,7 @@ index c3ee465bec..23ec701a70 100644
      already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
  #endif
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 6f066b1b33..cc1a82ec7b 100644
+index 6f066b1b33..4b6de06d64 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -21,6 +21,8 @@
@@ -126,7 +241,28 @@ index 6f066b1b33..cc1a82ec7b 100644
  // Jihad offscreen render-document support:
  #include "gfxContext.h"
  #include "nsIDocShell.h"
-@@ -634,9 +636,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -152,6 +154,7 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+   if (parent) {
+     parent->SetChild(this);
+     mLayerManager = parent->GetLayerManager();
++    mJihadSharedLayerManager = true;
+   }
+   else {
+     Resize(mBounds.x, mBounds.y, mBounds.width, mBounds.height, false);
+@@ -214,7 +217,11 @@ PuppetWidget::Destroy()
+   }
+   mMemoryPressureObserver = nullptr;
+   mChild = nullptr;
+-  if (mLayerManager) {
++  // Jihad T-502: a child widget shares the parent's layer manager (Create above). Destroying
++  // it here left the parent with a ClientLayerManager whose widget was null, and the next
++  // compose crashed in BeginTransactionWithTarget (the view re-creates its child widget on a
++  // size change). The parent destroys it; the child only drops its reference.
++  if (mLayerManager && !mJihadSharedLayerManager) {
+     mLayerManager->Destroy();
+   }
+   mLayerManager = nullptr;
+@@ -634,9 +641,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
  {
    if (!mLayerManager) {
      if (JihadOffscreen()) {
@@ -157,7 +293,7 @@ index 6f066b1b33..cc1a82ec7b 100644
      } else {
        mLayerManager = new ClientLayerManager(this);
      }
-@@ -782,6 +802,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
+@@ -782,6 +807,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
  // C entry points for the frozen-API render daemon. Exported from libxul so the
  // daemon (which cannot see internal classes like PuppetWidget) can create an
  // offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
@@ -234,7 +370,7 @@ index 6f066b1b33..cc1a82ec7b 100644
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
  extern "C" {
  
-@@ -969,6 +1059,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+@@ -969,6 +1064,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
    return true;
  }
  
@@ -255,7 +391,7 @@ index 6f066b1b33..cc1a82ec7b 100644
  // Composite every OPEN XUL popup over an already-painted buffer.
  //
  // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
-@@ -1746,8 +1850,12 @@ PuppetWidget::Paint()
+@@ -1746,8 +1855,12 @@ PuppetWidget::Paint()
  #endif
  
      if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {
@@ -271,7 +407,7 @@ index 6f066b1b33..cc1a82ec7b 100644
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index 6d3c680c7b..48e63dd2e6 100644
+index 6d3c680c7b..5aab18d8af 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
 @@ -268,6 +268,18 @@ public:
@@ -293,11 +429,12 @@ index 6d3c680c7b..48e63dd2e6 100644
    virtual TabChild* GetOwningTabChild() override { return mTabChild; }
  
    void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -411,6 +423,7 @@ private:
+@@ -411,6 +423,8 @@ private:
    RefPtr<PuppetWidget> mChild;
    LayoutDeviceIntRegion mDirtyRegion;
    bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
 +  bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
++  bool mJihadSharedLayerManager = false; // T-502: mLayerManager is the parent's (a child widget)
    // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
    // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a
    // full repaint, and must keep working unchanged if the rect is ignored.

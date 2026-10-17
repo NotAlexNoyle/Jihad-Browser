@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-anim-css.html — the rendering report's four-layer frame as a page: content, a fixed
+     header, a half-transparent overlay, and a box moved by a CSS transform animation. On the
+     software path every animation frame repaints the viewport; on a compositor (T-502) the
+     layers are composited without a repaint and the frame cost is compose + readback alone.
+     The counter shows requestAnimationFrame ticks per second so a screenshot proves the page
+     is live. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-anim-css</title>
+<style>
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #f4f1e8; }
+  #header { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: #2b4c7e; color: #fff;
+            line-height: 64px; padding-left: 16px; z-index: 3; }
+  #content { padding: 80px 16px 16px; }
+  #content p { margin: 0 0 12px; }
+  #overlay { position: fixed; left: 0; right: 0; bottom: 0; height: 40%; background: rgba(200, 40, 40, 0.5);
+             z-index: 2; }
+  #box { position: fixed; top: 120px; left: 0; width: 160px; height: 160px; background: #e8a33d;
+         border-radius: 16px; z-index: 4; animation: slide 2s linear infinite alternate;
+         will-change: transform; }
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(560px); } }
+  #fps { position: fixed; right: 16px; top: 80px; z-index: 5; background: #000; color: #0f0;
+         font: bold 28px monospace; padding: 4px 10px; }
+</style></head>
+<body>
+<div id="header">jihad-anim-css: a fixed header</div>
+<div id="box"></div>
+<div id="fps">--</div>
+<div id="overlay"></div>
+<div id="content">
+<script>
+  for (var i = 1; i <= 40; i++) document.write("<p>Paragraph " + i + ": the quick brown fox jumps over the lazy dog, in body text that fills the viewport with real glyphs so the content layer is not empty.</p>");
+  var n = 0, t0 = Date.now();
+  function tick() { n++; var dt = Date.now() - t0; if (dt >= 1000) { document.getElementById("fps").textContent = Math.round(n * 1000 / dt) + " rAF/s"; n = 0; t0 = Date.now(); } requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+</script>
+</div>
+</body></html>

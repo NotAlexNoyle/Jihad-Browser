@@ -20,15 +20,15 @@ two timings per frame. Without the env nothing changes.
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
- gfx/thebes/gfxPlatform.cpp         |  15 +++-
+ gfx/thebes/gfxPlatform.cpp         |  21 ++++-
  gfx/thebes/gfxPlatformHeadless.cpp |  13 ++++
  gfx/thebes/gfxPlatformHeadless.h   |   5 ++
- widget/PuppetWidget.cpp            | 114 +++++++++++++++++++++++++++--
+ widget/PuppetWidget.cpp            | 118 +++++++++++++++++++++++++++--
  widget/PuppetWidget.h              |  13 ++++
- 5 files changed, 153 insertions(+), 7 deletions(-)
+ 5 files changed, 163 insertions(+), 7 deletions(-)
 
 diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
-index ddad584b3e..219597ed62 100644
+index ddad584b3e..1163f2e7a9 100644
 --- a/gfx/thebes/gfxPlatform.cpp
 +++ b/gfx/thebes/gfxPlatform.cpp
 @@ -2106,6 +2106,14 @@ gfxPlatform::InitCompositorAccelerationPrefs()
@@ -46,7 +46,20 @@ index ddad584b3e..219597ed62 100644
    // Safe mode trumps everything.
    if (InSafeMode()) {
      feature.ForceDisable(FeatureStatus::Blocked, "Acceleration blocked by safe-mode",
-@@ -2405,8 +2413,11 @@ gfxPlatform::InitOpenGLConfig()
+@@ -2177,6 +2185,12 @@ gfxPlatform::UsesOffMainThreadCompositing()
+     if (getenv("JIHAD_DISABLE_OMTC")) {
+       result = false;
+     }
++    // Jihad T-502: the GPU compositor spike needs OMTC on, and the device bundle's goanna.js
++    // carries layers.offmainthreadcomposition.force-disabled=true for the software path; the
++    // spike's env wins over both.
++    if (getenv("JIHAD_GPU_COMPOSITOR")) {
++      result = true;
++    }
+     firstTime = false;
+   }
+ 
+@@ -2405,8 +2419,11 @@ gfxPlatform::InitOpenGLConfig()
    #endif
  
    // When layers acceleration is force-enabled, enable it even for blacklisted
@@ -101,7 +114,7 @@ index c3ee465bec..23ec701a70 100644
      already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
  #endif
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 6f066b1b33..2ca92f0de9 100644
+index 6f066b1b33..cc1a82ec7b 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -21,6 +21,8 @@
@@ -113,7 +126,7 @@ index 6f066b1b33..2ca92f0de9 100644
  // Jihad offscreen render-document support:
  #include "gfxContext.h"
  #include "nsIDocShell.h"
-@@ -634,9 +636,23 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -634,9 +636,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
  {
    if (!mLayerManager) {
      if (JihadOffscreen()) {
@@ -133,6 +146,10 @@ index 6f066b1b33..2ca92f0de9 100644
 +                mLayerManager ? (int)mLayerManager->GetCompositorBackendType() : -1);
 +      }
 +      if (!mLayerManager) {
++        if (JihadGpuCompositor() && !mJihadCompositorTried) {
++          fprintf(stderr, "[jihad-gpu] compositor not attempted: OMTC %s, TabChild %p\n",
++                  gfxPlatform::UsesOffMainThreadCompositing() ? "on" : "off", (void*)mTabChild);
++        }
 +        // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
 +        // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
 +        mLayerManager = CreateBasicLayerManager();
@@ -140,7 +157,7 @@ index 6f066b1b33..2ca92f0de9 100644
      } else {
        mLayerManager = new ClientLayerManager(this);
      }
-@@ -782,6 +798,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
+@@ -782,6 +802,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
  // C entry points for the frozen-API render daemon. Exported from libxul so the
  // daemon (which cannot see internal classes like PuppetWidget) can create an
  // offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
@@ -217,7 +234,7 @@ index 6f066b1b33..2ca92f0de9 100644
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
  extern "C" {
  
-@@ -969,6 +1055,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+@@ -969,6 +1059,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
    return true;
  }
  
@@ -238,7 +255,7 @@ index 6f066b1b33..2ca92f0de9 100644
  // Composite every OPEN XUL popup over an already-painted buffer.
  //
  // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
-@@ -1746,8 +1846,12 @@ PuppetWidget::Paint()
+@@ -1746,8 +1850,12 @@ PuppetWidget::Paint()
  #endif
  
      if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {

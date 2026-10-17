@@ -71,6 +71,8 @@
 #include "nsThreadUtils.h"
 #include "nsIThread.h"
 #include "nsIDOMWindowUtils.h"
+#include <sys/syscall.h>   // T-502: __ARM_NR_cacheflush
+#include <unistd.h>
 #include "mozIDOMWindow.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIDocShell.h"
@@ -4432,7 +4434,7 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // SetResolutionAndScaleTo and SetScrollPositionClampingScrollPortSize each turned the frame
   // black on this path, 2026-10-17 round 9). The residual visual offset is 0 until the pinch-in
   // pan past the layout viewport is wired (the engine scroll reaches everything at z <= 1).
-  if (jihad_offscreen_set_view) jihad_offscreen_set_view(mWidget, zoom, 0.0, 0.0);
+  SetGpuView(zoom, 0.0, 0.0);
   // A displayport of a viewport up and down (screen px): a scroll inside it is an empty
   // transaction plus a composite. JIHAD_GPU_NO_DP skips it for a device A/B.
   static const bool sNoDp = getenv("JIHAD_GPU_NO_DP") != nullptr;
@@ -4460,7 +4462,10 @@ bool GoannaRenderPage::GetEngineScroll(int* x, int* y) {
 }
 
 void GoannaRenderPage::SetGpuView(double zoom, double offX, double offY) {
-  if (mGpu && jihad_offscreen_set_view && mWidget) jihad_offscreen_set_view(mWidget, zoom, offX, offY);
+  static const bool sNoWorld = getenv("JIHAD_GPU_NO_WORLD") != nullptr;   // device bisection
+  static int sLogged = 0;
+  if (sLogged++ < 12) fprintf(stderr, "[jihad-gpu] view: scale %.4f offset %.1f,%.1f%s\n", zoom, offX, offY, sNoWorld ? " (not sent)" : "");
+  if (!sNoWorld && mGpu && jihad_offscreen_set_view && mWidget) jihad_offscreen_set_view(mWidget, zoom, offX, offY);
 }
 
 uint32_t GoannaRenderPage::CompositorSeq() const {
@@ -4501,6 +4506,33 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
         // T-502: the compositor's frame straight into dst (the layers are painted inside).
         if (!jihad_offscreen_compose(mWidget, ds, dst, w * 4, w, h)) return -1;
         composed = true;
+        // The frame was written by the compositor thread (the driver's readback, a NEON swizzle)
+        // and sits in this CPU's cache; the adapter reads the shared pages through its own
+        // mapping and saw the previous frame (2026-10-17: a third process read white from the
+        // segment while this daemon's view had the page). Clean the range to the point of
+        // unification: the ARM cacheflush syscall.
+#if defined(__arm__)
+        {
+          int64_t t0 = jihadInputNowMs();
+          syscall(__ARM_NR_cacheflush, dst, dst + (size_t)w * h * 4, 0);
+          static int sLogged = 0;
+          if (sLogged++ < 5) fprintf(stderr, "[jihad-gpu] cache clean of the frame: %ld ms\n", (long)(jihadInputNowMs() - t0));
+        }
+#endif
+        // a device round's frame dump: JIHAD_GPU_DUMP=<path> writes the 5th frame as raw BGRA
+        static const char* sDump = getenv("JIHAD_GPU_DUMP");
+        static bool sDumped = false;
+        if (sDump && !sDumped) {
+          // the first frame with something non-white in it
+          bool content = false;
+          for (int y = 0; y < h && !content; y += 8)
+            for (int x = 0; x < w; x += 8) { const unsigned char* o = dst + ((size_t)y * w + x) * 4; if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) { content = true; break; } }
+          if (content) {
+            sDumped = true;
+            FILE* f = fopen(sDump, "wb");
+            if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); fprintf(stderr, "[jihad-gpu] frame dumped: %s (%dx%d BGRA, first with content)\n", sDump, w, h); }
+          }
+        }
       } else if (ds) {
         // Flush layout BEFORE rendering. A paint triggered right after load-done (or any
         // time reflow is still pending) otherwise captures un-laid-out content -> a blank

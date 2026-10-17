@@ -401,6 +401,9 @@ int jihadPluginTickPeriodMs() {
 }
 
 static int jihadShmResolve(int keyOrId);   // defined below
+#ifndef JIHAD_SHM_CACHE_WRITETHROUGH
+#define JIHAD_SHM_CACHE_WRITETHROUGH 0200000   /* the Palm kernel's shmat flag, as IpcBuffer.cpp */
+#endif
 
 int BrowserPageGoanna::slotForKey(int key) const {
   if (key && key == mKey1) return 0;
@@ -451,7 +454,16 @@ unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
   int id = jihadShmResolve(keyOrId);
   if (id < 0) return nullptr;
   for (int i = 0; i < 3; ++i) if (mShmId[i] == id && mShmBuf[i]) return mShmBuf[i];
-  void* p = shmat(id, nullptr, 0);
+  // WRITE-THROUGH, as the adapter attaches its side (IpcBuffer.cpp, the Palm kernel's custom
+  // flag). Found on 2026-10-17 (T-502): the compositor path's frames, written by glReadPixels
+  // and a NEON swizzle, stayed in this process's CPU cache; a third process and the adapter read
+  // white from the same segment while this daemon's own view had the page. The software path
+  // only ever worked by the accident of its 3 MB memcpy streaming through the cache. The plain
+  // attach stays as the fallback for a kernel without the flag.
+  void* p = shmat(id, nullptr, JIHAD_SHM_CACHE_WRITETHROUGH);
+  const bool writeThrough = (p != (void*)-1);
+  if (p == (void*)-1) p = shmat(id, nullptr, 0);
+  if (p != (void*)-1) fprintf(stderr, "[jihad-bs] shm %d attached %s\n", id, writeThrough ? "write-through" : "cached (the write-through flag was refused)");
   if (p == (void*)-1) { perror("[BrowserPageGoanna] shmat"); return nullptr; }
   // Fill the first empty slot; with a third buffer in rotation there are three of them.
   int slot = -1;
@@ -875,7 +887,7 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
-  if (mPage->GpuPath()) {
+  if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
     // T-502: the engine scrolls (CSS px = zoomed px over the zoom), the compositor follows.
     double zg = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
     mAdapterScrollX = x; mAdapterScrollY = y;
@@ -989,7 +1001,8 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
   // the engine scrolls in CSS px, so divide by the zoom. Keep the zoomed values for
   // BrowserOffscreenInfo::renderedX/Y so the adapter's pan math lines up (== mScrollPos).
   mAdapterScrollX = x; mAdapterScrollY = y;
-  if (mPage->GpuPath()) {
+  static const bool sOldScroll = getenv("JIHAD_GPU_OLD_SCROLL") != nullptr;   // device bisection
+  if (mPage->GpuPath() && !sOldScroll) {
     // T-502: no render pan on the compositor path. The zoom is the pres shell's resolution and
     // the scroll is the engine's at every zoom (window.onscroll, position:fixed and sticky stay
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
@@ -3201,6 +3214,9 @@ bool BrowserPageGoanna::isBusy() const {
   // for as long as it is frozen — which must not hold the fast tick for a card nobody can see.
   if (mFrozen) return false;
   if (mNeedsPaint || mDirtyPending || mGeometryDirty || mBlankRetryAtMs) return true;
+  // T-502: the compositor asked for a composite that has not been pulled yet (a layer update,
+  // an animation): the fast tick, or an animated page pulls once a second.
+  if (mPage->GpuPath() && mPage->CompositorSeq() != mGpuSeq) return true;
   // Maintenance frames (maybePaint). A sweep that is only waiting out its pause does not
   // need the fast tick; any tick after the pause finds it.
   if (mGrowOwed || (mSweepLeft > 0 && mLoadWasDone && jihadNowMs() >= mSweepNotBeforeMs)) return true;
@@ -3716,6 +3732,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   }
   int tallH = (int)(hi - lo);
   if (!bandKnown) tallH = h;                  // F9: unknown band → viewport-exact fallback
+  if (mPage->GpuPath()) {
+    // T-502: the compositor composes the viewport whole every frame; the overscan region, its
+    // row copies between the rotating buffers and the band reuse are the software path's. With
+    // them, the first (empty) frames were copied forward over fresh content for ever.
+    tallH = h; lo = bandY; hi = bandY + h; regW = w;
+  }
 
   int64_t paintT0 = jihadNowMs();
   int64_t gpuT[3] = {0, 0, 0};   // T-502 timing points
@@ -3876,6 +3898,17 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   mLastPaintDoneMs = jihadNowMs();   // pan-cadence refresh reference
   gJihadPaintDone++;
   JihadRecordFrameGap(mLastPaintDoneMs);
+  if (nb >= 0 && mPage->GpuPath()) {
+    // T-502 device rounds: the buffer as the adapter will read it (JIHAD_GPU_DUMP2=<path>, the 5th frame)
+    static const char* sDump2 = getenv("JIHAD_GPU_DUMP2");
+    static bool sDumped2 = false;
+    if (sDump2 && !sDumped2 && nb > 0) {
+      sDumped2 = true;
+      FILE* f = fopen(sDump2, "wb");
+      if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f);
+               fprintf(stderr, "[jihad-gpu] frame dumped before painted: %s (%dx%d, key 0x%x)\n", sDump2, paintedW, paintedH, (unsigned)mActiveKey); }
+    }
+  }
   if (nb >= 0) {
     fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld left=%d) mZoom=%.4f contentZoom=%.4f ms=%ld"
                     " rows new=%ld copied=%ld%s\n",

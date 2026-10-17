@@ -204,6 +204,35 @@ int main(int argc, char** argv) {
       printf("FBO(renderbuffer RGBA8_OES; rgba4 err 0x%x rgba8 err 0x%x) 1024x768 status=0x%x: glReadPixels RGBA %.2f ms/frame\n", e1, e2, st, (now_ms() - t) / frames);
       glDeleteRenderbuffers(1, &rb);
     }
+    // T-502 round 14: does a renderbuffer FBO READ BACK what was drawn into it? (the compositor's
+    // frames came back all black from one). Per format: clear to a colour, read, check; draw the
+    // textured quad, read, check; and the extension that makes RGBA8 renderbuffers legal.
+    {
+      const char* ext = (const char*)glGetString(0x1F03 /*GL_EXTENSIONS*/);
+      printf("GL_OES_rgb8_rgba8=%d GL_OES_depth24=%d\n", ext && strstr(ext, "GL_OES_rgb8_rgba8") ? 1 : 0, ext && strstr(ext, "GL_OES_depth24") ? 1 : 0);
+      const struct { GLenum fmt; const char* name; } fmts[] = { {0x8058, "RGBA8_OES"}, {0x8D62, "RGB565"}, {0x8056, "RGBA4"}, {0x8057, "RGB5_A1"} };
+      for (int fi = 0; fi < 4; fi++) {
+        GLuint rb = 0; glGenRenderbuffers(1, &rb); glBindRenderbuffer(GL_RENDERBUFFER, rb);
+        glRenderbufferStorage(GL_RENDERBUFFER, fmts[fi].fmt, W, H);
+        GLenum e = glGetError();
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb);
+        GLenum st2 = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        glViewport(0, 0, W, H);
+        glClearColor(1.0f, 0.5f, 0.0f, 1.0f); glClear(GL_COLOR_BUFFER_BIT); glFinish();
+        memset(back, 0x11, 16);
+        glReadPixels(0, 0, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        GLenum e3 = glGetError();
+        int clearOk = back[0] > 200 && back[1] > 100 && back[1] < 160 && back[2] < 30;
+        glBindTexture(GL_TEXTURE_2D, tex[0]); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        glReadPixels(W / 2, H / 2, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        int drawNonZero = (back[0] | back[1] | back[2]) != 0;
+        t = now_ms(); for (int f = 0; f < 10; f++) { glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }
+        printf("FBO(renderbuffer %s) storage err 0x%x status 0x%x: clear-read %s (%d,%d,%d,%d err 0x%x), textured draw read %s, read %.2f ms/frame\n",
+               fmts[fi].name, e, st2, clearOk ? "OK" : "WRONG", back[0], back[1], back[2], back[3], e3, drawNonZero ? "non-zero" : "ZERO", (now_ms() - t) / 10);
+        glDeleteRenderbuffers(1, &rb);
+      }
+      glClearColor(0, 0, 0, 1);
+    }
     free(big);
     glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H); glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &ftex);
   }

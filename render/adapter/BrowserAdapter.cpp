@@ -1199,6 +1199,20 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                     if (sB > H) { dbm -= (int)ceil((sB - H) / inv); sB = H; }
                 }
                 bool blitted = (sR > sL && sB > sT && dr > dl && dbm > dt);
+                if (FILE* lf = jihadPaintLog()) {
+                  // T-502 device rounds: what this process READS from the shared buffer at blit time
+                  static int sN = 0; static unsigned int sLastA = 1, sLastB = 1;
+                  const unsigned int* words = (const unsigned int*)mOffscreenCurrent->rasterBuffer();
+                  const int W = gi->renderedWidth, H = gi->renderedHeight;
+                  unsigned int a = (W > 100 && H > 100) ? words[100 * W + 100] : 0;
+                  unsigned int b = (W > 400 && H > 500) ? words[500 * W + 400] : 0;
+                  unsigned int c = (W > 700 && H > 900) ? words[900 * W + 700] : 0;
+                  if (sN++ < 40 || a != sLastA || b != sLastB) {
+                    sLastA = a; sLastB = b;
+                    fprintf(lf, "[hp-px] n=%d blit=%d key=%d px(100,100)=%08x px(400,500)=%08x px(700,900)=%08x frozen=%d\n",
+                            sN, (int)blitted, mOffscreenCurrent->key(), a, b, c, mFrozen ? 1 : 0);
+                  }
+                }
                 // Every way this branch can silently draw nothing (clamped-away rect, zero-area
                 // dst, a surface that wrapped but never blitted) looks identical on screen: a
                 // blank card. Log the decision and the numbers behind it, on change only.

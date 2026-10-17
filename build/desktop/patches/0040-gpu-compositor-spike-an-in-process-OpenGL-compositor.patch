@@ -22,13 +22,13 @@ Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
  gfx/layers/client/ClientLayerManager.cpp  |  12 +++
  gfx/layers/ipc/CompositorBridgeParent.cpp |   7 ++
- gfx/layers/opengl/CompositorOGL.cpp       |  73 ++++++++++++-
+ gfx/layers/opengl/CompositorOGL.cpp       |  84 ++++++++++++++-
  gfx/thebes/gfxPlatform.cpp                |  21 +++-
  gfx/thebes/gfxPlatformHeadless.cpp        |  13 +++
  gfx/thebes/gfxPlatformHeadless.h          |   5 +
  widget/PuppetWidget.cpp                   | 125 ++++++++++++++++++++--
  widget/PuppetWidget.h                     |  14 +++
- 8 files changed, 261 insertions(+), 9 deletions(-)
+ 8 files changed, 272 insertions(+), 9 deletions(-)
 
 diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
 index 95af8fb5fc..fd485ddc67 100644
@@ -90,10 +90,10 @@ index f92e74c147..3ceafc9f85 100644
  
    // We're not really taking advantage of the stored composite-again-time here.
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 616a03ab77..e5389ca451 100644
+index 616a03ab77..91fefb1789 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
-@@ -4,11 +4,14 @@
+@@ -4,11 +4,17 @@
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
  
  #include "CompositorOGL.h"
@@ -105,10 +105,13 @@ index 616a03ab77..e5389ca451 100644
  #include "GLContext.h"                  // for GLContext
 +#include "GLContextEGL.h"               // Jihad T-502: the pbuffer context
 +#include <algorithm>
++#if defined(__ARM_NEON__) || defined(__ARM_NEON)
++#include <arm_neon.h>                  // Jihad T-502: the readback swizzle
++#endif
  #include "GLUploadHelpers.h"
  #include "Layers.h"                     // for WriteSnapshotToDumpFile
  #include "LayerScope.h"                 // for LayerScope
-@@ -122,6 +125,21 @@ CompositorOGL::CreateContext()
+@@ -122,6 +128,21 @@ CompositorOGL::CreateContext()
    }
  #endif
  
@@ -130,7 +133,7 @@ index 616a03ab77..e5389ca451 100644
    // Allow to create offscreen GL context for main Layer Manager
    if (!context && gfxEnv::LayersPreferOffscreen()) {
      SurfaceCaps caps = SurfaceCaps::ForRGB();
-@@ -652,9 +670,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+@@ -652,9 +673,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
        mWidgetSize.height != height)
    {
      MakeCurrent(ForceMakeCurrent);
@@ -147,7 +150,7 @@ index 616a03ab77..e5389ca451 100644
    } else {
      MakeCurrent();
    }
-@@ -1667,13 +1691,55 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1667,13 +1694,63 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
      mGLContext->fReadBuffer(LOCAL_GL_BACK);
    }
  
@@ -155,7 +158,7 @@ index 616a03ab77..e5389ca451 100644
 +  // RGBA into a temporary surface, converts it to BGRA through Factory::CopyDataSourceSurface and
 +  // draws it flipped through cairo; and on an offscreen context (no view flip: the image's row 0
 +  // is at GL y = 0) that flip turned the frame upside down. Here: one glReadPixels of the rows
-+  // the target wants, then an in-place RGBA->BGRA swizzle, row 0 to row 0. (Plain C; NEON next.)
++  // the target wants, then an in-place RGBA->BGRA swizzle, row 0 to row 0. (NEON where the build has it.)
 +  static const bool sJihadDirect = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
 +  if (sJihadDirect && mGLContext->IsOffscreen()) {
 +    uint8_t* data = nullptr; IntSize dsize; int32_t dstride = 0; SurfaceFormat dfmt;
@@ -171,10 +174,18 @@ index 616a03ab77..e5389ca451 100644
 +      TimeStamp t1 = TimeStamp::Now();
 +      if (okRead) {
 +        for (int y = 0; y < h; y++) {
-+          uint32_t* row = reinterpret_cast<uint32_t*>(data + (size_t)y * dstride);
-+          for (int x = 0; x < w; x++) {
-+            const uint32_t v = row[x];   // memory R,G,B,A  ->  B,G,R,A
-+            row[x] = (v & 0xff00ff00u) | ((v & 0xffu) << 16) | ((v >> 16) & 0xffu);
++          uint8_t* p = data + (size_t)y * dstride;
++          int x = 0;
++#if defined(__ARM_NEON__) || defined(__ARM_NEON)
++          // 16 pixels a step: de-interleave into R,G,B,A planes, swap R and B, re-interleave.
++          for (; x + 16 <= w; x += 16, p += 64) {
++            uint8x16x4_t v = vld4q_u8(p);
++            uint8x16_t r = v.val[0]; v.val[0] = v.val[2]; v.val[2] = r;
++            vst4q_u8(p, v);
++          }
++#endif
++          for (; x < w; x++, p += 4) {
++            const uint8_t r = p[0]; p[0] = p[2]; p[2] = r;   // memory R,G,B,A -> B,G,R,A
 +          }
 +        }
 +      }
@@ -203,7 +214,7 @@ index 616a03ab77..e5389ca451 100644
  
    // Map from GL space to Cairo space and reverse the world transform.
    Matrix glToCairoTransform = aTransform;
-@@ -1688,6 +1754,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1688,6 +1765,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
    Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
    aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
    aTarget->SetTransform(oldMatrix);

@@ -13,7 +13,7 @@ available is met.
   `RB_20261006` (`5f290d1097a8350b56ce2092aa9d5fc9147c6661`, 2026-10-04) — `UXP_TAG` / `UXP_BASE` in
   `build/engine/engine-version.env`. (Until 2026-10-12: master `b2594a4`, 2026-06-30.)
 - **Our modified engine:** the branch `jihad/uxp-RB_20261006` of the fork `NotAlexNoyle/UXP-Jihad`,
-  at `UXP_PIN` (`ab236c390b0ebff3a9fa2b76498a27291648b32c`), present in this repository as the
+  at `UXP_PIN` (`d666d28d19d3dcfd370f9d1fa296e5fb80676a1c`), present in this repository as the
   submodule `third_party/uxp`. The device build compiles that tree.
 - **The modifications as patches:** `build/desktop/patches/` holds every change as a patch
   against `UXP_BASE`. `build/engine/patch-queue.sh --check` proves the patches, applied in

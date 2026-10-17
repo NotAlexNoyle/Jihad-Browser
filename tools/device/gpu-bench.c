@@ -75,6 +75,10 @@ F(EGLDisplay, eglGetDisplay, (void*)); F(EGLBoolean, eglInitialize, (EGLDisplay,
 F(EGLSurface, eglCreatePbufferSurface, (EGLDisplay, EGLConfig, const EGLint*)); F(EGLContext, eglCreateContext, (EGLDisplay, EGLConfig, EGLContext, const EGLint*)); F(EGLBoolean, eglMakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext));
 F(const char*, eglQueryString, (EGLDisplay, EGLint)); F(EGLint, eglGetError, (void)); F(EGLBoolean, eglBindAPI, (unsigned));
 F(void, glClearColor, (float, float, float, float)); F(void, glClear, (GLbitfield)); F(void, glFinish, (void)); F(void, glReadPixels, (GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*));
+F(void*, eglGetProcAddress, (const char*));
+F(EGLBoolean, eglQuerySurface, (EGLDisplay, EGLSurface, EGLint, EGLint*));
+F(EGLBoolean, eglDestroyContext, (EGLDisplay, EGLContext));
+F(EGLBoolean, eglDestroySurface, (EGLDisplay, EGLSurface));
 F(void, glGenRenderbuffers, (GLsizei, GLuint*)); F(void, glBindRenderbuffer, (GLenum, GLuint)); F(void, glRenderbufferStorage, (GLenum, GLenum, GLsizei, GLsizei)); F(void, glFramebufferRenderbuffer, (GLenum, GLenum, GLenum, GLuint)); F(void, glDeleteRenderbuffers, (GLsizei, const GLuint*));
 F(void, glGenFramebuffers, (GLsizei, GLuint*)); F(void, glBindFramebuffer, (GLenum, GLuint)); F(void, glFramebufferTexture2D, (GLenum, GLenum, GLenum, GLuint, GLint)); F(GLenum, glCheckFramebufferStatus, (GLenum)); F(void, glDeleteFramebuffers, (GLsizei, const GLuint*)); F(void, glDeleteTextures, (GLsizei, const GLuint*));
 F(void, glGenTextures, (GLsizei, GLuint*)); F(void, glBindTexture, (GLenum, GLuint)); F(void, glTexImage2D, (GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*)); F(void, glTexSubImage2D, (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void*));
@@ -93,7 +97,7 @@ int main(int argc, char** argv) {
   G = dlopen("/usr/lib/libGLESv2.so", RTLD_NOW | RTLD_GLOBAL); if (!G) G = dlopen("libGLESv2.so.2", RTLD_NOW | RTLD_GLOBAL);
   if (!E || !G) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 1; }
   LOAD(E, eglGetDisplay); LOAD(E, eglInitialize); LOAD(E, eglChooseConfig); LOAD(E, eglCreatePbufferSurface); LOAD(E, eglCreateContext); LOAD(E, eglMakeCurrent); LOAD(E, eglQueryString); LOAD(E, eglGetError); LOAD(E, eglBindAPI);
-  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
+  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(E, eglGetProcAddress); LOAD(E, eglQuerySurface); LOAD(E, eglDestroyContext); LOAD(E, eglDestroySurface); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
   LOAD(G, glCreateShader); LOAD(G, glShaderSource); LOAD(G, glCompileShader); LOAD(G, glGetShaderiv); LOAD(G, glCreateProgram); LOAD(G, glAttachShader); LOAD(G, glLinkProgram); LOAD(G, glGetProgramiv); LOAD(G, glUseProgram);
   LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
 
@@ -233,6 +237,81 @@ int main(int argc, char** argv) {
     }
   }
   printf("CPU blend one 1024x768 ARGB layer over another (NEON): %.2f ms\n", (now_ms() - t) / frames);
+
+  // T-502: EGL_KHR_lock_surface (the device lists it): a lockable pbuffer can be MAPPED after
+  // rendering, so the frame is read with memcpy instead of glReadPixels. Costed here with a
+  // second context on a lock-capable config: render one layer, unbind, lock, copy, unlock.
+  {
+    typedef EGLBoolean (*PFNLOCK)(EGLDisplay, EGLSurface, const EGLint*);
+    typedef EGLBoolean (*PFNUNLOCK)(EGLDisplay, EGLSurface);
+    PFNLOCK lockf = (PFNLOCK)eglGetProcAddress("eglLockSurfaceKHR");
+    PFNUNLOCK unlockf = (PFNUNLOCK)eglGetProcAddress("eglUnlockSurfaceKHR");
+    if (!lockf || !unlockf) {
+      printf("lock_surface: eglLockSurfaceKHR not exported\n");
+    } else {
+      const EGLint lcfg[] = { 0x3033 /*SURFACE_TYPE*/, 0x0001 /*PBUFFER_BIT*/ | 0x0080 /*LOCK_SURFACE_BIT_KHR*/,
+                              0x3040 /*RENDERABLE_TYPE*/, 0x0004 /*ES2_BIT*/,
+                              0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 8, /*R,G,B,A*/
+                              0x3043 /*MATCH_FORMAT_KHR*/, 0x30C3 /*FORMAT_RGBA_8888_KHR*/, 0x3038 /*NONE*/ };
+      EGLConfig lc; EGLint ln = 0;
+      if (!eglChooseConfig(dpy, lcfg, &lc, 1, &ln) || ln < 1) {
+        const EGLint lcfg2[] = { 0x3033, 0x0001 | 0x0080, 0x3040, 0x0004, 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 8, 0x3038 };
+        if (!eglChooseConfig(dpy, lcfg2, &lc, 1, &ln) || ln < 1) { printf("lock_surface: no lockable RGBA8888 pbuffer config (egl error 0x%x)\n", eglGetError()); ln = 0; }
+        else printf("lock_surface: config without MATCH_FORMAT\n");
+      }
+      if (ln >= 1) {
+        const EGLint pba[] = { 0x3057 /*WIDTH*/, W, 0x3056 /*HEIGHT*/, H, 0x3038 };
+        EGLSurface ls = eglCreatePbufferSurface(dpy, lc, pba);
+        const EGLint cattr[] = { 0x3098 /*CONTEXT_CLIENT_VERSION*/, 2, 0x3038 };
+        EGLContext lctx = eglCreateContext(dpy, lc, EGL_NO_CONTEXT, cattr);
+        if (ls == EGL_NO_SURFACE || lctx == EGL_NO_CONTEXT || !eglMakeCurrent(dpy, ls, ls, lctx)) {
+          printf("lock_surface: surface/context failed (egl error 0x%x)\n", eglGetError());
+        } else {
+          // the same program and quad as above, in the new context
+          GLuint prog2 = glCreateProgram(); glAttachShader(prog2, shader(GL_VERTEX_SHADER, vs)); glAttachShader(prog2, shader(GL_FRAGMENT_SHADER, fs)); glLinkProgram(prog2); glUseProgram(prog2);
+          GLint ap2 = glGetAttribLocation(prog2, "p"), at2 = glGetAttribLocation(prog2, "t"), um2 = glGetUniformLocation(prog2, "m");
+          glVertexAttribPointer(ap2, 2, GL_FLOAT, GL_FALSE, 16, quad); glEnableVertexAttribArray(ap2);
+          glVertexAttribPointer(at2, 2, GL_FLOAT, GL_FALSE, 16, quad + 2); glEnableVertexAttribArray(at2);
+          glUniform4f(um2, 1, 1, 1, 1); glViewport(0, 0, W, H);
+          GLuint ltex; glGenTextures(1, &ltex); glBindTexture(GL_TEXTURE_2D, ltex); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+          glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+          t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }
+          printf("lock_surface config: glReadPixels 1024x768 RGBA %.2f ms/frame (for comparison)\n", (now_ms() - t) / frames);
+          const EGLint lattr[] = { 0x30C4 /*MAP_PRESERVE_PIXELS_KHR*/, 1, 0x30C5 /*LOCK_USAGE_HINT_KHR*/, 0x0001 /*READ_SURFACE_BIT_KHR*/, 0x3038 };
+          int okc = 0; double tlock = 0, tcopy = 0, tunlock = 0; EGLint ptrv = 0, pitch = 0, origin = -1, roff = -1, boff = -1, psize = -1;
+          for (int f = 0; f < frames; f++) {
+            double a = now_ms();
+            eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            if (!lockf(dpy, ls, lattr)) { printf("lock_surface: eglLockSurfaceKHR failed (egl error 0x%x)\n", eglGetError()); break; }
+            eglQuerySurface(dpy, ls, 0x30C6 /*BITMAP_POINTER_KHR*/, &ptrv); eglQuerySurface(dpy, ls, 0x30C7 /*BITMAP_PITCH_KHR*/, &pitch);
+            eglQuerySurface(dpy, ls, 0x30C8 /*BITMAP_ORIGIN_KHR*/, &origin); eglQuerySurface(dpy, ls, 0x30C9 /*PIXEL_RED_OFFSET_KHR*/, &roff); eglQuerySurface(dpy, ls, 0x30CB /*PIXEL_BLUE_OFFSET_KHR*/, &boff); eglQuerySurface(dpy, ls, 0x3110 /*PIXEL_SIZE_KHR (lock_surface2)*/, &psize);
+            double b = now_ms();
+            if (ptrv && pitch > 0) { for (int y = 0; y < H; y++) memcpy(back + (size_t)y * W * 4, (uint8_t*)(intptr_t)ptrv + (size_t)y * pitch, (size_t)W * 4); }
+            double c = now_ms();
+            unlockf(dpy, ls); eglMakeCurrent(dpy, ls, ls, lctx);
+            double d = now_ms();
+            tlock += b - a; tcopy += c - b; tunlock += d - c; okc++;
+          }
+          if (okc) printf("lock_surface 1024x768: unbind+lock %.2f ms, memcpy rows %.2f ms, unlock+rebind %.2f ms per frame (pointer %s, pitch %d, origin 0x%x, red offset %d, blue offset %d, pixel size %d)\n",
+                          tlock / okc, tcopy / okc, tunlock / okc, ptrv ? "set" : "NULL", pitch, origin, roff, boff, psize);
+          // a lock after a fresh draw each time (what a frame loop would do)
+          okc = 0; t = now_ms();
+          for (int f = 0; f < frames; f++) {
+            glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+            eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            if (!lockf(dpy, ls, lattr)) break;
+            eglQuerySurface(dpy, ls, 0x30C6, &ptrv); eglQuerySurface(dpy, ls, 0x30C7, &pitch);
+            if (ptrv && pitch > 0) { for (int y = 0; y < H; y++) memcpy(back + (size_t)y * W * 4, (uint8_t*)(intptr_t)ptrv + (size_t)y * pitch, (size_t)W * 4); }
+            unlockf(dpy, ls); eglMakeCurrent(dpy, ls, ls, lctx); okc++;
+          }
+          if (okc) printf("lock_surface 1024x768: draw 1 layer + lock + copy + unlock: %.2f ms/frame\n", (now_ms() - t) / okc);
+          eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+          eglDestroyContext(dpy, lctx); eglDestroySurface(dpy, ls);
+        }
+      }
+    }
+  }
   // and a NEON row copy with the fit scale folded in as a plain per-row memcpy of the scaled row (upper bound for a NEON scaler)
 #endif
   return 0;

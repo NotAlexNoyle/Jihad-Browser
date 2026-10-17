@@ -65,9 +65,17 @@ takes the tiled `glTexSubImage2D` path (180–240 ms a change) — must become w
 compositor animates without dirtying the widget, so the daemon needs the compositor's own
 "composite due" signal (`JIHAD_GPU_FORCE_FPS` stands in). Numbers, table and verdict:
 `docs/RENDERING-OPTIONS.md` "T-502, the spike"; logs and screenshots `docs/rounds/t502-2026-10-17/`.
-**Next (option 4 proper, weeks 2–6):** a direct read into the YAP buffer on the compositor thread,
-the renderbuffer render target, whole-texture uploads, the composite-due signal, the clock hold
-around composition, the zoom/pan as the root layer's transform (T-499's layout viewport and the
+**Round 6 (the owner said "continue"):** the read on the compositor thread straight into the
+YAP buffer (`CompositorBridgeParent::JihadComposeAndRead`, a task posted to the compositor loop,
+the main thread waits on a Monitor), a renderbuffer FBO as the window target, PULL MODE
+(`CompositorVsyncScheduler::ScheduleComposition` only counts under the env; the daemon pulls a
+frame when `jihad_offscreen_compositor_seq` moves — an animation keeps asking after each
+composite), and the clock-floor leak (a daemon that dies holding the floor left scaling_min_freq
+at 1188000; the probe now takes cpuinfo_min_freq when it finds the floor at the top). Measured:
+compose 1.4–4.6 ms, read 7–17 ms, **17–24 fps on the animation page** (`spike-run6-*`).
+**Next (option 4 proper, weeks 2–6):** whole-texture uploads (`CanUploadSubTextures` false under
+the env: the tiled sub-image path costs 180–240 ms a content change), the daemon's own per-frame
+work (the nonblank loop, the copy and scale), the zoom/pan as the root layer's transform (T-499's layout viewport and the
 fit zoom today crop the frame), the plugin and video layers through the ImageBridge; then 2.
 
 **Carried over, unchanged:** daemon 18 (the hold's release fix) built, NOT deployed; FFmpeg libs on

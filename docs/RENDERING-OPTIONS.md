@@ -129,11 +129,12 @@ transform with the main thread painting 0.1–2.8 ms a frame. Five rounds and a 
 | Paint an animation frame on the main thread | 0 | 0.1–2.8 ms |
 | New content: CPU raster + upload | 53 + 10.3 ms | 60–64 + 180–240 ms (the upload takes the tiled `glTexSubImage2D` path the bench measured at 160 ms per 3 MB) |
 | Frame as the daemon sees it | 42 ms, 24 fps | 54–96 ms; the pipeline 7–9 fps on the daemon's 100 ms idle tick |
+| **Round 6, the same day:** compose + read on the compositor thread straight into the shared buffer, a renderbuffer FBO as the window, pull mode (the compositor counts requests, the daemon pulls), the clock held | 42 ms, 24 fps | compose 1.4–4.6 ms, read 7–17 ms, compose+read 8–21 ms from the main thread; **the pipeline 17–24 fps** on the animation page (the daemon's own copy, scale and publish are the rest of the 41–62 ms tick) |
 
-Verdict: the 42 ms row is reachable, not free. Three things stand between 54–96 and 42: the clock
-hold during composition (the readback is a CPU copy inside the driver and tracks the clock), a
-direct read into the YAP buffer instead of the snapshot road (−12–18 ms), and a renderbuffer FBO
-as the render target (−9 ms). The content upload must become a whole-texture `glTexImage2D`
+Verdict (after round 6): **the 24 fps row holds on the device** — 17–24 fps measured on the
+four-layer animation page once the frame is read on the compositor thread into the shared buffer
+from a renderbuffer FBO with the clock held; compose + read is 8–21 ms and the daemon's own copy,
+scale and publish make up the rest of the frame. The content upload must become a whole-texture `glTexImage2D`
 (10 ms per 3 MB) or the new-content row falls from 9 fps to 4. `EGL_KHR_lock_surface` is a copy,
 not a mapping (26 ms), and `GL_EXT_read_format_bgra` is absent, so the swizzle stays (NEON, ~3 ms
 at a high clock). The compositor also composes on its own vsync beside the daemon's pull (wasted

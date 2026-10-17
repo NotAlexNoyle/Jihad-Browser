@@ -555,6 +555,17 @@ private:
       if (readFile(p, &orig)) { mMinPath[c] = p; mOrigMin[c] = orig; }
     }
     if (mMinPath[0].empty()) { mDisabled = true; return; }
+    // A daemon that died holding the floor (a crash, a kill) leaves scaling_min_freq at the top
+    // and the next daemon would take that for the floor to go back to: the battery then never
+    // sees the low clocks again. Found on 2026-10-17 after the T-502 rounds (floor 1188000).
+    // The hardware minimum is the floor then.
+    std::string hwmin;
+    if (readFile("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq", &hwmin) &&
+        mOrigMin[0] == mTop && hwmin != mTop) {
+      fprintf(stderr, "[jihad-bs] clock hold: the floor was found at the top (%s kHz; a previous daemon died holding it): %s kHz is the floor\n",
+              mOrigMin[0].c_str(), hwmin.c_str());
+      for (int c = 0; c < 2; c++) if (!mOrigMin[c].empty()) mOrigMin[c] = hwmin;
+    }
     // the write is tried once here: a daemon that may not write sysfs stays quiet about it
     if (!writeFile(mMinPath[0], mOrigMin[0])) { mDisabled = true; fprintf(stderr, "[jihad-bs] clock hold: sysfs not writable (%s), off\n", strerror(errno)); return; }
     std::string gov; readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", &gov);

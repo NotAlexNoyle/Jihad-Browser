@@ -2735,9 +2735,10 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // the main thread painting, so nothing marks the widget dirty and the daemon would never ask
   // for a frame. The real path will take the compositor's own "composite due" signal; for the
   // spike, JIHAD_GPU_FORCE_FPS asks for a frame every tick (the 33 ms floor below still holds).
-  {
+  if (mPage->GpuPath()) {
     static const bool sForce = getenv("JIHAD_GPU_FORCE_FPS") != nullptr;
-    if (sForce && mPage->GpuPath()) mDirtyPending = true;
+    const uint32_t seq = mPage->CompositorSeq();
+    if (sForce || seq != mGpuSeq) { mGpuSeq = seq; mDirtyPending = true; }
   }
   {
     int dx = 0, dy = 0, dw = 0, dh = 0;

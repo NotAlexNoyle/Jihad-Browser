@@ -50,6 +50,8 @@ extern "C" {
   // environment). Fallback: the CPU exports above.
   bool jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
                                int aStride, int aWidth, int aHeight) __attribute__((weak));
+  // OPTIONAL (T-502): the compositor's composite-request count; a frame is due when it moves.
+  uint32_t jihad_offscreen_compositor_seq(nsIWidget* aWidget) __attribute__((weak));
   // OPTIONAL (patch 0012): the sticky content-invalidation flag, and its damage rectangle.
   // Fallback: input/load-driven paints, whole-viewport repaints — slower, never wrong.
   bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
@@ -94,6 +96,7 @@ inline void ReportEngineExports() {
   const Opt opts[] = {
     {"jihad_offscreen_render_region", jihad_offscreen_render_region != nullptr},
     {"jihad_offscreen_compose", jihad_offscreen_compose != nullptr},
+    {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},
     {"jihad_offscreen_take_dirty", jihad_offscreen_take_dirty != nullptr},
     {"jihad_offscreen_take_dirty_rect", jihad_offscreen_take_dirty_rect != nullptr},
     {"jihad_offscreen_composite_popups", jihad_offscreen_composite_popups != nullptr},

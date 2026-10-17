@@ -20,15 +20,18 @@ two timings per frame. Without the env nothing changes.
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
- gfx/layers/client/ClientLayerManager.cpp  |  12 +++
- gfx/layers/ipc/CompositorBridgeParent.cpp |   7 ++
- gfx/layers/opengl/CompositorOGL.cpp       |  84 ++++++++++++++-
- gfx/thebes/gfxPlatform.cpp                |  21 +++-
- gfx/thebes/gfxPlatformHeadless.cpp        |  13 +++
- gfx/thebes/gfxPlatformHeadless.h          |   5 +
- widget/PuppetWidget.cpp                   | 125 ++++++++++++++++++++--
- widget/PuppetWidget.h                     |  14 +++
- 8 files changed, 272 insertions(+), 9 deletions(-)
+ gfx/layers/client/ClientLayerManager.cpp      |  12 ++
+ gfx/layers/ipc/CompositorBridgeParent.cpp     |  46 +++++
+ gfx/layers/ipc/CompositorBridgeParent.h       |  10 +
+ .../opengl/CompositingRenderTargetOGL.h       |   5 +-
+ gfx/layers/opengl/CompositorOGL.cpp           | 159 ++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.h             |  11 ++
+ gfx/thebes/gfxPlatform.cpp                    |  21 +-
+ gfx/thebes/gfxPlatformHeadless.cpp            |  13 ++
+ gfx/thebes/gfxPlatformHeadless.h              |   5 +
+ widget/PuppetWidget.cpp                       | 184 +++++++++++++++++-
+ widget/PuppetWidget.h                         |  16 ++
+ 11 files changed, 468 insertions(+), 14 deletions(-)
 
 diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
 index 95af8fb5fc..fd485ddc67 100644
@@ -72,10 +75,26 @@ index 95af8fb5fc..fd485ddc67 100644
          mForwarder->DestroySurfaceDescriptor(&outSnapshot);
        }
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index f92e74c147..3ceafc9f85 100644
+index f92e74c147..1fb8ba9330 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
-@@ -1208,6 +1208,13 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+@@ -365,6 +365,15 @@ void
+ CompositorVsyncScheduler::ScheduleComposition()
+ {
+   MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
++  // Jihad T-502 (JIHAD_GPU_COMPOSITOR): pull mode. No vsync-driven composite; the request is
++  // counted and the daemon, which owns the frame rate, pulls a frame through
++  // CompositorBridgeParent::JihadComposeAndRead when the count moves. An animation keeps
++  // asking after every composite, so it keeps the daemon pulling.
++  static const bool sJihadPull = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  if (sJihadPull) {
++    mJihadRequests++;
++    return;
++  }
+   if (mAsapScheduling) {
+     // Used only for performance testing purposes
+     PostCompositeTask(TimeStamp::Now());
+@@ -1208,6 +1217,13 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
    if (!aTarget) {
      TimeStamp end = TimeStamp::Now();
      DidComposite(start, end);
@@ -89,8 +108,105 @@ index f92e74c147..3ceafc9f85 100644
    }
  
    // We're not really taking advantage of the stored composite-again-time here.
+@@ -1274,6 +1290,36 @@ CompositorBridgeParent::ForceComposeToTarget(DrawTarget* aTarget, const gfx::Int
+   mCompositorScheduler->ForceComposeToTarget(aTarget, aRect);
+ }
+ 
++uint32_t
++CompositorBridgeParent::JihadRequests() const
++{
++  return mCompositorScheduler ? mCompositorScheduler->JihadRequests() : 0;
++}
++
++bool
++CompositorBridgeParent::JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight)
++{
++  MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
++  if (!mCompositor) {
++    return false;
++  }
++  TimeStamp t0 = TimeStamp::Now();
++  ForceComposeToTarget(nullptr, nullptr);
++  TimeStamp t1 = TimeStamp::Now();
++  CompositorOGL* ogl = mCompositor->AsCompositorOGL();
++  if (!ogl) {
++    return false;
++  }
++  bool ok = ogl->JihadReadFrame(aDest, aStride, aWidth, aHeight);
++  static uint32_t sFrames = 0;
++  if (sFrames < 20 || (sFrames % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] compositor thread: compose %.1f ms, read %.1f ms (frame %u, ok=%d)\n",
++            (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds(), sFrames, (int)ok);
++  }
++  ++sFrames;
++  return ok;
++}
++
+ PAPZCTreeManagerParent*
+ CompositorBridgeParent::AllocPAPZCTreeManagerParent(const uint64_t& aLayersId)
+ {
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
+index 98812f75c8..799587895c 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.h
++++ b/gfx/layers/ipc/CompositorBridgeParent.h
+@@ -20,6 +20,7 @@
+ #include "mozilla/Attributes.h"         // for override
+ #include "mozilla/Maybe.h"
+ #include "mozilla/Monitor.h"            // for Monitor
++#include "mozilla/Atomics.h"            // Jihad T-502
+ #include "mozilla/RefPtr.h"             // for RefPtr
+ #include "mozilla/TimeStamp.h"          // for TimeStamp
+ #include "mozilla/dom/ipc/IdType.h"
+@@ -108,6 +109,8 @@ public:
+   bool NeedsComposite();
+   void Composite(TimeStamp aVsyncTimestamp);
+   void ForceComposeToTarget(gfx::DrawTarget* aTarget, const gfx::IntRect* aRect);
++  // Jihad T-502 (pull mode): composites asked for and not run; the daemon pulls a frame when it moves.
++  uint32_t JihadRequests() const { return mJihadRequests; }
+ 
+   const TimeStamp& GetLastComposeTime()
+   {
+@@ -122,6 +125,7 @@ public:
+ #endif
+ 
+ private:
++  mozilla::Atomic<uint32_t> mJihadRequests{0};   // Jihad T-502
+   virtual ~CompositorVsyncScheduler();
+ 
+   void NotifyCompositeTaskExecuted();
+@@ -516,6 +520,12 @@ public:
+ 
+   void ForceComposeToTarget(gfx::DrawTarget* aTarget, const gfx::IntRect* aRect = nullptr);
+ 
++  // Jihad T-502: the scheduler's request count (any thread), and the frame pulled on the
++  // compositor thread: compose to the window (the pbuffer / renderbuffer) and read it into
++  // aDest (B8G8R8A8, aStride bytes a row, the top-left aWidth x aHeight of the frame).
++  uint32_t JihadRequests() const;
++  bool JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight);
++
+   PAPZCTreeManagerParent* AllocPAPZCTreeManagerParent(const uint64_t& aLayersId) override;
+   bool DeallocPAPZCTreeManagerParent(PAPZCTreeManagerParent* aActor) override;
+ 
+diff --git a/gfx/layers/opengl/CompositingRenderTargetOGL.h b/gfx/layers/opengl/CompositingRenderTargetOGL.h
+index 071dc5cac1..ed24a327eb 100644
+--- a/gfx/layers/opengl/CompositingRenderTargetOGL.h
++++ b/gfx/layers/opengl/CompositingRenderTargetOGL.h
+@@ -97,10 +97,11 @@ public:
+    */
+   static already_AddRefed<CompositingRenderTargetOGL>
+   RenderTargetForWindow(CompositorOGL* aCompositor,
+-                        const gfx::IntSize& aSize)
++                        const gfx::IntSize& aSize,
++                        GLuint aFBO = 0)   // Jihad T-502: the renderbuffer FBO that stands for the window
+   {
+     RefPtr<CompositingRenderTargetOGL> result
+-      = new CompositingRenderTargetOGL(aCompositor, gfx::IntPoint(), 0, 0);
++      = new CompositingRenderTargetOGL(aCompositor, gfx::IntPoint(), 0, aFBO);
+     result->mInitParams = InitParams(aSize, aSize, 0, INIT_MODE_NONE);
+     result->mInitParams.mStatus = InitParams::INITIALIZED;
+     return result.forget();
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 616a03ab77..91fefb1789 100644
+index 616a03ab77..32a0ba7dfa 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
 @@ -4,11 +4,17 @@
@@ -111,7 +227,7 @@ index 616a03ab77..91fefb1789 100644
  #include "GLUploadHelpers.h"
  #include "Layers.h"                     // for WriteSnapshotToDumpFile
  #include "LayerScope.h"                 // for LayerScope
-@@ -122,6 +128,21 @@ CompositorOGL::CreateContext()
+@@ -122,6 +128,22 @@ CompositorOGL::CreateContext()
    }
  #endif
  
@@ -126,6 +242,7 @@ index 616a03ab77..91fefb1789 100644
 +    gfx::IntSize pb(std::max(mSurfaceSize.width, 1100), std::max(mSurfaceSize.height, 1400));
 +    context = gl::GLContextEGL::CreateEGLPBufferOffscreenContext(
 +        CreateContextFlags::REQUIRE_COMPAT_PROFILE, pb, SurfaceCaps::ForRGBA(), &failureId);
++    mJihadPbSize = pb;
 +    fprintf(stderr, "[jihad-gpu] pbuffer context %dx%d: %s %s\n", pb.width, pb.height,
 +            context ? "created" : "FAILED", failureId.get());
 +  }
@@ -133,7 +250,47 @@ index 616a03ab77..91fefb1789 100644
    // Allow to create offscreen GL context for main Layer Manager
    if (!context && gfxEnv::LayersPreferOffscreen()) {
      SurfaceCaps caps = SurfaceCaps::ForRGB();
-@@ -652,9 +673,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+@@ -230,6 +252,30 @@ CompositorOGL::Initialize(nsCString* const out_failureReason)
+     return false;
+   }
+ 
++  // Jihad T-502: a renderbuffer-backed FBO as the window target of the pbuffer context.
++  if (mJihadPbSize.width > 0 && mGLContext->IsOffscreen() && !mGLContext->Screen()) {
++    mGLContext->MakeCurrent();
++    mGLContext->fGenRenderbuffers(1, &mJihadWindowRB);
++    mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, mJihadWindowRB);
++    mGLContext->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */,
++                                     mJihadPbSize.width, mJihadPbSize.height);
++    mGLContext->fGenFramebuffers(1, &mJihadWindowFBO);
++    mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++    mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0,
++                                         LOCAL_GL_RENDERBUFFER, mJihadWindowRB);
++    GLenum status = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
++    if (status != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++      mGLContext->fDeleteFramebuffers(1, &mJihadWindowFBO);
++      mGLContext->fDeleteRenderbuffers(1, &mJihadWindowRB);
++      mJihadWindowFBO = mJihadWindowRB = 0;
++      fprintf(stderr, "[jihad-gpu] renderbuffer window target: incomplete (0x%x), drawing into the pbuffer\n", status);
++    } else {
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++      fprintf(stderr, "[jihad-gpu] renderbuffer window target %dx%d: FBO %u\n", mJihadPbSize.width, mJihadPbSize.height, mJihadWindowFBO);
++    }
++  }
++
+   MakeCurrent();
+ 
+   mHasBGRA =
+@@ -485,7 +531,7 @@ CompositorOGL::PrepareViewport(CompositingRenderTargetOGL* aRenderTarget)
+     MOZ_ASSERT(mCurrentRenderTarget, "No destination");
+     // If we're drawing directly to the window then we want to offset
+     // drawing by the render offset.
+-    if (!mTarget && mCurrentRenderTarget->IsWindow()) {
++    if (!mTarget && JihadIsWindowTarget()) {
+       viewMatrix.PreTranslate(mRenderOffset.x, mRenderOffset.y);
+     }
+ 
+@@ -652,9 +698,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
        mWidgetSize.height != height)
    {
      MakeCurrent(ForceMakeCurrent);
@@ -150,7 +307,76 @@ index 616a03ab77..91fefb1789 100644
    } else {
      MakeCurrent();
    }
-@@ -1667,13 +1694,63 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -669,7 +721,8 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+ 
+   RefPtr<CompositingRenderTargetOGL> rt =
+     CompositingRenderTargetOGL::RenderTargetForWindow(this,
+-                                                      IntSize(width, height));
++                                                      IntSize(width, height),
++                                                      mJihadWindowFBO);
+   SetRenderTarget(rt);
+ 
+ #ifdef DEBUG
+@@ -1037,7 +1090,7 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
+   // transforms and offsets have been applied) so if our
+   // drawing is going to be shifted by mRenderOffset then we need
+   // to shift the clip rect by the same amount.
+-  if (!mTarget && mCurrentRenderTarget->IsWindow()) {
++  if (!mTarget && JihadIsWindowTarget()) {
+     clipRect.MoveBy(mRenderOffset.x, mRenderOffset.y);
+   }
+ 
+@@ -1641,6 +1694,49 @@ CompositorOGL::SetDestinationSurfaceSize(const IntSize& aSize)
+   mSurfaceSize.height = aSize.height;
+ }
+ 
++bool
++CompositorOGL::JihadIsWindowTarget() const
++{
++  return mCurrentRenderTarget &&
++         (mCurrentRenderTarget->IsWindow() ||
++          (mJihadWindowFBO && mCurrentRenderTarget->GetFBO() == mJihadWindowFBO));
++}
++
++bool
++CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeight)
++{
++  if (!mGLContext || !aDest || aWidth <= 0 || aHeight <= 0 || aStride != aWidth * 4) {
++    return false;
++  }
++  const int w = std::min<int>(aWidth, mWidgetSize.width), h = std::min<int>(aHeight, mWidgetSize.height);
++  if (w <= 0 || h <= 0) {
++    return false;
++  }
++  mGLContext->MakeCurrent();
++  mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++  {
++    // Row 0 of the read is the top of the image: an offscreen context draws with no view flip.
++    ScopedPackState safePackState(mGLContext);
++    mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++    mGLContext->fReadPixels(0, 0, w, h, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, aDest);
++  }
++  for (int y = 0; y < h; y++) {
++    uint8_t* p = aDest + (size_t)y * aStride;
++    int x = 0;
++#if defined(__ARM_NEON__) || defined(__ARM_NEON)
++    for (; x + 16 <= w; x += 16, p += 64) {
++      uint8x16x4_t v = vld4q_u8(p);
++      uint8x16_t r = v.val[0]; v.val[0] = v.val[2]; v.val[2] = r;
++      vst4q_u8(p, v);
++    }
++#endif
++    for (; x < w; x++, p += 4) {
++      const uint8_t r = p[0]; p[0] = p[2]; p[2] = r;
++    }
++  }
++  return true;
++}
++
+ void
+ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, const gfx::Matrix& aTransform)
+ {
+@@ -1667,13 +1763,63 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
      mGLContext->fReadBuffer(LOCAL_GL_BACK);
    }
  
@@ -214,7 +440,7 @@ index 616a03ab77..91fefb1789 100644
  
    // Map from GL space to Cairo space and reverse the world transform.
    Matrix glToCairoTransform = aTransform;
-@@ -1688,6 +1765,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1688,6 +1834,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
    Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
    aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
    aTarget->SetTransform(oldMatrix);
@@ -226,6 +452,35 @@ index 616a03ab77..91fefb1789 100644
    aTarget->Flush();
  }
  
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index da204b12e6..af28b27259 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -168,6 +168,14 @@ protected:
+ public:
+   virtual CompositorOGL* AsCompositorOGL() override { return this; }
+ 
++  // Jihad T-502: the window render target is a renderbuffer-backed FBO on the pbuffer context
++  // (a glReadPixels from it is twice as fast as from the pbuffer, and thirty times faster than
++  // from a texture-backed one on the Adreno 220); JihadReadFrame reads the frame's top-left
++  // aWidth x aHeight into aDest as B8G8R8A8 (RGBA read, swizzled in place).
++  GLuint JihadWindowFBO() const { return mJihadWindowFBO; }
++  bool JihadIsWindowTarget() const;
++  bool JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeight);
++
+   virtual already_AddRefed<DataTextureSource>
+   CreateDataTextureSource(TextureFlags aFlags = TextureFlags::NO_FLAGS) override;
+ 
+@@ -311,6 +319,9 @@ private:
+ 
+   /** Widget associated with this compositor */
+   LayoutDeviceIntSize mWidgetSize;
++  GLuint mJihadWindowFBO = 0;      // Jihad T-502
++  GLuint mJihadWindowRB = 0;
++  gfx::IntSize mJihadPbSize;
+   RefPtr<GLContext> mGLContext;
+   UniquePtr<GLBlitTextureImageHelper> mBlitTextureImageHelper;
+   gfx::Matrix4x4 mProjMatrix;
 diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
 index ddad584b3e..1163f2e7a9 100644
 --- a/gfx/thebes/gfxPlatform.cpp
@@ -313,19 +568,24 @@ index c3ee465bec..23ec701a70 100644
      already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
  #endif
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 6f066b1b33..4b6de06d64 100644
+index 6f066b1b33..68ad8dab2c 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
-@@ -21,6 +21,8 @@
+@@ -21,6 +21,13 @@
  #include "nsIWidgetListener.h"
  #include "imgIContainer.h"
  #include "nsView.h"
 +#include "nsViewManager.h"        // T-502: the root view for PresShell::Paint
 +#include "mozilla/TimeStamp.h"
++#include "mozilla/layers/CompositorBridgeParent.h"   // T-502
++#include "mozilla/layers/CompositorThread.h"
++#include "mozilla/layers/CompositorSession.h"
++#include "mozilla/Monitor.h"
++#include "base/task.h"
  // Jihad offscreen render-document support:
  #include "gfxContext.h"
  #include "nsIDocShell.h"
-@@ -152,6 +154,7 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+@@ -152,6 +159,7 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
    if (parent) {
      parent->SetChild(this);
      mLayerManager = parent->GetLayerManager();
@@ -333,7 +593,7 @@ index 6f066b1b33..4b6de06d64 100644
    }
    else {
      Resize(mBounds.x, mBounds.y, mBounds.width, mBounds.height, false);
-@@ -214,7 +217,11 @@ PuppetWidget::Destroy()
+@@ -214,7 +222,11 @@ PuppetWidget::Destroy()
    }
    mMemoryPressureObserver = nullptr;
    mChild = nullptr;
@@ -346,7 +606,7 @@ index 6f066b1b33..4b6de06d64 100644
      mLayerManager->Destroy();
    }
    mLayerManager = nullptr;
-@@ -634,9 +641,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+@@ -634,9 +646,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
  {
    if (!mLayerManager) {
      if (JihadOffscreen()) {
@@ -377,7 +637,7 @@ index 6f066b1b33..4b6de06d64 100644
      } else {
        mLayerManager = new ClientLayerManager(this);
      }
-@@ -782,6 +807,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
+@@ -782,6 +812,118 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
  // C entry points for the frozen-API render daemon. Exported from libxul so the
  // daemon (which cannot see internal classes like PuppetWidget) can create an
  // offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
@@ -386,6 +646,38 @@ index 6f066b1b33..4b6de06d64 100644
 +{
 +  static const bool sOn = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
 +  return sOn;
++}
++
++namespace {
++// T-502: one frame pulled from the compositor thread. Heap-allocated and owned by whichever side
++// finishes last, so a waiter that gives up (abandoned) leaves nothing dangling for the task.
++struct JihadReadJob {
++  mozilla::layers::CompositorBridgeParent* bridge;
++  uint8_t* dest; int stride, w, h;
++  mozilla::Monitor mon;
++  bool done, ok, abandoned;
++  JihadReadJob(mozilla::layers::CompositorBridgeParent* b, uint8_t* d, int st, int wi, int he)
++    : bridge(b), dest(d), stride(st), w(wi), h(he), mon("jihad-compose"), done(false), ok(false), abandoned(false) {}
++};
++void JihadReadOnCompositorThread(JihadReadJob* job)
++{
++  bool ok = job->bridge->JihadComposeAndRead(job->dest, job->stride, job->w, job->h);
++  bool abandoned;
++  {
++    mozilla::MonitorAutoLock lock(job->mon);
++    job->ok = ok; job->done = true; abandoned = job->abandoned;
++    job->mon.Notify();
++  }
++  if (abandoned) {
++    delete job;
++  }
++}
++} // namespace
++
++mozilla::layers::CompositorBridgeParent*
++PuppetWidget::JihadBridge()
++{
++  return mCompositorSession ? mCompositorSession->GetInProcessBridge() : nullptr;
 +}
 +
 +bool
@@ -411,41 +703,51 @@ index 6f066b1b33..4b6de06d64 100644
 +  // compositor was never created: not this path.
 +  LayerManager* lm = viewWidget->GetLayerManager();
 +  ClientLayerManager* clm = lm ? lm->AsClientLayerManager() : nullptr;
-+  if (!clm) {
++  mozilla::layers::CompositorBridgeParent* bridge = JihadBridge();
++  if (!clm || !bridge) {
++    return false;
++  }
++  MessageLoop* loop = mozilla::layers::CompositorThreadHolder::Loop();
++  if (!loop) {
 +    return false;
 +  }
 +  mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
-+  // 1. The layer tree: the root view's frames painted into layers and forwarded to the
-+  //    compositor (which also composites on its own vsync; the snapshot below is the frame
-+  //    the daemon keeps, so that one is wasted work to remove once the spike has its number).
++  // 1. The layer tree: the root view's frames painted into layers and forwarded (a sync
++  //    transaction to the compositor thread). In pull mode nothing composites by itself.
 +  nsRegion dirty(root->GetDimensions());
 +  presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
 +  mozilla::TimeStamp t1 = mozilla::TimeStamp::Now();
-+  // 2. The snapshot: an empty transaction with a target makes the client ask the compositor
-+  //    (sync IPC on the compositor thread) to compose into a shared surface, then draw that
-+  //    surface into our target: CompositorOGL::EndFrame -> CopyToTarget -> glReadPixels.
-+  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
-+      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
-+      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
-+  if (!dt || !dt->IsValid()) {
-+    return false;
-+  }
-+  dt->FillRect(mozilla::gfx::Rect(0, 0, aWidth, aHeight),
-+               mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
-+  RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
-+  if (!ctx) {
-+    return false;
-+  }
++  // 2. Compose and read on the compositor thread, straight into aDest (the daemon's shared
++  //    buffer); this thread waits, three seconds at most.
++  JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight);
 +  bool ok = false;
-+  if (clm->BeginTransactionWithTarget(ctx)) {
-+    ok = clm->EndEmptyTransaction();
++  {
++    mozilla::MonitorAutoLock lock(job->mon);
++    loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
++    const mozilla::TimeStamp deadline = mozilla::TimeStamp::Now() + mozilla::TimeDuration::FromSeconds(3);
++    while (!job->done) {
++      mozilla::TimeDuration left = deadline - mozilla::TimeStamp::Now();
++      if (left <= mozilla::TimeDuration()) {
++        break;
++      }
++      lock.Wait(PR_MillisecondsToInterval((uint32_t)left.ToMilliseconds()));
++    }
++    if (job->done) {
++      ok = job->ok;
++    } else {
++      job->abandoned = true;
++      fprintf(stderr, "[jihad-gpu] compose: no answer from the compositor thread in 3 s\n");
++    }
++  }
++  const bool answered = !job->abandoned;
++  if (answered) {
++    delete job;
 +  }
 +  mozilla::TimeStamp t2 = mozilla::TimeStamp::Now();
 +  static uint32_t sFrames = 0;
-+  if (sFrames < 100 || (sFrames % 50) == 0) {
-+    fprintf(stderr, "[jihad-gpu] frame %u: layers %.1f ms, compose+readback %.1f ms, ok=%d, compositor backend %d\n",
-+            sFrames, (t1 - t0).ToMilliseconds(), (t2 - t1).ToMilliseconds(), (int)ok,
-+            (int)clm->GetCompositorBackendType());
++  if (sFrames < 20 || (sFrames % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] frame %u: layers %.1f ms, compose+read %.1f ms, ok=%d\n",
++            sFrames, (t1 - t0).ToMilliseconds(), (t2 - t1).ToMilliseconds(), (int)ok);
 +  }
 +  ++sFrames;
 +  return ok;
@@ -454,7 +756,7 @@ index 6f066b1b33..4b6de06d64 100644
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
  extern "C" {
  
-@@ -969,6 +1064,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+@@ -969,6 +1111,32 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
    return true;
  }
  
@@ -472,10 +774,22 @@ index 6f066b1b33..4b6de06d64 100644
 +                                                             aWidth, aHeight);
 +}
 +
++// T-502: how many composites the compositor has asked for (layer updates, animations); the
++// daemon pulls a frame whenever this moves. 0 without a compositor.
++MOZ_EXPORT uint32_t
++jihad_offscreen_compositor_seq(nsIWidget* aWidget)
++{
++  if (!aWidget) {
++    return 0;
++  }
++  mozilla::layers::CompositorBridgeParent* bridge = static_cast<PuppetWidget*>(aWidget)->JihadBridge();
++  return bridge ? bridge->JihadRequests() : 0;
++}
++
  // Composite every OPEN XUL popup over an already-painted buffer.
  //
  // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
-@@ -1746,8 +1855,12 @@ PuppetWidget::Paint()
+@@ -1746,8 +1914,12 @@ PuppetWidget::Paint()
  #endif
  
      if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {
@@ -491,10 +805,18 @@ index 6f066b1b33..4b6de06d64 100644
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index 6d3c680c7b..5aab18d8af 100644
+index 6d3c680c7b..cd4246a6c6 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
-@@ -268,6 +268,18 @@ public:
+@@ -28,6 +28,7 @@
+ class nsIDocShell;   // Jihad offscreen render (JihadRenderDocument)
+ 
+ namespace mozilla {
++namespace layers { class CompositorBridgeParent; }   // Jihad T-502
+ 
+ namespace dom {
+ class TabChild;
+@@ -268,6 +269,19 @@ public:
      return true;
    }
  
@@ -509,11 +831,12 @@ index 6d3c680c7b..5aab18d8af 100644
 +  static bool JihadGpuCompositor();
 +  bool JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
 +                      int aWidth, int aHeight);
++  mozilla::layers::CompositorBridgeParent* JihadBridge();
 +
    virtual TabChild* GetOwningTabChild() override { return mTabChild; }
  
    void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -411,6 +423,8 @@ private:
+@@ -411,6 +425,8 @@ private:
    RefPtr<PuppetWidget> mChild;
    LayoutDeviceIntRegion mDirtyRegion;
    bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()

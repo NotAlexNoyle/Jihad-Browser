@@ -2858,7 +2858,10 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       const bool haveSeq = (seq != 0);
       // The period is now a FLOOR, not a grid: it bounds how fast a pathological plugin can
       // drive the card, and it is what still paces things when the engine cannot report a seq.
-      const bool floorOk = (dnow - mLastDirtyPaintMs) >= kJihadDirtyPaintMinMs;
+      // T-502: the compositor path has no 33 ms floor; the frame's own cost paces it (a frame is
+      // one composite plus one read, 8-20 ms, and the in-flight buffer guard above holds the next).
+      const int64_t floorMs = mPage->GpuPath() ? 0 : kJihadDirtyPaintMinMs;
+      const bool floorOk = (dnow - mLastDirtyPaintMs) >= floorMs;
       if (haveSeq) {
         // Damage on a plugin page is not necessarily the plugin's: a caret blink, an image
         // decode or chrome drawn over the embed all set the same flag, and gating those on a

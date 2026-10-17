@@ -4428,22 +4428,26 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
   const float z = (float)zoom;
-  const float vw = (float)mWidth / z, vh = (float)mHeight / z;   // the visual viewport, CSS px
-  nsresult r1 = u->SetResolutionAndScaleTo(z);
-  nsresult r2 = u->SetScrollPositionClampingScrollPortSize(vw, vh);
+  // The zoom is the COMPOSITOR's: a world transform on the layer tree (the engine's
+  // SetResolutionAndScaleTo and SetScrollPositionClampingScrollPortSize each turned the frame
+  // black on this path, 2026-10-17 round 9). The residual visual offset is 0 until the pinch-in
+  // pan past the layout viewport is wired (the engine scroll reaches everything at z <= 1).
+  if (jihad_offscreen_set_view) jihad_offscreen_set_view(mWidget, zoom, 0.0, 0.0);
+  // A displayport of a viewport up and down (screen px): a scroll inside it is an empty
+  // transaction plus a composite. JIHAD_GPU_NO_DP skips it for a device A/B.
+  static const bool sNoDp = getenv("JIHAD_GPU_NO_DP") != nullptr;
   nsresult r3 = NS_ERROR_FAILURE;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
   nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
   nsCOMPtr<nsIDOMElement> root; if (doc) doc->GetDocumentElement(getter_AddRefs(root));
-  // margins in screen px: half a viewport sideways, a whole one up and down
-  if (root) r3 = u->SetDisplayPortMarginsForElement((float)mWidth * 0.5f, (float)mHeight,
-                                                    (float)mWidth * 0.5f, (float)mHeight, root, 0);
+  if (root && !sNoDp) r3 = u->SetDisplayPortMarginsForElement((float)mWidth * 0.5f, (float)mHeight,
+                                                              (float)mWidth * 0.5f, (float)mHeight, root, 0);
   static int sLogged = 0;
   if (sLogged++ < 30)
-    fprintf(stderr, "[jihad-gpu] viewport: resolution %.4f (rv 0x%x), scroll port %.0fx%.0f css (rv 0x%x), displayport margins (rv 0x%x)\n",
-            z, (unsigned)r1, vw, vh, (unsigned)r2, (unsigned)r3);
-  return NS_SUCCEEDED(r1);
+    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport margins (rv 0x%x)\n",
+            z, jihad_offscreen_set_view ? "compositor" : "no export", (unsigned)r3);
+  return true;
 }
 
 uint32_t GoannaRenderPage::CompositorSeq() const {

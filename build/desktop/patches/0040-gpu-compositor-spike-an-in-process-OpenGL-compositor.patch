@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
-Date: Sat, 17 Oct 2026 10:25:54 -0400
+Date: Sat, 17 Oct 2026 12:56:49 -0400
 Subject: [PATCH] gpu compositor spike: an in-process OpenGL compositor behind
  the offscreen widget (JIHAD_GPU_COMPOSITOR)
 
@@ -21,17 +21,19 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
  gfx/layers/client/ClientLayerManager.cpp      |  12 ++
- gfx/layers/ipc/CompositorBridgeParent.cpp     |  46 +++++
- gfx/layers/ipc/CompositorBridgeParent.h       |  10 +
+ .../composite/LayerManagerComposite.cpp       |   4 +-
+ gfx/layers/composite/LayerManagerComposite.h  |   6 +
+ gfx/layers/ipc/CompositorBridgeParent.cpp     |  52 +++++
+ gfx/layers/ipc/CompositorBridgeParent.h       |  11 +
  .../opengl/CompositingRenderTargetOGL.h       |   5 +-
  gfx/layers/opengl/CompositorOGL.cpp           | 160 ++++++++++++++-
- gfx/layers/opengl/CompositorOGL.h             |  11 ++
+ gfx/layers/opengl/CompositorOGL.h             |  11 +
  gfx/thebes/gfxPlatform.cpp                    |  21 +-
  gfx/thebes/gfxPlatformHeadless.cpp            |  13 ++
  gfx/thebes/gfxPlatformHeadless.h              |   5 +
- widget/PuppetWidget.cpp                       | 184 +++++++++++++++++-
- widget/PuppetWidget.h                         |  16 ++
- 11 files changed, 469 insertions(+), 14 deletions(-)
+ widget/PuppetWidget.cpp                       | 194 +++++++++++++++++-
+ widget/PuppetWidget.h                         |  21 ++
+ 13 files changed, 499 insertions(+), 16 deletions(-)
 
 diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
 index 95af8fb5fc..fd485ddc67 100644
@@ -74,8 +76,54 @@ index 95af8fb5fc..fd485ddc67 100644
          }
          mForwarder->DestroySurfaceDescriptor(&outSnapshot);
        }
+diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
+index fde5eb1c57..70dff1c933 100644
+--- a/gfx/layers/composite/LayerManagerComposite.cpp
++++ b/gfx/layers/composite/LayerManagerComposite.cpp
+@@ -428,7 +428,7 @@ LayerManagerComposite::UpdateAndRender()
+ 
+   if (mClonedLayerTreeProperties) {
+     // Effective transforms are needed by ComputeDifferences().
+-    mRoot->ComputeEffectiveTransforms(gfx::Matrix4x4());
++    mRoot->ComputeEffectiveTransforms(mJihadWorld);   // Jihad T-502: the identity unless set
+     didEffectiveTransforms = true;
+ 
+     // We need to compute layer tree differences even if we're not going to
+@@ -476,7 +476,7 @@ LayerManagerComposite::UpdateAndRender()
+   if (!didEffectiveTransforms) {
+     // The results of our drawing always go directly into a pixel buffer,
+     // so we don't need to pass any global transform here.
+-    mRoot->ComputeEffectiveTransforms(gfx::Matrix4x4());
++    mRoot->ComputeEffectiveTransforms(mJihadWorld);   // Jihad T-502: the identity unless set
+   }
+ 
+   Render(invalid, opaque);
+diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
+index ea4b203ac4..6865d758f7 100644
+--- a/gfx/layers/composite/LayerManagerComposite.h
++++ b/gfx/layers/composite/LayerManagerComposite.h
+@@ -115,6 +115,11 @@ public:
+     MOZ_CRASH("GFX: Use EndTransaction(aTimeStamp)");
+     return false;
+   }
++  // Jihad T-502: a transform applied to the whole tree at the root (the card's zoom and the
++  // visual viewport's residual offset), through ComputeEffectiveTransforms so every clip and
++  // scissor follows it.
++  void JihadSetWorldTransform(const gfx::Matrix4x4& aMatrix) { mJihadWorld = aMatrix; }
++
+   virtual void EndTransaction(DrawPaintedLayerCallback aCallback,
+                               void* aCallbackData,
+                               EndTransactionFlags aFlags = END_DEFAULT) override
+@@ -353,6 +358,7 @@ private:
+   bool mUnusedApzTransformWarning;
+   bool mDisabledApzWarning;
+   RefPtr<Compositor> mCompositor;
++  gfx::Matrix4x4 mJihadWorld;   // Jihad T-502
+   UniquePtr<LayerProperties> mClonedLayerTreeProperties;
+ 
+   nsTArray<ImageCompositeNotification> mImageCompositeNotifications;
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index f92e74c147..1fb8ba9330 100644
+index f92e74c147..5f84a7eca6 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
 @@ -365,6 +365,15 @@ void
@@ -108,7 +156,7 @@ index f92e74c147..1fb8ba9330 100644
    }
  
    // We're not really taking advantage of the stored composite-again-time here.
-@@ -1274,6 +1290,36 @@ CompositorBridgeParent::ForceComposeToTarget(DrawTarget* aTarget, const gfx::Int
+@@ -1274,6 +1290,42 @@ CompositorBridgeParent::ForceComposeToTarget(DrawTarget* aTarget, const gfx::Int
    mCompositorScheduler->ForceComposeToTarget(aTarget, aRect);
  }
  
@@ -119,12 +167,18 @@ index f92e74c147..1fb8ba9330 100644
 +}
 +
 +bool
-+CompositorBridgeParent::JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight)
++CompositorBridgeParent::JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight,
++                                            float aScale, float aOffsetX, float aOffsetY)
 +{
 +  MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
-+  if (!mCompositor) {
++  if (!mCompositor || !mLayerManager) {
 +    return false;
 +  }
++  // the card's zoom about the frame's top-left, after the residual visual offset (CSS px)
++  gfx::Matrix4x4 world = gfx::Matrix4x4::Scaling(aScale > 0.0f ? aScale : 1.0f,
++                                                 aScale > 0.0f ? aScale : 1.0f, 1.0f);
++  world.PreTranslate(-aOffsetX, -aOffsetY, 0.0f);
++  mLayerManager->JihadSetWorldTransform(world);
 +  TimeStamp t0 = TimeStamp::Now();
 +  ForceComposeToTarget(nullptr, nullptr);
 +  TimeStamp t1 = TimeStamp::Now();
@@ -146,7 +200,7 @@ index f92e74c147..1fb8ba9330 100644
  CompositorBridgeParent::AllocPAPZCTreeManagerParent(const uint64_t& aLayersId)
  {
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
-index 98812f75c8..799587895c 100644
+index 98812f75c8..e4df548c87 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.h
 +++ b/gfx/layers/ipc/CompositorBridgeParent.h
 @@ -20,6 +20,7 @@
@@ -174,7 +228,7 @@ index 98812f75c8..799587895c 100644
    virtual ~CompositorVsyncScheduler();
  
    void NotifyCompositeTaskExecuted();
-@@ -516,6 +520,12 @@ public:
+@@ -516,6 +520,13 @@ public:
  
    void ForceComposeToTarget(gfx::DrawTarget* aTarget, const gfx::IntRect* aRect = nullptr);
  
@@ -182,7 +236,8 @@ index 98812f75c8..799587895c 100644
 +  // compositor thread: compose to the window (the pbuffer / renderbuffer) and read it into
 +  // aDest (B8G8R8A8, aStride bytes a row, the top-left aWidth x aHeight of the frame).
 +  uint32_t JihadRequests() const;
-+  bool JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight);
++  bool JihadComposeAndRead(uint8_t* aDest, int aStride, int aWidth, int aHeight,
++                           float aScale, float aOffsetX, float aOffsetY);
 +
    PAPZCTreeManagerParent* AllocPAPZCTreeManagerParent(const uint64_t& aLayersId) override;
    bool DeallocPAPZCTreeManagerParent(PAPZCTreeManagerParent* aActor) override;
@@ -569,7 +624,7 @@ index c3ee465bec..23ec701a70 100644
      already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
  #endif
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index 6f066b1b33..68ad8dab2c 100644
+index 6f066b1b33..9e3a72cb8d 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -21,6 +21,13 @@
@@ -654,15 +709,15 @@ index 6f066b1b33..68ad8dab2c 100644
 +// finishes last, so a waiter that gives up (abandoned) leaves nothing dangling for the task.
 +struct JihadReadJob {
 +  mozilla::layers::CompositorBridgeParent* bridge;
-+  uint8_t* dest; int stride, w, h;
++  uint8_t* dest; int stride, w, h; float scale, offX, offY;
 +  mozilla::Monitor mon;
 +  bool done, ok, abandoned;
-+  JihadReadJob(mozilla::layers::CompositorBridgeParent* b, uint8_t* d, int st, int wi, int he)
-+    : bridge(b), dest(d), stride(st), w(wi), h(he), mon("jihad-compose"), done(false), ok(false), abandoned(false) {}
++  JihadReadJob(mozilla::layers::CompositorBridgeParent* b, uint8_t* d, int st, int wi, int he, float sc, float ox, float oy)
++    : bridge(b), dest(d), stride(st), w(wi), h(he), scale(sc), offX(ox), offY(oy), mon("jihad-compose"), done(false), ok(false), abandoned(false) {}
 +};
 +void JihadReadOnCompositorThread(JihadReadJob* job)
 +{
-+  bool ok = job->bridge->JihadComposeAndRead(job->dest, job->stride, job->w, job->h);
++  bool ok = job->bridge->JihadComposeAndRead(job->dest, job->stride, job->w, job->h, job->scale, job->offX, job->offY);
 +  bool abandoned;
 +  {
 +    mozilla::MonitorAutoLock lock(job->mon);
@@ -720,7 +775,7 @@ index 6f066b1b33..68ad8dab2c 100644
 +  mozilla::TimeStamp t1 = mozilla::TimeStamp::Now();
 +  // 2. Compose and read on the compositor thread, straight into aDest (the daemon's shared
 +  //    buffer); this thread waits, three seconds at most.
-+  JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight);
++  JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight, mJihadScale, mJihadOffX, mJihadOffY);
 +  bool ok = false;
 +  {
 +    mozilla::MonitorAutoLock lock(job->mon);
@@ -757,7 +812,7 @@ index 6f066b1b33..68ad8dab2c 100644
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
  extern "C" {
  
-@@ -969,6 +1111,32 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+@@ -969,6 +1111,42 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
    return true;
  }
  
@@ -775,6 +830,16 @@ index 6f066b1b33..68ad8dab2c 100644
 +                                                             aWidth, aHeight);
 +}
 +
++// T-502: the card's zoom and the visual viewport's residual offset (CSS px), applied by the
++// compositor to the whole layer tree.
++MOZ_EXPORT void
++jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX, double aOffsetY)
++{
++  if (aWidget) {
++    static_cast<PuppetWidget*>(aWidget)->JihadSetView(aScale, aOffsetX, aOffsetY);
++  }
++}
++
 +// T-502: how many composites the compositor has asked for (layer updates, animations); the
 +// daemon pulls a frame whenever this moves. 0 without a compositor.
 +MOZ_EXPORT uint32_t
@@ -790,7 +855,7 @@ index 6f066b1b33..68ad8dab2c 100644
  // Composite every OPEN XUL popup over an already-painted buffer.
  //
  // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
-@@ -1746,8 +1914,12 @@ PuppetWidget::Paint()
+@@ -1746,8 +1924,12 @@ PuppetWidget::Paint()
  #endif
  
      if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {
@@ -806,7 +871,7 @@ index 6f066b1b33..68ad8dab2c 100644
        }
      } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index 6d3c680c7b..cd4246a6c6 100644
+index 6d3c680c7b..da5103d6aa 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
 @@ -28,6 +28,7 @@
@@ -817,7 +882,7 @@ index 6d3c680c7b..cd4246a6c6 100644
  
  namespace dom {
  class TabChild;
-@@ -268,6 +269,19 @@ public:
+@@ -268,6 +269,22 @@ public:
      return true;
    }
  
@@ -833,16 +898,21 @@ index 6d3c680c7b..cd4246a6c6 100644
 +  bool JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
 +                      int aWidth, int aHeight);
 +  mozilla::layers::CompositorBridgeParent* JihadBridge();
++  void JihadSetView(double aScale, double aOffsetX, double aOffsetY) {
++    mJihadScale = (aScale > 0.0) ? (float)aScale : 1.0f; mJihadOffX = (float)aOffsetX; mJihadOffY = (float)aOffsetY;
++  }
 +
    virtual TabChild* GetOwningTabChild() override { return mTabChild; }
  
    void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
-@@ -411,6 +425,8 @@ private:
+@@ -411,6 +428,10 @@ private:
    RefPtr<PuppetWidget> mChild;
    LayoutDeviceIntRegion mDirtyRegion;
    bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
 +  bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
 +  bool mJihadSharedLayerManager = false; // T-502: mLayerManager is the parent's (a child widget)
++  float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor
++  float mJihadOffX = 0.0f, mJihadOffY = 0.0f;   // T-502: the residual visual offset, CSS px
    // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
    // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a
    // full repaint, and must keep working unchanged if the rect is ignored.

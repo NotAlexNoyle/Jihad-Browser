@@ -1,7 +1,58 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-14 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-17 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
+
+---
+
+## 2026-10-17 delta — the rendering pick: 2 + 4, a one-week spike first (READ FIRST)
+
+**The owner, this morning:** the rendering report (the Claude doc "Jihad rendering options: speed
+comparison", https://claude.ai/code/artifact/6436a954-170a-48b2-8b35-e87dc4b3fbf5; the same tables
+in `docs/RENDERING-OPTIONS.md`) was cut down step by step: dominated combinations out, 6 (CE-only
+LunaSysMgr change) and 2-without-4 (11 fps WebGL) advised against, rows under 24 fps scroll out,
+rows without WebGL out; a Flash games column (Flash's own 27 / 22 fps bounds every row; the
+movie-sized GPU readback and upload were measured for it: `tools/device/gpu-bench.c`, 4.9–6.3 /
+1.9–2.3 ms and 1.8 / 0.55 ms), a webOS column (every survivor runs on 3.0.5 and CE 3.1.0), colour
+chips, a compare-and-contrast of the last two. Then the owner's answers to the choosing questions:
+video sometimes, 24 fps video acceptable, styled video matters (fades, rounded corners, video under
+a modal: the overlay cannot do these), no date, spike first. **The pick: 2 + 4** (GPU compositor
+with readback, then WebGL through EGL). 5 is held back as a full-screen-only overlay if 24 fps
+full-screen displeases by eye.
+
+**T-502, the spike (week 1):** the OpenGL compositor up in the headless daemon on the device, one
+real frame of a page read back into the YAP buffer and shown on the card, timed against the 42 ms
+model. Everything it needs is upstream code; the entry points, all verified in `third_party/uxp`:
+- OMTC on: drop `JIHAD_DISABLE_OMTC=1` from `packaging/event.d/{jihad,jihad-mochi,jihad-mojo}`
+  (the override in `gfxPlatform::UsesOffMainThreadCompositing`, patch 0003, then does nothing).
+- The widget: `PuppetWidget::GetLayerManager` (patch 0005, `widget/PuppetWidget.cpp:635`) takes the
+  BasicLayerManager branch under `JihadOffscreen()`; the spike adds a branch that calls
+  `nsBaseWidget::CreateCompositor(w, h)` (`widget/nsBaseWidget.cpp:1292`, in-process through
+  `GPUProcessManager::CreateTopLevelCompositor`, a `ClientLayerManager`).
+- Acceleration: `AccelerateLayersByDefault()` is false in this build (`gfx/thebes/gfxPlatform.cpp:2126`,
+  no `MOZ_GL_PROVIDER`); `layers.acceleration.force-enabled` or `--with-gl-provider=EGL`; and
+  `gfxPlatformHeadless` must list `LAYERS_OPENGL` among its compositor backends (check
+  `GetAcceleratedCompositorBackends`). The headless `GfxInfo` answers UNKNOWN, blocks nothing.
+- The GL context: `CompositorOGL::CreateContext` (`gfx/layers/opengl/CompositorOGL.cpp:106`) with
+  `MOZ_LAYERS_PREFER_OFFSCREEN=1` calls `GLContextProvider::CreateOffscreen` = an EGL pbuffer
+  through `GLContextProviderEGL` (the headless build's default provider, `gfx/gl/GLContextProvider.h`;
+  `GLLibraryEGL` loads `libEGL.so` by name, the vendor library `gpu-bench` already drove).
+- The readback: `CompositorOGL::EndFrame` copies to `mTarget` when one is set (`CopyToTarget`, the
+  measured `glReadPixels`); `CompositorBridgeParent::ForceComposeToTarget(DrawTarget*)`
+  (`gfx/layers/ipc/CompositorBridgeParent.cpp:1267`) is the entry; from the main thread the upstream
+  road is `ClientLayerManager::BeginTransactionWithTarget` → `MakeSnapshotIfRequired` →
+  `SendMakeSnapshot` (sync) → `RecvMakeSnapshot` → `ForceComposeToTarget` into a shmem surface the
+  client copies to the target: i.e. a `jihad_offscreen_render_region` that paints with a target
+  instead of `RenderDocument`.
+- Measure: the daemon's existing paint timing lines, per frame, on the device; compare with 42 ms
+  (composite 12.9 + readback 12.3 + copy 5.1 + scale 8.2 + Luna 3.8).
+What the pick does to the 39 engine patches (0020 and 0035 no-ops, 0003 and 0005 half, 0006 and
+0021 change, the rest untouched): `docs/RENDERING-OPTIONS.md`, "The pick".
+
+**Carried over, unchanged:** daemon 18 (the hold's release fix) built, NOT deployed; FFmpeg libs on
+Mochi only; T-499's paint path restoring the card size; the placeholders in the evening delta below.
+**Device:** CE 3.1.0, the three daemons as the evening delta left them; `gpu-bench` ran twice more
+from `/tmp` and was removed. Host servers on 8077/8078 may still be running.
 
 ---
 

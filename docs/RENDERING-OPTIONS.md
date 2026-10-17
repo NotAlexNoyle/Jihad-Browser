@@ -43,7 +43,10 @@ macOS and GTK: Pale Moon and Basilisk composite on the GPU by default (Direct3D 
 over GLX), rasterize content with Direct2D (Windows), CoreGraphics (macOS) or cairo (Linux), draw
 canvas with Direct2D, Skia-on-GL (`gfx.canvas.azure.accelerated`, macOS) or Skia on the CPU
 (Linux), and have WebGL on through WGL/ANGLE, CGL or GLX. The headless toolkit Jihad builds gets
-`gfxPlatformHeadless` (cairo, software layers) and the `Null` GL provider. The application pref
+`gfxPlatformHeadless` (cairo, software layers); its `GLContextProvider` is `GLContextProviderEGL`
+(`gfx/gl/GLContextProvider.h`: the default when neither `MOZ_X11` nor `MOZ_GL_PROVIDER` is set),
+loading `libEGL.so` / `libGLESv2.so` by name, but `AccelerateLayersByDefault()` is false without
+`MOZ_GL_PROVIDER` and the daemon runs with `JIHAD_DISABLE_OMTC=1`, so no GL is ever created. The application pref
 files on repo.palemoon.org sit behind Anubis and were not read.
 
 ## The shortlist, fastest first (the report's chart)
@@ -76,6 +79,39 @@ content, Flash at its own rate; they differ only in video and 2.5 weeks.
 | --- | --- | --- | --- | --- |
 | 2 + 4 | the GPU compositor (CSS animation, fixed headers, in-band scroll at 24 fps; 13 today, capped to 4–6.7 by the repaint limits) and WebGL at the same 24 fps as one more layer (nothing today); video at 24 fps, a 42 ms frame per video frame | 7.5 weeks | high: `CompositorOGL` over `GLContextProviderEGL` has never run in the headless toolkit or on an Adreno 220, every frame is read back, and the Adreno 220's GLES 2.0 driver meets WebGL 1 (Atlas turned WebGL off after ANGLE whited out its compositor, a different stack) | video is occasional |
 | 2 + 4 + 5 | video at decode speed through the MDP overlay (a 30 fps clip at 30), the compositor and CPU freed of it | 2.5 weeks more (10) | the above, plus an overlay plane: no CSS transform, opacity or clip over the video, the card cuts a hole and moves the rectangle as the page scrolls; Atlas ships the sink (`gst-mdpoverlay`) | YouTube and embedded clips matter |
+
+### The pick (2026-10-17) and the engine patches it touches
+
+Picked: **2 + 4**, a one-week spike first (the OpenGL compositor up in the headless daemon on the
+device, one real frame read back into the YAP buffer and measured), then 4, then 2. Video stays a
+compositor layer at 24 fps so styled video keeps working; 5 is held back as a full-screen-only
+overlay if 24 fps full-screen displeases by eye.
+
+What 2 + 4 is in the engine: off-main-thread compositing on (`gfxPlatform::UsesOffMainThreadCompositing`),
+the offscreen widget handing out a `ClientLayerManager` and creating an in-process compositor
+(`nsBaseWidget::CreateCompositor` → `GPUProcessManager::CreateTopLevelCompositor`), `CompositorOGL`
+on an EGL pbuffer context (`MOZ_LAYERS_PREFER_OFFSCREEN` → `GLContextProvider::CreateOffscreen`),
+and the frame fetched with `CompositorBridgeParent::ForceComposeToTarget` into a `DrawTarget` over
+the shared buffer (`CompositorOGL::EndFrame` → `CopyToTarget` = the measured `glReadPixels`). All
+of that is upstream code; what it does to our 39 patches (`docs/ENGINE-SOURCE.md`):
+
+| Patch | Under 2 + 4 | Why |
+|---|---|---|
+| 0003 gfx init and OMTC | half retired | the `JIHAD_DISABLE_OMTC` override in `gfxPlatform::UsesOffMainThreadCompositing` is dead, 4 is OMTC on; the `gfxPlatformHeadless` selection and `gfxPlatform::GetPlatform()` in `XRE_InitEmbedding2` stay |
+| 0005 PuppetWidget offscreen | paint half retired | `GetLayerManager`'s BasicLayerManager branch and `jihad_offscreen_render_region` (`RenderDocument` into the buffer) give way to the ClientLayerManager and `ForceComposeToTarget` into the same buffer; create/resize/release, the dirty flag and rect, and the popup composite stay (popups are their own display roots on either path) |
+| 0006 headless toolkit | changes | `gfxPlatformHeadless` stays but must accept accelerated layers: `AccelerateLayersByDefault()` is false without `MOZ_GL_PROVIDER`, so either `--with-gl-provider=EGL` at configure or `layers.acceleration.force-enabled`; its `GfxInfo` answers `FEATURE_STATUS_UNKNOWN` and blocks nothing |
+| 0020 composite without ImageBridge | no-op | every hunk sits behind `!ImageBridgeChild::GetSingleton()`; with OMTC the bridge exists and upstream's TextureClient path carries the plugin's bitmap to the compositor |
+| 0021 windowless invalidate offscreen | changes | its widget invalidate makes the daemon re-render the document; an ImageLayer update now reaches the compositor through the ImageBridge, so the invalidate means "a composite is due", not a repaint |
+| 0022 RecvShow copy + frameID | stays | the copy guards the child's double buffer and the frameID is what the ImageContainer coalesces on, both still true through the bridge |
+| 0035 BasicPlanarYCbCrImage::CopyData | no-op | `BasicImages` belong to the BasicLayerManager; the compositor takes PlanarYCbCr frames over the ImageBridge and converts them in its YCbCr shader |
+| 0024 plugin input, widget part | stays | the dirty rect feeds the readback rectangle (the Flash column's 2–5 ms reads) |
+| 0026, 0028, 0029, 0031 frame pacing and pull | stay | Flash's frames are the child's; the daemon's pull drives a composite instead of a paint |
+| 0027 CPU boost | stays | the clock lever |
+| the other 28 | untouched | toolchain, embedding, branding, NPAPI host/input/loader/logging/semaphore, NSS, audio, video controls, add-ons: nothing to do with how pixels reach the card |
+
+Daemon side: `JIHAD_DISABLE_OMTC=1` leaves the three `packaging/event.d` launchers. Option 2 retires
+nothing: WebGL needs the EGL provider (present) and the feature not blocked (`webgl.force-enabled`
+until `GfxInfo` reports the Adreno).
 
 ## Every combination, fastest first (the data behind the shortlist)
 

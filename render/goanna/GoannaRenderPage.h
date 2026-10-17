@@ -486,9 +486,7 @@ private:
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
 public:
   bool GpuPath() const { return mGpu; }   // T-502
-  uint32_t CompositorSeq() const {        // T-502: moves when the compositor wants a frame
-    return (mGpu && jihad_offscreen_compositor_seq) ? jihad_offscreen_compositor_seq(mWidget) : 0;
-  }
+  uint32_t CompositorSeq() const;         // T-502: moves when the compositor wants a frame
 private:
   int mWidth;
   int mHeight;

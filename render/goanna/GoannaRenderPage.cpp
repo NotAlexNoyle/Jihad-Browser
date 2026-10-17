@@ -4423,6 +4423,10 @@ int GoannaRenderPage::CompositePopups(unsigned char* dst, int stride, int w, int
   return jihad_offscreen_composite_popups(mWidget, dst, stride, w, h, docX, docY, zoom);
 }
 
+uint32_t GoannaRenderPage::CompositorSeq() const {
+  return (mGpu && jihad_offscreen_compositor_seq && mWidget) ? jihad_offscreen_compositor_seq(mWidget) : 0;
+}
+
 bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h,
                                     double docX, double docY, double zoom) {
   if (!mOffscreen || !dst || w <= 0 || h <= 0) return false;

@@ -131,6 +131,10 @@ transform with the main thread painting 0.1–2.8 ms a frame. Five rounds and a 
 | Frame as the daemon sees it | 42 ms, 24 fps | 54–96 ms; the pipeline 7–9 fps on the daemon's 100 ms idle tick |
 | **Round 6, the same day:** compose + read on the compositor thread straight into the shared buffer, a renderbuffer FBO as the window, pull mode (the compositor counts requests, the daemon pulls), the clock held | 42 ms, 24 fps | compose 1.4–4.6 ms, read 7–17 ms, compose+read 8–21 ms from the main thread; **the pipeline 17–24 fps** on the animation page (the daemon's own copy, scale and publish are the rest of the 41–62 ms tick) |
 
+| **Round 7:** whole-texture uploads on the Adreno 220 (patch 0041), alpha forced in the read, the nonblank count sampled | — | compose 2.5–5.5 ms, read 7–34 ms; **20–31 fps** on the animation page; the 125–131 ms of the first content frame is one-time (shader programs linking), not a per-change upload |
+| **Round 8:** engine scroll at every zoom on the compositor path, a displayport one viewport up and down | in-band scroll 42 ms, 24 fps | a scroll inside the displayport paints 0.2 ms of layers (an empty transaction) and composes in 2–3 ms; the self-scrolling page runs at **21–24 fps**; the first paint of a three-viewport displayport costs 146 ms once |
+| **Rounds 9–10:** the zoom | — | the engine's `SetResolutionAndScaleTo` and `SetScrollPositionClampingScrollPortSize` EACH turn the frame black on this path (bisected on the device: without both the page renders, with either it is black), so the card's zoom is a world transform on the compositor's layer tree (`LayerManagerComposite::ComputeEffectiveTransforms` from it instead of the identity: clips and scissors follow) with a residual visual offset for the pinch-in pan still to wire |
+
 Verdict (after round 6): **the 24 fps row holds on the device** — 17–24 fps measured on the
 four-layer animation page once the frame is read on the compositor thread into the shared buffer
 from a renderbuffer FBO with the clock held; compose + read is 8–21 ms and the daemon's own copy,

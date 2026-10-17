@@ -73,9 +73,24 @@ frame when `jihad_offscreen_compositor_seq` moves — an animation keeps asking 
 composite), and the clock-floor leak (a daemon that dies holding the floor left scaling_min_freq
 at 1188000; the probe now takes cpuinfo_min_freq when it finds the floor at the top). Measured:
 compose 1.4–4.6 ms, read 7–17 ms, **17–24 fps on the animation page** (`spike-run6-*`).
-**Next (option 4 proper, weeks 2–6):** whole-texture uploads (`CanUploadSubTextures` false under
-the env: the tiled sub-image path costs 180–240 ms a content change), the daemon's own per-frame
-work (the nonblank loop, the copy and scale), the zoom/pan as the root layer's transform (T-499's layout viewport and the
+**Rounds 7–10 (the owner: the chart's numbers are the floor, keep going):** patch 0041 (the Adreno
+220 takes whole-texture uploads: `GLRenderer::AdrenoTM220`, `CanUploadSubTextures` false), the
+read forces alpha and the daemon samples the nonblank count; 20–31 fps on the animation page. The
+compositor path now scrolls through the ENGINE at every zoom (`setZoomAndScroll` /
+`setScrollPosition` GPU branches, no render pan) with a displayport of a viewport up and down
+(`SetGpuViewport`): a scroll inside it is an empty transaction (0.2 ms) plus a composite, 21–24 fps
+on `jihad-scroll-js.html`. THE TRAP: `nsIDOMWindowUtils::setResolutionAndScaleTo` and
+`setScrollPositionClampingScrollPortSize` each black the whole frame on this path (bisected with
+`JIHAD_GPU_NO_RESOLUTION` / `JIHAD_GPU_NO_CLAMP`; the displayport alone is fine), so the zoom is a
+WORLD TRANSFORM on the compositor's tree (`jihad_offscreen_set_view(widget, scale, offX, offY)` →
+`LayerManagerComposite::JihadSetWorldTransform`, applied in `ComputeEffectiveTransforms`). The
+residual visual offset (a pinch-in pan past the layout viewport) is passed as 0 until wired; the
+33 ms frame-gap floor seen in the pipeline stats is the adapter's ack cadence (one buffer in
+flight), the next thing to look at. The first content frame costs 125–131 ms once (shader
+programs linking), not per change as first written.
+**Next:** the world-transform zoom verified on the device (the colours page at the card's 0.7837),
+the residual offset for pinch-in, the adapter cadence / a second buffer in flight, the GPU clock
+(`/sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction`), the daemon's own per-frame work (T-499's layout viewport and the
 fit zoom today crop the frame), the plugin and video layers through the ImageBridge; then 2.
 
 **Carried over, unchanged:** daemon 18 (the hold's release fix) built, NOT deployed; FFmpeg libs on

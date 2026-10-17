@@ -58,18 +58,18 @@ cut follow. Flash games: 27 fps is a 30 fps 320×240 movie and 22 fps a 640×480
 rate on this CPU (the plugin child; the daemon's paints keep up at 4–5 ms, 30–34 fps composite,
 2026-10-07); no option touches it. On the 4 rows a whole-frame readback (12.3 ms) would cap 320×240
 at 23 fps; the movie's rectangle read back (1.9–6.3 ms measured) keeps 27. The report colours the
-cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.5 yellow, 6–7.5 orange, 8.5+ red).
+cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.5 yellow, 6–7.5 orange, 8.5+ red). Every row runs on webOS 3.0.5 and webOS CE 3.1.0: the one CE-only option, 6, is cut.
 
-| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL games | Flash games | Video | Weeks | Like Pale Moon / Basilisk |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 10 | their compositor + a readback, their WebGL |
-| 2 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 7.5 | their compositor + a readback, their WebGL |
-| 3 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 8.5 | their compositor + a readback |
-| 4 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 6 | their compositor + a readback |
-| 5 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 3.5 | no equivalent |
-| 6 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode + a 63 ms frame | 1 | no equivalent |
-| 7 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 2.5 | no equivalent |
-| 8 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode + a 80 ms frame | 0 | their software fallback |
+| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL games | Flash games | Video | Weeks | webOS | Like Pale Moon / Basilisk |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 10 | 3.0.5 and CE 3.1.0 | their compositor + a readback, their WebGL |
+| 2 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 7.5 | 3.0.5 and CE 3.1.0 | their compositor + a readback, their WebGL |
+| 3 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 8.5 | 3.0.5 and CE 3.1.0 | their compositor + a readback |
+| 4 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 6 | 3.0.5 and CE 3.1.0 | their compositor + a readback |
+| 5 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 3.5 | 3.0.5 and CE 3.1.0 | no equivalent |
+| 6 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode + a 63 ms frame | 1 | 3.0.5 and CE 3.1.0 | no equivalent |
+| 7 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 2.5 | 3.0.5 and CE 3.1.0 | no equivalent |
+| 8 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode + a 80 ms frame | 0 | 3.0.5 and CE 3.1.0 | their software fallback |
 
 ## Every combination, fastest first (the data behind the shortlist)
 

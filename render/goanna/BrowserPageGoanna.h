@@ -205,6 +205,7 @@ public:
   int bufferCount() const { return mKey3 ? 3 : 2; }
   bool findString(const char* text, bool forward);  // YAP: findString
   void setScrollPosition(int x, int y);   // YAP: setScrollPosition
+  void gpuScrollTo(int x, int y, double z);   // T-502: the engine scroll plus the residual view offset
   // YAP: pluginSpotlightStart/End (0x1501/0x1502). The card's confirmation that it has
   // scrimmed and zoomed to a plugin; forwarded to the plugin as Palm's spotlight system
   // event. Rect arrives in DOCUMENT space as origin + width/height.

@@ -4450,6 +4450,19 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   return true;
 }
 
+bool GoannaRenderPage::GetEngineScroll(int* x, int* y) {
+  if (!mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  int32_t sx = 0, sy = 0;
+  if (!u || NS_FAILED(u->GetScrollXY(false, &sx, &sy))) return false;
+  if (x) *x = sx; if (y) *y = sy;
+  return true;
+}
+
+void GoannaRenderPage::SetGpuView(double zoom, double offX, double offY) {
+  if (mGpu && jihad_offscreen_set_view && mWidget) jihad_offscreen_set_view(mWidget, zoom, offX, offY);
+}
+
 uint32_t GoannaRenderPage::CompositorSeq() const {
   return (mGpu && jihad_offscreen_compositor_seq && mWidget) ? jihad_offscreen_compositor_seq(mWidget) : 0;
 }

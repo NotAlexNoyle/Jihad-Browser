@@ -492,6 +492,10 @@ public:
   // the zoom, and a displayport one viewport up and down so a scroll inside it is an empty
   // transaction plus a composite. No render pan on this path: the engine scrolls at every zoom.
   bool SetGpuViewport(double zoom);
+  // T-502: the engine's scroll position (CSS px) after a ScrollTo, and the compositor's view:
+  // the zoom and the residual visual offset the engine scroll could not reach (pinch-in pans).
+  bool GetEngineScroll(int* x, int* y);
+  void SetGpuView(double zoom, double offX, double offY);
 private:
   int mWidth;
   int mHeight;

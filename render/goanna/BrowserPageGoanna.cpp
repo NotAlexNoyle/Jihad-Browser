@@ -855,6 +855,23 @@ bool BrowserPageGoanna::panCovered(int x, int y) {
          (long)y >= loBound && (long)y + h2 <= hiBound;
 }
 
+// T-502: the adapter's scroll (zoomed px) on the compositor path. The engine scrolls as far as its
+// layout viewport allows (CSS px = zoomed px over the zoom); what it could not reach — a pinch-in
+// pan past the layout viewport's range — becomes the compositor's residual offset, so the whole
+// magnified page stays reachable without the engine's visual-viewport calls (which black the frame).
+void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
+  const double wantX = x / z, wantY = y / z;
+  mPage->ScrollTo((int)wantX, (int)wantY);
+  int sx = 0, sy = 0;
+  double rx = 0.0, ry = 0.0;
+  if (mPage->GetEngineScroll(&sx, &sy)) {
+    rx = wantX - sx; ry = wantY - sy;
+    if (rx < 0.0 && rx > -1.0) rx = 0.0;
+    if (ry < 0.0 && ry > -1.0) ry = 0.0;
+  }
+  mPage->SetGpuView(z, rx, ry);
+}
+
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
@@ -863,7 +880,7 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
     double zg = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
     mAdapterScrollX = x; mAdapterScrollY = y;
     mPage->SetRenderPan(0.0, 0.0);
-    mPage->ScrollTo((int)(x / zg), (int)(y / zg));
+    gpuScrollTo(x, y, zg);
     mNeedsPaint = true;
     return;
   }
@@ -979,7 +996,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // displayport is an empty transaction plus a composite.
     if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; }
     mPage->SetRenderPan(0.0, 0.0);
-    mPage->ScrollTo((int)(x / z), (int)(y / z));
+    gpuScrollTo(x, y, z);
     mNeedsPaint = true;
     return;
   }
@@ -3701,6 +3718,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   if (!bandKnown) tallH = h;                  // F9: unknown band → viewport-exact fallback
 
   int64_t paintT0 = jihadNowMs();
+  int64_t gpuT[3] = {0, 0, 0};   // T-502 timing points
   // NO fling-mode fast path (tried 2026-08-02, removed the same day): skipping the band
   // overlay during flings painted position:fixed content at its DOCUMENT position in
   // those frames while full frames painted it at the viewport — two models alternating,
@@ -3817,7 +3835,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // for overscan): the previous viewport-exact paint, stamped at the band's true position.
     paintedTop = (int)bandY; paintedH = h;
     fresh = true; growOwed = false;
+    gpuT[0] = jihadNowMs();
     nb = mPage->ReadPixels(pixels, segSize - hdr);
+    gpuT[1] = jihadNowMs();
   }
 
   // A XUL popup (about:addons tools menu, a context menu) is a SEPARATE display root,
@@ -3827,6 +3847,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // the visible rows and would erase a popup drawn before it.
   int popupsDrawn = 0;
   if (nb >= 0) {
+    gpuT[2] = jihadNowMs();
     int popups = mPage->CompositePopups(pixels, paintedW * 4, paintedW, paintedH,
                                         (double)paintedX / Zeff, (double)paintedTop / Zeff,
                                         Zeff);
@@ -3861,6 +3882,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             (unsigned)mActiveKey, nb, paintedW, paintedH, paintedTop, bandY, paintedX, mZoom,
             oi->contentZoom, (long)(jihadNowMs() - paintT0), rowsRendered, rowsCopied,
             maintKind == 1 ? " (grow)" : maintKind == 2 ? " (sweep)" : "");
+    if (mPage->GpuPath() && gpuT[0]) {
+      // T-502: where the frame's time goes on the compositor path (every 50th frame)
+      static uint32_t sN = 0;
+      if ((sN++ % 50) == 0)
+        fprintf(stderr, "[jihad-gpu] daemon frame: before read %ld ms, read (compose) %ld ms, between %ld ms, popups+publish %ld ms\n",
+                (long)(gpuT[0] - paintT0), (long)(gpuT[1] - gpuT[0]), (long)(gpuT[2] - gpuT[1]), (long)(jihadNowMs() - gpuT[2]));
+    }
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
     // the engine rendered (text vs blank) independent of the adapter's blit. The
     // first paint after connect is empty (nb==0, blank buffer); guarding on nb>0

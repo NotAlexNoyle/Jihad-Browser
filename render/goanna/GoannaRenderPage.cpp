@@ -4491,6 +4491,123 @@ uint64_t GoannaRenderPage::CurrentDocId() {
   return id;
 }
 
+// T-502: a frame (or a band of one, rows [lo, hi)) just written into dst by the compositor
+// thread: hand the rows to the other CPU/the adapter, keep the device rounds' dumps, and sample
+// the nonblank count (every 8th pixel of every 8th row, scaled back up) the blank-frame rules use.
+long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi) {
+  if (lo < 0) lo = 0;
+  if (hi > h) hi = h;
+#if defined(__arm__)
+  if (hi > lo) {
+    // The rows were written by the compositor thread (the driver's readback, a NEON swizzle)
+    // and sit in that CPU's cache; the adapter reads the shared pages through its own mapping
+    // (2026-10-17: a third process read white while this daemon's view had the page). Clean
+    // the range to the point of unification: the ARM cacheflush syscall.
+    int64_t t0 = jihadInputNowMs();
+    syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
+    static int sLogged = 0;
+    const long ms = (long)(jihadInputNowMs() - t0);
+    if (sLogged++ < 5 || ms >= 3) fprintf(stderr, "[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
+  }
+#endif
+  // a device round's frame dump: JIHAD_GPU_DUMP=<path> writes the 5th frame as raw BGRA
+  static const char* sDump = getenv("JIHAD_GPU_DUMP");
+  static bool sDumped = false;
+  if (sDump && !sDumped) {
+    // the first frame with something non-white in it
+    bool content = false;
+    for (int y = 0; y < h && !content; y += 8)
+      for (int x = 0; x < w; x += 8) { const unsigned char* o = dst + ((size_t)y * w + x) * 4; if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) { content = true; break; } }
+    if (content) {
+      sDumped = true;
+      FILE* f = fopen(sDump, "wb");
+      if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); fprintf(stderr, "[jihad-gpu] frame dumped: %s (%dx%d BGRA, first with content)\n", sDump, w, h); }
+    }
+  }
+  // JIHAD_GPU_DUMP_SEQ=<path>: the first 12 content frames, every 4th pixel, appended to one
+  // file (181 KB a frame), with the content's row and column extent in the log, so a frame
+  // that arrives flipped or shifted shows up as a sequence and not as one lucky dump.
+  static const char* sSeq = getenv("JIHAD_GPU_DUMP_SEQ");
+  static int sSeqLeft = sSeq ? 12 : 0;
+  if (sSeqLeft > 0) {
+    int rMin = -1, rMax = -1, cMin = w, cMax = -1;
+    for (int y = 0; y < h; y += 4)
+      for (int x = 0; x < w; x += 4) {
+        const unsigned char* o = dst + ((size_t)y * w + x) * 4;
+        if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) {
+          if (rMin < 0) rMin = y;
+          rMax = y; if (x < cMin) cMin = x; if (x > cMax) cMax = x;
+        }
+      }
+    if (rMin >= 0) {
+      sSeqLeft--;
+      FILE* f = fopen(sSeq, "ab");
+      if (f) {
+        for (int y = 0; y < h; y += 4)
+          for (int x = 0; x < w; x += 4) fwrite(dst + ((size_t)y * w + x) * 4, 1, 4, f);
+        fclose(f);
+      }
+      fprintf(stderr, "[jihad-gpu] seq frame %d: content rows %d..%d cols %d..%d (of %dx%d) px(100,100)=%02x%02x%02x px(700,900)=%02x%02x%02x\n",
+              12 - sSeqLeft, rMin, rMax, cMin, cMax, w, h,
+              dst[((size_t)100 * w + 100) * 4 + 2], dst[((size_t)100 * w + 100) * 4 + 1], dst[((size_t)100 * w + 100) * 4],
+              (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4 + 2] : 0, (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4 + 1] : 0, (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4] : 0);
+    }
+  }
+  long nonblank = 0;
+  for (int y = 0; y < h; y += 8) {
+    const unsigned char* row = dst + (size_t)y * w * 4;
+    for (int x = 0; x < w; x += 8) {
+      const unsigned char* o = row + (size_t)x * 4;
+      if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;
+    }
+  }
+  return nonblank * 64;
+}
+
+bool GoannaRenderPage::ComposeAsync() const {
+  return mGpu && jihad_offscreen_compose_start && jihad_offscreen_compose_poll && jihad_offscreen_compose_forget;
+}
+
+uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi) {
+  if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
+  const int w = mWidth, h = mHeight;
+  if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
+  if (!mChrome || !mChrome->mBrowser) return 0;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return 0;
+  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi);
+  if (token) { mGpuJobLo = rowLo; mGpuJobHi = rowHi; }
+  return token;
+}
+
+int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, long* invLo, long* invHi) {
+  if (!mWidget || !ComposeAsync()) return -1;
+  int il = 0, ih = 0;
+  const int64_t pt0 = jihadInputNowMs();
+  const int r = jihad_offscreen_compose_poll(mWidget, token, &il, &ih);
+  const int64_t pt1 = jihadInputNowMs();
+  if (r == 0 || r == 2) return -2;   // pending, or composed and being read
+  if (r < 0) return -1;
+  struct DoneLog { int64_t t0, t1; ~DoneLog() {
+    static int sN = 0;
+    const int64_t t2 = jihadInputNowMs();
+    if (sN++ < 40 || t2 - t0 >= 10)
+      if (sN < 400) fprintf(stderr, "[jihad-gpu] poll done: engine poll %ld ms, frame-done work %ld ms\n", (long)(t1 - t0), (long)(t2 - t1));
+  } } doneLog{pt0, pt1};
+  if (invLo) *invLo = il;
+  if (invHi) *invHi = ih;
+  // the rows written: the band asked for, joined with what the composite changed
+  long lo = mGpuJobLo, hi = mGpuJobHi;
+  if (hi <= lo) { lo = il; hi = ih; }
+  else if (ih > il) { if (il < lo) lo = il; if (ih > hi) hi = ih; }
+  if (!dst) return 0;   // drained, not published
+  return (int)GpuFrameDone(dst, mWidth, mHeight, lo, hi);
+}
+
+void GoannaRenderPage::ComposeForget(uint32_t token) {
+  if (mWidget && ComposeAsync() && token) jihad_offscreen_compose_forget(mWidget, token);
+}
+
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
   if (mOffscreen) {
     if (!mWidget) return -1;
@@ -4505,34 +4622,7 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
       if (ds && mGpu) {
         // T-502: the compositor's frame straight into dst (the layers are painted inside).
         if (!jihad_offscreen_compose(mWidget, ds, dst, w * 4, w, h)) return -1;
-        composed = true;
-        // The frame was written by the compositor thread (the driver's readback, a NEON swizzle)
-        // and sits in this CPU's cache; the adapter reads the shared pages through its own
-        // mapping and saw the previous frame (2026-10-17: a third process read white from the
-        // segment while this daemon's view had the page). Clean the range to the point of
-        // unification: the ARM cacheflush syscall.
-#if defined(__arm__)
-        {
-          int64_t t0 = jihadInputNowMs();
-          syscall(__ARM_NR_cacheflush, dst, dst + (size_t)w * h * 4, 0);
-          static int sLogged = 0;
-          if (sLogged++ < 5) fprintf(stderr, "[jihad-gpu] cache clean of the frame: %ld ms\n", (long)(jihadInputNowMs() - t0));
-        }
-#endif
-        // a device round's frame dump: JIHAD_GPU_DUMP=<path> writes the 5th frame as raw BGRA
-        static const char* sDump = getenv("JIHAD_GPU_DUMP");
-        static bool sDumped = false;
-        if (sDump && !sDumped) {
-          // the first frame with something non-white in it
-          bool content = false;
-          for (int y = 0; y < h && !content; y += 8)
-            for (int x = 0; x < w; x += 8) { const unsigned char* o = dst + ((size_t)y * w + x) * 4; if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) { content = true; break; } }
-          if (content) {
-            sDumped = true;
-            FILE* f = fopen(sDump, "wb");
-            if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); fprintf(stderr, "[jihad-gpu] frame dumped: %s (%dx%d BGRA, first with content)\n", sDump, w, h); }
-          }
-        }
+        return GpuFrameDone(dst, w, h, 0, h);
       } else if (ds) {
         // Flush layout BEFORE rendering. A paint triggered right after load-done (or any
         // time reflow is still pending) otherwise captures un-laid-out content -> a blank
@@ -4550,18 +4640,7 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.
     if (!composed && !jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;
     long nonblank = 0;
-    if (composed) {
-      // T-502: the compositor's read already forced alpha to 255; the nonblank count (the
-      // blank-frame signal) is sampled, every 8th pixel of every 8th row, and scaled back up.
-      for (int y = 0; y < h; y += 8) {
-        const unsigned char* row = dst + (size_t)y * w * 4;
-        for (int x = 0; x < w; x += 8) {
-          const unsigned char* o = row + (size_t)x * 4;
-          if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;
-        }
-      }
-      return nonblank * 64;
-    }
+    (void)composed;
     for (int i = 0; i < w * h; ++i) {
       unsigned char* o = dst + (size_t)i * 4;   // B,G,R,A
       if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;

@@ -304,6 +304,7 @@ public:
   bool isBusy() const;
   // A plugin instance is on this page (its rect has been reported to the card).
   bool hasPlugin() const { return !mEmittedFlashRects.empty(); }
+  bool gpuPage() const { return mPage && mPage->GpuPath() && mHadContent; }   // T-502 device rounds
 
 private:
   void emitLoadAndLocation();   // poll GoannaRenderPage -> sink messages
@@ -364,6 +365,30 @@ private:
   bool               mDirtyPending;      // engine invalidation seen, repaint owed once the rate-limit
   uint32_t           mGpuSeq = 0;        // T-502: the compositor's request count last pulled
   double             mGpuZoom = 0.0;     // T-502: the zoom the compositor viewport was set for
+  // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
+  // geometry it was started for, and per buffer slot the geometry of the frame it holds and
+  // the rows that changed since it was read (the next read of that slot is that band only).
+  uint32_t           mGpuJob = 0;
+  int                mGpuJobSlot = -1;
+  int                mGpuJobX = 0, mGpuJobY = 0;
+  double             mGpuJobZoom = 1.0;
+  int64_t            mGpuJobT0 = 0;
+  int                mGpuJobPolls = 0;        // ticks that found it pending
+  uint32_t           mGpuTrace[8] = {0,0,0,0,0,0,0,0};   // device rounds: where ticks went while a job was pending
+  int64_t            mGpuJobLastPollMs = 0;
+  int64_t            mGpuDoneMs = 0;          // when the frame came in (the publish timing)
+  uint32_t           mGpuJobSeq = 0;          // the compositor's request count when the job started
+  bool               mGpuRestarting = false;  // re-entered to start the next frame right after a publish
+  bool               mGpuSlotValid[3] = {false, false, false};
+  int                mGpuSlotX[3] = {0, 0, 0}, mGpuSlotY[3] = {0, 0, 0};
+  int                mGpuSlotW[3] = {0, 0, 0}, mGpuSlotH[3] = {0, 0, 0};
+  double             mGpuSlotZoom[3] = {1.0, 1.0, 1.0};
+  long               mGpuStaleLo[3] = {0, 0, 0}, mGpuStaleHi[3] = {0, 0, 0};
+  void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
+  void gpuSlotsReset() {
+    gpuJobDrain();
+    for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
+  }
                                          // window opens (inspector P2: cap dirty-driven full repaints)
   int64_t            mLastDirtyPaintMs;  // last dirty-driven repaint (ms), for the 150 ms cap
   // Next scheduled publish instant for plugin-driven damage. A GRID, deliberately not
@@ -559,7 +584,7 @@ private:
   bool writeThumbnail(const unsigned char* src, int w, int h, const std::string& path);
   void invalidateBufRecord() {
     int fs = slotForKey(mActiveKey);
-    if (fs >= 0) mBufFull[fs].valid = false;
+    if (fs >= 0) { mBufFull[fs].valid = false; mGpuSlotValid[fs] = false; }
   }
   // Accumulated engine damage since the last paint, in viewport device px.
   bool               mDamageValid = false;

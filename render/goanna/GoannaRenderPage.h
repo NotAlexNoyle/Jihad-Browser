@@ -355,6 +355,15 @@ public:
   // width*height*4 bytes. dst must be at least that large. Returns the number
   // of non-near-white pixels (a cheap "did it render" signal), or -1 on error.
   long ReadPixels(unsigned char* dst, size_t dstBytes);
+  // T-502: the compositor frame in two halves (EngineCompat.h). ComposeAsync says the engine
+  // has them. ComposeStart posts the compose + read of rows [rowLo, rowHi) (0,0 = none asked
+  // for) joined with what the composite changed, and returns the token (0 = failed).
+  // ComposePoll returns the nonblank sample (>= 0) once the frame is in dst, -2 while it is
+  // pending, -1 failed; invLo/invHi get the rows the composite changed.
+  bool ComposeAsync() const;
+  uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi);
+  int ComposePoll(uint32_t token, unsigned char* dst, long* invLo, long* invHi);
+  void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two
   // frames with the same id are of the same document, so rows of one can stand in the other.
   uint64_t CurrentDocId();
@@ -486,6 +495,8 @@ private:
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
 public:
   bool GpuPath() const { return mGpu; }   // T-502
+  long GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi);   // T-502: after a read
+  long mGpuJobLo = 0, mGpuJobHi = 0;      // T-502: the band the pending job was asked for
   uint32_t CompositorSeq() const;         // T-502: moves when the compositor wants a frame
   // T-502: the compositor's view of zoom and scroll. The card's zoom becomes the pres shell's
   // resolution (the compositor scales the layer tree), the visual viewport the card's size over

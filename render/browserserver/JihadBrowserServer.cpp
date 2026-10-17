@@ -675,12 +675,14 @@ void JihadBrowserServer::tick() {
   // to make the paint cheaper. Device-measured 2026-08-10 on a 30 fps plugin: the timer asks
   // for 16 ms and the observed period was 28.6 ms while the paint itself cost only 3-7 ms.
   int64_t tickT0 = jihadTickNowMs();
-  int64_t pumpMs = 0;
+  int64_t pumpMs = 0, paintMs = 0;
   for (auto* pg : snap) {
     int64_t a = jihadTickNowMs();
     pg->pump(4, /*drainOnly*/true);
-    pumpMs += jihadTickNowMs() - a;
+    int64_t b = jihadTickNowMs();
+    pumpMs += b - a;
     pg->maybePaint();
+    paintMs += jihadTickNowMs() - b;
     // Pull the next plugin frame. HERE and not inside maybePaint, because maybePaint is also
     // called from returnBuffer() outside the tick, and the pull paces itself by counting calls
     // — an off-tick call would shift the request off the tick grid it exists to stay on.
@@ -688,6 +690,19 @@ void JihadBrowserServer::tick() {
   }
   // Busy = a card spoke since the last tick, or a page still has something to do AFTER this
   // tick's pump and paint. main() reads it to choose between the frame period and the quiet one.
+  {
+    // T-502 device rounds: every tick's shape while a compositor page animates (first 120 odd ones)
+    static int64_t sPrevEnd = 0; static int sLogged = 0;
+    bool gpu = false;
+    for (auto* pg : snap) if (pg->gpuPage()) { gpu = true; break; }
+    const int64_t now = jihadTickNowMs();
+    if (gpu && sPrevEnd && sLogged < 120 && (pumpMs + paintMs >= 6 || now - sPrevEnd >= 14)) {
+      ++sLogged;
+      fprintf(stderr, "[jihad-gpu] tick: loop gap %ld ms before it, pump %ld ms, paint %ld ms\n",
+              (long)(tickT0 - sPrevEnd), (long)pumpMs, (long)paintMs);
+    }
+    sPrevEnd = now;
+  }
   mTickBusy = mActivity;
   mActivity = false;
   for (auto* pg : snap) if (pg->isBusy()) { mTickBusy = true; break; }

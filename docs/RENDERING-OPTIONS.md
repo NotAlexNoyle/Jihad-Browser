@@ -44,7 +44,27 @@ canvas with Direct2D, Skia-on-GL (`gfx.canvas.azure.accelerated`, macOS) or Skia
 `gfxPlatformHeadless` (cairo, software layers) and the `Null` GL provider. The application pref
 files on repo.palemoon.org sit behind Anubis and were not read.
 
-## Every combination, fastest first (the report's chart)
+## The shortlist, by weeks (the report's chart)
+
+Every combination that adds options without adding speed in any column is cut (rows with 3, rows
+with 1 on top of 4), and so are the options advised against: 2 without 4 (WebGL at 11–13 fps through
+a readback and a software blend, below a page's WebGL-off path) and 6 (a patched LunaSysMgr, so
+webOS CE 3.1.0 only; a frame path beside the YAP delivery this project keeps byte-identical; 5 weeks
+on top of 4's 6 with the daemon-to-LunaSysMgr buffer share unmeasured; animation only, 42 to 17 ms,
+new content stays at the 80 ms raster). The 44 rows behind the cut follow.
+
+| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL | Video | Weeks | Like Pale Moon / Basilisk |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | decode + a 80 ms frame | 0 | their software fallback |
+| 2 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode + a 63 ms frame | 1 | no equivalent |
+| 3 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | decode only (overlay) | 2.5 | no equivalent |
+| 4 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode only (overlay) | 3.5 | no equivalent |
+| 5 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 6 | their compositor + a readback |
+| 6 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 7.5 | their compositor + a readback, their WebGL |
+| 7 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 8.5 | their compositor + a readback |
+| 8 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 10 | their compositor + a readback, their WebGL |
+
+## Every combination, fastest first (the data behind the shortlist)
 
 The frame modeled is four full-screen layers, three blended; the CPU pays three blends (20.8 ms plain,
 15.4 ms NEON each), the GPU one composite (12.9 ms); "new content" adds the 53 ms CPU raster and, for

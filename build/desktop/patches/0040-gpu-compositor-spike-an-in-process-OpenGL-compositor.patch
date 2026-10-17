@@ -22,13 +22,13 @@ Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
 ---
  gfx/layers/client/ClientLayerManager.cpp  |  12 +++
  gfx/layers/ipc/CompositorBridgeParent.cpp |   7 ++
- gfx/layers/opengl/CompositorOGL.cpp       |  18 +++-
+ gfx/layers/opengl/CompositorOGL.cpp       |  73 ++++++++++++-
  gfx/thebes/gfxPlatform.cpp                |  21 +++-
  gfx/thebes/gfxPlatformHeadless.cpp        |  13 +++
  gfx/thebes/gfxPlatformHeadless.h          |   5 +
  widget/PuppetWidget.cpp                   | 125 ++++++++++++++++++++--
  widget/PuppetWidget.h                     |  14 +++
- 8 files changed, 206 insertions(+), 9 deletions(-)
+ 8 files changed, 261 insertions(+), 9 deletions(-)
 
 diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
 index 95af8fb5fc..fd485ddc67 100644
@@ -90,10 +90,10 @@ index f92e74c147..3ceafc9f85 100644
  
    // We're not really taking advantage of the stored composite-again-time here.
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 616a03ab77..d485a48237 100644
+index 616a03ab77..e5389ca451 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
-@@ -4,6 +4,7 @@
+@@ -4,11 +4,14 @@
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
  
  #include "CompositorOGL.h"
@@ -101,7 +101,36 @@ index 616a03ab77..d485a48237 100644
  #include <stddef.h>                     // for size_t
  #include <stdint.h>                     // for uint32_t, uint8_t
  #include <stdlib.h>                     // for free, malloc
-@@ -652,9 +653,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+ #include "GLContextProvider.h"          // for GLContextProvider
+ #include "GLContext.h"                  // for GLContext
++#include "GLContextEGL.h"               // Jihad T-502: the pbuffer context
++#include <algorithm>
+ #include "GLUploadHelpers.h"
+ #include "Layers.h"                     // for WriteSnapshotToDumpFile
+ #include "LayerScope.h"                 // for LayerScope
+@@ -122,6 +125,21 @@ CompositorOGL::CreateContext()
+   }
+ #endif
+ 
++  // Jihad T-502: on the Adreno 220 a glReadPixels from a texture-backed FBO (what the offscreen
++  // GLScreenBuffer is) costs 370-640 ms a frame; from the pbuffer surface 12-43 ms
++  // (tools/device/gpu-bench.c, 2026-10-17). So with JIHAD_GPU_COMPOSITOR the compositor draws
++  // into a plain pbuffer context with NO screen buffer: framebuffer 0 is the pbuffer itself. A
++  // pbuffer cannot be resized, so it is made large enough for the layout viewport T-499 may ask
++  // for and each frame uses its bottom-left part.
++  if (!context && getenv("JIHAD_GPU_COMPOSITOR")) {
++    nsCString failureId;
++    gfx::IntSize pb(std::max(mSurfaceSize.width, 1100), std::max(mSurfaceSize.height, 1400));
++    context = gl::GLContextEGL::CreateEGLPBufferOffscreenContext(
++        CreateContextFlags::REQUIRE_COMPAT_PROFILE, pb, SurfaceCaps::ForRGBA(), &failureId);
++    fprintf(stderr, "[jihad-gpu] pbuffer context %dx%d: %s %s\n", pb.width, pb.height,
++            context ? "created" : "FAILED", failureId.get());
++  }
++
+   // Allow to create offscreen GL context for main Layer Manager
+   if (!context && gfxEnv::LayersPreferOffscreen()) {
+     SurfaceCaps caps = SurfaceCaps::ForRGB();
+@@ -652,9 +670,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
        mWidgetSize.height != height)
    {
      MakeCurrent(ForceMakeCurrent);
@@ -111,14 +140,58 @@ index 616a03ab77..d485a48237 100644
 +    // Jihad T-502: on an offscreen (pbuffer/FBO) context the screen buffer keeps the size it
 +    // was created with; a taller frame (the portrait card) was clipped. Resize it with the
 +    // frame.
-+    if (mGLContext->IsOffscreen() &&
++    if (mGLContext->IsOffscreen() && mGLContext->Screen() &&
 +        mGLContext->OffscreenSize() != gfx::IntSize(width, height)) {
 +      mGLContext->ResizeScreenBuffer(gfx::IntSize(width, height));
 +    }
    } else {
      MakeCurrent();
    }
-@@ -1673,7 +1680,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1667,13 +1691,55 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+     mGLContext->fReadBuffer(LOCAL_GL_BACK);
+   }
+ 
++  // Jihad T-502: read the frame straight into the target's pixels. The generic road below reads
++  // RGBA into a temporary surface, converts it to BGRA through Factory::CopyDataSourceSurface and
++  // draws it flipped through cairo; and on an offscreen context (no view flip: the image's row 0
++  // is at GL y = 0) that flip turned the frame upside down. Here: one glReadPixels of the rows
++  // the target wants, then an in-place RGBA->BGRA swizzle, row 0 to row 0. (Plain C; NEON next.)
++  static const bool sJihadDirect = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  if (sJihadDirect && mGLContext->IsOffscreen()) {
++    uint8_t* data = nullptr; IntSize dsize; int32_t dstride = 0; SurfaceFormat dfmt;
++    if (aTarget->LockBits(&data, &dsize, &dstride, &dfmt)) {
++      const int w = std::min<int>(width, dsize.width), h = std::min<int>(height, dsize.height);
++      TimeStamp t0 = TimeStamp::Now();
++      bool okRead = (dstride == w * 4);
++      if (okRead) {
++        ScopedPackState safePackState(mGLContext);
++        mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++        mGLContext->fReadPixels(0, 0, w, h, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, data);
++      }
++      TimeStamp t1 = TimeStamp::Now();
++      if (okRead) {
++        for (int y = 0; y < h; y++) {
++          uint32_t* row = reinterpret_cast<uint32_t*>(data + (size_t)y * dstride);
++          for (int x = 0; x < w; x++) {
++            const uint32_t v = row[x];   // memory R,G,B,A  ->  B,G,R,A
++            row[x] = (v & 0xff00ff00u) | ((v & 0xffu) << 16) | ((v >> 16) & 0xffu);
++          }
++        }
++      }
++      aTarget->ReleaseBits(data);
++      TimeStamp t2 = TimeStamp::Now();
++      fprintf(stderr, "[jihad-gpu] direct read %dx%d (frame %dx%d): glReadPixels %.1f ms, swizzle %.1f ms%s\n",
++              w, h, width, height, (t1 - t0).ToMilliseconds(), (t2 - t1).ToMilliseconds(),
++              okRead ? "" : " (stride mismatch: not read)");
++      if (okRead) {
++        return;
++      }
++    }
++  }
++
+   RefPtr<DataSourceSurface> source =
+         Factory::CreateDataSourceSurface(rect.Size(), gfx::SurfaceFormat::B8G8R8A8);
+   if (NS_WARN_IF(!source)) {
      return;
    }
  
@@ -130,7 +203,7 @@ index 616a03ab77..d485a48237 100644
  
    // Map from GL space to Cairo space and reverse the world transform.
    Matrix glToCairoTransform = aTransform;
-@@ -1688,6 +1699,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1688,6 +1754,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
    Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
    aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
    aTarget->SetTransform(oldMatrix);

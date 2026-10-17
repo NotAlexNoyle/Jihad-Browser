@@ -18,6 +18,10 @@
 #include <time.h>
 #ifdef __ARM_NEON__
 #include <arm_neon.h>
+#define GL_FRAMEBUFFER 0x8D40
+#define GL_RENDERBUFFER 0x8D41
+#define GL_RGBA4 0x8056
+#define GL_COLOR_ATTACHMENT0 0x8CE0
 #endif
 
 typedef void* EGLDisplay; typedef void* EGLConfig; typedef void* EGLSurface; typedef void* EGLContext;
@@ -71,6 +75,8 @@ F(EGLDisplay, eglGetDisplay, (void*)); F(EGLBoolean, eglInitialize, (EGLDisplay,
 F(EGLSurface, eglCreatePbufferSurface, (EGLDisplay, EGLConfig, const EGLint*)); F(EGLContext, eglCreateContext, (EGLDisplay, EGLConfig, EGLContext, const EGLint*)); F(EGLBoolean, eglMakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext));
 F(const char*, eglQueryString, (EGLDisplay, EGLint)); F(EGLint, eglGetError, (void)); F(EGLBoolean, eglBindAPI, (unsigned));
 F(void, glClearColor, (float, float, float, float)); F(void, glClear, (GLbitfield)); F(void, glFinish, (void)); F(void, glReadPixels, (GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*));
+F(void, glGenRenderbuffers, (GLsizei, GLuint*)); F(void, glBindRenderbuffer, (GLenum, GLuint)); F(void, glRenderbufferStorage, (GLenum, GLenum, GLsizei, GLsizei)); F(void, glFramebufferRenderbuffer, (GLenum, GLenum, GLenum, GLuint)); F(void, glDeleteRenderbuffers, (GLsizei, const GLuint*));
+F(void, glGenFramebuffers, (GLsizei, GLuint*)); F(void, glBindFramebuffer, (GLenum, GLuint)); F(void, glFramebufferTexture2D, (GLenum, GLenum, GLenum, GLuint, GLint)); F(GLenum, glCheckFramebufferStatus, (GLenum)); F(void, glDeleteFramebuffers, (GLsizei, const GLuint*)); F(void, glDeleteTextures, (GLsizei, const GLuint*));
 F(void, glGenTextures, (GLsizei, GLuint*)); F(void, glBindTexture, (GLenum, GLuint)); F(void, glTexImage2D, (GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*)); F(void, glTexSubImage2D, (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void*));
 F(void, glTexParameteri, (GLenum, GLenum, GLint)); F(GLuint, glCreateShader, (GLenum)); F(void, glShaderSource, (GLuint, GLsizei, const GLchar**, const GLint*)); F(void, glCompileShader, (GLuint)); F(void, glGetShaderiv, (GLuint, GLenum, GLint*));
 F(GLuint, glCreateProgram, (void)); F(void, glAttachShader, (GLuint, GLuint)); F(void, glLinkProgram, (GLuint)); F(void, glGetProgramiv, (GLuint, GLenum, GLint*)); F(void, glUseProgram, (GLuint)); F(GLint, glGetAttribLocation, (GLuint, const GLchar*)); F(GLint, glGetUniformLocation, (GLuint, const GLchar*));
@@ -87,7 +93,7 @@ int main(int argc, char** argv) {
   G = dlopen("/usr/lib/libGLESv2.so", RTLD_NOW | RTLD_GLOBAL); if (!G) G = dlopen("libGLESv2.so.2", RTLD_NOW | RTLD_GLOBAL);
   if (!E || !G) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 1; }
   LOAD(E, eglGetDisplay); LOAD(E, eglInitialize); LOAD(E, eglChooseConfig); LOAD(E, eglCreatePbufferSurface); LOAD(E, eglCreateContext); LOAD(E, eglMakeCurrent); LOAD(E, eglQueryString); LOAD(E, eglGetError); LOAD(E, eglBindAPI);
-  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
+  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
   LOAD(G, glCreateShader); LOAD(G, glShaderSource); LOAD(G, glCompileShader); LOAD(G, glGetShaderiv); LOAD(G, glCreateProgram); LOAD(G, glAttachShader); LOAD(G, glLinkProgram); LOAD(G, glGetProgramiv); LOAD(G, glUseProgram);
   LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
 
@@ -155,6 +161,48 @@ int main(int argc, char** argv) {
   printf("glReadPixels 640x480 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);
   t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, 320, 240, GL_RGBA, GL_UNSIGNED_BYTE, back); }
   printf("glReadPixels 320x240 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);
+  // T-502: the compositor renders into a TEXTURE-backed FBO (GLScreenBuffer), not the pbuffer; and
+  // Gecko asks for BGRA. Read back from such an FBO, at the card's size and at the layout size the
+  // spike composed (980x1202), as RGBA and as BGRA_EXT, to tell the driver's cost from Gecko's.
+  {
+    GLuint fbo = 0, ftex = 0; glGenFramebuffers(1, &fbo); glGenTextures(1, &ftex);
+    const int sizes[][2] = { {1024, 768}, {768, 942}, {980, 1202} };
+    uint8_t* big = malloc((size_t)980 * 1202 * 4);
+    for (int si = 0; si < 3; si++) {
+      int fw = sizes[si][0], fh = sizes[si][1];
+      glBindTexture(GL_TEXTURE_2D, ftex); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fw, fh, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ftex, 0);
+      GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+      glViewport(0, 0, fw, fh); glBindTexture(GL_TEXTURE_2D, tex[0]); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, fw, fh, GL_RGBA, GL_UNSIGNED_BYTE, big); }
+      printf("FBO(texture) %dx%d status=0x%x: glReadPixels RGBA %.2f ms/frame\n", fw, fh, st, (now_ms() - t) / frames);
+      t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, fw, fh, 0x80E1 /*GL_BGRA_EXT*/, GL_UNSIGNED_BYTE, big); }
+      printf("FBO(texture) %dx%d: glReadPixels BGRA_EXT %.2f ms/frame (GL error 0x%x)\n", fw, fh, (now_ms() - t) / frames, glGetError());
+      t = now_ms(); for (int f = 0; f < frames; f++) { glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glReadPixels(0, 0, fw, fh, GL_RGBA, GL_UNSIGNED_BYTE, big); }
+      printf("FBO(texture) %dx%d: draw 1 layer + glReadPixels RGBA %.2f ms/frame\n", fw, fh, (now_ms() - t) / frames);
+      // the CPU side of a direct readback: swap R/B and flip rows into a second buffer
+      t = now_ms(); for (int f = 0; f < frames; f++) { for (int y = 0; y < fh; y++) { uint32_t* s = (uint32_t*)(big + (size_t)y * fw * 4); uint32_t* d = (uint32_t*)(back + (size_t)(fh - 1 - y) * fw * 4); for (int x = 0; x < fw; x++) { uint32_t v = s[x]; d[x] = (v & 0xff00ff00u) | ((v & 0xffu) << 16) | ((v >> 16) & 0xffu); } } }
+      printf("CPU swizzle+flip %dx%d (plain C): %.2f ms\n", fw, fh, (now_ms() - t) / frames);
+    }
+    // and a RENDERBUFFER-backed FBO (no texture): the other surface a compositor could draw into
+    {
+      GLuint rb = 0; glGenRenderbuffers(1, &rb); glBindRenderbuffer(GL_RENDERBUFFER, rb);
+      glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, W, H);
+      GLenum e1 = glGetError();
+      glRenderbufferStorage(GL_RENDERBUFFER, 0x8058 /*GL_RGBA8_OES*/, W, H);
+      GLenum e2 = glGetError();
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb);
+      GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+      glViewport(0, 0, W, H); glBindTexture(GL_TEXTURE_2D, tex[0]); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }
+      printf("FBO(renderbuffer RGBA8_OES; rgba4 err 0x%x rgba8 err 0x%x) 1024x768 status=0x%x: glReadPixels RGBA %.2f ms/frame\n", e1, e2, st, (now_ms() - t) / frames);
+      glDeleteRenderbuffers(1, &rb);
+    }
+    free(big);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H); glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &ftex);
+  }
   if (readbgra) { t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_BGRA_EXT, GL_UNSIGNED_BYTE, back); } printf("glReadPixels 1024x768 BGRA_EXT: %.2f ms/frame\n", (now_ms() - t) / frames); }
   // 6. a whole GPU frame as the readback routes would run it: tiles up, composite, read back
   t = now_ms(); for (int f = 0; f < frames; f++) { glBindTexture(GL_TEXTURE_2D, tex[0]); for (int k = 0; k < 12; k++) glTexSubImage2D(GL_TEXTURE_2D, 0, (k % 4) * 256, (k / 4) * 256, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, tile); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); glBindTexture(GL_TEXTURE_2D, tex[1]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1); glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }

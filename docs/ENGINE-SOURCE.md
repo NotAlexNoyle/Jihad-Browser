@@ -13,7 +13,7 @@ available is met.
   `RB_20261006` (`5f290d1097a8350b56ce2092aa9d5fc9147c6661`, 2026-10-04) — `UXP_TAG` / `UXP_BASE` in
   `build/engine/engine-version.env`. (Until 2026-10-12: master `b2594a4`, 2026-06-30.)
 - **Our modified engine:** the branch `jihad/uxp-RB_20261006` of the fork `NotAlexNoyle/UXP-Jihad`,
-  at `UXP_PIN` (`e38863abf0e09aa99d09b79a591860db9005dd5a`), present in this repository as the
+  at `UXP_PIN` (`2a07b55231f059496e6cd85d3c9daaa8d70f015c`), present in this repository as the
   submodule `third_party/uxp`. The device build compiles that tree.
 - **The modifications as patches:** `build/desktop/patches/` holds every change as a patch
   against `UXP_BASE`. `build/engine/patch-queue.sh --check` proves the patches, applied in
@@ -66,6 +66,7 @@ modifications; the same changes are the commits of `jihad/uxp-RB_20261006`, one 
 | `0038-plugin-container-do-not-hand-the-bundled-library-pat.patch` | `ipc/contentproc/plugin-container.cpp` | plugin-container does not hand the bundled library path to what the plugin runs |
 | `0039-addons-an-add-on-naming-both-the-AppCompat-GUID-and-.patch` | `toolkit/mozapps/extensions/internal/XPIProvider.jsm` | XPIProvider: an add-on naming the AppCompat GUID and the toolkit matches the entry that fits |
 | `0040-gpu-compositor-spike-an-in-process-OpenGL-compositor-.patch` | `gfx/thebes/gfxPlatform.cpp`, `gfx/thebes/gfxPlatformHeadless.cpp`, `gfx/thebes/gfxPlatformHeadless.h`, `widget/PuppetWidget.cpp`, `widget/PuppetWidget.h` | T-502: with `JIHAD_GPU_COMPOSITOR` set, an in-process OpenGL compositor (EGL pbuffer) behind the offscreen widget; `jihad_offscreen_compose` paints the layers and fetches the composited frame; the env counts as the acceleration force pref; nothing changes without it |
+| `0041-gl-the-Adreno-220-is-an-Adreno-2xx-for-the-sub-texture-.patch` | `gfx/gl/GLContext.h`, `gfx/gl/GLContext.cpp`, `gfx/gl/GLUploadHelpers.cpp` | `GLRenderer::AdrenoTM220`; `CanUploadSubTextures()` false for the Adreno 2xx "(TM)" spellings and the 220 (a sub-image update costs 16x a whole upload on this driver) |
 
 ### Branding strip (cavekit-licensing-branding R3) — patch 0010
 

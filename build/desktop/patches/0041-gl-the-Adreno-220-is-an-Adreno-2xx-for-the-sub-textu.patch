@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sat, 17 Oct 2026 11:32:09 -0400
+Subject: [PATCH] gl: the Adreno 220 is an Adreno 2xx for the sub-texture
+ upload workaround
+
+GLRenderer gains AdrenoTM220 ("Adreno (TM) 220", the TouchPad's GPU) and
+CanUploadSubTextures() answers false for it and for the "(TM)" spellings
+of the 200 and 205, which the check had missed. Measured on the device:
+twelve 256x256 glTexSubImage2D updates of a 1024x768 RGBA texture cost
+160 ms, one whole glTexImage2D 10 ms; through the compositor a page's
+content change cost 180-240 ms of upload before this.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
+---
+ gfx/gl/GLContext.cpp       | 1 +
+ gfx/gl/GLContext.h         | 1 +
+ gfx/gl/GLUploadHelpers.cpp | 8 +++++++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/gfx/gl/GLContext.cpp b/gfx/gl/GLContext.cpp
+index d07b925ad5..306c4362e5 100644
+--- a/gfx/gl/GLContext.cpp
++++ b/gfx/gl/GLContext.cpp
+@@ -812,6 +812,7 @@ GLContext::InitWithPrefixImpl(const char* prefix, bool trygl)
+         "Adreno 205",
+         "Adreno (TM) 200",
+         "Adreno (TM) 205",
++        "Adreno (TM) 220",
+         "Adreno (TM) 305",
+         "Adreno (TM) 320",
+         "Adreno (TM) 330",
+diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
+index 5f0f5a4e89..0a79e95ef4 100644
+--- a/gfx/gl/GLContext.h
++++ b/gfx/gl/GLContext.h
+@@ -172,6 +172,7 @@ enum class GLRenderer {
+     Adreno205,
+     AdrenoTM200,
+     AdrenoTM205,
++    AdrenoTM220,   // Jihad: the TouchPad's GPU (Adreno (TM) 220)
+     AdrenoTM305,
+     AdrenoTM320,
+     AdrenoTM330,
+diff --git a/gfx/gl/GLUploadHelpers.cpp b/gfx/gl/GLUploadHelpers.cpp
+index 0bbb61434f..09f258cd13 100644
+--- a/gfx/gl/GLUploadHelpers.cpp
++++ b/gfx/gl/GLUploadHelpers.cpp
+@@ -90,8 +90,14 @@ CanUploadSubTextures(GLContext* gl)
+ 
+     // There are certain GPUs that we don't want to use glTexSubImage2D on
+     // because that function can be very slow and/or buggy
++    // The "(TM)" spellings and the 220 included: on the TouchPad's Adreno 220 twelve 256x256
++    // glTexSubImage2D updates of a 1024x768 texture cost 160 ms against 10 ms for one whole
++    // glTexImage2D (Jihad, tools/device/gpu-bench.c, 2026-10-17).
+     if (gl->Renderer() == GLRenderer::Adreno200 ||
+-        gl->Renderer() == GLRenderer::Adreno205)
++        gl->Renderer() == GLRenderer::Adreno205 ||
++        gl->Renderer() == GLRenderer::AdrenoTM200 ||
++        gl->Renderer() == GLRenderer::AdrenoTM205 ||
++        gl->Renderer() == GLRenderer::AdrenoTM220)
+     {
+         return false;
+     }

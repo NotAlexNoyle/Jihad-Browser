@@ -4478,6 +4478,18 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.
     if (!composed && !jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;
     long nonblank = 0;
+    if (composed) {
+      // T-502: the compositor's read already forced alpha to 255; the nonblank count (the
+      // blank-frame signal) is sampled, every 8th pixel of every 8th row, and scaled back up.
+      for (int y = 0; y < h; y += 8) {
+        const unsigned char* row = dst + (size_t)y * w * 4;
+        for (int x = 0; x < w; x += 8) {
+          const unsigned char* o = row + (size_t)x * 4;
+          if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;
+        }
+      }
+      return nonblank * 64;
+    }
     for (int i = 0; i < w * h; ++i) {
       unsigned char* o = dst + (size_t)i * 4;   // B,G,R,A
       if (!(o[0] > 240 && o[1] > 240 && o[2] > 240)) ++nonblank;

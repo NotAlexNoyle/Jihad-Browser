@@ -24,14 +24,14 @@ Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
  gfx/layers/ipc/CompositorBridgeParent.cpp     |  46 +++++
  gfx/layers/ipc/CompositorBridgeParent.h       |  10 +
  .../opengl/CompositingRenderTargetOGL.h       |   5 +-
- gfx/layers/opengl/CompositorOGL.cpp           | 159 ++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.cpp           | 160 ++++++++++++++-
  gfx/layers/opengl/CompositorOGL.h             |  11 ++
  gfx/thebes/gfxPlatform.cpp                    |  21 +-
  gfx/thebes/gfxPlatformHeadless.cpp            |  13 ++
  gfx/thebes/gfxPlatformHeadless.h              |   5 +
  widget/PuppetWidget.cpp                       | 184 +++++++++++++++++-
  widget/PuppetWidget.h                         |  16 ++
- 11 files changed, 468 insertions(+), 14 deletions(-)
+ 11 files changed, 469 insertions(+), 14 deletions(-)
 
 diff --git a/gfx/layers/client/ClientLayerManager.cpp b/gfx/layers/client/ClientLayerManager.cpp
 index 95af8fb5fc..fd485ddc67 100644
@@ -206,7 +206,7 @@ index 071dc5cac1..ed24a327eb 100644
      result->mInitParams.mStatus = InitParams::INITIALIZED;
      return result.forget();
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 616a03ab77..32a0ba7dfa 100644
+index 616a03ab77..3a7648367c 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
 @@ -4,11 +4,17 @@
@@ -326,7 +326,7 @@ index 616a03ab77..32a0ba7dfa 100644
      clipRect.MoveBy(mRenderOffset.x, mRenderOffset.y);
    }
  
-@@ -1641,6 +1694,49 @@ CompositorOGL::SetDestinationSurfaceSize(const IntSize& aSize)
+@@ -1641,6 +1694,50 @@ CompositorOGL::SetDestinationSurfaceSize(const IntSize& aSize)
    mSurfaceSize.height = aSize.height;
  }
  
@@ -363,11 +363,12 @@ index 616a03ab77..32a0ba7dfa 100644
 +    for (; x + 16 <= w; x += 16, p += 64) {
 +      uint8x16x4_t v = vld4q_u8(p);
 +      uint8x16_t r = v.val[0]; v.val[0] = v.val[2]; v.val[2] = r;
++      v.val[3] = vdupq_n_u8(0xff);   // the adapter blits these words raw: alpha must be 255
 +      vst4q_u8(p, v);
 +    }
 +#endif
 +    for (; x < w; x++, p += 4) {
-+      const uint8_t r = p[0]; p[0] = p[2]; p[2] = r;
++      const uint8_t r = p[0]; p[0] = p[2]; p[2] = r; p[3] = 0xff;
 +    }
 +  }
 +  return true;
@@ -376,7 +377,7 @@ index 616a03ab77..32a0ba7dfa 100644
  void
  CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, const gfx::Matrix& aTransform)
  {
-@@ -1667,13 +1763,63 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1667,13 +1764,63 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
      mGLContext->fReadBuffer(LOCAL_GL_BACK);
    }
  
@@ -440,7 +441,7 @@ index 616a03ab77..32a0ba7dfa 100644
  
    // Map from GL space to Cairo space and reverse the world transform.
    Matrix glToCairoTransform = aTransform;
-@@ -1688,6 +1834,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+@@ -1688,6 +1835,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
    Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
    aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
    aTarget->SetTransform(oldMatrix);

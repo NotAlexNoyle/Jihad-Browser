@@ -58,7 +58,8 @@ cut follow. Flash games: 27 fps is a 30 fps 320×240 movie and 22 fps a 640×480
 rate on this CPU (the plugin child; the daemon's paints keep up at 4–5 ms, 30–34 fps composite,
 2026-10-07); no option touches it. On the 4 rows a whole-frame readback (12.3 ms) would cap 320×240
 at 23 fps; the movie's rectangle read back (1.9–6.3 ms measured) keeps 27. The report colours the
-cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.5 yellow, 6–7.5 orange, 8.5+ red). Every row runs on webOS 3.0.5 and webOS CE 3.1.0: the one CE-only option, 6, is cut.
+cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.5 yellow, 6–7.5 orange, 8.5+ red). Every row runs on webOS 3.0.5 and webOS CE 3.1.0: the one CE-only option, 6, is cut. Rows that scroll
+slower than 24 fps (1 + 5, 1, 5, today) are cut too.
 
 | # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL games | Flash games | Video | Weeks | webOS | Like Pale Moon / Basilisk |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -66,10 +67,18 @@ cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.
 | 2 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 7.5 | 3.0.5 and CE 3.1.0 | their compositor + a readback, their WebGL |
 | 3 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 8.5 | 3.0.5 and CE 3.1.0 | their compositor + a readback |
 | 4 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 6 | 3.0.5 and CE 3.1.0 | their compositor + a readback |
-| 5 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 3.5 | 3.0.5 and CE 3.1.0 | no equivalent |
-| 6 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode + a 63 ms frame | 1 | 3.0.5 and CE 3.1.0 | no equivalent |
-| 7 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 2.5 | 3.0.5 and CE 3.1.0 | no equivalent |
-| 8 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode + a 80 ms frame | 0 | 3.0.5 and CE 3.1.0 | their software fallback |
+
+### What tells them apart
+
+All four share option 4's frame: 24 fps scroll and animation, 9 fps new content, Flash at its own
+rate; they differ only in WebGL, video and six to ten weeks.
+
+| Solution | Adds | Costs | Risk | Pick it when |
+| --- | --- | --- | --- | --- |
+| 4 | the GPU compositor: CSS animation, fixed headers and in-band scroll at 24 fps (13 today, capped to 4–6.7 by the repaint limits) | 6 weeks | high: `CompositorOGL` over `GLContextProviderEGL` has never run in the headless toolkit or on an Adreno 220, and every frame is read back | the 2011 web is the target and WebGL and video are rare |
+| 2 + 4 | WebGL at the compositor's 24 fps: a GLES 2.0 canvas as one more layer (nothing today) | 1.5 weeks more (7.5) | the Adreno 220's GLES 2.0 driver against WebGL 1; Atlas turned WebGL off after ANGLE whited out its compositor (a different stack) | WebGL maps, three.js pages and games matter |
+| 4 + 5 | video at decode speed through the MDP overlay (a 30 fps clip at 30; 4 alone spends a 42 ms frame per video frame, 24 fps), and the compositor and CPU freed of the video | 2.5 weeks more (8.5) | an overlay plane: no CSS transform, opacity or clip over the video, the card cuts a hole and moves the rectangle as the page scrolls; Atlas ships the sink (`gst-mdpoverlay`) | video is the use: YouTube, embedded clips |
+| 2 + 4 + 5 | both | 4 weeks more (10) | both | both matter and ten weeks are acceptable |
 
 ## Every combination, fastest first (the data behind the shortlist)
 

@@ -484,6 +484,9 @@ private:
   nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
   bool mOffscreen;         // true when rendering via the offscreen widget
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
+public:
+  bool GpuPath() const { return mGpu; }   // T-502
+private:
   int mWidth;
   int mHeight;
   int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)

@@ -44,7 +44,61 @@ canvas with Direct2D, Skia-on-GL (`gfx.canvas.azure.accelerated`, macOS) or Skia
 `gfxPlatformHeadless` (cairo, software layers) and the `Null` GL provider. The application pref
 files on repo.palemoon.org sit behind Anubis and were not read.
 
-## The options (the report's table, in short)
+## Every combination, fastest first (the report's chart)
+
+The frame modeled is four full-screen layers, three blended; the CPU pays three blends (20.8 ms plain,
+15.4 ms NEON each), the GPU one composite (12.9 ms); "new content" adds the 53 ms CPU raster and, for
+the GPU rows, the 10.3 ms upload; a readback row adds 12.3 ms, the copy 5.1 ms, the card's scale 8.2 ms,
+LunaSysMgr's composite 3.8 ms. 3 needs 2 or 4; 6 needs 4 (webOS CE only). Weeks add per option.
+
+| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL | Video | Weeks | Builds | Like Pale Moon / Basilisk |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode + a 17 ms frame | 11 | CE 3.1.0 only | their compositor, their presentation |
+| 2 | 3 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode + a 17 ms frame | 11.5 | CE 3.1.0 only | their compositor, their canvas (macOS), their presentation |
+| 3 | 1 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode + a 17 ms frame | 12 | CE 3.1.0 only | their compositor, their presentation |
+| 4 | 2 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode + a 17 ms frame | 12.5 | CE 3.1.0 only | their compositor, their WebGL, their presentation |
+| 5 | 1 + 3 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode + a 17 ms frame | 12.5 | CE 3.1.0 only | their compositor, their canvas (macOS), their presentation |
+| 6 | 2 + 3 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode + a 17 ms frame | 13 | CE 3.1.0 only | their compositor, their WebGL, their canvas (macOS), their presentation |
+| 7 | 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode only (overlay) | 13.5 | CE 3.1.0 only | their compositor, their presentation |
+| 8 | 1 + 2 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode + a 17 ms frame | 13.5 | CE 3.1.0 only | their compositor, their WebGL, their presentation |
+| 9 | 3 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode only (overlay) | 14 | CE 3.1.0 only | their compositor, their canvas (macOS), their presentation |
+| 10 | 1 + 2 + 3 + 4 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode + a 17 ms frame | 14 | CE 3.1.0 only | their compositor, their WebGL, their canvas (macOS), their presentation |
+| 11 | 1 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode only (overlay) | 14.5 | CE 3.1.0 only | their compositor, their presentation |
+| 12 | 2 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode only (overlay) | 15 | CE 3.1.0 only | their compositor, their WebGL, their presentation |
+| 13 | 1 + 3 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | none | decode only (overlay) | 15 | CE 3.1.0 only | their compositor, their canvas (macOS), their presentation |
+| 14 | 2 + 3 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode only (overlay) | 15.5 | CE 3.1.0 only | their compositor, their WebGL, their canvas (macOS), their presentation |
+| 15 | 1 + 2 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode only (overlay) | 16 | CE 3.1.0 only | their compositor, their WebGL, their presentation |
+| 16 | 1 + 2 + 3 + 4 + 5 + 6 | 17 ms, 60 fps | 80 ms, 12 fps | 17 ms, 60 fps | decode only (overlay) | 16.5 | CE 3.1.0 only | their compositor, their WebGL, their canvas (macOS), their presentation |
+| 17 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 6 | all | their compositor + a readback |
+| 18 | 3 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 6.5 | all | their compositor + a readback, their canvas (macOS) |
+| 19 | 1 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 7 | all | their compositor + a readback |
+| 20 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 7.5 | all | their compositor + a readback, their WebGL |
+| 21 | 1 + 3 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 7.5 | all | their compositor + a readback, their canvas (macOS) |
+| 22 | 2 + 3 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 8 | all | their compositor + a readback, their WebGL, their canvas (macOS) |
+| 23 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 8.5 | all | their compositor + a readback |
+| 24 | 1 + 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 8.5 | all | their compositor + a readback, their WebGL |
+| 25 | 3 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 9 | all | their compositor + a readback, their canvas (macOS) |
+| 26 | 1 + 2 + 3 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 9 | all | their compositor + a readback, their WebGL, their canvas (macOS) |
+| 27 | 1 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 9.5 | all | their compositor + a readback |
+| 28 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 10 | all | their compositor + a readback, their WebGL |
+| 29 | 1 + 3 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 10 | all | their compositor + a readback, their canvas (macOS) |
+| 30 | 2 + 3 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 10.5 | all | their compositor + a readback, their WebGL, their canvas (macOS) |
+| 31 | 1 + 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 11 | all | their compositor + a readback, their WebGL |
+| 32 | 1 + 2 + 3 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 11.5 | all | their compositor + a readback, their WebGL, their canvas (macOS) |
+| 33 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode + a 63 ms frame | 1 | all | no equivalent |
+| 34 | 1 + 2 | 63 ms, 16 fps | 116 ms, 9 fps | 76 ms, 13 fps | decode + a 63 ms frame | 2.5 | all | their WebGL |
+| 35 | 1 + 2 + 3 | 63 ms, 16 fps | 116 ms, 9 fps | 76 ms, 13 fps | decode + a 63 ms frame | 3 | all | their WebGL, their canvas (macOS) |
+| 36 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode only (overlay) | 3.5 | all | no equivalent |
+| 37 | 1 + 2 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | 76 ms, 13 fps | decode only (overlay) | 5 | all | their WebGL |
+| 38 | 1 + 2 + 3 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | 76 ms, 13 fps | decode only (overlay) | 5.5 | all | their WebGL, their canvas (macOS) |
+| 39 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | decode + a 80 ms frame | 0 | all | their software fallback |
+| 40 | 2 | 80 ms, 13 fps | 132 ms, 8 fps | 92 ms, 11 fps | decode + a 80 ms frame | 1.5 | all | their WebGL |
+| 41 | 2 + 3 | 80 ms, 13 fps | 132 ms, 8 fps | 92 ms, 11 fps | decode + a 80 ms frame | 2 | all | their WebGL, their canvas (macOS) |
+| 42 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | decode only (overlay) | 2.5 | all | no equivalent |
+| 43 | 2 + 5 | 80 ms, 13 fps | 132 ms, 8 fps | 92 ms, 11 fps | decode only (overlay) | 4 | all | their WebGL |
+| 44 | 2 + 3 + 5 | 80 ms, 13 fps | 132 ms, 8 fps | 92 ms, 11 fps | decode only (overlay) | 4.5 | all | their WebGL, their canvas (macOS) |
+
+## The options, in short
 
 1. Software tuning — NEON blend/scale, fewer copies: 40–45 ms frames, 8–12 fps scroll; days; all builds.
 2. WebGL through EGL with readback — 15–20 fps for a full-screen GLES 2.0 canvas; 1–2 weeks.

@@ -16,6 +16,9 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#ifdef __ARM_NEON__
+#include <arm_neon.h>
+#endif
 
 typedef void* EGLDisplay; typedef void* EGLConfig; typedef void* EGLSurface; typedef void* EGLContext;
 typedef int EGLint; typedef unsigned EGLBoolean; typedef unsigned GLenum; typedef unsigned GLuint; typedef int GLint; typedef int GLsizei; typedef float GLfloat; typedef unsigned char GLboolean; typedef unsigned GLbitfield; typedef char GLchar;
@@ -154,5 +157,24 @@ int main(int argc, char** argv) {
   t = now_ms(); for (int f = 0; f < frames; f++) { const int SW = 1000; uint32_t* d = (uint32_t*)back; const uint32_t* a = (const uint32_t*)pix; for (int y = 0; y < H; y++) { const uint32_t* row = a + (size_t)(y * SW / 768 % H) * W; for (int x = 0; x < 768; x++) d[(size_t)y * W + x] = row[x * SW / 768]; } }
   printf("CPU nearest-neighbour scale 1000->768 wide, 768 rows: %.2f ms\n", (now_ms() - t) / frames);
   t = now_ms(); for (int f = 0; f < frames; f++) memset(back, f, (size_t)W * H * 4); printf("CPU memset 3 MB: %.2f ms\n", (now_ms() - t) / frames);
+#ifdef __ARM_NEON__
+  // the same blend with NEON intrinsics, eight pixels at a time: what option 1 (software tuning) buys
+  t = now_ms();
+  for (int f = 0; f < frames; f++) {
+    uint8_t* d = back; const uint8_t* a = pix; size_t n = (size_t)W * H;
+    for (size_t i = 0; i + 8 <= n; i += 8, d += 32, a += 32) {
+      uint8x8x4_t s4 = vld4_u8(a), d4 = vld4_u8(d);
+      uint8x8_t al = s4.val[3], ia = vsub_u8(vdup_n_u8(255), al);
+      for (int c = 0; c < 3; c++) {
+        uint16x8_t m = vmlal_u8(vmull_u8(s4.val[c], al), d4.val[c], ia);
+        d4.val[c] = vshrn_n_u16(m, 8);
+      }
+      d4.val[3] = vdup_n_u8(255);
+      vst4_u8(d, d4);
+    }
+  }
+  printf("CPU blend one 1024x768 ARGB layer over another (NEON): %.2f ms\n", (now_ms() - t) / frames);
+  // and a NEON row copy with the fit scale folded in as a plain per-row memcpy of the scaled row (upper bound for a NEON scaler)
+#endif
   return 0;
 }

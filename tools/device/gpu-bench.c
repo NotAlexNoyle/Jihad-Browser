@@ -130,6 +130,12 @@ int main(int argc, char** argv) {
   double t = now_ms();
   for (int i = 0; i < 4; i++) { glBindTexture(GL_TEXTURE_2D, tex[i]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); }
   glFinish(); printf("upload 4 x 1024x768 RGBA textures: %.1f ms (%.1f ms each)\n", now_ms() - t, (now_ms() - t) / 4);
+  // 1b. a plugin-sized texture (a Flash movie's own frame): whole-texture uploads at 640x480 and 320x240
+  t = now_ms(); for (int f = 0; f < frames; f++) { glBindTexture(GL_TEXTURE_2D, tex[3]); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); } glFinish();
+  printf("upload 640x480 RGBA texture: %.2f ms/frame\n", (now_ms() - t) / frames);
+  t = now_ms(); for (int f = 0; f < frames; f++) { glBindTexture(GL_TEXTURE_2D, tex[3]); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 320, 240, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); } glFinish();
+  printf("upload 320x240 RGBA texture: %.2f ms/frame\n", (now_ms() - t) / frames);
+  glBindTexture(GL_TEXTURE_2D, tex[3]); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); glFinish();
   // 2. composite: one opaque layer per frame
   glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
   t = now_ms(); for (int f = 0; f < frames; f++) { glClear(GL_COLOR_BUFFER_BIT); glBindTexture(GL_TEXTURE_2D, tex[0]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); } glFinish();
@@ -144,6 +150,11 @@ int main(int argc, char** argv) {
   // 5. readback: the cost every GPU route pays until LunaSysMgr takes GPU buffers
   t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }
   printf("glReadPixels 1024x768 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);
+  // a plugin-sized readback (the damage rectangle of a Flash movie, not the whole frame)
+  t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, back); }
+  printf("glReadPixels 640x480 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);
+  t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, 320, 240, GL_RGBA, GL_UNSIGNED_BYTE, back); }
+  printf("glReadPixels 320x240 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);
   if (readbgra) { t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_BGRA_EXT, GL_UNSIGNED_BYTE, back); } printf("glReadPixels 1024x768 BGRA_EXT: %.2f ms/frame\n", (now_ms() - t) / frames); }
   // 6. a whole GPU frame as the readback routes would run it: tiles up, composite, read back
   t = now_ms(); for (int f = 0; f < frames; f++) { glBindTexture(GL_TEXTURE_2D, tex[0]); for (int k = 0; k < 12; k++) glTexSubImage2D(GL_TEXTURE_2D, 0, (k % 4) * 256, (k / 4) * 256, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, tile); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); glBindTexture(GL_TEXTURE_2D, tex[1]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1); glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }

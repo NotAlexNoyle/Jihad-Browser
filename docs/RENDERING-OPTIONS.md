@@ -26,6 +26,8 @@ The caps in `BrowserPageGoanna.cpp`: one dirty repaint per 150 ms, one pan repai
 | Composite four layers, three blended | 13.5 ms | 12.9 ms |
 | Twelve 256×256 `glTexSubImage2D` updates (3 MB) + composite | 169 ms | 158 ms |
 | `glReadPixels` 1024×768 RGBA | 14.4 ms | 11.3 ms |
+| `glReadPixels` 640×480 / 320×240 (a Flash movie's rectangle; a third run, 2026-10-17) | 4.9 / 1.9 ms | 6.3 / 2.3 ms |
+| Upload a 640×480 / 320×240 RGBA texture (a movie's own frame; the same third run) | 1.85 / 0.59 ms | 1.82 / 0.53 ms |
 | Whole readback frame (12 tile updates + 2 layers + read) | 45 ms | 64 ms |
 | CPU `memcpy` 3 MB | 5.0 ms | 4.2 ms |
 | CPU blend of one 1024×768 ARGB layer (plain C) | 22.5 ms | 19.7 ms |
@@ -52,18 +54,22 @@ a readback and a software blend, below a page's WebGL-off path) and 6 (a patched
 webOS CE 3.1.0 only; a frame path beside the YAP delivery this project keeps byte-identical; 5 weeks
 on top of 4's 6 with the daemon-to-LunaSysMgr buffer share unmeasured; animation only, 42 to 17 ms,
 new content stays at the 80 ms raster). Sorted by the columns left to right. The 44 rows behind the
-cut follow.
+cut follow. Flash games: 27 fps is a 30 fps 320×240 movie and 22 fps a 640×480 one, Flash's own
+rate on this CPU (the plugin child; the daemon's paints keep up at 4–5 ms, 30–34 fps composite,
+2026-10-07); no option touches it. On the 4 rows a whole-frame readback (12.3 ms) would cap 320×240
+at 23 fps; the movie's rectangle read back (1.9–6.3 ms measured) keeps 27. The report colours the
+cells (green ≥ 24 fps, yellow 16–23, red ≤ 13; weeks 0–1 green, 2.5–3.5 yellow, 6–7.5 orange, 8.5+ red).
 
-| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL | Video | Weeks | Like Pale Moon / Basilisk |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode only (overlay) | 10 | their compositor + a readback, their WebGL |
-| 2 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | decode + a 42 ms frame | 7.5 | their compositor + a readback, their WebGL |
-| 3 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode only (overlay) | 8.5 | their compositor + a readback |
-| 4 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | decode + a 42 ms frame | 6 | their compositor + a readback |
-| 5 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode only (overlay) | 3.5 | no equivalent |
-| 6 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | decode + a 63 ms frame | 1 | no equivalent |
-| 7 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | decode only (overlay) | 2.5 | no equivalent |
-| 8 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | decode + a 80 ms frame | 0 | their software fallback |
+| # | Solution (option numbers) | Animation and in-band scroll | New content | WebGL games | Flash games | Video | Weeks | Like Pale Moon / Basilisk |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2 + 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 10 | their compositor + a readback, their WebGL |
+| 2 | 2 + 4 | 42 ms, 24 fps | 106 ms, 9 fps | 42 ms, 24 fps | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 7.5 | their compositor + a readback, their WebGL |
+| 3 | 4 + 5 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode only (overlay) | 8.5 | their compositor + a readback |
+| 4 | 4 | 42 ms, 24 fps | 106 ms, 9 fps | none | 27 / 22 fps with the movie's rect read back; 23 / 22 whole-frame | decode + a 42 ms frame | 6 | their compositor + a readback |
+| 5 | 1 + 5 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 3.5 | no equivalent |
+| 6 | 1 | 63 ms, 16 fps | 116 ms, 9 fps | none | 27 / 22 fps, Flash's own rate | decode + a 63 ms frame | 1 | no equivalent |
+| 7 | 5 | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode only (overlay) | 2.5 | no equivalent |
+| 8 | today | 80 ms, 13 fps | 132 ms, 8 fps | none | 27 / 22 fps, Flash's own rate | decode + a 80 ms frame | 0 | their software fallback |
 
 ## Every combination, fastest first (the data behind the shortlist)
 

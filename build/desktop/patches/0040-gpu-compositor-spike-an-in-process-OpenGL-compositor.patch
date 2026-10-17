@@ -1,0 +1,286 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sat, 17 Oct 2026 10:25:54 -0400
+Subject: [PATCH] gpu compositor spike: an in-process OpenGL compositor behind
+ the offscreen widget (JIHAD_GPU_COMPOSITOR)
+
+With JIHAD_GPU_COMPOSITOR in the environment (and JIHAD_DISABLE_OMTC
+unset) the offscreen PuppetWidget creates an in-process compositor
+through nsBaseWidget::CreateCompositor behind a ClientLayerManager;
+gfxPlatformHeadless lists LAYERS_OPENGL when hardware compositing is
+enabled, and the env counts as layers.acceleration.force-enabled in
+gfxPlatform (AccelerateLayersByDefault() is false without
+MOZ_GL_PROVIDER, the headless GfxInfo answers UNKNOWN). The new export
+jihad_offscreen_compose paints the document as layers (PresShell::Paint
+on the root view) and fetches the composited frame over the upstream
+snapshot road (BeginTransactionWithTarget + EndEmptyTransaction ->
+SendMakeSnapshot -> ForceComposeToTarget -> glReadPixels), logging the
+two timings per frame. Without the env nothing changes.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01J67ZH8aYy8uzhgZDZ6Nvx9
+---
+ gfx/thebes/gfxPlatform.cpp         |  15 +++-
+ gfx/thebes/gfxPlatformHeadless.cpp |  13 ++++
+ gfx/thebes/gfxPlatformHeadless.h   |   5 ++
+ widget/PuppetWidget.cpp            | 114 +++++++++++++++++++++++++++--
+ widget/PuppetWidget.h              |  13 ++++
+ 5 files changed, 153 insertions(+), 7 deletions(-)
+
+diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
+index ddad584b3e..219597ed62 100644
+--- a/gfx/thebes/gfxPlatform.cpp
++++ b/gfx/thebes/gfxPlatform.cpp
+@@ -2106,6 +2106,14 @@ gfxPlatform::InitCompositorAccelerationPrefs()
+     feature.UserForceEnable("Force-enabled by prefs");
+   }
+ 
++  // Jihad Browser (T-502, the GPU compositor spike): JIHAD_GPU_COMPOSITOR in the daemon's
++  // environment force-enables hardware compositing the way the pref does, without touching
++  // the prefs the three variants ship. AccelerateLayersByDefault() is false in this build
++  // (no MOZ_GL_PROVIDER) and the headless GfxInfo knows nothing of the Adreno 220.
++  if (getenv("JIHAD_GPU_COMPOSITOR")) {
++    feature.UserForceEnable("Force-enabled by JIHAD_GPU_COMPOSITOR");
++  }
++
+   // Safe mode trumps everything.
+   if (InSafeMode()) {
+     feature.ForceDisable(FeatureStatus::Blocked, "Acceleration blocked by safe-mode",
+@@ -2405,8 +2413,11 @@ gfxPlatform::InitOpenGLConfig()
+   #endif
+ 
+   // When layers acceleration is force-enabled, enable it even for blacklisted
+-  // devices.
+-  if (gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly()) {
++  // devices. Jihad (T-502): JIHAD_GPU_COMPOSITOR counts as the force pref here too; the
++  // headless GfxInfo answers FEATURE_STATUS_UNKNOWN, which the check below would read as
++  // blocked.
++  if (gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly() ||
++      getenv("JIHAD_GPU_COMPOSITOR")) {
+     openGLFeature.UserForceEnable("Force-enabled by pref");
+     return;
+   }
+diff --git a/gfx/thebes/gfxPlatformHeadless.cpp b/gfx/thebes/gfxPlatformHeadless.cpp
+index 4eec067e0b..33da250107 100644
+--- a/gfx/thebes/gfxPlatformHeadless.cpp
++++ b/gfx/thebes/gfxPlatformHeadless.cpp
+@@ -824,6 +824,19 @@ gfxPlatformHeadless::CreateHardwareVsyncSource()
+ 
+ #endif
+ 
++void
++gfxPlatformHeadless::GetAcceleratedCompositorBackends(nsTArray<mozilla::layers::LayersBackend>& aBackends)
++{
++  // Jihad (T-502, the GPU compositor spike): the OpenGL compositor, on an EGL context from
++  // GLContextProviderEGL (the headless build's default provider; MOZ_LAYERS_PREFER_OFFSCREEN
++  // makes it a pbuffer), whenever hardware compositing is enabled (JIHAD_GPU_COMPOSITOR or
++  // layers.acceleration.force-enabled). gfxPlatform::GetCompositorBackends appends
++  // LAYERS_BASIC after this, so a failed OpenGL compositor still falls back.
++  if (gfxConfig::IsEnabled(Feature::HW_COMPOSITING)) {
++    aBackends.AppendElement(mozilla::layers::LayersBackend::LAYERS_OPENGL);
++  }
++}
++
+ // Not GLX-specific: must be defined regardless of GL_PROVIDER_GLX so the
+ // vtable slot resolves in a headless (no X/GLX) build.
+ bool
+diff --git a/gfx/thebes/gfxPlatformHeadless.h b/gfx/thebes/gfxPlatformHeadless.h
+index c3ee465bec..23ec701a70 100644
+--- a/gfx/thebes/gfxPlatformHeadless.h
++++ b/gfx/thebes/gfxPlatformHeadless.h
+@@ -125,6 +125,11 @@ public:
+       return true;
+     }
+ 
++    // Jihad (T-502): LAYERS_OPENGL through GLContextProviderEGL, this build's default
++    // provider, when hardware compositing is enabled; the base class lists nothing and the
++    // compositor would be the BasicCompositor.
++    virtual void GetAcceleratedCompositorBackends(nsTArray<mozilla::layers::LayersBackend>& aBackends) override;
++
+ #ifdef GL_PROVIDER_GLX
+     already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
+ #endif
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 6f066b1b33..2ca92f0de9 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -21,6 +21,8 @@
+ #include "nsIWidgetListener.h"
+ #include "imgIContainer.h"
+ #include "nsView.h"
++#include "nsViewManager.h"        // T-502: the root view for PresShell::Paint
++#include "mozilla/TimeStamp.h"
+ // Jihad offscreen render-document support:
+ #include "gfxContext.h"
+ #include "nsIDocShell.h"
+@@ -634,9 +636,23 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+ {
+   if (!mLayerManager) {
+     if (JihadOffscreen()) {
+-      // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
+-      // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
+-      mLayerManager = CreateBasicLayerManager();
++      if (JihadGpuCompositor() && !mJihadCompositorTried && !mTabChild &&
++          gfxPlatform::UsesOffMainThreadCompositing()) {
++        // Jihad T-502: an in-process compositor behind a ClientLayerManager. Tried once: on
++        // failure CreateCompositor leaves mLayerManager null and the software path below
++        // takes over, so a device whose EGL refuses still paints.
++        mJihadCompositorTried = true;
++        CreateCompositor(mBounds.width, mBounds.height);
++        fprintf(stderr, "[jihad-gpu] compositor %s for %dx%d (compositor backend %d)\n",
++                mLayerManager ? "created" : "NOT created: software layers",
++                mBounds.width, mBounds.height,
++                mLayerManager ? (int)mLayerManager->GetCompositorBackendType() : -1);
++      }
++      if (!mLayerManager) {
++        // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
++        // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
++        mLayerManager = CreateBasicLayerManager();
++      }
+     } else {
+       mLayerManager = new ClientLayerManager(this);
+     }
+@@ -782,6 +798,76 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
+ // C entry points for the frozen-API render daemon. Exported from libxul so the
+ // daemon (which cannot see internal classes like PuppetWidget) can create an
+ // offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
++/* static */ bool
++PuppetWidget::JihadGpuCompositor()
++{
++  static const bool sOn = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  return sOn;
++}
++
++bool
++PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
++                             int aWidth, int aHeight)
++{
++  if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return false;
++  }
++  nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++  if (!presShell) {
++    return false;
++  }
++  presShell->FlushPendingNotifications(Flush_Layout);
++  nsViewManager* vm = presShell->GetViewManager();
++  nsView* root = vm ? vm->GetRootView() : nullptr;
++  nsIWidget* viewWidget = root ? root->GetWidget() : nullptr;
++  if (!viewWidget) {
++    return false;
++  }
++  // The view's widget is the CHILD PuppetWidget nsView::CreateWidgetForParent made; it shares
++  // this widget's layer manager (PuppetWidget::Create). A BasicLayerManager here means the
++  // compositor was never created: not this path.
++  LayerManager* lm = viewWidget->GetLayerManager();
++  ClientLayerManager* clm = lm ? lm->AsClientLayerManager() : nullptr;
++  if (!clm) {
++    return false;
++  }
++  mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
++  // 1. The layer tree: the root view's frames painted into layers and forwarded to the
++  //    compositor (which also composites on its own vsync; the snapshot below is the frame
++  //    the daemon keeps, so that one is wasted work to remove once the spike has its number).
++  nsRegion dirty(root->GetDimensions());
++  presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
++  mozilla::TimeStamp t1 = mozilla::TimeStamp::Now();
++  // 2. The snapshot: an empty transaction with a target makes the client ask the compositor
++  //    (sync IPC on the compositor thread) to compose into a shared surface, then draw that
++  //    surface into our target: CompositorOGL::EndFrame -> CopyToTarget -> glReadPixels.
++  RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++      BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++      IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++  if (!dt || !dt->IsValid()) {
++    return false;
++  }
++  dt->FillRect(mozilla::gfx::Rect(0, 0, aWidth, aHeight),
++               mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
++  RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++  if (!ctx) {
++    return false;
++  }
++  bool ok = false;
++  if (clm->BeginTransactionWithTarget(ctx)) {
++    ok = clm->EndEmptyTransaction();
++  }
++  mozilla::TimeStamp t2 = mozilla::TimeStamp::Now();
++  static uint32_t sFrames = 0;
++  if (sFrames < 100 || (sFrames % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] frame %u: layers %.1f ms, compose+readback %.1f ms, ok=%d, compositor backend %d\n",
++            sFrames, (t1 - t0).ToMilliseconds(), (t2 - t1).ToMilliseconds(), (int)ok,
++            (int)clm->GetCompositorBackendType());
++  }
++  ++sFrames;
++  return ok;
++}
++
+ // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
+ extern "C" {
+ 
+@@ -969,6 +1055,20 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+   return true;
+ }
+ 
++// T-502: paint the document as layers and fetch the frame the in-process compositor composes,
++// into aDest (B8G8R8A8, aStride bytes per row). False when the widget has no compositor (the
++// CPU exports above are then the path), or nothing is laid out yet.
++MOZ_EXPORT bool
++jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
++                        int aWidth, int aHeight)
++{
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeTo(aDocShell, aDest, aStride,
++                                                             aWidth, aHeight);
++}
++
+ // Composite every OPEN XUL popup over an already-painted buffer.
+ //
+ // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
+@@ -1746,8 +1846,12 @@ PuppetWidget::Paint()
+ #endif
+ 
+     if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {
+-      // Do nothing, the compositor will handle drawing
+-      if (mTabChild) {
++      if (JihadOffscreen()) {
++        // Jihad T-502: no TabChild drives painting here; paint the layer tree (a transaction
++        // forwarded to the in-process compositor). JihadComposeTo fetches the frame.
++        GetCurrentWidgetListener()->PaintWindow(this, region);
++      } else if (mTabChild) {
++        // Do nothing, the compositor will handle drawing
+         mTabChild->NotifyPainted();
+       }
+     } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 6d3c680c7b..48e63dd2e6 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -268,6 +268,18 @@ public:
+     return true;
+   }
+ 
++  // --- Jihad T-502: the GPU compositor spike ---
++  // With JIHAD_GPU_COMPOSITOR in the environment the offscreen widget creates an IN-PROCESS
++  // compositor (nsBaseWidget::CreateCompositor: CompositorOGL on an EGL pbuffer when
++  // MOZ_LAYERS_PREFER_OFFSCREEN is set) behind a ClientLayerManager, instead of painting on
++  // the CPU through a BasicLayerManager. A frame is then painted as layers (PresShell::Paint on
++  // the root view) and fetched over the upstream snapshot road: BeginTransactionWithTarget +
++  // EndEmptyTransaction -> SendMakeSnapshot (sync) -> ForceComposeToTarget -> glReadPixels into
++  // a shared surface the client draws into our target. Nothing below the export is ours.
++  static bool JihadGpuCompositor();
++  bool JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
++                      int aWidth, int aHeight);
++
+   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
+ 
+   void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
+@@ -411,6 +423,7 @@ private:
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
+   bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
++  bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
+   // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
+   // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a
+   // full repaint, and must keep working unchanged if the rect is ignored.

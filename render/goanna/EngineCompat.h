@@ -45,6 +45,11 @@ extern "C" {
   bool jihad_offscreen_render_region(nsIWidget* aWidget, nsIDocShell* aDocShell, double aZoom,
                                      double aDocX, double aDocY, void* aDest, int aStride,
                                      int aWidth, int aHeight) __attribute__((weak));
+  // OPTIONAL (T-502, the GPU compositor spike, patch 0040): paint the document as layers and
+  // fetch the frame the in-process compositor composes (JIHAD_GPU_COMPOSITOR in the daemon's
+  // environment). Fallback: the CPU exports above.
+  bool jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
+                               int aStride, int aWidth, int aHeight) __attribute__((weak));
   // OPTIONAL (patch 0012): the sticky content-invalidation flag, and its damage rectangle.
   // Fallback: input/load-driven paints, whole-viewport repaints — slower, never wrong.
   bool jihad_offscreen_take_dirty(nsIWidget* aWidget) __attribute__((weak));
@@ -88,6 +93,7 @@ inline void ReportEngineExports() {
   struct Opt { const char* name; bool present; };
   const Opt opts[] = {
     {"jihad_offscreen_render_region", jihad_offscreen_render_region != nullptr},
+    {"jihad_offscreen_compose", jihad_offscreen_compose != nullptr},
     {"jihad_offscreen_take_dirty", jihad_offscreen_take_dirty != nullptr},
     {"jihad_offscreen_take_dirty_rect", jihad_offscreen_take_dirty_rect != nullptr},
     {"jihad_offscreen_composite_popups", jihad_offscreen_composite_popups != nullptr},

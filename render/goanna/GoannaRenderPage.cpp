@@ -618,6 +618,17 @@ bool GoannaRenderPage::Create(int width, int height) {
 #ifdef JIHAD_OFFSCREEN_ONLY
   mOffscreen = true;   // device build: no GTK on-screen fallback exists
 #endif
+  // T-502, the GPU compositor spike: the frame comes from the engine's in-process compositor
+  // (jihad_offscreen_compose) instead of RenderDocument on the CPU. Needs the env in the
+  // daemon's environment (with JIHAD_DISABLE_OMTC unset, MOZ_LAYERS_PREFER_OFFSCREEN=1) and a
+  // libxul with the export; otherwise the software path, unchanged.
+  mGpu = mOffscreen && getenv("JIHAD_GPU_COMPOSITOR") && jihad_offscreen_compose != nullptr;
+  if (getenv("JIHAD_GPU_COMPOSITOR")) {
+    fprintf(stderr, "[jihad-gpu] daemon frame path: %s (jihad_offscreen_compose %s, OMTC %s)\n",
+            mGpu ? "compositor" : "software",
+            jihad_offscreen_compose ? "present" : "absent in this libxul",
+            getenv("JIHAD_DISABLE_OMTC") ? "DISABLED by JIHAD_DISABLE_OMTC" : "on");
+  }
   RefPtr<PageChrome> chrome = new PageChrome(width, height);
 
   nsCOMPtr<nsIWebBrowser> wb = mHost.CreateBrowser();
@@ -4415,6 +4426,7 @@ int GoannaRenderPage::CompositePopups(unsigned char* dst, int stride, int w, int
 bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h,
                                     double docX, double docY, double zoom) {
   if (!mOffscreen || !dst || w <= 0 || h <= 0) return false;
+  if (mGpu) return false;   // T-502: the spike composes the viewport only (ReadPixels)
   if (!jihad_offscreen_render_region) return false;   // old libxul: weak symbol absent
   if (!mChrome || !mChrome->mBrowser) return false;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
@@ -4438,9 +4450,14 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
     if (dstBytes < (size_t)w * h * 4) return -1;
     // Render the document into the widget's DrawTarget via the presShell (the widget
     // Paint() path does not paint embedded content into our offscreen widget -> black).
+    bool composed = false;
     if (mChrome && mChrome->mBrowser) {
       nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-      if (ds) {
+      if (ds && mGpu) {
+        // T-502: the compositor's frame straight into dst (the layers are painted inside).
+        if (!jihad_offscreen_compose(mWidget, ds, dst, w * 4, w, h)) return -1;
+        composed = true;
+      } else if (ds) {
         // Flush layout BEFORE rendering. A paint triggered right after load-done (or any
         // time reflow is still pending) otherwise captures un-laid-out content -> a blank
         // frame, and the card stays black until a later resize/refocus forces a repaint
@@ -4455,7 +4472,7 @@ long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {
       }
     }
     // PuppetWidget's DrawTarget is B8G8R8A8 == the ARGB32 LE (B,G,R,A) shmem layout.
-    if (!jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;
+    if (!composed && !jihad_offscreen_readback(mWidget, dst, w * 4, w, h)) return -1;
     long nonblank = 0;
     for (int i = 0; i < w * h; ++i) {
       unsigned char* o = dst + (size_t)i * 4;   // B,G,R,A

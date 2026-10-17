@@ -483,6 +483,7 @@ private:
   GtkWidget* mWindow;      // legacy desktop path (GTK offscreen window)
   nsIWidget* mWidget;      // JIHAD_OFFSCREEN path (memory-backed PuppetWidget)
   bool mOffscreen;         // true when rendering via the offscreen widget
+  bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
   int mWidth;
   int mHeight;
   int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)

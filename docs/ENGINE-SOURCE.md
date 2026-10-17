@@ -13,7 +13,7 @@ available is met.
   `RB_20261006` (`5f290d1097a8350b56ce2092aa9d5fc9147c6661`, 2026-10-04) — `UXP_TAG` / `UXP_BASE` in
   `build/engine/engine-version.env`. (Until 2026-10-12: master `b2594a4`, 2026-06-30.)
 - **Our modified engine:** the branch `jihad/uxp-RB_20261006` of the fork `NotAlexNoyle/UXP-Jihad`,
-  at `UXP_PIN` (`706d4782ba2cfc16d4e35df79475ccdce924accd`), present in this repository as the
+  at `UXP_PIN` (`fdf7c45d47dbf3b176d199acdb8b26d55f7d6301`), present in this repository as the
   submodule `third_party/uxp`. The device build compiles that tree.
 - **The modifications as patches:** `build/desktop/patches/` holds every change as a patch
   against `UXP_BASE`. `build/engine/patch-queue.sh --check` proves the patches, applied in
@@ -65,6 +65,7 @@ modifications; the same changes are the commits of `jihad/uxp-RB_20261006`, one 
 | `0037-plugins-an-instance-with-no-window-to-be-given-is-wi.patch` | `dom/plugins/base/nsPluginInstanceOwner.cpp` | A plugin instance with no window is windowless instead of a null dereference |
 | `0038-plugin-container-do-not-hand-the-bundled-library-pat.patch` | `ipc/contentproc/plugin-container.cpp` | plugin-container does not hand the bundled library path to what the plugin runs |
 | `0039-addons-an-add-on-naming-both-the-AppCompat-GUID-and-.patch` | `toolkit/mozapps/extensions/internal/XPIProvider.jsm` | XPIProvider: an add-on naming the AppCompat GUID and the toolkit matches the entry that fits |
+| `0040-gpu-compositor-spike-an-in-process-OpenGL-compositor-.patch` | `gfx/thebes/gfxPlatform.cpp`, `gfx/thebes/gfxPlatformHeadless.cpp`, `gfx/thebes/gfxPlatformHeadless.h`, `widget/PuppetWidget.cpp`, `widget/PuppetWidget.h` | T-502: with `JIHAD_GPU_COMPOSITOR` set, an in-process OpenGL compositor (EGL pbuffer) behind the offscreen widget; `jihad_offscreen_compose` paints the layers and fetches the composited frame; the env counts as the acceleration force pref; nothing changes without it |
 
 ### Branding strip (cavekit-licensing-branding R3) — patch 0010
 

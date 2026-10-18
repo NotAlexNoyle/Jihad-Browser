@@ -11,7 +11,8 @@ below are the subset that matters for the browser port; when in doubt defer to w
 Jihad Browser is a fork of **isis-browser** (webOS 3 / HP TouchPad) that swaps the QtWebKit
 render engine for **UXP/Goanna** (an ESR52-derived, MPL-2.0 Gecko fork), while keeping the
 isis UI and the **BrowserAdapter↔BrowserServer YAP IPC contract byte-identical**. Target:
-HP TouchPad (topaz/tenderloin) + TouchPad Go (opal), webOS 3.0.5, ARMv7l. The goal is to
+HP TouchPad (topaz/tenderloin) + TouchPad Go (opal), ARMv7l, on webOS 3.0.5 and webOS CE 3.1.0
+(the one test bench ran 3.0.5 and was updated to CE 3.1.0; stock-only work waits for the owner). The goal is to
 **seriously compete with Atlas Browser** (which uses a modern WPE/WebKit backend); no janky
 shortcuts. **Must run on as little as 512 MB RAM** — memory is the #1 constraint. Heavy modern
 pages were seen rendering fully then degrading to near-blank as surface/layer memory is evicted,

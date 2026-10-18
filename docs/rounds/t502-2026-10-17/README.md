@@ -45,3 +45,19 @@ env), T-499's pref line removed from the profile again.
   (`CompositingRenderTargetOGL::IsWindow()`); bundle `1cb9d1dd` is on the Enyo card. Still a
   temporary commit on top of 0040/0041, not yet folded into the patch queue (pins disagree).
 - With `JIHAD_GPU_NO_WORLD=1` (run 32) the adapter saw only white frames; unexplained, one run.
+
+## Rounds 90-98 (2026-10-18): the compositor-side scroll, and what the frame dumps showed
+
+- `pan-*.jpg`, `pan-*-frame-<n>.jpg`, `pan-*-daemon-gpu.log`: scripted pans (`pan-run.sh`). The
+  `long-async`, `long-bands*`, `bisect-*` rounds reported 17-25 fps from screenshots; the dumps
+  (`pan-bisect-twoband-frame-*.jpg`, `pan-long-band7-frame-*.jpg`) show the content jumping only at
+  the engine's anchor moves and the entering band repeated between them. `verify2-before.jpg`,
+  `verify2-at.jpg`, `verify2-slot.jpg`: the compositor's whole frames pinned at y=126 and y=198 are
+  identical (the page top): the async scroll was not applied.
+- Causes, in the order found: the displayport call had failed on every round (`rv 0x80004005`);
+  without APZ the root scroll frame got no scroll metadata (`nsDisplayList::PaintRoot`); the world
+  zoom put the root through a viewport-sized intermediate surface (`HasNonIntegerTranslation()` is
+  true for a scale). The fixes are in engine patch 0042; the account is in
+  `docs/RENDERING-OPTIONS.md` ("T-502", the corrected account).
+- `dp*-*`: after the displayport and metadata fixes (content moving, header missing, 13-18 fps);
+  `ns-*`: after the surface fix.

@@ -521,6 +521,8 @@ public:
   void SetGpuView(double zoom, double offX, double offY);
   // T-502: the card's scroll for the compositor (CSS px); false when the engine export is absent
   bool SetGpuScroll(double x, double y, bool valid);
+  bool GpuDisplayPortOk() const { return mGpuDpOk; }   // T-502: the displayport is set on the current document
+  bool mGpuDpOk = false;
 private:
   int mWidth;
   int mHeight;

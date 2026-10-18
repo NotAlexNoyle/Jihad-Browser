@@ -881,10 +881,11 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
   static const bool sEngineScroll = getenv("JIHAD_GPU_ENGINE_SCROLL") != nullptr;
   if (!sEngineScroll) {
     // The compositor-side scroll: the engine stays where it was painted while the card's scroll
-    // is within the displayport painted around that anchor (SetGpuViewport: half a width and a
-    // whole height of margin), and is moved, early, when it nears the edge; the compositor
+    // is within the displayport painted around that anchor (SetGpuViewport: half a width and
+    // 1.25 heights of margin), and is moved, early, when it nears the edge; the compositor
     // applies the difference to the root scroll frame's content.
-    const double marginX = (mPage->Width() * 0.5 / z) * 0.7, marginY = (mPage->Height() / z) * 0.7;
+    // 0.6 of the displayport's 1.25 heights (SetGpuViewport): the rest is the paint's slack
+    const double marginX = (mPage->Width() * 0.5 / z) * 0.6, marginY = (mPage->Height() / z) * 0.6;
     if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
       mPage->ScrollTo((int)wantX, (int)wantY);
       int sx = 0, sy = 0;
@@ -915,7 +916,8 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
-    // T-502: the engine scrolls (CSS px = zoomed px over the zoom), the compositor follows.
+    // T-502: the compositor applies the card's scroll (CSS px = zoomed px over the zoom);
+    // the engine is scrolled only to re-anchor the displayport (gpuScrollTo).
     double zg = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
     mAdapterScrollX = x; mAdapterScrollY = y;
     mPage->SetRenderPan(0.0, 0.0);
@@ -1035,6 +1037,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
     // displayport is an empty transaction plus a composite.
     if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false; }
+    else if (!mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // until the document takes it
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, z);
     mNeedsPaint = true;
@@ -3278,9 +3281,28 @@ int BrowserPageGoanna::keyAfter(int key) const {
 // T-502: start a frame into a slot. The read is the band that slot's frame has fallen behind by
 // (every composite's change is added to the other slots), or the whole frame when the slot was
 // composed for other geometry (a scroll, a zoom, a resize) or never.
+// JIHAD_GPU_WHITE=1 (device rounds): the runs of pure-white rows of a frame (three samples a
+// row; the page's own background is never pure white), to see where blank rows enter a slot
+static std::string jihadWhiteRuns(const unsigned char* px, int w, int h) {
+  std::string out; int n = 0;
+  auto white = [&](int r) {
+    const unsigned char* row = px + (size_t)r * w * 4;
+    for (int x : { w / 8, w / 2, w - w / 8 }) { const unsigned char* p = row + (size_t)x * 4; if (!(p[0] == 255 && p[1] == 255 && p[2] == 255)) return false; }
+    return true;
+  };
+  for (int r = 0; r < h; ) {
+    if (!white(r)) { ++r; continue; }
+    int r0 = r; while (r < h && white(r)) ++r;
+    if (n++ < 6) { char b[32]; snprintf(b, sizeof b, " %d..%d", r0, r); out += b; }
+  }
+  if (!n) out = " none";
+  return out;
+}
+
 bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
   long sLo = 0, sHi = h, s2Lo = 0, s2Hi = 0, shift = 0;   // whole, unless the slot's frame is still good
-  if (slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
+  static const bool sWhole = getenv("JIHAD_GPU_WHOLE") != nullptr;   // device rounds: every frame read whole
+  if (!sWhole && slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h) {
     const long dy = (long)y - mGpuSlotY[slot];   // the card's scroll since this slot's frame, frame rows
     if (dy == 0) {
@@ -3323,6 +3345,9 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
               zoom, slot >= 0 ? mGpuSlotZoom[slot] : 0.0, w, slot >= 0 ? mGpuSlotW[slot] : -1, h, slot >= 0 ? mGpuSlotH[slot] : -1,
               mGpuFixedLo, mGpuFixedHi);
   }
+  static const bool sWhiteLog = getenv("JIHAD_GPU_WHITE") != nullptr;
+  if (sWhiteLog) fprintf(stderr, "[jihad-gpu] white before job: slot %d (y %d -> %d, shift %ld, bands %ld..%ld %ld..%ld): rows%s\n",
+                         slot, slot >= 0 ? mGpuSlotY[slot] : -1, y, shift, sLo, sHi, s2Lo, s2Hi, jihadWhiteRuns(pixels, w, h).c_str());
   const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift);
   if (!token) return false;
   GpuJob j;
@@ -4056,6 +4081,11 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
         mGpuJobs.erase(mGpuJobs.begin());
         nb = r;
+        {
+          static const bool sWhiteLog2 = getenv("JIHAD_GPU_WHITE") != nullptr;
+          if (sWhiteLog2 && r >= 0) fprintf(stderr, "[jihad-gpu] white after job: slot %d (y %d, shift %ld, read %ld..%ld %ld..%ld): rows%s\n",
+                                            gslot, oldest.y, oldest.shift, cr.readLo, cr.readHi, cr.read2Lo, cr.read2Hi, jihadWhiteRuns(pixels, w, h).c_str());
+        }
         if (oldest.shift && r >= 0) mPage->CleanRows(pixels, 0, h);   // the shifted rows: the compositor thread's writes
         mGpuDoneMs = jihadNowMs();
         // A request that arrived while the frame was in flight (the animation asking for its
@@ -4089,6 +4119,82 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuFinished = true;
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = oldest.y; mGpuJobZoom = oldest.zoom;
+          // JIHAD_GPU_VERIFY=1 (device rounds): after a partial job, the same frame composed whole
+          // into scratch and compared row by row; the runs of rows that differ are logged, so a
+          // wrong shift, band or header shows as such
+          static const bool sVerify = getenv("JIHAD_GPU_VERIFY") != nullptr;
+          if (sVerify && (oldest.askHi - oldest.askLo < h || oldest.shift)) {
+            static std::vector<unsigned char> sScratch;
+            const size_t bytes = (size_t)w * h * 4;
+            if (sScratch.size() < bytes) sScratch.resize(bytes);
+            // the whole composite at the JOB's scroll (the pan has moved on since), then the
+            // card's current scroll again
+            const double vz = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+            mPage->SetGpuScroll(oldest.x / vz, oldest.y / vz, true);
+            const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0);
+            int r2 = -1;
+            if (vt) {
+              GoannaRenderPage::ComposeResult vr;
+              const int64_t t0 = jihadNowMs();
+              while ((r2 = mPage->ComposePoll(vt, sScratch.data(), &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
+              if (r2 <= -2) mPage->ComposeForget(vt);
+            }
+            mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
+            if (r2 >= 0) {
+              std::string runs; int nRuns = 0, bad = 0;
+              for (int r = 0; r < h; ) {
+                if (memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) == 0) { ++r; continue; }
+                int r0 = r;
+                while (r < h && memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) != 0) ++r;
+                bad += r - r0;
+                if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
+              }
+              fprintf(stderr, "[jihad-gpu] verify slot %d (y %d, shift %ld, bands %ld..%ld %ld..%ld): %d rows differ in %d runs:%s%s\n",
+                      gslot, oldest.y, oldest.shift, oldest.askLo, oldest.askHi, oldest.ask2Lo, oldest.ask2Hi, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "");
+            } else {
+              fprintf(stderr, "[jihad-gpu] verify: the whole composite did not finish (%d)\n", r2);
+            }
+            // verify 2: the compositor against itself. The whole frame at (y - shift), shifted
+            // by the job's shift the way the slot was, against the whole frame at y: equal rows
+            // mean the content moves one frame row per card px, so a slot shifted right would
+            // match; rows that differ mean the compositor's scroll is not the card's.
+            if (r2 >= 0 && oldest.shift > 0 && oldest.shift < h) {
+              static std::vector<unsigned char> sBefore;
+              if (sBefore.size() < bytes) sBefore.resize(bytes);
+              mPage->SetGpuScroll(oldest.x / vz, (oldest.y - oldest.shift) / vz, true);
+              const uint32_t vt2 = mPage->ComposeStart(sBefore.data(), bytes, 0, h, 0, 0, 0);
+              int r3 = -1;
+              if (vt2) {
+                GoannaRenderPage::ComposeResult vr2;
+                const int64_t t0 = jihadNowMs();
+                while ((r3 = mPage->ComposePoll(vt2, sBefore.data(), &vr2)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
+                if (r3 <= -2) mPage->ComposeForget(vt2);
+              }
+              mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
+              if (r3 >= 0) {
+                const size_t stride = (size_t)w * 4;
+                std::string runs; int nRuns = 0, bad = 0;
+                for (int r = 0; r + oldest.shift < h; ) {
+                  if (memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, sScratch.data() + (size_t)r * stride, stride) == 0) { ++r; continue; }
+                  int r0 = r;
+                  while (r + oldest.shift < h && memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, sScratch.data() + (size_t)r * stride, stride) != 0) ++r;
+                  bad += r - r0;
+                  if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
+                }
+                fprintf(stderr, "[jihad-gpu] verify2 (whole at %d shifted %ld vs whole at %d): %d rows differ in %d runs:%s%s\n",
+                        oldest.y - (int)oldest.shift, oldest.shift, oldest.y, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "");
+                // JIHAD_GPU_VERIFY_DUMP=<n>: the nth pair written raw (BGRA) for a look by eye
+                static const long sDumpAt = getenv("JIHAD_GPU_VERIFY_DUMP") ? atol(getenv("JIHAD_GPU_VERIFY_DUMP")) : 0;
+                static long sPair = 0;
+                if (sDumpAt > 0 && ++sPair == sDumpAt) {
+                  FILE* f1 = fopen("/tmp/v2-before.raw", "wb"); if (f1) { fwrite(sBefore.data(), 1, bytes, f1); fclose(f1); }
+                  FILE* f2 = fopen("/tmp/v2-at.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  FILE* f3 = fopen("/tmp/v2-slot.raw", "wb"); if (f3) { fwrite(pixels, 1, bytes, f3); fclose(f3); }
+                  fprintf(stderr, "[jihad-gpu] verify2 pair %ld dumped: whole at %d, whole at %d, the slot (shift %ld)\n", sPair, oldest.y - (int)oldest.shift, oldest.y, oldest.shift);
+                }
+              }
+            }
+          }
         }
       }
     } else {

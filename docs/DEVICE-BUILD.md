@@ -101,7 +101,7 @@ here, not assumed identical.
 | ABI / tune | ARMv7 softfp, `armv7a-neon` | ARMv7 softfp, `armv7a-neon` | **yes** |
 | Kernel | `2.6.35-palm-tenderloin` (verified) | `2.6.35-palm-shortloin` (pinned 2026-08-15) | family |
 | Board / product name | board `tenderloin`, product `topaz` | board **`shortloin`**, product `opal` | — |
-| webOS | 3.0.5 | 3.0.5 | yes |
+| webOS | 3.0.5 or CE 3.1.0 | 3.0.5 or CE 3.1.0 | yes |
 
 ### What differs vs what is shared
 
@@ -110,7 +110,7 @@ here, not assumed identical.
   scales to at runtime (`MACHINE_DPI` in each conf); it does not change any binary.
 - **Shared (identical artifacts):** the resolution (1024×768 → same render buffer + adapter
   shmem contract), the APQ8060 SoC family, the ARMv7 **softfp** ABI (`-march=armv7-a
-  -mfpu=neon -mfloat-abi=softfp`), and webOS 3.0.5. Consequently **all four artifact
+  -mfpu=neon -mfloat-abi=softfp`), and webOS (3.0.5 or CE 3.1.0). Consequently **all four artifact
   classes are model-agnostic**:
   - `libxul.so` (goanna) — one softfp binary, `COMPATIBLE_MACHINE = (tenderloin|opal)`.
   - `jihad-browserserver` (daemon) — one softfp binary, `COMPATIBLE_MACHINE = (tenderloin|opal)`.

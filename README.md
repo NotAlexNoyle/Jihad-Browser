@@ -22,7 +22,7 @@ settings out in their panes, and has an add-on site of its own built on Phoebus,
 family's sites run.
 
 It installs next to the stock browser and changes nothing else on the device. It is written for
-webOS 3 as a whole and built and tested on the TouchPad and TouchPad Go. It exists because people
+webOS 3 as a whole, built for the TouchPad and TouchPad Go and tested on the TouchPad. It exists because people
 kept webOS going long after 2011 — webOS Internals, Preware, PivotCE, webOS Ports, the webOS Archive,
 Herrie82's TLS work, webOS CE 3.1.0 — and this is one more piece of that.
 
@@ -161,7 +161,8 @@ distribution, what each step fetches, and the OpenEmbedded and desktop routes ar
 Everything above is measured on a TouchPad; the rest of this list is what it does not do yet, or
 does with a catch. Site by site, with causes and what was tried: `docs/MODERN-WEB.md`.
 
-- **Only the TouchPad and TouchPad Go** have been tested. Other webOS 3 devices should work and have
+- **Only the TouchPad** has been tested in hand (on webOS 3.0.5, then webOS CE 3.1.0); the TouchPad Go runs the
+  same binaries at the same resolution and is covered by that equivalence, not by a device test. Other webOS 3 devices should work and have
   not been tried.
 - **The TLS fix covers Jihad only.** The stock browser, Mail and the system services still use the
   device's own OpenSSL; the [webOS Archive guide](https://docs.webosarchive.org/site/modern-tls/)

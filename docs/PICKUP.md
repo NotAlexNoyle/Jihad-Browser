@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-17 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-18 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -72,20 +72,43 @@ the bundle built from that tree (`116788fa`: animation page 21-26 fps, scroll pa
 branch was fast-forwarded into `main` (the only permanent branch). The owner pushes `main` and
 force-pushes the engine fork's `jihad/uxp-RB_20261006` (its history was rewritten by the fold).
 
-**2026-10-18, later:** the compositor-side scroll is in (engine patch 0042, `gpuScrollTo` in the
-daemon with an anchor, `JIHAD_GPU_ENGINE_SCROLL` restores the old per-step engine scroll); a
-scripted pan (`inject "pan y0 y1 ms"`, `tools/device/t502/pan-run.sh`) runs at 17-20 fps with
-the header still. `docs/RENDERING-OPTIONS.md` "T-502" has the paragraph.
+**2026-10-18, later (corrected):** the compositor-side scroll is in (engine patch 0042 with the
+two-band reads, the band-sized target and the displayport/metadata/surface fixes;
+`gpuScrollTo` in the daemon with an anchor; `JIHAD_GPU_ENGINE_SCROLL` restores the per-step
+engine scroll). The 17-25 fps pans reported earlier that day were frames whose content moved
+only at engine anchor moves; `docs/RENDERING-OPTIONS.md` "T-502" has the corrected account and
+the three causes. Verify a pan ONLY with `tools/device/t502/pan-run.sh` (mid-pan frame dumps)
+and `JIHAD_GPU_VERIFY=1`; never with a screenshot (the adapter's view does not move in a
+scripted pan). The numbers after the surface fix (rounds 95-100, bundle `574ff024`+glFinish): band target
+21-25 fps, whole reads 19 fps, header still and at rows 0..44, the compositor's whole frames at a
+pinned scroll correct (`verify2b-*.jpg`).
 
-**Left, in order:** (0) two-band reads for pans (the fixed rows and the entering band, the slot's
-other rows shifted in place); (1) was the compositor-side scroll (the scroll offset applied in the compositor
-inside the painted displayport, fixed layers kept still through `AsyncCompositionManager`; the
-engine scrolled only when the offset leaves the displayport), (2) a fourth shared buffer for the
-two-deep frame queue, (3) a damage rectangle in the frame header so the adapter invalidates and
-LunaSysMgr uploads only the band, (4) option 2 (WebGL through EGL), (5) prune the `[jihad-gpu]`
-diagnostics that remain in the engine (bounded, cheap). The device: the Enyo card carries the
-probing adapter (stock as `BrowserAdapterImpl.so.orig`); Mochi and Mojo untouched; host servers
-8077/8078 still running.
+**THE OPEN BUG (read first):** about one composite in five comes back **white from frame row 484
+to 942** at any scroll (36 of 188 whole reads; `JIHAD_GPU_WHITE=1` logs the runs per job). Every
+composite's geometry is verified (`BeginFrame` log: render bounds, target and clip 768x942, no
+stray composites), a `glFinish` before the read (now default, 19 ms) changes nothing, the top 484
+rows are correctly placed, the row is scroll-independent, and 942-484 = 458 = 1400-942 (the
+pbuffer height minus the frame's). So the lower part of the frame is not DRAWN in those
+composites. Those white rows enter a slot as a band and then shift upward as a block (the
+gaps in `pan-*-frame-*.jpg`). Next: dump the target of a white whole frame AND the one before it
+(`JIHAD_GPU_DUMP_TARGET` fires on the first white pan frame; extend it to keep the previous
+composite), look at the compositor's per-layer draw for that frame (tiles drawn, the scissor of
+each draw, `CalculateScissorRect` results), and try `JIHAD_GPU_SURFACES=1` and the 1100x1400
+renderbuffer replaced by a 768x942 one (`mJihadPbSize` vs the frame: the 458 is suggestive).
+Until it is found the band path keeps old white rows; the whole-read path (`JIHAD_GPU_WHOLE=1`)
+shows one bad frame in five and is otherwise right.
+
+
+**Left, in order:** (1) the pan's numbers after the intermediate-surface fix, verified by the
+frame dumps and `JIHAD_GPU_VERIFY=1`, then the owner's finger test of a real pan (the entry is in
+`docs/FINGER-TESTS.md`); (2) the daemon's poll latency on the band path (the job finishes in one
+compositor pass, so the two-deep queue never overlaps: start the next job in the same tick while a
+pan is in flight, a 2 ms tick while a GPU job is pending); (3) a fourth shared buffer for the
+two-deep frame queue; (4) a damage rectangle in the frame header so the adapter invalidates and
+LunaSysMgr uploads only the band; (5) option 2 (WebGL through EGL); (6) prune the `[jihad-gpu]`
+diagnostics that remain in the engine and the daemon (bounded, cheap; the verify mode and the
+dumps stay, they are the test). The device: the Enyo card carries the probing adapter (stock as
+`BrowserAdapterImpl.so.orig`); Mochi and Mojo untouched; host servers 8077/8078 still running.
 
 
 **The owner, this morning:** the rendering report (the Claude doc "Jihad rendering options: speed
@@ -158,11 +181,13 @@ compose 1.4–4.6 ms, read 7–17 ms, **17–24 fps on the animation page** (`sp
 220 takes whole-texture uploads: `GLRenderer::AdrenoTM220`, `CanUploadSubTextures` false), the
 read forces alpha and the daemon samples the nonblank count; 20–31 fps on the animation page. The
 compositor path now scrolls through the ENGINE at every zoom (`setZoomAndScroll` /
-`setScrollPosition` GPU branches, no render pan) with a displayport of a viewport up and down
-(`SetGpuViewport`): a scroll inside it is an empty transaction (0.2 ms) plus a composite, 21–24 fps
-on `jihad-scroll-js.html`. THE TRAP: `nsIDOMWindowUtils::setResolutionAndScaleTo` and
+`setScrollPosition` GPU branches, no render pan) meant to run inside a displayport of a viewport up and
+down (`SetGpuViewport`) — found on 2026-10-18 to have failed on every round (`rv 0x80004005`), so
+the engine painted the viewport only; the 21–24 fps on `jihad-scroll-js.html` were per-step engine
+scrolls with viewport-sized paints. THE TRAP: `nsIDOMWindowUtils::setResolutionAndScaleTo` and
 `setScrollPositionClampingScrollPortSize` each black the whole frame on this path (bisected with
-`JIHAD_GPU_NO_RESOLUTION` / `JIHAD_GPU_NO_CLAMP`; the displayport alone is fine), so the zoom is a
+`JIHAD_GPU_NO_RESOLUTION` / `JIHAD_GPU_NO_CLAMP`; the displayport was in truth never set, see
+2026-10-18; the resolution route is untested since the y-flip and surface fixes), so the zoom is a
 WORLD TRANSFORM on the compositor's tree (`jihad_offscreen_set_view(widget, scale, offX, offY)` →
 `LayerManagerComposite::JihadSetWorldTransform`, applied in `ComputeEffectiveTransforms`). The
 residual visual offset (a pinch-in pan past the layout viewport) is passed as 0 until wired; the

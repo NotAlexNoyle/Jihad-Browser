@@ -2,7 +2,8 @@
 
 The report the owner reads is the Claude doc "Jihad rendering options: speed comparison"; this page
 keeps the measurements in the repository with the tools that took them. Every number is from the
-TouchPad (webOS 3.0.5, APQ8060, Adreno 220).
+TouchPad (webOS CE 3.1.0 — the bench since the CE loop of 2026-10-01, 3.0.5 before — APQ8060,
+Adreno 220).
 
 ## The software pipeline as it runs (the daemons' logs, 1958 paints since a boot)
 
@@ -182,17 +183,44 @@ the adapter), a damage rectangle in the frame header so the adapter invalidates 
 uploads only the band, then option 2 (WebGL through EGL). The diagnostics in the engine
 (`[jihad-gpu]` lines, the first N of each) are still in and cheap; prune them with the fold.
 
-**2026-10-18, the compositor-side scroll (patch 0042, round 90):** the daemon sends the card's
-scroll to the compositor (`jihad_offscreen_set_scroll`), which applies the difference to the
-engine's own scroll as an async transform on the root scroll frame's content with the fixed
-layers aligned (the APZ path without APZ); the engine is scrolled only when the card's scroll
-nears the edge of the painted displayport (every ~840 CSS px at this zoom). A scripted finger pan
-(`inject "pan 0 3000 10000"`, `tools/device/t502/pan-run.sh`, `jihad-long-static.html`) runs at
-**17–20 fps** with no content uploads between anchor moves (the header still, the content
-right: `docs/rounds/t502-2026-10-17/pan-long-async.jpg`); the frame is a compose and a whole
-942-row read (~50 ms a job, two in flight). The script-driven scroll page is unchanged (its
-`window.scrollTo` is a main-thread scroll). Next for pans: two-band reads (the fixed rows and the
-entering band) with the slot's other rows shifted in place, so a pan frame reads ~80 rows.
+**2026-10-18, the compositor-side scroll (patch 0042, rounds 90-98) — the corrected account:**
+the daemon sends the card's scroll to the compositor (`jihad_offscreen_set_scroll`), which
+applies the difference to the engine's own scroll as an async transform on the layer carrying
+the root content metrics, with `AlignFixedAndStickyLayers` keeping fixed layers still (the APZ
+path without APZ); the engine is scrolled only when the card's scroll nears the edge of the
+painted displayport (every ~840 CSS px at the fit zoom). The daemon keeps each slot's frame,
+shifts its rows by the card's scroll since (on the compositor thread, overlapping the
+composite), and asks only for the rows that entered and the rows fixed layers cover; a
+scroll-only frame (no composite request since the last one: no transaction, no animation
+step) composes those bands into a 256-row renderbuffer target and reads it back once.
+
+Rounds 90-93 reported 17-25 fps pans "with the content right" from screenshots. That was wrong:
+a scripted pan moves only the daemon's idea of the scroll (the adapter's view stays at 0), so a
+screenshot shows one frame at `renderedY=0`, and any single frame looks right. Frame dumps
+mid-pan (`JIHAD_GPU_DUMP_EVERY`) and the daemon's verify mode (`JIHAD_GPU_VERIFY=1`: the same
+frame composed whole at the job's scroll, row runs that differ logged) showed the content
+jumping only at the engine's anchor moves, with the entering band repeated between them. Three
+causes, found in that order:
+
+1. `SetDisplayPortMarginsForElement` had failed on every call since the first round (`rv
+   0x80004005`, logged and never read): no displayport, nothing painted past the viewport.
+   Replaced by `jihad_layout_set_displayport` (nsLayoutUtils.cpp, from the docshell: base rect
+   plus margins on the root scroll frame's content), retried by the daemon until the document
+   takes it.
+2. Without APZ, `nsDisplayList::PaintRoot` attaches root scroll metadata only when
+   `AsyncPanZoomEnabled`, so the compositor had no layer to move (the six early hits were
+   about:blank, which has no root scroll frame). A root scroll frame with a displayport now
+   counts like APZ there (patch 0042).
+3. `ContainerLayer::DefaultComputeEffectiveTransforms` gives a container an intermediate
+   surface when its transform "has a non-integer translation" (true for any scale) and a child
+   has a clip: under the world zoom the root rendered its children through a surface the size
+   of its visible region, one viewport — an extra full-frame pass every composite, nothing of
+   the displayport beyond the viewport (white below), and fixed-layer compensation in the
+   surface's space (the header off the frame). On the compositor's tree an axis-aligned
+   scale+translate now clips by scissor instead (`JIHAD_GPU_SURFACES=1` restores the surface).
+
+Measured after 1 and 2, before 3: 13-18 fps with the content moving and the header missing,
+composes of 17-29 ms (the surface pass). The numbers after 3 are in `docs/PICKUP.md`.
 
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is

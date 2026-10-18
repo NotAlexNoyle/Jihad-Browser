@@ -6,7 +6,8 @@ adverts and trackers, layout on 768 px, not a browser fault — and its disposit
 where), workaround, open (why), upstream (Palefill, UXP).*
 
 **Engine build for every row below:** Goanna 6.9, UXP `RB_20261006` (`jihad/uxp-RB_20261006`
-`706d4782`), daemon `06e75a68`, Palefill 1.30; webOS 3.0.5 TouchPad. Screenshots: the session's
+`706d4782`), daemon `06e75a68`, Palefill 1.30; the TouchPad on webOS CE 3.1.0 (the bench since
+the CE loop of 2026-10-01; it ran 3.0.5 before). Screenshots: the session's
 raw captures (`<shot>.png`, 1024×768 rotated to portrait) unless a `docs/screenshots/` name is
 given.
 

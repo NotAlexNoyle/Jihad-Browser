@@ -4444,7 +4444,8 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   const float z = (float)zoom;
   // The zoom is the COMPOSITOR's: a world transform on the layer tree (the engine's
   // SetResolutionAndScaleTo and SetScrollPositionClampingScrollPortSize each turned the frame
-  // black on this path, 2026-10-17 round 9). The residual visual offset is 0 until the pinch-in
+  // black on this path, 2026-10-17 round 9 — before the y-flip and intermediate-surface fixes;
+  // not retried since). The residual visual offset is 0 until the pinch-in
   // pan past the layout viewport is wired (the engine scroll reaches everything at z <= 1).
   SetGpuView(zoom, 0.0, 0.0);
   // A displayport of a viewport up and down (screen px): a scroll inside it is an empty
@@ -4455,12 +4456,28 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
   nsCOMPtr<nsIDOMDocument> doc; if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
   nsCOMPtr<nsIDOMElement> root; if (doc) doc->GetDocumentElement(getter_AddRefs(root));
-  if (root && !sNoDp) r3 = u->SetDisplayPortMarginsForElement((float)mWidth * 0.5f, (float)mHeight,
-                                                              (float)mWidth * 0.5f, (float)mHeight, root, 0);
+  // The displayport: from layout itself when the export is there. The window-utils call failed
+  // on every round before 2026-10-18 (r3 = NS_ERROR_FAILURE, logged and never read; whether the
+  // utils' window had no pres shell at the time or `root` was null was not established) and the
+  // compositor-side scroll had nothing painted beyond the viewport. The caller retries until it
+  // takes (a new document may have no pres shell yet).
+  int dp = -1;
+  // Margins: half a width sideways, 1.25 heights up and down (screen px). The daemon moves the
+  // engine's scroll at 0.6 heights from the anchor (gpuScrollTo), so a pan has 0.65 heights of
+  // painted rows in hand while the main thread paints the next displayport.
+  const float mx = (float)mWidth * 0.5f, my = (float)mHeight * 1.25f;
+  if (!sNoDp) {
+    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, mx, my, mx, my);
+    else if (root) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
+  }
+  const bool ok = dp == 0;
   static int sLogged = 0;
-  if (sLogged++ < 30)
-    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport margins (rv 0x%x)\n",
-            z, jihad_offscreen_set_view ? "compositor" : "no export", (unsigned)r3);
+  if (ok != mGpuDpOk || sLogged < 6) {
+    ++sLogged;
+    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, margins %dx%d screen px)\n",
+            z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp, (int)mx, (int)my);
+  }
+  mGpuDpOk = ok;
   return true;
 }
 

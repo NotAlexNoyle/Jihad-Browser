@@ -1,0 +1,1 @@
+chmod +x /tmp/gpu-bench; echo 100 > /sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction; cd /tmp && LD_LIBRARY_PATH=/usr/lib ./gpu-bench 6 2>&1 | grep -i "FBO(\|lock\|glReadPixels\|pbuffer\|mapped\|section 9 1 opaque"; rm -f /tmp/gpu-bench

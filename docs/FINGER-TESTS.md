@@ -18,6 +18,11 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   en.m.wikipedia.org (Mojo: the card is never left grey). (input-bridging R3/R4, mojo-ui R6)
 - [ ] Rotate the TouchPad: portrait ↔ landscape redraws the page right. (device-build R4,
   offscreen-rendering R6)
+- [ ] The GPU path (`JIHAD_GPU_COMPOSITOR=1`, Enyo only): drag-scroll a long page with a fixed
+  header (`jihad-long-static.html` on the host server) from top to bottom at a steady pace: the
+  header stays put, the text is continuous (no repeated or missing bands), nothing blank enters
+  from below, no jump every ~660 px (the engine's anchor moves). Then flick. A scripted pan cannot
+  show this: the adapter's own view does not move. (T-502; offscreen-rendering, the scroll row)
 
 ## Keyboard and text
 - [ ] Tap a field on several pages in one session: the keyboard comes up every time, and the page

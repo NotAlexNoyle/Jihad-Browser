@@ -20,24 +20,83 @@ content's whole bounds), the diff is dropped, the destination's rows are moved b
 the compositor thread, and only the bands asked for (what entered, the rows fixed and sticky
 layers cover, which the bridge reports after each composite) are composed and read.
 ---
- .../composite/AsyncCompositionManager.cpp     | 31 +++++--
- .../composite/AsyncCompositionManager.h       |  6 ++
- .../composite/LayerManagerComposite.cpp       | 12 ++-
- gfx/layers/composite/LayerManagerComposite.h  |  9 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 89 ++++++++++++++++---
- gfx/layers/ipc/CompositorBridgeParent.h       |  4 +
- gfx/layers/opengl/CompositorOGL.cpp           | 45 ++++++++--
- gfx/layers/opengl/CompositorOGL.h             |  9 +-
- widget/PuppetWidget.cpp                       | 46 +++++++---
- widget/PuppetWidget.h                         |  9 +-
- 10 files changed, 219 insertions(+), 41 deletions(-)
+ gfx/layers/Layers.cpp                         |  13 +-
+ .../composite/AsyncCompositionManager.cpp     |  54 +++++-
+ .../composite/AsyncCompositionManager.h       |   6 +
+ .../composite/LayerManagerComposite.cpp       |  12 +-
+ gfx/layers/composite/LayerManagerComposite.h  |   9 +-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 179 +++++++++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.h       |   5 +
+ gfx/layers/opengl/CompositorOGL.cpp           | 144 +++++++++++++-
+ gfx/layers/opengl/CompositorOGL.h             |  20 +-
+ layout/base/nsDisplayList.cpp                 |   9 +-
+ layout/base/nsLayoutUtils.cpp                 |  37 ++++
+ layout/generic/nsGfxScrollFrame.cpp           |   9 +-
+ widget/PuppetWidget.cpp                       |  46 +++--
+ widget/PuppetWidget.h                         |   9 +-
+ 14 files changed, 505 insertions(+), 47 deletions(-)
 
+diff --git a/gfx/layers/Layers.cpp b/gfx/layers/Layers.cpp
+index 0b83f8ad95..ac0862c93a 100644
+--- a/gfx/layers/Layers.cpp
++++ b/gfx/layers/Layers.cpp
+@@ -1397,7 +1397,18 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const Matrix4x4& aTransformToS
+         checkClipRect = true;
+         checkMaskLayers = true;
+       } else {
+-        if (gfx::ThebesMatrix(contTransform).HasNonIntegerTranslation()) {
++        // Jihad T-502: HasNonIntegerTranslation() is also true for any SCALE, so under the
++        // offscreen card's world zoom every container with a clipped child (the root, with the
++        // scroll frame's clip) rendered through an intermediate surface the size of its visible
++        // region: one more full-frame pass a composite, nothing of the displayport beyond the
++        // viewport, and fixed-layer compensation measured in the surface's space. On the
++        // compositor's tree an axis-aligned scale+translate clips fine by scissor
++        // (CalculateScissorRect transforms the clip by the parent's effective transform; the
++        // edge may be a pixel off), so no surface for that case. JIHAD_GPU_SURFACES=1 restores it.
++        static const bool sJihadNoSurface = getenv("JIHAD_GPU_COMPOSITOR") && !getenv("JIHAD_GPU_SURFACES");
++        const bool jihadScissorable = sJihadNoSurface && Manager() && Manager()->AsLayerManagerComposite() &&
++                                      contTransform.PreservesAxisAlignedRectangles();
++        if (gfx::ThebesMatrix(contTransform).HasNonIntegerTranslation() && !jihadScissorable) {
+           checkClipRect = true;
+         }
+         /* In 2D case, only translation and/or positive scaling can be done w/o using IntermediateSurface.
 diff --git a/gfx/layers/composite/AsyncCompositionManager.cpp b/gfx/layers/composite/AsyncCompositionManager.cpp
-index e1938392f6..0ed29b9739 100644
+index e1938392f6..800d50eaa7 100644
 --- a/gfx/layers/composite/AsyncCompositionManager.cpp
 +++ b/gfx/layers/composite/AsyncCompositionManager.cpp
-@@ -911,21 +911,40 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+@@ -512,6 +512,15 @@ AsyncCompositionManager::AlignFixedAndStickyLayers(Layer* aTransformedSubtreeRoo
+   // We want to translate the layer by the difference between
+   // |transformedAnchor| and |anchor|.
+   LayerPoint translation = transformedAnchor - anchor;
++  {
++    // Jihad T-502 diagnostic (every 50th fixed/sticky layer aligned)
++    static uint32_t sN = 0;
++    if ((sN++ % 50) == 0) {
++      fprintf(stderr, "[jihad-gpu] align fixed: layer %p (parent %p, fixed %d sticky %d) under subtree root %p (root's parent %p), scroll id %llu: anchor %.1f,%.1f, translation %.1f,%.1f\n",
++              layer, layer->GetParent(), (int)layer->GetIsFixedPosition(), (int)layer->GetIsStickyPosition(), aTransformedSubtreeRoot,
++              aTransformedSubtreeRoot->GetParent(), (unsigned long long)aTransformScrollId, anchor.x, anchor.y, translation.x, translation.y);
++    }
++  }
  
+   // A fixed layer will "consume" (be unadjusted by) the entire translation
+   // calculated above. A sticky layer may consume all, part, or none of it,
+@@ -909,23 +918,56 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+           }
+         }
+ 
++        // Jihad T-502 diagnostic: what the tree offers the card's scroll (every 50th layer with
++        // metadata, and every 500th composite's root when nothing has any)
++        {
++          static uint32_t sSeen = 0, sRootSeen = 0;
++          if (layer->GetScrollMetadataCount() > 0 && (sSeen++ % 50) == 0) {
++            const FrameMetrics& m0 = layer->GetScrollMetadata(0).GetMetrics();
++            fprintf(stderr, "[jihad-gpu] async scroll: layer %p has %u metadata (first: root content %d, id %llu, offset %.1f,%.1f), card scroll valid %d want %.1f,%.1f, controller %d\n",
++                    layer, (unsigned)layer->GetScrollMetadataCount(), (int)m0.IsRootContent(), (unsigned long long)m0.GetScrollId(),
++                    m0.GetScrollOffset().x, m0.GetScrollOffset().y, (int)mJihadScrollValid, mJihadScrollX, mJihadScrollY, (int)(layer->GetAsyncPanZoomController(0) != nullptr));
++          } else if (layer->GetScrollMetadataCount() == 0 && !layer->GetParent() && (sRootSeen++ % 500) == 0) {
++            fprintf(stderr, "[jihad-gpu] async scroll: the root layer %p has no metadata (card scroll valid %d want %.1f,%.1f)\n", layer, (int)mJihadScrollValid, mJihadScrollX, mJihadScrollY);
++          }
++        }
          for (uint32_t i = 0; i < layer->GetScrollMetadataCount(); i++) {
            AsyncPanZoomController* controller = layer->GetAsyncPanZoomController(i);
 +          // Jihad T-502: without APZ, the card's scroll on the root scroll frame's content
@@ -52,9 +111,10 @@ index e1938392f6..0ed29b9739 100644
 +              jihadAsync = AsyncTransform(LayerToParentLayerScale(1.0f), -translation);
 +              jihadScroll = true;
 +              static uint32_t sN = 0;
-+              if (sN++ < 10 || (sN % 200) == 0) {
-+                fprintf(stderr, "[jihad-gpu] async scroll: want %.1f,%.1f, painted at %.1f,%.1f -> translation %.1f,%.1f\n",
-+                        want.x, want.y, jm.GetScrollOffset().x, jm.GetScrollOffset().y, -translation.x, -translation.y);
++              if (sN++ < 10 || (sN % 25) == 0) {
++                fprintf(stderr, "[jihad-gpu] async scroll: want %.1f,%.1f, painted at %.1f,%.1f, zoom %.4f x %.4f -> translation %.1f,%.1f on layer %p (parent %p, id %llu)\n",
++                        want.x, want.y, jm.GetScrollOffset().x, jm.GetScrollOffset().y, jm.GetZoom().xScale, jm.GetZoom().yScale, -translation.x, -translation.y,
++                        layer, layer->GetParent(), (unsigned long long)jm.GetScrollId());
 +              }
 +            }
 +            if (!jihadScroll) {
@@ -159,18 +219,31 @@ index 64231fea60..a79e18fd1b 100644
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..319b883838 100644
+index 06d50599f3..059adfd6e5 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
-@@ -17,6 +17,7 @@
+@@ -17,6 +17,8 @@
  #include "gfxContext.h"                 // for gfxContext
  #include "gfxPlatform.h"                // for gfxPlatform
  #include "TreeTraversal.h"              // for ForEachNode
++static bool sJihadInCompose = false;   // Jihad T-502 diagnostic: inside JihadComposeAndRead's composite
 +#include <cmath>                       // Jihad T-502: floor, ceil
  #ifdef MOZ_WIDGET_GTK
  #include "gfxPlatformGtk.h"             // for gfxPlatform
  #endif
-@@ -1328,6 +1329,14 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1121,6 +1123,11 @@ CompositorBridgeParent::SetShadowProperties(Layer* aLayer)
+ void
+ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRect* aRect)
+ {
++  {
++    // Jihad T-502 diagnostic: composites not started by the daemon's request
++    static uint32_t sStray = 0, sOurs = 0;
++    if (sJihadInCompose) ++sOurs; else { ++sStray; fprintf(stderr, "[jihad-gpu] stray composite %u (ours so far %u), target %p\n", sStray, sOurs, aTarget); }
++  }
+   profiler_tracing("Paint", "Composite", TRACING_INTERVAL_START);
+   PROFILER_LABEL("CompositorBridgeParent", "Composite",
+     js::ProfileEntry::Category::GRAPHICS);
+@@ -1328,6 +1335,14 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
    // change of either invalidates everything (and UpdateAndRender would otherwise skip the
    // render as "unchanged"). The compositor clears and redraws the whole frame every time, so
    // the other window target (two composites old) is complete too.
@@ -185,7 +258,7 @@ index 06d50599f3..319b883838 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,37 +1345,97 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,37 +1351,181 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -199,6 +272,80 @@ index 06d50599f3..319b883838 100644
 +  const bool treeChanged = !mJihadSeqKnown || seqNow != mJihadSeqAtLast;
 +  mJihadSeqAtLast = seqNow; mJihadSeqKnown = true;
 +  const bool scrollOnly = scrollChanged && !viewChanged && !treeChanged;
++  // Round 92: a scroll-only frame composes each band it reads into the band-sized target with
++  // the world shifted by the band's top (the composite costs a band, not a frame), the rows
++  // kept are moved while the first band composes, and the read comes from the small
++  // renderbuffer. The fixed rows are the last whole composite's.
++  {
++    const int bandMax = ogl->JihadBandMaxRows();
++    const bool b1 = aReq->hi > aReq->lo, b2 = aReq->hi2 > aReq->lo2;
++    const bool fits = (b1 ? aReq->hi - aReq->lo : 0) + (b2 ? aReq->hi2 - aReq->lo2 : 0) <= bandMax;
++    if (scrollOnly && bandMax > 0 && (b1 || b2) && fits && aReq->dest && aReq->stride == aWidth * 4 &&
++        !getenv("JIHAD_GPU_READ_THREAD")) {
++      // Both bands stacked in the band target (band 2 under band 1), composed one after the
++      // other, read ONCE into the compositor's scratch rows and split from there: a glReadPixels
++      // call costs ~4 ms of its own on this driver, whatever the rows.
++      const int bands[2][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2} };
++      int hs[2] = {0, 0}, top = 0;
++      for (int b = 0; b < 2; b++) { const int lo = std::max(0, bands[b][0]), hi = std::min(aHeight, bands[b][1]); hs[b] = hi > lo ? hi - lo : 0; top += hs[b]; }
++      bool ok = top > 0 && top <= bandMax, shifted = false;
++      TimeStamp tb0 = TimeStamp::Now();
++      double msCompose = 0, msRead = 0, msShift = 0;
++      int at = 0;
++      for (int b = 0; b < 2 && ok; b++) {
++        if (!hs[b]) continue;
++        const int lo = std::max(0, bands[b][0]), hb = hs[b];
++        gfx::Matrix4x4 wb = world;
++        wb.PostTranslate(0.0f, (float)(at - lo), 0.0f);   // frame row lo -> target row at
++        mLayerManager->JihadSetWorldTransform(wb);
++        mLayerManager->UpdateRenderBounds(gfx::IntRect(0, 0, aWidth, top));
++        mLayerManager->JihadIgnoreDiff(true);
++        mLayerManager->JihadResetLastInvalid();
++        mLayerManager->JihadSetBand(gfx::IntRect(0, at, aWidth, hb), gfx::IntRect());
++        ogl->JihadSelectBandTarget();
++        TimeStamp c0 = TimeStamp::Now();
++        sJihadInCompose = true;
++        ForceComposeToTarget(nullptr, nullptr);
++        sJihadInCompose = false;
++        TimeStamp c1 = TimeStamp::Now();
++        msCompose += (c1 - c0).ToMilliseconds();
++        if (!shifted) { ogl->JihadShiftRowsNow(aReq); shifted = true; msShift += (TimeStamp::Now() - c1).ToMilliseconds(); }
++        at += hb;
++      }
++      if (ok) {
++        TimeStamp r0 = TimeStamp::Now();
++        uint8_t* scratch = ogl->JihadBandScratch(aWidth * 4 * top);
++        ok = scratch && ogl->JihadReadFrame(scratch, aReq->stride, aWidth, top, 0, top);
++        if (ok) {
++          int from = 0;
++          for (int b = 0; b < 2; b++) {
++            if (!hs[b]) continue;
++            memcpy(aReq->dest + (size_t)std::max(0, bands[b][0]) * aReq->stride, scratch + (size_t)from * aReq->stride, (size_t)hs[b] * aReq->stride);
++            from += hs[b];
++          }
++        }
++        msRead = (TimeStamp::Now() - r0).ToMilliseconds();
++      }
++      mLayerManager->JihadIgnoreDiff(false);
++      mLayerManager->JihadSetWorldTransform(world);
++      mLayerManager->UpdateRenderBounds(whole);
++      mLayerManager->JihadSetBand(gfx::IntRect(), gfx::IntRect());
++      ogl->JihadSelectTarget();
++      aReq->invLo = aReq->invHi = 0;
++      aReq->scrollOnly = true;
++      aReq->fixedLo = mJihadLastFixedLo; aReq->fixedHi = mJihadLastFixedHi;
++      aReq->composed = true;
++      aReq->ok = ok;
++      static uint32_t sBandFrames = 0;
++      if (sBandFrames < 12 || (sBandFrames % 50) == 0) {
++        fprintf(stderr, "[jihad-gpu] compositor thread: band frame %u: rows %d..%d and %d..%d, compose %.1f ms, shift %.1f ms, read %.1f ms, all %.1f ms, ok=%d\n",
++                sBandFrames, aReq->lo, aReq->hi, aReq->lo2, aReq->hi2, msCompose, msShift, msRead, (TimeStamp::Now() - tb0).ToMilliseconds(), (int)ok);
++      }
++      ++sBandFrames;
++      aReq->done(aReq);
++      return true;
++    }
++  }
 +  mLayerManager->JihadIgnoreDiff(scrollOnly);
    // the texture names retired since the last frame go now, before this frame's GPU work
    gl::JihadFlushRetiredTextures(ogl->gl());
@@ -209,7 +356,9 @@ index 06d50599f3..319b883838 100644
 +                              aReq->hi2 > aReq->lo2 ? gfx::IntRect(0, aReq->lo2, aWidth, aReq->hi2 - aReq->lo2) : gfx::IntRect());
    ogl->JihadSelectTarget();
    TimeStamp t0 = TimeStamp::Now();
++  sJihadInCompose = true;
    ForceComposeToTarget(nullptr, nullptr);
++  sJihadInCompose = false;
    TimeStamp t1 = TimeStamp::Now();
 +  mLayerManager->JihadIgnoreDiff(false);
    const gfx::IntRect changed = mLayerManager->JihadLastChanged();   // what the tree changed
@@ -237,14 +386,22 @@ index 06d50599f3..319b883838 100644
 +        if (vb.IsEmpty()) return;
 +        // the effective transform may or may not carry the world transform's scale (the card's
 +        // zoom); the rows reported are the union of both readings, so never too few
-+        const gfx::Rect r1 = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
-+        const gfx::Rect r2 = world.TransformBounds(r1);
-+        gfx::Rect r = r1; r.UnionRect(r1, r2);
++        // the effective transform carries the world transform (ComputeEffectiveTransforms(world))
++        const gfx::Rect r = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
++        {
++          static uint32_t sN = 0;
++          if ((sN++ % 50) == 0) {
++            const gfx::Matrix4x4 e = l->GetEffectiveTransform();
++            fprintf(stderr, "[jihad-gpu] fixed layer %p (parent %p): visible %d,%d %dx%d, effective translation %.1f,%.1f scale %.3f -> rows %.0f..%.0f\n",
++                    l, l->GetParent(), vb.x, vb.y, vb.width, vb.height, e._41, e._42, e._11, r.y, r.YMost());
++          }
++        }
 +        const int a = std::max(0, (int)floor(r.y)), b = std::min(aHeight, (int)ceil(r.YMost()));
 +        if (b > a) { fLo = std::min(fLo, a); fHi = std::max(fHi, b); }
 +      });
 +    }
 +    if (fHi > fLo) { aReq->fixedLo = fLo; aReq->fixedHi = fHi; } else { aReq->fixedLo = aReq->fixedHi = 0; }
++    mJihadLastFixedLo = aReq->fixedLo; mJihadLastFixedHi = aReq->fixedHi;
 +  }
 +  // the rows read: the bands asked for and the change, as at most two intervals (overlaps
 +  // merged, then the closest pair, until two remain)
@@ -294,25 +451,95 @@ index 06d50599f3..319b883838 100644
    ++sFrames;
    return started;
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
-index 680fabc4e8..fd88dc8b84 100644
+index 680fabc4e8..16a445bb79 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.h
 +++ b/gfx/layers/ipc/CompositorBridgeParent.h
-@@ -533,6 +533,10 @@ public:
+@@ -533,6 +533,11 @@ public:
    // aReq->dest. False: nothing was started.
    bool JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY);
    gfx::Matrix4x4 mJihadLastWorld;   // Jihad T-502: the view the last composite was made with
 +  float mJihadLastScrollX = 0.0f, mJihadLastScrollY = 0.0f;
 +  bool mJihadLastScrollValid = false;
 +  uint32_t mJihadSeqAtLast = 0;     // the scheduler's request count when the last composite began
++  int mJihadLastFixedLo = 0, mJihadLastFixedHi = 0;   // the fixed rows as last computed on a whole composite
 +  bool mJihadSeqKnown = false;
    gfx::IntSize mJihadLastSize;
    bool mJihadWorldKnown = false;
  
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 644b2061c2..d8345eb29e 100644
+index 644b2061c2..cb1d614704 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
-@@ -2020,6 +2020,25 @@ CompositorOGL::JihadSelectTarget()
+@@ -3,6 +3,7 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include "nsPrintfCString.h"   // Jihad T-502 diagnostic
+ #include "CompositorOGL.h"
+ #include "mozilla/TimeStamp.h"   // Jihad T-502 timing
+ #include <stddef.h>                     // for size_t
+@@ -324,6 +325,28 @@ CompositorOGL::Initialize(nsCString* const out_failureReason)
+     } else {
+       fprintf(stderr, "[jihad-gpu] %s window target%s %dx%d: FBO %u%s\n", sPass ? "texture" : "renderbuffer", n > 1 ? "s" : "",
+               mJihadPbSize.width, mJihadPbSize.height, mJihadWindowFBO, n > 1 ? " and one more, read by a thread of their own" : "");
++    if (ok && mJihadWindowFBO && !getenv("JIHAD_GPU_NO_BAND_TARGET")) {
++      // the band-sized target (round 92): the pbuffer's width, 256 rows, renderbuffer-backed
++      // (a texture-backed FBO reads back at 20 ms a call on the Adreno 220)
++      const int rows = 256;
++      GLuint rb = 0, fbo = 0;
++      mGLContext->fGenRenderbuffers(1, &rb);
++      mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, rb);
++      mGLContext->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */, mJihadPbSize.width, rows);
++      mGLContext->fGenFramebuffers(1, &fbo);
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, fbo);
++      mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, rb);
++      const GLenum status = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
++      if (status == LOCAL_GL_FRAMEBUFFER_COMPLETE) {
++        mJihadBandRB = rb; mJihadBandFBO = fbo; mJihadBandRows = rows;
++        fprintf(stderr, "[jihad-gpu] band target: %dx%d renderbuffer FBO %u\n", mJihadPbSize.width, rows, fbo);
++      } else {
++        fprintf(stderr, "[jihad-gpu] band target: incomplete (0x%x), scroll-only frames compose whole\n", status);
++        mGLContext->fDeleteFramebuffers(1, &fbo);
++        mGLContext->fDeleteRenderbuffers(1, &rb);
++      }
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++    }
+     }
+   }
+   MakeCurrent();
+@@ -780,6 +803,20 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+                                                       IntSize(width, height),
+                                                       mJihadWindowFBO);
+   SetRenderTarget(rt);
++  {
++    // Jihad T-502 diagnostic: the geometry of every composite (every 40th, and every one whose
++    // height is not the frame's)
++    static uint32_t sN = 0;
++    static int sLastH = -1;
++    const bool odd = (height != sLastH && sLastH >= 0);
++    if ((sN++ % 40) == 0 || odd) {
++      fprintf(stderr, "[jihad-gpu] BeginFrame %u: render bounds %d,%d %dx%d, target %dx%d, clip %s, widget %dx%d, window fbo %u\n",
++              sN, aRenderBounds.x, aRenderBounds.y, aRenderBounds.width, aRenderBounds.height, width, height,
++              aClipRectIn ? nsPrintfCString("%d,%d %dx%d", aClipRectIn->x, aClipRectIn->y, aClipRectIn->width, aClipRectIn->height).get() : "none",
++              mWidgetSize.width, mWidgetSize.height, mJihadWindowFBO);
++    }
++    sLastH = height;
++  }
+ 
+ #ifdef DEBUG
+   mWindowRenderTarget = mCurrentRenderTarget;
+@@ -1999,7 +2036,9 @@ void
+ CompositorOGL::JihadSelectTarget()
+ {
+   if (!mJihadTargetFBO[1]) {
+-    return;   // a single target (the pass, or the pbuffer itself)
++    // a single target (the pass, or the pbuffer itself); after a band frame it is the window again
++    if (mJihadTargetFBO[0]) mJihadWindowFBO = mJihadTargetFBO[0];
++    return;
+   }
+   const int idx = mJihadCur;
+   {
+@@ -2020,6 +2059,44 @@ CompositorOGL::JihadSelectTarget()
    mJihadWindowFBO = mJihadTargetFBO[idx];
  }
  
@@ -327,18 +554,37 @@ index 644b2061c2..d8345eb29e 100644
 +  if (!dy || !aReq->dest || aReq->stride != aReq->w * 4 || dy >= h || dy <= -h) {
 +    return;
 +  }
++  // row by row with memcpy (a row's source and destination never overlap, the rows do): the
++  // toolchain's memmove took 10-13 ms for the 2.9 MB, memcpy has the NEON path
 +  const size_t stride = (size_t)aReq->stride;
 +  if (dy > 0) {
-+    memmove(aReq->dest, aReq->dest + (size_t)dy * stride, (size_t)(h - dy) * stride);
++    for (int r = 0; r < h - dy; r++) memcpy(aReq->dest + (size_t)r * stride, aReq->dest + (size_t)(r + dy) * stride, stride);
 +  } else {
-+    memmove(aReq->dest + (size_t)(-dy) * stride, aReq->dest, (size_t)(h + dy) * stride);
++    for (int r = h - 1; r >= -dy; r--) memcpy(aReq->dest + (size_t)r * stride, aReq->dest + (size_t)(r + dy) * stride, stride);
 +  }
++}
++
++void
++CompositorOGL::JihadShiftRowsNow(JihadFrameRequest* aReq)
++{
++  JihadShiftRows(aReq);
++}
++
++uint8_t*
++CompositorOGL::JihadBandScratch(size_t aBytes)
++{
++  static size_t sHave = 0;
++  if (!mJihadBandScratch || sHave < aBytes) {
++    mJihadBandScratch = MakeUnique<uint8_t[]>(aBytes);
++    sHave = aBytes;
++  }
++  return mJihadBandScratch.get();
 +}
 +
  bool
  CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
  {
-@@ -2028,7 +2047,19 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
+@@ -2028,7 +2105,46 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
    }
    aReq->composed = true;
    if (!JihadEnsureReadThread()) {
@@ -350,6 +596,33 @@ index 644b2061c2..d8345eb29e 100644
 +    if (aReq->hi > aReq->lo) aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo, aReq->hi);
 +    const TimeStamp t2 = TimeStamp::Now();
 +    if (aReq->ok && aReq->hi2 > aReq->lo2) aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo2, aReq->hi2);
++    // JIHAD_GPU_DUMP_TARGET=<path>: the first time a band read comes back all white (three
++    // samples a row), the whole target is read into <path> (raw BGRA, top-down) for a look
++    static const char* sDumpTarget = getenv("JIHAD_GPU_DUMP_TARGET");
++    static bool sDumpedTarget = false;
++    if (sDumpTarget && !sDumpedTarget && aReq->ok && aReq->scrollY > 100.0f && aReq->hi - aReq->lo < aReq->h) {   // a pan's partial frame
++      const int bands[2][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2} };
++      for (int b = 0; b < 2 && !sDumpedTarget; b++) {
++        const int lo = bands[b][0], hi = bands[b][1];
++        if (hi - lo < 8) continue;
++        bool allWhite = true;
++        for (int r = lo; r < hi && allWhite; r++) {
++          const uint8_t* row = aReq->dest + (size_t)r * aReq->stride;
++          for (int x : { aReq->w / 8, aReq->w / 2, aReq->w - aReq->w / 8 }) { const uint8_t* px = row + (size_t)x * 4; if (!(px[0] == 255 && px[1] == 255 && px[2] == 255)) { allWhite = false; break; } }
++        }
++        if (allWhite) {
++          sDumpedTarget = true;
++          uint8_t* whole = (uint8_t*)malloc((size_t)aReq->stride * aReq->h);
++          if (whole && JihadReadFrame(whole, aReq->stride, aReq->w, aReq->h, 0, aReq->h)) {
++            FILE* f = fopen(sDumpTarget, "wb");
++            if (f) { fwrite(whole, 1, (size_t)aReq->stride * aReq->h, f); fclose(f); }
++          }
++          free(whole);
++          fprintf(stderr, "[jihad-gpu] band %d..%d read back all white: the whole target dumped to %s (request: bands %d..%d %d..%d, shift %d, scroll %.1f,%.1f valid %d)\n",
++                  lo, hi, sDumpTarget, aReq->lo, aReq->hi, aReq->lo2, aReq->hi2, aReq->shift, aReq->scrollX, aReq->scrollY, (int)aReq->scrollValid);
++        }
++      }
++    }
 +    static uint32_t sN = 0;
 +    if (sN++ < 12 || (sN % 50) == 0) {
 +      fprintf(stderr, "[jihad-gpu] read: shift %d rows %.1f ms, band %d..%d %.1f ms, band %d..%d %.1f ms\n",
@@ -359,7 +632,7 @@ index 644b2061c2..d8345eb29e 100644
      aReq->done(aReq);
      return true;
    }
-@@ -2088,11 +2119,13 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
+@@ -2088,11 +2204,13 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
      const double waitCpuMs = (cpu1.tv_sec - cpu0.tv_sec) * 1000.0 + (cpu1.tv_nsec - cpu0.tv_nsec) / 1e6;
      t1 = TimeStamp::Now();
      const int w = aReq->w, h = aReq->h;
@@ -378,8 +651,34 @@ index 644b2061c2..d8345eb29e 100644
        const int rows = hi - lo;
        uint8_t* band = aReq->dest + (size_t)lo * aReq->stride;
        gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadTargetFBO[aReq->target]);
+@@ -2180,6 +2298,14 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+     return true;
+   }
+   mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++  // The Adreno 220's glReadPixels does not wait for the composite's lower bins every time: one
++  // whole frame in five came back white from row 484 down (2026-10-18, rounds 95-99, the
++  // geometry of every composite verified). A glFinish first; JIHAD_GPU_NO_READ_FINISH=1 for A/B.
++  static const bool sNoReadFinish = getenv("JIHAD_GPU_NO_READ_FINISH") != nullptr;
++  if (!sNoReadFinish) {
++    mGLContext->fFinish();
++  }
++  TimeStamp tFin = TimeStamp::Now();
+   {
+     // The window view is flipped: frame row r is GL row h-1-r, so the band's GL rows are
+     // [h-hi, h-lo), read bottom-up into the band's rows and then reversed in place.
+@@ -2190,8 +2316,8 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+   TimeStamp t1 = TimeStamp::Now();
+   JihadSwizzleAndFlipRows(band, aStride, w, rows, true);
+   if (sTimed++ < 12 || (sTimed % 100) == 0) {
+-    fprintf(stderr, "[jihad-gpu] glReadPixels %d rows %.1f ms, CPU swizzle+flip %.1f ms\n",
+-            rows, (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds());
++    fprintf(stderr, "[jihad-gpu] glFinish %.1f ms, glReadPixels %d rows %.1f ms, CPU swizzle+flip %.1f ms\n",
++            (tFin - t0).ToMilliseconds(), rows, (t1 - tFin).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds());
+   }
+   return true;
+ }
 diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
-index 104931ec17..69c5082401 100644
+index 104931ec17..6d83680c23 100644
 --- a/gfx/layers/opengl/CompositorOGL.h
 +++ b/gfx/layers/opengl/CompositorOGL.h
 @@ -155,9 +155,16 @@ protected:
@@ -400,6 +699,117 @@ index 104931ec17..69c5082401 100644
    void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
    mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
    bool ok = false;
+@@ -198,6 +205,14 @@ public:
+   // rows [lo, hi) into dest and calls done (on the read thread). When no read thread could be
+   // made the read happens here, synchronously, before ReadAsync returns.
+   void JihadSelectTarget();
++  // T-502 round 92: a band-sized window target (a renderbuffer FBO of JihadBandMaxRows rows at
++  // the pbuffer's width): a scroll-only frame composes each band it reads into it, with the
++  // world transform shifted by the band's top, and reads it back whole; the composite costs a
++  // band, not a frame (the bench: 2 ms against 17). 0 rows when it could not be made.
++  int JihadBandMaxRows() const { return mJihadBandFBO ? mJihadBandRows : 0; }
++  void JihadSelectBandTarget() { if (mJihadBandFBO) mJihadWindowFBO = mJihadBandFBO; }
++  void JihadShiftRowsNow(JihadFrameRequest* aReq);
++  uint8_t* JihadBandScratch(size_t aBytes);   // the stacked bands' read, at least aBytes
+   bool JihadReadAsync(JihadFrameRequest* aReq);
+   void JihadReadOnReadThread(JihadFrameRequest* aReq);   // the read thread
+   void JihadReadThreadInit();                            // the read thread, once
+@@ -352,6 +367,9 @@ private:
+   // their own through a context that shares them, so the compositor thread is never held by a
+   // glReadPixels (20-45 ms on the Adreno 220) and a frame's read overlaps the next compose.
+   GLuint mJihadTargetRB[2] = {0, 0}, mJihadTargetFBO[2] = {0, 0};
++  GLuint mJihadBandRB = 0, mJihadBandFBO = 0;         // the band-sized target (round 92)
++  int mJihadBandRows = 0;
++  UniquePtr<uint8_t[]> mJihadBandScratch;              // one read of the stacked bands, split from here
+   int mJihadCur = 0;                                 // the target the next frame draws into
+   mozilla::Atomic<int32_t> mJihadTargetBusy[2];      // handed to the read thread, not yet read
+   mozilla::Monitor mJihadReadMon{"jihad-read"};
+diff --git a/layout/base/nsDisplayList.cpp b/layout/base/nsDisplayList.cpp
+index 766a3fa3e1..3f025bf757 100644
+--- a/layout/base/nsDisplayList.cpp
++++ b/layout/base/nsDisplayList.cpp
+@@ -1891,8 +1891,15 @@ already_AddRefed<LayerManager> nsDisplayList::PaintRoot(nsDisplayListBuilder* aB
+ 
+   // Add metrics if there are none in the layer tree with the id (create an id
+   // if there isn't one already) of the root scroll frame/root content.
++  // Jihad T-502: the offscreen card's compositor applies the card's scroll to the root scroll
++  // frame's content as APZ would (AsyncCompositionManager), without APZ; the root metrics it
++  // needs come with the displayport the daemon sets on the root scroll frame
++  // (jihad_layout_set_displayport), so a root scroll frame with a displayport counts like APZ here.
++  const bool jihadRootDisplayPort = presShell->GetRootScrollFrame() &&
++    presShell->GetRootScrollFrame()->GetContent() &&
++    nsLayoutUtils::HasDisplayPort(presShell->GetRootScrollFrame()->GetContent());
+   bool ensureMetricsForRootId =
+-    nsLayoutUtils::AsyncPanZoomEnabled(frame) &&
++    (nsLayoutUtils::AsyncPanZoomEnabled(frame) || jihadRootDisplayPort) &&
+     !gfxPrefs::LayoutUseContainersForRootFrames() &&
+     aBuilder->IsPaintingToWindow() &&
+     !presContext->GetParentPresContext();
+diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
+index e8069ea79f..9de1504c95 100644
+--- a/layout/base/nsLayoutUtils.cpp
++++ b/layout/base/nsLayoutUtils.cpp
+@@ -9352,3 +9352,40 @@ nsLayoutUtils::GetNonAnonymousStyleContext(nsIFrame* aFrame)
+              "path to be triggered");
+   return pc->StyleSet()->ResolveStyleFor(node->AsElement(), nullptr);
+ }
++
++// Jihad T-502: the displayport for the offscreen card, set from the daemon (which cannot
++// include layout headers) on the root scroll frame's content. Margins in screen px. The
++// scroll frame then builds a scrollable layer with scroll metadata (root content), which the
++// compositor applies the card's scroll to, and paints that much past the viewport. 0 on
++// success; 1 no pres shell, 2 no root scroll frame, 3 no content, 4 a higher-priority
++// displayport is set.
++#include "nsIDocShell.h"
++#include "nsIScrollableFrame.h"
++extern "C" MOZ_EXPORT int
++jihad_layout_set_displayport(nsIDocShell* aDocShell, float aLeft, float aTop, float aRight, float aBottom)
++{
++  if (!aDocShell) {
++    return 1;
++  }
++  nsCOMPtr<nsIPresShell> ps = aDocShell->GetPresShell();
++  if (!ps) {
++    return 1;
++  }
++  nsIFrame* rsf = ps->GetRootScrollFrame();
++  if (!rsf) {
++    return 2;
++  }
++  nsIContent* content = rsf->GetContent();
++  if (!content) {
++    return 3;
++  }
++  nsIScrollableFrame* sf = do_QueryFrame(rsf);
++  if (sf) {
++    nsLayoutUtils::SetDisplayPortBaseIfNotSet(content, sf->GetScrollPortRect());
++  }
++  const ScreenMargin margins(aTop, aRight, aBottom, aLeft);
++  if (!nsLayoutUtils::SetDisplayPortMargins(content, ps, margins, 0)) {
++    return 4;
++  }
++  return 0;
++}
+diff --git a/layout/generic/nsGfxScrollFrame.cpp b/layout/generic/nsGfxScrollFrame.cpp
+index 38e06f172f..9e5107fad6 100644
+--- a/layout/generic/nsGfxScrollFrame.cpp
++++ b/layout/generic/nsGfxScrollFrame.cpp
+@@ -3762,7 +3762,14 @@ ScrollFrameHelper::ComputeScrollMetadata(Layer* aLayer,
+   }
+ 
+   bool isRootContent = mIsRoot && mOuter->PresContext()->IsRootContentDocument();
+-  bool thisScrollFrameUsesAsyncScrolling = nsLayoutUtils::UsesAsyncScrolling(mOuter);
++  // Jihad T-502: the offscreen card's compositor scrolls the root content document the way
++  // APZ would (AsyncCompositionManager, without APZ). The root scroll frame with a scrollable
++  // layer (it has the daemon's displayport) therefore counts as async-scrolling here, so its
++  // content layers carry the scroll metadata and the scrollport as a scroll clip the compositor
++  // keeps still; the plain layer clip of the branch below moved with the async transform.
++  static const bool sJihadGpu = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  bool thisScrollFrameUsesAsyncScrolling = nsLayoutUtils::UsesAsyncScrolling(mOuter) ||
++      (sJihadGpu && mIsRoot && isRootContent && mWillBuildScrollableLayer);
+   if (!thisScrollFrameUsesAsyncScrolling) {
+     if (parentLayerClip) {
+       // If APZ is not enabled, we still need the displayport to be clipped
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
 index a176ac9c8c..a63a1ff91c 100644
 --- a/widget/PuppetWidget.cpp

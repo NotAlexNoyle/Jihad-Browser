@@ -52,6 +52,55 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-18 (evening) delta — the GPU path under Cavekit: Tier 87, T-503 done (READ FIRST)
+
+**The owner:** after a finger test on the GPU path (*"areas turn grey and zoom rendering of page
+content lags behind actual page zoom state"*; it ran on a hand-started diagnostic daemon while a
+scripted pan was going, see the memory `owner-tests-clash-with-pan-runs`), *"continue using cavekit
+3.1 to finish the implementation"*. The GPU work is now a kit (`context/kits/cavekit-gpu-rendering.md`,
+R1-R12), Tier 87 of the build site (T-502…T-514) and the registry (`.cavekit/task-status.json`:
+Tier 87 added; T-363 closed because the owner moved Codex's owed reviews to the inspector on
+2026-10-13; T-366/369/370 closed as the site records; the tabs groundwork T-347…T-353 set
+`blocked` by the owner's 2026-10-06 word). Order of the loop: T-385…T-387 (engine-update
+readiness), then Tier 87.
+
+**T-503 done (rounds 138-150):** fixed and sticky content at minimum cost, and frames that verify.
+- Opaque fixed/stuck layers (the layer or its opaque children cover every pixel it covers) keep
+  their pixels from the base frame, per covered rect; only the rows the shift uncovers beside them
+  are read. A sliver under 32 rows and every non-opaque one are read as their columns, cut into
+  chunks packed side by side on the band surface. `JIHAD_GPU_NO_KEEP=1`, `JIHAD_GPU_NO_FIXED_COLS=1`.
+- The draw culling never culled: a quad the clip leaves nothing of became a 2x2 rect at the origin
+  (60 draws per band pass on Wikipedia). `JIHAD_GPU_NO_CULL=1`.
+- A sticky layer the engine already laid out stuck (an anchor move zeroes the async offset) counts
+  as stuck: its sticky ranges are probed with a step both ways (a stuck sidebar slid with the
+  content for a frame after every anchor move).
+- The root composition on the GPU path covers what the card shows (a page laid out wider than its
+  window, Hacker News at 0.955: the card shows 804x986 CSS px of a 764x942 scroll port, and the
+  bottom 42 rows and right 38 columns were clipped blank, then carried up by every pan), and the
+  page gets a displayport of what the card shows from the start and at every zoom (the pan slack
+  only from the first pan).
+- `JIHAD_GPU_VERIFY=1` is trustworthy now: its whole composite changes nothing the next frame reads
+  (it consumed anchor moves' changes and the next frames kept stale rows), it skips frames made at
+  another zoom, and it reports rows **structurally wrong** (16-row blocks that sit better at another
+  row offset or differ heavily at every offset) apart from sub-pixel resampling (a fractional
+  scroll resamples sharp text by a few levels; a tile seam by one pixel). 0 structurally wrong rows
+  on `jihad-long-static.html`, the new `jihad-sticky-mix.html` (opaque header and footer, a
+  transparent sticky sidebar over stripes), desktop Wikipedia and Hacker News.
+- `JIHAD_GPU_PHASES=1` times a composite's phases; `JIHAD_GPU_BAND_ROWS=<n>` sizes the band surface;
+  `tools/device/gpu-bench.c` section 10 (column reads cost by the pixel).
+
+| Page (scripted pan, `pan-run.sh`) | GPU path | Software path |
+| --- | --- | --- |
+| `jihad-long-static.html` | 27-34 fps | — |
+| `jihad-sticky-mix.html` | 15-17.5 fps | 0.9-3.1 fps |
+| desktop en.wikipedia.org (`PAN_DELAY=12`) | 16.4-18.5 fps (was 13-14) | 9-12.4 fps |
+| news.ycombinator.com | 34-37.5 fps | — |
+| `jihad-anim-css.html` (no pan) | 24-32 fps | — |
+
+**Next (the loop's order):** T-385…T-387, then T-504 (zoom: the owner's finger test; a zoom-in's
+first frame took 1.2 s and later ones 1.7 s, each 256x256 tile upload 12-63 ms behind the GPU's
+queue), T-505 (Wikipedia to 24 fps), T-506…T-514.
+
 ## 2026-10-17 delta — the rendering pick: 2 + 4, a one-week spike first (READ FIRST)
 
 **End of session 2026-10-17 (rounds 11-86), the state to pick up:** the compositor path draws

@@ -69,3 +69,16 @@ anchor before the engine is moved; 0.3 by default).
 
 Rounds 126-128: `JIHAD_GPU_DP_Y=<heights>` (0.5), `JIHAD_GPU_DP_X=<widths>` (0, half a width when zoomed in)
 set the displayport margins; `PAN_DELAY=<s>` before `pan-run.sh` waits for a real page to load before the pan.
+
+Rounds 138-150 (T-503): `JIHAD_GPU_NO_FIXED_COLS=1` (the daemon asks for the fixed rows whole, as
+before), `JIHAD_GPU_NO_KEEP=1` (no opaque fixed layer kept), `JIHAD_GPU_NO_CULL=1` (the old draw
+culling), `JIHAD_GPU_BAND_ROWS=<64..942>` (the band surface's rows, 256), `JIHAD_GPU_PHASES=1` (a
+composite's phases every 20: shadow properties, async transforms, post-process, diff, begin frame,
+prepare, render layers with draws, culled draws and uploads, end frame), `JIHAD_GPU_VERIFY_DUMP_WRONG=1`
+(with `JIHAD_GPU_VERIFY=1`: the first frame with wrong rows and the first structurally wrong one
+written to `/tmp/vw-*.raw` and `/tmp/vs-*.raw` with their whole composites). Verify's line reports
+rows that differ at all, rows **wrong** (more than 4 pixels over 64 levels off) and rows
+**structurally wrong** (16-row blocks better aligned at another row offset or far off at every
+offset): only the last is an error; the first two include a fractional scroll's resampling.
+`run-gpu-bench10.sh` runs the bench's column-read section. `render/goanna/test/jihad-sticky-mix.html`:
+an opaque fixed header and footer, a transparent sticky sidebar over a striped page.

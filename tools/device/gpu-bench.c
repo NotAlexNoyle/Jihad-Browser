@@ -372,6 +372,43 @@ int main(int argc, char** argv) {
     free(band); glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
     glDeleteFramebuffers(2, fbo9); glDeleteTextures(2, ftex9);
   }
+  // 10. T-502 round 138 (a real page's stuck sidebars are ~540 rows re-read every frame): is a
+  //     narrow column cheaper to read than the full rows? A 768x942 texture FBO drawn with one
+  //     opaque layer, then glReadPixels of 542 full rows, of a 170-wide column, of two 170-wide
+  //     columns, and of 30 full rows, each after a glFinish
+  {
+    const int FW = 768, FH = 942;
+    GLuint fbo10, tex10; glGenFramebuffers(1, &fbo10); glGenTextures(1, &tex10);
+    glBindTexture(GL_TEXTURE_2D, tex10); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FW, FH, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo10); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex10, 0);
+    glViewport(0, 0, FW, FH);
+    uint8_t* buf = malloc((size_t)FW * FH * 4);
+    const int shapes[6][4] = { {0, 400, 768, 542}, {0, 400, 170, 542}, {598, 400, 170, 542}, {0, 400, 384, 542}, {0, 0, 768, 30}, {0, 400, 768, 271} };
+    const char* names[6] = { "542 full rows", "a 170x542 column at x 0", "a 170x542 column at x 598", "a 384x542 half", "30 full rows", "271 full rows" };
+    for (int k = 0; k < 6; k++) {
+      double tRead = 0; const int reps = 8;
+      for (int rep = 0; rep < reps + 1; rep++) {
+        glDisable(GL_BLEND); glBindTexture(GL_TEXTURE_2D, tex[0]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        double a = now_ms();
+        glReadPixels(shapes[k][0], shapes[k][1], shapes[k][2], shapes[k][3], GL_RGBA, GL_UNSIGNED_BYTE, buf);
+        if (rep > 0) tRead += now_ms() - a;
+      }
+      printf("section 10 read %s: %.2f ms (err 0x%x)\n", names[k], tRead / reps, glGetError());
+    }
+    // the two sidebars of one frame read back to back
+    double tTwo = 0;
+    for (int rep = 0; rep < 9; rep++) {
+      glBindTexture(GL_TEXTURE_2D, tex[0]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      double a = now_ms();
+      glReadPixels(0, 400, 170, 542, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+      glReadPixels(598, 400, 170, 542, GL_RGBA, GL_UNSIGNED_BYTE, buf + (size_t)170 * 542 * 4);
+      if (rep > 0) tTwo += now_ms() - a;
+    }
+    printf("section 10 read two 170x542 columns back to back: %.2f ms\n", tTwo / 8);
+    free(buf); glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
+    glDeleteFramebuffers(1, &fbo10); glDeleteTextures(1, &tex10);
+  }
   // T-502: EGL_KHR_lock_surface (the device lists it): a lockable pbuffer can be MAPPED after
   // rendering, so the frame is read with memcpy instead of glReadPixels. Costed here with a
   // second context on a lock-capable config: render one layer, unbind, lock, copy, unlock.

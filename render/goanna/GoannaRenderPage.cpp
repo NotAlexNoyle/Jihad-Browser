@@ -4478,16 +4478,22 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   const float visW = (float)mWidth / z, visH = (float)mHeight / z;
   const float dpX = sDpX >= 0.0f ? sDpX : (zoom > 1.01 ? 0.5f : 0.0f);
   const float mx = visW * dpX, my = visH * (sAnchorY + sDpY);
-  if (!sNoDp && mGpuDpWanted) {
-    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, mx, my, my);
-    else if (root) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
+  // T-503: before the first pan (and at every zoom), a displayport of just what the card shows:
+  // at a fit zoom below 1 the card shows more of the page than the engine's scroll port (986 CSS
+  // px of rows against 942 on news.ycombinator.com), and that strip was never painted until a pan
+  // set the displayport; frames built meanwhile kept it blank, and a zoom out left grey areas
+  if (!sNoDp) {
+    const float smx = mGpuDpWanted ? mx : 0.0f, smy = mGpuDpWanted ? my : 0.0f;
+    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smy, smy);
+    else if (root && mGpuDpWanted) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
   }
   const bool ok = dp == 0;
   static int sLogged = 0;
-  if (mGpuDpWanted && (ok != mGpuDpOk || sLogged < 6)) {
+  if (ok != mGpuDpOk || sLogged < 6) {
     ++sLogged;
-    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, margins %dx%d screen px)\n",
-            z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp, (int)mx, (int)my);
+    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px)\n",
+            z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp,
+            mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0);
   }
   mGpuDpOk = ok;
   return true;
@@ -4637,14 +4643,14 @@ bool GoannaRenderPage::ComposeAsync() const {
 }
 
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
-                                        const unsigned char* src, long srcY, bool engineShift) {
+                                        const unsigned char* src, long srcY, bool engineShift, bool verify) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = mHeight;
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return 0;
-  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY, engineShift ? 1 : 0);
+  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | (verify ? 2 : 0));
   return token;
 }
 

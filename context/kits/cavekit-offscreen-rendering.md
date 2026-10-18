@@ -266,7 +266,7 @@ that assumed otherwise reached a right conclusion for the wrong reason.
 
 ## Out of Scope
 - Synthesizing input (cavekit-input-bridging.md).
-- GPU/WebGL/video compositor path — first target is CPU/basic-layers readback; accelerated paths are deferred (note in impl, revisit in Phase 3).
+- GPU/WebGL/video compositor path — first target is CPU/basic-layers readback; accelerated paths are deferred (note in impl, revisit in Phase 3). **Revisited 2026-10-17/18:** the owner's pick 2 + 4 (GPU compositor with readback, then WebGL through EGL) is its own kit, `cavekit-gpu-rendering.md`.
 
 ## Cross-References
 - See also: cavekit-ipc-contract.md, cavekit-engine-embedding.md, cavekit-input-bridging.md, cavekit-navigation-events.md

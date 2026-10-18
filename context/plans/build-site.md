@@ -490,6 +490,33 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 87 — GPU rendering: the pick 2 + 4 (2026-10-17/18; added to the site, not a regeneration)
+
+The owner, 2026-10-17: the pick **2 + 4** (the engine's OpenGL compositor in the daemon with a
+readback into the YAP buffer, then WebGL through EGL), a one-week spike first; *"dont treat the
+chart speed predictions as the theoretical maximum, but the bare minimum goal"*. 2026-10-18, after a
+finger test: *"areas turn grey and zoom rendering of page content lags behind actual page zoom
+state"*, then *"continue using cavekit 3.1 to finish the implementation"*. Kit:
+cavekit-gpu-rendering.md R1–R12. Test every change on a real page against `NOGPU=1` on the same
+pan (`tools/device/t502/pan-run.sh`, `PAN_DELAY=12`), frames checked by `JIHAD_GPU_VERIFY=1` and
+the mid-pan dumps, never by a screenshot. No device run while the owner is at the TouchPad.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-502 | The spike and the compositor-side scroll (rounds 1-137): patches 0040/0041/0042, the daemon's job pipeline, band reads on the band surface, the displayport, fixed/sticky rows, the composition fix for wide pages | cavekit-gpu-rendering.md | R2, R3 (part) | — | yes | L | DONE (commits through `bc4a8eaf`/`b30b9989`: test pan 27-34 fps, animation 26-31, HN 36-37, desktop Wikipedia 13-14 vs software 9-12.4) |
+| T-503 | Fixed and sticky at minimum cost: opaque stuck layers kept (per opaque rect, the visible region's gaps), others read as columns, fixed header + footer as two bands; the draw-culling fix kept; verify and dumps on the long-static page, a header+footer page and desktop Wikipedia | cavekit-gpu-rendering.md | R4, R2 | T-502 | yes | M | DONE 2026-10-18 (rounds 138-150): opaque fixed/stuck layers kept per covered rect, the rest read as column chunks packed on the band surface, header + footer as two bands; the draw culling fixed; a sticky layer the engine laid out stuck counted (probed sticky ranges); the root composition covers what the card shows (Hacker News' blank bottom strip); verify made side-effect free with a structural test: 0 structurally wrong rows on the test page, `jihad-sticky-mix.html`, desktop Wikipedia and Hacker News. Pans: test page 27-34 fps, sticky-mix 15-17.5 (software 0.9-3.1), Wikipedia 16.4-18.5 (was 13-14; software 9-12.4), Hacker News 34-37.5, animation 24-32 |
+| T-504 | Zoom keeps up: a scripted pinch and double-tap on Wikipedia and the test page with the frame timeline; first frame at the new zoom ≤ 250 ms; no grey at rest; tile uploads off the GPU's queue | cavekit-gpu-rendering.md | R6 | T-502 | yes | L | pending |
+| T-505 | Real-page pans to the chart: desktop Wikipedia ≥ 24 fps; the 56 ms+ gaps traced (the main loop uncapped) and the avoidable ones removed; the per-page table against `NOGPU=1` | cavekit-gpu-rendering.md | R3 | T-503 | yes | L | pending |
+| T-506 | Animation, new content and self-scroll measured against the chart (DOM edit and typing ≤ 106 ms) | cavekit-gpu-rendering.md | R5 | T-502 | yes | S | pending |
+| T-507 | Every other card event on the GPU path: rotation, resize, select popups, caret, link and find highlights, thumbnails, navigation without stale frames | cavekit-gpu-rendering.md | R9 | T-502 | yes | M | pending |
+| T-508 | Video and Flash on the GPU path: `<video>` (VP8, Theora, H.264) to the end, styled video (rounded, fade, under a modal), Flash draw/animate/input | cavekit-gpu-rendering.md | R7 | T-502 | yes | L | pending |
+| T-509 | Safety and fit: bounded GPU waits with a fallback to the software path, a simulated EGL failure, memory and GPU memory against the software path, three daemons at once, idle CPU | cavekit-gpu-rendering.md | R1, R10 | T-502 | yes | M | pending |
+| T-510 | The default: the GPU path on in all three event.d jobs with `JIHAD_GPU_COMPOSITOR=0` and a pref to force software; Mochi and Mojo load, pan, zoom and close on it; the startup report | cavekit-gpu-rendering.md | R1 | T-503, T-504, T-507, T-509 | yes | M | pending |
+| T-511 | WebGL through EGL: contexts on the device's GPU on the GPU path, a spinning-cube test page ≥ 24 fps, context loss, spot conformance | cavekit-gpu-rendering.md | R8 | T-510 | yes | L | pending |
+| T-512 | Fit to keep: diagnostics pruned and bounded, the knobs listed, the engine work folded into the patch queue, the docs and README | cavekit-gpu-rendering.md | R11 | T-503…T-511 | no | M | pending |
+| T-513 | Review of Tier 87 (Codex by direct invocation, the inspector as backup) and fixes | cavekit-gpu-rendering.md | R11 | T-512 | no | M | pending |
+| T-514 | [OWNER] Finger round on the GPU path in all three interfaces: pan, flick, pinch, double-tap | cavekit-gpu-rendering.md | R12 | T-513 | yes | S | BLOCKED-EXTERNAL (a person at the device) |
+
 ## Tier 86 — Content blocking: ads and trackers (2026-10-15; added to the site, not a regeneration)
 
 The owner: "build in an ad and tracker blocker if possible (following license terms)". Kit:

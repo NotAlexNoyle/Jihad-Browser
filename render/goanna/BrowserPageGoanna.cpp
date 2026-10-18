@@ -1070,7 +1070,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
     // displayport is an empty transaction plus a composite.
     if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false; }
-    else if (mPage->GpuDisplayPortWanted() && !mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // until the document takes it
+    else if (!mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // T-503: the shown-area one too   // until the document takes it
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, z);
     mNeedsPaint = true;
@@ -3354,6 +3354,9 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   const unsigned char* src = nullptr;
   long srcYForEngine = 0;
   static const bool sNoLatest = getenv("JIHAD_GPU_NO_LATEST") != nullptr;
+  // round 138: the engine reads the fixed and stuck layers as their columns (widened by the
+  // shift) when the bands leave their rows out; JIHAD_GPU_NO_FIXED_COLS=1 asks for the whole rows
+  static const bool sFixedCols = !getenv("JIHAD_GPU_NO_FIXED_COLS") && !getenv("JIHAD_GPU_READ_THREAD");
   if (!sWhole && mGpuNextSecond && mGpuNextBaseKey && mGpuNextBaseKey != key && mGpuFixedHi >= mGpuFixedLo) {
     // round 130: the job in flight is the base (its frame is complete when this job runs)
     const long dy = (long)y - mGpuNextBaseY;
@@ -3365,7 +3368,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       long iv[2][2]; int n = 0;
       const long eLo = dy > 0 ? h - dy : 0, eHi = dy > 0 ? h : (dy < 0 ? -dy : 0);
       if (eHi > eLo) { iv[n][0] = eLo; iv[n][1] = eHi; n++; }
-      if (dy != 0 && mGpuFixedHi > mGpuFixedLo) {
+      if (!sFixedCols && dy != 0 && mGpuFixedHi > mGpuFixedLo) {
         // round 134: the rows the shift moved the fixed pixels into (above them on a scroll down,
         // below on a scroll up) are read too: they held the fixed element in the base frame
         const long fLo = std::max(0L, mGpuFixedLo - (dy > 0 ? dy : 0)), fHi = std::min((long)h, mGpuFixedHi + (dy < 0 ? -dy : 0));
@@ -3396,7 +3399,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       long iv[2][2]; int n = 0;
       const long eLo = dy > 0 ? h - dy : 0, eHi = dy > 0 ? h : (dy < 0 ? -dy : 0);
       if (eHi > eLo) { iv[n][0] = eLo; iv[n][1] = eHi; n++; }
-      if (dy != 0 && mGpuFixedHi > mGpuFixedLo) {   // fixed rows move against the content only on a scroll
+      if (!sFixedCols && dy != 0 && mGpuFixedHi > mGpuFixedLo) {   // fixed rows move against the content only on a scroll
         const long fLo = std::max(0L, mGpuFixedLo - (dy > 0 ? dy : 0)), fHi = std::min((long)h, mGpuFixedHi + (dy < 0 ? -dy : 0));   // round 134
         if (fHi > fLo) {
           if (n == 1 && fLo <= iv[0][1] && iv[0][0] <= fHi) { iv[0][0] = std::min(iv[0][0], fLo); iv[0][1] = std::max(iv[0][1], fHi); }
@@ -3422,7 +3425,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       // (shifted along). Two bands at most: the hull when there would be more.
       shift = dy;   // the compositor thread moves the rows before its read
       long b[4][2] = { { dy > 0 ? h - dy : 0, dy > 0 ? h : -dy },
-                       { mGpuFixedLo, mGpuFixedHi },
+                       { sFixedCols ? 0 : mGpuFixedLo, sFixedCols ? 0 : mGpuFixedHi },
                        { mGpuStaleLo[slot] - dy, mGpuStaleHi[slot] - dy },
                        { mGpuStale2Lo[slot] - dy, mGpuStale2Hi[slot] - dy } };
       long iv[4][2]; int n = 0;
@@ -4298,7 +4301,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           // into scratch and compared row by row; the runs of rows that differ are logged, so a
           // wrong shift, band or header shows as such
           static const bool sVerify = getenv("JIHAD_GPU_VERIFY") != nullptr;
-          if (sVerify && (oldest.askHi - oldest.askLo < h || oldest.shift)) {
+          // (not a frame made at another zoom than the card's now: the verify composite uses the
+          // current view, so a frame from before a zoom change would compare as all wrong)
+          if (sVerify && (oldest.askHi - oldest.askLo < h || oldest.shift) && oldest.zoom == mZoom) {
             static std::vector<unsigned char> sScratch;
             const size_t bytes = (size_t)w * h * 4;
             if (sScratch.size() < bytes) sScratch.resize(bytes);
@@ -4306,7 +4311,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             // card's current scroll again
             const double vz = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
             mPage->SetGpuScroll(oldest.x / vz, oldest.y / vz, true);
-            const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0);
+            const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);   // T-503: a verify composite
             int r2 = -1;
             if (vt) {
               GoannaRenderPage::ComposeResult vr;
@@ -4324,8 +4329,81 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 bad += r - r0;
                 if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
               }
-              fprintf(stderr, "[jihad-gpu] verify slot %d (y %d, shift %ld, bands %ld..%ld %ld..%ld): %d rows differ in %d runs:%s%s\n",
-                      gslot, oldest.y, oldest.shift, oldest.askLo, oldest.askHi, oldest.ask2Lo, oldest.ask2Hi, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "");
+              // T-503: rows that are WRONG, not just resampled. A scroll by a fractional device pixel
+              // (the card's zoom) samples the text at another phase than the shifted frame: up to
+              // ~24 levels on glyph edges and single pixels at tile seams. A wrong shift, a missing
+              // band or a doubled header puts many pixels far off in a row.
+              std::string wrongRuns; int nWrong = 0, wrongRows = 0;
+              auto rowWrong = [&](int r) {
+                const unsigned char* a = pixels + (size_t)r * w * 4;
+                const unsigned char* b = sScratch.data() + (size_t)r * w * 4;
+                int far = 0;
+                for (int x = 0; x < w && far <= 4; x++, a += 4, b += 4) {
+                  if (abs(a[0] - b[0]) > 64 || abs(a[1] - b[1]) > 64 || abs(a[2] - b[2]) > 64) far++;
+                }
+                return far > 4;
+              };
+              for (int r = 0; r < h; ) {
+                if (!rowWrong(r)) { ++r; continue; }
+                int r0 = r;
+                while (r < h && rowWrong(r)) ++r;
+                wrongRows += r - r0;
+                if (nWrong++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); wrongRuns += b; }
+              }
+              {
+                // T-503: the first frame with many wrong rows, dumped with its whole composite
+                static bool sDumpedWrong = false;
+                if (wrongRows > 50 && !sDumpedWrong && getenv("JIHAD_GPU_VERIFY_DUMP_WRONG")) {
+                  sDumpedWrong = true;
+                  FILE* f1 = fopen("/tmp/vw-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
+                  FILE* f2 = fopen("/tmp/vw-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  fprintf(stderr, "[jihad-gpu] verify: the first wrong frame dumped (/tmp/vw-slot.raw, /tmp/vw-whole.raw)\n");
+                }
+              }
+              // Structural errors, by blocks of 16 rows: a block whose content sits better at another
+              // row offset (-3..3) than at its own (misplaced: a wrong shift, a doubled header), or
+              // that differs heavily at every offset (missing or stale content). A sharp page at a
+              // fractional zoom resamples text by a sub-pixel phase between frames: best at offset
+              // 0, a mean difference of a few levels.
+              int structural = 0;
+              std::string structRuns;
+              auto blockMean = [&](int r0, int r1, int off) {
+                long long sum = 0, n = 0;
+                for (int r = r0; r < r1; r++) {
+                  const int rr = r + off;
+                  if (rr < 0 || rr >= h) continue;
+                  const unsigned char* a = pixels + (size_t)r * w * 4;
+                  const unsigned char* b = sScratch.data() + (size_t)rr * w * 4;
+                  for (int x = 0; x < w; x++, a += 4, b += 4) sum += abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]);
+                  n += w * 3;
+                }
+                return n ? (double)sum / n : 0.0;
+              };
+              for (int b0 = 0; b0 < h; b0 += 16) {
+                const int b1 = std::min(h, b0 + 16);
+                bool any = false;
+                for (int r = b0; r < b1 && !any; r++) any = rowWrong(r);
+                if (!any) continue;
+                const double m0 = blockMean(b0, b1, 0);
+                double best = m0;
+                for (int off = -3; off <= 3; off++) if (off) best = std::min(best, blockMean(b0, b1, off));
+                if ((best < 0.6 * m0 && m0 > 2.0) || best > 24.0) {
+                  structural += b1 - b0;
+                  if (structRuns.size() < 80) { char t[32]; snprintf(t, sizeof t, " %d..%d", b0, b1); structRuns += t; }
+                }
+              }
+              {
+                static bool sDumpedStruct = false;
+                if (structural > 0 && !sDumpedStruct && getenv("JIHAD_GPU_VERIFY_DUMP_WRONG")) {
+                  sDumpedStruct = true;
+                  FILE* f1 = fopen("/tmp/vs-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
+                  FILE* f2 = fopen("/tmp/vs-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  fprintf(stderr, "[jihad-gpu] verify: the first structurally wrong frame dumped (/tmp/vs-slot.raw, /tmp/vs-whole.raw)\n");
+                }
+              }
+              fprintf(stderr, "[jihad-gpu] verify slot %d (y %d, shift %ld, bands %ld..%ld %ld..%ld): %d rows differ in %d runs:%s%s; %d rows wrong:%s%s; %d rows structurally wrong:%s\n",
+                      gslot, oldest.y, oldest.shift, oldest.askLo, oldest.askHi, oldest.ask2Lo, oldest.ask2Hi, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "",
+                      wrongRows, wrongRuns.c_str(), nWrong > 8 ? " ..." : "", structural, structRuns.c_str());
             } else {
               fprintf(stderr, "[jihad-gpu] verify: the whole composite did not finish (%d)\n", r2);
             }
@@ -4337,7 +4415,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               static std::vector<unsigned char> sBefore;
               if (sBefore.size() < bytes) sBefore.resize(bytes);
               mPage->SetGpuScroll(oldest.x / vz, (oldest.y - oldest.shift) / vz, true);
-              const uint32_t vt2 = mPage->ComposeStart(sBefore.data(), bytes, 0, h, 0, 0, 0);
+              const uint32_t vt2 = mPage->ComposeStart(sBefore.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);
               int r3 = -1;
               if (vt2) {
                 GoannaRenderPage::ComposeResult vr2;

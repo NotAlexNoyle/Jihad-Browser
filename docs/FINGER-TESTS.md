@@ -18,6 +18,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   en.m.wikipedia.org (Mojo: the card is never left grey). (input-bridging R3/R4, mojo-ui R6)
 - [ ] Rotate the TouchPad: portrait ↔ landscape redraws the page right. (device-build R4,
   offscreen-rendering R6)
+- [ ] The GPU path, zoom (2026-10-18: the first try ran on a diagnostic daemon mid-script; T-504
+  rebuilds zoom): pinch in and out and double-tap on desktop en.wikipedia.org and on a long page:
+  the page at the new zoom arrives promptly and no area stays grey. (cavekit-gpu-rendering R6, R12)
 - [ ] The GPU path (`JIHAD_GPU_COMPOSITOR=1`, Enyo only): drag-scroll a long page with a fixed
   header (`jihad-long-static.html` on the host server) from top to bottom at a steady pace: the
   header stays put, the text is continuous (no repeated or missing bands), nothing blank enters

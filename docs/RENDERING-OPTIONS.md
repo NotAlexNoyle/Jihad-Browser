@@ -264,6 +264,13 @@ bottom were never shown; the composition is the scroll port on the GPU path now.
 base and margins follow what the card shows; the fixed-row re-read widens by the shift (a sticky
 header doubled). The real page now pans at 13-14 fps (software 9-12.4) with every row right.
 
+**Rounds 138-150 (T-503, Cavekit Tier 87):** fixed and sticky layers at minimum cost (opaque ones
+kept per covered rect, others as column chunks on the band surface; header + footer two bands),
+the draw culling fixed, stuck-sticky detection by probing the sticky ranges, the root composition
+covering what the card shows, and a verify mode that changes nothing and tells sub-pixel
+resampling from structural errors. The account and the table: `docs/PICKUP.md`, 2026-10-18
+(evening) delta.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

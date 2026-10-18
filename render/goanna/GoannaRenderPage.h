@@ -158,6 +158,12 @@ public:
   // Resize the offscreen surface + content viewport (YAP: setWindowSize). The
   // page reflows to the new size; the next ReadPixels returns width*height*4.
   bool Resize(int width, int height);
+  // The docshell's active state. A docshell starts INACTIVE: the document is hidden
+  // (document.hidden, requestAnimationFrame throttled to a frame a second) and the window is
+  // a background one (timers clamped to dom.min_background_timeout_value, a second). Until
+  // 2026-10-17 only a touch activated it (ActivateContent on input), so an untouched page ran
+  // its JavaScript at 1-2 Hz on both paths. Active from creation; a frozen card deactivates.
+  void SetActive(bool active);
   // T-499: the engine's layout viewport set WIDER than the card (an offscreen window as wide as the
   // page's overflow), so innerWidth and position:fixed follow the page's own width while the card
   // fit-zooms the whole of it; Width()/Height() stay the card's. Resize() puts it back.
@@ -359,10 +365,12 @@ public:
   // has them. ComposeStart posts the compose + read of rows [rowLo, rowHi) (0,0 = none asked
   // for) joined with what the composite changed, and returns the token (0 = failed).
   // ComposePoll returns the nonblank sample (>= 0) once the frame is in dst, -2 while it is
-  // pending, -1 failed; invLo/invHi get the rows the composite changed.
+  // pending, -3 composed and being read (the next may start), -1 failed; invLo/invHi get the
+  // rows the composite changed.
   bool ComposeAsync() const;
   uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi);
-  int ComposePoll(uint32_t token, unsigned char* dst, long* invLo, long* invHi);
+  // askLo/askHi: the band that job was started with (what was read is it joined with the change)
+  int ComposePoll(uint32_t token, unsigned char* dst, long askLo, long askHi, long* invLo, long* invHi);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two
   // frames with the same id are of the same document, so rows of one can stand in the other.
@@ -496,7 +504,6 @@ private:
 public:
   bool GpuPath() const { return mGpu; }   // T-502
   long GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi);   // T-502: after a read
-  long mGpuJobLo = 0, mGpuJobHi = 0;      // T-502: the band the pending job was asked for
   uint32_t CompositorSeq() const;         // T-502: moves when the compositor wants a frame
   // T-502: the compositor's view of zoom and scroll. The card's zoom becomes the pres shell's
   // resolution (the compositor scales the layer tree), the visual viewport the card's size over

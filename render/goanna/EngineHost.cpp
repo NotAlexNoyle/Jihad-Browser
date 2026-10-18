@@ -1294,6 +1294,9 @@ EngineHost::Init(const char* greDir)
       fprintf(stderr, "[jihad-bs] prefs check: surfacecache.max_size_kb=%d (%s)\n",
               sc, sc == 32768 ? "goanna.js low-RAM block ACTIVE"
                               : "UNEXPECTED — goanna.js block missing/stale?");
+      bool tiles = false;
+      pb->GetBoolPref("layers.enable-tiles", &tiles);
+      fprintf(stderr, "[jihad-bs] prefs check: layers.enable-tiles=%d\n", (int)tiles);
     }
     // NOTE: PSM/NSS (TLS) is force-initialized on the main thread in
     // GoannaRenderPage::LoadUrl (it is not registered yet this early at engine init).

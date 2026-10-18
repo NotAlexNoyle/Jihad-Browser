@@ -737,6 +737,7 @@ void BrowserPageGoanna::freeze() {
   // so holding an attach keeps them alive and can exhaust the device's scarce shared
   // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
   mFrozen = true;
+  if (mPage) mPage->SetActive(false);    // a background card is a background tab: timers clamped, no frames
   detachShm();
 }
 
@@ -766,6 +767,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
   mDamageValid = false; mDamageForceFull = true;
   mFrozen = false;
+  if (mPage) mPage->SetActive(true);
   mNeedsPaint = true;
 }
 
@@ -3023,15 +3025,15 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // an animation is being lost: ticks that wanted a frame, frames refused because the adapter had
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
-  if (mGpuJob) mGpuTrace[6]++;
+  if (!mGpuJobs.empty()) mGpuTrace[6]++;
   {
     // T-502 device rounds: the cadence this page's paint driver is actually called at
     static int64_t sPrev = 0; static int sLogged = 0;
     const int64_t now = jihadNowMs();
     if (sPrev && sLogged < 80 && mPage && mPage->GpuPath() && mHadContent) {
       ++sLogged;
-      fprintf(stderr, "[jihad-gpu] maybePaint +%ld ms (job %s, needsPaint %d, dirtyPending %d, seq %u/%u)\n",
-              (long)(now - sPrev), mGpuJob ? "pending" : "none", (int)mNeedsPaint, (int)mDirtyPending,
+      fprintf(stderr, "[jihad-gpu] maybePaint +%ld ms (%d jobs, needsPaint %d, dirtyPending %d, seq %u/%u)\n",
+              (long)(now - sPrev), (int)mGpuJobs.size(), (int)mNeedsPaint, (int)mDirtyPending,
               mPage->CompositorSeq(), mGpuSeq);
     }
     sPrev = now;
@@ -3224,15 +3226,78 @@ static bool jihadPluginPullEnabled() {
 // mapping goes away (a reattach, a resize) the job is waited out (3 s at most) and forgotten.
 // Every slot's record is dropped with it: the composite's damage went unrecorded.
 void BrowserPageGoanna::gpuJobDrain() {
-  if (!mGpuJob) return;
+  if (mGpuJobs.empty()) return;
   if (mPage) {
-    const int64_t t0 = jihadNowMs();
-    long il = 0, ih = 0;
-    while (mPage->ComposePoll(mGpuJob, nullptr, &il, &ih) == -2 && jihadNowMs() - t0 < 3000) usleep(2000);
-    mPage->ComposeForget(mGpuJob);
+    for (const GpuJob& j : mGpuJobs) {
+      const int64_t t0 = jihadNowMs();
+      long il = 0, ih = 0;
+      int r;
+      while ((r = mPage->ComposePoll(j.token, nullptr, j.askLo, j.askHi, &il, &ih)) <= -2 && jihadNowMs() - t0 < 3000) usleep(2000);
+      mPage->ComposeForget(j.token);
+    }
   }
-  mGpuJob = 0; mGpuJobSlot = -1;
+  mGpuJobs.clear();
   for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
+}
+
+int BrowserPageGoanna::keyAfter(int key) const {
+  if (mKey3) {
+    if (key == mKey1) return mKey2 ? mKey2 : mKey3;
+    if (key == mKey2) return mKey3;
+    return mKey1;
+  }
+  return (key == mKey1 && mKey2) ? mKey2 : mKey1;
+}
+
+// T-502: start a frame into a slot. The read is the band that slot's frame has fallen behind by
+// (every composite's change is added to the other slots), or the whole frame when the slot was
+// composed for other geometry (a scroll, a zoom, a resize) or never.
+bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
+  long sLo = 0, sHi = h;
+  if (slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotY[slot] == y &&
+      mGpuSlotZoom[slot] == zoom && mGpuSlotW[slot] == w && mGpuSlotH[slot] == h) {
+    sLo = mGpuStaleLo[slot]; sHi = mGpuStaleHi[slot];
+  }
+  const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi);
+  if (!token) return false;
+  GpuJob j;
+  j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
+  j.t0 = jihadNowMs(); j.seq = mPage->CompositorSeq(); j.askLo = sLo; j.askHi = sHi;
+  mGpuJobs.push_back(j);
+  return true;
+}
+
+// The frame after the one in flight, into the slot after it, while the read thread has the
+// first: the compositor composes one frame while the other is read back.
+void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h, size_t segSize, size_t hdr) {
+  if (mGpuJobs.size() != 1) return;
+  static uint32_t sWhy[5] = {0, 0, 0, 0, 0};
+  static int64_t sLastWhy = 0;
+  // Any slot the adapter does not hold, other than the job's: the publish order follows the
+  // jobs (mActiveKey is set from the oldest job on publish), not the fixed rotation, so the
+  // slot the adapter returns last is not waited for while another is free.
+  int key2 = keyAfter(mGpuJobs[0].key);
+  int slot2 = slotForKey(key2);
+  if (slot2 >= 0 && mInFlight[slot2] && jihadNowMs() - mPaintMs[slot2] < 2000) {
+    const int key3 = keyAfter(key2), slot3 = slotForKey(key3);
+    if (slot3 >= 0 && key3 != mGpuJobs[0].key && !(mInFlight[slot3] && jihadNowMs() - mPaintMs[slot3] < 2000)) { key2 = key3; slot2 = slot3; }
+  }
+  int why = -1;
+  unsigned char* buf2 = nullptr;
+  if (slot2 < 0 || key2 == mGpuJobs[0].key) why = 0;
+  else if (mInFlight[slot2] && jihadNowMs() - mPaintMs[slot2] < 2000) why = 1;   // the adapter holds it
+  else if (!(buf2 = attachShm(key2))) why = 2;
+  else if (segSize < hdr + (size_t)w * h * 4) why = 3;
+  else if (!gpuJobStart(slot2, key2, buf2 + hdr, segSize - hdr, x, y, zoom, w, h)) why = 4;
+  if (why >= 0) {
+    ++sWhy[why];
+    const int64_t now = jihadNowMs();
+    if (now - sLastWhy >= 2000) {
+      sLastWhy = now;
+      fprintf(stderr, "[jihad-gpu] second frame not started: no slot %u, adapter holds it %u, no buffer %u, too small %u, start failed %u\n",
+              sWhy[0], sWhy[1], sWhy[2], sWhy[3], sWhy[4]);
+    }
+  }
 }
 
 bool BrowserPageGoanna::isBusy() const {
@@ -3247,7 +3312,7 @@ bool BrowserPageGoanna::isBusy() const {
   // T-502: the compositor asked for a composite that has not been pulled yet (a layer update,
   // an animation): the fast tick, or an animated page pulls once a second.
   if (mPage->GpuPath() && mPage->CompositorSeq() != mGpuSeq) return true;
-  if (mGpuJob) return true;   // T-502: a frame is being composed; the next tick polls it
+  if (!mGpuJobs.empty()) return true;   // T-502: frames in flight; the next tick polls them
   // Maintenance frames (maybePaint). A sweep that is only waiting out its pause does not
   // need the fast tick; any tick after the pause finds it.
   if (mGrowOwed || (mSweepLeft > 0 && mLoadWasDone && jihadNowMs() >= mSweepNotBeforeMs)) return true;
@@ -3313,11 +3378,11 @@ void BrowserPageGoanna::requestNextPluginFrame() {
 }
 
 void BrowserPageGoanna::paintToSharedBuffer() {
-  if (mGpuJob) mGpuTrace[0]++;
-  if (!mPage || !mActiveKey) { if (mGpuJob) mGpuTrace[1]++; return; }
+  if (!mGpuJobs.empty()) mGpuTrace[0]++;
+  if (!mPage || !mActiveKey) { if (!mGpuJobs.empty()) mGpuTrace[1]++; return; }
   // A frame just refused as blank-over-good is retried on a grid, not every tick (see the
   // blank-settle block below). mNeedsPaint stays set, so nothing is lost by waiting.
-  if (mBlankRetryAtMs && jihadNowMs() < mBlankRetryAtMs) { if (mGpuJob) mGpuTrace[2]++; return; }
+  if (mBlankRetryAtMs && jihadNowMs() < mBlankRetryAtMs) { if (!mGpuJobs.empty()) mGpuTrace[2]++; return; }
   // Flow control (F-211): never overwrite a buffer the adapter still holds. If the target buffer
   // was msgPainted but not yet returned, defer this paint (mNeedsPaint stays set, so the next
   // pump tick / returnBuffer retries) — the typed text is already in the DOM, only the frame is
@@ -3332,7 +3397,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // for it shrinks the torn-geometry window to near-nothing. The real fix is a frame
       // sequence number in the header + an adapter-side re-read guard — that needs an
       // adapter rebuild, queued for the next adapter change.
-      if (jihadNowMs() - mPaintMs[gs] < 2000) { gJihadPaintDeferInFlight++; if (mGpuJob) mGpuTrace[3]++; return; }  // adapter may still hold it
+      if (jihadNowMs() - mPaintMs[gs] < 2000) { gJihadPaintDeferInFlight++; if (!mGpuJobs.empty()) mGpuTrace[3]++; return; }  // adapter may still hold it
       mInFlight[gs] = false;                            // stale: assume the return was lost, reclaim
     }
   }
@@ -3341,7 +3406,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
   if (shmctl(id, IPC_STAT, &ds) == 0 && ds.shm_segsz > 0) segSize = ds.shm_segsz;
   unsigned char* buf = attachShm(mActiveKey);   // cached attach — no per-paint shmat/shmdt (~400ms)
-  if (!buf) { if (mGpuJob) mGpuTrace[4]++; return; }
+  if (!buf) { if (!mGpuJobs.empty()) mGpuTrace[4]++; return; }
 
   // isis BrowserOffscreen shmem layout: [BrowserOffscreenInfo header][ARGB32 pixels].
   // The real BrowserAdapter reads header() at the base and rasterBuffer() at
@@ -3350,7 +3415,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // no header -> the adapter read a garbage geometry and blitted nothing = white).
   int w = mPage->Width(), h = mPage->Height();
   const size_t hdr = sizeof(BrowserOffscreenInfo);
-  if (w <= 0 || h <= 0 || segSize < hdr + (size_t)w * h * 4) { if (mGpuJob) mGpuTrace[4]++; return; }
+  if (w <= 0 || h <= 0 || segSize < hdr + (size_t)w * h * 4) { if (!mGpuJobs.empty()) mGpuTrace[4]++; return; }
   // From here the paint runs. maybePaint reads mMaintenance == 0 as "it ran".
   const int maintenanceKind = mMaintenance; mMaintenance = 0;
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)buf;
@@ -3892,67 +3957,68 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     paintedTop = (int)bandY; paintedH = h;
     fresh = true; growOwed = false;
     gpuT[0] = jihadNowMs();
-    if (mGpuJob) mGpuTrace[5]++;
+    if (!mGpuJobs.empty()) mGpuTrace[5]++;
     if (mPage->ComposeAsync()) {
-      // T-502: the frame in two halves. A tick with no job starts one into this slot (the
-      // layers are painted now, the compose + read run on the compositor thread) and leaves;
-      // a tick with a job pending polls it, and finishes the publish below once it is in.
-      // The read is the band this slot's frame has fallen behind by: every composite's damage
-      // is added to the other slots, and a slot composed for other geometry (a scroll, a zoom,
-      // a resize) is read whole.
+      // T-502: the frame in two halves, up to two in flight. A tick with no job starts one into
+      // this slot (the layers are painted now, the compose and the read run on the compositor
+      // and read threads) and leaves; a tick with jobs polls the oldest, starts the next into
+      // the slot after it once the oldest is composed (the read thread has it), and finishes
+      // the publish below once the oldest is in. Each composite's change is added to the other
+      // slots' stale rows; a slot composed for other geometry is read whole.
       const int gslot = slotForKey(mActiveKey);
-      if (mGpuJob && mGpuJobSlot != gslot) gpuJobDrain();   // the slot moved under the job
-      if (!mGpuJob) {
-        long sLo = 0, sHi = h;
-        if (gslot >= 0 && mGpuSlotValid[gslot] && mGpuSlotX[gslot] == (int)bandX &&
-            mGpuSlotY[gslot] == (int)bandY && mGpuSlotZoom[gslot] == Zeff &&
-            mGpuSlotW[gslot] == w && mGpuSlotH[gslot] == h) {
-          sLo = mGpuStaleLo[gslot]; sHi = mGpuStaleHi[gslot];
-        }
-        mGpuJob = mPage->ComposeStart(pixels, segSize - hdr, sLo, sHi);
-        if (!mGpuJob) {
+      if (!mGpuJobs.empty() && mGpuJobs[0].slot != gslot) gpuJobDrain();   // the slot moved under the jobs
+      if (mGpuJobs.empty()) {
+        if (!gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)bandY, Zeff, w, h)) {
           nb = -1;
         } else {
-          mGpuJobSlot = gslot; mGpuJobX = (int)bandX; mGpuJobY = (int)bandY; mGpuJobZoom = Zeff;
-          mGpuJobT0 = jihadNowMs(); mGpuJobPolls = 0; mGpuJobLastPollMs = mGpuJobT0;
-          mGpuJobSeq = mPage->CompositorSeq();
+          mGpuJobPolls = 0;
           mNeedsPaint = true;   // the next tick polls
           return;
         }
       } else {
+        const GpuJob oldest = mGpuJobs[0];
         long il = 0, ih = 0;
-        const int r = mPage->ComposePoll(mGpuJob, pixels, &il, &ih);
-        if (r == -2) { ++mGpuJobPolls; mGpuJobLastPollMs = jihadNowMs(); mNeedsPaint = true; return; }
-        mGpuJob = 0;
+        const int r = mPage->ComposePoll(oldest.token, pixels, oldest.askLo, oldest.askHi, &il, &ih);
+        if (r == -2 || r == -3) {
+          if (r == -3) gpuJobStartNext((int)bandX, (int)bandY, Zeff, w, h, segSize, hdr);
+          ++mGpuJobPolls; mNeedsPaint = true;
+          return;
+        }
+        mGpuJobs.erase(mGpuJobs.begin());
         nb = r;
         mGpuDoneMs = jihadNowMs();
         // A request that arrived while the frame was in flight (the animation asking for its
-        // next composite, a page change) is the NEXT frame's: without this it was consumed by
-        // this publish (mNeedsPaint cleared below) and the next frame waited for a fresh one.
-        gpuRestart = (mPage->CompositorSeq() != mGpuJobSeq);
+        // next composite, a page change) is the NEXT frame's, and so is a job already queued:
+        // without this the publish below (mNeedsPaint cleared) consumed it.
+        gpuRestart = (mPage->CompositorSeq() != oldest.seq) || !mGpuJobs.empty();
         {
-          // T-502 device rounds: where a frame's wall time goes between the start and the publish
           static uint32_t sN = 0;
-          const int64_t now = jihadNowMs();
           if (sN++ < 30 || (sN % 50) == 0)
-            fprintf(stderr, "[jihad-gpu] job done %ld ms after its start, %d pending polls, %ld ms since the last one, changed %ld..%ld, nb=%d; ticks in paint %u (returned: nopage %u blankgrid %u inflight %u buf %u) reached %u, maybePaint %u\n",
-                    (long)(now - mGpuJobT0), mGpuJobPolls, (long)(now - mGpuJobLastPollMs), il, ih, r,
-                    mGpuTrace[0], mGpuTrace[1], mGpuTrace[2], mGpuTrace[3], mGpuTrace[4], mGpuTrace[5], mGpuTrace[6]);
+            fprintf(stderr, "[jihad-gpu] job done %ld ms after its start, %d pending polls, asked %ld..%ld, changed %ld..%ld, nb=%d, %d still in flight\n",
+                    (long)(mGpuDoneMs - oldest.t0), mGpuJobPolls, oldest.askLo, oldest.askHi, il, ih, r, (int)mGpuJobs.size());
           for (int ti = 0; ti < 8; ++ti) mGpuTrace[ti] = 0;
-          paintT0 = mGpuJobT0;   // the painted line's ms= is then start-to-publish
+          mGpuJobPolls = 0;
+          paintT0 = oldest.t0;   // the painted line's ms= is then start-to-publish
         }
         if (r >= 0 && gslot >= 0) {
           mGpuSlotValid[gslot] = true;
-          mGpuSlotX[gslot] = mGpuJobX; mGpuSlotY[gslot] = mGpuJobY; mGpuSlotZoom[gslot] = mGpuJobZoom;
-          mGpuSlotW[gslot] = w; mGpuSlotH[gslot] = h;
-          mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;
+          mGpuSlotX[gslot] = oldest.x; mGpuSlotY[gslot] = oldest.y; mGpuSlotZoom[gslot] = oldest.zoom;
+          mGpuSlotW[gslot] = oldest.w; mGpuSlotH[gslot] = oldest.h;
+          // what was read: the band asked for joined with the change; the slot's stale band is
+          // gone when that covers it, kept whole (read again next time) when not
+          long dLo = oldest.askLo, dHi = oldest.askHi;
+          if (dHi <= dLo) { dLo = il; dHi = ih; }
+          else if (ih > il) { if (il < dLo) dLo = il; if (ih > dHi) dHi = ih; }
+          if (mGpuStaleHi[gslot] <= mGpuStaleLo[gslot] || (dLo <= mGpuStaleLo[gslot] && dHi >= mGpuStaleHi[gslot]))
+            mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;
           for (int t = 0; t < 3; ++t) {
             if (t == gslot || !mGpuSlotValid[t] || ih <= il) continue;
             if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = il; mGpuStaleHi[t] = ih; }
             else { if (il < mGpuStaleLo[t]) mGpuStaleLo[t] = il; if (ih > mGpuStaleHi[t]) mGpuStaleHi[t] = ih; }
           }
           gpuFinished = true;
-          gpuT[0] = mGpuJobT0;
+          gpuT[0] = oldest.t0;
+          mGpuJobX = oldest.x; mGpuJobY = oldest.y; mGpuJobZoom = oldest.zoom;
         }
       }
     } else {
@@ -4257,6 +4323,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // time and returns the previous one on the next msgPainted, so alternating keeps a free
   // buffer available; the in-flight gate above blocks reuse until that return arrives.
   mActiveKey = nextBufferKey();
+  if (gpuFinished && !mGpuJobs.empty()) mActiveKey = mGpuJobs[0].key;   // T-502: the next publish is the next job's slot
   if (gpuRestart) {
     // T-502: start the next frame on this tick, into the next slot (or on the adapter's
     // return if that slot is still out), instead of a tick later.

@@ -368,16 +368,19 @@ private:
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and
   // the rows that changed since it was read (the next read of that slot is that band only).
-  uint32_t           mGpuJob = 0;
-  int                mGpuJobSlot = -1;
-  int                mGpuJobX = 0, mGpuJobY = 0;
+  struct GpuJob {
+    uint32_t token = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0; double zoom = 1.0;
+    int64_t t0 = 0; uint32_t seq = 0; long askLo = 0, askHi = 0;
+  };
+  std::vector<GpuJob> mGpuJobs;              // oldest first, at most two in flight
+  bool gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h);
+  void gpuJobStartNext(int x, int y, double zoom, int w, int h, size_t segSize, size_t hdr);
+  int keyAfter(int key) const;
+  int                mGpuJobX = 0, mGpuJobY = 0;   // the geometry of the frame being published
   double             mGpuJobZoom = 1.0;
-  int64_t            mGpuJobT0 = 0;
-  int                mGpuJobPolls = 0;        // ticks that found it pending
+  int                mGpuJobPolls = 0;        // ticks that found the oldest pending
   uint32_t           mGpuTrace[8] = {0,0,0,0,0,0,0,0};   // device rounds: where ticks went while a job was pending
-  int64_t            mGpuJobLastPollMs = 0;
   int64_t            mGpuDoneMs = 0;          // when the frame came in (the publish timing)
-  uint32_t           mGpuJobSeq = 0;          // the compositor's request count when the job started
   bool               mGpuRestarting = false;  // re-entered to start the next frame right after a publish
   bool               mGpuSlotValid[3] = {false, false, false};
   int                mGpuSlotX[3] = {0, 0, 0}, mGpuSlotY[3] = {0, 0, 0};

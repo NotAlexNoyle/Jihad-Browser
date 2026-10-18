@@ -1,0 +1,1 @@
+chmod +x /tmp/gpu-bench; echo 100 > /sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction; cd /tmp && LD_LIBRARY_PATH=/usr/lib ./gpu-bench 6 2>&1 | grep "4-layer composite to glFinish\|^composite"; rm -f /tmp/gpu-bench; echo 33 > /sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction

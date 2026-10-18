@@ -85,7 +85,7 @@ F(void, glGenTextures, (GLsizei, GLuint*)); F(void, glBindTexture, (GLenum, GLui
 F(void, glTexParameteri, (GLenum, GLenum, GLint)); F(GLuint, glCreateShader, (GLenum)); F(void, glShaderSource, (GLuint, GLsizei, const GLchar**, const GLint*)); F(void, glCompileShader, (GLuint)); F(void, glGetShaderiv, (GLuint, GLenum, GLint*));
 F(GLuint, glCreateProgram, (void)); F(void, glAttachShader, (GLuint, GLuint)); F(void, glLinkProgram, (GLuint)); F(void, glGetProgramiv, (GLuint, GLenum, GLint*)); F(void, glUseProgram, (GLuint)); F(GLint, glGetAttribLocation, (GLuint, const GLchar*)); F(GLint, glGetUniformLocation, (GLuint, const GLchar*));
 F(void, glVertexAttribPointer, (GLuint, GLint, GLenum, GLboolean, GLsizei, const void*)); F(void, glEnableVertexAttribArray, (GLuint)); F(void, glDrawArrays, (GLenum, GLint, GLsizei)); F(void, glUniform1i, (GLint, GLint)); F(void, glUniform4f, (GLint, float, float, float, float));
-F(void, glEnable, (GLenum)); F(void, glDisable, (GLenum)); F(void, glBlendFunc, (GLenum, GLenum)); F(void, glViewport, (GLint, GLint, GLsizei, GLsizei)); F(GLenum, glGetError, (void)); F(const unsigned char*, glGetString, (GLenum)); F(void, glActiveTexture, (GLenum));
+F(void, glEnable, (GLenum)); F(void, glDisable, (GLenum)); F(void, glBlendFunc, (GLenum, GLenum)); F(void, glViewport, (GLint, GLint, GLsizei, GLsizei)); F(void, glScissor, (GLint, GLint, GLsizei, GLsizei)); F(GLenum, glGetError, (void)); F(const unsigned char*, glGetString, (GLenum)); F(void, glActiveTexture, (GLenum));
 
 #define LOAD(lib, name) do { name = dlsym(lib, #name); if (!name) { fprintf(stderr, "no %s\n", #name); return 2; } } while (0)
 static double now_ms(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6; }
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
   LOAD(E, eglGetDisplay); LOAD(E, eglInitialize); LOAD(E, eglChooseConfig); LOAD(E, eglCreatePbufferSurface); LOAD(E, eglCreateContext); LOAD(E, eglMakeCurrent); LOAD(E, eglQueryString); LOAD(E, eglGetError); LOAD(E, eglBindAPI);
   LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(E, eglGetProcAddress); LOAD(E, eglQuerySurface); LOAD(E, eglDestroyContext); LOAD(E, eglDestroySurface); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
   LOAD(G, glCreateShader); LOAD(G, glShaderSource); LOAD(G, glCompileShader); LOAD(G, glGetShaderiv); LOAD(G, glCreateProgram); LOAD(G, glAttachShader); LOAD(G, glLinkProgram); LOAD(G, glGetProgramiv); LOAD(G, glUseProgram);
-  LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
+  LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glScissor); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
 
   double t0 = now_ms();
   EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY); EGLint maj = 0, mn = 0;
@@ -157,6 +157,63 @@ int main(int argc, char** argv) {
   glDisable(GL_BLEND);
   t = now_ms(); for (int f = 0; f < frames; f++) { glBindTexture(GL_TEXTURE_2D, tex[0]); for (int k = 0; k < 12; k++) glTexSubImage2D(GL_TEXTURE_2D, 0, (k % 4) * 256, (k / 4) * 256, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, tile); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); } glFinish();
   printf("12 tile uploads (256x256, 3 MB total) + composite: %.2f ms/frame\n", (now_ms() - t) / frames);
+  // 7. the cost of ONE upload call by size, texture freshness, format and the GPU's state
+  //    (T-502 run 70: the engine's uploads cost ~17 ms whatever their size, so a 256x256 tile
+  //    costs what a 2.9 MB layer does and tiled layers lose)
+  {
+    const int sizes[3][2] = { {256, 256}, {64, 942}, {768, 942} };
+    unsigned char* big = (unsigned char*)malloc(768 * 942 * 4); memset(big, 0x80, 768 * 942 * 4);
+    const char* modes[5] = { "same texture, GPU idle", "fresh texture each call, GPU idle", "same texture, after a 4-layer composite (GPU busy)", "same texture, BGRA_EXT, GPU idle", "allocate (NULL) then glTexSubImage2D, GPU idle" };
+    for (int mode = 0; mode < 5; mode++) {
+      for (int si = 0; si < 3; si++) {
+        const int w = sizes[si][0], h = sizes[si][1];
+        GLuint t1; glGenTextures(1, &t1); glBindTexture(GL_TEXTURE_2D, t1);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        const GLenum fmt = (mode == 3) ? GL_BGRA_EXT : GL_RGBA;
+        double callSum = 0, callMax = 0, finSum = 0, finMax = 0; int n = 0;
+        for (int i2 = 0; i2 < 8; i2++) {
+          if (mode == 2) {
+            glClear(GL_COLOR_BUFFER_BIT); glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+            for (int k = 0; k < 4; k++) { glBindTexture(GL_TEXTURE_2D, tex[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); if (k == 0) { glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); } }
+            glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+          }
+          if (mode == 1) { glDeleteTextures(1, &t1); glGenTextures(1, &t1); glBindTexture(GL_TEXTURE_2D, t1); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); }
+          else glBindTexture(GL_TEXTURE_2D, t1);
+          const double a = now_ms();
+          if (mode == 4) { glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, big); }
+          else glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, big);
+          const double c = now_ms() - a;
+          glFinish();
+          const double f = now_ms() - a;
+          if (i2 >= 2) { callSum += c; finSum += f; if (c > callMax) callMax = c; if (f > finMax) finMax = f; n++; }
+        }
+        const GLenum err = glGetError();
+        printf("upload %dx%d (%s): call %.1f ms avg / %.1f max, to glFinish %.1f avg / %.1f max%s\n", w, h, modes[mode],
+               callSum / n, callMax, finSum / n, finMax, err ? " (GL error)" : "");
+        glDeleteTextures(1, &t1);
+      }
+    }
+    free(big);
+  }
+  // 8. a partial composite: the 4-layer frame drawn whole, under a scissor of 160 rows, and
+  //    with the viewport shrunk to those rows (T-502: does the Adreno 220 skip the rest?)
+  {
+    double tFull = 0, tSc = 0, tVp = 0; const int reps = 8;
+    for (int rep = 0; rep < reps; rep++) {
+      for (int mode = 0; mode < 3; mode++) {
+        if (mode == 1) { glEnable(0x0C11 /* GL_SCISSOR_TEST */); glScissor(0, 0, W, 160); }
+        if (mode == 2) { glViewport(0, 0, W, 160); }
+        double a = now_ms();
+        glClear(GL_COLOR_BUFFER_BIT); glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+        for (int k2 = 0; k2 < 4; k2++) { glBindTexture(GL_TEXTURE_2D, tex[k2]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); if (k2 == 0) { glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); } }
+        glFinish();
+        double d = now_ms() - a;
+        if (mode == 0) tFull += d; else if (mode == 1) tSc += d; else tVp += d;
+        glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1); glDisable(0x0C11); glViewport(0, 0, W, H);
+      }
+    }
+    printf("4-layer composite to glFinish: whole %dx%d %.1f ms, scissored to 160 rows %.1f ms, viewport 160 rows %.1f ms\n", W, H, tFull / reps, tSc / reps, tVp / reps);
+  }
   // 5. readback: the cost every GPU route pays until LunaSysMgr takes GPU buffers
   t = now_ms(); for (int f = 0; f < frames; f++) { glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, back); }
   printf("glReadPixels 1024x768 RGBA: %.2f ms/frame\n", (now_ms() - t) / frames);

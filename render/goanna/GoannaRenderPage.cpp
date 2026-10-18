@@ -660,6 +660,7 @@ bool GoannaRenderPage::Create(int width, int height) {
   }
   baseWin->Create();
   baseWin->SetVisibility(true);
+  SetActive(true);   // see the header: an inactive docshell throttles the page's timers and frames
 #ifndef JIHAD_OFFSCREEN_ONLY
   if (!mOffscreen) {
     gtk_widget_show_all(mWindow);
@@ -2988,6 +2989,17 @@ static void ActivateContent(nsIWebBrowser* wb) {
   if (ds) ds->SetIsActive(true);
 }
 
+void GoannaRenderPage::SetActive(bool active) {
+  if (!mChrome || !mChrome->mBrowser) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  bool was = false;
+  ds->GetIsActive(&was);
+  ds->SetIsActive(active);
+  fprintf(stderr, "[jihad-page] docshell %s (was %s; timers and animation frames %s)\n",
+          active ? "active" : "inactive", was ? "active" : "inactive", active ? "at full rate" : "throttled to a second");
+}
+
 // Crash-safe implicit form submission. We CANNOT use nsIDOMHTMLElement::DOMClick() — the engine
 // forbids Click() from native code (nsGenericHTMLElement::Click() → IsCallerChrome() →
 // SubjectPrincipal() MOZ_CRASHes with no JSContext on the stack), which was a latent daemon SIGSEGV
@@ -4576,17 +4588,17 @@ uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, lon
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return 0;
   const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi);
-  if (token) { mGpuJobLo = rowLo; mGpuJobHi = rowHi; }
   return token;
 }
 
-int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, long* invLo, long* invHi) {
+int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, long askLo, long askHi, long* invLo, long* invHi) {
   if (!mWidget || !ComposeAsync()) return -1;
   int il = 0, ih = 0;
   const int64_t pt0 = jihadInputNowMs();
   const int r = jihad_offscreen_compose_poll(mWidget, token, &il, &ih);
   const int64_t pt1 = jihadInputNowMs();
-  if (r == 0 || r == 2) return -2;   // pending, or composed and being read
+  if (r == 0) return -2;   // pending
+  if (r == 2) return -3;   // composed, being read
   if (r < 0) return -1;
   struct DoneLog { int64_t t0, t1; ~DoneLog() {
     static int sN = 0;
@@ -4597,7 +4609,7 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, long* invL
   if (invLo) *invLo = il;
   if (invHi) *invHi = ih;
   // the rows written: the band asked for, joined with what the composite changed
-  long lo = mGpuJobLo, hi = mGpuJobHi;
+  long lo = askLo, hi = askHi;
   if (hi <= lo) { lo = il; hi = ih; }
   else if (ih > il) { if (il < lo) lo = il; if (ih > hi) hi = ih; }
   if (!dst) return 0;   // drained, not published

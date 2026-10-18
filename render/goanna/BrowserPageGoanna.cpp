@@ -3069,6 +3069,15 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   }
   emitLoadAndLocation();
   if (mGpuCompositorScroll && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
+  // T-502 round 118: a page that scrolls itself (script, smooth scroll, an anchor) gets the
+  // displayport too, so its steps land in rows already painted instead of a repaint each
+  if (mPage->GpuPath() && !mPage->GpuDisplayPortWanted()) {
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false) && (ex != 0 || ey != 0)) {
+      const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+      mPage->WantGpuDisplayPort(z);
+    }
+  }
   emitScrollIfChanged();
   syncPluginRects();
   drainPluginSpotlight();

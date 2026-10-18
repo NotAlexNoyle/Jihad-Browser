@@ -25,15 +25,15 @@ after its hand-off.
  gfx/gl/GLContext.h                            |   7 +
  gfx/gl/GLContextEGL.h                         |  13 +
  gfx/gl/GLContextProviderEGL.cpp               |  57 +++
- gfx/layers/LayerTreeInvalidation.cpp          |  55 +++
+ gfx/layers/LayerTreeInvalidation.cpp          |  57 +++
  gfx/layers/LayerTreeInvalidation.h            |   7 +
  gfx/layers/Layers.cpp                         |  13 +-
  .../composite/AsyncCompositionManager.cpp     |  54 ++-
  .../composite/AsyncCompositionManager.h       |   6 +
- .../composite/LayerManagerComposite.cpp       |  27 +-
- gfx/layers/composite/LayerManagerComposite.h  |  12 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 223 +++++++++++-
- gfx/layers/ipc/CompositorBridgeParent.h       |   5 +
+ .../composite/LayerManagerComposite.cpp       |  61 +++-
+ gfx/layers/composite/LayerManagerComposite.h  |  16 +-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 333 ++++++++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.h       |   6 +
  gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++++-
  gfx/layers/opengl/CompositorOGL.h             |  46 ++-
  layout/base/nsDisplayList.cpp                 |   9 +-
@@ -41,7 +41,7 @@ after its hand-off.
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
  widget/PuppetWidget.cpp                       |  80 +++-
  widget/PuppetWidget.h                         |  10 +-
- 19 files changed, 958 insertions(+), 53 deletions(-)
+ 19 files changed, 1109 insertions(+), 53 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -154,7 +154,7 @@ index db7675852d..18637e353b 100644
  GLContextEGL::MakeCurrentImpl(bool aForce) {
      if (IsDestroyed()) {
 diff --git a/gfx/layers/LayerTreeInvalidation.cpp b/gfx/layers/LayerTreeInvalidation.cpp
-index 5604fafee3..cfb0ce3a34 100644
+index 5604fafee3..b18b3ae3c7 100644
 --- a/gfx/layers/LayerTreeInvalidation.cpp
 +++ b/gfx/layers/LayerTreeInvalidation.cpp
 @@ -3,6 +3,7 @@
@@ -165,7 +165,7 @@ index 5604fafee3..cfb0ce3a34 100644
  #include "LayerTreeInvalidation.h"
  
  #include <stdint.h>                     // for uint32_t
-@@ -31,6 +32,20 @@ using namespace mozilla::gfx;
+@@ -31,6 +32,22 @@ using namespace mozilla::gfx;
  namespace mozilla {
  namespace layers {
  
@@ -174,7 +174,9 @@ index 5604fafee3..cfb0ce3a34 100644
 +void JihadDiffScrollBegin(bool aOn, float aScale)
 +{
 +  sJihadScrollDiff.on = aOn; sJihadScrollDiff.scale = aScale > 0.0f ? aScale : 1.0f;
-+  sJihadScrollDiff.have = false; sJihadScrollDiff.dx = sJihadScrollDiff.dy = 0.0f;
++  // turning it off keeps what the diff just measured for the caller to take (round 119: the
++  // round-115 shift was cleared here before the bridge could read it)
++  if (aOn) { sJihadScrollDiff.have = false; sJihadScrollDiff.dx = sJihadScrollDiff.dy = 0.0f; }
 +}
 +bool JihadDiffScrollShift(float* aDx, float* aDy)
 +{
@@ -186,7 +188,7 @@ index 5604fafee3..cfb0ce3a34 100644
  struct LayerPropertiesBase;
  UniquePtr<LayerPropertiesBase> CloneLayerTreePropertiesInternal(Layer* aRoot, bool aIsMask = false);
  
-@@ -181,6 +196,46 @@ public:
+@@ -181,6 +198,46 @@ public:
      bool transformChanged = !mTransform.FuzzyEqual(GetTransformForInvalidation(mLayer)) ||
                               mLayer->GetPostXScale() != mPostXScale ||
                               mLayer->GetPostYScale() != mPostYScale;
@@ -383,7 +385,7 @@ index 98aaa964e7..5b7dbf176f 100644
    // This flag is set during a layers update, so that the first composition
    // after a layers update has it set. It is cleared after that first composition.
 diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
-index 5c8f003ffc..3b9b630373 100644
+index 5c8f003ffc..c8da9bcc65 100644
 --- a/gfx/layers/composite/LayerManagerComposite.cpp
 +++ b/gfx/layers/composite/LayerManagerComposite.cpp
 @@ -4,6 +4,7 @@
@@ -394,7 +396,48 @@ index 5c8f003ffc..3b9b630373 100644
  #include <stddef.h>                     // for size_t
  #include <stdint.h>                     // for uint16_t, uint32_t
  #include "CanvasLayerComposite.h"       // for CanvasLayerComposite
-@@ -435,7 +436,21 @@ LayerManagerComposite::UpdateAndRender()
+@@ -416,6 +417,40 @@ LayerManagerComposite::EndTransaction(const TimeStamp& aTimeStamp,
+ #endif
+ }
+ 
++nsIntRegion
++LayerManagerComposite::JihadDiffOnly()
++{
++  nsIntRegion changed;
++  if (!mRoot) {
++    return changed;
++  }
++  nsIntRegion opaque;
++  LayerIntRegion visible;
++  PostProcessLayers(mRoot, opaque, visible, Nothing());
++  mRoot->ComputeEffectiveTransforms(getenv("JIHAD_GPU_NO_WORLD_ENGINE") ? gfx::Matrix4x4() : mJihadWorld);
++  if (mClonedLayerTreeProperties) {
++    JihadDiffScrollBegin(mJihadCompensateScroll, mJihadWorld._22);
++    bool geometryChanged = false;
++    changed = mClonedLayerTreeProperties->ComputeDifferences(mRoot, nullptr, &geometryChanged);
++    JihadDiffScrollBegin(false, 1.0f);
++    if (geometryChanged) mGeometryChanged = true;
++    if (!mJihadWorld.IsIdentity() && !changed.IsEmpty()) {
++      nsIntRegion scaled;
++      for (auto iter = changed.RectIter(); !iter.Done(); iter.Next()) {
++        const gfx::IntRect& r = iter.Get();
++        gfx::Rect fr = mJihadWorld.TransformBounds(gfx::Rect(r.x, r.y, r.width, r.height));
++        fr.RoundOut();
++        scaled.OrWith(gfx::IntRect(int32_t(fr.x), int32_t(fr.y), int32_t(fr.width), int32_t(fr.height)));
++      }
++      changed = Move(scaled);
++    }
++  } else {
++    changed = mRenderBounds;
++  }
++  mClonedLayerTreeProperties = LayerProperties::CloneFrom(GetRoot());
++  return changed;
++}
++
+ void
+ LayerManagerComposite::UpdateAndRender()
+ {
+@@ -435,7 +470,21 @@ LayerManagerComposite::UpdateAndRender()
      // immediately use the resulting damage area, since ComputeDifferences
      // is also responsible for invalidates intermediate surfaces in
      // ContainerLayers.
@@ -416,7 +459,7 @@ index 5c8f003ffc..3b9b630373 100644
  
      if (mTarget) {
        // Since we're composing to an external target, we're not going to use
-@@ -465,10 +480,16 @@ LayerManagerComposite::UpdateAndRender()
+@@ -465,10 +514,16 @@ LayerManagerComposite::UpdateAndRender()
  
    // Jihad T-502: what the tree changed is reported as such; the rows the daemon will read are
    // composed as well (a partial, scissored composite covers exactly the rows read back).
@@ -437,10 +480,10 @@ index 5c8f003ffc..3b9b630373 100644
    } else if (!mTarget && !mJihadLastChanged.IsEmpty() && mClonedLayerTreeProperties &&
               !invalid.Contains(mRenderBounds)) {
 diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
-index 64231fea60..ead139da5e 100644
+index 64231fea60..63e20a972f 100644
 --- a/gfx/layers/composite/LayerManagerComposite.h
 +++ b/gfx/layers/composite/LayerManagerComposite.h
-@@ -126,7 +126,13 @@ public:
+@@ -126,7 +126,17 @@ public:
    void JihadResetLastInvalid() { mJihadLastInvalid = mJihadLastChanged = gfx::IntRect(); }
    // The rows the daemon is about to read: composed (cleared and drawn, scissored) together
    // with what the tree changed, and nothing else. Empty: only what changed.
@@ -452,10 +495,14 @@ index 64231fea60..ead139da5e 100644
 +  void JihadIgnoreDiff(bool aOn) { mJihadIgnoreDiff = aOn; }
 +  // round 115: the next diff treats the root-content layer's scroll as a shift (LayerTreeInvalidation.h)
 +  void JihadCompensateScroll(bool aOn) { mJihadCompensateScroll = aOn; }
++  // round 119: the tree diff now, without a render (the stored tree refreshed as a composite
++  // would), in frame pixels; the caller has begun a transaction and applied the async transforms
++  nsIntRegion JihadDiffOnly();
++  void JihadEndTransactionNoComposite() { mInTransaction = false; }
    bool JihadPartial() const { return mJihadPartialOn; }
  
    virtual void EndTransaction(DrawPaintedLayerCallback aCallback,
-@@ -369,7 +375,9 @@ private:
+@@ -369,7 +379,9 @@ private:
    RefPtr<Compositor> mCompositor;
    gfx::Matrix4x4 mJihadWorld;   // Jihad T-502
    gfx::IntRect mJihadLastInvalid;   // Jihad T-502
@@ -467,7 +514,7 @@ index 64231fea60..ead139da5e 100644
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..e9d91d2d98 100644
+index 06d50599f3..c7ef866b0d 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
 @@ -17,6 +17,9 @@
@@ -515,7 +562,7 @@ index 06d50599f3..e9d91d2d98 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,37 +1353,223 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,42 +1353,338 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -529,6 +576,97 @@ index 06d50599f3..e9d91d2d98 100644
 +  const bool treeChanged = !mJihadSeqKnown || seqNow != mJihadSeqAtLast;
 +  mJihadSeqAtLast = seqNow; mJihadSeqKnown = true;
 +  const bool scrollOnly = scrollChanged && !viewChanged && !treeChanged;
++  // Round 119: a frame whose tree changed takes the diff first, without a render. When what it
++  // changed, the bands the daemon asked for, the entering band of a scroll the page made and the
++  // fixed rows fit the band pass, the frame is composed there like a scroll-only one (the band
++  // surface: the bands' GPU cost, not the frame's); otherwise the whole path composes it, the
++  // diff's region invalidated by hand. JIHAD_GPU_NO_DIFF_FIRST=1 turns it off.
++  bool diffFirst = false, diffTaken = false, dfHaveShift = false;
++  int dfShift = 0, dfInvLo = 0, dfInvHi = 0, dfFixLo = 0, dfFixHi = 0;
++  {
++    static const bool sNoDiffFirst = getenv("JIHAD_GPU_NO_DIFF_FIRST") != nullptr;
++    if (treeChanged && !viewChanged && !sNoDiffFirst && ogl->JihadBandMaxRows() > 0 && aReq->dest &&
++        aReq->stride == aWidth * 4 && !getenv("JIHAD_GPU_READ_THREAD") && mCompositionManager &&
++        mLayerManager->GetRoot()) {
++      mLayerManager->JihadCompensateScroll(aReq->src != nullptr && aReq->engineShift);
++      const nsIntRegion dfRegion = JihadDiffNow();
++      mLayerManager->JihadCompensateScroll(false);
++      diffTaken = true;
++      const gfx::IntRect cb = dfRegion.GetBounds();
++      if (!cb.IsEmpty()) {
++        dfInvLo = std::max(0, cb.y); dfInvHi = std::min(aHeight, cb.YMost());
++        if (dfInvHi < dfInvLo) dfInvHi = dfInvLo;
++      }
++      float sdx = 0.0f, sdy = 0.0f;
++      if (aReq->src && aReq->engineShift && JihadDiffScrollShift(&sdx, &sdy)) {
++        dfShift = (int)lroundf(-sdy * (aScale > 0.0f ? aScale : 1.0f));
++        dfHaveShift = dfShift > -aHeight && dfShift < aHeight;
++      }
++      // the fixed rows, from the effective transforms the diff step computed
++      {
++        int fLo = aHeight, fHi = 0;
++        ForEachNode<ForwardIterator>(mLayerManager->GetRoot(), [&](Layer* l) {
++          if (!(l->GetIsFixedPosition() || l->GetIsStickyPosition())) return;
++          const gfx::IntRect vb = l->GetLocalVisibleRegion().GetBounds().ToUnknownRect();
++          if (vb.IsEmpty()) return;
++          const gfx::Rect r = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
++          const int a = std::max(0, (int)floor(r.y)), b = std::min(aHeight, (int)ceil(r.YMost()));
++          if (b > a) { fLo = std::min(fLo, a); fHi = std::max(fHi, b); }
++        });
++        if (fHi > fLo) { dfFixLo = fLo; dfFixHi = fHi; }
++      }
++      // the rows to read, as at most two intervals
++      const int eLo = dfHaveShift && dfShift > 0 ? aHeight - dfShift : 0;
++      const int eHi = dfHaveShift ? (dfShift > 0 ? aHeight : -dfShift) : 0;
++      const bool fx = dfHaveShift && dfShift != 0 && dfFixHi > dfFixLo;
++      int a[5][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {dfInvLo, dfInvHi}, {eLo, eHi},
++                      {fx ? dfFixLo : 0, fx ? dfFixHi : 0} };
++      int n = 0; int iv[5][2];
++      for (int k = 0; k < 5; k++) {
++        if (a[k][1] <= a[k][0]) continue;
++        iv[n][0] = std::max(0, a[k][0]); iv[n][1] = std::min(aHeight, a[k][1]);
++        if (iv[n][1] > iv[n][0]) n++;
++      }
++      for (bool merged = true; merged && n > 1;) {
++        merged = false;
++        for (int p = 0; p < n && !merged; p++) for (int q = p + 1; q < n && !merged; q++) {
++          if (iv[p][0] <= iv[q][1] && iv[q][0] <= iv[p][1]) {
++            iv[p][0] = std::min(iv[p][0], iv[q][0]); iv[p][1] = std::max(iv[p][1], iv[q][1]);
++            iv[q][0] = iv[n-1][0]; iv[q][1] = iv[n-1][1]; n--; merged = true;
++          }
++        }
++      }
++      while (n > 2) {
++        int bi = 0, bj = 1, best = 1 << 30;
++        for (int p = 0; p < n; p++) for (int q = p + 1; q < n; q++) {
++          const int gap = std::max(iv[p][0], iv[q][0]) - std::min(iv[p][1], iv[q][1]);
++          if (gap < best) { best = gap; bi = p; bj = q; }
++        }
++        iv[bi][0] = std::min(iv[bi][0], iv[bj][0]); iv[bi][1] = std::max(iv[bi][1], iv[bj][1]);
++        iv[bj][0] = iv[n-1][0]; iv[bj][1] = iv[n-1][1]; n--;
++      }
++      if (n == 2 && iv[1][0] < iv[0][0]) { std::swap(iv[0][0], iv[1][0]); std::swap(iv[0][1], iv[1][1]); }
++      const int total = (n > 0 ? iv[0][1] - iv[0][0] : 0) + (n > 1 ? iv[1][1] - iv[1][0] : 0);
++      if (dfHaveShift) {
++        aReq->shift = dfShift;
++        aReq->frameY = aReq->srcY + dfShift;
++        aReq->frameYValid = true;
++      }
++      if (total > 0 && total <= ogl->kJihadBandRows) {
++        aReq->lo = iv[0][0]; aReq->hi = iv[0][1];
++        aReq->lo2 = n > 1 ? iv[1][0] : 0; aReq->hi2 = n > 1 ? iv[1][1] : 0;
++        diffFirst = true;
++      } else {
++        mLayerManager->AddInvalidRegion(dfRegion);   // the whole path composes what the diff found
++      }
++      static uint32_t sN = 0;
++      if (sN++ < 12 || (sN % 50) == 0) {
++        fprintf(stderr, "[jihad-gpu] diff first: changed %d..%d, shift %d%s, fixed %d..%d -> %d rows, %s\n",
++                dfInvLo, dfInvHi, dfShift, dfHaveShift ? "" : " (none)", dfFixLo, dfFixHi, total,
++                diffFirst ? "the band pass" : "the whole path");
++      }
++    }
++  }
 +  // Rounds 92/105: a scroll-only frame composes the bands it reads stacked at the top of the
 +  // window target, the world shifted per band (partial composites: the cost is the bands', not
 +  // the frame's), the rows kept are moved while the first band composes, one read takes the
@@ -537,7 +675,7 @@ index 06d50599f3..e9d91d2d98 100644
 +    const int bandMax = ogl->JihadBandMaxRows();
 +    const bool b1 = aReq->hi > aReq->lo, b2 = aReq->hi2 > aReq->lo2;
 +    const bool fits = (b1 ? aReq->hi - aReq->lo : 0) + (b2 ? aReq->hi2 - aReq->lo2 : 0) <= bandMax;
-+    if (scrollOnly && bandMax > 0 && (b1 || b2) && fits && aReq->dest && aReq->stride == aWidth * 4 &&
++    if ((scrollOnly || diffFirst) && bandMax > 0 && (b1 || b2) && fits && aReq->dest && aReq->stride == aWidth * 4 &&
 +        !getenv("JIHAD_GPU_READ_THREAD")) {
 +      // Both bands stacked in the band target (band 2 under band 1), composed one after the
 +      // other, read ONCE into the compositor's scratch rows and split from there: a glReadPixels
@@ -603,8 +741,9 @@ index 06d50599f3..e9d91d2d98 100644
 +      mLayerManager->UpdateRenderBounds(whole);
 +      mLayerManager->JihadSetBand(gfx::IntRect(), gfx::IntRect());
 +      ogl->JihadSelectTarget();
-+      aReq->invLo = aReq->invHi = 0;
-+      aReq->scrollOnly = true;
++      aReq->invLo = diffFirst ? dfInvLo : 0; aReq->invHi = diffFirst ? dfInvHi : 0;
++      aReq->scrollOnly = !diffFirst;
++      if (diffFirst) { mJihadLastFixedLo = dfFixLo; mJihadLastFixedHi = dfFixHi; }
 +      aReq->fixedLo = mJihadLastFixedLo; aReq->fixedHi = mJihadLastFixedHi;
 +      aReq->composed = true;
 +      aReq->ok = ok;
@@ -629,7 +768,7 @@ index 06d50599f3..e9d91d2d98 100644
 +  mLayerManager->JihadSetBand(aReq->hi > aReq->lo ? gfx::IntRect(0, aReq->lo, aWidth, aReq->hi - aReq->lo) : gfx::IntRect(),
 +                              aReq->hi2 > aReq->lo2 ? gfx::IntRect(0, aReq->lo2, aWidth, aReq->hi2 - aReq->lo2) : gfx::IntRect());
    ogl->JihadSelectTarget();
-+  mLayerManager->JihadCompensateScroll(aReq->src != nullptr && aReq->engineShift);   // round 115
++  mLayerManager->JihadCompensateScroll(!diffTaken && aReq->src != nullptr && aReq->engineShift);   // round 115
    TimeStamp t0 = TimeStamp::Now();
 +  sJihadInCompose = true;
    ForceComposeToTarget(nullptr, nullptr);
@@ -643,7 +782,10 @@ index 06d50599f3..e9d91d2d98 100644
 +  bool haveEngineShift = false;
 +  {
 +    float sdx = 0.0f, sdy = 0.0f;
-+    if (aReq->src && aReq->engineShift && JihadDiffScrollShift(&sdx, &sdy)) {
++    if (diffTaken) {
++      haveEngineShift = dfHaveShift;   // round 119: the diff-first step measured it (and set the request)
++      engineShiftRows = dfShift;
++    } else if (aReq->src && aReq->engineShift && JihadDiffScrollShift(&sdx, &sdy)) {
 +      engineShiftRows = (int)lroundf(-sdy * (aScale > 0.0f ? aScale : 1.0f));
 +      haveEngineShift = engineShiftRows > -aHeight && engineShiftRows < aHeight;
 +      if (haveEngineShift) {
@@ -749,13 +891,35 @@ index 06d50599f3..e9d91d2d98 100644
    }
    ++sFrames;
    return started;
+ }
+ 
++nsIntRegion
++CompositorBridgeParent::JihadDiffNow()
++{
++  // the steps of CompositeToTarget before its render: shadow properties from the layers, the
++  // async transforms (the card's scroll, animations), then the diff
++  mLayerManager->BeginTransaction();
++  SetShadowProperties(mLayerManager->GetRoot());
++  mCompositionManager->ComputeRotation();
++  TimeStamp time = mIsTesting ? mTestTime : mCompositorScheduler->GetLastComposeTime();
++  mCompositionManager->TransformShadowTree(time, mVsyncRate);
++  nsIntRegion changed = mLayerManager->JihadDiffOnly();
++  mLayerManager->JihadEndTransactionNoComposite();
++  return changed;
++}
++
+ PAPZCTreeManagerParent*
+ CompositorBridgeParent::AllocPAPZCTreeManagerParent(const uint64_t& aLayersId)
+ {
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
-index 680fabc4e8..16a445bb79 100644
+index 680fabc4e8..f4907daf8a 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.h
 +++ b/gfx/layers/ipc/CompositorBridgeParent.h
-@@ -533,6 +533,11 @@ public:
+@@ -532,7 +532,13 @@ public:
+   // change alone in invLo/invHi), to the read thread; aReq->done runs when the frame is in
    // aReq->dest. False: nothing was started.
    bool JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY);
++  nsIntRegion JihadDiffNow();   // round 119: the tree diff without a render (frame pixels)
    gfx::Matrix4x4 mJihadLastWorld;   // Jihad T-502: the view the last composite was made with
 +  float mJihadLastScrollX = 0.0f, mJihadLastScrollY = 0.0f;
 +  bool mJihadLastScrollValid = false;

@@ -106,8 +106,15 @@ Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 | Page | Frame rate | Note |
 | --- | --- | --- |
 | `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **27-32 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
-| `jihad-anim-css.html` | 23.5-25 fps (one 2 s window at 20) | only the changed rows read |
-| `jihad-scroll-js.html` (the page scrolls itself) | 11-14 fps | the shift comes from the diff (round 115); bounded now by the page repainting every step; the card lags the page's scroll (pre-existing) |
+| `jihad-anim-css.html` | **26-31 fps** | the diff first, then only the changed rows composed on the band surface (round 119) |
+| `jihad-scroll-js.html` (the page scrolls itself) | 13.5-17.4 fps | the shift from the diff, the displayport from its first scroll, small steps on the band surface; the card lags the page's scroll (pre-existing) |
+
+Rounds 118-119: a page that scrolls itself gets the displayport too; a frame whose tree changed
+takes the layer diff first, without a render (`JihadDiffNow`: the composite's own steps up to the
+diff, the stored tree refreshed), and when the changed rows, the asked bands, the entering band and
+the fixed rows fit 256 rows it is composed on the band surface like a scroll-only frame. Also
+fixed: the round-115 shift was cleared before the bridge could read it (the daemon's own estimate
+had been carrying it). Open: an engine anchor move during a pan still diffs as every row changed.
 
 Rounds 115-117: the layer-tree diff treats the root-content layer's pure vertical translation
 as a scroll (`JihadDiffScrollBegin`/`JihadDiffScrollShift`, LayerTreeInvalidation): the engine
@@ -124,8 +131,8 @@ is at the same scroll with little stale (an animated page). Measure a still or a
 
 
 **Left, in order:** (1) the owner's finger test of a real pan and flick (the entry is in
-`docs/FINGER-TESTS.md`); (2) a page's own scrolls cost a main-thread repaint per step (11-14 fps):
-paint them into the displayport ahead (set it when the page scrolls itself too); (3) fixed rows as two intervals (a page with a fixed
+`docs/FINGER-TESTS.md`); (2) an anchor move during a pan diffs as every row changed (find what the
+displayport move invalidates on screen; one whole frame per ~660 px today); (3) fixed rows as two intervals (a page with a fixed
 header AND a fixed footer reads the whole frame on every pan step); (3) a fourth shared buffer for the
 two-deep frame queue; (4) a damage rectangle in the frame header so the adapter invalidates and
 LunaSysMgr uploads only the band; (5) option 2 (WebGL through EGL); (6) prune the `[jihad-gpu]`

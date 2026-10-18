@@ -61,3 +61,5 @@ their own surface), `JIHAD_GPU_NO_DONE_FD=1` (no wake pipe).
 Rounds 113-117: `JIHAD_GPU_NO_LATEST=1` (no copy from the newest slot), `JIHAD_GPU_DIFFLOG=1` (the
 layers whose transforms moved, per composite), `JIHAD_GPU_ONE_DEEP=1` (no second job while one is
 composed). `pan-run.sh <name> <url> "<words>" none` measures a page for 12 s without a pan.
+
+Round 119: `JIHAD_GPU_NO_DIFF_FIRST=1` (a tree change composes on the frame surface, as before).

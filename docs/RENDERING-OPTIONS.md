@@ -240,6 +240,10 @@ own scroll reads the entering band) and is scaled to frame pixels (a latent wron
 fit-zoomed animated pages); the two-deep queue made correct and kept for still pages. The pan
 27-32 fps, the animation page 23.5-25, the self-scrolling page 11-14.
 
+**Rounds 118-119:** the diff first, without a render: a frame whose tree changed is composed on the
+band surface when its rows fit (the animation page 26-31 fps, the self-scrolling page 13.5-17.4);
+the displayport also from a page's own first scroll.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

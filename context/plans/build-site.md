@@ -726,7 +726,7 @@ Owner: "lay the groundwork for a uxp/goanna update by making our interaction wit
 | T-382 | EngineCompat.h: every jihad_* export, startup report | cavekit-engine-update.md | R3 | — | yes | S | done |
 | T-383 | check-engine-api.py + baseline | cavekit-engine-update.md | R4 | T-382 | no | M | done |
 | T-384 | docs/ENGINE.md; ENGINE-SOURCE.md brought up to date | cavekit-engine-update.md | R5 | T-380..T-383 | no | M | done |
-| T-385 | Wrappers for the positional engine calls | cavekit-engine-update.md | R3 | T-382 | yes | M | pending |
+| T-385 | Wrappers for the positional engine calls | cavekit-engine-update.md | R3 | T-382 | yes | M | DONE 2026-10-18 (the wrappers landed with Tier 81 as `render/goanna/EngineCalls.h`; `build/engine/check-engine-calls.sh` now guards them: the wrapped methods are read from the header and any direct call in `render/` fails it; it found one, `test/embed_load.cpp`'s `LoadURI`, now `engine_calls::LoadURIPlain`, compiled in the desktop container; 19 call sites) |
 | T-386 | JS shim for engine modules and about:addons markup | cavekit-engine-update.md | R4b | — | yes | M | pending |
 | T-387 | Shared component install; derived push list; desktop tests for the uncovered paths | cavekit-engine-update.md | R6 | T-380 | no | L | pending |
 

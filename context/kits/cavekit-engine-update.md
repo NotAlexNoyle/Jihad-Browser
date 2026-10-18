@@ -57,7 +57,8 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
   2026-10-08: "engine: 11 of 11 optional jihad_* exports present"; pages load.)*
 - [x] The high-risk positional calls (`sendMouseEventToWindow` and friends, `ResizeReflow`,
   `LoadURIWithOptions`) go through small wrappers in one file. *(`render/goanna/EngineCalls.h`,
-  2026-10-12: 15 call sites, every argument named, the fixed values set once.)*
+  2026-10-12: 15 call sites, every argument named, the fixed values set once. 2026-10-18 (T-385):
+  `build/engine/check-engine-calls.sh` keeps it so; it found the desktop test's raw `LoadURI`.)*
 **Dependencies:** none
 
 ### R4: Know what a candidate engine breaks before building it

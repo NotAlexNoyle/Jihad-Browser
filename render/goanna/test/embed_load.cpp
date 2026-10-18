@@ -20,6 +20,7 @@
 #include "../../browserserver/Src/BrowserOffscreenInfo.h"
 
 #include "../EngineHost.h"
+#include "../EngineCalls.h"
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
 #include "nsIWebBrowser.h"
@@ -286,7 +287,7 @@ int main(int argc, char** argv) {
   else urlStr = defUrl;
   printf("[embed_load] loading: %s\n", NS_ConvertUTF16toUTF8(urlStr).get());
   chrome->mDone = false;   // reset per-load (Codex P2: needed if browser reused)
-  rv = nav->LoadURI(urlStr.get(), nsIWebNavigation::LOAD_FLAGS_NONE, nullptr, nullptr, nullptr);
+  rv = engine_calls::LoadURIPlain(nav, urlStr.get(), nsIWebNavigation::LOAD_FLAGS_NONE);   // R3: the positional call in one place
   printf("[embed_load] LoadURI rv=0x%x\n", (unsigned)rv);
 
   // Pump the XPCOM thread event queue (canonical embedding loop) plus any

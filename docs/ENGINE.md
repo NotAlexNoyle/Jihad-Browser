@@ -135,6 +135,7 @@ version add-ons are judged against — it follows the engine's compatibility lev
 |---|---|
 | `build/engine/update-engine.sh [TAG] / --finish / --abort / --pins` | moves the engine to an upstream release: the queue carried across with a three-way merge, the overlaps listed, the API checked, every pin rewritten (§6) |
 | `build/engine/check-engine-pins.sh` | every pin and version string agrees with `engine-version.env` |
+| `build/engine/check-engine-calls.sh` | the positional engine calls go through `render/goanna/EngineCalls.h` only (the wrapped methods are read from the header; a direct call anywhere in `render/` fails it) |
 | `build/engine/patch-queue.sh --check` | the patch queue reproduces the engine branch exactly |
 | `build/engine/check-engine-api.py [--uxp TREE]` | what in TREE no longer matches what Jihad uses: our exports (§4.1), IDL signatures and implemented interfaces (§4.2) against `engine-api-baseline.json`, the engine JS and about:addons markup (§4.3), prefs (§4.4), mozconfig options and the ICU file (§4.5). Run it on a candidate before building. |
 

@@ -383,6 +383,7 @@ private:
   // the anchor move wait until a frame at the new zoom is published, or 800 ms (moving them first
   // repainted the page on this thread before any frame: 1.2-1.8 s on desktop Wikipedia, the card
   // grey meanwhile). JIHAD_GPU_NO_ZOOM_HOLD=1 restores the old order.
+  bool               mGpuSettledShort = false;   // T-504: the pan settled where the engine cannot scroll; the compositor keeps the rest
   int64_t            mGpuZoomHoldMs = 0;
   double             mGpuZoomHoldZ = 0.0;
   void               gpuZoomRelease(const char* why);

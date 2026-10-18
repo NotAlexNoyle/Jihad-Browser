@@ -882,7 +882,25 @@ bool BrowserPageGoanna::panCovered(int x, int y) {
 void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
   if (!mGpuCompositorScroll || !mPage) return;
   const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
-  if (moveEngine) mPage->ScrollTo((int)(mAdapterScrollX / z), (int)(mAdapterScrollY / z));
+  if (moveEngine) {
+    const double wantX = mAdapterScrollX / z, wantY = mAdapterScrollY / z;
+    mPage->ScrollTo((int)wantX, (int)wantY);
+    // T-504: zoomed in, the card's view can sit where the engine cannot scroll (sideways past the
+    // layout viewport's range: desktop Wikipedia at 1.23 wants x 245 CSS px of a 1116-px-wide scroll
+    // port that does not scroll sideways). Turning the compositor's scroll off there published frames
+    // at the engine's x 0 under a card at x 302: a grey strip down the right side (the owner's grey
+    // areas, 2026-10-18). The compositor keeps the part the engine could not reach.
+    int sx = 0, sy = 0;
+    if (mPage->GetEngineScroll(&sx, &sy) && (fabs(wantX - sx) > 1.0 || fabs(wantY - sy) > 1.0)) {
+      mGpuAnchorX = sx; mGpuAnchorY = sy; mGpuAnchorValid = true;
+      mGpuSettledShort = true;
+      static uint32_t sK = 0;
+      if (sK++ < 20 || (sK % 50) == 0)
+        fprintf(stderr, "[jihad-gpu] compositor scroll kept at %d,%d: the engine stops at %d,%d of %.0f,%.0f CSS px\n",
+                mAdapterScrollX, mAdapterScrollY, sx, sy, wantX, wantY);
+      return;
+    }
+  }
   mPage->SetGpuScroll(0.0, 0.0, false);
   mGpuCompositorScroll = false;
   mGpuAnchorValid = false;
@@ -894,6 +912,7 @@ void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
 
 void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
   const double wantX = x / z, wantY = y / z;
+  mGpuSettledShort = false;   // a new position: the settle tries the engine again
   static const bool sEngineScroll = getenv("JIHAD_GPU_ENGINE_SCROLL") != nullptr;
   if (!sEngineScroll) {
     // The compositor-side scroll: the engine stays where it was painted while the card's scroll
@@ -3105,7 +3124,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   }
   emitLoadAndLocation();
   if (mGpuZoomHoldMs && jihadNowMs() - mGpuZoomHoldMs > 800) gpuZoomRelease("800 ms without a frame at the new zoom");
-  if (mGpuCompositorScroll && !mGpuZoomHoldMs && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
+  if (mGpuCompositorScroll && !mGpuZoomHoldMs && !mGpuSettledShort && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
   // T-502 round 118: a page that scrolls itself (script, smooth scroll, an anchor) gets the
   // displayport too, so its steps land in rows already painted instead of a repaint each
   if (mPage->GpuPath() && !mPage->GpuDisplayPortWanted()) {

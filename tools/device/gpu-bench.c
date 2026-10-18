@@ -74,7 +74,7 @@ static void* E; static void* G;
 F(EGLDisplay, eglGetDisplay, (void*)); F(EGLBoolean, eglInitialize, (EGLDisplay, EGLint*, EGLint*)); F(EGLBoolean, eglChooseConfig, (EGLDisplay, const EGLint*, EGLConfig*, EGLint, EGLint*));
 F(EGLSurface, eglCreatePbufferSurface, (EGLDisplay, EGLConfig, const EGLint*)); F(EGLContext, eglCreateContext, (EGLDisplay, EGLConfig, EGLContext, const EGLint*)); F(EGLBoolean, eglMakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext));
 F(const char*, eglQueryString, (EGLDisplay, EGLint)); F(EGLint, eglGetError, (void)); F(EGLBoolean, eglBindAPI, (unsigned));
-F(void, glClearColor, (float, float, float, float)); F(void, glClear, (GLbitfield)); F(void, glFinish, (void)); F(void, glReadPixels, (GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*));
+F(void, glClearColor, (float, float, float, float)); F(void, glClear, (GLbitfield)); F(void, glFinish, (void)); F(void, glFlush, (void)); F(void, glReadPixels, (GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*));
 F(void*, eglGetProcAddress, (const char*));
 F(EGLBoolean, eglQuerySurface, (EGLDisplay, EGLSurface, EGLint, EGLint*));
 F(EGLBoolean, eglDestroyContext, (EGLDisplay, EGLContext));
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
   G = dlopen("/usr/lib/libGLESv2.so", RTLD_NOW | RTLD_GLOBAL); if (!G) G = dlopen("libGLESv2.so.2", RTLD_NOW | RTLD_GLOBAL);
   if (!E || !G) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 1; }
   LOAD(E, eglGetDisplay); LOAD(E, eglInitialize); LOAD(E, eglChooseConfig); LOAD(E, eglCreatePbufferSurface); LOAD(E, eglCreateContext); LOAD(E, eglMakeCurrent); LOAD(E, eglQueryString); LOAD(E, eglGetError); LOAD(E, eglBindAPI);
-  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glReadPixels); LOAD(E, eglGetProcAddress); LOAD(E, eglQuerySurface); LOAD(E, eglDestroyContext); LOAD(E, eglDestroySurface); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
+  LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glFlush); LOAD(G, glReadPixels); LOAD(E, eglGetProcAddress); LOAD(E, eglQuerySurface); LOAD(E, eglDestroyContext); LOAD(E, eglDestroySurface); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
   LOAD(G, glCreateShader); LOAD(G, glShaderSource); LOAD(G, glCompileShader); LOAD(G, glGetShaderiv); LOAD(G, glCreateProgram); LOAD(G, glAttachShader); LOAD(G, glLinkProgram); LOAD(G, glGetProgramiv); LOAD(G, glUseProgram);
   LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glScissor); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
 
@@ -136,6 +136,249 @@ int main(int argc, char** argv) {
   uint8_t* tile = malloc(256 * 256 * 4); memset(tile, 0x80, 256 * 256 * 4);
   uint8_t* back = malloc((size_t)W * H * 4);
   GLuint tex[4]; glGenTextures(4, tex);
+  // 15. T-504: the cheapest 1x1 conversion an engine can do mid-frame (section 14): must the texture
+  //     be SAMPLED by a draw, or does a clear of it through a framebuffer count? And without the
+  //     glFinish, what does the 1x1 write cost? BENCH_ONLY=15.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 15) {
+    enum { NV = 8 };
+    uint8_t* src = malloc(256 * 256 * 4); memset(src, 0x80, 256 * 256 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    GLuint fb; glGenFramebuffers(1, &fb);
+    const char* names[5] = { "no use (control)", "a clear through a framebuffer, glFinish", "a clear through a framebuffer, no finish",
+                             "a draw sampling it, no finish", "a draw sampling it, batch: all draws then all writes" };
+    for (int rep = 0; rep < 3; rep++) {
+      for (int variant = 0; variant < 5; variant++) {
+        GLuint tt[NV]; glGenTextures(NV, tt);
+        double e1[NV], e3[NV];
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTexParameteri(GL_TEXTURE_2D, 0x2802, 0x812F); glTexParameteri(GL_TEXTURE_2D, 0x2803, 0x812F);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1, 1, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+        }
+        const double b0 = now_ms();
+        if (variant == 4) {
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+        }
+        for (int k = 0; k < NV; k++) {
+          if (variant == 1 || variant == 2) {
+            glBindFramebuffer(GL_FRAMEBUFFER, fb); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tt[k], 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0); glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            if (variant == 1) glFinish();
+          } else if (variant == 3) {
+            glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+          }
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          const double a = now_ms();
+          if (variant > 0) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+          e1[k] = now_ms() - a;
+        }
+        const double conv = now_ms() - b0;
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); }
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+        glFinish();
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); e3[k] = now_ms() - a; }
+        double s1 = 0, s3 = 0, m1 = 0; for (int k = 0; k < NV; k++) { s1 += e1[k]; s3 += e3[k]; if (e1[k] > m1) m1 = e1[k]; }
+        printf("section 15 rep %d %s: the conversion of %d took %.1f ms (1x1 writes avg %.1f, max %.1f), the 256x256 re-upload after a draw %.1f ms avg\n",
+               rep, names[variant], NV, conv, s1 / NV, m1, s3 / NV);
+        glDeleteTextures(NV, tt);
+      }
+    }
+    glDeleteFramebuffers(1, &fb);
+    glFinish();
+    return 0;
+  }
+  // 14. T-504: is the conversion (section 12) kept across a resize? If a texture converted while it
+  //     is 1x1 (a 1x1 upload, a draw, a 1x1 write) stays converted when re-specified at 256x256, a
+  //     new tile texture can be converted for ~1 ms instead of ~18. BENCH_ONLY=14.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 14) {
+    enum { NV = 8 };
+    uint8_t* src = malloc(256 * 256 * 4); memset(src, 0x80, 256 * 256 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    for (int rep = 0; rep < 3; rep++) {
+      for (int variant = 0; variant < 3; variant++) {
+        GLuint tt[NV]; glGenTextures(NV, tt);
+        double e1[NV], e2[NV], e3[NV];
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTexParameteri(GL_TEXTURE_2D, 0x2802, 0x812F); glTexParameteri(GL_TEXTURE_2D, 0x2803, 0x812F);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1, 1, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+        }
+        if (variant > 0) {   // the 1x1 conversion: a draw, a finish, then a 1x1 write
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+          glFinish();
+        }
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms();
+          if (variant == 2) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+          else if (variant == 1) glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1, 1, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+          e1[k] = now_ms() - a;
+        }
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); e2[k] = now_ms() - a; }
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+        glFinish();
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); e3[k] = now_ms() - a; }
+        double s1 = 0, s2 = 0, s3 = 0; for (int k = 0; k < NV; k++) { s1 += e1[k]; s2 += e2[k]; s3 += e3[k]; }
+        const char* names[3] = { "no 1x1 conversion", "1x1 drawn, then a 1x1 image", "1x1 drawn, then a 1x1 sub-image" };
+        printf("section 14 rep %d %s: the 1x1 write %.1f ms avg, the 256x256 image %.1f ms avg, its re-upload after a draw %.1f ms avg (max %.1f)\n",
+               rep, names[variant], s1 / NV, s2 / NV, s3 / NV, ({ double m = 0; for (int k = 0; k < NV; k++) if (e3[k] > m) m = e3[k]; m; }));
+        glDeleteTextures(NV, tt);
+      }
+    }
+    glFinish();
+    return 0;
+  }
+  // 13. T-504: does any texture setup escape section 12's one-time cost (the first write after the
+  //     first draw)? Per variant: 8 new textures, first upload, a draw, the timed re-upload. And
+  //     T6: converted textures re-uploaded while a queued draw still reads them. BENCH_ONLY=13.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 13) {
+    enum { NV = 8 };
+    uint8_t* src = malloc(1024 * 1024 * 4); memset(src, 0x80, 1024 * 1024 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    struct { const char* name; int w, h; GLenum fmt, type; GLint filter, wrap; } v[] = {
+      { "256x256 BGRA nearest repeat", 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_NEAREST, 0x2901 },
+      { "256x256 BGRA linear clamp", 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "256x256 RGBA linear clamp", 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "256x255 BGRA linear clamp (NPOT)", 256, 255, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "255x256 BGRA linear clamp (NPOT)", 255, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "256x256 RGB565 linear clamp", 256, 256, 0x1907 /*RGB*/, 0x8363 /*UNSIGNED_SHORT_5_6_5*/, GL_LINEAR, 0x812F },
+      { "512x512 BGRA linear clamp", 512, 512, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "1024x1024 BGRA linear clamp", 1024, 1024, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+      { "64x64 BGRA linear clamp", 64, 64, GL_BGRA_EXT, GL_UNSIGNED_BYTE, GL_LINEAR, 0x812F },
+    };
+    for (int rep = 0; rep < 2; rep++) {
+      for (unsigned vi = 0; vi < sizeof v / sizeof v[0]; vi++) {
+        GLuint tt[NV]; glGenTextures(NV, tt);
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, v[vi].filter); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, v[vi].filter);
+          glTexParameteri(GL_TEXTURE_2D, 0x2802 /*WRAP_S*/, v[vi].wrap); glTexParameteri(GL_TEXTURE_2D, 0x2803 /*WRAP_T*/, v[vi].wrap);
+          glTexImage2D(GL_TEXTURE_2D, 0, v[vi].fmt, v[vi].w, v[vi].h, 0, v[vi].fmt, v[vi].type, src);
+        }
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+        glFinish();
+        double e[NV], sum = 0;
+        for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, v[vi].fmt, v[vi].w, v[vi].h, 0, v[vi].fmt, v[vi].type, src); e[k] = now_ms() - a; sum += e[k]; }
+        const GLenum err = glGetError();
+        char line[300]; int o = 0; for (int k = 0; k < NV && o < 280; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]);
+        printf("section 13 rep %d %s: first re-upload after the first draw %s ms (avg %.1f)%s\n", rep, v[vi].name, line, sum / NV, err ? " GL ERROR" : "");
+        if (vi == 1) {
+          // T6: these are converted now; draw them (queued, not finished) and re-upload each at once
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+          sum = 0; o = 0;
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, v[vi].fmt, v[vi].w, v[vi].h, 0, v[vi].fmt, v[vi].type, src); e[k] = now_ms() - a; sum += e[k]; }
+          for (int k = 0; k < NV && o < 280; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]);
+          printf("section 13 rep %d T6 converted textures re-uploaded under a queued draw that reads them: %s ms (avg %.1f)\n", rep, line, sum / NV);
+          glFinish();
+          // T7: converted, then deleted and their names regenerated: is the new name converted too?
+          glDeleteTextures(NV, tt); glGenTextures(NV, tt);
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, 0x2802, 0x812F); glTexParameteri(GL_TEXTURE_2D, 0x2803, 0x812F); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); }
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+          glFinish(); sum = 0; o = 0;
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); e[k] = now_ms() - a; sum += e[k]; }
+          for (int k = 0; k < NV && o < 280; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]);
+          printf("section 13 rep %d T7 recycled names (deleted, regenerated): first re-upload after the first draw %s ms (avg %.1f)\n", rep, line, sum / NV);
+        }
+        glDeleteTextures(NV, tt);
+      }
+    }
+    glFinish();
+    return 0;
+  }
+  // 12. T-504: which re-upload waits. A texture's FIRST re-upload after its first draw cost 17-31 ms in
+  //     section 11 (rep 0) and later ones ~0.7 ms; the daemon's re-uploads into kept tile textures
+  //     averaged 37 ms, its first uploads into new ones 1.5 ms. Each step below on 12 new 256x256
+  //     BGRA textures, the costs per call; BENCH_ONLY=12.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 12) {
+    enum { NT = 12 };
+    uint8_t* src = malloc(256 * 256 * 4); memset(src, 0x80, 256 * 256 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    GLuint tt[NT];
+    #define T12_GEN() do { glGenTextures(NT, tt); for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); } } while (0)
+    #define T12_DRAW() do { for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); } glFinish(); } while (0)
+    #define T12_UP(label, call) do { double e[NT], sum = 0; for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); const double a = now_ms(); call; e[k] = now_ms() - a; sum += e[k]; } \
+      char line[400]; int o = 0; for (int k = 0; k < NT && o < 380; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]); \
+      printf("section 12 %s: %s ms (sum %.1f)\n", label, line, sum); } while (0)
+    #define T12_IMG() glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src)
+    for (int rep = 0; rep < 2; rep++) {
+      printf("section 12 --- rep %d\n", rep);
+      T12_GEN(); T12_UP("T1 first upload", T12_IMG()); T12_DRAW();
+      T12_UP("T1 re-upload after the first draw", T12_IMG()); T12_DRAW();
+      T12_UP("T1 re-upload after the second draw", T12_IMG()); T12_DRAW();
+      T12_UP("T1 re-upload after the third draw", T12_IMG());
+      { const double a = now_ms(); glDeleteTextures(NT, tt); glFinish(); printf("section 12 T1 delete 12 drawn textures: %.1f ms\n", now_ms() - a); }
+      T12_GEN(); T12_UP("T2 first upload", T12_IMG()); T12_UP("T2 re-upload before any draw", T12_IMG()); T12_DRAW();
+      T12_UP("T2 re-upload after the first draw", T12_IMG());
+      glDeleteTextures(NT, tt);
+      T12_GEN(); T12_UP("T3 allocate (NULL)", glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL));
+      T12_UP("T3 sub-image fill", glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src)); T12_DRAW();
+      T12_UP("T3 sub-image re-fill after the first draw", glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src)); T12_DRAW();
+      T12_UP("T3 re-upload (image) after the second draw", T12_IMG());
+      glDeleteTextures(NT, tt);
+      T12_GEN(); T12_UP("T4 first upload", T12_IMG()); T12_DRAW();
+      { struct timespec ts = { 0, 300 * 1000000L }; nanosleep(&ts, NULL); }
+      T12_UP("T4 re-upload after the first draw and 300 ms idle", T12_IMG()); T12_DRAW();
+      { struct timespec ts = { 0, 300 * 1000000L }; nanosleep(&ts, NULL); }
+      T12_UP("T4 re-upload after the second draw and 300 ms idle", T12_IMG());
+      glDeleteTextures(NT, tt);
+      T12_GEN(); T12_UP("T5 first upload", T12_IMG()); T12_DRAW();
+      T12_UP("T5 a 1x1 sub-image after the first draw", glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src)); T12_DRAW();
+      T12_UP("T5 re-upload after that", T12_IMG());
+      glDeleteTextures(NT, tt);
+    }
+    glFinish();
+    return 0;
+  }
+  // 11. T-504: back-to-back tile uploads, as the compositor makes them when a transaction brings new
+  //     tiles (each a recycled 256x256 texture, BGRA, glTexImage2D: the Adreno takes no sub-image
+  //     updates). The daemon logs 18-31 ms per upload in runs and ~1 ms in others: what does each
+  //     wait for? Run with the screen still and with a card animating (LunaSysMgr on the GPU too).
+  //     BENCH_ONLY=11 runs this section alone.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 11) {
+    enum { NT = 12 };
+    GLuint tt[NT]; glGenTextures(NT, tt);
+    uint8_t* src = malloc(512 * 512 * 4); memset(src, 0x80, 512 * 512 * 4);
+    for (int k = 0; k < NT; k++) {
+      glBindTexture(GL_TEXTURE_2D, tt[k]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+    }
+    for (int i = 0; i < 4; i++) { glBindTexture(GL_TEXTURE_2D, tex[i]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); }
+    glFinish();
+    const char* cases[7] = { "GPU idle", "after a queued 4-layer composite", "after a composite and a 160-row read",
+                             "each after glFlush", "fresh texture names, GPU idle", "512x512 tiles, GPU idle", "512x512 tiles after a queued composite" };
+    for (int c = 0; c < 7; c++) {
+      for (int rep = 0; rep < 3; rep++) {
+        glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+        for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+        glFinish();
+        if (c == 1 || c == 2 || c == 6) {
+          glClear(GL_COLOR_BUFFER_BIT);
+          for (int k = 0; k < 4; k++) { glBindTexture(GL_TEXTURE_2D, tex[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); if (k == 0) { glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); } }
+          glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+        }
+        if (c == 2) glReadPixels(0, 0, W, 160, GL_RGBA, GL_UNSIGNED_BYTE, back);
+        const int sz = c >= 5 ? 512 : 256, nt = c >= 5 ? 3 : NT;
+        double each[NT]; const double a0 = now_ms();
+        for (int k = 0; k < nt; k++) {
+          if (c == 3) glFlush();
+          if (c == 4) { glDeleteTextures(1, &tt[k]); glGenTextures(1, &tt[k]); glBindTexture(GL_TEXTURE_2D, tt[k]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); }
+          else glBindTexture(GL_TEXTURE_2D, tt[k]);
+          const double a = now_ms();
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, sz, sz, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+          each[k] = now_ms() - a;
+        }
+        const double calls = now_ms() - a0; glFinish(); const double fin = now_ms() - a0;
+        char line[512]; int o = 0;
+        for (int k = 0; k < nt && o < 480; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", each[k]);
+        printf("section 11 %s, rep %d: %d uploads %dx%d: %s ms (calls %.1f, to glFinish %.1f)\n", cases[c], rep, nt, sz, sz, line, calls, fin);
+        if (sz == 512) for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); }
+      }
+    }
+    glFinish();
+    return 0;
+  }
   // 1. one full-frame texture upload (RGBA 1024x768 = 3 MB)
   double t = now_ms();
   for (int i = 0; i < 4; i++) { glBindTexture(GL_TEXTURE_2D, tex[i]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix); }

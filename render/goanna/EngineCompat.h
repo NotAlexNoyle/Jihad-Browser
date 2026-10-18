@@ -73,7 +73,7 @@ extern "C" {
   void jihad_offscreen_set_scroll(nsIWidget* aWidget, double aX, double aY, int aValid) __attribute__((weak));
   // OPTIONAL (T-502): the displayport (margins in screen px) on the root scroll frame's content
   // of the docshell's document, from layout itself; 0 on success (see nsLayoutUtils.cpp).
-  int jihad_layout_set_displayport(nsIDocShell* aDocShell, float aLeft, float aTop, float aRight,
+  int jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop,
                                    float aBottom) __attribute__((weak));
   // OPTIONAL (T-502 round 108): the fd the compositor writes a byte to when a compose job finishes.
   void jihad_offscreen_set_done_fd(int aFd) __attribute__((weak));

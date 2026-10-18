@@ -408,6 +408,9 @@ private:
   // that one changed, and builds without the diff's scroll shift (its base is not the previous composite)
   long               mGpuNextExtraLo = 0, mGpuNextExtraHi = 0;
   bool               mGpuNextSecond = false;
+  // round 130: the second job builds on the job in flight (composed: its frame is complete when
+  // the second job runs, the compositor thread runs them in order), exact while scrolling
+  int                mGpuNextBaseKey = 0, mGpuNextBaseY = 0;
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();

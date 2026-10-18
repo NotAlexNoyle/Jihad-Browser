@@ -32,17 +32,17 @@ after its hand-off.
  .../composite/AsyncCompositionManager.h       |  15 +
  .../composite/LayerManagerComposite.cpp       |  64 ++-
  gfx/layers/composite/LayerManagerComposite.h  |  16 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 368 +++++++++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 369 +++++++++++++++++-
  gfx/layers/ipc/CompositorBridgeParent.h       |   6 +
  gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++-
  gfx/layers/opengl/CompositorOGL.h             |  46 ++-
  layout/base/FrameLayerBuilder.cpp             |  10 +-
  layout/base/nsDisplayList.cpp                 |   9 +-
- layout/base/nsLayoutUtils.cpp                 |  37 ++
+ layout/base/nsLayoutUtils.cpp                 |  61 ++-
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
  widget/PuppetWidget.cpp                       |  80 +++-
  widget/PuppetWidget.h                         |  10 +-
- 20 files changed, 1193 insertions(+), 54 deletions(-)
+ 20 files changed, 1217 insertions(+), 55 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -583,7 +583,7 @@ index 64231fea60..63e20a972f 100644
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..2494a7c631 100644
+index 06d50599f3..de18e82e22 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
 @@ -17,6 +17,9 @@
@@ -631,7 +631,7 @@ index 06d50599f3..2494a7c631 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,42 +1353,373 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,42 +1353,374 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -690,8 +690,9 @@ index 06d50599f3..2494a7c631 100644
 +      const int eLo = dfHaveShift && dfShift > 0 ? aHeight - dfShift : 0;
 +      const int eHi = dfHaveShift ? (dfShift > 0 ? aHeight : -dfShift) : 0;
 +      const bool fx = dfHaveShift && dfShift != 0 && dfFixHi > dfFixLo;
++      // round 134: the fixed rows widened by the shift (where the base frame's fixed pixels land)
 +      int a[5][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {dfInvLo, dfInvHi}, {eLo, eHi},
-+                      {fx ? dfFixLo : 0, fx ? dfFixHi : 0} };
++                      {fx ? dfFixLo - std::max(dfShift, 0) : 0, fx ? dfFixHi + std::max(-dfShift, 0) : 0} };
 +      int n = 0; int iv[5][2];
 +      for (int k = 0; k < 5; k++) {
 +        if (a[k][1] <= a[k][0]) continue;
@@ -949,7 +950,7 @@ index 06d50599f3..2494a7c631 100644
 +    const int eHi = haveEngineShift ? (engineShiftRows > 0 ? aHeight : -engineShiftRows) : 0;
 +    const bool fx = haveEngineShift && engineShiftRows != 0 && aReq->fixedHi > aReq->fixedLo;
 +    int a[5][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {invLo, invHi}, {eLo, eHi},
-+                    {fx ? aReq->fixedLo : 0, fx ? aReq->fixedHi : 0} };
++                    {fx ? aReq->fixedLo - std::max(engineShiftRows, 0) : 0, fx ? aReq->fixedHi + std::max(-engineShiftRows, 0) : 0} };
 +    int n = 0; int iv[5][2];
 +    for (int k = 0; k < 5; k++) {
 +      if (a[k][1] <= a[k][0]) continue;
@@ -1592,10 +1593,23 @@ index 766a3fa3e1..3f025bf757 100644
      aBuilder->IsPaintingToWindow() &&
      !presContext->GetParentPresContext();
 diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
-index e8069ea79f..9de1504c95 100644
+index e8069ea79f..41668dcfb9 100644
 --- a/layout/base/nsLayoutUtils.cpp
 +++ b/layout/base/nsLayoutUtils.cpp
-@@ -9352,3 +9352,40 @@ nsLayoutUtils::GetNonAnonymousStyleContext(nsIFrame* aFrame)
+@@ -8169,7 +8169,11 @@ nsLayoutUtils::CalculateCompositionSizeForFrame(nsIFrame* aFrame, bool aSubtract
+ 
+   bool isRootContentDocRootScrollFrame = presContext->IsRootContentDocument()
+                                       && aFrame == presShell->GetRootScrollFrame();
+-  if (isRootContentDocRootScrollFrame) {
++  // Jihad T-502 round 132: on the offscreen GPU compositor the root's composition is its scroll
++  // port: the compositor scales the page into the card, and the window-sized composition (764x942
++  // CSS px) clipped a page laid out wider (1116x1374, en.wikipedia.org) to its top-left part
++  static const bool sJihadGpu = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  if (isRootContentDocRootScrollFrame && !sJihadGpu) {
+     ParentLayerRect compBounds;
+     if (UpdateCompositionBoundsForRCDRSF(compBounds, presContext, false)) {
+       int32_t auPerDevPixel = presContext->AppUnitsPerDevPixel();
+@@ -9352,3 +9356,58 @@ nsLayoutUtils::GetNonAnonymousStyleContext(nsIFrame* aFrame)
               "path to be triggered");
    return pc->StyleSet()->ResolveStyleFor(node->AsElement(), nullptr);
  }
@@ -1609,8 +1623,13 @@ index e8069ea79f..9de1504c95 100644
 +#include "nsIDocShell.h"
 +#include "nsIScrollableFrame.h"
 +extern "C" MOZ_EXPORT int
-+jihad_layout_set_displayport(nsIDocShell* aDocShell, float aLeft, float aTop, float aRight, float aBottom)
++jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop, float aBottom)
 +{
++  // T-502 round 131: the card shows aVisW x aVisH CSS px (its size over its zoom), which can be
++  // larger than the scroll port (a fit-zoomed page: 1116x1369 CSS px shown, a 768x942 scroll
++  // port); the displayport must cover what is shown plus the slack asked for, so the right and
++  // bottom margins add the difference (round 126's margins relative to the scroll port left the
++  // right third and the bottom of a fit-zoomed page unpainted)
 +  if (!aDocShell) {
 +    return 1;
 +  }
@@ -1627,10 +1646,23 @@ index e8069ea79f..9de1504c95 100644
 +    return 3;
 +  }
 +  nsIScrollableFrame* sf = do_QueryFrame(rsf);
-+  if (sf) {
-+    nsLayoutUtils::SetDisplayPortBaseIfNotSet(content, sf->GetScrollPortRect());
++  if (!sf) {
++    return 3;
 +  }
-+  const ScreenMargin margins(aTop, aRight, aBottom, aLeft);
++  const nsRect port = sf->GetScrollPortRect();
++  // the base is the scroll port, set every time: layout seeds it once from the composition size
++  // (the engine window, 768x942 CSS px) and a fit-zoomed page's scroll port is larger (round 131)
++  nsLayoutUtils::SetDisplayPortBase(content, nsRect(nsPoint(0, 0), port.Size()));
++  const float portW = nsPresContext::AppUnitsToFloatCSSPixels(port.width);
++  const float portH = nsPresContext::AppUnitsToFloatCSSPixels(port.height);
++  const float right = std::max(0.0f, aVisW - portW) + aSide;
++  const float bottom = std::max(0.0f, aVisH - portH) + aBottom;
++  const ScreenMargin margins(aTop, right, bottom, aSide);
++  static int sLogged = 0;
++  if (sLogged++ < 6) {
++    fprintf(stderr, "[jihad-gpu] displayport: scroll port %.0fx%.0f CSS px, shown %.0fx%.0f, margins top %.0f right %.0f bottom %.0f left %.0f\n",
++            portW, portH, aVisW, aVisH, aTop, right, bottom, aSide);
++  }
 +  if (!nsLayoutUtils::SetDisplayPortMargins(content, ps, margins, 0)) {
 +    return 4;
 +  }
@@ -1657,7 +1689,7 @@ index 38e06f172f..9e5107fad6 100644
      if (parentLayerClip) {
        // If APZ is not enabled, we still need the displayport to be clipped
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index a176ac9c8c..a898d1f6bb 100644
+index a176ac9c8c..512a3f327a 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -3,6 +3,7 @@
@@ -1771,7 +1803,7 @@ index a176ac9c8c..a898d1f6bb 100644
      } else if (!aWait && job->req.composed) {
 -      return 2;   // composed: the read thread has it; the next frame may be started
 +      // composed: the next frame may be started, and it must read what this one changed (round 116)
-+      if (aOut) { aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; }
++      if (aOut) { aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0; }
 +      return 2;
      } else if (aWait) {
        job->abandoned = true;

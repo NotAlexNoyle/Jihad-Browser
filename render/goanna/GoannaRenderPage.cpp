@@ -4468,12 +4468,18 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // so a pan keeps a quarter height of painted rows in hand. 1.25 heights and half a width (rounds
   // 110-125) painted ~95 tiles on an image-heavy page at a fit zoom of 0.69: each tile upload waits
   // behind the GPU on this chip, and one composite took 300 ms (en.m.wikipedia.org, round 126).
-  static const float sDpY = getenv("JIHAD_GPU_DP_Y") ? (float)atof(getenv("JIHAD_GPU_DP_Y")) : 0.5f;
+  // round 131: in CSS px of what the card SHOWS (its size over the zoom): the slack above and below
+  // is the anchor distance (JIHAD_GPU_ANCHOR, 0.25 heights) plus JIHAD_GPU_DP_Y (0.25 heights);
+  // sideways JIHAD_GPU_DP_X widths (0, half a width when zoomed in); layout adds what is shown
+  // beyond the scroll port (jihad_layout_set_displayport)
+  static const float sDpY = getenv("JIHAD_GPU_DP_Y") ? (float)atof(getenv("JIHAD_GPU_DP_Y")) : 0.25f;
   static const float sDpX = getenv("JIHAD_GPU_DP_X") ? (float)atof(getenv("JIHAD_GPU_DP_X")) : -1.0f;
+  static const float sAnchorY = getenv("JIHAD_GPU_ANCHOR") ? (float)atof(getenv("JIHAD_GPU_ANCHOR")) : 0.25f;
+  const float visW = (float)mWidth / z, visH = (float)mHeight / z;
   const float dpX = sDpX >= 0.0f ? sDpX : (zoom > 1.01 ? 0.5f : 0.0f);
-  const float mx = (float)mWidth * dpX, my = (float)mHeight * sDpY;
+  const float mx = visW * dpX, my = visH * (sAnchorY + sDpY);
   if (!sNoDp && mGpuDpWanted) {
-    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, mx, my, mx, my);
+    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, mx, my, my);
     else if (root) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
   }
   const bool ok = dp == 0;
@@ -4535,6 +4541,11 @@ uint64_t GoannaRenderPage::CurrentDocId() {
 // T-502: a frame (or a band of one, rows [lo, hi)) just written into dst by the compositor
 // thread: hand the rows to the other CPU/the adapter, keep the device rounds' dumps, and sample
 // the nonblank count (every 8th pixel of every 8th row, scaled back up) the blank-frame rules use.
+// T-502 round 133: the frame-dump counter (JIHAD_GPU_DUMP_EVERY) restarts when a scripted pan
+// starts, so the dumps are mid-pan on a page that took long to load (jihad::GpuDumpRestart)
+static long gJihadDumpFrameNo = 0, gJihadDumpCount = 0;
+void GpuDumpRestart() { gJihadDumpFrameNo = 0; gJihadDumpCount = 0; }   // already inside namespace jihad
+
 long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi) {
   if (lo < 0) lo = 0;
   if (hi > h) hi = h;
@@ -4557,7 +4568,8 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
   {
     static const long sEvery = getenv("JIHAD_GPU_DUMP_EVERY") ? atol(getenv("JIHAD_GPU_DUMP_EVERY")) : 0;
     static const char* sBase = getenv("JIHAD_GPU_DUMP") ? getenv("JIHAD_GPU_DUMP") : "/tmp/frame.raw";
-    static long sFrameNo = 0, sDumps = 0;
+    long& sFrameNo = gJihadDumpFrameNo;
+    long& sDumps = gJihadDumpCount;
     ++sFrameNo;
     if (sEvery > 0 && sDumps < 3 && (sFrameNo % sEvery) == 0) {
       char name[512]; snprintf(name, sizeof name, "%s-%ld", sBase, sFrameNo);
@@ -4656,7 +4668,7 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
   const int r = jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
   if (r == 2) {             // composed, being read: its changed rows are known (round 116)
-    if (out) { out->invLo = o[0]; out->invHi = o[1]; }
+    if (out) { out->invLo = o[0]; out->invHi = o[1]; out->frameY = o[8]; out->frameYValid = o[9] != 0; }
     return -3;
   }
   if (r < 0) return -1;

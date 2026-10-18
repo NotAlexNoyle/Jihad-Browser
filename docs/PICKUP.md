@@ -108,7 +108,17 @@ Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 | `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **27-32 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
 | `jihad-anim-css.html` | **26-31 fps** | the diff first, then only the changed rows composed on the band surface (round 119) |
 | `jihad-scroll-js.html` (the page scrolls itself) | 13.5-17.4 fps | the shift from the diff, the displayport from its first scroll, small steps on the band surface; the card lags the page's scroll (pre-existing) |
-| **en.m.wikipedia.org/wiki/HP_TouchPad**, the same pan after 12 s of loading | **15-17 fps** (software path: 9-12.4) | a stuck 208x786 sticky container is 541 fixed rows re-read every step; before round 126 this page panned at 3.7-4.9, WORSE than software |
+| **en.m.wikipedia.org/wiki/HP_TouchPad** (redirects to the desktop site), the same pan after 12 s of loading | **13-14 fps** (software path: 9-12.4) | correct only since round 132-134 (before, the right third and the bottom were never painted and a sticky header doubled); stuck sticky sidebars are ~540 fixed rows re-read every step |
+
+Rounds 129-134 (the real page, correctness): on a page laid out wider than the card (the desktop
+Wikipedia at a fit zoom of 0.69: a 1116x1374 CSS px scroll port) the root scroll frame clipped to
+the COMPOSITION size, the engine window (764x942): the GPU path never showed the right third or
+the bottom. The root's composition is its scroll port on the GPU path now
+(`CalculateCompositionSizeForFrame`); the displayport base is set to the scroll port every time and
+its margins cover what the card shows plus the anchor slack; the fixed rows read again are widened
+by the shift (the base frame's fixed pixels land just above them on a scroll down: a sticky
+header showed twice); a second job builds on the job in flight (exact while scrolling, round 130).
+The dump counter restarts with a scripted pan, so `pan-run.sh`'s dumps are mid-pan.
 
 Rounds 126-128 (a real page): the displayport is 0.5 heights up and down and none sideways unless
 zoomed in (`JIHAD_GPU_DP_Y`, `JIHAD_GPU_DP_X`); the 1.25-height one painted ~95 tiles on an

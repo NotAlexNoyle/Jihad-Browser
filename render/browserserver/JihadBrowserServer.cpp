@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
+namespace jihad { void GpuDumpRestart(); }   // GoannaRenderPage.cpp (T-502 round 133)
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 // A card connected or left → the engine side tells the components (render/goanna/EngineHost.cpp;
@@ -306,6 +307,7 @@ void JihadBrowserServer::processInjectFile() {
       // per tick (what the adapter sends for a drag)
       printf("[jihad-bs] inject pan %d -> %d over %d ms\n", x, y, n);
       mPanPage = p; mPanY0 = x; mPanY1 = y; mPanMs = n > 0 ? n : 1; mPanT0 = jihadTickNowMs(); mPanActive = true;
+      jihad::GpuDumpRestart();   // the frame dumps count from the pan's start
     } else if (sscanf(c.c_str(), "hold %d %d", &x, &y) == 2) {
       printf("[jihad-bs] inject hold %d,%d\n", x, y); p->holdAt(x, y);
     } else if (sscanf(c.c_str(), "key %d %d", &x, &y) >= 1) {

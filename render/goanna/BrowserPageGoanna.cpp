@@ -3352,26 +3352,52 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   // (an anchor move's transaction reports every row changed) the next frames build on it, where
   // each slot's own older content was stale whole and cost a whole read of its own.
   const unsigned char* src = nullptr;
+  long srcYForEngine = 0;
   static const bool sNoLatest = getenv("JIHAD_GPU_NO_LATEST") != nullptr;
+  if (!sWhole && mGpuNextSecond && mGpuNextBaseKey && mGpuNextBaseKey != key && mGpuFixedHi >= mGpuFixedLo) {
+    // round 130: the job in flight is the base (its frame is complete when this job runs)
+    const long dy = (long)y - mGpuNextBaseY;
+    unsigned char* bb = (dy > -h && dy < h) ? attachShm(mGpuNextBaseKey) : nullptr;
+    if (bb) {
+      src = bb + sizeof(BrowserOffscreenInfo);
+      srcYForEngine = mGpuNextBaseY;
+      shift = dy;
+      long iv[2][2]; int n = 0;
+      const long eLo = dy > 0 ? h - dy : 0, eHi = dy > 0 ? h : (dy < 0 ? -dy : 0);
+      if (eHi > eLo) { iv[n][0] = eLo; iv[n][1] = eHi; n++; }
+      if (dy != 0 && mGpuFixedHi > mGpuFixedLo) {
+        // round 134: the rows the shift moved the fixed pixels into (above them on a scroll down,
+        // below on a scroll up) are read too: they held the fixed element in the base frame
+        const long fLo = std::max(0L, mGpuFixedLo - (dy > 0 ? dy : 0)), fHi = std::min((long)h, mGpuFixedHi + (dy < 0 ? -dy : 0));
+        if (fHi > fLo) {
+          if (n == 1 && fLo <= iv[0][1] && iv[0][0] <= fHi) { iv[0][0] = std::min(iv[0][0], fLo); iv[0][1] = std::max(iv[0][1], fHi); }
+          else { iv[n][0] = fLo; iv[n][1] = fHi; n++; }
+        }
+      }
+      if (n == 2 && iv[1][0] < iv[0][0]) { std::swap(iv[0][0], iv[1][0]); std::swap(iv[0][1], iv[1][1]); }
+      sLo = n > 0 ? iv[0][0] : 0; sHi = n > 0 ? iv[0][1] : 0; s2Lo = n > 1 ? iv[1][0] : 0; s2Hi = n > 1 ? iv[1][1] : 0;
+    }
+  }
   const int L = mGpuLatestSlot;
   // the slot's own frame is the cheaper base when it is at this very scroll with little stale (an
   // animated page): no copy, only the changed rows read
   const bool ownCheap = slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h && mGpuSlotY[slot] == y &&
       (mGpuStaleHi[slot] - mGpuStaleLo[slot]) + (mGpuStale2Hi[slot] - mGpuStale2Lo[slot]) < h / 3;
-  if (!sWhole && !sNoLatest && !ownCheap && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
+  if (!src && !sWhole && !sNoLatest && !ownCheap && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
       mGpuSlotZoom[L] == zoom && mGpuSlotW[L] == w && mGpuSlotH[L] == h &&
       mGpuStaleHi[L] <= mGpuStaleLo[L] && mGpuStale2Hi[L] <= mGpuStale2Lo[L] && mGpuFixedHi >= mGpuFixedLo) {
     const long dy = (long)y - mGpuSlotY[L];
     unsigned char* lb = (dy > -h && dy < h) ? attachShm(mGpuLatestKey) : nullptr;
     if (lb) {
       src = lb + sizeof(BrowserOffscreenInfo);
+      srcYForEngine = mGpuSlotY[L];
       shift = dy;
       long iv[2][2]; int n = 0;
       const long eLo = dy > 0 ? h - dy : 0, eHi = dy > 0 ? h : (dy < 0 ? -dy : 0);
       if (eHi > eLo) { iv[n][0] = eLo; iv[n][1] = eHi; n++; }
       if (dy != 0 && mGpuFixedHi > mGpuFixedLo) {   // fixed rows move against the content only on a scroll
-        const long fLo = std::max(0L, mGpuFixedLo), fHi = std::min((long)h, mGpuFixedHi);
+        const long fLo = std::max(0L, mGpuFixedLo - (dy > 0 ? dy : 0)), fHi = std::min((long)h, mGpuFixedHi + (dy < 0 ? -dy : 0));   // round 134
         if (fHi > fLo) {
           if (n == 1 && fLo <= iv[0][1] && iv[0][0] <= fHi) { iv[0][0] = std::min(iv[0][0], fLo); iv[0][1] = std::max(iv[0][1], fHi); }
           else { iv[n][0] = fLo; iv[n][1] = fHi; n++; }
@@ -3447,8 +3473,11 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
     if (s2Hi > s2Lo && sHi > sLo && s2Lo <= sHi && sLo <= s2Hi) { sLo = std::min(sLo, s2Lo); sHi = std::max(sHi, s2Hi); s2Lo = s2Hi = 0; }
     if (s2Hi > s2Lo && s2Lo < sLo) { std::swap(sLo, s2Lo); std::swap(sHi, s2Hi); }
   }
+  // the diff's shift is exact when the base is the previous composite: the newest finished frame
+  // for a first job, the job in flight for a second (round 130)
+  const bool baseIsPrevious = src != nullptr && (!mGpuNextSecond || mGpuNextBaseKey != 0);
   const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src,
-                                             src ? mGpuSlotY[mGpuLatestSlot] : 0, src != nullptr && !mGpuNextSecond);
+                                             srcYForEngine, baseIsPrevious);
   if (!token) return false;
   GpuJob j;
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
@@ -4186,9 +4215,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         const int r = mPage->ComposePoll(oldest.token, pixels, &cr);
         const long il = cr.invLo, ih = cr.invHi;
         if (r == -2 || r == -3) {
-          // round 116: the next job early only when nothing scrolls (an animated page gains the
-          // overlap); a scrolling frame waits, so the next builds on it with the diff's exact shift
-          if (r == -3 && oldest.shift == 0 && bandY == oldest.y && !mGpuCompositorScroll) {
+          // round 130: the next job as soon as this one is composed, built on THIS job's frame
+          // (its slot, its position): exact while scrolling too (round 116 allowed it only when
+          // nothing scrolled, building on the older newest-finished frame)
+          static const bool sStillOnly = getenv("JIHAD_GPU_TWO_DEEP_STILL") != nullptr;
+          if (r == -3 && (!sStillOnly || (oldest.shift == 0 && bandY == oldest.y && !mGpuCompositorScroll))) {
+            mGpuNextBaseKey = oldest.key;
+            mGpuNextBaseY = cr.frameYValid ? (int)cr.frameY : oldest.y;
             // the composed job's changed rows are in ITS frame; the next job is at bandY: the hull
             // of both readings (scrolled and fixed content), as the stale rule does
             if (cr.invHi > cr.invLo) {
@@ -4200,7 +4233,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             }
             mGpuNextSecond = true;
             gpuJobStartNext((int)bandX, (int)bandY, Zeff, w, h, segSize, hdr);
-            mGpuNextSecond = false; mGpuNextExtraLo = mGpuNextExtraHi = 0;
+            mGpuNextSecond = false; mGpuNextExtraLo = mGpuNextExtraHi = 0; mGpuNextBaseKey = 0;
           }
           ++mGpuJobPolls; mNeedsPaint = true;
           return;

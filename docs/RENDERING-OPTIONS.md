@@ -258,6 +258,12 @@ sideways unless zoomed in; only stuck sticky layers count as fixed rows. The pag
 15-17 fps against software's 9-12.4; a stuck 208x786 sticky container (541 rows re-read every
 step) is what limits it.
 
+**Rounds 129-134:** the real page was being drawn wrong: the root scroll frame clipped to the
+engine window (764x942 CSS px) on a page laid out wider (1116x1374), so the right third and the
+bottom were never shown; the composition is the scroll port on the GPU path now. The displayport
+base and margins follow what the card shows; the fixed-row re-read widens by the shift (a sticky
+header doubled). The real page now pans at 13-14 fps (software 9-12.4) with every row right.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

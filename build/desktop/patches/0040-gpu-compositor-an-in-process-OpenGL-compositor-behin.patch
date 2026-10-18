@@ -1,0 +1,1936 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 18 Oct 2026 02:41:07 -0400
+Subject: [PATCH] gpu compositor: an in-process OpenGL compositor behind the
+ offscreen widget (JIHAD_GPU_COMPOSITOR)
+
+T-502 (2026-10-17). With JIHAD_GPU_COMPOSITOR in the daemon's environment the headless platform
+lists the OpenGL layers backend, off-main-thread composition is forced on over the bundle's
+force-disabled pref, and the offscreen PuppetWidget creates an in-process CompositorBridgeParent
+whose CompositorOGL draws into an EGL pbuffer context with two renderbuffer window targets (a
+texture-backed one costs 370-640 ms a readback on the Adreno 220).
+
+The frame is pulled, not pushed: the vsync scheduler only counts composite requests, the daemon
+reads the count (jihad_offscreen_compositor_seq) and asks for a frame in two halves
+(jihad_offscreen_compose_start / _poll / _forget): the layer paint on the main thread, then the
+compose and the readback on the compositor thread into the daemon's shared buffer, with the
+card's zoom and the residual scroll offset as a world transform on the layer tree
+(jihad_offscreen_set_view, LayerManagerComposite::JihadSetWorldTransform). The compositor keeps
+the window's flipped view on the borrowed target (the intermediate-surface draw cancels a flip
+that must exist) and reverses the rows in the readback; the render bounds are the frame's size.
+The readback is a band: the layer tree's own diff says what changed (JihadLastChanged) and the
+daemon asks for the rows its slot has fallen behind by; the composite is scissored to the rows
+read. Opt-in and measured as no gain: a read thread with a shared context, EGL fences and the
+two targets used in turn (JIHAD_GPU_READ_THREAD=1), a GPU swizzle pass (JIHAD_GPU_PASS=1), the
+round-5 snapshot road (JIHAD_GPU_SNAPSHOT=1).
+
+Tiled content layers are on by default (layers.enable-tiles in all.js: the bundle's goanna.js is
+read after the once-only gfx prefs are snapshotted).
+---
+ gfx/layers/client/ClientPaintedLayer.cpp      |   6 +
+ .../composite/LayerManagerComposite.cpp       |  29 +-
+ gfx/layers/composite/LayerManagerComposite.h  |  18 +
+ gfx/layers/ipc/CompositorBridgeParent.cpp     |  98 +++
+ gfx/layers/ipc/CompositorBridgeParent.h       |  20 +
+ .../opengl/CompositingRenderTargetOGL.cpp     |   7 +-
+ .../opengl/CompositingRenderTargetOGL.h       |  11 +-
+ gfx/layers/opengl/CompositorOGL.cpp           | 617 +++++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.h             |  61 +-
+ gfx/layers/opengl/TextureHostOGL.cpp          |  28 +
+ gfx/thebes/gfxPlatform.cpp                    |  21 +-
+ gfx/thebes/gfxPlatformHeadless.cpp            |  13 +
+ gfx/thebes/gfxPlatformHeadless.h              |   5 +
+ gfx/thebes/gfxPrefs.h                         |   5 +-
+ modules/libpref/init/all.js                   |   2 +-
+ widget/PuppetWidget.cpp                       | 390 ++++++++++-
+ widget/PuppetWidget.h                         |  36 +
+ 17 files changed, 1344 insertions(+), 23 deletions(-)
+
+diff --git a/gfx/layers/client/ClientPaintedLayer.cpp b/gfx/layers/client/ClientPaintedLayer.cpp
+index 150eadebf2..51c0ce5bf6 100644
+--- a/gfx/layers/client/ClientPaintedLayer.cpp
++++ b/gfx/layers/client/ClientPaintedLayer.cpp
+@@ -146,6 +146,12 @@ already_AddRefed<PaintedLayer>
+ ClientLayerManager::CreatePaintedLayerWithHint(PaintedLayerCreationHint aHint)
+ {
+   NS_ASSERTION(InConstruction(), "Only allowed in construction phase");
++  {
++    // Jihad T-502 device rounds: whether painted layers are tiled (layers.enable-tiles is a
++    // once-only gfx pref: goanna.js, not prefs.js)
++    static bool sLogged = false;
++    if (!sLogged) { sLogged = true; fprintf(stderr, "[jihad-gpu] painted layers: %s\n", gfxPrefs::LayersTilesEnabled() ? "tiled" : "single-buffer (not tiled)"); }
++  }
+   if (gfxPrefs::LayersTilesEnabled()) {
+     RefPtr<ClientTiledPaintedLayer> layer = new ClientTiledPaintedLayer(this, aHint);
+     CREATE_SHADOW(Painted);
+diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
+index fde5eb1c57..5c8f003ffc 100644
+--- a/gfx/layers/composite/LayerManagerComposite.cpp
++++ b/gfx/layers/composite/LayerManagerComposite.cpp
+@@ -428,7 +428,7 @@ LayerManagerComposite::UpdateAndRender()
+ 
+   if (mClonedLayerTreeProperties) {
+     // Effective transforms are needed by ComputeDifferences().
+-    mRoot->ComputeEffectiveTransforms(gfx::Matrix4x4());
++    mRoot->ComputeEffectiveTransforms(getenv("JIHAD_GPU_NO_WORLD_ENGINE") ? gfx::Matrix4x4() : mJihadWorld);   // Jihad T-502: the identity unless set
+     didEffectiveTransforms = true;
+ 
+     // We need to compute layer tree differences even if we're not going to
+@@ -463,9 +463,22 @@ LayerManagerComposite::UpdateAndRender()
+     mInvalidRegion.SetEmpty();
+   }
+ 
++  // Jihad T-502: what the tree changed is reported as such; the rows the daemon will read are
++  // composed as well (a partial, scissored composite covers exactly the rows read back).
++  mJihadLastChanged = invalid.GetBounds();
++  mJihadPartialOn = false;
++  if (!mJihadBand.IsEmpty() && !mTarget) {
++    invalid.Or(invalid, mJihadBand);
++    mJihadPartialOn = true;
++  } else if (!mTarget && !mJihadLastChanged.IsEmpty() && mClonedLayerTreeProperties &&
++             !invalid.Contains(mRenderBounds)) {
++    mJihadPartialOn = true;   // only what changed, when that is less than the frame
++  }
+   if (invalid.IsEmpty() && !mWindowOverlayChanged) {
+     // Composition requested, but nothing has changed. Don't do any work.
+     mClonedLayerTreeProperties = LayerProperties::CloneFrom(GetRoot());
++    mJihadLastInvalid = mJihadLastChanged = gfx::IntRect();   // Jihad T-502: nothing to read back
++    mJihadPartialOn = false;
+     return;
+   }
+ 
+@@ -476,9 +489,10 @@ LayerManagerComposite::UpdateAndRender()
+   if (!didEffectiveTransforms) {
+     // The results of our drawing always go directly into a pixel buffer,
+     // so we don't need to pass any global transform here.
+-    mRoot->ComputeEffectiveTransforms(gfx::Matrix4x4());
++    mRoot->ComputeEffectiveTransforms(getenv("JIHAD_GPU_NO_WORLD_ENGINE") ? gfx::Matrix4x4() : mJihadWorld);   // Jihad T-502: the identity unless set
+   }
+ 
++  mJihadLastInvalid = invalid.GetBounds();   // Jihad T-502
+   Render(invalid, opaque);
+   mGeometryChanged = false;
+   mWindowOverlayChanged = false;
+@@ -901,7 +915,16 @@ LayerManagerComposite::Render(const nsIntRegion& aInvalidRegion, const nsIntRegi
+   CompositorBench(mCompositor, bounds);
+ 
+   MOZ_ASSERT(mRoot->GetOpacity() == 1);
+-  if (mRoot->GetClipRect()) {
++  if (mJihadPartialOn) {
++    // Jihad T-502: a partial composite, clipped (and cleared) to what is being read back
++    IntRect rect = aInvalidRegion.GetBounds().Intersect(bounds);
++    if (mRoot->GetClipRect()) {
++      const ParentLayerIntRect& rc = *mRoot->GetClipRect();
++      rect = rect.Intersect(IntRect(rc.x, rc.y, rc.width, rc.height));
++    }
++    clipRect = ParentLayerIntRect(rect.x, rect.y, rect.width, rect.height);
++    mCompositor->BeginFrame(aInvalidRegion, &rect, bounds, aOpaqueRegion, nullptr, &actualBounds);
++  } else if (mRoot->GetClipRect()) {
+     clipRect = *mRoot->GetClipRect();
+     IntRect rect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+     mCompositor->BeginFrame(aInvalidRegion, &rect, bounds, aOpaqueRegion, nullptr, &actualBounds);
+diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
+index ea4b203ac4..64231fea60 100644
+--- a/gfx/layers/composite/LayerManagerComposite.h
++++ b/gfx/layers/composite/LayerManagerComposite.h
+@@ -115,6 +115,20 @@ public:
+     MOZ_CRASH("GFX: Use EndTransaction(aTimeStamp)");
+     return false;
+   }
++  // Jihad T-502: a transform applied to the whole tree at the root (the card's zoom and the
++  // visual viewport's residual offset), through ComputeEffectiveTransforms so every clip and
++  // scissor follows it.
++  void JihadSetWorldTransform(const gfx::Matrix4x4& aMatrix) { mJihadWorld = aMatrix; }
++  // Jihad T-502: the bounds of what the last UpdateAndRender found changed (empty when it drew
++  // nothing), so the daemon reads back only the rows that moved.
++  const gfx::IntRect& JihadLastInvalid() const { return mJihadLastInvalid; }   // what was composed
++  const gfx::IntRect& JihadLastChanged() const { return mJihadLastChanged; }   // what the tree changed
++  void JihadResetLastInvalid() { mJihadLastInvalid = mJihadLastChanged = gfx::IntRect(); }
++  // The rows the daemon is about to read: composed (cleared and drawn, scissored) together
++  // with what the tree changed, and nothing else. Empty: only what changed.
++  void JihadSetBand(const gfx::IntRect& aBand) { mJihadBand = aBand; }
++  bool JihadPartial() const { return mJihadPartialOn; }
++
+   virtual void EndTransaction(DrawPaintedLayerCallback aCallback,
+                               void* aCallbackData,
+                               EndTransactionFlags aFlags = END_DEFAULT) override
+@@ -353,6 +367,10 @@ private:
+   bool mUnusedApzTransformWarning;
+   bool mDisabledApzWarning;
+   RefPtr<Compositor> mCompositor;
++  gfx::Matrix4x4 mJihadWorld;   // Jihad T-502
++  gfx::IntRect mJihadLastInvalid;   // Jihad T-502
++  gfx::IntRect mJihadLastChanged, mJihadBand;   // Jihad T-502
++  bool mJihadPartialOn = false;                  // this Render is a partial composite
+   UniquePtr<LayerProperties> mClonedLayerTreeProperties;
+ 
+   nsTArray<ImageCompositeNotification> mImageCompositeNotifications;
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index f92e74c147..06d50599f3 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -38,6 +38,7 @@
+ #include "mozilla/layers/BasicCompositor.h"  // for BasicCompositor
+ #include "mozilla/layers/Compositor.h"  // for Compositor
+ #include "mozilla/layers/CompositorOGL.h"  // for CompositorOGL
++#include "GLTextureImage.h"                 // Jihad T-502: JihadFlushRetiredTextures
+ #include "mozilla/layers/CompositorThread.h"
+ #include "mozilla/layers/CompositorTypes.h"
+ #include "mozilla/layers/CrossProcessCompositorBridgeParent.h"
+@@ -365,6 +366,15 @@ void
+ CompositorVsyncScheduler::ScheduleComposition()
+ {
+   MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
++  // Jihad T-502 (JIHAD_GPU_COMPOSITOR): pull mode. No vsync-driven composite; the request is
++  // counted and the daemon, which owns the frame rate, pulls a frame through
++  // CompositorBridgeParent::JihadComposeAndRead when the count moves. An animation keeps
++  // asking after every composite, so it keeps the daemon pulling.
++  static const bool sJihadPull = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  if (sJihadPull) {
++    mJihadRequests++;
++    return;
++  }
+   if (mAsapScheduling) {
+     // Used only for performance testing purposes
+     PostCompositeTask(TimeStamp::Now());
+@@ -1208,6 +1218,13 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+   if (!aTarget) {
+     TimeStamp end = TimeStamp::Now();
+     DidComposite(start, end);
++  } else {
++    // Jihad T-502: the whole compose-to-target on the compositor thread (JIHAD_GPU_COMPOSITOR).
++    static const bool sJihadGpuLog = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++    if (sJihadGpuLog) {
++      fprintf(stderr, "[jihad-gpu] compose-to-target: %.1f ms on the compositor thread (incl. copy-to-target)\n",
++              (TimeStamp::Now() - start).ToMilliseconds());
++    }
+   }
+ 
+   // We're not really taking advantage of the stored composite-again-time here.
+@@ -1274,6 +1291,87 @@ CompositorBridgeParent::ForceComposeToTarget(DrawTarget* aTarget, const gfx::Int
+   mCompositorScheduler->ForceComposeToTarget(aTarget, aRect);
+ }
+ 
++uint32_t
++CompositorBridgeParent::JihadRequests() const
++{
++  return mCompositorScheduler ? mCompositorScheduler->JihadRequests() : 0;
++}
++
++bool
++CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY)
++{
++  MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
++  if (!aReq || !mCompositor || !mLayerManager) {
++    return false;
++  }
++  CompositorOGL* ogl = mCompositor->AsCompositorOGL();
++  if (!ogl) {
++    return false;
++  }
++  const int aWidth = aReq->w, aHeight = aReq->h;
++  // the card's zoom about the frame's top-left, after the residual visual offset (CSS px)
++  gfx::Matrix4x4 world = gfx::Matrix4x4::Scaling(aScale > 0.0f ? aScale : 1.0f,
++                                                 aScale > 0.0f ? aScale : 1.0f, 1.0f);
++  world.PreTranslate(-aOffsetX, -aOffsetY, 0.0f);
++  mLayerManager->JihadSetWorldTransform(world);
++  // The window path draws mRenderBounds, which only a layer transaction's target config or a
++  // compose-to-target rect sets; the offscreen widget's transactions carry none, so without
++  // this BeginFrame saw a zero-area frame and drew nothing (black frames, rounds 6-13).
++  // The bounds are the FRAME's size, not the widget's: with a layout viewport wider than the
++  // card (980x1202 for a 768x942 card) the world transform scales the page into the frame's
++  // corner, and a view the widget's size put the card's rows 260..1202 into the read (the
++  // flipped view reads from the bottom) and rendered a third more than the frame.
++  const gfx::IntRect whole(0, 0, aWidth, aHeight);
++  mLayerManager->UpdateRenderBounds(whole);
++  // What UpdateAndRender finds changed (the tree diff and the layers' own damage) is what the
++  // daemon reads back. The world transform and the frame's size are not tree properties, so a
++  // change of either invalidates everything (and UpdateAndRender would otherwise skip the
++  // render as "unchanged"). The compositor clears and redraws the whole frame every time, so
++  // the other window target (two composites old) is complete too.
++  const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
++                           mJihadLastSize != gfx::IntSize(aWidth, aHeight);
++  if (viewChanged) {
++    mLayerManager->AddInvalidRegion(whole);
++    mJihadLastWorld = world;
++    mJihadLastSize = gfx::IntSize(aWidth, aHeight);
++    mJihadWorldKnown = true;
++  }
++  // the texture names retired since the last frame go now, before this frame's GPU work
++  gl::JihadFlushRetiredTextures(ogl->gl());
++  mLayerManager->JihadResetLastInvalid();
++  // the rows the daemon asked for are composed with what changed, and only those (partial)
++  mLayerManager->JihadSetBand(aReq->hi > aReq->lo ? gfx::IntRect(0, aReq->lo, aWidth, aReq->hi - aReq->lo) : gfx::IntRect());
++  ogl->JihadSelectTarget();
++  TimeStamp t0 = TimeStamp::Now();
++  ForceComposeToTarget(nullptr, nullptr);
++  TimeStamp t1 = TimeStamp::Now();
++  const gfx::IntRect changed = mLayerManager->JihadLastChanged();   // what the tree changed
++  const gfx::IntRect drawn = mLayerManager->JihadLastInvalid();     // what was composed (asked for + changed)
++  int invLo = 0, invHi = 0;
++  if (!changed.IsEmpty()) {
++    invLo = std::max(0, changed.y);
++    invHi = std::min(aHeight, changed.YMost());
++    if (invHi < invLo) invHi = invLo;
++  }
++  int lo = 0, hi = 0;
++  if (!drawn.IsEmpty()) {
++    lo = std::max(0, drawn.y);
++    hi = std::min(aHeight, drawn.YMost());
++    if (hi < lo) hi = lo;
++  }
++  aReq->lo = lo; aReq->hi = hi;
++  aReq->invLo = invLo; aReq->invHi = invHi;
++  const bool started = ogl->JihadReadAsync(aReq);
++  static uint32_t sFrames = 0;
++  if (sFrames < 20 || (sFrames % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] compositor thread: compose %.1f ms, handoff %.1f ms (frame %u, rows %d..%d of %d, changed %d..%d, started=%d)\n",
++            (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds(), sFrames,
++            hi > lo ? lo : 0, hi > lo ? hi : 0, aHeight, invLo, invHi, (int)started);
++  }
++  ++sFrames;
++  return started;
++}
++
+ PAPZCTreeManagerParent*
+ CompositorBridgeParent::AllocPAPZCTreeManagerParent(const uint64_t& aLayersId)
+ {
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
+index 98812f75c8..680fabc4e8 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.h
++++ b/gfx/layers/ipc/CompositorBridgeParent.h
+@@ -20,6 +20,7 @@
+ #include "mozilla/Attributes.h"         // for override
+ #include "mozilla/Maybe.h"
+ #include "mozilla/Monitor.h"            // for Monitor
++#include "mozilla/Atomics.h"            // Jihad T-502
+ #include "mozilla/RefPtr.h"             // for RefPtr
+ #include "mozilla/TimeStamp.h"          // for TimeStamp
+ #include "mozilla/dom/ipc/IdType.h"
+@@ -61,6 +62,7 @@ class APZCTreeManager;
+ class APZCTreeManagerParent;
+ class AsyncCompositionManager;
+ class Compositor;
++struct JihadFrameRequest;   // Jihad T-502, CompositorOGL.h
+ class CompositorBridgeParent;
+ class LayerManagerComposite;
+ class LayerTransactionParent;
+@@ -108,6 +110,8 @@ public:
+   bool NeedsComposite();
+   void Composite(TimeStamp aVsyncTimestamp);
+   void ForceComposeToTarget(gfx::DrawTarget* aTarget, const gfx::IntRect* aRect);
++  // Jihad T-502 (pull mode): composites asked for and not run; the daemon pulls a frame when it moves.
++  uint32_t JihadRequests() const { return mJihadRequests; }
+ 
+   const TimeStamp& GetLastComposeTime()
+   {
+@@ -122,6 +126,7 @@ public:
+ #endif
+ 
+ private:
++  mozilla::Atomic<uint32_t> mJihadRequests{0};   // Jihad T-502
+   virtual ~CompositorVsyncScheduler();
+ 
+   void NotifyCompositeTaskExecuted();
+@@ -516,6 +521,21 @@ public:
+ 
+   void ForceComposeToTarget(gfx::DrawTarget* aTarget, const gfx::IntRect* aRect = nullptr);
+ 
++  // Jihad T-502: the scheduler's request count (any thread), and the frame pulled on the
++  // compositor thread: compose to the window (the pbuffer / renderbuffer) and read it into
++  // aDest (B8G8R8A8, aStride bytes a row, the top-left aWidth x aHeight of the frame).
++  uint32_t JihadRequests() const;
++  // Reads back rows [aRowLo, aRowHi) (0,0 = none asked for) joined with the rows the composite
++  // changed, which it reports in aInvLo/aInvHi (0,0 = nothing changed).
++  // Composes into the free window target and hands the read of rows [aReq->lo, aReq->hi)
++  // (0,0 = none asked for), joined with the rows the composite changed (left in lo/hi, the
++  // change alone in invLo/invHi), to the read thread; aReq->done runs when the frame is in
++  // aReq->dest. False: nothing was started.
++  bool JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY);
++  gfx::Matrix4x4 mJihadLastWorld;   // Jihad T-502: the view the last composite was made with
++  gfx::IntSize mJihadLastSize;
++  bool mJihadWorldKnown = false;
++
+   PAPZCTreeManagerParent* AllocPAPZCTreeManagerParent(const uint64_t& aLayersId) override;
+   bool DeallocPAPZCTreeManagerParent(PAPZCTreeManagerParent* aActor) override;
+ 
+diff --git a/gfx/layers/opengl/CompositingRenderTargetOGL.cpp b/gfx/layers/opengl/CompositingRenderTargetOGL.cpp
+index a1521c56da..231e1dd54c 100644
+--- a/gfx/layers/opengl/CompositingRenderTargetOGL.cpp
++++ b/gfx/layers/opengl/CompositingRenderTargetOGL.cpp
+@@ -19,7 +19,12 @@ CompositingRenderTargetOGL::~CompositingRenderTargetOGL()
+ {
+   if (mGL && mGL->MakeCurrent()) {
+     mGL->fDeleteTextures(1, &mTextureHandle);
+-    mGL->fDeleteFramebuffers(1, &mFBO);
++    // Jihad T-502: the window target made for each frame borrows the compositor's renderbuffer
++    // FBO; deleting it here (harmless for FBO 0) killed the target after the first frame and
++    // every later composite drew into nothing (black frames, rounds 6-16).
++    if (!mJihadBorrowedFBO) {
++      mGL->fDeleteFramebuffers(1, &mFBO);
++    }
+   }
+ }
+ 
+diff --git a/gfx/layers/opengl/CompositingRenderTargetOGL.h b/gfx/layers/opengl/CompositingRenderTargetOGL.h
+index 071dc5cac1..98040a6a52 100644
+--- a/gfx/layers/opengl/CompositingRenderTargetOGL.h
++++ b/gfx/layers/opengl/CompositingRenderTargetOGL.h
+@@ -97,10 +97,12 @@ public:
+    */
+   static already_AddRefed<CompositingRenderTargetOGL>
+   RenderTargetForWindow(CompositorOGL* aCompositor,
+-                        const gfx::IntSize& aSize)
++                        const gfx::IntSize& aSize,
++                        GLuint aFBO = 0)   // Jihad T-502: the renderbuffer FBO that stands for the window
+   {
+     RefPtr<CompositingRenderTargetOGL> result
+-      = new CompositingRenderTargetOGL(aCompositor, gfx::IntPoint(), 0, 0);
++      = new CompositingRenderTargetOGL(aCompositor, gfx::IntPoint(), 0, aFBO);
++    result->mJihadBorrowedFBO = (aFBO != 0);   // the compositor's, not this target's to delete
+     result->mInitParams = InitParams(aSize, aSize, 0, INIT_MODE_NONE);
+     result->mInitParams.mStatus = InitParams::INITIALIZED;
+     return result.forget();
+@@ -129,7 +131,9 @@ public:
+    */
+   void BindRenderTarget();
+ 
+-  bool IsWindow() { return GetFBO() == 0; }
++  // Jihad T-502: the compositor's renderbuffer FBO stands for the window, with the window's
++  // conventions (render offset, no y-flip of intermediate surfaces drawn back into it).
++  bool IsWindow() { return GetFBO() == 0 || mJihadBorrowedFBO; }
+ 
+   GLuint GetFBO() const
+   {
+@@ -187,6 +191,7 @@ private:
+   RefPtr<GLContext> mGL;
+   GLuint mTextureHandle;
+   GLuint mFBO;
++  bool mJihadBorrowedFBO = false;   // Jihad T-502: a window FBO the compositor owns
+ };
+ 
+ } // namespace layers
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 616a03ab77..644b2061c2 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -4,11 +4,20 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "CompositorOGL.h"
++#include "mozilla/TimeStamp.h"   // Jihad T-502 timing
+ #include <stddef.h>                     // for size_t
+ #include <stdint.h>                     // for uint32_t, uint8_t
+ #include <stdlib.h>                     // for free, malloc
+ #include "GLContextProvider.h"          // for GLContextProvider
+ #include "GLContext.h"                  // for GLContext
++#include "GLContextEGL.h"               // Jihad T-502: the pbuffer context
++#include "base/task.h"                  // Jihad T-502: the read thread
++#include "base/thread.h"
++#include <time.h>                       // Jihad T-502: CLOCK_THREAD_CPUTIME_ID
++#include <algorithm>
++#if defined(__ARM_NEON__) || defined(__ARM_NEON)
++#include <arm_neon.h>                  // Jihad T-502: the readback swizzle
++#endif
+ #include "GLUploadHelpers.h"
+ #include "Layers.h"                     // for WriteSnapshotToDumpFile
+ #include "LayerScope.h"                 // for LayerScope
+@@ -122,6 +131,22 @@ CompositorOGL::CreateContext()
+   }
+ #endif
+ 
++  // Jihad T-502: on the Adreno 220 a glReadPixels from a texture-backed FBO (what the offscreen
++  // GLScreenBuffer is) costs 370-640 ms a frame; from the pbuffer surface 12-43 ms
++  // (tools/device/gpu-bench.c, 2026-10-17). So with JIHAD_GPU_COMPOSITOR the compositor draws
++  // into a plain pbuffer context with NO screen buffer: framebuffer 0 is the pbuffer itself. A
++  // pbuffer cannot be resized, so it is made large enough for the layout viewport T-499 may ask
++  // for and each frame uses its bottom-left part.
++  if (!context && getenv("JIHAD_GPU_COMPOSITOR")) {
++    nsCString failureId;
++    gfx::IntSize pb(std::max(mSurfaceSize.width, 1100), std::max(mSurfaceSize.height, 1400));
++    context = gl::GLContextEGL::CreateEGLPBufferOffscreenContext(
++        CreateContextFlags::REQUIRE_COMPAT_PROFILE, pb, SurfaceCaps::ForRGBA(), &failureId);
++    mJihadPbSize = pb;
++    fprintf(stderr, "[jihad-gpu] pbuffer context %dx%d: %s %s\n", pb.width, pb.height,
++            context ? "created" : "FAILED", failureId.get());
++  }
++
+   // Allow to create offscreen GL context for main Layer Manager
+   if (!context && gfxEnv::LayersPreferOffscreen()) {
+     SurfaceCaps caps = SurfaceCaps::ForRGB();
+@@ -149,6 +174,7 @@ CompositorOGL::CreateContext()
+ void
+ CompositorOGL::Destroy()
+ {
++  JihadStopReadThread();   // Jihad T-502: before the GL objects it reads go
+   Compositor::Destroy();
+ 
+   if (mTexturePool) {
+@@ -230,6 +256,76 @@ CompositorOGL::Initialize(nsCString* const out_failureReason)
+     return false;
+   }
+ 
++  // Jihad T-502: a renderbuffer-backed FBO as the window target of the pbuffer context.
++  if (mJihadPbSize.width > 0 && mGLContext->IsOffscreen() && !mGLContext->Screen()) {
++    // The window target(s). By default two RENDERBUFFERS used in turn, read back by the read
++    // thread (JihadReadAsync); JIHAD_GPU_PASS=1 keeps the single texture target the swizzle
++    // pass samples (measured 2026-10-17, run 37: the pass buys nothing, glReadPixels itself is
++    // the 20-40 ms, the same from a frame-sized renderbuffer).
++    static const bool sPass = getenv("JIHAD_GPU_PASS") != nullptr;
++    mGLContext->MakeCurrent();
++    const int n = sPass ? 1 : 2;
++    bool ok = true;
++    for (int t = 0; t < n && ok; ++t) {
++      GLuint rb = 0, tex = 0, fbo = 0;
++      if (sPass) {
++        mGLContext->fGenTextures(1, &tex);
++        mGLContext->fBindTexture(LOCAL_GL_TEXTURE_2D, tex);
++        mGLContext->fTexImage2D(LOCAL_GL_TEXTURE_2D, 0, LOCAL_GL_RGBA, mJihadPbSize.width, mJihadPbSize.height,
++                                0, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, nullptr);
++        mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MIN_FILTER, LOCAL_GL_NEAREST);
++        mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MAG_FILTER, LOCAL_GL_NEAREST);
++        mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_WRAP_S, LOCAL_GL_CLAMP_TO_EDGE);
++        mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_WRAP_T, LOCAL_GL_CLAMP_TO_EDGE);
++        mGLContext->fBindTexture(LOCAL_GL_TEXTURE_2D, 0);
++      } else {
++        mGLContext->fGenRenderbuffers(1, &rb);
++        mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, rb);
++        mGLContext->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */,
++                                         mJihadPbSize.width, mJihadPbSize.height);
++      }
++      mGLContext->fGenFramebuffers(1, &fbo);
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, fbo);
++      if (sPass) {
++        mGLContext->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_TEXTURE_2D, tex, 0);
++      } else {
++        mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, rb);
++      }
++      GLenum status = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
++      if (status != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
++        fprintf(stderr, "[jihad-gpu] window target %d: incomplete (0x%x), drawing into the pbuffer\n", t, status);
++        mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++        mGLContext->fDeleteFramebuffers(1, &fbo);
++        if (rb) mGLContext->fDeleteRenderbuffers(1, &rb);
++        if (tex) mGLContext->fDeleteTextures(1, &tex);
++        ok = false;
++        break;
++      }
++      // the whole target white once: its first contents are whatever the driver had
++      mGLContext->fDisable(LOCAL_GL_SCISSOR_TEST);
++      mGLContext->fViewport(0, 0, mJihadPbSize.width, mJihadPbSize.height);
++      mGLContext->fClearColor(1.0f, 1.0f, 1.0f, 1.0f);
++      mGLContext->fClear(LOCAL_GL_COLOR_BUFFER_BIT);
++      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++      if (sPass) {
++        mJihadWindowTex = tex;
++      } else {
++        mJihadTargetRB[t] = rb; mJihadTargetFBO[t] = fbo;
++      }
++      if (t == 0) mJihadWindowFBO = fbo;
++    }
++    if (!ok) {
++      for (int t = 0; t < 2; ++t) {
++        if (mJihadTargetFBO[t]) mGLContext->fDeleteFramebuffers(1, &mJihadTargetFBO[t]);
++        if (mJihadTargetRB[t]) mGLContext->fDeleteRenderbuffers(1, &mJihadTargetRB[t]);
++        mJihadTargetFBO[t] = mJihadTargetRB[t] = 0;
++      }
++      mJihadWindowFBO = mJihadWindowTex = 0;
++    } else {
++      fprintf(stderr, "[jihad-gpu] %s window target%s %dx%d: FBO %u%s\n", sPass ? "texture" : "renderbuffer", n > 1 ? "s" : "",
++              mJihadPbSize.width, mJihadPbSize.height, mJihadWindowFBO, n > 1 ? " and one more, read by a thread of their own" : "");
++    }
++  }
+   MakeCurrent();
+ 
+   mHasBGRA =
+@@ -472,7 +568,13 @@ CompositorOGL::PrepareViewport(CompositingRenderTargetOGL* aRenderTarget)
+     // Matrix to transform (0, 0, aWidth, aHeight) to viewport space (-1.0, 1.0,
+     // 2, 2) and flip the contents.
+     Matrix viewMatrix;
+-    if (mGLContext->IsOffscreen() && !gIsGtest) {
++    // Jihad T-502: with the renderbuffer FBO standing for the window, keep the WINDOW convention
++    // (the flipped view) even though the context is offscreen. The intermediate-surface draw
++    // (EffectTypes::RENDER_TARGET) flips its texture unconditionally to cancel this view flip;
++    // without the view flip every frame drawn through an intermediate surface (a scroll frame
++    // with a displayport, a clipped container under the world transform) came out upside down.
++    // JihadReadFrame reverses the rows on the way out.
++    if (mGLContext->IsOffscreen() && !gIsGtest && !mJihadWindowFBO) {
+       // In case of rendering via GL Offscreen context, disable Y-Flipping
+       viewMatrix.PreTranslate(-1.0, -1.0);
+       viewMatrix.PreScale(2.0f / float(size.width), 2.0f / float(size.height));
+@@ -485,7 +587,7 @@ CompositorOGL::PrepareViewport(CompositingRenderTargetOGL* aRenderTarget)
+     MOZ_ASSERT(mCurrentRenderTarget, "No destination");
+     // If we're drawing directly to the window then we want to offset
+     // drawing by the render offset.
+-    if (!mTarget && mCurrentRenderTarget->IsWindow()) {
++    if (!mTarget && JihadIsWindowTarget()) {
+       viewMatrix.PreTranslate(mRenderOffset.x, mRenderOffset.y);
+     }
+ 
+@@ -652,9 +754,15 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+       mWidgetSize.height != height)
+   {
+     MakeCurrent(ForceMakeCurrent);
+-
+     mWidgetSize.width = width;
+     mWidgetSize.height = height;
++    // Jihad T-502: on an offscreen (pbuffer/FBO) context the screen buffer keeps the size it
++    // was created with; a taller frame (the portrait card) was clipped. Resize it with the
++    // frame.
++    if (mGLContext->IsOffscreen() && mGLContext->Screen() &&
++        mGLContext->OffscreenSize() != gfx::IntSize(width, height)) {
++      mGLContext->ResizeScreenBuffer(gfx::IntSize(width, height));
++    }
+   } else {
+     MakeCurrent();
+   }
+@@ -669,7 +777,8 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+ 
+   RefPtr<CompositingRenderTargetOGL> rt =
+     CompositingRenderTargetOGL::RenderTargetForWindow(this,
+-                                                      IntSize(width, height));
++                                                      IntSize(width, height),
++                                                      mJihadWindowFBO);
+   SetRenderTarget(rt);
+ 
+ #ifdef DEBUG
+@@ -680,7 +789,21 @@ CompositorOGL::BeginFrame(const nsIntRegion& aInvalidRegion,
+     aClipRectOut->SetRect(0, 0, width, height);
+   }
+ 
++  if (mJihadWindowFBO) {
++    // Jihad T-502: the window frame starts white and opaque like the software path's buffer,
++    // so a frame with no layers is the blank frame the daemon knows (and not published black).
++    // A partial composite (a clip rect given) clears only inside it.
++    mGLContext->fClearColor(1.0f, 1.0f, 1.0f, 1.0f);
++    if (aClipRectIn) {
++      mGLContext->fEnable(LOCAL_GL_SCISSOR_TEST);
++      mGLContext->fScissor(aClipRectIn->x, FlipY(aClipRectIn->y + aClipRectIn->height),
++                           aClipRectIn->width, aClipRectIn->height);
++    } else {
++      mGLContext->fDisable(LOCAL_GL_SCISSOR_TEST);
++    }
++  } else {
+   mGLContext->fClearColor(mClearColor.r, mClearColor.g, mClearColor.b, mClearColor.a);
++  }
+   mGLContext->fClear(LOCAL_GL_COLOR_BUFFER_BIT | LOCAL_GL_DEPTH_BUFFER_BIT);
+ }
+ 
+@@ -1037,7 +1160,7 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
+   // transforms and offsets have been applied) so if our
+   // drawing is going to be shifted by mRenderOffset then we need
+   // to shift the clip rect by the same amount.
+-  if (!mTarget && mCurrentRenderTarget->IsWindow()) {
++  if (!mTarget && JihadIsWindowTarget()) {
+     clipRect.MoveBy(mRenderOffset.x, mRenderOffset.y);
+   }
+ 
+@@ -1641,6 +1764,438 @@ CompositorOGL::SetDestinationSurfaceSize(const IntSize& aSize)
+   mSurfaceSize.height = aSize.height;
+ }
+ 
++bool
++CompositorOGL::JihadIsWindowTarget() const
++{
++  return mCurrentRenderTarget &&
++         (mCurrentRenderTarget->IsWindow() ||
++          (mJihadWindowFBO && mCurrentRenderTarget->GetFBO() == mJihadWindowFBO));
++}
++
++// Jihad T-502: RGBA rows as glReadPixels wrote them (GL row 0 = the BOTTOM of the flipped
++// window view) -> BGRA rows with row 0 at the top, in place, one load and one store per pixel.
++// aForceAlpha writes 0xFF into the alpha byte (the adapter blits the words raw).
++static void
++JihadSwizzleAndFlipRows(uint8_t* aData, int aStride, int aW, int aH, bool aForceAlpha)
++{
++  for (int y = 0; y < aH / 2; y++) {
++    uint8_t* a = aData + (size_t)y * aStride;
++    uint8_t* b = aData + (size_t)(aH - 1 - y) * aStride;
++    int x = 0;
++#if defined(__ARM_NEON__) || defined(__ARM_NEON)
++    for (; x + 16 <= aW; x += 16, a += 64, b += 64) {
++      uint8x16x4_t va = vld4q_u8(a), vb = vld4q_u8(b);
++      uint8x16_t r = va.val[0]; va.val[0] = va.val[2]; va.val[2] = r;
++      r = vb.val[0]; vb.val[0] = vb.val[2]; vb.val[2] = r;
++      if (aForceAlpha) { va.val[3] = vdupq_n_u8(0xff); vb.val[3] = vdupq_n_u8(0xff); }
++      vst4q_u8(a, vb); vst4q_u8(b, va);
++    }
++#endif
++    for (; x < aW; x++, a += 4, b += 4) {
++      const uint8_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = aForceAlpha ? 0xff : a[3];
++      a[0] = b[2]; a[1] = b[1]; a[2] = b[0]; a[3] = aForceAlpha ? 0xff : b[3];
++      b[0] = a2; b[1] = a1; b[2] = a0; b[3] = a3;
++    }
++  }
++  if (aH & 1) {
++    uint8_t* p = aData + (size_t)(aH / 2) * aStride;
++    for (int x = 0; x < aW; x++, p += 4) {
++      const uint8_t r = p[0]; p[0] = p[2]; p[2] = r; if (aForceAlpha) p[3] = 0xff;
++    }
++  }
++}
++
++static GLuint
++JihadCompileShader(GLContext* aGL, GLenum aType, const char* aSrc)
++{
++  GLuint sh = aGL->fCreateShader(aType);
++  aGL->fShaderSource(sh, 1, &aSrc, nullptr);
++  aGL->fCompileShader(sh);
++  GLint ok = 0;
++  aGL->fGetShaderiv(sh, LOCAL_GL_COMPILE_STATUS, &ok);
++  if (!ok) {
++    char log[512] = {0};
++    aGL->fGetShaderInfoLog(sh, sizeof(log) - 1, nullptr, log);
++    fprintf(stderr, "[jihad-gpu] swizzle pass: shader failed: %s\n", log);
++    aGL->fDeleteShader(sh);
++    return 0;
++  }
++  return sh;
++}
++
++bool
++CompositorOGL::JihadEnsureSwizzlePass(int aW, int aH)
++{
++  if (mJihadSwizzleFailed || !mJihadWindowTex) {
++    return false;
++  }
++  GLContext* gl = mGLContext;
++  if (!mJihadSwizzleProg) {
++    // The window texture's image region (x 0..w, GL rows 0..h, the top row at y = h-1) drawn
++    // flipped onto a w x h target: the target's bottom row samples the image's top row, so the
++    // bottom-up read comes out top-down. Red and blue swapped and alpha forced in the shader.
++    static const char* kVert =
++      "attribute vec2 aPos; uniform vec2 uScale; varying vec2 vTex;\n"
++      "void main() { vTex = vec2((aPos.x + 1.0) * 0.5 * uScale.x, (1.0 - aPos.y) * 0.5 * uScale.y);"
++      " gl_Position = vec4(aPos, 0.0, 1.0); }\n";
++    static const char* kFrag =
++      "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n"
++      "uniform sampler2D uTex; varying vec2 vTex;\n"
++      "void main() { vec4 c = texture2D(uTex, vTex); gl_FragColor = vec4(c.b, c.g, c.r, 1.0); }\n";
++    GLuint vs = JihadCompileShader(gl, LOCAL_GL_VERTEX_SHADER, kVert);
++    GLuint fs = vs ? JihadCompileShader(gl, LOCAL_GL_FRAGMENT_SHADER, kFrag) : 0;
++    if (!vs || !fs) {
++      if (vs) gl->fDeleteShader(vs);
++      mJihadSwizzleFailed = true;
++      return false;
++    }
++    GLuint prog = gl->fCreateProgram();
++    gl->fAttachShader(prog, vs);
++    gl->fAttachShader(prog, fs);
++    gl->fLinkProgram(prog);
++    gl->fDeleteShader(vs);
++    gl->fDeleteShader(fs);
++    GLint ok = 0;
++    gl->fGetProgramiv(prog, LOCAL_GL_LINK_STATUS, &ok);
++    if (!ok) {
++      fprintf(stderr, "[jihad-gpu] swizzle pass: link failed\n");
++      gl->fDeleteProgram(prog);
++      mJihadSwizzleFailed = true;
++      return false;
++    }
++    mJihadSwizzleProg = prog;
++    mJihadSwizzlePos = gl->fGetAttribLocation(prog, "aPos");
++    mJihadSwizzleTex = gl->fGetUniformLocation(prog, "uTex");
++    mJihadSwizzleScale = gl->fGetUniformLocation(prog, "uScale");
++  }
++  if (mJihadReadSize != gfx::IntSize(aW, aH)) {
++    if (mJihadReadFBO) {
++      gl->fDeleteFramebuffers(1, &mJihadReadFBO);
++      gl->fDeleteRenderbuffers(1, &mJihadReadRB);
++      mJihadReadFBO = mJihadReadRB = 0;
++    }
++    gl->fGenRenderbuffers(1, &mJihadReadRB);
++    gl->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, mJihadReadRB);
++    gl->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */, aW, aH);
++    gl->fGenFramebuffers(1, &mJihadReadFBO);
++    gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadFBO);
++    gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, mJihadReadRB);
++    GLenum status = gl->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
++    if (status != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
++      fprintf(stderr, "[jihad-gpu] swizzle pass: read target %dx%d incomplete (0x%x)\n", aW, aH, status);
++      gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++      gl->fDeleteFramebuffers(1, &mJihadReadFBO);
++      gl->fDeleteRenderbuffers(1, &mJihadReadRB);
++      mJihadReadFBO = mJihadReadRB = 0;
++      mJihadSwizzleFailed = true;
++      return false;
++    }
++    mJihadReadSize = gfx::IntSize(aW, aH);
++    fprintf(stderr, "[jihad-gpu] swizzle pass: program %u, read target %dx%d (FBO %u)\n", mJihadSwizzleProg, aW, aH, mJihadReadFBO);
++  }
++  return true;
++}
++
++// ---- Jihad T-502: the read thread --------------------------------------------------------------
++namespace {
++void JihadReadThreadInitTrampoline(CompositorOGL* aC) { aC->JihadReadThreadInit(); }
++void JihadReadThreadRunTrampoline(CompositorOGL* aC, JihadFrameRequest* aReq) { aC->JihadReadOnReadThread(aReq); }
++} // namespace
++
++bool
++CompositorOGL::JihadEnsureReadThread()
++{
++  if (mJihadReadInitDone) {
++    return mJihadReadInitOk;
++  }
++  mJihadReadInitDone = true;
++  // Off unless asked for (JIHAD_GPU_READ_THREAD=1): measured 2026-10-17 (runs 59-86) it gained
++  // nothing on the animation page and lost a third on the scroll page, because on this driver
++  // any GL call on the compositor context waits behind the read anyway.
++  if (!mJihadTargetFBO[1] || !getenv("JIHAD_GPU_READ_THREAD")) {
++    return false;
++  }
++  mJihadReadThread = new base::Thread("JihadRead");
++  if (!mJihadReadThread->Start()) {
++    fprintf(stderr, "[jihad-gpu] read thread: could not start\n");
++    delete mJihadReadThread;
++    mJihadReadThread = nullptr;
++    return false;
++  }
++  // the context and its FBOs are made on the thread that uses them; wait for the verdict once
++  bool answered = false;
++  {
++    MonitorAutoLock lock(mJihadReadMon);
++    mJihadReadInitAnswered = false;
++    mJihadReadThread->message_loop()->PostTask(NewRunnableFunction(&JihadReadThreadInitTrampoline, this));
++    const TimeStamp deadline = TimeStamp::Now() + TimeDuration::FromSeconds(5);
++    while (!mJihadReadInitAnswered && TimeStamp::Now() < deadline) {
++      lock.Wait(PR_MillisecondsToInterval(100));
++    }
++    answered = mJihadReadInitAnswered;
++  }
++  if (!answered || !mJihadReadInitOk) {
++    fprintf(stderr, "[jihad-gpu] read thread: %s, reading on the compositor thread\n", answered ? "no shared context" : "no answer in 5 s");
++    JihadStopReadThread();
++    mJihadReadInitOk = false;
++  }
++  return mJihadReadInitOk;
++}
++
++void
++CompositorOGL::JihadReadThreadInit()
++{
++  bool ok = false;
++  nsCString fail;
++  RefPtr<GLContextEGL> ctx;
++  if (mGLContext && mGLContext->GetContextType() == GLContextType::EGL) {
++    ctx = GLContextEGL::JihadCreateSharedContext(GLContextEGL::Cast(mGLContext), &fail);
++  }
++  if (ctx && ctx->MakeCurrent()) {
++    ok = true;
++    for (int t = 0; t < 2 && ok; ++t) {
++      GLuint fbo = 0;
++      ctx->fGenFramebuffers(1, &fbo);
++      ctx->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, fbo);
++      ctx->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, mJihadTargetRB[t]);
++      GLenum status = ctx->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
++      if (status != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
++        fprintf(stderr, "[jihad-gpu] read thread: target %d incomplete on the shared context (0x%x)\n", t, status);
++        ctx->fDeleteFramebuffers(1, &fbo);
++        ok = false;
++        break;
++      }
++      mJihadReadTargetFBO[t] = fbo;
++    }
++    ctx->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
++  } else {
++    fprintf(stderr, "[jihad-gpu] read thread: shared context failed (%s)\n", fail.get());
++  }
++  const bool fence = sEGLLibrary.IsExtensionSupported(GLLibraryEGL::KHR_fence_sync);
++  fprintf(stderr, "[jihad-gpu] read thread: %s%s\n", ok ? "up, shared context on both window targets" : "DOWN",
++          ok ? (fence ? ", EGL fences" : ", no EGL fence: glFinish on the compositor thread") : "");
++  MonitorAutoLock lock(mJihadReadMon);
++  if (ok) mJihadReadCtx = ctx;
++  mJihadReadInitOk = ok;
++  mJihadReadInitAnswered = true;
++  lock.NotifyAll();
++}
++
++void
++CompositorOGL::JihadStopReadThread()
++{
++  if (!mJihadReadThread) {
++    return;
++  }
++  mJihadReadThread->Stop();   // runs what is queued (the reads touch our members), then joins
++  delete mJihadReadThread;
++  mJihadReadThread = nullptr;
++  mJihadReadCtx = nullptr;    // its thread is gone; the objects die with the share group
++  mJihadReadTargetFBO[0] = mJihadReadTargetFBO[1] = 0;
++  mJihadReadInitOk = false;
++}
++
++void
++CompositorOGL::JihadSelectTarget()
++{
++  if (!mJihadTargetFBO[1]) {
++    return;   // a single target (the pass, or the pbuffer itself)
++  }
++  const int idx = mJihadCur;
++  {
++    // the read thread may still be reading this target (two frames ago): wait, bounded
++    MonitorAutoLock lock(mJihadReadMon);
++    const TimeStamp t0 = TimeStamp::Now();
++    static uint32_t sWaits = 0;
++    if (mJihadTargetBusy[idx] && sWaits++ < 40) fprintf(stderr, "[jihad-gpu] compositor thread: target %d still being read, waiting\n", idx);
++    while (mJihadTargetBusy[idx]) {
++      lock.Wait(PR_MillisecondsToInterval(20));
++      if (TimeStamp::Now() - t0 > TimeDuration::FromSeconds(2)) {
++        fprintf(stderr, "[jihad-gpu] target %d still being read after 2 s: taking it\n", idx);
++        mJihadTargetBusy[idx] = 0;
++        break;
++      }
++    }
++  }
++  mJihadWindowFBO = mJihadTargetFBO[idx];
++}
++
++bool
++CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
++{
++  if (!aReq || !aReq->done) {
++    return false;
++  }
++  aReq->composed = true;
++  if (!JihadEnsureReadThread()) {
++    aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo, aReq->hi);
++    aReq->done(aReq);
++    return true;
++  }
++  aReq->target = mJihadCur;
++  aReq->fence = nullptr;
++  // JIHAD_GPU_NO_FENCE: wait the compose out here (glFinish) instead of an EGL fence the read
++  // thread waits on; the device rounds compare the two (a fence wait that spins costs a core).
++  static const bool sNoFence = getenv("JIHAD_GPU_NO_FENCE") != nullptr;
++  if (!sNoFence && sEGLLibrary.IsExtensionSupported(GLLibraryEGL::KHR_fence_sync)) {
++    aReq->fence = sEGLLibrary.fCreateSync(EGL_DISPLAY(), LOCAL_EGL_SYNC_FENCE, nullptr);
++  }
++  const TimeStamp tf0 = TimeStamp::Now();
++  if (aReq->fence) {
++    mGLContext->fFlush();
++  } else {
++    mGLContext->fFinish();
++  }
++  {
++    static int sN = 0;
++    if (sN++ < 12 || (sN % 100) == 0) {
++      fprintf(stderr, "[jihad-gpu] compositor thread: %s %.1f ms\n", aReq->fence ? "fence+flush" : "glFinish",
++              (TimeStamp::Now() - tf0).ToMilliseconds());
++    }
++  }
++  {
++    MonitorAutoLock lock(mJihadReadMon);
++    mJihadTargetBusy[aReq->target] = 1;
++  }
++  mJihadCur ^= 1;
++  mJihadReadThread->message_loop()->PostTask(NewRunnableFunction(&JihadReadThreadRunTrampoline, this, aReq));
++  return true;
++}
++
++void
++CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
++{
++  bool ok = false;
++  const TimeStamp t0 = TimeStamp::Now();
++  TimeStamp t1 = t0, t2 = t0;
++  if (mJihadReadCtx && mJihadReadCtx->MakeCurrent()) {
++    GLContext* gl = mJihadReadCtx;
++    struct timespec cpu0, cpu1;
++    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu0);
++    static uint32_t sReads = 0;
++    const uint32_t readNo = ++sReads;
++    if (readNo <= 40) fprintf(stderr, "[jihad-gpu] read thread: read %u of target %d, rows %d..%d, %s\n", readNo, aReq->target, aReq->lo, aReq->hi, aReq->fence ? "waiting on the fence" : "no fence");
++    if (aReq->fence) {
++      // bounded: a fence that never signals (2026-10-17, run 55: the first partial composite)
++      // must not hang the pipeline; after the timeout the read goes ahead (the compositor
++      // context was flushed, and the driver orders one process's command streams)
++      const EGLint r = sEGLLibrary.fClientWaitSync(EGL_DISPLAY(), (EGLSync)aReq->fence, 0, 1000000000ull /* 1 s */);
++      if (r != LOCAL_EGL_CONDITION_SATISFIED) fprintf(stderr, "[jihad-gpu] read thread: fence wait returned 0x%x after 1 s (read %u, target %d)\n", (unsigned)r, readNo, aReq->target);
++      sEGLLibrary.fDestroySync(EGL_DISPLAY(), (EGLSync)aReq->fence);
++      aReq->fence = nullptr;
++    }
++    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu1);
++    const double waitCpuMs = (cpu1.tv_sec - cpu0.tv_sec) * 1000.0 + (cpu1.tv_nsec - cpu0.tv_nsec) / 1e6;
++    t1 = TimeStamp::Now();
++    const int w = aReq->w, h = aReq->h;
++    int lo = aReq->lo, hi = aReq->hi;
++    if (hi <= lo) { lo = 0; hi = h; }
++    if (lo < 0) lo = 0;
++    if (hi > h) hi = h;
++    if (hi > lo && aReq->dest && aReq->stride == w * 4) {
++      const int rows = hi - lo;
++      uint8_t* band = aReq->dest + (size_t)lo * aReq->stride;
++      gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadTargetFBO[aReq->target]);
++      {
++        // the flipped window view: frame row r is GL row h-1-r (see JihadReadFrame)
++        ScopedPackState safePackState(gl);
++        gl->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++        gl->fReadPixels(0, h - hi, w, rows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, band);
++      }
++      t2 = TimeStamp::Now();
++      JihadSwizzleAndFlipRows(band, aReq->stride, w, rows, true);
++      static int sTimed = 0;
++      if (sTimed++ < 12 || (sTimed % 100) == 0) {
++        fprintf(stderr, "[jihad-gpu] read thread: fence wait %.1f ms (%.1f ms of CPU), glReadPixels %d rows %.1f ms, swizzle+flip %.1f ms\n",
++                (t1 - t0).ToMilliseconds(), waitCpuMs, rows, (t2 - t1).ToMilliseconds(), (TimeStamp::Now() - t2).ToMilliseconds());
++      }
++    }
++    ok = true;
++  }
++  {
++    MonitorAutoLock lock(mJihadReadMon);
++    mJihadTargetBusy[aReq->target] = 0;
++    lock.NotifyAll();
++  }
++  aReq->ok = ok;
++  aReq->done(aReq);
++}
++
++bool
++CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeight, int aRowLo, int aRowHi)
++{
++  if (!mGLContext || !aDest || aWidth <= 0 || aHeight <= 0 || aStride != aWidth * 4) {
++    return false;
++  }
++  const int w = std::min<int>(aWidth, mWidgetSize.width), h = std::min<int>(aHeight, mWidgetSize.height);
++  if (w <= 0 || h <= 0) {
++    return false;
++  }
++  // the rows to read, top-down: (0, 0) = every row
++  int lo = aRowLo, hi = aRowHi;
++  if (hi <= lo) { lo = 0; hi = h; }
++  if (lo < 0) lo = 0;
++  if (hi > h) hi = h;
++  if (hi <= lo) {
++    return true;
++  }
++  const int rows = hi - lo;
++  uint8_t* band = aDest + (size_t)lo * aStride;
++  mGLContext->MakeCurrent();
++  static int sTimed = 0;
++  TimeStamp t0 = TimeStamp::Now();
++  if (JihadEnsureSwizzlePass(w, h)) {
++    GLContext* gl = mGLContext;
++    const bool blend = gl->fIsEnabled(LOCAL_GL_BLEND), scissor = gl->fIsEnabled(LOCAL_GL_SCISSOR_TEST);
++    if (blend) gl->fDisable(LOCAL_GL_BLEND);
++    if (scissor) gl->fDisable(LOCAL_GL_SCISSOR_TEST);
++    gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadFBO);
++    gl->fViewport(0, 0, w, h);
++    gl->fUseProgram(mJihadSwizzleProg);
++    gl->fActiveTexture(LOCAL_GL_TEXTURE0);
++    gl->fBindTexture(LOCAL_GL_TEXTURE_2D, mJihadWindowTex);
++    gl->fUniform1i(mJihadSwizzleTex, 0);
++    gl->fUniform2f(mJihadSwizzleScale, float(w) / float(mJihadPbSize.width), float(h) / float(mJihadPbSize.height));
++    static const GLfloat kQuad[8] = { -1.f, -1.f,  1.f, -1.f,  -1.f, 1.f,  1.f, 1.f };
++    gl->fBindBuffer(LOCAL_GL_ARRAY_BUFFER, 0);
++    gl->fEnableVertexAttribArray(mJihadSwizzlePos);
++    gl->fVertexAttribPointer(mJihadSwizzlePos, 2, LOCAL_GL_FLOAT, LOCAL_GL_FALSE, 0, kQuad);
++    gl->fDrawArrays(LOCAL_GL_TRIANGLE_STRIP, 0, 4);
++    gl->fDisableVertexAttribArray(mJihadSwizzlePos);
++    gl->fBindTexture(LOCAL_GL_TEXTURE_2D, 0);
++    TimeStamp t1 = TimeStamp::Now();
++    {
++      // the read target holds the frame top-down (the pass flipped it): its GL row r is frame row r
++      ScopedPackState safePackState(gl);
++      gl->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++      gl->fReadPixels(0, lo, w, rows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, band);
++    }
++    if (blend) gl->fEnable(LOCAL_GL_BLEND);
++    if (scissor) gl->fEnable(LOCAL_GL_SCISSOR_TEST);
++    gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++    if (sTimed++ < 12 || (sTimed % 100) == 0) {
++      fprintf(stderr, "[jihad-gpu] swizzle pass %.1f ms (issued), glReadPixels %d rows %.1f ms\n",
++              (t1 - t0).ToMilliseconds(), rows, (TimeStamp::Now() - t1).ToMilliseconds());
++    }
++    return true;
++  }
++  mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++  {
++    // The window view is flipped: frame row r is GL row h-1-r, so the band's GL rows are
++    // [h-hi, h-lo), read bottom-up into the band's rows and then reversed in place.
++    ScopedPackState safePackState(mGLContext);
++    mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++    mGLContext->fReadPixels(0, h - hi, w, rows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, band);
++  }
++  TimeStamp t1 = TimeStamp::Now();
++  JihadSwizzleAndFlipRows(band, aStride, w, rows, true);
++  if (sTimed++ < 12 || (sTimed % 100) == 0) {
++    fprintf(stderr, "[jihad-gpu] glReadPixels %d rows %.1f ms, CPU swizzle+flip %.1f ms\n",
++            rows, (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds());
++  }
++  return true;
++}
++
+ void
+ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, const gfx::Matrix& aTransform)
+ {
+@@ -1667,13 +2222,60 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+     mGLContext->fReadBuffer(LOCAL_GL_BACK);
+   }
+ 
++  // Jihad T-502: read the frame straight into the target's pixels. The generic road below reads
++  // RGBA into a temporary surface, converts it to BGRA through Factory::CopyDataSourceSurface and
++  // draws it flipped through cairo; and on an offscreen context (no view flip: the image's row 0
++  // is at GL y = 0) that flip turned the frame upside down. Here: one glReadPixels of the rows
++  // the target wants, then an in-place RGBA->BGRA swizzle, row 0 to row 0. (NEON where the build has it.)
++  static const bool sJihadDirect = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  if (sJihadDirect && mGLContext->IsOffscreen()) {
++    uint8_t* data = nullptr; IntSize dsize; int32_t dstride = 0; SurfaceFormat dfmt;
++    if (aTarget->LockBits(&data, &dsize, &dstride, &dfmt)) {
++      const int w = std::min<int>(width, dsize.width), h = std::min<int>(height, dsize.height);
++      TimeStamp t0 = TimeStamp::Now();
++      bool okRead = (dstride == w * 4);
++      if (okRead) {
++        ScopedPackState safePackState(mGLContext);
++        mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
++        mGLContext->fReadPixels(0, 0, w, h, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, data);
++      }
++      TimeStamp t1 = TimeStamp::Now();
++      if (okRead) {
++        // the view is flipped (window convention, see PrepareViewport) whenever the frame has
++        // a window FBO; a plain offscreen draw is not
++        if (mJihadWindowFBO) {
++          JihadSwizzleAndFlipRows(data, dstride, w, h, false);
++        } else {
++          for (int y = 0; y < h; y++) {
++            uint8_t* p = data + (size_t)y * dstride;
++            for (int x = 0; x < w; x++, p += 4) {
++              const uint8_t r = p[0]; p[0] = p[2]; p[2] = r;   // memory R,G,B,A -> B,G,R,A
++            }
++          }
++        }
++      }
++      aTarget->ReleaseBits(data);
++      TimeStamp t2 = TimeStamp::Now();
++      fprintf(stderr, "[jihad-gpu] direct read %dx%d (frame %dx%d): glReadPixels %.1f ms, swizzle %.1f ms%s\n",
++              w, h, width, height, (t1 - t0).ToMilliseconds(), (t2 - t1).ToMilliseconds(),
++              okRead ? "" : " (stride mismatch: not read)");
++      if (okRead) {
++        return;
++      }
++    }
++  }
++
+   RefPtr<DataSourceSurface> source =
+         Factory::CreateDataSourceSurface(rect.Size(), gfx::SurfaceFormat::B8G8R8A8);
+   if (NS_WARN_IF(!source)) {
+     return;
+   }
+ 
++  // Jihad T-502: the two halves of the readback, timed (JIHAD_GPU_COMPOSITOR).
++  static const bool sJihadGpuLog = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  TimeStamp jihadT0 = TimeStamp::Now();
+   ReadPixelsIntoDataSurface(mGLContext, source);
++  TimeStamp jihadT1 = TimeStamp::Now();
+ 
+   // Map from GL space to Cairo space and reverse the world transform.
+   Matrix glToCairoTransform = aTransform;
+@@ -1688,6 +2290,11 @@ CompositorOGL::CopyToTarget(DrawTarget* aTarget, const nsIntPoint& aTopLeft, con
+   Rect floatRect = Rect(rect.x, rect.y, rect.width, rect.height);
+   aTarget->DrawSurface(source, floatRect, floatRect, DrawSurfaceOptions(), DrawOptions(1.0f, CompositionOp::OP_SOURCE));
+   aTarget->SetTransform(oldMatrix);
++  if (sJihadGpuLog) {
++    TimeStamp jihadT2 = TimeStamp::Now();
++    fprintf(stderr, "[jihad-gpu] copy-to-target %dx%d: glReadPixels(+convert) %.1f ms, flipped draw %.1f ms\n",
++            width, height, (jihadT1 - jihadT0).ToMilliseconds(), (jihadT2 - jihadT1).ToMilliseconds());
++  }
+   aTarget->Flush();
+ }
+ 
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index da204b12e6..104931ec17 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -13,7 +13,9 @@
+ #include "OGLShaderProgram.h"           // for ShaderProgramOGL, etc
+ #include "Units.h"                      // for ScreenPoint
+ #include "mozilla/Assertions.h"         // for MOZ_ASSERT, etc
+-#include "mozilla/Attributes.h"         // for override, final
++#include "mozilla/Attributes.h"
++#include "mozilla/Monitor.h"          // Jihad T-502
++#include "mozilla/Atomics.h"         // for override, final
+ #include "mozilla/RefPtr.h"             // for already_AddRefed, RefPtr
+ #include "mozilla/gfx/2D.h"             // for DrawTarget
+ #include "mozilla/gfx/BaseSize.h"       // for BaseSize
+@@ -35,6 +37,7 @@
+ 
+ class nsIWidget;
+ 
++namespace base { class Thread; }   // Jihad T-502
+ namespace mozilla {
+ 
+ namespace layers {
+@@ -148,6 +151,20 @@ protected:
+ 
+ // If you want to make this class not final, first remove calls to virtual
+ // methods (Destroy) that are made in the destructor.
++// Jihad T-502: one frame's readback, owned by the caller until done() has run.
++struct JihadFrameRequest {
++  uint8_t* dest = nullptr;
++  int stride = 0, w = 0, h = 0;
++  int lo = 0, hi = 0;                  // the rows to read, top-down ((0,0) = every row)
++  int target = 0;                      // which window target holds the frame (the compositor fills it)
++  int invLo = 0, invHi = 0;            // the rows the composite changed (the compositor fills them)
++  void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
++  mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
++  bool ok = false;
++  void (*done)(JihadFrameRequest*) = nullptr;
++  void* cookie = nullptr;
++};
++
+ class CompositorOGL final : public Compositor
+ {
+   typedef mozilla::gl::GLContext GLContext;
+@@ -168,6 +185,23 @@ protected:
+ public:
+   virtual CompositorOGL* AsCompositorOGL() override { return this; }
+ 
++  // Jihad T-502: the window render target is a renderbuffer-backed FBO on the pbuffer context
++  // (a glReadPixels from it is twice as fast as from the pbuffer, and thirty times faster than
++  // from a texture-backed one on the Adreno 220); JihadReadFrame reads the frame's top-left
++  // aWidth x aHeight into aDest as B8G8R8A8 (RGBA read, swizzled in place).
++  GLuint JihadWindowFBO() const { return mJihadWindowFBO; }
++  bool JihadIsWindowTarget() const;
++  // rows [aRowLo, aRowHi) of the frame, top-down; (0, 0) = every row
++  bool JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeight, int aRowLo = 0, int aRowHi = 0);
++  // The asynchronous frame: SelectTarget before the compose picks the free window target,
++  // ReadAsync after it fences the compose and hands the target to the read thread, which reads
++  // rows [lo, hi) into dest and calls done (on the read thread). When no read thread could be
++  // made the read happens here, synchronously, before ReadAsync returns.
++  void JihadSelectTarget();
++  bool JihadReadAsync(JihadFrameRequest* aReq);
++  void JihadReadOnReadThread(JihadFrameRequest* aReq);   // the read thread
++  void JihadReadThreadInit();                            // the read thread, once
++
+   virtual already_AddRefed<DataTextureSource>
+   CreateDataTextureSource(TextureFlags aFlags = TextureFlags::NO_FLAGS) override;
+ 
+@@ -311,6 +345,31 @@ private:
+ 
+   /** Widget associated with this compositor */
+   LayoutDeviceIntSize mWidgetSize;
++  GLuint mJihadWindowFBO = 0;      // Jihad T-502: the target the frame draws into (one of the two below, or the texture's)
++  GLuint mJihadWindowTex = 0;      // the texture window target the swizzle pass samples (JIHAD_GPU_PASS)
++  gfx::IntSize mJihadPbSize;
++  // The default path: two renderbuffer window targets, used in turn, read back by a thread of
++  // their own through a context that shares them, so the compositor thread is never held by a
++  // glReadPixels (20-45 ms on the Adreno 220) and a frame's read overlaps the next compose.
++  GLuint mJihadTargetRB[2] = {0, 0}, mJihadTargetFBO[2] = {0, 0};
++  int mJihadCur = 0;                                 // the target the next frame draws into
++  mozilla::Atomic<int32_t> mJihadTargetBusy[2];      // handed to the read thread, not yet read
++  mozilla::Monitor mJihadReadMon{"jihad-read"};
++  base::Thread* mJihadReadThread = nullptr;
++  bool mJihadReadInitDone = false, mJihadReadInitOk = false, mJihadReadInitAnswered = false;
++  RefPtr<GLContext> mJihadReadCtx;                   // made on the read thread, current there only
++  GLuint mJihadReadTargetFBO[2] = {0, 0};            // the read context's FBOs on the shared renderbuffers
++  bool JihadEnsureReadThread();
++  void JihadStopReadThread();
++  // The swizzle pass: a frame-sized renderbuffer FBO the window texture is drawn into through a
++  // shader that swaps red and blue, forces alpha and flips the rows, so glReadPixels lands the
++  // adapter's BGRA top-down frame straight in the shared buffer (no CPU pass).
++  GLuint mJihadReadFBO = 0, mJihadReadRB = 0;
++  gfx::IntSize mJihadReadSize;
++  GLuint mJihadSwizzleProg = 0;
++  GLint mJihadSwizzlePos = -1, mJihadSwizzleTex = -1, mJihadSwizzleScale = -1;
++  bool mJihadSwizzleFailed = false;
++  bool JihadEnsureSwizzlePass(int aW, int aH);
+   RefPtr<GLContext> mGLContext;
+   UniquePtr<GLBlitTextureImageHelper> mBlitTextureImageHelper;
+   gfx::Matrix4x4 mProjMatrix;
+diff --git a/gfx/layers/opengl/TextureHostOGL.cpp b/gfx/layers/opengl/TextureHostOGL.cpp
+index bc06444b0f..9db5015a65 100644
+--- a/gfx/layers/opengl/TextureHostOGL.cpp
++++ b/gfx/layers/opengl/TextureHostOGL.cpp
+@@ -97,10 +97,25 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
+ {
+   GLContext *gl = mCompositor->gl();
+   MOZ_ASSERT(gl);
++  // Jihad T-502 device rounds: where a texture source's update spends its time
++  const TimeStamp jihadT0 = TimeStamp::Now();
++  TimeStamp jihadT1, jihadT2;
++  bool jihadCreated = false;
++  struct JihadSrcLog { const TimeStamp& t0; TimeStamp& t1; TimeStamp& t2; bool* created; ~JihadSrcLog() {
++    static uint32_t sN = 0;
++    const TimeStamp t3 = TimeStamp::Now();
++    const double all = (t3 - t0).ToMilliseconds();
++    if (sN++ < 30 || all >= 8.0) {
++      if (sN < 300) fprintf(stderr, "[jihad-gpu] texture source update: make current %.1f ms, %s %.1f ms, upload %.1f ms (all %.1f)\n",
++                            t1.IsNull() ? 0.0 : (t1 - t0).ToMilliseconds(), *created ? "texture created" : "texture kept",
++                            (t1.IsNull() || t2.IsNull()) ? 0.0 : (t2 - t1).ToMilliseconds(), t2.IsNull() ? 0.0 : (t3 - t2).ToMilliseconds(), all);
++    }
++  } } jihadSrcLog{jihadT0, jihadT1, jihadT2, &jihadCreated};
+   if (!gl || !gl->MakeCurrent()) {
+     NS_WARNING("trying to update TextureImageTextureSourceOGL without a GLContext");
+     return false;
+   }
++  jihadT1 = TimeStamp::Now();
+   if (!aSurface) {
+     gfxCriticalError() << "Invalid surface for OGL update";
+     return false;
+@@ -108,12 +123,23 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
+   MOZ_ASSERT(aSurface);
+ 
+   IntSize size = aSurface->GetSize();
++  // Jihad T-502 (JIHAD_GPU_FRESH_TEX): a fresh GL texture for every upload. On the Adreno 220
++  // an upload into a texture the last composite read costs a GPU sync (~18 ms for a 256 KB
++  // tile, 2026-10-17 run 68); a new name is written without waiting and the old one is freed
++  // by the driver once the GPU is done with it.
++  static const bool sFreshTexture = getenv("JIHAD_GPU_FRESH_TEX") != nullptr;
++  if (sFreshTexture && mTexImage && !aSrcOffset) {
++    mTexImage = nullptr;
++  }
+   if (!mTexImage ||
+       (mTexImage->GetSize() != size && !aSrcOffset) ||
+       mTexImage->GetContentType() != gfx::ContentForFormat(aSurface->GetFormat())) {
+     if (mFlags & TextureFlags::DISALLOW_BIGIMAGE) {
+       GLint maxTextureSize;
++      const TimeStamp jihadG0 = TimeStamp::Now();
+       gl->fGetIntegerv(LOCAL_GL_MAX_TEXTURE_SIZE, &maxTextureSize);
++      { static uint32_t sN = 0; const double ms = (TimeStamp::Now() - jihadG0).ToMilliseconds();
++        if (ms >= 3.0 && sN++ < 40) fprintf(stderr, "[jihad-gpu] glGetIntegerv(MAX_TEXTURE_SIZE): %.1f ms\n", ms); }
+       if (size.width > maxTextureSize || size.height > maxTextureSize) {
+         NS_WARNING("Texture exceeds maximum texture size, refusing upload");
+         return false;
+@@ -148,7 +174,9 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
+       // we care about below.
+       mTexImage->Resize(size);
+     }
++    jihadCreated = true;
+   }
++  jihadT2 = TimeStamp::Now();
+ 
+   mTexImage->UpdateFromDataSource(aSurface, aDestRegion, aSrcOffset);
+ 
+diff --git a/gfx/thebes/gfxPlatform.cpp b/gfx/thebes/gfxPlatform.cpp
+index ddad584b3e..1163f2e7a9 100644
+--- a/gfx/thebes/gfxPlatform.cpp
++++ b/gfx/thebes/gfxPlatform.cpp
+@@ -2106,6 +2106,14 @@ gfxPlatform::InitCompositorAccelerationPrefs()
+     feature.UserForceEnable("Force-enabled by prefs");
+   }
+ 
++  // Jihad Browser (T-502, the GPU compositor spike): JIHAD_GPU_COMPOSITOR in the daemon's
++  // environment force-enables hardware compositing the way the pref does, without touching
++  // the prefs the three variants ship. AccelerateLayersByDefault() is false in this build
++  // (no MOZ_GL_PROVIDER) and the headless GfxInfo knows nothing of the Adreno 220.
++  if (getenv("JIHAD_GPU_COMPOSITOR")) {
++    feature.UserForceEnable("Force-enabled by JIHAD_GPU_COMPOSITOR");
++  }
++
+   // Safe mode trumps everything.
+   if (InSafeMode()) {
+     feature.ForceDisable(FeatureStatus::Blocked, "Acceleration blocked by safe-mode",
+@@ -2177,6 +2185,12 @@ gfxPlatform::UsesOffMainThreadCompositing()
+     if (getenv("JIHAD_DISABLE_OMTC")) {
+       result = false;
+     }
++    // Jihad T-502: the GPU compositor spike needs OMTC on, and the device bundle's goanna.js
++    // carries layers.offmainthreadcomposition.force-disabled=true for the software path; the
++    // spike's env wins over both.
++    if (getenv("JIHAD_GPU_COMPOSITOR")) {
++      result = true;
++    }
+     firstTime = false;
+   }
+ 
+@@ -2405,8 +2419,11 @@ gfxPlatform::InitOpenGLConfig()
+   #endif
+ 
+   // When layers acceleration is force-enabled, enable it even for blacklisted
+-  // devices.
+-  if (gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly()) {
++  // devices. Jihad (T-502): JIHAD_GPU_COMPOSITOR counts as the force pref here too; the
++  // headless GfxInfo answers FEATURE_STATUS_UNKNOWN, which the check below would read as
++  // blocked.
++  if (gfxPrefs::LayersAccelerationForceEnabledDoNotUseDirectly() ||
++      getenv("JIHAD_GPU_COMPOSITOR")) {
+     openGLFeature.UserForceEnable("Force-enabled by pref");
+     return;
+   }
+diff --git a/gfx/thebes/gfxPlatformHeadless.cpp b/gfx/thebes/gfxPlatformHeadless.cpp
+index 4eec067e0b..33da250107 100644
+--- a/gfx/thebes/gfxPlatformHeadless.cpp
++++ b/gfx/thebes/gfxPlatformHeadless.cpp
+@@ -824,6 +824,19 @@ gfxPlatformHeadless::CreateHardwareVsyncSource()
+ 
+ #endif
+ 
++void
++gfxPlatformHeadless::GetAcceleratedCompositorBackends(nsTArray<mozilla::layers::LayersBackend>& aBackends)
++{
++  // Jihad (T-502, the GPU compositor spike): the OpenGL compositor, on an EGL context from
++  // GLContextProviderEGL (the headless build's default provider; MOZ_LAYERS_PREFER_OFFSCREEN
++  // makes it a pbuffer), whenever hardware compositing is enabled (JIHAD_GPU_COMPOSITOR or
++  // layers.acceleration.force-enabled). gfxPlatform::GetCompositorBackends appends
++  // LAYERS_BASIC after this, so a failed OpenGL compositor still falls back.
++  if (gfxConfig::IsEnabled(Feature::HW_COMPOSITING)) {
++    aBackends.AppendElement(mozilla::layers::LayersBackend::LAYERS_OPENGL);
++  }
++}
++
+ // Not GLX-specific: must be defined regardless of GL_PROVIDER_GLX so the
+ // vtable slot resolves in a headless (no X/GLX) build.
+ bool
+diff --git a/gfx/thebes/gfxPlatformHeadless.h b/gfx/thebes/gfxPlatformHeadless.h
+index c3ee465bec..23ec701a70 100644
+--- a/gfx/thebes/gfxPlatformHeadless.h
++++ b/gfx/thebes/gfxPlatformHeadless.h
+@@ -125,6 +125,11 @@ public:
+       return true;
+     }
+ 
++    // Jihad (T-502): LAYERS_OPENGL through GLContextProviderEGL, this build's default
++    // provider, when hardware compositing is enabled; the base class lists nothing and the
++    // compositor would be the BasicCompositor.
++    virtual void GetAcceleratedCompositorBackends(nsTArray<mozilla::layers::LayersBackend>& aBackends) override;
++
+ #ifdef GL_PROVIDER_GLX
+     already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
+ #endif
+diff --git a/gfx/thebes/gfxPrefs.h b/gfx/thebes/gfxPrefs.h
+index 60f814b6d0..c9190df1b0 100644
+--- a/gfx/thebes/gfxPrefs.h
++++ b/gfx/thebes/gfxPrefs.h
+@@ -482,7 +482,10 @@ private:
+   DECL_GFX_PREF(Live, "layers.effect.contrast",                LayersEffectContrast, float, 0.0f);
+   DECL_GFX_PREF(Live, "layers.effect.grayscale",               LayersEffectGrayscale, bool, false);
+   DECL_GFX_PREF(Live, "layers.effect.invert",                  LayersEffectInvert, bool, false);
+-  DECL_GFX_PREF(Once, "layers.enable-tiles",                   LayersTilesEnabled, bool, false);
++  // Jihad T-502: tiled painted layers by default (a once-only pref the bundle's goanna.js cannot
++  // reach in time): a scrolled page re-uploads only the tiles that changed, not the whole
++  // three-viewport content layer (9 MB, 60-100 ms a scroll step on the Adreno 220).
++  DECL_GFX_PREF(Once, "layers.enable-tiles",                   LayersTilesEnabled, bool, true);
+   DECL_GFX_PREF(Live, "layers.flash-borders",                  FlashLayerBorders, bool, false);
+   DECL_GFX_PREF(Once, "layers.force-shmem-tiles",              ForceShmemTiles, bool, false);
+   DECL_GFX_PREF(Live, "layers.frame-counter",                  DrawFrameCounter, bool, false);
+diff --git a/modules/libpref/init/all.js b/modules/libpref/init/all.js
+index adff8b10dd..7a06de86ce 100644
+--- a/modules/libpref/init/all.js
++++ b/modules/libpref/init/all.js
+@@ -4411,7 +4411,7 @@ pref("layers.draw-borders", false);
+ pref("layers.draw-tile-borders", false);
+ pref("layers.draw-bigimage-borders", false);
+ pref("layers.frame-counter", false);
+-pref("layers.enable-tiles", false);
++pref("layers.enable-tiles", true);   // Jihad T-502: tiled content layers (see gfxPrefs.h)
+ pref("layers.single-tile.enabled", true);
+ pref("layers.low-precision-buffer", false);
+ pref("layers.progressive-paint", false);
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 6f066b1b33..a176ac9c8c 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -21,6 +21,16 @@
+ #include "nsIWidgetListener.h"
+ #include "imgIContainer.h"
+ #include "nsView.h"
++#include "nsViewManager.h"        // T-502: the root view for PresShell::Paint
++#include "mozilla/TimeStamp.h"
++#include "mozilla/layers/CompositorBridgeParent.h"   // T-502
++#include "mozilla/layers/CompositorThread.h"
++#include "mozilla/layers/CompositorSession.h"
++#include "mozilla/Monitor.h"
++#include "nsPIDOMWindow.h"   // T-502 device rounds
++#include "nsIDocument.h"   // T-502 device rounds
++#include "mozilla/layers/CompositorOGL.h"   // T-502: JihadFrameRequest
++#include "base/task.h"
+ // Jihad offscreen render-document support:
+ #include "gfxContext.h"
+ #include "nsIDocShell.h"
+@@ -112,6 +122,7 @@ PuppetWidget::PuppetWidget(TabChild* aTabChild)
+ 
+ PuppetWidget::~PuppetWidget()
+ {
++  JihadComposeAbandonAll();   // T-502
+   MOZ_COUNT_DTOR(PuppetWidget);
+ 
+   Destroy();
+@@ -152,6 +163,7 @@ PuppetWidget::InfallibleCreate(nsIWidget* aParent,
+   if (parent) {
+     parent->SetChild(this);
+     mLayerManager = parent->GetLayerManager();
++    mJihadSharedLayerManager = true;
+   }
+   else {
+     Resize(mBounds.x, mBounds.y, mBounds.width, mBounds.height, false);
+@@ -214,7 +226,11 @@ PuppetWidget::Destroy()
+   }
+   mMemoryPressureObserver = nullptr;
+   mChild = nullptr;
+-  if (mLayerManager) {
++  // Jihad T-502: a child widget shares the parent's layer manager (Create above). Destroying
++  // it here left the parent with a ClientLayerManager whose widget was null, and the next
++  // compose crashed in BeginTransactionWithTarget (the view re-creates its child widget on a
++  // size change). The parent destroys it; the child only drops its reference.
++  if (mLayerManager && !mJihadSharedLayerManager) {
+     mLayerManager->Destroy();
+   }
+   mLayerManager = nullptr;
+@@ -634,9 +650,27 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+ {
+   if (!mLayerManager) {
+     if (JihadOffscreen()) {
+-      // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
+-      // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
+-      mLayerManager = CreateBasicLayerManager();
++      if (JihadGpuCompositor() && !mJihadCompositorTried && !mTabChild &&
++          gfxPlatform::UsesOffMainThreadCompositing()) {
++        // Jihad T-502: an in-process compositor behind a ClientLayerManager. Tried once: on
++        // failure CreateCompositor leaves mLayerManager null and the software path below
++        // takes over, so a device whose EGL refuses still paints.
++        mJihadCompositorTried = true;
++        CreateCompositor(mBounds.width, mBounds.height);
++        fprintf(stderr, "[jihad-gpu] compositor %s for %dx%d (compositor backend %d)\n",
++                mLayerManager ? "created" : "NOT created: software layers",
++                mBounds.width, mBounds.height,
++                mLayerManager ? (int)mLayerManager->GetCompositorBackendType() : -1);
++      }
++      if (!mLayerManager) {
++        if (JihadGpuCompositor() && !mJihadCompositorTried) {
++          fprintf(stderr, "[jihad-gpu] compositor not attempted: OMTC %s, TabChild %p\n",
++                  gfxPlatform::UsesOffMainThreadCompositing() ? "on" : "off", (void*)mTabChild);
++        }
++        // Jihad: no compositor/IPC — paint on this thread with a BasicLayerManager
++        // into mDrawTarget (see PuppetWidget::Paint LAYERS_BASIC branch).
++        mLayerManager = CreateBasicLayerManager();
++      }
+     } else {
+       mLayerManager = new ClientLayerManager(this);
+     }
+@@ -782,6 +816,285 @@ PuppetWidget::JihadRenderDocument(nsIDocShell* aDocShell, double aZoom,
+ // C entry points for the frozen-API render daemon. Exported from libxul so the
+ // daemon (which cannot see internal classes like PuppetWidget) can create an
+ // offscreen widget, hand it to nsIBaseWindow::InitWindow as the parent nsIWidget,
++/* static */ bool
++PuppetWidget::JihadGpuCompositor()
++{
++  static const bool sOn = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  return sOn;
++}
++
++} // namespace widget
++} // namespace mozilla
++// T-502: one frame pulled from the compositor thread. Heap-allocated and owned by whichever side
++// finishes last, so a waiter that gives up (abandoned) leaves nothing dangling for the task.
++// Global, as PuppetWidget.h forward-declares it.
++struct JihadReadJob {
++  mozilla::layers::CompositorBridgeParent* bridge;
++  uint8_t* dest; int stride, w, h; float scale, offX, offY;
++  int rowLo, rowHi;      // the rows the daemon asked for, top-down ((0,0) = none)
++  int invLo, invHi;      // the rows the composite changed
++  uint32_t token;
++  mozilla::TimeStamp posted;   // device rounds: the compositor loop's queue delay
++  mozilla::layers::JihadFrameRequest req;   // what the compositor and the read thread work on
++  mozilla::Monitor mon;
++  bool done, ok, abandoned;
++  JihadReadJob(mozilla::layers::CompositorBridgeParent* b, uint8_t* d, int st, int wi, int he, float sc, float ox, float oy, int lo, int hi, uint32_t t)
++    : bridge(b), dest(d), stride(st), w(wi), h(he), scale(sc), offX(ox), offY(oy), rowLo(lo), rowHi(hi), invLo(0), invHi(0), token(t),
++      mon("jihad-compose"), done(false), ok(false), abandoned(false) {}
++};
++namespace mozilla {
++namespace widget {
++namespace {
++// the read thread (or the compositor thread, when the read could not be handed off) finished
++void JihadJobFinish(JihadReadJob* job, bool ok)
++{
++  bool abandoned;
++  {
++    mozilla::MonitorAutoLock lock(job->mon);
++    job->ok = ok; job->invLo = job->req.invLo; job->invHi = job->req.invHi; job->done = true; abandoned = job->abandoned;
++    job->mon.Notify();
++  }
++  if (abandoned) {
++    delete job;
++  }
++}
++void JihadJobDone(mozilla::layers::JihadFrameRequest* req)
++{
++  JihadJobFinish(static_cast<JihadReadJob*>(req->cookie), req->ok);
++}
++void JihadReadOnCompositorThread(JihadReadJob* job)
++{
++  const mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
++  job->req.dest = job->dest; job->req.stride = job->stride; job->req.w = job->w; job->req.h = job->h;
++  job->req.lo = job->rowLo; job->req.hi = job->rowHi;
++  job->req.done = &JihadJobDone; job->req.cookie = job;
++  const bool started = job->bridge->JihadComposeAndRead(&job->req, job->scale, job->offX, job->offY);
++  static uint32_t sN = 0;
++  if (sN++ < 30 || (sN % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] job %u: queued %.1f ms on the compositor loop, composed in %.1f ms\n", job->token,
++            (t0 - job->posted).ToMilliseconds(), (mozilla::TimeStamp::Now() - t0).ToMilliseconds());
++  }
++  if (!started) {
++    JihadJobFinish(job, false);
++  }
++}
++} // namespace
++mozilla::layers::CompositorBridgeParent*
++PuppetWidget::JihadBridge()
++{
++  return mCompositorSession ? mCompositorSession->GetInProcessBridge() : nullptr;
++}
++
++uint32_t
++PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
++                                int aWidth, int aHeight, int aRowLo, int aRowHi)
++{
++  if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++    return 0;
++  }
++  nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++  if (!presShell) {
++    return 0;
++  }
++  presShell->FlushPendingNotifications(Flush_Layout);
++  nsViewManager* vm = presShell->GetViewManager();
++  nsView* root = vm ? vm->GetRootView() : nullptr;
++  nsIWidget* viewWidget = root ? root->GetWidget() : nullptr;
++  if (!viewWidget) {
++    return 0;
++  }
++  LayerManager* lm = viewWidget->GetLayerManager();
++  ClientLayerManager* clm = lm ? lm->AsClientLayerManager() : nullptr;
++  mozilla::layers::CompositorBridgeParent* bridge = JihadBridge();
++  if (!clm || !bridge) {
++    return 0;
++  }
++  MessageLoop* loop = mozilla::layers::CompositorThreadHolder::Loop();
++  if (!loop) {
++    return 0;
++  }
++  mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
++  nsRegion dirty(root->GetDimensions());
++  presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
++  mozilla::TimeStamp t1 = mozilla::TimeStamp::Now();
++  static uint32_t sFrames = 0;
++  if (sFrames < 20 || (sFrames % 50) == 0) {
++    fprintf(stderr, "[jihad-gpu] frame %u: layers %.1f ms, posted (rows %d..%d asked)\n",
++            sFrames, (t1 - t0).ToMilliseconds(), aRowLo, aRowHi);
++  }
++  if (sFrames == 5 || (sFrames % 200) == 0) {
++    // T-502 device rounds: every flag that throttles the page's JavaScript (timers to a second,
++    // requestAnimationFrame to a frame a second)
++    nsIDocument* doc = presShell->GetDocument();
++    bool dsActive = false;
++    aDocShell->GetIsActive(&dsActive);
++    nsIFrame* rootFrame = presShell->GetRootFrame();
++    nsIFrame* displayRoot = rootFrame ? nsLayoutUtils::GetDisplayRootFrame(rootFrame) : nullptr;
++    nsPIDOMWindowOuter* win = aDocShell->GetWindow();
++    fprintf(stderr, "[jihad-gpu] activity: docshell %s, pres shell %s, document %s, frame requests %s, painted-pres-shell %d, window %s\n",
++            dsActive ? "active" : "INACTIVE", presShell->IsActive() ? "active" : "INACTIVE",
++            doc && doc->Hidden() ? "HIDDEN" : "visible",
++            doc && doc->ShouldThrottleFrameRequests() ? "THROTTLED" : "full rate",
++            (int)(displayRoot && displayRoot->DidPaintPresShell(presShell)),
++            win && win->IsBackground() ? "BACKGROUND" : "foreground");
++  }
++  ++sFrames;
++  uint32_t token = mJihadNextToken++;
++  if (mJihadNextToken == 0) {
++    mJihadNextToken = 1;
++  }
++  JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight,
++                                       mJihadScale, mJihadOffX, mJihadOffY, aRowLo, aRowHi, token);
++  job->posted = mozilla::TimeStamp::Now();
++  mJihadJobs.push_back(job);
++  loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
++  return token;
++}
++
++int
++PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aInvHi)
++{
++  JihadReadJob* job = nullptr;
++  size_t at = 0;
++  for (size_t i = 0; i < mJihadJobs.size(); ++i) {
++    if (mJihadJobs[i]->token == aToken) { job = mJihadJobs[i]; at = i; break; }
++  }
++  if (!job) {
++    return -1;
++  }
++  bool finished = false, ok = false;
++  {
++    mozilla::MonitorAutoLock lock(job->mon);
++    if (aWait) {
++      const mozilla::TimeStamp deadline = mozilla::TimeStamp::Now() + mozilla::TimeDuration::FromSeconds(3);
++      while (!job->done) {
++        mozilla::TimeDuration left = deadline - mozilla::TimeStamp::Now();
++        if (left <= mozilla::TimeDuration()) {
++          break;
++        }
++        lock.Wait(PR_MillisecondsToInterval((uint32_t)left.ToMilliseconds()));
++      }
++    }
++    if (job->done) {
++      finished = true; ok = job->ok;
++      if (aInvLo) *aInvLo = job->invLo;
++      if (aInvHi) *aInvHi = job->invHi;
++    } else if (!aWait && job->req.composed) {
++      return 2;   // composed: the read thread has it; the next frame may be started
++    } else if (aWait) {
++      job->abandoned = true;
++      fprintf(stderr, "[jihad-gpu] compose: no answer from the compositor thread in 3 s\n");
++    }
++  }
++  if (finished) {
++    mJihadJobs.erase(mJihadJobs.begin() + at);
++    delete job;
++    return ok ? 1 : -1;
++  }
++  if (aWait) {
++    mJihadJobs.erase(mJihadJobs.begin() + at);   // abandoned: the task frees it
++    return -1;
++  }
++  return 0;
++}
++
++void
++PuppetWidget::JihadComposeForget(uint32_t aToken)
++{
++  for (size_t i = 0; i < mJihadJobs.size(); ++i) {
++    JihadReadJob* job = mJihadJobs[i];
++    if (job->token != aToken) {
++      continue;
++    }
++    bool done;
++    {
++      mozilla::MonitorAutoLock lock(job->mon);
++      done = job->done;
++      if (!done) job->abandoned = true;
++    }
++    mJihadJobs.erase(mJihadJobs.begin() + i);
++    if (done) delete job;
++    return;
++  }
++}
++
++void
++PuppetWidget::JihadComposeAbandonAll()
++{
++  for (size_t i = 0; i < mJihadJobs.size(); ++i) {
++    JihadReadJob* job = mJihadJobs[i];
++    bool done;
++    {
++      mozilla::MonitorAutoLock lock(job->mon);
++      done = job->done;
++      if (!done) job->abandoned = true;
++    }
++    if (done) delete job;
++  }
++  mJihadJobs.clear();
++}
++
++bool
++PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
++                             int aWidth, int aHeight)
++{
++  static const bool sSnapshot = getenv("JIHAD_GPU_SNAPSHOT") != nullptr;
++  if (sSnapshot) {
++    // the round-5 snapshot road, kept for comparison
++    if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
++      return false;
++    }
++    nsCOMPtr<nsIPresShell> presShell = aDocShell->GetPresShell();
++    if (!presShell) {
++      return false;
++    }
++    presShell->FlushPendingNotifications(Flush_Layout);
++    nsViewManager* vm = presShell->GetViewManager();
++    nsView* root = vm ? vm->GetRootView() : nullptr;
++    nsIWidget* viewWidget = root ? root->GetWidget() : nullptr;
++    if (!viewWidget) {
++      return false;
++    }
++    LayerManager* lm = viewWidget->GetLayerManager();
++    ClientLayerManager* clm = lm ? lm->AsClientLayerManager() : nullptr;
++    if (!clm) {
++      return false;
++    }
++    mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
++    nsRegion dirty(root->GetDimensions());
++    presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
++    mozilla::TimeStamp t1 = mozilla::TimeStamp::Now();
++    RefPtr<DrawTarget> dt = Factory::CreateDrawTargetForData(
++        BackendType::CAIRO, static_cast<unsigned char*>(aDest),
++        IntSize(aWidth, aHeight), aStride, SurfaceFormat::B8G8R8A8);
++    if (!dt || !dt->IsValid()) {
++      return false;
++    }
++    dt->FillRect(mozilla::gfx::Rect(0, 0, aWidth, aHeight),
++                 mozilla::gfx::ColorPattern(mozilla::gfx::Color(1.f, 1.f, 1.f, 1.f)));
++    RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
++    if (!ctx) {
++      return false;
++    }
++    bool okSnap = false;
++    if (clm->BeginTransactionWithTarget(ctx)) {
++      okSnap = clm->EndEmptyTransaction();
++    }
++    static uint32_t sSnapFrames = 0;
++    if (sSnapFrames++ < 20) {
++      fprintf(stderr, "[jihad-gpu] snapshot road frame %u: layers %.1f ms, snapshot %.1f ms, ok=%d\n",
++              sSnapFrames, (t1 - t0).ToMilliseconds(), (mozilla::TimeStamp::Now() - t1).ToMilliseconds(), (int)okSnap);
++    }
++    return okSnap;
++  }
++  uint32_t token = JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, 0, aHeight);
++  if (!token) {
++    return false;
++  }
++  int lo = 0, hi = 0;
++  return JihadComposePoll(token, true, &lo, &hi) > 0;
++}
++
+ // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
+ extern "C" {
+ 
+@@ -969,6 +1282,67 @@ jihad_offscreen_render_region(nsIWidget* /*aWidget*/, nsIDocShell* aDocShell, do
+   return true;
+ }
+ 
++// T-502: paint the document as layers and fetch the frame the in-process compositor composes,
++// into aDest (B8G8R8A8, aStride bytes per row). False when the widget has no compositor (the
++// CPU exports above are then the path), or nothing is laid out yet.
++MOZ_EXPORT bool
++jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
++                        int aWidth, int aHeight)
++{
++  if (!aWidget) {
++    return false;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeTo(aDocShell, aDest, aStride,
++                                                             aWidth, aHeight);
++}
++
++// T-502: the frame in two halves (see PuppetWidget::JihadComposeStart).
++MOZ_EXPORT uint32_t
++jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
++                              int aWidth, int aHeight, int aRowLo, int aRowHi)
++{
++  if (!aWidget) {
++    return 0;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi);
++}
++MOZ_EXPORT int
++jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aInvLo, int* aInvHi)
++{
++  if (!aWidget) {
++    return -1;
++  }
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposePoll(aToken, false, aInvLo, aInvHi);
++}
++MOZ_EXPORT void
++jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
++{
++  if (aWidget) {
++    static_cast<PuppetWidget*>(aWidget)->JihadComposeForget(aToken);
++  }
++}
++// T-502: the card's zoom and the visual viewport's residual offset (CSS px), applied by the
++// compositor to the whole layer tree.
++MOZ_EXPORT void
++jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX, double aOffsetY)
++{
++  if (aWidget) {
++    static_cast<PuppetWidget*>(aWidget)->JihadSetView(aScale, aOffsetX, aOffsetY);
++  }
++}
++
++// T-502: how many composites the compositor has asked for (layer updates, animations); the
++// daemon pulls a frame whenever this moves. 0 without a compositor.
++MOZ_EXPORT uint32_t
++jihad_offscreen_compositor_seq(nsIWidget* aWidget)
++{
++  if (!aWidget) {
++    return 0;
++  }
++  mozilla::layers::CompositorBridgeParent* bridge = static_cast<PuppetWidget*>(aWidget)->JihadBridge();
++  return bridge ? bridge->JihadRequests() : 0;
++}
++
+ // Composite every OPEN XUL popup over an already-painted buffer.
+ //
+ // WHY THIS EXISTS. A popup (menupopup: the about:addons tools menu, context menus)
+@@ -1746,8 +2120,12 @@ PuppetWidget::Paint()
+ #endif
+ 
+     if (mozilla::layers::LayersBackend::LAYERS_CLIENT == mLayerManager->GetBackendType()) {
+-      // Do nothing, the compositor will handle drawing
+-      if (mTabChild) {
++      if (JihadOffscreen()) {
++        // Jihad T-502: no TabChild drives painting here; paint the layer tree (a transaction
++        // forwarded to the in-process compositor). JihadComposeTo fetches the frame.
++        GetCurrentWidgetListener()->PaintWindow(this, region);
++      } else if (mTabChild) {
++        // Do nothing, the compositor will handle drawing
+         mTabChild->NotifyPainted();
+       }
+     } else if (mozilla::layers::LayersBackend::LAYERS_BASIC == mLayerManager->GetBackendType()) {
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 6d3c680c7b..c133d1a139 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -17,6 +17,8 @@
+ #include "mozilla/RefPtr.h"
+ #include "nsBaseScreen.h"
+ #include "nsBaseWidget.h"
++#include <vector>
++struct JihadReadJob;   // T-502, PuppetWidget.cpp
+ #include "nsCOMArray.h"
+ #include "nsIKeyEventInPluginCallback.h"
+ #include "nsIScreenManager.h"
+@@ -28,6 +30,7 @@
+ class nsIDocShell;   // Jihad offscreen render (JihadRenderDocument)
+ 
+ namespace mozilla {
++namespace layers { class CompositorBridgeParent; }   // Jihad T-502
+ 
+ namespace dom {
+ class TabChild;
+@@ -268,6 +271,33 @@ public:
+     return true;
+   }
+ 
++  // --- Jihad T-502: the GPU compositor spike ---
++  // With JIHAD_GPU_COMPOSITOR in the environment the offscreen widget creates an IN-PROCESS
++  // compositor (nsBaseWidget::CreateCompositor: CompositorOGL on an EGL pbuffer when
++  // MOZ_LAYERS_PREFER_OFFSCREEN is set) behind a ClientLayerManager, instead of painting on
++  // the CPU through a BasicLayerManager. A frame is then painted as layers (PresShell::Paint on
++  // the root view) and fetched over the upstream snapshot road: BeginTransactionWithTarget +
++  // EndEmptyTransaction -> SendMakeSnapshot (sync) -> ForceComposeToTarget -> glReadPixels into
++  // a shared surface the client draws into our target. Nothing below the export is ours.
++  static bool JihadGpuCompositor();
++  bool JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
++                      int aWidth, int aHeight);
++  // The same frame in two halves, so the daemon's main thread does not sit out the compositor
++  // thread's read: Start paints the layers and posts the compose + read of rows [aRowLo, aRowHi)
++  // (0,0 = none asked for) joined with what the composite changed, and returns a token (0 =
++  // failed). Poll returns 1 when the frame is in aDest (aInvLo/aInvHi = the rows the composite
++  // changed), 0 while it is pending, -1 failed or unknown; with aWait it waits up to 3 s.
++  // Forget drops a token whose buffer went away.
++  uint32_t JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
++                             int aWidth, int aHeight, int aRowLo, int aRowHi);
++  int JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aInvHi);
++  void JihadComposeForget(uint32_t aToken);
++  void JihadComposeAbandonAll();
++  mozilla::layers::CompositorBridgeParent* JihadBridge();
++  void JihadSetView(double aScale, double aOffsetX, double aOffsetY) {
++    mJihadScale = (aScale > 0.0) ? (float)aScale : 1.0f; mJihadOffX = (float)aOffsetX; mJihadOffY = (float)aOffsetY;
++  }
++
+   virtual TabChild* GetOwningTabChild() override { return mTabChild; }
+ 
+   void UpdateBackingScaleCache(float aDpi, int32_t aRounding, double aScale)
+@@ -411,6 +441,12 @@ private:
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
+   bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
++  bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
++  bool mJihadSharedLayerManager = false; // T-502: mLayerManager is the parent's (a child widget)
++  float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor
++  std::vector<::JihadReadJob*> mJihadJobs;   // T-502: frames in flight on the compositor thread
++  uint32_t mJihadNextToken = 1;
++  float mJihadOffX = 0.0f, mJihadOffY = 0.0f;   // T-502: the residual visual offset, CSS px
+   // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
+   // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a
+   // full repaint, and must keep working unchanged if the rect is ignored.

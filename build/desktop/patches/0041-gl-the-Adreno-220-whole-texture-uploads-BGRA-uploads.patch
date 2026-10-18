@@ -1,0 +1,396 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 18 Oct 2026 02:41:07 -0400
+Subject: [PATCH] =?UTF-8?q?gl:=20the=20Adreno=20220=20=E2=80=94=20whole-te?=
+ =?UTF-8?q?xture=20uploads,=20BGRA=20uploads=20on=20EGL,=20a=20shared=20pb?=
+ =?UTF-8?q?uffer=20context?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Adreno 220 ("Adreno (TM) 220") is an Adreno 2xx for the sub-texture upload workaround
+(glTexSubImage2D into a big texture is 16 times slower than a whole glTexImage2D on it). An EGL
+context prefers BGRA for 32-bit surfaces where GL_EXT_texture_format_BGRA8888 is present, with
+the GLES-legal type and internal format (an RGBA upload of a 768x942 layer costs 35 ms, a BGRA
+one 8; as RGBA the CPU swizzled every tile first). GLContextEGL::JihadCreateSharedContext makes
+a 1x1 pbuffer context sharing a compositor context's objects, for a readback thread. Opt-in and
+measured as no gain: a fresh texture name per upload with the retired names deleted once the GPU
+is idle (JIHAD_GPU_FRESH_TEX=1; the driver waits for pending GPU work on any upload).
+---
+ gfx/gl/GLContext.cpp            |  1 +
+ gfx/gl/GLContext.h              |  1 +
+ gfx/gl/GLContextEGL.h           | 12 +++++
+ gfx/gl/GLContextProviderEGL.cpp | 28 +++++++++++
+ gfx/gl/GLTextureImage.cpp       | 85 +++++++++++++++++++++++++++++++--
+ gfx/gl/GLTextureImage.h         | 17 +++++++
+ gfx/gl/GLUploadHelpers.cpp      | 40 ++++++++++++++--
+ 7 files changed, 175 insertions(+), 9 deletions(-)
+
+diff --git a/gfx/gl/GLContext.cpp b/gfx/gl/GLContext.cpp
+index d07b925ad5..306c4362e5 100644
+--- a/gfx/gl/GLContext.cpp
++++ b/gfx/gl/GLContext.cpp
+@@ -812,6 +812,7 @@ GLContext::InitWithPrefixImpl(const char* prefix, bool trygl)
+         "Adreno 205",
+         "Adreno (TM) 200",
+         "Adreno (TM) 205",
++        "Adreno (TM) 220",
+         "Adreno (TM) 305",
+         "Adreno (TM) 320",
+         "Adreno (TM) 330",
+diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
+index 5f0f5a4e89..0a79e95ef4 100644
+--- a/gfx/gl/GLContext.h
++++ b/gfx/gl/GLContext.h
+@@ -172,6 +172,7 @@ enum class GLRenderer {
+     Adreno205,
+     AdrenoTM200,
+     AdrenoTM205,
++    AdrenoTM220,   // Jihad: the TouchPad's GPU (Adreno (TM) 220)
+     AdrenoTM305,
+     AdrenoTM320,
+     AdrenoTM330,
+diff --git a/gfx/gl/GLContextEGL.h b/gfx/gl/GLContextEGL.h
+index 3aa2c4cdc1..58efb2902e 100644
+--- a/gfx/gl/GLContextEGL.h
++++ b/gfx/gl/GLContextEGL.h
+@@ -38,6 +38,18 @@ public:
+     ~GLContextEGL();
+ 
+     virtual GLContextType GetContextType() const override { return GLContextType::EGL; }
++    // Jihad T-502: upload 32-bit surfaces as BGRA where the driver takes them (the content is
++    // BGRA already). On the Adreno 220 an RGBA upload of a 768x942 layer costs 35 ms and a
++    // BGRA_EXT one 8 (tools/device/gpu-bench.c, 2026-10-17); as RGBA the CPU swizzled every
++    // tile first and the driver swizzled it back.
++    virtual GLenum GetPreferredARGB32Format() const override {
++        return IsExtensionSupported(EXT_texture_format_BGRA8888) ? LOCAL_GL_BGRA : LOCAL_GL_RGBA;
++    }
++
++    // Jihad T-502: a 1x1 pbuffer context sharing aShare's objects (the compositor's
++    // renderbuffers), made on and for the readback thread.
++    static already_AddRefed<GLContextEGL>
++    JihadCreateSharedContext(GLContextEGL* aShare, nsACString* const out_failureId);
+ 
+     static GLContextEGL* Cast(GLContext* gl) {
+         MOZ_ASSERT(gl->GetContextType() == GLContextType::EGL);
+diff --git a/gfx/gl/GLContextProviderEGL.cpp b/gfx/gl/GLContextProviderEGL.cpp
+index 068146ac54..db7675852d 100644
+--- a/gfx/gl/GLContextProviderEGL.cpp
++++ b/gfx/gl/GLContextProviderEGL.cpp
+@@ -902,6 +902,34 @@ GLContextEGL::CreateEGLPBufferOffscreenContext(CreateContextFlags flags,
+     return gl.forget();
+ }
+ 
++/* static */ already_AddRefed<GLContextEGL>
++GLContextEGL::JihadCreateSharedContext(GLContextEGL* aShare, nsACString* const out_failureId)
++{
++    if (!sEGLLibrary.EnsureInitialized(false, out_failureId)) {
++        return nullptr;
++    }
++    SurfaceCaps configCaps;
++    EGLConfig config = ChooseConfig(&sEGLLibrary, CreateContextFlags::REQUIRE_COMPAT_PROFILE,
++                                    SurfaceCaps::ForRGBA(), &configCaps);
++    if (config == EGL_NO_CONFIG) {
++        *out_failureId = NS_LITERAL_CSTRING("FEATURE_FAILURE_EGL_NO_CONFIG");
++        return nullptr;
++    }
++    mozilla::gfx::IntSize pbSize(1, 1);
++    EGLSurface surface = GLContextEGL::CreatePBufferSurfaceTryingPowerOfTwo(config, LOCAL_EGL_NONE, pbSize);
++    if (!surface) {
++        *out_failureId = NS_LITERAL_CSTRING("FEATURE_FAILURE_EGL_POT");
++        return nullptr;
++    }
++    RefPtr<GLContextEGL> gl = GLContextEGL::CreateGLContext(CreateContextFlags::REQUIRE_COMPAT_PROFILE, configCaps,
++                                                            aShare, true, config, surface, out_failureId);
++    if (!gl) {
++        sEGLLibrary.fDestroySurface(sEGLLibrary.Display(), surface);
++        return nullptr;
++    }
++    return gl.forget();
++}
++
+ /*static*/ already_AddRefed<GLContext>
+ GLContextProviderEGL::CreateHeadless(CreateContextFlags flags,
+                                      nsACString* const out_failureId)
+diff --git a/gfx/gl/GLTextureImage.cpp b/gfx/gl/GLTextureImage.cpp
+index c91d558af4..29bd971fc1 100644
+--- a/gfx/gl/GLTextureImage.cpp
++++ b/gfx/gl/GLTextureImage.cpp
+@@ -4,6 +4,10 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "GLTextureImage.h"
++#include <utility>   // Jihad: std::swap
++#include <vector>
++#include "mozilla/TimeStamp.h"
++#include "mozilla/StaticMutex.h"
+ #include "GLContext.h"
+ #include "gfxContext.h"
+ #include "gfxPlatform.h"
+@@ -117,9 +121,73 @@ BasicTextureImage::~BasicTextureImage()
+     // was the only one that had access to it.
+     if (ctx && ctx->MakeCurrent()) {
+         ctx->fDeleteTextures(1, &mTexture);
++        if (mTexture2) {
++            ctx->fDeleteTextures(1, &mTexture2);
++        }
++    }
++}
++
++// ---- Jihad T-502: fresh texture names per upload, retired names deleted when the GPU is idle --
++namespace {
++mozilla::StaticMutex sJihadRetireLock;
++std::vector<std::pair<GLContext*, GLuint>> sJihadRetired;
++}
++
++void JihadRetireTexture(GLContext* aGL, GLuint aTexture)
++{
++    mozilla::StaticMutexAutoLock lock(sJihadRetireLock);
++    sJihadRetired.push_back(std::make_pair(aGL, aTexture));
++}
++
++void JihadFlushRetiredTextures(GLContext* aGL)
++{
++    std::vector<GLuint> mine;
++    {
++        mozilla::StaticMutexAutoLock lock(sJihadRetireLock);
++        for (size_t i = 0; i < sJihadRetired.size();) {
++            if (sJihadRetired[i].first == aGL) {
++                mine.push_back(sJihadRetired[i].second);
++                sJihadRetired.erase(sJihadRetired.begin() + i);
++            } else {
++                ++i;
++            }
++        }
++    }
++    if (mine.empty() || !aGL || !aGL->MakeCurrent()) {
++        return;
++    }
++    const mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
++    aGL->fDeleteTextures((GLsizei)mine.size(), mine.data());
++    static uint32_t sN = 0;
++    const double ms = (mozilla::TimeStamp::Now() - t0).ToMilliseconds();
++    if (sN++ < 10 || ms >= 3.0) {
++        if (sN < 200) fprintf(stderr, "[jihad-gpu] retired textures: %u deleted in %.1f ms\n", (unsigned)mine.size(), ms);
+     }
+ }
+ 
++void
++BasicTextureImage::JihadSwapTextures()
++{
++    // Off unless asked for (JIHAD_GPU_FRESH_TEX=1): measured 2026-10-17 (run 86) the first upload
++    // into a fresh name waits just as the re-upload did (21 ms a tile), so the driver waits for
++    // the pending GPU work, not for the name; the fresh names only added allocation churn.
++    static const bool sFresh = getenv("JIHAD_GPU_COMPOSITOR") && getenv("JIHAD_GPU_FRESH_TEX");
++    if (!sFresh) {
++        return;
++    }
++    if (mTextureState == Created) {
++        return;   // never drawn with: the current name is as fresh as a new one
++    }
++    JihadRetireTexture(mGLContext, mTexture);
++    mGLContext->fGenTextures(1, &mTexture);
++    ScopedBindTexture bind(mGLContext, mTexture);
++    mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MIN_FILTER, mTexFilter);
++    mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MAG_FILTER, mTexFilter);
++    mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_WRAP_S, mWrapMode);
++    mGLContext->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_WRAP_T, mWrapMode);
++    mTextureState = Created;
++}
++
+ void
+ BasicTextureImage::BindTexture(GLenum aTextureUnit)
+ {
+@@ -131,6 +199,7 @@ BasicTextureImage::BindTexture(GLenum aTextureUnit)
+ bool
+ BasicTextureImage::DirectUpdate(gfx::DataSourceSurface* aSurf, const nsIntRegion& aRegion, const gfx::IntPoint& aFrom /* = gfx::IntPoint(0, 0) */)
+ {
++    JihadSwapTextures();   // Jihad T-502: the name the last composite is not reading
+     nsIntRegion region;
+     if (mTextureState == Valid) {
+         region = aRegion;
+@@ -166,10 +235,16 @@ BasicTextureImage::Resize(const gfx::IntSize& aSize)
+     // we avoid mixing formats.
+     GLenum format;
+     GLenum type;
++    GLenum internalFormat = LOCAL_GL_RGBA;
+     if (mGLContext->GetPreferredARGB32Format() == LOCAL_GL_BGRA) {
+-        MOZ_ASSERT(!mGLContext->IsGLES());
+         format = LOCAL_GL_BGRA;
+-        type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++        if (mGLContext->IsGLES()) {
++            // Jihad: BGRA8888 on GLES takes UNSIGNED_BYTE and the same internal format
++            type = LOCAL_GL_UNSIGNED_BYTE;
++            internalFormat = LOCAL_GL_BGRA;
++        } else {
++            type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++        }
+     } else {
+         format = LOCAL_GL_RGBA;
+         type = LOCAL_GL_UNSIGNED_BYTE;
+@@ -177,7 +252,7 @@ BasicTextureImage::Resize(const gfx::IntSize& aSize)
+ 
+     mGLContext->fTexImage2D(LOCAL_GL_TEXTURE_2D,
+                             0,
+-                            LOCAL_GL_RGBA,
++                            internalFormat,
+                             aSize.width,
+                             aSize.height,
+                             0,
+@@ -215,7 +290,9 @@ BasicTextureImage::BasicTextureImage(GLuint aTexture,
+   , mTexture(aTexture)
+   , mTextureState(Created)
+   , mGLContext(aContext)
+-{}
++{
++    mTexFilter = (aFlags & TextureImage::UseNearestFilter) ? LOCAL_GL_NEAREST : LOCAL_GL_LINEAR;
++}
+ 
+ static bool
+ WantsSmallTiles(GLContext* gl)
+diff --git a/gfx/gl/GLTextureImage.h b/gfx/gl/GLTextureImage.h
+index 1dd22fb543..aeaf8105a1 100644
+--- a/gfx/gl/GLTextureImage.h
++++ b/gfx/gl/GLTextureImage.h
+@@ -181,6 +181,14 @@ protected:
+  * convert the update surface's pixels into an image on which we can
+  * glTexSubImage2D().
+  */
++// Jihad T-502: on the Adreno 220 a glTexImage2D into a name the GPU has drawn with waits for
++// the pending GPU work (18-78 ms a tile, 2026-10-17 run 83); a never-drawn name takes the
++// upload at once. So under JIHAD_GPU_COMPOSITOR every upload goes into a fresh name and the
++// old one is retired here, to be deleted by the compositor once the GPU is idle (deleting a
++// name in use waits too).
++void JihadRetireTexture(GLContext* aGL, GLuint aTexture);
++void JihadFlushRetiredTextures(GLContext* aGL);
++
+ class BasicTextureImage
+     : public TextureImage
+ {
+@@ -206,6 +214,15 @@ public:
+ protected:
+     GLuint mTexture;
+     TextureState mTextureState;
++    // Jihad T-502: a second GL name, used in turn with the first, under JIHAD_GPU_COMPOSITOR.
++    // On the Adreno 220 binding a texture the last composite still reads waits that
++    // composite out (~11 ms for a 256x256 tile, 2026-10-17 run 77); the name the composite is
++    // not reading takes the upload without waiting. Every upload on that path is a whole one
++    // (GLUploadHelpers: no sub-texture uploads on this GPU), so alternating names is sound.
++    GLuint mTexture2 = 0;        // unused since the fresh-name scheme (kept for the destructor)
++    TextureState mTextureState2 = Created;
++    GLint mTexFilter = 0x2601;   // GL_LINEAR
++    void JihadSwapTextures();    // now: retire the name and take a fresh one
+     RefPtr<GLContext> mGLContext;
+ };
+ 
+diff --git a/gfx/gl/GLUploadHelpers.cpp b/gfx/gl/GLUploadHelpers.cpp
+index 0bbb61434f..b91ec3e87f 100644
+--- a/gfx/gl/GLUploadHelpers.cpp
++++ b/gfx/gl/GLUploadHelpers.cpp
+@@ -4,6 +4,7 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "GLUploadHelpers.h"
++#include "mozilla/TimeStamp.h"   // Jihad T-502 device rounds
+ 
+ #include "GLContext.h"
+ #include "mozilla/gfx/2D.h"
+@@ -90,8 +91,14 @@ CanUploadSubTextures(GLContext* gl)
+ 
+     // There are certain GPUs that we don't want to use glTexSubImage2D on
+     // because that function can be very slow and/or buggy
++    // The "(TM)" spellings and the 220 included: on the TouchPad's Adreno 220 twelve 256x256
++    // glTexSubImage2D updates of a 1024x768 texture cost 160 ms against 10 ms for one whole
++    // glTexImage2D (Jihad, tools/device/gpu-bench.c, 2026-10-17).
+     if (gl->Renderer() == GLRenderer::Adreno200 ||
+-        gl->Renderer() == GLRenderer::Adreno205)
++        gl->Renderer() == GLRenderer::Adreno205 ||
++        gl->Renderer() == GLRenderer::AdrenoTM200 ||
++        gl->Renderer() == GLRenderer::AdrenoTM205 ||
++        gl->Renderer() == GLRenderer::AdrenoTM220)
+     {
+         return false;
+     }
+@@ -415,9 +422,20 @@ UploadImageDataToTexture(GLContext* gl,
+                          GLenum aTextureUnit,
+                          GLenum aTextureTarget)
+ {
++    // Jihad T-502 device rounds: the steps before the GL upload call, timed
++    const mozilla::TimeStamp jihadE0 = mozilla::TimeStamp::Now();
+     gl->MakeCurrent();
++    const mozilla::TimeStamp jihadE1 = mozilla::TimeStamp::Now();
+     gl->fActiveTexture(aTextureUnit);
+     gl->fBindTexture(aTextureTarget, aTexture);
++    const mozilla::TimeStamp jihadE2 = mozilla::TimeStamp::Now();
++    struct JihadPreLog { const mozilla::TimeStamp &e0, &e1, &e2; ~JihadPreLog() {
++      static uint32_t sN = 0;
++      const double all = (mozilla::TimeStamp::Now() - e0).ToMilliseconds();
++      if (all >= 8.0 && sN++ < 60)
++        fprintf(stderr, "[jihad-gpu] upload steps: make current %.1f ms, bind %.1f ms, the rest %.1f ms (all %.1f)\n",
++                (e1 - e0).ToMilliseconds(), (e2 - e1).ToMilliseconds(), all - (e2 - e0).ToMilliseconds(), all);
++    } } jihadPreLog{jihadE0, jihadE1, jihadE2};
+ 
+     GLenum format = 0;
+     GLenum internalFormat = 0;
+@@ -433,7 +451,7 @@ UploadImageDataToTexture(GLContext* gl,
+             if (gl->GetPreferredARGB32Format() == LOCAL_GL_BGRA) {
+               format = LOCAL_GL_BGRA;
+               surfaceFormat = SurfaceFormat::R8G8B8A8;
+-              type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++              type = gl->IsGLES() ? LOCAL_GL_UNSIGNED_BYTE : LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;   // Jihad: GLES has no 8_8_8_8_REV; BGRA_EXT takes UNSIGNED_BYTE
+             } else {
+               format = LOCAL_GL_RGBA;
+               surfaceFormat = SurfaceFormat::B8G8R8A8;
+@@ -447,7 +465,7 @@ UploadImageDataToTexture(GLContext* gl,
+             if (gl->GetPreferredARGB32Format() == LOCAL_GL_BGRA) {
+               format = LOCAL_GL_BGRA;
+               surfaceFormat = SurfaceFormat::R8G8B8X8;
+-              type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++              type = gl->IsGLES() ? LOCAL_GL_UNSIGNED_BYTE : LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;   // Jihad: GLES has no 8_8_8_8_REV; BGRA_EXT takes UNSIGNED_BYTE
+             } else {
+               format = LOCAL_GL_RGBA;
+               surfaceFormat = SurfaceFormat::B8G8R8X8;
+@@ -460,7 +478,7 @@ UploadImageDataToTexture(GLContext* gl,
+               // Upload our RGBA as BGRA, but store that the uploaded format is
+               // BGRA. (sample from R to get B)
+               format = LOCAL_GL_BGRA;
+-              type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++              type = gl->IsGLES() ? LOCAL_GL_UNSIGNED_BYTE : LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;   // Jihad: GLES has no 8_8_8_8_REV; BGRA_EXT takes UNSIGNED_BYTE
+               surfaceFormat = SurfaceFormat::B8G8R8A8;
+             } else {
+               format = LOCAL_GL_RGBA;
+@@ -474,7 +492,7 @@ UploadImageDataToTexture(GLContext* gl,
+             // format used.
+             if (gl->GetPreferredARGB32Format() == LOCAL_GL_BGRA) {
+               format = LOCAL_GL_BGRA;
+-              type = LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;
++              type = gl->IsGLES() ? LOCAL_GL_UNSIGNED_BYTE : LOCAL_GL_UNSIGNED_INT_8_8_8_8_REV;   // Jihad: GLES has no 8_8_8_8_REV; BGRA_EXT takes UNSIGNED_BYTE
+               surfaceFormat = SurfaceFormat::B8G8R8X8;
+             } else {
+               format = LOCAL_GL_RGBA;
+@@ -497,6 +515,9 @@ UploadImageDataToTexture(GLContext* gl,
+         default:
+             MOZ_ASSERT_UNREACHABLE("Unhandled image surface format!");
+     }
++    if (gl->IsGLES() && (format == LOCAL_GL_BGRA || format == LOCAL_GL_RGBA)) {
++        internalFormat = format;   // Jihad: GLES2 wants them equal (TexImage2DHelper asserts it)
++    }
+ 
+     if (aOutUploadSize) {
+         *aOutUploadSize = 0;
+@@ -506,6 +527,15 @@ UploadImageDataToTexture(GLContext* gl,
+       return gfx::SurfaceFormat::UNKNOWN;
+     }
+ 
++    // Jihad T-502 device rounds: the format this upload goes up as, and the call's own time
++    static uint32_t sJihadUploads = 0;
++    const mozilla::TimeStamp jihadT0 = mozilla::TimeStamp::Now();
++    struct JihadUpLog { const mozilla::TimeStamp& t0; GLenum fmt; GLenum type; int w, h; bool init; ~JihadUpLog() {
++      const double ms = (mozilla::TimeStamp::Now() - t0).ToMilliseconds();
++      if (sJihadUploads++ < 40 || ms >= 8.0) {
++        if (sJihadUploads < 400) fprintf(stderr, "[jihad-gpu] upload call %dx%d format 0x%x type 0x%x init %d: %.1f ms\n", w, h, (unsigned)fmt, (unsigned)type, (int)init, ms);
++      }
++    } } jihadUpLog{jihadT0, format, type, aSize.width, aSize.height, aNeedInit};
+     if (aNeedInit || !CanUploadSubTextures(gl)) {
+         // If the texture needs initialized, or we are unable to
+         // upload sub textures, then initialize and upload the entire

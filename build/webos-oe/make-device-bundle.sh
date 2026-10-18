@@ -236,6 +236,10 @@ fi
 # prompt above) resolving both about: names to chrome://jihad-prefs/content/preferences.html.
 # chrome://, not resource://, because the page writes prefs and therefore needs the system
 # principal; content cannot reach it because the module does not set URI_SAFE_FOR_UNTRUSTED_CONTENT.
+# Jihad's own XPCOM components and the engine shim, by the script the desktop dist uses too
+# (cavekit-engine-update.md R6): every render/goanna/components/*.manifest with the files it names.
+# The blocks below add each component's data and check what landed.
+sh "$REPO/build/install-components.sh" "$OUT" "$REPO"
 PREFSUI="$REPO/packaging/prefsui"
 ABOUT_JS="$REPO/render/goanna/components/jihadAboutPreferences.js"
 if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
@@ -243,22 +247,9 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 	mkdir -p "$OUT/prefsui" "$OUT/components"
 	cp -R "$PREFSUI/content" "$OUT/prefsui/"
 	cp -L "$PREFSUI/jihad-prefsui.manifest" "$OUT/"
-	cp -L "$ABOUT_JS" "$OUT/components/jihadAboutPreferences.js"
-	cat > "$OUT/components/jihad-about-preferences.manifest" <<'MANIFEST'
-# Jihad Browser — about:preferences / about:settings. Copyright 2026 NotAlexNoyle. MPL-2.0.
-# Both names resolve to the same document (chrome://jihad-prefs/content/preferences.html):
-# about:preferences is what Basilisk users type, about:settings is the other name asked for.
-component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
-contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-contract @mozilla.org/network/protocol/about;1?what=personas {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-MANIFEST
 	# Idempotent, same reason as the branding line above.
 	if ! grep -q '^manifest jihad-prefsui.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
 		echo 'manifest jihad-prefsui.manifest' >> "$OUT/chrome.manifest"
-	fi
-	if ! grep -q '^manifest components/jihad-about-preferences.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-		echo 'manifest components/jihad-about-preferences.manifest' >> "$OUT/chrome.manifest"
 	fi
 	# Fail the BUILD, not the device: a half-landed package means about:preferences resolves to
 	# nothing, and "unknown protocol" points nowhere near this block.
@@ -290,18 +281,7 @@ fi
 PROMPT_JS="$REPO/render/goanna/components/jihadInstallPrompt.js"
 if [ -f "$PROMPT_JS" ]; then
 	mkdir -p "$OUT/components"
-	cp -L "$PROMPT_JS" "$OUT/components/jihadInstallPrompt.js"
 	# Registered from the GRE root manifest, next to the engine's own component manifests.
-	cat > "$OUT/components/jihad-install-prompt.manifest" <<'MANIFEST'
-# Jihad Browser — XPI web-install confirm. Copyright 2026 NotAlexNoyle. MPL-2.0.
-# Claims the hook amWebInstallListener checks before falling back to its own modal XUL
-# window, which cannot open in this headless embedding.
-component {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17} jihadInstallPrompt.js
-contract @mozilla.org/addons/web-install-prompt;1 {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17}
-MANIFEST
-	if ! grep -q '^manifest components/jihad-install-prompt.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-		echo 'manifest components/jihad-install-prompt.manifest' >> "$OUT/chrome.manifest"
-	fi
 	for f in components/jihadInstallPrompt.js components/jihad-install-prompt.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: xpi-prompt file missing/empty in bundle: $f" >&2; exit 1; }
 	done
@@ -313,15 +293,6 @@ fi
 PRINT_JS="$REPO/render/goanna/components/jihadPrint.js"
 if [ -f "$PRINT_JS" ]; then
 	mkdir -p "$OUT/components"
-	cp -L "$PRINT_JS" "$OUT/components/jihadPrint.js"
-	cat > "$OUT/components/jihad-print.manifest" <<'MANIFEST'
-# Jihad Browser — printing over IPP. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {b7f1a6f0-0c5e-4d0b-9a55-3f6f2f7c1d42} jihadPrint.js
-contract @riverstonerelay.net/jihad/print;1 {b7f1a6f0-0c5e-4d0b-9a55-3f6f2f7c1d42}
-MANIFEST
-	if ! grep -q '^manifest components/jihad-print.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-		echo 'manifest components/jihad-print.manifest' >> "$OUT/chrome.manifest"
-	fi
 	for f in components/jihadPrint.js components/jihad-print.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: print component file missing/empty in bundle: $f" >&2; exit 1; }
 	done
@@ -333,15 +304,6 @@ fi
 PAGECMD_JS="$REPO/render/goanna/components/jihadPageCommands.js"
 if [ -f "$PAGECMD_JS" ]; then
 	mkdir -p "$OUT/components"
-	cp -L "$PAGECMD_JS" "$OUT/components/jihadPageCommands.js"
-	cat > "$OUT/components/jihad-page-commands.manifest" <<'MANIFEST'
-# Jihad Browser — the page's half of the long-press menu. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {4e0c1b7a-6a53-4a5e-9d0f-0f6a3d1b8c27} jihadPageCommands.js
-contract @riverstonerelay.net/jihad/page-commands;1 {4e0c1b7a-6a53-4a5e-9d0f-0f6a3d1b8c27}
-MANIFEST
-	if ! grep -q '^manifest components/jihad-page-commands.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-		echo 'manifest components/jihad-page-commands.manifest' >> "$OUT/chrome.manifest"
-	fi
 	for f in components/jihadPageCommands.js components/jihad-page-commands.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: page-commands component file missing/empty in bundle: $f" >&2; exit 1; }
 	done
@@ -364,15 +326,6 @@ if [ -f "$BUNDLED_JS" ]; then
 	mkdir -p "$OUT/bundled-addons" "$OUT/components"
 	cp -L "$PALEFILL_XPI" "$OUT/bundled-addons/palefill@addons.martoks-place.de.xpi"
 	cp -L "$REPO/third_party/palefill/README.md" "$OUT/bundled-addons/palefill-README.md"
-	cp -L "$BUNDLED_JS" "$OUT/components/jihadBundledAddons.js"
-	cat > "$OUT/components/jihad-bundled-addons.manifest" <<'MANIFEST'
-# Jihad Browser — offers the add-ons that come with the browser. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {0b9f6a4e-2f3d-4c6e-8f0a-6d2c9b1e7a55} jihadBundledAddons.js
-contract @riverstonerelay.net/jihad/bundled-addons;1 {0b9f6a4e-2f3d-4c6e-8f0a-6d2c9b1e7a55}
-MANIFEST
-	if ! grep -q '^manifest components/jihad-bundled-addons.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-		echo 'manifest components/jihad-bundled-addons.manifest' >> "$OUT/chrome.manifest"
-	fi
 	for f in components/jihadBundledAddons.js components/jihad-bundled-addons.manifest \
 	         "bundled-addons/palefill@addons.martoks-place.de.xpi"; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: bundled add-on file missing/empty in bundle: $f" >&2; exit 1; }
@@ -399,62 +352,26 @@ done
 mkdir -p "$OUT/blocklists" "$OUT/components"
 cp -L "$EASYLIST_DIR/easylist.txt" "$EASYLIST_DIR/easyprivacy.txt" "$OUT/blocklists/"
 cp -L "$EASYLIST_DIR/README.md" "$OUT/blocklists/README.md"
-cp -L "$BLOCKER_JS" "$OUT/components/jihadContentBlocker.js"
-cat > "$OUT/components/jihad-content-blocker.manifest" <<'MANIFEST'
-# Jihad Browser — ads and trackers blocked in the engine (EasyList, EasyPrivacy). Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {3c7e1b9a-5d24-4f6e-8a0b-9e2d4c6f1a37} jihadContentBlocker.js
-contract @riverstonerelay.net/jihad/content-blocker;1 {3c7e1b9a-5d24-4f6e-8a0b-9e2d4c6f1a37}
-category content-policy @riverstonerelay.net/jihad/content-blocker;1 @riverstonerelay.net/jihad/content-blocker;1
-MANIFEST
-if ! grep -q '^manifest components/jihad-content-blocker.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-	echo 'manifest components/jihad-content-blocker.manifest' >> "$OUT/chrome.manifest"
-fi
 echo "  content blocking: components/jihadContentBlocker.js + blocklists/ (EasyList, EasyPrivacy; sha256 verified)"
 # The browser's identity, adjusted to the page (cavekit-modern-web.md R3): components/jihadUserAgent.js
 # learns the sites whose bot check turns the page away and gives them a current Firefox identity.
 UA_JS="$REPO/render/goanna/components/jihadUserAgent.js"
 [ -f "$UA_JS" ] || { echo "ERROR: $UA_JS is missing" >&2; exit 1; }
 mkdir -p "$OUT/components"
-cp -L "$UA_JS" "$OUT/components/jihadUserAgent.js"
-cat > "$OUT/components/jihad-user-agent.manifest" <<'MANIFEST'
-# Jihad Browser — the browser's identity, adjusted to the needs of the page. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {8d4f2c6a-1b7e-4e3a-9f5c-2a6d8e0b4c71} jihadUserAgent.js
-contract @riverstonerelay.net/jihad/user-agent;1 {8d4f2c6a-1b7e-4e3a-9f5c-2a6d8e0b4c71}
-MANIFEST
-if ! grep -q '^manifest components/jihad-user-agent.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-	echo 'manifest components/jihad-user-agent.manifest' >> "$OUT/chrome.manifest"
-fi
 echo "  identity: components/jihadUserAgent.js (52.9 by default; a learned current identity per site)"
 # Web compatibility shims (cavekit-modern-web.md R1/R6): components/jihadWebCompat.js supplies the
 # few platform pieces the engine lacks (CSSStyleSheet.replace, popover, inert, Intl.ListFormat …)
 # to each page before its scripts run; jihad.compat.trace is the diagnosis mode.
 COMPAT_JS="$REPO/render/goanna/components/jihadWebCompat.js"
 [ -f "$COMPAT_JS" ] || { echo "ERROR: $COMPAT_JS is missing" >&2; exit 1; }
-cp -L "$COMPAT_JS" "$OUT/components/jihadWebCompat.js"
-cat > "$OUT/components/jihad-web-compat.manifest" <<'MANIFEST'
-# Jihad Browser — web compatibility shims. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {5a1c7e2d-9b3f-4c6e-8d21-7f0a4b9c2e13} jihadWebCompat.js
-contract @riverstonerelay.net/jihad/web-compat;1 {5a1c7e2d-9b3f-4c6e-8d21-7f0a4b9c2e13}
-MANIFEST
-if ! grep -q '^manifest components/jihad-web-compat.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-	echo 'manifest components/jihad-web-compat.manifest' >> "$OUT/chrome.manifest"
-fi
 echo "  web compat: components/jihadWebCompat.js (shims for what the engine lacks, per page)"
+[ -s "$OUT/modules/JihadEngine.jsm" ] || { echo "ERROR: the engine shim is missing from the bundle" >&2; exit 1; }
 # Lightweight themes ("personas" — Firefox 52 / Pale Moon / Basilisk): the browser's half of
 # the engine's LightweightThemeManager (components/jihadPersonas.js). Required: the kit promises
 # the feature (cavekit-addons-extensions.md R10).
 PERSONAS_JS="$REPO/render/goanna/components/jihadPersonas.js"
 [ -f "$PERSONAS_JS" ] || { echo "ERROR: $PERSONAS_JS is missing" >&2; exit 1; }
 mkdir -p "$OUT/components"
-cp -L "$PERSONAS_JS" "$OUT/components/jihadPersonas.js"
-cat > "$OUT/components/jihad-personas.manifest" <<'MANIFEST'
-# Jihad Browser — lightweight themes (personas): web install, apply, tell the cards. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02} jihadPersonas.js
-contract @riverstonerelay.net/jihad/personas;1 {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02}
-MANIFEST
-if ! grep -q '^manifest components/jihad-personas.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
-	echo 'manifest components/jihad-personas.manifest' >> "$OUT/chrome.manifest"
-fi
 # The manager's modules travel with libxul (modules/LightweightThemeManager.jsm,
 # modules/addons/LightweightThemeImageOptimizer.jsm — both in the dist tree the loop above copied).
 for f in modules/LightweightThemeManager.jsm modules/addons/LightweightThemeImageOptimizer.jsm; do
@@ -476,24 +393,7 @@ done
 python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["hpStock"]["count"]>100 and j["mozillaRemoved"]["count"]>50 and len(j["relay"]["sha256"])==64' "$CERT_LISTS" \
 	|| { echo "ERROR: $CERT_LISTS is not a complete list (rebuild it with make-cert-lists.py)" >&2; exit 1; }
 mkdir -p "$OUT/components" "$OUT/certs"
-cp -L "$CERTS_JS" "$OUT/components/jihadCerts.js"
-cp -L "$PROXY_JS" "$OUT/components/jihadProxy.js"
 cp -L "$CERT_LISTS" "$OUT/certs/jihad-cert-lists.json"
-cat > "$OUT/components/jihad-certs.manifest" <<'MANIFEST'
-# Jihad Browser — certificates beyond the engine's own, and the CA question. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63} jihadCerts.js
-contract @riverstonerelay.net/jihad/certs;1 {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63}
-component {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28} jihadCerts.js
-contract @mozilla.org/nsCertificateDialogs;1 {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28}
-component {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13} jihadCerts.js
-contract @riverstonerelay.net/jihad/cert-policy;1 {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13}
-category content-policy JihadCertPolicy @riverstonerelay.net/jihad/cert-policy;1
-MANIFEST
-cat > "$OUT/components/jihad-proxy.manifest" <<'MANIFEST'
-# Jihad Browser — following webOS's proxy setting. Copyright 2026 NotAlexNoyle. MPL-2.0.
-component {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14} jihadProxy.js
-contract @riverstonerelay.net/jihad/proxy;1 {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14}
-MANIFEST
 for m in jihad-certs jihad-proxy; do
 	grep -q "^manifest components/$m.manifest$" "$OUT/chrome.manifest" 2>/dev/null || echo "manifest components/$m.manifest" >> "$OUT/chrome.manifest"
 done

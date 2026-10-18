@@ -135,6 +135,7 @@ version add-ons are judged against — it follows the engine's compatibility lev
 |---|---|
 | `build/engine/update-engine.sh [TAG] / --finish / --abort / --pins` | moves the engine to an upstream release: the queue carried across with a three-way merge, the overlaps listed, the API checked, every pin rewritten (§6) |
 | `build/engine/check-engine-pins.sh` | every pin and version string agrees with `engine-version.env` |
+| `render/goanna/modules/JihadEngine.jsm` | the engine's JS surface the components use (modules, about:addons markup), in one place; `check-engine-api.py` checks its SURFACE block and that no component imports an engine module around it |
 | `build/engine/check-engine-calls.sh` | the positional engine calls go through `render/goanna/EngineCalls.h` only (the wrapped methods are read from the header; a direct call anywhere in `render/` fails it) |
 | `build/engine/patch-queue.sh --check` | the patch queue reproduces the engine branch exactly |
 | `build/engine/check-engine-api.py [--uxp TREE]` | what in TREE no longer matches what Jihad uses: our exports (§4.1), IDL signatures and implemented interfaces (§4.2) against `engine-api-baseline.json`, the engine JS and about:addons markup (§4.3), prefs (§4.4), mozconfig options and the ICU file (§4.5). Run it on a candidate before building. |
@@ -209,8 +210,6 @@ about:settings open; printing finds the test sink (`render/goanna/test/ipp-sink.
 
 ## 8. Next steps (not done yet)
 
-- A JS shim for the engine modules the components import (LightweightThemeManager,
-  AddonManager), and for the about:addons markup the Personas pane relies on.
 - One component-install script shared by `build-goanna.sh` and `make-device-bundle.sh` (their
   manifest blocks duplicate each other).
 - Derive `push-engine-update.sh`'s loose-file list from the engine branch's diff instead of

@@ -76,9 +76,17 @@ PREFS_MD5=$(md5sum "$TMP/goanna.js" | cut -c1-32)
 say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$TMP/jihad-browserserver" | cut -f1) md5=$BS_MD5; goanna.js md5=$PREFS_MD5"
 
 # This project's own chrome scripts, relative to the bundle root.
-# ...and the engine's own script modules that this project's engine branch changes (they are
-# loose files in the bundle, so a libxul push does not carry them): the add-on manager's provider.
-OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/addons/XPIProvider.jsm modules/addons/XPIProviderUtils.js $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
+# ...and the engine's own loose files (script modules, components, chrome bindings) that this
+# project's engine branch changes, which a libxul push does not carry. DERIVED (cavekit-engine-update
+# R6, T-387): the files the branch changes since its release (UXP_TAG..UXP_PIN) mapped to where the
+# build put them by the objdir's install records (build/engine/engine-loose-files.py); goanna.js,
+# which all.js becomes, is pushed above with the prefs.
+. "$HERE/../engine/engine-version.env"
+ENGINE_LOOSE=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirname "$DIST")" --uxp "$HERE/../../third_party/uxp" \
+               --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$BUNDLE") || die "could not derive the engine's loose files (engine-loose-files.py)"
+ENGINE_LOOSE=$(echo "$ENGINE_LOOSE" | grep -v '^goanna\.js$' | tr '\n' ' ')
+say "the engine's loose files this branch changes: ${ENGINE_LOOSE:-none}"
+OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 # The add-on manager's provider (modules/addons/*) belongs to the engine it was staged with.
@@ -147,10 +155,10 @@ for v in $VARIANTS; do
     [ -e "$BUNDLE/personas/$f" ] || { novacom run file://bin/rm -- -f "$HL/personas/$f" >/dev/null 2>&1 || true; say "[$v] removed personas/$f (no longer bundled)"; }
   done
   for f in $OWN; do
-    # The add-on manager's provider belongs to the engine it was built with. A daemon-only
-    # push leaves libxul alone, so the provider goes only when the device already runs the
-    # bundle's libxul (else it waits for the next full push with it).
-    case "$f" in modules/addons/*)
+    # The engine's loose files belong to the engine they were built with. A daemon-only push
+    # leaves libxul alone, so they go only when the device already runs the bundle's libxul
+    # (else they wait for the next full push with it).
+    case " $ENGINE_LOOSE " in *" $f "*)
       # Compared with the BUNDLE's libxul (what the provider was staged with), not dist's:
       # a bundle staged from an older engine build must not pair its provider with a newer
       # libxul either. A full push already proved bundle == dist above; a daemon-only push

@@ -35,6 +35,9 @@ const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/NetUtil.jsm");
+// The engine's modules and about:addons' markup, through one shim (cavekit-engine-update.md R4b)
+Cu.import("resource://gre/modules/JihadEngine.jsm");
+const ADDONS = JihadEngine.addons;
 
 const PREF_CURRENT = "jihad.theme.current";
 // Where a static theme's images are unpacked (under the profile), served to the theme manager
@@ -56,7 +59,7 @@ function notify(category, text) {
 }
 
 function manager() {
-  return Cu.import("resource://gre/modules/LightweightThemeManager.jsm", {}).LightweightThemeManager;
+  return JihadEngine.LightweightThemeManager;
 }
 
 function hostOf(url) {
@@ -797,7 +800,7 @@ function previewAllowed(origin) {
   // R11); the add-on manager imports it only when an install is checked, so it is imported here too
   // (once per run; it does nothing after that).
   try {
-    Cu.import("resource://gre/modules/PermissionsUtils.jsm", {}).PermissionsUtils.importFromPrefs("xpinstall.", "install");
+    JihadEngine.PermissionsUtils.importFromPrefs("xpinstall.", "install");
   } catch (e) {}
   try { return Services.perms.testPermission(uri, "install") === Services.perms.ALLOW_ACTION; }
   catch (e) { return false; }
@@ -899,12 +902,12 @@ function themeIdOf(addonId) {
 const XPI_DIRS = ["/media/internal/downloads", "/media/internal"];
 const PANE_CSS =
   "@namespace url(\"" + XUL_NS + "\");\n" +
-  "#addons-page button:not(.button-link) { min-height: 44px !important; min-width: 64px !important; }\n" +
-  "#addons-page .category { min-height: 52px; }\n" +
-  "#addons-page[jihad-themes-view=\"true\"] #addon-list-empty { display: none; }\n" +
+  ADDONS.selector("page") + " button:not(.button-link) { min-height: 44px !important; min-width: 64px !important; }\n" +
+  ADDONS.selector("page") + " .category { min-height: 52px; }\n" +
+  ADDONS.selector("page") + "[jihad-themes-view=\"true\"] " + ADDONS.selector("addonListEmpty") + " { display: none; }\n" +
   // Only the worn Persona here: the list lives in the gallery, which the card can scroll (the owner,
   // 2026-10-12: "I cant scroll down in personas in about:addons").
-  "#addons-page[jihad-themes-view=\"true\"] #addon-list > richlistitem:not([active=\"true\"]) { display: none !important; }\n" +
+  ADDONS.selector("page") + "[jihad-themes-view=\"true\"] " + ADDONS.selector("addonList") + " > richlistitem:not([active=\"true\"]) { display: none !important; }\n" +
   "#jihad-themes-box { padding: 10px 12px 4px; }\n" +
   "#jihad-themes-box .jihad-themes-intro { margin: 0 0 8px; font-size: 1.05em; }\n" +
   "#jihad-themes-box .jihad-row { min-height: 64px; padding: 6px 10px; margin: 0 0 8px;\n" +
@@ -946,9 +949,7 @@ function isDiscoverDocument(doc) {
 }
 
 function isAddonsDocument(doc) {
-  let u = "";
-  try { u = String(doc.documentURI || ""); } catch (e) { return false; }
-  return u.indexOf("about:addons") === 0 || u.indexOf("chrome://mozapps/content/extensions/extensions.xul") === 0;
+  return ADDONS.isDocument(doc);
 }
 
 function xul(doc, tag, attrs) {
@@ -1439,7 +1440,7 @@ function decorateRow(doc, item, theme, isCurrent) {
   item.style.setProperty("color", text || "#ffffff", "important");
   item.style.setProperty("min-height", "96px", "important");
   item.style.MozBoxOrdinalGroup = isCurrent ? "0" : "1";
-  let anon = function(attr, val) { return doc.getAnonymousElementByAttribute(item, attr, val); };
+  let anon = function(attr, val) { return ADDONS.part(doc, item, attr, val); };
   // The text sits on a pane in the opposite of its colour, so the name reads over any picture.
   let pane = anon("class", "content-inner-container");
   if (pane) {
@@ -1487,14 +1488,14 @@ function decorateRow(doc, item, theme, isCurrent) {
 // the tall page as it pans any other (cavekit-chrome-look.md R3).
 function growToList(win) {
   let doc = win.document, root = doc.documentElement;
-  let gVC = win.gViewController;
+  let gVC = ADDONS.viewController(win);
   // Every view of the manager is laid out at full size inside its deck, shown or not: only the one
   // shown counts (inspector 2026-10-12).
   let panel = gVC && gVC.viewPort ? gVC.viewPort.selectedPanel : null;
   root.style.minHeight = "";                      // measured as it lays out without the stretch
   let need = 0;
   if (panel) {
-    let list = panel.id === "detail-view" ? null : panel.querySelector("richlistbox");
+    let list = panel.id === ADDONS.ids.detailView ? null : panel.querySelector("richlistbox");
     if (list) {
       // The list's items, not its box (a stretched box measures its own stretch).
       let rect = list.getBoundingClientRect(), first = null, last = null;
@@ -1516,19 +1517,18 @@ function growToList(win) {
 function decoratePane(win) {
   let doc = win.document;
   later(200, function() { try { growToList(win); } catch (e) { log("about:addons height: " + e); } });
-  let gVC = win.gViewController;
-  let viewId = String((gVC && gVC.currentViewId) || "");
-  let isThemes = viewId.indexOf("addons://list/theme") === 0;
+  let viewId = ADDONS.currentViewId(win);
+  let isThemes = viewId.indexOf(ADDONS.themeView) === 0;
   doc.documentElement.setAttribute("jihad-themes-view", isThemes ? "true" : "false");
   // The category is called Personas, as everywhere else in this browser (owner 2026-10-08).
-  let cat = doc.getElementById("category-theme");
+  let cat = ADDONS.element(doc, "categoryTheme");
   if (cat && cat.getAttribute("name") !== "Personas") { cat.setAttribute("name", "Personas"); }
-  let listView = doc.getElementById("list-view"), list = doc.getElementById("addon-list");
+  let listView = ADDONS.element(doc, "listView"), list = ADDONS.element(doc, "addonList");
   let box = doc.getElementById("jihad-themes-box");
   // "Uninstall", not "Remove", on every add-on, in every category (owner 2026-10-08).
   if (list) {
     for (let i = 0; i < list.children.length; i++) {
-      let rm = doc.getAnonymousElementByAttribute(list.children[i], "anonid", "remove-btn");
+      let rm = ADDONS.part(doc, list.children[i], "anonid", "remove-btn");
       if (rm && rm.getAttribute("label") !== "Uninstall") { rm.setAttribute("label", "Uninstall"); }
     }
   }
@@ -1613,8 +1613,8 @@ function attachPane(win) {
   // The pane's window may be gone by the time a deferred call runs (a card closing while a
   // page loads logged "themes pane: TypeError: can't access dead object", round 2, 2026-10-15).
   let again = function() { try { if (Cu.isDeadWrapper(win) || win.closed) { return; } decoratePane(win); } catch (e) { log("themes pane: " + e); } };
-  doc.addEventListener("ViewChanged", again, true);
-  let list = doc.getElementById("addon-list");
+  doc.addEventListener(ADDONS.viewChangedEvent, again, true);
+  let list = ADDONS.element(doc, "addonList");
   if (list) {
     let pending = 0;
     new win.MutationObserver(function() {
@@ -1624,7 +1624,7 @@ function attachPane(win) {
   }
   // An add-on's preferences arrive in its page after the view has changed (the manager loads
   // them): the page's height is measured again when they do.
-  let rows = doc.getElementById("detail-rows");
+  let rows = ADDONS.element(doc, "detailRows");
   if (rows) {
     let measuring = 0;
     new win.MutationObserver(function() {
@@ -1859,7 +1859,7 @@ function galleryRequest(bag) {
     let id = get("id");
     if (!installed[id]) { reply({ok: false}); return; }
     try {
-      let AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+      let AM = JihadEngine.AddonManager;
       AM.getAddonByID(id + ID_SUFFIX, function(addon) {
         try { if (addon) { addon.uninstall(); } } catch (e) { log("remove " + id + ": " + e); }
         try { Services.obs.notifyObservers(null, "jihad-personas-mine", id); } catch (e) {}
@@ -1930,7 +1930,7 @@ function JihadPersonas() {
   Services.obs.addObserver(this, "content-document-global-created", false);
   Services.obs.addObserver(this, "chrome-document-global-created", false);
   try {
-    let AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+    let AM = JihadEngine.AddonManager;
     AM.addAddonListener({
       onUninstalled: function(addon) {
         if (!addon || addon.type !== "theme") { return; }

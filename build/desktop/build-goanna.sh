@@ -50,10 +50,14 @@ fi
 cd "$SRC"
 
 # ./mach is a shell/python polyglot that re-execs itself under python3.
+# Each step's failure stops the script (T-387, 2026-10-18): `./mach configure && ./mach build` hid a
+# failed configure from set -e (a non-final command of an && list), and the script went on to
+# install our components into the OLD dist and report "done" over an engine that never built.
 case "$STAGE" in
-  configure) ./mach configure ;;
-  build)     ./mach build ;;
-  all)       ./mach configure && ./mach build ;;
+  configure) ./mach configure || { echo "ERROR: mach configure failed"; exit 1; } ;;
+  build)     ./mach build || { echo "ERROR: mach build failed"; exit 1; } ;;
+  all)       ./mach configure || { echo "ERROR: mach configure failed"; exit 1; }
+             ./mach build || { echo "ERROR: mach build failed"; exit 1; } ;;
   *)         echo "unknown stage: $STAGE (use configure|build|all)"; exit 2 ;;
 esac
 
@@ -88,30 +92,17 @@ fi
 # modal XUL window that cannot open here, and every install is cancelled).
 PROMPT_JS=/jihad/render/goanna/components/jihadInstallPrompt.js
 if [ -f "$PROMPT_JS" ] && [ -d "$DISTBIN/components" ]; then
-  cp -L "$PROMPT_JS" "$DISTBIN/components/jihadInstallPrompt.js"
-  cat > "$DISTBIN/components/jihad-install-prompt.manifest" <<'MANIFEST'
-component {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17} jihadInstallPrompt.js
-contract @mozilla.org/addons/web-install-prompt;1 {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17}
-MANIFEST
-  if ! grep -q '^manifest components/jihad-install-prompt.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
-    echo 'manifest components/jihad-install-prompt.manifest' >> "$DISTBIN/chrome.manifest"
-  fi
   echo "  xpi prompt: registered in the desktop dist"
 fi
+
+# --- Jihad's own XPCOM components and the engine shim: the device bundle's script (R6, T-387) ----
+sh /jihad/build/install-components.sh "$DISTBIN" /jihad
 
 # --- Personas (components/jihadPersonas.js + the bundled set), into the DESKTOP dist -------------
 # Mirrors make-device-bundle.sh, so about:addons → Personas and about:personas behave as on the
 # device (cavekit-gre-widgets.md R7; inspector 2026-10-08 found the desktop gallery empty).
 PERSONAS_JS=/jihad/render/goanna/components/jihadPersonas.js
 if [ -f "$PERSONAS_JS" ] && [ -d "$DISTBIN/components" ]; then
-  cp -L "$PERSONAS_JS" "$DISTBIN/components/jihadPersonas.js"
-  cat > "$DISTBIN/components/jihad-personas.manifest" <<'MANIFEST'
-component {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02} jihadPersonas.js
-contract @riverstonerelay.net/jihad/personas;1 {6f0d2b1c-7a3e-4b58-9c21-3e9a5d7f1b02}
-MANIFEST
-  if ! grep -q '^manifest components/jihad-personas.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
-    echo 'manifest components/jihad-personas.manifest' >> "$DISTBIN/chrome.manifest"
-  fi
   rm -rf "$DISTBIN/personas"; mkdir -p "$DISTBIN/personas"
   cp -L /jihad/render/goanna/personas/personas.json "$DISTBIN/personas/"
   python3 -c 'import json,sys; [print(p["file"]) for p in json.load(open(sys.argv[1]))["personas"]]' \
@@ -126,23 +117,8 @@ fi
 CERTS_JS=/jihad/render/goanna/components/jihadCerts.js
 PROXY_JS=/jihad/render/goanna/components/jihadProxy.js
 if [ -f "$CERTS_JS" ] && [ -f "$PROXY_JS" ] && [ -d "$DISTBIN/components" ]; then
-  cp -L "$CERTS_JS" "$DISTBIN/components/jihadCerts.js"
-  cp -L "$PROXY_JS" "$DISTBIN/components/jihadProxy.js"
   mkdir -p "$DISTBIN/certs"
   cp -L /jihad/render/goanna/certs/jihad-cert-lists.json "$DISTBIN/certs/"
-  cat > "$DISTBIN/components/jihad-certs.manifest" <<'MANIFEST'
-component {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63} jihadCerts.js
-contract @riverstonerelay.net/jihad/certs;1 {3c8e2f1a-5d47-4b9e-a2c6-7f0b1d9e4a63}
-component {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28} jihadCerts.js
-contract @mozilla.org/nsCertificateDialogs;1 {8a1d5e3b-2c94-4f07-b6e1-0d7c3a9f5b28}
-component {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13} jihadCerts.js
-contract @riverstonerelay.net/jihad/cert-policy;1 {5b7e2c94-1d3a-4f68-8e0b-a49c6d2f7e13}
-category content-policy JihadCertPolicy @riverstonerelay.net/jihad/cert-policy;1
-MANIFEST
-  cat > "$DISTBIN/components/jihad-proxy.manifest" <<'MANIFEST'
-component {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14} jihadProxy.js
-contract @riverstonerelay.net/jihad/proxy;1 {d47b9c02-6e15-4a8f-93b1-5c2e8f0a7d14}
-MANIFEST
   for m in jihad-certs jihad-proxy; do
     grep -q "^manifest components/$m.manifest$" "$DISTBIN/chrome.manifest" 2>/dev/null || echo "manifest components/$m.manifest" >> "$DISTBIN/chrome.manifest"
   done
@@ -160,18 +136,8 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ] && [ -d "$DISTBIN/components" ]; then
   mkdir -p "$DISTBIN/prefsui"
   cp -R "$PREFSUI/content" "$DISTBIN/prefsui/"
   cp -L "$PREFSUI/jihad-prefsui.manifest" "$DISTBIN/"
-  cp -L "$ABOUT_JS" "$DISTBIN/components/jihadAboutPreferences.js"
-  cat > "$DISTBIN/components/jihad-about-preferences.manifest" <<'MANIFEST'
-component {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806} jihadAboutPreferences.js
-contract @mozilla.org/network/protocol/about;1?what=preferences {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-contract @mozilla.org/network/protocol/about;1?what=settings {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-contract @mozilla.org/network/protocol/about;1?what=personas {0f2b8f4e-6c31-4a7b-9f2d-5c1e73a4b806}
-MANIFEST
   if ! grep -q '^manifest jihad-prefsui.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
     echo 'manifest jihad-prefsui.manifest' >> "$DISTBIN/chrome.manifest"
-  fi
-  if ! grep -q '^manifest components/jihad-about-preferences.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
-    echo 'manifest components/jihad-about-preferences.manifest' >> "$DISTBIN/chrome.manifest"
   fi
   for f in jihad-prefsui.manifest prefsui/content/preferences.html prefsui/content/preferences.js \
            prefsui/content/preferences.css components/jihadAboutPreferences.js \

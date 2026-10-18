@@ -59,23 +59,26 @@ IMPLEMENTED = [
     ("xpcom/system/nsIXULRuntime.idl", "nsIXULRuntime"),
     ("xpcom/system/nsIPlatformInfo.idl", "nsIPlatformInfo"),
 ]
-# Engine JS: file, the names that must still be there.
-JS_NEEDS = [
-    ("toolkit/mozapps/extensions/LightweightThemeManager.jsm",
-     ["parseTheme", "previewTheme", "resetPreview", "currentTheme", "usedThemes", "forgetUsedTheme",
-      '"lightweightThemes."', "usedThemes", "lightweight-theme-styling-update", "@personas.mozilla.org"]),
-    ("toolkit/mozapps/extensions/AddonManager.jsm",
-     ["getInstallForFile", "getAddonByID", "addAddonListener"]),
-    ("toolkit/mozapps/extensions/content/extensions.xul",
-     ['id="list-view"', 'id="addon-list"', 'id="addon-list-empty"', 'id="addons-page"']),
-    ("toolkit/mozapps/extensions/content/extensions.xml",
-     ['anonid="enable-btn"', 'anonid="disable-btn"', 'anonid="remove-btn"', 'anonid="version"',
-      'anonid="description"', 'anonid="control-container"', 'class="content-inner-container"',
-      'class="disabled-postfix"']),
-    ("toolkit/mozapps/extensions/content/extensions.js",
-     ["gViewController", "currentViewId", '"ViewChanged"', "extensions.ui.lastCategory",
-      '"category-" + aId']),                         # the Personas pane renames #category-theme
-]
+# Engine JS: file, the names that must still be there. T-386 (R4b): read from the shim every
+# component goes through, render/goanna/modules/JihadEngine.jsm (its SURFACE block is JSON), so the
+# checker checks exactly what the components use.
+SHIM = os.path.join(REPO, "render", "goanna", "modules", "JihadEngine.jsm")
+# engine modules a component may import directly: stable for years, not the surface's business
+DIRECT_OK = {"XPCOMUtils", "Services", "NetUtil", "FileUtils", "Timer", "JihadEngine"}
+
+
+def shim_surface():
+    with open(SHIM, encoding="utf-8") as f:
+        t = f.read()
+    m = re.search(r"// SURFACE-BEGIN[^\n]*\nconst SURFACE = (\{.*?\});\n// SURFACE-END", t, re.S)
+    if not m:
+        raise SystemExit("check-engine-api: no SURFACE block in " + SHIM)
+    return json.loads(m.group(1))
+
+
+SURFACE = shim_surface()
+JS_NEEDS = ([(m["source"], m["needs"]) for m in SURFACE["modules"].values()] +
+            sorted(SURFACE["addons"]["markup"].items()))
 CLIPBOARD_IDL = "widget/nsIClipboardHelper.idl"
 # Prefs the project sets that the engine has no default for, on purpose — read by our own code.
 OURS_ONLY = {
@@ -301,6 +304,21 @@ def check(uxp, rep):
         else:
             rep.ok("%s (%d names)" % (f, len(needs)))
 
+    print("4b. components reach the engine's modules through JihadEngine.jsm")
+    comp_dir = os.path.join(REPO, "render", "goanna", "components")
+    direct = []
+    for f in sorted(glob.glob(os.path.join(comp_dir, "*.js"))):
+        for n, line in enumerate(read(f).splitlines(), 1):
+            if line.lstrip().startswith(("//", "*", "/*")):
+                continue
+            for mod in re.findall(r"resource://gre/modules/(?:[A-Za-z]+/)*([A-Za-z]+)\.jsm", line):
+                if mod not in DIRECT_OK:
+                    direct.append("%s:%d imports %s" % (os.path.basename(f), n, mod))
+    if direct:
+        rep.fail("engine modules imported around the shim: " + "; ".join(direct))
+    else:
+        rep.ok("no component imports an engine module around the shim (%d modules in the surface)" % len(SURFACE["modules"]))
+
     print("5. engine prefs the project sets")
     defaults = ""
     # Default-pref files only — not tests, which mention prefs that no longer exist.
@@ -348,7 +366,9 @@ def check(uxp, rep):
                 conf += read(f)
             except OSError:
                 pass
-    for mc in glob.glob(os.path.join(REPO, "build/**/mozconfig*"), recursive=True):
+    # one level down (build/<dir>/mozconfig*): a recursive glob walked the objdirs under build/
+    # (millions of files) and the check took over an hour (T-386, 2026-10-18)
+    for mc in sorted(glob.glob(os.path.join(REPO, "build", "*", "mozconfig*"))):
         for opt in re.findall(r"ac_add_options\s+--(?:enable|disable|with|without)-([\w-]+)", read(mc)):
             if not re.search(r"(enable|disable|with|without)-" + re.escape(opt) + r"\b", conf):
                 rep.fail("%s: option --*-%s is not in the engine's configure" % (os.path.relpath(mc, REPO), opt))

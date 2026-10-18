@@ -1,0 +1,5 @@
+# Jihad Browser — XPI web-install confirm. Copyright 2026 NotAlexNoyle. MPL-2.0.
+# Claims the hook amWebInstallListener checks before falling back to its own modal XUL
+# window, which cannot open in this headless embedding.
+component {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17} jihadInstallPrompt.js
+contract @mozilla.org/addons/web-install-prompt;1 {5cf8e2a6-91a1-44f5-9d33-8ab6f2c40d17}

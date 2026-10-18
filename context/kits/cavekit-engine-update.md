@@ -74,8 +74,10 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
 
 ### R4b: The engine's JS surface
 **Acceptance Criteria:**
-- [ ] The engine modules the components import (LightweightThemeManager, AddonManager) and the
-  about:addons markup the Personas pane decorates are reached through one shim.
+- [x] The engine modules the components import (LightweightThemeManager, AddonManager) and the
+  about:addons markup the Personas pane decorates are reached through one shim. *(2026-10-18,
+  T-386: `render/goanna/modules/JihadEngine.jsm`; its SURFACE block is also the checker's list;
+  device: about:addons and its Personas view on Enyo.)*
 **Dependencies:** R4
 
 ### R5: Written for a human

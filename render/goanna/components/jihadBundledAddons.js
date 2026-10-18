@@ -27,6 +27,8 @@ const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+// The engine's modules through one shim (cavekit-engine-update.md R4b)
+Cu.import("resource://gre/modules/JihadEngine.jsm");
 
 // What ships. `version` is the version of the bundled FILE (the package's make-device-bundle.sh
 // pins the file by SHA-256, so this cannot drift from it unnoticed).
@@ -94,7 +96,7 @@ function install(AddonManager, b, why) {
 function offerAll(attempt) {
   let AddonManager = null;
   try {
-    AddonManager = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+    AddonManager = JihadEngine.AddonManager;
     // Throws until the manager has started; that is the readiness test.
     AddonManager.getAddonByID(BUNDLED[0].id, function() {});
   } catch (e) {

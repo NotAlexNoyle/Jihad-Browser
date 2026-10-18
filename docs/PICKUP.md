@@ -108,6 +108,8 @@ Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 | `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **27-32 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
 | `jihad-anim-css.html` | **26-31 fps** | the diff first, then only the changed rows composed on the band surface (round 119) |
 | `jihad-scroll-js.html` (the page scrolls itself) | 13.5-17.4 fps | the shift from the diff, the displayport from its first scroll, small steps on the band surface; the card lags the page's scroll (pre-existing) |
+| news.ycombinator.com (1249 CSS px tall: the scripted pan overshoots its end; the real card clamps) | 36-37 fps | frames right up to the page's end |
+| www.bbc.com/news, github.com | 0.2-2.4 fps, and 0.1-1.7 on the software path | the page itself (script, layout) holds the main thread on this CPU; not the compositor |
 | **en.m.wikipedia.org/wiki/HP_TouchPad** (redirects to the desktop site), the same pan after 12 s of loading | **13-14 fps** (software path: 9-12.4) | correct only since round 132-134 (before, the right third and the bottom were never painted and a sticky header doubled); stuck sticky sidebars are ~540 fixed rows re-read every step |
 
 Rounds 129-134 (the real page, correctness): on a page laid out wider than the card (the desktop

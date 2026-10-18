@@ -378,6 +378,14 @@ private:
   int64_t            mGpuEchoMs = 0;
   int                mGpuEchoX = 0, mGpuEchoY = 0;
   void               gpuDisengage(bool moveEngine);
+  // T-504 (cavekit-gpu-rendering R6): a zoom shows the tiles already painted first (the world
+  // transform and the compositor-side scroll change); the displayport for the new shown area and
+  // the anchor move wait until a frame at the new zoom is published, or 800 ms (moving them first
+  // repainted the page on this thread before any frame: 1.2-1.8 s on desktop Wikipedia, the card
+  // grey meanwhile). JIHAD_GPU_NO_ZOOM_HOLD=1 restores the old order.
+  int64_t            mGpuZoomHoldMs = 0;
+  double             mGpuZoomHoldZ = 0.0;
+  void               gpuZoomRelease(const char* why);
   int                mGpuAnchorX = 0, mGpuAnchorY = 0;
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and

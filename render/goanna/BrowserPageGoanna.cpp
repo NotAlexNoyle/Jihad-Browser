@@ -903,6 +903,16 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     // 0.6 of the displayport's 1.25 heights (SetGpuViewport): the rest is the paint's slack
     // the displayport from the first scroll on (round 110); until the document takes it the
     // engine is scrolled every step (no painted rows to shift into)
+    if (mGpuZoomHoldMs) {
+      // T-504: right after a zoom, the compositor shows what is painted at the new zoom and
+      // position; the engine and its displayport stay until that frame is out (gpuZoomRelease)
+      if (mPage->SetGpuScroll(wantX, wantY, true)) {
+        mPage->SetGpuView(z, 0.0, 0.0);
+        mGpuCompositorScroll = true;
+        return;
+      }
+      gpuZoomRelease("no compositor-side scroll");
+    }
     if (!mPage->GpuDisplayPortWanted()) { mPage->WantGpuDisplayPort(z); mGpuAnchorValid = false; }
     else if (!mPage->GpuDisplayPortOk()) { mPage->SetGpuViewport(z); mGpuAnchorValid = false; }
     // JIHAD_GPU_ANCHOR=<fraction of a height> (default 0.3, round 125): smaller, more frequent
@@ -934,6 +944,20 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     if (ry < 0.0 && ry > -1.0) ry = 0.0;
   }
   mPage->SetGpuView(z, rx, ry);
+}
+
+void BrowserPageGoanna::gpuZoomRelease(const char* why) {
+  if (!mGpuZoomHoldMs || !mPage) return;
+  const long held = (long)(jihadNowMs() - mGpuZoomHoldMs);
+  mGpuZoomHoldMs = 0;
+  const double z = mGpuZoom;
+  fprintf(stderr, "[jihad-gpu] zoom %.4f: the displayport and the anchor follow, %ld ms after the zoom (%s)\n", z, held, why);
+  mPage->SetGpuViewport(z);
+  // The anchor stays where it is unless the view is past its margins at the new zoom (gpuScrollTo's
+  // own rule): moving the engine for nothing fires the page's scroll handlers, and desktop
+  // Wikipedia restyled for ~1 s after each, holding the next zoom's frame
+  gpuScrollTo(mAdapterScrollX, mAdapterScrollY, z);
+  mNeedsPaint = true;
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
@@ -1069,8 +1093,16 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // the scroll is the engine's at every zoom (window.onscroll, position:fixed and sticky stay
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
     // displayport is an empty transaction plus a composite.
-    if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false; }
-    else if (!mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // T-503: the shown-area one too   // until the document takes it
+    static const bool sNoZoomHold = getenv("JIHAD_GPU_NO_ZOOM_HOLD") != nullptr;
+    if (z != mGpuZoom) {
+      if (!sNoZoomHold && mPage->GpuDisplayPortOk()) {
+        // T-504: the painted tiles first, at the new zoom (gpuScrollTo keeps the engine where it is)
+        mGpuZoom = z; mGpuZoomHoldMs = jihadNowMs(); mGpuZoomHoldZ = z;
+      } else {
+        mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false;
+      }
+    }
+    else if (!mGpuZoomHoldMs && !mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // T-503: the shown-area one too, until the document takes it
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, z);
     mNeedsPaint = true;
@@ -3072,7 +3104,8 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
     if (emitGeometry() || ++mGeometryTries >= 20) { mGeometryDirty = false; mGeometryTries = 0; }
   }
   emitLoadAndLocation();
-  if (mGpuCompositorScroll && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
+  if (mGpuZoomHoldMs && jihadNowMs() - mGpuZoomHoldMs > 800) gpuZoomRelease("800 ms without a frame at the new zoom");
+  if (mGpuCompositorScroll && !mGpuZoomHoldMs && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
   // T-502 round 118: a page that scrolls itself (script, smooth scroll, an anchor) gets the
   // displayport too, so its steps land in rows already painted instead of a repaint each
   if (mPage->GpuPath() && !mPage->GpuDisplayPortWanted()) {
@@ -3107,6 +3140,15 @@ void BrowserPageGoanna::maybePaint() {
               mPage->CompositorSeq(), mGpuSeq);
     }
     sPrev = now;
+  }
+  if (mGpuZoomHoldMs) {
+    // T-504 diagnostic (JIHAD_GPU_ZOOMLOG=1): every tick of a zoom hold, what the paint path sees
+    static const bool sZoomLog = getenv("JIHAD_GPU_ZOOMLOG") != nullptr;
+    static int sZ = 0;
+    if (sZoomLog && sZ++ < 200)
+      fprintf(stderr, "[jihad-gpu] zoom hold tick +%ld ms: frozen=%d needsPaint=%d jobs=%zu suppressed=%d inflight=%d%d%d\n",
+              (long)(jihadNowMs() - mGpuZoomHoldMs), (int)mFrozen, (int)mNeedsPaint, mGpuJobs.size(),
+              (int)(mPage && mPage->PaintingSuppressed()), (int)mInFlight[0], (int)mInFlight[1], (int)mInFlight[2]);
   }
   if (mFrozen) return;                       // card backgrounded: don't paint
   // The engine's own first-paint gate (GoannaRenderPage::PaintingSuppressed). Our offscreen
@@ -4204,6 +4246,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // slots' stale rows; a slot composed for other geometry is read whole.
       const int gslot = slotForKey(mActiveKey);
       if (!mGpuJobs.empty() && mGpuJobs[0].slot != gslot) gpuJobDrain();   // the slot moved under the jobs
+      if (mGpuZoomHoldMs && getenv("JIHAD_GPU_ZOOMLOG")) fprintf(stderr, "[jihad-gpu] zoom hold: GPU branch, slot %d, jobs %zu, zoom %.4f\n", gslot, mGpuJobs.size(), Zeff);
       if (mGpuJobs.empty()) {
         if (!gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)bandY, Zeff, w, h)) {
           nb = -1;
@@ -4721,7 +4764,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     }
   }
 
-  mNeedsPaint = false;
+  // T-504: a GPU frame made for an older zoom than the card's now (a job already in flight when
+  // the zoom came) does not settle the paint: one at the new zoom is still owed. Clearing it here
+  // left a zoom out with no frame until something else asked for one (975 ms on Wikipedia).
+  {
+    // the effective zoom the jobs run at (a near-1 fit renders at 1x: see Zeff in the paint)
+    const double zNow = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0 : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
+    mNeedsPaint = mPage && mPage->GpuPath() && fabs(mGpuJobZoom - zNow) > 1e-6;
+  }
   // Anything that changed the pixels may have changed the SCROLLABLE SIZE too, and until
   // 2026-08-06 only a load completion or a resize ever re-measured it. A page that rebuilds
   // its own content after load — about:preferences swapping panes is the case that was
@@ -4742,6 +4792,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               (long)(a - mGpuDoneMs), (long)(b - a));
     mGpuDoneMs = 0;
   }
+  if (mGpuZoomHoldMs && mPage && mPage->GpuPath() && mGpuJobZoom == mGpuZoomHoldZ) gpuZoomRelease("the first frame at the new zoom is out");
   // This buffer is now the adapter's until it returns it (F-211). Mark it in flight so a
   // subsequent paint won't overwrite it mid-blit, and record when for the timeout valve.
   {

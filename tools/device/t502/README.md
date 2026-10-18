@@ -82,3 +82,9 @@ rows that differ at all, rows **wrong** (more than 4 pixels over 64 levels off) 
 offset): only the last is an error; the first two include a fractional scroll's resampling.
 `run-gpu-bench10.sh` runs the bench's column-read section. `render/goanna/test/jihad-sticky-mix.html`:
 an opaque fixed header and footer, a transparent sticky sidebar over a striped page.
+
+T-504: `zoom-run.sh <name> <url> "<env>" "<zoom in>" "<zoom out>"` injects the card's zoom command
+(`zoom <z> <x> <y>`, setZoomAndScroll) twice with screenshots 1 s and 5 s after each and prints the
+timeline. A pinch through the card's own gesture calls: `card-selftest.sh enyo push`, the spike
+start, then `card-selftest.sh enyo run "page:w10;g2.46,384,470;g0.41,384,470;w3" <url> 30 shot.jpg`.
+`JIHAD_GPU_NO_ZOOM_HOLD=1` restores the old zoom order; `JIHAD_GPU_ZOOMLOG=1` logs every tick of a hold.

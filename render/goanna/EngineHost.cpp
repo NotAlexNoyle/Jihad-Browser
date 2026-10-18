@@ -20,7 +20,9 @@
 #include "DialogService.h"           // InstallDialogService (dialog interception)
 #include "DownloadService.h"         // InstallDownloadService (download handoff)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
-extern bool gJihadClockHoldEnabled;   // JihadBrowserServer.cpp (global scope): the clock hold (T-500), jihad.cpu.hold
+// the clock hold's switch (T-500, jihad.cpu.hold), read by JihadBrowserServer.cpp's hold; defined here so
+// the desktop tests, which link this file and not the server, link (T-387)
+bool gJihadClockHoldEnabled = true;
 bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a page's overflow (jihad.viewport.followOverflow); BrowserPageGoanna.cpp reads it
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include <sys/stat.h>               // chmod (menu highlight sheet)
@@ -62,9 +64,11 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 // build-daemon-arm.sh), so every malloc/free in the process is jemalloc's and the engine's own
 // purge is the one that matters: jemalloc_free_dirty_pages returns the freed runs' pages to the
 // kernel (madvise). malloc_trim stays for glibc's arena, which nothing but the loader uses now.
-extern "C" void jemalloc_free_dirty_pages(void);
+// Weak: the desktop engine builds without jemalloc (build/desktop/mozconfig.goanna) and its tests
+// link this file (T-387); there the purge is glibc's alone.
+extern "C" void jemalloc_free_dirty_pages(void) __attribute__((weak));
 static void jihadPurgeHeap(const char* why) {
-  jemalloc_free_dirty_pages();
+  if (jemalloc_free_dirty_pages) jemalloc_free_dirty_pages();
   int glibc = malloc_trim(0);
   fprintf(stderr, "[jihad-bs] %s: heap purged (jemalloc dirty pages returned%s)\n", why, glibc ? ", glibc's arena trimmed too" : "");
 }

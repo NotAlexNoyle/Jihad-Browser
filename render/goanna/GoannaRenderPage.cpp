@@ -2206,7 +2206,15 @@ static int               gStallCount = 0;
 static long StallNowMs() { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000L + ts.tv_nsec / 1000000; }
 static void StallOnProf(int, siginfo_t*, void* aCtx) {
   ucontext_t* uc = static_cast<ucontext_t*>(aCtx);
+  // the program counter by architecture: the device is ARM; the desktop tests build this file on
+  // x86_64 (T-387), where the sampler is not used but must compile
+#if defined(__arm__)
   uintptr_t pc = static_cast<uintptr_t>(uc->uc_mcontext.arm_pc);
+#elif defined(__x86_64__)
+  uintptr_t pc = static_cast<uintptr_t>(uc->uc_mcontext.gregs[REG_RIP]);
+#else
+  uintptr_t pc = 0; (void)uc;
+#endif
   int n = gStallSampleCount.fetch_add(1);
   if (n < kStallSamplesMax) gStallSamples[n] = pc;
 }

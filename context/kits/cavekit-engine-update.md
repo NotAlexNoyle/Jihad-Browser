@@ -92,10 +92,15 @@ Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record
 
 ### R6: Builds that cannot drift
 **Acceptance Criteria:**
-- [ ] One component-install script used by both `build-goanna.sh` and `make-device-bundle.sh`.
-- [ ] `push-engine-update.sh`'s list of engine files pushed loose is derived from the engine
-  branch's diff instead of naming `XPIProvider.jsm`.
-- [ ] Desktop tests cover Personas, video controls and the media paths.
+- [x] One component-install script used by both `build-goanna.sh` and `make-device-bundle.sh`.
+  *(2026-10-18, T-387: `build/install-components.sh`; the manifests are files; the bundle came out identical.)*
+- [x] `push-engine-update.sh`'s list of engine files pushed loose is derived from the engine
+  branch's diff instead of naming `XPIProvider.jsm`. *(`build/engine/engine-loose-files.py`: also
+  videocontrols.xml, AddonManager.jsm, amContentHandler.js, amInstallTrigger.js, verified on the device.)*
+- [x] Desktop tests cover Personas, video controls and the media paths. *(`build/desktop/build-personas-test.sh`
+  7/7, `build-media-test.sh` 18/18 (VP8, Theora, VP9: start, the controls' binding, tap to pause and
+  resume, to the end, frames decoded; audio skipped without a sound server), both negative controls
+  fail as they must; on the desktop engine built on RB_20261006, which needed patch 0043.)*
 **Dependencies:** R1
 
 ### R7: An update is two commands

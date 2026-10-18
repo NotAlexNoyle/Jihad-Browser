@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-media-test.html — T-387 (cavekit-engine-update.md R6): the desktop media test's page.
+     ?src=<file>  plays that clip (muted) with the controls shown and reports through the title:
+       "meta WxH" after loadedmetadata, "playing" once time moves, "paused" after a tap on the
+       control bar pauses it, "resumed" after another, "ended t=<currentTime> dur=<duration> decoded=<frames>" at the end,
+       "error <code>" on a media error. ?audio=1 uses an <audio> element instead. No other script. -->
+<html><head><meta charset="utf-8"><title>loading</title>
+<style>body { margin: 0; background: #fff; } video, audio { display: block; width: 640px; height: 360px; margin: 20px; }</style></head>
+<body>
+<p id="status">loading</p>
+<script>
+  var q = {}; location.search.slice(1).split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ""); });
+  var el = document.createElement(q.audio ? "audio" : "video");
+  el.id = "v"; el.controls = true; el.muted = !q.audio; el.preload = "auto";
+  el.src = q.src || "clip10v.webm";
+  document.body.appendChild(el);
+  var status = document.getElementById("status");
+  function say(s) { status.textContent = s; document.title = s; }
+  var sawPause = false;
+  el.addEventListener("loadedmetadata", function () { say("meta " + (el.videoWidth || 0) + "x" + (el.videoHeight || 0)); });
+  el.addEventListener("timeupdate", function () { if (el.currentTime > 0.5 && !sawPause && document.title.indexOf("playing") < 0 && document.title.indexOf("paused") < 0) say("playing"); });
+  el.addEventListener("play", function () { if (sawPause) say("resumed"); });
+  el.addEventListener("pause", function () { if (!el.ended) { sawPause = true; say("paused t=" + el.currentTime.toFixed(1)); } });
+  el.addEventListener("ended", function () {
+    var decoded = typeof el.mozDecodedFrames === "number" ? el.mozDecodedFrames : -1;
+    say("ended t=" + el.currentTime.toFixed(1) + " dur=" + el.duration.toFixed(1) + " decoded=" + decoded);
+  });
+  el.addEventListener("error", function () { say("error " + (el.error ? el.error.code : "?")); });
+  var p = el.play(); if (p && p.catch) p.catch(function (e) { say("play refused " + e.name); });
+</script>
+</body></html>

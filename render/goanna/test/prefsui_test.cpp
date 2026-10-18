@@ -195,7 +195,9 @@ int main(int argc, char** argv) {
     printf("[prefsui] tap reset-pane ok=%d\n", (int)tapped);
 
     const char* wantValue = (neg && !strcmp(neg, "139")) ? "no-such-notification" : "prefs-reset";
-    const char* kResetMsg = "Home page and start page links restored to their defaults.";
+    // the page's own text (packaging/prefsui/content/preferences.js resetPane; the search engine
+    // joined the reset on 2026-10, T-387 brought this test up to date)
+    const char* kResetMsg = "Search engine, home page and start page links restored to their defaults.";
 
     std::string byValue =
       DebugElementRect((std::string("sel:#msgbar notification[value=\"") + wantValue + "\"]").c_str());

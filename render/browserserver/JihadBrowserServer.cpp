@@ -518,7 +518,7 @@ void JihadBrowserServer::processInjectFile() {
 // engine has work, hold the frequency FLOOR (scaling_min_freq, both cores) at the top; after two
 // seconds of idle ticks let it go. The job runs as root, so sysfs takes the write; anywhere it
 // does not, this is silent. $JIHAD_CLOCK_HOLD=0 or the pref jihad.cpu.hold=false turns it off.
-bool gJihadClockHoldEnabled = true;   // EngineHost reads jihad.cpu.hold into this at start
+extern bool gJihadClockHoldEnabled;   // EngineHost.cpp defines it and reads jihad.cpu.hold into it at start
 namespace {
 class JihadClockHold {
 public:

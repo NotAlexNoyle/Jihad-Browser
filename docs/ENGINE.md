@@ -136,6 +136,8 @@ version add-ons are judged against — it follows the engine's compatibility lev
 | `build/engine/update-engine.sh [TAG] / --finish / --abort / --pins` | moves the engine to an upstream release: the queue carried across with a three-way merge, the overlaps listed, the API checked, every pin rewritten (§6) |
 | `build/engine/check-engine-pins.sh` | every pin and version string agrees with `engine-version.env` |
 | `render/goanna/modules/JihadEngine.jsm` | the engine's JS surface the components use (modules, about:addons markup), in one place; `check-engine-api.py` checks its SURFACE block and that no component imports an engine module around it |
+| `build/install-components.sh DEST REPO` | Jihad's components (every `render/goanna/components/*.manifest` with the files it names) and the engine shim into an engine dist: the device bundle and the desktop dist use it alike |
+| `build/engine/engine-loose-files.py` | the engine's loose files our branch changes (the branch's diff mapped by the objdir's install records): what `push-engine-update.sh` sends beside libxul |
 | `build/engine/check-engine-calls.sh` | the positional engine calls go through `render/goanna/EngineCalls.h` only (the wrapped methods are read from the header; a direct call anywhere in `render/` fails it) |
 | `build/engine/patch-queue.sh --check` | the patch queue reproduces the engine branch exactly |
 | `build/engine/check-engine-api.py [--uxp TREE]` | what in TREE no longer matches what Jihad uses: our exports (§4.1), IDL signatures and implemented interfaces (§4.2) against `engine-api-baseline.json`, the engine JS and about:addons markup (§4.3), prefs (§4.4), mozconfig options and the ICU file (§4.5). Run it on a candidate before building. |
@@ -193,14 +195,17 @@ Desktop tests (`build/desktop/build-*-test.sh`, against the desktop engine build
 | Dialogs, downloads | `dialog`, `download`, `download2` |
 | Profile, NSS (0014) | `cookie`, `tls` |
 | Prefs, settings page | `services`, `settings2`, `prefsui` |
+| Personas and the about:addons pane (the component, the theme manager through `JihadEngine.jsm`) | `personas` |
+| Video controls (videocontrols.xml, which our branch changes) and the media paths (VP8, Theora, VP9 to the end) | `media` |
 | App info, AppCompat (0011, 0039) | `xpi-mismatch` |
 | History, lifecycle | `nav`, `history`, `leak` |
 | Popups (0012) | `popup-probe`, `menupopup-probe` |
 | Headless + offscreen exports | `headless-daemon`, `headless-roundtrip` |
 | The whole daemon / NPAPI | `adapter-roundtrip`, `test-plugin` |
 
-**Not covered by any desktop test** (device only): Personas and the about:addons pane, video
-controls, the Pulse/cubeb path, the YCbCr fix, `.xpi` link handling, Palm NPAPI/Flash.
+**Not covered by any desktop test** (device only): audio (the container has no sound server: the
+media test skips its Vorbis case unless `JIHAD_MEDIA_SOUND=1` finds PulseAudio), the Pulse/cubeb
+path, the YCbCr fix, `.xpi` link handling, Palm NPAPI/Flash.
 
 Device checklist after an engine change (each shell): a page loads and paints; taps and
 long-press land; pinch and double-tap zoom; an https page shows TLS 1.3 (howsmyssl.com); a
@@ -210,10 +215,5 @@ about:settings open; printing finds the test sink (`render/goanna/test/ipp-sink.
 
 ## 8. Next steps (not done yet)
 
-- One component-install script shared by `build-goanna.sh` and `make-device-bundle.sh` (their
-  manifest blocks duplicate each other).
-- Derive `push-engine-update.sh`'s loose-file list from the engine branch's diff instead of
-  naming `XPIProvider.jsm`.
-- Desktop tests for Personas, video controls and the media paths.
-- The desktop engine build and its tests (§6 step 4) on `RB_20261006`: the update of 2026-10-12
-  was checked on the device only (all three variants); the desktop build still runs the old base.
+- The rest of the desktop suite (§7) re-run on the `RB_20261006` desktop engine: `prefsui`, `personas`
+  and `media` were (2026-10-18, T-387); the others were last run on the old base.

@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 18 Oct 2026 18:52:35 -0400
+Subject: [PATCH] npapi: the Palm event paths only where npapi.h defines Palm's
+ NPEvent
+
+The gain-focus system event (PluginInstanceChild) and the spotlight export (nsPluginHost) built
+Palm's NPEvent fields unconditionally. That union exists only for the headless toolkit the device
+builds; the desktop GTK build has X11's NPEvent and failed to compile. Both are now guarded the
+way npapi.h is (XP_UNIX && MOZ_WIDGET_HEADLESS); the desktop spotlight export returns 0.
+(Jihad T-387, cavekit-engine-update R6: the desktop engine on RB_20261006 for the desktop tests.)
+---
+ dom/plugins/base/nsPluginHost.cpp       | 4 +++-
+ dom/plugins/ipc/PluginInstanceChild.cpp | 4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/dom/plugins/base/nsPluginHost.cpp b/dom/plugins/base/nsPluginHost.cpp
+index 32eaa457fc..f7b9095d01 100644
+--- a/dom/plugins/base/nsPluginHost.cpp
++++ b/dom/plugins/base/nsPluginHost.cpp
+@@ -4234,7 +4234,9 @@ PluginDestructionGuard::DelayDestroy(nsNPAPIPluginInstance *aInstance)
+ extern "C" MOZ_EXPORT int
+ jihad_plugin_palm_spotlight(int aOn, int aLeft, int aTop, int aRight, int aBottom)
+ {
+-#ifdef MOZ_ENABLE_NPAPI
++  // Palm's NPEvent exists only where npapi.h defines it: the headless toolkit the device builds
++  // (the desktop GTK build has the X11 one and no Palm plugin to tell; T-387)
++#if defined(MOZ_ENABLE_NPAPI) && defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
+   RefPtr<nsPluginHost> host = nsPluginHost::GetInst();
+   if (!host) {
+     return 0;
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 7ae75e0a43..05e713ef83 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -3989,6 +3989,9 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
+         //
+         // After setwindow, not before, and once: the plugin needs its geometry first, and
+         // UpdateWindowAttributes runs on every resize and every scroll.
++        // (Palm's NPEvent exists only where npapi.h defines it: the headless toolkit the device
++        // builds; the desktop GTK build has the X11 one, T-387)
++#if defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
+         if (mPluginIface->event && !mJihadSentPalmGainFocus) {
+             mJihadSentPalmGainFocus = true;
+             NPEvent ev;
+@@ -4000,6 +4003,7 @@ PluginInstanceChild::UpdateWindowAttributes(bool aForceSetWindow)
+                     (int)handled);
+             fflush(stderr);
+         }
++#endif
+     }
+ }
+ 

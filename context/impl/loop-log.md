@@ -161,3 +161,5 @@ Build site: context/plans/build-site.md
 
 ### Iteration 1 — 2026-10-18 (Cavekit make loop; Tier 87 added, T-503 done before the loop)
 - T-385: positional engine-call wrappers — DONE. Wrappers existed (Tier 81); guard `build/engine/check-engine-calls.sh` added, found+fixed `test/embed_load.cpp` raw LoadURI (container compile P). Next: T-386.
+- T-386: engine JS surface shim — DONE. `render/goanna/modules/JihadEngine.jsm`, components through it, checker reads it (+ check 4b, mozconfig glob fix 1 h -> 36 s). Device Enyo about:addons + Personas view P. Commit e3e24178 (with T-387 parts 1-2).
+- T-387: install script, derived push list, desktop tests — DONE. Desktop engine RB_20261006 (patch 0043), personas 7/7, media 18/18, prefsui 38/38, negatives fail. Next: T-504 (zoom hold in progress: first frame at new zoom 50-600 ms, zoom out waits on page JS).

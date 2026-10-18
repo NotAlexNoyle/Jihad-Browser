@@ -514,6 +514,8 @@ public:
   // the zoom and the residual visual offset the engine scroll could not reach (pinch-in pans).
   bool GetEngineScroll(int* x, int* y);
   void SetGpuView(double zoom, double offX, double offY);
+  // T-502: the card's scroll for the compositor (CSS px); false when the engine export is absent
+  bool SetGpuScroll(double x, double y, bool valid);
 private:
   int mWidth;
   int mHeight;

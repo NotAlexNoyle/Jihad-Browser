@@ -4473,6 +4473,12 @@ bool GoannaRenderPage::GetEngineScroll(int* x, int* y) {
   return true;
 }
 
+bool GoannaRenderPage::SetGpuScroll(double x, double y, bool valid) {
+  if (!mGpu || !jihad_offscreen_set_scroll || !mWidget) return false;
+  jihad_offscreen_set_scroll(mWidget, x, y, valid ? 1 : 0);
+  return true;
+}
+
 void GoannaRenderPage::SetGpuView(double zoom, double offX, double offY) {
   static const bool sNoWorld = getenv("JIHAD_GPU_NO_WORLD") != nullptr;   // device bisection
   static int sLogged = 0;

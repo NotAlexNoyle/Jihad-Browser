@@ -182,6 +182,18 @@ the adapter), a damage rectangle in the frame header so the adapter invalidates 
 uploads only the band, then option 2 (WebGL through EGL). The diagnostics in the engine
 (`[jihad-gpu]` lines, the first N of each) are still in and cheap; prune them with the fold.
 
+**2026-10-18, the compositor-side scroll (patch 0042, round 90):** the daemon sends the card's
+scroll to the compositor (`jihad_offscreen_set_scroll`), which applies the difference to the
+engine's own scroll as an async transform on the root scroll frame's content with the fixed
+layers aligned (the APZ path without APZ); the engine is scrolled only when the card's scroll
+nears the edge of the painted displayport (every ~840 CSS px at this zoom). A scripted finger pan
+(`inject "pan 0 3000 10000"`, `tools/device/t502/pan-run.sh`, `jihad-long-static.html`) runs at
+**17–20 fps** with no content uploads between anchor moves (the header still, the content
+right: `docs/rounds/t502-2026-10-17/pan-long-async.jpg`); the frame is a compose and a whole
+942-row read (~50 ms a job, two in flight). The script-driven scroll page is unchanged (its
+`window.scrollTo` is a main-thread scroll). Next for pans: two-band reads (the fixed rows and the
+entering band) with the slot's other rows shifted in place, so a pan frame reads ~80 rows.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

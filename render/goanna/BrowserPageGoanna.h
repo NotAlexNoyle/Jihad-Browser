@@ -365,6 +365,12 @@ private:
   bool               mDirtyPending;      // engine invalidation seen, repaint owed once the rate-limit
   uint32_t           mGpuSeq = 0;        // T-502: the compositor's request count last pulled
   double             mGpuZoom = 0.0;     // T-502: the zoom the compositor viewport was set for
+  // T-502: the compositor-side scroll. The engine is scrolled (a repaint, an upload) only when
+  // the card's scroll leaves the displayport painted around the anchor; inside it the compositor
+  // shifts the content (jihad_offscreen_set_scroll), fixed layers stay. JIHAD_GPU_ENGINE_SCROLL
+  // restores the per-step engine scroll.
+  bool               mGpuAnchorValid = false;
+  int                mGpuAnchorX = 0, mGpuAnchorY = 0;
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and
   // the rows that changed since it was read (the next read of that slot is that band only).

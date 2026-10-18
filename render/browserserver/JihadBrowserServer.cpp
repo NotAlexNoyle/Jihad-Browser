@@ -301,6 +301,11 @@ void JihadBrowserServer::processInjectFile() {
       // delivered, and the only way to test the rollover highlight without a human.
       printf("[jihad-bs] inject move %d,%d\n", x, y);
       p->mouseEvent(2, x, y, 0);
+    } else if (sscanf(c.c_str(), "pan %d %d %d", &x, &y, &n) == 3) {
+      // T-502 device rounds: a scripted finger pan, y from x to y over n ms, a setScrollPosition
+      // per tick (what the adapter sends for a drag)
+      printf("[jihad-bs] inject pan %d -> %d over %d ms\n", x, y, n);
+      mPanPage = p; mPanY0 = x; mPanY1 = y; mPanMs = n > 0 ? n : 1; mPanT0 = jihadTickNowMs(); mPanActive = true;
     } else if (sscanf(c.c_str(), "hold %d %d", &x, &y) == 2) {
       printf("[jihad-bs] inject hold %d,%d\n", x, y); p->holdAt(x, y);
     } else if (sscanf(c.c_str(), "key %d %d", &x, &y) >= 1) {
@@ -676,6 +681,18 @@ void JihadBrowserServer::tick() {
   // for 16 ms and the observed period was 28.6 ms while the paint itself cost only 3-7 ms.
   int64_t tickT0 = jihadTickNowMs();
   int64_t pumpMs = 0, paintMs = 0;
+  if (mPanActive) {
+    bool alive = false;
+    for (auto* pg : snap) if (pg == mPanPage) alive = true;
+    const int64_t el = jihadTickNowMs() - mPanT0;
+    if (!alive || el > mPanMs) {
+      if (alive) mPanPage->setScrollPosition(0, mPanY1);
+      mPanActive = false;
+      printf("[jihad-bs] inject pan done\n");
+    } else {
+      mPanPage->setScrollPosition(0, (int)(mPanY0 + (mPanY1 - mPanY0) * (double)el / mPanMs));
+    }
+  }
   for (auto* pg : snap) {
     int64_t a = jihadTickNowMs();
     pg->pump(4, /*drainOnly*/true);

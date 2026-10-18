@@ -1,0 +1,212 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 18 Oct 2026 02:57:17 -0400
+Subject: [PATCH] gpu compositor: the card's scroll applied in the compositor,
+ the engine scrolled only when it leaves the displayport
+
+T-502 (2026-10-18). Without APZ a scroll was a main-thread scroll: every step repainted the
+newly exposed strip and re-uploaded the content layer, 12-17 fps on a scripted pan. Now the
+daemon sends the card's scroll (CSS px, absolute) through jihad_offscreen_set_scroll, and
+AsyncCompositionManager applies the difference to the engine's own scroll (the metrics' offset)
+as an async transform on the root scroll frame's content, the way APZ would, with
+AlignFixedAndStickyLayers keeping fixed and sticky layers still. The daemon moves the engine's
+scroll only when the card's scroll nears the edge of the displayport painted around the last
+anchor. A scroll change invalidates the whole frame for the readback.
+---
+ .../composite/AsyncCompositionManager.cpp     | 31 +++++++++++++++----
+ .../composite/AsyncCompositionManager.h       |  6 ++++
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 10 +++++-
+ gfx/layers/ipc/CompositorBridgeParent.h       |  2 ++
+ gfx/layers/opengl/CompositorOGL.h             |  2 ++
+ widget/PuppetWidget.cpp                       | 12 +++++++
+ widget/PuppetWidget.h                         |  3 ++
+ 7 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/gfx/layers/composite/AsyncCompositionManager.cpp b/gfx/layers/composite/AsyncCompositionManager.cpp
+index e1938392f6..0ed29b9739 100644
+--- a/gfx/layers/composite/AsyncCompositionManager.cpp
++++ b/gfx/layers/composite/AsyncCompositionManager.cpp
+@@ -911,21 +911,40 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+ 
+         for (uint32_t i = 0; i < layer->GetScrollMetadataCount(); i++) {
+           AsyncPanZoomController* controller = layer->GetAsyncPanZoomController(i);
++          // Jihad T-502: without APZ, the card's scroll on the root scroll frame's content
++          AsyncTransform jihadAsync;
++          bool jihadScroll = false;
+           if (!controller) {
+-            continue;
++            const FrameMetrics& jm = layer->GetScrollMetadata(i).GetMetrics();
++            if (mJihadScrollValid && jm.IsRootContent()) {
++              const CSSPoint want(mJihadScrollX, mJihadScrollY);
++              const ParentLayerPoint translation = (want - jm.GetScrollOffset()) * jm.GetZoom();
++              jihadAsync = AsyncTransform(LayerToParentLayerScale(1.0f), -translation);
++              jihadScroll = true;
++              static uint32_t sN = 0;
++              if (sN++ < 10 || (sN % 200) == 0) {
++                fprintf(stderr, "[jihad-gpu] async scroll: want %.1f,%.1f, painted at %.1f,%.1f -> translation %.1f,%.1f\n",
++                        want.x, want.y, jm.GetScrollOffset().x, jm.GetScrollOffset().y, -translation.x, -translation.y);
++              }
++            }
++            if (!jihadScroll) {
++              continue;
++            }
+           }
+ 
+           hasAsyncTransform = true;
+ 
+-          AsyncTransform asyncTransformWithoutOverscroll =
+-              controller->GetCurrentAsyncTransform(AsyncPanZoomController::RESPECT_FORCE_DISABLE);
+-          AsyncTransformComponentMatrix overscrollTransform =
+-              controller->GetOverscrollTransform(AsyncPanZoomController::RESPECT_FORCE_DISABLE);
++          AsyncTransform asyncTransformWithoutOverscroll = controller
++              ? controller->GetCurrentAsyncTransform(AsyncPanZoomController::RESPECT_FORCE_DISABLE)
++              : jihadAsync;
++          AsyncTransformComponentMatrix overscrollTransform = controller
++              ? controller->GetOverscrollTransform(AsyncPanZoomController::RESPECT_FORCE_DISABLE)
++              : AsyncTransformComponentMatrix();
+           AsyncTransformComponentMatrix asyncTransform =
+               AsyncTransformComponentMatrix(asyncTransformWithoutOverscroll)
+             * overscrollTransform;
+ 
+-          if (!layer->IsScrollInfoLayer()) {
++          if (controller && !layer->IsScrollInfoLayer()) {
+             controller->MarkAsyncTransformAppliedToContent();
+           }
+ 
+diff --git a/gfx/layers/composite/AsyncCompositionManager.h b/gfx/layers/composite/AsyncCompositionManager.h
+index 98aaa964e7..5b7dbf176f 100644
+--- a/gfx/layers/composite/AsyncCompositionManager.h
++++ b/gfx/layers/composite/AsyncCompositionManager.h
+@@ -115,6 +115,10 @@ public:
+   // Returns true if the next composition will be the first for a
+   // particular document.
+   bool IsFirstPaint() { return mIsFirstPaint; }
++  // Jihad T-502: the card's scroll position (CSS px, absolute), applied to the root scroll
++  // frame's content as an async transform while the engine's own scroll (the metrics' offset)
++  // stays where the last paint put it; fixed and sticky layers are aligned as under APZ.
++  void JihadSetScroll(float aX, float aY, bool aValid) { mJihadScrollX = aX; mJihadScrollY = aY; mJihadScrollValid = aValid; }
+ 
+   // GetFrameUniformity will return the frame uniformity for each layer attached to an APZ
+   // from the recorded data in RecordShadowTransform
+@@ -225,6 +229,8 @@ private:
+   // front-end (e.g. Java on Android) about this so that it take the new page
+   // size and zoom into account when providing us with the next view transform.
+   bool mIsFirstPaint;
++  float mJihadScrollX = 0.0f, mJihadScrollY = 0.0f;   // Jihad T-502
++  bool mJihadScrollValid = false;
+ 
+   // This flag is set during a layers update, so that the first composition
+   // after a layers update has it set. It is cleared after that first composition.
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 06d50599f3..d4dbfb5088 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1328,8 +1328,16 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   // change of either invalidates everything (and UpdateAndRender would otherwise skip the
+   // render as "unchanged"). The compositor clears and redraws the whole frame every time, so
+   // the other window target (two composites old) is complete too.
++  // the card's scroll, applied by the composition manager to the root scroll frame's content;
++  // a change moves every row, so the whole frame is read
++  if (mCompositionManager) {
++    mCompositionManager->JihadSetScroll(aReq->scrollX, aReq->scrollY, aReq->scrollValid);
++  }
++  const bool scrollChanged = aReq->scrollValid != mJihadLastScrollValid ||
++                             aReq->scrollX != mJihadLastScrollX || aReq->scrollY != mJihadLastScrollY;
++  mJihadLastScrollX = aReq->scrollX; mJihadLastScrollY = aReq->scrollY; mJihadLastScrollValid = aReq->scrollValid;
+   const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
+-                           mJihadLastSize != gfx::IntSize(aWidth, aHeight);
++                           mJihadLastSize != gfx::IntSize(aWidth, aHeight) || scrollChanged;
+   if (viewChanged) {
+     mLayerManager->AddInvalidRegion(whole);
+     mJihadLastWorld = world;
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
+index 680fabc4e8..9827bd4557 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.h
++++ b/gfx/layers/ipc/CompositorBridgeParent.h
+@@ -533,6 +533,8 @@ public:
+   // aReq->dest. False: nothing was started.
+   bool JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY);
+   gfx::Matrix4x4 mJihadLastWorld;   // Jihad T-502: the view the last composite was made with
++  float mJihadLastScrollX = 0.0f, mJihadLastScrollY = 0.0f;
++  bool mJihadLastScrollValid = false;
+   gfx::IntSize mJihadLastSize;
+   bool mJihadWorldKnown = false;
+ 
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 104931ec17..14dd5e183c 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -158,6 +158,8 @@ struct JihadFrameRequest {
+   int lo = 0, hi = 0;                  // the rows to read, top-down ((0,0) = every row)
+   int target = 0;                      // which window target holds the frame (the compositor fills it)
+   int invLo = 0, invHi = 0;            // the rows the composite changed (the compositor fills them)
++  float scrollX = 0.0f, scrollY = 0.0f;   // the card's scroll (CSS px) for the compositor to apply
++  bool scrollValid = false;
+   void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
+   mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
+   bool ok = false;
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index a176ac9c8c..f9558fce25 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -833,6 +833,7 @@ struct JihadReadJob {
+   uint8_t* dest; int stride, w, h; float scale, offX, offY;
+   int rowLo, rowHi;      // the rows the daemon asked for, top-down ((0,0) = none)
+   int invLo, invHi;      // the rows the composite changed
++  float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
+   uint32_t token;
+   mozilla::TimeStamp posted;   // device rounds: the compositor loop's queue delay
+   mozilla::layers::JihadFrameRequest req;   // what the compositor and the read thread work on
+@@ -867,6 +868,7 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+   const mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
+   job->req.dest = job->dest; job->req.stride = job->stride; job->req.w = job->w; job->req.h = job->h;
+   job->req.lo = job->rowLo; job->req.hi = job->rowHi;
++  job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
+   job->req.done = &JihadJobDone; job->req.cookie = job;
+   const bool started = job->bridge->JihadComposeAndRead(&job->req, job->scale, job->offX, job->offY);
+   static uint32_t sN = 0;
+@@ -945,6 +947,7 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+   }
+   JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight,
+                                        mJihadScale, mJihadOffX, mJihadOffY, aRowLo, aRowHi, token);
++  job->scrollX = mJihadScrollX; job->scrollY = mJihadScrollY; job->scrollValid = mJihadScrollValid;
+   job->posted = mozilla::TimeStamp::Now();
+   mJihadJobs.push_back(job);
+   loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
+@@ -1321,6 +1324,15 @@ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
+     static_cast<PuppetWidget*>(aWidget)->JihadComposeForget(aToken);
+   }
+ }
++// T-502: the card's scroll (CSS px, absolute), applied by the compositor to the root scroll
++// frame's content against the engine's own scroll; aValid 0 turns it off.
++MOZ_EXPORT void
++jihad_offscreen_set_scroll(nsIWidget* aWidget, double aX, double aY, int aValid)
++{
++  if (aWidget) {
++    static_cast<PuppetWidget*>(aWidget)->JihadSetScroll(aX, aY, aValid != 0);
++  }
++}
+ // T-502: the card's zoom and the visual viewport's residual offset (CSS px), applied by the
+ // compositor to the whole layer tree.
+ MOZ_EXPORT void
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index c133d1a139..2cdac97a25 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -293,6 +293,7 @@ public:
+   int JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aInvHi);
+   void JihadComposeForget(uint32_t aToken);
+   void JihadComposeAbandonAll();
++  void JihadSetScroll(double aX, double aY, bool aValid) { mJihadScrollX = (float)aX; mJihadScrollY = (float)aY; mJihadScrollValid = aValid; }
+   mozilla::layers::CompositorBridgeParent* JihadBridge();
+   void JihadSetView(double aScale, double aOffsetX, double aOffsetY) {
+     mJihadScale = (aScale > 0.0) ? (float)aScale : 1.0f; mJihadOffX = (float)aOffsetX; mJihadOffY = (float)aOffsetY;
+@@ -446,6 +447,8 @@ private:
+   float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor
+   std::vector<::JihadReadJob*> mJihadJobs;   // T-502: frames in flight on the compositor thread
+   uint32_t mJihadNextToken = 1;
++  float mJihadScrollX = 0.0f, mJihadScrollY = 0.0f;   // T-502: the card's scroll for the compositor
++  bool mJihadScrollValid = false;
+   float mJihadOffX = 0.0f, mJihadOffY = 0.0f;   // T-502: the residual visual offset, CSS px
+   // Bounding box of the same invalidations, drained by JihadTakeDirtyRect(). Kept beside the
+   // flag rather than replacing it: the flag answers "is anything dirty" for callers that do a

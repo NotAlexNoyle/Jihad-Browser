@@ -25,7 +25,13 @@ the bundle built from that tree (`116788fa`: animation page 21-26 fps, scroll pa
 branch was fast-forwarded into `main` (the only permanent branch). The owner pushes `main` and
 force-pushes the engine fork's `jihad/uxp-RB_20261006` (its history was rewritten by the fold).
 
-**Left, in order:** (1) the compositor-side scroll (the scroll offset applied in the compositor
+**2026-10-18, later:** the compositor-side scroll is in (engine patch 0042, `gpuScrollTo` in the
+daemon with an anchor, `JIHAD_GPU_ENGINE_SCROLL` restores the old per-step engine scroll); a
+scripted pan (`inject "pan y0 y1 ms"`, `tools/device/t502/pan-run.sh`) runs at 17-20 fps with
+the header still. `docs/RENDERING-OPTIONS.md` "T-502" has the paragraph.
+
+**Left, in order:** (0) two-band reads for pans (the fixed rows and the entering band, the slot's
+other rows shifted in place); (1) was the compositor-side scroll (the scroll offset applied in the compositor
 inside the painted displayport, fixed layers kept still through `AsyncCompositionManager`; the
 engine scrolled only when the offset leaves the displayport), (2) a fourth shared buffer for the
 two-deep frame queue, (3) a damage rectangle in the frame header so the adapter invalidates and

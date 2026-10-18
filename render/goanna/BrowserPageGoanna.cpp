@@ -625,6 +625,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   mGpuZoom = 0.0;   // T-502: the scroll port follows the card size; set again at the next zoom
+  mGpuAnchorValid = false;
   mLayoutFollowed = false;   // T-499: a new card size (rotation) starts from a layout viewport equal to it
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
@@ -877,6 +878,26 @@ bool BrowserPageGoanna::panCovered(int x, int y) {
 // magnified page stays reachable without the engine's visual-viewport calls (which black the frame).
 void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
   const double wantX = x / z, wantY = y / z;
+  static const bool sEngineScroll = getenv("JIHAD_GPU_ENGINE_SCROLL") != nullptr;
+  if (!sEngineScroll) {
+    // The compositor-side scroll: the engine stays where it was painted while the card's scroll
+    // is within the displayport painted around that anchor (SetGpuViewport: half a width and a
+    // whole height of margin), and is moved, early, when it nears the edge; the compositor
+    // applies the difference to the root scroll frame's content.
+    const double marginX = (mPage->Width() * 0.5 / z) * 0.7, marginY = (mPage->Height() / z) * 0.7;
+    if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
+      mPage->ScrollTo((int)wantX, (int)wantY);
+      int sx = 0, sy = 0;
+      if (mPage->GetEngineScroll(&sx, &sy)) { mGpuAnchorX = sx; mGpuAnchorY = sy; mGpuAnchorValid = true; }
+      static uint32_t sN = 0;
+      if (sN++ < 20 || (sN % 50) == 0)
+        fprintf(stderr, "[jihad-gpu] scroll anchor moved to %d,%d (wanted %.0f,%.0f)\n", mGpuAnchorX, mGpuAnchorY, wantX, wantY);
+    }
+    if (mPage->SetGpuScroll(wantX, wantY, true)) {
+      mPage->SetGpuView(z, 0.0, 0.0);
+      return;
+    }
+  }
   mPage->ScrollTo((int)wantX, (int)wantY);
   int sx = 0, sy = 0;
   double rx = 0.0, ry = 0.0;
@@ -1011,7 +1032,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // the scroll is the engine's at every zoom (window.onscroll, position:fixed and sticky stay
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
     // displayport is an empty transaction plus a composite.
-    if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; }
+    if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false; }
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, z);
     mNeedsPaint = true;
@@ -2189,7 +2210,7 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     emitCompletion(true);
     if (mPage->GpuPath()) {   // T-502: resolution, scroll port and displayport for the new document
       double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
-      mPage->SetGpuViewport(z); mGpuZoom = z;
+      mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false;
     }
     // New document settled: hang the engine focus/blur listener on it so script-driven
     // focus changes drive the VKB (Atlas IM-context port, device T4). No-op if same doc.

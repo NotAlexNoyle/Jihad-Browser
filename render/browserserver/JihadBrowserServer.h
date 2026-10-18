@@ -210,6 +210,11 @@ private:
   bool                             mTickPlugin = false;       // some page had a plugin at the last tick
   bool                             mActivity = false;         // a card command arrived since the last tick
   int64_t                          mLastInjectPollMs = 0;
+  // T-502 device rounds: a scripted pan (inject "pan y0 y1 ms")
+  jihad::BrowserPageGoanna* mPanPage = nullptr;
+  int mPanY0 = 0, mPanY1 = 0, mPanMs = 1;
+  int64_t mPanT0 = 0;
+  bool mPanActive = false;
   YapProxy*                        mLastProxy = nullptr;  // last-connected (active card)
   YapProxy*                        mFocusProxy = nullptr; // last card that sent pageFocused(true)
   // window.open: addresses waiting for the card msgCreatePage asked for. That card connects

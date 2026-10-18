@@ -49,7 +49,7 @@ without committing there: the device build compiles the committed tree.
 
 ## 3. What our branch changes (the delta)
 
-One commit per patch, 0001–0041 (until 2026-10-12 the first 31 were one squashed commit; they
+One commit per patch, 0001–0042 (until 2026-10-12 the first 31 were one squashed commit; they
 were split when the engine moved to `RB_20261006`, so each carries across on its own). Full list
 with files: `docs/ENGINE-SOURCE.md`.
 
@@ -58,7 +58,7 @@ with files: `docs/ENGINE-SOURCE.md`.
 | Toolchain | 0001, 0002 | GCC 9 `-Wformat-overflow` |
 | Offscreen rendering | 0003, 0005, 0012 | Paint into memory with no window: `JIHAD_DISABLE_OMTC`, gfx started inside `XRE_InitEmbedding2`, the PuppetWidget offscreen path and its `jihad_offscreen_*` exports, damage tracking, popups |
 | GPU: the Adreno 220 | 0041 | whole-texture uploads on the Adreno 2xx (`CanUploadSubTextures`), BGRA uploads on EGL, a shared pbuffer context for a readback thread |
-| GPU compositor (T-502) | 0040 | `JIHAD_GPU_COMPOSITOR`: an in-process OpenGL compositor on an EGL pbuffer behind the offscreen widget, pulled a frame at a time by the daemon (`jihad_offscreen_compose_start/_poll`), band readbacks from the layer tree's diff, tiled layers by default; off without the env (`docs/RENDERING-OPTIONS.md`, "T-502, the spike") |
+| GPU compositor (T-502) | 0040, 0042 | `JIHAD_GPU_COMPOSITOR`: an in-process OpenGL compositor on an EGL pbuffer behind the offscreen widget, pulled a frame at a time by the daemon (`jihad_offscreen_compose_start/_poll`), band readbacks from the layer tree's diff, tiled layers by default; the card's scroll applied in the compositor (0042); off without the env (`docs/RENDERING-OPTIONS.md`, "T-502, the spike") |
 | Headless toolkit | 0004, 0006, 0008, 0009 | Run with no X server: GTK guards, `MOZ_WIDGET_TOOLKIT=headless`, plugin IPC types |
 | Embedding without a browser window | 0007, 0013, 0014, 0015, 0019, 0036, 0039 | NSS start-up on the main thread, add-on installs and certificate errors reach the embedder, null guards, `.xpi` links, AppCompat matching |
 | Branding | 0010, 0011 | Pale Moon / Basilisk branding removed; the AppCompat GUID |

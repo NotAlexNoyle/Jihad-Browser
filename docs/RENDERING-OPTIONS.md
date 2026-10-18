@@ -113,37 +113,81 @@ Daemon side: `JIHAD_DISABLE_OMTC=1` leaves the three `packaging/event.d` launche
 nothing: WebGL needs the EGL provider (present) and the feature not blocked (`webgl.force-enabled`
 until `GfxInfo` reports the Adreno).
 
-### T-502, the spike: what the device measured (2026-10-17)
+### T-502, the spike: what the device measured (2026-10-17, 86 rounds)
 
-The OpenGL compositor runs in the headless daemon on the Adreno 220 through the vendor EGL (an EGL
-pbuffer context, `CompositorOGL`, backend 2), composites a four-layer page and animates a CSS
-transform with the main thread painting 0.1–2.8 ms a frame. Five rounds and a readback bench
-(`docs/rounds/t502-2026-10-17/`); the frame on the device against the model:
+The OpenGL compositor runs in the headless daemon on the Adreno 220 (an EGL pbuffer context,
+`CompositorOGL`, patch 0040 behind `JIHAD_GPU_COMPOSITOR`), draws into a renderbuffer window
+target, and the daemon reads the frame back into the adapter's shared buffer. **The first 30
+rounds measured black or wrong frames** (an un-set render bound, a window target deleted per
+frame, a y-flip from the intermediate-surface path, a view the widget's size instead of the
+frame's); every number below is from a frame checked by eye (`docs/rounds/t502-2026-10-17/`,
+the `spike-run*-seq.jpg` contact sheets and the card screenshots).
 
-| Stage | Model | Device (Enyo, 768×942 frame) |
+| Page (`render/goanna/test/`) | Compositor path | Software path (today) | Chart row |
+|---|---|---|---|
+| `jihad-anim-css.html`: four layers, a CSS transform animation, a fixed header, a half-transparent overlay | **21–27 fps** (runs 59–86) | 23–30 fps (the damage-box partial paints) | 24 fps |
+| `jihad-scroll-js.html`: 300 paragraphs scrolled 6 px every 16 ms by script | **12–17 fps** | 5–9.5 fps | 24 fps |
+| `jihad-colors.html`: four blocks, static | a frame per change | a frame per change | — |
+
+Where a frame's time goes on the device (768×942, the clock floor held, `io_fraction` 100):
+
+| Stage | Measured | Note |
 |---|---|---|
-| Composite four layers | 12.9 ms | 1–5 ms |
-| Read the frame back (`glReadPixels`) | 12.3 ms | 22–60 ms inside the daemon (clock-bound: 12–21 ms from the pbuffer and 12 ms from a renderbuffer FBO in the bench at a high clock); 370–640 ms from a texture-backed FBO, which the stock offscreen screen buffer is |
-| RGBA→BGRA (the driver refuses BGRA reads) | — | 7–16 ms NEON, 12–35 plain C |
-| The snapshot road (shmem, sync IPC, a cairo draw) | — | 12–18 ms, all removable |
-| Paint an animation frame on the main thread | 0 | 0.1–2.8 ms |
-| New content: CPU raster + upload | 53 + 10.3 ms | 60–64 + 180–240 ms (the upload takes the tiled `glTexSubImage2D` path the bench measured at 160 ms per 3 MB) |
-| Frame as the daemon sees it | 42 ms, 24 fps | 54–96 ms; the pipeline 7–9 fps on the daemon's 100 ms idle tick |
-| **Round 6, the same day:** compose + read on the compositor thread straight into the shared buffer, a renderbuffer FBO as the window, pull mode (the compositor counts requests, the daemon pulls), the clock held | 42 ms, 24 fps | compose 1.4–4.6 ms, read 7–17 ms, compose+read 8–21 ms from the main thread; **the pipeline 17–24 fps** on the animation page (the daemon's own copy, scale and publish are the rest of the 41–62 ms tick) |
+| Paint the layers on the main thread | 0.1–3 ms (up to 100 when content changes) | `presShell->Paint(PAINT_LAYERS)` in `JihadComposeStart` |
+| Compose, CPU side | 3–6 ms | the compositor thread issuing the draws |
+| Compose, GPU side | 18–32 ms for four full-screen layers | the bench: one opaque layer 12 ms, four 32; a scissor to 160 rows saves nothing (29 ms), a 160-row viewport is worse (38): the GPU is memory-bound at ~500 MB/s and resolves the whole target |
+| Read the frame back | 20–45 ms whole, 4–15 ms for 160 rows once the GPU is done | `glReadPixels` from the renderbuffer; RGBA only, BGRA reads refused |
+| RGBA→BGRA and the row flip | 5–7 ms whole, ~1 ms for 160 rows | NEON, in place, on the compositor thread |
+| A content upload | 8 ms for 768×942 BGRA with the GPU idle; **18–78 ms whatever the size while GPU work is pending** | any `glTexImage2D` waits for the queued composite; a fresh name waits too |
+| The daemon's publish | 0–2 ms | the painted message, the slot bookkeeping |
+| The adapter / LunaSysMgr | ~33 ms cadence, a 2.9 MB card upload a frame | one buffer returned per painted message; three slots |
 
-| **Round 7:** whole-texture uploads on the Adreno 220 (patch 0041), alpha forced in the read, the nonblank count sampled | — | compose 2.5–5.5 ms, read 7–34 ms; **20–31 fps** on the animation page; the 125–131 ms of the first content frame is one-time (shader programs linking), not a per-change upload |
-| **Round 8:** engine scroll at every zoom on the compositor path, a displayport one viewport up and down | in-band scroll 42 ms, 24 fps | a scroll inside the displayport paints 0.2 ms of layers (an empty transaction) and composes in 2–3 ms; the self-scrolling page runs at **21–24 fps**; the first paint of a three-viewport displayport costs 146 ms once |
-| **Rounds 9–10:** the zoom | — | the engine's `SetResolutionAndScaleTo` and `SetScrollPositionClampingScrollPortSize` EACH turn the frame black on this path (bisected on the device: without both the page renders, with either it is black), so the card's zoom is a world transform on the compositor's layer tree (`LayerManagerComposite::ComputeEffectiveTransforms` from it instead of the identity: clips and scissors follow) with a residual visual offset for the pinch-in pan still to wire |
+What is in the engine and the daemon now (patches 0040 and 0041, `render/goanna`):
 
-Verdict (after round 6): **the 24 fps row holds on the device** — 17–24 fps measured on the
-four-layer animation page once the frame is read on the compositor thread into the shared buffer
-from a renderbuffer FBO with the clock held; compose + read is 8–21 ms and the daemon's own copy,
-scale and publish make up the rest of the frame. The content upload must become a whole-texture `glTexImage2D`
-(10 ms per 3 MB) or the new-content row falls from 9 fps to 4. `EGL_KHR_lock_surface` is a copy,
-not a mapping (26 ms), and `GL_EXT_read_format_bgra` is absent, so the swizzle stays (NEON, ~3 ms
-at a high clock). The compositor also composes on its own vsync beside the daemon's pull (wasted
-work to remove), and the daemon's tick must follow the compositor's "composite due" instead of
-the widget's dirty flag.
+- The frame in two halves: the daemon starts a job (`jihad_offscreen_compose_start`: the layer
+  paint on the main thread, the compose and the read on the compositor thread), polls it on its
+  8 ms tick, publishes when it is in, and starts the next on the publish tick when the compositor
+  asked again meanwhile (the request used to be consumed by the publish, which cost a frame).
+  Up to two jobs in flight into any slot the adapter does not hold.
+- Band reads: the compositor reports the rows its layer-tree diff changed; the daemon keeps,
+  per shared-buffer slot, the rows that changed since that slot was read and asks for only
+  those (the animation page reads 160 rows a frame); a slot composed for other geometry is read
+  whole. The composite itself is scissored to the rows read (kept: harmless, no GPU saving).
+- The window's flipped view kept on the renderbuffer target (the intermediate-surface draw
+  cancels a flip that must exist) and the rows reversed in the readback; render bounds of the
+  frame's size; the compositor's request counter as the daemon's "frame due" signal.
+- Uploads as BGRA on EGL (`GetPreferredARGB32Format`, GLES-legal types in the upload helper and
+  `BasicTextureImage::Resize`): four times faster than RGBA when the GPU is idle.
+- Tiled content layers by default (`layers.enable-tiles` in the engine's all.js; the bundle's
+  goanna.js is read after the once-only gfx prefs are snapshotted).
+- The docshell active from creation and inactive while the card is frozen (it was active already
+  through the content activation on touch; kept for the frozen card).
+- Opt-in, measured as no gain: a read thread with a shared context, EGL fences and two window
+  targets (`JIHAD_GPU_READ_THREAD=1`: equal on the animation page, a third slower on the scroll
+  page: every GL call on the compositor context waits behind the read anyway); a GPU swizzle pass
+  (`JIHAD_GPU_PASS=1`); fresh texture names per upload (`JIHAD_GPU_FRESH_TEX=1`); the round-5
+  snapshot road (`JIHAD_GPU_SNAPSHOT=1`).
+
+Verdict: **the animation row holds** (21–27 fps against the chart's 24, the hardware floor of a
+four-layer composite plus a readback on this GPU), **the scroll row does not yet** (12–17). The
+scroll page repaints and re-uploads content on every step because the daemon scrolls the
+engine's main thread per step; the displayport only makes the paint bigger, not rarer. The
+remedy is the one option 4 implies: apply the scroll offset in the compositor while the scroll
+stays inside the painted displayport (`AsyncCompositionManager`'s async transform for the root
+scroll layer, with `AlignFixedAndStickyLayers` keeping the header still), and move the engine's
+scroll only when it leaves it; a scroll frame is then a compose and a 942-row read (~45 ms, 22
+fps) with no upload, and a band read where the compositor can tell what moved. After it: a
+fourth shared buffer (the two-deep queue mostly finds the slot after the published one still at
+the adapter), a damage rectangle in the frame header so the adapter invalidates and LunaSysMgr
+uploads only the band, then option 2 (WebGL through EGL). The diagnostics in the engine
+(`[jihad-gpu]` lines, the first N of each) are still in and cheap; prune them with the fold.
+
+Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
+(the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
+bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test
+pages read 1–2 a second there while timers fire 26–60 times a second later: wait for content
+frames before shooting); a launch into an open card relays the URL into it (close the cards
+first); the device's `/tmp` is 40 MB (the frame dumps fill it).
 
 ## Every combination, fastest first (the data behind the shortlist)
 

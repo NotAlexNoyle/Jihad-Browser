@@ -7,15 +7,31 @@ reference material for a specific subsystem, not a status document.
 
 ## 2026-10-17 delta — the rendering pick: 2 + 4, a one-week spike first (READ FIRST)
 
-**End of session 2026-10-17 (rounds 31-32):** the compositor path's frames DO reach the adapter
-(a blit-time pixel probe in the adapter reads the page from the shared segment; the earlier
-"third process sees white" was timing: content frames only start after the fit zoom). The white
-screenshots are shot at 14 s, before the first content frame. Two open defects: the screenshot
-timing in the spike script, and every other content frame arriving either y-flipped or shifted
-down by ~742 px (three samples cannot tell which). Details and next steps in
-`docs/rounds/t502-2026-10-17/README.md`, "Rounds 31-32". The probing adapter is on the Enyo
-rootfs (stock one saved as `BrowserAdapterImpl.so.orig`); the engine's temporary diagnostics
-commit is still not folded into patch 0040, so `check-engine-pins.sh` disagrees.
+**End of session 2026-10-17 (rounds 11-86), the state to pick up:** the compositor path draws
+correct frames on the card and runs the animation page at **21-27 fps** (the chart's 24 fps row,
+the GPU's floor for a four-layer composite plus a readback) and the scroll page at **12-17 fps**
+(the chart's row not reached: the daemon scrolls the engine per step, so every frame repaints and
+re-uploads content; the designed remedy is a compositor-side scroll inside the painted
+displayport). The whole account, the measured table, what is in and what was tried and dropped:
+`docs/RENDERING-OPTIONS.md` "T-502, the spike" (rewritten; the round 6-10 frame rates further
+down this file were measured on black frames and are superseded). The device scripts:
+`tools/device/t502/`. Traps: `docs/RENDERING-OPTIONS.md` (same section) and the memory
+`gpu-wedge-needs-a-reboot`.
+
+**Left undone, in order:** (1) fold the engine's temporary commit into patches 0040/0041
+(`third_party/uxp` head is a temp commit on top of `a58325d1`; `git reset --soft 706d4782ba`, then
+two commits by path: compositor/widget/dom/layout/libpref files → 0040, `gfx/gl/*` → 0041;
+`build/engine/patch-queue.sh --add` each, `update-engine.sh --pins`, the hash in
+docs/ENGINE-SOURCE.md); a build chain started at the end of the session (`spike87`, the read
+thread and fresh texture names made opt-in) amends that temp commit and makes the bundle: check
+`build/webos-oe/out-arm/bundle-gpu-spike87.log` says `bundle exit 0`, push it (`push-engine-update.sh
+enyo`) and run the three pages once with the defaults (`tools/device/t502/spike-run.sh`). (2) Merge
+`jihad/about-preferences-and-settings-merge` into `main` (the owner's rule: main is the only
+permanent branch) and push. (3) The compositor-side scroll, the fourth shared buffer, the damage
+rectangle in the frame header, then option 2 (WebGL). (4) Prune the `[jihad-gpu]` diagnostics.
+The device: the Enyo card carries the probing adapter (stock as `BrowserAdapterImpl.so.orig`),
+the `spike86` engine bundle, the latest daemon; Mochi and Mojo untouched; host servers 8077/8078
+still running.
 
 
 **The owner, this morning:** the rendering report (the Claude doc "Jihad rendering options: speed

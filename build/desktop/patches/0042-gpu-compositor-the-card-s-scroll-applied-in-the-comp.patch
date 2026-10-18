@@ -30,16 +30,16 @@ after its hand-off.
  .../composite/AsyncCompositionManager.h       |   6 +
  .../composite/LayerManagerComposite.cpp       |  12 +-
  gfx/layers/composite/LayerManagerComposite.h  |   9 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 200 ++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 200 +++++++++-
  gfx/layers/ipc/CompositorBridgeParent.h       |   5 +
- gfx/layers/opengl/CompositorOGL.cpp           | 333 +++++++++++++++++-
- gfx/layers/opengl/CompositorOGL.h             |  42 ++-
+ gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.h             |  43 ++-
  layout/base/nsDisplayList.cpp                 |   9 +-
  layout/base/nsLayoutUtils.cpp                 |  37 ++
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
- widget/PuppetWidget.cpp                       |  70 +++-
- widget/PuppetWidget.h                         |   9 +-
- 17 files changed, 833 insertions(+), 52 deletions(-)
+ widget/PuppetWidget.cpp                       |  73 +++-
+ widget/PuppetWidget.h                         |  10 +-
+ 17 files changed, 846 insertions(+), 52 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -610,7 +610,7 @@ index 680fabc4e8..16a445bb79 100644
    bool mJihadWorldKnown = false;
  
 diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
-index 644b2061c2..dac856c75a 100644
+index 644b2061c2..f0b7614554 100644
 --- a/gfx/layers/opengl/CompositorOGL.cpp
 +++ b/gfx/layers/opengl/CompositorOGL.cpp
 @@ -3,6 +3,7 @@
@@ -738,7 +738,7 @@ index 644b2061c2..dac856c75a 100644
    }
    const int idx = mJihadCur;
    {
-@@ -2020,6 +2078,135 @@ CompositorOGL::JihadSelectTarget()
+@@ -2020,6 +2078,142 @@ CompositorOGL::JihadSelectTarget()
    mJihadWindowFBO = mJihadTargetFBO[idx];
  }
  
@@ -750,6 +750,13 @@ index 644b2061c2..dac856c75a 100644
 +JihadShiftRows(JihadFrameRequest* aReq)
 +{
 +  const int h = aReq->h, dy = aReq->shift;
++  if (aReq->src && aReq->dest && aReq->src != aReq->dest && aReq->stride == aReq->w * 4 && dy < h && dy > -h) {
++    // round 113: from the newest slot, one contiguous copy (different segments, no overlap)
++    const size_t stride = (size_t)aReq->stride;
++    const int from = dy > 0 ? dy : 0, to = dy > 0 ? 0 : -dy, rows = h - (dy > 0 ? dy : -dy);
++    memcpy(aReq->dest + (size_t)to * stride, aReq->src + (size_t)from * stride, (size_t)rows * stride);
++    return;
++  }
 +  if (!dy || !aReq->dest || aReq->stride != aReq->w * 4 || dy >= h || dy <= -h) {
 +    return;
 +  }
@@ -874,12 +881,13 @@ index 644b2061c2..dac856c75a 100644
  bool
  CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
  {
-@@ -2028,7 +2215,46 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
+@@ -2028,7 +2222,47 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
    }
    aReq->composed = true;
    if (!JihadEnsureReadThread()) {
 -    aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo, aReq->hi);
 +    const TimeStamp t0 = TimeStamp::Now();
++    if (aReq->shift || aReq->src) mGLContext->fFlush();   // the GPU starts the composite while the rows are copied
 +    JihadShiftRows(aReq);
 +    const TimeStamp t1 = TimeStamp::Now();
 +    aReq->ok = true;
@@ -922,7 +930,7 @@ index 644b2061c2..dac856c75a 100644
      aReq->done(aReq);
      return true;
    }
-@@ -2088,11 +2314,13 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
+@@ -2088,11 +2322,13 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
      const double waitCpuMs = (cpu1.tv_sec - cpu0.tv_sec) * 1000.0 + (cpu1.tv_nsec - cpu0.tv_nsec) / 1e6;
      t1 = TimeStamp::Now();
      const int w = aReq->w, h = aReq->h;
@@ -941,7 +949,7 @@ index 644b2061c2..dac856c75a 100644
        const int rows = hi - lo;
        uint8_t* band = aReq->dest + (size_t)lo * aReq->stride;
        gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadTargetFBO[aReq->target]);
-@@ -2180,18 +2408,99 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+@@ -2180,18 +2416,99 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
      return true;
    }
    mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
@@ -1045,16 +1053,17 @@ index 644b2061c2..dac856c75a 100644
    return true;
  }
 diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
-index 104931ec17..1230b8f791 100644
+index 104931ec17..ea84a456d6 100644
 --- a/gfx/layers/opengl/CompositorOGL.h
 +++ b/gfx/layers/opengl/CompositorOGL.h
-@@ -155,9 +155,16 @@ protected:
+@@ -155,9 +155,17 @@ protected:
  struct JihadFrameRequest {
    uint8_t* dest = nullptr;
    int stride = 0, w = 0, h = 0;
 -  int lo = 0, hi = 0;                  // the rows to read, top-down ((0,0) = every row)
 +  int lo = 0, hi = 0;                  // the rows to read, top-down ((0,0) = none asked for)
 +  int lo2 = 0, hi2 = 0;                // a second band to read ((0,0) = none)
++  const uint8_t* src = nullptr;        // round 113: the kept rows come from this frame (the newest slot), not dest
 +  int shift = 0;                       // rows the destination is shifted by (memmove) before the read: the
 +                                       // card's scroll since the slot's frame, positive = scrolled down
 +  int fixedLo = 0, fixedHi = 0;        // out: the rows fixed and sticky layers cover (0,0 = none)
@@ -1066,7 +1075,7 @@ index 104931ec17..1230b8f791 100644
    void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
    mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
    bool ok = false;
-@@ -198,6 +205,30 @@ public:
+@@ -198,6 +206,30 @@ public:
    // rows [lo, hi) into dest and calls done (on the read thread). When no read thread could be
    // made the read happens here, synchronously, before ReadAsync returns.
    void JihadSelectTarget();
@@ -1097,7 +1106,7 @@ index 104931ec17..1230b8f791 100644
    bool JihadReadAsync(JihadFrameRequest* aReq);
    void JihadReadOnReadThread(JihadFrameRequest* aReq);   // the read thread
    void JihadReadThreadInit();                            // the read thread, once
-@@ -352,6 +383,15 @@ private:
+@@ -352,6 +384,15 @@ private:
    // their own through a context that shares them, so the compositor thread is never held by a
    // glReadPixels (20-45 ms on the Adreno 220) and a frame's read overlaps the next compose.
    GLuint mJihadTargetRB[2] = {0, 0}, mJihadTargetFBO[2] = {0, 0};
@@ -1200,7 +1209,7 @@ index 38e06f172f..9e5107fad6 100644
      if (parentLayerClip) {
        // If APZ is not enabled, we still need the displayport to be clipped
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index a176ac9c8c..79852e8340 100644
+index a176ac9c8c..5a1e9639c4 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -3,6 +3,7 @@
@@ -1211,18 +1220,19 @@ index a176ac9c8c..79852e8340 100644
  #include "base/basictypes.h"
  
  #include "ClientLayerManager.h"
-@@ -832,7 +833,10 @@ struct JihadReadJob {
+@@ -832,7 +833,11 @@ struct JihadReadJob {
    mozilla::layers::CompositorBridgeParent* bridge;
    uint8_t* dest; int stride, w, h; float scale, offX, offY;
    int rowLo, rowHi;      // the rows the daemon asked for, top-down ((0,0) = none)
 +  int row2Lo = 0, row2Hi = 0;   // a second band asked for
 +  int shift = 0;                // rows the destination is shifted by before the read
++  const uint8_t* src = nullptr; // the frame the kept rows come from (round 113), or dest itself
    int invLo, invHi;      // the rows the composite changed
 +  float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
    uint32_t token;
    mozilla::TimeStamp posted;   // device rounds: the compositor loop's queue delay
    mozilla::layers::JihadFrameRequest req;   // what the compositor and the read thread work on
-@@ -844,6 +848,9 @@ struct JihadReadJob {
+@@ -844,6 +849,9 @@ struct JihadReadJob {
  };
  namespace mozilla {
  namespace widget {
@@ -1232,7 +1242,7 @@ index a176ac9c8c..79852e8340 100644
  namespace {
  // the read thread (or the compositor thread, when the read could not be handed off) finished
  void JihadJobFinish(JihadReadJob* job, bool ok)
-@@ -854,6 +861,11 @@ void JihadJobFinish(JihadReadJob* job, bool ok)
+@@ -854,6 +862,11 @@ void JihadJobFinish(JihadReadJob* job, bool ok)
      job->ok = ok; job->invLo = job->req.invLo; job->invHi = job->req.invHi; job->done = true; abandoned = job->abandoned;
      job->mon.Notify();
    }
@@ -1244,13 +1254,13 @@ index a176ac9c8c..79852e8340 100644
    if (abandoned) {
      delete job;
    }
-@@ -866,13 +878,19 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+@@ -866,13 +879,19 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
  {
    const mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
    job->req.dest = job->dest; job->req.stride = job->stride; job->req.w = job->w; job->req.h = job->h;
 -  job->req.lo = job->rowLo; job->req.hi = job->rowHi;
 +  job->req.lo = job->rowLo; job->req.hi = job->rowHi; job->req.lo2 = job->row2Lo; job->req.hi2 = job->row2Hi;
-+  job->req.shift = job->shift;
++  job->req.shift = job->shift; job->req.src = job->src;
 +  job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
    job->req.done = &JihadJobDone; job->req.cookie = job;
 +  // Once done() has run the daemon may forget (delete) the job at any moment (round 108's wake
@@ -1267,25 +1277,26 @@ index a176ac9c8c..79852e8340 100644
    }
    if (!started) {
      JihadJobFinish(job, false);
-@@ -887,7 +905,7 @@ PuppetWidget::JihadBridge()
+@@ -887,7 +906,8 @@ PuppetWidget::JihadBridge()
  
  uint32_t
  PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
 -                                int aWidth, int aHeight, int aRowLo, int aRowHi)
-+                                int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift)
++                                int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
++                                const void* aSrc)
  {
    if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
      return 0;
-@@ -945,6 +963,8 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+@@ -945,6 +965,8 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
    }
    JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight,
                                         mJihadScale, mJihadOffX, mJihadOffY, aRowLo, aRowHi, token);
 +  job->scrollX = mJihadScrollX; job->scrollY = mJihadScrollY; job->scrollValid = mJihadScrollValid;
-+  job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift;
++  job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift; job->src = static_cast<const uint8_t*>(aSrc);
    job->posted = mozilla::TimeStamp::Now();
    mJihadJobs.push_back(job);
    loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
-@@ -952,7 +972,7 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+@@ -952,7 +974,7 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
  }
  
  int
@@ -1294,7 +1305,7 @@ index a176ac9c8c..79852e8340 100644
  {
    JihadReadJob* job = nullptr;
    size_t at = 0;
-@@ -977,8 +997,13 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aI
+@@ -977,8 +999,13 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aI
      }
      if (job->done) {
        finished = true; ok = job->ok;
@@ -1310,7 +1321,7 @@ index a176ac9c8c..79852e8340 100644
      } else if (!aWait && job->req.composed) {
        return 2;   // composed: the read thread has it; the next frame may be started
      } else if (aWait) {
-@@ -1091,8 +1116,7 @@ PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
+@@ -1091,8 +1118,7 @@ PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
    if (!token) {
      return false;
    }
@@ -1320,18 +1331,19 @@ index a176ac9c8c..79852e8340 100644
  }
  
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
-@@ -1299,20 +1323,24 @@ jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
+@@ -1299,20 +1325,25 @@ jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
  // T-502: the frame in two halves (see PuppetWidget::JihadComposeStart).
  MOZ_EXPORT uint32_t
  jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
 -                              int aWidth, int aHeight, int aRowLo, int aRowHi)
-+                              int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift)
++                              int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
++                              const void* aSrc)
  {
    if (!aWidget) {
      return 0;
    }
 -  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi);
-+  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift);
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc);
  }
  MOZ_EXPORT int
 -jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aInvLo, int* aInvHi)
@@ -1349,7 +1361,7 @@ index a176ac9c8c..79852e8340 100644
  }
  MOZ_EXPORT void
  jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
-@@ -1321,6 +1349,22 @@ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
+@@ -1321,6 +1352,22 @@ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
      static_cast<PuppetWidget*>(aWidget)->JihadComposeForget(aToken);
    }
  }
@@ -1373,16 +1385,17 @@ index a176ac9c8c..79852e8340 100644
  // compositor to the whole layer tree.
  MOZ_EXPORT void
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index c133d1a139..de49a80bca 100644
+index c133d1a139..a711d5712e 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
-@@ -289,10 +289,13 @@ public:
+@@ -289,10 +289,14 @@ public:
    // changed), 0 while it is pending, -1 failed or unknown; with aWait it waits up to 3 s.
    // Forget drops a token whose buffer went away.
    uint32_t JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
 -                             int aWidth, int aHeight, int aRowLo, int aRowHi);
 -  int JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aInvHi);
-+                             int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo = 0, int aRow2Hi = 0, int aShift = 0);
++                             int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo = 0, int aRow2Hi = 0, int aShift = 0,
++                             const void* aSrc = nullptr);
 +  // aOut (8 ints, may be null): the rows the tree changed, the rows fixed layers cover, the two
 +  // bands read; aScrollOnly: the composite's only change was the card's scroll
 +  int JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly = nullptr);
@@ -1392,7 +1405,7 @@ index c133d1a139..de49a80bca 100644
    mozilla::layers::CompositorBridgeParent* JihadBridge();
    void JihadSetView(double aScale, double aOffsetX, double aOffsetY) {
      mJihadScale = (aScale > 0.0) ? (float)aScale : 1.0f; mJihadOffX = (float)aOffsetX; mJihadOffY = (float)aOffsetY;
-@@ -446,6 +449,8 @@ private:
+@@ -446,6 +450,8 @@ private:
    float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor
    std::vector<::JihadReadJob*> mJihadJobs;   // T-502: frames in flight on the compositor thread
    uint32_t mJihadNextToken = 1;

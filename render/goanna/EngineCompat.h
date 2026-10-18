@@ -57,7 +57,8 @@ extern "C" {
   // changed), 0 pending, -1 failed; forget drops a token whose buffer went away.
   uint32_t jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
                                          int aStride, int aWidth, int aHeight, int aRowLo,
-                                         int aRowHi, int aRow2Lo, int aRow2Hi, int aShift) __attribute__((weak));
+                                         int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                         const void* aSrc) __attribute__((weak));
   // aOut: eight ints (the rows the tree changed, the rows fixed layers cover, the two bands read)
   int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
                                    int* aScrollOnly) __attribute__((weak));

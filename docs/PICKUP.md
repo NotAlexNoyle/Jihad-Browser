@@ -105,14 +105,21 @@ Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 
 | Page | Frame rate | Note |
 | --- | --- | --- |
-| `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **25-31 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
-| `jihad-anim-css.html` | 21-25 fps | only the changed rows (120..280) read |
-| `jihad-scroll-js.html` (the page scrolls itself) | 7-14 fps | a repaint per step, as before round 90; the card lags the page's scroll (pre-existing: round 86 showed it too) |
+| `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **26-32 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
+| `jihad-anim-css.html` | 24-25.5 fps (one 2 s window at 20) | only the changed rows read |
+| `jihad-scroll-js.html` (the page scrolls itself) | 9-13.5 fps | **below round 86's 12-17**: every step is a whole-frame repaint and read (the page's own scroll reports every row changed); the card lags the page's scroll (pre-existing) |
+
+Round 113 builds each new frame from the NEWEST finished slot (copied with the scroll since it,
+only the entering band read; the fixed rows only when the scroll moved), unless the slot's own frame
+is at the same scroll with little stale (an animated page). Measure a still or animated page with
+`tools/device/t502/pan-run.sh <name> <url> "<words>" none` (12 s, no inject).
+
 
 **Left, in order:** (1) the owner's finger test of a real pan and flick (the entry is in
-`docs/FINGER-TESTS.md`); (2) fixed rows as two intervals (a page with a fixed header AND a fixed
-footer reads the whole frame on every pan step today); (3) the page's own smooth scrolls through
-the compositor (today a repaint per step); (3) a fourth shared buffer for the
+`docs/FINGER-TESTS.md`); (2) the page's own scrolls (script, smooth scroll, anchors) through the
+compositor: report the root scroll offset's change as a shift, not every row changed (the
+self-scrolling page is below round 86 today); (3) fixed rows as two intervals (a page with a fixed
+header AND a fixed footer reads the whole frame on every pan step); (3) a fourth shared buffer for the
 two-deep frame queue; (4) a damage rectangle in the frame header so the adapter invalidates and
 LunaSysMgr uploads only the band; (5) option 2 (WebGL through EGL); (6) prune the `[jihad-gpu]`
 diagnostics that remain in the engine and the daemon (bounded, cheap; the verify mode and the

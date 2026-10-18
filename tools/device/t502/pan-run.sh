@@ -4,6 +4,8 @@
 set -u
 S=$(dirname "$0"); R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; D=$R/docs/rounds/t502-2026-10-17
 name=$1; url=$2; extra=${3:-}
+# $4: the inject command (default a 0 -> 3000 px pan over 10 s); "none" measures the page as it is
+pancmd=${4:-pan 0 3000 10000}
 cd $R; . build/webos-oe/host-path.sh
 echo "=== pan $name"
 build/webos-oe/dev-sh.sh -t 90 $S/gpu-spike-start.sh "$url" "JIHAD_INJECT=1 JIHAD_GPU_DUMP_EVERY=60 $extra" 2>&1 | grep 'screenshot at\|FATAL' | tail -n 2
@@ -12,7 +14,7 @@ STATE=/var/palm/jihad/enyo
 rm -f /tmp/frame.raw-*
 for p in /proc/[0-9]*; do c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null); case "$c" in *jihad-browserserver*) echo "daemon env: $(tr '\0' '\n' < $p/environ 2>/dev/null | grep 'DUMP\|INJECT' | tr '\n' ' ')";; esac; done
 : > $STATE/daemon-gpu.pan-mark
-umask 077; echo "pan 0 3000 10000" > $STATE/inject.cmd   # the daemon consumes the file at once
+[ "PANCMD" != "none" ] && { umask 077; echo "PANCMD" > $STATE/inject.cmd; }   # the daemon consumes the file at once
 sleep 5
 luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{"file":"/tmp/st-pan.png"}' >/dev/null 2>&1
 sleep 7
@@ -21,6 +23,7 @@ grep -a 'inject pan\|paint pipeline\|scroll anchor\|FATAL' $STATE/daemon-gpu.log
 echo "--- bands"
 grep -a 'shifted by\|compositor thread: compose' $STATE/daemon-gpu.log | tail -n 6 | cut -c1-200
 EOS
+sed -i "s|PANCMD|$pancmd|g" $S/pan-inject.sh
 build/webos-oe/dev-sh.sh -t 60 $S/pan-inject.sh
 novacom get file:///tmp/st-pan.png > $D/pan-$name.png 2>/dev/null
 python3 -c "

@@ -369,7 +369,9 @@ public:
   // rows the composite changed.
   bool ComposeAsync() const;
   // shift: rows the compositor thread moves the buffer by (memmove) before the read
-  uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0);
+  // src: the frame the kept rows are copied from (the newest slot), or null for dst itself
+  uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0,
+                        const unsigned char* src = nullptr);
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
   // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),

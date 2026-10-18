@@ -403,10 +403,12 @@ private:
   long               mGpuStaleLo[3] = {0, 0, 0}, mGpuStaleHi[3] = {0, 0, 0};
   long               mGpuStale2Lo[3] = {0, 0, 0}, mGpuStale2Hi[3] = {0, 0, 0};   // a second stale band
   long               mGpuFixedLo = 0, mGpuFixedHi = 0;   // the rows fixed layers cover, as last reported
+  int                mGpuLatestSlot = -1, mGpuLatestKey = 0;   // round 113: the newest finished GPU frame
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();
     for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
+    mGpuLatestSlot = -1;   // round 113
   }
                                          // window opens (inspector P2: cap dirty-driven full repaints)
   int64_t            mLastDirtyPaintMs;  // last dirty-driven repaint (ms), for the 150 ms cap

@@ -5,6 +5,53 @@ reference material for a specific subsystem, not a status document.
 
 ---
 
+## After Jihad Browser: Global Jihad (a distinct project — NOT started; begins only when Jihad Browser is finished)
+
+Decided with the owner on 2026-10-18. System-wide Goanna: every webOS app rendered by Goanna, not
+only the browser's pages. It is its own project with its own name; nothing of it is built inside
+Jihad Browser, and it starts when Jihad Browser is finished.
+
+**Facts that shape it (verified on the owner's TouchPad, 2026-10-18):**
+
+- No engine-swap layer exists in Atlas or in webOS CE. Both replace the engine only for the browser
+  app, behind BrowserAdapter → YAP → BrowserServer (Atlas: WPE WebKit 2.52 in
+  `atlas-wpe-backend`; Jihad: Goanna). `luna-webkit-api` is an IME/field API, not an engine seam.
+- The owner's TouchPad runs **webOS CE 3.1.0** (`/etc/palm-build-info`), not stock 3.0.5. Its web
+  app manager is a forked second `LunaSysMgr -s` (ppid = the first; 124 MB) running the
+  `WebAppManager` class from the LunaSysMgr binary and mapping `libWebKitLuna.so` (12.8 MB, Palm's
+  WebKit; `SysMgrWebPage : QWebPage`). Stock 3.0.5 has the same child, closed-source.
+- Apps load the JS frameworks by absolute path: 13 third-party apps and the stock ones use
+  `<script src="/usr/palm/frameworks/enyo/0.10/framework/enyo.js">` (that directory IS Enyo 1;
+  `enyo/1.0` is empty), Mojo apps `/usr/palm/frameworks/mojo/mojo.js` or `mojoloader.js`. A
+  patched framework there serves every app, no per-app change.
+- The frameworks' WebKit-only surface, counted on the device. Enyo 1 (`enyo/0.10`: 419 js, 170 css,
+  12 MB): `-webkit-border-image` ×569 (no Gecko alias), `-webkit-box`/`-webkit-box-flex` ×16,
+  `-webkit-gradient` ×11, `webkitTransform` ×23, `webkitTransitionEnd` ×11,
+  `webkitRequestAnimationFrame` ×4, 31 `PalmSystem` members, `PalmServiceBridge` in 8 files. Mojo
+  (10 js, 60 css): `-webkit-border-image` ×257, `-webkit-palm-mouse-target` ×19 (Palm-only), 46
+  `PalmSystem` members, `PalmServiceBridge` in 6 files. 41 apps installed: 39 web, 2 PDK
+  (unaffected), 3 Mojo.
+
+**The strategy (the owner's):**
+
+1. **Rebuild the forked WebAppManager instance from the webOS CE source on Goanna**, in place of
+   `libWebKitLuna.so`: the LunaSysMgr window protocol (`luna-sysmgr-ipc` messages; card, popup,
+   dashboard and alert surfaces; lifecycle; launch parameters), the `PalmSystem` object,
+   `PalmServiceBridge`, NPAPI hosting, the IME path (`luna-webkit-api`). Jihad's daemon is the
+   engine host to start from (headless Goanna, many pages per process, offscreen rendering, the
+   Luna bus, NPAPI, input bridging).
+2. **Patch the frameworks in place** at `/usr/palm/frameworks` (Enyo 1 and Mojo:
+   `-webkit-border-image` → `border-image`, the Palm-only CSS, the prefixed JS under
+   `layout.css.prefixes.webkit`), once for all apps.
+3. **Support both webOS CE 3.1.0 and stock 3.0.5.** On CE the open LunaSysMgr allows the chart's
+   60 fps rows (the engine's compositor presenting into LunaSysMgr); on stock the shared-buffer
+   readback path stays, at T-502's numbers.
+4. First proof when the project starts: an Enyo 1 app loaded in the Jihad daemon with a
+   `PalmSystem` shim, judged by eye (the frame dumps, not screenshots).
+
+Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
+target line (both webOS 3.0.5 and CE 3.1.0).
+
 ## 2026-10-17 delta — the rendering pick: 2 + 4, a one-week spike first (READ FIRST)
 
 **End of session 2026-10-17 (rounds 11-86), the state to pick up:** the compositor path draws

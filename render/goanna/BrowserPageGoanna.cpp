@@ -907,8 +907,9 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     else if (!mPage->GpuDisplayPortOk()) { mPage->SetGpuViewport(z); mGpuAnchorValid = false; }
     // JIHAD_GPU_ANCHOR=<fraction of a height> (default 0.3, round 125): smaller, more frequent
     // anchor moves paint less each time (the paint runs on this thread and stalls the frames)
-    static const double sAnchor = getenv("JIHAD_GPU_ANCHOR") ? atof(getenv("JIHAD_GPU_ANCHOR")) : 0.3;
-    const double marginX = (mPage->Width() * 0.5 / z) * 0.6, marginY = (mPage->Height() / z) * sAnchor;
+    static const double sAnchor = getenv("JIHAD_GPU_ANCHOR") ? atof(getenv("JIHAD_GPU_ANCHOR")) : 0.25;
+    // sideways the displayport has margins only when zoomed in (round 126): otherwise any x move re-anchors
+    const double marginX = z > 1.01 ? (mPage->Width() * 0.5 / z) * 0.6 : 0.5, marginY = (mPage->Height() / z) * sAnchor;
     if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
       mPage->ScrollTo((int)wantX, (int)wantY);
       int sx = 0, sy = 0;

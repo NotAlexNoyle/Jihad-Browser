@@ -108,6 +108,14 @@ Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 | `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **27-32 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
 | `jihad-anim-css.html` | **26-31 fps** | the diff first, then only the changed rows composed on the band surface (round 119) |
 | `jihad-scroll-js.html` (the page scrolls itself) | 13.5-17.4 fps | the shift from the diff, the displayport from its first scroll, small steps on the band surface; the card lags the page's scroll (pre-existing) |
+| **en.m.wikipedia.org/wiki/HP_TouchPad**, the same pan after 12 s of loading | **15-17 fps** (software path: 9-12.4) | a stuck 208x786 sticky container is 541 fixed rows re-read every step; before round 126 this page panned at 3.7-4.9, WORSE than software |
+
+Rounds 126-128 (a real page): the displayport is 0.5 heights up and down and none sideways unless
+zoomed in (`JIHAD_GPU_DP_Y`, `JIHAD_GPU_DP_X`); the 1.25-height one painted ~95 tiles on an
+image-heavy page at a fit zoom of 0.69 and every tile upload waits behind the GPU on this chip
+(one composite 300 ms, a job 3 s). The anchor is 0.25 heights. Only sticky layers the compositor
+holds in place count as fixed rows, and band frames recompute the fixed rows at their end. **Test
+every GPU change on a real page against `NOGPU=1` on the same pan** (`PAN_DELAY=12`).
 
 Rounds 118-119: a page that scrolls itself gets the displayport too; a frame whose tree changed
 takes the layer diff first, without a render (`JihadDiffNow`: the composite's own steps up to the

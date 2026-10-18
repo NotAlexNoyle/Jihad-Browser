@@ -251,6 +251,13 @@ changed regions are clipped to the frame before their bounds are taken; anchor m
 46-72-row band frames. The anchor distance is a knob (`JIHAD_GPU_ANCHOR`, 0.3 heights by default).
 The pan 26-33 fps.
 
+**Rounds 126-128 (the first real page):** en.m.wikipedia.org panned at 3.7-4.9 fps on the GPU
+path, worse than software (6.7-10.4): the 1.25-height displayport at a fit zoom of 0.69 was ~95
+tiles of an image-heavy page, and tile uploads wait behind the GPU. Margins now 0.5 heights, none
+sideways unless zoomed in; only stuck sticky layers count as fixed rows. The page then pans at
+15-17 fps against software's 9-12.4; a stuck 208x786 sticky container (541 rows re-read every
+step) is what limits it.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

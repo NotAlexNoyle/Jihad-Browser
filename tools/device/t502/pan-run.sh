@@ -12,6 +12,7 @@ build/webos-oe/dev-sh.sh -t 90 $S/gpu-spike-start.sh "$url" "JIHAD_INJECT=1 JIHA
 cat > $S/pan-inject.sh <<'EOS'
 STATE=/var/palm/jihad/enyo
 rm -f /tmp/frame.raw-*
+sleep PANDELAY   # PAN_DELAY seconds for a page that is still loading
 for p in /proc/[0-9]*; do c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null); case "$c" in *jihad-browserserver*) echo "daemon env: $(tr '\0' '\n' < $p/environ 2>/dev/null | grep 'DUMP\|INJECT' | tr '\n' ' ')";; esac; done
 : > $STATE/daemon-gpu.pan-mark
 [ "PANCMD" != "none" ] && { umask 077; echo "PANCMD" > $STATE/inject.cmd; }   # the daemon consumes the file at once
@@ -24,7 +25,8 @@ echo "--- bands"
 grep -a 'shifted by\|compositor thread: compose' $STATE/daemon-gpu.log | tail -n 6 | cut -c1-200
 EOS
 sed -i "s|PANCMD|$pancmd|g" $S/pan-inject.sh
-build/webos-oe/dev-sh.sh -t 60 $S/pan-inject.sh
+sed -i "s|PANDELAY|${PAN_DELAY:-0}|g" $S/pan-inject.sh
+build/webos-oe/dev-sh.sh -t $((60 + ${PAN_DELAY:-0})) $S/pan-inject.sh
 novacom get file:///tmp/st-pan.png > $D/pan-$name.png 2>/dev/null
 python3 -c "
 from PIL import Image

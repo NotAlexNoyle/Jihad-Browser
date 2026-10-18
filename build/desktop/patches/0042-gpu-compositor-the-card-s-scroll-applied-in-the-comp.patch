@@ -28,13 +28,13 @@ after its hand-off.
  gfx/layers/LayerTreeInvalidation.cpp          |  77 ++++
  gfx/layers/LayerTreeInvalidation.h            |   7 +
  gfx/layers/Layers.cpp                         |  13 +-
- .../composite/AsyncCompositionManager.cpp     |  54 ++-
- .../composite/AsyncCompositionManager.h       |   6 +
- .../composite/LayerManagerComposite.cpp       |  64 +++-
+ .../composite/AsyncCompositionManager.cpp     |  62 ++-
+ .../composite/AsyncCompositionManager.h       |  15 +
+ .../composite/LayerManagerComposite.cpp       |  64 ++-
  gfx/layers/composite/LayerManagerComposite.h  |  16 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 335 ++++++++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 368 +++++++++++++++++-
  gfx/layers/ipc/CompositorBridgeParent.h       |   6 +
- gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++-
  gfx/layers/opengl/CompositorOGL.h             |  46 ++-
  layout/base/FrameLayerBuilder.cpp             |  10 +-
  layout/base/nsDisplayList.cpp                 |   9 +-
@@ -42,7 +42,7 @@ after its hand-off.
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
  widget/PuppetWidget.cpp                       |  80 +++-
  widget/PuppetWidget.h                         |  10 +-
- 20 files changed, 1143 insertions(+), 54 deletions(-)
+ 20 files changed, 1193 insertions(+), 54 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -306,7 +306,7 @@ index 0b83f8ad95..ac0862c93a 100644
          }
          /* In 2D case, only translation and/or positive scaling can be done w/o using IntermediateSurface.
 diff --git a/gfx/layers/composite/AsyncCompositionManager.cpp b/gfx/layers/composite/AsyncCompositionManager.cpp
-index e1938392f6..800d50eaa7 100644
+index e1938392f6..0ad08843f0 100644
 --- a/gfx/layers/composite/AsyncCompositionManager.cpp
 +++ b/gfx/layers/composite/AsyncCompositionManager.cpp
 @@ -512,6 +512,15 @@ AsyncCompositionManager::AlignFixedAndStickyLayers(Layer* aTransformedSubtreeRoo
@@ -325,7 +325,29 @@ index e1938392f6..800d50eaa7 100644
  
    // A fixed layer will "consume" (be unadjusted by) the entire translation
    // calculated above. A sticky layer may consume all, part, or none of it,
-@@ -909,23 +918,56 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+@@ -537,6 +546,13 @@ AsyncCompositionManager::AlignFixedAndStickyLayers(Layer* aTransformedSubtreeRoo
+     unconsumedTranslation = translation - originalTranslation;
+   }
+ 
++  // Jihad T-502 round 127: a sticky layer held in place this composite (or with no async offset
++  // to tell by) counts as fixed rows for the readback
++  if (layer->GetIsStickyPosition() &&
++      (fabsf(translation.x) > 0.5f || fabsf(translation.y) > 0.5f ||
++       aCurrentTransformForRoot.FuzzyEqual(aPreviousTransformForRoot))) {
++    mJihadStuck.push_back(layer);
++  }
+   // Finally, apply the translation to the layer transform. Note that in cases
+   // where the async transform on |aTransformedSubtreeRoot| affects this layer's
+   // clip rect, we need to apply the same translation to said clip rect, so
+@@ -833,6 +849,7 @@ bool
+ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+                                                           bool* aOutFoundRoot)
+ {
++  mJihadStuck.clear();   // Jihad T-502 round 127: this composite's stuck sticky layers
+   bool appliedTransform = false;
+   std::stack<Maybe<ParentLayerIntRect>> stackDeferredClips;
+ 
+@@ -909,23 +926,56 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
            }
          }
  
@@ -389,10 +411,18 @@ index e1938392f6..800d50eaa7 100644
            }
  
 diff --git a/gfx/layers/composite/AsyncCompositionManager.h b/gfx/layers/composite/AsyncCompositionManager.h
-index 98aaa964e7..5b7dbf176f 100644
+index 98aaa964e7..459be6fb09 100644
 --- a/gfx/layers/composite/AsyncCompositionManager.h
 +++ b/gfx/layers/composite/AsyncCompositionManager.h
-@@ -115,6 +115,10 @@ public:
+@@ -6,6 +6,7 @@
+ #ifndef GFX_ASYNCCOMPOSITIONMANAGER_H
+ #define GFX_ASYNCCOMPOSITIONMANAGER_H
+ 
++#include <vector>   // Jihad T-502
+ #include "Units.h"                      // for ScreenPoint, etc
+ #include "mozilla/layers/LayerManagerComposite.h"  // for LayerManagerComposite
+ #include "mozilla/Attributes.h"         // for final, etc
+@@ -115,6 +116,17 @@ public:
    // Returns true if the next composition will be the first for a
    // particular document.
    bool IsFirstPaint() { return mIsFirstPaint; }
@@ -400,15 +430,23 @@ index 98aaa964e7..5b7dbf176f 100644
 +  // frame's content as an async transform while the engine's own scroll (the metrics' offset)
 +  // stays where the last paint put it; fixed and sticky layers are aligned as under APZ.
 +  void JihadSetScroll(float aX, float aY, bool aValid) { mJihadScrollX = aX; mJihadScrollY = aY; mJihadScrollValid = aValid; }
++  // round 127: the sticky layers the last composite held in place (a nonzero alignment, or no
++  // async offset to tell by); a sticky layer scrolling with the content is not fixed rows
++  bool JihadIsStuck(Layer* aLayer) const {
++    for (Layer* l : mJihadStuck) if (l == aLayer) return true;
++    return false;
++  }
++  void JihadClearStuck() { mJihadStuck.clear(); }
  
    // GetFrameUniformity will return the frame uniformity for each layer attached to an APZ
    // from the recorded data in RecordShadowTransform
-@@ -225,6 +229,8 @@ private:
+@@ -225,6 +237,9 @@ private:
    // front-end (e.g. Java on Android) about this so that it take the new page
    // size and zoom into account when providing us with the next view transform.
    bool mIsFirstPaint;
 +  float mJihadScrollX = 0.0f, mJihadScrollY = 0.0f;   // Jihad T-502
 +  bool mJihadScrollValid = false;
++  std::vector<Layer*> mJihadStuck;   // round 127 (raw: valid until the next composite)
  
    // This flag is set during a layers update, so that the first composition
    // after a layers update has it set. It is cleared after that first composition.
@@ -545,7 +583,7 @@ index 64231fea60..63e20a972f 100644
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..ad7b0de348 100644
+index 06d50599f3..2494a7c631 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
 @@ -17,6 +17,9 @@
@@ -593,7 +631,7 @@ index 06d50599f3..ad7b0de348 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,42 +1353,340 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,42 +1353,373 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -639,7 +677,7 @@ index 06d50599f3..ad7b0de348 100644
 +      {
 +        int fLo = aHeight, fHi = 0;
 +        ForEachNode<ForwardIterator>(mLayerManager->GetRoot(), [&](Layer* l) {
-+          if (!(l->GetIsFixedPosition() || l->GetIsStickyPosition())) return;
++          if (!(l->GetIsFixedPosition() || (l->GetIsStickyPosition() && mCompositionManager && mCompositionManager->JihadIsStuck(l)))) return;
 +          const gfx::IntRect vb = l->GetLocalVisibleRegion().GetBounds().ToUnknownRect();
 +          if (vb.IsEmpty()) return;
 +          const gfx::Rect r = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
@@ -776,7 +814,31 @@ index 06d50599f3..ad7b0de348 100644
 +      ogl->JihadSelectTarget();
 +      aReq->invLo = diffFirst ? dfInvLo : 0; aReq->invHi = diffFirst ? dfInvHi : 0;
 +      aReq->scrollOnly = !diffFirst;
-+      if (diffFirst) { mJihadLastFixedLo = dfFixLo; mJihadLastFixedHi = dfFixHi; }
++      // round 127: the fixed rows as of this frame (a sticky element may have become stuck during
++      // the pan), from the effective transforms at the frame's own world
++      if (Layer* root = mLayerManager->GetRoot()) {
++        root->ComputeEffectiveTransforms(world);
++        int fLo = aHeight, fHi = 0;
++        static const bool sFixLog = getenv("JIHAD_GPU_DIFFLOG") != nullptr;
++        static uint32_t sFixN = 0;
++        const bool logThis = sFixLog && (sFixN++ % 20) == 0;
++        ForEachNode<ForwardIterator>(root, [&](Layer* l) {
++          if (!(l->GetIsFixedPosition() || (l->GetIsStickyPosition() && mCompositionManager && mCompositionManager->JihadIsStuck(l)))) return;
++          const gfx::IntRect vb = l->GetLocalVisibleRegion().GetBounds().ToUnknownRect();
++          if (vb.IsEmpty()) return;
++          const gfx::Rect r = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
++          const int a = std::max(0, (int)floor(r.y)), b = std::min(aHeight, (int)ceil(r.YMost()));
++          if (logThis) {
++            fprintf(stderr, "[jihad-gpu] fixed rows from layer %p (type %d, fixed %d, sticky %d, stuck %d, parent %p): visible %d,%d %dx%d -> rows %d..%d\n",
++                    l, (int)l->GetType(), (int)l->GetIsFixedPosition(), (int)l->GetIsStickyPosition(),
++                    (int)(mCompositionManager && mCompositionManager->JihadIsStuck(l)), l->GetParent(), vb.x, vb.y, vb.width, vb.height, a, b);
++          }
++          if (b > a) { fLo = std::min(fLo, a); fHi = std::max(fHi, b); }
++        });
++        if (fHi > fLo) { mJihadLastFixedLo = fLo; mJihadLastFixedHi = fHi; } else { mJihadLastFixedLo = mJihadLastFixedHi = 0; }
++      } else if (diffFirst) {
++        mJihadLastFixedLo = dfFixLo; mJihadLastFixedHi = dfFixHi;
++      }
 +      aReq->fixedLo = mJihadLastFixedLo; aReq->fixedHi = mJihadLastFixedHi;
 +      aReq->composed = true;
 +      aReq->ok = ok;
@@ -847,10 +909,19 @@ index 06d50599f3..ad7b0de348 100644
 +  {
 +    int fLo = aHeight, fHi = 0;
 +    if (Layer* root = mLayerManager->GetRoot()) {
++      static const bool sFixLogW = getenv("JIHAD_GPU_DIFFLOG") != nullptr;
++      static uint32_t sFixNW = 0;
++      const bool logThisW = sFixLogW && (sFixNW++ % 20) == 0;
 +      ForEachNode<ForwardIterator>(root, [&](Layer* l) {
-+        if (!(l->GetIsFixedPosition() || l->GetIsStickyPosition())) return;
++        if (!(l->GetIsFixedPosition() || (l->GetIsStickyPosition() && mCompositionManager && mCompositionManager->JihadIsStuck(l)))) return;
 +        const gfx::IntRect vb = l->GetLocalVisibleRegion().GetBounds().ToUnknownRect();
 +        if (vb.IsEmpty()) return;
++        if (logThisW) {
++          const gfx::Rect rr = l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height));
++          fprintf(stderr, "[jihad-gpu] fixed rows (whole path) from layer %p (type %d, fixed %d, sticky %d, stuck %d): visible %d,%d %dx%d -> rows %.0f..%.0f\n",
++                  l, (int)l->GetType(), (int)l->GetIsFixedPosition(), (int)l->GetIsStickyPosition(),
++                  (int)(mCompositionManager && mCompositionManager->JihadIsStuck(l)), vb.x, vb.y, vb.width, vb.height, rr.y, rr.YMost());
++        }
 +        // the effective transform may or may not carry the world transform's scale (the card's
 +        // zoom); the rows reported are the union of both readings, so never too few
 +        // the effective transform carries the world transform (ComputeEffectiveTransforms(world))
@@ -869,7 +940,8 @@ index 06d50599f3..ad7b0de348 100644
 +    }
 +    if (fHi > fLo) { aReq->fixedLo = fLo; aReq->fixedHi = fHi; } else { aReq->fixedLo = aReq->fixedHi = 0; }
 +    mJihadLastFixedLo = aReq->fixedLo; mJihadLastFixedHi = aReq->fixedHi;
-+  }
+   }
+-  aReq->lo = lo; aReq->hi = hi;
 +  // the rows read: the bands asked for and the change, as at most two intervals (overlaps
 +  // merged, then the closest pair, until two remain)
 +  {
@@ -905,8 +977,7 @@ index 06d50599f3..ad7b0de348 100644
 +    if (n == 2 && iv[1][0] < iv[0][0]) { std::swap(iv[0][0], iv[1][0]); std::swap(iv[0][1], iv[1][1]); }
 +    aReq->lo = n > 0 ? iv[0][0] : 0; aReq->hi = n > 0 ? iv[0][1] : 0;
 +    aReq->lo2 = n > 1 ? iv[1][0] : 0; aReq->hi2 = n > 1 ? iv[1][1] : 0;
-   }
--  aReq->lo = lo; aReq->hi = hi;
++  }
 +  const int lo = aReq->lo, hi = aReq->hi;
    aReq->invLo = invLo; aReq->invHi = invHi;
 +  // the log's values now: once the read hands the frame over, aReq belongs to the daemon

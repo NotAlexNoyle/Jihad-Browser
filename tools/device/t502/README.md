@@ -66,3 +66,6 @@ Round 119: `JIHAD_GPU_NO_DIFF_FIRST=1` (a tree change composes on the frame surf
 
 Round 125: `JIHAD_GPU_ANCHOR=<fraction of a height>` (how far the card's scroll goes from the engine's
 anchor before the engine is moved; 0.3 by default).
+
+Rounds 126-128: `JIHAD_GPU_DP_Y=<heights>` (0.5), `JIHAD_GPU_DP_X=<widths>` (0, half a width when zoomed in)
+set the displayport margins; `PAN_DELAY=<s>` before `pan-run.sh` waits for a real page to load before the pan.

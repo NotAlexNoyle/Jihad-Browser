@@ -4462,10 +4462,16 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // compositor-side scroll had nothing painted beyond the viewport. The caller retries until it
   // takes (a new document may have no pres shell yet).
   int dp = -1;
-  // Margins: half a width sideways, 1.25 heights up and down (screen px). The daemon moves the
-  // engine's scroll at 0.6 heights from the anchor (gpuScrollTo), so a pan has 0.65 heights of
-  // painted rows in hand while the main thread paints the next displayport.
-  const float mx = (float)mWidth * 0.5f, my = (float)mHeight * 1.25f;
+  // Margins (screen px), round 126: JIHAD_GPU_DP_Y heights up and down (default 0.5) and
+  // JIHAD_GPU_DP_X widths sideways (default 0, half a width when zoomed in past the fit). The
+  // daemon moves the engine's scroll at JIHAD_GPU_ANCHOR heights from the anchor (0.25 by default),
+  // so a pan keeps a quarter height of painted rows in hand. 1.25 heights and half a width (rounds
+  // 110-125) painted ~95 tiles on an image-heavy page at a fit zoom of 0.69: each tile upload waits
+  // behind the GPU on this chip, and one composite took 300 ms (en.m.wikipedia.org, round 126).
+  static const float sDpY = getenv("JIHAD_GPU_DP_Y") ? (float)atof(getenv("JIHAD_GPU_DP_Y")) : 0.5f;
+  static const float sDpX = getenv("JIHAD_GPU_DP_X") ? (float)atof(getenv("JIHAD_GPU_DP_X")) : -1.0f;
+  const float dpX = sDpX >= 0.0f ? sDpX : (zoom > 1.01 ? 0.5f : 0.0f);
+  const float mx = (float)mWidth * dpX, my = (float)mHeight * sDpY;
   if (!sNoDp && mGpuDpWanted) {
     if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, mx, my, mx, my);
     else if (root) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }

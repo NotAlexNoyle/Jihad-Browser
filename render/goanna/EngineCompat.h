@@ -58,8 +58,9 @@ extern "C" {
   uint32_t jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
                                          int aStride, int aWidth, int aHeight, int aRowLo,
                                          int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
-                                         const void* aSrc) __attribute__((weak));
-  // aOut: eight ints (the rows the tree changed, the rows fixed layers cover, the two bands read)
+                                         const void* aSrc, int aSrcY, int aEngineShift) __attribute__((weak));
+  // aOut: ten ints (the rows the tree changed, the rows fixed layers cover, the two bands read, the
+  // frame's position and its valid flag)
   int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
                                    int* aScrollOnly) __attribute__((weak));
   void jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));

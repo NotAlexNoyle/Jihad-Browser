@@ -25,21 +25,23 @@ after its hand-off.
  gfx/gl/GLContext.h                            |   7 +
  gfx/gl/GLContextEGL.h                         |  13 +
  gfx/gl/GLContextProviderEGL.cpp               |  57 +++
+ gfx/layers/LayerTreeInvalidation.cpp          |  55 +++
+ gfx/layers/LayerTreeInvalidation.h            |   7 +
  gfx/layers/Layers.cpp                         |  13 +-
  .../composite/AsyncCompositionManager.cpp     |  54 ++-
  .../composite/AsyncCompositionManager.h       |   6 +
- .../composite/LayerManagerComposite.cpp       |  12 +-
- gfx/layers/composite/LayerManagerComposite.h  |   9 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 200 +++++++++-
+ .../composite/LayerManagerComposite.cpp       |  27 +-
+ gfx/layers/composite/LayerManagerComposite.h  |  12 +-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 223 +++++++++++-
  gfx/layers/ipc/CompositorBridgeParent.h       |   5 +
  gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++++-
- gfx/layers/opengl/CompositorOGL.h             |  43 ++-
+ gfx/layers/opengl/CompositorOGL.h             |  46 ++-
  layout/base/nsDisplayList.cpp                 |   9 +-
  layout/base/nsLayoutUtils.cpp                 |  37 ++
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
- widget/PuppetWidget.cpp                       |  73 +++-
+ widget/PuppetWidget.cpp                       |  80 +++-
  widget/PuppetWidget.h                         |  10 +-
- 17 files changed, 846 insertions(+), 52 deletions(-)
+ 19 files changed, 958 insertions(+), 53 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -151,6 +153,104 @@ index db7675852d..18637e353b 100644
  bool
  GLContextEGL::MakeCurrentImpl(bool aForce) {
      if (IsDestroyed()) {
+diff --git a/gfx/layers/LayerTreeInvalidation.cpp b/gfx/layers/LayerTreeInvalidation.cpp
+index 5604fafee3..cfb0ce3a34 100644
+--- a/gfx/layers/LayerTreeInvalidation.cpp
++++ b/gfx/layers/LayerTreeInvalidation.cpp
+@@ -3,6 +3,7 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  * You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include <cmath>   // Jihad T-502: roundf, fabsf
+ #include "LayerTreeInvalidation.h"
+ 
+ #include <stdint.h>                     // for uint32_t
+@@ -31,6 +32,20 @@ using namespace mozilla::gfx;
+ namespace mozilla {
+ namespace layers {
+ 
++// Jihad T-502 round 115 (see LayerTreeInvalidation.h)
++static struct { bool on; float scale; bool have; float dx, dy; } sJihadScrollDiff = { false, 1.0f, false, 0.0f, 0.0f };
++void JihadDiffScrollBegin(bool aOn, float aScale)
++{
++  sJihadScrollDiff.on = aOn; sJihadScrollDiff.scale = aScale > 0.0f ? aScale : 1.0f;
++  sJihadScrollDiff.have = false; sJihadScrollDiff.dx = sJihadScrollDiff.dy = 0.0f;
++}
++bool JihadDiffScrollShift(float* aDx, float* aDy)
++{
++  if (!sJihadScrollDiff.have) return false;
++  *aDx = sJihadScrollDiff.dx; *aDy = sJihadScrollDiff.dy;
++  return true;
++}
++
+ struct LayerPropertiesBase;
+ UniquePtr<LayerPropertiesBase> CloneLayerTreePropertiesInternal(Layer* aRoot, bool aIsMask = false);
+ 
+@@ -181,6 +196,46 @@ public:
+     bool transformChanged = !mTransform.FuzzyEqual(GetTransformForInvalidation(mLayer)) ||
+                              mLayer->GetPostXScale() != mPostXScale ||
+                              mLayer->GetPostYScale() != mPostYScale;
++    if (sJihadScrollDiff.on && transformChanged && !mLayer->GetIsFixedPosition() && !mLayer->GetIsStickyPosition() &&
++        mLayer->GetPostXScale() == mPostXScale && mLayer->GetPostYScale() == mPostYScale) {
++      // Jihad T-502 round 115: a scroll moves the root-content layer by a pure translation; the
++      // rows it carries are shifted by the daemon, so only what else changed is reported
++      const Matrix4x4 now = GetTransformForInvalidation(mLayer);
++      const Matrix4x4& was = mTransform;
++      const bool pure = FuzzyEqual(now._11, was._11) && FuzzyEqual(now._12, was._12) && FuzzyEqual(now._13, was._13) &&
++                        FuzzyEqual(now._14, was._14) && FuzzyEqual(now._21, was._21) && FuzzyEqual(now._22, was._22) &&
++                        FuzzyEqual(now._23, was._23) && FuzzyEqual(now._24, was._24) && FuzzyEqual(now._31, was._31) &&
++                        FuzzyEqual(now._32, was._32) && FuzzyEqual(now._33, was._33) && FuzzyEqual(now._34, was._34) &&
++                        FuzzyEqual(now._43, was._43) && FuzzyEqual(now._44, was._44);
++      const float tx = now._41 - was._41, ty = now._42 - was._42;
++      if (pure && FuzzyEqual(tx, 0.0f)) {
++        const bool rootMetrics = mLayer->GetScrollMetadataCount() > 0 &&
++                                 mLayer->GetScrollMetadata(0).GetMetrics().IsRootContent();
++        const float rows = -ty * sJihadScrollDiff.scale;
++        const bool integral = fabsf(rows - roundf(rows)) < 0.01f;
++        if (rootMetrics && !sJihadScrollDiff.have && integral) {
++          sJihadScrollDiff.have = true; sJihadScrollDiff.dx = tx; sJihadScrollDiff.dy = ty;
++        }
++        if (sJihadScrollDiff.have && FuzzyEqual(ty, sJihadScrollDiff.dy)) {
++          mTransform = now;
++          transformChanged = false;
++        }
++      }
++    }
++    {
++      // Jihad T-502 diagnostic (JIHAD_GPU_DIFFLOG): a transform that changed, and by what
++      static const bool sDiffLog = getenv("JIHAD_GPU_DIFFLOG") != nullptr;
++      static uint32_t sN = 0;
++      if (sDiffLog && transformChanged && sN++ < 400) {
++        const Matrix4x4 now = GetTransformForInvalidation(mLayer);
++        const bool sameLinear = FuzzyEqual(now._11, mTransform._11) && FuzzyEqual(now._12, mTransform._12) &&
++                                FuzzyEqual(now._21, mTransform._21) && FuzzyEqual(now._22, mTransform._22);
++        fprintf(stderr, "[jihad-gpu] diff: layer %p (parent %p, type %d, fixed %d, metadata %u) transform moved by %.1f,%.1f%s; old ty %.1f new ty %.1f\n",
++                mLayer, mLayer->GetParent(), (int)mLayer->GetType(), (int)mLayer->GetIsFixedPosition(),
++                (unsigned)mLayer->GetScrollMetadataCount(), now._41 - mTransform._41, now._42 - mTransform._42,
++                sameLinear ? "" : " (and scaled)", mTransform._42, now._42);
++      }
++    }
+     const Maybe<ParentLayerIntRect>& otherClip = mLayer->GetLocalClipRect();
+     nsIntRegion result;
+ 
+diff --git a/gfx/layers/LayerTreeInvalidation.h b/gfx/layers/LayerTreeInvalidation.h
+index 4c08f5245b..8ba08529e2 100644
+--- a/gfx/layers/LayerTreeInvalidation.h
++++ b/gfx/layers/LayerTreeInvalidation.h
+@@ -30,6 +30,13 @@ typedef void (*NotifySubDocInvalidationFunc)(ContainerLayer* aLayer,
+  * A set of cached layer properties (including those of child layers),
+  * used for comparing differences in layer trees.
+  */
++// Jihad T-502 round 115: the next ComputeDifferences treats a pure vertical translation of the
++// root-content scroll layer (and of any non-fixed layer moved by the same amount) as a scroll, not
++// a change, when it moves the frame by whole rows at aScale (the world scale). The shift it saw,
++// in layer pixels, is reported by JihadDiffScrollShift; false when none.
++void JihadDiffScrollBegin(bool aOn, float aScale);
++bool JihadDiffScrollShift(float* aDx, float* aDy);
++
+ struct LayerProperties
+ {
+ protected:
 diff --git a/gfx/layers/Layers.cpp b/gfx/layers/Layers.cpp
 index 0b83f8ad95..ac0862c93a 100644
 --- a/gfx/layers/Layers.cpp
@@ -283,10 +383,40 @@ index 98aaa964e7..5b7dbf176f 100644
    // This flag is set during a layers update, so that the first composition
    // after a layers update has it set. It is cleared after that first composition.
 diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
-index 5c8f003ffc..aed24c6041 100644
+index 5c8f003ffc..3b9b630373 100644
 --- a/gfx/layers/composite/LayerManagerComposite.cpp
 +++ b/gfx/layers/composite/LayerManagerComposite.cpp
-@@ -465,10 +465,16 @@ LayerManagerComposite::UpdateAndRender()
+@@ -4,6 +4,7 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "LayerManagerComposite.h"
++#include "LayerTreeInvalidation.h"   // Jihad T-502: JihadDiffScrollBegin
+ #include <stddef.h>                     // for size_t
+ #include <stdint.h>                     // for uint16_t, uint32_t
+ #include "CanvasLayerComposite.h"       // for CanvasLayerComposite
+@@ -435,7 +436,21 @@ LayerManagerComposite::UpdateAndRender()
+     // immediately use the resulting damage area, since ComputeDifferences
+     // is also responsible for invalidates intermediate surfaces in
+     // ContainerLayers.
++    JihadDiffScrollBegin(mJihadCompensateScroll && !mTarget, mJihadWorld._22);   // Jihad T-502 round 115
+     nsIntRegion changed = mClonedLayerTreeProperties->ComputeDifferences(mRoot, nullptr, &mGeometryChanged);
++    JihadDiffScrollBegin(false, 1.0f);
++    // Jihad T-502 round 115: the diff is in the root layer's space; the frame is the world
++    // transform of it (the card's zoom), and the scissor and the rows read are frame pixels
++    if (!mTarget && !mJihadWorld.IsIdentity() && !changed.IsEmpty()) {
++      nsIntRegion scaled;
++      for (auto iter = changed.RectIter(); !iter.Done(); iter.Next()) {
++        const gfx::IntRect& r = iter.Get();
++        gfx::Rect fr = mJihadWorld.TransformBounds(gfx::Rect(r.x, r.y, r.width, r.height));
++        fr.RoundOut();
++        scaled.OrWith(gfx::IntRect(int32_t(fr.x), int32_t(fr.y), int32_t(fr.width), int32_t(fr.height)));
++      }
++      changed = Move(scaled);
++    }
+ 
+     if (mTarget) {
+       // Since we're composing to an external target, we're not going to use
+@@ -465,10 +480,16 @@ LayerManagerComposite::UpdateAndRender()
  
    // Jihad T-502: what the tree changed is reported as such; the rows the daemon will read are
    // composed as well (a partial, scissored composite covers exactly the rows read back).
@@ -307,10 +437,10 @@ index 5c8f003ffc..aed24c6041 100644
    } else if (!mTarget && !mJihadLastChanged.IsEmpty() && mClonedLayerTreeProperties &&
               !invalid.Contains(mRenderBounds)) {
 diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
-index 64231fea60..a79e18fd1b 100644
+index 64231fea60..ead139da5e 100644
 --- a/gfx/layers/composite/LayerManagerComposite.h
 +++ b/gfx/layers/composite/LayerManagerComposite.h
-@@ -126,7 +126,11 @@ public:
+@@ -126,7 +126,13 @@ public:
    void JihadResetLastInvalid() { mJihadLastInvalid = mJihadLastChanged = gfx::IntRect(); }
    // The rows the daemon is about to read: composed (cleared and drawn, scissored) together
    // with what the tree changed, and nothing else. Empty: only what changed.
@@ -320,33 +450,37 @@ index 64231fea60..a79e18fd1b 100644
 +  // the layer diff reports as the content's whole bounds): the diff is dropped, the bands asked
 +  // for are composed and read
 +  void JihadIgnoreDiff(bool aOn) { mJihadIgnoreDiff = aOn; }
++  // round 115: the next diff treats the root-content layer's scroll as a shift (LayerTreeInvalidation.h)
++  void JihadCompensateScroll(bool aOn) { mJihadCompensateScroll = aOn; }
    bool JihadPartial() const { return mJihadPartialOn; }
  
    virtual void EndTransaction(DrawPaintedLayerCallback aCallback,
-@@ -369,7 +373,8 @@ private:
+@@ -369,7 +375,9 @@ private:
    RefPtr<Compositor> mCompositor;
    gfx::Matrix4x4 mJihadWorld;   // Jihad T-502
    gfx::IntRect mJihadLastInvalid;   // Jihad T-502
 -  gfx::IntRect mJihadLastChanged, mJihadBand;   // Jihad T-502
 +  gfx::IntRect mJihadLastChanged, mJihadBand, mJihadBand2;   // Jihad T-502
 +  bool mJihadIgnoreDiff = false;
++  bool mJihadCompensateScroll = false;
    bool mJihadPartialOn = false;                  // this Render is a partial composite
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..e2b4bac609 100644
+index 06d50599f3..e9d91d2d98 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
-@@ -17,6 +17,8 @@
+@@ -17,6 +17,9 @@
  #include "gfxContext.h"                 // for gfxContext
  #include "gfxPlatform.h"                // for gfxPlatform
  #include "TreeTraversal.h"              // for ForEachNode
++#include "LayerTreeInvalidation.h"   // Jihad T-502: JihadDiffScrollShift
 +static bool sJihadInCompose = false;   // Jihad T-502 diagnostic: inside JihadComposeAndRead's composite
 +#include <cmath>                       // Jihad T-502: floor, ceil
  #ifdef MOZ_WIDGET_GTK
  #include "gfxPlatformGtk.h"             // for gfxPlatform
  #endif
-@@ -1121,6 +1123,11 @@ CompositorBridgeParent::SetShadowProperties(Layer* aLayer)
+@@ -1121,6 +1124,11 @@ CompositorBridgeParent::SetShadowProperties(Layer* aLayer)
  void
  CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRect* aRect)
  {
@@ -358,7 +492,7 @@ index 06d50599f3..e2b4bac609 100644
    profiler_tracing("Paint", "Composite", TRACING_INTERVAL_START);
    PROFILER_LABEL("CompositorBridgeParent", "Composite",
      js::ProfileEntry::Category::GRAPHICS);
-@@ -1308,6 +1315,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1308,6 +1316,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
    if (!ogl) {
      return false;
    }
@@ -366,7 +500,7 @@ index 06d50599f3..e2b4bac609 100644
    const int aWidth = aReq->w, aHeight = aReq->h;
    // the card's zoom about the frame's top-left, after the residual visual offset (CSS px)
    gfx::Matrix4x4 world = gfx::Matrix4x4::Scaling(aScale > 0.0f ? aScale : 1.0f,
-@@ -1328,6 +1336,14 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1328,6 +1337,14 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
    // change of either invalidates everything (and UpdateAndRender would otherwise skip the
    // render as "unchanged"). The compositor clears and redraws the whole frame every time, so
    // the other window target (two composites old) is complete too.
@@ -381,7 +515,7 @@ index 06d50599f3..e2b4bac609 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,37 +1352,201 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,37 +1353,223 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -495,12 +629,30 @@ index 06d50599f3..e2b4bac609 100644
 +  mLayerManager->JihadSetBand(aReq->hi > aReq->lo ? gfx::IntRect(0, aReq->lo, aWidth, aReq->hi - aReq->lo) : gfx::IntRect(),
 +                              aReq->hi2 > aReq->lo2 ? gfx::IntRect(0, aReq->lo2, aWidth, aReq->hi2 - aReq->lo2) : gfx::IntRect());
    ogl->JihadSelectTarget();
++  mLayerManager->JihadCompensateScroll(aReq->src != nullptr && aReq->engineShift);   // round 115
    TimeStamp t0 = TimeStamp::Now();
 +  sJihadInCompose = true;
    ForceComposeToTarget(nullptr, nullptr);
 +  sJihadInCompose = false;
    TimeStamp t1 = TimeStamp::Now();
 +  mLayerManager->JihadIgnoreDiff(false);
++  mLayerManager->JihadCompensateScroll(false);
++  // round 115: a scroll the page made, seen by the diff as the root-content layer's translation:
++  // the kept rows are shifted by it (from src), the entering band and the fixed rows read
++  int engineShiftRows = 0;
++  bool haveEngineShift = false;
++  {
++    float sdx = 0.0f, sdy = 0.0f;
++    if (aReq->src && aReq->engineShift && JihadDiffScrollShift(&sdx, &sdy)) {
++      engineShiftRows = (int)lroundf(-sdy * (aScale > 0.0f ? aScale : 1.0f));
++      haveEngineShift = engineShiftRows > -aHeight && engineShiftRows < aHeight;
++      if (haveEngineShift) {
++        aReq->shift = engineShiftRows;
++        aReq->frameY = aReq->srcY + engineShiftRows;
++        aReq->frameYValid = true;
++      }
++    }
++  }
    const gfx::IntRect changed = mLayerManager->JihadLastChanged();   // what the tree changed
 -  const gfx::IntRect drawn = mLayerManager->JihadLastInvalid();     // what was composed (asked for + changed)
    int invLo = 0, invHi = 0;
@@ -546,9 +698,13 @@ index 06d50599f3..e2b4bac609 100644
 +  // the rows read: the bands asked for and the change, as at most two intervals (overlaps
 +  // merged, then the closest pair, until two remain)
 +  {
-+    int a[3][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {invLo, invHi} };
-+    int n = 0; int iv[3][2];
-+    for (int k = 0; k < 3; k++) {
++    const int eLo = haveEngineShift && engineShiftRows > 0 ? aHeight - engineShiftRows : 0;
++    const int eHi = haveEngineShift ? (engineShiftRows > 0 ? aHeight : -engineShiftRows) : 0;
++    const bool fx = haveEngineShift && engineShiftRows != 0 && aReq->fixedHi > aReq->fixedLo;
++    int a[5][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {invLo, invHi}, {eLo, eHi},
++                    {fx ? aReq->fixedLo : 0, fx ? aReq->fixedHi : 0} };
++    int n = 0; int iv[5][2];
++    for (int k = 0; k < 5; k++) {
 +      if (a[k][1] <= a[k][0]) continue;
 +      iv[n][0] = std::max(0, a[k][0]); iv[n][1] = std::min(aHeight, a[k][1]);
 +      if (iv[n][1] > iv[n][0]) n++;
@@ -1053,10 +1209,10 @@ index 644b2061c2..f0b7614554 100644
    return true;
  }
 diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
-index 104931ec17..ea84a456d6 100644
+index 104931ec17..d3d31d986e 100644
 --- a/gfx/layers/opengl/CompositorOGL.h
 +++ b/gfx/layers/opengl/CompositorOGL.h
-@@ -155,9 +155,17 @@ protected:
+@@ -155,9 +155,20 @@ protected:
  struct JihadFrameRequest {
    uint8_t* dest = nullptr;
    int stride = 0, w = 0, h = 0;
@@ -1064,6 +1220,9 @@ index 104931ec17..ea84a456d6 100644
 +  int lo = 0, hi = 0;                  // the rows to read, top-down ((0,0) = none asked for)
 +  int lo2 = 0, hi2 = 0;                // a second band to read ((0,0) = none)
 +  const uint8_t* src = nullptr;        // round 113: the kept rows come from this frame (the newest slot), not dest
++  int srcY = 0;                        // round 115: src's position (card px), when the engine decides the shift
++  bool engineShift = false;            //   the shift the diff saw (a scroll the page made) replaces the daemon's
++  int frameY = 0; bool frameYValid = false;   // out: this frame's position (card px), when the engine decided it
 +  int shift = 0;                       // rows the destination is shifted by (memmove) before the read: the
 +                                       // card's scroll since the slot's frame, positive = scrolled down
 +  int fixedLo = 0, fixedHi = 0;        // out: the rows fixed and sticky layers cover (0,0 = none)
@@ -1075,7 +1234,7 @@ index 104931ec17..ea84a456d6 100644
    void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
    mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
    bool ok = false;
-@@ -198,6 +206,30 @@ public:
+@@ -198,6 +209,30 @@ public:
    // rows [lo, hi) into dest and calls done (on the read thread). When no read thread could be
    // made the read happens here, synchronously, before ReadAsync returns.
    void JihadSelectTarget();
@@ -1106,7 +1265,7 @@ index 104931ec17..ea84a456d6 100644
    bool JihadReadAsync(JihadFrameRequest* aReq);
    void JihadReadOnReadThread(JihadFrameRequest* aReq);   // the read thread
    void JihadReadThreadInit();                            // the read thread, once
-@@ -352,6 +384,15 @@ private:
+@@ -352,6 +387,15 @@ private:
    // their own through a context that shares them, so the compositor thread is never held by a
    // glReadPixels (20-45 ms on the Adreno 220) and a frame's read overlaps the next compose.
    GLuint mJihadTargetRB[2] = {0, 0}, mJihadTargetFBO[2] = {0, 0};
@@ -1209,7 +1368,7 @@ index 38e06f172f..9e5107fad6 100644
      if (parentLayerClip) {
        // If APZ is not enabled, we still need the displayport to be clipped
 diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
-index a176ac9c8c..5a1e9639c4 100644
+index a176ac9c8c..a898d1f6bb 100644
 --- a/widget/PuppetWidget.cpp
 +++ b/widget/PuppetWidget.cpp
 @@ -3,6 +3,7 @@
@@ -1220,19 +1379,20 @@ index a176ac9c8c..5a1e9639c4 100644
  #include "base/basictypes.h"
  
  #include "ClientLayerManager.h"
-@@ -832,7 +833,11 @@ struct JihadReadJob {
+@@ -832,7 +833,12 @@ struct JihadReadJob {
    mozilla::layers::CompositorBridgeParent* bridge;
    uint8_t* dest; int stride, w, h; float scale, offX, offY;
    int rowLo, rowHi;      // the rows the daemon asked for, top-down ((0,0) = none)
 +  int row2Lo = 0, row2Hi = 0;   // a second band asked for
 +  int shift = 0;                // rows the destination is shifted by before the read
 +  const uint8_t* src = nullptr; // the frame the kept rows come from (round 113), or dest itself
++  int srcY = 0; bool engineShift = false;   // round 115
    int invLo, invHi;      // the rows the composite changed
 +  float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
    uint32_t token;
    mozilla::TimeStamp posted;   // device rounds: the compositor loop's queue delay
    mozilla::layers::JihadFrameRequest req;   // what the compositor and the read thread work on
-@@ -844,6 +849,9 @@ struct JihadReadJob {
+@@ -844,6 +850,9 @@ struct JihadReadJob {
  };
  namespace mozilla {
  namespace widget {
@@ -1242,7 +1402,7 @@ index a176ac9c8c..5a1e9639c4 100644
  namespace {
  // the read thread (or the compositor thread, when the read could not be handed off) finished
  void JihadJobFinish(JihadReadJob* job, bool ok)
-@@ -854,6 +862,11 @@ void JihadJobFinish(JihadReadJob* job, bool ok)
+@@ -854,6 +863,11 @@ void JihadJobFinish(JihadReadJob* job, bool ok)
      job->ok = ok; job->invLo = job->req.invLo; job->invHi = job->req.invHi; job->done = true; abandoned = job->abandoned;
      job->mon.Notify();
    }
@@ -1254,13 +1414,13 @@ index a176ac9c8c..5a1e9639c4 100644
    if (abandoned) {
      delete job;
    }
-@@ -866,13 +879,19 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+@@ -866,13 +880,19 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
  {
    const mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
    job->req.dest = job->dest; job->req.stride = job->stride; job->req.w = job->w; job->req.h = job->h;
 -  job->req.lo = job->rowLo; job->req.hi = job->rowHi;
 +  job->req.lo = job->rowLo; job->req.hi = job->rowHi; job->req.lo2 = job->row2Lo; job->req.hi2 = job->row2Hi;
-+  job->req.shift = job->shift; job->req.src = job->src;
++  job->req.shift = job->shift; job->req.src = job->src; job->req.srcY = job->srcY; job->req.engineShift = job->engineShift;
 +  job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
    job->req.done = &JihadJobDone; job->req.cookie = job;
 +  // Once done() has run the daemon may forget (delete) the job at any moment (round 108's wake
@@ -1277,26 +1437,26 @@ index a176ac9c8c..5a1e9639c4 100644
    }
    if (!started) {
      JihadJobFinish(job, false);
-@@ -887,7 +906,8 @@ PuppetWidget::JihadBridge()
+@@ -887,7 +907,8 @@ PuppetWidget::JihadBridge()
  
  uint32_t
  PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
 -                                int aWidth, int aHeight, int aRowLo, int aRowHi)
 +                                int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
-+                                const void* aSrc)
++                                const void* aSrc, int aSrcY, bool aEngineShift)
  {
    if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
      return 0;
-@@ -945,6 +965,8 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+@@ -945,6 +966,8 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
    }
    JihadReadJob* job = new JihadReadJob(bridge, static_cast<uint8_t*>(aDest), aStride, aWidth, aHeight,
                                         mJihadScale, mJihadOffX, mJihadOffY, aRowLo, aRowHi, token);
 +  job->scrollX = mJihadScrollX; job->scrollY = mJihadScrollY; job->scrollValid = mJihadScrollValid;
-+  job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift; job->src = static_cast<const uint8_t*>(aSrc);
++  job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift; job->src = static_cast<const uint8_t*>(aSrc); job->srcY = aSrcY; job->engineShift = aEngineShift;
    job->posted = mozilla::TimeStamp::Now();
    mJihadJobs.push_back(job);
    loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
-@@ -952,7 +974,7 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+@@ -952,7 +975,7 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
  }
  
  int
@@ -1305,7 +1465,7 @@ index a176ac9c8c..5a1e9639c4 100644
  {
    JihadReadJob* job = nullptr;
    size_t at = 0;
-@@ -977,8 +999,13 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aI
+@@ -977,10 +1000,18 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aI
      }
      if (job->done) {
        finished = true; ok = job->ok;
@@ -1316,12 +1476,18 @@ index a176ac9c8c..5a1e9639c4 100644
 +        aOut[2] = job->req.fixedLo; aOut[3] = job->req.fixedHi;
 +        aOut[4] = job->req.lo; aOut[5] = job->req.hi;
 +        aOut[6] = job->req.lo2; aOut[7] = job->req.hi2;
++        aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0;
 +      }
 +      if (aScrollOnly) *aScrollOnly = job->req.scrollOnly;
      } else if (!aWait && job->req.composed) {
-       return 2;   // composed: the read thread has it; the next frame may be started
+-      return 2;   // composed: the read thread has it; the next frame may be started
++      // composed: the next frame may be started, and it must read what this one changed (round 116)
++      if (aOut) { aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; }
++      return 2;
      } else if (aWait) {
-@@ -1091,8 +1118,7 @@ PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
+       job->abandoned = true;
+       fprintf(stderr, "[jihad-gpu] compose: no answer from the compositor thread in 3 s\n");
+@@ -1091,8 +1122,7 @@ PuppetWidget::JihadComposeTo(nsIDocShell* aDocShell, void* aDest, int aStride,
    if (!token) {
      return false;
    }
@@ -1331,25 +1497,26 @@ index a176ac9c8c..5a1e9639c4 100644
  }
  
  // drive a paint, and read the rendered ARGB32 pixels into its shared buffer.
-@@ -1299,20 +1325,25 @@ jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
+@@ -1299,20 +1329,26 @@ jihad_offscreen_compose(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
  // T-502: the frame in two halves (see PuppetWidget::JihadComposeStart).
  MOZ_EXPORT uint32_t
  jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
 -                              int aWidth, int aHeight, int aRowLo, int aRowHi)
 +                              int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
-+                              const void* aSrc)
++                              const void* aSrc, int aSrcY, int aEngineShift)
  {
    if (!aWidget) {
      return 0;
    }
 -  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi);
-+  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc);
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aEngineShift != 0);
  }
  MOZ_EXPORT int
 -jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aInvLo, int* aInvHi)
 +jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut, int* aScrollOnly)
  {
-+  // aOut: eight ints: the rows the tree changed, the rows fixed layers cover, the two bands read
++  // aOut: ten ints: the rows the tree changed, the rows fixed layers cover, the two bands read, and
++  // this frame's position with a valid flag (round 115)
    if (!aWidget) {
      return -1;
    }
@@ -1361,7 +1528,7 @@ index a176ac9c8c..5a1e9639c4 100644
  }
  MOZ_EXPORT void
  jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
-@@ -1321,6 +1352,22 @@ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
+@@ -1321,6 +1357,22 @@ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
      static_cast<PuppetWidget*>(aWidget)->JihadComposeForget(aToken);
    }
  }
@@ -1385,7 +1552,7 @@ index a176ac9c8c..5a1e9639c4 100644
  // compositor to the whole layer tree.
  MOZ_EXPORT void
 diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
-index c133d1a139..a711d5712e 100644
+index c133d1a139..f60c6f824f 100644
 --- a/widget/PuppetWidget.h
 +++ b/widget/PuppetWidget.h
 @@ -289,10 +289,14 @@ public:
@@ -1395,9 +1562,9 @@ index c133d1a139..a711d5712e 100644
 -                             int aWidth, int aHeight, int aRowLo, int aRowHi);
 -  int JihadComposePoll(uint32_t aToken, bool aWait, int* aInvLo, int* aInvHi);
 +                             int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo = 0, int aRow2Hi = 0, int aShift = 0,
-+                             const void* aSrc = nullptr);
-+  // aOut (8 ints, may be null): the rows the tree changed, the rows fixed layers cover, the two
-+  // bands read; aScrollOnly: the composite's only change was the card's scroll
++                             const void* aSrc = nullptr, int aSrcY = 0, bool aEngineShift = false);
++  // aOut (10 ints, may be null): the rows the tree changed, the rows fixed layers cover, the two
++  // bands read, the frame's position and its valid flag; aScrollOnly: the composite's only change was the card's scroll
 +  int JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly = nullptr);
    void JihadComposeForget(uint32_t aToken);
    void JihadComposeAbandonAll();

@@ -4619,14 +4619,14 @@ bool GoannaRenderPage::ComposeAsync() const {
 }
 
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
-                                        const unsigned char* src) {
+                                        const unsigned char* src, long srcY, bool engineShift) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = mHeight;
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return 0;
-  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src);
+  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY, engineShift ? 1 : 0);
   return token;
 }
 
@@ -4645,16 +4645,20 @@ void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuClea
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int o[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  int o[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   int scrollOnly = 0;
   const int r = jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
-  if (r == 2) return -3;   // composed, being read
+  if (r == 2) {             // composed, being read: its changed rows are known (round 116)
+    if (out) { out->invLo = o[0]; out->invHi = o[1]; }
+    return -3;
+  }
   if (r < 0) return -1;
   if (out) {
     out->invLo = o[0]; out->invHi = o[1]; out->fixedLo = o[2]; out->fixedHi = o[3];
     out->readLo = o[4]; out->readHi = o[5]; out->read2Lo = o[6]; out->read2Hi = o[7];
     out->scrollOnly = scrollOnly != 0;
+    out->frameY = o[8]; out->frameYValid = o[9] != 0;
   }
   if (!dst) return 0;   // drained, not published
   // the rows written: the first band through the frame-done work (the cache clean, the dumps,

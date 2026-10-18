@@ -404,6 +404,10 @@ private:
   long               mGpuStale2Lo[3] = {0, 0, 0}, mGpuStale2Hi[3] = {0, 0, 0};   // a second stale band
   long               mGpuFixedLo = 0, mGpuFixedHi = 0;   // the rows fixed layers cover, as last reported
   int                mGpuLatestSlot = -1, mGpuLatestKey = 0;   // round 113: the newest finished GPU frame
+  // round 116: a job started while another is composed (the two-deep queue) also reads the rows
+  // that one changed, and builds without the diff's scroll shift (its base is not the previous composite)
+  long               mGpuNextExtraLo = 0, mGpuNextExtraHi = 0;
+  bool               mGpuNextSecond = false;
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();

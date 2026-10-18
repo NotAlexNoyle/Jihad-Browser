@@ -57,3 +57,7 @@ viewport, a W/C/M read sequence), `JIHAD_GPU_WHITE=1` (the daemon's white row ru
 read), `JIHAD_GPU_KEEP_PB=1` / `JIHAD_GPU_PB_TARGETS=1` (the old pbuffer / target sizes, A/B),
 `JIHAD_GPU_ONE_TARGET=1`, `JIHAD_GPU_BAND_SURFACE=0` (bands stacked in the frame target instead of
 their own surface), `JIHAD_GPU_NO_DONE_FD=1` (no wake pipe).
+
+Rounds 113-117: `JIHAD_GPU_NO_LATEST=1` (no copy from the newest slot), `JIHAD_GPU_DIFFLOG=1` (the
+layers whose transforms moved, per composite), `JIHAD_GPU_ONE_DEEP=1` (no second job while one is
+composed). `pan-run.sh <name> <url> "<words>" none` measures a page for 12 s without a pan.

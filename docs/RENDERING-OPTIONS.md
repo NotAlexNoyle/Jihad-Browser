@@ -234,6 +234,12 @@ pan, the compositor-side scroll engaged by card pans only and settled after them
 eye. Diagnostics that found it (env, off by default): `JIHAD_GPU_CLEAR_MAGENTA`,
 `JIHAD_GPU_DRAWSTATS`, `JIHAD_GPU_WHITE`, `JIHAD_GPU_READ_VERIFY`, `JIHAD_GPU_DUMP_TARGET`.
 
+**Rounds 113-117:** each frame built from the newest finished slot (one whole read after an anchor
+move repairs the pipeline); the diff treats the root-content layer's scroll as a shift (a page's
+own scroll reads the entering band) and is scaled to frame pixels (a latent wrong-rows bug on
+fit-zoomed animated pages); the two-deep queue made correct and kept for still pages. The pan
+27-32 fps, the animation page 23.5-25, the self-scrolling page 11-14.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

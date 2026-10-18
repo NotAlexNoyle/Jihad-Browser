@@ -3418,7 +3418,24 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   static const bool sWhiteLog = getenv("JIHAD_GPU_WHITE") != nullptr;
   if (sWhiteLog) fprintf(stderr, "[jihad-gpu] white before job: slot %d (y %d -> %d, shift %ld, bands %ld..%ld %ld..%ld): rows%s\n",
                          slot, slot >= 0 ? mGpuSlotY[slot] : -1, y, shift, sLo, sHi, s2Lo, s2Hi, jihadWhiteRuns(pixels, w, h).c_str());
-  const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src);
+  if (mGpuNextExtraHi > mGpuNextExtraLo && !(sLo == 0 && sHi >= h)) {
+    // round 116: the rows the job in flight changed, into the two bands (the hull with the
+    // nearer one when they do not touch and both are taken)
+    const long a = mGpuNextExtraLo, b = mGpuNextExtraHi;
+    auto touches = [&](long lo, long hi) { return hi > lo && a <= hi && lo <= b; };
+    if (sHi <= sLo) { sLo = a; sHi = b; }
+    else if (touches(sLo, sHi)) { sLo = std::min(sLo, a); sHi = std::max(sHi, b); }
+    else if (s2Hi <= s2Lo) { s2Lo = a; s2Hi = b; }
+    else if (touches(s2Lo, s2Hi)) { s2Lo = std::min(s2Lo, a); s2Hi = std::max(s2Hi, b); }
+    else {
+      const long d1 = std::max(sLo, a) - std::min(sHi, b), d2 = std::max(s2Lo, a) - std::min(s2Hi, b);
+      if (d1 <= d2) { sLo = std::min(sLo, a); sHi = std::max(sHi, b); } else { s2Lo = std::min(s2Lo, a); s2Hi = std::max(s2Hi, b); }
+    }
+    if (s2Hi > s2Lo && sHi > sLo && s2Lo <= sHi && sLo <= s2Hi) { sLo = std::min(sLo, s2Lo); sHi = std::max(sHi, s2Hi); s2Lo = s2Hi = 0; }
+    if (s2Hi > s2Lo && s2Lo < sLo) { std::swap(sLo, s2Lo); std::swap(sHi, s2Hi); }
+  }
+  const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src,
+                                             src ? mGpuSlotY[mGpuLatestSlot] : 0, src != nullptr && !mGpuNextSecond);
   if (!token) return false;
   GpuJob j;
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
@@ -3430,6 +3447,11 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
 // The frame after the one in flight, into the slot after it, while the read thread has the
 // first: the compositor composes one frame while the other is read back.
 void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h, size_t segSize, size_t hdr) {
+  // A job started before the one in flight finished must read that job's changed rows (its base
+  // frame and its stale bands predate them: mGpuNextExtra, round 116) and builds on a frame that is
+  // not the previous composite, so it takes no shift from the diff (mGpuNextSecond).
+  static const bool sOneDeep = getenv("JIHAD_GPU_ONE_DEEP") != nullptr;   // round 116: on again, made correct
+  if (sOneDeep) return;
   if (mGpuJobs.size() != 1) return;
   static uint32_t sWhy[5] = {0, 0, 0, 0, 0};
   static int64_t sLastWhy = 0;
@@ -4151,7 +4173,22 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         const int r = mPage->ComposePoll(oldest.token, pixels, &cr);
         const long il = cr.invLo, ih = cr.invHi;
         if (r == -2 || r == -3) {
-          if (r == -3) gpuJobStartNext((int)bandX, (int)bandY, Zeff, w, h, segSize, hdr);
+          // round 116: the next job early only when nothing scrolls (an animated page gains the
+          // overlap); a scrolling frame waits, so the next builds on it with the diff's exact shift
+          if (r == -3 && oldest.shift == 0 && bandY == oldest.y && !mGpuCompositorScroll) {
+            // the composed job's changed rows are in ITS frame; the next job is at bandY: the hull
+            // of both readings (scrolled and fixed content), as the stale rule does
+            if (cr.invHi > cr.invLo) {
+              const long off = bandY - oldest.y;
+              mGpuNextExtraLo = std::max(0L, std::min(cr.invLo, cr.invLo - off));
+              mGpuNextExtraHi = std::min((long)h, std::max(cr.invHi, cr.invHi - off));
+            } else {
+              mGpuNextExtraLo = mGpuNextExtraHi = 0;
+            }
+            mGpuNextSecond = true;
+            gpuJobStartNext((int)bandX, (int)bandY, Zeff, w, h, segSize, hdr);
+            mGpuNextSecond = false; mGpuNextExtraLo = mGpuNextExtraHi = 0;
+          }
           ++mGpuJobPolls; mNeedsPaint = true;
           return;
         }
@@ -4180,7 +4217,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
         if (r >= 0 && gslot >= 0) {
           mGpuSlotValid[gslot] = true;
-          mGpuSlotX[gslot] = oldest.x; mGpuSlotY[gslot] = oldest.y; mGpuSlotZoom[gslot] = oldest.zoom;
+          // round 115: the position the engine composed it at, when a scroll of the page's own moved it
+          const int frameY = cr.frameYValid ? (int)cr.frameY : oldest.y;
+          mGpuSlotX[gslot] = oldest.x; mGpuSlotY[gslot] = frameY; mGpuSlotZoom[gslot] = oldest.zoom;
           mGpuSlotW[gslot] = oldest.w; mGpuSlotH[gslot] = oldest.h;
           mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;   // everything the slot lacked was read
           mGpuLatestSlot = gslot; mGpuLatestKey = oldest.key;   // round 113: the newest frame
@@ -4198,7 +4237,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
               continue;
             }
-            const long off = (long)oldest.y - mGpuSlotY[t];
+            const long off = (long)frameY - mGpuSlotY[t];
             long a = std::min(il, il + off), b = std::max(ih, ih + off);
             if (a < 0) a = 0;
             if (b > h) b = h;
@@ -4208,7 +4247,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           }
           gpuFinished = true;
           gpuT[0] = oldest.t0;
-          mGpuJobX = oldest.x; mGpuJobY = oldest.y; mGpuJobZoom = oldest.zoom;
+          mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
           // JIHAD_GPU_VERIFY=1 (device rounds): after a partial job, the same frame composed whole
           // into scratch and compared row by row; the runs of rows that differ are logged, so a
           // wrong shift, band or header shows as such

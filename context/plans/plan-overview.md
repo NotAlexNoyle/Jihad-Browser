@@ -35,4 +35,9 @@ inherit that task's remaining work and gating.
   schedulable and never sit in front of work that is. A daemon-level inject is never counted as
   the human test.
 
+- **Out of this plan: Global Jihad** (system-wide Goanna for every app) is a distinct project that
+  begins only when Jihad Browser is finished; its strategy and the device facts are in
+  `docs/PICKUP.md` ("After Jihad Browser: Global Jihad"). The bench is webOS CE 3.1.0 (updated
+  from 3.0.5) and the only one; stock-only work waits for the owner.
+
 Next: `/ck:make`. Judge any pacing task by the frame-gap HISTOGRAM, never by average fps.

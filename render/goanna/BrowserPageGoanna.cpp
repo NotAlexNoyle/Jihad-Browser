@@ -905,7 +905,10 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     // engine is scrolled every step (no painted rows to shift into)
     if (!mPage->GpuDisplayPortWanted()) { mPage->WantGpuDisplayPort(z); mGpuAnchorValid = false; }
     else if (!mPage->GpuDisplayPortOk()) { mPage->SetGpuViewport(z); mGpuAnchorValid = false; }
-    const double marginX = (mPage->Width() * 0.5 / z) * 0.6, marginY = (mPage->Height() / z) * 0.6;
+    // JIHAD_GPU_ANCHOR=<fraction of a height> (default 0.3, round 125): smaller, more frequent
+    // anchor moves paint less each time (the paint runs on this thread and stalls the frames)
+    static const double sAnchor = getenv("JIHAD_GPU_ANCHOR") ? atof(getenv("JIHAD_GPU_ANCHOR")) : 0.3;
+    const double marginX = (mPage->Width() * 0.5 / z) * 0.6, marginY = (mPage->Height() / z) * sAnchor;
     if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
       mPage->ScrollTo((int)wantX, (int)wantY);
       int sx = 0, sy = 0;

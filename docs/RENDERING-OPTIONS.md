@@ -244,6 +244,13 @@ fit-zoomed animated pages); the two-deep queue made correct and kept for still p
 band surface when its rows fit (the animation page 26-31 fps, the self-scrolling page 13.5-17.4);
 the displayport also from a page's own first scroll.
 
+**Rounds 120-125:** an anchor move during a pan was a whole frame because FrameLayerBuilder adds
+the BOUNDS of what it painted to the layer's invalid region: the new strips at both ends of the
+displayport spanned the frame. On the GPU path the region itself goes (`AddInvalidRegion`), and
+changed regions are clipped to the frame before their bounds are taken; anchor moves are now
+46-72-row band frames. The anchor distance is a knob (`JIHAD_GPU_ANCHOR`, 0.3 heights by default).
+The pan 26-33 fps.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

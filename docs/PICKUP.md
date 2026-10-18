@@ -131,8 +131,12 @@ is at the same scroll with little stale (an animated page). Measure a still or a
 
 
 **Left, in order:** (1) the owner's finger test of a real pan and flick (the entry is in
-`docs/FINGER-TESTS.md`); (2) an anchor move during a pan diffs as every row changed (find what the
-displayport move invalidates on screen; one whole frame per ~660 px today); (3) fixed rows as two intervals (a page with a fixed
+`docs/FINGER-TESTS.md`); (2) the pan's remaining long gaps (56 ms+, 2-8 per 2 s window): not the
+anchor moves any more (round 124: the painted region reaches the compositor as the region, not
+its bounds, and changed regions are clipped to the frame before their bounds, so an anchor move is
+a 46-72-row band frame) and not the anchor size (0.15/0.3/0.6 heights alike, round 125); one tick
+showed a 101 ms gap between ticks with no pump or paint, i.e. another main-loop source: trace the
+loop uncapped (the tick log stops at 120); (3) fixed rows as two intervals (a page with a fixed
 header AND a fixed footer reads the whole frame on every pan step); (3) a fourth shared buffer for the
 two-deep frame queue; (4) a damage rectangle in the frame header so the adapter invalidates and
 LunaSysMgr uploads only the band; (5) option 2 (WebGL through EGL); (6) prune the `[jihad-gpu]`

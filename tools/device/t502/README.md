@@ -63,3 +63,6 @@ layers whose transforms moved, per composite), `JIHAD_GPU_ONE_DEEP=1` (no second
 composed). `pan-run.sh <name> <url> "<words>" none` measures a page for 12 s without a pan.
 
 Round 119: `JIHAD_GPU_NO_DIFF_FIRST=1` (a tree change composes on the frame surface, as before).
+
+Round 125: `JIHAD_GPU_ANCHOR=<fraction of a height>` (how far the card's scroll goes from the engine's
+anchor before the engine is moved; 0.3 by default).

@@ -25,23 +25,24 @@ after its hand-off.
  gfx/gl/GLContext.h                            |   7 +
  gfx/gl/GLContextEGL.h                         |  13 +
  gfx/gl/GLContextProviderEGL.cpp               |  57 +++
- gfx/layers/LayerTreeInvalidation.cpp          |  57 +++
+ gfx/layers/LayerTreeInvalidation.cpp          |  77 ++++
  gfx/layers/LayerTreeInvalidation.h            |   7 +
  gfx/layers/Layers.cpp                         |  13 +-
  .../composite/AsyncCompositionManager.cpp     |  54 ++-
  .../composite/AsyncCompositionManager.h       |   6 +
- .../composite/LayerManagerComposite.cpp       |  61 +++-
+ .../composite/LayerManagerComposite.cpp       |  64 +++-
  gfx/layers/composite/LayerManagerComposite.h  |  16 +-
- gfx/layers/ipc/CompositorBridgeParent.cpp     | 333 ++++++++++++++++-
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 335 ++++++++++++++++-
  gfx/layers/ipc/CompositorBridgeParent.h       |   6 +
  gfx/layers/opengl/CompositorOGL.cpp           | 341 +++++++++++++++++-
  gfx/layers/opengl/CompositorOGL.h             |  46 ++-
+ layout/base/FrameLayerBuilder.cpp             |  10 +-
  layout/base/nsDisplayList.cpp                 |   9 +-
  layout/base/nsLayoutUtils.cpp                 |  37 ++
  layout/generic/nsGfxScrollFrame.cpp           |   9 +-
  widget/PuppetWidget.cpp                       |  80 +++-
  widget/PuppetWidget.h                         |  10 +-
- 19 files changed, 1109 insertions(+), 53 deletions(-)
+ 20 files changed, 1143 insertions(+), 54 deletions(-)
 
 diff --git a/gfx/gl/GLContext.h b/gfx/gl/GLContext.h
 index 0a79e95ef4..6ed41a87a1 100644
@@ -154,7 +155,7 @@ index db7675852d..18637e353b 100644
  GLContextEGL::MakeCurrentImpl(bool aForce) {
      if (IsDestroyed()) {
 diff --git a/gfx/layers/LayerTreeInvalidation.cpp b/gfx/layers/LayerTreeInvalidation.cpp
-index 5604fafee3..b18b3ae3c7 100644
+index 5604fafee3..3e5778e1b3 100644
 --- a/gfx/layers/LayerTreeInvalidation.cpp
 +++ b/gfx/layers/LayerTreeInvalidation.cpp
 @@ -3,6 +3,7 @@
@@ -188,7 +189,7 @@ index 5604fafee3..b18b3ae3c7 100644
  struct LayerPropertiesBase;
  UniquePtr<LayerPropertiesBase> CloneLayerTreePropertiesInternal(Layer* aRoot, bool aIsMask = false);
  
-@@ -181,6 +198,46 @@ public:
+@@ -181,6 +198,50 @@ public:
      bool transformChanged = !mTransform.FuzzyEqual(GetTransformForInvalidation(mLayer)) ||
                               mLayer->GetPostXScale() != mPostXScale ||
                               mLayer->GetPostYScale() != mPostYScale;
@@ -226,15 +227,42 @@ index 5604fafee3..b18b3ae3c7 100644
 +        const Matrix4x4 now = GetTransformForInvalidation(mLayer);
 +        const bool sameLinear = FuzzyEqual(now._11, mTransform._11) && FuzzyEqual(now._12, mTransform._12) &&
 +                                FuzzyEqual(now._21, mTransform._21) && FuzzyEqual(now._22, mTransform._22);
-+        fprintf(stderr, "[jihad-gpu] diff: layer %p (parent %p, type %d, fixed %d, metadata %u) transform moved by %.1f,%.1f%s; old ty %.1f new ty %.1f\n",
-+                mLayer, mLayer->GetParent(), (int)mLayer->GetType(), (int)mLayer->GetIsFixedPosition(),
-+                (unsigned)mLayer->GetScrollMetadataCount(), now._41 - mTransform._41, now._42 - mTransform._42,
++        const IntRect vb = mLayer->GetLocalVisibleRegion().ToUnknownRegion().GetBounds();
++        Layer* par = mLayer->GetParent();
++        fprintf(stderr, "[jihad-gpu] diff: layer %p (parent %p type %d metadata %u, type %d, fixed %d sticky %d, metadata %u, flags 0x%x, visible %d,%d %dx%d, clip %d) transform moved by %.1f,%.1f%s; old ty %.1f new ty %.1f\n",
++                mLayer, par, par ? (int)par->GetType() : -1, par ? (unsigned)par->GetScrollMetadataCount() : 0u,
++                (int)mLayer->GetType(), (int)mLayer->GetIsFixedPosition(), (int)mLayer->GetIsStickyPosition(),
++                (unsigned)mLayer->GetScrollMetadataCount(), (unsigned)mLayer->GetContentFlags(), vb.x, vb.y, vb.width, vb.height,
++                (int)!!mLayer->GetLocalClipRect(), now._41 - mTransform._41, now._42 - mTransform._42,
 +                sameLinear ? "" : " (and scaled)", mTransform._42, now._42);
 +      }
 +    }
      const Maybe<ParentLayerIntRect>& otherClip = mLayer->GetLocalClipRect();
      nsIntRegion result;
  
+@@ -234,6 +295,22 @@ public:
+       }
+     }
+ 
++    {
++      // Jihad T-502 diagnostic (JIHAD_GPU_DIFFLOG): a layer contributing a large change, and why
++      static const bool sDiffLog = getenv("JIHAD_GPU_DIFFLOG") != nullptr;
++      static uint32_t sBig = 0;
++      const IntRect rb = result.GetBounds();
++      if (sDiffLog && rb.height > 300 && sBig++ < 3000) {
++        const IntRect inv = mLayer->GetInvalidRegion().GetRegion().GetBounds();
++        const IntRect vOld = mVisibleRegion.GetBounds();
++        const IntRect vNew = mLayer->GetLocalVisibleRegion().ToUnknownRegion().GetBounds();
++        const Matrix4x4 now = GetTransformForInvalidation(mLayer);
++        fprintf(stderr, "[jihad-gpu] diff big: layer %p type %d metadata %u: result y %d..%d; transform changed %d (ty %.1f -> %.1f), invalid (layer) y %d..%d, visible old y %d..%d new y %d..%d, clip changed %d\n",
++                mLayer, (int)mLayer->GetType(), (unsigned)mLayer->GetScrollMetadataCount(), rb.y, rb.YMost(), (int)transformChanged,
++                mTransform._42, now._42, inv.y, inv.YMost(), vOld.y, vOld.YMost(), vNew.y, vNew.YMost(),
++                (int)(mUseClipRect && otherClip && !mClipRect.IsEqualInterior(*otherClip)));
++      }
++    }
+     mLayer->ClearInvalidRect();
+     return result;
+   }
 diff --git a/gfx/layers/LayerTreeInvalidation.h b/gfx/layers/LayerTreeInvalidation.h
 index 4c08f5245b..8ba08529e2 100644
 --- a/gfx/layers/LayerTreeInvalidation.h
@@ -385,7 +413,7 @@ index 98aaa964e7..5b7dbf176f 100644
    // This flag is set during a layers update, so that the first composition
    // after a layers update has it set. It is cleared after that first composition.
 diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
-index 5c8f003ffc..c8da9bcc65 100644
+index 5c8f003ffc..4233ad78ba 100644
 --- a/gfx/layers/composite/LayerManagerComposite.cpp
 +++ b/gfx/layers/composite/LayerManagerComposite.cpp
 @@ -4,6 +4,7 @@
@@ -459,7 +487,7 @@ index 5c8f003ffc..c8da9bcc65 100644
  
      if (mTarget) {
        // Since we're composing to an external target, we're not going to use
-@@ -465,10 +514,16 @@ LayerManagerComposite::UpdateAndRender()
+@@ -465,10 +514,19 @@ LayerManagerComposite::UpdateAndRender()
  
    // Jihad T-502: what the tree changed is reported as such; the rows the daemon will read are
    // composed as well (a partial, scissored composite covers exactly the rows read back).
@@ -468,7 +496,10 @@ index 5c8f003ffc..c8da9bcc65 100644
 +    invalid.SetEmpty();
 +    mJihadLastChanged = gfx::IntRect();
 +  } else {
-+    mJihadLastChanged = invalid.GetBounds();
++    // round 124: clipped to the frame before the bounds (two strips off the frame are not a change)
++    nsIntRegion onFrame;
++    onFrame.And(invalid, mRenderBounds);
++    mJihadLastChanged = onFrame.GetBounds();
 +  }
    mJihadPartialOn = false;
 -  if (!mJihadBand.IsEmpty() && !mTarget) {
@@ -514,7 +545,7 @@ index 64231fea60..63e20a972f 100644
    UniquePtr<LayerProperties> mClonedLayerTreeProperties;
  
 diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
-index 06d50599f3..c7ef866b0d 100644
+index 06d50599f3..ad7b0de348 100644
 --- a/gfx/layers/ipc/CompositorBridgeParent.cpp
 +++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
 @@ -17,6 +17,9 @@
@@ -562,7 +593,7 @@ index 06d50599f3..c7ef866b0d 100644
    const bool viewChanged = !mJihadWorldKnown || !(world == mJihadLastWorld) ||
                             mJihadLastSize != gfx::IntSize(aWidth, aHeight);
    if (viewChanged) {
-@@ -1336,42 +1353,338 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+@@ -1336,42 +1353,340 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
      mJihadLastSize = gfx::IntSize(aWidth, aHeight);
      mJihadWorldKnown = true;
    }
@@ -592,7 +623,9 @@ index 06d50599f3..c7ef866b0d 100644
 +      const nsIntRegion dfRegion = JihadDiffNow();
 +      mLayerManager->JihadCompensateScroll(false);
 +      diffTaken = true;
-+      const gfx::IntRect cb = dfRegion.GetBounds();
++      nsIntRegion dfOnFrame;
++      dfOnFrame.And(dfRegion, whole);   // round 124: clipped to the frame before the bounds
++      const gfx::IntRect cb = dfOnFrame.GetBounds();
 +      if (!cb.IsEmpty()) {
 +        dfInvLo = std::max(0, cb.y); dfInvHi = std::min(aHeight, cb.YMost());
 +        if (dfInvHi < dfInvLo) dfInvHi = dfInvLo;
@@ -1445,6 +1478,27 @@ index 104931ec17..d3d31d986e 100644
    int mJihadCur = 0;                                 // the target the next frame draws into
    mozilla::Atomic<int32_t> mJihadTargetBusy[2];      // handed to the read thread, not yet read
    mozilla::Monitor mJihadReadMon{"jihad-read"};
+diff --git a/layout/base/FrameLayerBuilder.cpp b/layout/base/FrameLayerBuilder.cpp
+index d23ca436c9..3978681065 100644
+--- a/layout/base/FrameLayerBuilder.cpp
++++ b/layout/base/FrameLayerBuilder.cpp
+@@ -6148,7 +6148,15 @@ FrameLayerBuilder::DrawPaintedLayer(PaintedLayer* aLayer,
+   }
+ 
+   if (!aRegionToInvalidate.IsEmpty()) {
+-    aLayer->AddInvalidRect(aRegionToInvalidate.GetBounds());
++    // Jihad T-502 round 124: on the offscreen GPU compositor the region itself, not its bounds:
++    // a scroll's repaint is a strip at each end of the displayport, both off the frame, and the
++    // bounds of the two spanned the whole frame (the compositor read every row back)
++    static const bool sJihadGpu = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++    if (sJihadGpu) {
++      aLayer->AddInvalidRegion(aRegionToInvalidate);
++    } else {
++      aLayer->AddInvalidRect(aRegionToInvalidate.GetBounds());
++    }
+   }
+ }
+ 
 diff --git a/layout/base/nsDisplayList.cpp b/layout/base/nsDisplayList.cpp
 index 766a3fa3e1..3f025bf757 100644
 --- a/layout/base/nsDisplayList.cpp

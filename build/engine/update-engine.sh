@@ -93,6 +93,7 @@ overlap() {
   rm -f -- "$up" "$ours"
 }
 apicheck() {   # apicheck TREE: the whole report; a FAIL stops
+  bash "$HERE/check-engine-calls.sh" || die "check-engine-calls.sh: a positional engine call outside render/goanna/EngineCalls.h (above)"
   python3 "$HERE/check-engine-api.py" --uxp "$1" ||
     die "check-engine-api.py FAILs above: fix them in $1 (git commit --fixup <commit>, then git rebase -i --autosquash $(state tag)), then --finish"
 }

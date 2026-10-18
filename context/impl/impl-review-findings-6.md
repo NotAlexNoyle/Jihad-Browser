@@ -910,3 +910,31 @@ Correct by the inspector's reading, kept: one instance (category cache + `do_Get
 start-up, the external content types, the domain walk and party, CSS cannot be injected, failure
 handling of the cache and the updater, the plain-stream fix itself, the Settings rows' safety, the
 packaging and the NOTICE entry (complete), taking the lists under GPLv3+.
+
+
+## Tier 74 tier gate (2026-10-18, the inspector; T-385, T-386, T-387, engine patch 0043)
+
+Verdict APPROVE: P0 0, P1 0, P2 4, P3 8. Dispositions:
+- **F-1 (P2) FIXED:** `build/engine/check-engine-calls.sh` skipped any line with `/*` and missed `->M (`
+  and split calls. Now Python: comments removed (inline and multi-line) keeping line numbers, the
+  call pattern allows whitespace and newlines; a planted commented call and a split call both fail
+  it; `update-engine.sh`'s API check runs it first.
+- **F-2 (P2) FIXED:** `personas_test.cpp`: the usedThemes check now compares usedThemes[0]'s name with
+  the Persona the status says is worn; the category check requires `rect=`. 7/7.
+- **F-3 (P2) FIXED:** the Vorbis case plays `tone15.ogg` (tone10.ogg is never made);
+  `build-media-test.sh` stops with "run make-media-assets.sh" when a clip is missing.
+- **F-4 (P2) FIXED:** `packaging/prefsui/content/preferences.js` reaches LightweightThemeManager and
+  AddonManager through `JihadEngine.jsm`; check 4b scans the settings pages too; `themeChanged` and
+  `getAddonsByTypes` are in the surface. Device: about:settings shows "None worn, 14 installed" and
+  "1 installed" extension.
+- P3 engine-loose-files.py silent on unmapped files — FIXED as a warning (stderr) for changed
+  non-native files that map to nothing (an .idl's .xpt would be named, not dropped).
+- P3 push-engine-update.sh pipefail when goanna.js is the only derived file — FIXED (`|| true`).
+  The tag-less submodule clone: left (the update procedure clones with tags).
+- P3 the purge's log line on desktop — FIXED ("no jemalloc in this build").
+- P3 media_test naming (the tap is at the video's centre) — FIXED.
+- P3 build-goanna.sh dead echo / duplicate registrations; the desktop dist now gets every
+  component; patch 0043's guard with both MOZ_X11 and headless; SURFACE's two lists unchecked
+  against each other; PANE_CSS's generic selectors — NOTED, not changed (no build has both
+  toolkits; the extra components are inert without their data; the cross-check is worth a T-512
+  item).

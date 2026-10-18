@@ -8,7 +8,7 @@
  * each clip (VP8, Theora, VP9) render/goanna/test/jihad-media-test.html plays it muted with its
  * controls and reports through its title; this asserts:
  *   - the controls' XBL binding attached (videocontrols, which our engine branch changes),
- *   - playback starts, a tap on the control bar's play button pauses it and another resumes it,
+ *   - playback starts, a tap on the video (its click-to-pause area) pauses it and another resumes it,
  *   - it plays to the end: currentTime reaches the duration and frames were decoded.
  * An audio-only clip (Vorbis) is played too when the container has a sound server.
  * JIHAD_MEDIA_NEG=1 asks for a clip that does not exist: the run must FAIL.
@@ -71,7 +71,7 @@ static void playClip(GoannaRenderPage& page, const char* testDir, const char* cl
   tap();
   const char* paused[] = { "paused", "ended", "error", nullptr };
   t = waitTitle(page, paused, 4);
-  check(starts(t, "paused"), (std::string(codec) + ": a tap on the play button pauses").c_str(), t);
+  check(starts(t, "paused"), (std::string(codec) + ": a tap on the video pauses").c_str(), t);
   page.PumpFor(1000);
   tap();
   const char* resumed[] = { "resumed", "ended", "error", nullptr };
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
       playClip(page, testDir, "clip10.ogv", "Theora");
       playClip(page, testDir, "clip10vp9.webm", "VP9");
       if (sound) {
-        std::string url = std::string("file://") + testDir + "/jihad-media-test.html?audio=1&src=tone10.ogg";
+        std::string url = std::string("file://") + testDir + "/jihad-media-test.html?audio=1&src=tone15.ogg";
         page.LoadUrlAndWait(url.c_str(), 20);
         const char* ended[] = { "ended", "error", nullptr };
         std::string t = waitTitle(page, ended, 25);

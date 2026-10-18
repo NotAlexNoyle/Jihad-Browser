@@ -77,8 +77,21 @@ int main(int argc, char** argv) {
     // this engine's LightweightThemeManager records the worn theme as isThemeSelected + usedThemes[0]
     std::string sel = DebugGetPref("lightweightThemes.isThemeSelected", 'b');
     check(sel == "true", "the theme manager wears it (isThemeSelected)", sel);
+    // usedThemes holds every installed theme: the one worn is its FIRST entry, named as the status says
     std::string used = DebugGetPref("lightweightThemes.usedThemes", 's');
-    check(used.size() > 2 && used[0] == '[' && has(used, "\"id\""), "it heads the theme manager's usedThemes", used.substr(0, 120));
+    std::string wornName;
+    if (said.compare(0, 8, "Wearing ") == 0 && said.size() > 9) wornName = said.substr(8, said.size() - 9);   // "Wearing NAME."
+    std::string firstName;
+    {
+      const size_t a = used.find("\"name\":\"");
+      const size_t obj = used.find('}');
+      if (a != std::string::npos && obj != std::string::npos && a < obj) {
+        const size_t b = used.find('"', a + 8);
+        if (b != std::string::npos) firstName = used.substr(a + 8, b - a - 8);
+      }
+    }
+    check(!wornName.empty() && firstName == wornName, "it heads the theme manager's usedThemes",
+          "first=" + firstName + " worn=" + wornName);
     std::string current = DebugGetPref("jihad.theme.current", 's');
     check(!current.empty(), "the cards' jihad.theme.current names it", current.substr(0, 120));
 
@@ -88,7 +101,7 @@ int main(int argc, char** argv) {
     page.PumpFor(3000);
     printf("[personas] about:addons load ok=%d title=[%s]\n", (int)loaded, page.GetTitle().c_str());
     std::string cat = DebugElementRect("sel:#category-theme[name=\"Personas\"]");
-    check(!has(cat, "(no element)") && !has(cat, "?"), "the theme category is called Personas", cat);
+    check(has(cat, "rect="), "the theme category is called Personas", cat);
     std::string box = DebugElementText("#jihad-themes-box", 500);
     const char* want = neg ? "no such pane text" : "In the gallery";
     check(has(box, want), "the pane's own box (the gallery link) is there", box.substr(0, 160));

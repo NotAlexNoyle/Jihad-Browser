@@ -304,10 +304,11 @@ def check(uxp, rep):
         else:
             rep.ok("%s (%d names)" % (f, len(needs)))
 
-    print("4b. components reach the engine's modules through JihadEngine.jsm")
-    comp_dir = os.path.join(REPO, "render", "goanna", "components")
+    print("4b. components and settings pages reach the engine's modules through JihadEngine.jsm")
     direct = []
-    for f in sorted(glob.glob(os.path.join(comp_dir, "*.js"))):
+    scripts = (glob.glob(os.path.join(REPO, "render", "goanna", "components", "*.js")) +
+               glob.glob(os.path.join(REPO, "packaging", "prefsui", "content", "*.js")))
+    for f in sorted(scripts):
         for n, line in enumerate(read(f).splitlines(), 1):
             if line.lstrip().startswith(("//", "*", "/*")):
                 continue

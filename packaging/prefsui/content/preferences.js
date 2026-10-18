@@ -1585,7 +1585,8 @@ function buildCertsSection(group) {
 //* The Browser pane. Not built from the pref table: these two settings live in one JSON
 //* pref and are edited as a form, so they get their own renderer.
 function themeManager() {
-	try { return Cu.import("resource://gre/modules/LightweightThemeManager.jsm", {}).LightweightThemeManager; }
+	// the engine's modules through one shim (cavekit-engine-update.md R4b)
+	try { return Cu.import("resource://gre/modules/JihadEngine.jsm", {}).JihadEngine.LightweightThemeManager; }
 	catch (e) { return null; }
 }
 
@@ -1692,7 +1693,7 @@ function buildAddonsSection() {
 	xrow.appendChild(goButton("Manage Extensions", "extensions-manage", function () { openAddons("addons://list/extension"); }));
 	box.appendChild(xrow);
 	try {
-		var AM = Cu.import("resource://gre/modules/AddonManager.jsm", {}).AddonManager;
+		var AM = Cu.import("resource://gre/modules/JihadEngine.jsm", {}).JihadEngine.AddonManager;
 		AM.getAddonsByTypes(["extension"], function (list) {
 			list = list || [];
 			var off = list.filter(function (a) { return !a.isActive; }).length;

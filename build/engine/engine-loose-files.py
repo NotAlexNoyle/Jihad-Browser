@@ -84,6 +84,14 @@ def main():
     if not m:
         sys.exit("engine-loose-files: no install records in " + o.objdir)
     out = []
+    # a changed file that is neither compiled into libxul nor mapped to a loose file is reported:
+    # it may ship by a route this mapping does not know (an .idl becomes an .xpt), and dropping it
+    # silently would leave the device stale (inspector, Tier 74 review)
+    native = (".cpp", ".c", ".cc", ".h", ".hh", ".mm", ".s", ".S", ".asm", ".ipdl", ".ipdlh", ".py",
+              ".mk", ".build", ".mozbuild", ".in", ".sh", ".configure", ".m4", ".txt", ".md", ".ini")
+    for src in sorted(changed):
+        if src not in m and not src.endswith(native) and "/test" not in src:
+            print("engine-loose-files: WARNING %s is changed by the branch but maps to no loose file" % src, file=sys.stderr)
     for src in sorted(changed):
         for dest in sorted(m.get(src, ())):
             if o.bundle and not os.path.exists(os.path.join(o.bundle, dest)):

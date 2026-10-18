@@ -10,6 +10,11 @@ DIST=/out/obj-jihad-goanna/dist
 SRC=/jihad/render/goanna
 OUT=/out/media_test
 [ -e "$DIST/bin/libxul.so" ] || { echo "ERROR: build the engine first"; exit 1; }
+# the clips are made, not committed (render/goanna/test/make-media-assets.sh): a missing one would
+# read as a decoder regression
+for c in clip10v.webm clip10.ogv clip10vp9.webm tone15.ogg; do
+  [ -s "$SRC/test/$c" ] || { echo "ERROR: $SRC/test/$c missing: run render/goanna/test/make-media-assets.sh"; exit 2; }
+done
 
 CXX=${CXX:-g++}
 GTK_CFLAGS=$(pkg-config --cflags gtk+-2.0 glib-2.0); GTK_LIBS=$(pkg-config --libs gtk+-2.0 glib-2.0)

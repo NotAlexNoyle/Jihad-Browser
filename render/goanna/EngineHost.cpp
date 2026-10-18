@@ -70,7 +70,9 @@ extern "C" void jemalloc_free_dirty_pages(void) __attribute__((weak));
 static void jihadPurgeHeap(const char* why) {
   if (jemalloc_free_dirty_pages) jemalloc_free_dirty_pages();
   int glibc = malloc_trim(0);
-  fprintf(stderr, "[jihad-bs] %s: heap purged (jemalloc dirty pages returned%s)\n", why, glibc ? ", glibc's arena trimmed too" : "");
+  fprintf(stderr, "[jihad-bs] %s: heap purged (%s%s)\n", why,
+          jemalloc_free_dirty_pages ? "jemalloc dirty pages returned" : "no jemalloc in this build",
+          glibc ? ", glibc's arena trimmed too" : "");
 }
 #include <cctype>                    // tolower (case-insensitive host match)
 

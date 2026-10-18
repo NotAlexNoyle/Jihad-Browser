@@ -84,7 +84,7 @@ say "libxul $(du -h "$TMP/libxul.so" | cut -f1) md5=$XUL_MD5; daemon $(du -h "$T
 . "$HERE/../engine/engine-version.env"
 ENGINE_LOOSE=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirname "$DIST")" --uxp "$HERE/../../third_party/uxp" \
                --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$BUNDLE") || die "could not derive the engine's loose files (engine-loose-files.py)"
-ENGINE_LOOSE=$(echo "$ENGINE_LOOSE" | grep -v '^goanna\.js$' | tr '\n' ' ')
+ENGINE_LOOSE=$(echo "$ENGINE_LOOSE" | { grep -v '^goanna\.js$' || true; } | tr '\n' ' ')
 say "the engine's loose files this branch changes: ${ENGINE_LOOSE:-none}"
 OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"

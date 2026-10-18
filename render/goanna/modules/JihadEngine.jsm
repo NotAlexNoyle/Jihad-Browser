@@ -12,7 +12,8 @@
  * build/engine/check-engine-api.py reads the SURFACE block below (the same JSON) to check a
  * candidate engine against exactly what the components use: one list, not two.
  *
- * Installed as resource://gre/modules/JihadEngine.jsm (modules/ in the GRE).
+ * Installed as resource://gre/modules/JihadEngine.jsm (modules/ in the GRE). The components
+ * (render/goanna/components) and the settings pages (packaging/prefsui/content) import it.
  */
 "use strict";
 
@@ -27,12 +28,12 @@ const SURFACE = {
       "url": "resource://gre/modules/LightweightThemeManager.jsm",
       "source": "toolkit/mozapps/extensions/LightweightThemeManager.jsm",
       "needs": ["parseTheme", "previewTheme", "resetPreview", "currentTheme", "usedThemes", "forgetUsedTheme",
-                "\"lightweightThemes.\"", "lightweight-theme-styling-update", "@personas.mozilla.org"]
+                "themeChanged", "\"lightweightThemes.\"", "lightweight-theme-styling-update", "@personas.mozilla.org"]
     },
     "AddonManager": {
       "url": "resource://gre/modules/AddonManager.jsm",
       "source": "toolkit/mozapps/extensions/AddonManager.jsm",
-      "needs": ["getInstallForFile", "getAddonByID", "addAddonListener"]
+      "needs": ["getInstallForFile", "getAddonByID", "addAddonListener", "getAddonsByTypes"]
     },
     "PermissionsUtils": {
       "url": "resource://gre/modules/PermissionsUtils.jsm",

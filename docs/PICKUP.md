@@ -18,20 +18,21 @@ down this file were measured on black frames and are superseded). The device scr
 `tools/device/t502/`. Traps: `docs/RENDERING-OPTIONS.md` (same section) and the memory
 `gpu-wedge-needs-a-reboot`.
 
-**Left undone, in order:** (1) fold the engine's temporary commit into patches 0040/0041
-(`third_party/uxp` head is a temp commit on top of `a58325d1`; `git reset --soft 706d4782ba`, then
-two commits by path: compositor/widget/dom/layout/libpref files → 0040, `gfx/gl/*` → 0041;
-`build/engine/patch-queue.sh --add` each, `update-engine.sh --pins`, the hash in
-docs/ENGINE-SOURCE.md); a build chain started at the end of the session (`spike87`, the read
-thread and fresh texture names made opt-in) amends that temp commit and makes the bundle: check
-`build/webos-oe/out-arm/bundle-gpu-spike87.log` says `bundle exit 0`, push it (`push-engine-update.sh
-enyo`) and run the three pages once with the defaults (`tools/device/t502/spike-run.sh`). (2) Merge
-`jihad/about-preferences-and-settings-merge` into `main` (the owner's rule: main is the only
-permanent branch) and push. (3) The compositor-side scroll, the fourth shared buffer, the damage
-rectangle in the frame header, then option 2 (WebGL). (4) Prune the `[jihad-gpu]` diagnostics.
-The device: the Enyo card carries the probing adapter (stock as `BrowserAdapterImpl.so.orig`),
-the `spike86` engine bundle, the latest daemon; Mochi and Mojo untouched; host servers 8077/8078
-still running.
+**Done on 2026-10-18 morning:** the engine's temporary commit is folded into patches 0040 (the
+compositor) and 0041 (the Adreno 220's GL), the diagnostics-only files restored; the patch queue
+reproduces the pin (`e0c04228`), `check-engine-pins.sh` says all agree; the device's Enyo card runs
+the bundle built from that tree (`116788fa`: animation page 21-26 fps, scroll page 13-15); the
+branch was fast-forwarded into `main` (the only permanent branch). The owner pushes `main` and
+force-pushes the engine fork's `jihad/uxp-RB_20261006` (its history was rewritten by the fold).
+
+**Left, in order:** (1) the compositor-side scroll (the scroll offset applied in the compositor
+inside the painted displayport, fixed layers kept still through `AsyncCompositionManager`; the
+engine scrolled only when the offset leaves the displayport), (2) a fourth shared buffer for the
+two-deep frame queue, (3) a damage rectangle in the frame header so the adapter invalidates and
+LunaSysMgr uploads only the band, (4) option 2 (WebGL through EGL), (5) prune the `[jihad-gpu]`
+diagnostics that remain in the engine (bounded, cheap). The device: the Enyo card carries the
+probing adapter (stock as `BrowserAdapterImpl.so.orig`); Mochi and Mojo untouched; host servers
+8077/8078 still running.
 
 
 **The owner, this morning:** the rendering report (the Claude doc "Jihad rendering options: speed

@@ -5,7 +5,8 @@ URL="${1:-http://192.168.1.245:8077/jihad-colors.html}"
 EXTRA=""; IOF=""
 PREFS_ADD=""
 GPREFS_ADD=""; GPUENV="JIHAD_GPU_COMPOSITOR=1"
-for w in ${2:-}; do case "$w" in IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; *) EXTRA="$EXTRA $w";; esac; done
+# novacom splits a quoted "$2" into separate args: every arg after the URL is a word
+for w in $(shift; echo "$@"); do case "$w" in IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; *) EXTRA="$EXTRA $w";; esac; done
 K=/sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction
 [ -n "$IOF" ] && [ -f $K ] && { echo "$IOF" > $K; echo "io_fraction now $(cat $K)"; }
 APP=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser

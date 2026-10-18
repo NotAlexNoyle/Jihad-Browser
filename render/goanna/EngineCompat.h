@@ -57,9 +57,10 @@ extern "C" {
   // changed), 0 pending, -1 failed; forget drops a token whose buffer went away.
   uint32_t jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
                                          int aStride, int aWidth, int aHeight, int aRowLo,
-                                         int aRowHi) __attribute__((weak));
-  int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aInvLo,
-                                   int* aInvHi) __attribute__((weak));
+                                         int aRowHi, int aRow2Lo, int aRow2Hi, int aShift) __attribute__((weak));
+  // aOut: eight ints (the rows the tree changed, the rows fixed layers cover, the two bands read)
+  int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
+                                   int* aScrollOnly) __attribute__((weak));
   void jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
   // OPTIONAL (T-502): the card's zoom and the visual viewport's residual offset (CSS px, what the
   // engine scroll could not reach), applied by the compositor to the whole layer tree.

@@ -368,9 +368,14 @@ public:
   // pending, -3 composed and being read (the next may start), -1 failed; invLo/invHi get the
   // rows the composite changed.
   bool ComposeAsync() const;
-  uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi);
+  // shift: rows the compositor thread moves the buffer by (memmove) before the read
+  uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0);
+  void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
-  int ComposePoll(uint32_t token, unsigned char* dst, long askLo, long askHi, long* invLo, long* invHi);
+  // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),
+  // the two bands read (read, read2), and whether the composite's only change was the scroll
+  struct ComposeResult { long invLo = 0, invHi = 0, fixedLo = 0, fixedHi = 0, readLo = 0, readHi = 0, read2Lo = 0, read2Hi = 0; bool scrollOnly = false; };
+  int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two
   // frames with the same id are of the same document, so rows of one can stand in the other.

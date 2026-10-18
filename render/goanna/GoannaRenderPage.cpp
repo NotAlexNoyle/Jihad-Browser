@@ -4528,6 +4528,21 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
     if (sLogged++ < 5 || ms >= 3) fprintf(stderr, "[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
   }
 #endif
+  // JIHAD_GPU_DUMP_EVERY=<n>: every nth published frame (counted here from 1), three at most,
+  // each as raw BGRA at <JIHAD_GPU_DUMP>-<frame>; a scripted pan's frames, which no screenshot
+  // shows (the card's own view does not move). One number: novacom mangles ':' and ','.
+  {
+    static const long sEvery = getenv("JIHAD_GPU_DUMP_EVERY") ? atol(getenv("JIHAD_GPU_DUMP_EVERY")) : 0;
+    static const char* sBase = getenv("JIHAD_GPU_DUMP") ? getenv("JIHAD_GPU_DUMP") : "/tmp/frame.raw";
+    static long sFrameNo = 0, sDumps = 0;
+    ++sFrameNo;
+    if (sEvery > 0 && sDumps < 3 && (sFrameNo % sEvery) == 0) {
+      char name[512]; snprintf(name, sizeof name, "%s-%ld", sBase, sFrameNo);
+      FILE* f = fopen(name, "wb");
+      if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); ++sDumps; fprintf(stderr, "[jihad-gpu] frame %ld dumped: %s (%dx%d BGRA)\n", sFrameNo, name, w, h); }
+      else fprintf(stderr, "[jihad-gpu] frame %ld dump failed: %s (%s)\n", sFrameNo, name, strerror(errno));
+    }
+  }
   // a device round's frame dump: JIHAD_GPU_DUMP=<path> writes the 5th frame as raw BGRA
   static const char* sDump = getenv("JIHAD_GPU_DUMP");
   static bool sDumped = false;
@@ -4586,40 +4601,52 @@ bool GoannaRenderPage::ComposeAsync() const {
   return mGpu && jihad_offscreen_compose_start && jihad_offscreen_compose_poll && jihad_offscreen_compose_forget;
 }
 
-uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi) {
+uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = mHeight;
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return 0;
-  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi);
+  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift);
   return token;
 }
 
-int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, long askLo, long askHi, long* invLo, long* invHi) {
+// T-502: the cache clean of rows another thread wrote (GpuFrameDone does the first band, with its logging)
+static void GpuCleanRows(unsigned char* dst, int w, int h, long lo, long hi) {
+  if (lo < 0) lo = 0;
+  if (hi > h) hi = h;
+#if defined(__arm__)
+  if (hi > lo) syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
+#else
+  (void)dst; (void)w; (void)lo; (void)hi;
+#endif
+}
+
+void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuCleanRows(dst, mWidth, mHeight, lo, hi); }
+
+int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int il = 0, ih = 0;
-  const int64_t pt0 = jihadInputNowMs();
-  const int r = jihad_offscreen_compose_poll(mWidget, token, &il, &ih);
-  const int64_t pt1 = jihadInputNowMs();
+  int o[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  int scrollOnly = 0;
+  const int r = jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
   if (r == 2) return -3;   // composed, being read
   if (r < 0) return -1;
-  struct DoneLog { int64_t t0, t1; ~DoneLog() {
-    static int sN = 0;
-    const int64_t t2 = jihadInputNowMs();
-    if (sN++ < 40 || t2 - t0 >= 10)
-      if (sN < 400) fprintf(stderr, "[jihad-gpu] poll done: engine poll %ld ms, frame-done work %ld ms\n", (long)(t1 - t0), (long)(t2 - t1));
-  } } doneLog{pt0, pt1};
-  if (invLo) *invLo = il;
-  if (invHi) *invHi = ih;
-  // the rows written: the band asked for, joined with what the composite changed
-  long lo = askLo, hi = askHi;
-  if (hi <= lo) { lo = il; hi = ih; }
-  else if (ih > il) { if (il < lo) lo = il; if (ih > hi) hi = ih; }
+  if (out) {
+    out->invLo = o[0]; out->invHi = o[1]; out->fixedLo = o[2]; out->fixedHi = o[3];
+    out->readLo = o[4]; out->readHi = o[5]; out->read2Lo = o[6]; out->read2Hi = o[7];
+    out->scrollOnly = scrollOnly != 0;
+  }
   if (!dst) return 0;   // drained, not published
-  return (int)GpuFrameDone(dst, mWidth, mHeight, lo, hi);
+  // the rows written: the first band through the frame-done work (the cache clean, the dumps,
+  // the sample), the second band's cache cleaned the same way
+  long nb = GpuFrameDone(dst, mWidth, mHeight, o[4], o[5]);
+  if (o[7] > o[6]) GpuCleanRows(dst, mWidth, mHeight, o[6], o[7]);
+  // a partial read (bands of a frame whose other rows the daemon kept or shifted in place)
+  // says nothing about the whole frame: never "blank"
+  if (nb == 0 && (o[4] > 0 || o[5] < mHeight)) nb = 1;
+  return (int)nb;
 }
 
 void GoannaRenderPage::ComposeForget(uint32_t token) {

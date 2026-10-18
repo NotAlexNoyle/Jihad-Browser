@@ -370,13 +370,14 @@ private:
   // shifts the content (jihad_offscreen_set_scroll), fixed layers stay. JIHAD_GPU_ENGINE_SCROLL
   // restores the per-step engine scroll.
   bool               mGpuAnchorValid = false;
+  bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
   int                mGpuAnchorX = 0, mGpuAnchorY = 0;
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and
   // the rows that changed since it was read (the next read of that slot is that band only).
   struct GpuJob {
     uint32_t token = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0; double zoom = 1.0;
-    int64_t t0 = 0; uint32_t seq = 0; long askLo = 0, askHi = 0;
+    int64_t t0 = 0; uint32_t seq = 0; long askLo = 0, askHi = 0, ask2Lo = 0, ask2Hi = 0, shift = 0;
   };
   std::vector<GpuJob> mGpuJobs;              // oldest first, at most two in flight
   bool gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h);
@@ -393,6 +394,8 @@ private:
   int                mGpuSlotW[3] = {0, 0, 0}, mGpuSlotH[3] = {0, 0, 0};
   double             mGpuSlotZoom[3] = {1.0, 1.0, 1.0};
   long               mGpuStaleLo[3] = {0, 0, 0}, mGpuStaleHi[3] = {0, 0, 0};
+  long               mGpuStale2Lo[3] = {0, 0, 0}, mGpuStale2Hi[3] = {0, 0, 0};   // a second stale band
+  long               mGpuFixedLo = 0, mGpuFixedHi = 0;   // the rows fixed layers cover, as last reported
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();

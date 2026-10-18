@@ -324,6 +324,54 @@ int main(int argc, char** argv) {
   }
   printf("CPU blend one 1024x768 ARGB layer over another (NEON): %.2f ms\n", (now_ms() - t) / frames);
 
+  // 9. T-502 round 91 (the compositor-side scroll reads ~100 rows a frame, and the first read
+  //    waits 18-24 ms for the GPU): the 4-layer composite into a BAND-sized FBO (768x96) with the
+  //    viewport offset so each layer's band rows land in it and nothing else is binned or
+  //    sampled, against the same into a frame-sized FBO (768x942); then all four opaque (no
+  //    blend state change between the draws), and one layer alone. Is a band-sized target the
+  //    way past the full-frame floor?
+  {
+    const int BW = 768, BH = 96, FW = 768, FH = 942;
+    GLuint fbo9[2], ftex9[2]; glGenFramebuffers(2, fbo9); glGenTextures(2, ftex9);
+    const int sz[2][2] = { {FW, FH}, {BW, BH} };
+    for (int i = 0; i < 2; i++) {
+      glBindTexture(GL_TEXTURE_2D, ftex9[i]); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sz[i][0], sz[i][1], 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo9[i]); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ftex9[i], 0);
+      printf("section 9 FBO %dx%d status=0x%x\n", sz[i][0], sz[i][1], glCheckFramebufferStatus(GL_FRAMEBUFFER));
+    }
+    uint8_t* band = malloc((size_t)FW * FH * 4);
+    const int reps = 8;
+    for (int variant = 0; variant < 3; variant++) {
+      for (int i = 0; i < 2; i++) {
+        double tDraw = 0, tRead = 0;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo9[i]);
+        // the band is rows FH-BH..FH of the frame: on the band target the viewport keeps the
+        // frame's size and is shifted up, so only those rows fall inside the FBO
+        if (i == 0) glViewport(0, 0, FW, FH); else glViewport(0, -(FH - BH), FW, FH);
+        for (int rep = 0; rep < reps + 1; rep++) {
+          double a = now_ms();
+          glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+          const int nl = variant == 2 ? 1 : 4;
+          for (int k2 = 0; k2 < nl; k2++) {
+            glBindTexture(GL_TEXTURE_2D, tex[k2]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            if (variant == 0 && k2 == 0) { glEnable(GL_BLEND); glUniform4f(um, 1, 1, 1, 0.5f); }
+          }
+          glFinish();
+          double b = now_ms();
+          glReadPixels(0, 0, BW, BH, GL_RGBA, GL_UNSIGNED_BYTE, band);
+          double c = now_ms();
+          if (rep > 0) { tDraw += b - a; tRead += c - b; }
+        }
+        glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+        printf("section 9 %s into %dx%d FBO (%s): draw+finish %.1f ms, read %d rows %.1f ms (err 0x%x)\n",
+               variant == 0 ? "4 layers (3 blended)" : variant == 1 ? "4 opaque layers" : "1 opaque layer",
+               sz[i][0], sz[i][1], i == 0 ? "whole" : "viewport offset to the band", tDraw / reps, BH, tRead / reps, glGetError());
+      }
+    }
+    free(band); glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
+    glDeleteFramebuffers(2, fbo9); glDeleteTextures(2, ftex9);
+  }
   // T-502: EGL_KHR_lock_surface (the device lists it): a lockable pbuffer can be MAPPED after
   // rendering, so the frame is read with memcpy instead of glReadPixels. Costed here with a
   // second context on a lock-capable config: render one layer, unbind, lock, copy, unlock.

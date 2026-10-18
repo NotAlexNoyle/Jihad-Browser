@@ -523,6 +523,12 @@ public:
   bool SetGpuScroll(double x, double y, bool valid);
   bool GpuDisplayPortOk() const { return mGpuDpOk; }   // T-502: the displayport is set on the current document
   bool mGpuDpOk = false;
+  // T-502 round 110: the displayport only for a page that scrolls (a still or animated page paid
+  // for painting 1.25 heights above and below every frame); per document
+  bool mGpuDpWanted = false;
+  bool GpuDisplayPortWanted() const { return mGpuDpWanted; }
+  void WantGpuDisplayPort(double zoom) { mGpuDpWanted = true; SetGpuViewport(zoom); }
+  void ResetGpuDisplayPort() { mGpuDpWanted = false; mGpuDpOk = false; }
 private:
   int mWidth;
   int mHeight;

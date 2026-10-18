@@ -73,6 +73,8 @@ extern "C" {
   // of the docshell's document, from layout itself; 0 on success (see nsLayoutUtils.cpp).
   int jihad_layout_set_displayport(nsIDocShell* aDocShell, float aLeft, float aTop, float aRight,
                                    float aBottom) __attribute__((weak));
+  // OPTIONAL (T-502 round 108): the fd the compositor writes a byte to when a compose job finishes.
+  void jihad_offscreen_set_done_fd(int aFd) __attribute__((weak));
   // OPTIONAL (T-502): the compositor's composite-request count; a frame is due when it moves.
   uint32_t jihad_offscreen_compositor_seq(nsIWidget* aWidget) __attribute__((weak));
   // OPTIONAL (patch 0012): the sticky content-invalidation flag, and its damage rectangle.
@@ -125,6 +127,7 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},
     {"jihad_offscreen_set_view", jihad_offscreen_set_view != nullptr},
     {"jihad_offscreen_set_scroll", jihad_offscreen_set_scroll != nullptr},
+    {"jihad_offscreen_set_done_fd", jihad_offscreen_set_done_fd != nullptr},
     {"jihad_layout_set_displayport", jihad_layout_set_displayport != nullptr},
     {"jihad_offscreen_take_dirty", jihad_offscreen_take_dirty != nullptr},
     {"jihad_offscreen_take_dirty_rect", jihad_offscreen_take_dirty_rect != nullptr},

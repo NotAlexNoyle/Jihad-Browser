@@ -4466,13 +4466,13 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // engine's scroll at 0.6 heights from the anchor (gpuScrollTo), so a pan has 0.65 heights of
   // painted rows in hand while the main thread paints the next displayport.
   const float mx = (float)mWidth * 0.5f, my = (float)mHeight * 1.25f;
-  if (!sNoDp) {
+  if (!sNoDp && mGpuDpWanted) {
     if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, mx, my, mx, my);
     else if (root) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
   }
   const bool ok = dp == 0;
   static int sLogged = 0;
-  if (ok != mGpuDpOk || sLogged < 6) {
+  if (mGpuDpWanted && (ok != mGpuDpOk || sLogged < 6)) {
     ++sLogged;
     fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, margins %dx%d screen px)\n",
             z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp, (int)mx, (int)my);

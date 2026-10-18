@@ -83,27 +83,36 @@ scripted pan). The numbers after the surface fix (rounds 95-100, bundle `574ff02
 21-25 fps, whole reads 19 fps, header still and at rows 0..44, the compositor's whole frames at a
 pinned scroll correct (`verify2b-*.jpg`).
 
-**THE OPEN BUG (read first):** about one composite in five comes back **white from frame row 484
-to 942** at any scroll (36 of 188 whole reads; `JIHAD_GPU_WHITE=1` logs the runs per job). Every
-composite's geometry is verified (`BeginFrame` log: render bounds, target and clip 768x942, no
-stray composites), a `glFinish` before the read (now default, 19 ms) changes nothing, the top 484
-rows are correctly placed, the row is scroll-independent, and 942-484 = 458 = 1400-942 (the
-pbuffer height minus the frame's). So the lower part of the frame is not DRAWN in those
-composites. Those white rows enter a slot as a band and then shift upward as a block (the
-gaps in `pan-*-frame-*.jpg`). Next: dump the target of a white whole frame AND the one before it
-(`JIHAD_GPU_DUMP_TARGET` fires on the first white pan frame; extend it to keep the previous
-composite), look at the compositor's per-layer draw for that frame (tiles drawn, the scissor of
-each draw, `CalculateScissorRect` results), and try `JIHAD_GPU_SURFACES=1` and the 1100x1400
-renderbuffer replaced by a 768x942 one (`mJihadPbSize` vs the frame: the 458 is suggestive).
-Until it is found the band path keeps old white rows; the whole-read path (`JIHAD_GPU_WHOLE=1`)
-shows one bad frame in five and is otherwise right.
+**Rounds 99-112 (2026-10-18, later): the white rows found and the pan made fast.** The "one
+composite in five white below row 484" was the Adreno 220 driver binning an FBO render by the
+EGL SURFACE's size: the frame (942 rows) composed into an FBO while the 1100x1400 pbuffer was
+current lost its bottom 1400-942 = 458 GL rows in some composites (every quad drawn, raw scissor
+and viewport correct, `glFinish` and a second read no help; a magenta clear proved those rows were
+never rasterized). The context's pbuffer is now the frame's size (`JihadUsePBufferOfSize`), and the
+rule is: every render target and viewport the same size as the current surface. Scroll-only
+frames compose their bands stacked on their own 768x256 pbuffer and FBO (`JihadBeginBandPass`;
+the switch INTO that surface costs 11-13 ms, so it stays current between band frames and a whole
+composite switches back), the 2.9 MB row shift runs while the GPU works, the compositor wakes the
+daemon's loop through a pipe the moment a job finishes (`jihad_offscreen_set_done_fd`), and the
+displayport is set from a page's first pan only (a still or animated page paid for 3.5 viewports
+of painting). The compositor-side scroll is engaged by a card-driven pan only and settles 300 ms
+after it (the engine scrolled to the card's position, the async scroll off); a scroll the page
+makes itself is followed as before. Also fixed: two reads of a job after its hand-off (a
+use-after-free race the wake pipe made frequent), and round 91's "a tree change makes the other
+slots stale whole" (an animated page read whole frames every frame).
 
+Measured on the bench (CE 3.1.0), frames verified by the dumps and by eye:
 
-**Left, in order:** (1) the pan's numbers after the intermediate-surface fix, verified by the
-frame dumps and `JIHAD_GPU_VERIFY=1`, then the owner's finger test of a real pan (the entry is in
-`docs/FINGER-TESTS.md`); (2) the daemon's poll latency on the band path (the job finishes in one
-compositor pass, so the two-deep queue never overlaps: start the next job in the same tick while a
-pan is in flight, a 2 ms tick while a GPU job is pending); (3) a fourth shared buffer for the
+| Page | Frame rate | Note |
+| --- | --- | --- |
+| `jihad-long-static.html`, scripted pan 0 → 3000 card px in 10 s | **25-31 fps** | frame gaps mostly 24-31 ms; header still; no white or repeated rows |
+| `jihad-anim-css.html` | 21-25 fps | only the changed rows (120..280) read |
+| `jihad-scroll-js.html` (the page scrolls itself) | 7-14 fps | a repaint per step, as before round 90; the card lags the page's scroll (pre-existing: round 86 showed it too) |
+
+**Left, in order:** (1) the owner's finger test of a real pan and flick (the entry is in
+`docs/FINGER-TESTS.md`); (2) fixed rows as two intervals (a page with a fixed header AND a fixed
+footer reads the whole frame on every pan step today); (3) the page's own smooth scrolls through
+the compositor (today a repaint per step); (3) a fourth shared buffer for the
 two-deep frame queue; (4) a damage rectangle in the frame header so the adapter invalidates and
 LunaSysMgr uploads only the band; (5) option 2 (WebGL through EGL); (6) prune the `[jihad-gpu]`
 diagnostics that remain in the engine and the daemon (bounded, cheap; the verify mode and the

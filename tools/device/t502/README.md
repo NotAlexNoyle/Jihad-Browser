@@ -48,3 +48,12 @@ verify pair written raw), `JIHAD_GPU_WHOLE=1` (every frame read whole), `JIHAD_G
 scaled container back on), `JIHAD_GPU_ENGINE_SCROLL=1` (the per-step engine scroll instead of the
 compositor's), `JIHAD_GPU_NO_DP=1` (no displayport), `JIHAD_GPU_READ_THREAD=1`, `JIHAD_GPU_PASS=1`,
 `JIHAD_GPU_FRESH_TEX=1`, `JIHAD_GPU_NO_FENCE=1` (the opt-in paths of 2026-10-17).
+
+Added in rounds 99-112: `JIHAD_GPU_CLEAR_MAGENTA=1` (frames cleared magenta: rows no draw reached
+show as such), `JIHAD_GPU_DRAWSTATS=1` (per composite: the window draws, raw vs cached scissor and
+viewport, a W/C/M read sequence), `JIHAD_GPU_WHITE=1` (the daemon's white row runs per job),
+`JIHAD_GPU_READ_VERIFY=1`, `JIHAD_GPU_READ_SCRATCH=1`, `JIHAD_GPU_READ_CHUNK=<rows>`,
+`JIHAD_GPU_DUMP_TARGET=<path>` (readback A/Bs), `JIHAD_GPU_READ_FINISH=1` (a glFinish before a
+read), `JIHAD_GPU_KEEP_PB=1` / `JIHAD_GPU_PB_TARGETS=1` (the old pbuffer / target sizes, A/B),
+`JIHAD_GPU_ONE_TARGET=1`, `JIHAD_GPU_BAND_SURFACE=0` (bands stacked in the frame target instead of
+their own surface), `JIHAD_GPU_NO_DONE_FD=1` (no wake pipe).

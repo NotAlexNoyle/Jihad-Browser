@@ -140,6 +140,18 @@ static void arm_tick(int ms) {
   g_tickArmedMs = ms;
 }
 
+// T-502 round 108: the compositor writes a byte to a pipe when a GPU compose job finishes; the
+// loop runs a tick at once, so the frame is published and the next job started without waiting
+// for the timer (the finished job used to sit 10-20 ms until the next tick found it).
+extern "C" void jihad_offscreen_set_done_fd(int aFd) __attribute__((weak));
+static gboolean gpu_done_cb(GIOChannel* ch, GIOCondition, gpointer) {
+  char buf[64];
+  const int fd = g_io_channel_unix_get_fd(ch);
+  while (read(fd, buf, sizeof buf) > 0) {}
+  if (g_server) g_server->tick();
+  return TRUE;
+}
+
 static void jihadWakeTick() {
   g_quietTicks = 0;
   // Already on a frame-class period (the page tick or the plugin tick): nothing to wake from.
@@ -336,6 +348,20 @@ int main(int argc, char** argv) {
   g_tickCtx = ctx; g_tickFastMs = tickMs;
   server.setWakeHook(jihadWakeTick);
   arm_tick(tickMs);       // starts fast; the first tick drops to idle if no card has connected
+  if (getenv("JIHAD_GPU_COMPOSITOR") && jihad_offscreen_set_done_fd && !getenv("JIHAD_GPU_NO_DONE_FD")) {
+    int p[2];
+    if (pipe(p) == 0) {
+      fcntl(p[0], F_SETFL, fcntl(p[0], F_GETFL) | O_NONBLOCK);
+      fcntl(p[1], F_SETFL, fcntl(p[1], F_GETFL) | O_NONBLOCK);
+      fcntl(p[0], F_SETFD, FD_CLOEXEC); fcntl(p[1], F_SETFD, FD_CLOEXEC);
+      jihad_offscreen_set_done_fd(p[1]);
+      GIOChannel* ch = g_io_channel_unix_new(p[0]);
+      GSource* src = g_io_create_watch(ch, G_IO_IN);
+      g_source_set_callback(src, (GSourceFunc)gpu_done_cb, nullptr, nullptr);
+      g_source_attach(src, ctx);
+      printf("[jihad-bs] GPU compose jobs wake the loop when done (pipe %d)\n", p[0]);
+    }
+  }
 
   // Log cap: checked every 30 s, on the same loop. At the worst rate ever measured (2.4 KB/s)
   // that is an overshoot of ~70 KB past the cap.

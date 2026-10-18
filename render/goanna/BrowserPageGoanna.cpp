@@ -631,6 +631,7 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+  if (mPage) mPage->ResetGpuDisplayPort();   // T-502 round 110: per document, from its first scroll
   mDamageValid = false; mDamageForceFull = true;
   if (!mPage) return;
   // The BrowserAdapter owns the shared framebuffer and its size (Codex P1/P2);
@@ -766,6 +767,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   // guaranteed first frame after thaw, not a rare one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+  if (mPage) mPage->ResetGpuDisplayPort();   // T-502 round 110: per document, from its first scroll
   mDamageValid = false; mDamageForceFull = true;
   mFrozen = false;
   if (mPage) mPage->SetActive(true);
@@ -809,6 +811,7 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   // the record has to be dropped explicitly.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+  if (mPage) mPage->ResetGpuDisplayPort();   // T-502 round 110: per document, from its first scroll
   mDamageValid = false; mDamageForceFull = true;
   // The old page's plugins are gone; their rects must not outlive them. The adapter never
   // clears mFlashRects itself, so leaving them behind makes the NEW page carry invisible
@@ -876,6 +879,19 @@ bool BrowserPageGoanna::panCovered(int x, int y) {
 // layout viewport allows (CSS px = zoomed px over the zoom); what it could not reach — a pinch-in
 // pan past the layout viewport's range — becomes the compositor's residual offset, so the whole
 // magnified page stays reachable without the engine's visual-viewport calls (which black the frame).
+void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
+  if (!mGpuCompositorScroll || !mPage) return;
+  const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  if (moveEngine) mPage->ScrollTo((int)(mAdapterScrollX / z), (int)(mAdapterScrollY / z));
+  mPage->SetGpuScroll(0.0, 0.0, false);
+  mGpuCompositorScroll = false;
+  mGpuAnchorValid = false;
+  mNeedsPaint = true;
+  static uint32_t sN = 0;
+  if (sN++ < 20 || (sN % 50) == 0)
+    fprintf(stderr, "[jihad-gpu] compositor scroll off (%s) at %d,%d\n", moveEngine ? "the pan settled, the engine moved there" : "the card follows the page", mAdapterScrollX, mAdapterScrollY);
+}
+
 void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
   const double wantX = x / z, wantY = y / z;
   static const bool sEngineScroll = getenv("JIHAD_GPU_ENGINE_SCROLL") != nullptr;
@@ -885,6 +901,10 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     // 1.25 heights of margin), and is moved, early, when it nears the edge; the compositor
     // applies the difference to the root scroll frame's content.
     // 0.6 of the displayport's 1.25 heights (SetGpuViewport): the rest is the paint's slack
+    // the displayport from the first scroll on (round 110); until the document takes it the
+    // engine is scrolled every step (no painted rows to shift into)
+    if (!mPage->GpuDisplayPortWanted()) { mPage->WantGpuDisplayPort(z); mGpuAnchorValid = false; }
+    else if (!mPage->GpuDisplayPortOk()) { mPage->SetGpuViewport(z); mGpuAnchorValid = false; }
     const double marginX = (mPage->Width() * 0.5 / z) * 0.6, marginY = (mPage->Height() / z) * 0.6;
     if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
       mPage->ScrollTo((int)wantX, (int)wantY);
@@ -914,6 +934,15 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
   if (!mPage) return;
+  if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL") &&
+      jihadNowMs() - mGpuEchoMs < 1500 && std::abs(x - mGpuEchoX) <= 2 && std::abs(y - mGpuEchoY) <= 2) {
+    // T-502: the card following a scroll the page made (our own msgScrolledTo): not a pan. The
+    // engine is already there (or further on); frames follow it.
+    mAdapterScrollX = x; mAdapterScrollY = y;
+    gpuDisengage(false);
+    mNeedsPaint = true;
+    return;
+  }
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
     // T-502: the compositor applies the card's scroll (CSS px = zoomed px over the zoom);
@@ -1037,7 +1066,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // right); the compositor composes the layer tree scaled and offset, and a scroll inside the
     // displayport is an empty transaction plus a composite.
     if (z != mGpuZoom) { mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false; }
-    else if (!mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // until the document takes it
+    else if (mPage->GpuDisplayPortWanted() && !mPage->GpuDisplayPortOk()) mPage->SetGpuViewport(z);   // until the document takes it
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, z);
     mNeedsPaint = true;
@@ -2540,6 +2569,7 @@ void BrowserPageGoanna::emitScrollIfChanged() {
       if (!emitGeometry()) return;
       fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (content-initiated)\n", sx, sy);
       mSink.msgScrolledTo(sx, sy);   // R4: scrolled-to (content-initiated)
+      mGpuEchoMs = jihadNowMs(); mGpuEchoX = sx; mGpuEchoY = sy;   // T-502: the card may follow it
     }
     mLastScrollX = sx; mLastScrollY = sy;
   }
@@ -3038,6 +3068,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
     if (emitGeometry() || ++mGeometryTries >= 20) { mGeometryDirty = false; mGeometryTries = 0; }
   }
   emitLoadAndLocation();
+  if (mGpuCompositorScroll && jihadNowMs() - mLastScrollMs > 300) gpuDisengage(true);   // T-502: the pan settled
   emitScrollIfChanged();
   syncPluginRects();
   drainPluginSpotlight();
@@ -3734,6 +3765,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // T-502: the frame is composed at the card's own scroll (the compositor applies it; the
     // engine's scroll is the anchor, the render pan is parked at 0), at any zoom
     bandX = mAdapterScrollX; bandY = mAdapterScrollY;
+  } else if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
+    // T-502: no pan in flight: the frame is at the engine's own scroll (the GPU path scrolls the
+    // engine at every zoom; the render pan stays 0), in card px
+    int ex = 0, ey = 0;
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { bandX = (long)(ex * Zeff + 0.5); bandY = (long)(ey * Zeff + 0.5); }
+    else bandKnown = false;
   } else if (zoomed) {
     double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
     bandX = (long)(px * Zeff + 0.5); bandY = (long)(py * Zeff + 0.5);
@@ -4109,12 +4146,25 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;   // everything the slot lacked was read
           mGpuStale2Lo[gslot] = mGpuStale2Hi[gslot] = 0;
           mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
-          // The other slots: a tree change (anything but the card's scroll) makes them stale
-          // whole, in their own frame space it would need translating; a scroll-only frame
-          // leaves them to their own shift when their turn comes.
+          // The other slots: the rows this frame's tree change touched are stale in them too. The
+          // rows are in this job's frame; in slot t's frame scrolled content sits off rows lower
+          // (off = this job's y - t's y) while fixed content sits where it is, and the daemon cannot
+          // tell which changed, so t takes the hull of both (exact when t has not scrolled, the
+          // common case on an animated page). A different zoom or x makes t stale whole. Round 91
+          // made every tree change stale-whole, so an animated page read whole frames every frame.
           for (int t = 0; t < 3; ++t) {
             if (t == gslot || !mGpuSlotValid[t] || ih <= il) continue;
-            mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
+            if (mGpuSlotZoom[t] != oldest.zoom || mGpuSlotX[t] != oldest.x) {
+              mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
+              continue;
+            }
+            const long off = (long)oldest.y - mGpuSlotY[t];
+            long a = std::min(il, il + off), b = std::max(ih, ih + off);
+            if (a < 0) a = 0;
+            if (b > h) b = h;
+            if (b <= a) continue;
+            if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = a; mGpuStaleHi[t] = b; }
+            else { if (a < mGpuStaleLo[t]) mGpuStaleLo[t] = a; if (b > mGpuStaleHi[t]) mGpuStaleHi[t] = b; }
           }
           gpuFinished = true;
           gpuT[0] = oldest.t0;

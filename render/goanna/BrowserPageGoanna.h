@@ -371,6 +371,13 @@ private:
   // restores the per-step engine scroll.
   bool               mGpuAnchorValid = false;
   bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
+  // T-502 round 112: the compositor-side scroll is engaged by a card-driven pan only. A
+  // setScrollPosition that follows a position this daemon just reported (msgScrolledTo) is the
+  // card catching up with the page's own scroll; the pan settles 300 ms after the card's last
+  // position (the engine scrolled to it, the async scroll off). Otherwise frames follow the engine.
+  int64_t            mGpuEchoMs = 0;
+  int                mGpuEchoX = 0, mGpuEchoY = 0;
+  void               gpuDisengage(bool moveEngine);
   int                mGpuAnchorX = 0, mGpuAnchorY = 0;
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and

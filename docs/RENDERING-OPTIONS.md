@@ -222,6 +222,18 @@ causes, found in that order:
 Measured after 1 and 2, before 3: 13-18 fps with the content moving and the header missing,
 composes of 17-29 ms (the surface pass). The numbers after 3 are in `docs/PICKUP.md`.
 
+**Rounds 99-112 (2026-10-18): the driver's surface rule, then 25-31 fps.** The white rows below
+frame row 484 in one composite of five were the Adreno 220 binning an FBO render by the current
+EGL surface's size (1400-row pbuffer, 942-row frame: the bottom 458 GL rows never rasterized;
+proved with a magenta clear, raw GL state checked, a second read, one target vs two, a
+frame-sized FBO). Fix: the context's pbuffer at the frame's size. Band frames on their own
+768x256 pbuffer and FBO (switching into it costs 11-13 ms, so it stays current), the row shift
+behind the GPU, a done-pipe that wakes the daemon's loop, the displayport only from a page's first
+pan, the compositor-side scroll engaged by card pans only and settled after them. The pan:
+25-31 fps (frame gaps mostly 24-31 ms), the animation page 21-25, frames verified by dumps and by
+eye. Diagnostics that found it (env, off by default): `JIHAD_GPU_CLEAR_MAGENTA`,
+`JIHAD_GPU_DRAWSTATS`, `JIHAD_GPU_WHITE`, `JIHAD_GPU_READ_VERIFY`, `JIHAD_GPU_DUMP_TARGET`.
+
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is
 bounded to 1 s now); a screenshot at a fixed delay shows the load phase (the counters on the test

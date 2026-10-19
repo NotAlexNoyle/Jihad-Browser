@@ -163,3 +163,11 @@ Build site: context/plans/build-site.md
 - T-385: positional engine-call wrappers — DONE. Wrappers existed (Tier 81); guard `build/engine/check-engine-calls.sh` added, found+fixed `test/embed_load.cpp` raw LoadURI (container compile P). Next: T-386.
 - T-386: engine JS surface shim — DONE. `render/goanna/modules/JihadEngine.jsm`, components through it, checker reads it (+ check 4b, mozconfig glob fix 1 h -> 36 s). Device Enyo about:addons + Personas view P. Commit e3e24178 (with T-387 parts 1-2).
 - T-387: install script, derived push list, desktop tests — DONE. Desktop engine RB_20261006 (patch 0043), personas 7/7, media 18/18, prefsui 38/38, negatives fail. Next: T-504 (zoom hold in progress: first frame at new zoom 50-600 ms, zoom out waits on page JS).
+
+### Iteration 2 — 2026-10-18
+- **Task:** T-504 — Zoom keeps up
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.cpp, engine patches 0044-0045 (gfx/gl/GLTextureImage.{h,cpp}, gfx/layers/opengl/CompositorOGL.cpp, gfx/layers/ipc/CompositorBridgeParent.cpp), render/goanna/test/enyo-selftest.js, tools/device/gpu-bench.c, tools/device/t502/zoom-run.sh + README
+- **Validation:** Build P (ARM libxul + daemon), device rounds 162-186; Acceptance 4/5 (the first frame ≤ 250 ms holds on settled pages, not while the page's script holds the main thread)
+- **Next:** T-505 — real-page pans and the main-thread gaps (frames made off the main thread, which also closes T-504's open criterion)

@@ -136,6 +136,56 @@ int main(int argc, char** argv) {
   uint8_t* tile = malloc(256 * 256 * 4); memset(tile, 0x80, 256 * 256 * 4);
   uint8_t* back = malloc((size_t)W * H * 4);
   GLuint tex[4]; glGenTextures(4, tex);
+  // 16. T-504: does a filter change after draws cost like a write (section 12)? With the zoom's
+  //     resolution the compositor drew tiles 1:1 (nearest) for a while, then scaled (linear): two
+  //     tile draws took 150 ms each. Textures drawn with one filter, the filter switched, the next
+  //     draw and its finish timed; with and without the 1x1 conversion. BENCH_ONLY=16.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 16) {
+    enum { NV = 6 };
+    uint8_t* src = malloc(256 * 256 * 4); memset(src, 0x80, 256 * 256 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    GLuint fb; glGenFramebuffers(1, &fb);
+    const char* names[4] = { "nearest -> linear", "linear -> nearest", "nearest -> linear, converted at 1x1", "linear kept (control)" };
+    for (int rep = 0; rep < 2; rep++) {
+      for (int variant = 0; variant < 4; variant++) {
+        GLuint tt[NV]; glGenTextures(NV, tt);
+        const GLint f0 = (variant == 1 || variant == 3) ? GL_LINEAR : GL_NEAREST, f1 = (variant == 1) ? GL_NEAREST : GL_LINEAR;
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          glTexParameteri(GL_TEXTURE_2D, 0x2802, 0x812F); glTexParameteri(GL_TEXTURE_2D, 0x2803, 0x812F);
+          if (variant == 2) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1, 1, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+            glBindFramebuffer(GL_FRAMEBUFFER, fb); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tt[k], 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0); glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+          }
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f0); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f0);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+        }
+        double first = 0;
+        for (int d = 0; d < 5; d++) {   // drawn a while with the first filter
+          const double a = now_ms();
+          for (int k = 0; k < NV; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+          glFinish();
+          if (d == 0) first = now_ms() - a;
+        }
+        double e[NV], sum = 0;
+        for (int k = 0; k < NV; k++) {
+          glBindTexture(GL_TEXTURE_2D, tt[k]);
+          const double a = now_ms();
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f1); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f1);
+          glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+          e[k] = now_ms() - a; sum += e[k];
+        }
+        char line[200]; int o = 0; for (int k = 0; k < NV && o < 180; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]);
+        printf("section 16 rep %d %s: the first draws %.1f ms (all %d), after the switch each draw+finish %s ms (avg %.1f)\n", rep, names[variant], first, NV, line, sum / NV);
+        glDeleteTextures(NV, tt);
+      }
+    }
+    glDeleteFramebuffers(1, &fb);
+    return 0;
+  }
   // 15. T-504: the cheapest 1x1 conversion an engine can do mid-frame (section 14): must the texture
   //     be SAMPLED by a draw, or does a clear of it through a framebuffer count? And without the
   //     glFinish, what does the 1x1 write cost? BENCH_ONLY=15.

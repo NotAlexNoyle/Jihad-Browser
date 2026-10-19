@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <admin@true-og.net>
+Date: Sun, 18 Oct 2026 21:31:29 -0400
+Subject: [PATCH] gpu compositor: no edge antialiasing for an axis-aligned
+ scale; slow composites and draws logged (JIHAD_GPU_PHASES)
+
+Gecko turns DEAA on for any transform that is not an integer translation, a plain scale included.
+Its shader variants are compiled on their first use, ~150 ms each on the Adreno 220: with the
+layers painted at the zoom's resolution the fit zoom drew every tile 1:1, so the first frame of a
+zoom compiled two of them (300-385 ms). On the GPU path (JIHAD_GPU_COMPOSITOR) an axis-aligned
+scale gets no DEAA (its edges stay axis-aligned); rotated and skewed layers keep it;
+JIHAD_GPU_DEAA=1 restores Gecko's rule. With JIHAD_GPU_PHASES a composite of 80 ms or more logs its
+own phases and a draw of 5 ms or more logs its effect, texture and size (bounded).
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 10 +++++++
+ gfx/layers/opengl/CompositorOGL.cpp       | 34 +++++++++++++++++++++--
+ 2 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index e778da582e..865fbff25c 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1183,6 +1183,8 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+ 
+   static const bool sJihadPhases = getenv("JIHAD_GPU_PHASES") != nullptr;
+   const TimeStamp jihadS0 = sJihadPhases ? TimeStamp::Now() : TimeStamp();
++  double jihadPhase0[12];   // T-504: this composite's own phases, logged when it is slow
++  if (sJihadPhases) for (int i = 0; i < 12; i++) jihadPhase0[i] = gJihadPhase[i];
+   if (aTarget) {
+     mLayerManager->BeginTransactionWithDrawTarget(aTarget, *aRect);
+   } else {
+@@ -1229,6 +1231,14 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+   mLayerManager->SetDebugOverlayWantsNextFrame(false);
+   mLayerManager->EndTransaction(time);
+   if (sJihadPhases && sJihadInCompose) {
++    const double all = (TimeStamp::Now() - jihadS0).ToMilliseconds();
++    static uint32_t sSlow = 0;
++    if (all >= 80.0 && sSlow++ < 40) {
++      double d[12];
++      for (int i = 0; i < 12; i++) d[i] = gJihadPhase[i] - jihadPhase0[i];
++      fprintf(stderr, "[jihad-gpu] slow composite %.0f ms: shadow props %.1f, async transforms %.1f, post-process %.1f, transforms+diff %.1f, begin frame %.1f, prepare %.1f, render layers %.1f (draws %.1f: %.0f calls, %.0f culled; uploads %.1f), end frame %.1f\n",
++              all, d[6], d[7], d[0], d[1], d[2], d[3], d[4], d[8], d[9], d[10], d[11], d[5]);
++    }
+     static uint32_t sN = 0;
+     if ((++sN % 20) == 0) {
+       size_t layers = 0, painted = 0;
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 3385675939..5e054e7669 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -1160,9 +1160,25 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
+ 
+   static const bool sJihadPhases = getenv("JIHAD_GPU_PHASES") != nullptr;
+   struct JihadDrawTimer {
+-    bool on; TimeStamp t;
+-    ~JihadDrawTimer() { if (on) { gJihadPhase[8] += (TimeStamp::Now() - t).ToMilliseconds(); gJihadPhase[9] += 1; } }
+-  } jihadDrawTimer{sJihadPhases, sJihadPhases ? TimeStamp::Now() : TimeStamp()};
++    bool on; TimeStamp t; const EffectChain& chain; const gfx::Matrix4x4& xf; const gfx::Rect& rect;
++    ~JihadDrawTimer() {
++      if (!on) return;
++      const double ms = (TimeStamp::Now() - t).ToMilliseconds();
++      gJihadPhase[8] += ms; gJihadPhase[9] += 1;
++      // T-504: a draw that blocks (the GL call waits in the driver), with what it drew
++      static uint32_t sSlow = 0;
++      if (ms >= 5.0 && sSlow++ < 80) {
++        const Effect* e = chain.mPrimaryEffect;
++        int tw = 0, th = 0;
++        if (e && (e->mType == EffectTypes::RGB)) {
++          if (TextureSource* src = static_cast<const TexturedEffect*>(e)->mTexture) { tw = src->GetSize().width; th = src->GetSize().height; }
++        }
++        const gfx::Rect dst = xf.TransformBounds(rect);
++        fprintf(stderr, "[jihad-gpu] slow draw %.1f ms: effect %d, texture %dx%d, %.0fx%.0f px drawn at %.0f,%.0f (scale %.3f)\n",
++                ms, e ? (int)e->mType : -1, tw, th, dst.width, dst.height, dst.x, dst.y, xf._11);
++      }
++    }
++  } jihadDrawTimer{sJihadPhases, sJihadPhases ? TimeStamp::Now() : TimeStamp(), aEffectChain, aTransform, aVisibleRect};
+ 
+   MakeCurrent();
+ 
+@@ -1307,6 +1323,18 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
+   // could be visible
+   bool bEnableAA = gfxPrefs::LayersDEAAEnabled() &&
+                    !aTransform.Is2DIntegerTranslation();
++  // Jihad T-504: on the GPU path an axis-aligned scale (the card's zoom, tiles painted at another
++  // resolution) gets no edge antialiasing: its edges stay axis-aligned, and DEAA's own shader
++  // variants were compiled on their first use, ~150 ms each on the Adreno 220, in the first frame
++  // of a zoom (two of them: the first frame at a new zoom took 300-385 ms). Rotated and skewed
++  // layers keep it.
++  static const bool sJihadGpu = getenv("JIHAD_GPU_COMPOSITOR") && !getenv("JIHAD_GPU_DEAA");
++  if (bEnableAA && sJihadGpu) {
++    gfx::Matrix m2;
++    if (aTransform.Is2D(&m2) && m2.PreservesAxisAlignedRectangles()) {
++      bEnableAA = false;
++    }
++  }
+ 
+   bool colorMatrix = aEffectChain.mSecondaryEffects[EffectTypes::COLOR_MATRIX];
+   ShaderConfigOGL config = GetShaderConfigFor(aEffectChain.mPrimaryEffect,

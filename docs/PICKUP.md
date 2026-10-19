@@ -52,6 +52,53 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
+
+**Engine-update readiness (T-385…T-387) done** and reviewed (the inspector, Tier 74: APPROVE, the
+four P2s and the cheap P3s fixed, `context/impl/impl-review-findings-6.md`). The desktop engine
+builds on RB_20261006 again (patch 0043); desktop tests `personas` 7/7, `media` 18/18, `prefsui`
+38/38.
+
+**T-504, zoom (rounds 162-186), the owner's "areas turn grey and zoom rendering lags":**
+- *The zoom hold:* on a zoom only the compositor's world transform and scroll change; the
+  displayport and the engine's anchor follow once a frame at the new zoom is out (or 800 ms). On a
+  settled page the first frame at a new zoom now comes 52-217 ms after the command (was 1.2-1.75 s).
+- *A grey strip, zoomed in:* the pan's settle moved the engine to the card's x, which a page whose
+  scroll port does not scroll sideways cannot reach (desktop Wikipedia at 1.23: x 245 CSS px), and
+  published frames at x 0 under a card at x 302. The compositor keeps the scroll the engine cannot
+  reach now.
+- *Tile uploads (engine 0044):* the "upload waits behind the GPU" of T-502 was wrong. On the Adreno
+  220 the **first write into a texture after its first draw** costs ~18 ms per 256x256 (proportional
+  to the size: 75 ms at 512, 285 at 1024), any format, once per texture; later writes cost ~1 ms,
+  under a queued draw too; a regenerated name pays again; the conversion survives a re-specification
+  at another size; a clear of the texture through a framebuffer triggers it without a wait
+  (`tools/device/gpu-bench.c` sections 11-16, `BENCH_ONLY=<n>`). New tile textures are converted at
+  1x1 (1-2 ms) and textures are pooled (`JIHAD_GPU_TEX_POOL`, 48). Wikipedia: 55-59 slow re-uploads
+  a zoom run (24-37 ms average) down to one. The pans gained too: desktop Wikipedia at its fit zoom
+  19-25 fps (T-503 left it at 16.4-18.5).
+- *Sharp zoomed text:* above a zoom of 1.1 the pres shell's resolution follows the zoom (no
+  scale-to: layout adds a post-scale, the geometry is unchanged), so tiles land one to one on the
+  card; below 1.1 the 1x paint stays (a fit zoom's resolution paints fewer pixels but resamples
+  every image and glyph on the CPU: the Wikipedia pan lost 3-5 fps). `JIHAD_GPU_NO_RES=1`.
+- *DEAA (engine 0045):* Gecko's edge antialiasing is on for any non-integer transform, a scale too;
+  its shader variants compile on first use, ~150 ms each on this GPU, and the first frame of a zoom
+  compiled two. No DEAA for axis-aligned scales on the GPU path (`JIHAD_GPU_DEAA=1` restores it).
+- *Tools:* the Enyo test hook's `t<x>,<y>` is a double tap (the adapter's smartZoom);
+  `JIHAD_GPU_ZOOM_DUMP=<path>` keeps the frame the card shows after each zoom; `JIHAD_GPU_PHASES`
+  logs slow composites and draws.
+
+**Open on T-504 (with T-505):** while the page's own script holds the main thread (desktop Wikipedia
+runs its modules for ~10 s after the load event) the daemon cannot read the zoom command at all:
+the first frame then takes 0.8-1.7 s, and pans stall the same way. The fix is frames made off the
+main thread (the compositor thread composes with the card's scroll and zoom and publishes itself);
+that is T-505's work, and it closes T-504's criterion.
+
+Traps found: the card's flick step (`f`) does not move a page (only a finger pans; the injected
+`pan` does); the device's `/tmp` filled with stale `.raw` dumps from earlier rounds and every
+`dev-sh.sh` then failed with "No space left on device" (remove them with `novacom run
+file:///bin/rm -- -f <each file>`; a `-c` string is split by novacom); a zoom injected through
+`inject.cmd` is not seen by the card (its frames are scaled to the card's own zoom).
+
 ## 2026-10-18 (evening) delta — the GPU path under Cavekit: Tier 87, T-503 done (READ FIRST)
 
 **The owner:** after a finger test on the GPU path (*"areas turn grey and zoom rendering of page

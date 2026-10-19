@@ -4504,6 +4504,28 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
             mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0);
   }
   mGpuDpOk = ok;
+  // T-504: zoomed in, the layers painted at the zoom's resolution. The pres shell's resolution
+  // without its scale-to (layout adds a post-scale of 1/resolution, the frame's geometry is
+  // unchanged): with the compositor's world transform at the same zoom, a tile's pixels land one to
+  // one on the card's, so zoomed-in text is as sharp as the software path's instead of a 1x paint
+  // magnified (desktop Wikipedia at 2.2, rounds 175-176). Layout, scrolling and events are
+  // untouched (the resolution scales them only with scale-to). The engine repaints every layer at
+  // the new resolution; the old tiles stay on the card until that paint's transaction replaces
+  // them. Not below 1.1: a fit zoom's resolution (0.69) paints fewer pixels but resamples every
+  // image and glyph on the CPU, and the scripted pan of desktop Wikipedia at its fit zoom lost
+  // 3-5 fps to the dearer anchor paints (round 183); a 1x paint scaled down on the GPU is the
+  // faster. JIHAD_GPU_NO_RES=1 keeps the 1x paint at every zoom.
+  static const bool sNoRes = getenv("JIHAD_GPU_NO_RES") != nullptr;
+  if (!sNoRes) {
+    const float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
+    float cur = 1.0f;
+    if (NS_SUCCEEDED(u->GetResolution(&cur)) && fabsf(cur - res) > 0.0005f) {
+      const nsresult rr = u->SetResolution(res);
+      static int sResLogged = 0;
+      if (sResLogged++ < 20)
+        fprintf(stderr, "[jihad-gpu] resolution %.4f -> %.4f (%s)\n", cur, res, NS_SUCCEEDED(rr) ? "set" : "FAILED");
+    }
+  }
   return true;
 }
 

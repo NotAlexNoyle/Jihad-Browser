@@ -88,3 +88,19 @@ T-504: `zoom-run.sh <name> <url> "<env>" "<zoom in>" "<zoom out>"` injects the c
 timeline. A pinch through the card's own gesture calls: `card-selftest.sh enyo push`, the spike
 start, then `card-selftest.sh enyo run "page:w10;g2.46,384,470;g0.41,384,470;w3" <url> 30 shot.jpg`.
 `JIHAD_GPU_NO_ZOOM_HOLD=1` restores the old zoom order; `JIHAD_GPU_ZOOMLOG=1` logs every tick of a hold.
+
+T-504, rounds 162-177: `JIHAD_GPU_ZOOM_DUMP=<path>` (every frame at the new zoom published in the 3 s
+after zoom n rewritten to `<path>.<n>`, n up to 6: the file ends as the frame the card shows at
+rest; pull and look at them with `check-frame.py <raw> 768 942 out.jpg`, then delete them: /tmp
+holds 40 MB and stale dumps filled it once), `JIHAD_GPU_TEX_POOL=<n>` (the engine's pool of tile
+textures, 48; 0 deletes them as before), `JIHAD_GPU_NO_TEX_CONVERT=1` (new tile textures not
+converted at 1x1: the Adreno's ~18 ms first write after a draw comes back),
+`JIHAD_GPU_NO_RES=1` (the layers painted at 1x and magnified, as before the zoom's resolution).
+The card's self-test hook (`render/goanna/test/enyo-selftest.js`) scripts a double tap with
+`t<x>,<y>` (the adapter's smartZoom) beside the pinch `g<scale>,<x>,<y>`.
+`tools/device/gpu-bench.c` sections 11-15 (`BENCH_ONLY=<n>`): back-to-back tile uploads, which
+writes wait, texture setups, the conversion kept across a re-specification, a clear-based conversion.
+Rounds 178-186: `JIHAD_GPU_DEAA=1` (Gecko's edge antialiasing for scaled layers back: its shader
+variants compile on first use, ~150 ms each); with `JIHAD_GPU_PHASES=1` a composite of 80 ms or more
+logs its own phases and a draw of 5 ms or more logs its effect, texture and size (bounded).
+`gpu-bench.c` section 16: a texture filter switch after draws (no cost).

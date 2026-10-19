@@ -139,7 +139,7 @@ Where a frame's time goes on the device (768×942, the clock floor held, `io_fra
 | Compose, GPU side | 18–32 ms for four full-screen layers | the bench: one opaque layer 12 ms, four 32; a scissor to 160 rows saves nothing (29 ms), a 160-row viewport is worse (38): the GPU is memory-bound at ~500 MB/s and resolves the whole target |
 | Read the frame back | 20–45 ms whole, 4–15 ms for 160 rows once the GPU is done | `glReadPixels` from the renderbuffer; RGBA only, BGRA reads refused |
 | RGBA→BGRA and the row flip | 5–7 ms whole, ~1 ms for 160 rows | NEON, in place, on the compositor thread |
-| A content upload | 8 ms for 768×942 BGRA with the GPU idle; **18–78 ms whatever the size while GPU work is pending** | any `glTexImage2D` waits for the queued composite; a fresh name waits too |
+| A content upload | 8 ms for 768×942 BGRA with the GPU idle; **18–78 ms whatever the size while GPU work is pending** | any `glTexImage2D` waits for the queued composite; a fresh name waits too. *Corrected 2026-10-18 (T-504): the wait is the driver converting a texture on its first write after its first draw (~18 ms per 256x256, once per texture); engine patch 0044 converts new tile textures at 1x1* |
 | The daemon's publish | 0–2 ms | the painted message, the slot bookkeeping |
 | The adapter / LunaSysMgr | ~33 ms cadence, a 2.9 MB card upload a frame | one buffer returned per painted message; three slots |
 
@@ -270,6 +270,12 @@ the draw culling fixed, stuck-sticky detection by probing the sticky ranges, the
 covering what the card shows, and a verify mode that changes nothing and tells sub-pixel
 resampling from structural errors. The account and the table: `docs/PICKUP.md`, 2026-10-18
 (evening) delta.
+
+**Rounds 162-186 (T-504, zoom):** the zoom hold (the first frame at a new zoom in 52-217 ms on a
+settled page), the zoomed-in settle's grey strip, the Adreno 220's first-write-after-draw texture
+conversion (engine 0044), the zoom's resolution above 1.1 (sharp zoomed text), no DEAA for
+axis-aligned scales (engine 0045). Desktop Wikipedia's pan at its fit zoom: 19-25 fps. The account:
+`docs/PICKUP.md`, 2026-10-18 (night) delta.
 
 Traps, for whoever continues: a GPU wait left unbounded wedged the driver for every process
 (the system UI crash-looped on `QFatal: EGL error`; only a reboot recovered — the fence wait is

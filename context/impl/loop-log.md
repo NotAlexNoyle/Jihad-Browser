@@ -276,3 +276,8 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P; patch-queue --check P (56); verify mode on main-lane Wikipedia pans (2 small overscan mismatches in 155 frames with the cull, 0 in 105 without: recorded); the default checks of all three interfaces pass; Wikipedia's 10 s pan 23.4-23.9 fps (R3's >= 24 not yet)
 - **Next:** the gaps that remain are the page's work (tile uploads queued on the compositor thread, script on the other core): moving uploads off the express frame's way
 
+
+### Iteration 16 — 2026-10-19
+- T-505/T-517: the page's tile uploads, partial uploads (bench 18), deferred uploads, a topped-up pool, own-slot base for all — none kept; band frame GPU-bound (r357). 23.2-24.1 fps. BLOCKED (circuit breaker; finger round + sensord load decide). Files: floor-r314-320.txt, bench18-r355.txt, dead-ends.md, gpu-bench.c §18, engine txn timer. Build P.
+- T-511: 480 px cube 19.5-20.9 card / 23.8-25.1 page (r358). BLOCKED with T-517.
+- Registry: T-517 added; T-512's deps no longer wait on T-504/T-505/T-511/T-517 (T-504 → T-514 → T-513 → T-512 was a cycle). Next: T-512.

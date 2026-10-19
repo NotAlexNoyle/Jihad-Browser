@@ -282,5 +282,15 @@ Measured on the bench and reverted; the rounds are in `docs/rounds/t502-2026-10-
 - **Reading a WebGL canvas's frame from its texture framebuffer**: 8-9 fps; through a canvas-sized pbuffer
   16-17; shared textures 21.5-25. **An EGLImage from a GL texture**: the driver refuses it
   (`EGL_BAD_PARAMETER`, gpu-bench.c section 17).
+- **Tile uploads deferred to the composite** (r351, T-505): the transaction got short and the frame long;
+  a new tile texture's conversion inside the render pass, after its draws, costs 10.7-11.9 ms against
+  1.0-1.3 in the transaction. **The texture pool topped up ahead** (r352): a conversion made ahead costs
+  6-7 ms. **The express lane on its own slot for every frame** (r353/r354, a test switch, wrong pixels
+  with sticky layers): its frames with the sticky chunks overflow the band surface; 21.7-23.8 fps against
+  23.4-23.9 copying.
+- **Partial tile uploads on the Adreno 220** (r355/r356, T-505): a small change sent as sub-images
+  (cheap with the GPU idle, `gpu-bench.c` section 18) reached only 38 of a Wikipedia pan's 167 uploads;
+  24.0 against 23.6 fps, the same time per upload. **Taking the base copy away** does not pay on
+  Wikipedia while the band frame is GPU-bound (r357: 5.3 ms of compose left after the 12 ms copy).
 - Measured, worth having later: **the adapter invalidating only the changed strip** (r304): a canvas
   animation +12 % on the card; needs the changed rect in the frame trailer.

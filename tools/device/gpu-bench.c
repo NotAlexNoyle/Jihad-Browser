@@ -145,6 +145,84 @@ int main(int argc, char** argv) {
   //     EGL_KHR_image but not EGL_KHR_gl_texture_2D_image: made in this context, bound in a second,
   //     unshared one with glEGLImageTargetTexture2DOES and read back through a framebuffer. If it
   //     works, a WebGL canvas can reach the compositor without a readback. BENCH_ONLY=17.
+  // 18. T-505: partial tile uploads. CanUploadSubTextures is false for the Adreno 220 since
+  //     2026-10-17 (twelve 256x256 sub-image updates of a 1024x768 texture cost 160 ms against 10),
+  //     measured before T-504 found the first write after a draw (sections 12-15). Into converted
+  //     256x256 tile textures (each written once after its first draw), each call timed: the whole
+  //     glTexImage2D the compositor makes now, a whole glTexSubImage2D, full-width strips of 64 and
+  //     16 rows, a 64x64 rect through a packed copy (GLES2 has no UNPACK_ROW_LENGTH; Gecko copies);
+  //     with the GPU idle and under a queued draw that reads them. Then round 4's case on a converted
+  //     1024x768 texture. BENCH_ONLY=18.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 18) {
+    enum { NT = 12 };
+    printf("section 18: GL_EXT_unpack_subimage=%d\n", ext && strstr(ext, "GL_EXT_unpack_subimage") != NULL);
+    uint8_t* src = malloc(1024 * 768 * 4); memset(src, 0x80, 1024 * 768 * 4);
+    uint8_t* packed = malloc(256 * 256 * 4);
+    glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+    GLuint tt[NT]; glGenTextures(NT, tt);
+    for (int k = 0; k < NT; k++) {
+      glBindTexture(GL_TEXTURE_2D, tt[k]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+    }
+    #define T18_DRAW() do { for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); } } while (0)
+    T18_DRAW(); glFinish();
+    for (int k = 0; k < NT; k++) { glBindTexture(GL_TEXTURE_2D, tt[k]); glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); }
+    T18_DRAW(); glFinish();   // converted: the first write after a draw is behind them
+    const char* names[5] = { "image 256x256 (now)", "sub 256x256", "sub 256x64 rows 96..160", "sub 256x16 rows 200..216", "sub 64x64 at 96,96 (packed copy)" };
+    for (int busy = 0; busy < 2; busy++) {
+      for (int rep = 0; rep < 3; rep++) {
+        for (int v = 0; v < 5; v++) {
+          T18_DRAW();
+          if (!busy) glFinish();
+          double e[NT], sum = 0;
+          for (int k = 0; k < NT; k++) {
+            glBindTexture(GL_TEXTURE_2D, tt[k]);
+            const double a = now_ms();
+            switch (v) {
+              case 0: glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); break;
+              case 1: glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src); break;
+              case 2: glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 96, 256, 64, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src + 96 * 1024); break;
+              case 3: glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 200, 256, 16, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src + 200 * 1024); break;
+              case 4: for (int r = 0; r < 64; r++) memcpy(packed + r * 256, src + (96 + r) * 1024 + 96 * 4, 256);
+                      glTexSubImage2D(GL_TEXTURE_2D, 0, 96, 96, 64, 64, GL_BGRA_EXT, GL_UNSIGNED_BYTE, packed); break;
+            }
+            e[k] = now_ms() - a; sum += e[k];
+          }
+          const double a = now_ms(); glFinish(); const double fin = now_ms() - a;
+          char line[400]; int o = 0;
+          for (int k = 0; k < NT && o < 380; k++) o += snprintf(line + o, sizeof line - o, "%s%.1f", k ? " " : "", e[k]);
+          printf("section 18 %s rep %d %s: %s ms (sum %.1f, then glFinish %.1f)\n", busy ? "under a queued draw" : "GPU idle", rep, names[v], line, sum, fin);
+        }
+      }
+    }
+    // round 4's case on a converted 1024x768 texture: twelve 256x256 sub-images against one image
+    GLuint big; glGenTextures(1, &big); glBindTexture(GL_TEXTURE_2D, big);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1024, 768, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1024, 768, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+    for (int rep = 0; rep < 3; rep++) {
+      double a = now_ms();
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 1024, 768, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src);
+      const double whole = now_ms() - a;
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      a = now_ms();
+      for (int k = 0; k < 12; k++) {
+        for (int r = 0; r < 256; r++) memcpy(packed + r * 1024, src + ((k / 4) * 256 + r) * 4096 + (k % 4) * 1024, 1024);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, (k % 4) * 256, (k / 4) * 256, 256, 256, GL_BGRA_EXT, GL_UNSIGNED_BYTE, packed);
+      }
+      const double subs = now_ms() - a;
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      a = now_ms();
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 300, 1024, 64, GL_BGRA_EXT, GL_UNSIGNED_BYTE, src + 300 * 4096);
+      const double strip = now_ms() - a;
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+      printf("section 18 converted 1024x768 rep %d: one image %.1f ms, twelve 256x256 sub-images %.1f ms, a 1024x64 strip %.1f ms\n", rep, whole, subs, strip);
+    }
+    glFinish();
+    return 0;
+  }
   if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 17) {
     typedef void* (*CreateImageFn)(EGLDisplay, EGLContext, unsigned, void*, const EGLint*);
     typedef EGLBoolean (*DestroyImageFn)(EGLDisplay, void*);

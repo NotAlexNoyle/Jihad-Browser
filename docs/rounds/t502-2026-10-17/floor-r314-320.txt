@@ -95,3 +95,39 @@ Rounds 342-348: fewer composites a frame, fewer tiles a composite (engine 0055, 
     frame despite the sticky panels (r348, a test switch, pixels wrong there): the compositor job 30.2 ms
     against 35.6 but the pan 23.9 fps against 23.7, so the engine work to make that base correct is not
     worth it while the page's own work sets the gaps
+
+Rounds 349-354: the page's own work on the compositor thread (2026-10-19 afternoon; recovered from the
+session's transcript after it died, the rates recomputed from the logs with the same 10 s measure)
+  the transaction timer (r349, r350; kept, on JIHAD_GPU_TIMELINE only): 23.2 and 23.7 fps. The page's layer
+    transactions hold the compositor thread 10-184 ms during the pan (r350: 20 of 3 ms or more, 834 ms in
+    all, 384 tile uploads taking 589 ms); the express frames queue behind them (queued p90 7 ms, max 93).
+    Every upload is a whole 256x256 glTexImage2D (CanUploadSubTextures is false for the Adreno 220),
+    ~1-2 ms with a new texture's 1x1 conversion. 4360 CSS px of pan need ~85 new tiles: most of the 384
+    are tiles uploaded again for a change
+  tile uploads deferred from the transaction to the tile's lock in the next composite (r351): 23.4; the
+    queue wait went and the jobs got longer: a new texture's conversion inside the frame's render pass,
+    after its draws, cost 10.7-11.9 ms (1.0-1.3 in the transaction)
+  the texture pool topped up ahead (converted textures made after each job and transaction, r352): 22.8;
+    a conversion made ahead costs 6-7 ms, not 1
+  the express lane on its own slot for every frame (r353, the test switch JIHAD_GPU_TEST_OWN_ALL=1, pixels
+    wrong with sticky layers): 21.7; own frames with the sticky columns' chunks overflow the 256-row band
+    surface (2-3 frames of entering rows and ~240 chunk rows) and take the whole path (a 768x1224 read,
+    40 ms); with a 384-row band surface (r354) 23.8, no better than copying (23.4-23.9)
+  reverted: all but the transaction timer
+
+Rounds 355-357: partial tile uploads, and where the band frame's time goes (2026-10-19 evening)
+  gpu-bench section 18 (bench18-r355.txt): into converted 256x256 tile textures with the GPU idle a
+    256x64 sub-image costs 0.1-0.4 ms against 0.7-1.2 for the whole image, 256x16 ~0.1; under a queued
+    draw that reads the texture a 256x64 strip costs 2.7-34 ms against 1.4-6.5 whole. A converted
+    1024x768 texture: twelve 256x256 sub-images 31-41 ms against 10 for one image, a full-width
+    1024x64 strip 0.6 ms. No GL_EXT_unpack_subimage. So round 4's "sub-images 16 times slower" was
+    mostly the first write after a draw (T-504), but holds for tile-sized pieces of a big texture
+  partial uploads (r355, a tile's change of at most a quarter of it as sub-images, against r356 with
+    every upload whole): 24.0 fps against 23.6; only 38 of the pan's 167 uploads were that small, the
+    upload time the same per upload (1.75 against 1.79 ms). Not kept
+  the GPU's share of a band frame (r357, JIHAD_GPU_READ_FINISH=1, a glFinish before each read): after
+    the 12 ms copy from the newest slot the GPU still has 5.3 ms of the compose left (median, p90 8.2);
+    the pixels' read itself 0.5 ms for the ~20 band rows. The band frame is GPU-bound: the compose
+    takes the GPU ~17 ms, so taking the copy away moves its time into the wait (as r348's own-slot run
+    showed: shift 3.2 ms, read 14.9). 24.1 fps
+  the 10 s pan this evening: 24.0, 23.6, 24.1 fps (r355-r357); since engine 0055/0056 23.2-24.1

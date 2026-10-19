@@ -71,3 +71,9 @@ that would not close, loads aborted. adapter-install.sh no longer sets the gate.
 Also found: the adapter (PDK gcc 4.3.3) had not built since T-515 (<mutex>/<atomic> in YapProxy.h):
 pthread locks now. Seen on the bench, not ours: sensord at 15-23 % CPU and atlas-sensord at ~3 % all
 the time (sensord has 389 CPU minutes).
+
+Round 358 (2026-10-19 evening, the build with engine 0055/0056): the 480 px cube 19.5-20.9 fps on the card,
+the page's own rate 23.8-25.1. Its 380-row change does not fit the 256-row band surface, so it is composed
+in the frame-sized target (768x1224) and read from there: the handoff (read, swizzle) 41-52 ms after a
+1.5-20.6 ms compose. The card cannot pass the page's own rate (~24), so 24 on the card needs every page
+frame delivered.

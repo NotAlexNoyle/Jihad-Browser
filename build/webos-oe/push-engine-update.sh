@@ -67,6 +67,15 @@ done
 [ -e "$DIST/bin/plugin-container" ] || die "no plugin-container at $DIST/bin — run build-goanna-arm.sh build"
 cp -L "$DIST/bin/plugin-container" "$TMP/plugin-container"
 "$STRIP" "$TMP/libxul.so" "$TMP/jihad-browserserver" "$TMP/libmozavutil.so" "$TMP/libmozavcodec.so" "$TMP/plugin-container" 2>/dev/null || true
+# FFmpeg's H.264/AAC/MP3 decoders (T-501), when built: they sit beside libxul like ffvpx and were
+# shipped only by a full install, so a device updated by this script since 2026-10-16 had none and
+# every MP4 was "format not supported" (T-508, 2026-10-19)
+FFM="$HERE/out-arm/ffmpeg-arm/lib"
+FFMPEG_LIBS=""
+if [ -f "$FFM/libavcodec.so.58" ] && [ -f "$FFM/libavutil.so.56" ]; then
+  for f in libavcodec.so.58 libavutil.so.56; do cp -L "$FFM/$f" "$TMP/$f"; done
+  FFMPEG_LIBS="libavcodec.so.58 libavutil.so.56"
+fi
 PC_MD5=$(md5sum "$TMP/plugin-container" | cut -c1-32)
 AVU_MD5=$(md5sum "$TMP/libmozavutil.so" | cut -c1-32)
 AVC_MD5=$(md5sum "$TMP/libmozavcodec.so" | cut -c1-32)
@@ -132,6 +141,12 @@ for v in $VARIANTS; do
     say "[$v] pushing ffvpx (libmozavutil, libmozavcodec)"
     push_verified "$TMP/libmozavutil.so" "$HL/.libmozavutil.so.new" "$AVU_MD5"
     push_verified "$TMP/libmozavcodec.so" "$HL/.libmozavcodec.so.new" "$AVC_MD5"
+    for f in $FFMPEG_LIBS; do
+      say "[$v] pushing $f"
+      push_verified "$TMP/$f" "$HL/.$f.new" "$(md5sum "$TMP/$f" | cut -c1-32)"
+      novacom run file://bin/mv -- "$HL/.$f.new" "$HL/$f"
+      novacom run file://bin/chmod -- 755 "$HL/$f"
+    done
     say "[$v] pushing plugin-container"
     push_verified "$TMP/plugin-container" "$HL/.plugin-container.new" "$PC_MD5"
     novacom run file://bin/mv -- "$HL/.libxul.so.new" "$HL/libxul.so"

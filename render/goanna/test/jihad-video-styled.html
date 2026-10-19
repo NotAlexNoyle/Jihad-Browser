@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-video-styled.html — cavekit-gpu-rendering.md R7 (T-508): video as pages style it. Three
+     copies of one clip (muted, looping): rounded corners (border-radius, a mask on the compositor),
+     an opacity fade (a CSS animation), and one under a modal (a translucent overlay and a dialog
+     box over it). ?src=<file> picks the clip (clip60v.webm by default). -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-video-styled</title>
+<style>
+  body { margin: 0; background: #2a2f3a; color: #eee; font: 18px sans-serif; }
+  .cell { position: relative; margin: 14px 16px; width: 480px; height: 270px; }
+  video { width: 480px; height: 270px; display: block; background: #000; }
+  #round video { border-radius: 60px; }
+  #fade video { animation: fade 3s ease-in-out infinite alternate; }
+  @keyframes fade { from { opacity: 1; } to { opacity: 0.15; } }
+  #modal .veil { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+  #modal .box { position: absolute; left: 90px; top: 70px; width: 300px; height: 130px; background: #f4f1e8;
+                color: #222; border-radius: 10px; padding: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.6); }
+  .label { margin: 10px 16px 0; color: #9cf; }
+</style></head>
+<body>
+<div class="label">rounded corners</div>
+<div class="cell" id="round"><video muted loop autoplay></video></div>
+<div class="label">an opacity fade</div>
+<div class="cell" id="fade"><video muted loop autoplay></video></div>
+<div class="label">under a modal</div>
+<div class="cell" id="modal"><video muted loop autoplay></video><div class="veil"></div><div class="box">A modal dialog over the video.</div></div>
+<script>
+  var q = /[?&]src=([^&]+)/.exec(location.search), src = q ? decodeURIComponent(q[1]) : "clip60v.webm";
+  [].forEach.call(document.querySelectorAll("video"), function (v) { v.src = src; var p = v.play(); if (p && p.catch) p.catch(function () {}); });
+</script>
+</body></html>

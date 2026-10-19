@@ -90,9 +90,9 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 
 ### R7: Video and plugins on the GPU path
 **Acceptance Criteria:**
-- [ ] `<video>` (VP8, Theora, H.264) plays to the end on the GPU path with its frames composited (the ImageBridge), at the video's own rate up to 24 fps, with no frame the software path would not show
-- [ ] Styled video works: rounded corners, an opacity fade, video under a modal (`render/goanna/test/` pages)
-- [ ] Flash (NPAPI windowless) draws, animates and takes input on the GPU path at its own bounds
+- [x] `<video>` (VP8, Theora, H.264) plays to the end on the GPU path with its frames composited (the ImageBridge), at the video's own rate up to 24 fps, with no frame the software path would not show *(2026-10-19, rounds 213-228 on `jihad-media-test.html`: VP8, Theora, VP9 and H.264 end with every frame decoded (150 and 148 of 150); the video is its own image layer (its planes uploaded as textures); 15 fps clips published at 16-20 fps, the 640x360 24 fps clip at 15.5-18 (the software path 10-15; the CPU's limit); a 60 s clip shot side by side with the software path frame for frame. H.264 had played on neither path: the update push never carried FFmpeg's libraries, now it does. Once in six runs the 640x360 clip never started (not reproduced in five more))*
+- [x] Styled video works: rounded corners, an opacity fade, video under a modal (`render/goanna/test/` pages) *(`jihad-video-styled.html`: rounded corners and the modal as on the software path; the fade's brightness moves 58-94 over four shots on the GPU path in four runs; `jihad-anim-opacity.html` fades a block and a video)*
+- [x] Flash (NPAPI windowless) draws, animates and takes input on the GPU path at its own bounds *(the device's test movies: `anim` moves at 21-25 published fps (software 25-27), `key` turns from green to red after a tap and two keys (the plugin's `handled=1`))*
 **Dependencies:** R2, gre-widgets (media), addons-extensions R7
 
 ### R8: WebGL through EGL (option 2)

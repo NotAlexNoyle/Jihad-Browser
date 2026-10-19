@@ -390,18 +390,18 @@ goes to the top while the engine has work, back after 2 s of idle ticks. **THE T
 reboot): writing `scaling_governor` wedged the kernel's cpufreq lock — every cpufreq read and
 every `luna-send` hung, `reboot` hung, only `novacom run file://sbin/reboot -- -f` got out; memory
 `cpufreq-governor-switch-wedges-the-touchpad`. A floor write is safe (tested with capped reads).
-T500_PICKUP
+Status: DONE (the build site's T-500 row).
 
 **T-501, H.264/AAC:** `build/webos-oe/fetch-ffmpeg.sh` (host, sha256 pinned) then
 `in-container.sh --arm build/webos-oe/build-ffmpeg-arm.sh` → `out-arm/ffmpeg-arm/lib/libavcodec.so.58`
 + `libavutil.so.56` (FFmpeg 4.4.5, H.264/AAC/MP3 decoders and parsers only, LGPL v2.1+, linked
 against the toolchain's own sysroot — the Debian one has no crt1.o). The bundle ships them when
 built; NOTICE and `licenses/runtime/ffmpeg-COPYING.LGPLv2.1`. Patents on H.264/AAC: the owner's
-call, noted in NOTICE. T501_PICKUP
+call, noted in NOTICE. Status: DONE; on 2026-10-19 a device updated only by `push-engine-update.sh` had lost the libraries (every MP4 refused) and the push now carries them: H.264, AAC and MP3 play to the end again.
 
 **T-499, the viewport:** `GoannaRenderPage::SetLayoutSize` + the once-per-page rule in
 `emitGeometry` (content wider than the card by 8 px, ≤ 1100 px, no meta viewport; pref
-`jihad.viewport.followOverflow`); reset on navigation and on `setWindowSize`. T499_PICKUP
+`jihad.viewport.followOverflow`); reset on navigation and on `setWindowSize`. Status: PARTIAL, open: the engine window resizes but the page still reads innerWidth 768 (the paint path restores the card's size).
 
 **Not solvable from here (the README's Caveats say so):** the device scope; the system's own TLS;
 WebGL (no GPU driver); Flash's availability; `palm-install`; Akamai's and Reddit's gates;

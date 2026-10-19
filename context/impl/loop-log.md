@@ -195,3 +195,11 @@ Build site: context/plans/build-site.md
 - **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/browserserver/JihadBrowserServer.cpp, render/goanna/test/enyo-selftest.js, render/goanna/test/jihad-card-events.html
 - **Validation:** Build P; device rounds 204-212 (screenshots looked at); Acceptance 3/3
 - **Next:** T-508 — video and Flash on the GPU path
+
+### Iteration 6 — 2026-10-19
+- **Task:** T-508 — video and Flash on the GPU path
+- **Tier:** 87
+- **Status:** DONE
+- **Files:** build/webos-oe/push-engine-update.sh, render/goanna/test/jihad-video-styled.html, jihad-anim-opacity.html, jihad-canplay.html; build site T-499..T-501 placeholders filled
+- **Validation:** device rounds 213-228 (titles, screenshots, brightness of the fade); Acceptance 3/3
+- **Next:** T-509 — safety and fit

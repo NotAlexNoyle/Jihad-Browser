@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-anim-opacity.html — T-508: an opacity fade (a CSS animation the compositor may run) on a
+     plain block (top) and on a playing video (bottom), on a page with nothing else changing. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-anim-opacity</title>
+<style>
+  body { margin: 0; background: #20242c; }
+  .fade { animation: fade 3s ease-in-out infinite alternate; }
+  @keyframes fade { from { opacity: 1; } to { opacity: 0.15; } }
+  #block { margin: 20px 16px; width: 480px; height: 270px; background: #f0f0f0; }
+  video { margin: 20px 16px; width: 480px; height: 270px; display: block; }
+</style></head>
+<body>
+<div id="block" class="fade"></div>
+<video class="fade" src="clip60v.webm" muted loop autoplay></video>
+<script>var v = document.querySelector("video"); var p = v.play(); if (p && p.catch) p.catch(function () {});</script>
+</body></html>

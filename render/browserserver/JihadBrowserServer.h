@@ -97,6 +97,12 @@ public:
   // keeps the tick at the quiet period while it did, so chrome-side work (an add-on install, a
   // pref flush) finishes in seconds rather than one event per idle second.
   bool idleHadWork() const { return mIdleHadWork; }
+  // T-515: a proxy's page without the activity mark and the wake hook pageFor() has (the YAP
+  // reader thread's express hook; the frame lock is held by the caller)
+  jihad::BrowserPageGoanna* pageQuiet(YapProxy* proxy) {
+    auto it = mPages.find(proxy);
+    return it == mPages.end() ? nullptr : it->second.page;
+  }
   void newPageRequested(YapProxy* proxy, const char* url);   // window.open -> msgCreatePage
   void setWakeHook(void (*hook)()) { mWakeHook = hook; }
   // See the definition: a thumbnail of the page the user is in, at its next paint.

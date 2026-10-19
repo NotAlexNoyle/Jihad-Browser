@@ -211,3 +211,12 @@ Build site: context/plans/build-site.md
 - **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.{cpp,h}, engine patch 0047, tools/device/t502/three-daemons*.sh
 - **Validation:** Build P; device rounds 229-232; Acceptance 4/4 (R1's two, R10's two)
 - **Next:** T-510 — the GPU path as the default (blocked by T-504's open criterion; T-515 first)
+
+### Iteration 8 — 2026-10-19
+- **Task:** T-515 — frames made off the main thread (the express lane)
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** render/browserserver/Yap/YapProxy.{h,cpp}, render/browserserver/JihadBrowserServer.{h,cpp}, render/goanna/JihadFrameLock.h, render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.{cpp,h}, render/goanna/EngineCompat.h, engine patch 0048, tools/device/t502/zoom-seq.sh, render/goanna/test/jihad-script-hold.html
+- **Validation:** Build P; device rounds 240-267; zooms under script 10/10 within 250 ms (Wikipedia after load, the script-hold page); script-hold pans 26-32 fps; no regression with it off (GPU 30-33, software 2.9-3.2); clean exit. Wikipedia pans 19-21 fps (open: T-517); double taps' slow draws (open: T-516)
+- **Next:** T-516 or T-517 (T-510 waits on T-504, which waits on T-516)
+

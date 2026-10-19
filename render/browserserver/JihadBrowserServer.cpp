@@ -4,12 +4,16 @@
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 namespace jihad { void GpuDumpRestart(); }   // GoannaRenderPage.cpp (T-502 round 133)
 namespace jihad { void MarkInputLatency(); }   // BrowserPageGoanna.cpp (T-506: input to the first changed frame)
+namespace jihad { void jihadTimelineMain(const char* what, long ms); }   // BrowserPageGoanna.cpp (T-515)
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 // A card connected or left → the engine side tells the components (render/goanna/EngineHost.cpp;
 // declared here as a plain prototype: EngineHost.h carries XPCOM headers this side is not built with).
 namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
+#include "../goanna/JihadFrameLock.h"      // T-515: the express lane's frame lock
+#include <YapDefs.h>                       // kMaxMsgLen (the inject pan's packets)
+#include <thread>
 #include <algorithm>
 #include <string>
 #include <cstdio>
@@ -71,9 +75,51 @@ void ProxySink::msgAddFlashRects(const char* j)    { mSrv->msgAddFlashRects(mPro
 void ProxySink::msgRemoveFlashRects(const char* j) { mSrv->msgRemoveFlashRects(mProxy, j); }
 
 // ---- server ----------------------------------------------------------------
+// T-515, the express lane (render/goanna/JihadFrameLock.h): each card's commands are read on a
+// thread of the YAP proxy's own. The card's scroll, zoom and returned buffers go to the page's
+// express lane there, at once (the frame lock taken); every command still reaches the main loop
+// as before, where the dispatch hook holds the frame lock around it.
+static JihadBrowserServer* sExpressServer = nullptr;
+// each proxy's page for the reader threads, under the want lock (JihadFrameLock.h): set at the
+// page's connect, dropped before its delete (reap)
+static std::map<YapProxy*, jihad::BrowserPageGoanna*>* sExpressPages = nullptr;
+static bool jihadExpressHook(YapProxy* proxy, const uint8_t* data, int len, uint32_t tag) {
+  if (!sExpressServer || !data || len < 3) return false;
+  YapPacket* pkt = YapProxy::wrapPacket(const_cast<uint8_t*>(data), len);
+  int16_t cmd = 0;
+  (*pkt) >> cmd;
+  if (cmd == 0x1500 || cmd == 0x150e) {   // SetScrollPosition, SetZoomAndScroll: the want lock only
+    double zoom = 0.0; int32_t cx = 0, cy = 0;
+    if (cmd == 0x150e) (*pkt) >> zoom;
+    (*pkt) >> cx; (*pkt) >> cy;
+    std::lock_guard<std::mutex> l(jihad::jihadWantLock());
+    auto it = sExpressPages ? sExpressPages->find(proxy) : std::map<YapProxy*, jihad::BrowserPageGoanna*>::iterator();
+    if (sExpressPages && it != sExpressPages->end()) it->second->expressWant(cx, cy, zoom, cmd == 0x150e, tag);
+  } else if (cmd == 0x150d) {             // ReturnBuffer: the frame lock, if it comes within 4 ms
+    int32_t key = 0;
+    (*pkt) >> key;
+    if (jihad::jihadFrameLock().tryLockFor(4)) {
+      if (jihad::BrowserPageGoanna* p = sExpressServer->pageQuiet(proxy)) p->expressReturn(key);
+      jihad::jihadFrameLock().unlock();
+    }
+  }
+  YapProxy::freePacket(pkt);
+  return false;   // the main loop handles it too (returnBuffer skips the clear made here)
+}
+static void jihadDispatchHook(bool begin) {
+  if (begin) jihad::jihadFrameLock().lock();
+  else jihad::jihadFrameLock().unlock();
+}
+
 JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host)
   : BrowserServerBase(name), mHost(host), mInTick(false) {
   jihad::SetDownloadSink(this);   // receive engine download/handoff callbacks
+  if (jihad::jihadExpressOn()) {
+    sExpressServer = this;
+    YapProxy::s_expressHook = &jihadExpressHook;
+    YapProxy::s_dispatchHook = &jihadDispatchHook;
+    printf("[jihad-bs] express lane: each card's commands read on a thread of its own (T-515)\n");
+  }
 #ifndef JIHAD_NO_INJECT
   // Resolve the self-drive channel ONCE (see the block above processInjectFile
   // for what it is and how to turn it on). Disabled resolves to "", which makes
@@ -85,6 +131,10 @@ JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host
 }
 
 JihadBrowserServer::~JihadBrowserServer() {
+  if (jihad::jihadExpressOn()) jihad::jihadExpressStop();   // T-515: before the lock (it waits for the thread's step)
+  jihad::FrameLockGuard frameLock;   // T-515
+  if (sExpressServer == this) sExpressServer = nullptr;
+  if (sExpressPages) { std::lock_guard<std::mutex> l(jihad::jihadWantLock()); sExpressPages->clear(); }
   jihad::SetDownloadSink(nullptr);   // clear before we (the sink) are destroyed
   for (auto& kv : mPages) { delete kv.second.page; delete kv.second.sink; }
   for (auto& e : mReap)   { delete e.page; delete e.sink; }
@@ -194,6 +244,11 @@ void JihadBrowserServer::reap(YapProxy* proxy) {
   if (it == mPages.end()) return;
   Page pg = it->second;
   mPages.erase(it);
+  if (sExpressPages) {   // T-515: out of the reader thread's reach before the delete
+    std::lock_guard<std::mutex> l(jihad::jihadWantLock());
+    sExpressPages->erase(proxy);
+  }
+  if (pg.page) pg.page->expressDetach();   // T-515: and the express thread's: the proxy goes now
   // F-1: RE-ELECT rather than null. mLastProxy is both the self-drive inject
   // target and the download fallback; clearing it when the newest card closed
   // meant every later download message — terminal included — was discarded even
@@ -307,7 +362,45 @@ void JihadBrowserServer::processInjectFile() {
       // T-502 device rounds: a scripted finger pan, y from x to y over n ms, a setScrollPosition
       // per tick (what the adapter sends for a drag)
       printf("[jihad-bs] inject pan %d -> %d over %d ms\n", x, y, n);
-      mPanPage = p; mPanY0 = x; mPanY1 = y; mPanMs = n > 0 ? n : 1; mPanT0 = jihadTickNowMs(); mPanActive = true;
+      YapProxy* panProxy = nullptr;
+      for (auto& kv : mPages) if (kv.second.page == p) panProxy = kv.first;
+      // a setScrollPosition for the adapter's drag (a write packet's buffer is kMaxMsgLen long)
+      auto scrollPacket = [](std::vector<uint8_t>& buf, int py) {
+        buf.assign(kMaxMsgLen, 0);
+        YapPacket* w = YapProxy::wrapPacket(buf.data(), 0);
+        (*w) << (int16_t)0x1500; (*w) << (int32_t)0; (*w) << (int32_t)py; (*w) << (int32_t)0; (*w) << (int32_t)0;
+        const int len = w->length();
+        YapProxy::freePacket(w);
+        return len;
+      };
+      std::vector<uint8_t> probe;
+      { const int plen = scrollPacket(probe, x);
+        if (!(jihad::jihadExpressOn() && panProxy && panProxy->injectAsync(probe.data(), plen))) panProxy = nullptr; }
+      if (panProxy) {
+        // T-515: the card's own path. A thread sends the setScrollPosition the adapter sends for a
+        // drag, every 16 ms, through the proxy's reader side (the express hook, then the main
+        // loop's queue), so the pan goes on while the main thread is busy, as a finger's does.
+        const int y0 = x, y1 = y, ms = n > 0 ? n : 1;
+        std::thread([this, panProxy, y0, y1, ms, scrollPacket]() {
+          const int64_t t0 = jihadTickNowMs();
+          std::vector<uint8_t> buf;
+          for (;;) {
+            const int64_t el = jihadTickNowMs() - t0;
+            const int py = el >= ms ? y1 : (int)(y0 + (y1 - y0) * (double)el / ms);
+            const int len = scrollPacket(buf, py);
+            {
+              jihad::FrameLockGuard frameLock;
+              if (mPages.find(panProxy) == mPages.end()) break;
+              panProxy->injectAsync(buf.data(), len);
+            }
+            if (el >= ms) break;
+            usleep(16000);
+          }
+          printf("[jihad-bs] inject pan done (the card's path)\n");
+        }).detach();
+      } else {
+        mPanPage = p; mPanY0 = x; mPanY1 = y; mPanMs = n > 0 ? n : 1; mPanT0 = jihadTickNowMs(); mPanActive = true;
+      }
       jihad::GpuDumpRestart();   // the frame dumps count from the pan's start
     } else if (sscanf(c.c_str(), "hold %d %d", &x, &y) == 2) {
       printf("[jihad-bs] inject hold %d,%d\n", x, y); p->holdAt(x, y);
@@ -509,8 +602,31 @@ void JihadBrowserServer::processInjectFile() {
       printf("[jihad-bs] inject size %dx%d\n", x, y); p->setWindowSize(x, y);
     } else if (c.find_first_not_of(" \t\r\n") != std::string::npos) {
       double z = 1.0;
-      if (sscanf(c.c_str(), "zoom %lf %d %d", &z, &x, &y) == 3) p->setZoomAndScroll(z, x, y);
-      else printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
+      int delayMs = 0;
+      if (sscanf(c.c_str(), "zoom %lf %d %d %d", &z, &x, &y, &delayMs) >= 3) {
+        // T-515: with the express lane, through the card's own path (the proxy's reader side), as
+        // a pinch arrives, on a thread after delayMs (so it lands while the page's script runs, as a
+        // card's command does: this file is read only when the main thread is free); else straight
+        // to the page as before
+        YapProxy* zp = nullptr;
+        for (auto& kv : mPages) if (kv.second.page == p) zp = kv.first;
+        bool sent = false;
+        if (jihad::jihadExpressOn() && zp) {
+          printf("[jihad-bs] inject zoom %.4f at %d,%d in %d ms (the card's path)\n", z, x, y, delayMs);
+          std::thread([this, zp, z, x, y, delayMs]() {
+            if (delayMs > 0) usleep((useconds_t)delayMs * 1000);
+            std::vector<uint8_t> buf(kMaxMsgLen, 0);
+            YapPacket* w = YapProxy::wrapPacket(buf.data(), 0);
+            (*w) << (int16_t)0x150e; (*w) << z; (*w) << (int32_t)x; (*w) << (int32_t)y;
+            const int len = w->length();
+            YapProxy::freePacket(w);
+            jihad::FrameLockGuard frameLock;
+            if (mPages.find(zp) != mPages.end()) zp->injectAsync(buf.data(), len);
+          }).detach();
+          sent = true;
+        }
+        if (!sent) p->setZoomAndScroll(z, x, y);
+      } else printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
     }
   }
 }
@@ -624,6 +740,7 @@ void JihadBrowserServer::tick() {
   // any re-entry — the outer tick still owns this cycle. (mInTick also defers
   // reap, so a connect/disconnect during nested pumping stays safe.)
   if (mInTick) return;
+  jihad::FrameLockGuard frameLock;   // T-515: let go of only around the engine's pump below
   mInTick = true;
 
   // Snapshot page pointers so a connect/disconnect during nested GLib pumping
@@ -705,9 +822,10 @@ void JihadBrowserServer::tick() {
   }
   for (auto* pg : snap) {
     int64_t a = jihadTickNowMs();
-    pg->pump(4, /*drainOnly*/true);
+    { jihad::FrameLockRelease unlocked; pg->pump(4, /*drainOnly*/true); }   // T-515: the page's script runs here
     int64_t b = jihadTickNowMs();
     pumpMs += b - a;
+    jihad::jihadTimelineMain("pump", (long)(b - a));   // T-515 device rounds
     pg->maybePaint();
     paintMs += jihadTickNowMs() - b;
     // Pull the next plugin frame. HERE and not inside maybePaint, because maybePaint is also
@@ -802,6 +920,11 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
     printf("[jihad-bs] page init FAILED\n"); delete page; delete sink; return;
   }
   mPages[proxy] = Page{ page, sink };
+  if (jihad::jihadExpressOn()) {   // T-515: the reader thread's way to the page
+    std::lock_guard<std::mutex> l(jihad::jihadWantLock());
+    if (!sExpressPages) sExpressPages = new std::map<YapProxy*, jihad::BrowserPageGoanna*>();
+    (*sExpressPages)[proxy] = page;
+  }
   mConnectOrder.push_back(proxy);
   mLastProxy = proxy;   // newest connect = active card = self-drive inject target
   if (mWakeHook) mWakeHook();   // a page exists now: leave the idle tick at once (Main.cpp)
@@ -1190,7 +1313,7 @@ void JihadBrowserServer::asyncCmdIgnoreMetaTags(YapProxy* proxy, bool ignore)
 void JihadBrowserServer::asyncCmdSetScrollPosition(YapProxy* proxy, int32_t cx, int32_t cy, int32_t cw, int32_t ch)
 {
   (void)cw; (void)ch; // cw/ch describe the content window; scroll uses cx/cy.
-  if (auto* p = pageFor(proxy)) p->setScrollPosition(cx, cy);
+  if (auto* p = pageFor(proxy)) { p->setScrollPosition(cx, cy); p->expressCommandDone(YapProxy::currentTag()); }   // T-515
 }
 
 // The confirmation leg of the fullscreen-plugin round trip: the plugin asks for fullscreen, the
@@ -1278,7 +1401,7 @@ void JihadBrowserServer::asyncCmdReturnBuffer(YapProxy* proxy, int32_t sharedBuf
 
 void JihadBrowserServer::asyncCmdSetZoomAndScroll(YapProxy* proxy, double zoom, int32_t cx, int32_t cy)
 {
-  if (auto* p = pageFor(proxy)) p->setZoomAndScroll(zoom, cx, cy);
+  if (auto* p = pageFor(proxy)) { p->setZoomAndScroll(zoom, cx, cy); p->expressCommandDone(YapProxy::currentTag()); }   // T-515
 }
 
 void JihadBrowserServer::asyncCmdScrollLayer(YapProxy* proxy, int32_t id, int32_t deltaX, int32_t deltaY)

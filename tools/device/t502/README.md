@@ -125,3 +125,23 @@ the GPU path up for the daemon's life); the engine's test switches `JIHAD_GPU_TE
 `JIHAD_GPU_TEST_STALL=<n>`; `three-daemons.sh gpu|soft` starts the three variants' daemons by hand
 on one path, opens a page in each and reports memory, idle CPU and LunaSysMgr's state;
 `three-daemons-restore.sh` puts the upstart jobs back.
+
+T-515, rounds 240-267 (the express lane: frames made off the main thread): `JIHAD_GPU_EXPRESS=1` with
+the GPU path (each card's YAP commands read on a thread of the proxy's own, the frame lock, an
+express thread that composes and publishes frames while the main thread is in the page's script or
+a layer paint; `render/goanna/JihadFrameLock.h` says how), `JIHAD_GPU_EXPRESS_MS=<ms>` (45: how long
+the card waits before the express lane fills a stall), `JIHAD_GPU_EXPRESS_AWAY_MS=<ms>` (15: how
+long the main thread has been in the engine first), `JIHAD_GPU_EXPRESS_LEAD_MS=<ms>` (120: while the
+card's last scroll or zoom is that recent the express lane makes every frame and the main lane paints
+layers only; 0 turns the lead off), `JIHAD_GPU_EXPRESS_EARLY=1` (the second frame posted right behind
+the first: no faster on Wikipedia, older frames), `JIHAD_GPU_TIMELINE=1` (`[jihad-tl] t=<ms>` per
+published frame of either lane and per long pump or layer paint, one clock),
+`JIHAD_GPU_ZOOM_DUMP=log` (the zoom timeline without the 3-4 MB frame files; with the express lane
+each main frame also says how long after the zoom ARRIVED). With the express lane the inject
+channel's `pan` and `zoom <z> <x> <y> [delay ms]` go through the card's own path (the proxy's reader
+side), on a thread, so they arrive while the main thread is busy as a card's do.
+`zoom-seq.sh <name> <url> "<env>" [n]` sends n zooms that way at five points of a page script's
+hold and prints each first frame from the zoom's arrival; `render/goanna/test/jihad-script-hold.html`
+holds the main thread 600 ms in every 700 (`?hold=<ms>&every=<ms>`; `?hold=0` off). Express off
+(`JIHAD_GPU_EXPRESS_MS=999999 JIHAD_GPU_EXPRESS_LEAD_MS=0` with it on) is the same timing path
+without its frames: the baseline.

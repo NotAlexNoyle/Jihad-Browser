@@ -16,6 +16,7 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
 #include "JihadCrashGuard.h"        // do not reopen a page that just killed the daemon twice
 #include "JihadCertStore.h"         // webOS platform certificate store (R5)
+#include "JihadFrameLock.h"         // T-515: the express lane's frame lock
 
 #include <cstdio>
 #include <sys/time.h>   // gettimeofday (paint render timing)
@@ -37,6 +38,11 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include <cstring>
 #include <algorithm>   // std::remove (live-page registry)
 #include <vector>
+#include <climits>              // LONG_MAX
+#include <set>                  // T-515: the express lane's pages
+#include <thread>
+#include <condition_variable>
+#include <chrono>
 
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
@@ -193,6 +199,11 @@ static void jihadStartAudioPoll() {
   if (pthread_create(&t, nullptr, jihadAudioPollThread, nullptr) == 0) { pthread_detach(t); }
 }
 
+// T-515: the express lane's pages (under the frame lock) and its thread (defined further down)
+static std::set<BrowserPageGoanna*>* gXPages = nullptr;
+static std::thread* gXThread = nullptr;   // under the frame lock
+static void jihadExpressThread();
+
 BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   : mHost(host), mSink(sink), mPage(nullptr),
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
@@ -219,6 +230,16 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   // this nothing implements DialogSink and every dialog silently takes its default.
   jihadLivePages().push_back(this);
   SetDialogSink(this);
+  if (jihadExpressOn()) {   // T-515
+    FrameLockGuard g;
+    if (!gXPages) {
+      gXPages = new std::set<BrowserPageGoanna*>();
+      gXThread = new std::thread(jihadExpressThread);
+      fprintf(stderr, "[jihad-gpu] express lane on: frames while the main thread is busy (after %s ms)\n",
+              getenv("JIHAD_GPU_EXPRESS_MS") ? getenv("JIHAD_GPU_EXPRESS_MS") : "45");
+    }
+    gXPages->insert(this);
+  }
   // Session certificates a previous daemon died holding are removed here, before
   // this page can install any of its own. It is idempotent and runs on the first
   // page ONLY, which is the earliest point this file owns; a daemon that never
@@ -341,6 +362,74 @@ static int64_t jihadNowMs() {
   return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+// T-515, the express lane: frames composed and published by a thread of their own while the main
+// thread is busy in the engine (JihadFrameLock.h says why). JIHAD_GPU_EXPRESS=1 with the GPU path
+// (JIHAD_GPU_COMPOSITOR); JIHAD_GPU_EXPRESS_MS (default 45) is how long the card waits for the main
+// lane's frame before the express lane makes one.
+// T-515 device rounds (JIHAD_GPU_TIMELINE=1): one line per published frame, either lane, and per
+// long engine call of the main thread, on one clock ("[jihad-tl] t=<ms>"), to see where gaps come from
+bool jihadTimelineOn() {
+  static const bool sOn = getenv("JIHAD_GPU_TIMELINE") != nullptr;
+  return sOn;
+}
+static int64_t gJihadTlLastPub = 0;
+static void jihadTimelinePublish(const char* lane, int64_t start, int y, double zoom) {
+  if (!jihadTimelineOn()) return;
+  const int64_t now = jihadNowMs();
+  fprintf(stderr, "[jihad-tl] t=%lld publish %s gap=%ld made=%ld y=%d zoom=%.4f\n", (long long)now, lane,
+          gJihadTlLastPub ? (long)(now - gJihadTlLastPub) : -1L, start ? (long)(now - start) : -1L, y, zoom);
+  gJihadTlLastPub = now;
+}
+void jihadTimelineMain(const char* what, long ms) {   // ms: how long it took, ending now
+  if (!jihadTimelineOn() || ms < 15) return;
+  fprintf(stderr, "[jihad-tl] t=%lld main %s %ld ms\n", (long long)jihadNowMs(), what, ms);
+}
+
+bool jihadExpressOn() {
+  static const bool sOn = getenv("JIHAD_GPU_EXPRESS") && atoi(getenv("JIHAD_GPU_EXPRESS")) != 0 &&
+                          getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
+  return sOn;
+}
+namespace {
+std::mutex gXWakeLock;
+std::condition_variable gXWake;
+bool gXKicked = false;
+bool gXQuit = false;              // under gXWakeLock
+void jihadExpressKick() {
+  { std::lock_guard<std::mutex> l(gXWakeLock); gXKicked = true; }
+  gXWake.notify_one();
+}
+// Each step under the frame lock, short (a decision, a post, a poll, a publish); between steps the
+// thread sleeps without it: 3 ms while a page has a frame in flight or a card waiting, else until
+// the next want.
+}  // namespace
+static void jihadExpressThread() {
+  bool soon = false;
+  for (;;) {
+    {
+      std::unique_lock<std::mutex> l(gXWakeLock);
+      if (!gXKicked && !gXQuit) gXWake.wait_for(l, std::chrono::milliseconds(soon ? 3 : 1000));
+      gXKicked = false;
+      if (gXQuit) return;
+    }
+    FrameLockGuard g;
+    soon = false;
+    const int64_t now = jihadNowMs();
+    if (gXPages) for (BrowserPageGoanna* p : *gXPages) soon = p->expressStep(now) || soon;
+  }
+}
+
+// The daemon's exit: the thread ends before the statics it uses go away.
+void jihadExpressStop() {
+  std::thread* t;
+  { FrameLockGuard g; t = gXThread; gXThread = nullptr; }
+  if (!t) return;
+  { std::lock_guard<std::mutex> l(gXWakeLock); gXQuit = true; }
+  gXWake.notify_one();
+  t->join();
+  delete t;
+}
+
 // The address as it may go to the card: at most 8 KiB. A page can make its own URL as long as it
 // likes (history.replaceState with a 20 000-character query) and the YAP packet is a fixed
 // 16 KiB, in which an oversized field is skipped while the ones after it are still written —
@@ -419,6 +508,8 @@ int BrowserPageGoanna::slotForKey(int key) const {
 // completed paints stayed pinned at ~26/s).
 void BrowserPageGoanna::setExtraBuffer(int key3, int size) {
   if (!key3) return;
+  FrameLockGuard frameLock;   // T-515
+  xInvalidate();
   // Must match the pair we already have, or the rotation would hand the adapter a buffer of a
   // different size than the header it reads describes.
   if (size > 0 && mBufSize > 0 && size != mBufSize) {
@@ -476,7 +567,9 @@ unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
 }
 
 void BrowserPageGoanna::detachShm() {
-  gpuJobDrain();   // T-502
+  FrameLockGuard frameLock;   // T-515
+  gpuJobDrain();   // T-502 (and the express lane's frame, T-515)
+  xInvalidate();
   for (int i = 0; i < 3; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; }
 }
 
@@ -529,6 +622,9 @@ bool BrowserPageGoanna::writeThumbnail(const unsigned char* src, int w, int h, c
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
+  // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
+  FrameLockGuard frameLock;
+  if (gXPages) gXPages->erase(this);
   // Never leave the process-wide sink pointing at a destroyed page — and never take it away
   // from a page that is still alive. If this page owned the dialogs they pass to the newest
   // remaining one; if it did not (an older card closing while a newer one is open), nothing
@@ -624,6 +720,8 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 }
 
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
+  FrameLockGuard frameLock;   // T-515
+  xInvalidate();
   mGpuZoom = 0.0;   // T-502: the scroll port follows the card size; set again at the next zoom
   mGpuAnchorValid = false;
   mLayoutFollowed = false;   // T-499: a new card size (rotation) starts from a layout viewport equal to it
@@ -738,6 +836,7 @@ void BrowserPageGoanna::freeze() {
   // Drop the cached shm attachments too: the production segments are IPC_RMID-marked,
   // so holding an attach keeps them alive and can exhaust the device's scarce shared
   // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
+  FrameLockGuard frameLock;   // T-515
   mFrozen = true;
   if (mPage) mPage->SetActive(false);    // a background card is a background tab: timers clamped, no frames
   detachShm();
@@ -754,7 +853,9 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   // keys may be SHMIDs (isis) or ftok keys (test adapter) &mdash; validate via the resolver.
   if (ok) for (int k : { key1, key2 }) { if (k && jihadShmResolve(k) < 0) ok = false; }
   if (!ok) return;   // remain frozen; keep the old (already-detached) keys inactive
+  FrameLockGuard frameLock;   // T-515
   detachShm();       // the buffers may be new segments — drop stale cached attachments
+  mXConsumed[0] = mXConsumed[1] = mXConsumed[2] = 0;
   mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
   mKey3 = 0;   // re-announced by the adapter after thaw; the old third segment may be gone
   mInFlight[0] = mInFlight[1] = mInFlight[2] = false;   // reattached (possibly new) segments: clear in flight (F-211)
@@ -785,7 +886,8 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
   // adapter (in LunaSysMgr) crashed. If a queued paint was deferred waiting on this return,
   // paint it now so the latest frame lands promptly instead of on the next tick.
   int s = slotForKey(sharedBufferKey);
-  if (s >= 0) mInFlight[s] = false;
+  if (s >= 0 && mXConsumed[s] > 0) --mXConsumed[s];   // T-515: the express hook applied this return already
+  else if (s >= 0) mInFlight[s] = false;
   if (mNeedsPaint && !mFrozen) maybePaint();
 }
 
@@ -804,6 +906,7 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
 // scroll on back/forward either (restoreFrameStateRequested is an empty stub), so calling this
 // from all five nav commands reproduces stock exactly.
 void BrowserPageGoanna::resetScrollForNavigation() {
+  FrameLockGuard frameLock;   // T-515: called from the pump too (a page's own navigation)
   mLayoutFollowed = false;   // T-499: the next page decides its own layout viewport
   // A new document invalidates both buffers wholesale. The damage-only path proves its
   // premise from geometry (size, zoom, scroll), and a navigation can leave every one of
@@ -977,6 +1080,8 @@ void MarkInputLatency() { gJihadInputMarkMs = jihadNowMs(); }
 // scroll, view, overscan and resolution back to neutral, the next paint in software
 void BrowserPageGoanna::gpuFallBack(const char* why) {
   if (!mPage || !mPage->GpuPath()) return;
+  FrameLockGuard frameLock;   // T-515
+  xInvalidate();
   for (const GpuJob& j : mGpuJobs) mPage->ComposeForget(j.token);
   mGpuJobs.clear();
   for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
@@ -3182,6 +3287,10 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (!mGpuJobs.empty()) mGpuTrace[6]++;
+  // T-515: an express frame at the held zoom is out (the main lane's own may be dropped for as long
+  // as the page's script runs): the displayport and the anchor follow the zoom now
+  if (mGpuZoomHoldMs && mXLastZoom > 0.0 && fabs(mXLastZoom - mGpuZoomHoldZ) < 1e-9)
+    gpuZoomRelease("the first frame at the new zoom is out (the express lane)");
   {
     // T-502 device rounds: the cadence this page's paint driver is actually called at
     static int64_t sPrev = 0; static int sLogged = 0;
@@ -3391,6 +3500,14 @@ static bool jihadPluginPullEnabled() {
 // mapping goes away (a reattach, a resize) the job is waited out (3 s at most) and forgotten.
 // Every slot's record is dropped with it: the composite's damage went unrecorded.
 void BrowserPageGoanna::gpuJobDrain() {
+  FrameLockGuard frameLock;   // T-515
+  for (XJob* xj : { &mXJob2, &mXJob }) {
+    if (!xj->on || !mPage) continue;
+    // the express lane's frames: the compositor writes into their slots until they are done
+    const int64_t t0 = jihadNowMs();
+    while (mPage->ComposePoll(xj->token, nullptr, nullptr) <= -2 && jihadNowMs() - t0 < 3000) usleep(2000);
+    xForget(*xj);
+  }
   if (mGpuJobs.empty()) return;
   {
     static uint32_t sN = 0;
@@ -3535,7 +3652,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
           if (iv[p2][0] <= iv[q][1] && iv[q][0] <= iv[p2][1]) { iv[p2][0] = std::min(iv[p2][0], iv[q][0]); iv[p2][1] = std::max(iv[p2][1], iv[q][1]); iv[q][0] = iv[n-1][0]; iv[q][1] = iv[n-1][1]; n--; merged = true; }
       }
       while (n > 2) {
-        int bi = 0, bj = 1; long best = 1L << 40;
+        int bi = 0, bj = 1; long best = LONG_MAX;   // was 1L << 40: past a 32-bit long (ARM)
         for (int p2 = 0; p2 < n; p2++) for (int q = p2 + 1; q < n; q++) { const long gap = std::max(iv[p2][0], iv[q][0]) - std::min(iv[p2][1], iv[q][1]); if (gap < best) { best = gap; bi = p2; bj = q; } }
         iv[bi][0] = std::min(iv[bi][0], iv[bj][0]); iv[bi][1] = std::max(iv[bi][1], iv[bj][1]); iv[bj][0] = iv[n-1][0]; iv[bj][1] = iv[n-1][1]; n--;
       }
@@ -3575,8 +3692,12 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   // the diff's shift is exact when the base is the previous composite: the newest finished frame
   // for a first job, the job in flight for a second (round 130)
   const bool baseIsPrevious = src != nullptr && (!mGpuNextSecond || mGpuNextBaseKey != 0);
-  const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src,
-                                             srcYForEngine, baseIsPrevious);
+  // T-515: the layers painted already (the main lane's paint window, the frame lock let go of): the
+  // compose posted on its own
+  const uint32_t token = mGpuPainted
+      ? mPage->ComposePost(pixels, bytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr)
+      : mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious);
+  if (token) mXLastPostToken = token;
   if (!token) {
     // T-509: a compositor that takes no job (no GL context: EGL failed) — three in a row and the
     // daemon renders in software for good
@@ -3587,6 +3708,8 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
   j.t0 = jihadNowMs(); j.seq = mPage->CompositorSeq(); j.askLo = sLo; j.askHi = sHi; j.ask2Lo = s2Lo; j.ask2Hi = s2Hi; j.shift = shift;
   j.viewRow = mGpuViewRow;
+  j.xFrames = mXFrames;
+  j.cmdDone = mXCmdDone;
   mGpuJobs.push_back(j);
   return true;
 }
@@ -3627,6 +3750,312 @@ void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h,
               sWhy[0], sWhy[1], sWhy[2], sWhy[3], sWhy[4]);
     }
   }
+}
+
+// T-515, the express lane (JihadFrameLock.h). The main lane makes the frames as before; when the
+// card has waited JIHAD_GPU_EXPRESS_MS (45) for one and the main lane has published nothing for as
+// long (its thread is in the page's script, or paints a displayport move), the express thread
+// composes the layer tree as it stands at the card's newest scroll and zoom, from its own reading
+// of the card's commands (the YAP reader thread), and publishes it. Its frames build on the newest
+// composite when that is intact in a slot (the shift and the bands as the main lane's "newest
+// slot" rule), else they are read whole; the main lane's next frame builds on the express lane's.
+// What it does not do: move the engine (the anchor, the displayport, the resolution: the main
+// thread's), draw popups, or make frames for anything but the card's moves.
+
+// The geometry and the buffers of the main lane's GPU frame (its view's overscan included).
+void BrowserPageGoanna::xSnapshot(int w, int h, int frameH, int os, size_t hdr) {
+  XSnap& S = mXSnap;
+  const int keys[3] = { mKey1, mKey2, mKey3 };
+  if (!S.ok || S.w != w || S.h != h || S.frameH != frameH || S.os != os ||
+      S.keys[0] != keys[0] || S.keys[1] != keys[1] || S.keys[2] != keys[2]) {
+    // new geometry or buffers: a frame in flight and the base are of the old ones, and the main
+    // lane's first frame of them comes first
+    ++mXGeomGen; mXPub = XPub(); mXMainPubMs = 0;
+    for (int i = 0; i < 3; ++i) {
+      S.keys[i] = keys[i]; S.base[i] = nullptr; S.seg[i] = 0;
+      if (!keys[i]) continue;
+      const int id = jihadShmResolve(keys[i]);
+      struct shmid_ds ds;
+      if (id < 0 || shmctl(id, IPC_STAT, &ds) != 0) continue;
+      S.seg[i] = ds.shm_segsz; S.base[i] = attachShm(keys[i]);
+    }
+  }
+  S.w = w; S.h = h; S.frameH = frameH; S.os = os; S.hdr = hdr; S.contentH = mLastContentH;
+  S.ok = true;
+}
+
+void BrowserPageGoanna::expressDetach() {
+  if (!jihadExpressOn()) return;
+  FrameLockGuard frameLock;
+  if (gXPages) gXPages->erase(this);
+  gpuJobDrain();   // the express lane's frames too: the compositor writes into their slots until done
+}
+
+// The YAP reader thread, the want lock held: a scroll (hasZoom false: the zoom the card last asked
+// for) or a zoom. Only the want's fields: the frame lock is not held.
+void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uint32_t tag) {
+  const int64_t now = jihadNowMs();
+  // the card following a scroll the page made (our own msgScrolledTo, setScrollPosition's rule): not
+  // a move (the echo's fields are the main thread's, read racily: a heuristic)
+  if (!hasZoom && now - mGpuEchoMs < 1500 && std::abs(x - mGpuEchoX) <= 2 && std::abs(y - mGpuEchoY) <= 2) return;
+  double z = hasZoom ? zoom : (mXWant.seq ? mXWant.zoom : mXZoomNow);
+  if (!(z >= 0.05 && z <= 20.0)) z = (mXZoomNow >= 0.05 && mXZoomNow <= 20.0) ? mXZoomNow : 1.0;
+  if (hasZoom && z != mXWant.zoom) { mXZoomWantMs = now; ++mXZoomDumpN; }
+  mXWant.x = x; mXWant.y = y; mXWant.zoom = z; mXWant.ms = now; ++mXWant.seq; mXWant.cmdSeq = tag;
+  if (!mXWaitSinceMs) mXWaitSinceMs = now;
+  jihadExpressKick();
+}
+
+// The YAP reader thread: a buffer the adapter returned, free for the express lane at once
+// (returnBuffer, on the main loop later, skips the clear it already made).
+void BrowserPageGoanna::expressReturn(int sharedBufferKey) {
+  const int s = slotForKey(sharedBufferKey);
+  if (s >= 0 && mInFlight[s]) { mInFlight[s] = false; ++mXConsumed[s]; jihadExpressKick(); }
+}
+
+// While the card moves (its last scroll or zoom within JIHAD_GPU_EXPRESS_LEAD_MS, 120), the express
+// lane makes every frame, the main lane none: the express thread polls its frame every 3 ms and
+// publishes at once, where the main lane's frames wait for its tick (the publish chain cost ~10 ms a
+// frame on desktop Wikipedia) and for the page's script. The main lane keeps the engine half: the
+// card's commands (the anchor, the zoom), the layer paint. 0 turns the lead off (the express lane
+// then only fills the main thread's stalls).
+bool BrowserPageGoanna::xLeads(int64_t now) {
+  static const long sLead = getenv("JIHAD_GPU_EXPRESS_LEAD_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_LEAD_MS")) : 120;
+  if (sLead <= 0 || !mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups ||
+      mXFailures >= 3 || !mXMainPubMs)
+    return false;
+  int64_t wantMs;
+  { std::lock_guard<std::mutex> l(jihadWantLock()); wantMs = mXWant.seq ? mXWant.ms : 0; }
+  return wantMs && now - wantMs < sLead;
+}
+
+bool BrowserPageGoanna::expressStep(int64_t now) {
+  if (mXJob.on) {
+    xPoll(now);
+    // the next frame while this one is read (handed to the read thread: a whole read), built on it,
+    // while the card moves (the main lane's round 130 rule). Posted earlier, right behind it, the
+    // frames came no faster on desktop Wikipedia (the compositor thread's ~45 ms a frame is the
+    // floor) and each was older when it came (round 266): JIHAD_GPU_EXPRESS_EARLY=1 does that.
+    static const bool sEarly = getenv("JIHAD_GPU_EXPRESS_EARLY") != nullptr;
+    if (mXJob.on && (mXJob.composed || sEarly) && !mXJob2.on && mXJob.gen == mXGeomGen && xLeads(now)) {
+      XWant want; int64_t waitSince;
+      { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
+      const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;
+      if (want.seq && !(mXJob.x == want.x && mXJob.cardY == want.y && mXJob.zoom == Z))
+        xStart(now, Z, want, waitSince, &mXJob);
+    }
+    return true;
+  }
+  if (!mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups || mXFailures >= 3)
+    return false;
+  XWant want; int64_t waitSince;
+  { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
+  if (!want.seq) return false;
+  const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;   // the paint path's rule
+  // served: the express lane's newest frame is at the card's position, or the main lane's newest
+  // frame took up the card's newest command (its position is the engine's: clamped, rounded)
+  if (mXLastXPubMs ? (mXPub.slot >= 0 && mXPub.cardX == want.x && mXPub.cardY == want.y && mXPub.zoom == Z)
+                   : (mXPub.slot >= 0 && mXCmdPub >= want.cmdSeq))
+    return false;
+  if (!waitSince) return false;        // the main lane published since the card's last move
+  if (!mXMainPubMs) return false;      // the main lane's first frame of this geometry and document is not out
+  // the main lane's frames in flight: they serve the card while the compositor has them; once
+  // composed, the express lane's frame may follow (the main lane drops them as older at its poll:
+  // its thread can sit in the page's script a long while before it looks)
+  for (const GpuJob& j : mGpuJobs) if (mPage->ComposePeek(j.token) == 0) return true;
+  if (xLeads(now)) return xStart(now, Z, want, waitSince);   // the card is moving: every frame
+  static const long sGrace = getenv("JIHAD_GPU_EXPRESS_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_MS")) : 45;
+  if (now - waitSince < sGrace || now - mXMainPubMs < sGrace) return true;
+  // only while the main thread is away in the engine (its pump, a layer paint) for a while: back
+  // in its tick (or idle between ticks) it makes the frame itself, and the express lane, stepping
+  // every 3 ms, would otherwise take every frame from it (its frames do the engine's half: the
+  // anchor, the zoom's release)
+  static const long sAway = getenv("JIHAD_GPU_EXPRESS_AWAY_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_AWAY_MS")) : 15;
+  const int64_t away = jihadFrameLock().awaySinceMs();
+  if (!away || now - away < sAway) return true;
+  return xStart(now, Z, want, waitSince);
+}
+
+// aBase: the express frame in flight, composed: the compositor thread takes the jobs in order, so
+// its frame is complete when this one is read (the main lane's round 130 rule), and this one reads
+// the rows it changed too (round 116). Else the base is the newest composite, intact in its slot.
+bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t waitSince, const XJob* aBase) {
+  const XSnap& S = mXSnap;
+  const int w = S.w, H = S.frameH, os = S.os;
+  const int x = want.x, y = want.y - os;   // the frame's top: the view sits os rows down it (T-505)
+  const size_t need = S.hdr + (size_t)w * H * 4;
+  // the base: the newest composite, intact in its slot, at this x, zoom and size (the engine's
+  // diff is against it, so the shift is exact: the main lane's round 115 rule)
+  const int b = aBase ? aBase->slot : mXPub.slot;
+  const int baseY = aBase ? (aBase->composed ? aBase->composedY : aBase->y) : mXPub.y;
+  bool base;
+  if (aBase) {
+    base = b >= 0 && b < 3 && aBase->x == x && aBase->zoom == Z && aBase->w == w && aBase->h == H &&
+           mXPub.fixedHi >= mXPub.fixedLo && aBase->token == mXLastPostToken;
+  } else {
+    base = b >= 0 && b < 3 && mXPub.token && mXPub.token == mXLastPostToken && mXPub.x == x && mXPub.zoom == Z &&
+           mXPub.w == w && mXPub.h == H && mXPub.fixedHi >= mXPub.fixedLo && S.base[b] && mXPub.key == S.keys[b];
+  }
+  const long dy = base ? (long)y - baseY : 0;
+  if (base && !(dy > -H && dy < H)) base = false;
+  if (aBase && !base) return false;   // the second frame only builds on the first
+  // the slot: not the adapter's, not the main lane's paint's, not the base; the active key's only
+  // when no other is free (the main lane's next frame goes there)
+  int slot = -1;
+  for (int pass = 0; pass < 2 && slot < 0; ++pass) {
+    for (int t = 0; t < 3 && slot < 0; ++t) {
+      if (!S.keys[t] || !S.base[t] || S.seg[t] < need) continue;
+      if (mInFlight[t] && now - mPaintMs[t] < 2000) continue;
+      if (t == mXMainSlot || (base && t == b) || (mXJob.on && t == mXJob.slot)) continue;
+      if (S.keys[t] == mActiveKey && (pass == 0 || mXMainWindow)) continue;
+      slot = t;
+    }
+  }
+  if (slot < 0) return true;   // a return frees one (the hook kicks)
+  long lo = 0, hi = H, lo2 = 0, hi2 = 0;
+  const unsigned char* src = nullptr;
+  long srcY = 0;
+  if (base) {
+    src = S.base[b] + S.hdr; srcY = baseY;
+    lo = dy > 0 ? H - dy : 0; hi = dy > 0 ? H : (dy < 0 ? -dy : 0);   // what the shift brings in
+    static const bool sFixedCols = !getenv("JIHAD_GPU_NO_FIXED_COLS") && !getenv("JIHAD_GPU_READ_THREAD");
+    if (!sFixedCols && dy != 0 && mXPub.fixedHi > mXPub.fixedLo) {
+      // the rows the shift moved the fixed pixels into (round 134)
+      const long fLo = std::max(0L, mXPub.fixedLo - (dy > 0 ? dy : 0)), fHi = std::min((long)H, mXPub.fixedHi + (dy < 0 ? -dy : 0));
+      if (fHi > fLo) {
+        if (hi <= lo) { lo = fLo; hi = fHi; }
+        else if (fLo <= hi && lo <= fHi) { lo = std::min(lo, fLo); hi = std::max(hi, fHi); }
+        else { lo2 = fLo; hi2 = fHi; if (lo2 < lo) { std::swap(lo, lo2); std::swap(hi, hi2); } }
+      }
+    }
+    if (aBase && aBase->composed && aBase->invHi > aBase->invLo) {
+      // the rows the base's composite changed, in this frame: scrolled content dy rows up, fixed
+      // content where it was; the daemon cannot tell which, so the hull of both (round 116)
+      const long a = std::max(0L, std::min(aBase->invLo, aBase->invLo - dy)), c = std::min((long)H, std::max(aBase->invHi, aBase->invHi - dy));
+      if (c > a) {
+        if (hi <= lo) { lo = a; hi = c; }
+        else if (a <= hi && lo <= c) { lo = std::min(lo, a); hi = std::max(hi, c); }
+        else if (hi2 <= lo2) { lo2 = a; hi2 = c; }
+        else { lo2 = std::min(lo2, a); hi2 = std::max(hi2, c); }   // the hull with the second band
+        if (hi2 > lo2 && lo2 <= hi && lo <= hi2) { lo = std::min(lo, lo2); hi = std::max(hi, hi2); lo2 = hi2 = 0; }
+        if (hi2 > lo2 && lo2 < lo) { std::swap(lo, lo2); std::swap(hi, hi2); }
+      }
+    }
+  }
+  unsigned char* pixels = S.base[slot] + S.hdr;
+  // the main lane's view for a compositor-side scroll: the card's zoom, the overscan's offset, the
+  // card's scroll in CSS px (gpuScrollTo, gpuSetView)
+  const double zr = (want.zoom >= 0.05 && want.zoom <= 20.0) ? want.zoom : 1.0;
+  const double view[5] = { Z, 0.0, -(double)os / Z, want.x / zr, want.y / zr };
+  const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr, H, lo, hi, lo2, hi2, base ? dy : 0, src, srcY,
+                                            base, view);
+  if (!token) {
+    if (++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: the compositor took no frame three times\n");
+    return false;
+  }
+  mXLastPostToken = token;
+  XJob& j = aBase ? mXJob2 : mXJob;
+  j = XJob();
+  j.on = true; j.token = token; j.gen = mXGeomGen; j.slot = slot; j.key = S.keys[slot];
+  j.x = x; j.y = y; j.w = w; j.h = H; j.os = os; j.zoom = Z; j.shift = base ? dy : 0;
+  j.t0 = now; j.wantMs = want.ms; j.waitMs = waitSince; j.whole = !base; j.pixels = pixels;
+  j.cardY = want.y;
+  return true;
+}
+
+bool BrowserPageGoanna::xPoll(int64_t now) {
+  if (!mPage) { mXJob.on = false; return false; }
+  const bool genOk = mXJob.gen == mXGeomGen && mPage->GpuPath();
+  GoannaRenderPage::ComposeResult cr;
+  const int r = mPage->ComposePoll(mXJob.token, genOk ? mXJob.pixels : nullptr, &cr);
+  if (r == -2 || r == -3) {
+    if (now - mXJob.t0 > 3000) {
+      xForget(mXJob2); xForget(mXJob);   // the second builds on the first
+      if (++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames not composed in 3 s\n");
+      return false;
+    }
+    if (r == -3 && !mXJob.composed) {
+      mXJob.composed = true; mXJob.invLo = cr.invLo; mXJob.invHi = cr.invHi;
+      mXJob.composedY = cr.frameYValid ? (int)cr.frameY : mXJob.y;
+    }
+    return true;
+  }
+  if (!genOk || r < 0) {
+    // the buffers or the geometry changed under it, or it failed: dropped, and the one built on it
+    mXJob = XJob(); xForget(mXJob2);
+    if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
+    return true;
+  }
+  mXFailures = 0;
+  const int s = mXJob.slot, H = mXJob.h, w = mXJob.w;
+  unsigned char* pixels = mXJob.pixels;
+  const int frameY = cr.frameYValid ? (int)cr.frameY : mXJob.y;   // round 115: where the engine composed it
+  if (mXJob.shift) mPage->CleanRows(pixels, 0, H);   // the shifted rows: the compositor thread's writes
+  // the frame's rows outside the page white, as the main lane does (T-505)
+  const long pageEnd = mXSnap.contentH > 0 ? (long)((double)mXSnap.contentH * mXJob.zoom) - frameY : (long)H;
+  const long above = std::min((long)H, std::max(0L, -(long)frameY));
+  if (above > 0) memset(pixels, 0xff, (size_t)above * w * 4);
+  if (pageEnd < H && pageEnd >= 0) memset(pixels + (size_t)pageEnd * w * 4, 0xff, (size_t)(H - pageEnd) * w * 4);
+  BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)(pixels - mXSnap.hdr);
+  oi->bufferWidth = w; oi->bufferHeight = H;
+  oi->contentZoom = mXJob.zoom;
+  oi->renderedX = mXJob.x; oi->renderedY = frameY;
+  oi->renderedWidth = w; oi->renderedHeight = H;
+  mSink.msgPainted(mXJob.key);
+  mInFlight[s] = true; mPaintMs[s] = now;
+  jihadTimelinePublish("express", mXJob.t0, frameY, mXJob.zoom);
+  if (!mXMainWindow && mActiveKey == mXJob.key) mActiveKey = keyAfter(mXJob.key);
+  // the main lane's records: this slot is the newest frame and the only one up to date (the
+  // composites of this lane are not in the other slots' stale rows)
+  for (int t = 0; t < 3; ++t) mGpuSlotValid[t] = false;
+  mGpuSlotValid[s] = true;
+  mGpuSlotX[s] = mXJob.x; mGpuSlotY[s] = frameY; mGpuSlotZoom[s] = mXJob.zoom; mGpuSlotW[s] = w; mGpuSlotH[s] = H;
+  mGpuStaleLo[s] = mGpuStaleHi[s] = mGpuStale2Lo[s] = mGpuStale2Hi[s] = 0;
+  mGpuLatestSlot = s; mGpuLatestKey = mXJob.key;
+  mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
+  mBufFull[s].valid = false;
+  mGpuJobX = mXJob.x; mGpuJobY = frameY; mGpuJobZoom = mXJob.zoom; mGpuJobViewRow = mXJob.os;
+  mPaintedX = mXJob.x; mPaintedW = w; mPaintedLo = frameY; mPaintedHi = (long)frameY + H; mPaintedZoom = mXJob.zoom;
+  mLastPaintDoneMs = now; gJihadPaintDone++; JihadRecordFrameGap(now);
+  mXPub.token = mXJob.token; mXPub.slot = s; mXPub.key = mXJob.key; mXPub.x = mXJob.x; mXPub.y = frameY;
+  mXPub.w = w; mXPub.h = H; mXPub.zoom = mXJob.zoom; mXPub.fixedLo = cr.fixedLo; mXPub.fixedHi = cr.fixedHi;
+  mXPub.cardX = mXJob.x; mXPub.cardY = mXJob.cardY; mXPub.ms = now;
+  mNeedsPaint = true;   // the main lane's next frame: its engine half (the anchor, the zoom's release) and the newest move
+  ++mXFrames;
+  mXLastZoom = mXJob.zoom;
+  mXLastXPubMs = now;
+  static const char* sZoomDump = getenv("JIHAD_GPU_ZOOM_DUMP");
+  if (sZoomDump) {
+    // T-504 device rounds: the express lane's frames at a new zoom in the 3 s after it, as the
+    // adapter reads them, to <path>.x<n> (n: the zoom's number as the reader thread counted it)
+    int64_t zMs; int zN; double zWant;
+    { std::lock_guard<std::mutex> l(jihadWantLock()); zMs = mXZoomWantMs; zN = mXZoomDumpN; zWant = mXWant.zoom; }
+    const double zEff = (zWant >= 0.99 && zWant <= 1.01) ? 1.0 : zWant;
+    if (zN >= 1 && zN <= (strcmp(sZoomDump, "log") ? 6 : 60) && now - zMs < 3000 && fabs(mXJob.zoom - zEff) < 1e-6) {
+      char path[512];
+      snprintf(path, sizeof path, "%s.x%d", sZoomDump, zN);
+      const bool logOnly = strcmp(sZoomDump, "log") == 0;   // the timeline only
+      FILE* f = logOnly ? nullptr : fopen(path, "wb");
+      if (f) { fwrite(pixels, 1, (size_t)w * H * 4, f); fclose(f); }
+      if (f || logOnly) {
+               fprintf(stderr, "[jihad-gpu] zoom frame written (express): %s (%dx%d at zoom %.4f, %ld ms after the zoom, x %d y %d)\n",
+                       path, w, H, mXJob.zoom, (long)(now - zMs), mXJob.x, frameY); }
+    }
+  }
+  if (mXFrames <= 30 || (mXFrames % 50) == 0)
+    fprintf(stderr, "[jihad-gpu] express frame %u: slot %d %s (shift %ld, read %ld..%ld), zoom %.4f y %d, %ld ms after the card's"
+                    " move, %ld ms after the card began to wait, composed and read in %ld ms, the main lane quiet %ld ms\n",
+            mXFrames, s, mXJob.whole ? "whole" : "from the newest", mXJob.shift, cr.readLo, cr.readHi, mXJob.zoom, frameY,
+            (long)(now - mXJob.wantMs), (long)(now - mXJob.waitMs), (long)(now - mXJob.t0),
+            mXMainPubMs ? (long)(now - mXMainPubMs) : -1L);
+  if (gJihadInputMarkMs && cr.invHi > cr.invLo) {
+    fprintf(stderr, "[jihad-gpu] input latency: the first changed frame (rows %ld..%ld, express) out %ld ms after the input\n",
+            cr.invLo, cr.invHi, (long)(now - gJihadInputMarkMs));
+    gJihadInputMarkMs = 0;
+  }
+  mXJob = mXJob2;   // the second frame, if any, is the oldest now
+  mXJob2 = XJob();
+  return true;
 }
 
 bool BrowserPageGoanna::isBusy() const {
@@ -3712,6 +4141,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // A frame just refused as blank-over-good is retried on a grid, not every tick (see the
   // blank-settle block below). mNeedsPaint stays set, so nothing is lost by waiting.
   if (mBlankRetryAtMs && jihadNowMs() < mBlankRetryAtMs) { if (!mGpuJobs.empty()) mGpuTrace[2]++; return; }
+  // T-515: the express lane's frame is in flight (its composite is the newest, and the next frame
+  // builds on it): this one after it
+  if (mXJob.on) { mNeedsPaint = true; return; }
   // Flow control (F-211): never overwrite a buffer the adapter still holds. If the target buffer
   // was msgPainted but not yet returned, defer this paint (mNeedsPaint stays set, so the next
   // pump tick / returnBuffer retries) — the typed text is already in the DOM, only the frame is
@@ -4315,6 +4747,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       mGpuViewRow = os;
       mPage->SetGpuFrameHeight(gpuFrameH);
       mPage->SetGpuOverscan(os, Zeff);
+      if (jihadExpressOn()) xSnapshot(w, h, gpuFrameH, os, hdr);   // T-515: what the express lane composes into
     }
     paintedTop = (int)gpuLo; paintedH = gpuFrameH;
     fresh = true; growOwed = false;
@@ -4331,8 +4764,44 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const int gslot = slotForKey(mActiveKey);
       if (!mGpuJobs.empty() && mGpuJobs[0].slot != gslot) gpuJobDrain();   // the slot moved under the jobs
       if (mGpuZoomHoldMs && getenv("JIHAD_GPU_ZOOMLOG")) fprintf(stderr, "[jihad-gpu] zoom hold: GPU branch, slot %d, jobs %zu, zoom %.4f\n", gslot, mGpuJobs.size(), Zeff);
+      if (mGpuJobs.empty() && jihadExpressOn() && mXLastXPubMs && fabs(mXLastZoom - Zeff) > 1e-6 &&
+          jihadNowMs() - mXLastXPubMs < 300) {
+        // T-515: the express lane's newest frame is at a zoom this lane has not taken up yet (its
+        // thread came back from the page's script with the card's zoom still queued): a frame now
+        // would put the old zoom back on the card. The queued command comes first (300 ms at most).
+        mNeedsPaint = true;
+        return;
+      }
+      if (mGpuJobs.empty() && jihadExpressOn() && xLeads(jihadNowMs())) {
+        // T-515: the card is moving and the express lane makes its frames: this lane paints the
+        // layers (the displayport an anchor move asks for, the page's changes), at most every 40 ms,
+        // with the frame lock let go of, and posts no frame of its own
+        const int64_t now = jihadNowMs();
+        if (now - mXMainPaintMs >= 40) {
+          mXMainPaintMs = now;
+          mXMainSlot = gslot; mXMainWindow = true;
+          { FrameLockRelease unlocked; mPage->PaintLayers(); jihadTimelineMain("layer paint (the express lane leads)", (long)(jihadNowMs() - now)); }
+          mXMainWindow = false; mXMainSlot = -1;
+        }
+        mNeedsPaint = true;   // its own frame once the card stops
+        return;
+      }
       if (mGpuJobs.empty()) {
-        if (!gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)gpuLo, Zeff, w, h)) {
+        if (jihadExpressOn() && mPage->ExpressReady()) {
+          // T-515: the layers painted with the frame lock let go of, so the express lane can make
+          // frames from the layer tree as it stands while this paint runs (a displayport move's
+          // paint is 60-120 ms on desktop Wikipedia). It keeps off this slot and the active key;
+          // the bands below are worked out after the paint, from the slots as they are then.
+          mXMainSlot = gslot; mXMainWindow = true;
+          bool painted;
+          { const int64_t p0 = jihadNowMs(); FrameLockRelease unlocked; painted = mPage->PaintLayers(); jihadTimelineMain("layer paint", (long)(jihadNowMs() - p0)); }
+          mXMainWindow = false; mXMainSlot = -1;
+          if (mXJob.on) { mNeedsPaint = true; return; }   // its frame went first: this one on the next tick
+          mGpuPainted = painted;
+        }
+        const bool started = gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)gpuLo, Zeff, w, h);
+        mGpuPainted = false;
+        if (!started) {
           nb = -1;
         } else {
           mGpuJobPolls = 0;
@@ -4383,7 +4852,19 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
         mGpuJobs.erase(mGpuJobs.begin());
         nb = r;
-        if (gJihadInputMarkMs && r >= 0 && cr.invHi > cr.invLo) {
+        // T-515: the express lane published after this job was posted: its frames are newer and its
+        // composite the newest; this one is dropped (its slot's record with it)
+        const bool xDropped = r >= 0 && oldest.xFrames != mXFrames;
+        if (xDropped) {
+          if (gslot >= 0) mGpuSlotValid[gslot] = false;
+          static uint32_t sXD = 0;
+          if (sXD++ < 20 || (sXD % 50) == 0)
+            fprintf(stderr, "[jihad-gpu] main lane's frame dropped: the express lane published %u frame(s) since it was posted\n",
+                    mXFrames - oldest.xFrames);
+          nb = -1;
+          mNeedsPaint = true;
+        }
+        if (gJihadInputMarkMs && r >= 0 && !xDropped && cr.invHi > cr.invLo) {
           fprintf(stderr, "[jihad-gpu] input latency: the first changed frame (rows %ld..%ld) out %ld ms after the input\n",
                   cr.invLo, cr.invHi, (long)(jihadNowMs() - gJihadInputMarkMs));
           gJihadInputMarkMs = 0;
@@ -4409,7 +4890,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           mGpuJobPolls = 0;
           paintT0 = oldest.t0;   // the painted line's ms= is then start-to-publish
         }
-        if (r >= 0 && gslot >= 0) {
+        if (r >= 0 && gslot >= 0 && !xDropped) {
           mGpuSlotValid[gslot] = true;
           // round 115: the position the engine composed it at, when a scroll of the page's own moved it
           const int frameY = cr.frameYValid ? (int)cr.frameY : oldest.y;
@@ -4417,6 +4898,23 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           mGpuSlotW[gslot] = oldest.w; mGpuSlotH[gslot] = oldest.h;
           mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;   // everything the slot lacked was read
           mGpuLatestSlot = gslot; mGpuLatestKey = oldest.key;   // round 113: the newest frame
+          if (jihadExpressOn()) {
+            // T-515: the express lane's base, if this is the newest composite; the card served
+            mXPub.token = oldest.token; mXPub.slot = gslot; mXPub.key = oldest.key; mXPub.x = oldest.x;
+            mXPub.y = cr.frameYValid ? (int)cr.frameY : oldest.y; mXPub.w = oldest.w; mXPub.h = oldest.h;
+            mXPub.zoom = oldest.zoom; mXPub.fixedLo = cr.fixedLo; mXPub.fixedHi = cr.fixedHi;
+            mXPub.cardX = oldest.x; mXPub.cardY = oldest.y + oldest.viewRow; mXPub.ms = jihadNowMs();
+            mXMainPubMs = mXPub.ms;
+            mXLastXPubMs = 0;
+            mXCmdPub = oldest.cmdDone;
+            {
+              // the card's wait ends with a frame that took up its newest command (a frame from before
+              // a zoom the main loop had not handled yet leaves the express lane to serve it)
+              std::lock_guard<std::mutex> l(jihadWantLock());
+              if (!mXWant.seq || mXCmdPub >= mXWant.cmdSeq) mXWaitSinceMs = 0;
+              mXZoomNow = mZoom;
+            }
+          }
           mGpuStale2Lo[gslot] = mGpuStale2Hi[gslot] = 0;
           mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
           // The other slots: the rows this frame's tree change touched are stale in them too. The
@@ -4468,6 +4966,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
             mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow) / vz, true);
             const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);   // T-503: a verify composite
+            if (vt) mXLastPostToken = vt;   // T-515: the newest composite is not a published frame
             int r2 = -1;
             if (vt) {
               GoannaRenderPage::ComposeResult vr;
@@ -4574,6 +5073,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
               mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow - oldest.shift) / vz, true);
               const uint32_t vt2 = mPage->ComposeStart(sBefore.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);
+              if (vt2) mXLastPostToken = vt2;   // T-515
               int r3 = -1;
               if (vt2) {
                 GoannaRenderPage::ComposeResult vr2;
@@ -4629,6 +5129,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     int popups = mPage->CompositePopups(pixels, paintedW * 4, paintedW, paintedH,
                                         (double)px / pz, (double)py / pz, pz);
     popupsDrawn = popups;
+    mXSnap.popups = popups > 0;   // T-515: the express lane draws no popups: none while one is open
     if (popups > 0) {
       fprintf(stderr, "[jihad-bs] composited %d popup(s) over the frame\n", popups);
       // A popup is content: an otherwise-blank frame carrying one must not be
@@ -4662,7 +5163,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   gJihadPaintDone++;
   JihadRecordFrameGap(mLastPaintDoneMs);
   static const char* sZoomDump = getenv("JIHAD_GPU_ZOOM_DUMP");
-  if (sZoomDump && nb > 0 && mPage->GpuPath() && mGpuZoomDumpN >= 1 && mGpuZoomDumpN <= 6 &&
+  if (sZoomDump && nb > 0 && mPage->GpuPath() && mGpuZoomDumpN >= 1 && mGpuZoomDumpN <= (strcmp(sZoomDump, "log") ? 6 : 60) &&
       jihadNowMs() - mGpuZoomCmdMs < 3000 && fabs(oi->contentZoom - mGpuZoom) < 1e-6) {
     // T-504 device rounds (JIHAD_GPU_ZOOM_DUMP=<path>): every frame at the new zoom published in the
     // 3 s after a zoom, as the adapter will read it, rewritten to <path>.<n> (n: the zoom's number,
@@ -4670,10 +5171,20 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // (cavekit-gpu-rendering R6: the card covered within 500 ms of the gesture)
     char path[512];
     snprintf(path, sizeof path, "%s.%d", sZoomDump, mGpuZoomDumpN);
-    FILE* f = fopen(path, "wb");
-    if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f);
-             fprintf(stderr, "[jihad-gpu] zoom frame written: %s (%dx%d at zoom %.4f, %ld ms after the zoom, x %d y %d)\n",
-                     path, paintedW, paintedH, oi->contentZoom, (long)(jihadNowMs() - mGpuZoomCmdMs), oi->renderedX, oi->renderedY); }
+    // T-515: with the express lane, also from when the card's zoom ARRIVED (the reader thread): the
+    // main loop may have taken it up only after the page's script let go
+    char arrived[64] = "";
+    if (jihadExpressOn()) {
+      int64_t zMs; { std::lock_guard<std::mutex> l(jihadWantLock()); zMs = mXZoomWantMs; }
+      if (zMs) snprintf(arrived, sizeof arrived, ", %ld ms after it arrived", (long)(jihadNowMs() - zMs));
+    }
+    // JIHAD_GPU_ZOOM_DUMP=log: the timeline only (a frame is 3-4 MB of the device's 40 MB /tmp)
+    const bool logOnly = strcmp(sZoomDump, "log") == 0;
+    FILE* f = logOnly ? nullptr : fopen(path, "wb");
+    if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f); }
+    if (f || logOnly) {
+             fprintf(stderr, "[jihad-gpu] zoom frame written: %s (%dx%d at zoom %.4f, %ld ms after the zoom%s, x %d y %d)\n",
+                     path, paintedW, paintedH, oi->contentZoom, (long)(jihadNowMs() - mGpuZoomCmdMs), arrived, oi->renderedX, oi->renderedY); }
   }
   if (nb >= 0 && mPage->GpuPath()) {
     // T-502 device rounds: the buffer as the adapter will read it (JIHAD_GPU_DUMP2=<path>, the 5th frame)
@@ -4919,6 +5430,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     const int64_t a = jihadNowMs();
     mSink.msgPainted(mActiveKey);
     const int64_t b = jihadNowMs();
+    jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);
     static int sN = 0;
     if (mGpuDoneMs && sN++ < 40)
       fprintf(stderr, "[jihad-gpu] publish: %ld ms from the frame's arrival to the message, msgPainted %ld ms\n",

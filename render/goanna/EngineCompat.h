@@ -64,6 +64,17 @@ extern "C" {
   int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
                                    int* aScrollOnly) __attribute__((weak));
   void jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
+  // OPTIONAL (T-515): the start's two halves on their own. paint_layers (the main thread) flushes
+  // and paints the layers; compose_post (any thread) posts the compose + read of the layer tree as
+  // it stands, at the view given (aUseView 1: scale, offset, scroll) or the one last set (0).
+  int jihad_offscreen_paint_layers(nsIWidget* aWidget, nsIDocShell* aDocShell) __attribute__((weak));
+  // peek: a job's state without taking its result (1 done, 2 composed and being read, 0 pending, -1 unknown)
+  int jihad_offscreen_compose_peek(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
+  uint32_t jihad_offscreen_compose_post(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
+                                        int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                        const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
+                                        double aOffX, double aOffY, double aScrollX, double aScrollY,
+                                        int aScrollValid) __attribute__((weak));
   // OPTIONAL (T-502): the card's zoom and the visual viewport's residual offset (CSS px, what the
   // engine scroll could not reach), applied by the compositor to the whole layer tree.
   void jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX,
@@ -129,6 +140,9 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_compose_start", jihad_offscreen_compose_start != nullptr},
     {"jihad_offscreen_compose_poll", jihad_offscreen_compose_poll != nullptr},
     {"jihad_offscreen_compose_forget", jihad_offscreen_compose_forget != nullptr},
+    {"jihad_offscreen_paint_layers", jihad_offscreen_paint_layers != nullptr},
+    {"jihad_offscreen_compose_post", jihad_offscreen_compose_post != nullptr},
+    {"jihad_offscreen_compose_peek", jihad_offscreen_compose_peek != nullptr},
     {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},
     {"jihad_offscreen_set_view", jihad_offscreen_set_view != nullptr},
     {"jihad_offscreen_set_scroll", jihad_offscreen_set_scroll != nullptr},

@@ -4709,6 +4709,33 @@ static void GpuCleanRows(unsigned char* dst, int w, int h, long lo, long hi) {
 
 void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuCleanRows(dst, mWidth, GpuFrameHeight(), lo, hi); }
 
+// T-515: the frame's two halves on their own (the express lane: frames while the main thread is busy)
+bool GoannaRenderPage::ExpressReady() const {
+  return ComposeAsync() && jihad_offscreen_paint_layers && jihad_offscreen_compose_post && jihad_offscreen_compose_peek;
+}
+
+int GoannaRenderPage::ComposePeek(uint32_t token) {
+  return (mWidget && jihad_offscreen_compose_peek) ? jihad_offscreen_compose_peek(mWidget, token) : -1;
+}
+
+bool GoannaRenderPage::PaintLayers() {
+  if (!ExpressReady() || !mWidget || !mChrome || !mChrome->mBrowser) return false;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  return ds && jihad_offscreen_paint_layers(mWidget, ds) != 0;
+}
+
+uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo,
+                                       long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
+                                       const double* aView) {
+  if (!ExpressReady() || !mWidget || !dst) return 0;
+  const int w = mWidth;
+  if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * frameH * 4) return 0;
+  return jihad_offscreen_compose_post(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
+                                      (int)shift, src, (int)srcY, engineShift ? 1 : 0, aView ? 1 : 0,
+                                      aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
+                                      aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0);
+}
+
 // T-509: the resolution back to 1 when the GPU path is given up
 void GoannaRenderPage::ResetGpuResolution() {
   if (!mChrome || !mChrome->mBrowser) return;

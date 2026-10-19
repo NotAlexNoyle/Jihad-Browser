@@ -52,6 +52,45 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-19 delta — T-515: frames made off the main thread, the express lane (READ FIRST)
+
+**What it is.** With `JIHAD_GPU_EXPRESS=1` (and the GPU path) each card's YAP commands are read on a
+thread of the proxy's own (`render/browserserver/Yap/YapProxy.cpp`), and the daemon's frame
+bookkeeping is under one frame lock (`render/goanna/JihadFrameLock.h` explains it) that the main
+thread lets go of only in the engine's pump and in a frame's layer paint. An express thread
+(`BrowserPageGoanna.cpp`, `expressStep`) composes the layer tree as it stands at the card's newest
+scroll and zoom and publishes the frame itself: while the card moves it makes every frame (the main
+lane paints layers and moves the anchor), and otherwise it fills the main thread's stalls. Engine
+patch 0048 splits the frame's paint from its compose post and lets any thread post and poll jobs.
+It is OFF by default, as the GPU path still is: T-510 turns both on.
+
+**What it did (rounds 240-267, `docs/rounds/t502-2026-10-17/express-r240-267.txt`).** A zoom while the
+page's script holds the main thread: Wikipedia after its load 10/10 within 160-225 ms (without the
+lane: median 681 ms, max 1116, three zooms never framed); a page holding the main thread 600 ms in
+every 700 (`render/goanna/test/jihad-script-hold.html`) within 45-91 ms (without: median 450). That
+page pans at 26-32 fps (2.4-3.8). Desktop Wikipedia pans at 19-21 fps: the page's 2.2 s restyle now
+runs under frames every ~45 ms, and the floor is the compositor thread's ~45 ms a Wikipedia frame
+whichever lane asks (T-517). Card double taps 40-449 ms: the slow ones are GPU draws of the other
+resolution's tiles after a zoom in (T-516). No regression with it off; clean daemon exit.
+
+**Traps.** (1) Two locks: the frame lock (the main thread, the express thread, the inject threads)
+and the want lock (the reader thread's scroll and zoom; never held while waiting). The reader
+thread never waits for the frame lock: a proxy's teardown joins it (a returned buffer tries for 4 ms
+and is left to the main loop). (2) With the lane on, the inject channel's `pan` and `zoom` go
+through the card's own path on a thread (`zoom <z> <x> <y> [delay ms]`), so they arrive while the
+main thread is busy; without it they are applied in the tick as before. The inject file itself is
+read only when the main thread is free. (3) "Served" is by command, not by position: commands are
+tagged in arrival order by the proxy and the main lane serves the card once its frame took up the
+newest (the engine clamps and rounds positions; comparing them made the lane redraw every frame).
+(4) A main-lane frame posted before an express publish is dropped at its poll; one at a zoom the
+main loop has not taken up yet is held (300 ms at most). (5) `JIHAD_GPU_ZOOM_DUMP=<path>` frames are
+3-4 MB each on a 40 MB `/tmp`: use `JIHAD_GPU_ZOOM_DUMP=log` for timelines, delete files at once.
+(6) A scripted pan's screenshot is meaningless (the card's own scroll does not move); judge by the
+dumps, `JIHAD_GPU_TIMELINE=1` and the paint pipeline lines.
+
+**Next.** T-516 (the zoom out's slow draws: R6, unblocks T-504 and so T-510) and T-517 (Wikipedia's
+compositor frame: R3). Knobs in `tools/device/t502/README.md` (T-515 paragraph).
+
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
 
 **Engine-update readiness (T-385…T-387) done** and reviewed (the inspector, Tier 74: APPROVE, the

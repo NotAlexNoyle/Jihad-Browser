@@ -40,6 +40,11 @@ LICENSE@@@ */
 #include "YapProxy.h"
 
 static const int kMaxConnectTries = 5;
+#include <poll.h>
+
+YapProxy::ExpressHook YapProxy::s_expressHook = 0;
+YapProxy::DispatchHook YapProxy::s_dispatchHook = 0;
+uint32_t YapProxy::s_currentTag = 0;
 
 gboolean YapProxyIoFunction(GIOChannel* channel, GIOCondition condition, void* data);
 
@@ -82,7 +87,12 @@ YapProxy::YapProxy(YapServer* server, int cmdSocketFd, char* msgSocketPath, char
     , m_packetCommand(0)
     , m_packetReply(0)
     , m_packetMessage(0)
+    , m_threaded(false)
+    , m_tagNext(0)
+    , m_wakeChannel(0)
+    , m_wakeSource(0)
 {
+    m_wakePipe[0] = m_wakePipe[1] = -1;
     if (msgSocketPostfix) {
 
         int length = strlen(msgSocketPostfix);
@@ -105,7 +115,23 @@ YapProxy::YapProxy(YapServer* server, int cmdSocketFd, char* msgSocketPath, char
 
     GMainContext* mainCtxt = g_main_loop_get_context(m_server->mainLoop());
 
-    if (m_cmdSocketFd != -1) {
+    if (m_cmdSocketFd != -1 && s_expressHook && ::pipe(m_wakePipe) == 0) {
+        // T-515: a reader thread reads the commands; the main loop wakes on the pipe
+        ::fcntl(m_wakePipe[0], F_SETFL, ::fcntl(m_wakePipe[0], F_GETFL) | O_NONBLOCK);
+        m_wakeChannel = g_io_channel_unix_new(m_wakePipe[0]);
+        m_wakeSource  = g_io_create_watch(m_wakeChannel, (GIOCondition) G_IO_IN);
+        g_source_set_callback(m_wakeSource, (GSourceFunc) YapProxy::wakeFunction, this, NULL);
+        g_source_attach(m_wakeSource, mainCtxt);
+        g_source_set_priority(m_wakeSource, G_PRIORITY_HIGH);
+        m_threaded = ::pthread_create(&m_reader, NULL, YapProxy::readerMain, this) == 0;
+        if (!m_threaded) {
+            g_source_destroy(m_wakeSource); g_source_unref(m_wakeSource); m_wakeSource = 0;
+            g_io_channel_unref(m_wakeChannel); m_wakeChannel = 0;
+            ::close(m_wakePipe[0]); ::close(m_wakePipe[1]); m_wakePipe[0] = m_wakePipe[1] = -1;
+        }
+        fprintf(stderr, "[jihad-bs] YAP commands read on %s\n", m_threaded ? "a reader thread (the express lane)" : "the main loop (no thread)");
+    }
+    if (m_cmdSocketFd != -1 && !m_threaded) {
         m_ioChannel = g_io_channel_unix_new(m_cmdSocketFd);
         m_ioSource  = g_io_create_watch(m_ioChannel, (GIOCondition) (G_IO_IN | G_IO_HUP));
 
@@ -164,6 +190,26 @@ YapProxy::~YapProxy()
 {
     delete[] m_msgSocketPostfix;   // allocated with new char[length+1] — must be delete[] (was UB)
     m_msgSocketPostfix = 0;
+
+    if (m_threaded) {
+        // T-515: the reader's blocked read returns once the socket is shut down. Never called
+        // with the server's lock held: the reader may be waiting for it in the express hook.
+        if (m_cmdSocketFd != -1) ::shutdown(m_cmdSocketFd, SHUT_RDWR);
+        ::pthread_join(m_reader, NULL);
+        m_threaded = false;
+    }
+    if (m_wakeSource) {
+        g_source_destroy(m_wakeSource);
+        g_source_unref(m_wakeSource);
+        m_wakeSource = 0;
+    }
+    if (m_wakeChannel) {
+        g_io_channel_unref(m_wakeChannel);
+        m_wakeChannel = 0;
+    }
+    if (m_wakePipe[0] != -1) ::close(m_wakePipe[0]);
+    if (m_wakePipe[1] != -1) ::close(m_wakePipe[1]);
+    while (!m_q.empty()) { delete m_q.front(); m_q.pop_front(); }
 
     if (m_ioSource) {
         g_source_destroy(m_ioSource);
@@ -234,6 +280,7 @@ void* YapProxy::privateData() const
 
 YapPacket* YapProxy::packetMessage()
 {
+    m_sendLock.lock();   // T-515: released by sendMessage(), which every caller makes next
     m_packetMessage->reset();
     return m_packetMessage;
 }
@@ -245,6 +292,7 @@ void YapProxy::setTerminate()
 
 void YapProxy::sendMessage()
 {
+    std::lock_guard<std::mutex> sendGuard(m_sendLock, std::adopt_lock);   // T-515: taken in packetMessage()
     char     pktHeader[4];
     uint16_t pktLen = 0;
 
@@ -304,6 +352,22 @@ void YapProxy::ioFunction(GIOChannel* channel, GIOCondition condition)
         goto Detached;
     }
 
+    if (handlePacket(pktFlags, pktLen))
+        return;
+
+ Detached:
+
+    m_server->clientDisconnected(this);
+    delete this;
+}
+
+// T-515: the command now in m_cmdBuffer (pktLenIn bytes), handled as ioFunction always did; false
+// when the proxy must detach (the caller detaches it).
+bool YapProxy::handlePacket(uint8_t pktFlags, int pktLenIn)
+{
+    char     pktHeader[4] = { 0, 0, 0, 0 };
+    uint16_t pktLen = (uint16_t) pktLenIn;
+
     m_inSyncMode = pktFlags & kPacketFlagSyncMask;
 
     if (m_inSyncMode) {
@@ -320,12 +384,12 @@ void YapProxy::ioFunction(GIOChannel* channel, GIOCondition condition)
         pktHeader[3] = 0;
 
         if (!writeSocket(m_cmdSocketFd, pktHeader, 4)) {
-            goto Detached;
+            return false;
         }
 
         if (m_packetReply->length() > 0) {
             if (!writeSocket(m_cmdSocketFd, (char*) m_replyBuffer, m_packetReply->length())) {
-                goto Detached;
+                return false;
             }
         }
 
@@ -345,16 +409,130 @@ void YapProxy::ioFunction(GIOChannel* channel, GIOCondition condition)
 
     m_inSyncMode = false;
 
-    if (m_terminate) {
-        goto Detached;
+    return !m_terminate;
+}
+
+// T-515: the reader thread. Each command is copied into the queue; an async one is offered to the
+// express hook first (a scroll, a zoom, a buffer returned: the express lane may answer them while
+// the main thread is busy). A closed socket ends the thread with a hang-up entry.
+void* YapProxy::readerMain(void* self)
+{
+    static_cast<YapProxy*>(self)->readerLoop();
+    return NULL;
+}
+
+bool YapProxy::readWait(int fd, char* buf, int len)
+{
+    int index = 0;
+    while (len > 0) {
+        int count = ::read(fd, &buf[index], len);
+        if (count > 0) { index += count; len -= count; continue; }
+        if (count == 0) return false;   // closed
+        if (errno == EINTR) continue;
+        if (errno == EAGAIN) {
+            struct pollfd pfd = { fd, POLLIN, 0 };
+            ::poll(&pfd, 1, 1000);
+            continue;
+        }
+        return false;
     }
+    return true;
+}
 
-    return;
+void YapProxy::readerLoop()
+{
+    for (;;) {
+        char hdr[4];
+        if (!readWait(m_cmdSocketFd, hdr, 4)) break;
+        uint16_t len;
+        ::memcpy(&len, hdr, 2);
+        len = bswap_16(len);
+        if (len > kMaxMsgLen) {
+            fprintf(stderr, "YAP: Invalid message length %u > %d\n", len, kMaxMsgLen);
+            break;
+        }
+        InPacket* p = new InPacket;
+        p->flags = (uint8_t) hdr[3]; p->hup = false; p->tag = ++m_tagNext;
+        p->data.resize(len);
+        if (len && !readWait(m_cmdSocketFd, (char*) &p->data[0], len)) { delete p; break; }
+        if (!(p->flags & kPacketFlagSyncMask) && s_expressHook && s_expressHook(this, len ? &p->data[0] : NULL, len, p->tag)) {
+            delete p;   // the express lane applied it
+            continue;
+        }
+        { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+        char b = 1;
+        ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
+    }
+    InPacket* p = new InPacket;
+    p->flags = 0; p->hup = true; p->tag = 0;
+    { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+    char b = 1;
+    ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
+}
 
- Detached:
+YapPacket* YapProxy::wrapPacket(uint8_t* data, int len)
+{
+    return len > 0 ? new YapPacket(data, len) : new YapPacket(data);
+}
 
-    m_server->clientDisconnected(this);
-    delete this;
+void YapProxy::freePacket(YapPacket* pkt)
+{
+    delete pkt;
+}
+
+bool YapProxy::injectAsync(const uint8_t* data, int len)
+{
+    if (!m_threaded || len <= 0 || len > kMaxMsgLen) return false;
+    const uint32_t tag = ++m_tagNext;
+    if (s_expressHook && s_expressHook(this, data, len, tag)) return true;
+    InPacket* p = new InPacket;
+    p->flags = 0; p->hup = false; p->tag = tag;
+    p->data.assign(data, data + len);
+    { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+    char b = 1;
+    ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
+    return true;
+}
+
+gboolean YapProxy::wakeFunction(GIOChannel*, GIOCondition, void* data)
+{
+    YapProxy* self = static_cast<YapProxy*>(data);
+    char buf[64];
+    while (::read(self->m_wakePipe[0], buf, sizeof(buf)) > 0) {}
+    self->drainQueue();   // may delete self
+    return TRUE;
+}
+
+// The main loop's side: the queued commands handled in order, each inside the dispatch hook (the
+// server's lock). A detach (a hang-up, a failed reply, a terminate) runs inside the hook too, and
+// the proxy is deleted after it, outside the lock (the destructor joins the reader).
+void YapProxy::drainQueue()
+{
+    for (;;) {
+        InPacket* p = 0;
+        {
+            std::lock_guard<std::mutex> g(m_qLock);
+            if (m_q.empty()) return;
+            p = m_q.front();
+            m_q.pop_front();
+        }
+        bool alive = false;
+        if (s_dispatchHook) s_dispatchHook(true);
+        if (!p->hup) {
+            const int len = (int) p->data.size();
+            if (len) ::memcpy(m_cmdBuffer, &p->data[0], len);
+            s_currentTag = p->tag;
+            alive = handlePacket(p->flags, len);
+            s_currentTag = 0;
+        }
+        delete p;
+        if (!alive) m_server->clientDisconnected(this);
+        if (s_dispatchHook) s_dispatchHook(false);
+        if (!alive) {
+            delete this;
+            return;
+        }
+    }
 }
 
 bool YapProxy::readSocket(int fd, char* buf, int len)

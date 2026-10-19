@@ -1,0 +1,51 @@
+T-515, the express lane (frames made off the main thread): rounds 240-267, 2026-10-19, CE 3.1.0 TouchPad.
+Daemon env JIHAD_GPU_COMPOSITOR=1 (gpu-spike-start.sh) plus JIHAD_GPU_EXPRESS=1; baselines with the
+express lane held off (JIHAD_GPU_EXPRESS_MS=999999 JIHAD_GPU_EXPRESS_LEAD_MS=0: the reader thread and
+the inject path as with it on, no express frames).
+
+Pans (pan-run.sh, inject pan 0 -> 3000 px in 10 s through the card's path; paint pipeline 2 s windows)
+  jihad-script-hold.html (600 ms of script in every 700)
+    express off (r241-hold-main)        2.4  2.9  3.8  3.3 fps
+    express (r267-hold-x)               27.1 26.2 31.9 fps (the last window after the pan's end)
+  desktop en.wikipedia.org/wiki/HP_TouchPad (after its load)
+    express off, T-505's table          16.5-24 fps (overscan 0.15)
+    express, fills stalls only (r246)   16.4 16.8 19.0 fps
+    express leads while the card moves (r249)  19.5 19.0 21.0 fps
+    the same, timeline (r259/r260)      median gap 45-46 ms, mean 50-56, p90 71-75
+    overscan 0.08 / 0 (r251)            median 42 / 42 ms: frame area is not the cost
+    band surface 600 / 942 rows (r265)  median 45 / 46 ms: column chunk count is not the cost
+    fixed rows read as a band (r253)    median 69 ms (the columns stay)
+    second frame posted early (r266)    median 43 ms, each frame 100-176 ms old: reverted (JIHAD_GPU_EXPRESS_EARLY)
+  The main thread's stalls no longer gap the frames: Wikipedia's 2.2 s restyle on the first scroll ran
+  under express frames every ~45 ms (r249 timeline). What is left is the compositor thread's ~45 ms a
+  Wikipedia frame, whichever lane asks for it (phases: render layers 3-7 ms of CPU a composite; the rest
+  the readback's wait for the GPU and the column passes).
+  jihad-long-static.html, express off (r264, regression check)   30.0-32.9 fps (T-505's table: 30-35)
+  jihad-long-static.html, NOGPU (r264)                           2.9-3.2 fps (2.7-3.2)
+
+Zooms from their arrival (zoom-seq.sh, 10 zooms, sent 0/150/300/450/600 ms into the script's hold)
+  jihad-script-hold.html  express off (r245-base)  median 450 ms, max 697
+                          express (r245, r267)     median 87 / 41 ms, max 91 / 45
+  Wikipedia after load    express off (r254-base)  median 681 ms, max 1116, 3 zooms never framed
+                          express (r255, r260, r267) 10/10 each: max 160 / 195 / 225 ms, median 69 / 77 / 58
+  Card double taps on Wikipedia (card-selftest t300,400 x10-12; first frame at each zoom, either lane):
+    r261  in 448, 65, 449, 245; out 84, 83, 84, 145 ms
+    r263  in 69, 71, 182, 68, 150, 177; out 46, 40, 312, 236, 314, 197, 160, 157 ms
+    The slow ones are GPU draws: a zoom out after a zoom in's repaint draws the new resolution's tiles at
+    0.545, 20-35 ms a draw (slow draw lines, a 179 ms composite in r263); the main lane's are the same.
+  A card pinch (r257): the frame at 1.23 59 ms after the card's command; the card at rest sharp and covered.
+  Express zoom frame vs the main lane's at rest (r256 dumps zd.x3 / zd.4 at 1.69): the same view rows.
+
+Bugs found and fixed on the way: wants waited on main jobs composed but unpolled (r241: the main thread
+sat in the script; peek added, engine 0048); a main frame at the old zoom ended the card's wait (r254);
+a frame position the engine clamps never "served" the card, so the express lane redrew it after every
+main frame (r258 duplicates) - the card's commands are tagged in arrival order and the main lane serves
+the card once its frame took up the newest; commands that arrive before the page exists (r259) are
+why the tag is the proxy's, not a count; a stale load-time want framed before the main lane's first
+frame (r246) - the main lane's first frame of a geometry or document comes first.
+
+Rounds 268-269: a SIGSEGV at 0 after a card disconnected and reconnected (r268, the express lane on):
+ClientLayerManager::DidComposite reached the main thread after the page was torn down (a main-lane job
+composed while the page's jobs were waited out) and dereferenced the destroyed widget. Engine 0049
+returns when the widget is gone; r269 repeated the gesture and disconnect run with the lane on and off,
+no fault.

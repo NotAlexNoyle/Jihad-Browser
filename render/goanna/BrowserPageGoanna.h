@@ -192,6 +192,20 @@ public:
   // to the card that STARTED it, not to whichever card connected last.
   const void* docShellKey() const { return mPage ? mPage->DocShellKey() : nullptr; }
   void returnBuffer(int sharedBufferKey);  // YAP: returnBuffer (adapter freed it)
+  // T-515, the express lane (JihadFrameLock.h, BrowserPageGoanna.cpp): the card's scroll and zoom
+  // (the want lock held by the caller) and its returned buffers (the frame lock held) as the YAP
+  // reader thread sees them, ahead of the main loop, and the express thread's step (the frame lock
+  // held; true: step again soon).
+  // tag: the command's number in its proxy's arrival order (YapProxy); the main loop reports the
+  // tag of each scroll or zoom it handled (the frame lock): the main lane's frame serves the card
+  // once it has taken up the newest one
+  void expressWant(int x, int y, double zoom, bool hasZoom, uint32_t tag);
+  void expressCommandDone(uint32_t tag) { if (tag > mXCmdDone) mXCmdDone = tag; }
+  void expressReturn(int sharedBufferKey);
+  bool expressStep(int64_t now);
+  // out of the express lane's reach at once, its frames waited out: the card left (reap), its proxy
+  // is deleted now and this page perhaps only at the tick's end
+  void expressDetach();
   void freeze();                           // YAP: freeze (card backgrounded — pause paint)
   void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)
   // Re-thaw onto the buffers we already hold. The inject channel called thaw(0,0,0), and
@@ -397,6 +411,8 @@ private:
     uint32_t token = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0; double zoom = 1.0;
     int64_t t0 = 0; uint32_t seq = 0; long askLo = 0, askHi = 0, ask2Lo = 0, ask2Hi = 0, shift = 0;
     int viewRow = 0;   // T-505: the view's top in the frame (the overscan above it)
+    uint32_t xFrames = 0;   // T-515: the express lane's frames when it was posted (newer ones since: dropped)
+    uint32_t cmdDone = 0;   // T-515: the card's commands the main loop had handled when it was posted
   };
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
   int mGpuViewRow = 0;
@@ -436,7 +452,57 @@ private:
     gpuJobDrain();
     for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
     mGpuLatestSlot = -1;   // round 113
+    xInvalidate();
   }
+  // T-515, the express lane's state. All of it under the frame lock (JihadFrameLock.h).
+  struct XWant { int x = 0, y = 0; double zoom = 1.0; int64_t ms = 0; uint32_t seq = 0, cmdSeq = 0; };
+  uint32_t mXCmdDone = 0;             // the newest of the card's commands the main loop handled (its tag; the frame lock)
+  uint32_t mXCmdPub = 0;              // ...the main lane's newest frame took up
+  XWant mXWant;                       // the card's newest position (the reader thread's view; the want lock)
+  int64_t mXWaitSinceMs = 0;          // the card has waited for a frame since (the main lane's publish clears it; the want lock)
+  double mXZoomNow = 1.0;             // the zoom the main lane last applied (for a scroll before any zoom; the want lock)
+  int64_t mXZoomWantMs = 0;           // the card's last new zoom arrived (the want lock; JIHAD_GPU_ZOOM_DUMP)
+  int mXZoomDumpN = 0;                // ...its number (the want lock)
+  double mXLastZoom = 0.0;            // the zoom of the express lane's last frame (the zoom hold's release)
+  int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)
+  int mXConsumed[3] = {0, 0, 0};      // returns the express hook applied; returnBuffer skips as many
+  // the main lane's GPU frame geometry and buffers, as of its last frame
+  struct XSnap {
+    bool ok = false; int w = 0, h = 0, frameH = 0, os = 0; size_t hdr = 0;
+    int keys[3] = {0, 0, 0}; size_t seg[3] = {0, 0, 0}; unsigned char* base[3] = {nullptr, nullptr, nullptr};
+    long contentH = 0; bool popups = false;
+  };
+  XSnap mXSnap;
+  uint32_t mXGeomGen = 0;             // the buffers, the frame's geometry or the document changed
+  uint32_t mXLastPostToken = 0;       // the newest composite asked for, by either lane
+  // the newest frame composed intact into a slot (either lane): the express lane's base
+  struct XPub {
+    uint32_t token = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0; double zoom = 0.0;
+    long fixedLo = 0, fixedHi = -1; int cardX = 0, cardY = 0; int64_t ms = 0;
+  };
+  XPub mXPub;
+  int64_t mXMainPubMs = 0;            // the main lane's last publish
+  struct XJob {
+    bool on = false; uint32_t token = 0, gen = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0, os = 0;
+    double zoom = 1.0; long shift = 0; int64_t t0 = 0, wantMs = 0, waitMs = 0; bool whole = true;
+    unsigned char* pixels = nullptr; int cardY = 0;
+    bool composed = false; long invLo = 0, invHi = 0; int composedY = 0;   // known once composed (being read)
+  };
+  XJob mXJob;                         // the express lane's frame in flight (the older one)
+  XJob mXJob2;                        // the one after it, built on it while it is read (round 130's rule)
+  bool mXMainWindow = false;          // the main lane paints its layers with the lock let go of
+  int mXMainSlot = -1;                // ...for this slot
+  uint32_t mXFrames = 0, mXFailures = 0;
+  bool mGpuPainted = false;           // gpuJobStart: the layers are painted already (post only)
+  // (and the main lane's first frame of the new geometry or document comes first: its blank
+  // suppression and first-paint hold are the main lane's)
+  void xInvalidate() { ++mXGeomGen; mXSnap.ok = false; mXPub = XPub(); mXMainPubMs = 0; }
+  bool xStart(int64_t now, double zoom, const XWant& want, int64_t waitSince, const XJob* aBase = nullptr);
+  void xForget(XJob& j) { if (j.on && mPage) mPage->ComposeForget(j.token); j = XJob(); }
+  bool xLeads(int64_t now);           // the card is moving: the express lane makes the frames (the frame lock held)
+  int64_t mXMainPaintMs = 0;          // the main lane's last layer paint while the express lane leads
+  bool xPoll(int64_t now);
+  void xSnapshot(int w, int h, int frameH, int os, size_t hdr);
                                          // window opens (inspector P2: cap dirty-driven full repaints)
   int64_t            mLastDirtyPaintMs;  // last dirty-driven repaint (ms), for the 150 ms cap
   // Next scheduled publish instant for plugin-driven damage. A GRID, deliberately not

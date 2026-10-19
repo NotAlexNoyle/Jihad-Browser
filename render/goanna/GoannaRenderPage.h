@@ -373,6 +373,15 @@ public:
   uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0,
                         const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false);
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
+  // T-515: ComposeStart's halves. PaintLayers (the main thread) paints the layers; ComposePost (any
+  // thread, the frame lock held) composes the tree as it stands into a frameH-row frame, at aView
+  // (scale, offset x, offset y, scroll x, scroll y: CSS px, the scroll valid) or, null, the view and
+  // scroll last set. ExpressReady: both exports are in the engine.
+  bool PaintLayers();
+  uint32_t ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo, long row2Hi,
+                       long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView);
+  bool ExpressReady() const;
+  int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
   // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),
   // the two bands read (read, read2), and whether the composite's only change was the scroll

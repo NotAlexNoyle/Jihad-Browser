@@ -26,6 +26,12 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   header stays put, the text is continuous (no repeated or missing bands), nothing blank enters
   from below, no jump every ~660 px (the engine's anchor moves). Then flick. A scripted pan cannot
   show this: the adapter's own view does not move. (T-502; offscreen-rendering, the scroll row)
+- [ ] The GPU path with the express lane (T-515, 2026-10-19; on by default once T-510 lands): right
+  after desktop en.wikipedia.org loads (its scripts run for seconds), pinch in, pan, pinch out and
+  double-tap at once, and do the same on `jihad-script-hold.html` (the host server; its script holds
+  the engine 600 ms in every 700): the page follows the finger at the new zoom without waiting for
+  the script, nothing flips back to the old zoom, and at rest the text is sharp and nothing is grey.
+  (cavekit-gpu-rendering R3, R6, R12)
 
 ## Keyboard and text
 - [ ] Tap a field on several pages in one session: the keyboard comes up every time, and the page

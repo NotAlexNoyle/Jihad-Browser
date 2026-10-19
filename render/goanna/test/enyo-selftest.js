@@ -91,6 +91,13 @@
 					})();
 					log(name, "drag " + st.slice(1));
 					wait = 2500;
+				} else if (st.charAt(0) === "t") {    // tX,Y: a double tap at view X,Y, as the adapter's smart zoom
+					// gets it (handlePenDoubleClick ends in the same prvSmartZoom): the daemon finds the
+					// block under the point and the adapter zooms to it, or back out when zoomed already
+					var tp = st.slice(1).split(",");
+					view.callBrowserAdapter("smartZoom", [parseInt(tp[0], 10), parseInt(tp[1], 10)]);
+					log(name, "double tap " + st.slice(1));
+					wait = 3500;
 				} else if (st.charAt(0) === "g") {    // gSCALE,X,Y: a pinch to SCALE about view X,Y, in eight
 					// steps through the adapter's own gesture calls. The scale and rotation must be
 					// non-integers: the adapter refuses an integer where it expects a double.

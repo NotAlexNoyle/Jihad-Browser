@@ -1097,6 +1097,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     fprintf(stderr, "[jihad-bs] setZoomAndScroll zoom=%.4f (was %.4f) scroll=%d,%d\n",
             zoom, mLastLoggedZoom, x, y);
     mLastLoggedZoom = zoom;
+    mGpuZoomCmdMs = jihadNowMs(); mGpuZoomDumpN++;   // T-504: JIHAD_GPU_ZOOM_DUMP's next file
   }
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
   if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
@@ -4562,6 +4563,20 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   mLastPaintDoneMs = jihadNowMs();   // pan-cadence refresh reference
   gJihadPaintDone++;
   JihadRecordFrameGap(mLastPaintDoneMs);
+  static const char* sZoomDump = getenv("JIHAD_GPU_ZOOM_DUMP");
+  if (sZoomDump && nb > 0 && mPage->GpuPath() && mGpuZoomDumpN >= 1 && mGpuZoomDumpN <= 6 &&
+      jihadNowMs() - mGpuZoomCmdMs < 3000 && fabs(oi->contentZoom - mGpuZoom) < 1e-6) {
+    // T-504 device rounds (JIHAD_GPU_ZOOM_DUMP=<path>): every frame at the new zoom published in the
+    // 3 s after a zoom, as the adapter will read it, rewritten to <path>.<n> (n: the zoom's number,
+    // up to six): the file ends as the frame the card shows at rest, and the log says when it came
+    // (cavekit-gpu-rendering R6: the card covered within 500 ms of the gesture)
+    char path[512];
+    snprintf(path, sizeof path, "%s.%d", sZoomDump, mGpuZoomDumpN);
+    FILE* f = fopen(path, "wb");
+    if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f);
+             fprintf(stderr, "[jihad-gpu] zoom frame written: %s (%dx%d at zoom %.4f, %ld ms after the zoom, x %d y %d)\n",
+                     path, paintedW, paintedH, oi->contentZoom, (long)(jihadNowMs() - mGpuZoomCmdMs), oi->renderedX, oi->renderedY); }
+  }
   if (nb >= 0 && mPage->GpuPath()) {
     // T-502 device rounds: the buffer as the adapter will read it (JIHAD_GPU_DUMP2=<path>, the 5th frame)
     static const char* sDump2 = getenv("JIHAD_GPU_DUMP2");

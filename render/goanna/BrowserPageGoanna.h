@@ -385,6 +385,8 @@ private:
   // grey meanwhile). JIHAD_GPU_NO_ZOOM_HOLD=1 restores the old order.
   bool               mGpuSettledShort = false;   // T-504: the pan settled where the engine cannot scroll; the compositor keeps the rest
   int64_t            mGpuZoomHoldMs = 0;
+  int64_t            mGpuZoomCmdMs = 0;      // T-504 (JIHAD_GPU_ZOOM_DUMP): when the zoom last changed
+  int                mGpuZoomDumpN = 0;      // the zoom changes so far: the dump file's number
   double             mGpuZoomHoldZ = 0.0;
   void               gpuZoomRelease(const char* why);
   int                mGpuAnchorX = 0, mGpuAnchorY = 0;

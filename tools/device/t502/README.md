@@ -182,7 +182,21 @@ may start further into its segment, written in a trailer the window-aware adapte
 cleans the frame rows' cache after each frame although the segments are mapped write-through. NB: the
 adapters must be the window-aware build (`build-adapter-pdk.sh`, then each variant's
 `/usr/lib/jihad/<v>/BrowserAdapterImpl.so` and a Luna restart); an older adapter makes the daemon keep
-windows at 0.
+windows at 0. Engine 0055 composes a band frame's bands and column chunks as regions of one composite
+(`JIHAD_GPU_PASS_PER_REGION=1`: a composite each, as before); 0056 skips a tile whose bounds miss the clip
+before its texture is locked (`JIHAD_GPU_NO_TILE_CULL=1` for A/B). With `JIHAD_GPU_TIMELINE=1` a page's
+layer transaction that holds the compositor thread 3 ms or more is on the timeline with its tile uploads
+(rounds 349-357), and `JIHAD_GPU_READ_FINISH=1` puts a glFinish before each read, so the read line splits
+the GPU's remaining compose from the pixels' read. `gpu-bench.c` section 18 (`BENCH_ONLY=18`) times
+sub-image uploads into converted tile textures.
+
+T-512: the `[jihad-gpu]` diagnostics are off by default; `JIHAD_GPU_LOG=1` turns them on, and so do
+`JIHAD_GPU_TIMELINE`, `JIHAD_GPU_VERIFY` and `JIHAD_GPU_DUMP_EVERY` (a device round's own switches). The
+gate is one macro in the engine (`gfx/2d/JihadGpuLog.h`, exported as `mozilla/gfx/JihadGpuLog.h`) and one in
+the daemon (`render/goanna/JihadGpuLog.h`); failures and fallbacks print anyway. `gpu-spike-start.sh` sets
+`JIHAD_GPU_LOG=1` for a hand-started daemon (`NOLOG=1` leaves it off); the upstart jobs do not, and a page's
+close prints one line with its express-lane frame count (`page closed: <n> frames by the express lane`),
+which `default-check.sh` counts.
 
 
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th

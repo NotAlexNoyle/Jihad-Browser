@@ -26,6 +26,8 @@ namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include <sys/stat.h>
 #include <time.h>
 
+#include "../goanna/JihadGpuLog.h"   // T-512: JIHAD_GPU_LOG
+
 // Cadence clock. Deliberately CLOCK_MONOTONIC and deliberately not the goanna side's
 // jihadNowMs(), which is gettimeofday(): a wall-clock step (NTP, the user setting the time)
 // would show up as one absurd frame period and poison a min/avg/max that is being read to
@@ -858,7 +860,7 @@ void JihadBrowserServer::tick() {
     const int64_t now = jihadTickNowMs();
     if (gpu && sPrevEnd && sLogged < 120 && (pumpMs + paintMs >= 6 || now - sPrevEnd >= 14)) {
       ++sLogged;
-      fprintf(stderr, "[jihad-gpu] tick: loop gap %ld ms before it, pump %ld ms, paint %ld ms\n",
+      JIHAD_GPU_LOG("[jihad-gpu] tick: loop gap %ld ms before it, pump %ld ms, paint %ld ms\n",
               (long)(tickT0 - sPrevEnd), (long)pumpMs, (long)paintMs);
     }
     sPrevEnd = now;

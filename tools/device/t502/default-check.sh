@@ -26,5 +26,5 @@ build/webos-oe/dev-sh.sh -t 60 $S/default-close.sh 2>&1 | grep 'closed card\|ren
 rm -f $S/default-close.sh
 novacom get file:///var/palm/jihad/$ST/daemon.log 2>/dev/null | tail -c +$(( ${mark:-0} + 1 )) > $D/default-$V-daemon.log
 L=$D/default-$V-daemon.log
-echo "$V: painted $(grep -a -c 'painted shmid' $L), express frames $(grep -a -c 'express frame' $L), zooms $(grep -a -c 'setZoomAndScroll zoom' $L), disconnects $(grep -a -c 'client disconnected' $L), faults $(grep -a -c 'FATAL SIGNAL' $L), GPU off $(grep -a -c 'GPU path is off' $L), express off $(grep -a -c 'express lane off' $L)"
+echo "$V: painted $(grep -a -c 'painted shmid' $L), express frames $(grep -a 'page closed: ' $L | sed 's/.*page closed: \([0-9]*\) frames.*/\1/' | awk '{n+=$1} END {print n+0}'), zooms $(grep -a -c 'setZoomAndScroll zoom' $L), disconnects $(grep -a -c 'client disconnected' $L), faults $(grep -a -c 'FATAL SIGNAL' $L), GPU off $(grep -a -c 'GPU path is off' $L), express off $(grep -a -c 'express lane off' $L)"
 bash build/webos-oe/card-selftest.sh $V restore 2>&1 | tail -n 1

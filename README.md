@@ -227,11 +227,11 @@ does with a catch. Site by site, with causes and what was tried: `docs/MODERN-WE
   covers those. Keep the clock set: certificate checks need the right date. howsmyssl.com's one
   "improvable" mark is post-quantum key agreement, which the engine does not have.
 - **Frame rates are the device's.** Drawn on the GPU, a simple page pans at 30-36 frames a second
-  and desktop Wikipedia at 19-21 (its two pinned side panels are drawn again for every frame); the
+  and desktop Wikipedia at 23-24 (its two pinned side panels are drawn again for every frame); the
   first frame at a new zoom comes within a quarter of a second most of the time. Mochi's text can
   look soft at some zoom levels.
 - **WebGL is version 1 on a 2011 GPU.** A 480-pixel spinning cube draws at 21-25 frames a second
-  (a smaller canvas reaches the card faster); four extensions desktop browsers offer are missing
+  and reaches the card at about 20 (a smaller canvas reaches the card faster); four extensions desktop browsers offer are missing
   (`ANGLE_instanced_arrays`, `WEBGL_compressed_texture_s3tc`, `EXT_blend_minmax`,
   `EXT_shader_texture_lod`).
 - **Modern single-page applications are slow.** A page built as one large script (GitLab, Reddit's

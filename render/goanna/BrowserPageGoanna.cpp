@@ -47,6 +47,8 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include <dirent.h>             // T-515: the frame threads by name
 #include <sys/resource.h>       // setpriority
 
+#include "JihadGpuLog.h"   // T-512: JIHAD_GPU_LOG
+
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
 namespace jihad {
@@ -238,7 +240,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     if (!gXPages) {
       gXPages = new std::set<BrowserPageGoanna*>();
       gXThread = new std::thread(jihadExpressThread);
-      fprintf(stderr, "[jihad-gpu] express lane on: frames while the main thread is busy (after %s ms)\n",
+      JIHAD_GPU_LOG("[jihad-gpu] express lane on: frames while the main thread is busy (after %s ms)\n",
               getenv("JIHAD_GPU_EXPRESS_MS") ? getenv("JIHAD_GPU_EXPRESS_MS") : "45");
     }
     gXPages->insert(this);
@@ -437,7 +439,7 @@ static void jihadBoostFrameThreads() {
       const int tid = atoi(e->d_name);
       if (setpriority(PRIO_PROCESS, tid, sNice) == 0) {
         sFound |= 1 << i;
-        fprintf(stderr, "[jihad-gpu] frame thread %s (%d) ahead of the others: nice %d\n", kNames[i], tid, sNice);
+        JIHAD_GPU_LOG("[jihad-gpu] frame thread %s (%d) ahead of the others: nice %d\n", kNames[i], tid, sNice);
       } else {
         sFound |= 1 << i;   // not allowed (not root): once
         fprintf(stderr, "[jihad-gpu] frame thread %s (%d): nice %d refused (%s)\n", kNames[i], tid, sNice, strerror(errno));
@@ -742,6 +744,11 @@ BrowserPageGoanna::~BrowserPageGoanna() {
   // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
   FrameLockGuard frameLock;
   if (gXPages) gXPages->erase(this);
+  // T-512: the lanes' count, one line a page (the [jihad-gpu] lines are off by default; the device
+  // rounds' default checks read this one)
+  if (mPage && mPage->GpuPath())
+    fprintf(stderr, "[jihad-bs] page closed: %u frames by the express lane%s\n", mXFrames,
+            mXFailures >= 3 ? " (the lane went off)" : "");
   // Never leave the process-wide sink pointing at a destroyed page — and never take it away
   // from a page that is still alive. If this page owned the dialogs they pass to the newest
   // remaining one; if it did not (an older card closing while a newer one is open), nothing
@@ -1116,7 +1123,7 @@ void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
       mGpuSettledShort = true;
       static uint32_t sK = 0;
       if (sK++ < 20 || (sK % 50) == 0)
-        fprintf(stderr, "[jihad-gpu] compositor scroll kept at %d,%d: the engine stops at %d,%d of %.0f,%.0f CSS px\n",
+        JIHAD_GPU_LOG("[jihad-gpu] compositor scroll kept at %d,%d: the engine stops at %d,%d of %.0f,%.0f CSS px\n",
                 mAdapterScrollX, mAdapterScrollY, sx, sy, wantX, wantY);
       return;
     }
@@ -1127,7 +1134,7 @@ void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
   mNeedsPaint = true;
   static uint32_t sN = 0;
   if (sN++ < 20 || (sN % 50) == 0)
-    fprintf(stderr, "[jihad-gpu] compositor scroll off (%s) at %d,%d\n", moveEngine ? "the pan settled, the engine moved there" : "the card follows the page", mAdapterScrollX, mAdapterScrollY);
+    JIHAD_GPU_LOG("[jihad-gpu] compositor scroll off (%s) at %d,%d\n", moveEngine ? "the pan settled, the engine moved there" : "the card follows the page", mAdapterScrollX, mAdapterScrollY);
 }
 
 void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
@@ -1165,7 +1172,7 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
       if (mPage->GetEngineScroll(&sx, &sy)) { mGpuAnchorX = sx; mGpuAnchorY = sy; mGpuAnchorValid = true; }
       static uint32_t sN = 0;
       if (sN++ < 20 || (sN % 50) == 0)
-        fprintf(stderr, "[jihad-gpu] scroll anchor moved to %d,%d (wanted %.0f,%.0f)\n", mGpuAnchorX, mGpuAnchorY, wantX, wantY);
+        JIHAD_GPU_LOG("[jihad-gpu] scroll anchor moved to %d,%d (wanted %.0f,%.0f)\n", mGpuAnchorX, mGpuAnchorY, wantX, wantY);
     }
     if (mPage->SetGpuScroll(wantX, wantY, true)) {
       gpuSetView(z, 0.0, 0.0);
@@ -1226,7 +1233,7 @@ void BrowserPageGoanna::gpuZoomRelease(const char* why) {
   const long held = (long)(jihadNowMs() - mGpuZoomHoldMs);
   mGpuZoomHoldMs = 0;
   const double z = mGpuZoom;
-  fprintf(stderr, "[jihad-gpu] zoom %.4f: the displayport and the anchor follow, %ld ms after the zoom (%s)\n", z, held, why);
+  JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the displayport and the anchor follow, %ld ms after the zoom (%s)\n", z, held, why);
   mPage->SetGpuViewport(z);
   // The anchor stays where it is unless the view is past its margins at the new zoom (gpuScrollTo's
   // own rule): moving the engine for nothing fires the page's scroll handlers, and desktop
@@ -3415,7 +3422,7 @@ void BrowserPageGoanna::maybePaint() {
     const int64_t now = jihadNowMs();
     if (sPrev && sLogged < 80 && mPage && mPage->GpuPath() && mHadContent) {
       ++sLogged;
-      fprintf(stderr, "[jihad-gpu] maybePaint +%ld ms (%d jobs, needsPaint %d, dirtyPending %d, seq %u/%u)\n",
+      JIHAD_GPU_LOG("[jihad-gpu] maybePaint +%ld ms (%d jobs, needsPaint %d, dirtyPending %d, seq %u/%u)\n",
               (long)(now - sPrev), (int)mGpuJobs.size(), (int)mNeedsPaint, (int)mDirtyPending,
               mPage->CompositorSeq(), mGpuSeq);
     }
@@ -3426,7 +3433,7 @@ void BrowserPageGoanna::maybePaint() {
     static const bool sZoomLog = getenv("JIHAD_GPU_ZOOMLOG") != nullptr;
     static int sZ = 0;
     if (sZoomLog && sZ++ < 200)
-      fprintf(stderr, "[jihad-gpu] zoom hold tick +%ld ms: frozen=%d needsPaint=%d jobs=%zu suppressed=%d inflight=%d%d%d\n",
+      JIHAD_GPU_LOG("[jihad-gpu] zoom hold tick +%ld ms: frozen=%d needsPaint=%d jobs=%zu suppressed=%d inflight=%d%d%d\n",
               (long)(jihadNowMs() - mGpuZoomHoldMs), (int)mFrozen, (int)mNeedsPaint, mGpuJobs.size(),
               (int)(mPage && mPage->PaintingSuppressed()), (int)mInFlight[0], (int)mInFlight[1], (int)mInFlight[2]);
   }
@@ -3629,7 +3636,7 @@ void BrowserPageGoanna::gpuJobDrain() {
   if (mGpuJobs.empty()) return;
   {
     static uint32_t sN = 0;
-    if (sN++ < 30) fprintf(stderr, "[jihad-gpu] jobs drained: %d in flight, every slot's record dropped\n", (int)mGpuJobs.size());
+    if (sN++ < 30) JIHAD_GPU_LOG("[jihad-gpu] jobs drained: %d in flight, every slot's record dropped\n", (int)mGpuJobs.size());
   }
   if (mPage) {
     for (const GpuJob& j : mGpuJobs) {
@@ -3765,7 +3772,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       sLo = n > 0 ? iv[0][0] : 0; sHi = n > 0 ? iv[0][1] : 0; s2Lo = n > 1 ? iv[1][0] : 0; s2Hi = n > 1 ? iv[1][1] : 0;
       static uint32_t sN = 0;
       if (sN++ < 12 || (sN % 100) == 0)
-        fprintf(stderr, "[jihad-gpu] slot %d from the newest slot %d (y %d -> %d, shift %ld); bands %ld..%ld and %ld..%ld\n",
+        JIHAD_GPU_LOG("[jihad-gpu] slot %d from the newest slot %d (y %d -> %d, shift %ld); bands %ld..%ld and %ld..%ld\n",
                 slot, L, mGpuSlotY[L], y, dy, sLo, sHi, s2Lo, s2Hi);
     }
   }
@@ -3822,19 +3829,19 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       sLo = n > 0 ? iv[0][0] : 0; sHi = n > 0 ? iv[0][1] : 0; s2Lo = n > 1 ? iv[1][0] : 0; s2Hi = n > 1 ? iv[1][1] : 0;
       static uint32_t sN = 0;
       if (sN++ < 20 || (sN % 100) == 0)
-        fprintf(stderr, "[jihad-gpu] slot %d shift of %ld rows asked; bands %ld..%ld and %ld..%ld\n", slot, dy, sLo, sHi, s2Lo, s2Hi);
+        JIHAD_GPU_LOG("[jihad-gpu] slot %d shift of %ld rows asked; bands %ld..%ld and %ld..%ld\n", slot, dy, sLo, sHi, s2Lo, s2Hi);
     }
   }
   {
     static int64_t sWholeMs = 0;
     if (sHi - sLo >= h && jihadNowMs() - sWholeMs >= 500 && (sWholeMs = jihadNowMs()))
-      fprintf(stderr, "[jihad-gpu] slot %d read whole: valid=%d x %d/%d y %d/%d zoom %.4f/%.4f w %d/%d h %d/%d fixed %ld..%ld\n",
+      JIHAD_GPU_LOG("[jihad-gpu] slot %d read whole: valid=%d x %d/%d y %d/%d zoom %.4f/%.4f w %d/%d h %d/%d fixed %ld..%ld\n",
               slot, slot >= 0 ? (int)mGpuSlotValid[slot] : -1, x, slot >= 0 ? mGpuSlotX[slot] : -1, y, slot >= 0 ? mGpuSlotY[slot] : -1,
               zoom, slot >= 0 ? mGpuSlotZoom[slot] : 0.0, w, slot >= 0 ? mGpuSlotW[slot] : -1, h, slot >= 0 ? mGpuSlotH[slot] : -1,
               mGpuFixedLo, mGpuFixedHi);
   }
   static const bool sWhiteLog = getenv("JIHAD_GPU_WHITE") != nullptr;
-  if (sWhiteLog) fprintf(stderr, "[jihad-gpu] white before job: slot %d (y %d -> %d, shift %ld, bands %ld..%ld %ld..%ld): rows%s\n",
+  if (sWhiteLog) JIHAD_GPU_LOG("[jihad-gpu] white before job: slot %d (y %d -> %d, shift %ld, bands %ld..%ld %ld..%ld): rows%s\n",
                          slot, slot >= 0 ? mGpuSlotY[slot] : -1, y, shift, sLo, sHi, s2Lo, s2Hi,
                          jihadWhiteRuns(pixels + (size_t)(winMoved ? mGpuSlotWin[slot] : win) * stride, w, h).c_str());
   if (mGpuNextExtraHi > mGpuNextExtraLo && !(sLo == 0 && sHi >= h)) {
@@ -3918,7 +3925,7 @@ void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h,
     const int64_t now = jihadNowMs();
     if (now - sLastWhy >= 2000) {
       sLastWhy = now;
-      fprintf(stderr, "[jihad-gpu] second frame not started: no slot %u, adapter holds it %u, no buffer %u, too small %u, start failed %u\n",
+      JIHAD_GPU_LOG("[jihad-gpu] second frame not started: no slot %u, adapter holds it %u, no buffer %u, too small %u, start failed %u\n",
               sWhy[0], sWhy[1], sWhy[2], sWhy[3], sWhy[4]);
     }
   }
@@ -4108,7 +4115,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
       mNeedsPaint = true;   // the main lane's own frame at the new zoom, later
       static uint32_t sSupN = 0;
       if (sSupN++ < 20 || (sSupN % 50) == 0)
-        fprintf(stderr, "[jihad-gpu] express frame at zoom %.4f goes first: %d main-lane frame(s) at the old zoom not yet composed given up\n", Z, superseded);
+        JIHAD_GPU_LOG("[jihad-gpu] express frame at zoom %.4f goes first: %d main-lane frame(s) at the old zoom not yet composed given up\n", Z, superseded);
     }
   }
   long lo = 0, hi = H, lo2 = 0, hi2 = 0;
@@ -4185,7 +4192,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
         lo = n > 0 ? iv[0][0] : 0; hi = n > 0 ? iv[0][1] : 0; lo2 = n > 1 ? iv[1][0] : 0; hi2 = n > 1 ? iv[1][1] : 0;
         static uint32_t sOwnN = 0;
         if (sOwnN++ < 12 || (sOwnN % 100) == 0)
-          fprintf(stderr, "[jihad-gpu] express frame on its slot's own frame %u: slot %d, window %d -> %d (moved %ld rows), bands %ld..%ld and %ld..%ld\n",
+          JIHAD_GPU_LOG("[jihad-gpu] express frame on its slot's own frame %u: slot %d, window %d -> %d (moved %ld rows), bands %ld..%ld and %ld..%ld\n",
                   sOwnN, slot, mGpuSlotWin[slot], xWin, d, lo, hi, lo2, hi2);
       }
     }
@@ -4288,7 +4295,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     avg = avg <= 0.0 ? ms : avg * 0.8 + ms * 0.2;
     static uint32_t sAvgN = 0;
     if ((sAvgN++ % 50) == 0)
-      fprintf(stderr, "[jihad-gpu] express frame times: on the slot's own frame %.1f ms, copied from the base %.1f ms\n", mXOwnMs, mXCopyMs);
+      JIHAD_GPU_LOG("[jihad-gpu] express frame times: on the slot's own frame %.1f ms, copied from the base %.1f ms\n", mXOwnMs, mXCopyMs);
   }
   mSink.msgPainted(mXJob.key);
   mInFlight[s] = true; mPaintMs[s] = now;
@@ -4342,18 +4349,18 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
       FILE* f = logOnly ? nullptr : fopen(path, "wb");
       if (f) { fwrite(pixels, 1, (size_t)w * H * 4, f); fclose(f); }
       if (f || logOnly) {
-               fprintf(stderr, "[jihad-gpu] zoom frame written (express): %s (%dx%d at zoom %.4f, %ld ms after the zoom, x %d y %d)\n",
+               JIHAD_GPU_LOG("[jihad-gpu] zoom frame written (express): %s (%dx%d at zoom %.4f, %ld ms after the zoom, x %d y %d)\n",
                        path, w, H, mXJob.zoom, (long)(now - zMs), mXJob.x, frameY); }
     }
   }
   if (mXFrames <= 30 || (mXFrames % 50) == 0)
-    fprintf(stderr, "[jihad-gpu] express frame %u: slot %d %s (shift %ld, read %ld..%ld), zoom %.4f y %d, %ld ms after the card's"
+    JIHAD_GPU_LOG("[jihad-gpu] express frame %u: slot %d %s (shift %ld, read %ld..%ld), zoom %.4f y %d, %ld ms after the card's"
                     " move, %ld ms after the card began to wait, composed and read in %ld ms, the main lane quiet %ld ms\n",
             mXFrames, s, mXJob.whole ? "whole" : "from the newest", mXJob.shift, cr.readLo, cr.readHi, mXJob.zoom, frameY,
             (long)(now - mXJob.wantMs), (long)(now - mXJob.waitMs), (long)(now - mXJob.t0),
             mXMainPubMs ? (long)(now - mXMainPubMs) : -1L);
   if (gJihadInputMarkMs && cr.invHi > cr.invLo) {
-    fprintf(stderr, "[jihad-gpu] input latency: the first changed frame (rows %ld..%ld, express) out %ld ms after the input\n",
+    JIHAD_GPU_LOG("[jihad-gpu] input latency: the first changed frame (rows %ld..%ld, express) out %ld ms after the input\n",
             cr.invLo, cr.invHi, (long)(now - gJihadInputMarkMs));
     gJihadInputMarkMs = 0;
   }
@@ -5070,7 +5077,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const int h = gpuFrameH;   // T-505: below, the frame's rows (the view's and the overscan)
       const int gslot = slotForKey(mActiveKey);
       if (!mGpuJobs.empty() && mGpuJobs[0].slot != gslot) gpuJobDrain();   // the slot moved under the jobs
-      if (mGpuZoomHoldMs && getenv("JIHAD_GPU_ZOOMLOG")) fprintf(stderr, "[jihad-gpu] zoom hold: GPU branch, slot %d, jobs %zu, zoom %.4f\n", gslot, mGpuJobs.size(), Zeff);
+      if (mGpuZoomHoldMs && getenv("JIHAD_GPU_ZOOMLOG")) JIHAD_GPU_LOG("[jihad-gpu] zoom hold: GPU branch, slot %d, jobs %zu, zoom %.4f\n", gslot, mGpuJobs.size(), Zeff);
       if (mGpuJobs.empty() && jihadExpressOn() && mXLastXPubMs && fabs(mXLastZoom - Zeff) > 1e-6 &&
           jihadNowMs() - mXLastXPubMs < 300) {
         // T-515: the express lane's newest frame is at a zoom this lane has not taken up yet (its
@@ -5177,19 +5184,19 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuStaleAdd(gslot, il, ih, cr, cr.frameYValid ? (int)cr.frameY : oldest.y, oldest.x, oldest.zoom, w, h);
           static uint32_t sXD = 0;
           if (sXD++ < 20 || (sXD % 50) == 0)
-            fprintf(stderr, "[jihad-gpu] main lane's frame dropped: the express lane published %u frame(s) since it was posted\n",
+            JIHAD_GPU_LOG("[jihad-gpu] main lane's frame dropped: the express lane published %u frame(s) since it was posted\n",
                     mXFrames - oldest.xFrames);
           nb = -1;
           mNeedsPaint = true;
         }
         if (gJihadInputMarkMs && r >= 0 && !xDropped && cr.invHi > cr.invLo) {
-          fprintf(stderr, "[jihad-gpu] input latency: the first changed frame (rows %ld..%ld) out %ld ms after the input\n",
+          JIHAD_GPU_LOG("[jihad-gpu] input latency: the first changed frame (rows %ld..%ld) out %ld ms after the input\n",
                   cr.invLo, cr.invHi, (long)(jihadNowMs() - gJihadInputMarkMs));
           gJihadInputMarkMs = 0;
         }
         {
           static const bool sWhiteLog2 = getenv("JIHAD_GPU_WHITE") != nullptr;
-          if (sWhiteLog2 && r >= 0) fprintf(stderr, "[jihad-gpu] white after job: slot %d (y %d, shift %ld, read %ld..%ld %ld..%ld): rows%s\n",
+          if (sWhiteLog2 && r >= 0) JIHAD_GPU_LOG("[jihad-gpu] white after job: slot %d (y %d, shift %ld, read %ld..%ld %ld..%ld): rows%s\n",
                                             gslot, oldest.y, oldest.shift, cr.readLo, cr.readHi, cr.read2Lo, cr.read2Hi, jihadWhiteRuns(pixels, w, h).c_str());
         }
         if (oldest.shift && r >= 0) mPage->CleanRows(pixels, 0, h);   // the shifted rows: the compositor thread's writes
@@ -5201,7 +5208,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         {
           static uint32_t sN = 0;
           if (sN++ < 30 || (sN % 50) == 0)
-            fprintf(stderr, "[jihad-gpu] job done %ld ms after its start, %d pending polls, read %ld..%ld and %ld..%ld, changed %ld..%ld, fixed %ld..%ld%s, nb=%d, %d still in flight\n",
+            JIHAD_GPU_LOG("[jihad-gpu] job done %ld ms after its start, %d pending polls, read %ld..%ld and %ld..%ld, changed %ld..%ld, fixed %ld..%ld%s, nb=%d, %d still in flight\n",
                     (long)(mGpuDoneMs - oldest.t0), mGpuJobPolls, cr.readLo, cr.readHi, cr.read2Lo, cr.read2Hi, il, ih, cr.fixedLo, cr.fixedHi,
                     cr.scrollOnly ? " (scroll only)" : "", r, (int)mGpuJobs.size());
           for (int ti = 0; ti < 8; ++ti) mGpuTrace[ti] = 0;
@@ -5321,7 +5328,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                   sDumpedWrong = true;
                   FILE* f1 = fopen("/tmp/vw-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
                   FILE* f2 = fopen("/tmp/vw-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
-                  fprintf(stderr, "[jihad-gpu] verify: the first wrong frame dumped (/tmp/vw-slot.raw, /tmp/vw-whole.raw)\n");
+                  JIHAD_GPU_LOG("[jihad-gpu] verify: the first wrong frame dumped (/tmp/vw-slot.raw, /tmp/vw-whole.raw)\n");
                 }
               }
               // Structural errors, by blocks of 16 rows: a block whose content sits better at another
@@ -5362,14 +5369,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                   sDumpedStruct = true;
                   FILE* f1 = fopen("/tmp/vs-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
                   FILE* f2 = fopen("/tmp/vs-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
-                  fprintf(stderr, "[jihad-gpu] verify: the first structurally wrong frame dumped (/tmp/vs-slot.raw, /tmp/vs-whole.raw)\n");
+                  JIHAD_GPU_LOG("[jihad-gpu] verify: the first structurally wrong frame dumped (/tmp/vs-slot.raw, /tmp/vs-whole.raw)\n");
                 }
               }
-              fprintf(stderr, "[jihad-gpu] verify slot %d (y %d, shift %ld, bands %ld..%ld %ld..%ld): %d rows differ in %d runs:%s%s; %d rows wrong:%s%s; %d rows structurally wrong:%s\n",
+              JIHAD_GPU_LOG("[jihad-gpu] verify slot %d (y %d, shift %ld, bands %ld..%ld %ld..%ld): %d rows differ in %d runs:%s%s; %d rows wrong:%s%s; %d rows structurally wrong:%s\n",
                       gslot, oldest.y, oldest.shift, oldest.askLo, oldest.askHi, oldest.ask2Lo, oldest.ask2Hi, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "",
                       wrongRows, wrongRuns.c_str(), nWrong > 8 ? " ..." : "", structural, structRuns.c_str());
             } else {
-              fprintf(stderr, "[jihad-gpu] verify: the whole composite did not finish (%d)\n", r2);
+              JIHAD_GPU_LOG("[jihad-gpu] verify: the whole composite did not finish (%d)\n", r2);
             }
             // verify 2: the compositor against itself. The whole frame at (y - shift), shifted
             // by the job's shift the way the slot was, against the whole frame at y: equal rows
@@ -5401,7 +5408,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                   bad += r - r0;
                   if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
                 }
-                fprintf(stderr, "[jihad-gpu] verify2 (whole at %d shifted %ld vs whole at %d): %d rows differ in %d runs:%s%s\n",
+                JIHAD_GPU_LOG("[jihad-gpu] verify2 (whole at %d shifted %ld vs whole at %d): %d rows differ in %d runs:%s%s\n",
                         oldest.y - (int)oldest.shift, oldest.shift, oldest.y, bad, nRuns, runs.c_str(), nRuns > 8 ? " ..." : "");
                 // JIHAD_GPU_VERIFY_DUMP=<n>: the nth pair written raw (BGRA) for a look by eye
                 static const long sDumpAt = getenv("JIHAD_GPU_VERIFY_DUMP") ? atol(getenv("JIHAD_GPU_VERIFY_DUMP")) : 0;
@@ -5410,7 +5417,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                   FILE* f1 = fopen("/tmp/v2-before.raw", "wb"); if (f1) { fwrite(sBefore.data(), 1, bytes, f1); fclose(f1); }
                   FILE* f2 = fopen("/tmp/v2-at.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
                   FILE* f3 = fopen("/tmp/v2-slot.raw", "wb"); if (f3) { fwrite(pixels, 1, bytes, f3); fclose(f3); }
-                  fprintf(stderr, "[jihad-gpu] verify2 pair %ld dumped: whole at %d, whole at %d, the slot (shift %ld)\n", sPair, oldest.y - (int)oldest.shift, oldest.y, oldest.shift);
+                  JIHAD_GPU_LOG("[jihad-gpu] verify2 pair %ld dumped: whole at %d, whole at %d, the slot (shift %ld)\n", sPair, oldest.y - (int)oldest.shift, oldest.y, oldest.shift);
                 }
               }
             }
@@ -5491,7 +5498,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     FILE* f = logOnly ? nullptr : fopen(path, "wb");
     if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f); }
     if (f || logOnly) {
-             fprintf(stderr, "[jihad-gpu] zoom frame written: %s (%dx%d at zoom %.4f, %ld ms after the zoom%s, x %d y %d)\n",
+             JIHAD_GPU_LOG("[jihad-gpu] zoom frame written: %s (%dx%d at zoom %.4f, %ld ms after the zoom%s, x %d y %d)\n",
                      path, paintedW, paintedH, oi->contentZoom, (long)(jihadNowMs() - mGpuZoomCmdMs), arrived, oi->renderedX, oi->renderedY); }
   }
   if (nb >= 0 && mPage->GpuPath()) {
@@ -5502,7 +5509,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       sDumped2 = true;
       FILE* f = fopen(sDump2, "wb");
       if (f) { fwrite(pixels, 1, (size_t)paintedW * paintedH * 4, f); fclose(f);
-               fprintf(stderr, "[jihad-gpu] frame dumped before painted: %s (%dx%d, key 0x%x)\n", sDump2, paintedW, paintedH, (unsigned)mActiveKey); }
+               JIHAD_GPU_LOG("[jihad-gpu] frame dumped before painted: %s (%dx%d, key 0x%x)\n", sDump2, paintedW, paintedH, (unsigned)mActiveKey); }
     }
   }
   if (nb >= 0) {
@@ -5515,7 +5522,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // T-502: where the frame's time goes on the compositor path (every 50th frame)
       static uint32_t sN = 0;
       if ((sN++ % 50) == 0)
-        fprintf(stderr, "[jihad-gpu] daemon frame: before read %ld ms, read (compose) %ld ms, between %ld ms, popups+publish %ld ms\n",
+        JIHAD_GPU_LOG("[jihad-gpu] daemon frame: before read %ld ms, read (compose) %ld ms, between %ld ms, popups+publish %ld ms\n",
                 (long)(gpuT[0] - paintT0), (long)(gpuT[1] - gpuT[0]), (long)(gpuT[2] - gpuT[1]), (long)(jihadNowMs() - gpuT[2]));
     }
     // Debug: dump each NON-EMPTY painted frame to a PPM so we can see exactly what
@@ -5742,7 +5749,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);
     static int sN = 0;
     if (mGpuDoneMs && sN++ < 40)
-      fprintf(stderr, "[jihad-gpu] publish: %ld ms from the frame's arrival to the message, msgPainted %ld ms\n",
+      JIHAD_GPU_LOG("[jihad-gpu] publish: %ld ms from the frame's arrival to the message, msgPainted %ld ms\n",
               (long)(a - mGpuDoneMs), (long)(b - a));
     mGpuDoneMs = 0;
   }

@@ -303,17 +303,21 @@ WebGL 1 contexts are made on the GPU and share textures with the compositor (no 
 | Measured (scripted, the daemon's frames to the card) | GPU path as shipped | compared with |
 |---|---|---|
 | a long static page, pan | 30.5-36.4 fps | software path 2.9-3.2 fps |
-| desktop Wikipedia, pan | 19-21 fps | — |
+| desktop Wikipedia, pan (10 s, frames published) | 23.2-24.1 fps | before engine 0055/0056 (one composite for a frame's regions, tiles outside the clip skipped): 20.0-21.7 |
 | a page holding the main thread 600 ms in 700, pan | 26-32 fps | GPU path without the express lane 2.4-3.8 fps |
 | zoom while the page's script runs (Wikipedia after its load) | 10/10 first frames within 160-225 ms | without the express lane: median 681 ms, 3 of 10 never framed |
 | card double taps on Wikipedia, first frame at the new zoom | median 158 ms, 0-2 of 12 over 250 | before the clock hold: 4-8 of 12 over 250 |
-| WebGL spinning cube, 240 / 360 / 480 px | 26.5-27 / 21.5-23 / 18-20.5 fps | software path: no WebGL |
+| WebGL spinning cube, 240 / 360 / 480 px | 26.5-27 / 21.5-23 / 19.5-20.9 fps (the page draws 23.8-25.1 at 480) | software path: no WebGL |
 
-What it does not reach yet. Desktop Wikipedia under 24 fps: its two pinned side panels are see-through
-sticky layers, composed again every frame in three to four passes of ~5 ms of CPU each, with both cores
-full (the bench also runs `sensord` at ~18 % of a core beside the Atlas browser's `atlas-sensord`). The
-480 px WebGL cube on the card, the same composite-and-readback floor. Option 6 (zero-copy frames to the
-card) is what lifts that floor.
+What it does not reach yet. Desktop Wikipedia at 24 fps every run: its two pinned side panels are
+see-through sticky layers, composed again every frame; since they are regions of one composite the CPU
+cost is down (a chunked frame 10.6 ms against 22.5) and the frame is bound by the GPU (~17 ms of compose
+on the Adreno, round 357) with both cores full (the bench also runs `sensord` at ~18 % of a core beside
+the Atlas browser's `atlas-sensord`). The page's own tile uploads, sent as partial sub-images, deferred,
+or made ahead, and the express lane building on its own slot were each measured and changed nothing
+(`context/impl/dead-ends.md`). The 480 px WebGL cube reaches the card at ~20 fps against the page's own
+~24: its change does not fit the band surface and is composed in the frame-sized target. Option 6
+(zero-copy frames to the card) is what lifts that floor.
 
 ## Every combination, fastest first (the data behind the shortlist)
 

@@ -5,8 +5,10 @@ URL="${1:-http://192.168.1.245:8077/jihad-colors.html}"
 EXTRA=""; IOF=""
 PREFS_ADD=""
 GPREFS_ADD=""; GPUENV="JIHAD_GPU_COMPOSITOR=1"
+# T-512: the [jihad-gpu] diagnostics are off by default; a hand-started daemon has them (NOLOG=1 not)
+LOGENV="JIHAD_GPU_LOG=1"
 # novacom splits a quoted "$2" into separate args: every arg after the URL is a word
-for w in $(shift; echo "$@"); do case "$w" in IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; *) EXTRA="$EXTRA $w";; esac; done
+for w in $(shift; echo "$@"); do case "$w" in IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; NOLOG=*) LOGENV="";; *) EXTRA="$EXTRA $w";; esac; done
 K=/sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction
 [ -n "$IOF" ] && [ -f $K ] && { echo "$IOF" > $K; echo "io_fraction now $(cat $K)"; }
 APP=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser
@@ -54,7 +56,7 @@ done
 cd "$HL" || exit 1
 nohup env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
   JIHAD_BS_NAME=jihad-browser JIHAD_OFFSCREEN=1 JIHAD_STATE_DIR="$STATE" \
-  $GPUENV JIHAD_GPU_DUMP=/tmp/frame.raw JIHAD_GPU_DUMP_SEQ=/tmp/frames.raw $EXTRA \
+  $GPUENV $LOGENV JIHAD_GPU_DUMP=/tmp/frame.raw JIHAD_GPU_DUMP_SEQ=/tmp/frames.raw $EXTRA \
   ./ld-2.23.so --library-path "$HL" ./jihad-browserserver "$HL" >> "$LOG" 2>&1 &
 echo "daemon started by hand (pid $!)"
 sleep 6

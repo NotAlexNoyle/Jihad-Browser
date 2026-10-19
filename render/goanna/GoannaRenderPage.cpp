@@ -123,6 +123,8 @@
 #include "nsIScriptObjectPrincipal.h"   // a document's own principal (a re-driven load's trigger)
 #include "JihadUserAgent.h"          // JIHAD_USER_AGENT (shared UA string)
 
+#include "JihadGpuLog.h"   // T-512: JIHAD_GPU_LOG
+
 namespace jihad {
 
 // XPCOM chrome + progress listener for one page. Refcounted; owns the browser.
@@ -4511,7 +4513,7 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   static int sLogged = 0;
   if (ok != mGpuDpOk || sLogged < 6) {
     ++sLogged;
-    fprintf(stderr, "[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px)\n",
+    JIHAD_GPU_LOG("[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px)\n",
             z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp,
             mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0);
   }
@@ -4535,7 +4537,7 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
       const nsresult rr = u->SetResolution(res);
       static int sResLogged = 0;
       if (sResLogged++ < 20)
-        fprintf(stderr, "[jihad-gpu] resolution %.4f -> %.4f (%s)\n", cur, res, NS_SUCCEEDED(rr) ? "set" : "FAILED");
+        JIHAD_GPU_LOG("[jihad-gpu] resolution %.4f -> %.4f (%s)\n", cur, res, NS_SUCCEEDED(rr) ? "set" : "FAILED");
     }
   }
   return true;
@@ -4559,7 +4561,7 @@ bool GoannaRenderPage::SetGpuScroll(double x, double y, bool valid) {
 void GoannaRenderPage::SetGpuView(double zoom, double offX, double offY) {
   static const bool sNoWorld = getenv("JIHAD_GPU_NO_WORLD") != nullptr;   // device bisection
   static int sLogged = 0;
-  if (sLogged++ < 12) fprintf(stderr, "[jihad-gpu] view: scale %.4f offset %.1f,%.1f%s\n", zoom, offX, offY, sNoWorld ? " (not sent)" : "");
+  if (sLogged++ < 12) JIHAD_GPU_LOG("[jihad-gpu] view: scale %.4f offset %.1f,%.1f%s\n", zoom, offX, offY, sNoWorld ? " (not sent)" : "");
   if (!sNoWorld && mGpu && jihad_offscreen_set_view && mWidget) jihad_offscreen_set_view(mWidget, zoom, offX, offY);
 }
 
@@ -4623,7 +4625,7 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
       syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
       static int sLogged = 0;
       const long ms = (long)(jihadInputNowMs() - t0);
-      if (sLogged++ < 5 || ms >= 3) fprintf(stderr, "[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
+      if (sLogged++ < 5 || ms >= 3) JIHAD_GPU_LOG("[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
     }
   }
 #endif
@@ -4654,7 +4656,7 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
     if (content) {
       sDumped = true;
       FILE* f = fopen(sDump, "wb");
-      if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); fprintf(stderr, "[jihad-gpu] frame dumped: %s (%dx%d BGRA, first with content)\n", sDump, w, h); }
+      if (f) { fwrite(dst, 1, (size_t)w * h * 4, f); fclose(f); JIHAD_GPU_LOG("[jihad-gpu] frame dumped: %s (%dx%d BGRA, first with content)\n", sDump, w, h); }
     }
   }
   // JIHAD_GPU_DUMP_SEQ=<path>: the first 12 content frames, every 4th pixel, appended to one
@@ -4680,7 +4682,7 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
           for (int x = 0; x < w; x += 4) fwrite(dst + ((size_t)y * w + x) * 4, 1, 4, f);
         fclose(f);
       }
-      fprintf(stderr, "[jihad-gpu] seq frame %d: content rows %d..%d cols %d..%d (of %dx%d) px(100,100)=%02x%02x%02x px(700,900)=%02x%02x%02x\n",
+      JIHAD_GPU_LOG("[jihad-gpu] seq frame %d: content rows %d..%d cols %d..%d (of %dx%d) px(100,100)=%02x%02x%02x px(700,900)=%02x%02x%02x\n",
               12 - sSeqLeft, rMin, rMax, cMin, cMax, w, h,
               dst[((size_t)100 * w + 100) * 4 + 2], dst[((size_t)100 * w + 100) * 4 + 1], dst[((size_t)100 * w + 100) * 4],
               (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4 + 2] : 0, (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4 + 1] : 0, (h > 900 && w > 700) ? dst[((size_t)900 * w + 700) * 4] : 0);
@@ -4778,7 +4780,7 @@ void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
   static float sLast = -1.0f;
   if (css != sLast && sLogged++ < 12) {
     sLast = css;
-    fprintf(stderr, "[jihad-gpu] overscan: %d card rows each side, the clip widened %.0f CSS px each way (code %d)\n", rows, css, r);
+    JIHAD_GPU_LOG("[jihad-gpu] overscan: %d card rows each side, the clip widened %.0f CSS px each way (code %d)\n", rows, css, r);
   }
 }
 

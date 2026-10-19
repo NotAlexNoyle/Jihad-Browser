@@ -203,3 +203,11 @@ Build site: context/plans/build-site.md
 - **Files:** build/webos-oe/push-engine-update.sh, render/goanna/test/jihad-video-styled.html, jihad-anim-opacity.html, jihad-canplay.html; build site T-499..T-501 placeholders filled
 - **Validation:** device rounds 213-228 (titles, screenshots, brightness of the fade); Acceptance 3/3
 - **Next:** T-509 — safety and fit
+
+### Iteration 7 — 2026-10-19
+- **Task:** T-509 — safety and fit
+- **Tier:** 87
+- **Status:** DONE
+- **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.{cpp,h}, engine patch 0047, tools/device/t502/three-daemons*.sh
+- **Validation:** Build P; device rounds 229-232; Acceptance 4/4 (R1's two, R10's two)
+- **Next:** T-510 — the GPU path as the default (blocked by T-504's open criterion; T-515 first)

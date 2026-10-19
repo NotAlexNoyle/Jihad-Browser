@@ -119,3 +119,9 @@ T-507, rounds 204-212: the Enyo test hook's `<` (back), `>` (forward), `R` (relo
 `O<up|left|right|down|free>` (hold the card in an orientation: the system rotates the window); the
 inject channel's `thumb <path>` (a thumbnail of what the card shows, written at the next frame);
 `render/goanna/test/jihad-card-events.html` (a select, a field, links, a word to find).
+
+T-509, rounds 229-232: `JIHAD_GPU_JOB_BOUND_MS=<ms>` (3000: a frame not composed in that time gives
+the GPU path up for the daemon's life); the engine's test switches `JIHAD_GPU_TEST_NO_EGL=1` and
+`JIHAD_GPU_TEST_STALL=<n>`; `three-daemons.sh gpu|soft` starts the three variants' daemons by hand
+on one path, opens a page in each and reports memory, idle CPU and LunaSysMgr's state;
+`three-daemons-restore.sh` puts the upstart jobs back.

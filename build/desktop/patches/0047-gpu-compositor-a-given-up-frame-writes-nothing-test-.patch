@@ -1,0 +1,142 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <admin@true-og.net>
+Date: Mon, 19 Oct 2026 01:21:07 -0400
+Subject: [PATCH] gpu compositor: a given-up frame writes nothing; test
+ switches for an EGL failure and a stalled job
+
+A compose job the daemon forgets (its bound passed, or the GPU path given up) is marked cancelled:
+the compositor composes nothing more for it and writes nothing into its destination, a shared slot
+the software path may be painting by then. Two device-test switches: JIHAD_GPU_TEST_NO_EGL=1 gives
+the compositor no GL context, as an EGL failure would; JIHAD_GPU_TEST_STALL=<n> holds the
+compositor thread 6 s on the nth job, as a GPU wait that does not return would.
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 16 +++++++++++++++-
+ gfx/layers/opengl/CompositorOGL.cpp       | 13 +++++++++++++
+ gfx/layers/opengl/CompositorOGL.h         |  3 +++
+ widget/PuppetWidget.cpp                   |  6 +++---
+ 4 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 865fbff25c..967d796f82 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -5,6 +5,7 @@
+ 
+ #include "mozilla/layers/CompositorBridgeParent.h"
+ #include <stdio.h>                      // for fprintf, stdout
++#include <unistd.h>                     // Jihad T-509: sleep() for JIHAD_GPU_TEST_STALL
+ #include <stdint.h>                     // for uint64_t
+ #include <map>                          // for _Rb_tree_iterator, etc
+ #include <utility>                      // for pair
+@@ -1698,6 +1699,19 @@ JihadMergeIntervals(int (*aIv)[2], int aN, int aH)
+ bool
+ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY)
+ {
++  // T-509 device test (JIHAD_GPU_TEST_STALL=<n>): the nth job holds the compositor thread 6 s, as a
++  // GPU wait that does not come back would; the daemon gives the frame up and goes on in software
++  {
++    static const int sStallAt = getenv("JIHAD_GPU_TEST_STALL") ? atoi(getenv("JIHAD_GPU_TEST_STALL")) : 0;
++    static int sJobsSeen = 0;
++    if (sStallAt > 0 && aReq && ++sJobsSeen == sStallAt) {
++      fprintf(stderr, "[jihad-gpu] JIHAD_GPU_TEST_STALL: job %d holds the compositor thread 6 s\n", sJobsSeen);
++      sleep(6);
++    }
++  }
++  if (aReq && aReq->cancelled) {
++    return false;   // T-509: given up while it waited
++  }
+   // T-503: a verify composite (JIHAD_GPU_VERIFY) changes nothing the next frame reads: the
+   // request count, the last scroll and view, the fixed rects and keeps, the diff baseline. It
+   // used to consume an anchor move's change, and the next frame then kept stale rows.
+@@ -1984,7 +1998,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       {
+         ogl->gl()->fFlush();
+         TimeStamp c1 = TimeStamp::Now();
+-        ogl->JihadShiftRowsNow(aReq);
++        if (aReq->cancelled) ok = false; else ogl->JihadShiftRowsNow(aReq);   // T-509: given up, dest untouched
+         msShift = (TimeStamp::Now() - c1).ToMilliseconds();
+       }
+       if (ok) {
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 5e054e7669..43a13986c6 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -119,6 +119,13 @@ CompositorOGL::CreateContext()
+ {
+   RefPtr<GLContext> context;
+ 
++  // T-509 device test (JIHAD_GPU_TEST_NO_EGL=1): no GL context for the compositor, as when EGL
++  // fails; the daemon must find the GPU path unusable and render in software
++  if (getenv("JIHAD_GPU_TEST_NO_EGL")) {
++    fprintf(stderr, "[jihad-gpu] JIHAD_GPU_TEST_NO_EGL: the compositor gets no GL context\n");
++    return nullptr;
++  }
++
+   // Used by mock widget to create an offscreen context
+   nsIWidget* widget = mWidget->RealWidget();
+   void* widgetOpenGLContext = widget ? widget->GetNativeData(NS_NATIVE_OPENGL_CONTEXT) : nullptr;
+@@ -2213,6 +2220,9 @@ JihadShiftRows(JihadFrameRequest* aReq)
+ void
+ CompositorOGL::JihadShiftRowsNow(JihadFrameRequest* aReq)
+ {
++  if (aReq->cancelled) {
++    return;   // T-509
++  }
+   JihadShiftRows(aReq);
+ }
+ 
+@@ -2321,6 +2331,9 @@ CompositorOGL::JihadBandScratch(size_t aBytes)
+ bool
+ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
+ {
++  if (aReq && aReq->cancelled) {
++    return false;   // T-509: given up, dest untouched
++  }
+   if (!aReq || !aReq->done) {
+     return false;
+   }
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index c74ccb2571..ebb43951db 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -176,6 +176,9 @@ struct JihadFrameRequest {
+   bool scrollValid = false;
+   void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
+   mozilla::Atomic<bool> composed{false};   // the compose is issued; the read is pending
++  // T-509: the daemon gave the frame up (a bound passed, the GPU path is off): nothing is written
++  // into dest from then on (a slot the software path may be painting)
++  mozilla::Atomic<bool> cancelled{false};
+   bool ok = false;
+   void (*done)(JihadFrameRequest*) = nullptr;
+   void* cookie = nullptr;
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index b828c06577..02f93eedc7 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -1015,7 +1015,7 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aSc
+       if (aOut) { aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0; }
+       return 2;
+     } else if (aWait) {
+-      job->abandoned = true;
++      job->abandoned = true; job->req.cancelled = true;
+       fprintf(stderr, "[jihad-gpu] compose: no answer from the compositor thread in 3 s\n");
+     }
+   }
+@@ -1043,7 +1043,7 @@ PuppetWidget::JihadComposeForget(uint32_t aToken)
+     {
+       mozilla::MonitorAutoLock lock(job->mon);
+       done = job->done;
+-      if (!done) job->abandoned = true;
++      if (!done) job->abandoned = true; job->req.cancelled = true;
+     }
+     mJihadJobs.erase(mJihadJobs.begin() + i);
+     if (done) delete job;
+@@ -1060,7 +1060,7 @@ PuppetWidget::JihadComposeAbandonAll()
+     {
+       mozilla::MonitorAutoLock lock(job->mon);
+       done = job->done;
+-      if (!done) job->abandoned = true;
++      if (!done) job->abandoned = true; job->req.cancelled = true;
+     }
+     if (done) delete job;
+   }

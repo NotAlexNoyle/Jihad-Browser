@@ -40,8 +40,8 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 **Description:** The daemons of all three interfaces composite on the GPU unless it is unavailable.
 **Acceptance Criteria:**
 - [ ] `packaging/event.d/{jihad,jihad-mochi,jihad-mojo}` (or the daemon's own default) start the GPU path; `JIHAD_GPU_COMPOSITOR=0` (and a pref the bundle reads) forces the software path
-- [ ] A daemon whose EGL setup fails (simulated by an env that makes the context creation fail) renders every page by the software path, and the startup report names the path taken
-- [ ] No GPU wait is unbounded: a stuck job is abandoned after a bound and the page falls back to the software path for that daemon's life; LunaSysMgr never loses EGL because of the daemon (memory `gpu-wedge-needs-a-reboot`)
+- [x] A daemon whose EGL setup fails (simulated by an env that makes the context creation fail) renders every page by the software path, and the startup report names the path taken *(2026-10-19, round 230: `JIHAD_GPU_TEST_NO_EGL=1` (engine 0047): the engine falls back to its software compositor, the daemon finds three frames failed and logs "the GPU path is off for this daemon (the compositor failed three frames): the software path renders from here"; the page renders; pages made later start in software)*
+- [x] No GPU wait is unbounded: a stuck job is abandoned after a bound and the page falls back to the software path for that daemon's life; LunaSysMgr never loses EGL because of the daemon (memory `gpu-wedge-needs-a-reboot`) *(rounds 229-230: `JIHAD_GPU_TEST_STALL=30` holds a job 6 s; at 3 s (`JIHAD_GPU_JOB_BOUND_MS`) the daemon forgets it (the compositor then writes nothing into its slot) and paints in software; LunaSysMgr kept its EGL in every run, no "EGL error" in the system log. A driver call that never returns cannot be tested safely: the page goes on in software, the stuck compositor thread stays stuck)*
 - [ ] Enyo, Mochi and Mojo each load, pan, zoom and close a page on the GPU path on the bench (CE 3.1.0)
 **Dependencies:** offscreen-rendering R1-R6, device-build R4
 
@@ -113,8 +113,8 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 
 ### R10: It fits the device
 **Acceptance Criteria:**
-- [ ] The daemon's resident memory and the GPU memory with a page on the GPU path are measured against the software path and recorded; the three daemons on the GPU path at once run without running the device out of memory or GPU memory
-- [ ] An idle page on the GPU path uses no more CPU than on the software path (no compositing while nothing changes)
+- [x] The daemon's resident memory and the GPU memory with a page on the GPU path are measured against the software path and recorded; the three daemons on the GPU path at once run without running the device out of memory or GPU memory *(rounds 231-232: desktop Wikipedia in Enyo 210 MB resident on the GPU path against 143 MB (44 MB more anonymous, 44 MB of shared /dev/zero mappings; the GPU's own allocations are not in the resident count); three daemons at once (Wikipedia, Hacker News, the test page) 447 MB against 341 MB, the device's free plus cached memory 324 MB against 476 MB, swap untouched, every daemon composited, LunaSysMgr kept its EGL; `tools/device/t502/three-daemons.sh`)*
+- [x] An idle page on the GPU path uses no more CPU than on the software path (no compositing while nothing changes) *(settled Wikipedia 41 against 42 CPU ticks in 30 s, no frame published on either path; the test page 17 against 17; Hacker News 24 against 65)*
 **Dependencies:** R1
 
 ### R11: The code is fit to keep

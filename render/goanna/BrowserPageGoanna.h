@@ -401,6 +401,9 @@ private:
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
   int mGpuViewRow = 0;
   int mGpuJobViewRow = 0;   // T-507: the published GPU frame's view row (thumbnails)
+  // T-509: the GPU path given up (refused jobs, a frame not composed within the bound)
+  int mGpuRefusals = 0;
+  void gpuFallBack(const char* why);
   double mGpuViewRX = 0.0, mGpuViewRY = 0.0;
   void gpuSetView(double z, double rx, double ry);
   std::vector<GpuJob> mGpuJobs;              // oldest first, at most two in flight

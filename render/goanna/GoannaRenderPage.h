@@ -511,6 +511,10 @@ private:
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
 public:
   bool GpuPath() const { return mGpu; }   // T-502
+  // T-509: the GPU path given up for this daemon's life (an EGL failure, a frame the compositor did
+  // not compose in time): this page and every page made after it render in software
+  void DisableGpu(const char* why);
+  void ResetGpuResolution();   // the pres shell's resolution back to 1 (the software path's zoom is its own)
   long GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi);   // T-502: after a read
   uint32_t CompositorSeq() const;         // T-502: moves when the compositor wants a frame
   // T-502: the compositor's view of zoom and scroll. The card's zoom becomes the pres shell's

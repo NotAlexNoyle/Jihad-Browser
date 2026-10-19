@@ -972,6 +972,27 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
 static int64_t gJihadInputMarkMs = 0;
 void MarkInputLatency() { gJihadInputMarkMs = jihadNowMs(); }
 
+// T-509: the GPU path given up for this daemon's life: the jobs forgotten (the compositor writes
+// nothing into a slot after that), the engine scrolled to where the card is, the compositor's own
+// scroll, view, overscan and resolution back to neutral, the next paint in software
+void BrowserPageGoanna::gpuFallBack(const char* why) {
+  if (!mPage || !mPage->GpuPath()) return;
+  for (const GpuJob& j : mGpuJobs) mPage->ComposeForget(j.token);
+  mGpuJobs.clear();
+  for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
+  mGpuLatestSlot = -1;
+  const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  if (mGpuCompositorScroll) mPage->ScrollTo((int)(mAdapterScrollX / z), (int)(mAdapterScrollY / z));
+  mPage->SetGpuScroll(0.0, 0.0, false);
+  mGpuViewRow = 0; mGpuViewRX = mGpuViewRY = 0.0;
+  mPage->SetGpuView(1.0, 0.0, 0.0);
+  mPage->SetGpuOverscan(0, z);
+  mPage->ResetGpuResolution();
+  mGpuCompositorScroll = false; mGpuSettledShort = false; mGpuZoomHoldMs = 0;
+  mPage->DisableGpu(why);
+  mNeedsPaint = true;
+}
+
 void BrowserPageGoanna::gpuSetView(double z, double rx, double ry) {
   mGpuViewRX = rx; mGpuViewRY = ry;
   mPage->SetGpuView(z, rx, ry - (z > 0.0 ? (double)mGpuViewRow / z : 0.0));
@@ -3556,7 +3577,12 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   const bool baseIsPrevious = src != nullptr && (!mGpuNextSecond || mGpuNextBaseKey != 0);
   const uint32_t token = mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src,
                                              srcYForEngine, baseIsPrevious);
-  if (!token) return false;
+  if (!token) {
+    // T-509: a compositor that takes no job (no GL context: EGL failed) — three in a row and the
+    // daemon renders in software for good
+    if (++mGpuRefusals >= 3 && !mGpuNextSecond) gpuFallBack("the compositor took no frame three times");
+    return false;
+  }
   GpuJob j;
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
   j.t0 = jihadNowMs(); j.seq = mPage->CompositorSeq(); j.askLo = sLo; j.askHi = sHi; j.ask2Lo = s2Lo; j.ask2Hi = s2Hi; j.shift = shift;
@@ -4318,6 +4344,19 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         GoannaRenderPage::ComposeResult cr;
         const int r = mPage->ComposePoll(oldest.token, pixels, &cr);
         const long il = cr.invLo, ih = cr.invHi;
+        // T-509: no GPU wait unbounded: a frame not composed within the bound (3 s by default,
+        // JIHAD_GPU_JOB_BOUND_MS) is given up with the GPU path; the next tick paints in software
+        static const long sBoundMs = getenv("JIHAD_GPU_JOB_BOUND_MS") ? atol(getenv("JIHAD_GPU_JOB_BOUND_MS")) : 3000;
+        if ((r == -2 || r == -3) && jihadNowMs() - oldest.t0 > sBoundMs) {
+          char why[96];
+          snprintf(why, sizeof why, "a frame not composed in %ld ms", (long)(jihadNowMs() - oldest.t0));
+          gpuFallBack(why);
+          return;
+        }
+        // a compositor that takes jobs and composes nothing (no GL: the engine fell back to its
+        // software compositor, round 229) fails every one; three in a row without a good one between
+        if (r == -1 && ++mGpuRefusals >= 3) { gpuFallBack("the compositor failed three frames"); return; }
+        if (r >= 0) mGpuRefusals = 0;
         if (r == -2 || r == -3) {
           // round 130: the next job as soon as this one is composed, built on THIS job's frame
           // (its slot, its position): exact while scrolling too (round 116 allowed it only when

@@ -614,6 +614,17 @@ GoannaRenderPage::~GoannaRenderPage() {
   if (sDebugLastPage == this) sDebugLastPage = nullptr;
 }
 
+// T-509: the GPU path given up for the daemon's life (GoannaRenderPage::DisableGpu)
+static bool sJihadGpuOff = false;
+
+void GoannaRenderPage::DisableGpu(const char* why) {
+  if (!mGpu) return;
+  mGpu = false;
+  sJihadGpuOff = true;
+  mGpuFrameH = 0;
+  fprintf(stderr, "[jihad-gpu] the GPU path is off for this daemon (%s): the software path renders from here\n", why ? why : "?");
+}
+
 bool GoannaRenderPage::Create(int width, int height) {
   mWidth = width; mHeight = height;
   mOffscreen = (getenv("JIHAD_OFFSCREEN") != nullptr);
@@ -624,12 +635,13 @@ bool GoannaRenderPage::Create(int width, int height) {
   // (jihad_offscreen_compose) instead of RenderDocument on the CPU. Needs the env in the
   // daemon's environment (with JIHAD_DISABLE_OMTC unset, MOZ_LAYERS_PREFER_OFFSCREEN=1) and a
   // libxul with the export; otherwise the software path, unchanged.
-  mGpu = mOffscreen && getenv("JIHAD_GPU_COMPOSITOR") && jihad_offscreen_compose != nullptr;
+  mGpu = mOffscreen && getenv("JIHAD_GPU_COMPOSITOR") && jihad_offscreen_compose != nullptr && !sJihadGpuOff;
   if (getenv("JIHAD_GPU_COMPOSITOR")) {
-    fprintf(stderr, "[jihad-gpu] daemon frame path: %s (jihad_offscreen_compose %s, OMTC %s)\n",
+    fprintf(stderr, "[jihad-gpu] daemon frame path: %s (jihad_offscreen_compose %s, OMTC %s%s)\n",
             mGpu ? "compositor" : "software",
             jihad_offscreen_compose ? "present" : "absent in this libxul",
-            getenv("JIHAD_DISABLE_OMTC") ? "DISABLED by JIHAD_DISABLE_OMTC" : "on");
+            getenv("JIHAD_DISABLE_OMTC") ? "DISABLED by JIHAD_DISABLE_OMTC" : "on",
+            sJihadGpuOff ? "; the GPU path was given up earlier" : "");
   }
   RefPtr<PageChrome> chrome = new PageChrome(width, height);
 
@@ -4696,6 +4708,14 @@ static void GpuCleanRows(unsigned char* dst, int w, int h, long lo, long hi) {
 }
 
 void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuCleanRows(dst, mWidth, GpuFrameHeight(), lo, hi); }
+
+// T-509: the resolution back to 1 when the GPU path is given up
+void GoannaRenderPage::ResetGpuResolution() {
+  if (!mChrome || !mChrome->mBrowser) return;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  float cur = 1.0f;
+  if (u && NS_SUCCEEDED(u->GetResolution(&cur)) && cur != 1.0f) u->SetResolution(1.0f);
+}
 
 // T-505: the root scroll frame's clip widened by the overscan (with a row of slack); every paint
 // calls this, the engine compares

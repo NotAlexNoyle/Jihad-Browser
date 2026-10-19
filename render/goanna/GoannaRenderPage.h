@@ -34,6 +34,10 @@ namespace jihad {
 class EngineHost;
 class PageChrome;   // internal XPCOM chrome + progress listener (impl detail)
 
+// T-517: how the shared frame segments are mapped (BrowserPageGoanna::attachShm): write-through
+// (true) makes the frame rows' cache clean redundant, so it is skipped; one cached mapping keeps it
+void SetShmWriteThrough(bool aWriteThrough);
+
 // Process-global browser services (YAP: setUserAgent/clearCache/clearCookies).
 void SetUserAgentOverride(const char* ua);
 void ClearCache();

@@ -4594,6 +4594,21 @@ uint64_t GoannaRenderPage::CurrentDocId() {
 static long gJihadDumpFrameNo = 0, gJihadDumpCount = 0;
 void GpuDumpRestart() { gJihadDumpFrameNo = 0; gJihadDumpCount = 0; }   // already inside namespace jihad
 
+// T-517: the frame rows' cache clean only when a segment is mapped cached. The daemon attaches the
+// segments write-through (the Palm kernel's shmat flag, as the adapter does): every store reaches
+// memory, and the cacheflush syscall (a clean to the point of unification, meant for code) added
+// nothing for the adapter's reader but 4 ms a frame on the thread that publishes (3.7 MB line by
+// line). Both came in on 2026-10-17 for the white frames; JIHAD_GPU_CACHE_CLEAN=1 cleans anyway.
+static std::atomic<int> gJihadShmMode{0};   // 0 not known yet, 1 every mapping write-through, 2 one cached
+void SetShmWriteThrough(bool aWriteThrough) {
+  if (!aWriteThrough) gJihadShmMode.store(2);
+  else { int expect = 0; gJihadShmMode.compare_exchange_strong(expect, 1); }
+}
+static bool GpuCleanNeeded() {
+  static const bool sForce = getenv("JIHAD_GPU_CACHE_CLEAN") != nullptr;
+  return sForce || gJihadShmMode.load() != 1;
+}
+
 long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, long hi) {
   if (lo < 0) lo = 0;
   if (hi > h) hi = h;
@@ -4603,11 +4618,13 @@ long GoannaRenderPage::GpuFrameDone(unsigned char* dst, int w, int h, long lo, l
     // and sit in that CPU's cache; the adapter reads the shared pages through its own mapping
     // (2026-10-17: a third process read white while this daemon's view had the page). Clean
     // the range to the point of unification: the ARM cacheflush syscall.
-    int64_t t0 = jihadInputNowMs();
-    syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
-    static int sLogged = 0;
-    const long ms = (long)(jihadInputNowMs() - t0);
-    if (sLogged++ < 5 || ms >= 3) fprintf(stderr, "[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
+    if (GpuCleanNeeded()) {
+      int64_t t0 = jihadInputNowMs();
+      syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
+      static int sLogged = 0;
+      const long ms = (long)(jihadInputNowMs() - t0);
+      if (sLogged++ < 5 || ms >= 3) fprintf(stderr, "[jihad-gpu] cache clean of rows %ld..%ld: %ld ms\n", lo, hi, ms);
+    }
   }
 #endif
   // JIHAD_GPU_DUMP_EVERY=<n>: every nth published frame (counted here from 1), three at most,
@@ -4704,7 +4721,7 @@ static void GpuCleanRows(unsigned char* dst, int w, int h, long lo, long hi) {
   if (lo < 0) lo = 0;
   if (hi > h) hi = h;
 #if defined(__arm__)
-  if (hi > lo) syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
+  if (hi > lo && GpuCleanNeeded()) syscall(__ARM_NR_cacheflush, dst + (size_t)lo * w * 4, dst + (size_t)hi * w * 4, 0);
 #else
   (void)dst; (void)w; (void)lo; (void)hi;
 #endif

@@ -603,6 +603,7 @@ unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
   const bool writeThrough = (p != (void*)-1);
   if (p == (void*)-1) p = shmat(id, nullptr, 0);
   if (p != (void*)-1) fprintf(stderr, "[jihad-bs] shm %d attached %s\n", id, writeThrough ? "write-through" : "cached (the write-through flag was refused)");
+  if (p != (void*)-1) SetShmWriteThrough(writeThrough);   // T-517: the frame rows' cache clean only for a cached mapping
   if (p == (void*)-1) { perror("[BrowserPageGoanna] shmat"); return nullptr; }
   // Fill the first empty slot; with a third buffer in rotation there are three of them.
   int slot = -1;

@@ -34,3 +34,14 @@ What is left to try
     leave stale pixels on pages with a see-through sticky header over images
   the card invalidating only the changed strip (round 304: +12 % for a canvas animation; nothing for a pan)
   the bench without atlas-sensord's sensord load (18 % of a core): the owner's call
+
+Rounds 321-324 (same day)
+  the long static test page (r321): plain band frames 27 ms on the compositor thread (compose 6.7), 28-32 fps:
+    besides Wikipedia's chunks every pan frame pays the row shift (a 3.7 MB copy, 5-6 ms on the compositor
+    thread) and the frame rows' cache clean (up to 4 ms on the publishing thread)
+  the upper bound with both skipped (r322, test switches, frames wrong): median gap 45 -> 34 ms
+  the cache clean skipped where every segment is mapped write-through (r323): median gap 42-43 against 45
+    (JIHAD_GPU_CACHE_CLEAN=1 for the second); kept: the daemon has mapped the segments write-through since
+    10-17, so every store reaches memory, and the cacheflush syscall cleans only to the point of
+    unification. Six screenshots of what the card shows (r324: the cube with the counter, Wikipedia at
+    rest): clean, no white or stale rows.

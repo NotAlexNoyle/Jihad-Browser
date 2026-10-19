@@ -1198,6 +1198,7 @@ void MarkInputLatency() { gJihadInputMarkMs = jihadNowMs(); }
 void BrowserPageGoanna::gpuFallBack(const char* why) {
   if (!mPage || !mPage->GpuPath()) return;
   FrameLockGuard frameLock;   // T-515
+  if (jihad_offscreen_gpu_given_up) jihad_offscreen_gpu_given_up();   // T-511 (review): WebGL off too
   xInvalidate();
   for (const GpuJob& j : mGpuJobs) mPage->ComposeForget(j.token);
   mGpuJobs.clear();
@@ -3736,9 +3737,11 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       ownStale - std::min(ownStale, recentInv) < h / 3;
   // T-517: after a scroll too, when the slot's window can move by it: no copy, the entering rows and
   // the slot's stale rows read
+  // (review) not with fixed or stuck layers, now or in the slot's frame: the engine judges kept rects
+  // and fixed columns against the previous composite, and this base is older
   const bool ownWin = winOn && slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h && mGpuSlotY[slot] != y && labs((long)y - mGpuSlotY[slot]) < h / 2 &&
-      ownStale - std::min(ownStale, recentInv) < h / 3;
+      ownStale - std::min(ownStale, recentInv) < h / 3 && mGpuFixedHi <= mGpuFixedLo && !mGpuSlotFixed[slot];
   if (!src && !sWhole && !sNoLatest && !ownCheap && !ownWin && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
       mGpuSlotZoom[L] == zoom && mGpuSlotW[L] == w && mGpuSlotH[L] == h &&
       mGpuStaleHi[L] <= mGpuStaleLo[L] && mGpuStale2Hi[L] <= mGpuStale2Lo[L] && mGpuFixedHi >= mGpuFixedLo) {
@@ -3788,6 +3791,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
         if (nw < 0 || nw + h > capRows) {
           const long to = (long)winCentre - dy;
           if (to >= 0 && to + h <= capRows) {
+            mGpuSlotValid[slot] = false;   // (review) its rows move: no record of them holds until the publish
             memmove(pixels + (size_t)to * stride, pixels + (size_t)mGpuSlotWin[slot] * stride, (size_t)h * stride);
             nw = winCentre;
           } else {
@@ -3864,6 +3868,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       ? mPage->ComposePost(winPixels, winBytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr, colX0, colX1, winMoved)
       : mPage->ComposeStart(winPixels, winBytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1, winMoved);
   if (token) mXLastPostToken = token;
+  if (token && slot >= 0) mGpuSlotValid[slot] = false;   // T-517 (review): being written; its publish records it again
   if (!token) {
     // T-509: a compositor that takes no job (no GL context: EGL failed) — three in a row and the
     // daemon renders in software for good
@@ -4075,11 +4080,37 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
       if (!S.keys[t] || !S.base[t] || S.seg[t] < need) continue;
       if (mInFlight[t] && now - mPaintMs[t] < 2000) continue;
       if (t == mXMainSlot || (base && t == b) || (mXJob.on && t == mXJob.slot)) continue;
+      bool mainJob = false;   // T-517 (review): a main-lane frame is still composed or read into it
+      for (const GpuJob& gj : mGpuJobs) if (gj.slot == t) mainJob = true;
+      if (mainJob) continue;
       if (S.keys[t] == mActiveKey && (pass == 0 || mXMainWindow)) continue;
       slot = t;
     }
   }
   if (slot < 0) return true;   // a return frees one (the hook kicks)
+  // T-504: a frame at a new zoom goes ahead of the main lane's frames at the old one that have not
+  // been composed yet: they would be dropped at their poll once this one is out, and the compositor
+  // thread takes jobs in order (on Wikipedia after its load the first double tap's frame waited
+  // 144 ms behind one). Not a failure of theirs; their slots' records go (one may have begun)
+  if (!aBase && !mGpuJobs.empty()) {
+    int superseded = 0;
+    for (size_t k = 0; k < mGpuJobs.size();) {
+      if (mGpuJobs[k].zoom != Z && mPage->ComposePeek(mGpuJobs[k].token) == 0) {
+        mPage->ComposeForget(mGpuJobs[k].token);
+        mGpuJobs.erase(mGpuJobs.begin() + k);
+        ++superseded;
+      } else {
+        ++k;
+      }
+    }
+    if (superseded) {
+      gpuSlotsLost();
+      mNeedsPaint = true;   // the main lane's own frame at the new zoom, later
+      static uint32_t sSupN = 0;
+      if (sSupN++ < 20 || (sSupN % 50) == 0)
+        fprintf(stderr, "[jihad-gpu] express frame at zoom %.4f goes first: %d main-lane frame(s) at the old zoom not yet composed given up\n", Z, superseded);
+    }
+  }
   long lo = 0, hi = H, lo2 = 0, hi2 = 0;
   const unsigned char* src = nullptr;
   long srcY = 0;
@@ -4094,8 +4125,11 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   int xWin = xWinOn ? (int)((xCap - H) / 2) : 0;
   bool own = false, xMoved = false;
   long ownDy = 0;
-  if (!aBase && xWinOn && !sNoOwn && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == Z &&
-      mGpuSlotW[slot] == w && mGpuSlotH[slot] == H && mGpuFixedHi >= mGpuFixedLo) {
+  // (review) only when every composite is in the slots' records (no main-lane job composed and not
+  // yet polled), and with no fixed or stuck layers then or in the slot's frame (the engine judges
+  // those against the previous composite, not an older base)
+  if (!aBase && xWinOn && !sNoOwn && mGpuJobs.empty() && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == Z &&
+      mGpuSlotW[slot] == w && mGpuSlotH[slot] == H && mGpuFixedHi <= mGpuFixedLo && !mGpuSlotFixed[slot]) {
     const long d = (long)y - mGpuSlotY[slot];
     const long stale = (mGpuStaleHi[slot] - mGpuStaleLo[slot]) + (mGpuStale2Hi[slot] - mGpuStale2Lo[slot]);
     // the faster kind by measurement, when there is a copy to compare with (a base)
@@ -4115,6 +4149,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
         if (n < 0 || n + H > xCap) {   // near an end: the frame back to the middle first, one copy
           const long c = (xCap - H) / 2, to = c - d;
           if (to >= 0 && to + H <= xCap) {
+            mGpuSlotValid[slot] = false;   // (review) its rows move: no record of them holds until the publish
             memmove(S.base[slot] + S.hdr + (size_t)to * xStride, S.base[slot] + S.hdr + (size_t)mGpuSlotWin[slot] * xStride,
                     (size_t)H * xStride);
             n = c;
@@ -4194,6 +4229,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
     return false;
   }
   mXLastPostToken = token;
+  mGpuSlotValid[slot] = false;   // T-517 (review): being written; its publish records it again
   XJob& j = aBase ? mXJob2 : mXJob;
   j = XJob();
   j.on = true; j.token = token; j.gen = mXGeomGen; j.slot = slot; j.key = S.keys[slot];
@@ -4278,6 +4314,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   mGpuStaleLo[s] = mGpuStaleHi[s] = mGpuStale2Lo[s] = mGpuStale2Hi[s] = 0;
   mGpuStaleX0[s] = mGpuStaleX1[s] = 0;
   mGpuSlotWin[s] = mXJob.win;   // T-517
+  mGpuSlotFixed[s] = cr.fixedHi > cr.fixedLo;   // (review)
   mGpuLatestSlot = s; mGpuLatestKey = mXJob.key;
   mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
   mBufFull[s].valid = false;
@@ -5096,6 +5133,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
         // a compositor that takes jobs and composes nothing (no GL: the engine fell back to its
         // software compositor, round 229) fails every one; three in a row without a good one between
+        if (r == -1) gpuSlotsLost();   // T-517 (review): it may have been composed: its change is in no record
         if (r == -1 && ++mGpuRefusals >= 3) { gpuFallBack("the compositor failed three frames"); return; }
         if (r >= 0) mGpuRefusals = 0;
         if (r == -2 || r == -3) {
@@ -5207,6 +5245,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuFinished = true;
           pubWin = oldest.win;   // T-517
           mGpuSlotWin[gslot] = oldest.win;
+          mGpuSlotFixed[gslot] = cr.fixedHi > cr.fixedLo;   // (review)
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
           mGpuJobViewRow = oldest.viewRow;   // T-507: where the card's view sits in this frame

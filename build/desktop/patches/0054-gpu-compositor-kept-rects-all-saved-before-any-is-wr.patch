@@ -1,0 +1,141 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 19 Oct 2026 11:12:42 -0400
+Subject: [PATCH] gpu compositor: kept rects all saved before any is written;
+ WebGL off once the GPU path is given up
+
+Review of the T-511/T-517 work. With the daemon's window move (flag 8) the kept rects were copied
+one at a time, each saved and written before the next was read: a rect's old rows can be another's
+new ones (two stacked sticky bars), which then got the other bar's pixels. All are saved first now,
+then all written, as the in-place shift does.
+
+jihad_offscreen_gpu_given_up() (the daemon calls it when it gives the GPU path up) and
+jihad_gpu_compositor_on(), which WebGL's EGL choice and the headless GfxInfo now ask: a daemon that
+fell back to the software path after a GPU stall made new WebGL contexts on the abandoned GPU. The
+environment is left as it is (other threads read it).
+---
+ dom/canvas/WebGLContext.cpp         |  7 +++++--
+ gfx/layers/opengl/CompositorOGL.cpp | 23 ++++++++++++++++++-----
+ widget/PuppetWidget.cpp             | 16 ++++++++++++++++
+ widget/headless/GfxInfo.cpp         |  8 +++++---
+ 4 files changed, 44 insertions(+), 10 deletions(-)
+
+diff --git a/dom/canvas/WebGLContext.cpp b/dom/canvas/WebGLContext.cpp
+index cf33cbe5a6..3055fb7fd3 100644
+--- a/dom/canvas/WebGLContext.cpp
++++ b/dom/canvas/WebGLContext.cpp
+@@ -80,6 +80,8 @@
+ #include "mozilla/dom/WebGLRenderingContextBinding.h"
+ 
+ 
++extern "C" bool jihad_gpu_compositor_on();   // Jihad T-511: widget/PuppetWidget.cpp
++
+ namespace mozilla {
+ 
+ using namespace mozilla::dom;
+@@ -714,8 +716,9 @@ WebGLContext::CreateAndInitGL(bool forceEnabled,
+ 
+     // Jihad (T-511): on the GPU path (JIHAD_GPU_COMPOSITOR) the headless build's default GL provider
+     // is the null one; the device's GPU is reached through EGL, as the compositor reaches it. On the
+-    // software path the default provider fails and WebGL stays off.
+-    const bool useEGL = PR_GetEnv("MOZ_WEBGL_FORCE_EGL") || PR_GetEnv("JIHAD_GPU_COMPOSITOR");
++    // software path, and once the daemon has given the GPU path up, the default provider fails and
++    // WebGL stays off.
++    const bool useEGL = PR_GetEnv("MOZ_WEBGL_FORCE_EGL") || jihad_gpu_compositor_on();
+ 
+     bool tryNativeGL = true;
+     bool tryANGLE = false;
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 8510eed11a..4eb3ccf391 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2174,18 +2174,31 @@ JihadShiftRows(JihadFrameRequest* aReq)
+   // Only the kept rects (still layers) are copied, from where they were: dy rows back, the slot's
+   // frame's own rows
+   if (aReq->windowMoved) {
++    // every rect saved before any is written: a rect's old rows may be another rect's new ones
++    // (two stacked bars), and the rows read and written may overlap
+     static uint8_t* sKept = nullptr;
+     static size_t sKeptCap = 0;
+     const size_t stride = (size_t)aReq->stride;
++    size_t total = 0;
++    for (int k = 0; k < aReq->nKeep; k++) {
++      int x0, x1, y0, y1;
++      if (JihadKeepRect(aReq, k, &x0, &x1, &y0, &y1)) total += (size_t)(x1 - x0) * 4 * (y1 - y0);
++    }
++    if (!total) return;
++    if (total > sKeptCap) { free(sKept); sKept = (uint8_t*)malloc(total); sKeptCap = sKept ? total : 0; }
++    if (!sKept) return;
++    uint8_t* p = sKept;
+     for (int k = 0; k < aReq->nKeep; k++) {
+       int x0, x1, y0, y1;
+       if (!JihadKeepRect(aReq, k, &x0, &x1, &y0, &y1)) continue;
+-      const size_t rowBytes = (size_t)(x1 - x0) * 4, bytes = rowBytes * (y1 - y0);
+-      if (bytes > sKeptCap) { free(sKept); sKept = (uint8_t*)malloc(bytes); sKeptCap = sKept ? bytes : 0; }
+-      if (!sKept) return;
+-      uint8_t* p = sKept;   // saved first: the rows read and written may overlap
++      const size_t rowBytes = (size_t)(x1 - x0) * 4;
+       for (int r = y0; r < y1; r++, p += rowBytes) memcpy(p, aReq->dest + ((ptrdiff_t)r - dy) * (ptrdiff_t)stride + (size_t)x0 * 4, rowBytes);
+-      p = sKept;
++    }
++    p = sKept;
++    for (int k = 0; k < aReq->nKeep; k++) {
++      int x0, x1, y0, y1;
++      if (!JihadKeepRect(aReq, k, &x0, &x1, &y0, &y1)) continue;
++      const size_t rowBytes = (size_t)(x1 - x0) * 4;
+       for (int r = y0; r < y1; r++, p += rowBytes) memcpy(aReq->dest + (size_t)r * stride + (size_t)x0 * 4, p, rowBytes);
+     }
+     return;
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index cf3fa4cea9..ba586db982 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -1436,6 +1436,22 @@ jihad_offscreen_paint_layers(nsIWidget* aWidget, nsIDocShell* aDocShell)
+ {
+   return (aWidget && static_cast<PuppetWidget*>(aWidget)->JihadPaintLayers(aDocShell)) ? 1 : 0;
+ }
++// T-511 (review): the daemon gave the GPU path up (a stall past its bound, refused jobs): WebGL
++// makes no more EGL contexts on that GPU. jihad_gpu_compositor_on() is what the engine's GPU-path
++// checks ask (JIHAD_GPU_COMPOSITOR in the environment, and not given up); the environment is not
++// changed, other threads read it.
++static mozilla::Atomic<bool> sJihadGpuGivenUp(false);
++MOZ_EXPORT void
++jihad_offscreen_gpu_given_up()
++{
++  sJihadGpuGivenUp = true;
++}
++MOZ_EXPORT bool
++jihad_gpu_compositor_on()
++{
++  static const bool sEnv = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  return sEnv && !sJihadGpuGivenUp;
++}
+ MOZ_EXPORT int
+ jihad_offscreen_compose_peek(nsIWidget* aWidget, uint32_t aToken)
+ {
+diff --git a/widget/headless/GfxInfo.cpp b/widget/headless/GfxInfo.cpp
+index 1c25a0ccda..81e70f0b6b 100644
+--- a/widget/headless/GfxInfo.cpp
++++ b/widget/headless/GfxInfo.cpp
+@@ -7,6 +7,8 @@
+ #include "nsUnicharUtils.h"
+ #include <stdlib.h>   // Jihad T-511: getenv
+ 
++extern "C" bool jihad_gpu_compositor_on();   // Jihad T-511: widget/PuppetWidget.cpp (the GPU path on, not given up)
++
+ namespace mozilla {
+ namespace widget {
+ 
+@@ -63,9 +65,9 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
+   if (aOS) {
+     *aOS = OperatingSystem::Linux;
+   }
+-  // Jihad (T-511): on the GPU path (JIHAD_GPU_COMPOSITOR: the device's GPU through EGL) WebGL's
+-  // OpenGL context is allowed; UNKNOWN reads as blocklisted to WebGL
+-  if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL && getenv("JIHAD_GPU_COMPOSITOR")) {
++  // Jihad (T-511): on the GPU path (JIHAD_GPU_COMPOSITOR: the device's GPU through EGL, and the
++  // daemon has not given it up) WebGL's OpenGL context is allowed; UNKNOWN reads as blocklisted
++  if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL && jihad_gpu_compositor_on()) {
+     *aStatus = nsIGfxInfo::FEATURE_STATUS_OK;
+   }
+   // Not blocklisted, not accelerated: leave the decision to the caller's

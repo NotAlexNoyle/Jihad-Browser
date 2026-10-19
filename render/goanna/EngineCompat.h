@@ -73,6 +73,8 @@ extern "C" {
   int jihad_offscreen_paint_layers(nsIWidget* aWidget, nsIDocShell* aDocShell) __attribute__((weak));
   // peek: a job's state without taking its result (1 done, 2 composed and being read, 0 pending, -1 unknown)
   int jihad_offscreen_compose_peek(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
+  // OPTIONAL (T-511 review): the daemon gave the GPU path up; WebGL makes no more EGL contexts
+  void jihad_offscreen_gpu_given_up() __attribute__((weak));
   uint32_t jihad_offscreen_compose_post(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
                                         int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
                                         const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,

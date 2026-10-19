@@ -255,3 +255,32 @@ the pool directory listing shows every one. The CDN in front of archive.debian.o
 clone" had never been true. Both Debian fetchers now try up to five times with a fresh cache-buster
 and a short back-off; sha256 still decides what is accepted. Do not pin a mirror instead: the pool
 paths are the record.
+
+## The GPU path's frame cost: what did not pay (2026-10-19, T-511, T-517, T-504)
+
+Measured on the bench and reverted; the rounds are in `docs/rounds/t502-2026-10-17/` (`webgl-r281-313.txt`,
+`floor-r314-320.txt`).
+- **The kept rows' shift on a worker thread** while the band passes compose (r315): no gain. Both cores
+  are full during a pan (the daemon ~1.5 cores, WebAppMgr and an outside `sensord` ~18 % each); the copy
+  only competed and took 6-19 ms on the worker. The frame windows removed the copy instead.
+- **Every frame by the whole path** (`JIHAD_GPU_NO_BAND_TARGET=1`, r318): jobs median 67 ms against 41.5.
+- **One main-thread notification per band frame** (DidComposite only from the first pass, r320): no change.
+- **A taller band surface** for the WebGL cube (512/640 rows, r300) or for Wikipedia's chunks (600/942, round
+  265): passes got cheaper in number and dearer each; no gain on the card.
+- **Slices at natural x** for Wikipedia's two sticky columns: they do not fit a 256-row band surface (the
+  pair spans 717 px and 542 rows), and a taller surface is the case above.
+- **See-through sticky columns kept once proven still** (r333): on Wikipedia it applied to one 13-row sliver
+  (the contents panel's highlight follows the reading position, so it changes during a pan), and the
+  per-frame save and compare slowed frames (median gap 71 ms against 42).
+- **The express lane on its own slot for pages with fixed or stuck layers**: correct only if the engine
+  knew the base is older than the previous composite (the review's finding 3); now taken only without them.
+- **A GPU swizzle by copying the drawn rows into a texture** (`glCopyTexSubImage2D`, r338): the copy waits
+  for the composite to resolve, 110-358 ms; double taps got worse (up to 499 ms). The old pass mode
+  (`JIHAD_GPU_PASS=1`, a texture window target sampled directly) helps the zoom's whole frame (r336: every
+  tap under 190 ms) but samples the frame target during band passes too (wrong band frames) and slows a
+  simple page's pans (median 29 against 26 ms): not usable as it stands.
+- **Reading a WebGL canvas's frame from its texture framebuffer**: 8-9 fps; through a canvas-sized pbuffer
+  16-17; shared textures 21.5-25. **An EGLImage from a GL texture**: the driver refuses it
+  (`EGL_BAD_PARAMETER`, gpu-bench.c section 17).
+- Measured, worth having later: **the adapter invalidating only the changed strip** (r304): a canvas
+  animation +12 % on the card; needs the changed rect in the frame trailer.

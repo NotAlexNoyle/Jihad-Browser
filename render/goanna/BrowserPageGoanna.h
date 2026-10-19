@@ -452,6 +452,9 @@ private:
   // T-517: the row of each slot's pixels its GPU frame starts at (the frame window,
   // JihadFrameWindow.h); 0 when windows are off, and for the software path's frames
   int                mGpuSlotWin[3] = {0, 0, 0};
+  // T-517 (review): the slot's frame had fixed or stuck layers (the engine judges kept rects and
+  // fixed columns against the previous composite, so an older base is only taken without them)
+  bool               mGpuSlotFixed[3] = {false, false, false};
   bool               windowsFor(int key);   // the adapter that made the segment reads windows, and they are on
   // a composite's change into the other valid slots' stale rows (both lanes, T-517), and the
   // records dropped when a composite's change is in none of them

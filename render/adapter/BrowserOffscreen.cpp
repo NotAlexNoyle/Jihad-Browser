@@ -183,12 +183,15 @@ QImage BrowserOffscreen::surface()
 size_t BrowserOffscreen::windowBytes() const
 {
     JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());
-    if (!t || t->magic != kJihadWindowMagic || t->windowRows <= 0 || m_header->renderedWidth <= 0 || m_header->renderedHeight <= 0)
+    if (!t || t->magic != kJihadWindowMagic)
+        return 0;
+    const int rows = t->windowRows;   // read once: the checks and the offset are of the same value
+    if (rows <= 0 || m_header->renderedWidth <= 0 || m_header->renderedHeight <= 0)
         return 0;
     const size_t rowBytes = (size_t)m_header->renderedWidth * 4;
-    if ((size_t)(t->windowRows + m_header->renderedHeight) * rowBytes > (size_t)rasterSize())
+    if ((size_t)(rows + m_header->renderedHeight) * rowBytes > (size_t)rasterSize())
         return 0;
-    return (size_t)t->windowRows * rowBytes;
+    return (size_t)rows * rowBytes;
 }
 
 void BrowserOffscreen::resetBuffer()

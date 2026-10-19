@@ -243,3 +243,12 @@ Build site: context/plans/build-site.md
 - **Files:** engine patches 0051 (WebGL on the GPU path, the share group, the teardown fix) and 0052 (the column read); render/goanna/{EngineCompat.h,GoannaRenderPage.{h,cpp},BrowserPageGoanna.{h,cpp}}; render/goanna/test/jihad-webgl-cube.html; render/browserserver/Yap/YapProxy.{h,cpp} (the adapter build); tools/device/t502/adapter-install.sh; tools/device/gpu-bench.c (sections 17 and the extension list); render/goanna/JihadCrashReport.h (every executable mapping in a crash report)
 - **Validation:** Build P (libxul, daemon, the three adapters); patch-queue --check P (52 patches); device rounds 281-313: contexts on the GPU path, none on the software path; the cube renders correctly; 8 open/close cycles and a lose/restore, no fault; spot checks listed; the column read verified against whole composites with a change outside the canvas's columns (0 rows wrong); Wikipedia pan 18-24 fps, no fault. Acceptance 3/4: the 480 px cube 18-20.5 fps on the card (240 px 26.5-26.9)
 - **Next:** T-517 — the compositor job's floor (Wikipedia's pan frame, the 480 px cube)
+
+### Iteration 12 — 2026-10-19
+- **Task:** T-517 — the compositor job's floor (desktop Wikipedia's pan frame)
+- **Tier:** 87
+- **Status:** BLOCKED for this iteration (investigated; nothing kept but the tool)
+- **Files:** tools/device/t502/pan-run.sh (PAN_TOP=1: the processes' and the daemon's threads' CPU over 4 s of the pan); docs/rounds/t502-2026-10-17/floor-r314-320.txt
+- **Validation:** device rounds 314-320: frames with the sticky panels' column chunks 40-46 ms (3.3-3.8 extra passes at ~5 ms each), without 18-27; both cores full. Three cuts tried and reverted (no gain): the shift on a worker, the whole path, one notification a frame. The bench left on the committed build (all three default checks pass)
+- **Next:** T-517 again with one tree traversal for all of a frame's regions, or the see-through sticky column rule
+

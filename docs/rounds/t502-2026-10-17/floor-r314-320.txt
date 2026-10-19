@@ -1,0 +1,36 @@
+T-517, the compositor job's floor on desktop Wikipedia's pan: rounds 314-320, 2026-10-19, CE 3.1.0 TouchPad.
+pan-run.sh on en.wikipedia.org/wiki/HP_TouchPad (inject pan 0 -> 3000 px in 10 s, PAN_DELAY=15), daemon env
+JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 JIHAD_GPU_TIMELINE=1. PAN_TOP=1 (new) samples the processes'
+and the daemon's threads' CPU over 4 s of the pan.
+
+Where a pan frame goes (the band frames' own breakdown, r314/r315/r318)
+  band frames with no column chunks    18-27 ms: compose 4.5-6.6 (one or two passes), shift 2.6-9.7, read 3.3-8.7
+  band frames with column chunks       40-46 ms: compose 22-28 (3.3-3.8 chunk passes besides the bands), read 8-10
+  most of the pan's frames have chunks (17-24 of 23-31 logged). A pass costs ~5 ms of CPU whether it draws a
+  12-row band or a 236-row chunk: the layer tree's render, not the area (JIHAD_GPU_PHASES: render layers
+  2.5-4 ms a composite, the transaction around it ~1.4).
+  The columns are Wikipedia's two pinned panels: sticky painted layers with no CONTENT_OPAQUE flag (the
+  contents at x 22..165 rows 157..699, the tools at x 603..738 rows 157..466, r319 JIHAD_GPU_DIFFLOG=1),
+  so they are composed again every frame and cut into chunks to fit the 256-row band surface.
+  Express frames are serial: post, compose and read, publish; median gap 43-48 ms (r315-r320).
+
+CPU over 4 s of the pan (r316/r317/r318/r320)
+  the daemon ~1.5 cores: Compositor 59-80 %, the main thread 33-49 %, JihadExpress 12-15 %
+  WebAppMgr (the card's blit of each frame) 17-19 %, sensord 17-18 % and atlas-sensord 2-3 % (the Atlas
+  browser's accelerometer bridge; not ours, there all the time), pmsyslogd/powerd/... ~10 %: both cores full.
+
+Tried and not kept
+  the shift on a worker thread while the passes compose (r315): band frames 37.9-40.4 ms against 37.8 inline,
+    median gap 46 against 43: with both cores full the copy only competes (it took 6-19 ms on the worker)
+  no band surface, every frame the whole path (r318, JIHAD_GPU_NO_BAND_TARGET=1): jobs median 67 ms against 41.5
+  only a band frame's first pass notifies the main thread (r320): median gap 46-48 either way
+  (round 265, T-515: a 600 or 942-row band surface, fewer chunks: median 45/46 ms, no gain)
+
+What is left to try
+  one tree traversal for all of a frame's regions (the bands and the chunks rendered inside one transaction,
+    the world moved per region): saves the transaction around each extra pass (~1.4 ms each) at least
+  see-through sticky columns over content that does not move under them (Wikipedia's panels sit beside the
+    article): composed again only when something under them could have changed; needs a rule that cannot
+    leave stale pixels on pages with a see-through sticky header over images
+  the card invalidating only the changed strip (round 304: +12 % for a canvas animation; nothing for a pan)
+  the bench without atlas-sensord's sensord load (18 % of a core): the owner's call

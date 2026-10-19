@@ -124,8 +124,18 @@ three adapters build, the bench's Enyo one is the new build. (3) On the bench `s
 CPU and `atlas-sensord` at ~3 % all the time (sensord has 389 CPU minutes): not ours, and it is a core's
 fifth during every measurement.
 
-**Next.** T-517 (the compositor job's floor: Wikipedia's pan frame and the 480 px cube), T-512 (fit to
-keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516 and T-511 paragraphs).
+**T-517 (same day, investigated).** A Wikipedia pan frame with the sticky panels' column chunks takes
+40-46 ms on the compositor thread, one without 18-27: the two pinned panels are see-through sticky layers,
+composed again every frame in 3-4 chunks of the 256-row band surface, and every pass costs ~5 ms of CPU
+whatever its area. Both cores are full during a pan (the daemon ~1.5 cores, WebAppMgr ~18 %, and sensord
+~18 % beside the Atlas browser's `atlas-sensord`, all the time). Tried and reverted: the shift on a worker,
+the whole path, one main-thread notification a frame. `pan-run.sh` takes `PAN_TOP=1` for the CPU split.
+Notes in `docs/rounds/t502-2026-10-17/floor-r314-320.txt`.
+
+**Next.** T-517: one tree traversal for all of a frame's regions (the bands and chunks in one transaction),
+then a rule that skips see-through sticky columns over content that cannot have changed under them. Then
+T-512 (fit to keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516 and T-511
+paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
 

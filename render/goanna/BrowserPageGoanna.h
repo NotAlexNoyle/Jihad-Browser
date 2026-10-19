@@ -438,11 +438,17 @@ private:
   double             mGpuSlotZoom[3] = {1.0, 1.0, 1.0};
   long               mGpuStaleLo[3] = {0, 0, 0}, mGpuStaleHi[3] = {0, 0, 0};
   long               mGpuStale2Lo[3] = {0, 0, 0}, mGpuStale2Hi[3] = {0, 0, 0};   // a second stale band
+  // T-511: the columns the stale rows are stale in (the hull of the changes' columns; 0..w when a
+  // change's columns were not known), meaningful while the slot has stale rows
+  long               mGpuStaleX0[3] = {0, 0, 0}, mGpuStaleX1[3] = {0, 0, 0};
   long               mGpuFixedLo = 0, mGpuFixedHi = 0;   // the rows fixed layers cover, as last reported
   int                mGpuLatestSlot = -1, mGpuLatestKey = 0;   // round 113: the newest finished GPU frame
   // round 116: a job started while another is composed (the two-deep queue) also reads the rows
   // that one changed, and builds without the diff's scroll shift (its base is not the previous composite)
   long               mGpuNextExtraLo = 0, mGpuNextExtraHi = 0;
+  long               mGpuNextExtraX0 = 0, mGpuNextExtraX1 = 0;   // T-511: their columns
+  long               mGpuInvRows[3] = {0, 0, 0};   // T-511: the rows the last three published frames changed
+  int                mGpuInvRowsAt = 0;
   bool               mGpuNextSecond = false;
   // round 130: the second job builds on the job in flight (composed: its frame is complete when
   // the second job runs, the compositor thread runs them in order), exact while scrolling

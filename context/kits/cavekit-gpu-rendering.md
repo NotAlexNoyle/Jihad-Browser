@@ -98,10 +98,10 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 ### R8: WebGL through EGL (option 2)
 **Description:** WebGL 1 contexts are created on the device's GPU and composited without a CPU round trip per WebGL frame.
 **Acceptance Criteria:**
-- [ ] On the GPU path `canvas.getContext("webgl")` succeeds on the bench; on the software path WebGL stays off
-- [ ] A WebGL test page (a spinning textured cube, `render/goanna/test/`) renders correctly and runs at 24 fps or better
-- [ ] Context loss (the card closed, the GPU reset) is handled without a daemon crash; a WebGL page cannot wedge the GPU path (R1's bound)
-- [ ] WebGL conformance spot checks (the basic ones a page needs: textures, framebuffers, shaders) pass, and what does not is listed
+- [x] On the GPU path `canvas.getContext("webgl")` succeeds on the bench; on the software path WebGL stays off *(2026-10-19, T-511, engine 0051: WebGL asks EGL on the GPU path and is not blocklisted there; `NOGPU=1`: getContext null, "Refused to create native OpenGL context" (rounds 281-313, `docs/rounds/t502-2026-10-17/webgl-r281-313.txt`))*
+- [ ] A WebGL test page (a spinning textured cube, `render/goanna/test/`) renders correctly and runs at 24 fps or better *(2026-10-19, T-511, `render/goanna/test/jihad-webgl-cube.html`: renders correctly (screenshots r288, r305, r310). On the card: a 240 px cube 26.5-26.9 fps, 360 px 21.5-22.8, 480 px 18-20.5 (the page's own rate 21.5-25 at 480). The canvas reaches the compositor with no copy (one share group); what is left is the compositor job's ~45 ms for 482 rows, the same floor as Wikipedia's pan frames: carried by T-517)*
+- [x] Context loss (the card closed, the GPU reset) is handled without a daemon crash; a WebGL page cannot wedge the GPU path (R1's bound) *(2026-10-19, T-511: the second WebGL page closed faulted in libGLESv2 until a context was released from its thread before its destruction (engine 0051); 8 open/close cycles of the card on the cube, no fault; `WEBGL_lose_context` lose and restore (`?lose=1`): the page rebuilds and draws on; the cube's compose jobs run under R1's job bound like any other)*
+- [x] WebGL conformance spot checks (the basic ones a page needs: textures, framebuffers, shaders) pass, and what does not is listed *(2026-10-19, T-511: the test page's checks: shaders, a texture upload, a framebuffer object, readPixels of what was drawn: ok; MAX_TEXTURE_SIZE 4096; 14 extensions; missing against desktop WebGL 1: ANGLE_instanced_arrays, WEBGL_compressed_texture_s3tc, EXT_blend_minmax, EXT_shader_texture_lod (not offered by the GLES 2.0 driver))*
 **Dependencies:** R1
 
 ### R9: Everything else the card does still works on the GPU path

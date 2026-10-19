@@ -118,6 +118,7 @@ int main(int argc, char** argv) {
   printf("GL renderer=%s version=%s\n", glGetString(GL_RENDERER), glGetString(GL_VERSION));
   const char* ext = (const char*)glGetString(GL_EXTENSIONS); int bgra = ext && strstr(ext, "GL_EXT_texture_format_BGRA8888") != NULL; int readbgra = ext && strstr(ext, "GL_EXT_read_format_bgra") != NULL;
   printf("GL_EXT_texture_format_BGRA8888=%d GL_EXT_read_format_bgra=%d\n", bgra, readbgra);
+  if (getenv("BENCH_EXT")) printf("GL extensions: %s\n", ext ? ext : "(none)");   // T-511: what WebGL's sharing needs
   printf("setup: %.1f ms\n", now_ms() - t0);
   glViewport(0, 0, W, H);
 
@@ -140,6 +141,56 @@ int main(int argc, char** argv) {
   //     resolution the compositor drew tiles 1:1 (nearest) for a while, then scaled (linear): two
   //     tile draws took 150 ms each. Textures drawn with one filter, the filter switched, the next
   //     draw and its finish timed; with and without the 1x1 conversion. BENCH_ONLY=16.
+  // 17. T-511: an EGLImage from a GL texture (EGL_GL_TEXTURE_2D_KHR) on a driver that advertises
+  //     EGL_KHR_image but not EGL_KHR_gl_texture_2D_image: made in this context, bound in a second,
+  //     unshared one with glEGLImageTargetTexture2DOES and read back through a framebuffer. If it
+  //     works, a WebGL canvas can reach the compositor without a readback. BENCH_ONLY=17.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 17) {
+    typedef void* (*CreateImageFn)(EGLDisplay, EGLContext, unsigned, void*, const EGLint*);
+    typedef EGLBoolean (*DestroyImageFn)(EGLDisplay, void*);
+    typedef void (*TargetTexFn)(GLenum, void*);
+    CreateImageFn createImage = (CreateImageFn)eglGetProcAddress("eglCreateImageKHR");
+    DestroyImageFn destroyImage = (DestroyImageFn)eglGetProcAddress("eglDestroyImageKHR");
+    TargetTexFn targetTex = (TargetTexFn)eglGetProcAddress("glEGLImageTargetTexture2DOES");
+    printf("section 17: eglCreateImageKHR %p eglDestroyImageKHR %p glEGLImageTargetTexture2DOES %p\n",
+           (void*)createImage, (void*)destroyImage, (void*)targetTex);
+    if (createImage && targetTex) {
+      static unsigned char px[64 * 64 * 4];
+      for (int i = 0; i < 64 * 64; i++) { px[i * 4] = 250; px[i * 4 + 1] = 20; px[i * 4 + 2] = 130; px[i * 4 + 3] = 255; }
+      GLuint t = 0; glGenTextures(1, &t); glBindTexture(GL_TEXTURE_2D, t);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glFinish();
+      const EGLint at[] = { 0x30D2 /* EGL_IMAGE_PRESERVED_KHR */, 1, EGL_NONE };
+      void* img = createImage(dpy, ctx, 0x30B1 /* EGL_GL_TEXTURE_2D_KHR */, (void*)(unsigned long)t, at);
+      printf("section 17: image from a GL texture: %p (EGL error 0x%x)\n", img, eglGetError());
+      if (img) {
+        EGLContext ctx2 = eglCreateContext(dpy, cfg, EGL_NO_CONTEXT, ctxAttr);
+        eglMakeCurrent(dpy, surf, surf, ctx2);
+        GLuint t2 = 0; glGenTextures(1, &t2); glBindTexture(GL_TEXTURE_2D, t2);
+        targetTex(GL_TEXTURE_2D, img);
+        printf("section 17: bound in a second context: GL error 0x%x\n", glGetError());
+        GLuint fb = 0; glGenFramebuffers(1, &fb); glBindFramebuffer(GL_FRAMEBUFFER, fb);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t2, 0);
+        unsigned char got[4] = {0, 0, 0, 0};
+        glReadPixels(32, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, got);
+        printf("section 17: read through it: %u,%u,%u,%u (want 250,20,130,255), GL error 0x%x\n", got[0], got[1], got[2], got[3], glGetError());
+        // the producer writes again: does the consumer see it (the sharing a canvas needs)
+        eglMakeCurrent(dpy, surf, surf, ctx);
+        for (int i = 0; i < 64 * 64; i++) { px[i * 4] = 10; px[i * 4 + 1] = 200; px[i * 4 + 2] = 40; }
+        glBindTexture(GL_TEXTURE_2D, t);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 64, 64, GL_RGBA, GL_UNSIGNED_BYTE, px);
+        glFinish();
+        eglMakeCurrent(dpy, surf, surf, ctx2);
+        glBindFramebuffer(GL_FRAMEBUFFER, fb);
+        glReadPixels(32, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, got);
+        printf("section 17: after the producer's rewrite: %u,%u,%u,%u (want 10,200,40,255)\n", got[0], got[1], got[2], got[3]);
+        eglMakeCurrent(dpy, surf, surf, ctx);
+        if (destroyImage) destroyImage(dpy, img);
+      }
+    }
+    return 0;
+  }
   if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 16) {
     enum { NV = 6 };
     uint8_t* src = malloc(256 * 256 * 4); memset(src, 0x80, 256 * 256 * 4);

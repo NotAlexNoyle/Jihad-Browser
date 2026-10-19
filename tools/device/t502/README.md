@@ -160,3 +160,16 @@ variant's profile give the software path (`tools/device/set-prefs.sh <variant> '
 with a file holding the line; the same without a file clears it). `default-check.sh <enyo|mochi|mojo>`
 runs a load, pan, pinch and close through the card's self-test hook on the variant's own daemon and
 counts its frames, zooms, faults and fallbacks.
+
+T-511, rounds 281-313 (WebGL): on the GPU path WebGL contexts are made on the device's GPU and share
+textures with the compositor (engine 0051). `JIHAD_GPU_NO_SHARE=1` keeps them unshared (each frame read
+back through a canvas-sized pbuffer, ~2/3 the rate); `JIHAD_GPU_NO_PB_READ=1` reads unshared frames
+from the texture framebuffer as stock does (~1/2 again). `JIHAD_GPU_NO_COLUMN_READ=1` reads changed
+bands as whole rows (engine 0052: one column when the change is narrow). The test page
+`render/goanna/test/jihad-webgl-cube.html` (served by the harness at :8077): `?size=<px>`, `?checks=0`,
+`?lose=1` (lose and restore the context), `?report=ext` (the missing extensions in the title),
+`?stop=<s>` (still frames after it: `JIHAD_GPU_VERIFY=1` must find every slot right), `?ticker=1` (a
+counter beside the canvas on its rows). Its rate and checks are in the daemon log's "title changed"
+lines; the card's rate in the paint pipeline lines. `adapter-install.sh` no longer switches the
+adapter's paint log on: its gate (`<state>/adapterlog`) has no cap and filled /var once (see the
+script).

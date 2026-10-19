@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-webgl-cube.html — WebGL 1 on the GPU path (cavekit-gpu-rendering R8, T-511): a spinning
+     textured cube with its frame rate, and spot checks a page needs (shaders compile and link, a
+     texture upload, a framebuffer to render into, readPixels of what was drawn). Everything it finds
+     goes into the title, which the daemon logs ("title changed by the page"), and onto the page.
+     ?checks=0 skips the checks; ?size=<px> the canvas's size (default 480); ?lose=1 loses the context
+     after 4 s through WEBGL_lose_context and restores it 2 s later (the page rebuilds its objects);
+     ?report=ext puts the missing extensions alone in the title; ?stop=<s> stops the cube after that
+     many seconds (the frames after it are still: the daemon's verify mode must find them right);
+     ?ticker=1 puts a counter right of the canvas, on its rows, counting every 400 ms until the stop
+     (a change outside the canvas's columns: the column read must take it in). -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>webgl: starting</title>
+<style>
+  body { margin: 0; font: 18px/1.4 sans-serif; background: #222; color: #eee; }
+  #out { padding: 8px 12px; white-space: pre-wrap; }
+  #ticker { position: absolute; right: 8px; top: 260px; width: 120px; font: bold 28px monospace; color: #fc0; text-align: right; }
+  canvas { display: block; margin: 8px auto; background: #000; }
+</style></head>
+<body>
+<div id="out">webgl: starting</div>
+<canvas id="c"></canvas>
+<div id="ticker"></div>
+<script>
+(function () {
+  var q = {}; location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (m, k, v) { q[k] = v; });
+  var size = +(q.size || 480);
+  var c = document.getElementById('c'), out = document.getElementById('out');
+  c.width = c.height = size;
+  function say(s) { document.title = s; out.textContent = s; }
+  var gl = null, why = '';
+  c.addEventListener('webglcontextcreationerror', function (e) { why = e.statusMessage || '(no message)'; }, false);
+  try { gl = c.getContext('webgl') || c.getContext('experimental-webgl'); } catch (e) { say('webgl: getContext threw ' + e); return; }
+  if (!gl) { say('webgl: none (getContext returned null) ' + why); return; }
+  var info = gl.getExtension('WEBGL_debug_renderer_info');
+  var renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  var vendor = info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+
+  function shader(type, src) {
+    var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('compile: ' + gl.getShaderInfoLog(s));
+    return s;
+  }
+  function program(vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, shader(gl.VERTEX_SHADER, vs)); gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+    return p;
+  }
+  var checks = [];
+  var prog;
+  try {
+    prog = program(
+      'attribute vec3 p; attribute vec2 t; uniform mat4 m; varying vec2 v; void main() { v = t; gl_Position = m * vec4(p, 1.0); }',
+      'precision mediump float; varying vec2 v; uniform sampler2D s; void main() { gl_FragColor = texture2D(s, v); }');
+    checks.push('shaders=ok');
+  } catch (e) { say('webgl: ' + e.message); return; }
+
+  // the cube: 6 faces, 2 triangles each, position + texture coordinate
+  var f = [
+    [[-1,-1, 1],[ 1,-1, 1],[ 1, 1, 1],[-1, 1, 1]], [[ 1,-1,-1],[-1,-1,-1],[-1, 1,-1],[ 1, 1,-1]],
+    [[-1,-1,-1],[-1,-1, 1],[-1, 1, 1],[-1, 1,-1]], [[ 1,-1, 1],[ 1,-1,-1],[ 1, 1,-1],[ 1, 1, 1]],
+    [[-1, 1, 1],[ 1, 1, 1],[ 1, 1,-1],[-1, 1,-1]], [[-1,-1,-1],[ 1,-1,-1],[ 1,-1, 1],[-1,-1, 1]]];
+  var uv = [[0,0],[1,0],[1,1],[0,1]], data = [];
+  f.forEach(function (face) { [0,1,2,0,2,3].forEach(function (i) { data.push.apply(data, face[i]); data.push.apply(data, uv[i]); }); });
+  var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+  var lp = gl.getAttribLocation(prog, 'p'), lt = gl.getAttribLocation(prog, 't'), lm = gl.getUniformLocation(prog, 'm');
+
+  // the texture: a checkerboard drawn by a 2D canvas, uploaded
+  var tc = document.createElement('canvas'); tc.width = tc.height = 64;
+  var x2 = tc.getContext('2d');
+  for (var i = 0; i < 8; i++) for (var j = 0; j < 8; j++) { x2.fillStyle = (i + j) % 2 ? '#e8b030' : '#2050c0'; x2.fillRect(i * 8, j * 8, 8, 8); }
+  var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tc);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  checks.push(gl.getError() === gl.NO_ERROR ? 'texture=ok' : 'texture=error ' + gl.getError());
+
+  function mat(a, b) {   // perspective * rotation, column-major
+    var ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+    var r = [cb, sa * sb, -ca * sb, 0, 0, ca, sa, 0, sb, -sa * cb, ca * cb, 0, 0, 0, -5, 1];
+    var fz = 1 / Math.tan(0.45), n = 0.1, fa = 100;
+    var pm = [fz, 0, 0, 0, 0, fz, 0, 0, 0, 0, (fa + n) / (n - fa), -1, 0, 0, 2 * fa * n / (n - fa), 0];
+    var o = new Float32Array(16);
+    for (var col = 0; col < 4; col++) for (var row = 0; row < 4; row++) {
+      var s = 0; for (var k = 0; k < 4; k++) s += pm[k * 4 + row] * r[col * 4 + k]; o[col * 4 + row] = s;
+    }
+    return o;
+  }
+  function draw(t) {
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.clearColor(0.05, 0.05, 0.08, 1); gl.enable(gl.DEPTH_TEST);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(prog); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 3, gl.FLOAT, false, 20, 0);
+    gl.enableVertexAttribArray(lt); gl.vertexAttribPointer(lt, 2, gl.FLOAT, false, 20, 12);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniformMatrix4fv(lm, false, mat(t * 0.0007, t * 0.0011));
+    gl.drawArrays(gl.TRIANGLES, 0, 36);
+  }
+
+  // spot checks: a framebuffer to render into, and readPixels of what was drawn there
+  if (q.checks !== '0') {
+    try {
+      var ft = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, ft);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 16, 16, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      var fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ft, 0);
+      var st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      checks.push(st === gl.FRAMEBUFFER_COMPLETE ? 'framebuffer=ok' : 'framebuffer=incomplete 0x' + st.toString(16));
+      gl.viewport(0, 0, 16, 16); gl.clearColor(1, 0, 0.5, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      var px = new Uint8Array(4); gl.readPixels(8, 8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      checks.push(px[0] > 250 && px[1] < 5 && px[2] > 120 && px[2] < 135 ? 'readPixels=ok' : 'readPixels=' + Array.prototype.join.call(px, ','));
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      checks.push('maxtex=' + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      // the extensions pages ask for most: which are there, which are not
+      var want = ['OES_texture_float', 'OES_texture_half_float', 'OES_standard_derivatives', 'OES_element_index_uint',
+                  'OES_vertex_array_object', 'ANGLE_instanced_arrays', 'WEBGL_depth_texture', 'EXT_texture_filter_anisotropic',
+                  'WEBGL_compressed_texture_s3tc', 'WEBGL_lose_context', 'EXT_blend_minmax', 'EXT_shader_texture_lod'];
+      var have = gl.getSupportedExtensions() || [];
+      checks.push('ext=' + have.length + ' missing=' + want.filter(function (e) { return have.indexOf(e) < 0; }).join(',').replace(/^$/, 'none'));
+      // an index buffer with unsigned shorts and a depth renderbuffer (what 3D pages build on)
+      var rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, 16, 16);
+      checks.push(gl.getError() === gl.NO_ERROR ? 'depthrb=ok' : 'depthrb=error');
+    } catch (e) { checks.push('checks threw ' + e.message); }
+  }
+
+  var lost = false, restored = false;
+  function build() {   // the GL objects a restored context needs again
+    prog = program(
+      'attribute vec3 p; attribute vec2 t; uniform mat4 m; varying vec2 v; void main() { v = t; gl_Position = m * vec4(p, 1.0); }',
+      'precision mediump float; varying vec2 v; uniform sampler2D s; void main() { gl_FragColor = texture2D(s, v); }');
+    buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+    lp = gl.getAttribLocation(prog, 'p'); lt = gl.getAttribLocation(prog, 't'); lm = gl.getUniformLocation(prog, 'm');
+    tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tc);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  c.addEventListener('webglcontextlost', function (e) { e.preventDefault(); lost = true; say('webgl: context lost'); }, false);
+  c.addEventListener('webglcontextrestored', function () {
+    try { build(); lost = false; restored = true; say('webgl: context restored, objects rebuilt'); requestAnimationFrame(tick); }
+    catch (e) { say('webgl: restore failed ' + e.message); }
+  }, false);
+  if (q.lose === '1') {
+    var lc = gl.getExtension('WEBGL_lose_context');
+    if (!lc) checks.push('lose=unsupported');
+    else setTimeout(function () { lc.loseContext(); setTimeout(function () { lc.restoreContext(); }, 2000); }, 4000);
+  }
+  var frames = 0, t0 = performance.now(), last = '';
+  var stopAt = q.stop ? performance.now() + 1000 * +q.stop : 0;
+  if (q.ticker === '1') {
+    var tk = document.getElementById('ticker'), tn = 0;
+    var ti = setInterval(function () {
+      if (stopAt && performance.now() >= stopAt) { clearInterval(ti); return; }
+      tk.textContent = String(++tn);
+    }, 400);
+  }
+  function tick(now) {
+    if (lost) return;
+    if (stopAt && now >= stopAt) { say('webgl: stopped'); return; }
+    draw(now); frames++;
+    if (now - t0 >= 2000) {
+      var fps = (frames * 1000 / (now - t0)).toFixed(1);
+      frames = 0; t0 = now;
+      var s = q.report === 'ext' ? checks.filter(function (x) { return x.indexOf('missing=') >= 0; }).join(' ')
+            : 'webgl fps=' + fps + (restored ? ' restored' : '') + ' ' + checks.join(' ') + ' renderer=' + renderer + ' vendor=' + vendor;
+      if (s !== last) { last = s; say(s); }
+    }
+    requestAnimationFrame(tick);
+  }
+  say('webgl: context made (' + renderer + ')');
+  requestAnimationFrame(tick);
+})();
+</script>
+</body></html>

@@ -370,8 +370,11 @@ public:
   bool ComposeAsync() const;
   // shift: rows the compositor thread moves the buffer by (memmove) before the read
   // src: the frame the kept rows are copied from (the newest slot), or null for dst itself
+  // colX0..colX1 (T-511): the columns the bands are stale in (colX1 < 0: whole rows; 0,0: no band
+  // asked for); the engine reads the bands as one column when it and the change are narrow
   uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0,
-                        const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false);
+                        const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false,
+                        long colX0 = 0, long colX1 = -1);
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // T-515: ComposeStart's halves. PaintLayers (the main thread) paints the layers; ComposePost (any
   // thread, the frame lock held) composes the tree as it stands into a frameH-row frame, at aView
@@ -379,14 +382,17 @@ public:
   // scroll last set. ExpressReady: both exports are in the engine.
   bool PaintLayers();
   uint32_t ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo, long row2Hi,
-                       long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView);
+                       long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView,
+                       long colX0 = 0, long colX1 = -1);
   bool ExpressReady() const;
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
   // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),
   // the two bands read (read, read2), and whether the composite's only change was the scroll
+  // invX0..invX1 (T-511): the columns the composite changed, when invXKnown (an engine from
+  // before reports rows only)
   struct ComposeResult { long invLo = 0, invHi = 0, fixedLo = 0, fixedHi = 0, readLo = 0, readHi = 0, read2Lo = 0, read2Hi = 0; bool scrollOnly = false;
-                         long frameY = 0; bool frameYValid = false; };
+                         long frameY = 0; bool frameYValid = false; long invX0 = 0, invX1 = 0; bool invXKnown = false; };
   int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two

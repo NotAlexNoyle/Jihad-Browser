@@ -1,0 +1,73 @@
+T-511, WebGL through EGL: rounds 281-313, 2026-10-19, CE 3.1.0 TouchPad.
+Test page render/goanna/test/jihad-webgl-cube.html (a spinning textured cube in a 480 px canvas by
+default; its own frame rate and checks go into the title, which the daemon logs). Daemon env
+JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 (gpu-spike-start.sh); "card" = frames published to the
+card (paint pipeline, 2 s windows), "page" = the page's own draw rate (requestAnimationFrame).
+
+Getting a context (rounds 281-284: getContext null in r281-r282, the GL error in r283, a context in r284)
+  The headless build's GL provider is the null one: WebGL now asks EGL on the GPU path (WebGLContext.cpp).
+  The headless GfxInfo answered UNKNOWN for WebGL's OpenGL feature, which reads as blocklisted: OK on the
+  GPU path (widget/headless/GfxInfo.cpp).
+  The Adreno 220 driver answers GL_INVALID_ENUM for GL_STENCIL_BACK_WRITEMASK, and the error failed the
+  context's init ("GL error 0x500 occurred during WebGL context initialization"): queried in its own
+  error scope, the front mask stands in (WebGLContextValidate.cpp).
+  Software path (NOGPU=1, r312 and before): getContext returns null ("Refused to create native OpenGL
+  context"): WebGL stays off.
+
+Getting frames to the compositor
+  the basic surface (read back from the canvas's texture framebuffer, r284-r285)  page 8.6-8.9 fps
+  the read through the context's own 1024x1024 pbuffer (r312)               page 16.7-17.4, card 12.9-13.9
+  one share group, the compositor samples the canvas's texture (r287-r312)  page 21.5-25.1, card 18-20.5
+  The driver has no EGLImage from a GL texture (eglCreateImageKHR EGL_BAD_PARAMETER, gpu-bench.c
+  section 17), so the zero-copy road is a share group: every pbuffer context on the GPU path under a
+  1x1 root (GLContextProviderEGL.cpp). The canvas's frames go as the shared GL texture surface
+  (ClientCanvasLayer.cpp). JIHAD_GPU_NO_SHARE=1 keeps contexts unshared (the pbuffer read).
+  The large pbuffer only when unshared (r301: no difference shared, 4 MB of GPU memory a context).
+
+Context loss and teardown
+  The second WebGL page closed faulted in libGLESv2 (set_framebuffer, gl2_surface_update_writeonly_flag),
+  shared (r290-r293) or not (r296): the destroyed context was still current on its thread. Released before it is
+  destroyed (GLContextEGL's destructor): 4 and 8 open/close cycles of the card on the cube (each build
+  since, the final one included), no fault.
+  WEBGL_lose_context lose and restore (?lose=1, twice, the final build included): the page rebuilds its
+  objects and draws on (24.8 fps "restored"), no fault.
+
+Spot conformance (the page's checks, every run): shaders, a texture upload, a framebuffer object, a
+  readPixels of what was drawn: ok; MAX_TEXTURE_SIZE 4096; 14 extensions; missing against desktop
+  WebGL 1: ANGLE_instanced_arrays, WEBGL_compressed_texture_s3tc, EXT_blend_minmax, EXT_shader_texture_lod
+  (the GLES 2.0 driver does not offer them).
+
+The rate (card frames; the page's own rate in brackets)
+  240 px canvas (r302)  26.5-26.9 fps (27.5)        the compositor job 18 ms
+  360 px canvas (r313)  21.5-22.8 fps (22.2-25.1)
+  480 px canvas (r312)  20.0-20.4 fps (21.5-23.3); r306 17.9-20.4 (23.6-24.2)
+  The 480 px frame is the compositor job's ~45 ms (rows 189..671 of 1224): with a glFinish before the
+  read (r299) 12-26 ms the GPU's work, 4-21 ms the read, 3-9 ms the CPU swizzle. Not the WebGL
+  context's pbuffer size (r301: 16x16 and 1024x1024 alike), not the band surface (r300: 512 rows lets
+  the frame take the band pass, the job 40 ms instead of 45, the card unchanged). The same floor as
+  T-517's Wikipedia frames: it is carried there.
+  Two cuts kept:
+    the slot's own frame as the base when its stale rows beyond what the last three frames changed
+    are under a third (r303/r306): the 480 px canvas copied the whole frame from the newest slot
+    every frame (5-21 ms of a core) to read the same 482 rows
+    the column read (engine 0052, r305-r311): the bands read as the one column the change and the
+    slot's stale columns span when it is under three quarters of the width; the compositor job 44.1 ms
+    against 46.9 (r306, JIHAD_GPU_NO_COLUMN_READ=1 for the second); the card the same within noise
+  Measured, not kept (for later): the adapter invalidating only the changed strip of the card (a gate
+  file read by an experimental adapter, r304): WebAppMgr 25 -> 22.5 % CPU, the card 17.5 -> 19-20.5 fps.
+  It needs the changed rect in a side channel past the frame (the header is the contract).
+
+Correctness of the column read
+  ?stop=<s> stops the cube; ?ticker=1 counts beside the canvas on its rows every 400 ms (a change
+  outside the canvas's columns). The columns read follow: x 192..576 the cube alone, 192..768 with the
+  counter (r310). The card after the stop shows the counter's last value (webgl-r310-ticker-after.png).
+  JIHAD_GPU_VERIFY=1 after the stop (r309 the cube alone, r311 with the counter): every slot verified
+  against a whole composite, 0 rows wrong. Desktop Wikipedia pan (r307): 18-24 fps, no fault.
+
+Device trap met on the way (rounds 294-295 looked like engine faults): the adapter's paint log gate
+(<state>/adapterlog, set by adapter-install.sh on 2026-10-17) had filled /var (46.7 MB of 62); the
+daemon's main thread then sat in D state in log_wait_commit after its first frame: no frames, cards
+that would not close, loads aborted. adapter-install.sh no longer sets the gate.
+Also found: the adapter (PDK gcc 4.3.3) had not built since T-515 (<mutex>/<atomic> in YapProxy.h):
+pthread locks now. Seen on the bench, not ours: sensord at 15-23 % CPU and atlas-sensord at ~3 % all
+the time (sensord has 389 CPU minutes).

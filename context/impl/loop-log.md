@@ -236,3 +236,10 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P; gen-variant-scripts --check P; on the bench all three default daemons on the GPU path with the express lane; Enyo, Mochi and Mojo load, pan, zoom and close Wikipedia (no fault, no fallback); the pref and the env override give the software path; Acceptance 2/2 (R1's open two)
 - **Next:** T-511 — WebGL through EGL (or T-517)
 
+### Iteration 11 — 2026-10-19
+- **Task:** T-511 — WebGL through EGL
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** engine patches 0051 (WebGL on the GPU path, the share group, the teardown fix) and 0052 (the column read); render/goanna/{EngineCompat.h,GoannaRenderPage.{h,cpp},BrowserPageGoanna.{h,cpp}}; render/goanna/test/jihad-webgl-cube.html; render/browserserver/Yap/YapProxy.{h,cpp} (the adapter build); tools/device/t502/adapter-install.sh; tools/device/gpu-bench.c (sections 17 and the extension list); render/goanna/JihadCrashReport.h (every executable mapping in a crash report)
+- **Validation:** Build P (libxul, daemon, the three adapters); patch-queue --check P (52 patches); device rounds 281-313: contexts on the GPU path, none on the software path; the cube renders correctly; 8 open/close cycles and a lose/restore, no fault; spot checks listed; the column read verified against whole composites with a change outside the canvas's columns (0 rows wrong); Wikipedia pan 18-24 fps, no fault. Acceptance 3/4: the 480 px cube 18-20.5 fps on the card (240 px 26.5-26.9)
+- **Next:** T-517 — the compositor job's floor (Wikipedia's pan frame, the 480 px cube)

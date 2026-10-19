@@ -4685,14 +4685,17 @@ bool GoannaRenderPage::ComposeAsync() const {
 }
 
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
-                                        const unsigned char* src, long srcY, bool engineShift, bool verify) {
+                                        const unsigned char* src, long srcY, bool engineShift, bool verify, long colX0, long colX1) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = GpuFrameHeight();   // T-505: the frame's rows, overscan included
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
   if (!ds) return 0;
-  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | (verify ? 2 : 0));
+  if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
+  // flag 4 (T-511): the column arguments are given, and the poll takes twelve ints back
+  const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY,
+                                                       (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4, (int)colX0, (int)colX1);
   return token;
 }
 
@@ -4726,14 +4729,15 @@ bool GoannaRenderPage::PaintLayers() {
 
 uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo,
                                        long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
-                                       const double* aView) {
+                                       const double* aView, long colX0, long colX1) {
   if (!ExpressReady() || !mWidget || !dst) return 0;
   const int w = mWidth;
   if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * frameH * 4) return 0;
+  if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   return jihad_offscreen_compose_post(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
-                                      (int)shift, src, (int)srcY, engineShift ? 1 : 0, aView ? 1 : 0,
+                                      (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | 4, aView ? 1 : 0,
                                       aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
-                                      aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0);
+                                      aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0, (int)colX0, (int)colX1);
 }
 
 // T-509: the resolution back to 1 when the GPU path is given up
@@ -4762,12 +4766,18 @@ void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int o[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  int o[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
   int scrollOnly = 0;
   const int r = jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
+  auto takeCols = [&]() {
+    if (!out) return;
+    out->invXKnown = o[10] >= 0 && o[11] >= o[10];
+    out->invX0 = out->invXKnown ? o[10] : 0; out->invX1 = out->invXKnown ? o[11] : 0;
+  };
   if (r == 2) {             // composed, being read: its changed rows are known (round 116)
     if (out) { out->invLo = o[0]; out->invHi = o[1]; out->frameY = o[8]; out->frameYValid = o[9] != 0; }
+    takeCols();
     return -3;
   }
   if (r < 0) return -1;
@@ -4777,6 +4787,7 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
     out->scrollOnly = scrollOnly != 0;
     out->frameY = o[8]; out->frameYValid = o[9] != 0;
   }
+  takeCols();
   if (!dst) return 0;   // drained, not published
   // the rows written: the first band through the frame-done work (the cache clean, the dumps,
   // the sample), the second band's cache cleaned the same way

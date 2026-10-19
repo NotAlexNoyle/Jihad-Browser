@@ -87,17 +87,31 @@ inline void CrashDec(unsigned v) {
 inline void CrashDumpMaps() {
   int fd = open("/proc/self/maps", O_RDONLY);
   if (fd < 0) return;
-  static char buf[65536];
-  ssize_t n = read(fd, buf, sizeof buf - 1);
+  static char buf[262144];   // T-511: a daemon with the GL driver loaded has a long map
+  // a read of /proc/self/maps returns a page or so at a time: read to the end (one read gave only
+  // the first few libraries, never the GL driver's, T-511)
+  ssize_t n = 0;
+  for (;;) {
+    const ssize_t r = read(fd, buf + n, sizeof buf - 1 - n);
+    if (r <= 0) break;
+    n += r;
+    if ((size_t)n >= sizeof buf - 1) break;
+  }
   close(fd);
   if (n <= 0) return;
   buf[n] = '\0';
+  int others = 0;
   for (char* line = buf; line && *line; ) {
     char* nl = strchr(line, '\n');
     if (nl) *nl = '\0';
     if (strstr(line, "libxul.so") || strstr(line, "jihad-browserserver") ||
         strstr(line, "ld-2.23.so") || strstr(line, "libmozsqlite3.so")) {
       CrashPuts("[jihad-bs]   "); CrashPuts(line); CrashPuts("\n");
+    } else if (strstr(line, " r-xp ") && strstr(line, ".so") && others < 150) {
+      // the other code a fault can land in: the device's GL driver (T-511: a fault outside libxul
+      // at a WebGL page's teardown), the system's libraries, the JIT's anonymous code
+      CrashPuts("[jihad-bs]   "); CrashPuts(line); CrashPuts("\n");
+      ++others;
     }
     line = nl ? nl + 1 : nullptr;
   }

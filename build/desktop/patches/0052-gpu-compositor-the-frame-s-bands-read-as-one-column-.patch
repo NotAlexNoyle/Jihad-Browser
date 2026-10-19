@@ -1,0 +1,383 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 19 Oct 2026 07:42:05 -0400
+Subject: [PATCH] gpu compositor: the frame's bands read as one column when
+ only it changed
+
+T-511. A compose job may say which columns its bands are stale in (flag 4 and two more arguments to
+jihad_offscreen_compose_start and _post; a daemon from before passes neither). When nothing else asks
+for whole rows (no shift, no rows kept from another frame, no fixed columns) and the column the change
+and the stale columns span is under three quarters of the width, the bands are read as that column,
+in the whole path and in a band pass of one band. The poll reports the columns the composite changed
+(twelve ints for such a job), so the daemon keeps each slot's stale columns as it keeps its rows.
+
+A 480 px WebGL canvas on a 768 px card changes 482 rows a frame, and every one was read whole and
+swizzled: the compositor job 44 ms against 47. JIHAD_GPU_NO_COLUMN_READ=1 reads whole rows.
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 63 ++++++++++++++++++++---
+ gfx/layers/opengl/CompositorOGL.cpp       | 13 ++++-
+ gfx/layers/opengl/CompositorOGL.h         |  8 +++
+ widget/PuppetWidget.cpp                   | 40 ++++++++++----
+ widget/PuppetWidget.h                     | 10 ++--
+ 5 files changed, 109 insertions(+), 25 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index cbce7a9d5c..eb3594c274 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1696,6 +1696,33 @@ JihadMergeIntervals(int (*aIv)[2], int aN, int aH)
+   return n;
+ }
+ 
++// T-511, the column read: the frame's bands are read as one column (x0..x1) when the daemon said
++// which columns its bands are stale in, nothing else asks for whole rows (a shift and its entering
++// rows, the rows kept from another frame, the fixed layers' columns), and the column that the
++// change and the stale columns span is under three quarters of the width. A 480 px WebGL canvas
++// on a 768 px card changes 482 rows a frame; every one of them was read whole.
++static bool
++JihadColumnRead(const JihadFrameRequest* aReq, int aInvX0, int aInvX1, int aInvLo, int aInvHi, int aWidth,
++                int* aX0, int* aX1)
++{
++  static const bool sOff = getenv("JIHAD_GPU_NO_COLUMN_READ") != nullptr;
++  if (sOff || !aReq->colsKnown || aReq->shift != 0 || aReq->src || aReq->nCols > 0 || aReq->nKeep > 0 || aWidth <= 0) {
++    return false;
++  }
++  int x0 = aWidth, x1 = 0;
++  if (aReq->colX1 > aReq->colX0) { x0 = aReq->colX0; x1 = aReq->colX1; }
++  if (aInvHi > aInvLo) {
++    if (aInvX1 <= aInvX0) return false;   // rows changed in columns not known: whole rows
++    x0 = std::min(x0, aInvX0); x1 = std::max(x1, aInvX1);
++  }
++  x0 = std::max(0, x0 & ~7); x1 = std::min(aWidth, (x1 + 7) & ~7);
++  if (x1 <= x0 || (x1 - x0) * 4 > aWidth * 3) {
++    return false;
++  }
++  *aX0 = x0; *aX1 = x1;
++  return true;
++}
++
+ bool
+ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY)
+ {
+@@ -1746,6 +1773,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   }
+   const TimeStamp tEntry = TimeStamp::Now();
+   const int aWidth = aReq->w, aHeight = aReq->h;
++  aReq->readX0 = aReq->readX1 = 0; aReq->invX0 = aReq->invX1 = 0;   // T-511
+   // the card's zoom about the frame's top-left, after the residual visual offset (CSS px)
+   gfx::Matrix4x4 world = gfx::Matrix4x4::Scaling(aScale > 0.0f ? aScale : 1.0f,
+                                                  aScale > 0.0f ? aScale : 1.0f, 1.0f);
+@@ -1797,7 +1825,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   // surface: the bands' GPU cost, not the frame's); otherwise the whole path composes it, the
+   // diff's region invalidated by hand. JIHAD_GPU_NO_DIFF_FIRST=1 turns it off.
+   bool diffFirst = false, diffTaken = false, dfHaveShift = false;
+-  int dfShift = 0, dfInvLo = 0, dfInvHi = 0, dfFixLo = 0, dfFixHi = 0;
++  int dfShift = 0, dfInvLo = 0, dfInvHi = 0, dfFixLo = 0, dfFixHi = 0, dfInvX0 = 0, dfInvX1 = 0;
+   {
+     static const bool sNoDiffFirst = getenv("JIHAD_GPU_NO_DIFF_FIRST") != nullptr;
+     if (!aReq->verify && treeChanged && !viewChanged && !sNoDiffFirst && ogl->JihadBandMaxRows() > 0 && aReq->dest &&
+@@ -1813,6 +1841,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       if (!cb.IsEmpty()) {
+         dfInvLo = std::max(0, cb.y); dfInvHi = std::min(aHeight, cb.YMost());
+         if (dfInvHi < dfInvLo) dfInvHi = dfInvLo;
++        dfInvX0 = std::max(0, cb.x); dfInvX1 = std::min(aWidth, cb.XMost());   // T-511
+       }
+       float sdx = 0.0f, sdy = 0.0f;
+       if (aReq->src && aReq->engineShift && JihadDiffScrollShift(&sdx, &sdy)) {
+@@ -2001,7 +2030,17 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         if (aReq->cancelled) ok = false; else ogl->JihadShiftRowsNow(aReq);   // T-509: given up, dest untouched
+         msShift = (TimeStamp::Now() - c1).ToMilliseconds();
+       }
+-      if (ok) {
++      // T-511: one band and no column chunks: the band read as the column the change spans
++      int cx0 = 0, cx1 = 0;
++      const bool colRead = ok && diffFirst && hs[0] > 0 && !hs[1] && nChunks == 0 &&
++                           JihadColumnRead(aReq, dfInvX0, dfInvX1, dfInvLo, dfInvHi, aWidth, &cx0, &cx1);
++      if (colRead) {
++        TimeStamp r0 = TimeStamp::Now();
++        ok = ogl->JihadReadColumns(aReq->dest, aReq->stride, passRows ? passRows : aHeight, cx0, cx1, 0, hs[0],
++                                   std::max(0, bands[0][0]), cx0);
++        aReq->readX0 = cx0; aReq->readX1 = cx1;
++        msRead = (TimeStamp::Now() - r0).ToMilliseconds();
++      } else if (ok) {
+         TimeStamp r0 = TimeStamp::Now();
+         uint8_t* scratch = fullRows ? ogl->JihadBandScratch(aWidth * 4 * fullRows) : nullptr;
+         if (fullRows) ok = scratch && ogl->JihadReadFrame(scratch, aReq->stride, aWidth, passRows ? passRows : aHeight, 0, fullRows);
+@@ -2031,6 +2070,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       mLayerManager->JihadSetBand(gfx::IntRect(), gfx::IntRect());
+       ogl->JihadSelectTarget();
+       aReq->invLo = diffFirst ? dfInvLo : 0; aReq->invHi = diffFirst ? dfInvHi : 0;
++      aReq->invX0 = diffFirst ? dfInvX0 : 0; aReq->invX1 = diffFirst ? dfInvX1 : 0;   // T-511
+       aReq->scrollOnly = !diffFirst;
+       // round 127: the fixed rows as of this frame (a sticky element may have become stuck during
+       // the pan), from the effective transforms at the frame's own world
+@@ -2065,8 +2105,8 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       aReq->ok = ok;
+       static uint32_t sBandFrames = 0;
+       if (sBandFrames < 12 || (sBandFrames % 10) == 0) {
+-        fprintf(stderr, "[jihad-gpu] compositor thread: band frame %u: rows %d..%d and %d..%d, %d columns in %d chunks (%d rows), %d kept, entry %.1f ms, surface in %.1f ms, compose %.1f ms, shift %.1f ms, read %.1f ms, surface out %.1f ms, all %.1f ms, ok=%d\n",
+-                sBandFrames, aReq->lo, aReq->hi, aReq->lo2, aReq->hi2, aReq->nCols, nChunks, chunkRows, aReq->nKeep, msEntry, msBegin, msCompose, msShift, msRead, msEnd, (TimeStamp::Now() - tEntry).ToMilliseconds(), (int)ok);
++        fprintf(stderr, "[jihad-gpu] compositor thread: band frame %u: rows %d..%d and %d..%d, x %d..%d, %d columns in %d chunks (%d rows), %d kept, entry %.1f ms, surface in %.1f ms, compose %.1f ms, shift %.1f ms, read %.1f ms, surface out %.1f ms, all %.1f ms, ok=%d\n",
++                sBandFrames, aReq->lo, aReq->hi, aReq->lo2, aReq->hi2, aReq->readX0, aReq->readX1 ? aReq->readX1 : aWidth, aReq->nCols, nChunks, chunkRows, aReq->nKeep, msEntry, msBegin, msCompose, msShift, msRead, msEnd, (TimeStamp::Now() - tEntry).ToMilliseconds(), (int)ok);
+       }
+       ++sBandFrames;
+       aReq->done(aReq);
+@@ -2128,11 +2168,12 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     }
+   }
+   const gfx::IntRect changed = mLayerManager->JihadLastChanged();   // what the tree changed
+-  int invLo = 0, invHi = 0;
++  int invLo = 0, invHi = 0, invX0 = 0, invX1 = 0;
+   if (!changed.IsEmpty()) {
+     invLo = std::max(0, changed.y);
+     invHi = std::min(aHeight, changed.YMost());
+     if (invHi < invLo) invHi = invLo;
++    invX0 = std::max(0, changed.x); invX1 = std::min(aWidth, changed.XMost());   // T-511
+   }
+   aReq->scrollOnly = scrollOnly;
+   // the rows fixed and sticky layers cover, after this composite's effective transforms: the
+@@ -2250,17 +2291,23 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   }
+   const int lo = aReq->lo, hi = aReq->hi;
+   aReq->invLo = invLo; aReq->invHi = invHi;
++  aReq->invX0 = invX0; aReq->invX1 = invX1;
++  {
++    int cx0 = 0, cx1 = 0;   // T-511: the bands read as one column (JihadReadAsync)
++    if (JihadColumnRead(aReq, invX0, invX1, invLo, invHi, aWidth, &cx0, &cx1)) { aReq->readX0 = cx0; aReq->readX1 = cx1; }
++  }
+   // the log's values now: once the read hands the frame over, aReq belongs to the daemon
+   const int logLo2 = aReq->lo2, logHi2 = aReq->hi2, logFixedLo = aReq->fixedLo, logFixedHi = aReq->fixedHi, logCols = aReq->nCols, logKeep = aReq->nKeep;
++  const int logReadX0 = aReq->readX0, logReadX1 = aReq->readX1;
+   const bool logScrollOnly = aReq->scrollOnly;
+   const bool started = ogl->JihadReadAsync(aReq);
+   static uint32_t sFrames = 0;
+   static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds: every frame
+   if (sFrames < 20 || (sFrames % 50) == 0 || sTimeline) {
+-    fprintf(stderr, "[jihad-gpu] compositor thread: compose %.1f ms, handoff %.1f ms (frame %u, rows %d..%d and %d..%d of %d, %d columns, %d kept, changed %d..%d, fixed %d..%d%s%s, started=%d)\n",
++    fprintf(stderr, "[jihad-gpu] compositor thread: compose %.1f ms, handoff %.1f ms (frame %u, rows %d..%d and %d..%d of %d, x %d..%d, %d columns, %d kept, changed %d..%d x %d..%d, fixed %d..%d%s%s, started=%d)\n",
+             (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds(), sFrames,
+-            lo, hi, logLo2, logHi2, aHeight, logCols, logKeep, invLo, invHi, logFixedLo, logFixedHi,
+-            treeChanged ? ", tree changed" : "", logScrollOnly ? ", scroll only" : "", (int)started);
++            lo, hi, logLo2, logHi2, aHeight, logReadX0, logReadX1 ? logReadX1 : aWidth, logCols, logKeep, invLo, invHi, invX0, invX1,
++            logFixedLo, logFixedHi, treeChanged ? ", tree changed" : "", logScrollOnly ? ", scroll only" : "", (int)started);
+   }
+   ++sFrames;
+   return started;
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 1f8f23071a..9ee78333ac 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2344,9 +2344,18 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
+     JihadShiftRows(aReq);
+     const TimeStamp t1 = TimeStamp::Now();
+     aReq->ok = true;
+-    if (aReq->hi > aReq->lo) aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo, aReq->hi);
++    // T-511: the bands as one column (readX0..readX1) when the compositor found only it stale
++    const int surfaceRows = std::min<int>(aReq->h, mWidgetSize.height);
++    auto readBand = [&](int aLo, int aHi) {
++      if (aReq->readX1 > aReq->readX0) {
++        const int lo = std::max(0, aLo), hi = std::min(surfaceRows, aHi);
++        return hi <= lo || JihadReadColumns(aReq->dest, aReq->stride, surfaceRows, aReq->readX0, aReq->readX1, lo, hi - lo, lo, aReq->readX0);
++      }
++      return JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aLo, aHi);
++    };
++    if (aReq->hi > aReq->lo) aReq->ok = readBand(aReq->lo, aReq->hi);
+     const TimeStamp t2 = TimeStamp::Now();
+-    if (aReq->ok && aReq->hi2 > aReq->lo2) aReq->ok = JihadReadFrame(aReq->dest, aReq->stride, aReq->w, aReq->h, aReq->lo2, aReq->hi2);
++    if (aReq->ok && aReq->hi2 > aReq->lo2) aReq->ok = readBand(aReq->lo2, aReq->hi2);
+     // round 138: the fixed and stuck layers' columns
+     {
+       const int surfaceH = std::min<int>(aReq->h, mWidgetSize.height);
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index ebb43951db..446bed7635 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -172,6 +172,14 @@ struct JihadFrameRequest {
+   bool scrollOnly = false;             // out: the composite's only change was the card's scroll
+   int target = 0;                      // which window target holds the frame (the compositor fills it)
+   int invLo = 0, invHi = 0;            // the rows the composite changed (the compositor fills them)
++  // T-511, the column read: the columns the daemon's bands are stale in ((0,0) = none asked for,
++  // (0,w) = whole rows), given when colsKnown. The bands are then read as the one column they and
++  // the change span when it is narrow (readX0..readX1; (0,0) = whole rows), and the change's own
++  // columns go back to the daemon (invX0..invX1, with invLo..invHi)
++  bool colsKnown = false;
++  int colX0 = 0, colX1 = 0;
++  int readX0 = 0, readX1 = 0;
++  int invX0 = 0, invX1 = 0;
+   float scrollX = 0.0f, scrollY = 0.0f;   // the card's scroll (CSS px) for the compositor to apply
+   bool scrollValid = false;
+   void* fence = nullptr;               // the EGL fence after the compose, or null (glFinish was used)
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index d209a3e432..13bb49c151 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -840,6 +840,7 @@ struct JihadReadJob {
+   const uint8_t* src = nullptr; // the frame the kept rows come from (round 113), or dest itself
+   int srcY = 0; bool engineShift = false;   // round 115
+   bool verify = false;   // T-503
++  bool colsKnown = false; int colX0 = 0, colX1 = 0;   // T-511: the bands' stale columns (flag 4)
+   int invLo, invHi;      // the rows the composite changed
+   float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
+   uint32_t token;
+@@ -885,6 +886,7 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+   job->req.dest = job->dest; job->req.stride = job->stride; job->req.w = job->w; job->req.h = job->h;
+   job->req.lo = job->rowLo; job->req.hi = job->rowHi; job->req.lo2 = job->row2Lo; job->req.hi2 = job->row2Hi;
+   job->req.shift = job->shift; job->req.src = job->src; job->req.srcY = job->srcY; job->req.engineShift = job->engineShift; job->req.verify = job->verify;
++  job->req.colsKnown = job->colsKnown; job->req.colX0 = job->colX0; job->req.colX1 = job->colX1;
+   job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
+   job->req.done = &JihadJobDone; job->req.cookie = job;
+   // Once done() has run the daemon may forget (delete) the job at any moment (round 108's wake
+@@ -917,7 +919,7 @@ PuppetWidget::JihadBridge()
+ uint32_t
+ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
+                                 int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+-                                const void* aSrc, int aSrcY, int aFlags)
++                                const void* aSrc, int aSrcY, int aFlags, int aColX0, int aColX1)
+ {
+   if (!aDocShell || !aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
+     return 0;
+@@ -925,7 +927,8 @@ PuppetWidget::JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride
+   if (!JihadPaintLayers(aDocShell)) {
+     return 0;
+   }
+-  return JihadPostJob(aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aFlags);
++  return JihadPostJob(aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aFlags,
++                      nullptr, false, aColX0, aColX1);
+ }
+ 
+ bool
+@@ -987,7 +990,7 @@ PuppetWidget::JihadPaintLayers(nsIDocShell* aDocShell)
+ uint32_t
+ PuppetWidget::JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo,
+                            int aRow2Hi, int aShift, const void* aSrc, int aSrcY, int aFlags,
+-                           const float* aView, bool aScrollValid)
++                           const float* aView, bool aScrollValid, int aColX0, int aColX1)
+ {
+   mozilla::layers::CompositorBridgeParent* bridge = JihadBridge();
+   MessageLoop* loop = mozilla::layers::CompositorThreadHolder::Loop();
+@@ -1006,6 +1009,10 @@ PuppetWidget::JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, in
+   job->scrollValid = aView ? aScrollValid : mJihadScrollValid;
+   job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift; job->src = static_cast<const uint8_t*>(aSrc); job->srcY = aSrcY;
+   job->engineShift = (aFlags & 1) != 0; job->verify = (aFlags & 2) != 0;
++  job->colsKnown = (aFlags & 4) != 0;   // T-511: the column arguments are given (else garbage from an older daemon)
++  if (job->colsKnown) {
++    job->colX0 = std::max(0, std::min(aColX0, aWidth)); job->colX1 = std::max(0, std::min(aColX1, aWidth));
++  }
+   job->posted = mozilla::TimeStamp::Now();
+   mJihadJobs.push_back(job);
+   loop->PostTask(NewRunnableFunction(&JihadReadOnCompositorThread, job));
+@@ -1015,13 +1022,13 @@ PuppetWidget::JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, in
+ uint32_t
+ PuppetWidget::JihadComposePost(void* aDest, int aStride, int aWidth, int aHeight, int aRowLo, int aRowHi,
+                                int aRow2Lo, int aRow2Hi, int aShift, const void* aSrc, int aSrcY, int aFlags,
+-                               const float* aView, bool aScrollValid)
++                               const float* aView, bool aScrollValid, int aColX0, int aColX1)
+ {
+   if (!aDest || aWidth <= 0 || aHeight <= 0 || aStride < aWidth * 4) {
+     return 0;
+   }
+   return JihadPostJob(aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aFlags,
+-                      aView, aScrollValid);
++                      aView, aScrollValid, aColX0, aColX1);
+ }
+ 
+ int
+@@ -1078,11 +1085,15 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aSc
+         aOut[4] = job->req.lo; aOut[5] = job->req.hi;
+         aOut[6] = job->req.lo2; aOut[7] = job->req.hi2;
+         aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0;
++        if (job->req.colsKnown) { aOut[10] = job->req.invX0; aOut[11] = job->req.invX1; }   // T-511: twelve ints
+       }
+       if (aScrollOnly) *aScrollOnly = job->req.scrollOnly;
+     } else if (!aWait && job->req.composed) {
+       // composed: the next frame may be started, and it must read what this one changed (round 116)
+-      if (aOut) { aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0; }
++      if (aOut) {
++        aOut[0] = job->req.invLo; aOut[1] = job->req.invHi; aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0;
++        if (job->req.colsKnown) { aOut[10] = job->req.invX0; aOut[11] = job->req.invX1; }
++      }
+       return 2;
+     } else if (aWait) {
+       job->abandoned = true; job->req.cancelled = true;
+@@ -1431,33 +1442,40 @@ MOZ_EXPORT uint32_t
+ jihad_offscreen_compose_post(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
+                              int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                              const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
+-                             double aOffX, double aOffY, double aScrollX, double aScrollY, int aScrollValid)
++                             double aOffX, double aOffY, double aScrollX, double aScrollY, int aScrollValid,
++                             int aColX0, int aColX1)
+ {
++  // aColX0, aColX1 (T-511): read only with flag 4 (a daemon from before passes neither)
+   if (!aWidget) {
+     return 0;
+   }
+   const float view[5] = { (float)aScale, (float)aOffX, (float)aOffY, (float)aScrollX, (float)aScrollY };
+   return static_cast<PuppetWidget*>(aWidget)->JihadComposePost(aDest, aStride, aWidth, aHeight, aRowLo, aRowHi,
+                                                                aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aFlags,
+-                                                               aUseView ? view : nullptr, aScrollValid != 0);
++                                                               aUseView ? view : nullptr, aScrollValid != 0,
++                                                               (aFlags & 4) ? aColX0 : 0, (aFlags & 4) ? aColX1 : 0);
+ }
+ 
+ // T-502: the frame in two halves (see PuppetWidget::JihadComposeStart).
+ MOZ_EXPORT uint32_t
+ jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest, int aStride,
+                               int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+-                              const void* aSrc, int aSrcY, int aEngineShift)
++                              const void* aSrc, int aSrcY, int aEngineShift, int aColX0, int aColX1)
+ {
+   if (!aWidget) {
+     return 0;
+   }
+-  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aEngineShift);   // flags: 1 engine shift, 2 verify (T-503)
++  // flags: 1 engine shift, 2 verify (T-503), 4 the column arguments given (T-511; a daemon from
++  // before passes neither, and its poll array holds ten ints)
++  return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aEngineShift,
++                                                                (aEngineShift & 4) ? aColX0 : 0, (aEngineShift & 4) ? aColX1 : 0);
+ }
+ MOZ_EXPORT int
+ jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut, int* aScrollOnly)
+ {
+   // aOut: ten ints: the rows the tree changed, the rows fixed layers cover, the two bands read, and
+-  // this frame's position with a valid flag (round 115)
++  // this frame's position with a valid flag (round 115); twelve for a job posted with flag 4 (T-511):
++  // the columns the composite changed
+   if (!aWidget) {
+     return -1;
+   }
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index b68c975777..7b570ef46d 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -291,9 +291,11 @@ public:
+   // Forget drops a token whose buffer went away.
+   uint32_t JihadComposeStart(nsIDocShell* aDocShell, void* aDest, int aStride,
+                              int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo = 0, int aRow2Hi = 0, int aShift = 0,
+-                             const void* aSrc = nullptr, int aSrcY = 0, int aFlags = 0);   // aFlags: 1 engine shift, 2 verify
++                             const void* aSrc = nullptr, int aSrcY = 0, int aFlags = 0,   // aFlags: 1 engine shift, 2 verify, 4 columns
++                             int aColX0 = 0, int aColX1 = 0);   // T-511: the bands' stale columns (flag 4)
+   // aOut (10 ints, may be null): the rows the tree changed, the rows fixed layers cover, the two
+-  // bands read, the frame's position and its valid flag; aScrollOnly: the composite's only change was the card's scroll
++  // bands read, the frame's position and its valid flag; 12 for a job posted with flag 4 (T-511):
++  // the columns the composite changed; aScrollOnly: the composite's only change was the card's scroll
+   int JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly = nullptr);
+   // T-515: the frame's two halves on their own. PaintLayers (the main thread) flushes and paints the
+   // layers, as Start does first; Post (any thread: the express lane while the main thread runs the
+@@ -303,7 +305,7 @@ public:
+   bool JihadPaintLayers(nsIDocShell* aDocShell);
+   uint32_t JihadComposePost(void* aDest, int aStride, int aWidth, int aHeight, int aRowLo, int aRowHi,
+                             int aRow2Lo, int aRow2Hi, int aShift, const void* aSrc, int aSrcY, int aFlags,
+-                            const float* aView, bool aScrollValid);
++                            const float* aView, bool aScrollValid, int aColX0 = 0, int aColX1 = 0);
+   void JihadComposeForget(uint32_t aToken);
+   // T-515: a job's state without taking its result: 1 done, 2 composed (being read), 0 pending, -1 unknown
+   int JihadComposePeek(uint32_t aToken);
+@@ -464,7 +466,7 @@ private:
+   mozilla::Mutex mJihadJobsLock{"jihad-compose-jobs"};   // T-515: the list from the main thread and the express lane
+   uint32_t JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, int aRowLo, int aRowHi, int aRow2Lo,
+                         int aRow2Hi, int aShift, const void* aSrc, int aSrcY, int aFlags,
+-                        const float* aView = nullptr, bool aScrollValid = false);
++                        const float* aView = nullptr, bool aScrollValid = false, int aColX0 = 0, int aColX1 = 0);
+   uint32_t mJihadNextToken = 1;
+   float mJihadScrollX = 0.0f, mJihadScrollY = 0.0f;   // T-502: the card's scroll for the compositor
+   bool mJihadScrollValid = false;

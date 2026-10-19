@@ -3607,6 +3607,7 @@ static std::string jihadWhiteRuns(const unsigned char* px, int w, int h) {
 bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
   gpuSetView(zoom, mGpuViewRX, mGpuViewRY);   // T-505: the view's row in this frame (the compositor takes it at the start)
   long sLo = 0, sHi = h, s2Lo = 0, s2Hi = 0, shift = 0;   // whole, unless the slot's frame is still good
+  long colX0 = 0, colX1 = -1;   // T-511: the bands' stale columns (-1: whole rows) for the column read
   static const bool sWhole = getenv("JIHAD_GPU_WHOLE") != nullptr;   // device rounds: every frame read whole
   // Round 113: the kept rows come from the NEWEST finished frame (another slot), shifted by the
   // card's scroll since it; only what entered and the fixed rows are read. After a whole read
@@ -3644,10 +3645,16 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   }
   const int L = mGpuLatestSlot;
   // the slot's own frame is the cheaper base when it is at this very scroll with little stale (an
-  // animated page): no copy, only the changed rows read
+  // animated page): no copy, only the changed rows read. T-511: little stale BEYOND the rows the
+  // recent frames changed, which this frame likely reads either way: a 480 px WebGL canvas changes
+  // 482 rows a frame, over a third of the frame, and each of its frames copied the whole frame from
+  // the newest slot (5-21 ms of a core) to read the same 482 rows. The largest of the last three
+  // frames' changes: a composite with no change between two of the canvas's frames is common
+  const long ownStale = slot >= 0 ? (mGpuStaleHi[slot] - mGpuStaleLo[slot]) + (mGpuStale2Hi[slot] - mGpuStale2Lo[slot]) : h;
+  const long recentInv = std::max(mGpuInvRows[0], std::max(mGpuInvRows[1], mGpuInvRows[2]));
   const bool ownCheap = slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h && mGpuSlotY[slot] == y &&
-      (mGpuStaleHi[slot] - mGpuStaleLo[slot]) + (mGpuStale2Hi[slot] - mGpuStale2Lo[slot]) < h / 3;
+      ownStale - std::min(ownStale, recentInv) < h / 3;
   if (!src && !sWhole && !sNoLatest && !ownCheap && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
       mGpuSlotZoom[L] == zoom && mGpuSlotW[L] == w && mGpuSlotH[L] == h &&
       mGpuStaleHi[L] <= mGpuStaleLo[L] && mGpuStale2Hi[L] <= mGpuStale2Lo[L] && mGpuFixedHi >= mGpuFixedLo) {
@@ -3680,6 +3687,10 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
     const long dy = (long)y - mGpuSlotY[slot];   // the card's scroll since this slot's frame, frame rows
     if (dy == 0) {
       sLo = mGpuStaleLo[slot]; sHi = mGpuStaleHi[slot]; s2Lo = mGpuStale2Lo[slot]; s2Hi = mGpuStale2Hi[slot];
+      // T-511: the columns they are stale in (none asked for: only the change is read)
+      if (s2Hi > s2Lo || mGpuStaleX1[slot] <= mGpuStaleX0[slot]) { colX0 = 0; colX1 = -1; }
+      else { colX0 = mGpuStaleX0[slot]; colX1 = mGpuStaleX1[slot]; }
+      if (sHi <= sLo && s2Hi <= s2Lo) { colX0 = 0; colX1 = 0; }
     } else if (dy > -h && dy < h && mGpuFixedHi >= mGpuFixedLo) {
       // The compositor-side scroll moved the content by dy rows: shift the slot's rows the same
       // way in place, then read what entered, the rows fixed layers cover, and what was stale
@@ -3726,6 +3737,10 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
     // nearer one when they do not touch and both are taken)
     const long a = mGpuNextExtraLo, b = mGpuNextExtraHi;
     auto touches = [&](long lo, long hi) { return hi > lo && a <= hi && lo <= b; };
+    // T-511: their columns join the bands' (unknown ones make the read whole rows)
+    if (mGpuNextExtraX1 <= mGpuNextExtraX0 || colX1 < 0) { colX0 = 0; colX1 = -1; }
+    else if (colX1 <= colX0) { colX0 = mGpuNextExtraX0; colX1 = mGpuNextExtraX1; }
+    else { colX0 = std::min(colX0, mGpuNextExtraX0); colX1 = std::max(colX1, mGpuNextExtraX1); }
     if (sHi <= sLo) { sLo = a; sHi = b; }
     else if (touches(sLo, sHi)) { sLo = std::min(sLo, a); sHi = std::max(sHi, b); }
     else if (s2Hi <= s2Lo) { s2Lo = a; s2Hi = b; }
@@ -3743,8 +3758,8 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   // T-515: the layers painted already (the main lane's paint window, the frame lock let go of): the
   // compose posted on its own
   const uint32_t token = mGpuPainted
-      ? mPage->ComposePost(pixels, bytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr)
-      : mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious);
+      ? mPage->ComposePost(pixels, bytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr, colX0, colX1)
+      : mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1);
   if (token) mXLastPostToken = token;
   if (!token) {
     // T-509: a compositor that takes no job (no GL context: EGL failed) — three in a row and the
@@ -4071,6 +4086,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   mGpuSlotValid[s] = true;
   mGpuSlotX[s] = mXJob.x; mGpuSlotY[s] = frameY; mGpuSlotZoom[s] = mXJob.zoom; mGpuSlotW[s] = w; mGpuSlotH[s] = H;
   mGpuStaleLo[s] = mGpuStaleHi[s] = mGpuStale2Lo[s] = mGpuStale2Hi[s] = 0;
+  mGpuStaleX0[s] = mGpuStaleX1[s] = 0;
   mGpuLatestSlot = s; mGpuLatestKey = mXJob.key;
   mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
   mBufFull[s].valid = false;
@@ -4900,12 +4916,16 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               const long off = gpuLo - oldest.y;
               mGpuNextExtraLo = std::max(0L, std::min(cr.invLo, cr.invLo - off));
               mGpuNextExtraHi = std::min((long)h, std::max(cr.invHi, cr.invHi - off));
+              const bool cols = cr.invXKnown && cr.invX1 > cr.invX0;   // T-511
+              mGpuNextExtraX0 = cols ? cr.invX0 : 0; mGpuNextExtraX1 = cols ? cr.invX1 : 0;
             } else {
               mGpuNextExtraLo = mGpuNextExtraHi = 0;
+              mGpuNextExtraX0 = mGpuNextExtraX1 = 0;
             }
             mGpuNextSecond = true;
             gpuJobStartNext((int)bandX, (int)gpuLo, Zeff, w, h, segSize, hdr);
             mGpuNextSecond = false; mGpuNextExtraLo = mGpuNextExtraHi = 0; mGpuNextBaseKey = 0;
+            mGpuNextExtraX0 = mGpuNextExtraX1 = 0;
           }
           ++mGpuJobPolls; mNeedsPaint = true;
           return;
@@ -4957,6 +4977,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           mGpuSlotX[gslot] = oldest.x; mGpuSlotY[gslot] = frameY; mGpuSlotZoom[gslot] = oldest.zoom;
           mGpuSlotW[gslot] = oldest.w; mGpuSlotH[gslot] = oldest.h;
           mGpuStaleLo[gslot] = mGpuStaleHi[gslot] = 0;   // everything the slot lacked was read
+          mGpuStaleX0[gslot] = mGpuStaleX1[gslot] = 0;
           mGpuLatestSlot = gslot; mGpuLatestKey = oldest.key;   // round 113: the newest frame
           if (jihadExpressOn()) {
             // T-515: the express lane's base, if this is the newest composite; the card served
@@ -4977,6 +4998,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           }
           mGpuStale2Lo[gslot] = mGpuStale2Hi[gslot] = 0;
           mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
+          mGpuInvRows[mGpuInvRowsAt] = ih > il ? ih - il : 0;   // T-511: what the next frames likely change too
+          mGpuInvRowsAt = (mGpuInvRowsAt + 1) % 3;
           // The other slots: the rows this frame's tree change touched are stale in them too. The
           // rows are in this job's frame; in slot t's frame scrolled content sits off rows lower
           // (off = this job's y - t's y) while fixed content sits where it is, and the daemon cannot
@@ -4987,6 +5010,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             if (t == gslot || !mGpuSlotValid[t] || ih <= il) continue;
             if (mGpuSlotZoom[t] != oldest.zoom || mGpuSlotX[t] != oldest.x) {
               mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
+              mGpuStaleX0[t] = 0; mGpuStaleX1[t] = w;
               continue;
             }
             const long off = (long)frameY - mGpuSlotY[t];
@@ -4994,8 +5018,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             if (a < 0) a = 0;
             if (b > h) b = h;
             if (b <= a) continue;
-            if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = a; mGpuStaleHi[t] = b; }
-            else { if (a < mGpuStaleLo[t]) mGpuStaleLo[t] = a; if (b > mGpuStaleHi[t]) mGpuStaleHi[t] = b; }
+            // T-511: the change's columns too (0..w when the engine did not say)
+            const bool cols = cr.invXKnown && cr.invX1 > cr.invX0;
+            const long cx0 = cols ? cr.invX0 : 0, cx1 = cols ? cr.invX1 : w;
+            if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = a; mGpuStaleHi[t] = b; mGpuStaleX0[t] = cx0; mGpuStaleX1[t] = cx1; }
+            else {
+              if (a < mGpuStaleLo[t]) mGpuStaleLo[t] = a; if (b > mGpuStaleHi[t]) mGpuStaleHi[t] = b;
+              mGpuStaleX0[t] = std::min(mGpuStaleX0[t], cx0); mGpuStaleX1[t] = std::max(mGpuStaleX1[t], cx1);
+            }
           }
           gpuFinished = true;
           gpuT[0] = oldest.t0;

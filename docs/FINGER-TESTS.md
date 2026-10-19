@@ -32,6 +32,11 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   the engine 600 ms in every 700): the page follows the finger at the new zoom without waiting for
   the script, nothing flips back to the old zoom, and at rest the text is sharp and nothing is grey.
   (cavekit-gpu-rendering R3, R6, R12)
+- [ ] WebGL on the GPU path (T-511, 2026-10-19): open `jihad-webgl-cube.html` from the host server
+  (`?size=360` too) and a real WebGL page (any three.js example): the cube turns smoothly with its
+  checkerboard sharp, a pinch and a pan over the canvas keep it drawn, and closing the card and opening
+  it again a few times leaves the browser working. Say how smooth the 480 px cube looks to the eye (the
+  card gets 18-20 frames a second there, 26-27 at 240 px). (cavekit-gpu-rendering R8, R12)
 
 ## Keyboard and text
 - [ ] Tap a field on several pages in one session: the keyboard comes up every time, and the page

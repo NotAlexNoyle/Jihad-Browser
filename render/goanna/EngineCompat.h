@@ -58,9 +58,12 @@ extern "C" {
   uint32_t jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
                                          int aStride, int aWidth, int aHeight, int aRowLo,
                                          int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
-                                         const void* aSrc, int aSrcY, int aEngineShift) __attribute__((weak));
+                                         const void* aSrc, int aSrcY, int aEngineShift,
+                                         int aColX0, int aColX1) __attribute__((weak));
   // aOut: ten ints (the rows the tree changed, the rows fixed layers cover, the two bands read, the
-  // frame's position and its valid flag)
+  // frame's position and its valid flag); twelve for a job posted with flag 4 (T-511: the column
+  // arguments given), the last two the columns the composite changed. An engine from before T-511
+  // ignores the column arguments and writes ten.
   int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
                                    int* aScrollOnly) __attribute__((weak));
   void jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
@@ -74,7 +77,7 @@ extern "C" {
                                         int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
                                         const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
                                         double aOffX, double aOffY, double aScrollX, double aScrollY,
-                                        int aScrollValid) __attribute__((weak));
+                                        int aScrollValid, int aColX0, int aColX1) __attribute__((weak));
   // OPTIONAL (T-502): the card's zoom and the visual viewport's residual offset (CSS px, what the
   // engine scroll could not reach), applied by the compositor to the whole layer tree.
   void jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX,

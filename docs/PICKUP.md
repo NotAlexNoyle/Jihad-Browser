@@ -52,7 +52,7 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-10-19 delta — T-515: frames made off the main thread, the express lane (READ FIRST)
+## 2026-10-19 delta — T-515: frames made off the main thread, the express lane; T-516, T-510, T-511 (READ FIRST)
 
 **What it is.** With `JIHAD_GPU_EXPRESS=1` (and the GPU path) each card's YAP commands are read on a
 thread of the proxy's own (`render/browserserver/Yap/YapProxy.cpp`), and the daemon's frame
@@ -103,8 +103,29 @@ pans, pinches and closes Wikipedia through each card's self-test hook on its own
 three pass. NB: the shipped jobs carry no `JIHAD_INJECT`; inject-driven rounds use the hand-started
 daemons (`gpu-spike-start.sh`), as before.
 
-**Next.** T-511 (WebGL), T-517 (Wikipedia's compositor frame: R3), T-512 (fit to keep), T-513 (review). Knobs in `tools/device/t502/README.md`
-(the T-515 and T-516 paragraphs).
+**T-511 (same day, partial): WebGL.** On the GPU path `getContext("webgl")` gets a context on the
+Adreno through EGL (engine 0051); on the software path it stays null. Every pbuffer context on the GPU
+path is in one share group, so a canvas's texture is composited with no copy (the driver has no
+EGLImage from a GL texture). The spinning cube (`render/goanna/test/jihad-webgl-cube.html`) renders
+right; 8 card open/close cycles and a context lose/restore without a fault (the fault before: a
+destroyed context left current; released first now). Card rates: 240 px cube 26.5-27 fps, 360 px
+21.5-23, 480 px 18-20.5 (the page draws 21.5-25): the compositor job's ~45 ms for a 482-row change,
+the same floor as Wikipedia's frames, carried by T-517. Engine 0052 reads a narrow change's bands as
+one column (44 against 47 ms a job); an adapter that invalidates only the changed strip measured +12 %
+(not kept: it needs a side channel for the rect). Rounds in `docs/rounds/t502-2026-10-17/webgl-r281-313.txt`.
+
+**Traps found 2026-10-19.** (1) `/var` full: the adapter's paint log gate (`/var/palm/jihad/enyo/adapterlog`,
+set by `adapter-install.sh` on 10-17) grew the log to 46.7 MB of /var's 62; the daemon's main thread then
+sat in `log_wait_commit` after its first frame (no frames, cards that would not close, loads aborted
+0x804b0002) and a day of WebGL teardown runs looked like engine faults. The script no longer sets the
+gate; when a run turns strange, `df -h /var` and the D-state threads' `wchan` first. (2) The adapter
+(PDK gcc 4.3.3) had not built since T-515 (`<mutex>`/`<atomic>` in `YapProxy.h`): pthread locks now; the
+three adapters build, the bench's Enyo one is the new build. (3) On the bench `sensord` runs at 15-23 %
+CPU and `atlas-sensord` at ~3 % all the time (sensord has 389 CPU minutes): not ours, and it is a core's
+fifth during every measurement.
+
+**Next.** T-517 (the compositor job's floor: Wikipedia's pan frame and the 480 px cube), T-512 (fit to
+keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516 and T-511 paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
 

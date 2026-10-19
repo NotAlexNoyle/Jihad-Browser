@@ -63,3 +63,12 @@ Rounds 325-332: the frame windows (render/browserserver/Src/JihadFrameWindow.h, 
     lane now takes the faster kind by measured frame time (the other tried every 16th frame).
   default checks of all three interfaces with the window-aware adapters (r332): pass, frames right by eye;
     the cube with the counter beside it: right; a zoom sequence on Wikipedia: 8 of 8 first frames, median 57 ms
+
+Round 333: see-through sticky columns kept once proven still (tried, reverted)
+  The rule: a see-through stuck layer's column kept like an opaque one's (its pixels where they were)
+  once it composed alike three frames running and the content about to slide under it was one colour,
+  composed again every 8th frame. On Wikipedia it turned on for one 13-row sliver only: the contents
+  panel's highlight follows the reading position (the panel really changes during a pan) and the tools
+  panel's strip below it is not one colour. The per-frame save and compare made frames slower: median
+  gap 71-72 ms against 42 (JIHAD_GPU_NO_STILL_COLS=1). What is left on Wikipedia is composing panels that
+  change, in 3-4 chunk passes of ~5 ms each: fewer passes (one traversal for all regions) is the open way.

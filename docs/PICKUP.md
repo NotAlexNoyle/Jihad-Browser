@@ -144,8 +144,9 @@ Wikipedia still 19-21. **The bench's three adapters are the window-aware build**
 `build/webos-oe/adapter-deps/build-pdk/<v>/`); a package built before this commit would carry old ones and
 the daemon would keep windows at 0 (correct, just slower).
 
-**Next.** T-517: Wikipedia's sticky columns (one tree traversal for all of a frame's regions; or a rule that
-skips see-through sticky columns over content that cannot have changed under them). Then T-512 (fit to
+**Next.** T-517: Wikipedia's sticky columns. A rule that kept see-through sticky columns once proven still
+was tried and reverted (round 333: the contents panel's highlight follows the reading position, so it does
+change during a pan); what is left is fewer passes (one tree traversal for all of a frame's regions). Then T-512 (fit to
 keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516, T-511 and T-517 paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)

@@ -73,9 +73,9 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 
 ### R5: Animation and new content meet the chart
 **Acceptance Criteria:**
-- [ ] `jihad-anim-css.html` animates at 24 fps or better (only the changed rows composed and read)
-- [ ] A content change (a DOM edit on a test page, typing into a field) reaches the card within 106 ms
-- [ ] A page that scrolls itself (`jihad-scroll-js.html`) is followed at 9 fps or better
+- [x] `jihad-anim-css.html` animates at 24 fps or better (only the changed rows composed and read) *(2026-10-18, round 202: 26-31 fps; each frame reads its 160 changed rows)*
+- [x] A content change (a DOM edit on a test page, typing into a field) reaches the card within 106 ms *(round 203, the inject channel's input to the first published frame with changed rows: eight keys typed into `jihad-input-echo.html` 22-62 ms (one 4 ms, the previous key's echo), five DOM edits 26-70 ms)*
+- [x] A page that scrolls itself (`jihad-scroll-js.html`) is followed at 9 fps or better *(round 202: 10.7-13.9 fps)*
 **Dependencies:** R2
 
 ### R6: Zoom keeps up (the owner's finger test, 2026-10-18)

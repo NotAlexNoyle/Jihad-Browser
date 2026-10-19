@@ -179,3 +179,11 @@ Build site: context/plans/build-site.md
 - **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.{cpp,h}, render/goanna/EngineCompat.h, engine patch 0046 (layout/base/nsLayoutUtils.{h,cpp}, layout/generic/nsGfxScrollFrame.cpp), tools/device/t502/pan-run.sh
 - **Validation:** Build P; verify 0 structurally wrong rows on four pages with overscan; the per-page table; Acceptance: the table and the trace yes, the overscan criterion yes, Wikipedia ≥ 24 fps no (16.5-24)
 - **Next:** T-506 (animation, new content against the chart); T-515 added for the frames off the main thread
+
+### Iteration 4 — 2026-10-18
+- **Task:** T-506 — Animation, new content and self-scroll against the chart
+- **Tier:** 87
+- **Status:** DONE
+- **Files:** render/browserserver/JihadBrowserServer.cpp, render/goanna/BrowserPageGoanna.cpp
+- **Validation:** Build P; device rounds 202-203; Acceptance 3/3
+- **Next:** T-507 — every other card event on the GPU path

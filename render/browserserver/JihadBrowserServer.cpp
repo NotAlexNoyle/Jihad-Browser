@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 namespace jihad { void GpuDumpRestart(); }   // GoannaRenderPage.cpp (T-502 round 133)
+namespace jihad { void MarkInputLatency(); }   // BrowserPageGoanna.cpp (T-506: input to the first changed frame)
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 // A card connected or left → the engine side tells the components (render/goanna/EngineHost.cpp;
@@ -296,7 +297,7 @@ void JihadBrowserServer::processInjectFile() {
     int x=0, y=0, n=1, a=0, b=0;
     char buf[1600] = {0};
     if (sscanf(c.c_str(), "click %d %d %d", &x, &y, &n) >= 2) {
-      printf("[jihad-bs] inject click %d,%d n=%d\n", x, y, n); p->clickAt(x, y, n);
+      printf("[jihad-bs] inject click %d,%d n=%d\n", x, y, n); jihad::MarkInputLatency(); p->clickAt(x, y, n);
     } else if (sscanf(c.c_str(), "move %d %d", &x, &y) == 2) {
       // Pointer move without a press — how a finger rolling over an open menu is
       // delivered, and the only way to test the rollover highlight without a human.
@@ -313,10 +314,11 @@ void JihadBrowserServer::processInjectFile() {
     } else if (sscanf(c.c_str(), "key %d %d", &x, &y) >= 1) {
       int chr = (sscanf(c.c_str(), "key %d %d", &x, &y) == 2) ? y : x;
       printf("[jihad-bs] inject key %d chr=%d\n", x, chr);
+      jihad::MarkInputLatency();
       p->keyDown(x, 0, chr); p->keyUp(x, 0, chr);
     } else if (strncmp(c.c_str(), "text ", 5) == 0) {
       std::string t = c.substr(5); while (!t.empty() && (t.back()=='\n'||t.back()=='\r')) t.pop_back();
-      printf("[jihad-bs] inject text (%zu chars)\n", t.size()); p->insertStringAtCursor(t.c_str());
+      printf("[jihad-bs] inject text (%zu chars)\n", t.size()); jihad::MarkInputLatency(); p->insertStringAtCursor(t.c_str());
     } else if (strncmp(c.c_str(), "url ", 4) == 0) {
       // rest-of-line (not %s) so data: URLs and query strings with spaces survive
       std::string u2 = c.substr(4); while (!u2.empty() && (u2.back()=='\n'||u2.back()=='\r')) u2.pop_back();
@@ -326,6 +328,7 @@ void JihadBrowserServer::processInjectFile() {
       // chrome documents such as about:addons, where a plain `url javascript:` is refused).
       // Same gating as the rest of this channel: off unless $JIHAD_INJECT is set.
       std::string u2 = c.substr(6); while (!u2.empty() && (u2.back()=='\n'||u2.back()=='\r')) u2.pop_back();
+      jihad::MarkInputLatency();
       bool ok = jihad::DebugRunChromeJs(u2.c_str());
       printf("[jihad-bs] inject jsurl ok=%d (%zu chars)\n", (int)ok, u2.size());
     } else if (strncmp(c.c_str(), "title", 5) == 0) {

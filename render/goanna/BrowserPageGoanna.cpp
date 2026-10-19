@@ -967,6 +967,11 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
 
 // T-505: the compositor's view with the frame's overscan: the view's top sits mGpuViewRow rows down
 // the frame, so the world moves the page down by that much (gpuJobStart sets it for each job)
+// T-506 device rounds: an injected input (a click, a key, a text insert, a script) to the first GPU
+// frame with changed rows published after it ("input latency" in the log; the inject channel only)
+static int64_t gJihadInputMarkMs = 0;
+void MarkInputLatency() { gJihadInputMarkMs = jihadNowMs(); }
+
 void BrowserPageGoanna::gpuSetView(double z, double rx, double ry) {
   mGpuViewRX = rx; mGpuViewRY = ry;
   mPage->SetGpuView(z, rx, ry - (z > 0.0 ? (double)mGpuViewRow / z : 0.0));
@@ -4339,6 +4344,11 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
         mGpuJobs.erase(mGpuJobs.begin());
         nb = r;
+        if (gJihadInputMarkMs && r >= 0 && cr.invHi > cr.invLo) {
+          fprintf(stderr, "[jihad-gpu] input latency: the first changed frame (rows %ld..%ld) out %ld ms after the input\n",
+                  cr.invLo, cr.invHi, (long)(jihadNowMs() - gJihadInputMarkMs));
+          gJihadInputMarkMs = 0;
+        }
         {
           static const bool sWhiteLog2 = getenv("JIHAD_GPU_WHITE") != nullptr;
           if (sWhiteLog2 && r >= 0) fprintf(stderr, "[jihad-gpu] white after job: slot %d (y %d, shift %ld, read %ld..%ld %ld..%ld): rows%s\n",

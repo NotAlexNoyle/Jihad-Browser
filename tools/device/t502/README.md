@@ -110,3 +110,7 @@ and below the view once the page has been panned, so the card has content to pan
 view-sized frame; frames are capped at 1400 rows, the compositor's first pbuffer). `pan-run.sh`
 sizes the frame dumps by their bytes (frames are taller than the card with overscan); delete
 `tools/device/t502/pan-frame-*.bgra` and the device's `/tmp/frame.raw*` after a run.
+
+T-506, rounds 202-203: with `JIHAD_INJECT=1`, an injected click, key, text or jsurl marks the time
+and the daemon logs `input latency: the first changed frame ... out N ms after the input` for the
+first GPU frame with changed rows published after it.

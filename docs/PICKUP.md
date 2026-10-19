@@ -62,7 +62,10 @@ thread lets go of only in the engine's pump and in a frame's layer paint. An exp
 scroll and zoom and publishes the frame itself: while the card moves it makes every frame (the main
 lane paints layers and moves the anchor), and otherwise it fills the main thread's stalls. Engine
 patch 0048 splits the frame's paint from its compose post and lets any thread post and poll jobs.
-It is OFF by default, as the GPU path still is: T-510 turns both on.
+It is ON by default since T-510 (same day), with the GPU path: the three upstart jobs set
+`JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1`; `JIHAD_GPU_COMPOSITOR=0` or `user_pref("jihad.gpu.enabled",
+false)` in a variant's profile give the software path (the daemon reads them before the engine starts and
+logs "rendering: ..."). The bench's /etc/event.d jobs were replaced in a remount window (/ back to ro).
 
 **What it did (rounds 240-267, `docs/rounds/t502-2026-10-17/express-r240-267.txt`).** A zoom while the
 page's script holds the main thread: Wikipedia after its load 10/10 within 160-225 ms (without the
@@ -95,8 +98,12 @@ request, and the Compositor and JihadExpress threads run at nice -6: double taps
 4-8 of 12 to 0-2 (median 158). Left: the GPU's ramp after a pause. A warm-up frame was tried and
 made it worse (dropped). Engine 0050: the timeline logs every job, compose and read.
 
-**Next.** T-510 (the GPU path and the express lane as the default; repointed from T-504 to T-515 on
-2026-10-19), then T-517 (Wikipedia's compositor frame: R3). Knobs in `tools/device/t502/README.md`
+**T-510 done (same day).** The default as above; `tools/device/t502/default-check.sh <variant>` loads,
+pans, pinches and closes Wikipedia through each card's self-test hook on its own upstart daemon: all
+three pass. NB: the shipped jobs carry no `JIHAD_INJECT`; inject-driven rounds use the hand-started
+daemons (`gpu-spike-start.sh`), as before.
+
+**Next.** T-511 (WebGL), T-517 (Wikipedia's compositor frame: R3), T-512 (fit to keep), T-513 (review). Knobs in `tools/device/t502/README.md`
 (the T-515 and T-516 paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)

@@ -119,8 +119,16 @@ script
 	# environment is actually defined, and a reader must not have to know the C++ to
 	# see it. Pointed at the state dir so anything Gecko writes under $HOME stays
 	# inside the footprint this variant's prerm removes.
+	# THE GPU PATH IS THE DEFAULT (cavekit-gpu-rendering R1, T-510, 2026-10-19): the engine
+	# composites on the device's GPU in-process and the daemon reads the frames back
+	# (JIHAD_GPU_COMPOSITOR), with the express lane making frames off the engine's main thread
+	# (JIHAD_GPU_EXPRESS; render/goanna/JihadFrameLock.h). The software path is one switch away:
+	# JIHAD_GPU_COMPOSITOR=0 here, or the pref jihad.gpu.enabled=false in the profile (the daemon
+	# reads it before the engine starts). A GPU that fails at run time falls back to the software
+	# path by itself (T-509). The daemon's log says which path it took ("rendering: ...").
 	exec env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
 	         JIHAD_BS_NAME=jihad-browser-mochi JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
+	         JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 \
 	         JIHAD_STATE_DIR="$STATE" \
 	    ./ld-2.23.so --library-path "$HL" ./jihad-browserserver "$HL"
 end script

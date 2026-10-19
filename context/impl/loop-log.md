@@ -228,3 +228,11 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P; device rounds 270-280: double taps over 250 ms from 4-8 of 12 to 0-2 of 12 (median 158 ms); the cause found (clocks and contention after a pause, not draws); a warm-up frame tried and dropped (worse)
 - **Next:** T-510 — the GPU path as the default (repointed from T-504 to T-515: the owner's zoom complaint is closed; T-504 stays open for T-516's GPU ramp)
 
+### Iteration 10 — 2026-10-19
+- **Task:** T-510 — the GPU path as the default
+- **Tier:** 87
+- **Status:** DONE
+- **Files:** packaging/gen-variant-scripts.sh, packaging/event.d/{jihad,jihad-mochi,jihad-mojo}, render/browserserver/Main.cpp, packaging/prefs/jihad-platform-prefs.js, tools/device/t502/default-check.sh
+- **Validation:** Build P; gen-variant-scripts --check P; on the bench all three default daemons on the GPU path with the express lane; Enyo, Mochi and Mojo load, pan, zoom and close Wikipedia (no fault, no fallback); the pref and the env override give the software path; Acceptance 2/2 (R1's open two)
+- **Next:** T-511 — WebGL through EGL (or T-517)
+

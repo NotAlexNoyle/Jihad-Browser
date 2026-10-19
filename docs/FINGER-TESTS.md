@@ -21,12 +21,12 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] The GPU path, zoom (2026-10-18: the first try ran on a diagnostic daemon mid-script; T-504
   rebuilds zoom): pinch in and out and double-tap on desktop en.wikipedia.org and on a long page:
   the page at the new zoom arrives promptly and no area stays grey. (cavekit-gpu-rendering R6, R12)
-- [ ] The GPU path (`JIHAD_GPU_COMPOSITOR=1`, Enyo only): drag-scroll a long page with a fixed
+- [ ] The GPU path (the default in all three since T-510, 2026-10-19): drag-scroll a long page with a fixed
   header (`jihad-long-static.html` on the host server) from top to bottom at a steady pace: the
   header stays put, the text is continuous (no repeated or missing bands), nothing blank enters
   from below, no jump every ~660 px (the engine's anchor moves). Then flick. A scripted pan cannot
   show this: the adapter's own view does not move. (T-502; offscreen-rendering, the scroll row)
-- [ ] The GPU path with the express lane (T-515, 2026-10-19; on by default once T-510 lands): right
+- [ ] The GPU path with the express lane (T-515, 2026-10-19; the default since T-510): right
   after desktop en.wikipedia.org loads (its scripts run for seconds), pinch in, pan, pinch out and
   double-tap at once, and do the same on `jihad-script-hold.html` (the host server; its script holds
   the engine 600 ms in every 700): the page follows the finger at the new zoom without waiting for

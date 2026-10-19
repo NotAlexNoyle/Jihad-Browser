@@ -153,3 +153,10 @@ YAP reader thread raises it on a card's scroll, zoom or smart-zoom request), `JI
 (-6: the Compositor and JihadExpress threads ahead of the engine's others; 0 leaves them). Double taps
 through the card: `card-selftest.sh enyo run "page:w15;t300,400;w2;..."` with `JIHAD_GPU_ZOOM_DUMP=log`,
 each tap's first frame in the `zoom frame written (express)` lines.
+
+T-510: the upstart jobs start the GPU path with the express lane (`JIHAD_GPU_COMPOSITOR=1
+JIHAD_GPU_EXPRESS=1`); `JIHAD_GPU_COMPOSITOR=0` or `user_pref("jihad.gpu.enabled", false)` in the
+variant's profile give the software path (`tools/device/set-prefs.sh <variant> 'jihad.gpu.enabled'`
+with a file holding the line; the same without a file clears it). `default-check.sh <enyo|mochi|mojo>`
+runs a load, pan, pinch and close through the card's self-test hook on the variant's own daemon and
+counts its frames, zooms, faults and fallbacks.

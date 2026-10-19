@@ -318,6 +318,30 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  // T-510: the rendering path, settled before the engine starts (it tests JIHAD_GPU_COMPOSITOR's
+  // presence in many places). The upstart jobs set it with JIHAD_GPU_EXPRESS; JIHAD_GPU_COMPOSITOR=0
+  // or the pref jihad.gpu.enabled=false in the profile's prefs.js take both away: the software path.
+  // The pref service is not up yet, so prefs.js is read as text (the engine writes it, one pref a line).
+  {
+    const char* g = getenv("JIHAD_GPU_COMPOSITOR");
+    bool gpu = g && strcmp(g, "0") != 0;
+    const char* why = gpu ? "the job's JIHAD_GPU_COMPOSITOR" : (g ? "JIHAD_GPU_COMPOSITOR=0" : "no JIHAD_GPU_COMPOSITOR");
+    if (gpu && !jihad::RuntimeProfileDir().empty()) {
+      FILE* f = fopen((jihad::RuntimeProfileDir() + "/prefs.js").c_str(), "r");
+      if (f) {
+        char line[512];
+        while (fgets(line, sizeof line, f)) {
+          const char* k = strstr(line, "\"jihad.gpu.enabled\"");
+          if (k && strstr(line, "user_pref") && strstr(k, "false")) { gpu = false; why = "the pref jihad.gpu.enabled=false"; }
+        }
+        fclose(f);
+      }
+    }
+    if (!gpu) { unsetenv("JIHAD_GPU_COMPOSITOR"); unsetenv("JIHAD_GPU_EXPRESS"); }
+    printf("[jihad-bs] rendering: %s (%s)\n",
+           !gpu ? "the software path" : getenv("JIHAD_GPU_EXPRESS") ? "the GPU path, frames off the main thread (the express lane)" : "the GPU path",
+           why);
+  }
   static jihad::EngineHost host;
   if (!host.Init(greDir)) { fprintf(stderr, "[jihad-bs] engine init FAILED\n"); return 1; }
 

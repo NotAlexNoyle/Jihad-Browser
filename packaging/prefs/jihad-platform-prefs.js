@@ -246,6 +246,12 @@ pref("layout.css.has-pseudo.enabled", true);
 // top and lets it go after two seconds of idle (JihadBrowserServer.cpp). ---
 pref("jihad.cpu.hold", true);
 
+// --- The GPU path (T-510, 2026-10-19; cavekit-gpu-rendering R1) — the daemon composites on the GPU
+// and makes frames off the engine's main thread by default (the upstart job's JIHAD_GPU_COMPOSITOR
+// and JIHAD_GPU_EXPRESS). false here (or in the profile's prefs.js) renders in software instead;
+// the daemon reads it as text before the engine starts, so it takes effect at the next start. ---
+pref("jihad.gpu.enabled", true);
+
 // --- The layout viewport follows a page's overflow (T-499, 2026-10-16) — a page laid out wider
 // than the card (DuckDuckGo: 1000 px in a 768 window) got innerWidth = 768 while the card showed
 // all 1000, so what the page parked just past its right edge (its slide-out menu) was on screen.

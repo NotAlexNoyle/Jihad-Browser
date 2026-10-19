@@ -91,6 +91,21 @@
 					})();
 					log(name, "drag " + st.slice(1));
 					wait = 2500;
+				} else if (st === "<" || st === ">") {  // back / forward through the browser's own handlers
+					if (st === "<") { app.$.browser.goBack(); } else { app.$.browser.goForward(); }
+					log(name, (st === "<" ? "back" : "forward") + " from " + String(app.$.browser.url).slice(0, 80));
+					wait = 4000;
+				} else if (st === "R") {              // reload, as the address bar's reload button does
+					app.$.browser.reloadClick();
+					log(name, "reload " + String(app.$.browser.url).slice(0, 80));
+					wait = 4000;
+				} else if (st.charAt(0) === "O") {    // Oup | Oleft | Oright | Odown | Ofree: hold the card in that
+					// orientation (enyo.setAllowedOrientation: the system rotates the window), then report the size
+					var o = st.slice(1);
+					if (enyo.setAllowedOrientation) { enyo.setAllowedOrientation(o); } else if (window.PalmSystem) { PalmSystem.setWindowOrientation(o); }
+					log(name, "orientation " + o + " asked");
+					later(3000, function() { log(name, "orientation " + o + ": window " + window.innerWidth + "x" + window.innerHeight); });
+					wait = 5000;
 				} else if (st.charAt(0) === "t") {    // tX,Y: a double tap at view X,Y, as the adapter's smart zoom
 					// gets it (handlePenDoubleClick ends in the same prvSmartZoom): the daemon finds the
 					// block under the point and the adapter zooms to it, or back out when zoomed already

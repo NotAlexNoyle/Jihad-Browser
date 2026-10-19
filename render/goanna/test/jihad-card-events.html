@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-card-events.html — cavekit-gpu-rendering.md R9 (T-507): what the card does besides
+     panning and zooming, on whichever rendering path the daemon runs. A select whose pick is
+     written large, a text field for the caret, links (one to this page's anchor, one to another
+     page) for the tap highlight and navigation, and a word found by find-in-page. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-card-events</title>
+<style>
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #f4f1e8; }
+  #bar { background: #3d6b2e; color: #fff; padding: 14px 16px; font-size: 24px; }
+  .row { padding: 12px 16px; }
+  select, input { font: 24px sans-serif; }
+  input { width: 500px; }
+  #picked { font: bold 44px sans-serif; color: #7a1f1f; padding: 8px 16px; }
+  a { font-size: 26px; color: #1f4f9a; }
+  .block { height: 300px; margin: 16px; background: linear-gradient(#c9e0f5, #f5d6c9); }
+</style></head>
+<body>
+<div id="bar">jihad-card-events</div>
+<div class="row"><select id="sel" onchange="document.getElementById('picked').textContent = 'picked: ' + this.value">
+  <option value="none">choose one</option>
+  <option value="apple">apple</option>
+  <option value="banana">banana</option>
+  <option value="cherry">cherry</option>
+</select></div>
+<div id="picked">picked: none</div>
+<div class="row"><input id="field" type="text" placeholder="the caret goes here"></div>
+<div class="row"><a id="near" href="#far">a link down this page</a></div>
+<div class="row"><a id="away" href="jihad-long-static.html">a link to the long static page</a></div>
+<div class="row">The word to find is zebrafind, here and once more below.</div>
+<div class="block"></div>
+<div class="row" id="far">The far anchor. zebrafind again.</div>
+<div class="block"></div>
+</body></html>

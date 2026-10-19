@@ -114,3 +114,8 @@ sizes the frame dumps by their bytes (frames are taller than the card with overs
 T-506, rounds 202-203: with `JIHAD_INJECT=1`, an injected click, key, text or jsurl marks the time
 and the daemon logs `input latency: the first changed frame ... out N ms after the input` for the
 first GPU frame with changed rows published after it.
+
+T-507, rounds 204-212: the Enyo test hook's `<` (back), `>` (forward), `R` (reload) and
+`O<up|left|right|down|free>` (hold the card in an orientation: the system rotates the window); the
+inject channel's `thumb <path>` (a thumbnail of what the card shows, written at the next frame);
+`render/goanna/test/jihad-card-events.html` (a select, a field, links, a word to find).

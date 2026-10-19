@@ -187,3 +187,11 @@ Build site: context/plans/build-site.md
 - **Files:** render/browserserver/JihadBrowserServer.cpp, render/goanna/BrowserPageGoanna.cpp
 - **Validation:** Build P; device rounds 202-203; Acceptance 3/3
 - **Next:** T-507 — every other card event on the GPU path
+
+### Iteration 5 — 2026-10-18
+- **Task:** T-507 — every other card event on the GPU path
+- **Tier:** 87
+- **Status:** DONE
+- **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/browserserver/JihadBrowserServer.cpp, render/goanna/test/enyo-selftest.js, render/goanna/test/jihad-card-events.html
+- **Validation:** Build P; device rounds 204-212 (screenshots looked at); Acceptance 3/3
+- **Next:** T-508 — video and Flash on the GPU path

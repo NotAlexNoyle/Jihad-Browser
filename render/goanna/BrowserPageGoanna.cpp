@@ -4403,6 +4403,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuFinished = true;
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
+          mGpuJobViewRow = oldest.viewRow;   // T-507: where the card's view sits in this frame
           // T-505: the frame's rows outside the page (the overscan above the page's top or below its
           // end) white, as the adapter fills what is past a frame: nothing is drawn there, and a whole
           // composite left some of them the cleared black (a bounce at the top showed them)
@@ -4583,9 +4584,11 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   int popupsDrawn = 0;
   if (nb >= 0) {
     gpuT[2] = jihadNowMs();
+    // T-507: a GPU frame was composed at its job's position and zoom (the tick's may have moved on)
+    const double pz = gpuFinished ? mGpuJobZoom : Zeff;
+    const int px = gpuFinished ? mGpuJobX : paintedX, py = gpuFinished ? mGpuJobY : paintedTop;
     int popups = mPage->CompositePopups(pixels, paintedW * 4, paintedW, paintedH,
-                                        (double)paintedX / Zeff, (double)paintedTop / Zeff,
-                                        Zeff);
+                                        (double)px / pz, (double)py / pz, pz);
     popupsDrawn = popups;
     if (popups > 0) {
       fprintf(stderr, "[jihad-bs] composited %d popup(s) over the frame\n", popups);
@@ -4671,7 +4674,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // showing — the viewport band, not the off-screen strips — scaled down and written as a
     // PNG. Taken from a real, non-empty frame, so it is what the user was looking at.
     if (!mThumbPath.empty() && nb > 0) {
-      const long tr = region ? bandRow : 0;
+      // T-507: on the GPU path the view sits mGpuJobViewRow rows down the frame (the overscan)
+      const long tr = region ? bandRow : (gpuFinished ? (long)mGpuJobViewRow : 0);
       long rows = (long)paintedH - tr; if (rows > h) rows = h;
       const std::string out = mThumbPath; mThumbPath.clear();
       bool ok = false;

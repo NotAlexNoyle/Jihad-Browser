@@ -106,9 +106,9 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 
 ### R9: Everything else the card does still works on the GPU path
 **Acceptance Criteria:**
-- [ ] Rotation (portrait ↔ landscape) and a resize redraw the page right
-- [ ] Select popups, the text caret, link highlights, find-in-page highlights and the card thumbnail show as on the software path
-- [ ] Loading a new page, going back and forward, and reloading show the new content with no stale frame
+- [x] Rotation (portrait ↔ landscape) and a resize redraw the page right *(2026-10-18, rounds 206 and 209: the card held landscape by `enyo.setAllowedOrientation` (the test hook's `O` step): 1024x890 frames (686 rows and the overscan), the page laid out for 1024; back to portrait and the keyboard's resize redraw right (screenshots looked at))*
+- [x] Select popups, the text caret, link highlights, find-in-page highlights and the card thumbnail show as on the software path *(rounds 205-212 on `render/goanna/test/jihad-card-events.html`: the select's list (the card's own, Enyo) opens with its four rows and a pick reaches the page; the caret shows in the tapped field; find-in-page highlights its match; the thumbnail is the view (the frame's view row with overscan; fixed); the popups' origin is the published frame's. Link taps: the daemon sends no highlight rectangles on either path, the page's own styles draw in the frames)*
+- [x] Loading a new page, going back and forward, and reloading show the new content with no stale frame *(rounds 207-208: a link to another page, back (the first page, forward lit), forward and reload (the second page), screenshots after each)*
 **Dependencies:** R2
 
 ### R10: It fits the device

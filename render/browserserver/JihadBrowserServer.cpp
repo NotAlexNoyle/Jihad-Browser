@@ -426,6 +426,11 @@ void JihadBrowserServer::processInjectFile() {
       while (!sel.empty() && (sel.back()=='\n' || sel.back()=='\r' || sel.back()==' ')) sel.pop_back();
       printf("[jihad-bs] inject anon %s = [%s]\n", sel.c_str(),
              jihad::DebugAnonNodes(sel.c_str()).c_str());
+    } else if (strncmp(c.c_str(), "thumb ", 6) == 0) {
+      // T-507 device rounds: a thumbnail of the page as the card shows it, written to the path at
+      // the next frame (what saveThumbnail asks for, without a shell that bookmarks with pictures)
+      std::string tp = c.substr(6); while (!tp.empty() && (tp.back()=='\n' || tp.back()=='\r')) tp.pop_back();
+      printf("[jihad-bs] inject thumb %s\n", tp.c_str()); p->requestThumbnail(tp);
     } else if (strncmp(c.c_str(), "find ", 5) == 0) {
       // DEBUG: drive findInPage without a card's find bar. The frozen command is already
       // dispatched from the UI; this exercises the same daemon path from the inject channel.

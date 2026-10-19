@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 19 Oct 2026 04:46:23 -0400
+Subject: [PATCH] gpu compositor: every compose job, compose and read on the
+ daemon's timeline (JIHAD_GPU_TIMELINE)
+
+T-516 device rounds. With JIHAD_GPU_TIMELINE=1 every compose job logs its queue and compose time
+with a timestamp on the daemon's clock, and every compose and read logs its breakdown (otherwise
+sampled), so a slow frame's time can be placed: the queue, the composite, the readback's wait for
+the GPU, the CPU swizzle. The slow first frames after a pause were the readback and the swizzle
+(the clocks), not the draws.
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 3 ++-
+ gfx/layers/opengl/CompositorOGL.cpp       | 3 ++-
+ widget/PuppetWidget.cpp                   | 9 ++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 967d796f82..cbce7a9d5c 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -2255,7 +2255,8 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   const bool logScrollOnly = aReq->scrollOnly;
+   const bool started = ogl->JihadReadAsync(aReq);
+   static uint32_t sFrames = 0;
+-  if (sFrames < 20 || (sFrames % 50) == 0) {
++  static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds: every frame
++  if (sFrames < 20 || (sFrames % 50) == 0 || sTimeline) {
+     fprintf(stderr, "[jihad-gpu] compositor thread: compose %.1f ms, handoff %.1f ms (frame %u, rows %d..%d and %d..%d of %d, %d columns, %d kept, changed %d..%d, fixed %d..%d%s%s, started=%d)\n",
+             (t1 - t0).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds(), sFrames,
+             lo, hi, logLo2, logHi2, aHeight, logCols, logKeep, invLo, invHi, logFixedLo, logFixedHi,
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 43a13986c6..1f8f23071a 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2631,7 +2631,8 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+       }
+     }
+   }
+-  if (sTimed++ < 12 || (sTimed % 100) == 0) {
++  static const bool sTimelineRead = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds: every read
++  if (sTimed++ < 12 || (sTimed % 100) == 0 || sTimelineRead) {
+     fprintf(stderr, "[jihad-gpu] glFinish %.1f ms, glReadPixels %d rows %.1f ms, CPU swizzle+flip %.1f ms\n",
+             (tFin - t0).ToMilliseconds(), rows, (t1 - tFin).ToMilliseconds(), (TimeStamp::Now() - t1).ToMilliseconds());
+   }
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 179589978a..d209a3e432 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -5,6 +5,7 @@
+ 
+ #include <unistd.h>   // Jihad T-502: write() to the done fd
+ #include "mozilla/Maybe.h"   // Jihad T-515
++#include <sys/time.h>        // Jihad T-515: the timeline's clock
+ #include "base/basictypes.h"
+ 
+ #include "ClientLayerManager.h"
+@@ -892,7 +893,13 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+   const double queuedMs = (t0 - job->posted).ToMilliseconds();
+   const bool started = job->bridge->JihadComposeAndRead(&job->req, job->scale, job->offX, job->offY);
+   static uint32_t sN = 0;
+-  if (sN++ < 30 || (sN % 50) == 0) {
++  static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds: every job, on the daemon's clock
++  if (sTimeline) {
++    struct timeval tv;
++    gettimeofday(&tv, nullptr);
++    fprintf(stderr, "[jihad-tl] t=%lld job %u: queued %.1f ms on the compositor loop, composed in %.1f ms\n",
++            (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000, token, queuedMs, (mozilla::TimeStamp::Now() - t0).ToMilliseconds());
++  } else if (sN++ < 30 || (sN % 50) == 0) {
+     fprintf(stderr, "[jihad-gpu] job %u: queued %.1f ms on the compositor loop, composed in %.1f ms\n", token,
+             queuedMs, (mozilla::TimeStamp::Now() - t0).ToMilliseconds());
+   }

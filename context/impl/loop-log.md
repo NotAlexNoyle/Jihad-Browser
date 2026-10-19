@@ -220,3 +220,11 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P; device rounds 240-267; zooms under script 10/10 within 250 ms (Wikipedia after load, the script-hold page); script-hold pans 26-32 fps; no regression with it off (GPU 30-33, software 2.9-3.2); clean exit. Wikipedia pans 19-21 fps (open: T-517); double taps' slow draws (open: T-516)
 - **Next:** T-516 or T-517 (T-510 waits on T-504, which waits on T-516)
 
+### Iteration 9 — 2026-10-19
+- **Task:** T-516 — the zoom's first frame on every gesture
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** render/browserserver/JihadBrowserServer.cpp, render/goanna/BrowserPageGoanna.{cpp,h}, engine timeline logging (PuppetWidget.cpp, CompositorBridgeParent.cpp, CompositorOGL.cpp)
+- **Validation:** Build P; device rounds 270-280: double taps over 250 ms from 4-8 of 12 to 0-2 of 12 (median 158 ms); the cause found (clocks and contention after a pause, not draws); a warm-up frame tried and dropped (worse)
+- **Next:** T-510 — the GPU path as the default (repointed from T-504 to T-515: the owner's zoom complaint is closed; T-504 stays open for T-516's GPU ramp)
+

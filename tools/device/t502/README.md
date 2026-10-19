@@ -145,3 +145,11 @@ hold and prints each first frame from the zoom's arrival; `render/goanna/test/ji
 holds the main thread 600 ms in every 700 (`?hold=<ms>&every=<ms>`; `?hold=0` off). Express off
 (`JIHAD_GPU_EXPRESS_MS=999999 JIHAD_GPU_EXPRESS_LEAD_MS=0` with it on) is the same timing path
 without its frames: the baseline.
+
+T-516, rounds 270-280: `JIHAD_GPU_TIMELINE=1` also logs every compose job (queue, compose), every
+compose's breakdown and every read (engine 0050), the clock hold's transitions and the CPU clocks of
+each express frame. `JIHAD_CLOCK_HOLD_MS=<ms>` (2000: idle time before the CPU floor goes back; the
+YAP reader thread raises it on a card's scroll, zoom or smart-zoom request), `JIHAD_GPU_FRAME_NICE=<n>`
+(-6: the Compositor and JihadExpress threads ahead of the engine's others; 0 leaves them). Double taps
+through the card: `card-selftest.sh enyo run "page:w15;t300,400;w2;..."` with `JIHAD_GPU_ZOOM_DUMP=log`,
+each tap's first frame in the `zoom frame written (express)` lines.

@@ -487,6 +487,7 @@ private:
     double zoom = 1.0; long shift = 0; int64_t t0 = 0, wantMs = 0, waitMs = 0; bool whole = true;
     unsigned char* pixels = nullptr; int cardY = 0;
     bool composed = false; long invLo = 0, invHi = 0; int composedY = 0;   // known once composed (being read)
+    int64_t composedMs = 0;   // device rounds: when it was seen composed
   };
   XJob mXJob;                         // the express lane's frame in flight (the older one)
   XJob mXJob2;                        // the one after it, built on it while it is read (round 130's rule)

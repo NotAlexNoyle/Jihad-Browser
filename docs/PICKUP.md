@@ -88,8 +88,16 @@ main loop has not taken up yet is held (300 ms at most). (5) `JIHAD_GPU_ZOOM_DUM
 (6) A scripted pan's screenshot is meaningless (the card's own scroll does not move); judge by the
 dumps, `JIHAD_GPU_TIMELINE=1` and the paint pipeline lines.
 
-**Next.** T-516 (the zoom out's slow draws: R6, unblocks T-504 and so T-510) and T-517 (Wikipedia's
-compositor frame: R3). Knobs in `tools/device/t502/README.md` (T-515 paragraph).
+**T-516 (same day, partial).** The double taps' slow first frames were not draws: the first readback
+after a pause ran 100-390 ms and the CPU swizzle 20-122 ms (the clocks after two idle seconds and
+the engine's other threads). The YAP reader now raises the clock hold on a scroll, zoom or smart-zoom
+request, and the Compositor and JihadExpress threads run at nice -6: double taps over 250 ms went from
+4-8 of 12 to 0-2 (median 158). Left: the GPU's ramp after a pause. A warm-up frame was tried and
+made it worse (dropped). Engine 0050: the timeline logs every job, compose and read.
+
+**Next.** T-510 (the GPU path and the express lane as the default; repointed from T-504 to T-515 on
+2026-10-19), then T-517 (Wikipedia's compositor frame: R3). Knobs in `tools/device/t502/README.md`
+(the T-515 and T-516 paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
 

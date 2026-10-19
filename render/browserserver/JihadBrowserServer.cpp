@@ -14,6 +14,7 @@ namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "../goanna/JihadFrameLock.h"      // T-515: the express lane's frame lock
 #include <YapDefs.h>                       // kMaxMsgLen (the inject pan's packets)
 #include <thread>
+#include <mutex>
 #include <algorithm>
 #include <string>
 #include <cstdio>
@@ -80,6 +81,7 @@ void ProxySink::msgRemoveFlashRects(const char* j) { mSrv->msgRemoveFlashRects(m
 // express lane there, at once (the frame lock taken); every command still reaches the main loop
 // as before, where the dispatch hook holds the frame lock around it.
 static JihadBrowserServer* sExpressServer = nullptr;
+static void jihadClockHoldCardMoved();   // below, with the clock hold
 // each proxy's page for the reader threads, under the want lock (JihadFrameLock.h): set at the
 // page's connect, dropped before its delete (reap)
 static std::map<YapProxy*, jihad::BrowserPageGoanna*>* sExpressPages = nullptr;
@@ -92,9 +94,12 @@ static bool jihadExpressHook(YapProxy* proxy, const uint8_t* data, int len, uint
     double zoom = 0.0; int32_t cx = 0, cy = 0;
     if (cmd == 0x150e) (*pkt) >> zoom;
     (*pkt) >> cx; (*pkt) >> cy;
+    jihadClockHoldCardMoved();   // the clock up before the frame is composed
     std::lock_guard<std::mutex> l(jihad::jihadWantLock());
     auto it = sExpressPages ? sExpressPages->find(proxy) : std::map<YapProxy*, jihad::BrowserPageGoanna*>::iterator();
     if (sExpressPages && it != sExpressPages->end()) it->second->expressWant(cx, cy, zoom, cmd == 0x150e, tag);
+  } else if (cmd == 0x1017) {             // ZoomSmartCalculateRequest: a zoom is coming, the clock up (T-516)
+    jihadClockHoldCardMoved();
   } else if (cmd == 0x150d) {             // ReturnBuffer: the frame lock, if it comes within 4 ms
     int32_t key = 0;
     (*pkt) >> key;
@@ -646,14 +651,21 @@ extern bool gJihadClockHoldEnabled;   // EngineHost.cpp defines it and reads jih
 namespace {
 class JihadClockHold {
 public:
+  // T-515: from the tick and from the YAP reader threads (a card's scroll or zoom raises the floor
+  // the moment it arrives: the express lane composes its frame at once, and the first frame after
+  // two idle seconds ran at the floor's clock, a read of 393 ms where 35 is usual)
   void busy(int64_t nowMs) {
+    std::lock_guard<std::mutex> l(mLock);
     if (!enabled()) return;
     mLastBusyMs = nowMs;
     if (!mHeld) set(true);
   }
   void idle(int64_t nowMs) {
+    std::lock_guard<std::mutex> l(mLock);
     if (!mHeld) return;
-    if (nowMs - mLastBusyMs >= 2000) set(false);
+    // JIHAD_CLOCK_HOLD_MS: how long idle before the floor goes back (2000)
+    static const long sHoldMs = getenv("JIHAD_CLOCK_HOLD_MS") ? atol(getenv("JIHAD_CLOCK_HOLD_MS")) : 2000;
+    if (nowMs - mLastBusyMs >= sHoldMs) set(false);
   }
   ~JihadClockHold() { if (mHeld) set(false); }
 private:
@@ -716,15 +728,18 @@ private:
     }
     mHeld = hold;
     if (hold) mHolds++;
-    if (mHolds <= 1) fprintf(stderr, "[jihad-bs] clock hold: %s\n", hold ? "held" : "released");
+    static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds
+    if (mHolds <= 1 || sTimeline) fprintf(stderr, "[jihad-bs] clock hold: %s\n", hold ? "held" : "released");
   }
   bool mProbed = false, mDisabled = false, mHeld = false;
   int mHolds = 0;
   int64_t mLastBusyMs = 0;
   std::string mTop, mMinPath[2], mOrigMin[2];
+  std::mutex mLock;
 };
 JihadClockHold gClockHold;
 }  // namespace
+static void jihadClockHoldCardMoved() { gClockHold.busy(jihadTickNowMs()); }   // T-515: the reader thread
 
 static const uint64_t kTickStatsMinPaintMs = 10;
 static const uint32_t kTickStatsLongTickMs = 40;

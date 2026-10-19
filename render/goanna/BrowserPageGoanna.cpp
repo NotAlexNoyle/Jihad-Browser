@@ -43,6 +43,8 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include <thread>
 #include <condition_variable>
 #include <chrono>
+#include <dirent.h>             // T-515: the frame threads by name
+#include <sys/resource.h>       // setpriority
 
 namespace { }  // (UrlRule defined below in the jihad namespace)
 
@@ -403,7 +405,49 @@ void jihadExpressKick() {
 // thread sleeps without it: 3 ms while a page has a frame in flight or a card waiting, else until
 // the next want.
 }  // namespace
+
+// T-515: the frame's threads ahead of the engine's others. While a gesture runs, the page's script,
+// the image decoders at the new resolution and the JS helpers compete for the two cores, and the
+// compositor's read and swizzle of a zoom's first frame took 33-82 ms of CPU where 7 is usual
+// (rounds 273-274). The compositor, its read thread and the express thread go to nice
+// JIHAD_GPU_FRAME_NICE (-6; 0 leaves them), found by name, retried until all three are seen.
+static void jihadBoostFrameThreads() {
+  static int sFound = 0;            // a bit per thread name boosted
+  static int64_t sLastMs = 0;
+  static const int sNice = getenv("JIHAD_GPU_FRAME_NICE") ? atoi(getenv("JIHAD_GPU_FRAME_NICE")) : -6;
+  if (sNice == 0 || sFound == 7) return;
+  const int64_t now = jihadNowMs();
+  if (now - sLastMs < 1000) return;
+  sLastMs = now;
+  static const char* kNames[3] = { "Compositor", "JihadRead", "JihadExpress" };
+  DIR* d = opendir("/proc/self/task");
+  if (!d) { sFound = 7; return; }
+  while (struct dirent* e = readdir(d)) {
+    if (e->d_name[0] < '0' || e->d_name[0] > '9') continue;
+    char path[64], comm[32] = {0};
+    snprintf(path, sizeof path, "/proc/self/task/%s/comm", e->d_name);
+    FILE* f = fopen(path, "r");
+    if (!f) continue;
+    if (!fgets(comm, sizeof comm, f)) comm[0] = 0;
+    fclose(f);
+    comm[strcspn(comm, "\n")] = 0;
+    for (int i = 0; i < 3; ++i) {
+      if ((sFound & (1 << i)) || strcmp(comm, kNames[i])) continue;
+      const int tid = atoi(e->d_name);
+      if (setpriority(PRIO_PROCESS, tid, sNice) == 0) {
+        sFound |= 1 << i;
+        fprintf(stderr, "[jihad-gpu] frame thread %s (%d) ahead of the others: nice %d\n", kNames[i], tid, sNice);
+      } else {
+        sFound |= 1 << i;   // not allowed (not root): once
+        fprintf(stderr, "[jihad-gpu] frame thread %s (%d): nice %d refused (%s)\n", kNames[i], tid, sNice, strerror(errno));
+      }
+    }
+  }
+  closedir(d);
+}
+
 static void jihadExpressThread() {
+  pthread_setname_np(pthread_self(), "JihadExpress");
   bool soon = false;
   for (;;) {
     {
@@ -412,10 +456,14 @@ static void jihadExpressThread() {
       gXKicked = false;
       if (gXQuit) return;
     }
+    const int64_t w0 = jihadNowMs();
     FrameLockGuard g;
     soon = false;
     const int64_t now = jihadNowMs();
+    if (now - w0 >= 30 && jihadTimelineOn())   // device rounds: the main thread held the frame lock this long
+      fprintf(stderr, "[jihad-tl] t=%lld express waited %ld ms for the frame lock\n", (long long)now, (long)(now - w0));
     if (gXPages) for (BrowserPageGoanna* p : *gXPages) soon = p->expressStep(now) || soon;
+    jihadBoostFrameThreads();
   }
 }
 
@@ -3975,6 +4023,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
       return false;
     }
     if (r == -3 && !mXJob.composed) {
+      mXJob.composedMs = now;
       mXJob.composed = true; mXJob.invLo = cr.invLo; mXJob.invHi = cr.invHi;
       mXJob.composedY = cr.frameYValid ? (int)cr.frameY : mXJob.y;
     }
@@ -4004,6 +4053,17 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   mSink.msgPainted(mXJob.key);
   mInFlight[s] = true; mPaintMs[s] = now;
   jihadTimelinePublish("express", mXJob.t0, frameY, mXJob.zoom);
+  if (jihadTimelineOn()) {
+    // T-515 device rounds: the clocks the frame was made at
+    char f0[16] = "?", f1[16] = "?";
+    for (int c = 0; c < 2; ++c) {
+      char p[80]; snprintf(p, sizeof p, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", c);
+      FILE* f = fopen(p, "r");
+      if (f) { char* d = c ? f1 : f0; if (!fgets(d, 16, f)) strcpy(d, "?"); d[strcspn(d, "\n")] = 0; fclose(f); }
+      else strcpy(c ? f1 : f0, "off");
+    }
+    fprintf(stderr, "[jihad-tl] t=%lld express frame clocks: cpu0 %s kHz, cpu1 %s kHz\n", (long long)now, f0, f1);
+  }
   if (!mXMainWindow && mActiveKey == mXJob.key) mActiveKey = keyAfter(mXJob.key);
   // the main lane's records: this slot is the newest frame and the only one up to date (the
   // composites of this lane are not in the other slots' stale rows)

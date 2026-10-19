@@ -13,7 +13,7 @@ available is met.
   `RB_20261006` (`5f290d1097a8350b56ce2092aa9d5fc9147c6661`, 2026-10-04) — `UXP_TAG` / `UXP_BASE` in
   `build/engine/engine-version.env`. (Until 2026-10-12: master `b2594a4`, 2026-06-30.)
 - **Our modified engine:** the branch `jihad/uxp-RB_20261006` of the fork `NotAlexNoyle/UXP-Jihad`,
-  at `UXP_PIN` (`2cc21a9a5e6ded469477d5805c52489ba6a4ecb6`), present in this repository as the
+  at `UXP_PIN` (`a3b614056c4cd0d2abcbc994f91576c32bde6442`), present in this repository as the
   submodule `third_party/uxp`. The device build compiles that tree.
 - **The modifications as patches:** `build/desktop/patches/` holds every change as a patch
   against `UXP_BASE`. `build/engine/patch-queue.sh --check` proves the patches, applied in
@@ -75,6 +75,7 @@ modifications; the same changes are the commits of `jihad/uxp-RB_20261006`, one 
 | `0047-gpu-compositor-a-given-up-frame-writes-nothing-test-.patch` | `gfx/layers/ipc/CompositorBridgeParent.cpp`, `gfx/layers/opengl/CompositorOGL.{h,cpp}`, `widget/PuppetWidget.cpp` | T-509: a compose job the daemon forgot writes nothing into its slot (`cancelled`); test switches `JIHAD_GPU_TEST_NO_EGL` (no GL context, as an EGL failure) and `JIHAD_GPU_TEST_STALL` (a job held 6 s) |
 | `0048-gpu-compositor-the-frame-s-paint-and-its-compose-pos.patch` | `widget/PuppetWidget.{h,cpp}` | T-515: the frame's layer paint (`jihad_offscreen_paint_layers`, the main thread) and its compose job (`jihad_offscreen_compose_post`, any thread, at a view and scroll it is given) apart, so the daemon's express lane composes and publishes frames while the main thread runs the page's script; the job list under a mutex (a poll without a wait holds it throughout); `jihad_offscreen_compose_peek` (a job's state without its result); a forgotten job's cancelled flag only with abandoned |
 | `0049-layers-a-composite-acknowledged-after-the-widget-is-.patch` | `gfx/layers/client/ClientLayerManager.cpp` | T-515: `DidComposite` returns when the widget is gone (a card closed while a compose job it had asked for was waited out; its acknowledgement reached the main thread after the page was torn down: SIGSEGV at 0) |
+| `0050-gpu-compositor-every-compose-job-compose-and-read-on.patch` | `widget/PuppetWidget.cpp`, `gfx/layers/ipc/CompositorBridgeParent.cpp`, `gfx/layers/opengl/CompositorOGL.cpp` | T-516: with `JIHAD_GPU_TIMELINE=1` every compose job, compose and read logged with a timestamp on the daemon's clock (otherwise sampled), so a slow frame's time can be placed |
 
 ### Branding strip (cavekit-licensing-branding R3) — patch 0010
 

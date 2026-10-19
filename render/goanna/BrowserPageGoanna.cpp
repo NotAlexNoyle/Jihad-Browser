@@ -12,6 +12,7 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include "EngineHost.h"
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
+#include "JihadFrameWindow.h"       // T-517: the frame window trailer (render/browserserver/Src)
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
 #include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
 #include "JihadCrashGuard.h"        // do not reopen a page that just killed the daemon twice
@@ -612,14 +613,81 @@ unsigned char* BrowserPageGoanna::attachShm(int keyOrId) {
   gpuJobDrain();   // T-502: the compositor thread may still be writing this mapping
   if (mShmBuf[slot]) { shmdt(mShmBuf[slot]); }
   mShmBuf[slot] = (unsigned char*)p; mShmId[slot] = id;
+  {
+    struct shmid_ds ds;
+    mShmSize[slot] = shmctl(id, IPC_STAT, &ds) == 0 ? (size_t)ds.shm_segsz : 0;   // T-517
+  }
   return mShmBuf[slot];
+}
+
+// T-517: the frame window trailer of the segment with this key or shmid (JihadFrameWindow.h)
+JihadFrameTrailer* BrowserPageGoanna::shmTrailer(int key) {
+  unsigned char* b = key ? attachShm(key) : nullptr;
+  if (!b) return nullptr;
+  for (int i = 0; i < 3; ++i) if (mShmBuf[i] == b) return jihadFrameTrailer(b, mShmSize[i]);
+  return nullptr;
+}
+
+// The rows a composite's tree change touched, into the stale rows of every valid slot but the one
+// it was read into. The rows are in the composite's frame; in slot t's frame scrolled content sits
+// off rows lower (off = the frame's y - t's y) while fixed content sits where it is, and the daemon
+// cannot tell which changed, so t takes the hull of both (exact when t has not scrolled, the common
+// case on an animated page). A different zoom or x makes t stale whole. T-517: both lanes' frames,
+// and a frame composed and dropped, come here (the express lane invalidated every other slot).
+void BrowserPageGoanna::gpuStaleAdd(int except, long il, long ih, const GoannaRenderPage::ComposeResult& cr, int frameY,
+                                    int x, double zoom, int w, int h) {
+  for (int t = 0; t < 3; ++t) {
+    if (t == except || !mGpuSlotValid[t] || ih <= il) continue;
+    if (mGpuSlotZoom[t] != zoom || mGpuSlotX[t] != x) {
+      mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
+      mGpuStaleX0[t] = 0; mGpuStaleX1[t] = w;
+      continue;
+    }
+    const long off = (long)frameY - mGpuSlotY[t];
+    long a = std::min(il, il + off), b = std::max(ih, ih + off);
+    if (a < 0) a = 0;
+    if (b > h) b = h;
+    if (b <= a) continue;
+    // T-511: the change's columns too (0..w when the engine did not say)
+    const bool cols = cr.invXKnown && cr.invX1 > cr.invX0;
+    const long cx0 = cols ? cr.invX0 : 0, cx1 = cols ? cr.invX1 : w;
+    if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = a; mGpuStaleHi[t] = b; mGpuStaleX0[t] = cx0; mGpuStaleX1[t] = cx1; }
+    else {
+      if (a < mGpuStaleLo[t]) mGpuStaleLo[t] = a;
+      if (b > mGpuStaleHi[t]) mGpuStaleHi[t] = b;
+      mGpuStaleX0[t] = std::min(mGpuStaleX0[t], cx0); mGpuStaleX1[t] = std::max(mGpuStaleX1[t], cx1);
+    }
+  }
+}
+
+// T-517: a composite whose change no slot's record took (a job forgotten, or dropped unread): no
+// slot's frame can be built on any more
+void BrowserPageGoanna::gpuSlotsLost() {
+  for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
+  mGpuLatestSlot = -1;
+}
+
+// T-517: frame windows in this segment: the adapter that made it reads them (its mark in the
+// trailer), and JIHAD_GPU_NO_WINDOWS=1 is not set
+bool BrowserPageGoanna::windowsFor(int key) {
+  static const bool sOff = getenv("JIHAD_GPU_NO_WINDOWS") != nullptr;
+  if (sOff) return false;
+  JihadFrameTrailer* t = shmTrailer(key);
+  return t && t->adapterCaps == kJihadWindowCaps;
+}
+
+void BrowserPageGoanna::publishWindow(int key, int windowRows) {
+  if (JihadFrameTrailer* t = shmTrailer(key)) {
+    t->windowRows = windowRows < 0 ? 0 : windowRows;
+    t->magic = kJihadWindowMagic;
+  }
 }
 
 void BrowserPageGoanna::detachShm() {
   FrameLockGuard frameLock;   // T-515
   gpuJobDrain();   // T-502 (and the express lane's frame, T-515)
   xInvalidate();
-  for (int i = 0; i < 3; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; }
+  for (int i = 0; i < 3; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; mShmSize[i] = 0; }
 }
 
 void BrowserPageGoanna::mapToContent(int sx, int sy, int* cx, int* cy) {
@@ -3610,6 +3678,16 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   long sLo = 0, sHi = h, s2Lo = 0, s2Hi = 0, shift = 0;   // whole, unless the slot's frame is still good
   long colX0 = 0, colX1 = -1;   // T-511: the bands' stale columns (-1: whole rows) for the column read
   static const bool sWhole = getenv("JIHAD_GPU_WHOLE") != nullptr;   // device rounds: every frame read whole
+  // T-517, the frame window: pixels is the slot's raster start and bytes the raster (the trailer
+  // left out). A frame written whole or copied from another slot goes in the middle (room both
+  // ways); one built on the slot's own frame after a scroll moves the window by the scroll instead
+  // of moving 3.7 MB of rows (winMoved)
+  const size_t stride = (size_t)w * 4;
+  const long capRows = stride ? (long)(bytes / stride) : 0;
+  const bool winOn = windowsFor(key) && capRows >= h;
+  const int winCentre = winOn ? (int)((capRows - h) / 2) : 0;
+  int win = winCentre;
+  bool winMoved = false;
   // Round 113: the kept rows come from the NEWEST finished frame (another slot), shifted by the
   // card's scroll since it; only what entered and the fixed rows are read. After a whole read
   // (an anchor move's transaction reports every row changed) the next frames build on it, where
@@ -3625,7 +3703,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
     const long dy = (long)y - mGpuNextBaseY;
     unsigned char* bb = (dy > -h && dy < h) ? attachShm(mGpuNextBaseKey) : nullptr;
     if (bb) {
-      src = bb + sizeof(BrowserOffscreenInfo);
+      src = bb + sizeof(BrowserOffscreenInfo) + (size_t)mGpuNextBaseWin * stride;   // T-517: its window
       srcYForEngine = mGpuNextBaseY;
       shift = dy;
       long iv[2][2]; int n = 0;
@@ -3656,13 +3734,18 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   const bool ownCheap = slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h && mGpuSlotY[slot] == y &&
       ownStale - std::min(ownStale, recentInv) < h / 3;
-  if (!src && !sWhole && !sNoLatest && !ownCheap && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
+  // T-517: after a scroll too, when the slot's window can move by it: no copy, the entering rows and
+  // the slot's stale rows read
+  const bool ownWin = winOn && slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
+      mGpuSlotW[slot] == w && mGpuSlotH[slot] == h && mGpuSlotY[slot] != y && labs((long)y - mGpuSlotY[slot]) < h / 2 &&
+      ownStale - std::min(ownStale, recentInv) < h / 3;
+  if (!src && !sWhole && !sNoLatest && !ownCheap && !ownWin && L >= 0 && L != slot && L < 3 && mGpuSlotValid[L] && mGpuSlotX[L] == x &&
       mGpuSlotZoom[L] == zoom && mGpuSlotW[L] == w && mGpuSlotH[L] == h &&
       mGpuStaleHi[L] <= mGpuStaleLo[L] && mGpuStale2Hi[L] <= mGpuStale2Lo[L] && mGpuFixedHi >= mGpuFixedLo) {
     const long dy = (long)y - mGpuSlotY[L];
     unsigned char* lb = (dy > -h && dy < h) ? attachShm(mGpuLatestKey) : nullptr;
     if (lb) {
-      src = lb + sizeof(BrowserOffscreenInfo);
+      src = lb + sizeof(BrowserOffscreenInfo) + (size_t)mGpuSlotWin[L] * stride;   // T-517: its window
       srcYForEngine = mGpuSlotY[L];
       shift = dy;
       long iv[2][2]; int n = 0;
@@ -3686,6 +3769,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   if (!src && !sWhole && slot >= 0 && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == zoom &&
       mGpuSlotW[slot] == w && mGpuSlotH[slot] == h) {
     const long dy = (long)y - mGpuSlotY[slot];   // the card's scroll since this slot's frame, frame rows
+    win = winOn ? mGpuSlotWin[slot] : 0;   // T-517: the slot's frame where it is
     if (dy == 0) {
       sLo = mGpuStaleLo[slot]; sHi = mGpuStaleHi[slot]; s2Lo = mGpuStale2Lo[slot]; s2Hi = mGpuStale2Hi[slot];
       // T-511: the columns they are stale in (none asked for: only the change is read)
@@ -3697,6 +3781,21 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
       // way in place, then read what entered, the rows fixed layers cover, and what was stale
       // (shifted along). Two bands at most: the hull when there would be more.
       shift = dy;   // the compositor thread moves the rows before its read
+      if (winOn) {
+        // T-517: the window moves by the scroll instead (the rows are then where the shift puts
+        // them); near an end of the pixels the frame goes back to the middle first, one copy
+        long nw = (long)mGpuSlotWin[slot] + dy;
+        if (nw < 0 || nw + h > capRows) {
+          const long to = (long)winCentre - dy;
+          if (to >= 0 && to + h <= capRows) {
+            memmove(pixels + (size_t)to * stride, pixels + (size_t)mGpuSlotWin[slot] * stride, (size_t)h * stride);
+            nw = winCentre;
+          } else {
+            nw = -1;
+          }
+        }
+        if (nw >= 0) { win = (int)nw; winMoved = true; }
+      }
       long b[4][2] = { { dy > 0 ? h - dy : 0, dy > 0 ? h : -dy },
                        { sFixedCols ? 0 : mGpuFixedLo, sFixedCols ? 0 : mGpuFixedHi },
                        { mGpuStaleLo[slot] - dy, mGpuStaleHi[slot] - dy },
@@ -3732,7 +3831,8 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   }
   static const bool sWhiteLog = getenv("JIHAD_GPU_WHITE") != nullptr;
   if (sWhiteLog) fprintf(stderr, "[jihad-gpu] white before job: slot %d (y %d -> %d, shift %ld, bands %ld..%ld %ld..%ld): rows%s\n",
-                         slot, slot >= 0 ? mGpuSlotY[slot] : -1, y, shift, sLo, sHi, s2Lo, s2Hi, jihadWhiteRuns(pixels, w, h).c_str());
+                         slot, slot >= 0 ? mGpuSlotY[slot] : -1, y, shift, sLo, sHi, s2Lo, s2Hi,
+                         jihadWhiteRuns(pixels + (size_t)(winMoved ? mGpuSlotWin[slot] : win) * stride, w, h).c_str());
   if (mGpuNextExtraHi > mGpuNextExtraLo && !(sLo == 0 && sHi >= h)) {
     // round 116: the rows the job in flight changed, into the two bands (the hull with the
     // nearer one when they do not touch and both are taken)
@@ -3758,9 +3858,11 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   const bool baseIsPrevious = src != nullptr && (!mGpuNextSecond || mGpuNextBaseKey != 0);
   // T-515: the layers painted already (the main lane's paint window, the frame lock let go of): the
   // compose posted on its own
+  unsigned char* const winPixels = pixels + (size_t)win * stride;   // T-517
+  const size_t winBytes = bytes - (size_t)win * stride;
   const uint32_t token = mGpuPainted
-      ? mPage->ComposePost(pixels, bytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr, colX0, colX1)
-      : mPage->ComposeStart(pixels, bytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1);
+      ? mPage->ComposePost(winPixels, winBytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr, colX0, colX1, winMoved)
+      : mPage->ComposeStart(winPixels, winBytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1, winMoved);
   if (token) mXLastPostToken = token;
   if (!token) {
     // T-509: a compositor that takes no job (no GL context: EGL failed) — three in a row and the
@@ -3772,6 +3874,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
   j.t0 = jihadNowMs(); j.seq = mPage->CompositorSeq(); j.askLo = sLo; j.askHi = sHi; j.ask2Lo = s2Lo; j.ask2Hi = s2Hi; j.shift = shift;
   j.viewRow = mGpuViewRow;
+  j.win = win;   // T-517
   j.xFrames = mXFrames;
   j.cmdDone = mXCmdDone;
   mGpuJobs.push_back(j);
@@ -3841,7 +3944,8 @@ void BrowserPageGoanna::xSnapshot(int w, int h, int frameH, int os, size_t hdr) 
       const int id = jihadShmResolve(keys[i]);
       struct shmid_ds ds;
       if (id < 0 || shmctl(id, IPC_STAT, &ds) != 0) continue;
-      S.seg[i] = ds.shm_segsz; S.base[i] = attachShm(keys[i]);
+      S.seg[i] = ds.shm_segsz > kJihadTrailerBytes ? ds.shm_segsz - kJihadTrailerBytes : 0;   // T-517: not the window trailer
+      S.base[i] = attachShm(keys[i]);
     }
   }
   S.w = w; S.h = h; S.frameH = frameH; S.os = os; S.hdr = hdr; S.contentH = mLastContentH;
@@ -3979,8 +4083,80 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   long lo = 0, hi = H, lo2 = 0, hi2 = 0;
   const unsigned char* src = nullptr;
   long srcY = 0;
-  if (base) {
-    src = S.base[b] + S.hdr; srcY = baseY;
+  const size_t xStride = (size_t)w * 4;   // T-517
+  // T-517: the frame in the middle of the slot's pixels (copied from the base, or read whole); or
+  // the slot's own frame with its window moved by the scroll since (no 3.7 MB copy from the base:
+  // the rows that entered and the slot's stale rows are read, the main lane's own-slot rule).
+  // JIHAD_GPU_EXPRESS_NO_OWN=1: always the copy, as before
+  static const bool sNoOwn = getenv("JIHAD_GPU_EXPRESS_NO_OWN") != nullptr;
+  const long xCap = (long)((S.seg[slot] - S.hdr) / xStride);
+  const bool xWinOn = windowsFor(S.keys[slot]) && xCap >= H;
+  int xWin = xWinOn ? (int)((xCap - H) / 2) : 0;
+  bool own = false, xMoved = false;
+  long ownDy = 0;
+  if (!aBase && xWinOn && !sNoOwn && mGpuSlotValid[slot] && mGpuSlotX[slot] == x && mGpuSlotZoom[slot] == Z &&
+      mGpuSlotW[slot] == w && mGpuSlotH[slot] == H && mGpuFixedHi >= mGpuFixedLo) {
+    const long d = (long)y - mGpuSlotY[slot];
+    const long stale = (mGpuStaleHi[slot] - mGpuStaleLo[slot]) + (mGpuStale2Hi[slot] - mGpuStale2Lo[slot]);
+    // the faster kind by measurement, when there is a copy to compare with (a base)
+    bool preferOwn = true;
+    if (base) {
+      const bool explore = (++mXChoiceN % 16) == 0;
+      if (mXOwnMs <= 0.0) preferOwn = true;
+      else if (mXCopyMs <= 0.0) preferOwn = false;
+      else preferOwn = mXOwnMs <= mXCopyMs + 1.0;
+      if (explore) preferOwn = !preferOwn;
+    }
+    if (preferOwn && d > -H / 2 && d < H / 2 && stale < H / 2) {
+      int nw = mGpuSlotWin[slot];
+      bool ok = true;
+      if (d) {
+        long n = (long)mGpuSlotWin[slot] + d;
+        if (n < 0 || n + H > xCap) {   // near an end: the frame back to the middle first, one copy
+          const long c = (xCap - H) / 2, to = c - d;
+          if (to >= 0 && to + H <= xCap) {
+            memmove(S.base[slot] + S.hdr + (size_t)to * xStride, S.base[slot] + S.hdr + (size_t)mGpuSlotWin[slot] * xStride,
+                    (size_t)H * xStride);
+            n = c;
+          } else {
+            ok = false;
+          }
+        }
+        nw = (int)n;
+      }
+      if (ok) {
+        own = true; ownDy = d; xWin = nw; xMoved = d != 0;
+        static const bool sFixedColsOwn = !getenv("JIHAD_GPU_NO_FIXED_COLS") && !getenv("JIHAD_GPU_READ_THREAD");
+        const long bands[4][2] = { { d > 0 ? H - d : 0, d > 0 ? H : (d < 0 ? -d : 0) },
+                                   { (!sFixedColsOwn && d) ? mGpuFixedLo : 0, (!sFixedColsOwn && d) ? mGpuFixedHi : 0 },
+                                   { mGpuStaleLo[slot] - d, mGpuStaleHi[slot] - d },
+                                   { mGpuStale2Lo[slot] - d, mGpuStale2Hi[slot] - d } };
+        long iv[4][2]; int n = 0;
+        for (int k = 0; k < 4; k++) {
+          const long a = bands[k][0] < 0 ? 0 : bands[k][0], c = bands[k][1] > H ? H : bands[k][1];
+          if (c > a) { iv[n][0] = a; iv[n][1] = c; n++; }
+        }
+        for (bool merged = true; merged && n > 1;) {
+          merged = false;
+          for (int p2 = 0; p2 < n && !merged; p2++) for (int q = p2 + 1; q < n && !merged; q++)
+            if (iv[p2][0] <= iv[q][1] && iv[q][0] <= iv[p2][1]) { iv[p2][0] = std::min(iv[p2][0], iv[q][0]); iv[p2][1] = std::max(iv[p2][1], iv[q][1]); iv[q][0] = iv[n-1][0]; iv[q][1] = iv[n-1][1]; n--; merged = true; }
+        }
+        while (n > 2) {
+          int bi = 0, bj = 1; long best = LONG_MAX;
+          for (int p2 = 0; p2 < n; p2++) for (int q = p2 + 1; q < n; q++) { const long gap = std::max(iv[p2][0], iv[q][0]) - std::min(iv[p2][1], iv[q][1]); if (gap < best) { best = gap; bi = p2; bj = q; } }
+          iv[bi][0] = std::min(iv[bi][0], iv[bj][0]); iv[bi][1] = std::max(iv[bi][1], iv[bj][1]); iv[bj][0] = iv[n-1][0]; iv[bj][1] = iv[n-1][1]; n--;
+        }
+        if (n == 2 && iv[1][0] < iv[0][0]) { std::swap(iv[0][0], iv[1][0]); std::swap(iv[0][1], iv[1][1]); }
+        lo = n > 0 ? iv[0][0] : 0; hi = n > 0 ? iv[0][1] : 0; lo2 = n > 1 ? iv[1][0] : 0; hi2 = n > 1 ? iv[1][1] : 0;
+        static uint32_t sOwnN = 0;
+        if (sOwnN++ < 12 || (sOwnN % 100) == 0)
+          fprintf(stderr, "[jihad-gpu] express frame on its slot's own frame %u: slot %d, window %d -> %d (moved %ld rows), bands %ld..%ld and %ld..%ld\n",
+                  sOwnN, slot, mGpuSlotWin[slot], xWin, d, lo, hi, lo2, hi2);
+      }
+    }
+  }
+  if (base && !own) {
+    src = S.base[b] + S.hdr + (size_t)(aBase ? aBase->win : mGpuSlotWin[b]) * xStride; srcY = baseY;   // T-517: its window
     lo = dy > 0 ? H - dy : 0; hi = dy > 0 ? H : (dy < 0 ? -dy : 0);   // what the shift brings in
     static const bool sFixedCols = !getenv("JIHAD_GPU_NO_FIXED_COLS") && !getenv("JIHAD_GPU_READ_THREAD");
     if (!sFixedCols && dy != 0 && mXPub.fixedHi > mXPub.fixedLo) {
@@ -4006,13 +4182,13 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
       }
     }
   }
-  unsigned char* pixels = S.base[slot] + S.hdr;
+  unsigned char* pixels = S.base[slot] + S.hdr + (size_t)xWin * xStride;   // T-517: the frame's window
   // the main lane's view for a compositor-side scroll: the card's zoom, the overscan's offset, the
   // card's scroll in CSS px (gpuScrollTo, gpuSetView)
   const double zr = (want.zoom >= 0.05 && want.zoom <= 20.0) ? want.zoom : 1.0;
   const double view[5] = { Z, 0.0, -(double)os / Z, want.x / zr, want.y / zr };
-  const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr, H, lo, hi, lo2, hi2, base ? dy : 0, src, srcY,
-                                            base, view);
+  const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr - (size_t)xWin * xStride, H, lo, hi, lo2, hi2,
+                                            own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved);
   if (!token) {
     if (++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: the compositor took no frame three times\n");
     return false;
@@ -4021,8 +4197,9 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   XJob& j = aBase ? mXJob2 : mXJob;
   j = XJob();
   j.on = true; j.token = token; j.gen = mXGeomGen; j.slot = slot; j.key = S.keys[slot];
-  j.x = x; j.y = y; j.w = w; j.h = H; j.os = os; j.zoom = Z; j.shift = base ? dy : 0;
-  j.t0 = now; j.wantMs = want.ms; j.waitMs = waitSince; j.whole = !base; j.pixels = pixels;
+  j.x = x; j.y = y; j.w = w; j.h = H; j.os = os; j.zoom = Z; j.shift = own ? ownDy : (base ? dy : 0);
+  j.t0 = now; j.wantMs = want.ms; j.waitMs = waitSince; j.whole = !base && !own; j.pixels = pixels; j.win = xWin;
+  j.kind = own ? 1 : (base ? 2 : 0);
   j.cardY = want.y;
   return true;
 }
@@ -4048,6 +4225,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   if (!genOk || r < 0) {
     // the buffers or the geometry changed under it, or it failed: dropped, and the one built on it
     mXJob = XJob(); xForget(mXJob2);
+    gpuSlotsLost();   // T-517: its change is in no slot's record
     if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
     return true;
   }
@@ -4061,11 +4239,21 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   const long above = std::min((long)H, std::max(0L, -(long)frameY));
   if (above > 0) memset(pixels, 0xff, (size_t)above * w * 4);
   if (pageEnd < H && pageEnd >= 0) memset(pixels + (size_t)pageEnd * w * 4, 0xff, (size_t)(H - pageEnd) * w * 4);
-  BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)(pixels - mXSnap.hdr);
+  BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)mXSnap.base[s];   // T-517: the segment's start, not the window's
   oi->bufferWidth = w; oi->bufferHeight = H;
   oi->contentZoom = mXJob.zoom;
   oi->renderedX = mXJob.x; oi->renderedY = frameY;
   oi->renderedWidth = w; oi->renderedHeight = H;
+  publishWindow(mXJob.key, mXJob.win);   // T-517: the frame's window
+  if (mXJob.kind) {
+    // T-517: the frame's time, into its kind's running average
+    double& avg = mXJob.kind == 1 ? mXOwnMs : mXCopyMs;
+    const double ms = (double)(now - mXJob.t0);
+    avg = avg <= 0.0 ? ms : avg * 0.8 + ms * 0.2;
+    static uint32_t sAvgN = 0;
+    if ((sAvgN++ % 50) == 0)
+      fprintf(stderr, "[jihad-gpu] express frame times: on the slot's own frame %.1f ms, copied from the base %.1f ms\n", mXOwnMs, mXCopyMs);
+  }
   mSink.msgPainted(mXJob.key);
   mInFlight[s] = true; mPaintMs[s] = now;
   jihadTimelinePublish("express", mXJob.t0, frameY, mXJob.zoom);
@@ -4081,13 +4269,15 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     fprintf(stderr, "[jihad-tl] t=%lld express frame clocks: cpu0 %s kHz, cpu1 %s kHz\n", (long long)now, f0, f1);
   }
   if (!mXMainWindow && mActiveKey == mXJob.key) mActiveKey = keyAfter(mXJob.key);
-  // the main lane's records: this slot is the newest frame and the only one up to date (the
-  // composites of this lane are not in the other slots' stale rows)
-  for (int t = 0; t < 3; ++t) mGpuSlotValid[t] = false;
+  // the main lane's records: this slot is the newest frame; T-517: the other slots keep theirs,
+  // this composite's change added to their stale rows (they used to be dropped, and every slot
+  // after an express frame was read whole or copied from the newest)
+  gpuStaleAdd(s, cr.invLo, cr.invHi, cr, frameY, mXJob.x, mXJob.zoom, w, H);
   mGpuSlotValid[s] = true;
   mGpuSlotX[s] = mXJob.x; mGpuSlotY[s] = frameY; mGpuSlotZoom[s] = mXJob.zoom; mGpuSlotW[s] = w; mGpuSlotH[s] = H;
   mGpuStaleLo[s] = mGpuStaleHi[s] = mGpuStale2Lo[s] = mGpuStale2Hi[s] = 0;
   mGpuStaleX0[s] = mGpuStaleX1[s] = 0;
+  mGpuSlotWin[s] = mXJob.win;   // T-517
   mGpuLatestSlot = s; mGpuLatestKey = mXJob.key;
   mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
   mBufFull[s].valid = false;
@@ -4243,6 +4433,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   if (id < 0) { perror("[BrowserPageGoanna] shm resolve"); return; }
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
   if (shmctl(id, IPC_STAT, &ds) == 0 && ds.shm_segsz > 0) segSize = ds.shm_segsz;
+  if (segSize > kJihadTrailerBytes + sizeof(BrowserOffscreenInfo)) segSize -= kJihadTrailerBytes;   // T-517: the window trailer's
   unsigned char* buf = attachShm(mActiveKey);   // cached attach — no per-paint shmat/shmdt (~400ms)
   if (!buf) { if (!mGpuJobs.empty()) mGpuTrace[4]++; return; }
 
@@ -4453,6 +4644,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             }
           }
           mLatestSlot = slot;
+          publishWindow(mActiveKey, 0);   // T-517: the software path's frames start at the pixels' start
           mSink.msgPainted(mActiveKey);
           {
             int ps = slotForKey(mActiveKey);
@@ -4694,6 +4886,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   // classic webOS-era behavior.
   long nb = -1;
   bool gpuFinished = false;      // T-502: this paint publishes a frame started on an earlier tick
+  int pubWin = 0;                // T-517: the published frame's window (0: the software path's frames)
   bool gpuRestart = false;       // T-502: the compositor asked again while that frame was in flight
   int paintedX = (int)bandX, paintedTop = (int)bandY, paintedH = h;
   int paintedW = w;                           // the buffer's row stride in px
@@ -4887,6 +5080,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
       } else {
         const GpuJob oldest = mGpuJobs[0];
+        // T-517: the frame is in its window: every row this tick writes or reads is the window's
+        pixels += (size_t)oldest.win * (size_t)w * 4;
         GoannaRenderPage::ComposeResult cr;
         const int r = mPage->ComposePoll(oldest.token, pixels, &cr);
         const long il = cr.invLo, ih = cr.invHi;
@@ -4910,6 +5105,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           static const bool sStillOnly = getenv("JIHAD_GPU_TWO_DEEP_STILL") != nullptr;
           if (r == -3 && (!sStillOnly || (oldest.shift == 0 && gpuLo == oldest.y && !mGpuCompositorScroll))) {
             mGpuNextBaseKey = oldest.key;
+            mGpuNextBaseWin = oldest.win;   // T-517
             mGpuNextBaseY = cr.frameYValid ? (int)cr.frameY : oldest.y;
             // the composed job's changed rows are in ITS frame; the next job is at bandY: the hull
             // of both readings (scrolled and fixed content), as the stale rule does
@@ -4938,6 +5134,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         const bool xDropped = r >= 0 && oldest.xFrames != mXFrames;
         if (xDropped) {
           if (gslot >= 0) mGpuSlotValid[gslot] = false;
+          // T-517: its composite happened: its change goes into the other slots' records (the
+          // express lane keeps them now, where it used to drop them all on its publish)
+          gpuStaleAdd(gslot, il, ih, cr, cr.frameYValid ? (int)cr.frameY : oldest.y, oldest.x, oldest.zoom, w, h);
           static uint32_t sXD = 0;
           if (sXD++ < 20 || (sXD % 50) == 0)
             fprintf(stderr, "[jihad-gpu] main lane's frame dropped: the express lane published %u frame(s) since it was posted\n",
@@ -5001,34 +5200,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           mGpuFixedLo = cr.fixedLo; mGpuFixedHi = cr.fixedHi;
           mGpuInvRows[mGpuInvRowsAt] = ih > il ? ih - il : 0;   // T-511: what the next frames likely change too
           mGpuInvRowsAt = (mGpuInvRowsAt + 1) % 3;
-          // The other slots: the rows this frame's tree change touched are stale in them too. The
-          // rows are in this job's frame; in slot t's frame scrolled content sits off rows lower
-          // (off = this job's y - t's y) while fixed content sits where it is, and the daemon cannot
-          // tell which changed, so t takes the hull of both (exact when t has not scrolled, the
-          // common case on an animated page). A different zoom or x makes t stale whole. Round 91
-          // made every tree change stale-whole, so an animated page read whole frames every frame.
-          for (int t = 0; t < 3; ++t) {
-            if (t == gslot || !mGpuSlotValid[t] || ih <= il) continue;
-            if (mGpuSlotZoom[t] != oldest.zoom || mGpuSlotX[t] != oldest.x) {
-              mGpuStaleLo[t] = 0; mGpuStaleHi[t] = h; mGpuStale2Lo[t] = mGpuStale2Hi[t] = 0;
-              mGpuStaleX0[t] = 0; mGpuStaleX1[t] = w;
-              continue;
-            }
-            const long off = (long)frameY - mGpuSlotY[t];
-            long a = std::min(il, il + off), b = std::max(ih, ih + off);
-            if (a < 0) a = 0;
-            if (b > h) b = h;
-            if (b <= a) continue;
-            // T-511: the change's columns too (0..w when the engine did not say)
-            const bool cols = cr.invXKnown && cr.invX1 > cr.invX0;
-            const long cx0 = cols ? cr.invX0 : 0, cx1 = cols ? cr.invX1 : w;
-            if (mGpuStaleHi[t] <= mGpuStaleLo[t]) { mGpuStaleLo[t] = a; mGpuStaleHi[t] = b; mGpuStaleX0[t] = cx0; mGpuStaleX1[t] = cx1; }
-            else {
-              if (a < mGpuStaleLo[t]) mGpuStaleLo[t] = a; if (b > mGpuStaleHi[t]) mGpuStaleHi[t] = b;
-              mGpuStaleX0[t] = std::min(mGpuStaleX0[t], cx0); mGpuStaleX1[t] = std::max(mGpuStaleX1[t], cx1);
-            }
-          }
+          // The other slots: the rows this frame's tree change touched are stale in them too
+          // (gpuStaleAdd; round 91 made every tree change stale-whole, so an animated page read
+          // whole frames every frame)
+          gpuStaleAdd(gslot, il, ih, cr, frameY, oldest.x, oldest.zoom, w, h);
           gpuFinished = true;
+          pubWin = oldest.win;   // T-517
+          mGpuSlotWin[gslot] = oldest.win;
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
           mGpuJobViewRow = oldest.viewRow;   // T-507: where the card's view sits in this frame
@@ -5455,7 +5633,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   {
     int fs = slotForKey(mActiveKey);
     if (fs >= 0) {
-      mBufFull[fs].valid = (nb > 0);
+      mBufFull[fs].valid = (nb > 0) && pubWin == 0;   // T-517: a GPU frame in a window is no software repaint's base
       mBufFull[fs].w = w; mBufFull[fs].h = h; mBufFull[fs].zeff = Zeff;
       mBufFull[fs].scrollX = mAdapterScrollX; mBufFull[fs].scrollY = mAdapterScrollY;
       mBufFull[fs].paintedX = paintedX; mBufFull[fs].paintedTop = paintedTop;
@@ -5519,6 +5697,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   {
     // T-502 device rounds: the publish tick's time after the frame came in, around the message
     const int64_t a = jihadNowMs();
+    publishWindow(mActiveKey, pubWin);   // T-517: the frame's window (a GPU frame's; the software path's start at 0)
     mSink.msgPainted(mActiveKey);
     const int64_t b = jihadNowMs();
     jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);

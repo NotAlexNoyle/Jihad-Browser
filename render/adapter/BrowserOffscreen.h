@@ -16,12 +16,16 @@
 *
 LICENSE@@@ */
 
+/* Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b): this file differs from
+ * HP's isis-project original. The changes are this repository's git history for this file. */
+
 #ifndef BROWSEROFFSCREEN_H
 #define BROWSEROFFSCREEN_H
 
 #include "IpcBuffer.h"
 #include "BrowserRect.h"
 #include "BrowserOffscreenInfo.h"
+#include "JihadFrameWindow.h"
 #include <QImage>
 
 class BrowserOffscreenCalculations;
@@ -55,15 +59,18 @@ public:
     void clear();
     void copyFrom(BrowserOffscreen* other, BrowserRect* rect=NULL);
 
+    // The frame's first row: the raster's start, or further in when the daemon moved the frame's
+    // window (JihadFrameWindow.h, T-517); every reader of the frame goes through here
     unsigned char* rasterBuffer() const {
-        return m_buffer;
+        return m_buffer + windowBytes();
     }
-    int rasterSize() const;
+    int rasterSize() const;   // the pixels' bytes, without the window trailer
 
 private:
 
     BrowserOffscreen(IpcBuffer* buffer);
     void resetBuffer();
+    size_t windowBytes() const;   // T-517: where the frame starts in the raster
 
     IpcBuffer* m_ipcBuffer;
     unsigned char* m_buffer;

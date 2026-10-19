@@ -173,3 +173,14 @@ counter beside the canvas on its rows). Its rate and checks are in the daemon lo
 lines; the card's rate in the paint pipeline lines. `adapter-install.sh` no longer switches the
 adapter's paint log on: its gate (`<state>/adapterlog`) has no cap and filled /var once (see the
 script).
+
+T-517 (the compositor job's floor): `pan-run.sh` takes `PAN_TOP=1` (the processes' and the daemon's
+threads' CPU over 4 s of the pan). Frame windows (`render/browserserver/Src/JihadFrameWindow.h`): a frame
+may start further into its segment, written in a trailer the window-aware adapter reads;
+`JIHAD_GPU_NO_WINDOWS=1` keeps every frame at the segment's start (and the 3.7 MB row move of a scroll),
+`JIHAD_GPU_EXPRESS_NO_OWN=1` keeps the express lane copying from the newest slot. `JIHAD_GPU_CACHE_CLEAN=1`
+cleans the frame rows' cache after each frame although the segments are mapped write-through. NB: the
+adapters must be the window-aware build (`build-adapter-pdk.sh`, then each variant's
+`/usr/lib/jihad/<v>/BrowserAdapterImpl.so` and a Luna restart); an older adapter makes the daemon keep
+windows at 0.
+

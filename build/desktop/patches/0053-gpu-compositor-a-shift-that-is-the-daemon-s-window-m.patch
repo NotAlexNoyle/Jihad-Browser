@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 19 Oct 2026 09:41:09 -0400
+Subject: [PATCH] gpu compositor: a shift that is the daemon's window move
+ copies only the kept rects
+
+T-517. A compose job may say (flag 8) that its shift is already done: the daemon moved the frame's
+window within its shared segment by the scroll instead of having 3.7 MB of rows moved (the frame
+then starts that many rows further into the segment, and the rows are where the shift would have put
+them). The engine then copies only the kept rects (opaque stuck layers that held still) from where
+they were, the shift's rows back, and everything else about the shift (the entering rows, the fixed
+layers' columns) is as before. On a Wikipedia pan the compositor thread's shift went from 6.5-9.7 ms
+to 1.2-1.9.
+---
+ gfx/layers/opengl/CompositorOGL.cpp | 21 +++++++++++++++++++++
+ gfx/layers/opengl/CompositorOGL.h   |  2 ++
+ widget/PuppetWidget.cpp             |  6 +++++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 9ee78333ac..8510eed11a 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2169,6 +2169,27 @@ JihadShiftRows(JihadFrameRequest* aReq)
+   if (!dy || !aReq->dest || aReq->stride != aReq->w * 4 || dy >= h || dy <= -h) {
+     return;
+   }
++  // T-517: the daemon moved the frame's window by the shift (the destination starts dy rows further
++  // into its segment than the slot's frame did): the rows are where the shift would have put them.
++  // Only the kept rects (still layers) are copied, from where they were: dy rows back, the slot's
++  // frame's own rows
++  if (aReq->windowMoved) {
++    static uint8_t* sKept = nullptr;
++    static size_t sKeptCap = 0;
++    const size_t stride = (size_t)aReq->stride;
++    for (int k = 0; k < aReq->nKeep; k++) {
++      int x0, x1, y0, y1;
++      if (!JihadKeepRect(aReq, k, &x0, &x1, &y0, &y1)) continue;
++      const size_t rowBytes = (size_t)(x1 - x0) * 4, bytes = rowBytes * (y1 - y0);
++      if (bytes > sKeptCap) { free(sKept); sKept = (uint8_t*)malloc(bytes); sKeptCap = sKept ? bytes : 0; }
++      if (!sKept) return;
++      uint8_t* p = sKept;   // saved first: the rows read and written may overlap
++      for (int r = y0; r < y1; r++, p += rowBytes) memcpy(p, aReq->dest + ((ptrdiff_t)r - dy) * (ptrdiff_t)stride + (size_t)x0 * 4, rowBytes);
++      p = sKept;
++      for (int r = y0; r < y1; r++, p += rowBytes) memcpy(aReq->dest + (size_t)r * stride + (size_t)x0 * 4, p, rowBytes);
++    }
++    return;
++  }
+   // in place: the kept rects saved first and put back after the shift
+   static uint8_t* sSaved = nullptr;
+   static size_t sSavedCap = 0;
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 446bed7635..4b735ac840 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -164,6 +164,8 @@ struct JihadFrameRequest {
+   int frameY = 0; bool frameYValid = false;   // out: this frame's position (card px), when the engine decided it
+   int shift = 0;                       // rows the destination is shifted by (memmove) before the read: the
+                                        // card's scroll since the slot's frame, positive = scrolled down
++  bool windowMoved = false;            // T-517 (flag 8): the daemon moved the frame's window by the shift
++                                       //   instead: the rows are in place, only the kept rects are copied
+   int fixedLo = 0, fixedHi = 0;        // out: the rows fixed and sticky layers cover (0,0 = none)
+   int cols[4][4] = {};                 // round 138: column reads after the bands (x0, x1, y0, y1 on the
+   int nCols = 0;                       //   frame): the fixed and stuck layers' rects, widened by the shift
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 13bb49c151..cf3fa4cea9 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -841,6 +841,7 @@ struct JihadReadJob {
+   int srcY = 0; bool engineShift = false;   // round 115
+   bool verify = false;   // T-503
+   bool colsKnown = false; int colX0 = 0, colX1 = 0;   // T-511: the bands' stale columns (flag 4)
++  bool windowMoved = false;   // T-517 (flag 8): the shift is the daemon's window move, the rows in place
+   int invLo, invHi;      // the rows the composite changed
+   float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
+   uint32_t token;
+@@ -887,6 +888,7 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+   job->req.lo = job->rowLo; job->req.hi = job->rowHi; job->req.lo2 = job->row2Lo; job->req.hi2 = job->row2Hi;
+   job->req.shift = job->shift; job->req.src = job->src; job->req.srcY = job->srcY; job->req.engineShift = job->engineShift; job->req.verify = job->verify;
+   job->req.colsKnown = job->colsKnown; job->req.colX0 = job->colX0; job->req.colX1 = job->colX1;
++  job->req.windowMoved = job->windowMoved;
+   job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
+   job->req.done = &JihadJobDone; job->req.cookie = job;
+   // Once done() has run the daemon may forget (delete) the job at any moment (round 108's wake
+@@ -1010,6 +1012,7 @@ PuppetWidget::JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, in
+   job->row2Lo = aRow2Lo; job->row2Hi = aRow2Hi; job->shift = aShift; job->src = static_cast<const uint8_t*>(aSrc); job->srcY = aSrcY;
+   job->engineShift = (aFlags & 1) != 0; job->verify = (aFlags & 2) != 0;
+   job->colsKnown = (aFlags & 4) != 0;   // T-511: the column arguments are given (else garbage from an older daemon)
++  job->windowMoved = (aFlags & 8) != 0;   // T-517
+   if (job->colsKnown) {
+     job->colX0 = std::max(0, std::min(aColX0, aWidth)); job->colX1 = std::max(0, std::min(aColX1, aWidth));
+   }
+@@ -1466,7 +1469,8 @@ jihad_offscreen_compose_start(nsIWidget* aWidget, nsIDocShell* aDocShell, void*
+     return 0;
+   }
+   // flags: 1 engine shift, 2 verify (T-503), 4 the column arguments given (T-511; a daemon from
+-  // before passes neither, and its poll array holds ten ints)
++  // before passes neither, and its poll array holds ten ints), 8 the shift is the daemon's window
++  // move (T-517: the rows are in place, only the kept rects copied)
+   return static_cast<PuppetWidget*>(aWidget)->JihadComposeStart(aDocShell, aDest, aStride, aWidth, aHeight, aRowLo, aRowHi, aRow2Lo, aRow2Hi, aShift, aSrc, aSrcY, aEngineShift,
+                                                                 (aEngineShift & 4) ? aColX0 : 0, (aEngineShift & 4) ? aColX1 : 0);
+ }

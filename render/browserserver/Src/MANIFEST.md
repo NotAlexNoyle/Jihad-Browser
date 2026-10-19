@@ -52,3 +52,9 @@ The real daemon is `render/browserserver/{JihadBrowserServer.{h,cpp},Main.cpp}`:
 JihadBrowserServer subclasses the unchanged BrowserServerBase, wires the core
 commands to BrowserPageGoanna, and forwards msg* over YAP. Builds + runs via
 build/desktop/build-daemon.sh (DAEMON_UP: engine up + listening on the socket).
+
+## Jihad additions
+
+| File | Role |
+|------|------|
+| `JihadFrameWindow.h` | T-517: the trailer in a frame segment's last 64 bytes where the daemon says how far into the pixels the frame starts (its window) and the adapter that made the segment says it reads windows. The YAP messages and `BrowserOffscreenInfo` are unchanged. |

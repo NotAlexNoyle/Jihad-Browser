@@ -132,10 +132,21 @@ whatever its area. Both cores are full during a pan (the daemon ~1.5 cores, WebA
 the whole path, one main-thread notification a frame. `pan-run.sh` takes `PAN_TOP=1` for the CPU split.
 Notes in `docs/rounds/t502-2026-10-17/floor-r314-320.txt`.
 
-**Next.** T-517: one tree traversal for all of a frame's regions (the bands and chunks in one transaction),
-then a rule that skips see-through sticky columns over content that cannot have changed under them. Then
-T-512 (fit to keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516 and T-511
-paragraphs).
+**T-517 (later the same day, partial).** Two cuts kept. The frame rows' cache clean is skipped where
+the segments are mapped write-through (they are; the clean was 4 ms a frame). Frame windows: a frame may
+start further into its shared segment (`render/browserserver/Src/JihadFrameWindow.h`: a 64-byte trailer
+at the segment's end, written by the daemon before each publish, read by the adapter's
+`BrowserOffscreen::rasterBuffer()`; only an adapter that marked the segment it made gets non-zero windows),
+so a scrolled slot's frame is its window moved, not 3.7 MB of rows moved (engine 0053). Both lanes now keep
+every slot's stale rows (the express lane used to drop them on each publish), and the express lane builds
+on its own slot's frame when that measures faster. Long test page 30.5-36.4 fps (median gap 29 -> 26 ms);
+Wikipedia still 19-21. **The bench's three adapters are the window-aware build** (installed by hand from
+`build/webos-oe/adapter-deps/build-pdk/<v>/`); a package built before this commit would carry old ones and
+the daemon would keep windows at 0 (correct, just slower).
+
+**Next.** T-517: Wikipedia's sticky columns (one tree traversal for all of a frame's regions; or a rule that
+skips see-through sticky columns over content that cannot have changed under them). Then T-512 (fit to
+keep), T-513 (review). Knobs in `tools/device/t502/README.md` (the T-515, T-516, T-511 and T-517 paragraphs).
 
 ## 2026-10-18 (night) delta — T-385…T-387 done, T-504 (zoom) mostly done (READ FIRST)
 

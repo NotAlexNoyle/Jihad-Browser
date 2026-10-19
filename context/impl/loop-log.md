@@ -252,3 +252,11 @@ Build site: context/plans/build-site.md
 - **Validation:** device rounds 314-320: frames with the sticky panels' column chunks 40-46 ms (3.3-3.8 extra passes at ~5 ms each), without 18-27; both cores full. Three cuts tried and reverted (no gain): the shift on a worker, the whole path, one notification a frame. The bench left on the committed build (all three default checks pass)
 - **Next:** T-517 again with one tree traversal for all of a frame's regions, or the see-through sticky column rule
 
+### Iteration 13 — 2026-10-19
+- **Task:** T-517 — the compositor job's floor
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** render/goanna/GoannaRenderPage.{h,cpp}, render/goanna/BrowserPageGoanna.{h,cpp}, render/browserserver/Src/JihadFrameWindow.h (new), render/browserserver/Src/MANIFEST.md, render/adapter/BrowserOffscreen.{h,cpp}, engine patch 0053, tools/device/t502/README.md, docs/rounds/t502-2026-10-17/floor-r314-320.txt
+- **Validation:** Build P (libxul, daemon, the three adapters); patch-queue --check P (53); device rounds 321-332: verify mode on main-lane pans 0 structurally wrong; dumped express frames coherent; the default checks of all three interfaces pass with the window-aware adapters, frames right by eye; the cube right; a zoom sequence 8/8 (median 57 ms). Long test page median frame gap 29 -> 26 ms (30.5-36.4 fps); Wikipedia unchanged at 19-21 fps (acceptance open)
+- **Next:** T-517 — the sticky columns' passes (one traversal for all regions, or a safe rule for see-through sticky columns)
+

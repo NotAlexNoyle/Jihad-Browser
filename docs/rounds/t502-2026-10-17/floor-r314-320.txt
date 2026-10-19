@@ -45,3 +45,21 @@ Rounds 321-324 (same day)
     10-17, so every store reaches memory, and the cacheflush syscall cleans only to the point of
     unification. Six screenshots of what the card shows (r324: the cube with the counter, Wikipedia at
     rest): clean, no white or stale rows.
+
+Rounds 325-332: the frame windows (render/browserserver/Src/JihadFrameWindow.h, engine 0053)
+  A frame may start further into its shared segment (the segments hold four screens, a frame about
+  one): the daemon writes where in a 64-byte trailer at the segment's end before each publish, the
+  adapter's rasterBuffer() reads it (only an adapter that marked the segment it made uses it), and a
+  slot's frame after a scroll is its window moved by the scroll, not 3.7 MB of rows moved.
+  main lane, express off (r325-r327): verify mode after the pan began, Wikipedia 32 frames and the long
+    page 38, 0 structurally wrong (without windows, r326: 1); the compositor thread's shift 0-1.3 ms
+    against 6.5-8.3, band frames 36.1 / 18.4 ms against 38.0 / 22.8; the main lane's gap is bound
+    elsewhere (median 43 against 41)
+  express lane on its slot's own frame (r328-r330; it used to copy every frame from the newest slot,
+    and dropped the other slots' records on each publish, which both lanes now keep): dumped mid-pan
+    frames coherent on both pages; the long page's median gap 26 ms against 29 copying (30.5-36.4 fps);
+    Wikipedia no better (42-44 against 43): three frames of entering rows beside the sticky columns'
+    chunks overflow the 256-row band surface and 26-52 frames took the whole path against 16-18. The
+    lane now takes the faster kind by measured frame time (the other tried every 16th frame).
+  default checks of all three interfaces with the window-aware adapters (r332): pass, frames right by eye;
+    the cube with the counter beside it: right; a zoom sequence on Wikipedia: 8 of 8 first frames, median 57 ms

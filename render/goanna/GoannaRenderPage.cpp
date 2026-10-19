@@ -4702,7 +4702,8 @@ bool GoannaRenderPage::ComposeAsync() const {
 }
 
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
-                                        const unsigned char* src, long srcY, bool engineShift, bool verify, long colX0, long colX1) {
+                                        const unsigned char* src, long srcY, bool engineShift, bool verify, long colX0, long colX1,
+                                        bool windowMoved) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = GpuFrameHeight();   // T-505: the frame's rows, overscan included
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
@@ -4712,7 +4713,7 @@ uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, lon
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   // flag 4 (T-511): the column arguments are given, and the poll takes twelve ints back
   const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY,
-                                                       (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4, (int)colX0, (int)colX1);
+                                                       (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0), (int)colX0, (int)colX1);
   return token;
 }
 
@@ -4746,13 +4747,13 @@ bool GoannaRenderPage::PaintLayers() {
 
 uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo,
                                        long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
-                                       const double* aView, long colX0, long colX1) {
+                                       const double* aView, long colX0, long colX1, bool windowMoved) {
   if (!ExpressReady() || !mWidget || !dst) return 0;
   const int w = mWidth;
   if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * frameH * 4) return 0;
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   return jihad_offscreen_compose_post(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
-                                      (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | 4, aView ? 1 : 0,
+                                      (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | 4 | (windowMoved ? 8 : 0), aView ? 1 : 0,
                                       aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
                                       aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0, (int)colX0, (int)colX1);
 }

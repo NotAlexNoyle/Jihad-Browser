@@ -376,9 +376,10 @@ public:
   // src: the frame the kept rows are copied from (the newest slot), or null for dst itself
   // colX0..colX1 (T-511): the columns the bands are stale in (colX1 < 0: whole rows; 0,0: no band
   // asked for); the engine reads the bands as one column when it and the change are narrow
+  // windowMoved (T-517): the shift is the daemon's move of the frame's window (the rows in place)
   uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0,
                         const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false,
-                        long colX0 = 0, long colX1 = -1);
+                        long colX0 = 0, long colX1 = -1, bool windowMoved = false);
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // T-515: ComposeStart's halves. PaintLayers (the main thread) paints the layers; ComposePost (any
   // thread, the frame lock held) composes the tree as it stands into a frameH-row frame, at aView
@@ -387,7 +388,7 @@ public:
   bool PaintLayers();
   uint32_t ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo, long row2Hi,
                        long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView,
-                       long colX0 = 0, long colX1 = -1);
+                       long colX0 = 0, long colX1 = -1, bool windowMoved = false);
   bool ExpressReady() const;
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)

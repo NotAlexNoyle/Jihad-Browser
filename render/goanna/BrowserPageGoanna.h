@@ -19,6 +19,7 @@
 #ifndef JIHAD_BROWSERPAGEGOANNA_H
 #define JIHAD_BROWSERPAGEGOANNA_H
 
+#include "JihadFrameWindow.h"   // T-517: the frame window trailer (render/browserserver/Src)
 #include <cstdint>
 #include <map>
 #include <string>
@@ -354,7 +355,13 @@ private:
   // segment on EVERY paint cost ~400ms/keystroke on the device; attach once and reuse instead.
   unsigned char*     mShmBuf[3];
   int                mShmId[3];
+  size_t             mShmSize[3] = {0, 0, 0};   // T-517: each attached segment's size (its window trailer at the end)
   unsigned char*     attachShm(int keyOrId);   // resolve+attach (cached); nullptr on failure
+  // T-517, the frame windows (render/browserserver/Src/JihadFrameWindow.h): a segment's trailer
+  // (null when it cannot be had), and the window a frame is published with (written before each
+  // msgPainted, 0 = the pixels' start, as every frame was before)
+  JihadFrameTrailer* shmTrailer(int key);
+  void               publishWindow(int key, int windowRows);
   void               detachShm();               // shmdt all cached (on thaw/teardown)
   // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
   // previous one (asyncCmdReturnBuffer) each time it receives a new msgPainted. A buffer that has
@@ -413,6 +420,7 @@ private:
     int viewRow = 0;   // T-505: the view's top in the frame (the overscan above it)
     uint32_t xFrames = 0;   // T-515: the express lane's frames when it was posted (newer ones since: dropped)
     uint32_t cmdDone = 0;   // T-515: the card's commands the main loop had handled when it was posted
+    int win = 0;            // T-517: the frame's window in its slot (rows into the pixels)
   };
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
   int mGpuViewRow = 0;
@@ -441,6 +449,15 @@ private:
   // T-511: the columns the stale rows are stale in (the hull of the changes' columns; 0..w when a
   // change's columns were not known), meaningful while the slot has stale rows
   long               mGpuStaleX0[3] = {0, 0, 0}, mGpuStaleX1[3] = {0, 0, 0};
+  // T-517: the row of each slot's pixels its GPU frame starts at (the frame window,
+  // JihadFrameWindow.h); 0 when windows are off, and for the software path's frames
+  int                mGpuSlotWin[3] = {0, 0, 0};
+  bool               windowsFor(int key);   // the adapter that made the segment reads windows, and they are on
+  // a composite's change into the other valid slots' stale rows (both lanes, T-517), and the
+  // records dropped when a composite's change is in none of them
+  void               gpuStaleAdd(int except, long il, long ih, const GoannaRenderPage::ComposeResult& cr, int frameY,
+                                 int x, double zoom, int w, int h);
+  void               gpuSlotsLost();
   long               mGpuFixedLo = 0, mGpuFixedHi = 0;   // the rows fixed layers cover, as last reported
   int                mGpuLatestSlot = -1, mGpuLatestKey = 0;   // round 113: the newest finished GPU frame
   // round 116: a job started while another is composed (the two-deep queue) also reads the rows
@@ -453,6 +470,7 @@ private:
   // round 130: the second job builds on the job in flight (composed: its frame is complete when
   // the second job runs, the compositor thread runs them in order), exact while scrolling
   int                mGpuNextBaseKey = 0, mGpuNextBaseY = 0;
+  int                mGpuNextBaseWin = 0;   // T-517: that frame's window
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();
@@ -492,10 +510,18 @@ private:
     bool on = false; uint32_t token = 0, gen = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0, os = 0;
     double zoom = 1.0; long shift = 0; int64_t t0 = 0, wantMs = 0, waitMs = 0; bool whole = true;
     unsigned char* pixels = nullptr; int cardY = 0;
+    int win = 0;   // T-517: the frame's window in its slot (pixels is the window's first row)
+    int kind = 0;  // T-517: 1 built on its slot's own frame (the window moved), 2 copied from the base, 0 neither
     bool composed = false; long invLo = 0, invHi = 0; int composedY = 0;   // known once composed (being read)
     int64_t composedMs = 0;   // device rounds: when it was seen composed
   };
   XJob mXJob;                         // the express lane's frame in flight (the older one)
+  // T-517: the express lane's frame time on its slot's own frame and copied from the base (running
+  // averages, ms; 0 = not measured yet): the faster is taken, the other tried every 16th frame. A
+  // page whose sticky columns fill the band surface (Wikipedia) pays the own frame's taller bands
+  // with whole composites; a page without them saves the copy
+  double mXOwnMs = 0.0, mXCopyMs = 0.0;
+  uint32_t mXChoiceN = 0;
   XJob mXJob2;                        // the one after it, built on it while it is read (round 130's rule)
   bool mXMainWindow = false;          // the main lane paints its layers with the lock let go of
   int mXMainSlot = -1;                // ...for this slot
@@ -505,7 +531,8 @@ private:
   // suppression and first-paint hold are the main lane's)
   void xInvalidate() { ++mXGeomGen; mXSnap.ok = false; mXPub = XPub(); mXMainPubMs = 0; }
   bool xStart(int64_t now, double zoom, const XWant& want, int64_t waitSince, const XJob* aBase = nullptr);
-  void xForget(XJob& j) { if (j.on && mPage) mPage->ComposeForget(j.token); j = XJob(); }
+  // T-517: a forgotten job may have been composed: its change is in no slot's record
+  void xForget(XJob& j) { if (j.on && mPage) { mPage->ComposeForget(j.token); gpuSlotsLost(); } j = XJob(); }
   bool xLeads(int64_t now);           // the card is moving: the express lane makes the frames (the frame lock held)
   int64_t mXMainPaintMs = 0;          // the main lane's last layer paint while the express lane leads
   bool xPoll(int64_t now);

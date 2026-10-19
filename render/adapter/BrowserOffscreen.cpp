@@ -16,6 +16,9 @@
 *
 LICENSE@@@ */
 
+/* Modified by the Jihad Browser project (2026), per Apache-2.0 section 4(b): this file differs from
+ * HP's isis-project original. The changes are this repository's git history for this file. */
+
 #include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -87,6 +90,11 @@ BrowserOffscreen* BrowserOffscreen::create()
     IpcBuffer* buffer = IpcBuffer::create(bufferSize + sizeof(BrowserOffscreenInfo));
     if (!buffer) {
         return 0;
+    }
+    // T-517: this adapter reads frame windows (JihadFrameWindow.h); the daemon moves them only then
+    if (JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)buffer->buffer(), buffer->size())) {
+        ::memset(t, 0, sizeof(*t));
+        t->adapterCaps = kJihadWindowCaps;
     }
     return new BrowserOffscreen(buffer);
 }
@@ -166,9 +174,21 @@ QImage BrowserOffscreen::surface()
     QImage result;
 
     if ((m_header->renderedWidth > 0) && (m_header->renderedHeight > 0))
-        result = QImage(m_buffer, m_header->renderedWidth, m_header->renderedHeight, QImage::Format_ARGB32_Premultiplied);
+        result = QImage(rasterBuffer(), m_header->renderedWidth, m_header->renderedHeight, QImage::Format_ARGB32_Premultiplied);
 
     return result;
+}
+
+// T-517: the frame's window, when the daemon wrote one that fits the pixels (else the raster's start)
+size_t BrowserOffscreen::windowBytes() const
+{
+    JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());
+    if (!t || t->magic != kJihadWindowMagic || t->windowRows <= 0 || m_header->renderedWidth <= 0 || m_header->renderedHeight <= 0)
+        return 0;
+    const size_t rowBytes = (size_t)m_header->renderedWidth * 4;
+    if ((size_t)(t->windowRows + m_header->renderedHeight) * rowBytes > (size_t)rasterSize())
+        return 0;
+    return (size_t)t->windowRows * rowBytes;
 }
 
 void BrowserOffscreen::resetBuffer()
@@ -217,6 +237,6 @@ bool BrowserOffscreen::matchesParams(BrowserOffscreen* other) const
 
 int BrowserOffscreen::rasterSize() const
 {
-    return m_ipcBuffer->size() - sizeof(BrowserOffscreenInfo);
+    return m_ipcBuffer->size() - sizeof(BrowserOffscreenInfo) - kJihadTrailerBytes;   // T-517: the trailer after it
 }
 

@@ -1,0 +1,23 @@
+T-504, the zoom's first frame after a double tap: rounds 334-341, 2026-10-19, CE 3.1.0 TouchPad.
+Desktop en.wikipedia.org/wiki/HP_TouchPad, card-selftest.sh enyo "page:w15;t300,400;w2;..." (the card's
+smartZoom through its test hook, 2 s apart), daemon JIHAD_GPU_EXPRESS=1 JIHAD_GPU_ZOOM_DUMP=log
+JIHAD_GPU_TIMELINE=1; each tap's first frame at the new zoom ("zoom frame written", ms after the zoom).
+
+  r334 (6 taps)                      254 128 135 197 147 175
+  r335a/b                            74 86 328 106 78 196 255 169 326 / 68 159 287 79 179 80 138 202 332
+  r336a/b JIHAD_GPU_PASS=1           116 157 39 141 144 151 173 134 41 / 120 182 85 143 161 103 91 156 175
+  r338a/b copy-texture GPU swizzle   107 221 112 293 114 212 211 182 332 / 144 179 118 273 168 272 154 225 499
+  r341a/b after the review fixes     65 151 367 196 160 216 156 233 197 / 67 86 73 231 286 158 173 235 70
+
+The slow ones: a whole 1224-row frame read and swizzled on one core with the second unplugged after an
+idle pause ("cpu1 off" in the express frame's clocks; 2 per run) while the page's script runs: the read
+170 ms and the CPU swizzle 150 ms where 26 and 7 are usual (r335). In r334 the first tap's frame also
+waited 144 ms behind a main-lane frame at the old zoom: a zoom's express frame now gives up main-lane
+frames at the old zoom that were not composed yet (it did not happen again in these runs).
+The old pass mode (the swizzle on the GPU, the window target a texture) kept every tap under 190 ms but
+samples the frame target during band passes (wrong band frames) and slows a simple page's pans; a GPU
+swizzle through a copy texture was worse (the copy waits for the composite, 110-358 ms). Not kept.
+The scripted tap calls smartZoom through the card's test hook and skips the touch path, where Palm's
+governor ramps the CPU on a touch (ondemandtcl's tickle): a finger's double tap gets that ramp. Whether the
+second core is up for a finger's first tap after a pause is for the owner's finger round (T-514). The
+CPU's hotplug and governor are not written by the daemon (a governor write once wedged the bench).

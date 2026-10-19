@@ -260,3 +260,11 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P (libxul, daemon, the three adapters); patch-queue --check P (53); device rounds 321-332: verify mode on main-lane pans 0 structurally wrong; dumped express frames coherent; the default checks of all three interfaces pass with the window-aware adapters, frames right by eye; the cube right; a zoom sequence 8/8 (median 57 ms). Long test page median frame gap 29 -> 26 ms (30.5-36.4 fps); Wikipedia unchanged at 19-21 fps (acceptance open)
 - **Next:** T-517 — the sticky columns' passes (one traversal for all regions, or a safe rule for see-through sticky columns)
 
+### Iteration 14 — 2026-10-19
+- **Task:** T-504 — zoom keeps up (the first frame at a new zoom within 250 ms)
+- **Tier:** 87
+- **Status:** PARTIAL (the task's token budget spent: the plugin default, 45k; the owner raises it in .cavekit/token-ledger.json)
+- **Files:** render/goanna/BrowserPageGoanna.cpp (a zoom's express frame gives up uncomposed main-lane frames at the old zoom), docs/rounds/t502-2026-10-17/dtap-r334-341.txt; also the review of the day's work and its fixes (context/impl/impl-review-findings-gpu.md, engine 0054)
+- **Validation:** Build P; scripted double taps on Wikipedia 2 of 18 over 250 ms (286, 367) with the second core unplugged after a pause; two GPU-swizzle variants tried and dropped (context/impl/dead-ends.md); the default checks of all three interfaces pass
+- **Next:** the owner: raise T-504's budget or take it to the finger round (T-514); then T-512 (the [jihad-gpu] lines behind JIHAD_GPU_LOG, the script ready), T-513
+

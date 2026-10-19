@@ -144,6 +144,15 @@ Wikipedia still 19-21. **The bench's three adapters are the window-aware build**
 `build/webos-oe/adapter-deps/build-pdk/<v>/`); a package built before this commit would carry old ones and
 the daemon would keep windows at 0 (correct, just slower).
 
+**Review and T-504 (later the same day).** An inspector review of the day's work found six real problems
+(the express lane's own-slot base racing unpolled main-lane jobs, the kept rects' copy, older bases with
+sticky layers, failed jobs' records, a recentring before a failed post, WebGL after a GPU give-up); all
+fixed (`context/impl/impl-review-findings-gpu.md`, engine 0054). Scripted double taps: 2 of 18 first
+frames over 250 ms (286, 367), with the second core unplugged after a pause; the scripted tap skips the
+touch path's governor ramp, so a finger's tap goes to the finger round. T-504's own token budget (the
+plugin's 45k default) is spent: raise it in `.cavekit/token-ledger.json` to continue it. Failed approaches
+of the day: `context/impl/dead-ends.md`.
+
 **Next.** T-517: Wikipedia's sticky columns. A rule that kept see-through sticky columns once proven still
 was tried and reverted (round 333: the contents panel's highlight follows the reading position, so it does
 change during a pan); what is left is fewer passes (one tree traversal for all of a frame's regions). Then T-512 (fit to

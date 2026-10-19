@@ -284,6 +284,37 @@ pages read 1–2 a second there while timers fire 26–60 times a second later: 
 frames before shooting); a launch into an open card relays the URL into it (close the cards
 first); the device's `/tmp` is 40 MB (the frame dumps fill it).
 
+## Tier 87: the GPU path as shipped (2026-10-19)
+
+Options 4 and 2 of the shortlist, measured on the bench (TouchPad, webOS CE 3.1.0). The account of each
+step: `docs/PICKUP.md`, 2026-10-19 delta; the rounds: `docs/rounds/t502-2026-10-17/`.
+
+What it does. Every interface's daemon starts on the GPU path (`JIHAD_GPU_COMPOSITOR=1
+JIHAD_GPU_EXPRESS=1` in the upstart jobs; `JIHAD_GPU_COMPOSITOR=0` or `user_pref("jihad.gpu.enabled",
+false)` gives the software path, and a daemon whose GPU fails or stalls past 3 s falls back for its
+life). The engine's own compositor (OpenGL ES 2.0 on an EGL pbuffer) composes the layer tree; the
+card's scroll and zoom are applied in the compositor; a frame is read back only where it changed
+(bands, the fixed layers' columns, a narrow change's one column) into the shared buffer the card
+blits. Each card's commands are read on a thread of their own and an express lane composes and
+publishes frames while the page's script holds the main thread. A frame may start anywhere in its
+shared segment (a trailer says where), so a scroll moves the frame's window instead of its rows.
+WebGL 1 contexts are made on the GPU and share textures with the compositor (no readback).
+
+| Measured (scripted, the daemon's frames to the card) | GPU path as shipped | compared with |
+|---|---|---|
+| a long static page, pan | 30.5-36.4 fps | software path 2.9-3.2 fps |
+| desktop Wikipedia, pan | 19-21 fps | — |
+| a page holding the main thread 600 ms in 700, pan | 26-32 fps | GPU path without the express lane 2.4-3.8 fps |
+| zoom while the page's script runs (Wikipedia after its load) | 10/10 first frames within 160-225 ms | without the express lane: median 681 ms, 3 of 10 never framed |
+| card double taps on Wikipedia, first frame at the new zoom | median 158 ms, 0-2 of 12 over 250 | before the clock hold: 4-8 of 12 over 250 |
+| WebGL spinning cube, 240 / 360 / 480 px | 26.5-27 / 21.5-23 / 18-20.5 fps | software path: no WebGL |
+
+What it does not reach yet. Desktop Wikipedia under 24 fps: its two pinned side panels are see-through
+sticky layers, composed again every frame in three to four passes of ~5 ms of CPU each, with both cores
+full (the bench also runs `sensord` at ~18 % of a core beside the Atlas browser's `atlas-sensord`). The
+480 px WebGL cube on the card, the same composite-and-readback floor. Option 6 (zero-copy frames to the
+card) is what lifts that floor.
+
 ## Every combination, fastest first (the data behind the shortlist)
 
 The frame modeled is four full-screen layers, three blended; the CPU pays three blends (20.8 ms plain,

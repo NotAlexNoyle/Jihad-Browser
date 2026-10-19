@@ -115,6 +115,10 @@ page before its scripts run, only where the engine has none.
   history and bookmarks.
 - Printing to the IPP or AirPrint printer on your network.
 - DuckDuckGo Lite for search and home page; referrer rules honoured.
+- Pages are drawn on the TouchPad's GPU (the Adreno 220, through the engine's own compositor), and
+  frames keep coming while a page's script runs: a pinch or a pan is answered while the page is busy.
+  WebGL 1 works on it. `user_pref("jihad.gpu.enabled", false);` in an interface's profile goes back
+  to drawing in software.
 
 ---
 
@@ -168,8 +172,14 @@ does with a catch. Site by site, with causes and what was tried: `docs/MODERN-WE
   device's own OpenSSL; the [webOS Archive guide](https://docs.webosarchive.org/site/modern-tls/)
   covers those. Keep the clock set: certificate checks need the right date. howsmyssl.com's one
   "improvable" mark is post-quantum key agreement, which the engine does not have.
-- **It draws in software**, so frame rates are the device's. Double-tap zoom takes about a second
-  to sharpen; Mochi's text can look soft at some zoom levels.
+- **Frame rates are the device's.** Drawn on the GPU, a simple page pans at 30-36 frames a second
+  and desktop Wikipedia at 19-21 (its two pinned side panels are drawn again for every frame); the
+  first frame at a new zoom comes within a quarter of a second most of the time. Mochi's text can
+  look soft at some zoom levels.
+- **WebGL is version 1 on a 2011 GPU.** A 480-pixel spinning cube draws at 21-25 frames a second
+  (a smaller canvas reaches the card faster); four extensions desktop browsers offer are missing
+  (`ANGLE_instanced_arrays`, `WEBGL_compressed_texture_s3tc`, `EXT_blend_minmax`,
+  `EXT_shader_texture_lod`).
 - **Modern single-page applications are slow.** A page built as one large script (GitLab, Reddit's
   login page, DuckDuckGo's full results page) takes tens of seconds of script on this CPU, and the
   page is frozen while it runs. The desktop YouTube page is the worst of them, which is why Jihad
@@ -184,7 +194,7 @@ does with a catch. Site by site, with causes and what was tried: `docs/MODERN-WE
   old.reddit.com do, with any identity. Startpage's search works after its proof-of-work check,
   which takes about four minutes on this CPU the first time and then holds for a week.
 - **What no shim covers:** CSS container queries, `backdrop-filter`, `content-visibility`,
-  `Intl.Segmenter`, WebGL (no GPU driver), and H.264 in Media Source Extensions (WebM/VP9 plays).
+  `Intl.Segmenter`, and H.264 in Media Source Extensions (WebM/VP9 plays).
   A page that needs one of those shows it.
 - **`palm-install` skips the install scripts**, so a package installed with it does not work. Use
   Preware, WebOS Quick Install or `push-variant.sh`.

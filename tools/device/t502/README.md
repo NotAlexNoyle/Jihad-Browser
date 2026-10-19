@@ -184,3 +184,13 @@ adapters must be the window-aware build (`build-adapter-pdk.sh`, then each varia
 `/usr/lib/jihad/<v>/BrowserAdapterImpl.so` and a Luna restart); an older adapter makes the daemon keep
 windows at 0.
 
+
+Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
+frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every
+4th pixel, appended to one file, with their content extents in the log), `JIHAD_GPU_FORCE_FPS=1` (a frame
+asked for every tick, the spike's way before the compositor's own signal), `JIHAD_GPU_NO_WORLD=1` and
+`JIHAD_GPU_NO_WORLD_ENGINE=1` (the card's zoom not applied as the compositor's world transform, daemon side
+and engine side: bisection only), `JIHAD_GPU_OLD_SCROLL=1` (the card's scroll as the engine's scroll, not
+the compositor's async scroll), `JIHAD_GPU_SNAPSHOT=1` (the round-5 snapshot road instead of the
+compositor's frame), `JIHAD_GPU_TWO_DEEP_STILL=1` (the second job in flight only while nothing scrolls,
+round 116's rule).

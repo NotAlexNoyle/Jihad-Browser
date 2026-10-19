@@ -292,7 +292,7 @@ void YapProxy::setTerminate()
 
 void YapProxy::sendMessage()
 {
-    std::lock_guard<std::mutex> sendGuard(m_sendLock, std::adopt_lock);   // T-515: taken in packetMessage()
+    YapLockGuard sendGuard(m_sendLock, true);   // T-515: taken in packetMessage()
     char     pktHeader[4];
     uint16_t pktLen = 0;
 
@@ -452,20 +452,21 @@ void YapProxy::readerLoop()
             break;
         }
         InPacket* p = new InPacket;
-        p->flags = (uint8_t) hdr[3]; p->hup = false; p->tag = ++m_tagNext;
+        p->flags = (uint8_t) hdr[3]; p->hup = false;
+        { YapLockGuard g(m_qLock); p->tag = ++m_tagNext; }
         p->data.resize(len);
         if (len && !readWait(m_cmdSocketFd, (char*) &p->data[0], len)) { delete p; break; }
         if (!(p->flags & kPacketFlagSyncMask) && s_expressHook && s_expressHook(this, len ? &p->data[0] : NULL, len, p->tag)) {
             delete p;   // the express lane applied it
             continue;
         }
-        { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+        { YapLockGuard g(m_qLock); m_q.push_back(p); }
         char b = 1;
         ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
     }
     InPacket* p = new InPacket;
     p->flags = 0; p->hup = true; p->tag = 0;
-    { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+    { YapLockGuard g(m_qLock); m_q.push_back(p); }
     char b = 1;
     ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
 }
@@ -483,12 +484,13 @@ void YapProxy::freePacket(YapPacket* pkt)
 bool YapProxy::injectAsync(const uint8_t* data, int len)
 {
     if (!m_threaded || len <= 0 || len > kMaxMsgLen) return false;
-    const uint32_t tag = ++m_tagNext;
+    uint32_t tag;
+    { YapLockGuard g(m_qLock); tag = ++m_tagNext; }
     if (s_expressHook && s_expressHook(this, data, len, tag)) return true;
     InPacket* p = new InPacket;
     p->flags = 0; p->hup = false; p->tag = tag;
     p->data.assign(data, data + len);
-    { std::lock_guard<std::mutex> g(m_qLock); m_q.push_back(p); }
+    { YapLockGuard g(m_qLock); m_q.push_back(p); }
     char b = 1;
     ssize_t w = ::write(m_wakePipe[1], &b, 1); (void) w;
     return true;
@@ -511,7 +513,7 @@ void YapProxy::drainQueue()
     for (;;) {
         InPacket* p = 0;
         {
-            std::lock_guard<std::mutex> g(m_qLock);
+            YapLockGuard g(m_qLock);
             if (m_q.empty()) return;
             p = m_q.front();
             m_q.pop_front();

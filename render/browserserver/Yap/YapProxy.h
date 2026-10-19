@@ -24,12 +24,37 @@ LICENSE@@@ */
 #include <queue>
 #include <deque>
 #include <vector>
-#include <mutex>
-#include <atomic>
 #include <pthread.h>
 
 class YapServer;
 class YapPacket;
+
+// T-515: a pthread mutex and its scope guard. The adapter's PDK compiler (gcc 4.3.3, the device
+// WebKit host's own) builds these sources too and has no <mutex> or <atomic>.
+class YapLock
+{
+public:
+    YapLock() { pthread_mutex_init(&m_mutex, 0); }
+    ~YapLock() { pthread_mutex_destroy(&m_mutex); }
+    void lock() { pthread_mutex_lock(&m_mutex); }
+    void unlock() { pthread_mutex_unlock(&m_mutex); }
+private:
+    YapLock(const YapLock&);
+    YapLock& operator=(const YapLock&);
+    pthread_mutex_t m_mutex;
+};
+
+class YapLockGuard
+{
+public:
+    // aAdopt: the caller holds the lock already; the guard only lets go of it
+    explicit YapLockGuard(YapLock& aLock, bool aAdopt = false) : m_lock(aLock) { if (!aAdopt) m_lock.lock(); }
+    ~YapLockGuard() { m_lock.unlock(); }
+private:
+    YapLockGuard(const YapLockGuard&);
+    YapLockGuard& operator=(const YapLockGuard&);
+    YapLock& m_lock;
+};
 
 class YapProxy
 {
@@ -93,7 +118,7 @@ private:
     void ioFunction(GIOChannel* channel, GIOCondition condition);
     // T-515: the reader thread, the queue and the main loop's side of it
     struct InPacket { std::vector<uint8_t> data; uint8_t flags; bool hup; uint32_t tag; };
-    std::atomic<uint32_t> m_tagNext;
+    uint32_t m_tagNext;             // under m_qLock (the reader thread and injectAsync's callers)
     static uint32_t s_currentTag;   // the main loop's command being handled (its thread only)
     static void* readerMain(void* self);
     void readerLoop();
@@ -106,9 +131,9 @@ private:
     int           m_wakePipe[2];
     GIOChannel*   m_wakeChannel;
     GSource*      m_wakeSource;
-    std::mutex    m_qLock;
+    YapLock       m_qLock;
     std::deque<InPacket*> m_q;
-    std::mutex    m_sendLock;   // packetMessage() .. sendMessage(): the main thread and the express lane
+    YapLock       m_sendLock;   // packetMessage() .. sendMessage(): the main thread and the express lane
     bool readSocket(int fd, char* buf, int len);
     bool writeSocket(int fd, char* buf, int len);
 

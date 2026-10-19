@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-18 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-19 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,34 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-10-19 (evening) delta — T-505/T-511/T-517 blocked by the circuit breaker; T-512 diagnostics gated (READ FIRST)
+
+**Where the frame floor stands.** Desktop Wikipedia's 10 s scripted pan runs 23.2-24.1 fps since engine
+0055/0056 (rounds 346-357). Tried tonight and not kept, each measured on the same pan: deferring the
+page's tile uploads to the composite (a new texture's conversion then costs 11 ms inside the render
+pass), a texture pool topped up ahead (6-7 ms a conversion), partial tile uploads as sub-images
+(`gpu-bench.c` section 18: cheap with the GPU idle, but only 38 of a pan's 167 uploads are small), the
+express lane on its own slot for every frame. `JIHAD_GPU_READ_FINISH=1` shows why the copy cuts do not
+pay: after the 12 ms base copy the GPU still has 5.3 ms of the band frame's compose left (~17 ms of GPU
+work a frame), with both cores full (the bench's `sensord` at ~18 % of a core, from the Atlas browser's
+`atlas-sensord`). The 480 px WebGL cube reaches the card at 19.5-20.9 fps against the page's own
+23.8-25.1 (round 358). T-505, T-511 and T-517 are `blocked` in the registry under Cavekit's circuit
+breaker: the owner's finger round (T-514) judges smoothness, and running the bench without
+`atlas-sensord` is the owner's call. Notes: `docs/rounds/t502-2026-10-17/floor-r314-320.txt` (rounds
+349-357), `webgl-r281-313.txt` (358), `bench18-r355.txt`; `context/impl/dead-ends.md`.
+
+**T-512 (part, `e8b0e425`).** The `[jihad-gpu]` lines print only with `JIHAD_GPU_LOG=1` or a device
+round's `JIHAD_GPU_TIMELINE`/`VERIFY`/`DUMP_EVERY` (engine 0057, `mozilla/gfx/JihadGpuLog.h`; the daemon's
+`render/goanna/JihadGpuLog.h`): a shipped daemon logs three engine startup lines. `default-check.sh` counts
+the express lane's frames from the `page closed: <n> frames` line; all three interfaces pass on the bench
+(bundle 49ad5cf7). `gpu-spike-start.sh` sets `JIHAD_GPU_LOG=1` (`NOLOG=1` not). The bench's three variants
+run this build.
+
+**Registry.** T-517 added; T-512 no longer waits on T-504/T-505/T-511/T-517 (T-504 -> T-514 -> T-513 ->
+T-512 was a cycle). Next: T-513, Tier 87's review (Codex by direct invocation, the inspector as backup).
+The session that ran rounds 349-354 died mid-build: a build started from a session must be detached
+(`setsid nohup`), or it dies with the session.
 
 ## 2026-10-19 delta — T-515: frames made off the main thread, the express lane; T-516, T-510, T-511 (READ FIRST)
 

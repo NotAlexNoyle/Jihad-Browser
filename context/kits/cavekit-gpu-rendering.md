@@ -119,10 +119,10 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 
 ### R11: The code is fit to keep
 **Acceptance Criteria:**
-- [ ] The `[jihad-gpu]` diagnostics left are bounded and off by default; the verify mode and the frame dumps stay (they are the test); every `JIHAD_GPU_*` knob is listed in `tools/device/t502/README.md`
-- [ ] The engine work is folded into the patch queue (`check-engine-pins.sh` and `patch-queue.sh --check` agree) and `docs/ENGINE-SOURCE.md` names each patch
+- [x] The `[jihad-gpu]` diagnostics left are bounded and off by default; the verify mode and the frame dumps stay (they are the test); every `JIHAD_GPU_*` knob is listed in `tools/device/t502/README.md` *(2026-10-19, T-512: one gate in the engine (engine 0057, `mozilla/gfx/JihadGpuLog.h`) and one in the daemon (`render/goanna/JihadGpuLog.h`): `JIHAD_GPU_LOG=1`, or a device round's `JIHAD_GPU_TIMELINE`/`VERIFY`/`DUMP_EVERY`; failures and fallbacks print anyway. The shipped daemons of all three interfaces logged three engine startup lines in a load, pan, pinch and close (`default-check.sh`); the daemon's log is capped at 2 MB. The 76 switches in the code are in the README)*
+- [x] The engine work is folded into the patch queue (`check-engine-pins.sh` and `patch-queue.sh --check` agree) and `docs/ENGINE-SOURCE.md` names each patch *(2026-10-19: the 57 patches reproduce UXP_PIN `baaefa58` exactly, the pins agree, every patch has its row)*
 - [ ] A review (Codex by direct invocation, the inspector as backup) of the engine and daemon changes, every finding dispositioned
-- [ ] `docs/RENDERING-OPTIONS.md`, `docs/PICKUP.md` and the README say what the GPU path does and what it measured
+- [x] `docs/RENDERING-OPTIONS.md`, `docs/PICKUP.md` and the README say what the GPU path does and what it measured *(2026-10-19: RENDERING-OPTIONS' "What it does" and table with tonight's numbers and what it does not reach; the README's known issues; PICKUP's evening delta)*
 **Dependencies:** R1-R10
 
 ### R12: The owner's finger round

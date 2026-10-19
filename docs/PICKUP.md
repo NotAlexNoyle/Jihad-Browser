@@ -93,6 +93,20 @@ the first frame then takes 0.8-1.7 s, and pans stall the same way. The fix is fr
 main thread (the compositor thread composes with the card's scroll and zoom and publishes itself);
 that is T-505's work, and it closes T-504's criterion.
 
+**T-505 (rounds 187-201):** the per-page table (the GPU path ahead everywhere: the test page 30-35
+fps against 2.7-3.2, sticky-mix 17-19 against 2.4-3.1, desktop Wikipedia 19-26 against 2.7-2.9,
+Hacker News 31-37 against 6.4-10.4). The 56 ms+ gaps are the page's own restyle on the first scroll
+(Wikipedia's sticky header, 955 ms), the paints of the displayport moves (58-121 ms) and short page
+events; the compositor itself floors at ~30 ms a frame on Wikipedia (one composite per band and per
+sticky column chunk, the row shift, the read). **Overscan** (engine 0046): the GPU frame carries 0.15
+of the card's height above and below the view, so a pan or a busy main thread shows the page past
+the view's edges, not grey; verify is clean on four pages; it costs ~10% of the rate. The frame is
+capped at 1400 rows (the compositor's first pbuffer: a taller frame read its top rows from the
+bottom ones, flipped). Wikipedia at 24 fps needs **frames made off the main thread** (T-515, new):
+an IPC thread reads the card's scroll and zoom, the compositor composes and the frame is published
+while the main thread runs the page's script or a paint (the YAP proxy's sends then need a lock,
+the job state too, and the adapter's buffer returns must reach that thread).
+
 Traps found: the card's flick step (`f`) does not move a page (only a finger pans; the injected
 `pan` does); the device's `/tmp` filled with stale `.raw` dumps from earlier rounds and every
 `dev-sh.sh` then failed with "No space left on device" (remove them with `novacom run

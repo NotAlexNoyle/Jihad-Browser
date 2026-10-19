@@ -104,3 +104,9 @@ Rounds 178-186: `JIHAD_GPU_DEAA=1` (Gecko's edge antialiasing for scaled layers 
 variants compile on first use, ~150 ms each); with `JIHAD_GPU_PHASES=1` a composite of 80 ms or more
 logs its own phases and a draw of 5 ms or more logs its effect, texture and size (bounded).
 `gpu-bench.c` section 16: a texture filter switch after draws (no cost).
+
+T-505, rounds 187-201: `JIHAD_GPU_OVERSCAN=<fraction of the card's height>` (0.15: rows composed above
+and below the view once the page has been panned, so the card has content to pan into; 0 for a
+view-sized frame; frames are capped at 1400 rows, the compositor's first pbuffer). `pan-run.sh`
+sizes the frame dumps by their bytes (frames are taller than the card with overscan); delete
+`tools/device/t502/pan-frame-*.bgra` and the device's `/tmp/frame.raw*` after a run.

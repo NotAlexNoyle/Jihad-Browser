@@ -58,7 +58,8 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 **Acceptance Criteria:**
 - [ ] The scripted pan (0 → 3000 card px in 10 s, `tools/device/t502/pan-run.sh`) runs at 24 fps or better on `jihad-long-static.html` and on desktop en.wikipedia.org after its load
 - [ ] On every page measured, the GPU path's pan is at least as fast as the software path's on the same pan (`NOGPU=1`), and the table in `docs/RENDERING-OPTIONS.md` says so per page
-- [ ] Frame gaps of 56 ms or more during a pan are accounted for (traced to their source) and the avoidable ones removed
+- [ ] Frame gaps of 56 ms or more during a pan are accounted for (traced to their source) and the avoidable ones removed *(2026-10-18, traced: desktop Wikipedia's pan has 3-13 a 2 s window. The stall sampler resolves them to the page's own restyle on the first scroll (955 ms, 36% selector matching: its sticky header), the layer paints of the displayport moves (58-121 ms: display list, glyphs, regions), and short misc events. None is the daemon's own work; the anchor distance does not change them (0.125 and 0.4 heights measured). What would remove them from the frames is the frames made off the main thread: T-515.)*
+- [x] During a pan the card has content past the view's edges, as the software path's frames have: a gap between frames or a busy main thread shows the page, not grey *(added 2026-10-18 from the owner's "areas turn grey": the GPU frame carries 0.15 of the card's height above and below the view (engine 0046, `JIHAD_GPU_OVERSCAN`); verify 0 structurally wrong rows with it on the test page, sticky-mix, desktop Wikipedia and Hacker News; frame dumps looked at)*
 **Dependencies:** R2
 
 ### R4: Fixed and sticky content costs little
@@ -144,3 +145,4 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 ## Changelog
 - 2026-10-18: created from T-502 (rounds 1-141) and the owner's finger test; R1-R12.
 - 2026-10-18: R6 gains the sharpness criterion (the zoom's resolution) after T-504's rounds 162-186.
+- 2026-10-18: R3 gains the overscan criterion (content past the view's edges during a pan) after T-505's rounds 187-201.

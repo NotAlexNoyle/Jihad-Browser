@@ -1,0 +1,95 @@
+=== stall 40: 77 ms, 3 samples (10 ms each)
+--- by bucket:
+   66.7%  Paint / display list
+   33.3%  other module: libpthread.so.0
+--- top 6 functions:
+   33.3%  gfxContext::GetAzureDeviceSpaceClipBounds()
+   33.3%  _cairo_spline_error_squared
+   33.3%  libpthread.so.0
+
+=== stall 41: 955 ms, 89 samples (10 ms each)
+--- by bucket:
+   38.2%  other
+   36.0%  Style (selectors, restyle)
+    7.9%  Memory (malloc, strings)
+    5.6%  HTML parse / DOM build
+    3.4%  DOM bindings / XPCOM glue
+    3.4%  other module: libpthread.so.0
+    3.4%  other module: jihad-browserserver
+    1.1%  GC
+    1.1%  other module: libm.so.6
+--- top 6 functions:
+   12.4%  nsCSSRuleUtils::SelectorMatches(mozilla::dom::Element*, nsCSSSelector*, NodeMatchContext&, TreeMatchContext&, SelectorMatchesFlags, bool*)
+    6.7%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)0>(void const*, unsigned int)
+    4.5%  nsCharTraits<char16_t>::compare(char16_t const*, char16_t const*, unsigned int)
+    4.5%  RuleHash::EnumerateAllRules(mozilla::dom::Element*, ElementDependentRuleProcessorData*, NodeMatchContext&)
+    3.4%  libpthread.so.0
+    3.4%  jihad-browserserver
+
+=== stall 42: 58 ms, 1 samples (10 ms each)
+--- by bucket:
+  100.0%  Paint / display list
+--- top 6 functions:
+  100.0%  nsDisplayList::DeleteAll()
+
+=== stall 43: 121 ms, 7 samples (10 ms each)
+--- by bucket:
+   28.6%  other
+   28.6%  Paint / display list
+   14.3%  Memory (malloc, strings)
+   14.3%  Style (selectors, restyle)
+   14.3%  other module: libfreetype.so.6
+--- top 6 functions:
+   14.3%  mozilla::dom::CanvasRenderingContext2D::Redraw()
+   14.3%  PLDHashTable::AddressEntry(unsigned int)
+   14.3%  nsTArray_Impl<mp4_demuxer::SampleIterator*, nsTArrayInfallibleAllocator>::RemoveElementsAt(unsigned int, unsigned int)
+   14.3%  pixman_composite_src_n_8888_asm_neon
+   14.3%  nsStyleContext::GetVisitedDependentColor(nsCSSPropertyID)
+   14.3%  libfreetype.so.6
+
+=== stall 44: 82 ms, 4 samples (10 ms each)
+--- by bucket:
+   50.0%  Paint / display list
+   25.0%  other module: libmemcpy.so
+   25.0%  other
+--- top 6 functions:
+   25.0%  _moz_pixman_region32_copy
+   25.0%  pixman_composite_src_n_8888_asm_neon
+   25.0%  libmemcpy.so
+   25.0%  mozilla::layers::LayerManager::LayerUserDataDestroy(void*)
+
+=== stall 45: 67 ms, 2 samples (10 ms each)
+--- by bucket:
+   50.0%  other module: jihad-browserserver
+   50.0%  Paint / display list
+--- top 6 functions:
+   50.0%  jihad-browserserver
+   50.0%  gfxFont::Draw(gfxTextRun const*, unsigned int, unsigned int, gfxPoint*, TextRunDrawParams const&, unsigned short)
+
+=== stall 46: 97 ms, 5 samples (10 ms each)
+--- by bucket:
+   40.0%  Paint / display list
+   20.0%  Memory (malloc, strings)
+   20.0%  other
+   20.0%  other module: libpthread.so.0
+--- top 6 functions:
+   20.0%  nsDisplayButtonBorder::ComputeInvalidationRegion(nsDisplayListBuilder*, nsDisplayItemGeometry const*, nsRegion*)
+   20.0%  std::__atomic_base<int>::fetch_sub(int, std::memory_order)
+   20.0%  INT__moz_cairo_font_face_destroy
+   20.0%  Pickle::EndWrite(unsigned int)
+   20.0%  libpthread.so.0
+
+=== stall 47: 73 ms, 2 samples (10 ms each)
+--- by bucket:
+   50.0%  other module: libgcc_s.so.1
+   50.0%  other module: libpthread.so.0
+--- top 6 functions:
+   50.0%  libgcc_s.so.1
+   50.0%  libpthread.so.0
+
+=== stall 48: 62 ms, 1 samples (10 ms each)
+--- by bucket:
+  100.0%  other module: libc.so.6
+--- top 6 functions:
+  100.0%  libc.so.6
+

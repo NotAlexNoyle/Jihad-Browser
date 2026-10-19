@@ -37,7 +37,7 @@ for n in 60 120 180; do
     python3 -c "
 from PIL import Image
 d = open('$S/pan-frame-$n.bgra','rb').read()
-Image.frombytes('RGBA', (768, 942), d, 'raw', 'BGRA').convert('RGB').resize((384, 471)).save('$D/pan-$name-frame-$n.jpg', quality=85)" && echo "frame $n: $D/pan-$name-frame-$n.jpg"
+Image.frombytes('RGBA', (768, len(d) // 3072), d, 'raw', 'BGRA').convert('RGB').resize((384, len(d) // 6144)).save('$D/pan-$name-frame-$n.jpg', quality=85)" && echo "frame $n: $D/pan-$name-frame-$n.jpg"
   fi
 done
 build/webos-oe/dev-sh.sh -t 40 $S/gpu-spike-collect.sh 2>/dev/null | sed -n '/=== LOG BEGIN/,/=== LOG END/p' | grep -v 'Fontconfig warning' > $D/pan-$name-daemon-gpu.log

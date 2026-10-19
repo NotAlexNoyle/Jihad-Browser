@@ -4675,7 +4675,7 @@ bool GoannaRenderPage::ComposeAsync() const {
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
                                         const unsigned char* src, long srcY, bool engineShift, bool verify) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
-  const int w = mWidth, h = mHeight;
+  const int w = mWidth, h = GpuFrameHeight();   // T-505: the frame's rows, overscan included
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
@@ -4695,7 +4695,23 @@ static void GpuCleanRows(unsigned char* dst, int w, int h, long lo, long hi) {
 #endif
 }
 
-void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuCleanRows(dst, mWidth, mHeight, lo, hi); }
+void GoannaRenderPage::CleanRows(unsigned char* dst, long lo, long hi) { GpuCleanRows(dst, mWidth, GpuFrameHeight(), lo, hi); }
+
+// T-505: the root scroll frame's clip widened by the overscan (with a row of slack); every paint
+// calls this, the engine compares
+void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
+  if (!jihad_layout_set_overscan || !mChrome || !mChrome->mBrowser || zoom <= 0.0) return;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return;
+  const float css = rows > 0 ? (float)((rows + 1) / zoom) : 0.0f;
+  const int r = jihad_layout_set_overscan(ds, css, css);
+  static int sLogged = 0;
+  static float sLast = -1.0f;
+  if (css != sLast && sLogged++ < 12) {
+    sLast = css;
+    fprintf(stderr, "[jihad-gpu] overscan: %d card rows each side, the clip widened %.0f CSS px each way (code %d)\n", rows, css, r);
+  }
+}
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
@@ -4717,11 +4733,11 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
   if (!dst) return 0;   // drained, not published
   // the rows written: the first band through the frame-done work (the cache clean, the dumps,
   // the sample), the second band's cache cleaned the same way
-  long nb = GpuFrameDone(dst, mWidth, mHeight, o[4], o[5]);
-  if (o[7] > o[6]) GpuCleanRows(dst, mWidth, mHeight, o[6], o[7]);
+  long nb = GpuFrameDone(dst, mWidth, GpuFrameHeight(), o[4], o[5]);
+  if (o[7] > o[6]) GpuCleanRows(dst, mWidth, GpuFrameHeight(), o[6], o[7]);
   // a partial read (bands of a frame whose other rows the daemon kept or shifted in place)
   // says nothing about the whole frame: never "blank"
-  if (nb == 0 && (o[4] > 0 || o[5] < mHeight)) nb = 1;
+  if (nb == 0 && (o[4] > 0 || o[5] < GpuFrameHeight())) nb = 1;
   return (int)nb;
 }
 

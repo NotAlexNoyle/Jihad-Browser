@@ -525,6 +525,12 @@ public:
   // T-502: the card's scroll for the compositor (CSS px); false when the engine export is absent
   bool SetGpuScroll(double x, double y, bool valid);
   bool GpuDisplayPortOk() const { return mGpuDpOk; }   // T-502: the displayport is set on the current document
+  // T-505: the GPU path's frame height (the card's plus the overscan rows; 0 = the card's) and the
+  // overscan the root scroll frame's clip is widened by (card rows each side, at a zoom)
+  void SetGpuFrameHeight(int h) { mGpuFrameH = h; }
+  int GpuFrameHeight() const { return mGpuFrameH > 0 ? mGpuFrameH : mHeight; }
+  void SetGpuOverscan(int rows, double zoom);
+  int mGpuFrameH = 0;
   bool mGpuDpOk = false;
   // T-502 round 110: the displayport only for a page that scrolls (a still or animated page paid
   // for painting 1.25 heights above and below every frame); per document

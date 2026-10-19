@@ -171,3 +171,11 @@ Build site: context/plans/build-site.md
 - **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.cpp, engine patches 0044-0045 (gfx/gl/GLTextureImage.{h,cpp}, gfx/layers/opengl/CompositorOGL.cpp, gfx/layers/ipc/CompositorBridgeParent.cpp), render/goanna/test/enyo-selftest.js, tools/device/gpu-bench.c, tools/device/t502/zoom-run.sh + README
 - **Validation:** Build P (ARM libxul + daemon), device rounds 162-186; Acceptance 4/5 (the first frame ≤ 250 ms holds on settled pages, not while the page's script holds the main thread)
 - **Next:** T-505 — real-page pans and the main-thread gaps (frames made off the main thread, which also closes T-504's open criterion)
+
+### Iteration 3 — 2026-10-18
+- **Task:** T-505 — Real-page pans to the chart
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** render/goanna/BrowserPageGoanna.{cpp,h}, render/goanna/GoannaRenderPage.{cpp,h}, render/goanna/EngineCompat.h, engine patch 0046 (layout/base/nsLayoutUtils.{h,cpp}, layout/generic/nsGfxScrollFrame.cpp), tools/device/t502/pan-run.sh
+- **Validation:** Build P; verify 0 structurally wrong rows on four pages with overscan; the per-page table; Acceptance: the table and the trace yes, the overscan criterion yes, Wikipedia ≥ 24 fps no (16.5-24)
+- **Next:** T-506 (animation, new content against the chart); T-515 added for the frames off the main thread

@@ -1,0 +1,109 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <admin@true-og.net>
+Date: Sun, 18 Oct 2026 23:02:15 -0400
+Subject: [PATCH] gpu compositor: the root scroll frame's clip widened by the
+ card's overscan
+
+The GPU path's frame now carries rows above and below what the card shows, so the card has content
+to pan into between frames and while the main thread is busy (it showed grey past a view-sized
+frame's edges). jihad_layout_set_overscan(docshell, top, bottom) sets them (CSS px) as a frame
+property on the root scroll frame; with JIHAD_GPU_COMPOSITOR its clip in BuildDisplayList is widened
+by them (over the resolution, as the composition size is).
+---
+ layout/base/nsLayoutUtils.cpp       | 40 +++++++++++++++++++++++++++++
+ layout/base/nsLayoutUtils.h         |  3 +++
+ layout/generic/nsGfxScrollFrame.cpp |  9 +++++++
+ 3 files changed, 52 insertions(+)
+
+diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
+index f1e2725ba3..3d7ba6381d 100644
+--- a/layout/base/nsLayoutUtils.cpp
++++ b/layout/base/nsLayoutUtils.cpp
+@@ -8158,6 +8158,20 @@ nsLayoutUtils::ScrollbarAreaToExcludeFromCompositionBoundsFor(nsIFrame* aScrollF
+ // units), set by jihad_layout_set_displayport; the GPU path's root composition covers it
+ NS_DECLARE_FRAME_PROPERTY_DELETABLE(JihadShownSizeProperty, nsSize)
+ 
++// Jihad T-505: the GPU path's frame carries rows above and below what the card shows (overscan,
++// app units: top and bottom), set by jihad_layout_set_overscan; the root scroll frame's clip
++// (nsGfxScrollFrame's BuildDisplayList) is widened by it so those rows are composed
++NS_DECLARE_FRAME_PROPERTY_DELETABLE(JihadOverscanProperty, nsMargin)
++
++/* static */ nsMargin
++nsLayoutUtils::JihadOverscanFor(nsIFrame* aFrame)
++{
++  if (const nsMargin* m = aFrame ? aFrame->GetProperty(JihadOverscanProperty()) : nullptr) {
++    return *m;
++  }
++  return nsMargin();
++}
++
+ /* static */ nsSize
+ nsLayoutUtils::CalculateCompositionSizeForFrame(nsIFrame* aFrame, bool aSubtractScrollbars)
+ {
+@@ -9377,6 +9391,32 @@ nsLayoutUtils::GetNonAnonymousStyleContext(nsIFrame* aFrame)
+ // displayport is set.
+ #include "nsIDocShell.h"
+ #include "nsIScrollableFrame.h"
++// T-505: the rows the GPU path's frame carries above and below what the card shows (CSS px): the
++// root scroll frame's clip is widened by them. 0 on success; 1 no pres shell, 2 no root scroll frame.
++extern "C" MOZ_EXPORT int
++jihad_layout_set_overscan(nsIDocShell* aDocShell, float aTop, float aBottom)
++{
++  if (!aDocShell) {
++    return 1;
++  }
++  nsCOMPtr<nsIPresShell> ps = aDocShell->GetPresShell();
++  if (!ps) {
++    return 1;
++  }
++  nsIFrame* rsf = ps->GetRootScrollFrame();
++  if (!rsf) {
++    return 2;
++  }
++  const nsMargin m(nsPresContext::CSSPixelsToAppUnits(std::max(0.0f, aTop)), 0,
++                   nsPresContext::CSSPixelsToAppUnits(std::max(0.0f, aBottom)), 0);
++  const nsMargin* before = rsf->GetProperty(JihadOverscanProperty());
++  if (!before || *before != m) {
++    rsf->SetProperty(JihadOverscanProperty(), new nsMargin(m));
++    rsf->SchedulePaint();
++  }
++  return 0;
++}
++
+ extern "C" MOZ_EXPORT int
+ jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop, float aBottom)
+ {
+diff --git a/layout/base/nsLayoutUtils.h b/layout/base/nsLayoutUtils.h
+index b18edbc9c9..6dc91ce361 100644
+--- a/layout/base/nsLayoutUtils.h
++++ b/layout/base/nsLayoutUtils.h
+@@ -2557,6 +2557,9 @@ public:
+   static nsSize
+   CalculateCompositionSizeForFrame(nsIFrame* aFrame, bool aSubtractScrollbars = true);
+ 
++  // Jihad T-505: the GPU path's overscan of the root scroll frame (top and bottom, app units)
++  static nsMargin JihadOverscanFor(nsIFrame* aFrame);
++
+  /**
+   * Calculate the composition size for the root scroll frame of the root
+   * content document.
+diff --git a/layout/generic/nsGfxScrollFrame.cpp b/layout/generic/nsGfxScrollFrame.cpp
+index 9e5107fad6..5c6c6c14ca 100644
+--- a/layout/generic/nsGfxScrollFrame.cpp
++++ b/layout/generic/nsGfxScrollFrame.cpp
+@@ -3457,6 +3457,15 @@ ScrollFrameHelper::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+         double res = mOuter->PresContext()->PresShell()->GetResolution();
+         clipRect.width = NSToCoordRound(clipRect.width / res);
+         clipRect.height = NSToCoordRound(clipRect.height / res);
++        // Jihad T-505: the GPU path's frame carries rows above and below what the card shows
++        static const bool sJihadGpuOs = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++        if (sJihadGpuOs) {
++          const nsMargin os = nsLayoutUtils::JihadOverscanFor(mOuter);
++          if (os.top > 0 || os.bottom > 0) {
++            clipRect.y -= NSToCoordRound(os.top / res);
++            clipRect.height += NSToCoordRound((os.top + os.bottom) / res);
++          }
++        }
+       }
+     }
+ 

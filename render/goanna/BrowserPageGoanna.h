@@ -396,7 +396,12 @@ private:
   struct GpuJob {
     uint32_t token = 0; int slot = -1, key = 0, x = 0, y = 0, w = 0, h = 0; double zoom = 1.0;
     int64_t t0 = 0; uint32_t seq = 0; long askLo = 0, askHi = 0, ask2Lo = 0, ask2Hi = 0, shift = 0;
+    int viewRow = 0;   // T-505: the view's top in the frame (the overscan above it)
   };
+  // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
+  int mGpuViewRow = 0;
+  double mGpuViewRX = 0.0, mGpuViewRY = 0.0;
+  void gpuSetView(double z, double rx, double ry);
   std::vector<GpuJob> mGpuJobs;              // oldest first, at most two in flight
   bool gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h);
   void gpuJobStartNext(int x, int y, double zoom, int w, int h, size_t segSize, size_t hdr);

@@ -75,6 +75,9 @@ extern "C" {
   // of the docshell's document, from layout itself; 0 on success (see nsLayoutUtils.cpp).
   int jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop,
                                    float aBottom) __attribute__((weak));
+  // OPTIONAL (T-505): the rows the GPU path's frame carries above and below what the card shows
+  // (CSS px); the root scroll frame's clip is widened by them. 0 on success.
+  int jihad_layout_set_overscan(nsIDocShell* aDocShell, float aTop, float aBottom) __attribute__((weak));
   // OPTIONAL (T-502 round 108): the fd the compositor writes a byte to when a compose job finishes.
   void jihad_offscreen_set_done_fd(int aFd) __attribute__((weak));
   // OPTIONAL (T-502): the compositor's composite-request count; a frame is due when it moves.
@@ -131,6 +134,7 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_set_scroll", jihad_offscreen_set_scroll != nullptr},
     {"jihad_offscreen_set_done_fd", jihad_offscreen_set_done_fd != nullptr},
     {"jihad_layout_set_displayport", jihad_layout_set_displayport != nullptr},
+    {"jihad_layout_set_overscan", jihad_layout_set_overscan != nullptr},
     {"jihad_offscreen_take_dirty", jihad_offscreen_take_dirty != nullptr},
     {"jihad_offscreen_take_dirty_rect", jihad_offscreen_take_dirty_rect != nullptr},
     {"jihad_offscreen_composite_popups", jihad_offscreen_composite_popups != nullptr},

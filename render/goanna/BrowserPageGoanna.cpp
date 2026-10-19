@@ -926,7 +926,7 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
       // T-504: right after a zoom, the compositor shows what is painted at the new zoom and
       // position; the engine and its displayport stay until that frame is out (gpuZoomRelease)
       if (mPage->SetGpuScroll(wantX, wantY, true)) {
-        mPage->SetGpuView(z, 0.0, 0.0);
+        gpuSetView(z, 0.0, 0.0);
         mGpuCompositorScroll = true;
         return;
       }
@@ -948,7 +948,7 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
         fprintf(stderr, "[jihad-gpu] scroll anchor moved to %d,%d (wanted %.0f,%.0f)\n", mGpuAnchorX, mGpuAnchorY, wantX, wantY);
     }
     if (mPage->SetGpuScroll(wantX, wantY, true)) {
-      mPage->SetGpuView(z, 0.0, 0.0);
+      gpuSetView(z, 0.0, 0.0);
       mGpuCompositorScroll = true;
       return;
     }
@@ -962,7 +962,14 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     if (rx < 0.0 && rx > -1.0) rx = 0.0;
     if (ry < 0.0 && ry > -1.0) ry = 0.0;
   }
-  mPage->SetGpuView(z, rx, ry);
+  gpuSetView(z, rx, ry);
+}
+
+// T-505: the compositor's view with the frame's overscan: the view's top sits mGpuViewRow rows down
+// the frame, so the world moves the page down by that much (gpuJobStart sets it for each job)
+void BrowserPageGoanna::gpuSetView(double z, double rx, double ry) {
+  mGpuViewRX = rx; mGpuViewRY = ry;
+  mPage->SetGpuView(z, rx, ry - (z > 0.0 ? (double)mGpuViewRow / z : 0.0));
 }
 
 void BrowserPageGoanna::gpuZoomRelease(const char* why) {
@@ -3407,6 +3414,7 @@ static std::string jihadWhiteRuns(const unsigned char* px, int w, int h) {
 }
 
 bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
+  gpuSetView(zoom, mGpuViewRX, mGpuViewRY);   // T-505: the view's row in this frame (the compositor takes it at the start)
   long sLo = 0, sHi = h, s2Lo = 0, s2Hi = 0, shift = 0;   // whole, unless the slot's frame is still good
   static const bool sWhole = getenv("JIHAD_GPU_WHOLE") != nullptr;   // device rounds: every frame read whole
   // Round 113: the kept rows come from the NEWEST finished frame (another slot), shifted by the
@@ -3547,6 +3555,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   GpuJob j;
   j.token = token; j.slot = slot; j.key = key; j.x = x; j.y = y; j.zoom = zoom; j.w = w; j.h = h;
   j.t0 = jihadNowMs(); j.seq = mPage->CompositorSeq(); j.askLo = sLo; j.askHi = sHi; j.ask2Lo = s2Lo; j.ask2Hi = s2Hi; j.shift = shift;
+  j.viewRow = mGpuViewRow;
   mGpuJobs.push_back(j);
   return true;
 }
@@ -4253,7 +4262,30 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   } else {
     // Region render unavailable (old libxul: weak symbol absent / render failed / no room
     // for overscan): the previous viewport-exact paint, stamped at the band's true position.
-    paintedTop = (int)bandY; paintedH = h;
+    // T-505: on the GPU path the frame carries rows above and below the view (0.15 of the card's
+    // height each side, JIHAD_GPU_OVERSCAN=<fraction of the height>, 0 for none: a quarter cost
+    // 15-18% of the pan rate on every page measured, 0.15 about half that, round 201) once the
+    // page has been panned: the card pans the frame it has between frames and while the main
+    // thread is busy, and showed grey past a view-sized frame's edges (the owner's finger test,
+    // 2026-10-18). The view sits the same rows down every frame, at the page's ends too (the frame
+    // then starts above the page or ends below it: rows the card does not show, the adapter's
+    // placement is signed): the compositor's row shift between frames is the scroll's, and a view
+    // row that moved with the frame read every frame whole (round 192).
+    int gpuFrameH = h; long gpuLo = bandY;
+    if (mPage->GpuPath() && mPage->ComposeAsync()) {
+      static const double sOverscan = getenv("JIHAD_GPU_OVERSCAN") ? atof(getenv("JIHAD_GPU_OVERSCAN")) : 0.15;
+      int os = (sOverscan > 0.0 && mPage->GpuDisplayPortWanted()) ? (int)(h * sOverscan) : 0;
+      // no taller than the compositor's first pbuffer (1400 rows, CompositorOGL.cpp): a 1412-row
+      // frame read its top 12 rows from the bottom ones, flipped (round 197)
+      if (h + 2 * os > 1400) os = std::max(0, (1400 - h) / 2);
+      if (os > 0 && segSize < hdr + (size_t)w * (h + 2 * os) * 4) os = 0;
+      gpuFrameH = h + 2 * os;
+      gpuLo = bandY - os;
+      mGpuViewRow = os;
+      mPage->SetGpuFrameHeight(gpuFrameH);
+      mPage->SetGpuOverscan(os, Zeff);
+    }
+    paintedTop = (int)gpuLo; paintedH = gpuFrameH;
     fresh = true; growOwed = false;
     gpuT[0] = jihadNowMs();
     if (!mGpuJobs.empty()) mGpuTrace[5]++;
@@ -4264,11 +4296,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       // the slot after it once the oldest is composed (the read thread has it), and finishes
       // the publish below once the oldest is in. Each composite's change is added to the other
       // slots' stale rows; a slot composed for other geometry is read whole.
+      const int h = gpuFrameH;   // T-505: below, the frame's rows (the view's and the overscan)
       const int gslot = slotForKey(mActiveKey);
       if (!mGpuJobs.empty() && mGpuJobs[0].slot != gslot) gpuJobDrain();   // the slot moved under the jobs
       if (mGpuZoomHoldMs && getenv("JIHAD_GPU_ZOOMLOG")) fprintf(stderr, "[jihad-gpu] zoom hold: GPU branch, slot %d, jobs %zu, zoom %.4f\n", gslot, mGpuJobs.size(), Zeff);
       if (mGpuJobs.empty()) {
-        if (!gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)bandY, Zeff, w, h)) {
+        if (!gpuJobStart(gslot, mActiveKey, pixels, segSize - hdr, (int)bandX, (int)gpuLo, Zeff, w, h)) {
           nb = -1;
         } else {
           mGpuJobPolls = 0;
@@ -4285,20 +4318,20 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           // (its slot, its position): exact while scrolling too (round 116 allowed it only when
           // nothing scrolled, building on the older newest-finished frame)
           static const bool sStillOnly = getenv("JIHAD_GPU_TWO_DEEP_STILL") != nullptr;
-          if (r == -3 && (!sStillOnly || (oldest.shift == 0 && bandY == oldest.y && !mGpuCompositorScroll))) {
+          if (r == -3 && (!sStillOnly || (oldest.shift == 0 && gpuLo == oldest.y && !mGpuCompositorScroll))) {
             mGpuNextBaseKey = oldest.key;
             mGpuNextBaseY = cr.frameYValid ? (int)cr.frameY : oldest.y;
             // the composed job's changed rows are in ITS frame; the next job is at bandY: the hull
             // of both readings (scrolled and fixed content), as the stale rule does
             if (cr.invHi > cr.invLo) {
-              const long off = bandY - oldest.y;
+              const long off = gpuLo - oldest.y;
               mGpuNextExtraLo = std::max(0L, std::min(cr.invLo, cr.invLo - off));
               mGpuNextExtraHi = std::min((long)h, std::max(cr.invHi, cr.invHi - off));
             } else {
               mGpuNextExtraLo = mGpuNextExtraHi = 0;
             }
             mGpuNextSecond = true;
-            gpuJobStartNext((int)bandX, (int)bandY, Zeff, w, h, segSize, hdr);
+            gpuJobStartNext((int)bandX, (int)gpuLo, Zeff, w, h, segSize, hdr);
             mGpuNextSecond = false; mGpuNextExtraLo = mGpuNextExtraHi = 0; mGpuNextBaseKey = 0;
           }
           ++mGpuJobPolls; mNeedsPaint = true;
@@ -4360,6 +4393,14 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuFinished = true;
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
+          // T-505: the frame's rows outside the page (the overscan above the page's top or below its
+          // end) white, as the adapter fills what is past a frame: nothing is drawn there, and a whole
+          // composite left some of them the cleared black (a bounce at the top showed them)
+          const long pageEnd = (mLastContentH > 0) ? (long)((double)mLastContentH * oldest.zoom) - frameY : (long)h;
+          const long above = std::min((long)h, std::max(0L, -(long)frameY));
+          if (above > 0) memset(pixels, 0xff, (size_t)above * w * 4);
+          if (pageEnd < h && pageEnd >= 0) memset(pixels + (size_t)pageEnd * w * 4, 0xff, (size_t)(h - pageEnd) * w * 4);
+          const int pageLo = (int)above, pageHi = (int)std::max(above, std::min((long)h, pageEnd));
           // JIHAD_GPU_VERIFY=1 (device rounds): after a partial job, the same frame composed whole
           // into scratch and compared row by row; the runs of rows that differ are logged, so a
           // wrong shift, band or header shows as such
@@ -4373,7 +4414,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             // the whole composite at the JOB's scroll (the pan has moved on since), then the
             // card's current scroll again
             const double vz = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
-            mPage->SetGpuScroll(oldest.x / vz, oldest.y / vz, true);
+            const int viewRowNow = mGpuViewRow;   // T-505: the job's own view row for its composite
+            mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
+            mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow) / vz, true);
             const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);   // T-503: a verify composite
             int r2 = -1;
             if (vt) {
@@ -4383,12 +4426,13 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               if (r2 <= -2) mPage->ComposeForget(vt);
             }
             mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
+            mGpuViewRow = viewRowNow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
             if (r2 >= 0) {
               std::string runs; int nRuns = 0, bad = 0;
-              for (int r = 0; r < h; ) {
+              for (int r = pageLo; r < pageHi; ) {   // T-505: the page's rows (the rest is filled white)
                 if (memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) == 0) { ++r; continue; }
                 int r0 = r;
-                while (r < h && memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) != 0) ++r;
+                while (r < pageHi && memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) != 0) ++r;
                 bad += r - r0;
                 if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
               }
@@ -4406,10 +4450,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 }
                 return far > 4;
               };
-              for (int r = 0; r < h; ) {
+              for (int r = pageLo; r < pageHi; ) {
                 if (!rowWrong(r)) { ++r; continue; }
                 int r0 = r;
-                while (r < h && rowWrong(r)) ++r;
+                while (r < pageHi && rowWrong(r)) ++r;
                 wrongRows += r - r0;
                 if (nWrong++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); wrongRuns += b; }
               }
@@ -4442,8 +4486,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 }
                 return n ? (double)sum / n : 0.0;
               };
-              for (int b0 = 0; b0 < h; b0 += 16) {
-                const int b1 = std::min(h, b0 + 16);
+              for (int b0 = pageLo; b0 < pageHi; b0 += 16) {
+                const int b1 = std::min(pageHi, b0 + 16);
                 bool any = false;
                 for (int r = b0; r < b1 && !any; r++) any = rowWrong(r);
                 if (!any) continue;
@@ -4477,7 +4521,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             if (r2 >= 0 && oldest.shift > 0 && oldest.shift < h) {
               static std::vector<unsigned char> sBefore;
               if (sBefore.size() < bytes) sBefore.resize(bytes);
-              mPage->SetGpuScroll(oldest.x / vz, (oldest.y - oldest.shift) / vz, true);
+              mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
+              mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow - oldest.shift) / vz, true);
               const uint32_t vt2 = mPage->ComposeStart(sBefore.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);
               int r3 = -1;
               if (vt2) {
@@ -4487,6 +4532,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 if (r3 <= -2) mPage->ComposeForget(vt2);
               }
               mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
+              mGpuViewRow = viewRowNow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
               if (r3 >= 0) {
                 const size_t stride = (size_t)w * 4;
                 std::string runs; int nRuns = 0, bad = 0;

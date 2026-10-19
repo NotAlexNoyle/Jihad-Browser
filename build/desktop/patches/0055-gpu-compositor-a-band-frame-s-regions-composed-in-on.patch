@@ -1,0 +1,151 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 19 Oct 2026 12:45:37 -0400
+Subject: [PATCH] gpu compositor: a band frame's regions composed in one frame
+
+T-517. A band frame (a pan step: the entering bands and the fixed layers' column chunks, stacked on
+the band surface) was one full composite per region: the transaction, the diff, BeginFrame and
+EndFrame and the layer tree's render each time, ~5 ms of CPU whatever the region drew, four or five
+regions a desktop Wikipedia frame. LayerManagerComposite::JihadSetRegions gives the regions (each a
+world transform and a rect on the target) to one composite: the transaction and the frame once, and
+for each region the effective transforms at its world, Prepare and RenderLayer inside its rect.
+PostProcessLayers works in layer space and is shared. Chunked Wikipedia frames composed in 16-17 ms
+where they took 22.5. JIHAD_GPU_PASS_PER_REGION=1 composes each region on its own as before.
+---
+ .../composite/LayerManagerComposite.cpp       | 19 ++++++++-
+ gfx/layers/composite/LayerManagerComposite.h  | 10 +++++
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 39 ++++++++++++++++++-
+ 3 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
+index f3a42ce5b5..124b20c3fa 100644
+--- a/gfx/layers/composite/LayerManagerComposite.cpp
++++ b/gfx/layers/composite/LayerManagerComposite.cpp
+@@ -544,10 +544,11 @@ LayerManagerComposite::UpdateAndRender()
+     mJihadLastChanged = onFrame.GetBounds();
+   }
+   mJihadPartialOn = false;
+-  if ((!mJihadBand.IsEmpty() || !mJihadBand2.IsEmpty() || !mJihadBand3.IsEmpty()) && !mTarget) {
++  if ((!mJihadBand.IsEmpty() || !mJihadBand2.IsEmpty() || !mJihadBand3.IsEmpty() || mJihadRegionN > 0) && !mTarget) {
+     if (!mJihadBand.IsEmpty()) invalid.Or(invalid, mJihadBand);
+     if (!mJihadBand2.IsEmpty()) invalid.Or(invalid, mJihadBand2);
+     if (!mJihadBand3.IsEmpty()) invalid.Or(invalid, mJihadBand3);
++    for (int k = 0; k < mJihadRegionN; k++) invalid.Or(invalid, mJihadRegionRect[k]);   // T-517
+     mJihadPartialOn = true;
+   } else if (!mTarget && !mJihadLastChanged.IsEmpty() && mClonedLayerTreeProperties &&
+              !invalid.Contains(mRenderBounds)) {
+@@ -1034,6 +1035,21 @@ LayerManagerComposite::Render(const nsIntRegion& aInvalidRegion, const nsIntRegi
+   // Render our layers.
+   const TimeStamp jihadR0 = JihadPhases() ? TimeStamp::Now() : TimeStamp();
+   if (JihadPhases()) gJihadPhase[2] += (jihadR0 - jihadB0).ToMilliseconds();
++  if (mJihadRegionN > 0 && mJihadPartialOn) {
++    // T-517: the band frame's regions, each at its own world and inside its own rect, in this one
++    // frame: the transaction, the diff and BeginFrame/EndFrame once (a pass cost ~5 ms of CPU
++    // whatever it drew; a Wikipedia pan frame took four or five of them)
++    for (int k = 0; k < mJihadRegionN; k++) {
++      IntRect r = mJihadRegionRect[k].Intersect(IntRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height));
++      if (r.IsEmpty()) continue;
++      mRoot->ComputeEffectiveTransforms(mJihadRegionWorld[k]);
++      const ParentLayerIntRect rc(r.x, r.y, r.width, r.height);
++      RootLayer()->Prepare(ViewAs<RenderTargetPixel>(rc, PixelCastJustification::RenderTargetIsParentLayerForRoot));
++      RootLayer()->RenderLayer(r);
++    }
++    mRoot->ComputeEffectiveTransforms(mJihadWorld);   // the state the frame's other users expect
++    if (JihadPhases()) gJihadPhase[4] += (TimeStamp::Now() - jihadR0).ToMilliseconds();
++  } else {
+   RootLayer()->Prepare(ViewAs<RenderTargetPixel>(clipRect, PixelCastJustification::RenderTargetIsParentLayerForRoot));
+   const TimeStamp jihadR1 = JihadPhases() ? TimeStamp::Now() : TimeStamp();
+   RootLayer()->RenderLayer(clipRect.ToUnknownRect());
+@@ -1041,6 +1057,7 @@ LayerManagerComposite::Render(const nsIntRegion& aInvalidRegion, const nsIntRegi
+     gJihadPhase[3] += (jihadR1 - jihadR0).ToMilliseconds();
+     gJihadPhase[4] += (TimeStamp::Now() - jihadR1).ToMilliseconds();
+   }
++  }
+ 
+   if (!mRegionToClear.IsEmpty()) {
+     for (auto iter = mRegionToClear.RectIter(); !iter.Done(); iter.Next()) {
+diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
+index 3ed59370b7..e8f22dc1ab 100644
+--- a/gfx/layers/composite/LayerManagerComposite.h
++++ b/gfx/layers/composite/LayerManagerComposite.h
+@@ -130,6 +130,13 @@ public:
+   // real frame must see the changes the verify composite also drew)
+   void JihadHoldBaseline(bool aHold) { mJihadHoldBaseline = aHold; }
+   void JihadSetBand(const gfx::IntRect& aBand, const gfx::IntRect& aBand2 = gfx::IntRect(), const gfx::IntRect& aBand3 = gfx::IntRect()) { mJihadBand = aBand; mJihadBand2 = aBand2; mJihadBand3 = aBand3; }
++  // T-517: a band frame's regions composed in one frame (one transaction, one BeginFrame and
++  // EndFrame): region k is the layer tree at world aWorlds[k], drawn only inside aRects[k] (target
++  // pixels). aN 0 ends it. At most 12.
++  void JihadSetRegions(const gfx::Matrix4x4* aWorlds, const gfx::IntRect* aRects, int aN) {
++    mJihadRegionN = 0;
++    for (int k = 0; k < aN && k < 12; k++) { mJihadRegionWorld[k] = aWorlds[k]; mJihadRegionRect[k] = aRects[k]; mJihadRegionN++; }
++  }
+   // the card's scroll alone moved (an async transform on the root scroll frame's content, which
+   // the layer diff reports as the content's whole bounds): the diff is dropped, the bands asked
+   // for are composed and read
+@@ -384,6 +391,9 @@ private:
+   gfx::IntRect mJihadLastInvalid;   // Jihad T-502
+   bool mJihadHoldBaseline = false;
+   gfx::IntRect mJihadLastChanged, mJihadBand, mJihadBand2, mJihadBand3;   // Jihad T-502 (band 3: round 138's columns)
++  gfx::Matrix4x4 mJihadRegionWorld[12];   // T-517: JihadSetRegions
++  gfx::IntRect mJihadRegionRect[12];
++  int mJihadRegionN = 0;
+   bool mJihadIgnoreDiff = false;
+   bool mJihadCompensateScroll = false;
+   bool mJihadPartialOn = false;                  // this Render is a partial composite
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index eb3594c274..411ded0502 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1988,7 +1988,42 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       TimeStamp tb0 = TimeStamp::Now();
+       double msCompose = 0, msRead = 0, msShift = 0;
+       int at = 0;
+-      for (int b = 0; b < 2 && ok; b++) {
++      // T-517: the bands and the column chunks as regions of one frame (LayerManagerComposite::
++      // JihadSetRegions); JIHAD_GPU_PASS_PER_REGION=1 composes each on its own, as before
++      static const bool sPassPerRegion = getenv("JIHAD_GPU_PASS_PER_REGION") != nullptr;
++      if (!sPassPerRegion && ok) {
++        gfx::Matrix4x4 worlds[12];
++        gfx::IntRect rects[12];
++        int nr = 0;
++        for (int b = 0; b < 2; b++) {
++          if (!hs[b]) continue;
++          const int lo = std::max(0, bands[b][0]);
++          worlds[nr] = world;
++          worlds[nr].PostTranslate(0.0f, (float)(at - lo), 0.0f);   // frame row lo -> stacked row at
++          rects[nr++] = gfx::IntRect(0, at, aWidth, hs[b]);
++          at += hs[b];
++        }
++        for (int c = 0; c < nChunks && nr < 12; c++) {
++          const JihadChunk& ch = chunks[c];
++          worlds[nr] = world;
++          worlds[nr].PostTranslate((float)(ch.atX - ch.srcX), (float)(fullRows - ch.srcLo), 0.0f);
++          rects[nr++] = gfx::IntRect(ch.atX, fullRows, ch.w, ch.h);
++        }
++        mLayerManager->JihadSetWorldTransform(nr ? worlds[0] : world);
++        mLayerManager->UpdateRenderBounds(passBounds);    // the target and viewport are the surface's size
++        mLayerManager->JihadIgnoreDiff(true);
++        mLayerManager->JihadResetLastInvalid();
++        mLayerManager->JihadSetBand(gfx::IntRect(), gfx::IntRect());
++        mLayerManager->JihadSetRegions(worlds, rects, nr);
++        if (!passRows) ogl->JihadSelectTarget();
++        TimeStamp c0 = TimeStamp::Now();
++        sJihadInCompose = true;
++        ForceComposeToTarget(nullptr, nullptr);
++        sJihadInCompose = false;
++        mLayerManager->JihadSetRegions(nullptr, nullptr, 0);
++        msCompose += (TimeStamp::Now() - c0).ToMilliseconds();
++      }
++      for (int b = 0; b < 2 && ok && sPassPerRegion; b++) {
+         if (!hs[b]) continue;
+         const int lo = std::max(0, bands[b][0]), hb = hs[b];
+         gfx::Matrix4x4 wb = world;
+@@ -2007,7 +2042,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         at += hb;
+       }
+       // round 142: the column chunks, each with the world moved so its rows land at (atX, fullRows)
+-      for (int c = 0; c < nChunks && ok; c++) {
++      for (int c = 0; c < nChunks && ok && sPassPerRegion; c++) {
+         const JihadChunk& ch = chunks[c];
+         gfx::Matrix4x4 wb = world;
+         wb.PostTranslate((float)(ch.atX - ch.srcX), (float)(fullRows - ch.srcLo), 0.0f);

@@ -268,3 +268,11 @@ Build site: context/plans/build-site.md
 - **Validation:** Build P; scripted double taps on Wikipedia 2 of 18 over 250 ms (286, 367) with the second core unplugged after a pause; two GPU-swizzle variants tried and dropped (context/impl/dead-ends.md); the default checks of all three interfaces pass
 - **Next:** the owner: raise T-504's budget or take it to the finger round (T-514); then T-512 (the [jihad-gpu] lines behind JIHAD_GPU_LOG, the script ready), T-513
 
+### Iteration 15 — 2026-10-19
+- **Task:** T-517 / T-505 — desktop Wikipedia's pan (T-504 marked blocked on the owner's finger round)
+- **Tier:** 87
+- **Status:** PARTIAL
+- **Files:** engine patches 0055 (one-frame regions) and 0056 (the tile cull); docs/rounds/t502-2026-10-17/floor-r314-320.txt; also README "Where it stands" and tools/readme-progress.py (the owner's request)
+- **Validation:** Build P; patch-queue --check P (56); verify mode on main-lane Wikipedia pans (2 small overscan mismatches in 155 frames with the cull, 0 in 105 without: recorded); the default checks of all three interfaces pass; Wikipedia's 10 s pan 23.4-23.9 fps (R3's >= 24 not yet)
+- **Next:** the gaps that remain are the page's work (tile uploads queued on the compositor thread, script on the other core): moving uploads off the express frame's way
+

@@ -72,3 +72,26 @@ Round 333: see-through sticky columns kept once proven still (tried, reverted)
   panel's strip below it is not one colour. The per-frame save and compare made frames slower: median
   gap 71-72 ms against 42 (JIHAD_GPU_NO_STILL_COLS=1). What is left on Wikipedia is composing panels that
   change, in 3-4 chunk passes of ~5 ms each: fewer passes (one traversal for all regions) is the open way.
+
+Rounds 342-348: fewer composites a frame, fewer tiles a composite (engine 0055, 0056)
+  one-frame regions (r342): a band frame's bands and column chunks composed as regions of one composite
+    (the transaction, the diff and BeginFrame/EndFrame once; per region the effective transforms,
+    Prepare and RenderLayer): chunked frames compose 16.4-17.0 ms against 22.5 (JIHAD_GPU_PASS_PER_REGION=1),
+    the compositor job 35-36.5 against 39.7; verify mode 0 structurally wrong of 32
+  the tile cull (r343-r345): a tile whose transformed bounds miss the clip skipped before its texture is
+    locked and bound: chunked frames compose 10.6 against 16.9, the long page's 3.9 against 5.9. The first
+    version compared against the clip without the render target's origin and lost tiles drawn into an
+    intermediate surface (r343: 2 frames of 19 badly wrong); with the origin, verify mode over six runs:
+    2 small mismatches in 155 frames, both in the overscan rows above the card's view early in the pan
+    (80 and 32 rows), against 0 in 105 without the cull and 1 in 116 in earlier rounds. The cull is the
+    compositor's own geometric test made earlier (only a culled tile's lock and bind are skipped), so the
+    pixels it draws cannot differ; kept, with JIHAD_GPU_NO_TILE_CULL=1 for A/B.
+  desktop Wikipedia's 10 s scripted pan, frames published (r346-r348): 20.6-23.9 fps, the three last runs
+    23.4-23.9 (earlier builds 20.0-21.7); typical frame 35-38 ms (median), the mean pulled up by gaps of
+    56-180 ms where the express frame waits 26-87 ms in the compositor's queue behind the page's own work
+    (tile uploads after its repaints) or the page's script runs 60-212 ms on the other core, and the first
+    frames with the second core unplugged
+  tried and not kept: a 320/384-row band surface (no change, r347); the express lane on its slot's own
+    frame despite the sticky panels (r348, a test switch, pixels wrong there): the compositor job 30.2 ms
+    against 35.6 but the pan 23.9 fps against 23.7, so the engine work to make that base correct is not
+    worth it while the page's own work sets the gaps

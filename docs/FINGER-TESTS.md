@@ -67,11 +67,11 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   R4; scripted check passed)
 
 ## Chrome, menus and dialogs
-- [ ] Every button in each card's chrome: back, forward, home, reload/stop, padlock, share, new card,
-  bookmarks/history; every app-menu entry; Mojo's new-card / share / history. (device-build R4)
-- [ ] Hold on text, on a field, on a link and on an image: the long-press menu offers the right
+- [~] Every button in each card's chrome: back, forward, home, reload/stop, padlock, share, new card,
+  bookmarks/history; every app-menu entry; Mojo's new-card / share / history. (device-build R4) *(2026-10-24, the emulated finger, T-525: Enyo — back, forward, reload (the stop glyph shows), stop, home (DuckDuckGo lite), share (Add Bookmark / Share Link / Add to Launcher), bookmarks panel, padlock (the DigiCert certificate, Done), app menu (Find on Page / Settings / Print), new card — all act. Mochi — the same set acts (clear, share, Bookmarks / History / Downloads, app menu, new card; back and forward after a link). Mojo — reload, home, new card, the library and share menus, find in page, the padlock dialog, the app menu act; BACK AND FORWARD DO NOT: with history and the icon drawn enabled, a tap on the bar's back emits no command at all (rewiring "jihad-back" to openUrl loads nothing; the daemon's new pageBackward line never prints; the card's own log reaches nothing on this build). OPEN — next: the command-menu widget's tap handling for the first two items (the row is a scroller; the items start disabled and are enabled by modelChanged).)*
+- [~] Hold on text, on a field, on a link and on an image: the long-press menu offers the right
   entries and each does what it says; a plain tap is unaffected. (ui-shell R7, mochi-ui R2,
-  mojo-ui R6)
+  mojo-ui R6) *(2026-10-24, Enyo: a hold on text selects the word and offers Copy / Select All / Reload / Add Bookmark / Find on Page; on a field, the keyboard and Paste / Select All. The image hold landed on the caption (hold 60 px higher next time) and the link hold ran with the keyboard still up — both to re-run; Mochi and Mojo and the entries' actions not yet.)*
 - [ ] Pick and dismiss an item in a card-side drop-down list; answer a card dialog by tap (an add-on
   install confirm, an SSL confirm). (device-build R4)
 - [ ] about:settings: every control by finger at 1024×768, including the tabs (wrapped in Mochi)

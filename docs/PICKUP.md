@@ -74,8 +74,7 @@ viewport's larger side; a page with no viewport tag keeps the adapter's 4.0 and 
 **Device state:** DEV COPIES on all three variants — libxul 4d753b8f (c79d16f8 stripped) and daemon 7c29035a in each
 `deviceroot/hl`, the originals kept as `libxul.so.orig` / `jihad-browserserver.orig` (c66cd841 / 350c83ed); the
 upstart jobs run them. A packaged build and install (the three ipks) is the clean way to ship them: `build-all-device.sh`
-after the commit. **Next:** T-525 (part 2: chrome and shells) and T-526 (part 3: keyboard, text, plugins, media) with the
-finger, then T-527. Not pushed: this session's commits (the owner's `push.sh`; the engine fork's new head c79d16f8 must
+after the commit. **T-525 begun (part 2):** the chrome buttons of all three shells run — all act except Mojo's back and forward: with history and the icon enabled, a tap on the bar's back emits NO command (even "jihad-back" rewired to openUrl loads nothing; the daemon's new `pageBackward:` line never prints; palm-log and syslog carry none of the card's Mojo.Log lines on this build). Suspect the command-menu widget's tap handling of the first two items (the row is a scroller, the items start disabled). Enyo's long-press on text and on a field done. The Mojo daemon runs a0e151e1 (7c29035a plus the pageBackward/pageForward log lines; Enyo and Mochi still 7c29035a); the Mojo shell file on the device is its original. **Next:** the Mojo back, the rest of T-525, then T-526 and T-527. Not pushed: this session's commits (the owner's `push.sh`; the engine fork's new head c79d16f8 must
 go with the main repo's gitlink).
 
 **The owner:** (1) "proceed with everything blocked by the finger tests, not by assuming it works, but by driving your

@@ -131,9 +131,9 @@ place; on any failure it keeps what it has and waits a day before the next try; 
 cannot postpone it. Whichever of the bundled snapshot and the download is newer is used, so a
 package upgrade's snapshot is not shadowed by an older download. Updates are logged.
 **Acceptance Criteria:**
-- [ ] A forced update on the device (the button, or `jihad.blocking.lastUpdate` cleared) downloads both files over HTTPS, logs the versions and the counts, and the next page is blocked by the new set (a rule present only in the new list is honoured).
-- [ ] With the network off, the update fails cleanly: a log line, no change, no dialog.
-- [ ] The download is not attempted more often than every 4 days (the timestamp pref, checked across a daemon restart), and a failed attempt not more often than daily (`jihad.blocking.lastAttempt`).
+- [x] A forced update on the device (the button, or `jihad.blocking.lastUpdate` cleared) downloads both files over HTTPS, logs the versions and the counts, and the next page is blocked by the new set (a rule present only in the new list is honoured). *(2026-10-19, the Enyo card, `lastUpdate` cleared: EasyList 202610151429 -> 202610191826 and EasyPrivacy 202610151429 -> 202610191828 over HTTPS, hosts 91,924 -> 93,360, logged with the counts; the next page's image from `beacon.cdnpure.com`, a rule only in the new EasyPrivacy, was blocked (`docs/rounds/t487-update.png`). The run found EasyPrivacy refused as "truncated" on every update (its 57,139 lines held against both lists' rules together): each download is now held against its own list's copy.)*
+- [x] With the network off, the update fails cleanly: a log line, no change, no dialog. *(2026-10-19: a dead proxy (127.0.0.1:9) and `lastUpdate` 1: `update: easylist: no download`, `easyprivacy: no download`, the versions and the compiled set unchanged, `lastAttempt` set, no dialog (`docs/rounds/t487-netoff.png`).)*
+- [x] The download is not attempted more often than every 4 days (the timestamp pref, checked across a daemon restart), and a failed attempt not more often than daily (`jihad.blocking.lastAttempt`). *(2026-10-19, five minutes after a daemon restart each: with `lastUpdate` fresh, 5 card connects and 0 update lines; after the failed attempt above (`lastUpdate` 1, `lastAttempt` today), 4 connects and 0 update lines. The runs found the timer's one early look skipped when a page had started within 20 s, the next look six hours away: a due update now looks again 60-90 s later.)*
 **Dependencies:** R2
 
 ### R6: It fits the device

@@ -117,6 +117,8 @@ function readFileText(file, max) {
   try { return NetUtil.readInputStreamToString(fis, max ? Math.min(max, fis.available()) : fis.available(), {charset: "UTF-8"}); }
   finally { fis.close(); }
 }
+// Lines in a text, without the array a regex match of every newline would make.
+function countLines(text) { let n = 0; for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) n++; return n; }
 // The list's "! Version:" from its first 2 KB — never the whole file for that (inspector F-4).
 function versionOfFile(file) { try { return versionOf(readFileText(file, 2048)); } catch (e) { return ""; } }
 function versionOf(text) {
@@ -395,6 +397,7 @@ function JihadContentBlocker() {
   this._updating = false;
   this._lastError = "";
   this._lastDocAt = 0;
+  this._soonTimer = null;
   this._noLists = false;
   try { Services.prefs.addObserver("jihad.blocking.", this, false); } catch (e) {}
   try { Services.obs.addObserver(this, "document-element-inserted", false); } catch (e) {}
@@ -557,6 +560,9 @@ JihadContentBlocker.prototype = {
     if (pv && pv >= bv) return p;
     return b.exists() ? b : (p.exists() ? p : b);
   },
+  _lineCount: function (name) {
+    try { return countLines(readFileText(this._rawFile(name))); } catch (e) { return 0; }
+  },
   _load: function () {
     try {
       let files = {}, versions = {};
@@ -621,6 +627,7 @@ JihadContentBlocker.prototype = {
   },
   _install: function (r, versions, how) {
     this._hosts = r.hosts; this._tp = r.tp; this._excHosts = r.excHosts; this._typed = r.typed; this._paths = r.paths;
+    if (how !== "update") this._checkSoon();   // T-487: lists loaded after the timer's early look
     this._excRules = r.excRules; this._site = r.site; this._counts = r.counts;
     this._versions = versions;
     try { Services.prefs.setCharPref(PREF_VERSIONS, (versions.easylist || "-") + "/" + (versions.easyprivacy || "-")); } catch (e) {}
@@ -697,7 +704,10 @@ JihadContentBlocker.prototype = {
     if (!force) {
       if (t - last < UPDATE_EVERY_S) return;
       if (t - attempt < RETRY_AFTER_S) return;                             // a failed try: a day's rest
-      if (Date.now() - this._lastDocAt < QUIET_AFTER_DOC_MS) return;        // not while a page starts (R5)
+      if (Date.now() - this._lastDocAt < QUIET_AFTER_DOC_MS) {             // not while a page starts (R5)
+        this._checkSoon();   // T-487: due, so again when it is quiet, not at the next 6-hour look
+        return;
+      }
     }
     this._updating = true; this._lastError = "";
     setIntPref(PREF_ATTEMPT, t);
@@ -735,8 +745,10 @@ JihadContentBlocker.prototype = {
         xhr.onload = () => {
           let txt = xhr.responseText || "";
           let ok = xhr.status === 200 && /^\[Adblock/.test(txt.slice(0, 20)) && versionOf(txt);
-          // a truncated download has far fewer rules than what it would replace
-          if (ok) { let n = (txt.match(/\n/g) || []).length, cur = self._counts ? self._counts.rules : 0; if (cur && n < cur * 0.5) { ok = false; self._lastError = l.name + ": truncated (" + n + " lines)"; } }
+          // a truncated download has far fewer lines than the copy of the same list it would replace
+          // (T-487: it was held against both lists' rules together, which EasyPrivacy alone never
+          // reaches, so EasyPrivacy was refused as truncated on every update)
+          if (ok) { let n = countLines(txt), cur = self._lineCount(l.name); if (cur && n < cur * 0.5) { ok = false; self._lastError = l.name + ": truncated (" + n + " lines against " + cur + ")"; } }
           if (ok) got[l.name] = txt;
           else { if (!self._lastError) self._lastError = l.name + ": HTTP " + xhr.status; log("update: " + self._lastError); }
           if (--pending === 0) done();
@@ -749,6 +761,14 @@ JihadContentBlocker.prototype = {
 
   // ── for the settings page (wrappedJSObject) ──
   update: function () { this._maybeUpdate(true); },
+  // T-487: one look at the clock in a minute or so (never two pending). The device run of 2026-10-19
+  // found the timer's one early look skipped because a document had started within 20 s (any
+  // document counts, the chrome's own too), and the next look six hours away; lists loaded after
+  // the early look waited as long.
+  _checkSoon: function () {
+    if (this._soonTimer) return;
+    this._soonTimer = setTimeout(() => { this._soonTimer = null; this._maybeUpdate(false); }, (60 + Math.floor(Math.random() * 30)) * 1000);
+  },
   state: function () {
     return {enabled: this._enabled, cosmetic: this._cosmetic, loaded: !!this._hosts, noLists: this._noLists, versions: this._versions,
             lastUpdate: intPref(PREF_LAST, 0), count: this._count, counts: this._counts, updating: this._updating, error: this._lastError};

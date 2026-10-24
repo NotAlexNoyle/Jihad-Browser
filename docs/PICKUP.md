@@ -106,14 +106,13 @@ requests judged before they are ready, so a blocking test waits for the `blocker
 (6) Mojo launched with `target: about:preferences#pane=privacy` shows an empty card; the pane is reached through
 its test hook's `U` step.
 
-**Commits — MADE (T-521, 2026-10-24 13:49), NOT PUSHED.** The owner's rule, 2026-10-24: the Gitea token and the
+**Commits — MADE (T-521, 2026-10-24 13:49) AND PUSHED by the owner (13:5x, `.cavekit/handoff-2026-10-24/push.sh`: engine fork `706d4782..7a872e8f`, Jihad-Browser `62df604c..de4fb43c`, both read back equal, the pin public).** The owner's rule, 2026-10-24: the Gitea token and the
 `id_ed25519_gitea_signing` key serve `git.trueog.net` / `git.true-og.net` only (memory `gitea-credentials-are-gitea-only`);
 the two GitHub repos commit unsigned (`commit.gpgsign false` per repo in Jihad-Browser and `third_party/uxp`), so
 no prompt. Engine fork `7a872e8f` (patch 0058: the review fixes), Jihad-Browser `506c4114` (A: T-487), `3f4e1a27` (B:
 T-513/T-499 with the fold, the pins and the gitlink; `check-engine-pins.sh` all agree, the 58 patches reproduce the
 pin), `318869f2` (C: Tier 88) and the records commit after it. The chain and its message files stay in
-`.cavekit/handoff-2026-10-24/` (git-ignored). **The push is the owner's** (the engine fork's remote is `fork`):
-`git -C third_party/uxp push fork jihad/uxp-RB_20261006` and `git push origin main`, then `ls-remote` on both.
+`.cavekit/handoff-2026-10-24/` (git-ignored). The push was the owner's (the engine fork's remote is `fork`; GitHub access is the `id_optiplex_new` key, a passphrase per connection): `push.sh` pushes the engine first, then main, reads both back, runs `check-pins.sh`.
 The 807 jpg/log/png dumps of the 2026-10-19 rounds in `docs/rounds/t502-2026-10-17/` (42 MB) stay untracked, as
 the earlier commits left them: the owner decides.
 

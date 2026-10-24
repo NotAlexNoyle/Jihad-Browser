@@ -1,0 +1,34 @@
+
+##### 13:35:17 push the library
+
+##### 13:35:17 prep
+hosts: 3 lines; PING jetzt.de (192.168.1.245): 56 data bytes / PING jihad.test (192.168.1.245): 56 data bytes
+
+##### 13:35:19 start
+screenshot at +8 s after the launch: 6 content frames published
+
+##### 13:36:00 main
+
+=== the lists
+compiled: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1
+excepted generic selectors, per document: 268; generic-hide sites 154 and 4 address prefixes
+
+=== a $generichide site (jetzt.de -> the PC): generic hiding must NOT apply
+(load done after 1s)
+title=[jihad-hiding ad-rotator=block control=block]
+
+=== the same page on jihad.test: hidden
+(load done after 1s)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== the site-excepted selector page on jetzt.de: not hidden either (no generic selectors there)
+(load done after 0s)
+title=[jihad-excsel block control=block]
+
+##### 13:36:18 stop + restore
+(581003/406443163) jihad (start) running, process 17432
+enyo daemons running: 1
+hosts now: 2 lines, 123count: 0
+novacom: unexpected EOF from server
+
+##### 13:36:35 DONE

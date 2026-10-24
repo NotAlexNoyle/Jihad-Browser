@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-content-blocking.md R3): a $third-party rule's host is REFUSED when
+     it is third-party. Serve this page from the host PC by its address (http://192.168.1.245:8077/):
+     the image comes from 123count.com (EasyPrivacy ||123count.com^$third-party; mapped to the same PC in
+     the device's /etc/hosts, so only the blocker can stop it), another site, so it is refused and the
+     daemon logs "blocked image by ||123count.com^$third-party". The control image is the page's own.
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-tp-third</title>
+<style>li{font:15px sans-serif;margin:6px} .ok{color:#060} .bad{color:#900}</style></head>
+<body><h1>jihad-tp-third</h1><p id="where"></p><ul id="r"></ul>
+<script>
+document.getElementById("where").textContent = "page host: " + (location.host || "(none)");
+var tests = [
+  ["http://123count.com:8077/jihad-plain-ok.png", "EasyPrivacy ||123count.com^$third-party, asked for by a page on another host", "refused (third-party)"],
+  ["jihad-plain-ok.png", "the page's own image (the control)", "loaded"]
+];
+function row(t, cls) { var li = document.createElement("li"); li.className = cls; li.textContent = t; document.getElementById("r").appendChild(li); }
+var pending = tests.length, loaded = 0;
+tests.forEach(function (t) {
+  var el = document.createElement("img"), done = false;
+  el.onload = function () { if (!done) { done = true; loaded++; row("loaded   " + t[0] + "  — " + t[1] + " — expected: " + t[2], "ok"); if (--pending === 0) document.title = "jihad-tp-third " + loaded + "/" + tests.length + " loaded"; } };
+  el.onerror = function () { if (!done) { done = true; row("refused/failed  " + t[0] + "  — " + t[1] + " — expected: " + t[2], "bad"); if (--pending === 0) document.title = "jihad-tp-third " + loaded + "/" + tests.length + " loaded"; } };
+  el.src = t[0]; document.body.appendChild(el);
+});
+</script></body></html>

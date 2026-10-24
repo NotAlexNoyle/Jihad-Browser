@@ -1,0 +1,54 @@
+
+##### 13:03:30 pull the cached sheet
+857413 /tmp/claude-1000/-home-notalexnoyle-eclipse-workspace-Jihad-Jihad-Browser/4ba44f80-d667-4081-b4f1-5396b267bac0/scratchpad/cosmetic.css
+kept (keyed) 13079, dropped (unkeyed) 0
+unkeyed samples: []
+
+##### 13:03:31 push the keyed sheet and the library
+
+##### 13:03:31 prep (hosts) + swap
+hosts: 3 lines; resolves: PING jihad.test (192.168.1.245): 56 data bytes
+sheet swapped: 857413 bytes (was 857413)
+
+##### 13:03:33 start
+screenshot at +18 s after the launch: 4 content frames published
+
+##### 13:04:22 main
+
+=== the lists
+cache: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1307
+
+=== A/B: the generic sheet with only the id/class-keyed selectors (the cache edited), hiding OFF then ON, three pairs
+(load done after 7s)
+title=[mdn warm-up: 7686 ms, loadEventEnd 1792861472608]
+(load done after 2s)
+title=[mdn keyed-sheet hiding-off run 1: 2806 ms, loadEventEnd 1792861486460]
+(load done after 3s)
+title=[mdn keyed-sheet hiding-on run 1: 3748 ms, loadEventEnd 1792861504966]
+(load done after 2s)
+title=[mdn keyed-sheet hiding-off run 2: 2910 ms, loadEventEnd 1792861518840]
+(load done after 7s)
+title=[mdn keyed-sheet hiding-on run 2: 7548 ms, loadEventEnd 1792861541530]
+(load done after 6s)
+title=[mdn keyed-sheet hiding-off run 3: 6320 ms, loadEventEnd 1792861558070]
+(load done after 3s)
+title=[mdn keyed-sheet hiding-on run 3: 3878 ms, loadEventEnd 1792861577730]
+
+=== the hiding page still hidden by a keyed rule
+(load done after 5s)
+title=[jihad-hiding ad-rotator=none control=block]
+hiding on (13079 generic selectors)
+
+##### 13:06:39 log
+1447 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-keyed-ab-daemon.log
+
+##### 13:06:39 stop + restore the job, the sheet back
+(579225/687113730) jihad (start) running, process 19457
+enyo daemons running: 1
+sheet restored: 857413 bytes
+
+##### 13:06:55 finish: hosts back
+hosts now: 2 lines, 123count: 0
+novacom: unexpected EOF from server
+
+##### 13:06:58 DONE

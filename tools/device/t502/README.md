@@ -42,7 +42,10 @@ arriving).
 Daemon environment words the rounds use (all off by default): `JIHAD_GPU_DUMP_EVERY=<n>` (every
 nth published frame, three at most, raw BGRA at `<JIHAD_GPU_DUMP>-<frame>`), `JIHAD_GPU_VERIFY=1`
 (after a partial job the same frame composed whole at the job's scroll, the differing row runs
-logged; `verify2` compares the compositor against itself), `JIHAD_GPU_VERIFY_DUMP=<n>` (the nth
+logged; `verify2` compares the compositor against itself; NB an animating layer's rows differ under it, since the
+reference samples the CSS animation at its own compose time — T-519, `jihad-anim-css.html`: the animated
+block's 160 rows in 117 of 119 frames, every other row equal; and the frame rates measured with it on are not
+the path's, every job then composes and reads a whole reference too), `JIHAD_GPU_VERIFY_DUMP=<n>` (the nth
 verify pair written raw), `JIHAD_GPU_WHOLE=1` (every frame read whole), `JIHAD_GPU_NO_BAND_TARGET=1`
 (bands read from the frame-sized target), `JIHAD_GPU_SURFACES=1` (the intermediate surface for a
 scaled container back on), `JIHAD_GPU_ENGINE_SCROLL=1` (the per-step engine scroll instead of the

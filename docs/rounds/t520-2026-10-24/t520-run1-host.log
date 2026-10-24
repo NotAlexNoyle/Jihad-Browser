@@ -1,0 +1,146 @@
+
+##### 12:13:30 push the edited list
+
+##### 12:13:31 prep
+hosts:
+127.0.0.1	localhost.localdomain		localhost
+127.0.0.1	palm-webos192.168.1.245	123count.com ad.doubleclick.net
+profile lists before:
+drwxrwxrwx    2 root     root         32768 Oct 24 04:18 .
+drwxrwxrwx    7 root     root         32768 Oct 24 09:12 ..
+-rwxrwxrwx    1 root     root       3741158 Oct 15 11:22 compiled.json
+-rwxrwxrwx    1 root     root        857413 Oct 24 04:18 cosmetic.css
+-rwxrwxrwx    1 root     root       2237446 Oct 24 04:18 easylist.txt
+-rwxrwxrwx    1 root     root       1511144 Oct 24 04:18 easyprivacy.txt
+-rwxrwxrwx    1 root     root           124 Oct 24 04:18 exc.txt
+-rwxrwxrwx    1 root     root       1944225 Oct 24 04:18 hosts.txt
+-rwxrwxrwx    1 root     root        761892 Oct 24 04:18 meta.json
+-rwxrwxrwx    1 root     root         76344 Oct 24 04:18 tp.txt
+easylist: ! Version: 202610241105
+easyprivacy: ! Version: 202610241105
+edited copy in place: ! Version: 202610241200, @@||ad.doubleclick.net^
+user_pref("jihad.blocking.lastAttempt", 1792840698);
+user_pref("jihad.blocking.lastUpdate", 1792840698);
+user_pref("jihad.blocking.versions", "202610241105/202610241105");
+/dev/mapper/store-var
+                         62.0M     16.0M     46.0M  26% /var
+
+##### 12:13:37 start 1 (the exception copy)
+pref for this run: jihad.blocking.log = true
+screenshot at +8 s after the launch: 7 content frames published
+=== exception run
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+[jihad-bs] js-console (no source):0:0 blocker: compiled: EasyList 202610241200, EasyPrivacy 202610241105 - hosts 91978, third-party 5367, typed 199, path 5595, exceptions 6+1083, generichide 160, selectors 13079 (less 0)
+blocked lines for doubleclick: 0
+
+##### 12:14:25 the original list back
+original copy back: ! Version: 202610241105
+
+##### 12:14:27 start 2 (the published lists)
+pref for this run: jihad.blocking.log = true
+screenshot at +8 s after the launch: 3 content frames published
+
+##### 12:15:04 main
+
+=== A control: jihad-exception with the published lists
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+blocked doubleclick lines: 0
+
+=== B top-level navigation to a listed host
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+
+=== C first-party (the page on 123count.com)
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+blocked since: 0
+
+=== D third-party (the page on the PC's address)
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+
+=== E master switch off, live
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+blocked lines since the switch: 0
+
+=== E master switch on again
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+
+=== F hiding on
+[jihad-bs] inject title=[jihad-exception 1/2 loaded]
+
+=== F hiding off, live
+[jihad-bs] inject title=[jihad-hiding ad-rotator=block control=block]
+
+=== F hiding on again
+[jihad-bs] inject title=[jihad-hiding ad-rotator=block control=block]
+
+=== G the settings line
+[jihad-bs] inject gettext sel:.row-text = [(no element)]
+
+=== G the counter after a blocking page
+[jihad-bs] inject gettext sel:.row-text = [(no element)]
+
+=== H the update button
+[jihad-bs] inject gettext sel:button.btn = [(no element)]
+[jihad-bs] inject rect sel:button.btn rect=621,870 104x45 center=673,893
+clicked at 673 893
+[jihad-bs] js-console (no source):0:0 blocker: update: EasyList 202610241606, EasyPrivacy 202610241606 - hosts 95042, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, select
+[jihad-bs] inject gettext sel:.row-text = [(no element)]
+
+=== I MDN warm-up (the cache)
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+[jihad-bs] inject title=[CSS: Cascading Style Sheets | MDN]
+
+=== J shouldLoad on 200 refused images
+[jihad-bs] inject title=[jihad-blocking-many]
+blocked since: 400
+[jihad-bs] inject title=[jihad-blocking-many]
+blocked since: 400
+[jihad-bs] inject title=[]
+[jihad-bs] inject title=[]
+
+=== K MSE probe
+[jihad-bs] inject gettext #state = [MSE present; H.264 MSE yes, AAC MSE yes, MP3 MSE no]
+[jihad-bs] inject title=[jihad-mse-probe MSE present; H.264 MSE yes, AAC MSE yes, MP3 MSE no]
+
+=== end: prefs
+[jihad-bs] inject getpref b jihad.blocking.cosmetic = [true]
+
+=== the blocker's own lines
+[jihad-gpu] texture source update: make current 0.0 ms, texture kept 0.0 ms, upload 1.4 ms (all 1.4)
+[jihad-gpu] texture source update: make current 0.0 ms, texture kept 0.0 ms, upload 25.9 ms (all 26.0)
+[jihad-bs] js-console (no source):0:0 blocker: compiled: EasyList 202610241105, EasyPrivacy 202610241105 - hosts 94964, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, sele
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 26.2 ms, upload 1.1 ms (all 27.3)
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 25.8 ms, upload 0.9 ms (all 26.6)
+[jihad-gpu] texture source update: make current 0.0 ms, texture kept 0.0 ms, upload 15.7 ms (all 15.7)
+[jihad-gpu] texture source update: make current 0.0 ms, texture kept 0.0 ms, upload 14.0 ms (all 14.0)
+[jihad-gpu] texture source update: make current 0.0 ms, texture kept 0.0 ms, upload 15.8 ms (all 15.8)
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 12.2 ms, upload 0.5 ms (all 12.6)
+[jihad-bs] js-console (no source):0:0 blocker: update: EasyList 202610241606, EasyPrivacy 202610241606 - hosts 95042, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, select
+[jihad-bs] js-console (no source):0:0 blocker: blocking off
+[jihad-bs] js-console (no source):0:0 blocker: blocking on
+
+##### 12:24:24 shots + log
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-enyo-privacy.jpg
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-enyo-privacy2.jpg
+5563 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-daemon.log
+
+##### 12:24:24 stop + restore the job
+=== LOG END
+killed 21623 
+pref stripped: jihad.blocking.log
+(576696/417121479) jihad (start) running, process 28589
+enyo daemons running: 1
+
+##### 12:24:45 finish: hosts back, the Mojo pane shot
+hosts now: 1 lines, 123count: 0
+closed mojo card 1032
+-rw-r--r--    1 root     root        159916 Oct 24 09:16 /tmp/t520-enyo-privacy.png
+-rw-r--r--    1 root     root        160308 Oct 24 09:18 /tmp/t520-enyo-privacy2.png
+-rw-r--r--    1 root     root         40955 Oct 24 09:25 /tmp/t520-mojo-privacy.png
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-mojo-privacy.jpg
+tmpfs                    40.0M     13.4M     26.6M  33% /tmp
+
+##### 12:25:08 DONE

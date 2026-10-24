@@ -2,7 +2,7 @@
 # pan-run.sh <name> <url> "<env words>": the spike start with the inject channel, then a scripted
 # finger pan (inject "pan 0 3000 10000": 0 -> 3000 px over 10 s), a screenshot mid-pan, the log.
 set -u
-S=$(dirname "$0"); R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; D=$R/docs/rounds/t502-2026-10-17
+S=$(dirname "$0"); R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; D=${ROUND_DIR:-$R/docs/rounds/t502-2026-10-17}   # ROUND_DIR=<dir> for a later round
 name=$1; url=$2; extra=${3:-}
 # $4: the inject command (default a 0 -> 3000 px pan over 10 s); "none" measures the page as it is
 # PAN_TOP=1: the processes' CPU over 4 s of the pan (BusyBox top), after the pan log

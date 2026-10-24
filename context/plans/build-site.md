@@ -1,6 +1,6 @@
 ---
 created: "2026-10-01"
-last_edited: "2026-10-14"
+last_edited: "2026-10-24"
 ---
 
 # Build Site
@@ -489,6 +489,27 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-362 | DuckDuckGo Lite default + HTML option in every shell and the settings page, one-time migration | cavekit-preferences-ui.md | prefs R2 | T-340 | yes | S |
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
+
+## Tier 88 — Closing the kits' open criteria on the current build (2026-10-24; added to the site, not a regeneration)
+
+The owner, 2026-10-24: "Continue the implementation of Jihad Browser using Cavekit version 3.1."
+The registry had no unblocked task: the finger rounds (T-514 and the older ones), the tabs tier
+(set aside by the owner on 2026-10-06) and T-504/505/511/517 (the circuit breaker, judged by the
+owner's finger round) are the owner's. What was left to an agent were acceptance criteria no task
+covered any more: criteria met by earlier tasks and never ticked, criteria whose device run was
+still owed (the blocker's R3/R4/R6/R7, the GPU path's R2/R4 sweep on the build after the review
+fixes), two template placeholders never filled, and the engine's review fixes (patch 0058) staged
+in `third_party/uxp` but not committed, so the patch queue no longer reproduced the bench's engine.
+Commits are SSH-signed since 2026-10-21 and wait on the owner's passphrase (memory
+`commits-are-ssh-signed`): T-521 prepares them as one chain.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-518 | Closing the records: criteria met by earlier tasks ticked with their evidence (gpu R11's review, content-blocking R7, modern-web R1 and T-500/T-501), the placeholders in cavekit-modern-web.md, docs/MODERN-WEB.md and PICKUP filled, the README's progress regenerated | cavekit-gpu-rendering.md, cavekit-content-blocking.md, cavekit-modern-web.md | R11; R7; R1, R6 | — | no | S | DONE 2026-10-24 (gpu R11's review criterion ticked on T-513 and Codex's 2026-10-24 pass; content-blocking R7's three on the bundle's sha check, the README paragraph with `cardview.jpg`, and round 26; modern-web R1's two on T-484/run 2c and the README's Caveats link; T-500's two criteria ticked, T-501's kept `[~]` until T-520 re-probes MSE; `T500_KIT`, `T501_KIT`, `T501_DEVICE_RESULT`, `DEVICE_STATE_EVENING` and `TRACE_PICKUP` filled; `.cavekit/config` restored to the owner's one line; README "Where it stands" regenerated) |
+| T-519 | GPU R2/R4 verify sweep and R3's per-page table on the current build (engine 0058): `JIHAD_GPU_VERIFY=1` over the scripted pan on the six pages (`jihad-fixed-both.html` added: an opaque header and footer, nothing else), the mid-pan dumps looked at, the wide page's right side and bottom, the kept/column/two-band evidence from the compositor's lines, the GPU path against `NOGPU=1` on every page in `docs/RENDERING-OPTIONS.md` | cavekit-gpu-rendering.md | R2, R3, R4 | T-518 | yes | M | DONE 2026-10-24 (two device chains, `docs/rounds/t519-2026-10-24/`: under verify 0 rows structurally wrong on all six pages, 0 differing at all on five, Wikipedia 3 of 70 frames resampling-class; the animation page differs only inside its animated block (the reference's own compose time: R2's first criterion `[~]`, the engine fix named); dumps looked at; Hacker News at 0.955 shows its right side and bottom; R4's four ticked on the compositor's band/kept/column lines (`jihad-fixed-both.html` added); the per-page table GPU against `NOGPU=1`, the GPU path ahead on every page; `pan-run.sh` takes `ROUND_DIR`) |
+| T-520 | Content blocking's open device criteria: R3 (a listed host opened top-level, a `$third-party` host first- against third-party through the device's /etc/hosts and `jihad-tp-first.html`/`jihad-tp-third.html`, an `@@` exception), R4 (hiding off live, the sheet's cost on MDN cached, three runs each), R6 (the switches live through the inject channel's `setpref`, the line and its counter, the update button; the Enyo and Mojo rows shot), R7 (`shouldLoad`'s latency on 200 refused images) | cavekit-content-blocking.md | R3, R4, R6, R7 | T-518 | yes | L | DONE 2026-10-24 (four device runs, `docs/rounds/t520-2026-10-24/`: R3's four, R4's hiding-off and R6's three ticked with the inject channel's `setpref`/`gettext`/`click`; R7's latency within 10 %; T-501's MSE criterion closed; R4's cost criterion measured and NOT met — +4 s a load, 8-12 s a daemon's first — handed to T-522 with the cause found by four sheet variants) |
+| T-522 | The generic hiding sheet's cost (R4, measured by T-520: +4 s a load on the MDN page's copy, 8-11 s on a daemon's first; the sheet's 268 per-selector `@-moz-document regexp` groups, each carrying the 160 generic-hide hosts' 2.4 KB regexp, evaluated per document — the same selectors under `url-prefix` scopes cost nothing): the site-excepted generic selectors out of the global sheet and into the per-document sheet for every host but the excepting one (`excSel`, compiler 11), the global sheet left with one regexp group; the cost re-measured within 15 %; `jihad-hiding.html` still hidden, a `$generichide` host not, a site-excepted selector hidden elsewhere | cavekit-content-blocking.md | R4 | T-520 | yes | M | DONE 2026-10-24 (compiler 11: the 268 site-excepted generic selectors out of the global sheet into the per-document sheet, `_genericHidden` for the `$generichide` hosts and prefixes; the sheet has one `@-moz-document` group; MDN copy on 2868-3104 against off 2578-2846 ms, +8.7 %, first load 3.7 s; `jihad-excsel.html`; the three variants run the dev copy) |
+| T-521 | The engine's review fixes folded: the signed engine commit (patch 0058), `patch-queue.sh --add`, `update-engine.sh --pins`, ENGINE-SOURCE's row, `check-engine-pins.sh` and `patch-queue.sh --check` agree; the Jihad-Browser commits prepared as one chain for the owner's passphrase | cavekit-gpu-rendering.md | R11 | T-518, T-519, T-520, T-522 | no | S | BLOCKED-EXTERNAL 2026-10-24 (the owner's signing passphrase: the chain `.cavekit/handoff-2026-10-24/t521-chain.sh` — the engine commit, `patch-queue.sh --add`, `update-engine.sh --pins`, the checks, then commits A/B/C with the shared files split by hunk — stopped at its first prompt with "incorrect passphrase supplied", nothing staged or committed; run it again, four prompts, or with the key in an agent, then push both repos) |
 
 ## Tier 87 — GPU rendering: the pick 2 + 4 (2026-10-17/18; added to the site, not a regeneration)
 

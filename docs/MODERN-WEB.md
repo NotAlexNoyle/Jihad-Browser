@@ -546,7 +546,7 @@ when built, their notice in `NOTICE` and the licence text in `licenses/runtime/`
 non-technical note for the owner: H.264 and AAC are patented in some countries; shipping a
 decoder is a distributor's question (Debian ships FFmpeg; Fedora did not until 2022). The
 container has no curl (the tarball is fetched on the host) and links against the toolchain's own
-sysroot (the Debian one has no C runtime objects for this gcc). T501_DEVICE_RESULT
+sysroot (the Debian one has no C runtime objects for this gcc). **On the device (2026-10-19, T-508):** H.264 plays to the end in `<video>`, AAC and MP3 play; a device updated by `push-engine-update.sh` alone had lost the two libraries (every MP4 refused on both rendering paths) and the push now carries them. MSE with H.264/AAC is re-probed in T-520 (2026-10-24).
 
 **Measured with daemon 11 (2026-10-16 03:33–03:40, Mochi, the same three pages as daemon 10's
 run; `memory-report-read.py` on the dump):**
@@ -579,3 +579,24 @@ loop 50M 554 ms; objects 2M 1,464 ms (1,186 under daemon 10 — the GC heap, not
 objects; run-to-run noise on a device with three daemons); strings 200k 1,150 ms (1,304); regex
 100k 152 ms (178); DOM 20k 5,312 ms (no earlier figure). The allocator moved nothing the user
 feels; its gain is the 20 MB after the closes and the heap that reports.
+
+**T-520 — the blocker's remaining criteria on the device (2026-10-24; Tier 88).** The Enyo card on a
+hand-started daemon with the inject channel (`url`, `setpref`, `gettext`, `rect`, `click`, `jsurl`), the
+listed hosts `123count.com`, `ad.doubleclick.net` and the twenty hosts of `jihad-blocking-many.html` mapped
+to the host PC in the device's `/etc/hosts` for the run (only the blocker can then stop a load), and a
+neutral host name `jihad.test` for the pages that need the generic sheet (EasyList exempts `://192.168.`
+addresses from generic hiding). Logs and shots: `docs/rounds/t520-2026-10-24/` (`t520-run1-host.log` to
+`t520-run3-host.log`, `t520-confirm-host.log`, `t520-daemon.log`, the Privacy pane in Enyo and Mojo).
+
+| Criterion | Result |
+|---|---|
+| a listed host opened top-level | `http://ad.doubleclick.net:8077/jihad-colors.html` opens; an image from the same host on another page is refused |
+| `$third-party`: first- against third-party | the page served from `123count.com` loads its own images (2/2, no `blocked` line); the page on the PC's address asking for the same image: 1/2, `blocked image by 123count.com$third-party` |
+| an `@@||host^` exception | a list copy with `@@||ad.doubleclick.net^` (exceptions 6+1083 against 5+1079): the image loads, no `blocked` line; the published copy back: refused |
+| the master switch, live | `blocking off`: 2/2 loaded, 0 `blocked` lines; `blocking on`: refused again; no restart |
+| hiding off, live | `#ad-rotator` (EasyList `###ad-rotator`): `display: none` with hiding on, `block` after `jihad.blocking.cosmetic` false, `none` again after true; no restart |
+| the settings line and its counter | "EasyList 202610241630 · EasyPrivacy 202610241606, updated 2026-10-24; 10 requests blocked since start" → 16 after a page with 6 refusals |
+| "Update the lists now" | three runs: 202610241105 → 1606, 1606 → 1630, 1630/1606 → 1635/1641; the line follows each time (shots) |
+| the generic sheet's cost (R4) | **not met as found**: the MDN page's copy, hiding off 2622, 3046, 2996 ms; on 3728, 7416, 7098 ms; the real cached page off 11, 11 s; on 15, 15 s (the host's 1 s timer); a daemon's first load 8-12 s. Four variants of the cached sheet (`t520-sheet-variants-host.log`): under `url-prefix` scopes on 2742/3282 against off 2672/2714; no wrapper 3038/2684 against 2730/2758; half the selectors with the regexps kept, still slow on the first load — the cost is the 268 `@-moz-document regexp` groups (one per site-excepted generic selector, each with the 160 generic-hide hosts' regexp), evaluated per document, not the 13,079 keyed selectors. **Met after T-522** (the excepted selectors in the per-document sheet, one regexp group left): off 2712, 2578, 2846; on 2868, 3104, 2876 (+8.7 %); first load 3686 ms (`t522-run2-host.log`) |
+| `shouldLoad`'s latency on 200 refused images (R7) | on 8592, 4852, 4498, 8078 ms (mean 6505); off (the hosts answering with a refused connection at once) 5746, 6016, 6304, 6108 (mean 6044): within 10 % on the mean; the 4.5-6 s floor is the engine's per-image work on this CPU |
+| MSE with FFmpeg's decoders (T-501) | `MediaSource.isTypeSupported`: H.264 yes, AAC yes, MP3 no (as Firefox 52); `canPlayType` the same |

@@ -284,3 +284,11 @@ Build site: context/plans/build-site.md
 
 ### Iteration 17 — 2026-10-19
 - T-512: Fit to keep — DONE. Gate headers (engine 0057, daemon), knobs listed, queue = pin, docs. Build P, default checks 3/3 P, patch-queue P, pins P. Next: T-513.
+
+### Iteration 18 — 2026-10-24
+- Registry had 0 unblocked tasks (finger rounds, tabs, circuit breaker = owner's). Tier 88 added (T-518…T-521): open kit criteria no task covered, the engine's staged review fixes (0058) not in the queue.
+- T-518: records closed — 7 criteria ticked on evidence (gpu R11; blocking R7 ×3; modern-web R1 ×2, T-500 ×2), T-501 `[~]` (MSE re-probe in T-520), 5 placeholders filled, README progress regenerated, `.cavekit/config` junk reverted. DONE. Next: T-519 (device chain running), T-520, T-521.
+- T-519: GPU R2/R4 sweep + R3 table on engine 0058 — DONE. Verify: 0 structural on 6 pages (anim differs only in its animated block: verify-mode limit, `[~]`); R4 ×4 ticked (two bands/kept/columns from the compositor's lines); GPU ≥ software on every page (table written). Trap: fps under verify are not the path's (memory `verify-runs-are-not-measurements`). Next: T-520 (running), T-521.
+- T-520: blocker's device criteria — DONE. 4 device runs (BusyBox sleep takes no fractions; hosts file needs a leading newline; LAN addresses exempt from generic hiding; gettext takes a raw selector; jsurl needs void()). R3 ×4, R4 hiding-off, R6 ×3, R7 latency ticked; MSE H.264/AAC yes (T-501 closed). R4's cost NOT met (+4 s/load) → T-522.
+- T-522: the sheet's cost — DONE. Cause by 4 sheet variants: 268 per-selector @-moz-document regexp groups; fix: excepted selectors per document (compiler 11), 1 group left; on +8.7 % vs off, first load 3.7 s (was 8-12). A $generichide host gets no generic hiding (checked with the host mapped; two earlier tries timed out on an unmapped host, not a stall). Next: T-521 (the commit chain on the owner's passphrase).
+

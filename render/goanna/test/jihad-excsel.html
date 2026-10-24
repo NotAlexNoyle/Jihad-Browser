@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-content-blocking.md R4, T-522): a GENERIC hiding selector that one site
+     excepts (EasyList: dez.ro#@##ad-carousel). Such a selector is not in the global sheet any more; the per-document
+     sheet carries it for every host but the excepting one. Served under a host name (not a LAN address:
+     EasyList exempts those from generic hiding) the box must be hidden. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-excsel</title>
+<style>body{font:18px sans-serif;margin:24px} .box{background:#fc6;border:2px solid #c90;padding:12px;margin:12px 0} #plain{background:#cfc;padding:12px}</style></head>
+<body><h1>jihad-excsel</h1>
+<div id="ad-carousel" class="box">#ad-carousel — generic in EasyList, excepted on dez.ro only</div>
+<div id="plain">a plain box, never hidden (the control)</div>
+<p id="out"></p>
+<script>
+window.addEventListener("load", function () {
+  setTimeout(function () {
+    var el = document.querySelector('#ad-carousel'), d = el ? getComputedStyle(el).display : "(no element)",
+        c = getComputedStyle(document.getElementById("plain")).display;
+    document.getElementById("out").textContent = "#ad-carousel display=" + d + ", control display=" + c;
+    document.title = "jihad-excsel " + d + " control=" + c;
+  }, 300);
+});
+</script></body></html>

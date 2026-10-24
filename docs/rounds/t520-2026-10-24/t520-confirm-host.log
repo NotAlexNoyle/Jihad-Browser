@@ -1,0 +1,76 @@
+
+##### 12:54:09 push the library
+
+##### 12:54:09 prep
+hosts: 3 lines; resolves: PING jihad.test (192.168.1.245): 56 data bytes
+
+##### 12:54:10 start
+screenshot at +18 s after the launch: 5 content frames published
+
+##### 12:55:00 main
+
+=== the lists
+cache: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1307
+
+=== I confirm: the MDN copy, hiding OFF first then ON, three pairs
+(load done after 8s)
+title=[mdn warm-up: 8244 ms, loadEventEnd 1792860911204]
+(load done after 2s)
+title=[mdn hiding-off run 1: 2622 ms, loadEventEnd 1792860925340]
+(load done after 3s)
+title=[mdn hiding-on run 1: 3728 ms, loadEventEnd 1792860944170]
+(load done after 3s)
+title=[mdn hiding-off run 2: 3046 ms, loadEventEnd 1792860958302]
+(load done after 7s)
+title=[mdn hiding-on run 2: 7416 ms, loadEventEnd 1792860981736]
+(load done after 2s)
+title=[mdn hiding-off run 3: 2996 ms, loadEventEnd 1792860996108]
+(load done after 7s)
+title=[mdn hiding-on run 3: 7098 ms, loadEventEnd 1792861018140]
+
+=== I confirm: the real MDN page (cached), the host's coarse timer (load done after N s), two pairs
+(load done after 22s)
+real hiding-off run 1:
+(load done after 11s)
+real hiding-on run 1:
+(load done after 15s)
+real hiding-off run 2:
+(load done after 11s)
+real hiding-on run 2:
+(load done after 15s)
+
+=== J confirm: the 200-image page, blocking ON and OFF alternating, four pairs (the twenty hosts mapped to the PC)
+(load done after 8s)
+title=[many blocking-on run 1: 8592 ms, loadEventEnd 1792861169530]
+(load done after 5s)
+title=[many blocking-off run 1: 5746 ms, loadEventEnd 1792861185122]
+(load done after 4s)
+title=[many blocking-on run 2: 4852 ms, loadEventEnd 1792861210626]
+(load done after 5s)
+title=[many blocking-off run 2: 6016 ms, loadEventEnd 1792861227460]
+(load done after 4s)
+title=[many blocking-on run 3: 4498 ms, loadEventEnd 1792861246022]
+(load done after 6s)
+title=[many blocking-off run 3: 6304 ms, loadEventEnd 1792861263182]
+(load done after 7s)
+title=[many blocking-on run 4: 8078 ms, loadEventEnd 1792861287554]
+(load done after 5s)
+title=[many blocking-off run 4: 6108 ms, loadEventEnd 1792861304734]
+
+=== end: prefs
+getpref b jihad.blocking.enabled = [true]
+getpref b jihad.blocking.cosmetic = [true]
+
+##### 13:02:05 log
+6286 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-confirm-daemon.log
+
+##### 13:02:06 stop + restore the job
+pref stripped: jihad.blocking.log
+(578951/935940450) jihad (start) running, process 14696
+enyo daemons running: 1
+
+##### 13:02:21 finish: hosts back
+hosts now: 2 lines, 123count: 0
+novacom: unexpected EOF from server
+
+##### 13:02:23 DONE

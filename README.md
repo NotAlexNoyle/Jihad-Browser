@@ -41,18 +41,18 @@ Herrie82's TLS work, webOS CE 3.1.0 — and this is one more piece of that.
 
 Counted from the project's own records: every part of the browser has a list of acceptance criteria, each one met only when it was shown working on a TouchPad (or, for the build, on a clean machine). What is left is either still to build or waits for a person: a finger on the device or the owner's decision. The road below runs to the first public release.
 
-**Everything but tabs: `██████████████████░░` 688 of 730 criteria met (94 %).**
+**Everything but tabs: `███████████████████░` 721 of 732 criteria met (98 %).**
 
 | Area | Progress | Met | Left | What it covers |
 |---|---|---:|---|---|
 | Engine and page drawing | `███████████████████░` 99 % | 104 / 105 | 1 for a person | Goanna inside the webOS card, frames to the card, the card's messages |
-| Drawing on the GPU | `█████████████░░░░░░░` 65 % | 26 / 40 | 13 to do, 1 for a person | the Adreno 220 composes the page; WebGL; pan and zoom speed |
-| The modern web | `███████████████░░░░░` 77 % | 21 / 27 | 6 to do | today's sites: TLS, missing features filled in, video |
+| Drawing on the GPU | `█████████████████░░░` 87 % | 36 / 41 | 4 to do, 1 for a person | the Adreno 220 composes the page; WebGL; pan and zoom speed |
+| The modern web | `████████████████████` 100 % | 27 / 27 | done | today's sites: TLS, missing features filled in, video |
 | The three interfaces | `███████████████████░` 98 % | 120 / 122 | 2 for a person | Enyo, Mochi and Mojo |
 | Touch and keyboard | `████████████████████` 100 % | 39 / 39 | done | taps, gestures, the on-screen keyboard |
 | Settings and services | `████████████████████` 100 % | 60 / 60 | done | the settings panes, downloads, history, printing |
 | Add-ons and Personas | `███████████████████░` 98 % | 169 / 171 | 1 for a person, 1 with tabs | XPI add-ons, plugins, Personas, the add-on site |
-| Privacy and security | `█████████████░░░░░░░` 67 % | 33 / 49 | 16 to do | the ad and tracker blocker, proxies, certificates |
+| Privacy and security | `████████████████████` 100 % | 50 / 50 | done | the ad and tracker blocker, proxies, certificates |
 | Building and updating | `███████████████████░` 99 % | 116 / 117 | 1 for a person | one repository builds every package; engine updates; licences |
 | Tabs | `░░░░░░░░░░░░░░░░░░░░` 0 % | 0 / 27 | held | groundwork only, held by the owner's decision |
 | The owner's finger round | `░░░░░░░░░░░░░░░░░░░░` 0 % | 0 / 41 | 41 for a person | the checks only a finger on the device can make |
@@ -61,11 +61,9 @@ Counted from the project's own records: every part of the browser has a list of 
 
 ```mermaid
 flowchart LR
-  nComplete["Complete<br/>Touch and keyboard<br/>Settings and services"]:::done
+  nComplete["Complete<br/>The modern web<br/>Touch and keyboard<br/>Settings and services<br/>Privacy and security"]:::done
   nWaiting["Built, waiting on a person<br/>Engine and page drawing<br/>The three interfaces<br/>Add-ons and Personas<br/>Building and updating"]:::owner
-  nWork0["Drawing on the GPU<br/>26 of 40, 13 to do"]:::doing
-  nWork1["The modern web<br/>21 of 27, 6 to do"]:::doing
-  nWork2["Privacy and security<br/>33 of 49, 16 to do"]:::doing
+  nWork0["Drawing on the GPU<br/>36 of 41, 4 to do"]:::doing
   nFinger["The owner's finger round<br/>41 checks"]:::owner
   nReview["Last review and fixes"]:::todo
   nRelease(("Release")):::goal
@@ -73,8 +71,6 @@ flowchart LR
   nComplete --> nFinger
   nWaiting --> nFinger
   nWork0 --> nFinger
-  nWork1 --> nFinger
-  nWork2 --> nFinger
   nFinger --> nReview --> nRelease
   nTabs -.-> nRelease
   classDef done fill:#2e7d32,stroke:#1b5e20,color:#ffffff

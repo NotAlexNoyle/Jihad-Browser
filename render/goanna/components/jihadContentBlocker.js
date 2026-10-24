@@ -17,11 +17,14 @@
  *      walk, before any block.
  *   2. Hiding (R3): EasyList's generic hiding rules that are a single id or class are one user
  *      stylesheet (nsIStyleSheetService USER_SHEET) of `sel{display:none!important}`, limited to
- *      http(s) documents with @-moz-document; a generic selector that a site excepts is scoped
- *      away from that site; $generichide/$elemhide/$document exceptions take a whole site out of
- *      it. Site-specific rules (a.com,b.com##sel) are kept per domain and loaded into a document
- *      of that domain only (nsIDOMWindowUtils.loadSheet), one CSS rule per selector, so no page
- *      pays for the 8,000 rules it cannot match.
+ *      http(s) documents with ONE @-moz-document regexp group (T-522: a group per selector cost
+ *      the MDN page up to 4 s a load, every group's regexp evaluated per document);
+ *      $generichide/$elemhide/$document exceptions take a whole site out of it. A generic
+ *      selector that a site excepts (268 of them) is not in that sheet: it goes with the
+ *      per-document sheet to every document whose host is not that site. Site-specific rules
+ *      (a.com,b.com##sel) are kept per domain and loaded into a document of that domain only
+ *      (nsIDOMWindowUtils.loadSheet), one CSS rule per selector, so no page pays for the 8,000
+ *      rules it cannot match.
  *
  * THE LISTS (R2, R5): EasyList and EasyPrivacy, by The EasyList authors, GPLv3+ (NOTICE,
  * third_party/easylist/README.md). The package carries them raw in <GRE>/blocklists/. They are
@@ -67,7 +70,7 @@ const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lis
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
 
-const COMPILER_VERSION = 10;                 // bump when the compiled form changes
+const COMPILER_VERSION = 11;                 // bump when the compiled form changes (11: T-522, the excepted generic selectors per document)
 const UPDATE_EVERY_S   = 4 * 24 * 3600;     // the lists say "! Expires: 4 days"
 const RETRY_AFTER_S    = 24 * 3600;         // after a failed attempt
 const UPDATE_CHECK_MS  = 6 * 3600 * 1000;   // how often the timer looks at the clock
@@ -204,6 +207,7 @@ function compile(texts, onDone) {
   let paths = new Map();            // host → [{p, party}]
   let excRules = new Map();         // host → [{p, types, party, domains, notDomains}]
   let generichide = [];             // [host or prefix regexp source]
+  let ghHosts = [], ghPrefixes = [];   // the same, raw, for the per-document check (T-522)
   let cos = new Set(), cosExc = new Set();
   let siteGroups = new Map();       // "a.com,b.com" → Set(selector)
   let siteExc = [];                 // [domains, selector] — against site groups AND generic rules
@@ -241,7 +245,7 @@ function compile(texts, onDone) {
       else if ((m = R_EXC_HOST.exec(line))) {
         o = parseOptions(m[2], true);
         if (!o) { counts.skipped++; continue; }
-        if (o.generichide) { generichide.push(escapeRe(m[1])); counts.generichide++; if (!o.document && o.types === 0 && !o.domains) continue; }
+        if (o.generichide) { generichide.push(escapeRe(m[1])); ghHosts.push(m[1]); counts.generichide++; if (!o.document && o.types === 0 && !o.domains) continue; }
         addExc(m[1], "", o);
       }
       else if ((m = R_EXC_PATH.exec(line))) {
@@ -251,7 +255,7 @@ function compile(texts, onDone) {
       }
       else if ((m = R_EXC_PFX.exec(line))) {
         o = parseOptions(m[2], true);
-        if (o && o.generichide) { generichide.push(escapeRe(m[1]) + "[^/]*"); counts.generichide++; } else counts.skipped++;
+        if (o && o.generichide) { generichide.push(escapeRe(m[1]) + "[^/]*"); ghPrefixes.push(m[1]); counts.generichide++; } else counts.skipped++;
       }
       else if ((m = R_COS.exec(line)))     { cos.add(m[1]); counts.cosmetic++; }
       else if ((m = R_COS_EXC.exec(line))) { cosExc.add(m[1]); counts.cosmeticExc++; }
@@ -290,12 +294,14 @@ function compile(texts, onDone) {
     for (let sel of cos) if (!genericExcDomains.has(sel)) plain.push(sel);
     for (let j = 0; j < plain.length; j += 400) out.push(plain.slice(j, j + 400).join(",") + "{display:none!important}");
     out.push("}");
-    for (let [sel, doms] of genericExcDomains) {
-      let ex = doms.map(escapeRe).concat(generichide).join("|");
-      out.push('@-moz-document regexp("^https?://(?!([^/]*\\\\.)?(' + ex + ')[:/]).*") {');
-      out.push(sel + "{display:none!important}");
-      out.push("}");
-    }
+    // T-522 (2026-10-24): a generic selector a site excepts used to be a @-moz-document group of its
+    // own, 268 of them, each with the generic-hide hosts' 2.4 KB regexp again; every group's regexp is
+    // evaluated for every document, which cost the MDN page up to 4 s a load and 8-12 s on a daemon's
+    // first (measured against the same sheet under url-prefix scopes: no cost). They are kept apart
+    // (excSel) and go into the per-document sheet (_siteSheetFor) for every host the selector is not
+    // excepted on; the global sheet keeps the one regexp group of the plain selectors.
+    let excSel = {};
+    for (let [sel, doms] of genericExcDomains) excSel[sel] = doms;
     let css = out.join("\n") + "\n";
     let siteByDomain = {};
     for (let [k, set] of siteGroups) {
@@ -305,7 +311,7 @@ function compile(texts, onDone) {
     }
     counts.ms = Date.now() - started;
     onDone({hosts: hosts, tp: tp, excHosts: excHosts, typed: typed, paths: paths, excRules: excRules,
-            css: css, site: siteByDomain, counts: counts});
+            css: css, site: siteByDomain, excSel: excSel, gh: {hosts: ghHosts, prefixes: ghPrefixes}, counts: counts});
   }
   setTimeout(slice, 0);
 }
@@ -368,7 +374,7 @@ function writeCache(r, versions) {
   writeFileText(profileFile("exc.txt"), Array.from(r.excHosts).join("\n"));
   writeFileText(profileFile("cosmetic.css"), r.css);
   writeFileText(profileFile("meta.json"), JSON.stringify({compiler: COMPILER_VERSION, versions: versions,
-    typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules), site: r.site, counts: r.counts}));
+    typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules), site: r.site, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts}));
 }
 // null when there is no cache for these versions and this compiler
 function readCache(versions) {
@@ -380,7 +386,7 @@ function readCache(versions) {
   return {hosts: new HostSet(readFileText(profileFile("hosts.txt"))), tp: new HostSet(readFileText(profileFile("tp.txt"))),
           excHosts: new HostSet(readFileText(profileFile("exc.txt"))),
           typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),
-          css: null, site: c.site || {}, counts: c.counts};
+          css: null, site: c.site || {}, excSel: c.excSel || {}, gh: c.gh || {hosts: [], prefixes: []}, counts: c.counts};
 }
 
 function JihadContentBlocker() {
@@ -390,6 +396,7 @@ function JihadContentBlocker() {
   this._log = boolPref(PREF_LOG, false);
   this._hosts = null; this._tp = null; this._excHosts = null;
   this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
+  this._excSel = {}; this._gh = {hosts: [], prefixes: []};   // T-522: the site-excepted generic selectors, the generic-hide hosts
   this._versions = {easylist: "", easyprivacy: ""};
   this._counts = null;
   this._count = 0;                     // refusals this session
@@ -589,7 +596,7 @@ JihadContentBlocker.prototype = {
     try { c = readCache(versions); } catch (e) { log("cache unreadable after writing: " + e); }
     if (!c) {   // keep working from the compile's own sets, as a last resort
       c = {hosts: new HostSet(Array.from(r.hosts).join("\n")), tp: new HostSet(Array.from(r.tp).join("\n")), excHosts: new HostSet(Array.from(r.excHosts).join("\n")),
-           typed: r.typed, paths: r.paths, excRules: r.excRules, css: null, site: r.site, counts: r.counts};
+           typed: r.typed, paths: r.paths, excRules: r.excRules, css: null, site: r.site, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts};
     }
     r = null;
     this._loading = false;
@@ -620,6 +627,7 @@ JihadContentBlocker.prototype = {
     if (!this._hosts) return;
     this._hosts = null; this._tp = null; this._excHosts = null;
     this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
+    this._excSel = {}; this._gh = {hosts: [], prefixes: []};
     this._applySheet();
     log("idle ten minutes with no card: the lists dropped (they load again with the next card)");
     try { Services.obs.notifyObservers(null, "jihad-blocker-installed", null); } catch (e) {}   // the daemon trims
@@ -640,6 +648,9 @@ JihadContentBlocker.prototype = {
         (c.ms !== undefined ? ", " + c.ms + " ms" : ""));
     // the generic sheet is the cache's cosmetic.css, registered as it is
     this._applySheet();
+    // T-522: the generic selectors some site excepts travel with the per-document sheet (_siteSheetFor)
+    this._excSel = r.excSel || {}; this._gh = r.gh || {hosts: [], prefixes: []};
+    log("excepted generic selectors, per document: " + Object.keys(this._excSel).length + "; generic-hide sites " + this._gh.hosts.length + " and " + this._gh.prefixes.length + " address prefixes");
     // The parse of a 3 MB cache (or a compile) leaves the JS heap and the allocator holding what
     // it no longer needs; on a 1 GB tablet that showed as +36 MB of RSS at idle (device
     // 2026-10-15, the stylesheet itself cost nothing). Ask for a collection and a purge once the
@@ -683,17 +694,34 @@ JihadContentBlocker.prototype = {
       if (!uri || (uri.scheme !== "http" && uri.scheme !== "https")) return;
       let win = doc.defaultView;
       if (!win) return;
-      let h = uri.asciiHost.toLowerCase(), sels = [];
+      let host = uri.asciiHost.toLowerCase(), h = host, sels = [];
       for (;;) {
         let a = this._site[h];
         if (a) sels.push(...a);
         let dot = h.indexOf("."); if (dot < 0) break; h = h.slice(dot + 1); if (h.indexOf(".") < 0) break;
+      }
+      // T-522: the generic selectors some site excepts, for every host that is not that site (the
+      // global sheet carries no group for them); none on a $generichide site, as the global sheet has none
+      if (!this._genericHidden(uri, host)) {
+        for (let sel in this._excSel) {
+          let doms = this._excSel[sel], hit = false;
+          for (let d of doms) if (host === d || host.endsWith("." + d)) { hit = true; break; }
+          if (!hit) sels.push(sel);
+        }
       }
       if (!sels.length) return;
       let css = sels.map(sel => sel + "{display:none!important}").join("\n");
       let utils = win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
       utils.loadSheetUsingURIString("data:text/css;charset=utf-8," + encodeURIComponent(css), utils.USER_SHEET);
     } catch (e) { log("site sheet: " + e); }
+  },
+  // T-522: is this document on a site EasyList takes out of generic hiding (@@||host^$generichide, or
+  // an address prefix such as @@://192.168.$generichide)? The global sheet's one regexp says the same.
+  _genericHidden: function (uri, host) {
+    for (let g of this._gh.hosts) if (host === g || host.endsWith("." + g)) return true;
+    let spec = uri.spec;
+    for (let p of this._gh.prefixes) if (spec.startsWith("http://" + p) || spec.startsWith("https://" + p)) return true;
+    return false;
   },
 
   // ── updates ──

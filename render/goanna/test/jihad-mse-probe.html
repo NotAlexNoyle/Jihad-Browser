@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R6, T-501): what Media Source Extensions and the
+     media elements say they can take now that FFmpeg's H.264/AAC/MP3 decoders ship with the browser.
+     Read #state with the inject channel (`gettext #state`), or the title. Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-mse-probe</title>
+<style>body{font:16px sans-serif;margin:20px} div{margin:4px 0}</style></head>
+<body><h1>jihad-mse-probe</h1><div id="state"></div><div id="rows"></div>
+<script>
+var types = [
+  ['video/mp4; codecs="avc1.42E01E"', 'H.264 baseline'],
+  ['video/mp4; codecs="avc1.42E01E, mp4a.40.2"', 'H.264 + AAC'],
+  ['audio/mp4; codecs="mp4a.40.2"', 'AAC'],
+  ['audio/mpeg', 'MP3'],
+  ['video/webm; codecs="vp9"', 'VP9 (the control: no FFmpeg needed)'],
+  ['video/webm; codecs="vp8, vorbis"', 'VP8 + Vorbis (control)']
+];
+var v = document.createElement("video"), a = document.createElement("audio"), out = [], mse = typeof MediaSource !== "undefined";
+types.forEach(function (t) {
+  var el = /^audio/.test(t[0]) ? a : v;
+  var r = t[1] + ": MSE " + (mse ? (MediaSource.isTypeSupported(t[0]) ? "yes" : "no") : "absent") + ", canPlayType " + (el.canPlayType(t[0]) || "no");
+  out.push(r); var d = document.createElement("div"); d.textContent = r; document.getElementById("rows").appendChild(d);
+});
+var summary = "MSE " + (mse ? "present" : "absent") + "; H.264 MSE " + (mse && MediaSource.isTypeSupported(types[0][0]) ? "yes" : "no") +
+  ", AAC MSE " + (mse && MediaSource.isTypeSupported(types[2][0]) ? "yes" : "no") + ", MP3 MSE " + (mse && MediaSource.isTypeSupported(types[3][0]) ? "yes" : "no");
+document.getElementById("state").textContent = summary; document.title = "jihad-mse-probe " + summary;
+</script></body></html>

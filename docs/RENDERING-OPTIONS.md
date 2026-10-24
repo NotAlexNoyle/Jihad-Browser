@@ -309,6 +309,20 @@ WebGL 1 contexts are made on the GPU and share textures with the compositor (no 
 | card double taps on Wikipedia, first frame at the new zoom | median 158 ms, 0-2 of 12 over 250 | before the clock hold: 4-8 of 12 over 250 |
 | WebGL spinning cube, 240 / 360 / 480 px | 26.5-27 / 21.5-23 / 19.5-20.9 fps (the page draws 23.8-25.1 at 480) | software path: no WebGL |
 
+The same 10 s scripted pan (0 → 3000 card px) on each page, the GPU path as shipped against the software
+path (`NOGPU=1`), on the build with the review fixes (engine 0058), 2026-10-24 (T-519, the logs in
+`docs/rounds/t519-2026-10-24/`; the 2 s windows during the pan, the pan's first window left out, the windows after it not counted; Hacker News is 1249 px tall, so the pan's last frames are past the page; Wikipedia's lowest window is its first scroll's restyle):
+
+| Page | GPU path | Software path |
+|---|---|---|
+| `jihad-long-static.html` (a fixed header) | 30.4-33.3 fps | 10.8-12.5 fps |
+| `jihad-fixed-both.html` (an opaque header and footer) | 26.4-27.9 fps | 10.9-12.7 fps |
+| `jihad-sticky-mix.html` (header, footer, a see-through sticky sidebar) | 16.5-19.0 fps | 8.6-10.0 fps |
+| `jihad-anim-css.html` (a CSS animation, panned) | 14.5-24.4 fps | 11.4-23.6 fps |
+| `jihad-scroll-js.html` (the page scrolls itself, panned) | 22.8-27.7 fps | 10.5-11.4 fps |
+| news.ycombinator.com (fit zoom 0.955) | 37.5-48.0 fps | 6.3-10.2 fps |
+| desktop en.wikipedia.org (12 s after the load) | 18.5-25.9 fps | 2.7-2.9 fps |
+
 What it does not reach yet. Desktop Wikipedia at 24 fps every run: its two pinned side panels are
 see-through sticky layers, composed again every frame; since they are regions of one composite the CPU
 cost is down (a chunked frame 10.6 ms against 22.5) and the frame is bound by the GPU (~17 ms of compose

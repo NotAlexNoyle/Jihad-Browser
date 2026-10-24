@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-content-blocking.md R4): EasyList's generic hiding rule ###ad-rotator
+     hides the box below while "Hide the frames adverts leave" (jihad.blocking.cosmetic) is on; with it
+     off the box shows on the next load, with no daemon restart. The page reports the box's computed
+     display in its title once laid out, so the inject channel's `title` reads it.
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-hiding</title>
+<style>body{font:18px sans-serif;margin:24px} #ad-rotator{background:#fc6;border:2px solid #c90;padding:12px;margin:12px 0} #plain{background:#cfc;padding:12px}</style></head>
+<body><h1>jihad-hiding</h1>
+<div id="ad-rotator">#ad-rotator — EasyList's generic hiding rule ###ad-rotator applies to me</div>
+<div id="plain">a plain box, never hidden (the control)</div>
+<p id="out"></p>
+<script>
+window.addEventListener("load", function () {
+  setTimeout(function () {
+    var d = getComputedStyle(document.getElementById("ad-rotator")).display,
+        c = getComputedStyle(document.getElementById("plain")).display;
+    document.getElementById("out").textContent = "ad-rotator display=" + d + ", control display=" + c;
+    document.title = "jihad-hiding ad-rotator=" + d + " control=" + c;
+  }, 300);
+});
+</script></body></html>

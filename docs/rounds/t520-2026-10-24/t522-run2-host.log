@@ -1,0 +1,64 @@
+
+##### 13:28:36 push the component and the library
+
+##### 13:28:36 install into the three variants
+net.riverstonerelay.jihad-browser: component fc112859
+rm: can't remove '/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/cache/startupCache': Directory not empty
+net.riverstonerelay.jihad-browser-mochi: component fc112859
+rm: can't remove '/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/cache/startupCache': Directory not empty
+net.riverstonerelay.jihad-browser-mojo: component fc112859
+rm: can't remove '/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/cache/startupCache': Directory not empty
+
+##### 13:28:37 prep (hosts, jetzt.de too)
+grep: jetzt.de: No such file or directory
+hosts: 3 lines; resolves: BusyBox v1.17.3 () multi-call binary.
+
+##### 13:28:37 start
+screenshot at +8 s after the launch: 4 content frames published
+
+##### 13:29:19 main
+
+=== T-522 build: the lists (a recompile: compiler 11)
+compiled: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1
+(load done after 3s)
+title=[mdn T-522 warm-up: 3686 ms, loadEventEnd 1792862964774]
+(load done after 2s)
+title=[mdn T-522 hiding-off run 1: 2712 ms, loadEventEnd 1792862976362]
+(load done after 2s)
+title=[mdn T-522 hiding-on run 1: 2868 ms, loadEventEnd 1792862989262]
+(load done after 2s)
+title=[mdn T-522 hiding-off run 2: 2578 ms, loadEventEnd 1792863001900]
+(load done after 3s)
+title=[mdn T-522 hiding-on run 2: 3104 ms, loadEventEnd 1792863015148]
+(load done after 2s)
+title=[mdn T-522 hiding-off run 3: 2846 ms, loadEventEnd 1792863028510]
+(load done after 2s)
+title=[mdn T-522 hiding-on run 3: 2876 ms, loadEventEnd 1792863041380]
+
+=== generic hiding still applies
+(load done after 0s)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== a $generichide site (jetzt.de mapped to the PC): no generic hiding there
+(load done after 40s)
+(inject not taken in 25 s: title)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== the per-document sheet carries the excepted generic selectors: one of them hidden on jihad.test
+(load done after 1s)
+title=[jihad-excsel none control=block]
+compiled: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 13079 (less 0), site selectors 7871 (less 301, per document), excepted generic 268 (per document), ba
+
+##### 13:32:14 log
+1590 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t522-daemon.log
+
+##### 13:32:15 stop + restore the job (the new component stays)
+(580760/722903062) jihad (start) running, process 13299
+enyo daemons running: 1
+hosts now: 2 lines, 123count: 0
+novacom: unexpected EOF from server
+
+##### 13:32:32 the other two variants' jobs restarted on the new component
+dev-sh: no such script: /dev/stdin
+
+##### 13:32:32 DONE

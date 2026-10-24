@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-fixed-both.html — T-519 (cavekit-gpu-rendering R2, R4): a long page with an OPAQUE fixed
+     header AND an OPAQUE fixed footer and nothing else fixed or sticky, so a pan step reads two
+     bands (the rows the shift uncovers beside each) and never the whole frame. No script. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-fixed-both</title>
+<style>
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #f8f6f0; }
+  #header { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #2b4c7e; color: #fff;
+            line-height: 56px; padding-left: 16px; z-index: 3; }
+  #footer { position: fixed; bottom: 0; left: 0; right: 0; height: 48px; background: #7e2b4c; color: #fff;
+            line-height: 48px; padding-left: 16px; z-index: 3; }
+  #content { padding: 72px 16px 64px; }
+  p { margin: 0 0 12px; }
+  p:nth-child(10n) { background: #ffe9a8; }
+  p:nth-child(25n) { background: #c8e6c9; }
+</style></head>
+<body>
+<div id="header">jihad-fixed-both: a fixed header</div>
+<div id="content">
+<p>1: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>2: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>3: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>4: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>5: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>6: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>7: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>8: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>9: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>10: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>11: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>12: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>13: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>14: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>15: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>16: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>17: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>18: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>19: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>20: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>21: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>22: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>23: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>24: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>25: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>26: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>27: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>28: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>29: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>30: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>31: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>32: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>33: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>34: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>35: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>36: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>37: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>38: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>39: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>40: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>41: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>42: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>43: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>44: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>45: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>46: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>47: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>48: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>49: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>50: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>51: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>52: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>53: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>54: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>55: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>56: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>57: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>58: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>59: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>60: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>61: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>62: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>63: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>64: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>65: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>66: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>67: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>68: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>69: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>70: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>71: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>72: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>73: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>74: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>75: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>76: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>77: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>78: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>79: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>80: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>81: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>82: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>83: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>84: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>85: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>86: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>87: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>88: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>89: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>90: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>91: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>92: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>93: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>94: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>95: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>96: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>97: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>98: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>99: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>100: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>101: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>102: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>103: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>104: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>105: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>106: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>107: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>108: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>109: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>110: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>111: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>112: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>113: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>114: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>115: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>116: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>117: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>118: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>119: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>120: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>121: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>122: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>123: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>124: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>125: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>126: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>127: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>128: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>129: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>130: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>131: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>132: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>133: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>134: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>135: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>136: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>137: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>138: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>139: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>140: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>141: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>142: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>143: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>144: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>145: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>146: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>147: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>148: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>149: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>150: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>151: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>152: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>153: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>154: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>155: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>156: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>157: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>158: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>159: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+<p>160: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.</p>
+</div>
+<div id="footer">jihad-fixed-both: a fixed footer</div>
+</body></html>

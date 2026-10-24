@@ -1,0 +1,153 @@
+
+##### 12:43:37 push the edited list and the library
+
+##### 12:43:37 prep
+hosts: 3 lines; resolves: PING 123count.com (192.168.1.245): 56 data bytes / PING 01counter.com (192.168.1.245): 56 data bytes
+easylist: ! Version: 202610241630
+easyprivacy: ! Version: 202610241606
+edited copy in place: ! Version: 202610249999, @@||ad.doubleclick.net^
+
+##### 12:43:43 start 1 (the exception copy)
+screenshot at +9 s after the launch: 6 content frames published
+
+=== exception run: the lists
+compiled: EasyList 202610249999, EasyPrivacy 202610241606 - hosts 91980, third-party 5367, typed 199, path 5595, exceptions 6+1083, generichide 160, selectors 1
+(load done after 10s)
+title=[jihad-exception 2/2 loaded]
+blocked doubleclick lines since: 0
+
+##### 12:44:46 the original list back
+original copy back: ! Version: 202610241630
+
+##### 12:44:48 start 2 (the published lists)
+screenshot at +8 s after the launch: 6 content frames published
+
+##### 12:45:23 main
+
+=== the lists
+compiled: EasyList 202610241630, EasyPrivacy 202610241606 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1
+
+=== A control: jihad-exception with the published lists
+(load done after 2s)
+title=[jihad-exception 1/2 loaded]
+blocked image by ad.doubleclick.net
+
+=== B top-level navigation to a listed host
+(load done after 5s)
+title=[jihad-colors]
+load done uri=http://ad.doubleclick.net:8077/jihad-colors.html
+
+=== C first-party (the page on 123count.com)
+(load done after 2s)
+title=[jihad-tp-first 2/2 loaded]
+blocked lines since: 0
+
+=== D third-party (the page on the PC's address)
+(load done after 5s)
+title=[jihad-tp-third 1/2 loaded]
+blocked image by 123count.com$third-party
+
+=== E master switch off, live
+blocking off
+(load done after 0s)
+title=[jihad-tp-third 2/2 loaded]
+blocked lines since the switch: 0
+
+=== E master switch on again
+blocking on
+(load done after 1s)
+title=[jihad-tp-third 1/2 loaded]
+blocked image by 123count.com$third-party
+
+=== F hiding on (the page under a host name: LAN addresses are exempt from the generic sheet)
+(load done after 1s)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== F hiding off, live
+(load done after 0s)
+title=[jihad-hiding ad-rotator=block control=block]
+
+=== F hiding on again
+(load done after 5s)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== G the settings line
+(load done after 2s)
+gettext .row-text = [EasyList 202610241630 · EasyPrivacy 202610241606, updated 2026-10-24; 10 requests blocked since start]
+
+=== G the counter after a blocking page
+(load done after 5s)
+blocked lines on that page: 6
+(load done after 2s)
+gettext .row-text = [EasyList 202610241630 · EasyPrivacy 202610241606, updated 2026-10-24; 16 requests blocked since start]
+
+=== H the update button
+clicked at 673 893
+update: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 130
+gettext .row-text = [EasyList 202610241635 · EasyPrivacy 202610241641, updated 2026-10-24; 16 requests blocked since start]
+
+=== I the MDN page's copy served from the LAN under a host name (the generic sheet applies): warm-up
+(load done after 8s)
+title=[mdn warm-up: 8558 ms, loadEventEnd 1792860501112]
+(load done after 7s)
+title=[mdn hiding-on run 1: 7130 ms, loadEventEnd 1792860519378]
+(load done after 6s)
+title=[mdn hiding-on run 2: 6958 ms, loadEventEnd 1792860538284]
+(load done after 7s)
+title=[mdn hiding-on run 3: 7324 ms, loadEventEnd 1792860556476]
+(load done after 2s)
+title=[mdn hiding-off run 1: 2930 ms, loadEventEnd 1792860572900]
+(load done after 2s)
+title=[mdn hiding-off run 2: 2896 ms, loadEventEnd 1792860586836]
+(load done after 3s)
+title=[mdn hiding-off run 3: 2848 ms, loadEventEnd 1792860600416]
+
+=== J shouldLoad on 200 refused images (the blocked-line log off; the twenty hosts mapped to the PC for the blocking-off loads)
+(load done after 4s)
+title=[many blocking-on run 1: 4696 ms, loadEventEnd 1792860625962]
+(load done after 8s)
+title=[many blocking-on run 2: 8028 ms, loadEventEnd 1792860643224]
+(load done after 5s)
+title=[many blocking-off run 1: 6010 ms, loadEventEnd 1792860660222]
+(load done after 5s)
+title=[many blocking-off run 2: 5164 ms, loadEventEnd 1792860676672]
+
+=== K MSE probe
+(load done after 1s)
+gettext #state = [MSE present; H.264 MSE yes, AAC MSE yes, MP3 MSE no]
+
+=== end: prefs
+getpref b jihad.blocking.enabled = [true]
+getpref b jihad.blocking.cosmetic = [true]
+
+=== the blocker's own lines
+compiled: EasyList 202610241630, EasyPrivacy 202610241606 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1
+hiding on (13079 generic selectors)
+memory after install: resident 128.1 MB, heap-allocated 45.9 MB, JS GC heap 22.0 MB, JS temporary peak 1.3 MB, JS compartments 56+6
+blocking off
+blocking on
+hiding on (13079 generic selectors)
+hiding on (13079 generic selectors)
+update: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 130
+hiding on (13079 generic selectors)
+memory after install: resident 159.1 MB, heap-allocated 69.5 MB, JS GC heap 24.0 MB, JS temporary peak 1.3 MB, JS compartments 58+2
+hiding on (13079 generic selectors)
+blocking off
+blocking on
+hiding on (13079 generic selectors)
+
+##### 12:51:50 shots + log
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-enyo-privacy3.jpg
+3965 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-daemon.log
+
+##### 12:51:50 stop + restore the job
+pref stripped: jihad.blocking.log
+(578339/321224419) jihad (start) running, process 5770
+enyo daemons running: 1
+
+##### 12:52:08 finish: hosts back
+hosts now: 2 lines, 123count: 0
+-rw-r--r--    1 root     root        191092 Oct 24 09:47 /tmp/t520-enyo-privacy3.png
+tmpfs                    40.0M     13.2M     26.8M  33% /tmp
+
+##### 12:52:11 DONE

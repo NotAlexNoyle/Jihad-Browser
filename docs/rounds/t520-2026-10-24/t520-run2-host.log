@@ -1,0 +1,161 @@
+
+##### 12:29:25 push the edited list and the library
+
+##### 12:29:25 prep
+hosts:
+127.0.0.1	localhost.localdomain		localhost
+127.0.0.1	palm-webos
+192.168.1.245	123count.com ad.doubleclick.net jihad.test
+resolves: PING 123count.com (192.168.1.245): 56 data bytes / PING jihad.test (192.168.1.245): 56 data bytes
+easylist: ! Version: 202610241606
+easyprivacy: ! Version: 202610241606
+edited copy in place: ! Version: 202610249999, @@||ad.doubleclick.net^
+
+##### 12:29:31 start 1 (the exception copy)
+screenshot at +45 s after the launch: 1 content frames published
+
+=== exception run: the lists
+compiled: EasyList 202610249999, EasyPrivacy 202610241606 - hosts 91980, third-party 5367, typed 199, path 5595, exceptions 6+1083, generichide 160, selectors 13079 (less 0), site selectors 7854 (less
+(inject not taken in 20 s: title)
+blocked doubleclick lines since: 0
+
+##### 12:31:20 the original list back
+original copy back: ! Version: 202610241606
+
+##### 12:31:22 start 2 (the published lists)
+screenshot at +8 s after the launch: 7 content frames published
+
+##### 12:32:42 main
+
+=== the lists
+compiled: EasyList 202610241606, EasyPrivacy 202610241606 - hosts 95042, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 13079 (less 0), site selectors 7871 (less
+
+=== A control: jihad-exception with the published lists
+(inject not taken in 20 s: title)
+title=[]
+
+=== B top-level navigation to a listed host
+(inject not taken in 20 s: url http://ad.doubleclick.net:8077/jihad-colors.html)
+title=[jihad-exception]
+js-console (no source):0:0 blocker: blocked image by ad.doubleclick.net
+late load done uri=http://192.168.1.245:8077/jihad-exception.html
+
+=== C first-party (the page on 123count.com)
+title=[jihad-tp-first 2/2 loaded]
+blocked lines since: 0
+
+=== D third-party (the page on the PC's address)
+title=[jihad-tp-third 1/2 loaded]
+blocked image by 123count.com$third-party
+
+=== E master switch off, live
+blocking off
+title=[jihad-tp-third 2/2 loaded]
+blocked lines since the switch: 0
+
+=== E master switch on again
+(inject not taken in 20 s: setpref b jihad.blocking.enabled true)
+(inject not taken in 20 s: url http://192.168.1.245:8077/jihad-tp-third.html?on)
+tail: short write
+title=[jihad-tp-third]
+blocked image by 123count.com$third-party
+
+=== F hiding on (the page under a host name: LAN addresses are exempt from the generic sheet)
+title=[jihad-hiding ad-rotator=none control=block]
+
+=== F hiding off, live
+title=[jihad-hiding ad-rotator=block control=block]
+
+=== F hiding on again
+(inject not taken in 20 s: setpref b jihad.blocking.cosmetic true)
+(inject not taken in 20 s: url http://jihad.test:8077/jihad-hiding.html?3)
+title=[jihad-hiding]
+
+=== G the settings line
+gettext .row-text = [EasyList 202610241606 · EasyPrivacy 202610241606, updated 2026-10-24; 10 requests blocked since start]
+
+=== G the counter after a blocking page
+gettext .row-text = [EasyList 202610241606 · EasyPrivacy 202610241606, updated 2026-10-24; 10 requests blocked since start]
+
+=== H the update button
+rect sel:button.btn rect=621,870 104x45 center=673,893
+clicked at 673 893
+update: EasyList 202610241630, EasyPrivacy 202610241606 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 130
+gettext .row-text = [EasyList 202610241630 · EasyPrivacy 202610241606, updated 2026-10-24; 10 requests blocked since start]
+
+=== I MDN warm-up (the cache)
+(inject not taken in 20 s: jsurl javascript:void(document.title='mdn hiding-on run 1: '+(performance.timing.loadEventEnd-performance.timing.navigationStart)+' ms, loadEventEnd '+performance.timing.loadEventEnd))
+title=[CSS: Cascading Style Sheets | MDN]
+title=[CSS: Cascading Style Sheets | MDN]
+(inject not taken in 20 s: jsurl javascript:void(document.title='mdn hiding-on run 3: '+(performance.timing.loadEventEnd-performance.timing.navigationStart)+' ms, loadEventEnd '+performance.timing.loadEventEnd))
+title=[CSS: Cascading Style Sheets | MDN]
+title=[CSS: Cascading Style Sheets | MDN]
+tail: short write
+title=[CSS: Cascading Style Sheets | MDN]
+title=[CSS: Cascading Style Sheets | MDN]
+(inject not taken in 20 s: setpref b jihad.blocking.cosmetic true)
+
+=== J shouldLoad on 200 refused images
+(inject not taken in 20 s: url http://192.168.1.245:8077/jihad-blocking-many.html)
+(inject not taken in 20 s: jsurl javascript:void(document.title='many blocking-on run 1: '+(performance.timing.loadEventEnd-performance.timing.navigationStart)+' ms, loadEventEnd '+performance.timing.loadEventEnd))
+(inject not taken in 20 s: title)
+title=[CSS: Cascading Style Sheets | MDN]
+blocked lines since: 0
+title=[many blocking-on run 2: 6484 ms, loadEventEnd 1792859845264]
+blocked lines since: 401
+tail: short write
+title=[many blocking-off run 1: -1792859849298 ms, loadEventEnd 0]
+tail: short write
+title=[many blocking-off run 2: -1792859866272 ms, loadEventEnd 0]
+(inject not taken in 20 s: setpref b jihad.blocking.enabled true)
+
+=== K MSE probe
+(inject not taken in 20 s: url http://192.168.1.245:8077/jihad-mse-probe.html)
+(inject not taken in 20 s: gettext #state)
+
+=== end: prefs
+(inject not taken in 20 s: getpref b jihad.blocking.enabled)
+(inject not taken in 20 s: getpref b jihad.blocking.cosmetic)
+getpref b jihad.blocking.cosmetic = [true]
+
+=== the blocker's own lines
+compiled: EasyList 202610241606, EasyPrivacy 202610241606 - hosts 95042, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 1
+hiding on (13079 generic selectors)
+memory after install: resident 142.9 MB, heap-allocated 48.8 MB, JS GC heap 21.0 MB, JS temporary peak 1.3 MB, JS compartments 56+6
+blocking off
+blocking on
+hiding on (13079 generic selectors)
+hiding on (13079 generic selectors)
+update: EasyList 202610241630, EasyPrivacy 202610241606 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 130
+hiding on (13079 generic selectors)
+memory after install: resident 151.1 MB, heap-allocated 67.7 MB, JS GC heap 22.0 MB, JS temporary peak 1.3 MB, JS compartments 58+2
+hiding on (13079 generic selectors)
+blocking off
+blocking on
+hiding on (13079 generic selectors)
+
+##### 12:38:23 shots + log
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-enyo-privacy.jpg
+/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-enyo-privacy2.jpg
+4961 /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-daemon.log
+
+##### 12:38:23 stop + restore the job
+pref stripped: jihad.blocking.log
+(577535/274376279) jihad (start) running, process 23801
+enyo daemons running: 1
+
+##### 12:38:44 finish: hosts back
+hosts now: 2 lines, 123count: 0
+-rw-r--r--    1 root     root        191127 Oct 24 09:33 /tmp/t520-enyo-privacy.png
+-rw-r--r--    1 root     root        191837 Oct 24 09:34 /tmp/t520-enyo-privacy2.png
+
+##### 12:38:46 the Mojo Privacy pane through its test hook
+luna-restart: system UI up 31 s after the restart; USB alert closed
+16:39:45 JIHAD-TEST] page:w8;Uabout:preferences#pane=privacy;w14;Y: navigate (typed) to about:preferences#pane=privacy, palmInitFramework506:2574
+(at or after the screenshot) 16:40:02 JIHAD-TEST] page:w8;Uabout:preferences#pane=privacy;w14;Y: unknown step Y, palmInitFramework506:2574
+JIHAD-SHOT] screenshot taken at 16:39:59 UTC
+screenshot: /home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/docs/rounds/t520-2026-10-24/t520-mojo-privacy.jpg
+luna-restart: system UI up 31 s after the restart; USB alert closed
+tmpfs                    40.0M     13.0M     27.0M  33% /tmp
+
+##### 12:40:40 DONE

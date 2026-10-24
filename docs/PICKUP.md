@@ -52,6 +52,127 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-24 delta — Tier 88: the kits' open criteria closed on the current build; the commits chained for the owner's passphrase (READ FIRST)
+
+**The owner:** "Continue the implementation of Jihad Browser using Cavekit version 3.1." The registry had no
+unblocked task (the finger rounds, the tabs tier and T-504/505/511/517 are the owner's), so Tier 88 was added
+to the site (T-518…T-521): the acceptance criteria no task covered any more, and the engine's staged review
+fixes (0058) not yet in the patch queue.
+
+**T-518 (records) done.** Seven criteria met by earlier tasks ticked with their evidence (gpu R11's review,
+content-blocking R7's three, modern-web R1's two and T-500's two); T-501's criterion kept `[~]` until T-520's
+MSE probe; the template placeholders never filled (`T500_KIT`, `T501_KIT`, `T501_DEVICE_RESULT`,
+`DEVICE_STATE_EVENING`, `TRACE_PICKUP`) filled; a stray JSON blob reverted out of `.cavekit/config` (the owner's
+one-line file); the README's "Where it stands" regenerated.
+
+**T-519 (the GPU sweep) done.** On engine 0058, the 10 s scripted pan on six pages under `JIHAD_GPU_VERIFY=1`
+(`docs/rounds/t519-2026-10-24/`): 0 rows structurally wrong on all; 0 rows differ at all on the long page, the
+new `jihad-fixed-both.html` (an opaque header AND footer, nothing else), sticky-mix, scroll-js and Hacker News;
+Wikipedia 3 of 70 frames resampling-class. The animation page differs only inside its animated block (the
+verify reference samples the CSS animation at its own compose time): R2's first criterion is `[~]` with the
+engine fix named (pin the reference's animation time to its job's). R4's four ticked on the compositor's lines
+(two bands with both kept on the fixed-both page, Wikipedia's panels as 2 columns in 3-5 chunks; sticky-mix takes
+the whole path as in T-503's rounds). R3's table, the GPU path against `NOGPU=1` on every page, is in
+`docs/RENDERING-OPTIONS.md`: ahead everywhere (long 30-33 against 11-12.5 fps, Wikipedia 18.5-26 against
+2.7-2.9, Hacker News 37-48 against 6-10).
+
+**T-520 (the blocker's device criteria) done, one criterion failed and fixed by T-522.** On the Enyo card through the
+inject channel (`url`, `setpref`, `gettext`, `rect`, `click`, `jsurl`), with `123count.com`, `ad.doubleclick.net`, a neutral
+`jihad.test` and the 200-image page's twenty hosts mapped to the host PC in `/etc/hosts` for the run: a listed host
+opens top-level; a `$third-party` host loads first-party and is refused third-party; an `@@||host^` exception (a list
+copy with one added) loads the host; the master switch and hiding flip live; the settings line shows the versions and
+a counter that rose 10 → 16; "Update the lists now" moved the lists three times (1105 → 1606 → 1630 → 1635/1641);
+`shouldLoad` on 200 refused images is within 10 % of blocking off; MSE reports H.264 and AAC (T-501's criterion
+ticked). **R4's sheet cost was not met**: hiding on cost the MDN page about 4 s a load (its copy: off 2.6-3.0 s, on
+3.7-7.5; the real page off 11 s, on 15) and 8-12 s on a daemon's first load. Four variants of the cached sheet named
+the cause: the 268 `@-moz-document regexp` groups (one per site-excepted generic selector, each repeating the 160
+generic-hide hosts' 2.4 KB regexp), not the 13,079 keyed selectors — the same sheet under `url-prefix` scopes or with
+no wrapper costs nothing. T-522 moves those selectors into the per-document sheet (`excSel`, compiler 11) and leaves
+the global sheet one regexp group: the MDN copy now loads in 2.9-3.1 s with hiding on against 2.6-2.8 off (+8.7 %), a daemon's first load 3.7 s where it took 8-12; `jihad-hiding.html` still hidden, the site-excepted `#ad-carousel` hidden on `jihad.test` (`t522-run2-host.log`). The bench's three variants run the new component (a dev copy, md5 e8f6c123; the packages carry it at the next bundle build). On a `$generichide` host (jetzt.de mapped to the PC) generic hiding does not apply and the excepted selectors are not added (`t522-generichide-host.log`; the compile line: 268 excepted selectors per document, 154 generic-hide sites and 4 address prefixes). NB two earlier runs of that check timed out and looked like a 25 s stall: the host was not mapped (a `sed` on the prep script had rewritten its own guard) and the load's error alert waited 60 s for a card to answer. Ledger: `docs/MODERN-WEB.md`, T-520; logs `docs/rounds/t520-2026-10-24/`.
+New pages: `jihad-tp-first.html`, `jihad-tp-third.html`, `jihad-exception.html`, `jihad-hiding.html`, `jihad-excsel.html`,
+`jihad-mse-probe.html`, `jihad-plain-ok.png`.
+
+**Traps found today.** (1) A verify run's frame rate is not the path's: `JIHAD_GPU_VERIFY=1` composes and reads
+a whole reference per job (5-6 fps on a 30 fps page); the first sweep had to be run again without it
+(memory `verify-runs-are-not-measurements`). (2) The device's `/etc/hosts` ends without a newline: a line
+appended with `>>` glues onto `palm-webos`, the mapping fails, and the card then sits under a "connection was
+refused" dialog while the daemon takes no inject for a while — append with a leading `\n` and check with
+`ping -c 1 <name>`. (3) EasyList carries `@@://192.168.$generichide`: a test page served from the host PC's
+address gets no generic hiding; serve it under a host name mapped in `/etc/hosts` (`jihad.test`). (4) The inject
+channel's `gettext` passes its argument straight to `querySelector` (no `sel:` prefix, unlike `rect`), and a
+`jsurl javascript:` whose completion value is a string replaces the document — wrap it in `void(...)`. (5) The
+lists load on the first card connect (the cache in about a second): a page launched with the card has its
+requests judged before they are ready, so a blocking test waits for the `blocker: cache:`/`compiled:` line first.
+(6) Mojo launched with `target: about:preferences#pane=privacy` shows an empty card; the pane is reached through
+its test hook's `U` step.
+
+**Commits — NOT MADE YET (T-521).** Signed commits wait on the owner's passphrase (memory `commits-are-ssh-signed`).
+The chain is `.cavekit/handoff-2026-10-24/t521-chain.sh` (git-ignored; with `stage-hunks.py` and the four message
+files beside it): the engine commit (patch 0058), `patch-queue.sh --add`, `update-engine.sh --pins`, the two checks,
+then three Jihad-Browser commits (A: T-487; B: T-513/T-499 with the engine fold, pins and gitlink; C: Tier 88), each
+file shared by two tasks split by hunk. Its first run on 2026-10-24 13:37 stopped at the first prompt ("incorrect
+passphrase supplied") before anything was staged or committed; it is safe to run again from the start. Either
+answer four prompts (`bash .cavekit/handoff-2026-10-24/t521-chain.sh`), or load the key into an agent first and run
+it with no prompt (`ssh-agent -a ~/.ssh/agent.sock`, `SSH_AUTH_SOCK=~/.ssh/agent.sock ssh-add
+~/.ssh/id_ed25519_gitea_signing`, then `SSH_AUTH_SOCK=~/.ssh/agent.sock bash .cavekit/handoff-2026-10-24/t521-chain.sh`).
+Then `git -C third_party/uxp push origin jihad/uxp-RB_20261006` and `git push origin main`. The 807 jpg/log/png dumps
+of the 2026-10-19 rounds in `docs/rounds/t502-2026-10-17/` (42 MB) stay untracked, as the earlier commits left them:
+the owner decides.
+
+## 2026-10-19 (night) delta — T-513, T-487, T-499 done; the verify mode's reference; the layout viewport per document (READ FIRST)
+
+**2026-10-24 (the session resumed after the weekly limit).** Codex reviewed the whole of it and found nine
+more problems, all fixed (`context/impl/impl-review-findings-gpu-2.md`, C1-C9): late writes on the
+engine's opt-in read paths, the previously shown buffer reclaimable by the 2 s valve, the verify pool,
+the document key (now the inner window's id), the adapter's window bound, the inject threads, and the
+spike scripts' daemon waits and restore order. The bench runs that build: engine (patch 0058), daemon and
+the three rebuilt adapters (installed in /usr/lib/jihad/<v>, LunaSysMgr restarted). Re-run on it: two
+cards 22 frames and six flicks 40 frames, 0 rows wrong; the probe page's rotation and navigation; the
+three default checks. **Commits:** the owner turned on SSH commit signing on 2026-10-21 (memory
+`commits-are-ssh-signed`); the engine commit waited on the passphrase prompt, and the two Jihad-Browser
+commits (T-487; T-513/T-499) are written up in the session, not yet made. The registry has no unblocked
+task left: the finger rounds, the tabs tier (set aside by the owner) and T-504/505/511/517 (the circuit
+breaker) are the owner's.
+
+**T-513 (the review of Tier 87) done.** Codex was out of credits; two inspectors reviewed the tier and found
+12 problems, all fixed (`context/impl/impl-review-findings-gpu-2.md`; the worst: every card close left ~16 MB of
+GPU memory in the share group, and the express lane could compose into the buffer the card shows). Twenty card
+open/close cycles add 76 KB (R10). R2's new criterion, a fast flick and two cards panned in turn under
+`JIHAD_GPU_VERIFY=1`, passes: 40 flick frames with shifts to 1200 rows and 26 two-card frames, 0 rows wrong.
+It first "failed" by 744 rows: the verify mode composed its reference at the job's poll, after the flick had
+moved the displayport on, so the reference lacked tiles the published frame had (the frame was right, by eye).
+The reference is now posted right behind its job on the same layer tree (`gpuJobStart`, a static pool of four
+buffers never freed, because a given-up compose can still be read into its buffer late). New round tools:
+`tools/device/t502/two-cards.sh`, the inject channel's `target focus|last` (`JihadBrowserServer.cpp`), the Enyo
+hook's `A` step (bring the other card to the front). Notes `docs/rounds/t513-2026-10-19/`.
+
+**T-487 (the blocklist updater) done** on the Enyo card: a forced update (EasyList and EasyPrivacy 2026-10-19 over
+HTTPS; a rule only in the new EasyPrivacy blocked the next page's image), the network off (two "no download"
+lines, nothing changed, no dialog), no repeat within 4 days or within a day of a failure across restarts. Two
+bugs found and fixed in `jihadContentBlocker.js`: EasyPrivacy was refused as "truncated" on every update (held
+against both lists' rule count), and a due update skipped at the timer's one early look waited six hours.
+
+**T-499 (the layout viewport) done.** Three changes on top of daemon 17's rule: the card's own size resent (every
+NPAPI SetWindow) keeps a followed layout viewport (it used to shrink to 768 and grow back each time); the layout
+viewport is the document's (`GoannaRenderPage::DocumentKey`/`ResetLayoutSize`: a new document starts at the
+card's size, so a device-width page after a followed one is no longer laid out at 1000 and shown at 0.77); and
+the rule waits for `readyState` past "loading" and never follows about:blank (mid-parse the engine lays a page
+out at 980 as if it had no meta viewport, and a device-width page was followed to 980). Probe page with rotation
+and navigation, BBC, YouTube mobile, Wikipedia, DuckDuckGo: `docs/rounds/t499-2026-10-19/`. NB DuckDuckGo now
+declares `width=device-width` and its menu no longer shows, so the rule (no meta viewport only) does not apply
+to it any more; the probe page keeps the original geometry.
+
+**Traps found tonight.** (1) The bench's Wi-Fi flapped for an hour (link up for seconds, gateway unreachable,
+"could not be found" and one `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` from DuckDuckGo that a retry cleared); a
+`palm://com.palm.wifi/setstate` off/on brought it back for a while, and it settled by itself later. Check
+`ping -c 1 duckduckgo.com` on the device before reading a failed load as ours. A daemon that met the outage kept
+failing loads to the LAN ("connection refused") until the network was steady again. (2) A spike's
+`jihad.viewport.followOverflow=false` stayed in the shipped Enyo profile for hours: a daemon still exiting saves
+its prefs over an edit. `gpu-spike-start.sh`, `gpu-spike-collect-stop.sh` and `set-prefs.sh` now wait for the
+daemon to be gone before they touch `prefs.js`. (3) Several cards from successive test launches each connect to
+the daemon (a launch into the running app opens a new card); a "page init FAILED ... shm resolve" line is a card
+already gone. Close the cards between runs.
+
 ## 2026-10-19 (evening) delta — T-505/T-511/T-517 blocked by the circuit breaker; T-512 diagnostics gated (READ FIRST)
 
 **Where the frame floor stands.** Desktop Wikipedia's 10 s scripted pan runs 23.2-24.1 fps since engine
@@ -553,7 +674,7 @@ loads modules from blob URLs) cannot run there: engine work. Mastodon's timeline
 again (needs a console-on visit). The double-tap/pinch sharpness: PICKUP's 2026-10 note stands
 (cause not found).
 
-**Device state:** DEVICE_STATE_EVENING
+**Device state (2026-10-16 evening):** superseded — the state the device was left in is in the newest delta at the top of this file.
 
 ---
 
@@ -641,7 +762,7 @@ server on 8077 and the identity harness on 8078 (`pkill -f 'http.server 8077'`, 
 jihad-identity-server`).
 
 **Open after this:** the finger tests above; the `NS_ERROR_NOT_INITIALIZED` thrower named by the
-trace (see TRACE_PICKUP); `:has()` behind `layout.css.has-pseudo.enabled` untested; container
+trace (the jQuery probe of 2026-10-16 cleared jQuery's start; the thrower is a later call of those pages, unnamed: `docs/MODERN-WEB.md`, T-498); `:has()` behind `layout.css.has-pseudo.enabled` untested; container
 queries, `backdrop-filter`, `content-visibility` are engine work, not shims; the kit memory goal
 (12 MB idle) unmet; the owner's push.
 

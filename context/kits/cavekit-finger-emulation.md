@@ -44,7 +44,7 @@ scans, 80 ms taps, 1.5 s holds).
 - [x] A long press on a page opens the context menu *(2026-10-24: "Select All / Reload / Add Bookmark / Find on Page")*
 - [x] A double tap zooms a page in and, again, back out (the card's smart zoom), as the adapter's `smartZoom` does for the hook's `t` step *(2026-10-24: on desktop Wikipedia `finger dtap 384 600` made the daemon log `smartZoom at 559,752 -> block [550,734 654,770]`; 50/80 and 40/60 ms fire too, 100 ms taps 200 ms apart do not (past the double-click interval); the earlier "nothing" was `jihad-long-static.html`, a device-width page with no block to zoom to. What the card showed after it is the round's first finding: T-524.)*
 - [x] A tap on the address field raises the keyboard and selects the address; a tap on a key types its letter *(2026-10-24: `finger tap 384 45` raised the keyboard with the whole address selected, a second tap brought Cut/Copy (the first try at y = 40 hit the field's edge); `finger tap 53 739` on the q key typed "q" over the selection)*
-- [ ] A two-finger drag scrolls (the second finger must not cancel the first)
+- [x] A two-finger drag scrolls (the second finger must not cancel the first) *(2026-10-24: `finger drag2 354 800 354 400` took `jihad-long-static.html` from paragraph 1 to 4)*
 **Dependencies:** R1
 
 ## R3: The round driven and judged
@@ -55,13 +55,13 @@ criterion it covers ticked in its own kit with the evidence. What no emulation r
 keyboard, the accelerometer's rotation, the feel of smoothness beyond a frame timeline — stays listed for a person,
 and is said so, never ticked.
 **Acceptance Criteria:**
-- [ ] Each item of `docs/FINGER-TESTS.md` carries its result (done with the finger: the shot or dump cited, the date; or "a person": why) and the kit criteria it covers are ticked or left with the reason
-- [ ] Every issue the round finds is fixed and its item re-run, or dispositioned with the cause
+- [~] Each item of `docs/FINGER-TESTS.md` carries its result (done with the finger: the shot or dump cited, the date; or "a person": why) and the kit criteria it covers are ticked or left with the reason *(2026-10-24: the scrolling and gesture items (part 1, T-524) carry theirs; parts 2 and 3 (T-525, T-526) next)*
+- [~] Every issue the round finds is fixed and its item re-run, or dispositioned with the cause *(2026-10-24, part 1: the double tap's cell and 6.2x, the zoomed frame's lost right side, the zoomed hit test, the pinch and zoom-out frames — fixed and re-run; the flick's coast gap, the first frame's 1.6-2.9 s at a new zoom and the clip above 2.9 on a wide page — dispositioned to T-527 with the data, `docs/rounds/finger-2026-10-24/zoom-grey.txt`)*
 - [ ] The GPU path's R6 (the first frame at a new zoom within 250 ms, measured by the daemon's timeline under a real pinch and double tap) and R12 (pans, flicks, pinches and double taps on real pages in the three interfaces, judged from the frame dumps and the timelines) are closed by the round
 **Dependencies:** R2
 
 ## R4: The tool fits the repository
 **Acceptance Criteria:**
 - [x] `tools/device/finger/` builds from the repository (the toolchain line in the header), ships no binary, and `docs/FINGER-TESTS.md`'s head says the round is the agent's with it *(2026-10-24)*
-- [ ] The screenshots a round takes are deleted once judged; only the shots a kit note cites stay (memory `clear-screenshots-when-done`)
+- [x] The screenshots a round takes are deleted once judged; only the shots a kit note cites stay (memory `clear-screenshots-when-done`) *(2026-10-24: every shot of part 1 deleted after judging; the notes cite the daemon's lines, not shots)*
 **Dependencies:** R1

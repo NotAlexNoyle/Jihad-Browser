@@ -1,0 +1,145 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sat, 24 Oct 2026 18:34:10 -0400
+Subject: [PATCH] =?UTF-8?q?layout:=20the=20GPU=20path's=20root=20displaypo?=
+ =?UTF-8?q?rt=20and=20clip=20at=20a=20resolution=20=E2=80=94=20the=20base?=
+ =?UTF-8?q?=20in=20layout=20device=20px=20at=20the=20card's=20shift=20(jih?=
+ =?UTF-8?q?ad=5Flayout=5Fset=5Fdisplayport2),=20the=20scroll=20port=20as?=
+ =?UTF-8?q?=20the=20root's=20display-list=20clip?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+T-524 (2026-10-24), found with the emulated finger on desktop Wikipedia (laid out 1116x1374, the card's
+view 330 CSS px wide at a zoom of 2.33, 531 px from the engine's scroll, which has no sideways range):
+
+1. GetDisplayPortFromMarginsData takes the root's base rect in layout device px: it scales it by the
+   parent's resolution (1 for the root content document) and divides base + margins by the cumulative
+   resolution. jihad_layout_set_displayport set the scroll port in CSS px as the base, so at 2.33 the
+   1116 px base became 479 CSS px and the 165 px margins 71: the displayport ended 550 px from the
+   engine's scroll, the card's right third was white at 2.33, two thirds at 2.71, all of it from 2.98.
+   jihad_layout_set_displayport2 takes where the card's view sits (the compositor's shift) and makes
+   the base what the card shows, at the shift, times the resolution, the margins times the resolution.
+   The old entry calls it with no shift. The daemon passes the shift and sets the displayport again when
+   the shift leaves the re-anchor margin or the zoom changes.
+
+2. nsGfxScrollFrame divided the root content document's display-list clip by the resolution. Gecko's
+   composition size for that root is the widget's device px; the GPU path's (CalculateCompositionSizeForFrame's
+   Jihad branch) is the scroll port or what the card shows, in CSS px, so the clip became 479 CSS px wide
+   at 2.33 and a tap on anything beyond it hit only <html> (the infobox's links). The port is the clip on
+   the GPU path; the overscan rows are CSS px too.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ layout/base/nsLayoutUtils.cpp       | 48 +++++++++++++++++++++--------
+ layout/generic/nsGfxScrollFrame.cpp | 17 +++++++---
+ 2 files changed, 47 insertions(+), 18 deletions(-)
+
+diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
+index fa71767c94..fa5ee23ab3 100644
+--- a/layout/base/nsLayoutUtils.cpp
++++ b/layout/base/nsLayoutUtils.cpp
+@@ -9420,13 +9420,22 @@ jihad_layout_set_overscan(nsIDocShell* aDocShell, float aTop, float aBottom)
+ }
+ 
+ extern "C" MOZ_EXPORT int
+-jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop, float aBottom)
++jihad_layout_set_displayport2(nsIDocShell* aDocShell, float aVisW, float aVisH, float aShiftX, float aShiftY,
++                              float aSide, float aTop, float aBottom)
+ {
+   // T-502 round 131: the card shows aVisW x aVisH CSS px (its size over its zoom), which can be
+   // larger than the scroll port (a fit-zoomed page: 1116x1369 CSS px shown, a 768x942 scroll
+-  // port); the displayport must cover what is shown plus the slack asked for, so the right and
+-  // bottom margins add the difference (round 126's margins relative to the scroll port left the
+-  // right third and the bottom of a fit-zoomed page unpainted)
++  // port); the displayport must cover what is shown plus the slack asked for.
++  // T-524 (2026-10-24): what is shown sits at (aShiftX, aShiftY) CSS px from the engine's own scroll
++  // (the compositor's shift: on a zoomed-in page laid out at the card's width the engine has no
++  // sideways scroll range at all, so the whole of the card's x is the shift), and the pres shell's
++  // resolution follows the zoom (T-504). GetDisplayPortFromMarginsData takes the ROOT's base rect in
++  // layout device px (it scales it by the parent's resolution, 1 here, adds the margins in screen px
++  // and divides the whole by the cumulative resolution): a base in CSS px shrank by the resolution
++  // (the 1116 px scroll port to 479 at 2.33, the margins to 71), the displayport ended 550 CSS px
++  // from the engine's scroll and the card, 531 px over, saw its right third white, then at 2.98 nothing
++  // (desktop Wikipedia, the emulated finger's double tap). So the base is what the card shows, at the
++  // shift, times the resolution, and the margins are screen px: CSS px times the resolution.
+   if (!aDocShell) {
+     return 1;
+   }
+@@ -9456,21 +9465,34 @@ jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, f
+       rsf->SchedulePaint();
+     }
+   }
+-  // the base is the scroll port, set every time: layout seeds it once from the composition size
+-  // (the engine window, 768x942 CSS px) and a fit-zoomed page's scroll port is larger (round 131)
+-  nsLayoutUtils::SetDisplayPortBase(content, nsRect(nsPoint(0, 0), port.Size()));
++  float res = ps->GetResolution();
++  if (!(res > 0.0f)) {
++    res = 1.0f;
++  }
+   const float portW = nsPresContext::AppUnitsToFloatCSSPixels(port.width);
+   const float portH = nsPresContext::AppUnitsToFloatCSSPixels(port.height);
+-  const float right = std::max(0.0f, aVisW - portW) + aSide;
+-  const float bottom = std::max(0.0f, aVisH - portH) + aBottom;
+-  const ScreenMargin margins(aTop, right, bottom, aSide);
++  // the base: what the card shows, where it is, in layout device px (CSS px times the resolution);
++  // at a resolution of 1 and no shift this is the scroll port or the larger shown area, as before
++  const float baseW = std::max(aVisW, aShiftX > 0.0f ? 0.0f : portW);
++  const float baseH = std::max(aVisH, aShiftY > 0.0f ? 0.0f : portH);
++  const nsRect base(nsPresContext::CSSPixelsToAppUnits(aShiftX * res), nsPresContext::CSSPixelsToAppUnits(aShiftY * res),
++                    nsPresContext::CSSPixelsToAppUnits(baseW * res), nsPresContext::CSSPixelsToAppUnits(baseH * res));
++  nsLayoutUtils::SetDisplayPortBase(content, base);
++  const ScreenMargin margins(aTop * res, aSide * res, aBottom * res, aSide * res);
+   static int sLogged = 0;
+-  if (sLogged++ < 6) {
+-    JIHAD_GPU_LOG("[jihad-gpu] displayport: scroll port %.0fx%.0f CSS px, shown %.0fx%.0f, margins top %.0f right %.0f bottom %.0f left %.0f\n",
+-            portW, portH, aVisW, aVisH, aTop, right, bottom, aSide);
++  if (sLogged++ < 12) {
++    JIHAD_GPU_LOG("[jihad-gpu] displayport: scroll port %.0fx%.0f CSS px, shown %.0fx%.0f at +%.0f,%.0f, resolution %.4f, "
++                  "margins %.0f up and down, %.0f sideways (CSS px)\n",
++            portW, portH, aVisW, aVisH, aShiftX, aShiftY, res, aTop, aSide);
+   }
+   if (!nsLayoutUtils::SetDisplayPortMargins(content, ps, margins, 0)) {
+     return 4;
+   }
+   return 0;
+ }
++
++int
++jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop, float aBottom)
++{
++  return jihad_layout_set_displayport2(aDocShell, aVisW, aVisH, 0.0f, 0.0f, aSide, aTop, aBottom);
++}
+diff --git a/layout/generic/nsGfxScrollFrame.cpp b/layout/generic/nsGfxScrollFrame.cpp
+index 5c6c6c14ca..a260199105 100644
+--- a/layout/generic/nsGfxScrollFrame.cpp
++++ b/layout/generic/nsGfxScrollFrame.cpp
+@@ -3455,16 +3455,23 @@ ScrollFrameHelper::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+       clipRect.SizeTo(nsLayoutUtils::CalculateCompositionSizeForFrame(mOuter));
+       if (mOuter->PresContext()->IsRootContentDocument()) {
+         double res = mOuter->PresContext()->PresShell()->GetResolution();
+-        clipRect.width = NSToCoordRound(clipRect.width / res);
+-        clipRect.height = NSToCoordRound(clipRect.height / res);
+-        // Jihad T-505: the GPU path's frame carries rows above and below what the card shows
+         static const bool sJihadGpuOs = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
+         if (sJihadGpuOs) {
++          // Jihad T-524 (2026-10-24): on the GPU path CalculateCompositionSizeForFrame answers the
++          // scroll port or what the card shows, in CSS px — not the widget's device px of Gecko's own
++          // branch — so the division by the resolution below made this clip 479 CSS px wide at a zoom
++          // of 2.33 (1116 / 2.33) and a tap on anything beyond it hit only <html> (desktop Wikipedia's
++          // infobox at x 660, the emulated finger). The card's view, wherever the compositor shifts it,
++          // stays inside the scroll port: the port is the clip.
++          // Jihad T-505: the GPU path's frame carries rows above and below what the card shows (CSS px)
+           const nsMargin os = nsLayoutUtils::JihadOverscanFor(mOuter);
+           if (os.top > 0 || os.bottom > 0) {
+-            clipRect.y -= NSToCoordRound(os.top / res);
+-            clipRect.height += NSToCoordRound((os.top + os.bottom) / res);
++            clipRect.y -= os.top;
++            clipRect.height += os.top + os.bottom;
+           }
++        } else {
++          clipRect.width = NSToCoordRound(clipRect.width / res);
++          clipRect.height = NSToCoordRound(clipRect.height / res);
+         }
+       }
+     }

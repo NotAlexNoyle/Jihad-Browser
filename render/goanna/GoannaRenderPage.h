@@ -547,6 +547,8 @@ public:
   // the zoom, and a displayport one viewport up and down so a scroll inside it is an empty
   // transaction plus a composite. No render pan on this path: the engine scrolls at every zoom.
   bool SetGpuViewport(double zoom);
+  // T-524: where what the card shows sits from the engine's scroll (CSS px), for the displayport
+  void SetGpuShift(double x, double y) { mGpuShiftX = x; mGpuShiftY = y; }
   // T-502: the engine's scroll position (CSS px) after a ScrollTo, and the compositor's view:
   // the zoom and the residual visual offset the engine scroll could not reach (pinch-in pans).
   bool GetEngineScroll(int* x, int* y);
@@ -570,6 +572,7 @@ public:
 private:
   int mWidth;
   int mHeight;
+  double mGpuShiftX = 0.0, mGpuShiftY = 0.0;   // T-524: the compositor's shift the displayport is set for
   int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)
   double mRenderZoom = 1.0;  // pinch/fit zoom applied as a gfxContext scale in the offscreen capture
   double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)

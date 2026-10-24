@@ -272,7 +272,9 @@ public:
   // reached the page at client y=1488 (should be 579) — every below-the-fold press
   // resolved a screenful low. The earlier "no mapping" pass fixed the old double-ADD of
   // scroll but overshot to zero mapping.
-  void docToViewport(int* x, int* y);
+  void docToViewport(int* x, int* y, bool discrete = true);
+  void docOffset(double* ox, double* oy, bool discrete);
+  bool gpuAlignForHitTest(bool discrete);
  public:
   // YAP ZoomSmartCalculateRequest: (x,y) in CSS page px; answers with the block to fit.
   void smartZoomRequest(int x, int y);
@@ -394,6 +396,8 @@ private:
   // shifts the content (jihad_offscreen_set_scroll), fixed layers stay. JIHAD_GPU_ENGINE_SCROLL
   // restores the per-step engine scroll.
   bool               mGpuAnchorValid = false;
+  double mGpuDpShiftX = 0.0, mGpuDpShiftY = 0.0;   // T-524: the shift the displayport was set with
+  double mGpuDpZoom = 0.0;                          // T-524: and the zoom
   bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
   // T-502 round 112: the compositor-side scroll is engaged by a card-driven pan only. A
   // setScrollPosition that follows a position this daemon just reported (msgScrolledTo) is the

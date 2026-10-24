@@ -1168,6 +1168,7 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
     static const double sAnchor = getenv("JIHAD_GPU_ANCHOR") ? atof(getenv("JIHAD_GPU_ANCHOR")) : 0.25;
     // sideways the displayport has margins only when zoomed in (round 126): otherwise any x move re-anchors
     const double marginX = z > 1.01 ? (mPage->Width() * 0.5 / z) * 0.6 : 0.5, marginY = (mPage->Height() / z) * sAnchor;
+    const bool hadAnchor = mGpuAnchorValid;
     if (!mGpuAnchorValid || fabs(wantX - mGpuAnchorX) > marginX || fabs(wantY - mGpuAnchorY) > marginY) {
       mPage->ScrollTo((int)wantX, (int)wantY);
       int sx = 0, sy = 0;
@@ -1175,6 +1176,24 @@ void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
       static uint32_t sN = 0;
       if (sN++ < 20 || (sN % 50) == 0)
         JIHAD_GPU_LOG("[jihad-gpu] scroll anchor moved to %d,%d (wanted %.0f,%.0f)\n", mGpuAnchorX, mGpuAnchorY, wantX, wantY);
+    }
+    // T-524: the displayport is painted around what the card shows, which sits at the compositor's
+    // shift (want - anchor) from the engine's scroll. Where the engine follows (rows, normally) the
+    // shift stays inside the anchor margin and the displayport, set relative to the engine's scroll,
+    // follows by itself; where it cannot (sideways on a page laid out at the card's width, zoomed in:
+    // no scroll range) the shift grows with every pan, and the displayport is set again with it once
+    // it moves past the re-anchor margin — the same cadence as an anchor move.
+    if (mGpuAnchorValid) {
+      const double shX = wantX - mGpuAnchorX, shY = wantY - mGpuAnchorY;
+      // and at a new zoom: the base scales with the resolution, so the old one is wrong by the ratio
+      if (!hadAnchor || z != mGpuDpZoom || fabs(shX - mGpuDpShiftX) > marginX || fabs(shY - mGpuDpShiftY) > marginY) {
+        mGpuDpShiftX = shX; mGpuDpShiftY = shY; mGpuDpZoom = z;
+        mPage->SetGpuShift(shX, shY);
+        mPage->SetGpuViewport(z);
+        static uint32_t sS = 0;
+        if (sS++ < 20 || (sS % 50) == 0)
+          JIHAD_GPU_LOG("[jihad-gpu] displayport shifted to %.0f,%.0f from the engine's %d,%d\n", shX, shY, mGpuAnchorX, mGpuAnchorY);
+      }
     }
     if (mPage->SetGpuScroll(wantX, wantY, true)) {
       gpuSetView(z, 0.0, 0.0);
@@ -1854,27 +1873,65 @@ void BrowserPageGoanna::holdAt(int x, int y) {
   mNeedsPaint = true;
 }
 
-void BrowserPageGoanna::docToViewport(int* x, int* y) {
+void BrowserPageGoanna::docToViewport(int* x, int* y, bool discrete) {
   if (!mPage) return;
+  double ox = 0, oy = 0;
+  docOffset(&ox, &oy, discrete);
+  *x = (int)(*x - ox + 0.5); *y = (int)(*y - oy + 0.5);
+}
+
+// The offset a document point loses to become a point in the engine's viewport.
+// The adapter's document coords are already CSS px: every path that makes them divides by
+// its own zoom first (clickAt, the native tap, the pen-down anchor: (scroll + point) / zoom).
+// docToViewport divided AGAIN (since 2026-08-02, written for "zoomed doc px"), so on any page shown
+// at a zoom other than 1 a tap landed 1/zoom too far right and down — desktop Wikipedia at
+// its 0.69 fit took a tap at x=751 to x=1091, past the article (owner 2026-10-08: "mojo tap
+// targets seem inaccurate … I get duckduckgo when I click wikipedia").
+void BrowserPageGoanna::docOffset(double* ox, double* oy, bool discrete) {
+  *ox = 0; *oy = 0;
+  if (!mPage) return;
+  if (gpuAlignForHitTest(discrete)) {
+    // T-524: the GPU path keeps the card's position in the ENGINE's scroll (the anchor, the compositor
+    // shifting the rest), never in the render pan: the pan branch below read 0 there and a tap on a
+    // scrolled page at any zoom but 1 hit the unscrolled viewport (the emulated finger's second double
+    // tap on desktop Wikipedia at 2.33: "no block" at a point outside the viewport, 2026-10-24).
+    int ex = 0, ey = 0;
+    if (mPage->GetEngineScroll(&ex, &ey)) { *ox = ex; *oy = ey; }
+    return;
+  }
   double z = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
            : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
-  // The adapter's document coords are already CSS px: every path that makes them divides by
-  // its own zoom first (clickAt, the native tap, the pen-down anchor: (scroll + point) / zoom).
-  // This divided AGAIN (since 2026-08-02, written for "zoomed doc px"), so on any page shown
-  // at a zoom other than 1 a tap landed 1/zoom too far right and down — desktop Wikipedia at
-  // its 0.69 fit took a tap at x=751 to x=1091, past the article (owner 2026-10-08: "mojo tap
-  // targets seem inaccurate … I get duckduckgo when I click wikipedia").
-  double cx = *x, cy = *y;
   if (z != 1.0) {
-    // Zoomed: the engine scroll is parked at 0; the visual-viewport pan carries the offset.
-    double px = 0, py = 0; mPage->GetRenderPan(&px, &py);
-    cx -= px; cy -= py;
+    // Zoomed (software path): the engine scroll is parked at 0; the visual-viewport pan carries the offset.
+    mPage->GetRenderPan(ox, oy);
   } else {
     // z~1: the engine scroll carries it. No layout flush in an input path.
     int ex = 0, ey = 0;
-    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { cx -= ex; cy -= ey; }
+    if (mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) { *ox = ex; *oy = ey; }
   }
-  *x = (int)(cx + 0.5); *y = (int)(cy + 0.5);
+}
+
+// T-524: on the GPU path the engine sits at the anchor, up to a quarter of a height from where the
+// card is (gpuScrollTo's margin; the compositor shifts the painted rows the rest of the way), so a
+// point in the card's view can fall outside the engine's viewport, where ElementFromPoint answers
+// nothing. Before a discrete hit test (a tap, a hold, a double tap; not a move) the engine is
+// scrolled to the card's own position — the same move the anchor rule makes a little later — and
+// the anchor follows. Returns true when the GPU path's mapping (the engine scroll) applies.
+bool BrowserPageGoanna::gpuAlignForHitTest(bool discrete) {
+  if (!mPage || !mPage->GpuPath() || getenv("JIHAD_GPU_OLD_SCROLL")) return false;
+  if (!discrete || mGpuZoomHoldMs) return true;   // a zoom hold: the engine stays until its frame is out
+  const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  const int wx = (int)(mAdapterScrollX / z), wy = (int)(mAdapterScrollY / z);
+  int sx = 0, sy = 0;
+  if (!mPage->GetEngineScroll(&sx, &sy) || (sx == wx && sy == wy)) return true;
+  mPage->ScrollTo(wx, wy);
+  int nx = sx, ny = sy;
+  if (mPage->GetEngineScroll(&nx, &ny)) { mGpuAnchorX = nx; mGpuAnchorY = ny; mGpuAnchorValid = true; }
+  static int sN = 0;
+  if (sN++ < 12)
+    fprintf(stderr, "[jihad-bs] hit test: the engine moved to the card's %d,%d (was %d,%d, now %d,%d)\n",
+            wx, wy, sx, sy, nx, ny);
+  return true;
 }
 
 // Double-tap zoom (YAP ZoomSmartCalculateRequest → SmartZoomCalculateResponseSimple). The request
@@ -1885,13 +1942,23 @@ void BrowserPageGoanna::docToViewport(int* x, int* y) {
 // width to the screen, and a second double tap on it goes back to the page's fit.
 void BrowserPageGoanna::smartZoomRequest(int x, int y) {
   if (!mPage) return;
-  double z = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0 : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
   double ox = 0, oy = 0;
-  if (z != 1.0) { mPage->GetRenderPan(&ox, &oy); }
-  else { int ex = 0, ey = 0; if (mPage->GetScrollXY(&ex, &ey, false)) { ox = ex; oy = ey; } }
+  docOffset(&ox, &oy, true);
   int vx = (int)(x - ox + 0.5), vy = (int)(y - oy + 0.5);
   int l = 0, t = 0, r = 0, b = 0;
   if (!mPage->SmartZoomBlockAt(vx, vy, &l, &t, &r, &b)) {
+    // No block under the finger. Zoomed in past the page's fit, the double tap goes back to the fit
+    // (what a second double tap is for): the page's whole width is answered as the block, and the
+    // adapter's zoom for it (narrower than the fit) clamps up to the fit, the tapped row kept in view.
+    // At the fit, no answer: stock's empty rect would have the adapter zoom to its maximum (T-524).
+    const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+    const double fit = mLastContentW > 0 ? (double)mPage->Width() / (double)mLastContentW : 1.0;
+    if (mLastContentW > 0 && z > fit * 1.02) {
+      fprintf(stderr, "[jihad-bs] smartZoom at %d,%d: no block, zoomed in (%.4f over the fit %.4f) -> the page's width\n",
+              x, y, z, fit);
+      mSink.msgSmartZoomCalculateResponseSimple(x, y, 0, y - 10, mLastContentW, y + 10, 0);
+      return;
+    }
     fprintf(stderr, "[jihad-bs] smartZoom at %d,%d: no block\n", x, y);
     return;
   }
@@ -2974,7 +3041,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // doc y=1488 reached the page at client y=1488 while scrolled to 909; the target sat
       // at client y=579). This also explains the 2026-07-17 "link taps below the fold show
       // the overlay but never navigate": the tap resolved a screenful low.
-      docToViewport(&e.x, &e.y);
+      docToViewport(&e.x, &e.y, e.type != PM_MOVE && e.type != PM_TOUCHMOVE);
       if (e.type == PM_CLICK) {
         fprintf(stderr, "[jihad-bs] clickAt %d,%d n=%d (doc %d,%d)\n", e.x, e.y, e.detail,
                 evs[i].x, evs[i].y);

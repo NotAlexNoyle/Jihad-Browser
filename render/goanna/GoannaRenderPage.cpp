@@ -2116,6 +2116,28 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
     if (fit > dz) dz = fit;
     if (dz > mx) dz = mx;
   }
+  // A tag that names no maximum-scale gets the engine's own default, 10. The card's adapter caps
+  // every zoom at what this message says (BrowserAdapter kMaxZoom 4.0 applies only when no message
+  // came), so desktop Wikipedia's `width=1120` let a double tap zoom to 6.2 and a pinch to 10 —
+  // the owner's "areas turn grey" (2026-10-18; reproduced with the emulated finger 2026-10-24,
+  // T-524: the GPU path published empty frames at 6.2). The stock browser never went past its
+  // adapter's 4.0 without a declared maximum; say the same.
+  if (declared.Find(NS_LITERAL_STRING("maximum-scale"), true) < 0 && mx > 4.0) mx = 4.0;
+  // T-524 (2026-10-24): what the GPU path paints in full. Above a resolution of about 4096 / the
+  // layout viewport's larger side the frames lose their right part and then everything (desktop
+  // Wikipedia, laid out 1116x1374: full at 2.99, the right 45% white at 3.49, empty at 4.0; with the
+  // resolution held at 2.9 still white above 3.0 — the limit is the compositor's, in a container the
+  // size of the layout viewport at the resolution, T-527's). A page laid out at the card's width keeps
+  // its 4.0 (4000 / 942 = 4.2). The adapter caps a pinch and a double tap at this maximum.
+  if (mGpu) {
+    // the declared size is what the layout viewport will be (this message goes out before T-499's
+    // layout viewport is applied, so LayoutWidth() still says the card here)
+    const double side = std::max((double)std::max(vw, vh),
+                                 (double)std::max(LayoutWidth(), mLayoutH ? mLayoutH : mHeight));
+    const double gpuMax = side > 0.0 ? 4000.0 / side : mx;
+    if (gpuMax < mx) mx = gpuMax > 1.5 ? gpuMax : 1.5;
+  }
+  if (dz > mx) dz = mx;
   if (initialScale) *initialScale = dz;
   if (minScale) *minScale = mn;
   if (maxScale) *maxScale = mx;
@@ -4273,7 +4295,14 @@ bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* 
         nsCOMPtr<nsIDOMClientRect> r; e->GetBoundingClientRect(getter_AddRefs(r));
         float l = 0, t = 0, w = 0, h = 0;
         if (r) { r->GetLeft(&l); r->GetTop(&t); r->GetWidth(&w); r->GetHeight(&h); }
-        if (w >= 60.0f && h >= 8.0f) {
+        // The adapter fits the block's width to the card (zoom = card / (width + 20)); a block
+        // narrower than a third of the card makes a zoom past 3, where the first block met was a
+        // 104 px infobox cell on desktop Wikipedia (6.2x, then a grey card: T-524, 2026-10-24).
+        // Climb to one at least that wide (the infobox table, the column), as Safari's double tap
+        // and the stock browser's WebKit did.
+        float minW = mWidth > 0 ? (float)mWidth / 3.0f - 20.0f : 60.0f;
+        if (minW < 60.0f) minW = 60.0f;
+        if (w >= minW && h >= 8.0f) {
           *left = (int)(l + 0.5f); *top = (int)(t + 0.5f);
           *right = (int)(l + w + 0.5f); *bottom = (int)(t + h + 0.5f);
           return true;
@@ -4550,24 +4579,10 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   const float visW = (float)mWidth / z, visH = (float)mHeight / z;
   const float dpX = sDpX >= 0.0f ? sDpX : (zoom > 1.01 ? 0.5f : 0.0f);
   const float mx = visW * dpX, my = visH * (sAnchorY + sDpY);
-  // T-503: before the first pan (and at every zoom), a displayport of just what the card shows:
-  // at a fit zoom below 1 the card shows more of the page than the engine's scroll port (986 CSS
-  // px of rows against 942 on news.ycombinator.com), and that strip was never painted until a pan
-  // set the displayport; frames built meanwhile kept it blank, and a zoom out left grey areas
-  if (!sNoDp) {
-    const float smx = mGpuDpWanted ? mx : 0.0f, smy = mGpuDpWanted ? my : 0.0f;
-    if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smy, smy);
-    else if (root && mGpuDpWanted) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
-  }
-  const bool ok = dp == 0;
-  static int sLogged = 0;
-  if (ok != mGpuDpOk || sLogged < 6) {
-    ++sLogged;
-    JIHAD_GPU_LOG("[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px)\n",
-            z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp,
-            mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0);
-  }
-  mGpuDpOk = ok;
+  // T-524: the resolution FIRST. jihad_layout_set_displayport2 scales the displayport's base and
+  // margins by the pres shell's resolution (Gecko divides the sum by it), so the displayport must be
+  // computed with the resolution the paint will use; set after it, a zoom from 2.33 to 2.8 left a base
+  // scaled by 2.33 and divided by 2.8, the card's right third white again (the emulated finger's pinch).
   // T-504: zoomed in, the layers painted at the zoom's resolution. The pres shell's resolution
   // without its scale-to (layout adds a post-scale of 1/resolution, the frame's geometry is
   // unchanged): with the compositor's world transform at the same zoom, a tile's pixels land one to
@@ -4581,7 +4596,11 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // faster. JIHAD_GPU_NO_RES=1 keeps the 1x paint at every zoom.
   static const bool sNoRes = getenv("JIHAD_GPU_NO_RES") != nullptr;
   if (!sNoRes) {
-    const float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
+    // JIHAD_GPU_RES_MAX=<r>: the resolution stops at r, the world transform magnifies the rest (T-524's
+    // bisection of the frame losing its right side above a zoom of ~2 on desktop Wikipedia)
+    static const float sResMax = getenv("JIHAD_GPU_RES_MAX") ? (float)atof(getenv("JIHAD_GPU_RES_MAX")) : 0.0f;
+    float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
+    if (sResMax > 0.0f && res > sResMax) res = sResMax;
     float cur = 1.0f;
     if (NS_SUCCEEDED(u->GetResolution(&cur)) && fabsf(cur - res) > 0.0005f) {
       const nsresult rr = u->SetResolution(res);
@@ -4590,6 +4609,26 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
         JIHAD_GPU_LOG("[jihad-gpu] resolution %.4f -> %.4f (%s)\n", cur, res, NS_SUCCEEDED(rr) ? "set" : "FAILED");
     }
   }
+  // T-503: before the first pan (and at every zoom), a displayport of just what the card shows:
+  // at a fit zoom below 1 the card shows more of the page than the engine's scroll port (986 CSS
+  // px of rows against 942 on news.ycombinator.com), and that strip was never painted until a pan
+  // set the displayport; frames built meanwhile kept it blank, and a zoom out left grey areas
+  if (!sNoDp) {
+    const float smx = mGpuDpWanted ? mx : 0.0f, smy = mGpuDpWanted ? my : 0.0f;
+    if (jihad_layout_set_displayport2 && ds) dp = jihad_layout_set_displayport2(ds, visW, visH, (float)mGpuShiftX, (float)mGpuShiftY, smx, smy, smy);
+    else if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smy, smy);
+    else if (root && mGpuDpWanted) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
+  }
+  const bool ok = dp == 0;
+  static int sLogged = 0;
+  if (ok != mGpuDpOk || sLogged < 6) {
+    ++sLogged;
+    JIHAD_GPU_LOG("[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px, shift %.0f,%.0f)\n",
+            z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp,
+            mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0,
+            mGpuShiftX, mGpuShiftY);
+  }
+  mGpuDpOk = ok;
   return true;
 }
 

@@ -18,6 +18,8 @@
  *     finger drag X0 Y0 X1 Y1 [MS]        a drag, the finger moving at the panel's scan rate (default 600 ms), lifted at rest
  *     finger flick X0 Y0 X1 Y1 [MS]       a flick: the same move but fast (default 160 ms) and lifted while moving
  *     finger pinch CX CY D0 D1 [MS]       two fingers on the horizontal through (CX,CY), D0 apart to D1 apart (default 600 ms)
+ *     finger drag2 X0 Y0 X1 Y1 [MS]       a two-finger drag (the second finger 60 px to the right), lifted at rest
+ *     finger sleep MS                     wait MS milliseconds (BusyBox sleep takes whole seconds only)
  *     finger raw TYPE CODE VALUE ...      one datagram of the given events (for experiments; the EV_SYN is appended)
  *     Coordinates are the PORTRAIT screen's pixels as a screenshot shows them (x 0..767 across, y 0..1023
  *     down, the status bar at the top): the tool turns them into the panel's own frame, which is what
@@ -130,6 +132,19 @@ int main(int argc, char** argv) {
     move_one(1, a[0], a[1], a[2], a[3], a[4] > 0 ? a[4] : 600, 0);
   } else if (!strcmp(cmd, "flick")) {
     move_one(1, a[0], a[1], a[2], a[3], a[4] > 0 ? a[4] : 160, 1);
+  } else if (!strcmp(cmd, "sleep")) {
+    sleep_ms(a[0] > 0 ? a[0] : 0); return 0;
+  } else if (!strcmp(cmd, "drag2")) {
+    int ms = a[4] > 0 ? a[4] : 600;
+    Finger f[2] = { { 1, a[0], a[1], 1, 0, 0 }, { 2, a[0] + 60, a[1], 1, 0, 0 } };
+    scan(f, 2); f[0].phase = f[1].phase = 0;
+    int steps = ms * g_hz / 1000; if (steps < 2) steps = 2;
+    for (int i = 1; i <= steps; i++) {
+      sleep_ms(1000 / g_hz);
+      f[0].x = lerp(a[0], a[2], (double)i / steps); f[0].y = lerp(a[1], a[3], (double)i / steps);
+      f[1].x = f[0].x + 60; f[1].y = f[0].y; scan(f, 2);
+    }
+    sleep_ms(60); f[0].phase = f[1].phase = -1; scan(f, 2);
   } else if (!strcmp(cmd, "pinch")) {
     int cx = a[0], cy = a[1], d0 = a[2], d1 = a[3], ms = a[4] > 0 ? a[4] : 600;
     Finger f[2] = { { 1, cx - d0 / 2, cy, 1, 0, 0 }, { 2, cx + d0 / 2, cy, 1, 0, 0 } };

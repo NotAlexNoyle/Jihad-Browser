@@ -1,0 +1,85 @@
+The finger round, 2026-10-24, the first finding: a double tap on desktop Wikipedia zooms to 6.2x and the card goes grey
+======================================================================================================================
+
+Emulated finger (tools/device/finger), the Enyo card, the upstart daemon (GPU path, express lane), the page styled
+(30 s after the launch), one `finger dtap 384 600`:
+
+  [jihad-bs] smartZoom at 559,752 -> block [550,734 654,770]
+  [jihad-bs] setZoomAndScroll zoom=6.1935 (was 0.6882) scroll=3344,4186
+  [jihad-bs] painted shmid=0x1604000b bytes=0 (768x1224 top=4045 band=4186 left=3344) mZoom=6.1935 ... ms=1565 rows new=0 copied=0
+  [jihad-bs] painted shmid=0x1604000b bytes=0 ... ms=36   (x4 more, then bytes=1, bytes=1)
+
+The card showed the infobox cell "Introductory price" at 6.2x one second after the tap, then grey (shots p1, p8 of the
+session, deleted after judging). A second double tap: `smartZoom at 602,759: no block`, no frames: no way back.
+
+Two causes:
+1. The block: GoannaRenderPage::SmartZoomBlockAt took the first block of 60 px or more up from the tapped element — a
+   104 px wide table cell. The adapter fits the block's width to the card: 768 / (104 + 20) = 6.19.
+2. The cap: the adapter caps a zoom at the page's maximum-scale when a meta viewport message came, else at its
+   kMaxZoom 4.0. Desktop Wikipedia declares `width=1120` without a maximum, and the engine's ViewportInfo answers
+   Gecko's default maximum, 10, which the daemon forwarded:
+     [jihad-bs] metaViewport -> card: initial=0.6857 min=0.1000 max=10.0000 1120x1374 userScalable=1
+   so the card let a double tap reach 6.2 and would let a pinch reach 10.
+
+Fixes (daemon, GoannaRenderPage.cpp): a block must be at least a third of the card's width minus the adapter's
+margin (the infobox table, the column), and a viewport tag that names no maximum-scale is reported with 4.0.
+The GPU path's empty frames at 6.2x stay open as a question for zooms the cap still allows (checked next with a
+pinch to the cap).
+
+The round's findings after that, same day (the emulated finger, the Enyo card, the GPU path)
+---------------------------------------------------------------------------------------------
+
+Steady drag, jihad-long-static.html, six strokes of 750 px in 3 s: the fixed header stayed put in every shot
+(two mid-stroke), the paragraphs ran 12, 24, 35, 46, 57, 68, 79 with no repeat, no gap, no blank; mid-stroke
+the page was 3 paragraphs on (it tracks the finger). PASS (T-502's scroll row).
+
+Flick (160 ms, 600 px, coasting ~2000 px): the card arrives within ~250 ms; the engine paints only at the
+final position (one `painted` top per flick, 4-7 frames), so for ~0.5 s after the finger lifts the lower
+part of the card is blank and the fixed header is gone (shots at 0, 250, 500 ms after seven flicks: blank
+from paragraph 133/161 down, header missing until the 750 ms shot). At rest everything is right. OPEN:
+a frame for the destination during the coast (the GPU floor work, T-527).
+
+Double tap on desktop Wikipedia: (1) the smart zoom fitted a 104 px cell (6.2x) and the engine's default
+maximum-scale of 10 passed the adapter — fixed in the daemon (the block rule: a third of the card; a tag
+without maximum-scale reports 4.0). (2) The second double tap found "no block" at a point inside the
+infobox: on the GPU path the card's position lives in the engine's scroll and the compositor's shift, not
+the render pan the mapping read — fixed (docOffset/gpuAlignForHitTest: the engine is scrolled to the
+card's position before a discrete hit test; a zoomed-in page with no block under the finger answers the
+page's width, which the adapter clamps to the fit). Verified: tap on a scrolled fit-zoom page opens the
+tapped link (Palm Pre 2); double tap in to 2.33, double tap out to 0.69. (3) At rest the zoomed frame lost
+its right third at 2.33, two thirds at 2.71, all of it from 2.98: the resolution following the zoom (T-504)
+shrank the displayport — Gecko's GetDisplayPortFromMarginsData takes the root's base in layout device px
+and divides base + margins by the resolution, so the 1116 px scroll-port base became 479 CSS px and the
+displayport ended 550 px from the engine's scroll, while the card's view starts 531 px over (the engine has
+no sideways range on a page laid out at the card's width). With the resolution off (JIHAD_GPU_NO_RES=1)
+every zoom painted in full; with side margins of two widths (JIHAD_GPU_DP_X=2) the tiles reached the
+frame's edge. Fix in the engine (jihad_layout_set_displayport2: the base is what the card shows, at the
+compositor's shift, times the resolution; the margins times the resolution) and the daemon (the shift
+passed, the displayport set again when the shift moves past the re-anchor margin). Build pending.
+
+The zoom, after the fixes (same day, evening)
+----------------------------------------------
+
+Engine c79d16f8 (patch 0059) and daemon 7c29035a on all three variants, dev copies (the originals kept
+as .orig in each deviceroot/hl):
+
+- A double tap on desktop Wikipedia zooms to the infobox table (2.33), the frame full at rest (bytes
+  69440-98752 against 57408 clipped), in Enyo, Mochi and Mojo.
+- A sideways drag at the zoom stays painted (the displayport follows the compositor's shift).
+- A pinch from 2.33 to 2.58, 2.84 and 2.99 keeps the frame full; the zoom-out to the fit paints the
+  whole page at once (it used to paint 160 tiles, mostly white for seconds: the displayport was computed
+  before the resolution changed, GoannaRenderPage::SetGpuViewport now sets the resolution first and the
+  daemon sets the displayport again at every zoom change).
+- A tap on "Tablet computer" at doc (714, 586) in the 2.33 view opens the link (it hit <html> before:
+  the root's display-list clip divided by the resolution, nsGfxScrollFrame).
+- Above a resolution of about 4096 / the layout viewport's larger side the frame still loses its right
+  part (3.49: 45%) and then everything (4.0), and holding the resolution at 2.9 (JIHAD_GPU_RES_MAX) does
+  not help above 3.0 — the compositor's, T-527. Closed for the round by the page's maximum-scale: the
+  daemon reports min(declared or 4.0, 4000 / the declared viewport's larger side): 2.91 for desktop
+  Wikipedia (the pinch stops there, 9 frames none empty), 4.0 for a device-width page. A page with no
+  viewport tag gets no message (the adapter's own 4.0 holds): open, T-527's list.
+- The express lane: the burst (pinch in, pan, pinch out, double tap) right after desktop Wikipedia's load
+  ends at the new zoom, full and sharp, nothing flipping back; on jihad-script-hold.html the fixed header
+  is drawn mid-view for a moment during the zoom change (h8) and right at rest (h9).
+- The first frame at a new zoom takes 1.6-2.9 s on desktop Wikipedia (the displayport repainted at the
+  new resolution, 48 tiles): R6's 250 ms stays open.

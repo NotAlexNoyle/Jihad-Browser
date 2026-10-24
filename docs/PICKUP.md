@@ -54,6 +54,30 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 
 ## 2026-10-24 (evening) — the owner's two new directives; the emulated finger, where it stands (READ FIRST)
 
+**Later the same evening — the round's part 1 run and its findings fixed (READ THIS FIRST):** T-523 and T-524 are
+DONE (T-514 with them). `tools/device/finger/` has tap, dtap, hold, drag, drag2, flick, pinch, sleep, raw; the kit's
+R2 is all ticked. The round's scrolling and gesture items are run in all three interfaces (`docs/FINGER-TESTS.md`
+carries each result; `docs/rounds/finger-2026-10-24/zoom-grey.txt` the data). **The owner's "areas turn grey" was
+found and fixed:** (1) the smart zoom fitted a 104 px cell (6.2x) and the engine's default maximum-scale of 10 passed
+the adapter — the block rule (a third of the card) and a 4.0 default (daemon); (2) at rest the zoomed frame lost its
+right third from 2.0 and everything from 2.98: the ROOT'S DISPLAYPORT BASE AND CLIP ARE IN LAYOUT DEVICE PX once the
+pres shell has a resolution (Gecko divides them by it) — `jihad_layout_set_displayport2` (the card's shift, base and
+margins times the resolution) and the root's clip no longer divided (engine c79d16f8 = patch 0059, UXP_PIN moved;
+memory `compositor-scroll-traps` 6 and 7); (3) the second double tap and any tap on a zoomed page found nothing — the
+GPU path keeps the position in the engine's scroll, not the render pan (`docOffset`/`gpuAlignForHitTest`), and a
+zoomed-in page with no block answers the page's width (back to the fit); (4) the resolution is set BEFORE the
+displayport and the displayport re-set at every zoom (a pinch from 2.33 to 2.8 clipped again; the zoom-out painted
+160 tiles). **Still open, dispositioned to T-527:** the flick's coast gap (the engine paints only at the coast's end:
+~0.5 s of blank lower card and no fixed header), the first frame at a new zoom (1.6-2.9 s on desktop Wikipedia, R6),
+the clip above ~2.9 on a page laid out 1116x1374 (closed for now by a GPU maximum-scale of 4000 / the declared
+viewport's larger side; a page with no viewport tag keeps the adapter's 4.0 and will clip above ~3.3).
+**Device state:** DEV COPIES on all three variants — libxul 4d753b8f (c79d16f8 stripped) and daemon 7c29035a in each
+`deviceroot/hl`, the originals kept as `libxul.so.orig` / `jihad-browserserver.orig` (c66cd841 / 350c83ed); the
+upstart jobs run them. A packaged build and install (the three ipks) is the clean way to ship them: `build-all-device.sh`
+after the commit. **Next:** T-525 (part 2: chrome and shells) and T-526 (part 3: keyboard, text, plugins, media) with the
+finger, then T-527. Not pushed: this session's commits (the owner's `push.sh`; the engine fork's new head c79d16f8 must
+go with the main repo's gitlink).
+
 **The owner:** (1) "proceed with everything blocked by the finger tests, not by assuming it works, but by driving your
 own tests by emulating a finger and addressing any issues that crop up. if youre not sure how best to emulate a finger
 on the touchpad consult codex"; (3b) the GPU floor levers are authorized: the bench without `sensord`/`atlas-sensord`

@@ -92,6 +92,10 @@ extern "C" {
   // of the docshell's document, from layout itself; 0 on success (see nsLayoutUtils.cpp).
   int jihad_layout_set_displayport(nsIDocShell* aDocShell, float aVisW, float aVisH, float aSide, float aTop,
                                    float aBottom) __attribute__((weak));
+  // OPTIONAL (T-524): the same with what the card shows placed at (aShiftX, aShiftY) CSS px from the
+  // engine's scroll (the compositor's shift), the base and the margins scaled by the resolution.
+  int jihad_layout_set_displayport2(nsIDocShell* aDocShell, float aVisW, float aVisH, float aShiftX, float aShiftY,
+                                    float aSide, float aTop, float aBottom) __attribute__((weak));
   // OPTIONAL (T-505): the rows the GPU path's frame carries above and below what the card shows
   // (CSS px); the root scroll frame's clip is widened by them. 0 on success.
   int jihad_layout_set_overscan(nsIDocShell* aDocShell, float aTop, float aBottom) __attribute__((weak));
@@ -154,6 +158,7 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_set_scroll", jihad_offscreen_set_scroll != nullptr},
     {"jihad_offscreen_set_done_fd", jihad_offscreen_set_done_fd != nullptr},
     {"jihad_layout_set_displayport", jihad_layout_set_displayport != nullptr},
+    {"jihad_layout_set_displayport2", jihad_layout_set_displayport2 != nullptr},
     {"jihad_layout_set_overscan", jihad_layout_set_overscan != nullptr},
     {"jihad_offscreen_take_dirty", jihad_offscreen_take_dirty != nullptr},
     {"jihad_offscreen_take_dirty_rect", jihad_offscreen_take_dirty_rect != nullptr},

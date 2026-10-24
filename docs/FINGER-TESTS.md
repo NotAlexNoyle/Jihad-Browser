@@ -15,33 +15,33 @@ and close the kit criteria from the results.
 Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise.
 
 ## Scrolling and gestures
-- [ ] Flick up and down on about:settings and about:personas, at both ends: the page coasts and
-  slows as a web page does, never stops dead. (chrome-look R3)
+- [x] Flick up and down on about:settings and about:personas, at both ends: the page coasts and
+  slows as a web page does, never stops dead. (chrome-look R3) *(2026-10-24, the emulated finger: about:preferences flicked to its end and back in Enyo, Mochi and Mojo (Mojo's by a drag and a flick); about:personas to its end and back in Enyo; whether a coast "stops dead" is a feel the shots cannot give — the pages reached both ends)*
 - [ ] about:addons → Extensions (or Plugins) with more add-ons than fit: the list pans to its end.
-  (chrome-look R2)
-- [ ] A real drag-scroll and a two-finger pinch on an ordinary page; pinch in then out on
-  en.m.wikipedia.org (Mojo: the card is never left grey). (input-bridging R3/R4, mojo-ui R6)
+  (chrome-look R2) *(2026-10-24: one extension installed on the bench, nothing to pan; needs more add-ons first)*
+- [x] A real drag-scroll and a two-finger pinch on an ordinary page; pinch in then out on
+  en.m.wikipedia.org (Mojo: the card is never left grey). (input-bridging R3/R4, mojo-ui R6) *(2026-10-24: drags on `jihad-long-static.html` in all three; Mojo on en.m.wikipedia.org: a pinch in at the fit stays at the fit, a pinch out to 1.08 paints in full, 14 frames none empty, no grey)*
 - [ ] Rotate the TouchPad: portrait ↔ landscape redraws the page right. (device-build R4,
   offscreen-rendering R6)
-- [ ] The GPU path, zoom (2026-10-18: the first try ran on a diagnostic daemon mid-script; T-504
+- [x] The GPU path, zoom (2026-10-18: the first try ran on a diagnostic daemon mid-script; T-504
   rebuilds zoom): pinch in and out and double-tap on desktop en.wikipedia.org and on a long page:
-  the page at the new zoom arrives promptly and no area stays grey. (cavekit-gpu-rendering R6, R12)
+  the page at the new zoom arrives promptly and no area stays grey. (cavekit-gpu-rendering R6, R12) *(2026-10-24: FOUND the owner's grey — a double tap zoomed to a 104 px cell at 6.2x and the engine's default maximum-scale passed the adapter; at rest the zoomed frame lost its right third from 2.0 (the root's displayport base and clip divided by the resolution) and everything from 2.98; the second double tap found no block (the hit test read the render pan). All fixed (daemon 7c29035a, engine c79d16f8): double tap to the infobox at 2.33, pinches to 2.99, zoom out, a tap on a zoomed link, in all three — `docs/rounds/finger-2026-10-24/zoom-grey.txt`. "Promptly": the first frame at a new zoom takes 1.6-2.9 s on desktop Wikipedia (R6 open). Above 2.91 on that page the frame still clips (the maximum-scale now stops there; T-527).)*
 - [ ] The GPU path (the default in all three since T-510, 2026-10-19): drag-scroll a long page with a fixed
   header (`jihad-long-static.html` on the host server) from top to bottom at a steady pace: the
   header stays put, the text is continuous (no repeated or missing bands), nothing blank enters
   from below, no jump every ~660 px (the engine's anchor moves). Then flick. A scripted pan cannot
-  show this: the adapter's own view does not move. (T-502; offscreen-rendering, the scroll row)
+  show this: the adapter's own view does not move. (T-502; offscreen-rendering, the scroll row) *(2026-10-24: six steady strokes in Enyo: the header stayed put (mid-stroke too), the paragraphs continuous, no blank, no jump; Mochi and Mojo the same at the stroke's end (Mochi's one mid-stroke shot was mostly white, not reproduced in Mojo's). The flick: the card arrives in ~250 ms, the engine paints only at the end, so for ~0.5 s the lower card is blank and the fixed header gone, right at rest — the coast gap, T-527.)*
 - [ ] The GPU path with the express lane (T-515, 2026-10-19; the default since T-510): right
   after desktop en.wikipedia.org loads (its scripts run for seconds), pinch in, pan, pinch out and
   double-tap at once, and do the same on `jihad-script-hold.html` (the host server; its script holds
   the engine 600 ms in every 700): the page follows the finger at the new zoom without waiting for
   the script, nothing flips back to the old zoom, and at rest the text is sharp and nothing is grey.
-  (cavekit-gpu-rendering R3, R6, R12)
+  (cavekit-gpu-rendering R3, R6, R12) *(2026-10-24, Enyo: the burst right after desktop Wikipedia's load ends at the new zoom, full and sharp, nothing flipping back; on `jihad-script-hold.html` the fixed header is drawn mid-view for a moment during the zoom change, right at rest)*
 - [ ] WebGL on the GPU path (T-511, 2026-10-19): open `jihad-webgl-cube.html` from the host server
   (`?size=360` too) and a real WebGL page (any three.js example): the cube turns smoothly with its
   checkerboard sharp, a pinch and a pan over the canvas keep it drawn, and closing the card and opening
   it again a few times leaves the browser working. Say how smooth the 480 px cube looks to the eye (the
-  card gets 18-20 frames a second there, 26-27 at 240 px). (cavekit-gpu-rendering R8, R12)
+  card gets 18-20 frames a second there, 26-27 at 240 px). (cavekit-gpu-rendering R8, R12) *(2026-10-24, Enyo: the cube drawn and sharp at rest, after a pinch out and a drag over it, and after the card was closed and opened three times (no daemon trouble); the page's own counter 19.7-21.8 fps, 14.8 at `?size=360`; the daemon published 129 frames in 5 s at rest, 96 at 360 px. A three.js example not tried (no such page on the host server).)*
 
 ## Keyboard and text
 - [ ] Tap a field on several pages in one session: the keyboard comes up every time, and the page

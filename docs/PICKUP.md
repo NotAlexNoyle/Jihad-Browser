@@ -52,6 +52,46 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-24 (evening) — the owner's two new directives; the emulated finger, where it stands (READ FIRST)
+
+**The owner:** (1) "proceed with everything blocked by the finger tests, not by assuming it works, but by driving your
+own tests by emulating a finger and addressing any issues that crop up. if youre not sure how best to emulate a finger
+on the touchpad consult codex"; (3b) the GPU floor levers are authorized: the bench without `sensord`/`atlas-sensord`
+and compositor-thread work in the engine (memory `gpu-floor-levers-authorized`; T-504/505/511/517 re-opened in the
+registry). Also: "remember to use cavekit 3.1 and clear screenshots when you no longer need them" (memory
+`clear-screenshots-when-done`; the 807 untracked dumps were deleted). **Not yet done:** a kit and Tier 89 tasks for the
+finger emulation and the re-opened GPU work — write them first (Cavekit 3.1: sketch, map, make).
+
+**The input path, established from the device and the binaries (context in `.cavekit/handoff-2026-10-24/finger-context/`,
+git-ignored):** the Cypress panel is read by `hidd` (`/dev/ctp_uart`, plugin `libhidtouchpanel.so`, config
+`/etc/hidd/HidTouchpanel_evt1.xml`), not evdev; `/proc/bus/input/devices` has only keys. hidd SENDS each scan as a
+datagram of 16-byte Linux `input_event`s to the AF_UNIX **datagram** socket that the CONSUMER binds at
+`/var/run/hidd/TouchpanelEventSocket` — LunaSysMgr (pid of the window server) holds it (fd 18; `KeypadEventSocket` fd 19),
+through `libhal.so` + `/lib/hal/modules/halTouchpanelMain.module` (`HidInitPluginTransport` binds; `hal_hidd_read_events`
+recv()s into a 4 KB buffer), then the Qt QPA plugin `/usr/plugins/platforms/libqpalm.so` (`QPAHiddTpHandler::readHiddData`
+→ `qt_translateRawTouchEvent`). The module's parser (`touchpanel_get_event`, decompiled): per finger `EV_FINGERID` (type 7)
+opens a touch item (id = value*1000 + code, the timestamp), `EV_ABS` code 0/1 = x/y, `EV_KEY BTN_TOUCH` 1 = down, 0 = up
+(QPA: a "down" adds a finger, so send it on the first scan only; the up on the last), `EV_GESTURE` (type 6) = gesture code
+then x and y velocity in two events (FLICK = 6), one `EV_SYN` ends the scan, 20 fingers at most; an empty scan is dropped.
+Public source of the later Nyx version of the QPA plugin: github.com/openwebos/qt
+`src/plugins/platforms/palm/hiddtp_qpa.cpp` (states, addNewTouch/updateOldTouch, mouse emulation, FlickGesture).
+
+**The tool:** `tools/device/finger/finger.c` (builds with the toolchain line in its header; tap, dtap, hold, drag, flick,
+pinch, raw) sends such datagrams to the socket as root, taking PORTRAIT screenshot coordinates (raw x = portrait y,
+raw y = 767 − portrait x: a tap at raw (10, 737) opened the app menu at portrait (30, 10)). **Proven 14:06:** libhal
+logs "Unexpected code 0x5" for a bad datagram (the parser runs on ours); a 500 px drag on `jihad-long-static.html`
+scrolled the top from paragraph 1 to 8, a 160 ms flick coasted to 33, a pinch out zoomed in, a long press opened the
+context menu. NB `jihad-touch.html` is no oracle: a page's DOM touch listeners are not fed by the card's pan path.
+Still to tune: the double tap (two 70 ms taps 120 ms apart changed nothing on a zoomed page) and the tap on the address
+field (no keyboard). The kit `cavekit-finger-emulation.md` and Tier 89 (T-523…T-527) carry the work. The old next
+experiments, now moot: (a) confirm the datagram is read at all — `strace -p <LunaSysMgr> -e recv` is not on the device,
+so instead send `finger raw` events and watch `/var/log/messages` for libhal's `_hal_log__` lines ("Unexpected code",
+"No touch items") with HAL_LOG_LEVEL raised, or use `hidd`'s own `CreateFingerUpEvent` Luna method to see a real
+datagram's effect; (b) the id scheme (try code 0 / value 1 as hidd may), the `BTN_TOUCH` code (0x14a) and whether hidd
+sends `EV_KEY` at all for touch on this build; (c) whether the QPA delivers to the card only after a HAL "touchpanel
+mode" or when the card has focus; (d) the coordinate frame (landscape 1024x768 vs portrait). Codex: out of usage until
+18:30 after 468k tokens of grepping, no report; the inspector is the backup.
+
 ## 2026-10-24 delta — Tier 88: the kits' open criteria closed on the current build; the commits chained for the owner's passphrase (READ FIRST)
 
 **The owner:** "Continue the implementation of Jihad Browser using Cavekit version 3.1." The registry had no
@@ -113,8 +153,7 @@ no prompt. Engine fork `7a872e8f` (patch 0058: the review fixes), Jihad-Browser 
 T-513/T-499 with the fold, the pins and the gitlink; `check-engine-pins.sh` all agree, the 58 patches reproduce the
 pin), `318869f2` (C: Tier 88) and the records commit after it. The chain and its message files stay in
 `.cavekit/handoff-2026-10-24/` (git-ignored). The push was the owner's (the engine fork's remote is `fork`; GitHub access is the `id_optiplex_new` key, a passphrase per connection): `push.sh` pushes the engine first, then main, reads both back, runs `check-pins.sh`.
-The 807 jpg/log/png dumps of the 2026-10-19 rounds in `docs/rounds/t502-2026-10-17/` (42 MB) stay untracked, as
-the earlier commits left them: the owner decides.
+The 807 untracked jpg/log/png dumps of the 2026-10-19 rounds (42 MB, none cited by a doc) were deleted on 2026-10-24 at the owner's word: clear screenshots when they are no longer needed.
 
 ## 2026-10-19 (night) delta — T-513, T-487, T-499 done; the verify mode's reference; the layout viewport per document (READ FIRST)
 

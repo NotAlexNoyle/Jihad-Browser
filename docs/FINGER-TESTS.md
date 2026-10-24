@@ -1,5 +1,10 @@
 # The finger round — every test that needs the owner's hands, deferred to one sitting
 
+**2026-10-24: the round is the agent's, driven by an emulated finger on the real input path**
+(`tools/device/finger/`, `context/kits/cavekit-finger-emulation.md`), judged from screenshots and frame dumps by eye;
+each item below gets its result and the date as it is run. Only what no emulation reaches — the accelerometer's
+rotation, the volume keys, hearing audio, a physical keyboard — stays for a person, and says so.
+
 The owner, 2026-10-12: "defer all finger tests in the entire project for one large round at the
 end". Everything an agent can verify on the device is verified as the work goes; what only a
 person at the TouchPad can confirm is collected here, and nobody is asked for it piecemeal. Add

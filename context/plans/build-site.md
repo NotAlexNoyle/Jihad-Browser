@@ -490,6 +490,22 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 89 — The finger round driven by an emulated finger; the GPU floor's levers (2026-10-24; added to the site, not a regeneration)
+
+The owner, 2026-10-24: "proceed with everything blocked by the finger tests, not by assuming it works, but by driving
+your own tests by emulating a finger and addressing any issues that crop up. if youre not sure how best to emulate a
+finger on the touchpad consult codex"; and (3b) the GPU floor levers: the bench without `sensord`/`atlas-sensord`,
+compositor-thread work in the engine. Kit: `cavekit-finger-emulation.md` R1–R4. The path and the tool: the kit's head.
+Codex was out of usage (468k tokens of grepping, no report); the path was read from the binaries in-house.
+
+| Task | Title | Cavekit | Requirement | blockedBy | Device | Effort | Status |
+|------|-------|---------|-------------|-----------|--------|--------|--------|
+| T-523 | The emulated finger: `tools/device/finger/finger.c` (the panel's datagrams to LunaSysMgr's socket, portrait coordinates), every gesture with a visible reaction, the README | cavekit-finger-emulation.md | R1, R2, R4 | — | yes | M | IN PROGRESS 2026-10-24 (the path proven: libhal parses the datagrams, a tap opens the app menu, a drag pans a page through the daemon, a flick coasts, a pinch zooms, a long press opens the menu, a double tap fires the daemon's smartZoom, a tap raises the keyboard and a key tap types; left: the two-finger drag and the pinch in) |
+| T-524 | The finger round, part 1: the GPU path on real pages in the three interfaces under the timeline and the dumps; cavekit-gpu-rendering R6 and R12 closed; T-514's items | cavekit-finger-emulation.md | R3 | T-523 | yes | L | pending |
+| T-525 | The finger round, part 2: chrome and shells (settings and personas flicks, addons lists, the long-press menus, the padlock, Mojo pinch; rotation a person's) | cavekit-finger-emulation.md | R3 | T-523 | yes | L | pending |
+| T-526 | The finger round, part 3: keyboard and text, plugins and media; what stays a person's said so | cavekit-finger-emulation.md | R3 | T-523 | yes | L | pending |
+| T-527 | The GPU floor with the owner's levers: the bench without `sensord`/`atlas-sensord`, then the compositor-thread floor in the engine (T-505/T-511/T-517 re-opened under it) | cavekit-gpu-rendering.md | R3, R8 | T-524 | yes | XL | pending |
+
 ## Tier 88 — Closing the kits' open criteria on the current build (2026-10-24; added to the site, not a regeneration)
 
 The owner, 2026-10-24: "Continue the implementation of Jihad Browser using Cavekit version 3.1."

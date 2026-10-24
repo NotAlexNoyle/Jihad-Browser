@@ -138,6 +138,10 @@ JihadBrowserServer::JihadBrowserServer(const char* name, jihad::EngineHost& host
 }
 
 JihadBrowserServer::~JihadBrowserServer() {
+#ifndef JIHAD_NO_INJECT
+  mInjectStop = true;   // T-513 (review): the inject threads hold `this`
+  for (InjectThread& t : mInjectThreads) if (t.thread.joinable()) t.thread.join();
+#endif
   if (jihad::jihadExpressOn()) jihad::jihadExpressStop();   // T-515: before the lock (it waits for the thread's step)
   jihad::FrameLockGuard frameLock;   // T-515
   if (sExpressServer == this) sExpressServer = nullptr;
@@ -299,6 +303,8 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 //   drag X Y DX DY     -> dragStart/dragProcess/dragEnd (flick scroll path)
 //   size W H           -> setWindowSize (VKB-resize / rotation simulation)
 //   zoom Z X Y         -> setZoomAndScroll
+//   target focus|last  -> this batch and later ones go to the card that last said it has the
+//                         focus (two cards driven in turn), or back to the newest connection
 //
 // HOW TO TURN IT ON (T-057): set $JIHAD_INJECT in the daemon's environment —
 // in the variant's upstart job, or on an ad-hoc novacom run:
@@ -323,6 +329,20 @@ void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {
 // and is refused unless it is a regular file owned by our own euid and not
 // group/world-writable. A rejected file is still unlinked so a hostile one
 // cannot wedge the channel by sitting there.
+
+// T-513: an inject pan's or zoom's thread. The finished ones are joined first (Codex 2026-10-24: kept
+// until shutdown, a long round's threads piled up); the rest at shutdown.
+void JihadBrowserServer::startInjectThread(std::function<void()> body) {
+  for (size_t i = 0; i < mInjectThreads.size();) {
+    if (mInjectThreads[i].done->load()) { mInjectThreads[i].thread.join(); mInjectThreads.erase(mInjectThreads.begin() + i); }
+    else ++i;
+  }
+  std::shared_ptr<std::atomic<bool>> done = std::make_shared<std::atomic<bool>>(false);
+  InjectThread t;
+  t.done = done;
+  t.thread = std::thread([body, done]() { body(); done->store(true); });
+  mInjectThreads.push_back(std::move(t));
+}
 
 void JihadBrowserServer::processInjectFile() {
   const char* path = mInjectPath.c_str();
@@ -353,7 +373,14 @@ void JihadBrowserServer::processInjectFile() {
   while (fgets(line, sizeof line, f)) cmds.push_back(line);
   fclose(f);
   unlink(path);
-  jihad::BrowserPageGoanna* p = pageFor(mLastProxy);
+  // T-513 rounds: the newest connection is the card a self-drive round opened, but a second card
+  // panned after the first needs the first back: "target focus" follows the card on screen
+  for (auto& c : cmds) {
+    if (c.compare(0, 12, "target focus") == 0) { mInjectFocus = true; printf("[jihad-bs] inject: commands go to the focused card\n"); }
+    else if (c.compare(0, 11, "target last") == 0) { mInjectFocus = false; printf("[jihad-bs] inject: commands go to the newest card\n"); }
+  }
+  jihad::BrowserPageGoanna* p = mInjectFocus ? pageFor(mFocusProxy) : nullptr;
+  if (!p) p = pageFor(mLastProxy);
   if (!p) { printf("[jihad-bs] inject: no page\n"); return; }
   for (auto& c : cmds) {
     int x=0, y=0, n=1, a=0, b=0;
@@ -388,23 +415,28 @@ void JihadBrowserServer::processInjectFile() {
         // drag, every 16 ms, through the proxy's reader side (the express hook, then the main
         // loop's queue), so the pan goes on while the main thread is busy, as a finger's does.
         const int y0 = x, y1 = y, ms = n > 0 ? n : 1;
-        std::thread([this, panProxy, y0, y1, ms, scrollPacket]() {
+        // T-513 (review): the card is the proxy AND its page (a closed card's proxy address can be a
+        // new card's), and the thread is joined at shutdown
+        jihad::BrowserPageGoanna* panPage = p;
+        startInjectThread([this, panProxy, panPage, y0, y1, ms, scrollPacket]() {
           const int64_t t0 = jihadTickNowMs();
           std::vector<uint8_t> buf;
           for (;;) {
+            if (mInjectStop) return;
             const int64_t el = jihadTickNowMs() - t0;
             const int py = el >= ms ? y1 : (int)(y0 + (y1 - y0) * (double)el / ms);
             const int len = scrollPacket(buf, py);
             {
               jihad::FrameLockGuard frameLock;
-              if (mPages.find(panProxy) == mPages.end()) break;
+              auto it = mPages.find(panProxy);
+              if (it == mPages.end() || it->second.page != panPage) break;
               panProxy->injectAsync(buf.data(), len);
             }
             if (el >= ms) break;
             usleep(16000);
           }
           printf("[jihad-bs] inject pan done (the card's path)\n");
-        }).detach();
+        });
       } else {
         mPanPage = p; mPanY0 = x; mPanY1 = y; mPanMs = n > 0 ? n : 1; mPanT0 = jihadTickNowMs(); mPanActive = true;
       }
@@ -620,20 +652,23 @@ void JihadBrowserServer::processInjectFile() {
         bool sent = false;
         if (jihad::jihadExpressOn() && zp) {
           printf("[jihad-bs] inject zoom %.4f at %d,%d in %d ms (the card's path)\n", z, x, y, delayMs);
-          std::thread([this, zp, z, x, y, delayMs]() {
-            if (delayMs > 0) usleep((useconds_t)delayMs * 1000);
+          jihad::BrowserPageGoanna* zPage = p;   // T-513 (review): as the pan's thread
+          startInjectThread([this, zp, zPage, z, x, y, delayMs]() {
+            for (int waited = 0; waited < delayMs && !mInjectStop; waited += 20) usleep(20000);
+            if (mInjectStop) return;
             std::vector<uint8_t> buf(kMaxMsgLen, 0);
             YapPacket* w = YapProxy::wrapPacket(buf.data(), 0);
             (*w) << (int16_t)0x150e; (*w) << z; (*w) << (int32_t)x; (*w) << (int32_t)y;
             const int len = w->length();
             YapProxy::freePacket(w);
             jihad::FrameLockGuard frameLock;
-            if (mPages.find(zp) != mPages.end()) zp->injectAsync(buf.data(), len);
-          }).detach();
+            auto it = mPages.find(zp);
+            if (it != mPages.end() && it->second.page == zPage) zp->injectAsync(buf.data(), len);
+          });
           sent = true;
         }
         if (!sent) p->setZoomAndScroll(z, x, y);
-      } else printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
+      } else if (c.compare(0, 7, "target ") != 0) printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
     }
   }
 }

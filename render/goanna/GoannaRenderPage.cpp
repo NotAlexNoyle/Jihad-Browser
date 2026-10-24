@@ -1095,15 +1095,65 @@ bool GoannaRenderPage::SetLayoutSize(int width, int height) {
   return true;
 }
 
+// T-499: the engine's window back to the card's size, as Resize() leaves it (a new document decides
+// its own layout viewport)
+void GoannaRenderPage::ResetLayoutSize() {
+  if (!mChrome || !mLayoutW) return;
+  mLayoutW = mLayoutH = 0;
+  if (mOffscreen) jihad_offscreen_resize(mWidget, mWidth, mHeight);
+  nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
+  if (bw) bw->SetPositionAndSize(0, 0, mWidth, mHeight, nsIBaseWindow::eRepaint);
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (ds) {
+    nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+    if (ps) engine_calls::ResizeReflow(ps.get(), mWidth, mHeight);
+  }
+  JIHAD_GTK_PUMP();
+  fprintf(stderr, "[jihad-bs] layout viewport back to the card %dx%d (a new document)\n", mWidth, mHeight);
+}
+
+static nsCOMPtr<nsIDOMDocument> ShownDocument(PageChrome* chrome) {
+  nsCOMPtr<nsIDOMDocument> doc;
+  if (!chrome) return doc;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(chrome->mBrowser);
+  if (!ds) return doc;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (cv) cv->GetDOMDocument(getter_AddRefs(doc));
+  return doc;
+}
+
+// The current inner window's id: one per document, never reused (a document's address can be, once
+// it is freed: Codex 2026-10-24)
+uint64_t GoannaRenderPage::DocumentKey() const {
+  if (!mChrome) return 0;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  uint64_t id = 0;
+  if (!u || NS_FAILED(u->GetCurrentInnerWindowID(&id))) return 0;
+  return id;
+}
+
+// T-499: the shown document is parsed (readyState past "loading"): its <meta name=viewport>, if it
+// has one, has been seen. Before that the engine lays a document out at its 980-px desktop width,
+// as if it declared none.
+bool GoannaRenderPage::DocumentParsed() const {
+  nsCOMPtr<nsIDOMDocument> doc = ShownDocument(mChrome);
+  nsAutoString rs;
+  return doc && NS_SUCCEEDED(doc->GetReadyState(rs)) && !rs.IsEmpty() && !rs.EqualsLiteral("loading");
+}
+
 bool GoannaRenderPage::Resize(int width, int height) {
   if (!mChrome) return false;
   if ((mOffscreen && !mWidget) || (!mOffscreen && !mWindow)) return false;
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
+  // T-499: a new card size starts from a layout viewport equal to it; the card's own size sent again
+  // keeps the page's (the adapter sends the size on every NPAPI SetWindow, the same size included,
+  // and each put the engine back at the card's width: DuckDuckGo read innerWidth 768 again)
+  if (width != mWidth || height != mHeight) mLayoutW = mLayoutH = 0;
   mWidth = width; mHeight = height;
-  mLayoutW = mLayoutH = 0;   // T-499: a new card size starts from a layout viewport equal to it
   mChrome->mW = width; mChrome->mH = height;   // keep GetDimensions() consistent
+  const int ew = mLayoutW ? mLayoutW : width, eh = mLayoutW ? mLayoutH : height;   // the engine's window
   if (mOffscreen) {
-    jihad_offscreen_resize(mWidget, width, height);
+    jihad_offscreen_resize(mWidget, ew, eh);
   } else {
 #ifndef JIHAD_OFFSCREEN_ONLY
     gtk_widget_set_size_request(mWindow, width, height);
@@ -1113,7 +1163,7 @@ bool GoannaRenderPage::Resize(int width, int height) {
   // Resize the embedded surface; eRepaint invalidates so the page reflows to the
   // new viewport (100vw/100vh content follows the new size).
   nsCOMPtr<nsIBaseWindow> bw = do_QueryInterface(mChrome->mBrowser);
-  if (bw) bw->SetPositionAndSize(0, 0, width, height, nsIBaseWindow::eRepaint);
+  if (bw) bw->SetPositionAndSize(0, 0, ew, eh, nsIBaseWindow::eRepaint);
   // Force the document to actually REFLOW at the new size. In this headless embedding
   // the widget/baseWindow resize does not propagate to a presShell resize-reflow (there
   // is no nsView listener wired up), so after a rotate the page stayed laid out at the
@@ -1129,7 +1179,7 @@ bool GoannaRenderPage::Resize(int width, int height) {
       // devicePixelRatio is pinned to 1 (layout.css.devPixelsPerPx), so 1 device px ==
       // 1 CSS px == 60 app units. (nsPresContext.h can't be included here -- it drags in
       // internal string headers unusable from the frozen-API daemon.)
-      engine_calls::ResizeReflow(ps.get(), width, height);
+      engine_calls::ResizeReflow(ps.get(), ew, eh);
     }
   }
   JIHAD_GTK_PUMP();
@@ -4749,13 +4799,14 @@ bool GoannaRenderPage::PaintLayers() {
 
 uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo,
                                        long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
-                                       const double* aView, long colX0, long colX1, bool windowMoved) {
+                                       const double* aView, long colX0, long colX1, bool windowMoved, bool verify) {
   if (!ExpressReady() || !mWidget || !dst) return 0;
   const int w = mWidth;
   if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * frameH * 4) return 0;
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   return jihad_offscreen_compose_post(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
-                                      (int)shift, src, (int)srcY, (engineShift ? 1 : 0) | 4 | (windowMoved ? 8 : 0), aView ? 1 : 0,
+                                      (int)shift, src, (int)srcY,
+                                      (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0), aView ? 1 : 0,
                                       aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
                                       aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0, (int)colX0, (int)colX1);
 }
@@ -4820,7 +4871,9 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
 }
 
 void GoannaRenderPage::ComposeForget(uint32_t token) {
-  if (mWidget && ComposeAsync() && token) jihad_offscreen_compose_forget(mWidget, token);
+  // T-513 (review): not gated on the GPU path being on: a job forgotten after DisableGpu must still
+  // reach the engine, which then writes nothing into its slot
+  if (mWidget && token && jihad_offscreen_compose_forget) jihad_offscreen_compose_forget(mWidget, token);
 }
 
 long GoannaRenderPage::ReadPixels(unsigned char* dst, size_t dstBytes) {

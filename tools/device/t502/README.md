@@ -198,6 +198,16 @@ the daemon (`render/goanna/JihadGpuLog.h`); failures and fallbacks print anyway.
 close prints one line with its express-lane frame count (`page closed: <n> frames by the express lane`),
 which `default-check.sh` counts.
 
+T-513 (R2's fast flick and two cards): `JIHAD_GPU_VERIFY=1` composes its reference right behind each partial
+job, on the same layer tree, and compares at the job's publish (a reference composed later met a tree a fast
+flick had moved on from and called right frames wrong). `two-cards.sh <url2> [pan]`, after
+`gpu-spike-start.sh <url1> "JIHAD_INJECT=1 JIHAD_GPU_VERIFY=1"`: a fast flick on card 1, the app relaunched
+on url2 (a second card whose Enyo test hook brings card 1 back after 28 s with its `A` step: push the hook
+first, `card-selftest.sh enyo push`), a flick on card 2, then on card 1 again through the inject channel's
+`target focus` (commands to the card that last said it has the focus; `target last` goes back to the newest
+connection). The spike start sets `jihad.viewport.followOverflow` false; `PREF=jihad.viewport.followOverflow=true`
+runs with the shipped rule.
+
 
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every

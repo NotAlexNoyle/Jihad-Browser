@@ -170,9 +170,14 @@ public:
   void SetActive(bool active);
   // T-499: the engine's layout viewport set WIDER than the card (an offscreen window as wide as the
   // page's overflow), so innerWidth and position:fixed follow the page's own width while the card
-  // fit-zooms the whole of it; Width()/Height() stay the card's. Resize() puts it back.
+  // fit-zooms the whole of it; Width()/Height() stay the card's. Resize() to a new card size and
+  // ResetLayoutSize() put it back. DocumentKey: the shown document's identity (0 without one), so a
+  // new document starts from the card's size.
   bool SetLayoutSize(int width, int height);
+  void ResetLayoutSize();
   int LayoutWidth() const { return mLayoutW ? mLayoutW : mWidth; }
+  uint64_t DocumentKey() const;
+  bool DocumentParsed() const;
 
   // Scroll the content to an absolute CSS-pixel offset (YAP: setScrollPosition).
   void ScrollTo(int x, int y);
@@ -388,7 +393,7 @@ public:
   bool PaintLayers();
   uint32_t ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo, long row2Hi,
                        long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView,
-                       long colX0 = 0, long colX1 = -1, bool windowMoved = false);
+                       long colX0 = 0, long colX1 = -1, bool windowMoved = false, bool verify = false);
   bool ExpressReady() const;
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)

@@ -351,6 +351,9 @@ private:
   int64_t            mLastWinResizeMs = 0;
   int                mLastWinResizeDh = 0;   // new height - old height (>0 = grow, i.e. VKB down)
   int                mActiveKey;        // which shm buffer we last painted into
+  int                mShownKey = 0;     // T-513: the buffer of the last msgPainted (the card shows it)
+  void               noteShown(int key);   // mShownKey moves on; the previous one's in-flight mark restarts
+  uint32_t           mLateWrites = 0;   // T-513: jihad_offscreen_late_writes() as last seen
   // Cache of attached shared buffers (up to the 2 alternating segments). shmat/shmdt of the ~12MB
   // segment on EVERY paint cost ~400ms/keystroke on the device; attach once and reuse instead.
   unsigned char*     mShmBuf[3];
@@ -421,7 +424,9 @@ private:
     uint32_t xFrames = 0;   // T-515: the express lane's frames when it was posted (newer ones since: dropped)
     uint32_t cmdDone = 0;   // T-515: the card's commands the main loop had handled when it was posted
     int win = 0;            // T-517: the frame's window in its slot (rows into the pixels)
+    uint32_t vToken = 0; int vBuf = -1;   // T-513: JIHAD_GPU_VERIFY's reference, composed right behind the job
   };
+  void gpuForget(const GpuJob& j);   // the job and its verify reference given up
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
   int mGpuViewRow = 0;
   int mGpuJobViewRow = 0;   // T-507: the published GPU frame's view row (thumbnails)
@@ -658,6 +663,7 @@ private:
   bool               mPopupWasOpen = false;   // a XUL popup was open at the last pump (repaint on change)
   bool               mViewportSent = false;
   bool               mLayoutFollowed = false;   // T-499: this page already got its layout viewport
+  uint64_t           mLayoutDocKey = 0;         // T-499: the document that is about (DocumentKey)
   double             mVpIs = 0, mVpMn = 0, mVpMx = 0; int mVpW = 0, mVpH = 0; bool mVpUs = true;
   int                mLastScrollX, mLastScrollY;     // last emitted scroll offset
   double             mZoom;   // current full-page zoom (for input coord mapping)

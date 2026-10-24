@@ -23,10 +23,20 @@ done
 sleep 2
 stop jihad >/dev/null 2>&1; sleep 2
 for p in /proc/[0-9]*; do
-  c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null)
+  c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline)
   case "$c" in *jihad-browserserver*"$HL"*) kill ${p#/proc/} 2>/dev/null;; esac
 done
-sleep 1
+# The pref edits below wait for every Enyo daemon to be gone: one still exiting saves its prefs over
+# them (2026-10-19: the spike's followOverflow=false was lost that way, T-499 on in a spike). SIGTERM
+# had 30 s, then SIGKILL; one still there and the run does not start.
+gone() { for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) return 1;; esac; done; return 0; }
+i=0; while [ $i -lt 30 ] && ! gone; do sleep 1; i=$((i+1)); done
+if ! gone; then
+  echo "an Enyo daemon outlived SIGTERM by 30 s: SIGKILL"
+  for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) kill -9 ${p#/proc/} 2>/dev/null;; esac; done
+  i=0; while [ $i -lt 5 ] && ! gone; do sleep 1; i=$((i+1)); done
+fi
+if ! gone; then echo "FATAL: an Enyo daemon is still running; the spike does not start"; exit 1; fi
 : > "$LOG"
 rm -f /tmp/frame.raw /tmp/frames.raw
 # T-499 off for the spike: the widget stays at the card's size (no 980x1202 layout viewport, no fit zoom)
@@ -75,7 +85,7 @@ echo "--- pipeline"
 grep -a "paint pipeline\|gap hist\|tick period\|seq frame" "$LOG" | tail -n 24
 echo "--- daemon alive?"
 for p in /proc/[0-9]*; do
-  c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null)
+  c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline)
   case "$c" in *jihad-browserserver*"$HL"*) echo "pid ${p#/proc/} rss $(grep VmRSS $p/status)";; esac
 done
 echo "--- log tail"

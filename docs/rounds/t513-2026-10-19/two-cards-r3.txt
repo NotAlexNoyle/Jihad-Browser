@@ -1,0 +1,30 @@
+=== card 1, a fast flick (pan 0 8000 800)
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 2 (y -141, shift 0, bands 0..0 0..0): 1083 rows differ in 1 runs: 141..1224; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 1 (y 2419, shift 1150, bands 74..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 1 (y 7859, shift 520, bands 0..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 2 (y 7859, shift 0, bands 1205..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 7858, shift -1, bands 0..1 0..0): 1222 rows differ in 2 runs: 1..185 186..1224; 622 rows wrong: 15..18 19..28 29..31 37..38 39..40 41..46 47..50 51..52 ...; 16 rows structurally wrong: 592..608
+=== card 2 (file:///tmp/jihad-sticky-mix.html), a fast flick
+[jihad-bs] inject: commands go to the newest card
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 1 (y -141, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 2639, shift 1220, bands 0..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 0 (y 7859, shift 440, bands 784..1224 0..0): 204 rows differ in 6 runs: 141..188 189..238 253..272 277..298 303..322 378..427; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 1 (y 7859, shift 0, bands 499..528 0..0): 204 rows differ in 6 runs: 141..188 189..238 253..272 277..298 303..322 378..427; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 2 (y 7859, shift 0, bands 0..0 0..0): 338 rows differ in 17 runs: 0..15 17..18 21..40 47..66 141..188 189..238 253..272 277..298 ...; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 7859, shift 0, bands 0..0 0..0): 338 rows differ in 17 runs: 0..15 17..18 21..40 47..66 141..188 189..238 253..272 277..298 ...; 0 rows wrong:; 0 rows structurally wrong:
+=== card 1 again (target focus), a fast flick
+[jihad-bs] inject: commands go to the focused card
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 1 (y -141, shift 0, bands 0..0 0..0): 1083 rows differ in 1 runs: 141..1224; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 2899, shift 1140, bands 84..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 1 (y 7859, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 2 (y 7859, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 7858, shift -1, bands 0..1 0..0): 1222 rows differ in 2 runs: 1..185 186..1224; 622 rows wrong: 15..18 19..28 29..31 37..38 39..40 41..46 47..50 51..52 ...; 16 rows structurally wrong: 592..608
+=== totals
+23 verify lines, 1244 rows wrong, 32 rows structurally wrong
+01:07:20 JIHAD-TEST] page:w28;A: activated the other card

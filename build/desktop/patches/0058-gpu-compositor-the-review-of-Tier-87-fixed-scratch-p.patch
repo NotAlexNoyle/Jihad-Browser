@@ -1,0 +1,368 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sat, 24 Oct 2026 13:45:33 -0400
+Subject: [PATCH] gpu compositor: the review of Tier 87 fixed (scratch per
+ compositor, GL objects freed per card, late reads)
+
+T-513, the review of the GPU path (two inspectors; context/impl/impl-review-findings-gpu-2.md, E1-E7):
+
+- E1: the band scratch's size is the compositor's own (mJihadBandScratchSize), not a function-static
+  shared by all: with two cards one was handed a buffer another had outgrown and glReadPixels wrote
+  past it.
+- E2: a closed card's frame-sized and band pbuffers are destroyed with its context, and
+  CompositorOGL::CleanupResources deletes the window targets', the band target's and the swizzle
+  pass's renderbuffers, framebuffers, texture and program: in the process-long share group each closed
+  card left ~13-16 MB of GPU memory. Twenty open/close cycles now add 76 KB.
+- E3: a band frame of 257-320 rows stacked in the frame-sized target makes that surface current first
+  (on the Adreno 220 every target must match the current surface).
+- E4: a WebGL canvas's texture source is externally owned (the producer's SharedSurface deletes the
+  name; in one share group the second delete could hit a name handed out again).
+- E5: the reads carry their request's cancel flag (JihadSetCancel): a read given up past the daemon's
+  bound stops after glReadPixels, before the swizzle and any copy into the slot; a whole read (straight
+  into the slot) is counted, jihad_offscreen_late_writes(), and the daemon then paints every slot whole.
+- E6: a frame whose chunks would pass the 12-band cap of one composite takes the whole path instead
+  of reading chunks it did not compose.
+- E7: a sticky layer's stuck probe reaches twice the composite's scroll step (64 to 1024 px), so a fast
+  flick's step no longer slides its old pixels with the content.
+
+Codex on the fixes (2026-10-24, C1): the opt-in read paths stop for a given-up frame as well: the
+scratch read before its copy into the slot, the swizzle pass and the read thread after their read
+(counted as late writes), the read thread also before it, and a cancelled read-thread frame is not
+reported good.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ gfx/gl/GLContextProviderEGL.cpp               |  4 ++
+ .../composite/AsyncCompositionManager.cpp     | 13 +++-
+ .../composite/AsyncCompositionManager.h       |  2 +
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 15 ++++-
+ gfx/layers/opengl/CompositorOGL.cpp           | 61 +++++++++++++++++--
+ gfx/layers/opengl/CompositorOGL.h             |  5 ++
+ gfx/layers/opengl/TextureHostOGL.cpp          |  6 +-
+ widget/PuppetWidget.cpp                       |  8 +++
+ 8 files changed, 107 insertions(+), 7 deletions(-)
+
+diff --git a/gfx/gl/GLContextProviderEGL.cpp b/gfx/gl/GLContextProviderEGL.cpp
+index af1f7fb58c..eb00bc01f0 100644
+--- a/gfx/gl/GLContextProviderEGL.cpp
++++ b/gfx/gl/GLContextProviderEGL.cpp
+@@ -259,6 +259,10 @@ GLContextEGL::~GLContextEGL()
+     sEGLLibrary.fDestroyContext(EGL_DISPLAY(), mContext);
+     sEGLLibrary.UnsetCachedCurrentContext();
+ 
++    // Jihad (T-513 review): the frame-sized and the band pbuffers made for this context
++    if (mJihadBandPb && mJihadBandPb != mSurface) DestroySurface(mJihadBandPb);
++    if (mJihadPbOverride && mJihadPbOverride != mSurface && mJihadPbOverride != mJihadBandPb) DestroySurface(mJihadPbOverride);
++    mJihadBandPb = mJihadPbOverride = nullptr;
+     DestroySurface(mSurface);
+ }
+ 
+diff --git a/gfx/layers/composite/AsyncCompositionManager.cpp b/gfx/layers/composite/AsyncCompositionManager.cpp
+index 9fdd72247c..ef58b6b74b 100644
+--- a/gfx/layers/composite/AsyncCompositionManager.cpp
++++ b/gfx/layers/composite/AsyncCompositionManager.cpp
+@@ -558,7 +558,7 @@ AsyncCompositionManager::AlignFixedAndStickyLayers(Layer* aTransformedSubtreeRoo
+       const LayerRect& outer = layer->GetStickyScrollRangeOuter();
+       const LayerRect& inner = layer->GetStickyScrollRangeInner();
+       const LayerPoint base = translation - unconsumedTranslation;   // the translation before the sticky clamp
+-      for (const float probe : { 64.0f, -64.0f }) {
++      for (const float probe : { mJihadProbe, -mJihadProbe }) {
+         const float ty = base.y + probe;
+         const float hy = IntervalOverlap(ty, outer.y, outer.YMost()) - IntervalOverlap(ty, inner.y, inner.YMost());
+         if (fabsf(hy) > 0.5f) held = true;
+@@ -863,6 +863,17 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
+                                                           bool* aOutFoundRoot)
+ {
+   mJihadStuck.clear();   // Jihad T-502 round 127: this composite's stuck sticky layers
++  {
++    // T-513 (review): a sticky layer is probed as far as twice this composite's scroll step (64 px at
++    // least): a fast flick crossed the threshold by more than a fixed 64 px in one frame, its stuck
++    // position was not read and its old pixels slid with the content as a ghost strip
++    // (a frame may compose more than once at one scroll: only a move sets it)
++    const float step = mJihadScrollValid ? fabsf(mJihadScrollY - mJihadPrevScrollY) : 0.0f;
++    if (step > 0.5f) {
++      mJihadProbe = std::max(64.0f, std::min(2.0f * step, 1024.0f));
++      mJihadPrevScrollY = mJihadScrollY;
++    }
++  }
+   bool appliedTransform = false;
+   std::stack<Maybe<ParentLayerIntRect>> stackDeferredClips;
+ 
+diff --git a/gfx/layers/composite/AsyncCompositionManager.h b/gfx/layers/composite/AsyncCompositionManager.h
+index 459be6fb09..77c439eca5 100644
+--- a/gfx/layers/composite/AsyncCompositionManager.h
++++ b/gfx/layers/composite/AsyncCompositionManager.h
+@@ -239,6 +239,8 @@ private:
+   bool mIsFirstPaint;
+   float mJihadScrollX = 0.0f, mJihadScrollY = 0.0f;   // Jihad T-502
+   bool mJihadScrollValid = false;
++  float mJihadPrevScrollY = 0.0f;   // T-513: the card's scroll at the composite before
++  float mJihadProbe = 64.0f;        // T-513: how far a sticky layer is probed for sticking (layer px)
+   std::vector<Layer*> mJihadStuck;   // round 127 (raw: valid until the next composite)
+ 
+   // This flag is set during a layers update, so that the first composition
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 4cf93e1414..4650113654 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1969,7 +1969,9 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     JihadChunk chunks[12];
+     int nChunks = 0;
+     const int chunkRows = JihadPackColumns(aReq->cols, aReq->nCols, fullAsked, ogl->JihadBandRows(), aWidth, chunks, &nChunks);
+-    const bool fits = chunkRows >= 0 && fullAsked + chunkRows <= bandMax;
++    // T-513 (review): the regions of one composite are at most 12, bands included: chunks past that
++    // would be read without being composed, so such a frame does not fit
++    const bool fits = chunkRows >= 0 && fullAsked + chunkRows <= bandMax && nChunks + (b1 ? 1 : 0) + (b2 ? 1 : 0) <= 12;
+     if ((scrollOnly || diffFirst) && bandMax > 0 && (b1 || b2) && fits && aReq->dest && aReq->stride == aWidth * 4 &&
+         !getenv("JIHAD_GPU_READ_THREAD")) {
+       // Both bands stacked in the band target (band 2 under band 1), composed one after the
+@@ -1984,6 +1986,13 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       // stack at the top of the frame-sized target (round 105)
+       const TimeStamp tp0 = TimeStamp::Now();
+       const int passRows = (top > 0 && top <= ogl->JihadBandRows()) ? ogl->JihadBeginBandPass(aWidth) : 0;
++      if (!passRows) {
++        // T-513 (review): stacked at the top of the frame-sized target, so the frame's own surface
++        // current (a band frame before this one left the band pbuffer current, and on the Adreno 220
++        // every target must match the current surface's size: memory compositor-scroll-traps)
++        ogl->JihadUseFrameSurface();
++        ogl->JihadEnsureTargetSize(aWidth, aHeight);
++      }
+       const double msBegin = (TimeStamp::Now() - tp0).ToMilliseconds();
+       const gfx::IntRect passBounds = passRows ? gfx::IntRect(0, 0, aWidth, passRows) : whole;
+       bool ok = top > 0 && top <= bandMax;
+@@ -2067,6 +2076,9 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         if (aReq->cancelled) ok = false; else ogl->JihadShiftRowsNow(aReq);   // T-509: given up, dest untouched
+         msShift = (TimeStamp::Now() - c1).ToMilliseconds();
+       }
++      // T-513 (review): the reads below belong to a request the daemon may give up meanwhile
++      struct CancelScope { CompositorOGL* o; ~CancelScope() { o->JihadSetCancel(nullptr); } } cancelScope{ogl};
++      ogl->JihadSetCancel(&aReq->cancelled);
+       // T-511: one band and no column chunks: the band read as the column the change spans
+       int cx0 = 0, cx1 = 0;
+       const bool colRead = ok && diffFirst && hs[0] > 0 && !hs[1] && nChunks == 0 &&
+@@ -2081,6 +2093,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         TimeStamp r0 = TimeStamp::Now();
+         uint8_t* scratch = fullRows ? ogl->JihadBandScratch(aWidth * 4 * fullRows) : nullptr;
+         if (fullRows) ok = scratch && ogl->JihadReadFrame(scratch, aReq->stride, aWidth, passRows ? passRows : aHeight, 0, fullRows);
++        if (ok && fullRows && aReq->cancelled) ok = false;   // T-513 (review): given up: the slot not touched
+         if (ok && fullRows) {
+           int from = 0;
+           for (int b = 0; b < 2; b++) {
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index c027bad4e5..21dd27b6fe 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -38,6 +38,7 @@
+ #include "mozilla/layers/Effects.h"     // for EffectChain, TexturedEffect, etc
+ #include "mozilla/layers/TextureHost.h"  // for TextureSource, etc
+ #include "mozilla/layers/TextureHostOGL.h"  // for TextureSourceOGL, etc
++#include <atomic>                       // Jihad T-513: gJihadLateWrites
+ #include "mozilla/mozalloc.h"           // for operator delete, etc
+ #include "nsAppRunner.h"
+ #include "nsAString.h"
+@@ -243,6 +244,29 @@ CompositorOGL::CleanupResources()
+ 
+   mGLContext->MakeCurrent();
+ 
++  // Jihad (T-513 review): the window targets, the band target, the swizzle pass's objects. Every
++  // GPU-path context shares the process-long share root's group (engine 0051), so what is not
++  // deleted here outlives the card: ~13 MB of GPU memory each card closed.
++  for (int t = 0; t < 2; ++t) {
++    if (mJihadTargetFBO[t]) mGLContext->fDeleteFramebuffers(1, &mJihadTargetFBO[t]);
++    if (mJihadTargetRB[t]) mGLContext->fDeleteRenderbuffers(1, &mJihadTargetRB[t]);
++    mJihadTargetFBO[t] = mJihadTargetRB[t] = 0;
++  }
++  if (mJihadWindowTex) {   // JIHAD_GPU_PASS: the window target is a texture's FBO of its own
++    if (mJihadWindowFBO) mGLContext->fDeleteFramebuffers(1, &mJihadWindowFBO);
++    mGLContext->fDeleteTextures(1, &mJihadWindowTex);
++    mJihadWindowTex = 0;
++  }
++  mJihadWindowFBO = 0;
++  if (mJihadBandFBO) mGLContext->fDeleteFramebuffers(1, &mJihadBandFBO);
++  if (mJihadBandRB) mGLContext->fDeleteRenderbuffers(1, &mJihadBandRB);
++  mJihadBandFBO = mJihadBandRB = 0;
++  if (mJihadReadFBO) mGLContext->fDeleteFramebuffers(1, &mJihadReadFBO);
++  if (mJihadReadRB) mGLContext->fDeleteRenderbuffers(1, &mJihadReadRB);
++  mJihadReadFBO = mJihadReadRB = 0;
++  if (mJihadSwizzleProg) mGLContext->fDeleteProgram(mJihadSwizzleProg);
++  mJihadSwizzleProg = 0;
++
+   mBlitTextureImageHelper = nullptr;
+ 
+   mContextStateTracker.DestroyOGL(mGLContext);
+@@ -2353,13 +2377,18 @@ CompositorOGL::JihadUseFrameSurface()
+   }
+ }
+ 
++// T-513 (review): reads of a given-up frame that had already written into its slot (a whole read goes
++// straight there); the daemon repaints when this moves (jihad_offscreen_late_writes, PuppetWidget.cpp)
++std::atomic<uint32_t> gJihadLateWrites(0);
++
+ uint8_t*
+ CompositorOGL::JihadBandScratch(size_t aBytes)
+ {
+-  static size_t sHave = 0;
+-  if (!mJihadBandScratch || sHave < aBytes) {
++  // T-513 (review): the size is this compositor's, as the buffer is (one compositor per card, all on
++  // the one compositor thread: a size shared between them handed a card a buffer another had outgrown)
++  if (!mJihadBandScratch || mJihadBandScratchSize < aBytes) {
+     mJihadBandScratch = MakeUnique<uint8_t[]>(aBytes);
+-    sHave = aBytes;
++    mJihadBandScratchSize = aBytes;
+   }
+   return mJihadBandScratch.get();
+ }
+@@ -2375,6 +2404,8 @@ CompositorOGL::JihadReadAsync(JihadFrameRequest* aReq)
+   }
+   aReq->composed = true;
+   if (!JihadEnsureReadThread()) {
++    struct CancelScope { CompositorOGL* c; ~CancelScope() { c->JihadSetCancel(nullptr); } } cancelScope{this};
++    JihadSetCancel(&aReq->cancelled);   // T-513 (review)
+     const TimeStamp t0 = TimeStamp::Now();
+     if (aReq->shift || aReq->src) mGLContext->fFlush();   // the GPU starts the composite while the rows are copied
+     JihadShiftRows(aReq);
+@@ -2499,6 +2530,7 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
+       if (lo < 0) lo = 0;
+       if (hi > h) hi = h;
+       if (hi <= lo || !aReq->dest || aReq->stride != w * 4) continue;
++      if (aReq->cancelled) break;   // T-513 (Codex): given up: no read into the slot
+       const int rows = hi - lo;
+       uint8_t* band = aReq->dest + (size_t)lo * aReq->stride;
+       gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadReadTargetFBO[aReq->target]);
+@@ -2508,6 +2540,10 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
+         gl->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
+         gl->fReadPixels(0, h - hi, w, rows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, band);
+       }
++      if (aReq->cancelled) {   // given up during the read: it wrote into the slot (counted, as on the compositor thread)
++        ++gJihadLateWrites;
++        break;
++      }
+       t2 = TimeStamp::Now();
+       JihadSwizzleAndFlipRows(band, aReq->stride, w, rows, true);
+       static int sTimed = 0;
+@@ -2516,7 +2552,7 @@ CompositorOGL::JihadReadOnReadThread(JihadFrameRequest* aReq)
+                 (t1 - t0).ToMilliseconds(), waitCpuMs, rows, (t2 - t1).ToMilliseconds(), (TimeStamp::Now() - t2).ToMilliseconds());
+       }
+     }
+-    ok = true;
++    ok = !aReq->cancelled;   // T-513 (Codex): a given-up frame is not a good one
+   }
+   {
+     MonitorAutoLock lock(mJihadReadMon);
+@@ -2579,6 +2615,11 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+     if (blend) gl->fEnable(LOCAL_GL_BLEND);
+     if (scissor) gl->fEnable(LOCAL_GL_SCISSOR_TEST);
+     gl->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadWindowFBO);
++    if (mJihadCancel && *mJihadCancel) {
++      // T-513 (Codex): the opt-in swizzle pass reads straight into the slot too: counted, as below
++      if (aDest != mJihadBandScratch.get()) ++gJihadLateWrites;
++      return false;
++    }
+     if (sTimed++ < 12 || (sTimed % 100) == 0) {
+       JIHAD_GPU_LOG("[jihad-gpu] swizzle pass %.1f ms (issued), glReadPixels %d rows %.1f ms\n",
+               (t1 - t0).ToMilliseconds(), rows, (TimeStamp::Now() - t1).ToMilliseconds());
+@@ -2605,6 +2646,9 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+     if (sScratch) {
+       uint8_t* tmp = JihadBandScratch((size_t)aStride * rows);
+       mGLContext->fReadPixels(0, h - hi, w, rows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, tmp);
++      if (mJihadCancel && *mJihadCancel) {
++        return false;   // T-513 (Codex): given up while the GPU was read; the slot is not touched
++      }
+       memcpy(band, tmp, (size_t)aStride * rows);
+     } else if (sChunk > 0) {
+       for (int done = 0; done < rows; done += sChunk) {
+@@ -2640,6 +2684,12 @@ CompositorOGL::JihadReadFrame(uint8_t* aDest, int aStride, int aWidth, int aHeig
+       }
+     }
+   }
++  if (mJihadCancel && *mJihadCancel) {
++    // T-513 (review): given up while the GPU was read; the daemon may paint this slot in software
++    // already. Rows read into the slot itself are the daemon's to repaint
++    if (aDest != mJihadBandScratch.get()) ++gJihadLateWrites;
++    return false;
++  }
+   TimeStamp t1 = TimeStamp::Now();
+   JihadSwizzleAndFlipRows(band, aStride, w, rows, true);
+   {
+@@ -2717,6 +2767,9 @@ CompositorOGL::JihadReadColumns(uint8_t* aDest, int aStride, int aSurfaceH, int
+     mGLContext->fReadPixels(aX0, aSurfaceH - (aSrcRowLo + aRows), w, aRows, LOCAL_GL_RGBA, LOCAL_GL_UNSIGNED_BYTE, sBuf);
+   }
+   const TimeStamp t1 = TimeStamp::Now();
++  if (mJihadCancel && *mJihadCancel) {
++    return false;   // T-513 (review): given up while the GPU was read; the frame is not touched
++  }
+   JihadSwizzleAndFlipRows(sBuf, w * 4, w, aRows, true);
+   for (int r = 0; r < aRows; r++) {
+     memcpy(aDest + (size_t)(aDestRowLo + r) * aStride + (size_t)destX * 4, sBuf + (size_t)r * w * 4, (size_t)w * 4);
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 4b735ac840..a4c738dc47 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -250,6 +250,9 @@ public:
+   int JihadBeginBandPass(int aWidth);
+   void JihadEndBandPass();
+   void JihadUseFrameSurface();   // the frame's pbuffer current again (before a whole composite)
++  // T-513 (review): the reads that follow belong to a request the daemon may give up while the GPU
++  // is read (a stall shows up inside glReadPixels); null when they are done
++  void JihadSetCancel(const mozilla::Atomic<bool>* aCancel) { mJihadCancel = aCancel; }
+   GLuint mJihadBandRB = 0, mJihadBandFBO = 0;
+   int mJihadBandW = 0;
+   // the band surface's rows: JIHAD_GPU_BAND_ROWS (64..942, default 256; round 137)
+@@ -426,6 +429,8 @@ private:
+   bool mJihadProbed = false;
+   gfx::IntSize mJihadTargetSize;                     // the window targets' storage size (round 101)
+   UniquePtr<uint8_t[]> mJihadBandScratch;              // one read of the stacked bands, split from here
++  size_t mJihadBandScratchSize = 0;                    // its size (T-513: per compositor)
++  const mozilla::Atomic<bool>* mJihadCancel = nullptr; // T-513: the frame being read was given up (JihadSetCancel)
+   int mJihadCur = 0;                                 // the target the next frame draws into
+   mozilla::Atomic<int32_t> mJihadTargetBusy[2];      // handed to the read thread, not yet read
+   mozilla::Monitor mJihadReadMon{"jihad-read"};
+diff --git a/gfx/layers/opengl/TextureHostOGL.cpp b/gfx/layers/opengl/TextureHostOGL.cpp
+index d73926a1c6..126f5b4c60 100644
+--- a/gfx/layers/opengl/TextureHostOGL.cpp
++++ b/gfx/layers/opengl/TextureHostOGL.cpp
+@@ -572,12 +572,16 @@ GLTextureHost::Lock()
+   if (!mTextureSource) {
+     gfx::SurfaceFormat format = mHasAlpha ? gfx::SurfaceFormat::R8G8B8A8
+                                           : gfx::SurfaceFormat::R8G8B8X8;
++    // Jihad (T-513 review): the name is the client's, as the comment always said: the producer's
++    // SharedSurface_GLTexture deletes it on its own context. Deleted here too, in the GPU path's one
++    // share group (engine 0051) a name handed out again in between (a tile texture, a WebGL
++    // texture) was deleted under its new owner.
+     mTextureSource = new GLTextureSource(mCompositor,
+                                          mTexture,
+                                          mTarget,
+                                          mSize,
+                                          format,
+-                                         false /* owned by the client */);
++                                         true /* owned by the client */);
+   }
+ 
+   return true;
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 4e40a83508..b056433871 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -37,6 +37,7 @@
+ 
+ #include "mozilla/gfx/JihadGpuLog.h"   // Jihad (T-512): JIHAD_GPU_LOG
+ namespace mozilla { namespace gl { extern std::atomic<uint32_t> gJihadUploads; extern std::atomic<uint64_t> gJihadUploadUs; } }   // T-517, GLUploadHelpers.cpp
++namespace mozilla { namespace layers { extern std::atomic<uint32_t> gJihadLateWrites; } }   // T-513, CompositorOGL.cpp
+ #include "base/task.h"
+ // Jihad offscreen render-document support:
+ #include "gfxContext.h"
+@@ -1453,6 +1454,13 @@ jihad_offscreen_gpu_given_up()
+ {
+   sJihadGpuGivenUp = true;
+ }
++// T-513 (review): how many reads of a given-up frame had already written into its slot (a GPU stall
++// inside glReadPixels outlasting the daemon's bound); the daemon repaints in software when it moves
++MOZ_EXPORT uint32_t
++jihad_offscreen_late_writes()
++{
++  return mozilla::layers::gJihadLateWrites;
++}
+ MOZ_EXPORT bool
+ jihad_gpu_compositor_on()
+ {

@@ -99,6 +99,13 @@
 					app.$.browser.reloadClick();
 					log(name, "reload " + String(app.$.browser.url).slice(0, 80));
 					wait = 4000;
+				} else if (st === "A") {              // bring the app's other card to the front (two cards driven in
+					// turn: this card's own timers stop once it is behind, so A is its last useful step)
+					var ws = enyo.windows.getWindows(), other = null;
+					for (var wn in ws) { if (ws[wn] && ws[wn] !== window) { other = ws[wn]; } }
+					if (other) { enyo.windows.activateWindow(other); }
+					log(name, other ? "activated the other card" : "no other card to activate");
+					wait = 3000;
 				} else if (st.charAt(0) === "O") {    // Oup | Oleft | Oright | Odown | Ofree: hold the card in that
 					// orientation (enyo.setAllowedOrientation: the system rotates the window), then report the size
 					var o = st.slice(1);

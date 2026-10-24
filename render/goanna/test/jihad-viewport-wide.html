@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Jihad Browser test page (cavekit-modern-web.md R6, T-499): a page laid out 1000 CSS px wide with
+     no meta viewport, as DuckDuckGo's results page is. With the layout viewport following the page's
+     overflow (jihad.viewport.followOverflow), innerWidth reads 1000 and the panel parked at
+     innerWidth + 4 (as DuckDuckGo parks its slide-out menu) stays off the card; with the layout
+     viewport at the card's 768 the panel shows at the right edge of the fit-zoomed page. The title
+     carries what the page measures, every second (the daemon logs title changes).
+     Serve it over http from the host PC (python3 -m http.server 8077 in render/goanna/test/).
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>viewport-wide</title>
+<style>
+  body { margin: 0; font: 18px sans-serif; }
+  #wide { width: 1000px; height: 1400px; background: linear-gradient(90deg, #cde 0, #cde 768px, #edc 768px, #edc 1000px); }
+  #parked { position: fixed; top: 40px; left: calc(100vw + 4px); width: 200px; height: 300px; background: #c00; color: #fff; }
+</style></head>
+<body><div id="wide"><p id="m">measuring</p></div><div id="parked">parked past innerWidth: must not show</div>
+<script>
+function measure() {
+  var p = document.getElementById("parked").getBoundingClientRect();
+  var t = "iw=" + innerWidth + " cw=" + document.documentElement.clientWidth + " sw=" + screen.width +
+          " parked.x=" + Math.round(p.left);
+  document.title = t;
+  document.getElementById("m").textContent = t;
+}
+measure();
+setInterval(measure, 1000);
+</script></body></html>

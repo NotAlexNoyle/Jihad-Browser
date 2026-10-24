@@ -1,0 +1,35 @@
+=== card 1, a fast flick (pan 0 8000 800)
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 2 (y -141, shift 0, bands 141..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y -51, shift 90, bands 1134..1224 0..0): 109 rows differ in 17 runs: 192..193 195..196 198..199 201..202 219..220 222..223 225..226 228..229 ...; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify2 (whole at -141 shifted 90 vs whole at -51): 147 rows differ in 16 runs: 51..95 116..128 141..185 192..193 195..196 198..199 201..202 219..220 ...
+[jihad-gpu] verify slot 1 (y 329, shift 380, bands 844..1224 0..0): 1180 rows differ in 2 runs: 0..141 185..1224; 744 rows wrong: 0..16 22..38 53..69 75..91 107..123 129..141 185..198 209..253 ...; 736 rows structurally wrong: 0..
+[jihad-gpu] verify2 (whole at -51 shifted 380 vs whole at 329): 44 rows differ in 1 runs: 141..185
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 1 (y 7859, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 2 (y 7859, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 7858, shift -1, bands 0..1 0..0): 98 rows differ in 10 runs: 0..1 15..32 37..54 69..85 91..107 122..139 185..187 188..189 ...; 1 rows wrong: 185..186; 0 rows structurally wrong:
+=== card 2 (file:///tmp/jihad-sticky-mix.html), a fast flick
+[jihad-bs] inject: commands go to the newest card
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 1 (y -141, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 2429, shift 1130, bands 94..1224 0..0): 861 rows differ in 3 runs: 0..141 156..164 187..899; 537 rows wrong: 2..12 13..16 33..51 59..77 88..98 99..102 119..137 199..275 ...; 544 rows structurally wrong
+[jihad-gpu] verify2 (whole at 1299 shifted 1130 vs whole at 2429): 0 rows differ in 0 runs:
+[jihad-gpu] verify slot 1 (y 3179, shift 750, bands 0..1224 0..0): 257 rows differ in 8 runs: 0..141 161..164 200..210 239..256 298..333 403..427 597..614 792..802; 102 rows wrong: 0..11 23..33 34..37 48..124 139..141; 96 rows str
+[jihad-gpu] verify2 (whole at 2429 shifted 750 vs whole at 3179): 464 rows differ in 2 runs: 0..269 279..474
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 2 (y 3829, shift 650, bands 574..1224 0..0): 1184 rows differ in 2 runs: 0..1043 1083..1224; 715 rows wrong: 0..73 89..107 114..132 189..192 199..217 229..243 260..278 285..303 ...; 776 rows structurally wr
+[jihad-gpu] verify2 (whole at 3179 shifted 650 vs whole at 3829): 572 rows differ in 2 runs: 0..378 380..574
+[jihad-gpu] verify slot 2 (y 7859, shift 0, bands 0..0 0..0): 134 rows differ in 11 runs: 0..15 17..18 21..40 47..66 1109..1127 1133..1152 1156..1157 1158..1160 ...; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 0 (y 7859, shift 0, bands 0..0 0..0): 134 rows differ in 11 runs: 0..15 17..18 21..40 47..66 1109..1127 1133..1152 1156..1157 1158..1160 ...; 0 rows wrong:; 0 rows structurally wrong:
+=== card 1 again (target focus), a fast flick
+[jihad-bs] inject: commands go to the focused card
+[jihad-bs] inject pan 0 -> 8000 over 800 ms
+[jihad-gpu] verify slot 1 (y -141, shift 0, bands 0..0 0..0): 1083 rows differ in 1 runs: 141..1224; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-bs] inject pan done
+[jihad-gpu] verify slot 0 (y 7859, shift 460, bands 0..1224 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify2 (whole at 7399 shifted 460 vs whole at 7859): 197 rows differ in 34 runs: 15..17 18..23 24..29 30..31 36..38 39..41 42..44 45..47 ...
+[jihad-gpu] verify slot 1 (y 7859, shift 0, bands 0..0 0..0): 0 rows differ in 0 runs:; 0 rows wrong:; 0 rows structurally wrong:
+[jihad-gpu] verify slot 2 (y 7858, shift -1, bands 0..1 0..0): 98 rows differ in 10 runs: 0..1 15..32 37..54 69..85 91..107 122..139 185..187 188..189 ...; 1 rows wrong: 185..186; 0 rows structurally wrong:
+=== totals
+22 verify lines, 2849 rows wrong, 3168 rows structurally wrong

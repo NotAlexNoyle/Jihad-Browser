@@ -26,6 +26,7 @@ LICENSE@@@ */
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdint.h>   // T-513: uint64_t (windowBytes)
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
@@ -188,10 +189,15 @@ size_t BrowserOffscreen::windowBytes() const
     const int rows = t->windowRows;   // read once: the checks and the offset are of the same value
     if (rows <= 0 || m_header->renderedWidth <= 0 || m_header->renderedHeight <= 0)
         return 0;
-    const size_t rowBytes = (size_t)m_header->renderedWidth * 4;
-    if ((size_t)(rows + m_header->renderedHeight) * rowBytes > (size_t)rasterSize())
+    // T-513 (review): no product that can wrap: on the device size_t is 32 bits, and even in 64 a
+    // row count, a height and a width from the header can multiply past it (Codex 2026-10-24). The
+    // rows the window and the frame take are held against what the raster has room for, by division
+    // (LunaSysMgr's only guard against blitting outside the segment)
+    const uint64_t rowBytes = (uint64_t)m_header->renderedWidth * 4;
+    const uint64_t roomRows = (uint64_t)rasterSize() / rowBytes;
+    if ((uint64_t)rows + (uint64_t)m_header->renderedHeight > roomRows)
         return 0;
-    return (size_t)rows * rowBytes;
+    return (size_t)((uint64_t)rows * rowBytes);   // <= rasterSize()
 }
 
 void BrowserOffscreen::resetBuffer()

@@ -819,7 +819,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
   // stale — the adapter re-announces once it has allocated the new one.
   mKey3 = 0;
   mBufSize = sharedBufferSize;
-  mActiveKey = mKey1;
+  mActiveKey = mKey1; mShownKey = 0;
   mInFlight[0] = mInFlight[1] = mInFlight[2] = false;   // fresh segments: nothing in flight (F-211)
 
   // Attach-only: the adapter (isis IpcBuffer::create) makes each segment, IPC_RMID-marks
@@ -848,7 +848,9 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   xInvalidate();
   mGpuZoom = 0.0;   // T-502: the scroll port follows the card size; set again at the next zoom
   mGpuAnchorValid = false;
-  mLayoutFollowed = false;   // T-499: a new card size (rotation) starts from a layout viewport equal to it
+  // T-499: a new card size (rotation) starts from a layout viewport equal to it; the same size sent
+  // again (every NPAPI SetWindow) keeps the page's
+  if (!mPage || (int)width != mPage->Width() || (int)height != mPage->Height()) mLayoutFollowed = false;
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
@@ -980,7 +982,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   FrameLockGuard frameLock;   // T-515
   detachShm();       // the buffers may be new segments — drop stale cached attachments
   mXConsumed[0] = mXConsumed[1] = mXConsumed[2] = 0;
-  mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1;
+  mKey1 = key1; mKey2 = key2; mBufSize = size; mActiveKey = mKey1; mShownKey = 0;
   mKey3 = 0;   // re-announced by the adapter after thaw; the old third segment may be gone
   mInFlight[0] = mInFlight[1] = mInFlight[2] = false;   // reattached (possibly new) segments: clear in flight (F-211)
   // Possibly NEW segments — detachShm() above just dropped the old attachments — so nothing
@@ -1031,7 +1033,7 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
 // from all five nav commands reproduces stock exactly.
 void BrowserPageGoanna::resetScrollForNavigation() {
   FrameLockGuard frameLock;   // T-515: called from the pump too (a page's own navigation)
-  mLayoutFollowed = false;   // T-499: the next page decides its own layout viewport
+  // (T-499: the next page's layout viewport is decided when its document is shown: emitGeometry)
   // A new document invalidates both buffers wholesale. The damage-only path proves its
   // premise from geometry (size, zoom, scroll), and a navigation can leave every one of
   // those identical while replacing all the pixels — so geometry alone cannot catch it and
@@ -1206,8 +1208,9 @@ void BrowserPageGoanna::gpuFallBack(const char* why) {
   if (!mPage || !mPage->GpuPath()) return;
   FrameLockGuard frameLock;   // T-515
   if (jihad_offscreen_gpu_given_up) jihad_offscreen_gpu_given_up();   // T-511 (review): WebGL off too
+  xForget(mXJob2); xForget(mXJob);   // T-513 (review): the express lane's frames too, or one recovering would write into a slot the software path paints
   xInvalidate();
-  for (const GpuJob& j : mGpuJobs) mPage->ComposeForget(j.token);
+  for (const GpuJob& j : mGpuJobs) gpuForget(j);
   mGpuJobs.clear();
   for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
   mGpuLatestSlot = -1;
@@ -2628,6 +2631,19 @@ bool BrowserPageGoanna::emitGeometry() {
   // map wobbling by 0.5%). Fit-zoom exists to shrink WIDE desktop layouts; content that
   // already fits the layout viewport should composite at exactly 1.0 (identity blit). The
   // reported height is unchanged — only the width is floored at the window width.
+  // T-499: the layout viewport is a document's own. A new document (a navigation's, or the page's
+  // own) starts from the card's size: the old one's laid the next page out wide (2026-10-19: a
+  // width=device-width page loaded after a followed about:blank, at 980 px and a fit zoom of 0.787)
+  const uint64_t docKey = mPage->DocumentKey();
+  if (docKey != mLayoutDocKey) {
+    mLayoutDocKey = docKey; mLayoutFollowed = false;
+    if (mPage->LayoutWidth() != mPage->Width()) {
+      mPage->ResetLayoutSize();
+      cw = ch = 0;
+      got = mPage->GetContentSize(&cw, &ch);
+      mNeedsPaint = true; mDamageForceFull = true;
+    }
+  }
   if (got && cw > 0 && cw < mPage->Width()) cw = mPage->Width();
   // T-499: a page laid out wider than the card gets a layout viewport as wide as its content, ONCE
   // per page and size (a reflow at the new width can change the content size; nothing follows that
@@ -2635,8 +2651,12 @@ bool BrowserPageGoanna::emitGeometry() {
   // width is the card's business through initial-scale), only up to 1100 px (a desktop page's
   // width; one overflowing element must not turn a phone layout into a desktop one), and only when
   // the pref says so. Then innerWidth is the page's own width and what it parks just past that
-  // edge stays off screen while the card fit-zooms the whole width as before.
-  if (got && cw > mPage->Width() + 8 && cw <= 1100 && ch > 0 && ::gJihadViewportFollow && !mLayoutFollowed) {
+  // edge stays off screen while the card fit-zooms the whole width as before. Never about:blank (a
+  // new card's, there until the first page commits), and only once the document is parsed: until its
+  // <meta name=viewport> is seen the engine lays it out at 980 px as if it declared none (2026-10-19:
+  // a width=device-width page followed to 980 mid-parse and stayed at a fit zoom of 0.787).
+  if (got && cw > mPage->Width() + 8 && cw <= 1100 && ch > 0 && ::gJihadViewportFollow && !mLayoutFollowed &&
+      mPage->CurrentUri().compare(0, 11, "about:blank") != 0 && mPage->DocumentParsed()) {
     double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
     bool declares = mPage->GetViewport(&is, &mn, &mx, &vw, &vh, &us);
     mLayoutFollowed = true;
@@ -3412,6 +3432,16 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (!mGpuJobs.empty()) mGpuTrace[6]++;
+  if (jihad_offscreen_late_writes) {
+    // T-513 (review): a GPU read given up past its bound came back and wrote into a slot the
+    // software path may have painted (and the card may show): every slot painted whole again
+    const uint32_t lw = jihad_offscreen_late_writes();
+    if (lw != mLateWrites) {
+      mLateWrites = lw;
+      mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+      mDamageValid = false; mDamageForceFull = true; mNeedsPaint = true;
+    }
+  }
   // T-515: an express frame at the held zoom is out (the main lane's own may be dropped for as long
   // as the page's script runs): the displayport and the anchor follow the zoom now
   if (mGpuZoomHoldMs && mXLastZoom > 0.0 && fabs(mXLastZoom - mGpuZoomHoldZ) < 1e-9)
@@ -3643,7 +3673,7 @@ void BrowserPageGoanna::gpuJobDrain() {
       const int64_t t0 = jihadNowMs();
       int r;
       while ((r = mPage->ComposePoll(j.token, nullptr, nullptr)) <= -2 && jihadNowMs() - t0 < 3000) usleep(2000);
-      mPage->ComposeForget(j.token);
+      gpuForget(j);
     }
   }
   mGpuJobs.clear();
@@ -3680,6 +3710,34 @@ static std::string jihadWhiteRuns(const unsigned char* px, int w, int h) {
   if (!n) out = " none";
   return out;
 }
+
+// T-513: JIHAD_GPU_VERIFY's reference composites (gpuJobStart), every card's, under the frame lock.
+// Each buffer is made once at the largest frame and never freed or resized: a given-up compose can
+// still be read into its buffer late (the review's E5). One is taken again only once its reference was
+// polled, or 5 s after it was given up (the engine's bound is 3 s); with none free a job gets no
+// reference and the verify mode composes a late one as before.
+namespace {
+struct VerifyRef { std::vector<unsigned char> buf; bool busy = false; int64_t quarantineUntil = 0; };
+VerifyRef sVerifyRef[6];
+const size_t kVerifyRefBytes = (size_t)1024 * 1400 * 4;   // the widest card by the frame's row cap
+int verifyRefAcquire(size_t bytes) {
+  if (bytes > kVerifyRefBytes) return -1;
+  const int64_t now = jihadNowMs();
+  for (int i = 0; i < 6; ++i) {
+    VerifyRef& v = sVerifyRef[i];
+    if (v.busy || now < v.quarantineUntil) continue;
+    if (v.buf.empty()) v.buf.resize(kVerifyRefBytes);
+    v.busy = true;
+    return i;
+  }
+  return -1;
+}
+void verifyRefRelease(int i, bool givenUp) {
+  if (i < 0 || i >= 6) return;
+  sVerifyRef[i].busy = false;
+  if (givenUp) sVerifyRef[i].quarantineUntil = jihadNowMs() + 5000;
+}
+}  // namespace
 
 bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
   gpuSetView(zoom, mGpuViewRX, mGpuViewRY);   // T-505: the view's row in this frame (the compositor takes it at the start)
@@ -3889,8 +3947,36 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   j.win = win;   // T-517
   j.xFrames = mXFrames;
   j.cmdDone = mXCmdDone;
+  // T-513 (R2's fast flick): JIHAD_GPU_VERIFY's reference, the whole frame composed right behind this
+  // job, on the same layer tree at the same view. Composed at the job's poll instead, it met a tree
+  // the pan had moved on from (the displayport's tiles above the view dropped) and called the right
+  // frames of a fast flick wrong. Its buffer is from a pool (sVerifyRef: never freed)
+  static const bool sVerify = getenv("JIHAD_GPU_VERIFY") != nullptr;
+  if (sVerify && (sHi - sLo < h || shift)) {
+    const size_t refBytes = (size_t)w * h * 4;
+    const int vb = verifyRefAcquire(refBytes);
+    if (vb >= 0) {
+      const uint32_t vt = mPage->ComposePost(sVerifyRef[vb].buf.data(), refBytes, h, 0, h, 0, 0, 0, nullptr, 0, false, nullptr, 0, -1, false, true);
+      if (vt) { j.vToken = vt; j.vBuf = vb; mXLastPostToken = vt; }   // T-515: the newest composite is not a published frame
+      else verifyRefRelease(vb, false);
+    }
+  }
   mGpuJobs.push_back(j);
   return true;
+}
+
+// T-513: the buffer the card is told to show. The one it showed until now stays the adapter's until
+// it has switched and returned it: its in-flight mark restarts here, or a mark older than the 2 s valve
+// (a still page) would free it at once, while the adapter may still be blitting it (Codex 2026-10-24)
+void BrowserPageGoanna::noteShown(int key) {
+  const int prev = slotForKey(mShownKey);
+  if (mShownKey && mShownKey != key && prev >= 0 && mInFlight[prev]) mPaintMs[prev] = jihadNowMs();
+  mShownKey = key;
+}
+
+void BrowserPageGoanna::gpuForget(const GpuJob& j) {
+  mPage->ComposeForget(j.token);
+  if (j.vToken) { mPage->ComposeForget(j.vToken); verifyRefRelease(j.vBuf, true); }
 }
 
 // The frame after the one in flight, into the slot after it, while the read thread has the
@@ -3909,13 +3995,14 @@ void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h,
   // slot the adapter returns last is not waited for while another is free.
   int key2 = keyAfter(mGpuJobs[0].key);
   int slot2 = slotForKey(key2);
+  if (key2 == mShownKey) { key2 = keyAfter(key2); slot2 = slotForKey(key2); }   // T-513 (review): never the shown buffer
   if (slot2 >= 0 && mInFlight[slot2] && jihadNowMs() - mPaintMs[slot2] < 2000) {
     const int key3 = keyAfter(key2), slot3 = slotForKey(key3);
     if (slot3 >= 0 && key3 != mGpuJobs[0].key && !(mInFlight[slot3] && jihadNowMs() - mPaintMs[slot3] < 2000)) { key2 = key3; slot2 = slot3; }
   }
   int why = -1;
   unsigned char* buf2 = nullptr;
-  if (slot2 < 0 || key2 == mGpuJobs[0].key) why = 0;
+  if (slot2 < 0 || key2 == mGpuJobs[0].key || key2 == mShownKey) why = 0;
   else if (mInFlight[slot2] && jihadNowMs() - mPaintMs[slot2] < 2000) why = 1;   // the adapter holds it
   else if (!(buf2 = attachShm(key2))) why = 2;
   else if (segSize < hdr + (size_t)w * h * 4) why = 3;
@@ -4086,6 +4173,10 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
     for (int t = 0; t < 3 && slot < 0; ++t) {
       if (!S.keys[t] || !S.base[t] || S.seg[t] < need) continue;
       if (mInFlight[t] && now - mPaintMs[t] < 2000) continue;
+      // T-513 (review): never the buffer the card shows. The adapter keeps it until the next frame's
+      // message, and an aged in-flight mark (a page still for 2 s) or the adapter returning its own
+      // current buffer made it look free: a zoom's frame was composed into the buffer on screen
+      if (S.keys[t] == mShownKey) continue;
       if (t == mXMainSlot || (base && t == b) || (mXJob.on && t == mXJob.slot)) continue;
       bool mainJob = false;   // T-517 (review): a main-lane frame is still composed or read into it
       for (const GpuJob& gj : mGpuJobs) if (gj.slot == t) mainJob = true;
@@ -4103,7 +4194,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
     int superseded = 0;
     for (size_t k = 0; k < mGpuJobs.size();) {
       if (mGpuJobs[k].zoom != Z && mPage->ComposePeek(mGpuJobs[k].token) == 0) {
-        mPage->ComposeForget(mGpuJobs[k].token);
+        gpuForget(mGpuJobs[k]);
         mGpuJobs.erase(mGpuJobs.begin() + k);
         ++superseded;
       } else {
@@ -4297,7 +4388,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     if ((sAvgN++ % 50) == 0)
       JIHAD_GPU_LOG("[jihad-gpu] express frame times: on the slot's own frame %.1f ms, copied from the base %.1f ms\n", mXOwnMs, mXCopyMs);
   }
-  mSink.msgPainted(mXJob.key);
+  mSink.msgPainted(mXJob.key); noteShown(mXJob.key);
   mInFlight[s] = true; mPaintMs[s] = now;
   jihadTimelinePublish("express", mXJob.t0, frameY, mXJob.zoom);
   if (jihadTimelineOn()) {
@@ -4689,7 +4780,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           }
           mLatestSlot = slot;
           publishWindow(mActiveKey, 0);   // T-517: the software path's frames start at the pixels' start
-          mSink.msgPainted(mActiveKey);
+          mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
           {
             int ps = slotForKey(mActiveKey);
             if (ps >= 0) { mInFlight[ps] = true; mPaintMs[ps] = jihadNowMs(); }
@@ -5124,6 +5215,16 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         }
       } else {
         const GpuJob oldest = mGpuJobs[0];
+        if (oldest.h != h || oldest.w != w) {
+          // T-513 (review): composed at another frame size (the overscan turned on at a document's
+          // first scroll while it was in flight): published at this tick's size its rows would not
+          // match the header. Given up; the next tick composes at this size
+          for (const GpuJob& j : mGpuJobs) gpuForget(j);   // a second job builds on it
+          mGpuJobs.clear();
+          gpuSlotsLost();
+          mNeedsPaint = true;
+          return;
+        }
         // T-517: the frame is in its window: every row this tick writes or reads is the window's
         pixels += (size_t)oldest.win * (size_t)w * 4;
         GoannaRenderPage::ComposeResult cr;
@@ -5173,6 +5274,17 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           return;
         }
         mGpuJobs.erase(mGpuJobs.begin());
+        // T-513: its verify reference's buffer goes back to the pool when this tick is done with it
+        // (given up, and kept aside a while, unless the verify below polled it complete)
+        struct VerifyRefForget {
+          GoannaRenderPage* p; uint32_t t; int b; bool taken;
+          ~VerifyRefForget() {
+            if (!t) return;
+            if (taken) { verifyRefRelease(b, false); return; }
+            p->ComposeForget(t);
+            verifyRefRelease(b, true);
+          }
+        } vrf{mPage, oldest.vToken, oldest.vBuf, false};
         nb = r;
         // T-515: the express lane published after this job was posted: its frames are newer and its
         // composite the newest; this one is dropped (its slot's record with it)
@@ -5268,35 +5380,48 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           // into scratch and compared row by row; the runs of rows that differ are logged, so a
           // wrong shift, band or header shows as such
           static const bool sVerify = getenv("JIHAD_GPU_VERIFY") != nullptr;
-          // (not a frame made at another zoom than the card's now: the verify composite uses the
-          // current view, so a frame from before a zoom change would compare as all wrong)
-          if (sVerify && (oldest.askHi - oldest.askLo < h || oldest.shift) && oldest.zoom == mZoom) {
+          // (a late reference, composed here, not of a frame made at another zoom than the card's
+          // now: it uses the current view, so a frame from before a zoom change would compare as all
+          // wrong; the reference composed behind the job has the job's own view)
+          if (sVerify && (oldest.askHi - oldest.askLo < h || oldest.shift) && (oldest.vToken || oldest.zoom == mZoom)) {
             static std::vector<unsigned char> sScratch;
             const size_t bytes = (size_t)w * h * 4;
-            if (sScratch.size() < bytes) sScratch.resize(bytes);
-            // the whole composite at the JOB's scroll (the pan has moved on since), then the
-            // card's current scroll again
+            const unsigned char* refPx = nullptr;
+            int r2 = -1;
             const double vz = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
             const int viewRowNow = mGpuViewRow;   // T-505: the job's own view row for its composite
-            mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
-            mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow) / vz, true);
-            const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);   // T-503: a verify composite
-            if (vt) mXLastPostToken = vt;   // T-515: the newest composite is not a published frame
-            int r2 = -1;
-            if (vt) {
+            if (oldest.vToken) {
+              // T-513: the reference composed right behind the job, on its layer tree (gpuJobStart)
+              unsigned char* ref = sVerifyRef[oldest.vBuf].buf.data();
               GoannaRenderPage::ComposeResult vr;
               const int64_t t0 = jihadNowMs();
-              while ((r2 = mPage->ComposePoll(vt, sScratch.data(), &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
-              if (r2 <= -2) mPage->ComposeForget(vt);
+              while ((r2 = mPage->ComposePoll(oldest.vToken, ref, &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
+              if (r2 > -2) vrf.taken = true;   // done: back to the pool once compared (vrf)
+              refPx = ref;
+            } else {
+              if (sScratch.size() < bytes) sScratch.resize(bytes);
+              refPx = sScratch.data();
+              // the whole composite at the JOB's scroll (the pan has moved on since), then the
+              // card's current scroll again
+              mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
+              mPage->SetGpuScroll(oldest.x / vz, (oldest.y + oldest.viewRow) / vz, true);
+              const uint32_t vt = mPage->ComposeStart(sScratch.data(), bytes, 0, h, 0, 0, 0, nullptr, 0, false, true);   // T-503: a verify composite
+              if (vt) mXLastPostToken = vt;   // T-515: the newest composite is not a published frame
+              if (vt) {
+                GoannaRenderPage::ComposeResult vr;
+                const int64_t t0 = jihadNowMs();
+                while ((r2 = mPage->ComposePoll(vt, sScratch.data(), &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
+                if (r2 <= -2) mPage->ComposeForget(vt);
+              }
+              mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
+              mGpuViewRow = viewRowNow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
             }
-            mPage->SetGpuScroll(mAdapterScrollX / vz, mAdapterScrollY / vz, true);
-            mGpuViewRow = viewRowNow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
             if (r2 >= 0) {
               std::string runs; int nRuns = 0, bad = 0;
               for (int r = pageLo; r < pageHi; ) {   // T-505: the page's rows (the rest is filled white)
-                if (memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) == 0) { ++r; continue; }
+                if (memcmp(pixels + (size_t)r * w * 4, refPx + (size_t)r * w * 4, (size_t)w * 4) == 0) { ++r; continue; }
                 int r0 = r;
-                while (r < pageHi && memcmp(pixels + (size_t)r * w * 4, sScratch.data() + (size_t)r * w * 4, (size_t)w * 4) != 0) ++r;
+                while (r < pageHi && memcmp(pixels + (size_t)r * w * 4, refPx + (size_t)r * w * 4, (size_t)w * 4) != 0) ++r;
                 bad += r - r0;
                 if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
               }
@@ -5307,7 +5432,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               std::string wrongRuns; int nWrong = 0, wrongRows = 0;
               auto rowWrong = [&](int r) {
                 const unsigned char* a = pixels + (size_t)r * w * 4;
-                const unsigned char* b = sScratch.data() + (size_t)r * w * 4;
+                const unsigned char* b = refPx + (size_t)r * w * 4;
                 int far = 0;
                 for (int x = 0; x < w && far <= 4; x++, a += 4, b += 4) {
                   if (abs(a[0] - b[0]) > 64 || abs(a[1] - b[1]) > 64 || abs(a[2] - b[2]) > 64) far++;
@@ -5327,7 +5452,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 if (wrongRows > 50 && !sDumpedWrong && getenv("JIHAD_GPU_VERIFY_DUMP_WRONG")) {
                   sDumpedWrong = true;
                   FILE* f1 = fopen("/tmp/vw-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
-                  FILE* f2 = fopen("/tmp/vw-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  FILE* f2 = fopen("/tmp/vw-whole.raw", "wb"); if (f2) { fwrite(refPx, 1, bytes, f2); fclose(f2); }
                   JIHAD_GPU_LOG("[jihad-gpu] verify: the first wrong frame dumped (/tmp/vw-slot.raw, /tmp/vw-whole.raw)\n");
                 }
               }
@@ -5344,7 +5469,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                   const int rr = r + off;
                   if (rr < 0 || rr >= h) continue;
                   const unsigned char* a = pixels + (size_t)r * w * 4;
-                  const unsigned char* b = sScratch.data() + (size_t)rr * w * 4;
+                  const unsigned char* b = refPx + (size_t)rr * w * 4;
                   for (int x = 0; x < w; x++, a += 4, b += 4) sum += abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]);
                   n += w * 3;
                 }
@@ -5368,7 +5493,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 if (structural > 0 && !sDumpedStruct && getenv("JIHAD_GPU_VERIFY_DUMP_WRONG")) {
                   sDumpedStruct = true;
                   FILE* f1 = fopen("/tmp/vs-slot.raw", "wb"); if (f1) { fwrite(pixels, 1, bytes, f1); fclose(f1); }
-                  FILE* f2 = fopen("/tmp/vs-whole.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  FILE* f2 = fopen("/tmp/vs-whole.raw", "wb"); if (f2) { fwrite(refPx, 1, bytes, f2); fclose(f2); }
                   JIHAD_GPU_LOG("[jihad-gpu] verify: the first structurally wrong frame dumped (/tmp/vs-slot.raw, /tmp/vs-whole.raw)\n");
                 }
               }
@@ -5381,8 +5506,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             // verify 2: the compositor against itself. The whole frame at (y - shift), shifted
             // by the job's shift the way the slot was, against the whole frame at y: equal rows
             // mean the content moves one frame row per card px, so a slot shifted right would
-            // match; rows that differ mean the compositor's scroll is not the card's.
-            if (r2 >= 0 && oldest.shift > 0 && oldest.shift < h) {
+            // match; rows that differ mean the compositor's scroll is not the card's. (T-513: with
+            // the late reference only: its own composite is late too, and the two compare alike)
+            if (r2 >= 0 && !oldest.vToken && oldest.shift > 0 && oldest.shift < h) {
               static std::vector<unsigned char> sBefore;
               if (sBefore.size() < bytes) sBefore.resize(bytes);
               mGpuViewRow = oldest.viewRow; gpuSetView(vz, mGpuViewRX, mGpuViewRY);
@@ -5402,9 +5528,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 const size_t stride = (size_t)w * 4;
                 std::string runs; int nRuns = 0, bad = 0;
                 for (int r = 0; r + oldest.shift < h; ) {
-                  if (memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, sScratch.data() + (size_t)r * stride, stride) == 0) { ++r; continue; }
+                  if (memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, refPx + (size_t)r * stride, stride) == 0) { ++r; continue; }
                   int r0 = r;
-                  while (r + oldest.shift < h && memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, sScratch.data() + (size_t)r * stride, stride) != 0) ++r;
+                  while (r + oldest.shift < h && memcmp(sBefore.data() + (size_t)(r + oldest.shift) * stride, refPx + (size_t)r * stride, stride) != 0) ++r;
                   bad += r - r0;
                   if (nRuns++ < 8) { char b[48]; snprintf(b, sizeof b, " %d..%d", r0, r); runs += b; }
                 }
@@ -5415,7 +5541,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
                 static long sPair = 0;
                 if (sDumpAt > 0 && ++sPair == sDumpAt) {
                   FILE* f1 = fopen("/tmp/v2-before.raw", "wb"); if (f1) { fwrite(sBefore.data(), 1, bytes, f1); fclose(f1); }
-                  FILE* f2 = fopen("/tmp/v2-at.raw", "wb"); if (f2) { fwrite(sScratch.data(), 1, bytes, f2); fclose(f2); }
+                  FILE* f2 = fopen("/tmp/v2-at.raw", "wb"); if (f2) { fwrite(refPx, 1, bytes, f2); fclose(f2); }
                   FILE* f3 = fopen("/tmp/v2-slot.raw", "wb"); if (f3) { fwrite(pixels, 1, bytes, f3); fclose(f3); }
                   JIHAD_GPU_LOG("[jihad-gpu] verify2 pair %ld dumped: whole at %d, whole at %d, the slot (shift %ld)\n", sPair, oldest.y - (int)oldest.shift, oldest.y, oldest.shift);
                 }
@@ -5744,7 +5870,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     // T-502 device rounds: the publish tick's time after the frame came in, around the message
     const int64_t a = jihadNowMs();
     publishWindow(mActiveKey, pubWin);   // T-517: the frame's window (a GPU frame's; the software path's start at 0)
-    mSink.msgPainted(mActiveKey);
+    mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
     const int64_t b = jihadNowMs();
     jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);
     static int sN = 0;

@@ -14,8 +14,12 @@
 #include <BrowserServerBase.h>
 #include "../goanna/BrowserPageGoanna.h"
 #include "../goanna/DownloadService.h"   // jihad::DownloadSink
+#include <atomic>
+#include <functional>
 #include <map>
+#include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace jihad { class EngineHost; }
@@ -234,7 +238,14 @@ private:
   std::vector<YapProxy*>           mConnectOrder;
 #ifndef JIHAD_NO_INJECT
   std::string                      mInjectPath;           // "" = channel disabled (default)
+  bool                             mInjectFocus = false;  // "target focus": the focused card, not the newest
   void                           (*mWakeHook)() = nullptr;  // main()'s "leave the idle tick now"
+  // T-513 (review): the inject pan's and zoom's threads, stopped and joined at shutdown (the finished
+  // ones when the next starts)
+  struct InjectThread { std::thread thread; std::shared_ptr<std::atomic<bool>> done; };
+  std::vector<InjectThread>        mInjectThreads;
+  void startInjectThread(std::function<void()> body);
+  std::atomic<bool>                mInjectStop{false};
 #endif
 };
 

@@ -83,3 +83,21 @@ as .orig in each deviceroot/hl):
   is drawn mid-view for a moment during the zoom change (h8) and right at rest (h9).
 - The first frame at a new zoom takes 1.6-2.9 s on desktop Wikipedia (the displayport repainted at the
   new resolution, 48 tiles): R6's 250 ms stays open.
+
+Mojo's bar, measured (the "dead back" of the evening)
+------------------------------------------------------
+elementFromPoint through the daemon (the home command rewired to navigate to a URL carrying the data), card px:
+  fade 0-768 y930-980; back 197-247; forward 251-301; home 305-355; new card 359-409; library 413-463;
+  share 467-517; find 521-571 (all y930-980; screen y = card y + 28). A tap at 265 is the disabled forward.
+  With history, back at (222,982): pageBackward, the previous page loads; forward at (276,982): pageForward.
+A shell file edited on the device runs only after a Luna restart (the card's WebKit memory cache).
+
+T-527, the sensor bench (same night)
+-------------------------------------
+pan-run.sh (the spike daemon, JIHAD_GPU_EXPRESS=1, 0 -> 3000 px in 10 s), the 2 s pipeline lines:
+  jihad-long-static.html, sensors running:  33.3 / 30.2 / 34.9 / 31.3 fps
+  desktop en.wikipedia.org (PAN_DELAY=15):  21.4 / 20.9 / 22.4 fps
+  sensord + atlas-sensord stopped (stop sensord; stop atlas-sensord):
+  desktop en.wikipedia.org:                 25.0 / 27.5 / 27.4 fps
+  jihad-long-static.html:                   35.3 / 33.0 / 35.5 / 36.5 fps
+  both started again after; `top` at idle: sensord 29.9% CPU, powerd 7.5%, tap2shared 7.5%, load 3.5.

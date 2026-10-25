@@ -117,15 +117,15 @@ a MutationObserver relabels it (`jihadPersonas.js`), verified. (3) The tools men
 in `addons.css`, verified readable. Probe notes: the daemon's `painted … rows new=` counts only software-rendered rows
 (0 on a GPU frame says nothing); a popup's close is seen at `PopupsOpen()`'s transition in the tick.
 
-**Device state (2026-10-25, later):** all three variants installed as PACKAGES through `push-variant.sh` from the packages
-built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `fb8bc730`, `-mochi_1.0.0`
-`9a3f8159`, `-mojo_1.0.0` `dcda6c9b`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
-daemon `f7b5ffdb` (the popup-close slot reset, Enter-first-to-the-page in a textarea, the frame-aware edit target, the
-followed layout kept across the keyboard), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel
-observer and the tools menu's look, the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535).
-**The device IS the repository head.** Root filesystem read-only. Enyo's profile prefs at defaults; Palefill active; the
-Default look; no card open; `/tmp` holds only the finger tool. The harness server on the host (8077) serves
-`render/goanna/test/`, `jihad-frame-field.html` included.
+**Device state (2026-10-25, end of the session):** all three variants installed as PACKAGES through `push-variant.sh` from
+the packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `075a9626`,
+`-mochi_1.0.0` `61d4b5f4`, `-mojo_1.0.0` `dfb05e57`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches
+through 0061), daemon `2de5bdc8` (T-536 … T-540: the popup-close slot reset, Enter first to the page in a textarea, the
+frame-aware edit target, the followed layout kept across the keyboard, the named confirm buttons, the dialog wait that ends
+with its card), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel observer and the tools menu's look,
+the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535). **The device IS the repository head.**
+Root filesystem read-only. Enyo's profile prefs at defaults; Palefill active; the Default look; no card open; `/tmp` holds
+only the finger tool. The harness server on the host (8077) serves `render/goanna/test/`.
 
 **T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
 intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure
@@ -136,8 +136,16 @@ packaged build: ssl.com's and DigiCert's revoked hosts say "Peer's Certificate h
 **To push (the owner):** `bash .cavekit/handoff-2026-10-24/push.sh` — the engine fork `jihad/uxp-RB_20261006` now at
 `ec8f0ed7` (patches 0060 and 0061) and Jihad-Browser main through this round's commits.
 
-**Next, toward a shippable build:** FINGER-TESTS.md's remaining open items (install / Remove / Undo / the update
-check in about:addons, the link-style buttons' size), then T-527's compositor-thread work; the owner's push.
+**Done since (2026-10-25, the afternoon session), all by finger on the packaged build:** T-536 (about:addons: the
+closed menu's stale pixels, the Undo row's label, the menu's look), T-537 (Enter in a textarea reaches the page first —
+DuckDuckGo searches), T-538 (a field in a frame; the followed layout width survives the keyboard), T-539 (the slow-script
+dialog names its buttons; Cancel stops the script), T-540 (a dialog whose card closed no longer holds the daemon for a
+minute), the Personas item, everyday browsing in all three shells, the about:addons Undo and update check.
+
+**Next, toward a shippable build:** FINGER-TESTS.md's remaining open items — rotate (needs the accelerometer or a person),
+about:addons' list panning (needs more add-ons installed), about:personas' flashes and Remove-while-the-picture-is-made,
+about:settings' every control, the proxy items (My own proxy, WebOne, a login proxy, the Relay for everyday browsing),
+Flash/audio heard (a person); then T-527's compositor-thread work; the owner's push.
 
 ---
 

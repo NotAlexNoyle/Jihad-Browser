@@ -111,8 +111,7 @@ re-installed from the site; Carbon Light re-installed from its .xpi; the Default
 device, NOT in the packages.** (1) Engine patch 0062 (`layout/xul/nsXULPopupManager.cpp`, fork `9711aa10`): the
 tools menu's pixels stayed on the card after "Check for Updates" ran — the composited popup hid but nothing repainted
 the content; HidePopupCallback now invalidates the root widget under JIHAD_OFFSCREEN. `$SP/build-engine-bundle.sh`
-was started (log `engine-build5.log` in the scratchpad; it may have finished — check `build/webos-oe/device-bundle/libxul.so`'s
-time); the pins already name the new head (`check-engine-pins.sh` agrees after this commit). (2) `components/jihadPersonas.js`:
+finished: the bundle's `libxul.so` is `52fe44db` (11:15, patches through 0062), ready to put on the device; the pins already name the new head (`check-engine-pins.sh` agrees after this commit). (2) `components/jihadPersonas.js`:
 after Undo on an uninstall the row read "Remove" until the next view change — a MutationObserver relabels it (not tested).
 (3) `packaging/prefsui/content/addons.css`: the tools menu was pale text on a pale panel — `#utils-menu` styled dark with
 44 px rows (not tested). **Next steps, in order:** if the bundle is not built, run `build/webos-oe/in-container.sh --arm

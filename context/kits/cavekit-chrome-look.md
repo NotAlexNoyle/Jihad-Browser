@@ -86,6 +86,7 @@ any web page; it does not stop dead.
 **Dependencies:** cavekit-input-bridging.md
 
 ### R4: The keyboard on Jihad's pages
+*(2026-10-25, the field-in-a-frame case by finger: docs/FINGER-TESTS.md — the keyboard rises on the framed field, the hide leaves no caret and keeps the page's layout and zoom (T-538), a tap again brings it back.)*
 **Description:** Jihad's own pages open with the whole page in view, and a field the keyboard has
 left behind does not keep its caret (the owner, 2026-10-12: "when about:settings or about:personas
 is open the keyboard should be dismissed at first so the whole page is visible"; "when the

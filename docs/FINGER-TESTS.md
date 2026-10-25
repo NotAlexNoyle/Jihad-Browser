@@ -50,9 +50,9 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   (input-bridging R2/R2a; device-build R4) *(2026-10-24, Enyo, `jihad-input-echo.html`: "abcdef" typed with the caret after it (the page's readout: n=6, value abcdef); Backspace held 1.5 s emptied the field (n=12: six deletions — the key repeats)*
 - [x] Type in about:settings' fields and about:addons' search field (keys reach the XUL page).
   (preferences-ui R6, addons-site R12) *(2026-10-24: "pale" typed into about:addons' search in Enyo; a character typed into Mojo's home-target field in about:preferences)*
-- [~] Focus about:addons' search field, then close the keyboard with its hide key: no caret is left
+- [x] Focus about:addons' search field, then close the keyboard with its hide key: no caret is left
   in the field, and tapping the field again brings the keyboard back. Also in a field inside a frame
-  on some page. (chrome-look R4) *(2026-10-24, Enyo: the hide key drops the keyboard, the field keeps "pale" with no caret seen, a tap brings the keyboard back; the frame case not tried (no test page with a framed field))*
+  on some page. (chrome-look R4) *(2026-10-24, Enyo: the hide key drops the keyboard, the field keeps "pale" with no caret seen, a tap brings the keyboard back; the frame case not tried (no test page with a framed field))* **The frame case, 2026-10-25 (jihad-frame-field.html, Enyo by finger): a tap on the field inside the frame raises the keyboard (the hit element is the <iframe>; the daemon adopts the control the engine focused), "ab" typed lands ("inner: ab"), the hide key drops the keyboard and leaves NO caret (full-resolution crop), a tap on the field again brings the keyboard back and "c" lands. Found and fixed on the way (T-538): the keyboard's rise re-laid the page out at the card's width and the hide left it at zoom 1.0 (a page with no viewport tag; the field moved 88 px) — the followed layout width now survives the keyboard's height-only resize, measured: zoom 0.7837 before, during and after, the field in place, a tap at the same spot after the hide brings the keyboard back and "c" lands. The daemon also follows a tapped frame into its document for the edit target (jihadIsInsideFrameOf).*
 - [x] With the address field focused, open about:settings or about:personas from the app menu: the
   keyboard goes down and the whole page shows. (chrome-look R4; scripted check passed) *(2026-10-24, Enyo by finger: Settings from the app menu over the focused address — the keyboard down, the page whole)*
 - [x] Tap the address field: the whole address is selected; Cut/Copy then act on all of it.
@@ -102,8 +102,8 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   back. Try another script (Japanese) too. (preferences-ui R9; Enyo measured by script) *(2026-10-24, Enyo by finger: the Serif picker's list opened, Courier New picked — the sample line and the prefs page itself redrew in it, `font.name.serif.x-western` written; Restore default fonts put the page back and cleared the pref (the page's note confirms). Sans-serif, Monospace, the size list, a page's own text (the test page names its fonts), Japanese, Mochi and Mojo not yet.)*
 
 ## The engine on UXP RB_20261006 (2026-10-12)
-- [ ] Everyday browsing in each variant on the new engine: a few real sites, scrolling, typing in a
-  page's field, back and forward — nothing slower or odder than before. (cavekit-engine-update.md R8)
+- [~] Everyday browsing in each variant on the new engine: a few real sites, scrolling, typing in a
+  page's field, back and forward — nothing slower or odder than before. (cavekit-engine-update.md R8) *(2026-10-25, Enyo by finger: duckduckgo.com — the search box tapped, "touchpad" typed on the keyboard (the suggestions followed each key), the magnifier searched; the results page takes 25-35 s to render its JS app on the TouchPad (blank until then, then complete with the shopping row and the Wikipedia box); the first result opened amazon.com; back (bfcache off: the results re-rendered, ~15 s) and forward (Amazon again). FOUND: Enter in DDG's box (a <textarea>) did nothing — fixed, the page sees the key first (input-bridging R2a). Mochi and Mojo not yet.)*
 - [ ] Flash with sound (jihad-audio-long), and a video with sound, on the new engine. (R8)
 
 ## Proxies and certificates (2026-10-13)

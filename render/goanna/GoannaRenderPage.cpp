@@ -95,6 +95,8 @@
 #include "nsISSLStatus.h"
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
+#include "nsIDOMHTMLIFrameElement.h" // a tapped frame's document (jihadIsInsideFrameOf)
+#include "nsIDOMHTMLFrameElement.h"
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
 #include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
@@ -1205,7 +1207,17 @@ bool GoannaRenderPage::Resize(int width, int height) {
   // T-499: a new card size starts from a layout viewport equal to it; the card's own size sent again
   // keeps the page's (the adapter sends the size on every NPAPI SetWindow, the same size included,
   // and each put the engine back at the card's width: DuckDuckGo read innerWidth 768 again)
-  if (width != mWidth || height != mHeight) mLayoutW = mLayoutH = 0;
+  // A followed layout width (T-499: the page laid out as wide as its content) survives a change of
+  // HEIGHT alone — the keyboard's resize. It used to go with any change: a fit-zoomed page with no
+  // viewport tag re-flowed to the card's width when the keyboard rose, and stayed there at zoom 1.0
+  // after it hid (jihad-frame-field.html by finger 2026-10-25: 0.78 → 1.0, the field moved 88 px).
+  // A change of width (rotation) still starts the layout from the card's size.
+  if (width != mWidth && mLayoutW) { mLayoutW = mLayoutH = 0; }
+  else if (height != mHeight && mLayoutW && mWidth > 0) {
+    mLayoutH = (int)((int64_t)height * mLayoutW / mWidth);
+    fprintf(stderr, "[jihad-bs] layout viewport kept %dx%d across the height change (card %dx%d)\n",
+            mLayoutW, mLayoutH, width, height);
+  }
   mWidth = width; mHeight = height;
   mChrome->mW = width; mChrome->mH = height;   // keep GetDimensions() consistent
   const int ew = mLayoutW ? mLayoutW : width, eh = mLayoutW ? mLayoutH : height;   // the engine's window
@@ -1782,7 +1794,29 @@ bool GoannaRenderPage::HandleEnter() {
   if (!mChrome || !mChrome->mFocusedEditable) return false;
   nsCOMPtr<nsIDOMElement> el = mChrome->mFocusedEditable;
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(el);
-  if (ta) { InsertText("\n"); return false; }   // newline, not a submit
+  if (ta) {
+    // A newline, not a submit — but the PAGE sees the key first. A site whose search box is a
+    // <textarea> submits on an Enter keydown of its own (duckduckgo.com, by finger 2026-10-25:
+    // the query typed, Enter did nothing, the magnifier searched): a real keydown + keypress go
+    // in, and a page that cancels either has handled the key. Otherwise the editor's own
+    // default action on the keypress is the line break; if nothing changed (the keypress path
+    // carries no character, see KeyEvent), the newline is inserted as before.
+    nsAutoString before; ta->GetValue(before);
+    int32_t selBefore = 0; ta->GetSelectionStart(&selBefore);
+    const bool down = KeyEvent("keydown", 13, 0, 0, true);
+    const bool press = down && KeyEvent("keypress", 13, 0, 0, true);
+    KeyEvent("keyup", 13, 0, 0, true);
+    if (!down || !press) {
+      fprintf(stderr, "[jihad-bs] enter: the page took the key in its <textarea> (keydown %d keypress %d)\n",
+              (int)down, (int)press);
+      return false;
+    }
+    if (!mChrome || !mChrome->mFocusedEditable) return true;   // the handler moved focus / navigated
+    nsAutoString after; ta->GetValue(after);
+    int32_t selAfter = 0; ta->GetSelectionStart(&selAfter);
+    if (after.Equals(before) && selAfter == selBefore) InsertText("\n");
+    return false;
+  }
   nsCOMPtr<nsIDOMHTMLInputElement> in = do_QueryInterface(el);
   if (!in) return false;
   // Enter commits the field: `change` first, whether or not there is a form to submit (a search
@@ -3209,6 +3243,26 @@ static bool jihadIsSelfOrInside(nsIDOMElement* inner, nsIDOMElement* outer) {
   return false;
 }
 
+// Inside the DOCUMENT a tapped <iframe>/<frame> shows. A field in a frame is no DOM descendant
+// of the frame element, so the walk above says "not inside" for exactly the control the engine
+// focused through the tap: by finger 2026-10-25 (jihad-frame-field.html) the first tap on the
+// framed field raised the keyboard (focus had CHANGED), the hide key dropped it, and the second
+// tap on the same field — focus unchanged, the <iframe> the hit element — adopted nothing and
+// the keyboard stayed down. One level of framing; a frame in a frame is not followed.
+static bool jihadIsInsideFrameOf(nsIDOMElement* inner, nsIDOMElement* frameEl) {
+  if (!inner || !frameEl) return false;
+  nsCOMPtr<nsIDOMDocument> fd;
+  nsCOMPtr<nsIDOMHTMLIFrameElement> ifr = do_QueryInterface(frameEl);
+  if (ifr) { ifr->GetContentDocument(getter_AddRefs(fd)); }
+  else {
+    nsCOMPtr<nsIDOMHTMLFrameElement> fr = do_QueryInterface(frameEl);
+    if (fr) fr->GetContentDocument(getter_AddRefs(fd));
+  }
+  if (!fd) return false;
+  nsCOMPtr<nsIDOMDocument> od; inner->GetOwnerDocument(getter_AddRefs(od));
+  return od && od == fd;
+}
+
 // The element the focus manager currently reports, as a bare pointer for IDENTITY COMPARISON
 // ONLY (F-7 / F-1). Never dereferenced — by the time it is compared the element may be gone.
 static const void* jihadFocusedPtr() {
@@ -3854,13 +3908,29 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     nsCOMPtr<nsIFocusManager> fm = do_GetService("@mozilla.org/focus-manager;1");
     if (fm) {
       nsCOMPtr<nsIDOMElement> foc; fm->GetFocusedElement(getter_AddRefs(foc));
-      bool causedByThisTap = (foc.get() != focBefore) || jihadIsSelfOrInside(foc, effEl);
+      bool causedByThisTap = (foc.get() != focBefore) || jihadIsSelfOrInside(foc, effEl) ||
+                             jihadIsInsideFrameOf(foc, effEl);
       foc = edHostControl(foc);   // after the identity test, which is on the raw focus
       if (causedByThisTap && edIsTextInput(foc)) {
         mChrome->mFocusedEditable = foc;
         mEditorFocused = true; mEditorFieldType = 0; mEditorFocusDirty = true;
         fprintf(stderr, "[jihad-bs] adopted engine-focused text control as the edit target\n");
       }
+    }
+  }
+  // A tap on a FRAME whose focused control is already the edit target: the keyboard was hidden by
+  // its own key, the engine's focus stayed on the field, and the user taps the field again. The
+  // classifier above saw an <iframe> and said "not editable", and the adoption above has nothing
+  // to adopt (the target is set). By finger 2026-10-25 (jihad-frame-field.html) the keyboard
+  // stayed down. It comes back as it would for a tap on the control itself.
+  if (!mEditorFocused && mChrome->mFocusedEditable &&
+      jihadIsInsideFrameOf(mChrome->mFocusedEditable, effEl)) {
+    nsCOMPtr<nsIFocusManager> fm2 = do_GetService("@mozilla.org/focus-manager;1");
+    nsCOMPtr<nsIDOMElement> foc2; if (fm2) fm2->GetFocusedElement(getter_AddRefs(foc2));
+    foc2 = edHostControl(foc2);
+    if (foc2 && foc2 == mChrome->mFocusedEditable && edIsTextInput(foc2)) {
+      mEditorFocused = true; mEditorFieldType = 0; mEditorFocusDirty = true;
+      fprintf(stderr, "[jihad-bs] a tap on the frame of the edit target: the keyboard again\n");
     }
   }
   // F-001/F-004 + T-067 + F-2: only now do we know whether a click reached the control. If one
@@ -4145,9 +4215,9 @@ static void jihadMapKey(int raw, int chr, int* domKey, int* domChar) {
   else if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ') *domKey = (int)c;
 }
 
-void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers,
+bool GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int modifiers,
                                 bool evenIfEditing) {
-  if (!mChrome) return;
+  if (!mChrome) return false;
   // When the user is typing into a field we tracked via ClickAt (mFocusedEditable), DO NOT
   // dispatch a synthesized key event through the engine. SendKeyEvent routes to the focused
   // editor, and a headless PuppetWidget has no backing widget for the editor's key/caret
@@ -4170,9 +4240,9 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // still the shipping path, and two paths editing one field is worse than either (the kit has
   // the measurements).
   if (mChrome->mFocusedEditable && !evenIfEditing)
-    return;
+    return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
-  if (!u) return;
+  if (!u) return false;
   bool ret = false;
   NS_ConvertUTF8toUTF16 t(type);
   // There is no sendKeyEventToWindow, so this goes through the widget — which used to mean it
@@ -4198,6 +4268,7 @@ void GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // A keypress carries the character (and then no keyCode); keydown/keyup carry the key.
   if (strcmp(type, "keypress") == 0) engine_calls::KeyEvent(u, t, domChar ? 0 : domKey, domChar, mods, &ret);
   else                               engine_calls::KeyEvent(u, t, domKey, 0, mods, &ret);
+  return ret;   // the default action was taken (nobody cancelled it)
 }
 
 bool GoannaRenderPage::TouchEvent(const char* type, int x, int y) {

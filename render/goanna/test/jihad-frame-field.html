@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     A text field INSIDE A FRAME (docs/FINGER-TESTS.md: "a field inside a frame on some page",
+     cavekit-chrome-look.md R4): the outer page has its own field for comparison; the frame is
+     jihad-frame-field-inner.html on the same server. Each field echoes what it holds. -->
+<html><head><meta charset="utf-8"><title>jihad-frame-field</title>
+<style>body{font:20px sans-serif;margin:16px} input,textarea{font:22px sans-serif;width:90%;padding:8px} iframe{width:100%;height:260px;border:2px solid #357;margin-top:12px} .e{color:#060;margin:8px 0}</style></head>
+<body>
+<p>jihad-frame-field: the outer field, then a frame with its own field.</p>
+<input id="outer" type="text" placeholder="outer field">
+<div class="e" id="e-outer">outer: -</div>
+<textarea id="ta" rows="3" placeholder="outer textarea (Enter = a new line)"></textarea>
+<div class="e" id="e-ta">textarea lines: 1</div>
+<iframe id="f" src="jihad-frame-field-inner.html"></iframe>
+<script>
+document.getElementById('ta').addEventListener('input', function () {
+  document.getElementById('e-ta').textContent = 'textarea lines: ' + this.value.split('\n').length;
+});
+document.getElementById('outer').addEventListener('input', function () {
+  document.getElementById('e-outer').textContent = 'outer: ' + this.value;
+});
+</script>
+</body></html>

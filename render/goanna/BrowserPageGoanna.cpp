@@ -850,7 +850,9 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   mGpuAnchorValid = false;
   // T-499: a new card size (rotation) starts from a layout viewport equal to it; the same size sent
   // again (every NPAPI SetWindow) keeps the page's
-  if (!mPage || (int)width != mPage->Width() || (int)height != mPage->Height()) mLayoutFollowed = false;
+  // …and a change of HEIGHT alone (the keyboard) keeps it: the engine keeps the followed width
+  // across that (GoannaRenderPage::Resize), so the page neither re-flows nor re-zooms.
+  if (!mPage || (int)width != mPage->Width()) mLayoutFollowed = false;
   // Same reasoning as the navigation reset: a resize replaces the whole frame, and both
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;

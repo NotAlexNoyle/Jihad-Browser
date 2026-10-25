@@ -425,7 +425,8 @@ enyo.kind({
 		var link = inInfo.isLink ? (inInfo.linkUrl || "") : "";
 		var image = inInfo.isImage ? (inInfo.imageUrl || "") : "";
 		if (!link && !image) {
-			this.doPageHold({pageX: inEvent.pageX, pageY: inEvent.pageY});
+			// The hit test's document point too (T-526): a paste from the hold menu clicks there first.
+			this.doPageHold({pageX: inEvent.pageX, pageY: inEvent.pageY, docX: inInfo.x, docY: inInfo.y});
 			return false;
 		}
 		this.doHold({

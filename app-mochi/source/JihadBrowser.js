@@ -979,8 +979,10 @@ enyo.kind({
 	//* JihadWebView.onPageHold: a hold on anything that is not a link or an image went to the
 	//* engine. Its answer arrives as a "page-hold" notification; every card of this variant
 	//* hears that, so only the one waiting for it opens a menu.
-	pageHoldPending: function() {
+	pageHoldPending: function(inSender, inEvent) {
 		this._pageHold = Date.now();
+		// Where the finger was held, in the page's own coordinates (the hit test's), for pagePaste.
+		this._holdDoc = (inEvent && typeof inEvent.docX === "number") ? {x: inEvent.docX, y: inEvent.docY} : null;
 		return true;
 	},
 	//* The engine's answer: {editable, selected}. What a desktop browser offers on a
@@ -1076,16 +1078,21 @@ enyo.kind({
 	//* Another app decides what is on the clipboard, so its size is bounded here; and one
 	//* message to the engine holds 16 KB, so the text goes in pieces (enyo.jihad.pasteChunks).
 	pagePaste: function() {
-		var view = this.$.view;
+		var view = this.$.view, at = this._holdDoc;
 		enyo.jihad.getClipboard(function(text) {
-			var parts, i;
+			var parts, i, send;
 			enyo.log("[JIHAD-CLIP] paste read " + (text ? text.length : 0) + " chars");
-			if (!text) { enyo.jihad.toast("info", "The clipboard is empty."); }
-			else if (text.length > 262144) { enyo.jihad.toast("info", "The clipboard holds too much text to paste here."); }
-			else {
-				parts = enyo.jihad.pasteChunks(String(text));
-				for (i = 0; i < parts.length; i++) { view.callBrowserAdapter("insertStringAtCursor", [parts[i]]); }
-			}
+			if (!text) { enyo.jihad.toast("info", "The clipboard is empty."); return; }
+			if (text.length > 262144) { enyo.jihad.toast("info", "The clipboard holds too much text to paste here."); return; }
+			parts = enyo.jihad.pasteChunks(String(text));
+			send = function() { for (i = 0; i < parts.length; i++) { view.callBrowserAdapter("insertStringAtCursor", [parts[i]]); } };
+			// The sheet that offered Paste took the plugin's focus and the engine's field lost its own with
+			// it (the emulated finger, 2026-10-24: the daemon logged `engine editorFocused=0` right after
+			// the hold, and an insert with no focused editable goes nowhere). A click where the finger was
+			// held gives the field its focus back — what the hold itself does for an unfocused field —
+			// and the text follows once that click has run (the daemon runs clicks from its pump).
+			if (at) { view.callBrowserAdapter("clickAt", [at.x, at.y, 1]); setTimeout(send, 300); }
+			else { send(); }
 		});
 	},
 	//* Web addresses only, as window.open is: the new card opens the link as a typed address

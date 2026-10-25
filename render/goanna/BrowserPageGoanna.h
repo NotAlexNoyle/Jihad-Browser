@@ -403,6 +403,8 @@ private:
   bool               mGpuAnchorValid = false;
   double mGpuDpShiftX = 0.0, mGpuDpShiftY = 0.0;   // T-524: the shift the displayport was set with
   double mGpuDpZoom = 0.0;                          // T-524: and the zoom
+  int64_t mVelMs = 0; int mVelY = 0; double mScrollVelY = 0.0;   // T-541: the card's scroll speed (card px/ms)
+  float mGpuLeadUp = 0.0f, mGpuLeadDown = 0.0f;                  // T-541: the lead last handed to the page
   bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
   // T-502 round 112: the compositor-side scroll is engaged by a card-driven pan only. A
   // setScrollPosition that follows a position this daemon just reported (msgScrolledTo) is the

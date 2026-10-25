@@ -549,6 +549,10 @@ public:
   bool SetGpuViewport(double zoom);
   // T-524: where what the card shows sits from the engine's scroll (CSS px), for the displayport
   void SetGpuShift(double x, double y) { mGpuShiftX = x; mGpuShiftY = y; }
+  // T-541: extra displayport ahead of a fling, in heights above and below what is shown (0 at rest).
+  void SetGpuLead(float up, float down) { mGpuLeadUp = up; mGpuLeadDown = down; }
+  float GpuLeadUp() const { return mGpuLeadUp; }
+  float GpuLeadDown() const { return mGpuLeadDown; }
   // T-502: the engine's scroll position (CSS px) after a ScrollTo, and the compositor's view:
   // the zoom and the residual visual offset the engine scroll could not reach (pinch-in pans).
   bool GetEngineScroll(int* x, int* y);
@@ -573,6 +577,7 @@ private:
   int mWidth;
   int mHeight;
   double mGpuShiftX = 0.0, mGpuShiftY = 0.0;   // T-524: the compositor's shift the displayport is set for
+  float mGpuLeadUp = 0.0f, mGpuLeadDown = 0.0f;   // T-541: the fling lead, in heights
   int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)
   double mRenderZoom = 1.0;  // pinch/fit zoom applied as a gfxContext scale in the offscreen capture
   double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)

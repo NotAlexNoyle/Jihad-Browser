@@ -1282,6 +1282,29 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
     // T-502: the compositor applies the card's scroll (CSS px = zoomed px over the zoom);
     // the engine is scrolled only to re-anchor the displayport (gpuScrollTo).
     double zg = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+    // T-541: the scroll's speed from the card's stream of positions, smoothed; the displayport
+    // gets a lead in the direction of travel of up to 1 height (what ~0.5 s of this speed
+    // covers), 0 again once the stream stops (maybePaint).
+    {
+      const int64_t now = mLastScrollMs;
+      const int64_t dt = mVelMs ? now - mVelMs : 0;
+      if (dt > 0 && dt < 250) {
+        const double v = (double)(y - mVelY) / (double)dt;           // card px per ms
+        mScrollVelY = 0.5 * mScrollVelY + 0.5 * v;
+      } else if (dt >= 250) {
+        mScrollVelY = 0.0;
+      }
+      mVelMs = now; mVelY = y;
+      const double hpx = mLastWinH > 0 ? (double)mLastWinH : (mPage->Height() > 0 ? (double)mPage->Height() : 1024.0);
+      double lead = fabs(mScrollVelY) * 500.0 / hpx;
+      if (lead > 1.0) lead = 1.0;   // on top of the height at rest: 2 heights ahead while flinging
+      if (lead < 0.15) lead = 0.0;
+      const float up = (float)(mScrollVelY < 0 ? lead : 0.0), down = (float)(mScrollVelY > 0 ? lead : 0.0);
+      if (fabs(up - mGpuLeadUp) > 0.25 || fabs(down - mGpuLeadDown) > 0.25) {
+        mGpuLeadUp = up; mGpuLeadDown = down; mPage->SetGpuLead(up, down);
+        fprintf(stderr, "[jihad-bs] fling lead: up %.2f down %.2f heights (%.2f card px/ms)\n", up, down, mScrollVelY);
+      }
+    }
     mAdapterScrollX = x; mAdapterScrollY = y;
     mPage->SetRenderPan(0.0, 0.0);
     gpuScrollTo(x, y, zg);
@@ -3549,6 +3572,11 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
 // not returned the buffer, and frames actually painted.
 void BrowserPageGoanna::maybePaint() {
   if (!mGpuJobs.empty()) mGpuTrace[6]++;
+  // T-541: the fling lead goes once the card has stopped streaming positions.
+  if ((mGpuLeadUp != 0.0f || mGpuLeadDown != 0.0f) && mPage && jihadNowMs() - mLastScrollMs > 400) {
+    mGpuLeadUp = mGpuLeadDown = 0.0f; mScrollVelY = 0.0; mVelMs = 0; mPage->SetGpuLead(0.0f, 0.0f);
+    fprintf(stderr, "[jihad-bs] fling lead: off\n");
+  }
   if (jihad_offscreen_late_writes) {
     // T-513 (review): a GPU read given up past its bound came back and wrote into a slot the
     // software path may have painted (and the card may show): every slot painted whole again

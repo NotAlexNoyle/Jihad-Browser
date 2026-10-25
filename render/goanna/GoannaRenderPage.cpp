@@ -4701,7 +4701,12 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // is the anchor distance (JIHAD_GPU_ANCHOR, 0.25 heights) plus JIHAD_GPU_DP_Y (0.25 heights);
   // sideways JIHAD_GPU_DP_X widths (0, half a width when zoomed in); layout adds what is shown
   // beyond the scroll port (jihad_layout_set_displayport)
-  static const float sDpY = getenv("JIHAD_GPU_DP_Y") ? (float)atof(getenv("JIHAD_GPU_DP_Y")) : 0.25f;
+  // T-541: a height of displayport each way at rest (the anchor's 0.25 + 0.75). With 0.25 (half a
+  // height) a fast flick on an image-heavy page landed past the painted rows and showed grey for
+  // up to a second (about:personas by finger, 2026-10-25); with 0.75 the same flicks landed on
+  // painted rows, and desktop Wikipedia's flicks cost the same (A/B: 80 vs 74 express frames over
+  // the same five flicks, the main lane 5-8 fps either way).
+  static const float sDpY = getenv("JIHAD_GPU_DP_Y") ? (float)atof(getenv("JIHAD_GPU_DP_Y")) : 0.75f;
   static const float sDpX = getenv("JIHAD_GPU_DP_X") ? (float)atof(getenv("JIHAD_GPU_DP_X")) : -1.0f;
   static const float sAnchorY = getenv("JIHAD_GPU_ANCHOR") ? (float)atof(getenv("JIHAD_GPU_ANCHOR")) : 0.25f;
   const float visW = (float)mWidth / z, visH = (float)mHeight / z;
@@ -4743,8 +4748,15 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // set the displayport; frames built meanwhile kept it blank, and a zoom out left grey areas
   if (!sNoDp) {
     const float smx = mGpuDpWanted ? mx : 0.0f, smy = mGpuDpWanted ? my : 0.0f;
-    if (jihad_layout_set_displayport2 && ds) dp = jihad_layout_set_displayport2(ds, visW, visH, (float)mGpuShiftX, (float)mGpuShiftY, smx, smy, smy);
-    else if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smy, smy);
+    // T-541: a fling lands past the symmetric margin, and what it uncovers stays grey until the
+    // main thread paints it (about:personas by finger, 2026-10-25: a whole grey card once, the
+    // lower 40% once, a white band after a flick up). While the card streams a fast scroll the
+    // daemon adds a lead in the direction of travel, up to 1.5 heights (BrowserPageGoanna's
+    // velocity); the margin against the motion stays what it was.
+    const float smyT = mGpuDpWanted ? my + visH * mGpuLeadUp : 0.0f;
+    const float smyB = mGpuDpWanted ? my + visH * mGpuLeadDown : 0.0f;
+    if (jihad_layout_set_displayport2 && ds) dp = jihad_layout_set_displayport2(ds, visW, visH, (float)mGpuShiftX, (float)mGpuShiftY, smx, smyT, smyB);
+    else if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smyT > smyB ? smyT : smyB, smyT > smyB ? smyT : smyB);
     else if (root && mGpuDpWanted) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
   }
   const bool ok = dp == 0;

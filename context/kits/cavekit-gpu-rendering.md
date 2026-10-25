@@ -80,6 +80,7 @@ Hacker News 36-37, desktop Wikipedia 13-14 (software 9-12.4).
 **Dependencies:** R2
 
 ### R6: Zoom keeps up (the owner's finger test, 2026-10-18)
+*(2026-10-25, T-541: the displayport margin at rest is a height each way (was half); a fling adds up to a height ahead from the card's scroll speed (BrowserPageGoanna's velocity → GoannaRenderPage::SetGpuLead). Measured: about:personas' flicks no longer land on grey; desktop Wikipedia unchanged (80 vs 74 express frames over the same flicks).)*
 **Description:** A pinch or a double-tap zoom shows the page at the new zoom promptly and never leaves part of the card grey.
 **Acceptance Criteria:**
 - [x] A scripted pinch in to about 1.7 and back out to the fit zoom (and a double-tap zoom) on desktop en.wikipedia.org and on `jihad-long-static.html` is reproduced on the bench with the frame timeline logged *(2026-10-18: the card's own gesture calls through its test hook, `g` pinches and `t` double taps; Wikipedia 0.69 → 1.23 → 2.20 → 1.51 → 1.03, double tap 1.26 and back to 0.69; the test page 0.79 → 1.41 → 2.51 → 1.72 → 1.18 and its double taps; each zoom's "the first frame at the new zoom is out" line)*

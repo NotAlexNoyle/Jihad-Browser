@@ -117,15 +117,15 @@ a MutationObserver relabels it (`jihadPersonas.js`), verified. (3) The tools men
 in `addons.css`, verified readable. Probe notes: the daemon's `painted … rows new=` counts only software-rendered rows
 (0 on a GPU frame says nothing); a popup's close is seen at `PopupsOpen()`'s transition in the tick.
 
-**Device state (2026-10-25, end of the session):** all three variants installed as PACKAGES through `push-variant.sh` from
-the packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `075a9626`,
-`-mochi_1.0.0` `61d4b5f4`, `-mojo_1.0.0` `dfb05e57`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches
-through 0061), daemon `2de5bdc8` (T-536 … T-540: the popup-close slot reset, Enter first to the page in a textarea, the
-frame-aware edit target, the followed layout kept across the keyboard, the named confirm buttons, the dialog wait that ends
-with its card), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel observer and the tools menu's look,
-the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535). **The device IS the repository head.**
-Root filesystem read-only. Enyo's profile prefs at defaults; Palefill active; the Default look; no card open; `/tmp` holds
-only the finger tool. The harness server on the host (8077) serves `render/goanna/test/`.
+**Device state (2026-10-25, evening):** all three variants installed as PACKAGES through `push-variant.sh` from the
+packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `16305f22`,
+`-mochi_1.0.0` `0db117c5`, `-mojo_1.0.0` `40f7526b`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches
+through 0061), daemon `45fae433` (T-536 … T-540 and the 180 s login-dialog deadline), `prefsui/content/preferences.js`
+`310b2098` (the Relay's help text), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel observer and
+the tools menu's look, the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535). **The device IS
+the repository head.** Root filesystem read-only. Every variant's proxy prefs at the defaults (direct connection — the
+Relay is never a default, the owner 2026-10-25); Enyo's other prefs at defaults; Palefill active; the Default look; no card
+open; `/tmp` holds only the finger tool. The harness server on the host (8077) serves `render/goanna/test/`.
 
 **T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
 intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure

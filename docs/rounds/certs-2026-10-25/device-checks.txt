@@ -1,0 +1,86 @@
+-- roots: built-in roots: 169 certificates, 118 trusted for sites; webos_certs: false);
+== new roots' test sites (must load)
+https://eqtlsca2023-valid.e-szigno.hu -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://eccg1evvalidssl.hightrusted.com/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://rsag1evvalidssl.hightrusted.com/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://evecc2024v.secomtrust-verification.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://evrsa2024v.secomtrust-verification.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://ev-rsa-tls-2022-1-valid-cert-demo.swisssign.com/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://teliaectlsrootcav3-valid-2.chain.trust.telia.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://teliarsatlsrootcav3-valid-2.chain.trust.telia.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://ev-ecctls-valid.trustasia.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://ev-rsatls-valid.trustasia.com -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+== removed roots (must be refused)
+https://validev.entrust.net/ -> 
+https://validg2.entrust.net/ -> 
+https://valid.globaltrust2020.e-monitoring.at/ -> 
+== badssl
+https://untrusted-root.badssl.com/ -> load done|ERROR sending message, errno=32.loaderr failed=1 code=0x804b001e certErr=0 chost= ccode=0x|
+https://self-signed.badssl.com/ -> 
+https://expired.badssl.com/ -> 
+https://wrong.host.badssl.com/ -> load done|loaderr failed=1 code=0x805a2ff4 certErr=1 chost=wrong.host.badssl.com ccode=0x805a2ff4|
+https://revoked.badssl.com/ -> 
+https://sha256.badssl.com/ -> 
+https://tls-v1-2.badssl.com:1012/ -> 
+https://rc4.badssl.com/ -> 
+https://dh480.badssl.com/ -> 
+https://null.badssl.com/ -> 
+-- dns:  | 0
+== removed roots (must be refused or unknown host)
+https://validev.entrust.net/ -> dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-5.fifo)|
+https://validg2.entrust.net/ -> 
+https://valid.globaltrust2020.e-monitoring.at/ -> dialog alert: nobody opened the reply pipe in 60000 ms — no card is answering, taking the default|dialog alert: no answer from the card — taking the default|load done|
+== badssl
+https://untrusted-root.badssl.com/ -> 
+https://self-signed.badssl.com/ -> 
+https://expired.badssl.com/ -> dialog alert: nobody opened the reply pipe in 60000 ms — no card is answering, taking the default|dialog alert: no answer from the card — taking the default|load done|
+https://wrong.host.badssl.com/ -> 
+https://revoked.badssl.com/ -> 
+https://sha256.badssl.com/ -> dialog ssl-confirm: nobody opened the reply pipe in 60000 ms — no card is answering, taking the de|dialog ssl-confirm: no answer from the card — taking the default|load done|
+https://tls-v1-2.badssl.com:1012/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://rc4.badssl.com/ -> dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-8.fifo)|
+https://dh480.badssl.com/ -> 
+https://null.badssl.com/ -> dialog alert: nobody opened the reply pipe in 60000 ms — no card is answering, taking the default|dialog alert: no answer from the card — taking the default|load done|
+1 https://dh480.badssl.com/ -> dialog alert |
+2 https://null.badssl.com/ -> dialog alert |
+3 https://sha1-intermediate.badssl.com/ -> dialog alert suppressed — the certificate error on sha1-intermediate.badssl.com is reported by the SSL confirm instead|load done|loaderr failed=1 code=0x805a1fe2 certErr=1 chost=sha1-intermediate.badssl.com ccode=0x805a1fe2|dialog ssl-confirm |
+4 https://3des.badssl.com/ -> dialog alert |
+5 https://tls-v1-0.badssl.com:1010/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+6 https://tls-v1-1.badssl.com:1011/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+7 https://www.telia.se/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+8 https://revoked.grc.com/ -> dialog alert suppressed — the certificate error on revoked.grc.com is reported by the SSL confirm instead|load done|loaderr failed=1 code=0x805a1ff5 certErr=1 chost=revoked.grc.com ccode=0x805a1ff5|dialog ssl-confirm |
+9 https://revoked-rsa-dv.ssl.com/ -> dialog alert |
+10 https://revoked-ecc-dv.ssl.com/ -> dialog alert |
+tls<=1.2 https://revoked-rsa-dv.ssl.com/ -> dialog alert |
+tls<=1.2 https://revoked-ecc-dv.ssl.com/ -> dialog alert |
+tls<=1.2 https://www.ssl.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/ -> dialog alert |
+   after OK -> dialog alert -> ACCEPT (answer=1)|loaderr failed=1 code=0x805a2fe3 certErr=0 chost= ccode=0x0|
+https://global-root-ca-revoked.chain-demos.digicert.com/ -> dialog alert suppressed — the certificate error on global-root-ca-revoked.chain-demos.digicert.com is reported by the SSL confir|load done|loaderr failed=1 code=0x805a2fe3 certErr=1 chost=global-root-ca-revoked.chain-demos.digicert.com ccode=0x805a2fe3|dialog ssl-confirm |
+   after OK -> loaderr failed=1 code=0x805a2fe3 certErr=1 chost=global-root-ca-revoked.chain-demos.digicert.com ccode=0x805a2|dialog ssl-confirm |
+https://digicert-tls-rsa4096-root-g5.chain-demos.digicert.com/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+   after OK -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+-- prefs: webos_certs=1 (0 = default, on)
+-- start lines: built-in roots: 169 certificates, 118 trusted for sites|built-in roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report|
+1 https://tls-v1-0.badssl.com:1010/ -> ssl: cert error on tls-v1-0.badssl.com:1010 secInfo=1 prov=1 status=0 cert=0|ssl: no certificate came with that failure|dialog alert |
+2 https://tls-v1-1.badssl.com:1011/ -> ssl: cert error on tls-v1-1.badssl.com:1011 secInfo=1 prov=1 status=0 cert=0|ssl: no certificate came with that failure|dialog alert |
+3 https://tls-v1-2.badssl.com:1012/ -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+4 https://revoked-rsa-dv.ssl.com/ -> ssl: cert error on revoked-rsa-dv.ssl.com:443 secInfo=1 prov=1 status=0 cert=0|ssl: no certificate came with that failure|dialog alert |
+5 https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/ -> ssl: cert error on digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com:443 secInfo=1 prov=1 status=0 cert=0|ssl: no certificate came with that failure|dialog alert |
+6 https://untrusted-root.badssl.com/ -> ssl: cert error on untrusted-root.badssl.com:443 secInfo=1 prov=1 status=1 cert=1|ssl: SEC_ERROR_UNKNOWN_ISSUER (-8179) may be overridden — asking|dialog alert suppressed — the certificate error on untrusted-root.badssl.com is reported by the SSL confirm instead|load done|loaderr failed=1 code=0x805a1ff3 certErr=1 chost=untrusted-root.badssl.com ccode=0x805a1ff3|
+   Trust Once -> ssl: RememberValidityOverride(untrusted-root.badssl.com:443, session) rv=0x0|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+7 https://expired.badssl.com/ -> ssl: cert error on expired.badssl.com:443 secInfo=1 prov=1 status=1 cert=1|ssl: SEC_ERROR_EXPIRED_CERTIFICATE (-8181) may be overridden — asking|dialog alert suppressed — the certificate error on expired.badssl.com is reported by the SSL confirm instead|load done|loaderr failed=1 code=0x805a1ff5 certErr=1 chost=expired.badssl.com ccode=0x805a1ff5|
+8 https://wrong.host.badssl.com/ -> ssl: cert error on wrong.host.badssl.com:443 secInfo=1 prov=1 status=1 cert=1|ssl: SSL_ERROR_BAD_CERT_DOMAIN (-12276) may be overridden — asking|dialog alert suppressed — the certificate error on wrong.host.badssl.com is reported by the SSL confirm instead|load done|loaderr failed=1 code=0x805a2ff4 certErr=1 chost=wrong.host.badssl.com ccode=0x805a2ff4|
+padlock page -> load done|loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+   lock lines: load done uri=https://digicert-tls-rsa4096-root-g5.chain-demos.digicert.com/|titleAndUrl title=[DigiCert TLS RSA4096 Root G5] uri=https://digicert-tls-rsa4096-root-g5.chain-demos.digicert|luna: pageCertificate (sent)|
+tls<=1.2 revoked-rsa-dv.ssl.com -> ssl: cert error on revoked-rsa-dv.ssl.com:443 secInfo=1 prov=1 status=0 cert=0|ssl: no certificate came with that failure|dialog alert |
+-- webOS import line now: 
+-- webos_certs pref lines now: 0 (0 = default, on); accepted list kept: 1
+-- start lines: built-in roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report|webOS: 190 distinct certificate(s) in 3 store(s); trusting 0; skipped {"stock":63,"removed":12,"builtin":115,"expired":0,"notCA":0,"notRoot":0,"siteLike":0,"noCertSign":0|
+https://global-root-ca-revoked.chain-demos.digicert.com/ -> ssl: cert error on global-root-ca-revoked.chain-demos.digicert.com:443 secInfo=1 prov=1 status=0 cert=1|ssl: SSL_ERROR_RX_MALFORMED_SERVER_HELLO (-12259) is not an error the engine lets a user override|dialog alert |
+https://www.swisssign.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://en.wikipedia.org/wiki/Main_Page -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://duckduckgo.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+https://github.com/ -> 
+https://www.google.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+-- /tmp: 24652 KB free; /var: 48184 KB free

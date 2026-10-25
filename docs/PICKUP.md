@@ -52,6 +52,57 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-25 — the certificate-trust kit (Tier 90) done on the device; a TLS floor and a tighter Trust dialog (READ FIRST)
+
+The owner's direction of 2026-10-25: audit the roots for exploited or abandoned CAs, drop what should not be
+there, match what Pale Moon and Basilisk ship, pull in what was missing. Kit: `context/kits/cavekit-certificate-trust.md`
+(R1–R7, all ticked); the how-to: `docs/CERTIFICATE-TRUST.md`; the record: `docs/rounds/certs-2026-10-25/`.
+
+**What was found and done**
+- The engine (RB_20261006, certdata of 2025-06-23) shipped **24 roots Mozilla has removed** (Entrust + AffirmTrust ×4,
+  GLOBALTRUST 2020, CommScope ×4, Trustwave ×3 / SecureTrust / Secure Global / XRamp, TeliaSonera v1, certSIGN, ePKI,
+  SecureSign CA12, FIRMAPROFESIONAL ROOT-A WEB, **emSign ×3 — removed upstream the day before after the eMudhra
+  compromise**) and lacked 19 current ones (10 TLS). `tools/host/audit-roots.py` measures this (engine certdata vs UXP
+  `release` and the CCADB removed report, by SHA-256; exit 1 on findings).
+- **Rolled to UXP release's certdata.txt** (commit 037cc5f6, 2026-10-24 = Mozilla central's, what Pale Moon and
+  Basilisk ship): engine patch **0060**, engine fork head `2212143d`, `engine-version.env` ROOTS_SHA256/SOURCE/DATE,
+  `check-engine-pins.sh` checks the shipped file ("all agree"). 169 certificates, 118 trusted for sites, 0 on the
+  removed report (the daemon's start line, `components/jihadCerts.js _logBuiltins`). The audit after: 0 findings.
+- The platform import's list rebuilt from today's report (106 removed roots; `make-cert-lists.py` no longer needs HP's
+  image for a refresh); with the Security setting on it now trusts **0** webOS roots (the five it used to add are built
+  in). `update-engine.sh --pins` fetches release's certdata and warns when the roots moved.
+- Device checks (`device-checks.txt`): the ten new TLS roots' CCADB test sites load with the import OFF; badssl's
+  untrusted-root / self-signed / expired / wrong.host / sha1-intermediate get the dialog, rc4 / dh480 / null / 3des the
+  engine's alert, sha256 and tls-v1-2 load; `revoked.badssl.com` LOADS (Let's Encrypt is CRL-only since 2025; UXP has
+  no CRL fetch and no CRLite — recorded, same as Pale Moon); OCSP revocation IS enforced (ssl.com's and DigiCert's
+  revoked demos refused). The padlock's View Certificate names DigiCert's issuer and dates.
+- **Two findings fixed:** (1) **TLS 1.0/1.1 were accepted** (the engine's default min = 1): `jihad-platform-prefs.js`
+  sets `security.tls.version.min` 3 — tls-v1-0/1-1 now refused (`SSL_ERROR_UNSUPPORTED_VERSION`), the Settings row
+  can lower it (R6). (2) **A revoked certificate got Trust Once / Trust Always** (every security-module failure was a
+  "certificate question"; the engine ignores an override for a non-overridable error, so accepting reloaded into the
+  same failure): `GoannaRenderPage.cpp` now asks only for the engine's overridable set (`JihadOverridableCertError`,
+  the cases of UXP's `DetermineCertOverrideErrors`) and reports the rest as a failed load with the engine's alert (R7;
+  daemon build needs `-I$DIST/include/nss`, added to the ARM and desktop build scripts).
+- Open: **T-534** — over TLS 1.3 this NSS (3.90.14) labels a revoked refusal `SSL_ERROR_RX_MALFORMED_SERVER_HELLO`
+  (over TLS 1.2: `SEC_ERROR_REVOKED_CERTIFICATE`); the security info's errorCode was 0 on the measured case. Cosmetic
+  (refused either way) but the alert misleads: find the mapping in the async auth-certificate completion.
+
+**Device state (2026-10-25):** DEV COPIES on all three variants, originals kept as `.orig` beside each: daemon
+`a26899d7` (R7), `goanna.js` `66743363` (TLS floor), `libnssckbi.so` `f8e9ebea` (the new roots), `components/jihadCerts.js`
+(the roots count), `certs/jihad-cert-lists.json` (2026-10-25). Enyo's profile prefs are back to defaults
+(`jihad.security.webos_certs` default = on; the TLS max cap dropped). Palefill active, Personas Default. The owner's
+test finger: Settings → Security still shows the import switch; `about:preferences` → Connection Security shows the
+floor as TLS 1.2. Note: `tools/device/set-prefs.sh` matches the whole `user_pref(...)` line — anchor a name with its
+closing quote, not `$` (a `$`-anchored restore silently kept the old value twice today).
+
+**To push (the owner):** `bash .cavekit/handoff-2026-10-24/push.sh` — the engine fork `jihad/uxp-RB_20261006` now at
+`2212143d` (patch 0060's commit) and Jihad-Browser main through this round's commits.
+
+**Next, toward a shippable build:** the packaged .ipk of the three variants from the current bundle (the dev copies
+above must become the build), then T-534, the about:addons row buttons at fit zoom, T-527's compositor-thread work.
+
+---
+
 ## 2026-10-24 (evening) — the owner's two new directives; the emulated finger, where it stands (READ FIRST)
 
 **Later the same evening — the round's part 1 run and its findings fixed (READ THIS FIRST):** T-523 and T-524 are

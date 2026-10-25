@@ -14,7 +14,7 @@ CXX=${CXX:-g++}
 GTK_CFLAGS=$(pkg-config --cflags gtk+-2.0 glib-2.0)
 GTK_LIBS=$(pkg-config --libs gtk+-2.0 glib-2.0)
 CXXFLAGS="-std=gnu++17 -fPIC -fno-rtti -fno-exceptions -pipe -O2 -g0"
-INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr $GTK_CFLAGS"
+INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss $GTK_CFLAGS"
 
 echo "== compiling GoannaRenderPage + redirect_test =="
 set -x

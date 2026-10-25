@@ -29,7 +29,7 @@ if [ -n "${JIHAD_HEADLESS:-}" ]; then
   CXXFLAGS="$CXXFLAGS -DJIHAD_OFFSCREEN_ONLY"
   GTK_CFLAGS=$GLIB_CFLAGS; GTK_LIBS=$GLIB_LIBS
 fi
-INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr $GTK_CFLAGS"
+INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss $GTK_CFLAGS"
 
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"       -o /out/EngineHost.o       || exit 10

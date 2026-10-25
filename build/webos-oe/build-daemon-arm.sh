@@ -28,7 +28,7 @@ SYSLIB="-L/sysroot/usr/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/usr/lib/ar
 # the PuppetWidget offscreen render path is compiled; no gtk/gdk/pango/cairo/X needed.
 CXXFLAGS="-std=gnu++17 -fPIC -fno-rtti -fno-exceptions -Os -g0 -DJIHAD_OFFSCREEN_ONLY $ARMFLAGS $SYSINC"
 GLIB=$(pkg-config --cflags glib-2.0 gthread-2.0);  GLIBL=$(pkg-config --libs glib-2.0 gthread-2.0)
-ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr"
+ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss"
 YAPINC="-I$BS/Yap -I$BS/Src"
 
 # BrowserServerBase.cpp is GENERATED and its 0x1600 arm is hand-written, so a regeneration

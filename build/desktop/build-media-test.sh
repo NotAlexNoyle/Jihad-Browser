@@ -19,7 +19,7 @@ done
 CXX=${CXX:-g++}
 GTK_CFLAGS=$(pkg-config --cflags gtk+-2.0 glib-2.0); GTK_LIBS=$(pkg-config --libs gtk+-2.0 glib-2.0)
 CXXFLAGS="-std=gnu++17 -fPIC -fno-rtti -fno-exceptions -O1 -g"
-INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr $GTK_CFLAGS"
+INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss $GTK_CFLAGS"
 
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"        -o /out/EngineHost.o        || exit 10

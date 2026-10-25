@@ -56,6 +56,10 @@
 #include "nsIX509Cert.h"
 #include "nsIX509CertValidity.h"     // notAfter, to say EXPIRED rather than "not valid now"
 #include "nsICertOverrideService.h"
+#include "nsITransportSecurityInfo.h" // the failed handshake's own error code (errorCode), not the socket's last one
+#include "secerr.h"                  // SEC_ERROR_* (-I dist/include/nss)
+#include "sslerr.h"                  // SSL_ERROR_BAD_CERT_DOMAIN
+#include "mozpkix/pkixnss.h"         // MOZILLA_PKIX_ERROR_*
 #include "nsIDOMClientRect.h"
 #include "nsICookieManager.h"        // cookie persistence probe (browser-services R2)
 #include "nsICookieService.h"
@@ -103,6 +107,36 @@
 #include "nsIObjectLoadingContent.h" // hasRunningPlugin: which <embed> is a LIVE plugin (R7)
 #include <cctype>                    // toupper/tolower for editable tag/type checks
 #include <cstdlib>                   // free() for XPCOM out-arrays (nsIX509Cert::getRawDER)
+
+// Which certificate errors a user may override (cavekit-certificate-trust.md R7). This is the set
+// the engine's own override check accepts — SSLServerCertVerification.cpp's
+// DetermineCertOverrideErrors: an unknown or invalid issuer, a disabled signature algorithm, a
+// weak key, a validity-time problem, a name mismatch. Every other failure of the security module
+// (a REVOKED certificate first of all; an OCSP failure the policy requires; a pinning failure)
+// the engine refuses whatever override is on record, so a Trust Once/Always dialog for it was a
+// question with no answer: measured 2026-10-25, revoked.grc.com and DigiCert's revoked demo hosts
+// got the dialog with Trust Always, and accepting reloaded into the same failure. Those are
+// failed loads (cavekit-ui-shell R3), reported with the engine's own alert naming the error.
+static bool JihadOverridableCertError(int32_t e) {
+  switch (e) {
+    case SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED:
+    case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
+    case SEC_ERROR_UNKNOWN_ISSUER:
+    case SEC_ERROR_CA_CERT_INVALID:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_INADEQUATE_KEY_SIZE:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_V1_CERT_USED_AS_CA:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_NOT_YET_VALID_ISSUER_CERTIFICATE:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_EMPTY_ISSUER_NAME:
+    case SEC_ERROR_INVALID_TIME:
+    case SEC_ERROR_EXPIRED_CERTIFICATE:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_NOT_YET_VALID_CERTIFICATE:
+    case SSL_ERROR_BAD_CERT_DOMAIN:
+      return true;
+    default:
+      return false;
+  }
+}
 #include "nsIDOMHTMLLabelElement.h"  // resolve a tapped <label> to its control (VKB, avoid focus-crash)
 #include "nsIDOMHTMLInputElement.h"  // InsertText: type by DOM value mutation (no focus)
 #include "nsIDOMHTMLTextAreaElement.h"
@@ -514,6 +548,29 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
               mCertHost.Truncate();
               fprintf(stderr, "[jihad-bs] ssl: no certificate came with that failure — "
                               "reporting a failed connection, not a certificate question\n");
+            } else {
+              // THE ERROR, not just the module (R7): the security info's errorCode when it
+              // is set, else the nsresult's low half (the socket's final error). Measured
+              // 2026-10-25 on DigiCert's revoked demo host over TLS 1.3: errorCode was 0 and
+              // the final error SSL_ERROR_RX_MALFORMED_SERVER_HELLO (this NSS's label for that
+              // refusal, T-534) — not in the set, so a failed load; before, the module check
+              // alone had put up Trust Always for it.
+              int32_t nss = 0;
+              nsCOMPtr<nsITransportSecurityInfo> tsi = do_QueryInterface(secInfo);
+              if (tsi) tsi->GetErrorCode(&nss);
+              if (!nss) nss = -(int32_t)((uint32_t)aStatus & 0xffffu);
+              const char* name = PR_ErrorToName(nss);
+              if (!JihadOverridableCertError(nss)) {
+                mCertError = false;
+                mCertHost.Truncate();
+                mCertCert = nullptr;
+                fprintf(stderr, "[jihad-bs] ssl: %s (%d) is not an error the engine lets a user "
+                                "override — reporting a failed connection, not a certificate "
+                                "question\n", name ? name : "?", (int)nss);
+              } else {
+                fprintf(stderr, "[jihad-bs] ssl: %s (%d) may be overridden — asking\n",
+                        name ? name : "?", (int)nss);
+              }
             }
           }
         }

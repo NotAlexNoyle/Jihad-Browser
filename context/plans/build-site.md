@@ -498,10 +498,13 @@ ships 24 roots Mozilla has removed and lacks 19 current ones; UXP release = Mozi
 
 | ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
 |----|------|-----|------|---------|----------|------|--------|
-| T-528 | The audit script `tools/host/audit-roots.py` (the engine's roots vs UXP release and the CCADB removed report, by SHA-256; the platform import's list checked too) and the 2026-10-25 record | cavekit-certificate-trust.md | R1 | — | yes | M | pending |
-| T-529 | The roll: UXP release's certdata.txt on the engine fork as patch 0060, the pins (roots' commit/date/sha), libnssckbi.so rebuilt and bundled, installed on the bench; the audit passes | cavekit-certificate-trust.md | R2 | T-528 | yes | M | pending |
-| T-530 | The device checks: badssl's cases, a site under a new root with the platform setting off, a removed root refused, the padlock's issuer; HP's roots and Trust Always re-verified against the refreshed removed list | cavekit-certificate-trust.md | R3, R4 | T-529 | yes | M | pending |
-| T-531 | The maintenance: `docs/CERTIFICATE-TRUST.md`, make-cert-lists.py on the current CCADB address with the bundle's list rebuilt, update-engine.sh's certdata warning | cavekit-certificate-trust.md | R3, R5 | T-529 | yes | S | pending |
+| T-528 | The audit script `tools/host/audit-roots.py` (the engine's roots vs UXP release and the CCADB removed report, by SHA-256; the platform import's list checked too) and the 2026-10-25 record | cavekit-certificate-trust.md | R1 | — | yes | M | DONE 2026-10-25 |
+| T-529 | The roll: UXP release's certdata.txt on the engine fork as patch 0060, the pins (roots' commit/date/sha), libnssckbi.so rebuilt and bundled, installed on the bench; the audit passes | cavekit-certificate-trust.md | R2 | T-528 | yes | M | DONE 2026-10-25 |
+| T-530 | The device checks: badssl's cases, a site under a new root with the platform setting off, a removed root refused, the padlock's issuer; HP's roots and Trust Always re-verified against the refreshed removed list | cavekit-certificate-trust.md | R3, R4 | T-529 | yes | M | DONE 2026-10-25 |
+| T-531 | The maintenance: `docs/CERTIFICATE-TRUST.md`, make-cert-lists.py on the current CCADB address with the bundle's list rebuilt, update-engine.sh's certdata warning | cavekit-certificate-trust.md | R3, R5 | T-529 | yes | S | DONE 2026-10-25 |
+| T-532 | The TLS floor: `security.tls.version.min` 3 in the platform prefs (the Settings row keeps the user's override); tls-v1-0/1-1 refused, tls-v1-2 loads | cavekit-certificate-trust.md | R6 | T-529 | yes | S | DONE 2026-10-25 |
+| T-533 | The Trust dialog only for the engine's overridable errors: `GoannaRenderPage.cpp` reads `nsITransportSecurityInfo.errorCode` and the set of `DetermineCertOverrideErrors`; a revoked certificate is a failed load with the engine's alert | cavekit-certificate-trust.md | R7 | T-529 | yes | M | DONE 2026-10-25 |
+| T-534 | NSS 3.90.14 over TLS 1.3 reports a revoked certificate's refusal as `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` (the alert's text; the security info's errorCode was 0 on the measured case, so the daemon's fallback saw the same label) — find the mapping in the async auth-certificate completion and carry the real code into the alert | cavekit-certificate-trust.md | R4 | T-533 | yes | M | pending |
 
 ## Tier 89 — The finger round driven by an emulated finger; the GPU floor's levers (2026-10-24; added to the site, not a regeneration)
 

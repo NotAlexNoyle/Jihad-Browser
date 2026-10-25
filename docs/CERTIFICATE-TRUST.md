@@ -58,3 +58,18 @@ AffirmTrust roots, GLOBALTRUST 2020, the CommScope four, the SSL.com-acquired Tr
 Global / XRamp, TeliaSonera v1, certSIGN, ePKI, SecureSign CA12, FIRMAPROFESIONAL ROOT-A WEB, the three emSign
 roots (removed upstream the day before after the eMudhra compromise) — and lacked 19 current ones, ten of them
 TLS roots. Rolled to UXP release 037cc5f6 (2026-10-24) as patch 0060: 169 certificates, 118 trusted for sites.
+
+## Revocation, the TLS floor and the Trust dialog (2026-10-25)
+
+- **OCSP** is on (`security.OCSP.enabled` 1, soft-fail) and works: ssl.com's and DigiCert's revoked demo hosts
+  are refused. **CRL-only revocation is invisible**: the engine fetches no CRLs and has no CRLite, so
+  `revoked.badssl.com` (Let's Encrypt, which stopped OCSP in 2025) loads — Pale Moon has the same limit.
+  Over TLS 1.3 this NSS (3.90.14) labels the revoked refusal `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` in the
+  alert; over TLS 1.2 it says `SEC_ERROR_REVOKED_CERTIFICATE` (T-534).
+- **TLS floor 1.2**: `packaging/prefs/jihad-platform-prefs.js` sets `security.tls.version.min` 3 (the engine's
+  own default is 1); Settings → Connection Security → Minimum TLS version can lower it for one old site.
+- **The Trust dialog** (Trust Once / Trust Always) appears only for errors the engine's own override check
+  accepts — unknown or invalid issuer, disabled signature algorithm, weak key, validity time, name mismatch
+  (`JihadOverridableCertError` in `render/goanna/GoannaRenderPage.cpp`, the set of UXP's
+  `DetermineCertOverrideErrors`). Any other security failure — a revoked certificate first — is a failed
+  load with the engine's alert; an override for it would have been ignored by the engine anyway.

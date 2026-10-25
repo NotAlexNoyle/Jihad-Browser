@@ -264,3 +264,12 @@ pref("jihad.viewport.followOverflow", true);
 // jemalloc's dirty pages to the kernel (AvailableMemoryTracker's watcher; off upstream, on for
 // 1 GB devices as Android's and B2G's builds had it) ---
 pref("memory.free_dirty_pages", true);
+
+// --- TLS floor: 1.2 (cavekit-certificate-trust.md R6, 2026-10-25) ---------------------------
+// The engine's own default is security.tls.version.min = 1 (TLS 1.0; netwerk/base/security-prefs.js,
+// UXP keeps it for old sites), and the device loaded tls-v1-0.badssl.com and tls-v1-1.badssl.com
+// with it. TLS 1.0 and 1.1 are deprecated (RFC 8996) and every current browser refuses them by
+// default; so does Jihad now. Settings -> Connection Security -> Minimum TLS version (a row over
+// this pref, packaging/prefsui/content/preferences.js) lets a user lower it for one old site.
+// fallback-limit stays at the engine's 3: no insecure version fallback either.
+pref("security.tls.version.min", 3);

@@ -18,7 +18,7 @@ GLIB=$(pkg-config --cflags glib-2.0 gthread-2.0)
 GLIBL=$(pkg-config --libs glib-2.0 gthread-2.0)
 GTK_CFLAGS=$(pkg-config --cflags gtk+-2.0)
 GTK_LIBS=$(pkg-config --libs gtk+-2.0)
-ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr"
+ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss"
 YAPINC="-I$BS/Yap -I$BS/Src"
 
 echo "== compiling libYap (core, Qt-free) + BrowserServerBase =="

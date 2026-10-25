@@ -338,6 +338,7 @@ JihadCerts.prototype = {
         this._platformCert(String(data || ""));
       } else if (topic === "jihad-nss-ready") {
         this._ready = true;
+        this._logBuiltins();
         this._applyWebos();
         this._applyRelay();
       } else if (topic === "nsPref:changed" && this._ready) {
@@ -346,6 +347,29 @@ JihadCerts.prototype = {
       }
     } catch (e) {
       log(topic + " threw: " + e);
+    }
+  },
+
+  // The built-in roots the engine ships (libnssckbi.so), counted at every start so the daemon's log says
+  // which list this engine carries (cavekit-certificate-trust.md R2: 169 certificates, 118 trusted for
+  // sites, from UXP release of 2026-10-24; the June 2025 list before it had 177 and 150).
+  _logBuiltins: function () {
+    let n = 0, sites = 0, removed = 0, names = [];
+    try {
+      let db = certDB(), all = db.getCerts(), en = all.getEnumerator(), lists = this.lists();
+      while (en.hasMoreElements()) {
+        let c = en.getNext().QueryInterface(Ci.nsIX509Cert);
+        if (c.tokenName !== "Builtin Object Token") { continue; }
+        n++;
+        if (db.isCertTrusted(c, Ci.nsIX509Cert.CA_CERT, Ci.nsIX509CertDB.TRUSTED_SSL)) { sites++; }
+        // The same report the platform import checks against (R3): a built-in root Mozilla has
+        // removed is the audit's first finding, counted here so the device says so at every start.
+        if (lists.removed[normFp(c.sha256Fingerprint)]) { removed++; if (names.length < 6) { names.push(c.commonName); } }
+      }
+      log("built-in roots: " + n + " certificates, " + sites + " trusted for sites, " + removed +
+          " on Mozilla's removed report" + (removed ? " (" + names.join("; ") + ")" : ""));
+    } catch (e) {
+      log("built-in roots could not be counted: " + e);
     }
   },
 

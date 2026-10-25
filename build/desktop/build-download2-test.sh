@@ -20,7 +20,7 @@ CXX=${CXX:-g++}
 CXXFLAGS="-std=gnu++17 -fPIC -fno-rtti -fno-exceptions -O2 -g0"
 GLIB=$(pkg-config --cflags glib-2.0 gthread-2.0);  GLIBL=$(pkg-config --libs glib-2.0 gthread-2.0)
 GTKC=$(pkg-config --cflags gtk+-2.0);              GTKL=$(pkg-config --libs gtk+-2.0)
-ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr"
+ENGINC="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss"
 YAPINC="-I$BS/Yap -I$BS/Src"
 XULLINK="$DIST/sdk/lib/libxpcomglue_s.a -L$DIST/bin -lxul $DIST/sdk/lib/libmozglue.a -lnspr4 -lplc4 -lplds4"
 

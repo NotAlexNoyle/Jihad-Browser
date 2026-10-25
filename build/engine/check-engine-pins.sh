@@ -33,5 +33,6 @@ if [ -e "$REPO/third_party/uxp/config/external/icu/data/$ICU_DATA" ]; then say o
 
 # The built-in roots: the shipped certdata.txt is the one the pins name (cavekit-certificate-trust.md R2)
 rs=$(sha256sum "$REPO/third_party/uxp/security/nss/lib/ckfw/builtins/certdata.txt" 2>/dev/null | cut -c1-64)
-if [ -n "${ROOTS_SHA256:-}" ] && [ "$rs" = "$ROOTS_SHA256" ]; then say ok "the built-in roots are UXP release's of $ROOTS_DATE ($ROOTS_SOURCE)"; else say FAIL "certdata.txt sha256 $rs is not ROOTS_SHA256 ${ROOTS_SHA256:-unset}"; bad=1; fi[ "$bad" = 0 ] && echo "all agree" || echo "DISAGREEMENT — see FAIL lines"
+if [ -n "${ROOTS_SHA256:-}" ] && [ "$rs" = "$ROOTS_SHA256" ]; then say ok "the built-in roots are UXP release's of $ROOTS_DATE ($ROOTS_SOURCE)"; else say FAIL "certdata.txt sha256 $rs is not ROOTS_SHA256 ${ROOTS_SHA256:-unset}"; bad=1; fi
+[ "$bad" = 0 ] && echo "all agree" || echo "DISAGREEMENT — see FAIL lines"
 exit $bad

@@ -80,6 +80,27 @@ pins() {
   setpin UXP_TAG "$tag"; setpin UXP_BASE "$base"; setpin UXP_PIN "$pin"; setpin UXP_SHORT "$short"
   setpin GOANNA_VERSION "$goanna"; setpin ICU_DATA "$icu"
   echo "update-engine: pins now $tag ($short), engine branch head $pin, Goanna $goanna, $icu"
+  roots_check
+}
+
+# The built-in roots (cavekit-certificate-trust.md R5): the shipped certdata.txt must be the one the pins
+# name, and UXP's release branch — Mozilla central's file, what Pale Moon ships — may have moved on since.
+# A difference is a warning, not a stop: docs/CERTIFICATE-TRUST.md says how to roll (a numbered patch).
+roots_check() {
+  local f="$UXP/security/nss/lib/ckfw/builtins/certdata.txt" have rel url
+  have=$(sha256sum "$f" 2>/dev/null | cut -c1-64)
+  if [ -n "${ROOTS_SHA256:-}" ] && [ "$have" != "$ROOTS_SHA256" ]; then
+    echo "update-engine: WARNING the shipped certdata.txt ($have) is not the pinned roots ($ROOTS_SHA256, UXP release $ROOTS_DATE)"
+  fi
+  url="https://repo.palemoon.org/MoonchildProductions/UXP/raw/branch/release/security/nss/lib/ckfw/builtins/certdata.txt"
+  rel=$(curl -fsSL --max-time 30 "$url" 2>/dev/null | sha256sum | cut -c1-64)
+  if [ -z "$rel" ] || [ "$rel" = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+    echo "update-engine: could not fetch UXP release's certdata.txt to compare the roots (offline?) — run tools/host/audit-roots.py --fetch later"
+  elif [ "$rel" != "$have" ]; then
+    echo "update-engine: WARNING UXP release's certdata.txt ($rel) differs from the shipped roots — the release branch rolled; see docs/CERTIFICATE-TRUST.md"
+  else
+    echo "update-engine: the built-in roots are UXP release's current certdata.txt"
+  fi
 }
 
 # The files our commits change that upstream also changed between the old base and TAG.

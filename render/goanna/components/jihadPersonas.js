@@ -1514,6 +1514,14 @@ function growToList(win) {
   if (need > win.innerHeight) { root.style.minHeight = need + "px"; }
 }
 
+// Every row's remove button says "Uninstall" (the owner, 2026-10-08).
+function relabelRemove(doc, list) {
+  for (let i = 0; i < list.children.length; i++) {
+    let rm = ADDONS.part(doc, list.children[i], "anonid", "remove-btn");
+    if (rm && rm.getAttribute("label") !== "Uninstall") { rm.setAttribute("label", "Uninstall"); }
+  }
+}
+
 function decoratePane(win) {
   let doc = win.document;
   later(200, function() { try { growToList(win); } catch (e) { log("about:addons height: " + e); } });
@@ -1527,9 +1535,15 @@ function decoratePane(win) {
   let box = doc.getElementById("jihad-themes-box");
   // "Uninstall", not "Remove", on every add-on, in every category (owner 2026-10-08).
   if (list) {
-    for (let i = 0; i < list.children.length; i++) {
-      let rm = ADDONS.part(doc, list.children[i], "anonid", "remove-btn");
-      if (rm && rm.getAttribute("label") !== "Uninstall") { rm.setAttribute("label", "Uninstall"); }
+    relabelRemove(doc, list);
+    // A row the manager re-creates later — after Undo on an uninstall (2026-10-25, by finger: the
+    // row came back reading "Remove" until the next view change) — is relabelled as it appears.
+    if (!list._jihadRelabel) {
+      try {
+        let mo = new win.MutationObserver(function() { later(0, function() { try { relabelRemove(doc, list); } catch (e) {} }); });
+        mo.observe(list, {childList: true, subtree: true, attributes: true, attributeFilter: ["pending", "status"]});
+        list._jihadRelabel = mo;
+      } catch (e) { log("relabel observer: " + e); }
     }
   }
   if (!isThemes || !listView || !list) { if (box) { box.hidden = true; } return; }

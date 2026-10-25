@@ -107,6 +107,24 @@ the add-on site / the addons.mozilla.org question — all act on one tap (docs/F
 2026-10-24 oddities were the double click and the list putting the worn Persona first. Aurora Silk was removed and
 re-installed from the site; Carbon Light re-installed from its .xpi; the Default look restored.
 
+**OPEN AT THE CUT-OFF (usage limit, 2026-10-25 ~11:15): three about:addons findings fixed in source, NOT yet on the
+device, NOT in the packages.** (1) Engine patch 0062 (`layout/xul/nsXULPopupManager.cpp`, fork `9711aa10`): the
+tools menu's pixels stayed on the card after "Check for Updates" ran — the composited popup hid but nothing repainted
+the content; HidePopupCallback now invalidates the root widget under JIHAD_OFFSCREEN. `$SP/build-engine-bundle.sh`
+was started (log `engine-build5.log` in the scratchpad; it may have finished — check `build/webos-oe/device-bundle/libxul.so`'s
+time); the pins already name the new head (`check-engine-pins.sh` agrees after this commit). (2) `components/jihadPersonas.js`:
+after Undo on an uninstall the row read "Remove" until the next view change — a MutationObserver relabels it (not tested).
+(3) `packaging/prefsui/content/addons.css`: the tools menu was pale text on a pale panel — `#utils-menu` styled dark with
+44 px rows (not tested). **Next steps, in order:** if the bundle is not built, run `build/webos-oe/in-container.sh --arm
+build/webos-oe/build-goanna-arm.sh build` then `make-device-bundle.sh`; `novacom put file:///media/internal/libxul.so.new <
+build/webos-oe/device-bundle/libxul.so`; the device already holds `/tmp/jihadPersonas.js` and `/tmp/addons.css` (re-put them if
+/tmp was cleared); `build/webos-oe/dev-sh.sh -t 200 <scratchpad>/enyo-dev-install.sh` (Enyo dev copies, .orig kept) then
+`dev-sh.sh -t 200 <scratchpad>/addons-round2.sh` (gear → Check for Updates → shot v2 must show NO menu; shot v1 the menu
+readable; Uninstall → Undo → shot v3 says Uninstall); both scripts are in this session's scratchpad and short enough to retype
+from this note. Then `build-variant-ipk.sh`, `push-variant.sh enyo|mochi|mojo`, the post-push check (remove the `.orig`s), the
+record in cavekit-offscreen-rendering R7 / chrome-look R2 / FINGER-TESTS, commit. The device meanwhile runs the packaged
+build below with the Enyo card closed and the Default look.
+
 **Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` (the
 Preware route: extracted into cryptofs, the real postinst run) from the packages built at this commit —
 `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `2e996799`, `-mochi_1.0.0` `f210756a`,

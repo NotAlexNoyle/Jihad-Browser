@@ -303,3 +303,27 @@ button.button-link {
 #addons-page[jihad-shell="mochi"] #detail-prefs-btn { background: #3d6fb4; }
 #addons-page[jihad-shell="mochi"] button.remove-btn,
 #addons-page[jihad-shell="mochi"] #detail-uninstall-btn { background: #5a2b2b; }
+
+/* ── The bar's tools menu (the gear): the engine's XUL menu drawn with no native theme came out as
+   pale text on a pale panel, unreadable on the device (2026-10-25, by finger). Dark panel, light
+   text, finger-sized rows, the same look as the rest of the page. ───────────────────────────── */
+#utils-menu {
+	-moz-appearance: none;
+	background: #2a2a2a;
+	color: #f0f0f0;
+	border: 1px solid #101010;
+	border-radius: 8px;
+	padding: 6px 0;
+}
+#utils-menu menuitem, #utils-menu menu {
+	-moz-appearance: none;
+	min-height: 44px;
+	padding: 0 16px;
+	margin: 0 6px;
+	color: #f0f0f0;
+	font-size: 16px;
+	border-radius: 6px;
+}
+#utils-menu menuitem[disabled="true"] { color: #8a8a8a; }
+#utils-menu menuitem[_moz-menuactive="true"], #utils-menu menu[_moz-menuactive="true"] { background: #3d5a73; }
+#utils-menu menuseparator { -moz-appearance: none; border-top: 1px solid #444; margin: 6px 12px; }

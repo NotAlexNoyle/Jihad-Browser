@@ -118,7 +118,7 @@ solution shapes are shared, only the presentation differs per popup type.
   the checkmark is gone and the last item reads "…to Update Manually"). Device-verified: the menu
   opens and composites over the page, and a double-delivered tap no longer closes it.
   Page context menus are NOT this path — a long-press is reported to the CARD over the frozen
-  contract (isis model), so the engine never opens a context popup here.
+  contract (isis model), so the engine never opens a context popup here. **2026-10-25, by finger on the GPU path: after an item RAN (Check for Updates) the menu stayed drawn — its pixels were in the frame slots and the GPU frame rebuilt on them; the daemon now voids every slot when a popup closes (`BrowserPageGoanna.cpp`, the popup transition), verified gone after the item and after a dismiss. The menu's look: `#utils-menu` styled in addons.css (it was pale on pale).*
 - [x] An open popup is INTERACTIVE, not just visible. It is a separate display root, so the
   content document's hit-testing cannot see it: a tap on the tools menu's first row resolved to
   the `<vbox>` underneath. Taps, moves and drags are routed into the popup, the row under the

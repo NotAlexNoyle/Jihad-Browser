@@ -3007,7 +3007,24 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   // nothing had been painted (`0 composites`); it appeared only when the next event forced a
   // frame. A finger sends several events per tap, which is presumably why this went unseen.
   { bool open = mPage->PopupsOpen();
-    if (open != mPopupWasOpen) { mPopupWasOpen = open; mNeedsPaint = true; mDamageForceFull = true; } }
+    if (open != mPopupWasOpen) {
+      mPopupWasOpen = open; mNeedsPaint = true; mDamageForceFull = true;
+      // A popup that CLOSED leaves its pixels in every slot it was composited into, and the GPU
+      // path's next frame rewrites only the rows the compositor changed — which, for a menu
+      // whose item merely ran a command, is none ("rows new=0"), so the card kept showing the
+      // menu (about:addons' tools menu after "Check for Updates", by finger 2026-10-25; even the
+      // engine dirtying its whole content widget, patch 0062, changed nothing). As T-513's late
+      // write: every slot painted whole again.
+      if (!open) {
+        // Both bookkeepings: the software path's slots (valid) and the GPU path's own
+        // (mGpuSlotValid, the express snapshot) — the first try reset only the former and the
+        // compositor went on building on the slot that still had the menu in it.
+        mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+        mDamageValid = false;
+        mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+        fprintf(stderr, "[jihad-bs] popup closed: every slot painted whole again\n");
+      }
+    } }
   // Process a queued tap next — inside the tick's page-lifetime guard, and BEFORE
   // spending the pump budget so a link's load gets pumped this call (matters for
   // single-pump callers like link_test). ClickAt does the hit-test + activation +

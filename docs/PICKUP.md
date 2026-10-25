@@ -107,35 +107,24 @@ the add-on site / the addons.mozilla.org question — all act on one tap (docs/F
 2026-10-24 oddities were the double click and the list putting the worn Persona first. Aurora Silk was removed and
 re-installed from the site; Carbon Light re-installed from its .xpi; the Default look restored.
 
-**OPEN AT THE CUT-OFF (usage limit, 2026-10-25 ~11:15): three about:addons findings fixed in source, NOT yet on the
-device, NOT in the packages.** (1) Engine patch 0062 (`layout/xul/nsXULPopupManager.cpp`, fork `9711aa10`): the
-tools menu's pixels stayed on the card after "Check for Updates" ran — the composited popup hid but nothing repainted
-the content; HidePopupCallback now invalidates the root widget under JIHAD_OFFSCREEN. `$SP/build-engine-bundle.sh`
-finished: the bundle's `libxul.so` is `52fe44db` (11:15, patches through 0062), ready to put on the device; the pins already name the new head (`check-engine-pins.sh` agrees after this commit). (2) `components/jihadPersonas.js`:
-after Undo on an uninstall the row read "Remove" until the next view change — a MutationObserver relabels it (not tested).
-(3) `packaging/prefsui/content/addons.css`: the tools menu was pale text on a pale panel — `#utils-menu` styled dark with
-44 px rows (not tested). **Next steps, in order:** if the bundle is not built, run `build/webos-oe/in-container.sh --arm
-build/webos-oe/build-goanna-arm.sh build` then `make-device-bundle.sh`; `novacom put file:///media/internal/libxul.so.new <
-build/webos-oe/device-bundle/libxul.so`; the device already holds `/tmp/jihadPersonas.js` and `/tmp/addons.css` (re-put them if
-/tmp was cleared); `build/webos-oe/dev-sh.sh -t 200 <scratchpad>/enyo-dev-install.sh` (Enyo dev copies, .orig kept) then
-`dev-sh.sh -t 200 <scratchpad>/addons-round2.sh` (gear → Check for Updates → shot v2 must show NO menu; shot v1 the menu
-readable; Uninstall → Undo → shot v3 says Uninstall); both scripts are in this session's scratchpad and short enough to retype
-from this note. Then `build-variant-ipk.sh`, `push-variant.sh enyo|mochi|mojo`, the post-push check (remove the `.orig`s), the
-record in cavekit-offscreen-rendering R7 / chrome-look R2 / FINGER-TESTS, commit. The device meanwhile runs the packaged
-build below with the Enyo card closed and the Default look.
+**about:addons, the three findings — DONE 2026-10-25 (afternoon).** (1) The tools menu's pixels stayed on the card after
+"Check for Updates" ran: the composited popup's pixels sat in the frame slots and the GPU path's next frame built on the
+slot that still had them. Fixed in the daemon: the popup-close transition voids every slot — the software path's `valid`
+AND the GPU path's `gpuSlotsReset()` (the first try reset only the former and nothing changed); verified by finger, gone
+after the item and after a dismiss. An engine-side content invalidation (tried as patch 0062) changed nothing and was
+dropped — the engine stays at `ec8f0ed7` (patches through 0061). (2) The row after Undo on an uninstall read "Remove" —
+a MutationObserver relabels it (`jihadPersonas.js`), verified. (3) The tools menu was pale on pale — `#utils-menu` styled
+in `addons.css`, verified readable. Probe notes: the daemon's `painted … rows new=` counts only software-rendered rows
+(0 on a GPU frame says nothing); a popup's close is seen at `PopupsOpen()`'s transition in the tick.
 
-**Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` (the
-Preware route: extracted into cryptofs, the real postinst run) from the packages built at this commit —
-`build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `2e996799`, `-mochi_1.0.0` `f210756a`,
-`-mojo_1.0.0` `4aab96ec` (adapters a312e864 / 72104039 / 55d15ec5, T-535); in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
-daemon `a26899d7`, `libnssckbi.so` `f8e9ebea`, `goanna.js` `66743363` (TLS floor), the components and the 2026-10-25
-cert lists. The dev-copy `.orig` leftovers removed. **The device IS the repository head.** Root filesystem read-only.
-Enyo's profile prefs at defaults (`jihad.security.webos_certs` on; no TLS cap); a session override for
-untrusted-root.badssl.com died with its daemon. Palefill active, Personas Default. `/tmp` holds only the finger tool
-(the pan dumps and blocker CSS of earlier rounds removed). The packaged `/etc/event.d/jihad*` jobs carry no
-`JIHAD_INJECT=1`: an inject-channel probe needs a hand-started daemon (`tools/device/t502/gpu-spike-start.sh`'s
-pattern). Each variant smoke-tested on Wikipedia from the package (title in its daemon log; "169 certificates, 118
-trusted for sites, 0 on Mozilla's removed report").
+**Device state (2026-10-25, afternoon of the next day's session):** all three variants installed as PACKAGES through
+`push-variant.sh` from the packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk`
+`f6c737f1`, `-mochi_1.0.0` `6ea63ee4`, `-mojo_1.0.0` `8d5e1ec7`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`,
+patches through 0061), daemon `e503caf1` (the popup-close slot reset), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor,
+`components/jihadPersonas.js` `f999a19e` (the relabel observer), `prefsui/content/addons.css` `2433e64d` (the tools menu's look), the
+2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535) in `/usr/lib/jihad/<v>/`. The dev-copy `.orig`
+leftovers removed. **The device IS the repository head.** Root filesystem read-only. Enyo's profile prefs at defaults; Palefill
+active; the Default look; no card open; `/tmp` holds only the finger tool.
 
 **T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
 intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure

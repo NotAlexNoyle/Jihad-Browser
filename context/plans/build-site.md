@@ -490,6 +490,19 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 90 — Certificate trust (2026-10-25; cavekit-certificate-trust.md)
+
+The owner's direction of 2026-10-25: the roots audited for exploited or abandoned CAs, the removed ones gone, parity
+with what Pale Moon and Basilisk ship, the missing ones pulled in. Baseline: UXP RB_20261006's certdata (June 2025)
+ships 24 roots Mozilla has removed and lacks 19 current ones; UXP release = Mozilla central byte for byte.
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-528 | The audit script `tools/host/audit-roots.py` (the engine's roots vs UXP release and the CCADB removed report, by SHA-256; the platform import's list checked too) and the 2026-10-25 record | cavekit-certificate-trust.md | R1 | — | yes | M | pending |
+| T-529 | The roll: UXP release's certdata.txt on the engine fork as patch 0060, the pins (roots' commit/date/sha), libnssckbi.so rebuilt and bundled, installed on the bench; the audit passes | cavekit-certificate-trust.md | R2 | T-528 | yes | M | pending |
+| T-530 | The device checks: badssl's cases, a site under a new root with the platform setting off, a removed root refused, the padlock's issuer; HP's roots and Trust Always re-verified against the refreshed removed list | cavekit-certificate-trust.md | R3, R4 | T-529 | yes | M | pending |
+| T-531 | The maintenance: `docs/CERTIFICATE-TRUST.md`, make-cert-lists.py on the current CCADB address with the bundle's list rebuilt, update-engine.sh's certdata warning | cavekit-certificate-trust.md | R3, R5 | T-529 | yes | S | pending |
+
 ## Tier 89 — The finger round driven by an emulated finger; the GPU floor's levers (2026-10-24; added to the site, not a regeneration)
 
 The owner, 2026-10-24: "proceed with everything blocked by the finger tests, not by assuming it works, but by driving

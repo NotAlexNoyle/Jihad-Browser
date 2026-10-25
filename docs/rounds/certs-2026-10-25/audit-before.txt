@@ -1,0 +1,41 @@
+# audit-roots.py, 2026-10-25, BEFORE the roll (engine UXP_PIN c79d16f8, certdata of 2025-06-23)
+# reference: UXP release 037cc5f614c8a2d54b3bd17d9e967b89014a57ff (2026-10-24), sha256 3ec2b4d240dc12c747eaf450061db84af757c483bbda302f9e29ceb5d70be510
+# removed report: CCADB RemovedCACertificateReportCSVFormat fetched 2026-10-25, 106 rows
+engine: third_party/uxp/security/nss/lib/ckfw/builtins/certdata.txt
+  177 certificates, 150 trusted for server authentication
+  incident CAs by name (read each): AffirmTrust Commercial; AffirmTrust Networking; AffirmTrust Premium; AffirmTrust Premium ECC; COMODO Certification Authority; COMODO ECC Certification Authority; COMODO RSA Certification Authority; Comodo AAA Services root; Entrust Root Certification Authority; Entrust Root Certification Authority - EC1; Entrust Root Certification Authority - G2; Entrust Root Certification Authority - G4; Entrust.net Premium 2048 Secure Server CA; Explicitly Distrust DigiNotar Root CA; GLOBALTRUST 2020; GlobalSign ECC Root CA - R4; GlobalSign ECC Root CA - R5; GlobalSign Root CA; GlobalSign Root CA - R3; GlobalSign Root CA - R6; GlobalSign Root E46; GlobalSign Root R46; GlobalSign Secure Mail Root E45; GlobalSign Secure Mail Root R45; Izenpe.com
+removed report: /tmp/claude-1000/-home-notalexnoyle-eclipse-workspace-Jihad-Jihad-Browser/4ba44f80-d667-4081-b4f1-5396b267bac0/scratchpad/certs/removed.csv (106 rows)
+  REMOVED BY MOZILLA BUT SHIPPED (24):
+    ! AffirmTrust Commercial | NSS 3.123 / Firefox 151 | Ownership transferred to Entrust on April 28, 2016. Transfer of Trend Micro / Af
+    ! AffirmTrust Networking | NSS 3.123 / Firefox 151 | Ownership transferred to Entrust on April 28, 2016. Transfer of Trend Micro / Af
+    ! AffirmTrust Premium | NSS 3.123 / Firefox 151 | Ownership transferred to Entrust on April 28, 2016. Transfer of Trend Micro / Af
+    ! AffirmTrust Premium ECC | NSS 3.123 / Firefox 151 | Ownership transferred to Entrust on April 28, 2016. Transfer of Trend Micro / Af
+    ! CommScope Public Trust ECC Root-01 | NSS 3.118 / Firefox 146 | CommScope's CP/CPS covers also CAs that do not issue publicly-trusted certificat
+    ! CommScope Public Trust ECC Root-02 | NSS 3.118 / Firefox 146 | CommScope's CP/CPS covers also CAs that do not issue publicly-trusted certificat
+    ! CommScope Public Trust RSA Root-01 | NSS 3.118 / Firefox 146 | CommScope's CP/CPS covers also CAs that do not issue publicly-trusted certificat
+    ! CommScope Public Trust RSA Root-02 | NSS 3.118 / Firefox 146 | CommScope's CP/CPS covers also CAs that do not issue publicly-trusted certificat
+    ! Entrust Root Certification Authority | NSS 3.125 / Firefox 153 | Root certificate expires in November 2026, as such the root will only be support
+    ! FIRMAPROFESIONAL CA ROOT-A WEB | NSS 3.123 / Firefox 151 | 
+    ! GLOBALTRUST 2020 | NSS 3.123 / Firefox 151 | A changeover to single purpose rootCAs is intended
+    ! Secure Global CA | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! SecureSign Root CA12 | NSS 3.125 / Firefox 153 | 
+    ! SecureTrust CA | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! TeliaSonera Root CA v1 | NSS 3.123 / Firefox 151 | ACME endpoint: https://acme.trust.telia.com/directory
+    ! Trustwave Global Certification Authority | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! Trustwave Global ECC P256 Certification Authority | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! Trustwave Global ECC P384 Certification Authority | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! XRamp Global CA Root | NSS 3.123 / Firefox 151 | March 6, 2026:  SSL.com successfully completed the acquisition of the Viking Clo
+    ! certSIGN ROOT CA | NSS 3.123 / Firefox 151 | certSIGN already prepared the end-of-life cycle of this root and its intermediat
+    ! ePKI Root Certification Authority | NSS 3.126 / Firefox 154 | Chunghwa Telecom has decided to retire this root certificate and will no longer 
+    ! emSign ECC Root CA - C3 | NSS 3.131 / Firefox 160 | 
+    ! emSign ECC Root CA - G3 | NSS 3.132 / Firefox 160 | 
+    ! emSign Root CA - C1 | NSS 3.131 / Firefox 160 | 
+platform import's removed list fetched 2026-10-13, 103 roots
+platform import's list: render/goanna/certs/jihad-cert-lists.json — 103 of the report's 106 roots present
+  MISSING FROM THE LIST (3): emSign ECC Root CA - C3; emSign ECC Root CA - G3; emSign Root CA - C1
+reference: /tmp/claude-1000/-home-notalexnoyle-eclipse-workspace-Jihad-Jihad-Browser/4ba44f80-d667-4081-b4f1-5396b267bac0/scratchpad/certs/uxp-release-certdata.txt
+  169 certificates, 118 trusted for server authentication
+  only the engine has (27): AffirmTrust Commercial; AffirmTrust Networking; AffirmTrust Premium; AffirmTrust Premium ECC; Baltimore CyberTrust Root; CommScope Public Trust ECC Root-01; CommScope Public Trust ECC Root-02; CommScope Public Trust RSA Root-01; CommScope Public Trust RSA Root-02; Entrust Root Certification Authority; Explicitly Distrust DigiNotar Root CA; FIRMAPROFESIONAL CA ROOT-A WEB; GLOBALTRUST 2020; SSL.com TLS Transit ECC CA R2; Secure Global CA; SecureSign Root CA12; SecureTrust CA; TeliaSonera Root CA v1; Trustwave Global Certification Authority; Trustwave Global ECC P256 Certification Authority; Trustwave Global ECC P384 Certification Authority; XRamp Global CA Root; certSIGN ROOT CA; ePKI Root Certification Authority; emSign ECC Root CA - C3; emSign ECC Root CA - G3; emSign Root CA - C1
+  only the reference has (19, 10 of them TLS roots): OISTE Client Root ECC G1; OISTE Client Root RSA G1; OISTE Server Root ECC G1; OISTE Server Root RSA G1; SECOM SMIME RSA Root CA 2024; SECOM TLS ECC Root CA 2024; SECOM TLS RSA Root CA 2024; SecureSign Root CA16; SwissSign RSA SMIME Root CA 2022 - 1; SwissSign RSA TLS Root CA 2022 - 1; Telia EC Email Root CA v3; Telia EC TLS Root CA v3; Telia RSA Email Root CA v3; Telia RSA TLS Root CA v3; TrustAsia SMIME ECC Root CA; TrustAsia SMIME RSA Root CA; TrustAsia TLS ECC Root CA; TrustAsia TLS RSA Root CA; e-Szigno TLS Root CA 2023
+  trust differs (17): Atos TrustedRoot 2011 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; COMODO Certification Authority CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Certigna CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Comodo AAA Services root CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; DigiCert Assured ID Root CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; DigiCert Global Root CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; DigiCert High Assurance EV Root CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Entrust Root Certification Authority - EC1 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Entrust Root Certification Authority - G2 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Entrust.net Premium 2048 Secure Server CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; GTS Root R2 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; GlobalSign Root CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Go Daddy Class 2 CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; QuoVadis Root CA 2 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; QuoVadis Root CA 3 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; Starfield Class 2 CA CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST; SwissSign Gold CA - G2 CKT_NSS_TRUSTED_DELEGATOR->CKT_NSS_MUST_VERIFY_TRUST
+RESULT: ACTION NEEDED (4 findings)

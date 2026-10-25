@@ -86,13 +86,20 @@ def mozilla_removed(src):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--rootfs", required=True, help="HP's 3.0.5 nova-cust-image-topaz.rootfs.tar.gz")
+    ap.add_argument("--rootfs", help="HP's 3.0.5 nova-cust-image-topaz.rootfs.tar.gz; without it the HP list "
+                    "already in jihad-cert-lists.json is kept (cavekit-certificate-trust.md R5: a refresh of the "
+                    "removed report needs no image)")
     ap.add_argument("--ccadb", required=True, help="CCADB Removed CA Certificate Report (CSV file or URL)")
     ap.add_argument("--fetched", default=datetime.date.today().isoformat(),
                     help="the day the CCADB report was fetched (default: today)")
     args = ap.parse_args()
 
-    stock = hp_stock(args.rootfs)
+    if args.rootfs:
+        stock = hp_stock(args.rootfs)
+    else:
+        prev = json.load(open(os.path.join(HERE, "jihad-cert-lists.json")))
+        stock = set(prev["hpStock"]["sha256"])
+        print("HP's list kept from the existing file: %d roots" % len(stock))
     removed = mozilla_removed(args.ccadb)
     relay_der = der_of_pem(open(os.path.join(HERE, "riverstone-relay-ca.pem"), "rb").read())[0]
     if hashlib.sha256(relay_der).hexdigest() != RELAY_SHA256:

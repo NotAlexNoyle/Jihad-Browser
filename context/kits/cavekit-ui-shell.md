@@ -36,6 +36,7 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 **Dependencies:** cavekit-ipc-contract.md (R1, R5)
 
 ### R3: Apache-2.0 provenance preserved on forked UI files
+*(2026-10-25, T-540: a dialog's reply wait ends when the card's socket hangs up (the card closed with the dialog up) or a send to it failed — it used to hold the main thread for the whole 60 s deadline, and no new card could connect meanwhile.)*
 **Description:** Forking the UI does not alter its licensing.
 **Acceptance Criteria:**
 - [x] Every forked source file retains its original HP Apache-2.0 header unmodified.

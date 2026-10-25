@@ -29,6 +29,8 @@ class JihadBrowserServer;
 class ProxySink : public jihad::IPageMessageSink {
 public:
   ProxySink(JihadBrowserServer* srv, YapProxy* proxy) : mSrv(srv), mProxy(proxy) {}
+  bool clientAlive() const override { return mProxy && mProxy->connected() && !mProxy->sendFailed(); }
+  int clientFd() const override { return mProxy ? mProxy->messageSocketFd() : -1; }
   void msgPainted(int32_t key) override;
   void msgLoadStarted() override;
   void msgLoadProgress(int32_t p) override;

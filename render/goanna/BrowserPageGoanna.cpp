@@ -2080,9 +2080,29 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
   for (;;) {
     int64_t elapsed = jihadNowMs() - start;
     if (elapsed >= deadlineMs) break;
-    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLIN; pfd.revents = 0;
-    int pr = poll(&pfd, 1, 200);
+    // The reply pipe, and the card's own socket beside it: a card that closes with the dialog up
+    // (by finger 2026-10-25, the busy-script confirm) opens no pipe and sends nothing, so only its
+    // socket's hang-up says it is gone — and said nothing to anyone for the rest of the minute.
+    struct pollfd pfds[2];
+    pfds[0].fd = fd; pfds[0].events = POLLIN; pfds[0].revents = 0;
+    const int cfd = mSink.clientFd();
+    pfds[1].fd = cfd; pfds[1].events = 0; pfds[1].revents = 0;      // POLLHUP/POLLERR come unasked
+    int pr = poll(pfds, cfd >= 0 ? 2 : 1, 200);
     if (pr < 0) { if (errno == EINTR) continue; break; }
+    if (cfd >= 0 && (pfds[1].revents & (POLLHUP | POLLERR | POLLNVAL)) && !got) {
+      fprintf(stderr, "[jihad-bs] dialog %s: the card's socket hung up after %ld ms — taking the default\n",
+              what, (long)(jihadNowMs() - start));
+      break;
+    }
+    struct pollfd& pfd = pfds[0];
+    // T-540: a card that closed while its dialog was up (by finger 2026-10-25: the busy-script
+    // confirm, the card closed, the next card could not connect for a minute) answers nothing;
+    // the main thread is not held for the deadline on its account.
+    if (!got && !mSink.clientAlive()) {
+      fprintf(stderr, "[jihad-bs] dialog %s: the card is gone after %ld ms — taking the default\n",
+              what, (long)(jihadNowMs() - start));
+      break;
+    }
     if (pr == 0) continue;
     if (!(pfd.revents & POLLHUP) && !writerSeen) {
       // First moment the card has the write end open. Timed because "the dialog took a
@@ -2111,11 +2131,19 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
                         ((size_t)L[2] << 8)  |  (size_t)L[3];
       if (data.size() >= 4 + declared) break;    // complete
     }
+    // T-540: the card had the write end open and closed it without a byte — it went away with
+    // the dialog up (by finger 2026-10-25: the card closed on the busy-script confirm, and the
+    // next card could not connect for the rest of the minute). Nothing more will come.
+    if (n == 0 && writerSeen && !got && (pfd.revents & POLLHUP)) {
+      fprintf(stderr, "[jihad-bs] dialog %s: the card closed its reply pipe without answering after %ld ms "
+                      "— taking the default\n", what, (long)(jihadNowMs() - start));
+      break;
+    }
     if (n < 0 && errno != EAGAIN && errno != EINTR) break;
   }
   if (!writerSeen && !got) {
     fprintf(stderr, "[jihad-bs] dialog %s: nobody opened the reply pipe in %ld ms — "
-                    "no card is answering, taking the default\n", what, deadlineMs);
+                    "no card is answering, taking the default\n", what, (long)(jihadNowMs() - start));
   }
   close(fd);
   unlink(path.c_str());

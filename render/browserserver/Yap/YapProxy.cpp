@@ -314,6 +314,7 @@ void YapProxy::sendMessage()
         }
         if (!sent) {
             fprintf(stderr, "ERROR sending message, errno=%d.", errno);
+            m_sendFailed = true;   // the card's socket is gone (EPIPE): a reply will never come
         }
     }
     else {
@@ -591,6 +592,11 @@ gboolean YapProxyIoFunction(GIOChannel* channel, GIOCondition condition, void* d
 bool YapProxy::connected() const
 {
     return (m_msgSocketFd >= 0);
+}
+
+bool YapProxy::sendFailed() const
+{
+    return m_sendFailed;
 }
 
 int YapProxy::messageSocketFd() const

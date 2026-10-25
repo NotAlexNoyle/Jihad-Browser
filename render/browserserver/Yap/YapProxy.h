@@ -91,6 +91,7 @@ public:
     void transferQueuedMessage(YapProxy* srcProxy);
 
     bool connected() const;
+    bool sendFailed() const;   // a message write failed (EPIPE): the client is gone, whatever connected() says
 
     int messageSocketFd() const;
     int commandSocketFd() const;
@@ -140,6 +141,7 @@ private:
     YapServer*  m_server;
     int         m_cmdSocketFd;
     int         m_msgSocketFd;
+    bool m_sendFailed = false;
     char*       m_msgSocketPostfix;
     void*       m_privData;
     uint8_t*    m_cmdBuffer;

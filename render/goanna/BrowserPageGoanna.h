@@ -81,6 +81,11 @@ public:
   // daemon is about to block on: the adapter stashes it, shows the card's dialog, and the
   // card's sendDialogResponse writes the answer back through it. Frozen contract — the
   // adapter and all three cards already implement their ends.
+  // Whether the card this sink speaks to can still answer: false once a write to it failed or it
+  // disconnected. A dialog's reply wait ends on it (T-540) instead of running its full deadline.
+  virtual bool clientAlive() const { return true; }
+  // The card's message socket, for a wait to watch for its hang-up; -1 when there is none.
+  virtual int clientFd() const { return -1; }
   virtual void msgDialogAlert(const char* syncPipePath, const char* msg) {
     (void)syncPipePath; (void)msg;
   }

@@ -134,10 +134,20 @@ JihadPrompter::ConfirmCheck(const char16_t*, const char16_t* text,
 }
 NS_IMETHODIMP
 JihadPrompter::ConfirmEx(const char16_t*, const char16_t* text, uint32_t,
-                         const char16_t*, const char16_t*, const char16_t*,
+                         const char16_t* button0Title, const char16_t* button1Title, const char16_t*,
                          const char16_t*, bool* checkValue, int32_t* _retval) {
   if (checkValue) *checkValue = false;
-  DialogReply r; Dispatch(DialogKind::Confirm, text, &r);
+  // The card's confirm has OK and Cancel and nothing else. A prompt that names its buttons — the
+  // slow-script dialog's "Stop script" / "Continue" (by finger 2026-10-25: a user reads "a script on
+  // this page may be busy … OK / Cancel" and cannot tell which stops it) — says in its text which
+  // card button is which.
+  nsString t(text ? text : u"");
+  if (button0Title && *button0Title && button1Title && *button1Title) {
+    // The card shows the text with its whitespace collapsed: one sentence, not lines.
+    t.AppendLiteral(" (OK = "); t.Append(button0Title);
+    t.AppendLiteral(", Cancel = "); t.Append(button1Title); t.AppendLiteral(")");
+  }
+  DialogReply r; Dispatch(DialogKind::Confirm, t.get(), &r);
   if (_retval) *_retval = r.accept ? 0 : 1;   // 0 = button0 (OK), 1 = Cancel
   return NS_OK;
 }

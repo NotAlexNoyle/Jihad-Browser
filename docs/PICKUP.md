@@ -117,14 +117,15 @@ a MutationObserver relabels it (`jihadPersonas.js`), verified. (3) The tools men
 in `addons.css`, verified readable. Probe notes: the daemon's `painted … rows new=` counts only software-rendered rows
 (0 on a GPU frame says nothing); a popup's close is seen at `PopupsOpen()`'s transition in the tick.
 
-**Device state (2026-10-25, afternoon of the next day's session):** all three variants installed as PACKAGES through
-`push-variant.sh` from the packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk`
-`f6c737f1`, `-mochi_1.0.0` `6ea63ee4`, `-mojo_1.0.0` `8d5e1ec7`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`,
-patches through 0061), daemon `e503caf1` (the popup-close slot reset), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor,
-`components/jihadPersonas.js` `f999a19e` (the relabel observer), `prefsui/content/addons.css` `2433e64d` (the tools menu's look), the
-2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535) in `/usr/lib/jihad/<v>/`. The dev-copy `.orig`
-leftovers removed. **The device IS the repository head.** Root filesystem read-only. Enyo's profile prefs at defaults; Palefill
-active; the Default look; no card open; `/tmp` holds only the finger tool.
+**Device state (2026-10-25, later):** all three variants installed as PACKAGES through `push-variant.sh` from the packages
+built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `fb8bc730`, `-mochi_1.0.0`
+`9a3f8159`, `-mojo_1.0.0` `dcda6c9b`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
+daemon `f7b5ffdb` (the popup-close slot reset, Enter-first-to-the-page in a textarea, the frame-aware edit target, the
+followed layout kept across the keyboard), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel
+observer and the tools menu's look, the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535).
+**The device IS the repository head.** Root filesystem read-only. Enyo's profile prefs at defaults; Palefill active; the
+Default look; no card open; `/tmp` holds only the finger tool. The harness server on the host (8077) serves
+`render/goanna/test/`, `jihad-frame-field.html` included.
 
 **T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
 intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure

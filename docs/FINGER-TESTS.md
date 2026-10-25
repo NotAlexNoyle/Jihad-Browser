@@ -44,27 +44,27 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   card gets 18-20 frames a second there, 26-27 at 240 px). (cavekit-gpu-rendering R8, R12) *(2026-10-24, Enyo: the cube drawn and sharp at rest, after a pinch out and a drag over it, and after the card was closed and opened three times (no daemon trouble); the page's own counter 19.7-21.8 fps, 14.8 at `?size=360`; the daemon published 129 frames in 5 s at rest, 96 at 360 px. A three.js example not tried (no such page on the host server).)*
 
 ## Keyboard and text
-- [ ] Tap a field on several pages in one session: the keyboard comes up every time, and the page
-  does not jump away from the field. (input-bridging R2)
-- [ ] Type in a page's field: the caret is visible while typing; holding Backspace speeds up.
-  (input-bridging R2/R2a; device-build R4)
-- [ ] Type in about:settings' fields and about:addons' search field (keys reach the XUL page).
-  (preferences-ui R6, addons-site R12)
-- [ ] Focus about:addons' search field, then close the keyboard with its hide key: no caret is left
+- [x] Tap a field on several pages in one session: the keyboard comes up every time, and the page
+  does not jump away from the field. (input-bridging R2) *(2026-10-24, Enyo, one session: the add-ons search field, `jihad-input-echo.html`'s textarea, `jihad-card-events.html`'s field, Wikipedia's search box — the keyboard each time, the field in view above it)*
+- [~] Type in a page's field: the caret is visible while typing; holding Backspace speeds up.
+  (input-bridging R2/R2a; device-build R4) *(2026-10-24: typing lands ("pale" in the add-ons search, "webos" in Mojo's address); the caret and the Backspace repeat not yet judged — the first try's taps missed the thin top field of the echo page)*
+- [x] Type in about:settings' fields and about:addons' search field (keys reach the XUL page).
+  (preferences-ui R6, addons-site R12) *(2026-10-24: "pale" typed into about:addons' search in Enyo; a character typed into Mojo's home-target field in about:preferences)*
+- [~] Focus about:addons' search field, then close the keyboard with its hide key: no caret is left
   in the field, and tapping the field again brings the keyboard back. Also in a field inside a frame
-  on some page. (chrome-look R4)
-- [ ] With the address field focused, open about:settings or about:personas from the app menu: the
-  keyboard goes down and the whole page shows. (chrome-look R4; scripted check passed)
-- [ ] Tap the address field: the whole address is selected; Cut/Copy then act on all of it.
-  (chrome-look R4, T-436; scripted check passed)
+  on some page. (chrome-look R4) *(2026-10-24, Enyo: the hide key drops the keyboard, the field keeps "pale" with no caret seen, a tap brings the keyboard back; the frame case not tried (no test page with a framed field))*
+- [x] With the address field focused, open about:settings or about:personas from the app menu: the
+  keyboard goes down and the whole page shows. (chrome-look R4; scripted check passed) *(2026-10-24, Enyo by finger: Settings from the app menu over the focused address — the keyboard down, the page whole)*
+- [~] Tap the address field: the whole address is selected; Cut/Copy then act on all of it.
+  (chrome-look R4, T-436; scripted check passed) *(2026-10-24: one tap selects the whole address in Enyo and in Mojo (typing replaces it); Cut/Copy's effect not yet checked by finger)*
 - [ ] Mochi: with the keyboard up over a page field, paste: the text lands in the field.
-  (inspector round 21 note)
-- [ ] Type into a field of a page that saves when a field changes (a settings field, a form), then
+  (inspector round 21 note) *(2026-10-24, FAILED by finger: a word copied from `jihad-long-static.html` through the hold sheet's Copy (the daemon: "copy: 5 characters handed to the card"), then `jihad-card-events.html`'s field tapped, held, the sheet's Paste tapped — the field stayed empty, the keyboard went down, the daemon saw no insertStringAtCursor. Both ends are the card's (JihadBrowser.js: handlePageCopied → enyo.jihad.setClipboard; pagePaste → enyo.jihad.getClipboard → insertStringAtCursor): either the clipboard write failed (its toast would have faded before the shot) or the read answered nothing. Open — look with the inspector.)*
+- [x] Type into a field of a page that saves when a field changes (a settings field, a form), then
   close the keyboard with its own key: the value is kept and the caret is gone. (chrome-look R4;
-  scripted check passed with the system's own keyboard hide, round 22)
-- [ ] Mojo: open a link to the browser from another app (an email or a message): the card shows the
+  scripted check passed with the system's own keyboard hide, round 22) *(2026-10-24, Mojo's home-target field: the typed character kept across a relaunch after the hide key)*
+- [~] Mojo: open a link to the browser from another app (an email or a message): the card shows the
   page with no keyboard over it; launched plainly, the address field is ready to type. (chrome-look
-  R4; scripted check passed)
+  R4; scripted check passed) *(2026-10-24: every launch with a target this day showed the page with no keyboard; a new card shows the start page with the keyboard up and the field ready. From another app not emulated.)*
 
 ## Chrome, menus and dialogs
 - [~] Every button in each card's chrome: back, forward, home, reload/stop, padlock, share, new card,
@@ -124,7 +124,7 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   issuer. (R2; scripted in Enyo with example.com)
 
 ## Media and sound
-- [ ] A video's play/pause and volume by tap. (gre-widgets R1)
+- [~] A video's play/pause and volume by tap. (gre-widgets R1) *(2026-10-24, Enyo, `jihad-media-test.html`: a tap on the playing video brought the controls up and paused it (the clip's own second counter held at 9 across two shots 3 s apart); the control bar's button taps afterwards left the counter at 0 (the clip at its end) — a longer clip with a state readout is needed to judge the button and the volume; `jihad-media.html`'s video says its format is not supported on this build)*
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,
   device-build R4)
 - [ ] A finished download opens in the Downloads app. (device-build R4)
@@ -139,6 +139,6 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] 2026-10-15, modern-web R2: open `file:///tmp/jihad-busy.html` (staged by stage-test-pages.sh or by hand), wait for the "script may be busy" dialog (about 60 s), tap **Stop script**: the card must come back and stay usable.
 
 - **Settings → General → Browser identity → Forget** (T-495, 2026-10-16): with sites listed under "Sites remembered", tap Forget; the row should read "None yet …" and the next visit to w3.org should be challenged once, learned again, and render.
-- **YouTube's mobile site plays** (T-497, 2026-10-16): open `https://m.youtube.com/watch?v=dQw4w9WgXcQ` (any youtube.com link lands there now), tap the poster's play button; the video should play with sound (the desktop page's pre-roll ad played on its own in the round, so decoding is there). Then the feed on `m.youtube.com/`: tap a chip (Music), scroll, tap a thumbnail.
+- **YouTube's mobile site plays** (T-497, 2026-10-16): open `https://m.youtube.com/watch?v=dQw4w9WgXcQ` (any youtube.com link lands there now), tap the poster's play button; the video should play with sound (the desktop page's pre-roll ad played on its own in the round, so decoding is there). Then the feed on `m.youtube.com/`: tap a chip (Music), scroll, tap a thumbnail. *(2026-10-24, Enyo by finger: the poster's play button tapped at (382,341); 15 s later the player shows the video's frames — it plays; the sound is a person's to hear)*
 - **DuckDuckGo's regular results page** (T-498/T-499): on `https://duckduckgo.com/?q=webOS&ia=web` the results, the "Search Assist" box and the tabs render; KNOWN until T-499: the slide-out menu panel (Homepage / Themes / Settings …) stands at the top right, because the card shows the strip past the page's `innerWidth` where the page parks it. Tap ☰: does the panel animate in and out? Tap a result; tap "Images".
 - **Etsy's search renders its styled components** (T-498): `https://www.etsy.com/search?q=webos` — the listing cards with their styles (the 47 adoptedStyleSheets errors are gone with the shim); DataDome may still ask for a verification on a first visit.

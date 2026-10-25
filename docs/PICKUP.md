@@ -87,10 +87,25 @@ there, match what Pale Moon and Basilisk ship, pull in what was missing. Kit: `c
   (over TLS 1.2: `SEC_ERROR_REVOKED_CERTIFICATE`); the security info's errorCode was 0 on the measured case. Cosmetic
   (refused either way) but the alert misleads: find the mapping in the async auth-certificate completion.
 
+**T-535 DONE — one tap, one click (all three shells).** Found while driving about:addons' row buttons by finger: the
+adapter sent TWO clickAt per tap — the pen path's (handlePenClick → 400 ms double-click timer → "click" hit test →
+the card may claim it in eventFired → clickAt, isis's contract) AND one from `npPalmGestureSingleTapEvent`, added
+2026-07-07 when the daemon answered no hit test. A checkbox toggled twice per tap (`cb change=2 checked=0`), Disable
+disabled and re-enabled, Preferences opened one run in five (the second click raced the view switch). The gesture's
+clickAt is gone (`render/adapter/BrowserAdapter.cpp`); the three adapters rebuilt (`build-adapter-pdk.sh`: enyo
+`a312e864`, mochi `72104039`, mojo `55d15ec5`), verified by finger in each shell (one clickAt, `checked=1` then `0`;
+about:addons Disable/Enable/Preferences act). A tap's click now lands after the 400 ms timer, as on the stock browser;
+if that feels slow, `kDoubleClickInterval` is the knob (the system's single-tap gesture could replace the timer, but
+the double tap's zoom rides on that timer — measure before touching it). Probe recipe: a hand-started daemon with
+`JIHAD_INJECT=1` (the packaged job has none), `rect anon:#addon-list > richlistitem|preferences-btn` for the row's
+anonymous buttons (`anon:richlistitem|…` resolves the CATEGORY list's first item — icon/name/badge only), `gettext #e1`
+on jihad-input-sweep.html, and the daemon's `clickAt (` lines counted per tap. `jsurl` does not run in a chrome
+document (about:addons) — known, GoannaRenderPage.cpp says so.
+
 **Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` (the
 Preware route: extracted into cryptofs, the real postinst run) from the packages built at this commit —
-`build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `5c9b0115`, `-mochi_1.0.0` `bbb3befd`,
-`-mojo_1.0.0` `3e87cbb5`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
+`build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `2e996799`, `-mochi_1.0.0` `f210756a`,
+`-mojo_1.0.0` `4aab96ec` (adapters a312e864 / 72104039 / 55d15ec5, T-535); in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
 daemon `a26899d7`, `libnssckbi.so` `f8e9ebea`, `goanna.js` `66743363` (TLS floor), the components and the 2026-10-25
 cert lists. The dev-copy `.orig` leftovers removed. **The device IS the repository head.** Root filesystem read-only.
 Enyo's profile prefs at defaults (`jihad.security.webos_certs` on; no TLS cap); a session override for
@@ -109,9 +124,8 @@ packaged build: ssl.com's and DigiCert's revoked hosts say "Peer's Certificate h
 **To push (the owner):** `bash .cavekit/handoff-2026-10-24/push.sh` — the engine fork `jihad/uxp-RB_20261006` now at
 `ec8f0ed7` (patches 0060 and 0061) and Jihad-Browser main through this round's commits.
 
-**Next, toward a shippable build:** the about:addons extension-row buttons (FINGER-TESTS.md: a tap on More /
-Preferences / Disable / Uninstall lands on the row and nothing happens, one run in five excepted), then T-527's
-compositor-thread work; the owner's push.
+**Next, toward a shippable build:** FINGER-TESTS.md's remaining open items (install / Remove / Undo / the update
+check in about:addons, the link-style buttons' size), then T-527's compositor-thread work; the owner's push.
 
 ---
 

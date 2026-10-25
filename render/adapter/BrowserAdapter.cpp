@@ -1924,17 +1924,19 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
                          event->center_x, event->center_y);
         break;
     case npPalmGestureSingleTapEvent:
-        {
-            // Dispatch a click so links/buttons/fields activate on a tap. The pen path only
-            // forwards a mousedown when the tap hits a known interactive rect, but those
-            // rects are never reported by the Goanna daemon, so single taps did nothing.
-            // Convert the tap (window px, minus the chrome header) to CONTENT coords -- the
-            // asyncCmdClickAt contract is contentX/contentY = (scroll + event) / zoom.
-            double z = (mZoomLevel > 0.0) ? mZoomLevel : 1.0;
-            int32_t cx = (int32_t)((mScrollPos.x + event->x) / z);
-            int32_t cy = (int32_t)((mScrollPos.y + (event->y - m_headerHeight)) / z);
-            asyncCmdClickAt(cx, cy, 1, 1);
-        }
+        // NO click from the gesture. A tap's click is the pen path's (isis's contract):
+        // handlePenClick starts the double-click timer, clickTimeoutCb asks the daemon for a
+        // hit test of type "click", msgHitTestResponse lets the card claim the tap through
+        // eventFired and sends asyncCmdClickAt otherwise. A clickAt dispatched HERE as well
+        // (added 2026-07-07, when the daemon answered no hit test and "single taps did
+        // nothing") made every tap TWO clicks once the hit test worked: a checkbox toggled
+        // twice (cb change=2 checked=0 for one tap, jihad-input-sweep.html), about:addons'
+        // Disable disabled and re-enabled, and its Preferences opened only when the second
+        // click lost the race with the view switch (one run in five). Measured 2026-10-25
+        // with the emulated finger; the Mojo shell had already stood down its own third
+        // sender for the same reason (2026-10-08). The tap's click now arrives once, after
+        // kDoubleClickInterval, as it did on the stock browser.
+        TRACEF("single tap gesture at %d,%d: the pen path's click timer owns it", event->x, event->y);
         break;
     }
 

@@ -1053,7 +1053,9 @@ enyo.kind({
 			if (done) { return; }
 			done = true;
 			window.jihadClip = null;
-			if (!enyo.jihad.setClipboard(String(text))) { enyo.jihad.toast("info", "The text could not be copied."); return; }
+			var set = enyo.jihad.setClipboard(String(text));
+			enyo.log("[JIHAD-CLIP] copied " + String(text).length + " chars, clipboard set: " + set);
+			if (!set) { enyo.jihad.toast("info", "The text could not be copied."); return; }
 			// True from this moment whatever the cut does; "Cut." replaces it if the engine
 			// confirms the deletion (the "page-cut" notification).
 			enyo.jihad.toast("info", "Copied.");
@@ -1077,6 +1079,7 @@ enyo.kind({
 		var view = this.$.view;
 		enyo.jihad.getClipboard(function(text) {
 			var parts, i;
+			enyo.log("[JIHAD-CLIP] paste read " + (text ? text.length : 0) + " chars");
 			if (!text) { enyo.jihad.toast("info", "The clipboard is empty."); }
 			else if (text.length > 262144) { enyo.jihad.toast("info", "The clipboard holds too much text to paste here."); }
 			else {

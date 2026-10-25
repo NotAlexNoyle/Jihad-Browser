@@ -398,6 +398,25 @@ MainAssistant.prototype.adoptViewportModel = function () {
 		this.metaViewport = new Mojo.WebView.MetaViewport(initialScale, minimumScale, maximumScale,
 			width, height, userScalable);
 	};
+	// T-525 (the emulated finger, 2026-10-24): before the adapter acts on a tap or a hold it asks its
+	// eventListener — this widget assistant — `eventFired(event, info)` with the hit test; a true
+	// answer claims the event. Mojo.Widget.WebView has no such method, so every hold fell through to
+	// the engine's context event and a held link got the text commands only (Copy / Select All /
+	// Reload / Find on Page). As the Mochi shell's JihadWebView.eventFired: a hold on a link or an
+	// image is claimed and gets its own commands; a tap and any other hold fall through (claiming a
+	// tap would stop every tap on the page).
+	wa.eventFired = function (event, info) {
+		if (!event || event.type !== "mousehold" || !info || info.isNull) {
+			return false;
+		}
+		var link = info.isLink ? String(info.linkUrl || "") : "";
+		var image = info.isImage ? String(info.imageUrl || "") : "";
+		if (!link && !image) {
+			return false;
+		}
+		self.showHoldMenu({linkUrl: link, linkText: String(info.linkText || ""), imageUrl: image, altText: String(info.altText || "")});
+		return true;
+	};
 	var at = function (event) {
 		var node = wa.adapter, r = node.getBoundingClientRect();
 		return {x: Math.round(event.centerX - r.left), y: Math.round(event.centerY - r.top)};
@@ -927,6 +946,57 @@ MainAssistant.prototype.handlePageHold = function (text) {
 		onChoose: this.handlePageMenuChoice.bind(this),
 		items: items
 	});
+};
+
+//* The commands for a held link or image (T-525): a new card, a share, the address copied.
+MainAssistant.prototype.showHoldMenu = function (held) {
+	var items = [];
+	this.held = held;
+	if (held.linkUrl) {
+		items.push({label: $L("Open in New Card"), command: "hold-open"});
+		items.push({label: $L("Share Link"), command: "hold-share"});
+		items.push({label: $L("Copy URL"), command: "hold-copy"});
+	}
+	if (held.imageUrl) {
+		items.push({label: $L("Open Image in New Card"), command: "hold-open-image"});
+		items.push({label: $L("Copy Image URL"), command: "hold-copy-image"});
+	}
+	this.controller.popupSubmenu({
+		onChoose: this.handleHoldChoice.bind(this),
+		items: items
+	});
+};
+
+MainAssistant.prototype.handleHoldChoice = function (command) {
+	var held = this.held || {}, url;
+	if (command === "hold-open" || command === "hold-open-image") {
+		// Web addresses only, as window.open is: a page's file: or data: link must not reach a new card.
+		url = command === "hold-open" ? held.linkUrl : held.imageUrl;
+		if (!/^(https?|ftp):/i.test(url)) {
+			JihadToast.show("info", $L("Only web addresses open in a new card."));
+			return;
+		}
+		this.openNewCard(url);
+	} else if (command === "hold-copy" || command === "hold-copy-image") {
+		url = command === "hold-copy" ? held.linkUrl : held.imageUrl;
+		try {
+			this.controller.stageController.setClipboard(url, false);
+			JihadToast.show("info", $L("Address copied."));
+		} catch (e) {
+			JihadToast.show("info", $L("The address could not be copied."));
+		}
+	} else if (command === "hold-share") {
+		this.controller.serviceRequest("palm://com.palm.applicationManager", {
+			method: "launch",
+			parameters: {
+				id: "com.palm.app.email",
+				params: {summary: held.linkText || $L("Check out this link..."), text: held.linkUrl}
+			},
+			onFailure: function (response) {
+				Mojo.Log.warn("[Jihad] share failed: %j", response);
+			}
+		});
+	}
 };
 
 MainAssistant.prototype.handlePageMenuChoice = function (command) {

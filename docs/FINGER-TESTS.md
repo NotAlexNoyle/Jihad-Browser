@@ -46,8 +46,8 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 ## Keyboard and text
 - [x] Tap a field on several pages in one session: the keyboard comes up every time, and the page
   does not jump away from the field. (input-bridging R2) *(2026-10-24, Enyo, one session: the add-ons search field, `jihad-input-echo.html`'s textarea, `jihad-card-events.html`'s field, Wikipedia's search box — the keyboard each time, the field in view above it)*
-- [~] Type in a page's field: the caret is visible while typing; holding Backspace speeds up.
-  (input-bridging R2/R2a; device-build R4) *(2026-10-24: typing lands ("pale" in the add-ons search, "webos" in Mojo's address); the caret and the Backspace repeat not yet judged — the first try's taps missed the thin top field of the echo page)*
+- [x] Type in a page's field: the caret is visible while typing; holding Backspace speeds up.
+  (input-bridging R2/R2a; device-build R4) *(2026-10-24, Enyo, `jihad-input-echo.html`: "abcdef" typed with the caret after it (the page's readout: n=6, value abcdef); Backspace held 1.5 s emptied the field (n=12: six deletions — the key repeats)*
 - [x] Type in about:settings' fields and about:addons' search field (keys reach the XUL page).
   (preferences-ui R6, addons-site R12) *(2026-10-24: "pale" typed into about:addons' search in Enyo; a character typed into Mojo's home-target field in about:preferences)*
 - [~] Focus about:addons' search field, then close the keyboard with its hide key: no caret is left
@@ -55,8 +55,8 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   on some page. (chrome-look R4) *(2026-10-24, Enyo: the hide key drops the keyboard, the field keeps "pale" with no caret seen, a tap brings the keyboard back; the frame case not tried (no test page with a framed field))*
 - [x] With the address field focused, open about:settings or about:personas from the app menu: the
   keyboard goes down and the whole page shows. (chrome-look R4; scripted check passed) *(2026-10-24, Enyo by finger: Settings from the app menu over the focused address — the keyboard down, the page whole)*
-- [~] Tap the address field: the whole address is selected; Cut/Copy then act on all of it.
-  (chrome-look R4, T-436; scripted check passed) *(2026-10-24: one tap selects the whole address in Enyo and in Mojo (typing replaces it); Cut/Copy's effect not yet checked by finger)*
+- [x] Tap the address field: the whole address is selected; Cut/Copy then act on all of it.
+  (chrome-look R4, T-436; scripted check passed) *(2026-10-24, Enyo: one tap selects the whole address, a second offers Cut / Copy / Paste; Copy then Paste from a page field's hold popup put the whole address into the field (the page's readout). Mojo: one tap selects, typing replaces.)*
 - [ ] Mochi: with the keyboard up over a page field, paste: the text lands in the field.
   (inspector round 21 note) *(2026-10-24, FAILED by finger: a word copied from `jihad-long-static.html` through the hold sheet's Copy (the daemon: "copy: 5 characters handed to the card"), then `jihad-card-events.html`'s field tapped, held, the sheet's Paste tapped — the field stayed empty, the keyboard went down, the daemon saw no insertStringAtCursor. Both ends are the card's (JihadBrowser.js: handlePageCopied → enyo.jihad.setClipboard; pagePaste → enyo.jihad.getClipboard → insertStringAtCursor): either the clipboard write failed (its toast would have faded before the shot) or the read answered nothing. Open — look with the inspector.)*
 - [x] Type into a field of a page that saves when a field changes (a settings field, a form), then
@@ -127,7 +127,7 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [~] A video's play/pause and volume by tap. (gre-widgets R1) *(2026-10-24, Enyo, `jihad-media-test.html`: a tap on the playing video brought the controls up and paused it (the clip's own second counter held at 9 across two shots 3 s apart); the control bar's button taps afterwards left the counter at 0 (the clip at its end) — a longer clip with a state readout is needed to judge the button and the volume; `jihad-media.html`'s video says its format is not supported on this build)*
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,
   device-build R4)
-- [ ] A finished download opens in the Downloads app. (device-build R4)
+- [~] A finished download opens in the Downloads app. (device-build R4) *(2026-10-24, Enyo: a 200 KB octet-stream and a generated PDF from the host server each downloaded (the daemon: `[jihad-dl] start … finished → /media/internal/downloads`); the system's open attempt that follows showed "Cannot open MIME type" (OK / Cancel) for both — this CE bench has no handler app for either type (no PDF viewer installed), so the Downloads-app half needs a type with an app, or the stock bench.)*
 
 ## Not built yet (add to the round when they are)
 - Tabbed browsing: tab taps, the strip's close controls, Open in New Tab from a long-press, the

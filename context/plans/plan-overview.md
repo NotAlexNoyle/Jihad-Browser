@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-01"
+last_edited: "2026-10-25"
 ---
 
 # Plan Overview
@@ -8,9 +8,11 @@ last_edited: "2026-10-01"
 ## Build Sites
 | Site | File | Tasks | Done | Status |
 |------|------|-------|------|--------|
-| Jihad Browser — CE 3.1.0 open criteria (2026-10-01) | build-site.md | 91 | 0 | ACTIVE |
+| Jihad Browser — CE 3.1.0 open criteria (2026-10-01), tiers added through 90 (2026-10-25) | build-site.md | 7 | 7 | ACTIVE |
 | Jihad Browser — remaining open criteria (2026-08-10) | build-site-2026-08-10.archived.md | 56 | — | ARCHIVED |
 | Jihad Browser port (original, 2026-06-30) | build-site-2026-06-30.archived.md | 54 | — | ARCHIVED |
+
+**Tiers 84–90 (2026-10-14 … 2026-10-25)** were added to the active site as the work went — the one-repository build, the GPU path, the finger round, the certificate-trust kit, the fixes the finger found. `tools/host/cavekit-sync.py` regenerates `.cavekit/tasks.json` and reconciles `.cavekit/task-status.json` from the site's tables, so Cavekit 3.1's loop sees every tier (run it after editing the site by hand).
 
 **The active site covers ONLY the criteria that are still open** — the 53 boxes marked `[~]` (31)
 or `[ ]` (22) across `context/kits/` on 2026-10-01, after the kits were brought in line with the

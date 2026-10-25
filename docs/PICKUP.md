@@ -117,15 +117,30 @@ a MutationObserver relabels it (`jihadPersonas.js`), verified. (3) The tools men
 in `addons.css`, verified readable. Probe notes: the daemon's `painted … rows new=` counts only software-rendered rows
 (0 on a GPU frame says nothing); a popup's close is seen at `PopupsOpen()`'s transition in the tick.
 
-**Device state (2026-10-25, evening):** all three variants installed as PACKAGES through `push-variant.sh` from the
-packages built at this commit — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `16305f22`,
-`-mochi_1.0.0` `0db117c5`, `-mojo_1.0.0` `40f7526b`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches
-through 0061), daemon `45fae433` (T-536 … T-540 and the 180 s login-dialog deadline), `prefsui/content/preferences.js`
-`310b2098` (the Relay's help text), `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the relabel observer and
-the tools menu's look, the 2026-10-25 cert lists; the adapters `a312e864` / `72104039` / `55d15ec5` (T-535). **The device IS
-the repository head.** Root filesystem read-only. Every variant's proxy prefs at the defaults (direct connection — the
-Relay is never a default, the owner 2026-10-25); Enyo's other prefs at defaults; Palefill active; the Default look; no card
-open; `/tmp` holds only the finger tool. The harness server on the host (8077) serves `render/goanna/test/`.
+**Cavekit 3.1 — the owner's question of 2026-10-25 ("ensure jihad browser is managed with cavekit v3.1 not 2.0, and that
+the cavekit files are aligned"):** what the session runs IS the 3.1 plugin — `claude plugin list` reads `ck@cavekit-local`
+from `~/.claude/plugins/local/cavekit-marketplace/ck` (16 commands, 21 skills, 12 agents, the `ck:team` of 3.x); a stale
+registry entry said 2.0.0 and was refreshed with `claude plugin update ck@cavekit-local` (it now reports **3.0.0**, because
+the plugin's `.claude-plugin/plugin.json` in the Cavekit checkout says 3.0.0 while its `plugin.json` and the marketplace
+say 3.1.0 — a version bump the Cavekit repo owes itself). The CLI's Go binary (`cavekit version`, `cavekit team`) does
+not build on Linux from that checkout (`internal/tmux/terminal.go: undefined: unix.TIOCGETA` — Darwin ioctl names); the
+node tools the loop uses are unaffected. **The files:** `.cavekit/tasks.json` held 171 tasks while the site had 327 (the
+hand-added tiers 84–90 never reached it); `tools/host/cavekit-sync.py` now regenerates `tasks.json` and reconciles
+`task-status.json` from every tier table of `context/plans/build-site.md` (run it after editing the site by hand; both
+files are gitignored runtime state). In doing so the old registry was overwritten before its statuses were carried over,
+so the states of tiers 0–83 are taken from the site's own words (DONE/BUILT/…, a Reason column = blocked) — 304 complete,
+16 blocked (a person, a printer, hardware), 7 in progress (the GPU floor's T-504/505/511/515/516/517 and T-527).
+`cavekit-overview.md`'s Status column is now counted from each kit's criteria (met / partial / open, with the latest
+entry's date; the Finger Emulation row added); `plan-overview.md` and `impl-overview.md` point at the current sources.
+
+**Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` from the packages
+built at commit c0aee8d0 — `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `050c7b39`, `-mochi_1.0.0`
+`8887d2f8`, `-mojo_1.0.0` `a0877cfe`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
+daemon `47a68434` (T-536 … T-541, the 180 s login deadline, the fling lead and the one-height displayport),
+`prefsui/content/preferences.js` `310b2098`, `libnssckbi.so` `f8e9ebea`, `goanna.js` with the TLS floor, the 2026-10-25 cert
+lists; the adapters `a312e864` / `72104039` / `55d15ec5`. The Enyo card's test hook was pushed for the rotation scenario and
+RESTORED (`card-selftest.sh enyo restore`, LunaSysMgr restarted). **The device IS the repository head.** Root filesystem
+read-only; every variant's proxy prefs at the defaults; Palefill active; the Default look; no card open.
 
 **T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
 intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure
@@ -136,11 +151,15 @@ packaged build: ssl.com's and DigiCert's revoked hosts say "Peer's Certificate h
 **To push (the owner):** `bash .cavekit/handoff-2026-10-24/push.sh` — the engine fork `jihad/uxp-RB_20261006` now at
 `ec8f0ed7` (patches 0060 and 0061) and Jihad-Browser main through this round's commits.
 
-**Done since (2026-10-25, the afternoon session), all by finger on the packaged build:** T-536 (about:addons: the
-closed menu's stale pixels, the Undo row's label, the menu's look), T-537 (Enter in a textarea reaches the page first —
+**Done since (2026-10-25, the afternoon and evening sessions), all by finger on the packaged build:** T-536 (about:addons:
+the closed menu's stale pixels, the Undo row's label, the menu's look), T-537 (Enter in a textarea reaches the page first —
 DuckDuckGo searches), T-538 (a field in a frame; the followed layout width survives the keyboard), T-539 (the slow-script
 dialog names its buttons; Cancel stops the script), T-540 (a dialog whose card closed no longer holds the daemon for a
-minute), the Personas item, everyday browsing in all three shells, the about:addons Undo and update check.
+minute), T-541 (a fling no longer lands on grey: a height of displayport each way, a lead in the fling's direction), T-542
+(no defect), the Personas items (Wear/Take off/Undo/Remove/from file/from the site/AMO's question, Remove while the picture
+is made, no card flashes), everyday browsing and a login-asking proxy in all three shells, My own proxy typed on the
+keyboard, the Relay when chosen — and the owner's rule: **the Riverstone Relay is never a default** (a fallback for webOS
+older than 3.0 only; the shipped defaults audited; the settings page says so; a login dialog waits 180 s).
 
 **Next, toward a shippable build:** FINGER-TESTS.md's remaining open items — rotate (needs the accelerometer or a person),
 about:addons' list panning (needs more add-ons installed), about:personas' flashes and Remove-while-the-picture-is-made,

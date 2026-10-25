@@ -391,6 +391,22 @@
 			later(12000, function() { try { app.$.appMenu.close(); } catch (e) {} look("12s"); log(name, "DONE"); });
 		}
 	};
+	// rotate[:left|right]   ask webOS for a landscape window (PalmSystem.setWindowOrientation — the card's
+	//                       own request, no accelerometer needed) 2 s in, report the window's size before
+	//                       and after each change, go back to portrait 10 s later. docs/FINGER-TESTS.md
+	//                       "Rotate the TouchPad": the page must redraw right both ways; the daemon's
+	//                       setWindowSize lines and the screenshots are the evidence.
+	scenarios.rotate = function(app, name) {
+		var dir = String(name).indexOf(":") > 0 ? String(name).slice(String(name).indexOf(":") + 1) : "left";
+		var ps = window.PalmSystem;
+		if (!ps || typeof ps.setWindowOrientation !== "function") { log(name, "no PalmSystem.setWindowOrientation DONE"); return; }
+		function size(tag) { log(name, tag + ": window " + window.innerWidth + "x" + window.innerHeight + " orientation=" + (ps.windowOrientation || "?")); }
+		window.addEventListener("resize", function() { size("resize"); }, false);
+		size("start");
+		later(2000, function() { ps.setWindowOrientation(dir); log(name, "asked for " + dir); });
+		later(12000, function() { size("landscape"); ps.setWindowOrientation("up"); log(name, "asked for up"); });
+		later(20000, function() { size("portrait again"); log(name, "DONE"); });
+	};
 	scenarios.page = scenarios.settings;
 	function run() {
 		var p = enyo.windowParams || null;

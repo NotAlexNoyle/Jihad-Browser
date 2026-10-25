@@ -105,7 +105,7 @@ that UXP has no HSTS preload, no static pins and no enterprise-roots import.)*
   LOADS: the engine has no CRL fetching and no CRLite, as Pale Moon has not — recorded, out of scope.
   Revocation with an OCSP responder IS enforced: ssl.com's and DigiCert's revoked demo hosts are refused
   (`SEC_ERROR_REVOKED_CERTIFICATE` over TLS 1.2; over TLS 1.3 the same refusal ends as
-  `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` — NSS 3.90.14's labelling, see T-534). Recorded with the daemon's
+  `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` — PSM's version-intolerance retry at TLS 1.2 tripping the server's downgrade sentinel; engine patch 0061 stops retrying on a certificate error, T-534; verified 2026-10-25 on the packaged build: both hosts now say `SEC_ERROR_REVOKED_CERTIFICATE`). Recorded with the daemon's
   `loaderr` lines: `docs/rounds/certs-2026-10-25/device-checks.txt` (2026-10-25).
 - [x] A site under each of the ten newly added TLS roots loads with the platform setting OFF (the CCADB's
   test sites: OISTE ×2, SECOM 2024 ×2, SwissSign 2022, Telia v3 ×2, TrustAsia ×2, e-Szigno 2023); no live
@@ -168,3 +168,5 @@ patch queue and the pins. cavekit-device-build.md — the bundle and TLS 1.3.
   17 trust differences; UXP release = Mozilla central).
 - 2026-10-25 (later): R1–R5 done — the roll to UXP release 037cc5f6 (patch 0060), the device checks; R6 (TLS floor
   1.2) and R7 (the Trust dialog only for overridable errors) added from the device checks' findings.
+- 2026-10-25 (night): T-534's cause found and patched (engine 0061: PSM's intolerance retry excluded certificate
+  errors); the three variants pushed as packages (the dev copies became the build).

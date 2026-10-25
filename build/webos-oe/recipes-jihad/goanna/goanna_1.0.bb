@@ -34,7 +34,7 @@ COMPATIBLE_MACHINE = "(tenderloin|opal)"
 # for real (build/engine/patch-queue.sh --check proves it reproduces SRCREV's tree):
 #   SRC_URI = "git://repo.palemoon.org/MoonchildProductions/UXP.git;protocol=https;tag=<UXP_TAG>"
 SRC_URI = "git://${JIHAD_REPO}/third_party/uxp;protocol=file;nobranch=1"
-SRCREV = "2212143d4fe22e166ea4ffd2e1e162bad0e210a8"
+SRCREV = "ec8f0ed7e35b46c14ba8782c8687a7cb3625032c"
 S = "${WORKDIR}/git"
 
 # Modern C++14 toolchain (device-build R1) — the stock dylan/device gcc cannot build UXP.

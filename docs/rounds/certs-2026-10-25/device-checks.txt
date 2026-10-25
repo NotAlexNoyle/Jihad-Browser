@@ -84,3 +84,15 @@ https://duckduckgo.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
 https://github.com/ -> 
 https://www.google.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
 -- /tmp: 24652 KB free; /var: 48184 KB free
+jihad: jihad (start) running, daemon a26899d7 goanna.js 66743363 tls.min3=1 nssckbi f8e9ebea certs a63bf2ed lists 2026-10-25 .orig removed: 7
+jihad-mochi: jihad-mochi (start) running, daemon a26899d7 goanna.js 66743363 tls.min3=1 nssckbi f8e9ebea certs a63bf2ed lists 2026-10-25 .orig removed: 9
+jihad-mojo: jihad-mojo (start) running, daemon a26899d7 goanna.js 66743363 tls.min3=1 nssckbi f8e9ebea certs a63bf2ed lists 2026-10-25 .orig removed: 8
+-- root fs: rw
+ro,relatime,errors=c; /tmp used: 15932 KB; /var free: 48096 KB
+net.riverstonerelay.jihad-browser Wikipedia -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|titleAndUrl title=[Wikipedia, the free encyclopedia]| roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report
+net.riverstonerelay.jihad-browser-mochi Wikipedia -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|titleAndUrl title=[Wikipedia, the free encyclopedia]| roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report
+net.riverstonerelay.jihad-browser-mojo Wikipedia -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|titleAndUrl title=[Wikipedia, the free encyclopedia]| roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report
+1 https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/ -> ssl: no certificate came with that failure|dialog alert |
+2 https://revoked-rsa-dv.ssl.com/ -> ssl: no certificate came with that failure|dialog alert |
+3 https://www.ssl.com/ -> loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0|
+4 https://expired.badssl.com/ -> ssl: SEC_ERROR_EXPIRED_CERTIFICATE (-8181) may be overridden — asking|dialog alert suppressed — the certificate error on expired.badssl.com is reported by the SSL confirm instead|loaderr failed=1 code=0x805a1ff5 certErr=1 chost=expired.badssl.com ccode=0x805a1ff5|dialog ssl-confirm |

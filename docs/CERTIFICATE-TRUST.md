@@ -64,8 +64,10 @@ TLS roots. Rolled to UXP release 037cc5f6 (2026-10-24) as patch 0060: 169 certif
 - **OCSP** is on (`security.OCSP.enabled` 1, soft-fail) and works: ssl.com's and DigiCert's revoked demo hosts
   are refused. **CRL-only revocation is invisible**: the engine fetches no CRLs and has no CRLite, so
   `revoked.badssl.com` (Let's Encrypt, which stopped OCSP in 2025) loads — Pale Moon has the same limit.
-  Over TLS 1.3 this NSS (3.90.14) labels the revoked refusal `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` in the
-  alert; over TLS 1.2 it says `SEC_ERROR_REVOKED_CERTIFICATE` (T-534).
+  Before engine patch 0061 a revoked (or any failed) certificate from a TLS 1.3 server was reported as
+  `SSL_ERROR_RX_MALFORMED_SERVER_HELLO`: PSM's `retryDueToTLSIntolerance` remembered the certificate error as
+  version intolerance and retried at TLS 1.2, which trips the server's downgrade sentinel. The patch stops
+  retrying on a certificate error, so the alert names the real one (T-534).
 - **TLS floor 1.2**: `packaging/prefs/jihad-platform-prefs.js` sets `security.tls.version.min` 3 (the engine's
   own default is 1); Settings → Connection Security → Minimum TLS version can lower it for one old site.
 - **The Trust dialog** (Trust Once / Trust Always) appears only for errors the engine's own override check

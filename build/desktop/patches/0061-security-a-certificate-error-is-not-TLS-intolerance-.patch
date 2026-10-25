@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 25 Oct 2026 10:09:41 -0400
+Subject: [PATCH] =?UTF-8?q?security:=20a=20certificate=20error=20is=20not?=
+ =?UTF-8?q?=20TLS=20intolerance=20=E2=80=94=20no=20version=20fallback=20on?=
+ =?UTF-8?q?=20it?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+cavekit-certificate-trust.md R4 / T-534. retryDueToTLSIntolerance remembered ANY handshake error not on its
+short exclusion list as intolerance at the connection's maximum version and retried one version lower. With
+TLS 1.3 on (security.tls.version.max 4) that turns every certificate-verification failure against a TLS 1.3
+server into a second attempt at TLS 1.2, which trips the server's downgrade sentinel (RFC 8446 §4.1.3), so
+NSS reports SSL_ERROR_RX_MALFORMED_SERVER_HELLO — and the user reads "malformed Server Hello" for a revoked
+certificate (ssl.com's and DigiCert's revoked demo hosts, measured 2026-10-25; the same hosts at a TLS 1.2
+cap say SEC_ERROR_REVOKED_CERTIFICATE; badssl.com, a TLS 1.2 server, never showed it). The retried socket
+also carries no certificate verdict (nsITransportSecurityInfo.errorCode 0), so an embedder cannot recover
+the real error either. Now a SEC_ERROR_* / mozilla::pkix / SSL_ERROR_BAD_CERT_DOMAIN failure is never a
+reason to retry lower.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ security/manager/ssl/nsNSSIOLayer.cpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/security/manager/ssl/nsNSSIOLayer.cpp b/security/manager/ssl/nsNSSIOLayer.cpp
+index a0ebf31146..3fb647b45d 100644
+--- a/security/manager/ssl/nsNSSIOLayer.cpp
++++ b/security/manager/ssl/nsNSSIOLayer.cpp
+@@ -1034,6 +1034,19 @@ retryDueToTLSIntolerance(PRErrorCode err, nsNSSSocketInfo* socketInfo)
+   // be used to conclude server is TLS intolerant.
+   // Note this only happens during the initial SSL handshake.
+ 
++  // A certificate-verification failure is the server's CERTIFICATE, not its TLS
++  // version, so it must not be remembered as intolerance: against a TLS 1.3
++  // server the retry at TLS 1.2 trips the server's downgrade sentinel and NSS
++  // reports SSL_ERROR_RX_MALFORMED_SERVER_HELLO, which buries the real error
++  // (a revoked certificate shown as "malformed Server Hello"; measured on
++  // ssl.com's and DigiCert's revoked demo hosts, 2026-10-25). The same error at
++  // TLS 1.2, with no retry possible, reports SEC_ERROR_REVOKED_CERTIFICATE.
++  if ((err >= SEC_ERROR_BASE && err < SEC_ERROR_LIMIT) ||
++      (err >= mozilla::pkix::ERROR_BASE && err < mozilla::pkix::END_OF_LIST) ||
++      err == SSL_ERROR_BAD_CERT_DOMAIN) {
++    return false;
++  }
++
+   SSLVersionRange range = socketInfo->GetTLSVersionRange();
+   nsSSLIOLayerHelpers& helpers = socketInfo->SharedState().IOLayerHelpers();
+ 

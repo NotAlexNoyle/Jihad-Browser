@@ -87,19 +87,31 @@ there, match what Pale Moon and Basilisk ship, pull in what was missing. Kit: `c
   (over TLS 1.2: `SEC_ERROR_REVOKED_CERTIFICATE`); the security info's errorCode was 0 on the measured case. Cosmetic
   (refused either way) but the alert misleads: find the mapping in the async auth-certificate completion.
 
-**Device state (2026-10-25):** DEV COPIES on all three variants, originals kept as `.orig` beside each: daemon
-`a26899d7` (R7), `goanna.js` `66743363` (TLS floor), `libnssckbi.so` `f8e9ebea` (the new roots), `components/jihadCerts.js`
-(the roots count), `certs/jihad-cert-lists.json` (2026-10-25). Enyo's profile prefs are back to defaults
-(`jihad.security.webos_certs` default = on; the TLS max cap dropped). Palefill active, Personas Default. The owner's
-test finger: Settings → Security still shows the import switch; `about:preferences` → Connection Security shows the
-floor as TLS 1.2. Note: `tools/device/set-prefs.sh` matches the whole `user_pref(...)` line — anchor a name with its
-closing quote, not `$` (a `$`-anchored restore silently kept the old value twice today).
+**Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` (the
+Preware route: extracted into cryptofs, the real postinst run) from the packages built at this commit —
+`build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `5c9b0115`, `-mochi_1.0.0` `bbb3befd`,
+`-mojo_1.0.0` `3e87cbb5`; in each `deviceroot/hl`: libxul `161d7a88` (engine `ec8f0ed7`, patches through 0061),
+daemon `a26899d7`, `libnssckbi.so` `f8e9ebea`, `goanna.js` `66743363` (TLS floor), the components and the 2026-10-25
+cert lists. The dev-copy `.orig` leftovers removed. **The device IS the repository head.** Root filesystem read-only.
+Enyo's profile prefs at defaults (`jihad.security.webos_certs` on; no TLS cap); a session override for
+untrusted-root.badssl.com died with its daemon. Palefill active, Personas Default. `/tmp` holds only the finger tool
+(the pan dumps and blocker CSS of earlier rounds removed). The packaged `/etc/event.d/jihad*` jobs carry no
+`JIHAD_INJECT=1`: an inject-channel probe needs a hand-started daemon (`tools/device/t502/gpu-spike-start.sh`'s
+pattern). Each variant smoke-tested on Wikipedia from the package (title in its daemon log; "169 certificates, 118
+trusted for sites, 0 on Mozilla's removed report").
+
+**T-534 DONE (engine patch 0061):** PSM's `retryDueToTLSIntolerance` remembered a certificate error as TLS-version
+intolerance and retried at TLS 1.2, which trips a TLS 1.3 server's downgrade sentinel — so every certificate failure
+against a TLS 1.3 server read "SSL_ERROR_RX_MALFORMED_SERVER_HELLO" (badssl.com is a TLS 1.2 server, which is why
+its cases were right). Now a SEC_ERROR_* / pkix / bad-cert-domain failure never retries lower; verified on the
+packaged build: ssl.com's and DigiCert's revoked hosts say "Peer's Certificate has been revoked".
 
 **To push (the owner):** `bash .cavekit/handoff-2026-10-24/push.sh` — the engine fork `jihad/uxp-RB_20261006` now at
-`2212143d` (patch 0060's commit) and Jihad-Browser main through this round's commits.
+`ec8f0ed7` (patches 0060 and 0061) and Jihad-Browser main through this round's commits.
 
-**Next, toward a shippable build:** the packaged .ipk of the three variants from the current bundle (the dev copies
-above must become the build), then T-534, the about:addons row buttons at fit zoom, T-527's compositor-thread work.
+**Next, toward a shippable build:** the about:addons extension-row buttons (FINGER-TESTS.md: a tap on More /
+Preferences / Disable / Uninstall lands on the row and nothing happens, one run in five excepted), then T-527's
+compositor-thread work; the owner's push.
 
 ---
 

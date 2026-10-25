@@ -102,6 +102,11 @@ anonymous buttons (`anon:richlistitem|…` resolves the CATEGORY list's first it
 on jihad-input-sweep.html, and the daemon's `clickAt (` lines counted per tap. `jsurl` does not run in a chrome
 document (about:addons) — known, GoannaRenderPage.cpp says so.
 
+**Personas by finger (after T-535):** Wear / Take off / Undo / Remove (two taps) / Install from file / a wear from
+the add-on site / the addons.mozilla.org question — all act on one tap (docs/FINGER-TESTS.md, personas-ui R6). The
+2026-10-24 oddities were the double click and the list putting the worn Persona first. Aurora Silk was removed and
+re-installed from the site; Carbon Light re-installed from its .xpi; the Default look restored.
+
 **Device state (2026-10-25, night):** all three variants installed as PACKAGES through `push-variant.sh` (the
 Preware route: extracted into cryptofs, the real postinst run) from the packages built at this commit —
 `build/webos-oe/out-ipk/net.riverstonerelay.jihad-browser_1.0.4_all.ipk` `2e996799`, `-mochi_1.0.0` `f210756a`,

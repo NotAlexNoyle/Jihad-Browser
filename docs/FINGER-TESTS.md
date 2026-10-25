@@ -87,19 +87,19 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
   wait a few seconds: the question stays until answered while its card picture is made. (personas-ui
   R9, round 22)
 - [~] Wear, Take off, Undo, Remove (two taps), Install from file; wear one from the site and one from
-  addons.mozilla.org (asks first, names the site). (personas-ui R6/R8) *(2026-10-24, Enyo by finger: Wear on Linen Light wore it (the theme notified, isThemeSelected true, the toolbar textured on the next card); the Default look's button (at the row's right, x≈694) took it off (theme null, false). Space Fantasy's Wear answered "Persona taken off" with an Undo instead — to look at. Undo, Remove, Install from file and the sites not yet.)*
+  addons.mozilla.org (asks first, names the site). (personas-ui R6/R8) *(2026-10-24, Enyo by finger: Wear on Linen Light wore it (the theme notified, isThemeSelected true, the toolbar textured on the next card); the Default look's button (at the row's right, x≈694) took it off (theme null, false). Space Fantasy's Wear answered "Persona taken off" with an Undo instead — to look at. From the add-on site: Wear on Aurora Silk raised the browser's dialog "Allow addons.riverstonerelay.org to change the browser's look to the Persona Aurora Silk?" with OK / Cancel (Cancel taken: the Default look kept). Undo, Remove, Install from file and addons.mozilla.org not yet.)*
 - [~] about:addons: install, enable, disable, remove, Undo, an add-on's Preferences (Palefill's fit),
   the update check, a plugin's state menu. (chrome-look R2, addons-extensions R2) *(2026-10-24, Enyo by finger: the four panes switch (Get Add-ons with the site's blurb, Extensions, Personas with the Default look, Plugins); the Flash row's state menu opens on its button and More shows the plugin's details; Palefill's detail view's Disable disabled it (the list then read "(disabled)" with Enable). OPEN: the extension ROW's buttons (More, Preferences, Disable/Enable, Uninstall) took a tap in one run (the detail view opened from Preferences and from the More label) and in four others not at all — the hit test answers the row (`richlistitem`, the buttons are the binding's anonymous content) and nothing happens; Palefill was put back by editing `userDisabled` in extensions.json with the daemon stopped. Install, Remove, Undo and the update check not yet.)*
 - [ ] about:addons: the link-style buttons ("More" on an add-on, "Undo" after a removal, "Restart
   now") and about:personas' Undo in its message take a finger easily (44 px since review round 24).
   (personas-ui R2, chrome-look R2)
-- [ ] The add-on site on the TouchPad, portrait and landscape: tap targets, the Personas page's Wear
-  buttons, the search field. (addons-site R7, R12)
+- [~] The add-on site on the TouchPad, portrait and landscape: tap targets, the Personas page's Wear
+  buttons, the search field. (addons-site R7, R12) *(2026-10-24, Enyo, portrait: the home page's nav and cards take a tap (Personas opened), the search field takes the keyboard and "linen" + Enter runs the search ("Nothing matches that." — the index has no Linen Light); the Personas page's Wear buttons are large; landscape is a person's (rotation).)*
 
 ## Fonts (Settings → Content → Fonts & Colors)
-- [ ] In each variant, pick a different Serif, Sans-serif and Monospace font and a size from the lists:
+- [~] In each variant, pick a different Serif, Sans-serif and Monospace font and a size from the lists:
   the sample lines change, and a page drawn afterwards uses them; Restore default fonts puts them
-  back. Try another script (Japanese) too. (preferences-ui R9; Enyo measured by script)
+  back. Try another script (Japanese) too. (preferences-ui R9; Enyo measured by script) *(2026-10-24, Enyo by finger: the Serif picker's list opened, Courier New picked — the sample line and the prefs page itself redrew in it, `font.name.serif.x-western` written; Restore default fonts put the page back and cleared the pref (the page's note confirms). Sans-serif, Monospace, the size list, a page's own text (the test page names its fonts), Japanese, Mochi and Mojo not yet.)*
 
 ## The engine on UXP RB_20261006 (2026-10-12)
 - [ ] Everyday browsing in each variant on the new engine: a few real sites, scrolling, typing in a

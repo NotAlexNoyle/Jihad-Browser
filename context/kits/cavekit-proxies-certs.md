@@ -113,6 +113,11 @@ in all three shells, without about:config.
 **Dependencies:** none
 
 ### R2: The Riverstone Relay
+**The owner, 2026-10-25: the Relay is NEVER on by default — it is not secure (a bumping proxy run by a third
+party) and exists only as a fallback for devices older than webOS 3.0, whose TLS cannot reach today's sites.
+Jihad ships `network.proxy.type` 0 / `jihad.proxy.mode` "none" / `jihad.proxy.relay.trust_ca` false; nothing in
+the components or the daemon selects the Relay by itself; the settings page offers it as one choice and says
+what it is for. Audited 2026-10-25 (packaging/prefs/jihad-platform-prefs.js, the components, the daemon).**
 **Description:** One choice sends Jihad through the owner's relay, with HTTPS still checked end to end.
 **Acceptance Criteria:**
 - [x] Choosing it sets `proxy.riverstonerelay.org`, port 3128, for HTTP and HTTPS, with no SOCKS and no

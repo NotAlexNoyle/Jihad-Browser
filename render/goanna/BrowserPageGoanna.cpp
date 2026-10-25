@@ -2069,7 +2069,10 @@ bool BrowserPageGoanna::awaitDialogReply(const std::string& path, const char* wh
   // for this dialog kind — from wedging for a full minute. That cost is real but bounded, and
   // it is far better than answering for the user. Harnesses that WANT a fast default set
   // JIHAD_DIALOG_MS.
-  long deadlineMs = 60000;
+  // A login dialog gets longer: a user name and a password typed with one finger on the glass
+  // took more than a minute by finger (2026-10-25, a proxy's login), and the card still showed the
+  // dialog after the daemon had taken the default — the answer then went nowhere.
+  long deadlineMs = (what && strcmp(what, "auth") == 0) ? 180000 : 60000;
   if (const char* e = getenv("JIHAD_DIALOG_MS")) {
     long v = atol(e);
     if (v > 0) deadlineMs = v;

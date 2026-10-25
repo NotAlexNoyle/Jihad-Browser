@@ -1325,7 +1325,8 @@ function buildProxySection(group) {
 	function fillRelay() {
 		body.appendChild(helpRow("The Riverstone Relay is a proxy run by Jihad's author at " + RELAY_HOST + ":" + RELAY_PORT +
 			". Pages travel through it. Secure (https) pages pass through it still encrypted, checked by Jihad as they " +
-			"would be without it."));
+			"would be without it. It is a fallback for devices older than webOS 3.0, whose own connections cannot reach " +
+			"today's sites; it is never on by itself, and a device like this one does not need it."));
 		body.appendChild(relayTrustRow());
 	}
 

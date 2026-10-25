@@ -107,23 +107,23 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 - [ ] Flash with sound (jihad-audio-long), and a video with sound, on the new engine. (R8)
 
 ## Proxies and certificates (2026-10-13)
-- [ ] Settings → Advanced → Proxy → My own proxy: type a proxy's host and port on the on-screen
+- [x] Settings → Advanced → Proxy → My own proxy: type a proxy's host and port on the on-screen
   keyboard, tap Use this proxy, and browse through it; then No proxy. (proxies-certs R1; the
-  fields were filled from prefs for the device run, because a script cannot type past the keyboard)
+  fields were filled from prefs for the device run, because a script cannot type past the keyboard) *(2026-10-25, Enyo by finger: Advanced → the Proxy picker → "My own proxy" → the host typed on the keyboard ("192.168.1.245" — the number row's keys take the tap left of their digit label and the period sits right of the comma), the port field cleared and "3129" typed, Use this proxy → "Jihad goes through 192.168.1.245:3129." and the prefs set (network.proxy.http/ssl, type 1); example.com loaded through it (the host's tools/host/auth-proxy.py logged the GETs). No proxy restored after the Relay below.)*
 - [ ] WebOne: type a WebOne machine's address, tap Use this WebOne, then Open this WebOne's
   certificate and say Yes; browse an https site through it. (R3, R6; scripted with the same
   steps, with the address from prefs)
-- [ ] A proxy that asks for a login: type the user name and password in the card's dialog (each
+- [x] A proxy that asks for a login: type the user name and password in the card's dialog (each
   shell; Mojo's is webOS's own sheet) and the page loads. (R5; Enyo and Mochi answered through
-  their own dialogs by script, Mojo not answered)
-- [ ] After choosing a proxy, the section redraws by itself, with no touch. (Scripted: within a
+  their own dialogs by script, Mojo not answered) *(2026-10-25, Enyo by finger with tools/host/auth-proxy.py (407 Basic): the card's dialog came up ("The proxy 192.168.1.245:3129 - Jihad test proxy requires a username and password"), the user name and password typed — the dialog MOVES UP when the keyboard rises, so the fields and OK are tapped at their keyboard-up places — OK → the daemon answered the engine, the proxy forwarded the page with the credentials, example.com rendered. First try failed on timing: the daemon's dialog wait is 60 s and the typing took longer, the card kept showing the dialog and the answer went nowhere → a login dialog now waits 180 s. Mochi (its own dialog at the top of the card, the fields and OK where they sit) and Mojo (webOS's own sheet: the username field focused with the keyboard already up, OK after 43 s — close to the old minute) both answered the proxy and loaded example.com; each variant's proxy prefs dropped after (direct connection is the default).)*
+- [x] After choosing a proxy, the section redraws by itself, with no touch. (Scripted: within a
   second, 15 of 15 picks in Enyo and Mochi; the earlier "old picture", T-465, was a screenshot taken
-  before the pick.)
-- [ ] The Riverstone Relay for everyday browsing (its pass-through rule is on the server since
+  before the pick.) *(2026-10-25, Enyo by finger: "My own proxy" picked from the list — the section showed its form within the second, a screenshot 1 s after the pick already had it.)*
+- [x] The Riverstone Relay, when a user chooses it (never the default — the owner, 2026-10-25: it is not secure and is a fallback for webOS older than 3.0 only; its pass-through rule is on the server since
   2026-10-13): https sites load with their own certificates; the padlock names the site's own
   issuer. (R2; scripted in Enyo with example.com)
 
-## Media and sound
+## Media and sound *(2026-10-25, Enyo by finger: "Riverstone Relay" picked from the Connect-through list — the prefs went to proxy.riverstonerelay.org:3128 at once and the section said "Jihad goes through the Riverstone Relay."; https://example.com loaded and its padlock's View Certificate named the site's own issuer (Cloudflare TLS Issuing ECC CA 3), not the Relay's CA; "No proxy" picked after.)*
 - [~] A video's play/pause and volume by tap. (gre-widgets R1) *(2026-10-24, Enyo, `jihad-media-test.html`: a tap on the playing video brought the controls up and paused it (the clip's own second counter held at 9 across two shots 3 s apart); the control bar's button taps afterwards left the counter at 0 (the clip at its end) — a longer clip with a state readout is needed to judge the button and the volume; `jihad-media.html`'s video says its format is not supported on this build)*
 - [ ] Flash sound heard; an HTML `<audio>` heard on the speaker. (addons-extensions R7,
   device-build R4)

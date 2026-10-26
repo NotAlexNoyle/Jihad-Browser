@@ -52,7 +52,34 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-10-26 — T-527: the review's fixes, engine 0064/0065, a double tap out's frame at once; about:settings and about:addons by finger (READ FIRST)
+## 2026-10-26 (end) — T-527 DONE; three decisions for the owner; the device on the packaged head (READ FIRST)
+
+**T-527 is done** (and T-515, T-517 with it): the sensor bench (R3's 24 fps met with sensord/atlas-sensord stopped:
+desktop Wikipedia 24.6/24.2, the long page 34.2; with them 22.7-23.6), engine 0062-0066, R8 met, the zoom's frames
+(first frames 52-108 ms in, 0-3 ms out), and two inspector reviews of the work, every finding fixed (the second:
+`31fce614` and engine 0066 `2f7898f0` — the zoom-back frame kept by whichever lane sees the zoom first and published
+clear of reads in flight, about:addons repainted at its resolution after a zoom, the search filter re-measured).
+Records: `docs/rounds/t527-2026-10-25/notes.txt` (its last sections).
+
+**Three tasks wait on the owner** (build site Status says why):
+- **T-504**: a double tap out after a pan while zoomed in has no early frame (the kept frame no longer covers the
+  view). Covering it means keeping a picture of the whole page at the fit zoom — memory per card; your call.
+- **T-505**: the pan's remaining 56 ms+ gaps are the compositor job itself (copy from the base 10-14 ms, read 7-12,
+  compose ~8, on one thread). The next lever is the card composing the new band over the frame it holds (no copy a
+  frame): an adapter change and a new meaning for the frame trailer; your call.
+- **T-516**: one double tap in ten takes 251-276 ms — the GPU's clock ramp after an idle pause (a 230 ms composite
+  with both CPUs at full clock). A GPU clock floor (kgsl) would remove it; a device power lever you have not
+  authorized.
+
+**Device state:** the three packages of this head (daemon `cbf72474`, libxul `420e0d27` stripped from engine
+`2f7898f0`, adapters unchanged), no dev copies or `.orig`; Palefill only, Default look, No proxy in every profile;
+the sensors running; default-check passes in all three. (A Mochi install dropped the USB link once mid-transfer —
+the known long-transfer drop — and went through on the retry.)
+
+**Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` pushes the engine fork's branch (now `2f7898f0`,
+patches through 0066) and main.
+
+## 2026-10-26 — T-527: the review's fixes, engine 0064/0065, a double tap out's frame at once; about:settings and about:addons by finger
 
 Records: `docs/rounds/t527-2026-10-25/notes.txt` (its last five sections), `docs/FINGER-TESTS.md`.
 
@@ -97,8 +124,7 @@ Records: `docs/rounds/t527-2026-10-25/notes.txt` (its last five sections), `docs
 lane, 0 faults). Every profile: Palefill only (the twelve test pads removed), Default look, No proxy — Mochi's and
 Mojo's manual proxy to `192.168.1.245:3129` left by the 2026-10-25 proxy round was put back (nothing listened there).
 
-**Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` pushes the engine fork's branch (now `f4fefca0`,
-patches through 0065) and main.
+**Pushes:** superseded by the delta above (the branch is now `2f7898f0`).
 
 **Next:** T-527's open criteria (R3: the gaps' floor in the compositor job; R6: the
 double tap out after a pan); WebOne needs a machine (the owner).

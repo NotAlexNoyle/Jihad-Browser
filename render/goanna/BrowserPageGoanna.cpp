@@ -4308,6 +4308,12 @@ void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uin
   double z = hasZoom ? zoom : (mXWant.seq ? mXWant.zoom : mXZoomNow);
   if (!(z >= 0.05 && z <= 20.0)) z = (mXZoomNow >= 0.05 && mXZoomNow <= 20.0) ? mXZoomNow : 1.0;
   if (hasZoom && z != mXWant.zoom) { mXZoomWantMs = now; ++mXZoomDumpN; }
+  {
+    // T-527: the card's scroll speed from its positions (a kinetic coast sends one every few ms)
+    const int64_t dt = now - mXWant.ms;
+    if (z != mXWant.zoom || x != mXWant.x || !mXWant.seq || dt <= 0 || dt > 100) mXWant.velY = 0.0;
+    else mXWant.velY = 0.5 * mXWant.velY + 0.5 * (double)(y - mXWant.y) / (double)dt;
+  }
   mXWant.x = x; mXWant.y = y; mXWant.zoom = z; mXWant.ms = now; ++mXWant.seq; mXWant.cmdSeq = tag;
   if (!mXWaitSinceMs) mXWaitSinceMs = now;
   jihadExpressKick();
@@ -4435,7 +4441,20 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
 bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t waitSince, const XJob* aBase) {
   const XSnap& S = mXSnap;
   const int w = S.w, H = S.frameH, os = S.os;
-  const int x = want.x, y = want.y - os;   // the frame's top: the view sits os rows down it (T-505)
+  // T-527: while the card coasts, the frame is composed where the card will be when it is shown (its
+  // speed times JIHAD_GPU_EXPRESS_PREDICT_MS, 80: the express frame's usual age at the card's blit), so
+  // the card does not slide an older frame past its rows (a flick on the long page showed the lower
+  // third grey and the fixed header gone for ~0.4 s). The header says where the frame is; the
+  // overscan rows absorb the guess's error. Not above the page's top; 0 turns it off.
+  static const long sPredictMs = getenv("JIHAD_GPU_EXPRESS_PREDICT_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_PREDICT_MS")) : 80;
+  int lead = 0;
+  if (sPredictMs > 0 && now - want.ms < 60 && want.velY != 0.0) {
+    const double l = want.velY * (double)sPredictMs;
+    const double cap = (double)S.h;   // a card's height at most
+    lead = (int)(l > cap ? cap : (l < -cap ? -cap : l));
+    if (want.y + lead < 0) lead = -want.y;
+  }
+  const int x = want.x, y = want.y + lead - os;   // the frame's top: the view sits os rows down it (T-505)
   const size_t need = S.hdr + (size_t)w * H * 4;
   // the base: the newest composite, intact in its slot, at this x, zoom and size (the engine's
   // diff is against it, so the shift is exact: the main lane's round 115 rule)
@@ -4614,7 +4633,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   // the main lane's view for a compositor-side scroll: the card's zoom, the overscan's offset, the
   // card's scroll in CSS px (gpuScrollTo, gpuSetView)
   const double zr = (want.zoom >= 0.05 && want.zoom <= 20.0) ? want.zoom : 1.0;
-  const double view[5] = { Z, 0.0, -(double)os / Z, want.x / zr, want.y / zr };
+  const double view[5] = { Z, 0.0, -(double)os / Z, want.x / zr, (want.y + lead) / zr };   // T-527: the predicted position
   const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr - (size_t)xWin * xStride, H, lo, hi, lo2, hi2,
                                             own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved);
   if (!token) {

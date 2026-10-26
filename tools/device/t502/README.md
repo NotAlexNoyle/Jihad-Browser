@@ -229,7 +229,8 @@ card redraws whole frames). Engine 0063: a change that does not fit the band sur
 (`express idle: ...`) and every publish's trailer is logged; `tools/host/gap-trace.py <log> [ms]` lists a pan's gaps
 of 56 ms or more with what happened inside each. `pan-run.sh` leaves the spike daemon running (the upstart job
 stopped): run `gpu-spike-collect-stop.sh` before `default-check.sh`, which now reads across the daemon log's 2 MB
-rotation.
+rotation. `JIHAD_GPU_EXPRESS_PREDICT_MS=<ms>` (80; 0 off): while the card coasts, the express lane composes each frame
+where the card will be after that long (its speed from its positions).
 
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every

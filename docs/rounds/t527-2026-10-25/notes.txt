@@ -120,3 +120,14 @@ Desktop Wikipedia's pan, its mean over the 10 s (gap-trace.py's "the pan: frames
 Compositor 85.5 % of a core, the main thread 46 %, JihadExpress 12 %; the daemon ~1.4 cores, sensord 17 %,
 WebAppMgr 15 %). Its per-frame CPU: compose ~8 ms, the copy from the base 10-14 ms (a page with a stuck header
 cannot build on its own slot: T-517's finding, r353/r354), the read 7-12 ms.
+
+The flick's coast gap (FINGER-TESTS, the GPU path's scroll row)
+---------------------------------------------------------------
+The card sends its position on every step of a kinetic coast (BrowserAdapter::scrollTo), so the gap was lag: a
+600 px flick coasts at ~4000 px/s, the express frame is ~1-2 frame times old when the card shows it, and the card
+slides that older frame by the difference (the overscan covers 141 rows; past it, grey; the header, baked into the
+frame, slides off). Now the express lane composes each frame at the card's position plus its speed (smoothed over
+its positions, the reader thread) times JIHAD_GPU_EXPRESS_PREDICT_MS (80), no further than a card's height, not
+above the page's top; renderedY says where the frame is, so the adapter places it. By finger (Enyo, the long page):
+the shots 0 and 250 ms after a flick have content to the bottom (were 27 % and 50 % grey); the header still slides
+for the first ~250 ms. Slow drags unchanged (the header in place mid-stroke, no grey).

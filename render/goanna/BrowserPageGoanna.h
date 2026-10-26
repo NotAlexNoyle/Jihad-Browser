@@ -517,7 +517,9 @@ private:
     xInvalidate();
   }
   // T-515, the express lane's state. All of it under the frame lock (JihadFrameLock.h).
-  struct XWant { int x = 0, y = 0; double zoom = 1.0; int64_t ms = 0; uint32_t seq = 0, cmdSeq = 0; };
+  // T-527: velY, the card's scroll speed (zoomed px a ms, smoothed over its last positions) for a frame
+  // composed where the card will be when the frame is shown (xStart's prediction)
+  struct XWant { int x = 0, y = 0; double zoom = 1.0; int64_t ms = 0; uint32_t seq = 0, cmdSeq = 0; double velY = 0.0; };
   uint32_t mXCmdDone = 0;             // the newest of the card's commands the main loop handled (its tag; the frame lock)
   uint32_t mXCmdPub = 0;              // ...the main lane's newest frame took up
   XWant mXWant;                       // the card's newest position (the reader thread's view; the want lock)

@@ -766,7 +766,7 @@ Owner, choosing among the Persona-index options: a Phoebus site on the owner's d
 | T-411 | Updates on demand: Personas (Check for updates) and add-ons (about:addons) against the site | cavekit-addons-site.md | R13 | T-405, T-409 | yes | M | done |
 | T-412 | Codex review of the site and the browser half; fixes | cavekit-addons-site.md | R3 | T-403..T-411 | no | M | done by the inspector (Codex owed when credits return) |
 | T-413 | Deploy checklist and scripts for Devuan/nginx/OpenRC/PHP-FPM/MariaDB/certbot, backups | cavekit-addons-site.md | R10 | T-412 | no | M | done |
-| T-414 | [OWNER] Server go-ahead, DNS for addons.riverstonerelay.org, root steps, smoke test | cavekit-addons-site.md | R10 | T-413 | human | S | owner |
+| T-414 | [OWNER] Server go-ahead, DNS for addons.riverstonerelay.org, root steps, smoke test | cavekit-addons-site.md | R10 | T-413 | human | S | owner — BLOCKED 2026-10-26 on one step: a colour Persona worn from the live site in Pale Moon on a desktop (the site is live and current at `f9bcb79`, DNS and root steps done; the smoke test 43/43 from the PC on 2026-10-26; on the TouchPad Dracula was worn from the live site by finger and taken off) |
 
 ## Tier 75 — More Persona formats (2026-10-11; added to the site, not a regeneration)
 

@@ -232,7 +232,10 @@ LAN, before anything touches the owner's server.
   2026-10-12, from the server itself; for `f9bcb79` (2026-10-14) also 43/43 from the PC through
   Cloudflare; Pale Moon installed a Persona from the live site and Jihad read
   the feed (the owner, 2026-10-12). Still the owner's: a colour Persona worn in Pale Moon and on the
-  TouchPad from the live site.)*
+  TouchPad from the live site.)* *(2026-10-26: the smoke test 43/43 from the PC through Cloudflare against `f9bcb79`
+  (still the site's head; the certificate good until 2026-12-28); on the TouchPad, Dracula (a colour Persona) worn
+  from the live site by the emulated finger in Enyo — Wear, Jihad's confirm, OK, the toolbar in its colours — and
+  taken off again. Left: the same in Pale Moon on a desktop, the owner's.)*
 - [x] Every file reaches the server over magic-wormhole-rs, and no other wormhole is installed
   (the owner's rule, 2026-10-11). (Scratch: a site package sent to this PC, unpacked and put in place.)
 - [x] An update replaces only the site's code: it refuses, never deletes, anything in a copy other

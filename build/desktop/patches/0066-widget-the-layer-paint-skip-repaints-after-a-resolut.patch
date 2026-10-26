@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 26 Oct 2026 03:00:53 -0400
+Subject: [PATCH] widget: the layer-paint skip repaints after a resolution
+ change and asks the child widget; a failed band surface is tried again after
+ 30 s
+
+T-527 (review 2026-10-26). SetResolution schedules no paint, and on a page with no root scroll
+frame (about:addons) nothing else did: a zoom across 1.1 stayed painted at the old resolution. The
+skip now compares the pres shell's resolution with the one painted and asks the whole widget chain
+(invalidations land on the child). A band surface that could not be made is tried again 30 s later
+instead of never (a failure may be another app holding the GPU's memory).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ gfx/layers/opengl/CompositorOGL.cpp | 12 +++++++-----
+ gfx/layers/opengl/CompositorOGL.h   |  3 ++-
+ widget/PuppetWidget.cpp             | 12 +++++++++++-
+ widget/PuppetWidget.h               |  1 +
+ 4 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 9b7f244915..cf57adba2a 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2348,14 +2348,16 @@ CompositorOGL::JihadBeginBandPass(int aWidth, int aRows)
+   GLuint& fbo = tall ? mJihadBandTallFBO : mJihadBandFBO;
+   int& w = tall ? mJihadBandTallW : mJihadBandW;
+   // a surface that could not be made at this width is not made again every band frame (a line each,
+-  // ~25 a second, into the device's small /var): the frame's own surface does the pass
++  // ~25 a second, into the device's small /var): the frame's own surface does the pass, and the surface
++  // is tried again 30 s later (the failure may have been another app holding the GPU's memory)
+   int& failW = mJihadBandFailW[tall ? 1 : 0];
+-  if (failW == aWidth) {
++  TimeStamp& failT = mJihadBandFailT[tall ? 1 : 0];
++  if (failW == aWidth && !failT.IsNull() && (TimeStamp::Now() - failT).ToSeconds() < 30.0) {
+     return 0;
+   }
+   GLContextEGL* egl = static_cast<GLContextEGL*>(mGLContext.get());
+   if (!egl->JihadUseBandPBuffer(aWidth, rows, tall)) {
+-    failW = aWidth;
++    failW = aWidth; failT = TimeStamp::Now();
+     return 0;
+   }
+   if (!fbo || w != aWidth) {
+@@ -2368,9 +2370,9 @@ CompositorOGL::JihadBeginBandPass(int aWidth, int aRows)
+     mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, rb);
+     const GLenum st = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
+     if (st != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
+-      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x): not tried again at this width\n", aWidth, rows, st);
++      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x): tried again in 30 s\n", aWidth, rows, st);
+       egl->JihadUseFramePBuffer();
+-      failW = aWidth;
++      failW = aWidth; failT = TimeStamp::Now();
+       return 0;
+     }
+     w = aWidth;
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 39968a8791..6fdb67f9ad 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -258,7 +258,8 @@ public:
+   int mJihadBandW = 0;
+   GLuint mJihadBandTallRB = 0, mJihadBandTallFBO = 0;   // T-527: the tall band surface's target
+   int mJihadBandTallW = 0;
+-  int mJihadBandFailW[2] = { 0, 0 };   // T-527: the width a band surface (0) or the tall one (1) failed at: not tried again
++  int mJihadBandFailW[2] = { 0, 0 };   // T-527: the width a band surface (0) or the tall one (1) failed at...
++  TimeStamp mJihadBandFailT[2];        // ...and when: tried again 30 s later (a failure may be another app's GPU memory)
+   // the band surface's rows: JIHAD_GPU_BAND_ROWS (64..942, default 256; round 137)
+   static int JihadBandRows() {
+     static const int sRows = [] {
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 1e32b2e6eb..a093b07eec 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -977,7 +977,16 @@ PuppetWidget::JihadPaintLayers(nsIDocShell* aDocShell)
+     static const bool sAlways = getenv("JIHAD_GPU_PAINT_ALWAYS") != nullptr;
+     nsPresContext* pc = presShell->GetPresContext();
+     nsRefreshDriver* rd = pc ? pc->RefreshDriver() : nullptr;
+-    if (!sAlways && mJihadLayersPainted && mDirtyRegion.IsEmpty() && !mPaintTask.IsPending() && rd &&
++    // the invalidations land on the child widget (Invalidate forwards to mChild): the whole chain is
++    // asked, as JihadTakeDirty drains it (review 2026-10-26)
++    bool pending = false;
++    for (PuppetWidget* w = this; w && !pending; w = w->mChild.get()) {
++      pending = !w->mDirtyRegion.IsEmpty() || w->mPaintTask.IsPending();
++    }
++    // a new resolution schedules no paint by itself (SetResolution): on a page with no root scroll frame
++    // (about:addons) nothing else does, and a zoom across 1.1 stayed painted at the old one (review 2026-10-26)
++    const float res = presShell->GetResolution();
++    if (!sAlways && mJihadLayersPainted && !pending && res == mJihadPaintedRes && rd &&
+         !rd->ViewManagerFlushIsPending()) {
+       static uint32_t sSkipped = 0;
+       if ((++sSkipped % 100) == 1) {
+@@ -987,6 +996,7 @@ PuppetWidget::JihadPaintLayers(nsIDocShell* aDocShell)
+     }
+   }
+   mJihadLayersPainted = true;
++  mJihadPaintedRes = presShell->GetResolution();
+   mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
+   nsRegion dirty(root->GetDimensions());
+   presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 755f67de5a..6916939327 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -460,6 +460,7 @@ private:
+   LayoutDeviceIntRegion mDirtyRegion;
+   bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
+   bool mJihadLayersPainted = false;   // T-527: JihadPaintLayers has painted this widget's layers once
++  float mJihadPaintedRes = 0.0f;      // T-527: the pres shell's resolution at that paint (a change repaints)
+   bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
+   bool mJihadSharedLayerManager = false; // T-502: mLayerManager is the parent's (a child widget)
+   float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor

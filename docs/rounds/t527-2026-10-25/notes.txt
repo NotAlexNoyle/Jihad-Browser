@@ -242,3 +242,15 @@ before these changes too (fz-r10-pool96, fz-r8-eng). Not chased further here.
   against the 16 ms measured on pages without them; the long page with its fixed header 37.5 fps but 25 gaps
   (pan-of2-long; head 33.1, 4 gaps). Reverted. What remains is the copy from the base (10-14 ms), the read
   (7-12 ms) and the compose (~8 ms) of each frame on the one compositor thread.
+
+## R3 on the owner's bench (sensord and atlas-sensord stopped, the 2026-10-24 choice (b)), the packaged head, 2026-10-26
+The same scripted pan (pan-run.sh, 0 -> 3000 card px in 10 s, the express lane, followOverflow), gap-trace.py's mean:
+- sensors stopped: desktop Wikipedia 249 frames in 10.13 s = 24.6 fps (pan-ns-wiki-1), 245 in 10.12 s = 24.2 fps
+  (pan-ns-wiki-2); the long page 345 in 10.08 s = 34.2 fps (pan-ns-long). 22, 16 and 7 gaps of 56 ms or more.
+- sensors running (the same build, a run meant to be the above whose stop did not take — novacom's -c split the
+  command; logs not kept): desktop Wikipedia 22.9 and 22.7 fps, the long page 32.8.
+The sensors restarted after (sensord, atlas-sensord running). The Wikipedia gaps by class (both runs): the job itself
+(a tree change's read, the copy from the base) 21, a job queued behind the one before it 14, a tile-upload
+transaction 1, and once 415 ms with all three buffers out with the card (the adapter returned none while the
+daemon's main thread sat in a 1.6 s pump of the page's script; the slot it freed then went to the main lane's layer
+paint). None is the express lane waiting on the main thread.

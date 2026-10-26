@@ -404,7 +404,8 @@ public:
   // invX0..invX1 (T-511): the columns the composite changed, when invXKnown (an engine from
   // before reports rows only)
   struct ComposeResult { long invLo = 0, invHi = 0, fixedLo = 0, fixedHi = 0, readLo = 0, readHi = 0, read2Lo = 0, read2Hi = 0; bool scrollOnly = false;
-                         long frameY = 0; bool frameYValid = false; long invX0 = 0, invX1 = 0; bool invXKnown = false; };
+                         long frameY = 0; bool frameYValid = false; long invX0 = 0, invX1 = 0; bool invXKnown = false;
+                         int nStuck = 0; int stuck[4][4] = {}; };   // T-544: the fixed and stuck rects (x0, y0, x1, y1)
   int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two

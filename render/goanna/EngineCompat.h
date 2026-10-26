@@ -66,6 +66,10 @@ extern "C" {
   // ignores the column arguments and writes ten.
   int jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut,
                                    int* aScrollOnly) __attribute__((weak));
+  // OPTIONAL (T-544): the poll with aOutLen ints; at 29, past the twelve, the frame's fixed and stuck
+  // rects (aOut[12] of them, x0, y0, x1, y1 each, frame px)
+  int jihad_offscreen_compose_poll2(nsIWidget* aWidget, uint32_t aToken, int* aOut, int aOutLen,
+                                    int* aScrollOnly) __attribute__((weak));
   void jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
   // OPTIONAL (T-515): the start's two halves on their own. paint_layers (the main thread) flushes
   // and paints the layers; compose_post (any thread) posts the compose + read of the layer tree as
@@ -149,6 +153,7 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_compose", jihad_offscreen_compose != nullptr},
     {"jihad_offscreen_compose_start", jihad_offscreen_compose_start != nullptr},
     {"jihad_offscreen_compose_poll", jihad_offscreen_compose_poll != nullptr},
+    {"jihad_offscreen_compose_poll2", jihad_offscreen_compose_poll2 != nullptr},
     {"jihad_offscreen_compose_forget", jihad_offscreen_compose_forget != nullptr},
     {"jihad_offscreen_paint_layers", jihad_offscreen_paint_layers != nullptr},
     {"jihad_offscreen_compose_post", jihad_offscreen_compose_post != nullptr},

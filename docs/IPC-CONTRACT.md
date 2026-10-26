@@ -67,6 +67,13 @@ What a regeneration owes the contract: `context/kits/cavekit-ipc-contract.md` R1
   frames' numbers (T-527, the dirty words: the adapter showing that frame may redraw
   only the rect). Either side from before ignores or leaves the trailer zero, and a
   zero trailer means the frame starts at the pixels' start and is new everywhere.
+  The 192 bytes before the trailer are `JihadStuckBlock` (T-544): the frame's fixed and
+  stuck layers' rects and where the card's view sat in the frame, tagged with the
+  frame's number; the card draws those rects where the frame drew them while it moves
+  the frame for a pan, so sticky sidebars and fixed bars stay put between frames. A
+  daemon from now keeps frame rows out of those bytes; the adapter takes the block only
+  when its number is the trailer's, so an older daemon's pixels there are never read as
+  rects.
 
 
 ## Sync command (adapter → server, blocks for reply)

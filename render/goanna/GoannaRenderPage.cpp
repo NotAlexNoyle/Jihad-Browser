@@ -5071,9 +5071,10 @@ void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int o[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
+  int o[29] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
   int scrollOnly = 0;
-  const int r = jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
+  const int r = jihad_offscreen_compose_poll2 ? jihad_offscreen_compose_poll2(mWidget, token, o, 29, &scrollOnly)   // T-544
+                                              : jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
   auto takeCols = [&]() {
     if (!out) return;
@@ -5091,6 +5092,9 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
     out->readLo = o[4]; out->readHi = o[5]; out->read2Lo = o[6]; out->read2Hi = o[7];
     out->scrollOnly = scrollOnly != 0;
     out->frameY = o[8]; out->frameYValid = o[9] != 0;
+    out->nStuck = (o[12] > 0 && o[12] <= 4) ? o[12] : 0;   // T-544
+    for (int k = 0; k < out->nStuck; k++)
+      for (int c = 0; c < 4; c++) out->stuck[k][c] = o[13 + 4 * k + c];
   }
   takeCols();
   if (!dst) return 0;   // drained, not published

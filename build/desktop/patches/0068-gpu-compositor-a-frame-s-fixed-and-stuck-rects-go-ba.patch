@@ -1,0 +1,126 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 26 Oct 2026 07:00:31 -0400
+Subject: [PATCH] gpu-compositor: a frame's fixed and stuck rects go back with
+ its poll, for the card to hold them still between frames
+
+T-544: jihad_offscreen_compose_poll2 returns, past the twelve ints, the rects the last
+JihadUpdateLastFixed found (fixed layers and stuck sticky ones, frame px); the daemon puts them in
+the segment for the card, which draws them where the frame did while it moves the frame for a pan.
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 14 ++++++++++++++
+ gfx/layers/opengl/CompositorOGL.h         |  2 ++
+ widget/PuppetWidget.cpp                   | 20 +++++++++++++++++++-
+ widget/PuppetWidget.h                     |  2 +-
+ 4 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index d1bafd3ab5..8fb69fe723 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1348,6 +1348,18 @@ JihadFixedCols()
+   return sOn;
+ }
+ 
++// T-544: the frame's fixed and stuck rects (the last JihadUpdateLastFixed's) out to the daemon
++static void
++JihadStuckOut(JihadFrameRequest* aReq, const gfx::IntRect* aRects, int aN)
++{
++  aReq->nStuck = 0;
++  for (int k = 0; k < aN && aReq->nStuck < 4; k++) {
++    if (aRects[k].IsEmpty()) continue;
++    int* o = aReq->stuck[aReq->nStuck++];
++    o[0] = aRects[k].x; o[1] = aRects[k].y; o[2] = aRects[k].XMost(); o[3] = aRects[k].YMost();
++  }
++}
++
+ // the rects as column reads: each widened by the shift (the base frame's fixed pixels land shift
+ // rows above them on a scroll down, below on a scroll up), clipped to the frame; one a full-width
+ // band already covers is left out
+@@ -2169,6 +2181,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         });
+         if (fHi > fLo) { mJihadLastFixedLo = fLo; mJihadLastFixedHi = fHi; } else { mJihadLastFixedLo = mJihadLastFixedHi = 0; }
+         JihadUpdateLastFixed(aWidth, aHeight);   // rounds 138/141
++        JihadStuckOut(aReq, mJihadLastFixedRects, mJihadLastFixedN);
+       } else if (diffFirst) {
+         mJihadLastFixedLo = dfFixLo; mJihadLastFixedHi = dfFixHi;
+       }
+@@ -2294,6 +2307,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     const int lastN = mJihadLastFixedN;
+     for (int k = 0; k < lastN; k++) lastR[k] = mJihadLastFixedRects[k];
+     JihadUpdateLastFixed(aWidth, aHeight);   // prev = last, last = now
++    JihadStuckOut(aReq, mJihadLastFixedRects, mJihadLastFixedN);
+     for (int k = 0; k < mJihadLastFixedN; k++) { colRects[colRectsN] = mJihadLastFixedRects[k]; colKeeps[colRectsN] = mJihadLastKeep[k]; colRectsN++; }
+     for (int k = 0; k < lastN; k++) {
+       bool same = false;
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index a61149c5a6..3b25a9195b 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -172,6 +172,8 @@ struct JihadFrameRequest {
+   int nCols = 0;                       //   frame): the fixed and stuck layers' rects, widened by the shift
+   int keep[4][4] = {};                 // round 141: rects (x0, x1, y0, y1) the shift leaves where they are:
+   int nKeep = 0;                       //   opaque stuck layers that held still, copied unshifted from the base
++  int stuck[4][4] = {};                // T-544, out: the fixed and stuck layers' rects (x0, y0, x1, y1) on the
++  int nStuck = 0;                      //   frame as composed: the card holds them still while it moves the frame
+   bool scrollOnly = false;             // out: the composite's only change was the card's scroll
+   int target = 0;                      // which window target holds the frame (the compositor fills it)
+   int invLo = 0, invHi = 0;            // the rows the composite changed (the compositor fills them)
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index fd02f042d9..2935de370a 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -1076,7 +1076,7 @@ PuppetWidget::JihadComposePost(void* aDest, int aStride, int aWidth, int aHeight
+ }
+ 
+ int
+-PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly)
++PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly, int aOutLen)
+ {
+   // T-515: the job list is shared with the express lane. Without a wait the whole poll holds the
+   // list's lock: a forget from another thread between the find and the job's monitor would let the
+@@ -1130,6 +1130,11 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aSc
+         aOut[6] = job->req.lo2; aOut[7] = job->req.hi2;
+         aOut[8] = job->req.frameY; aOut[9] = job->req.frameYValid ? 1 : 0;
+         if (job->req.colsKnown) { aOut[10] = job->req.invX0; aOut[11] = job->req.invX1; }   // T-511: twelve ints
++        if (aOutLen >= 12 + 1 + 16) {   // T-544: the stuck rects, a count and four ints each
++          aOut[12] = job->req.nStuck;
++          for (int k = 0; k < job->req.nStuck && k < 4; k++)
++            for (int c = 0; c < 4; c++) aOut[13 + 4 * k + c] = job->req.stuck[k][c];
++        }
+       }
+       if (aScrollOnly) *aScrollOnly = job->req.scrollOnly;
+     } else if (!aWait && job->req.composed) {
+@@ -1552,6 +1557,19 @@ jihad_offscreen_compose_poll(nsIWidget* aWidget, uint32_t aToken, int* aOut, int
+   if (aScrollOnly) *aScrollOnly = scrollOnly ? 1 : 0;
+   return r;
+ }
++MOZ_EXPORT int
++jihad_offscreen_compose_poll2(nsIWidget* aWidget, uint32_t aToken, int* aOut, int aOutLen, int* aScrollOnly)
++{
++  // T-544: the poll with aOutLen ints: past the twelve above, the frame's fixed and stuck rects
++  // (aOut[12] of them, then x0, y0, x1, y1 each, frame px) when aOutLen holds 29
++  if (!aWidget || aOutLen < 12) {
++    return -1;
++  }
++  bool scrollOnly = false;
++  const int r = static_cast<PuppetWidget*>(aWidget)->JihadComposePoll(aToken, false, aOut, &scrollOnly, aOutLen);
++  if (aScrollOnly) *aScrollOnly = scrollOnly ? 1 : 0;
++  return r;
++}
+ MOZ_EXPORT void
+ jihad_offscreen_compose_forget(nsIWidget* aWidget, uint32_t aToken)
+ {
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 6916939327..c0331d09a7 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -296,7 +296,7 @@ public:
+   // aOut (10 ints, may be null): the rows the tree changed, the rows fixed layers cover, the two
+   // bands read, the frame's position and its valid flag; 12 for a job posted with flag 4 (T-511):
+   // the columns the composite changed; aScrollOnly: the composite's only change was the card's scroll
+-  int JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly = nullptr);
++  int JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aScrollOnly = nullptr, int aOutLen = 12);
+   // T-515: the frame's two halves on their own. PaintLayers (the main thread) flushes and paints the
+   // layers, as Start does first; Post (any thread: the express lane while the main thread runs the
+   // page's script) composes the layer tree as it stands and reads it, at the view given (aView:

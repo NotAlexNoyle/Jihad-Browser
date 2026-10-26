@@ -381,3 +381,30 @@ Measured with the card moving (sensors running):
   frame (the anchor's moves at a finger's speed, the sticky positions).
 - The express-thread copy (JIHAD_GPU_XCOPY, T-505's daemon-side prototype), measured with the old pan:
   23.6/22.6/24.3 fps against 24.0/23.5/22.1 without — no difference; not the bound under a finger either.
+
+## The card's redraw coalesced: no gain (2026-10-26, the owner's choice of lever)
+Under a finger WebAppMgr redraws the card at the touch rate (~56-60% of a core) while the daemon's
+readback waits on the same GPU. A prototype coalesced the adapter's scroll redraw (BrowserAdapter::scrollTo's
+invalidate) to one per 33 or 50 ms (<state>/redraw-ms). Eight finger drags on desktop Wikipedia: off 7.2 and
+6.3 fps, 33 ms 6.7, 50 ms 5.8; WebAppMgr's CPU unchanged (59.8% with 50 ms, 57.6% without): the redraw is
+not what the card spends its time on during a drag. Removed.
+
+## T-544: stuck and fixed parts held still on the card between frames (2026-10-26)
+The owner, watching finger pans with the card now moving: "the center column is scrolling/panning smoothly
+but the sidebars are not" — they jitter and lag (catch up in steps). Between two frames the card shows the
+frame it holds moved by the scroll since; Wikipedia's sticky sidebars moved with the page and jumped back
+at each frame (~140 ms apart at ~7 fps).
+- engine 0068: jihad_offscreen_compose_poll2 returns each frame's fixed and stuck rects (the
+  JihadUpdateLastFixed list, frame px); on Wikipedia 2-3 rects: the contents 22,158..165,665, the
+  appearance panel 601,156..739,467.
+- daemon: publishWindow writes them, the frame's number and the view row (the overscan, 141) into the
+  192 bytes before the trailer (JihadStuckBlock, JihadFrameWindow.h); frame rows are kept out of them.
+  JIHAD_GPU_NO_HOLD=1: none written.
+- adapter: after the frame's blit, each rect is drawn where the frame drew it, and its moved copy outside
+  that place is covered in the frame's colour just past the rect on that side; at the card's own zoom, the
+  frame of the view's width, the page's top at the window's top.
+Measured on desktop Wikipedia, four slow finger drags each way with a screenshot 1-4 s into each
+(h-on/h-off, the sidebars' rows cross-correlated against the first): with the hold both sidebars +0 px in
+all four while the column moved 0/-139/-47/-150 px; without, +0/+11/+0/+12. By eye: no ghost text, no seam.
+Eight finger drags: 85 frames in 11.9 s and 74 in 11.8 with the hold, 78 in 12.0 without (the spread seen
+before): no cost. Screenshots deleted after judging.

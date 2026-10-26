@@ -682,6 +682,14 @@ void BrowserPageGoanna::gpuSlotsLost() {
   ++mGpuLostN;   // T-527: a main-lane job posted before this is not adopted (its slot predates the lost change)
 }
 
+// T-544: the stuck block of the segment with this key (JihadFrameWindow.h)
+JihadStuckBlock* BrowserPageGoanna::shmStuck(int key) {
+  unsigned char* b = key ? attachShm(key) : nullptr;
+  if (!b) return nullptr;
+  for (int i = 0; i < 3; ++i) if (mShmBuf[i] == b) return jihadStuckBlock(b, mShmSize[i]);
+  return nullptr;
+}
+
 // T-517: frame windows in this segment: the adapter that made it reads them (its mark in the
 // trailer), and JIHAD_GPU_NO_WINDOWS=1 is not set
 bool BrowserPageGoanna::windowsFor(int key) {
@@ -691,8 +699,26 @@ bool BrowserPageGoanna::windowsFor(int key) {
   return t && t->adapterCaps == kJihadWindowCaps;
 }
 
-void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty) {
+void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty,
+                                      const GoannaRenderPage::ComposeResult* stuck, int viewRow) {
   const uint32_t base = mPubSeq++;   // T-527: every publish is numbered, a trailer or not
+  if (JihadStuckBlock* sb = shmStuck(key)) {
+    // T-544: the frame's fixed and stuck rects for the card (JIHAD_GPU_NO_HOLD=1: none, as before)
+    static const bool sNoHold = getenv("JIHAD_GPU_NO_HOLD") != nullptr;
+    sb->magic = 0;
+    if (stuck && stuck->nStuck > 0 && !sNoHold) {
+      sb->seq = mPubSeq;
+      sb->viewX = 0; sb->viewY = viewRow;
+      sb->count = std::min(stuck->nStuck, kJihadStuckMax);
+      for (int k = 0; k < sb->count; k++)
+        for (int c = 0; c < 4; c++) sb->rects[k][c] = stuck->stuck[k][c];
+      sb->magic = kJihadStuckMagic;
+      static uint32_t sN = 0;
+      if (jihadTimelineOn() && (sN++ % 25) == 0)
+        fprintf(stderr, "[jihad-tl] t=%lld stuck: frame %u, view row %d, %d rects, the first %d,%d..%d,%d\n", (long long)jihadNowMs(),
+                sb->seq, viewRow, (int)sb->count, sb->rects[0][0], sb->rects[0][1], sb->rects[0][2], sb->rects[0][3]);
+    }
+  }
   if (JihadFrameTrailer* t = shmTrailer(key)) {
     t->windowRows = windowRows < 0 ? 0 : windowRows;
     t->magic = kJihadWindowMagic;
@@ -1400,7 +1426,7 @@ void BrowserPageGoanna::zoomBackKeep(double newZoom) {
   const int w = oi->bufferWidth, h = oi->bufferHeight;
   if (w <= 0 || h <= 0 || w > 8192 || h > 8192 || S.seg[s] <= S.hdr) return;
   const size_t rowBytes = (size_t)w * 4, rows = (S.seg[s] - S.hdr) / rowBytes;
-  const JihadFrameTrailer* t = jihadFrameTrailer(const_cast<unsigned char*>(b), S.seg[s] + kJihadTrailerBytes);
+  const JihadFrameTrailer* t = jihadFrameTrailer(const_cast<unsigned char*>(b), S.seg[s] + kJihadTrailerAreaBytes);
   const long win = (t && t->magic == kJihadWindowMagic) ? (long)t->windowRows : 0;
   if ((size_t)h > rows || win < 0 || (size_t)win > rows - (size_t)h) return;
   const unsigned char* src = b + S.hdr + (size_t)win * rowBytes;
@@ -4467,7 +4493,7 @@ void BrowserPageGoanna::xSnapshot(int w, int h, int frameH, int os, size_t hdr) 
       const int id = jihadShmResolve(keys[i]);
       struct shmid_ds ds;
       if (id < 0 || shmctl(id, IPC_STAT, &ds) != 0) continue;
-      S.seg[i] = ds.shm_segsz > kJihadTrailerBytes ? ds.shm_segsz - kJihadTrailerBytes : 0;   // T-517: not the window trailer
+      S.seg[i] = ds.shm_segsz > kJihadTrailerAreaBytes ? ds.shm_segsz - kJihadTrailerAreaBytes : 0;   // T-517/T-544: not the trailer or the stuck block
       S.base[i] = attachShm(keys[i]);
     }
   }
@@ -4953,7 +4979,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     for (const GpuJob& gj : mGpuJobs) if ((int32_t)(gj.token - mXJob.token) < 0) earlier = true;
     long dirty[4];
     const bool partial = pubDirtyTake(mXJob.x, frameY, w, H, mXJob.zoom, mXSnap.contentH, false, earlier, dirty);
-    publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr);
+    publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr, &cr, mXJob.os);
   }
   if (mXJob.kind) {
     // T-517: the frame's time, into its kind's running average
@@ -5164,7 +5190,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   if (id < 0) { perror("[BrowserPageGoanna] shm resolve"); return; }
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
   if (shmctl(id, IPC_STAT, &ds) == 0 && ds.shm_segsz > 0) segSize = ds.shm_segsz;
-  if (segSize > kJihadTrailerBytes + sizeof(BrowserOffscreenInfo)) segSize -= kJihadTrailerBytes;   // T-517: the window trailer's
+  if (segSize > kJihadTrailerAreaBytes + sizeof(BrowserOffscreenInfo)) segSize -= kJihadTrailerAreaBytes;   // T-517/T-544: the trailer's and the stuck block's
   unsigned char* buf = attachShm(mActiveKey);   // cached attach — no per-paint shmat/shmdt (~400ms)
   if (!buf) { if (!mGpuJobs.empty()) mGpuTrace[4]++; return; }
 
@@ -5976,6 +6002,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
           mGpuJobViewRow = oldest.viewRow;   // T-507: where the card's view sits in this frame
+          mGpuJobCr = cr;                    // T-544: its stuck rects, for the publish
           mGpuPubToken = oldest.token;   // T-527: the published job (earlier-posted express jobs not yet polled)
           if (mGpuCriticalPaintMs && oldest.t0 >= mGpuCriticalPaintMs) mGpuCriticalDone = true;   // T-527
           // T-505: the frame's rows outside the page (the overscan above the page's top or below its
@@ -6489,7 +6516,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const bool partial = gpuFinished &&
           pubDirtyTake(mGpuJobX, mGpuJobY, paintedW, paintedH, mGpuJobZoom, mLastContentH, popupsDrawn > 0, earlier, dirty);
       if (!gpuFinished) { pubDirtyAll(); mPubZoom = -1.0; }
-      publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr);
+      // T-544: a GPU frame of the view's width and no popup over it says what is stuck in it
+      const bool stuckOk = gpuFinished && paintedW == w && popupsDrawn == 0;
+      publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr, stuckOk ? &mGpuJobCr : nullptr, mGpuJobViewRow);
     }
     mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
     const int64_t b = jihadNowMs();

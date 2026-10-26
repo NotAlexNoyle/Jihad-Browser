@@ -377,6 +377,7 @@ private:
   // (null when it cannot be had), and the window a frame is published with (written before each
   // msgPainted, 0 = the pixels' start, as every frame was before)
   JihadFrameTrailer* shmTrailer(int key);
+  JihadStuckBlock* shmStuck(int key);   // T-544: the stuck block before it
   // T-527: what changed on the card since the last published frame, in frame px, for the adapter's
   // partial invalidation (the trailer's dirty words, JihadFrameWindow.h): the union of every
   // composite's change since then, at that frame's geometry. Anything not known (a job given up,
@@ -390,7 +391,8 @@ private:
   void pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKnown, int x, int y, int w, int h, double zoom);
   // at a publish: the rect for the trailer (false: the whole), and the published frame's geometry kept
   bool pubDirtyTake(int x, int y, int w, int h, double zoom, long contentH, bool popups, bool earlierUnknown, long out[4]);
-  void               publishWindow(int key, int windowRows, const long* dirty = nullptr);   // T-527: dirty = l, t, r, b (frame px), else the whole
+  void               publishWindow(int key, int windowRows, const long* dirty = nullptr,   // T-527: dirty = l, t, r, b (frame px), else the whole
+                                   const GoannaRenderPage::ComposeResult* stuck = nullptr, int viewRow = 0);   // T-544: the frame's stuck rects, its view row
   void               detachShm();               // shmdt all cached (on thaw/teardown)
   // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
   // previous one (asyncCmdReturnBuffer) each time it receives a new msgPainted. A buffer that has
@@ -468,6 +470,7 @@ private:
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
   int mGpuViewRow = 0;
   int mGpuJobViewRow = 0;   // T-507: the published GPU frame's view row (thumbnails)
+  GoannaRenderPage::ComposeResult mGpuJobCr;   // T-544: the main lane's adopted job's result (its stuck rects)
   // T-509: the GPU path given up (refused jobs, a frame not composed within the bound)
   int mGpuRefusals = 0;
   uint32_t mGpuLostN = 0;   // T-527: gpuSlotsLost calls (a main-lane job posted before one is not adopted)

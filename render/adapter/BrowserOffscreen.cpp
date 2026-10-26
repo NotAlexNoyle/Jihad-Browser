@@ -116,6 +116,23 @@ bool BrowserOffscreen::dirtyRect(uint32_t* base, int* left, int* top, int* right
     return true;
 }
 
+int BrowserOffscreen::stuckRects(int* viewX, int* viewY, int (*rects)[4], int max) const
+{
+    unsigned char* seg = (unsigned char*)m_ipcBuffer->buffer();
+    const JihadFrameTrailer* t = jihadFrameTrailer(seg, m_ipcBuffer->size());
+    const JihadStuckBlock* b = jihadStuckBlock(seg, m_ipcBuffer->size());
+    if (!t || !b || t->magic != kJihadWindowMagic || b->magic != kJihadStuckMagic || b->seq != t->dirtySeq)
+        return 0;
+    int n = b->count < max ? b->count : max;
+    if (n < 0)
+        n = 0;
+    *viewX = b->viewX; *viewY = b->viewY;
+    for (int k = 0; k < n; ++k)
+        for (int c = 0; c < 4; ++c)
+            rects[k][c] = b->rects[k][c];
+    return n;
+}
+
 BrowserOffscreen* BrowserOffscreen::attach(int key, int size)
 {
     IpcBuffer* buffer = IpcBuffer::attach(key, size);

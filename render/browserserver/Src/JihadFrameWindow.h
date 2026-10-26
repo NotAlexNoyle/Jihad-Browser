@@ -41,11 +41,42 @@ static const uint32_t kJihadWindowMagic  = 0x4e49574aU;   // "JWIN"
 static const uint32_t kJihadWindowCaps   = 0x5041434aU;   // "JCAP"
 static const uint32_t kJihadDirtyMagic   = 0x5452444aU;   // "JDRT"
 
+// T-544, the stuck parts. Between two frames of a pan the card moves the frame it holds, and the
+// frame's fixed and stuck parts (desktop Wikipedia's sidebars) moved with the page and jumped back at
+// the next frame. The daemon writes the frame's fixed and stuck layers' rects and where the card's view
+// sat in it into the kJihadStuckBytes before the trailer; the card draws them where the frame did.
+// A daemon from now keeps its frames' rows out of those bytes (kJihadTrailerAreaBytes); the card
+// takes the rects only when seq is the trailer's dirtySeq (an older daemon's rows there never match).
+//   magic        kJihadStuckMagic when the rest holds this frame's rects
+//   seq          the frame they are of (the trailer's dirtySeq)
+//   viewX/viewY  the card's view's top-left in the frame when it was composed (frame px)
+//   count        rects (<= kJihadStuckMax): left, top, right, bottom (frame px, right and bottom exclusive)
+static const int kJihadStuckMax = 8;
+struct JihadStuckBlock {
+    uint32_t magic;
+    uint32_t seq;
+    int32_t  viewX, viewY;
+    int32_t  count;
+    int32_t  reserved[3];
+    int32_t  rects[kJihadStuckMax][4];
+};
+
+static const size_t   kJihadStuckBytes       = 192;
+static const size_t   kJihadTrailerAreaBytes = kJihadTrailerBytes + kJihadStuckBytes;   // the trailer and the stuck block
+static const uint32_t kJihadStuckMagic       = 0x4b54534aU;   // "JSTK"
+
 // the trailer of a segment of aSegmentBytes bytes mapped at aSegment (0 when it is too small)
 inline JihadFrameTrailer* jihadFrameTrailer(unsigned char* aSegment, size_t aSegmentBytes)
 {
     return aSegmentBytes > kJihadTrailerBytes
         ? (JihadFrameTrailer*)(aSegment + aSegmentBytes - kJihadTrailerBytes) : (JihadFrameTrailer*)0;
+}
+
+// T-544: the stuck block of the same segment
+inline JihadStuckBlock* jihadStuckBlock(unsigned char* aSegment, size_t aSegmentBytes)
+{
+    return aSegmentBytes > kJihadTrailerAreaBytes
+        ? (JihadStuckBlock*)(aSegment + aSegmentBytes - kJihadTrailerAreaBytes) : (JihadStuckBlock*)0;
 }
 
 #endif

@@ -69,6 +69,9 @@ public:
     // frame *base (JihadFrameWindow.h); false: no rect, the whole frame is new
     uint32_t frameSeq() const;
     bool dirtyRect(uint32_t* base, int* left, int* top, int* right, int* bottom) const;
+    // T-544: the frame's fixed and stuck rects (frame px: left, top, right, bottom) and the card's view's
+    // top-left in it when it was composed, when the daemon wrote them for this frame; 0: none
+    int stuckRects(int* viewX, int* viewY, int (*rects)[4], int max) const;
 
 private:
 

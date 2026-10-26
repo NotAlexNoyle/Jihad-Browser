@@ -1112,6 +1112,98 @@ static FILE* jihadPaintLog()
     return s_log;
 }
 
+// T-544: between two frames of a pan the card shows the frame it holds moved by the scroll since, and
+// the frame's fixed and stuck parts (desktop Wikipedia's sidebars) moved with the page and jumped back
+// at the next frame (the owner, 2026-10-26: the column glides, the sidebars jitter and lag). Where the
+// daemon says what is stuck in the frame (JihadFrameWindow.h), each such rect is drawn where the frame
+// drew it, and what its moved copy covers outside it in the colour the frame had just past the rect on
+// that side (the page's background there; white past the frame's edge).
+// At the card's own zoom only, with the page's top at the window's top then and now (no Mojo header
+// showing, no bounce at the page's top). The rects are the daemon's (JIHAD_GPU_NO_HOLD=1 there: none).
+// where the hold draws (window px: left, top, right, bottom) and the window px to the context's offset
+struct JihadHoldClip { int l, t, r, b, toX, toY; };
+
+// a strip in one colour: the frame's pixel at (sx, sy), white past the frame (the PDK's gcc 4.3: no lambdas)
+static void jihadHoldFill(PGContext* gc, const JihadHoldClip& c, const unsigned char* raster, const BrowserOffscreenInfo* gi,
+                          int l, int t, int r, int b, int sx, int sy)
+{
+    static uint32_t sWhite = 0xffffffffu;
+    if (l < c.l) l = c.l;
+    if (t < c.t) t = c.t;
+    if (r > c.r) r = c.r;
+    if (b > c.b) b = c.b;
+    if (r <= l || b <= t)
+        return;
+    const bool in = sx >= 0 && sy >= 0 && sx < gi->renderedWidth && sy < gi->renderedHeight;
+    const unsigned char* px = in ? raster + ((size_t)sy * gi->renderedWidth + sx) * 4 : (const unsigned char*)&sWhite;
+    if (PGSurface* one = PGSurface::wrap(1, 1, px, true)) {
+        gc->bitblt(one, 0, 0, 1, 1, l + c.toX, t + c.toY, r + c.toX, b + c.toY);
+        one->releaseRef();
+    }
+}
+
+static void jihadHoldStuck(PGContext* gc, PGSurface* surf, BrowserOffscreen* off, const BrowserOffscreenInfo* gi,
+                           const NpPalmDrawEvent* ev, int scrollX, int pageScrollY, double zoom, int winW, int winH)
+{
+    if (fabs(gi->contentZoom - zoom) > 1e-6 || pageScrollY < 0 || gi->renderedWidth != gi->bufferWidth)
+        return;
+    int vx = 0, vy = 0, r[kJihadStuckMax][4];
+    const int n = off->stuckRects(&vx, &vy, r, kJihadStuckMax);
+    if (n <= 0 || gi->renderedY + vy < 0)
+        return;
+    // the frame as drawn now, against where it was composed (window px)
+    const int dX = gi->renderedX + vx - scrollX, dY = gi->renderedY + vy - pageScrollY;
+    if (dX == 0 && dY == 0)
+        return;
+    // window px to the context's: the event's src rect (window px) lands on its dst rect 1:1; what is
+    // drawn stays in both and in the window
+    JihadHoldClip c;
+    c.toX = ev->dstLeft - ev->srcLeft; c.toY = ev->dstTop - ev->srcTop;
+    c.l = ev->srcLeft; c.t = ev->srcTop;
+    c.r = ev->srcLeft + (ev->dstRight - ev->dstLeft); c.b = ev->srcTop + (ev->dstBottom - ev->dstTop);
+    if (c.l < 0) c.l = 0;
+    if (c.t < 0) c.t = 0;
+    if (c.r > winW) c.r = winW;
+    if (c.b > winH) c.b = winH;
+    const unsigned char* raster = off->rasterBuffer();
+    // the moved copies' pixels outside the rects' own places
+    for (int k = 0; k < n; ++k) {
+        const int hl = r[k][0] - vx, ht = r[k][1] - vy, hr = r[k][2] - vx, hb = r[k][3] - vy;
+        const int ml = hl + dX, mt = ht + dY, mr = hr + dX, mb = hb + dY;
+        if (mr <= ml || mb <= mt)
+            continue;
+        const int mx = (r[k][0] + r[k][2]) / 2, my = (r[k][1] + r[k][3]) / 2;   // frame px
+        jihadHoldFill(gc, c, raster, gi, ml, mt, mr, ht < mb ? (ht > mt ? ht : mt) : mb, mx, r[k][1] - 1);  // above the rect's place
+        jihadHoldFill(gc, c, raster, gi, ml, hb > mt ? (hb < mb ? hb : mb) : mt, mr, mb, mx, r[k][3]);      // below it
+        const int it = mt > ht ? mt : ht, ib = mb < hb ? mb : hb;                                       // beside it
+        if (ib > it) {
+            jihadHoldFill(gc, c, raster, gi, ml, it, ml < hl ? (mr < hl ? mr : hl) : ml, ib, r[k][0] - 1, my);
+            jihadHoldFill(gc, c, raster, gi, mr > hr ? (ml > hr ? ml : hr) : mr, it, mr, ib, r[k][2], my);
+        }
+    }
+    // the rects where the frame drew them
+    for (int k = 0; k < n; ++k) {
+        int sl = r[k][0], st = r[k][1], sr = r[k][2], sb = r[k][3];
+        if (sl < 0) sl = 0;
+        if (st < 0) st = 0;
+        if (sr > gi->renderedWidth) sr = gi->renderedWidth;
+        if (sb > gi->renderedHeight) sb = gi->renderedHeight;
+        int l = sl - vx, t = st - vy, rr = sr - vx, b = sb - vy;
+        if (l < c.l) { sl += c.l - l; l = c.l; }
+        if (t < c.t) { st += c.t - t; t = c.t; }
+        if (rr > c.r) { sr -= rr - c.r; rr = c.r; }
+        if (b > c.b) { sb -= b - c.b; b = c.b; }
+        if (rr > l && b > t)
+            gc->bitblt(surf, sl, st, sr, sb, l + c.toX, t + c.toY, rr + c.toX, b + c.toY);
+    }
+    if (FILE* lf = jihadPaintLog()) {
+        static int sN = 0;
+        if (sN++ < 60)
+            fprintf(lf, "[hold] %d rects, moved %d,%d, view %d,%d, the first %d,%d..%d,%d\n",
+                    n, dX, dY, vx, vy, r[0][0], r[0][1], r[0][2], r[0][3]);
+    }
+}
+
 void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
 {
     // Two paint modes (WebKit selects via npPalmUseGraphicsContext, which reads our
@@ -1230,8 +1322,11 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                             (int)blitted, sL, sT, sR, sB, dl, dt, dr, dbm, inv, baseX, baseY,
                             mScrollPos.x, mScrollPos.y, gi->renderedWidth, gi->renderedHeight,
                             gi->renderedX, gi->renderedY); } }
-                if (blitted)
+                if (blitted) {
                     gc->bitblt(surf, sL, sT, sR, sB, dl, dt, dr, dbm);
+                    jihadHoldStuck(gc, surf, mOffscreenCurrent, gi, event, mScrollPos.x, pageScrollY,
+                                   mZoomLevel, (int)mWindow.width, (int)mWindow.height);   // T-544
+                }
                 surf->releaseRef();   // PG ref-counted (starts at 1); frees the wrapper, not our data
             }
         }

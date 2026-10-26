@@ -84,13 +84,15 @@ Records: `docs/rounds/t527-2026-10-25/notes.txt` (its last five sections), `docs
 - **about:settings by finger** (`f43a0165`, `tools/device/finger/prefs-finger-walk.sh`): in Enyo all 57 rows of the
   page's table changed and put back by a tap on their own control (the pickers' items tapped in the card's list),
   the Browser pane's controls (opened from the app menu so the card's own values travel), Clear Cancel/Clear, a
-  pane reset. Not touched: the Fonts box's pickers, the proxy and certificate sections, Forget, Update; the rows in
-  Mochi and Mojo (their daemons have no inject channel; the walk runs on the Enyo spike daemon).
+  pane reset; later the Fonts box, Forget (the list put back), Update, the go buttons; in Mochi and Mojo (a hand-started
+  daemon with the inject channel) every tab and one control of each kind. FINGER-TESTS' item and preferences-ui R6's
+  first criterion ticked. Not tapped: the certificates' Remove buttons (the owner's trust). Trap for the next walk:
+  Mojo's card header (45 px) scrolls away with the page, so the page's top on the screen moves once it is scrolled.
 
 **Device state (2026-10-26):** the three packages built from this head are installed (daemon `9257befc`, libxul
 `707d9e76` stripped from engine `f4fefca0`, adapters `4f603df3`/`c93bbf54`/`ff4644d7`, impls `b79f1c1f`/`ee838ee6`/
-`94f96c00`); no dev copies or `.orig` leftovers (the about:addons component of `180c8f07` put into all three, identical to
-what a package of this head carries); Luna restarted; default-check passes in all three (GPU path, express
+`94f96c00`); no dev copies or `.orig` leftovers (the about:addons component of `180c8f07` and the settings page of `4b055141` put
+into all three, identical to what a package of this head carries); Luna restarted; default-check passes in all three (GPU path, express
 lane, 0 faults). Every profile: Palefill only (the twelve test pads removed), Default look, No proxy — Mochi's and
 Mojo's manual proxy to `192.168.1.245:3129` left by the 2026-10-25 proxy round was put back (nothing listened there).
 
@@ -98,8 +100,7 @@ Mojo's manual proxy to `192.168.1.245:3129` left by the 2026-10-25 proxy round w
 patches through 0065) and main.
 
 **Next:** T-527's open criteria (R3: the gaps' floor in the compositor job; R6: the
-double tap out after a pan); the rest of about:settings by finger
-(Fonts box, proxy, certificates, Forget, Update; Mochi and Mojo); WebOne needs a machine (the owner).
+double tap out after a pan); about:addons' search results list; WebOne needs a machine (the owner).
 
 ## 2026-10-25 (night) — T-527: the zoom's sharp frame 3-4x sooner (engine 0062); WebGL at 24+ fps (engine 0063) (READ FIRST)
 

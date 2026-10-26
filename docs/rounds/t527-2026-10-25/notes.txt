@@ -336,3 +336,15 @@ The kgsl sysfs has only io_fraction (100); the clocks are in debugfs (/sys/kerne
   interface; a CPU power lever, the governor-write wedge is the precedent); (b) software only: the first frame at a
   new zoom reads the card's view (942 rows) and leaves the overscan (282 rows) to the next frame — ~23% less read
   and swizzle, estimated to bring 276-301 ms to ~230-250, borderline; (c) accept (18-19 of 20 within 250 ms).
+
+## T-516's two levers, measured separately (the owner's "both, measured separately", 2026-10-26)
+Desktop Wikipedia, the emulated finger's double tap in and out ten times per run, two runs each; before: in 68-140 ms
+with 276 and 301 (dtap10s), 18 of 20 within 250 ms.
+- Lever 1, software (JIHAD_GPU_ZOOM_VIEW_FIRST=1, engine flag 16 "bands only"): the first frame at a new zoom reads
+  the card's view (942 of 1224 rows), the overscan white and the frame no base. dtap-vf-a/b: 40 of 40 within 250 ms;
+  double taps in 54-227 ms (the slow ones 160-227 where they were 276-301). The first frame dumped and looked at:
+  the view's rows the zoomed infobox, the overscan white; the next frame whole.
+- Lever 2, the second core online before each double tap (/sys/devices/system/cpu/cpu1/online = 1 when 0; the
+  kernel plugs and unplugs it every second or two by itself — a write when it is already up returns EINVAL):
+  dtap-cpu1-a/b: 40 of 40 within 250 ms; double taps in 63-161 ms, all but one under 101. The device stayed
+  responsive (the Luna bus answered; load as before); nothing persists past the kernel's next decision.

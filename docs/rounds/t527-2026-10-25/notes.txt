@@ -314,3 +314,9 @@ Fourteen findings over 623dc1ac, 286a9265, 180c8f07, 45a63a92 and engine 0064/00
   F-013 (engine) a failed band surface is tried again after 30 s; F-014 mLoadWasDone atomic.
 Regression: desktop Wikipedia 22.8 fps, the long page 33.3 (sensors running), verify 0 rows wrong in 58 checks
 (pan-r2-*), default-check on the GPU path with 0 faults.
+
+## The packaged head (daemon cbf72474, libxul 420e0d27 = engine 2f7898f0), double taps in runs of ten again
+dtap10c-daemon-gpu.log: 20 of 20 zoomed; out 0-3 ms every time (the kept frame); in 64-76 ms but one at 276 ms. That
+one: after the cycle's idle seconds the first composite at the new zoom ran 230 ms (job 103, no uploads) with both
+CPUs at 1188 MHz — the GPU's clock ramp after a pause (T-516's finding of 2026-10-19), not the daemon. A GPU clock
+floor would remove it; not tried (a device power lever the owner has not authorized).

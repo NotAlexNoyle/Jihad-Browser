@@ -1119,11 +1119,14 @@ std::string DebugElementRect(const char* elementId) {
   if (!r) return std::string("(no rect)");
   float x = 0, y = 0, w = 0, h = 0;
   r->GetLeft(&x); r->GetTop(&y); r->GetWidth(&w); r->GetHeight(&h);
-  char buf[160];
+  char buf[200];
   // Both geometry tokens are LABELLED because the "name" is now a selector that can itself
   // contain spaces (`sel:#configTree treechildren`) — a positional parse of this line breaks
-  // on exactly the selectors that need it most.
-  snprintf(buf, sizeof buf, "%s rect=%d,%d %dx%d center=%d,%d", elementId,
+  // on exactly the selectors that need it most. T-527: and the engine's scroll the viewport rect
+  // is relative to (scroll=; the document's point is rect + scroll), for a finger's tap
+  int esx = 0, esy = 0;
+  page->GetScrollXY(&esx, &esy, false);
+  snprintf(buf, sizeof buf, "%s scroll=%d,%d rect=%d,%d %dx%d center=%d,%d", elementId, esx, esy,
            (int)(x + 0.5f), (int)(y + 0.5f), (int)(w + 0.5f), (int)(h + 0.5f),
            (int)(x + w / 2 + 0.5f), (int)(y + h / 2 + 0.5f));
   return std::string(buf);

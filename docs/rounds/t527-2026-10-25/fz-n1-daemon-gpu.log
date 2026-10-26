@@ -1,0 +1,1766 @@
+=== LOG BEGIN
+[jihad-bs] variant=enyo (JIHAD_BS_NAME=jihad-browser) state=/var/palm/jihad/enyo
+[jihad-bs] rendering: the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+[jihad-bs] plugin search path: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/plugins:/media/cryptofs/apps/usr/lib/BrowserServerPlugins:/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/deviceroot/hl/plugins
+[jihad-bs] child process loader: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/deviceroot/hl/ld-2.23.so (library-path /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/deviceroot/hl)
+[jihad-bs] init: resolving greDir
+[jihad-bs] init: resolving the profile + cache dirs
+[jihad-bs] profile ProfD=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile ProfLD=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/cache
+[jihad-bs] init: checking the startup cache against the bundle
+[jihad-bs] startup cache: bundle unchanged (id 69e40158df028bba0d26d32f5d17dd74, 76 files, 9e318888c2d0a8c3, 80 ms) — kept
+[jihad-bs] init: XRE_InitEmbedding2
+[jihad-bs] appinfo: registered early (before app-startup JS)
+[jihad-bs] init: XRE_InitEmbedding2 OK
+[jihad-bs] engine: optional export jihad_layout_set_displayport is MISSING from libxul (its fallback is in use)
+[jihad-bs] engine: 24 of 25 optional jihad_* exports present
+[jihad-bs] init: InstallDialogService
+[jihad-bs] init: InstallDownloadService
+[jihad-bs] init: InstallAppInfoService (nsIXULAppInfo/nsIXULRuntime)
+[jihad-bs] appinfo[late-backstop]: id={4534aac8-d8c8-4765-95ee-7f61fd0b762d} version=1.0 platform=6.9.0
+[jihad-bs] widget-probe @mozilla.org/chrome/chrome-native-theme;1      ABSENT
+[jihad-bs] widget-probe @mozilla.org/widget/dragservice;1              ABSENT
+[jihad-bs] widget-probe @mozilla.org/widget/clipboard;1                ABSENT
+[jihad-bs] widget-probe @mozilla.org/widget/lookandfeel;1              ABSENT
+[jihad-bs] widget-probe @mozilla.org/widget/idleservice;1              ABSENT
+[jihad-bs] widget-probe @mozilla.org/widget/appshell/headless;1        PRESENT
+[jihad-bs] widget-probe @mozilla.org/gfx/screenmanager;1               PRESENT
+[jihad-bs] js-console bridge on (chrome/resource/about only)
+[jihad-bs] clipboardhelper: registered (headless widget module does not provide one)
+[jihad-bs] init: XRE_NotifyProfile (DoStartup: prefs + addons + profile-after-change)
+[jihad-bs] init: XRE_NotifyProfile returned
+[jihad-bs] init: preferences-service
+[jihad-bs] init: general.useragent.override
+[jihad-bs] init: menu highlight sheet
+[jihad-bs] menu highlight sheet: /var/palm/jihad/enyo/jihad-menu.css rv=0x0
+[jihad-bs] init: registering the per-domain UA observer
+[jihad-bs] prefs check: surfacecache.max_size_kb=32768 (goanna.js low-RAM block ACTIVE)
+[jihad-bs] prefs check: layers.enable-tiles=1
+[jihad-bs] init: engine init complete
+[jihad-bs] express lane: each card's commands read on a thread of its own (T-515)
+[jihad-bs] self-drive inject channel ENABLED: /var/palm/jihad/enyo/inject.cmd
+[jihad-bs] tick period 8 ms with a card, 1000 ms idle
+[jihad-bs] GPU compose jobs wake the loop when done (pipe 19)
+[jihad-bs] luna: serving palm://net.riverstonerelay.jihadBrowser/ — public{clearCache,clearCookies,notifications,getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails,findPrinters,printPage,pageCertificate,getTheme} private{clearCache,clearCookies,getChromePrefs,getFlash,getTheme,notifications} (toast channel ON)
+[jihad-bs] engine up; serving YAP 'jihad-browser' (waiting for BrowserAdapter)
+[jihad-bs] proxy: webOS's setting read (39 bytes)
+[jihad-bs] js-console (no source):0:0 bundled add-ons: the add-on manager is ready (attempt 0, 4494 ms after start)
+[jihad-bs] js-console (no source):0:0 bundled add-ons: palefill@addons.martoks-place.de: already installed, 1.30 (4880 ms)
+[jihad-bs] js-console (no source):0:0 identity: ready: 1 learned site(s), 1 site rule(s)
+[jihad-bs] js-console (no source):0:0 compat: ready: shims on
+[jihad-bs] luna: getTheme (none)
+[jihad-bs] YAP commands read on a reader thread (the express lane)
+Connecting to browser-adapter (client) socket: /tmp/yapserver.jihad-browser20158-52 ...
+Connected to client socket
+[jihad-bs] client connected
+[jihad-bs] clock hold on: the floor goes to 1188000 kHz while the engine has work (governor ondemandtcl, floor 192000 kHz otherwise)
+[jihad-bs] clock hold: held
+[jihad-bs] connect 960x1400 keys=0x1e7e800b,0x1e7f000c sz=12582944 id=0
+[jihad-gpu] express lane on: frames while the main thread is busy (after 45 ms)
+[jihad-bs] cert: certificate files -> /var/palm/jihad/enyo/certs (/var/ssl not writable by us)
+[jihad-gpu] daemon frame path: compositor (jihad_offscreen_compose present, OMTC on)
+[jihad-widget] create type=0 popup=0 hint=0 parent=(nil) bounds=0,0 960x1400
+[jihad-bs] tick: card connected — 8 ms
+[jihad-bs] extra buffer key=0x1e7f800d sz=12582944
+[jihad-bs] extra buffer ACCEPTED: 3-buffer rotation active (key 0x1e7f800d)
+[jihad-bs] focus: Luna requests are now answered for the card that just said it has the focus
+[jihad-bs] setEnableJavaScript 1
+[jihad-bs] setBlockPopups 1
+[jihad-bs] setAcceptCookies 1
+[jihad-bs] setZoomAndScroll zoom=1.0000 (was -1.0000) scroll=0,0
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 1, what the card shows, margins 0x0 CSS px, shift 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 1, panning, margins 0x768 CSS px, shift 0,0)
+[jihad-widget] create type=3 popup=0 hint=0 parent=0x41517400 bounds=0,0 1024x768
+[jihad-gpu] share root made: the compositor's and WebGL's contexts share textures
+[jihad-gpu] pbuffer context 1100x1400: created 
+[jihad-gpu] renderbuffer window targets 1100x1400: FBO 1 and one more, read by a thread of their own
+[jihad-gpu] compositor created for 1024x768 (compositor backend 2)
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 2, panning, margins 0x768 CSS px, shift 0,0)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-bs] setMinFontSize 2
+[jihad-bs] setEnableJavaScript 1
+[jihad-bs] setBlockPopups 1
+[jihad-bs] setAcceptCookies 1
+[jihad-bs] setBlockPopups 1
+[jihad-bs] setAcceptCookies 1
+[jihad-bs] setEnableJavaScript 1
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 2, panning, margins 0x942 CSS px, shift 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 2, panning, margins 0x942 CSS px, shift 0,0)
+[jihad-bs] setMinFontSize 2
+[jihad-page] docshell active (was active; timers and animation frames at full rate)
+[jihad-bs] extra buffer key=0x1e7f800d sz=12582944
+[jihad-bs] extra buffer ACCEPTED: 3-buffer rotation active (key 0x1e7f800d)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 2, panning, margins 0x942 CSS px, shift 0,0)
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-bs] openUrl https://en.wikipedia.org/wiki/HP_TouchPad
+[jihad-bs] InitializeNSS OK
+[jihad-bs] jihad_init_nss(ssl provider): main=1 rv=0x0 got=0x430d8708
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x804b0002
+[jihad-bs] state top f=0xf0001 doc=1 win=1 net=1 START status=0x0
+[jihad-tl] t=1792986678833 express waited 2658 ms for the frame lock
+[jihad-tl] t=1792986678833 express idle: not ready (no snapshot, popups, frozen or failed)
+[jihad-gpu] frame thread Compositor (31041) ahead of the others: nice -6
+[jihad-gpu] frame thread JihadExpress (31126) ahead of the others: nice -6
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-bs] proxy: webOS's setting read (39 bytes)
+[jihad-bs] js-console (no source):0:0 blocker: cache: EasyList 202610241635, EasyPrivacy 202610241641 - hosts 95044, third-party 5370, typed 199, path 5600, exceptions 5+1079, generichide 158, selectors 13079 (less 0), site selectors 7871 (less 301, per document), bad selectors 220, skipped 13063, 10644 ms
+[jihad-bs] js-console (no source):0:0 blocker: hiding on (13079 generic selectors)
+[jihad-bs] js-console (no source):0:0 blocker: excepted generic selectors, per document: 268; generic-hide sites 154 and 4 address prefixes
+[jihad-bs] js-console (no source):0:0 OpenGL compositor Initialized Succesfully.
+Version: OpenGL ES 2.0 1566933
+Vendor: Qualcomm
+Renderer: Adreno (TM) 220
+FBO Texture Target: TEXTURE_2D
+[jihad-bs] shm 511606795 attached write-through
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 142 CSS px each way (code 2)
+[jihad-bs] shm 511639564 attached write-through
+[jihad-bs] shm 511672333 attached write-through
+[jihad-gpu] frame 0: layers 1.1 ms
+[jihad-gpu] activity: docshell active, pres shell active, document visible, frame requests full rate, painted-pres-shell 0, window foreground
+[jihad-gpu] slot 0 read whole: valid=0 x 0/0 y -141/0 zoom 1.0000/1.0000 w 768/0 h 1224/0 fixed 0..0
+[jihad-tl] t=1792986678855 express idle: no main-lane frame of this geometry yet
+[jihad-bs] js-console (no source):0:0 certs: built-in roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report
+[jihad-gpu] window targets re-sized to 768x1224 (were 1100x1400); the pbuffer too
+[jihad-gpu] async scroll: the root layer 0x3b71dc00 has no metadata (card scroll valid 1 want 0.0,0.0)
+[jihad-gpu] BeginFrame 1: render bounds 0,0 768x1224, target 768x1224, clip 0,0 768x1224, widget 768x1224, window fbo 1
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 48.3 ms, CPU swizzle+flip 19.6 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 0..1224 68.0 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 0.9 ms, handoff 68.1 ms (frame 0, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986678939 job 1: queued 0.1 ms on the compositor loop, composed in 94.0 ms (0 uploads 0.0)
+[jihad-bs] blocker installed: heap purged (jemalloc dirty pages returned)
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-tl] t=1792986679518 main pump 663 ms
+[jihad-gpu] job done 670 ms after its start, 0 pending polls, read 0..1224 and 0..0, changed 0..1224, fixed 0..0, nb=0, 0 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=0 (768x1224 top=-141 band=0 left=0) mZoom=1.0000 contentZoom=1.0000 ms=670 rows new=0 copied=0
+[jihad-gpu] daemon frame: before read 0 ms, read (compose) 670 ms, between 0 ms, popups+publish 0 ms
+[jihad-tl] t=1792986679525 trailer: frame 1, whole
+[jihad-tl] t=1792986679528 publish main gap=-1 made=674 y=-141 zoom=1.0000
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 3 ms
+[jihad-bs] js-console (no source):0:0 certs: webOS: 190 distinct certificate(s) in 3 store(s); trusting 0; skipped {"stock":63,"removed":12,"builtin":115,"expired":0,"notCA":0,"notRoot":0,"siteLike":0,"noCertSign":0,"accepted":0,"already":0,"relay":0,"unreadable":0}
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-widget] create type=3 popup=0 hint=0 parent=0x41517400 bounds=0,0 768x942
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986679697 main pump 144 ms
+[jihad-tl] t=1792986679855 express idle: the card is served
+[jihad-bs] emitGeometry contentSize=768x942 win=768x942 mZoom=1.0000
+[jihad-tl] t=1792986680036 main pump 339 ms
+[jihad-tl] t=1792986680052 main pump 15 ms
+[jihad-gpu] read: shift 0 rows 21.9 ms, band 0..0 0.0 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 0.2 ms, handoff 22.0 ms (frame 1, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986680059 job 2: queued 0.1 ms on the compositor loop, composed in 22.3 ms (0 uploads 0.0)
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-tl] t=1792986680066 trailer: frame 2, changed since 1: x 0..0 rows 0..0
+[jihad-gpu] express frame times: on the slot's own frame 0.0 ms, copied from the base 23.0 ms
+[jihad-tl] t=1792986680066 publish express gap=538 made=29 y=-141 zoom=1.0000
+[jihad-tl] t=1792986680060 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 1: slot 2 from the newest (shift 0, read 0..0), zoom 1.0000 y -141, 23 ms after the card's move, 23 ms after the card began to wait, composed and read in 23 ms, the main lane quiet 536 ms
+[jihad-tl] t=1792986680067 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-tl] t=1792986680444 main pump 377 ms
+[jihad-gpu] painted layers: tiled
+[jihad-gpu] frame 1: layers 2.8 ms
+[jihad-gpu] slot 1 from the newest slot 2 (y -141 -> -141, shift 0); bands 0..0 and 0..0
+[jihad-gpu] diff first: changed 141..1224, shift 0 (none), fixed 0..0 -> 1083 rows, the whole path
+[jihad-tl] t=1792986680462 express idle: the card is served
+[jihad-tl] t=1792986680488 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1083 rows 22.2 ms, CPU swizzle+flip 8.9 ms
+[jihad-gpu] read: shift 0 rows 28.8 ms, band 141..1224 31.4 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 0.7 ms, handoff 60.3 ms (frame 2, rows 141..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 141..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986680509 job 3: queued 0.1 ms on the compositor loop, composed in 61.3 ms (0 uploads 0.0)
+[jihad-tl] t=1792986680514 express idle: the card is served
+[jihad-tl] t=1792986680539 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680565 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680592 express idle: the card is served
+[jihad-tl] t=1792986680617 express idle: the card is served
+[jihad-tl] t=1792986680642 express idle: the card is served
+[jihad-tl] t=1792986680667 express idle: the card is served
+[jihad-tl] t=1792986680693 express idle: the card is served
+[jihad-tl] t=1792986680718 express idle: the card is served
+[jihad-tl] t=1792986680744 express idle: the card is served
+[jihad-tl] t=1792986680769 express idle: the card is served
+[jihad-tl] t=1792986680795 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680820 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680845 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680872 express idle: the card is served
+[jihad-tl] t=1792986680897 express idle: the card is served
+[jihad-tl] t=1792986680922 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986680947 express idle: the card is served
+[jihad-tl] t=1792986680973 express idle: the card is served
+[jihad-tl] t=1792986681000 express idle: the card is served
+[jihad-tl] t=1792986681025 express idle: the card is served
+[jihad-tl] t=1792986681050 express idle: the card is served
+[jihad-tl] t=1792986681075 express idle: the card is served
+[jihad-tl] t=1792986681100 express idle: the card is served
+[jihad-tl] t=1792986681126 express idle: the card is served
+[jihad-tl] t=1792986681151 express idle: the card is served
+[jihad-tl] t=1792986681176 express idle: the card is served
+[jihad-tl] t=1792986681202 express idle: the card is served
+[jihad-tl] t=1792986681227 express idle: the card is served
+[jihad-tl] t=1792986681253 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986681281 express idle: the card is served
+[jihad-tl] t=1792986681306 express idle: the card is served
+[jihad-tl] t=1792986681331 express idle: the card is served
+[jihad-tl] t=1792986681357 express idle: the card is served
+[jihad-tl] t=1792986681383 express idle: the card is served
+[jihad-tl] t=1792986681408 express idle: the card is served
+[jihad-tl] t=1792986681433 express idle: the card is served
+[jihad-tl] t=1792986681458 express idle: the card is served
+[jihad-tl] t=1792986681484 express idle: the card is served
+[jihad-tl] t=1792986681510 express idle: the card is served
+[jihad-tl] t=1792986681535 express idle: the card is served
+[jihad-tl] t=1792986681560 express idle: the card is served
+[jihad-tl] t=1792986681587 express idle: the card is served
+[jihad-tl] t=1792986681612 express idle: the card is served
+[jihad-tl] t=1792986681640 express idle: the card is served
+[jihad-tl] t=1792986681665 express idle: the card is served
+[jihad-tl] t=1792986681691 express idle: the card is served
+[jihad-tl] t=1792986681716 express idle: the card is served
+[jihad-tl] t=1792986681741 express idle: the card is served
+[jihad-tl] t=1792986681768 express idle: the card is served
+[jihad-tl] t=1792986681793 express idle: the card is served
+[jihad-tl] t=1792986681818 express idle: the card is served
+[jihad-tl] t=1792986681843 express idle: the card is served
+[jihad-tl] t=1792986681871 express idle: the card is served
+[jihad-tl] t=1792986681897 express idle: the card is served
+[jihad-tl] t=1792986681922 express idle: the card is served
+[jihad-tl] t=1792986681947 express idle: the card is served
+[jihad-tl] t=1792986681972 express idle: the card is served
+[jihad-tl] t=1792986681997 express idle: the card is served
+[jihad-tl] t=1792986682023 express idle: the card is served
+[jihad-tl] t=1792986682048 express idle: the card is served
+[jihad-tl] t=1792986682073 express idle: the card is served
+[jihad-tl] t=1792986682098 express idle: the card is served
+[jihad-tl] t=1792986682123 express idle: the card is served
+[jihad-tl] t=1792986682149 express idle: the card is served
+[jihad-tl] t=1792986682175 express idle: the card is served
+[jihad-tl] t=1792986682201 express idle: the card is served
+[jihad-tl] t=1792986682226 express idle: the card is served
+[jihad-tl] t=1792986682252 express idle: the card is served
+[jihad-tl] t=1792986682278 express idle: the card is served
+[jihad-tl] t=1792986682303 express idle: the card is served
+[jihad-tl] t=1792986682328 express idle: the card is served
+[jihad-tl] t=1792986682354 express idle: the card is served
+[jihad-tl] t=1792986682379 express idle: the card is served
+[jihad-tl] t=1792986682404 express idle: the card is served
+[jihad-tl] t=1792986682430 express idle: the card is served
+[jihad-tl] t=1792986682455 express idle: the card is served
+[jihad-tl] t=1792986682480 express idle: the card is served
+[jihad-tl] t=1792986682505 express idle: the card is served
+[jihad-tl] t=1792986682531 express idle: the card is served
+[jihad-tl] t=1792986682556 express idle: the card is served
+[jihad-tl] t=1792986682582 express idle: the card is served
+[jihad-tl] t=1792986682607 express idle: the card is served
+[jihad-tl] t=1792986682633 express idle: the card is served
+[jihad-tl] t=1792986682661 express idle: the card is served
+[jihad-tl] t=1792986682686 express idle: the card is served
+[jihad-tl] t=1792986682711 express idle: the card is served
+[jihad-tl] t=1792986682736 express idle: the card is served
+[jihad-tl] t=1792986682763 express idle: the card is served
+[jihad-tl] t=1792986682790 express idle: the card is served
+[jihad-tl] t=1792986682815 express idle: the card is served
+[jihad-tl] t=1792986682840 express idle: the card is served
+[jihad-tl] t=1792986682865 express idle: the card is served
+[jihad-tl] t=1792986682890 express idle: the card is served
+[jihad-tl] t=1792986682915 express idle: the card is served
+[jihad-tl] t=1792986682940 express idle: the card is served
+[jihad-tl] t=1792986682966 express idle: the card is served
+[jihad-tl] t=1792986682991 express idle: the card is served
+[jihad-tl] t=1792986683016 express idle: the card is served
+[jihad-tl] t=1792986683043 express idle: the card is served
+[jihad-tl] t=1792986683069 express idle: the card is served
+[jihad-tl] t=1792986683094 express idle: the card is served
+[jihad-tl] t=1792986683120 express idle: the card is served
+[jihad-tl] t=1792986683145 express idle: the card is served
+[jihad-tl] t=1792986683170 express idle: the card is served
+[jihad-tl] t=1792986683195 express idle: the card is served
+[jihad-tl] t=1792986683222 express idle: the card is served
+[jihad-tl] t=1792986683247 express idle: the card is served
+[jihad-tl] t=1792986683272 express idle: the card is served
+[jihad-tl] t=1792986683298 express idle: the card is served
+[jihad-tl] t=1792986683323 express idle: the card is served
+[jihad-tl] t=1792986683349 express idle: the card is served
+[jihad-tl] t=1792986683374 express idle: the card is served
+[jihad-tl] t=1792986683399 express idle: the card is served
+[jihad-tl] t=1792986683425 express idle: the card is served
+[jihad-tl] t=1792986683450 express idle: the card is served
+[jihad-tl] t=1792986683475 express idle: the card is served
+[jihad-tl] t=1792986683500 express idle: the card is served
+[jihad-tl] t=1792986683525 express idle: the card is served
+[jihad-tl] t=1792986683551 express idle: the card is served
+[jihad-tl] t=1792986683577 express idle: the card is served
+[jihad-bs] emitGeometry contentSize=1116x11793 win=768x942 mZoom=1.0000
+[jihad-bs] metaViewport -> card: initial=0.6857 min=0.1000 max=2.9112 1120x1374 userScalable=1
+[jihad-tl] t=1792986683595 main pump 3131 ms
+[jihad-bs] paint pipeline: wanted=4 deferred=0 done=2 in 4752ms (0.4 fps)
+[jihad-bs]   partial=0 (full: nodmg=3 force=0 slot=0 geom=0 small=0) ticks=10 dirty=0 | frame gap ms min=536 avg=536 max=536
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=1
+[jihad-bs]   tick period ms min=4 avg=180 max=673 | work avg=524 max=3132 (pump avg=521 paint avg=3) | n=9
+[jihad-bs] setZoomAndScroll zoom=0.6882 (was 1.0000) scroll=0,0
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] viewport: scale 0.6882 (compositor), displayport set (code 0, panning, margins 0x1368 CSS px, shift 0,0)
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 26.8 ms, CPU swizzle+flip 9.7 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 0..1224 36.7 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 0.6 ms, handoff 36.8 ms (frame 3, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 0..0, started=1)
+[jihad-tl] t=1792986683628 job 4: queued 0.1 ms on the compositor loop, composed in 37.5 ms (0 uploads 0.0)
+[jihad-tl] t=1792986683635 trailer: frame 3, whole
+[jihad-tl] t=1792986683636 publish express gap=3570 made=46 y=-141 zoom=0.6882
+[jihad-tl] t=1792986683629 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x1 (768x1224 at zoom 0.6882, 39 ms after the zoom, x 0 y -141)
+[jihad-gpu] express frame 2: slot 0 whole (shift 0, read 0..1224), zoom 0.6882 y -141, 39 ms after the card's move, 3592 ms after the card began to wait, composed and read in 39 ms, the main lane quiet 4105 ms
+[jihad-tl] t=1792986683636 express idle: the card is served
+[jihad-tl] t=1792986683662 express idle: the card is served
+[jihad-tl] t=1792986683672 main pump 58 ms
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 206 CSS px each way (code 0)
+[jihad-gpu] main lane's frame dropped: the express lane published 1 frame(s) since it was posted
+[jihad-gpu] job done 3216 ms after its start, 0 pending polls, read 141..1224 and 0..0, changed 141..1224, fixed 0..0, nb=1, 0 still in flight
+[jihad-gpu] frame 2: layers 539.3 ms
+[jihad-tl] t=1792986684218 main layer paint (the express lane leads) 540 ms
+[jihad-gpu] texture pool: 0 taken from the pool, 1 new (0 converted, 0.0 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-gpu] texture conversion: framebuffer status 0x8cd5
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-gpu] upload call 4x1374 format 0x80e1 type 0x1401 init 1: 0.1 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 6.2 ms, upload 0.3 ms (all 6.5)
+[jihad-gpu] texture pool: 0 taken from the pool, 2 new (1 converted, 6.0 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-gpu] upload call 4x8 format 0x80e1 type 0x1401 init 1: 0.0 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.2 ms (all 1.0)
+[jihad-gpu] layer paint skipped: nothing pending (1 so far)
+[jihad-gpu] slot 1 read whole: valid=0 x 0/0 y -141/0 zoom 0.6882/1.0000 w 768/0 h 1224/0 fixed 0..0
+[jihad-gpu] texture pool: 0 taken from the pool, 3 new (2 converted, 3.4 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986684226 express idle: the card is served
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.5 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.7 ms (all 1.5)
+[jihad-gpu] texture pool: 0 taken from the pool, 4 new (3 converted, 2.5 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.1 ms, upload 1.3 ms (all 2.4)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.9 ms, upload 0.9 ms (all 1.8)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.7 ms, upload 1.0 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.3 ms (all 2.1)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.3 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.5 ms (all 2.3)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.1 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.1 ms, upload 1.3 ms (all 2.4)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-bs] js-console (no source):0:0 compat: en.wikipedia.org: CSSStyleSheet.replace, reportError, Intl.ListFormat, Element.checkVisibility, AbortSignal.any, URLSearchParams.size, Array.fromAsync, inert, popover, Blob.text/arrayBuffer, Response.json, Promise.try, Set methods, iterator helpers, ReadableStream iteration, scheduler.postTask, requestVideoFrameCallback, canvas.roundRect
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.9 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.7 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.9 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.1 ms, upload 0.9 ms (all 2.0)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-tl] t=1792986684254 express idle: the card is served
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.0 ms, upload 1.1 ms (all 2.2)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.0 ms, upload 1.0 ms (all 2.1)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.4 ms, upload 1.2 ms (all 2.6)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.5 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.0 ms, upload 1.6 ms (all 2.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.9 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.7 ms, upload 0.9 ms (all 1.7)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.9 ms, upload 1.1 ms (all 2.0)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.7 ms, upload 1.1 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 0.9 ms (all 1.7)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.0 ms, upload 0.9 ms (all 1.9)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-tl] t=1792986684280 express idle: the card is served
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 2.9 ms, upload 1.1 ms (all 4.0)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 0.8 ms, upload 1.0 ms (all 1.8)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] texture source update: make current 0.0 ms, texture created 1.5 ms, upload 1.0 ms (all 2.5)
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.2 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 1.0 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.8 ms
+[jihad-tl] t=1792986684305 express idle: the card is served
+[jihad-gpu] upload call 256x256 format 0x80e1 type 0x1401 init 1: 0.9 ms
+[jihad-gpu] texture pool: 0 taken from the pool, 50 new (49 converted, 1.0 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986684331 express idle: the card is served
+[jihad-tl] t=1792986684334 main pump 66 ms
+[jihad-tl] t=1792986684357 express idle: the card is served
+[jihad-tl] t=1792986684382 express idle: the card is served
+[jihad-tl] t=1792986684408 express idle: the card is served
+[jihad-tl] t=1792986684413 layer transaction on the compositor thread: 195.4 ms, 24 edits (compositable ops 195.2, 92 uploads 92.9; layers updated 0.0; end 0.0; the rest 0.2)
+[jihad-gpu] async scroll: layer 0x3b722400 has 1 metadata (first: root content 1, id 2, offset 0.0,0.0), card scroll valid 0 want 0.0,0.0, controller 0
+[jihad-gpu] diff first: changed 141..1224, shift 0 (none), fixed 0..0 -> 1224 rows, the whole path
+[jihad-tl] t=1792986684433 express idle: the card is served
+[jihad-tl] t=1792986684458 express idle: the card is served
+[jihad-tl] t=1792986684483 express idle: the card is served
+[jihad-tl] t=1792986684510 express idle: the card is served
+[jihad-tl] t=1792986684536 express idle: the card is served
+[jihad-tl] t=1792986684563 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 31.3 ms, CPU swizzle+flip 7.9 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 0..1224 39.3 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 129.4 ms, handoff 39.4 ms (frame 4, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 141..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986684583 job 5: queued 187.9 ms on the compositor loop, composed in 169.3 ms (0 uploads 0.0)
+[jihad-tl] t=1792986684584 main pump 224 ms
+[jihad-gpu] frame dumped: /tmp/frame.raw (768x1224 BGRA, first with content)
+[jihad-gpu] seq frame 1: content rows 148..1220 cols 8..208 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 409 ms after its start, 8 pending polls, read 0..1224 and 0..0, changed 141..1224, fixed 0..0, nb=26048, 0 still in flight
+[jihad-gpu] zoom frame written: log.2 (768x1224 at zoom 0.6882, 1040 ms after the zoom, 1045 ms after it arrived, x 0 y -141)
+[jihad-bs] painted shmid=0x1e7f000c bytes=26048 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=409 rows new=0 copied=0
+[jihad-tl] t=1792986684635 trailer: frame 4, whole
+[jihad-tl] t=1792986684635 publish main gap=999 made=409 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-tl] t=1792986684636 express waited 50 ms for the frame lock
+[jihad-tl] t=1792986684636 express idle: the card is served
+[jihad-gpu] slot 2 from the newest slot 1 (y -141 -> -141, shift 0); bands 0..0 and 0..0
+[jihad-gpu] read: shift 0 rows 6.2 ms, band 0..0 0.0 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 0.4 ms, handoff 6.4 ms (frame 5, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986684643 job 6: queued 0.1 ms on the compositor loop, composed in 6.9 ms (0 uploads 0.0)
+[jihad-gpu] tick: loop gap 6 ms before it, pump 224 ms, paint 60 ms
+[jihad-gpu] maybePaint +60 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 3/3)
+[jihad-gpu] seq frame 2: content rows 148..1220 cols 8..208 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 34 ms after its start, 0 pending polls, read 0..0 and 0..0, changed 0..0, fixed 0..0, nb=26048, 0 still in flight
+[jihad-gpu] zoom frame written: log.2 (768x1224 at zoom 0.6882, 1082 ms after the zoom, 1087 ms after it arrived, x 0 y -141)
+[jihad-bs] painted shmid=0x1e7f800d bytes=26048 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=34 rows new=0 copied=0
+[jihad-tl] t=1792986684678 trailer: frame 5, changed since 4: x 0..0 rows 0..0
+[jihad-tl] t=1792986684678 publish main gap=43 made=35 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986684678 express waited 31 ms for the frame lock
+[jihad-tl] t=1792986684678 express idle: the card is served
+[jihad-gpu] maybePaint +43 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 35 ms before it, pump 9 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986684711 main pump 24 ms
+[jihad-gpu] maybePaint +24 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 24 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986684727 main pump 16 ms
+[jihad-gpu] maybePaint +16 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 16 ms, paint 0 ms
+[jihad-tl] t=1792986684791 main pump 64 ms
+[jihad-gpu] maybePaint +64 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 64 ms, paint 0 ms
+[jihad-gpu] maybePaint +10 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 10 ms, paint 0 ms
+[jihad-gpu] maybePaint +11 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 11 ms, paint 0 ms
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +14 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 9 ms, paint 0 ms
+[jihad-tl] t=1792986684872 main pump 24 ms
+[jihad-gpu] maybePaint +24 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 24 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +7 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 7 ms, paint 0 ms
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +19 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 14 ms, paint 0 ms
+[jihad-bs] js-console (no source):0:0 blocker: memory after install: resident 153.5 MB, heap-allocated 79.4 MB, JS GC heap 10.0 MB, JS temporary peak 1.3 MB, JS compartments 56+6
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +11 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 6 ms, paint 0 ms
+[jihad-gpu] maybePaint +7 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] maybePaint +8 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986685678 express idle: the card is served
+[jihad-tl] t=1792986686681 express idle: the card is served
+[jihad-tl] t=1792986687684 express idle: the card is served
+[jihad-tl] t=1792986687732 main pump 2733 ms
+[jihad-gpu] maybePaint +2739 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 3/3)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 2733 ms, paint 1 ms
+[jihad-bs]   tick period ms min=5 avg=116 max=3133 | work avg=88 max=2734 (pump avg=87 paint avg=1) | n=39
+[jihad-tl] t=1792986687793 layer transaction on the compositor thread: 71.6 ms, 6 edits (compositable ops 71.5, 78 uploads 67.0; layers updated 0.0; end 0.0; the rest 0.1)
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] emitGeometry contentSize=1116x11519 win=768x942 mZoom=0.6882
+[jihad-gpu] express frame on its slot's own frame 1: slot 1, window 1435 -> 1435 (moved 0 rows), bands 0..0 and 0..0
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-gpu] diff first: changed 141..1224, shift 0 (none), fixed 0..0 -> 1083 rows, the whole path
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-tl] t=1792986688016 main pump 284 ms
+[jihad-gpu] maybePaint +284 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-bs] paint pipeline: wanted=17 deferred=0 done=4 in 4421ms (0.9 fps)
+[jihad-bs]   partial=0 (full: nodmg=13 force=0 slot=1 geom=0 small=0) ticks=43 dirty=1 | frame gap ms min=42 avg=1154 max=3569
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=2 56+=2
+[jihad-gpu] tick: loop gap 0 ms before it, pump 284 ms, paint 0 ms
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-tl] t=1792986688018 express idle: its frame is being composed
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +12 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 11 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +15 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] tick: loop gap 11 ms before it, pump 4 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +11 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 5 ms, paint 1 ms
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1083 rows 34.9 ms, CPU swizzle+flip 10.0 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 141..1224 45.1 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 4.0 ms, handoff 45.1 ms (frame 6, rows 141..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 141..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986688065 job 7: queued 0.1 ms on the compositor loop, composed in 50.0 ms (0 uploads 0.0)
+[jihad-gpu] seq frame 3: content rows 148..1220 cols 8..208 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-tl] t=1792986688097 trailer: frame 6, changed since 5: x 0..768 rows 141..1224
+[jihad-tl] t=1792986688097 publish express gap=3419 made=82 y=-141 zoom=0.6882
+[jihad-tl] t=1792986688067 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 1 from the newest (shift 0, read 141..1224), zoom 0.6882 y -141, 52 ms after the card's move, 52 ms after the card began to wait, composed and read in 52 ms, the main lane quiet 3390 ms
+[jihad-tl] t=1792986688098 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] load watchdog: forcing load-stopped after 12103ms (engine still loading)
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0
+[jihad-bs] titleAndUrl title=[HP TouchPad - Wikipedia] uri=https://en.wikipedia.org/wiki/HP_TouchPad back=0 fwd=0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986689098 express idle: the card is served
+[jihad-tl] t=1792986690100 express idle: the card is served
+[jihad-bs] emitGeometry contentSize=1116x16380 win=768x942 mZoom=0.6882
+[jihad-tl] t=1792986690837 express idle: the card is served
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-tl] t=1792986690841 main pump 2777 ms
+[jihad-gpu] maybePaint +2782 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-bs] paint pipeline: wanted=5 deferred=0 done=1 in 2825ms (0.4 fps)
+[jihad-bs]   partial=0 (full: nodmg=0 force=0 slot=0 geom=0 small=0) ticks=5 dirty=0 | frame gap ms min=3390 avg=3390 max=3390
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=1
+[jihad-gpu] frame 3: layers 575.3 ms
+[jihad-tl] t=1792986691417 main layer paint (the express lane leads) 576 ms
+[jihad-gpu] tick: loop gap 5 ms before it, pump 2777 ms, paint 576 ms
+[jihad-bs]   tick period ms min=9 avg=511 max=2734 | work avg=610 max=3353 (pump avg=514 paint avg=96) | n=6
+[jihad-gpu] maybePaint +576 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] frame 4: layers 0.3 ms
+[jihad-gpu] slot 0 read whole: valid=1 x 0/0 y -141/-141 zoom 0.6882/0.6882 w 768/768 h 1224/1224 fixed 0..0
+[jihad-tl] t=1792986691418 express idle: the card is served
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-gpu] maybePaint +18 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] tick: loop gap 5 ms before it, pump 13 ms, paint 0 ms
+[jihad-tl] t=1792986691444 express idle: the card is served
+[jihad-gpu] maybePaint +14 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 4/4)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 14 ms, paint 0 ms
+[jihad-tl] t=1792986691470 express idle: the card is served
+[jihad-tl] t=1792986691496 express idle: the card is served
+[jihad-gpu] texture pool: 0 taken from the pool, 100 new (99 converted, 1.0 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986691521 express idle: the card is served
+[jihad-tl] t=1792986691547 express idle: the card is served
+[jihad-tl] t=1792986691572 express idle: the card is served
+[jihad-tl] t=1792986691598 express idle: the card is served
+[jihad-gpu] texture pool: 0 taken from the pool, 150 new (149 converted, 0.9 ms each), 0 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986691623 express idle: the card is served
+[jihad-tl] t=1792986691635 layer transaction on the compositor thread: 229.5 ms, 87 edits (compositable ops 228.8, 163 uploads 146.1; layers updated 0.1; end 0.0; the rest 0.5)
+[jihad-tl] t=1792986691635 main pump 186 ms
+[jihad-gpu] maybePaint +186 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 5/5)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 186 ms, paint 0 ms
+[jihad-gpu] diff first: changed 141..1224, shift 0 (none), fixed 0..0 -> 1224 rows, the whole path
+[jihad-gpu] maybePaint +8 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 7 ms, paint 0 ms
+[jihad-tl] t=1792986691649 express idle: the card is served
+[jihad-tl] t=1792986691673 main pump 29 ms
+[jihad-gpu] maybePaint +30 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 29 ms, paint 25 ms
+[jihad-tl] t=1792986691698 express idle: the card is served
+[jihad-tl] t=1792986691715 main pump 17 ms
+[jihad-gpu] maybePaint +42 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 17 ms, paint 0 ms
+[jihad-tl] t=1792986691723 express idle: the card is served
+[jihad-tl] t=1792986691749 express idle: the card is served
+[jihad-tl] t=1792986691775 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-tl] t=1792986691788 main pump 73 ms
+[jihad-gpu] maybePaint +74 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] frame 5: layers 0.3 ms
+[jihad-gpu] activity: docshell active, pres shell active, document visible, frame requests full rate, painted-pres-shell 1, window foreground
+[jihad-gpu] tick: loop gap 0 ms before it, pump 73 ms, paint 1 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +10 ms (2 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 10 ms, paint 1 ms
+[jihad-tl] t=1792986691802 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +8 ms (2 jobs, needsPaint 1, dirtyPending 0, seq 6/6)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 40.2 ms, CPU swizzle+flip 6.9 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 0..1224 47.2 ms, band 0..0 0.0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 7 ms, paint 0 ms
+[jihad-gpu] compositor thread: compose 122.6 ms, handoff 47.3 ms (frame 7, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 141..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986691807 job 8: queued 217.3 ms on the compositor loop, composed in 172.1 ms (0 uploads 0.0)
+[jihad-tl] t=1792986691818 layer transaction on the compositor thread: 10.1 ms, 20 edits (compositable ops 9.3, 8 uploads 4.9; layers updated 0.0; end 0.0; the rest 0.7)
+[jihad-gpu] diff first: changed 151..581, shift 0 (none), fixed 0..0 -> 1083 rows, the whole path
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986691828 express idle: the card is served
+[jihad-tl] t=1792986691828 main pump 21 ms
+[jihad-gpu] maybePaint +21 ms (2 jobs, needsPaint 1, dirtyPending 0, seq 8/8)
+[jihad-gpu] seq frame 4: content rows 152..1220 cols 28..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 452 ms after its start, 9 pending polls, read 0..1224 and 0..0, changed 141..1224, fixed 0..0, nb=80960, 1 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=80960 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=453 rows new=0 copied=0
+[jihad-tl] t=1792986691871 trailer: frame 7, whole
+[jihad-tl] t=1792986691871 publish main gap=3774 made=453 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] second frame not started: no slot 0, adapter holds it 1, no buffer 0, too small 0, start failed 0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 21 ms, paint 43 ms
+[jihad-tl] t=1792986691872 express waited 41 ms for the frame lock
+[jihad-tl] t=1792986691872 express idle: the grace (the main lane may serve it)
+[jihad-gpu] maybePaint +44 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 8/8)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1083 rows 51.8 ms, CPU swizzle+flip 13.4 ms
+[jihad-gpu] read: shift 0 rows 4.6 ms, band 141..1224 65.4 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 13.3 ms, handoff 70.1 ms (frame 8, rows 141..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 151..581 x 25..595, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986691904 job 9: queued 29.7 ms on the compositor loop, composed in 85.1 ms (0 uploads 0.0)
+[jihad-gpu] frame 6: layers 68.1 ms
+[jihad-tl] t=1792986691958 express waited 83 ms for the frame lock
+[jihad-tl] t=1792986691958 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986691962 layer transaction on the compositor thread: 4.9 ms, 10 edits (compositable ops 4.6, 3 uploads 3.5; layers updated 0.0; end 0.0; the rest 0.3)
+[jihad-gpu] diff first: changed 150..488, shift 0 (none), fixed 0..0 -> 431 rows, the band pass
+[jihad-gpu] maybePaint +96 ms (2 jobs, needsPaint 1, dirtyPending 0, seq 9/9)
+[jihad-gpu] band pbuffer 768x512 made (the tall one)
+[jihad-gpu] band target 768x512: FBO 4 on its own pbuffer (the tall one)
+[jihad-gpu] BeginFrame 8: render bounds 0,0 768x512, target 768x512, clip 0,0 768x431, widget 768x512, window fbo 4
+[jihad-gpu] seq frame 5: content rows 152..1220 cols 28..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 214 ms after its start, 2 pending polls, read 141..1224 and 0..0, changed 151..581, fixed 0..0, nb=79104, 1 still in flight
+[jihad-bs] painted shmid=0x1e7f800d bytes=79104 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=215 rows new=0 copied=0
+[jihad-tl] t=1792986692004 trailer: frame 8, changed since 7: x 25..595 rows 151..581
+[jihad-tl] t=1792986692004 publish main gap=133 made=215 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 87 ms before it, pump 9 ms, paint 37 ms
+[jihad-tl] t=1792986692005 express waited 35 ms for the frame lock
+[jihad-tl] t=1792986692005 express idle: the card is served
+[jihad-gpu] maybePaint +45 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 10/10)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 8 ms, paint 0 ms
+[jihad-gpu] maybePaint +0 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 10/10)
+[jihad-gpu] maybePaint +5 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 10/10)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +9 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 10/10)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 431 rows 22.3 ms, CPU swizzle+flip 7.3 ms
+[jihad-gpu] compositor thread: band frame 0: rows 150..581 and 0..0, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 1.6 ms, surface in 12.2 ms, compose 9.1 ms, shift 4.7 ms, read 40.1 ms, surface out 0.0 ms, all 67.8 ms, ok=1
+[jihad-tl] t=1792986692031 job 10: queued 5.2 ms on the compositor loop, composed in 67.9 ms (0 uploads 0.0)
+[jihad-tl] t=1792986692031 express idle: the card is served
+[jihad-gpu] maybePaint +13 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 10/10)
+[jihad-gpu] seq frame 6: content rows 152..1220 cols 28..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 110 ms after its start, 5 pending polls, read 150..581 and 0..0, changed 150..488, fixed 0..0, nb=79424, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f000c bytes=79424 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=110 rows new=0 copied=0
+[jihad-tl] t=1792986692068 trailer: frame 9, changed since 8: x 57..567 rows 150..488
+[jihad-tl] t=1792986692069 publish main gap=65 made=111 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] tick: loop gap 3 ms before it, pump 10 ms, paint 29 ms
+[jihad-tl] t=1792986692069 express idle: the card is served
+[jihad-tl] t=1792986692216 layer transaction on the compositor thread: 3.8 ms, 20 edits (compositable ops 3.3, 8 uploads 2.2; layers updated 0.1; end 0.0; the rest 0.5)
+[jihad-tl] t=1792986692217 main pump 148 ms
+[jihad-gpu] maybePaint +178 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 11/11)
+[jihad-gpu] diff first: changed 150..579, shift 0 (none), fixed 0..0 -> 429 rows, the band pass
+[jihad-gpu] tick: loop gap 0 ms before it, pump 148 ms, paint 15 ms
+[jihad-tl] t=1792986692232 express idle: the card is served
+[jihad-gpu] maybePaint +20 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 6 ms, paint 0 ms
+[jihad-gpu] maybePaint +0 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 11/11)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 429 rows 13.4 ms, CPU swizzle+flip 4.0 ms
+[jihad-gpu] compositor thread: band frame 1: rows 150..579 and 0..0, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 2.0 ms, surface in 0.0 ms, compose 11.4 ms, shift 0.0 ms, read 19.2 ms, surface out 0.0 ms, all 32.7 ms, ok=1
+[jihad-tl] t=1792986692251 job 11: queued 0.1 ms on the compositor loop, composed in 32.9 ms (0 uploads 0.0)
+[jihad-gpu] maybePaint +13 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 11/11)
+[jihad-gpu] seq frame 7: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 52 ms after its start, 2 pending polls, read 150..579 and 0..0, changed 150..579, fixed 0..0, nb=81472, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f800d bytes=81472 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=52 rows new=0 copied=0
+[jihad-tl] t=1792986692284 trailer: frame 10, changed since 9: x 22..595 rows 150..579
+[jihad-tl] t=1792986692286 publish main gap=217 made=54 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 2 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 12 ms, paint 35 ms
+[jihad-tl] t=1792986692286 express waited 32 ms for the frame lock
+[jihad-tl] t=1792986692286 express idle: the card is served
+[jihad-gpu] maybePaint +45 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 10 ms, paint 0 ms
+[jihad-tl] t=1792986692340 main pump 44 ms
+[jihad-gpu] maybePaint +44 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 44 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986692357 main pump 16 ms
+[jihad-gpu] maybePaint +17 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 16 ms, paint 1 ms
+[jihad-gpu] maybePaint +11 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 11 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +13 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 13 ms, paint 0 ms
+[jihad-gpu] maybePaint +12 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 11 ms, paint 1 ms
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 9 ms, paint 0 ms
+[jihad-gpu] maybePaint +13 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 12 ms, paint 0 ms
+[jihad-gpu] maybePaint +12 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 12 ms, paint 0 ms
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 11/11)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 8 ms, paint 0 ms
+[jihad-tl] t=1792986692499 main pump 61 ms
+[jihad-gpu] maybePaint +63 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 12/12)
+[jihad-gpu] diff first: changed 0..0, shift 0 (none), fixed 0..0 -> 431 rows, the band pass
+[jihad-gpu] async scroll: layer 0x3b722400 has 1 metadata (first: root content 1, id 2, offset 0.0,0.0), card scroll valid 0 want 0.0,0.0, controller 0
+[jihad-gpu] tick: loop gap 1 ms before it, pump 61 ms, paint 11 ms
+[jihad-tl] t=1792986692509 express idle: the card is served
+[jihad-gpu] maybePaint +19 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 12/12)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 431 rows 13.1 ms, CPU swizzle+flip 2.6 ms
+[jihad-gpu] compositor thread: band frame 2: rows 150..581 and 0..0, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 1.3 ms, surface in 0.0 ms, compose 7.3 ms, shift 0.0 ms, read 18.1 ms, surface out 0.0 ms, all 26.8 ms, ok=1
+[jihad-tl] t=1792986692526 job 12: queued 0.1 ms on the compositor loop, composed in 26.9 ms (0 uploads 0.0)
+[jihad-gpu] seq frame 8: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 51 ms after its start, 0 pending polls, read 150..581 and 0..0, changed 0..0, fixed 0..0, nb=81472, 0 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=81472 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=56 rows new=0 copied=0
+[jihad-tl] t=1792986692565 trailer: frame 11, changed since 10: x 0..0 rows 0..0
+[jihad-tl] t=1792986692566 publish main gap=280 made=57 y=-141 zoom=0.6882
+[jihad-gpu] publish: 5 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] tick: loop gap 4 ms before it, pump 5 ms, paint 48 ms
+[jihad-tl] t=1792986692566 express waited 42 ms for the frame lock
+[jihad-tl] t=1792986692566 express idle: the card is served
+[jihad-gpu] maybePaint +53 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 12/12)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +10 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 12/12)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 10 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986692625 main pump 44 ms
+[jihad-gpu] maybePaint +44 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 12/12)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 44 ms, paint 0 ms
+[jihad-tl] t=1792986692700 main pump 74 ms
+[jihad-gpu] maybePaint +75 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 13/13)
+[jihad-gpu] frame 7: layers 63.1 ms
+[jihad-tl] t=1792986692763 main layer paint 63 ms
+[jihad-gpu] diff first: changed 157..578, shift 0 (none), fixed 0..0 -> 429 rows, the band pass
+[jihad-gpu] tick: loop gap 1 ms before it, pump 74 ms, paint 75 ms
+[jihad-tl] t=1792986692775 express idle: the card is served
+[jihad-gpu] maybePaint +80 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 14/14)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 429 rows 17.1 ms, CPU swizzle+flip 2.6 ms
+[jihad-gpu] compositor thread: band frame 3: rows 150..579 and 0..0, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 1.4 ms, surface in 0.0 ms, compose 6.8 ms, shift 0.0 ms, read 22.1 ms, surface out 0.0 ms, all 30.5 ms, ok=1
+[jihad-tl] t=1792986692794 job 13: queued 0.1 ms on the compositor loop, composed in 30.6 ms (0 uploads 0.0)
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +15 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 14/14)
+[jihad-gpu] seq frame 9: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 56 ms after its start, 1 pending polls, read 150..579 and 0..0, changed 157..578, fixed 0..0, nb=81536, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f000c bytes=81536 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=57 rows new=0 copied=0
+[jihad-tl] t=1792986692832 trailer: frame 12, changed since 11: x 26..202 rows 157..578
+[jihad-tl] t=1792986692834 publish main gap=268 made=59 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 2 ms
+[jihad-gpu] tick: loop gap 3 ms before it, pump 12 ms, paint 39 ms
+[jihad-tl] t=1792986692834 express waited 38 ms for the frame lock
+[jihad-tl] t=1792986692834 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +49 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 14/14)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 10 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 14/14)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 5 ms, paint 1 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +9 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 14/14)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 8 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] maybePaint +5 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 14/14)
+[jihad-tl] t=1792986692950 layer transaction on the compositor thread: 4.1 ms, 14 edits (compositable ops 3.6, 4 uploads 2.1; layers updated 0.0; end 0.0; the rest 0.5)
+[jihad-tl] t=1792986692960 main pump 93 ms
+[jihad-gpu] maybePaint +97 ms (0 jobs, needsPaint 1, dirtyPending 0, seq 15/15)
+[jihad-bs] paint pipeline: wanted=28 deferred=1 done=6 in 2119ms (2.8 fps)
+[jihad-bs]   partial=0 (full: nodmg=29 force=0 slot=1 geom=0 small=0) ticks=45 dirty=1 | frame gap ms min=64 avg=794 max=3804
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=6
+[jihad-gpu] frame 8: layers 62.7 ms
+[jihad-tl] t=1792986693023 main layer paint 63 ms
+[jihad-gpu] diff first: changed 155..249, shift 0 (none), fixed 0..0 -> 423 rows, the band pass
+[jihad-gpu] tick: loop gap 4 ms before it, pump 93 ms, paint 74 ms
+[jihad-tl] t=1792986693036 express idle: the card is served
+[jihad-gpu] column read x 24..592, rows 155..578 (target rows from 0 of 512): glReadPixels 13.8 ms, swizzle+copy 4.2 ms
+[jihad-gpu] compositor thread: band frame 4: rows 155..578 and 0..0, x 24..592, 0 columns in 0 chunks (0 rows), 0 kept, entry 1.5 ms, surface in 0.0 ms, compose 7.5 ms, shift 0.0 ms, read 19.8 ms, surface out 0.0 ms, all 29.0 ms, ok=1
+[jihad-tl] t=1792986693052 job 14: queued 0.3 ms on the compositor loop, composed in 29.1 ms (0 uploads 0.0)
+[jihad-tl] t=1792986693056 main pump 20 ms
+[jihad-gpu] maybePaint +96 ms (1 jobs, needsPaint 1, dirtyPending 0, seq 16/16)
+[jihad-gpu] seq frame 10: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 61 ms after its start, 0 pending polls, read 155..578 and 0..0, changed 155..249, fixed 0..0, nb=81664, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f800d bytes=81664 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=62 rows new=0 copied=0
+[jihad-tl] t=1792986693096 trailer: frame 13, changed since 12: x 30..588 rows 155..249
+[jihad-tl] t=1792986693097 publish main gap=263 made=63 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] tick: loop gap 2 ms before it, pump 20 ms, paint 41 ms
+[jihad-tl] t=1792986693098 express waited 39 ms for the frame lock
+[jihad-tl] t=1792986693098 express idle: the card is served
+[jihad-gpu] maybePaint +50 ms (0 jobs, needsPaint 0, dirtyPending 0, seq 16/16)
+[jihad-gpu] tick: loop gap 1 ms before it, pump 8 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 14 ms, paint 0 ms
+[jihad-tl] t=1792986693158 main pump 32 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 32 ms, paint 1 ms
+[jihad-tl] t=1792986693187 main pump 29 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 29 ms, paint 0 ms
+[jihad-tl] t=1792986693253 main pump 57 ms
+[jihad-gpu] tick: loop gap 4 ms before it, pump 57 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 7 ms, paint 0 ms
+[jihad-tl] t=1792986693308 main pump 45 ms
+[jihad-gpu] tick: loop gap 3 ms before it, pump 45 ms, paint 2 ms
+[jihad-tl] t=1792986693416 main pump 106 ms
+[jihad-gpu] diff first: changed 300..776, shift 0 (none), fixed 0..0 -> 621 rows, the whole path
+[jihad-gpu] tick: loop gap 0 ms before it, pump 106 ms, paint 3 ms
+[jihad-bs]   tick period ms min=5 avg=100 max=3358 | work avg=36 max=186 (pump avg=26 paint avg=9) | n=52
+[jihad-tl] t=1792986693420 express idle: the card is served
+[jihad-gpu] BeginFrame 13: render bounds 0,0 768x1224, target 768x1224, clip 0,155 768x621, widget 768x1224, window fbo 1
+[jihad-tl] t=1792986693445 express idle: the card is served
+[jihad-tl] t=1792986693471 express idle: the card is served
+[jihad-gpu] column read x 16..592, rows 155..776 (target rows from 155 of 1224): glReadPixels 27.6 ms, swizzle+copy 4.7 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 155..776 34.0 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 15.5 ms, handoff 34.1 ms (frame 9, rows 155..776 and 0..0 of 1224, x 16..592, 0 columns, 0 kept, changed 300..776 x 22..166, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986693472 job 15: queued 0.1 ms on the compositor loop, composed in 55.4 ms (0 uploads 0.0)
+[jihad-tl] t=1792986693474 main pump 54 ms
+[jihad-gpu] seq frame 11: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 83 ms after its start, 0 pending polls, read 155..776 and 0..0, changed 300..776, fixed 0..0, nb=81600, 0 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=81600 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=84 rows new=0 copied=0
+[jihad-tl] t=1792986693503 trailer: frame 14, changed since 13: x 22..166 rows 300..776
+[jihad-tl] t=1792986693503 publish main gap=406 made=84 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 54 ms, paint 29 ms
+[jihad-tl] t=1792986693503 express idle: the card is served
+[jihad-tl] t=1792986693530 main pump 22 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 22 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 11 ms, paint 0 ms
+[jihad-tl] t=1792986693621 main pump 46 ms
+[jihad-gpu] tick: loop gap 8 ms before it, pump 46 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 6 ms, paint 0 ms
+[jihad-tl] t=1792986693691 main pump 61 ms
+[jihad-gpu] tick: loop gap 3 ms before it, pump 61 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 11 ms, paint 0 ms
+[jihad-tl] t=1792986693774 main pump 72 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 72 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 8 ms, paint 1 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 11 ms, paint 0 ms
+[jihad-tl] t=1792986694025 main pump 223 ms
+[jihad-gpu] tick: loop gap 3 ms before it, pump 223 ms, paint 0 ms
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0x20010 doc=1 win=0 net=0 STOP status=0x0
+[jihad-bs] state top f=0xc0010 doc=0 win=1 net=1 STOP status=0x0
+[jihad-bs] late load done uri=https://en.wikipedia.org/wiki/HP_TouchPad
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0
+[jihad-bs] titleAndUrl title=[HP TouchPad - Wikipedia] uri=https://en.wikipedia.org/wiki/HP_TouchPad back=0 fwd=0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 5 ms, paint 9 ms
+[jihad-tl] t=1792986694039 express idle: the card is served
+[jihad-gpu] tick: loop gap 2 ms before it, pump 7 ms, paint 1 ms
+[jihad-tl] t=1792986694065 express idle: the card is served
+[jihad-gpu] tick: loop gap 4 ms before it, pump 12 ms, paint 0 ms
+[jihad-gpu] column read x 16..592, rows 155..776 (target rows from 155 of 1224): glReadPixels 29.8 ms, swizzle+copy 6.0 ms
+[jihad-gpu] read: shift 0 rows 0.0 ms, band 155..776 35.9 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 6.9 ms, handoff 36.1 ms (frame 10, rows 155..776 and 0..0 of 1224, x 16..592, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986694073 job 16: queued 0.1 ms on the compositor loop, composed in 43.0 ms (0 uploads 0.0)
+[jihad-gpu] read: shift 0 rows 5.8 ms, band 0..0 0.0 ms, band 0..0 0.0 ms
+[jihad-gpu] compositor thread: compose 1.0 ms, handoff 6.0 ms (frame 11, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986694081 job 17: queued 25.0 ms on the compositor loop, composed in 7.0 ms (0 uploads 0.0)
+[jihad-tl] t=1792986694090 express idle: the card is served
+[jihad-tl] t=1792986694092 main pump 20 ms
+[jihad-gpu] seq frame 12: content rows 152..1220 cols 44..716 (of 768x1224) px(100,100)=ffffff px(700,900)=ffffff
+[jihad-gpu] job done 86 ms after its start, 3 pending polls, read 155..776 and 0..0, changed 0..0, fixed 0..0, nb=81600, 1 still in flight
+[jihad-bs] painted shmid=0x1e7f000c bytes=81600 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=86 rows new=0 copied=0
+[jihad-tl] t=1792986694125 trailer: frame 15, changed since 14: x 0..0 rows 0..0
+[jihad-tl] t=1792986694125 publish main gap=622 made=86 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] job done 78 ms after its start, 0 pending polls, read 0..0 and 0..0, changed 0..0, fixed 0..0, nb=81600, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f800d bytes=81600 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=78 rows new=0 copied=0
+[jihad-tl] t=1792986694127 trailer: frame 16, changed since 15: x 0..0 rows 0..0
+[jihad-tl] t=1792986694127 publish main gap=2 made=78 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 20 ms, paint 36 ms
+[jihad-tl] t=1792986694127 express waited 33 ms for the frame lock
+[jihad-tl] t=1792986694127 express idle: the card is served
+[jihad-tl] t=1792986694226 main pump 57 ms
+[jihad-gpu] tick: loop gap 7 ms before it, pump 57 ms, paint 0 ms
+[jihad-tl] t=1792986694283 main pump 57 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 57 ms, paint 0 ms
+[jihad-tl] t=1792986694338 main pump 54 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 54 ms, paint 0 ms
+[jihad-tl] t=1792986694426 main pump 79 ms
+[jihad-gpu] tick: loop gap 4 ms before it, pump 79 ms, paint 0 ms
+[jihad-tl] t=1792986694487 main pump 61 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 61 ms, paint 0 ms
+[jihad-tl] t=1792986694544 main pump 57 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 57 ms, paint 0 ms
+[jihad-tl] t=1792986694608 main pump 55 ms
+[jihad-gpu] tick: loop gap 4 ms before it, pump 55 ms, paint 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 8 ms, paint 0 ms
+[jihad-tl] t=1792986694672 main pump 55 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 55 ms, paint 0 ms
+[jihad-tl] t=1792986694712 main pump 40 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 40 ms, paint 0 ms
+[jihad-tl] t=1792986695129 express idle: the card is served
+[jihad-tl] t=1792986695282 main pump 570 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 570 ms, paint 1 ms
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986696131 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986696698 main pump 1415 ms
+[jihad-bs] paint pipeline: wanted=9 deferred=0 done=4 in 3741ms (1.1 fps)
+[jihad-bs]   partial=0 (full: nodmg=10 force=0 slot=0 geom=0 small=0) ticks=53 dirty=0 | frame gap ms min=2 avg=323 max=622
+[jihad-bs]   gap hist ms <16=1 16-23=0 24-31=0 32-39=0 40-55=0 56+=3
+[jihad-gpu] diff first: changed 152..175, shift 0 (none), fixed 0..0 -> 23 rows, the band pass
+[jihad-gpu] band pbuffer 768x256 made
+[jihad-gpu] tick: loop gap 0 ms before it, pump 1415 ms, paint 8 ms
+[jihad-bs]   tick period ms min=1 avg=46 max=571 | work avg=76 max=1423 (pump avg=73 paint avg=2) | n=42
+[jihad-tl] t=1792986696706 express idle: the card is served
+[jihad-gpu] band target 768x256: FBO 5 on its own pbuffer
+[jihad-gpu] async scroll: layer 0x3b722400 has 1 metadata (first: root content 1, id 2, offset 0.0,0.0), card scroll valid 0 want 0.0,0.0, controller 0
+[jihad-gpu] BeginFrame 15: render bounds 0,0 768x256, target 768x256, clip 0,0 768x23, widget 768x256, window fbo 5
+[jihad-gpu] column read x 456..512, rows 152..175 (target rows from 0 of 256): glReadPixels 3.6 ms, swizzle+copy 0.0 ms
+[jihad-gpu] compositor thread: band frame 5: rows 152..175 and 0..0, x 456..512, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.9 ms, surface in 9.2 ms, compose 4.1 ms, shift 0.0 ms, read 3.8 ms, surface out 0.0 ms, all 18.0 ms, ok=1
+[jihad-tl] t=1792986696720 job 18: queued 0.1 ms on the compositor loop, composed in 18.1 ms (0 uploads 0.0)
+[jihad-tl] t=1792986696732 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 1 for it: composed while the main thread is away (41 ms), posted 42 ms ago
+[jihad-tl] t=1792986696750 trailer: frame 17, changed since 16: x 456..510 rows 152..175
+[jihad-tl] t=1792986696750 publish express gap=2623 made=44 y=-141 zoom=0.6882
+[jihad-tl] t=1792986696748 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 0 from the newest (shift 0, read 152..175), zoom 0.6882 y -141, 5912 ms after the card's move, 0 ms after the card began to wait, composed and read in 42 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986696925 main pump 218 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 218 ms, paint 1 ms
+[jihad-tl] t=1792986696926 express idle: the card is served
+[jihad-gpu] BeginFrame 16: render bounds 0,0 768x1224, target 768x1224, clip 0,152 768x23, widget 768x1224, window fbo 1
+[jihad-gpu] column read x 456..512, rows 152..175 (target rows from 152 of 1224): glReadPixels 14.9 ms, swizzle+copy 0.1 ms
+[jihad-gpu] compositor thread: compose 3.9 ms, handoff 15.1 ms (frame 12, rows 152..175 and 0..0 of 1224, x 456..512, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986696946 job 19: queued 0.1 ms on the compositor loop, composed in 20.7 ms (0 uploads 0.0)
+[jihad-tl] t=1792986696951 express idle: the card is served
+[jihad-gpu] compositor thread: compose 1.0 ms, handoff 5.5 ms (frame 13, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986696953 job 20: queued 13.3 ms on the compositor loop, composed in 6.7 ms (0 uploads 0.0)
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-gpu] express lane publishes main-lane frame 2 for it: composed while the main thread is away (40 ms), posted 41 ms ago
+[jihad-tl] t=1792986696975 trailer: frame 18, changed since 17: x 0..0 rows 0..0
+[jihad-tl] t=1792986696977 publish express gap=227 made=51 y=-141 zoom=0.6882
+[jihad-tl] t=1792986696974 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 1 from the newest (shift 0, read 152..175), zoom 0.6882 y -141, 6138 ms after the card's move, 0 ms after the card began to wait, composed and read in 48 ms, the main lane quiet 0 ms
+[jihad-gpu] express lane publishes main-lane frame 3 for it: composed while the main thread is away (44 ms), posted 45 ms ago
+[jihad-tl] t=1792986696979 trailer: frame 19, changed since 18: x 0..0 rows 0..0
+[jihad-tl] t=1792986696981 publish express gap=4 made=48 y=-141 zoom=0.6882
+[jihad-tl] t=1792986696978 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 2 from the newest (shift 0, read 0..0), zoom 0.6882 y -141, 6142 ms after the card's move, 0 ms after the card began to wait, composed and read in 45 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986696982 express idle: the card is served
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986697982 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986698464 main pump 1530 ms
+[jihad-gpu] tick: loop gap 7 ms before it, pump 1530 ms, paint 0 ms
+[jihad-tl] t=1792986698465 express idle: the card is served
+[jihad-gpu] BeginFrame 17: render bounds 0,0 768x512, target 768x512, clip 0,0 768x281, widget 768x512, window fbo 4
+[jihad-gpu] tick: loop gap 0 ms before it, pump 7 ms, paint 0 ms
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 8 ms, paint 0 ms
+[jihad-gpu] column read x 24..48, rows 301..582 (target rows from 0 of 512): glReadPixels 8.2 ms, swizzle+copy 0.1 ms
+[jihad-gpu] compositor thread: band frame 6: rows 301..582 and 0..0, x 24..48, 0 columns in 0 chunks (0 rows), 0 kept, entry 1.0 ms, surface in 3.8 ms, compose 6.4 ms, shift 0.0 ms, read 8.5 ms, surface out 0.0 ms, all 19.7 ms, ok=1
+[jihad-tl] t=1792986698484 job 21: queued 0.1 ms on the compositor loop, composed in 19.8 ms (0 uploads 0.0)
+[jihad-tl] t=1792986698490 express idle: the card is served
+[jihad-tl] t=1792986698504 main pump 20 ms
+[jihad-gpu] job done 42 ms after its start, 5 pending polls, read 301..582 and 0..0, changed 301..582, fixed 0..0, nb=81600, 0 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=81600 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=42 rows new=0 copied=0
+[jihad-tl] t=1792986698506 trailer: frame 20, changed since 19: x 26..43 rows 301..582
+[jihad-tl] t=1792986698506 publish main gap=1525 made=42 y=-141 zoom=0.6882
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 20 ms, paint 2 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 7 ms, paint 0 ms
+[jihad-tl] t=1792986698560 main pump 45 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 45 ms, paint 3 ms
+[jihad-tl] t=1792986698563 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 296 rows 10.2 ms, CPU swizzle+flip 1.8 ms
+[jihad-gpu] compositor thread: band frame 7: rows 262..277 and 301..582, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.8 ms, surface in 0.0 ms, compose 6.6 ms, shift 0.0 ms, read 13.3 ms, surface out 0.0 ms, all 20.8 ms, ok=1
+[jihad-tl] t=1792986698581 job 22: queued 0.1 ms on the compositor loop, composed in 20.9 ms (0 uploads 0.0)
+[jihad-tl] t=1792986698588 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 4 for it: composed while the main thread is away (42 ms), posted 43 ms ago
+[jihad-tl] t=1792986698606 trailer: frame 21, changed since 20: x 40..74 rows 262..277
+[jihad-tl] t=1792986698608 publish express gap=102 made=46 y=-141 zoom=0.6882
+[jihad-tl] t=1792986698605 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 1 from the newest (shift 0, read 262..277), zoom 0.6882 y -141, 7769 ms after the card's move, 0 ms after the card began to wait, composed and read in 43 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986698626 main pump 63 ms
+[jihad-gpu] frame 9: layers 53.0 ms
+[jihad-tl] t=1792986698680 main layer paint 54 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 63 ms, paint 54 ms
+[jihad-tl] t=1792986698680 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] tick: loop gap 1 ms before it, pump 12 ms, paint 0 ms
+[jihad-gpu] column read x 24..80, rows 262..582 (target rows from 0 of 512): glReadPixels 9.1 ms, swizzle+copy 0.1 ms
+[jihad-gpu] compositor thread: band frame 8: rows 262..582 and 0..0, x 24..80, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.8 ms, surface in 0.0 ms, compose 4.5 ms, shift 0.0 ms, read 9.3 ms, surface out 0.0 ms, all 14.7 ms, ok=1
+[jihad-tl] t=1792986698696 job 23: queued 1.6 ms on the compositor loop, composed in 14.8 ms (0 uploads 0.0)
+[jihad-tl] t=1792986698706 express idle: the card is served
+[jihad-tl] t=1792986698732 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 5 for it: composed while the main thread is away (42 ms), posted 55 ms ago
+[jihad-tl] t=1792986698736 trailer: frame 22, changed since 21: x 28..38 rows 304..576
+[jihad-tl] t=1792986698738 publish express gap=130 made=58 y=-141 zoom=0.6882
+[jihad-tl] t=1792986698735 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 2 from the newest (shift 0, read 262..582), zoom 0.6882 y -141, 7899 ms after the card's move, 0 ms after the card began to wait, composed and read in 55 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986699494 main pump 801 ms
+[jihad-bs] paint pipeline: wanted=15 deferred=0 done=6 in 2793ms (2.1 fps)
+[jihad-bs]   partial=0 (full: nodmg=15 force=0 slot=0 geom=0 small=0) ticks=16 dirty=0 | frame gap ms min=4 avg=768 max=2621
+[jihad-bs]   gap hist ms <16=1 16-23=0 24-31=0 32-39=0 40-55=0 56+=5
+[jihad-tl] t=1792986699745 express idle: the card is served
+[jihad-gpu] frame 10: layers 42.0 ms
+[jihad-tl] t=1792986700425 main layer paint 930 ms
+[jihad-gpu] async scroll: layer 0x3b722400 has 1 metadata (first: root content 1, id 2, offset 0.0,0.0), card scroll valid 0 want 0.0,0.0, controller 0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 801 ms, paint 935 ms
+[jihad-bs]   tick period ms min=4 avg=310 max=1532 | work avg=337 max=1736 (pump avg=246 paint avg=90) | n=11
+[jihad-tl] t=1792986700429 express idle: the card is served
+[jihad-gpu] column read x 24..80, rows 262..576 (target rows from 0 of 512): glReadPixels 12.3 ms, swizzle+copy 0.1 ms
+[jihad-gpu] compositor thread: band frame 9: rows 262..576 and 0..0, x 24..80, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.8 ms, surface in 0.0 ms, compose 4.5 ms, shift 0.0 ms, read 12.6 ms, surface out 0.0 ms, all 18.0 ms, ok=1
+[jihad-tl] t=1792986700443 job 24: queued 0.1 ms on the compositor loop, composed in 18.0 ms (0 uploads 0.0)
+[jihad-tl] t=1792986700454 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 6 for it: composed while the main thread is away (40 ms), posted 41 ms ago
+[jihad-tl] t=1792986700472 trailer: frame 23, changed since 22: x 0..0 rows 0..0
+[jihad-tl] t=1792986700474 publish express gap=1736 made=45 y=-141 zoom=0.6882
+[jihad-tl] t=1792986700470 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 0 from the newest (shift 0, read 262..576), zoom 0.6882 y -141, 9634 ms after the card's move, 0 ms after the card began to wait, composed and read in 41 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986700478 main pump 48 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 48 ms, paint 0 ms
+[jihad-gpu] BeginFrame 21: render bounds 0,0 768x1224, target 768x1224, clip 0,304 768x272, widget 768x1224, window fbo 1
+[jihad-tl] t=1792986700481 express idle: the card is served
+[jihad-tl] t=1792986700497 main pump 19 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 19 ms, paint 0 ms
+[jihad-gpu] column read x 24..40, rows 304..576 (target rows from 304 of 1224): glReadPixels 20.5 ms, swizzle+copy 0.0 ms
+[jihad-gpu] compositor thread: compose 4.8 ms, handoff 20.8 ms (frame 14, rows 304..576 and 0..0 of 1224, x 24..40, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986700504 job 25: queued 0.1 ms on the compositor loop, composed in 26.1 ms (0 uploads 0.0)
+[jihad-gpu] job done 28 ms after its start, 2 pending polls, read 304..576 and 0..0, changed 0..0, fixed 0..0, nb=81792, 1 still in flight
+[jihad-bs] painted shmid=0x1e7f000c bytes=81792 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=29 rows new=0 copied=0
+[jihad-tl] t=1792986700507 trailer: frame 24, changed since 23: x 0..0 rows 0..0
+[jihad-tl] t=1792986700508 publish main gap=34 made=30 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] second frame not started: no slot 0, adapter holds it 2, no buffer 0, too small 0, start failed 0
+[jihad-gpu] tick: loop gap 1 ms before it, pump 6 ms, paint 4 ms
+[jihad-tl] t=1792986700508 express idle: the card is served
+[jihad-gpu] compositor thread: compose 1.0 ms, handoff 8.9 ms (frame 15, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986700514 job 26: queued 7.0 ms on the compositor loop, composed in 10.0 ms (0 uploads 0.0)
+[jihad-tl] t=1792986700535 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 7 for it: composed while the main thread is away (40 ms), posted 51 ms ago
+[jihad-tl] t=1792986700550 trailer: frame 25, changed since 24: x 0..0 rows 0..0
+[jihad-tl] t=1792986700550 publish express gap=42 made=53 y=-141 zoom=0.6882
+[jihad-tl] t=1792986700548 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 2 from the newest (shift 0, read 0..0), zoom 0.6882 y -141, 9712 ms after the card's move, 0 ms after the card began to wait, composed and read in 51 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986700552 main pump 44 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 44 ms, paint 0 ms
+[jihad-gpu] compositor thread: compose 1.1 ms, handoff 0.0 ms (frame 16, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986700554 job 27: queued 0.2 ms on the compositor loop, composed in 1.3 ms (0 uploads 0.0)
+[jihad-tl] t=1792986700562 express idle: the card is served
+[jihad-tl] t=1792986700587 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 8 for it: composed while the main thread is away (42 ms), posted 42 ms ago
+[jihad-tl] t=1792986700596 trailer: frame 26, changed since 25: x 0..0 rows 0..0
+[jihad-tl] t=1792986700597 publish express gap=47 made=45 y=-141 zoom=0.6882
+[jihad-tl] t=1792986700594 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 0 from the newest (shift 0, read 0..0), zoom 0.6882 y -141, 9758 ms after the card's move, 0 ms after the card began to wait, composed and read in 42 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986700599 main pump 47 ms
+[jihad-gpu] frame 11: layers 49.2 ms
+[jihad-tl] t=1792986700664 main layer paint 65 ms
+[jihad-gpu] compositor thread: compose 0.7 ms, handoff 0.0 ms (frame 17, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986700666 job 28: queued 0.1 ms on the compositor loop, composed in 1.7 ms (0 uploads 0.0)
+[jihad-gpu] tick: loop gap 0 ms before it, pump 47 ms, paint 67 ms
+[jihad-tl] t=1792986700666 express idle: the card is served
+[jihad-tl] t=1792986700692 express idle: the card is served
+[jihad-gpu] express lane publishes main-lane frame 9 for it: composed while the main thread is away (41 ms), posted 42 ms ago
+[jihad-tl] t=1792986700709 trailer: frame 27, changed since 26: x 0..0 rows 0..0
+[jihad-tl] t=1792986700711 publish express gap=114 made=45 y=-141 zoom=0.6882
+[jihad-tl] t=1792986700708 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 3: slot 1 from the newest (shift 0, read 0..0), zoom 0.6882 y -141, 9872 ms after the card's move, 0 ms after the card began to wait, composed and read in 42 ms, the main lane quiet 0 ms
+[jihad-bs] emitGeometry contentSize=1116x15460 win=768x942 mZoom=0.6882
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x3b71dc00 (parent 0x3b71e400, id 2)
+[jihad-gpu] align fixed: layer 0x3b71dc00 (parent 0x3b71e400, fixed 0 sticky 1) under subtree root 0x3b71dc00 (root's parent 0x3b71e400), scroll id 2: anchor 0.0,0.0, translation 0.0,0.0
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x44ddc000 (parent 0x3b71e400, id 2)
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x44ddb400 (parent 0x3b71e400, id 2)
+[jihad-gpu] async scroll: want 0.0,0.0, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -0.0,-0.0 on layer 0x44ddbc00 (parent 0x3b71e400, id 2)
+[jihad-gpu] compositor thread: compose 1.4 ms, handoff 5.0 ms (frame 18, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, scroll only, started=1)
+[jihad-tl] t=1792986701145 job 29: queued 1.2 ms on the compositor loop, composed in 6.6 ms (0 uploads 0.0)
+[jihad-tl] t=1792986701147 trailer: frame 28, changed since 27: x 0..0 rows 0..0
+[jihad-tl] t=1792986701150 publish express gap=439 made=12 y=-141 zoom=0.6882
+[jihad-tl] t=1792986701145 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 4: slot 0 from the newest (shift 0, read 0..0), zoom 0.6882 y -141, 8 ms after the card's move, 8 ms after the card began to wait, composed and read in 7 ms, the main lane quiet 437 ms
+[jihad-tl] t=1792986701151 main pump 485 ms
+[jihad-tl] t=1792986701152 express idle: the card is served
+[jihad-tl] t=1792986701220 layer transaction on the compositor thread: 6.2 ms, 13 edits (compositable ops 5.8, 6 uploads 4.6; layers updated 0.0; end 0.0; the rest 0.4)
+[jihad-gpu] frame 12: layers 69.6 ms
+[jihad-tl] t=1792986701221 main layer paint (the express lane leads) 70 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 485 ms, paint 70 ms
+[jihad-gpu] frame 13: layers 0.2 ms
+[jihad-gpu] scroll anchor moved to 0,0 (wanted 0,0)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,0
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,0
+[jihad-tl] t=1792986701954 main pump 732 ms
+[jihad-bs] paint pipeline: wanted=14 deferred=0 done=6 in 2460ms (2.4 fps)
+[jihad-bs]   partial=0 (full: nodmg=15 force=0 slot=0 geom=0 small=0) ticks=14 dirty=1 | frame gap ms min=37 avg=401 max=1735
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=1 40-55=2 56+=3
+[jihad-gpu] tick: loop gap 1 ms before it, pump 732 ms, paint 12 ms
+[jihad-tl] t=1792986701966 express idle: the card is served
+[jihad-gpu] tick: loop gap 0 ms before it, pump 7 ms, paint 1 ms
+[jihad-tl] t=1792986701993 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1083 rows 37.8 ms, CPU swizzle+flip 8.5 ms
+[jihad-gpu] compositor thread: compose 8.7 ms, handoff 46.4 ms (frame 19, rows 141..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 141..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986702011 job 30: queued 0.1 ms on the compositor loop, composed in 56.4 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 10 for it: composed while the main thread is away (41 ms), posted 41 ms ago
+[jihad-tl] t=1792986702016 trailer: frame 29, whole
+[jihad-tl] t=1792986702017 publish express gap=867 made=51 y=-141 zoom=0.6882
+[jihad-tl] t=1792986702015 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] express frame 4: slot 2 from the newest (shift 0, read 141..1224), zoom 0.6882 y -141, 878 ms after the card's move, 878 ms after the card began to wait, composed and read in 49 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986702019 express idle: the card is served
+[jihad-tl] t=1792986702045 express idle: the card is served
+[jihad-tl] t=1792986702071 express idle: the card is served
+[jihad-tl] t=1792986702096 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1083 rows 36.3 ms, CPU swizzle+flip 5.7 ms
+[jihad-gpu] compositor thread: compose 35.2 ms, handoff 49.6 ms (frame 20, rows 141..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986702096 job 31: queued 37.7 ms on the compositor loop, composed in 84.9 ms (0 uploads 0.0)
+[jihad-tl] t=1792986702097 main pump 123 ms
+[jihad-gpu] job done 124 ms after its start, 1 pending polls, read 141..1224 and 0..0, changed 0..0, fixed 0..0, nb=84288, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f000c bytes=84288 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=124 rows new=0 copied=0
+[jihad-tl] t=1792986702099 trailer: frame 30, changed since 29: x 0..0 rows 0..0
+[jihad-tl] t=1792986702099 publish main gap=82 made=125 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 123 ms, paint 2 ms
+[jihad-tl] t=1792986702121 main pump 22 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 22 ms, paint 0 ms
+[jihad-tl] t=1792986702194 main pump 73 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 73 ms, paint 0 ms
+[jihad-tl] t=1792986703111 express idle: the card is served
+[jihad-tl] t=1792986703130 main pump 935 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 935 ms, paint 1 ms
+[jihad-bs]   tick period ms min=8 avg=291 max=1737 | work avg=224 max=936 (pump avg=211 paint avg=13) | n=12
+[jihad-gpu] async scroll: layer 0x3b722400 has 1 metadata (first: root content 1, id 2, offset 0.0,0.0), card scroll valid 0 want 0.0,0.0, controller 0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 5 ms, paint 3 ms
+[jihad-tl] t=1792986703138 express idle: the card is served
+[jihad-gpu] BeginFrame 24: render bounds 0,0 768x256, target 768x256, clip 0,0 768x23, widget 768x256, window fbo 5
+[jihad-gpu] tick: loop gap 0 ms before it, pump 8 ms, paint 0 ms
+[jihad-gpu] column read x 176..464, rows 152..175 (target rows from 0 of 256): glReadPixels 2.7 ms, swizzle+copy 0.0 ms
+[jihad-gpu] compositor thread: band frame 10: rows 152..175 and 0..0, x 176..464, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.9 ms, surface in 3.5 ms, compose 3.8 ms, shift 0.0 ms, read 2.8 ms, surface out 0.0 ms, all 11.1 ms, ok=1
+[jihad-tl] t=1792986703147 job 32: queued 0.1 ms on the compositor loop, composed in 11.3 ms (0 uploads 0.0)
+[jihad-gpu] job done 10 ms after its start, 2 pending polls, read 152..175 and 0..0, changed 152..175, fixed 0..0, nb=84288, 0 still in flight
+[jihad-bs] painted shmid=0x1e7f800d bytes=84288 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=11 rows new=0 copied=0
+[jihad-tl] t=1792986703149 trailer: frame 31, changed since 30: x 183..457 rows 152..175
+[jihad-tl] t=1792986703149 publish main gap=1050 made=11 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 8 ms before it, pump 8 ms, paint 0 ms
+[jihad-tl] t=1792986703248 main pump 34 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 34 ms, paint 0 ms
+[jihad-bs] state top f=0x10001 doc=0 win=0 net=0 START status=0x0
+[jihad-tl] t=1792986704150 express idle: the card is served
+[jihad-bs] state top f=0x10010 doc=0 win=0 net=0 STOP status=0x0
+[jihad-tl] t=1792986704239 main pump 991 ms
+[jihad-gpu] tick: loop gap 0 ms before it, pump 991 ms, paint 0 ms
+[jihad-tl] t=1792986704260 main pump 21 ms
+[jihad-bs] paint pipeline: wanted=7 deferred=0 done=3 in 2306ms (1.3 fps)
+[jihad-bs]   partial=0 (full: nodmg=6 force=0 slot=1 geom=0 small=0) ticks=19 dirty=0 | frame gap ms min=83 avg=668 max=1051
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=3
+[jihad-gpu] slot 0 from the newest slot 2 (y -141 -> -141, shift 0); bands 0..0 and 0..0
+[jihad-gpu] tick: loop gap 0 ms before it, pump 21 ms, paint 10 ms
+[jihad-tl] t=1792986704270 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 23 rows 6.5 ms, CPU swizzle+flip 0.1 ms
+[jihad-gpu] compositor thread: band frame 11: rows 152..175 and 0..0, x 0..768, 0 columns in 0 chunks (0 rows), 0 kept, entry 0.9 ms, surface in 0.0 ms, compose 2.6 ms, shift 4.9 ms, read 6.9 ms, surface out 0.0 ms, all 15.4 ms, ok=1
+[jihad-tl] t=1792986704276 job 33: queued 0.1 ms on the compositor loop, composed in 15.5 ms (0 uploads 0.0)
+[jihad-gpu] job done 18 ms after its start, 1 pending polls, read 152..175 and 0..0, changed 152..175, fixed 0..0, nb=84288, 0 still in flight
+[jihad-bs] painted shmid=0x1e7e800b bytes=84288 (768x1224 top=-141 band=0 left=0) mZoom=0.6882 contentZoom=0.6882 ms=18 rows new=0 copied=0
+[jihad-tl] t=1792986704289 trailer: frame 32, changed since 31: x 183..457 rows 152..175
+[jihad-tl] t=1792986704289 publish main gap=1140 made=19 y=-141 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 0 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 6 ms, paint 7 ms
+[jihad-gpu] tick: loop gap 1 ms before it, pump 6 ms, paint 0 ms
+[jihad-tl] t=1792986704432 main pump 16 ms
+[jihad-tl] t=1792986704463 main pump 22 ms
+[jihad-tl] t=1792986704497 main pump 33 ms
+[jihad-tl] t=1792986704605 main pump 41 ms
+[jihad-tl] t=1792986704748 main pump 43 ms
+[jihad-tl] t=1792986705105 main pump 41 ms
+[jihad-bs]   tick period ms min=1 avg=47 max=991 | work avg=22 max=991 (pump avg=21 paint avg=0) | n=62
+[jihad-tl] t=1792986705290 express idle: the card is served
+[jihad-tl] t=1792986705320 main pump 56 ms
+[jihad-tl] t=1792986706292 express idle: the card is served
+[jihad-tl] t=1792986706480 main pump 108 ms
+[jihad-bs]   tick period ms min=100 avg=101 max=109 | work avg=10 max=109 (pump avg=9 paint avg=0) | n=20
+[jihad-tl] t=1792986707295 express idle: the card is served
+[jihad-tl] t=1792986708297 express idle: the card is served
+[jihad-tl] t=1792986709300 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986710050 main pump 45 ms
+[jihad-bs] clock hold: held
+[jihad-tl] t=1792986710302 express idle: the card is served
+[jihad-bs]   tick period ms min=100 avg=100 max=102 | work avg=3 max=50 (pump avg=2 paint avg=0) | n=20
+[jihad-tl] t=1792986711304 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986712307 express idle: the card is served
+[jihad-tl] t=1792986712565 main pump 45 ms
+[jihad-bs] clock hold: held
+[jihad-bs]   tick period ms min=100 avg=100 max=102 | work avg=3 max=50 (pump avg=2 paint avg=0) | n=20
+[jihad-tl] t=1792986713315 express idle: the card is served
+[jihad-tl] t=1792986714317 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986715157 main pump 121 ms
+[jihad-bs] clock hold: held
+[jihad-bs]   tick period ms min=100 avg=102 max=142 | work avg=7 max=141 (pump avg=6 paint avg=1) | n=20
+[jihad-tl] t=1792986715320 express idle: the card is served
+[jihad-tl] t=1792986716322 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986717325 express idle: the card is served
+[round] dtap in at 704328.72
+[jihad-bs] clock hold: held
+[jihad-bs] smartZoom at 559,752 -> block [542,279 852,2145]
+[jihad-tl] t=1792986718334 express idle: the card is served
+[jihad-bs] setZoomAndScroll zoom=2.3273 (was 0.6882) scroll=1235,1275
+[jihad-tl] t=1792986718400 express idle: its frame is being composed
+[jihad-gpu] zoom 2.3273: the displayport and the anchor follow, 9 ms after the zoom (the first frame at the new zoom is posted (the express lane))
+[jihad-gpu] resolution 1.0000 -> 2.3273 (set)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 330x405 at +0,0, resolution 2.3273, margins 0 up and down, 0 sideways (CSS px)
+[jihad-gpu] scroll anchor moved to 0,547 (wanted 531,548)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 330x405 at +531,1, resolution 2.3273, margins 0 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 531,1 from the engine's 0,547
+[jihad-bs] paint pipeline: wanted=3 deferred=0 done=1 in 14151ms (0.1 fps)
+[jihad-bs]   partial=0 (full: nodmg=3 force=0 slot=0 geom=0 small=0) ticks=203 dirty=0 | frame gap ms min=1139 avg=1139 max=1139
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=1
+[jihad-gpu] async scroll: want 530.7,547.9, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -530.7,-547.9 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-gpu] async scroll: want 530.7,547.9, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -530.7,-547.9 on layer 0x3b71dc00 (parent 0x3b71e400, id 2)
+[jihad-gpu] async scroll: want 530.7,547.9, painted at 0.0,0.0, zoom 1.0000 x 1.0000 -> translation -530.7,-547.9 on layer 0x44ddc000 (parent 0x3b71e400, id 2)
+[jihad-gpu] BeginFrame 26: render bounds 0,0 768x1224, target 768x1224, clip 0,0 768x1224, widget 768x1224, window fbo 1
+[jihad-gpu] fixed layer 0x44ddb400 (parent 0x3b71e400): visible 876,136 196x447, effective translation -1235.0,-119.7 scale 2.327 -> rows 197..1237
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 48.0 ms, CPU swizzle+flip 9.1 ms
+[jihad-gpu] compositor thread: compose 2.9 ms, handoff 57.6 ms (frame 21, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 196..1224, started=1)
+[jihad-tl] t=1792986718474 job 34: queued 0.1 ms on the compositor loop, composed in 75.7 ms (0 uploads 0.0)
+[jihad-tl] t=1792986718476 trailer: frame 33, whole
+[jihad-tl] t=1792986718476 publish express gap=14187 made=78 y=1134 zoom=2.3273
+[jihad-tl] t=1792986718474 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x2 (768x1224 at zoom 2.3273, 76 ms after the zoom, x 1235 y 1134)
+[jihad-gpu] express frame 5: slot 2 whole (shift 0, read 0..1224), zoom 2.3273 y 1134, 76 ms after the card's move, 76 ms after the card began to wait, composed and read in 76 ms, the main lane quiet 14186 ms
+[jihad-tl] t=1792986718480 express idle: the card is served
+[jihad-gpu] compositor scroll kept at 1235,1275: the engine stops at 0,547 of 531,548 CSS px
+[jihad-tl] t=1792986718724 main pump 296 ms
+[jihad-bs] region columns: content 2597 px wide at zoom 2.3273, band x=1235, adapter x=1235 -> [851, +1536), rows up to 2047
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 61 CSS px each way (code 0)
+[jihad-gpu] frame 14: layers 24.6 ms
+[jihad-tl] t=1792986718749 main layer paint 25 ms
+[jihad-gpu] slot 1 from the newest slot 2 (y 1134 -> 1134, shift 0); bands 0..0 and 0..0
+[jihad-tl] t=1792986718749 express idle: the card is served
+[jihad-gpu] texture pool: 22 taken from the pool, 178 new (177 converted, 1.0 ms each), 22 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986718775 express idle: the card is served
+[jihad-tl] t=1792986718801 express idle: the card is served
+[jihad-tl] t=1792986718809 layer transaction on the compositor thread: 99.7 ms, 20 edits (compositable ops 98.4, 32 uploads 34.1; layers updated 0.0; end 0.0; the rest 1.3)
+[jihad-tl] t=1792986718827 express idle: the card is served
+[jihad-tl] t=1792986718837 layer transaction on the compositor thread: 10.4 ms, 8 edits (compositable ops 10.3, 4 uploads 9.7; layers updated 0.0; end 0.0; the rest 0.1)
+[jihad-tl] t=1792986718853 express idle: the card is served
+[jihad-tl] t=1792986718878 express idle: the card is served
+[jihad-tl] t=1792986718904 express idle: the card is served
+[jihad-tl] t=1792986718930 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 26.1 ms, CPU swizzle+flip 10.8 ms
+[jihad-gpu] compositor thread: compose 56.2 ms, handoff 42.2 ms (frame 22, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 196..1125, tree changed, started=1)
+[jihad-tl] t=1792986718939 job 35: queued 87.9 ms on the compositor loop, composed in 102.2 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 11 for it: composed while the main thread is away (181 ms), posted 190 ms ago
+[jihad-tl] t=1792986718942 trailer: frame 34, changed since 33: x 0..768 rows 0..1224
+[jihad-tl] t=1792986718942 publish express gap=466 made=193 y=1134 zoom=2.3273
+[jihad-tl] t=1792986718939 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x2 (768x1224 at zoom 2.3273, 541 ms after the zoom, x 1235 y 1134)
+[jihad-gpu] express frame 5: slot 1 from the newest (shift 0, read 0..1224), zoom 2.3273 y 1134, 539 ms after the card's move, 541 ms after the card began to wait, composed and read in 190 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986719944 express idle: the card is served
+[jihad-tl] t=1792986720173 main pump 1415 ms
+[jihad-gpu] zoom 2.3273: the margins follow, 1765 ms after the zoom's displayport (a frame of the paint is out; its paint done 341 ms after)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 330x405 at +531,1, resolution 2.3273, margins 405 up and down, 165 sideways (CSS px)
+[jihad-gpu] frame 15: layers 256.6 ms
+[jihad-tl] t=1792986720430 main layer paint 257 ms
+[jihad-gpu] slot 2 from the newest slot 1 (y 1134 -> 1134, shift 0); bands 0..0 and 0..0
+[jihad-bs]   tick period ms min=8 avg=38 max=322 | work avg=53 max=1672 (pump avg=45 paint avg=7) | n=38
+[jihad-tl] t=1792986720430 express idle: the card is served
+[jihad-bs] paint pipeline: wanted=5 deferred=0 done=2 in 2020ms (1.0 fps)
+[jihad-bs]   partial=0 (full: nodmg=3 force=1 slot=0 geom=0 small=0) ticks=5 dirty=1 | frame gap ms min=465 avg=7325 max=14186
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=2
+[jihad-tl] t=1792986720456 express idle: the card is served
+[jihad-tl] t=1792986720481 express idle: the card is served
+[jihad-tl] t=1792986720507 express idle: the card is served
+[jihad-tl] t=1792986720532 express idle: the card is served
+[jihad-tl] t=1792986720558 express idle: the card is served
+[jihad-tl] t=1792986720566 layer transaction on the compositor thread: 135.6 ms, 10 edits (compositable ops 135.4, 126 uploads 126.8; layers updated 0.0; end 0.0; the rest 0.2)
+[jihad-gpu] BeginFrame 28: render bounds 0,0 768x512, target 768x512, clip 0,0 768x311, widget 768x512, window fbo 4
+[jihad-tl] t=1792986720583 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 311 rows 7.6 ms, CPU swizzle+flip 1.7 ms
+[jihad-tl] t=1792986720600 job 36: queued 136.2 ms on the compositor loop, composed in 33.3 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 12 for it: composed while the main thread is away (165 ms), posted 172 ms ago
+[jihad-tl] t=1792986720604 trailer: frame 35, changed since 34: x 0..768 rows 913..1224
+[jihad-tl] t=1792986720604 publish express gap=1662 made=174 y=1134 zoom=2.3273
+[jihad-tl] t=1792986720602 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x2 (768x1224 at zoom 2.3273, 2204 ms after the zoom, x 1235 y 1134)
+[jihad-gpu] express frame 5: slot 2 from the newest (shift 0, read 913..1224), zoom 2.3273 y 1134, 2202 ms after the card's move, 0 ms after the card began to wait, composed and read in 172 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986720605 main pump 167 ms
+[jihad-gpu] slot 0 from the newest slot 2 (y 1134 -> 1134, shift 0); bands 0..0 and 0..0
+[jihad-gpu] async scroll: want 530.7,547.9, painted at 0.0,547.0, zoom 2.3273 x 2.3273 -> translation -1235.0,-2.0 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-tl] t=1792986720611 express idle: the card is served
+[jihad-gpu] BeginFrame 29: render bounds 0,0 768x1224, target 768x1224, clip none, widget 768x1224, window fbo 1
+[jihad-gpu] compositor thread: compose 4.8 ms, handoff 5.1 ms (frame 23, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 196..1224, tree changed, started=1)
+[jihad-tl] t=1792986720636 job 37: queued 0.7 ms on the compositor loop, composed in 30.1 ms (0 uploads 0.0)
+[jihad-gpu] job done 32 ms after its start, 6 pending polls, read 0..0 and 0..0, changed 0..0, fixed 196..1224, nb=98624, 0 still in flight
+[jihad-gpu] zoom frame written: log.3 (768x1224 at zoom 2.3273, 2239 ms after the zoom, 2240 ms after it arrived, x 1235 y 1134)
+[jihad-bs] painted shmid=0x1e7e800b bytes=98624 (768x1224 top=1134 band=1275 left=1235) mZoom=2.3273 contentZoom=2.3273 ms=33 rows new=0 copied=0
+[jihad-tl] t=1792986720638 trailer: frame 36, changed since 35: x 0..0 rows 0..0
+[jihad-tl] t=1792986720639 publish main gap=35 made=34 y=1134 zoom=2.3273
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986720639 express idle: the card is served
+[jihad-tl] t=1792986721639 express idle: the card is served
+[jihad-bs]   tick period ms min=1 avg=52 max=1673 | work avg=2 max=168 (pump avg=2 paint avg=0) | n=71
+[jihad-tl] t=1792986722642 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986723321 main pump 63 ms
+[jihad-bs] clock hold: held
+[jihad-tl] t=1792986723644 express idle: the card is served
+[jihad-bs]   tick period ms min=100 avg=100 max=101 | work avg=4 max=72 (pump avg=3 paint avg=0) | n=20
+[jihad-tl] t=1792986724646 express idle: the card is served
+[round] dtap out at 704335.78
+[jihad-bs] hit test: the engine moved to the card's 530,547 (was 0,547, now 0,547)
+[jihad-bs] smartZoom at 696,770 -> block [542,280 852,2145]
+[jihad-tl] t=1792986725412 express idle: a zoom out under half the painted resolution
+[jihad-bs] setZoomAndScroll zoom=0.6882 (was 2.3273) scroll=0,60
+[jihad-gpu] zoom 0.6882: the displayport and the anchor follow, 0 ms after the zoom (a zoom out past half the painted resolution: its paint first)
+[jihad-gpu] resolution 2.3273 -> 1.0000 (set)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +531,1, resolution 1.0000, margins 0 up and down, 0 sideways (CSS px)
+[jihad-gpu] scroll anchor moved to 0,87 (wanted 0,87)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 0 up and down, 0 sideways (CSS px)
+[jihad-gpu] displayport shifted to 0,0 from the engine's 0,87
+[jihad-tl] t=1792986725442 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725469 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725494 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725520 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725546 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725571 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725597 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725622 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725647 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725672 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725701 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725712 main pump 297 ms
+[jihad-bs] paint pipeline: wanted=10 deferred=0 done=2 in 5281ms (0.4 fps)
+[jihad-bs]   partial=0 (full: nodmg=10 force=0 slot=0 geom=0 small=0) ticks=119 dirty=1 | frame gap ms min=36 avg=849 max=1663
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=1 40-55=0 56+=1
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 206 CSS px each way (code 0)
+[jihad-tl] t=1792986725727 express idle: a zoom out under half the painted resolution
+[jihad-gpu] texture pool: 68 taken from the pool, 182 new (182 converted, 1.2 ms each), 69 kept, 0 deleted (pool full), 1 in the pool
+[jihad-tl] t=1792986725755 express idle: a zoom out under half the painted resolution
+[jihad-tl] t=1792986725780 express idle: a zoom out under half the painted resolution
+[jihad-gpu] frame 16: layers 80.2 ms
+[jihad-tl] t=1792986725794 main layer paint 81 ms
+[jihad-gpu] slot 1 read whole: valid=1 x 0/1235 y -81/1134 zoom 0.6882/2.3273 w 768/768 h 1224/1224 fixed 196..1224
+[jihad-tl] t=1792986725794 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725820 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725846 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725856 layer transaction on the compositor thread: 162.4 ms, 27 edits (compositable ops 161.6, 67 uploads 61.3; layers updated 0.0; end 0.0; the rest 0.7)
+[jihad-tl] t=1792986725871 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725897 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725922 express idle: a main-lane frame is being composed
+[jihad-tl] t=1792986725948 express idle: a main-lane frame is being composed
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 35.8 ms, CPU swizzle+flip 13.3 ms
+[jihad-gpu] compositor thread: compose 105.0 ms, handoff 49.3 ms (frame 24, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 174..716, tree changed, started=1)
+[jihad-tl] t=1792986726011 job 38: queued 63.1 ms on the compositor loop, composed in 154.4 ms (0 uploads 0.0)
+[jihad-gpu] async scroll: layer 0x44ef5000 has 1 metadata (first: root content 1, id 2, offset 0.0,86.8), card scroll valid 1 want 0.0,87.2, controller 0
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 37.6 ms, CPU swizzle+flip 9.6 ms
+[jihad-gpu] compositor thread: compose 10.7 ms, handoff 47.5 ms (frame 25, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 174..716, started=1)
+[jihad-tl] t=1792986726070 job 39: queued 47.0 ms on the compositor loop, composed in 58.3 ms (0 uploads 0.0)
+[jihad-tl] t=1792986726072 trailer: frame 37, whole
+[jihad-tl] t=1792986726073 publish express gap=5434 made=109 y=-81 zoom=0.6882
+[jihad-tl] t=1792986726070 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x3 (768x1224 at zoom 0.6882, 658 ms after the zoom, x 0 y -81)
+[jihad-gpu] express frame 6: slot 2 whole (shift 0, read 0..1224), zoom 0.6882 y -81, 658 ms after the card's move, 658 ms after the card began to wait, composed and read in 106 ms, the main lane quiet 5432 ms
+[jihad-tl] t=1792986726074 express idle: the card is served
+[jihad-tl] t=1792986726100 express idle: the card is served
+[jihad-tl] t=1792986726125 express idle: the card is served
+[jihad-tl] t=1792986726150 express idle: the card is served
+[jihad-tl] t=1792986726175 express idle: the card is served
+[jihad-tl] t=1792986726200 express idle: the card is served
+[jihad-tl] t=1792986726226 express idle: the card is served
+[jihad-tl] t=1792986726251 express idle: the card is served
+[jihad-tl] t=1792986726277 express idle: the card is served
+[jihad-tl] t=1792986726303 express idle: the card is served
+[jihad-tl] t=1792986726328 express idle: the card is served
+[jihad-tl] t=1792986726354 express idle: the card is served
+[jihad-tl] t=1792986726379 express idle: the card is served
+[jihad-tl] t=1792986726405 express idle: the card is served
+[jihad-tl] t=1792986726431 express idle: the card is served
+[jihad-tl] t=1792986726457 express idle: the card is served
+[jihad-tl] t=1792986726483 express idle: the card is served
+[jihad-tl] t=1792986726508 express idle: the card is served
+[jihad-tl] t=1792986726534 express idle: the card is served
+[jihad-tl] t=1792986726559 express idle: the card is served
+[jihad-tl] t=1792986726585 express idle: the card is served
+[jihad-tl] t=1792986726610 express idle: the card is served
+[jihad-tl] t=1792986726635 express idle: the card is served
+[jihad-tl] t=1792986726663 express idle: the card is served
+[jihad-tl] t=1792986726688 express idle: the card is served
+[jihad-tl] t=1792986726713 express idle: the card is served
+[jihad-tl] t=1792986726738 express idle: the card is served
+[jihad-tl] t=1792986726764 express idle: the card is served
+[jihad-tl] t=1792986726789 express idle: the card is served
+[jihad-gpu] compositor scroll off (the pan settled, the engine moved there) at 0,60
+[jihad-tl] t=1792986726813 main pump 1019 ms
+[jihad-gpu] zoom 0.6882: the margins follow, 1401 ms after the zoom's displayport (a frame of the paint is out; its paint done 382 ms after)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 1116x1369 at +0,0, resolution 1.0000, margins 1369 up and down, 0 sideways (CSS px)
+[jihad-gpu] main lane's frame dropped: the express lane published 1 frame(s) since it was posted
+[jihad-gpu] job done 1021 ms after its start, 0 pending polls, read 0..1224 and 0..0, changed 0..1224, fixed 174..716, nb=84672, 0 still in flight
+[jihad-bs]   tick period ms min=8 avg=47 max=379 | work avg=50 max=1021 (pump avg=47 paint avg=3) | n=28
+[jihad-tl] t=1792986726815 express idle: the card is served
+[jihad-gpu] frame 17: layers 238.3 ms
+[jihad-tl] t=1792986727054 main layer paint 239 ms
+[jihad-gpu] slot 1 read whole: valid=0 x 0/1235 y -81/1134 zoom 0.6882/2.3273 w 768/768 h 1224/1224 fixed 174..716
+[jihad-tl] t=1792986727054 express idle: the card is served
+[jihad-tl] t=1792986727081 express idle: the card is served
+[jihad-gpu] texture pool: 71 taken from the pool, 229 new (228 converted, 1.5 ms each), 71 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986727107 express idle: the card is served
+[jihad-tl] t=1792986727132 express idle: the card is served
+[jihad-tl] t=1792986727162 express idle: the card is served
+[jihad-tl] t=1792986727187 express idle: the card is served
+[jihad-gpu] texture pool: 71 taken from the pool, 279 new (278 converted, 1.3 ms each), 71 kept, 0 deleted (pool full), 0 in the pool
+[jihad-tl] t=1792986727213 express idle: the card is served
+[jihad-tl] t=1792986727215 layer transaction on the compositor thread: 164.4 ms, 9 edits (compositable ops 164.2, 96 uploads 83.4; layers updated 0.0; end 0.0; the rest 0.1)
+[jihad-tl] t=1792986727239 express idle: the card is served
+[jihad-tl] t=1792986727264 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 35.4 ms, CPU swizzle+flip 7.5 ms
+[jihad-gpu] compositor thread: compose 11.7 ms, handoff 43.1 ms (frame 26, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 80..1224 x 0..768, fixed 0..0, tree changed, started=1)
+[jihad-tl] t=1792986727271 job 40: queued 160.9 ms on the compositor loop, composed in 56.0 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 13 for it: composed while the main thread is away (214 ms), posted 219 ms ago
+[jihad-tl] t=1792986727275 trailer: frame 38, changed since 37: x 0..768 rows 0..1224
+[jihad-tl] t=1792986727277 publish express gap=1204 made=223 y=-81 zoom=0.6882
+[jihad-tl] t=1792986727273 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x3 (768x1224 at zoom 0.6882, 1861 ms after the zoom, x 0 y -81)
+[jihad-gpu] express frame 6: slot 1 from the newest (shift 0, read 0..1224), zoom 0.6882 y -81, 1861 ms after the card's move, 1861 ms after the card began to wait, composed and read in 219 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986727352 main pump 293 ms
+[jihad-gpu] slot 2 from the newest slot 1 (y -81 -> -81, shift 0); bands 0..0 and 0..0
+[jihad-tl] t=1792986727352 express idle: the card is served
+[jihad-gpu] compositor thread: compose 0.9 ms, handoff 4.9 ms (frame 27, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 0..0, started=1)
+[jihad-tl] t=1792986727359 job 41: queued 0.2 ms on the compositor loop, composed in 5.9 ms (0 uploads 0.0)
+[jihad-gpu] job done 9 ms after its start, 1 pending polls, read 0..0 and 0..0, changed 0..0, fixed 0..0, nb=85376, 0 still in flight
+[jihad-gpu] zoom frame written: log.4 (768x1224 at zoom 0.6882, 1950 ms after the zoom, 1950 ms after it arrived, x 0 y -81)
+[jihad-bs] painted shmid=0x1e7f800d bytes=85376 (768x1224 top=-81 band=60 left=0) mZoom=0.6882 contentZoom=0.6882 ms=10 rows new=0 copied=0
+[jihad-tl] t=1792986727362 trailer: frame 39, changed since 38: x 0..0 rows 0..0
+[jihad-tl] t=1792986727363 publish main gap=86 made=11 y=-81 zoom=0.6882
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986728363 express idle: the card is served
+[jihad-bs]   tick period ms min=4 avg=47 max=1260 | work avg=5 max=293 (pump avg=5 paint avg=0) | n=65
+[jihad-tl] t=1792986729459 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986730461 express idle: the card is served
+[jihad-tl] t=1792986730534 main pump 47 ms
+[jihad-bs] clock hold: held
+[round] pinch in at 704341.80
+[jihad-bs]   tick period ms min=100 avg=100 max=101 | work avg=4 max=54 (pump avg=3 paint avg=0) | n=20
+[jihad-tl] t=1792986731463 express idle: the card is served
+[jihad-bs] setZoomAndScroll zoom=1.1120 (was 0.6882) scroll=237,354
+[jihad-gpu] zoom 1.1120: the displayport and the anchor follow, 12 ms after the zoom (the first frame at the new zoom is posted (the express lane))
+[jihad-gpu] resolution 1.0000 -> 1.1120 (set)
+[jihad-gpu] displayport: scroll port 1116x1374 CSS px, shown 691x847 at +0,0, resolution 1.1120, margins 0 up and down, 0 sideways (CSS px)
+[jihad-gpu] scroll anchor moved to 0,318 (wanted 213,318)
+[jihad-gpu] displayport shifted to 213,0 from the engine's 0,318
+[jihad-bs] paint pipeline: wanted=7 deferred=0 done=4 in 5951ms (0.7 fps)
+[jihad-bs]   partial=0 (full: nodmg=6 force=1 slot=0 geom=0 small=0) ticks=96 dirty=0 | frame gap ms min=89 avg=1681 max=5432
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=4
+[jihad-tl] t=1792986731732 main pump 59 ms
+[jihad-gpu] scroll anchor moved to 0,318 (wanted 213,318)
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 139.3 ms, CPU swizzle+flip 86.0 ms
+[jihad-gpu] compositor thread: compose 6.0 ms, handoff 225.6 ms (frame 28, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 168..1043, started=1)
+[jihad-tl] t=1792986731858 job 42: queued 0.7 ms on the compositor loop, composed in 231.7 ms (0 uploads 0.0)
+[jihad-tl] t=1792986731860 trailer: frame 40, whole
+[jihad-tl] t=1792986731888 publish express gap=4525 made=263 y=213 zoom=1.1120
+[jihad-tl] t=1792986731858 express frame clocks: cpu0 1188000 kHz, cpu1 off kHz
+[jihad-gpu] zoom frame written (express): log.x4 (768x1224 at zoom 1.1120, 233 ms after the zoom, x 237 y 213)
+[jihad-gpu] express frame 7: slot 1 whole (shift 0, read 0..1224), zoom 1.1120 y 213, 233 ms after the card's move, 233 ms after the card began to wait, composed and read in 233 ms, the main lane quiet 4497 ms
+[jihad-tl] t=1792986731892 express idle: the card is served
+[jihad-tl] t=1792986731931 express idle: the card is served
+[jihad-bs] emitGeometry contentSize=1116x15459 win=768x942 mZoom=1.1120
+[jihad-gpu] compositor scroll kept at 237,354: the engine stops at 0,318 of 213,318 CSS px
+[jihad-tl] t=1792986732230 main pump 464 ms
+[jihad-bs] region columns: content 1240 px wide at zoom 1.1120, band x=237, adapter x=237 -> [0, +1240), rows up to 2536
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 128 CSS px each way (code 0)
+[jihad-gpu] frame 18: layers 37.2 ms
+[jihad-tl] t=1792986732268 main layer paint 38 ms
+[jihad-gpu] slot 0 from the newest slot 1 (y 213 -> 213, shift 0); bands 0..0 and 0..0
+[jihad-tl] t=1792986732268 express idle: the card is served
+[jihad-tl] t=1792986732284 layer transaction on the compositor thread: 57.0 ms, 20 edits (compositable ops 55.0, 43 uploads 50.0; layers updated 0.0; end 0.0; the rest 1.9)
+[jihad-tl] t=1792986732288 layer transaction on the compositor thread: 3.3 ms, 9 edits (compositable ops 3.2, 3 uploads 3.0; layers updated 0.0; end 0.0; the rest 0.1)
+[jihad-gpu] async scroll: want 213.1,318.4, painted at 0.0,317.8, zoom 1.1120 x 1.1120 -> translation -237.0,-0.6 on layer 0x3b722400 (parent 0x3b71e400, id 2)
+[jihad-tl] t=1792986732294 express idle: the card is served
+[jihad-tl] t=1792986732320 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 32.1 ms, CPU swizzle+flip 7.0 ms
+[jihad-gpu] compositor thread: compose 5.7 ms, handoff 44.1 ms (frame 29, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 168..1042, tree changed, started=1)
+[jihad-tl] t=1792986732340 job 43: queued 20.6 ms on the compositor loop, composed in 51.7 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 14 for it: composed while the main thread is away (60 ms), posted 74 ms ago
+[jihad-tl] t=1792986732344 trailer: frame 41, whole
+[jihad-tl] t=1792986732344 publish express gap=456 made=76 y=213 zoom=1.1120
+[jihad-tl] t=1792986732342 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x4 (768x1224 at zoom 1.1120, 717 ms after the zoom, x 237 y 213)
+[jihad-gpu] express frame 7: slot 0 from the newest (shift 0, read 0..1224), zoom 1.1120 y 213, 665 ms after the card's move, 717 ms after the card began to wait, composed and read in 74 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986732346 express idle: the card is served
+[jihad-tl] t=1792986733346 express idle: the card is served
+[jihad-tl] t=1792986733648 main pump 1365 ms
+[jihad-gpu] zoom 1.1120: the margins follow, 2010 ms after the zoom's displayport (a frame of the paint is out; its paint done 630 ms after)
+[jihad-gpu] frame 19: layers 365.9 ms
+[jihad-tl] t=1792986734022 main layer paint 366 ms
+[jihad-gpu] slot 1 from the newest slot 0 (y 213 -> 213, shift 0); bands 0..0 and 0..0
+[jihad-bs]   tick period ms min=5 avg=107 max=503 | work avg=181 max=1741 (pump avg=146 paint avg=34) | n=13
+[jihad-tl] t=1792986734023 express idle: the card is served
+[jihad-bs] paint pipeline: wanted=7 deferred=0 done=2 in 2360ms (0.8 fps)
+[jihad-bs]   partial=0 (full: nodmg=4 force=1 slot=0 geom=0 small=0) ticks=7 dirty=1 | frame gap ms min=484 avg=2490 max=4496
+[jihad-bs]   gap hist ms <16=0 16-23=0 24-31=0 32-39=0 40-55=0 56+=2
+[jihad-tl] t=1792986734048 express idle: the card is served
+[jihad-tl] t=1792986734074 express idle: the card is served
+[jihad-gpu] texture pool: 120 taken from the pool, 280 new (280 converted, 1.3 ms each), 125 kept, 156 deleted (pool full), 5 in the pool
+[jihad-tl] t=1792986734099 main pump 75 ms
+[jihad-tl] t=1792986734100 express idle: the card is served
+[jihad-tl] t=1792986734125 express idle: the card is served
+[jihad-tl] t=1792986734137 layer transaction on the compositor thread: 119.7 ms, 17 edits (compositable ops 119.4, 93 uploads 77.5; layers updated 0.0; end 0.0; the rest 0.2)
+[jihad-tl] t=1792986734151 express idle: the card is served
+[jihad-tl] t=1792986734177 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 30.2 ms, CPU swizzle+flip 7.2 ms
+[jihad-gpu] compositor thread: compose 20.5 ms, handoff 42.4 ms (frame 30, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 168..1042, tree changed, started=1)
+[jihad-tl] t=1792986734202 job 44: queued 114.8 ms on the compositor loop, composed in 64.2 ms (0 uploads 0.0)
+[jihad-gpu] job done 180 ms after its start, 14 pending polls, read 0..1224 and 0..0, changed 0..1224, fixed 168..1042, nb=137984, 1 still in flight
+[jihad-gpu] zoom frame written: log.5 (768x1224 at zoom 1.1120, 2577 ms after the zoom, 2578 ms after it arrived, x 237 y 213)
+[jihad-bs] painted shmid=0x1e7f000c bytes=137984 (768x1224 top=213 band=354 left=237) mZoom=1.1120 contentZoom=1.1120 ms=180 rows new=0 copied=0
+[jihad-tl] t=1792986734203 trailer: frame 42, changed since 41: x 0..768 rows 0..1224
+[jihad-tl] t=1792986734206 publish main gap=1862 made=183 y=213 zoom=1.1120
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 3 ms
+[jihad-tl] t=1792986734206 layer transaction on the compositor thread: 3.8 ms, 8 edits (compositable ops 3.6, 4 uploads 2.1; layers updated 0.0; end 0.0; the rest 0.1)
+[jihad-tl] t=1792986734206 express idle: the card is served
+[jihad-gpu] async scroll: layer 0x44ddbc00 has 1 metadata (first: root content 1, id 2, offset 0.0,317.8), card scroll valid 1 want 213.1,318.4, controller 0
+[jihad-tl] t=1792986734232 express idle: the card is served
+[jihad-tl] t=1792986734261 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 30.6 ms, CPU swizzle+flip 6.7 ms
+[jihad-gpu] compositor thread: compose 10.0 ms, handoff 53.0 ms (frame 31, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 168..1042, tree changed, started=1)
+[jihad-tl] t=1792986734272 job 45: queued 39.4 ms on the compositor loop, composed in 64.9 ms (0 uploads 0.0)
+[jihad-gpu] async scroll: want 213.1,318.4, painted at 0.0,317.8, zoom 1.1120 x 1.1120 -> translation -237.0,-0.6 on layer 0x44ef4800 (parent 0x3b71e400, id 2)
+[jihad-gpu] job done 107 ms after its start, 9 pending polls, read 0..1224 and 0..0, changed 0..0, fixed 168..1042, nb=137984, 1 still in flight
+[jihad-gpu] zoom frame written: log.5 (768x1224 at zoom 1.1120, 2649 ms after the zoom, 2650 ms after it arrived, x 237 y 213)
+[jihad-bs] painted shmid=0x1e7f800d bytes=137984 (768x1224 top=213 band=354 left=237) mZoom=1.1120 contentZoom=1.1120 ms=107 rows new=0 copied=0
+[jihad-tl] t=1792986734275 trailer: frame 43, changed since 42: x 0..0 rows 0..0
+[jihad-tl] t=1792986734276 publish main gap=70 made=108 y=213 zoom=1.1120
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] second frame not started: no slot 0, adapter holds it 3, no buffer 0, too small 0, start failed 0
+[jihad-gpu] compositor thread: compose 0.9 ms, handoff 5.8 ms (frame 32, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 168..1042, started=1)
+[jihad-tl] t=1792986734279 job 46: queued 52.6 ms on the compositor loop, composed in 6.9 ms (0 uploads 0.0)
+[jihad-gpu] compositor thread: compose 0.8 ms, handoff 4.8 ms (frame 33, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 168..1042, started=1)
+[jihad-tl] t=1792986734285 job 47: queued 2.0 ms on the compositor loop, composed in 5.7 ms (0 uploads 0.0)
+[jihad-gpu] job done 66 ms after its start, 3 pending polls, read 0..0 and 0..0, changed 0..0, fixed 168..1042, nb=137984, 1 still in flight
+[jihad-gpu] zoom frame written: log.5 (768x1224 at zoom 1.1120, 2660 ms after the zoom, 2661 ms after it arrived, x 237 y 213)
+[jihad-bs] painted shmid=0x1e7e800b bytes=137984 (768x1224 top=213 band=354 left=237) mZoom=1.1120 contentZoom=1.1120 ms=66 rows new=0 copied=0
+[jihad-tl] t=1792986734286 trailer: frame 44, changed since 43: x 0..0 rows 0..0
+[jihad-tl] t=1792986734287 publish main gap=11 made=67 y=213 zoom=1.1120
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-gpu] job done 12 ms after its start, 0 pending polls, read 0..0 and 0..0, changed 0..0, fixed 168..1042, nb=137984, 0 still in flight
+[jihad-gpu] zoom frame written: log.5 (768x1224 at zoom 1.1120, 2663 ms after the zoom, 2664 ms after it arrived, x 237 y 213)
+[jihad-bs] painted shmid=0x1e7f000c bytes=137984 (768x1224 top=213 band=354 left=237) mZoom=1.1120 contentZoom=1.1120 ms=12 rows new=0 copied=0
+[jihad-tl] t=1792986734289 trailer: frame 45, changed since 44: x 0..0 rows 0..0
+[jihad-tl] t=1792986734290 publish main gap=3 made=13 y=213 zoom=1.1120
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986734290 express idle: the card is served
+[jihad-tl] t=1792986735291 express idle: the card is served
+[jihad-bs]   tick period ms min=1 avg=42 max=1742 | work avg=1 max=75 (pump avg=1 paint avg=0) | n=89
+[jihad-tl] t=1792986736293 express idle: the card is served
+[jihad-tl] t=1792986737295 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-tl] t=1792986738242 main pump 18 ms
+[jihad-bs] clock hold: held
+[jihad-tl] t=1792986738297 express idle: the card is served
+[round] pinch out at 704349.76
+[jihad-tl] t=1792986739300 express idle: the card is served
+[jihad-bs] setZoomAndScroll zoom=0.7830 (was 1.1120) scroll=53,126
+[jihad-tl] t=1792986739636 express idle: its frame is being composed
+[jihad-gpu] zoom 0.7830: the displayport and the anchor follow, 8 ms after the zoom (the first frame at the new zoom is posted (the express lane))
+[jihad-gpu] resolution 1.1120 -> 1.0000 (set)
+[jihad-gpu] scroll anchor moved to 0,160 (wanted 68,161)
+[jihad-gpu] displayport shifted to 68,1 from the engine's 0,160
+[jihad-bs] paint pipeline: wanted=27 deferred=0 done=4 in 5620ms (0.7 fps)
+[jihad-bs]   partial=0 (full: nodmg=30 force=0 slot=0 geom=0 small=0) ticks=126 dirty=0 | frame gap ms min=3 avg=486 max=1861
+[jihad-bs]   gap hist ms <16=2 16-23=0 24-31=0 32-39=0 40-55=0 56+=2
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 52.3 ms, CPU swizzle+flip 7.6 ms
+[jihad-gpu] compositor thread: compose 13.2 ms, handoff 60.2 ms (frame 34, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 160..776, started=1)
+[jihad-tl] t=1792986739707 job 48: queued 0.7 ms on the compositor loop, composed in 73.5 ms (0 uploads 0.0)
+[jihad-tl] t=1792986739708 trailer: frame 46, whole
+[jihad-tl] t=1792986739709 publish express gap=5419 made=77 y=-15 zoom=0.7830
+[jihad-tl] t=1792986739707 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x5 (768x1224 at zoom 0.7830, 75 ms after the zoom, x 53 y -15)
+[jihad-gpu] express frame 8: slot 0 whole (shift 0, read 0..1224), zoom 0.7830 y -15, 75 ms after the card's move, 75 ms after the card began to wait, composed and read in 75 ms, the main lane quiet 5418 ms
+[jihad-tl] t=1792986739713 express idle: the card is served
+[jihad-bs] emitGeometry contentSize=1116x15460 win=768x942 mZoom=0.7830
+[jihad-gpu] compositor scroll kept at 53,126: the engine stops at 0,160 of 68,161 CSS px
+[jihad-tl] t=1792986740042 main pump 383 ms
+[jihad-bs] region columns: content 873 px wide at zoom 0.7830, band x=53, adapter x=53 -> [0, +873), rows up to 3603
+[jihad-gpu] overscan: 141 card rows each side, the clip widened 181 CSS px each way (code 0)
+[jihad-tl] t=1792986740096 layer transaction on the compositor thread: 94.3 ms, 19 edits (compositable ops 93.5, 59 uploads 87.6; layers updated 0.1; end 0.0; the rest 0.7)
+[jihad-tl] t=1792986740126 main layer paint 63 ms
+[jihad-gpu] slot 2 from the newest slot 0 (y -15 -> -15, shift 0); bands 0..0 and 0..0
+[jihad-bs]   tick period ms min=9 avg=90 max=111 | work avg=30 max=474 (pump avg=24 paint avg=5) | n=17
+[jihad-tl] t=1792986740133 express idle: the card is served
+[jihad-gpu] scroll anchor moved to 0,160 (wanted 68,161)
+[jihad-tl] t=1792986740159 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 1224 rows 27.7 ms, CPU swizzle+flip 7.4 ms
+[jihad-gpu] compositor thread: compose 8.3 ms, handoff 39.7 ms (frame 35, rows 0..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..1224 x 0..768, fixed 159..776, tree changed, started=1)
+[jihad-tl] t=1792986740176 job 49: queued 0.1 ms on the compositor loop, composed in 49.5 ms (0 uploads 0.0)
+[jihad-gpu] express lane publishes main-lane frame 15 for it: composed while the main thread is away (44 ms), posted 45 ms ago
+[jihad-tl] t=1792986740180 trailer: frame 47, whole
+[jihad-tl] t=1792986740181 publish express gap=472 made=48 y=-15 zoom=0.7830
+[jihad-tl] t=1792986740178 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x5 (768x1224 at zoom 0.7830, 546 ms after the zoom, x 53 y -15)
+[jihad-gpu] express frame 8: slot 2 from the newest (shift 0, read 0..1224), zoom 0.7830 y -15, 492 ms after the card's move, 546 ms after the card began to wait, composed and read in 45 ms, the main lane quiet 0 ms
+[jihad-tl] t=1792986740187 main pump 53 ms
+[jihad-gpu] zoom 0.7830: the margins follow, 545 ms after the zoom's displayport (a frame of the paint is out; its paint done 484 ms after)
+[jihad-tl] t=1792986740190 express idle: the grace (the main lane may serve it)
+[jihad-tl] t=1792986740216 express idle: the grace (the main lane may serve it)
+[jihad-gpu] async scroll: want 67.7,160.9, painted at 0.0,160.4, zoom 1.0000 x 1.0000 -> translation -67.7,-0.5 on layer 0x44ef4800 (parent 0x3b71e400, id 2)
+[jihad-gpu] compositor thread: compose 1.0 ms, handoff 5.3 ms (frame 36, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 159..776, started=1)
+[jihad-tl] t=1792986740232 job 50: queued 0.1 ms on the compositor loop, composed in 6.5 ms (0 uploads 0.0)
+[jihad-tl] t=1792986740233 trailer: frame 48, changed since 47: x 0..0 rows 0..0
+[jihad-tl] t=1792986740233 publish express gap=52 made=8 y=-15 zoom=0.7830
+[jihad-tl] t=1792986740232 express frame clocks: cpu0 1188000 kHz, cpu1 1188000 kHz
+[jihad-gpu] zoom frame written (express): log.x5 (768x1224 at zoom 0.7830, 600 ms after the zoom, x 53 y -15)
+[jihad-gpu] express frame 9: slot 1 from the newest (shift 0, read 0..0), zoom 0.7830 y -15, 546 ms after the card's move, 600 ms after the card began to wait, composed and read in 7 ms, the main lane quiet 54 ms
+[jihad-tl] t=1792986740234 express idle: the card is served
+[jihad-gpu] compositor scroll kept at 53,126: the engine stops at 0,160 of 68,161 CSS px
+[jihad-tl] t=1792986740450 main pump 263 ms
+[jihad-gpu] slot 0 from the newest slot 1 (y -15 -> -15, shift 0); bands 0..0 and 0..0
+[jihad-tl] t=1792986740451 express idle: the card is served
+[jihad-tl] t=1792986740477 express idle: the card is served
+[jihad-gpu] texture pool: 154 taken from the pool, 296 new (296 converted, 1.4 ms each), 162 kept, 156 deleted (pool full), 8 in the pool
+[jihad-tl] t=1792986740503 express idle: the card is served
+[jihad-tl] t=1792986740528 express idle: the card is served
+[jihad-tl] t=1792986740554 express idle: the card is served
+[jihad-tl] t=1792986740579 express idle: the card is served
+[jihad-tl] t=1792986740604 express idle: the card is served
+[jihad-tl] t=1792986740607 layer transaction on the compositor thread: 158.8 ms, 9 edits (compositable ops 158.5, 131 uploads 114.4; layers updated 0.0; end 0.0; the rest 0.2)
+[jihad-gpu] BeginFrame 39: render bounds 0,0 768x256, target 768x256, clip 0,0 768x8, widget 768x256, window fbo 5
+[jihad-tl] t=1792986740630 express idle: the card is served
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 8 rows 2.3 ms, CPU swizzle+flip 0.0 ms
+[jihad-gpu] job done 184 ms after its start, 22 pending polls, read 1216..1224 and 0..0, changed 1216..1224, fixed 159..776, nb=111680, 0 still in flight
+[jihad-gpu] zoom frame written: log.6 (768x1224 at zoom 0.7830, 1002 ms after the zoom, 1003 ms after it arrived, x 53 y -15)
+[jihad-bs] painted shmid=0x1e7e800b bytes=111680 (768x1224 top=-15 band=126 left=53) mZoom=0.7830 contentZoom=0.7830 ms=184 rows new=0 copied=0
+[jihad-tl] t=1792986740635 trailer: frame 49, changed since 48: x 0..768 rows 1216..1224
+[jihad-tl] t=1792986740636 publish main gap=403 made=185 y=-15 zoom=0.7830
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986740636 job 51: queued 156.3 ms on the compositor loop, composed in 29.1 ms (0 uploads 0.0)
+[jihad-gpu] BeginFrame 40: render bounds 0,0 768x1224, target 768x1224, clip 0,1216 768x8, widget 768x1224, window fbo 1
+[jihad-gpu] glFinish 0.0 ms, glReadPixels 8 rows 13.0 ms, CPU swizzle+flip 0.0 ms
+[jihad-gpu] compositor thread: compose 3.5 ms, handoff 14.6 ms (frame 37, rows 1216..1224 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 159..776, started=1)
+[jihad-tl] t=1792986740655 job 52: queued 0.0 ms on the compositor loop, composed in 18.6 ms (0 uploads 0.0)
+[jihad-gpu] async scroll: layer 0x44ddbc00 has 1 metadata (first: root content 1, id 2, offset 0.0,160.4), card scroll valid 1 want 67.7,160.9, controller 0
+[jihad-gpu] job done 19 ms after its start, 2 pending polls, read 1216..1224 and 0..0, changed 0..0, fixed 159..776, nb=111680, 1 still in flight
+[jihad-gpu] zoom frame written: log.6 (768x1224 at zoom 0.7830, 1023 ms after the zoom, 1024 ms after it arrived, x 53 y -15)
+[jihad-bs] painted shmid=0x1e7f000c bytes=111680 (768x1224 top=-15 band=126 left=53) mZoom=0.7830 contentZoom=0.7830 ms=19 rows new=0 copied=0
+[jihad-tl] t=1792986740656 trailer: frame 50, changed since 49: x 0..0 rows 0..0
+[jihad-tl] t=1792986740660 publish main gap=24 made=23 y=-15 zoom=0.7830
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 4 ms
+[jihad-gpu] second frame not started: no slot 0, adapter holds it 4, no buffer 0, too small 0, start failed 0
+[jihad-tl] t=1792986740661 express idle: the card is served
+[jihad-gpu] compositor thread: compose 1.0 ms, handoff 6.5 ms (frame 38, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 159..776, started=1)
+[jihad-tl] t=1792986740663 job 53: queued 9.7 ms on the compositor loop, composed in 7.6 ms (0 uploads 0.0)
+[jihad-gpu] async scroll: want 67.7,160.9, painted at 0.0,160.4, zoom 1.0000 x 1.0000 -> translation -67.7,-0.5 on layer 0x44ef4800 (parent 0x3b71e400, id 2)
+[jihad-gpu] job done 19 ms after its start, 2 pending polls, read 0..0 and 0..0, changed 0..0, fixed 159..776, nb=111680, 1 still in flight
+[jihad-gpu] zoom frame written: log.6 (768x1224 at zoom 0.7830, 1033 ms after the zoom, 1034 ms after it arrived, x 53 y -15)
+[jihad-bs] painted shmid=0x1e7f800d bytes=111680 (768x1224 top=-15 band=126 left=53) mZoom=0.7830 contentZoom=0.7830 ms=20 rows new=0 copied=0
+[jihad-tl] t=1792986740666 trailer: frame 51, changed since 50: x 0..0 rows 0..0
+[jihad-gpu] compositor thread: compose 0.9 ms, handoff 4.8 ms (frame 39, rows 0..0 and 0..0 of 1224, x 0..768, 0 columns, 0 kept, changed 0..0 x 0..0, fixed 159..776, started=1)
+[jihad-tl] t=1792986740669 job 54: queued 0.5 ms on the compositor loop, composed in 6.0 ms (0 uploads 0.0)
+[jihad-tl] t=1792986740669 publish main gap=9 made=23 y=-15 zoom=0.7830
+[jihad-gpu] publish: 1 ms from the frame's arrival to the message, msgPainted 3 ms
+[jihad-gpu] job done 8 ms after its start, 0 pending polls, read 0..0 and 0..0, changed 0..0, fixed 159..776, nb=111680, 0 still in flight
+[jihad-gpu] zoom frame written: log.6 (768x1224 at zoom 0.7830, 1038 ms after the zoom, 1039 ms after it arrived, x 53 y -15)
+[jihad-bs] painted shmid=0x1e7e800b bytes=111680 (768x1224 top=-15 band=126 left=53) mZoom=0.7830 contentZoom=0.7830 ms=8 rows new=0 copied=0
+[jihad-tl] t=1792986740671 trailer: frame 52, changed since 51: x 0..0 rows 0..0
+[jihad-tl] t=1792986740672 publish main gap=3 made=9 y=-15 zoom=0.7830
+[jihad-gpu] publish: 0 ms from the frame's arrival to the message, msgPainted 1 ms
+[jihad-tl] t=1792986741672 express idle: the card is served
+[jihad-bs]   tick period ms min=1 avg=28 max=475 | work avg=4 max=264 (pump avg=3 paint avg=0) | n=89
+[jihad-tl] t=1792986742675 express idle: the card is served
+[jihad-bs] clock hold: released
+[jihad-bs] clock hold: held
+[jihad-tl] t=1792986743683 express idle: the card is served
+[jihad-tl] t=1792986744690 express idle: the card is served
+[jihad-bs] clock hold: released
+[round] end at 704356.12
+[jihad-tl] t=1792986745693 express idle: the card is served
+=== LOG END

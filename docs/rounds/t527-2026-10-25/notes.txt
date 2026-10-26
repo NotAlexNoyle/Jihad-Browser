@@ -169,3 +169,46 @@ narrow TLS and Flash lists, which sit under the select's middle).
   The engine's own copy (jihad.chrome.settings) now holds the card's values (it held a pre-migration
   start.duckduckgo.com home); the card's values are unchanged.
 - Not touched: Fonts box pickers and reset, proxy section, certificates, Forget, Update; Mochi, Mojo.
+
+## The T-527 review (inspector, read-only, 2026-10-25 night) and its fixes
+Fifteen findings over the night's daemon and engine changes; every one fixed except #13 (recorded open).
+- P1 #1 a XUL page's tall layout viewport (its list's length) stayed on the next document: the new-document
+  reset now runs when the height differs too (emitGeometry's docKey block).
+- P1 #2 no pan frames under a zoom of 0.5: the "under half the painted resolution" rule refused every
+  express frame there because the resolution stops at 1; it now holds only while a paint at the zoom's own
+  resolution would draw the tiles larger (xUnderHalf), at all three places.
+- P2 #3 the rootless flag and the world offset now follow the document: reset in resetScrollForNavigation
+  (the view offset back to 0,0), recomputed when emitGeometry sees a new document.
+- P2 #4 the fling lead: the speed measured over 30 ms at least (two commands read a ms apart made it 8-16x),
+  the lead at most the overscan rows (a frame still covers the card where it is: counted as serving it
+  rightly), and not past the page's end.
+- P3 #5-#9 the express lane's adoption of a main-lane frame: not after a lost composite (mGpuLostN), only
+  with the load done (a blank whole read mid-load is the main lane's to suppress); published with the main
+  lane's bookkeeping (mXMainPubMs, mXCmdPub, the card's wait; no mXFrames/mXLastZoom: no 300 ms zoom guard,
+  no dropped second job); the next publish key is the second job's slot (no drain); a failure counts in
+  mGpuRefusals, not the express lane's three.
+- P3 #10 the critical phase's end leaves the displayport to a newer held zoom's release.
+- P3 #11 gpuZoomRelease and gpuCriticalEnd take the frame lock (called from the pump too).
+- P3 #12 the dirty rect's key includes the page's height (the white past the page's end).
+- P3 #14 the displayport set again at a new window size (engine 0062 keeps the base: the rows a put-away
+  keyboard uncovered stayed unpainted at the page's top).
+- P3 #15 (engine) a band surface or target that cannot be made at a width is not tried again every frame.
+- OPEN #13: an add-on's detail view still cannot be panned when longer than the card (natural stays 0 there;
+  the panel's own overflow depends on the window's height, so measuring it would loop).
+
+## The device round on the fixes and engine 0064/0065 (daemon 7e78ab50, libxul 707d9e76 stripped), 2026-10-26
+- Pans, express lane, sensors running (gap-trace.py "the pan"): the long page 333 frames in 10.06 s = 33.1 fps,
+  4 gaps of 56 ms+ (pan-n1-long); desktop Wikipedia 240 in 10.15 s = 23.6 fps, 24 gaps (pan-n1-wiki; before:
+  23.8 / 24.4 fps, 24 / 19 gaps). Unchanged: the compositor thread stays the bound; the paint skip fired
+  (`layer paint skipped`) but the pan's layer paints are mostly real ones (the anchor's displayport moves).
+  The mid-pan dumps looked at (the header fixed, the paragraphs advancing, Wikipedia's panels in place).
+- Verify without the express lane: the long page 55 checks, Wikipedia 67, 0 rows wrong, 0 structurally wrong
+  (pan-n2-long, pan-n2-wiki; sub-threshold differences in most, as on the head binaries before).
+- The emulated finger's zooms on desktop Wikipedia (fz-n1): first frame at the zoom / first frame painted at its
+  resolution: double tap in 76 / 541 ms (was 593), double tap out 658 / 658 (the old tiles under half size:
+  no early frame, as before), pinch in 233 / 717 (513; the page's script ran across it), pinch out 75 / 546
+  (551). The six screenshots looked at: sharp, in place.
+- default-check.sh enyo: the GPU path with the express lane, painted 30, express frames 8, zooms 5, faults 0.
+- The XUL fixes: about:addons (twelve pads installed: the list longer than the card) -> the long page by url
+  -> about:addons: "layout viewport back to the card 768x942 (a new document)" for the HTML page (its content
+  768 wide, laid out in the card's window), and the list panned by finger to its end on both visits.

@@ -629,12 +629,15 @@ void JihadBrowserServer::processInjectFile() {
       //   rect <id>                     rect sel:<css>                rect anon:<css>|<anonid>
       std::string id = c.substr(5);
       while (!id.empty() && (id.back()=='\n' || id.back()=='\r' || id.back()==' ')) id.pop_back();
-      printf("[jihad-bs] inject rect %s\n", jihad::DebugElementRect(id.c_str()).c_str());
+      int csx = 0, csy = 0;
+      p->debugCardScroll(&csx, &csy);   // T-527: where the card is (a finger's tap maps through it)
+      printf("[jihad-bs] inject rect %s card=%d,%d\n", jihad::DebugElementRect(id.c_str()).c_str(), csx, csy);
     } else if (strncmp(c.c_str(), "back", 4) == 0)    { p->pageBackward(); }
     else if (strncmp(c.c_str(), "forward", 7) == 0)   { p->pageForward(); }
     else if (strncmp(c.c_str(), "reload", 6) == 0)    { p->pageReload(); }
     else if (strncmp(c.c_str(), "stop", 4) == 0)      { p->pageStop(); }
     else if (sscanf(c.c_str(), "scroll %d %d", &x, &y) == 2) { p->setScrollPosition(x, y); }
+    else if (sscanf(c.c_str(), "cardscroll %d %d", &x, &y) == 2) { p->debugCardScrollTo(x, y); }   // T-527: the card's own view
     else if (sscanf(c.c_str(), "drag %d %d %d %d", &x, &y, &a, &b) == 4) {
       p->dragStart(x, y); p->dragProcess(a, b); p->dragEnd(x + a, y + b);
     } else if (sscanf(c.c_str(), "size %d %d", &x, &y) == 2) {

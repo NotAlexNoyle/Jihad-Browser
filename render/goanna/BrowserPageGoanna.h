@@ -225,6 +225,10 @@ public:
   int bufferCount() const { return mKey3 ? 3 : 2; }
   bool findString(const char* text, bool forward);  // YAP: findString
   void setScrollPosition(int x, int y);   // YAP: setScrollPosition
+  // T-527 device rounds (the inject channel): the card told to scroll to (x, y) CSS px (a
+  // scrolled-to: its own view moves, as for a page's own scroll), and where the card is (CSS px)
+  void debugCardScrollTo(int x, int y);
+  void debugCardScroll(int* x, int* y) const;
   void gpuScrollTo(int x, int y, double z);   // T-502: the engine scroll plus the residual view offset
   // YAP: pluginSpotlightStart/End (0x1501/0x1502). The card's confirmation that it has
   // scrimmed and zoomed to a plugin; forwarded to the plugin as Palm's spotlight system
@@ -378,11 +382,12 @@ private:
   struct PubDirty { bool all = true; long lo = 0, hi = 0, x0 = 0, x1 = 0; };
   PubDirty mPubDirty;
   int mPubX = 0, mPubY = 0, mPubW = 0, mPubH = 0; double mPubZoom = -1.0; bool mPubPopups = false;
+  long mPubContentH = -1;   // the page's height the published frame's white fill past its end was made for
   uint32_t mPubSeq = 0;   // the publishes so far (the trailer's dirtySeq)
   void pubDirtyAll() { mPubDirty.all = true; }
   void pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKnown, int x, int y, int w, int h, double zoom);
   // at a publish: the rect for the trailer (false: the whole), and the published frame's geometry kept
-  bool pubDirtyTake(int x, int y, int w, int h, double zoom, bool popups, bool earlierUnknown, long out[4]);
+  bool pubDirtyTake(int x, int y, int w, int h, double zoom, long contentH, bool popups, bool earlierUnknown, long out[4]);
   void               publishWindow(int key, int windowRows, const long* dirty = nullptr);   // T-527: dirty = l, t, r, b (frame px), else the whole
   void               detachShm();               // shmdt all cached (on thaw/teardown)
   // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
@@ -455,6 +460,7 @@ private:
     uint32_t cmdDone = 0;   // T-515: the card's commands the main loop had handled when it was posted
     int win = 0;            // T-517: the frame's window in its slot (rows into the pixels)
     uint32_t vToken = 0; int vBuf = -1;   // T-513: JIHAD_GPU_VERIFY's reference, composed right behind the job
+    uint32_t lostN = 0;     // T-527: mGpuLostN when it was posted (a composite lost since: not adopted)
   };
   void gpuForget(const GpuJob& j);   // the job and its verify reference given up
   // T-505: the view's row in the GPU frame and the residual offset last asked of the compositor
@@ -462,6 +468,7 @@ private:
   int mGpuJobViewRow = 0;   // T-507: the published GPU frame's view row (thumbnails)
   // T-509: the GPU path given up (refused jobs, a frame not composed within the bound)
   int mGpuRefusals = 0;
+  uint32_t mGpuLostN = 0;   // T-527: gpuSlotsLost calls (a main-lane job posted before one is not adopted)
   void gpuFallBack(const char* why);
   double mGpuViewRX = 0.0, mGpuViewRY = 0.0;
   void gpuSetView(double z, double rx, double ry);
@@ -519,8 +526,10 @@ private:
   }
   // T-515, the express lane's state. All of it under the frame lock (JihadFrameLock.h).
   // T-527: velY, the card's scroll speed (zoomed px a ms, smoothed over its last positions) for a frame
-  // composed where the card will be when the frame is shown (xStart's prediction)
-  struct XWant { int x = 0, y = 0; double zoom = 1.0; int64_t ms = 0; uint32_t seq = 0, cmdSeq = 0; double velY = 0.0; };
+  // composed where the card will be when the frame is shown (xStart's prediction); measured over 30 ms
+  // at least from the position at velMs (velAtY): two commands read a ms apart made it 8-16 times too fast
+  struct XWant { int x = 0, y = 0; double zoom = 1.0; int64_t ms = 0; uint32_t seq = 0, cmdSeq = 0; double velY = 0.0;
+                 int64_t velMs = 0; int velAtY = 0; };
   uint32_t mXCmdDone = 0;             // the newest of the card's commands the main loop handled (its tag; the frame lock)
   uint32_t mXCmdPub = 0;              // ...the main lane's newest frame took up
   XWant mXWant;                       // the card's newest position (the reader thread's view; the want lock)
@@ -534,6 +543,10 @@ private:
   // tiles at under half their size (a double tap out from 2.33 to 0.69 composed 210 minified tile draws
   // in 471 ms on the Adreno, holding the compositor thread ahead of the paint at the new resolution)
   double mXTreeRes = 1.0;
+  // ...and only while a paint at that zoom's resolution would draw them larger: the resolution stops at
+  // 1, so under a zoom of 0.5 the tiles at 1 are what any paint makes (a page wider than 1536 px fit-zooms
+  // there, and every pan frame was refused: review 2026-10-25)
+  bool xUnderHalf(double z) const { return z * 2.0 < mXTreeRes && mXTreeRes > GoannaRenderPage::GpuResolutionFor(z) + 0.0005; }
   uint32_t mXAdopted = 0;             // T-527: main-lane frames the express lane published for it
   int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)
   int mXConsumed[3] = {0, 0, 0};      // returns the express hook applied; returnBuffer skips as many
@@ -561,6 +574,7 @@ private:
     int kind = 0;  // T-517: 1 built on its slot's own frame (the window moved), 2 copied from the base, 0 neither
     bool composed = false; long invLo = 0, invHi = 0; int composedY = 0;   // known once composed (being read)
     int64_t composedMs = 0;   // device rounds: when it was seen composed
+    bool adopted = false; uint32_t cmdDone = 0;   // T-527: a main-lane job the express lane publishes (its main-lane bookkeeping)
   };
   XJob mXJob;                         // the express lane's frame in flight (the older one)
   // T-517: the express lane's frame time on its slot's own frame and copied from the base (running

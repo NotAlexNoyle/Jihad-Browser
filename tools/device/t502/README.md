@@ -230,7 +230,12 @@ card redraws whole frames). Engine 0063: a change that does not fit the band sur
 of 56 ms or more with what happened inside each. `pan-run.sh` leaves the spike daemon running (the upstart job
 stopped): run `gpu-spike-collect-stop.sh` before `default-check.sh`, which now reads across the daemon log's 2 MB
 rotation. `JIHAD_GPU_EXPRESS_PREDICT_MS=<ms>` (80; 0 off): while the card coasts, the express lane composes each frame
-where the card will be after that long (its speed from its positions).
+where the card will be after that long (its speed measured over 30 ms at least; the lead at most the overscan rows,
+not past the page's end). Engine (T-527, patch 0064): a layer paint with nothing to paint (no invalid region, no
+pending paint, no view-manager flush owed) is skipped after the first; `JIHAD_GPU_PAINT_ALWAYS=1` paints every time.
+The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScrolledTo, as a page's own scroll does)
+and `rect` prints the engine's and the card's scroll with the rect (`scroll=`, `card=`): the finger walks use them
+(`tools/device/finger/prefs-finger-walk.sh`).
 
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every

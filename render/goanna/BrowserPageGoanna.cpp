@@ -679,6 +679,7 @@ void BrowserPageGoanna::gpuStaleAdd(int except, long il, long ih, const GoannaRe
 void BrowserPageGoanna::gpuSlotsLost() {
   for (int i = 0; i < 3; ++i) mGpuSlotValid[i] = false;
   mGpuLatestSlot = -1;
+  ++mGpuLostN;   // T-527: a main-lane job posted before this is not adopted (its slot predates the lost change)
 }
 
 // T-517: frame windows in this segment: the adapter that made it reads them (its mark in the
@@ -723,14 +724,16 @@ void BrowserPageGoanna::pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKn
   d.lo = std::min(d.lo, lo); d.hi = std::max(d.hi, hi); d.x0 = std::min(d.x0, x0); d.x1 = std::max(d.x1, x1);
 }
 
-bool BrowserPageGoanna::pubDirtyTake(int x, int y, int w, int h, double zoom, bool popups, bool earlierUnknown, long out[4]) {
+bool BrowserPageGoanna::pubDirtyTake(int x, int y, int w, int h, double zoom, long contentH, bool popups, bool earlierUnknown, long out[4]) {
+  // the page's height too: the rows past its end are filled white by its height, outside the engine's
+  // changed rect (review 2026-10-25)
   const bool partial = !mPubDirty.all && !earlierUnknown && !popups && !mPubPopups &&
-                       x == mPubX && y == mPubY && w == mPubW && h == mPubH && zoom == mPubZoom;
+                       x == mPubX && y == mPubY && w == mPubW && h == mPubH && zoom == mPubZoom && contentH == mPubContentH;
   const PubDirty& d = mPubDirty;
   out[0] = d.hi > d.lo ? std::max(0L, d.x0) : 0; out[1] = d.hi > d.lo ? std::max(0L, d.lo) : 0;
   out[2] = d.hi > d.lo ? std::min((long)w, d.x1) : 0; out[3] = d.hi > d.lo ? std::min((long)h, d.hi) : 0;
   mPubDirty = PubDirty(); mPubDirty.all = false;
-  mPubX = x; mPubY = y; mPubW = w; mPubH = h; mPubZoom = zoom; mPubPopups = popups;
+  mPubX = x; mPubY = y; mPubW = w; mPubH = h; mPubZoom = zoom; mPubPopups = popups; mPubContentH = contentH;
   return partial;
 }
 
@@ -906,6 +909,7 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   // buffers still hold the old one.
   mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+  const bool dpWas = mPage && mPage->GpuDisplayPortWanted();
   if (mPage) mPage->ResetGpuDisplayPort();   // T-502 round 110: per document, from its first scroll
   mDamageValid = false; mDamageForceFull = true;
   if (!mPage) return;
@@ -938,7 +942,13 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   const bool hadEditable = mPage->HasFocusedEditable();
   int sx0 = 0, sy0 = 0;
   if (t1log || (shrink && hadEditable)) mPage->GetScrollXY(&sx0, &sy0);
-  if (mPage->Resize((int)width, (int)height)) { mNeedsPaint = true; mGeometryDirty = true; }
+  if (mPage->Resize((int)width, (int)height)) {
+    mNeedsPaint = true; mGeometryDirty = true;
+    // T-527 (review): the displayport's base is the old size's (engine 0062 keeps the root's base past
+    // a paint) and nothing set it again until a pan or a zoom: the keyboard put away at the page's top
+    // left the rows it had covered unpainted. Set again at this size.
+    if (dpWas && mPage->GpuPath()) mPage->WantGpuDisplayPort((mZoom >= 0.99 && mZoom <= 1.01) ? 1.0 : mZoom);
+  }
   // The window grew back by about a keyboard's height, at the same width, with a field focused:
   // the keyboard was put away, and the field gives up the focus with it (no caret left behind).
   // A rotation to portrait also grows the height, but changes the width. The blur runs page script,
@@ -1098,6 +1108,11 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   // gesture dead zones wherever the OLD page happened to have a plugin.
   clearPluginRects();
   mAdapterScrollX = 0; mAdapterScrollY = 0;       // stale band origin + adY band extension
+  // T-527: the old document's world offset and rootlessness are not the new one's (review 2026-10-25:
+  // about:addons' card scroll stayed the world offset on the next page and its express frames moved
+  // twice, until a scroll command reached the main thread)
+  mGpuRootless = false;
+  if (mPage && mPage->GpuPath() && (mGpuViewRX != 0.0 || mGpuViewRY != 0.0)) gpuSetView(mGpuZoom > 0.0 ? mGpuZoom : 1.0, 0.0, 0.0);
   if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
   mViewportSent = false;                          // the new page's meta-viewport is sent afresh
   // The first-paint hold belongs to one document: a new one starts its own second, rather than
@@ -1327,6 +1342,7 @@ void BrowserPageGoanna::gpuSetView(double z, double rx, double ry) {
 }
 
 void BrowserPageGoanna::gpuZoomRelease(const char* why) {
+  FrameLockGuard frameLock;   // T-527 (review): called from the pump too, and the express lane reads the critical phase
   if (!mGpuZoomHoldMs || !mPage) return;
   const long held = (long)(jihadNowMs() - mGpuZoomHoldMs);
   mGpuZoomHoldMs = 0;
@@ -1350,13 +1366,27 @@ void BrowserPageGoanna::gpuZoomRelease(const char* why) {
 }
 
 void BrowserPageGoanna::gpuCriticalEnd(const char* why) {
+  FrameLockGuard frameLock;
   if (!mGpuCriticalMs || !mPage) return;
   JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the margins follow, %ld ms after the zoom's displayport (%s; its paint done %ld ms after)\n",
           mGpuZoom, (long)(jihadNowMs() - mGpuCriticalMs), why, mGpuCriticalPaintMs ? (long)(mGpuCriticalPaintMs - mGpuCriticalMs) : -1L);
   mGpuCriticalMs = 0; mGpuCriticalPaintMs = 0; mGpuCriticalDone = false;
   mPage->SetGpuDpCritical(false);
-  if (mPage->GpuPath() && mPage->GpuDisplayPortWanted()) mPage->SetGpuViewport(mGpuZoom);
+  // a newer zoom held meanwhile: its release sets the displayport (at its own zoom, with its own
+  // critical phase); set here it took the held zoom's resolution early (review 2026-10-25)
+  if (!mGpuZoomHoldMs && mPage->GpuPath() && mPage->GpuDisplayPortWanted()) mPage->SetGpuViewport(mGpuZoom);
   mNeedsPaint = true;
+}
+
+void BrowserPageGoanna::debugCardScrollTo(int x, int y) {
+  fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (the inject channel)\n", x, y);
+  mSink.msgScrolledTo(x, y);
+}
+
+void BrowserPageGoanna::debugCardScroll(int* x, int* y) const {
+  const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  if (x) *x = (int)(mAdapterScrollX / z + 0.5);
+  if (y) *y = (int)(mAdapterScrollY / z + 0.5);
 }
 
 void BrowserPageGoanna::setScrollPosition(int x, int y) {
@@ -1523,7 +1553,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
         mGpuZoom = z; mGpuZoomHoldMs = jihadNowMs(); mGpuZoomHoldZ = z;
         // T-527: unless they would be drawn at under half their size: the express lane makes no such
         // frame (mXTreeRes), and the paint at the new resolution goes at once
-        if (jihadExpressOn() && z * 2.0 < mXTreeRes) gpuZoomRelease("a zoom out past half the painted resolution: its paint first");
+        if (jihadExpressOn() && xUnderHalf(z)) gpuZoomRelease("a zoom out past half the painted resolution: its paint first");
       } else {
         mPage->SetGpuViewport(z); mGpuZoom = z; mGpuAnchorValid = false;
       }
@@ -2856,7 +2886,10 @@ bool BrowserPageGoanna::emitGeometry() {
   const uint64_t docKey = mPage->DocumentKey();
   if (docKey != mLayoutDocKey) {
     mLayoutDocKey = docKey; mLayoutFollowed = false;
-    if (mPage->LayoutWidth() != mPage->Width()) {
+    { FrameLockGuard frameLock; mGpuRootless = mPage->GpuRootless(); }   // T-527: the express lane's offsets from the document's first frame
+    // the height too: a XUL page's is its list's length (below), and the next page was laid out in a
+    // 768x4000 window (innerHeight, 100vh and a bottom:0 bar at 4000: review 2026-10-25)
+    if (mPage->LayoutWidth() != mPage->Width() || mPage->LayoutHeight() != mPage->Height()) {
       mPage->ResetLayoutSize();
       cw = ch = 0;
       got = mPage->GetContentSize(&cw, &ch);
@@ -4224,6 +4257,7 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   j.win = win;   // T-517
   j.xFrames = mXFrames;
   j.cmdDone = mXCmdDone;
+  j.lostN = mGpuLostN;
   // T-513 (R2's fast flick): JIHAD_GPU_VERIFY's reference, the whole frame composed right behind this
   // job, on the same layer tree at the same view. Composed at the job's poll instead, it met a tree
   // the pan had moved on from (the displayport's tiles above the view dropped) and called the right
@@ -4350,8 +4384,13 @@ void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uin
   {
     // T-527: the card's scroll speed from its positions (a kinetic coast sends one every few ms)
     const int64_t dt = now - mXWant.ms;
-    if (z != mXWant.zoom || x != mXWant.x || !mXWant.seq || dt <= 0 || dt > 100) mXWant.velY = 0.0;
-    else mXWant.velY = 0.5 * mXWant.velY + 0.5 * (double)(y - mXWant.y) / (double)dt;
+    if (z != mXWant.zoom || x != mXWant.x || !mXWant.seq || dt > 100) { mXWant.velY = 0.0; mXWant.velMs = now; mXWant.velAtY = y; }
+    else if (now - mXWant.velMs >= 30) {
+      // over 30 ms at least: the reader thread reads queued commands a ms or two apart (review 2026-10-25)
+      const double v = (double)(y - mXWant.velAtY) / (double)(now - mXWant.velMs);
+      mXWant.velY = mXWant.velY == 0.0 ? v : 0.5 * mXWant.velY + 0.5 * v;
+      mXWant.velMs = now; mXWant.velAtY = y;
+    }
   }
   mXWant.x = x; mXWant.y = y; mXWant.zoom = z; mXWant.ms = now; ++mXWant.seq; mXWant.cmdSeq = tag;
   if (!mXWaitSinceMs) mXWaitSinceMs = now;
@@ -4393,7 +4432,7 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
       XWant want; int64_t waitSince;
       { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
       const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;
-      if (want.seq && !(mXJob.x == want.x && mXJob.cardY == want.y && mXJob.zoom == Z) && !(Z * 2.0 < mXTreeRes)) {
+      if (want.seq && !(mXJob.x == want.x && mXJob.cardY == want.y && mXJob.zoom == Z) && !xUnderHalf(Z)) {
         if (!xStart(now, Z, want, waitSince, &mXJob)) jihadXNote("the second frame cannot build on the first");
       }
     } else if (mXJob.on && !mXJob.composed && xLeads(now)) {
@@ -4425,6 +4464,7 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
     const GpuJob& gj = mGpuJobs[0];
     const XSnap& S = mXSnap;
     if (away && now - away >= sTakeover && gj.xFrames == mXFrames && !gj.vToken && gj.slot >= 0 && gj.slot < 3 &&
+        mLoadWasDone && gj.lostN == mGpuLostN &&
         gj.w == S.w && gj.h == S.frameH && gj.viewRow == S.os && S.base[gj.slot] && S.keys[gj.slot] == gj.key &&
         mPage->ComposePeek(gj.token) == 1) {
       XJob& j = mXJob;
@@ -4433,6 +4473,7 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
       j.x = gj.x; j.y = gj.y; j.w = gj.w; j.h = gj.h; j.os = gj.viewRow; j.zoom = gj.zoom; j.shift = gj.shift;
       j.t0 = gj.t0; j.wantMs = want.ms; j.waitMs = waitSince ? waitSince : now; j.whole = false;
       j.pixels = S.base[gj.slot] + S.hdr + (size_t)gj.win * S.w * 4; j.win = gj.win; j.kind = 0; j.cardY = gj.y + gj.viewRow;
+      j.adopted = true; j.cmdDone = gj.cmdDone;
       mGpuJobs.erase(mGpuJobs.begin());
       ++mXAdopted;
       static uint32_t sTkN = 0;
@@ -4461,7 +4502,7 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
   for (const GpuJob& j : mGpuJobs) if (mPage->ComposePeek(j.token) == 0) { jihadXNote("a main-lane frame is being composed"); return true; }
   // T-527: no frame that draws the painted tiles at under half their size: the main thread's paint at
   // the new resolution comes first (the card scales its last frame meanwhile)
-  if (Z * 2.0 < mXTreeRes) { jihadXNote("a zoom out under half the painted resolution"); return true; }
+  if (xUnderHalf(Z)) { jihadXNote("a zoom out under half the painted resolution"); return true; }
   if (xLeads(now)) return xStart(now, Z, want, waitSince);   // the card is moving: every frame
   static const long sGrace = getenv("JIHAD_GPU_EXPRESS_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_MS")) : 45;
   if (now - waitSince < sGrace || now - mXMainPubMs < sGrace) { jihadXNote("the grace (the main lane may serve it)"); return true; }
@@ -4483,15 +4524,20 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   // T-527: while the card coasts, the frame is composed where the card will be when it is shown (its
   // speed times JIHAD_GPU_EXPRESS_PREDICT_MS, 80: the express frame's usual age at the card's blit), so
   // the card does not slide an older frame past its rows (a flick on the long page showed the lower
-  // third grey and the fixed header gone for ~0.4 s). The header says where the frame is; the
-  // overscan rows absorb the guess's error. Not above the page's top; 0 turns it off.
+  // third grey and the fixed header gone for ~0.4 s). The header says where the frame is. At most the
+  // overscan rows, so the frame still covers the card where it is now (a drag stopped with the finger
+  // down, a fling's end at the page's bottom) and counts as serving it: a card's height of lead left up
+  // to 70% of the card grey for 120 ms and more (review 2026-10-25); a lead of os still covers a move of
+  // 2 os before the card shows it. Not above the page's top nor past its end; 0 turns it off.
   static const long sPredictMs = getenv("JIHAD_GPU_EXPRESS_PREDICT_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_PREDICT_MS")) : 80;
   int lead = 0;
   if (sPredictMs > 0 && now - want.ms < 60 && want.velY != 0.0) {
     const double l = want.velY * (double)sPredictMs;
-    const double cap = (double)S.h;   // a card's height at most
+    const double cap = (double)os;
     lead = (int)(l > cap ? cap : (l < -cap ? -cap : l));
     if (want.y + lead < 0) lead = -want.y;
+    const long endY = S.contentH > 0 ? (long)((double)S.contentH * Z) - S.h : -1;   // the card's lowest top
+    if (lead > 0 && endY >= 0 && want.y + lead > endY) lead = want.y < endY ? (int)(endY - want.y) : 0;
   }
   const int x = want.x, y = want.y + lead - os;   // the frame's top: the view sits os rows down it (T-505)
   const size_t need = S.hdr + (size_t)w * H * 4;
@@ -4714,12 +4760,16 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   if (!genOk || r < 0) {
     // the buffers or the geometry changed under it, or it failed: dropped, and the one built on it
     pubDirtyAll();   // T-527
+    const bool adopted = mXJob.adopted;
     mXJob = XJob(); xForget(mXJob2);
     gpuSlotsLost();   // T-517: its change is in no slot's record
-    if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
+    // T-527 (review): an adopted main-lane job's failure is the main lane's (its count of three gives the
+    // GPU path up at its next failure, on the main thread)
+    if (adopted) ++mGpuRefusals;
+    else if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
     return true;
   }
-  mXFailures = 0;
+  if (mXJob.adopted) mGpuRefusals = 0; else mXFailures = 0;
   const int s = mXJob.slot, H = mXJob.h, w = mXJob.w;
   unsigned char* pixels = mXJob.pixels;
   const int frameY = cr.frameYValid ? (int)cr.frameY : mXJob.y;   // round 115: where the engine composed it
@@ -4741,7 +4791,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     bool earlier = false;
     for (const GpuJob& gj : mGpuJobs) if ((int32_t)(gj.token - mXJob.token) < 0) earlier = true;
     long dirty[4];
-    const bool partial = pubDirtyTake(mXJob.x, frameY, w, H, mXJob.zoom, false, earlier, dirty);
+    const bool partial = pubDirtyTake(mXJob.x, frameY, w, H, mXJob.zoom, mXSnap.contentH, false, earlier, dirty);
     publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr);
   }
   if (mXJob.kind) {
@@ -4768,6 +4818,9 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     fprintf(stderr, "[jihad-tl] t=%lld express frame clocks: cpu0 %s kHz, cpu1 %s kHz\n", (long long)now, f0, f1);
   }
   if (!mXMainWindow && mActiveKey == mXJob.key) mActiveKey = keyAfter(mXJob.key);
+  // T-527 (review): an adopted job's next publish is the main lane's next job's slot, as the main lane
+  // sets it (keyAfter put a second job in another slot "moved under the jobs" and drained them)
+  if (mXJob.adopted && !mXMainWindow && !mGpuJobs.empty()) mActiveKey = mGpuJobs[0].key;
   // the main lane's records: this slot is the newest frame; T-517: the other slots keep theirs,
   // this composite's change added to their stale rows (they used to be dropped, and every slot
   // after an express frame was read whole or copied from the newest)
@@ -4789,9 +4842,18 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   mXPub.w = w; mXPub.h = H; mXPub.zoom = mXJob.zoom; mXPub.fixedLo = cr.fixedLo; mXPub.fixedHi = cr.fixedHi;
   mXPub.cardX = mXJob.x; mXPub.cardY = mXJob.cardY; mXPub.ms = now;
   mNeedsPaint = true;   // the main lane's next frame: its engine half (the anchor, the zoom's release) and the newest move
-  ++mXFrames;
-  mXLastZoom = mXJob.zoom;
-  mXLastXPubMs = now;
+  if (mXJob.adopted) {
+    // T-527 (review): a main-lane frame: the main lane's bookkeeping, as its poll would have done it (the
+    // express lane's would hold the main lane's next frame up to 300 ms for a zoom it is newer than, and
+    // drop the main lane's second job, built on this one)
+    mXMainPubMs = now; mXLastXPubMs = 0; mXCmdPub = mXJob.cmdDone;
+    std::lock_guard<std::mutex> l(jihadWantLock());
+    if (!mXWant.seq || mXCmdPub >= mXWant.cmdSeq) mXWaitSinceMs = 0;
+  } else {
+    ++mXFrames;
+    mXLastZoom = mXJob.zoom;
+    mXLastXPubMs = now;
+  }
   static const char* sZoomDump = getenv("JIHAD_GPU_ZOOM_DUMP");
   if (sZoomDump) {
     // T-504 device rounds: the express lane's frames at a new zoom in the 3 s after it, as the
@@ -6256,7 +6318,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const bool earlier = (mXJob.on && (int32_t)(mXJob.token - mGpuPubToken) < 0) ||
                            (mXJob2.on && (int32_t)(mXJob2.token - mGpuPubToken) < 0);
       const bool partial = gpuFinished &&
-          pubDirtyTake(mGpuJobX, mGpuJobY, paintedW, paintedH, mGpuJobZoom, popupsDrawn > 0, earlier, dirty);
+          pubDirtyTake(mGpuJobX, mGpuJobY, paintedW, paintedH, mGpuJobZoom, mLastContentH, popupsDrawn > 0, earlier, dirty);
       if (!gpuFinished) { pubDirtyAll(); mPubZoom = -1.0; }
       publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr);
     }

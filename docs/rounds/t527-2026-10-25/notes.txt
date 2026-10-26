@@ -227,3 +227,18 @@ The pinch in's painted frame in fz-n2 (its log not kept) came at 1707 ms (717 in
 1127 ms in one tick's paint step (the tick line: work max 1138, paint avg 125 over 9) with the main-lane frame
 composed and waiting; ticks of 1-3 s (mostly the page's script in the pump) are in every zoom round's log,
 before these changes too (fz-r10-pool96, fz-r8-eng). Not chased further here.
+
+## Two levers on the compositor job measured and not kept (R3), 2026-10-26
+- The changed region against its hull (engine instrument JIHAD_GPU_DIFF_LOG, not kept; pan-d1-wiki): over desktop
+  Wikipedia's 10 s pan only 11 composites reported a tree change, all but one the whole frame or 96-100% of their
+  hull; once 32% (the top strip and the two stuck side columns, rows 157..776). Reading the region's rects instead
+  of the hull would save one read in ~250 frames. The express frames: median 38 ms to make, p90 54, max 127.
+- The slot's own frame as the base with fixed and stuck layers present (daemon, JIHAD_GPU_OWN_FIXED, not kept):
+  taken when the slot's frame's fixed rows equal the newest composite's (the engine reads the columns widened by
+  the window's move). Correct — verify 0 rows wrong on desktop Wikipedia (63 checks), jihad-sticky-mix (66) and
+  jihad-fixed-both (64), the own path taken 19-20 times where it was taken once (pan-of1-*). Not faster where it
+  matters: desktop Wikipedia 22.9 and 21.9 fps with 41 and 29 gaps of 56 ms+ (pan-of2-wiki-1/2; head 23.6, 24
+  gaps): the own frame reads the slot's stale rows (other composites' changes) and the widened columns, 29-32 ms
+  against the 16 ms measured on pages without them; the long page with its fixed header 37.5 fps but 25 gaps
+  (pan-of2-long; head 33.1, 4 gaps). Reverted. What remains is the copy from the base (10-14 ms), the read
+  (7-12 ms) and the compose (~8 ms) of each frame on the one compositor thread.

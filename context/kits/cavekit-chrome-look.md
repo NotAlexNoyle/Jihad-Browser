@@ -64,7 +64,16 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
 - [~] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
   gives a XUL page no scroller and the card scrolls only pages, so the page's root grows to the
   list's whole length and the card pans it. *(Device: the daemon reports the taller page; the pan
-  needs a finger and a long list — the owner's test.)*
+  needs a finger and a long list — the owner's test.)* *(2026-10-25, T-527, Enyo by finger with twelve
+  test extensions sideloaded: before, the list did NOT pan — the root's min-height never reached the
+  reported content size (a XUL root is laid out at the window's size; the card was told 980x1202, the
+  window), and on the GPU path the card's scroll could not move a page with no root scroll frame anyway
+  (every frame showed its top). Now jihadPersonas.js puts the list's whole length on the root
+  (`jihad-content-height`, measured from its items, not the window), the daemon makes the window that tall
+  (980x1540 for thirteen rows) and moves a XUL page by the compositor's world offset in both lanes; a page
+  that gets shorter (an add-on's details) has the card's scroll clamped. Two drags reach Pad 12 at the
+  card's bottom, a flick returns to the top, a tap on Pad 12's More opens its details from their top.
+  Mochi and Mojo with the next packages.)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
 ### R3: Jihad's pages move like web pages

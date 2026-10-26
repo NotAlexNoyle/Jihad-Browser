@@ -1193,6 +1193,16 @@ void BrowserPageGoanna::gpuDisengage(bool moveEngine) {
 void BrowserPageGoanna::gpuScrollTo(int x, int y, double z) {
   const double wantX = x / z, wantY = y / z;
   mGpuSettledShort = false;   // a new position: the settle tries the engine again
+  // T-527: a document with no root scroll frame (a XUL page: about:addons, whose root jihadPersonas.js
+  // grows to its list's length) has neither an engine scroll nor the root metrics the compositor's async
+  // scroll applies to: the card panned it and every frame showed its top. The card's scroll is the
+  // compositor's world offset there (the view offset), in both lanes.
+  mGpuRootless = mPage->GpuRootless();
+  if (mGpuRootless) {
+    if (mGpuCompositorScroll) { mPage->SetGpuScroll(0.0, 0.0, false); mGpuCompositorScroll = false; }
+    gpuSetView(z, wantX, wantY);
+    return;
+  }
   static const bool sEngineScroll = getenv("JIHAD_GPU_ENGINE_SCROLL") != nullptr;
   if (!sEngineScroll) {
     // The compositor-side scroll: the engine stays where it was painted while the card's scroll
@@ -2879,6 +2889,26 @@ bool BrowserPageGoanna::emitGeometry() {
       }
     }
   }
+  // T-527: a XUL page (about:addons) is laid out at the window's size whatever its length: its list
+  // scrolled only inside itself and the card was told there was nothing to pan. jihadPersonas.js puts
+  // the list's whole length on the root; the window (the layout viewport) is made that tall, so the
+  // page is laid out, painted and reported at its length and the card pans it (on the GPU path by the
+  // compositor's world offset: gpuScrollTo's rootless branch).
+  bool xulShorter = false;
+  if (got && cw > 0) {
+    const int need = mPage->XulContentHeight();
+    const int lw = mPage->LayoutWidth();
+    const int base = (int)((int64_t)mPage->Height() * lw / mPage->Width());   // the window's own height at this width
+    const int want = need > base ? need : base;   // 0 (a view with no list): the window's own again
+    if (need >= 0 && want != mPage->LayoutHeight()) {
+      xulShorter = want < mPage->LayoutHeight();
+      if (mPage->SetLayoutSize(lw, want)) {
+        int cw2 = 0, ch2 = 0;
+        if (mPage->GetContentSize(&cw2, &ch2) && cw2 > 0 && ch2 > 0) { cw = cw2 < mPage->Width() ? mPage->Width() : cw2; ch = ch2; }
+        mNeedsPaint = true; mDamageForceFull = true;
+      }
+    }
+  }
   if (got && cw > 0 && ch > 0 && (cw != mLastContentW || ch != mLastContentH)) {
     // Log only on a REAL change. This used to log unconditionally, and emitGeometry is retried
     // from the pump on EVERY tick while mGeometryDirty is set — which made this line the single
@@ -2889,6 +2919,15 @@ bool BrowserPageGoanna::emitGeometry() {
             cw, ch, mPage->Width(), mPage->Height(), mZoom);
     mLastContentW = cw; mLastContentH = ch;
     mSink.msgContentsSizeChanged(cw, ch);        // R4: contents-size-changed
+    if (xulShorter) {
+      // T-527: the card keeps its scroll when a page gets shorter (its scroller is only told the new
+      // size), and a XUL page's view change (about:addons: a list to an add-on's details) left it
+      // past the end, white below. Its own position again, which it clamps to the new length.
+      const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+      const int sx = (int)(mAdapterScrollX / z), sy = (int)(mAdapterScrollY / z);
+      fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (a XUL page got shorter)\n", sx, sy);
+      mSink.msgScrolledTo(sx, sy);
+    }
   }
   // R4: meta-viewport — when the page declares one, and only when it CHANGES. This used to go
   // out on every call (the pump retries emitGeometry on every tick while geometry is dirty), and
@@ -4633,7 +4672,9 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   // the main lane's view for a compositor-side scroll: the card's zoom, the overscan's offset, the
   // card's scroll in CSS px (gpuScrollTo, gpuSetView)
   const double zr = (want.zoom >= 0.05 && want.zoom <= 20.0) ? want.zoom : 1.0;
-  const double view[5] = { Z, 0.0, -(double)os / Z, want.x / zr, (want.y + lead) / zr };   // T-527: the predicted position
+  // T-527: the predicted position; a document with no root scroll frame is moved by the view offset
+  const double view[5] = { Z, mGpuRootless ? want.x / zr : 0.0, (mGpuRootless ? (want.y + lead) / zr : 0.0) - (double)os / Z,
+                           want.x / zr, (want.y + lead) / zr };
   const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr - (size_t)xWin * xStride, H, lo, hi, lo2, hi2,
                                             own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved);
   if (!token) {
@@ -5132,9 +5173,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
 
   long bandX = mAdapterScrollX, bandY = mAdapterScrollY;
   bool bandKnown = true;
-  if (mGpuCompositorScroll) {
+  if (mGpuCompositorScroll || (mGpuRootless && mPage->GpuPath())) {
     // T-502: the frame is composed at the card's own scroll (the compositor applies it; the
-    // engine's scroll is the anchor, the render pan is parked at 0), at any zoom
+    // engine's scroll is the anchor, the render pan is parked at 0), at any zoom; T-527: so is a
+    // document with no root scroll frame's (the world offset is the card's scroll)
     bandX = mAdapterScrollX; bandY = mAdapterScrollY;
   } else if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
     // T-502: no pan in flight: the frame is at the engine's own scroll (the GPU path scrolls the

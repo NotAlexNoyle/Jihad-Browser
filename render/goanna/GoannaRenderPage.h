@@ -176,6 +176,7 @@ public:
   bool SetLayoutSize(int width, int height);
   void ResetLayoutSize();
   int LayoutWidth() const { return mLayoutW ? mLayoutW : mWidth; }
+  int LayoutHeight() const { return mLayoutH ? mLayoutH : mHeight; }   // T-527
   uint64_t DocumentKey() const;
   bool DocumentParsed() const;
 
@@ -566,6 +567,12 @@ public:
   // T-502: the card's scroll for the compositor (CSS px); false when the engine export is absent
   bool SetGpuScroll(double x, double y, bool valid);
   bool GpuDisplayPortOk() const { return mGpuDpOk; }   // T-502: the displayport is set on the current document
+  // T-527: the shown document has no root scroll frame (a XUL page: about:addons): neither the engine's
+  // scroll nor the compositor's async scroll can move it
+  bool GpuRootless();
+  // T-527: a XUL page's own length (its root's jihad-content-height, CSS px; 0: the window's own; -1:
+  // not a XUL page or nothing said)
+  int XulContentHeight();
   // T-505: the GPU path's frame height (the card's plus the overscan rows; 0 = the card's) and the
   // overscan the root scroll frame's clip is widened by (card rows each side, at a zoom)
   void SetGpuFrameHeight(int h) { mGpuFrameH = h; }

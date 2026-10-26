@@ -418,6 +418,7 @@ private:
   int64_t mVelMs = 0; int mVelY = 0; double mScrollVelY = 0.0;   // T-541: the card's scroll speed (card px/ms)
   float mGpuLeadUp = 0.0f, mGpuLeadDown = 0.0f;                  // T-541: the lead last handed to the page
   bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
+  bool               mGpuRootless = false;           // T-527: the document has no root scroll frame: the world offset is the scroll (the frame lock)
   // T-502 round 112: the compositor-side scroll is engaged by a card-driven pan only. A
   // setScrollPosition that follows a position this daemon just reported (msgScrolledTo) is the
   // card catching up with the page's own scroll; the pan settles 300 ms after the card's last

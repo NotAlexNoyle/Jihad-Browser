@@ -17,8 +17,8 @@ Run each item in all three variants (Enyo, Mochi, Mojo) unless it says otherwise
 ## Scrolling and gestures
 - [x] Flick up and down on about:settings and about:personas, at both ends: the page coasts and
   slows as a web page does, never stops dead. (chrome-look R3) *(2026-10-24, the emulated finger: about:preferences flicked to its end and back in Enyo, Mochi and Mojo (Mojo's by a drag and a flick); about:personas to its end and back in Enyo; whether a coast "stops dead" is a feel the shots cannot give — the pages reached both ends)*
-- [ ] about:addons → Extensions (or Plugins) with more add-ons than fit: the list pans to its end.
-  (chrome-look R2) *(2026-10-24: one extension installed on the bench, nothing to pan; needs more add-ons first)*
+- [~] about:addons → Extensions (or Plugins) with more add-ons than fit: the list pans to its end.
+  (chrome-look R2) *(2026-10-24: one extension installed on the bench, nothing to pan; needs more add-ons first)* *(2026-10-25, Enyo by finger, twelve test extensions sideloaded (Jihad List Pad 01..12): FOUND the list did not pan at all (the card was told the window's height; on the GPU path a XUL page's frames never moved). FIXED (T-527: the list's length on the root, the window that tall, the world offset for a page with no root scroller, the card's scroll clamped when the page gets shorter): two drags reach Pad 12, a flick returns to the top, Pad 12's More opens its details from their top. Mochi and Mojo: with the next packages.)*
 - [x] A real drag-scroll and a two-finger pinch on an ordinary page; pinch in then out on
   en.m.wikipedia.org (Mojo: the card is never left grey). (input-bridging R3/R4, mojo-ui R6) *(2026-10-24: drags on `jihad-long-static.html` in all three; Mojo on en.m.wikipedia.org: a pinch in at the fit stays at the fit, a pinch out to 1.08 paints in full, 14 frames none empty, no grey)*
 - [x] Rotate the TouchPad: portrait ↔ landscape redraws the page right. (device-build R4,

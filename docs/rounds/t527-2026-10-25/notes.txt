@@ -131,3 +131,19 @@ its positions, the reader thread) times JIHAD_GPU_EXPRESS_PREDICT_MS (80), no fu
 above the page's top; renderedY says where the frame is, so the adapter places it. By finger (Enyo, the long page):
 the shots 0 and 250 ms after a flick have content to the bottom (were 27 % and 50 % grey); the header still slides
 for the first ~250 ms. Slow drags unchanged (the header in place mid-stroke, no grey).
+
+about:addons' list by finger (FINGER-TESTS, chrome-look R2): it did not pan
+--------------------------------------------------------------------------
+Twelve tiny bootstrapped test extensions (Jihad List Pad 01..12, made from jihad-test-addon.xpi's manifest) put
+in the Enyo profile's extensions/ with the daemon stopped (sideloaded: listed disabled). Two finger drags: the list
+did not move. Two causes: (1) the card was told the window's height (980x1202 at the fit zoom 0.7837): growToList's
+min-height on a XUL root never reached the reported content size (the root is laid out at the window's size);
+(2) on the GPU path a page without a root scroll frame cannot be moved by the card's scroll at all (no engine
+scroll, no root metrics for the compositor's async scroll): the card scrolled and every frame showed the page's
+top, the main lane's frames even labelled at the engine's scroll 0. Fixed: jihadPersonas.js puts the list's whole
+length (from its items' positions, so it does not follow the window) on the root as jihad-content-height; the
+daemon makes a XUL document's window that tall (GoannaRenderPage::XulContentHeight, BrowserPageGoanna::emitGeometry;
+980x1540 for thirteen rows) and back when a view says 0; a XUL page is moved by the compositor's world offset
+(GpuRootless: gpuScrollTo, the express lane's view, the main lane's frame at the card's position); a page that got
+shorter has the card's scroll clamped (the adapter only re-sizes its scroller). By finger: the list pans to Pad 12,
+a flick returns to the top, a tap on Pad 12's More (hit-tested at doc 407,1476) opens its details from their top.

@@ -84,6 +84,7 @@
 // StyleSheet.h it pulls in holds a RefPtr<nsIDocument> with inline users.
 #include "nsIDocument.h"
 #include "nsIPresShell.h"            // FlushPendingNotifications(Flush_Layout), ResizeReflow
+#include "nsIDOMXULDocument.h"       // T-527: GpuRootless
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"          // document.readyState (load-complete fallback)
 #include "nsIDOMHTMLDocument.h"      // body: the viewport scroller of a quirks-mode document (ScrollTo)
@@ -4797,6 +4798,29 @@ bool GoannaRenderPage::GpuResolutionChanges(double zoom) {
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   float cur = 1.0f;
   return u && NS_SUCCEEDED(u->GetResolution(&cur)) && fabsf(cur - GpuResolutionFor(zoom)) > 0.0005f;
+}
+
+bool GoannaRenderPage::GpuRootless() {
+  // a XUL document: the engine never gives one a root scroll frame (nsCSSFrameConstructor: "XUL
+  // documents should never be scrollable"); nsIPresShell::GetRootScrollFrame is not exported
+  nsCOMPtr<nsIDOMDocument> doc = ShownDocument(mChrome);
+  nsCOMPtr<nsIDOMXULDocument> xul = do_QueryInterface(doc);
+  return xul != nullptr;
+}
+
+int GoannaRenderPage::XulContentHeight() {
+  nsCOMPtr<nsIDOMDocument> doc = ShownDocument(mChrome);
+  nsCOMPtr<nsIDOMXULDocument> xul = do_QueryInterface(doc);
+  if (!xul) return -1;
+  nsCOMPtr<nsIDOMElement> root;
+  doc->GetDocumentElement(getter_AddRefs(root));
+  if (!root) return -1;
+  nsAutoString v;
+  root->GetAttribute(NS_LITERAL_STRING("jihad-content-height"), v);
+  if (v.IsEmpty()) return -1;
+  nsresult rv = NS_OK;
+  const int32_t h = v.ToInteger(&rv);
+  return (NS_SUCCEEDED(rv) && h >= 0 && h <= 8192) ? h : -1;
 }
 
 bool GoannaRenderPage::GetEngineScroll(int* x, int* y) {

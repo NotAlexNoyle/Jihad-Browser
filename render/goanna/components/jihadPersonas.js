@@ -1493,7 +1493,7 @@ function growToList(win) {
   // shown counts (inspector 2026-10-12).
   let panel = gVC && gVC.viewPort ? gVC.viewPort.selectedPanel : null;
   root.style.minHeight = "";                      // measured as it lays out without the stretch
-  let need = 0;
+  let need = 0, natural = 0;
   if (panel) {
     let list = panel.id === ADDONS.ids.detailView ? null : panel.querySelector("richlistbox");
     if (list) {
@@ -1506,12 +1506,19 @@ function growToList(win) {
         if (last === null || r.bottom > last) { last = r.bottom; }
       });
       let content = first === null ? 0 : (last - first) + 16;
-      if (content > rect.height) { need = Math.ceil(rect.top + content + 24); }
+      natural = Math.ceil(rect.top + content + 24);
+      if (content > rect.height) { need = natural; }
     } else if ((panel.scrollHeight || 0) > (panel.clientHeight || 0)) {   // only what overflows
       need = Math.ceil(panel.getBoundingClientRect().top + panel.scrollHeight + 24);
     }
   }
   if (need > win.innerHeight) { root.style.minHeight = need + "px"; }
+  // T-527: the list's whole length, whatever the window's height (it does not move with it), for the
+  // daemon: a XUL root is laid out at the window's size, so its min-height did not change the length the
+  // card is told it can pan (the content size stayed the window's: the list's last rows out of reach).
+  // The daemon makes the window this tall (BrowserPageGoanna::emitGeometry).
+  let len = String(natural > 0 ? natural : 0);
+  if (root.getAttribute("jihad-content-height") !== len) { root.setAttribute("jihad-content-height", len); }
 }
 
 // Every row's remove button says "Uninstall" (the owner, 2026-10-08).

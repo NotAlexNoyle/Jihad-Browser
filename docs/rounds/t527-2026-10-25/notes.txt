@@ -105,3 +105,18 @@ the base 10-14 ms when the page has a stuck header); a job queued 25-88 ms behin
 (the tile uploads of a displayport move); once, 166 ms with all three buffers held by the card ("no slot: in flight
 111"). The steady frame is ~30 ms (compose ~8, copy from the base 10-14, read 7-12). With the tall band surface the
 count is the same (pan-g3-wiki: 19). None of them is the daemon waiting on its own main thread any more.
+
+Where a double tap in's sharp frame goes now (fz-r8-eng): the release 1 ms after the zoom; the express frame (old
+tiles, 105 ms; its read of 1224 rows and a 46 ms CPU swizzle hold the compositor thread ~100 ms); the paint at 2.33
+inside the next pump (the refresh driver's, ~300 ms of the main thread); its transaction on the compositor thread
+170 ms (53 of it uploads, the rest creating, converting and deleting textures past the 48-texture pool); the main
+lane's job queued 157 ms behind it and composed in 110 ms; published by the express lane at 593 ms.
+JIHAD_GPU_TEX_POOL=96 (fz-r10-pool96): that transaction 91 ms, the sharp frames 529 (double tap in), 622 (out), 532
+(pinch in), 483 (pinch out) against 593/669/513/551 at 48 — within the noise of the page's own script; the pool stays
+48 (each 256x256 texture kept is 256 KB of GPU memory per daemon).
+
+Desktop Wikipedia's pan, its mean over the 10 s (gap-trace.py's "the pan: frames over ms"), the sensors running:
+23.8 fps (pan-g2-wiki), 24.4 (pan-g3-wiki), a third run 21.7. The compositor thread is the bound (pan-run PAN_TOP:
+Compositor 85.5 % of a core, the main thread 46 %, JihadExpress 12 %; the daemon ~1.4 cores, sensord 17 %,
+WebAppMgr 15 %). Its per-frame CPU: compose ~8 ms, the copy from the base 10-14 ms (a page with a stuck header
+cannot build on its own slot: T-517's finding, r353/r354), the read 7-12 ms.

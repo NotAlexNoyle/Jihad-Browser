@@ -19,7 +19,7 @@ for p in /proc/[0-9]*; do c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline); case "$c" i
 [ "PANCMD" != "none" ] && { umask 077; echo "PANCMD" > $STATE/inject.cmd; }   # the daemon consumes the file at once
 if [ "PANTOP" = 1 ]; then
   sleep 1; top -b -n 2 -d 4 > /tmp/top-pan.txt 2>&1 &
-  for p in /proc/[0-9]*; do c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline); case "$c" in *jihad-browserserver*) DP=${p#/proc/};; esac; done
+  for p in /proc/[0-9]*; do c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline); case "$c" in *jihad-browserserver*net.riverstonerelay.jihad-browser/*) DP=${p#/proc/};; esac; done   # the Enyo daemon (not the other variants')
   for t in /proc/$DP/task/*; do echo "$(cat $t/comm) $(sed 's/.*) //' $t/stat | cut -d' ' -f12,13)"; done > /tmp/ts0.txt
   ( sleep 4; for t in /proc/$DP/task/*; do echo "$(cat $t/comm) $(sed 's/.*) //' $t/stat | cut -d' ' -f12,13)"; done > /tmp/ts1.txt ) &
 fi

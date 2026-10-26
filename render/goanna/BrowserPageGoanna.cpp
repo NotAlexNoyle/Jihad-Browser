@@ -1381,23 +1381,33 @@ void BrowserPageGoanna::gpuCriticalEnd(const char* why) {
   mNeedsPaint = true;
 }
 
-void BrowserPageGoanna::zoomBackKeep() {
+void BrowserPageGoanna::zoomBackKeep(double newZoom) {
   FrameLockGuard frameLock;
   static const bool sOff = getenv("JIHAD_GPU_NO_ZOOM_BACK") != nullptr;
-  zoomBackDrop();
-  const int s = slotForKey(mShownKey);
-  if (sOff || !mPage || !mPage->GpuPath() || mFrozen || s < 0 || !mShmBuf[s]) return;
-  const BrowserOffscreenInfo* oi = (const BrowserOffscreenInfo*)mShmBuf[s];
+  if (sOff || !mPage || !mPage->GpuPath() || mFrozen || !mShownKey || !mXSnap.ok) return;
+  if (mZoomBack.ok && mZoomBack.pubSeq == mPubSeq) return;   // this very frame is kept already
+  // the shown frame from the express lane's snapshot of the segments (attached once, sized without the trailer)
+  const XSnap& S = mXSnap;
+  int s = -1;
+  for (int i = 0; i < 3; ++i) if (S.keys[i] == mShownKey && S.base[i]) s = i;
+  if (s < 0) return;
+  const unsigned char* b = S.base[s];
+  const BrowserOffscreenInfo* oi = (const BrowserOffscreenInfo*)b;
+  const double zs = oi->contentZoom;
+  // the frame before the zoom in: at a resolution of 1 and not already at the new zoom (a busy main thread
+  // handles the zoom after the express lane has published at it: that frame is not the one to go back to)
+  if (!(zs > 0.0) || fabs(zs - newZoom) < 1e-4 || GoannaRenderPage::GpuResolutionFor(zs) > 1.0005f) return;
   const int w = oi->bufferWidth, h = oi->bufferHeight;
-  JihadFrameTrailer* t = shmTrailer(mShownKey);
-  const int win = (t && t->magic == kJihadWindowMagic) ? (int)t->windowRows : 0;
-  const size_t need = sizeof(BrowserOffscreenInfo) + ((size_t)win + h) * w * 4;
-  if (w <= 0 || h <= 0 || w > 8192 || h > 8192 || win < 0 || need > mShmSize[s] || !(oi->contentZoom > 0.0)) return;
-  const unsigned char* src = mShmBuf[s] + sizeof(BrowserOffscreenInfo) + (size_t)win * w * 4;
-  mZoomBackPx.assign(src, src + (size_t)w * h * 4);
+  if (w <= 0 || h <= 0 || w > 8192 || h > 8192 || S.seg[s] <= S.hdr) return;
+  const size_t rowBytes = (size_t)w * 4, rows = (S.seg[s] - S.hdr) / rowBytes;
+  const JihadFrameTrailer* t = jihadFrameTrailer(const_cast<unsigned char*>(b), S.seg[s] + kJihadTrailerBytes);
+  const long win = (t && t->magic == kJihadWindowMagic) ? (long)t->windowRows : 0;
+  if ((size_t)h > rows || win < 0 || (size_t)win > rows - (size_t)h) return;
+  const unsigned char* src = b + S.hdr + (size_t)win * rowBytes;
+  mZoomBackPx.assign(src, src + (size_t)h * rowBytes);   // the capacity kept from the last keep
   ZoomBack& zb = mZoomBack;
-  zb.zoom = oi->contentZoom; zb.x = oi->renderedX; zb.y = oi->renderedY; zb.w = w; zb.h = h; zb.contentH = mLastContentH;
-  zb.ok = true;
+  zb.zoom = zs; zb.x = oi->renderedX; zb.y = oi->renderedY; zb.w = w; zb.h = h; zb.contentH = mLastContentH;
+  zb.pubSeq = mPubSeq; zb.ok = true;
 }
 
 bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want) {
@@ -1410,6 +1420,10 @@ bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want
     zoomBackDrop();
     return false;
   }
+  // nothing in flight on the compositor or read thread: a composed job's read copies from another slot (its
+  // base) after it reports composed, and that slot is no job's own (review 2026-10-26)
+  if (mXJob.on) return false;
+  for (const GpuJob& gj : mGpuJobs) if (mPage->ComposePeek(gj.token) != 1) return false;
   // a slot: not the one the card shows, not out with the card, not a lane's
   const size_t need = S.hdr + mZoomBackPx.size();
   int slot = -1;
@@ -1439,6 +1453,8 @@ bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want
   mSink.msgPainted(key); noteShown(key);
   mInFlight[slot] = true; mPaintMs[slot] = now;
   if (!mXMainWindow && mActiveKey == key) mActiveKey = keyAfter(key);
+  // the newest frame, as an express publish is: the main lane's jobs at the old zoom are dropped at their poll
+  ++mXFrames; mXLastZoom = Z; mXLastXPubMs = now;
   JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the frame kept at the zoom in published again, %ld ms after the zoom\n", Z, (long)(now - want.ms));
   // device rounds: JIHAD_GPU_ZOOM_BACK_DUMP=<path>, the frame as the adapter reads it (3.7 MB: delete it at once)
   static const char* sBackDump = getenv("JIHAD_GPU_ZOOM_BACK_DUMP");
@@ -1621,7 +1637,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     static const bool sNoZoomHold = getenv("JIHAD_GPU_NO_ZOOM_HOLD") != nullptr;
     if (z != mGpuZoom) {
       // T-527 (R6): the frame at this zoom, for a zoom back to it (zoomBackPublish)
-      if (jihadExpressOn() && mPage->GpuResolutionNow() <= 1.0005f && GoannaRenderPage::GpuResolutionFor(z) > 1.0005f) zoomBackKeep();
+      if (jihadExpressOn() && mPage->GpuResolutionNow() <= 1.0005f && GoannaRenderPage::GpuResolutionFor(z) > 1.0005f) zoomBackKeep(z);
       if (!sNoZoomHold && mPage->GpuDisplayPortOk()) {
         // T-504: the painted tiles first, at the new zoom (gpuScrollTo keeps the engine where it is)
         mGpuZoom = z; mGpuZoomHoldMs = jihadNowMs(); mGpuZoomHoldZ = z;
@@ -1853,6 +1869,7 @@ void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
 }
 
 void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
+  { FrameLockGuard frameLock; if (mZoomBack.ok) zoomBackDrop(); }   // T-527 (review): the kept frame is from before this input
   if (!mPage) return;
   fprintf(stderr, "[jihad-bs] clickAt x=%d y=%d n=%d\n", x, y, numClicks);
   // The adapter already sends CONTENT coords (asyncCmdClickAt contentX/contentY =
@@ -1870,6 +1887,7 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
+  { FrameLockGuard frameLock; if (mZoomBack.ok) zoomBackDrop(); }   // T-527 (review): the kept frame is from before this input
   if (!mPage) return;
   // T-131 instrument (cavekit-preferences-ui.md R6), same JIHAD_LOG_INSERT gate as InsertText's.
   // WARRANTED because of an asymmetry that would otherwise void the run: a VKB keystroke arriving
@@ -2493,6 +2511,7 @@ bool BrowserPageGoanna::runPageCommand(const char* cmd, const std::string& extra
 }
 
 void BrowserPageGoanna::insertStringAtCursor(const char* text) {
+  { FrameLockGuard frameLock; if (mZoomBack.ok) zoomBackDrop(); }   // T-527 (review): the kept frame is from before this input
   // NB: never log `text` — it is user keystrokes (incl. passwords) and this stream is redirected
   // to a persistent, user-readable file on device (Jihad review F-163).
   if (mPage && text) { mPage->InsertText(text); mNeedsPaint = true; if (mNeedsPaint) maybePaint(); }
@@ -2960,7 +2979,12 @@ bool BrowserPageGoanna::emitGeometry() {
   const uint64_t docKey = mPage->DocumentKey();
   if (docKey != mLayoutDocKey) {
     mLayoutDocKey = docKey; mLayoutFollowed = false;
-    { FrameLockGuard frameLock; mGpuRootless = mPage->GpuRootless(); }   // T-527: the express lane's offsets from the document's first frame
+    {
+      FrameLockGuard frameLock;
+      mGpuRootless = mPage->GpuRootless();   // T-527: the express lane's offsets from the document's first frame
+      // (review 2026-10-26) a pan while the old rootless document was still shown set the world offset again
+      if (!mGpuRootless && mPage->GpuPath() && (mGpuViewRX != 0.0 || mGpuViewRY != 0.0)) gpuSetView(mGpuZoom > 0.0 ? mGpuZoom : 1.0, 0.0, 0.0);
+    }
     // the height too: a XUL page's is its list's length (below), and the next page was laid out in a
     // 768x4000 window (innerHeight, 100vh and a bottom:0 bar at 4000: review 2026-10-25)
     if (mPage->LayoutWidth() != mPage->Width() || mPage->LayoutHeight() != mPage->Height()) {
@@ -3821,7 +3845,8 @@ void BrowserPageGoanna::maybePaint() {
   }
   // T-515: an express frame at the held zoom is out (the main lane's own may be dropped for as long
   // as the page's script runs): the displayport and the anchor follow the zoom now
-  if (mGpuZoomHoldMs && mXLastZoom > 0.0 && fabs(mXLastZoom - mGpuZoomHoldZ) < 1e-9)
+  if (mGpuZoomHoldMs && ((mXLastZoom > 0.0 && fabs(mXLastZoom - mGpuZoomHoldZ) < 1e-9) ||
+                         (mXAdoptedZoom > 0.0 && fabs(mXAdoptedZoom - mGpuZoomHoldZ) < 1e-9)))
     gpuZoomRelease("the first frame at the new zoom is out (the express lane)");
   // T-527: or posted: the compositor thread composes it on the tree as it stands (the paint at the new
   // resolution reaches the compositor after it), so that paint can run while it is composed
@@ -4522,6 +4547,9 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
   { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
   if (!want.seq) return false;
   const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;   // the paint path's rule
+  // T-527 (R6): a zoom in that will raise the resolution, seen before the main thread handles it: the frame on
+  // the card is kept for the zoom back, before this lane publishes at the new zoom (review 2026-10-26)
+  if (mXTreeRes <= 1.0005 && GoannaRenderPage::GpuResolutionFor(Z) > 1.0005f) zoomBackKeep(Z);
   static const long sAway = getenv("JIHAD_GPU_EXPRESS_AWAY_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_AWAY_MS")) : 15;
   // T-527: a main-lane frame composed while the main thread is away in the engine waits for it to
   // come back and poll. After a double tap on desktop Wikipedia the repaint at the new resolution was
@@ -4843,7 +4871,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     gpuSlotsLost();   // T-517: its change is in no slot's record
     // T-527 (review): an adopted main-lane job's failure is the main lane's (its count of three gives the
     // GPU path up at its next failure, on the main thread)
-    if (adopted) ++mGpuRefusals;
+    if (adopted) { if (genOk) ++mGpuRefusals; }
     else if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
     return true;
   }
@@ -4924,7 +4952,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     // T-527 (review): a main-lane frame: the main lane's bookkeeping, as its poll would have done it (the
     // express lane's would hold the main lane's next frame up to 300 ms for a zoom it is newer than, and
     // drop the main lane's second job, built on this one)
-    mXMainPubMs = now; mXLastXPubMs = 0; mXCmdPub = mXJob.cmdDone;
+    mXMainPubMs = now; mXLastXPubMs = 0; mXCmdPub = mXJob.cmdDone; mXAdoptedZoom = mXJob.zoom;
     std::lock_guard<std::mutex> l(jihadWantLock());
     if (!mXWant.seq || mXCmdPub >= mXWant.cmdSeq) mXWaitSinceMs = 0;
   } else {
@@ -5697,6 +5725,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           { FrameLockRelease unlocked; mPage->PaintLayers(); jihadTimelineMain("layer paint (the express lane leads)", (long)(jihadNowMs() - now)); }
           if (mGpuCriticalMs && !mGpuCriticalPaintMs) mGpuCriticalPaintMs = jihadNowMs();   // T-527
           mXTreeRes = mPage->GpuResolutionNow();   // T-527
+          if (mXTreeRes <= 1.0005 && GoannaRenderPage::GpuResolutionFor(mZoom) <= 1.0005f && mZoomBack.ok) zoomBackDrop();   // (review)
           mXMainWindow = false; mXMainSlot = -1;
         }
         mNeedsPaint = true;   // its own frame once the card stops
@@ -5713,6 +5742,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           { const int64_t p0 = jihadNowMs(); FrameLockRelease unlocked; painted = mPage->PaintLayers(); jihadTimelineMain("layer paint", (long)(jihadNowMs() - p0)); }
           if (mGpuCriticalMs && !mGpuCriticalPaintMs) mGpuCriticalPaintMs = jihadNowMs();   // T-527
           mXTreeRes = mPage->GpuResolutionNow();   // T-527
+          if (mXTreeRes <= 1.0005 && GoannaRenderPage::GpuResolutionFor(mZoom) <= 1.0005f && mZoomBack.ok) zoomBackDrop();   // (review)
           mXMainWindow = false; mXMainSlot = -1;
           if (mXJob.on) { mNeedsPaint = true; return; }   // its frame went first: this one on the next tick
           mGpuPainted = painted;

@@ -1519,7 +1519,10 @@ function growToList(win) {
   let viewKey = "";
   try { viewKey = ADDONS.currentViewId(win) || ""; } catch (e) {}
   if (panel && natural === 0) {
+    // the length kept only while the window is the one made for it: measured in a smaller window (a
+    // rotation, preferences that collapsed) it is measured afresh (review 2026-10-26)
     let prev = root.getAttribute("jihad-content-view") === viewKey ? (parseInt(root.getAttribute("jihad-content-height"), 10) || 0) : 0;
+    if (prev > 0 && win.innerHeight + 1 < prev) { prev = 0; }
     natural = Math.max(need, prev);
   }
   if (root.getAttribute("jihad-content-view") !== viewKey) { root.setAttribute("jihad-content-view", viewKey); }
@@ -1656,6 +1659,16 @@ function attachPane(win) {
       if (pending) { return; }
       pending = later(30, function() { pending = 0; again(); });
     }).observe(list, {childList: true});
+  }
+  // The search results' filter (My Add-ons / Available Add-ons) shows other rows without a view change or a
+  // new row: their length is measured again when the list's filter attributes or rows change (review 2026-10-26)
+  let slist = ADDONS.element(doc, "searchList");
+  if (slist) {
+    let sizing2 = 0;
+    new win.MutationObserver(function() {
+      if (sizing2) { return; }
+      sizing2 = later(100, function() { sizing2 = 0; try { growToList(win); } catch (e) { log("about:addons height: " + e); } });
+    }).observe(slist, {childList: true, attributes: true, attributeFilter: ["local", "remote", "hidden"]});
   }
   // An add-on's preferences arrive in its page after the view has changed (the manager loads
   // them): the page's height is measured again when they do.

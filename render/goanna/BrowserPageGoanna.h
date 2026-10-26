@@ -20,6 +20,7 @@
 #define JIHAD_BROWSERPAGEGOANNA_H
 
 #include "JihadFrameWindow.h"   // T-517: the frame window trailer (render/browserserver/Src)
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -404,7 +405,7 @@ private:
   // window build a run; once it is long enough, Backspace deletes a word at a time (not a char).
   int64_t            mLastBackspaceMs;
   int                mBackspaceRun;
-  bool               mLoadWasDone;
+  std::atomic<bool>  mLoadWasDone;   // (review 2026-10-26: the express lane reads it, the pump writes it)
   int                mLastProgress;     // last msgLoadProgress value emitted this load (0..99); reset at
                                         // each load start so a stale high value can't freeze the bar
   bool               mWatchdogDismissed; // the stall watchdog cleared the overlay while the engine load
@@ -551,12 +552,17 @@ private:
   // at once when the card comes back to exactly that zoom (a double tap out to the fit zoom: the old tiles
   // drawn at under half their size make no frame, and the paint at the new resolution came 573-669 ms
   // after the tap). Only while it covers the card's view and the page's height is the same; once.
-  struct ZoomBack { bool ok = false; double zoom = 0.0; int x = 0, y = 0, w = 0, h = 0; long contentH = 0; };
+  // Kept by whichever lane sees the zoom first (the express lane publishes at the new zoom before a busy
+  // main thread handles the command), and only a frame at a resolution of 1 that is not at the new zoom;
+  // dropped at an input (it would show the page from before it), once the tree is at 1 again, and on a new
+  // document, size or freeze (review 2026-10-26).
+  struct ZoomBack { bool ok = false; double zoom = 0.0; int x = 0, y = 0, w = 0, h = 0; long contentH = 0; uint32_t pubSeq = 0; };
   ZoomBack mZoomBack;
   std::vector<unsigned char> mZoomBackPx;
-  void zoomBackKeep();                                    // the main thread (the frame lock)
+  void zoomBackKeep(double newZoom);                      // either lane (the frame lock)
   bool zoomBackPublish(int64_t now, double Z, const XWant& want);   // the express lane (the frame lock)
   void zoomBackDrop() { mZoomBack.ok = false; std::vector<unsigned char>().swap(mZoomBackPx); }
+  double mXAdoptedZoom = 0.0;   // the zoom of the last main-lane frame the express lane published for it (the hold's release)
   uint32_t mXAdopted = 0;             // T-527: main-lane frames the express lane published for it
   int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)
   int mXConsumed[3] = {0, 0, 0};      // returns the express hook applied; returnBuffer skips as many

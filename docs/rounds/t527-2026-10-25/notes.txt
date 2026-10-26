@@ -290,3 +290,27 @@ dtap10b-daemon-gpu.log: 20 of 20 taps zoomed (0.6882 <-> 2.3273); the first fram
 out 0-3 ms (the frame kept at the zoom in), the double taps in 58, 52, 173, 251, 69, 52, 108, 59, 106, 65 ms —
 19 of 20 within 250 ms, the slowest 251. In the drifting run a zoom in waited 849 ms behind a 926 ms tile-upload
 transaction of the page's own on the compositor thread (the known class; T-527's floor).
+
+## The second review (inspector, read-only, 2026-10-26) and its fixes
+Fourteen findings over 623dc1ac, 286a9265, 180c8f07, 45a63a92 and engine 0064/0065; all fixed but F-013's "never"
+(now 30 s) and F-014 (made atomic):
+- F-001 (P2) the kept frame came from the express lane's frame at the new zoom whenever the main thread was busy at
+  the zoom in: now kept by whichever lane sees the zoom first (the express lane before it publishes at the new
+  zoom), and only a frame at a resolution of 1 not already at the new zoom. Device (dtap6-busy, the page's script
+  pumping 1-1.3 s): six double taps out, every one 0-1 ms from the kept frame; all 12 zooms within 250 ms.
+- F-002 (P2) the kept frame's publish could write a slot a composed job's read still copies from: no publish while
+  an express job or a main-lane job not fully read is in flight.
+- F-003 (P2, engine 0064) a zoom on a page with no root scroll frame was never repainted at its resolution (the skip
+  saw nothing pending): engine 0066 repaints when the resolution differs from the one painted. Device: about:addons
+  pinched to 1.66, its text sharp.
+- F-004 (P2) about:addons' search filter (My Add-ons / Available) did not re-measure: the search list's filter
+  attributes and rows observed. Device: My 1540 rows, Available 1202, My 1540 again.
+- F-005 the kept frame's publish now supersedes the main lane's frames at the old zoom; F-006 the keep reuses its
+  buffer, keeps once per shown frame, and is dropped once the tree is at 1 again with the card at a zoom of 1;
+  F-007 dropped at a click, a key or inserted text; F-008 an adopted frame at the held zoom releases the hold, and
+  only a genuine failure of one counts; F-009 a rooted document after a rootless one clears the world offset;
+  F-010 the keep reads the shown frame through the express lane's snapshot, bounded; F-011 an add-on's details keep
+  their length only while the window is the one made for it; F-012 (engine) the skip asks the child widget too;
+  F-013 (engine) a failed band surface is tried again after 30 s; F-014 mLoadWasDone atomic.
+Regression: desktop Wikipedia 22.8 fps, the long page 33.3 (sensors running), verify 0 rows wrong in 58 checks
+(pan-r2-*), default-check on the GPU path with 0 faults.

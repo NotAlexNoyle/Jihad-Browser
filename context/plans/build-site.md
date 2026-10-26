@@ -490,6 +490,31 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 91 — Four kits of 2026-10-26: low-power levers, the engine's next release, the webOS SDK, the Atlas references
+
+The owner's requests of 2026-10-26 (evening) and their choices the same day: **T-505 first, then these**; the engine
+**waits for the next `RB_` tag** (the newest is still our base RB_20261006; RC_20261026 is on the release branch);
+the SDK to Redux 0.4.1 **and** `/opt/PalmSDK` refreshed. Research: `docs/research/lowpower-uxp.md` and the kits' scopes.
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-545 | The Atlas checkouts on their real upstreams: the app's origin to `webOS-ports/org.webosports.app.atlas`, the fork parents as a read-only `ancestor` remote, all branches and tags fetched, default branches fast-forwarded only; a dirty or diverged checkout reported, not reset | cavekit-atlas-references.md | R1 | T-505 | yes | S | PENDING |
+| T-546 | `tools/host/update-references.sh`: R1 for the four Atlas checkouts and any reference checkout named (webos-docs, lunace), what arrived per checkout, refuses on uncommitted changes | cavekit-atlas-references.md | R2 | T-545 | yes | S | PENDING |
+| T-547 | `docs/REFERENCES.md`: the last-read heads, and the commits since weighed for Jihad (adopt / not applicable / owner's call; the owner's calls asked as multiple choice) | cavekit-atlas-references.md | R3 | T-546 | yes | S | PENDING |
+| T-548 | The SDK submodule to Redux 0.4.1 (`5349208` or newer): the gitlink, `Current` checked, the PDK pin unchanged, DEVICE-BUILD.md and device-build R11 updated | cavekit-webos-sdk-update.md | R1 | T-505 | yes | S | PENDING |
+| T-549 | novacom/novacomd rebuilt from 0.4.1 (`-std=gnu17` passed); on the bench: `novacom -l`, run, a 40 MB put/get, a full push-variant.sh, palm-package/install/launch of the three packages | cavekit-webos-sdk-update.md | R2 | T-548 | no | S | PENDING |
+| T-550 | `/opt/PalmSDK` refreshed with 0.4.1's installer: the exact root command handed to the owner (pause for sudo), `/usr/local/bin/palm-package` checked after | cavekit-webos-sdk-update.md | R3 | T-548 | yes | S | PENDING |
+| T-551 | Watch for UXP's next `RB_` tag (`git ls-remote --tags` of the UXP repository at each session start); when it appears, read its range against the queue and start T-552 | cavekit-engine-release-2026-10.md | R1 | T-505 | yes | S | WAITING (no `RB_` newer than RB_20261006 on 2026-10-26) |
+| T-552 | The queue rebased by `update-engine.sh <tag>` / `--finish`: 0060 dropped or kept empty (the owner's word), pins, `patch-queue.sh --check`, `check-engine-pins.sh`, `check-engine-api.py`, the build id, ENGINE-SOURCE.md | cavekit-engine-release-2026-10.md | R1, R2 | T-551 | no | M | PENDING |
+| T-553 | The roots after the update: `audit-roots.py` 0 findings, the roots' pin on the new base | cavekit-engine-release-2026-10.md | R3 | T-552 | yes | S | PENDING |
+| T-554 | The new engine on the device: desktop tests, ARM engine + daemon + three packages by full pushes, default-check ×3, the touched areas (jar:/resource: pages, cookies and history across the SQLite update, selection, an SVG filter page); the push is the owner's | cavekit-engine-release-2026-10.md | R4 | T-553 | no | M | PENDING |
+| T-555 | The low-power baseline: one device benchmark script (Wikipedia load to idle and its pumps, jsbench, a long article's RSS/PSS now and after 30 s, daemon start cold and warm, the scripted pan on two pages), five runs each, medians and spread; the shipped build's baseline recorded | cavekit-lowpower-uxp.md | R1 | T-505 | no | M | PENDING |
+| T-556 | The CPU levers: JS helper threads for two cores (an engine patch), -O2 vs -Os, PGO tried or declined by the owner | cavekit-lowpower-uxp.md | R2 | T-555 | no | L | PENDING |
+| T-557 | The memory levers: jemalloc arenas and dirty cap for the daemon plus a purge after load idle; the memory prefs one by one; three daemons inside device-build R5's budget | cavekit-lowpower-uxp.md | R3 | T-555 | no | M | PENDING |
+| T-558 | The page-content levers: reduced motion and lazy images measured and put to the owner; `image/jxl` in the Accept headers; the VP9/WebM decoder A/B | cavekit-lowpower-uxp.md | R4 | T-555 | no | M | PENDING |
+| T-559 | The build and startup levers: omni.ja, the content backend A/B, accessibility/devtools server off if nothing needs them | cavekit-lowpower-uxp.md | R5 | T-555 | no | M | PENDING |
+| T-560 | Every lever's numbers and decision in `docs/research/lowpower-uxp.md`; kept levers commented in the build/prefs, engine changes in the queue; levers that may differ on stock 3.0.5 named for the owner | cavekit-lowpower-uxp.md | R6 | T-556, T-557, T-558, T-559 | yes | S | PENDING |
+
 ## Tier 90 — Certificate trust (2026-10-25; cavekit-certificate-trust.md)
 
 The owner's direction of 2026-10-25: the roots audited for exploited or abandoned CAs, the removed ones gone, parity

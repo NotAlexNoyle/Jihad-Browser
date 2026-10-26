@@ -236,7 +236,11 @@ pending paint, no view-manager flush owed) is skipped after the first; `JIHAD_GP
 A zoom in that raises the resolution keeps the frame the card showed, and a zoom back to exactly that zoom publishes
 it at once while it covers the card's view (the double tap out: the old tiles at under half their size make no
 frame); `JIHAD_GPU_NO_ZOOM_BACK=1` turns it off, `JIHAD_GPU_ZOOM_BACK_DUMP=<path>` writes the frame as published
-(3.7 MB: delete it at once). The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScrolledTo, as a page's own scroll does)
+(3.7 MB: delete it at once). **The inject pan moves the card now (2026-10-26):** `pan` tells the card to scroll each step and the card sends
+the daemon its scroll, as under a finger; before, it sent the card's scroll commands to the daemon itself and the
+card's view stood still (what the owner saw: the column still, the sticky sidebars redrawn), and every pan figure
+measured that way left out the card's own redraw. `JIHAD_INJECT_PAN_NOCARD=1` is the old test, for comparisons.
+The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScrolledTo, as a page's own scroll does)
 and `rect` prints the engine's and the card's scroll with the rect (`scroll=`, `card=`): the finger walks use them
 (`tools/device/finger/prefs-finger-walk.sh`).
 

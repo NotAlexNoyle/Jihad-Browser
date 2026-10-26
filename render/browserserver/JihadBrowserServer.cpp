@@ -430,7 +430,11 @@ void JihadBrowserServer::processInjectFile() {
               jihad::FrameLockGuard frameLock;
               auto it = mPages.find(panProxy);
               if (it == mPages.end() || it->second.page != panPage) break;
-              panProxy->injectAsync(buf.data(), len);
+              // the card scrolls and reports, as under a finger (JIHAD_INJECT_PAN_NOCARD=1: the daemon is sent
+              // the card's scroll commands directly, the card's view still, as before 2026-10-26)
+              static const bool sNoCard = getenv("JIHAD_INJECT_PAN_NOCARD") != nullptr;
+              if (sNoCard) panProxy->injectAsync(buf.data(), len);
+              else panPage->debugCardFollow(py);
             }
             if (el >= ms) break;
             usleep(16000);

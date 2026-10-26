@@ -229,6 +229,7 @@ public:
   // T-527 device rounds (the inject channel): the card told to scroll to (x, y) CSS px (a
   // scrolled-to: its own view moves, as for a page's own scroll), and where the card is (CSS px)
   void debugCardScrollTo(int x, int y);
+  void debugCardFollow(int zoomedY);   // the inject pan: the card's own view to the scroll it was sent (quiet)
   void debugCardScroll(int* x, int* y) const;
   void gpuScrollTo(int x, int y, double z);   // T-502: the engine scroll plus the residual view offset
   // YAP: pluginSpotlightStart/End (0x1501/0x1502). The card's confirmation that it has

@@ -358,3 +358,26 @@ daemon bringing the second core online on the card's zoom or pan (the YAP reader
 - Pans with the sensors running (pan-s3-*): desktop Wikipedia 243 frames in 10.15 s = 24.0 fps, 18 gaps of 56 ms+
   (it was 22.7-23.6 fps, 24-34 gaps: the second core is up for a pan too); the long page 33.4 fps, 4 gaps;
   verify 0 rows wrong in 60 checks; default-check on the GPU path, 0 faults.
+
+## The scripted pan did not move the card; under a finger desktop Wikipedia gets ~7 frames a second (2026-10-26)
+The owner, watching a scripted pan on the TouchPad: "the center column of the page doesnt move, just the sidebars".
+pan-run.sh's inject pan sent the card's scroll commands (setScrollPosition) to the daemon itself; the card's own
+view never moved, so the frames for each position were drawn into a still view (the column still, the sticky
+sidebars redrawn). Every scripted pan measurement before this (T-502..T-527: R3's 24 fps, the gap counts) was
+made without the card scrolling. Now (JihadBrowserServer, BrowserPageGoanna::debugCardFollow) the inject pan tells
+the CARD to scroll each step (msgScrolledTo); the card's scroller moves its view and sends the daemon the
+setScrollPosition a finger's drag sends — one source of the scroll, as under a finger
+(JIHAD_INJECT_PAN_NOCARD=1 is the old test). A first version sent both and the card's late reports made the
+daemon see the page go back and forth (40 frames in 10.6 s; withdrawn).
+Measured with the card moving (sensors running):
+- the corrected scripted pan, desktop Wikipedia (pan-follow2-wiki): 91 frames in 10.3 s, the card holding all
+  three buffers 56 times (its redraw of each step returns them late); the screenshot shows the page moved whole.
+- eight real finger drags (480,900 -> 480,250 in 1 s each): desktop Wikipedia 86 frames in 11.9 s, express jobs a
+  median 95 ms (p90 174) where the old scripted pan had 30-38 (fingerpan1); the long page 222 in 11.6 s, jobs a
+  median 29 ms (fingerpan-long).
+- Why Wikipedia: under the finger LunaSysMgr redraws the card on the same Adreno at the touch rate, and the
+  daemon's composite and readback wait behind it (a 41-row read 72.6 ms, a compose 65.9 ms); and each Wikipedia
+  frame re-reads its stuck sidebars as whole rows (63..744, ~700 rows: 53-92 ms) — its tree changes nearly every
+  frame (the anchor's moves at a finger's speed, the sticky positions).
+- The express-thread copy (JIHAD_GPU_XCOPY, T-505's daemon-side prototype), measured with the old pan:
+  23.6/22.6/24.3 fps against 24.0/23.5/22.1 without — no difference; not the bound under a finger either.

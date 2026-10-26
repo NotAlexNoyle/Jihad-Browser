@@ -1466,6 +1466,18 @@ bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want
   return true;
 }
 
+// The inject pan (JihadBrowserServer) used to send the card's scroll commands to the daemon itself; the card's
+// own view did not move, so a person watching saw the frames for each position drawn into a still view (the
+// page's column still, only the sticky sidebars changing: the owner, 2026-10-26). Now it tells the CARD to scroll
+// each step: the card's scroller moves its view and sends the daemon the same setScrollPosition a finger's drag
+// sends (BrowserAdapter::scrollTo), so the card drives the pan as under a finger, and redraws as then. (Sending
+// both made two sources of the scroll: the card's report of a step arrived after the next step, and the daemon
+// saw the page go back and forth.) Not an echo: the daemon's echo marks are left alone.
+void BrowserPageGoanna::debugCardFollow(int zoomedY) {
+  const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+  mSink.msgScrolledTo((int)(mAdapterScrollX / z + 0.5), (int)(zoomedY / z + 0.5));
+}
+
 void BrowserPageGoanna::debugCardScrollTo(int x, int y) {
   fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (the inject channel)\n", x, y);
   mSink.msgScrolledTo(x, y);

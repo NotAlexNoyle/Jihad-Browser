@@ -223,7 +223,7 @@ half their size leaves that zoom with nothing until the paint. fz-n4 (the emulat
 (JIHAD_GPU_ZOOM_BACK_DUMP) and looked at: the fit-zoom page whole, the overscan white above the page's top.
 The other gestures' first frames in the same run: double tap in 120 ms, pinch in 57, pinch out 86. fz-n3 lost
 its first double tap (the card took no double tap: no smartZoom) and was discarded.
-The pinch in's painted frame in fz-n2 came at 1707 ms (717 in fz-n1): the main thread held the frame lock for
+The pinch in's painted frame in fz-n2 (its log not kept) came at 1707 ms (717 in fz-n1): the main thread held the frame lock for
 1127 ms in one tick's paint step (the tick line: work max 1138, paint avg 125 over 9) with the main-lane frame
 composed and waiting; ticks of 1-3 s (mostly the page's script in the pump) are in every zoom round's log,
 before these changes too (fz-r10-pool96, fz-r8-eng). Not chased further here.

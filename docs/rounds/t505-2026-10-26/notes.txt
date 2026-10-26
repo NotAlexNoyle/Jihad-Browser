@@ -87,3 +87,61 @@ A paint is ~10 ms of LunaSysMgr's CPU, almost all PGContext::bitblt of the view 
   page), the picture the same (looked at) — and the pan rate unchanged (10.0 / 15.7 fps against 9.7 / 18.5): the
   daemon's GPU waits do not come from the card's CPU blit but from what LunaSysMgr does on the GPU with the card's
   buffer at each redraw.
+
+The sticky parts on the CPU (the owner's "both, parts first"), first rounds
+----------------------------------------------------------------------------
+Engine 0070 (flag 128: a frame without its parts — every fixed and every sticky layer at opacity 0 in the composite
+and in the diff step, no fixed rows, keeps or columns; the parts' rects still reported; a parts generation counted on
+compositable updates under a fixed or sticky layer) and the daemon's JIHAD_GPU_CPU_PARTS=1 (the parts' picture with
+flags 64|128; each content-only frame gets back what lay beneath the frame it was built on's parts and has the parts
+drawn over it on the CPU; frames build only on their own kind).
+- Scripted pan, desktop Wikipedia, the card moving (cp1): 14.0 fps against 8.6; the job 37 ms against 58, band reads
+  18 against 31, no columns, no copy (own-slot frames). The mid-pan dump looked at: both sidebars once, sharp.
+  But 10 pictures in the pan (the generation moves as Wikipedia repaints its contents panel) and 7 frames not shown.
+- By finger (cp-wiki, cp-long): Wikipedia 10.2 fps against 9.7 (26 pictures, 19 frames not shown, 97 whole reads of
+  71 ms); the long page 15.8 against 18.5 (1 picture, 57 whole reads). The whole reads are the kind changes: every
+  picture made again sends the frames back to the engine's parts until it is in, and the main lane's frames between
+  drags are of the other kind; each change is a whole read. Next: the main lane's frames of the same kind, and a
+  change of the parts that costs less than a whole read (or the picture kept while the next is made, a correctness
+  trade for the owner).
+
+The parts on the CPU, made to pay (2026-10-26, afternoon)
+---------------------------------------------------------
+Four faults found by reading the finger rounds' logs, each fixed and measured:
+1. The picture never matched (a loop): a frame without its parts has them at opacity 0, so the engine's keep test
+   failed and it reported each part as its layer's whole rect; the picture (the parts shown) split the same layer into
+   its covered pieces. Frame 2 rects, picture 3: every frame "a part the picture lacks", the picture made again at the
+   same generation, forever. Engine: no keeps in a job without its parts (both report whole layer rects). Daemon: three
+   misses in a row turn the parts back to the engine's for the document; the miss logs both sets of rects.
+2. The lanes made frames of two kinds: the main lane's frames carried the engine's parts, the express lane's the CPU's,
+   so neither found a base of its kind (68 whole reads in a round). The main lane now makes frames without their parts
+   too (its base rules by kind, the parts drawn at its poll under the frame lock, a miss dropped as an express-dropped
+   frame; not its second job on the one in flight, whose frame is dressed on this thread while the compositor copies).
+3. A frame built on its slot's own frame had no scroll compensation in the diff (`engineShift` is "copied from the
+   newest" only): any layer transaction during a pan was the whole frame changed for it, and the other two slots then
+   stale whole. Without parts those frames are rare on a page with fixed layers (the window path is barred); with parts
+   they are the rule. Engine: the diff leaves the card's scroll out for a frame with no base to copy, and checks that the
+   shift it measured is the card's since the last composite (a scroll the page made itself is the whole frame changed).
+   Whole tree changes in a Wikipedia round 30 -> 9, rows read 96k -> 57k; the long page 32 -> 10, 90k -> 43k.
+4. T-511's "own slot is cheap" rule took a slot stale WHOLE after a one-off whole change (each drag's settle, where the
+   engine takes the scroll over: the recent changes are whole too), a whole read where the newest frame was fresh.
+   Daemon: never a slot stale whole. Whole reads with no change 20 -> 11.
+(Also: the picture's own geometry need not match the frame's overscan row or height; a picture reads only the rows
+around the last one's parts, whole again if a part falls outside; JIHAD_GPU_REQLOG=1 names each composite request's
+source, which showed the requests equal with and without parts and pointed at the diff.)
+
+The switch JIHAD_GPU_CPU_PARTS_STALE=1 (the owner's trade, not on): while a changed part's picture is made (55-250 ms),
+frames keep the picture before it (at most 600 ms behind) instead of going back to the engine's parts and back again.
+On Wikipedia the contents panel's highlight changes about once a drag; with the switch its new highlight shows up to
+one picture late.
+
+Scripted pan (inject "pan 0 3000 10000", the card moving, every frame of the 10 s counted; logs pan-*3-*):
+                          no parts   parts   parts + stale
+  desktop Wikipedia         9.4      11.2      14.2 fps    (job median 72.7 / 24.9 / 23.5 ms)
+  the long page            18.8        -       24.7 fps    (job median 23.5 / - / 18.5 ms)
+By finger (eight drags; fps while frames flow; one round each, the spread between rounds of one build is 11-13):
+  desktop Wikipedia: no parts 10.7 (fp-pm-wiki-opaque) and 9.2 (fp-be-wiki, this engine); parts + stale 13.0, 11.2,
+  12.4, 11.3, 12.3 over the fixes (fp-cpj-wiki the last); the long page 15.7 -> 17.5 (fp-rq2-long).
+Mid-pan frames looked at (Wikipedia with and without the stale switch, the long page): each sidebar and the fixed
+header once, sharp, in place; the content scrolled beneath; no ghost. Rows read by finger stay above the baseline
+(44k against 34k): the pictures (about one a drag, ~736 rows each).

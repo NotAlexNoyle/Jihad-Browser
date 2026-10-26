@@ -385,7 +385,8 @@ public:
   // windowMoved (T-517): the shift is the daemon's move of the frame's window (the rows in place)
   uint32_t ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo = 0, long row2Hi = 0, long shift = 0,
                         const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false,
-                        long colX0 = 0, long colX1 = -1, bool windowMoved = false);
+                        long colX0 = 0, long colX1 = -1, bool windowMoved = false,
+                        bool contentOnly = false);   // T-505: the frame without its parts (PartsReady)
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // T-515: ComposeStart's halves. PaintLayers (the main thread) paints the layers; ComposePost (any
   // thread, the frame lock held) composes the tree as it stands into a frameH-row frame, at aView
@@ -397,9 +398,11 @@ public:
                        long colX0 = 0, long colX1 = -1, bool windowMoved = false, bool verify = false,
                        bool bandsOnly = false,    // T-516: read the bands alone, not the tree's change
                        bool overview = false,     // T-504: an overview window (OverviewReady)
-                       bool overviewParts = false);   // T-504: the overview's fixed and stuck parts alone
+                       bool overviewParts = false,    // T-504: the overview's fixed and stuck parts alone
+                       bool contentOnly = false);     // T-505: the frame without its parts (PartsReady)
   bool ExpressReady() const;
   bool OverviewReady() const;   // T-504: ExpressReady and the engine composes overview windows
+  bool PartsReady() const;      // T-505: and frames without their parts (flag 128), with the parts' generation
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
   // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),
@@ -408,7 +411,8 @@ public:
   // before reports rows only)
   struct ComposeResult { long invLo = 0, invHi = 0, fixedLo = 0, fixedHi = 0, readLo = 0, readHi = 0, read2Lo = 0, read2Hi = 0; bool scrollOnly = false;
                          long frameY = 0; bool frameYValid = false; long invX0 = 0, invX1 = 0; bool invXKnown = false;
-                         int nStuck = 0; int stuck[4][4] = {}; };   // T-544: the fixed and stuck rects (x0, y0, x1, y1)
+                         int nStuck = 0; int stuck[4][4] = {};      // T-544: the fixed and stuck rects (x0, y0, x1, y1)
+                         uint32_t partsGen = 0; bool partsGenKnown = false; };   // T-505: updates under fixed or sticky layers
   int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two

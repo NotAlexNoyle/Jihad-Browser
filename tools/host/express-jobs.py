@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """express-jobs.py <daemon log> [...]: T-505 (cavekit-gpu-rendering R3), the owner's "measure first" (2026-10-26).
-Over the round's drags (between "[round] finger drags" and "[round] end", or the whole log), the frame stages from
+Over the round's drags (between "[round] finger drags" and "[round] end", or a scripted pan's "inject pan" lines, or
+the whole log), the frame stages from
 the timeline (JIHAD_GPU_TIMELINE=1) and the compositor's own lines: each job's wait on the compositor loop and its
 compose there (the compositor thread's CPU and its GL calls), the read thread's glReadPixels (the GPU finishing the
 composite, behind whatever else the GPU has queued: LunaSysMgr's redraw of the card) and its swizzle, the publish's
@@ -15,8 +16,9 @@ def pct(v, p):
 
 for path in sys.argv[1:]:
     lines = open(path, encoding='latin1').read().splitlines()
-    a = next((i for i, l in enumerate(lines) if '[round] finger drags' in l), 0)
-    b = next((i for i, l in enumerate(lines) if '[round] end' in l and i > a), len(lines))
+    # the finger drags' marks, or the scripted pan's own lines (tools/device/t502/pan-run.sh)
+    a = next((i for i, l in enumerate(lines) if '[round] finger drags' in l or '] inject pan ' in l), 0)
+    b = next((i for i, l in enumerate(lines) if ('[round] end' in l or 'inject pan done' in l) and i > a), len(lines))
     st = {k: [] for k in ('queued', 'composed', 'compose', 'handoff', 'readpx', 'rows', 'swizzle', 'gap', 'made', 'band')}
     pubs, kinds, lockwait, trans, idle = [], {}, [], [], {}
     for l in lines[a:b]:

@@ -468,6 +468,10 @@ private:
     // allocated the adapter simply runs on two, exactly as before.
     BrowserOffscreen* mOffscreen2;
     BrowserOffscreen* mOffscreenCurrent;
+    // T-505 (the owner's "measure first", 2026-10-26): the GPU path's paint, timed while the paint log is on, split
+    // by whether the frame is new or the card repaints the frame it has (a scroll step)
+    const unsigned char* mJihadLastPaintBuf;
+    uint32_t mJihadLastPaintSeq;
 
     QImage* mFrozenSurface;
     bool mFrozen;

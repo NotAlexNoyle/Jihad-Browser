@@ -81,7 +81,20 @@ own criterion. Round tools: `tools/device/t502/zoom-pan.sh` (`PRE=<n>` drags at 
 long page 16.6. A frame is bound by the readback path on the GPU shared with LunaSysMgr's redraw: Wikipedia's band
 frames 64 ms median (the read's GPU wait 36, the copy from the base 16, the compose 14; its sticky sidebars read as
 columns double the read), the long page's 30 (11 / 13 / 3); the long gaps are the job's GPU waits. Records:
-`docs/rounds/t505-2026-10-26/notes.txt`. **The proposal waits on the owner** (asked as multiple choice).
+`docs/rounds/t505-2026-10-26/notes.txt`. Then, the owner's choices in turn: a Codex adversarial review
+(`context/impl/impl-review-findings-t505-codex.md`: the copy-free path is refused whenever fixed/sticky content
+exists; the GPU-contention claim unproven) -> **the cause proven** with a diagnostic switch (`JIHAD_GPU_NO_PUBLISH=1`:
+frames made and read but never handed to the card): the same daemon work makes desktop Wikipedia 32 fps and the long
+page 53 while LunaSysMgr draws nothing, 8.6 / 13.6 while the card moves — the card's redraw on the shared GPU and
+memory makes every daemon stage ~3x slower -> **the card measured** (the adapter's paint timed, `[paint-stat]` lines
+under its paint log): a ~10 ms SOFTWARE blit (Piranha's PSoftContext2D) of the whole view ~20 times a second, mostly
+repaints of the frame it has; keeping the wrapped surface per frame changed nothing (not kept); a retained-scroll card
+is impossible (a software buffer LunaSysMgr re-uploads); **the frame wrapped without alpha** (opaque: every path
+writes alpha 255) halves the blit and cuts LunaSysMgr's CPU 15 % while panning, the picture the same — shipped as the
+default (`<state>/alphawrap` reverts), the pan rate unchanged. **The plan (the owner, after "consider sharing tasks
+across the CPU and GPU"):** (1) pan frames composed on the GPU as the scrolled content alone (T-504's flag 32 idea) and
+the fixed/sticky parts blended on the CPU from a parts image, the pixels beneath them restored per slot; then (2)
+scroll-only bands composed on the CPU from the tiles' CPU-side pixels — each behind a switch, measured by finger.
 
 **Observed, not changed:** a main-lane republish of an unchanged frame writes no stuck block (T-544's rects), so the
 card's hold has nothing for that frame; harmless at rest (the next pan's frames carry them), noted because the

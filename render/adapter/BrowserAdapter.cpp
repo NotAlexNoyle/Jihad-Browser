@@ -519,6 +519,8 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mOffscreen1(0)
     , mOffscreen2(0)
     , mOffscreenCurrent(0)
+    , mJihadLastPaintBuf(0)
+    , mJihadLastPaintSeq(0)
     , mFrozenSurface(0)
     , mFrozen(false)
     , mFrozenRenderPos(0, 0)
@@ -1112,6 +1114,53 @@ static FILE* jihadPaintLog()
     return s_log;
 }
 
+// T-505 (the owner's choice, 2026-10-26): the frame is wrapped without alpha. The daemon's frames are opaque (every
+// path writes alpha 255: the GPU readback forces it, the software readback and the region render enforce it), and
+// Piranha's software blit (the card's PGContext is a PSoftContext2D) then copies instead of blending: 9 -> 5 ms a
+// paint by finger, LunaSysMgr's card instance -15 % CPU while panning, the picture the same. <state>/alphawrap (read
+// once per LunaSysMgr process) wraps it with alpha as before.
+static bool jihadOpaqueOn()
+{
+    static int s_on = -1;
+    if (s_on < 0) s_on = access(JIHAD_STATE_DIR "/alphawrap", F_OK) == 0 ? 0 : 1;
+    return s_on == 1;
+}
+
+static double jihadMsSince(const struct timeval& a, const struct timeval& b)
+{
+    return (b.tv_sec - a.tv_sec) * 1000.0 + (b.tv_usec - a.tv_usec) / 1000.0;
+}
+
+// T-505: the GPU path's paints while the paint log is on, a line every 2 s: how many, the new frames' and the
+// repaints' (the same frame, a scroll step) wrap, blit, hold (T-544) and release times, the pixels blitted
+struct JihadPaintStat {
+    int n[2]; double wrap[2], blit[2], hold[2], rel[2], all[2], maxAll[2]; double px[2];
+    struct timeval since; bool started;
+};
+static void jihadPaintStat(bool same, double wrap, double blit, double hold, double rel, double all, double px)
+{
+    FILE* lf = jihadPaintLog();
+    if (!lf) return;
+    static JihadPaintStat s;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (!s.started) { memset(&s, 0, sizeof(s)); s.since = now; s.started = true; }
+    const int k = same ? 1 : 0;
+    s.n[k]++; s.wrap[k] += wrap; s.blit[k] += blit; s.hold[k] += hold; s.rel[k] += rel; s.all[k] += all; s.px[k] += px;
+    if (all > s.maxAll[k]) s.maxAll[k] = all;
+    const double span = jihadMsSince(s.since, now);
+    if (span < 2000.0) return;
+    fprintf(lf, "[paint-stat] %.0f ms: %d paints (%d new frames, %d repaints of the same), %s\n",
+            span, s.n[0] + s.n[1], s.n[0], s.n[1], jihadOpaqueOn() ? "opaque" : "with alpha");
+    for (int c = 0; c < 2; c++) {
+        if (!s.n[c]) continue;
+        fprintf(lf, "[paint-stat]   %s: wrap %.2f, blit %.2f, hold %.2f, release %.2f, all %.2f ms avg (max %.1f), %.0f kpx a paint\n",
+                c ? "repaints" : "new frames", s.wrap[c] / s.n[c], s.blit[c] / s.n[c], s.hold[c] / s.n[c], s.rel[c] / s.n[c],
+                s.all[c] / s.n[c], s.maxAll[c], s.px[c] / s.n[c] / 1000.0);
+    }
+    memset(&s, 0, sizeof(s)); s.since = now; s.started = true;
+}
+
 // T-544: between two frames of a pan the card shows the frame it holds moved by the scroll since, and
 // the frame's fixed and stuck parts (desktop Wikipedia's sidebars) moved with the page and jumped back
 // at the next frame (the owner, 2026-10-26: the column glides, the sidebars jitter and lag). Where the
@@ -1264,8 +1313,18 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                 if (nearUnity && mWindow.width > 0 && gi->bufferWidth != (int)mWindow.width)
                     return;
             }
-            PGSurface* surf = PGSurface::wrap((uint32_t)gi->renderedWidth, (uint32_t)gi->renderedHeight,
-                                              (const unsigned char*)mOffscreenCurrent->rasterBuffer(), true);
+            // T-505: timed while the paint log is on; a repaint is the same frame in the same buffer (a scroll step)
+            struct timeval tvA, tvB, tvC, tvD, tvE;
+            const bool timed = jihadPaintLog() != NULL;
+            if (timed) gettimeofday(&tvA, NULL);
+            const unsigned char* raster = (const unsigned char*)mOffscreenCurrent->rasterBuffer();
+            const uint32_t frameSeq = mOffscreenCurrent->frameSeq();
+            const bool sameFrame = frameSeq != 0 && frameSeq == mJihadLastPaintSeq && raster == mJihadLastPaintBuf;
+            mJihadLastPaintSeq = frameSeq; mJihadLastPaintBuf = raster;
+            // (a PGSurface kept for the frame across its repaints changed nothing: the card's context is Piranha's
+            // software one, and its blit reads the whole source every time; measured 2026-10-26, not kept)
+            PGSurface* surf = PGSurface::wrap((uint32_t)gi->renderedWidth, (uint32_t)gi->renderedHeight, raster, !jihadOpaqueOn());
+            if (timed) gettimeofday(&tvB, NULL);
             if (!surf) { if (FILE* lf = jihadPaintLog()) fprintf(lf, "[hp-pg] PGSurface::wrap FAILED %dx%d\n",
                                                                 gi->renderedWidth, gi->renderedHeight); }
             if (surf) {
@@ -1322,12 +1381,20 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                             (int)blitted, sL, sT, sR, sB, dl, dt, dr, dbm, inv, baseX, baseY,
                             mScrollPos.x, mScrollPos.y, gi->renderedWidth, gi->renderedHeight,
                             gi->renderedX, gi->renderedY); } }
+                if (timed) tvD = tvC = tvB;
                 if (blitted) {
                     gc->bitblt(surf, sL, sT, sR, sB, dl, dt, dr, dbm);
+                    if (timed) gettimeofday(&tvC, NULL);
                     jihadHoldStuck(gc, surf, mOffscreenCurrent, gi, event, mScrollPos.x, pageScrollY,
                                    mZoomLevel, (int)mWindow.width, (int)mWindow.height);   // T-544
+                    if (timed) gettimeofday(&tvD, NULL);
                 }
                 surf->releaseRef();   // PG ref-counted (starts at 1); frees the wrapper, not our data
+                if (timed) {
+                    gettimeofday(&tvE, NULL);
+                    jihadPaintStat(sameFrame, jihadMsSince(tvA, tvB), jihadMsSince(tvB, tvC), jihadMsSince(tvC, tvD),
+                                   jihadMsSince(tvD, tvE), jihadMsSince(tvA, tvE), blitted ? (double)(sR - sL) * (sB - sT) : 0.0);
+                }
             }
         }
         return;

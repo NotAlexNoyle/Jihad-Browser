@@ -378,6 +378,16 @@ bool jihadTimelineOn() {
   return sOn;
 }
 
+// T-505 (the owner's "prove the cause first", 2026-10-26), device rounds only: JIHAD_GPU_NO_PUBLISH=1 makes and reads
+// every GPU frame as usual but never hands one to the card (no msgPainted, the slot not out with it), so the
+// daemon's GPU work runs with the card drawing nothing new: what the read waits for without LunaSysMgr's redraws
+bool jihadNoPublish() {
+  static const bool sOn = getenv("JIHAD_GPU_NO_PUBLISH") != nullptr;
+  static bool sSaid = false;
+  if (sOn && !sSaid) { sSaid = true; fprintf(stderr, "[jihad-bs] JIHAD_GPU_NO_PUBLISH: GPU frames are not handed to the card\n"); }
+  return sOn;
+}
+
 // T-527 device rounds (JIHAD_GPU_TIMELINE=1): why the express lane made no frame, on the timeline when the
 // reason changes or every 25 ms while it stays (the pan's 56 ms+ gaps traced to their source)
 static void jihadXNote(const char* why) {
@@ -5409,8 +5419,10 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     if ((sAvgN++ % 50) == 0)
       JIHAD_GPU_LOG("[jihad-gpu] express frame times: on the slot's own frame %.1f ms, copied from the base %.1f ms\n", mXOwnMs, mXCopyMs);
   }
-  mSink.msgPainted(mXJob.key); noteShown(mXJob.key);
-  mInFlight[s] = true; mPaintMs[s] = now;
+  if (!jihadNoPublish()) {
+    mSink.msgPainted(mXJob.key); noteShown(mXJob.key);
+    mInFlight[s] = true; mPaintMs[s] = now;
+  }
   jihadTimelinePublish("express", mXJob.t0, frameY, mXJob.zoom);
   if (jihadTimelineOn()) {
     // T-515 device rounds: the clocks the frame was made at
@@ -6939,7 +6951,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       const bool stuckOk = gpuFinished && paintedW == w && popupsDrawn == 0;
       publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr, stuckOk ? &mGpuJobCr : nullptr, mGpuJobViewRow);
     }
-    mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
+    if (!(gpuFinished && jihadNoPublish())) { mSink.msgPainted(mActiveKey); noteShown(mActiveKey); }
     const int64_t b = jihadNowMs();
     jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);
     static int sN = 0;

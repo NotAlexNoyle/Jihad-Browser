@@ -36,3 +36,54 @@ What it says: under a finger a frame is bound by the readback path on the GPU it
 of the card: the read's wait (36 / 11 ms), the copy from the base (13-16 ms), and Wikipedia's sidebars doubling
 what is read. No stage is the main thread's or the page's script's. A simple page runs ~30 ms jobs (~33 fps
 possible) but the GPU stalls in the tail bring it to 16.6; Wikipedia is 2.5x short of R3's 24.
+
+The cause, proven (the owner's "prove the cause first", after Codex's review called it unproven)
+---------------------------------------------------------------------------------------------
+A diagnostic switch, JIHAD_GPU_NO_PUBLISH=1 (render/goanna/BrowserPageGoanna.cpp, jihadNoPublish), makes and reads
+every frame as usual but never hands it to the card. The same pan work in five conditions (tools/host/express-jobs.py
+and a table of medians; the scripted pan: inject "pan 0 3000 10000", JIHAD_INJECT_PAN_NOCARD=1 keeps the card still):
+
+  round                       fps   job (post to composed)  band read  copy  compose   read <100 rows
+  desktop Wikipedia
+  finger, frames to the card   9.4   70.6                    55.1       13.7  19.3      12.0
+  finger, no frames to it      8.7   72.8                    51.0       19.4  12.8      11.6
+  scripted, the card moving    8.6   58.1                    31.2       12.0   9.1       9.0
+  scripted, the card still    23.4   33.1                     9.2       11.0  10.9       5.5
+  scripted, still, no frames  32.0   23.0                     6.8        5.7   7.6       4.7
+  the long page
+  finger, frames to the card  17.3   28.8                     7.6       14.7   2.7       6.6
+  finger, no frames to it     13.4   42.0                     9.9       12.3   2.9       8.0
+  scripted, the card moving   13.6   24.8                     7.4       12.6   2.7       5.5
+  scripted, still, no frames  53.1   10.5                     2.8        5.2   1.8       2.4
+
+(The no-frames runs' dumps looked at: real content, advancing down the page.)
+- With nothing drawn by LunaSysMgr the daemon's own work makes desktop Wikipedia at 32 fps and the long page at 53:
+  R3's 24 is met by the daemon alone.
+- The card MOVING is what costs: the same work under a moving card runs at a third of the rate, every stage slower
+  (the read's GPU wait, the copy, the compose) — the GPU and the memory shared with LunaSysMgr's redraw of the card.
+  A still card that draws each new frame costs less (23.4 against 32).
+- LunaSysMgr's CPU (the instance that draws the card) over the Wikipedia drags: 893 jiffies with frames to the card,
+  408 with none (~33 ms of CPU per new frame drawn); 861 / 369 on the long page.
+- The adapter's paint (render/adapter/BrowserAdapter.cpp, the GPU path's paint) wraps the 3.7 MB shared buffer in a
+  new PGSurface on every paint and bit-blits from it: every scroll step of the card and every new frame. Whether
+  Piranha uploads the whole wrapped surface each time is the next thing to find out.
+
+The card's paint, measured (the owner: "possibly 1 or 3 but measure first to figure out which combination is best")
+-----------------------------------------------------------------------------------------------------------------
+The adapter's GPU-path paint timed while its paint log is on (render/adapter/BrowserAdapter.cpp, jihadPaintStat: a
+"[paint-stat]" line every 2 s; the log's gate <state>/adapterlog, read once per LunaSysMgr process), by finger:
+                          paints/s  new frames (blit)   repaints, same frame (blit)   the paint, % of a core
+  desktop Wikipedia       18-23     120 (9.3 ms)        342 (8.6 ms)                  20-25 %
+  the long page           18        227 (9.8 ms)        226 (8.9 ms)                  18 %
+A paint is ~10 ms of LunaSysMgr's CPU, almost all PGContext::bitblt of the view (~720 kpx, 2.9 MB); the wrap is
+0.02 ms. Most paints on Wikipedia repaint the frame the card already has (a scroll step).
+- (1) The PGSurface kept for a frame across its repaints (<state>/pgcache): no change (blit 9.3 / 8.6 ms either way;
+  9.4 against 9.7 fps, 16.9 against 18.5). The card's PGContext is built on Piranha's PSoftContext2D (libWebKitLuna's
+  exports): a software blit that reads the whole source every time. Not kept.
+- (3) The card scrolling a retained surface: there is no GPU-side card surface to scroll on this path; the card is a
+  software buffer that LunaSysMgr takes to the GPU at each redraw, and a scroll step moves every pixel of it.
+- The frame wrapped without alpha (<state>/opaque; the daemon's frames are opaque): the blit 9 -> 5 ms, the paint
+  ~12 % of a core, LunaSysMgr's card instance -15 % CPU (921 -> 757 jiffies on Wikipedia, 865 -> 741 on the long
+  page), the picture the same (looked at) — and the pan rate unchanged (10.0 / 15.7 fps against 9.7 / 18.5): the
+  daemon's GPU waits do not come from the card's CPU blit but from what LunaSysMgr does on the GPU with the card's
+  buffer at each redraw.

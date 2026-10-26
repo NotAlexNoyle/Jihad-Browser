@@ -100,9 +100,10 @@ scroll-only bands composed on the CPU from the tiles' CPU-side pixels — each b
 card's hold has nothing for that frame; harmless at rest (the next pan's frames carry them), noted because the
 overview could not take the kept frame's rects from it (it takes them from its own windows).
 
-**Device state:** the three packages of this head (daemon `31f580f4`, libxul `065b4273` stripped from engine
-`c05685f4`, adapters unchanged: Enyo `044445d7`, Mochi `0ad03744`, Mojo `2b400757`); no dev copies or `.orig`; Default
-look, No proxy; the sensors running; default-check passes in all three (faults 0).
+**Device state:** the three packages of this head (daemon `3c116fb2`, libxul `065b4273` stripped from engine
+`c05685f4`, adapters with the opaque wrap and the paint timing: Enyo `3e4d0d31`, Mochi `86f4ac0f`, Mojo `45d32c37`); no
+dev copies or `.orig`; no adapter gates (`adapterlog`, `opaque`, `pgcache`, `alphawrap`) left in `/var/palm/jihad/enyo`;
+Default look, No proxy; the sensors running; default-check passes in all three (faults 0), screenshots looked at.
 
 **Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` (the engine fork's branch now `c05685f4`, patches
 through 0069, and main).

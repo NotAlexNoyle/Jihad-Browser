@@ -48,6 +48,7 @@ const SURFACE = {
       "listView": "list-view",
       "addonList": "addon-list",
       "addonListEmpty": "addon-list-empty",
+      "searchList": "search-list",
       "detailView": "detail-view",
       "detailRows": "detail-rows",
       "categoryTheme": "category-theme"
@@ -57,7 +58,7 @@ const SURFACE = {
     "classes": ["content-inner-container", "disabled-postfix"],
     "markup": {
       "toolkit/mozapps/extensions/content/extensions.xul": ["id=\"addons-page\"", "id=\"list-view\"", "id=\"addon-list\"",
-        "id=\"addon-list-empty\"", "id=\"detail-view\"", "id=\"detail-rows\""],
+        "id=\"addon-list-empty\"", "id=\"detail-view\"", "id=\"detail-rows\"", "id=\"search-list\""],
       "toolkit/mozapps/extensions/content/extensions.xml": ["anonid=\"name\"", "anonid=\"description\"", "anonid=\"date-updated\"",
         "anonid=\"version\"", "anonid=\"details-btn\"", "anonid=\"enable-btn\"", "anonid=\"disable-btn\"", "anonid=\"remove-btn\"",
         "anonid=\"control-container\"", "class=\"content-inner-container\"", "class=\"disabled-postfix\""],

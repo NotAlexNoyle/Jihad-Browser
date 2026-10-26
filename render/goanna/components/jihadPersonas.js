@@ -1551,19 +1551,22 @@ function decoratePane(win) {
   if (cat && cat.getAttribute("name") !== "Personas") { cat.setAttribute("name", "Personas"); }
   let listView = ADDONS.element(doc, "listView"), list = ADDONS.element(doc, "addonList");
   let box = doc.getElementById("jihad-themes-box");
-  // "Uninstall", not "Remove", on every add-on, in every category (owner 2026-10-08).
-  if (list) {
-    relabelRemove(doc, list);
+  // "Uninstall", not "Remove", on every add-on, in every category (owner 2026-10-08) — the search
+  // results' rows too (2026-10-26, by finger: they read "Remove").
+  [list, ADDONS.element(doc, "searchList")].forEach(function(l) {
+    if (!l) { return; }
+    relabelRemove(doc, l);
     // A row the manager re-creates later — after Undo on an uninstall (2026-10-25, by finger: the
-    // row came back reading "Remove" until the next view change) — is relabelled as it appears.
-    if (!list._jihadRelabel) {
+    // row came back reading "Remove" until the next view change) — or a search's results, as they
+    // arrive, are relabelled as they appear.
+    if (!l._jihadRelabel) {
       try {
-        let mo = new win.MutationObserver(function() { later(0, function() { try { relabelRemove(doc, list); } catch (e) {} }); });
-        mo.observe(list, {childList: true, subtree: true, attributes: true, attributeFilter: ["pending", "status"]});
-        list._jihadRelabel = mo;
+        let mo = new win.MutationObserver(function() { later(0, function() { try { relabelRemove(doc, l); } catch (e) {} }); });
+        mo.observe(l, {childList: true, subtree: true, attributes: true, attributeFilter: ["pending", "status"]});
+        l._jihadRelabel = mo;
       } catch (e) { log("relabel observer: " + e); }
     }
-  }
+  });
   if (!isThemes || !listView || !list) { if (box) { box.hidden = true; } return; }
   if (!box) { box = buildBox(win); listView.insertBefore(box, list); }
   box.hidden = false;

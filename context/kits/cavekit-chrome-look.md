@@ -61,7 +61,7 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   controls ran past the right edge and the card zoomed out to 0.78 while the page loaded; after,
   every control and the homepage address inside the page, no sideways scrollbar.)* (The owner:
   "extension settings dont appear correctly (cut off)".)
-- [~] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
+- [x] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
   gives a XUL page no scroller and the card scrolls only pages, so the page's root grows to the
   list's whole length and the card pans it. *(Device: the daemon reports the taller page; the pan
   needs a finger and a long list — the owner's test.)* *(2026-10-25, T-527, Enyo by finger with twelve
@@ -79,6 +79,10 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   length is not reported; T-527's review #13).)* *(2026-10-26, later: an add-on's details now report their length
   (what overflows them at the card's height, kept while the same view is shown): Palefill's preferences, 1233 rows
   at the 980 layout width, pan to their Disable / Remove row by finger in Enyo. Left: the search results list.)*
+  *(2026-10-26, last: the search results too — in Enyo with the twelve pads, "Jihad List Pad" searched (typed into the
+  manager's search box, its magnifier tapped), My Add-ons: twelve results, two drags reach Pad 12. Their rows read
+  "Remove" where the owner asked for "Uninstall" on every add-on (2026-10-08): fixed (the search list relabelled
+  as its results arrive; `search-list` added to JihadEngine.jsm's surface table). Ticked.)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
 ### R3: Jihad's pages move like web pages

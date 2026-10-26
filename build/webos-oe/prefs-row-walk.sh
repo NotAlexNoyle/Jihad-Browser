@@ -34,7 +34,10 @@ node -e '
 const fs = require("fs"), src = fs.readFileSync(process.argv[1], "utf8");
 let i = src.indexOf("[", src.indexOf("const PANES = [")), d = 0, j = i;
 for (; j < src.length; j++) { if (src[j] == "[") d++; else if (src[j] == "]" && --d == 0) break; }
-const PANES = eval("(" + src.slice(i, j + 1) + ")");
+// the table names the page'"'"'s own functions (identityText, blockerUpdate…): any name it uses is a stub here
+const code = "(" + src.slice(i, j + 1) + ")", locals = ["src", "i", "j", "d", "fs", "code", "locals", "scope"];
+const scope = new Proxy({}, {has: (t, k) => !(k in globalThis) && locals.indexOf(k) < 0, get: () => function () {}});
+const PANES = (function () { with (scope) { return eval(code); } })();
 for (const p of PANES) { if (p.chrome || !p.groups) continue;
   p.groups.forEach((g, gi) => g.rows.forEach((r, ri) => console.log([p.id, gi + 1, ri + 1, r.pref, r.type,
     r.invert ? 1 : 0, (r.options || []).map(o => o[0]).join(","), typeof (r.options || [[0]])[0][0]].join("|")))); }

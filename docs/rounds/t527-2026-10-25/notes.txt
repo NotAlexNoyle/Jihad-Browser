@@ -147,3 +147,25 @@ daemon makes a XUL document's window that tall (GoannaRenderPage::XulContentHeig
 (GpuRootless: gpuScrollTo, the express lane's view, the main lane's frame at the card's position); a page that got
 shorter has the card's scroll clamped (the adapter only re-sizes its scroller). By finger: the list pans to Pad 12,
 a flick returns to the top, a tap on Pad 12's More (hit-tested at doc 407,1476) opens its details from their top.
+
+## about:settings by finger (preferences-ui R6, FINGER-TESTS) — 2026-10-25 evening, Enyo
+tools/device/finger/prefs-finger-walk.sh: each row of PANES found by its pref (buildRow now marks the row
+data-pref), the card scrolled so the control sits a third down, tapped by the emulated finger at
+TOP + docY - cardY (TOP 82 from a calibration tap on the title). Pickers: the card's own list opens centred
+under the select, rows 44 px, the first 38 px under its bottom edge: an item is tapped at the select's x
+(a list as wide as "Only from the originating site" reaches the right edge; tapping at x=665 missed the
+narrow TLS and Flash lists, which sit under the select's middle).
+- prefs-finger-walk-enyo.txt: first pass, 42 of 57 (the pickers were picked with popupsel at fixed x,
+  the Fonts & Colors rows addressed by place and missed); 11 prefs left changed, put back by hand
+  (daemon stopped, the user_pref lines removed: the before-copy had none of them).
+- prefs-finger-walk-enyo-2.txt: the pickers and Fonts & Colors rows again, picks by finger: 12 of 15;
+  the three narrow lists (Flash, TLS min/max) then passed with the pick at the select's x: 57 of 57,
+  "prefs left changed by the walk: 0".
+- Browser pane (opened from the app menu: the card's values travel in the fragment, so a test that puts
+  them back leaves the card as it was): search engine Google -> DuckDuckGo Lite -> Google; home target
+  + "x" and back; a start link added, named, addressed (saved), removed (settings equal again); Clear
+  Bookmarks/History/Cookies -> Cancel (nothing said), Clear Cache -> Clear ("Cache cleared."); the
+  Privacy pane's reset after cookieBehavior 0 -> 1 by finger: back to 0; the About pane shown.
+  The engine's own copy (jihad.chrome.settings) now holds the card's values (it held a pre-migration
+  start.duckduckgo.com home); the card's values are unchanged.
+- Not touched: Fonts box pickers and reset, proxy section, certificates, Forget, Update; Mochi, Mojo.

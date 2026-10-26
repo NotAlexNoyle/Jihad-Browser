@@ -817,6 +817,9 @@ function blockerBusy() { let b = blocker(); return b ? !!b.state().updating : tr
 
 function buildRow(row) {
 	let wrap = el("div", "row");
+	// the row names its pref, so a test reaches it by that and not by its place (the Fonts box sits
+	// among the rows of its section: tools/device/finger/prefs-finger-walk.sh)
+	if (row.pref) { wrap.setAttribute("data-pref", row.pref); }
 	// A row without a pref ("text": a line read from a component; "button": an action) is never
 	// "unavailable" for want of a pref; it says so itself when its component is absent.
 	let known = row.pref ? prefExists(row.pref) : true;
@@ -1758,6 +1761,7 @@ function renderChromePane(host) {
 	hlabel.appendChild(el("div", "row-help",
 		"Where the home button in every card goes. Blank it to restore the default."));
 	var hinput = document.createElement("input");
+	hinput.id = "home-url";
 	hinput.setAttribute("type", "url");
 	hinput.className = "txt";
 	hinput.value = cfg.homeUrl;
@@ -1784,6 +1788,7 @@ function renderChromePane(host) {
 	var box = el("section", "group");
 	box.appendChild(el("h2", "group-title", "Start Page Links"));
 	var rows = el("div", "");
+	rows.id = "link-rows";
 	box.appendChild(rows);
 
 	// The editor's working copy is NOT cleaned as you type, so a half-finished row (a name
@@ -1837,6 +1842,7 @@ function renderChromePane(host) {
 
 	var actions = el("div", "row");
 	var add = el("button", "btn", "Add Link");
+	add.id = "link-add";
 	add.setAttribute("type", "button");
 	add.addEventListener("click", function () {
 		if (working.length >= CHROME_MAX_LINKS) { status("That is the maximum."); return; }
@@ -1844,6 +1850,7 @@ function renderChromePane(host) {
 		draw();
 	}, false);
 	var reset = el("button", "btn", "Restore Defaults");
+	reset.id = "link-defaults";
 	reset.setAttribute("type", "button");
 	reset.addEventListener("click", function () {
 		working = chromeDefaults().startLinks;

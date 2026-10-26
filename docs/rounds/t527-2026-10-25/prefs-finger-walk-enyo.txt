@@ -1,0 +1,79 @@
+screenshot at +8 s after the launch: 3 content frames published
+walking 57 row(s) of about:settings by finger
+#### the page's top on the screen: 82 (title at document y 35, the tap at 117 landed on 35)
+tab general tapped at 157,199
+ok general 1.1 jihad.ua.learn (bool) tapped at 720,353: [true] -> [false] -> [true] 
+ok general 2.1 general.smoothScroll (bool) tapped at 720,537: [false] -> [true] -> [false] 
+ok general 2.2 browser.sessionhistory.max_entries (int) tapped at 659,612: [20] -> [21] -> [20] 
+ok general 2.3 layout.frame_rate (int) tapped at 659,407: [30] -> [31] -> [30] 
+ok general 2.4 accessibility.browsewithcaret (bool) tapped at 720,485: [false] -> [true] -> [false] 
+ok general 2.5 general.warnOnAboutConfig (bool) tapped at 720,843: [true] -> [false] -> [true] 
+tab content tapped at 254,199
+FAIL content 1.1 permissions.default.image (choice) tapped at 587,333: [1] -> [2] -> [2] 
+ok content 1.2 javascript.enabled (bool) tapped at 720,411: [true] -> [false] -> [true] 
+ok content 1.3 dom.disable_open_during_load (bool) tapped at 720,489: [true] -> [false] -> [true] 
+FAIL content 1.4 plugin.default.state (choice) tapped at 587,556: [2] -> [0] -> [0] 
+FAIL content 1.5 plugin.state.flash (choice) tapped at 587,643: [2] -> [0] -> [0] 
+ok content 1.6 media.autoplay.enabled (bool) tapped at 720,382: [true] -> [false] -> [true] 
+ok content 1.7 dom.storage.enabled (bool) tapped at 720,449: [true] -> [false] -> [true] 
+ok content 1.8 layout.css.has-pseudo.enabled (bool) tapped at 720,536: [true] -> [false] -> [true] 
+FAIL content 2.1 browser.display.use_document_fonts (choice) tapped at 587,677: [1] -> [1] -> [1] 
+FAIL content 2.2 browser.display.document_color_use (choice) tapped at 587,382: [0] -> [0] -> [0] 
+FAIL content 2.3 browser.display.background_color (string): no control
+FAIL content 2.4 browser.display.foreground_color (string): no control
+ok content 3.1 intl.accept_languages (string) tapped at 576,823: [chrome://global/locale/intl.properties] -> [en-US, enx] -> [en-US, en] 
+tab privacy tapped at 349,199
+ok privacy 1.1 privacy.donottrackheader.enabled (bool) tapped at 720,344: [false] -> [true] -> [false] 
+ok privacy 1.2 geo.enabled (bool) tapped at 720,422: [true] -> [false] -> [true] 
+FAIL privacy 1.3 network.http.sendRefererHeader (choice) tapped at 587,489: [2] -> [0] -> [0] 
+ok privacy 1.4 network.http.referer.spoofSource (bool) tapped at 720,556: [false] -> [true] -> [false] 
+ok privacy 2.1 jihad.blocking.enabled (bool) tapped at 720,382: [true] -> [false] -> [true] 
+ok privacy 2.2 jihad.blocking.cosmetic (bool) tapped at 720,480: [true] -> [false] -> [true] 
+ok privacy 3.1 places.history.enabled (bool) tapped at 720,382: [true] -> [false] -> [true] 
+ok privacy 3.2 browser.formfill.enable (bool) tapped at 720,460: [true] -> [false] -> [true] 
+ok privacy 3.3 browser.formfill.expire_days (int) tapped at 659,535: [180] -> [181] -> [180] 
+FAIL privacy 4.1 network.cookie.cookieBehavior (choice) tapped at 587,664: [0] -> [1] -> [1] 
+FAIL privacy 4.2 network.cookie.lifetimePolicy (choice) tapped at 587,402: [0] -> [2] -> [2] 
+ok privacy 4.3 network.cookie.lifetime.days (int) tapped at 659,477: [90] -> [91] -> [90] 
+ok privacy 4.4 network.cookie.thirdparty.sessionOnly (bool) tapped at 720,552: [false] -> [true] -> [false] 
+tab security tapped at 443,199
+ok security 1.1 xpinstall.whitelist.required (bool) tapped at 720,333: [false] -> [true] -> [false] 
+ok security 1.2 extensions.blocklist.enabled (bool) tapped at 720,400: [false] -> [true] -> [false] 
+ok security 1.3 extensions.update.enabled (bool) tapped at 720,467: [false] -> [true] -> [false] 
+ok security 1.4 extensions.strictCompatibility (bool) tapped at 720,534: [false] -> [true] -> [false] 
+ok security 2.1 signon.rememberSignons (bool) tapped at 720,655: [true] -> [false] -> [true] 
+ok security 2.2 signon.autofillForms (bool) tapped at 720,382: [false] -> [true] -> [false] 
+FAIL security 3.1 security.tls.version.min (choice) tapped at 587,503: [3] -> [1] -> [1] 
+FAIL security 3.2 security.tls.version.max (choice) tapped at 587,570: [4] -> [1] -> [1] 
+ok security 3.3 security.mixed_content.block_active_content (bool) tapped at 720,637: [false] -> [true] -> [false] 
+ok security 3.4 security.mixed_content.block_display_content (bool) tapped at 720,382: [false] -> [true] -> [false] 
+FAIL security 3.5 security.OCSP.enabled (choice) tapped at 587,449: [1] -> [0] -> [0] 
+FAIL security 3.6 security.default_personal_cert (choice) tapped at 587,516: [Ask Every Time] -> [Select Automatically] -> [Select Automatically] 
+ok security 4.1 jihad.security.webos_certs (bool) tapped at 720,666: [true] -> [false] -> [true] 
+tab advanced tapped at 547,199
+ok advanced 1.1 browser.cache.disk.enable (bool) tapped at 720,333: [true] -> [false] -> [true] 
+ok advanced 1.2 browser.cache.disk.capacity (int) tapped at 659,408: [51200] -> [51201] -> [51200] 
+ok advanced 1.3 browser.cache.disk.smart_size.enabled (bool) tapped at 720,483: [false] -> [true] -> [false] 
+ok advanced 1.4 browser.cache.memory.capacity (int) tapped at 659,558: [16384] -> [16385] -> [16384] 
+ok advanced 1.5 browser.cache.offline.enable (bool) tapped at 720,633: [true] -> [false] -> [true] 
+ok advanced 2.1 network.http.max-connections (int) tapped at 659,382: [32] -> [33] -> [32] 
+ok advanced 2.2 network.http.pipelining (bool) tapped at 720,457: [true] -> [false] -> [true] 
+ok advanced 2.3 network.http.speculative-parallel-limit (int) tapped at 659,535: [0] -> [1] -> [0] 
+ok advanced 2.4 network.dns.disablePrefetch (bool) tapped at 720,613: [true] -> [false] -> [true] 
+ok advanced 2.5 network.dns.disableIPv6 (bool) tapped at 720,680: [false] -> [true] -> [false] 
+ok advanced 2.6 network.prefetch-next (bool) tapped at 720,558: [false] -> [true] -> [false] 
+FAIL advanced 4.1 image.animation_mode (choice) tapped at 587,843: [once] -> [normal] -> [normal] 
+rows changed and put back by the finger on their own control: 42 ; not: 15
+(701454/817708719) jihad (start) running, process 28717
+enyo daemons running: 1
+prefs.js after the walk differs:
+user_pref("font.size.variable.x-cyrillic", 10);
+user_pref("image.animation_mode", "normal");
+user_pref("intl.accept_languages", "en-US, en");
+user_pref("network.cookie.cookieBehavior", 1);
+user_pref("network.cookie.lifetimePolicy", 2);
+user_pref("network.http.sendRefererHeader", 0);
+user_pref("permissions.default.image", 2);
+user_pref("plugin.default.state", 0);
+  (was) user_pref("jihad.viewport.followOverflow", true);
+exit 1

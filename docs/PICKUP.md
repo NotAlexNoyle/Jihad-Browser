@@ -52,6 +52,51 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-26 — T-527: the review's fixes, engine 0064/0065, a double tap out's frame at once; about:settings and about:addons by finger (READ FIRST)
+
+Records: `docs/rounds/t527-2026-10-25/notes.txt` (its last five sections), `docs/FINGER-TESTS.md`.
+
+- **The flick no longer shows grey while the card coasts** (`0481ca94`): the express lane composes each frame where the
+  card will be when it is shown (its speed × 80 ms, `JIHAD_GPU_EXPRESS_PREDICT_MS`); after the review the speed is
+  measured over 30 ms at least and the lead is at most the overscan rows, not past the page's end. Still open: the
+  fixed header slides for the coast's first ~250 ms (an adapter-side header band was considered and not built).
+- **about:addons' long lists pan** (T-543, `a597e4a6`; Mochi and Mojo by finger today with the packages): the list's
+  length on the root (`jihad-content-height`, jihadPersonas.js), the window made that tall, a XUL page moved by the
+  compositor's world offset. Open: an add-on's details longer than the card (review #13), the search results list.
+- **An inspector review of the night's GPU-path changes**: fifteen findings, fourteen fixed (`623dc1ac`, engine
+  0064/0065 `247e10f4`/`f4fefca0`): a XUL page's tall layout viewport no longer leaks to the next document; no more
+  frameless pans under a zoom of 0.5; the rootless offset per document; the adoption of a main-lane frame keeps the
+  main lane's bookkeeping; the lock, the dirty key, the displayport at a new window size; a failed band surface not
+  retried every frame. Engine 0064 also skips a layer paint with nothing pending (`JIHAD_GPU_PAINT_ALWAYS=1` paints).
+- **A double tap out shows a frame at once** (`286a9265`): the frame the card showed when a zoom in raised the
+  resolution is kept and published again the moment the card comes back to that exact zoom (0 ms; the painted frame
+  ~750 ms; `JIHAD_GPU_NO_ZOOM_BACK=1`, `JIHAD_GPU_ZOOM_BACK_DUMP=<path>`). R6's first frames by finger on desktop
+  Wikipedia: double tap in 59-120 ms, out 0, pinch in 57-233, pinch out 75-237. Open: a double tap out after a pan
+  while zoomed in (the kept frame no longer covers the view).
+- **Measured, not kept**: a region-based read of the tree's change (the change is its hull in all but one of a
+  Wikipedia pan's tree changes) and the slot's own frame as the base with stuck layers (verified correct, 0 rows
+  wrong on three pages, but desktop Wikipedia 21.9-22.9 fps with more gaps). R3's open part is the compositor job
+  itself: per express frame the copy from the base 10-14 ms, the read 7-12, the compose ~8 on the one thread;
+  desktop Wikipedia 23.6 fps, the long page 33.1, verify 0 rows wrong.
+- **about:settings by finger** (`f43a0165`, `tools/device/finger/prefs-finger-walk.sh`): in Enyo all 57 rows of the
+  page's table changed and put back by a tap on their own control (the pickers' items tapped in the card's list),
+  the Browser pane's controls (opened from the app menu so the card's own values travel), Clear Cancel/Clear, a
+  pane reset. Not touched: the Fonts box's pickers, the proxy and certificate sections, Forget, Update; the rows in
+  Mochi and Mojo (their daemons have no inject channel; the walk runs on the Enyo spike daemon).
+
+**Device state (2026-10-26):** the three packages built from this head are installed (daemon `9257befc`, libxul
+`707d9e76` stripped from engine `f4fefca0`, adapters `4f603df3`/`c93bbf54`/`ff4644d7`, impls `b79f1c1f`/`ee838ee6`/
+`94f96c00`); no dev copies or `.orig` leftovers; Luna restarted; default-check passes in all three (GPU path, express
+lane, 0 faults). Every profile: Palefill only (the twelve test pads removed), Default look, No proxy — Mochi's and
+Mojo's manual proxy to `192.168.1.245:3129` left by the 2026-10-25 proxy round was put back (nothing listened there).
+
+**Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` pushes the engine fork's branch (now `f4fefca0`,
+patches through 0065) and main.
+
+**Next:** T-527's open criteria (R3: desktop Wikipedia ≥ 24 fps, the gaps' floor in the compositor job; R6: the
+double tap out after a pan); review #13 (the add-on detail view's length); the rest of about:settings by finger
+(Fonts box, proxy, certificates, Forget, Update; Mochi and Mojo); WebOne needs a machine (the owner).
+
 ## 2026-10-25 (night) — T-527: the zoom's sharp frame 3-4x sooner (engine 0062); WebGL at 24+ fps (engine 0063) (READ FIRST)
 
 **Measured by the emulated finger on desktop Wikipedia, sensors running** (`docs/rounds/t527-2026-10-25/notes.txt`,

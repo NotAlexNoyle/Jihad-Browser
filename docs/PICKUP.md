@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-25 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-26 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,36 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-10-26 (later) — the scripted pan moves the card; R3 re-opened; sticky sidebars held still (T-544) (READ FIRST)
+
+**The scripted pan never moved the card.** The owner, watching: the column stood still while frames changed. The
+inject pan sent the card's scroll commands to the daemon; the card's own view stayed put, so every pan figure up to
+T-527 (R3's "24 fps") left out the card's redraw. It now tells the card to scroll and the card reports its scroll,
+as under a finger (`JIHAD_INJECT_PAN_NOCARD=1`: the old test). With the card moving: desktop Wikipedia ~7 fps (the
+scripted pan and eight real finger drags agree), the long page ~19. Under a finger the readback waits behind
+LunaSysMgr's redraw of the card on the same Adreno (a 15-row read 30-164 ms). **R3's first criterion is re-opened
+against the corrected test** (the owner's choice); T-505 stays open with it. Measured and not kept: the express
+thread's copy from the base (T-505's daemon-side prototype) and the card's redraw coalesced to 33/50 ms (the owner's
+pick of lever): neither moved the rate.
+
+**T-544 DONE (engine 0068):** the owner: "the center column is scrolling/panning smoothly but the sidebars are not".
+Between frames the card moved the whole frame it holds, Wikipedia's sticky sidebars with it, and each frame put them
+back. Now the engine returns each frame's fixed and stuck rects, the daemon writes them into the 192 bytes before
+the segment trailer (`JihadStuckBlock`, `render/browserserver/Src/JihadFrameWindow.h`; `JIHAD_GPU_NO_HOLD=1` off),
+and the adapter draws them where the frame drew them. Mid-drag screenshots: sidebars still in 4/4 (the column moved up
+to 150 px), displaced 11-12 px in 2/4 without; no cost to the frame rate. Records: `docs/rounds/t527-2026-10-25/notes.txt`.
+
+**Open:** T-504 (the owner's bounded overview, not started), T-505/R3 (Wikipedia ~7 fps under a finger: what is left
+is structural — the readback on the GPU LunaSysMgr draws the card with; the CE presentation route the owner set aside
+on 2026-10-24 is the lever that removes the readback; on stock 3.0.5 it stays), T-414's Pale Moon Persona step (owner).
+
+**Device state:** the three packages of this head (daemon `6fbedc7b`, libxul `543e431b` stripped from engine
+`078a0942`, adapters Enyo `044445d7`, Mochi `0ad03744`, Mojo `2b400757`); no dev copies or `.orig`; Default look, No
+proxy; the sensors running; default-check passes in all three (faults 0).
+
+**Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` (engine fork branch now `078a0942`, patches
+through 0068, and main).
 
 ## 2026-10-26 (end) — T-527 DONE; three decisions for the owner; the device on the packaged head (READ FIRST)
 

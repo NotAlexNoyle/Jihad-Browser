@@ -348,3 +348,13 @@ with 276 and 301 (dtap10s), 18 of 20 within 250 ms.
   kernel plugs and unplugs it every second or two by itself — a write when it is already up returns EINVAL):
   dtap-cpu1-a/b: 40 of 40 within 250 ms; double taps in 63-161 ms, all but one under 101. The device stayed
   responsive (the Luna bus answered; load as before); nothing persists past the kernel's next decision.
+
+## T-516 shipped: both levers (the owner, 2026-10-26)
+The view-first frame on by default (JIHAD_GPU_NO_ZOOM_VIEW_FIRST=1 turns it off; engine 0067's flag 16) and the
+daemon bringing the second core online on the card's zoom or pan (the YAP reader thread, a write of 1 to
+/sys/devices/system/cpu/cpu1/online only where it reads 0, at most every 500 ms; JIHAD_NO_CPU_UP=1 turns it off).
+- Double taps by finger, ten each way (dtap-ship): 20 of 20 within 250 ms; in 49-93 ms; out 0-4 ms but twice
+  138-152 (the kept frame waits for a main-lane job's read to finish, the second review's F-002 rule).
+- Pans with the sensors running (pan-s3-*): desktop Wikipedia 243 frames in 10.15 s = 24.0 fps, 18 gaps of 56 ms+
+  (it was 22.7-23.6 fps, 24-34 gaps: the second core is up for a pan too); the long page 33.4 fps, 4 gaps;
+  verify 0 rows wrong in 60 checks; default-check on the GPU path, 0 faults.

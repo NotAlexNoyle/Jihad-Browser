@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 26 Oct 2026 05:19:11 -0400
+Subject: [PATCH] gpu-compositor: a compose that asks for its bands only reads
+ them alone, not the rows the tree changed
+
+T-516 (flag 16 of jihad_offscreen_compose_post). The daemon's first frame at a new zoom reads the card's
+view (942 of 1224 rows): the zoom changes every row, and the whole read and its conversion ran 200+ ms
+on one core with the second unplugged after a pause. The change is still reported for the daemon's
+records; the columns of the change do not narrow such a read.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 6 ++++--
+ gfx/layers/opengl/CompositorOGL.h         | 1 +
+ widget/PuppetWidget.cpp                   | 3 +++
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 7478575b87..d1bafd3ab5 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -2310,7 +2310,9 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     const int eLo = haveEngineShift && engineShiftRows > 0 ? aHeight - engineShiftRows : 0;
+     const int eHi = haveEngineShift ? (engineShiftRows > 0 ? aHeight : -engineShiftRows) : 0;
+     const bool fx = !JihadFixedCols() && haveEngineShift && engineShiftRows != 0 && aReq->fixedHi > aReq->fixedLo;   // round 138: else columns
+-    int a[9][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {invLo, invHi}, {eLo, eHi},
++    // T-516: a frame that asks for its bands only (the first frame at a new zoom: the card's view) reads them
++    // alone; the change is still reported (the daemon's records)
++    int a[9][2] = { {aReq->lo, aReq->hi}, {aReq->lo2, aReq->hi2}, {aReq->bandsOnly ? 0 : invLo, aReq->bandsOnly ? 0 : invHi}, {eLo, eHi},
+                     {fx ? aReq->fixedLo - std::max(engineShiftRows, 0) : 0, fx ? aReq->fixedHi + std::max(-engineShiftRows, 0) : 0} };
+     // round 141: the kept rects' uncovered rows (a[5..8]); the rest are columns below
+     int nA = 5;
+@@ -2366,7 +2368,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   aReq->invX0 = invX0; aReq->invX1 = invX1;
+   {
+     int cx0 = 0, cx1 = 0;   // T-511: the bands read as one column (JihadReadAsync)
+-    if (JihadColumnRead(aReq, invX0, invX1, invLo, invHi, aWidth, &cx0, &cx1)) { aReq->readX0 = cx0; aReq->readX1 = cx1; }
++    if (!aReq->bandsOnly && JihadColumnRead(aReq, invX0, invX1, invLo, invHi, aWidth, &cx0, &cx1)) { aReq->readX0 = cx0; aReq->readX1 = cx1; }
+   }
+   // the log's values now: once the read hands the frame over, aReq belongs to the daemon
+   const int logLo2 = aReq->lo2, logHi2 = aReq->hi2, logFixedLo = aReq->fixedLo, logFixedHi = aReq->fixedHi, logCols = aReq->nCols, logKeep = aReq->nKeep;
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 6fdb67f9ad..a61149c5a6 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -166,6 +166,7 @@ struct JihadFrameRequest {
+                                        // card's scroll since the slot's frame, positive = scrolled down
+   bool windowMoved = false;            // T-517 (flag 8): the daemon moved the frame's window by the shift
+                                        //   instead: the rows are in place, only the kept rects are copied
++  bool bandsOnly = false;              // T-516 (flag 16): read the bands asked for, not the rows the tree changed
+   int fixedLo = 0, fixedHi = 0;        // out: the rows fixed and sticky layers cover (0,0 = none)
+   int cols[4][4] = {};                 // round 138: column reads after the bands (x0, x1, y0, y1 on the
+   int nCols = 0;                       //   frame): the fixed and stuck layers' rects, widened by the shift
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index a093b07eec..fd02f042d9 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -848,6 +848,7 @@ struct JihadReadJob {
+   bool verify = false;   // T-503
+   bool colsKnown = false; int colX0 = 0, colX1 = 0;   // T-511: the bands' stale columns (flag 4)
+   bool windowMoved = false;   // T-517 (flag 8): the shift is the daemon's window move, the rows in place
++  bool bandsOnly = false;     // T-516 (flag 16): only the bands asked for are read
+   int invLo, invHi;      // the rows the composite changed
+   float scrollX = 0.0f, scrollY = 0.0f; bool scrollValid = false;   // the card's scroll for the compositor
+   uint32_t token;
+@@ -895,6 +896,7 @@ void JihadReadOnCompositorThread(JihadReadJob* job)
+   job->req.shift = job->shift; job->req.src = job->src; job->req.srcY = job->srcY; job->req.engineShift = job->engineShift; job->req.verify = job->verify;
+   job->req.colsKnown = job->colsKnown; job->req.colX0 = job->colX0; job->req.colX1 = job->colX1;
+   job->req.windowMoved = job->windowMoved;
++  job->req.bandsOnly = job->bandsOnly;
+   job->req.scrollX = job->scrollX; job->req.scrollY = job->scrollY; job->req.scrollValid = job->scrollValid;
+   job->req.done = &JihadJobDone; job->req.cookie = job;
+   // Once done() has run the daemon may forget (delete) the job at any moment (round 108's wake
+@@ -1051,6 +1053,7 @@ PuppetWidget::JihadPostJob(void* aDest, int aStride, int aWidth, int aHeight, in
+   job->engineShift = (aFlags & 1) != 0; job->verify = (aFlags & 2) != 0;
+   job->colsKnown = (aFlags & 4) != 0;   // T-511: the column arguments are given (else garbage from an older daemon)
+   job->windowMoved = (aFlags & 8) != 0;   // T-517
++  job->bandsOnly = (aFlags & 16) != 0;    // T-516
+   if (job->colsKnown) {
+     job->colX0 = std::max(0, std::min(aColX0, aWidth)); job->colX1 = std::max(0, std::min(aColX1, aWidth));
+   }

@@ -591,6 +591,7 @@ private:
     bool composed = false; long invLo = 0, invHi = 0; int composedY = 0;   // known once composed (being read)
     int64_t composedMs = 0;   // device rounds: when it was seen composed
     bool adopted = false; uint32_t cmdDone = 0;   // T-527: a main-lane job the express lane publishes (its main-lane bookkeeping)
+    bool viewOnly = false;   // T-516: the first frame at a new zoom, the card's view read alone (the overscan white)
   };
   XJob mXJob;                         // the express lane's frame in flight (the older one)
   // T-517: the express lane's frame time on its slot's own frame and copied from the base (running

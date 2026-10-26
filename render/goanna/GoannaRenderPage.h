@@ -394,7 +394,8 @@ public:
   bool PaintLayers();
   uint32_t ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo, long row2Hi,
                        long shift, const unsigned char* src, long srcY, bool engineShift, const double* aView,
-                       long colX0 = 0, long colX1 = -1, bool windowMoved = false, bool verify = false);
+                       long colX0 = 0, long colX1 = -1, bool windowMoved = false, bool verify = false,
+                       bool bandsOnly = false);   // T-516: read the bands alone, not the tree's change
   bool ExpressReady() const;
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)

@@ -4472,6 +4472,32 @@ void BrowserPageGoanna::expressDetach() {
 
 // The YAP reader thread, the want lock held: a scroll (hasZoom false: the zoom the card last asked
 // for) or a zoom. Only the want's fields: the frame lock is not held.
+// T-516 (the owner's call, 2026-10-26): the TouchPad unplugs its second core after a couple of idle seconds,
+// and a gesture's first frame then reads back and converts its rows on one core shared with the page's script
+// (a double tap in 276-301 ms where it is 60-100). The card's zoom or pan brings the core back at once (the
+// kernel's hotplug interface; it unplugs it again by its own rule). Only a write of 1 where it reads 0, at
+// most every 500 ms; never the governor (a governor write once wedged the TouchPad).
+// JIHAD_NO_CPU_UP=1 turns it off.
+static void jihadSecondCoreUp() {
+  static const bool sOff = getenv("JIHAD_NO_CPU_UP") != nullptr;
+  static int64_t sLastMs = 0;
+  if (sOff) return;
+  const int64_t now = jihadNowMs();
+  if (now - sLastMs < 500) return;
+  sLastMs = now;
+  const int fd = open("/sys/devices/system/cpu/cpu1/online", O_RDWR | O_CLOEXEC);
+  if (fd < 0) return;
+  char c = 0;
+  if (read(fd, &c, 1) == 1 && c == '0') {
+    lseek(fd, 0, SEEK_SET);
+    if (write(fd, "1", 1) == 1) {
+      static uint32_t sN = 0;
+      if (sN++ < 5 || (sN % 100) == 0) fprintf(stderr, "[jihad-bs] the second core brought online for the card's gesture (%u so far)\n", sN);
+    }
+  }
+  close(fd);
+}
+
 void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uint32_t tag) {
   const int64_t now = jihadNowMs();
   // the card following a scroll the page made (our own msgScrolledTo, setScrollPosition's rule): not
@@ -4480,6 +4506,7 @@ void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uin
   double z = hasZoom ? zoom : (mXWant.seq ? mXWant.zoom : mXZoomNow);
   if (!(z >= 0.05 && z <= 20.0)) z = (mXZoomNow >= 0.05 && mXZoomNow <= 20.0) ? mXZoomNow : 1.0;
   if (hasZoom && z != mXWant.zoom) { mXZoomWantMs = now; ++mXZoomDumpN; }
+  jihadSecondCoreUp();   // T-516: the gesture's frames on two cores
   {
     // T-527: the card's scroll speed from its positions (a kinetic coast sends one every few ms)
     const int64_t dt = now - mXWant.ms;
@@ -4827,8 +4854,16 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   // T-527: the predicted position; a document with no root scroll frame is moved by the view offset
   const double view[5] = { Z, mGpuRootless ? want.x / zr : 0.0, (mGpuRootless ? (want.y + lead) / zr : 0.0) - (double)os / Z,
                            want.x / zr, (want.y + lead) / zr };
+  // T-516 (JIHAD_GPU_NO_ZOOM_VIEW_FIRST=1 turns it off): the first frame at a new zoom reads the card's view alone
+  // (its readback ran 200+ ms on one core with the second unplugged after a pause, 1224 rows read and converted);
+  // the overscan rows are filled white and the frame is no base for either lane
+  static const bool sViewFirst = getenv("JIHAD_GPU_NO_ZOOM_VIEW_FIRST") == nullptr;   // shipped (the owner, 2026-10-26)
+  const bool viewOnly = sViewFirst && !aBase && !base && !own && (mXPub.slot < 0 || fabs(mXPub.zoom - Z) > 1e-9) &&
+                        os > 0 && os + S.h <= H;
+  if (viewOnly) { lo = os; hi = os + S.h; lo2 = hi2 = 0; }
   const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr - (size_t)xWin * xStride, H, lo, hi, lo2, hi2,
-                                            own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved);
+                                            own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved,
+                                            false, viewOnly);
   if (!token) {
     if (++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: the compositor took no frame three times\n");
     return false;
@@ -4842,6 +4877,7 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   j.t0 = now; j.wantMs = want.ms; j.waitMs = waitSince; j.whole = !base && !own; j.pixels = pixels; j.win = xWin;
   j.kind = own ? 1 : (base ? 2 : 0);
   j.cardY = want.y;
+  j.viewOnly = viewOnly;
   return true;
 }
 
@@ -4885,6 +4921,13 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   const long above = std::min((long)H, std::max(0L, -(long)frameY));
   if (above > 0) memset(pixels, 0xff, (size_t)above * w * 4);
   if (pageEnd < H && pageEnd >= 0) memset(pixels + (size_t)pageEnd * w * 4, 0xff, (size_t)(H - pageEnd) * w * 4);
+  if (mXJob.viewOnly) {
+    // T-516: only the card's view was read: the overscan rows (an older frame's) white, the frame whole to the card
+    const long vlo = mXJob.os, vhi = std::min((long)H, (long)mXJob.os + mXSnap.h);
+    if (vlo > 0) memset(pixels, 0xff, (size_t)vlo * w * 4);
+    if (vhi < H) memset(pixels + (size_t)vhi * w * 4, 0xff, (size_t)(H - vhi) * w * 4);
+    pubDirtyAll();
+  }
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)mXSnap.base[s];   // T-517: the segment's start, not the window's
   oi->bufferWidth = w; oi->bufferHeight = H;
   oi->contentZoom = mXJob.zoom;
@@ -4947,6 +4990,12 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   mXPub.token = mXJob.token; mXPub.slot = s; mXPub.key = mXJob.key; mXPub.x = mXJob.x; mXPub.y = frameY;
   mXPub.w = w; mXPub.h = H; mXPub.zoom = mXJob.zoom; mXPub.fixedLo = cr.fixedLo; mXPub.fixedHi = cr.fixedHi;
   mXPub.cardX = mXJob.x; mXPub.cardY = mXJob.cardY; mXPub.ms = now;
+  if (mXJob.viewOnly) {
+    // T-516: not a whole frame of the tree: no lane builds on it (the next one reads whole); served all the same
+    mGpuSlotValid[s] = false;
+    if (mGpuLatestSlot == s) mGpuLatestSlot = -1;
+    mXPub.token = 0;   // no base (its token is what the base test needs); its slot stays for the served test
+  }
   mNeedsPaint = true;   // the main lane's next frame: its engine half (the anchor, the zoom's release) and the newest move
   if (mXJob.adopted) {
     // T-527 (review): a main-lane frame: the main lane's bookkeeping, as its poll would have done it (the

@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 26 Oct 2026 00:01:48 -0400
+Subject: [PATCH] gpu-compositor: a band surface that cannot be made at a width
+ is not tried again every frame
+
+T-527 (review). A pbuffer or render target that failed at a width was re-created, and a line logged,
+on every band frame (~25 a second into the device's small /var). The width it failed at is kept per
+surface and the frame's own surface does the pass.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ gfx/layers/opengl/CompositorOGL.cpp | 10 +++++++++-
+ gfx/layers/opengl/CompositorOGL.h   |  1 +
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index ed16534208..9b7f244915 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -2347,8 +2347,15 @@ CompositorOGL::JihadBeginBandPass(int aWidth, int aRows)
+   GLuint& rb = tall ? mJihadBandTallRB : mJihadBandRB;
+   GLuint& fbo = tall ? mJihadBandTallFBO : mJihadBandFBO;
+   int& w = tall ? mJihadBandTallW : mJihadBandW;
++  // a surface that could not be made at this width is not made again every band frame (a line each,
++  // ~25 a second, into the device's small /var): the frame's own surface does the pass
++  int& failW = mJihadBandFailW[tall ? 1 : 0];
++  if (failW == aWidth) {
++    return 0;
++  }
+   GLContextEGL* egl = static_cast<GLContextEGL*>(mGLContext.get());
+   if (!egl->JihadUseBandPBuffer(aWidth, rows, tall)) {
++    failW = aWidth;
+     return 0;
+   }
+   if (!fbo || w != aWidth) {
+@@ -2361,8 +2368,9 @@ CompositorOGL::JihadBeginBandPass(int aWidth, int aRows)
+     mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, rb);
+     const GLenum st = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
+     if (st != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
+-      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x)\n", aWidth, rows, st);
++      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x): not tried again at this width\n", aWidth, rows, st);
+       egl->JihadUseFramePBuffer();
++      failW = aWidth;
+       return 0;
+     }
+     w = aWidth;
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 0c27bb890a..39968a8791 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -258,6 +258,7 @@ public:
+   int mJihadBandW = 0;
+   GLuint mJihadBandTallRB = 0, mJihadBandTallFBO = 0;   // T-527: the tall band surface's target
+   int mJihadBandTallW = 0;
++  int mJihadBandFailW[2] = { 0, 0 };   // T-527: the width a band surface (0) or the tall one (1) failed at: not tried again
+   // the band surface's rows: JIHAD_GPU_BAND_ROWS (64..942, default 256; round 137)
+   static int JihadBandRows() {
+     static const int sRows = [] {

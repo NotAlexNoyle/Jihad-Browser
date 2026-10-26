@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 26 Oct 2026 00:01:48 -0400
+Subject: [PATCH] widget: a GPU-path layer paint with nothing pending is
+ skipped; a moved displayport base schedules a paint
+
+T-527. JihadPaintLayers returns at once after the first paint when the widget has no invalid region,
+no paint task pending and the refresh driver owes no view-manager flush: the layer tree is current
+and a paint would only build the display list again (JIHAD_GPU_PAINT_ALWAYS=1 paints every time).
+jihad_layout_set_displayport2 schedules a paint of the root scroll frame when the base moved
+(SetDisplayPortMargins compares displayports computed with the new base on both sides).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ layout/base/nsLayoutUtils.cpp |  7 +++++++
+ widget/PuppetWidget.cpp       | 20 ++++++++++++++++++++
+ widget/PuppetWidget.h         |  1 +
+ 3 files changed, 28 insertions(+)
+
+diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
+index 036734c9eb..026f65cd6a 100644
+--- a/layout/base/nsLayoutUtils.cpp
++++ b/layout/base/nsLayoutUtils.cpp
+@@ -9484,7 +9484,14 @@ jihad_layout_set_displayport2(nsIDocShell* aDocShell, float aVisW, float aVisH,
+   const float baseH = std::max(aVisH, aShiftY > 0.0f ? 0.0f : portH);
+   const nsRect base(nsPresContext::CSSPixelsToAppUnits(aShiftX * res), nsPresContext::CSSPixelsToAppUnits(aShiftY * res),
+                     nsPresContext::CSSPixelsToAppUnits(baseW * res), nsPresContext::CSSPixelsToAppUnits(baseH * res));
++  // T-527: a new base is a new displayport even when the margins are the same (SetDisplayPortMargins
++  // compares the displayport computed with the new base on both sides and schedules no paint)
++  const nsRect* oldBase = static_cast<nsRect*>(content->GetProperty(nsGkAtoms::DisplayPortBase));
++  const bool baseMoved = !oldBase || !oldBase->IsEqualEdges(base);
+   nsLayoutUtils::SetDisplayPortBase(content, base);
++  if (baseMoved) {
++    rsf->SchedulePaint();
++  }
+   const ScreenMargin margins(aTop * res, aSide * res, aBottom * res, aSide * res);
+   static int sLogged = 0;
+   if (sLogged++ < 12) {
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index b056433871..1e32b2e6eb 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -50,6 +50,7 @@ namespace mozilla { namespace layers { extern std::atomic<uint32_t> gJihadLateWr
+ // jihad_offscreen_composite_popups at the bottom of this file):
+ #include "nsXULPopupManager.h"
+ #include "nsLayoutUtils.h"
++#include "nsRefreshDriver.h"       // T-527: a paint already scheduled (JihadPaintLayers)
+ #include "nsRenderingContext.h"
+ #include "nsMenuPopupFrame.h"
+ #include "nsMenuFrame.h"
+@@ -967,6 +968,25 @@ PuppetWidget::JihadPaintLayers(nsIDocShell* aDocShell)
+   if (!mozilla::layers::CompositorThreadHolder::Loop()) {
+     return false;
+   }
++  // T-527: nothing to paint — no invalidation waiting (the widget's region, its paint task), no paint
++  // the refresh driver has scheduled, the layers painted before: the layer tree is current, and a paint
++  // would only build the whole display list again (desktop Wikipedia: 16-90 ms of the main thread; the
++  // daemon asks for a layer paint every 40 ms during a pan and right after the refresh driver's own
++  // paint of a zoom). JIHAD_GPU_PAINT_ALWAYS=1 paints every time, as before.
++  {
++    static const bool sAlways = getenv("JIHAD_GPU_PAINT_ALWAYS") != nullptr;
++    nsPresContext* pc = presShell->GetPresContext();
++    nsRefreshDriver* rd = pc ? pc->RefreshDriver() : nullptr;
++    if (!sAlways && mJihadLayersPainted && mDirtyRegion.IsEmpty() && !mPaintTask.IsPending() && rd &&
++        !rd->ViewManagerFlushIsPending()) {
++      static uint32_t sSkipped = 0;
++      if ((++sSkipped % 100) == 1) {
++        JIHAD_GPU_LOG("[jihad-gpu] layer paint skipped: nothing pending (%u so far)\n", sSkipped);
++      }
++      return true;
++    }
++  }
++  mJihadLayersPainted = true;
+   mozilla::TimeStamp t0 = mozilla::TimeStamp::Now();
+   nsRegion dirty(root->GetDimensions());
+   presShell->Paint(root, dirty, nsIPresShell::PAINT_LAYERS);
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index 7b570ef46d..755f67de5a 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -459,6 +459,7 @@ private:
+   RefPtr<PuppetWidget> mChild;
+   LayoutDeviceIntRegion mDirtyRegion;
+   bool mJihadDirty = false;   // sticky Invalidate() flag, drained by JihadTakeDirty()
++  bool mJihadLayersPainted = false;   // T-527: JihadPaintLayers has painted this widget's layers once
+   bool mJihadCompositorTried = false;   // T-502: CreateCompositor attempted once per widget
+   bool mJihadSharedLayerManager = false; // T-502: mLayerManager is the parent's (a child widget)
+   float mJihadScale = 1.0f;              // T-502: the card's zoom, applied by the compositor

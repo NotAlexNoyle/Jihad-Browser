@@ -898,6 +898,7 @@ bool BrowserPageGoanna::init(uint32_t width, uint32_t height,
 void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
   FrameLockGuard frameLock;   // T-515
   xInvalidate();
+  zoomBackDrop();   // T-527: another size's
   mGpuZoom = 0.0;   // T-502: the scroll port follows the card size; set again at the next zoom
   mGpuAnchorValid = false;
   // T-499: a new card size (rotation) starts from a layout viewport equal to it; the same size sent
@@ -1025,6 +1026,7 @@ void BrowserPageGoanna::freeze() {
   // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
   FrameLockGuard frameLock;   // T-515
   mFrozen = true;
+  zoomBackDrop();   // T-527: its memory too
   if (mPage) mPage->SetActive(false);    // a background card is a background tab: timers clamped, no frames
   detachShm();
 }
@@ -1112,6 +1114,7 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   // about:addons' card scroll stayed the world offset on the next page and its express frames moved
   // twice, until a scroll command reached the main thread)
   mGpuRootless = false;
+  zoomBackDrop();   // another document's
   if (mPage && mPage->GpuPath() && (mGpuViewRX != 0.0 || mGpuViewRY != 0.0)) gpuSetView(mGpuZoom > 0.0 ? mGpuZoom : 1.0, 0.0, 0.0);
   if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
   mViewportSent = false;                          // the new page's meta-viewport is sent afresh
@@ -1378,6 +1381,75 @@ void BrowserPageGoanna::gpuCriticalEnd(const char* why) {
   mNeedsPaint = true;
 }
 
+void BrowserPageGoanna::zoomBackKeep() {
+  FrameLockGuard frameLock;
+  static const bool sOff = getenv("JIHAD_GPU_NO_ZOOM_BACK") != nullptr;
+  zoomBackDrop();
+  const int s = slotForKey(mShownKey);
+  if (sOff || !mPage || !mPage->GpuPath() || mFrozen || s < 0 || !mShmBuf[s]) return;
+  const BrowserOffscreenInfo* oi = (const BrowserOffscreenInfo*)mShmBuf[s];
+  const int w = oi->bufferWidth, h = oi->bufferHeight;
+  JihadFrameTrailer* t = shmTrailer(mShownKey);
+  const int win = (t && t->magic == kJihadWindowMagic) ? (int)t->windowRows : 0;
+  const size_t need = sizeof(BrowserOffscreenInfo) + ((size_t)win + h) * w * 4;
+  if (w <= 0 || h <= 0 || w > 8192 || h > 8192 || win < 0 || need > mShmSize[s] || !(oi->contentZoom > 0.0)) return;
+  const unsigned char* src = mShmBuf[s] + sizeof(BrowserOffscreenInfo) + (size_t)win * w * 4;
+  mZoomBackPx.assign(src, src + (size_t)w * h * 4);
+  ZoomBack& zb = mZoomBack;
+  zb.zoom = oi->contentZoom; zb.x = oi->renderedX; zb.y = oi->renderedY; zb.w = w; zb.h = h; zb.contentH = mLastContentH;
+  zb.ok = true;
+}
+
+bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want) {
+  ZoomBack& zb = mZoomBack;
+  if (!zb.ok || fabs(zb.zoom - Z) > 1e-4) return false;
+  const XSnap& S = mXSnap;
+  // the card's view inside the kept frame, the same frame size and the page as tall as it was
+  if (zb.w != S.w || zb.h != S.frameH || zb.x != want.x || zb.y > want.y || want.y + S.h > zb.y + zb.h ||
+      zb.contentH != S.contentH || (size_t)zb.w * zb.h * 4 != mZoomBackPx.size()) {
+    zoomBackDrop();
+    return false;
+  }
+  // a slot: not the one the card shows, not out with the card, not a lane's
+  const size_t need = S.hdr + mZoomBackPx.size();
+  int slot = -1;
+  for (int t = 0; t < 3 && slot < 0; ++t) {
+    if (!S.keys[t] || !S.base[t] || S.seg[t] < need || S.keys[t] == mShownKey) continue;
+    if (mInFlight[t] && now - mPaintMs[t] < 2000) continue;
+    if (t == mXMainSlot || (mXJob.on && t == mXJob.slot)) continue;
+    bool job = false;
+    for (const GpuJob& gj : mGpuJobs) if (gj.slot == t) job = true;
+    if (!job) slot = t;
+  }
+  if (slot < 0) return false;   // a return frees one (the hook kicks)
+  unsigned char* seg = S.base[slot];
+  memcpy(seg + S.hdr, mZoomBackPx.data(), mZoomBackPx.size());
+  BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)seg;
+  oi->bufferWidth = zb.w; oi->bufferHeight = zb.h; oi->contentZoom = zb.zoom;
+  oi->renderedX = zb.x; oi->renderedY = zb.y; oi->renderedWidth = zb.w; oi->renderedHeight = zb.h;
+  // not a composite: no slot record and no base for either lane; the card redraws it whole, and the
+  // frame after it too
+  mGpuSlotValid[slot] = false;
+  if (mGpuLatestSlot == slot) mGpuLatestSlot = -1;
+  if (mXPub.slot == slot) mXPub = XPub();
+  mBufFull[slot].valid = false;
+  pubDirtyAll();
+  const int key = S.keys[slot];
+  publishWindow(key, 0, nullptr);
+  mSink.msgPainted(key); noteShown(key);
+  mInFlight[slot] = true; mPaintMs[slot] = now;
+  if (!mXMainWindow && mActiveKey == key) mActiveKey = keyAfter(key);
+  JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the frame kept at the zoom in published again, %ld ms after the zoom\n", Z, (long)(now - want.ms));
+  // device rounds: JIHAD_GPU_ZOOM_BACK_DUMP=<path>, the frame as the adapter reads it (3.7 MB: delete it at once)
+  static const char* sBackDump = getenv("JIHAD_GPU_ZOOM_BACK_DUMP");
+  if (sBackDump) {
+    if (FILE* f = fopen(sBackDump, "wb")) { fwrite(seg + S.hdr, 1, mZoomBackPx.size(), f); fclose(f); }
+  }
+  jihadTimelinePublish("zoom back", want.ms, zb.y, zb.zoom);
+  zoomBackDrop();
+  return true;
+}
+
 void BrowserPageGoanna::debugCardScrollTo(int x, int y) {
   fprintf(stderr, "[jihad-bs] scrolledTo -> card: %d,%d (the inject channel)\n", x, y);
   mSink.msgScrolledTo(x, y);
@@ -1548,6 +1620,8 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     // displayport is an empty transaction plus a composite.
     static const bool sNoZoomHold = getenv("JIHAD_GPU_NO_ZOOM_HOLD") != nullptr;
     if (z != mGpuZoom) {
+      // T-527 (R6): the frame at this zoom, for a zoom back to it (zoomBackPublish)
+      if (jihadExpressOn() && mPage->GpuResolutionNow() <= 1.0005f && GoannaRenderPage::GpuResolutionFor(z) > 1.0005f) zoomBackKeep();
       if (!sNoZoomHold && mPage->GpuDisplayPortOk()) {
         // T-504: the painted tiles first, at the new zoom (gpuScrollTo keeps the engine where it is)
         mGpuZoom = z; mGpuZoomHoldMs = jihadNowMs(); mGpuZoomHoldZ = z;
@@ -4502,7 +4576,11 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
   for (const GpuJob& j : mGpuJobs) if (mPage->ComposePeek(j.token) == 0) { jihadXNote("a main-lane frame is being composed"); return true; }
   // T-527: no frame that draws the painted tiles at under half their size: the main thread's paint at
   // the new resolution comes first (the card scales its last frame meanwhile)
-  if (xUnderHalf(Z)) { jihadXNote("a zoom out under half the painted resolution"); return true; }
+  if (xUnderHalf(Z)) {
+    if (zoomBackPublish(now, Z, want)) return true;   // T-527 (R6): the frame kept at the zoom in, when it is this zoom's
+    jihadXNote("a zoom out under half the painted resolution");
+    return true;
+  }
   if (xLeads(now)) return xStart(now, Z, want, waitSince);   // the card is moving: every frame
   static const long sGrace = getenv("JIHAD_GPU_EXPRESS_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_MS")) : 45;
   if (now - waitSince < sGrace || now - mXMainPubMs < sGrace) { jihadXNote("the grace (the main lane may serve it)"); return true; }

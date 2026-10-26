@@ -233,7 +233,10 @@ rotation. `JIHAD_GPU_EXPRESS_PREDICT_MS=<ms>` (80; 0 off): while the card coasts
 where the card will be after that long (its speed measured over 30 ms at least; the lead at most the overscan rows,
 not past the page's end). Engine (T-527, patch 0064): a layer paint with nothing to paint (no invalid region, no
 pending paint, no view-manager flush owed) is skipped after the first; `JIHAD_GPU_PAINT_ALWAYS=1` paints every time.
-The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScrolledTo, as a page's own scroll does)
+A zoom in that raises the resolution keeps the frame the card showed, and a zoom back to exactly that zoom publishes
+it at once while it covers the card's view (the double tap out: the old tiles at under half their size make no
+frame); `JIHAD_GPU_NO_ZOOM_BACK=1` turns it off, `JIHAD_GPU_ZOOM_BACK_DUMP=<path>` writes the frame as published
+(3.7 MB: delete it at once). The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScrolledTo, as a page's own scroll does)
 and `rect` prints the engine's and the card's scroll with the rect (`scroll=`, `card=`): the finger walks use them
 (`tools/device/finger/prefs-finger-walk.sh`).
 

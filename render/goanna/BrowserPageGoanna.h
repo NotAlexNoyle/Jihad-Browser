@@ -547,6 +547,16 @@ private:
   // 1, so under a zoom of 0.5 the tiles at 1 are what any paint makes (a page wider than 1536 px fit-zooms
   // there, and every pan frame was refused: review 2026-10-25)
   bool xUnderHalf(double z) const { return z * 2.0 < mXTreeRes && mXTreeRes > GoannaRenderPage::GpuResolutionFor(z) + 0.0005; }
+  // T-527 (R6): the frame the card showed when a zoom in raised the resolution, kept, and published again
+  // at once when the card comes back to exactly that zoom (a double tap out to the fit zoom: the old tiles
+  // drawn at under half their size make no frame, and the paint at the new resolution came 573-669 ms
+  // after the tap). Only while it covers the card's view and the page's height is the same; once.
+  struct ZoomBack { bool ok = false; double zoom = 0.0; int x = 0, y = 0, w = 0, h = 0; long contentH = 0; };
+  ZoomBack mZoomBack;
+  std::vector<unsigned char> mZoomBackPx;
+  void zoomBackKeep();                                    // the main thread (the frame lock)
+  bool zoomBackPublish(int64_t now, double Z, const XWant& want);   // the express lane (the frame lock)
+  void zoomBackDrop() { mZoomBack.ok = false; std::vector<unsigned char>().swap(mZoomBackPx); }
   uint32_t mXAdopted = 0;             // T-527: main-lane frames the express lane published for it
   int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)
   int mXConsumed[3] = {0, 0, 0};      // returns the express hook applied; returnBuffer skips as many

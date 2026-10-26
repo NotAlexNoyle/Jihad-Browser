@@ -23,22 +23,22 @@ effort, E2 with per-part signatures does it cheaper), dropping frames newer than
 
 | # | sev | where | finding | fix | status |
 |---|---|---|---|---|---|
-| C1 | high | daemon xStart (express second frame) | with parts on, the express lane's second frame copies the first frame's slot while the express thread dresses it: a ghost strip of a part | no second frame on the first without parts (as the main lane) | |
-| C2/D1 | medium | daemon cpuPartsApply | the picture is checked at the post, used at the poll: another zoom's picture, or one older than the frame's generation, can dress it | stamp the job with the picture's serial; at the poll a frame whose generation is not the picture's is not shown (not counted a miss) | |
-| D3 | medium | daemon partsGenSeen | the generation can move backwards (an older poll after a newer one) and mark a stale picture current | ignore an older generation | |
-| D2 | medium | daemon partsGenSeen / cpuPartsStep | the stale bound restarts with each stale picture | (moot with E2; the switch goes) | |
-| D4 | high | engine JihadColumnRead; daemon restore | a column read in a frame without its parts: the restore of what lay beneath treats the band as read whole rows; old part pixels kept (a part blended twice, a ghost strip later) | no column reads without the parts | |
-| D5 | medium | daemon cpuPartsStep | the picture's post sets mXLastPostToken: the express lane loses its base after every picture | (moot with E2) | |
-| C3/D6 | medium | engine CompositableTransactionParent | the generation moves only on paints: opacity/transform/colour/clip set in a transaction, compositor animations, structure changes inside a part are missed (a fading button stays as pictured) | a parts signature computed in the composite (E2) | |
-| C4 | medium | engine | content stacked above a part (a popup over a fixed bar) is drawn under the CPU-drawn part | the engine flags a non-part leaf above and over a part; such a frame is composed with the engine's parts | |
-| C5 | medium | engine stuck block | in a frame without its parts the card's hold set (T-544) is every sticky layer, stuck or not, merged: a not-yet-stuck one held still between frames | report the hold set (fixed + stuck) apart from the parts | |
-| C6 | medium | engine 0071 | in frames WITH the engine's parts and fixed layers, an own-slot frame's diff-first plan keeps rects judged against the last composite, not the older base | the compensation only without parts or with no fixed/stuck rects | |
-| D7 | medium | daemon match | parts matched by columns, height and nearest y: same-size sticky headers in one column (GitHub's file headers) can take each other's pixels | (E2: the frame's own rects and picture come from one composite) | |
-| C7 | low | daemon main poll | the slot's kind recorded at the publish, not with the record: the blank-suppression return leaves a valid slot with the old kind and beneath | record the kind at adoption | |
-| C8 | low | daemon cpuPartsApply | a gone base record (after a forget or a loss) counted as a miss: old-document jobs can turn parts off for a new page | a separate outcome, not counted | |
-| C9 | low | daemon cpuPartsStep | the clip flags read cr.stuck with the compacted index | the original index | |
-| D8 | low | daemon cpuPartsApply | a part cut at both frame edges takes the wrong rows | (E2) | |
-| C10/D9 | low | daemon main poll | the main lane dresses before its out-of-page white fill (the express lane after) | the same order | |
+| C1 | high | daemon xStart (express second frame) | with parts on, the express lane's second frame copies the first frame's slot while the express thread dresses it: a ghost strip of a part | no second frame on the first without parts (as the main lane) | fixed (81f56bef) |
+| C2/D1 | medium | daemon cpuPartsApply | the picture is checked at the post, used at the poll: another zoom's picture, or one older than the frame's generation, can dress it | stamp the job with the picture's serial; at the poll a frame whose generation is not the picture's is not shown (not counted a miss) | fixed by E2 (0072: each frame dressed with its own signature's picture) |
+| D3 | medium | daemon partsGenSeen | the generation can move backwards (an older poll after a newer one) and mark a stale picture current | ignore an older generation | moot (E2) |
+| D2 | medium | daemon partsGenSeen / cpuPartsStep | the stale bound restarts with each stale picture | (moot with E2; the switch goes) | moot (E2: the switch is gone) |
+| D4 | high | engine JihadColumnRead; daemon restore | a column read in a frame without its parts: the restore of what lay beneath treats the band as read whole rows; old part pixels kept (a part blended twice, a ghost strip later) | no column reads without the parts | fixed (0072) |
+| D5 | medium | daemon cpuPartsStep | the picture's post sets mXLastPostToken: the express lane loses its base after every picture | (moot with E2) | moot (E2) |
+| C3/D6 | medium | engine CompositableTransactionParent | the generation moves only on paints: opacity/transform/colour/clip set in a transaction, compositor animations, structure changes inside a part are missed (a fading button stays as pictured) | a parts signature computed in the composite (E2) | fixed (0072: the signature) |
+| C4 | medium | engine | content stacked above a part (a popup over a fixed bar) is drawn under the CPU-drawn part | the engine flags a non-part leaf above and over a part; such a frame is composed with the engine's parts | fixed (0072 flag + daemon: 2 s, the document after three) |
+| C5 | medium | engine stuck block | in a frame without its parts the card's hold set (T-544) is every sticky layer, stuck or not, merged: a not-yet-stuck one held still between frames | report the hold set (fixed + stuck) apart from the parts | fixed (0072 hold list) |
+| C6 | medium | engine 0071 | in frames WITH the engine's parts and fixed layers, an own-slot frame's diff-first plan keeps rects judged against the last composite, not the older base | the compensation only without parts or with no fixed/stuck rects | fixed (0072) |
+| D7 | medium | daemon match | parts matched by columns, height and nearest y: same-size sticky headers in one column (GitHub's file headers) can take each other's pixels | (E2: the frame's own rects and picture come from one composite) | moot (E2: by index, same composite) |
+| C7 | low | daemon main poll | the slot's kind recorded at the publish, not with the record: the blank-suppression return leaves a valid slot with the old kind and beneath | record the kind at adoption | fixed (81f56bef) |
+| C8 | low | daemon cpuPartsApply | a gone base record (after a forget or a loss) counted as a miss: old-document jobs can turn parts off for a new page | a separate outcome, not counted | fixed (outcomes; only no-picture counted) |
+| C9 | low | daemon cpuPartsStep | the clip flags read cr.stuck with the compacted index | the original index | moot (the picture job is gone) |
+| D8 | low | daemon cpuPartsApply | a part cut at both frame edges takes the wrong rows | (E2) | moot (E2: the frame's own rects) |
+| C10/D9 | low | daemon main poll | the main lane dresses before its out-of-page white fill (the express lane after) | the same order | fixed (81f56bef) |
 | — | — | daemon cpuPartsApply | (found while waiting) a frame's part 2 px off the picture's read past the part's block or before its row | rows and columns both have only | fixed 2026-10-26 |
 
 Checked and fine (code review): the restore offset for every kind of base; the scratch's graves; `ownNotWhole`

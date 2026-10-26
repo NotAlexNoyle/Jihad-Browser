@@ -52,6 +52,57 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-26 (night) — T-505: the parts on the CPU, exact (engine 0070-0072); four new kits; paused for a fresh agent (READ FIRST)
+
+**Stopped here by the owner ("stop here and prepare the directory / cavekit 3.1 files for a fresh agent").** Nothing is
+mid-edit: every change is committed (main `81f56bef` + this PICKUP commit; engine fork `446b22790a`, patches through
+0072, `patch-queue.sh --check` and `check-engine-pins.sh` pass). **Not pushed:** GitHub main is still `d9816d2f` and the
+fork's branch `078a0942` (read back over https at the stop) — the owner's push: `bash .cavekit/handoff-2026-10-24/push.sh`
+(engine branch first, then main, both read back), then confirm with `git ls-remote` over https.
+
+**Four kits from the owner (Tier 91, T-545..T-560), queued behind T-505 by the owner's word:** the low-power levers of the
+UXP stack (`context/kits/cavekit-lowpower-uxp.md`, the scan in `docs/research/lowpower-uxp.md`; nothing measured yet);
+the engine on UXP's next release (`cavekit-engine-release-2026-10.md`: the owner WAITS for the next `RB_` tag — none newer
+than RB_20261006 on 2026-10-26; RC_20261026 on the release branch, 12 small commits, only patch 0060's roots overlap);
+the webOS SDK (`cavekit-webos-sdk-update.md`: Redux 0.4 -> 0.4.1 AND `/opt/PalmSDK` refreshed — a sudo step the owner
+runs; HP's PDK is final); the Atlas references (`cavekit-atlas-references.md`: the app moved to
+`webOS-ports/org.webosports.app.atlas`).
+
+**T-505 (R3), the owner's "both, parts first" — where it stands.** Every GPU frame is composed WITHOUT the page's fixed
+and sticky parts (engine flag 128) and the daemon draws them over it on the CPU. The parts' picture is read **in the
+frame's own job** (engine 0072, the inspector's design "E2") whenever the parts' signature (their layers' content,
+attributes, structure, sizes) is not one the daemon holds; the daemon keeps three pictures by signature and dresses
+each frame with its own, rect by rect — exact. Faults found on the way, all fixed: the picture never matching (keep
+split), the lanes' two kinds, own-slot frames diffed without the scroll (engine 0071, on for every build), T-511's rule
+taking a slot stale whole (fixed for every build), and the two reviews' findings (`context/impl/impl-review-findings-t505-cpuparts.md`,
+every row's status filled). Measured: scripted pan with the card moving, desktop Wikipedia 9.4 -> 12.8 fps, the long
+page 18.8 -> 23.6; **by finger Wikipedia 9.5 -> 12.3, the long page 15.7 -> 18.3**. Verify (main lane only): Wikipedia
+0 wrong rows in 27 shifted frames (the engine's parts: 2 wrong frames in the same run). Records:
+`docs/rounds/t505-2026-10-26/notes.txt` (the last sections). CPU parts are ON in the code (`JIHAD_GPU_CPU_PARTS=0` or
+`<state>/no-cpu-parts` turns them off); the owner chose on by default once the findings are fixed — they are, but the
+re-review below is owed first.
+
+**Open, in order (T-505):**
+1. **The review gate on `81f56bef` + engine `446b22790a`:** Codex (Cavekit 3.1's reviewer; `codex exec -m gpt-5.6-sol -s
+   read-only -C <repo> -o <out> - < prompt`) was out of credits until 14:59 and the run was cancelled at the stop; the
+   prompt is in `.cavekit/handoff-2026-10-26/codex-e2.prompt`. Inspector as backup. Fix what it finds.
+2. **The long page's verify:** one frame of 58 (scroll-only, shift 184, built on its own slot, parts on the CPU) had 13
+   wrong rows at frame rows 0..13 — where the base's fixed header lands after the shift (the restore of what lay beneath
+   it, or the header's inflated rect edge, are the suspects). Find it (`pan-run.sh` with `JIHAD_GPU_VERIFY=1` and no
+   `JIHAD_GPU_EXPRESS`, `docs/rounds/t505-2026-10-26/pan-v1-long-daemon-gpu.log`); compare with `JIHAD_GPU_CPU_PARTS=0`.
+3. **The owner's "cheaper part pictures first":** E2 made a picture cost one parts pass in the frame's own job (7-78 ms
+   compose, 7-66 ms read, 340 KB on Wikipedia, about one a drag). Next lever: read only the part whose layers changed
+   (a per-part signature), and give back the express lane's second frame on the first (lost to review C1: allowed again
+   only if the second frame's restore also covers the first frame's base's parts).
+4. Then the owner's step 2: scroll-only bands composed on the CPU from the tiles. Then the four kits.
+- Cover detection (a content layer drawn above a part) fires twice on desktop Wikipedia during the load (the sidebars
+  not yet stuck): harmless (2 dropped frames, the engine's parts for 2 s), not during pans.
+
+**Device state at the stop:** the three variants run this head's engine (libxul md5 `46a3b63e`, stripped from engine
+`446b22790a`) and daemon (`f25ef5ba`) by `push-engine-update.sh enyo mochi mojo` (md5-verified, each job restarted); the
+adapters are the packages of `554ed514` (the opaque wrap; unchanged since). The `.ipk`s were NOT rebuilt for this head
+(build-variant-ipk.sh before a release). default-check passes in all three (the GPU path with the express lane; faults 0, GPU off 0, express off 0; screenshots looked at: desktop Wikipedia after the check's pinch, the sidebars in place). No adapter gates; Default look, No proxy; sensors running.
+
 ## 2026-10-26 (evening) — T-504 DONE: the bounded overview; T-505 measured read-only (READ FIRST)
 
 **T-504 DONE (the owner's design; engine 0069).** A double tap out after a pan while zoomed in used to show nothing

@@ -65,6 +65,10 @@ public:
         return m_buffer + windowBytes();
     }
     int rasterSize() const;   // the pixels' bytes, without the window trailer
+    // T-527: the frame's number and, when the daemon wrote one, the rect (frame px) that differs from
+    // frame *base (JihadFrameWindow.h); false: no rect, the whole frame is new
+    uint32_t frameSeq() const;
+    bool dirtyRect(uint32_t* base, int* left, int* top, int* right, int* bottom) const;
 
 private:
 

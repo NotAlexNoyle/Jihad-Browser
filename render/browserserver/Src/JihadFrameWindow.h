@@ -20,16 +20,26 @@
 //   windowRows   the frame starts this many rows (of the header's renderedWidth pixels) in
 //   adapterCaps  kJihadWindowCaps: the adapter that made the segment reads windows; the daemon moves
 //                windows only then (an adapter from before reads every frame from the pixels' start)
+//   dirtySeq     T-527: this frame's number (the daemon counts its publishes)
+//   dirtyMagic   T-527: kJihadDirtyMagic when dirtyLeft..dirtyBottom (frame px, right and bottom
+//                exclusive) hold all that differs from frame dirtyBase, at the same geometry
+//                (renderedX/Y/Width/Height, contentZoom): an adapter showing frame dirtyBase may
+//                invalidate only that rect (an empty one: nothing to redraw). Anything else: the whole
+//                frame. An adapter from before never reads them; a daemon from before leaves them zero.
 struct JihadFrameTrailer {
     uint32_t magic;
     int32_t  windowRows;
     uint32_t adapterCaps;
-    uint32_t reserved[13];
+    uint32_t dirtyMagic;
+    int32_t  dirtyLeft, dirtyTop, dirtyRight, dirtyBottom;
+    uint32_t dirtySeq, dirtyBase;
+    uint32_t reserved[6];
 };
 
 static const size_t   kJihadTrailerBytes = 64;
 static const uint32_t kJihadWindowMagic  = 0x4e49574aU;   // "JWIN"
 static const uint32_t kJihadWindowCaps   = 0x5041434aU;   // "JCAP"
+static const uint32_t kJihadDirtyMagic   = 0x5452444aU;   // "JDRT"
 
 // the trailer of a segment of aSegmentBytes bytes mapped at aSegment (0 when it is too small)
 inline JihadFrameTrailer* jihadFrameTrailer(unsigned char* aSegment, size_t aSegmentBytes)

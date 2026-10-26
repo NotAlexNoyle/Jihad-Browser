@@ -141,7 +141,7 @@ private:
     YapServer*  m_server;
     int         m_cmdSocketFd;
     int         m_msgSocketFd;
-    bool m_sendFailed = false;
+    bool        m_sendFailed;   // T-540; set in the constructor (the PDK's gcc 4.3.3 has no member initializers)
     char*       m_msgSocketPostfix;
     void*       m_privData;
     uint8_t*    m_cmdBuffer;

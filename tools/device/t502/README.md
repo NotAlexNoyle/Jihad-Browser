@@ -222,6 +222,14 @@ tiles at under half their size (a double tap out from 2.33). `JIHAD_GPU_ZOOM_DUM
 3.7 MB each: delete them at once). `finger-zoom.sh <name> <url> "<env>"` runs the emulated finger's double tap in
 and out and a pinch in and out on the spike daemon (`finger-zoom-device.sh`; `/tmp/finger` on the device) and
 keeps the log in `ROUND_DIR`. Engine 0062: the root's displayport base the daemon sets survives the paint.
+T-527 (R8, R3): the daemon writes the rect that changed since the frame before into the segment's trailer
+(`JihadFrameWindow.h`, the dirty words) and the adapter redraws only that; `JIHAD_GPU_NO_DIRTY=1` writes none (the
+card redraws whole frames). Engine 0063: a change that does not fit the band surface takes a taller one
+(`JIHAD_GPU_BAND_TALL=<rows>`, 512; 0 off). With `JIHAD_GPU_TIMELINE=1` the express lane says why it made no frame
+(`express idle: ...`) and every publish's trailer is logged; `tools/host/gap-trace.py <log> [ms]` lists a pan's gaps
+of 56 ms or more with what happened inside each. `pan-run.sh` leaves the spike daemon running (the upstart job
+stopped): run `gpu-spike-collect-stop.sh` before `default-check.sh`, which now reads across the daemon log's 2 MB
+rotation.
 
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every

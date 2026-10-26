@@ -75,6 +75,7 @@ YapProxy::YapProxy(YapServer* server, int cmdSocketFd, char* msgSocketPath, char
     : m_server(server)
     , m_cmdSocketFd(cmdSocketFd)
     , m_msgSocketFd(-1)
+    , m_sendFailed(false)
     , m_msgSocketPostfix(0)
     , m_privData(0)
     , m_cmdBuffer(0)

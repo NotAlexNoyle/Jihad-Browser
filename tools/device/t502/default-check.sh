@@ -24,7 +24,15 @@ mark=$(novacom run file:///usr/bin/wc -- -c /var/palm/jihad/$ST/daemon.log 2>/de
 timeout 300 bash build/webos-oe/card-selftest.sh $V run "$STEPS" "$URL" 60 $D/default-$V.jpg 2>&1 | tail -n 2
 build/webos-oe/dev-sh.sh -t 60 $S/default-close.sh 2>&1 | grep 'closed card\|rendering:' | sed "s/^/$V: /"
 rm -f $S/default-close.sh
-novacom get file:///var/palm/jihad/$ST/daemon.log 2>/dev/null | tail -c +$(( ${mark:-0} + 1 )) > $D/default-$V-daemon.log
+# the daemon rotates its log in place at 2 MB (the previous kept as .old): when the log is now shorter than
+# the mark, the run's lines are the old file's from the mark on and the whole new one (T-527)
+novacom get file:///var/palm/jihad/$ST/daemon.log > $D/default-$V-daemon.now 2>/dev/null
+if [ "$(stat -c %s $D/default-$V-daemon.now)" -lt "${mark:-0}" ]; then
+  { novacom get file:///var/palm/jihad/$ST/daemon.log.old 2>/dev/null | tail -c +$(( ${mark:-0} + 1 )); cat $D/default-$V-daemon.now; } > $D/default-$V-daemon.log
+else
+  tail -c +$(( ${mark:-0} + 1 )) $D/default-$V-daemon.now > $D/default-$V-daemon.log
+fi
+rm -f $D/default-$V-daemon.now
 L=$D/default-$V-daemon.log
 echo "$V: painted $(grep -a -c 'painted shmid' $L), express frames $(grep -a 'page closed: ' $L | sed 's/.*page closed: \([0-9]*\) frames.*/\1/' | awk '{n+=$1} END {print n+0}'), zooms $(grep -a -c 'setZoomAndScroll zoom' $L), disconnects $(grep -a -c 'client disconnected' $L), faults $(grep -a -c 'FATAL SIGNAL' $L), GPU off $(grep -a -c 'GPU path is off' $L), express off $(grep -a -c 'express lane off' $L)"
 bash build/webos-oe/card-selftest.sh $V restore 2>&1 | tail -n 1

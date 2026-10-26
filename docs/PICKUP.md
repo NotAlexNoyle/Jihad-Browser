@@ -52,7 +52,7 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-10-25 (night) — T-527: the zoom's sharp frame 3-4x sooner; engine patch 0062 (READ FIRST)
+## 2026-10-25 (night) — T-527: the zoom's sharp frame 3-4x sooner (engine 0062); WebGL at 24+ fps (engine 0063) (READ FIRST)
 
 **Measured by the emulated finger on desktop Wikipedia, sensors running** (`docs/rounds/t527-2026-10-25/notes.txt`,
 `tools/device/t502/finger-zoom.sh`): the first frame painted at a new zoom's resolution now comes 593 ms after a
@@ -78,14 +78,27 @@ mid-pan dumps looked at; verify without the express lane 0 rows wrong / 0 struct
 long page's frames differ below the threshold in most frames where T-519 found none — the head binaries do the same,
 not this change. Measured, not changed: `JIHAD_GPU_TEX_POOL=160` cut a zoom's transaction 70-110 ms (+28 MB GPU at most).
 
-**Device state:** Enyo runs DEV COPIES — daemon `786f520c` and libxul `f25bb166` (63c20e39 stripped) in its
-`deviceroot/hl`, the originals kept as `jihad-browserserver.orig` / `libxul.so.orig` (47a68434 / 161d7a88) and the
-new libxul also as `libxul.so.t527`. Mochi and Mojo are the packages. A packaged build (`build-all-device.sh`) after
-the commits is the clean way to ship them. The sensors run. Pushes: the owner's, `push.sh` needs the engine fork's
-new head `63c20e39` too.
+**Pushes:** the owner's; `push.sh` pushes the engine fork's branch (now at `bda31412`) and main.
 
-**Next (T-527):** the pan's 56 ms+ gaps traced and the avoidable removed (R3), the 480 px WebGL cube at 24 fps (R8),
-desktop Wikipedia ≥ 24 fps with the sensors (R3), the double tap out's first frame (R6), the pool size.
+**Later the same night — R8 met, T-511 DONE.** The 480 px WebGL cube 25.3-28.0 fps on the card with the sensors
+running (was 16.6-22.0; 360 px 28.9-29.9, 240 px 29.4-30 — the page's own ~30): (1) the daemon writes the rect that
+changed since the frame before into the segment's trailer (`JihadFrameWindow.h` dirty words, with both frames' numbers)
+and the adapter redraws only that rect when it shows that frame at the same geometry, zoom and scroll
+(`BrowserAdapter::msgPainted`; `JIHAD_GPU_NO_DIRTY=1` off); (2) engine **0063** (`bda31412`): a change too tall for the
+256-row band surface takes a 512-row band surface instead of the frame-sized target (`JIHAD_GPU_BAND_TALL`). Verify 0
+rows wrong, the cube and a ticker drawn right; Wikipedia's pan unchanged. **The PDK adapter had not built since T-540**
+(`YapProxy.h`'s member initializer; PDK gcc 4.3.3): fixed — a package build from c0aee8d0/ef9691ec would have failed.
+The pan's ≥56 ms gaps are traced (`tools/host/gap-trace.py`, the express lane's `express idle:` notes): 24 in a 10 s
+Wikipedia pan, all the compositor job's (a 50-100 ms whole read after a tree change, the copy from the base, a job
+queued behind the page's tile uploads), none the main thread's. `docs/IPC-CONTRACT.md` now describes the trailer.
+
+**Device state (end of the night):** Enyo runs DEV COPIES — daemon `b79f1c1f`, libxul `d69e0fd0` (bda31412 stripped),
+the adapter `d4325248` in `/usr/lib/jihad/enyo/` (rootfs; LunaSysMgr restarted) — originals as `.orig` (47a68434,
+161d7a88, a312e864). Mochi and Mojo: the packages (their adapters the old ones). The upstart Enyo job runs; the Enyo
+default check passes. A packaged build of all three after the commits ships the adapters together (`build-all-device.sh`).
+
+**Next (T-527):** the compositor job's floor behind the pan's gaps (the read, the copy from the base), desktop Wikipedia
+≥ 24 fps with the sensors (R3), the double tap out's first frame (R6), the tile texture pool size.
 
 ## 2026-10-25 — the certificate-trust kit (Tier 90) done on the device; a TLS floor and a tighter Trust dialog (READ FIRST)
 

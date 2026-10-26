@@ -377,6 +377,18 @@ bool jihadTimelineOn() {
   static const bool sOn = getenv("JIHAD_GPU_TIMELINE") != nullptr;
   return sOn;
 }
+
+// T-527 device rounds (JIHAD_GPU_TIMELINE=1): why the express lane made no frame, on the timeline when the
+// reason changes or every 25 ms while it stays (the pan's 56 ms+ gaps traced to their source)
+static void jihadXNote(const char* why) {
+  if (!jihadTimelineOn()) return;
+  static const char* sLast = nullptr;
+  static int64_t sLastMs = 0;
+  const int64_t now = jihadNowMs();
+  if (why == sLast && now - sLastMs < 25) return;
+  sLast = why; sLastMs = now;
+  fprintf(stderr, "[jihad-tl] t=%lld express idle: %s\n", (long long)now, why);
+}
 static int64_t gJihadTlLastPub = 0;
 static void jihadTimelinePublish(const char* lane, int64_t start, int y, double zoom) {
   if (!jihadTimelineOn()) return;
@@ -678,11 +690,48 @@ bool BrowserPageGoanna::windowsFor(int key) {
   return t && t->adapterCaps == kJihadWindowCaps;
 }
 
-void BrowserPageGoanna::publishWindow(int key, int windowRows) {
+void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty) {
+  const uint32_t base = mPubSeq++;   // T-527: every publish is numbered, a trailer or not
   if (JihadFrameTrailer* t = shmTrailer(key)) {
     t->windowRows = windowRows < 0 ? 0 : windowRows;
     t->magic = kJihadWindowMagic;
+    // T-527: the change since the frame before, or the whole
+    static const bool sNoDirty = getenv("JIHAD_GPU_NO_DIRTY") != nullptr;
+    t->dirtySeq = mPubSeq;
+    if (dirty && !sNoDirty) {
+      t->dirtyLeft = (int32_t)dirty[0]; t->dirtyTop = (int32_t)dirty[1];
+      t->dirtyRight = (int32_t)dirty[2]; t->dirtyBottom = (int32_t)dirty[3];
+      t->dirtyBase = base;
+      t->dirtyMagic = kJihadDirtyMagic;
+    } else {
+      t->dirtyMagic = 0;
+    }
+    if (jihadTimelineOn()) {
+      if (t->dirtyMagic) fprintf(stderr, "[jihad-tl] t=%lld trailer: frame %u, changed since %u: x %ld..%ld rows %ld..%ld\n",
+                                 (long long)jihadNowMs(), t->dirtySeq, base, dirty[0], dirty[2], dirty[1], dirty[3]);
+      else fprintf(stderr, "[jihad-tl] t=%lld trailer: frame %u, whole\n", (long long)jihadNowMs(), t->dirtySeq);
+    }
   }
+}
+
+void BrowserPageGoanna::pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKnown, int x, int y, int w, int h, double zoom) {
+  if (x != mPubX || y != mPubY || w != mPubW || h != mPubH || zoom != mPubZoom) { mPubDirty.all = true; return; }
+  if (hi <= lo) return;   // nothing changed
+  if (!xKnown || x1 <= x0) { x0 = 0; x1 = w; }
+  PubDirty& d = mPubDirty;
+  if (d.hi <= d.lo) { d.lo = lo; d.hi = hi; d.x0 = x0; d.x1 = x1; return; }
+  d.lo = std::min(d.lo, lo); d.hi = std::max(d.hi, hi); d.x0 = std::min(d.x0, x0); d.x1 = std::max(d.x1, x1);
+}
+
+bool BrowserPageGoanna::pubDirtyTake(int x, int y, int w, int h, double zoom, bool popups, bool earlierUnknown, long out[4]) {
+  const bool partial = !mPubDirty.all && !earlierUnknown && !popups && !mPubPopups &&
+                       x == mPubX && y == mPubY && w == mPubW && h == mPubH && zoom == mPubZoom;
+  const PubDirty& d = mPubDirty;
+  out[0] = d.hi > d.lo ? std::max(0L, d.x0) : 0; out[1] = d.hi > d.lo ? std::max(0L, d.lo) : 0;
+  out[2] = d.hi > d.lo ? std::min((long)w, d.x1) : 0; out[3] = d.hi > d.lo ? std::min((long)h, d.hi) : 0;
+  mPubDirty = PubDirty(); mPubDirty.all = false;
+  mPubX = x; mPubY = y; mPubW = w; mPubH = h; mPubZoom = zoom; mPubPopups = popups;
+  return partial;
 }
 
 void BrowserPageGoanna::detachShm() {
@@ -4166,6 +4215,7 @@ void BrowserPageGoanna::noteShown(int key) {
 
 void BrowserPageGoanna::gpuForget(const GpuJob& j) {
   mPage->ComposeForget(j.token);
+  pubDirtyAll();   // T-527: its change is not known
   if (j.vToken) { mPage->ComposeForget(j.vToken); verifyRefRelease(j.vBuf, true); }
 }
 
@@ -4298,13 +4348,18 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
       XWant want; int64_t waitSince;
       { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
       const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;
-      if (want.seq && !(mXJob.x == want.x && mXJob.cardY == want.y && mXJob.zoom == Z) && !(Z * 2.0 < mXTreeRes))
-        xStart(now, Z, want, waitSince, &mXJob);
+      if (want.seq && !(mXJob.x == want.x && mXJob.cardY == want.y && mXJob.zoom == Z) && !(Z * 2.0 < mXTreeRes)) {
+        if (!xStart(now, Z, want, waitSince, &mXJob)) jihadXNote("the second frame cannot build on the first");
+      }
+    } else if (mXJob.on && !mXJob.composed && xLeads(now)) {
+      jihadXNote("its frame is being composed");
     }
     return true;
   }
-  if (!mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups || mXFailures >= 3)
+  if (!mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups || mXFailures >= 3) {
+    jihadXNote("not ready (no snapshot, popups, frozen or failed)");
     return false;
+  }
   XWant want; int64_t waitSince;
   { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; waitSince = mXWaitSinceMs; }
   if (!want.seq) return false;
@@ -4349,26 +4404,28 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
   // second, and a frame composed in a long pump waited that long for the adoption above)
   const bool mainInFlight = sTakeover > 0 && !mGpuJobs.empty();
   if (mXLastXPubMs ? (mXPub.slot >= 0 && mXPub.cardX == want.x && mXPub.cardY == want.y && mXPub.zoom == Z)
-                   : (mXPub.slot >= 0 && mXCmdPub >= want.cmdSeq))
+                   : (mXPub.slot >= 0 && mXCmdPub >= want.cmdSeq)) {
+    jihadXNote("the card is served");
     return mainInFlight;
-  if (!waitSince) return mainInFlight;   // the main lane published since the card's last move
-  if (!mXMainPubMs) return false;      // the main lane's first frame of this geometry and document is not out
+  }
+  if (!waitSince) { jihadXNote("the main lane served the card"); return mainInFlight; }   // the main lane published since the card's last move
+  if (!mXMainPubMs) { jihadXNote("no main-lane frame of this geometry yet"); return false; }   // the main lane's first frame of this geometry and document is not out
   // the main lane's frames in flight: they serve the card while the compositor has them; once
   // composed, the express lane's frame may follow (the main lane drops them as older at its poll:
   // its thread can sit in the page's script a long while before it looks)
-  for (const GpuJob& j : mGpuJobs) if (mPage->ComposePeek(j.token) == 0) return true;
+  for (const GpuJob& j : mGpuJobs) if (mPage->ComposePeek(j.token) == 0) { jihadXNote("a main-lane frame is being composed"); return true; }
   // T-527: no frame that draws the painted tiles at under half their size: the main thread's paint at
   // the new resolution comes first (the card scales its last frame meanwhile)
-  if (Z * 2.0 < mXTreeRes) return true;
+  if (Z * 2.0 < mXTreeRes) { jihadXNote("a zoom out under half the painted resolution"); return true; }
   if (xLeads(now)) return xStart(now, Z, want, waitSince);   // the card is moving: every frame
   static const long sGrace = getenv("JIHAD_GPU_EXPRESS_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_MS")) : 45;
-  if (now - waitSince < sGrace || now - mXMainPubMs < sGrace) return true;
+  if (now - waitSince < sGrace || now - mXMainPubMs < sGrace) { jihadXNote("the grace (the main lane may serve it)"); return true; }
   // only while the main thread is away in the engine (its pump, a layer paint) for a while: back
   // in its tick (or idle between ticks) it makes the frame itself, and the express lane, stepping
   // every 3 ms, would otherwise take every frame from it (its frames do the engine's half: the
   // anchor, the zoom's release)
   const int64_t away = jihadFrameLock().awaySinceMs();
-  if (!away || now - away < sAway) return true;
+  if (!away || now - away < sAway) { jihadXNote("the main thread is in its tick"); return true; }
   return xStart(now, Z, want, waitSince);
 }
 
@@ -4414,7 +4471,16 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
       slot = t;
     }
   }
-  if (slot < 0) return true;   // a return frees one (the hook kicks)
+  if (slot < 0) {   // a return frees one (the hook kicks)
+    if (jihadTimelineOn()) {
+      static char sWhy[160];
+      snprintf(sWhy, sizeof sWhy, "no slot: in flight %d%d%d, shown %d, main %d, base %d, active %d, main jobs %zu",
+               (int)mInFlight[0], (int)mInFlight[1], (int)mInFlight[2], slotForKey(mShownKey), mXMainSlot, base ? b : -1,
+               slotForKey(mActiveKey), mGpuJobs.size());
+      jihadXNote(sWhy);
+    }
+    return true;
+  }
   // T-504: a frame at a new zoom goes ahead of the main lane's frames at the old one that have not
   // been composed yet: they would be dropped at their poll once this one is out, and the compositor
   // thread takes jobs in order (on Wikipedia after its load the first double tap's frame waited
@@ -4587,6 +4653,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   }
   if (!genOk || r < 0) {
     // the buffers or the geometry changed under it, or it failed: dropped, and the one built on it
+    pubDirtyAll();   // T-527
     mXJob = XJob(); xForget(mXJob2);
     gpuSlotsLost();   // T-517: its change is in no slot's record
     if (genOk && ++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: three frames failed\n");
@@ -4607,7 +4674,16 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   oi->contentZoom = mXJob.zoom;
   oi->renderedX = mXJob.x; oi->renderedY = frameY;
   oi->renderedWidth = w; oi->renderedHeight = H;
-  publishWindow(mXJob.key, mXJob.win);   // T-517: the frame's window
+  {
+    // T-517: the frame's window; T-527: what changed since the frame before (main-lane jobs posted
+    // before this one and not yet polled: not known)
+    pubDirtyAdd(cr.invLo, cr.invHi, cr.invX0, cr.invX1, cr.invXKnown, mXJob.x, frameY, w, H, mXJob.zoom);
+    bool earlier = false;
+    for (const GpuJob& gj : mGpuJobs) if ((int32_t)(gj.token - mXJob.token) < 0) earlier = true;
+    long dirty[4];
+    const bool partial = pubDirtyTake(mXJob.x, frameY, w, H, mXJob.zoom, false, earlier, dirty);
+    publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr);
+  }
   if (mXJob.kind) {
     // T-517: the frame's time, into its kind's running average
     double& avg = mXJob.kind == 1 ? mXOwnMs : mXCopyMs;
@@ -5011,6 +5087,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           }
           mLatestSlot = slot;
           publishWindow(mActiveKey, 0);   // T-517: the software path's frames start at the pixels' start
+          pubDirtyAll(); mPubZoom = -1.0;   // T-527: the next GPU frame is drawn whole
           mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
           {
             int ps = slotForKey(mActiveKey);
@@ -5524,6 +5601,10 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         // T-515: the express lane published after this job was posted: its frames are newer and its
         // composite the newest; this one is dropped (its slot's record with it)
         const bool xDropped = r >= 0 && oldest.xFrames != mXFrames;
+        // T-527: its composite's change, into the change since the last published frame
+        if (r >= 0) pubDirtyAdd(cr.invLo, cr.invHi, cr.invX0, cr.invX1, cr.invXKnown, oldest.x,
+                                cr.frameYValid ? (int)cr.frameY : oldest.y, oldest.w, oldest.h, oldest.zoom);
+        else pubDirtyAll();
         if (xDropped) {
           if (gslot >= 0) mGpuSlotValid[gslot] = false;
           // T-517: its composite happened: its change goes into the other slots' records (the
@@ -5603,6 +5684,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           gpuT[0] = oldest.t0;
           mGpuJobX = oldest.x; mGpuJobY = frameY; mGpuJobZoom = oldest.zoom;
           mGpuJobViewRow = oldest.viewRow;   // T-507: where the card's view sits in this frame
+          mGpuPubToken = oldest.token;   // T-527: the published job (earlier-posted express jobs not yet polled)
           if (mGpuCriticalPaintMs && oldest.t0 >= mGpuCriticalPaintMs) mGpuCriticalDone = true;   // T-527
           // T-505: the frame's rows outside the page (the overscan above the page's top or below its
           // end) white, as the adapter fills what is past a frame: nothing is drawn there, and a whole
@@ -6106,7 +6188,17 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   {
     // T-502 device rounds: the publish tick's time after the frame came in, around the message
     const int64_t a = jihadNowMs();
-    publishWindow(mActiveKey, pubWin);   // T-517: the frame's window (a GPU frame's; the software path's start at 0)
+    {
+      // T-517: the frame's window (a GPU frame's; the software path's start at 0); T-527: and what
+      // changed since the frame before, when every composite since is known
+      long dirty[4];
+      const bool earlier = (mXJob.on && (int32_t)(mXJob.token - mGpuPubToken) < 0) ||
+                           (mXJob2.on && (int32_t)(mXJob2.token - mGpuPubToken) < 0);
+      const bool partial = gpuFinished &&
+          pubDirtyTake(mGpuJobX, mGpuJobY, paintedW, paintedH, mGpuJobZoom, popupsDrawn > 0, earlier, dirty);
+      if (!gpuFinished) { pubDirtyAll(); mPubZoom = -1.0; }
+      publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr);
+    }
     mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
     const int64_t b = jihadNowMs();
     jihadTimelinePublish("main", gpuFinished ? paintT0 : 0, gpuFinished ? mGpuJobY : paintedTop, oi->contentZoom);

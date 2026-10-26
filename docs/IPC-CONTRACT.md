@@ -58,6 +58,15 @@ What a regeneration owes the contract: `context/kits/cavekit-ipc-contract.md` R1
 - `freeze`/`thaw` detach/reattach the buffers for backgrounded cards (memory
   reclaim). `setWindowSize` / `setVirtualWindowSize` resize the surface and the
   content viewport respectively.
+- **Jihad's segment trailer** (not a message; the messages and `BrowserOffscreenInfo`
+  are unchanged): the last 64 bytes of each segment, past the pixel rows the adapter
+  uses, are `JihadFrameTrailer` (`render/browserserver/Src/JihadFrameWindow.h`). An
+  adapter that made the segment marks it (`adapterCaps`); the daemon then writes,
+  before each `msgPainted`, where in the pixels the frame starts (T-517, the frame
+  window) and the rect that differs from the frame published before it, with both
+  frames' numbers (T-527, the dirty words: the adapter showing that frame may redraw
+  only the rect). Either side from before ignores or leaves the trailer zero, and a
+  zero trailer means the frame starts at the pixels' start and is new everywhere.
 
 
 ## Sync command (adapter → server, blocks for reply)

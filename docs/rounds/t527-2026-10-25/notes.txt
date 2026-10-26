@@ -69,3 +69,39 @@ paragraphs 9 -> 17 -> 25, Wikipedia's panels in place). Verify without the expre
 frames, 0 rows wrong, 0 structurally wrong. The long page's frames now differ below the threshold in most
 frames (53 of 59) where T-519 found none; the head binaries do the same (pan-v4-long-old: 54 of 61), so it is
 not this change (the larger displayport of T-541 or the shipped followOverflow the run used).
+
+
+WebGL, the 480 px cube (R8): 24 fps on the card
+-----------------------------------------------
+Baseline (pan-w1-cube480): the card 16.6-22.0 fps, the page's own 22.0-23.5. Each frame the main lane composed the
+canvas's 354-row change in the frame-sized target (it did not fit the 256-row band surface): compose 2-5 ms, then the
+read of 354 rows x 456 columns waited 32-52 ms for the GPU (the whole 768x1224 target cleared, drawn and resolved).
+1. The card redraws only what changed (r304's measured option, now with a side channel): the daemon writes the rect
+   that differs from the frame published before into the segment's trailer (JihadFrameWindow.h: dirtyMagic,
+   dirtyLeft..dirtyBottom, dirtySeq, dirtyBase; the union of every composite's change since that frame, at its
+   geometry; anything unknown, a forgotten job, popups, a software frame, an earlier-posted job not yet polled, makes
+   it whole), and the adapter invalidates only that rect when it shows frame dirtyBase at the same geometry and
+   zoom and its own scroll has not moved (BrowserAdapter::msgPainted). Proven end to end (pan-w3, the adapter's paint
+   log on for the run): 515 partial invalidations against 24 whole, the rect x 105..457 rows 231..585. The card
+   alone: 18-22 fps (the daemon's job was the bound).
+2. A tall band surface (engine 0063, JIHAD_GPU_BAND_TALL, 512 rows): a change that does not fit the band surface
+   takes a 512-row band pass instead of the frame-sized target; frames are packed for the 256-row surface first.
+   The cube's job 15-30 ms (pan-w4 with JIHAD_GPU_BAND_ROWS=512 first, then pan-w5 with the tall surface).
+After both, the sensors running (pan-w5, pan-w6): 480 px 25.3-28.0 fps on the card (the page 28.5-30), 360 px
+28.9-29.9 (one 13.5 window), 240 px 29.4-30.0 (the page's own ~30). Verify with a ticker beside the canvas and the cube
+stopped (pan-v5-cube480): 24 frames, 0 rows wrong; the screenshot shows the cube and the ticker (pan-v5-cube480.jpg).
+Desktop Wikipedia's pan with the tall surface (pan-t1-wiki): 20.5 (the first scroll's restyle), 27.0, 27.0 fps; with
+JIHAD_GPU_BAND_ROWS=512 instead (pan-b512-wiki) 21.2/22.0/26.0 — the reason the band surface stays 256.
+Found on the way: the PDK adapter had not built since T-540 (YapProxy.h's member initializer m_sendFailed, which the
+PDK's gcc 4.3.3 rejects): the shipped adapters predate T-540, and a fresh package build would have failed.
+
+The pan's 56 ms+ gaps (R3): traced
+----------------------------------
+tools/host/gap-trace.py <log> on a JIHAD_GPU_TIMELINE=1 pan (the express lane now notes why it made no frame:
+"express idle: ..."). Desktop Wikipedia, 10 s pan, sensors running (pan-g2-wiki): 24 gaps of 56 ms or more in 252
+frames. Their sources: an express job of 50-100 ms on the compositor loop while the two-deep pipeline waits for it
+(the frame whose tree changed: a whole read of 300-1200 rows, 35-73 ms of it the read; the band frame's copy from
+the base 10-14 ms when the page has a stuck header); a job queued 25-88 ms behind the page's own layer transaction
+(the tile uploads of a displayport move); once, 166 ms with all three buffers held by the card ("no slot: in flight
+111"). The steady frame is ~30 ms (compose ~8, copy from the base 10-14, read 7-12). With the tall band surface the
+count is the same (pan-g3-wiki: 19). None of them is the daemon waiting on its own main thread any more.

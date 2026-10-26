@@ -100,6 +100,22 @@ BrowserOffscreen* BrowserOffscreen::create()
     return new BrowserOffscreen(buffer);
 }
 
+uint32_t BrowserOffscreen::frameSeq() const
+{
+    const JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());
+    return (t && t->magic == kJihadWindowMagic) ? t->dirtySeq : 0;
+}
+
+bool BrowserOffscreen::dirtyRect(uint32_t* base, int* left, int* top, int* right, int* bottom) const
+{
+    const JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());
+    if (!t || t->magic != kJihadWindowMagic || t->dirtyMagic != kJihadDirtyMagic)
+        return false;
+    *base = t->dirtyBase;
+    *left = t->dirtyLeft; *top = t->dirtyTop; *right = t->dirtyRight; *bottom = t->dirtyBottom;
+    return true;
+}
+
 BrowserOffscreen* BrowserOffscreen::attach(int key, int size)
 {
     IpcBuffer* buffer = IpcBuffer::attach(key, size);

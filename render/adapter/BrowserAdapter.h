@@ -676,6 +676,9 @@ private:
     int m_zoomYInterval;
     double m_zoomLevelInterval;
     int m_headerHeight; ///< Height (in pixels) of the header which is a space above the page we don't draw.
+    // T-527: the card's scroll and header when the shown frame was invalidated (msgPainted): a partial
+    // redraw of the next frame holds only while they are the same
+    int mJihadPaintScrollX, mJihadPaintScrollY, mJihadPaintHeader;
 
     void showScrollbar();
     void startFadeScrollbar();

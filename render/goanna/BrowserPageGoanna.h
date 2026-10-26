@@ -371,7 +371,19 @@ private:
   // (null when it cannot be had), and the window a frame is published with (written before each
   // msgPainted, 0 = the pixels' start, as every frame was before)
   JihadFrameTrailer* shmTrailer(int key);
-  void               publishWindow(int key, int windowRows);
+  // T-527: what changed on the card since the last published frame, in frame px, for the adapter's
+  // partial invalidation (the trailer's dirty words, JihadFrameWindow.h): the union of every
+  // composite's change since then, at that frame's geometry. Anything not known (a job given up,
+  // another geometry, popups, a software frame, an earlier job not yet polled) makes it the whole.
+  struct PubDirty { bool all = true; long lo = 0, hi = 0, x0 = 0, x1 = 0; };
+  PubDirty mPubDirty;
+  int mPubX = 0, mPubY = 0, mPubW = 0, mPubH = 0; double mPubZoom = -1.0; bool mPubPopups = false;
+  uint32_t mPubSeq = 0;   // the publishes so far (the trailer's dirtySeq)
+  void pubDirtyAll() { mPubDirty.all = true; }
+  void pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKnown, int x, int y, int w, int h, double zoom);
+  // at a publish: the rect for the trailer (false: the whole), and the published frame's geometry kept
+  bool pubDirtyTake(int x, int y, int w, int h, double zoom, bool popups, bool earlierUnknown, long out[4]);
+  void               publishWindow(int key, int windowRows, const long* dirty = nullptr);   // T-527: dirty = l, t, r, b (frame px), else the whole
   void               detachShm();               // shmdt all cached (on thaw/teardown)
   // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
   // previous one (asyncCmdReturnBuffer) each time it receives a new msgPainted. A buffer that has
@@ -461,6 +473,7 @@ private:
   int                mGpuJobPolls = 0;        // ticks that found the oldest pending
   uint32_t           mGpuTrace[8] = {0,0,0,0,0,0,0,0};   // device rounds: where ticks went while a job was pending
   int64_t            mGpuDoneMs = 0;          // when the frame came in (the publish timing)
+  uint32_t           mGpuPubToken = 0;        // T-527: the job of the main lane's frame being published
   bool               mGpuRestarting = false;  // re-entered to start the next frame right after a publish
   bool               mGpuSlotValid[3] = {false, false, false};
   int                mGpuSlotX[3] = {0, 0, 0}, mGpuSlotY[3] = {0, 0, 0};
@@ -563,7 +576,7 @@ private:
   void xInvalidate() { ++mXGeomGen; mXSnap.ok = false; mXPub = XPub(); mXMainPubMs = 0; }
   bool xStart(int64_t now, double zoom, const XWant& want, int64_t waitSince, const XJob* aBase = nullptr);
   // T-517: a forgotten job may have been composed: its change is in no slot's record
-  void xForget(XJob& j) { if (j.on && mPage) { mPage->ComposeForget(j.token); gpuSlotsLost(); } j = XJob(); }
+  void xForget(XJob& j) { if (j.on && mPage) { mPage->ComposeForget(j.token); gpuSlotsLost(); pubDirtyAll(); } j = XJob(); }
   bool xLeads(int64_t now);           // the card is moving: the express lane makes the frames (the frame lock held)
   int64_t mXMainPaintMs = 0;          // the main lane's last layer paint while the express lane leads
   bool xPoll(int64_t now);

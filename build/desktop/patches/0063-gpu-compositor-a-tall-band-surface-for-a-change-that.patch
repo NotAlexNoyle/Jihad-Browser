@@ -1,0 +1,276 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 25 Oct 2026 22:02:16 -0400
+Subject: [PATCH] gpu-compositor: a tall band surface for a change that does
+ not fit the band surface
+
+cavekit-gpu-rendering.md R8 / T-527. A frame whose change does not fit the 256-row band surface took the
+whole path: the frame-sized target (768x1224) cleared, drawn and resolved on the Adreno 220 every frame, and
+the read waited for all of it. A 480 px WebGL canvas changes 354-482 rows a frame, so every frame of the
+spinning cube went that way (the job ~45 ms, the card 16.6-22.0 fps while the page drew 22-24). A second,
+taller band surface (JIHAD_GPU_BAND_TALL rows, default 512, 0 off; its own pbuffer and target, freed with
+the context like the band surface's) takes such a frame; frames are packed for the band surface first, so
+one that fits it never pays the tall one (desktop Wikipedia's chunked pan frames stay where they were). The
+cube's job 15-30 ms; with the daemon's partial invalidation the card shows 25.3-28.0 fps at 480 px.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ gfx/gl/GLContextEGL.h                     |  6 +++-
+ gfx/gl/GLContextProviderEGL.cpp           | 33 +++++++++++--------
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 28 ++++++++++++++--
+ gfx/layers/opengl/CompositorOGL.cpp       | 40 +++++++++++++++--------
+ gfx/layers/opengl/CompositorOGL.h         | 19 +++++++++--
+ 5 files changed, 92 insertions(+), 34 deletions(-)
+
+diff --git a/gfx/gl/GLContextEGL.h b/gfx/gl/GLContextEGL.h
+index 13459d1f5b..7d1268821e 100644
+--- a/gfx/gl/GLContextEGL.h
++++ b/gfx/gl/GLContextEGL.h
+@@ -96,10 +96,14 @@ public:
+     EGLSurface mJihadPbOverride = nullptr;
+     // Round 106: a band-sized pbuffer made current for the band composites of a scroll-only
+     // frame, then the frame's pbuffer again. false when the band pbuffer cannot be made.
+-    bool JihadUseBandPBuffer(int aWidth, int aHeight);
++    // T-527: aTall picks a second pbuffer of its own (the tall band surface), so a frame that needs
++    // the tall one and the next that needs the short one do not remake either
++    bool JihadUseBandPBuffer(int aWidth, int aHeight, bool aTall = false);
+     void JihadUseFramePBuffer();
+     EGLSurface mJihadBandPb = nullptr;
+     int mJihadBandPbW = 0, mJihadBandPbH = 0;
++    EGLSurface mJihadBandPbTall = nullptr;
++    int mJihadBandPbTallW = 0, mJihadBandPbTallH = 0;
+ 
+     virtual bool MakeCurrentImpl(bool aForce) override;
+ 
+diff --git a/gfx/gl/GLContextProviderEGL.cpp b/gfx/gl/GLContextProviderEGL.cpp
+index eb00bc01f0..58329c0236 100644
+--- a/gfx/gl/GLContextProviderEGL.cpp
++++ b/gfx/gl/GLContextProviderEGL.cpp
+@@ -261,8 +261,10 @@ GLContextEGL::~GLContextEGL()
+ 
+     // Jihad (T-513 review): the frame-sized and the band pbuffers made for this context
+     if (mJihadBandPb && mJihadBandPb != mSurface) DestroySurface(mJihadBandPb);
+-    if (mJihadPbOverride && mJihadPbOverride != mSurface && mJihadPbOverride != mJihadBandPb) DestroySurface(mJihadPbOverride);
+-    mJihadBandPb = mJihadPbOverride = nullptr;
++    if (mJihadBandPbTall && mJihadBandPbTall != mSurface) DestroySurface(mJihadBandPbTall);   // T-527
++    if (mJihadPbOverride && mJihadPbOverride != mSurface && mJihadPbOverride != mJihadBandPb &&
++        mJihadPbOverride != mJihadBandPbTall) DestroySurface(mJihadPbOverride);
++    mJihadBandPb = mJihadBandPbTall = mJihadPbOverride = nullptr;
+     DestroySurface(mSurface);
+ }
+ 
+@@ -373,25 +375,28 @@ GLContextEGL::JihadUsePBufferOfSize(int aWidth, int aHeight)
+ }
+ 
+ bool
+-GLContextEGL::JihadUseBandPBuffer(int aWidth, int aHeight)
++GLContextEGL::JihadUseBandPBuffer(int aWidth, int aHeight, bool aTall)
+ {
+-    if (!mJihadBandPb || mJihadBandPbW != aWidth || mJihadBandPbH != aHeight) {
+-        if (mJihadBandPb) {
+-            if (mSurfaceOverride == mJihadBandPb) JihadUseFramePBuffer();
+-            sEGLLibrary.fDestroySurface(EGL_DISPLAY(), mJihadBandPb);
+-            mJihadBandPb = nullptr;
++    EGLSurface& pb = aTall ? mJihadBandPbTall : mJihadBandPb;
++    int& pbW = aTall ? mJihadBandPbTallW : mJihadBandPbW;
++    int& pbH = aTall ? mJihadBandPbTallH : mJihadBandPbH;
++    if (!pb || pbW != aWidth || pbH != aHeight) {
++        if (pb) {
++            if (mSurfaceOverride == pb) JihadUseFramePBuffer();
++            sEGLLibrary.fDestroySurface(EGL_DISPLAY(), pb);
++            pb = nullptr;
+         }
+         const EGLint attrs[] = { LOCAL_EGL_WIDTH, aWidth, LOCAL_EGL_HEIGHT, aHeight, LOCAL_EGL_NONE };
+-        mJihadBandPb = sEGLLibrary.fCreatePbufferSurface(EGL_DISPLAY(), mConfig, attrs);
+-        if (!mJihadBandPb) {
++        pb = sEGLLibrary.fCreatePbufferSurface(EGL_DISPLAY(), mConfig, attrs);
++        if (!pb) {
+             fprintf(stderr, "[jihad-gpu] a %dx%d band pbuffer could not be made (0x%x)\n", aWidth, aHeight, sEGLLibrary.fGetError());
+             return false;
+         }
+-        mJihadBandPbW = aWidth; mJihadBandPbH = aHeight;
+-        JIHAD_GPU_LOG("[jihad-gpu] band pbuffer %dx%d made\n", aWidth, aHeight);
++        pbW = aWidth; pbH = aHeight;
++        JIHAD_GPU_LOG("[jihad-gpu] band pbuffer %dx%d made%s\n", aWidth, aHeight, aTall ? " (the tall one)" : "");
+     }
+-    if (mSurfaceOverride != mJihadBandPb) {
+-        mSurfaceOverride = mJihadBandPb;
++    if (mSurfaceOverride != pb) {
++        mSurfaceOverride = pb;
+         MakeCurrent(true);
+     }
+     return true;
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 4650113654..7478575b87 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1921,7 +1921,19 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         int dfNChunks = 0;
+         dfSpan = JihadPackColumns(dfCols, dfNCols, total, ogl->JihadBandRows(), aWidth, dfChunks, &dfNChunks);   // round 142
+       }
+-      if (total > 0 && dfSpan >= 0 && total + dfSpan <= ogl->JihadBandRows()) {
++      // T-527: packed for the band surface first; a frame that does not fit it takes the tall one
++      bool dfFits = total > 0 && dfSpan >= 0 && total + dfSpan <= ogl->JihadBandRows();
++      const int dfTall = ogl->JihadBandTallRows();
++      if (!dfFits && dfTall > 0 && total > 0) {
++        int span2 = 0;
++        if (JihadFixedCols()) {
++          JihadChunk dfChunks2[12];
++          int dfNChunks2 = 0;
++          span2 = JihadPackColumns(dfCols, dfNCols, total, dfTall, aWidth, dfChunks2, &dfNChunks2);
++        }
++        if (span2 >= 0 && total + span2 <= dfTall) { dfSpan = span2; dfFits = true; }
++      }
++      if (dfFits) {
+         aReq->lo = iv[0][0]; aReq->hi = iv[0][1];
+         aReq->lo2 = n > 1 ? iv[1][0] : 0; aReq->hi2 = n > 1 ? iv[1][1] : 0;
+         aReq->nCols = dfNCols;
+@@ -1968,7 +1980,17 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     const int fullAsked = (b1 ? std::min(aHeight, aReq->hi) - std::max(0, aReq->lo) : 0) + (b2 ? std::min(aHeight, aReq->hi2) - std::max(0, aReq->lo2) : 0);
+     JihadChunk chunks[12];
+     int nChunks = 0;
+-    const int chunkRows = JihadPackColumns(aReq->cols, aReq->nCols, fullAsked, ogl->JihadBandRows(), aWidth, chunks, &nChunks);
++    int chunkRows = JihadPackColumns(aReq->cols, aReq->nCols, fullAsked, ogl->JihadBandRows(), aWidth, chunks, &nChunks);
++    // T-527: packed for the band surface first; the tall one's rows only when that does not fit
++    if (!(chunkRows >= 0 && fullAsked + chunkRows <= ogl->JihadBandRows()) && ogl->JihadBandTallRows() > 0) {
++      JihadChunk chunks2[12];
++      int nChunks2 = 0;
++      const int cr2 = JihadPackColumns(aReq->cols, aReq->nCols, fullAsked, ogl->JihadBandTallRows(), aWidth, chunks2, &nChunks2);
++      if (cr2 >= 0 && fullAsked + cr2 <= ogl->JihadBandTallRows()) {
++        chunkRows = cr2; nChunks = nChunks2;
++        for (int c = 0; c < nChunks2; c++) chunks[c] = chunks2[c];
++      }
++    }
+     // T-513 (review): the regions of one composite are at most 12, bands included: chunks past that
+     // would be read without being composed, so such a frame does not fit
+     const bool fits = chunkRows >= 0 && fullAsked + chunkRows <= bandMax && nChunks + (b1 ? 1 : 0) + (b2 ? 1 : 0) <= 12;
+@@ -1985,7 +2007,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       // the band pass: its own small surface and target when available (round 106), else the
+       // stack at the top of the frame-sized target (round 105)
+       const TimeStamp tp0 = TimeStamp::Now();
+-      const int passRows = (top > 0 && top <= ogl->JihadBandRows()) ? ogl->JihadBeginBandPass(aWidth) : 0;
++      const int passRows = top > 0 ? ogl->JihadBeginBandPass(aWidth, top) : 0;   // T-527: the band surface or the tall one
+       if (!passRows) {
+         // T-513 (review): stacked at the top of the frame-sized target, so the frame's own surface
+         // current (a band frame before this one left the band pbuffer current, and on the Adreno 220
+diff --git a/gfx/layers/opengl/CompositorOGL.cpp b/gfx/layers/opengl/CompositorOGL.cpp
+index 21dd27b6fe..ed16534208 100644
+--- a/gfx/layers/opengl/CompositorOGL.cpp
++++ b/gfx/layers/opengl/CompositorOGL.cpp
+@@ -261,6 +261,9 @@ CompositorOGL::CleanupResources()
+   if (mJihadBandFBO) mGLContext->fDeleteFramebuffers(1, &mJihadBandFBO);
+   if (mJihadBandRB) mGLContext->fDeleteRenderbuffers(1, &mJihadBandRB);
+   mJihadBandFBO = mJihadBandRB = 0;
++  if (mJihadBandTallFBO) mGLContext->fDeleteFramebuffers(1, &mJihadBandTallFBO);   // T-527
++  if (mJihadBandTallRB) mGLContext->fDeleteRenderbuffers(1, &mJihadBandTallRB);
++  mJihadBandTallFBO = mJihadBandTallRB = 0;
+   if (mJihadReadFBO) mGLContext->fDeleteFramebuffers(1, &mJihadReadFBO);
+   if (mJihadReadRB) mGLContext->fDeleteRenderbuffers(1, &mJihadReadRB);
+   mJihadReadFBO = mJihadReadRB = 0;
+@@ -2329,35 +2332,44 @@ CompositorOGL::JihadEnsureTargetSize(int aWidth, int aHeight)
+ }
+ 
+ int
+-CompositorOGL::JihadBeginBandPass(int aWidth)
++CompositorOGL::JihadBeginBandPass(int aWidth, int aRows)
+ {
+   static const bool sOff = getenv("JIHAD_GPU_BAND_SURFACE") && !strcmp(getenv("JIHAD_GPU_BAND_SURFACE"), "0");
+   if (sOff || aWidth <= 0 || mGLContext->GetContextType() != GLContextType::EGL) {
+     return 0;
+   }
++  // T-527: the band surface, or the tall one when the pass needs more rows than the band surface has
++  const bool tall = aRows > JihadBandRows();
++  const int rows = tall ? JihadBandTallRows() : JihadBandRows();
++  if (rows <= 0 || aRows > rows) {
++    return 0;
++  }
++  GLuint& rb = tall ? mJihadBandTallRB : mJihadBandRB;
++  GLuint& fbo = tall ? mJihadBandTallFBO : mJihadBandFBO;
++  int& w = tall ? mJihadBandTallW : mJihadBandW;
+   GLContextEGL* egl = static_cast<GLContextEGL*>(mGLContext.get());
+-  if (!egl->JihadUseBandPBuffer(aWidth, JihadBandRows())) {
++  if (!egl->JihadUseBandPBuffer(aWidth, rows, tall)) {
+     return 0;
+   }
+-  if (!mJihadBandFBO || mJihadBandW != aWidth) {
+-    if (!mJihadBandRB) mGLContext->fGenRenderbuffers(1, &mJihadBandRB);
+-    mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, mJihadBandRB);
+-    mGLContext->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */, aWidth, JihadBandRows());
++  if (!fbo || w != aWidth) {
++    if (!rb) mGLContext->fGenRenderbuffers(1, &rb);
++    mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, rb);
++    mGLContext->fRenderbufferStorage(LOCAL_GL_RENDERBUFFER, 0x8058 /* GL_RGBA8_OES */, aWidth, rows);
+     mGLContext->fBindRenderbuffer(LOCAL_GL_RENDERBUFFER, 0);
+-    if (!mJihadBandFBO) mGLContext->fGenFramebuffers(1, &mJihadBandFBO);
+-    mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mJihadBandFBO);
+-    mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, mJihadBandRB);
++    if (!fbo) mGLContext->fGenFramebuffers(1, &fbo);
++    mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, fbo);
++    mGLContext->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0, LOCAL_GL_RENDERBUFFER, rb);
+     const GLenum st = mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
+     if (st != LOCAL_GL_FRAMEBUFFER_COMPLETE) {
+-      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x)\n", aWidth, JihadBandRows(), st);
++      fprintf(stderr, "[jihad-gpu] band target %dx%d incomplete (0x%x)\n", aWidth, rows, st);
+       egl->JihadUseFramePBuffer();
+       return 0;
+     }
+-    mJihadBandW = aWidth;
+-    JIHAD_GPU_LOG("[jihad-gpu] band target %dx%d: FBO %u on its own pbuffer\n", aWidth, JihadBandRows(), mJihadBandFBO);
++    w = aWidth;
++    JIHAD_GPU_LOG("[jihad-gpu] band target %dx%d: FBO %u on its own pbuffer%s\n", aWidth, rows, fbo, tall ? " (the tall one)" : "");
+   }
+-  mJihadWindowFBO = mJihadBandFBO;
+-  return JihadBandRows();
++  mJihadWindowFBO = fbo;
++  return rows;
+ }
+ 
+ void
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index a4c738dc47..0c27bb890a 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -242,12 +242,13 @@ public:
+   // A separate band-sized FBO broke on the Adreno 220: the driver bins an FBO render by the EGL
+   // surface's size, so any target or viewport smaller than the surface lost rows (round 104).
+   // 0 rows when off (JIHAD_GPU_NO_BAND_TARGET=1).
+-  int JihadBandMaxRows() const { static const bool sOff = getenv("JIHAD_GPU_NO_BAND_TARGET") != nullptr; return sOff ? 0 : (JihadBandRows() > 320 ? JihadBandRows() : 320); }
++  int JihadBandMaxRows() const { static const bool sOff = getenv("JIHAD_GPU_NO_BAND_TARGET") != nullptr; const int m = JihadBandRows() > JihadBandTallRows() ? JihadBandRows() : JihadBandTallRows(); return sOff ? 0 : (m > 320 ? m : 320); }
+   // Round 106: the band pass on its own surface (JIHAD_GPU_BAND_SURFACE=0 keeps the stack in the
+   // frame-sized target): a 256-row pbuffer and an FBO of the same size are made current, so the
+   // composite costs the band, not the frame; JihadEndBandPass puts the frame's surface and
+   // target back. Returns the band target's rows, 0 when the band pass is not available.
+-  int JihadBeginBandPass(int aWidth);
++  // T-527: aRows the pass needs: the band surface when they fit it, else the tall one when they fit that
++  int JihadBeginBandPass(int aWidth, int aRows);
+   void JihadEndBandPass();
+   void JihadUseFrameSurface();   // the frame's pbuffer current again (before a whole composite)
+   // T-513 (review): the reads that follow belong to a request the daemon may give up while the GPU
+@@ -255,6 +256,8 @@ public:
+   void JihadSetCancel(const mozilla::Atomic<bool>* aCancel) { mJihadCancel = aCancel; }
+   GLuint mJihadBandRB = 0, mJihadBandFBO = 0;
+   int mJihadBandW = 0;
++  GLuint mJihadBandTallRB = 0, mJihadBandTallFBO = 0;   // T-527: the tall band surface's target
++  int mJihadBandTallW = 0;
+   // the band surface's rows: JIHAD_GPU_BAND_ROWS (64..942, default 256; round 137)
+   static int JihadBandRows() {
+     static const int sRows = [] {
+@@ -264,6 +267,18 @@ public:
+     }();
+     return sRows;
+   }
++  // T-527: a second, taller band surface for a frame whose change does not fit the band surface (a
++  // 480 px WebGL canvas changes 354-482 rows a frame and took the whole frame-sized target, 768x1224
++  // cleared, drawn and resolved every frame): JIHAD_GPU_BAND_TALL (default 512, 0 off). Frames are
++  // packed for the band surface first, so a frame that fits it never pays the tall one.
++  static int JihadBandTallRows() {
++    static const int sRows = [] {
++      const char* e = getenv("JIHAD_GPU_BAND_TALL");
++      const int r = e ? atoi(e) : 512;
++      return r <= JihadBandRows() ? 0 : (r > 942 ? 942 : r);
++    }();
++    return sRows;
++  }
+   void JihadShiftRowsNow(JihadFrameRequest* aReq);
+   uint8_t* JihadBandScratch(size_t aBytes);   // the stacked bands' read, at least aBytes
+   bool JihadReadAsync(JihadFrameRequest* aReq);

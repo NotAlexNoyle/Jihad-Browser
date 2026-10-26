@@ -571,6 +571,9 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , m_zoomYInterval(0)
     , m_zoomLevelInterval(0)
     , m_headerHeight(0)
+    , mJihadPaintScrollX(-1)
+    , mJihadPaintScrollY(-1)
+    , mJihadPaintHeader(-1)
     , mScrollbarOpacity(0)
     , mScrollbarFadeSource(0)
     , m_bufferLock(0)
@@ -4214,6 +4217,16 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
         return;
     }
 
+    // T-527: the frame shown until now (its number and geometry), for a partial redraw below
+    uint32_t shownSeq = 0;
+    BrowserOffscreenInfo shown;
+    bool haveShown = false;
+    if (mOffscreenCurrent && mOffscreenCurrent->header()) {
+        shownSeq = mOffscreenCurrent->frameSeq();
+        shown = *mOffscreenCurrent->header();
+        haveShown = true;
+    }
+
     if (mOffscreenCurrent) {
         assert(mOffscreenCurrent->ipcBuffer()->key() != sharedBufferKey);
         asyncCmdReturnBuffer(mOffscreenCurrent->key());
@@ -4227,7 +4240,42 @@ void BrowserAdapter::msgPainted(int32_t sharedBufferKey)
       fprintf(lf, "[msgp] key=%d recv=%d frozen=%d rW=%d rH=%d win[%ux%u] -> invalidate\n",
         sharedBufferKey, receivedBuffer, mFrozen?1:0, pi?pi->renderedWidth:-1, pi?pi->renderedHeight:-1,
         mWindow.width, mWindow.height); }
-    invalidate();
+    // T-527: when the daemon says what differs from the frame on screen (JihadFrameWindow.h) and the
+    // frames are of one geometry at the card's own zoom, only that rect is redrawn: the card's blit of
+    // a whole frame for a changed strip (a WebGL canvas, an animation, typing) was a fifth of
+    // LunaSysMgr's time on the 480 px WebGL cube (r304). Anything else redraws the whole.
+    {
+        BrowserOffscreenInfo* ni = mOffscreenCurrent->header();
+        uint32_t base = 0;
+        int dl = 0, dt = 0, dr = 0, db = 0;
+        const bool partial = haveShown && ni && shownSeq != 0 &&
+            mOffscreenCurrent->dirtyRect(&base, &dl, &dt, &dr, &db) && base == shownSeq &&
+            ni->renderedX == shown.renderedX && ni->renderedY == shown.renderedY &&
+            ni->renderedWidth == shown.renderedWidth && ni->renderedHeight == shown.renderedHeight &&
+            ni->contentZoom == shown.contentZoom && fabs(ni->contentZoom - mZoomLevel) < 1e-6 &&
+            mScrollPos.x == mJihadPaintScrollX && mScrollPos.y == mJihadPaintScrollY && m_headerHeight == mJihadPaintHeader;
+        mJihadPaintScrollX = mScrollPos.x; mJihadPaintScrollY = mScrollPos.y; mJihadPaintHeader = m_headerHeight;
+        if (FILE* lf = jihadPaintLog())
+            fprintf(lf, "[msgp-dirty] seq=%u shown=%u base=%u partial=%d rect[%d,%d %d,%d]\n",
+                    mOffscreenCurrent->frameSeq(), shownSeq, base, (int)partial, dl, dt, dr, db);
+        if (partial) {
+            // buffer px to the plugin's (the blit's mapping at a scale of 1)
+            const int pageScrollY = mScrollPos.y - m_headerHeight;
+            int l = dl + ni->renderedX - mScrollPos.x, r = dr + ni->renderedX - mScrollPos.x;
+            int t = dt + ni->renderedY - pageScrollY, b = db + ni->renderedY - pageScrollY;
+            if (l < 0) l = 0;
+            if (t < 0) t = 0;
+            if (r > (int)mWindow.width) r = mWindow.width;
+            if (b > (int)mWindow.height) b = mWindow.height;
+            if (r > l && b > t) {
+                NPRect dirty;
+                dirty.left = l; dirty.top = t; dirty.right = r; dirty.bottom = b;
+                NPN_InvalidateRect(&dirty);
+            }
+        } else {
+            invalidate();
+        }
+    }
 
     if (m_bufferLock)
         sem_post(m_bufferLock);

@@ -83,6 +83,7 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   manager's search box, its magnifier tapped), My Add-ons: twelve results, two drags reach Pad 12. Their rows read
   "Remove" where the owner asked for "Uninstall" on every add-on (2026-10-08): fixed (the search list relabelled
   as its results arrive; `search-list` added to JihadEngine.jsm's surface table). Ticked.)*
+- [x] The search results' length follows the My Add-ons / Available Add-ons filter *(added 2026-10-26 from T-527's second review: the filter shows other rows without a view change; the search list's filter attributes are observed — by finger in Enyo, My Add-ons 1540 rows, Available 1202, My 1540 again)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
 ### R3: Jihad's pages move like web pages

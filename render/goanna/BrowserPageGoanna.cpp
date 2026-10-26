@@ -488,7 +488,7 @@ static void jihadExpressThread() {
     if (now - w0 >= 30 && jihadTimelineOn())   // device rounds: the main thread held the frame lock this long
       fprintf(stderr, "[jihad-tl] t=%lld express waited %ld ms for the frame lock\n", (long long)now, (long)(now - w0));
     if (gXPages) for (BrowserPageGoanna* p : *gXPages) {
-      soon = p->expressStep(now) || soon; soon = p->overviewStep(now) || soon; soon = p->cpuPartsStep(now) || soon;
+      soon = p->expressStep(now) || soon; soon = p->overviewStep(now) || soon;
     }
     jihadBoostFrameThreads();
   }
@@ -718,12 +718,16 @@ void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty
     // T-544: the frame's fixed and stuck rects for the card (JIHAD_GPU_NO_HOLD=1: none, as before)
     static const bool sNoHold = getenv("JIHAD_GPU_NO_HOLD") != nullptr;
     sb->magic = 0;
-    if (stuck && stuck->nStuck > 0 && !sNoHold) {
+    // T-505 (review): a frame without its parts lists every fixed and sticky layer as a part; the card's hold set is
+    // the engine's hold list (fixed and stuck ones), as T-544 meant
+    const int nHeld = stuck ? (stuck->holdKnown ? stuck->nHold : stuck->nStuck) : 0;
+    const int (*held)[4] = stuck ? (stuck->holdKnown ? stuck->hold : stuck->stuck) : nullptr;
+    if (nHeld > 0 && !sNoHold) {
       sb->seq = mPubSeq;
       sb->viewX = 0; sb->viewY = viewRow;
-      sb->count = std::min(stuck->nStuck, kJihadStuckMax);
+      sb->count = std::min(nHeld, kJihadStuckMax);
       for (int k = 0; k < sb->count; k++)
-        for (int c = 0; c < 4; c++) sb->rects[k][c] = stuck->stuck[k][c];
+        for (int c = 0; c < 4; c++) sb->rects[k][c] = held[k][c];
       sb->magic = kJihadStuckMagic;
       static uint32_t sN = 0;
       if (jihadTimelineOn() && (sN++ % 25) == 0)
@@ -836,6 +840,7 @@ BrowserPageGoanna::~BrowserPageGoanna() {
   if (gXPages) gXPages->erase(this);
   overviewForget();   // T-504
   cpuPartsForget();   // T-505
+  partsBufsBury();
   // T-512: the lanes' count, one line a page (the [jihad-gpu] lines are off by default; the device
   // rounds' default checks read this one)
   if (mPage && mPage->GpuPath())
@@ -1931,170 +1936,107 @@ void BrowserPageGoanna::overviewForget() {
 
 // T-505 (the owner's CPU/GPU split): the parts on the CPU (see BrowserPageGoanna.h, PartsPic)
 bool BrowserPageGoanna::cpuPartsOn() const {
-  static const bool sOn = getenv("JIHAD_GPU_CPU_PARTS") != nullptr;
+  // on (the owner, 2026-10-26); JIHAD_GPU_CPU_PARTS=0 or the gate file <state>/no-cpu-parts (read once) turns it off
+  static const bool sOn = [] {
+    const char* e = getenv("JIHAD_GPU_CPU_PARTS");
+    if (e && !strcmp(e, "0")) return false;
+    const std::string sd = jihad::RuntimeStateDir();
+    return sd.empty() || access((sd + "/no-cpu-parts").c_str(), F_OK) != 0;
+  }();
   return sOn && !mPartsOff && mPage && mPage->GpuPath() && mPage->PartsReady() && !mGpuRootless;
 }
 
-// JIHAD_GPU_CPU_PARTS_STALE (a measurement for the owner): while a changed part's picture is made, the frames keep the
-// one before it (at most 600 ms behind) instead of going back to the engine's parts for those frames and back again
-static bool jihadPartsStaleOk() { static const bool s = getenv("JIHAD_GPU_CPU_PARTS_STALE") != nullptr; return s; }
-
-bool BrowserPageGoanna::cpuPartsFor(double Z, int x, int w, int H, int os) const {
-  const PartsPic& p = mPP;
-  const bool genOk = !mPartsGenKnown || p.gen == mPartsGenNow ||
-                     (jihadPartsStaleOk() && mPartsStaleSince && jihadNowMs() - mPartsStaleSince < 600);
-  // the frame's height and overscan row need not be the picture's: each frame says where its parts are, and a part's
-  // pixels do not depend on where it sits (the fling lead moves the overscan row at every drag's end)
-  (void)H; (void)os;
-  return cpuPartsOn() && p.ok && !p.miss && fabs(p.zoom - Z) < 1e-6 && p.x == x && p.w == w && genOk;
+bool BrowserPageGoanna::cpuPartsFor() const {
+  return cpuPartsOn() && jihadNowMs() >= mPartsOffUntil;
 }
 
-// the parts' generation a composite saw: the picture older than it since when
-void BrowserPageGoanna::partsGenSeen(uint32_t g) {
-  mPartsGenNow = g; mPartsGenKnown = true;
-  if (!mPP.ok || mPP.gen == g) mPartsStaleSince = 0;
-  else if (!mPartsStaleSince) mPartsStaleSince = jihadNowMs();
-}
-
-// The picture's job, on the express thread after its step (the frame lock held): the parts alone (flags 64 and 128, a
-// verify composite: the lanes' next frames see no change from it) at the card's newest position, read with their alpha;
-// each part's rect cropped out of it. True while it is in flight.
-__attribute__((optimize("O2"))) bool BrowserPageGoanna::cpuPartsStep(int64_t now) {
-  if (!cpuPartsOn()) return false;
-  PartsPic& p = mPP;
-  const XSnap& S = mXSnap;
-  if (p.building) {
-    GoannaRenderPage::ComposeResult cr;
-    const int r = mPage->ComposePoll(p.token, nullptr, &cr);
-    if (r == -2 || r == -3) {
-      if (now - p.tPost > 3000) { JIHAD_GPU_LOG("[jihad-gpu] cpu parts: the picture not composed in 3 s\n"); cpuPartsForget(); }
-      return p.building;
-    }
-    p.building = false; p.token = 0;
-    if (r >= 0 && cr.partsGenKnown) partsGenSeen(cr.partsGen);
-    // (its own geometry is what it was composed at: only another width makes it useless)
-    if (r < 0 || !S.ok || S.w != p.bW) { p.scratch.reset(); p.scratchBytes = 0; return false; }
-    // each part's rows as read, with their alpha (frame px of the job's frame)
-    const int W = p.bW, H = p.bH;
-    int n = 0, rr[4][4]; size_t bytes = 0;
-    for (int i = 0; i < cr.nStuck && i < 4; i++) {
-      const int x0 = std::max(0, cr.stuck[i][0]), x1 = std::min(W, cr.stuck[i][2]);
-      const int y0 = std::max(0, cr.stuck[i][1]), y1 = std::min(H, cr.stuck[i][3]);
-      if (x1 <= x0 || y1 <= y0) continue;
-      rr[n][0] = x0; rr[n][1] = y0; rr[n][2] = x1; rr[n][3] = y1; bytes += (size_t)(x1 - x0) * (y1 - y0) * 4; n++;
-    }
-    // read around the last picture's parts only: a part outside those rows is not in it; the next picture whole
-    for (int i = 0; i < n; i++) {
-      if (rr[i][1] < p.bLo || rr[i][3] > p.bHi) {
-        JIHAD_GPU_LOG("[jihad-gpu] cpu parts: a part (rows %d..%d) outside the rows read (%d..%d): the picture made whole\n",
-                      rr[i][1], rr[i][3], p.bLo, p.bHi);
-        p.wholeNext = true; p.ok = false; p.scratch.reset(); p.scratchBytes = 0;
-        return false;
-      }
-    }
-    p.wholeNext = false;
-    p.px.resize(bytes);
-    size_t at = 0;
-    for (int i = 0; i < n; i++) {
-      const size_t rowBytes = (size_t)(rr[i][2] - rr[i][0]) * 4;
-      p.off[i] = at;
-      for (int y = rr[i][1]; y < rr[i][3]; y++, at += rowBytes)
-        memcpy(p.px.data() + at, p.scratch.get() + ((size_t)y * W + rr[i][0]) * 4, rowBytes);
-      for (int c = 0; c < 4; c++) p.r[i][c] = rr[i][c];
-      p.clipTop[i] = cr.stuck[i][1] <= 0; p.clipBottom[i] = cr.stuck[i][3] >= H;
-    }
-    p.n = n; p.zoom = p.bZoom; p.x = p.bX; p.w = W; p.h = H; p.os = p.bOs;
-    p.gen = cr.partsGen; p.ok = true; p.miss = false;
-    p.scratch.reset(); p.scratchBytes = 0;
-    mPartsStaleSince = (!mPartsGenKnown || p.gen == mPartsGenNow) ? 0 : jihadNowMs();
-    char rs[160] = "";
-    for (int i = 0, k = 0; i < n && k < (int)sizeof(rs) - 32; i++)
-      k += snprintf(rs + k, sizeof(rs) - k, " %d,%d..%d,%d", p.r[i][0], p.r[i][1], p.r[i][2], p.r[i][3]);
-    JIHAD_GPU_LOG("[jihad-gpu] cpu parts: the picture in %ld ms, %d parts (%zu KB, generation %u, rows %d..%d read):%s\n",
-                  (long)(now - p.tPost), n, p.px.size() / 1024, p.gen, p.bLo, p.bHi, rs);
-    return false;
+// the parts buffers (E2): one lent to each job without its parts, by token
+unsigned char* BrowserPageGoanna::partsBufTake() {
+  const int64_t now = jihadNowMs();
+  for (size_t i = 0; i < mPartsLent.size();) {   // a job forgotten in flight: its buffer back after 10 s
+    if (now - mPartsLent[i].since > 10000) { mPartsFree.push_back(mPartsLent[i].buf); mPartsLent[i] = mPartsLent.back(); mPartsLent.pop_back(); }
+    else ++i;
   }
-  if (!S.ok || S.popups || mFrozen || mXFailures >= 3) return false;
-  XWant want;
-  { std::lock_guard<std::mutex> l(jihadWantLock()); want = mXWant; }
-  if (!want.seq) return false;
-  const double Z = (want.zoom >= 0.99 && want.zoom <= 1.01) ? 1.0 : want.zoom;
-  // wanted: none yet, a part a frame had and it lacks, another generation (a part changed), another geometry
-  const bool fits = p.ok && fabs(p.zoom - Z) < 1e-6 && p.x == want.x && p.w == S.w;   // (cpuPartsFor)
-  if (fits && !p.miss && (!mPartsGenKnown || p.gen == mPartsGenNow)) return false;
-  if (mXTreeRes > 1.0005 && GoannaRenderPage::GpuResolutionFor(Z) <= 1.0005f) return false;   // a zoom out's paint first
-  const int H = S.frameH, W = S.w, os = S.os;
-  p.scratchBytes = (size_t)W * 4 * H;
-  p.scratch.reset(new unsigned char[p.scratchBytes]);
-  const double view[5] = { Z, 0.0, -(double)os / Z, (double)want.x / Z, (double)want.y / Z };
-  // the rows: around the last picture's parts at this geometry (the parts are mostly stuck: the same rows), else whole
-  int lo = 0, hi = H;
-  if (fits && !p.wholeNext && p.n > 0) {
-    lo = H; hi = 0;
-    for (int i = 0; i < p.n; i++) { lo = std::min(lo, p.r[i][1]); hi = std::max(hi, p.r[i][3]); }
-    lo += os - p.os; hi += os - p.os;   // the stuck parts move with the overscan row
-    lo = std::max(0, lo - 96); hi = std::min(H, hi + 96);
-    if (hi <= lo) { lo = 0; hi = H; }
-  }
-  p.bLo = lo; p.bHi = hi;
-  const uint32_t token = mPage->ComposePost(p.scratch.get(), p.scratchBytes, H, lo, hi, 0, 0, 0, nullptr, 0, false, view,
-                                            0, -1, false, true, true, false, true, true);
-  if (!token) { p.scratch.reset(); p.scratchBytes = 0; return false; }
-  mXLastPostToken = token;   // the newest composite is not a published frame
-  p.building = true; p.token = token; p.tPost = now;
-  p.bZoom = Z; p.bX = want.x; p.bW = W; p.bH = H; p.bOs = os;
-  return true;
+  if (!mPartsFree.empty()) { unsigned char* b = mPartsFree.back(); mPartsFree.pop_back(); return b; }
+  return new (std::nothrow) unsigned char[kPartsCap];
 }
 
-// A frame composed without its parts, in its slot: what lay beneath the frame it was built on's parts back where they
-// landed (outside the rows the job read: those are new), what lies beneath this frame's parts kept, the parts drawn
-// over it (premultiplied: out = part + out x (1 - alpha)). False: a part the picture lacks (the frame is not shown).
-__attribute__((optimize("O2"))) bool BrowserPageGoanna::cpuPartsApply(int s, unsigned char* pixels, const GoannaRenderPage::ComposeResult& cr,
-                                                                       int H, int w, int src, long srcY, int jobY) {
-  PartsPic& p = mPP;
-  // this frame's parts in the picture: the same columns and height, one to one, the nearest in y; a part cut by the
-  // frame's top or bottom edge is the matching end of a whole one
-  int nf = 0, fr[4][4], pick[4], from[4];
+void BrowserPageGoanna::partsBufLend(unsigned char* buf, uint32_t token) {
+  if (!buf) return;
+  if (!token) { mPartsFree.push_back(buf); return; }
+  mPartsLent.push_back(PartsLend{ buf, token, jihadNowMs() });
+}
+
+unsigned char* BrowserPageGoanna::partsBufOf(uint32_t token) {
+  for (const PartsLend& l : mPartsLent) if (l.token == token) return l.buf;
+  return nullptr;
+}
+
+void BrowserPageGoanna::partsBufReturn(uint32_t token) {
+  for (size_t i = 0; i < mPartsLent.size(); i++) {
+    if (mPartsLent[i].token != token) continue;
+    if (mPartsFree.size() < 4) mPartsFree.push_back(mPartsLent[i].buf); else delete[] mPartsLent[i].buf;
+    mPartsLent[i] = mPartsLent.back(); mPartsLent.pop_back();
+    return;
+  }
+}
+
+void BrowserPageGoanna::partsBufsBury() {
+  for (unsigned char* b : mPartsFree) delete[] b;
+  mPartsFree.clear();
+  if (!mPartsLent.empty() && !sOvGraves) sOvGraves = new std::vector<JihadOvGrave>();
+  for (const PartsLend& l : mPartsLent) sOvGraves->push_back(JihadOvGrave{ l.buf, jihadNowMs() + 10000 });   // a late pass may still write
+  mPartsLent.clear();
+}
+
+// A frame composed without its parts, in its slot: a picture its job read goes into the cache; the picture of the
+// frame's own signature drawn over it rect by rect (premultiplied: out = part + out x (1 - alpha)); what lay beneath the
+// parts of the frame it was built on back where they landed (outside the rows the job read: those are new); what lies
+// beneath this frame's parts kept. The outcome says why a frame was not dressed (it is then not shown).
+__attribute__((optimize("O2"))) int BrowserPageGoanna::cpuPartsDress(int s, unsigned char* pixels, const GoannaRenderPage::ComposeResult& cr,
+                                                                      int H, int w, int src, long srcY, int jobY, const unsigned char* buf) {
+  if (cr.partsFlags & 1) return kPartsCovered;
+  if (cr.partsFlags & 2) return kPartsTooBig;
+  // this frame's parts (the engine's list, its order and sizes the signature's)
+  int nf = 0, fr[4][4];
+  size_t need = 0;
   for (int i = 0; i < cr.nStuck && i < 4; i++) {
-    const int x0 = std::max(0, cr.stuck[i][0]), x1 = std::min(w, cr.stuck[i][2]);
-    const int y0 = std::max(0, cr.stuck[i][1]), y1 = std::min(H, cr.stuck[i][3]);
-    if (x1 <= x0 || y1 <= y0) continue;
+    const int x0 = cr.stuck[i][0], y0 = cr.stuck[i][1], x1 = cr.stuck[i][2], y1 = cr.stuck[i][3];
+    if (x0 < 0 || y0 < 0 || x1 > w || y1 > H || x1 <= x0 || y1 <= y0) return kPartsNoPic;   // not as the engine packs them
     fr[nf][0] = x0; fr[nf][1] = y0; fr[nf][2] = x1; fr[nf][3] = y1; nf++;
+    need += (size_t)(x1 - x0) * (y1 - y0) * 4;
   }
-  bool used[4] = {};
-  for (int i = 0; i < nf; i++) {
-    const int fh = fr[i][3] - fr[i][1];
-    int best = -1, bd = 1 << 30;
-    for (int j = 0; j < p.n; j++) {
-      if (used[j] || abs(p.r[j][0] - fr[i][0]) > 2 || abs(p.r[j][2] - fr[i][2]) > 2) continue;
-      const int ph = p.r[j][3] - p.r[j][1];
-      const bool cut = (fr[i][1] == 0 || fr[i][3] == H) && fh < ph && !p.clipTop[j] && !p.clipBottom[j];
-      if (abs(ph - fh) > 2 && !cut) continue;
-      const int d = abs(p.r[j][1] - fr[i][1]);
-      if (d < bd) { bd = d; best = j; }
+  // the picture its own job read, into the cache (the least used one makes room)
+  if (cr.partsBytes > 0 && buf && (size_t)cr.partsBytes == need && need <= (size_t)kPartsCap) {
+    int at = 0;
+    for (int k = 0; k < 3; k++) {
+      if (mPics[k].ok && mPics[k].sig == cr.partsGen) { at = k; break; }
+      if (!mPics[k].ok) { at = k; break; }
+      if (mPics[k].used < mPics[at].used) at = k;
     }
-    if (best < 0) {
-      p.miss = true;
-      static uint32_t sMissLog = 0;
-      if (sMissLog++ < 12) {
-        char fs[160] = "", ps[160] = "";
-        for (int k = 0, q = 0; k < nf && q < (int)sizeof(fs) - 32; k++)
-          q += snprintf(fs + q, sizeof(fs) - q, " %d,%d..%d,%d", fr[k][0], fr[k][1], fr[k][2], fr[k][3]);
-        for (int k = 0, q = 0; k < p.n && q < (int)sizeof(ps) - 32; k++)
-          q += snprintf(ps + q, sizeof(ps) - q, " %d,%d..%d,%d", p.r[k][0], p.r[k][1], p.r[k][2], p.r[k][3]);
-        JIHAD_GPU_LOG("[jihad-gpu] cpu parts: the frame's part %d unmatched; the frame's:%s; the picture's (generation %u):%s\n",
-                      i, fs, p.gen, ps);
-      }
-      return false;
+    PartsPic& np = mPics[at];
+    np.sig = cr.partsGen; np.n = nf; np.ok = true;
+    size_t o = 0;
+    for (int k = 0; k < nf; k++) {
+      np.wh[k][0] = fr[k][2] - fr[k][0]; np.wh[k][1] = fr[k][3] - fr[k][1]; np.off[k] = o;
+      o += (size_t)np.wh[k][0] * np.wh[k][1] * 4;
     }
-    used[best] = true; pick[i] = best;
-    const int ph = p.r[best][3] - p.r[best][1];
-    from[i] = (fr[i][1] == 0 && fh < ph) ? ph - fh : 0;   // cut at the top: its lower rows
+    np.px.assign(buf, buf + need);
+    np.used = ++mPicClock;
+    mPicNewest = np.sig; mPicHave = true; mPicForce = false;
+    static uint32_t sPicN = 0;
+    if (sPicN++ < 20 || (sPicN % 50) == 0)
+      JIHAD_GPU_LOG("[jihad-gpu] cpu parts: a picture of %d parts (%zu KB, signature %08x) came with the frame\n", nf, need / 1024, np.sig);
   }
+  const PartsPic* p = nullptr;   // (no parts in the frame: nothing to draw, only what lay beneath the base's put back)
+  for (int k = 0; k < 3 && nf > 0; k++) if (mPics[k].ok && mPics[k].sig == cr.partsGen) p = &mPics[k];
+  if (nf > 0 && (!p || p->n != nf)) return kPartsNoPic;
+  for (int k = 0; k < nf; k++)
+    if (p->wh[k][0] != fr[k][2] - fr[k][0] || p->wh[k][1] != fr[k][3] - fr[k][1]) return kPartsNoPic;
   // what lay beneath the old frame's parts, where they landed, outside the rows read
   if (src >= 0) {
     const SlotParts& sp = mSlotParts[src];
-    if (sp.kind != 1) return false;
+    if (sp.kind != 1) return kPartsNoBase;
     const long d = (long)(cr.frameYValid ? cr.frameY : jobY) - srcY;
     auto readRow = [&](long y) { return (y >= cr.readLo && y < cr.readHi) || (y >= cr.read2Lo && y < cr.read2Hi); };
     for (int k = 0; k < sp.n; k++) {
@@ -2106,22 +2048,20 @@ __attribute__((optimize("O2"))) bool BrowserPageGoanna::cpuPartsApply(int s, uns
       }
     }
   }
+  if (p) const_cast<PartsPic*>(p)->used = ++mPicClock;
   // this frame's: what lies beneath kept, the parts drawn over it
   SlotParts& dp = mSlotParts[s];
-  size_t bytes = 0;
-  for (int i = 0; i < nf; i++) bytes += (size_t)(fr[i][2] - fr[i][0]) * (fr[i][3] - fr[i][1]) * 4;
-  dp.beneath.resize(bytes);
+  dp.beneath.resize(need);
   size_t at = 0;
   for (int i = 0; i < nf; i++) {
-    const int x0 = fr[i][0], x1 = fr[i][2], rw = x1 - x0, pw = p.r[pick[i]][2] - p.r[pick[i]][0];
-    const int px0 = x0 - p.r[pick[i]][0];
+    const int x0 = fr[i][0], rw = fr[i][2] - x0;
     dp.off[i] = at;
     for (int c = 0; c < 4; c++) dp.r[i][c] = fr[i][c];
     for (int y = fr[i][1]; y < fr[i][3]; y++, at += (size_t)rw * 4) {
       uint32_t* row = (uint32_t*)(pixels + ((size_t)y * w + x0) * 4);
       memcpy(dp.beneath.data() + at, row, (size_t)rw * 4);
-      const uint32_t* pp = (const uint32_t*)(p.px.data() + p.off[pick[i]]) + (size_t)(from[i] + y - fr[i][1]) * pw + px0;
-      for (int x = 0; x < rw && x + px0 < pw; x++) {
+      const uint32_t* pp = (const uint32_t*)(p->px.data() + p->off[i]) + (size_t)(y - fr[i][1]) * rw;
+      for (int x = 0; x < rw; x++) {
         const uint32_t sv = pp[x], a = sv >> 24;
         if (a == 255) { row[x] = sv; continue; }
         if (a == 0) continue;
@@ -2134,29 +2074,41 @@ __attribute__((optimize("O2"))) bool BrowserPageGoanna::cpuPartsApply(int s, uns
   }
   dp.n = nf; dp.kind = 1;
   mPartsMissRun = 0;
-  return true;
+  return kPartsDressed;
 }
 
-void BrowserPageGoanna::cpuPartsMissed(int nStuck) {
-  static uint32_t sMissN = 0;
-  if (sMissN++ < 20) JIHAD_GPU_LOG("[jihad-gpu] cpu parts: a part the picture lacks (%d in the frame): the frame not shown\n", nStuck);
-  // a picture made again that still lacks it would be made forever: three in a row and the parts are the GPU's
-  // again for this document
-  if (++mPartsMissRun >= 3 && !mPartsOff) {
+// A frame not dressed is not shown. No picture of its parts: the next job asks for one (and three in a row turn the
+// parts back to the engine's for the document); a content layer above a part (a popup over a fixed bar, a page over a
+// fixed background): the engine's parts for 2 s, for the document after three; the parts too big: the engine's
+void BrowserPageGoanna::cpuPartsRefused(int outcome, int nStuck) {
+  static uint32_t sN = 0;
+  const char* why = outcome == kPartsNoPic ? "no picture of its parts" : outcome == kPartsNoBase ? "its base's record gone"
+                  : outcome == kPartsCovered ? "a content layer above a part" : "the parts too big";
+  if (sN++ < 20 || (sN % 50) == 0) JIHAD_GPU_LOG("[jihad-gpu] cpu parts: the frame not shown (%s; %d parts)\n", why, nStuck);
+  if (outcome == kPartsNoPic) {
+    mPicForce = true;
+    if (++mPartsMissRun >= 3 && !mPartsOff) {
+      mPartsOff = true;
+      JIHAD_GPU_LOG("[jihad-gpu] cpu parts off for this page: three frames in a row without a picture of their parts\n");
+      cpuPartsForget();
+    }
+  } else if (outcome == kPartsCovered) {
+    mPartsOffUntil = jihadNowMs() + 2000;
+    if (++mPartsCovers >= 3 && !mPartsOff) {
+      mPartsOff = true;
+      JIHAD_GPU_LOG("[jihad-gpu] cpu parts off for this page: content drawn above its parts three times\n");
+      cpuPartsForget();
+    }
+  } else if (outcome == kPartsTooBig && !mPartsOff) {
     mPartsOff = true;
-    JIHAD_GPU_LOG("[jihad-gpu] cpu parts off for this page: three frames in a row had a part the picture lacks\n");
+    JIHAD_GPU_LOG("[jihad-gpu] cpu parts off for this page: the parts are too big\n");
     cpuPartsForget();
   }
 }
 
 void BrowserPageGoanna::cpuPartsForget() {
-  if (mPP.building && mPage) {
-    mPage->ComposeForget(mPP.token);
-    if (!sOvGraves) sOvGraves = new std::vector<JihadOvGrave>();
-    sOvGraves->push_back(JihadOvGrave{ mPP.scratch.release(), jihadNowMs() + 10000 });   // a late read may still write
-  }
-  mPP = PartsPic();
-  mPartsStaleSince = 0;
+  for (int k = 0; k < 3; k++) { mPics[k] = PartsPic(); }
+  mPicHave = false; mPicForce = false;
   // a slot holding parts drawn on the CPU is no base for either kind any more
   for (int i = 0; i < 3; i++) { if (mSlotParts[i].kind == 1) mSlotParts[i].kind = -1; std::vector<unsigned char>().swap(mSlotParts[i].beneath); }
 }
@@ -4857,9 +4809,9 @@ void verifyRefRelease(int i, bool givenUp) {
 
 bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, size_t bytes, int x, int y, double zoom, int w, int h) {
   gpuSetView(zoom, mGpuViewRX, mGpuViewRY);   // T-505: the view's row in this frame (the compositor takes it at the start)
-  // T-505: a frame without its parts when the parts' picture fits (as the express lane's): every lane's frames of one
-  // kind, built only on frames of that kind; the frame it is built on, for what lay beneath that frame's parts
-  const bool co = cpuPartsFor(zoom, x, w, h, mGpuViewRow);
+  // T-505: a frame without its parts (as the express lane's): every lane's frames of one kind, built only on frames of
+  // that kind; the frame it is built on, for what lay beneath that frame's parts
+  const bool co = cpuPartsFor();
   const int kindNow = co ? 1 : 0;
   int baseSlot = -1; long baseY = 0;
   long sLo = 0, sHi = h, s2Lo = 0, s2Hi = 0, shift = 0;   // whole, unless the slot's frame is still good
@@ -5067,10 +5019,13 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   // compose posted on its own
   unsigned char* const winPixels = pixels + (size_t)win * stride;   // T-517
   const size_t winBytes = bytes - (size_t)win * stride;
+  unsigned char* const pbuf = co ? partsBufTake() : nullptr;   // T-505 (E2): where its job reads the parts' picture
   const uint32_t token = mGpuPainted
       ? mPage->ComposePost(winPixels, winBytes, h, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, nullptr, colX0, colX1, winMoved,
-                           false, false, false, false, co)
-      : mPage->ComposeStart(winPixels, winBytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1, winMoved, co);
+                           false, false, false, false, co, pbuf, kPartsCap, partsHave())
+      : mPage->ComposeStart(winPixels, winBytes, sLo, sHi, s2Lo, s2Hi, shift, src, srcYForEngine, baseIsPrevious, false, colX0, colX1, winMoved,
+                            co, pbuf, kPartsCap, partsHave());
+  partsBufLend(pbuf, token);
   if (token) mXLastPostToken = token;
   if (token && slot >= 0) mGpuSlotValid[slot] = false;   // T-517 (review): being written; its publish records it again
   if (!token) {
@@ -5420,10 +5375,11 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
     base = b >= 0 && b < 3 && mXPub.token && mXPub.token == mXLastPostToken && mXPub.x == x && mXPub.zoom == Z &&
            mXPub.w == w && mXPub.h == H && mXPub.fixedHi >= mXPub.fixedLo && S.base[b] && mXPub.key == S.keys[b];
   }
-  // T-505: a frame without its parts (JIHAD_GPU_CPU_PARTS) when their picture fits it; it builds only on a frame of
-  // its kind (the parts drawn over it on the CPU, what lay beneath them kept), and a frame of the other kind on its own
-  const bool co = cpuPartsFor(Z, x, w, H, os);
-  if (base && (aBase ? aBase->contentOnly != co : mSlotParts[b].kind != (co ? 1 : 0))) base = false;
+  // T-505: a frame without its parts; it builds only on a frame of its kind (the parts drawn over it on the CPU, what
+  // lay beneath them kept), and a frame of the other kind on its own. Not a second frame on the first in flight
+  // without the parts (review C1): the first's pixels are dressed on this thread while the compositor copies them
+  const bool co = cpuPartsFor();
+  if (base && (aBase ? (co || aBase->contentOnly) : mSlotParts[b].kind != (co ? 1 : 0))) base = false;
   const long dy = base ? (long)y - baseY : 0;
   if (base && !(dy > -H && dy < H)) base = false;
   if (aBase && !base) return false;   // the second frame only builds on the first
@@ -5600,9 +5556,11 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   const bool viewOnly = sViewFirst && !aBase && !base && !own && (mXPub.slot < 0 || fabs(mXPub.zoom - Z) > 1e-9) &&
                         os > 0 && os + S.h <= H;
   if (viewOnly) { lo = os; hi = os + S.h; lo2 = hi2 = 0; }
+  unsigned char* const pbuf = (co && !viewOnly) ? partsBufTake() : nullptr;   // T-505 (E2)
   const uint32_t token = mPage->ComposePost(pixels, S.seg[slot] - S.hdr - (size_t)xWin * xStride, H, lo, hi, lo2, hi2,
                                             own ? ownDy : (base ? dy : 0), src, srcY, base && !own, view, 0, -1, xMoved,
-                                            false, viewOnly, false, false, co && !viewOnly);
+                                            false, viewOnly, false, false, co && !viewOnly, pbuf, kPartsCap, partsHave());
+  partsBufLend(pbuf, token);
   if (!token) {
     if (++mXFailures >= 3) fprintf(stderr, "[jihad-gpu] express lane off for this page: the compositor took no frame three times\n");
     return false;
@@ -5641,6 +5599,8 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     }
     return true;
   }
+  // T-505 (E2): done or failed, its parts buffer back to the pool once this poll is through with it
+  struct PartsBack { BrowserPageGoanna* p; uint32_t t; ~PartsBack() { p->partsBufReturn(t); } } partsBack{this, mXJob.token};
   if (!genOk || r < 0) {
     // the buffers or the geometry changed under it, or it failed: dropped, and the one built on it
     pubDirtyAll();   // T-527
@@ -5656,7 +5616,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
   if (mXJob.adopted) mGpuRefusals = 0; else mXFailures = 0;
   const int s = mXJob.slot, H = mXJob.h, w = mXJob.w;
   unsigned char* pixels = mXJob.pixels;
-  if (cr.partsGenKnown) partsGenSeen(cr.partsGen);   // T-505
+  if (!mXJob.contentOnly) cr.holdKnown = false;   // T-505: the hold set is a frame without its parts' only
   const int frameY = cr.frameYValid ? (int)cr.frameY : mXJob.y;   // round 115: where the engine composed it
   if (mXJob.shift) mPage->CleanRows(pixels, 0, H);   // the shifted rows: the compositor thread's writes
   // the frame's rows outside the page white, as the main lane does (T-505)
@@ -5671,10 +5631,11 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     if (vhi < H) memset(pixels + (size_t)vhi * w * 4, 0xff, (size_t)(H - vhi) * w * 4);
     pubDirtyAll();
   }
-  // T-505: a frame without its parts: drawn over it on the CPU, or (a part the picture lacks) not shown at all
+  // T-505: a frame without its parts: drawn over it on the CPU from the picture of its own signature, or not shown
   if (mXJob.contentOnly) {
-    if (!cpuPartsApply(s, pixels, cr, H, w, mXJob.srcSlot, mXJob.srcY, mXJob.y)) {
-      cpuPartsMissed(cr.nStuck);
+    const int outcome = cpuPartsDress(s, pixels, cr, H, w, mXJob.srcSlot, mXJob.srcY, mXJob.y, partsBufOf(mXJob.token));
+    if (outcome != kPartsDressed) {
+      cpuPartsRefused(outcome, cr.nStuck);
       mXJob = XJob(); xForget(mXJob2);
       gpuSlotsLost();   // every slot's kind unknown (this one's pixels are half made)
       return true;
@@ -6641,7 +6602,9 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         // composite the newest; this one is dropped (its slot's record with it)
         const bool xDropped = r >= 0 && oldest.xFrames != mXFrames;
         // T-527: its composite's change, into the change since the last published frame
-        if (r >= 0 && cr.partsGenKnown) partsGenSeen(cr.partsGen);   // T-505
+        // T-505 (E2): its parts buffer back to the pool once this poll is through; the hold set its kind's only
+        struct PartsBack { BrowserPageGoanna* p; uint32_t t; ~PartsBack() { p->partsBufReturn(t); } } partsBack{this, oldest.token};
+        if (!oldest.contentOnly) cr.holdKnown = false;
         if (r >= 0) pubDirtyAdd(cr.invLo, cr.invHi, cr.invX0, cr.invX1, cr.invXKnown, oldest.x,
                                 cr.frameYValid ? (int)cr.frameY : oldest.y, oldest.w, oldest.h, oldest.zoom);
         else pubDirtyAll();
@@ -6687,11 +6650,21 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         // one: its change into the other slots' records)
         bool partsMiss = false;
         if (r >= 0 && gslot >= 0 && !xDropped && oldest.contentOnly) {
-          if (cpuPartsApply(gslot, pixels, cr, h, w, oldest.srcSlot, oldest.srcY, oldest.y)) {
+          {
+            // (review C10) the rows outside the page white first, as the express lane does, so what lies beneath the
+            // parts is kept as shown (the adoption below fills them again: the same pixels)
+            const int fy = cr.frameYValid ? (int)cr.frameY : oldest.y;
+            const long pe = (mLastContentH > 0) ? (long)((double)mLastContentH * oldest.zoom) - fy : (long)h;
+            const long ab = std::min((long)h, std::max(0L, -(long)fy));
+            if (ab > 0) memset(pixels, 0xff, (size_t)ab * w * 4);
+            if (pe < h && pe >= 0) memset(pixels + (size_t)pe * w * 4, 0xff, (size_t)(h - pe) * w * 4);
+          }
+          const int outcome = cpuPartsDress(gslot, pixels, cr, h, w, oldest.srcSlot, oldest.srcY, oldest.y, partsBufOf(oldest.token));
+          if (outcome == kPartsDressed) {
             gpuPartsCpu = true;
           } else {
             partsMiss = true;
-            cpuPartsMissed(cr.nStuck);
+            cpuPartsRefused(outcome, cr.nStuck);
             mGpuSlotValid[gslot] = false; mSlotParts[gslot].kind = -1;
             gpuStaleAdd(gslot, il, ih, cr, cr.frameYValid ? (int)cr.frameY : oldest.y, oldest.x, oldest.zoom, w, h);
             nb = -1;
@@ -6701,6 +6674,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
         if (xDropped && gslot >= 0 && oldest.contentOnly) mSlotParts[gslot].kind = -1;   // its pixels lack the parts
         if (r >= 0 && gslot >= 0 && !xDropped && !partsMiss) {
           mGpuSlotValid[gslot] = true;
+          if (!gpuPartsCpu) mSlotParts[gslot].kind = 0;   // (review C7) the kind with the record, not at the publish
           // round 115: the position the engine composed it at, when a scroll of the page's own moved it
           const int frameY = cr.frameYValid ? (int)cr.frameY : oldest.y;
           mGpuSlotX[gslot] = oldest.x; mGpuSlotY[gslot] = frameY; mGpuSlotZoom[gslot] = oldest.zoom;

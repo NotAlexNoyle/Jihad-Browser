@@ -88,6 +88,21 @@ extern "C" {
                                         const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
                                         double aOffX, double aOffY, double aScrollX, double aScrollY,
                                         int aScrollValid, int aColX0, int aColX1) __attribute__((weak));
+  // OPTIONAL (T-505, E2; jihad_offscreen_overview_ok answers 3): post and start with a frame without its parts' pass
+  // arguments: where the parts' picture goes (aPartsCap bytes) and the signature of the picture the daemon holds; the
+  // poll then takes 49 ints (the parts' signature, the pass's bytes, the flags, the card's hold set)
+  uint32_t jihad_offscreen_compose_post2(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
+                                         int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                         const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
+                                         double aOffX, double aOffY, double aScrollX, double aScrollY,
+                                         int aScrollValid, int aColX0, int aColX1, void* aPartsDest, int aPartsCap,
+                                         uint32_t aPartsHave) __attribute__((weak));
+  uint32_t jihad_offscreen_compose_start2(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
+                                          int aStride, int aWidth, int aHeight, int aRowLo,
+                                          int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                          const void* aSrc, int aSrcY, int aEngineShift,
+                                          int aColX0, int aColX1, void* aPartsDest, int aPartsCap,
+                                          uint32_t aPartsHave) __attribute__((weak));
   // OPTIONAL (T-502): the card's zoom and the visual viewport's residual offset (CSS px, what the
   // engine scroll could not reach), applied by the compositor to the whole layer tree.
   void jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX,
@@ -160,6 +175,8 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_compose_forget", jihad_offscreen_compose_forget != nullptr},
     {"jihad_offscreen_paint_layers", jihad_offscreen_paint_layers != nullptr},
     {"jihad_offscreen_compose_post", jihad_offscreen_compose_post != nullptr},
+    {"jihad_offscreen_compose_post2", jihad_offscreen_compose_post2 != nullptr},
+    {"jihad_offscreen_compose_start2", jihad_offscreen_compose_start2 != nullptr},
     {"jihad_offscreen_compose_peek", jihad_offscreen_compose_peek != nullptr},
     {"jihad_offscreen_overview_ok", jihad_offscreen_overview_ok != nullptr},
     {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},

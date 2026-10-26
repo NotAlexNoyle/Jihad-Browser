@@ -145,3 +145,33 @@ By finger (eight drags; fps while frames flow; one round each, the spread betwee
 Mid-pan frames looked at (Wikipedia with and without the stale switch, the long page): each sidebar and the fixed
 header once, sharp, in place; the content scrolled beneath; no ghost. Rows read by finger stay above the baseline
 (44k against 34k): the pictures (about one a drag, ~736 rows each).
+
+The parts' picture in the frame's own job (E2, the inspector's design; 2026-10-26, late afternoon)
+--------------------------------------------------------------------------------------------------
+Two inspector reviews (Codex was out of credits; context/impl/impl-review-findings-t505-cpuparts.md): REVISE. The
+stale trade was not exact either way (no check at the poll; the bound not bounded), and the generation missed
+attribute changes, content above a part was drawn under it, the card's hold set changed meaning, column reads broke
+the beneath record, the express lane's second frame raced the first's dressing. The design that replaced the
+separate picture job (engine 0072):
+- every frame without its parts carries a parts buffer and the signature of the newest picture the daemon holds; the
+  engine computes the parts' signature in the frame's own job (each part subtree's layers: identity, type, opacity,
+  content flags, mask, visible region; inside a part its transform and clip; a colour layer's colour; an animation
+  every composite; the paints under a part; the parts' sizes on the frame) and, when it differs, composes the parts
+  alone on the band surface (packed in shelves, at most 12 pieces) and reads them with their alpha into the buffer,
+  in the same task as the frame (no transaction between them; the verify guard holds the diff baseline);
+- the daemon keeps the last three pictures by signature and dresses each frame with its own signature's, rect by rect
+  (same parts, same order, same sizes): no matching, no stale picture;
+- a content leaf drawn above a part (in paint order) whose pixels meet it: the frame is not shown, the engine's parts
+  for 2 s (for the document after three); parts over 1 MB: the engine's for the document;
+- the card's hold set is reported apart (fixed and stuck layers, T-544's meaning); no column reads without the parts;
+  0071's compensation only without the parts or without fixed rects; the express lane builds no second frame on the
+  first in flight when either is without its parts; the main lane records the kind with the slot and fills the
+  out-of-page rows before dressing.
+Verify (JIHAD_GPU_VERIFY=1, main lane only so every frame is checked, scripted Wikipedia pan; pan-v1-wiki): 39 frames,
+27 of them shifted, 0 wrong rows during the pan (one frame during the load, in rows its job read while tiles arrived);
+the same run without the parts (pan-v0-wiki): 2 shifted frames with wrong rows. A parts pass: 7-78 ms compose, 7-66 ms
+read, 340 KB, about one a drag on Wikipedia.
+Scripted pan, the card moving (pan-e2-*): desktop Wikipedia 12.8 fps (9.4 without; 14.2 the stale switch), the long
+page 23.6 (18.8; 24.7). By finger (fp-e2-*): Wikipedia 12.3 fps against 9.5 without (fp-e2b-wiki, this build) and 12.3
+with the stale switch; the long page 18.3 (15.7 without; 17.5 stale). Frames looked at: parts once, in place.
+The stale switch is gone: exact and as fast by finger.

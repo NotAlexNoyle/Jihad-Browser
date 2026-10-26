@@ -605,41 +605,46 @@ private:
     int64_t t0 = 0, tPost = 0;
   };
   Overview mOv;
-  // T-505 (the owner's CPU/GPU split, 2026-10-26): JIHAD_GPU_CPU_PARTS=1. Under a finger the GPU is the contended
-  // resource (LunaSysMgr redraws the card on it) while the CPUs are a quarter idle. A pan's frames are composed on the
-  // GPU WITHOUT the page's fixed and sticky parts (engine flag 128: no sidebar columns, no kept rects, no fixed rows) and
-  // the parts are drawn over each frame on the CPU from their picture (flags 64|128, the parts alone with their alpha,
-  // composed again when the engine's parts generation moves: a part's content changed). A slot whose frame had parts
-  // drawn keeps what lay beneath them; a frame built on it (its window moved, or copied from it) gets that back where
-  // the old parts landed, outside the rows the job read. Frames of that kind build only on their kind, and the others
-  // only on theirs. A part the picture does not have: the frame is not published, and the frames are composed as
-  // before until the picture has it.
-  struct PartsPic {
-    bool ok = false, miss = false; uint32_t gen = 0; double zoom = 0.0; int x = 0, w = 0, h = 0, os = 0;
-    int n = 0; int r[4][4] = {}; bool clipTop[4] = {}, clipBottom[4] = {}; size_t off[4] = {};
-    std::vector<unsigned char> px;   // B8G8R8A8 premultiplied, each rect's rows one after the other
-    bool building = false; uint32_t token = 0; int64_t tPost = 0;
-    double bZoom = 0.0; int bX = 0, bW = 0, bH = 0, bOs = 0;   // the job in flight's geometry
-    int bLo = 0, bHi = 0; bool wholeNext = false;   // its rows read; a part fell outside the last ones
-    std::unique_ptr<unsigned char[]> scratch; size_t scratchBytes = 0;
-  };
-  PartsPic mPP;
+  // T-505 (the owner's CPU/GPU split, 2026-10-26; on, JIHAD_GPU_CPU_PARTS=0 or <state>/no-cpu-parts off). Under a
+  // finger the GPU is the contended resource (LunaSysMgr redraws the card on it) while the CPUs are a quarter idle. A
+  // pan's frames are composed on the GPU WITHOUT the page's fixed and sticky parts (engine flag 128: no sidebar
+  // columns, no kept rects, no fixed rows) and the parts are drawn over each frame on the CPU. E2 (the inspector's
+  // design, 2026-10-26): the engine reads the parts' picture in the frame's own job, from the same tree state, when
+  // their signature (content, attributes, structure, sizes) is not one the daemon holds a picture of (partsHave); each
+  // frame is dressed with the picture of its own signature, rect by rect (the same parts, in the same order and sizes).
+  // A slot whose frame had parts drawn keeps what lay beneath them; a frame built on it (its window moved, or copied
+  // from it) gets that back where the old parts landed, outside the rows the job read. Frames of that kind build only
+  // on their kind, and the others only on theirs.
+  struct PartsPic { uint32_t sig = 0; bool ok = false; int n = 0; int wh[4][2] = {}; size_t off[4] = {};
+                    std::vector<unsigned char> px; uint64_t used = 0; };   // px: B8G8R8A8 premultiplied, rect by rect
+  PartsPic mPics[3];
+  uint64_t mPicClock = 0;
+  uint32_t mPicNewest = 0; bool mPicHave = false, mPicForce = false;
+  static const int kPartsCap = 1 << 20;   // a frame's parts buffer: more parts than that are the engine's
+  // the parts buffers lent to jobs (by token: returned at the poll; one forgotten in flight reclaimed 10 s on, when
+  // the compositor is surely done with it)
+  struct PartsLend { unsigned char* buf; uint32_t token; int64_t since; };
+  std::vector<PartsLend> mPartsLent;
+  std::vector<unsigned char*> mPartsFree;
+  unsigned char* partsBufTake();
+  void partsBufLend(unsigned char* buf, uint32_t token);   // token 0: the post failed, the buffer back
+  unsigned char* partsBufOf(uint32_t token);
+  void partsBufReturn(uint32_t token);
+  void partsBufsBury();   // the page going: the free ones freed, the lent ones freed 10 s later (sOvGraves)
+  uint32_t partsHave() const { return (mPicHave && !mPicForce) ? mPicNewest : 0; }
   // kind: 0 a GPU frame with its parts (the engine's), 1 its parts drawn on the CPU (beneath: what lies under them),
   // -1 neither known (a lost record, a frame not composed): no frame builds on it
   struct SlotParts { int kind = 0; int n = 0; int r[4][4] = {}; size_t off[4] = {}; std::vector<unsigned char> beneath; };
   SlotParts mSlotParts[3];
-  uint32_t mPartsGenNow = 0; bool mPartsGenKnown = false;
-  int mPartsMissRun = 0; bool mPartsOff = false;   // frames in a row a picture could not dress; off for the document
-  int64_t mPartsStaleSince = 0;   // the picture older than the parts since (0: current)
-  void partsGenSeen(uint32_t g);
+  int mPartsMissRun = 0; bool mPartsOff = false;   // frames in a row with no picture of their parts; off for the document
+  int mPartsCovers = 0; int64_t mPartsOffUntil = 0;   // a content layer above a part: the engine's parts for a while
   bool cpuPartsOn() const;
-  bool cpuPartsFor(double Z, int x, int w, int H, int os) const;   // the picture fits a frame of this geometry
-  bool cpuPartsApply(int s, unsigned char* pixels, const GoannaRenderPage::ComposeResult& cr, int H, int w,
-                     int src, long srcY, int jobY);   // src: the slot it was built on (-1: none), at srcY
-  void cpuPartsMissed(int nStuck);   // a frame a picture could not dress (three in a row: off for the document)
-  void cpuPartsForget();   // the picture and every slot's record (the frame lock)
-public:
-  bool cpuPartsStep(int64_t now);   // T-505: the express thread (the frame lock): the picture's job
+  bool cpuPartsFor() const;   // the next frames without their parts
+  enum { kPartsDressed = 0, kPartsNoPic, kPartsNoBase, kPartsCovered, kPartsTooBig };
+  int cpuPartsDress(int s, unsigned char* pixels, const GoannaRenderPage::ComposeResult& cr, int H, int w,
+                    int src, long srcY, int jobY, const unsigned char* buf);   // src: the slot it was built on (-1: none)
+  void cpuPartsRefused(int outcome, int nStuck);   // a frame not dressed (not shown): why, and what follows
+  void cpuPartsForget();   // the pictures and every slot's record (the frame lock)
 private:
   uint32_t mOvDueSeq = 0; int64_t mOvDueMs = 0;   // the kept frame an overview has been due for, since
   std::unique_ptr<unsigned char[]> mOvScratch;   // the jobs' reads while they are in flight (the parts' first, a frame;

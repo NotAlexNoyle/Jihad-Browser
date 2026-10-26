@@ -281,3 +281,12 @@ Enyo, the twelve pads sideloaded again: the manager's search box tapped, "Jihad 
 their length (980x1540) and two drags reach Pad 12. The results' rows read "Remove": now "Uninstall" as in the other
 lists (the search list relabelled as its results arrive). A tap meant for the keyboard's hide key landed on Pad 09's
 Uninstall (the keyboard was already down) — a test pad; all pads removed after, Palefill alone again.
+
+## Double taps in runs of ten by finger (T-516's criterion, R6), 2026-10-26
+Desktop Wikipedia, the emulated finger's double tap at (384,600) in and out ten times, the card's scroll put back
+at the page's top after each cycle (a double tap out leaves the page 60 px lower each time; without the reset the
+taps drifted onto other blocks after three cycles and some were taken as single clicks: dtap10-daemon-gpu.log).
+dtap10b-daemon-gpu.log: 20 of 20 taps zoomed (0.6882 <-> 2.3273); the first frame at the zoom: every double tap
+out 0-3 ms (the frame kept at the zoom in), the double taps in 58, 52, 173, 251, 69, 52, 108, 59, 106, 65 ms —
+19 of 20 within 250 ms, the slowest 251. In the drifting run a zoom in waited 849 ms behind a 926 ms tile-upload
+transaction of the page's own on the compositor thread (the known class; T-527's floor).

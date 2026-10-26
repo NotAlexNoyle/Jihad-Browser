@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 #include "GoannaRenderPage.h"
@@ -210,6 +211,7 @@ public:
   void expressCommandDone(uint32_t tag) { if (tag > mXCmdDone) mXCmdDone = tag; }
   void expressReturn(int sharedBufferKey);
   bool expressStep(int64_t now);
+  bool overviewStep(int64_t now);   // T-504: the express thread (the frame lock): the overview's windows
   // out of the express lane's reach at once, its frames waited out: the card left (reap), its proxy
   // is deleted now and this page perhaps only at the tick's end
   void expressDetach();
@@ -565,7 +567,54 @@ private:
   std::vector<unsigned char> mZoomBackPx;
   void zoomBackKeep(double newZoom);                      // either lane (the frame lock)
   bool zoomBackPublish(int64_t now, double Z, const XWant& want);   // the express lane (the frame lock)
-  void zoomBackDrop() { mZoomBack.ok = false; std::vector<unsigned char>().swap(mZoomBackPx); }
+  void zoomBackDrop() { mZoomBack.ok = false; std::vector<unsigned char>().swap(mZoomBackPx); overviewDrop(); }
+  // T-504 (R6, the owner's design of 2026-10-26): the bounded overview. A double tap out after a pan while zoomed
+  // in finds the kept frame off the card's view; the overview is a half-resolution picture of the page around
+  // the zoom-in point: windows of a frame's rows each, the kept frame's own and one above and below it, of which
+  // the rows the tiles at rest covered (about a height above and below the view: the displayport) are kept,
+  // ~2-3 MB. The express lane composes them right after the zoom in's first frame is out, while the layer tree
+  // still holds the tiles at a resolution of 1 (before the paint at the new one): at half the zoom, the scrolled
+  // content alone and cleared transparent, read with their alpha (engine flag 32: rows no tile covered read
+  // alpha 0); and the fixed and stuck parts alone at the kept frame's scroll and its own zoom, with their alpha
+  // (flag 64). At the zoom back, when it covers the card's view, the frame is the picture at twice its size with
+  // the parts drawn over it where they sit at the new position (overviewPlace: from where the windows on either
+  // side of it have them). A long pan still waits for the paint. It goes with the kept frame (forSeq) and is
+  // dropped with it. JIHAD_GPU_NO_OVERVIEW=1 turns it off.
+  struct Overview {
+    bool ok = false;            // a window is in (mOvRowOk says which rows)
+    int inFlight = 0;           // jobs posted and not yet done (token[])
+    bool tried = false;         // posted (or given up) for this kept frame
+    bool dead = false;          // dropped while jobs were in flight: they finish into the scratch, nothing is kept
+    uint32_t forSeq = 0;        // the kept frame it goes with (mZoomBack.pubSeq)
+    double zoom = 0.0;          // the zoom it is of (the kept frame's)
+    int x = 0, top = 0;         // card px at that zoom of its column 0 and row 0
+    int w = 0, rows = 0, frameH = 0, os = 0;   // half-resolution size; the frame's rows and overscan it was made for
+    int nWin = 0;               // windows; job nWin is the parts' (all posted at once)
+    int winTop[4] = {};         // each window's top (card px); the first is the kept frame's own
+    bool winDone[4] = {};       // composed and taken
+    int nRect[4] = {};          // each window's fixed and stuck rects (x0, y0, x1, y1 at full size, y from its view)
+    int rect[4][4][4] = {};
+    bool out[5] = {};           // jobs in flight (windows, then the parts)
+    uint32_t token[5] = {};
+    size_t off[5] = {};         // each job's place in the scratch
+    bool partsDone = false;     // the parts' job taken: nParts rects, their pixels in mOvParts
+    int nParts = 0;
+    int part[4][4] = {};        // x0, y0, x1, y1 (frame px at full size, y from its view)
+    size_t partOff[4] = {};     // in mOvParts
+    int64_t t0 = 0, tPost = 0;
+  };
+  Overview mOv;
+  uint32_t mOvDueSeq = 0; int64_t mOvDueMs = 0;   // the kept frame an overview has been due for, since
+  std::unique_ptr<unsigned char[]> mOvScratch;   // the jobs' reads while they are in flight (the parts' first, a frame;
+  size_t mOvScratchBytes = 0;                    // window k half a frame each after it)
+  std::vector<unsigned char> mOvPx;      // mOv.w x mOv.rows, B8G8R8A8, opaque (uncovered pixels white)
+  std::vector<unsigned char> mOvRowOk;   // per half row: covered in some window
+  std::vector<unsigned char> mOvParts;   // the fixed and stuck parts, B8G8R8A8 premultiplied, as read with their alpha
+  bool overviewCovers(double Z, const XWant& want) const;
+  void overviewFill(unsigned char* dst, const XWant& want, GoannaRenderPage::ComposeResult* stuckOut);
+  bool overviewPlace(const XWant& want, int dst[4][4]) const;   // each part's rect at the card's new position
+  void overviewDrop();                   // the frame lock
+  void overviewForget();                 // its jobs forgotten: the page goes or the GPU path is given up
   double mXAdoptedZoom = 0.0;   // the zoom of the last main-lane frame the express lane published for it (the hold's release)
   uint32_t mXAdopted = 0;             // T-527: main-lane frames the express lane published for it
   int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)

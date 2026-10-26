@@ -77,6 +77,9 @@ extern "C" {
   int jihad_offscreen_paint_layers(nsIWidget* aWidget, nsIDocShell* aDocShell) __attribute__((weak));
   // peek: a job's state without taking its result (1 done, 2 composed and being read, 0 pending, -1 unknown)
   int jihad_offscreen_compose_peek(nsIWidget* aWidget, uint32_t aToken) __attribute__((weak));
+  // OPTIONAL (T-504): compose_post takes flag 32, a window of the overview (the scrolled content alone, fixed and
+  // stuck layers not drawn, the frame cleared transparent so the rows no layer drew read alpha 0)
+  int jihad_offscreen_overview_ok() __attribute__((weak));
   // OPTIONAL (T-511 review): the daemon gave the GPU path up; WebGL makes no more EGL contexts
   void jihad_offscreen_gpu_given_up() __attribute__((weak));
   uint32_t jihad_offscreen_late_writes() __attribute__((weak));   // T-513: given-up reads that wrote into a slot
@@ -158,6 +161,7 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_paint_layers", jihad_offscreen_paint_layers != nullptr},
     {"jihad_offscreen_compose_post", jihad_offscreen_compose_post != nullptr},
     {"jihad_offscreen_compose_peek", jihad_offscreen_compose_peek != nullptr},
+    {"jihad_offscreen_overview_ok", jihad_offscreen_overview_ok != nullptr},
     {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},
     {"jihad_offscreen_set_view", jihad_offscreen_set_view != nullptr},
     {"jihad_offscreen_set_scroll", jihad_offscreen_set_scroll != nullptr},

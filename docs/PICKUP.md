@@ -52,6 +52,48 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-10-26 (evening) — T-504 DONE: the bounded overview; T-505 measured read-only (READ FIRST)
+
+**T-504 DONE (the owner's design; engine 0069).** A double tap out after a pan while zoomed in used to show nothing
+until the paint at the old zoom (294-614 ms): the frame kept at the zoom in covers only the view as it was. Now,
+right after a zoom in that raises the resolution, the express thread posts, all at once, two or three "windows"
+(composites of a frame's rows each at the kept frame's scroll and a frame below and above it, at half the zoom,
+overlapping by 32 rows) and one "parts" job (the page's fixed and stuck layers alone, at the kept frame's scroll and
+its own zoom), while the tree still holds the tiles at a resolution of 1 (the paint at the new resolution can land
+~350 ms after the zoom; posted one at a time the windows lost that race, r8). Engine flags 32 (a window: the
+scrolled content alone) and 64 (the parts alone): both cleared transparent and read WITH their alpha (every other
+read forces it), so rows no tile covered are left out and the parts keep their own alpha. At the zoom back (only
+the "under half" case: a double tap to 2.33 and back; from 1.26 the express lane composes from the zoomed tiles as
+before) the frame is the picture at twice its size with the parts drawn over it where they sit at the new position
+(held where the neighbouring windows have them, moving with the page, or a sticky top; anything else makes no frame).
+By finger: desktop Wikipedia 40-56 ms; the frames looked at against the painted ones, also on
+`render/goanna/test/jihad-overview-alpha.html` (a see-through fixed header and sticky sidebar); a pan past the picture
+is refused and waits for the paint (no black frame). An inspector review found six defects (the readback's forced
+alpha among them: rows past the displayport would have shown black); all fixed and re-measured. Cost: the zoom
+in's sharp frame later (682-779 ms against 519-545). Memory per zoomed card: the picture 1.8-2.8 MB and ~0.5 MB of
+parts beside the kept frame's 3.7 MB; 7.5-9.4 MB of scratch for ~0.5 s. `JIHAD_GPU_NO_OVERVIEW=1` turns it off;
+`JIHAD_GPU_OVERVIEW_DUMP=<path>` dumps the picture. R6's first-frame criterion is [x] and R6 gained the overview's
+own criterion. Round tools: `tools/device/t502/zoom-pan.sh` (`PRE=<n>` drags at the fit zoom first). Records:
+`docs/rounds/t504-2026-10-26/notes.txt`.
+
+**T-505 measured, read only (the owner's "measure first, read-only" of today).** Eight finger drags,
+`tools/device/t502/finger-pan.sh` + `tools/host/express-jobs.py`: while frames flow desktop Wikipedia 9.5 fps, the
+long page 16.6. A frame is bound by the readback path on the GPU shared with LunaSysMgr's redraw: Wikipedia's band
+frames 64 ms median (the read's GPU wait 36, the copy from the base 16, the compose 14; its sticky sidebars read as
+columns double the read), the long page's 30 (11 / 13 / 3); the long gaps are the job's GPU waits. Records:
+`docs/rounds/t505-2026-10-26/notes.txt`. **The proposal waits on the owner** (asked as multiple choice).
+
+**Observed, not changed:** a main-lane republish of an unchanged frame writes no stuck block (T-544's rects), so the
+card's hold has nothing for that frame; harmless at rest (the next pan's frames carry them), noted because the
+overview could not take the kept frame's rects from it (it takes them from its own windows).
+
+**Device state:** the three packages of this head (daemon `31f580f4`, libxul `065b4273` stripped from engine
+`c05685f4`, adapters unchanged: Enyo `044445d7`, Mochi `0ad03744`, Mojo `2b400757`); no dev copies or `.orig`; Default
+look, No proxy; the sensors running; default-check passes in all three (faults 0).
+
+**Pushes:** the owner's — `bash .cavekit/handoff-2026-10-24/push.sh` (the engine fork's branch now `c05685f4`, patches
+through 0069, and main).
+
 ## 2026-10-26 (later) — the scripted pan moves the card; R3 re-opened; sticky sidebars held still (T-544) (READ FIRST)
 
 **The scripted pan never moved the card.** The owner, watching: the column stood still while frames changed. The

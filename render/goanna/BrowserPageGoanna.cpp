@@ -477,7 +477,7 @@ static void jihadExpressThread() {
     const int64_t now = jihadNowMs();
     if (now - w0 >= 30 && jihadTimelineOn())   // device rounds: the main thread held the frame lock this long
       fprintf(stderr, "[jihad-tl] t=%lld express waited %ld ms for the frame lock\n", (long long)now, (long)(now - w0));
-    if (gXPages) for (BrowserPageGoanna* p : *gXPages) soon = p->expressStep(now) || soon;
+    if (gXPages) for (BrowserPageGoanna* p : *gXPages) { soon = p->expressStep(now) || soon; soon = p->overviewStep(now) || soon; }
     jihadBoostFrameThreads();
   }
 }
@@ -822,6 +822,7 @@ BrowserPageGoanna::~BrowserPageGoanna() {
   // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
   FrameLockGuard frameLock;
   if (gXPages) gXPages->erase(this);
+  overviewForget();   // T-504
   // T-512: the lanes' count, one line a page (the [jihad-gpu] lines are off by default; the device
   // rounds' default checks read this one)
   if (mPage && mPage->GpuPath())
@@ -1347,6 +1348,7 @@ void BrowserPageGoanna::gpuFallBack(const char* why) {
   FrameLockGuard frameLock;   // T-515
   if (jihad_offscreen_gpu_given_up) jihad_offscreen_gpu_given_up();   // T-511 (review): WebGL off too
   xForget(mXJob2); xForget(mXJob);   // T-513 (review): the express lane's frames too, or one recovering would write into a slot the software path paints
+  overviewForget();   // T-504
   xInvalidate();
   for (const GpuJob& j : mGpuJobs) gpuForget(j);
   mGpuJobs.clear();
@@ -1430,26 +1432,47 @@ void BrowserPageGoanna::zoomBackKeep(double newZoom) {
   const long win = (t && t->magic == kJihadWindowMagic) ? (long)t->windowRows : 0;
   if ((size_t)h > rows || win < 0 || (size_t)win > rows - (size_t)h) return;
   const unsigned char* src = b + S.hdr + (size_t)win * rowBytes;
+  if (mOv.forSeq != mPubSeq) overviewDrop();   // T-504: another frame's
   mZoomBackPx.assign(src, src + (size_t)h * rowBytes);   // the capacity kept from the last keep
   ZoomBack& zb = mZoomBack;
   zb.zoom = zs; zb.x = oi->renderedX; zb.y = oi->renderedY; zb.w = w; zb.h = h; zb.contentH = mLastContentH;
   zb.pubSeq = mPubSeq; zb.ok = true;
+  JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the frame on the card kept (at %.4f, x %d y %d)\n", newZoom, zs, zb.x, zb.y);
 }
 
 bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want) {
   ZoomBack& zb = mZoomBack;
   if (!zb.ok || fabs(zb.zoom - Z) > 1e-4) return false;
+  static int64_t sSeenWant = 0;   // device rounds: when the express lane first looks at the zoom back
+  if (sSeenWant != want.ms) {
+    sSeenWant = want.ms;
+    JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the zoom back looked at %ld ms after the zoom (the step at %ld)\n", Z,
+                  (long)(jihadNowMs() - want.ms), (long)(now - want.ms));
+  }
   const XSnap& S = mXSnap;
-  // the card's view inside the kept frame, the same frame size and the page as tall as it was
-  if (zb.w != S.w || zb.h != S.frameH || zb.x != want.x || zb.y > want.y || want.y + S.h > zb.y + zb.h ||
-      zb.contentH != S.contentH || (size_t)zb.w * zb.h * 4 != mZoomBackPx.size()) {
+  // the same frame size and the page as tall as it was
+  if (zb.w != S.w || zb.h != S.frameH || zb.contentH != S.contentH || (size_t)zb.w * zb.h * 4 != mZoomBackPx.size()) {
+    zoomBackDrop();
+    return false;
+  }
+  // the card's view inside the kept frame; else (a pan while zoomed in, T-504) a frame drawn from the overview
+  const bool kept = zb.x == want.x && zb.y <= want.y && want.y + S.h <= zb.y + zb.h;
+  if (!kept && !overviewCovers(Z, want)) {
+    if (mOv.ok) JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the overview does not cover the card's view (rows %d..%d at the zoom in, the view at %d)\n",
+                              Z, mOv.top, mOv.top + 2 * mOv.rows, want.y);
     zoomBackDrop();
     return false;
   }
   // nothing in flight on the compositor or read thread: a composed job's read copies from another slot (its
   // base) after it reports composed, and that slot is no job's own (review 2026-10-26)
-  if (mXJob.on) return false;
-  for (const GpuJob& gj : mGpuJobs) if (mPage->ComposePeek(gj.token) != 1) return false;
+  // (device rounds: the first wait of each zoom back is logged with its reason)
+  static int64_t sWaitLogged = 0;
+  auto waits = [&](const char* why) {
+    if (sWaitLogged != want.ms) { sWaitLogged = want.ms; JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the zoom back waits, %ld ms after the zoom: %s\n", Z, (long)(now - want.ms), why); }
+    return false;
+  };
+  if (mXJob.on) return waits("the express lane's frame in flight");
+  for (const GpuJob& gj : mGpuJobs) if (mPage->ComposePeek(gj.token) != 1) return waits("a main-lane frame in flight");
   // a slot: not the one the card shows, not out with the card, not a lane's
   const size_t need = S.hdr + mZoomBackPx.size();
   int slot = -1;
@@ -1461,12 +1484,22 @@ bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want
     for (const GpuJob& gj : mGpuJobs) if (gj.slot == t) job = true;
     if (!job) slot = t;
   }
-  if (slot < 0) return false;   // a return frees one (the hook kicks)
+  if (slot < 0) return waits("no free slot");   // a return frees one (the hook kicks)
+  const int64_t fill0 = jihadNowMs();
   unsigned char* seg = S.base[slot];
-  memcpy(seg + S.hdr, mZoomBackPx.data(), mZoomBackPx.size());
   BrowserOffscreenInfo* oi = (BrowserOffscreenInfo*)seg;
-  oi->bufferWidth = zb.w; oi->bufferHeight = zb.h; oi->contentZoom = zb.zoom;
-  oi->renderedX = zb.x; oi->renderedY = zb.y; oi->renderedWidth = zb.w; oi->renderedHeight = zb.h;
+  GoannaRenderPage::ComposeResult held;   // T-504: a frame from the overview: its fixed and stuck rects, for the card's hold
+  int heldRow = 0;
+  if (kept) {
+    memcpy(seg + S.hdr, mZoomBackPx.data(), mZoomBackPx.size());
+    oi->bufferWidth = zb.w; oi->bufferHeight = zb.h; oi->contentZoom = zb.zoom;
+    oi->renderedX = zb.x; oi->renderedY = zb.y; oi->renderedWidth = zb.w; oi->renderedHeight = zb.h;
+  } else {
+    overviewFill(seg + S.hdr, want, &held);
+    heldRow = S.os;
+    oi->bufferWidth = S.w; oi->bufferHeight = S.frameH; oi->contentZoom = zb.zoom;
+    oi->renderedX = want.x; oi->renderedY = want.y - S.os; oi->renderedWidth = S.w; oi->renderedHeight = S.frameH;
+  }
   // not a composite: no slot record and no base for either lane; the card redraws it whole, and the
   // frame after it too
   mGpuSlotValid[slot] = false;
@@ -1475,21 +1508,406 @@ bool BrowserPageGoanna::zoomBackPublish(int64_t now, double Z, const XWant& want
   mBufFull[slot].valid = false;
   pubDirtyAll();
   const int key = S.keys[slot];
-  publishWindow(key, 0, nullptr);
+  publishWindow(key, 0, nullptr, kept ? nullptr : &held, heldRow);
   mSink.msgPainted(key); noteShown(key);
   mInFlight[slot] = true; mPaintMs[slot] = now;
   if (!mXMainWindow && mActiveKey == key) mActiveKey = keyAfter(key);
   // the newest frame, as an express publish is: the main lane's jobs at the old zoom are dropped at their poll
   ++mXFrames; mXLastZoom = Z; mXLastXPubMs = now;
-  JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the frame kept at the zoom in published again, %ld ms after the zoom\n", Z, (long)(now - want.ms));
+  if (kept) JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: the frame kept at the zoom in published again, %ld ms after the zoom\n", Z, (long)(now - want.ms));
+  else JIHAD_GPU_LOG("[jihad-gpu] zoom %.4f: a frame from the overview published, %ld ms after the zoom, drawn in %ld ms (the view at %d, the kept frame's at %d; the overview rows %d..%d, %d fixed or stuck rects drawn)\n",
+                     Z, (long)(jihadNowMs() - want.ms), (long)(jihadNowMs() - fill0), want.y, zb.y + S.os, mOv.top, mOv.top + 2 * mOv.rows, held.nStuck);
   // device rounds: JIHAD_GPU_ZOOM_BACK_DUMP=<path>, the frame as the adapter reads it (3.7 MB: delete it at once)
   static const char* sBackDump = getenv("JIHAD_GPU_ZOOM_BACK_DUMP");
   if (sBackDump) {
     if (FILE* f = fopen(sBackDump, "wb")) { fwrite(seg + S.hdr, 1, mZoomBackPx.size(), f); fclose(f); }
   }
-  jihadTimelinePublish("zoom back", want.ms, zb.y, zb.zoom);
+  jihadTimelinePublish(kept ? "zoom back" : "zoom back (overview)", want.ms, kept ? zb.y : want.y - S.os, zb.zoom);
   zoomBackDrop();
   return true;
+}
+
+// T-504 (R6): the overview's jobs, on the express thread after its step (the frame lock held). Posted all at once
+// as soon as the card shows the zoom in's first frame, while the layer tree still holds the tiles at a resolution
+// of 1: the main thread's paint at the new resolution replaces them in one transaction, as early as ~350 ms after
+// the zoom (the card's view alone is painted first), and jobs posted before that transaction are composed before
+// it (the compositor thread takes both in order); one at a time, the second came after it (round r8). A window
+// composed after it draws the new tree's tiles: the same page at the same place, fewer rows covered (the rest read
+// alpha 0 and are left out), and its fixed and stuck parts not where the others have them (overviewPlace refuses
+// there). Each job is a verify composite (the lanes' next frames see no change from it, the sticky probe
+// included) that reads only its own rows into the scratch at its own place: the parts' whole frame first, then
+// each window's half frame. True while any is in flight (step again soon).
+static inline uint32_t jihadAvgPx(uint32_t x, uint32_t y) { return (x & y) + (((x ^ y) & 0xFEFEFEFEu) >> 1); }   // per byte
+
+// the scratch of jobs forgotten in flight: a read already handed to the read thread may still write into it, so it
+// is freed 10 s later (the daemon gives a frame up after 3 s)
+struct JihadOvGrave { unsigned char* p; int64_t freeAt; };
+static std::vector<JihadOvGrave>* sOvGraves = nullptr;
+static void jihadOvSweep(int64_t now) {
+  if (!sOvGraves) return;
+  for (size_t i = 0; i < sOvGraves->size();) {
+    if (now >= (*sOvGraves)[i].freeAt) { delete[] (*sOvGraves)[i].p; (*sOvGraves)[i] = sOvGraves->back(); sOvGraves->pop_back(); }
+    else ++i;
+  }
+}
+
+__attribute__((optimize("O2"))) bool BrowserPageGoanna::overviewStep(int64_t now) {
+  static const bool sOff = getenv("JIHAD_GPU_NO_OVERVIEW") != nullptr;
+  jihadOvSweep(now);
+  if (sOff || !mPage) return false;
+  Overview& o = mOv;
+  const XSnap& S = mXSnap;
+  const ZoomBack& zb = mZoomBack;
+  if (o.inFlight > 0) {
+    // the jobs in the order posted: each one's result taken as it is done
+    for (int j = 0; j <= o.nWin; j++) {
+      if (!o.out[j]) continue;
+      GoannaRenderPage::ComposeResult cr;
+      const int r = mPage->ComposePoll(o.token[j], nullptr, &cr);
+      if (r == -2 || r == -3) {
+        if (now - o.tPost > 3000) {
+          JIHAD_GPU_LOG("[jihad-gpu] overview: job %d not composed in 3 s, given up\n", j + 1);
+          overviewForget();
+          return false;
+        }
+        break;   // the next ones are behind it
+      }
+      o.out[j] = false; o.token[j] = 0; --o.inFlight;
+      const bool keep = !o.dead && r >= 0 && zb.ok && zb.pubSeq == o.forSeq && S.w == zb.w && S.frameH == o.frameH && S.os == o.os;
+      if (!keep) {
+        if (!o.dead && r < 0) JIHAD_GPU_LOG("[jihad-gpu] overview: job %d failed\n", j + 1);
+        continue;
+      }
+      const unsigned char* src = mOvScratch.get() + o.off[j];
+      char rs[160] = "";
+      if (j == o.nWin) {
+        // the parts: each rect's pixels as read, with their alpha (premultiplied), y from the view
+        o.nParts = 0;
+        size_t bytes = 0;
+        int pr[4][4];
+        for (int i = 0; i < cr.nStuck && i < 4; i++) {
+          const int x0 = std::max(0, cr.stuck[i][0]), x1 = std::min(S.w, cr.stuck[i][2]);
+          const int y0 = std::max(0, cr.stuck[i][1]), y1 = std::min(o.frameH, cr.stuck[i][3]);
+          if (x1 <= x0 || y1 <= y0) continue;
+          int* q = pr[o.nParts++];
+          q[0] = x0; q[1] = y0; q[2] = x1; q[3] = y1;
+          bytes += (size_t)(x1 - x0) * (y1 - y0) * 4;
+        }
+        mOvParts.resize(bytes);
+        size_t at = 0;
+        for (int i = 0; i < o.nParts; i++) {
+          const int* q = pr[i];
+          const size_t rowBytes = (size_t)(q[2] - q[0]) * 4;
+          o.partOff[i] = at;
+          for (int y = q[1]; y < q[3]; y++, at += rowBytes)
+            memcpy(mOvParts.data() + at, src + ((size_t)y * S.w + q[0]) * 4, rowBytes);
+          o.part[i][0] = q[0]; o.part[i][2] = q[2]; o.part[i][1] = q[1] - o.os; o.part[i][3] = q[3] - o.os;
+        }
+        o.partsDone = true;
+        for (int i = 0, n = 0; i < o.nParts && n < (int)sizeof(rs) - 32; i++)
+          n += snprintf(rs + n, sizeof(rs) - n, " %d,%d..%d,%d", o.part[i][0], o.part[i][1], o.part[i][2], o.part[i][3]);
+        JIHAD_GPU_LOG("[jihad-gpu] overview: the fixed and stuck parts done %ld ms after their post, %d (%zu KB, y from the view):%s\n",
+                      (long)(now - o.tPost), o.nParts, mOvParts.size() / 1024, rs);
+        continue;
+      }
+      // a window's rows into the overview: a row no tile covered (alpha 0 where nothing drew: the displayport's edge,
+      // past the page) is left out; a row an earlier window has stays (the windows overlap)
+      const int T = o.winTop[j], half = o.frameH / 2;
+      const uint32_t* src0 = (const uint32_t*)src;
+      int taken = 0;
+      for (int r2 = 0; r2 < half; r2++) {
+        const int orow = (T - o.top) / 2 + r2;
+        if (orow < 0 || orow >= o.rows || mOvRowOk[orow]) continue;
+        const uint32_t* sp = src0 + (size_t)r2 * S.w;
+        int clear = 0;
+        for (int c = 0; c < o.w; c++) if ((sp[c] >> 24) < 128) clear++;
+        if (clear > 2 + o.w / 256) continue;
+        uint32_t* dp = (uint32_t*)mOvPx.data() + (size_t)orow * o.w;
+        for (int c = 0; c < o.w; c++) { const uint32_t v = sp[c]; dp[c] = (v >> 24) < 128 ? 0xFFFFFFFFu : (v | 0xFF000000u); }
+        mOvRowOk[orow] = 1; ++taken;
+      }
+      // its fixed and stuck rects (drawn neither here nor in the overview) at full size, y from its view: where
+      // they sit on the card when it is at this window's view (overviewPlace)
+      o.nRect[j] = std::min(cr.nStuck, 4);
+      for (int i = 0; i < o.nRect[j]; i++) {
+        int* q = o.rect[j][i];
+        q[0] = std::max(0, std::min(2 * cr.stuck[i][0], S.w)); q[2] = std::max(0, std::min(2 * cr.stuck[i][2], S.w));
+        q[1] = std::max(0, std::min(2 * cr.stuck[i][1], S.frameH)) - o.os; q[3] = std::max(0, std::min(2 * cr.stuck[i][3], S.frameH)) - o.os;
+      }
+      o.winDone[j] = true;
+      o.ok = true;
+      for (int i = 0, n = 0; i < o.nRect[j] && n < (int)sizeof(rs) - 32; i++)
+        n += snprintf(rs + n, sizeof(rs) - n, " %d,%d..%d,%d", o.rect[j][i][0], o.rect[j][i][1], o.rect[j][i][2], o.rect[j][i][3]);
+      JIHAD_GPU_LOG("[jihad-gpu] overview: window %d of %d at rows %d..%d done %ld ms after its post, %d of %d half rows taken, %d fixed or stuck rects%s%s\n",
+                    j + 1, o.nWin, T, T + 2 * half, (long)(now - o.tPost), taken, half, o.nRect[j], o.nRect[j] ? " (from the view):" : "", rs);
+    }
+    if (o.inFlight > 0) return true;
+    mOvScratch.reset(); mOvScratchBytes = 0;
+    if (o.dead) { o = Overview(); std::vector<unsigned char>().swap(mOvParts); return false; }
+    if (o.ok) {
+      int cov = 0;
+      for (int k = 0; k < o.rows; k++) cov += mOvRowOk[k];
+      // the rows left out, as card rows (the first eight runs)
+      char us[200] = "";
+      for (int k = 0, n = 0, runs = 0; k < o.rows && runs < 8 && n < (int)sizeof(us) - 24; k++) {
+        if (mOvRowOk[k] || (k > 0 && !mOvRowOk[k - 1])) continue;
+        int e = k;
+        while (e < o.rows && !mOvRowOk[e]) e++;
+        n += snprintf(us + n, sizeof(us) - n, " %d..%d", o.top + 2 * k, o.top + 2 * e);
+        ++runs;
+      }
+      if (cov < o.rows) JIHAD_GPU_LOG("[jihad-gpu] overview: rows left out (no tile drew them):%s\n", us);
+      JIHAD_GPU_LOG("[jihad-gpu] overview: built %ld ms after the zoom in, rows %d..%d of the page at %.4f (%d of %d half rows covered, %zu KB and %zu KB of parts)\n",
+                    (long)(now - o.t0), o.top, o.top + 2 * o.rows, o.zoom, cov, o.rows, mOvPx.size() / 1024, mOvParts.size() / 1024);
+      // device rounds: JIHAD_GPU_OVERVIEW_DUMP=<path>, the overview as built (w x rows B8G8R8A8: delete it at once)
+      static const char* sDump = getenv("JIHAD_GPU_OVERVIEW_DUMP");
+      if (sDump) {
+        if (FILE* f = fopen(sDump, "wb")) { fwrite(mOvPx.data(), 1, mOvPx.size(), f); fclose(f); }
+        JIHAD_GPU_LOG("[jihad-gpu] overview: dumped %dx%d to %s\n", o.w, o.rows, sDump);
+      }
+    }
+    return false;
+  }
+  if (!zb.ok) return false;
+  const bool fresh = o.forSeq != zb.pubSeq;
+  if (!fresh && o.tried) return false;   // posted, or given up, for this kept frame
+  if (!mPage->GpuPath() || !mPage->OverviewReady() || mFrozen || !S.ok || S.popups || mXFailures >= 3 || mGpuRootless) return false;
+  // the tree is the zoom in's old one only until the paint at the new resolution: once that is in, no job
+  if (mXTreeRes > 1.0005) { o = Overview(); o.forSeq = zb.pubSeq; o.tried = true; return false; }
+  // the card is zoomed in past a resolution of 1 (else nothing will replace the tiles, and no zoom back needs it)
+  double wantZoom;
+  int64_t wantMs, zoomMs;
+  { std::lock_guard<std::mutex> l(jihadWantLock()); wantZoom = mXWant.seq ? mXWant.zoom : 0.0; wantMs = mXWant.ms; zoomMs = mXZoomWantMs; }
+  if (GoannaRenderPage::GpuResolutionFor(wantZoom) <= 1.0005f) return false;
+  // due: looked at again every few ms until it can start, for 2 s at most (a zoom whose paint never changes the
+  // tree's resolution)
+  if (mOvDueSeq != zb.pubSeq) { mOvDueSeq = zb.pubSeq; mOvDueMs = now; }
+  else if (now - mOvDueMs > 2000) { o = Overview(); o.forSeq = zb.pubSeq; o.tried = true; return false; }
+  // the card shows the zoom in (its first frame is out: the jobs do not hold it back), no frame of the lanes is in
+  // flight, and the card has been still for 40 ms (a pinch's frames go first; a double tap's zoom is one command)
+  if (mXJob.on || mXJob2.on || !mGpuJobs.empty() || now - wantMs < 40) return true;
+  int shown = -1;
+  for (int i = 0; i < 3; ++i) if (S.keys[i] == mShownKey && S.base[i]) shown = i;
+  if (shown < 0 || fabs(((const BrowserOffscreenInfo*)S.base[shown])->contentZoom - wantZoom) > 1e-4) return true;
+  // the kept frame's own window first, then the one below it and the one above (a pan goes down more often), those
+  // within the page; the parts at the kept frame's own scroll
+  // the windows overlap by 32 card rows: a window's last rows sit at its clip's edge and read uncovered (r v4)
+  const int Hs = S.frameH, os = S.os, step = (Hs / 2) * 2 - 32;
+  o = Overview();
+  std::vector<unsigned char>().swap(mOvParts);
+  o.forSeq = zb.pubSeq; o.tried = true;
+  if (zb.w != S.w || zb.h != Hs || zb.contentH != S.contentH || step < 64 || S.w < 4) return false;
+  const long pageRows = S.contentH > 0 ? (long)ceil((double)S.contentH * zb.zoom) : 0;
+  const int tops[3] = { zb.y, zb.y + step, zb.y - step };
+  for (int k = 0; k < 3; k++) {
+    if (k > 0 && (tops[k] + step <= 0 || (pageRows > 0 && tops[k] >= pageRows))) continue;
+    o.winTop[o.nWin++] = tops[k];
+  }
+  int lo = o.winTop[0], hi = o.winTop[0] + step + 32;
+  for (int k = 1; k < o.nWin; k++) { lo = std::min(lo, o.winTop[k]); hi = std::max(hi, o.winTop[k] + step + 32); }
+  o.zoom = zb.zoom; o.x = zb.x; o.top = lo; o.w = S.w / 2; o.rows = (hi - lo) / 2;
+  o.frameH = Hs; o.os = os; o.t0 = zoomMs ? zoomMs : now; o.tPost = now;
+  mOvPx.assign((size_t)o.w * o.rows * 4, 0xFF);
+  mOvRowOk.assign(o.rows, 0);
+  // the parts' whole frame at the scratch's start, then each window's half frame (the engine writes no row past
+  // the rows a bands-only job asks for)
+  const size_t stride = (size_t)S.w * 4, frame = stride * Hs, halfFrame = stride * (Hs / 2);
+  o.off[o.nWin] = 0;
+  for (int k = 0; k < o.nWin; k++) o.off[k] = frame + halfFrame * k;
+  mOvScratchBytes = frame + halfFrame * o.nWin;
+  mOvScratch.reset(new unsigned char[mOvScratchBytes]);   // not cleared: each job's rows are written before they are read
+  const int order[5] = { 0, o.nWin, 1, 2, 3 };   // the kept frame's window, the parts, then the others
+  for (int n = 0; n <= o.nWin; n++) {
+    const int j = order[n];
+    if (j > o.nWin) continue;
+    const bool parts = j == o.nWin;
+    // the view: half the zoom (the parts: the zoom itself), the card's scroll at the job's view (its top os rows
+    // above it, as a frame's)
+    const int T = parts ? o.winTop[0] : o.winTop[j];
+    const double view[5] = { parts ? o.zoom : o.zoom / 2.0, 0.0, -(double)os / o.zoom, (double)o.x / o.zoom, (double)(T + os) / o.zoom };
+    const uint32_t token = mPage->ComposePost(mOvScratch.get() + o.off[j], mOvScratchBytes - o.off[j], Hs, 0, parts ? Hs : Hs / 2, 0, 0, 0,
+                                              nullptr, 0, false, view, 0, -1, false, true, true, !parts, parts);
+    if (!token) { JIHAD_GPU_LOG("[jihad-gpu] overview: the compositor took no job %d\n", j + 1); break; }
+    o.token[j] = token; o.out[j] = true; ++o.inFlight;
+    mXLastPostToken = token;   // the newest composite is not a published frame
+  }
+  if (!o.inFlight) { mOvScratch.reset(); mOvScratchBytes = 0; return false; }
+  JIHAD_GPU_LOG("[jihad-gpu] overview: %d windows and the parts posted %ld ms after the zoom in\n", o.nWin, (long)(now - o.t0));
+  return true;
+}
+
+// T-504: the overview is of this zoom and this kept frame, the frame's geometry is the one it was made for, the
+// card's view rows are covered, and the fixed and stuck parts have a place at the card's new position
+bool BrowserPageGoanna::overviewCovers(double Z, const XWant& want) const {
+  const Overview& o = mOv;
+  const XSnap& S = mXSnap;
+  const ZoomBack& zb = mZoomBack;
+  if (!o.ok || !o.partsDone || !zb.ok || o.forSeq != zb.pubSeq || fabs(o.zoom - Z) > 1e-4 || want.x != o.x || S.frameH != o.frameH ||
+      S.os != o.os || S.w / 2 != o.w || mOvPx.size() != (size_t)o.w * o.rows * 4 || mOvRowOk.size() != (size_t)o.rows)
+    return false;
+  if (want.y < o.top) return false;
+  const int h0 = (want.y - o.top) / 2, h1 = (want.y + S.h - 1 - o.top) / 2;
+  if (h1 >= o.rows) return false;
+  for (int k = h0; k <= h1; k++) {
+    if (!mOvRowOk[k]) {
+      JIHAD_GPU_LOG("[jihad-gpu] overview: the card's row %d is not in it (no tile drew it)\n", o.top + 2 * k);
+      return false;
+    }
+  }
+  int dst[4][4];
+  if (overviewPlace(want, dst)) return true;
+  JIHAD_GPU_LOG("[jihad-gpu] overview: no place for the fixed and stuck parts at the view %d\n", want.y);
+  return false;
+}
+
+// T-504: where each fixed and stuck part goes on the card at its new position (dst: frame px, y from the view).
+// Each window lists them where they sit at its view; the engine counts a sticky part within its probe (1024 px for
+// these jobs) as stuck, so a sidebar still in the flow is listed too. A part is matched in a window by its columns
+// and height, one to one, the nearest in y. From the two windows whose views the card's lies between (past the
+// outermost, the outermost and the next one), a part is where both have it (held), or moves with the page in
+// both, or, lower in the first and higher in the second, moves with the page until it sticks (a sticky top:
+// Wikipedia's sidebars near the page's top). Any other case, or a part a window lacks, makes no frame.
+bool BrowserPageGoanna::overviewPlace(const XWant& want, int dst[4][4]) const {
+  const Overview& o = mOv;
+  if (!o.partsDone) return false;
+  int ks[4], nk = 0;   // the windows done, by their view
+  for (int k = 0; k < o.nWin; k++) if (o.winDone[k]) ks[nk++] = k;
+  std::sort(ks, ks + nk, [&](int p, int q) { return o.winTop[p] < o.winTop[q]; });
+  if (nk == 0) return false;
+  auto view = [&](int k) { return o.winTop[k] + o.os; };
+  int a = -1, b = -1;
+  for (int i = 0; i < nk; i++) {
+    if (view(ks[i]) <= want.y) a = i;
+    if (view(ks[i]) >= want.y && b < 0) b = i;
+  }
+  if (a < 0 || b < 0) {   // past the outermost window: it and the next one in
+    if (nk < 2) { if (want.y != view(ks[0])) return false; a = b = 0; }
+    else if (a < 0) { a = 0; b = 1; }
+    else { a = nk - 2; b = nk - 1; }
+  }
+  const int ka = ks[a], kb = ks[b], va = view(ka), vb = view(kb);
+  if (o.nRect[ka] != o.nParts || o.nRect[kb] != o.nParts) return false;
+  // one to one: each part takes the nearest unused rect of the same columns and height
+  auto match = [&](int k, int* idx) {
+    bool used[4] = {};
+    for (int i = 0; i < o.nParts; i++) {
+      const int* p = o.part[i];
+      int best = -1, bd = 1 << 30;
+      for (int j = 0; j < o.nRect[k]; j++) {
+        const int* q = o.rect[k][j];
+        if (used[j] || abs(q[0] - p[0]) > 4 || abs(q[2] - p[2]) > 4 || abs((q[3] - q[1]) - (p[3] - p[1])) > 6) continue;
+        const int d = abs(q[1] - p[1]);
+        if (d < bd) { bd = d; best = j; }
+      }
+      if (best < 0) return false;
+      used[best] = true; idx[i] = best;
+    }
+    return true;
+  };
+  int ia[4], ib[4];
+  if (!match(ka, ia) || !match(kb, ib)) return false;
+  for (int i = 0; i < o.nParts; i++) {
+    const int ya = o.rect[ka][ia[i]][1], yb = o.rect[kb][ib[i]][1];
+    int y;
+    if (ka == kb || abs(ya - yb) <= 4) y = (want.y - va <= vb - want.y) ? ya : yb;   // held
+    else if (abs((ya - yb) - (vb - va)) <= 4) y = ya - (want.y - va);                 // with the page
+    else if (ya > yb && ya - yb < vb - va) y = std::max(ya - (want.y - va), yb);      // with the page until it sticks
+    else return false;
+    if (abs(y - o.part[i][1]) <= 4) y = o.part[i][1];   // held where the kept frame's scroll has it
+    dst[i][0] = o.part[i][0]; dst[i][2] = o.part[i][2];
+    dst[i][1] = y; dst[i][3] = y + (o.part[i][3] - o.part[i][1]);
+  }
+  return true;
+}
+
+// T-504: the frame at the card's view drawn from the overview at twice its size (each row and column between two of
+// the overview's averaged), the fixed and stuck parts drawn over it with their alpha where they sit at the card's
+// new position; each row made in a buffer and written to the slot whole
+__attribute__((optimize("O2"))) void BrowserPageGoanna::overviewFill(unsigned char* dst, const XWant& want, GoannaRenderPage::ComposeResult* held) {
+  const Overview& o = mOv;
+  const XSnap& S = mXSnap;
+  const int W = S.w, H = S.frameH, fy = want.y - S.os;
+  static std::vector<uint32_t> sRows;   // three rows: two widened, one made (the express thread's alone)
+  if (sRows.size() < (size_t)W * 3) sRows.resize((size_t)W * 3);
+  uint32_t* buf[2] = { sRows.data(), sRows.data() + W };
+  uint32_t* line = sRows.data() + 2 * W;
+  int held2[2] = { -1, -1 };   // the overview rows buf[0] and buf[1] hold
+  const uint32_t* ov = (const uint32_t*)mOvPx.data();
+  const int n = std::min(o.w, W / 2);
+  auto widened = [&](int hr) -> const uint32_t* {
+    for (int k = 0; k < 2; k++) if (held2[k] == hr) return buf[k];
+    const int k = held2[0] == hr - 1 ? 1 : 0;   // rows go down: keep the one above
+    uint32_t* out = buf[k];
+    const uint32_t* sp = ov + (size_t)hr * o.w;
+    for (int i = 0; i + 1 < n; i++) { const uint32_t p = sp[i], q = sp[i + 1]; out[2 * i] = p; out[2 * i + 1] = jihadAvgPx(p, q); }
+    for (int c = 2 * (n - 1); c < W; c++) out[c] = sp[n - 1];
+    held2[k] = hr;
+    return out;
+  };
+  auto covered = [&](int hr) { return hr >= 0 && hr < o.rows && mOvRowOk[hr]; };
+  int at[4][4], nP = 0;   // the parts' rects in this frame (frame rows)
+  held->nStuck = 0;
+  if (overviewPlace(want, at)) {
+    nP = o.nParts;
+    for (int i = 0; i < nP; i++) { at[i][1] += S.os; at[i][3] += S.os; }
+  }
+  for (int r = 0; r < H; r++) {
+    const int f = fy + r - o.top, hr = f >= 0 ? f / 2 : -1;
+    if (!covered(hr)) for (int c = 0; c < W; c++) line[c] = 0xFFFFFFFFu;   // overscan past it
+    else if (!(f & 1) || !covered(hr + 1)) memcpy(line, widened(hr), (size_t)W * 4);
+    else {
+      const uint32_t* e1 = widened(hr);
+      const uint32_t* e2 = widened(hr + 1);
+      for (int c = 0; c < W; c++) line[c] = jihadAvgPx(e1[c], e2[c]);
+    }
+    // the parts over it: premultiplied, so out = part + out * (1 - alpha)
+    for (int i = 0; i < nP; i++) {
+      if (r < at[i][1] || r >= at[i][3]) continue;
+      const int pw = o.part[i][2] - o.part[i][0];
+      const uint32_t* pp = (const uint32_t*)(mOvParts.data() + o.partOff[i]) + (size_t)(r - at[i][1]) * pw;
+      const int x0 = std::max(0, at[i][0]), x1 = std::min(W, at[i][2]);
+      for (int x = x0; x < x1; x++) {
+        const uint32_t s = pp[x - at[i][0]], a = s >> 24;
+        if (a == 255) { line[x] = s; continue; }
+        if (a == 0) continue;
+        const uint32_t d = line[x], ia = 255 - a;
+        const uint32_t rb = (((d & 0x00FF00FFu) * ia + 0x00800080u) >> 8) & 0x00FF00FFu;
+        const uint32_t g = (((d >> 8) & 0xFFu) * ia + 0x80u) >> 8;
+        line[x] = 0xFF000000u | (((s & 0x00FF00FFu) + rb) & 0x00FF00FFu) | ((((s >> 8) & 0xFFu) + g) << 8);
+      }
+    }
+    memcpy(dst + (size_t)r * W * 4, line, (size_t)W * 4);
+  }
+  // the card holds the parts where this frame drew them during a pan (T-544)
+  for (int i = 0; i < nP && held->nStuck < 4; i++) {
+    const int y0 = std::max(0, at[i][1]), y1 = std::min(H, at[i][3]);
+    if (y1 <= y0) continue;
+    int* hs = held->stuck[held->nStuck++];
+    hs[0] = std::max(0, at[i][0]); hs[1] = y0; hs[2] = std::min(W, at[i][2]); hs[3] = y1;
+  }
+}
+
+void BrowserPageGoanna::overviewDrop() {
+  if (mOv.inFlight > 0) { mOv.dead = true; mOv.ok = false; mOv.partsDone = false; }   // they finish into the scratch, nothing kept
+  else mOv = Overview();
+  std::vector<unsigned char>().swap(mOvPx);
+  std::vector<unsigned char>().swap(mOvRowOk);
+  std::vector<unsigned char>().swap(mOvParts);
+}
+
+void BrowserPageGoanna::overviewForget() {
+  if (mOv.inFlight > 0) {
+    // forgotten jobs write nothing once cancelled, but a read already with the read thread may: the scratch is
+    // freed later (jihadOvSweep)
+    for (int j = 0; j <= mOv.nWin && j < 5; j++) if (mOv.out[j] && mPage) mPage->ComposeForget(mOv.token[j]);
+    if (!sOvGraves) sOvGraves = new std::vector<JihadOvGrave>();
+    sOvGraves->push_back(JihadOvGrave{ mOvScratch.release(), jihadNowMs() + 10000 });
+  }
+  mOvScratch.reset(); mOvScratchBytes = 0;
+  mOv = Overview();
+  std::vector<unsigned char>().swap(mOvPx);
+  std::vector<unsigned char>().swap(mOvRowOk);
+  std::vector<unsigned char>().swap(mOvParts);
 }
 
 // The inject pan (JihadBrowserServer) used to send the card's scroll commands to the daemon itself; the card's
@@ -4505,6 +4923,7 @@ void BrowserPageGoanna::expressDetach() {
   if (!jihadExpressOn()) return;
   FrameLockGuard frameLock;
   if (gXPages) gXPages->erase(this);
+  overviewForget();   // T-504
   gpuJobDrain();   // the express lane's frames too: the compositor writes into their slots until done
 }
 

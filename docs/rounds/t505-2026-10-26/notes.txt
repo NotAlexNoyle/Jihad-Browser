@@ -1,0 +1,38 @@
+T-505 / R3 under a finger, measured read-only (the owner's choice of 2026-10-26: "measure first")
+==================================================================================================
+
+The packaged head's daemon plus T-504's (the overview plays no part in a pan), engine 0069; the spike daemon with
+JIHAD_GPU_TIMELINE=1 JIHAD_GPU_PHASES=1; eight emulated-finger drags (480,900 -> 480,250 in 1 s, a second apart;
+tools/device/t502/finger-pan.sh); sensors running. Broken down with tools/host/express-jobs.py and
+tools/host/gap-trace.py. Logs: fp-wiki1-daemon-gpu.log (desktop Wikipedia, HP_TouchPad), fp-long1-daemon-gpu.log
+(jihad-long-static.html); the CPU ticks over the drags in fp-*-cpu.txt.
+
+Frame rate while frames flow (bursts of five frames or more, the pauses between drags left out):
+  desktop Wikipedia 9.5 fps (8.2-12.2 a drag), the long page 16.6 fps (16-20 after the first two drags).
+  Gaps between frames: Wikipedia median 91 ms, p90 260; the long page median 43 ms (~23 fps), p90 160.
+
+Where a frame's time goes (median / p90, ms):
+                                        Wikipedia        the long page
+  the job on the compositor loop        71 / 133         28 / 77      (post to composed, the read in a band frame)
+    waiting for the loop                0.2 / 54         0.3 / 13     (the page's tile transactions: 1.24 s of the
+                                                                       compositor thread on Wikipedia over the drags)
+  band frames (every tenth logged)      64 / 123         30 / 49
+    the compose (CPU, draws issued)     14 / 59          3.4 / 14
+    the copy from the base ("shift")    16 / 18          13 / 19
+    the read (waits for the GPU)        36 / 52          11 / 25
+  the read thread's glReadPixels        16 / 45          7.7 / 26     (whole frames ~39 ms on both; a read of
+                                                                       under 100 rows 11.7 vs 6.6 ms)
+  post to publish ("made")              85 / 179         35 / 95
+Wikipedia's band frames read two bands of ~45 rows AND its two see-through sticky sidebars as columns (150-500
+rows of chunks); the long page's read the bands alone. Gaps of 100 ms or more: 65 on Wikipedia, 62 of them the
+job itself (a band frame's GPU waits); 31 on the long page, 26 the job.
+Composites of 80 ms or more (JIHAD_GPU_PHASES): "render layers" whole (draw calls of 1-3 ms each: the GPU behind
+other work), nothing in the CPU phases.
+
+CPU over the drags (/proc, both cores): the daemon ~27% of the device, the LunaSysMgr instance that draws the card
+~20%, the other ~4%, idle ~25% (Wikipedia); the long page the daemon ~17%, LunaSysMgr ~20%, idle ~33%.
+
+What it says: under a finger a frame is bound by the readback path on the GPU it shares with LunaSysMgr's redraw
+of the card: the read's wait (36 / 11 ms), the copy from the base (13-16 ms), and Wikipedia's sidebars doubling
+what is read. No stage is the main thread's or the page's script's. A simple page runs ~30 ms jobs (~33 fps
+possible) but the GPU stalls in the tail bring it to 16.6; Wikipedia is 2.5x short of R3's 24.

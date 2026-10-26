@@ -1,0 +1,97 @@
+T-504 (cavekit-gpu-rendering R6): the bounded overview, the owner's design of 2026-10-26
+============================================================================================
+
+The case: a double tap in on desktop Wikipedia (0.6882 -> 2.3273, the resolution goes to 2.33), a drag while
+zoomed in, a double tap out. The frame kept at the zoom in (T-527, zoomBackPublish) covers only the view as it
+was (+-141 overscan rows at the fit zoom); one drag moves the fit view ~190 rows, so nothing was shown until the
+paint at the resolution of 1: 532-560 ms after the double tap out (r1, r8). The owner: a half-resolution picture
+of a few screens around the zoom-in point, ~4-8 MB per card; a long pan may still wait.
+
+How it works (render/goanna/BrowserPageGoanna.cpp, overviewStep/overviewCovers/overviewPlace/overviewFill;
+engine 0069):
+- Right after the zoom in's first frame is on the card, while the layer tree still holds the tiles at a
+  resolution of 1, the express thread posts two or three "windows": composites of a frame's rows each at the
+  kept frame's scroll, a frame below it and a frame above it (those within the page), at half the zoom. All at
+  once: the paint at the new resolution can land ~350 ms after the zoom (the card's view alone is painted
+  first), and a window posted after its transaction would draw the new tree; posted one at a time, the second
+  came after it (r8).
+- Engine flag 32 (patch 0069): a window is the scrolled content alone (fixed and stuck layers at shadow opacity
+  0) and cleared transparent, so rows no tile covered (past the displayport, past the page) read alpha 0 and are
+  left out. Each window is a verify composite: the lanes' next frames see no change from it.
+- Each window also returns its fixed and stuck rects (T-544's list) at its own scroll. At the zoom back the
+  frame is the overview at twice its size (each row and column between two averaged), with the fixed and stuck
+  parts copied from the kept frame to where they sit at the card's new position: where the windows on either
+  side of it have them, or, for a part below its place in the kept frame's window and higher in the next one,
+  moving with the page until it sticks (a sticky top). Any other case makes no frame (the paint is waited for).
+- Memory: the overview 1.8 MB (two windows, the page's top) to 2.75 MB (three), beside the kept frame's 3.7 MB;
+  the windows' scratch 5.6-7.5 MB only while they are in flight (~0.5 s after a zoom in).
+- Where it is used: a zoom back "under half" (the tiles at the new resolution would be drawn at under half their
+  size, the express lane makes no frame from them: a double tap to 2.33 and back). A zoom back from a smaller
+  zoom in (1.26 -> 0.69) is composed from the zoomed tiles as before (247 ms in r5).
+
+Rounds (tools/device/t502/zoom-pan.sh; the emulated finger; desktop Wikipedia, HP_TouchPad; sensors running):
+- r1: the overview built (2 windows, 404 ms after the zoom in) but refused: the kept frame's stuck block was
+  empty (a main-lane republish of an unchanged frame clears it) and the windows' rects did not match it.
+  The overview picture looked at: the article over two screens at half resolution, continuous across the seam.
+- r2: the first double tap was not taken (the page's script busy after its load); the device script now tries
+  a double tap again when no zoom followed.
+- r3: at the page's top the kept frame's window has the sidebars at y 91 (in the flow, below the header) and the
+  window below has them stuck at y 13; at the zoom-out position (195) they are stuck: the rule refused (right);
+  the placement rule above (a sticky top) was then added.
+- r4: a frame from the overview 173 ms after the double tap out; the frame looked at against the painted one
+  4 s later: the article, the infobox and the History heading at the same rows, the Contents and Appearance
+  panels stuck at the same place; the article soft, the panels sharp.
+- r5 (three drags at the fit zoom first, then the double tap: a 588 CSS px block, 1.2632): three windows,
+  the seams looked at (continuous text, nothing doubled). The zoom out from 1.26 is not "under half" (the
+  tiles at 1.26 are drawn at 0.54): the express lane composes it from them (247 ms) and the overview is not
+  used there.
+- r6: two drags, the view at 325: the frame from the overview 54 ms after the zoom (drawn in 53 ms), looked at.
+- r7/r8: the fill loop tightened (37-41 ms). r8: the paint came after one window of two (sequential then):
+  refused for want of rows (the view 50 rows past the window); all windows are posted at once since.
+- r9: 41 ms. The zoom in's sharp frame came at 1723 ms that run (the main thread held the frame lock 1074 ms).
+- r10 (a switch, removed): windows composed at the frame's own zoom and halved on the CPU cost the compositor
+  thread as much (compose 79-241 ms against 65-173 at half): the cost is a whole composite while the paint's
+  uploads run, not the minified tile draws.
+- A/B, three runs each (page top, one drag; ab-on*/ab-off*, JIHAD_GPU_NO_OVERVIEW=1 for off):
+    the double tap out's first frame   on 40 / 37 / 33 ms (the overview's)   off 538 / 614 / 294 ms (the paint's)
+    the zoom in's first frame          on 54 / 114 / 67 ms                   off 64 / 69 / 138 ms
+    the zoom in's sharp frame          on 642 / 790 / 649 ms                 off 519 / 545 / 1178 ms
+  The cost: the windows' composites (two at the page's top) share the compositor thread and the GPU with the
+  zoom in's paint, ~100 ms later on the median for the sharp frame. The first frame of R6 is not affected.
+- The windows' cost (JIHAD_GPU_PHASES=1, op0-*): composites of 100-200 ms around the zoom, windows and the zoom's
+  own frames alike, are "render layers" almost whole: 37-98 draw calls at 1-3 ms each (the GPU shared with the
+  card's redraw during the zoom). An engine change skipping the intermediate surface for a group at opacity 0
+  (the hidden sidebars) changed nothing measurable (windows done 119-298 ms after their post, the sharp frame
+  429-983 ms): not kept.
+
+The review (inspector, read-only) and the revision, 2026-10-26
+- F-001 (P1): every readback forced the alpha byte to 0xFF, so the "no tile covered this row" test never fired:
+  rows past the old displayport would have reached the card as black (every window above had taken all its rows,
+  even those above the page's top). Engine: an overview job's read keeps its alpha (the read thread and the
+  compositor thread's read); jihad_offscreen_overview_ok answers 0 with the swizzle pass (its shader forces it).
+  After: the window above the page's top takes 539-541 of 612 half rows (v1, v4).
+- F-002 (P2): the fixed and stuck parts were copied from the kept frame with what was beneath them at the old scroll
+  (a see-through part, 2-4 px of old text around each). Now an engine flag 64 job composes the parts alone at the
+  kept frame's scroll and zoom (every leaf layer outside a fixed or stuck one at opacity 0, cleared transparent,
+  read with their alpha), and the daemon draws them premultiplied over the picture. Test page
+  render/goanna/test/jihad-overview-alpha.html (a see-through fixed header and sticky sidebar beside a numbered
+  column): v5, the frame from the overview 41 ms after the double tap out; beneath the header lines 3 and r51-r66
+  as on the painted card 4 s later, the sidebar stuck under the header at the same row, line 4 at view row 111 in
+  both.
+- F-003 (P2): past the outermost window every part was held; now the outermost window and the next one in decide
+  (held, moving with the page, or with it until it sticks), else no frame.
+- F-004 (P3): the verify guard now keeps the sticky probe's state (a window's scroll step left the next real frame a
+  probe of up to 1024 px); the overview's jobs use a fixed probe of 1024 px so every window lists the same parts.
+- F-005 (P3): a forgotten job's scratch is freed 10 s later instead of never; the scratch is what the engine writes
+  (the parts' frame and each window's half frame: 7.5 MB for two windows, 9.4 for three, ~0.5 s).
+- F-006 (P3): parts are matched one to one, the nearest in y.
+- Found on the way (v4): a window's last 4 card rows sit at its clip's edge and read uncovered; the windows overlap
+  by 32 rows now.
+Rounds after the revision:
+- v1 (Wikipedia, one drag): 56 ms; the frame looked at (the sidebars sharp and stuck, no black rows).
+- v2 (Wikipedia, seven drags, the view at 986): 40 ms; looked at.
+- v7 (the test page, twelve drags, the view at 2078, past the picture's end at 2275): refused, the paint's frame at
+  559 ms, nothing black shown (the owner's bound: a long pan waits).
+- rv-on1..3 (Wikipedia, one drag): the double tap out's frame 43 / 41 / 44 ms; the zoom in's sharp frame 688 / 779 /
+  682 ms (519 / 545 without the overview, ab-off*): the parts' composite adds to the windows' cost.
+- The packaged head (daemon 31f580f4, libxul 065b4273 = engine c05685f4): default-check passes in all three (faults 0).

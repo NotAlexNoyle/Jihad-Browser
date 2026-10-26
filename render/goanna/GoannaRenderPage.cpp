@@ -5020,6 +5020,10 @@ bool GoannaRenderPage::ExpressReady() const {
   return ComposeAsync() && jihad_offscreen_paint_layers && jihad_offscreen_compose_post && jihad_offscreen_compose_peek;
 }
 
+bool GoannaRenderPage::OverviewReady() const {
+  return ExpressReady() && jihad_offscreen_overview_ok && jihad_offscreen_overview_ok() == 1;
+}
+
 int GoannaRenderPage::ComposePeek(uint32_t token) {
   return (mWidget && jihad_offscreen_compose_peek) ? jihad_offscreen_compose_peek(mWidget, token) : -1;
 }
@@ -5033,14 +5037,18 @@ bool GoannaRenderPage::PaintLayers() {
 uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int frameH, long rowLo, long rowHi, long row2Lo,
                                        long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
                                        const double* aView, long colX0, long colX1, bool windowMoved, bool verify,
-                                       bool bandsOnly) {
+                                       bool bandsOnly, bool overview, bool overviewParts) {
   if (!ExpressReady() || !mWidget || !dst) return 0;
   const int w = mWidth;
-  if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * frameH * 4) return 0;
+  // T-504: a job that reads one band alone, from no base and with no shift, writes no row past it
+  const long rows = (bandsOnly && row2Hi <= row2Lo && !shift && !src && rowHi > 0 && rowHi <= frameH) ? rowHi : frameH;
+  if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * rows * 4) return 0;
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   return jihad_offscreen_compose_post(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
                                       (int)shift, src, (int)srcY,
-                                      (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0) | (bandsOnly ? 16 : 0), aView ? 1 : 0,
+                                      (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0) | (bandsOnly ? 16 : 0) |
+                                      (overview && jihad_offscreen_overview_ok ? 32 : 0) | (overviewParts && jihad_offscreen_overview_ok ? 64 : 0),
+                                      aView ? 1 : 0,
                                       aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
                                       aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0, (int)colX0, (int)colX1);
 }

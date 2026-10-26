@@ -320,3 +320,19 @@ dtap10c-daemon-gpu.log: 20 of 20 zoomed; out 0-3 ms every time (the kept frame);
 one: after the cycle's idle seconds the first composite at the new zoom ran 230 ms (job 103, no uploads) with both
 CPUs at 1188 MHz — the GPU's clock ramp after a pause (T-516's finding of 2026-10-19), not the daemon. A GPU clock
 floor would remove it; not tried (a device power lever the owner has not authorized).
+
+## T-516 measured, read only (the owner's "measure, then decide", 2026-10-26)
+The kgsl sysfs has only io_fraction (100); the clocks are in debugfs (/sys/kernel/debug/clk, read only here).
+- The GPU does not ramp: gfx3d_clk stays at 266.67 MHz (15 rates offered, 27-320 MHz) and is only gated
+  (enable 0 at idle, 1 within the sample of the tap). The memory bus ebi1 is 314.5 MHz while busy, 209.7 MHz a few
+  seconds into idle. cpu0 1188 MHz (ondemandtcl, min 192 MHz, the touch tickle), cpu1 offline after a pause.
+- Ten double taps in by finger with the state read at each tap (dtap10s-daemon-gpu.log): every one with cpu1
+  offline, ebi1 314.5 MHz, the GPU gated, cpu0 1188 MHz — the same state; first frames 68-140 ms but 276 and 301 ms
+  twice. In both slow ones the express frame's readback ran on one contended core: glReadPixels of 1224 rows 103 and
+  144 ms, the CPU swizzle 112 and 84 ms (a fast one: 37 and 10 ms), while the main thread ran the zoom and the
+  page's script. Same cause as round 335 (2026-10-19). The GPU swizzle pass that avoided it (round 336) draws wrong
+  band frames and slows simple pages' pans: not an option.
+- Levers: (a) keep cpu1 online while a card is touched (/sys/devices/system/cpu/cpu1/online, the kernel's hotplug
+  interface; a CPU power lever, the governor-write wedge is the precedent); (b) software only: the first frame at a
+  new zoom reads the card's view (942 rows) and leaves the overscan (282 rows) to the next frame — ~23% less read
+  and swizzle, estimated to bring 276-301 ms to ~230-250, borderline; (c) accept (18-19 of 20 within 250 ms).

@@ -76,7 +76,9 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   Mochi and Mojo with the next packages.)* *(2026-10-26, the packages installed in all three: in Mochi and
   Mojo the same twelve pads, one finger drag from Palefill and Pad 01 to Pad 12 at the card's bottom. Still
   `[~]`: the search results list not tried, and an add-on's details longer than the card do not pan (their
-  length is not reported; T-527's review #13).)*
+  length is not reported; T-527's review #13).)* *(2026-10-26, later: an add-on's details now report their length
+  (what overflows them at the card's height, kept while the same view is shown): Palefill's preferences, 1233 rows
+  at the 980 layout width, pan to their Disable / Remove row by finger in Enyo. Left: the search results list.)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
 ### R3: Jihad's pages move like web pages

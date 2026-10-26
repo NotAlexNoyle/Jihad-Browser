@@ -254,3 +254,11 @@ The sensors restarted after (sensord, atlas-sensord running). The Wikipedia gaps
 transaction 1, and once 415 ms with all three buffers out with the card (the adapter returned none while the
 daemon's main thread sat in a 1.6 s pump of the page's script; the slot it freed then went to the main lane's layer
 paint). None is the express lane waiting on the main thread.
+
+## Review #13: an add-on's details longer than the card pan (2026-10-26)
+jihadPersonas.js growToList: a view with no list (an add-on's details and preferences) reports what overflows it at
+the card's height (its box stretches with the window, so measured in a window already that tall it would follow the
+window), and the same view (`jihad-content-view`, the manager's view id) keeps that length once the window grows;
+the window's resize measures again (a list's tall window when the details open). Enyo by finger: Palefill's
+preferences (its options make the view 1233 rows at the 980 layout width) — "layout viewport 980x1233" once, no
+second change, and a drag brings the Disable / Remove row into view. The component put into all three variants.

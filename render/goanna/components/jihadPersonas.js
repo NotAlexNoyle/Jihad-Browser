@@ -1512,6 +1512,17 @@ function growToList(win) {
       need = Math.ceil(panel.getBoundingClientRect().top + panel.scrollHeight + 24);
     }
   }
+  // T-527 (review #13): a view with no list (an add-on's details, its preferences) has no items to
+  // measure, and its box stretches with the window: its length is what overflows it at the card's
+  // height, and the same view keeps that length once the window is made that tall (measured again
+  // there it would follow the window, and the window it).
+  let viewKey = "";
+  try { viewKey = ADDONS.currentViewId(win) || ""; } catch (e) {}
+  if (panel && natural === 0) {
+    let prev = root.getAttribute("jihad-content-view") === viewKey ? (parseInt(root.getAttribute("jihad-content-height"), 10) || 0) : 0;
+    natural = Math.max(need, prev);
+  }
+  if (root.getAttribute("jihad-content-view") !== viewKey) { root.setAttribute("jihad-content-view", viewKey); }
   if (need > win.innerHeight) { root.style.minHeight = need + "px"; }
   // T-527: the list's whole length, whatever the window's height (it does not move with it), for the
   // daemon: a XUL root is laid out at the window's size, so its min-height did not change the length the
@@ -1656,6 +1667,16 @@ function attachPane(win) {
       });
     }).observe(rows, {childList: true, subtree: true});
   }
+  // T-527 (review #13): the daemon resizes the window to the length reported; a view measured at the
+  // other height (a list's tall window when an add-on's details open) is measured again at the new one
+  let sizing = 0;
+  win.addEventListener("resize", function() {
+    if (sizing) { return; }
+    sizing = later(100, function() {
+      sizing = 0;
+      try { if (!Cu.isDeadWrapper(win) && !win.closed) { growToList(win); } } catch (e) { log("about:addons height: " + e); }
+    });
+  });
   win.addEventListener("unload", function() {
     paneWindows.delete(win);
   });

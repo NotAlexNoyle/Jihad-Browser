@@ -4729,11 +4729,7 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // faster. JIHAD_GPU_NO_RES=1 keeps the 1x paint at every zoom.
   static const bool sNoRes = getenv("JIHAD_GPU_NO_RES") != nullptr;
   if (!sNoRes) {
-    // JIHAD_GPU_RES_MAX=<r>: the resolution stops at r, the world transform magnifies the rest (T-524's
-    // bisection of the frame losing its right side above a zoom of ~2 on desktop Wikipedia)
-    static const float sResMax = getenv("JIHAD_GPU_RES_MAX") ? (float)atof(getenv("JIHAD_GPU_RES_MAX")) : 0.0f;
-    float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
-    if (sResMax > 0.0f && res > sResMax) res = sResMax;
+    const float res = GpuResolutionFor(zoom);
     float cur = 1.0f;
     if (NS_SUCCEEDED(u->GetResolution(&cur)) && fabsf(cur - res) > 0.0005f) {
       const nsresult rr = u->SetResolution(res);
@@ -4746,18 +4742,23 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
   // at a fit zoom below 1 the card shows more of the page than the engine's scroll port (986 CSS
   // px of rows against 942 on news.ycombinator.com), and that strip was never painted until a pan
   // set the displayport; frames built meanwhile kept it blank, and a zoom out left grey areas
+  // T-527: while a zoom's first paint at its resolution is made, what the card shows and no margins
+  const bool margins = mGpuDpWanted && !mGpuDpCritical;
   if (!sNoDp) {
-    const float smx = mGpuDpWanted ? mx : 0.0f, smy = mGpuDpWanted ? my : 0.0f;
+    const float smx = margins ? mx : ((mGpuDpWanted && mGpuDpCritical && getenv("JIHAD_GPU_CRIT_MARGIN")) ? (float)atof(getenv("JIHAD_GPU_CRIT_MARGIN")) : 0.0f), smy = margins ? my : 0.0f;
     // T-541: a fling lands past the symmetric margin, and what it uncovers stays grey until the
     // main thread paints it (about:personas by finger, 2026-10-25: a whole grey card once, the
     // lower 40% once, a white band after a flick up). While the card streams a fast scroll the
     // daemon adds a lead in the direction of travel, up to 1.5 heights (BrowserPageGoanna's
     // velocity); the margin against the motion stays what it was.
-    const float smyT = mGpuDpWanted ? my + visH * mGpuLeadUp : 0.0f;
-    const float smyB = mGpuDpWanted ? my + visH * mGpuLeadDown : 0.0f;
+    // JIHAD_GPU_CRIT_MARGIN=<CSS px>: a margin all round for the critical displayport (device rounds)
+    static const float sCritM = getenv("JIHAD_GPU_CRIT_MARGIN") ? (float)atof(getenv("JIHAD_GPU_CRIT_MARGIN")) : 0.0f;
+    const float cm = (mGpuDpWanted && mGpuDpCritical) ? sCritM : 0.0f;
+    const float smyT = margins ? my + visH * mGpuLeadUp : cm;
+    const float smyB = margins ? my + visH * mGpuLeadDown : cm;
     if (jihad_layout_set_displayport2 && ds) dp = jihad_layout_set_displayport2(ds, visW, visH, (float)mGpuShiftX, (float)mGpuShiftY, smx, smyT, smyB);
     else if (jihad_layout_set_displayport && ds) dp = jihad_layout_set_displayport(ds, visW, visH, smx, smyT > smyB ? smyT : smyB, smyT > smyB ? smyT : smyB);
-    else if (root && mGpuDpWanted) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
+    else if (root && margins) { r3 = u->SetDisplayPortMarginsForElement(mx, my, mx, my, root, 0); dp = NS_SUCCEEDED(r3) ? 0 : 9; }
   }
   const bool ok = dp == 0;
   static int sLogged = 0;
@@ -4765,11 +4766,37 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
     ++sLogged;
     JIHAD_GPU_LOG("[jihad-gpu] viewport: scale %.4f (%s), displayport %s (code %d, %s, margins %dx%d CSS px, shift %.0f,%.0f)\n",
             z, jihad_offscreen_set_view ? "compositor" : "no export", ok ? "set" : "NOT set", dp,
-            mGpuDpWanted ? "panning" : "what the card shows", mGpuDpWanted ? (int)mx : 0, mGpuDpWanted ? (int)my : 0,
+            margins ? "panning" : (mGpuDpCritical ? "what the card shows, a zoom's first paint" : "what the card shows"),
+            margins ? (int)mx : 0, margins ? (int)my : 0,
             mGpuShiftX, mGpuShiftY);
   }
   mGpuDpOk = ok;
   return true;
+}
+
+// The pres shell's resolution at a zoom on the GPU path (SetGpuViewport's rule): the zoom above 1.1,
+// at most 8; JIHAD_GPU_RES_MAX=<r> stops it at r, the world transform magnifying the rest (T-524's
+// bisection of the frame losing its right side above a zoom of ~2 on desktop Wikipedia)
+float GoannaRenderPage::GpuResolutionFor(double zoom) {
+  static const float sResMax = getenv("JIHAD_GPU_RES_MAX") ? (float)atof(getenv("JIHAD_GPU_RES_MAX")) : 0.0f;
+  const float z = (float)zoom;
+  float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
+  if (sResMax > 0.0f && res > sResMax) res = sResMax;
+  return res;
+}
+
+float GoannaRenderPage::GpuResolutionNow() {
+  if (!mChrome || !mChrome->mBrowser) return 1.0f;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  float cur = 1.0f;
+  return (u && NS_SUCCEEDED(u->GetResolution(&cur)) && cur > 0.0f) ? cur : 1.0f;
+}
+
+bool GoannaRenderPage::GpuResolutionChanges(double zoom) {
+  if (!mGpu || !mChrome || !mChrome->mBrowser || zoom <= 0.0 || getenv("JIHAD_GPU_NO_RES")) return false;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  float cur = 1.0f;
+  return u && NS_SUCCEEDED(u->GetResolution(&cur)) && fabsf(cur - GpuResolutionFor(zoom)) > 0.0005f;
 }
 
 bool GoannaRenderPage::GetEngineScroll(int* x, int* y) {

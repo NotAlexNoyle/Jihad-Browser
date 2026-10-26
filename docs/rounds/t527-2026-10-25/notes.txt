@@ -1,0 +1,71 @@
+T-527, 2026-10-25 (night): the zoom's sharp frame (cavekit-gpu-rendering R6)
+============================================================================
+
+Bench: the TouchPad, CE 3.1.0, the sensors running (the product's condition), the Enyo card on a hand-started
+daemon (gpu-spike-start.sh: the GPU path, the express lane, the timeline, JIHAD_GPU_ZOOM_DUMP=log, the shipped
+followOverflow), desktop en.wikipedia.org/wiki/HP_TouchPad 20 s after the launch, the emulated finger
+(tools/device/t502/finger-zoom.sh): a double tap in on the infobox (0.69 -> 2.33), a double tap out, a pinch in
+(-> 1.11) and a pinch out (-> 0.78).
+
+Baseline (head: daemon 47a68434, libxul 161d7a88): fz-r2-wiki-daemon-gpu.log
+  ms after the zoom    first frame at the zoom   first frame painted at its resolution
+  double tap in        117 (old tiles scaled)    2212
+  double tap out       490 (minified, partial)   1890
+  pinch in              55                       1660
+  pinch out             77                        746
+Injected zooms (zoom-seq.sh, 8 in and out): first frames 8/8 within 248 ms (median 125): zoomseq-r1-wiki-base.
+
+Where the 2.2 s went (double tap in): the hold released at the express frame (114 ms); the resolution and
+the displayport with its margins (a height each way, half a width sideways) painted in one go: 685 ms of
+layer paint, then 442 ms on the compositor thread for the transaction (219 uploads, 414 new textures); the
+main lane's frame was composed at +1367 ms and then waited 845 ms for the main thread, which sat in an
+1145 ms pump of the page's script (the scroll handlers after the anchor move) — only the main thread
+publishes its own frames, and the express lane serves card moves only.
+
+What changed (daemon):
+- the critical displayport: a zoom that changes the resolution paints what the card shows first, no margins
+  (GoannaRenderPage::SetGpuDpCritical); the margins once a frame of that paint is out (gpuCriticalEnd, 2 s at
+  most). JIHAD_GPU_NO_CRITICAL=1 turns it off.
+- the express lane publishes a main-lane frame composed while the main thread is away in the engine (40 ms,
+  JIHAD_GPU_EXPRESS_TAKEOVER_MS): it polls the job, publishes the slot the compositor read it into and takes
+  the job off the main lane's list; the main lane kicks the express thread when it posts (the thread slept up
+  to a second) and the thread looks every 3 ms while a main-lane frame is in flight.
+- the hold ends when the express frame at the new zoom is POSTED, not published: the compositor thread
+  composes it on the tree as it stands, and the paint at the new resolution runs meanwhile.
+- a zoom out past half the painted resolution (2.33 -> 0.69) makes no frame from the old tiles: drawn at 0.296
+  they cost 210 draws and 471 ms of the compositor thread for a mostly blank frame (and held the paint's
+  transaction behind them); the paint goes first and the card scales its last frame meanwhile.
+- JIHAD_GPU_ZOOM_DUMP_SEQ=1: each lane's first three frames at a zoom kept (<path>.<n>.<k>).
+
+What the frame dumps showed (fz1-crit / fz1-nocrit / fz1-cm300 / fz1-base): the first critical frame was
+sharp but painted only the left 300 card px (the rest of the view white) — the painted edge at 1536 screen px.
+JIHAD_GPU_CRIT_MARGIN=1 (a 1 px margin) the same; 300 px of margin covered the view. Cause, in the engine:
+nsLayoutUtils::PaintFrame asks the root scroll frame's DecideScrollableLayer with aAllowCreateDisplayPort,
+which set the root's displayport base to the composition size at the origin in CSS px on every paint — the
+base jihad_layout_set_displayport2 sets (what the card shows at the compositor's shift, in layout device px,
+patch 0059) never reached a paint; zoomed in, the displayport covered what the margins and the clamp into the
+scrollable rect happened to reach. Engine patch 0062 (63c20e39): on the GPU path the paint keeps the daemon's
+base. After it the critical frame covers the view (fz1-base: last drawn column 747 in every row; only 54
+overscan rows below the view are blank until the margins come).
+
+After (daemon 786f520c, libxul f25bb166 = 63c20e39 stripped): fz-r8-eng-daemon-gpu.log
+  ms after the zoom    first frame at the zoom   first frame painted at its resolution
+  double tap in        105                        593
+  double tap out       669 (the painted one)      669
+  pinch in              58                        513
+  pinch out             80                        551
+The paint itself is now the floor: 300-450 ms of the main thread for what the card shows (the refresh
+driver's paint in the pump right after the resolution change, then the layer paint), noisy with the page's
+own script; at 2.33 the glyphs of a new size are rasterized.
+
+Tile texture pool (JIHAD_GPU_TEX_POOL=160 against the default 48, fz-r9-pool160): the critical paint's
+transaction 43 ms against 136-150 (double tap in), 69 against 177 (double tap out): a resolution change frees
+every tile, the pool keeps 48 and deletes the rest, and the new paint creates and converts textures again
+(1.5-1.7 ms each). Not changed yet: up to 28 MB more of GPU memory per daemon (R10's three-daemon budget).
+
+Pans on the new engine (no regression): pan-p1-* (express lane, sensors running): the long page 29.5-35.4 fps
+(was 30-35), desktop Wikipedia 22.3-28.5 (was 21-22); the mid-pan dumps looked at (the header fixed, the
+paragraphs 9 -> 17 -> 25, Wikipedia's panels in place). Verify without the express lane (pan-v2-*): 59 and 69
+frames, 0 rows wrong, 0 structurally wrong. The long page's frames now differ below the threshold in most
+frames (53 of 59) where T-519 found none; the head binaries do the same (pan-v4-long-old: 54 of 61), so it is
+not this change (the larger displayport of T-541 or the shipped followOverflow the run used).

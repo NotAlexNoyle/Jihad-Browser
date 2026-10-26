@@ -212,6 +212,17 @@ connection). The spike start sets `jihad.viewport.followOverflow` false; `PREF=j
 runs with the shipped rule.
 
 
+T-527 (the zoom's sharp frame, `docs/rounds/t527-2026-10-25/notes.txt`): a zoom that changes the resolution
+paints what the card shows first and the margins once a frame of that paint is out (2 s at most);
+`JIHAD_GPU_NO_CRITICAL=1` paints the margins at once, `JIHAD_GPU_CRIT_MARGIN=<CSS px>` gives the first paint a
+margin all round. The express lane publishes a main-lane frame composed while the main thread is away in the
+engine for `JIHAD_GPU_EXPRESS_TAKEOVER_MS` (40; 0 turns it off), and makes no frame that would draw the painted
+tiles at under half their size (a double tap out from 2.33). `JIHAD_GPU_ZOOM_DUMP_SEQ=1` with
+`JIHAD_GPU_ZOOM_DUMP=<path>` keeps each lane's first three frames at a zoom (`<path>.<n>.<k>`, `<path>.x<n>.<k>`;
+3.7 MB each: delete them at once). `finger-zoom.sh <name> <url> "<env>"` runs the emulated finger's double tap in
+and out and a pinch in and out on the spike daemon (`finger-zoom-device.sh`; `/tmp/finger` on the device) and
+keeps the log in `ROUND_DIR`. Engine 0062: the root's displayport base the daemon sets survives the paint.
+
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every
 4th pixel, appended to one file, with their content extents in the log), `JIHAD_GPU_FORCE_FPS=1` (a frame

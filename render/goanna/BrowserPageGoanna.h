@@ -424,6 +424,12 @@ private:
   int                mGpuZoomDumpN = 0;      // the zoom changes so far: the dump file's number
   double             mGpuZoomHoldZ = 0.0;
   void               gpuZoomRelease(const char* why);
+  // T-527: a zoom that changes the resolution paints what the card shows first (the critical
+  // displayport, GoannaRenderPage::SetGpuDpCritical), the margins once a frame of that paint is out
+  int64_t            mGpuCriticalMs = 0;       // the critical displayport set (0: none)
+  int64_t            mGpuCriticalPaintMs = 0;  // its first layer paint done
+  bool               mGpuCriticalDone = false; // a frame posted after that paint published (either lane)
+  void               gpuCriticalEnd(const char* why);
   int                mGpuAnchorX = 0, mGpuAnchorY = 0;
   // T-502: the compositor frame in flight (GoannaRenderPage::ComposeStart / ComposePoll), the
   // geometry it was started for, and per buffer slot the geometry of the frame it holds and
@@ -507,6 +513,12 @@ private:
   int64_t mXZoomWantMs = 0;           // the card's last new zoom arrived (the want lock; JIHAD_GPU_ZOOM_DUMP)
   int mXZoomDumpN = 0;                // ...its number (the want lock)
   double mXLastZoom = 0.0;            // the zoom of the express lane's last frame (the zoom hold's release)
+  // T-527: the resolution the layer tree on the compositor was last painted at (the main thread sets it
+  // after a layer paint, under the frame lock): the express lane composes no frame that would draw those
+  // tiles at under half their size (a double tap out from 2.33 to 0.69 composed 210 minified tile draws
+  // in 471 ms on the Adreno, holding the compositor thread ahead of the paint at the new resolution)
+  double mXTreeRes = 1.0;
+  uint32_t mXAdopted = 0;             // T-527: main-lane frames the express lane published for it
   int64_t mXLastXPubMs = 0;           // the express lane's last publish, while it is the newest frame (0: the main lane's is)
   int mXConsumed[3] = {0, 0, 0};      // returns the express hook applied; returnBuffer skips as many
   // the main lane's GPU frame geometry and buffers, as of its last frame

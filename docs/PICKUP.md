@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-19 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-25 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,41 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-10-25 (night) — T-527: the zoom's sharp frame 3-4x sooner; engine patch 0062 (READ FIRST)
+
+**Measured by the emulated finger on desktop Wikipedia, sensors running** (`docs/rounds/t527-2026-10-25/notes.txt`,
+`tools/device/t502/finger-zoom.sh`): the first frame painted at a new zoom's resolution now comes 593 ms after a
+double tap in (was 2212), 669 after a double tap out (1890), 513 after a pinch in (1660), 551 after a pinch out (746);
+the first frame at the new zoom (old tiles scaled) stays 58-105 ms. What it took:
+- **The critical displayport** (daemon): a zoom that changes the resolution paints what the card shows first, no
+  margins; the margins once a frame of that paint is out (`gpuCriticalEnd`, 2 s at most; `JIHAD_GPU_NO_CRITICAL=1`).
+- **The express lane publishes the main lane's frame** when it was composed while the main thread is away in the
+  engine (40 ms, `JIHAD_GPU_EXPRESS_TAKEOVER_MS`): a double tap's repaint sat composed for 845 ms behind a 1.1 s pump
+  of the page's script. The main lane kicks the express thread when it posts (the thread slept up to a second).
+- **The hold ends when the express frame is posted**, not published, so the paint runs while it is composed; a zoom
+  out past half the painted resolution makes no frame from the old tiles (471 ms of minified tile draws on the
+  Adreno for a mostly blank frame, holding the paint's transaction); the card scales its last frame meanwhile.
+- **Engine patch 0062 (engine `63c20e39`)**: `nsLayoutUtils::PaintFrame` asks the root's `DecideScrollableLayer`
+  with `aAllowCreateDisplayPort`, which REPLACED the root's displayport base with the composition size at the origin
+  (CSS px) on every paint — the base `jihad_layout_set_displayport2` sets (0059: what the card shows at the shift,
+  times the resolution) never reached a paint. Zoomed in, coverage came only from the margins and the clamp; with no
+  margins the critical frame painted 660 of the 861 CSS px shown. Now the paint keeps the daemon's base
+  (`nsLayoutUtils::JihadKeepsDisplayPortBase`). Probably also behind T-524's "clip above ~2.9" — not re-tested yet.
+
+Checked: pans on the new engine 29.5-35.4 fps (long page) and 22.3-28.5 (desktop Wikipedia) with the sensors running,
+mid-pan dumps looked at; verify without the express lane 0 rows wrong / 0 structurally wrong (59 + 69 frames). The
+long page's frames differ below the threshold in most frames where T-519 found none — the head binaries do the same,
+not this change. Measured, not changed: `JIHAD_GPU_TEX_POOL=160` cut a zoom's transaction 70-110 ms (+28 MB GPU at most).
+
+**Device state:** Enyo runs DEV COPIES — daemon `786f520c` and libxul `f25bb166` (63c20e39 stripped) in its
+`deviceroot/hl`, the originals kept as `jihad-browserserver.orig` / `libxul.so.orig` (47a68434 / 161d7a88) and the
+new libxul also as `libxul.so.t527`. Mochi and Mojo are the packages. A packaged build (`build-all-device.sh`) after
+the commits is the clean way to ship them. The sensors run. Pushes: the owner's, `push.sh` needs the engine fork's
+new head `63c20e39` too.
+
+**Next (T-527):** the pan's 56 ms+ gaps traced and the avoidable removed (R3), the 480 px WebGL cube at 24 fps (R8),
+desktop Wikipedia ≥ 24 fps with the sensors (R3), the double tap out's first frame (R6), the pool size.
 
 ## 2026-10-25 — the certificate-trust kit (Tier 90) done on the device; a TLS floor and a tighter Trust dialog (READ FIRST)
 

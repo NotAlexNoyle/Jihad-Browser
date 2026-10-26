@@ -553,6 +553,12 @@ public:
   void SetGpuLead(float up, float down) { mGpuLeadUp = up; mGpuLeadDown = down; }
   float GpuLeadUp() const { return mGpuLeadUp; }
   float GpuLeadDown() const { return mGpuLeadDown; }
+  // T-527: right after a zoom that changes the resolution, the displayport is what the card shows
+  // (no margins) until a frame painted at the new resolution is out; the margins are painted after
+  void SetGpuDpCritical(bool on) { mGpuDpCritical = on; }
+  bool GpuDpCritical() const { return mGpuDpCritical; }
+  bool GpuResolutionChanges(double zoom);   // T-527: SetGpuViewport(zoom) would set another resolution
+  float GpuResolutionNow();                  // T-527: the pres shell's resolution (1 when unknown)
   // T-502: the engine's scroll position (CSS px) after a ScrollTo, and the compositor's view:
   // the zoom and the residual visual offset the engine scroll could not reach (pinch-in pans).
   bool GetEngineScroll(int* x, int* y);
@@ -578,6 +584,8 @@ private:
   int mHeight;
   double mGpuShiftX = 0.0, mGpuShiftY = 0.0;   // T-524: the compositor's shift the displayport is set for
   float mGpuLeadUp = 0.0f, mGpuLeadDown = 0.0f;   // T-541: the fling lead, in heights
+  bool mGpuDpCritical = false;                    // T-527: no margins while a zoom's first paint is made
+  static float GpuResolutionFor(double zoom);     // T-527: the resolution SetGpuViewport sets at a zoom
   int mLayoutW = 0, mLayoutH = 0;   // T-499: the layout viewport when it differs from the card (0 = the card)
   double mRenderZoom = 1.0;  // pinch/fit zoom applied as a gfxContext scale in the offscreen capture
   double mPanX = 0.0;        // visual-viewport pan (CSS px) used by the render when zoomed (>1)

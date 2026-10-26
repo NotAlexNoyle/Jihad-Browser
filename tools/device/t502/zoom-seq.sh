@@ -8,7 +8,7 @@
 # it (the express lane's "N ms after the zoom", the main lane's "N ms after it arrived"). Needs
 # JIHAD_GPU_EXPRESS=1 in the env words (the card's path is the express lane's reader thread).
 set -u
-S=$(dirname "$0"); R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; D=$R/docs/rounds/t502-2026-10-17
+S=$(dirname "$0"); R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; D=${ROUND_DIR:-$R/docs/rounds/t502-2026-10-17}   # ROUND_DIR=<dir> for a later round
 name=$1; url=$2; extra=${3:-}; count=${4:-8}
 cd $R; . build/webos-oe/host-path.sh
 echo "=== zoom sequence $name"

@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sun, 25 Oct 2026 21:10:54 -0400
+Subject: [PATCH] =?UTF-8?q?layout:=20the=20GPU=20path's=20root=20displaypo?=
+ =?UTF-8?q?rt=20base=20is=20the=20daemon's=20=E2=80=94=20no=20longer=20rep?=
+ =?UTF-8?q?laced=20on=20every=20paint?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+cavekit-gpu-rendering.md R6 / T-527. nsLayoutUtils::PaintFrame asks the root scroll frame's
+DecideScrollableLayer with aAllowCreateDisplayPort, and for the root content document that set the
+displayport base to the composition size at the origin, in CSS px, on every paint. So the base the
+daemon sets with jihad_layout_set_displayport2 (what the card shows, at the compositor's shift, in
+layout device px: patch 0059) never reached a paint: a zoomed-in card's displayport covered only
+what the margins and the clamp into the scrollable rect happened to reach. With no margins (the
+daemon's first paint after a zoom, what the card shows only) desktop Wikipedia at 2.33 painted 660
+of the 531..861 CSS px the card showed and the rest of the view stayed white (frame dumps,
+2026-10-25: the painted edge at 1536 screen px, the aligned width of a base 1116 px wide at
+resolution 1). On the GPU path, once the daemon has set the root's base
+(nsLayoutUtils::JihadKeepsDisplayPortBase: the frame carries the shown size), the paint keeps it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ layout/base/nsLayoutUtils.cpp       |  7 +++++++
+ layout/base/nsLayoutUtils.h         |  3 +++
+ layout/generic/nsGfxScrollFrame.cpp | 10 +++++++++-
+ 3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/layout/base/nsLayoutUtils.cpp b/layout/base/nsLayoutUtils.cpp
+index fa5ee23ab3..036734c9eb 100644
+--- a/layout/base/nsLayoutUtils.cpp
++++ b/layout/base/nsLayoutUtils.cpp
+@@ -8174,6 +8174,13 @@ nsLayoutUtils::JihadOverscanFor(nsIFrame* aFrame)
+   return nsMargin();
+ }
+ 
++/* static */ bool
++nsLayoutUtils::JihadKeepsDisplayPortBase(nsIFrame* aRootScrollFrame)
++{
++  static const bool sJihadGpu = getenv("JIHAD_GPU_COMPOSITOR") != nullptr;
++  return sJihadGpu && aRootScrollFrame && aRootScrollFrame->GetProperty(JihadShownSizeProperty());
++}
++
+ /* static */ nsSize
+ nsLayoutUtils::CalculateCompositionSizeForFrame(nsIFrame* aFrame, bool aSubtractScrollbars)
+ {
+diff --git a/layout/base/nsLayoutUtils.h b/layout/base/nsLayoutUtils.h
+index 6dc91ce361..1252a3a055 100644
+--- a/layout/base/nsLayoutUtils.h
++++ b/layout/base/nsLayoutUtils.h
+@@ -2559,6 +2559,9 @@ public:
+ 
+   // Jihad T-505: the GPU path's overscan of the root scroll frame (top and bottom, app units)
+   static nsMargin JihadOverscanFor(nsIFrame* aFrame);
++  // Jihad T-527: on the GPU path the daemon sets the root scroll frame's displayport base itself
++  // (jihad_layout_set_displayport2): true when it has, and the paint must not replace it
++  static bool JihadKeepsDisplayPortBase(nsIFrame* aRootScrollFrame);
+ 
+  /**
+   * Calculate the composition size for the root scroll frame of the root
+diff --git a/layout/generic/nsGfxScrollFrame.cpp b/layout/generic/nsGfxScrollFrame.cpp
+index a260199105..ca87163980 100644
+--- a/layout/generic/nsGfxScrollFrame.cpp
++++ b/layout/generic/nsGfxScrollFrame.cpp
+@@ -3712,7 +3712,15 @@ ScrollFrameHelper::DecideScrollableLayer(nsDisplayListBuilder* aBuilder,
+         displayportBase -= mScrollPort.TopLeft();
+       }
+ 
+-      nsLayoutUtils::SetDisplayPortBase(mOuter->GetContent(), displayportBase);
++      // Jihad T-527: on the GPU path the root's base is the daemon's (what the card shows, at the
++      // compositor's shift, in layout device px: jihad_layout_set_displayport2). Replaced here on
++      // every paint (nsLayoutUtils::PaintFrame asks the root with aAllowCreateDisplayPort), it was
++      // the composition size at the origin in CSS px, and a zoomed-in card's displayport covered
++      // only what the margins and the clamp into the scrollable rect happened to reach: with no
++      // margins, desktop Wikipedia at 2.33 painted 660 of the 861 CSS px the card showed.
++      if (!(mIsRoot && nsLayoutUtils::JihadKeepsDisplayPortBase(mOuter))) {
++        nsLayoutUtils::SetDisplayPortBase(mOuter->GetContent(), displayportBase);
++      }
+     }
+ 
+     // If we don't have aAllowCreateDisplayPort == true then should have already

@@ -819,7 +819,7 @@ function buildRow(row) {
 	let wrap = el("div", "row");
 	// the row names its pref, so a test reaches it by that and not by its place (the Fonts box sits
 	// among the rows of its section: tools/device/finger/prefs-finger-walk.sh)
-	if (row.pref) { wrap.setAttribute("data-pref", row.pref); }
+	if (row.pref) { wrap.setAttribute("data-pref", row.pref); } else { wrap.setAttribute("data-label", row.label); }
 	// A row without a pref ("text": a line read from a component; "button": an action) is never
 	// "unavailable" for want of a pref; it says so itself when its component is absent.
 	let known = row.pref ? prefExists(row.pref) : true;
@@ -1008,6 +1008,7 @@ function option(sel, value, text, disabled) {
 // One labelled control row, in the same shape as buildRow's.
 function fontRow(label, pref, control, help) {
 	let wrap = el("div", "row");
+	wrap.setAttribute("data-pref", pref);   // as buildRow's rows (tools/device/finger/prefs-finger-walk.sh)
 	let l = el("label", "row-label");
 	l.appendChild(document.createTextNode(label));
 	l.appendChild(el("div", "row-pref", pref));
@@ -1073,6 +1074,7 @@ function buildFontsSection(group) {
 		});
 		body.appendChild(sizeRow("Minimum font size", "font.minimum-size." + g, FONT_MIN_SIZES));
 		let reset = el("button", "btn", "Restore default fonts");
+		reset.id = "fonts-reset";
 		reset.setAttribute("type", "button");
 		reset.addEventListener("click", function () {
 			["font.default.", "font.size.variable.", "font.size.fixed.", "font.minimum-size.",

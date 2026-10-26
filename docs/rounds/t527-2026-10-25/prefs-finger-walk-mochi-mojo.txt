@@ -1,0 +1,61 @@
+#### mochi: the page's top on the screen 78
+ok mochi tab general tapped at 151,195 (hit <BUTTON>): the pane's first heading [Browser identity]
+ok mochi tab content tapped at 244,195 (hit <BUTTON>): the pane's first heading [Content]
+ok mochi tab privacy tapped at 335,195 (hit <BUTTON>): the pane's first heading [Tracking]
+ok mochi tab security tapped at 425,195 (hit <BUTTON>): the pane's first heading [Add-ons]
+ok mochi tab advanced tapped at 525,195 (hit <BUTTON>): the pane's first heading [Cache]
+ok mochi tab about tapped at 619,195 (hit <BUTTON>): the pane's first heading [Jihad Browser]
+ok mochi tab browser tapped at 57,195 (hit <BUTTON>): the pane's first heading [Personas, Extensions and Plugins]
+ok mochi checkbox privacy.donottrackheader.enabled at 720,340: [false] -> [true] -> [false]
+ok mochi picker permissions.default.image at 587,329: [1] -> [2] -> [1]
+ok mochi number field layout.frame_rate at 659,699: [30] -> [31] -> [30]
+ok mochi text field browser.display.background_color at 576,592: [#FFFFFF] -> [#FFFFFFx] -> [#FFFFFF]
+ok mochi Clear History asked ([Cancel]) and cancelled by finger
+#### prefs changed by the walk: 
+#### mojo: the page's top on the screen 73
+ok mojo tab general tapped at 155,190 (hit <BUTTON>): the pane's first heading [Browser identity]
+ok mojo tab content tapped at 250,190 (hit <BUTTON>): the pane's first heading [Content]
+ok mojo tab privacy tapped at 343,190 (hit <BUTTON>): the pane's first heading [Tracking]
+ok mojo tab security tapped at 435,190 (hit <BUTTON>): the pane's first heading [Add-ons]
+ok mojo tab advanced tapped at 539,190 (hit <BUTTON>): the pane's first heading [Cache]
+ok mojo tab about tapped at 636,190 (hit <BUTTON>): the pane's first heading [Jihad Browser]
+ok mojo tab browser tapped at 59,190 (hit <BUTTON>): the pane's first heading [Personas, Extensions and Plugins]
+ok mojo checkbox privacy.donottrackheader.enabled at 720,335: [false] -> [true] -> [false]
+ok mojo picker permissions.default.image at 587,324: [1] -> [2] -> [1]
+FAIL mojo number field layout.frame_rate at 659,742: [30] -> [30] -> [30]
+  sel:.row[data-pref="browser.display.background_color"] input: no element
+FAIL mojo text field browser.display.background_color at ,190: [#FFFFFF] -> [#FFFFFF] -> [#FFFFFF]
+  clear-history: no element
+  clear-history-no: no element
+FAIL mojo Clear History asked ([(no element)]) and cancelled by finger
+#### prefs changed by the walk: 
+#### mojo: the page's top on the screen 73
+FAIL mojo number field layout.frame_rate at 659,742: [30] -> [30] -> [30]
+  sel:.row[data-pref="browser.display.background_color"] input: no element
+FAIL mojo text field browser.display.background_color at ,190: [#FFFFFF] -> [#FFFFFF] -> [#FFFFFF]
+  clear-history: no element
+  clear-history-no: no element
+FAIL mojo Clear History asked ([(no element)]) and cancelled by finger
+#### prefs changed by the walk: 
+#### mojo: the page's top on the screen 73
+ok mojo number field layout.frame_rate at 659,897: [30] -> [31] -> [30]
+  sel:.row[data-pref="browser.display.background_color"] input: no element
+FAIL mojo text field browser.display.background_color at ,190: [#FFFFFF] -> [#FFFFFF] -> [#FFFFFF]
+  clear-history: no element
+  clear-history-no: no element
+FAIL mojo Clear History asked ([(no element)]) and cancelled by finger
+#### prefs changed by the walk: 
+FAIL mojo text field browser.display.background_color at 576,635: [#FFFFFF] -> [#FFFFFF] -> [#FFFFFF]
+ok mojo Clear History asked ([Cancel]) and cancelled by finger
+  the field after the drags: doc 576,1789 card 0,1227 -> screen 576,635
+[jihad-bs] clickAt (577,607) <DIV> href=- nav=0
+FAIL mojo text field browser.display.background_color at 576,635: [#FFFFFF] -> [#FFFFFF] -> [#FFFFFF]
+  the field after the drags: doc 576,1789 card 0,1227 -> screen 576,590
+[jihad-bs] clickAt (577,562) <INPUT> href=- nav=0
+ok mojo text field browser.display.background_color at 576,590: [#FFFFFF] -> [#FFFFFFx] -> [#FFFFFF]
+#### The FAIL lines above are the harness's, not the cards': (1) the scripted card scroll (cardscroll) past the
+#### page's end is clamped by the card, and (2) Mojo's card has a 45 px header above the page that scrolls away with
+#### it (BrowserAdapter::serverScrollY = mScrollPos.y - m_headerHeight), so once the page is scrolled its top sits 45
+#### px higher on the screen than at rest. With the field reached by finger drags and the header counted, every Mojo
+#### step passed (the last ok lines): tabs 7/7, checkbox, picker, number field, text field, Clear + Cancel, in Mochi
+#### and in Mojo; the walked prefs left with no user value in either profile.

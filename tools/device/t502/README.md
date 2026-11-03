@@ -246,12 +246,14 @@ and `rect` prints the engine's and the card's scroll with the rect (`scroll=`, `
 
 T-505, the parts by part (2026-11-03): the engine signs each rect of a frame's parts list on its own (the parts it
 holds, their paints, its size; `jihad_offscreen_overview_ok` 4, the poll's 54 ints) and the daemon keeps the last
-eight part pictures by signature. `JIHAD_GPU_PARTS_PER=1` (or the gate file `<state>/parts-per`) sends the engine the
+eight part pictures by signature and sends the engine the
 signatures held (`compose_post3`/`start3`), so a pass composes and reads only the rects the daemon lacks — on desktop
 Wikipedia the contents panel's highlight alone, not the header and both sidebars; without it every part is read when
-the whole signature moved (E2's rule). `JIHAD_GPU_EXPRESS_SECOND_PARTS=1` (or `<state>/express-second-parts`) lets the
+the whole signature moved (E2's rule) with `JIHAD_GPU_PARTS_PER=0` or the gate file `<state>/no-parts-per` (on by default:
+the owner's choice of 2026-11-03 by the numbers). `JIHAD_GPU_EXPRESS_SECOND_PARTS=1` (or `<state>/express-second-parts`) lets the
 express lane build its second frame on the first in flight again when both are without their parts (review C1 had
-barred it): the second's dress puts back what lay beneath the first's parts AND beneath the first's base's parts, from
+barred it; off by default, the owner's choice of 2026-11-03: it bought nothing on Wikipedia and 1-2 fps less on the long
+page): the second's dress puts back what lay beneath the first's parts AND beneath the first's base's parts, from
 the slot records (each keeps its base's serial and the rows it read; the slot's previous record is kept aside), so the
 copy may catch the first's dress at any point. `JIHAD_GPU_VERIFY=1` now checks the express lane's frames too (the
 reference composed right before the job; `verify express ` / `verify express (two deep) ` lines), with the main lane's.

@@ -59,15 +59,14 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 **Not pushed:** the owner's push, `bash .cavekit/handoff-2026-11-03/push.sh` (the engine branch first, then main to Gitea;
 both read back). Codex was out of credits until Nov 4th, 01:42: the review gate was ONE ck:inspector.
 
-**Item 3 (the owner's "cheaper part pictures"), built, reviewed, measured, verified — behind two switches, the defaults
-the owner's call:**
+**Item 3 (the owner's "cheaper part pictures"), built, reviewed, measured, verified:**
 - Engine 0073: each rect of a frame's parts list carries a signature of its own (its outermost fixed or sticky layer's
   subtree; every subtree layer's last paint as the stamp of one counter that only goes up — every compositable update
   stamps its layer, part or not; the part's scale, quarter-pixel phase, place inside its rect and size);
   `jihad_offscreen_compose_post3`/`start3` (`overview_ok` 4) take the signatures the daemon holds and the pass reads
   only the rects not in the list; the poll's 54 ints carry each rect's signature and the rects read.
-- Daemon: eight part pictures by signature; `JIHAD_GPU_PARTS_PER=1` (or `<state>/parts-per`) sends the list — without
-  it E2's rule (every part when the whole signature moved) with the pictures still by part. `PartsReady()` needs an
+- Daemon: eight part pictures by signature; the list sent by default (`JIHAD_GPU_PARTS_PER=0` or `<state>/no-parts-per`:
+  E2's rule, every part when the whole signature moved, the pictures still by part). `PartsReady()` needs an
   engine that answers 4 (a level-3 libxul puts the parts back on the GPU).
 - The express lane's second frame on the first in flight is back when both are without their parts
   (`JIHAD_GPU_EXPRESS_SECOND_PARTS=1` or `<state>/express-second-parts`): the second's dress puts back what lay beneath
@@ -90,13 +89,38 @@ the owner's call:**
 - Desktop: the engine built clean, the adapter round-trip and headless-daemon tests pass; `check-engine-api.py` 0
   FAIL; `check-engine-calls.sh` ok.
 
-**Decisions for the owner (multiple choice, in the handoff prompt):** (1) ship `JIHAD_GPU_PARTS_PER` on by default? (2)
-ship `JIHAD_GPU_EXPRESS_SECOND_PARTS` on by default? (3) the next lever on this road — reading only a part's DAMAGED
-rows (the contents panel's highlight is one line of 544) and patching the picture held — or item 4 first.
+**The owner's decisions (2026-11-03 evening, "choose based on performance"):** (1) the parts by part ON by default
+(`JIHAD_GPU_PARTS_PER=0` or `<state>/no-parts-per` turns it off) — 11.4 against 10.8 fps on Wikipedia, 19.4 against
+19.2 on the long page; (2) the express second frame stays OFF (`JIHAD_GPU_EXPRESS_SECOND_PARTS=1` turns it on) — 11.4
+against 11.4, 18.1 against 19.4; (3) item 4 next, not the damaged-rows read (the passes are ~5 % of the time; the GPU
+readback bounds the rate). Shipped so: daemon rebuilt, pushed to the three variants, default-check ×3.
 
 **Open, in order:** item 4 — the scroll-only bands composed on the CPU from the tiles' CPU-side pixels, the GPU only for
 tree changes (the owner's step 2 of "both, parts first"); then the Tier 91 kits (the webOS SDK T-548..T-550 with its
 sudo step for the owner, the Atlas references T-545..T-547, the low-power levers T-555..T-560).
+
+**Item 4, where to start (read on 2026-11-03 evening, nothing built):**
+- The tiles: 256 px (`layers.tile-width/height`, `gfxVars::TileSize()`), `BufferTextureHost`s (Shmem/Memory:
+  `CreateBackendIndependentTextureHost`) whose CPU pixels the compositor side reads with `GetBuffer()` under
+  `AutoLockTextureHost`; drawn by `TiledContentHost::RenderLayerBuffer` → `RenderTile` (each tile's screen rects,
+  `aTextureOffset`, the buffer's `GetFrameResolution()`; T-517's cull at TiledContentHost.cpp:597 is ours).
+- The frames: by finger on desktop Wikipedia a round has ~90 express frames, 27-35 of them band frames, only 6-7
+  "scroll only" by the engine's word (no tree change at all): the rest carry the displayport's paints — tiles, which
+  the CPU copy serves as well. So the CPU band condition is "every layer under the bands is a tiled painted layer
+  or a colour layer, drawn with 'over', no mask, a translation-only effective transform", not "scroll only".
+- The catch — scale: Wikipedia pans at the fit zoom 0.6882 with the layers painted at resolution 1
+  (`GpuResolutionFor`: 1.0 up to zoom 1.1), so a CPU band is a bilinear DOWNSCALE of the tiles (768 x ~50 rows, on
+  one core, NEON or not), while the long page at zoom 1 is a pure copy. Either a CPU scaler, or the layers painted
+  at the zoom's resolution below 1.1 too once a pinch settles (smaller tiles: cheaper paints and a pure copy; a full
+  repaint at each settled zoom; T-504's 1.1 threshold was chosen for the zoom-in's sharp frame). A decision for the
+  owner, by multiple choice, before the build; a counter under `JIHAD_GPU_LOG` of the band frames that qualify on
+  both pages (and of the scale ≠ 1 ones) is the measurement to make first.
+- The design then: `JIHAD_GPU_CPU_BANDS=1` — in `JihadComposeAndRead`, a job without its parts whose bands qualify has
+  the compositor thread copy (or scale) the tiles' CPU pixels into `aReq->dest`'s band rows, the diff still taken for
+  the tree change and the fixed rects/hold set still reported, no GL composite and no read for that frame (the band
+  read's wait for the GPU — 11-36 ms under a finger — is what this removes); anything else in a band (canvas, video,
+  a mask, a blend, a 3D transform) takes the GPU path as now. Behind the switch, measured by finger, verify 0 wrong
+  rows, a review gate.
 
 **Traps from this session (not in the source):** the host had 4 GB available of 32 with the zram swap 97 % full — 12 GB of
 closed Claude sessions' scratch in `/tmp/claude-1000` (the permission classifier refused deleting it: the owner's
@@ -110,7 +134,7 @@ the Enyo job stopped: `gpu-spike-collect-stop.sh` after the last run. `finger-pa
 the daemon (its command line is cut before its name).
 
 **Device state:** the three variants run engine 0073 (libxul md5 `a597f8a2`, stripped from `adfaa7ff30`) and the daemon
-(`340aeb0a`) by `push-engine-update.sh enyo mochi mojo` (md5-verified, each job restarted; the `.ipk`s NOT rebuilt for
+(`ba9bd159`, the parts by part on by default) by `push-engine-update.sh enyo mochi mojo` (md5-verified, each job restarted; the `.ipk`s NOT rebuilt for
 this head; the adapters still the packages of `62af6e82`). default-check passes in all three (the GPU path with the
 express lane; faults 0, GPU off 0, express off 0; the Enyo screenshot looked at). No dev copies, `.orig`, gate files
 (`parts-per`, `express-second-parts`, `no-cpu-parts`) or adapter gates; Default look, No proxy; the sensors running;

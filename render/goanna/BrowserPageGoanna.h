@@ -617,9 +617,9 @@ private:
   // from it) gets that back where the old parts landed, outside the rows the job read. Frames of that kind build only
   // on their kind, and the others only on theirs.
   // (per part, 2026-11-03): each rect of a frame's parts list has a signature of its own (its parts' layers, their paints
-  // and its size); the pictures are kept by part, eight at most. With JIHAD_GPU_PARTS_PER=1 (or <state>/parts-per) the
-  // engine is sent the signatures held, so a pass reads only the rects it lacks; without it, as E2, every part when
-  // the whole signature moved (the pictures still kept by part)
+  // and its size); the pictures are kept by part, eight at most. The engine is sent the signatures held, so a pass reads
+  // only the rects it lacks (on by default, the owner 2026-11-03 by the numbers); JIHAD_GPU_PARTS_PER=0 or
+  // <state>/no-parts-per: as E2, every part when the whole signature moved (the pictures still kept by part)
   struct PartPic { uint32_t sig = 0; int w = 0, h = 0; bool ok = false; std::vector<unsigned char> px; uint64_t used = 0; };   // B8G8R8A8 premultiplied
   static const int kPartPics = 8;
   PartPic mPartPics[kPartPics];

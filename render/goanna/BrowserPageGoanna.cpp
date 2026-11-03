@@ -1950,15 +1950,16 @@ bool BrowserPageGoanna::cpuPartsFor() const {
   return cpuPartsOn() && jihadNowMs() >= mPartsOffUntil;
 }
 
-// T-505 (per part): with JIHAD_GPU_PARTS_PER=1 (or the gate file <state>/parts-per, read once) the engine is sent the
-// signatures of the part pictures held and reads only the rects it lacks; without it every part is read when the whole
-// signature moved (E2's rule). The pictures are kept by part either way
+// T-505 (per part): the engine is sent the signatures of the part pictures held and reads only the rects it lacks — on
+// by default (the owner, 2026-11-03, by the numbers: desktop Wikipedia 11.4 against 10.8 fps by finger); JIHAD_GPU_PARTS_PER=0
+// or the gate file <state>/no-parts-per (read once) turns it off: every part read when the whole signature moved (E2's
+// rule). The pictures are kept by part either way
 bool BrowserPageGoanna::partsPerRect() const {
   static const bool sOn = [] {
     const char* e = getenv("JIHAD_GPU_PARTS_PER");
     if (e) return strcmp(e, "0") != 0;
     const std::string sd = jihad::RuntimeStateDir();
-    return !sd.empty() && access((sd + "/parts-per").c_str(), F_OK) == 0;
+    return sd.empty() || access((sd + "/no-parts-per").c_str(), F_OK) != 0;
   }();
   return sOn;
 }

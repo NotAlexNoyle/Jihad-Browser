@@ -128,3 +128,18 @@ by a run with two main-lane jobs in flight; the first build's run had the same t
 flag right by luck. Fixed in the daemon (the flag follows the base actually taken; 340aeb0a, pushed daemon-only).
 Verify again, the main lane alone (v3-*): Wikipedia 55 and 52 verified, the long page 80 — 0 wrong, 0 structurally
 wrong.
+
+Item 4, the first measurement (the census, 2026-11-03 evening; engine patch 0074, a log line only)
+---------------------------------------------------------------------------------------------------
+Of the band frames of frames without their parts, those a CPU copy of the tiles could compose (every leaf under
+the bands a tiled painted layer or a colour layer, "over", no mask, a 2D axis-aligned transform), and those at a
+scale of 1. By finger, 16 drags each (fp-cb-*):
+  the long page       420 band frames: 420 could, 420 at scale 1 (zoom 1: a pure copy)
+  desktop Wikipedia   360 band frames: 291 could, 0 at scale 1 (the fit zoom 0.6882 with the tiles at resolution 1:
+                      every band a downscale); not: a masked translucent layer under the bands in 52 of the first
+                      80 frames (the first two drags), 17 frames with no layer under the bands (past the page)
+Rates unchanged by the census (11.5 / 17.9 fps flowing). What it says for the design: the long page is the pure
+case; Wikipedia needs either a CPU bilinear downscale of the tiles into the bands (768 x ~50 rows x 2 bands from
+~73 source rows each — some 80k output pixels, a few ms on one ARM core, against the band read's 11-36 ms wait
+for the GPU) or the layers painted at the zoom's resolution below 1.1 once a pinch settles (a pure copy and
+cheaper paints; a full repaint at each settled zoom). The owner's choice, by multiple choice, before the build.

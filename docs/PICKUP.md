@@ -55,9 +55,10 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 ## 2026-11-03 (evening) — T-505 item 3 DONE: the parts' pictures by part, the express second frame back; item 4 next (READ FIRST)
 
 **State:** main `e3e3a68c` (two commits on the owner's `ffd6aae2`: item 3, then its defaults) plus this docs commit;
-the engine fork `jihad/uxp-RB_20261027` at `adfaa7ff30` (patch 0073; `patch-queue.sh --check` and `check-engine-pins.sh`
-pass). **Pushed by the owner on 2026-11-03 evening** (read back: Gitea main `e3e3a68c`, the fork `adfaa7ff30`, GitHub's
-mirror `e3e3a68c`, every pin public); this docs commit after it is owed: `bash .cavekit/handoff-2026-11-03/push.sh`.
+the engine fork `jihad/uxp-RB_20261027` at `3b2c3fdf` (patches 0073 and 0074, the census; `patch-queue.sh --check`
+and `check-engine-pins.sh` pass). **Pushed by the owner on 2026-11-03 evening up to `e3e3a68c` / the fork's
+`adfaa7ff30`** (read back, GitHub's mirror following, every pin public); owed since: the docs commits, the finger-testing
+kit and the census (the fork's branch too): `bash .cavekit/handoff-2026-11-03/push.sh`.
 Codex was out of credits until Nov 4th, 01:42: the review gate was ONE ck:inspector.
 
 **Item 3 (the owner's "cheaper part pictures"), built, reviewed, measured, verified:**
@@ -114,8 +115,11 @@ sudo step for the owner, the Atlas references T-545..T-547, the low-power levers
   one core, NEON or not), while the long page at zoom 1 is a pure copy. Either a CPU scaler, or the layers painted
   at the zoom's resolution below 1.1 too once a pinch settles (smaller tiles: cheaper paints and a pure copy; a full
   repaint at each settled zoom; T-504's 1.1 threshold was chosen for the zoom-in's sharp frame). A decision for the
-  owner, by multiple choice, before the build; a counter under `JIHAD_GPU_LOG` of the band frames that qualify on
-  both pages (and of the scale ≠ 1 ones) is the measurement to make first.
+  owner, by multiple choice, before the build. **Measured (engine 0074, the census under `JIHAD_GPU_LOG`, 16 drags
+  each):** the long page 420 of 420 band frames could be composed from the tiles, all at scale 1; desktop Wikipedia
+  291 of 360, none at scale 1 (0.6882 everywhere), the rest a masked translucent layer under the bands in the
+  first two drags. So the long page is a pure copy and Wikipedia a downscale (or a repaint at the zoom's
+  resolution): the owner's choice is the one open question.
 - The design then: `JIHAD_GPU_CPU_BANDS=1` — in `JihadComposeAndRead`, a job without its parts whose bands qualify has
   the compositor thread copy (or scale) the tiles' CPU pixels into `aReq->dest`'s band rows, the diff still taken for
   the tree change and the fixed rects/hold set still reported, no GL composite and no read for that frame (the band
@@ -134,7 +138,7 @@ frames before it (tiles arriving between the job and its reference). `pan-run.sh
 the Enyo job stopped: `gpu-spike-collect-stop.sh` after the last run. `finger-pan-device.sh`'s CPU ticks do not catch
 the daemon (its command line is cut before its name).
 
-**Device state:** the three variants run engine 0073 (libxul md5 `a597f8a2`, stripped from `adfaa7ff30`) and the daemon
+**Device state:** the three variants run engine 0073+0074 (libxul md5 `aa84e482`, stripped from `3b2c3fdf`) and the daemon
 (`ba9bd159`, the parts by part on by default) by `push-engine-update.sh enyo mochi mojo` (md5-verified, each job restarted; the `.ipk`s NOT rebuilt for
 this head; the adapters still the packages of `62af6e82`). default-check passes in all three (the GPU path with the
 express lane; faults 0, GPU off 0, express off 0; the Enyo screenshot looked at). No dev copies, `.orig`, gate files

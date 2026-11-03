@@ -52,6 +52,63 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-11-03 (later) — the engine on UXP `RB_20261027` (T-551..T-554 DONE); the device on it; the owner's push owed (READ FIRST)
+
+**State:** main `62af6e82` + this PICKUP commit; the engine fork's NEW branch `jihad/uxp-RB_20261027` at `52ad9ab66e`
+(72 patches, the queue renumbered from 0060 — the old 0061 is 0060 now; 0031's file name changed), and the old branch
+`jihad/uxp-RB_20261006` at `1f54df3762` (0073). **Not pushed:** GitHub main is `1a0026e9`, the fork has neither branch
+head. The owner's push: `bash .cavekit/handoff-2026-11-03/push.sh` (both engine branches first — the gitlinks of main's
+commits must resolve — then main; all three read back), then `git ls-remote` over https. `.cavekit/handoff-2026-10-24/push.sh`
+names only the old branch: do not use it. Codex is out of credits until Nov 4th, 01:42.
+
+**The update (the owner, 2026-11-02: now; 0060 dropped; the certificate/HTTPS changes with special attention).**
+`update-engine.sh RB_20261027` put the 73 patches on the tag in a worktree (0060 "already applied", byte-identical
+certdata, fell away by itself), `--finish` checked the branch out, rewrote the queue and every pin (UXP/6b18be9 in the
+UA and the three start pages, the recipe's SRCREV, `.gitmodules`), `JIHAD_APP_BUILD_ID` 20261103000000;
+`patch-queue.sh --check`, `check-engine-pins.sh` and `check-engine-api.py` (its baseline rewritten, unchanged) agree.
+`docs/ENGINE-SOURCE.md` has the base, the drop, the renumbering and the range's 12 commits each with its disposition:
+the two NSS certificate commits were on the device since the roots of 2026-10-25 and are the base's now (`audit-roots.py`
+against the fetched release certdata and the CCADB report: identical, none removed, `docs/rounds/certs-2026-11-03`); no
+PSM/TLS/HSTS/UI change in the range; the memory-safety fixes (the JS OOB array copy, the `jar:` flag, feTile, the layout
+frame table, the mutation observer's strong ref, SQLite 3.54.1) came with the base.
+
+**Verified.** Desktop: the full build clean; the test harness had rotted since T-515/T-517 (five scripts could not
+compile or link: GDK, the stall sampler, JihadFrameWindow.h, the Luna service — fixed, commit `6c0a12ca`); 14 of 18 pass,
+the four left (zoom, input, dialog, settings2's popup half) are the desktop GTK path's known read-back limit (PICKUP
+2026-10-14), covered on the device. ARM: libxul (the -j8 build beside the desktop one was killed by earlyoom —
+`build-goanna-arm.sh build 4`, one engine build at a time), the daemon, the bundle, the three `.ipk`s, FULL pushes to all
+three variants, default-check ×3 faults 0 / GPU off 0 / express off 0, the daemon's start line 28 of 29 optional exports
+as before (the v1 displayport export its v2 replaced). The touched areas (`tools/device/engine-checks.sh`, new, with
+pictures looked at): about:settings, about:personas, about:addons through `jar:` under the flag change; a cookie set and
+counted through SQLite 3.54.1; `render/goanna/test/jihad-svg-filter.html` (new: feTile and the 1x1-tile-over-4000x4000
+case) painted whole; a long press selects and raises the context menu; faults 0. The certificate kit's checks
+(`tools/device/cert-checks.sh`, new): the TLS 1.0 refusal, TLS 1.2 / sha256 / Wikipedia clean, expired / wrong.host /
+self-signed / untrusted-root with the SSL confirm's right flags, OCSP revocation enforced (grc.com, ssl.com, DigiCert),
+revoked.badssl.com's CRL-only case loaded as on 2026-10-25 — nothing changed with the base. Records:
+`docs/rounds/engine-rb27-2026-11-03/notes.txt`.
+
+**Device state:** the three variants from the packages of `62af6e82` by `push-variant.sh` (payloads: enyo 44991 KiB md5=ab05250c; mochi 45571 KiB md5=d465badb; mojo 44321 KiB md5=1e993050; ; the
+bundle's stripped libxul md5 `85d24822`); the jobs running; default-check passes in all three; no dev copies, `.orig` or adapter gates; Default
+look, No proxy; the sensors running; `/tmp/finger` (the emulated finger, cross-built) left on the device; the round dumps
+removed. The old ARM object directory's rollback copy was deleted once the device checked out.
+
+**Open, in order (the owner's 2026-10-26 and 2026-11-02 words):**
+1. T-505's items 3 and 4: cheaper part pictures (a per-part signature, only the changed part read, the express lane's
+   second frame back under C1's condition), then the scroll-only bands composed on the CPU from the tiles — each behind a
+   switch, measured by finger on desktop Wikipedia and the long page, a review gate (Codex from Nov 4th; the inspector
+   until then).
+2. The other Tier 91 kits: the webOS SDK (T-548 the Redux 0.4.1 submodule, T-549 novacom rebuilt, T-550 `/opt/PalmSDK`
+   refreshed — a sudo step the owner runs), the Atlas references (T-545..T-547), the low-power levers (T-555..T-560).
+
+**Traps from this session (not in the source):** the daemon's inject and load lines are stdout (buffered when redirected
+to the log), its dialog lines stderr: a per-URL tail of a hand daemon's log mixes old and new lines — send the URLs with
+fixed waits and read the whole log after the daemon exits (`cert-checks.sh` does). `JIHAD_DIALOG_MS=4000` makes an
+unanswered alert take its default in 4 s instead of 60. Two engine builds at once get cc1plus killed by earlyoom (the ZFS
+cache counts as used): one at a time, `build 4` when `free -g` shows under ~10 GB available; "Terminated" in a build log
+is earlyoom, rerun the stage. `push-engine-update.sh` refuses a push until `make-device-bundle.sh` has run after a libxul
+rebuild. ugrep prints nothing for `-c` on a binary (`strings | grep -c`). The desktop test scripts are named
+`build-<t>-test.sh` except embed-smoke, embed-load, headless-daemon, adapter-roundtrip, page-driver.
+
 ## 2026-11-03 — T-505: the review gate passed, the long page's wrong verify frame fixed (engine 0073); `RB_20261027` found; the owner: the engine update next (READ FIRST)
 
 **State:** main `c29f396c` + this PICKUP commit; the engine fork `1f54df3762` (patches through 0073; `patch-queue.sh --check`

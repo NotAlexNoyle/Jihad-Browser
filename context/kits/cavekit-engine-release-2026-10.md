@@ -37,6 +37,7 @@ Reference: `build/engine/engine-version.env`, `build/engine/update-engine.sh`, `
   name of the `RC_` form is accepted by `update-engine.sh` (its default lookup matches `RB_` only) and by
   `check-engine-pins.sh`
 **Dependencies:** cavekit-engine-update.md R2
+- [ ] The certificate and HTTPS changes upstream pushed in response to recent exploits get special attention (the owner, 2026-11-02): every commit in the range touching `security/` (NSS, PSM, certdata, pkix), `netwerk/` TLS and HSTS, the security prefs and the certificate UI is listed with its disposition in `docs/ENGINE-SOURCE.md`, carried through the rebase and checked against the queue (none reverted by a patch; the roots by `audit-roots.py`), and the certificate kit's device checks (the TLS floor, a revoked, expired and mismatched host, the Trust dialog) run on the new engine before the push *(2026-11-02: `RB_20261027` found by T-551's check — 12 commits over RB_20261006, 11 files: `[NSS] Remove emSign roots (eMudhra compromise)` 037cc5f614 and `[NSS] Update certdata to Sept 2026 status` 4a68bbbd53 are the certificate ones and are already on the device (the certificate-trust kit shipped certdata from 037cc5f614 on 2026-10-25, `ROOTS_SOURCE`); no PSM/TLS protocol change in the range; the memory-safety fixes the device lacks: `[js] Avoid OOB array copy` 6b18be917d, the `jar:` protocol's `URI_LOADABLE_BY_ANYONE` flag removed d42616bb12 (Jihad's own `jar:` pages to be checked, R4), feTile overflow bae7a6ec8f, the layout frame table 8fea2ad823, the animation observer's strong ref c4339b14dc, SQLite 3.54.1)*
 
 ### R2: The patch queue rebased by the procedure, nothing lost
 **Acceptance Criteria:**
@@ -77,5 +78,6 @@ Reference: `build/engine/engine-version.env`, `build/engine/update-engine.sh`, `
 - cavekit-device-build.md — the packages and pushes
 
 ## Changelog
+- 2026-11-02: R1 gains the certificate/HTTPS criterion (the owner: upstream's exploit-driven fixes get special attention); `RB_20261027` found, its range read.
 - 2026-10-26: created from the owner's request; upstream read the same day (RB_20261006 newest release, RC_20261026 on
   the release branch).

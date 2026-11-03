@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-10-26 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-03 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,73 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-03 — T-505: the review gate passed, the long page's wrong verify frame fixed (engine 0073); `RB_20261027` found; the owner: the engine update next (READ FIRST)
+
+**State:** main `c29f396c` + this PICKUP commit; the engine fork `1f54df3762` (patches through 0073; `patch-queue.sh --check`
+and `check-engine-pins.sh` pass). **Not pushed:** GitHub main is `1a0026e9` and the fork's branch `446b22790a` — the
+owner's push: `bash .cavekit/handoff-2026-10-24/push.sh` (the engine branch first, then main, both read back), then
+`git ls-remote` over https. Codex is out of credits until Nov 4th, 01:42 (both `gpt-5.6-sol` and `-terra`): the review
+gate owed on `81f56bef` + `446b22790a` was ONE ck:inspector (Cavekit 3.1's backup) — REVISE, six findings, all fixed
+(`context/impl/impl-review-findings-t505-cpuparts.md`, review 2). CPU parts stay on by default (the owner's word).
+
+**The long page's one wrong verify frame (PICKUP 2026-10-26's item 2) — found and fixed.** Reproduced with the verify
+dumps (`JIHAD_GPU_VERIFY_DUMP_WRONG=1`) and a dress diagnostic (the daemon now logs each dress: the base record, its rect,
+a pixel of it, d, the rows read, the rows put back; rate-limited): the restore ran right, but the base's record of what
+lay beneath its header HELD THE HEADER. Its job was the load's tree change, a 4 px strip at x 764..768, composed by the
+engine as a partial composite clipped and cleared to those columns (LayerManagerComposite::UpdateAndRender) while a
+frame without its parts reads the changed rows WHOLE (0072's review fix D4 turned its column read off): the other
+columns were the window target's last composite, in a verify run the whole reference with the parts. The verify
+mode cannot see it (the CPU header is drawn over the GPU one); the first shift lands the old header where nothing
+covers it. Engine 0073 (`LayerManagerComposite::JihadWholeRows`, set by the job's content-only scope): such a job's
+partial composite covers the changed rows across the frame's width and reports them so. Verified: the long page's
+scripted pan under `JIHAD_GPU_VERIFY=1`, 85 frames, 78 shifted, 0 wrong rows (2 wrong in each of the two rounds before),
+every base record's probe the page's pixels; frames looked at. Records: `docs/rounds/t505-2026-11-02/notes.txt`. The
+inspector reached the same cause from the code (its F1) and found: F2 one sample time per job (the test API's
+`mTestTime`), F3 overlapping part rects (re-merged in the engine; the daemon records every beneath before drawing any,
+restores in reverse), F4 the main lane's second job only on a base of its kind, F5 signature misses (a cut part's
+slice, every clip rect, the mask's identity, blend modes as covered), F6 the parts pass under the cancel flag — all in
+0073 / the daemon. Kit: R4's CPU-parts criterion [x]; R2 gains the read-width criterion.
+
+**`RB_20261027` is on upstream** (T-551's each-session check; fetched into `third_party/uxp` as a tag, nothing checked
+out): 12 commits over RB_20261006, 11 files. `[NSS] Remove emSign roots (eMudhra compromise)` 037cc5f614 and `[NSS]
+Update certdata to Sept 2026` 4a68bbbd53 are the certificate commits and are ALREADY on the device (the
+certificate-trust kit shipped certdata from 037cc5f614 on 2026-10-25, `ROOTS_SOURCE`); no PSM/TLS protocol change in
+the range. NOT on the device: `[js] Avoid OOB array copy` 6b18be917d, the `jar:` protocol's `URI_LOADABLE_BY_ANYONE`
+flag removed d42616bb12 (Jihad's own `jar:` pages must be checked), feTile overflow bae7a6ec8f, the layout frame table
+8fea2ad823, the animation observer's strong ref c4339b14dc, SQLite 3.54.1. Only `certdata.txt` overlaps the queue (patch
+0060, byte-identical). **The owner (2026-11-02, by multiple choice): the engine update NOW, before T-505's items 3 and
+4; patch 0060 DROPPED; and "pay special attention to the certificate / https updates — pushed upstream in response to
+recent exploits"** (kit `cavekit-engine-release-2026-10.md` R1's new criterion; memory
+`engine-update-certificate-https-first`).
+
+**Open, in order:**
+1. **T-552:** `build/engine/update-engine.sh RB_20261027` (the queue on the tag in a worktree beside the repo; 0060 skipped
+   at the `git am` stop with `git am --skip`), `--finish` (the branch, the queue written again, every pin), the
+   `JIHAD_APP_BUILD_ID` bump, `docs/ENGINE-SOURCE.md` (the new base; 0060's drop and why; the range's commits with each
+   one's disposition — the certificate ones first).
+2. **T-553:** `tools/host/audit-roots.py` 0 findings on the new base.
+3. **T-554:** the desktop engine build and tests (`docs/ENGINE.md` §7); the ARM engine + daemon + three packages by full
+   `push-variant.sh` runs; default-check ×3; the areas the commits touch: Jihad's own pages through `jar:` and
+   `resource:` (about:settings, about:personas, the start pages — the `jar:` flag change), cookies and history across
+   the SQLite update, selection (the frame table), an SVG filter page; and the certificate kit's device checks (the TLS
+   floor, a revoked/expired/mismatched host, the Trust dialog). Then the owner's push.
+4. T-505's items 3 and 4 (cheaper part pictures: a per-part signature, only the changed part read; then the
+   scroll-only bands composed on the CPU), each measured by finger; then the other Tier 91 kits.
+
+**Traps from this session (not in the source):** a partial composite's clip is the invalid region's BOUNDS and whatever
+is read beyond them is the previous composite — the verify's own reference in verify runs; compare the engine's read
+extents (rows AND columns) with what it composed whenever either changes. `push-engine-update.sh` refuses a push until
+`make-device-bundle.sh` has rebuilt the bundle after a libxul rebuild. The daemon-only push (`--daemon-only`) needs no
+bundle. `JIHAD_GPU_VERIFY_DUMP_WRONG=1` dumps the first frame with > 50 wrong rows (`/tmp/vw-*.raw`) and the first
+structurally wrong one (`/tmp/vs-*.raw`); fetch and remove them (`/tmp` is 40 MB). ugrep prints nothing for `-c` on a
+binary: use `strings | grep -c`.
+
+**Device state:** the three variants run engine 0073 (libxul md5 `673bb742`, stripped from `1f54df3762`) and the daemon
+(`3eb1e911`) by `push-engine-update.sh` (md5-verified, each job restarted; the `.ipk`s NOT rebuilt for this head); the
+adapters are still the packages of `554ed514`. default-check passes in all three (the GPU path with the express lane;
+faults 0, GPU off 0, express off 0; screenshots looked at). No dev copies, `.orig` or adapter gates; Default look, No
+proxy; the sensors running; `/tmp` dumps removed; `/var` 27 %.
 
 ## 2026-10-26 (night) — T-505: the parts on the CPU, exact (engine 0070-0072); four new kits; paused for a fresh agent (READ FIRST)
 

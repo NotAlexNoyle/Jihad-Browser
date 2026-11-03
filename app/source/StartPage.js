@@ -36,7 +36,7 @@ enyo.kind({
 			{name: "brand", className: "startpage-brand", components: [
 				{kind: "Image", className: "startpage-logo", src: "images/startpage-placeholder.png"},
 				{content: "Jihad Browser", className: "startpage-title", allowHtml: false},
-				{content: "Enyo UI ★ Goanna/6.9 UXP/5f290d1", className: "startpage-sub", allowHtml: false},
+				{content: "Enyo UI ★ Goanna/6.9 UXP/6b18be9", className: "startpage-sub", allowHtml: false},
 				{content: $L("Type a web address or a search in the bar above, then press Enter."),
 					className: "startpage-hint", allowHtml: false},
 				// Shortcuts, filled in at create() from enyo.jihadChrome so the list

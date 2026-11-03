@@ -1,0 +1,46 @@
+[jihad-bs] inject url https://tls-v1-0.badssl.com:1010/
+[jihad-bs] dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-1.fifo)
+[jihad-bs] dialog alert: nobody opened the reply pipe in 4007 ms — no card is answering, taking the default
+[jihad-bs] dialog alert: no answer from the card — taking the default
+[jihad-bs] load done uri=http://192.168.1.245:8077/jihad-long-static.html
+[jihad-bs] loaderr failed=1 code=0x805a2ff7 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://tls-v1-2.badssl.com:1012/
+[jihad-bs] load done uri=https://tls-v1-2.badssl.com:1012/
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://sha256.badssl.com/
+[jihad-bs] load done uri=https://sha256.badssl.com/
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://expired.badssl.com/
+[jihad-bs] dialog alert suppressed — the certificate error on expired.badssl.com is reported by the SSL confirm instead
+[jihad-bs] load done uri=https://sha256.badssl.com/
+[jihad-bs] loaderr failed=1 code=0x805a1ff5 certErr=1 chost=expired.badssl.com ccode=0x805a1ff5
+[jihad-bs] dialog ssl-confirm -> card (pipe /var/palm/jihad/enyo/dialog-2.fifo) host=expired.badssl.com status=0x805a1ff5 flags=1(untrusted=0 selfSigned=0 mismatch=0 badTime=1 expired=1) -> ordinal 0 cert=/var/palm/jihad/enyo/certs/jihad-ce
+[jihad-bs] dialog ssl-confirm: nobody opened the reply pipe in 4006 ms — no card is answering, taking the default
+[jihad-bs] dialog ssl-confirm: no answer from the card — taking the default
+[jihad-bs] inject url https://wrong.host.badssl.com/
+[jihad-bs] dialog alert suppressed — the certificate error on wrong.host.badssl.com is reported by the SSL confirm instead
+[jihad-bs] load done uri=https://sha256.badssl.com/
+[jihad-bs] loaderr failed=1 code=0x805a2ff4 certErr=1 chost=wrong.host.badssl.com ccode=0x805a2ff4
+[jihad-bs] dialog ssl-confirm -> card (pipe /var/palm/jihad/enyo/dialog-3.fifo) host=wrong.host.badssl.com status=0x805a2ff4 flags=1(untrusted=0 selfSigned=0 mismatch=1 badTime=0 expired=0) -> ordinal 50 cert=/var/palm/jihad/enyo/certs/jiha
+[jihad-bs] dialog ssl-confirm: nobody opened the reply pipe in 4007 ms — no card is answering, taking the default
+[jihad-bs] dialog ssl-confirm: no answer from the card — taking the default
+[jihad-bs] inject url https://self-signed.badssl.com/
+[jihad-bs] dialog alert suppressed — the certificate error on self-signed.badssl.com is reported by the SSL confirm instead
+[jihad-bs] load done uri=https://sha256.badssl.com/
+[jihad-bs] loaderr failed=1 code=0x805a1ff3 certErr=1 chost=self-signed.badssl.com ccode=0x805a1ff3
+[jihad-bs] dialog ssl-confirm -> card (pipe /var/palm/jihad/enyo/dialog-4.fifo) host=self-signed.badssl.com status=0x805a1ff3 flags=1(untrusted=1 selfSigned=1 mismatch=0 badTime=0 expired=0) -> ordinal 18 cert=/var/palm/jihad/enyo/certs/jih
+[jihad-bs] dialog ssl-confirm: nobody opened the reply pipe in 4028 ms — no card is answering, taking the default
+[jihad-bs] dialog ssl-confirm: no answer from the card — taking the default
+[jihad-bs] inject url https://untrusted-root.badssl.com/
+[jihad-bs] dialog alert suppressed — the certificate error on untrusted-root.badssl.com is reported by the SSL confirm instead
+[jihad-bs] load done uri=https://sha256.badssl.com/
+[jihad-bs] loaderr failed=1 code=0x805a1ff3 certErr=1 chost=untrusted-root.badssl.com ccode=0x805a1ff3
+[jihad-bs] dialog ssl-confirm -> card (pipe /var/palm/jihad/enyo/dialog-5.fifo) host=untrusted-root.badssl.com status=0x805a1ff3 flags=1(untrusted=1 selfSigned=0 mismatch=0 badTime=0 expired=0) -> ordinal 20 cert=/var/palm/jihad/enyo/certs/
+[jihad-bs] dialog ssl-confirm: nobody opened the reply pipe in 4030 ms — no card is answering, taking the default
+[jihad-bs] dialog ssl-confirm: no answer from the card — taking the default
+[jihad-bs] inject url https://revoked.badssl.com/
+[jihad-bs] load done uri=https://revoked.badssl.com/
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://en.wikipedia.org/wiki/HP_TouchPad
+[jihad-bs] load done uri=https://en.wikipedia.org/wiki/HP_TouchPad
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0

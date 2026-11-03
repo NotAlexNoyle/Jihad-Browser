@@ -63,11 +63,11 @@
 // rescan on every build and make the daemon binary non-reproducible. BUMP IT
 // when shipping a build whose chrome/components changed in a way that must
 // invalidate those caches.
-#define JIHAD_APP_BUILD_ID "20261012000000"   // the engine moved to UXP RB_20261006
+#define JIHAD_APP_BUILD_ID "20261103000000"   // the engine moved to UXP RB_20261027
 
 #define JIHAD_USER_AGENT \
   "Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad) " \
-  "Goanna/6.9 UXP/5f290d1 Firefox/52.9 ECMAScript/2024 " \
+  "Goanna/6.9 UXP/6b18be9 Firefox/52.9 ECMAScript/2024 " \
   JIHAD_APP_NAME "/" JIHAD_APP_VERSION
 
 #endif // JIHAD_USER_AGENT_H

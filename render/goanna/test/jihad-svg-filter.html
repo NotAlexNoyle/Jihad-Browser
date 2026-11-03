@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- jihad-svg-filter.html — SVG filters on the software filter path (gfx/2d/FilterNodeSoftware.cpp): feTile
+     (whose rect arithmetic UXP RB_20261027 guards against overflow, bae7a6ec8f), feGaussianBlur, feOffset,
+     feColorMatrix, and a feTile whose tile rect is tiny and whose filter region is large (the overflow case). A
+     page that paints every box and raises no fault passes; the daemon's log says the rest. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>jihad-svg-filter</title>
+<style> body { margin: 0; padding: 16px; font: 20px/1.4 sans-serif; background: #f8f6f0; } svg { display: block; margin: 12px 0; background: #fff; } </style>
+</head><body>
+<h1>SVG filters</h1>
+<p>1. feTile: a 40x40 tile of a blue box, repeated over 300x120</p>
+<svg width="320" height="140">
+  <defs><filter id="tile" x="0" y="0" width="300" height="120" filterUnits="userSpaceOnUse">
+    <feFlood x="0" y="0" width="40" height="40" flood-color="#2b4c7e" result="f"/>
+    <feOffset in="f" dx="4" dy="4" x="0" y="0" width="40" height="40" result="o"/>
+    <feTile in="o"/>
+  </filter></defs>
+  <rect x="10" y="10" width="300" height="120" fill="#ffe9a8" filter="url(#tile)"/>
+</svg>
+<p>2. feGaussianBlur + feOffset (a drop shadow) and feColorMatrix (greyscale)</p>
+<svg width="320" height="140">
+  <defs>
+    <filter id="shadow"><feGaussianBlur in="SourceAlpha" stdDeviation="4"/><feOffset dx="6" dy="6" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="grey"><feColorMatrix type="saturate" values="0"/></filter>
+  </defs>
+  <circle cx="70" cy="70" r="50" fill="#c8e6c9" filter="url(#shadow)"/>
+  <rect x="160" y="20" width="120" height="100" fill="#e53935" filter="url(#grey)"/>
+</svg>
+<p>3. feTile, the overflow case: a 1x1 tile over a 4000x4000 filter region on a 300x100 box</p>
+<svg width="320" height="120">
+  <defs><filter id="tilebig" x="-2000" y="-2000" width="4000" height="4000" filterUnits="userSpaceOnUse">
+    <feFlood x="0" y="0" width="1" height="1" flood-color="#2b4c7e" result="f"/>
+    <feTile in="f"/>
+  </filter></defs>
+  <rect x="10" y="10" width="300" height="100" fill="#ffe9a8" filter="url(#tilebig)"/>
+</svg>
+<p>4. the end: every box above painted, no fault</p>
+</body></html>

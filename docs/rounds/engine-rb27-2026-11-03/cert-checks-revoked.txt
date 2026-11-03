@@ -1,0 +1,28 @@
+[jihad-bs] inject url https://revoked.grc.com/
+[jihad-bs] dialog alert suppressed — the certificate error on revoked.grc.com is reported by the SSL confirm instead
+[jihad-bs] load done uri=http://192.168.1.245:8077/jihad-long-static.html
+[jihad-bs] loaderr failed=1 code=0x805a1ff5 certErr=1 chost=revoked.grc.com ccode=0x805a1ff5
+[jihad-bs] dialog ssl-confirm -> card (pipe /var/palm/jihad/enyo/dialog-1.fifo) host=revoked.grc.com status=0x805a1ff5 flags=1(untrusted=0 selfSigned=0 mismatch=0 badTime=1 expired=1) -> ordinal 0 cert=/var/palm/jihad/enyo/certs/jihad-cert-
+[jihad-bs] dialog ssl-confirm: nobody opened the reply pipe in 4011 ms — no card is answering, taking the default
+[jihad-bs] dialog ssl-confirm: no answer from the card — taking the default
+[jihad-bs] inject url https://revoked-rsa-dv.ssl.com/
+[jihad-bs] dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-2.fifo)
+[jihad-bs] dialog alert: nobody opened the reply pipe in 4006 ms — no card is answering, taking the default
+[jihad-bs] dialog alert: no answer from the card — taking the default
+[jihad-bs] load done uri=http://192.168.1.245:8077/jihad-long-static.html
+[jihad-bs] loaderr failed=1 code=0x805a1ff4 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://revoked-ecc-dv.ssl.com/
+[jihad-bs] dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-3.fifo)
+[jihad-bs] dialog alert: nobody opened the reply pipe in 4005 ms — no card is answering, taking the default
+[jihad-bs] dialog alert: no answer from the card — taking the default
+[jihad-bs] load done uri=http://192.168.1.245:8077/jihad-long-static.html
+[jihad-bs] loaderr failed=1 code=0x805a1ff4 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/
+[jihad-bs] dialog alert -> card (pipe /var/palm/jihad/enyo/dialog-4.fifo)
+[jihad-bs] dialog alert: nobody opened the reply pipe in 4005 ms — no card is answering, taking the default
+[jihad-bs] dialog alert: no answer from the card — taking the default
+[jihad-bs] load done uri=http://192.168.1.245:8077/jihad-long-static.html
+[jihad-bs] loaderr failed=1 code=0x805a1ff4 certErr=0 chost= ccode=0x0
+[jihad-bs] inject url https://revoked.badssl.com/
+[jihad-bs] load done uri=https://revoked.badssl.com/
+[jihad-bs] loaderr failed=0 code=0x0 certErr=0 chost= ccode=0x0

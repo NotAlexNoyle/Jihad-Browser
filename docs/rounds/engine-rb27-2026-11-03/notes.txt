@@ -1,0 +1,64 @@
+The engine on UXP RB_20261027 (T-552..T-554, 2026-11-03)
+=========================================================
+The owner's choice of 2026-11-02 (the update now; patch 0060 dropped; special attention to the certificate/HTTPS
+changes). The range and each commit's disposition: docs/ENGINE-SOURCE.md, "The move to RB_20261027".
+
+Host (T-552, T-553): update-engine.sh RB_20261027 — the 73 patches applied on the tag in a worktree, 0060 "already
+applied" (byte-identical certdata) and dropped by itself, one overlap listed (certdata.txt); check-engine-api.py 0 FAIL
+0 WARN; --finish: the branch jihad/uxp-RB_20261027 at 52ad9ab66e in third_party/uxp, the queue rewritten (72, renumbered
+from 0060), every pin (UXP/6b18be9 in the UA and the three start pages), patch-queue.sh --check ok. JIHAD_APP_BUILD_ID
+20261103000000. audit-roots.py against the fetched release certdata and the CCADB report: identical set and trust
+(169/118), none removed, RESULT OK (docs/rounds/certs-2026-11-03/audit.txt).
+
+Desktop (T-554): the full desktop build (build/desktop/out, podman, 50 min) clean. The test harness had rotted since
+T-515/T-517 (GDK in EngineHost, the stall sampler in GoannaRenderPage, JihadFrameWindow.h in BrowserPageGoanna, the
+Luna service in the daemon): embed-smoke, embed-load, find, headless-daemon and adapter-roundtrip could not compile or
+link; fixed in build/desktop/build-*.sh (and embed-smoke runs under Xvfb like the rest). Then, of 18:
+  PASS (14): embed-smoke, embed-load (RENDER PASS), cookie (persistence), tls, history, nav, media 18/18, personas 7/7,
+             prefsui 38/38, xpi-mismatch 8/8, scroll, find, headless-daemon, adapter-roundtrip (round trip, overscan,
+             scroll-overscan)
+  FAIL (4):  zoom, input, dialog, settings2 (its popup half; prefs ok) — the desktop GTK path's pixel read-back after a
+             script's change: the alert text is captured and the click is delivered, the frame read back does not
+             change ("read a black window before any click — the desktop harness, not the device path; not chased",
+             PICKUP 2026-10-14); the device checklist covers taps, zoom and dialogs.
+  The jar: flag change: the daemon-level tests bootstrap the bundled XPI through a jar:file: URL as before.
+
+ARM: the full engine build at -j8 beside the desktop build was killed by earlyoom (cc1plus, memory
+one-engine-build-at-a-time); resumed alone at -j4 (build-goanna-arm.sh build 4).
+
+ARM and the device (T-554, 10:00-10:15): the daemon built against the new dist, make-device-bundle.sh, the three
+.ipks (build-variant-ipk.sh), a FULL push per variant (push-variant.sh: the Enyo payload 44991 KiB,
+md5 ab05250c; each md5-verified, each job restarted). default-check ×3: the GPU path with the express lane, faults 0,
+GPU off 0, express off 0 (enyo painted 172, express 7, zooms 5; mochi 210/14/5; mojo 164/10/4); the screenshot
+looked at (desktop Wikipedia after the pinch). tools/device/engine-checks.sh (engine-checks.txt, the pictures
+ec-*.jpg looked at):
+- the daemon's start: "28 of 29 optional jihad_* exports present" — jihad_layout_set_displayport is the v1 export its
+  v2 replaced, missing before the update too (the 2026-10-26 and the 0073 logs say the same line);
+- roots: 169 certificates, 118 trusted for sites, 0 on Mozilla's removed report;
+- the cookie store through SQLite 3.54.1: a cookie set ok, 88 counted; no sqlite error in the log;
+- Jihad's own pages under the jar: flag change: about:settings, about:personas (the list of 13 Personas) and
+  about:addons (the add-on site pane) rendered, 0 JavaScript errors;
+- jihad-svg-filter.html (feTile, the shadow, greyscale, the 1x1 tile over a 4000x4000 region): every box painted;
+- selection (the layout frame-table fix): a long press on the long page selects a word and raises the context menu
+  (Copy, Select All, ...);
+- faults 0.
+
+The certificate kit's checks on the new engine (tools/device/cert-checks.sh, cert-checks.txt; the owner's "special
+attention"): the hand daemon with JIHAD_DIALOG_MS=4000 (an unanswered dialog takes its default after 4 s); the log
+read whole after the daemon exits (its stdout is buffered when redirected, its stderr not — a per-URL tail mixed
+old and new lines, two runs lost to it). Against the 2026-10-25 record:
+- tls-v1-0.badssl.com:1010 -> the engine's alert, loaderr failed=1 code=0x805a2ff7 certErr=0: refused (the TLS 1.2 floor)
+- tls-v1-2.badssl.com:1012, sha256.badssl.com, en.wikipedia.org -> loaded, certErr=0
+- expired -> alert suppressed, ssl-confirm (badTime=1 expired=1), loaderr failed=1 code=0x805a1ff5 certErr=1
+- wrong.host -> ssl-confirm (mismatch=1), 0x805a2ff4 certErr=1
+- self-signed -> ssl-confirm (untrusted=1 selfSigned=1), 0x805a1ff3 certErr=1
+- untrusted-root -> ssl-confirm (untrusted=1), 0x805a1ff3 certErr=1
+- revoked.badssl.com -> loaded clean (the 2026-10-25 record has no result for it; the kit's revocation evidence is
+  revoked.grc.com and ssl.com's revoked hosts, OCSP: run below)
+- the revoked hosts (cert-checks-revoked.txt), as on 2026-10-25: revoked.grc.com -> the ssl-confirm (its certificate
+  is expired too, 0x805a1ff5); revoked-rsa-dv.ssl.com, revoked-ecc-dv.ssl.com and DigiCert's revoked chain demo ->
+  the engine's alert and loaderr failed=1 code=0x805a1ff4, no Trust buttons (OCSP revocation enforced);
+  revoked.badssl.com -> loaded clean, as then (CRL-only revocation is invisible to UXP: no CRL fetch, no CRLite —
+  the certificate kit's R7 records it).
+Verdict: no certificate or TLS behaviour changed with the base; the roots are the base's and identical to the ones
+shipped on 2026-10-25.

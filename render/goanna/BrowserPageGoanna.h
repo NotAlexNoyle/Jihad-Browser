@@ -525,6 +525,7 @@ private:
   // the second job runs, the compositor thread runs them in order), exact while scrolling
   int                mGpuNextBaseKey = 0, mGpuNextBaseY = 0;
   int                mGpuNextBaseWin = 0;   // T-517: that frame's window
+  bool               mGpuNextBaseContentOnly = false;   // T-505 (review F4): that frame without its parts (dressed on this thread at its poll)
   void gpuJobDrain();   // wait out a frame in flight (its buffer is about to go away)
   void gpuSlotsReset() {
     gpuJobDrain();

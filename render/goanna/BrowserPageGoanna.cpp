@@ -2034,22 +2034,40 @@ __attribute__((optimize("O2"))) int BrowserPageGoanna::cpuPartsDress(int s, unsi
   for (int k = 0; k < nf; k++)
     if (p->wh[k][0] != fr[k][2] - fr[k][0] || p->wh[k][1] != fr[k][3] - fr[k][1]) return kPartsNoPic;
   // what lay beneath the old frame's parts, where they landed, outside the rows read
+  int putBack = 0, baseN = 0, baseR[4] = { 0, 0, 0, 0 };
+  uint32_t baseProbe = 0;
+  long d = 0;
+  size_t baseBytes = 0;
   if (src >= 0) {
     const SlotParts& sp = mSlotParts[src];
     if (sp.kind != 1) return kPartsNoBase;
-    const long d = (long)(cr.frameYValid ? cr.frameY : jobY) - srcY;
+    d = (long)(cr.frameYValid ? cr.frameY : jobY) - srcY;
+    baseN = sp.n; baseBytes = sp.beneath.size();
+    if (sp.n > 0) for (int c = 0; c < 4; c++) baseR[c] = sp.r[0][c];
+    if (sp.n > 0 && sp.beneath.size() >= (size_t)(sp.r[0][2] - sp.r[0][0]) * 4 * 2)   // a pixel of the record's second row (what lay beneath the part's top)
+      memcpy(&baseProbe, sp.beneath.data() + (size_t)(sp.r[0][2] - sp.r[0][0]) * 4 + 100 * 4, 4);
     auto readRow = [&](long y) { return (y >= cr.readLo && y < cr.readHi) || (y >= cr.read2Lo && y < cr.read2Hi); };
-    for (int k = 0; k < sp.n; k++) {
+    for (int k = sp.n - 1; k >= 0; k--) {   // (review F3) the first recorded last: where rects overlap, its record is the oldest
       const int x0 = sp.r[k][0], x1 = sp.r[k][2], rw = x1 - x0;
       for (int y = sp.r[k][1]; y < sp.r[k][3]; y++) {
         const long ny = y - d;
         if (ny < 0 || ny >= H || readRow(ny)) continue;
         memcpy(pixels + ((size_t)ny * w + x0) * 4, sp.beneath.data() + sp.off[k] + (size_t)(y - sp.r[k][1]) * rw * 4, (size_t)rw * 4);
+        putBack++;
       }
     }
   }
+  {
+    // the restore, frame by frame (the long page's first shifted frame kept the base's header where it landed, 2026-11-02)
+    static uint32_t sDressN = 0;
+    if (sDressN++ < 80 || (sDressN % 50) == 0)
+      JIHAD_GPU_LOG("[jihad-gpu] cpu parts: slot %d (y %ld, frameY %ld/%d) dressed on slot %d (y %ld; %d parts, first %d,%d..%d,%d, %zu B beneath, (100,1)=%08x): d %ld, read %ld..%ld %ld..%ld, %d rows put back; its own %d parts, first %d,%d..%d,%d\n",
+                    s, (long)jobY, (long)cr.frameY, (int)cr.frameYValid, src, srcY, baseN, baseR[0], baseR[1], baseR[2], baseR[3], baseBytes, baseProbe, d,
+                    cr.readLo, cr.readHi, cr.read2Lo, cr.read2Hi, putBack, nf, nf > 0 ? fr[0][0] : 0, nf > 0 ? fr[0][1] : 0, nf > 0 ? fr[0][2] : 0, nf > 0 ? fr[0][3] : 0);
+  }
   if (p) const_cast<PartsPic*>(p)->used = ++mPicClock;
-  // this frame's: what lies beneath kept, the parts drawn over it
+  // this frame's: what lies beneath kept (every part's before any is drawn: where two rects overlap, the second's
+  // record would hold the first's drawn pixels, review F3), then the parts drawn over it
   SlotParts& dp = mSlotParts[s];
   dp.beneath.resize(need);
   size_t at = 0;
@@ -2057,9 +2075,13 @@ __attribute__((optimize("O2"))) int BrowserPageGoanna::cpuPartsDress(int s, unsi
     const int x0 = fr[i][0], rw = fr[i][2] - x0;
     dp.off[i] = at;
     for (int c = 0; c < 4; c++) dp.r[i][c] = fr[i][c];
-    for (int y = fr[i][1]; y < fr[i][3]; y++, at += (size_t)rw * 4) {
+    for (int y = fr[i][1]; y < fr[i][3]; y++, at += (size_t)rw * 4)
+      memcpy(dp.beneath.data() + at, pixels + ((size_t)y * w + x0) * 4, (size_t)rw * 4);
+  }
+  for (int i = 0; i < nf; i++) {
+    const int x0 = fr[i][0], rw = fr[i][2] - x0;
+    for (int y = fr[i][1]; y < fr[i][3]; y++) {
       uint32_t* row = (uint32_t*)(pixels + ((size_t)y * w + x0) * 4);
-      memcpy(dp.beneath.data() + at, row, (size_t)rw * 4);
       const uint32_t* pp = (const uint32_t*)(p->px.data() + p->off[i]) + (size_t)(y - fr[i][1]) * rw;
       for (int x = 0; x < rw; x++) {
         const uint32_t sv = pp[x], a = sv >> 24;
@@ -4839,7 +4861,9 @@ bool BrowserPageGoanna::gpuJobStart(int slot, int key, unsigned char* pixels, si
   static const bool sFixedCols = !getenv("JIHAD_GPU_NO_FIXED_COLS") && !getenv("JIHAD_GPU_READ_THREAD");
   // (T-505: not without the parts: the job in flight's frame gets its parts on this thread when it is polled, while the
   // compositor thread may be copying it for this one)
-  if (!co && !sWhole && mGpuNextSecond && mGpuNextBaseKey && mGpuNextBaseKey != key && mGpuFixedHi >= mGpuFixedLo) {
+  // (review F4) and not on a frame without its parts either: the parts turned off between the two posts (a cover
+  // refusal, the document's three misses) would copy a frame this thread dresses at its poll
+  if (!co && !sWhole && mGpuNextSecond && mGpuNextBaseKey && mGpuNextBaseKey != key && mGpuFixedHi >= mGpuFixedLo && !mGpuNextBaseContentOnly) {
     // round 130: the job in flight is the base (its frame is complete when this job runs)
     const long dy = (long)y - mGpuNextBaseY;
     unsigned char* bb = (dy > -h && dy < h) ? attachShm(mGpuNextBaseKey) : nullptr;
@@ -6564,6 +6588,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
           if (r == -3 && (!sStillOnly || (oldest.shift == 0 && gpuLo == oldest.y && !mGpuCompositorScroll))) {
             mGpuNextBaseKey = oldest.key;
             mGpuNextBaseWin = oldest.win;   // T-517
+            mGpuNextBaseContentOnly = oldest.contentOnly;   // (review F4)
             mGpuNextBaseY = cr.frameYValid ? (int)cr.frameY : oldest.y;
             // the composed job's changed rows are in ITS frame; the next job is at bandY: the hull
             // of both readings (scrolled and fixed content), as the stale rule does
@@ -6658,6 +6683,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             const long ab = std::min((long)h, std::max(0L, -(long)fy));
             if (ab > 0) memset(pixels, 0xff, (size_t)ab * w * 4);
             if (pe < h && pe >= 0) memset(pixels + (size_t)pe * w * 4, 0xff, (size_t)(h - pe) * w * 4);
+          }
+          {
+            static uint32_t sPollN = 0;
+            if (sPollN++ < 80 || (sPollN % 50) == 0)
+              JIHAD_GPU_LOG("[jihad-gpu] cpu parts: poll slot %d (key 0x%x) job y %d win %d (the slot's %d), base slot %d y %ld\n",
+                            gslot, (unsigned)oldest.key, oldest.y, oldest.win, gslot >= 0 ? mGpuSlotWin[gslot] : -1, oldest.srcSlot, oldest.srcY);
           }
           const int outcome = cpuPartsDress(gslot, pixels, cr, h, w, oldest.srcSlot, oldest.srcY, oldest.y, partsBufOf(oldest.token));
           if (outcome == kPartsDressed) {

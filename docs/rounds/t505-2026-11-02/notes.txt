@@ -1,0 +1,54 @@
+T-505, the long page's wrong verify frame (2026-11-02)
+======================================================
+The owed item from PICKUP 2026-10-26 (night), open item 2: one frame of 58 in pan-v1-long (2026-10-26) had 13 wrong
+rows at frame rows 0..13 (slot 1, y 43, shift 184, own slot, bands 1040..1224).
+
+Reproduced (pan-v2-long: JIHAD_GPU_VERIFY=1 JIHAD_GPU_VERIFY_DUMP_WRONG=1, "pan 0 3000 15000", main lane only, the
+daemon f25ef5ba / engine 446b22790a of the device): 81 verified frames, 2 wrong, both slot 1:
+- line 581: y -133, shift 8 from its y -141 frame, bands 1216..1224: 8 rows wrong at 133..141 = the base's header
+  (part rect 0,140..765,198, opaque rows 141..197) where the shift of 8 left its top rows, not put back. The dump
+  (vs-slot.raw / vs-whole.raw, looked at: rows 133..140 are the header's #2b4c7e in the frame, the page's #f8f6f0 in
+  the reference; 141..197 the header in both; the out-of-page rows above white in both).
+- line 615: y 42, shift 175 from that y -133 frame: 14 rows wrong at 0..14, rows 14..23 right. Exactly the record
+  the first wrong frame left behind: its beneath (rows 140..198, captured after its restore failed) holds the old
+  header in its rows 1..49 and the page's background in 49..58; shifted by 175 those land at 0..14 (wrong) and
+  14..23 (right). So the restore WORKS for a base at y -133 and FAILED for the base at y -141 (the load's frame,
+  rows 0..141 above the page); the defect heals itself one frame later.
+The same geometry in pan-v1-long (2026-10-26): slot 1's first shift (184) from its y -141 frame, 13 wrong rows at
+0..13 = the header's bottom (184..197) not put back.
+Not it (read): cpuPartsDress's restore arithmetic (d = frameY - srcY, rows outside the read bands), the own-slot
+path's srcSlot/srcY (baseSlot = slot, baseY = the slot's y), the engine's frameY (set only with a src or a
+diff-first shift), the published top= (the card's scroll, not the frame's y), the part rect's inflation (the
+engine's Inflate(1): 58 rows, "the edges' filtered pixels"), the hide of the parts (CompositeToTarget's hook, both
+paths).
+The daemon instrumented (cpuPartsDress logs the base record, d, the read rows, the rows put back and a pixel of the
+record's second row; the main poll logs the job's window against the slot's) and the round again (pan-v3-long, 84
+verified frames, 2 wrong, slot 2 this time: shift 1 from y -141 -> 1 wrong row at 140; then shift 137 -> 56 wrong at
+3..59). The log settles it (lines 435, 629, 670): the restore RAN ("58 rows put back"), and the base record's probe
+read (100,1)=ff2b4c7e, the header, where the other slots' records read fff8f6f0, the page: the record was made bad at
+its own dress (line 435), by a frame whose job was the load's tree change "changed 141..1083 x 764..768" (the 4 px
+strip beside the scroll port), too tall for the band surface -> "the whole path".
+
+ROOT CAUSE (the inspector's F1, found the same way from the code, context/impl/impl-review-findings-t505-cpuparts.md
+review 2): LayerManagerComposite::UpdateAndRender makes a composite whose change is smaller than the frame a PARTIAL
+one, clipped and cleared to the change's bounds (here x 764..768), while a frame without its parts reads the changed
+rows WHOLE (review D4 of 0072 turned the column read off for it). The columns beside the change come from the window
+target's previous composite: in a verify run the whole reference with the parts -> the header in the frame's rows
+141..197 before the dress -> the dress records it as what lies beneath -> the first shift puts it back where the old
+header landed. Frames with the engine's parts read the columns (T-511), so they never saw it; band-path reads compose
+exactly what they read.
+FIX (engine 0073, LayerManagerComposite::JihadWholeRows, set by the job's content-only scope): a frame without its
+parts has its diff-driven partial composite cover the changed rows across the frame's width, and reports them so.
+With it, the inspector's F2-F6 (one sample time per job; overlapping part rects re-merged in the engine and every
+beneath recorded before any part is drawn in the daemon; the main lane's second job only on a base of its kind; the
+signature's misses; the parts pass under the job's cancel flag).
+Frames looked at: pan-v2-long-frame-60.jpg (the header at the view's top, paragraphs 16-33 in order, the coloured
+ones at 20, 25, 30) and the vs-slot/vs-whole crop (the header 8 rows taller in the frame).
+
+The round with the fixes (pan-v4-long: engine 0073 (libxul 673bb742) + the daemon (3eb1e911) on the Enyo variant, the
+same settings): 85 verified frames, 78 shifted, 0 wrong rows, 0 structurally wrong, no dump; the load's strip
+composite now "changed 141..1083 x 0..768" (the rows whole); every base record's probe the page's pixels (59 the
+background fff8f6f0, the rest paragraph colours and text; 6 with no base), none the header's. Frame 60 looked at
+(the header at the view's top, the paragraphs in order). Earlier rounds on the same page, same settings: pan-v2 2 wrong
+of 81, pan-v3 2 wrong of 84. (A verify run is no rate measurement: ~5 fps with the reference composites.)
+Kept: pan-v2-long-frame-60.jpg, pan-v4-long-frame-60.jpg; the other pictures of the three rounds deleted.

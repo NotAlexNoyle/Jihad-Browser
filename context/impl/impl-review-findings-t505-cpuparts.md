@@ -49,3 +49,27 @@ the verify guard's state, a page-made scroll is whole). No path publishes a fram
 Proposed criterion (cavekit-gpu-rendering.md): every published frame's CPU-drawn parts come from a composite of the
 same tree state as the frame; the change signal covers content, attribute, structure and animation changes to a
 part; `JIHAD_GPU_VERIFY=1` with the parts on shows zero wrong rows over a scripted pan on Wikipedia and the long page.
+
+## Review 2 — the inspector on main `81f56bef` + engine `446b22790a` (2026-11-02; Codex out of credits until Nov 4th)
+
+The review gate PICKUP 2026-10-26 (night) owed (prompt: `.cavekit/handoff-2026-10-26/codex-e2.prompt`; `codex exec` on
+gpt-5.6-sol and gpt-5.6-terra both answered "usage limit ... try again at Nov 4th, 2026 1:42 AM", so ONE ck:inspector took
+it). It also named the cause of the long page's one wrong verify frame, found independently on the device the same day
+(`docs/rounds/t505-2026-11-02/notes.txt`). Verdict: REVISE (P1 1, P2 3, P3 2).
+
+| # | sev | where | finding | fix | status |
+|---|---|---|---|---|---|
+| F1 | high | engine LayerManagerComposite::UpdateAndRender; CompositorBridgeParent 2666 | a frame without its parts whose tree change is narrower than the frame (the load's 4 px strip at x 764..768, an image arriving) takes the whole path as a PARTIAL composite clipped and cleared to the change's columns, but is read back in whole rows (review D4 turned the column read off without the parts): the columns beside the change come from the window target's last composite — in a verify run the whole reference WITH the parts, so the header passes for the page beneath it, the dress records it as beneath, and the first shift puts it back where the old header landed (the 13 wrong rows at 0..13 of 2026-10-26; 8 at 133..141 and 14 at 0..14 on 2026-11-02, dumps looked at: header blue where the reference has the page's background); outside verify runs the stale columns are another frame's rows | `LayerManagerComposite::JihadWholeRows`: for a job without its parts the diff-driven partial composite covers the changed rows across the frame's width and reports them so (`mJihadLastChanged`); set for the job by the content-only scope | fixed (engine 0073) — device: the same round, every record's probe the page's background, 0 wrong rows (below) |
+| F2 | medium | engine JihadComposeAndRead (the prep's TransformShadowTree at the last composite's time; each ForceComposeToTarget at now) | an animated part (a header sliding away) is measured (rects, signature, hold set) at an older time than its picture and its frame are composed: the picture cut at the old rects | one sample time for the job: `mIsTesting`/`mTestTime` (the test API's mechanism, the only readers of the time) set to now for a content-only job and restored after | fixed (engine 0073); no animated-part page in the test set: by reading |
+| F3 | medium | engine JihadMergeFixed; daemon cpuPartsDress | after the reduction past four rects, a union can overlap a third rect (five or more fixed/sticky layers); the daemon recorded rect i+1's beneath after drawing rect i and restored forward: the overlap blended twice, a ghost | engine: the rects joined again after each union; daemon: every part's beneath recorded before any is drawn, put back in reverse order | fixed (engine 0073, daemon); by reading (no five-part page in the test set) |
+| F4 | medium | daemon gpuJobStart (round 130's second job) | the second job checks only its own kind: when the parts turned off between the two posts (the express thread's cover refusal, the document's third miss) a job with the engine's parts copies a frame without them while this thread dresses it (C1 on the main lane) | `mGpuNextBaseContentOnly` recorded with the base; the second job only on a base of its kind | fixed (daemon); by reading |
+| F5 | low | engine JihadPartsSig | missed: a part cut by the frame's edge whose slice moves (its rect keeps its size); a top-level part's clip rect; the mask layer beyond its existence; a mix-blend-mode part cannot be drawn with "over" on the CPU | the slice's start mixed when a part crosses the frame's top or bottom; every part's clip rect; the mask's identity and bounds; a blend mode other than over marks the frame covered (the engine's parts) | fixed (engine 0073); by reading |
+| F6 | low | engine the parts pass (JihadReadPacked) | the pass ran without the job's cancel flag: a job given up kept writing its buffer, which the daemon lends again after 10 s or deletes | the cancel flag set around the pass, checked before each piece's copy | fixed (engine 0073); by reading |
+
+Checked and fine (the inspector): the packing; JihadReadPacked's bounds and flip; the dress's rect and size checks; the
+beneath indexing; the state the parts pass leaves behind (baseline, probe, world, bounds, band, target, flags); the
+buffers' bookkeeping under the frame lock; the express lane's C1 gate.
+
+Proposed criterion (cavekit-gpu-rendering.md R2): every row a frame reads back is composed in that frame's own
+composite across the width it reads; the verify round includes a narrow, tall change on an own-slot frame (the load's
+strip is one).

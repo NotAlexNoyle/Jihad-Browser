@@ -1,0 +1,200 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 2 Nov 2026 20:27:22 -0500
+Subject: [PATCH] gpu-compositor: a frame without its parts composes the
+ changed rows whole, as it reads them; the review's fixes
+
+T-505, the long page's one wrong verify frame (2026-11-02) and the inspector's review of E2:
+- F1: LayerManagerComposite::UpdateAndRender makes a composite whose tree change is smaller than the
+  frame a partial one, clipped and cleared to the change's bounds (the load's 4 px strip at x 764..768,
+  an image arriving), while a frame without its parts reads the changed rows whole (review D4 of 0072
+  turned its column read off). The columns beside the change came from the window target's last
+  composite: in a verify run the whole reference with the parts, so the header passed for the page
+  beneath it, the daemon recorded it as what lay beneath, and the first shift put it back where the
+  old header landed. JihadWholeRows, set by the job's content-only scope: the diff-driven partial
+  composite of such a job covers the changed rows across the frame's width, and reports them so.
+- F2: one sample time for the job (mTestTime, the test API's mechanism, restored after): an animated
+  part is measured, pictured and composed at the same instant.
+- F3: JihadMergeFixed joins rects again after the reduction's unions, so no two overlap.
+- F5: the parts' signature mixes where a part cut by the frame's edge starts, every part's clip rect
+  and the mask layer's identity and bounds; a mix-blend-mode part marks the frame covered.
+- F6: the parts pass runs under the job's cancel flag.
+
+Verified on the device: the long page's scripted pan with JIHAD_GPU_VERIFY=1, where the frame built on
+the load's strip composite used to carry the header beneath (pan-v2, pan-v3: 2 wrong frames each),
+85 frames verified, 78 shifted, 0 wrong rows (docs/rounds/t505-2026-11-02/notes.txt).
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ .../composite/LayerManagerComposite.cpp       | 10 ++++
+ gfx/layers/composite/LayerManagerComposite.h  |  4 ++
+ gfx/layers/ipc/CompositorBridgeParent.cpp     | 52 ++++++++++++++++---
+ gfx/layers/ipc/CompositorBridgeParent.h       |  2 +-
+ 4 files changed, 59 insertions(+), 9 deletions(-)
+
+diff --git a/gfx/layers/composite/LayerManagerComposite.cpp b/gfx/layers/composite/LayerManagerComposite.cpp
+index 280b884634..1dfc596edc 100644
+--- a/gfx/layers/composite/LayerManagerComposite.cpp
++++ b/gfx/layers/composite/LayerManagerComposite.cpp
+@@ -564,6 +564,16 @@ LayerManagerComposite::UpdateAndRender()
+     mJihadPartialOn = true;
+   } else if (!mTarget && !mJihadLastChanged.IsEmpty() && mClonedLayerTreeProperties &&
+              !invalid.Contains(mRenderBounds)) {
++    if (mJihadWholeRows) {
++      // T-505: a frame without its parts reads the changed rows whole (no column read, review D4): the
++      // composite covers them whole too, or the columns beside the change keep what the target held
++      // from its last composite (a frame with its parts: their pixels then pass for the page beneath
++      // them, and a later shift shows them; found 2026-11-02 on the long page's first shifted frame)
++      const gfx::IntRect b = invalid.GetBounds();
++      const gfx::IntRect rows = gfx::IntRect(mRenderBounds.x, b.y, mRenderBounds.width, b.height).Intersect(mRenderBounds);
++      invalid = nsIntRegion(rows);
++      mJihadLastChanged = rows;
++    }
+     mJihadPartialOn = true;   // only what changed, when that is less than the frame
+   }
+   if (invalid.IsEmpty() && !mWindowOverlayChanged) {
+diff --git a/gfx/layers/composite/LayerManagerComposite.h b/gfx/layers/composite/LayerManagerComposite.h
+index c49ecb73a6..0d6e7ebf39 100644
+--- a/gfx/layers/composite/LayerManagerComposite.h
++++ b/gfx/layers/composite/LayerManagerComposite.h
+@@ -141,6 +141,9 @@ public:
+   // the layer diff reports as the content's whole bounds): the diff is dropped, the bands asked
+   // for are composed and read
+   void JihadIgnoreDiff(bool aOn) { mJihadIgnoreDiff = aOn; }
++  // T-505: a frame without its parts is read back in whole rows (no column read): a partial composite
++  // of what the tree changed covers those rows across the frame's width, not the change's columns
++  void JihadWholeRows(bool aOn) { mJihadWholeRows = aOn; }
+   // round 115: the next diff treats the root-content layer's scroll as a shift (LayerTreeInvalidation.h)
+   void JihadCompensateScroll(bool aOn) { mJihadCompensateScroll = aOn; }
+   // round 119: the tree diff now, without a render (the stored tree refreshed as a composite
+@@ -398,6 +401,7 @@ private:
+   gfx::IntRect mJihadRegionRect[12];
+   int mJihadRegionN = 0;
+   bool mJihadIgnoreDiff = false;
++  bool mJihadWholeRows = false;   // T-505: the rows read back are whole rows
+   bool mJihadCompensateScroll = false;
+   bool mJihadPartialOn = false;                  // this Render is a partial composite
+   UniquePtr<LayerProperties> mClonedLayerTreeProperties;
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 420a0c7cbf..9aa08d7f9d 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1174,7 +1174,7 @@ CompositorBridgeParent::JihadHideForJob()
+ // leaf drawn after a part (above it, in paint order) whose pixels meet it is a cover: a popup over a fixed bar, a page
+ // over a fixed background
+ uint32_t
+-CompositorBridgeParent::JihadPartsSig(const gfx::IntRect* aRects, int aN, bool* aCovered)
++CompositorBridgeParent::JihadPartsSig(const gfx::IntRect* aRects, int aN, bool* aCovered, int aWidth, int aHeight)
+ {
+   uint32_t h = 2166136261u;
+   auto mix = [&](uint32_t v) { h = (h ^ v) * 16777619u; };
+@@ -1207,12 +1207,21 @@ CompositorBridgeParent::JihadPartsSig(const gfx::IntRect* aRects, int aN, bool*
+       const bool part = l->GetIsFixedPosition() || l->GetIsStickyPosition();
+       if (part || depth > 0) {
+         mix((uint32_t)(uintptr_t)l); mix((uint32_t)l->GetType()); mixf(l->GetOpacity());
+-        mix(l->GetContentFlags()); mix(l->GetMaskLayer() ? 1u : 0u);
++        mix(l->GetContentFlags());
++        if (Layer* mk = l->GetMaskLayer()) { mix((uint32_t)(uintptr_t)mk); mixr(mk->GetVisibleRegion().GetBounds().ToUnknownRect()); }   // (review F5)
+         mixr(l->GetVisibleRegion().GetBounds().ToUnknownRect());
++        if (l->GetClipRect()) mixr(l->GetClipRect()->ToUnknownRect());   // (review F5) a top-level part's clip too
+         if (depth > 0) {
+           const gfx::Matrix4x4 m = l->GetBaseTransform();
+           for (int k = 0; k < 16; k++) mixf(m.components[k]);
+-          if (l->GetClipRect()) mixr(l->GetClipRect()->ToUnknownRect());
++        }
++        if (l->GetMixBlendMode() != gfx::CompositionOp::OP_OVER) *aCovered = true;   // (review F5) not drawable by "over" on the CPU
++        if (part && depth == 0) {
++          // (review F5) a part cut by the frame's top or bottom edge: its rect keeps its size while the slice shown
++          // moves with it (a sticky element not yet stuck, taller than the frame or half off it): where it starts
++          const gfx::IntRect vb = l->GetLocalVisibleRegion().GetBounds().ToUnknownRect();
++          const gfx::IntRect tb = gfx::RoundedOut(l->GetEffectiveTransform().TransformBounds(gfx::Rect(vb.x, vb.y, vb.width, vb.height)));
++          if (tb.y < 0 || tb.YMost() > aHeight) mix((uint32_t)tb.y);
+         }
+         if (l->GetType() == Layer::TYPE_COLOR) {
+           const gfx::Color c = static_cast<ColorLayer*>(l)->GetColor();
+@@ -1556,6 +1565,19 @@ JihadMergeFixed(gfx::IntRect* aR, gfx::IntRect* aK, int aN, int aMax)
+     }
+     aR[bi] = aR[bi].Union(aR[bj]); aK[bi] = gfx::IntRect();
+     remove(bj);
++    // (review F3) the union may now overlap a third rect: joined again, so no two rects overlap (the daemon's
++    // beneath records and restores take each rect's pixels once)
++    for (bool merged = true; merged && aN > 1;) {
++      merged = false;
++      for (int p = 0; p < aN && !merged; p++) {
++        for (int q = p + 1; q < aN && !merged; q++) {
++          if (!aK[p].IsEmpty() || !aK[q].IsEmpty()) continue;
++          gfx::IntRect a = aR[p];
++          a.Inflate(1);
++          if (a.Intersects(aR[q])) { aR[p] = aR[p].Union(aR[q]); remove(q); merged = true; }
++        }
++      }
++    }
+   }
+   return aN;
+ }
+@@ -1906,11 +1928,22 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       if (b->mLayerManager) b->mLayerManager->JihadHoldBaseline(false);
+     }
+   } jihadVerifyGuard(this, aReq && aReq->verify);
+-  // T-505: a frame without its parts (flag 128), for this job's whole run
++  // T-505: a frame without its parts (flag 128), for this job's whole run; its reads are whole rows, so
++  // a partial composite of a change is whole rows too (LayerManagerComposite::JihadWholeRows)
+   struct JihadContentOnlyScope {
+-    explicit JihadContentOnlyScope(bool aOn) { sJihadContentOnly = aOn; }
+-    ~JihadContentOnlyScope() { sJihadContentOnly = false; }
+-  } jihadContentOnlyScope(aReq && aReq->contentOnly);
++    LayerManagerComposite* m;
++    JihadContentOnlyScope(LayerManagerComposite* aM, bool aOn) : m(aM) { sJihadContentOnly = aOn; if (m) m->JihadWholeRows(aOn); }
++    ~JihadContentOnlyScope() { sJihadContentOnly = false; if (m) m->JihadWholeRows(false); }
++  } jihadContentOnlyScope(mLayerManager, aReq && aReq->contentOnly);
++  // (review F2) one sample time for the job's prep, its parts pass and its frame: an animated part is measured,
++  // pictured and composed at the same instant (mTestTime is the mechanism the test API uses; restored after)
++  struct JihadJobTimeScope {
++    CompositorBridgeParent* b; bool was; TimeStamp wasTime;
++    JihadJobTimeScope(CompositorBridgeParent* aB, bool aOn) : b(aB), was(aB->mIsTesting), wasTime(aB->mTestTime) {
++      if (aOn && !was) { b->mIsTesting = true; b->mTestTime = TimeStamp::Now(); }
++    }
++    ~JihadJobTimeScope() { if (!was) { b->mIsTesting = false; b->mTestTime = wasTime; } }
++  } jihadJobTimeScope(this, aReq && aReq->contentOnly);
+   if (aReq) aReq->partsGen = gJihadPartsGen;
+   MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
+   if (!aReq || !mCompositor || !mLayerManager) {
+@@ -1999,7 +2032,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+     mLayerManager->JihadPrepareOnly();
+     const int partN = JihadFixedRectsNow(aWidth, aHeight, parts, pk);   // every fixed and sticky layer, whole rects
+     bool covered = false;
+-    aReq->partsGen = JihadPartsSig(parts, partN, &covered);
++    aReq->partsGen = JihadPartsSig(parts, partN, &covered, aWidth, aHeight);
+     if (covered) aReq->partsFlags |= 1;
+     {
+       sJihadContentOnly = false;   // the card's hold set keeps T-544's meaning: fixed layers and stuck ones
+@@ -2044,6 +2077,8 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+         aReq->partsFlags |= 2;
+       } else {
+         JihadVerifyGuard partsGuard(this, true);   // the baseline, the probe, the last scroll and view held
++        struct PartsCancelScope { CompositorOGL* o; ~PartsCancelScope() { o->JihadSetCancel(nullptr); } } partsCancelScope{ogl};
++        ogl->JihadSetCancel(&aReq->cancelled);   // (review F6) a job given up writes no more of its buffer
+         const int passRows = ogl->JihadBeginBandPass(aWidth, used);
+         if (!passRows) {
+           aReq->partsFlags |= 2;
+@@ -2074,6 +2109,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+           for (int k = 1; k < aReq->nStuck; k++)
+             off[k] = off[k - 1] + (size_t)(aReq->stuck[k - 1][2] - aReq->stuck[k - 1][0]) * (aReq->stuck[k - 1][3] - aReq->stuck[k - 1][1]) * 4;
+           for (int i = 0; i < np && ok; i++) {
++            if (aReq->cancelled) { ok = false; break; }   // (review F6)
+             const int k = pieces[i].k, rw = aReq->stuck[k][2] - aReq->stuck[k][0];
+             uint8_t* d = aReq->partsDest + off[k] + (size_t)(pieces[i].y - aReq->stuck[k][1]) * rw * 4;
+             ok = ogl->JihadReadPacked(d, rw * 4, passRows, pieces[i].atX, pieces[i].w, pieces[i].atY, pieces[i].h);
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
+index 5776ec30c4..ce9fa9ccf2 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.h
++++ b/gfx/layers/ipc/CompositorBridgeParent.h
+@@ -548,7 +548,7 @@ public:
+   void JihadHideForJob();   // Jihad T-504/T-505: the overview's and a content-only frame's layers hidden
+   // Jihad T-505 (E2): the parts' signature (their layers, content, attributes and sizes); *aCovered when a content
+   // layer is drawn above a part (the daemon cannot draw that part over the frame)
+-  uint32_t JihadPartsSig(const gfx::IntRect* aRects, int aN, bool* aCovered);
++  uint32_t JihadPartsSig(const gfx::IntRect* aRects, int aN, bool* aCovered, int aWidth, int aHeight);
+   int JihadFixedRectsNow(int aWidth, int aHeight, gfx::IntRect* aOut, gfx::IntRect* aKeep);
+   void JihadUpdateLastFixed(int aWidth, int aHeight);
+   bool mJihadSeqKnown = false;

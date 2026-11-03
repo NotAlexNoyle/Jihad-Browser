@@ -54,10 +54,11 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 
 ## 2026-11-03 (evening) — T-505 item 3 DONE: the parts' pictures by part, the express second frame back; item 4 next (READ FIRST)
 
-**State:** main = this commit (on the owner's `ffd6aae2`, pulled from Gitea); the engine fork `jihad/uxp-RB_20261027` at
-`adfaa7ff30` (patch 0073; `patch-queue.sh --check` and `check-engine-pins.sh` pass with the gitlink of this commit).
-**Not pushed:** the owner's push, `bash .cavekit/handoff-2026-11-03/push.sh` (the engine branch first, then main to Gitea;
-both read back). Codex was out of credits until Nov 4th, 01:42: the review gate was ONE ck:inspector.
+**State:** main `e3e3a68c` (two commits on the owner's `ffd6aae2`: item 3, then its defaults) plus this docs commit;
+the engine fork `jihad/uxp-RB_20261027` at `adfaa7ff30` (patch 0073; `patch-queue.sh --check` and `check-engine-pins.sh`
+pass). **Pushed by the owner on 2026-11-03 evening** (read back: Gitea main `e3e3a68c`, the fork `adfaa7ff30`, GitHub's
+mirror `e3e3a68c`, every pin public); this docs commit after it is owed: `bash .cavekit/handoff-2026-11-03/push.sh`.
+Codex was out of credits until Nov 4th, 01:42: the review gate was ONE ck:inspector.
 
 **Item 3 (the owner's "cheaper part pictures"), built, reviewed, measured, verified:**
 - Engine 0073: each rect of a frame's parts list carries a signature of its own (its outermost fixed or sticky layer's

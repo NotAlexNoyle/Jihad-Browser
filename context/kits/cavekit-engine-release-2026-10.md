@@ -65,7 +65,7 @@ Reference: `build/engine/engine-version.env`, `build/engine/update-engine.sh`, `
   `resource:` (about:settings, about:addons, about:personas, the start page) open; a profile with cookies and history
   survives the SQLite update (cookies kept, history listed); selection in a page (a long press) and an SVG filter page
   render
-- [ ] The engine fork's branch and main are the owner's to push (`.cavekit/handoff-2026-10-24/push.sh`)
+- [x] The engine fork's branch and main are the owner's to push (`.cavekit/handoff-2026-11-03/push.sh`: the fork's branch to GitHub first, main to Gitea, both read back) *(2026-11-03: the owner pushed the RB_20261027 head (`4e1e9a9a`, the fork's `52ad9ab66e`) in the morning and the T-505 item 3 head (`e3e3a68c`, the fork's `adfaa7ff30`) in the evening; read back over https, GitHub's mirror following, every pin public (`tools/host/check-pins.sh`))*
 **Dependencies:** R2, R3
 
 ## Out of Scope

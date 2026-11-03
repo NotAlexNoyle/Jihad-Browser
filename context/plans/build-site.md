@@ -490,6 +490,23 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 92 — Autonomous finger testing (2026-11-03; cavekit-finger-testing.md)
+
+The owner's "devise a system for accurate autonomous finger testing" (2026-11-03). The emulated finger drives; what judges is
+still an eye on a still. This tier gives the round its own instruments and verdicts: a framebuffer sampler for what the card
+showed while the finger moved, a stream tool that measures it, oracle checks in place of a glance, geometry derived from the
+page, waits on marks, one runner, and a comparison with the owner's own round. Queued behind T-505 item 4 unless the owner
+orders otherwise.
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-561 | The frame sampler on the device: the shown page of `/dev/fb1` (the pan offset honoured) at ≥ 10 samples/s for a gesture's length, each sample's time, the finger's position and the rows' signatures (the raw page on request), C from the repository's toolchain beside `finger.c`; its cost measured (the daemon's Wikipedia frame rate with and without it, under 5 % apart) | cavekit-finger-testing.md | R2 | — | yes | M | PENDING |
+| T-562 | The stream tool on the host: the shown scroll per sample, the shown-frame spacing, the tracking error against the finger, stale or repeated bands, uniform bands inside the page, the fixed parts' rows held still; tested against planted faults (a duplicated band, a moved header, a grey band) and against the daemon's verify mode on a clean pan | cavekit-finger-testing.md | R2 | T-561 | yes | M | PENDING |
+| T-563 | The check library and the geometry: the oracle checks (scroll, zoom, the element at a point, a field's text, the URL, dialogs, the keyboard, content present by colours and text, regions equal or changed), the page-top calibration tap per shell, `rect`-derived positions, the chrome table per shell, Mojo's header rule; the existing walks moved onto it with their hand-worked numbers gone | cavekit-finger-testing.md | R1, R3 | T-562 | yes | L | PENDING |
+| T-564 | The script form and the runner: launch / wait-for / gesture / expect / shoot-on-fail, one device session per script, the device lock the owner touches, the restore after every script, the report under `docs/rounds/finger-<date>/`, the end-of-suite device check; the lint that no bare sleep guards a check | cavekit-finger-testing.md | R4, R5 | T-563 | yes | L | PENDING |
+| T-565 | The suite: every reachable item of `docs/FINGER-TESTS.md` as a script with an id, in each shell it names; the slow-human variants (the dialog answered at 8 s, the job stopped before a persistence check); the pan at three speeds, the jittered and the paused drag; the list regenerated from the report; the kits' finger citations by script id | cavekit-finger-testing.md | R4, R6 | T-564 | yes | L | PENDING |
+| T-566 | The owner's comparison round: the suite's report beside the owner's verdicts on the same build, every disagreement dispositioned; R12's smoothness answered by the stream's numbers and the owner's word | cavekit-finger-testing.md | R7 | T-565 | yes | S | BLOCKED-EXTERNAL (the owner at the device) |
+
 ## Tier 91 — Four kits of 2026-10-26: low-power levers, the engine's next release, the webOS SDK, the Atlas references
 
 The owner's requests of 2026-10-26 (evening) and their choices the same day: **T-505 first, then these**; the engine

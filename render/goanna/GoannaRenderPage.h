@@ -387,7 +387,8 @@ public:
                         const unsigned char* src = nullptr, long srcY = 0, bool engineShift = false, bool verify = false,
                         long colX0 = 0, long colX1 = -1, bool windowMoved = false,
                         bool contentOnly = false,    // T-505: the frame without its parts (PartsReady)
-                        unsigned char* partsDest = nullptr, int partsCap = 0, uint32_t partsHave = 0);   // (E2)
+                        unsigned char* partsDest = nullptr, int partsCap = 0, uint32_t partsHave = 0,   // (E2)
+                        const uint32_t* partsHaveList = nullptr, int nPartsHave = -1);   // (per part) the signatures held
   void CleanRows(unsigned char* dst, long lo, long hi);   // the cache clean of rows another thread wrote
   // T-515: ComposeStart's halves. PaintLayers (the main thread) paints the layers; ComposePost (any
   // thread, the frame lock held) composes the tree as it stands into a frameH-row frame, at aView
@@ -401,10 +402,11 @@ public:
                        bool overview = false,     // T-504: an overview window (OverviewReady)
                        bool overviewParts = false,    // T-504: the overview's fixed and stuck parts alone
                        bool contentOnly = false,      // T-505: the frame without its parts (PartsReady)
-                       unsigned char* partsDest = nullptr, int partsCap = 0, uint32_t partsHave = 0);   // (E2)
+                       unsigned char* partsDest = nullptr, int partsCap = 0, uint32_t partsHave = 0,   // (E2)
+                       const uint32_t* partsHaveList = nullptr, int nPartsHave = -1);   // (per part) the signatures held
   bool ExpressReady() const;
   bool OverviewReady() const;   // T-504: ExpressReady and the engine composes overview windows
-  bool PartsReady() const;      // T-505: and frames without their parts (flag 128), with the parts' generation
+  bool PartsReady() const;      // T-505: and frames without their parts (flag 128) with their parts pass, per part (level 4)
   int ComposePeek(uint32_t token);   // 1 done, 2 composed (being read), 0 pending, -1 unknown
   // askLo/askHi: the band that job was started with (what was read is it joined with the change)
   // out (may be null): the rows the tree changed (inv), the rows fixed layers cover (fixed),
@@ -417,7 +419,10 @@ public:
                          uint32_t partsGen = 0; bool partsGenKnown = false;   // T-505: the parts' signature
                          // T-505 (E2): the bytes the job's parts pass wrote into its parts buffer (0: none), its flags (1 a
                          // content layer above a part, 2 the parts too big), the card's hold set (fixed and stuck layers)
-                         int partsBytes = 0, partsFlags = 0; bool holdKnown = false; int nHold = 0; int hold[4][4] = {}; };
+                         int partsBytes = 0, partsFlags = 0; bool holdKnown = false; int nHold = 0; int hold[4][4] = {};
+                         // T-505 (per part): each stuck rect's own signature, and the rects the pass read (bit k; the
+                         // buffer holds those, packed in rect order)
+                         uint32_t partsSig[4] = {}; int partsRead = 0; bool partsSigKnown = false; };
   int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two

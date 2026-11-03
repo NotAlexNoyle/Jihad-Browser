@@ -4989,7 +4989,7 @@ bool GoannaRenderPage::ComposeAsync() const {
 uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, long rowLo, long rowHi, long row2Lo, long row2Hi, long shift,
                                         const unsigned char* src, long srcY, bool engineShift, bool verify, long colX0, long colX1,
                                         bool windowMoved, bool contentOnly, unsigned char* partsDest, int partsCap,
-                                        uint32_t partsHave) {
+                                        uint32_t partsHave, const uint32_t* partsHaveList, int nPartsHave) {
   if (!mOffscreen || !mWidget || !ComposeAsync()) return 0;
   const int w = mWidth, h = GpuFrameHeight();   // T-505: the frame's rows, overscan included
   if (w <= 0 || h <= 0 || dstBytes < (size_t)w * h * 4) return 0;
@@ -4999,9 +4999,14 @@ uint32_t GoannaRenderPage::ComposeStart(unsigned char* dst, size_t dstBytes, lon
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
   // flag 4 (T-511): the column arguments are given, and the poll takes twelve ints back
   const int flags = (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0) | (contentOnly && PartsReady() ? 128 : 0);
-  if (contentOnly && PartsReady())   // T-505 (E2): with its parts pass
+  if (contentOnly && PartsReady()) {   // T-505 (E2): with its parts pass; (per part) with the signatures held
+    if (partsHaveList && nPartsHave >= 0)
+      return jihad_offscreen_compose_start3(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift,
+                                            src, (int)srcY, flags, (int)colX0, (int)colX1, partsDest, partsDest ? partsCap : 0,
+                                            partsHaveList, nPartsHave);
     return jihad_offscreen_compose_start2(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift,
                                           src, (int)srcY, flags, (int)colX0, (int)colX1, partsDest, partsDest ? partsCap : 0, partsHave);
+  }
   const uint32_t token = jihad_offscreen_compose_start(mWidget, ds, dst, w * 4, w, h, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi, (int)shift, src, (int)srcY,
                                                        flags, (int)colX0, (int)colX1);
   return token;
@@ -5030,9 +5035,10 @@ bool GoannaRenderPage::OverviewReady() const {
 }
 
 bool GoannaRenderPage::PartsReady() const {
-  // T-505 (E2): the frame's parts pass in its own job (an engine that answers 3)
-  return ExpressReady() && jihad_offscreen_overview_ok && jihad_offscreen_overview_ok() >= 3 && jihad_offscreen_compose_poll2 &&
-         jihad_offscreen_compose_post2 && jihad_offscreen_compose_start2;
+  // T-505 (E2): the frame's parts pass in its own job; (per part) each rect's signature in the poll and the post with
+  // the signatures held: an engine that answers 4 (the daemon keeps its pictures by part, so 3 is not enough)
+  return ExpressReady() && jihad_offscreen_overview_ok && jihad_offscreen_overview_ok() >= 4 && jihad_offscreen_compose_poll2 &&
+         jihad_offscreen_compose_post2 && jihad_offscreen_compose_start2 && jihad_offscreen_compose_post3 && jihad_offscreen_compose_start3;
 }
 
 int GoannaRenderPage::ComposePeek(uint32_t token) {
@@ -5049,14 +5055,23 @@ uint32_t GoannaRenderPage::ComposePost(unsigned char* dst, size_t dstBytes, int 
                                        long row2Hi, long shift, const unsigned char* src, long srcY, bool engineShift,
                                        const double* aView, long colX0, long colX1, bool windowMoved, bool verify,
                                        bool bandsOnly, bool overview, bool overviewParts, bool contentOnly,
-                                       unsigned char* partsDest, int partsCap, uint32_t partsHave) {
+                                       unsigned char* partsDest, int partsCap, uint32_t partsHave,
+                                       const uint32_t* partsHaveList, int nPartsHave) {
   if (!ExpressReady() || !mWidget || !dst) return 0;
   const int w = mWidth;
   // T-504: a job that reads one band alone, from no base and with no shift, writes no row past it
   const long rows = (bandsOnly && row2Hi <= row2Lo && !shift && !src && rowHi > 0 && rowHi <= frameH) ? rowHi : frameH;
   if (w <= 0 || frameH <= 0 || dstBytes < (size_t)w * rows * 4) return 0;
   if (colX1 < 0) { colX0 = 0; colX1 = w; }   // whole rows
-  if (contentOnly && PartsReady() && !overviewParts) {   // T-505 (E2): with its parts pass
+  if (contentOnly && PartsReady() && !overviewParts) {   // T-505 (E2): with its parts pass; (per part) with the signatures held
+    if (partsHaveList && nPartsHave >= 0)
+      return jihad_offscreen_compose_post3(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
+                                           (int)shift, src, (int)srcY,
+                                           (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0) | (bandsOnly ? 16 : 0) | 128,
+                                           aView ? 1 : 0,
+                                           aView ? aView[0] : 1.0, aView ? aView[1] : 0.0, aView ? aView[2] : 0.0,
+                                           aView ? aView[3] : 0.0, aView ? aView[4] : 0.0, aView ? 1 : 0, (int)colX0, (int)colX1,
+                                           partsDest, partsDest ? partsCap : 0, partsHaveList, nPartsHave);
     return jihad_offscreen_compose_post2(mWidget, dst, w * 4, w, frameH, (int)rowLo, (int)rowHi, (int)row2Lo, (int)row2Hi,
                                          (int)shift, src, (int)srcY,
                                          (engineShift ? 1 : 0) | (verify ? 2 : 0) | 4 | (windowMoved ? 8 : 0) | (bandsOnly ? 16 : 0) | 128,
@@ -5101,10 +5116,10 @@ void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int o[49] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
+  int o[54] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
   int scrollOnly = 0;
-  // T-505 (E2): 49 ints from an engine with the parts pass (it writes no more than it is asked for)
-  const int nOut = PartsReady() ? 49 : 29;
+  // T-505 (E2): 49 ints from an engine with the parts pass, 54 with each rect's signature (it writes no more than asked)
+  const int nOut = PartsReady() ? 54 : 29;
   const int r = jihad_offscreen_compose_poll2 ? jihad_offscreen_compose_poll2(mWidget, token, o, nOut, &scrollOnly)   // T-544
                                               : jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
@@ -5131,6 +5146,10 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
       out->nHold = (o[32] > 0 && o[32] <= 4) ? o[32] : 0;
       for (int k = 0; k < out->nHold; k++)
         for (int c = 0; c < 4; c++) out->hold[k][c] = o[33 + 4 * k + c];
+    }
+    if (nOut >= 54) {   // (per part)
+      for (int k = 0; k < 4; k++) out->partsSig[k] = (uint32_t)o[49 + k];
+      out->partsRead = o[53]; out->partsSigKnown = true;
     }
     for (int k = 0; k < out->nStuck; k++)
       for (int c = 0; c < 4; c++) out->stuck[k][c] = o[13 + 4 * k + c];

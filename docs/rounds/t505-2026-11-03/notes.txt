@@ -1,0 +1,130 @@
+T-505, cheaper part pictures (the owner's item 3, 2026-11-03): the parts by part, and the express lane's second
+frame on the first back (review C1)
+====================================================================================================================
+The engine on UXP RB_20261027 (jihad/uxp-RB_20261027 + the per-part commit), the daemon of this head, on the Enyo
+variant (push-engine-update.sh enyo: libxul 7fa99738, daemon 9dfb38e5); the spike daemon by hand with the timeline
+and the compose phases (finger-pan.sh), eight emulated-finger drags (480,900 -> 480,250 in 1 s, a second apart),
+sensors running. Pages: desktop Wikipedia (HP_TouchPad), jihad-long-static.html (the long page, from the host on
+port 8077). Logs fp-<round>-daemon-gpu.log, the CPU ticks fp-<round>-cpu.txt; tools/host/flow-fps.py and
+express-jobs.py.
+
+What changed
+------------
+Engine: each rect of a frame's parts list carries a signature of its own (JihadPartsSig: the outermost fixed or
+sticky layer's subtree as before, plus the paints under THAT layer — CompositableTransactionParent notes each paint
+by its outermost part, sJihadPartPaint — and the rect's size; a rect no part's rect meets takes every part's). The
+whole signature is the rects' and the global paint count (the one-signature daemon reads every part, as E2 did).
+compose_post3/start3 (overview_ok 4) take the list of signatures the daemon holds; the pass composes and reads only
+the rects not in it, packed in rect order, and the poll's 54 ints carry each rect's signature and the rects read.
+Daemon: the pictures kept by part (eight), each frame dressed from the picture of each of its rects' signature;
+JIHAD_GPU_PARTS_PER=1 sends the engine the signatures held (the whole mode without it: post2 with the whole
+signature, every part read when it moved). JIHAD_GPU_EXPRESS_SECOND_PARTS=1: the express lane's second frame on the
+first in flight again when both are without their parts; the second's dress puts back what lay beneath the first's
+parts AND beneath the first's base's parts (the slot records keep their base's serial and the rows read; a slot's
+previous record is kept aside for a frame built on its own slot), so the copy may catch the first's dress at any
+point. JIHAD_GPU_VERIFY=1 now verifies the express lane's frames too (the reference composed right before the job,
+the compare shared with the main lane: "verify express " / "verify express (two deep) " lines).
+
+By finger (fps while frames flow, flow-fps.py; one round each; the spread between rounds of one build is ~1-2 fps)
+--------------------------------------------------------------------------------------------------------------
+  round                                      Wikipedia        the long page
+  pw: this build, the whole mode (E2's rule)   10.4 (fp-pw-wiki)  18.5 (fp-pw-long)
+  pp: per part                                 11.4 (fp-pp-wiki)  18.3 (fp-pp-long)
+  ps: per part + the express second frame      11.5 (fp-ps-wiki)  18.0 (fp-ps-long)
+Whole-log rates (express-jobs.py, the pauses between drags in): 8.6 / 10.2 / 9.9 and 13.9 / 13.5 / 13.5.
+Wikipedia's parts at this layout are its two sidebars: part 0 the contents panel (146x544, 310 KB), part 1 the
+right-hand panel (138x311, 167 KB); no header rect. The contents panel's highlight moves as the page scrolls, so
+it is the part that changes — and the big one: the per-part pass reads 310 of 340 KB. The passes: 21 in each
+Wikipedia round (about 2.6 a drag), masks whole mode 21x both; per part 6x the panel alone, 1x the right panel
+alone, 14x both (a drag's first pass after the pictures aged out of the eight, or both moved). The passes' cost
+over the round: 1151 ms (pw), 954 (pp), 1317 (ps) of ~20 s — a pass's read waits for the GPU behind the card's
+redraw (8-57 ms for 310 KB), the compose 9-11 ms. The long page: 1-3 passes a round (its header, 173 KB), none
+during the drags.
+What it says: the per-part pass saves a little compose and read on Wikipedia (the right panel, 30 KB-167 KB, is no
+longer read when the contents panel moves) and nothing on a page with one part; the lever is bounded by the
+changing part's own size. The next step on that road would be reading only the DAMAGED rows of a part (the
+contents panel's highlight is one line of 544) and patching the picture held: the engine's compositable updates
+carry the painted region per layer; not built (the owner's call).
+The express second frame: no "the second frame cannot build on the first" notes in the ps rounds (42 / 30 in the
+pw / pp Wikipedia rounds, 4 / 2 on the long page): every second frame the lane asked for was built on the first.
+The rate did not move for it (11.4 -> 11.5, 18.3 -> 18.0): the lane's idle notes are "its frame is being composed"
+and "the card is served" — the compositor job and the card's own redraw bound it, not the lane's depth.
+
+Verify (pan-run.sh "pan 0 3000 15000", JIHAD_GPU_VERIFY=1 JIHAD_GPU_VERIFY_DUMP_WRONG=1 JIHAD_GPU_PARTS_PER=1; the
+card moving; Wikipedia after PAN_DELAY=20)
+-------------------------------------------------------------------------------------------------------------------
+  round                                    verified  shifted  wrong  structural  express  two deep
+  v-pp-long  (the main lane alone)              79       78      0        0          0        0
+  v-pp-wiki                                     44       43      0        0          0        0
+  v-ps-long  (both lanes, the second frame)     56       53      0        0         41        1
+  v-ps-wiki                                     23       23      0        0         23        2
+(the frames after the "inject pan" mark; the whole logs hold 85 / 74 / 64 / 47 verified). Before the mark, during
+Wikipedia's load, 14-15 frames a run differ from their reference by the whole article (782-785 rows "wrong", the
+sidebar drawn and the text column white in the frame, the text in the reference: vw-slot / vw-whole looked at):
+the page's tiles arrive between the job's composite and its reference's, the class the 2026-10-26 round saw once
+(it had no PAN_DELAY: 39 frames against 74). None after the pan begins; the far pixels of those frames sit in the
+article column, outside the parts. The express verify: the reference is composed right BEFORE the job (posted
+after it, its token would bar the second frame on the first), the compare the main lane's.
+Frames looked at: pan-v-pp-wiki-frame-60.jpg (both sidebars in place, the article's text continuous),
+pan-v-ps-long-frame-120.jpg (the fixed header at its place, paragraphs 41-58 in order, 50 highlighted),
+pan-v-pp-long-frame-60.jpg, pan-v-ps-long-frame-60.jpg.
+Two-deep frames are rare under verify (the lane seldom gets ahead of a first frame that costs two composites):
+a second pair with JIHAD_GPU_EXPRESS_EARLY=1 (the second frame posted right behind the first) follows (v-pe-*).
+  v-pe-long  (both lanes, the second frame EARLY)  70       -       0        0         61       33
+  v-pe-wiki                                        42       -       0        0         39       22
+(JIHAD_GPU_EXPRESS_EARLY=1: the second frame posted right behind the first, before it is composed — the most frames
+built on a first in flight the lane can make; every one of the 55 two-deep frames dressed by the double restore
+compared equal to its reference but for the resampling class.) Frames looked at: pan-v-pe-wiki-frame-60.jpg,
+pan-v-pe-long-frame-120.jpg.
+
+The review (one ck:inspector; Codex out of credits until Nov 4th) and the second build
+---------------------------------------------------------------------------------------
+REVISE: three P1 (F1 a third frame on a two-deep first reaches past the two records; F2 a per-part paint count that
+could return to an old value after the map's clear, and paints of a layer before it was a part not its own; F3 the
+signature carried a part's size but not where it sits — a header wider than the frame moving sideways, a part moving
+inside a merged rect, a zoom rounding to the same size), one P2 (F4 under verify the reference's whole read parts the
+first frame's read from the second's copy, so the copy never caught the dress the double restore exists for), three P3
+(F5 a store could evict a picture the same frame draws; F6 two fallback rects of one size shared a signature; F7 a
+verify buffer leaked on the !mPage path). All fixed (context/impl/impl-review-findings-t505-cpuparts.md, review 3):
+no second frame on a two-deep first; every layer's last paint stamped from one counter that only goes up and each
+subtree layer's stamp in its part's signature; a part's scale, quarter-pixel phase, place inside its rect and size in
+the signature; JIHAD_GPU_TEST_DRESS_HOLD=<pre|mid>:<ms> holds a first frame's dress so the second's copy catches it
+(pre: before the restores; mid: between the record and the draw); this frame's pictures made newest before a store;
+the fallback mixes the rect's index and place. The engine commit amended (adfaa7ff30), libxul a597f8a2, daemon
+5fedb62f, pushed to Enyo; the rounds below are on that build.
+
+The second build (the review's fixes; libxul a597f8a2, daemon 5fedb62f then 340aeb0a)
+---------------------------------------------------------------------------------------
+By finger (fps while frames flow):                 Wikipedia   the long page
+  pw2: the whole mode                                10.8          19.2
+  pp2: per part                                      11.4          19.4
+  ps2: per part + the express second frame           11.4          18.1
+Wikipedia's passes 21 a round again; per part 12 of them the contents panel alone (6 before: the signature now
+carries each part's place and phase, so the right panel's own changes are told apart from the contents panel's).
+Verify after the pan mark (pan-run.sh "pan 0 3000 15000", JIHAD_GPU_PARTS_PER=1; v2-* on daemon 5fedb62f):
+  round                                           verified  wrong  structural  express  two deep
+  v2-pp-long  (the main lane alone)                   76       0        0          0        0
+  v2-pp-wiki                                          52       5        0          0        0   <- see below
+  v2-pe-long  (both lanes, the second frame EARLY)    66       0        0         59       29
+  v2-pe-wiki                                          35       0        0         35       13
+  v2-ph-long  (EARLY + the first's dress held 80 ms   55       0        0         49       24
+  v2-ph-wiki   before its restores)                   34       1        0         33       13
+  v2-pm-long  (EARLY + held between its record        61       0        0         54       27
+  v2-pm-wiki   and its draw)                          34       1        0         34       16
+The two single frames in the hold rounds: an express frame at the load (y -141, a 12-row band, 1 row) and a
+two-deep frame at the pan's start (y 82, 2 rows at 24..35) — both in rows THOSE jobs read fresh (the band
+23..62), none in restored rows: the reference composed before the job met the page's load still changing.
+With the first frame's dress held, the second's copy caught it before its restores (pre) and between its record
+and its draw (mid) on 24-27 two-deep frames a round on the long page and 13-16 on Wikipedia: 0 wrong rows in
+the restored rows of every one. Frames looked at: pan-v2-pm-wiki-frame-60.jpg, pan-v2-ph-long-frame-60.jpg.
+
+v2-pp-wiki's five wrong frames (the main lane): a frame recorded at a position 316 rows off (the dress log's
+"y 569, frameY 253/1"; 316 = the previous job's shift), then own-slot frames built on it copying from the wrong
+rows (687, 703, 474, 138, 60 rows wrong, healing as the shifts moved the rows off the top). Cause: a second
+main-lane job whose in-flight base was refused (the parts on: review 2's F4, 2026-11-02) builds on the newest
+finished frame, which is NOT the previous composite, but still told the engine the base was (engineShift), so the
+engine added its diff shift — against the in-flight composite — to that base's top. Latent since 2026-11-02, exposed
+by a run with two main-lane jobs in flight; the first build's run had the same two frameY-valid frames with the
+flag right by luck. Fixed in the daemon (the flag follows the base actually taken; 340aeb0a, pushed daemon-only).
+Verify again, the main lane alone (v3-*): Wikipedia 55 and 52 verified, the long page 80 — 0 wrong, 0 structurally
+wrong.

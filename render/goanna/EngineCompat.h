@@ -103,6 +103,21 @@ extern "C" {
                                           const void* aSrc, int aSrcY, int aEngineShift,
                                           int aColX0, int aColX1, void* aPartsDest, int aPartsCap,
                                           uint32_t aPartsHave) __attribute__((weak));
+  // OPTIONAL (T-505, per part; jihad_offscreen_overview_ok answers 4): post and start with the list of signatures the
+  // daemon holds part pictures of (aNHave of them, 16 at most): the pass reads only the rects whose signature is not in
+  // it; the poll then takes 54 ints (each rect's signature, the rects read as a mask)
+  uint32_t jihad_offscreen_compose_post3(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
+                                         int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                         const void* aSrc, int aSrcY, int aFlags, int aUseView, double aScale,
+                                         double aOffX, double aOffY, double aScrollX, double aScrollY,
+                                         int aScrollValid, int aColX0, int aColX1, void* aPartsDest, int aPartsCap,
+                                         const uint32_t* aHave, int aNHave) __attribute__((weak));
+  uint32_t jihad_offscreen_compose_start3(nsIWidget* aWidget, nsIDocShell* aDocShell, void* aDest,
+                                          int aStride, int aWidth, int aHeight, int aRowLo,
+                                          int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,
+                                          const void* aSrc, int aSrcY, int aEngineShift,
+                                          int aColX0, int aColX1, void* aPartsDest, int aPartsCap,
+                                          const uint32_t* aHave, int aNHave) __attribute__((weak));
   // OPTIONAL (T-502): the card's zoom and the visual viewport's residual offset (CSS px, what the
   // engine scroll could not reach), applied by the compositor to the whole layer tree.
   void jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX,
@@ -177,6 +192,8 @@ inline void ReportEngineExports() {
     {"jihad_offscreen_compose_post", jihad_offscreen_compose_post != nullptr},
     {"jihad_offscreen_compose_post2", jihad_offscreen_compose_post2 != nullptr},
     {"jihad_offscreen_compose_start2", jihad_offscreen_compose_start2 != nullptr},
+    {"jihad_offscreen_compose_post3", jihad_offscreen_compose_post3 != nullptr},
+    {"jihad_offscreen_compose_start3", jihad_offscreen_compose_start3 != nullptr},
     {"jihad_offscreen_compose_peek", jihad_offscreen_compose_peek != nullptr},
     {"jihad_offscreen_overview_ok", jihad_offscreen_overview_ok != nullptr},
     {"jihad_offscreen_compositor_seq", jihad_offscreen_compositor_seq != nullptr},

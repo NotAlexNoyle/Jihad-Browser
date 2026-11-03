@@ -244,6 +244,21 @@ The inject channel's `cardscroll <x> <y>` tells the card to scroll there (msgScr
 and `rect` prints the engine's and the card's scroll with the rect (`scroll=`, `card=`): the finger walks use them
 (`tools/device/finger/prefs-finger-walk.sh`).
 
+T-505, the parts by part (2026-11-03): the engine signs each rect of a frame's parts list on its own (the parts it
+holds, their paints, its size; `jihad_offscreen_overview_ok` 4, the poll's 54 ints) and the daemon keeps the last
+eight part pictures by signature. `JIHAD_GPU_PARTS_PER=1` (or the gate file `<state>/parts-per`) sends the engine the
+signatures held (`compose_post3`/`start3`), so a pass composes and reads only the rects the daemon lacks — on desktop
+Wikipedia the contents panel's highlight alone, not the header and both sidebars; without it every part is read when
+the whole signature moved (E2's rule). `JIHAD_GPU_EXPRESS_SECOND_PARTS=1` (or `<state>/express-second-parts`) lets the
+express lane build its second frame on the first in flight again when both are without their parts (review C1 had
+barred it): the second's dress puts back what lay beneath the first's parts AND beneath the first's base's parts, from
+the slot records (each keeps its base's serial and the rows it read; the slot's previous record is kept aside), so the
+copy may catch the first's dress at any point. `JIHAD_GPU_VERIFY=1` now checks the express lane's frames too (the
+reference composed right before the job; `verify express ` / `verify express (two deep) ` lines), with the main lane's.
+Under verify the reference's whole read sits between the first frame's read and the second's copy, so the copy never
+catches the first's dress; `JIHAD_GPU_TEST_DRESS_HOLD=pre:80` (or `mid:80`) holds a first frame's dress 80 ms before
+its restores (or between its record and its draw) so the copy does, and the double restore is what the verify tests.
+
 Older device-round switches still in the code (T-502), for completeness: `JIHAD_GPU_DUMP2=<path>` (the 5th
 frame's buffer as the adapter reads it), `JIHAD_GPU_DUMP_SEQ=<path>` (the first 12 content frames, every
 4th pixel, appended to one file, with their content extents in the log), `JIHAD_GPU_FORCE_FPS=1` (a frame

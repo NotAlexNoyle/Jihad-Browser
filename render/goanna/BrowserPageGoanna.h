@@ -616,11 +616,17 @@ private:
   // A slot whose frame had parts drawn keeps what lay beneath them; a frame built on it (its window moved, or copied
   // from it) gets that back where the old parts landed, outside the rows the job read. Frames of that kind build only
   // on their kind, and the others only on theirs.
-  struct PartsPic { uint32_t sig = 0; bool ok = false; int n = 0; int wh[4][2] = {}; size_t off[4] = {};
-                    std::vector<unsigned char> px; uint64_t used = 0; };   // px: B8G8R8A8 premultiplied, rect by rect
-  PartsPic mPics[3];
+  // (per part, 2026-11-03): each rect of a frame's parts list has a signature of its own (its parts' layers, their paints
+  // and its size); the pictures are kept by part, eight at most. With JIHAD_GPU_PARTS_PER=1 (or <state>/parts-per) the
+  // engine is sent the signatures held, so a pass reads only the rects it lacks; without it, as E2, every part when
+  // the whole signature moved (the pictures still kept by part)
+  struct PartPic { uint32_t sig = 0; int w = 0, h = 0; bool ok = false; std::vector<unsigned char> px; uint64_t used = 0; };   // B8G8R8A8 premultiplied
+  static const int kPartPics = 8;
+  PartPic mPartPics[kPartPics];
   uint64_t mPicClock = 0;
-  uint32_t mPicNewest = 0; bool mPicHave = false, mPicForce = false;
+  uint32_t mPicNewest = 0; bool mPicHave = false, mPicForce = false;   // the whole signature of the last frame dressed
+  bool partsPerRect() const;
+  int partsHaveList(uint32_t* out, int cap) const;   // the signatures held, for the engine (-1: the whole mode)
   static const int kPartsCap = 1 << 20;   // a frame's parts buffer: more parts than that are the engine's
   // the parts buffers lent to jobs (by token: returned at the poll; one forgotten in flight reclaimed 10 s on, when
   // the compositor is surely done with it)
@@ -635,15 +641,23 @@ private:
   uint32_t partsHave() const { return (mPicHave && !mPicForce) ? mPicNewest : 0; }
   // kind: 0 a GPU frame with its parts (the engine's), 1 its parts drawn on the CPU (beneath: what lies under them),
   // -1 neither known (a lost record, a frame not composed): no frame builds on it
-  struct SlotParts { int kind = 0; int n = 0; int r[4][4] = {}; size_t off[4] = {}; std::vector<unsigned char> beneath; };
+  struct SlotParts { int kind = 0; int n = 0; int r[4][4] = {}; size_t off[4] = {}; std::vector<unsigned char> beneath;
+                     // (the express lane's second frame on the first, 2026-11-03) the frame's top, the slot and top it
+                     // was built on and that record's serial, the rows its job read; its own serial
+                     long y = 0; int baseSlot = -1; long baseY = 0; uint32_t serial = 0, baseSerial = 0;
+                     long readLo = 0, readHi = 0, read2Lo = 0, read2Hi = 0; };
   SlotParts mSlotParts[3];
+  SlotParts mSlotPrev[3];   // each slot's record before its last dress (a frame built on its own slot's frame leaves it here)
+  uint32_t mSlotSerial = 0;
+  const SlotParts* slotRecord(int slot, uint32_t serial) const;   // the record with that serial: the slot's current or previous
   int mPartsMissRun = 0; bool mPartsOff = false;   // frames in a row with no picture of their parts; off for the document
   int mPartsCovers = 0; int64_t mPartsOffUntil = 0;   // a content layer above a part: the engine's parts for a while
   bool cpuPartsOn() const;
   bool cpuPartsFor() const;   // the next frames without their parts
   enum { kPartsDressed = 0, kPartsNoPic, kPartsNoBase, kPartsCovered, kPartsTooBig };
   int cpuPartsDress(int s, unsigned char* pixels, const GoannaRenderPage::ComposeResult& cr, int H, int w,
-                    int src, long srcY, int jobY, const unsigned char* buf);   // src: the slot it was built on (-1: none)
+                    int src, long srcY, int jobY, const unsigned char* buf,   // src: the slot it was built on (-1: none)
+                    bool twoDeep = false);   // built on a frame in flight: what lay beneath ITS base's parts put back too
   void cpuPartsRefused(int outcome, int nStuck);   // a frame not dressed (not shown): why, and what follows
   void cpuPartsForget();   // the pictures and every slot's record (the frame lock)
 private:
@@ -690,6 +704,10 @@ private:
     bool viewOnly = false;   // T-516: the first frame at a new zoom, the card's view read alone (the overscan white)
     bool contentOnly = false;   // T-505: composed without its parts (JIHAD_GPU_CPU_PARTS): they are drawn on the CPU
     int srcSlot = -1, srcY = 0;   // T-505: the frame it was built on (its window moved, or copied from it), and its top
+    bool twoDeep = false;   // T-505: the second frame on the first in flight, both without their parts (JIHAD_GPU_EXPRESS_SECOND_PARTS)
+    // JIHAD_GPU_VERIFY (2026-11-03): the whole frame composed right before this job (sVerifyRef's buffer), compared
+    // at the poll as the main lane's is; the bands the job asked for, for the log
+    uint32_t vToken = 0; int vBuf = -1; long askLo = 0, askHi = 0, ask2Lo = 0, ask2Hi = 0;
   };
   XJob mXJob;                         // the express lane's frame in flight (the older one)
   // T-517: the express lane's frame time on its slot's own frame and copied from the base (running
@@ -708,7 +726,13 @@ private:
   void xInvalidate() { ++mXGeomGen; mXSnap.ok = false; mXPub = XPub(); mXMainPubMs = 0; }
   bool xStart(int64_t now, double zoom, const XWant& want, int64_t waitSince, const XJob* aBase = nullptr);
   // T-517: a forgotten job may have been composed: its change is in no slot's record
-  void xForget(XJob& j) { if (j.on && mPage) { mPage->ComposeForget(j.token); gpuSlotsLost(); pubDirtyAll(); } j = XJob(); }
+  void xForget(XJob& j) { xVerifyDrop(j); if (j.on && mPage) { mPage->ComposeForget(j.token); gpuSlotsLost(); pubDirtyAll(); } j = XJob(); }
+  void xVerifyDrop(XJob& j);   // its verify reference (if any) forgotten and its buffer back to the pool
+  // JIHAD_GPU_VERIFY: a published frame against the whole composite of the same tree at the same view: the rows that
+  // differ, the rows wrong (far pixels), the rows structurally wrong (blocks that fit better at another offset); the
+  // first wrong and the first structurally wrong frame dumped with JIHAD_GPU_VERIFY_DUMP_WRONG=1. Both lanes' frames
+  void verifyCompare(const char* lane, int slot, int y, long shift, long askLo, long askHi, long ask2Lo, long ask2Hi,
+                     const unsigned char* pixels, const unsigned char* refPx, int w, int h, int pageLo, int pageHi);
   bool xLeads(int64_t now);           // the card is moving: the express lane makes the frames (the frame lock held)
   int64_t mXMainPaintMs = 0;          // the main lane's last layer paint while the express lane leads
   bool xPoll(int64_t now);

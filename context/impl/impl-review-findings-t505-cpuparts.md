@@ -73,3 +73,26 @@ buffers' bookkeeping under the frame lock; the express lane's C1 gate.
 Proposed criterion (cavekit-gpu-rendering.md R2): every row a frame reads back is composed in that frame's own
 composite across the width it reads; the verify round includes a narrow, tall change on an own-slot frame (the load's
 strip is one).
+
+## Review 3 — the inspector on the parts by part and the express second frame (2026-11-03; Codex out of credits until Nov 4th)
+
+The review gate for T-505's item 3 (engine commit `jihad/uxp-RB_20261027`'s per-part commit, the daemon's diff of the
+same day): ONE ck:inspector, read-only. Verdict: REVISE (P1 3, P2 1, P3 3). Every finding fixed the same day, the
+engine commit amended before it entered the queue.
+
+| # | sev | where | finding | fix | status |
+|---|---|---|---|---|---|
+| F1 | P1 | daemon xStart | the two-deep restore covers two records, but after `mXJob = mXJob2` the second frame becomes the first and a third builds on it: its copy may hold the first's base's parts (caught in the second's raw copy before the second's restore), which two records do not reach | no second frame on a first that is itself two deep (`aBase->twoDeep`): the chain is two frames long | fixed; v-pe rounds 0 wrong |
+| F2 | P1 | engine sJihadPartPaint | a per-part paint COUNT cleared at 64 entries could return to a value a held picture was signed with (the comment claimed the opposite); paints of a layer before it became a part, or while nested under another part, were not its own | every layer's last paint is the stamp of ONE counter that only goes up, stamped for every compositable update (part or not); each subtree layer's stamp is mixed into its part's signature; the map's clear at 4096 loses stamps, which only makes signatures differ | fixed |
+| F3 | P1 (both modes, older than this change) | engine JihadPartsSig | the signature carried a part's size, not where it sits: a sticky header wider than the frame moving sideways under a rect at [0,w), a part moving inside a merged rect of constant size, a zoom rounding to the same rect size — all kept the old picture | each part meeting a rect mixes its position inside the rect and its size; a part's scale and the quarter-pixel phase of its translation are in its own signature | fixed; by reading (no such page in the test set) |
+| F4 | P2 | the express verify | the reference's whole read sits between the first frame's read and the second's copy, so under verify the copy never catches the first's dress: the 55 two-deep frames verified did not exercise the race | `JIHAD_GPU_TEST_DRESS_HOLD=<pre|mid>:<ms>` holds a first frame's dress before its restores or between its record and its draw; a verify round with it (notes) | fixed; the hold rounds in `docs/rounds/t505-2026-11-03/notes.txt` |
+| F5 | P3 | daemon cpuPartsDress | storing a picture the job read could evict a picture this frame draws (the least used, bumped only after the store): a frame not shown and a miss counted | every picture of this frame's signatures is made the newest before the store | fixed |
+| F6 | P3 | engine JihadPartsSig | two rects no part's rect meets, of one size, took the same signature: one picture for both | the fallback mixes the rect's index and place | fixed |
+| F7 | P3 | daemon xPoll | the `!mPage` path dropped the job without releasing its verify buffer; an empty `else if (twoDeep)` branch | `xVerifyDrop` there; the branch gone | fixed |
+
+Checked and fine (the inspector): the pass's buffer layout and the daemon's reading of it (off[] over the wanted rects,
+partsBytes against the read rects, a failed pass); the two-deep restore's shifts, order, own-slot case through
+`mSlotPrev`, the serial lookup, no pixels written before a refusal; the failure paths; the express verify's guard
+(baseline, request count, scroll, view, fixed rects, keeps, probe) and its buffer's release on every path;
+the map's lock; older daemons' 29/49 ints; level 4's gate; post3/start3's argument order; the whole mode with
+per-part pictures.

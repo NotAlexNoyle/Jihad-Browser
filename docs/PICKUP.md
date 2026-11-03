@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-03 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-03 evening below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,70 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-03 (evening) — T-505 item 3 DONE: the parts' pictures by part, the express second frame back; item 4 next (READ FIRST)
+
+**State:** main = this commit (on the owner's `ffd6aae2`, pulled from Gitea); the engine fork `jihad/uxp-RB_20261027` at
+`adfaa7ff30` (patch 0073; `patch-queue.sh --check` and `check-engine-pins.sh` pass with the gitlink of this commit).
+**Not pushed:** the owner's push, `bash .cavekit/handoff-2026-11-03/push.sh` (the engine branch first, then main to Gitea;
+both read back). Codex was out of credits until Nov 4th, 01:42: the review gate was ONE ck:inspector.
+
+**Item 3 (the owner's "cheaper part pictures"), built, reviewed, measured, verified — behind two switches, the defaults
+the owner's call:**
+- Engine 0073: each rect of a frame's parts list carries a signature of its own (its outermost fixed or sticky layer's
+  subtree; every subtree layer's last paint as the stamp of one counter that only goes up — every compositable update
+  stamps its layer, part or not; the part's scale, quarter-pixel phase, place inside its rect and size);
+  `jihad_offscreen_compose_post3`/`start3` (`overview_ok` 4) take the signatures the daemon holds and the pass reads
+  only the rects not in the list; the poll's 54 ints carry each rect's signature and the rects read.
+- Daemon: eight part pictures by signature; `JIHAD_GPU_PARTS_PER=1` (or `<state>/parts-per`) sends the list — without
+  it E2's rule (every part when the whole signature moved) with the pictures still by part. `PartsReady()` needs an
+  engine that answers 4 (a level-3 libxul puts the parts back on the GPU).
+- The express lane's second frame on the first in flight is back when both are without their parts
+  (`JIHAD_GPU_EXPRESS_SECOND_PARTS=1` or `<state>/express-second-parts`): the second's dress puts back what lay beneath
+  the first's parts AND beneath the first's base's parts (slot records keep their base's serial and the rows read; a
+  slot's previous record kept aside), never on a first that is itself two deep. `JIHAD_GPU_VERIFY=1` now verifies the
+  express lane's frames (the reference composed BEFORE the job), and `JIHAD_GPU_TEST_DRESS_HOLD=<pre|mid>:<ms>` holds
+  a first frame's dress so the second's copy really catches it.
+- By finger (fps while frames flow): desktop Wikipedia 10.8 (whole) → 11.4 (per part) → 11.4 (+ the second frame); the
+  long page 19.2 / 19.4 / 18.1. Wikipedia's parts are its two sidebars and the one that changes (the contents panel's
+  highlight) is 310 of the 340 KB: the lever is bounded by the changing part's size; the passes are ~5 % of the time
+  either way; the compositor job and the card's own redraw bound the rate. Verify after the pan mark: 0 wrong rows in
+  every run, 142 two-deep frames among them, 55-80 with the first's dress held. `docs/rounds/t505-2026-11-03/notes.txt`.
+- The inspector (review 3, `context/impl/impl-review-findings-t505-cpuparts.md`): REVISE, 3 P1 / 1 P2 / 3 P3, all fixed
+  (a third frame on a two-deep first; a paint count that could return to an old value; the signature blind to a part's
+  place and phase; the verify hiding the copy-vs-dress race; a store evicting this frame's picture; equal fallback
+  signatures; a leaked verify buffer). The verify then found a LATENT main-lane fault from review 2's F4 (2026-11-02):
+  a second job whose in-flight base the parts rule refused built on the newest finished frame but told the engine it
+  was the previous composite, so the frame was recorded 316 rows off and the next own-slot frames copied wrong rows
+  (5 wrong frames in one run) — fixed (`srcInFlight` in gpuJobStart; 0 wrong in three runs after).
+- Desktop: the engine built clean, the adapter round-trip and headless-daemon tests pass; `check-engine-api.py` 0
+  FAIL; `check-engine-calls.sh` ok.
+
+**Decisions for the owner (multiple choice, in the handoff prompt):** (1) ship `JIHAD_GPU_PARTS_PER` on by default? (2)
+ship `JIHAD_GPU_EXPRESS_SECOND_PARTS` on by default? (3) the next lever on this road — reading only a part's DAMAGED
+rows (the contents panel's highlight is one line of 544) and patching the picture held — or item 4 first.
+
+**Open, in order:** item 4 — the scroll-only bands composed on the CPU from the tiles' CPU-side pixels, the GPU only for
+tree changes (the owner's step 2 of "both, parts first"); then the Tier 91 kits (the webOS SDK T-548..T-550 with its
+sudo step for the owner, the Atlas references T-545..T-547, the low-power levers T-555..T-560).
+
+**Traps from this session (not in the source):** the host had 4 GB available of 32 with the zram swap 97 % full — 12 GB of
+closed Claude sessions' scratch in `/tmp/claude-1000` (the permission classifier refused deleting it: the owner's
+`rm -rf /tmp/claude-1000/-home-*`), and earlyoom's daemon is not running (only its runsv): engine builds ran at 2 jobs
+(`build-goanna-arm.sh build 2`; `build/desktop/build-goanna.sh build 2` takes the argument since today). The desktop
+README's podman line lacks the `/jihad` mount the components step needs: `-v "$PWD:/jihad"` (DESKTOP-POC.md has it). A
+backgrounded build command once ran with its relative log path lost: use absolute paths. A verify round is judged by
+the lines after the `inject pan` mark (memory `verify-counts-after-the-pan-mark`): Wikipedia's load gives 14 "wrong"
+frames before it (tiles arriving between the job and its reference). `pan-run.sh` leaves the hand daemon running and
+the Enyo job stopped: `gpu-spike-collect-stop.sh` after the last run. `finger-pan-device.sh`'s CPU ticks do not catch
+the daemon (its command line is cut before its name).
+
+**Device state:** the three variants run engine 0073 (libxul md5 `a597f8a2`, stripped from `adfaa7ff30`) and the daemon
+(`340aeb0a`) by `push-engine-update.sh enyo mochi mojo` (md5-verified, each job restarted; the `.ipk`s NOT rebuilt for
+this head; the adapters still the packages of `62af6e82`). default-check passes in all three (the GPU path with the
+express lane; faults 0, GPU off 0, express off 0; the Enyo screenshot looked at). No dev copies, `.orig`, gate files
+(`parts-per`, `express-second-parts`, `no-cpu-parts`) or adapter gates; Default look, No proxy; the sensors running;
+`/tmp/finger` on the device; the round dumps removed; `/var` 28 %.
 
 ## 2026-11-03 (later) — the engine on UXP `RB_20261027` (T-551..T-554 DONE); the device on it; the owner's push owed (READ FIRST)
 

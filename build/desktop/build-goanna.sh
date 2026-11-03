@@ -53,11 +53,14 @@ cd "$SRC"
 # Each step's failure stops the script (T-387, 2026-10-18): `./mach configure && ./mach build` hid a
 # failed configure from set -e (a non-final command of an && list), and the script went on to
 # install our components into the OLD dist and report "done" over an engine that never built.
+# $2: parallel jobs for mach build (default: the mozconfig's), as build-goanna-arm.sh takes: one engine build at a
+# time on this host, fewer jobs when memory is short (2026-11-03)
+JOBS=${2:+-j$2}
 case "$STAGE" in
   configure) ./mach configure || { echo "ERROR: mach configure failed"; exit 1; } ;;
-  build)     ./mach build || { echo "ERROR: mach build failed"; exit 1; } ;;
+  build)     ./mach build $JOBS || { echo "ERROR: mach build failed"; exit 1; } ;;
   all)       ./mach configure || { echo "ERROR: mach configure failed"; exit 1; }
-             ./mach build || { echo "ERROR: mach build failed"; exit 1; } ;;
+             ./mach build $JOBS || { echo "ERROR: mach build failed"; exit 1; } ;;
   *)         echo "unknown stage: $STAGE (use configure|build|all)"; exit 2 ;;
 esac
 

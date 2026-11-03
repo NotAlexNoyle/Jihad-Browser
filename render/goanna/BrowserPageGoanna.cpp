@@ -2414,7 +2414,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
     "<div class=row>Jihad Browser is a fork of isis-browser with the UXP/Goanna engine "
     "replacing QtWebKit for rendering.</div>";
   const char* kCredits =
-    "<div class=row><a href=https://github.com/NotAlexNoyle/Jihad-Browser>Open source</a> "
+    "<div class=row><a href=https://git.trueog.net/NotAlexNoyle/Jihad-Browser>Open source</a> "
     "Jihad Browser builds on the work of:</div>"
     "<div class=row>&bull; <a href=https://github.com/isis-project/isis-browser>isis-browser</a> "
     "&mdash; the webOS browser interface (Apache License 2.0)</div>"

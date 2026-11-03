@@ -196,7 +196,7 @@ podman, curl, binutils and xz (and gcc, make and the libusb-compat headers for n
 40 GB of disk, and several hours the first time, most of it the engine.
 
 ```bash
-git clone --recurse-submodules https://github.com/NotAlexNoyle/Jihad-Browser.git
+git clone --recurse-submodules https://git.trueog.net/NotAlexNoyle/Jihad-Browser.git
 cd Jihad-Browser
 tools/host/build-novacom.sh          # novacom + novacomd, into tools/host/bin/
 sudo -b tools/host/bin/novacomd      # keep it running while a device is plugged in
@@ -263,7 +263,7 @@ and **Palefill**, **Herrie82** and **Atlas Browser**, the **webOS Archive**, **w
 
 **Apache-2.0** (the interfaces, the adapter, the IPC daemon) and **MPL-2.0** (the Goanna backend,
 and the engine, which is modified: its source is the `jihad/uxp-RB_20261006` branch of
-[UXP-Jihad](https://github.com/NotAlexNoyle/UXP-Jihad), the patches in `build/desktop/patches/`).
+[UXP-Jihad](https://git.trueog.net/NotAlexNoyle/UXP-Jihad), the patches in `build/desktop/patches/`).
 The packages also carry the libraries the engine runs on, each under its own licence: glibc
 (LGPL-2.1), the GCC runtime (GPL-3.0 with the Runtime Library Exception), ALSA and GLib (LGPL),
 Expat, fontconfig, PCRE, libpng, zlib (permissive), FreeType (FreeType License), the engine's own

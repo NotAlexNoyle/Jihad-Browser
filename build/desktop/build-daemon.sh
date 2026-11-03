@@ -34,7 +34,7 @@ $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/DialogService.cpp"     -o /out/
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/DownloadService.cpp"     -o /out/DownloadService.o     || exit 12
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/JihadCertStore.cpp"    -o /out/JihadCertStore.o    || exit 12
 $CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/GoannaRenderPage.cpp"  -o /out/GoannaRenderPage.o  || exit 13
-$CXX $CXXFLAGS $ENGINC $GTK_CFLAGS -c "$R/goanna/BrowserPageGoanna.cpp" -o /out/BrowserPageGoanna.o || exit 14
+$CXX $CXXFLAGS $ENGINC $YAPINC $GTK_CFLAGS -c "$R/goanna/BrowserPageGoanna.cpp" -o /out/BrowserPageGoanna.o || exit 14
 
 echo "== compiling JihadBrowserServer + Main =="
 $CXX $CXXFLAGS $YAPINC $GLIB -c "$BS/JihadBrowserServer.cpp" -o /out/JihadBrowserServer.o || exit 15

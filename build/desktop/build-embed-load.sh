@@ -16,14 +16,18 @@ CXX=${CXX:-g++}
 GTK_CFLAGS=$(pkg-config --cflags gtk+-2.0 glib-2.0)
 GTK_LIBS=$(pkg-config --libs gtk+-2.0 glib-2.0)
 CXXFLAGS="-std=gnu++17 -fPIC -fno-rtti -fno-exceptions -pipe -O2 -g0"
-INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr $GTK_CFLAGS"
+# 2026-11-03: EngineHost needs the dialog and download services and GoannaRenderPage (the stall sampler) since T-515
+INCS="-include $DIST/include/mozilla-config.h -I$DIST/include -I$DIST/include/nspr -I$DIST/include/nss -I/jihad/render/browserserver/Src $GTK_CFLAGS"
 
 echo "== compiling =="
 set -x
 $CXX $CXXFLAGS $INCS -c "$SRC/EngineHost.cpp"       -o /out/EngineHost.o   || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/DialogService.cpp"    -o /out/DialogService.o    || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/DownloadService.cpp"  -o /out/DownloadService.o  || exit 10
+$CXX $CXXFLAGS $INCS -c "$SRC/GoannaRenderPage.cpp" -o /out/GoannaRenderPage.o || exit 10
 $CXX $CXXFLAGS $INCS -c "$SRC/test/embed_load.cpp"  -o /out/embed_load.o   || exit 11
 echo "== linking =="
-$CXX /out/embed_load.o /out/EngineHost.o \
+$CXX /out/embed_load.o /out/EngineHost.o /out/DialogService.o /out/DownloadService.o /out/GoannaRenderPage.o \
   "$DIST/sdk/lib/libxpcomglue_s.a" \
   -L"$DIST/bin" -lxul \
   "$DIST/sdk/lib/libmozglue.a" \

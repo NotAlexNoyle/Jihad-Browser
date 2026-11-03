@@ -17,6 +17,9 @@
 set -euo pipefail
 SRC=/src/uxp
 STAGE=${1:-all}
+# $2: parallel jobs for mach build (default: the mozconfig's -j8). Two engine builds at once on a 32 GB host
+# with ZFS's cache counted as used had earlyoom kill cc1plus at 1.5 GB each (2026-11-03): run one, fewer jobs.
+JOBS=${2:+-j$2}
 export MOZCONFIG=/armcfg/mozconfig.goanna-arm
 
 # --- cross environment ---
@@ -57,8 +60,8 @@ cd "$SRC"
 run_stage() { "$@" || { echo "ERROR: $* failed" >&2; exit 1; }; }
 case "$STAGE" in
   configure) run_stage ./mach configure ;;
-  build)     run_stage ./mach build ;;
-  all)       run_stage ./mach configure; run_stage ./mach build ;;
+  build)     run_stage ./mach build $JOBS ;;
+  all)       run_stage ./mach configure; run_stage ./mach build $JOBS ;;
   *)         echo "unknown stage: $STAGE"; exit 2 ;;
 esac
 # Believe the filesystem, not the exit status: for a stage that produces libxul, assert the artifact

@@ -2321,21 +2321,32 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
     // T-541: the scroll's speed from the card's stream of positions, smoothed; the displayport
     // gets a lead in the direction of travel of up to 1 height (what ~0.5 s of this speed
     // covers), 0 again once the stream stops (maybePaint).
+    // T-567 (2026-11-03): the speed over the last 40..250 ms of positions, not over the gap to the one
+    // message before: a busy main thread (desktop Wikipedia's first drags after a load: pumps of
+    // 150-650 ms) hands the card's positions over in bursts 0-2 ms apart after a gap of 300 ms, which
+    // read as 10-16 card px/ms then 0, and the lead flapped on and off two or three times a drag —
+    // every flap a displayport change, a height of tiles painted and dropped on the main thread that
+    // was already the slow one (the thread sampler: 100 % busy through every slow express frame).
+    // The lead grows at once and shrinks only when the travel reverses or the stream has stopped
+    // (maybePaint, 400 ms), never from one late message.
     {
       const int64_t now = mLastScrollMs;
-      const int64_t dt = mVelMs ? now - mVelMs : 0;
-      if (dt > 0 && dt < 250) {
-        const double v = (double)(y - mVelY) / (double)dt;           // card px per ms
-        mScrollVelY = 0.5 * mScrollVelY + 0.5 * v;
-      } else if (dt >= 250) {
-        mScrollVelY = 0.0;
+      mVelRing[mVelN % kVelRing].t = now; mVelRing[mVelN % kVelRing].y = y; mVelN++;
+      double v = 0.0; bool have = false;
+      for (int k = 1; k < kVelRing && k < mVelN; ++k) {
+        const VelSample& s = mVelRing[(mVelN - 1 - k) % kVelRing];
+        const int64_t dt = now - s.t;
+        if (dt > 250) break;
+        if (dt >= 40) { v = (double)(y - s.y) / (double)dt; have = true; }   // the oldest within the window wins
       }
-      mVelMs = now; mVelY = y;
+      if (have) mScrollVelY = 0.5 * mScrollVelY + 0.5 * v;
       const double hpx = mLastWinH > 0 ? (double)mLastWinH : (mPage->Height() > 0 ? (double)mPage->Height() : 1024.0);
       double lead = fabs(mScrollVelY) * 500.0 / hpx;
       if (lead > 1.0) lead = 1.0;   // on top of the height at rest: 2 heights ahead while flinging
       if (lead < 0.15) lead = 0.0;
-      const float up = (float)(mScrollVelY < 0 ? lead : 0.0), down = (float)(mScrollVelY > 0 ? lead : 0.0);
+      float up = (float)(mScrollVelY < 0 ? lead : 0.0), down = (float)(mScrollVelY > 0 ? lead : 0.0);
+      if (up < mGpuLeadUp && down == 0.0f) up = mGpuLeadUp;         // the lead keeps until the travel reverses
+      if (down < mGpuLeadDown && up == 0.0f) down = mGpuLeadDown;
       if (fabs(up - mGpuLeadUp) > 0.25 || fabs(down - mGpuLeadDown) > 0.25) {
         mGpuLeadUp = up; mGpuLeadDown = down; mPage->SetGpuLead(up, down);
         fprintf(stderr, "[jihad-bs] fling lead: up %.2f down %.2f heights (%.2f card px/ms)\n", up, down, mScrollVelY);
@@ -4655,7 +4666,7 @@ void BrowserPageGoanna::maybePaint() {
   if (!mGpuJobs.empty()) mGpuTrace[6]++;
   // T-541: the fling lead goes once the card has stopped streaming positions.
   if ((mGpuLeadUp != 0.0f || mGpuLeadDown != 0.0f) && mPage && jihadNowMs() - mLastScrollMs > 400) {
-    mGpuLeadUp = mGpuLeadDown = 0.0f; mScrollVelY = 0.0; mVelMs = 0; mPage->SetGpuLead(0.0f, 0.0f);
+    mGpuLeadUp = mGpuLeadDown = 0.0f; mScrollVelY = 0.0; mVelN = 0; mPage->SetGpuLead(0.0f, 0.0f);
     fprintf(stderr, "[jihad-bs] fling lead: off\n");
   }
   if (jihad_offscreen_late_writes) {

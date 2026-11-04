@@ -234,3 +234,53 @@ THE FIX OF T-568 (the owner's "proceed" of 2026-11-03 late night to the recommen
   at 80 ms. T-567 is unchanged by it (wiki-b2's 27 bottom bands sit in the first drags as diagnosed).
   The USB alert: a killall LunaSysMgr with the cable in re-shows the system's "Connected / USB Drive" alert in the
   upper right; `/tmp/finger tap 583 232` (Close) dismisses it (the owner's ask of the night; a screenshot checked it).
+
+T-567 INVESTIGATED (the owner's "4" of 2026-11-03 late night: faster express frames beside the main thread's paints)
+  The instrument: tools/device/t502/threadstat.c samples the daemon's threads every 50 ms over the drags (state, the
+  cpu it ran on, its ticks; the cores' ticks; the GPU's kgsl interrupts) — THREADSTAT=1 on stream-pan.sh, the samples
+  in ft-<name>.txt (not in the repository), read by tools/host/threadstat-read.py beside the daemon log;
+  tools/host/wiki-rounds-table.py puts every Wikipedia round on one line (the bottom band's samples and tallest run,
+  the express frames' making time in the first three drags and after, the rate, the main thread's share).
+  WHAT THE SAMPLES SAID (wiki-t, the lead-fix daemon not yet in):
+  - Both cores are 94-95 % busy over the drags. The daemon's main thread takes 40 % of a core throughout (JavaScript:
+    with javascript.enabled=false it is 18-20 %), the Compositor 19-20 %, the express thread 8-12 %; LunaSysMgr's
+    card paints 25-45 % (5-6 ms at 45/s), sensord 15 %, the test's own sampler and finger 10 %.
+  - The slow express frames (>= 150 ms) are all "from the newest" frames whose tree changed (the page's own changes
+    in the first three drags after the load: 18 whole-frame jobs of 751-1224 rows in 8 s, 1400 ms; from the fourth
+    drag the frames are own-slot band frames and the page is quiet). The same 1224-row job takes 60-86 ms in the
+    quiet drags and 165-295 ms in the first three: the compositor thread was running in 52-86 % of the samples
+    inside them and sleeping (the GPU) the rest, the main thread running in 100 %.
+  - The compositor's single biggest cost is glReadPixels: 370 reads of 87551 rows in 7.7 s of the 35 s (88-90 us a
+    row of 768 px, 35 MB/s; a whole frame of 1110 rows 98 ms, a band of 150 rows 13 ms), the CPU swizzle 1.2 s more.
+    The driver's implementation read format is RGBA (0x1908/0x1401) and GL_EXT_read_format_bgra is not offered, so a
+    BGRA read (engine 928649199e, JIHAD_GPU_READ_BGRA=1, the swizzle gone) cannot run here; the GPU swizzle pass
+    (JIHAD_GPU_PASS=1) reads faster per row (1224 rows 36 ms) but its own pass costs more than it saves (below).
+  - The tile uploads run steadily through all drags (95 in the first three, 413 after; 5.7 ms a 256x256 tile), the
+    GPU's interrupts 72-100/s: not the first drags' difference.
+  - The fling lead (T-541) flapped on and off two or three times a drag: the card's positions arrive in bursts 0-2
+    ms apart after a 300 ms pump, read as 10-16 card px/ms then 0. Fixed in the daemon (the speed over the last
+    40..250 ms of positions, the lead kept until the travel reverses or the stream stops): 107 -> 40 lead events,
+    the speeds 0.5-2 px/ms; the main thread's load and the rate unchanged (the churn was not the cost). Kept.
+  THE ROUNDS (16 drags each; the bottom band: samples of ~520 with a one-colour band in rows 900+ / its tallest;
+  the express frames' making time in the first three drags, median/p90/max; the main thread's share of a core):
+  round       what                                   bottom band   drags 1-3 made ms   fps    main
+  wiki-p      the shipped build                      11 / 63       116/273/381         10.4   -
+  wiki-b2     T-568's fix                            11 / 15       97/312/523          10.0   -
+  wiki-t      the same, the threads sampled           6 / 24       111/295/443         10.1   41 %
+  wiki-dp25   JIHAD_GPU_DP_Y=0.25 (half the displayport)  17 / 15  112/336/482         10.3   41 %   worse
+  wiki-nojs   javascript.enabled=false                5 / 91       83/211/301          10.3   20 %   the one mover
+  wiki-nice5  the main thread at nice +5             11 / 27       118/231/394          9.4   38 %   worse
+  wiki-lead   the lead fix                           11 / 35       154/474/733          9.7   42 %   (kept: sane)
+  wiki-pass   JIHAD_GPU_PASS=1 (the GPU swizzle)     12 / 122      188/404/640          9.1   44 %   worse
+  wiki-fr20   layout.frame_rate=20                   14 / 54       118/332/459         10.1   43 %   no change
+  wiki-bgra   JIHAD_GPU_READ_BGRA=1 (not offered)    10 / 112      180/406/530         10.0   42 %   RGBA read
+  The bottom band's count is noisy round to round (5-17 of ~520); the express frames' p90 in the first drags
+  (210-470 ms) is the steadier figure. Only the JavaScript load moved it (not ours to switch off).
+  WHAT IS LEFT, for the owner: (1) a finer diff for a changed tree — read the invalidation region's rows, not the
+  tiled layer's whole visible area; worth it only if Wikipedia's first-drag changes are local (new tiles, images),
+  not layout shifts: one round with JIHAD_GPU_REQLOG=1 says which before any build; (2) a CPU-readable render
+  target (an EGL image or pixmap the daemon maps) in place of glReadPixels — removes the 22 % of the compositor's
+  time the reads take; research first (the device's EGL extensions are not in any log yet); (3) T-505 item 4 with
+  the layers painted at the zoom's resolution: the main thread's tile paints at 0.47 of the pixels and the band
+  frames composed on the CPU from the tiles with no GPU read at all — the owner's item-4 scale choice (b);
+  (4) the symptom's mitigations (more slack ahead, a clamp, the background colour), declined by "4".

@@ -18,6 +18,19 @@ if [ "$STREAM" = 1 ]; then
   /tmp/fbstream $SD/stream.fbs -s $((DRAGS * 2 + 3)) -f $SD/stream.fin $FBS_OPTS > /tmp/stream.out 2>&1 &
   SP=$!; sleep 1
 fi
+# T-567: the Enyo daemon's threads sampled over the drags (tools/device/t502/threadstat.c) when stream-pan.sh asked
+# (THREADSTAT=1 puts /tmp/threadstat.on); the hand daemon is the one in the Enyo app's directory, not Mochi's or Mojo's
+TP=
+if [ -f /tmp/threadstat.on ] && [ -x /tmp/threadstat ]; then
+  dp=; for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *applications/net.riverstonerelay.jihad-browser/*jihad-browserserver*) dp=${p#/proc/};; esac; done
+  if [ -n "$dp" ]; then /tmp/threadstat $dp $SD/threads.txt -s $((DRAGS * 2 + 3)) -p 50 > /tmp/threads.out 2>&1 & TP=$!; echo "threadstat on the daemon pid $dp"; else echo "threadstat: no Enyo daemon found"; fi
+fi
+# T-567 (a test lever): /tmp/renice.main holds a nice value for the Enyo daemon's main thread over the drags
+# (RENICE_MAIN=<n> on stream-pan.sh); the thread is the process's own id
+if [ -f /tmp/renice.main ]; then
+  nv=$(cat /tmp/renice.main); dp=; for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *applications/net.riverstonerelay.jihad-browser/*jihad-browserserver*) dp=${p#/proc/};; esac; done
+  [ -n "$dp" ] && { renice -n $nv -p $dp; echo "main thread $dp reniced to $nv: prio now $(awk '{print $18}' /proc/$dp/task/$dp/stat)"; }
+fi
 mark "finger drags"
 echo "[round] finger drags at $(date +%s)000 ms" >> $LOG
 i=0
@@ -25,6 +38,7 @@ while [ $i -lt $DRAGS ]; do FINGER_TRACE=$SD/stream.fin /tmp/finger drag 480 900
 mark "end"
 for w in jihad-browserserver LunaSysMgr; do ticks $w; done > /tmp/fp-t1.txt; total > /tmp/fp-s1.txt
 [ "$STREAM" = 1 ] && { wait $SP; echo "--- fbstream"; cat /tmp/stream.out; ls -la $SD; df /tmp /media/internal | tail -2; }
+[ -n "$TP" ] && { wait $TP; cat /tmp/threads.out; rm -f /tmp/threads.out; }
 echo "--- CPU ticks over the drags (pid, before, after, command)"
 while read pid t0 rest; do t1=$(grep "^$pid " /tmp/fp-t1.txt | cut -d' ' -f2); echo "$pid $t0 $t1 $rest"; done < /tmp/fp-t0.txt
 echo "--- /proc/stat before and after"; cat /tmp/fp-s0.txt /tmp/fp-s1.txt

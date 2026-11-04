@@ -1,0 +1,22 @@
+threadstat on the daemon pid 20244
+--- fbstream
+fbstream: sample 48: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0048.raw (TORN: the card flipped during each of three copies)
+fbstream: 514 samples in 35.01 s (14.7/s, asked 15), read median~4.1 ms max 84.6 ms (mmap, stride 8: 96 rows of 768), 813 flips (frames shown, 23.2/s), 15755 polls (450/s), cpu 2230 ms (6.4% of a core) finger joined from /media/internal/jihad-stream/stream.fin
+drwxrwxrwx    2 root     root         32768 Nov  3 20:29 .
+drwxrwxrwx   26 root     root         32768 Nov  3 20:28 ..
+-rwxrwxrwx    1 root     root       8528204 Nov  3 20:29 stream.fbs
+-rwxrwxrwx    1 root     root       3145728 Nov  3 20:29 stream.fbs.event0048.raw
+-rwxrwxrwx    1 root     root         43168 Nov  3 20:29 stream.fin
+-rwxrwxrwx    1 root     root        475040 Nov  3 20:29 threads.txt
+/dev/mapper/store-media
+                      13251360   1348992  11902368  10% /media/internal
+threadstat: 463 samples to /media/internal/jihad-stream/threads.txt
+--- CPU ticks over the drags (pid, before, after, command)
+20244 3899 7407 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+4999 41137 41160 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 41363 41381 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+23106 2917 3346 /usr/bin/LunaSysMgr -s
+23169 15213 16818 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32770473 2783539 30593532 133440838 2478182 5756 65496 0 0 0
+cpu  32775159 2785140 30595643 133441302 2478437 5756 65498 0 0 0

@@ -52,16 +52,38 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-03 (late night) — T-568 FIXED (the beneath area), the finger kit's R2 met; T-567 the owner's choice; every push to Gitea; the USB alert (READ FIRST)
+## 2026-11-03 (late night) — T-568 FIXED (the beneath area), the finger kit's R2 met; T-567 INVESTIGATED to its sources, the structural fix the owner's choice; every push to Gitea; the USB alert (READ FIRST)
 
-**State:** main at this commit, on `70d3af44` (the diagnoses); the engine fork unchanged (`3b2c3fdf`, its `fork` remote now
-Gitea). **The owner's push is owed since `e3e3a68c`** (`bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first):
-`fdc7e73d`, `76b4de8d`, `25eee48f`, `70d3af44`, this commit, and the fork's `3b2c3fdf`. **Every push goes to Gitea from now
-on** (the owner, 2026-11-03: "everything should be pushed to gitea and not github from now on, github will automatically
-mirror gitea on its own"): `origin` and the fork's `fork` remote are `git.trueog.net`, `.gitmodules` points the engine
-submodule there, nothing is ever pushed to GitHub. The owner's "proceed" (late night) took the recommendation for T-568:
-the exact fix instead of the 20 ms stopgap; T-567's fix is still theirs to choose (the options and the numbers in its
-build-site row; the agent recommends (a) as a device-px minimum slack below the view, measured, (b) the fallback).
+**State:** main at this commit, after `345f1deb` (T-568) and `70d3af44` (the diagnoses); the engine fork at `928649199e`
+(the BGRA read switch, on `3b2c3fdf`; its `fork` remote now Gitea). **The owner's push is owed since `e3e3a68c`**
+(`bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first): `fdc7e73d`, `76b4de8d`, `25eee48f`, `70d3af44`,
+`345f1deb`, this commit, and the fork's `3b2c3fdf` + `928649199e`. **Every push goes to Gitea from now on** (the owner,
+2026-11-03: "everything should be pushed to gitea and not github from now on, github will automatically mirror gitea on
+its own"): `origin` and the fork's `fork` remote are `git.trueog.net`, `.gitmodules` points the engine submodule there,
+nothing is ever pushed to GitHub. The owner's "proceed" took the recommendation for T-568 (the exact fix, not the 20 ms
+stopgap); their "4" for T-567 asked for faster express frames beside the main thread's paints, which was investigated
+to its sources the same night (below) — the structural fix is now their choice.
+
+**T-567 investigated (notes.txt "T-567 INVESTIGATED"; the tools `tools/device/t502/threadstat.c`, `tools/host/threadstat-read.py`,
+`tools/host/wiki-rounds-table.py`; `THREADSTAT=1` and `RENICE_MAIN=<n>` on `stream-pan.sh`):** a thread sampler on the device
+read what the daemon's threads did through every slow express frame. Both cores are 94-95 % busy under the drags (the
+daemon's main thread 40 % of a core, half of it desktop Wikipedia's JavaScript; the Compositor 20 %; LunaSysMgr's card
+paints 25-45 %; sensord 15 %). The slow express frames (150-730 ms) are all the first three drags' whole reads after the
+page's own changes (18 whole-frame jobs in 8 s; from the fourth drag the frames are own-slot bands and the page is
+quiet), and the compositor's biggest cost is glReadPixels at 90 us a row (35 MB/s: 7.7 s of a 35 s round, 22 % of its
+time) plus the CPU swizzle (1.2 s). The driver's read format is RGBA and `GL_EXT_read_format_bgra` is not offered (the
+engine's new `JIHAD_GPU_READ_BGRA=1` switch logs "read format: ..." and reads RGBA here); the GPU swizzle pass
+(`JIHAD_GPU_PASS=1`) costs more than it saves. Measured and not kept: half the displayport (`JIHAD_GPU_DP_Y=0.25`,
+worse), the main thread at nice +5 (worse), `layout.frame_rate=20` (no change); JavaScript off halves the main thread
+and is the one mover. Kept: the fling lead's speed over the last 40..250 ms of positions (the card's positions arrive
+in bursts after a long pump and read as 10-16 px/ms, the lead flapped on and off two or three times a drag: 107 -> 40
+events, the speeds sane; the load unchanged). The bottom band's count is noisy (5-17 samples of ~520 a round); the
+express frames' p90 in the first drags (210-470 ms) is the figure to move. **The owner's choice next:** (1) a finer
+diff for a changed tree (the invalidation region's rows, not the tiled layer's whole area) — a `JIHAD_GPU_REQLOG=1`
+round first says whether Wikipedia's first-drag changes are local; (2) a CPU-readable render target (an EGL image or
+pixmap) in place of glReadPixels — research, the device's EGL extensions are in no log yet; (3) T-505 item 4 with the
+layers painted at the zoom's resolution (the agent's recommendation: the paints at 0.47 of the pixels and the band
+frames with no GPU read) — their item-4 scale choice (b); (4) the symptom's mitigations, declined by "4".
 
 **T-568 fixed (the band under a held rect):** the card's hold (T-544) filled the rows a held rect's moved copy covers
 outside its place in one colour because the frame has no pixels for what lies under the rect; now the daemon ships them.
@@ -81,19 +103,21 @@ for 1" on every hold including the frames that lead the card by 2..38 rows, the 
 daemon's rate inside the rounds' 1 fps spread. The prediction stays at 80 ms. The finger kit's R2 is met by it (the
 known-good round). Wikipedia is unchanged: T-567's bottom bands (27 in 11 of 518 samples, the first drags).
 
-**Device state:** the Enyo variant runs the new daemon (`push-engine-update.sh --daemon-only enyo`, md5 `b526dbc8`) and
-the new PDK adapter (`adapter-install.sh`, md5 `4e6f50f3`); Mochi and Mojo run the old ones (compatible; the bundle and
-the .ipks for all three are the next full build). The three jobs on their upstart daemons, no hand daemon, no gate
-file, the adapter log removed, the test card closed, `/tmp` 38 %, `/var` 31 %, `/tmp/finger` and `/tmp/fbstream`
-present, the host serving the long page on `:8077`.
+**Device state:** all three variants run libxul `f08a1109` (engine `928649199e`) and the daemon `4da38e05` (the beneath
+area and the lead fix) by `push-engine-update.sh` (md5-verified, each job restarted; default-check NOT run on them);
+the Enyo variant the new PDK adapter `4e6f50f3` (`adapter-install.sh`), Mochi (`86f4ac0f`) and Mojo (`45d32c37`) the
+packages' old ones (compatible: an old adapter ignores the beneath words). The .ipks are NOT rebuilt for this head.
+The three jobs on their upstart daemons, no hand daemon, no gate or marker file, the adapter log removed, the test
+card closed, the round dumps removed, `/tmp` 38 %, `/var` 31 %, `/tmp/finger`, `/tmp/fbstream` and `/tmp/threadstat`
+present (a reboot wipes them), the host serving the long page on `:8077`.
 
 **Traps of the night:** a `killall LunaSysMgr` with the USB cable in re-shows the system's "Connected / USB Drive" alert
 in the upper right; `/tmp/finger tap 583 232` taps its Close after the 45 s (the owner's ask; the restart helpers do
 it). `finger-stream.py --json` takes a FILE argument. The shell's cwd resets between commands: absolute paths.
 
-**Next:** T-567 on the owner's number; then T-563 (the check library and geometry), T-564, T-565, T-566; the full
-device build (daemon + three adapters + .ipks) when the GPU fixes settle; Tier 91's kits after; T-505 item 4 with the
-owner's scale choice.
+**Next:** T-567's structural fix on the owner's number (above); then T-563 (the check library and geometry), T-564,
+T-565, T-566; the full device build (daemon + three adapters + .ipks) when the GPU fixes settle; Tier 91's kits after;
+T-505 item 4 with the owner's scale choice (which option 3 above would decide).
 
 ## 2026-11-03 (night) — Tier 92 begun: the frame sampler and the stream tool (T-561, T-562 DONE); the stream's two catches (T-567, T-568)
 

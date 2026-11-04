@@ -26,6 +26,14 @@ arriving).
   mode. `pan-three.sh` runs three configurations in a row (whole reads, two bands on the full
   target, the band target) for a bisect.
 - `gpu-spike-collect-stop.sh` — stops the hand-started daemon, restores the prefs a run changed.
+- `threadstat.c` (T-567) — samples the daemon's threads every 50 ms on the device (each task's state, cpu and
+  ticks; the cores' ticks; the kgsl interrupts), built like `finger.c` to `/tmp/threadstat`; `THREADSTAT=1` on
+  `tools/device/finger/stream-pan.sh` runs it over the drags into `ft-<name>.txt`, `tools/host/threadstat-read.py`
+  reads it beside the daemon log (what ran through each slow express frame), `tools/host/wiki-rounds-table.py`
+  tabulates Wikipedia rounds. `RENICE_MAIN=<n>` on stream-pan.sh renices the daemon's main thread for a round.
+  Daemon switches of the night: `JIHAD_GPU_NO_BENEATH=1` (T-568: no beneath rows for the card's hold, the fill as
+  before), `JIHAD_GPU_READ_BGRA=1` (engine: a BGRA read where the driver offers it; the TouchPad's does not, and
+  the log's "read format:" line says so).
 - `final-build.sh` — the build chain after the engine fold: cross-builds libxul from the engine
   working tree, builds the daemon, makes the device bundle (the bundle id is its last line). Push
   with `build/webos-oe/push-engine-update.sh enyo`. `spike-round34-build.sh` is the OLD chain that

@@ -1,0 +1,26 @@
+threadstat on the daemon pid 10444
+--- fbstream
+fbstream: sample 104: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0104.raw
+fbstream: sample 117: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0117.raw (copied again after a flip)
+fbstream: sample 150: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0150.raw (TORN: the card flipped during each of three copies)
+fbstream: 505 samples in 35.00 s (14.4/s, asked 15), read median~4.4 ms max 122.2 ms (mmap, stride 8: 96 rows of 768), 787 flips (frames shown, 22.5/s), 16404 polls (469/s), cpu 2270 ms (6.5% of a core) finger joined from /media/internal/jihad-stream/stream.fin
+drwxrwxrwx    2 root     root         32768 Nov  3 20:42 .
+drwxrwxrwx   26 root     root         32768 Nov  3 20:42 ..
+-rwxrwxrwx    1 root     root       8378644 Nov  3 20:43 stream.fbs
+-rwxrwxrwx    1 root     root       3145728 Nov  3 20:42 stream.fbs.event0104.raw
+-rwxrwxrwx    1 root     root       3145728 Nov  3 20:42 stream.fbs.event0117.raw
+-rwxrwxrwx    1 root     root       3145728 Nov  3 20:42 stream.fbs.event0150.raw
+-rwxrwxrwx    1 root     root         43168 Nov  3 20:43 stream.fin
+-rwxrwxrwx    1 root     root        472002 Nov  3 20:43 threads.txt
+/dev/mapper/store-media
+                      13251360   1355072  11896288  10% /media/internal
+threadstat: 473 samples to /media/internal/jihad-stream/threads.txt
+--- CPU ticks over the drags (pid, before, after, command)
+10444 4171 7521 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+4999 41648 41668 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 41874 41893 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+23106 5768 6185 /usr/bin/LunaSysMgr -s
+23169 33420 34975 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32819671 2799798 30626516 133492075 2491022 5759 65547 0 0 0
+cpu  32824214 2801366 30628684 133492556 2491259 5759 65548 0 0 0

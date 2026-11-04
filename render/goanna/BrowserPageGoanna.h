@@ -427,7 +427,12 @@ private:
   bool               mGpuAnchorValid = false;
   double mGpuDpShiftX = 0.0, mGpuDpShiftY = 0.0;   // T-524: the shift the displayport was set with
   double mGpuDpZoom = 0.0;                          // T-524: and the zoom
-  int64_t mVelMs = 0; int mVelY = 0; double mScrollVelY = 0.0;   // T-541: the card's scroll speed (card px/ms)
+  double mScrollVelY = 0.0;   // T-541: the card's scroll speed (card px/ms)
+  // T-567: the card's last positions with their arrival times; the speed is read over 40..250 ms of them, not
+  // over the gap to the one message before (a busy main thread hands them over in bursts)
+  struct VelSample { int64_t t; int y; };
+  static const int kVelRing = 16;
+  VelSample mVelRing[kVelRing]; int mVelN = 0;
   float mGpuLeadUp = 0.0f, mGpuLeadDown = 0.0f;                  // T-541: the lead last handed to the page
   bool               mGpuCompositorScroll = false;   // the compositor applies the card's scroll (frames at the card's y)
   bool               mGpuRootless = false;           // T-527: the document has no root scroll frame: the world offset is the scroll (the frame lock)

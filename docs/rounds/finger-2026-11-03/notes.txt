@@ -122,3 +122,81 @@ under the fixed header a solid yellow band ~25 rows tall where line 10's second 
 the highlighted block smeared over the band, not the block's text; the rows below it right. Those rows match neither
 the previous frame's same rows nor its rows a shift away: the band is not a copy of either, but one row's colour
 over d rows (the look of a clamp-to-edge sample at a held rect's edge). The diagnosis is T-568's.
+
+THE DIAGNOSES (the owner's "1" of 2026-11-03 night: T-567/T-568 before T-563)
+----------------------------------------------------------------------------
+By region (the tool's reports; a sample with a band = at least one report in it):
+  long-p   uniform 186: under the header 172, at the bottom 2, elsewhere 12; stale 75, all under the header;
+           156 of 524 samples show a band under the header
+  long-u2  uniform 147 / stale 70, all under the header; 130 of 505 samples
+  wiki-p   uniform 33: 32 at the bottom, 0 under the header (no fixed header; the sidebars are columns, left out of
+           the signatures by -c 170-600)
+So T-568 is the long page's finding (under the header, a third of the samples) and T-567 Wikipedia's (the bottom).
+
+T-568 — the band under the fixed header: THE CARD'S HOLD FILL UNDER A FRAME THAT LEADS THE CARD.
+  Where it is: render/adapter/BrowserAdapter.cpp, jihadHoldStuck (T-544, 2026-10-26). Between two frames of a pan
+  the card draws the frame it holds moved by the scroll since (dY = the frame's view top - the card's scroll); each
+  fixed/stuck rect of the daemon's hold set is drawn where the frame drew it, and the rows its MOVED copy covers
+  outside the rect's own place are filled with ONE colour — the frame's pixel just past the rect on that side
+  (jihadHoldFill: "a strip in one colour"). With dY > 0 (the frame AHEAD of the card's displayed scroll) the moved
+  header's rows below the rect's place, [bottom, bottom + dY), are painted in the colour of the frame's pixel at
+  (mid, bottom): the row just under the header — yellow when the highlighted block is there, the page background
+  otherwise. Exactly the band: one shift tall, one colour, directly under the header, the rows below right.
+  Why the frame leads: T-527's express prediction (BrowserPageGoanna.cpp xStart, JIHAD_GPU_EXPRESS_PREDICT_MS,
+  default 80): "while the card coasts, the frame is composed where the card will be when it is shown (its speed
+  times 80 ms: the express frame's usual age at the card's blit)" — measured on 2026-10-25. The stream measures the
+  frame's age at the card's flip today at 14-18 ms median (publish to flip, p90 25-29): the lead of velocity x 80 ms
+  (0.65 px/ms x 80 = 52 rows, capped at the overscan's 141) overshoots by ~40 rows, so the frame arrives ahead of
+  the card's displayed position and the hold fills the lead. Evidence from the card itself (the adapter's paint log
+  with a fresh web app manager, two drags on the long page): "[hold] 1 rects, moved 0,22 / 0,45 / 0,25 / 0,20 /
+  0,23 / 0,18 / 0,37 / 0,17 / 0,19 / 0,18 / 0,43 ..." — the frame drawn 17-45 rows AHEAD of the card in most paints
+  of a drag (and behind, -19..-26, in a few: the card ahead, no fill below); at the drag's end 0,41 five times (the
+  frame settled ahead of the card), then -26..-84 (the card's scroller overshooting past the lifted finger). The
+  [hp-pg] lines agree: the frame's view top (rY + 141) 283, 296, 321, 337, 362, 385 against the card's scroll 240..403.
+  The same fill runs BESIDE Wikipedia's held sidebars (columns): a strip of the pixel past the sidebar's edge, which
+  the stream's -c 170-600 leaves out; the owner's 2026-10-26 "the sidebars jitter and lag" was T-544's reason.
+  The fix is the owner's choice (the build site's T-568 lists them): (a) the card draws the rows under a held rect from
+  the previous frame it holds (its other offscreen: the content for those page rows lies below that frame's header)
+  instead of one colour — exact content, the prediction kept; (b) the card paints a frame that leads it unshifted
+  (the content then leads the finger by the prediction's error, no fill below; the card's own smoothing between
+  frames stops only while it lags); (c) the prediction retuned from the stream's number (PREDICT_MS 80 -> ~20: the
+  band shrinks to the jitter, a few rows, and does not vanish); (d) no prediction when the frame has held parts (the
+  band gone, the tracking lag under a fixed header or beside a sidebar grows by the lead); (e) the daemon ships what
+  lay beneath each held rect (it keeps it for its own dress) for the card to draw — the most room, the most change.
+  The quick tests below (PREDICT_MS 20, 0, and the hold off) size (c) and (d) by the stream.
+
+T-567 — the grey band at the bottom on desktop Wikipedia: THE CARD DRAWN PAST THE FRAME'S END.
+  The frame is 1224 rows with the card's view at row 141 (the displayport's margin above): 141 rows of slack below the
+  view. The card draws the frame it holds moved by its scroll since the frame (jihadHoldStuck's dY, but for the whole
+  frame: handlePaint's blit, src clamped to the buffer, the rows past it left UNDRAWN: "leaves that region undrawn
+  instead of ... edge-replicating a smear", Codex 2026-07-26) — the card's own background shows there, the Onyx theme's
+  #d8d8d8 (webos-sdk-redux's enyo theme.css). It shows whenever the card's scroll runs more than 141 rows past the
+  newest frame's position: on Wikipedia's first three drags after a load the express frames took 150-480 ms to make
+  (the compositor jobs "composed in" 110-135 ms median, 266-278 max, 0 uploads — the GPU shared with the main thread's
+  layer paint and pumps of 104-1594 ms; from the fourth drag 27-70 ms) and arrived 271-837 ms after the finger's down:
+  the card at 0.65 px/ms was 180-330 rows ahead. The stream's bottom bands sit in those drags (wiki-p samples 24-71)
+  and in the verify rounds everywhere (the verify halves the rate). The long page's first express frame comes
+  214-298 ms after every drag's down too (the card's drag threshold and the first scroll report), but the card's 141
+  rows of slack cover ~140 px and its normal round has 2 bottom bands in 524 samples; long-v's blank bottom
+  (long-v-sample72-blank-bottom.jpg) is the verify mode's slowness, not the shipped behaviour.
+  The fix is the owner's choice (T-567 in the build site): (a) more slack below the view (the view at a lower frame
+  row, e.g. 70: 211 rows below; the frame height is the segment's); (b) the card fills past the frame with the page's
+  background colour the daemon names (white on Wikipedia: a band still, less visible than grey); (c) the card clamps
+  its shift to the frame's end (the content sticks at the frame's edge instead of a band: a stall the eye sees
+  differently); (d) faster express frames while the main thread paints — the GPU contention behind T-505's rate
+  ceiling, the real cause and the biggest work.
+
+T-568's quick tests (the long page, 16 drags, the stream reading rows 139-1024 with 29-139 still; the daemon's env):
+  round         prediction   hold   samples with a band under the header   its height   tracking error     lag     header still   fps
+  long-p        80 ms (def)  on     156 of 524                              14.5 rows    -32 median, 84 max  75 ms   yes            19.0
+  long-pr20     20 ms        on      30 of 524                               8 rows      -32 median, 58 max  75 ms   yes            19.4
+  long-pr0      off          on       0 of 526                               -           -32 median, 143 max 73 ms   yes            19.2
+  long-nohold   80 ms        OFF    142 of 524                              13 rows      -32 median, 175 max 73.5 ms NO: moved in 298 samples  18.7
+  Read: the band is the hold's fill of the prediction's lead — the lead shortened to 20 ms leaves a fifth of the
+  bands at half the height (the jitter around zero), no lead leaves none; the median tracking is the same in all four
+  (the card's own smoothing sets it), the worst case is best at 20 ms (58 rows) and worst with no lead (143) or no
+  hold (175); without the hold the header slides with the content between frames (T-544's finding of 2026-10-26)
+  and the band stays (the moved header's own rows). So the hold is right and the fill is the fault: the card has no
+  pixels for what lies beneath a held rect, and the lead decides how often that shows. The owner chooses among the
+  fixes listed above; (c) at ~20 ms is a one-line retune the stream can keep honest (the frame's age at the flip is
+  its number), (a) removes the rest.

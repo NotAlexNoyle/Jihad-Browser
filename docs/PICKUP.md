@@ -91,10 +91,21 @@ previous frame's rows unshifted (75 of 524 samples; the header still, the rows b
 domain's (cavekit-gpu-rendering.md R3/R12); neither is diagnosed. The finger-testing kit's "0 stale, 0 uniform on a
 known-good round" stays open until a round is.
 
-**Next (Tier 92 in order): T-563** the check library and the geometry (the oracle checks over the inject channel and
-the daemon log, the page-top calibration tap per shell, `rect`-derived positions, the chrome table per shell; the
-existing walks moved onto it), then T-564 the runner, T-565 the suite. The owner's call, by multiple choice, on
-whether T-567/T-568 are taken before T-563 (they are what the owner's rounds would see).
+**The owner's "1" (2026-11-03 night): T-567/T-568 before T-563. Both DIAGNOSED the same night** (`docs/rounds/
+finger-2026-11-03/notes.txt`, "THE DIAGNOSES"): T-568 is the card's hold fill (`jihadHoldStuck`, T-544) painting ONE
+colour over the rows a held rect's moved copy covers, and the frame leads the card's displayed scroll by 17-45 rows
+(the adapter's own `[hold] moved 0,22..0,45` lines) because T-527's express prediction composes it velocity x 80 ms
+ahead while the stream measures the frame's age at the card's flip at 14-18 ms today. T-567 is the card drawn past
+the frame's 141 rows of slack below the view (its Onyx `#d8d8d8` shows) when Wikipedia's first three drags after a
+load get express frames 150-480 ms late beside the main thread's paints. The fixes are the owner's choice (the build
+site's T-567/T-568 rows list them; the notes weigh them). T-568 sized by the stream: the prediction at 20 ms leaves
+30 of 524 samples with an 8-row band (from 156 of 14.5 rows) and the best worst-case tracking; off, none but a worse
+worst case; the hold off, the header slides in 298 samples. **Then T-563** the check library and the geometry, T-564
+the runner, T-565 the suite.
+
+**Traps of the diagnosis:** the adapter's paint log gate (`<state>/adapterlog`) is read ONCE per web app manager
+process (`jihadPaintLog`'s static): touch it, `killall LunaSysMgr`, wait 45 s, round, remove it, `killall LunaSysMgr`
+again or the log grows for the process's life (it filled `/var` once). `[hold]` lines stop at 60 a process.
 
 **Traps from this session (not in the source):** `/tmp` on the device is a 40 MB tmpfs: `JIHAD_GPU_VERIFY_DUMP_WRONG=1`
 dumps 3.7 MB a wrong frame and filled it (the first verify round's stream came back short — the sampler now fails loud

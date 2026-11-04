@@ -113,3 +113,12 @@ of the long page's clean stream (fs-long-p-head.fbs: the header and the first 15
 input: `python3 -I tools/host/test-finger-stream.py docs/rounds/finger-2026-11-03/fs-long-p-head.fbs --trace
 docs/rounds/finger-2026-11-03/fs-long-p.fin --rows 139-1024 --still 29-139`), and the three judged shots as JPEGs.
 The whole streams (4-9 MB a round) and the raw pages are not in the repository (.gitignore); their readings are above.
+
+T-568's picture (the Enyo job's own daemon on the long page, two drags, the sampler with -R 2 — the raw page of every
+other sample to /media/internal, which itself slows the device: 6.9 samples/s and the card's flips down to 3.8/s, so
+this round's rates mean nothing): the host's reading named sample 24 (uniform rows 139-160 under the header, the
+finger just lifted, d = 13); its page, long-pic-sample24-band-under-the-header.jpg (-top.jpg the crop): directly
+under the fixed header a solid yellow band ~25 rows tall where line 10's second text line belongs — one colour of
+the highlighted block smeared over the band, not the block's text; the rows below it right. Those rows match neither
+the previous frame's same rows nor its rows a shift away: the band is not a copy of either, but one row's colour
+over d rows (the look of a clamp-to-edge sample at a held rect's edge). The diagnosis is T-568's.

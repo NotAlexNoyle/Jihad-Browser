@@ -107,6 +107,16 @@ holds 40 MB and stale dumps filled it once), `JIHAD_GPU_TEX_POOL=<n>` (the engin
 textures, 48; 0 deletes them as before), `JIHAD_GPU_NO_TEX_CONVERT=1` (new tile textures not
 converted at 1x1: the Adreno's ~18 ms first write after a draw comes back),
 `JIHAD_GPU_NO_RES=1` (the layers painted at 1x and magnified, as before the zoom's resolution).
+T-505 item 4 (2026-11-04): `JIHAD_GPU_RES_ZOOM=1` (daemon: the layers painted at the zoom's resolution
+below 1.1 too — a tile's pixels then land one to one on the frame at every settled zoom, at the price of a
+full repaint of the view at each; a zoom within 1 % of 1 stays at 1) and `JIHAD_GPU_CPU_BANDS=1` (engine: a
+band frame whose rows are covered by tiled painted and colour layers alone, "over", no mask, at a scale of 1,
+is composed on the CPU from the tiles' buffers — no GL composite, no read; the log's `cpu bands:` line every
+20 band frames counts the frames sent to the GPU and why, and its `cpu band frame` lines time the copies).
+The resolution switch's known gaps (the review of 2026-11-04, not fixed: the switch measured a loss, see the
+round notes): a pinch below 1.1 repaints at every step a frame gets out of (the zoom hold releases on the first
+frame, not on a settled zoom), and T-527's zoom-back and overview gates still take "a resolution above 1" as the
+zoom in's sign, so a zoom back to a fit zoom under 0.5 keeps no frame and waits for the repaint.
 The card's self-test hook (`render/goanna/test/enyo-selftest.js`) scripts a double tap with
 `t<x>,<y>` (the adapter's smartZoom) beside the pinch `g<scale>,<x>,<y>`.
 `tools/device/gpu-bench.c` sections 11-15 (`BENCH_ONLY=<n>`): back-to-back tile uploads, which

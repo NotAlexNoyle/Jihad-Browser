@@ -4780,11 +4780,20 @@ bool GoannaRenderPage::SetGpuViewport(double zoom) {
 
 // The pres shell's resolution at a zoom on the GPU path (SetGpuViewport's rule): the zoom above 1.1,
 // at most 8; JIHAD_GPU_RES_MAX=<r> stops it at r, the world transform magnifying the rest (T-524's
-// bisection of the frame losing its right side above a zoom of ~2 on desktop Wikipedia)
+// bisection of the frame losing its right side above a zoom of ~2 on desktop Wikipedia).
+// T-505 item 4 (2026-11-04, the owner's choice (b)): JIHAD_GPU_RES_ZOOM=1 paints the layers at the zoom's
+// resolution below 1.1 too (a zoom within 1 % of 1 at 1), so a tile's pixels land one to one on the frame
+// at every settled zoom: the band frames are then a copy of the tiles on the CPU (the engine's
+// JIHAD_GPU_CPU_BANDS), and a fit zoom's paints cover fewer pixels (0.47x at 0.69). The price: a full
+// repaint of the view at each settled zoom (SetGpuViewport sets the resolution; the critical displayport
+// first), and the fit zoom's text and images resampled by the paint rather than the GPU (round 183's
+// 3-5 fps on the scripted pan, measured when every frame was read back from the GPU).
 float GoannaRenderPage::GpuResolutionFor(double zoom) {
   static const float sResMax = getenv("JIHAD_GPU_RES_MAX") ? (float)atof(getenv("JIHAD_GPU_RES_MAX")) : 0.0f;
+  static const bool sResZoom = getenv("JIHAD_GPU_RES_ZOOM") && atoi(getenv("JIHAD_GPU_RES_ZOOM")) != 0;
   const float z = (float)zoom;
   float res = z > 1.1f ? (z > 8.0f ? 8.0f : z) : 1.0f;
+  if (sResZoom && z <= 1.1f && fabsf(z - 1.0f) > 0.01f) res = z < 0.1f ? 0.1f : z;
   if (sResMax > 0.0f && res > sResMax) res = sResMax;
   return res;
 }

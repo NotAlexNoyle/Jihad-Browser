@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-03 evening below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 morning below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,73 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-04 (morning) — T-505 item 4 BUILT: the band frames composed on the CPU from the tiles; the resolution choice (b) measured a loss; the defaults the owner's (READ FIRST)
+
+**State:** main at this commit (the engine gitlink at the fork's `88a1b3eaaf`, patch 0076, the pins moved) on top of
+`16b2ec6d`. **Not pushed** (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first, Gitea
+only): main `fdc7e73d`, `76b4de8d`, `25eee48f`, `70d3af44`, `345f1deb`, `16b2ec6d` and this commit; the fork
+`3b2c3fdf`, `928649199e`, `88a1b3eaaf`.
+
+**The owner's "3"** (2026-11-04, to T-567's structural fix): T-505 item 4 with the layers painted at the zoom's
+resolution — the item-4 scale choice (b). Built as two switches, off by default:
+- Engine `JIHAD_GPU_CPU_BANDS=1` (CompositorBridgeParent.cpp `JihadCpuBands`; TiledContentHost.h; TextureHost.cpp):
+  a band frame whose rows are covered by tiled painted and colour layers alone — "over", full opacity, no mask, no
+  container composed apart, a 2D effective transform of scale 1 with a whole-pixel translation, every tile a
+  shared-memory B8G8R8A8/X8 buffer whose read lock the host holds — is composed by the compositor thread copying the
+  tiles' pixels into the slot's band rows after the kept rows are shifted: no GL composite, no glReadPixels, no
+  upload. The tree is prepared as a composite prepares it (shadow properties, async transforms at the frame's
+  scroll, the parts hidden, THE DIFF TAKEN AND DROPPED so its baseline is this frame's — the first build skipped
+  that and the verify found 22 wrong frames in both lanes: the next diff-first frame measured several frames'
+  scroll as its shift) and the composite's bookkeeping follows (the scheduler's compose time, the next frame for an
+  animation or a composite-until time, DidComposite). Under the switch a tile's read lock stays after its immediate
+  upload (the content side double-buffers the tile) — the review's F1: TileClient re-uses an unlocked front buffer
+  in place, and the compositor thread was copying a buffer the main thread painted. The log: "cpu bands:" every 20
+  band frames (how many on the CPU and why not), "compositor thread: cpu band frame" (prep, shift, draw ms).
+- Daemon `JIHAD_GPU_RES_ZOOM=1` (GoannaRenderPage.cpp `GpuResolutionFor`): the pres shell's resolution follows the
+  zoom below 1.1 too (within 1 % of 1: 1; at least 0.1), so the tiles land one to one on the frame at every settled
+  zoom. Known gaps (the review's F5, F6; tools/device/t502/README.md): a pinch below 1.1 repaints at every step a
+  frame gets out of; T-527's zoom-back and overview gates still read "a resolution above 1" as the zoom in's sign.
+
+**Measured by finger** (`docs/rounds/finger-2026-11-04/notes.txt`; stream-pan.sh, 16 drags, the sampler on; the
+rounds of the first two builds under `first-build/` and `second-build/`): the long page 18.2 -> 19.5 fps flowing,
+the band frame 22.0 -> 4.7 ms on the compositor thread (the 13.6 ms read gone), the express frames made in 14 ms
+median against 31 (p90 41 against 57), the stream's worst lag 294 -> 131 ms and worst error 169 -> 52 px, the
+verify 0 wrong of 121. Desktop Wikipedia with both switches: 105 of 160 band frames on the CPU (the band frame
+27.8-31.0 -> 20.5 ms, of which 15 ms the job's entry and parts prep), the verify 1 wrong of 66 (outside the bands),
+BUT the main thread's layer paints at 0.6882 sum 5.1-5.3 s over the drags against 3.2-3.9 s at 1 (median 102-114
+against 77-84 ms, p90 508-605 against 227-246): T-504's round 183 stands — the fit zoom's paint resamples every
+glyph and image on the CPU — and the recommendation's premise ("halves the paint pixels") was wrong in effect. The
+express lane then waits for a slot behind main-lane jobs (the "no slot" ticks 166-232 against 78-105), the grey
+band at the bottom (T-567) shows in 21-35 samples against 14, the express p90 198-285 against 177-187; the rate
+flowing 9.6 / 10.2 / 10.4 / 9.8 (control / CPU bands / resolution / both) is noise around 10. **The resolution
+choice (b) loses on Wikipedia; the CPU bands are a pure gain where the scale is 1.**
+
+**Reviewed** (Codex, `context/impl/impl-review-findings-t505-cpubands.md`): ten findings, seven fixed in the final
+build (the read lock, intermediate surfaces refused, the clear white as the window target's, the animations'
+clock, tolerances at float noise, MayResample from the layer, the band clip before the tiles, image/canvas trees
+refused, the composite-until renewal), one a guard, two open in the daemon's switch (above).
+
+**Next, the owner's (numbered in the report):** the defaults (recommended: the engine's switch ON — inert where the
+scale is not 1 but for the tiles' double-buffering, a gain where it is; the daemon's OFF), and whether to build the
+scale choice (a): the tiles at resolution 1 scaled down on the CPU into the bands (a bilinear downscale of ~80k
+output pixels a frame, NEON; the paints as they are) for Wikipedia's gain without the paints' price. Then T-563 to
+T-566, the full device build (daemon + three adapters + .ipks), Tier 91's kits.
+
+**Traps from this session (not in the source):** the daemon build fails to link (`cannot find -lplc4`) while an
+engine build runs — the NSPR libs it links are the engine objdir's, rewritten mid-build: one at a time. A header
+change in gfx/layers (CompositorBridgeParent.h) rebuilds ~30 files, ~10 min at 2 jobs. `finger-stream.py` has no
+`--help` (it takes the first argument as the stream). The long page's stream reads with `--rows 138-1024 --still
+82-138` (the fixed header), Wikipedia's with `83-1024` / `29-83`; the wrong spec reads hundreds of false stale
+bands. Codex is back (0.166.0). The host still has 12 GB of closed sessions' scratch under `/tmp/claude-1000` (the
+owner's `rm -rf /tmp/claude-1000/-home-*`) and 3 GB available: engine builds at 2 jobs.
+
+**Device state:** the three variants run the final engine (libxul md5 `0cc123e1`, stripped from `88a1b3eaaf`) and
+daemon (`22b50854`) by `push-engine-update.sh enyo` then `mochi mojo` (md5-verified; the `.ipk`s NOT rebuilt; the
+adapters as before: Enyo `4e6f50f3`, Mochi `86f4ac0f`, Mojo `45d32c37`). default-check not run this session (the
+switches are off by default; the Enyo variant ran six rounds and two screenshot sessions on the final engine). No
+dev copies, gate files or adapter gates; the round scratch removed by the stop script; `/tmp/finger` and
+`/tmp/fbstream` on the device.
 
 ## 2026-11-03 (late night) — T-568 FIXED (the beneath area), the finger kit's R2 met; T-567 INVESTIGATED to its sources, the structural fix the owner's choice; every push to Gitea; the USB alert (READ FIRST)
 

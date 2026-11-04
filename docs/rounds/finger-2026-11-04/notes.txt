@@ -1,0 +1,140 @@
+T-505 item 4 — the band frames composed on the CPU from the tiles, the layers painted at the zoom's resolution
+=============================================================================================================
+2026-11-04. The owner's choice of 2026-11-04 (the "3" to T-567's structural fix): T-505 item 4 with the layers
+painted at the zoom's resolution — the item-4 scale choice (b).
+
+The build
+---------
+Engine (the fork's commit after 928649199e, CompositorBridgeParent.cpp, TiledContentHost.h): JIHAD_GPU_CPU_BANDS=1.
+In JihadComposeAndRead's band path (a scroll-only frame, or one whose change fits the band pass; full-width bands
+only, no column chunks, not a verify frame), before the GPU band pass: the tree is prepared as a composite prepares
+it (the shadow properties, the async transforms at this frame's scroll, the parts hidden for a frame without them,
+the visible regions and the effective transforms at the frame's world), then the leaves under the band rows are
+collected in paint order with their scissors (CalculateScissorRect from the root's clip down, as ContainerPrepare).
+Every one must be a tiled painted layer (its compositable a TiledContentHost, no low-precision tiles, no fade-in, the
+buffer at resolution 1, every tile under the bands a BufferTextureHost of B8G8R8A8 or B8G8R8X8 without component
+alpha) or a colour layer, drawn "over" at full opacity, no mask (own or ancestors'), under no container with a mask,
+a blend mode, a 3D context or an isolated group, with a 2D effective transform of scale 1 (|m11-1|, |m22-1|, |m12|,
+|m21| < 1e-3) and a translation within 0.02 px of whole pixels. Then the kept rows are shifted (JihadShiftRowsNow,
+as the GPU pass does), each band's rows cleared transparent (BeginFrame's clear), each leaf drawn: a tile's rows
+copied from its shared-memory buffer (memcpy for X8; a premultiplied "over" for A8) within the valid region, the
+visible region (its bounds when the paint resamples) and the scissor; a colour layer's bounds filled; the alpha byte
+then 0xFF as the read forces it. The composite's bookkeeping follows: the next frame asked when an animation moved,
+DidComposite to the content side (its paints wait for it). The request count, the diff baseline, the fixed rows and
+the parts' rects are handled by the band path's common tail as before. Anything else under a band sends the frame to
+the GPU band pass as before, the reason counted: the log's "cpu bands:" line every 20 band frames, and the
+"compositor thread: cpu band frame" lines (prep, shift, draw ms; leaves, tiles, rects).
+
+Daemon (GoannaRenderPage.cpp): JIHAD_GPU_RES_ZOOM=1. GpuResolutionFor returns the zoom below 1.1 too (within 1 % of
+1: 1; at least 0.1), so SetGpuViewport sets the pres shell's resolution to the zoom at every settled zoom and the
+tiles' pixels land one to one on the frame (the world transform's scale times layout's post-scale of 1/resolution
+= 1). The price: a full repaint of the view at each settled zoom (the critical displayport first, as a zoom in), and
+the fit zoom's glyphs and images resampled by the paint rather than by the GPU (T-504's round 183 measured 3-5 fps
+lost on the scripted pan at the fit zoom when every frame was read back from the GPU; this build reads none of the
+band frames back).
+
+Both off by default until measured (below); the switches documented in tools/device/t502/README.md.
+
+The rounds (stream-pan.sh, 16 drags, the sampler on unless noted; the host's round script rounds-item4.sh)
+---------------------------------------------------------------------------------------------------------
+The first build (its CPU-band rounds under first-build/, not to be compared): the band frames composed on the CPU,
+400 of 400 on the long page, 145 of 180 on Wikipedia with the resolution switch — and the verify round found 22
+wrong frames of 112 on the long page (590-824 rows wrong, in BOTH lanes, none of the wrong runs inside the bands)
+and 13 of 77 on Wikipedia, where the night before had 0 and 3. The cause: a GPU band composite's UpdateAndRender
+computes the layer tree's differences whatever it draws and re-clones the diff's baseline at the frame's state; the
+CPU path prepared the tree (shadow properties, async transforms, visible regions, effective transforms) but took
+no diff, so the baseline stayed at an older frame and the next diff-first frame measured the scroll of several
+frames as its shift (279 rows where a frame's is 20-60), recorded its rows off, and the frames built on it were
+wrong whole. The stream's one event shot of a stall (fs-wiki-cbrz sample 171 of the first build) showed the fault
+as a 60 px strip of the content column one frame behind the rest. Fixed: the prep takes the diff as a composite
+does (LayerManagerComposite::JihadDiffOnly in place of JihadPrepareOnly) and drops it. The first build's A/B rates
+(long-cb 17.2, wiki-cb 10.6, wiki-cbrz 11.0 fps flowing) carried that fault (108 whole-path composites on the long
+page against 62 in the control) and are not the measurement.
+
+The second build (the diff taken in the prep; its rounds under second-build/): the long page's verify 0 wrong of
+131 (express 81, main 50) — the CPU copy is exact there — and long-cb 19.2 fps flowing (the control 18.2; the
+nights before 19.2-19.4), the band frame 4.7 ms on the compositor thread (prep 0.6, draw 1.5; the GPU pass's 22.0
+with its 13.6 ms read), the express frames made in 15 ms median (31 in the control), p90 37 (57). Wikipedia with
+both switches: 127 of 160 band frames on the CPU, 10.7 fps, the express frames 59 ms median (69 and 62 in the
+controls), but the verify found 10 wrong of 83 with the wrong runs INSIDE the bands in 5 of them (69-112 rows):
+the CPU rows differed from the GPU's. The review (below) named the causes: the bands cleared to black where the
+window target clears to white (the unpainted rows of an entering band, a translucent tile over the clear), and the
+tiles' buffers re-used by the content side after an immediate upload (the host's read lock released at the
+transaction, the client painting the next content into the same front buffer while the compositor thread copies).
+
+The review (Codex, codex-cli 0.166.0, the diffs and the engine's sources; findings verified in the code):
+  F1 bug   tile buffers race the content side: TiledContentClient's tiles carry IMMEDIATE_UPLOAD, BufferTextureHost::
+           MaybeUpload uploads at the transaction and ReadUnlocks, TileClient::GetBackBuffer re-uses an unlocked
+           front buffer in place. FIXED: under JIHAD_GPU_CPU_BANDS the lock stays after the upload (the tile is
+           double-buffered on the content side until the host drops it); the CPU path reads only tiles whose lock is
+           held.
+  F2 bug   a container with an intermediate surface (opacity under 1 over a group, a mask) has surface-relative child
+           transforms, scissors and opacities. FIXED: such a container, like one with a blend mode, a 3D context or an
+           isolated group, sends the frame to the GPU when its own bounds meet a band, else its subtree is skipped.
+  F3 bug   the clear colour: the window target clears opaque white (CompositorOGL's BeginFrame), the CPU bands cleared
+           transparent black. FIXED: white.
+  F4 bug   the animations' clock: the CPU prep sampled at Now() while the next JihadDiffNow sampled at the scheduler's
+           last compose time (older), a rewind. FIXED: the scheduler notes the CPU frame as a compose
+           (JihadNoteCompose) and the prep samples at that time, as ForceComposeToTarget does.
+  F5 likely a pinch below 1.1 repaints at each step a frame gets out of (the zoom hold releases on the first frame
+           at the new zoom, not on a settled zoom). NOT FIXED (the daemon's switch; documented in the t502 README).
+  F6 bug   T-527's zoom-back and overview gates compare the destination's resolution with 1: a zoom back to a fit
+           zoom under 0.5 keeps no frame and xUnderHalf waits for the repaint. NOT FIXED (the daemon's switch;
+           documented).
+  F7 bug   the tolerances: a scale within 1e-3 of 1 over 1024 px is a pixel off at the edge. FIXED: 2e-5 (float
+           noise), the translation within 0.01 px of whole pixels, the tiled buffer's resolution exactly 1.
+  F8 likely PaintWillResample read from the host's cached flag; the GPU refreshes it from Layer::MayResample at every
+           composite. FIXED: MayResample.
+  F9 risk  the draw dereferenced every visible tile's host before clipping to the band, the collect having checked
+           only the tiles under the bands. FIXED: the region is cut to the band first; a non-buffer host skipped.
+  F10 risk image and canvas layers off the bands: a composite's traversal keeps their timed frames and notifications
+           going, and the composite-until time renews the request. FIXED: a tree with an image or canvas layer stays
+           on the GPU; the composite-until renewal copied from CompositeToTarget's tail.
+
+The final build (the review's fixes in; engine 88a1b3eaaf, patch 0076; daemon 22b50854), by finger, 16 drags, the
+sampler on (the controls of the morning on the same engine, the switches off):
+  round       page      switches                 fps flowing  band frame on the compositor thread   express made ms
+  long-c      the long  —                        18.2         GPU 22.0 (compose 2.0, read 13.6)     31 / 57 / 149
+  long-cb     the long  CPU_BANDS                19.5         CPU  4.7 (prep 0.5, draw 1.5)         14 / 41 / 202
+  wiki-c      Wikipedia —                         9.6         GPU 31.0 (compose 4.2, read 12.1)     69 / 187 / 756
+  wiki-cb     Wikipedia CPU_BANDS                10.2 (2nd)   GPU 27.8 (22 of 320 on the CPU: past the page)  67 / 182
+  wiki-rz     Wikipedia RES_ZOOM                 10.4         GPU 20.9 (compose 3.3, read 11.1)     62 / 203 / 781
+  wiki-cbrz   Wikipedia CPU_BANDS + RES_ZOOM      9.8         CPU 20.5 (prep 0.8, draw 4.5); 105 of 160  65 / 285 / 1131
+  (express made: median / p90 / max over the round; the compositor's band frame: the logged frames' median)
+  The verify (JIHAD_GPU_VERIFY=1, the lines after the drags mark): the long page 0 wrong of 121 (express 73, main
+  48); Wikipedia with both switches 1 wrong of 66 (express 46, main 20), its wrong runs outside the bands (the
+  known class: the reference's tiles); the night before, on the GPU path, 0 of 131 and 3 of 108.
+  The stream (the long page read with --rows 138-1024 --still 82-138, Wikipedia with 83-1024 / 29-83):
+  long-c 0 stale, 10 uniform, tracking lag max 294 ms, error max 169 px; long-cb 0 stale, 12 uniform, lag max
+  131 ms, error max 52 px. Wikipedia's bottom band (the T-567 symptom, samples / tallest): wiki-c 14 / 82 rows,
+  wiki-rz 21 / 113, wiki-cbrz 35 / 121.
+  Frames looked at: the long page under the finger with CPU bands (two screenshots, the fixed header and the
+  highlighted lines right); Wikipedia at 0.6882 with both switches (two screenshots: the text crisp, the page
+  right); the sampler's event shots of the first build (the strip, above) and of wiki-rz/cbrz: the grey band at
+  the bottom, 330 rows tall in a stall.
+
+What it says
+------------
+1. The CPU bands at a scale of 1 are exact and a gain: on the long page the band frame's compositor time 22.0 ->
+   4.7 ms (the 13.6 ms read gone), the express frames made in 14 ms median against 31, p90 41 against 57, the
+   rate 18.2 -> 19.5 fps flowing (the nights before 19.2-19.4: the ceiling is the card's positions, ~24 a second),
+   the shown scroll's worst lag 294 -> 131 ms and its worst error 169 -> 52 px; the verify 0 wrong.
+2. The layers painted at the zoom's resolution (the owner's choice (b)) lose on desktop Wikipedia: the main
+   thread's layer paints under the drags sum 5.1-5.3 s against 3.2-3.9 s (median 102-114 ms against 77-84, p90
+   508-605 against 227-246, max 1027-1120 against 310-501) — round 183's finding of T-504 (the fit zoom's paint
+   resamples every glyph and image on the CPU) stands, and the recommendation's premise (fewer pixels, cheaper
+   paints) was wrong. The express lane then waits for a slot behind main-lane jobs holding one (the "no slot"
+   ticks 166-232 against 78-105), the grey band at the bottom shows in 21-35 samples against 14, the express
+   frames' p90 198-285 against 177-187, with the CPU bands composing 105-145 of 160-180 band frames in 20 ms
+   (the compositor's share of a Wikipedia band frame 27.8-31.0 -> 20.5, the GPU read gone) — a gain swallowed
+   by the paints. The rate flowing 9.6 / 10.2 / 10.4 / 9.8 (c / cb / rz / cbrz) is noise around 10.
+3. The band frame's remaining cost on the CPU is outside the compositor: the long page's express frame is made
+   in 14 ms of which the compositor's 4.7; Wikipedia's "all" 20.5 ms holds 15 ms of the job's entry and parts
+   prep beside the 5.3 ms of prep and draw.
+4. What would give Wikipedia the long page's gain without the paints' price: the tiles at resolution 1 scaled
+   down on the CPU into the bands (item 4's scale choice (a): a bilinear downscale of ~80k output pixels a frame,
+   NEON), the paints as they are. Not built: the owner's call.
+
+State: both switches OFF by default (the owner's; the engine's switch is a pure gain where it applies, the daemon's
+a loss). The three variants run the final engine and daemon (push-engine-update.sh enyo, then mochi mojo; the .ipks
+not rebuilt). The scratch and the dumps removed from the device by the rounds' own stop script.

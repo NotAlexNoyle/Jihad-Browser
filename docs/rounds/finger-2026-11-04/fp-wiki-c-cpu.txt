@@ -1,0 +1,17 @@
+--- fbstream
+fbstream: 516 samples in 35.01 s (14.7/s, asked 15), read median~6.0 ms max 254.1 ms (mmap, stride 8: 96 rows of 768), 850 flips (frames shown, 24.3/s), 15879 polls (454/s), cpu 2160 ms (6.2% of a core) finger joined from /media/internal/jihad-stream/stream.fin
+drwxrwxrwx    2 root     root         32768 Nov  4 05:31 .
+drwxrwxrwx   26 root     root         32768 Nov  4 05:31 ..
+-rwxrwxrwx    1 root     root       8562064 Nov  4 05:32 stream.fbs
+-rwxrwxrwx    1 root     root         43168 Nov  4 05:32 stream.fin
+/dev/mapper/store-media
+                      13251360   1344800  11906560  10% /media/internal
+--- CPU ticks over the drags (pid, before, after, command)
+24480 3827 7424 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+29919 5632 5635 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+30755 5564 5567 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+23106 21350 21781 /usr/bin/LunaSysMgr -s
+23169 64072 65744 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  33673044 2822519 31465365 138135374 2522869 6053 67281 0 0 0
+cpu  33677796 2824166 31467192 138135781 2523154 6053 67286 0 0 0

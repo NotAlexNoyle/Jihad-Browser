@@ -394,7 +394,8 @@ private:
   // at a publish: the rect for the trailer (false: the whole), and the published frame's geometry kept
   bool pubDirtyTake(int x, int y, int w, int h, double zoom, long contentH, bool popups, bool earlierUnknown, long out[4]);
   void               publishWindow(int key, int windowRows, const long* dirty = nullptr,   // T-527: dirty = l, t, r, b (frame px), else the whole
-                                   const GoannaRenderPage::ComposeResult* stuck = nullptr, int viewRow = 0);   // T-544: the frame's stuck rects, its view row
+                                   const GoannaRenderPage::ComposeResult* stuck = nullptr, int viewRow = 0,   // T-544: the frame's stuck rects, its view row
+                                   int beneathSlot = -1);   // T-568: the slot whose CPU dress (mSlotParts) holds what lay beneath this frame's parts
   void               detachShm();               // shmdt all cached (on thaw/teardown)
   // Double-buffer flow control (F-211): the adapter holds exactly one buffer and returns the
   // previous one (asyncCmdReturnBuffer) each time it receives a new msgPainted. A buffer that has

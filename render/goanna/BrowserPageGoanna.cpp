@@ -712,12 +712,13 @@ bool BrowserPageGoanna::windowsFor(int key) {
 }
 
 void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty,
-                                      const GoannaRenderPage::ComposeResult* stuck, int viewRow) {
+                                      const GoannaRenderPage::ComposeResult* stuck, int viewRow, int beneathSlot) {
   const uint32_t base = mPubSeq++;   // T-527: every publish is numbered, a trailer or not
   if (JihadStuckBlock* sb = shmStuck(key)) {
     // T-544: the frame's fixed and stuck rects for the card (JIHAD_GPU_NO_HOLD=1: none, as before)
     static const bool sNoHold = getenv("JIHAD_GPU_NO_HOLD") != nullptr;
     sb->magic = 0;
+    sb->beneathMagic = 0;
     // T-505 (review): a frame without its parts lists every fixed and sticky layer as a part; the card's hold set is
     // the engine's hold list (fixed and stuck ones), as T-544 meant
     const int nHeld = stuck ? (stuck->holdKnown ? stuck->nHold : stuck->nStuck) : 0;
@@ -728,7 +729,54 @@ void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty
       sb->count = std::min(nHeld, kJihadStuckMax);
       for (int k = 0; k < sb->count; k++)
         for (int c = 0; c < 4; c++) sb->rects[k][c] = held[k][c];
+      // T-568: what lay beneath each held rect, from the slot's CPU dress, into the area before this block
+      // (JIHAD_GPU_NO_BENEATH=1: none, the card fills in one colour as before). Not a rect as tall as the view
+      // (its moved copy's overhang is off the card); the whole of a rect of up to twice the overscan rows (a lead
+      // is at most the overscan: xStart), else that many first and last rows; a rect the area has no room for
+      // gets none. The record is the part that holds the rect (the pass rounds a part's rect out: the long page's
+      // header is the part 0,140..765,198 and the hold rect 0,141..764,197), and the rect's own rows and columns
+      // are taken from it; a rect of the hold list no part holds gets none
+      static const bool sNoBeneath = getenv("JIHAD_GPU_NO_BENEATH") != nullptr;
+      sb->beneathBase = 0; sb->reserved = 0;
+      for (int k = 0; k < kJihadStuckMax; k++) sb->beneathRows[k] = 0;
+      unsigned char* seg = nullptr; size_t segBytes = 0;
+      for (int i = 0; i < 3; ++i)
+        if (mShmBuf[i] && (unsigned char*)sb >= mShmBuf[i] && (unsigned char*)sb < mShmBuf[i] + mShmSize[i]) { seg = mShmBuf[i]; segBytes = mShmSize[i]; }
+      int shipped = 0; size_t at = 0;
+      if (!sNoBeneath && beneathSlot >= 0 && beneathSlot < 3 && seg && segBytes > kJihadReservedBytes + sizeof(BrowserOffscreenInfo)) {
+        const SlotParts& sp = mSlotParts[beneathSlot];
+        unsigned char* const area = seg + segBytes - kJihadReservedBytes;
+        const int viewH = mXSnap.h;   // 0 when the express lane has no geometry yet: every rect's then
+        for (int k = 0; k < sb->count; k++) {
+          const int x0 = sb->rects[k][0], y0 = sb->rects[k][1], x1 = sb->rects[k][2], y1 = sb->rects[k][3];
+          const int rw = x1 - x0, rh = y1 - y0;
+          int j = -1;
+          for (int q = 0; q < sp.n && q < 4; q++)
+            if (sp.r[q][0] <= x0 && sp.r[q][1] <= y0 && sp.r[q][2] >= x1 && sp.r[q][3] >= y1) j = q;
+          if (j < 0 || rw <= 0 || rh <= 0 || (viewH > 0 && rh >= viewH)) continue;
+          int first = rh, last = 0;
+          if (viewRow > 0 && rh > 2 * viewRow) { first = viewRow; last = viewRow; }
+          const int prw = sp.r[j][2] - sp.r[j][0], prh = sp.r[j][3] - sp.r[j][1];   // the part's size
+          const size_t rowBytes = (size_t)rw * 4, bytes = (size_t)(first + last) * rowBytes;
+          if (prw <= 0 || at + bytes > kJihadBeneathBytes || sp.off[j] + (size_t)prh * prw * 4 > sp.beneath.size()) continue;
+          const unsigned char* const part = sp.beneath.data() + sp.off[j] + (size_t)(x0 - sp.r[j][0]) * 4;   // the rect's first column
+          unsigned char* dst = area + at;
+          for (int r = 0; r < first; r++, dst += rowBytes)
+            memcpy(dst, part + (size_t)(y0 - sp.r[j][1] + r) * prw * 4, rowBytes);
+          for (int r = rh - last; r < rh; r++, dst += rowBytes)
+            memcpy(dst, part + (size_t)(y0 - sp.r[j][1] + r) * prw * 4, rowBytes);
+          sb->beneathRows[k] = first | (last << 16);
+          at += bytes; shipped++;
+        }
+        if (shipped > 0) { sb->beneathBase = (int32_t)(area - seg); sb->beneathMagic = kJihadBeneathMagic; }
+      }
       sb->magic = kJihadStuckMagic;
+      {
+        static uint32_t sBN = 0;
+        if (jihadTimelineOn() && (sBN++ % 25) == 0)
+          fprintf(stderr, "[jihad-tl] t=%lld beneath: frame %u, %d of %d rects, %zu KB (slot %d, view %d rows, overscan %d)\n", (long long)jihadNowMs(),
+                  (unsigned)mPubSeq, shipped, (int)sb->count, at / 1024, beneathSlot, mXSnap.h, viewRow);
+      }
       static uint32_t sN = 0;
       if (jihadTimelineOn() && (sN++ % 25) == 0)
         fprintf(stderr, "[jihad-tl] t=%lld stuck: frame %u, view row %d, %d rects, the first %d,%d..%d,%d\n", (long long)jihadNowMs(),
@@ -1451,7 +1499,7 @@ void BrowserPageGoanna::zoomBackKeep(double newZoom) {
   const int w = oi->bufferWidth, h = oi->bufferHeight;
   if (w <= 0 || h <= 0 || w > 8192 || h > 8192 || S.seg[s] <= S.hdr) return;
   const size_t rowBytes = (size_t)w * 4, rows = (S.seg[s] - S.hdr) / rowBytes;
-  const JihadFrameTrailer* t = jihadFrameTrailer(const_cast<unsigned char*>(b), S.seg[s] + kJihadTrailerAreaBytes);
+  const JihadFrameTrailer* t = jihadFrameTrailer(const_cast<unsigned char*>(b), S.seg[s] + kJihadReservedBytes);   // T-568: S.seg stops before the reserved bytes
   const long win = (t && t->magic == kJihadWindowMagic) ? (long)t->windowRows : 0;
   if ((size_t)h > rows || win < 0 || (size_t)win > rows - (size_t)h) return;
   const unsigned char* src = b + S.hdr + (size_t)win * rowBytes;
@@ -5268,7 +5316,7 @@ void BrowserPageGoanna::xSnapshot(int w, int h, int frameH, int os, size_t hdr) 
       const int id = jihadShmResolve(keys[i]);
       struct shmid_ds ds;
       if (id < 0 || shmctl(id, IPC_STAT, &ds) != 0) continue;
-      S.seg[i] = ds.shm_segsz > kJihadTrailerAreaBytes ? ds.shm_segsz - kJihadTrailerAreaBytes : 0;   // T-517/T-544: not the trailer or the stuck block
+      S.seg[i] = ds.shm_segsz > kJihadReservedBytes ? ds.shm_segsz - kJihadReservedBytes : 0;   // T-517/T-544/T-568: not the trailer, the stuck block or the beneath area
       S.base[i] = attachShm(keys[i]);
     }
   }
@@ -5931,7 +5979,7 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     for (const GpuJob& gj : mGpuJobs) if ((int32_t)(gj.token - mXJob.token) < 0) earlier = true;
     long dirty[4];
     const bool partial = pubDirtyTake(mXJob.x, frameY, w, H, mXJob.zoom, mXSnap.contentH, false, earlier, dirty);
-    publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr, &cr, mXJob.os);
+    publishWindow(mXJob.key, mXJob.win, partial ? dirty : nullptr, &cr, mXJob.os, mXJob.contentOnly ? s : -1);   // T-568: its dress's beneath
   }
   if (mXJob.kind) {
     // T-517: the frame's time, into its kind's running average
@@ -6144,7 +6192,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   if (id < 0) { perror("[BrowserPageGoanna] shm resolve"); return; }
   struct shmid_ds ds; size_t segSize = (size_t)mBufSize;
   if (shmctl(id, IPC_STAT, &ds) == 0 && ds.shm_segsz > 0) segSize = ds.shm_segsz;
-  if (segSize > kJihadTrailerAreaBytes + sizeof(BrowserOffscreenInfo)) segSize -= kJihadTrailerAreaBytes;   // T-517/T-544: the trailer's and the stuck block's
+  if (segSize > kJihadReservedBytes + sizeof(BrowserOffscreenInfo)) segSize -= kJihadReservedBytes;   // T-517/T-544/T-568: the trailer's, the stuck block's and the beneath area's
   unsigned char* buf = attachShm(mActiveKey);   // cached attach — no per-paint shmat/shmdt (~400ms)
   if (!buf) { if (!mGpuJobs.empty()) mGpuTrace[4]++; return; }
 
@@ -7429,7 +7477,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
       if (!gpuFinished) { pubDirtyAll(); mPubZoom = -1.0; }
       // T-544: a GPU frame of the view's width and no popup over it says what is stuck in it
       const bool stuckOk = gpuFinished && paintedW == w && popupsDrawn == 0;
-      publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr, stuckOk ? &mGpuJobCr : nullptr, mGpuJobViewRow);
+      publishWindow(mActiveKey, pubWin, partial ? dirty : nullptr, stuckOk ? &mGpuJobCr : nullptr, mGpuJobViewRow,
+                    gpuPartsCpu ? slotForKey(mActiveKey) : -1);   // T-568: its dress's beneath
     }
     { const int ps = slotForKey(mActiveKey); if (ps >= 0) mSlotParts[ps].kind = gpuFinished ? (gpuPartsCpu ? 1 : 0) : -1; }   // T-505: whose parts
     if (!(gpuFinished && jihadNoPublish())) { mSink.msgPainted(mActiveKey); noteShown(mActiveKey); }

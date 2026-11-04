@@ -200,3 +200,37 @@ T-568's quick tests (the long page, 16 drags, the stream reading rows 139-1024 w
   pixels for what lies beneath a held rect, and the lead decides how often that shows. The owner chooses among the
   fixes listed above; (c) at ~20 ms is a one-line retune the stream can keep honest (the frame's age at the flip is
   its number), (a) removes the rest.
+
+THE FIX OF T-568 (the owner's "proceed" of 2026-11-03 late night to the recommendation: the exact fill, not the 20 ms stopgap)
+  What: the daemon ships what lay beneath each held rect and the card draws those rows where its one-colour fill went.
+  The express frames are composed without their parts and dressed on the CPU (T-505), so the daemon's record of the
+  dress (SlotParts.beneath) holds the content under each part. publishWindow writes it into a 512 KB area before the
+  stuck block (kJihadBeneathBytes, JihadFrameWindow.h; the segment is 4 screens = 12.6 MB, so the frame window's
+  travel on the long page goes from 2544 to 2374 rows); the stuck block's three spare words say so (beneathMagic
+  "JBNT", beneathBase, beneathRows[k] = the first and last rows kept of rect k: the whole of a rect of up to twice
+  the overscan, else the overscan's count at each end, nothing for a rect as tall as the view). The card's hold
+  (jihadHoldStuck) blits the rows the moved copy overhangs from that area (stuckBeneath) and fills only when they are
+  not there. JIHAD_GPU_NO_BENEATH=1 ships none (the control below). Both sides stay compatible with the other's old
+  build (an old card never reads the words; an old daemon's pixels never match the magic).
+  THE TRAP of the first build (long-b): the hold list's rect and the parts pass's rect differ by a pixel of rounding
+  (the header is held as 0,141..764,197 and read as the part 0,140..765,198), so an equality match shipped nothing
+  ("beneath: frame N, 0 of 1 rects"); the daemon now takes the part that CONTAINS the hold rect and the rect's own
+  rows and columns from it.
+  The rounds (16 drags each, the stream reading rows 139-1024 with 29-139 still; the fps by flow-fps.py):
+  round     build                              stale   uniform   bands under the header (samples)   tracking error     lag    fps
+  long-p    shipped                            75      186       245 (156), 14 rows median, 42 max   -32 median, 84 max  75 ms  19.0
+  long-b    the fix, rects matched by equality 49      153       159 (101), 14 / 41                  -32, 104            78     17.3
+  long-b2   the fix, the part that holds it     0        0         0 (0)                              -32, 91             73     18.3
+  long-nb   long-b2's build, NO_BENEATH=1      62      132       (the band back)                     -32, 104            74     17.5
+  wiki-b2   the fix                             0       35       0 under a header (none); 27 at the bottom in 11 samples = T-567   -32, 65   78   10.0
+  (wiki-p 10.4, wiki-b 10.1: the rate's round-to-round spread is about 1 fps either way, the beneath's copy inside it)
+  The adapter's log on long-b2 (the gate, a fresh web app manager): every [hold] line "beneath drawn for 1", the
+  frames that lead the card by 2..38 rows included; the hold's time per repaint 0.59 -> 1.17 ms avg (max 15.4; the
+  blit 4.4-5.0 ms), 0.01 ms on a new frame's first paint (no shift). The daemon's timeline: "beneath: frame N, 1 of 1
+  rects, 167 KB" on the long page, "2 of 2 rects, 312 KB" / "1 of 3 rects, 152 KB" on Wikipedia (a sidebar as tall as
+  the view gets none).
+  So T-568 is done by its own criterion (0 stale and 0 uniform under the header over 16 drags) and long-b2 is the
+  known-good round the finger-testing kit's R2 waited for (0 stale, 0 uniform, the header still). The prediction stays
+  at 80 ms. T-567 is unchanged by it (wiki-b2's 27 bottom bands sit in the first drags as diagnosed).
+  The USB alert: a killall LunaSysMgr with the cable in re-shows the system's "Connected / USB Drive" alert in the
+  upper right; `/tmp/finger tap 583 232` (Close) dismisses it (the owner's ask of the night; a screenshot checked it).

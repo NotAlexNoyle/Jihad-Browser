@@ -52,7 +52,50 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-03 (night) — Tier 92 begun: the frame sampler and the stream tool (T-561, T-562 DONE); the stream's two catches (T-567, T-568) (READ FIRST)
+## 2026-11-03 (late night) — T-568 FIXED (the beneath area), the finger kit's R2 met; T-567 the owner's choice; every push to Gitea; the USB alert (READ FIRST)
+
+**State:** main at this commit, on `70d3af44` (the diagnoses); the engine fork unchanged (`3b2c3fdf`, its `fork` remote now
+Gitea). **The owner's push is owed since `e3e3a68c`** (`bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first):
+`fdc7e73d`, `76b4de8d`, `25eee48f`, `70d3af44`, this commit, and the fork's `3b2c3fdf`. **Every push goes to Gitea from now
+on** (the owner, 2026-11-03: "everything should be pushed to gitea and not github from now on, github will automatically
+mirror gitea on its own"): `origin` and the fork's `fork` remote are `git.trueog.net`, `.gitmodules` points the engine
+submodule there, nothing is ever pushed to GitHub. The owner's "proceed" (late night) took the recommendation for T-568:
+the exact fix instead of the 20 ms stopgap; T-567's fix is still theirs to choose (the options and the numbers in its
+build-site row; the agent recommends (a) as a device-px minimum slack below the view, measured, (b) the fallback).
+
+**T-568 fixed (the band under a held rect):** the card's hold (T-544) filled the rows a held rect's moved copy covers
+outside its place in one colour because the frame has no pixels for what lies under the rect; now the daemon ships them.
+The express frames are composed without their parts and dressed on the CPU (T-505), so the dress's record
+(`SlotParts.beneath`) holds the content under each part; `publishWindow` writes it into a 512 KB area before the stuck
+block (`JihadFrameWindow.h`: `kJihadBeneathBytes`, `kJihadReservedBytes`; the block's spare words `beneathMagic`
+"JBNT", `beneathBase`, `beneathRows[k]` = the first and last rows kept of rect k — the whole of a rect of up to twice
+the overscan, else the overscan's count at each end, nothing for a rect as tall as the view), and the card's hold
+(`jihadHoldStuck`, `BrowserOffscreen::stuckBeneath`) blits those rows where the fill went, filling only when they are
+not there. `JIHAD_GPU_NO_BENEATH=1` ships none. Old and new builds of either side stay compatible. THE TRAP: the hold
+list's rect and the parts pass's rect differ by a pixel of rounding (the long page's header is held as
+0,141..764,197 and read as the part 0,140..765,198), so the match is the part that CONTAINS the hold rect, not
+equality — the first build shipped nothing and the stream said so. Verified by the stream (`docs/rounds/finger-2026-11-03/notes.txt`,
+"THE FIX OF T-568"): the long page over 16 drags reads 0 stale, 0 uniform, the header still (long-b2; the shipped
+build 245 bands in 156 samples; the same build with the switch off 132 bands again), the adapter's log "beneath drawn
+for 1" on every hold including the frames that lead the card by 2..38 rows, the hold 0.59 -> 1.17 ms a repaint, the
+daemon's rate inside the rounds' 1 fps spread. The prediction stays at 80 ms. The finger kit's R2 is met by it (the
+known-good round). Wikipedia is unchanged: T-567's bottom bands (27 in 11 of 518 samples, the first drags).
+
+**Device state:** the Enyo variant runs the new daemon (`push-engine-update.sh --daemon-only enyo`, md5 `b526dbc8`) and
+the new PDK adapter (`adapter-install.sh`, md5 `4e6f50f3`); Mochi and Mojo run the old ones (compatible; the bundle and
+the .ipks for all three are the next full build). The three jobs on their upstart daemons, no hand daemon, no gate
+file, the adapter log removed, the test card closed, `/tmp` 38 %, `/var` 31 %, `/tmp/finger` and `/tmp/fbstream`
+present, the host serving the long page on `:8077`.
+
+**Traps of the night:** a `killall LunaSysMgr` with the USB cable in re-shows the system's "Connected / USB Drive" alert
+in the upper right; `/tmp/finger tap 583 232` taps its Close after the 45 s (the owner's ask; the restart helpers do
+it). `finger-stream.py --json` takes a FILE argument. The shell's cwd resets between commands: absolute paths.
+
+**Next:** T-567 on the owner's number; then T-563 (the check library and geometry), T-564, T-565, T-566; the full
+device build (daemon + three adapters + .ipks) when the GPU fixes settle; Tier 91's kits after; T-505 item 4 with the
+owner's scale choice.
+
+## 2026-11-03 (night) — Tier 92 begun: the frame sampler and the stream tool (T-561, T-562 DONE); the stream's two catches (T-567, T-568)
 
 **State:** main at this commit (on `fdc7e73d`, the census); the engine fork unchanged (`3b2c3fdf`). **The owner's push is owed
 since `e3e3a68c`** (`bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first). The owner's order (2026-11-03

@@ -133,6 +133,33 @@ int BrowserOffscreen::stuckRects(int* viewX, int* viewY, int (*rects)[4], int ma
     return n;
 }
 
+const unsigned char* BrowserOffscreen::stuckBeneath(int k, int* first, int* last) const
+{
+    *first = 0; *last = 0;
+    unsigned char* seg = (unsigned char*)m_ipcBuffer->buffer();
+    const size_t segBytes = m_ipcBuffer->size();
+    const JihadFrameTrailer* t = jihadFrameTrailer(seg, segBytes);
+    const JihadStuckBlock* b = jihadStuckBlock(seg, segBytes);
+    if (!t || !b || t->magic != kJihadWindowMagic || b->magic != kJihadStuckMagic || b->seq != t->dirtySeq ||
+        b->beneathMagic != kJihadBeneathMagic || k < 0 || k >= b->count || k >= kJihadStuckMax)
+        return 0;
+    if (b->beneathBase <= 0 || (size_t)b->beneathBase < sizeof(BrowserOffscreenInfo) || (size_t)b->beneathBase >= segBytes)
+        return 0;
+    const size_t base = (size_t)b->beneathBase;
+    size_t at = 0;
+    for (int q = 0; q <= k; ++q) {
+        const int rw = b->rects[q][2] - b->rects[q][0];
+        const int f = b->beneathRows[q] & 0xffff, l = (b->beneathRows[q] >> 16) & 0xffff;
+        const size_t bytes = rw > 0 ? (size_t)(f + l) * (size_t)rw * 4 : 0;
+        if (q < k) { at += bytes; continue; }
+        if (bytes == 0 || segBytes < kJihadTrailerAreaBytes || base + at + bytes > segBytes - kJihadTrailerAreaBytes)
+            return 0;
+        *first = f; *last = l;
+        return seg + base + at;
+    }
+    return 0;
+}
+
 BrowserOffscreen* BrowserOffscreen::attach(int key, int size)
 {
     IpcBuffer* buffer = IpcBuffer::attach(key, size);

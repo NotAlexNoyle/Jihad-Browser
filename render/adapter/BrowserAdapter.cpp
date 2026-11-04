@@ -1216,11 +1216,45 @@ static void jihadHoldStuck(PGContext* gc, PGSurface* surf, BrowserOffscreen* off
     if (c.b > winH) c.b = winH;
     const unsigned char* raster = off->rasterBuffer();
     // the moved copies' pixels outside the rects' own places
+    int beneathDrawn = 0;
     for (int k = 0; k < n; ++k) {
         const int hl = r[k][0] - vx, ht = r[k][1] - vy, hr = r[k][2] - vx, hb = r[k][3] - vy;
         const int ml = hl + dX, mt = ht + dY, mr = hr + dX, mb = hb + dY;
         if (mr <= ml || mb <= mt)
             continue;
+        // T-568: the rows the moved copy covers above or below the rect's place (dX is 0 whenever the hold runs: the
+        // frame is the view's width) are the content under the rect in the frame; the daemon ships what lay beneath
+        // its parts, and those rows are drawn from it. Else the one-colour fill below.
+        if (dX == 0 && dY != 0) {
+            int first = 0, last = 0;
+            const unsigned char* bpx = off->stuckBeneath(k, &first, &last);
+            const int rw = r[k][2] - r[k][0], rh = r[k][3] - r[k][1];
+            if (bpx && rw > 0 && rh > 0) {
+                // the rect's rows the overhang shows: rh - dY .. rh below its place (dY > 0), 0 .. -dY above (dY < 0)
+                const int a = dY > 0 ? (dY < rh ? rh - dY : 0) : 0;
+                const int b = dY > 0 ? rh : (-dY < rh ? -dY : rh);
+                // the block that holds them: the first rows (its row 0 is rect row 0) or the last (rect row rh - last)
+                const unsigned char* blk = 0; int blkRows = 0, blkRow0 = 0;
+                if (b <= first) { blk = bpx; blkRows = first; blkRow0 = 0; }
+                else if (a >= rh - last) { blk = bpx + (size_t)first * rw * 4; blkRows = last; blkRow0 = rh - last; }
+                if (blk && b > a) {
+                    if (PGSurface* bs = PGSurface::wrap((uint32_t)rw, (uint32_t)blkRows, blk, !jihadOpaqueOn())) {
+                        // rect row i of the moved copy is window row mt + i
+                        int l = ml, t = mt + a, rr = mr, bb = mt + b;
+                        int sl = 0, st = a - blkRow0, sr = rw, sb = b - blkRow0;
+                        if (l < c.l) { sl += c.l - l; l = c.l; }
+                        if (t < c.t) { st += c.t - t; t = c.t; }
+                        if (rr > c.r) { sr -= rr - c.r; rr = c.r; }
+                        if (bb > c.b) { sb -= bb - c.b; bb = c.b; }
+                        if (rr > l && bb > t && sr > sl && sb > st)
+                            gc->bitblt(bs, sl, st, sr, sb, l + c.toX, t + c.toY, rr + c.toX, bb + c.toY);
+                        bs->releaseRef();
+                        beneathDrawn++;
+                        continue;
+                    }
+                }
+            }
+        }
         const int mx = (r[k][0] + r[k][2]) / 2, my = (r[k][1] + r[k][3]) / 2;   // frame px
         jihadHoldFill(gc, c, raster, gi, ml, mt, mr, ht < mb ? (ht > mt ? ht : mt) : mb, mx, r[k][1] - 1);  // above the rect's place
         jihadHoldFill(gc, c, raster, gi, ml, hb > mt ? (hb < mb ? hb : mb) : mt, mr, mb, mx, r[k][3]);      // below it
@@ -1246,10 +1280,11 @@ static void jihadHoldStuck(PGContext* gc, PGSurface* surf, BrowserOffscreen* off
             gc->bitblt(surf, sl, st, sr, sb, l + c.toX, t + c.toY, rr + c.toX, b + c.toY);
     }
     if (FILE* lf = jihadPaintLog()) {
-        static int sN = 0;
-        if (sN++ < 60)
-            fprintf(lf, "[hold] %d rects, moved %d,%d, view %d,%d, the first %d,%d..%d,%d\n",
-                    n, dX, dY, vx, vy, r[0][0], r[0][1], r[0][2], r[0][3]);
+        // T-568: the frames that lead the card (dY > 0: the band's case) get most of the lines
+        static int sN = 0, sLeadN = 0;
+        if (dY > 0 ? sLeadN++ < 40 : sN++ < 20)
+            fprintf(lf, "[hold] %d rects, moved %d,%d, view %d,%d, the first %d,%d..%d,%d, beneath drawn for %d\n",
+                    n, dX, dY, vx, vy, r[0][0], r[0][1], r[0][2], r[0][3], beneathDrawn);
     }
 }
 

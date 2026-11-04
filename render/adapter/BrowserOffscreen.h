@@ -72,6 +72,10 @@ public:
     // T-544: the frame's fixed and stuck rects (frame px: left, top, right, bottom) and the card's view's
     // top-left in it when it was composed, when the daemon wrote them for this frame; 0: none
     int stuckRects(int* viewX, int* viewY, int (*rects)[4], int max) const;
+    // T-568: what lay beneath stuck rect k (of stuckRects' list) in the frame, when the daemon wrote it for this
+    // frame (JihadFrameWindow.h): the rect's first *first rows then its last *last rows, each row the rect's
+    // width x 4 bytes; 0: none
+    const unsigned char* stuckBeneath(int k, int* first, int* last) const;
 
 private:
 

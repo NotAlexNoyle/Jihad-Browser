@@ -51,19 +51,37 @@ static const uint32_t kJihadDirtyMagic   = 0x5452444aU;   // "JDRT"
 //   seq          the frame they are of (the trailer's dirtySeq)
 //   viewX/viewY  the card's view's top-left in the frame when it was composed (frame px)
 //   count        rects (<= kJihadStuckMax): left, top, right, bottom (frame px, right and bottom exclusive)
+// T-568 (2026-11-03), what lay beneath the held rects. The rows a held rect's moved copy covers outside its place
+// belong to the content UNDER the rect in the frame, which the frame does not have, so the card filled them in one
+// colour: a band one shift tall under the long page's fixed header on a third of a drag's samples whenever the
+// express frame led the card (T-527's prediction). A frame dressed on the CPU (T-505: composed without its parts,
+// the parts drawn over on the daemon's thread) knows what lay beneath each part, so the daemon writes it into the
+// kJihadBeneathBytes before the stuck block — rect by rect in rect order from beneathBase (bytes from the
+// segment's start): the first (beneathRows[k] & 0xffff) rows and the last (beneathRows[k] >> 16) rows of rect k,
+// each row the rect's width x 4 bytes (the whole rect when the first count is its height) — and the card draws
+// those rows where its fill went. A card from before never reads them (its reserved words); a daemon from before
+// leaves beneathMagic as it found it and its frames may use the area as pixel rows, which the magic does not match.
 static const int kJihadStuckMax = 8;
 struct JihadStuckBlock {
     uint32_t magic;
     uint32_t seq;
     int32_t  viewX, viewY;
     int32_t  count;
-    int32_t  reserved[3];
+    uint32_t beneathMagic;                  // T-568: kJihadBeneathMagic when beneathBase and beneathRows are this frame's
+    int32_t  beneathBase;                   // T-568: the beneath pixels' offset from the segment's start
+    int32_t  reserved;
     int32_t  rects[kJihadStuckMax][4];
+    int32_t  beneathRows[kJihadStuckMax];   // T-568: per rect, the first rows kept (low 16 bits) and the last (high 16); 0: none
 };
 
 static const size_t   kJihadStuckBytes       = 192;
 static const size_t   kJihadTrailerAreaBytes = kJihadTrailerBytes + kJihadStuckBytes;   // the trailer and the stuck block
 static const uint32_t kJihadStuckMagic       = 0x4b54534aU;   // "JSTK"
+// T-568: the beneath area before the stuck block; a daemon from now keeps its frames' rows out of it as well
+static const size_t   kJihadBeneathBytes     = 512 * 1024;
+static const size_t   kJihadReservedBytes    = kJihadTrailerAreaBytes + kJihadBeneathBytes;   // all that is not pixel rows
+static const uint32_t kJihadBeneathMagic     = 0x544e424aU;   // "JBNT"
+typedef char jihad_stuck_block_is_its_bytes[sizeof(JihadStuckBlock) == kJihadStuckBytes ? 1 : -1];
 
 // the trailer of a segment of aSegmentBytes bytes mapped at aSegment (0 when it is too small)
 inline JihadFrameTrailer* jihadFrameTrailer(unsigned char* aSegment, size_t aSegmentBytes)

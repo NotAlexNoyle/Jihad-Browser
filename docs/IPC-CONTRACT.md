@@ -73,7 +73,13 @@ What a regeneration owes the contract: `context/kits/cavekit-ipc-contract.md` R1
   the frame for a pan, so sticky sidebars and fixed bars stay put between frames. A
   daemon from now keeps frame rows out of those bytes; the adapter takes the block only
   when its number is the trailer's, so an older daemon's pixels there are never read as
-  rects.
+  rects. The 512 KB before the block are the beneath area (T-568, 2026-11-03): what lay
+  beneath each held rect in the frame, as the daemon's CPU dress recorded it (T-505),
+  rect by rect — the block's spare words say which rows of each rect are there
+  (`beneathMagic`, `beneathBase`, `beneathRows`) — so the card draws real content where
+  a held rect's moved copy overhangs its place instead of a one-colour fill. A daemon
+  from now keeps frame rows out of the area too (`kJihadReservedBytes`); an adapter from
+  before never reads the words, an older daemon leaves the magic unset.
 
 
 ## Sync command (adapter → server, blocks for reply)

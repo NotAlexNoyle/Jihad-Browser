@@ -105,6 +105,9 @@ header a frame behind (T-568).
    reached the window server (`editorFocused`, `IME:`, "Deadzone Tapped" for a touch in a dead zone,
    libhal's "Unexpected code" for a malformed datagram).
 4. Delete the shots once judged (memory `clear-screenshots-when-done`); keep only what a kit note cites.
+5. A `killall LunaSysMgr` with the USB cable in re-shows the system's "Connected — Tap USB Drive…" alert in the
+   upper right (fb0, so the sampler never sees it; a finger aimed there hits it, and the owner sees it). After the
+   restart's 45 s, `/tmp/finger tap 583 232` taps its Close (harmless on an empty card view); the owner asked.
 
 What it cannot do: the accelerometer (rotation), the volume keys, hearing audio, a physical keyboard. Those
 stay a person's in `docs/FINGER-TESTS.md`.

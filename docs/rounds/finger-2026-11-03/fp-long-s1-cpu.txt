@@ -1,0 +1,13 @@
+--- fbstream
+fbstream: 523 samples in 35.01 s (14.9/s, asked 15), read median~4.8 ms max 114.5 ms (mmap, stride 8: 96 rows of 768), 885 flips (frames shown, 25.3/s), 17731 polls (507/s), cpu 2160 ms (6.2% of a core) finger joined from /tmp/stream.fin
+-rw-r--r--    1 root     root       4394260 Nov  3 15:50 /tmp/stream.fbs
+-rw-r--r--    1 root     root         43168 Nov  3 15:50 /tmp/stream.fin
+--- CPU ticks over the drags (pid, before, after, command)
+25849 1013 2266 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+4999 24008 24030 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 24190 24208 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+12425 10050 10439 /usr/bin/LunaSysMgr -s
+12496 12880 14287 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32203509 2717678 30096015 131265476 2415931 5661 64493 0 0 0
+cpu  32205234 2719101 30097473 131268674 2416671 5661 64494 0 0 0

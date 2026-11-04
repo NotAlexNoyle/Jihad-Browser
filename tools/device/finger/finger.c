@@ -27,6 +27,9 @@
  *     (10, 737) opened the app menu at portrait (30, 10); a drag in that frame panned a page).
  *     FINGER_FRAME=raw sends the coordinates as given; SCAN_HZ (env, default 100) sets the move rate;
  *     FINGER_SOCKET (env) another socket path.
+ *     FINGER_TRACE=<file> (T-561) appends every scan sent as a line "<ms> <finger id> <x> <y> <phase>" (the
+ *     portrait coordinates, gettimeofday milliseconds — the daemon's timeline and fbstream's clock; phase 1
+ *     down, 0 moving, -1 up) after a "# <command line>" line: the finger's path beside the frames it caused.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +60,8 @@ static int g_fd = -1;
 static struct sockaddr_un g_addr;
 static int g_hz = 100;
 static int g_raw = 0;   /* FINGER_FRAME=raw: no portrait-to-panel conversion */
+static FILE* g_trace = NULL;   /* FINGER_TRACE: the scans sent, in the portrait frame */
+static long long now_ms(void) { struct timeval tv; gettimeofday(&tv, NULL); return (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000; }
 
 static void die(const char* m) { fprintf(stderr, "finger: %s: %s\n", m, strerror(errno)); exit(1); }
 static void sleep_ms(int ms) { struct timespec ts = { ms / 1000, (ms % 1000) * 1000000L }; nanosleep(&ts, NULL); }
@@ -75,6 +80,7 @@ static void send_scan(struct input_event* evs, int n) {
 typedef struct { int id; int x; int y; int phase; int xvel; int yvel; } Finger;
 static void finger_events(struct input_event* evs, int* n, const Finger* f) {
   int rx = g_raw ? f->x : f->y, ry = g_raw ? f->y : 767 - f->x;   /* the panel's frame */
+  if (g_trace) fprintf(g_trace, "%lld %d %d %d %d\n", now_ms(), f->id, f->x, f->y, f->phase);
   ev(evs, n, EV_FINGERID, (uint16_t)f->id, 0);       /* id = 0*1000 + code */
   ev(evs, n, EV_ABS, ABS_X, rx);
   ev(evs, n, EV_ABS, ABS_Y, ry);
@@ -115,6 +121,8 @@ int main(int argc, char** argv) {
   const char* path = getenv("FINGER_SOCKET"); if (path) SOCK = path;
   const char* hz = getenv("SCAN_HZ"); if (hz) g_hz = atoi(hz) > 0 ? atoi(hz) : 100;
   const char* fr = getenv("FINGER_FRAME"); if (fr && !strcmp(fr, "raw")) g_raw = 1;
+  const char* tr = getenv("FINGER_TRACE");
+  if (tr && (g_trace = fopen(tr, "a")) != NULL) { fprintf(g_trace, "#"); for (int i = 1; i < argc; i++) fprintf(g_trace, " %s", argv[i]); fprintf(g_trace, " at %lld\n", now_ms()); }
   g_fd = socket(AF_UNIX, SOCK_DGRAM, 0); if (g_fd < 0) die("socket");
   memset(&g_addr, 0, sizeof g_addr); g_addr.sun_family = AF_UNIX; strncpy(g_addr.sun_path, SOCK, sizeof g_addr.sun_path - 1);
   const char* cmd = argv[1];
@@ -160,6 +168,7 @@ int main(int argc, char** argv) {
     for (int i = 2; i + 2 < argc && n < 60; i += 3) ev(evs, &n, (uint16_t)strtol(argv[i], 0, 0), (uint16_t)strtol(argv[i + 1], 0, 0), (int32_t)strtol(argv[i + 2], 0, 0));
     send_scan(evs, n);
   } else { fprintf(stderr, "finger: unknown command %s\n", cmd); return 2; }
+  if (g_trace) fclose(g_trace);
   close(g_fd);
   return 0;
 }

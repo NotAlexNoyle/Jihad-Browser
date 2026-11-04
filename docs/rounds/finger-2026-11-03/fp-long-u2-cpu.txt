@@ -1,0 +1,23 @@
+--- fbstream
+fbstream: sample 24: a one-colour run of 12+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0024.raw (copied again after a flip)
+fbstream: sample 25: a one-colour run of 12+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0025.raw (TORN: the card flipped during each of three copies)
+fbstream: sample 27: a one-colour run of 12+ rows where the last sample had content: /media/internal/jihad-stream/stream.fbs.event0027.raw (TORN: the card flipped during each of three copies)
+fbstream: 505 samples in 35.00 s (14.4/s, asked 15), read median~6.4 ms max 85.8 ms (mmap, stride 8: 96 rows of 768), 820 flips (frames shown, 23.4/s), 15738 polls (450/s), cpu 2670 ms (7.6% of a core) finger joined from /media/internal/jihad-stream/stream.fin
+drwxrwxrwx    2 root     root         32768 Nov  3 16:12 .
+drwxrwxrwx   26 root     root         32768 Nov  3 16:12 ..
+-rwxrwxrwx    1 root     root       8379304 Nov  3 16:13 stream.fbs
+-rwxrwxrwx    1 root     root       3145728 Nov  3 16:12 stream.fbs.event0024.raw
+-rwxrwxrwx    1 root     root       3145728 Nov  3 16:12 stream.fbs.event0025.raw
+-rwxrwxrwx    1 root     root       3145728 Nov  3 16:12 stream.fbs.event0027.raw
+-rwxrwxrwx    1 root     root         43168 Nov  3 16:13 stream.fin
+/dev/mapper/store-media
+                      13251360   1354464  11896896  10% /media/internal
+--- CPU ticks over the drags (pid, before, after, command)
+1653 1116 2393 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.river
+4999 24856 24872 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 25044 25063 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+12425 16187 16590 /usr/bin/LunaSysMgr -s
+12496 40121 41579 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32279325 2741261 30148369 131370877 2434654 5663 64587 0 0 0
+cpu  32281759 2742768 30150055 131373292 2435238 5663 64590 0 0 0

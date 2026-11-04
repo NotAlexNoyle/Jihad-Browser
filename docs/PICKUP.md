@@ -52,6 +52,65 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-11-03 (night) — Tier 92 begun: the frame sampler and the stream tool (T-561, T-562 DONE); the stream's two catches (T-567, T-568) (READ FIRST)
+
+**State:** main at this commit (on `fdc7e73d`, the census); the engine fork unchanged (`3b2c3fdf`). **The owner's push is owed
+since `e3e3a68c`** (`bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first). The owner's order (2026-11-03
+evening, "2"): Tier 92 before T-505 item 4; item 4's scale choice (a CPU downscale of the tiles, or layers painted at
+the zoom's resolution below 1.1 once a pinch settles) is still theirs when item 4 starts.
+
+**Built (cavekit-finger-testing.md R2):**
+- `tools/device/finger/fbstream.c` — the sampler. `/dev/fb1` is the card's content in the panel's landscape frame
+  (1024 × 768 × 32, three pages, the shown one by the pan offset, a flip per frame presented); a PORTRAIT ROW IS A
+  FRAMEBUFFER COLUMN (portrait y = fb x, as the finger's frame). It reads every 8th fb row of the shown page and folds
+  each pixel into its column's signatures: an exact hash, a profile (the sum of r+g+b), the first pixel, one-colour;
+  2-5 ms a read, 15 samples/s, 6-7 % of a core, the daemon's rate 1 % apart with it. Between samples it polls the pan
+  offset and records every flip (the frame shown, to the ms). `-c X0-X1` the content columns (a fixed sidebar or the
+  card's scroll indicator at column 767 would make blank rows look stuck: the long page `-c 0-756`, Wikipedia
+  `-c 170-600`; the columns outside get `sig2`); `-U ROWS` shoots the whole page when a one-colour run appears where
+  content was (re-read after a flip, since 19:06: the first shots were torn down the middle — the copy walks fb rows,
+  i.e. portrait columns); `-f` joins the finger's trace (`FINGER_TRACE` in finger.c, the same gettimeofday clock as the
+  daemon's `[jihad-tl]`). GLIBC_2.4 symbols only: no clock_gettime, no sscanf (the device's libc is 2.8).
+- `tools/host/finger-stream.py` — the stream tool (`--trace`, `--daemon`, `--rows lo-hi` the content rows, `--still`
+  the chrome and the fixed header, `--dump`). The shift per sample by the exact signatures' vote, else by the profiles'
+  correlation (a frame composed afresh at the fit zoom has every pixel a little different: only copied rows match
+  exactly; the tolerance 200 measured); the flips' spacing; the tracking error per gesture; backwards scrolls; stale
+  bands (what was there before, not what belongs); uniform bands (one colour where content belongs, or where the
+  next sample shows the content that came late); the still rows; the publish-to-flip delay from the daemon's log
+  (empty-diff publishes left out). `tools/host/test-finger-stream.py` plants three faults in a clean stream: PASS ×3
+  on both pages. `tools/device/finger/stream-pan.sh` runs a finger-pan round with the sampler (the stream under
+  `/media/internal/jihad-stream`, pulled to `$ROUND_DIR/fs-<name>.*`).
+- The verify agreement: the long page 131 / 112 verified, 0 wrong, 0 stale; Wikipedia's 3-8 "wrong" are the verify's
+  tile-arrival class. `docs/rounds/finger-2026-11-03/notes.txt` has every number.
+
+**The catches (the stream's first readings of the shipped build, judged by eye on the shots):** T-567 — under a drag
+on desktop Wikipedia a solid grey band (`d8d8d8`, 48-186 rows) across the bottom of the screen for a frame or a few,
+where the article continues (`wiki-v-sample25-grey-band-at-the-bottom.jpg`); the long page shows its background the
+same way. T-568 — on the long page a band one shift tall (19-26 rows) directly under the fixed header shows the
+previous frame's rows unshifted (75 of 524 samples; the header still, the rows below shifted right). Both are the GPU
+domain's (cavekit-gpu-rendering.md R3/R12); neither is diagnosed. The finger-testing kit's "0 stale, 0 uniform on a
+known-good round" stays open until a round is.
+
+**Next (Tier 92 in order): T-563** the check library and the geometry (the oracle checks over the inject channel and
+the daemon log, the page-top calibration tap per shell, `rect`-derived positions, the chrome table per shell; the
+existing walks moved onto it), then T-564 the runner, T-565 the suite. The owner's call, by multiple choice, on
+whether T-567/T-568 are taken before T-563 (they are what the owner's rounds would see).
+
+**Traps from this session (not in the source):** `/tmp` on the device is a 40 MB tmpfs: `JIHAD_GPU_VERIFY_DUMP_WRONG=1`
+dumps 3.7 MB a wrong frame and filled it (the first verify round's stream came back short — the sampler now fails loud
+on a short write; the round scripts write under `/media/internal`). A whole-page copy takes ~30 ms and the card flips
+every ~28 ms under a finger: any page read must check the pan offset after and read again. Wikipedia's fixed sidebars
+and the card's scroll indicator stand in COLUMNS: row signatures over all columns see them as rows that never move.
+The verify mode halves the rate (4.4-5.4 fps: the reference doubles the work) — its rounds are not rate rounds.
+The daemon's main lane publishes empty-diff frames after a drag settles ("changed since N: x 0..0 rows 0..0"): the
+card presents nothing for them, rightly.
+
+**Device state:** unchanged from the evening (engine 0073+0074, daemon `ba9bd159`, the jobs on their upstart daemons,
+default-check ×3 passed earlier); `/tmp/finger` and `/tmp/fbstream` on the device; `/tmp` cleared of the verify dumps
+(38 %); `/media/internal/jihad-stream` removed after each pull; the hand daemon stopped and the Enyo job restored by
+`gpu-spike-collect-stop.sh` after every round. A quick `tools/device/t502/default-check.sh enyo` before the next
+device work is cheap insurance.
+
 ## 2026-11-03 (evening) — T-505 item 3 DONE: the parts' pictures by part, the express second frame back; item 4 next (READ FIRST)
 
 **State:** main `e3e3a68c` (two commits on the owner's `ffd6aae2`: item 3, then its defaults) plus this docs commit;

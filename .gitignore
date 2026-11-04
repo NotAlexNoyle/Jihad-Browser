@@ -79,3 +79,7 @@ render/goanna/test/tone10.*
 # the device scripts' per-run files (pan-run.sh, zoom-run.sh, zoom-seq.sh write them beside themselves)
 tools/device/t502/*-inject.sh
 tools/device/t502/pan-frame-*.bgra
+# the finger rounds' frame streams are big (4-9 MB a round): the notes keep their readings; one head stays for the test
+docs/rounds/finger-*/fs-*.fbs
+!docs/rounds/finger-*/fs-*-head.fbs
+docs/rounds/finger-*/fs-*.raw

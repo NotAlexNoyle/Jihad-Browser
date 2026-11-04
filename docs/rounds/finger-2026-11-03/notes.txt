@@ -1,0 +1,115 @@
+T-561 — the frame sampler (cavekit-finger-testing.md R2), 2026-11-03
+=====================================================================
+
+The instrument: tools/device/finger/fbstream.c (the sampler, on the device), FINGER_TRACE in finger.c (the finger's
+scans), tools/host/finger-stream.py (the stream tool), tools/device/finger/stream-pan.sh (the round).
+
+The framebuffer (probed on the device, the Enyo card open on the long page):
+  fb0 and fb1: virtual_size 1024,2304, 32 bpp, stride 4096 — three pages of 768 rows; fb1 is msmfb40_30001 (the
+  card's content; fb0 the system chrome). The pan offset (/sys/class/graphics/fb1/pan, FBIOGET_VSCREENINFO yoffset)
+  is 0,768 at rest and cycles 0 / 768 / 1536 under a drag: a flip per frame presented. dd of one page: 0.03 s to
+  /dev/null, 0.11 s to /tmp (the tmpfs write is the rest). /tmp is a 40 MB tmpfs (34 MB free).
+  Orientation (the page pulled and looked at): the fb is the panel's landscape frame; the portrait screen is the fb
+  rotated −90°: portrait row y = fb column x, portrait column x = 767 − fb row y. So a portrait-row signature is a hash
+  DOWN an fb column, and the sampler reads fb rows (4 KB each, contiguous) and folds each pixel into its column.
+
+The sampler's cost (one drag down and one up on the long page, 5 s, the job's own daemon; cpu = this process's
+user+system over the 5 s):
+  stride 4, mmap, 15/s:  read median 13.3 ms, max 67 ms; 11.6 % of a core; 115 flips
+  stride 8, mmap, 15/s:  read median  2.7 ms, max 14 ms;  5.6 % of a core; 127 flips   <- the default
+  stride 4, pread, 15/s: read median 21.3 ms, max 76 ms; 18.6 % of a core
+  stride 2, mmap, 20/s:  read median 16.6 ms, max 115 ms; 18.8 % of a core
+  The pan poll (1 ms asked) runs at 375-540 a second: the device's nanosleep is ~2 ms. The flips under the two
+  1 s drags: ~115-127, i.e. the card presents ~50-60 frames a second while the finger moves (the daemon publishes
+  ~19 on this page: the card's own scroll animation presents between the daemon's frames).
+  A read the card flipped under (3 of 75 at stride 8, 16 of 75 at stride 4) is taken again since: the page read may
+  be the next frame's canvas.
+  The device's libc is 2.8: the tools need GLIBC_2.4 symbols only (no clock_gettime — gettimeofday, the daemon's
+  timeline clock, everywhere; strtol not sscanf).
+
+The daemon's rate with and without the sampler (stream-pan.sh, the spike daemon with the timeline, 16 drags; the fps
+while frames flow by tools/host/flow-fps.py):
+  round          page               sampler   fps flowing   (bursts, median gap)
+  wiki-s1        desktop Wikipedia  on        10.6          (18, 78 ms)
+  wiki-s0        desktop Wikipedia  off       10.8          (12, 76 ms)
+  wiki-s1b       desktop Wikipedia  on        10.7          (10, 77.5 ms)
+  wiki-s0b       desktop Wikipedia  off       10.7          (9, 73 ms)
+  long-s1        the long page      on        18.4          (17, 42 ms)
+  long-s0        the long page      off       18.5          (17, 41.5 ms)
+  With the sampler: Wikipedia 10.65 against 10.75 (1 % apart), the long page 18.4 against 18.5 (0.5 %): under the
+  kit's 5 %. The sampler over the 35 s of a round: 523-526 samples at 15.0/s, read median 5 ms (the daemon busy)
+  and max 100-115 ms, 6.2-6.4 % of a core, 885-942 flips (25-27 frames shown a second over the round: the card
+  presents ~45 a second while the finger moves — 29 ms median, 40-50 ms p90 — and none between the drags).
+
+What the first streams said (FBS1: exact signatures only; the tool at that state):
+  Wikipedia: the shown scroll tracks the finger (the drag of 650 rows in 1 s showed 617-643 rows by the last sample
+  with the finger down, 84-91 ms median lag, -33..-39 rows median error); the long page the same (617-650 rows,
+  75 ms). A frame composed afresh at the fit zoom (0.6882) has every row's hash different from the last frame's
+  (the bilinear phase: the band frames copy rows exactly, a main-lane frame or a band's new rows do not), so the
+  exact match found no shift at the first frame of each drag and voted a wrong, backwards shift (-65..-130) on a few
+  frames: hence the profile (the sum of r+g+b down the sampled columns) in FBS2 and the correlation search.
+  Wikipedia's fixed sidebars stand in columns: a blank content row under them has the sidebar's signature and never
+  "moves", which the stale detector read as a stale band (132 of them in a clean run): hence the content columns
+  (-c) of FBS3, the columns outside getting a signature of their own. The long page's rows 82-138 (the fixed header,
+  56 px at zoom 1) changed in 42 % of the samples: the card's scroll indicator at the right edge (portrait column
+  767: fcfcfc at rest, c8c8c8 under the finger), so the long page's content columns are 0-756. The rows that never
+  changed over 523 samples on either page: 0-82 (the status bar's black and the card's chrome).
+
+The second set (FBS3: the profile and the content columns; -U 48 the event shot; the tool as committed):
+  wiki-p   desktop Wikipedia, -c 170-600: 526 samples at 15.0/s, read median 2.0 ms, 0 torn (38 read again), 934 flips;
+           shown scroll 8986 rows, 0 shifts unknown, 0 stale, 0 still rows moved; tracking error median -33 rows,
+           max 58, lag median 77 ms, max 127; publish to flip median 18 ms, p90 29, max 57, 1 of 293 not shown in
+           100 ms (the stream's last); the daemon 10.4 fps flowing. UNIFORM BANDS 33 — see the catches.
+  long-p   the long page, -c 0-756: 524 samples, read median 2.6 ms, 0 torn (61 again), 884 flips; shown 9053 rows,
+           0 unknown, 0 still rows moved; tracking -32 rows median, max 84, lag 75 ms median, max 233; publish to
+           flip median 14 ms, p90 25, max 62; 19.0 fps flowing. STALE BANDS 75 and UNIFORM 186 — see the catches.
+  The planted faults (tools/host/test-finger-stream.py on wiki-p and long-p): the duplicated band, the header moved
+  10 rows and the grey band each reported at the planted sample and rows and nowhere else — PASS ×3 on both pages;
+  the "clean stream reads clean" check FAILS on both, because neither round is clean (below).
+  The profile tolerance measured here (--tol, default 200): rows composed afresh at the right shift differ by a
+  median of 6-9, p90 85-94, p99 333 (the long page; Wikipedia's p99 5172 is its tiles arriving); rows of different
+  content by a median of 2265 (Wikipedia) / 9495 (the long page); 11-32 % of different-content pairs are within 1200.
+
+The verify agreement (JIHAD_GPU_VERIFY=1, the reference composed before each job; the stream beside it):
+  wiki-v   verified 108, wrong 3 after the drags mark (the verify at 4.6 fps: its reference doubles the work)
+  long-v   verified 131, wrong 0
+  wiki-v2  verified 96, wrong 8; the stream: 0 stale, 0 still rows moved, uniform 267 (the bottom band, below)
+  long-v2  (the stream short in the first run — the trap below — run again)
+  The long page agrees exactly: 0 wrong rows there, 0 stale bands here. Wikipedia's wrong frames are the verify's
+  known class (the frame and its reference differ by whole bands in text-line-periodic runs: tiles arriving between
+  the job and the reference, deep in the article under the finger — 2026-11-03's notes.txt of t505 has the load-time
+  case); the stream reads 0 stale there and catches something else entirely (below).
+  Trap: JIHAD_GPU_VERIFY_DUMP_WRONG=1 dumps each wrong frame (3.7 MB) to /tmp, a 40 MB tmpfs: the first wiki-v filled
+  it (40944 of 40960 KB) and the sampler's stream came back short (3.6 of 8.7 MB) — the sampler now treats a failed
+  write as fatal and stream-pan-device.sh writes the stream under /media/internal/jihad-stream; the verify rounds
+  run without the dumps.
+
+THE CATCHES — what the stream found on the shipped build that no round had seen (judged by eye on the event shots):
+  1. Desktop Wikipedia, under a drag: a solid grey band (ffd8d8d8) across the bottom of the screen where the article
+     continues — 48-186 rows tall for one to a few samples at a time, in every round (wiki-s1 11 samples, wiki-p 33,
+     wiki-v2 267 reports over 514 samples). wiki-v-sample25-grey-band-at-the-bottom.jpg (the shot the sampler took
+     at its sample 25: the band over rows ~904-1024 with the finger at 480,614); wiki-v-sample30-grey-band-and-the-
+     infobox.jpg (the band again; its infobox column is a tear of the shot's own copy, since fixed: the copy walks
+     the framebuffer's rows, the portrait's columns). The daemon's verify cannot see it: the reference is composed
+     from the same tiles. The rows exposed by the shift are published before the tiles under them are painted (the
+     displayport trailing the finger), and the card shows the frame's background there. A person sees a grey strip
+     flash at the bottom while dragging.
+  2. The long page, under a drag: a band about one frame's shift tall (19-26 rows) directly under the fixed header
+     shows the PREVIOUS frame's rows unshifted — sample 70 of long-p: rows 139-159 equal to the frame before's same
+     rows exactly (21 of 21), the header's rows above it still, the rows below shifted by d = 26 — on 75 of 524
+     samples (the stale detector; where those rows are one colour the uniform detector reports them: 186). The
+     express frames there are "whole" composites with the header as a stuck rect (frame rows 141..197, "view row
+     141"), so the band is the compositor's or the card's hold of the rect's rows a frame behind. long-v-sample72-
+     blank-bottom.jpg shows the long page's own bottom band (the page background, f8f6f0, under line 30 where line
+     31 belongs): catch 1 on this page too. The sampler's own event (-U) cannot shoot this band: its rows were one
+     colour in the frame before as well (the device's check knows no shift); long-u and long-u2 (-U 12) shot clean
+     frames at the first drag's big jumps instead (d = 123). A picture needs raw pages of every other sample over a
+     drag (-R 2) and the host's reading to pick the one.
+  Both go to the GPU domain as tasks (T-567, T-568 in the build site); the finger-testing kit's R2 reads them as the
+  stream's first results, and its "0 stale, 0 uniform on a known-good round" criterion stays open until a round is.
+
+Files kept here: the daemon logs and the CPU-tick files of every round (fp-*), the finger traces (fs-*.fin), one head
+of the long page's clean stream (fs-long-p-head.fbs: the header and the first 150 samples — the planted-fault test's
+input: `python3 -I tools/host/test-finger-stream.py docs/rounds/finger-2026-11-03/fs-long-p-head.fbs --trace
+docs/rounds/finger-2026-11-03/fs-long-p.fin --rows 139-1024 --still 29-139`), and the three judged shots as JPEGs.
+The whole streams (4-9 MB a round) and the raw pages are not in the repository (.gitignore); their readings are above.

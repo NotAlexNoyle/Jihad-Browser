@@ -1,0 +1,21 @@
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+head: standard output: No space left on device
+--- fbstream
+fbstream: sample 25: a one-colour run of 48+ rows where the last sample had content: /tmp/stream.fbs.event0025.raw
+fbstream: sample 30: a one-colour run of 48+ rows where the last sample had content: /tmp/stream.fbs.event0030.raw
+fbstream: sample 217: a one-colour run of 48+ rows where the last sample had content: /tmp/stream.fbs.event0217.raw
+fbstream: 524 samples in 35.01 s (15.0/s, asked 15), read median~3.3 ms max 81.0 ms (mmap, stride 8: 96 rows of 768), 830 flips (frames shown, 23.7/s), 18291 polls (523/s), cpu 2110 ms (6.0% of a core) finger joined from /tmp/stream.fin
+-rw-r--r--    1 root     root       3596288 Nov  3 15:58 /tmp/stream.fbs
+-rw-r--r--    1 root     root         16384 Nov  3 15:58 /tmp/stream.fin
+--- CPU ticks over the drags (pid, before, after, command)
+4999 24283  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 24463  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+9839 4127  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.river
+12425 12708  /usr/bin/LunaSysMgr -s
+12496 21791  /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32232570 2726578 30114341 131303646 2420960 5662 64516 0 0 0

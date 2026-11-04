@@ -1,0 +1,19 @@
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+cut: standard output: No space left on device
+head: standard output: No space left on device
+--- fbstream
+fbstream: sample 72: a one-colour run of 48+ rows where the last sample had content: /tmp/stream.fbs.event0072.raw
+fbstream: 524 samples in 35.00 s (15.0/s, asked 15), read median~6.3 ms max 145.1 ms (mmap, stride 8: 96 rows of 768), 850 flips (frames shown, 24.3/s), 17544 polls (501/s), cpu 2520 ms (7.2% of a core) finger joined from /tmp/stream.fin
+-rw-r--r--    1 root     root       7028736 Nov  3 16:01 /tmp/stream.fbs
+-rw-r--r--    1 root     root         32768 Nov  3 16:01 /tmp/stream.fin
+--- CPU ticks over the drags (pid, before, after, command)
+13854 1153  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+4999 24373  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+5901 24537  ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+12425 13398  /usr/bin/LunaSysMgr -s
+12496 23912  /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  32241505 2728671 30119420 131312093 2422074 5662 64523 0 0 0

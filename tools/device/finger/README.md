@@ -89,6 +89,9 @@ nowhere else (`docs/rounds/finger-2026-11-03/fs-long-p-head.fbs` with `--trace f
 ["<fbstream options>"]` runs the finger-pan round (`tools/device/t502/finger-pan.sh`) with the sampler beside the drags
 (`stream-pan-device.sh`), the stream written under `/media/internal/jihad-stream` (never `/tmp`: a 40 MB tmpfs the
 daemon's dumps share) and pulled to `$ROUND_DIR/fs-<name>.fbs/.fin` with the event shots; the 0 is the cost's control.
+Its `fp-<name>-cpu.txt` holds the CPU ticks of the daemon and the LunaSysMgrs over the drags and, since 2026-11-04,
+each daemon's memory before and after them (VmHWM, VmRSS, VmData, the status file's order): the CPU bands' kept tile locks double-buffer
+the tiles on the content side, and the peak says what that costs.
 The first round (2026-11-03, `docs/rounds/finger-2026-11-03/notes.txt`) read two defects of the shipped build no
 round had seen: a grey band at the bottom of the screen under a drag (T-567) and a band under the long page's fixed
 header a frame behind (T-568).

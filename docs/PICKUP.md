@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 morning below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 midday below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -52,7 +52,38 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-04 (morning) — T-505 item 4 BUILT: the band frames composed on the CPU from the tiles; the resolution choice (b) measured a loss; the defaults the owner's (READ FIRST)
+## 2026-11-04 (midday) — the Deciding Vote: the CPU bands the GPU path's DEFAULT, the resolution switch off, no scaler; next T-563 (READ FIRST)
+
+**State:** main at this commit (the engine gitlink at the fork's `6d621405dd`, patch 0077, the pins moved) on top of
+`73a33761`. **Not pushed** (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first, Gitea
+only): main `fdc7e73d`, `76b4de8d`, `25eee48f`, `70d3af44`, `345f1deb`, `16b2ec6d`, `73a33761` and this commit; the
+fork `3b2c3fdf`, `928649199e`, `88a1b3eaaf`, `6d621405dd`.
+
+**The call:** the owner had the next step put to Codex as a cavekit Deciding Vote (`docs/rounds/finger-2026-11-04/
+codex-deciding-vote.md`, its prompt beside it; `context/impl/impl-review-findings-t505-cpubands.md` records it). Of
+the morning's four options Codex picked **2** — the engine's switch on, the daemon's off, no scaler, on to T-563
+(second choice 1, the scaler) — with a condition: the kept tile locks' memory measured before the default ships. Done
+(`docs/rounds/finger-2026-11-04/notes.txt`, "The default"): the daemon's RSS after 16 drags +19 MB on the long page
+(156 -> 175), +27-34 MB on Wikipedia (304-307 -> 335-337; the peaks +24-45), the rate unchanged; the price of each
+repainted tile's second buffer on the device's 1 GB. The default is in the engine (`JihadCpuBandsWanted` and
+TextureHost's kept lock follow `JIHAD_GPU_COMPOSITOR`, as the pull mode does; `JIHAD_GPU_CPU_BANDS=0` turns it off; the
+hand-daemon scripts need no word), pushed to the three variants, default-check.sh enyo clean on the shipped job (faults
+0; its log carries no compositor timing), the verify round with no switch word 0 wrong of 132 (60 of 60 band frames on
+the CPU). The round's device script now reads each daemon's VmHWM / VmRSS / VmData before and after the drags
+(`fp-<name>-cpu.txt`, "daemon memory").
+
+**Next:** T-563 to T-566 (`context/plans/build-site.md`), then the full device build (daemon + three adapters + .ipks)
+when the GPU fixes settle, Tier 91's kits. The scaler (scale choice (a)) stays an option on the owner's word (Codex's
+tie-breaker: interleaved Wikipedia rounds at resolution 1 with a gated scaler improving the delivered fps, the express
+p90 and the bottom band at a measured cost, no seams or shimmer). Wikipedia's 24 fps (R3) stays open.
+
+**Device state:** the three variants run the default engine (libxul md5 `041a11fd`, stripped from `6d621405dd`) and the daemon
+`22b50854` (push-engine-update.sh enyo mochi mojo, md5-verified; the `.ipk`s NOT rebuilt; the adapters as before: Enyo
+`4e6f50f3`, Mochi `86f4ac0f`, Mojo `45d32c37`). default-check ran on Enyo (its LunaSysMgr restart's USB alert closed
+by the script). No dev copies, gate files or adapter gates; the round scratch removed; `/tmp/finger` and `/tmp/fbstream`
+on the device.
+
+## 2026-11-04 (morning) — T-505 item 4 BUILT: the band frames composed on the CPU from the tiles; the resolution choice (b) measured a loss; the defaults the owner's
 
 **State:** main at this commit (the engine gitlink at the fork's `88a1b3eaaf`, patch 0076, the pins moved) on top of
 `16b2ec6d`. **Not pushed** (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first, Gitea

@@ -27,3 +27,22 @@ valid-region intersection, premultiplied over, colour layers' opacity, the alpha
 regions, opacity 0, component alpha, the low-precision buffer and fade-in in the flat-tree case; row bounds of a
 tile validated and drawn; the diff baseline (taken by the prep since the first build's verify, notes.txt), the
 layers' invalidations, the sticky probe.
+
+## The Deciding Vote (2026-11-04, cavekit peer review)
+
+The owner had the next step put to Codex as a cavekit Deciding Vote (the prompt and the answer:
+`docs/rounds/finger-2026-11-04/codex-deciding-vote-prompt.md`, `codex-deciding-vote.md`; the evidence the round notes,
+this file, the diffs, the kit's R3/R6/R12, the build-site rows, PICKUP's section). The four options: (1) the engine's
+switch on, the daemon's off, then the scale choice (a) built (the tiles at resolution 1 downscaled on the CPU into the
+bands); (2) the same defaults, no scaler, on to T-563; (3) keep choice (b) and fix F5/F6; (4) both off. **Codex picked
+2** (second choice 1): the scale-1 gain is demonstrated (the band frame 22.0 -> 4.7 ms, the express median 31 -> 14 ms,
+the worst lag 294 -> 131 ms, the verify 0 wrong of 121), the scaler's gain on Wikipedia is a hypothesis — the 12.1 ms
+read is not delivered fps when the paints, the slot waits and the whole reads after the page's changes limit the rate
+and both cores sit at 94-95 % — and its tile-edge phase, alpha and text consistency widen R11's burden; option 3 does
+not undo the measured paint regression. Its condition on the default: the kept read locks (F1) make the content side
+double-buffer the tiles on every page, eligible or not, so the peak memory, buffer churn and the paint/slot-wait tails
+on a fallback page are to be measured before it ships on. The fallback page's tails were in the rounds already
+(wiki-cb: the paints and the "no slot" ticks within the control's range, the express 67 / 182 ms against 69 / 187);
+the memory rounds of the same day (notes.txt, "The default") answered the peak: the daemon's RSS after 16 drags +19 MB on
+the long page (156 -> 175) and +27-34 MB on Wikipedia (304-307 -> 335-337; the peaks +24-45 MB), the rate unchanged — each
+repainted tile's second buffer. The default shipped on (the fork's 6d621405dd, patch 0077).

@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 4 Nov 2026 11:34:23 -0500
+Subject: [PATCH] T-505 item 4: the CPU band frames the GPU path's default
+ (JIHAD_GPU_CPU_BANDS=0 turns them off)
+
+The band frames composed on the CPU from the tiles (the fork's 88a1b3eaaf) were behind
+JIHAD_GPU_CPU_BANDS=1. The cavekit Deciding Vote of 2026-11-04 (Codex, on the rounds' numbers:
+the long page's band frame 22.0 -> 4.7 ms on the compositor thread, the express frames made in
+14 ms median against 31, the worst lag 294 -> 131 ms, the verify 0 wrong of 121; the resolution
+switch a loss on Wikipedia) picked them as the default with the daemon's resolution switch off
+and no scaler. So JihadCpuBandsWanted() and the tile read lock kept after the immediate upload
+(TextureHost.cpp) now follow JIHAD_GPU_COMPOSITOR, as the pull mode and the direct path do,
+unless JIHAD_GPU_CPU_BANDS=0. The memory rounds of the same day measured the kept locks'
+double-buffering (docs/rounds/finger-2026-11-04/notes.txt, "The default").
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ gfx/layers/composite/TextureHost.cpp      | 6 ++++--
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 8 +++++---
+ 2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/gfx/layers/composite/TextureHost.cpp b/gfx/layers/composite/TextureHost.cpp
+index 0755f806d8..b143d8285a 100644
+--- a/gfx/layers/composite/TextureHost.cpp
++++ b/gfx/layers/composite/TextureHost.cpp
+@@ -847,12 +847,14 @@ BufferTextureHost::MaybeUpload(nsIntRegion *aRegion)
+   if (mHasIntermediateBuffer) {
+     // We just did the texture upload, the content side can now freely write
+     // into the shared buffer.
+-    // Jihad T-505 item 4 (JIHAD_GPU_CPU_BANDS=1): not while the band frames are composed on the CPU from these
++    // Jihad T-505 item 4 (the GPU path's default; JIHAD_GPU_CPU_BANDS=0 turns it off): not while the band frames
++    // are composed on the CPU from these
+     // buffers (CompositorBridgeParent's JihadCpuBands reads them under the tile host): the content side would
+     // paint the tile's next content into the same front buffer (TileClient::GetBackBuffer reuses an unlocked
+     // front buffer) while the compositor thread copies it. The lock stays until the tile is dropped
+     // (UnbindTextureSource, or the host's end); the content side double-buffers the tile meanwhile.
+-    static const bool sJihadKeep = getenv("JIHAD_GPU_CPU_BANDS") && atoi(getenv("JIHAD_GPU_CPU_BANDS")) != 0;
++    static const bool sJihadKeep = getenv("JIHAD_GPU_COMPOSITOR") != nullptr &&
++                                   !(getenv("JIHAD_GPU_CPU_BANDS") && atoi(getenv("JIHAD_GPU_CPU_BANDS")) == 0);
+     if (!sJihadKeep) ReadUnlock();
+   }
+ 
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 62f7153bf3..5539b7f61c 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1564,7 +1564,8 @@ JihadFixedCols()
+   return sOn && !sJihadContentOnly;   // T-505: a frame without its parts has no fixed pixels to keep or read
+ }
+ 
+-// T-505 item 4 (2026-11-04): the band frames composed on the CPU from the tiles. JIHAD_GPU_CPU_BANDS=1: a band frame
++// T-505 item 4 (2026-11-04): the band frames composed on the CPU from the tiles — the GPU path's default (the
++// Deciding Vote of 2026-11-04, Codex, on the rounds' numbers; JIHAD_GPU_CPU_BANDS=0 turns it off): a band frame
+ // (a scroll-only frame, or one whose change fits the band pass) whose band rows are covered by tiled painted layers
+ // and colour layers only — each drawn "over" at full opacity, no mask, under a translation of whole frame pixels at
+ // a scale of 1 (the layers painted at the card's zoom's resolution: the daemon's JIHAD_GPU_RES_ZOOM) — is composed
+@@ -1581,7 +1582,8 @@ JihadFixedCols()
+ static bool
+ JihadCpuBandsWanted()
+ {
+-  static const bool sOn = getenv("JIHAD_GPU_CPU_BANDS") && atoi(getenv("JIHAD_GPU_CPU_BANDS")) != 0;
++  static const bool sOn = getenv("JIHAD_GPU_COMPOSITOR") != nullptr &&
++                          !(getenv("JIHAD_GPU_CPU_BANDS") && atoi(getenv("JIHAD_GPU_CPU_BANDS")) == 0);
+   return sOn;
+ }
+ 
+@@ -2731,7 +2733,7 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+       // JihadSetRegions); JIHAD_GPU_PASS_PER_REGION=1 composes each on its own, as before
+       static const bool sPassPerRegion = getenv("JIHAD_GPU_PASS_PER_REGION") != nullptr;
+       // T-505 item 4: the bands composed on the CPU from the tiles when every layer under them allows it
+-      // (JIHAD_GPU_CPU_BANDS=1, JihadCpuBands above: a frame of full-width bands alone, no column chunks); the GPU
++      // (the GPU path's default, JihadCpuBands above: a frame of full-width bands alone, no column chunks); the GPU
+       // band pass otherwise, as before
+       bool cpuDone = false;
+       double msCpuPrep = 0, msCpuDraw = 0;

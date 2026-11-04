@@ -135,6 +135,44 @@ What it says
    down on the CPU into the bands (item 4's scale choice (a): a bilinear downscale of ~80k output pixels a frame,
    NEON), the paints as they are. Not built: the owner's call.
 
-State: both switches OFF by default (the owner's; the engine's switch is a pure gain where it applies, the daemon's
-a loss). The three variants run the final engine and daemon (push-engine-update.sh enyo, then mochi mojo; the .ipks
-not rebuilt). The scratch and the dumps removed from the device by the rounds' own stop script.
+The call (the cavekit Deciding Vote, 2026-11-04 midday)
+-------------------------------------------------------
+The owner had the next step put to Codex as a cavekit Deciding Vote (codex-deciding-vote-prompt.md and
+codex-deciding-vote.md here; the evidence: these notes, the review's findings, the two diffs, the kit's R3/R6/R12, the
+build-site rows, PICKUP's section). Four options: (1) the engine's switch on, the daemon's off, then the scale choice
+(a) built; (2) the same defaults, no scaler, on to T-563; (3) keep choice (b) and fix F5/F6; (4) both off. Codex picked
+2 (second choice 1): the scale-1 gain is demonstrated; the scaler's gain on Wikipedia is a hypothesis (the 12.1 ms read
+is not delivered fps while the paints, the slot waits and the whole reads after the page's changes limit the rate and
+both cores sit at 94-95 %), and its tile-edge phase, alpha and text consistency widen R11's burden; option 3 does not
+undo the paint regression. Its condition on the default: the kept read locks (F1) double-buffer the tiles on the
+content side on every page, eligible or not, so the peak memory and a fallback page's tails were to be measured before
+it ships on (the fallback page's tails were in wiki-cb above: the paints and the "no slot" ticks within the control's
+range, the express 67 / 182 ms against 69 / 187).
+
+The default
+-----------
+The engine's switch is the GPU path's default (the fork's 6d621405dd, patch 0077: JihadCpuBandsWanted and TextureHost's kept
+lock follow JIHAD_GPU_COMPOSITOR, as the pull mode and the direct path do, unless JIHAD_GPU_CPU_BANDS=0; the
+hand-daemon scripts need no word). The memory rounds (stream-pan.sh, 16 drags, no sampler; stream-pan-device.sh now
+reads each daemon's VmHWM / VmRSS / VmData before and after the drags into fp-<name>-cpu.txt; the hand daemon's, MB):
+  round     switch              before the drags HWM / RSS   after HWM / RSS   fps flowing
+  long-m    off                 130.9 / 130.3                155.9 / 155.9     18.7
+  long-mc   on                  158.8 / 151.1                174.7 / 174.7     20.6
+  wiki-m    off                 247.7 / 247.7                303.6 / 303.5     10.3
+  wiki-mc   on                  316.9 / 289.8                348.1 / 337.0     10.5
+  wiki-mc2  on                  296.9 / 271.1                338.5 / 334.8     10.1
+  wiki-m2   off                 268.7 / 266.4                314.5 / 307.4      9.8
+  long-dv   the default, verify 150.0 / 149.3                173.2 / 173.2      5.2 (the verify's own rate)
+The double-buffering's price: the daemon's RSS after the drags +19 MB on the long page (156 -> 175, 12 %) and +27-34 MB
+on Wikipedia (304-307 -> 335-337, 10 %), the peaks +19 and +24-45 MB; the rate unchanged within the noise (Wikipedia
+10.1-10.5 against 9.8-10.3, the long page 20.6 against 18.7). On the device's 1 GB that is each repainted tile's second
+buffer; the RSS before the drags already carries most of it (the load paints the tiles more than once).
+The default on the device: the three variants on the pushed engine (libxul md5 041a11fd, push-engine-update.sh enyo mochi
+mojo, md5-verified); default-check.sh enyo on the shipped job, no switch word: the GPU path with the express lane,
+painted 223, express frames 9, zooms 6, faults 0, GPU off 0 (the job's log carries no compositor timing, so it does not
+show the band frames); the verify round long-dv on the hand daemon with JIHAD_GPU_VERIFY=1 alone: 60 of 60 band frames
+on the CPU, 0 wrong of 132 (express 81, main 51).
+
+State: the CPU bands ON by default on the GPU path (JIHAD_GPU_CPU_BANDS=0 turns them off); the daemon's resolution
+switch OFF (a loss). The three variants run the default engine (libxul 041a11fd) and the daemon 22b50854 (the .ipks not
+rebuilt). The scratch and the dumps removed from the device by the rounds' own stop script.

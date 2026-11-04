@@ -109,10 +109,14 @@ converted at 1x1: the Adreno's ~18 ms first write after a draw comes back),
 `JIHAD_GPU_NO_RES=1` (the layers painted at 1x and magnified, as before the zoom's resolution).
 T-505 item 4 (2026-11-04): `JIHAD_GPU_RES_ZOOM=1` (daemon: the layers painted at the zoom's resolution
 below 1.1 too — a tile's pixels then land one to one on the frame at every settled zoom, at the price of a
-full repaint of the view at each; a zoom within 1 % of 1 stays at 1) and `JIHAD_GPU_CPU_BANDS=1` (engine: a
-band frame whose rows are covered by tiled painted and colour layers alone, "over", no mask, at a scale of 1,
-is composed on the CPU from the tiles' buffers — no GL composite, no read; the log's `cpu bands:` line every
-20 band frames counts the frames sent to the GPU and why, and its `cpu band frame` lines time the copies).
+full repaint of the view at each; a zoom within 1 % of 1 stays at 1; OFF by default: it measured a loss) and
+the band frames composed on the CPU from the tiles (engine: a band frame whose rows are covered by tiled
+painted and colour layers alone, "over", no mask, at a scale of 1, is composed on the CPU from the tiles'
+buffers — no GL composite, no read; the tiles' read locks kept after their upload, the content side
+double-buffering them; the log's `cpu bands:` line every 20 band frames counts the frames sent to the GPU
+and why, and its `cpu band frame` lines time the copies). The CPU bands are the GPU path's DEFAULT since
+the Deciding Vote of 2026-11-04 (Codex on the rounds' numbers, `docs/rounds/finger-2026-11-04/codex-deciding-vote.md`;
+engine patch 0077): `JIHAD_GPU_CPU_BANDS=0` turns them off (the hand-daemon scripts need no word for them).
 The resolution switch's known gaps (the review of 2026-11-04, not fixed: the switch measured a loss, see the
 round notes): a pinch below 1.1 repaints at every step a frame gets out of (the zoom hold releases on the first
 frame, not on a settled zoom), and T-527's zoom-back and overview gates still take "a resolution above 1" as the
@@ -176,7 +180,8 @@ through the card: `card-selftest.sh enyo run "page:w15;t300,400;w2;..."` with `J
 each tap's first frame in the `zoom frame written (express)` lines.
 
 T-510: the upstart jobs start the GPU path with the express lane (`JIHAD_GPU_COMPOSITOR=1
-JIHAD_GPU_EXPRESS=1`); `JIHAD_GPU_COMPOSITOR=0` or `user_pref("jihad.gpu.enabled", false)` in the
+JIHAD_GPU_EXPRESS=1`; since 2026-11-04 the path composes its band frames on the CPU where it can, above);
+`JIHAD_GPU_COMPOSITOR=0` or `user_pref("jihad.gpu.enabled", false)` in the
 variant's profile give the software path (`tools/device/set-prefs.sh <variant> 'jihad.gpu.enabled'`
 with a file holding the line; the same without a file clears it). `default-check.sh <enyo|mochi|mojo>`
 runs a load, pan, pinch and close through the card's self-test hook on the variant's own daemon and

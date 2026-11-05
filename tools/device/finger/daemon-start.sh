@@ -3,7 +3,8 @@
 # daemon-start.sh VARIANT URL [env words]: the shell's daemon started by hand for a finger round (T-563), as the
 # shipped job starts it (the GPU path with the express lane) plus the inject channel and the [jihad-gpu] log, on
 # /var/palm/jihad/$V/daemon-gpu.log; its card launched on URL and three content frames awaited. PREF=name=value
-# words are prefs for this run (daemon-stop.sh strips them). Runs on the device (build/webos-oe/dev-sh.sh).
+# words are prefs for this run; the profile's prefs.js is copied first and daemon-stop.sh puts the copy back whole.
+# Runs on the device (build/webos-oe/dev-sh.sh).
 V=${1:?variant}; URL=${2:?url}; shift 2
 case $V in
   enyo)  ID=net.riverstonerelay.jihad-browser;       JOB=jihad;       NAME=jihad-browser;;
@@ -27,6 +28,8 @@ if ! gone; then for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/c
 gone || { echo "FATAL: a $V daemon is still running"; exit 1; }
 : > "$LOG"
 PREFS=$APP/profile/prefs.js
+# the profile's prefs as found, put back whole by daemon-stop.sh: a round leaves them as they were whatever it did
+cp "$PREFS" /tmp/fl-prefs-before-$V 2>/dev/null
 : > /tmp/fl-prefs-$V.txt
 for pv in $PREFS_ADD; do
   n="${pv%%=*}"; v="${pv#*=}"; sed -i "/\"$n\"/d" "$PREFS"
@@ -47,7 +50,10 @@ echo "$V daemon serving YAP at +$t s"
 luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'"$ID"'","params":{"target":"'"$URL"'"}}' >/dev/null 2>&1
 t=0; while [ $t -lt 20 ] && ! grep -aq 'client connected' "$LOG"; do sleep 1; t=$((t+1)); done
 grep -aq 'client connected' "$LOG" || echo "WARNING: no card connected to the $V daemon within 20 s"
-t2=0; n=0
-while [ $t2 -lt 45 ]; do n=$(grep -ac 'painted shmid=0x[0-9a-f]* bytes=[1-9][0-9]' "$LOG"); [ "$n" -ge 3 ] && break; sleep 1; t2=$((t2+1)); done
-echo "$V card on $URL: connected at +$t s, $n content frames at +$((t + t2)) s; $(grep -a 'rendering:' $LOG | tail -1 | sed 's/.*rendering: //')"
+# the page's load done (a card beside another shell's job daemon coming up loads slowly), then three content frames
+t2=0; while [ $t2 -lt 60 ] && ! grep -aq 'load done uri=' "$LOG"; do sleep 1; t2=$((t2+1)); done
+grep -aq 'load done uri=' "$LOG" || echo "WARNING: no load done within 60 s"
+t3=0; n=0
+while [ $t3 -lt 30 ]; do n=$(grep -ac 'painted shmid=0x[0-9a-f]* bytes=[1-9][0-9]' "$LOG"); [ "$n" -ge 3 ] && break; sleep 1; t3=$((t3+1)); done
+echo "$V card on $URL: connected at +$t s, load done at +$((t + t2)) s, $n content frames at +$((t + t2 + t3)) s; $(grep -a 'rendering:' $LOG | tail -1 | sed 's/.*rendering: //')"
 grep -a 'FATAL\|SIGSEGV' "$LOG" | head -3

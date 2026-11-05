@@ -141,6 +141,33 @@ The first rounds (2026-11-04, `docs/rounds/finger-2026-11-04/notes.txt` "T-563")
 Mochi 14 of 16, Mojo 16 of 17 (the deliberate failure the one each keeps a frame for; Mochi's other a shell
 finding, T-569), the plant stopped with "off by 20 px", the walks Enyo 62 of 62, Mochi 62 of 62, Mojo 62 of 62 (the five tabs and the 57 rows each, every pref changed and put back by the finger on its own control, no pref left changed; 13-15 minutes a shell).
 
+## The suite: the script form and the runner (cavekit-finger-testing.md R4, R5; T-564)
+
+`suite/*.test` are the tests, one declarative form (the runner's header has the grammar): header lines (`id:`,
+`shells:`, `page:` the card's page, `prefs:` run prefs, `kit:` what it is evidence for, or `person:` for an item no
+finger reaches), then one step a line — `launch URL`, `wait load|painted|zoom|settled|rect SEL|line PATTERN|still
+REGION [BOUND]`, `calibrate SEL`, the gestures (`tap SEL`, `tap-at X Y`, `chrome NAME`, `drag`, `flick`, `pinch`,
+`hold`, `dtap`, `pick SEL INDEX [ROWS]`, `card-to Y`, `pull-header`, `key CODE`, `type TEXT`, `inject CMD`),
+`expect CHECK ARGS` (every fl_check of the library), `sample NAME REGION`, `shoot NAME` (a picture a kit note will
+cite). No `sleep`: a gesture with no mark of its own (chrome, hold, dtap, pinch) needs a `wait` before the next
+plain `expect`; a wait that times out is a FAILED check; a tap takes an element, never a coordinate. The lint
+(`finger-run.py --lint`) says so; `suite/self/lint-bad.test.off` is its fixture (renamed `.test` it is refused with
+the three findings).
+
+`finger-run.py [--shells enyo,mochi,mojo] [--only id,id] [--self] [--round DIR]` is the runner: the lint, then the
+owner's lock (`/tmp/jihad-owner-testing` on the device: the runner refuses and says so; `touch` it before testing by
+hand, remove it after), the sampler built from source and pushed once, then for each shell each script in ONE device
+session — `daemon-start.sh` on the script's page (the profile's prefs copied first), the steps compiled onto
+`fingerlib.sh` and run by one `dev-sh.sh` call, the failed checks' frames pulled as JPEGs into `<round>/kept/`,
+`daemon-stop.sh` after every script whatever the verdict (the hand daemon gone, prefs.js put back as found, the
+dumps and scratch removed, a leftover device script killed, the job back) — and at the end `device-check.sh`: the
+three jobs running, no daemon with the inject channel, no test hook, no adapter gate, no gate file or device script
+or dump in `/tmp`, no scratch under `/media/internal`, the Default look (each daemon's `getTheme`), No proxy (no proxy
+user pref). The report `<round>/finger-report.md` (+ `.json`) lists every run with its verdict (pass / fail / a
+person's), its checks' lines and the kept frames, then the device check; the pictures kept are the failures' and
+the `shoot`s only. `suite/self/` holds the suite's own scripts (a deliberate failure for the report's path), run
+with `--self`.
+
 ## A round
 
 1. Open the card on the page with `luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"<app id>","params":{"target":"<url>"}}'`

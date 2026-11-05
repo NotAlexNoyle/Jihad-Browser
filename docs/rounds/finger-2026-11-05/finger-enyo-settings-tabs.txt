@@ -1,0 +1,7 @@
+WAIT ok 6-rect page-title
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)
+CHECK ok 8-text: page-title = [Settings]
+  tap at 254,199 -> clickAt 255 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane=content]
+CHECK ok 11-text-has: sel:h2.group-title = [Content] holds [Content]
+CHECKS 2 FAILS 0

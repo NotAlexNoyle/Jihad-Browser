@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 afternoon below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-05 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -52,7 +52,40 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-04 (afternoon) — T-563 DONE: the check library and the geometry of the finger rounds; next T-564 (READ FIRST)
+## 2026-11-05 — T-564 DONE: the script form and the runner of the finger suite; next T-565 (READ FIRST)
+
+**State:** main at this commit on top of `ff13d911` (the engine unchanged at the fork's `6d621405dd`). **Not pushed**
+(the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only): this commit (and `ff13d911` if not yet).
+
+**Built (`tools/device/finger/`, the README's "The suite" section):** `finger-run.py` — the lint over
+`suite/*.test`, the owner's lock (`touch /tmp/jihad-owner-testing` on the device before testing by hand; the runner
+refuses and says so), one device session a script (daemon-start.sh on the script's page with prefs.js copied first,
+the steps compiled onto fingerlib.sh, one dev-sh.sh call), the failed checks' frames as JPEGs under `<round>/kept/`,
+daemon-stop.sh after every script (the hand daemon gone, prefs.js put back whole, the dumps and scratch removed, a
+leftover device script killed and removed, the job back), `device-check.sh` at the end (jobs, no hand daemon, no
+hook, no gate, no /tmp leftovers, no scratch, Default look by getTheme, No proxy by network.proxy.type), the report
+`<round>/finger-report.md` + `.json`. The script form: header lines (id, shells, page, prefs, kit, person), then
+launch / wait <mark> [bound] / calibrate / gestures / expect <check> / sample / shoot; no sleep (the lint refuses it, a
+plain expect after chrome/hold/dtap/pinch with no wait, a tap at a coordinate, a wrong arity).
+
+**Measured (`docs/rounds/finger-2026-11-05/notes.txt`):** 13 runs in 11 minutes — 9 passes (pan-long-drag, keyboard-address and settings-tabs on each of Enyo, Mochi and Mojo), 3 a person's (the accelerometer), 1 failure (the deliberate one of suite/self, its frame kept as kept/enyo-deliberate-fail-7-text_.jpg) — and the device check 26 of 26 ok at the end. The lock: refused, exit 3.
+
+**Next:** T-565 (the suite: every reachable item of `docs/FINGER-TESTS.md` as a script with an id in each shell it
+names; the slow-human variants — the dialog answered at 8 s, the job stopped before a persistence check; the pan at
+three speeds, the jittered and the paused drag as gestures of the library; the list regenerated from the report; the
+kits' citations by script id), then T-566 (the owner's comparison round). Then the full device build when the GPU
+fixes settle; Tier 91's kits.
+
+**Traps:** write a selector with spaces in single quotes in a script (`tap 'sel:#content p'`); the first round's
+calibration tapped the whole content block from an unquoted one and scrolled the card 10 000 px. `expect
+region-changed REGION [SAMPLE]` — the name is automatic, not the walk's first argument. A card launched while another
+shell's job daemon is coming up loads slowly: daemon-start.sh waits for the page's load done (60 s).
+
+**Device state:** the three variants on their upstart jobs (device-check.sh clean at the suite's end: 26 of 26 ok, 09:03);
+the default engine (libxul `041a11fd`) and daemon `22b50854`; `/tmp/finger` and `/tmp/fbstream` on the device; no
+lock file, no round scratch.
+
+## 2026-11-04 (afternoon) — T-563 DONE: the check library and the geometry of the finger rounds; next T-564
 
 **State:** main at this commit on top of `0179c052` (the engine unchanged at the fork's `6d621405dd`). **Not pushed**
 (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only): this commit.

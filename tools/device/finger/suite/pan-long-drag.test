@@ -1,0 +1,18 @@
+# The long page under a drag: the header still, the content moved, the card's scroll, a tap after the scroll.
+id: pan-long-drag
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-gpu-rendering.md R3
+calibrate 'sel:#content p'
+expect zoom 1.0 0.01
+expect url jihad-long-static
+expect content 0,150,768,400 'sel:#content p' 'quick brown'
+sample header header
+sample content 0,300,756,900
+drag 480 900 480 250
+expect card-scroll 650 80
+expect region-equal header header
+expect region-changed 0,300,756,900 content
+expect top 'sel:#content p:nth-child(11)'
+tap 'sel:#content p:nth-child(12)'
+expect hit 'sel:#content p:nth-child(12)'

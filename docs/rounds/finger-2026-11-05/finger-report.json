@@ -1,0 +1,227 @@
+{
+ "date": "2026-11-05T08:51:52",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "keyboard-address",
+   "kit": "cavekit-input-bridging.md R2",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "CHECK ok 8-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser focused: 1, fieldtype: 7, fieldactions: 0x00",
+    "CHECK ok 10-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser focused: 0, fieldtype: 0, fieldactions: 0x00"
+   ],
+   "kept": [],
+   "seconds": 57,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +9 s, 5 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (1121490/471349966) jihad (start) running, process 20264; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "pan-long-drag",
+   "kit": "cavekit-gpu-rendering.md R3",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "CHECK ok 7-zoom: zoom 1.0000 (want 1.0 within 0.01)",
+    "CHECK ok 8-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
+    "CHECK ok 9-content: region 0,150-768,400: colours 321 hash 98b5debf rows 250 uniform 0 light 150-396; sel:#content p on the screen at 16,154-748,210, text holds [quick brown]",
+    "CHECK ok 13-card-scroll: the card's scroll y 650 (want 650 within 80); the engine's 650",
+    "CHECK ok 14-region-equal: region 0,83-756,137: colours 208 hash 34266017 rows 54 uniform 33 light none = the sample's hash",
+    "CHECK ok 15-region-changed: region 0,300-756,900: colours 680 hash 52c6519f rows 600 uniform 219 light 300-899 against the sample's hash 6a2b3a47",
+    "CHECK ok 16-top: the page's top measured 82 (the tap at y 212 landed on document y 780), the model says 82 (header hidden: 1)",
+    "CHECK ok 18-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+   ],
+   "kept": [],
+   "seconds": 65,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +10 s, 5 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "enyo: (1121555/762307287) jihad (start) running, process 23832; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "settings-tabs",
+   "kit": "cavekit-preferences-ui.md R6",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 6-rect page-title",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)",
+    "CHECK ok 8-text: page-title = [Settings]",
+    "WAIT ok 10-rect sel:button.pane-tab.on[data-pane=content]",
+    "CHECK ok 11-text-has: sel:h2.group-title = [Content] holds [Content]"
+   ],
+   "kept": [],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on about:settings: connected at +1 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "enyo: (1121622/632125495) jihad (start) running, process 27151; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "accelerometer",
+   "kit": "cavekit-device-build.md R4",
+   "verdict": "a person's",
+   "checks": [],
+   "kept": [],
+   "seconds": 0,
+   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+  },
+  {
+   "shell": "enyo",
+   "id": "deliberate-fail",
+   "kit": "cavekit-finger-testing.md R5",
+   "verdict": "fail",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "CHECK FAIL 7-text: sel:#header = [jihad-long-static: a fixed header], want [not the header]"
+   ],
+   "kept": [
+    "kept/enyo-deliberate-fail-7-text_.jpg"
+   ],
+   "seconds": 52,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (1121674/703671560) jihad (start) running, process 30277; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "keyboard-address",
+   "kit": "cavekit-input-bridging.md R2",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
+    "CHECK ok 8-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mochi focused: 1, fieldtype: 7, fieldactions: 0",
+    "CHECK ok 10-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mochi focused: 0, fieldtype: 0, fieldactions: 0"
+   ],
+   "kept": [],
+   "seconds": 58,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +10 s, 5 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's",
+   "restore": "mochi: (1121732/897857918) jihad-mochi (start) running, process 813; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "pan-long-drag",
+   "kit": "cavekit-gpu-rendering.md R3",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
+    "CHECK ok 7-zoom: zoom 1.0000 (want 1.0 within 0.01)",
+    "CHECK ok 8-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
+    "CHECK ok 9-content: region 0,150-768,400: colours 276 hash 0c6c964c rows 250 uniform 0 light 150-399; sel:#content p on the screen at 16,150-748,206, text holds [quick brown]",
+    "CHECK ok 13-card-scroll: the card's scroll y 639 (want 650 within 80); the engine's 639",
+    "CHECK ok 14-region-equal: region 0,79-756,133: colours 204 hash 5486acf3 rows 54 uniform 33 light none = the sample's hash",
+    "CHECK ok 15-region-changed: region 0,300-756,900: colours 840 hash 3f74d198 rows 600 uniform 214 light 307-899 against the sample's hash 653a2a3a",
+    "CHECK ok 16-top: the page's top measured 78 (the tap at y 219 landed on document y 780), the model says 78 (header hidden: 1)",
+    "CHECK ok 18-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +10 s, 7 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's",
+   "restore": "mochi: (1121795/967811388) jihad-mochi (start) running, process 4402; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "settings-tabs",
+   "kit": "cavekit-preferences-ui.md R6",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 6-rect page-title",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)",
+    "CHECK ok 8-text: page-title = [Settings]",
+    "WAIT ok 10-rect sel:button.pane-tab.on[data-pane=content]",
+    "CHECK ok 11-text-has: sel:h2.group-title = [Content] holds [Content]"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "mochi card on about:settings: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mochi: (1121858/676752413) jihad-mochi (start) running, process 7717; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "accelerometer",
+   "kit": "cavekit-device-build.md R4",
+   "verdict": "a person's",
+   "checks": [],
+   "kept": [],
+   "seconds": 0,
+   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+  },
+  {
+   "shell": "mojo",
+   "id": "keyboard-address",
+   "kit": "cavekit-input-bridging.md R2",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
+    "CHECK ok 8-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mojo focused: 1, fieldtype: 0, fieldactions: 0x",
+    "CHECK ok 10-keyboard: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mojo focused: 0, fieldtype: 0, fieldactions: 0x"
+   ],
+   "kept": [],
+   "seconds": 98,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +8 s, 2 content frames at +38 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mojo: (1121956/670436690) jihad-mojo (start) running, process 11690; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "pan-long-drag",
+   "kit": "cavekit-gpu-rendering.md R3",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
+    "CHECK ok 7-zoom: zoom 1.0000 (want 1.0 within 0.01)",
+    "CHECK ok 8-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
+    "CHECK ok 9-content: region 0,150-768,400: colours 293 hash 8b1a67cb rows 250 uniform 0 light 150-399; sel:#content p on the screen at 16,145-748,201, text holds [quick brown]",
+    "CHECK ok 13-card-scroll: the card's scroll y 594 (want 650 within 80); the engine's 594",
+    "CHECK ok 14-region-equal: region 0,29-756,83: colours 185 hash eeaac7d6 rows 54 uniform 33 light none = the sample's hash",
+    "CHECK ok 15-region-changed: region 0,300-756,900: colours 488 hash 8a2d02d6 rows 600 uniform 219 light 302-899 against the sample's hash 5ec8059e",
+    "CHECK ok 16-top: the page's top measured 73 (the tap at y 214 landed on document y 780), the model says 73 (header hidden: 1)",
+    "CHECK ok 18-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+   ],
+   "kept": [],
+   "seconds": 71,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +7 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (1122027/769395787) jihad-mojo (start) running, process 15320; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "settings-tabs",
+   "kit": "cavekit-preferences-ui.md R6",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 6-rect page-title",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)",
+    "CHECK ok 8-text: page-title = [Settings]",
+    "WAIT ok 10-rect sel:button.pane-tab.on[data-pane=content]",
+    "CHECK ok 11-text-has: sel:h2.group-title = [Content] holds [Content]"
+   ],
+   "kept": [],
+   "seconds": 64,
+   "note": "",
+   "start": "mojo card on about:settings: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mojo: (1122091/852475627) jihad-mojo (start) running, process 18648; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "accelerometer",
+   "kit": "cavekit-device-build.md R4",
+   "verdict": "a person's",
+   "checks": [],
+   "kept": [],
+   "seconds": 0,
+   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (1122091/992449702) jihad (start) running, process 30277\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (1122096/708450589) jihad-mochi (start) running, process 7717\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (1122102/75888958) jihad-mojo (start) running, process 18648\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 39% of /tmp used",
+ "seconds": 673
+}

@@ -1,0 +1,10 @@
+# The address field's tap raises the keyboard; a tap on the page drops it (the window server's IME line).
+id: keyboard-address
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-input-bridging.md R2
+calibrate 'sel:#content p'
+chrome address
+expect keyboard up 8
+tap-at 384 300
+expect keyboard down 8

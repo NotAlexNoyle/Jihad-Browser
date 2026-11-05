@@ -1,0 +1,9 @@
+# NOT a .test: the lint's own fixture (renamed to .test it must be refused: a sleep, a chrome tap with no wait before
+# a plain expect, a tap at a coordinate)
+id: lint-bad
+page: about:blank
+chrome address
+sleep 2
+expect text page-title Settings
+tap 384 300
+expect keyboard down

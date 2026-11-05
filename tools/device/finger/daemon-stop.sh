@@ -1,7 +1,8 @@
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
-# daemon-stop.sh VARIANT [log]: the hand daemon of daemon-start.sh stopped, the run's prefs stripped, the clock floor
-# put back, the upstart job started again; with "log" the daemon log between "=== LOG BEGIN/END" marks first.
+# daemon-stop.sh VARIANT [log]: the hand daemon of daemon-start.sh stopped, the profile's prefs put back as found,
+# the clock floor put back, the round's dumps and scratch removed, a leftover device script killed, the upstart job
+# started again; with "log" the daemon log between "=== LOG BEGIN/END" marks first.
 V=${1:?variant}
 case $V in
   enyo)  ID=net.riverstonerelay.jihad-browser;       JOB=jihad;;
@@ -13,7 +14,8 @@ APP=/media/cryptofs/apps/usr/palm/applications/$ID; HL=$APP/deviceroot/hl; STATE
 [ "${2:-}" = log ] && { echo "=== LOG BEGIN"; cat $LOG; echo "=== LOG END"; }
 # a round's device script left behind when its session was cut short (2026-11-04: a walk's script looped and its
 # session was killed from the host) — every /tmp/dev-sh.* script but this one
-for p in /proc/[0-9]*; do [ "${p#/proc/}" = "$$" ] && continue; c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null); case "$c" in *"/tmp/dev-sh."*) kill ${p#/proc/} 2>/dev/null && echo "killed a leftover device script: $(echo "$c" | cut -c1-60)";; esac; done
+for p in /proc/[0-9]*; do [ "${p#/proc/}" = "$$" ] && continue; c=$(cat $p/cmdline 2>/dev/null | tr '\0' ' '); case "$c" in *"/tmp/dev-sh."*) kill ${p#/proc/} 2>/dev/null && echo "killed a leftover device script: $(echo "$c" | cut -c1-60)";; esac; done
+for f in /tmp/dev-sh.*; do [ -e "$f" ] && [ "$f" != "$0" ] && rm -f "$f"; done
 for pid in $(luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>/dev/null | tr ',' '\n' | grep -A1 "\"$ID\"" | grep processid | sed 's/.*"processid": *"\([0-9]*\)".*/\1/'); do
   luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1
 done
@@ -24,8 +26,12 @@ if ! gone; then for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/c
 gone || { echo "ERROR: the $V hand daemon is still running; the profile and the job are left as they are"; exit 1; }
 for c in 0 1; do d=/sys/devices/system/cpu/cpu$c/cpufreq; [ -d $d ] && cat $d/cpuinfo_min_freq > $d/scaling_min_freq 2>/dev/null; done
 PREFS=$APP/profile/prefs.js
-if [ -s /tmp/fl-prefs-$V.txt ]; then while read n; do [ -n "$n" ] && sed -i "/\"$n\"/d" "$PREFS" && echo "pref stripped: $n"; done < /tmp/fl-prefs-$V.txt; : > /tmp/fl-prefs-$V.txt; fi
-rm -f /tmp/fl-region.last.raw
+# the profile's prefs as daemon-start.sh found them, whole (the daemon is gone: nothing writes them back)
+if [ -s /tmp/fl-prefs-before-$V ]; then cp /tmp/fl-prefs-before-$V "$PREFS" && echo "prefs.js put back as found" && rm -f /tmp/fl-prefs-before-$V
+elif [ -s /tmp/fl-prefs-$V.txt ]; then while read n; do [ -n "$n" ] && sed -i "/\"$n\"/d" "$PREFS" && echo "pref stripped: $n"; done < /tmp/fl-prefs-$V.txt; : > /tmp/fl-prefs-$V.txt; fi
+# the round's dumps and scratch
+rm -f /tmp/fl-region.last.raw /tmp/x.last.raw /tmp/frame.raw /tmp/frames.raw /tmp/st-gpu.png /tmp/st-pan.png /tmp/walk-trace.txt
+rm -rf /media/internal/jihad-finger /media/internal/jihad-stream
 stop $JOB >/dev/null 2>&1; sleep 1; start $JOB >/dev/null 2>&1; sleep 4
 n=0; for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) n=$((n+1));; esac; done
 echo "$V: $(status $JOB 2>&1); daemons running: $n"

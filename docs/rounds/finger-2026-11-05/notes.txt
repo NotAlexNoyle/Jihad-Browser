@@ -1,0 +1,35 @@
+T-564 — the script form and the runner of the finger suite (2026-11-05; cavekit-finger-testing.md R4, R5)
+=====================================================================================================
+Built (tools/device/finger/, the README's "The suite" section): finger-run.py, the host runner — the lint over the
+suite, the owner's lock (/tmp/jihad-owner-testing on the device: the runner refuses and says so), the sampler built
+from source and pushed once, then for each shell each script in ONE device session (daemon-start.sh on the script's
+page with the profile's prefs copied first; the steps compiled onto fingerlib.sh and run by one dev-sh.sh call; the
+failed checks' frames pulled as JPEGs into <round>/kept/; daemon-stop.sh after every script whatever the verdict:
+the hand daemon gone, prefs.js put back as found, the dumps and scratch removed, a leftover device script killed and
+removed, the job back), the end-of-suite device check (device-check.sh: the three jobs running, no daemon with the
+inject channel, no test hook, no adapter gate, no gate file or device script or dump in /tmp, no scratch under
+/media/internal, the Default look by each daemon's getTheme, No proxy by network.proxy.type) and one report
+(<round>/finger-report.md + .json: every run's verdict pass / fail / a person's, its checks' lines, the kept frames,
+the device check). The script form (suite/*.test): header lines (id, shells, page, prefs, kit, or person), then one
+step a line — launch, wait <mark> [bound], calibrate, the gestures, expect <check> args, sample, shoot — no sleep;
+a gesture with no mark of its own (chrome, hold, dtap, pinch) needs a wait before the next plain expect; a wait
+that times out is a failed check; a tap takes an element, never a coordinate; the arity of every verb is checked
+(an unquoted selector with spaces splits). The lint's fixture suite/self/lint-bad.test.off shows the findings.
+
+The first runs (the suite of three scripts — pan-long-drag, keyboard-address, settings-tabs — plus the self
+scripts deliberate-fail and the person's accelerometer):
+- The lock: with /tmp/jihad-owner-testing on the device the runner printed "REFUSED: /tmp/jihad-owner-testing
+  exists on the device — the owner is testing; remove it when done" and exited 3.
+- The first round of all three shells found four faults of the scripts and the runner (quoting: an unquoted
+  selector with spaces split into two arguments, so the calibration tapped the whole content block and scrolled
+  the card 10 000 px; the splitter dropped backslash-escaped quotes; a region-changed line written in the walk's
+  argument order; the device check counted the proxy rounds' inert host lines as a proxy) and the leftovers of the
+  day before on the device (a killed walk's script, a diagnostic's screenshot, the stream rounds' scratch) — the
+  check's purpose. Fixed: the splitter's escapes, the lint's arity rule, the scripts in single quotes, No proxy
+  read from network.proxy.type, the cleanup widened; the start waits for the page's load done (a card beside
+  another shell's job daemon coming up loads slowly).
+- The round after: 13 runs in 11 minutes — 9 passes (pan-long-drag, keyboard-address and settings-tabs on each of Enyo, Mochi and Mojo), 3 a person's (the accelerometer), 1 failure (the deliberate one of suite/self, its frame kept as kept/enyo-deliberate-fail-7-text_.jpg) — and the device check 26 of 26 ok at the end
+
+Not in T-564 (T-565's): the slow-human scripts (the dialog answered at 8 s, the job stopped and started before a
+persistence check), the pan at three speeds, the jittered and the paused drag, every item of docs/FINGER-TESTS.md as
+a script, the kits' citations by script id.

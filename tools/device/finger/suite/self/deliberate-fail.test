@@ -1,0 +1,7 @@
+# The suite's own failure path: a wrong expectation, its frame kept and reported (run with --self).
+id: deliberate-fail
+shells: enyo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-finger-testing.md R5
+calibrate 'sel:#content p'
+expect text 'sel:#header' 'not the header'

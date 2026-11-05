@@ -176,3 +176,81 @@ on the CPU, 0 wrong of 132 (express 81, main 51).
 State: the CPU bands ON by default on the GPU path (JIHAD_GPU_CPU_BANDS=0 turns them off); the daemon's resolution
 switch OFF (a loss). The three variants run the default engine (libxul 041a11fd) and the daemon 22b50854 (the .ipks not
 rebuilt). The scratch and the dumps removed from the device by the rounds' own stop script.
+
+T-563 — the check library and the geometry (2026-11-04 afternoon; cavekit-finger-testing.md R1, R3)
+=================================================================================================
+Built: tools/device/finger/fingerlib.sh (the device-side library, busybox sh, put ahead of a test's body and run as
+one script in one novacom session against the shell's hand daemon), daemon-start.sh / daemon-stop.sh (the hand daemon
+per shell as the job starts it plus the inject channel and the [jihad-gpu] log; the card launched once the daemon
+serves YAP; the job back after), fbstream -Q (one shot: a portrait region's distinct colours, order-sensitive hash
+and one-colour rows; -L keeps the page), fingerlib-check.sh (the library's own round), prefs-finger-walk.sh on the
+library (one settings pane a session, all three shells). The README's section lists the functions.
+
+The library's own round (fingerlib-check.sh, 16-17 checks on jihad-long-static.html then desktop Wikipedia; the
+records fl-check-<shell>.txt here):
+  shell  checks  ok  failed (the deliberate one among them)  the calibration    Wikipedia's top by a second tap
+  enyo   16      15  1 (deliberate)                           82 (table 82)      82 at zoom 0.6882
+  mochi  16      14  2 (deliberate; zoom-fit: Wikipedia at 1.0000, see FOUND)   78 (table 78)      78 at zoom 1.0000
+  mojo   17      16  1 (deliberate)                           73 (table 73)      73 at zoom 0.6882 (fl_check_top after the drag: 73 with the bar away)
+  The plant (fingerlib-check.sh enyo plant, fl-check-enyo-plant.txt): the table's constant 20 px wrong —
+  "CALIBRATION FAIL (enyo): the page's top measured 82 on the screen (the tap at y 202 landed on document y 120), the
+  table says 102: off by 20 px — the round stops", exit 3, no check run.
+  The oracles that passed everywhere: the zoom from the last frame's mZoom, the URL from "load done uri=", an
+  element's text (gettext takes a bare selector), content by colours and the element's rect (321-4096 distinct
+  colours where content is), the element at a point, the engine's and the card's scroll after a drag, a region
+  changed where the content moved and equal where the header is, the clickAt inside the tapped paragraph after the
+  card was scrolled by the library, the keyboard up after the address field's tap and down after a page tap (the
+  window server's "IME: Window got focus change in sysmgr <id> focused: 1|0" line). A failed check keeps the shown
+  page (looked at: the deliberate failure's frame is the long page as the finger left it, paragraph 10 at the top).
+  The zoom in the geometry: a second calibration tap on Wikipedia's title at 0.6882 measures the same top as the long
+  page's at 1 (82 / 73): screen = top + document * zoom - the card's scroll.
+
+Mojo's header rule, measured (the experiment's log in the session's scratch; the rule in fingerlib.sh): the address
+bar (45 px) goes with the page's FIRST move — a drag, a flick, or a cardscroll that moves the view — and stays away
+(a cardscroll back to 0 leaves the page's top at 28, the card keeps the bar above its 0); a cardscroll to where the
+view already is moves nothing (the bar stays: the 2026-10-25 walk's tabs at the unshifted top after "cardscroll 0 0"
+were right, and so is today's 28 after a real scroll); a page load or a drag down of 120 px at the page's top brings
+it back (73). The library keeps that state (FL_HDR) and subtracts the bar while it is away; fl_check_top confirms the
+model against a tap after a scroll (Mojo: measured 73 = the model's 73 with the bar away). The fixed header's pixels
+at its new place differ from the ones at rest in the top row only (up to 3 units across the row: the edge's shade
+against the card's chrome), so an element's region drops one row at each edge.
+
+A fault of my own that looked like the channel: the first walks froze after their second row. Not novacom — busybox
+sh functions share one namespace, the library's wait reset the walk's backspace counter and the walk sent backspaces
+forever (the daemon's log full of "inject key 8"). Every library function now declares its variables local; a test
+body does the same. The mitigations put in meanwhile stay (dev-sh.sh's timeout on the client, the walk one pane a
+session, daemon-stop.sh killing a leftover device script).
+
+FOUND (Mochi, not T-563's): after the keyboard was raised by the address field's tap and dropped by a page tap (the
+IME line says focused: 0), the next page loaded through the inject channel laid out in a 768x655 window — the
+keyboard's height — and ended at zoom 1.0000 (the Mochi hand log: "metaViewport -> card: initial=0.6857 ... 1120x955",
+"setZoomAndScroll zoom=0.6882", "emitGeometry contentSize=1116x11819 win=768x655", then "contentSize=768x13933" and
+"setZoomAndScroll zoom=1.0000 (was 0.6882)"); Enyo and Mojo on the same sequence show 0.6882 in a full-height window.
+The Mochi card's window height after the keyboard's dismissal, or the daemon's followed width on a new load in a
+keyboard-sized window (T-538's fix covered the page that was there): the Mochi domain's, T-569.
+
+The keyboard in the geometry (the walks' first full runs): a finger's tap on a field raises the keyboard, which covers
+the screen's lower 290 rows (fb0: the sampler never sees it, a finger aimed there hits it) — the next rows' taps at
+y 771 and 849 reached no clickAt, and a session that began where the last one left the page scrolled aimed its
+calibration tap off the screen. The library now reads the keyboard's state (fl_kb: the window server's last IME line
+for the app) and keeps taps above row 700 while it is up, and the calibration scrolls its element into view first
+(and pulls Mojo's bar back).
+
+The picker rule, measured (the walks' choice rows): Enyo's and Mochi's list opens under the select (the first row 60
+px under the select's centre, 44 px a row; a select near the screen's bottom gets its list off the screen — the
+library brings the select mid-screen first); Mojo's is a popup centred on the VISIBLE card area wherever the select
+is (x 243..523, rows of 51 px: the centres 480/531/582 for three rows and 454/505/556/607 for four with the keyboard
+down — frames of the session's scratch, not kept — and higher with the keyboard up: the two cookie pickers at the
+privacy pane's end, which the card cannot scroll higher and which follow a typed field, missed by rows until the
+popup was measured in the frame: fbstream -Q now reports the span of light rows at the region's centre column, the
+white popup over the dimmed page, and fl_pick counts the rows from its top), the daemon's popups count stays 0 for
+it, and a drag inside it dismisses it. The list is waited for by a still frame region (fl_wait_still: three reads
+150 ms apart with one hash after a 200 ms floor — the popup fades and slides in), the row then tapped.
+A pref whose default is a chrome:// pointer (intl.accept_languages) cannot be typed back: the walk reads the resolved
+text as the pass and puts the pointer back through the inject channel; a put-back the finger missed is put back the
+same way, so the profile is left as found (the file comparison reads the user lines the engine adds once a pref is
+set against the value it read before).
+
+The walks (prefs-finger-walk.sh, the 57 rows of about:settings, one pane a session, the records
+prefs-finger-walk-<shell>.txt here): Enyo 62 of 62, Mochi 62 of 62, Mojo 62 of 62 (the five tabs and the 57 rows each, every pref changed and put back by the finger on its own control, no pref left changed; 13-15 minutes a shell)
+

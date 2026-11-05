@@ -96,6 +96,51 @@ The first round (2026-11-03, `docs/rounds/finger-2026-11-03/notes.txt`) read two
 round had seen: a grey band at the bottom of the screen under a drag (T-567) and a band under the long page's fixed
 header a frame behind (T-568).
 
+## fingerlib — the check library and the geometry (cavekit-finger-testing.md R1, R3; T-563)
+
+`fingerlib.sh` is the device side of a finger test: busybox sh functions a test's host wrapper puts ahead of the test's
+own body and runs as ONE script in one novacom session (`build/webos-oe/dev-sh.sh`) against the shell's hand daemon
+(`daemon-start.sh <shell> <url> [PREF=name=value …]`: the shipped GPU path with the express lane plus the inject
+channel and the `[jihad-gpu]` log on `daemon-gpu.log`; `daemon-stop.sh <shell> [log]` puts the upstart job back and
+strips the run's prefs). Its header lists every function; the shape:
+
+- **Oracles, never an eye.** `fl_rect`, `fl_text`, `fl_pref`, `fl_zoom`, `fl_url`, `fl_card_scroll` read the inject
+  channel's answers and the daemon log; `fl_check_keyboard` reads the window server's syslog (`IME: Window got focus
+  change in sysmgr <app id> focused: 1|0`); `fl_check_dialog` the daemon's `dialog …: card picked up` / `dialog … ->`
+  lines; the frame checks (`fl_check_content`, `fl_sample` + `fl_check_region_equal` / `_changed`) read the shown page
+  through `fbstream -Q X0,Y0,X1,Y1` (one shot: distinct colours, an order-sensitive hash, one-colour rows). Content is
+  "8+ distinct colours AND the expected element's screen rect meeting the region (and its text when given)" — there is
+  no brightness check in the library, so the darkness class cannot come back. A region meant to hold still ends at
+  column 756: the card's scroll indicator stands in 757..767 and fades after a scroll.
+- **Waits on marks.** `fl_mark` notes the log's size; `fl_wait PATTERN BOUND` polls five times a second for the line
+  since the mark and fails at the bound; `fl_wait_pref`, `fl_wait_rect`, `fl_wait_settled` (the card's scroll read
+  twice the same), `fl_wait_load`, `fl_wait_painted`, `fl_wait_zoom` are the named waits. No sleep stands for a check.
+- **Geometry derived (R3).** A tap names an element: `fl_screen SEL` = its rect (document px: the viewport rect plus the
+  engine's scroll) times the zoom, less the card's scroll, plus the shell's page top, less Mojo's 45 px header once the
+  card is scrolled — re-read every time. `fl_calibrate SEL` taps a known element aimed with the shell's table constant
+  (Enyo 82, Mochi 78, Mojo 73) and reads the daemon's `clickAt` back: the top measured; off the table by more than
+  10 px the round STOPS (exit 3) with the reason. `fl_chrome NAME` is the per-shell table of the chrome (back, forward,
+  home, address, reload, share, newcard, history; Mojo's bottom bar and its search; the system alert's Close).
+  `fl_pick SEL INDEX [ROWS]` is the picker rule: the select brought mid-screen, the list waited for by a still frame
+  region (`fl_wait_still`: the card's own animations have no log line, the shown frame is their oracle), then the
+  row — under the select on Enyo and Mochi (the first row 60 px under the select's centre, 44 px a row), in Mojo's
+  popup (x 243..523, rows of 51 px) centred on the visible card area wherever the select is — lower with the keyboard
+  down, higher with it up — so measured where it is: `fbstream -Q` reports the span of light rows at the region's
+  centre column (the white popup over the dimmed page) and the rows are counted from its top; the daemon never counts
+  that popup open. `fl_bring` scrolls the card so an element sits mid-view before a tap, above the keyboard while it
+  is up (`fl_kb`: the window server's last IME line).
+- **Verdicts.** A check prints `CHECK ok NAME: evidence` or `CHECK FAIL NAME: evidence`; a failure keeps the shown
+  page under `/media/internal/jihad-finger/NAME.last.raw` (the host wrapper pulls it), a pass keeps nothing;
+  `fl_summary` prints `CHECKS n FAILS m` and exits 1 on a failure.
+
+`fingerlib-check.sh [shell] [plant]` is the library's own round: the long page (the calibration, every check once, a
+deliberate failure whose frame is pulled), then desktop Wikipedia at its fit zoom (a second calibration tap measures
+the zoom in the geometry); `plant` puts the page-top constant 20 px wrong and the calibration must stop the round.
+`prefs-finger-walk.sh [shell] [filter]` is the settings walk on the library, one pane a session, on all three shells.
+The first rounds (2026-11-04, `docs/rounds/finger-2026-11-04/notes.txt` "T-563"): the library's round Enyo 15 of 16,
+Mochi 14 of 16, Mojo 16 of 17 (the deliberate failure the one each keeps a frame for; Mochi's other a shell
+finding, T-569), the plant stopped with "off by 20 px", the walks Enyo 62 of 62, Mochi 62 of 62, Mojo 62 of 62 (the five tabs and the 57 rows each, every pref changed and put back by the finger on its own control, no pref left changed; 13-15 minutes a shell).
+
 ## A round
 
 1. Open the card on the page with `luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"<app id>","params":{"target":"<url>"}}'`

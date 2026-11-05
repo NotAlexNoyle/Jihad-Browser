@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 midday below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-04 afternoon below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -52,7 +52,53 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-04 (midday) — the Deciding Vote: the CPU bands the GPU path's DEFAULT, the resolution switch off, no scaler; next T-563 (READ FIRST)
+## 2026-11-04 (afternoon) — T-563 DONE: the check library and the geometry of the finger rounds; next T-564 (READ FIRST)
+
+**State:** main at this commit on top of `0179c052` (the engine unchanged at the fork's `6d621405dd`). **Not pushed**
+(the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only): this commit.
+
+**Built (`tools/device/finger/`, the README's "fingerlib" section):** `fingerlib.sh`, the device-side check library
+(busybox sh; a test's host wrapper puts it ahead of the test's body and runs the whole as one script in one novacom
+session): the oracles (the inject channel's `rect`/`gettext`/`getpref`, the daemon log's clickAt, load done, painted,
+setZoomAndScroll, dialog lines; the window server's `IME: … focused: N` line for the keyboard), the frame checks
+through `fbstream -Q X0,Y0,X1,Y1` (distinct colours, an order-sensitive hash, one-colour rows — no brightness
+anywhere), waits on marks with bounds (fl_wait, fl_wait_pref, fl_wait_rect, fl_wait_settled), the geometry (a tap
+names an element: its rect × the zoom − the card's scroll + the calibrated top − Mojo's bar while it is away;
+`fl_calibrate` stops the round when the table's page-top constant is off by more than 10 px; `fl_chrome` the per-shell
+table; `fl_pick` the picker rule), the verdict lines `CHECK ok|FAIL NAME: evidence` (a failure keeps the shown page
+under `/media/internal/jihad-finger/`, pulled by the wrapper). `daemon-start.sh <shell> <url>` / `daemon-stop.sh` run
+the shell's daemon by hand as the job does plus the inject channel and the GPU log (the card launched once the daemon
+serves YAP). `fingerlib-check.sh [shell] [plant]` is the library's own round; `prefs-finger-walk.sh [shell]` the
+settings walk on the library, one pane a session, all three shells.
+
+**Measured (`docs/rounds/finger-2026-11-04/notes.txt` "T-563"):** the library's round Enyo 15 of 16, Mochi 14 of 16,
+Mojo 16 of 17 (the one failure each is the deliberate one, its frame kept and looked at); the plant: "off by
+20 px — the round stops", exit 3; Wikipedia at 0.6882 measures the same page top as the long page at 1 (the zoom in
+the geometry right); Mojo's header rule measured by taps: the bar (45 px) goes with the page's first move — a drag,
+a flick, a cardscroll that moves the view — and stays away (cardscroll 0 leaves the top at 28) until a load or a
+drag down at the top (73); the library keeps that state. The walks: Enyo 62 of 62, Mochi 62 of 62, Mojo 62 of 62 (the five tabs and the 57 rows each, every pref changed and put back by the finger on its own control, no pref left changed; 13-15 minutes a shell).
+
+**Found:** T-569 (Mochi): after the keyboard is dropped by a page tap the next page loads in a keyboard-sized window
+(768x655) and ends at zoom 1.0 where Enyo and Mojo show 0.6882. **A trap of mine:** busybox sh functions share one
+namespace — the library's wait reset the walk's backspace counter and the walk sent backspaces forever; it looked
+like a novacom stall for an hour (the memory note corrected). Every function now declares `local`; a test body must
+too. `gettext` takes a bare selector (the `sel:` form is `rect`'s). The syslog rotates under a round (the keyboard
+check falls back to the daemon's editorFocused line while it is away). A still region ends at column 756 (the scroll
+indicator) and an element's region drops one row at each edge (the edge's shade). A finger's tap on a field raises
+the keyboard, which covers the lower 290 rows: a tap aimed there reaches no clickAt — the library reads the keyboard's
+state (fl_kb) and keeps taps above row 700 while it is up.
+
+**Next:** T-564 (the script form and the runner: launch / wait-for / gesture / expect / shoot-on-fail, one device
+session per script, the owner's lock file, the restore after every script, the report, the end-of-suite device check,
+the no-bare-sleep lint), then T-565, T-566; then the full device build (daemon + three adapters + .ipks) when the GPU
+fixes settle; Tier 91's kits.
+
+**Device state:** the three variants run the default engine (libxul `041a11fd`) and the daemon `22b50854` on their
+upstart jobs (daemon-stop.sh after every round; the `.ipk`s NOT rebuilt). `/tmp/finger` and `/tmp/fbstream` (the -Q
+build, pushed by every fingerlib-check run) on the device; no round scratch left (`/media/internal/jihad-finger`
+removed by the wrappers).
+
+## 2026-11-04 (midday) — the Deciding Vote: the CPU bands the GPU path's DEFAULT, the resolution switch off, no scaler; next T-563
 
 **State:** main at this commit (the engine gitlink at the fork's `6d621405dd`, patch 0077, the pins moved) on top of
 `73a33761`. **Not pushed** (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, the fork branch first, Gitea

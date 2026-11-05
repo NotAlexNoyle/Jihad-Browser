@@ -37,6 +37,12 @@
  *       -U ROWS  shoot on the event: when a run of ROWS or more one-colour rows appears where the previous sample had
  *            content, the whole shown page goes to OUT.eventNNNN.raw (three at most): the frame a person would
  *            have to see, kept without a person
+ *       -Q X0,Y0,X1,Y1  ONE SHOT (T-563, the check library): no stream; the shown page is read once and the portrait
+ *            region [X0,X1) x [Y0,Y1) summed up on stdout — "region X0,Y0-X1,Y1: colours N hash H rows R uniform U"
+ *            (N distinct 24-bit colours over every other pixel, 4096 at most; H an order-sensitive hash of every pixel;
+ *            U of the R portrait rows one colour), then "light F-L" — the first and last portrait row of the region
+ *            whose pixel at the region's centre column is light (every channel 0xd0 or more: a card's white popup
+ *            over its dimmed page), or "light none" — with -L the page goes whole to OUT.last.raw (a failed check's frame)
  *     The summary on stdout at the end: samples, rate, the read's cost, flips, polls, this process's CPU.
  *
  *   OUT (little-endian): a header, then records of (u32 type, u32 bytes, payload):
@@ -74,7 +80,7 @@ static void w32(FILE* f, uint32_t v) { fwrite(&v, 4, 1, f); }
 /* the whole shown page to a file; read again (twice at most) when the card flipped during the copy — a torn page has
  * the portrait screen's left from one frame and its right from the next (the copy walks the framebuffer's rows, which
  * are the portrait's columns). Returns the tries (0: still torn). */
-static int dump_page(const char* path, int fd, const unsigned char* map, int use_pread, size_t line, size_t page, unsigned char** pagebuf) {
+static int grab_page(int fd, const unsigned char* map, int use_pread, size_t line, size_t page, unsigned char** pagebuf) {
   struct fb_var_screeninfo vi; int tries = 0;
   if (!*pagebuf) *pagebuf = malloc(page);
   if (!*pagebuf) return 0;
@@ -87,6 +93,11 @@ static int dump_page(const char* path, int fd, const unsigned char* map, int use
     if (vi.yoffset == yoff) break;
     if (tries >= 3) { tries = 0; break; }
   }
+  return tries;
+}
+static int dump_page(const char* path, int fd, const unsigned char* map, int use_pread, size_t line, size_t page, unsigned char** pagebuf) {
+  const int tries = grab_page(fd, map, use_pread, line, page, pagebuf);
+  if (!*pagebuf) return 0;
   FILE* rf = fopen(path, "wb"); if (!rf) return 0;
   fwrite(*pagebuf, 1, page, rf); fclose(rf);
   return tries;
@@ -120,7 +131,7 @@ int main(int argc, char** argv) {
   if (argc < 2) { fprintf(stderr, "usage: see the header of fbstream.c\n"); return 2; }
   const char* out = argv[1]; const char* dev = "/dev/fb1"; const char* trace = NULL;
   double seconds = 12; int hz = 15, stride = 8, use_pread = 0, poll_us = 1000, raw_every = 0, last_raw = 0, uni_event = 0;
-  int col_lo = 0, col_hi = 768;
+  int col_lo = 0, col_hi = 768; const char* region = NULL;
   for (int i = 2; i < argc; i++) {
     const char* a = argv[i]; const char* v = (i + 1 < argc) ? argv[i + 1] : "";
     if (!strcmp(a, "-s")) { seconds = atof(v); i++; } else if (!strcmp(a, "-z")) { hz = atoi(v); i++; }
@@ -130,6 +141,7 @@ int main(int argc, char** argv) {
     else if (!strcmp(a, "-f")) { trace = v; i++; }
     else if (!strcmp(a, "-U")) { uni_event = atoi(v); i++; }
     else if (!strcmp(a, "-c")) { col_lo = atoi(v); const char* h = strchr(v, '-'); col_hi = h ? atoi(h + 1) : 768; i++; }
+    else if (!strcmp(a, "-Q")) { region = v; i++; }
     else { fprintf(stderr, "fbstream: unknown option %s\n", a); return 2; }
   }
   if (hz < 1) hz = 1;
@@ -148,6 +160,50 @@ int main(int argc, char** argv) {
   if (!use_pread) {
     map = mmap(NULL, whole, PROT_READ, MAP_SHARED, fd, 0);
     if (map == MAP_FAILED) { map = NULL; use_pread = 1; fprintf(stderr, "fbstream: mmap failed (%s), pread\n", strerror(errno)); }
+  }
+  if (region) {   /* -Q: one shot, the region summed up, no stream (T-563) */
+    int x0 = 0, y0 = 0, x1 = 0, y1 = 0; const char* e = region;
+    x0 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++; y0 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++;
+    x1 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++; y1 = (int)strtol(e, (char**)&e, 10);
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > (int)vi.yres) x1 = vi.yres;
+    if (y1 > rows) y1 = rows;
+    if (x1 <= x0 || y1 <= y0) { fprintf(stderr, "fbstream: -Q wants X0,Y0,X1,Y1 inside 768x1024 with X1>X0, Y1>Y0\n"); return 2; }
+    unsigned char* pagebuf = NULL;
+    const int tries = grab_page(fd, map, use_pread, line, page, &pagebuf);
+    if (!pagebuf) die("grab");
+    /* distinct colours over every other pixel each way: an open-addressing table, 4096 distinct at most */
+    enum { CAP = 4096, TAB = 8192 };
+    static uint32_t tab[TAB]; static unsigned char used[TAB]; int ncol = 0, nuni = 0;
+    uint32_t hash = 2166136261u;
+    const int cx = (x0 + x1) / 2; int lightF = -1, lightL = -1;
+    for (int py = y0; py < y1; py++) {          /* a portrait row is a framebuffer column */
+      uint32_t firstp = 0; int uni = 1;
+      for (int px = x0; px < x1; px++) {
+        const int r = (int)vi.yres - 1 - px;      /* the fb row of portrait column px */
+        const uint32_t p = *(const uint32_t*)(pagebuf + (size_t)r * line + (size_t)py * 4) & 0xffffffu;
+        hash = (hash * 16777619u) ^ p;
+        if (px == cx && (p & 0xff) >= 0xd0 && ((p >> 8) & 0xff) >= 0xd0 && ((p >> 16) & 0xff) >= 0xd0) { if (lightF < 0) lightF = py; lightL = py; }
+        if (px == x0) firstp = p; else if (p != firstp) uni = 0;
+        if (((px - x0) & 1) == 0 && ((py - y0) & 1) == 0 && ncol < CAP) {
+          uint32_t h = (p * 2654435761u) >> 19; int found = 0;
+          for (int k = 0; k < TAB; k++) { const uint32_t i = (h + k) & (TAB - 1); if (!used[i]) { used[i] = 1; tab[i] = p; break; } if (tab[i] == p) { found = 1; break; } }
+          if (!found) ncol++;
+        }
+      }
+      if (uni) nuni++;
+    }
+    printf("region %d,%d-%d,%d: colours %d hash %08x rows %d uniform %d", x0, y0, x1, y1, ncol, hash, y1 - y0, nuni);
+    if (lightF >= 0) printf(" light %d-%d", lightF, lightL); else printf(" light none");
+    printf("%s\n", tries == 0 ? " (TORN)" : "");
+    if (last_raw) {
+      char path[512]; snprintf(path, sizeof path, "%s.last.raw", out);
+      FILE* rf = fopen(path, "wb"); if (!rf) die("open last.raw");
+      fwrite(pagebuf, 1, page, rf); if (fclose(rf) != 0) die("write last.raw");
+    }
+    free(pagebuf); if (map) munmap((void*)map, whole); close(fd);
+    return 0;
   }
   uint32_t* row = malloc(line); uint32_t* sig = malloc(rows * 4); uint32_t* first = malloc(rows * 4);
   uint32_t* prof = malloc(rows * 4); uint32_t* sig2 = malloc(rows * 4);

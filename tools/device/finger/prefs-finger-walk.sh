@@ -1,27 +1,35 @@
 #!/bin/bash
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
-# about:settings by finger (cavekit-preferences-ui.md R6, docs/FINGER-TESTS.md): every row of the page's own
-# table (packaging/prefsui/content/preferences.js) is reached and changed with the emulated finger's tap on
-# its control, then put back the same way, the engine pref read each time — prefs-row-walk.sh's walk with the
-# card's input path in place of the inject channel's click. The pane tabs are tapped by finger too.
+# about:settings by finger (cavekit-preferences-ui.md R6, docs/FINGER-TESTS.md; cavekit-finger-testing.md R3): every
+# row of the page's own table (packaging/prefsui/content/preferences.js) is reached and changed with the emulated
+# finger's tap on its control, then put back the same way, the engine pref read each time — prefs-row-walk.sh's walk
+# with the card's input path in place of the inject channel's click. The pane tabs are tapped by finger too.
 #
 #   tools/device/finger/prefs-finger-walk.sh [enyo|mochi|mojo] [row-filter-regex]
 #
-# Runs on the spike daemon (tools/device/t502/gpu-spike-start.sh: the shipped GPU path, the inject channel on;
-# Enyo only, which is the variant the spike script starts). What the finger does: the tabs, the checkboxes, the
-# pickers' opening tap, a field's focusing tap. What the inject channel does: the pick inside an open picker
-# (popupsel), the keys typed into a focused field, the reads (rect, getpref) and the card's scroll (cardscroll:
-# the card's own view, as for a page's own scroll). A tap's screen point is the control's document centre less
-# the card's scroll, plus the page's top on the screen, measured first from one tap on the page's title.
-# Needs /tmp/finger on the device (tools/device/finger/README.md). prefs.js is compared before and after.
+# One device session a pane (the hand daemon stays up across them, each pane's script calibrates again): a session
+# that hangs or is cut short costs one pane, not the walk.
+#
+# Since 2026-11-04 (T-563) the walk runs through the check library (fingerlib.sh) on all three shells: the geometry
+# is the library's (the calibration tap on the page's title, every control's screen point from its rect, the card's
+# scroll and the shell's page top, the picker rule, Mojo's header rule) and every wait is on an oracle (the clickAt,
+# the picker's open and close, the pref's readback) — no hand-worked number and no sleep in this file. What the
+# finger does: the tabs, the checkboxes, the pickers' opening tap and their rows, a field's focusing tap. What the
+# inject channel does: the keys typed into a focused field, the reads (rect, getpref). The hand daemon of
+# daemon-start.sh (the shipped GPU path plus the inject channel) runs the walk; prefs.js is compared before and after.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 . "$ROOT/build/webos-oe/host-path.sh"
 V="${1:-enyo}"; FILTER="${2:-.}"
-[ "$V" = enyo ] || { echo "the spike daemon is Enyo's: run this with enyo" >&2; exit 2; }
-ID=net.riverstonerelay.jihad-browser
+case "$V" in
+  enyo)  ID=net.riverstonerelay.jihad-browser;;
+  mochi) ID=net.riverstonerelay.jihad-browser-mochi;;
+  mojo)  ID=net.riverstonerelay.jihad-browser-mojo;;
+  *) echo "usage: $0 [enyo|mochi|mojo] [row-filter-regex]" >&2; exit 2;;
+esac
+D=${ROUND_DIR:-$ROOT/docs/rounds/finger-$(date +%F)}; mkdir -p "$D"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 # pane|group|row|pref|type|invert|option values|option value type — one line per table row.
@@ -40,100 +48,110 @@ for (const p of PANES) { if (p.chrome || !p.groups) continue;
 N=$(grep -c '' "$TMP/rows.txt")
 [ "$N" -gt 0 ] || { echo "no row matches '$FILTER'" >&2; exit 2; }
 
-cat > "$TMP/walk.sh" <<'EOF'
-#!/bin/sh
-ID=$1
-L=/var/palm/jihad/enyo/daemon-gpu.log; I=/var/palm/jihad/enyo/inject.cmd
-P=/media/cryptofs/apps/usr/palm/applications/$ID/profile/prefs.js
-seg() { E=$(wc -c < $L); tail -c $((E-$1)) $L; }
-inj() { B=$(wc -c < $L); echo "$1" > $I; sleep ${2:-1}; }
-gp() { inj "getpref $1 $2" 1; seg $B | grep 'inject getpref' | tail -1 | sed 's/.*= \[\(.*\)\]$/\1/'; }
-# "docX docY cardX cardY" for a selector: the rect's centre plus the engine's scroll (document px), and the card's scroll
-loc() { inj "rect $1" 1; seg $B | grep 'inject rect' | tail -1 | sed -n 's/.*scroll=\(-*[0-9]*\),\(-*[0-9]*\) rect=.* center=\(-*[0-9]*\),\(-*[0-9]*\) card=\(-*[0-9]*\),\(-*[0-9]*\).*/\1 \2 \3 \4 \5 \6/p' | awk '{print $1+$3, $2+$4, $5, $6}'; }
-popup() { seg $B | grep 'popupMenuShow id=' | tail -1 | sed 's/.*id=\([^ ]*\) .*/\1/'; }
-bs() { n=$1; while [ $n -gt 0 ]; do inj "key 8" 1; n=$((n-1)); done; }
+{ echo "chmod +x /tmp/fbstream /tmp/finger 2>/dev/null"; cat "$HERE/fingerlib.sh"; cat <<'BODY'
+V=$1; PANE=$3
+P=/media/cryptofs/apps/usr/palm/applications/$2/profile/prefs.js
+fl_init $V
+[ -f /tmp/walk-prefs.before ] || cp $P /tmp/walk-prefs.before
 KEY_END=57522
-# the finger's tap on a selector: the card scrolled so the control sits a third down the card, then the
-# tap; TX,TY the screen point tapped (run in this shell, not in a $(...), so B and TX/TY stay set)
-ftap() {
-  set -- $(loc "$1"); [ -n "${2:-}" ] || { TX=""; return 1; }
-  dx=$1; dy=$2; cy=$4
-  if [ $((dy - cy)) -lt 80 ] || [ $((dy - cy)) -gt 600 ]; then
-    inj "cardscroll 0 $(( dy > 300 ? dy - 300 : 0 ))" 2; set -- $(loc "$SEL"); dx=$1; dy=$2; cy=$4
-  fi
-  TX=$dx; TY=$((TOP + dy - cy))
-  B=$(wc -c < $L); /tmp/finger tap $TX $TY; sleep 2
-}
-# a picker's item by finger: the card's own list opens below the select, centred under it (a wide one
-# reaches the screen's right edge and still spans the select's middle), 44 px rows, the first 38 px under
-# the select's bottom edge (measured on the Enyo card 2026-10-25)
-fpick() { /tmp/finger tap $TX $(( TY + 22 + 38 + 44 * $1 )); sleep 2; }
-luna-send -n 1 palm://com.palm.display/control/setState '{"state":"on"}' >/dev/null 2>&1
-cp $P /tmp/walk-prefs.before
-sleep 3
-# the page's top on the screen: one tap on the title, the daemon's clickAt says where it landed
-set -- $(loc "page-title"); ty=$2
-B=$(wc -c < $L); /tmp/finger tap $1 $((ty + 82)); sleep 2
-got=$(seg $B | grep 'clickAt x=' | tail -1 | sed -n 's/.*clickAt x=\([0-9]*\) y=\([0-9]*\).*/\2/p')
-[ -n "$got" ] || { echo "no clickAt for the calibration tap"; exit 1; }
-TOP=$((ty + 82 - got))
-echo "#### the page's top on the screen: $TOP (title at document y $ty, the tap at $((ty + 82)) landed on $got)"
-OKN=0; BAD=0; CUR=""
+# the keys typed into the focused field, each one's echo awaited
+key() { fl_ask "key $1" 'inject key ' 3 >/dev/null; }
+text() { fl_ask "text $1" 'inject text ' 3 >/dev/null; }
+bs() { local k; k=$1; while [ $k -gt 0 ]; do key 8; k=$((k-1)); done; }
+fl_wait_rect "page-title" 20 || { echo "FATAL: about:settings shows no page-title"; exit 1; }
+fl_calibrate "page-title"
+CUR=""
+grep "^$PANE|" /tmp/walk-rows.txt > /tmp/walk-pane.txt
 while IFS='|' read pane g r pref type inv opts otype <&3; do
   if [ "$pane" != "$CUR" ]; then
-    inj "cardscroll 0 0" 2; SEL="sel:button[data-pane=\"$pane\"]"; ftap "$SEL"; CUR=$pane
-    echo "tab $pane tapped at $TX,$TY"
+    fl_card_to 0
+    TAB="sel:button.pane-tab[data-pane=\"$pane\"]"
+    if fl_tap "$TAB" && fl_wait_rect "sel:button.pane-tab.on[data-pane=\"$pane\"]" 5; then
+      fl_check ok "tab-$pane" "tapped at $FL_TX,$FL_TY (clickAt $FL_HIT); the pane's first heading [$(fl_text 'sel:h2.group-title')]"
+    else fl_check FAIL "tab-$pane" "the tab's tap did not show the pane"; fi
+    CUR=$pane
   fi
   ROW="sel:.row[data-pref=\"$pref\"]"   # the row by its pref (preferences.js buildRow)
   case $type in bool) T=b; CTL="$ROW input";; int) T=i; CTL="$ROW input";; string) T=s; CTL="$ROW input";;
     choice) CTL="$ROW select"; [ "$otype" = number ] && T=i || T=s;; esac
-  SEL="$CTL"; b0=$(gp $T $pref); want="$b0"; s1=""
+  b0=$(fl_pref $T $pref); want="$b0"; s1=""
   case $type in
   bool)
-    ftap "$CTL" || { echo "FAIL $pane $g.$r $pref ($type): no control"; BAD=$((BAD+1)); continue; }; at="$TX,$TY"
-    b1=$(gp $T $pref); ftap "$CTL"; b2=$(gp $T $pref);;
+    fl_tap "$CTL" || { fl_check FAIL "$pane $g.$r $pref ($type)" "no control"; continue; }; at="$FL_TX,$FL_TY"
+    b1=$(fl_wait_pref $T $pref "$b0"); fl_tap "$CTL"; b2=$(fl_wait_pref $T $pref "$b1");;
   choice)
     N=$(echo "$opts" | awk -F, -v b="$b0" '{for(i=1;i<=NF;i++) if($i!=b){print i-1"|"$i; exit}}'); ni=${N%%|*}; nv=${N#*|}
     oi=$(echo "$opts" | awk -F, -v b="$b0" '{for(i=1;i<=NF;i++) if($i==b){print i-1; exit}}')
-    ftap "$CTL" || { echo "FAIL $pane $g.$r $pref ($type): no control"; BAD=$((BAD+1)); continue; }; at="$TX,$TY"
-    [ -n "$(popup)" ] || s1="the tap opened no picker"
-    fpick $ni; b1=$(gp $T $pref)
-    if [ -n "$oi" ]; then ftap "$CTL"; fpick $oi
-    else inj "setpref $T $pref $b0" 1; s1="$s1 (stored value is not one of the options; put back with setpref)"; fi
-    b2=$(gp $T $pref);;
+    NR=$(echo "$opts" | awk -F, '{print NF}')
+    fl_pick "$CTL" $ni $NR || { fl_check FAIL "$pane $g.$r $pref ($type)" "the picker did not open or close"; continue; }; at="$FL_TX,$FL_TY"
+    b1=$(fl_wait_pref $T $pref "$b0")
+    if [ -n "$oi" ]; then fl_pick "$CTL" $oi $NR || s1="(the second pick did not open or close)"
+    else fl_ask "setpref $T $pref $b0" 'inject setpref ' 3 >/dev/null; s1="(stored value is not one of the options; put back with setpref)"; fi
+    b2=$(fl_wait_pref $T $pref "$b1");;
   int)
-    nv=$((b0+1)); ftap "$CTL" || { echo "FAIL $pane $g.$r $pref ($type): no control"; BAD=$((BAD+1)); continue; }; at="$TX,$TY"
-    inj "key $KEY_END" 1; bs $(( ${#b0} + 1 )); inj "text $nv" 1; inj "key 13" 2; b1=$(gp $T $pref)
-    inj "key $KEY_END" 1; bs $(( ${#nv} + 1 )); inj "text $b0" 1; inj "key 13" 2; b2=$(gp $T $pref);;
+    nv=$((b0+1)); fl_tap "$CTL" || { fl_check FAIL "$pane $g.$r $pref ($type)" "no control"; continue; }; at="$FL_TX,$FL_TY"
+    key $KEY_END; bs $(( ${#b0} + 1 )); text $nv; key 13; b1=$(fl_wait_pref $T $pref "$b0")
+    key $KEY_END; bs $(( ${#nv} + 1 )); text $b0; key 13; b2=$(fl_wait_pref $T $pref "$b1");;
   string)
-    ftap "$CTL" || { echo "FAIL $pane $g.$r $pref ($type): no control"; BAD=$((BAD+1)); continue; }; at="$TX,$TY"
-    inj "key $KEY_END" 1; inj "text x" 1; inj "key 13" 2; b1=$(gp $T $pref)
-    inj "key 8" 1; inj "key 13" 2; b2=$(gp $T $pref)
-    case "$b0" in chrome://*) want="${b1%x}";; esac;;
+    fl_tap "$CTL" || { fl_check FAIL "$pane $g.$r $pref ($type)" "no control"; continue; }; at="$FL_TX,$FL_TY"
+    key $KEY_END; text x; key 13; b1=$(fl_wait_pref $T $pref "$b0")
+    key 8; key 13; b2=$(fl_wait_pref $T $pref "$b1")
+    # a chrome:// default (a localized pointer) cannot be typed back: the readback's resolved text is the pass, the
+    # pointer put back through the inject channel so the profile is left as found
+    case "$b0" in chrome://*) want="${b1%x}"; fl_ask "setpref $T $pref $b0" 'inject setpref ' 3 >/dev/null; s1="(the chrome:// pointer put back with setpref)";; esac;;
   esac
-  if [ "$b1" != "$b0" ] && [ "$b2" = "$want" ]; then OKN=$((OKN+1)); R=ok; else BAD=$((BAD+1)); R=FAIL; fi
-  echo "$R $pane $g.$r $pref ($type) tapped at $at: [$b0] -> [$b1] -> [$b2] $s1"
-done 3< /tmp/walk-rows.txt
-echo "rows changed and put back by the finger on their own control: $OKN ; not: $BAD"
+  echo "$pref|$b0" >> /tmp/walk-b0.txt
+  if [ "$b1" != "$b0" ] && [ "$b2" = "$want" ]; then fl_check ok "$pane $g.$r $pref ($type)" "tapped at $at: [$b0] -> [$b1] -> [$b2] $s1"
+  else
+    fl_check FAIL "$pane $g.$r $pref ($type)" "tapped at $at: [$b0] -> [$b1] -> [$b2] $s1"
+    # the device left as found: the value put back through the inject channel when the finger's put-back failed
+    [ "$b2" = "$want" ] || { fl_ask "setpref $T $pref $want" 'inject setpref ' 3 >/dev/null; echo "  put back with setpref: [$(fl_pref $T $pref)]"; }
+  fi
+done 3< /tmp/walk-pane.txt
+fl_summary; RC=$?
 if cmp -s $P /tmp/walk-prefs.before; then echo "prefs.js now: identical to before (the daemon has not saved since)"; fi
-EOF
-
+exit $RC
+BODY
+} > "$TMP/walk.sh"
+# the sampler from its source (no binary in the tree), pushed every run: 48 KB (fl_pick measures Mojo's popup with it)
+TC=$ROOT/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin
+$TC/arm-webos-linux-gnueabi-gcc -O2 -march=armv7-a -mfpu=neon -mfloat-abi=softfp -std=gnu99 -o "$TMP/fbstream" "$HERE/fbstream.c" || exit 1
+novacom put file:///tmp/fbstream < "$TMP/fbstream"
 novacom put file:///tmp/walk-rows.txt < "$TMP/rows.txt"
-"$ROOT/build/webos-oe/dev-sh.sh" -t 90 "$ROOT/tools/device/t502/gpu-spike-start.sh" "about:settings" "JIHAD_INJECT=1 PREF=jihad.viewport.followOverflow=true" 2>&1 | grep 'screenshot at\|FATAL'
-echo "walking $N row(s) of about:settings by finger"
-"$ROOT/build/webos-oe/dev-sh.sh" -t $(( N * 45 + 300 )) "$TMP/walk.sh" "$ID" 2>&1 | tee "$TMP/out.txt"
-# the spike daemon stopped, the run's prefs stripped, the upstart job back; then prefs.js compared
-"$ROOT/build/webos-oe/dev-sh.sh" -t 90 "$ROOT/tools/device/t502/gpu-spike-collect-stop.sh" 2>/dev/null | tail -n 2
-cat > "$TMP/cmp.sh" <<'EOF'
-# every walked pref, before the walk and now (a line each way: the daemon rewrites the file in its own order)
-P=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/prefs.js
-n=0
+novacom run file://bin/rm -- -f /tmp/walk-prefs.before /tmp/walk-b0.txt </dev/null >/dev/null 2>&1
+"$ROOT/build/webos-oe/dev-sh.sh" -t 90 "$HERE/daemon-start.sh" "$V" "about:settings" 2>&1 | tail -n 2
+echo "walking $N row(s) of about:settings by finger in $V"
+OUT="$D/prefs-finger-walk-$V.txt"; : > "$OUT"
+# one device session a pane (the daemon stays up across them; each pane's script calibrates again): a session that
+# hangs or is cut short costs one pane, not the walk
+for PANE in $(cut -d'|' -f1 "$TMP/rows.txt" | awk '!seen[$0]++'); do
+  NP=$(grep -c "^$PANE|" "$TMP/rows.txt")
+  echo "=== pane $PANE ($NP rows)" | tee -a "$OUT"
+  "$ROOT/build/webos-oe/dev-sh.sh" -t $(( NP * 40 + 120 )) "$TMP/walk.sh" "$V" "$ID" "$PANE" 2>&1 | tee -a "$OUT" || echo "(the pane's session ended with status ${PIPESTATUS[0]})" | tee -a "$OUT"
+done
+for f in $(grep -a -o '/media/internal/jihad-finger/[^ ]*\.last\.raw' "$OUT" | sort -u); do
+  novacom get "file://$f" > "$D/walk-kept-$V-$(basename "$f" .last.raw).raw" && echo "pulled $f"
+done
+novacom run file://bin/rm -- -rf /media/internal/jihad-finger </dev/null >/dev/null 2>&1
+"$ROOT/build/webos-oe/dev-sh.sh" -t 90 "$HERE/daemon-stop.sh" "$V" 2>/dev/null | tail -n 1
+cat > "$TMP/cmp.sh" <<EOS
+# every walked pref, before the walk and now (a line each way: the daemon rewrites the file in its own order); a pref
+# that had no user line (its default) and has one now — the engine writes a user line once a pref is set, even back
+# to its default — is checked against the value the engine read before the walk (/tmp/walk-b0.txt)
+P=/media/cryptofs/apps/usr/palm/applications/$ID/profile/prefs.js
+n=0; m=0
 while IFS='|' read pane g r pref rest; do
-  a=$(grep "\"$pref\"" /tmp/walk-prefs.before | head -1); b=$(grep "\"$pref\"" $P | head -1)
-  [ "$a" = "$b" ] || { echo "CHANGED $pref: before [$a] now [$b]"; n=$((n+1)); }
+  a=\$(grep "\"\$pref\"" /tmp/walk-prefs.before | head -1); b=\$(grep "\"\$pref\"" \$P | head -1)
+  if [ -z "\$a" ] && [ -n "\$b" ]; then
+    v=\$(echo "\$b" | sed 's/.*", *//; s/);\$//; s/^"//; s/"\$//'); b0=\$(grep "^\$pref|" /tmp/walk-b0.txt | head -1 | cut -d'|' -f2-)
+    if [ "\$v" = "\$b0" ]; then echo "NEW LINE \$pref: now [\$b], the value the engine read before (\$b0)"; m=\$((m+1))
+    else echo "CHANGED \$pref: no user line before, the engine read [\$b0]; now [\$b]"; n=\$((n+1)); fi
+  elif [ "\$a" != "\$b" ]; then echo "CHANGED \$pref: before [\$a] now [\$b]"; n=\$((n+1)); fi
 done < /tmp/walk-rows.txt
-echo "prefs left changed by the walk: $n"
-EOF
-"$ROOT/build/webos-oe/dev-sh.sh" -t 30 "$TMP/cmp.sh"
-grep -q '^rows changed' "$TMP/out.txt" || { echo "the walk did not reach its end" >&2; exit 1; }
-! grep -q '^FAIL' "$TMP/out.txt"
+echo "prefs left changed by the walk: \$n; user lines added at their old value: \$m"
+EOS
+"$ROOT/build/webos-oe/dev-sh.sh" -t 30 "$TMP/cmp.sh" | tee -a "$OUT"
+NPANES=$(cut -d'|' -f1 "$TMP/rows.txt" | awk '!seen[$0]++' | wc -l)
+echo "panes $NPANES, ended $(grep -c '^CHECKS' "$OUT"); checks $(grep -c '^CHECK ok' "$OUT") ok, $(grep -c '^CHECK FAIL' "$OUT") failed" | tee -a "$OUT"
+[ "$(grep -c '^CHECKS' "$OUT")" = "$NPANES" ] || { echo "a pane's session did not reach its end" >&2; exit 1; }
+! grep -q '^CHECK FAIL' "$OUT"

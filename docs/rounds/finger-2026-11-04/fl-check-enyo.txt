@@ -1,0 +1,26 @@
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)
+CHECK ok zoom-1: zoom 1.0000 (want 1.0 within 0.01)
+CHECK ok url-long: load done uri=http://192.168.1.245:8077/jihad-long-static.html
+CHECK ok p1-text: sel:#content p = [1: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.] holds [1: the quick brown fox]
+CHECK ok content-top: region 0,150-768,400: colours 321 hash 98b5debf rows 250 uniform 0; sel:#content p on the screen at 16,154-748,210, text holds [quick brown]
+CHECK ok p1-at: sel:#content p on the screen at 16,154-748,210 holds 384,172
+  sample header of 0,84,756,136: hash 5e08dc37
+  sample content of 0,300,756,900: hash 6a2b3a47
+CHECK ok scroll-0: the engine's scroll y 0 (want 0), the card's 0 (want 0), within 5
+CHECK ok scroll-650: the card's scroll y 628 (want 650 within 80); the engine's 628
+CHECK ok header-still: region 0,84-756,136: colours 100 hash 5e08dc37 rows 52 uniform 31 = the sample's hash
+CHECK ok content-moved: region 0,300-756,900: colours 680 hash 967072ff rows 600 uniform 219 against the sample's hash 6a2b3a47
+  tap at 382,302 -> clickAt 383 848
+CHECK ok hit-p12: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56
+  chrome address tapped at 385 52
+CHECK ok kb-up: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser focused: 1, fieldtype: 7, fieldactions: 0x00
+  tap at 384,300 -> clickAt 385 846
+CHECK ok kb-down: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser focused: 0, fieldtype: 0, fieldactions: 0x00
+CHECK FAIL deliberate-fail: sel:#header = [jihad-long-static: a fixed header], want [not the header]
+  frame kept: /media/internal/jihad-finger/deliberate-fail_.last.raw
+CHECK ok url-wiki: load done uri=https://en.wikipedia.org/wiki/HP_TouchPad
+CHECK ok zoom-fit: zoom 0.6882 (want 0.69 within 0.06)
+wikipedia at the fit zoom 0.6882: the page's top measured 82 158 110 (calibrated 82 on the long page)
+CHECK ok wiki-title: region 0,82-768,382: colours 4096 hash 9db39755 rows 300 uniform 0; sel:#firstHeading on the screen at 182,144-476,171, text holds [HP TouchPad]
+CHECKS 16 FAILS 1
+novacom: unexpected EOF from server

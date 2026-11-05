@@ -28,7 +28,10 @@ novacom put "file://$DEVPATH" < "$SRC"
 # does) quits before its answer arrives — measured: every `$(luna-send …)` came back empty.
 exec 3< <(exec sleep "$MAX" 2>/dev/null); HOLDER=$!
 set +e
-novacom run file://bin/sh -- "$DEVPATH" "$@" <&3
+# `timeout`: the client itself under the ceiling too (2026-11-04: a client sat an hour past its holder behind a
+# device script that had looped — the script's fault, not the channel's, but the ceiling now holds either way);
+# the device side is the caller's to clean up
+timeout --foreground $((MAX + 30)) novacom run file://bin/sh -- "$DEVPATH" "$@" <&3
 RC=$?
 set -e
 exec 3<&-; kill "$HOLDER" 2>/dev/null || true

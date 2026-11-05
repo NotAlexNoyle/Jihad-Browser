@@ -1,0 +1,27 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+CHECK ok zoom-1: zoom 1.0000 (want 1.0 within 0.01)
+CHECK ok url-long: load done uri=http://192.168.1.245:8077/jihad-long-static.html
+CHECK ok p1-text: sel:#content p = [1: the quick brown fox jumps over the lazy dog; pack my box with five dozen liquor jugs; how vexingly quick daft zebras jump.] holds [1: the quick brown fox]
+CHECK ok content-top: region 0,150-768,400: colours 293 hash 8b1a67cb rows 250 uniform 0; sel:#content p on the screen at 16,145-748,201, text holds [quick brown]
+CHECK ok p1-at: sel:#content p on the screen at 16,145-748,201 holds 384,163
+  sample header of header: hash eeaac7d6
+  sample content of 0,300,756,900: hash 5ec8059e
+CHECK ok scroll-0: the engine's scroll y 0 (want 0), the card's 0 (want 0), within 5
+CHECK ok scroll-650: the card's scroll y 605 (want 650 within 80); the engine's 605
+CHECK ok header-still: region 0,29-756,83: colours 185 hash eeaac7d6 rows 54 uniform 33 = the sample's hash
+CHECK ok content-moved: region 0,300-756,900: colours 658 hash 6a684a79 rows 600 uniform 217 against the sample's hash 5ec8059e
+CHECK ok top-after-scroll: the page's top measured 73 (the tap at y 203 landed on document y 780), the model says 73 (header hidden: 1)
+  tap at 382,271 -> clickAt 383 848
+CHECK ok hit-p12: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56
+  chrome address tapped at 385 51
+CHECK ok kb-up: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mojo focused: 1, fieldtype: 0, fieldactions: 0x
+  tap at 384,300 -> clickAt 385 227
+CHECK ok kb-down: IME: Window got focus change in sysmgr net.riverstonerelay.jihad-browser-mojo focused: 0, fieldtype: 0, fieldactions: 0x
+CHECK FAIL deliberate-fail: sel:#header = [jihad-long-static: a fixed header], want [not the header]
+  frame kept: /media/internal/jihad-finger/deliberate-fail_.last.raw
+CHECK ok url-wiki: load done uri=https://en.wikipedia.org/wiki/HP_TouchPad
+CHECK ok zoom-fit: zoom 0.6882 (want 0.69 within 0.06)
+wikipedia at the fit zoom 0.6882: the page's top measured 73 149 110 (calibrated 73 on the long page)
+CHECK ok wiki-title: region 0,73-768,373: colours 4096 hash 2de37259 rows 300 uniform 75; sel:#firstHeading on the screen at 182,135-476,162, text holds [HP TouchPad]
+CHECKS 17 FAILS 1
+novacom: unexpected EOF from server

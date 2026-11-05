@@ -1,0 +1,189 @@
+=== pane general (6 rows)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 151,195 -> clickAt 152 117
+CHECK ok tab-general: tapped at 151,195 (clickAt 152 117); the pane's first heading [Browser identity]
+  tap at 720,349 -> clickAt 721 271
+  tap at 720,349 -> clickAt 721 271
+CHECK ok general 1.1 jihad.ua.learn (bool): tapped at 720,349: [true] -> [false] -> [true] 
+  tap at 720,698 -> clickAt 721 620
+  tap at 720,698 -> clickAt 721 620
+CHECK ok general 2.1 general.smoothScroll (bool): tapped at 720,698: [false] -> [true] -> [false] 
+  tap at 659,773 -> clickAt 660 695
+CHECK ok general 2.2 browser.sessionhistory.max_entries (int): tapped at 659,773: [0] -> [1] -> [0] 
+  tap at 659,408 -> clickAt 660 781
+CHECK ok general 2.3 layout.frame_rate (int): tapped at 659,408: [30] -> [31] -> [30] 
+  tap at 720,486 -> clickAt 721 859
+  tap at 720,777 -> clickAt 721 859
+CHECK ok general 2.4 accessibility.browsewithcaret (bool): tapped at 720,486: [false] -> [true] -> [false] 
+  tap at 720,844 -> clickAt 721 926
+  tap at 720,844 -> clickAt 721 926
+CHECK ok general 2.5 general.warnOnAboutConfig (bool): tapped at 720,844: [true] -> [false] -> [true] 
+CHECKS 7 FAILS 0
+prefs.js now: identical to before (the daemon has not saved since)
+=== pane content (13 rows)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 244,195 -> clickAt 245 117
+CHECK ok tab-content: tapped at 244,195 (clickAt 245 117); the pane's first heading [Content]
+  tap at 587,329 -> clickAt 588 251
+  tap at 587,329 -> clickAt 588 251
+CHECK ok content 1.1 permissions.default.image (choice): tapped at 587,329: [1] -> [2] -> [1] 
+  tap at 720,407 -> clickAt 721 329
+  tap at 720,407 -> clickAt 721 329
+CHECK ok content 1.2 javascript.enabled (bool): tapped at 720,407: [true] -> [false] -> [true] 
+  tap at 720,485 -> clickAt 721 407
+  tap at 720,485 -> clickAt 721 407
+CHECK ok content 1.3 dom.disable_open_during_load (bool): tapped at 720,485: [true] -> [false] -> [true] 
+  tap at 587,350 -> clickAt 588 474
+  tap at 587,350 -> clickAt 588 474
+CHECK ok content 1.4 plugin.default.state (choice): tapped at 587,350: [2] -> [0] -> [2] 
+  tap at 587,350 -> clickAt 588 561
+  tap at 587,350 -> clickAt 588 561
+CHECK ok content 1.5 plugin.state.flash (choice): tapped at 587,350: [2] -> [0] -> [2] 
+  tap at 720,437 -> clickAt 721 648
+  tap at 720,437 -> clickAt 721 648
+CHECK ok content 1.6 media.autoplay.enabled (bool): tapped at 720,437: [true] -> [false] -> [true] 
+  tap at 720,504 -> clickAt 721 715
+  tap at 720,504 -> clickAt 721 715
+CHECK ok content 1.7 dom.storage.enabled (bool): tapped at 720,504: [true] -> [false] -> [true] 
+  tap at 720,591 -> clickAt 721 802
+  tap at 720,591 -> clickAt 721 802
+CHECK ok content 1.8 layout.css.has-pseudo.enabled (bool): tapped at 720,591: [true] -> [false] -> [true] 
+  tap at 587,450 -> clickAt 588 1645
+  tap at 587,450 -> clickAt 588 1640
+CHECK ok content 2.1 browser.display.use_document_fonts (choice): tapped at 587,450: [1] -> [0] -> [1] 
+  tap at 587,517 -> clickAt 588 1712
+  tap at 587,517 -> clickAt 588 1712
+CHECK ok content 2.2 browser.display.document_color_use (choice): tapped at 587,517: [0] -> [1] -> [0] 
+  tap at 576,592 -> clickAt 577 1787
+CHECK ok content 2.3 browser.display.background_color (string): tapped at 576,592: [#FFFFFF] -> [#FFFFFFx] -> [#FFFFFF] 
+  tap at 576,675 -> clickAt 577 1870
+CHECK ok content 2.4 browser.display.foreground_color (string): tapped at 576,675: [#000000] -> [#000000x] -> [#000000] 
+  tap at 576,533 -> clickAt 577 2019
+CHECK ok content 3.1 intl.accept_languages (string): tapped at 576,533: [chrome://global/locale/intl.properties] -> [en-US, enx] -> [en-US, en] 
+CHECKS 14 FAILS 0
+=== pane privacy (13 rows)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 335,195 -> clickAt 336 117
+CHECK ok tab-privacy: tapped at 335,195 (clickAt 336 117); the pane's first heading [Tracking]
+  tap at 720,340 -> clickAt 721 262
+  tap at 720,340 -> clickAt 721 262
+CHECK ok privacy 1.1 privacy.donottrackheader.enabled (bool): tapped at 720,340: [false] -> [true] -> [false] 
+  tap at 720,418 -> clickAt 721 340
+  tap at 720,418 -> clickAt 721 340
+CHECK ok privacy 1.2 geo.enabled (bool): tapped at 720,418: [true] -> [false] -> [true] 
+  tap at 587,350 -> clickAt 588 407
+  tap at 587,350 -> clickAt 588 407
+CHECK ok privacy 1.3 network.http.sendRefererHeader (choice): tapped at 587,350: [2] -> [0] -> [2] 
+  tap at 720,417 -> clickAt 721 474
+  tap at 720,417 -> clickAt 721 474
+CHECK ok privacy 1.4 network.http.referer.spoofSource (bool): tapped at 720,417: [false] -> [true] -> [false] 
+  tap at 720,558 -> clickAt 721 615
+  tap at 720,558 -> clickAt 721 615
+CHECK ok privacy 2.1 jihad.blocking.enabled (bool): tapped at 720,558: [true] -> [false] -> [true] 
+  tap at 720,656 -> clickAt 721 713
+  tap at 720,656 -> clickAt 721 713
+CHECK ok privacy 2.2 jihad.blocking.cosmetic (bool): tapped at 720,656: [true] -> [false] -> [true] 
+  tap at 720,500 -> clickAt 721 1023
+  tap at 720,500 -> clickAt 721 1023
+CHECK ok privacy 3.1 places.history.enabled (bool): tapped at 720,500: [true] -> [false] -> [true] 
+  tap at 720,578 -> clickAt 721 1101
+  tap at 720,578 -> clickAt 721 1101
+CHECK ok privacy 3.2 browser.formfill.enable (bool): tapped at 720,578: [true] -> [false] -> [true] 
+  tap at 659,653 -> clickAt 660 1176
+CHECK ok privacy 3.3 browser.formfill.expire_days (int): tapped at 659,653: [180] -> [181] -> [180] 
+  tap at 587,350 -> clickAt 588 1305
+  tap at 587,627 -> clickAt 588 1305
+CHECK ok privacy 4.1 network.cookie.cookieBehavior (choice): tapped at 587,350: [0] -> [1] -> [0] 
+  tap at 587,694 -> clickAt 588 1372
+  tap at 587,694 -> clickAt 588 1372
+CHECK ok privacy 4.2 network.cookie.lifetimePolicy (choice): tapped at 587,694: [0] -> [2] -> [0] 
+  tap at 659,769 -> clickAt 660 1447
+CHECK ok privacy 4.3 network.cookie.lifetime.days (int): tapped at 659,769: [90] -> [91] -> [90] 
+  tap at 720,553 -> clickAt 721 1522
+  tap at 720,844 -> clickAt 721 1522
+CHECK ok privacy 4.4 network.cookie.thirdparty.sessionOnly (bool): tapped at 720,553: [false] -> [true] -> [false] 
+CHECKS 14 FAILS 0
+=== pane security (13 rows)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 425,195 -> clickAt 426 117
+CHECK ok tab-security: tapped at 425,195 (clickAt 426 117); the pane's first heading [Add-ons]
+  tap at 720,329 -> clickAt 721 251
+  tap at 720,329 -> clickAt 721 251
+CHECK ok security 1.1 xpinstall.whitelist.required (bool): tapped at 720,329: [false] -> [true] -> [false] 
+  tap at 720,396 -> clickAt 721 318
+  tap at 720,396 -> clickAt 721 318
+CHECK ok security 1.2 extensions.blocklist.enabled (bool): tapped at 720,396: [false] -> [true] -> [false] 
+  tap at 720,463 -> clickAt 721 385
+  tap at 720,463 -> clickAt 721 385
+CHECK ok security 1.3 extensions.update.enabled (bool): tapped at 720,463: [false] -> [true] -> [false] 
+  tap at 720,530 -> clickAt 721 452
+  tap at 720,530 -> clickAt 721 452
+CHECK ok security 1.4 extensions.strictCompatibility (bool): tapped at 720,530: [false] -> [true] -> [false] 
+  tap at 720,651 -> clickAt 721 573
+  tap at 720,651 -> clickAt 721 573
+CHECK ok security 2.1 signon.rememberSignons (bool): tapped at 720,651: [true] -> [false] -> [true] 
+  tap at 720,718 -> clickAt 721 640
+  tap at 720,718 -> clickAt 721 640
+CHECK ok security 2.2 signon.autofillForms (bool): tapped at 720,718: [false] -> [true] -> [false] 
+  tap at 587,350 -> clickAt 588 761
+  tap at 587,350 -> clickAt 588 761
+CHECK ok security 3.1 security.tls.version.min (choice): tapped at 587,350: [3] -> [1] -> [3] 
+  tap at 587,417 -> clickAt 588 828
+  tap at 587,417 -> clickAt 588 828
+CHECK ok security 3.2 security.tls.version.max (choice): tapped at 587,417: [4] -> [1] -> [4] 
+  tap at 720,484 -> clickAt 721 895
+  tap at 720,484 -> clickAt 721 895
+CHECK ok security 3.3 security.mixed_content.block_active_content (bool): tapped at 720,484: [false] -> [true] -> [false] 
+  tap at 720,551 -> clickAt 721 962
+  tap at 720,551 -> clickAt 721 962
+CHECK ok security 3.4 security.mixed_content.block_display_content (bool): tapped at 720,551: [false] -> [true] -> [false] 
+  tap at 587,435 -> clickAt 588 1029
+  tap at 587,435 -> clickAt 588 1029
+CHECK ok security 3.5 security.OCSP.enabled (choice): tapped at 587,435: [1] -> [0] -> [1] 
+  tap at 587,502 -> clickAt 588 1096
+  tap at 587,502 -> clickAt 588 1096
+CHECK ok security 3.6 security.default_personal_cert (choice): tapped at 587,502: [Ask Every Time] -> [Select Automatically] -> [Ask Every Time] 
+  tap at 720,652 -> clickAt 721 1246
+  tap at 720,652 -> clickAt 721 1246
+CHECK ok security 4.1 jihad.security.webos_certs (bool): tapped at 720,652: [true] -> [false] -> [true] 
+CHECKS 14 FAILS 0
+=== pane advanced (12 rows)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 525,195 -> clickAt 526 117
+CHECK ok tab-advanced: tapped at 525,195 (clickAt 526 117); the pane's first heading [Cache]
+  tap at 720,329 -> clickAt 721 251
+  tap at 720,329 -> clickAt 721 251
+CHECK ok advanced 1.1 browser.cache.disk.enable (bool): tapped at 720,329: [true] -> [false] -> [true] 
+  tap at 659,404 -> clickAt 660 326
+CHECK ok advanced 1.2 browser.cache.disk.capacity (int): tapped at 659,404: [51200] -> [51201] -> [51200] 
+  tap at 720,479 -> clickAt 721 401
+  tap at 720,479 -> clickAt 721 401
+CHECK ok advanced 1.3 browser.cache.disk.smart_size.enabled (bool): tapped at 720,479: [false] -> [true] -> [false] 
+  tap at 659,554 -> clickAt 660 476
+CHECK ok advanced 1.4 browser.cache.memory.capacity (int): tapped at 659,554: [16384] -> [16385] -> [16384] 
+  tap at 720,629 -> clickAt 721 551
+  tap at 720,629 -> clickAt 721 551
+CHECK ok advanced 1.5 browser.cache.offline.enable (bool): tapped at 720,629: [true] -> [false] -> [true] 
+  tap at 659,758 -> clickAt 660 680
+CHECK ok advanced 2.1 network.http.max-connections (int): tapped at 659,758: [32] -> [33] -> [32] 
+  tap at 720,400 -> clickAt 721 755
+  tap at 720,400 -> clickAt 721 755
+CHECK ok advanced 2.2 network.http.pipelining (bool): tapped at 720,400: [true] -> [false] -> [true] 
+  tap at 659,478 -> clickAt 660 833
+CHECK ok advanced 2.3 network.http.speculative-parallel-limit (int): tapped at 659,478: [0] -> [1] -> [0] 
+  tap at 720,556 -> clickAt 721 911
+  tap at 720,556 -> clickAt 721 911
+CHECK ok advanced 2.4 network.dns.disablePrefetch (bool): tapped at 720,556: [true] -> [false] -> [true] 
+  tap at 720,623 -> clickAt 721 978
+  tap at 720,623 -> clickAt 721 978
+CHECK ok advanced 2.5 network.dns.disableIPv6 (bool): tapped at 720,623: [false] -> [true] -> [false] 
+  tap at 720,690 -> clickAt 721 1045
+  tap at 720,690 -> clickAt 721 1045
+CHECK ok advanced 2.6 network.prefetch-next (bool): tapped at 720,690: [false] -> [true] -> [false] 
+  tap at 587,844 -> clickAt 588 1330
+  tap at 587,844 -> clickAt 588 1330
+CHECK ok advanced 4.1 image.animation_mode (choice): tapped at 587,844: [once] -> [normal] -> [once] 
+CHECKS 13 FAILS 0
+CHANGED intl.accept_languages: no user line before, the engine read [chrome://global/locale/intl.properties]; now [user_pref("intl.accept_languages", "en-US, en");]
+prefs left changed by the walk: 1; user lines added at their old value: 0
+panes 5, ended 5; checks 62 ok, 0 failed

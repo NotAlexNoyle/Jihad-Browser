@@ -76,6 +76,12 @@ three speeds, the jittered and the paused drag as gestures of the library; the l
 kits' citations by script id), then T-566 (the owner's comparison round). Then the full device build when the GPU
 fixes settle; Tier 91's kits.
 
+**New kit (the owner, 2026-11-05):** `context/kits/cavekit-flash.md`, "comprehensive testing and completion of flash support, with
+autonomous finger tests, on a variety of flash games, apps, and videos": a declared corpus (24+ games, 8+ apps, 8+ videos, kept
+out of the repository), instrumented movies, the stock browser on the same files as the bar, three shells. Tier 93, T-570 to
+T-584, stands on T-565; it takes over the open Flash criteria of addons R7, input-bridging and offscreen-rendering. Its bars
+are first numbers, to be revised by T-573's stock round.
+
 **Traps:** write a selector with spaces in single quotes in a script (`tap 'sel:#content p'`); the first round's
 calibration tapped the whole content block from an unquoted one and scrolled the card 10 000 px. `expect
 region-changed REGION [SAMPLE]` — the name is automatic, not the walk's first argument. A card launched while another

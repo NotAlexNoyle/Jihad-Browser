@@ -490,6 +490,31 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 93 — Flash, finished (2026-11-05; cavekit-flash.md)
+
+The owner's "add a kit for comprehensive testing and completion of flash support, with autonomous finger tests, on a variety of
+flash games, apps, and videos" (2026-11-05). Flash runs, on evidence from movies this project generated and one real game; this
+tier proves it on a declared corpus in all three shells against the stock browser on the same files, fixes what that finds, and
+closes the Flash criteria still open across four kits. It stands on Tier 92's check library, runner and suite (T-565).
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-570 | The corpus: the manifest, the fetch and verify tool, the SWF header reader, the cache outside the repository, at least 24 games, 8 apps and 8 videos chosen and sourced, the check that no third-party movie is tracked | cavekit-flash.md | R1 | T-565 | yes | M | PENDING |
+| T-571 | The instrumented movies, AVM1 and AVM2 (mouse, keys, frames, timer, stage, version, video time and codec and drops), reporting to page text; generated in the tree and parsed back | cavekit-flash.md | R2 | T-565 | yes | M | PENDING |
+| T-572 | The library's plugin checks: stage coordinates, the content rate, the reacted check with its no-input control, drawn by colours, reference signatures, the wedged verdict, process and audio-stream oracles; each proven against planted faults | cavekit-flash.md | R2 | T-571 | yes | L | PENDING |
+| T-573 | The stock browser round: every title's content rate, spacing and reaction time on the same tools; the bars of R3, R5 and R6 revised from what it measures | cavekit-flash.md | R3 | T-570, T-572 | yes | M | PENDING |
+| T-574 | The embedding matrix: wmodes, tags, detection, FlashVars, ExternalInterface, shared objects, scale modes, several movies, frames, full screen, real sites by host | cavekit-flash.md | R4 | T-572 | yes | M | PENDING |
+| T-575 | Input: tap, hold, drag, the gesture lock, the reaction time, the keyboard raised over a movie, its codes and its cover, the kernel keyboard's arbitration against the card; defects fixed | cavekit-flash.md | R5 | T-572 | yes | L | PENDING |
+| T-576 | Games: a script per game per shell, the 60 s rounds, the keyboard games on the system keyboard, the 15 minute soaks; defects fixed | cavekit-flash.md | R6 | T-570, T-573, T-575 | yes | L | PENDING |
+| T-577 | Apps: a task per app per shell, text landing exact, clipboard and FileReference; defects fixed | cavekit-flash.md | R7 | T-570, T-575 | yes | M | PENDING |
+| T-578 | Videos: each clip to its end, the codec and size table, pause, resume and seek, the throttled and stalled download, real pages; defects fixed | cavekit-flash.md | R8 | T-570, T-573 | yes | L | PENDING |
+| T-579 | Sound with the movie's life: the stream closing on leaving, the background card against stock, the 10 minute player | cavekit-flash.md | R9 | T-572 | yes | M | PENDING |
+| T-580 | The movie's life: twenty cycles, teardown without the abort, a hostile library in the plugin folder, crashes bounded, background cards, two cards, the largest title, the Flash switch; defects fixed | cavekit-flash.md | R10 | T-570, T-572 | yes | L | PENDING |
+| T-581 | The movie on its page: pan, flick, pinch, double tap, zooms, rotation, the verify mode beside a movie, stacking order; defects fixed | cavekit-flash.md | R11 | T-572 | yes | M | PENDING |
+| T-582 | The corpus in the suite: one command, the smoke subset, the baseline comparison, the device left as found | cavekit-flash.md | R13 | T-576, T-577, T-578 | yes | M | PENDING |
+| T-583 | Finished: the controls recorded, the generated table in the docs, no title failing, every moved criterion closed in its own kit citing a script id | cavekit-flash.md | R12 | T-574, T-579, T-580, T-581, T-582 | yes | S | PENDING |
+| T-584 | The owner's comparison on real titles: at least 5 games, 2 apps and 2 videos beside the suite's verdicts, every disagreement dispositioned; game feel, sync and dropouts in the owner's word (answers T-364 and addons R7's smoothness) | cavekit-flash.md | R14 | T-583 | yes | S | BLOCKED-EXTERNAL (the owner at the device) |
+
 ## Tier 92 — Autonomous finger testing (2026-11-03; cavekit-finger-testing.md)
 
 The owner's "devise a system for accurate autonomous finger testing" (2026-11-03). The emulated finger drives; what judges is

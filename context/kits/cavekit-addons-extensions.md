@@ -142,6 +142,8 @@ Nothing needs to be added to the engine build for the UI to exist:
 **Dependencies:** cavekit-device-build.md (R8)
 
 ### R7: NPAPI plugins load and run
+**Finishing Flash has its own kit since 2026-11-05: `cavekit-flash.md` (real games, apps and videos by autonomous finger tests). It takes over this requirement's two `[~]` criteria below; this section stays as the record of how Flash came to run.**
+
 **Description:** Binary NPAPI plugins work, not just XPI extensions. User requirement, 2026-08-01: *"ensure support for plugins not just extensions. for instance adobe flash and microsoft silverlight plugins which work on other uxp browsers."*
 
 **Ground truth established 2026-08-01, before any work:**

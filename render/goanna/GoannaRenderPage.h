@@ -557,7 +557,8 @@ private:
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
 public:
   // T-576: the plugin lane (see BrowserPageGoanna::pluginLaneFrame)
-  int PluginLaneProof();
+  int PluginLaneProof(int* x, int* y, int* w, int* h);
+  bool PopupsOpen();
   void PluginLaneSet(bool open);
   bool CompositorAnimating();
   bool PluginLaneInfo(int* w, int* h);

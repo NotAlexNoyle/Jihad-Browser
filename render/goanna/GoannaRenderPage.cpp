@@ -4937,14 +4937,21 @@ void GoannaRenderPage::PluginLaneSet(bool open) {
   if (jihad_plugin_lane_set) jihad_plugin_lane_set(open ? 1 : 0);
 }
 
-int GoannaRenderPage::PluginLaneProof() {
+int GoannaRenderPage::PluginLaneProof(int* x, int* y, int* w, int* h) {
   if (!jihad_plugin_lane_proof || !mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
-  return ds ? jihad_plugin_lane_proof(ds) : 0;
+  return ds ? jihad_plugin_lane_proof(ds, x, y, w, h) : 0;
+}
+
+bool GoannaRenderPage::PopupsOpen() {
+  return jihad_offscreen_popups_open && jihad_offscreen_popups_open() > 0;
 }
 
 bool GoannaRenderPage::PluginLaneInfo(int* w, int* h) {
-  return jihad_plugin_lane_copy && jihad_plugin_lane_copy(nullptr, 0, 0, 0, 0, 0, w, h) != 0;
+  // The whole set or no lane: without the proof, the silence or the animation's word it is not safe
+  if (!jihad_plugin_lane_copy || !jihad_plugin_lane_proof || !jihad_plugin_lane_set ||
+      !jihad_offscreen_compositor_animating || !jihad_offscreen_popups_open) return false;
+  return jihad_plugin_lane_copy(nullptr, 0, 0, 0, 0, 0, w, h) != 0;
 }
 
 bool GoannaRenderPage::PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h) {

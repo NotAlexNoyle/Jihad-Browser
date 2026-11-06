@@ -896,6 +896,7 @@ private:
     long frames = 0;
     int64_t retryMs = 0;
     int64_t proofDue = 0;       // while set: damage inside the plugin's rect is the plugin's last, and the proof is asked again then
+    int64_t openMs = 0;
     bool pageDirty = false;     // the widget was marked since: the plugin does not mark it while the lane is open
     const char* lastNo = nullptr;
   } mLane;

@@ -1125,6 +1125,8 @@ void BrowserPageGoanna::freeze() {
   // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
   FrameLockGuard frameLock;   // T-515
   mFrozen = true;
+  if (mLane.on) pluginLaneClose("frozen");   // T-576
+  mLane.drain = false;
   zoomBackDrop();   // T-527: its memory too
   cpuPartsForget();   // T-505
   if (mPage) mPage->SetActive(false);    // a background card is a background tab: timers clamped, no frames
@@ -3968,6 +3970,8 @@ void BrowserPageGoanna::drainPluginSpotlight() {
 }
 
 void BrowserPageGoanna::clearPluginRects() {
+  if (mLane.on) pluginLaneClose("no plugin");   // T-576
+  mLane.drain = false;
   // The adapter has no expiry of its own: mFlashRects is only ever mutated by our two
   // messages, and nothing — navigation, load, resize, freeze — clears it. A rect we forget
   // to withdraw is a permanent dead zone in the card's gesture arbitration, on every page
@@ -4504,6 +4508,8 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
     mNeedsPaint = true;
     mLastDirtyPaintMs = jihadNowMs();
   }
+  // Its close is decided in a paint, and a still movie asks for none: the express lane waits for it
+  if (mLane.on && (xLeads(jihadNowMs()) || (mLane.proofDue == 0 && mPage->CompositorSeq() != mLane.seq))) mNeedsPaint = true;
   if (mDirtyPending) {
     int64_t dnow = jihadNowMs();
     // 33 ms, not 150. This cadence is what animated content actually runs at: every plugin
@@ -5439,6 +5445,9 @@ bool BrowserPageGoanna::xLeads(int64_t now) {
 }
 
 bool BrowserPageGoanna::expressStep(int64_t now) {
+  // T-576: the compositor's copy of the plugin is as old as the lane, and the main thread is about to
+  // close it (maybePaint): a frame now would put an old movie frame on the card
+  if (mLane.on) return false;
   if (mXJob.on) {
     xPoll(now);
     // the next frame while this one is read (handed to the read thread: a whole read), built on it,
@@ -6211,6 +6220,7 @@ void BrowserPageGoanna::pluginLaneClose(const char* why) {
 
 bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff) {
   static const bool sOff = getenv("JIHAD_PLUGIN_LANE") && atoi(getenv("JIHAD_PLUGIN_LANE")) == 0;
+  mLane.drain = false;
   if (sOff || !mPage->GpuPath() || mEmittedFlashRects.empty()) {
     if (mLane.on) pluginLaneClose("no plugin");
     return false;
@@ -6223,6 +6233,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
   else if (mFrozen || !mThumbPath.empty()) no = "frozen or thumbnail";
   else if (mEmittedFlashRects.size() != 1) no = "several plugins";
   else if (xLeads(now)) no = "the card is moving";
+  else if (mPage->PopupsOpen()) no = "a popup is open";
   else if (mDamageForceFull) no = "a whole frame is owed";
   else if (!mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) no = "no scroll";
   // No damage at all is a frame asked for by the compositor's own count: every composite moves it,
@@ -6233,7 +6244,6 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
   else if (fw != r.r - r.l || fh != r.b - r.t) no = "the frame is not 1:1";
   // The last test, so the normal path's frames drain only when the lane could open: under a steady
   // stream of plugin frames they never run out by themselves (gpuJobStartNext)
-  mLane.drain = false;
   if (!no && (!mGpuJobs.empty() || mXJob.on || mXJob2.on)) {
     no = "frames in flight";
     mLane.drain = !mLane.on && now >= mLane.retryMs;
@@ -6254,8 +6264,13 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
       mLane.proofDue = 0;
       mLane.pageDirty = false;
       mLane.seq = mPage->CompositorSeq();
-      if (mPage->PluginLaneProof() != 1) no = "something lies over the plugin";
+      int px, py, pw, ph;
+      if (mPage->PluginLaneProof(&px, &py, &pw, &ph) != 1) no = "something lies over the plugin";
     }
+    // What came in that first time is taken for the plugin's own, and a change of the page's among it
+    // would stay off the card for as long as nothing else changed. So the lane does not stay open long:
+    // the normal path's frame, with all the page has, every few seconds
+    else if (now - mLane.openMs >= 5000) no = "the time is up";
   }
   if (mLane.on && !no) {
     if (w != mLane.w || h != mLane.h) no = "resized";
@@ -6264,8 +6279,10 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     else if (mPubSeq != mLane.pubSeq) no = "another lane published";
   }
   if (no) {
-    if (mLane.on) pluginLaneClose(no);
-    else if (no != mLane.lastNo) {
+    if (mLane.on) {
+      pluginLaneClose(no);
+      if (!strcmp(no, "the time is up")) mLane.retryMs = now;   // one frame of the normal path, and back
+    } else if (no != mLane.lastNo) {
       fprintf(stderr, "[jihad-bs] plugin lane: not open: %s (damage %d,%d %dx%d valid %d)\n", no, mDamageX, mDamageY, mDamageW, mDamageH, (int)mDamageValid);
       mLane.lastNo = no;
     }
@@ -6289,9 +6306,16 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     // The compositor's count moves with every plugin frame, so it says nothing here. An animation
     // says so at the composite before this: the lane stays shut, its frames are the compositor's.
     // One that starts while the lane is open starts with a paint of the page, which is damage.
-    const int proof = mPage->CompositorAnimating() ? -4 : mPage->PluginLaneProof();
+    int px = 0, py = 0, pw = 0, ph = 0;
+    const int proof = mPage->CompositorAnimating() ? -4 : mPage->PluginLaneProof(&px, &py, &pw, &ph);
     if (proof != 1) {
       fprintf(stderr, "[jihad-bs] plugin lane: not open: the proof says %d\n", proof);
+      return false;
+    }
+    // The record of the plugin's place is up to 500 ms old, and a layout shift moves it
+    if (abs(px - (r.l - ex)) > 1 || abs(py - (r.t - ey)) > 1 || abs(pw - fw) > 1 || abs(ph - fh) > 1) {
+      fprintf(stderr, "[jihad-bs] plugin lane: not open: the plugin is at %d,%d %dx%d, the record says %d,%d %dx%d\n",
+              px, py, pw, ph, r.l - ex, r.t - ey, fw, fh);
       return false;
     }
     PluginLane& P = mLane;
@@ -6310,6 +6334,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     gJihadLanesOpen++;
     P.pubSeq = mPubSeq;
     P.proofDue = now + 100;
+    P.openMs = now;
     P.pageDirty = false;
     mPage->PluginLaneSet(true);
     fprintf(stderr, "[jihad-bs] plugin lane open: %dx%d at %d,%d of a frame %dx%d, window %d\n", fw, fh, r.l - P.x, r.t - P.y, w, P.rows, P.win);
@@ -6326,6 +6351,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
   if (!(mLane.synced & (1u << slot))) {
     memcpy(frame, mShmBuf[mLane.base] + hdr + (size_t)mLane.win * stride, (size_t)mLane.rows * stride);
     mLane.synced |= 1u << slot;
+    mPage->CleanRows(frame, 0, mLane.rows);   // a cached mapping, where the kernel refused write-through
   }
   // The plugin's rect in the frame's rows; the rows the frame does not hold are left out
   int col = r.l - mLane.x, row = r.t - mLane.y, sx = 0, sy = 0, cw = fw, ch = fh;
@@ -6337,6 +6363,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     pluginLaneClose("the copy");
     return false;
   }
+  mPage->CleanRows(frame, row, row + ch);
   memcpy(buf, mLane.info.data(), mLane.info.size());
   const long dirty[4] = { col, row, col + cw, row + ch };
   publishWindow(mActiveKey, mLane.win, dirty, nullptr, mLane.viewRow, -1);

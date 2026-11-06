@@ -257,13 +257,14 @@ int main(int argc, char** argv) {
       if (bf) { char hx[GB * 2 + 8]; while (nb < MAXG && fgets(hx, sizeof hx, bf)) { if (strlen(hx) < GB * 2) continue; for (int k = 0; k < GB; k++) { char h2[3] = { hx[k * 2], hx[k * 2 + 1], 0 }; base[nb][k] = (unsigned char)strtol(h2, NULL, 16); } nb++; } fclose(bf); }
     }
     struct timeval t0, t; gettimeofday(&t0, NULL); double last_read = -1; unsigned flips = 0, changes = 0, reads = 0, fresh = 0; uint32_t prev = 0; int have = 0;
+    enum { MAXF = 8192 }; static float gaps[MAXF]; int ngap = 0; double last_flip = -1, first_new = -1;
     struct fb_var_screeninfo cur = vi; unsigned last_off = vi.yoffset;
     for (;;) {
       gettimeofday(&t, NULL); const double now = (t.tv_sec - t0.tv_sec) + (t.tv_usec - t0.tv_usec) / 1e6;
       if (now >= seconds) break;
       if (ioctl(fd, FBIOGET_VSCREENINFO, &cur) < 0) die("FBIOGET_VSCREENINFO");
       const int flipped = cur.yoffset != last_off;
-      if (flipped) { flips++; last_off = cur.yoffset; }
+      if (flipped) { flips++; last_off = cur.yoffset; if (last_flip >= 0 && ngap < MAXF) gaps[ngap++] = (float)((now - last_flip) * 1000); last_flip = now; }
       if (flipped || last_read < 0 || now - last_read >= 0.2) {
         const unsigned char* pg = map ? map + (size_t)cur.yoffset * line : NULL; if (!pg) die("-C needs the mapping");
         uint32_t h = 2166136261u;
@@ -290,14 +291,18 @@ int main(int argc, char** argv) {
         if (baseline) {
           int near_any = 0;
           for (int k = 0; k < nb && !near_any; k++) { int ok = 1; for (int c = 0; c < GB; c++) { const int d = (int)base[k][c] - g[c]; if (d > 8 || d < -8) { ok = 0; break; } } near_any = ok; }
-          if (!near_any) fresh++;
+          if (!near_any) { fresh++; if (first_new < 0) first_new = now; }
         }
       }
       usleep(poll_us);
     }
     FILE* of = fopen(out, "w"); if (of) { for (int k = 0; k < ng; k++) { for (int c = 0; c < GB; c++) fprintf(of, "%02x", grids[k][c]); fprintf(of, "\n"); } fclose(of); }
     printf("content %d,%d-%d,%d: %.1f s, flips %u (%.1f/s), changes %u (%.1f/s), reads %u, distinct %d", x0, y0, x1, y1, seconds, flips, flips / seconds, changes, changes / seconds, reads, nd);
-    if (baseline) printf(" new %u of %u", fresh, reads);
+    if (ngap > 0) {   /* the shown frames' spacing */
+      for (int a = 1; a < ngap; a++) { float v = gaps[a]; int b = a - 1; while (b >= 0 && gaps[b] > v) { gaps[b + 1] = gaps[b]; b--; } gaps[b + 1] = v; }
+      printf(", spacing median %.0f p90 %.0f max %.0f ms", gaps[ngap / 2], gaps[ngap * 9 / 10], gaps[ngap - 1]);
+    }
+    if (baseline) { printf(" new %u of %u", fresh, reads); if (first_new >= 0) printf(" first %.0f ms", first_new * 1000); }
     printf("\n");
     if (map) munmap((void*)map, whole);
     close(fd);

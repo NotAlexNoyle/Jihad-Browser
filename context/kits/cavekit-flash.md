@@ -67,7 +67,7 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 ## R3: The bar — the stock browser on the same file
 **Description:** webOS's own browser runs the same player on the same device, so it says what the player itself can do. Every title is measured there with the same tools, where it runs on CE 3.1.0.
 **Acceptance Criteria:**
-- [ ] For each title the stock browser's content rate, shown-frame spacing and reaction time are measured by the same tools and stored with the corpus; a title the stock browser cannot run is marked so, drawn or not drawn by R2's check
+- [x] For each title the stock browser's content rate, shown-frame spacing and reaction time are measured by the same tools and stored with the corpus; a title the stock browser cannot run is marked so, drawn or not drawn by R2's check *(2026-11-06, T-573: `tools/device/finger/flash/title-round.py stock`, the numbers in `flash-corpus.json` under `stock`. CE's launcher sends the system's browser to Atlas, which has no Flash, so `flash/stock-bench.sh` installs a copy under a test id for the round and takes it away. 49 of 57 draw there; those that show one colour after 40 s on the page are marked so. The stock server's player dies after some 40 movies in a row, as this browser's does (T-580): a blank tail was run again)*
 - [ ] In each shell a title's content rate is at least 90 % of the lower of its authored rate and the stock browser's rate
 - [ ] Where the stock browser cannot run a title or cannot be measured at all, the bar is 90 % of the lower of its authored rate and the rate it reaches on this browser's own software path; the report says which bar each title was held to
 **Dependencies:** R1, R2
@@ -193,6 +193,7 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 - Related: `cavekit-preferences-ui.md` (the Flash switch); `cavekit-device-build.md` (the role and the plugin's library closure).
 
 ## Changelog
+- 2026-11-06: R3's stock numbers (T-573). The first comparison: on Enyo as shipped many games run at half the stock rate or less, which is T-576's first work.
 - 2026-11-06: R2's plugin checks (T-572), each proven against planted faults on the three shells; one criterion stays open for each title's own signatures (T-576).
 - 2026-11-06: R2's first criterion met (T-571): the instrumented movies, AVM1 and AVM2, assembled in the tree.
 - 2026-11-06: R1 met (T-570): the manifest and the tool `tools/host/flash-corpus.py`, 61 titles, the spread read from the files.

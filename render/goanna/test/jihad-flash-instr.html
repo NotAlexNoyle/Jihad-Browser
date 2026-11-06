@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-flash-instr.html: an instrumented movie (make-instrument-swf.py) and what it reports, in elements a check reads
+     (cavekit-flash.md R2). ?movie=avm1|avm2&scale=showAll&w=400&h=300&vars=a=b -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-flash-instr</title>
+<style>
+  body { margin: 0; font: 14px/1.3 monospace; background: #ddd; }
+  #m { display: block; margin: 40px 0 0 40px; }
+  #report div { min-height: 18px; }
+</style></head>
+<body>
+<div id="holder"></div>
+<div id="report">
+  <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
+  <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div>
+  <div id="count">0</div><div id="all"></div>
+</div>
+<script>
+  var q = {}; location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (m, k, v) { q[k] = decodeURIComponent(v); });
+  var n = 0, all = [];
+  function jihadFlash(s) {
+    s.split(";").forEach(function (line) {
+      if (!line) { return; }
+      n++; all.push(line); if (all.length > 12) { all.shift(); }
+      var kind = line.split(" ")[0], e = document.getElementById(kind);
+      if (e) { e.textContent = line; }
+    });
+    document.getElementById("count").textContent = String(n);
+    document.getElementById("all").textContent = all.join(" | ");
+  }
+  var w = q.w || 400, h = q.h || 300, movie = "jihad-instr-" + (q.movie || "avm1") + ".swf";
+  var vars = "scale=" + (q.scale || "") + (q.vars ? "&" + q.vars : "");
+  document.getElementById("holder").innerHTML = '<embed id="m" src="' + movie + '" type="application/x-shockwave-flash" width="' + w + '" height="' + h +
+    '" allowScriptAccess="always" flashvars="' + vars + '"' + (q.wmode ? ' wmode="' + q.wmode + '"' : '') + (q.scale ? ' scale="' + q.scale + '"' : '') + '>';
+</script>
+</body></html>

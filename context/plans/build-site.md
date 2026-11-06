@@ -499,7 +499,7 @@ closes the Flash criteria still open across four kits. It stands on Tier 92's ch
 
 | ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
 |----|------|-----|------|---------|----------|------|--------|
-| T-570 | The corpus: the manifest, the fetch and verify tool, the SWF header reader, the cache outside the repository, at least 24 games, 8 apps and 8 videos chosen and sourced, the check that no third-party movie is tracked | cavekit-flash.md | R1 | T-565 | yes | M | PENDING |
+| T-570 | The corpus: the manifest, the fetch and verify tool, the SWF header reader, the cache outside the repository, at least 24 games, 8 apps and 8 videos chosen and sourced, the check that no third-party movie is tracked | cavekit-flash.md | R1 | T-565 | yes | M | DONE 2026-11-06 (`tools/host/flash-corpus.py`, `flash-corpus.json`: 37 games, 10 apps, 10 videos, 4 assets; the spread met; the cache ~/.cache/jihad-flash) |
 | T-571 | The instrumented movies, AVM1 and AVM2 (mouse, keys, frames, timer, stage, version, video time and codec and drops), reporting to page text; generated in the tree and parsed back | cavekit-flash.md | R2 | T-565 | yes | M | PENDING |
 | T-572 | The library's plugin checks: stage coordinates, the content rate, the reacted check with its no-input control, drawn by colours, reference signatures, the wedged verdict, process and audio-stream oracles; each proven against planted faults | cavekit-flash.md | R2 | T-571 | yes | L | PENDING |
 | T-573 | The stock browser round: every title's content rate, spacing and reaction time on the same tools; the bars of R3, R5 and R6 revised from what it measures | cavekit-flash.md | R3 | T-570, T-572 | yes | M | PENDING |

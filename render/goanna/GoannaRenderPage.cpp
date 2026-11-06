@@ -26,6 +26,9 @@
 
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
+#include "nsISelection.h"
+#include "nsISelectionController.h"
+#include "nsISelectionDisplay.h"
 #include "nsIWebBrowser.h"
 #include "nsIWebBrowserChrome.h"
 #include "nsIEmbeddingSiteWindow.h"
@@ -1208,6 +1211,11 @@ bool GoannaRenderPage::Resize(int width, int height) {
   if (!mChrome) return false;
   if ((mOffscreen && !mWidget) || (!mOffscreen && !mWindow)) return false;
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192) return false;
+  // T-569: the card's own size sent again moves nothing. The forced reflow below put the page's visible
+  // area back at the card's size, and a page's declared viewport went with it: on Mochi, whose card
+  // sends its size on every layout pass, desktop Wikipedia (width=1120) fell from 1120 to 768 wide
+  // seconds after its load, and from the fit zoom to 1.0.
+  if (width == mWidth && height == mHeight) return true;
   // T-499: a new card size starts from a layout viewport equal to it; the card's own size sent again
   // keeps the page's (the adapter sends the size on every NPAPI SetWindow, the same size included,
   // and each put the engine back at the card's width: DuckDuckGo read innerWidth 768 again)
@@ -1252,7 +1260,15 @@ bool GoannaRenderPage::Resize(int width, int height) {
       // devicePixelRatio is pinned to 1 (layout.css.devPixelsPerPx), so 1 device px ==
       // 1 CSS px == 60 app units. (nsPresContext.h can't be included here -- it drags in
       // internal string headers unusable from the frozen-API daemon.)
-      engine_calls::ResizeReflow(ps.get(), ew, eh);
+      // T-569: a page that declares its viewport is laid out at that, whatever the card's size: the
+      // reflow at the card's own took desktop Wikipedia (width=1120) from 1120 to 768 wide when the
+      // keyboard rose, and it stayed there at zoom 1.0 after the keyboard went (by finger 2026-11-05).
+      int rw = ew, rh = eh;
+      if (!mLayoutW) {
+        double is = 1.0, mn = 1.0, mx = 1.0; int vw = 0, vh = 0; bool us = true;
+        if (GetViewport(&is, &mn, &mx, &vw, &vh, &us) && vw > 0 && vh > 0) { rw = vw; rh = vh; }
+      }
+      engine_calls::ResizeReflow(ps.get(), rw, rh);
     }
   }
   JIHAD_GTK_PUMP();
@@ -1316,10 +1332,43 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
     mChrome->mBrowser->GetContentDOMWindow(getter_AddRefs(win));
     if (win) focus->SetFocusedWindow(win);
   }
+  // Another word (the next letter of a find as you type) starts where the last match starts, so the
+  // match grows where it stands; the same word again is "next". And past the last match it goes round.
+  // By finger 2026-11-05, Mochi, a page with the word twice: 'ze' found the first, 'zeb' the second,
+  // 'zebr' looked after that one and said none, and the word was on the page.
+  if (mLastFind != text) {
+    mLastFind = text;
+    // the frame the last match is in has the selection (a match in a frame: review 2026-11-06); a match
+    // in a text control keeps its own, and the next letter goes on to the next match there
+    nsCOMPtr<nsIInterfaceRequestor> dsr;
+    nsCOMPtr<nsIWebBrowserFindInFrames> inFrames = do_QueryInterface(finder);
+    nsCOMPtr<mozIDOMWindowProxy> frame;
+    if (inFrames) inFrames->GetCurrentSearchFrame(getter_AddRefs(frame));
+    nsCOMPtr<nsIInterfaceRequestor> fr = do_QueryInterface(frame);
+    if (fr) {
+      nsCOMPtr<nsIWebNavigation> nav;
+      fr->GetInterface(NS_GET_IID(nsIWebNavigation), getter_AddRefs(nav));
+      dsr = do_QueryInterface(nav);
+    }
+    if (!dsr) {
+      nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+      dsr = do_QueryInterface(ds);
+    }
+    nsCOMPtr<nsISelectionDisplay> disp;
+    if (dsr) dsr->GetInterface(NS_GET_IID(nsISelectionDisplay), getter_AddRefs(disp));
+    nsCOMPtr<nsISelectionController> ctl = do_QueryInterface(disp);
+    nsCOMPtr<nsISelection> sel;
+    if (ctl) ctl->GetSelection(nsISelectionController::SELECTION_NORMAL, getter_AddRefs(sel));
+    bool collapsed = true;
+    if (sel && NS_SUCCEEDED(sel->GetIsCollapsed(&collapsed)) && !collapsed) {
+      if (forward) sel->CollapseToStart(); else sel->CollapseToEnd();
+    }
+  }
   NS_ConvertUTF8toUTF16 s(text);
   finder->SetSearchString(s.get());
   finder->SetFindBackwards(!forward);
   finder->SetSearchFrames(true);
+  finder->SetWrapFind(true);
   // WHY THIS USED TO CRASH, since the note it replaces was wrong for two weeks. FindNext was
   // recorded as faulting on "a frame-selection controller the offscreen browser doesn't set
   // up". It is not the selection machinery: `nsWebBrowserFind::SearchInFrame` does a
@@ -1444,7 +1493,15 @@ NS_IMETHODIMP PageChrome::HandleEvent(nsIDOMEvent* aEvent) {
     return NS_OK;
   }
   if (!raw) return NS_OK;   // window/document focus transitions — not a field
-  nsCOMPtr<nsIDOMElement> el = edHostControl(raw);
+  // A listener on the document sees an event from anonymous content retargeted to its host: a XUL
+  // <textbox> (about:addons' search field) arrives as the <textbox>, which no test calls editable,
+  // so a real focus on its inner field read as a focus elsewhere and lowered the keyboard the tap
+  // had just raised (by finger 2026-11-05: the hide key, a tap on the field, the keyboard up and
+  // down at once). The original target is the field itself; edHostControl still folds an inner
+  // field of an <input> back to the input.
+  nsCOMPtr<nsIDOMEventTarget> ot; aEvent->GetOriginalTarget(getter_AddRefs(ot));
+  nsCOMPtr<nsIDOMElement> orig = do_QueryInterface(ot);
+  nsCOMPtr<nsIDOMElement> el = edHostControl(orig ? orig.get() : raw.get());
   if (type.EqualsLiteral("focus")) {
     bool text = edIsEditable(el);
     mEngineFocusIsText = text;

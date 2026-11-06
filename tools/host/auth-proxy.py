@@ -59,7 +59,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(body))); self.send_header("Via", "1.1 jihad-auth-proxy")
                 self.end_headers(); self.wfile.write(body)
         except urllib.error.HTTPError as e:
-            body = e.read(); self.send_response(e.code); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+            # the answer's own headers too: a 404's gzipped body with no Content-Encoding and no Content-Type is no page
+            body = e.read(); self.send_response(e.code)
+            for k, v in e.headers.items():
+                if k.lower() not in ("transfer-encoding", "connection", "content-length"): self.send_header(k, v)
+            self.send_header("Content-Length", str(len(body))); self.send_header("Via", "1.1 jihad-auth-proxy")
+            self.end_headers(); self.wfile.write(body)
         except Exception as e:
             self.send_error(502, str(e))
         self.log_message("%s %s forwarded", self.command, self.path)

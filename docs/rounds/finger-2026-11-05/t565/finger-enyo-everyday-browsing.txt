@@ -1,0 +1,10 @@
+WAIT ok 8-rect sel:textarea[name='q']
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 440 landed on document y 358)
+CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  tap at 384,300 -> clickAt 385 218
+WAIT ok 12-launch: load done
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 158 landed on document y 110)
+CHECK ok 15-card-scroll-min: the card's scroll y 872 (at least 300)
+  chrome back tapped at 30 52
+WAIT ok 17-url: https://duckduckgo.com/
+CHECKS 2 FAILS 0

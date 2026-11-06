@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-05 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-06 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -52,7 +52,45 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-05 — T-564 DONE: the script form and the runner of the finger suite; next T-565 (READ FIRST)
+## 2026-11-06 — T-565 DONE: the finger suite whole, on the three shells; eight real defects found and fixed; next Tier 93 (READ FIRST)
+
+**State:** main at this commit on top of `9a8f933d` (the engine unchanged at the fork's `6d621405dd`). **Not pushed**
+(the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only). T-566, the owner's comparison round, is
+BLOCKED-EXTERNAL and open whenever the owner wants it: the suite's report is
+`docs/rounds/finger-2026-11-05/t565/finger-report.md`, the list `docs/FINGER-TESTS.md`.
+
+**The round of record:** 69 scripts, 197 runs, one command (`tools/device/finger/finger-run.py --with internet --round
+<dir>`; `--merge` runs some again into a round's report, marked (rerun)). Enyo 55 pass, Mochi 56, Mojo 54; 7 known
+(T-567's bands under a flick), 10 a person's, 3 by a tool, 12 not run with the reason; no failure stands. The numbers
+per shell for the pans, flicks and pinches are in `cavekit-gpu-rendering.md` R12.
+
+**Found and fixed by the whole runs** (T-585, T-569; `docs/rounds/finger-2026-11-05/notes.txt`): about:addons' search
+field dropping the keyboard on a tap again; the tap lost after a long press's popup (all shells); Mochi's page tap
+leaving the address's keyboard up; find as you type losing the word at the next letter; Mojo's flick not coasting and
+its first flick dead; 60 px at the foot of Mojo's page dead to taps; desktop Wikipedia falling to 768 wide and zoom 1.0
+on a repeated size or the keyboard (T-569, not the keyboard's as first read); an emptied number field writing 0.
+`browser.sessionhistory.max_entries` was 0 on all three profiles, so Back was off on the bench, source unknown; it
+is back at the default and `device-check.sh` fails on a 0.
+
+**The review:** Codex over the product diff, seven findings, all taken (`t565/codex-review.md`, the notes); one left
+on purpose: a find match inside a text control keeps its own selection, so the next letter moves on to the next match.
+
+**The device:** daemon `3ca8caef`, adapters enyo `d2c77393`, mochi `736b1213`, mojo `ba60bfcf`, the Mochi and Mojo card
+files and `preferences.js` by novacom; libxul `041a11fd`. **The .ipks are not rebuilt**: the full device build carries
+this (`make-device-bundle.sh` first, or `push-engine-update.sh` pushes the bundle's old `preferences.js` back: it reads
+the bundle, not the source).
+
+**Traps (not in the source):** never restart LunaSysMgr bare: `tools/device/finger/sysmgr-restart.sh` kills, waits, taps
+the USB alert's Close and takes the screenshot in one script (the owner asked twice); fbstream never sees that alert or
+the system keyboard. `Mojo.Event.stopListening` with an unset handler throws and takes the rest of a setup function with
+it. A page in the profile's cache asks no proxy for anything: a proxy test goes to a path no round has loaded. A network
+that fails for a few minutes fails every real site's script: read the frame before the code. The scripts' lessons are
+in `tools/device/finger/README.md`.
+
+**Next:** Tier 93 (`context/kits/cavekit-flash.md`, T-570 onward: the corpus first), then T-567's structural choice
+(the owner's), the full device build, Tier 91's kits.
+
+## 2026-11-05 — T-564 DONE: the script form and the runner of the finger suite; next T-565
 
 **State:** main at this commit on top of `ff13d911` (the engine unchanged at the fork's `6d621405dd`). **Not pushed**
 (the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only): this commit (and `ff13d911` if not yet).

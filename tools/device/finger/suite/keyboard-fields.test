@@ -1,0 +1,17 @@
+id: keyboard-fields
+section: Keyboard and text
+item: Tap a field on several pages in one session: the keyboard comes up every time and the page does not jump away from the field (the field stays within reach above the keyboard)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-input-echo.html
+kit: cavekit-input-bridging.md R2
+calibrate echo
+tap area
+expect keyboard up 8
+expect visible area
+tap-at 384 100
+expect keyboard down 8
+launch http://192.168.1.245:8077/jihad-card-events.html
+calibrate bar
+tap field
+expect keyboard up 8
+expect visible field

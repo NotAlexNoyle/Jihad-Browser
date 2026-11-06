@@ -1,0 +1,6 @@
+WAIT ok 8-rect sel:body
+WAIT ok 9-url: https://www.etsy.com/search?q=webos
+CHECK ok 10-url: load done uri=https://www.etsy.com/search?q=webos
+WAIT ok 11-content 0,100,768,900
+CHECK ok 12-content: region 0,100-768,900: colours 4096 hash 8f6c2115 rows 800 uniform 127 light 100-899 blue 330-392; sel:body on the screen at 0,78-768,8681
+CHECKS 2 FAILS 0

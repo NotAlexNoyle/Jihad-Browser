@@ -85,7 +85,7 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 **Acceptance Criteria:**
 - [ ] The three test hooks (`render/goanna/test/*-selftest.js`) gain steps for new / switch / close / list through the shells' own handlers, and a `?` that reports the strip (tab count, active index, titles).
 - [ ] Device-verified by hook, per shell: open three tabs on three pages, switch between them with the right address/title/padlock after each switch and a frame that is the right page (frame dump colour check against colour-coded test pages — the `jihad-long.html` method), close the middle one, close the last, background load finishing while another tab is active, a background `alert()` held then shown on switch, `window.open` from a page landing in a new tab, twenty tabs with the strip scrolling and the active one scrolled into view, the unload step under memory pressure, two cards with independent sets.
-- [ ] A finger: tab taps, the strip's close controls, "Open in New Tab" from a long-press on a link, the feel of a switch. [human at the device]
+- [ ] A finger: tab taps, the strip's close controls, "Open in New Tab" from a long-press on a link, the feel of a switch. [human at the device] *(suite: `tabbed-browsing`; `docs/FINGER-TESTS.md`)*
 **Dependencies:** cavekit-device-build.md (R4)
 
 ## Known constraints and decisions taken at groundwork time

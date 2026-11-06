@@ -1,0 +1,18 @@
+id: card-dialog
+section: Chrome, menus and dialogs
+item: Answer a card dialog by tap: jihad-dialogs.html's confirm comes up on the card (the daemon's dialog line), OK by finger, the page reads "c: true"; Cancel reads "c: false"
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-dialogs.html
+kit: cavekit-browser-services.md R3
+wait rect c 20
+calibrate 'sel:p'
+tap c
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text r 'c: true' 5
+tap c
+expect dialog present 8
+chrome dialog-cancel
+expect dialog answered 8
+wait text r 'c: false' 5

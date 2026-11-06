@@ -1,0 +1,11 @@
+WAIT ok 7-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 151,195 -> clickAt 152 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='general']
+  tap at 659,773 -> clickAt 660 695
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  kb-backspace held 1500 ms
+  chrome kb-hide tapped at 732 993
+CHECK ok 15-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+WAIT ok 16-pref browser.sessionhistory.max_entries = [20]
+CHECKS 2 FAILS 0

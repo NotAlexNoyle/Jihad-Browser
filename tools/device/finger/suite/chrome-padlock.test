@@ -1,0 +1,14 @@
+id: chrome-padlock
+section: Chrome, menus and dialogs
+item: The padlock on an https page: a tap asks the daemon for the page's certificate and the card shows it
+shells: enyo mochi mojo
+page: https://example.com/
+kit: cavekit-ui-shell.md R8
+needs: internet
+wait rect 'sel:p' 60
+calibrate 'sel:p'
+sample page 0,100,756,960
+chrome padlock
+wait line 'luna: pageCertificate' 8
+wait differs 0,100,756,960 page 5
+shoot padlock

@@ -1,0 +1,17 @@
+id: addons-page
+section: Personas and add-ons
+item: about:addons: the panes switch by finger (Extensions, Plugins) and an add-on's More opens its details (Palefill's)
+shells: enyo mochi mojo
+page: about:addons
+kit: cavekit-addons-extensions.md R2
+wait rect 'sel:#category-extension' 40
+calibrate 'sel:#category-extension'
+wait rect 'sel:#category-extension[selected="true"]' 6
+wait rect 'sel:richlistitem[value="palefill@addons.martoks-place.de"]' 20
+tap 'sel:#category-plugin'
+wait rect 'sel:#category-plugin[selected="true"]' 6
+tap 'sel:#category-extension'
+wait rect 'sel:#category-extension[selected="true"]' 6
+tap 'anon:richlistitem[value="palefill@addons.martoks-place.de"]|details-btn'
+wait rect 'sel:#detail-view:not([hidden])' 8
+expect text-has 'sel:#detail-name' Palefill

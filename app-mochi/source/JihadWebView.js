@@ -94,6 +94,7 @@ enyo.kind({
 		//* with a "page-hold" notification saying what it found; the shell opens the page
 		//* menu on that. This event only tells the shell an answer is on its way.
 		onPageHold: "",
+		onPageTap: "",
 		//* A load failed: {code, url, message}. What the view shows now is the engine's
 		//* error page under the address that failed.
 		onLoadFailed: ""
@@ -468,8 +469,18 @@ enyo.kind({
 // The same here: a flick that began on the web view is the web view's.
 if (window.PalmSystem) {
 	(function() {
-		var lastDown = null;
-		document.addEventListener("mousedown", function(e) { lastDown = e.target; }, true);
+		var lastDown = null, downX = 0, downY = 0;
+		document.addEventListener("mousedown", function(e) { lastDown = e.target; downX = e.pageX; downY = e.pageY; }, true);
+		// A tap on the page, at the finger's lift: the card's own field gives up the focus. Here and not
+		// on the adapter's click, which comes 400 ms later and not at all on a page that takes its input
+		// raw (review 2026-11-06: by then the user may have focused another field).
+		document.addEventListener("mouseup", function(e) {
+			var view = enyo.jihadFlickView, node = view && view.hasNode && view.hasNode();
+			if (node && lastDown && (lastDown === node || node.contains(lastDown)) &&
+			    Math.abs(e.pageX - downX) < 16 && Math.abs(e.pageY - downY) < 16) {
+				view.doPageTap();
+			}
+		}, true);
 		window.Mojo = window.Mojo || {};
 		var before = window.Mojo.handleGesture;
 		window.Mojo.handleGesture = function(type, properties) {

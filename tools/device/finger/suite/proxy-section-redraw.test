@@ -1,0 +1,15 @@
+id: proxy-section-redraw
+section: Proxies and certificates
+item: After choosing a proxy in Settings → Advanced, the section redraws by itself with no touch: My own proxy picked, its host field is there within the bound; No proxy picked, it is gone
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-proxies-certs.md R1
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="advanced"]'
+wait rect 'sel:button.pane-tab.on[data-pane="advanced"]' 5
+wait rect 'sel:.row[data-pref="network.proxy.type"] select' 5
+pick 'sel:.row[data-pref="network.proxy.type"] select' 4 7
+wait rect 'sel:.row[data-pref="network.proxy.http"] input' 3
+pick 'sel:.row[data-pref="network.proxy.type"] select' 0 7
+wait gone 'sel:.row[data-pref="network.proxy.http"] input' 2

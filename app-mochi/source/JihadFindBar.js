@@ -32,6 +32,7 @@ enyo.kind({
 	showingChanged: function() {
 		this.inherited(arguments);
 		if (this.showing) {
+			this._lastValue = "";
 			var self = this;
 			enyo.asyncMethod(this, function() {
 				if (self.$.input.hasNode() && self.$.input.node.focus) {
@@ -50,7 +51,10 @@ enyo.kind({
 		var disabled = !v;
 		this.$.prev.addRemoveClass("disabled", disabled);
 		this.$.next.addRemoveClass("disabled", disabled);
-		if (v) {
+		// The field's change event comes on its blur too: the same word again is "next", which a tap
+		// on the page did not ask for (review 2026-11-06).
+		if (v && v !== this._lastValue) {
+			this._lastValue = v;
 			this.doFind({value: v});
 		}
 	},

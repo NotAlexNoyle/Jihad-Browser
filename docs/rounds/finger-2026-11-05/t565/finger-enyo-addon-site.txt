@@ -1,0 +1,15 @@
+WAIT ok 8-rect sel:form.search input
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 114 landed on document y 32)
+  tap at 588,114 -> clickAt 589 32
+CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  chrome kb-hide tapped at 732 993
+CHECK ok 13-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  tap at 189,178 -> clickAt 190 96
+WAIT ok 15-url: https://addons.riverstonerelay.org/personas/
+WAIT ok 16-rect sel:a.button[data-browsertheme]
+  tap at 689,493 -> clickAt 690 411
+CHECK ok 18-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  chrome dialog-cancel tapped at 384 583
+CHECK ok 20-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+WAIT ok 21-pref lightweightThemes.isThemeSelected = [false]
+CHECKS 4 FAILS 0

@@ -1,0 +1,19 @@
+id: addons-lifecycle
+section: Personas and add-ons
+item: about:addons by finger on a test pad's own row: Enable, Disable, Remove, Undo (the row's picture changes with each); the link-style buttons take a finger
+shells: enyo mochi mojo
+page: about:addons
+kit: cavekit-addons-extensions.md R2
+fixture: pads
+wait rect 'sel:#category-extension' 40
+calibrate 'sel:#category-extension'
+wait rect 'sel:#category-extension[selected="true"]' 6
+wait rect 'sel:richlistitem[value="pad01@jihad.test"]' 20
+tap 'anon:richlistitem[value="pad01@jihad.test"]|enable-btn'
+wait rect 'anon:richlistitem[value="pad01@jihad.test"]|disable-btn' 8
+tap 'anon:richlistitem[value="pad01@jihad.test"]|disable-btn'
+wait rect 'anon:richlistitem[value="pad01@jihad.test"]|enable-btn' 8
+tap 'anon:richlistitem[value="pad01@jihad.test"]|remove-btn'
+wait rect 'anon:richlistitem[value="pad01@jihad.test"]|undo-btn' 8
+tap 'anon:richlistitem[value="pad01@jihad.test"]|undo-btn'
+wait rect 'anon:richlistitem[value="pad01@jihad.test"]|remove-btn' 8

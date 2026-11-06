@@ -1,0 +1,14 @@
+WAIT ok 7-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 151,195 -> clickAt 152 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='general']
+  tap at 720,698 -> clickAt 721 620
+WAIT ok 12-pref general.smoothScroll = [true]
+  restart: closed card process 1149
+  restart: mochi daemon started by hand (pid 11280)
+  restart: mochi daemon serving YAP at +3 s
+  restart: mochi card on about:settings: connected at +2 s, load done at +9 s, 8 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+WAIT ok 14-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+WAIT ok 16-pref general.smoothScroll = [true]
+CHECKS 0 FAILS 0

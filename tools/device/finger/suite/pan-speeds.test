@@ -1,0 +1,22 @@
+id: pan-speeds
+section: Scrolling and gestures
+item: The pan at three speeds on the long page — a slow drag of 2 px a scan, the 600 ms drag, the 160 ms flick — plus a jittered path and a drag that pauses mid-way: each reported by the stream (tracking error, stale and uniform bands)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+known: T-567 stream-uniform; T-567 stream-stale
+kit: cavekit-finger-testing.md R4
+stream: --rows 138-1024 --still 82-138
+stream-mojo: --rows 84-945
+calibrate 'sel:#content p'
+stream-start 40 -c 0-756 -U 48
+drag-slow 480 900 480 250
+expect card-scroll-min 500
+drag 480 900 480 250
+drag-jitter 480 900 480 250
+drag-paused 480 900 480 250 700
+flick 480 900 480 300
+stream-stop
+expect stream stale 0
+expect stream uniform 0
+expect stream error-max 500
+expect card-scroll-min 2500

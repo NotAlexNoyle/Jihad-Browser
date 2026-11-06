@@ -1,0 +1,12 @@
+id: forget-identities
+section: Sites
+item: Settings → General → Browser identity → Forget: the row reads "None yet" after the tap (T-495)
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-site-identity.md R1
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="general"]'
+wait rect 'sel:button.pane-tab.on[data-pane="general"]' 5
+tap 'sel:.row[data-label="Forget the remembered sites"] button'
+wait text 'sel:.row[data-label="Sites remembered"]' 'None yet' 6

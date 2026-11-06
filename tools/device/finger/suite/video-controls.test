@@ -1,0 +1,16 @@
+id: video-controls
+section: Media and sound
+item: A video's play/pause by tap: jihad-media-test.html's clip plays (its status counts), a tap on the video pauses it (the status holds across two reads)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-media-test.html
+kit: cavekit-gre-widgets.md R1
+wait rect status 20
+calibrate status
+tap 'sel:video'
+wait changed 'sel:video' 8
+wait changed 'sel:video' 4
+tap 'sel:video'
+wait still 'sel:video' 6
+sample paused 'sel:video'
+wait still 'sel:video' 3
+expect region-equal 'sel:video' paused

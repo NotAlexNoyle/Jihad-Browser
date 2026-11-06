@@ -1,0 +1,12 @@
+WAIT ok 7-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 244,195 -> clickAt 245 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='content']
+  tap at 576,592 -> clickAt 577 1787
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  typed [x] on the keyboard
+  chrome kb-enter tapped at 715 873
+WAIT ok 15-pref browser.display.background_color = [#FFFFFFx]
+  chrome kb-hide tapped at 732 993
+CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+CHECKS 2 FAILS 0

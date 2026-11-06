@@ -1,0 +1,29 @@
+id: proxy-login
+section: Proxies and certificates
+item: A proxy that asks for a login (tools/host/auth-proxy.py on the host): the user name and password typed on the keyboard in the card's dialog, and the page loads
+shells: enyo mochi
+page: about:settings
+prefs: network.proxy.type=1 network.proxy.http=192.168.1.245 network.proxy.http_port=3129
+kit: cavekit-proxies-certs.md R5
+fixture: auth-proxy
+wait rect page-title 20
+calibrate page-title
+inject url http://example.com/jihad-proxy-login
+expect dialog present 30
+wait still 200,100,756,700 4
+shoot auth-dialog
+chrome auth-user
+expect keyboard up 8
+type-keys jihad
+chrome kb-hide
+expect keyboard down 8
+wait still 200,100,756,700 4
+chrome auth-pass
+expect keyboard up 8
+type-keys touchpad
+chrome kb-hide
+expect keyboard down 8
+wait still 200,100,756,700 4
+chrome auth-ok
+expect dialog answered 8
+wait line 'load done uri=http://example.com' 40

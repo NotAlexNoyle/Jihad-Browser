@@ -1,0 +1,16 @@
+id: personas-page-steady
+section: Personas and add-ons
+item: about:personas: no card flashes while the page is scrolled slowly; cards show their pictures (the stream's uniform bands over a slow drag)
+shells: enyo mochi mojo
+page: about:personas
+kit: cavekit-personas-ui.md R9
+known: T-567 stream-uniform
+stream: --rows 83-1024
+stream-mojo: --rows 84-945
+wait rect 'sel:#mine .card' 30
+calibrate 'sel:.group-title'
+stream-start 16 -c 0-756 -U 48
+drag-slow 480 900 480 400
+stream-stop
+expect stream uniform 0
+expect content 0,100,768,900 'sel:body'

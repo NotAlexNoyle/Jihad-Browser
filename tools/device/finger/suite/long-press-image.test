@@ -1,0 +1,13 @@
+id: long-press-image
+section: Chrome, menus and dialogs
+item: Hold on an image (Wikipedia's infobox picture): the daemon sees the hold and the card's menu comes up over the page
+shells: enyo mochi mojo
+page: https://en.wikipedia.org/wiki/HP_TouchPad
+kit: cavekit-ui-shell.md R7
+needs: internet
+wait rect 'sel:.infobox img' 60
+calibrate 'sel:#firstHeading'
+sample page 0,100,756,900
+hold-on 'sel:.infobox img'
+wait differs 0,100,756,900 page 5
+shoot hold-image

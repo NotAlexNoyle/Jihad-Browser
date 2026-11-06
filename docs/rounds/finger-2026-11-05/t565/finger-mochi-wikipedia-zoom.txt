@@ -1,0 +1,18 @@
+WAIT ok 11-rect sel:.infobox
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)
+  stream on for 20 s (-c 170-600 -U 48)
+  double tap 560 420
+WAIT ok 15-zoom
+CHECK ok 16-zoom-min: zoom 2.8444 (at least 1.3)
+  pinch 384 500 400 100
+WAIT ok 18-zoom
+  pinch 384 500 400 100
+WAIT ok 20-zoom
+  pinch 384 500 400 100
+WAIT ok 22-still 0,100,756,700
+  stream: fbstream: sample 176: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-finger/stream.fbs.event0176.raw
+CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)
+CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 5c75943e rows 600 uniform 62 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028
+CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
+  (the stream's uniform checked on the host)
+CHECKS 4 FAILS 0

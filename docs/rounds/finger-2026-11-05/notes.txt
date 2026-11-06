@@ -33,3 +33,68 @@ scripts deliberate-fail and the person's accelerometer):
 Not in T-564 (T-565's): the slow-human scripts (the dialog answered at 8 s, the job stopped and started before a
 persistence check), the pan at three speeds, the jittered and the paused drag, every item of docs/FINGER-TESTS.md as
 a script, the kits' citations by script id.
+
+
+T-565 — the suite whole (2026-11-05/06; cavekit-finger-testing.md R4, R6)
+=========================================================================
+The round of record: t565/finger-report.md + .json. 69 scripts, 197 runs on the three shells, one command:
+python3 tools/device/finger/finger-run.py --with internet --round <dir>. A whole Enyo and a whole Mochi run, Mojo run
+whole twice; 91 runs are marked (rerun): run again by --merge after a script or the product changed.
+  Enyo  55 pass, 2 known, 3 a person's, 1 by a tool, 4 not run
+  Mochi 56 pass, 2 known, 3 a person's, 1 by a tool, 4 not run
+  Mojo  54 pass, 3 known, 4 a person's, 1 by a tool, 4 not run
+No failure stands. Known: T-567's bands under a flick (pan-long-flick, pan-speeds on all three; wikipedia-zoom on Mojo).
+A person's: rotate, flash-sound, audio-heard, mojo-launch-from-app. By a tool: settings-every-control (the walk).
+Not run, with the reason: tabbed-browsing, touchpad-go, keyboard-arbitration, webone (its script needs the owner's
+keyboard map and WebOne running).
+
+WHAT THE WHOLE RUNS FOUND IN THE PRODUCT (all fixed, all with a script now):
+1. about:addons: a tap again on the search field after the keyboard's hide raised the keyboard and dropped it at once.
+   The engine's focus event reaches the document's listener retargeted to the XUL <textbox>, which no test calls
+   editable. GoannaRenderPage::HandleEvent classifies the original target. addons-search-hide-key.
+2. All three: the tap after a long press on a field's popup was lost. m_didHold waits for the click that ends the hold,
+   and the system sends none for a finger that held, so the next real tap was eaten. Cleared at pen down.
+   long-press-text-field.
+3. Mochi: a page tap left the caret in the address field and the keyboard up. The card now blurs its own field.
+   keyboard-address.
+4. Find as you type: 'ze' found the first match, 'zeb' the second, 'zebr' looked after that and said none. Another
+   word now starts where the match starts, and the search goes round. appmenu-find.
+5. Mojo: no coast on a flick and the first flick on a page moved nothing. The framework's flick event comes at the
+   lift, when the scroller's drag has ended; the card now meets LunaSysMgr's gesture call as Enyo and Mochi do. A page
+   now coasts 1961, 3968, 5937 px where it stopped at 442. pan-long-flick, personas-flick.
+6. Mojo: 60 px across the foot of the page took no tap (the strip the circles stand in), the Undo of about:personas
+   among them. pointer-events: none on the strip, auto on the circles. persona-wear.
+7. T-569, all shells, showing on Mochi: the card's size sent again forced a reflow at the card's size, and a page's
+   declared viewport went with it (desktop Wikipedia: 1120 to 768 wide, the fit zoom to 1.0, seconds after its load).
+   The T-563 reading (a keyboard-sized window) was the same fault seen once. The same size now moves nothing, and a
+   real size change (the keyboard, a rotation) lays a declaring page out at what it declares. wikipedia-zoom,
+   wikipedia-keyboard-zoom.
+8. An emptied number field wrote 0: browser.sessionhistory.max_entries at 0 turned Back off. All three profiles on the
+   bench carried that 0, read as [0] by the walks of 2026-11-04 and [20] by the one of 2026-10-25; the source is not
+   known. It is now the default (the line taken out of the three prefs.js), an emptied field restores the default,
+   and device-check.sh fails on a 0 (settings-int-emptied, chrome-buttons).
+And one of mine, caught by the suite before it left the bench: the first Mojo flick code called stopListening with an
+unset handler, which threw and left the card without its scroll callback: the address bar stopped sliding away
+(pan-long-drag's header check, Mojo).
+
+THE NETWORK ONCE: in the first whole run Mojo's DuckDuckGo loads answered SSL_ERROR_RX_MALFORMED_SERVER_HELLO and
+www.etsy.com "could not be found" on Mochi and Mojo, for some minutes. Every one passed on the rerun. A real site's
+script fails with the network: read the frame.
+
+THE SCRIPTS' LESSONS are in tools/device/finger/README.md, "The first whole runs". The runner gained --merge, known with
+several defects, stream-mojo:, wait log, wait content. device-check.sh gained history-<v> and cards-<v> (a Mojo card with
+a proxy sheet still up had been left behind the screen by a hand experiment). Frames (fb1) never show the system keyboard.
+sysmgr-restart.sh: LunaSysMgr restarted, the USB alert's Close tapped and the screen shot, in one script (the owner, twice).
+
+THE REVIEW (t565/codex-review.md, Codex read-only over the product diff; seven MEDIUM findings, each read against the
+code and all taken): Mojo's flick wrapper now one to a window, not one to a scene; Mochi's blur now at the finger's lift
+(document mouseup, a tap and not a drag) instead of on the adapter's click, which came 400 ms late and could blur a
+field focused since, and never came on a page that takes its input raw; that blur no longer spoils the address's next
+Enter nor advances Find (the change event on blur); Find collapses the selection of the frame the last match is in (a
+match in a text control keeps its own selection and the next letter goes on to the next match: left, cosmetic); a hold
+whose hit test is still out does not reach past a new touch (m_gestureGen at pen down). On Resize, the original target,
+preferences and pointer-events it found nothing, and said what it had traced.
+
+THE DEVICE: daemon 3ca8caef on all three variants, adapters enyo d2c77393, mochi 736b1213, mojo ba60bfcf, the Mochi and
+Mojo card files and preferences.js by novacom. Engine unchanged (libxul 041a11fd). The .ipks are not rebuilt: the full
+device build carries this.

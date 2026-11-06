@@ -1,0 +1,15 @@
+id: typing-caret
+section: Keyboard and text
+item: Type in a page's field on the system keyboard: the characters land (the page's readout), the caret is there; holding Backspace repeats (the field empties)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-input-echo.html
+kit: cavekit-input-bridging.md R2
+calibrate echo
+tap plain
+expect keyboard up 8
+type-keys abcdef
+wait text echo 'value=[abcdef]' 6
+key-hold kb-backspace 2500
+wait text echo 'value=[] area' 6
+chrome kb-hide
+expect keyboard down 8

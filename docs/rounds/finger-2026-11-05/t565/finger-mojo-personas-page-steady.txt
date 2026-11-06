@@ -1,0 +1,7 @@
+WAIT ok 10-rect sel:#mine .card
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 271 landed on document y 198)
+  stream on for 16 s (-c 0-756 -U 48)
+  stream: fbstream: 89 samples in 5.90 s (15.1/s, asked 15), read median~4.6 ms max 57.1 ms (mmap, stride 8: 96 rows of 768), 111 flips (frames shown, 18.8/s), 3750 polls
+  (the stream's uniform checked on the host)
+CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 0eec4290 rows 800 uniform 0 light 182-737 blue 156-745; sel:body on the screen at 0,-425-764,2442
+CHECKS 1 FAILS 0

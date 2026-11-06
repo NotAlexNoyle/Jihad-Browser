@@ -1,0 +1,10 @@
+WAIT ok 7-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+  tap at 244,195 -> clickAt 245 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='content']
+WAIT ok 11-rect fonts-reset
+  tap at 587,350 -> clickAt 588 1144
+WAIT ok 13-pref font.name.serif.x-western = [Dotum]
+  tap at 129,786 -> clickAt 130 1580
+WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.]
+CHECKS 0 FAILS 0

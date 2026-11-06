@@ -1,0 +1,18 @@
+id: persona-wear
+section: Personas and add-ons
+item: From about:personas' site section: Wear asks first and names the site, OK wears it; Undo in the message takes it off (the engine's lightweightThemes prefs say so)
+shells: enyo mochi mojo
+page: about:personas
+kit: cavekit-personas-ui.md R6
+needs: internet
+wait rect 'sel:#online .card button' 60
+calibrate 'sel:.group-title'
+tap 'sel:#online .card button'
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text status-text Wearing 8
+wait pref b lightweightThemes.isThemeSelected true 6
+tap status-undo
+wait text status-text Undone 8
+wait pref b lightweightThemes.isThemeSelected false 6

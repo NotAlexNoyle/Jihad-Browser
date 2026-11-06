@@ -82,7 +82,7 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   *(2026-10-26, last: the search results too — in Enyo with the twelve pads, "Jihad List Pad" searched (typed into the
   manager's search box, its magnifier tapped), My Add-ons: twelve results, two drags reach Pad 12. Their rows read
   "Remove" where the owner asked for "Uninstall" on every add-on (2026-10-08): fixed (the search list relabelled
-  as its results arrive; `search-list` added to JihadEngine.jsm's surface table). Ticked.)*
+  as its results arrive; `search-list` added to JihadEngine.jsm's surface table). Ticked.)* *(suite: `addons-list-pan`; `docs/FINGER-TESTS.md`)*
 - [x] The search results' length follows the My Add-ons / Available Add-ons filter *(added 2026-10-26 from T-527's second review: the filter shows other rows without a view change; the search list's filter attributes are observed — by finger in Enyo, My Add-ons 1540 rows, Available 1202, My 1540 again)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
@@ -92,7 +92,11 @@ any web page; it does not stop dead.
 **Acceptance Criteria:**
 - [~] A flick up or down on about:personas and on the settings page coasts, in both directions and
   at both ends of the page, as it does on a web page in the same card. *(Built; a flick needs a
-  finger — scripted pointer events do not reach the plugin — so the owner judges it.)*
+  finger — scripted pointer events do not reach the plugin — so the owner judges it.)* *(2026-11-06,
+  by the emulated finger's flicks, `personas-flick`, `settings-flick`, `pan-long-flick`: all three
+  shells coast. Mojo did not until this round: its flick reached the adapter's scroller only at the
+  finger's lift, too late, and the first flick on a page moved nothing; the card now meets
+  LunaSysMgr's gesture call as the other two do.)*
 - [~] The cause is found and stated, and the fix is in the engine and the shells, not a different
   scroller for these pages only (the likeliest causes, from the code; a finger confirms): Jihad's pages are drawn at zoom 1, the only zoom at which the daemon
   echoes the engine's scroll position to the card, and an echo resets the card's kinetic scroller;
@@ -105,7 +109,7 @@ any web page; it does not stop dead.
 **Dependencies:** cavekit-input-bridging.md
 
 ### R4: The keyboard on Jihad's pages
-*(2026-10-25, the field-in-a-frame case by finger: docs/FINGER-TESTS.md — the keyboard rises on the framed field, the hide leaves no caret and keeps the page's layout and zoom (T-538), a tap again brings it back.)*
+*(2026-10-25, the field-in-a-frame case by finger: docs/FINGER-TESTS.md — the keyboard rises on the framed field, the hide leaves no caret and keeps the page's layout and zoom (T-538), a tap again brings it back.)* *(2026-11-06: on about:addons' search field the tap again raised the keyboard and dropped it at once, the engine's focus event read retargeted to the XUL `<textbox>`; the event's original target is the field now.)* *(suite: `frame-field`, `addons-search-hide-key`; `docs/FINGER-TESTS.md`)*
 **Description:** Jihad's own pages open with the whole page in view, and a field the keyboard has
 left behind does not keep its caret (the owner, 2026-10-12: "when about:settings or about:personas
 is open the keyboard should be dismissed at first so the whole page is visible"; "when the

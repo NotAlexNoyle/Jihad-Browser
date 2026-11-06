@@ -1,0 +1,10 @@
+WAIT ok 8-rect sel:textarea[name='q']
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 437 landed on document y 359)
+CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  tap at 384,300 -> clickAt 385 222
+WAIT ok 12-launch: load done
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)
+CHECK ok 15-card-scroll-min: the card's scroll y 872 (at least 300)
+  chrome back tapped at 28 52
+WAIT ok 17-url: https://duckduckgo.com/
+CHECKS 2 FAILS 0

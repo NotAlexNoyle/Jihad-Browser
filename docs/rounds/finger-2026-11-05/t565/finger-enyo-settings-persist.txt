@@ -1,0 +1,14 @@
+WAIT ok 7-rect page-title
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)
+  tap at 157,199 -> clickAt 158 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='general']
+  tap at 720,703 -> clickAt 721 621
+WAIT ok 12-pref general.smoothScroll = [true]
+  restart: closed card process 1089
+  restart: enyo daemon started by hand (pid 20426)
+  restart: enyo daemon serving YAP at +3 s
+  restart: enyo card on about:settings: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+WAIT ok 14-rect page-title
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)
+WAIT ok 16-pref general.smoothScroll = [true]
+CHECKS 0 FAILS 0

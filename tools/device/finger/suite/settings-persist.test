@@ -1,0 +1,16 @@
+id: settings-persist
+section: Keyboard and text
+item: A setting changed by finger sticks across the daemon's stop and start (as upstart stops it): a checkbox on about:settings read back after the restart
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-preferences-ui.md R2
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="general"]'
+wait rect 'sel:button.pane-tab.on[data-pane="general"]' 5
+tap 'sel:.row[data-pref="general.smoothScroll"] input'
+wait pref b general.smoothScroll true 5
+daemon-restart about:settings
+wait rect page-title 30
+calibrate page-title
+wait pref b general.smoothScroll true 5

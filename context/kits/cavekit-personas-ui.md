@@ -140,7 +140,7 @@ safety with one button.)
 **Acceptance Criteria:**
 - [x] Enyo, Mochi and Mojo each show the Personas pane and repaint on Wear. *(Device, 2026-10-08.)*
 - [x] Screenshots of the pane and of the bars, with no Persona and with several. *(README, `docs/screenshots/`.)*
-- [x] A finger on the device: wear, undo, uninstall, install from file. *(2026-10-25, the emulated finger on Enyo after T-535: all of them, plus Take off, Remove's two taps, a wear from the add-on site and the addons.mozilla.org question — docs/FINGER-TESTS.md.)*
+- [x] A finger on the device: wear, undo, uninstall, install from file. *(2026-10-25, the emulated finger on Enyo after T-535: all of them, plus Take off, Remove's two taps, a wear from the add-on site and the addons.mozilla.org question — docs/FINGER-TESTS.md.)* *(suite: `persona-cycle`, `persona-wear`; `docs/FINGER-TESTS.md`)*
 **Dependencies:** R1–R5
 
 ### R7: Personas that come with Jihad

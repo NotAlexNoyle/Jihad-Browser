@@ -1,0 +1,18 @@
+id: addons-list-pan
+section: Scrolling and gestures
+item: about:addons → Extensions with more add-ons than fit (twelve test pads sideloaded): two drags take the list to Pad 12 and a tap on its row lands on it
+shells: enyo mochi mojo
+page: about:addons
+kit: cavekit-chrome-look.md R2
+fixture: pads
+wait rect 'sel:#category-extension' 40
+calibrate 'sel:#category-extension'
+wait rect 'sel:#category-extension[selected="true"]' 6
+wait rect 'sel:richlistitem[value="palefill@addons.martoks-place.de"]' 20
+wait rect 'sel:richlistitem[value="pad12@jihad.test"]' 10
+drag 480 900 480 300
+drag 480 900 480 300
+wait still 0,100,756,1000 6
+tap-at 660 945
+wait rect 'sel:richlistitem[value="pad12@jihad.test"][selected="true"]' 5
+expect hit 'sel:richlistitem[value="pad12@jihad.test"]'

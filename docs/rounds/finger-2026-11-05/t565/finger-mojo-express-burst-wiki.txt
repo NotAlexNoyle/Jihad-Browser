@@ -1,0 +1,10 @@
+WAIT ok 8-rect sel:#firstHeading
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 149 landed on document y 110)
+  pinch 384 500 400 150
+  pinch 384 500 150 400
+  double tap 384 500
+WAIT ok 14-zoom
+WAIT ok 15-settled: the card's scroll 532 1121
+CHECK ok 16-zoom-min: zoom 2.3273 (at least 1.0)
+CHECK ok 17-content: region 0,100-756,700: colours 748 hash 1d49e678 rows 600 uniform 0 light 100-698 blue 477-699; sel:body on the screen at -531,-1090-2065,2291
+CHECKS 2 FAILS 0

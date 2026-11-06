@@ -104,7 +104,7 @@ in all three shells, without about:config.
 - [~] A host must be a host name or address and a port 1–65535; a bad value is refused with a reason
   and nothing is changed; a locked pref stops the change before anything is written. A change
   applies to the next request without restarting the card or the daemon. *(Code; a change applied
-  at once on the device. Typing a bad value needs the on-screen keyboard: the finger round.)*
+  at once on the device. Typing a bad value needs the on-screen keyboard: the finger round.)* *(suite: `proxy-own`; `docs/FINGER-TESTS.md`)*
 - [x] Device, each shell: a page loaded through each mode reaches the server through the proxy (a
   proxy on the PC logs the request, and the CONNECT for an https page); No proxy goes direct again.
   *(Enyo: My own proxy (GET and CONNECT logged), PAC (the PAC fetched, then the page through the
@@ -168,7 +168,7 @@ what it is for. Audited 2026-10-25 (packaging/prefs/jihad-platform-prefs.js, the
 **Acceptance Criteria:**
 - [~] Choosing it asks for the WebOne machine's address and port (WebOne's default port is filled in)
   and sets it as the HTTP and HTTPS proxy. *(Device: the section with its values; typing them is the
-  finger round.)*
+  finger round.)* *(suite: `proxy-own`, `webone`; `docs/FINGER-TESTS.md`)*
 - [x] The section says plainly what WebOne does to pages and to HTTPS for Jihad, and links to the
   WebOne machine's CA certificate (`http://<host>:<port>/weboneca.crt`), which opens R6's question.
   *(WebOne sends its CA as a download; Jihad opens it anyway, R6.)*
@@ -264,7 +264,7 @@ by the user or by a community update.
   jihad-test".)*
 - [x] Device: a page through a PC proxy that demands a login raises the dialog naming the proxy, and
   the right login loads the page. *(Enyo and Mochi, answered through their own dialogs by script:
-  407, then 200 with the login. Typing it is the finger round.)*
+  407, then 200 with the login. Typing it is the finger round.)* *(suite: `proxy-login`, `proxy-login-mojo`; `docs/FINGER-TESTS.md`)*
 **Dependencies:** R1
 
 ## Out of Scope

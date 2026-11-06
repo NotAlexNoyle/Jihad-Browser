@@ -1,5 +1,6 @@
-# The long page under a drag: the header still, the content moved, the card's scroll, a tap after the scroll.
 id: pan-long-drag
+section: Scrolling and gestures
+item: The GPU path: drag-scroll a long page with a fixed header (`jihad-long-static.html`) at a steady pace: the header stays put, the text is continuous, nothing blank enters from below; a tap after the scroll lands where it should (the header still and the content moved by the frame; the card's scroll and the engine's agree)
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-long-static.html
 kit: cavekit-gpu-rendering.md R3
@@ -11,6 +12,7 @@ sample header header
 sample content 0,300,756,900
 drag 480 900 480 250
 expect card-scroll 650 80
+wait still header 4
 expect region-equal header header
 expect region-changed 0,300,756,900 content
 expect top 'sel:#content p:nth-child(11)'

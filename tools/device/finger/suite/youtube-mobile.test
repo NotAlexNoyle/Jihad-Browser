@@ -1,0 +1,12 @@
+id: youtube-mobile
+section: Sites
+item: YouTube's mobile site plays: the poster's play button starts the video (its frame changes; the sound is a person's) (T-497)
+shells: enyo mochi mojo
+page: https://m.youtube.com/watch?v=dQw4w9WgXcQ
+kit: cavekit-modern-web.md R2
+needs: internet
+wait rect 'sel:video' 60
+dismiss 384 346
+wait changed 0,130,756,560 15
+wait changed 0,130,756,560 8
+shoot playing

@@ -1,0 +1,19 @@
+id: appmenu-settings-keyboard-down
+section: Keyboard and text
+item: With the address field focused, open Settings from the app menu: the keyboard goes down and the whole settings page shows
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-chrome-look.md R4
+calibrate 'sel:#content p'
+chrome address
+expect keyboard up 8
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+chrome appmenu-settings
+wait load 30
+expect url about:settings
+expect keyboard down 8
+wait rect page-title 10
+expect content 0,100,768,700 page-title Settings

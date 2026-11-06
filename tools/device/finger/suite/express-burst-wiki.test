@@ -1,0 +1,17 @@
+id: express-burst-wiki
+section: Scrolling and gestures
+item: Right after desktop en.wikipedia.org loads (its scripts run for seconds): pinch in, pan, pinch out and double-tap at once — the page follows at the new zoom, nothing flips back, and at rest the text is sharp and nothing is grey
+shells: enyo mochi mojo
+page: https://en.wikipedia.org/wiki/HP_TouchPad
+kit: cavekit-gpu-rendering.md R3
+needs: internet
+wait rect 'sel:#firstHeading' 60
+calibrate 'sel:#firstHeading'
+pinch 384 500 400 150
+drag 480 900 480 400
+pinch 384 500 150 400
+dtap 384 500
+wait zoom 10
+wait settled 8
+expect zoom-min 1.0
+expect content 0,100,756,700 'sel:body'

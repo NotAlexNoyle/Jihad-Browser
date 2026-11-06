@@ -1,0 +1,16 @@
+id: settings-int-emptied
+section: Settings
+item: about:settings: a number field emptied by the keyboard's backspace gives the setting its default back and shows it (it used to write 0, which for the back/forward entries turned Back off)
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-preferences-ui.md R6
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="general"]'
+wait rect 'sel:button.pane-tab.on[data-pane="general"]' 5
+tap 'sel:.row[data-pref="browser.sessionhistory.max_entries"] input'
+expect keyboard up 8
+key-hold kb-backspace 1500
+chrome kb-hide
+expect keyboard down 8
+wait pref i browser.sessionhistory.max_entries 20 6

@@ -1,0 +1,19 @@
+id: chrome-buttons
+section: Chrome, menus and dialogs
+item: The card's chrome by finger: reload (the page loads again), home (the home page loads), back (the long page is back), forward (the home page again), new card (a second card opens on the start page)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-device-build.md R4
+calibrate 'sel:#content p'
+chrome reload
+wait load 30
+chrome home
+wait url duckduckgo 40
+chrome back
+wait url jihad-long-static 40
+chrome forward
+wait url duckduckgo 40
+sample page 0,100,756,700
+chrome newcard
+wait differs 0,100,756,700 page 15
+shoot new-card

@@ -1,0 +1,11 @@
+WAIT ok 7-rect status
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)
+  tap at 266,261 -> clickAt 340 233
+WAIT ok 10-changed sel:video
+WAIT ok 11-changed sel:video
+  tap at 266,261 -> clickAt 340 233
+WAIT ok 13-still sel:video
+  sample paused of sel:video: hash 33085829
+WAIT ok 15-still sel:video
+CHECK ok 16-region-equal: region 16,121-517,401: colours 2507 hash 33085829 rows 280 uniform 0 light 388-393 blue none = the sample's hash
+CHECKS 1 FAILS 0

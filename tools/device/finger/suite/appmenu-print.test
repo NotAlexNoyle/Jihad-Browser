@@ -1,0 +1,16 @@
+id: appmenu-print
+section: Chrome, menus and dialogs
+item: The app menu's Print: the card asks the daemon for printers and shows its dialog
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-ui-shell.md R7
+calibrate bar
+sample page 0,200,756,960
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+chrome appmenu-print
+wait line 'luna: findPrinters' 10
+wait differs 0,200,756,960 page 5
+shoot print-dialog

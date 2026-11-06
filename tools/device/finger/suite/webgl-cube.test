@@ -1,0 +1,16 @@
+id: webgl-cube
+section: Scrolling and gestures
+item: WebGL on the GPU path: jihad-webgl-cube.html's cube turns (its ticker counts), a pinch and a pan over the canvas keep it drawn (content in the canvas region)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-webgl-cube.html
+kit: cavekit-gpu-rendering.md R8
+wait rect c 30
+calibrate out
+expect text-has out webgl
+expect content c c
+wait changed c 5
+pinch 384 400 150 300
+wait zoom 10
+drag 480 800 480 500
+expect content 0,100,768,900 c
+wait changed c 5

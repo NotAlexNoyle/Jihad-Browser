@@ -1,0 +1,16 @@
+id: appmenu-find
+section: Chrome, menus and dialogs
+item: The app menu's Find on Page: a word typed on the keyboard is found by the engine
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-ui-shell.md R7
+calibrate bar
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+chrome appmenu-find
+expect keyboard up 8
+type-keys zebrafind
+chrome kb-enter
+wait log "ebrafind' -> 1" 8

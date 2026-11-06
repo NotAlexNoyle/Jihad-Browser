@@ -1,0 +1,17 @@
+id: relay-choice
+section: Proxies and certificates
+item: The Riverstone Relay, when a user chooses it (never the default): the prefs go to the relay at once and an https site loads with its own certificate
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-proxies-certs.md R2
+needs: internet
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="advanced"]'
+wait rect 'sel:button.pane-tab.on[data-pane="advanced"]' 5
+wait rect 'sel:.row[data-pref="network.proxy.type"] select' 5
+pick 'sel:.row[data-pref="network.proxy.type"] select' 2 7
+wait pref s network.proxy.http proxy.riverstonerelay.org 5
+launch https://example.com/ 60
+calibrate 'sel:p'
+expect text-has 'sel:p' documentation

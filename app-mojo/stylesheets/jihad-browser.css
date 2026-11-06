@@ -280,6 +280,19 @@
    visible"; measured with [JIHAD-CMDGEOM] — row at y=606, every button at y=656).
    Taking the fade out of flow puts it back underneath the items, which is where it was,
    and lets them start at the top of the row. */
+/* The circles are a small group in a full-width strip, and the strip stands over the page: a tap
+   beside them is the page's (by finger 2026-11-05: 60 px across the foot of the page took no tap,
+   the Undo of about:personas among them). A row that overflows scrolls by a drag on a circle. */
+.palm-menu.command-menu.jihad-cmdmenu,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-fade,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-group {
+	pointer-events: none;
+}
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-button,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-label,
+.palm-menu.command-menu.jihad-cmdmenu .palm-menu-text {
+	pointer-events: auto;
+}
 .palm-menu.command-menu.jihad-cmdmenu .palm-menu-fade {
 	position: absolute;
 	top: 0;

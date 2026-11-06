@@ -1,0 +1,21 @@
+id: long-press-text-field
+section: Chrome, menus and dialogs
+item: Hold on text and on a field: the daemon sees a hold (editable 0, then 1) and the card's menu comes up over the page; a tap outside takes it away and a plain tap afterwards is unaffected
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-ui-shell.md R7
+calibrate bar
+sample page 0,100,756,600
+hold-on near
+wait differs 0,100,756,600 page 5
+shoot hold-text
+dismiss 640 960
+wait still 0,100,756,600 5
+hold-on field
+wait line 'hold at .* editable=1' 6
+shoot hold-field
+dismiss 640 500
+wait still 0,100,400,240 5
+tap away
+wait load 30
+expect url jihad-long-static

@@ -1642,6 +1642,11 @@ bool BrowserAdapter::handlePenDown(NpPalmPenEvent *event)
     m_penDownDoc.set((mScrollPos.x + eventPt.x) / mZoomLevel,
                      (mScrollPos.y + eventPt.y) / mZoomLevel);
     m_dragging = false;
+    // A new touch: the hold's squelch is over. The system sends no click for a finger that held, so
+    // a flag left for it waited for the next tap and ate that (by finger 2026-11-05: the long-press
+    // popup on a field closed by one tap, the next tap reached nothing, the third did).
+    m_didHold = false;
+    ++m_gestureGen;   // and a hold whose hit test is still out does not reach past the new touch
 
     EVENT_TRACEF("pen down (%d, %d) (%d, %d)\n", eventPt.x, eventPt.y, m_penDownDoc.x, m_penDownDoc.y);
 

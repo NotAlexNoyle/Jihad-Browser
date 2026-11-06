@@ -1,0 +1,22 @@
+id: proxy-login-mojo
+section: Proxies and certificates
+item: Mojo: a proxy that asks for a login: the user name and password typed on the keyboard in webOS's own sheet, and the page loads
+shells: mojo
+page: about:settings
+prefs: network.proxy.type=1 network.proxy.http=192.168.1.245 network.proxy.http_port=3129
+kit: cavekit-proxies-certs.md R5
+fixture: auth-proxy
+wait rect page-title 20
+calibrate page-title
+inject url http://example.com/jihad-proxy-login
+expect dialog present 30
+expect keyboard up 8
+wait still 0,440,756,720 4
+shoot auth-sheet
+chrome auth-user
+type-keys jihad
+chrome auth-pass
+type-keys touchpad
+chrome auth-ok
+expect dialog answered 8
+wait line 'load done uri=http://example.com' 40

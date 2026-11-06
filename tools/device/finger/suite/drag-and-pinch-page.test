@@ -1,0 +1,18 @@
+id: drag-and-pinch-page
+section: Scrolling and gestures
+item: A real drag-scroll and a two-finger pinch on an ordinary page: the pinch out zooms in, the pinch in comes back, the content stays drawn
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-input-bridging.md R3
+calibrate 'sel:#content p'
+drag 480 900 480 250
+expect card-scroll-min 400
+pinch 384 500 100 400
+wait zoom 10
+expect zoom-min 1.5
+expect content 0,150,756,600 'sel:body'
+pinch 384 500 400 100
+wait zoom 10
+pinch 384 500 400 100
+wait zoom 10
+expect zoom 1.0 0.15

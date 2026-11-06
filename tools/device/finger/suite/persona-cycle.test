@@ -1,0 +1,27 @@
+id: persona-cycle
+section: Personas and add-ons
+item: about:personas with a Persona from a file: Install from file lists it and installs it; Wear; Take off; Remove asks "Remove it?", the question stays while its picture is made (4 s), and the second tap removes it
+shells: enyo mochi mojo
+page: about:personas
+kit: cavekit-personas-ui.md R6
+fixture: persona-file
+wait rect 'sel:#mine .card' 30
+calibrate 'sel:.group-title'
+tap from-file
+wait rect 'sel:#files button' 8
+tap 'sel:#files button'
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait pref b lightweightThemes.isThemeSelected true 15
+wait rect 'sel:#mine .card:nth-child(2) button' 8
+expect text-has 'sel:#mine .card:nth-child(2)' Carbon
+tap 'sel:#mine .card:nth-child(2) button'
+wait text status-text 'taken off' 8
+tap 'sel:#mine .card:nth-child(2) button:last-child'
+wait text 'sel:#mine .card:nth-child(2)' 'Remove it?' 4
+expect text-has 'sel:#mine .card:nth-child(2)' 'Remove it?'
+dwell 4000
+expect text-has 'sel:#mine .card:nth-child(2)' 'Remove it?'
+tap 'sel:#mine .card:nth-child(2) button:last-child'
+wait text status-text 'Removing' 8

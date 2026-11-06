@@ -1,0 +1,16 @@
+id: address-select-all
+section: Keyboard and text
+item: Tap the address field: the whole address is selected (typing replaces it); a second tap offers Cut / Copy / Paste over the field (Mojo's field has no popup) — the paste into a page field stays a person's half
+shells: enyo mochi
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-chrome-look.md R4
+calibrate bar
+chrome address
+expect keyboard up 8
+sample above 200,88,470,135
+chrome address
+wait changed 200,88,470,135 4
+chrome cutcopy-copy
+wait still 200,88,470,135 3
+chrome kb-hide
+expect keyboard down 8

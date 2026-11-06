@@ -1,0 +1,28 @@
+id: proxy-own
+section: Proxies and certificates
+item: Settings → Advanced → Proxy → My own proxy: type a proxy's host and port on the on-screen keyboard, tap Use this proxy, and the next page goes through it (the proxy's own login dialog comes up)
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-proxies-certs.md R1
+fixture: auth-proxy
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="advanced"]'
+wait rect 'sel:button.pane-tab.on[data-pane="advanced"]' 5
+pick 'sel:.row[data-pref="network.proxy.type"] select' 4 7
+wait rect 'sel:.row[data-pref="network.proxy.http"] input' 4
+tap 'sel:.row[data-pref="network.proxy.http"] input'
+expect keyboard up 8
+key-hold kb-backspace 4000
+type-keys 192.168.1.245
+tap 'sel:.row[data-pref="network.proxy.http_port"] input'
+key-hold kb-backspace 2000
+type-keys 3129
+chrome kb-hide
+expect keyboard down 8
+tap 'sel:button[data-use="proxy"]'
+wait pref s network.proxy.http 192.168.1.245 6
+inject url http://example.com/jihad-proxy-own-check
+expect dialog present 30
+chrome auth-cancel
+expect dialog answered 8

@@ -535,6 +535,7 @@ private:
 
   EngineHost& mHost;
   PageChrome* mChrome;   // holds the nsIWebBrowser + listener (opaque here)
+  std::string mLastFind;      // the word of the last Find: another word starts where its match starts
   std::string mClickNavUrl;   // href from the last link tap, drained by TakeClickNav
   std::string mClickNavReferrer;   // and the referrer/policy its link's rules give it
   uint32_t mClickNavPolicy = 0;

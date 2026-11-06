@@ -1,0 +1,11 @@
+WAIT ok 7-rect status
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 93 landed on document y 25)
+  tap at 266,256 -> clickAt 340 233
+WAIT ok 10-changed sel:video
+WAIT ok 11-changed sel:video
+  tap at 266,256 -> clickAt 340 233
+WAIT ok 13-still sel:video
+  sample paused of sel:video: hash dd0c46e5
+WAIT ok 15-still sel:video
+CHECK ok 16-region-equal: region 16,116-517,396: colours 2442 hash dd0c46e5 rows 280 uniform 0 light 383-388 blue none = the sample's hash
+CHECKS 1 FAILS 0

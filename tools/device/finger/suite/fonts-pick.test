@@ -1,0 +1,15 @@
+id: fonts-pick
+section: Fonts
+item: Settings → Content → Fonts & Colors: pick a Serif font from the list — the pref is written; Restore default fonts clears it
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-preferences-ui.md R9
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="content"]'
+wait rect 'sel:button.pane-tab.on[data-pane="content"]' 5
+wait rect fonts-reset 5
+pick 'sel:.row[data-pref="font.name.serif.x-western"] select' 3 25
+wait pref s font.name.serif.x-western Dotum 5
+tap fonts-reset
+wait text 'sel:#status' 'back to their defaults' 5

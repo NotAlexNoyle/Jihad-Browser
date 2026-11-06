@@ -29,8 +29,10 @@ PREFS=$APP/profile/prefs.js
 # the profile's prefs as daemon-start.sh found them, whole (the daemon is gone: nothing writes them back)
 if [ -s /tmp/fl-prefs-before-$V ]; then cp /tmp/fl-prefs-before-$V "$PREFS" && echo "prefs.js put back as found" && rm -f /tmp/fl-prefs-before-$V
 elif [ -s /tmp/fl-prefs-$V.txt ]; then while read n; do [ -n "$n" ] && sed -i "/\"$n\"/d" "$PREFS" && echo "pref stripped: $n"; done < /tmp/fl-prefs-$V.txt; : > /tmp/fl-prefs-$V.txt; fi
-# the round's dumps and scratch
-rm -f /tmp/fl-region.last.raw /tmp/x.last.raw /tmp/frame.raw /tmp/frames.raw /tmp/st-gpu.png /tmp/st-pan.png /tmp/walk-trace.txt
+# the round's dumps and scratch, and the reply pipe of a dialog the daemon was killed under
+rm -f "$STATE"/dialog-*.fifo
+rm -f /tmp/fl-region.last.raw /tmp/x.last.raw /tmp/frame.raw /tmp/frames.raw /tmp/st-gpu.png /tmp/st-pan.png /tmp/walk-trace.txt /tmp/fl-stream.out
+for f in /tmp/kb-*.png /tmp/cutcopy-*.png /tmp/hold-*.png /tmp/menu-*.png /tmp/dlg-*.png /tmp/chrome-*.png; do [ -e "$f" ] && rm -f "$f"; done
 rm -rf /media/internal/jihad-finger /media/internal/jihad-stream
 stop $JOB >/dev/null 2>&1; sleep 1; start $JOB >/dev/null 2>&1; sleep 4
 n=0; for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) n=$((n+1));; esac; done

@@ -1,0 +1,18 @@
+id: mobile-wiki-pinch
+section: Scrolling and gestures
+item: Pinch in then out on en.m.wikipedia.org: the page follows and the card is never left grey (Mojo found grey once)
+shells: enyo mochi mojo
+page: https://en.m.wikipedia.org/wiki/HP_TouchPad
+kit: cavekit-mojo-ui.md R6
+needs: internet
+wait rect 'sel:#firstHeading' 40
+calibrate 'sel:#firstHeading'
+pinch 384 400 400 100
+wait still 0,100,756,700 5
+expect zoom-min 0.65
+expect content 0,100,756,700 'sel:body'
+expect text-has 'sel:#firstHeading' TouchPad
+pinch 384 400 100 400
+wait zoom 10
+expect zoom-min 1.05
+expect content 0,100,756,700 'sel:body'

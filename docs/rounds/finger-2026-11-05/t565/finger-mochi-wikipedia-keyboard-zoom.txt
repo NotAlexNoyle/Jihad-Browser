@@ -1,0 +1,14 @@
+WAIT ok 8-rect sel:input[name='search']
+WAIT ok 9-still 0,100,756,700
+CHECK ok 10-zoom: zoom 0.6882 (want 0.69 within 0.06)
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)
+  tap at 320,101 -> clickAt 466 33
+CHECK ok 13-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+WAIT ok 14-still 0,100,756,500
+CHECK ok 15-zoom: zoom 0.6882 (want 0.69 within 0.06)
+  chrome kb-hide tapped at 732 993
+CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+WAIT ok 18-still 0,100,756,700
+CHECK ok 19-zoom: zoom 0.6882 (want 0.69 within 0.06)
+CHECK ok 20-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
+CHECKS 6 FAILS 0

@@ -168,6 +168,42 @@ person's), its checks' lines and the kept frames, then the device check; the pic
 the `shoot`s only. `suite/self/` holds the suite's own scripts (a deliberate failure for the report's path), run
 with `--self`.
 
+Since T-565 the suite is every reachable item of the finger list. More of the form: `item:` and `section:` (the entry in
+`docs/FINGER-TESTS.md`, which `finger-list.py --write` regenerates from the suite and its last report; the hand-run record
+is `docs/FINGER-TESTS-2026-10.md`), `fixture: NAME` (`suite/fixtures/NAME.sh up|down SHELL` around the daemon: `pads`, twelve
+sideloaded test extensions; `persona-file`, a Persona in the downloads folder; `auth-proxy`, the login proxy on the host),
+`needs: internet` (run with `--with internet`), `tool:` and `skip:` with their reason, and `known: T-NNN WORD` (failures all
+holding WORD are that open defect's: the verdict reads `known`, not `fail`). Marks: `wait gone SEL`, `url PART`, `pref T NAME
+TEXT`, `differs REGION SAMPLE` (a menu that came up during a hold), `changed REGION`, `text SEL TEXT`. Gestures: `hold-on SEL`,
+`dismiss X Y` (a tap that closes a menu reaches no page, so no clickAt is awaited), `tap-off SEL DX DY` (inside a frame the
+rect cannot see), `drag-slow`, `drag-jitter`, `drag-paused`, `type-keys TEXT` and `key-hold kb-backspace` (the system keyboard
+by finger; `fl_kb_key` is its map), `daemon-restart URL` (stopped as upstart stops it, for a persistence check), `stream-start`
+and `stream-stop` with `expect stream stale|uniform|still|lag-max|error-max VALUE` read on the host, and `dwell MS` between a
+check and the same check (does it still hold?). `pause MS` is the human's delay before a gesture only: the lint refuses it as a
+guard before a check.
+
+What the first rounds taught, not in the source: calibrate on an element whose tap does nothing (a tap on a dialog's button
+raises the dialog and blocks the engine); a dialog logs nothing until it is answered, but its reply pipe stands in the state
+directory while it is up; a page back from the back-forward cache sends `titleAndUrl` and no `load done`; a pinch's zoom settles
+after several lines, and the frame at it comes later; about:addons opens on Get Add-ons; about:settings opens on Browser;
+`gettext` returns the first 400 characters, so read a heading rather than `body`; a value starting with a digit is not a number
+(`192.168.1.245` broke prefs.js); Enyo's login dialog centres in what the keyboard leaves, Mojo's sheet comes with the keyboard up.
+
+**The first whole runs** (2026-11-05/06) taught these. A dialog's reply pipe stands before the card has drawn the dialog, and Enyo's popup
+is as tall as its text: its buttons are counted from its last light row once two reads agree (`fl_dialog_last`). A daemon started on
+a page whose script never ends answers nothing until its dialog's deadline has passed, so reach such a page from a free daemon
+(`inject url`). A pinch by the finger takes the page about 0.56x (or 2.67x) of a 4x spread: go back to the fit zoom by several, and
+a pinch at the fit zoom asks for nothing, so no zoom mark comes. The frames (fb1) never show the system keyboard: what stands behind
+it shows instead, and a tap at the bottom row types. A card's `card=` runs past what is shown at the end of a page (about:addons:
+338 against 265, a tap's clickAt agreeing with the frame), so at a page's end tap a point and read which element took it. A hold on
+a field raises the keyboard; dismiss its popup above the keyboard. The card claims a hold on a link or an image: no `hold at` line
+for those, the menu's frame is the mark. A page may drop an `h1`, a site its `input`: a selector on a real site is read, not assumed.
+A page the profile has in its cache asks no proxy for anything: a proxy test goes to a path no round has loaded. Mojo's sheets slide
+up (a tap too soon lands on the other button) and its login sheet stands on the keyboard or at the bottom: its buttons are counted
+from its measured top. Its circles stand over the foot of the page and its bar moves the fixed header: `stream-mojo:` gives its
+stream reading other rows. `--merge` runs some scripts again into the round's report, marked (rerun). A network that answers
+`SSL_ERROR_RX_MALFORMED_SERVER_HELLO` or fails a name for a few minutes fails every real site's script: read the frame first.
+
 ## A round
 
 1. Open the card on the page with `luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"<app id>","params":{"target":"<url>"}}'`
@@ -181,8 +217,9 @@ with `--self`.
    libhal's "Unexpected code" for a malformed datagram).
 4. Delete the shots once judged (memory `clear-screenshots-when-done`); keep only what a kit note cites.
 5. A `killall LunaSysMgr` with the USB cable in re-shows the system's "Connected — Tap USB Drive…" alert in the
-   upper right (fb0, so the sampler never sees it; a finger aimed there hits it, and the owner sees it). After the
-   restart's 45 s, `/tmp/finger tap 583 232` taps its Close (harmless on an empty card view); the owner asked.
+   upper right (fb0, so the sampler never sees it; a finger aimed there hits it, and the owner sees it). Never restart
+   bare: `bash build/webos-oe/dev-sh.sh -t 120 tools/device/finger/sysmgr-restart.sh` kills, waits, taps its Close and
+   takes the screenshot in one script; the owner asked twice.
 
 What it cannot do: the accelerometer (rotation), the volume keys, hearing audio, a physical keyboard. Those
 stay a person's in `docs/FINGER-TESTS.md`.

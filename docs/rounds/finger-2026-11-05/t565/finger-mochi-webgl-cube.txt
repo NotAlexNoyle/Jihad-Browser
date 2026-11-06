@@ -1,0 +1,10 @@
+WAIT ok 7-rect c
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 120 landed on document y 57)
+CHECK ok 9-text-has: out = [webgl fps=25.6 shaders=ok texture=ok framebuffer=ok readPixels=ok maxtex=4096 ext=14 missing=ANGLE_instanced_arrays,WEBGL_compressed_texture_s3tc,EXT_blend_minmax,EXT_shader_texture_lod depthrb=ok renderer=Mozilla vendor=Mozilla] holds [webgl]
+CHECK ok 10-content: region 105,171-457,520: colours 788 hash fdd1f312 rows 349 uniform 161 light none blue 268-448; c on the screen at 105,170-457,521
+WAIT ok 11-changed c
+  pinch 384 400 150 300
+WAIT ok 13-zoom
+CHECK ok 15-content: region 0,100-768,900: colours 970 hash 81d4ee1d rows 800 uniform 267 light none blue none; c on the screen at -23,99-527,650
+WAIT ok 16-changed c
+CHECKS 3 FAILS 0

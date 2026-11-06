@@ -1,0 +1,20 @@
+id: wikipedia-keyboard-zoom
+section: Scrolling and gestures
+item: Desktop Wikipedia keeps its layout and its fit zoom when the keyboard comes and goes (T-569: a repeated size or the keyboard's put a page's declared 1120 px width back to the card's 768 and the zoom to 1.0)
+shells: enyo mochi mojo
+page: https://en.wikipedia.org/wiki/HP_TouchPad
+kit: cavekit-mochi-ui.md R6
+needs: internet
+wait rect 'sel:input[name="search"]' 60
+wait still 0,100,756,700 20
+expect zoom 0.69 0.06
+calibrate 'sel:#firstHeading'
+tap 'sel:input[name="search"]'
+expect keyboard up 8
+wait still 0,100,756,500 6
+expect zoom 0.69 0.06
+chrome kb-hide
+expect keyboard down 8
+wait still 0,100,756,700 6
+expect zoom 0.69 0.06
+expect text-has 'sel:#firstHeading' TouchPad

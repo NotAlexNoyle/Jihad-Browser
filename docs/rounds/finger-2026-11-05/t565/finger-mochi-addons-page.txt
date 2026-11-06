@@ -1,0 +1,12 @@
+WAIT ok 7-rect sel:#category-extension
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 254 landed on document y 224)
+WAIT ok 9-rect sel:#category-extension[selected='true']
+WAIT ok 10-rect sel:richlistitem[value='palefill@addons.martoks-place.de']
+  tap at 118,341 -> clickAt 151 335
+WAIT ok 12-rect sel:#category-plugin[selected='true']
+  tap at 118,254 -> clickAt 151 224
+WAIT ok 14-rect sel:#category-extension[selected='true']
+  tap at 462,196 -> clickAt 590 150
+WAIT ok 16-rect sel:#detail-view:not([hidden])
+CHECK ok 17-text-has: sel:#detail-name = [Palefill Web Technologies Polyfill] holds [Palefill]
+CHECKS 1 FAILS 0

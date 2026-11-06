@@ -1,0 +1,17 @@
+id: mochi-paste
+section: Keyboard and text
+item: Mochi: with the keyboard up over a page field, a hold on the field offers Paste in the card's sheet (the frame kept for the eye; the pasted text's landing is read by the page)
+shells: mochi
+page: http://192.168.1.245:8077/jihad-input-echo.html
+kit: cavekit-mochi-ui.md R2
+calibrate echo
+tap plain
+expect keyboard up 8
+sample page 100,100,668,420
+hold-on plain 1500
+wait differs 100,100,668,420 page 5
+shoot mochi-field-sheet
+chrome dialog-cancel
+wait still 100,100,668,420 4
+chrome kb-hide
+expect keyboard down 8

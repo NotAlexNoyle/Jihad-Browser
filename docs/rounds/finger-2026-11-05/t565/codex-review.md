@@ -1,0 +1,30 @@
+I found four regressions and three incomplete fixes, all **MEDIUM**. These are source-level findings; I reproduced the two synchronous Mochi issues with mocked JavaScript, without device execution.
+
+1. **MEDIUM — Mojo retains every wrapped scene.** [main-assistant.js:481](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/app-mojo/app/assistants/main-assistant.js:481)  
+   Open a page that pushes another `main` scene, then return and repeat. `_flickWrapped` belongs to each WebView, while `Mojo.handleGesture` belongs to their shared window. Each scene therefore adds another wrapper and anonymous document listener. Neither scene cleanup nor WebView cleanup removes them. The wrapper chain retains old widgets/controllers and scene objects, and every gesture traverses the growing chain. Installation is once per widget, not once per window.
+
+2. **MEDIUM — Dismissing an address edit prevents subsequently submitting it unchanged.** [JihadBrowser.js:988](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/app-mochi/source/JihadBrowser.js:988)  
+   Type `example.org`, tap an inert part of the page, refocus the address, then press Enter without editing. `pageTapped` records that unsubmitted text in `_lastSubmit`; `submitAddress` consequently rejects the explicit Enter as a duplicate. There is no focus-time reset. The mocked sequence produced zero navigation calls.
+
+3. **MEDIUM — Tapping the page advances Find unexpectedly.** [JihadBrowser.js:990](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/app-mochi/source/JihadBrowser.js:990)  
+   Type a query with several matches into Find, then tap the page to dismiss its keyboard. Blurring the edited Find input fires its `change` handler, which calls `inputChange` and submits the query again. Since the query is unchanged, `Find` advances to the next occurrence and can scroll the page. The mocked sequence issued two searches: one from typing, another from the page tap.
+
+4. **MEDIUM — A delayed page-tap callback can blur a subsequently focused card field.** [JihadWebView.js:424](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/app-mochi/source/JihadWebView.js:424)  
+   Tap an inert page area, then quickly focus the address or Find field. The adapter waits **400 ms** before requesting the click hit test, and the reply can take longer. When that old reply arrives, `pageTapped` examines the *current* `document.activeElement` and blurs the newly focused field. Nothing associates the blur with the field focused when the original tap occurred.
+
+5. **MEDIUM — Incremental Find still skips matches inside frames and text controls.** [GoannaRenderPage.cpp:1341](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/render/goanna/GoannaRenderPage.cpp:1341)  
+   Put two occurrences of `zebra` inside an iframe. Find `ze`, then extend it to `zeb`: the new collapse obtains the **top document’s presShell selection**, leaving the iframe’s match selected. The finder starts after that selection and advances to the second occurrence. Text inputs and textareas similarly have independent selection controllers. UXP’s `GetFrameSelection` explicitly handles both distinctions; this lookup does neither. Wrapping prevents some false “not found” results but does not preserve the current match. This is an incomplete fix.
+
+6. **MEDIUM — A late hold reply can re-arm suppression after the new pen-down.** [BrowserAdapter.cpp:1648](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/render/adapter/BrowserAdapter.cpp:1648)  
+   Hold until its hit-test request is sent, release, then begin another tap before the reply arrives. Pen-down clears `m_didHold`, but the old reply subsequently sets it back at line 6367, causing the new tap’s click to be swallowed. `m_gestureGen` rejects replies overtaken by a pinch; ordinary pen-down does not advance it. The clear fixes an already-completed hold, but leaves this asynchronous case unresolved.
+
+7. **MEDIUM — Pass-through taps bypass the new Mochi blur entirely.** [JihadWebView.js:423](/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser/app-mochi/source/JihadWebView.js:423)  
+   Focus a card input while displaying a short, non-scalable page that satisfies `shouldPassInputEvents()`, then tap the page. Pen-down sends raw input and sets `m_sentToBS`; `handlePenClick` consumes the click without scheduling a hit test. Consequently, no `eventFired("click")` or `onPageTap` occurs, leaving this route without the newly added card-input blur. This is another coverage gap in the fix.
+
+For the remaining areas:
+
+- **Resize:** I traced creation, document-key resets, `mLayoutW`, keyboard height changes, rotation in both directions, and displayport handling. The caller still schedules painting and refreshes the displayport after a successful same-size return. `GetViewport` uses the updated card dimensions, so `device-width` is recalculated rather than frozen. UXP also handles viewport metadata changes separately. I found no concrete new resize regression.
+- **Original target:** Focus and blur use the same host normalization, including number inputs. The F-7 adoption logic still compares raw focus identities before normalization; an observed real focus transition supports adoption. I found no new mismatch.
+- **Ordinary Mochi page-field tap:** The card blur runs before the callback sends `asyncCmdClickAt`, so I did not find a same-click engine-focus/host-blur reversal on that route. Finding 4 concerns a later, unrelated focus.
+- **Preferences:** Blank clearing, explicit zero, negative integers, and rereading the effective default look consistent. This script runs inside Goanna, so its `let` is appropriate.
+- **Pointer events:** Buttons remain targetable, and events can bubble through the disabled strip/group ancestors. Mojo appends submenu popups to the scene, outside these selectors. Gap drags now reach the page; actual horizontal scrolling from a button in landscape remains unverified on device.

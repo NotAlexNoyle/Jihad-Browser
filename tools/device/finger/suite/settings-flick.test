@@ -1,0 +1,14 @@
+id: settings-flick
+section: Scrolling and gestures
+item: Flick up and down on about:settings at both ends: the page coasts (the card's scroll well past the finger's travel), and a flick down at the top stays at the top
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-chrome-look.md R3
+wait rect page-title 20
+calibrate page-title
+flick 480 900 480 250
+expect card-scroll-min 500
+flick 480 250 480 900
+flick 480 250 480 900
+flick 480 250 480 900
+expect card-scroll 0 5

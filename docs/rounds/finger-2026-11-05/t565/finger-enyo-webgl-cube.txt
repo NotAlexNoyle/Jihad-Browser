@@ -1,0 +1,10 @@
+WAIT ok 7-rect c
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 124 landed on document y 57)
+CHECK ok 9-text-has: out = [webgl fps=22.1 shaders=ok texture=ok framebuffer=ok readPixels=ok maxtex=4096 ext=14 missing=ANGLE_instanced_arrays,WEBGL_compressed_texture_s3tc,EXT_blend_minmax,EXT_shader_texture_lod depthrb=ok renderer=Mozilla vendor=Mozilla] holds [webgl]
+CHECK ok 10-content: region 105,175-457,524: colours 976 hash dc607c95 rows 349 uniform 101 light none blue 234-435; c on the screen at 105,174-457,525
+WAIT ok 11-changed c
+  pinch 384 400 150 300
+WAIT ok 13-zoom
+CHECK ok 15-content: region 0,100-768,900: colours 1266 hash 5496b371 rows 800 uniform 0 light none blue 254-398; c on the screen at -23,103-527,654
+WAIT ok 16-changed c
+CHECKS 3 FAILS 0

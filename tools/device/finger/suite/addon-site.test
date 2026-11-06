@@ -1,0 +1,21 @@
+id: addon-site
+section: Personas and add-ons
+item: The add-on site on the TouchPad: the nav takes a tap (Personas opens), the search field takes the keyboard, a Wear asks first and names the site (Cancel leaves the Default look)
+shells: enyo mochi mojo
+page: https://addons.riverstonerelay.org/
+kit: cavekit-addons-site.md R7
+needs: internet
+wait rect 'sel:form.search input' 60
+calibrate 'sel:form.search input'
+tap 'sel:form.search input'
+expect keyboard up 8
+chrome kb-hide
+expect keyboard down 8
+tap 'sel:a[href="/personas/"]'
+wait url /personas/ 40
+wait rect 'sel:a.button[data-browsertheme]' 20
+tap 'sel:a.button[data-browsertheme]'
+expect dialog present 8
+chrome dialog-cancel
+expect dialog answered 8
+wait pref b lightweightThemes.isThemeSelected false 6

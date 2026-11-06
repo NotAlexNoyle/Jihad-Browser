@@ -1,0 +1,20 @@
+id: settings-field-saves
+section: Keyboard and text
+item: Type into a settings field, then close the keyboard with its own key: the value is kept (the pref) and the caret is gone (the field's pixels hold still)
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-chrome-look.md R4
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="content"]'
+wait rect 'sel:button.pane-tab.on[data-pane="content"]' 5
+tap 'sel:.row[data-pref="browser.display.foreground_color"] input'
+expect keyboard up 8
+type-keys x
+chrome kb-hide
+expect keyboard down 8
+wait pref s browser.display.foreground_color x 6
+wait still 'sel:.row[data-pref="browser.display.foreground_color"] input' 3
+sample field 'sel:.row[data-pref="browser.display.foreground_color"] input'
+wait still 'sel:.row[data-pref="browser.display.foreground_color"] input' 3
+expect region-equal 'sel:.row[data-pref="browser.display.foreground_color"] input' field

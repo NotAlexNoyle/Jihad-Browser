@@ -617,7 +617,15 @@ function writePref(row, value) {
 	try {
 		switch (row.type) {
 		case "bool":   Services.prefs.setBoolPref(row.pref, !!value); break;
-		case "int":    Services.prefs.setIntPref(row.pref, parseInt(value, 10) || 0); break;
+		case "int":
+			// An emptied field is no number: it asks for the default back. It used to write 0, which
+			// for "Back/forward entries to keep" turned the Back button off with no word said.
+			if (String(value).trim() === "") {
+				if (Services.prefs.prefHasUserValue(row.pref)) { Services.prefs.clearUserPref(row.pref); }
+			} else {
+				Services.prefs.setIntPref(row.pref, parseInt(value, 10) || 0);
+			}
+			break;
 		case "choice":
 			if (Services.prefs.getPrefType(row.pref) === Ci.nsIPrefBranch.PREF_INT) {
 				Services.prefs.setIntPref(row.pref, parseInt(value, 10) || 0);
@@ -890,6 +898,11 @@ function buildRow(row) {
 		control.value = (value === null) ? "" : String(value);
 		control.addEventListener("change", function () {
 			echoWrite(row, control.value);
+			// An emptied number field asked for the default (writePref): it shows what is now in effect.
+			if (row.type === "int" && control.value === "") {
+				let now = readPref(row);
+				if (now !== null) { control.value = String(now); }
+			}
 		}, false);
 	}
 
@@ -1371,6 +1384,7 @@ function buildProxySection(group) {
 	function useButton(text, go) {
 		let b = el("button", "btn", text);
 		b.setAttribute("type", "button");
+		b.setAttribute("data-use", "proxy");   // the finger suite reaches it by this (tools/device/finger/suite/proxy-own.test)
 		b.addEventListener("click", go, false);
 		let r = el("div", "row");
 		r.appendChild(b);

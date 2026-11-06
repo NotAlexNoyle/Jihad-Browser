@@ -25,6 +25,8 @@
  *     down, the status bar at the top): the tool turns them into the panel's own frame, which is what
  *     hidd reports and LunaSysMgr maps — raw x = y, raw y = 767 - x (found 2026-10-24: a tap at raw
  *     (10, 737) opened the app menu at portrait (30, 10); a drag in that frame panned a page).
+ *     FINGER_JITTER=<px> wobbles every scan of a drag by up to that much each way (the end point exact), FINGER_PAUSE_MS=<ms>
+ *     holds the finger still mid-way through a drag with the scans going on (T-565: the slow human's hand);
  *     FINGER_FRAME=raw sends the coordinates as given; SCAN_HZ (env, default 100) sets the move rate;
  *     FINGER_SOCKET (env) another socket path.
  *     FINGER_TRACE=<file> (T-561) appends every scan sent as a line "<ms> <finger id> <x> <y> <phase>" (the
@@ -100,15 +102,24 @@ static void scan(const Finger* fs, int count) {
 }
 
 static int lerp(int a, int b, double t) { return (int)(a + (b - a) * t + 0.5); }
+static int g_jitter = 0, g_pause_ms = 0;           /* FINGER_JITTER px on every scan; FINGER_PAUSE_MS held still mid-way (T-565) */
 static void move_one(int id, int x0, int y0, int x1, int y1, int ms, int lift_moving) {
   Finger f = { id, x0, y0, 1, 0, 0 };
   scan(&f, 1);                                     /* down */
   f.phase = 0;
   int steps = ms * g_hz / 1000; if (steps < 2) steps = 2;
+  unsigned seed = (unsigned)now_ms();
   for (int i = 1; i <= steps; i++) {
     sleep_ms(1000 / g_hz);
     f.x = lerp(x0, x1, (double)i / steps); f.y = lerp(y0, y1, (double)i / steps);
+    if (g_jitter > 0 && i < steps) {               /* a hand's wobble: +-jitter px each way, the end point exact */
+      seed = seed * 1103515245u + 12345u; f.x += (int)((seed >> 16) % (2 * g_jitter + 1)) - g_jitter;
+      seed = seed * 1103515245u + 12345u; f.y += (int)((seed >> 16) % (2 * g_jitter + 1)) - g_jitter;
+    }
     scan(&f, 1);                                   /* move */
+    if (g_pause_ms > 0 && i == steps / 2) {        /* the finger held still mid-way, scans going on */
+      int held = 0; while (held < g_pause_ms) { sleep_ms(1000 / g_hz); scan(&f, 1); held += 1000 / g_hz; }
+    }
   }
   if (lift_moving) {                               /* a flick: lifted while moving, hidd's FLICK gesture with the velocity (px/s) */
     f.xvel = (int)((long)(x1 - x0) * 1000 / ms); f.yvel = (int)((long)(y1 - y0) * 1000 / ms);
@@ -120,6 +131,8 @@ int main(int argc, char** argv) {
   if (argc < 2) { fprintf(stderr, "usage: see the header of finger.c\n"); return 2; }
   const char* path = getenv("FINGER_SOCKET"); if (path) SOCK = path;
   const char* hz = getenv("SCAN_HZ"); if (hz) g_hz = atoi(hz) > 0 ? atoi(hz) : 100;
+  const char* jt = getenv("FINGER_JITTER"); if (jt) g_jitter = atoi(jt);
+  const char* pz = getenv("FINGER_PAUSE_MS"); if (pz) g_pause_ms = atoi(pz);
   const char* fr = getenv("FINGER_FRAME"); if (fr && !strcmp(fr, "raw")) g_raw = 1;
   const char* tr = getenv("FINGER_TRACE");
   if (tr && (g_trace = fopen(tr, "a")) != NULL) { fprintf(g_trace, "#"); for (int i = 1; i < argc; i++) fprintf(g_trace, " %s", argv[i]); fprintf(g_trace, " at %lld\n", now_ms()); }

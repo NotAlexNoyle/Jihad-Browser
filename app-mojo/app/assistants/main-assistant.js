@@ -471,6 +471,41 @@ MainAssistant.prototype.adoptViewportModel = function () {
 	Mojo.Event.stopListening(wa.controller.element, Mojo.Event.dragStart, wa._dragStartHandler, false);
 	wa._dragStartHandler = dragStart;
 	Mojo.Event.listen(wa.controller.element, Mojo.Event.dragStart, dragStart, false);
+	// A flick is the adapter's too: its velocity goes to the kinetic scroller, whose coast the other
+	// shells have (BasicWebView.flickHandler, Mochi's flickHandler). LunaSysMgr hands the card the
+	// flick by window.Mojo.handleGesture while the finger's drag is still open, and the scroller takes
+	// it only then: the framework's Mojo.Event.flick comes at the finger's lift, too late. So the call
+	// is met here, and a flick that began on the web view goes on to the framework only as before. By
+	// finger 2026-11-05: 600 px flicked moved 442 px and no further, the first flick on a page none.
+	// One wrapper to a window, whatever scenes come and go in it: the widget of the moment is looked up.
+	var w = wa.controller.window;
+	if (w && w.Mojo && w.Mojo.handleGesture) {
+		w._jihadFlickWidget = wa;
+		if (!w._jihadFlickWrapped) {
+			w._jihadFlickWrapped = true;
+			var lastDown = null, before = w.Mojo.handleGesture;
+			w.document.addEventListener("mousedown", function (e) { lastDown = e.target; }, true);
+			w.Mojo.handleGesture = function (type, properties) {
+				var cur = w._jihadFlickWidget;
+				if (type === "flick" && properties && lastDown && cur && cur.adapter && cur.adapter.handleFlick &&
+				    cur.controller.element.contains(lastDown) &&
+				    typeof properties.xVel === "number" && typeof properties.yVel === "number") {
+					cur.adapter.handleFlick(Math.round(properties.xVel), Math.round(properties.yVel));
+				}
+				return before.apply(this, arguments);
+			};
+		}
+	}
+	// The framework's own flick event stops at the WebView, as the drag does (the scene scroller
+	// would claim it).
+	var flick = function (event) {
+		event.stop();
+	};
+	if (wa._flickHandler) {
+		Mojo.Event.stopListening(wa.controller.element, Mojo.Event.flick, wa._flickHandler, false);
+	}
+	wa._flickHandler = flick;
+	Mojo.Event.listen(wa.controller.element, Mojo.Event.flick, flick, false);
 	// A tap is the adapter's too: it takes the finger's own tap (as in the Enyo and Mochi shells)
 	// and the widget's single-tap handler sent a SECOND click for every one (two identical
 	// clickAt per tap in the daemon log, 2026-10-08). That handler stands down. Its plain tap

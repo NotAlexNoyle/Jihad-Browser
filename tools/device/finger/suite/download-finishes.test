@@ -1,0 +1,9 @@
+id: download-finishes
+section: Media and sound
+item: A download finishes under /media/internal/downloads (the daemon's [jihad-dl] line); the system's open attempt that follows is the platform's
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-device-build.md R4
+calibrate 'sel:#content p'
+inject url data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo=
+wait line 'jihad-dl.*finished' 30

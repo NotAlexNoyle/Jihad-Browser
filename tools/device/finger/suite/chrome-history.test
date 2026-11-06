@@ -1,0 +1,15 @@
+id: chrome-history
+section: Chrome, menus and dialogs
+item: The card's bookmarks and history button opens its panel over the page, a tap outside takes it away and a plain tap afterwards reaches the page
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-device-build.md R4
+calibrate 'sel:#content p'
+sample page 0,100,756,960
+chrome history
+wait differs 0,100,756,960 page 5
+shoot history-panel
+dismiss 100 500
+wait still 0,100,756,960 5
+tap 'sel:#content p:nth-child(5)'
+expect hit 'sel:#content p:nth-child(5)'

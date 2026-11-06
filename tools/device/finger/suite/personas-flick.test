@@ -1,0 +1,14 @@
+id: personas-flick
+section: Scrolling and gestures
+item: Flick up and down on about:personas at both ends: the page coasts and comes back to its top
+shells: enyo mochi mojo
+page: about:personas
+kit: cavekit-chrome-look.md R3
+wait rect 'sel:#mine .card' 30
+calibrate 'sel:.group-title'
+flick 480 900 480 250
+expect card-scroll-min 500
+flick 480 250 480 900
+flick 480 250 480 900
+flick 480 250 480 900
+expect card-scroll 0 5

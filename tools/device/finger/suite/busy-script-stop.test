@@ -1,0 +1,15 @@
+id: busy-script-stop
+section: Sites
+item: jihad-busy.html: the "script may be busy" dialog comes up (about 60 s in); the frame is kept, its Cancel (Stop script) tapped: the card comes back and stays usable (a tap on the page reaches the engine)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-modern-web.md R2
+calibrate 'sel:#content p'
+inject url http://192.168.1.245:8077/jihad-busy.html
+expect dialog present 90
+shoot busy-dialog
+chrome dialog-cancel
+expect dialog answered 10
+wait rect 'sel:h1' 20
+tap 'sel:h1'
+expect hit 'sel:h1'

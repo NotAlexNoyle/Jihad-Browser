@@ -1,0 +1,20 @@
+id: addons-search-hide-key
+section: Keyboard and text
+item: Focus about:addons' search field, type on the keyboard, then close the keyboard with its hide key: the field keeps the text and no caret is left; a tap on the field brings the keyboard back
+shells: enyo mochi mojo
+page: about:addons
+kit: cavekit-chrome-look.md R4
+wait rect 'sel:#header-search' 40
+calibrate 'sel:#header-search'
+tap 'sel:#header-search'
+expect keyboard up 8
+type-keys pale
+wait still 'sel:#header-search' 3
+chrome kb-hide
+expect keyboard down 8
+wait still 'sel:#header-search' 3
+sample field 'sel:#header-search'
+wait still 'sel:#header-search' 3
+expect region-equal 'sel:#header-search' field
+tap 'sel:#header-search'
+expect keyboard up 8

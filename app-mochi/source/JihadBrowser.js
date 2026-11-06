@@ -119,7 +119,8 @@ enyo.kind({
 			onDownloadError:      "engineDownloadError",
 			// A finger held on a link or an image -> the long-press menu.
 			onHold:               "showHoldMenu",
-			onPageHold:           "pageHoldPending"
+			onPageHold:           "pageHoldPending",
+			onPageTap:            "pageTapped"
 		},
 		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
 		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
@@ -463,6 +464,9 @@ enyo.kind({
 	// so also submit on the Enter keydown (keyCode 13). Both funnel through
 	// submitAddress, which de-dupes so an Enter that also blurs won't double-load.
 	addressEntered: function(inSender) {
+		if (this._blurFromTap) {
+			return;
+		}
 		this.submitAddress();
 	},
 	addressKeydown: function(inSender, inEvent) {
@@ -975,6 +979,18 @@ enyo.kind({
 		if (!items.length) { return true; }
 		this.openSheet(e.linkUrl ? (e.linkText || "Link") : (e.altText || "Image"), e.linkUrl || e.imageUrl, items, e);
 		return true;
+	},
+	//* JihadWebView.onPageTap: a tap on the page takes the focus off the card's own fields, so the
+	//* keyboard goes down, as it does on the Enyo card (by finger 2026-11-05: on Mochi the address
+	//* field kept the caret and the keyboard stayed up). What is typed in the address field is not
+	//* an address the user asked for: its change event on blur must not submit it.
+	pageTapped: function() {
+		var a = document.activeElement;
+		if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA")) {
+			this._blurFromTap = true;   // its change event fires inside blur(): see addressEntered
+			a.blur();
+			this._blurFromTap = false;
+		}
 	},
 	//* JihadWebView.onPageHold: a hold on anything that is not a link or an image went to the
 	//* engine. Its answer arrives as a "page-hold" notification; every card of this variant

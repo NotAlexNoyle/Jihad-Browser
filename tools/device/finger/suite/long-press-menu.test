@@ -1,0 +1,15 @@
+id: long-press-menu
+section: Chrome, menus and dialogs
+item: Hold on a link: the long-press menu comes up over the page (the frame changes where it stands) and a tap outside takes it away; a plain tap on the link is unaffected (it navigates)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-ui-shell.md R7
+calibrate bar
+sample page 0,300,756,900
+hold-on away 1500
+wait differs 0,300,756,900 page 5
+dismiss 640 960
+wait still 0,300,756,900 5
+tap away
+wait load 30
+expect url jihad-long-static

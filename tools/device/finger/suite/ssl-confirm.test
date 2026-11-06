@@ -1,0 +1,13 @@
+id: ssl-confirm
+section: Chrome, menus and dialogs
+item: Answer the SSL confirm by tap: https://self-signed.badssl.com/ raises the card's certificate dialog; Don't Trust takes the page away unloaded
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-device-build.md R4
+needs: internet
+calibrate bar
+inject url https://self-signed.badssl.com/
+expect dialog present 30
+shoot ssl-dialog
+chrome ssl-deny
+expect dialog answered 8

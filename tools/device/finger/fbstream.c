@@ -42,7 +42,8 @@
  *            (N distinct 24-bit colours over every other pixel, 4096 at most; H an order-sensitive hash of every pixel;
  *            U of the R portrait rows one colour), then "light F-L" — the first and last portrait row of the region
  *            whose pixel at the region's centre column is light (every channel 0xd0 or more: a card's white popup
- *            over its dimmed page), or "light none" — with -L the page goes whole to OUT.last.raw (a failed check's frame)
+ *            over its dimmed page), or "light none", and "blue F-L" the same for a blue pixel (Mochi's OK button), or
+ *            "blue none" — with -L the page goes whole to OUT.last.raw (a failed check's frame)
  *     The summary on stdout at the end: samples, rate, the read's cost, flips, polls, this process's CPU.
  *
  *   OUT (little-endian): a header, then records of (u32 type, u32 bytes, payload):
@@ -177,7 +178,7 @@ int main(int argc, char** argv) {
     enum { CAP = 4096, TAB = 8192 };
     static uint32_t tab[TAB]; static unsigned char used[TAB]; int ncol = 0, nuni = 0;
     uint32_t hash = 2166136261u;
-    const int cx = (x0 + x1) / 2; int lightF = -1, lightL = -1;
+    const int cx = (x0 + x1) / 2; int lightF = -1, lightL = -1, blueF = -1, blueL = -1;
     for (int py = y0; py < y1; py++) {          /* a portrait row is a framebuffer column */
       uint32_t firstp = 0; int uni = 1;
       for (int px = x0; px < x1; px++) {
@@ -185,6 +186,7 @@ int main(int argc, char** argv) {
         const uint32_t p = *(const uint32_t*)(pagebuf + (size_t)r * line + (size_t)py * 4) & 0xffffffu;
         hash = (hash * 16777619u) ^ p;
         if (px == cx && (p & 0xff) >= 0xd0 && ((p >> 8) & 0xff) >= 0xd0 && ((p >> 16) & 0xff) >= 0xd0) { if (lightF < 0) lightF = py; lightL = py; }
+        if (px == cx && (p & 0xff) >= 0x90 && (p & 0xff) >= ((p >> 16) & 0xff) + 0x30) { if (blueF < 0) blueF = py; blueL = py; }
         if (px == x0) firstp = p; else if (p != firstp) uni = 0;
         if (((px - x0) & 1) == 0 && ((py - y0) & 1) == 0 && ncol < CAP) {
           uint32_t h = (p * 2654435761u) >> 19; int found = 0;
@@ -196,6 +198,7 @@ int main(int argc, char** argv) {
     }
     printf("region %d,%d-%d,%d: colours %d hash %08x rows %d uniform %d", x0, y0, x1, y1, ncol, hash, y1 - y0, nuni);
     if (lightF >= 0) printf(" light %d-%d", lightF, lightL); else printf(" light none");
+    if (blueF >= 0) printf(" blue %d-%d", blueF, blueL); else printf(" blue none");
     printf("%s\n", tries == 0 ? " (TORN)" : "");
     if (last_raw) {
       char path[512]; snprintf(path, sizeof path, "%s.last.raw", out);

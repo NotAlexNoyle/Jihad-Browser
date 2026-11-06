@@ -1,0 +1,17 @@
+id: everyday-browsing
+section: The engine
+item: Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back — nothing slower or odder than before
+shells: enyo mochi mojo
+page: https://duckduckgo.com/
+kit: cavekit-engine-update.md R8
+needs: internet
+wait rect 'sel:textarea[name="q"]' 60
+calibrate 'sel:textarea[name="q"]'
+expect keyboard up 8
+tap-at 384 300
+launch https://en.wikipedia.org/wiki/HP_TouchPad 60
+calibrate 'sel:#firstHeading'
+drag 480 900 480 300
+expect card-scroll-min 300
+chrome back
+wait url duckduckgo 40

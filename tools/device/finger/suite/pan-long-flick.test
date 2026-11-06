@@ -1,0 +1,18 @@
+id: pan-long-flick
+section: Scrolling and gestures
+item: Flick the long page: the card arrives with content to the bottom, nothing blank enters from below, the header's rows hold (the stream's stale and uniform bands)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+known: T-567 stream-uniform; T-567 stream-stale
+kit: cavekit-gpu-rendering.md R3
+stream: --rows 138-1024 --still 82-138
+stream-mojo: --rows 84-945
+calibrate 'sel:#content p'
+stream-start 16 -c 0-756 -U 48
+flick 480 900 480 300
+flick 480 900 480 300
+drag 480 300 480 900
+stream-stop
+expect stream stale 0
+expect stream uniform 0
+expect card-scroll-min 300

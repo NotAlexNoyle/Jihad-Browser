@@ -1,0 +1,9 @@
+id: card-select
+section: Chrome, menus and dialogs
+item: Pick an item in a card-side drop-down list: jihad-card-events.html's select opens the card's list, a tap on banana closes it and the page reads "picked: banana"
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-device-build.md R4
+calibrate bar
+pick sel 2 4
+wait text picked 'picked: banana' 5

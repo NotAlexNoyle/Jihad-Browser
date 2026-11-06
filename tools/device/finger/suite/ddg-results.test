@@ -1,0 +1,10 @@
+id: ddg-results
+section: Sites
+item: DuckDuckGo's regular results page renders its results (T-498/T-499)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-modern-web.md R2
+needs: internet
+launch https://duckduckgo.com/?q=webOS&ia=web 60
+wait line 'titleAndUrl title=.*webOS' 30
+expect content 0,100,756,900 'sel:body'

@@ -1,0 +1,12 @@
+WAIT ok 8-rect sel:#firstHeading
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)
+  pinch 384 400 400 100
+WAIT ok 11-still 0,100,756,700
+CHECK ok 12-zoom-min: zoom 0.6882 (at least 0.65)
+CHECK ok 13-content: region 0,100-756,700: colours 4096 hash 7ca2a22e rows 600 uniform 69 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028
+CHECK ok 14-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
+  pinch 384 400 100 400
+WAIT ok 16-zoom
+CHECK ok 17-zoom-min: zoom 1.8385 (at least 1.05)
+CHECK ok 18-content: region 0,100-756,700: colours 4096 hash 525844f9 rows 600 uniform 2 light 100-699 blue none; sel:body on the screen at -349,-212-1702,2324
+CHECKS 5 FAILS 0

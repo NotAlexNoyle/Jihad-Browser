@@ -1,0 +1,23 @@
+id: frame-field
+section: Keyboard and text
+item: A field inside a frame (jihad-frame-field.html): a tap raises the keyboard, typed keys land in it (the frame's picture changes), the hide key drops it and no caret is left (the frame's picture holds still), a tap brings it back
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-frame-field.html
+kit: cavekit-chrome-look.md R4
+wait rect f 20
+calibrate outer
+tap-off f 100 90
+expect keyboard up 8
+expect visible f
+sample frame f
+type-keys ab
+wait differs f frame 5
+expect region-changed f frame
+chrome kb-hide
+expect keyboard down 8
+wait still f 3
+sample rest f
+wait still f 3
+expect region-equal f rest
+tap-off f 100 90
+expect keyboard up 8

@@ -1,0 +1,14 @@
+id: mojo-address-typing
+section: Keyboard and text
+item: Mojo: a search typed in the address bar on the keyboard replaces the selected address and Enter opens the search results
+shells: mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-mojo-ui.md R6
+needs: internet
+calibrate bar
+chrome address
+expect keyboard up 8
+type-keys webos
+chrome kb-enter
+wait load 60
+expect url duckduckgo

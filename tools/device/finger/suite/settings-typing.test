@@ -1,0 +1,17 @@
+id: settings-typing
+section: Keyboard and text
+item: Type in about:settings' fields on the system keyboard (keys reach the XUL page): a character lands in a text field and Enter writes the pref
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-preferences-ui.md R6
+wait rect page-title 20
+calibrate page-title
+tap 'sel:button.pane-tab[data-pane="content"]'
+wait rect 'sel:button.pane-tab.on[data-pane="content"]' 5
+tap 'sel:.row[data-pref="browser.display.background_color"] input'
+expect keyboard up 8
+type-keys x
+chrome kb-enter
+wait pref s browser.display.background_color x 6
+chrome kb-hide
+expect keyboard down 8

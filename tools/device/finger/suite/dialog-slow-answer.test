@@ -1,0 +1,14 @@
+id: dialog-slow-answer
+section: Chrome, menus and dialogs
+item: The slow human: a confirm answered 8 s after it came up — past any pickup deadline a harness meets by accident — still lands (the page reads "c: true")
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-dialogs.html
+kit: cavekit-finger-testing.md R4
+wait rect c 20
+calibrate 'sel:p'
+tap c
+expect dialog present 8
+pause 8000
+chrome dialog-ok
+expect dialog answered 8
+wait text r 'c: true' 5

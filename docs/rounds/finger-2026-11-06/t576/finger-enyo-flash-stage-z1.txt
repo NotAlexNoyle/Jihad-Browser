@@ -1,0 +1,24 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 190 197
+CHECK ok 9-flash-at: the movie reported down 201.95,149.95 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (showAll) at 165 182
+CHECK ok 11-flash-at: the movie reported down 151.95,119.95 for stage 150,120 (within 3)
+WAIT ok 12-launch: load done
+WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (noBorder) at 190 197
+CHECK ok 15-flash-at: the movie reported down 201.3,150.65 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (noBorder) at 153 175
+CHECK ok 17-flash-at: the movie reported down 152,121.3 for stage 150,120 (within 3)
+WAIT ok 18-launch: load done
+WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (exactFit) at 190 197
+CHECK ok 21-flash-at: the movie reported down 201.3,149.95 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (exactFit) at 153 182
+CHECK ok 23-flash-at: the movie reported down 152,119.95 for stage 150,120 (within 3)
+WAIT ok 24-launch: load done
+WAIT ok 25-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=300x150 ei=true]
+  flash tap on stage 200,150 (noScale) at 190 197
+CHECK ok 27-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (noScale) at 140 167
+CHECK ok 29-flash-at: the movie reported down 151,120 for stage 150,120 (within 3)
+CHECKS 8 FAILS 0

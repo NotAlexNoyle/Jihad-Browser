@@ -4929,6 +4929,28 @@ bool GoannaRenderPage::RenderRegion(unsigned char* dst, int stride, int w, int h
   return jihad_offscreen_render_region(mWidget, ds, zoom, docX, docY, dst, stride, w, h);
 }
 
+bool GoannaRenderPage::CompositorAnimating() {
+  return mGpu && mWidget && jihad_offscreen_compositor_animating && jihad_offscreen_compositor_animating(mWidget) != 0;
+}
+
+void GoannaRenderPage::PluginLaneSet(bool open) {
+  if (jihad_plugin_lane_set) jihad_plugin_lane_set(open ? 1 : 0);
+}
+
+int GoannaRenderPage::PluginLaneProof() {
+  if (!jihad_plugin_lane_proof || !mChrome || !mChrome->mBrowser) return 0;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  return ds ? jihad_plugin_lane_proof(ds) : 0;
+}
+
+bool GoannaRenderPage::PluginLaneInfo(int* w, int* h) {
+  return jihad_plugin_lane_copy && jihad_plugin_lane_copy(nullptr, 0, 0, 0, 0, 0, w, h) != 0;
+}
+
+bool GoannaRenderPage::PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h) {
+  return jihad_plugin_lane_copy && jihad_plugin_lane_copy(dst, stride, x, y, w, h, nullptr, nullptr) != 0;
+}
+
 uint64_t GoannaRenderPage::CurrentDocId() {
   if (!mChrome || !mChrome->mBrowser) return 0;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);

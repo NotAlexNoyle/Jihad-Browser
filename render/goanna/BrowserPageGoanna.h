@@ -879,6 +879,26 @@ private:
   struct FlashRect { int l, t, r, b; };
   std::map<void*, int>     mPluginRectIds;
   std::map<int, FlashRect> mEmittedFlashRects;
+  // T-576: THE PLUGIN LANE: see pluginLaneFrame
+  bool pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff);
+  void pluginLaneClose(const char* why);
+  struct PluginLane {
+    bool on = false;
+    bool drain = false;         // it could open but for the frames in flight: no more are started
+    int base = -1;              // the slot whose frame the others take at their first turn
+    unsigned synced = 0;        // the slots holding that frame
+    int w = 0, h = 0, rows = 0, win = 0, x = 0, y = 0, viewRow = 0;
+    int adapterX = 0, adapterY = 0;
+    uint32_t seq = 0, pubSeq = 0, frameSeq = 0;
+    FlashRect rect;
+    std::vector<unsigned char> info;    // the base frame's BrowserOffscreenInfo
+    std::vector<unsigned char> stuck;   // and its JihadStuckBlock, if it had one
+    long frames = 0;
+    int64_t retryMs = 0;
+    int64_t proofDue = 0;       // while set: damage inside the plugin's rect is the plugin's last, and the proof is asked again then
+    bool pageDirty = false;     // the widget was marked since: the plugin does not mark it while the lane is open
+    const char* lastNo = nullptr;
+  } mLane;
   int64_t            mLastRectSyncMs = 0;
   int64_t            mLastGeomDirtyMs = 0;   // cadence for the post-load size re-measure
   // Damage-only repaint state (the 30 fps path in paintToSharedBuffer).

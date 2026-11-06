@@ -1,0 +1,9 @@
+WAIT ok 7-rect m
+CHECK ok 8-plugin: plugin-container 6954: alive (state S, cpu ticks 93 to 100)
+  plugin-container sent STOP
+CHECK ok 10-plugin: plugin-container 6954: wedged (state T, cpu ticks 100 to 100)
+  plugin-container sent CONT
+CHECK ok 12-plugin: plugin-container 6954: alive (state S, cpu ticks 100 to 108)
+  plugin-container sent KILL
+CHECK ok 14-plugin: plugin-container none: gone (state ?, cpu ticks ? to ?)
+CHECKS 4 FAILS 0

@@ -1,0 +1,18 @@
+id: flash-lane
+section: Flash
+item: A playing movie goes straight to the card: an element put over it shows, the movie plays again once it is gone, and goes on after a scroll
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1
+kit: cavekit-flash.md R3
+wait rect toggle 30
+dwell 3000
+expect flash-rate m 3 8 100
+tap toggle
+expect flash-rate m 3 0 4
+tap toggle
+expect flash-rate m 3 8 100
+drag 600 700 600 560
+wait settled 5
+expect flash-rate m 3 8 100
+tap toggle
+expect flash-rate m 3 0 4

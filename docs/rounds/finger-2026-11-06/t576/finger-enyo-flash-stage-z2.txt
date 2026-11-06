@@ -1,0 +1,36 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  pinch 200 600 150 400
+WAIT ok 9-zoom
+CHECK ok 10-zoom: zoom 1.9268 (want 1.92 within 0.3)
+  flash tap on stage 200,150 (showAll) at 366 304
+CHECK ok 13-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (showAll) at 318 275
+CHECK ok 15-flash-at: the movie reported down 149.95,119.95 for stage 150,120 (within 3)
+WAIT ok 16-launch: load done
+WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  pinch 200 600 150 400
+WAIT ok 19-zoom
+CHECK ok 20-zoom: zoom 1.9265 (want 1.92 within 0.3)
+  flash tap on stage 200,150 (noBorder) at 366 304
+CHECK ok 23-flash-at: the movie reported down 199.95,150.65 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (noBorder) at 294 260
+CHECK ok 25-flash-at: the movie reported down 150.65,119.95 for stage 150,120 (within 3)
+WAIT ok 26-launch: load done
+WAIT ok 27-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  pinch 200 600 150 400
+WAIT ok 29-zoom
+CHECK ok 30-zoom: zoom 1.9361 (want 1.92 within 0.3)
+  flash tap on stage 200,150 (exactFit) at 368 305
+CHECK ok 33-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (exactFit) at 295 275
+CHECK ok 35-flash-at: the movie reported down 149.3,117.95 for stage 150,120 (within 3)
+WAIT ok 36-launch: load done
+WAIT ok 37-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=300x150 ei=true]
+  pinch 200 600 150 400
+WAIT ok 39-zoom
+CHECK ok 40-zoom: zoom 1.9416 (want 1.92 within 0.3)
+  flash tap on stage 200,150 (noScale) at 369 306
+CHECK ok 43-flash-at: the movie reported down 200,150 for stage 200,150 (within 3)
+  flash tap on stage 150,120 (noScale) at 272 247
+CHECK ok 45-flash-at: the movie reported down 150,119 for stage 150,120 (within 3)
+CHECKS 12 FAILS 0

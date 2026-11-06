@@ -556,6 +556,12 @@ private:
   bool mOffscreen;         // true when rendering via the offscreen widget
   bool mGpu = false;       // T-502: JIHAD_GPU_COMPOSITOR set and the compose export present
 public:
+  // T-576: the plugin lane (see BrowserPageGoanna::pluginLaneFrame)
+  int PluginLaneProof();
+  void PluginLaneSet(bool open);
+  bool CompositorAnimating();
+  bool PluginLaneInfo(int* w, int* h);
+  bool PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h);
   bool GpuPath() const { return mGpu; }   // T-502
   // T-509: the GPU path given up for this daemon's life (an EGL failure, a frame the compositor did
   // not compose in time): this page and every page made after it render in software

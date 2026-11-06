@@ -300,6 +300,9 @@ int main(int argc, char** argv) {
   // (~/.cache and friends) stays inside our own R8 footprint instead of landing
   // somewhere nobody cleans up. `setenv(..., 0)` never overwrites a HOME that was
   // deliberately provided (the desktop harness, an ad-hoc novacom run).
+  // T-576: iconv's modules from the bundle, not the device's for its older glibc (make-device-bundle.sh).
+  // The player inherits it.
+  setenv("GCONV_PATH", (std::string(greDir) + "/gconv").c_str(), 0);
   if (!getenv("HOME")) {
     const char* home = state.empty() ? "/tmp" : state.c_str();
     setenv("HOME", home, 0);

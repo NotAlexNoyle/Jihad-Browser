@@ -82,6 +82,12 @@ extern "C" {
   int jihad_offscreen_overview_ok() __attribute__((weak));
   // OPTIONAL (T-511 review): the daemon gave the GPU path up; WebGL makes no more EGL contexts
   void jihad_offscreen_gpu_given_up() __attribute__((weak));
+  // OPTIONAL (T-576): the plugin lane: the frame, and the proof nothing lies over it
+  int jihad_plugin_lane_copy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
+                             int* aFullW, int* aFullH) __attribute__((weak));
+  int jihad_plugin_lane_proof(nsIDocShell* aDocShell) __attribute__((weak));
+  void jihad_plugin_lane_set(int aOpen) __attribute__((weak));
+  int jihad_offscreen_compositor_animating(nsIWidget* aWidget) __attribute__((weak));
   uint32_t jihad_offscreen_late_writes() __attribute__((weak));   // T-513: given-up reads that wrote into a slot
   uint32_t jihad_offscreen_compose_post(nsIWidget* aWidget, void* aDest, int aStride, int aWidth, int aHeight,
                                         int aRowLo, int aRowHi, int aRow2Lo, int aRow2Hi, int aShift,

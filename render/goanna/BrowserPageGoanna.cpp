@@ -558,10 +558,14 @@ int jihadTickPeriodMs() {
 // device's job file carried JIHAD_TICK_MS=16 as a local edit, which a reinstall silently drops;
 // the shipped build ran Flash on the 8 ms tick. This makes the measured configuration the
 // shipped one, for plugin pages only. An explicit $JIHAD_TICK_MS still wins, for A/B runs.
+//
+// With the plugin lane open (T-576) nothing is painted on a tick but the plugin's frame, and that frame
+// waits for the tick: 26 card frames a second of Bloxorz's 36 at 16 ms, 32 at 4 ms, for 3 % of a core.
+static int gJihadLanesOpen = 0;
 int jihadPluginTickPeriodMs() {
   static int s_ms = -1;
   if (s_ms < 0) s_ms = getenv("JIHAD_TICK_MS") ? jihadTickPeriodMs() : 16;
-  return s_ms;
+  return (gJihadLanesOpen > 0 && !getenv("JIHAD_TICK_MS")) ? 4 : s_ms;
 }
 
 static int jihadShmResolve(int keyOrId);   // defined below
@@ -883,6 +887,7 @@ bool BrowserPageGoanna::writeThumbnail(const unsigned char* src, int w, int h, c
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
+  if (mLane.on) { mLane.on = false; gJihadLanesOpen--; if (mPage) mPage->PluginLaneSet(false); }   // T-576
   // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
   FrameLockGuard frameLock;
   if (gXPages) gXPages->erase(this);
@@ -4421,7 +4426,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
     int64_t pnow = jihadNowMs();
     if ((pnow - mLastScrollMs) < 400 && (pnow - mLastPaintDoneMs) >= 250) mNeedsPaint = true;
   }
-  if (mPage->TakeDirty()) { mDirtyPending = true; gJihadDirtyTrue++; }
+  if (mPage->TakeDirty()) { mDirtyPending = true; gJihadDirtyTrue++; mLane.pageDirty = true; }
   // T-502 (the GPU compositor spike): a compositor animates a transform or an opacity without
   // the main thread painting, so nothing marks the widget dirty and the daemon would never ask
   // for a frame. The real path will take the compositor's own "composite due" signal; for the
@@ -4491,6 +4496,13 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // since ITS last paint or it repaints a stale frame minus one box (the scrubber-ghost bug).
       accumulateBufDamage(dx, dy, dw, dh);
     }
+  }
+  // T-576: with the plugin lane open a new plugin frame is a frame for the card, now. Its damage comes
+  // later and coalesced, with the engine's next refresh: 27 cards a second for 36 plugin frames.
+  if (mLane.on && mPage->PluginFrameSeq() != mLastPluginFrameSeq) {
+    mLastPluginFrameSeq = mPage->PluginFrameSeq();
+    mNeedsPaint = true;
+    mLastDirtyPaintMs = jihadNowMs();
   }
   if (mDirtyPending) {
     int64_t dnow = jihadNowMs();
@@ -5271,6 +5283,7 @@ void BrowserPageGoanna::gpuForget(const GpuJob& j) {
 // The frame after the one in flight, into the slot after it, while the read thread has the
 // first: the compositor composes one frame while the other is read back.
 void BrowserPageGoanna::gpuJobStartNext(int x, int y, double zoom, int w, int h, size_t segSize, size_t hdr) {
+  if (mLane.drain) return;   // T-576: the plugin lane opens when these run out
   // A job started before the one in flight finished must read that job's changed rows (its base
   // frame and its stale bands predate them: mGpuNextExtra, round 116) and builds on a frame that is
   // not the previous composite, so it takes no shift from the diff (mGpuNextSecond).
@@ -6177,6 +6190,184 @@ void BrowserPageGoanna::requestNextPluginFrame() {
   }
 }
 
+// T-576: THE PLUGIN LANE. A plugin frame on the GPU path was copied into a texture client, uploaded,
+// composed with the page and read back: Bloxorz, 550x300, 39 ms of the daemon's CPU for each, on a
+// device with no CPU left, for pixels that are the plugin's own. When the plugin is the only damage,
+// at zoom 1, and nothing lies over it (the engine's proof, asked once at the start), its frame goes
+// straight into the slot: no paint, no compositor. Every slot takes the newest whole frame at its first
+// turn; after that they differ only in the plugin's rect, which is what the frame's dirty rect tells
+// the card. Anything else that changes closes the lane, and the normal path's first frame into each
+// slot reads it whole, because the slots' records were dropped when the lane opened.
+// $JIHAD_PLUGIN_LANE=0 keeps it shut, for A/B runs.
+void BrowserPageGoanna::pluginLaneClose(const char* why) {
+  fprintf(stderr, "[jihad-bs] plugin lane closed after %ld frames: %s\n", mLane.frames, why);
+  mLane.on = false;
+  gJihadLanesOpen--;
+  mLane.lastNo = why;
+  mLane.retryMs = jihadNowMs() + 500;
+  if (mPage) mPage->PluginLaneSet(false);
+  pubDirtyAll();
+}
+
+bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff) {
+  static const bool sOff = getenv("JIHAD_PLUGIN_LANE") && atoi(getenv("JIHAD_PLUGIN_LANE")) == 0;
+  if (sOff || !mPage->GpuPath() || mEmittedFlashRects.empty()) {
+    if (mLane.on) pluginLaneClose("no plugin");
+    return false;
+  }
+  const int64_t now = jihadNowMs();
+  const char* no = nullptr;
+  int fw = 0, fh = 0, ex = 0, ey = 0;
+  const FlashRect r = mEmittedFlashRects.begin()->second;
+  if (Zeff != 1.0) no = "zoomed";
+  else if (mFrozen || !mThumbPath.empty()) no = "frozen or thumbnail";
+  else if (mEmittedFlashRects.size() != 1) no = "several plugins";
+  else if (xLeads(now)) no = "the card is moving";
+  else if (mDamageForceFull) no = "a whole frame is owed";
+  else if (!mPage->GetScrollXY(&ex, &ey, /*flushLayout*/false)) no = "no scroll";
+  // No damage at all is a frame asked for by the compositor's own count: every composite moves it,
+  // so the normal path asks again after each of its frames. It is not a change on the card
+  else if (mDamageValid && (mDamageX < r.l - ex || mDamageY < r.t - ey ||
+           mDamageX + mDamageW > r.r - ex || mDamageY + mDamageH > r.b - ey)) no = "damage outside the plugin";
+  else if (!mPage->PluginLaneInfo(&fw, &fh)) no = "no opaque frame";
+  else if (fw != r.r - r.l || fh != r.b - r.t) no = "the frame is not 1:1";
+  // The last test, so the normal path's frames drain only when the lane could open: under a steady
+  // stream of plugin frames they never run out by themselves (gpuJobStartNext)
+  mLane.drain = false;
+  if (!no && (!mGpuJobs.empty() || mXJob.on || mXJob2.on)) {
+    no = "frames in flight";
+    mLane.drain = !mLane.on && now >= mLane.retryMs;
+    if (mLane.drain) {
+      if (mLane.on) pluginLaneClose(no);
+      return false;
+    }
+  }
+  if (mLane.on && !no) {
+    // The plugin marks nothing damaged while the lane is open, so any damage is the page's. What the
+    // plugin marked just before is still on its way for a refresh or two: inside its rect for that long
+    // it passes, and the proof is asked again when the time is up, which sees anything that came then.
+    // On the GPU path the page paints its layers by itself at the engine's refresh, and what the daemon
+    // sees of that is the compositor's count of requests, not the widget's mark. The plugin's frames move
+    // that count too, but not while it marks nothing.
+    if (mLane.proofDue == 0 && (mDamageValid || mLane.pageDirty || mPage->CompositorSeq() != mLane.seq)) no = "the page changed";
+    else if (mLane.proofDue != 0 && now >= mLane.proofDue) {
+      mLane.proofDue = 0;
+      mLane.pageDirty = false;
+      mLane.seq = mPage->CompositorSeq();
+      if (mPage->PluginLaneProof() != 1) no = "something lies over the plugin";
+    }
+  }
+  if (mLane.on && !no) {
+    if (w != mLane.w || h != mLane.h) no = "resized";
+    else if (mAdapterScrollX != mLane.adapterX || mAdapterScrollY != mLane.adapterY) no = "scrolled";
+    else if (r.l != mLane.rect.l || r.t != mLane.rect.t || r.r != mLane.rect.r || r.b != mLane.rect.b) no = "the plugin moved";
+    else if (mPubSeq != mLane.pubSeq) no = "another lane published";
+  }
+  if (no) {
+    if (mLane.on) pluginLaneClose(no);
+    else if (no != mLane.lastNo) {
+      fprintf(stderr, "[jihad-bs] plugin lane: not open: %s (damage %d,%d %dx%d valid %d)\n", no, mDamageX, mDamageY, mDamageW, mDamageH, (int)mDamageValid);
+      mLane.lastNo = no;
+    }
+    return false;
+  }
+  const int slot = slotForKey(mActiveKey);
+  if (slot < 0) return false;
+  if (!mLane.on) {
+    if (now < mLane.retryMs) return false;
+    mLane.retryMs = now + 500;
+    const int L = mGpuLatestSlot;
+    if (L < 0 || L == slot || !mGpuSlotValid[L] || !mShmBuf[L] || mGpuSlotZoom[L] != 1.0 || mGpuSlotW[L] != w ||
+        mAdapterScrollX != mGpuSlotX[L] || mAdapterScrollY - mGpuSlotY[L] != mGpuViewRow) {
+      if (mLane.lastNo != "base") {
+        fprintf(stderr, "[jihad-bs] plugin lane: not open: no base frame (latest %d slot %d, adapter %d,%d frame %d,%d view row %d)\n",
+                L, slot, mAdapterScrollX, mAdapterScrollY, L >= 0 ? mGpuSlotX[L] : -1, L >= 0 ? mGpuSlotY[L] : -1, mGpuViewRow);
+        mLane.lastNo = "base";
+      }
+      return false;
+    }
+    // The compositor's count moves with every plugin frame, so it says nothing here. An animation
+    // says so at the composite before this: the lane stays shut, its frames are the compositor's.
+    // One that starts while the lane is open starts with a paint of the page, which is damage.
+    const int proof = mPage->CompositorAnimating() ? -4 : mPage->PluginLaneProof();
+    if (proof != 1) {
+      fprintf(stderr, "[jihad-bs] plugin lane: not open: the proof says %d\n", proof);
+      return false;
+    }
+    PluginLane& P = mLane;
+    P.base = L; P.synced = 1u << L;
+    P.w = w; P.h = h; P.rows = mGpuSlotH[L]; P.win = mGpuSlotWin[L]; P.x = mGpuSlotX[L]; P.y = mGpuSlotY[L];
+    P.viewRow = mGpuViewRow; P.adapterX = mAdapterScrollX; P.adapterY = mAdapterScrollY;
+    P.rect = r; P.frames = 0;
+    P.info.assign(mShmBuf[L], mShmBuf[L] + sizeof(BrowserOffscreenInfo));
+    P.stuck.clear();
+    if (const JihadStuckBlock* st = shmStuck(mGpuLatestKey)) {
+      if (st->magic) P.stuck.assign((const unsigned char*)st, (const unsigned char*)st + sizeof(JihadStuckBlock));
+    }
+    gpuSlotsLost();
+    pubDirtyAll();
+    P.on = true; P.lastNo = nullptr;
+    gJihadLanesOpen++;
+    P.pubSeq = mPubSeq;
+    P.proofDue = now + 100;
+    P.pageDirty = false;
+    mPage->PluginLaneSet(true);
+    fprintf(stderr, "[jihad-bs] plugin lane open: %dx%d at %d,%d of a frame %dx%d, window %d\n", fw, fh, r.l - P.x, r.t - P.y, w, P.rows, P.win);
+  }
+  const uint32_t frameSeq = mPage->PluginFrameSeq();
+  if (mLane.frames > 0 && !mDamageValid && frameSeq == mLane.frameSeq) {
+    mNeedsPaint = false;   // nothing new to show
+    return true;
+  }
+  mLane.frameSeq = frameSeq;
+  const size_t stride = (size_t)w * 4;
+  if (segSize < hdr + ((size_t)mLane.win + mLane.rows) * stride) { pluginLaneClose("the segment"); return false; }
+  unsigned char* frame = buf + hdr + (size_t)mLane.win * stride;
+  if (!(mLane.synced & (1u << slot))) {
+    memcpy(frame, mShmBuf[mLane.base] + hdr + (size_t)mLane.win * stride, (size_t)mLane.rows * stride);
+    mLane.synced |= 1u << slot;
+  }
+  // The plugin's rect in the frame's rows; the rows the frame does not hold are left out
+  int col = r.l - mLane.x, row = r.t - mLane.y, sx = 0, sy = 0, cw = fw, ch = fh;
+  if (col < 0) { sx = -col; cw += col; col = 0; }
+  if (row < 0) { sy = -row; ch += row; row = 0; }
+  if (col + cw > w) cw = w - col;
+  if (row + ch > mLane.rows) ch = mLane.rows - row;
+  if (cw <= 0 || ch <= 0 || !mPage->PluginLaneCopy(frame + (size_t)row * stride + (size_t)col * 4, (int)stride, sx, sy, cw, ch)) {
+    pluginLaneClose("the copy");
+    return false;
+  }
+  memcpy(buf, mLane.info.data(), mLane.info.size());
+  const long dirty[4] = { col, row, col + cw, row + ch };
+  publishWindow(mActiveKey, mLane.win, dirty, nullptr, mLane.viewRow, -1);
+  if (!mLane.stuck.empty()) {
+    if (JihadStuckBlock* sb = shmStuck(mActiveKey)) {
+      const JihadStuckBlock* from = (const JihadStuckBlock*)mLane.stuck.data();
+      memcpy(sb, from, sizeof(JihadStuckBlock));
+      sb->beneathMagic = 0;   // the area of what lay beneath is the base slot's
+      sb->seq = mPubSeq;
+    }
+  }
+  mLane.pubSeq = mPubSeq;
+  mLane.frames++;
+  // Tools count these lines to know a page has frames; one per frame is a write per frame
+  if (mLane.frames <= 30 || (mLane.frames % 32) == 0) {
+    fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%d left=%d) mZoom=%.4f contentZoom=%.4f ms=0 rows new=%d copied=0 (the plugin lane, frame %ld)\n",
+            (unsigned)mActiveKey, (long)ch * cw * 4, w, mLane.rows, mLane.y, mLane.adapterY, mLane.x, mZoom, Zeff, ch, mLane.frames);
+  }
+  mLastPaintDoneMs = jihadNowMs();
+  gJihadPaintDone++;
+  gJihadPaintPartial++;
+  JihadRecordFrameGap(mLastPaintDoneMs);
+  mDamageValid = false; mDamageX = mDamageY = mDamageW = mDamageH = 0;
+  clearBufDamage(slot);
+  mSink.msgPainted(mActiveKey); noteShown(mActiveKey);
+  mInFlight[slot] = true; mPaintMs[slot] = jihadNowMs();
+  mActiveKey = nextBufferKey();
+  mNeedsPaint = false;
+  return true;
+}
+
 void BrowserPageGoanna::paintToSharedBuffer() {
   if (!mGpuJobs.empty()) mGpuTrace[0]++;
   if (!mPage || !mActiveKey) { if (!mGpuJobs.empty()) mGpuTrace[1]++; return; }
@@ -6232,6 +6423,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   double Zeff = (mZoom >= 0.99 && mZoom <= 1.01) ? 1.0
               : ((mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0);
   bool zoomed = (Zeff != 1.0);
+  if (pluginLaneFrame(buf, segSize, hdr, w, h, Zeff)) return;
 
   // --- Overscan geometry (scroll pan headroom, 2026-08-02). The adapter pans locally
   // inside the painted region between repaints; a viewport-exact paint has zero headroom,

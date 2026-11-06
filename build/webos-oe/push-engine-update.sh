@@ -162,7 +162,13 @@ for v in $VARIANTS; do
   say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
   # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet, nor one
   # installed before 2026-10-08 a personas/ one)
-  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" >/dev/null 2>&1 || true
+  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" "$HL/gconv" >/dev/null 2>&1 || true
+  # T-576: iconv's modules for the bundled glibc; a device installed before them has none
+  HAVE_GCONV=" $(sleep 2 | novacom run file://bin/ls -- "$HL/gconv" 2>/dev/null | tr '\n' ' ' || true) "
+  for g in "$BUNDLE"/gconv/*; do
+    case "$HAVE_GCONV" in *" $(basename "$g") "*) continue;; esac
+    novacom put "file://$HL/gconv/$(basename "$g")" < "$g" || say "[$v] gconv: put failed: $(basename "$g")"
+  done
   # The bundled Personas are exactly the bundle's: a picture an earlier bundle shipped and this one
   # does not (2026-10-12: fifteen became two, the rest on the add-on site) is removed, by name.
   for f in $(sleep 2 | novacom run file://bin/ls -- "$HL/personas" 2>/dev/null || true); do

@@ -35,5 +35,18 @@
   var vars = "scale=" + (q.scale || "") + (q.vars ? "&" + q.vars : "");
   document.getElementById("holder").innerHTML = '<embed id="m" src="' + movie + '" type="application/x-shockwave-flash" width="' + w + '" height="' + h +
     '" allowScriptAccess="always" flashvars="' + vars + '"' + (q.wmode ? ' wmode="' + q.wmode + '"' : '') + (q.scale ? ' scale="' + q.scale + '"' : '') + '>';
+  // ?over=1: a button that puts an element over the movie and takes it away, on a page that scrolls
+  if (q.over) {
+    var over = document.createElement("div");
+    over.id = "over";
+    over.style.cssText = "position:absolute;background:#f00;display:none;left:40px;top:40px;width:" + w + "px;height:" + h + "px";
+    document.body.appendChild(over);
+    var toggle = document.createElement("button");
+    toggle.id = "toggle"; toggle.textContent = "over";
+    toggle.style.cssText = "display:block;width:300px;height:60px;margin:20px 0 0 40px";
+    toggle.onclick = function () { over.style.display = over.style.display == "none" ? "block" : "none"; };
+    document.getElementById("holder").appendChild(toggle);
+    var tall = document.createElement("div"); tall.style.height = "3000px"; document.body.appendChild(tall);
+  }
 </script>
 </body></html>

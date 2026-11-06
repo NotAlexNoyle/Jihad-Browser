@@ -37,7 +37,7 @@ echo "DRAWN $(/tmp/fbstream /tmp/fl-x -Q {R} 2>/dev/null)"
 echo "RATE $(/tmp/fbstream /tmp/fl-rate -C {R} -s 8 -P 2000 2>/dev/null)"
 /tmp/fbstream /tmp/fl-ctl -C {R} -s 3 -P 2000 >/dev/null 2>&1
 /tmp/fbstream /tmp/fl-aft -C {R} -s 3 -P 2000 -B /tmp/fl-ctl > /tmp/fl-aft.out 2>&1 &
-usleep 500000; /tmp/finger tap {cx} {cy}; wait
+usleep 500000; {"" if t.get("no_tap") else f"/tmp/finger tap {cx} {cy};"} wait
 echo "REACT $(cat /tmp/fl-aft.out)"
 close_all; rm -f /tmp/fl-x /tmp/fl-rate /tmp/fl-ctl /tmp/fl-aft /tmp/fl-aft.out
 """
@@ -59,12 +59,16 @@ def parse(out):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("browser", choices=list(APPS)); ap.add_argument("--only", default=""); ap.add_argument("--write", action="store_true"); ap.add_argument("--load", type=int, default=0, help="seconds more before measuring"); o = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("browser", choices=list(APPS)); ap.add_argument("--only", default=""); ap.add_argument("--write", action="store_true"); ap.add_argument("--load", type=int, default=0, help="seconds more before measuring"); ap.add_argument("--restart", type=int, default=0, help="a fresh daemon every N titles, a shell only: the player dies after some 40 movies in a row (T-580)"); o = ap.parse_args()
     app, top = APPS[o.browser]
     m = json.load(open(MANIFEST)); only = set(x for x in o.only.split(",") if x)
-    res = {}; tmp = tempfile.mkdtemp()
+    res = {}; tmp = tempfile.mkdtemp(); count = 0; job = {"enyo": "jihad", "mochi": "jihad-mochi", "mojo": "jihad-mojo"}.get(o.browser)
     for t in m["titles"]:
         if t["class"] == "asset" or (only and t["id"] not in only): continue
+        count += 1
+        if job and o.restart and count % o.restart == 0:
+            q = os.path.join(tmp, "r.sh"); open(q, "w").write("stop %s >/dev/null 2>&1; sleep 2; start %s >/dev/null 2>&1; sleep 6\n" % (job, job))
+            subprocess.run([DEVSH, "-t", "40", q], capture_output=True)
         p = os.path.join(tmp, "s.sh"); open(p, "w").write(script(t, m, app, top, o.load))
         t0 = time.time(); r0 = subprocess.run([DEVSH, "-t", str(90 + o.load), p], capture_output=True, text=True, errors="replace"); out = r0.stdout + r0.stderr
         r = parse(out); r["date"] = time.strftime("%Y-%m-%d"); res[t["id"]] = r

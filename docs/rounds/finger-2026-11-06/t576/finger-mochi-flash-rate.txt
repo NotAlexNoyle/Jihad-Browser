@@ -1,0 +1,7 @@
+WAIT ok 7-rect m
+  dwell 3000 ms (does it still hold?)
+CHECK ok 9-flash-rate-report: content 40,119-440,417: 8.0 s, flips 78 (9.8/s), changes 78 (9.8/s), reads 80, distinct 60, spacing median 97 p90 173 max 209 ms; the movie's own rate 9.75134/s (frames 50 t=5748 .. frames 150 t=16003)
+WAIT ok 10-launch: load done
+WAIT ok 11-rect m
+CHECK ok 12-flash-rate-report: content 40,119-440,417: 8.0 s, flips 114 (14.2/s), changes 114 (14.2/s), reads 115, distinct 60, spacing median 67 p90 84 max 163 ms; the movie's own rate 14.4286/s (frames 20 t=1778 .. frames 170 t=12174)
+CHECKS 2 FAILS 0

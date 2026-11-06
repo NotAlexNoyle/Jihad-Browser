@@ -85,6 +85,20 @@ done
 for s in libnss_dns.so.2 libnss_files.so.2 libresolv.so.2; do
   cp -L "$TCS/lib/$s" "$OUT/$s" 2>/dev/null && echo "  NSS: $s"
 done
+# glibc's gconv modules, for the same reason (T-576): iconv dlopen's them from /usr/lib/gconv, the device's
+# 2.8 ones, into a process on the bundled 2.23. Their function pointers are mangled differently, so the
+# call jumps into nowhere. Flash converts the text of every SWF older than version 6 from the system
+# codepage, so those movies killed the player (helicopter, virtual-piano: lr in CP1252.so). The daemon
+# points GCONV_PATH here. The encodings people's movies and AS3's readMultiByte name, not the 11 MB.
+mkdir -p "$OUT/gconv"
+cp -L "$TCS/usr/lib/gconv/gconv-modules" "$OUT/gconv/gconv-modules"
+for m in CP1250 CP1251 CP1252 CP1253 CP1254 CP1255 CP1256 CP1257 CP1258 CP932 CP936 CP949 CP950 \
+         ISO8859-1 ISO8859-2 ISO8859-3 ISO8859-4 ISO8859-5 ISO8859-6 ISO8859-7 ISO8859-8 ISO8859-9 ISO8859-10 ISO8859-13 ISO8859-14 ISO8859-15 ISO8859-16 \
+         UTF-16 UTF-32 UTF-7 UNICODE KOI8-R KOI8-U MACINTOSH EUC-JP EUC-KR EUC-CN EUC-TW SJIS BIG5 BIG5-HKSCS GBK GB18030 UHC \
+         libJIS libKSC libGB libCNS libJISX0213; do
+  [ -f "$TCS/usr/lib/gconv/$m.so" ] && cp -L "$TCS/usr/lib/gconv/$m.so" "$OUT/gconv/$m.so"
+done
+echo "  gconv: $(ls "$OUT/gconv" | wc -l) files, $(du -sh "$OUT/gconv" | cut -f1)"
 # NSS runtime-dlopen'd modules (NOT in any NEEDED list): the CA roots (libnssckbi)
 # and the crypto tokens (libsoftokn3 + libfreebl3, loaded by NSS_Init). Without softokn3/
 # freebl3, NSS_NoDB_Init fails (-1) and https can't create a TLS socket

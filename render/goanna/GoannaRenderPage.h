@@ -559,10 +559,10 @@ public:
   // T-576: the plugin lane (see BrowserPageGoanna::pluginLaneFrame)
   int PluginLaneProof(int* x, int* y, int* w, int* h);
   bool PopupsOpen();
-  void PluginLaneSet(bool open);
+  void PluginLaneSet(int mode, const unsigned char* rows, int stride);
   bool CompositorAnimating();
   bool PluginLaneInfo(int* w, int* h);
-  bool PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h);
+  int PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h);
   bool GpuPath() const { return mGpu; }   // T-502
   // T-509: the GPU path given up for this daemon's life (an EGL failure, a frame the compositor did
   // not compose in time): this page and every page made after it render in software

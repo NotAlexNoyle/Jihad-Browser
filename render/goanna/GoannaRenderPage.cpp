@@ -4933,8 +4933,8 @@ bool GoannaRenderPage::CompositorAnimating() {
   return mGpu && mWidget && jihad_offscreen_compositor_animating && jihad_offscreen_compositor_animating(mWidget) != 0;
 }
 
-void GoannaRenderPage::PluginLaneSet(bool open) {
-  if (jihad_plugin_lane_set) jihad_plugin_lane_set(open ? 1 : 0);
+void GoannaRenderPage::PluginLaneSet(int mode, const unsigned char* rows, int stride) {
+  if (jihad_plugin_lane_set) jihad_plugin_lane_set(mode, rows, stride);
 }
 
 int GoannaRenderPage::PluginLaneProof(int* x, int* y, int* w, int* h) {
@@ -4954,8 +4954,8 @@ bool GoannaRenderPage::PluginLaneInfo(int* w, int* h) {
   return jihad_plugin_lane_copy(nullptr, 0, 0, 0, 0, 0, w, h) != 0;
 }
 
-bool GoannaRenderPage::PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h) {
-  return jihad_plugin_lane_copy && jihad_plugin_lane_copy(dst, stride, x, y, w, h, nullptr, nullptr) != 0;
+int GoannaRenderPage::PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h) {
+  return jihad_plugin_lane_copy ? jihad_plugin_lane_copy(dst, stride, x, y, w, h, nullptr, nullptr) : 0;
 }
 
 uint64_t GoannaRenderPage::CurrentDocId() {

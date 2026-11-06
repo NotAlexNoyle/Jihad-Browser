@@ -267,24 +267,29 @@ int main(int argc, char** argv) {
       if (flipped) { flips++; last_off = cur.yoffset; if (last_flip >= 0 && ngap < MAXF) gaps[ngap++] = (float)((now - last_flip) * 1000); last_flip = now; }
       if (flipped || last_read < 0 || now - last_read >= 0.2) {
         const unsigned char* pg = map ? map + (size_t)cur.yoffset * line : NULL; if (!pg) die("-C needs the mapping");
+        /* One pass over a sixteenth of the pixels. The framebuffer is uncached and every pixel of a column is its own
+           read: a quarter of them, twice, cost 25 % of a core at 30 flips a second, on a device with none spare, and
+           cost a browser with more busy threads more frames than one with fewer (T-576) */
         uint32_t h = 2166136261u;
-        for (int py = y0; py < y1; py += 2) for (int px = x0; px < x1; px += 2)
-          h = (h * 16777619u) ^ (*(const uint32_t*)(pg + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4) & 0xffffffu);
+        static uint32_t sum[GW * GH][4]; memset(sum, 0, sizeof sum);
+        for (int py = y0; py < y1; py += 4) {
+          const int gy = (py - y0) * GH / (y1 - y0);
+          for (int px = x0; px < x1; px += 4) {
+            const uint32_t q = *(const uint32_t*)(pg + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4) & 0xffffffu;
+            h = (h * 16777619u) ^ q;
+            uint32_t* c = sum[gy * GW + (px - x0) * GW / (x1 - x0)];
+            c[0] += q >> 16; c[1] += (q >> 8) & 0xff; c[2] += q & 0xff; c[3]++;
+          }
+        }
         reads++; last_read = now;
         if (have && h != prev) changes++;
         prev = h; have = 1;
         int seen = 0; for (int k = 0; k < nd; k++) if (dist[k] == h) { seen = 1; break; }
         if (!seen && nd < MAXD) dist[nd++] = h;
         unsigned char g[GB];
-        for (int gy = 0; gy < GH; gy++) for (int gx = 0; gx < GW; gx++) {
-          const int ax = x0 + (x1 - x0) * gx / GW, bx = x0 + (x1 - x0) * (gx + 1) / GW, ay = y0 + (y1 - y0) * gy / GH, by = y0 + (y1 - y0) * (gy + 1) / GH;
-          uint32_t sr = 0, sg = 0, sb = 0, n = 0;
-          for (int py = ay; py < by; py += 2) for (int px = ax; px < bx; px += 2) {
-            const uint32_t q = *(const uint32_t*)(pg + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4);
-            sr += (q >> 16) & 0xff; sg += (q >> 8) & 0xff; sb += q & 0xff; n++;
-          }
-          if (!n) n = 1;
-          unsigned char* c = g + (gy * GW + gx) * 3; c[0] = sr / n; c[1] = sg / n; c[2] = sb / n;
+        for (int k = 0; k < GW * GH; k++) {
+          const uint32_t n = sum[k][3] ? sum[k][3] : 1;
+          g[k * 3] = sum[k][0] / n; g[k * 3 + 1] = sum[k][1] / n; g[k * 3 + 2] = sum[k][2] / n;
         }
         int same_g = 0; for (int k = 0; k < ng && !same_g; k++) same_g = !memcmp(grids[k], g, GB);
         if (!same_g && ng < MAXG) memcpy(grids[ng++], g, GB);

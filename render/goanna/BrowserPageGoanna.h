@@ -898,6 +898,9 @@ private:
     int64_t proofDue = 0;       // while set: damage inside the plugin's rect is the plugin's last, and the proof is asked again then
     int64_t openMs = 0;
     bool pageDirty = false;     // the widget was marked since: the plugin does not mark it while the lane is open
+    bool direct = false;        // the frames come straight from the child's surface (the engine's lane mode 2)
+    const unsigned char* lastRows = nullptr;   // the plugin's rows in the newest slot: the frame to go back to
+    int lastStride = 0;
     const char* lastNo = nullptr;
   } mLane;
   int64_t            mLastRectSyncMs = 0;

@@ -833,6 +833,7 @@ bool BrowserPageGoanna::pubDirtyTake(int x, int y, int w, int h, double zoom, lo
 
 void BrowserPageGoanna::detachShm() {
   FrameLockGuard frameLock;   // T-515
+  if (mLane.on) pluginLaneClose("the buffers go");   // T-576: its base and its rows are in them
   gpuJobDrain();   // T-502 (and the express lane's frame, T-515)
   xInvalidate();
   for (int i = 0; i < 3; ++i) { if (mShmBuf[i]) shmdt(mShmBuf[i]); mShmBuf[i] = nullptr; mShmId[i] = -1; mShmSize[i] = 0; }
@@ -887,7 +888,7 @@ bool BrowserPageGoanna::writeThumbnail(const unsigned char* src, int w, int h, c
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
-  if (mLane.on) { mLane.on = false; gJihadLanesOpen--; if (mPage) mPage->PluginLaneSet(false); }   // T-576
+  if (mLane.on) { mLane.on = false; gJihadLanesOpen--; if (mPage) mPage->PluginLaneSet(0, nullptr, 0); }   // T-576
   // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
   FrameLockGuard frameLock;
   if (gXPages) gXPages->erase(this);
@@ -6214,12 +6215,14 @@ void BrowserPageGoanna::pluginLaneClose(const char* why) {
   gJihadLanesOpen--;
   mLane.lastNo = why;
   mLane.retryMs = jihadNowMs() + 500;
-  if (mPage) mPage->PluginLaneSet(false);
+  if (mPage) mPage->PluginLaneSet(0, mLane.lastRows, mLane.lastStride);
+  mLane.lastRows = nullptr;
   pubDirtyAll();
 }
 
 bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff) {
   static const bool sOff = getenv("JIHAD_PLUGIN_LANE") && atoi(getenv("JIHAD_PLUGIN_LANE")) == 0;
+  static const int64_t sBeatMs = getenv("JIHAD_PLUGIN_LANE_BEAT_MS") ? atol(getenv("JIHAD_PLUGIN_LANE_BEAT_MS")) : 5000;
   mLane.drain = false;
   if (sOff || !mPage->GpuPath() || mEmittedFlashRects.empty()) {
     if (mLane.on) pluginLaneClose("no plugin");
@@ -6270,7 +6273,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     // What came in that first time is taken for the plugin's own, and a change of the page's among it
     // would stay off the card for as long as nothing else changed. So the lane does not stay open long:
     // the normal path's frame, with all the page has, every few seconds
-    else if (now - mLane.openMs >= 5000) no = "the time is up";
+    else if (now - mLane.openMs >= sBeatMs) no = "the time is up";
   }
   if (mLane.on && !no) {
     if (w != mLane.w || h != mLane.h) no = "resized";
@@ -6336,7 +6339,10 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
     P.proofDue = now + 100;
     P.openMs = now;
     P.pageDirty = false;
-    mPage->PluginLaneSet(true);
+    P.lastRows = nullptr;
+    // Direct when the frame holds the plugin whole: its rows are the frame to go back to at the close
+    P.direct = r.l - P.x >= 0 && r.t - P.y >= 0 && r.l - P.x + fw <= w && r.t - P.y + fh <= P.rows;
+    mPage->PluginLaneSet(P.direct ? 2 : 1, nullptr, 0);
     fprintf(stderr, "[jihad-bs] plugin lane open: %dx%d at %d,%d of a frame %dx%d, window %d\n", fw, fh, r.l - P.x, r.t - P.y, w, P.rows, P.win);
   }
   const uint32_t frameSeq = mPage->PluginFrameSeq();
@@ -6359,11 +6365,18 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
   if (row < 0) { sy = -row; ch += row; row = 0; }
   if (col + cw > w) cw = w - col;
   if (row + ch > mLane.rows) ch = mLane.rows - row;
-  if (cw <= 0 || ch <= 0 || !mPage->PluginLaneCopy(frame + (size_t)row * stride + (size_t)col * 4, (int)stride, sx, sy, cw, ch)) {
+  const int copied = (cw > 0 && ch > 0) ? mPage->PluginLaneCopy(frame + (size_t)row * stride + (size_t)col * 4, (int)stride, sx, sy, cw, ch) : 0;
+  if (copied == 2) {
+    mNeedsPaint = false;   // the newest frame is on the card
+    return true;
+  }
+  if (copied != 1) {
     pluginLaneClose("the copy");
     return false;
   }
   mPage->CleanRows(frame, row, row + ch);
+  mLane.lastRows = frame + (size_t)row * stride + (size_t)col * 4;
+  mLane.lastStride = (int)stride;
   memcpy(buf, mLane.info.data(), mLane.info.size());
   const long dirty[4] = { col, row, col + cw, row + ch };
   publishWindow(mActiveKey, mLane.win, dirty, nullptr, mLane.viewRow, -1);

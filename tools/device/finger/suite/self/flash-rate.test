@@ -1,0 +1,12 @@
+id: flash-rate
+section: The suite's own
+item: The content rate is reported apart from the composite rate, and on a generated movie reads within 5 % of the rate the movie itself counts
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf
+kit: cavekit-flash.md R2
+wait rect m 30
+dwell 3000
+expect flash-rate-report m 8
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf
+wait rect m 10
+expect flash-rate-report m 8

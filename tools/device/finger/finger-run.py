@@ -57,15 +57,18 @@ import sys, os, re, subprocess, json, time, datetime, shutil, tempfile, argparse
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh")
+REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash")), "refs")   # a movie's screens (cavekit-flash R2)
 SHELLS = ["enyo", "mochi", "mojo"]
-GESTURES = {"tap", "tap-off", "dismiss", "tap-at", "chrome", "drag", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
+GESTURES = {"flash-tap", "plugin-signal", "tap", "tap-off", "dismiss", "tap-at", "chrome", "drag", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
 UNMARKED = {"chrome", "dismiss", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
-WAITING_EXPECTS = {"keyboard", "dialog"}            # these expects wait with a bound themselves
+WAITING_EXPECTS = {"keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit",
           "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
-          "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top"}
+          "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
+          "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
+          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "screen": "fl_check_screen"}
 
 def sh_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -88,8 +91,9 @@ def split_args(rest):
     return out
 ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1),
          "hold-on": (1, 2), "key-hold": (1, 2), "drag": (4, 5), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
-         "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0)}
-EXPECT_ARITY = {"scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
+         "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
+         "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2)}
+EXPECT_ARITY = {"flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
                 "hit": (1, 1), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
                 "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2)}
 
@@ -143,7 +147,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot"):
+            elif verb in ("sample", "shoot", "flash-control", "sig-save"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -221,8 +225,16 @@ def compile_steps(t):
         elif verb == "type-keys": out.append(f"fl_type {sh_quote(rest.strip().strip(chr(39)).strip(chr(34)))} || fl_check FAIL \"{name}\" \"a character has no key\"")
         elif verb == "key-hold": out.append(f"fl_kb_hold {' '.join(q)} || fl_check FAIL \"{name}\" \"no key {a[0]}\"")
         elif verb == "inject": out.append(f"fl_mark; fl_inject {sh_quote(rest)}; echo \"  inject {rest}\"")
+        elif verb == "flash-tap": out.append(f"fl_flash_tap {' '.join(q)} || fl_check FAIL \"{name}\" \"the movie reported nothing after the tap\"")
+        elif verb == "flash-control": out.append(f"fl_flash_control {' '.join(q)}")
+        elif verb == "plugin-signal": out.append(f"kill -{a[0]} $(fl_plugin_pid); echo \"  plugin-container sent {a[0]}\"")
+        elif verb == "sig-save": out.append(f"echo \"SIG {a[0]} $(fl_screen_sig {q[1]})\"")
         elif verb == "expect":
             if a[0] == "stream": out.append(f"echo \"  (the stream's {a[1]} checked on the host)\"")
+            elif a[0] == "screen":      # expect screen REGION REF same|other [TOL]: the reference by id, from the corpus's cache
+                ref = os.path.join(REFS, a[2] + ".sig")
+                if os.path.exists(ref): out.append(f"fl_check_screen \"{n}-screen\" {q[1]} {open(ref).read().strip()} {' '.join(q[3:])}")
+                else: out.append(f"fl_check FAIL \"{n}-screen\" \"no reference {a[2]} (sig-save, --make-refs)\"")
             else: out.append(f"{CHECKS[a[0]]} \"{n}-{a[0]}\" {' '.join(q[1:])}")
         elif verb == "sample": out.append(f"fl_sample {' '.join(q)}")
         elif verb == "shoot": out.append(f"fl_keep {q[0]}")
@@ -250,6 +262,7 @@ def main():
     ap.add_argument("--shells", default=",".join(SHELLS)); ap.add_argument("--only", default="")
     ap.add_argument("--suite", default=os.path.join(HERE, "suite")); ap.add_argument("--self", action="store_true", help="the suite's own scripts under suite/self too")
     ap.add_argument("--lint", action="store_true", help="lint the suite and stop"); ap.add_argument("--round", default="")
+    ap.add_argument("--make-refs", action="store_true", help="a sig-save line stores its reference in the corpus's cache where there is none")
     ap.add_argument("--merge", action="store_true", help="keep the round's last report and replace only the runs made now (marked rerun), the kept frames of the replaced runs removed")
     ap.add_argument("--no-end-check", action="store_true"); ap.add_argument("--with", dest="with_", default="", help="what the host provides this run: proxy, webone, internet (scripts with `needs:` beyond it are skipped)")
     o = ap.parse_args()
@@ -359,6 +372,11 @@ def main():
                             kids = ", ".join(k for k, _, w in pairs if any(w and w in l for l in fails))
                             rec["verdict"] = "known"; rec["note"] = f"the open defect {kids}: " + " / ".join(x[:90] for x in fails)
                 open(os.path.join(round_dir, f"finger-{shell}-{t['id']}.txt"), "w").write(out)
+                if o.make_refs:
+                    for l in out.splitlines():
+                        m3 = re.match(r"SIG (\S+) ([0-9a-f]{1152})$", l.strip())
+                        if m3 and not os.path.exists(os.path.join(REFS, m3.group(1) + ".sig")):
+                            os.makedirs(REFS, exist_ok=True); open(os.path.join(REFS, m3.group(1) + ".sig"), "w").write(m3.group(2) + "\n"); print(f"  reference stored: {m3.group(1)}")
             rc, out = devsh(open(os.path.join(HERE, "daemon-stop.sh")).read(), [shell], 120, tmp)
             for fx in t["fixture"]:
                 subprocess.run([os.path.join(HERE, "suite", "fixtures", fx + ".sh"), "down", shell], capture_output=True, text=True, errors="replace")

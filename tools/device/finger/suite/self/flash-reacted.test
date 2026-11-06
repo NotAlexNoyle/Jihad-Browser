@@ -1,0 +1,22 @@
+id: flash-reacted
+section: The suite's own
+item: A reacted check against a no-input control: a planted frozen movie and a looping animation that ignores input are reported as not reacting, a movie that reacts as reacting
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf
+kit: cavekit-flash.md R2
+wait rect m 30
+wait still m 8
+flash-control m 4
+dismiss 200 250
+expect flash-reacted m 4 no
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-loop.swf
+wait rect m 10
+flash-control m 5
+dismiss 200 250
+expect flash-reacted m 5 no
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf
+wait rect m 10
+wait still m 8
+flash-control m 3
+dismiss 200 250
+expect flash-reacted m 3 yes

@@ -941,6 +941,7 @@ also be themed").**
 **Dependencies:** cavekit-preferences-ui.md (R8), cavekit-tabbed-browsing.md
 
 ## Changelog
+- 2026-11-06: R7 — the player had no sound stream since the 2026-08-15 bundle: libxul's NEEDED pulled Jessie's libasound into the bundle, the player's dlopen found it first, and it could not load its pulse plugin. `make-device-bundle.sh` leaves it out, the loader finds the device's own, the suite's `flash-audio` reads the stream open and running; `device-check.sh` fails if it comes back. A tap on a movie no longer leaves a dotted focus ring round it.
 - 2026-10-08: R10 — a static theme whose header art is only in `additional_backgrounds` (three of five popular AMO themes tried) now converts; device-verified installing five AMO themes in Enyo, Mochi and Mojo. The management UI is now its own kit, cavekit-personas-ui.md.
 - 2026-10-06 (night): R7 — partial-paint regression fixed (Flash 16 → 34 fps paints) and the host
   frame drivers off by default, with the content-rate measurement that justifies it. R10 added

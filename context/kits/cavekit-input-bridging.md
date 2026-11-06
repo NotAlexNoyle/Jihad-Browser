@@ -186,6 +186,7 @@ are NOT covered by `push-engine-update.sh` — they require rebuilding and insta
 - See also: cavekit-offscreen-rendering.md, cavekit-navigation-events.md
 
 ## Changelog
+- 2026-11-06: a page zoomed in by a pinch no longer leaves the next page at that zoom: the daemon sends the adapter's "first content size after a page load" (0,0) on a new document, as the stock server does (`zoom-new-page`, all three shells).
 - 2026-10-08: R5 — the daemon divided adapter coordinates by the zoom a second time (since 2026-08-02); removed, device-verified at fit zooms 0.64 and 0.69 (new `[x]`).
 - 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2a's "bubbling DOM `input` event is
   dispatched" `[x]`→`[~]`: a 2026-08-15 device run (recorded in cavekit-preferences-ui.md R6) saw

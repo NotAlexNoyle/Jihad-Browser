@@ -1,0 +1,14 @@
+id: flash-plugin
+section: The suite's own
+item: The player's process and its state: alive, wedged (stopped by a signal, as a plant) and gone are told apart, and a wedge is not read as a slow rate
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
+kit: cavekit-flash.md R2
+wait rect m 30
+expect plugin 3 alive
+plugin-signal STOP
+expect plugin 3 wedged
+plugin-signal CONT
+expect plugin 3 alive
+plugin-signal KILL
+expect plugin 3 gone

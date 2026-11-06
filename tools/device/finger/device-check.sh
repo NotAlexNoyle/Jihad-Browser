@@ -27,6 +27,8 @@ for v in enyo mochi mojo; do
   he=$(sed -n 's/.*user_pref("browser.sessionhistory.max_entries", *\([0-9]*\)).*/\1/p' $A/$id/profile/prefs.js 2>/dev/null | head -1); [ "$he" != 0 ] && ok "history-$v" "browser.sessionhistory.max_entries ${he:-the default}" || bad "history-$v" "browser.sessionhistory.max_entries 0: no Back"
   # No card left open: a card behind the owner's work, with a dialog still up, is what a round must not leave
   c=$(luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>/dev/null | tr ',' '\n' | grep -c "\"$id\""); [ "$c" = 0 ] && ok "cards-$v" "none" || bad "cards-$v" "$c card(s) of $id still open"
+  # The player's sound: the device's libasound, not a bundled one that cannot find its pulse plugin (2026-11-06)
+  [ -e $HL/libasound.so.2 ] && bad "audio-lib-$v" "$HL/libasound.so.2 is there: a silent movie" || ok "audio-lib-$v" "the device's own"
   th=$(luna-send -n 1 palm://$svc/getTheme '{}' 2>&1 | tr -d '\n' | cut -c1-120)
   case "$th" in *'"theme"'*|*'"id"'*|*'"persona"'*) case "$th" in *'null'*|*'""'*|*'"none"'*) ok "look-$v" "$th";; *) bad "look-$v" "a persona: $th";; esac;; *) ok "look-$v" "$th";; esac
 done

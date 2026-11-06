@@ -62,6 +62,10 @@ while [ $i -lt ${#queue[@]} ]; do
   f="${queue[$i]}"; i=$((i+1))
   for need in $(readelf -d "$f" 2>/dev/null | awk '/NEEDED/{gsub(/[][]/,"",$5); print $5}'); do
     [ -n "${done[$need]:-}" ] && continue
+    # The device's own libasound, never the sysroot's. The player dlopens libasound.so.2, and Jessie's looks for its pulse plugin
+    # in Jessie's directory: `Cannot open shared library .../libasound_module_pcm_pulse.so`, no stream, a silent movie (found by
+    # the suite 2026-11-06; PICKUP had said so on 2026-08-15: Jessie's err=3, the device's err=0). The loader finds /usr/lib's.
+    [ "$need" = libasound.so.2 ] && continue
     real=$(find_lib "$need")
     if [ -n "$real" ]; then add "$real" "$need"
     else echo "  (unresolved, expected on-device or bundled-glibc: $need)"; fi

@@ -147,7 +147,7 @@ def clip_actions(records):
 
 def build_avm1():
     t = tag(9, bytes((0x20, 0x40, 0x60)))                              # SetBackgroundColor
-    t += _anim.define_shape_rect(1, 40, 40, (0xF0, 0x60, 0x20))        # a mark at the stage's top left: a frame check sees the movie
+    t += _anim.define_shape_rect(1, 40 * TWIPS, 40 * TWIPS, (0xF0, 0x60, 0x20))   # a mark at the stage's top left: a frame check sees the movie
     t += _anim.place_object2(1, char_id=1, translate=(0, 0))
     t += tag(12, avm1_program())
     # The events by clip actions on a one-frame sprite, as make-key-swf.py has them.
@@ -341,6 +341,55 @@ def build_avm2():
     return swf(10, t)
 
 
+# --- the planted cases: each check of the library must be able to say no (T-572) --------------------------------------
+def plain(frames, shapes, fps=30):
+    """A movie of some coloured squares, a frame or a loop of them."""
+    t = tag(9, bytes((0x20, 0x40, 0x60)))
+    for k, rgb in enumerate(shapes):
+        t += _anim.define_shape_rect(k + 1, 40 * TWIPS, 40 * TWIPS, rgb)
+        t += _anim.place_object2(k + 1, char_id=k + 1, translate=((k % 8) * 48 * TWIPS, (k // 8) * 48 * TWIPS))
+    return t
+
+
+def plants():
+    many = [(40 + 20 * i, 200 - 15 * i, (90 * i) % 255) for i in range(10)]
+    out = {}
+    out["jihad-plant-blank.swf"] = swf(6, tag(9, bytes((255, 255, 255))) + tag(1))                 # nothing on a white stage
+    out["jihad-plant-black.swf"] = swf(6, tag(9, bytes((0, 0, 0))) + tag(1))
+    out["jihad-plant-one.swf"] = swf(6, tag(9, bytes((10, 90, 200))) + tag(1))
+    out["jihad-plant-frozen.swf"] = swf(6, plain(1, many) + tag(1))                                 # drawn, and never moves
+    # a loop that ignores input: 40 frames, the first square moving
+    t = plain(1, many)
+    for i in range(40):
+        t += _anim.place_object2(1, translate=(i * 8 * TWIPS, 200 * TWIPS), move=True) + tag(1)
+    out["jihad-plant-loop.swf"] = swf(6, t, 40)
+    # a movie that reacts: a mouse down sends a sprite from its first frame to its second, a square that moves on its own
+    s = _anim.place_object2(1, char_id=1, translate=(0, 0)) + tag(12, bytes([0x07, 0x00])) + tag(1) + _anim.place_object2(1, translate=(200 * TWIPS, 100 * TWIPS), move=True) + tag(12, bytes([0x07, 0x00])) + tag(1) + tag(0)
+    t = plain(1, many)[:0] + tag(9, bytes((0x20, 0x40, 0x60)))
+    for k, rgb in enumerate(many[1:], start=2):
+        t += _anim.define_shape_rect(k + 10, 40 * TWIPS, 40 * TWIPS, rgb) + _anim.place_object2(k + 10, char_id=k + 10, translate=((k % 8) * 48 * TWIPS, 250 * TWIPS))
+    t += _anim.define_shape_rect(1, 60 * TWIPS, 60 * TWIPS, (250, 200, 30))
+    t += tag(39, struct.pack("<HH", 50, 2) + s)
+    t += tag(26, bytes([0x80 | 0x02]) + struct.pack("<HH", 60, 50) + clip_actions([(0x10, bytes([0x81, 0x02, 0x00, 0x01, 0x00, 0x07, 0x00]))]))   # onClipEvent(mouseDown): GotoFrame 2, Stop
+    t += tag(1)
+    out["jihad-plant-reacts.swf"] = swf(6, t)
+    # known rates, each frame a change
+    for rate in (10, 15):
+        def tick():
+            a = A1(); a.push("_root.n"); a.getvar("_root.n"); a.push(1); a.add(); a.op(0x1D)
+            every = A1(); every.push("frames "); every.getvar("_root.n"); every.add(); every.push(" t="); every.add(); every.op(0x34); every.add(); every.push("jihadFlash", 2); every.getvar("flash.external.ExternalInterface"); every.push("call"); every.op(0x52); every.pop()
+            a.getvar("_root.n"); a.push(10); a.op(0x3F); a.push(0); a.op(0x49); a.op(0x12); a.op(0x9D, struct.pack("<h", len(every.b))); a.b += every.b; a.op(0x00)
+            return tag(12, bytes(a.b))
+        first = A1(); init = A1(); init.push("n", 0).op(0x1D)        # the loop comes back to frame 1: the count goes on
+        first.getvar("n"); first.op(0x12); first.op(0x12); first.op(0x9D, struct.pack("<h", len(init.b))); first.b += init.b; first.op(0x00)
+        t = tag(9, bytes((0x20, 0x40, 0x60))) + tag(12, bytes(first.b)) + _anim.define_shape_rect(1, 40 * TWIPS, 40 * TWIPS, (0, 255, 0)) + _anim.place_object2(1, char_id=1, translate=(0, 0)) + tick() + tag(1)
+        for i in range(1, 60):
+            t += _anim.place_object2(1, translate=(((i % 9) * 40) * TWIPS, ((i // 9) * 40) * TWIPS), move=True) + tick() + tag(1)
+        d = swf(8, t, 60); d = d[:8] + d[8:].replace(struct.pack("<HH", int(FPS * 256), 60), struct.pack("<HH", rate * 256, 60), 1)
+        out["jihad-plant-rate%d.swf" % rate] = d
+    return out
+
+
 # --- reading back -------------------------------------------------------------------------------------------------------
 def read_back(data):
     """The tag stream as it stands in the file: the tree's rule, a movie is parsed back before a result from it is believed."""
@@ -363,6 +412,8 @@ def main():
     print("jihad-instr-avm1.swf", len(d), read_back(d))
     d = build_avm2(); read_back(d); open(os.path.join(o.d, "jihad-instr-avm2.swf"), "wb").write(d)
     print("jihad-instr-avm2.swf", len(d), read_back(d))
+    for name, d in plants().items():
+        read_back(d); open(os.path.join(o.d, name), "wb").write(d); print(name, len(d))
 
 
 if __name__ == "__main__":

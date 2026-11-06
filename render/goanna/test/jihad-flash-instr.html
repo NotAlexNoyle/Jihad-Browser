@@ -1,14 +1,16 @@
 <!doctype html>
 <!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
      jihad-flash-instr.html: an instrumented movie (make-instrument-swf.py) and what it reports, in elements a check reads
-     (cavekit-flash.md R2). ?movie=avm1|avm2&scale=showAll&w=400&h=300&vars=a=b -->
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-flash-instr</title>
+     (cavekit-flash.md R2). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b -->
+<html><head><meta charset="utf-8"><title>jihad-flash-instr</title>
+<script>if (!/[?&]fit=1/.test(location.search)) { document.write('<meta name="viewport" content="width=device-width">'); }</script>
 <style>
   body { margin: 0; font: 14px/1.3 monospace; background: #ddd; }
   #m { display: block; margin: 40px 0 0 40px; }
   #report div { min-height: 18px; }
 </style></head>
 <body>
+<div id="wide" style="width:1;height:1"></div>
 <div id="holder"></div>
 <div id="report">
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
@@ -28,7 +30,8 @@
     document.getElementById("count").textContent = String(n);
     document.getElementById("all").textContent = all.join(" | ");
   }
-  var w = q.w || 400, h = q.h || 300, movie = "jihad-instr-" + (q.movie || "avm1") + ".swf";
+  if (q.fit) { document.getElementById("wide").style.width = "1000px"; }   // a page wider than the card: the fit zoom below 1
+  var w = q.w || 400, h = q.h || 300, movie = q.swf || ("jihad-instr-" + (q.movie || "avm1") + ".swf");
   var vars = "scale=" + (q.scale || "") + (q.vars ? "&" + q.vars : "");
   document.getElementById("holder").innerHTML = '<embed id="m" src="' + movie + '" type="application/x-shockwave-flash" width="' + w + '" height="' + h +
     '" allowScriptAccess="always" flashvars="' + vars + '"' + (q.wmode ? ' wmode="' + q.wmode + '"' : '') + (q.scale ? ' scale="' + q.scale + '"' : '') + '>';

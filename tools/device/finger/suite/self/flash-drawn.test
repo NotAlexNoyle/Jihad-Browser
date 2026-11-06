@@ -1,0 +1,18 @@
+id: flash-drawn
+section: The suite's own
+item: A movie counts as drawn with 8 or more colours; a planted blank, black and one-colour movie are reported as not drawn
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf
+kit: cavekit-flash.md R2
+wait rect m 30
+wait still m 8
+expect flash-drawn m yes
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-blank.swf
+wait still m 8
+expect flash-drawn m no
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-black.swf
+wait still m 8
+expect flash-drawn m no
+launch http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-one.swf
+wait still m 8
+expect flash-drawn m no

@@ -1,0 +1,29 @@
+id: flash-stage-z1
+section: The suite's own
+item: A gesture named in stage coordinates lands within 3 stage pixels, by the instrumented movie's report, in each scale mode, at the page zoom 1
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150
+kit: cavekit-flash.md R2
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+flash-tap m 400 300 showAll 150 120
+expect flash-at 150 120 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=noBorder&w=300&h=150
+wait text ready stage= 30
+flash-tap m 400 300 noBorder 200 150
+expect flash-at 200 150 3
+flash-tap m 400 300 noBorder 150 120
+expect flash-at 150 120 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=exactFit&w=300&h=150
+wait text ready stage= 30
+flash-tap m 400 300 exactFit 200 150
+expect flash-at 200 150 3
+flash-tap m 400 300 exactFit 150 120
+expect flash-at 150 120 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=noScale&w=300&h=150
+wait text ready stage= 30
+flash-tap m 400 300 noScale 200 150
+expect flash-at 200 150 3
+flash-tap m 400 300 noScale 150 120
+expect flash-at 150 120 3

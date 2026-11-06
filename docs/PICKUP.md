@@ -75,7 +75,7 @@ is back at the default and `device-check.sh` fails on a 0.
 **The review:** Codex over the product diff, seven findings, all taken (`t565/codex-review.md`, the notes); one left
 on purpose: a find match inside a text control keeps its own selection, so the next letter moves on to the next match.
 
-**The device:** daemon `3ca8caef`, adapters enyo `d2c77393`, mochi `736b1213`, mojo `ba60bfcf`, the Mochi and Mojo card
+**The device:** daemon `eade9450`, adapters enyo `d2c77393`, mochi `736b1213`, mojo `ba60bfcf`, the Mochi and Mojo card
 files and `preferences.js` by novacom; libxul `041a11fd`. **The .ipks are not rebuilt**: the full device build carries
 this (`make-device-bundle.sh` first, or `push-engine-update.sh` pushes the bundle's old `preferences.js` back: it reads
 the bundle, not the source).
@@ -87,8 +87,17 @@ it. A page in the profile's cache asks no proxy for anything: a proxy test goes 
 that fails for a few minutes fails every real site's script: read the frame before the code. The scripts' lessons are
 in `tools/device/finger/README.md`.
 
-**Next:** Tier 93 (`context/kits/cavekit-flash.md`, T-570 onward: the corpus first), then T-567's structural choice
-(the owner's), the full device build, Tier 91's kits.
+**Tier 93 begun (T-570, T-571, T-572 DONE, commits after T-565):** the corpus by manifest and tool
+(`tools/host/flash-corpus.py`, 61 titles, the cache ~/.cache/jihad-flash), the instrumented movies assembled in the tree
+(`make-instrument-swf.py`), the library's plugin checks, each proven against planted movies on the three shells
+(`suite/self/flash-*.test`, run with `--self`). They found three more: **the player had no sound since 2026-08-15** (the
+bundled Jessie libasound cannot load its pulse plugin; out of the bundle now, `device-check.sh` fails if it returns, **the owner
+should hear `jihad-audio-long.swf`**), a dotted focus ring on a tapped movie, a pinch's zoom kept on the next page in every shell.
+Measured: a movie's own count is 9.0-9.3 fps for 10, 12.5-13 for 15, about 23 for 30; T-573 says whether the stock browser does
+better. Port 8078 on the host is `jihad-identity-server.py`, not free: the corpus is served on 8097 by hand so far (T-574's).
+
+**Next:** T-573 (the stock browser's bar, same files), T-574 onward; T-567's structural choice (the owner's), the full device
+build, Tier 91's kits.
 
 ## 2026-11-05 — T-564 DONE: the script form and the runner of the finger suite; next T-565
 

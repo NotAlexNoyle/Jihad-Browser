@@ -1,0 +1,17 @@
+id: zoom-new-page
+section: Scrolling and gestures
+item: A page zoomed in by a pinch: the next page opens at its own zoom, not the last one's
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-input-bridging.md R3
+needs: internet
+calibrate 'sel:#content p'
+pinch 384 700 150 400
+wait zoom 10
+expect zoom-min 1.5
+launch http://192.168.1.245:8077/jihad-card-events.html 40
+wait still 0,100,756,600 6
+expect zoom 1.0 0.05
+launch https://en.wikipedia.org/wiki/HP_TouchPad 60
+wait still 0,100,756,600 20
+expect zoom 0.69 0.06

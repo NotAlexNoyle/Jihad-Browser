@@ -98,3 +98,23 @@ preferences and pointer-events it found nothing, and said what it had traced.
 THE DEVICE: daemon 3ca8caef on all three variants, adapters enyo d2c77393, mochi 736b1213, mojo ba60bfcf, the Mochi and
 Mojo card files and preferences.js by novacom. Engine unchanged (libxul 041a11fd). The .ipks are not rebuilt: the full
 device build carries this.
+
+
+T-570 to T-572 — the Flash corpus, the instrumented movies, the library's plugin checks (2026-11-06; cavekit-flash.md R1, R2)
+============================================================================================================================
+tools/host/flash-corpus.py + flash-corpus.json: 37 games, 10 apps, 10 videos, 4 assets, the spread read from the files, the cache
+~/.cache/jihad-flash. make-instrument-swf.py assembles the two instrumented movies and the planted ones with no compiler.
+THE TRAP: the first AVM1 movie reported once and stopped. Getting on for an hour of theories about the player (its enterFrame,
+its listeners, getURL) were all wrong: my hand-written DefineShape was malformed, frame 1 never painted, the player stood still.
+A generated movie is parsed back, and its shapes come from the helper that has drawn on the device for months.
+FOUND BY THE CHECKS, FIXED:
+- The player had no sound. The first audio check read closed with a movie running: `Cannot open shared library
+  /usr/lib/arm-linux-gnueabi/alsa-lib/libasound_module_pcm_pulse.so` in the daemon log. libxul's NEEDED pulls the sysroot's
+  Jessie libasound into the bundle, the player's dlopen finds it first, and it looks for its plugin in Jessie's directory. Since
+  2026-08-15; PICKUP had said then "stop shipping the bundled one". With the device's own: a sink input by the player's process,
+  pcm0p RUNNING, closed on leaving. Hearing it stays a person's: the owner should hear jihad-audio-long now.
+- A tap on a movie left a dotted focus ring round its element (the engine's); jihadWebCompat's agent sheet takes it off.
+- A pinch's zoom stayed on the next page, in every shell: desktop Wikipedia opened at 1.92, not its fit of 0.69. The adapter's
+  rule is a content size of 0,0 at a new page, which the stock server sends; the daemon now does (`zoom-new-page`).
+MEASURED, FOR R3: a movie's own count gives 9.0-9.3 frames a second for a 10 fps movie, 12.5-13 for 15, about 23 for 30.
+The device: daemon eade9450, adapters enyo d2c77393, mochi 736b1213, mojo ba60bfcf; no libasound in any hl/.

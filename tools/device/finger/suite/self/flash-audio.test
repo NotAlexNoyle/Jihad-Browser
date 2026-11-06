@@ -1,0 +1,10 @@
+id: flash-audio
+section: The suite's own
+item: Sound by machine as far as a machine can: the stream open and running for the movie's process, closed after it
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf
+kit: cavekit-flash.md R2
+wait rect m 30
+expect audio running 10
+launch http://192.168.1.245:8077/jihad-long-static.html
+expect audio closed 15

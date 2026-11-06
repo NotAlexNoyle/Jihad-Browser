@@ -1,0 +1,13 @@
+id: flash-signature
+section: The suite's own
+item: A screen is recognised by a stored signature: the same screen matches in separate runs, another screen does not
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf
+kit: cavekit-flash.md R2
+wait rect m 30
+wait still m 8
+sig-save plant-reacts-rest m
+expect screen m plant-reacts-rest same
+dismiss 200 250
+wait still m 8
+expect screen m plant-reacts-rest other

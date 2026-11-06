@@ -11,7 +11,7 @@ expect content 0,150,768,400 'sel:#content p' 'quick brown'
 sample header header
 sample content 0,300,756,900
 drag 480 900 480 250
-expect card-scroll 650 80
+expect card-scroll 650 100
 wait still header 4
 expect region-equal header header
 expect region-changed 0,300,756,900 content

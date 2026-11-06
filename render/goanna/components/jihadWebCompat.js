@@ -47,7 +47,10 @@ const AGENT_CSS =
   "[popover]{display:none;position:fixed;inset:0;width:-moz-fit-content;height:-moz-fit-content;margin:auto;" +
   "border:1px solid;padding:0.25em;overflow:auto;color:-moz-FieldText;background:-moz-Field;z-index:2147483646}" +
   "[popover].jihad-popover-open{display:block}" +
-  "[inert],[inert] *{pointer-events:none!important;cursor:default!important;-moz-user-select:none!important}";
+  "[inert],[inert] *{pointer-events:none!important;cursor:default!important;-moz-user-select:none!important}" +
+  // A tap on a movie focuses its element, and the engine drew a dotted ring round it (found by the suite's reacted check,
+  // 2026-11-06). A movie has its own focus; no other browser on this device draws one.
+  "embed:focus,object:focus,embed:-moz-focusring,object:-moz-focusring{outline:none!important}";
 
 // The shims: page-level JavaScript, run in the page's sandbox. `window` is the page's window (the
 // sandbox's prototype); every member is defined on the page's own objects. Returns the names

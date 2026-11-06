@@ -44,6 +44,13 @@
  *            whose pixel at the region's centre column is light (every channel 0xd0 or more: a card's white popup
  *            over its dimmed page), or "light none", and "blue F-L" the same for a blue pixel (Mochi's OK button), or
  *            "blue none" — with -L the page goes whole to OUT.last.raw (a failed check's frame)
+ *            -S adds " grid HEX": the region as 16 x 12 cells, each cell's mean colour as 6 hex digits (a screen's signature);
+ *            -M GRID then adds " griddiff D": the mean absolute difference per channel against that signature (0..255)
+ *       -C X0,Y0,X1,Y1  CONTENT, for -s seconds (T-572, cavekit-flash R2): the region's hash read at every frame shown (a flip of
+ *            the pan offset) and at least every 200 ms: "content R: S s, flips F (f/s), changes C (c/s), reads N, distinct D".
+ *            The composite rate is the flips, the content rate the changes. The distinct pictures (16 x 12 cells, as -S) go to
+ *            OUT; with -B FILE the line ends " new K of N": how many reads hold a picture none of FILE's comes near (some cell off by
+ *            more than 8 from each), a control run's list (the reacted check: an exact hash moves with a tap, by a shade)
  *     The summary on stdout at the end: samples, rate, the read's cost, flips, polls, this process's CPU.
  *
  *   OUT (little-endian): a header, then records of (u32 type, u32 bytes, payload):
@@ -132,7 +139,8 @@ int main(int argc, char** argv) {
   if (argc < 2) { fprintf(stderr, "usage: see the header of fbstream.c\n"); return 2; }
   const char* out = argv[1]; const char* dev = "/dev/fb1"; const char* trace = NULL;
   double seconds = 12; int hz = 15, stride = 8, use_pread = 0, poll_us = 1000, raw_every = 0, last_raw = 0, uni_event = 0;
-  int col_lo = 0, col_hi = 768; const char* region = NULL;
+  int col_lo = 0, col_hi = 768; const char* region = NULL; const char* content = NULL; const char* baseline = NULL;
+  int want_grid = 0; const char* grid_ref = NULL;
   for (int i = 2; i < argc; i++) {
     const char* a = argv[i]; const char* v = (i + 1 < argc) ? argv[i + 1] : "";
     if (!strcmp(a, "-s")) { seconds = atof(v); i++; } else if (!strcmp(a, "-z")) { hz = atoi(v); i++; }
@@ -143,6 +151,8 @@ int main(int argc, char** argv) {
     else if (!strcmp(a, "-U")) { uni_event = atoi(v); i++; }
     else if (!strcmp(a, "-c")) { col_lo = atoi(v); const char* h = strchr(v, '-'); col_hi = h ? atoi(h + 1) : 768; i++; }
     else if (!strcmp(a, "-Q")) { region = v; i++; }
+    else if (!strcmp(a, "-C")) { content = v; i++; } else if (!strcmp(a, "-B")) { baseline = v; i++; }
+    else if (!strcmp(a, "-S")) want_grid = 1; else if (!strcmp(a, "-M")) { grid_ref = v; want_grid = 1; i++; }
     else { fprintf(stderr, "fbstream: unknown option %s\n", a); return 2; }
   }
   if (hz < 1) hz = 1;
@@ -199,6 +209,29 @@ int main(int argc, char** argv) {
     printf("region %d,%d-%d,%d: colours %d hash %08x rows %d uniform %d", x0, y0, x1, y1, ncol, hash, y1 - y0, nuni);
     if (lightF >= 0) printf(" light %d-%d", lightF, lightL); else printf(" light none");
     if (blueF >= 0) printf(" blue %d-%d", blueF, blueL); else printf(" blue none");
+    if (want_grid) {                             /* 16 x 12 cells of the region, each cell's mean colour */
+      enum { GW = 16, GH = 12 }; unsigned char g[GH][GW][3];
+      for (int gy = 0; gy < GH; gy++) for (int gx = 0; gx < GW; gx++) {
+        const int ax = x0 + (x1 - x0) * gx / GW, bx = x0 + (x1 - x0) * (gx + 1) / GW, ay = y0 + (y1 - y0) * gy / GH, by = y0 + (y1 - y0) * (gy + 1) / GH;
+        uint64_t sr = 0, sg = 0, sb = 0, n = 0;
+        for (int py = ay; py < by; py += 2) for (int px = ax; px < bx; px += 2) {
+          const uint32_t p = *(const uint32_t*)(pagebuf + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4);
+          sr += (p >> 16) & 0xff; sg += (p >> 8) & 0xff; sb += p & 0xff; n++;
+        }
+        if (!n) n = 1;
+        g[gy][gx][0] = sr / n; g[gy][gx][1] = sg / n; g[gy][gx][2] = sb / n;
+      }
+      printf(" grid ");
+      for (int gy = 0; gy < GH; gy++) for (int gx = 0; gx < GW; gx++) printf("%02x%02x%02x", g[gy][gx][0], g[gy][gx][1], g[gy][gx][2]);
+      if (grid_ref && strlen(grid_ref) >= GW * GH * 6) {
+        unsigned long total = 0;
+        for (int gy = 0; gy < GH; gy++) for (int gx = 0; gx < GW; gx++) for (int c = 0; c < 3; c++) {
+          char hx[3] = { grid_ref[(gy * GW + gx) * 6 + c * 2], grid_ref[(gy * GW + gx) * 6 + c * 2 + 1], 0 };
+          const int v = (int)strtol(hx, NULL, 16), d = v - g[gy][gx][c]; total += d < 0 ? -d : d;
+        }
+        printf(" griddiff %.1f", (double)total / (GW * GH * 3));
+      }
+    }
     printf("%s\n", tries == 0 ? " (TORN)" : "");
     if (last_raw) {
       char path[512]; snprintf(path, sizeof path, "%s.last.raw", out);
@@ -206,6 +239,68 @@ int main(int argc, char** argv) {
       fwrite(pagebuf, 1, page, rf); if (fclose(rf) != 0) die("write last.raw");
     }
     free(pagebuf); if (map) munmap((void*)map, whole); close(fd);
+    return 0;
+  }
+  if (content) {  /* -C: the region's hash at every frame shown, the composite rate apart from the content rate (T-572) */
+    int x0 = 0, y0 = 0, x1 = 0, y1 = 0; const char* e = content;
+    x0 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++; y0 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++;
+    x1 = (int)strtol(e, (char**)&e, 10); if (*e == ',') e++; y1 = (int)strtol(e, (char**)&e, 10);
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > (int)vi.yres) x1 = vi.yres;
+    if (y1 > rows) y1 = rows;
+    if (x1 <= x0 || y1 <= y0) { fprintf(stderr, "fbstream: -C wants X0,Y0,X1,Y1 inside 768x1024\n"); return 2; }
+    enum { MAXD = 4096, GW = 16, GH = 12, GB = GW * GH * 3, MAXG = 400 }; static uint32_t dist[MAXD]; int nd = 0;
+    static unsigned char grids[MAXG][GB]; int ng = 0; static unsigned char base[MAXG][GB]; int nb = 0;
+    if (baseline) {
+      FILE* bf = fopen(baseline, "r");
+      if (bf) { char hx[GB * 2 + 8]; while (nb < MAXG && fgets(hx, sizeof hx, bf)) { if (strlen(hx) < GB * 2) continue; for (int k = 0; k < GB; k++) { char h2[3] = { hx[k * 2], hx[k * 2 + 1], 0 }; base[nb][k] = (unsigned char)strtol(h2, NULL, 16); } nb++; } fclose(bf); }
+    }
+    struct timeval t0, t; gettimeofday(&t0, NULL); double last_read = -1; unsigned flips = 0, changes = 0, reads = 0, fresh = 0; uint32_t prev = 0; int have = 0;
+    struct fb_var_screeninfo cur = vi; unsigned last_off = vi.yoffset;
+    for (;;) {
+      gettimeofday(&t, NULL); const double now = (t.tv_sec - t0.tv_sec) + (t.tv_usec - t0.tv_usec) / 1e6;
+      if (now >= seconds) break;
+      if (ioctl(fd, FBIOGET_VSCREENINFO, &cur) < 0) die("FBIOGET_VSCREENINFO");
+      const int flipped = cur.yoffset != last_off;
+      if (flipped) { flips++; last_off = cur.yoffset; }
+      if (flipped || last_read < 0 || now - last_read >= 0.2) {
+        const unsigned char* pg = map ? map + (size_t)cur.yoffset * line : NULL; if (!pg) die("-C needs the mapping");
+        uint32_t h = 2166136261u;
+        for (int py = y0; py < y1; py += 2) for (int px = x0; px < x1; px += 2)
+          h = (h * 16777619u) ^ (*(const uint32_t*)(pg + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4) & 0xffffffu);
+        reads++; last_read = now;
+        if (have && h != prev) changes++;
+        prev = h; have = 1;
+        int seen = 0; for (int k = 0; k < nd; k++) if (dist[k] == h) { seen = 1; break; }
+        if (!seen && nd < MAXD) dist[nd++] = h;
+        unsigned char g[GB];
+        for (int gy = 0; gy < GH; gy++) for (int gx = 0; gx < GW; gx++) {
+          const int ax = x0 + (x1 - x0) * gx / GW, bx = x0 + (x1 - x0) * (gx + 1) / GW, ay = y0 + (y1 - y0) * gy / GH, by = y0 + (y1 - y0) * (gy + 1) / GH;
+          uint32_t sr = 0, sg = 0, sb = 0, n = 0;
+          for (int py = ay; py < by; py += 2) for (int px = ax; px < bx; px += 2) {
+            const uint32_t q = *(const uint32_t*)(pg + (size_t)((int)vi.yres - 1 - px) * line + (size_t)py * 4);
+            sr += (q >> 16) & 0xff; sg += (q >> 8) & 0xff; sb += q & 0xff; n++;
+          }
+          if (!n) n = 1;
+          unsigned char* c = g + (gy * GW + gx) * 3; c[0] = sr / n; c[1] = sg / n; c[2] = sb / n;
+        }
+        int same_g = 0; for (int k = 0; k < ng && !same_g; k++) same_g = !memcmp(grids[k], g, GB);
+        if (!same_g && ng < MAXG) memcpy(grids[ng++], g, GB);
+        if (baseline) {
+          int near_any = 0;
+          for (int k = 0; k < nb && !near_any; k++) { int ok = 1; for (int c = 0; c < GB; c++) { const int d = (int)base[k][c] - g[c]; if (d > 8 || d < -8) { ok = 0; break; } } near_any = ok; }
+          if (!near_any) fresh++;
+        }
+      }
+      usleep(poll_us);
+    }
+    FILE* of = fopen(out, "w"); if (of) { for (int k = 0; k < ng; k++) { for (int c = 0; c < GB; c++) fprintf(of, "%02x", grids[k][c]); fprintf(of, "\n"); } fclose(of); }
+    printf("content %d,%d-%d,%d: %.1f s, flips %u (%.1f/s), changes %u (%.1f/s), reads %u, distinct %d", x0, y0, x1, y1, seconds, flips, flips / seconds, changes, changes / seconds, reads, nd);
+    if (baseline) printf(" new %u of %u", fresh, reads);
+    printf("\n");
+    if (map) munmap((void*)map, whole);
+    close(fd);
     return 0;
   }
   uint32_t* row = malloc(line); uint32_t* sig = malloc(rows * 4); uint32_t* first = malloc(rows * 4);

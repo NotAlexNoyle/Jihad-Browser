@@ -38,6 +38,12 @@
 #   fl_check_element_at NAME SEL X Y   the element's screen rect holds the point
 #   fl_check_text NAME SEL TEXT     the element's text is TEXT; fl_check_text_has: holds TEXT
 #   fl_check_url NAME PART          the last load done uri holds PART
+#   fl_flash_point SEL SW SH MODE SX SY   a movie's stage point on the screen (showAll, noBorder, exactFit, noScale); fl_flash_tap
+#                                   taps it; fl_check_flash_at NAME SX SY [TOL] reads the instrumented movie's report (3 px)
+#   fl_check_flash_drawn NAME REGION yes|no   8+ colours in a movie's rectangle; fl_flash_rate REGION S the content rate apart
+#                                   from the composite; fl_flash_control REGION S, then fl_check_flash_reacted NAME REGION S yes|no
+#   fl_check_screen NAME REGION REF [TOL]  a screen's signature against a stored reference; fl_screen_sig REGION
+#   fl_plugin_pid, fl_check_plugin NAME [S] alive | wedged | gone; fl_check_audio NAME open|closed|running  the movie's audio stream
 #   fl_check_dialog NAME present|answered [BOUND]   the daemon's dialog line since the mark
 #   fl_check_keyboard NAME up|down [BOUND]           the window server's IME line for this app since the mark
 #   fl_kb                           the keyboard now (1 up, 0 down): the last IME line; fl_bring keeps taps above it
@@ -412,6 +418,110 @@ fl_wait_log() { # PATTERN [BOUND]: a line anywhere in this daemon's log (what ca
   n=$(( ${2:-5} * 3 ))
   while [ $n -gt 0 ]; do l=$(grep -a -- "$1" $FL_LOG | tail -1); [ -n "$l" ] && { echo "$l"; return 0; }; usleep 300000; n=$((n-1)); done
   return 1
+}
+# --- a movie (cavekit-flash.md R2, T-572) -------------------------------------------------------------------------
+# a stage point on the screen: the element's screen rect, the stage's size and how the movie scales it
+fl_flash_point() { # SEL SW SH MODE SX SY
+  local r
+  r=$(fl_screen_rect "$1") || return 1
+  set -- "$2" "$3" "$4" "$5" "$6" $r $(fl_zoom)
+  awk -v sw=$1 -v sh=$2 -v m=$3 -v sx=$4 -v sy=$5 -v x0=$6 -v y0=$7 -v x1=$8 -v y1=$9 -v z=${10} 'BEGIN {
+    w = x1 - x0; h = y1 - y0; ax = w / sw; ay = h / sh
+    if (m == "exactFit") { kx = ax; ky = ay }
+    else if (m == "noScale") { kx = z; ky = z }
+    else if (m == "noBorder") { kx = ky = (ax > ay ? ax : ay) }
+    else { kx = ky = (ax < ay ? ax : ay) }
+    printf "%d %d\n", x0 + (w - sw * kx) / 2 + sx * kx + 0.5, y0 + (h - sh * ky) / 2 + sy * ky + 0.5 }'
+}
+# a tap on a stage point; the report's count changed is its mark (a movie's tap has no clickAt when the lock holds it)
+fl_flash_tap() { # SEL SW SH MODE SX SY
+  local p c0 n
+  p=$(fl_flash_point "$@") || { echo "  flash tap: no element $1"; return 1; }
+  c0=$(fl_text count); FL_TX=${p% *}; FL_TY=${p#* }; /tmp/finger tap $p; echo "  flash tap on stage $5,$6 ($4) at $p"
+  n=15; while [ $n -gt 0 ]; do [ "$(fl_text count)" != "$c0" ] && return 0; usleep 200000; n=$((n-1)); done
+  return 1
+}
+fl_check_flash_at() { # NAME SX SY [TOL]: the last down the instrumented movie reported, in stage pixels
+  local l tol n
+  tol=${4:-3}; n=15
+  while [ $n -gt 0 ]; do l=$(fl_text down); case "$l" in down*) break;; esac; usleep 200000; n=$((n-1)); done
+  set -- "$1" "$2" "$3" "$tol" $l
+  case "$5" in down) ;; *) fl_check FAIL "$1" "the movie reported no down: [$l]"; return 1;; esac
+  if awk -v a=$6 -v b=$7 -v x=$2 -v y=$3 -v t=$4 'BEGIN { d = a - x; e = b - y; if (d < 0) d = -d; if (e < 0) e = -e; exit !(d <= t && e <= t) }'; then
+    fl_check ok "$1" "the movie reported down $6,$7 for stage $2,$3 (within $4)"
+  else fl_check FAIL "$1" "the movie reported down $6,$7 for stage $2,$3 (more than $4 off)"; fi
+}
+fl_check_flash_drawn() { # NAME REGION yes|no: drawn is 8 or more colours in the rectangle (never brightness)
+  local reg c
+  reg=$(fl_region "$2"); c=$(echo "$reg" | sed -n 's/.*colours \([0-9]*\).*/\1/p'); c=${c:-0}
+  if [ "$3" = yes ]; then [ $c -ge 8 ] && fl_check ok "$1" "drawn: $reg" || fl_check FAIL "$1" "not drawn: $reg"
+  else [ $c -lt 8 ] && fl_check ok "$1" "reported not drawn, as it should be: $reg" || fl_check FAIL "$1" "reported drawn: $reg"; fi
+}
+fl_flash_region() { fl_region_of "$1" | tr -d ' '; }
+fl_flash_rate() { # REGION SECONDS: "content ...: flips F (f/s), changes C (c/s) ..."
+  /tmp/fbstream /tmp/fl-content -C "$(fl_flash_region "$1")" -s ${2:-5} -P 2000 2>/dev/null
+}
+fl_rate_of() { echo "$1" | sed -n 's/.*changes [0-9]* (\([0-9.]*\)\/s).*/\1/p'; }
+fl_check_flash_rate() { # NAME REGION SECONDS MIN MAX: the content rate within the bounds
+  local l r
+  l=$(fl_flash_rate "$2" "$3"); r=$(fl_rate_of "$l")
+  if awk -v r=${r:-0} -v a=$4 -v b=$5 'BEGIN { exit !(r >= a && r <= b) }'; then fl_check ok "$1" "$l (wanted $4..$5/s)"; else fl_check FAIL "$1" "$l (wanted $4..$5/s)"; fi
+}
+fl_check_flash_rate_report() { # NAME REGION SECONDS: the content rate against the movie's own count of its frames, within 5 %
+  local a b l r m
+  a=$(fl_text frames); l=$(fl_flash_rate "$2" "$3"); b=$(fl_text frames); r=$(fl_rate_of "$l")
+  m=$(echo "$a $b" | awk '{ print ($5 > $2 && $6 != $3) ? ($5 - $2) * 1000 / (substr($6, 3) - substr($3, 3)) : 0 }')
+  if awk -v r=${r:-0} -v m=$m 'BEGIN { exit !(m > 0 && r >= m * 0.95 && r <= m * 1.05) }'; then fl_check ok "$1" "$l; the movie's own rate $m/s ($a .. $b)"
+  else fl_check FAIL "$1" "$l; the movie's own rate $m/s ($a .. $b)"; fi
+}
+fl_flash_control() { # REGION SECONDS: what the movie shows with no input: the list the reacted check compares against
+  /tmp/fbstream /tmp/fl-control -C "$(fl_flash_region "$1")" -s ${2:-4} -P 2000 2>/dev/null | sed 's/^/  control: /'
+}
+fl_check_flash_reacted() { # NAME REGION SECONDS yes|no: reads showing what the control never showed: half or more is a reaction
+  local l a b v
+  l=$(/tmp/fbstream /tmp/fl-after -C "$(fl_flash_region "$2")" -s ${3:-4} -P 2000 -B /tmp/fl-control 2>/dev/null)
+  a=$(echo "$l" | sed -n 's/.* new \([0-9]*\) of .*/\1/p'); b=$(echo "$l" | sed -n 's/.* new [0-9]* of \([0-9]*\).*/\1/p')
+  if [ "${b:-0}" -gt 0 ] && [ $((${a:-0} * 2)) -ge ${b:-0} ]; then v=yes; else v=no; fi
+  [ "$v" = "$4" ] && fl_check ok "$1" "reacted: $v ($l)" || fl_check FAIL "$1" "reacted: $v, wanted $4 ($l)"
+}
+fl_screen_sig() { /tmp/fbstream /tmp/fl-sig -Q "$(fl_flash_region "$1")" -S 2>/dev/null | sed -n 's/.* grid \([0-9a-f]*\).*/\1/p'; }
+fl_check_screen() { # NAME REGION REF want [TOL]: want is same|other; the mean difference per channel against the reference
+  local l d tol
+  tol=${5:-5}
+  l=$(/tmp/fbstream /tmp/fl-sig -Q "$(fl_flash_region "$2")" -M "$3" 2>/dev/null); d=$(echo "$l" | sed -n 's/.* griddiff \([0-9.]*\).*/\1/p')
+  if [ -z "$d" ]; then fl_check FAIL "$1" "no signature to compare"; return 1; fi
+  if awk -v d=$d -v t=$tol -v w=$4 'BEGIN { s = (d <= t); exit !((w == "same" && s) || (w == "other" && !s)) }'; then fl_check ok "$1" "the screen against its reference: difference $d (same is $tol or less; wanted $4)"
+  else fl_check FAIL "$1" "the screen against its reference: difference $d (same is $tol or less; wanted $4)"; fi
+}
+# the movie's process: this shell's plugin-container
+fl_plugin_pid() { local p c; for p in $(pgrep -f plugin-container 2>/dev/null); do c=$(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null); case "$c" in *applications/$FL_ID/*plugin-container*) echo $p; return 0;; esac; done; return 1; }
+fl_plugin_cpu() { set -- $(sed 's/.*) //' /proc/$1/stat 2>/dev/null); echo "$1 $(( ${12:-0} + ${13:-0} ))"; }   # state, utime + stime in ticks
+fl_check_plugin() { # NAME [SECONDS] [want]: alive (it uses the CPU over the bound, a movie's own timer does) | wedged | gone
+  local p a b v s0 c0 s1 c1
+  p=$(fl_plugin_pid)
+  if [ -z "$p" ]; then v=gone
+  else
+    set -- "$1" "${2:-3}" "${3:-alive}" $(fl_plugin_cpu $p); s0=$4; c0=$5
+    sleep $2
+    set -- "$1" "$2" "$3" $(fl_plugin_cpu $p); s1=$4; c1=$5
+    if [ -z "$s1" ]; then v=gone; elif [ "$s1" = T ] || [ "$s1" = D ] || [ "$c1" = "$c0" ]; then v=wedged; else v=alive; fi
+  fi
+  [ "$v" = "${3:-alive}" ] && fl_check ok "$1" "plugin-container ${p:-none}: $v (state ${s1:-?}, cpu ticks ${c0:-?} to ${c1:-?})" || fl_check FAIL "$1" "plugin-container ${p:-none}: $v, wanted ${3:-alive} (state ${s1:-?}, cpu ticks ${c0:-?} to ${c1:-?})"
+}
+# the movie's audio: a stream of the player's process open on the device's playback device, and running
+fl_audio_state() { # -> "open running|open|closed": the player's stream on PulseAudio (the ALSA plug-in's), the codec's PCM
+  local p f st
+  p=$(fl_plugin_pid)
+  st=closed
+  if [ -n "$p" ] && pactl list 2>/dev/null | grep -q "application.process.id = \"$p\""; then st=open; fi
+  for f in /proc/asound/card*/pcm*p/sub*/status; do grep -q 'state: RUNNING' $f 2>/dev/null && { [ $st = open ] && st="open running"; break; }; done
+  echo "$st"
+}
+fl_check_audio() { # NAME open|running|closed [BOUND]
+  local n s
+  n=$(( ${3:-6} * 2 ))
+  while [ $n -gt 0 ]; do s=$(fl_audio_state); case "$2:$s" in open:open*|running:*running|closed:closed) fl_check ok "$1" "the movie's audio: $s"; return 0;; esac; usleep 500000; n=$((n-1)); done
+  fl_check FAIL "$1" "the movie's audio: $s, wanted $2"
 }
 fl_wait_content() { # REGION [BOUND]: 8+ colours in the region (a slow page's first picture)
   local n c

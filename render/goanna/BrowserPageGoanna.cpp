@@ -3815,6 +3815,11 @@ bool BrowserPageGoanna::emitGeometry() {
   const uint64_t docKey = mPage->DocumentKey();
   if (docKey != mLayoutDocKey) {
     mLayoutDocKey = docKey; mLayoutFollowed = false;
+    // The adapter's contract: a size of 0,0 is "the first content size after a page load", on which it goes back to the fit
+    // zoom and the page's top. The stock server sends it and this daemon never did, so a page zoomed in by a pinch left the
+    // next one at that zoom (by finger 2026-11-06: 1.92 kept on to desktop Wikipedia, where the fit is 0.69, in every shell).
+    mSink.msgContentsSizeChanged(0, 0);
+    mLastContentW = mLastContentH = 0;
     {
       FrameLockGuard frameLock;
       mGpuRootless = mPage->GpuRootless();   // T-527: the express lane's offsets from the document's first frame

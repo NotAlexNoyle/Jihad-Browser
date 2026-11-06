@@ -26,6 +26,7 @@ runs them all from one command (`finger-run.py`); the owner's own round compares
 - [x] WebGL on the GPU path: jihad-webgl-cube.html's cube turns (its ticker counts), a pinch and a pan over the canvas keep it drawn (content in the canvas region) (cavekit-gpu-rendering.md R8) — `webgl-cube` on enyo pass, mochi pass, mojo pass (2026-11-06)
 - [x] Desktop Wikipedia keeps its layout and its fit zoom when the keyboard comes and goes (T-569: a repeated size or the keyboard's put a page's declared 1120 px width back to the card's 768 and the zoom to 1.0) (cavekit-mochi-ui.md R6) — `wikipedia-keyboard-zoom` on enyo pass, mochi pass, mojo pass (2026-11-06); needs internet
 - [ ] The GPU path, zoom: double-tap the infobox and pinch on desktop en.wikipedia.org: the page at the new zoom arrives (the stream's spacing says how promptly) and no area stays grey (the stream's uniform bands) (cavekit-gpu-rendering.md R6) — `wikipedia-zoom` on enyo pass, mochi pass, mojo known (2026-11-06); needs internet
+- [ ] A page zoomed in by a pinch: the next page opens at its own zoom, not the last one's (cavekit-input-bridging.md R3) — `zoom-new-page` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report); needs internet
 
 ## Keyboard and text
 

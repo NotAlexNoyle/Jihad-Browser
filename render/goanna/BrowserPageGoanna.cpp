@@ -234,6 +234,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   // them — the same single-page-embedding assumption DebugRunChromeJs already makes. Without
   // this nothing implements DialogSink and every dialog silently takes its default.
   jihadLivePages().push_back(this);
+  EngineHost::SetShedPageHook(&BrowserPageGoanna::ShedNewestPage);   // cavekit-device-headroom.md R1
   SetDialogSink(this);
   if (jihadExpressOn()) {   // T-515
     FrameLockGuard g;
@@ -2612,6 +2613,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 
 void BrowserPageGoanna::openUrl(const char* url, const char* referrer, uint32_t referrerPolicy, bool fromPage) {
   if (!mPage || !url) return;
+  mShedForMemory = false;
   // A newer explicit navigation supersedes ALL queued input aimed at the old document, and the
   // generation bump stops an in-flight drain from continuing into the superseded page.
   mPendingMouse.clear(); ++mNavGen;
@@ -2706,6 +2708,34 @@ void BrowserPageGoanna::pageBackward() { if (mPage) { fprintf(stderr, "[jihad-bs
 void BrowserPageGoanna::pageForward() { if (mPage) { fprintf(stderr, "[jihad-bs] pageForward: canGoBack=%d canGoForward=%d\n", (int)mPage->CanGoBack(), (int)mPage->CanGoForward()); mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); resetScrollForNavigation(); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->GoForward(); } }
 void BrowserPageGoanna::pageReload()  { if (mPage) { mPendingMouse.clear(); ++mNavGen; if (mPage->ClearEditorFocus()) mSink.msgEditorFocused(false,0,0); resetScrollForNavigation(); mLoadWasDone=false; mNeedsPaint=false; mLastProgress=0; mLoadStartMs = jihadNowMs(); mSink.msgLoadStarted(); mPage->Reload(); } }
 void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
+
+// cavekit-device-headroom.md R1 (EngineHost::CheckMemoryPressure): of the live pages, the one navigated last is the
+// likeliest cause; it is stopped and shows about:stopped?url=<what it was>. The page it left drops out of the
+// back-forward cache with the memory-pressure notification the engine host sends next.
+bool BrowserPageGoanna::ShedNewestPage() {
+  BrowserPageGoanna* best = nullptr;
+  for (BrowserPageGoanna* p : jihadLivePages())
+    if (p->mPage && !p->mShedForMemory && (!best || p->mLastNavMs > best->mLastNavMs)) best = p;
+  if (!best) return false;
+  best->shedForMemory();
+  return true;
+}
+
+void BrowserPageGoanna::shedForMemory() {
+  if (!mPage) return;
+  std::string was = mPage->CurrentUri();
+  fprintf(stderr, "[jihad-bs] memory shed: stopping %s\n", jihadBoundedUri(was).c_str());
+  mPage->Stop();
+  static const char kHex[] = "0123456789ABCDEF";
+  std::string u = "about:stopped?url=";
+  for (unsigned char ch : was) {
+    if (isalnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~') u += (char)ch;
+    else { u += '%'; u += kHex[ch >> 4]; u += kHex[ch & 15]; }
+  }
+  mPage->SetNextLoadReplaces();
+  openUrl(u.c_str());
+  mShedForMemory = true;
+}
 void BrowserPageGoanna::clearHistory() { if (mPage) mPage->ClearHistory(); }
 void BrowserPageGoanna::getHistoryState(bool* back, bool* fwd) {
   if (back) *back = mPage && mPage->CanGoBack();
@@ -4735,6 +4765,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   emitScrollIfChanged();
   syncPluginRects();
   drainPluginSpotlight();
+  if (mLoadStartMs > mLastNavMs) mLastNavMs = mLoadStartMs;   // the shedding stops the newest page first
   // Low-memory guardrail (512 MB Pre 3 floor): internally rate-limited /proc/meminfo poll; fires the
   // engine "memory-pressure" flush + malloc_trim when RAM runs short. Lives here (not the engine-
   // agnostic browserserver tick) so the daemon layer keeps zero engine includes.

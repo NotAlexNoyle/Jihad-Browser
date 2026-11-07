@@ -10,10 +10,10 @@ complexity: complex
 The owner, 2026-10-13: "add support for riverstone relay proxy, and webone, and self hosted proxies
 in jihad. also add support for system certificates including community patches if installed."
 
-Jihad does its own TLS (the engine's NSS, TLS 1.0–1.3, its own 177 roots) and has never read
-webOS's certificate stores. Its network settings had one row for proxies, "Proxy", whose "Manual"
-choice said "set in about:config". This kit makes proxies something a user sets on the settings
-page, and lets Jihad trust the certificates webOS trusts where that adds something.
+Jihad does its own TLS (the engine's NSS and built-in roots, cavekit-certificate-trust.md) and had never
+read webOS's certificate stores; its one "Proxy" row said "set in about:config" for Manual. This kit
+makes proxies something a user sets on the settings page, and lets Jihad trust the certificates webOS
+trusts where that adds something.
 
 **What was found (2026-10-13):**
 - **The Riverstone Relay** is `proxy.riverstonerelay.org:3128`: Squid 6.14 on the owner's server
@@ -87,13 +87,11 @@ in all three shells, without about:config.
   shown, and applies it (manual → that proxy for HTTP and HTTPS; a PAC URL → that URL; auto-detect →
   the engine's WPAD; none → direct). The section shows what webOS said. If the service cannot be
   reached, Jihad keeps following what webOS last said (kept across restarts) and says so; with
-  nothing followed yet, it goes direct and says so. (Inspector round 24: the daemon cannot ask until
-  it is on the bus, which can take minutes after a start, and going direct meanwhile sent pages past
-  the proxy the user chose.) *(Device, Enyo: webOS set to the PC proxy with
-  `configureNwProxies`; Jihad followed it at the next card ("following webOS: … 8898"), the section
-  read "Now: webOS's proxy: 192.168.1.245:8899", a page went through it; webOS's setting then
-  cleared. The unreachable path is code-read: the daemon answers returnValue false, and it cannot be
-  brought about on demand.)*
+  nothing followed yet, it goes direct and says so. *(Device, Enyo: webOS set to a PC proxy with
+  `configureNwProxies`; Jihad followed it at the next card and a page went through it. The unreachable
+  path is code-read: the daemon answers returnValue false, which cannot be brought about on demand.
+  Inspector round 24: the daemon is not on the bus for minutes after a start, and going direct meanwhile
+  bypassed the chosen proxy.)*
 - [x] What the section shows is read from the engine's own `network.proxy.*` prefs, so a value set in
   about:config shows here and the section never claims a proxy the engine is not using. The old
   single "Proxy" row is gone, and with it the engine's "system proxy", which does nothing in this
@@ -123,8 +121,7 @@ what it is for. Audited 2026-10-25 (packaging/prefs/jihad-platform-prefs.js, the
 - [x] Choosing it sets `proxy.riverstonerelay.org`, port 3128, for HTTP and HTTPS, with no SOCKS and no
   login. The section says what the Relay is and that it is the owner's. *(Device: picked in Enyo's
   and Mochi's section, the prefs as stated; the section redraws within a second of the pick, 15 of
-  15 picks in both shells. The "old picture" first recorded here (T-465) was a screenshot taken
-  before the pick had run.)*
+  15 picks in both shells. T-465 withdrawn: its "old picture" was a screenshot taken before the pick.)*
 - [x] A CONNECT from Jihad carries Jihad's User-Agent (`… JihadBrowser/1.0`), and the server agent is
   sent a Squid rule that splices (passes through untouched) every CONNECT carrying it, placed before
   the bump rules, with the commands to check and load it and to check the result. *(Device: the
@@ -147,12 +144,10 @@ what it is for. Audited 2026-10-25 (packaging/prefs/jihad-platform-prefs.js, the
   certificate is the site's own, not `squid-sslbump-for-webos`; a plain http page loads through it
   (`Via: … rs-relay-server`). With the rule missing, a bumped page asks about its certificate while
   the setting is off, and loads with the setting on. *(Device, Enyo, 2026-10-13, the Relay chosen and
-  its CA off: https://example.com/ loads (certErr=0) and the padlock shows issuer Cloudflare TLS
-  Issuing ECC CA 3, TLS 1.3. http://httpbin.org/ip says `108.52.189.109, 116.202.108.111` (the
-  forwarded client, then the Relay) and its headers carry Squid's `Cache-Control: max-age=259200`;
-  httpbin's front strips `Via`, so the server's address stands in for it. Over https the same pages
-  show only `116.202.108.111` and no Squid header: the tunnel was not opened. The second half done,
-  above.)*
+  its CA off: https://example.com/ loads (certErr=0), padlock issuer Cloudflare TLS Issuing ECC CA 3,
+  TLS 1.3; http://httpbin.org/ip loads through it with Squid's `Cache-Control: max-age=259200` (httpbin's
+  front strips `Via`); over https no Squid header, so the tunnel was spliced. The rule-missing half is
+  criterion 3's test.)*
 - [x] The Relay does not tell sites who its users are: a plain http page and a re-signed (bumped)
   https page fetched through it carry no `X-Forwarded-For` naming the user, and Jihad's spliced
   https never did. The server agent is sent the Squid change (`forwarded_for delete`) with checks
@@ -189,18 +184,17 @@ to trust it to identify websites, so a proxy's own CA can be added from the prox
   only; No adds nothing. Only a v3 certificate whose basicConstraints says cA=TRUE and that names no
   site (no subjectAltName, no extendedKeyUsage) is offered; any other (a site's own, a router's that
   also says cA=TRUE, a v1 one the engine would call a CA) is refused with a reason. *(Device:
-  "Offered by 192.168.1.245:8897", Yes trusted it; a hand-built v1 self-signed certificate refused.
-  Round 24, Enyo: the test CA as an HTTP link asked, "Offered by 192.168.1.245:8896", and unanswered
-  was declined; a router's certificate (cA=TRUE, IP subjectAltName) as a link was refused:
-  ""192.168.1.1" is not a certificate authority's certificate".)*
+  "Offered by 192.168.1.245:8897", Yes trusted it. Round 24, Enyo: the test CA as an HTTP link asked
+  and, unanswered, was declined; a hand-built v1 self-signed certificate and a router's certificate
+  (cA=TRUE, IP subjectAltName) were refused: ""192.168.1.1" is not a certificate authority's
+  certificate".)*
 - [x] The question appears only for a certificate opened as the page itself, once: one in a frame
   (HTTP, data: or file:) is stopped, and anything else that reaches the engine's import without
   being opened as a page (a blob: frame, whose type no address shows) finds no offer and is refused
   without a word. A script's fetch of a certificate is left alone. *(Device: a page with a data: and
-  an HTTP certificate frame raised nothing; both logged as stopped. Round 24, Enyo: a hidden blob:
-  frame carrying the test CA reached the import and was refused, no dialog open.)* (Inspector round
-  24: the blob frame used to raise the question over the page. On this build a `.crt` opened from
-  `file:` is `application/octet-stream` and downloads, so it never asks.)
+  an HTTP certificate frame raised nothing, both logged as stopped. Round 24, Enyo: a hidden blob: frame
+  carrying the test CA was refused with no dialog; it used to raise the question over the page. A `.crt`
+  opened from `file:` is `application/octet-stream` and downloads, so it never asks.)*
 - [x] The Relay's CA offered this way is refused (R2 is its one route), and so are a root Mozilla
   removed and a certificate Jihad already trusts from webOS. *(Device: the Relay's refused.)*
 - [x] Settings → Security lists the CAs added this way (name, SHA-256) with a Remove for each;
@@ -224,12 +218,10 @@ by the user or by a community update.
   as a router's or a NAS box's usually does — and an intermediate are not taken, and are counted as
   skipped; a CA made without keyUsage is not taken silently either (opening its file in Jihad asks,
   R6). *(Device: 190 read, 5 trusted; a v1 self-signed certificate skipped as notCA. Round 24,
-  Enyo, three certificates placed as Certificate Manager places one: a router's with an IP
-  subjectAltName skipped as siteLike, one without keyUsage as noCertSign, a CA with keyCertSign
-  trusted (6); removed again, 5. Trust Once on a site with the router's certificate: the platform
-  store took serial 4 and the component logged its SHA-256 as never to be taken; the card closed,
-  the serial was swept.)* (Inspector round 24: the earlier cA=TRUE test let a Trust Always router
-  certificate become a root for every site at the next start.) Removed roots are matched by their
+  Enyo, certificates placed as Certificate Manager places one: a router's (IP subjectAltName) skipped as
+  siteLike, one without keyUsage as noCertSign, a CA with keyCertSign trusted (6), removed again (5);
+  after Trust Once on the router's site the component logged its SHA-256 as never to be taken. Inspector
+  round 24: the earlier cA=TRUE test let a Trust Always router certificate become a root for every site.)* Removed roots are matched by their
   own SHA-256, not by name and key: Mozilla removed old issues of roots it still trusts with the
   same name and key (GTS Root R1–R4, GlobalSign, Firmaprofesional; CCADB against CE's store).
 - [x] The lists it checks against are in the source with where each came from (HP's 3.0.5 doctor:
@@ -249,18 +241,17 @@ by the user or by a community update.
   no certificate question; removed again, it is not trusted after the next start; with the setting
   off, that page asks again. *(TrustAsia RSA/ECC, OISTE RSA/ECC G1, SwissSign 2022-1; the SwissSign
   test site loads on, fails off. The Certificate Manager CA placed as its library places one: a
-  file in /var/ssl/certs and a hash link in /var/ssl/trustedcerts.)*
+  file in /var/ssl/certs and a hash link in /var/ssl/trustedcerts. Since the 2026-10-25 roll these five
+  roots are built in and the import trusts none of them: cavekit-certificate-trust.md R3.)*
 **Dependencies:** none
 
 ### R5: A proxy that asks for a login says it is the proxy
 **Description:** A 407 from a user's own proxy is a login for the proxy, and the dialog says so.
 **Acceptance Criteria:**
 - [x] The login dialog for a proxy challenge names the proxy (host and port) and says it is the proxy
-  asking, not the site; a site's 401 is unchanged. *(Device: Enyo and Mochi "The proxy
-  192.168.1.245:8898 - jihad-test requires a username and password"; Mojo's is webOS's own sheet,
-  titled "proxy 192.168.1.245:8898 - jihad-test". Round 24: the marker is "[proxy] ", which no site's
-  host can produce (a site named "proxy" could pose as one); Enyo and Mochi read "The proxy
-  192.168.1.245:8897 - jihad-test requires…", Mojo's sheet "[proxy] 192.168.1.245:8897 -
+  asking, not the site; a site's 401 is unchanged. *(Device, round 24: the marker is "[proxy] ", which no
+  site's host can produce (a site named "proxy" could pose as one); Enyo and Mochi read "The proxy
+  192.168.1.245:8897 - jihad-test requires…", Mojo's webOS sheet "[proxy] 192.168.1.245:8897 -
   jihad-test".)*
 - [x] Device: a page through a PC proxy that demands a login raises the dialog naming the proxy, and
   the right login loads the page. *(Enyo and Mochi, answered through their own dialogs by script:
@@ -279,15 +270,9 @@ by the user or by a community update.
 - cavekit-addons-site.md — the same server runs the Relay.
 
 ## Changelog
-- 2026-10-13: Created from the owner's request and decisions; the Relay, the device's stores and
-  HP's 3.0.5 image measured. Same day: webOS's proxy setting (R1), the Relay's CA as an option off by
-  default (R2), and opening a CA certificate asks (R6), from the owner's further answers. Review
-  round 23 (inspector): only v3 CAs (R4, R6), the question only for a page itself and naming who
-  offered it (R6), the Relay pinned in the component and recognised by key and subject (R2), its
-  switch wherever it is in use (R2). Device evidence added. Same day: the server agent applied the
-  Relay's splice rule; R2 met on the device (the site's own certificate through the Relay). Then
-  the owner: the Relay hides users' addresses (R2, a new criterion, applied and met); the
-  stale-picture finding (T-465) withdrawn, a screenshot taken before the pick. Review round 24
-  (the inspector, for Codex): R4 takes roots only and never a certificate Jihad's SSL dialog put in
-  webOS's store; R6 asks once, only for a page, and refuses a site's certificate that says cA=TRUE;
-  R5's marker cannot be a site's host; R1 keeps following webOS's last setting when a read fails.
+- 2026-10-13: created from the owner's request and decisions (webOS's proxy setting, the Relay's CA off
+  by default, opening a CA certificate asks); R1–R6 met on the device the same day. Inspector rounds 23
+  and 24 tightened R2 (the Relay's CA pinned in the component), R4 (roots only, never a certificate the
+  SSL dialog put in webOS's store), R6 (asks once, only for a page), R5 (a marker no host can produce)
+  and R1 (keeps webOS's last setting). The server agent applied the splice rule and `forwarded_for
+  delete` (R2). T-465 withdrawn.

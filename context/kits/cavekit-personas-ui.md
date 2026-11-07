@@ -28,12 +28,6 @@ second manager; Settings' Personas row goes to the gallery (about:personas), whi
 documentation"):** every word a person reads says "Persona": the category, the pane, the confirm,
 the toasts, Settings, the README. Code identifiers keep the engine's own names.
 
-The owner shaped it further during the build, the same day: "try and wear seem duplicative" (R3),
-"author and version fields should be shown for all personas" and "default version 1.0" (R1), "use
-Uninstall instead of Remove" (R2), "add fruiter aero style themes" (R7), "blue nebula looks like
-it isnt working properly" (R4), "dark fox preview in about:addons not working" (R1), "the aero
-themes dont display consistently in the persona preview in about:addons like the others" (R7).
-
 Reference: `render/goanna/components/jihadPersonas.js` (install, conversion, the pane decorator,
 the bundled set), UXP `toolkit/mozapps/extensions/` (`content/extensions.xul|js|xml`,
 `LightweightThemeManager.jsm`), the shells' `applyTheme`s, `render/goanna/personas/` (the
@@ -100,11 +94,6 @@ safety with one button.)
   engine's own gear-menu entry needs a file picker this embedding does not have.
 - [x] addons.mozilla.org's Personas can be found and installed: since 2026-10-12 about:personas
   searches them in place through AMO's API and installs one through the usual confirm (R8, device).
-  *(Until then the pane's **Get Personas** opened AMO's Themes listing in the card. Device, Enyo,
-  2026-10-08: the listing renders; on a
-  Persona's page AMO's big button says "Download the new Firefox", and its **Download file** link
-  installs it here through the usual confirm — "Allow addons.mozilla.org to change the browser's
-  look to the Persona: Purple Night" — and it is worn.)*
 - [x] Persona sites using the classic `InstallBrowserTheme` event (Firefox 52 / Pale Moon /
   Basilisk) keep working. *(cavekit-addons-extensions.md R10, device 2026-10-06; Mochi's prompt
   re-checked 2026-10-08 with the new wording.)*
@@ -129,10 +118,7 @@ safety with one button.)
   2026-10-12); about:addons' Personas category links to the gallery. (The gallery's "Personas
   manager" link back to this pane was taken out in Tier 78: Your Personas is managed in the gallery
   itself.) *(Device, all three,
-  2026-10-12: Browse Personas.)* *(Until 2026-10-12 a Manage Personas button opened the pane
-  directly — device, Mochi. Found on the way: the daemon re-drove the page's load of about:addons by
-  its resolved file address, which the engine refuses as XUL loaded from a file; it now re-drives an
-  about: page by its original address.)*
+  2026-10-12: Browse Personas.)*
 **Dependencies:** R1, R4
 
 ### R6: The same in every shell, verified
@@ -140,7 +126,7 @@ safety with one button.)
 **Acceptance Criteria:**
 - [x] Enyo, Mochi and Mojo each show the Personas pane and repaint on Wear. *(Device, 2026-10-08.)*
 - [x] Screenshots of the pane and of the bars, with no Persona and with several. *(README, `docs/screenshots/`.)*
-- [x] A finger on the device: wear, undo, uninstall, install from file. *(2026-10-25, the emulated finger on Enyo after T-535: all of them, plus Take off, Remove's two taps, a wear from the add-on site and the addons.mozilla.org question — docs/FINGER-TESTS.md.)* *(suite: `persona-cycle`, `persona-wear`; `docs/FINGER-TESTS.md`)*
+- [x] A finger on the device: wear, undo, uninstall, install from file. *(2026-10-25, the emulated finger on Enyo after T-535: all of them, plus Take off, Remove's two taps, a wear from the add-on site and the addons.mozilla.org question.)* *(suite: `persona-cycle`, `persona-wear`; `docs/FINGER-TESTS.md`)*
 **Dependencies:** R1–R5
 
 ### R7: Personas that come with Jihad
@@ -179,8 +165,8 @@ browser, ready to show an online index the project publishes later.
 - [x] When `jihad.personas.galleryURL` names an https index (the bundled `personas.json` format,
   or the add-on site's paged feed), its Personas are listed too and install through the usual
   confirm, naming the index's host. *(Device, Enyo, 2026-10-11, against a local copy of the add-on
-  site: cavekit-addons-site.md R12. The pref now names addons.riverstonerelay.org, which is not live
-  yet: the page says the site cannot be reached.)*
+  site: cavekit-addons-site.md R12. The pref now names addons.riverstonerelay.org, live since
+  2026-10-12: cavekit-addons-site.md R10.)*
 - [x] Everything shown from an index is put in as text, and installs go through the same
   component, conversion and confirm as every other Persona.
 - [x] The page opens at once with the Personas that come with Jihad; of each site it asks only a

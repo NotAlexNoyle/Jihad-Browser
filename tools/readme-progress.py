@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
-# The README's "Where it stands" section, counted from the records: each kit's acceptance criteria
-# (context/kits/cavekit-*.md, "- [x]" met, "- [ ]" open) grouped into the browser's areas, the
+# The README's "Status" section, counted from the records: each kit's acceptance criteria
+# (context/kits/cavekit-*.md, "- [x]" met, "- [ ]" open, "- [~]" partial, counted as open) grouped into the browser's areas, the
 # owner's finger tests (docs/FINGER-TESTS.md), and the road to the release drawn from them.
 #
 #   tools/readme-progress.py          rewrite the section between the README's progress markers
@@ -25,14 +25,21 @@ AREAS = [
                                  "navigation-events"], "Goanna inside the webOS card, frames to the card, the card's messages"),
     ("Drawing on the GPU", ["gpu-rendering"], "the Adreno 220 composes the page; WebGL; pan and zoom speed"),
     ("The modern web", ["modern-web"], "today's sites: TLS, missing features filled in, video"),
+    ("Speed and memory", ["lowpower-uxp", "device-headroom"],
+     "the engine tuned for the TouchPad; no page can starve the device; YouTube made light"),
     ("The three interfaces", ["ui-shell", "mochi-ui", "mojo-ui", "chrome-look"], "Enyo, Mochi and Mojo"),
     ("Touch and keyboard", ["input-bridging"], "taps, gestures, the on-screen keyboard"),
     ("Settings and services", ["preferences-ui", "browser-services"], "the settings panes, downloads, history, printing"),
     ("Add-ons and Personas", ["addons-extensions", "addons-site", "persona-formats", "personas-ui"],
      "XPI add-ons, plugins, Personas, the add-on site"),
-    ("Privacy and security", ["content-blocking", "proxies-certs"], "the ad and tracker blocker, proxies, certificates"),
-    ("Building and updating", ["desktop-build", "device-build", "engine-update", "licensing-branding"],
-     "one repository builds every package; engine updates; licences"),
+    ("Flash, finished", ["flash"], "the device's own Flash Player proven on real games, apps and videos in every shell"),
+    ("Privacy and security", ["content-blocking", "proxies-certs", "certificate-trust"],
+     "the ad and tracker blocker, proxies, certificates"),
+    ("Building and updating", ["desktop-build", "device-build", "engine-update", "licensing-branding", "engine-release-2026-10",
+                               "webos-sdk-update", "atlas-references"],
+     "one repository builds every package; engine updates; the SDK; licences"),
+    ("Testing on the device", ["finger-emulation", "finger-testing"],
+     "an emulated finger and screen checks that test the browser on the TouchPad unattended"),
     ("Tabs", ["tabbed-browsing"], "groundwork only, held by the owner's decision"),
 ]
 GPU_KITS = {"gpu-rendering"}
@@ -42,7 +49,9 @@ BAR = 20
 
 # an open criterion only a person can close (a finger on the device, the owner's decision), or one
 # that waits on tabs: the rest is work still to build
-OWNER = re.compile(r"\[human|human-only|finger|\[OWNER\]|DEFERRED by the owner|\[decision\]|judged by eye|owner's finger", re.I)
+# (2026-11-07: a bare "finger" no longer counts; the finger-testing and Flash kits mean the emulated one that runs unattended)
+OWNER = re.compile(r"\[human|human-only|\[OWNER\]|DEFERRED by the owner|\[decision\]|judged by eye|owner'?s|a person's finger|real finger|"
+                   r"BLOCKED-EXTERNAL|a person at the device", re.I)
 TABS = re.compile(r"waits on tabbed|tabbed-browsing\.md R", re.I)
 
 
@@ -50,7 +59,7 @@ def count_kit(name):
     """(met, open, open for a person, open waiting on tabs)"""
     path = os.path.join(ROOT, "context", "kits", "cavekit-%s.md" % name)
     text = open(path, encoding="utf-8").read()
-    opens = re.findall(r"^- \[ \](.*)$", text, re.M)
+    opens = re.findall(r"^- \[[ ~]\](.*)$", text, re.M)   # a partial one is not met (2026-11-07: they were left out of both counts)
     owner = sum(1 for o in opens if OWNER.search(o))
     tabs = sum(1 for o in opens if not OWNER.search(o) and TABS.search(o))
     return (len(re.findall(r"^- \[x\]", text, re.M)), len(opens), owner, tabs)
@@ -72,7 +81,18 @@ def pct(met, total):
     return "%d %%" % (100 * met // total) if total else "—"
 
 
+def unassigned():
+    """kits no area counts: the section would silently leave their criteria out (it did, 2026-11-07: nine kits)"""
+    named = {k for _, kits, _ in AREAS for k in kits}
+    have = {f[len("cavekit-"):-3] for f in os.listdir(os.path.join(ROOT, "context", "kits"))
+            if f.startswith("cavekit-") and f.endswith(".md") and f != "cavekit-overview.md"}
+    return sorted(have - named)
+
+
 def section():
+    missing = unassigned()
+    if missing:
+        raise SystemExit("readme-progress: kits in no area: " + ", ".join(missing))
     rows, everything = [], [0, 0]
     complete, owner_only, working = [], [], []
     for label, kits, what in AREAS:
@@ -110,12 +130,12 @@ def section():
         return ", ".join(parts) if parts else "done"
 
     out = []
-    out.append("## Where it stands")
+    out.append("## Status")
     out.append("")
-    out.append("Counted from the project's own records: every part of the browser has a list of acceptance "
-               "criteria, each one met only when it was shown working on a TouchPad (or, for the build, on a "
-               "clean machine). What is left is either still to build or waits for a person: a finger on the "
-               "device or the owner's decision. The road below runs to the first public release.")
+    out.append("Every part of the browser has a checklist, and an item only gets ticked once it has been seen "
+               "working on a real TouchPad (or, for the build, on a clean machine). The numbers below are counted "
+               "straight from those checklists. What's left is either still to build or waiting on a person: a "
+               "finger on the device, or a call only the owner can make.")
     out.append("")
     out.append("**Everything but tabs: %s %d of %d criteria met (%s).**" % (bar(*everything), everything[0], everything[1],
                                                                              pct(*everything)))
@@ -154,10 +174,10 @@ def section():
     out.append("  classDef goal fill:#6a1b9a,stroke:#4a148c,color:#ffffff")
     out.append("```")
     out.append("")
-    out.append("Green is complete, amber still has work to do, blue waits for a person at the device (the "
-               "finger tests are gathered into one round at the end), grey is not started or held. Whether "
-               "tabs come before or after the release is the owner's call. Regenerated by "
-               "`tools/readme-progress.py` from `context/kits/` and `docs/FINGER-TESTS.md`.")
+    out.append("Green is done, amber still has work in it, blue is waiting on a person at the device (those "
+               "checks are saved up for one round at the end), grey hasn't started or is on hold. Whether tabs "
+               "land before or after the release is the owner's call. This section is generated by "
+               "`tools/readme-progress.py` from `context/kits/` and `docs/FINGER-TESTS.md`; don't edit it by hand.")
     return "\n".join(out)
 
 

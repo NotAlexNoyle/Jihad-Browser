@@ -2407,7 +2407,9 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
       referrerPolicy = nsIHttpChannel::REFERRER_POLICY_NO_REFERRER;
     }
   }
-  return NS_SUCCEEDED(engine_calls::LoadURI(nav, u.get(), nsIWebNavigation::LOAD_FLAGS_NONE, ref,
+  const uint32_t loadFlags = mNextLoadReplaces ? (uint32_t)nsIWebNavigation::LOAD_FLAGS_REPLACE_HISTORY : (uint32_t)nsIWebNavigation::LOAD_FLAGS_NONE;
+  mNextLoadReplaces = false;
+  return NS_SUCCEEDED(engine_calls::LoadURI(nav, u.get(), loadFlags, ref,
                                             ref ? referrerPolicy : nsIHttpChannel::REFERRER_POLICY_DEFAULT,
                                             trigger));
 }

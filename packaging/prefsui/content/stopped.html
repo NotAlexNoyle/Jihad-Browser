@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:stopped?url=… — a page the daemon stopped because the TouchPad was running out of memory
+     (cavekit-device-headroom.md R1; EngineHost::CheckMemoryPressure). It says so and links back to the page,
+     an http(s) address only: the link is the one thing a person can do here, and nothing else is offered. -->
+<html>
+<head>
+	<meta charset="UTF-8"/>
+	<meta name="viewport" content="width=device-width"/>
+	<title>Page stopped</title>
+	<style>
+		body { margin: 32px 24px; font: 18px sans-serif; color: #222; background: #fff; }
+		h1 { font-size: 24px; margin: 0 0 16px; }
+		p { line-height: 1.4; margin: 0 0 14px; }
+		a { color: #1a5fb4; }
+		#where { word-break: break-all; color: #666; font-size: 14px; }
+	</style>
+</head>
+<body>
+	<h1>This page was stopped</h1>
+	<p>It used more memory than the TouchPad could spare, and the system was slowing down, so the browser stopped it.</p>
+	<p id="again" hidden="hidden"><a id="link" href="about:blank">Try it again</a></p>
+	<p id="where"></p>
+	<script>
+		(function () {
+			var m = /[?&]url=([^&#]*)/.exec(location.search), u = "";
+			try { u = m ? decodeURIComponent(m[1]) : ""; } catch (e) { u = ""; }
+			if (/^https?:\/\//i.test(u)) {
+				document.getElementById("link").setAttribute("href", u);
+				document.getElementById("again").removeAttribute("hidden");
+				document.getElementById("where").textContent = u;
+			}
+		})();
+	</script>
+</body>
+</html>

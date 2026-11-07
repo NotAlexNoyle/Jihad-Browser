@@ -48,8 +48,7 @@ looks like itself: Firefox Color, Colorways and the many palette themes (Catppuc
   `toolbar` colour where the theme gives one), the bar's text and glyphs following its text colour,
   with no picture of any kind drawn over them. *(Device, all three: a frame-to-toolbar gradient
   stretched over the bar — Enyo measured #3e2164 at its top and #7c3aa8 at its bottom for a
-  frame of #3b1d5e and a toolbar of #7a3fa8; inspector 2026-10-11:
-  it was drawn as cover, which showed one blended row.)*
+  frame of #3b1d5e and a toolbar of #7a3fa8.)*
 - [x] Its row in the Personas pane shows those colours, with its name, author and version, like
   any other Persona. *(Device, Enyo.)* (about:personas lists the Personas that come with Jihad and
   the add-on site's; an installed package is neither.)
@@ -103,8 +102,7 @@ palette theme does not stop at the toolbar.
   must be a colour name or `transparent` (`currentcolor`, `-moz-*` and system colours are dropped:
   with no element they come out black or invisible), and `rgb(1 2 3 / 50%)` is read. The frame and
   text colours go through the same check. *(xpcshell, round 15, fourteen cases.)* *(Device,
-  Enyo: an `hsl()` value arrives as rgb(); "red, 0 0 0 2000px black" is dropped — inspector
-  2026-10-11: text that merely used colour characters reached the stylesheets.)*
+  Enyo: an `hsl()` value arrives as rgb(); "red, 0 0 0 2000px black" is dropped.)*
 - [x] The address field takes `toolbar_field`, `toolbar_field_text` and `toolbar_field_border`, and
   the `_focus` pair while it is being typed in, in all three shells. *(Device, all three.)* (Enyo's
   reload and stop glyphs inside the field are the ink ones on a light field, also on a card started
@@ -136,8 +134,8 @@ palette theme does not stop at the toolbar.
   *(Code.)*
 - [~] Undo, Default look, uninstall and the bundled set's editions handle these Personas as they
   handle classic ones; re-installing one under the id already worn repaints the cards. *(Device,
-  Enyo: uninstall, and the same picture re-installed with new colours repainted — inspector
-  2026-10-11, it did not; Undo, Default look and editions code only.)*
+  Enyo: uninstall, and the same picture re-installed with new colours repainted; Undo, Default look
+  and editions code only.)*
 - [x] A Persona's settings written by an earlier build are read as the current build draws them: a
   colour-only Persona converted before its gradient was stretched (`fit: "cover"`) is drawn
   stretched. *(Code, round 15.)*

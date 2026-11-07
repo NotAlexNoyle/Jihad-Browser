@@ -68,9 +68,9 @@ is not ours to use.
 - [x] The database credentials and all configuration live outside the web root; nginx serves no
   dot-file and nothing under the configuration directory. *(Request for each → 404.)* *(Smoke test.)*
 - [x] There is no registration, verification or password-mail path in the code; there is no
-  `special` component; `component=panel` is honoured only for a `/panel/` request path. *(Since the inspector's 2026-10-11 review PHP takes the panel only from nginx's /panel/ location: /panel/../ and /panel/%2e%2e/ answer 404, in the smoke test.)*
+  `special` component; `component=panel` is honoured only for a `/panel/` request path. *(Smoke test: PHP takes the panel only from nginx's /panel/ location; /panel/../ and /panel/%2e%2e/ answer 404.)*
 - [x] Every panel form that changes something carries a per-user token and checks the request's
-  origin; a forged cross-site POST is refused. *(Test: a POST without the token → refused.)* *(Local copy: a POST without the token → 403, a POST from another origin → 403, nothing changed.)*
+  origin; a forged cross-site POST is refused. *(Local copy: a POST without the token → 403, a POST from another origin → 403, nothing changed.)*
 - [x] Templates escape every value by default; the few pre-rendered HTML fields are marked
   explicitly. A name with `'`, `"`, `<` or `&` shows as text everywhere, the Personas page's
   `data-browsertheme` included. *(Local copy: a Persona named `Au"r<o>ra & O'Brien` showed as text on /personas/, came back intact from its `data-browsertheme` JSON, and was `\u`-escaped in the feed. Descriptions are no longer escaped twice.)*
@@ -87,8 +87,7 @@ is not ours to use.
   panel, not proof of origin (the login is the gate). *(Throwaway nginx, 2026-10-12: the site's name
   in any case or with a trailing dot answered, another name was closed unanswered; the server's
   configuration passes `nginx -t`.)* *(Smoke test: the four headers, and X-Frame-Options on everything but the discover pane
-  itself. Real IP: round 21, inspector — a grep across /etc/nginx deciding whether to install it was
-  wrong both ways; moved into the server block.)*
+  itself.)*
 - [x] A request whose normalised path is outside `/panel/` never reaches the panel or its login
   check: `/panel/../?path=/panel/administration/` and `/panel/%2e%2e/?path=…` answer 404, and the
   panel's downloads are `/panel/download/`, inside its rate limit and allowlist. *(Smoke test; local
@@ -98,7 +97,7 @@ is not ours to use.
   names `component` twice (nginx reads the first, PHP the last) is framed by the stricter rule.
   *(Smoke test: `/panel/?component=discover` and `/?component=discover&component=site&path=/personas/`
   keep the header, `/?component=discover` has none.)* (Inspector, 2026-10-11, rounds 14 and 15.)
-- [x] Codex (or the inspector) reviews the site's code before any deploy, and no P0/P1 is open. *(Inspector, 2026-10-11, with Codex out of credits: one P1, the panel path, and the P2/P3s all fixed — `context/impl/impl-review-findings-6.md` round 14. Codex reviews it again when its credits return, before the deploy.)*
+- [x] Codex (or the inspector) reviews the site's code before any deploy, and no P0/P1 is open. *(Inspector, 2026-10-11, with Codex out of credits: one P1, the panel path, and the P2/P3s all fixed — `context/impl/impl-review-findings-6.md` round 14. Codex reviewed the deploy kit in round 18, 2026-10-12: Changelog.)*
 **Dependencies:** R2
 
 ### R4: The Jihad application
@@ -138,7 +137,7 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
   colours the toolbar rgb(17, 17, 27), its text rgb(205, 214, 244), the address field dark.)*
 - [x] `/personas/` lists them with picture, name, author, version and licence; each button installs
   the Persona (an `InstallBrowserTheme` event on an element whose `data-browsertheme` is valid JSON).
-  *(Device: a tap-equivalent in Jihad installs one through the usual confirm.)* *(Device, Enyo: Wear on the site's page, through the usual confirm.)* Pale Moon and Basilisk: R10's smoke test.
+  *(Device, Enyo: Wear on the site's page, through the usual confirm.)* Pale Moon and Basilisk: R10's smoke test.
 - [x] The update service answers `?component=aus&persona=<id>` with the Persona including its
   version (https only), `{}` for an unknown or inactive one.
 - [x] Previews are made when a Persona is imported, never while a page is being served.
@@ -177,7 +176,7 @@ Persona installs into Jihad, Pale Moon and Basilisk with one tap.
 - [~] Every page reads well on the TouchPad (1024×768 and 768×1024, a finger's tap targets) and on a
   desktop and a phone; the error pages use the same skin. *(Device: portrait, Enyo; the public error pages in the skin since 2026-10-11. Headless Firefox, 2026-10-11: 1024×768, a 1366-wide desktop and a 390-wide phone — front, Personas, add-on, search and 404 pages; on a phone the tabs wrap to two rows and the cards stack. Left: landscape on the TouchPad itself, which needs it turned by hand.)*
 - [x] Screenshots of the front page, the Personas page and an add-on page, taken in Jihad on the
-  TouchPad. *(Device.)* *(Enyo, 2026-10-11, against the local copy: the front page, /personas/, an add-on page and a 404.)*
+  TouchPad. *(Enyo, 2026-10-11, against the local copy: the front page, /personas/, an add-on page and a 404.)*
 **Dependencies:** R4
 
 ### R8: Only the owner adds content
@@ -200,11 +199,12 @@ LAN, before anything touches the owner's server.
   a device profile, which is put back afterwards: every file a test can change, the persisted
   Persona pictures (`lightweighttheme-header`/`-footer`) and whole copies of `jihad-themes/` and
   `extensions/`. A backup that is not complete, or a folder copy short of what was there, restores
-  nothing; a restore runs without a network route. *(Device: the CA is gone from the profile at the
-  end of every test.)* *(Device, Enyo. The first restore's name-matching clean-up deleted everything in `jihad-themes/` and `extensions/` twice (BusyBox grep has no -x) — recovered, see docs/PICKUP.md. Since round 15 a restore swaps the folders back from whole copies: on a scratch profile on the device a test's added, deleted and rewritten files all came back md5-identical, an incomplete backup and a short folder copy each restored nothing, and a restore interrupted halfway finished on a second run; on Enyo itself two real cycles left its pictures, Palefill and Persona pictures md5-identical.)* *(Device,
+  nothing; a restore runs without a network route. *(Device: the CA is gone from the profile at the end of every test.
   2026-10-12, round 17's md5-judged script under BusyBox 1.17: a scratch app's setup, test changes and
   restore left it md5-identical, a tampered backup was refused untouched, a restore cut off between
-  its moves finished; real cycles on Enyo and Mojo left both profiles md5-identical.)*
+  its moves finished; real cycles on Enyo and Mojo left both profiles md5-identical. A restore swaps
+  whole folder copies back since round 15, after a name-matching clean-up deleted `jihad-themes/` and
+  `extensions/` (BusyBox grep has no -x): docs/PICKUP.md.)*
 - [x] The same nginx server block, FPM pool settings and schema are used locally and in the deploy. *(The local PHP runs with the pool's open_basedir and disabled functions since 2026-10-11.)*
 **Dependencies:** R2
 
@@ -223,27 +223,22 @@ LAN, before anything touches the owner's server.
   `.prev`; any other block, including one that no longer includes `riverstone-site.conf`, is kept
   with the repository's beside it (`.new`), and a `.new` goes once the live block is the
   repository's; a missing certificate keeps the block before as `.prev`. (Inspector, 2026-10-11 and
-  rounds 23-24. Scratch harness of install.sh's site-block section: missing, already the
-  repository's with a stale `.new`, edited without the include, the challenge block left, no
-  certificate over the owner's block, untouched with a hash, edited after the hash. On the server,
-  2026-10-13: install.sh ran for `68caed1` and `d9359ea`, recorded the hash, and said so.)
+  rounds 23-24; a scratch harness of install.sh's site-block section covers seven cases. Server,
+  2026-10-13: install.sh ran for `68caed1` and `d9359ea` and recorded the hash.)
 - [~] After a deploy, a smoke test (each page type, the feed, the update service, a Persona install
   from a desktop UXP browser and from Jihad) passes. *(Server: 43/43 at every update since
-  2026-10-12, from the server itself; for `f9bcb79` (2026-10-14) also 43/43 from the PC through
-  Cloudflare; Pale Moon installed a Persona from the live site and Jihad read
-  the feed (the owner, 2026-10-12). Still the owner's: a colour Persona worn in Pale Moon and on the
-  TouchPad from the live site.)* *(2026-10-26: the smoke test 43/43 from the PC through Cloudflare against `f9bcb79`
-  (still the site's head; the certificate good until 2026-12-28); on the TouchPad, Dracula (a colour Persona) worn
-  from the live site by the emulated finger in Enyo — Wear, Jihad's confirm, OK, the toolbar in its colours — and
-  taken off again. Left: the same in Pale Moon on a desktop, the owner's.)* *(suite: `addon-site`, `persona-wear`; `docs/FINGER-TESTS.md`)*
+  2026-10-12; Pale Moon installed a Persona from the live site and Jihad read the feed (the owner,
+  2026-10-12). 2026-10-26: 43/43 from the PC through Cloudflare against `f9bcb79` (still the site's
+  head; the certificate good until 2026-12-28); on the TouchPad the emulated finger wore Dracula (a
+  colour Persona) from the live site in Enyo through Jihad's confirm and took it off. Left: a colour
+  Persona worn in Pale Moon on a desktop, the owner's.)* *(suite: `addon-site`, `persona-wear`; `docs/FINGER-TESTS.md`)*
 - [x] Every file reaches the server over magic-wormhole-rs, and no other wormhole is installed
   (the owner's rule, 2026-10-11). (Scratch: a site package sent to this PC, unpacked and put in place.)
 - [x] An update replaces only the site's code: it refuses, never deletes, anything in a copy other
   than the code and the two links into the server's data; it never puts in place a copy that differs
   from its archive or is incomplete; and the copy before it comes back with one command until the
-  next update. (Inspector, 2026-10-11. Scratch runs: a real datastore folder, a cut archive, a tar
-  ending between members, a changed file and a stray file in the old copy were each refused with
-  nothing changed; a rollback and its return worked; the links survived every case.) Sending the
+  next update. (Inspector, 2026-10-11; scratch runs: five bad
+  copies each refused with nothing changed, a rollback and its return, the links intact.) Sending the
   live copy again does not replace the way back, an edit made on the server in the copy before last
   stops the update rather than vanishing, and a run cut off part-way names the command that finishes
   it. (Inspector, 2026-10-12; scratch runs.) Only the site's `jihad` branch is sent.
@@ -261,20 +256,16 @@ LAN, before anything touches the owner's server.
   adds and runs twice harmlessly, so a rollback runs the copy before on the changed database (the
   update names the changes the copy going back lacks), and a run cut off part-way finishes on the
   next. Each change is recorded in the session that makes it. The local copy applies them the same
-  way. (Inspector, 2026-10-12. A throwaway MariaDB 10.11: recorded on a fresh database; dumped and
-  applied once on an existing one; nothing and no new dump on a re-run; a failing change not
-  recorded, applied when fixed; a bad file name refused before the database is touched; through
-  swap-in.sh: applied before the swap, a failing change leaving the live copy alone, a rollback
-  naming the change. The local copy restarted onto its existing database: 34/34.)
+  way. (Inspector, 2026-10-12; a throwaway MariaDB 10.11 and swap-in.sh
+  exercised each rule, and the local copy restarted onto its existing database: 34/34.)
 - [x] A failing certificate renewal reaches the owner by some way other than Let's Encrypt mail,
   which ended in June 2025, without the owner having to run anything: a daily check on the server
   (the served certificate has three weeks left; both nightly archives, the database's and the
   datastore's, were made in the last two days) puts what it
   finds on the panel's front page, which also says when the check itself stopped, and in the login
   message. The smoke test fails three weeks ahead too. (Inspector, 2026-10-12: the smoke test alone
-  reached nobody. Scratch: the check's well, unreachable, near-expiry, old-backup and first-backup
-  cases; the panel's front page on the local copy for each state, markup shown as text. Cron and the
-  login message on the server: code.)
+  reached nobody. Scratch: the check's five states and the panel's front
+  page for each, markup shown as text; cron and the login message on the server: code.)
 **Dependencies:** R3, R5, R6, R7, R8, R9
 
 ## Requirements — the browser's half
@@ -317,10 +308,11 @@ LAN, before anything touches the owner's server.
   site's is checked; those with a higher version are listed with an Update button (never an older
   or an equal one, nor an answer about another Persona); Update replaces it
   (worn stays worn) through the usual confirm. When no answer comes it says the site could not be
-  reached, not that everything is up to date. *(Device, against the local copy.)* *(Device, Enyo: the test Persona's picture replaced, md5 changed.)* *(Device, Enyo, 2026-10-12: installed
-  at 1.0.3, the site at 1.0.2 → "Your Personas are up to date.", at 1.0.4 → an Update card for 1.0.4.)*
+  reached, not that everything is up to date. *(Device, Enyo, against the local copy: the test Persona's picture
+  replaced, md5 changed; 2026-10-12: installed at 1.0.3, the site at 1.0.2 → "Your Personas are up to
+  date.", at 1.0.4 → an Update card for 1.0.4.)*
 - [x] about:addons' own "Check for Updates" asks the site's update service for extensions.
-  *(Device, against the local copy, with a test extension at two versions.)* *(Device, Enyo: 1.0 → 1.1.)*
+  *(Device, Enyo, against the local copy: a test extension 1.0 → 1.1.)*
 **Dependencies:** R5, R11
 
 ## Out of Scope

@@ -190,6 +190,7 @@ pref("dom.max_script_run_time", 60);
 pref("jihad.blocking.enabled", true);      // refuse loads from EasyList/EasyPrivacy hosts
 pref("jihad.blocking.cosmetic", true);     // hide the frames adverts leave (EasyList's generic rules)
 pref("jihad.blocking.log", false);         // a daemon-log line per refusal (the matched list entry); off: it churns the capped log
+pref("jihad.blocking.trace", false);    // a daemon-log line per load asked of the policy, taken or refused, with its type: what a page does while it looks idle; off: hundreds a minute
 pref("jihad.blocking.lastUpdate", 0);      // seconds; the lists are refreshed at most every 4 days
 pref("jihad.blocking.lastAttempt", 0);     // seconds; a failed attempt waits a day
 pref("jihad.blocking.versions", "");       // "<easylist version>/<easyprivacy version>" in use
@@ -231,6 +232,8 @@ pref("jihad.ua.sites", "youtube.com=Mozilla/5.0 (Android 14; Mobile; rv:128.0) G
 // attributes, Intl.ListFormat, reportError, checkVisibility, AbortSignal.any …), defined on each
 // page before its scripts run, only where the engine has none. ---
 pref("jihad.compat.enabled", true);
+// cavekit-device-headroom.md R4: YouTube offered only H.264, at most 480 rows and 30 fps (components/jihadWebCompat.js)
+pref("jihad.youtube.lite", true);
 pref("jihad.compat.trace", false);         // a diagnosis mode: logs which engine call threw an XPCOM result to the page, with the page's stack
 
 // --- CSS :has() (the owner, 2026-10-16: "enable :has() by default in all 3 variants") — the engine

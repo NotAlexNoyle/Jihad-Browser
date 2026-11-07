@@ -43,6 +43,9 @@ def page(tid, q, host):
 class H(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=CACHE, **k)
     def log_message(self, *a): pass
+    def log_request(self, code="-", size="-"):
+        # a movie asking for a file the cache does not hold (its next scene, its level data) is a limit of the corpus: logged
+        if str(code)[:1] in "45": sys.stderr.write("MISS %s %s\n" % (code, self.path)); sys.stderr.flush()
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*"); super().end_headers()
     def do_GET(self):

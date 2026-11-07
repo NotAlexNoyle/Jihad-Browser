@@ -24,9 +24,7 @@ What the repositories are, read on 2026-10-26 (GitHub API):
 | `Atlas/atlas-wpe-backend` | `Herrie82/atlas-wpe-backend` | none (its own) | 2026-08-24 |
 
 The Atlas work is the upstream: Herrie82's repositories and webOS-ports' app. The forks' parents (`woce`,
-`isis-project`) are the 2013 code Atlas started from; "pulling from upstream" there would go backwards. All four
-checkouts were at their remote's default-branch head on 2026-10-26 (`git fetch`, 0 commits behind), but the app's
-remote URL is the old name and no checkout fetches branches other than its default one or records what was last read.
+`isis-project`) are the 2013 code Atlas started from; "pulling from upstream" there would go backwards.
 
 Reference: the session-start rule "fast-forward the reference repos first" (memory `update-workspace-repos-first`).
 
@@ -66,4 +64,5 @@ Reference: the session-start rule "fast-forward the reference repos first" (memo
 - cavekit-engine-update.md — the same "read before you take it" discipline for the engine
 
 ## Changelog
+- 2026-11-07: a Scope sentence restating R1-R3 moved to `archive/atlas-references-history.md`.
 - 2026-10-26: created from the owner's request; the upstream map read from the GitHub API.

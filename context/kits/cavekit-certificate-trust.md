@@ -15,28 +15,16 @@ the webOS platform store (`/etc/ssl/certs/trustedcerts`, `/var/ssl`: HP's 2011 r
 or the user added — read by `components/jihadCerts.js` under the Security setting, cavekit-proxies-certs.md R4),
 and the user's own exceptions (Trust Once / Trust Always from the SSL dialog, cavekit-proxies-certs.md R6).
 
-**What was found on 2026-10-25** (the measurements are the baseline every criterion below is judged against):
-- The engine is UXP `RB_20261006` (NSS 3.90.14 UXP) whose `certdata.txt` was last rolled upstream on 2025-06-23:
-  177 certificates, 150 trusted for server authentication.
-- Mozilla central today (NSS 3.13x): 169 certificates, 118 trusted for server authentication. UXP's `master` and
-  `release` branches carry that file byte for byte — so Pale Moon and Basilisk, built from `release`, ship today's
-  Mozilla list, and Jihad ships the June 2025 one.
-- Against Mozilla's removed-CA report (CCADB, by SHA-256): **24 of Jihad's roots have been removed** — the four
-  AffirmTrust roots and Entrust Root Certification Authority (Entrust, after its 2024 distrust), GLOBALTRUST 2020,
-  the four CommScope roots, Secure Global CA, SecureTrust CA, XRamp Global, the three Trustwave Global roots,
-  TeliaSonera Root CA v1, certSIGN ROOT CA, ePKI Root, SecureSign Root CA12, FIRMAPROFESIONAL CA ROOT-A WEB and
-  the three emSign roots. Already absent (removed long ago): DigiNotar (an explicit distrust record remains),
-  WoSign/StartCom, Symantec/VeriSign/GeoTrust/thawte, CNNIC, TURKTRUST, Camerfirma, TrustCor, e-Tugra, Certinomis.
-- **19 current Mozilla roots are missing**, ten of them for TLS: OISTE Server Root RSA/ECC G1, SECOM TLS RSA/ECC
-  2024, SwissSign RSA TLS Root CA 2022-1, Telia RSA/EC TLS Root CA v3, TrustAsia TLS RSA/ECC, e-Szigno TLS 2023.
-  On the bench five of these are trusted only through the webOS store (a community update put them there) and only
-  while the Security setting is on.
-- 17 roots Jihad still trusts for TLS that Mozilla now lists as `MUST_VERIFY_TRUST` for server authentication
-  (the old-root sunsets and Entrust's G2/EC1: Comodo AAA, COMODO CA, DigiCert Assured ID / Global Root CA / High
-  Assurance EV, Entrust G2 / EC1 / Premium 2048, GlobalSign Root CA, Go Daddy and Starfield Class 2, GTS Root R2,
-  QuoVadis 2 / 3, SwissSign Gold, Atos 2011, Certigna).
+**What was found on 2026-10-25** (the baseline the criteria are judged against; the roots by name and SHA-256 are
+in `docs/rounds/certs-2026-10-25/audit-before.txt`):
+- The engine (UXP `RB_20261006`, NSS 3.90.14) shipped the `certdata.txt` of 2025-06-23: 177 certificates, 150
+  trusted for server authentication. UXP `master` and `release`, which Pale Moon and Basilisk build from, carry
+  Mozilla central's current file byte for byte: 169 certificates, 118 trusted for server authentication.
+- 24 of Jihad's roots were on Mozilla's removed-CA report (CCADB, by SHA-256); 19 current Mozilla roots were
+  missing, ten of them TLS roots; 17 roots Jihad trusted for TLS are `MUST_VERIFY_TRUST` for server
+  authentication in Mozilla's list (the old-root sunsets).
 - UXP has no HSTS preload list and no static key pins (Pale Moon dropped both); nothing of that kind ships.
-- The platform import (R4 of cavekit-proxies-certs.md) filters by its own SHA-256 lists: HP's 211 roots and
+- The platform import (cavekit-proxies-certs.md R4) filters by its own SHA-256 lists: HP's 211 roots and
   Mozilla's removed report of 2026-10-13 (103 rows; today's has 106).
 
 ## Scope
@@ -103,9 +91,8 @@ that UXP has no HSTS preload, no static pins and no enterprise-roots import.)*
   `sha256` and `tls-v1-2` load; `rc4`, `dh480`, `null` and `3des` are refused with the engine's alert
   (no cipher overlap / weak ephemeral DH). `revoked` (Let's Encrypt, CRL-only since 2025, no OCSP responder)
   LOADS: the engine has no CRL fetching and no CRLite, as Pale Moon has not — recorded, out of scope.
-  Revocation with an OCSP responder IS enforced: ssl.com's and DigiCert's revoked demo hosts are refused
-  (`SEC_ERROR_REVOKED_CERTIFICATE` over TLS 1.2; over TLS 1.3 the same refusal ends as
-  `SSL_ERROR_RX_MALFORMED_SERVER_HELLO` — PSM's version-intolerance retry at TLS 1.2 tripping the server's downgrade sentinel; engine patch 0061 stops retrying on a certificate error, T-534; verified 2026-10-25 on the packaged build: both hosts now say `SEC_ERROR_REVOKED_CERTIFICATE`). Recorded with the daemon's
+  Revocation with an OCSP responder IS enforced: ssl.com's and DigiCert's revoked demo hosts are refused with
+  `SEC_ERROR_REVOKED_CERTIFICATE`, over TLS 1.3 too since engine patch 0061 (T-534, packaged build, 2026-10-25). Recorded with the daemon's
   `loaderr` lines: `docs/rounds/certs-2026-10-25/device-checks.txt` (2026-10-25).
 - [x] A site under each of the ten newly added TLS roots loads with the platform setting OFF (the CCADB's
   test sites: OISTE ×2, SECOM 2024 ×2, SwissSign 2022, Telia v3 ×2, TrustAsia ×2, e-Szigno 2023); no live

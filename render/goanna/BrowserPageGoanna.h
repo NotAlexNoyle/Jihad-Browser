@@ -248,6 +248,10 @@ public:
   void pageForward();
   void pageReload();
   void pageStop();
+  // cavekit-device-headroom.md R1: the engine host's last step under a memory floor or a swap storm. The most
+  // recently navigated live page is stopped and replaced by about:stopped, which names the reason and links back.
+  static bool ShedNewestPage();
+  void shedForMemory();
   void clearHistory();                        // YAP: clearHistory
   void getHistoryState(bool* back, bool* fwd); // YAP: getHistoryState (query)
   // Register a URL redirect rule (YAP: addUrlRedirect). A matching URL is handed
@@ -764,6 +768,8 @@ private:
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   int64_t            mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
+  int64_t            mLastNavMs = 0;    // the latest load start this page has had (kept when idle): the shedding's order
+  bool               mShedForMemory = false;   // this page is about:stopped by the shedding (a navigation clears it)
   std::string        mThemePreviewDoc;         // the page showing a theme preview (no #fragment), "" = none
   bool               mTitleDirty = false;      // the page changed its title since the last send
   int64_t            mLastTitleEmitMs = 0;     // when a title last went to the card

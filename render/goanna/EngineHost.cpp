@@ -58,6 +58,7 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
 #include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB, profile dir)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
+#include <signal.h>                  // kill (the memory shedding's players)
 #include <malloc.h>                  // malloc_trim (what glibc's arena still holds: dlopen's own, little else)
 
 // jemalloc (T-493, 2026-10-16): the allocator is linked INTO this program (MOZ_GLUE_IN_PROGRAM —
@@ -1383,6 +1384,64 @@ static long jihadAvailableKb() {
   return freeKb + buffersKb + reclaimable;
 }
 
+// Pages swapped in since boot (/proc/vmstat pswpin, 4 kB each), or -1.
+static long jihadSwapInPages() {
+  FILE* f = fopen("/proc/vmstat", "r");
+  if (!f) return -1;
+  char line[96]; long v = -1;
+  while (fgets(line, sizeof(line), f)) if (sscanf(line, "pswpin %ld", &v) == 1) break;
+  fclose(f);
+  return v;
+}
+
+static long jihadRssKb(const char* statusPath) {
+  FILE* f = fopen(statusPath, "r");
+  if (!f) return 0;
+  char line[128]; long v = 0;
+  while (fgets(line, sizeof(line), f)) if (sscanf(line, "VmRSS: %ld", &v) == 1) break;
+  fclose(f);
+  return v;
+}
+
+// This daemon's Flash players: its children whose command line names plugin-container. With kill set they are
+// ended (the engine sees the channel close and shows its crashed-plugin box). Returns their resident kB, or with
+// kill the number ended.
+static long jihadOwnPlayers(bool kill_) {
+  DIR* d = opendir("/proc");
+  if (!d) return 0;
+  const pid_t self = getpid(); long total = 0;
+  while (struct dirent* e = readdir(d)) {
+    if (e->d_name[0] < '1' || e->d_name[0] > '9') continue;
+    char path[64]; snprintf(path, sizeof(path), "/proc/%s/stat", e->d_name);
+    FILE* f = fopen(path, "r");
+    if (!f) continue;
+    char buf[512]; size_t n = fread(buf, 1, sizeof(buf) - 1, f); fclose(f); buf[n] = 0;
+    const char* rp = strrchr(buf, ')');   // the command name may hold spaces and parentheses: read past the last ')'
+    int ppid = 0; char st = 0;
+    if (!rp || sscanf(rp + 1, " %c %d", &st, &ppid) != 2 || ppid != self) continue;
+    snprintf(path, sizeof(path), "/proc/%s/cmdline", e->d_name);
+    f = fopen(path, "r");
+    if (!f) continue;
+    n = fread(buf, 1, sizeof(buf) - 1, f); fclose(f); buf[n] = 0;
+    for (size_t i = 0; i < n; ++i) if (!buf[i]) buf[i] = ' ';
+    if (!strstr(buf, "plugin-container")) continue;
+    if (kill_) { if (kill((pid_t)atol(e->d_name), SIGKILL) == 0) ++total; }
+    else { snprintf(path, sizeof(path), "/proc/%s/status", e->d_name); total += jihadRssKb(path); }
+  }
+  closedir(d);
+  return total;
+}
+
+static bool (*sJihadShedPageHook)() = nullptr;
+void EngineHost::SetShedPageHook(bool (*hook)()) { sJihadShedPageHook = hook; }
+
+static long jihadEnvKb(const char* name, long dflt, long lo, long hi) {
+  const char* e = getenv(name);
+  if (!e) return dflt;
+  long v = atol(e);
+  return (v >= lo && v <= hi) ? v : dflt;
+}
+
 void
 EngineHost::CheckMemoryPressure()
 {
@@ -1411,15 +1470,75 @@ EngineHost::CheckMemoryPressure()
     if (e) { long v = atol(e); if (v >= 8192 && v <= 1048576) lowKb = v; }
   }
   long avail = jihadAvailableKb();
-  if (avail < 0 || avail >= lowKb) return;
+
+  // Past the flush (cavekit-device-headroom.md R1; EngineHost.h): the floor, or swapping in without pause.
+  static const long floorKb = jihadEnvKb("JIHAD_MEM_FLOOR_KB", 24576, 4096, 1048576);
+  // Measured with render/goanna/test/jihad-memhog.html (2026-11-07, Enyo, 700 MB at 10 MB/s): the kernel held
+  // "available" at 45-55 MB by swapping, so the floor alone never fires; swap-in ran 200-4300 pages per 5 s, on and
+  // off, so 640 twice running came 6 s late. A page load swaps in for one poll; the shedding wants two running.
+  static const long swapPages = jihadEnvKb("JIHAD_MEM_SWAPIN_PAGES", 256, 16, 1000000);
+  // Only the main consumer sheds: a 245 MB YouTube page must not be stopped because another app made the system
+  // swap. The larger of 128 MB and 35 % of the RAM (330 MB on the TouchPad), this daemon and its players together.
+  static long shareKb = -1, budgetKb = -1;
+  if (shareKb < 0) {
+    long totalKb = 0; FILE* mf = fopen("/proc/meminfo", "r");
+    if (mf) { char ln[96]; while (fgets(ln, sizeof(ln), mf)) if (sscanf(ln, "MemTotal: %ld", &totalKb) == 1) break; fclose(mf); }
+    long dflt = totalKb * 35 / 100; if (dflt < 131072) dflt = 131072;
+    shareKb = jihadEnvKb("JIHAD_MEM_SHARE_KB", dflt, 0, 4194304);
+    // The budget (Atlas's lesson, above): past half the RAM with under twice the flush threshold left, waiting for the
+    // swap to show it costs the system 20 s stalls (the 2026-11-07 test: the flushes of a 700 MB heap held the
+    // application manager up to 22 s before the swap rule fired). JIHAD_MEM_BUDGET_KB.
+    budgetKb = jihadEnvKb("JIHAD_MEM_BUDGET_KB", totalKb / 2 > 131072 ? totalKb / 2 : 131072, 0, 4194304);
+    // and the kernel's first choice when memory does run out, before the system's own processes (players inherit it)
+    if (FILE* oa = fopen("/proc/self/oom_adj", "w")) { fputs("5", oa); fclose(oa); }
+    fprintf(stderr, "[jihad-bs] memory guard: flush under %ld kB, shed past %ld kB of this daemon and its players when under %ld kB, "
+            "swapping in over %ld pages per 5 s twice running, or past %ld kB with under %ld kB left; oom_adj 5\n",
+            lowKb, shareKb, floorKb, swapPages, budgetKb, 2 * lowKb);
+  }
+  long swapIn = jihadSwapInPages(), dIn = 0;
+  if (swapIn >= 0 && mSwapIn0 >= 0 && swapIn >= mSwapIn0) dIn = swapIn - mSwapIn0;
+  mSwapIn0 = swapIn;
+  mSwapHot = dIn > swapPages ? mSwapHot + 1 : 0;
+  bool critical = (avail >= 0 && avail < floorKb) || mSwapHot >= 2;
+  if (!critical && avail >= 0 && avail < 2 * lowKb && jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
+  if (!critical) { mShedStep = 0; mShedSpent = false; }
+  // the flush has had its chance (at least 5 s ago, below), and the last step 10 s
+  else if (mMemNotifyMs && now - mMemNotifyMs >= 5000 && now - mShedMs >= 10000) {
+    const long own = jihadRssKb("/proc/self/status"), players = jihadOwnPlayers(false);
+    if (own + players >= shareKb && !mShedSpent) {
+      mShedMs = now;
+      fprintf(stderr, "[jihad-bs] memory shed: %ld kB available (floor %ld), %ld pages swapped in over the last 5 s (%d polls running); "
+              "this daemon %ld kB, its players %ld kB\n", avail, floorKb, dIn, mSwapHot, own, players);
+      long ended = (mShedStep == 0 && players > 0) ? jihadOwnPlayers(true) : 0;
+      if (ended > 0) fprintf(stderr, "[jihad-bs] memory shed: ended %ld Flash player(s)\n", ended);
+      else if (sJihadShedPageHook && sJihadShedPageHook()) fprintf(stderr, "[jihad-bs] memory shed: a page stopped\n");
+      else {
+        // nothing of this daemon's left to stop: another collection would only stall the system again (11 s of the
+        // application manager's, 2026-11-07); the stopped page's own collections are the component's (below)
+        fprintf(stderr, "[jihad-bs] memory shed: nothing left of this daemon's to stop\n");
+        mShedSpent = true;
+        jihadPurgeHeap("memory shed");
+        return;
+      }
+      mShedStep = 1;
+      mMemNotifyMs = now;   // and what was let go is collected now
+      nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+      if (obs) obs->NotifyObservers(nullptr, "memory-pressure", u"low-memory");
+      // the full collection (cycle collection, GC, again) that frees a stopped page: components/jihadContentBlocker.js
+      if (obs) obs->NotifyObservers(nullptr, "jihad-memory-shed", nullptr);
+      jihadPurgeHeap("memory shed");
+      return;
+    }
+  }
+  if (avail < 0 || (avail >= lowKb && !critical)) return;
 
   // Throttle the reaction: repeated pressure notifications thrash the GC (the
   // memchute watcher throttled for the same reason; Atlas's aggressive-purge
   // regression was over-frequent pressure handling).
   if (now - mMemNotifyMs < 30000) return;
   mMemNotifyMs = now;
-  fprintf(stderr, "[jihad-bs] memory pressure: %ld kB available (< %ld kB) — flushing engine caches\n",
-          avail, lowKb);
+  fprintf(stderr, "[jihad-bs] memory pressure: %ld kB available (flush under %ld kB%s), %ld pages swapped in over 5 s — flushing engine caches\n",
+          avail, lowKb, avail < lowKb ? "" : "; the guard's budget or swap rule", dIn);
   nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
   if (obs) obs->NotifyObservers(nullptr, "memory-pressure", u"low-memory");
   jihadPurgeHeap("memory pressure");   // return freed heap pages to the kernel (memchute pattern)

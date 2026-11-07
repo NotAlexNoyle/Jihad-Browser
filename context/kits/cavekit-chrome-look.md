@@ -1,6 +1,6 @@
 ---
 created: "2026-10-12"
-last_edited: "2026-10-13"
+last_edited: "2026-11-07"
 complexity: medium
 ---
 
@@ -63,26 +63,8 @@ site's pale grey look; beside Jihad's dark pages it clashed — the owner, 2026-
   "extension settings dont appear correctly (cut off)".)
 - [x] A list longer than the card (Extensions, Plugins, search results) can be scrolled: the engine
   gives a XUL page no scroller and the card scrolls only pages, so the page's root grows to the
-  list's whole length and the card pans it. *(Device: the daemon reports the taller page; the pan
-  needs a finger and a long list — the owner's test.)* *(2026-10-25, T-527, Enyo by finger with twelve
-  test extensions sideloaded: before, the list did NOT pan — the root's min-height never reached the
-  reported content size (a XUL root is laid out at the window's size; the card was told 980x1202, the
-  window), and on the GPU path the card's scroll could not move a page with no root scroll frame anyway
-  (every frame showed its top). Now jihadPersonas.js puts the list's whole length on the root
-  (`jihad-content-height`, measured from its items, not the window), the daemon makes the window that tall
-  (980x1540 for thirteen rows) and moves a XUL page by the compositor's world offset in both lanes; a page
-  that gets shorter (an add-on's details) has the card's scroll clamped. Two drags reach Pad 12 at the
-  card's bottom, a flick returns to the top, a tap on Pad 12's More opens its details from their top.
-  Mochi and Mojo with the next packages.)* *(2026-10-26, the packages installed in all three: in Mochi and
-  Mojo the same twelve pads, one finger drag from Palefill and Pad 01 to Pad 12 at the card's bottom. Still
-  `[~]`: the search results list not tried, and an add-on's details longer than the card do not pan (their
-  length is not reported; T-527's review #13).)* *(2026-10-26, later: an add-on's details now report their length
-  (what overflows them at the card's height, kept while the same view is shown): Palefill's preferences, 1233 rows
-  at the 980 layout width, pan to their Disable / Remove row by finger in Enyo. Left: the search results list.)*
-  *(2026-10-26, last: the search results too — in Enyo with the twelve pads, "Jihad List Pad" searched (typed into the
-  manager's search box, its magnifier tapped), My Add-ons: twelve results, two drags reach Pad 12. Their rows read
-  "Remove" where the owner asked for "Uninstall" on every add-on (2026-10-08): fixed (the search list relabelled
-  as its results arrive; `search-list` added to JihadEngine.jsm's surface table). Ticked.)* *(suite: `addons-list-pan`; `docs/FINGER-TESTS.md`)*
+  list's whole length and the card pans it. *(T-527, by finger, Enyo 2026-10-25 with twelve test extensions sideloaded, Mochi and Mojo 2026-10-26: drags from the top reach Pad 12 at the card's bottom and a flick returns. A XUL root is laid out at the window's size, so `jihadPersonas.js` puts the list's whole length on the root (`jihad-content-height`, measured from its items), the daemon makes the window that tall (980x1540 for thirteen rows) and moves a XUL page by the compositor's world offset in both lanes; a page that gets shorter has the card's scroll clamped. An add-on's details report their length too (Palefill's preferences, 1233 rows, pan to Disable / Remove in Enyo). Search results (Enyo, "Jihad List Pad"): twelve results, two drags reach Pad 12; their rows now read "Uninstall" as the owner asked 2026-10-08 (`search-list` added to JihadEngine.jsm's surface table).)*
+  *(suite: `addons-list-pan`; `docs/FINGER-TESTS.md`)*
 - [x] The search results' length follows the My Add-ons / Available Add-ons filter *(added 2026-10-26 from T-527's second review: the filter shows other rows without a view change; the search list's filter attributes are observed — by finger in Enyo, My Add-ons 1540 rows, Available 1202, My 1540 again)*
 **Dependencies:** cavekit-addons-extensions.md R2, cavekit-personas-ui.md R1
 
@@ -151,5 +133,6 @@ keyboard is closed in about:addons the cursor in the search panel is still there
 - cavekit-preferences-ui.md R8, cavekit-personas-ui.md R8, cavekit-addons-extensions.md R2.
 
 ## Changelog
+- 2026-11-07: sweep; long evidence notes shortened, history moved verbatim to `archive/chrome-look-history.md`.
 - 2026-10-12: Created from the owner's asks (per-shell buttons) and the server agent's work order
   (about:addons in the webOS style, about:personas' scrolling).

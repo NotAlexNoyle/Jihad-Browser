@@ -12,12 +12,9 @@ with it more modular and maintainable by humans."** This kit is that groundwork.
 update the engine (standing rule: no UXP update from upstream unless asked).
 
 The engine is UXP (Pale Moon's platform) with our own branch of changes, embedded by a headless
-daemon. An inventory taken the same day found: the patch queue had drifted from the engine
-branch (eight commits and part of the squashed series missing — a desktop build lacked the Flash
-child's self-drive switch); the engine docs described an older setup; the engine's own exports
-were declared inline in two files, eleven of them weak (a dropped one fails silently); pins and
-version strings lived in six places; and nothing could tell, before building, what a candidate
-engine would break. The engine is 76 upstream commits behind.
+daemon. R1-R4 answer what an inventory found on 2026-10-08: a patch queue drifted from the engine
+branch, stale engine docs, the engine's exports declared inline (eleven of them weak), pins and
+version strings in six places, and no way to tell before building what a candidate engine breaks.
 
 Reference: `docs/ENGINE.md` (the guide), `docs/ENGINE-SOURCE.md` (the MPL record),
 `build/engine/` (the tools), `render/goanna/EngineCompat.h`.
@@ -145,16 +142,13 @@ items, `:has()` (off in releases, a switch in Settings), typing speed, fewer lea
 - [x] Device, all three variants: the daemon starts with all optional exports, pages load and paint,
   an https page, Palefill enabled, a Persona painted, about:addons, about:config and about:settings
   open, a modern-CSS test page renders (`adoptedStyleSheets`, `revert-layer`), and `:has()` works
-  when its switch is on. (The finger checks go to docs/FINGER-TESTS.md.) *(2026-10-12, a full
-  variant push to each: "11 of 11 optional jihad_* exports present" in all three. Enyo: the feature
-  page (render/goanna/test/modern-web.html) — before: no adoptedStyleSheets, replaceSync, URL.parse,
-  revert-layer, :has; after: all yes, :has with its switch on (then off again); howsmyssl.com TLS 1.3
-  "Good"; Space Fantasy worn and taken off; Palefill 1.30 enabled; about:config; Flash anim.swf at
-  23–25 fps through the Thumb-2 plugin-container. Mochi: the feature page. Mojo: Wikipedia.)*
-  *(2026-10-13, the rest (inspector round 22): Mochi and Mojo — howsmyssl.com TLS 1.3 "Good",
-  Palefill 1.30 enabled in about:addons, about:config, about:settings, a Persona worn (Aurora Silk,
-  Lime Fizz: the toolbar painted) and taken off; Enyo — about:addons (Palefill's preferences) and
-  about:settings. All three on daemon `7b02e00b`.)*
+  when its switch is on. (The finger checks go to docs/FINGER-TESTS.md.) *(2026-10-12, the rest on
+  2026-10-13 (inspector round 22); full variant pushes, all three on daemon `7b02e00b`: "11 of 11
+  optional jihad_* exports present" in each; howsmyssl.com TLS 1.3 "Good", Palefill 1.30 enabled in
+  about:addons, about:config, about:settings and a Persona worn and taken off in all three; the
+  feature page (`render/goanna/test/modern-web.html`: adoptedStyleSheets, replaceSync, URL.parse,
+  revert-layer, `:has` with its switch on) in Enyo and Mochi, Wikipedia in Mojo; Flash anim.swf at
+  23–25 fps through the Thumb-2 plugin-container.)*
 - [x] The checker's baseline re-written after the device checks (no signature changed).
 **Dependencies:** R7
 
@@ -162,6 +156,8 @@ items, `:has()` (off in releases, a switch in Settings), typing speed, fewer lea
 - (Until 2026-10-12: updating the engine itself. The owner started that on 2026-10-12 — R7, R8.)
 
 ## Changelog
+- 2026-11-07: Scope and R8's device evidence compressed; the removed text is verbatim in
+  `archive/engine-update-history.md`.
 - 2026-10-13: Round 22 (inspector): R7's safety criterion; R8's device evidence completed; the
   checker covers `loadURI`, `ResizeReflowIgnoreOverride` and the ICU file from the pins.
 - 2026-10-08: Created with the groundwork done the same day (R1, R2, R3, R4, R5 largely `[x]`);

@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-06"
+last_edited: "2026-11-07"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -31,12 +31,11 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 **Description:** The UI talks to the renderer exclusively through the same calls upstream isis-browser used.
 **Acceptance Criteria:**
 - [x] The set of `callBrowserAdapter(...)` method names used by the UI equals the upstream isis-browser set (no additions, removals, or renames).
-- [x] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream. *(**AMENDED 2026-10-01 — the criterion as worded has been deliberately untrue since 2026-08-04, and the kit never said so.** `clearCookies` / `clearCache` go to this variant's OWN service, `palm://net.riverstonerelay.jihadBrowser/…` (`app/source/Browser.js`), because the upstream URI is the STOCK daemon and calling it clears the wrong browser — cavekit-ipc-contract.md R4 owns that decision. The card also subscribes to that service's `notifications` method for toasts (cavekit-gre-widgets.md R5). What this criterion now requires: the METHOD names and payloads are upstream's; only the service NAME differs, and it is this variant's own.)*
-- [x] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`. *(**AMENDED 2026-10-01:** a grep is no longer literally clean — the start page prints an engine line, "Enyo UI ★ Goanna/6.9 UXP/…" (`app/source/StartPage.js`). That is user-facing branding text, not an API identifier, and the Mojo kit has carried the same carve-out since it was written (cavekit-mojo-ui.md R3). The criterion is about the card not depending on the engine; it does not.)*
+- [x] `PalmServiceBridge` calls target the same `palm://com.palm.browserServer/*` URIs as upstream. *(Amended 2026-10-01: `clearCookies`/`clearCache` go to this variant's own service, `palm://net.riverstonerelay.jihadBrowser/…` (`app/source/Browser.js`), because the upstream URI is the stock daemon (cavekit-ipc-contract.md R4); the card also subscribes to that service's `notifications` method for toasts (cavekit-gre-widgets.md R5). Method names and payloads are upstream's; only the service name differs, and it is this variant's own.)*
+- [x] No engine-specific (Goanna/UXP) identifiers appear anywhere in `app/`. *(Amended 2026-10-01: the start page prints "Enyo UI ★ Goanna/6.9 UXP/…" (`app/source/StartPage.js`), user-facing branding, not an API identifier, as in cavekit-mojo-ui.md R3. The card does not depend on the engine.)*
 **Dependencies:** cavekit-ipc-contract.md (R1, R5)
 
 ### R3: Apache-2.0 provenance preserved on forked UI files
-*(2026-10-25, T-540: a dialog's reply wait ends when the card's socket hangs up (the card closed with the dialog up) or a send to it failed — it used to hold the main thread for the whole 60 s deadline, and no new card could connect meanwhile.)*
 **Description:** Forking the UI does not alter its licensing.
 **Acceptance Criteria:**
 - [x] Every forked source file retains its original HP Apache-2.0 header unmodified.
@@ -49,7 +48,7 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] App launches to its start page. *(Device-verified 2026-07-20 against the Jihad Goanna daemon — `../impl/device-test-2026-07-19.md` "Session 4 (2026-07-20) — kit-criteria verification sweep (device connected)": "app launches to start page … (daemon-verified across the session)".)*
 - [x] Entering a URL in the address bar issues an `openUrl` through the adapter and the page is requested. *(Same source: "address→openUrl loads".)*
 - [x] Back/forward/reload/stop controls invoke the corresponding adapter calls. *(Same source: "back/forward/reload navigate (daemon-verified across the session)". Stop was not called out separately in that record; it shares the frozen `callBrowserAdapter` set verified under R2.)*
-- [x] Find-in-page issues `findInPage`, and the engine actually searches. *(2026-08-05 — FIXED, and the diagnosis this criterion carried for two weeks was WRONG. It said `FindNext` "dereferences a frame-selection controller the offscreen browser does not set up", and that the fix needed an offscreen-safe selection controller. The selection machinery was never the problem. `nsWebBrowserFind::SearchInFrame` performs a same-origin check through `nsContentUtils::SubjectPrincipal()`, whose first act is `if (!GetCurrentJSContext()) MOZ_CRASH("Accessing the Subject Principal without an AutoJSAPI on the stack is forbidden")`. An EMBEDDER calls `FindNext` from C++ with no script on the stack — no JSContext — so the engine's own deliberate abort fired, and MOZ_CRASH presents as SIGSEGV at address 0, which is precisely the fault that had been measured and misattributed. Found by instrumenting the engine and watching where execution stopped: between "before SearchInFrame" and any selection code. Patch 0015 consults the subject principal only when a JSContext exists; with none the caller is native embedding code, already inside libxul's own process holding that docShell's finder, so the check has no caller to check. Desktop result: `find 'JIHADFINDME' -> 1` — a real match, no crash. The UI half was already correct, so the whole path now works. **DEVICE-VERIFIED the same day**, after the ARM libxul rebuild: on a page containing the token, `find 'JIHADFINDME' -> 1`, and on a token that is absent, `find 'NOTPRESENTXYZ' -> 0` — a positive and a negative, with the daemon alive and no fault report either side. The daemon-side `Find` no longer returns a hardcoded false.)* *(2026-10-01 (third session) — the hit was INVISIBLE on screen in all three shells, fixed by pref. The engine found the word (`find 'FINDTOKENQ7' -> 1`, `-> 0` for an absent one) and drew it as a solid white box with the text gone: with no native theme the stand-in palette answers white for every text-selection colour, so selected text was white on white. `packaging/prefs/jihad-platform-prefs.js` now sets `ui.textSelectBackground` / `Foreground` and the attention and highlight colours; screenshot after: the hit is readable.)*
+- [x] Find-in-page issues `findInPage`, and the engine actually searches. *(2026-08-05: `nsWebBrowserFind::SearchInFrame` asked `nsContentUtils::SubjectPrincipal()`, which `MOZ_CRASH`es with no JSContext on the stack, as when an embedder calls `FindNext` from C++; patch 0015 consults the subject principal only when a JSContext exists. Device, after the ARM libxul rebuild: `find 'JIHADFINDME' -> 1`, `find 'NOTPRESENTXYZ' -> 0`, daemon alive. 2026-10-01: the hit was drawn white on white in all three shells (no native theme); `packaging/prefs/jihad-platform-prefs.js` sets `ui.textSelectBackground`/`Foreground` and the attention and highlight colours, and the hit is readable.)*
 **Dependencies:** cavekit-navigation-events.md, cavekit-ipc-contract.md
 
 ### R5: Engine `<select>` dropdowns are presented card-side
@@ -72,7 +71,7 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] They are stored in the card's own `localStorage` (`app/source/ChromePrefs.js`) — no new db8 kind, and nothing added to the frozen `callBrowserAdapter` set that R2 holds byte-identical.
 - [x] The redraw is dispatched **before** the shell's `applyPreference()`, which switches to the browser view as a side effect and would otherwise yank the user out of Preferences mid-edit.
 - [x] The editor keeps its own copy UNCLEANED so a half-finished row (a name typed, no address yet) does not vanish under the cursor; only what reaches the start page is cleaned.
-- [x] The card's own preferences panel stays REACHABLE while `about:preferences` cannot yet replace it. *(Added 2026-08-06 after a self-inflicted regression: repointing the single app-menu "Preferences" entry at the engine page left the native panel with no route in, removing the default-search selector, the JavaScript/Flash toggles and all four clear-data actions from the product — and a block delete took five preference handlers with it. The menu now carries "Settings" (the shared page) and "Browser Settings" (this card's panel). The panel goes away when R5 absorbs what only it can do, not before.)*
+- [x] The card's own preferences panel stays REACHABLE while `about:preferences` cannot yet replace it. *(Added 2026-08-06, after repointing the single app-menu entry at the engine page left the native panel with no route in. Since 2026-10-05 the panel is gone: `about:settings` took over what only it did (cavekit-preferences-ui.md R5).)*
 **Dependencies:** cavekit-preferences-ui.md (R5 — where this panel is headed)
 
 ## Out of Scope
@@ -106,28 +105,19 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] Enyo's existing padlock is the button; the certificate view it opens is the one the SSL warning uses, with fingerprint, connection and trust rows added. Mochi and Mojo, which had no padlock, get one in the address field (Mojo's drawn as the field's background, tapped at its left edge). *(Enyo + Mochi device-verified; Mojo drawn, tap untested.)*
 - [x] No padlock over a failed load: what is on screen is an error page, not that site. *(Enyo, device, 2026-10-05.)*
 - [x] With several cards open the answer is for the card that asked: the adapter's `pageFocused` — an empty stub until now, on which thumbnails and printing already relied — sends the daemon the adapter's existing message, and the daemon clears the focus when a card gives it up. *(Device, 2026-10-05: a card's own call seen reaching the daemon right before its request.)*
-- [x] Mojo: the padlock tap; Mochi: the padlock after a failed load. *(Device, 2026-10-06, by the shells' own handlers driven from the test hooks: Mochi over `https://no-such-host.invalid/` — padlock showing before the engine's alert is answered, gone after it, and a tap then says "No certificate information is available for this page."; Mojo over Wikipedia — `handleAddressTap` at x=12 on the field brings the Certificate alert with the issued-to/by, validity, serial, SHA-256 fingerprint and connection lines, and `pageFocused` reaches the daemon ("focus: Luna requests are now answered for the card that just said it has the focus"). Before this day Mojo's `pageFocused` and `cut` went nowhere: the WebView widget wraps neither, and the shell only called wrapped methods — see cavekit-mojo-ui.md R3.)* A finger on the glyph itself is still the owner's. [human at the device] — DEFERRED by the owner 2026-10-08 ("Defer additional finger tests for later")
+- [x] Mojo: the padlock tap; Mochi: the padlock after a failed load. *(Device 2026-10-06, the shells' own handlers from the test hooks: Mochi over `https://no-such-host.invalid/`, the padlock shows before the engine's alert is answered and is gone after it, and a tap says "No certificate information is available for this page."; Mojo over Wikipedia, `handleAddressTap` at x=12 brings the Certificate alert, and `pageFocused` reaches the daemon. Mojo's `pageFocused` and `cut` had gone nowhere before (cavekit-mojo-ui.md R3).)* A finger on the glyph itself is still the owner's. [human at the device] — DEFERRED by the owner 2026-10-08 ("Defer additional finger tests for later")
 **Dependencies:** cavekit-gre-widgets.md (the SSL warning's certificate view), cavekit-ipc-contract.md (R1)
 
 ## Changelog
+- 2026-11-07: sweep; long evidence notes shortened, history moved verbatim to `archive/ui-shell-history.md`. The T-540 note that sat under R3 moved to this changelog.
 - 2026-11-06 (T-565's whole runs): find as you type grows the match where it stands and goes round past the last one (`appmenu-find`): the next letter looked after the last match and said none, with the word on the page.
+- 2026-10-25 (T-540): a dialog's reply wait ends when the card's socket hangs up (the card closed with the dialog up) or a send to it failed — it used to hold the main thread for the whole 60 s deadline, and no new card could connect meanwhile.
 - 2026-10-08: R7 — link and image holds had silently fallen back to the page menu everywhere (the stock hit-test schema rejected the daemon's answer); fixed in the adapter and device-verified (new `[x]`).
 - 2026-10-06 (later): R8 "Mojo padlock tap; Mochi padlock after a failed load" `[ ]`→`[x]` (device, from the test hooks). R7 unchanged in boxes; its Mojo path was found broken and fixed (cavekit-mojo-ui.md R3/R6).
 - 2026-10-06: Added R7 (long-press menu) and R8 (padlock → certificate) for the 2026-10-05 work, with the device evidence and what still needs a finger.
-- 2026-10-01: **Target platform is now webOS CE 3.1.0.** R2: two criteria amended, no box changed
-  state — the service-URI criterion now records the own-service-name decision (ipc R4), and the
-  "no engine identifiers" criterion gains the start-page branding carve-out the Mojo kit already
-  had. R4–R6's device-verified boxes are 3.0.5 evidence and are listed in
-  cavekit-device-build.md R4's re-verification sweep.
-- 2026-08-05: **R6 added** (home button, customizable start-page links) and met. Stored in the
-  card's own `localStorage`, so nothing was added to the frozen adapter set. Note this panel is
-  not the final home for them — cavekit-preferences-ui.md R5 merges the per-variant panels into
-  `about:preferences`.
-- 2026-08-03: Added **R5** (card-side `<select>` popup — device-verified and user-confirmed),
-  including the standing "no app-side popup implementation" rule that the investigation
-  established. Corrected R1's title AC: the launcher title is "Jihad Enyo" since the three
-  variants went live together; in-app branding stays the shared "Jihad Browser" start page, which
-  now carries the same logo/title/engine-line/hint block as the other two variants.
+- 2026-10-01: target platform is now webOS CE 3.1.0. R2's service-URI and engine-identifier criteria amended; no box changed state. R4–R6 device boxes are listed in cavekit-device-build.md R4's re-verification sweep.
+- 2026-08-05: R6 added (home button, start-page links) and met; stored in `localStorage`.
+- 2026-08-03: R5 added (card-side `<select>` popup, device-verified); R1's launcher title is "Jihad Enyo".
 - 2026-06-30: Initial draft.
-- 2026-07-04: Reconciled — R1 rebrand, R2 unchanged adapter contract (method set + Luna URIs = upstream), R3 Apache headers all verified. R4 is proven contract-correct against the STOCK QtWebKit BrowserServer on-device (openURL->loadStarted->pageTitleChanged->documentLoadFinished); driving the JIHAD Goanna daemon on-device is pending (needs the LunaService daemon + real BrowserAdapter).
-- 2026-07-31: Reconciliation against recorded evidence. R4 was still all-unchecked although `../impl/device-test-2026-07-19.md` Session 4 (2026-07-20, device connected) recorded launch-to-start-page, address→`openUrl`, and back/forward/reload as daemon-verified across that session — those three ACs are now `[x]` with that citation. `findInPage` stays open: the same record says "pending a focused test". No other change; R1–R3 were already evidence-backed.
+- 2026-07-04: R1–R3 verified; R4 proven against the stock QtWebKit BrowserServer on the device.
+- 2026-07-31: R4's first three criteria ticked from `../impl/device-test-2026-07-19.md` Session 4.

@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-06 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-07 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,50 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-07 — Tier 94: the memory guard, YouTube measured; the README and kits swept (READ FIRST)
+
+**What started it.** In T-576's games round a tap reached Learn to Fly 3's sponsor link; the Enyo card went on to a
+YouTube watch page, the daemon grew to 268 MB, swap filled and the TouchPad dropped off USB until the owner replugged it.
+The owner: "make the browser more efficient, especially youtube, so this doesnt happen in the future", then "see if
+atlas does any youtube tricks". New kit `cavekit-device-headroom.md`, Tier 94 (T-590..T-595); T-576 paused at its
+first full Enyo round. Numbers and tables: `docs/rounds/headroom-2026-11-07/README.md`.
+
+**Built (daemon and components, pushed to all three shells by `push-engine-update.sh --daemon-only`):**
+- The memory guard, `EngineHost::CheckMemoryPressure`: past the old 48 MB flush, if this daemon and its players hold
+  the larger of 128 MB and 35 % of the RAM and memory stays short (under 24 MB, swapping in over 256 pages per 5 s
+  twice running, or past half the RAM with under 96 MB left), it ends its Flash players, then stops its most recently
+  navigated page (`BrowserPageGoanna::ShedNewestPage`), which becomes `about:stopped?url=…` (a replacing load, so
+  nothing stays in the back-forward cache); `jihad-memory-shed` makes the blocker component collect at 2 and 6 s.
+  oom_adj 5. Overrides `JIHAD_MEM_FLOOR_KB`, `_SWAPIN_PAGES`, `_SHARE_KB`, `_BUDGET_KB`. Test:
+  `render/goanna/test/jihad-memhog.html?mb=700&rate=10` with `tools/device/finger/headroom-test.sh` (detached).
+- `jihad.youtube.lite` (default on, a settings row): on youtube.com the player is offered H.264 only, at most 480
+  rows and 30 fps (the h264ify technique, `components/jihadWebCompat.js`). YouTube already picked 144p-360p H.264 here.
+- Diagnosis switches, off by default: `jihad.blocking.trace` (every load a page asks for), `jihad.compat.activity`
+  (timers, frames, listeners, promises timed per 10 s), `jihad.compat.probeDelay`. Probe: `tools/device/finger/page-probe.sh`.
+
+**Found:** the watch page holds a full core for minutes; its profile (the stall sampler, `JIHAD_STALL_SAMPLER=20`):
+its own JavaScript 35 % (compiling 18 %), collection 8 %, paint and style 4 %. Atlas gets the desktop site and does
+worse (1.6 cores, 483 MB, still grey). **The stress (`headroom-stress.sh`) froze the screen** at load 14 with memory to
+spare, when the trailer ended and YouTube started the next video while Learn to Fly 3 played in Mochi: the daemons run
+at nice 0, LunaSysMgr and WebAppMgr at 5. **The owner heard YouTube but not the Flash game behind it** (cavekit-flash R9).
+
+**Next (in order):** the daemons and players at nice 5 and oom_adj set at startup, rebuild, the stress again (T-591);
+stop YouTube's next video and previews starting by themselves (T-593); the JIT levers on the watch page (T-592,
+e.g. Ion off or a higher warm-up); the Flash sound behind another card (T-579); then back to T-576 (the stock and
+software-path rounds, Mochi, Mojo, the soaks).
+
+**Traps:** host `/tmp` is a 16 GB tmpfs, 95 % full of old session scratch (the owner's to clear): the push's libxul
+staging failed with "No space left", silently leaving the old daemon; use `TMPDIR=~/.cache/jihad-push-tmp`. The device
+has no `base64` (encode on the host). A card opened within 30 s of the last one closing reuses its Flash player
+(`dom.ipc.plugins.unloadTimeoutSecs`). A USB replug brings up the "Connected" alert like a LunaSysMgr restart does.
+
+**The sweep (the owner: "do a sweep to remove irrelevant or duplicate information in readme and kits").** The
+README is in the owner's voice (direct, 2000s homebrew); `tools/readme-progress.py` now counts all 36 kits (nine were
+missing: it said 98 %) and refuses a kit in no area. The kits' evidence notes were compacted; what was cut is verbatim
+in `context/kits/archive/<kit>-history.md`. No criterion or checkbox changed.
+
+---
 
 ## 2026-11-06 — T-565 DONE: the finger suite whole, on the three shells; eight real defects found and fixed; next Tier 93 (READ FIRST)
 

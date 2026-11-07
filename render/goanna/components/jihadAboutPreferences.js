@@ -35,6 +35,9 @@ const PAGE_URL = "chrome://jihad-prefs/content/preferences.html";
 // about:personas — the browser's own "Get Personas" gallery (cavekit-personas-ui.md R8), in the
 // same chrome package, for the same reason: it acts through the browser's own components.
 const PERSONAS_URL = "chrome://jihad-prefs/content/personas.html";
+// about:stopped?url=… — what a page becomes when the daemon stopped it for memory (cavekit-device-headroom.md R1):
+// the reason and a link back. Only the daemon opens it; web content cannot link here (no URI_SAFE_FOR_UNTRUSTED_CONTENT).
+const STOPPED_URL = "chrome://jihad-prefs/content/stopped.html";
 
 function JihadAboutPreferences() {}
 
@@ -44,7 +47,7 @@ JihadAboutPreferences.prototype = {
 
   newChannel: function(aURI, aLoadInfo) {
     let what = String(aURI.path || "").replace(/[?#].*$/, "").toLowerCase();
-    let uri = Services.io.newURI(what === "personas" ? PERSONAS_URL : PAGE_URL, null, null);
+    let uri = Services.io.newURI(what === "personas" ? PERSONAS_URL : what === "stopped" ? STOPPED_URL : PAGE_URL, null, null);
     // newChannelFromURIWithLoadInfo keeps the caller's loadInfo, which is what
     // ESR52 expects from an about: module; the older two-argument form is gone.
     let channel = aLoadInfo

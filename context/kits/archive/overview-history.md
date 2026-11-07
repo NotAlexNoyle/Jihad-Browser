@@ -1,0 +1,438 @@
+# overview history, moved out of the kit by the 2026-11-07 sweep; verbatim.
+
+## Target platform note of 2026-10-01 and the CE stock-take's defect table (removed 2026-11-07)
+
+### 2026-10-01 — TARGET PLATFORM: webOS CE 3.1.0 (read before the status table)
+
+The TouchPad is now on **webOS CE 3.1.0** (build 86; was HP webOS 3.0.5 until 2026-09). Kernel
+`2.6.35-palm-tenderloin` and glibc 2.8 are unchanged; CE adds a side-by-side OpenSSL 1.1.1w stack
+(Jihad uses neither it nor the stock 0.9.8 — page TLS is the engine's own NSS) and preinstalls the
+**Atlas** browser, so up to five browsers now coexist. Details: cavekit-device-build.md header.
+
+**What that does to every status below:** each "device-verified" in this file and in the kits
+dated before 2026-09-27 is **3.0.5 evidence**. Those boxes stay `[x]` as "met on 3.0.5" and are
+enumerated, kit by kit, in cavekit-device-build.md **R4's re-verification sweep**; a box closes on
+CE 3.1.0 evidence from here on. The status table below was last reconciled row by row on
+2026-08-16 and several of its cells are stale against the kits (Mochi R2/R4, Navigation R6,
+Browser Services R4/R5, IPC R4) — **the kit files are authoritative, the table is a summary.**
+
+**Open defects found in the CE stock-take, each now a criterion (none known to be CE-specific):**
+
+| defect | criterion |
+|---|---|
+| `<video>` fails with `MEDIA_ERR_DECODE` after 10–60 frames, every codec (root cause found: a frame-copy return value under software compositing; fix not yet applied) | cavekit-gre-widgets.md R1 "plays to the end"; R7 |
+| idle daemon writes a log line every 2 s forever (~7 MB/day per variant on a 62 MB `/var`) and ticks at 8 ms with no card | cavekit-device-build.md R8 (two criteria); cavekit-engine-embedding.md R3 |
+| `about:blank` repaints ~22 times a second forever | cavekit-offscreen-rendering.md R8, R3 |
+| first daemon start after a fresh install fails Luna registration (-1027) — observed once, plausible from the packaging source, not yet reproduced | cavekit-device-build.md R4 |
+| negotiated TLS version never captured | cavekit-browser-services.md R5 |
+| media controls: volume widget, scrubber, volume HUD (user report 2026-08-20, never re-tested; its one diagnosis is superseded) | cavekit-gre-widgets.md R1 |
+| a page's `input` listener did not fire after a programmatic text insert (device, 2026-08-15) | cavekit-input-bridging.md R2a |
+
+**No longer true anywhere in the kits:** "the engine has no audio output" (engine `<audio>` plays
+on the speaker at the system volume since 2026-08-17) and "VP8/WebM plays" (see the first row).
+
+
+## Domain Index as it stood (rows with their status histories, the Flash reality check of 2026-08-10, totals and priority queues) (removed 2026-11-07)
+
+## Domain Index
+Status legend: ✅ complete · 🟢 mostly (device/edge items remain) · 🟡 partial · ⬜ not started.
+
+> **Flash reality check (2026-08-10, end of day).** Adobe Flash renders animated content on the
+> TouchPad, takes mouse and keyboard input, and survives crashes, spotlight events and
+> freeze/thaw. Against the user requirement *"smooth fps, keyboard and audio, so Flash games are
+> a first-class experience"* (cavekit-addons-extensions.md **R7**, three criteria added for it):
+>
+> - **fps — the RATE is done; the PACING is NOT (corrected 2026-08-10).** Everything below is
+>   still true and none of it is withdrawn, but it measures the wrong thing for the word the user
+>   used. The average was 35-42 fps for a 30 fps source at the exact time the animation looked
+>   worst; a gap HISTOGRAM shows why — frames were landing at random instants from under 16 ms to
+>   55 ms. Patch `0028` (1:1 delivery) and `0029` (a real PULL, so the daemon asks for each frame
+>   instead of sampling) are both live on all three variants and the histogram is still not
+>   concentrated. The open question is counted, not guessed: **3988 plugin draws against 3072 host
+>   requests** — and tagging every draw call site then showed the gap was NOT a third party but
+>   our own host-drive lease flapping (1856 host requests + 1846 child-timer invalidates = 3702,
+>   exactly), because the daemon's re-ask timeout was longer than the child's lease. See
+>   cavekit-addons-extensions.md R7, whose
+>   frame-rate criterion was REOPENED from `[x]` to `[~]` for exactly this reason. Two ceilings
+>   were removed and they were real: a hard `kJihadRepaintEveryTicks = 4` that asked the
+>   plugin to repaint at ~15 Hz for 30 fps content, and the two-buffer handoff that made every
+>   frame cost an adapter round trip. A THIRD shared buffer (`asyncCmdSetExtraBuffer`, YAP
+>   0x1600 — the one additive change to an otherwise frozen contract, cavekit-ipc-contract.md R1)
+>   took `deferred` from 77 to **0** with `wanted == done`; composite **27.1-32.2 fps**, frame gap
+>   avg 31-36 / **max 127 ms → 52-57 ms**. Verified against the build the `.ipk` actually ships.
+>   **Update 2026-08-16 — a stale-frame source in the SAME paint path was found + fixed.** The
+>   damage-only repaint rotates three buffers but applied only the damage since the last GLOBAL
+>   paint to a buffer last painted several frames earlier, so each buffer kept a GHOST of a moving
+>   element at its own stale position — surfaced as a jittery, skip-back media scrubber (fixed +
+>   device-confirmed, cavekit-gre-widgets.md R1) and, because the same path composites plugin
+>   frames, is expected to steady Flash too (per-buffer damage accumulation, `BrowserPageGoanna`
+>   `BufFrame.dmg*`, commit `36ddb80a`). Flash was not re-measured, so the histogram numbers above
+>   stand as the last Flash-specific figures; the ceiling remains the ~25–30fps software paint.
+> - **keyboard — DONE at the content level.** A SWF's own AVM1 `onClipEvent(keyDown)` runs on a
+>   keypress (green 11768 → red 11750). The adapter's key arbitration is fixed and deployed (one
+>   fix ported from Atlas). Still unverified: that the CARD does not also consume the key —
+>   client-side, needs a human or a chrome-side probe (cavekit-input-bridging.md R7).
+> - **audio — DONE, at parity with stock (corrected 2026-08-10).** The paragraph that stood here
+>   was wrong in every part and is deleted rather than softened: `0x70ee0`/`0x73020` are the
+>   hardware **H.264 video** decoder (OMX), not audio; the `+24 == 7` gate was stated INVERTED
+>   (it does equal 7); and nopping both candidate gates on-device changed nothing. **The defect
+>   was in the TEST ASSET.** `make-audio-swf.py` emitted `DefineShape` and `DefineSound` with the
+>   same character ID, and one character dictionary is shared by both — so the sound was silently
+>   dropped by any player, which is why all three assets "behaved identically". With the asset
+>   fixed and STOCK unpatched `libflashplayer.so`, the full ALSA bring-up appears and the tone is
+>   audible from the speaker. The residual per-loop click is Flash restarting its MP3 decoder and
+>   the STOCK browser does it identically. **Do not plan audio work off this file or off a
+>   looping asset** — only `jihad-audio-long.swf` (30 s, `--loops 1`) can answer a quality
+>   question.
+>
+> Two requirements came out of the same work and are met: cavekit-offscreen-rendering.md **R8**
+> (the damage-only repaint may never publish a frame it cannot prove — four real defects, all
+> fixed) and cavekit-device-build.md **R9** (the bundled-glibc-2.23 vs device-glibc-2.8 ABI
+> boundary, which took Flash out entirely after one reboot and looked like a code regression on
+> untouched binaries — it is a per-boot race). **R9 is the one to read first when something on
+> this device breaks "for no reason."**
+
+> **Device reality check (2026-08-03, second session).** **All three variants (Enyo, Mochi, Mojo)
+> are live on hardware** — each card paints through its own daemon on its own socket, cold boot
+> auto-starts all three, and `device-independence-test.sh check` passes 24/24. Feature work is no
+> longer Enyo-only: `<select>` popups and the start page are now verified on **all three**, and the
+> Mojo shell gained its chrome actions (new card / history / share).
+>
+> **The card JS dev loop is RESTORED** — `build/webos-oe/push-card-js.sh` is the tool, and it
+> proves each reload by a per-push stamp reaching the device log. Two independent causes had
+> broken it: **`novacom run` discards output that arrives after the host's stdin hits EOF** (hold
+> it open — `sleep 4 | novacom run …`; this masqueraded as luna-send "blackouts", dead
+> `applicationManager/running` queries, and "`enyo.log` stopped reaching `palm-log`"), and the
+> **WebAppMgr in-process JS cache really does serve a stale build** after a close+relaunch (a
+> LunaSysMgr restart per cycle busts it, and is the script's default).
+>
+> Cross-cutting defects RESOLVED: scroll pan headroom (user signed off), long-press `contextmenu`,
+> below-the-fold input landing, and the **`<select>` popup on all three variants** — the "empty
+> popup" was a JSON field-name mismatch, not a rendering problem (the stock framework consumes the
+> event itself and expects the isis `items[].text/isEnabled` shape; Mojo needed no app code at
+> all). The **`<menupopup>` track then closed too**: engine popups are composited over the frame,
+> taps/moves route into them, the row under the finger highlights, drag-and-release selects, and a
+> tap outside rolls up — the `about:addons` tools menu opens, reads correctly and its items act.
+> **XPI web install now works end to end, on device** (the first extension this browser has
+> installed), which required fixing two engine assumptions that a browser chrome exists above the
+> content, and then implementing the **DialogSink the daemon never had** — a claim the kits carried
+> on the strength of a test that supplied its own sink. Still open on these tracks: `<optgroup>`
+> header rows in `<select>` lists, and the SSL accept-and-reload branch. See
+> `impl-select-popup-2026-08-03.md`, `impl-menupopup-2026-08-02.md`,
+> `impl-scroll-overscan-2026-08-02.md`, `impl-addons-icons-open.md`.
+>
+> **Platform constraint found the hard way:** the webOS 3 **card** WebKit (~534.x) silently
+> ignores unprefixed `box-sizing` and modern flexbox, so all card-chrome CSS must carry
+> `-webkit-` prefixes (it made the Mojo toolbar 784 px wide on a 768 px screen). Pages rendered by
+> our own Goanna engine are modern and unaffected.
+Verified on desktop x86_64 AND cross-built + rendering on the HP TouchPad unless noted.
+
+| Domain | Cavekit File | Requirements | Status | Description |
+|--------|--------------|--------------|--------|-------------|
+| GPU Rendering (the pick: 2 + 4) | cavekit-gpu-rendering.md | 12 | 🟡 45 met / 3 partial / 1 open (counted 2026-11-04; latest entry 2026-11-04: T-505 item 4 built, measured and reviewed — the band frames composed on the CPU from the tiles (`JIHAD_GPU_CPU_BANDS`): the long page exact and 18.2 -> 19.5 fps, the band frame 22 -> 4.7 ms on the compositor thread; the layers painted at the zoom's resolution (`JIHAD_GPU_RES_ZOOM`, the owner's scale choice (b)) a loss on desktop Wikipedia, its paints 1.5x dearer; the CPU bands the GPU path's default since the Deciding Vote of 2026-11-04 (Codex: the engine's switch on, the daemon's off, no scaler; the kept tile locks +19-34 MB of daemon RSS, the rate unchanged), the resolution switch off; 2026-11-03 late night: T-568 fixed — the daemon ships what lay beneath the held rects, the stream reads 0 stale, 0 uniform on the long page; T-567 the grey band at the bottom of Wikipedia's first drags investigated to its sources — the cores saturated, the first drags' whole reads, glReadPixels at 35 MB/s — with the cheap levers measured and not kept; the structural fix is the owner's choice). 2026-11-03: the parts' pictures by part (engine 0073) and the express second frame back (T-505 item 3), the defaults by performance; open: R3's 24 fps on desktop Wikipedia with the card moving (11.4 by finger), item 4 next. new 2026-10-18: the compositor path exists behind `JIHAD_GPU_COMPOSITOR=1` (T-502, rounds 1-141: test pan 27-34 fps, animation 26-31, desktop Wikipedia 13-14 vs software 9-12.4); R1-R12 open; the owner's finger test found zoom lag and grey areas (R6) | The page composited on the Adreno 220 by the engine's OpenGL compositor in the daemon and read back into the YAP buffer (option 4), then WebGL through EGL (option 2); the software path the fallback; Tier 87 |
+| The Modern Web | cavekit-modern-web.md | 6 | 🟢 27 met / 3 partial / 0 open (counted 2026-10-25; latest entry 2026-10-24). 2026-10-15: R1 ✓ (19-row ledger), R2 ✓ (guard at 60 s, device), R3 done as far as it goes (Cloudflare's Turnstile fails on its own verdict; next step is the owner's), R4 ✓ (ES-module loading, upstream), R5 ✓ (desktop kept) | Site-by-site compatibility ledger on the device and the configuration fixes it drives: the slow-script guard sized for the CPU, Cloudflare's challenge (UA), GitHub's deferred parts (diagnosed), Wikipedia's layout |
+| Content Blocking | cavekit-content-blocking.md | 7 | 🟢 26 met / 1 partial / 0 open (counted 2026-10-25; latest entry 2026-10-24). new 2026-10-15: all open | An ad and tracker blocker in the engine for all three interfaces: EasyList + EasyPrivacy (GPLv3+), host blocking by nsIContentPolicy, generic element hiding by a user sheet, 4-day updates, Settings → Privacy rows, device budget |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 8 | 🟡 36 met / 0 partial / 2 open (counted 2026-10-25; latest entry 2026-10-25). R1–R3 ✓; R4 3/4 ACs device-verified 2026-07-20 (launch, address→openUrl, back/forward/reload); findInPage WORKS as of patch 0015 (the long-recorded 'selection controller' cause was a misdiagnosis). `<select>` popup ✓; start page follows VKB/orientation and carries the shared logo/title/hint block; app renamed "Jihad Enyo" | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 7 | 🟢 37 met / 2 partial / 0 open (counted 2026-10-25; latest entry 2026-10-24). R1/R3/R5 ✓; card LIVE on device (loads + paints through its own daemon); **`<select>` popup device-verified 2026-08-03** (own overlay list, pick applied); start page matches the others; R2/R4 remaining on-device feature checks pending; renamed "Jihad Mochi" | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| Mojo UI Variant | cavekit-mojo-ui.md | 7 | 🟢 38 met / 5 partial / 0 open (counted 2026-10-25; latest entry 2026-10-24). R1–R3 ✓ device-verified, R5 ✓, R4 2/3 (Opal hardware-gated); **R6 (new) chrome actions ✓** — new card / history / share, title row dropped, toolbar overflow fixed (`-webkit-box-sizing`); `<select>` popup works with **no app code** (system framework handles it); renamed "Jihad Mojo" | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
+| IPC Contract Preservation | cavekit-ipc-contract.md | 5 | ✅ 16 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-01). R1–R3 ✓; R5 ✓ on-device (adapter drives daemon; +2-line coexistence rebrand); R4 device LunaService | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
+| Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 15 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-06). 4/4 (+ ARM cross-build). **R2's "shuts down cleanly" was met in error until 2026-08-04** — `main()` never returned, so `XRE_TermEmbedding` never ran and the engine's deferred savers never flushed; SIGTERM is handled now, pages are destroyed before the runtime, and the never-run `~YapServer` teardown it exposed was itself broken | Out-of-tree Goanna build, embedding runtime, event-loop integration |
+| Offscreen Rendering | cavekit-offscreen-rendering.md | 9 | 🟡 35 met / 0 partial / 1 open (counted 2026-10-25; latest entry 2026-10-25). R1–R6 ✅ desktop + on-device (R6 rotation composite + R5 zoom device-confirmed 2026-07-27); scroll pan headroom FIXED (overscan region paint, ≤2048-row SGX cap; user signed off, Opus-reviewed). **R7 (new) engine popups ✅**: `<select>` solved card-side on all three variants; `<menupopup>` composited over the frame AND interactive (taps routed in, rollover highlight, drag-select, tap-outside rollup) — the old "popup is 0x0 and never shown" diagnosis was measured on a `<select>` (the combobox path) and was wrong. Follow-up owed: F7 header frame-seq (needs an adapter rebuild) | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
+| Input Bridging | cavekit-input-bridging.md | 8 | 🟢 40 met / 5 partial / 0 open (counted 2026-10-25; latest entry 2026-10-25). R1 ✓ + **long-press `contextmenu` works on device** (the daemon `asyncCmdHitTest` gate was a stub; real hit-test round-trip added, user-confirmed), R4 ✓, R5 ✓ + **doc→viewport coord mapping fixed** (below-the-fold taps landed a screenful low); R2 VKB jank / R3 gestures on-device; **R6 XUL input partial** — text reaches XUL fields through the engine editor, but real DOM key events need a ~2-line PuppetWidget patch + a full libxul rebuild | webOS pointer/key/touch/gesture → DOM events |
+| Navigation, Loading & Events | cavekit-navigation-events.md | 7 | ✅ 18 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-01). R1–R7 met (R6's link-clicked AC still [~] — on-device link-tap navigation confirmed 2026-07-27, the message-emission re-test is open) | Nav commands + load/location/title/history message stream |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 10 | 🟡 49 met / 2 partial / 1 open (counted 2026-10-25; latest entry 2026-10-12). R1 ✓, R2 ✓ (`about:addons` renders on device; branding pkg + the Jihad logo on about pages), R8 ✅, R5 ✓, **R2 now complete** (enable/disable/remove driven by clicks on the real about:addons row controls, each surviving a SIGTERM restart) and **R6 device-verified** (an on-device install between two footprint snapshots: `/media/internal` byte-identical, nothing new outside the variant's own tree); **R3 XPI install WORKS** — device-verified: a page's `InstallTrigger.install()` raises the confirm on the card, accept installs, and `about:addons` lists the add-on. Needed patch 0013 (`amInstallTrigger` and `AddonManager` both assume a chrome `<browser>` above the content) plus the new daemon DialogSink; **R7 reframed — windowless NPAPI does not exist in a cairo-headless build and must be PORTED, not enabled**. **FLASH now RENDERS, TAKES INPUT and PLAYS SOUND on the TouchPad (2026-08-10), at ~30 fps composite** via patch `0027` (a CPU-governor boost held for the life of a plugin instance — see cavekit-device-build.md R10). Two Flash items remain OPEN and are written up on their criteria: **chrome-side keyboard arbitration is UNTESTABLE on this hardware** (no keyboard exists; a synthetic uinput one registers and is opened by `hidd` and LunaSysMgr but never dispatches), and **frame PACING** — the composite RATE is met via `0027`, but the gap histogram is still unconcentrated and the criterion was reopened to `[~]`; `0028` and `0029` are live and did not close it, and the counted open question is that only 3072 of 3988 plugin draws come from the host pull. **MP3 audio is CLOSED, at parity with stock (corrected 2026-08-10)** — the earlier 'occasional static' line here was written before the test assets were fixed, and the residual per-loop click is Flash restarting its decoder, which the stock browser does identically. Both 'silent audio' and 'slow frame rate' turned out NOT to be port defects — the first was a malformed test SWF, the second the CPU governor. The tools menu now opens and is operable (cavekit-offscreen-rendering.md R7) | `about:addons` + classic XPI + NPAPI plugin support |
+| Browser Services | cavekit-browser-services.md | 5 | ✅ 22 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-02). R1–R3 ✓ (**R3 dialogs really work now** — the daemon had NO DialogSink, so every engine dialog silently took its default; `BrowserPageGoanna` is now that sink, over the frozen FIFO contract, **and one 60 s deadline sized for a person** — the original 5 s "has the card picked up" deadline could never be satisfied, because the card opens the reply pipe only when the user taps, so every dialog answered later than five seconds was silently defaulted); R4 partial; R5 SSL confirm wired with a reply path, accept-and-reload not yet end-to-end verified | Settings, cookies/cache, JS dialogs, downloads, TLS |
+| Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ 11 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-07-31). R1–R3; R4 [human-review] | Phase-1 x86_64 build + YAP test client + end-to-end gate |
+| Device Build & Packaging | cavekit-device-build.md | 11 | 🟡 68 met / 5 partial / 1 open (counted 2026-10-25; latest entry 2026-10-14). R1/R2 ✓; R3 build-produced (`.ipk`s + review items fixed); **R7 (per-variant independence) now DEVICE-VERIFIED 2026-08-03** — all three variants live, `device-independence-test.sh check` 24/24, cold-boot auto-start, own sockets, `/media/internal` clean; R8 ✓. Deploy routes: `push-variant.sh` (full payload) / `push-engine-update.sh` (fast libxul+daemon swap) / **`push-card-js.sh` (card JS/CSS/assets, stamp-proven)** — all novacom, all md5-verified. The supported Preware/WOQI `.ipk` install (R3/R4 "device-verified") is still user-gated; clean-clone reproducibility (#7/#8) + R5/R6 (memory budget, Opal) open. **R10 (new 2026-08-10): CPU frequency scaling.** `ondemandtcl` is touch-biased (`up_threshold=95`), so passive playback runs at 192 MHz of 1188 — it was the real ceiling on Flash's frame rate. Safe lever is the governor's TUNABLES; writing `scaling_governor` DEADLOCKS cpufreq into unkillable D state and needs `sync; reboot -f` | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
+| GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🟢 20 met / 6 partial / 0 open (counted 2026-10-25; latest entry 2026-10-01). 8/22 met, 2 partial. **R2 closed by decision**: date/time input is OFF at the pref with the reason recorded (device-verified degrading to `type=text`) — note the side effect that `valueAsDate` leaves the DOM. **R6's recorded diagnosis was WRONG and is corrected**: `FindNext` did not SIGSEGV on a missing selection controller, it hit `MOZ_CRASH` in `SubjectPrincipal()` (no JSContext on an embedder call); fixed in patch 0015 — though `find_test.cpp` still only PRINTS its result and asserts nothing, so it is not yet a gate. R1 (media/codecs) is the big open block | Widgets the engine already gives us, used or explicitly declined |
+| In-Browser Preferences | cavekit-preferences-ui.md | 9 | 🟢 38 met / 3 partial / 0 open (counted 2026-10-25; latest entry 2026-10-13). 11/26 met, 4 partial. **`about:preferences` + `about:settings` render on device**, built as an `nsIAboutModule` JS component + `chrome://jihad-prefs/` package — no C++ change, no daemon rebuild. In-content HTML (Basilisk's shape, Pale Moon's panes): `<prefwindow>` is a chrome-WINDOW binding and there is no window here. R3 3/4 device-proven from the PROFILE. **Adversarial review 2026-08-06 pulled three marks back**: "no decorative toggles" (the UA row was reverted by EngineHost every start; `intl.accept_languages` is a LOCALIZED pref that displayed a chrome:// url; and the card re-applies popups/cookies/min-font-size from db8 at every launch, overwriting the page), "opens in all three variants" (only two were loaded), and it disproved the recorded reason the Luna route was abandoned — **the public role file is already installed by `gen-variant-scripts.sh`**. Does not exist on the desktop build at all. **R5 is the blocking item** | An engine-side settings page the three shells can share |
+| Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 12 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-14). 5/5 | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
+| Tabbed Browsing | cavekit-tabbed-browsing.md | 6 | ⚪ 0 met / 0 partial / 27 open (counted 2026-10-25; latest entry 2026-10-06). 0/6 — GROUNDWORK ONLY (2026-10-06, owner: "don't implement it yet"); design in `docs/TABS-GROUNDWORK.md`, Tier 71 pending | Several pages per card with a tab strip; pages held in the daemon, tab commands over the variant's own Luna service, YAP contract untouched |
+| Personas UI | cavekit-personas-ui.md | 9 | ✅ 46 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-25). built and device-verified in all three shells (R1–R5, R7–R9) 2026-10-08: manager, about:personas gallery, 15 bundled (5 drawn, 10 CC-licensed, credited); open: the online index (owner hosts), the empty state, finger pass (deferred) | about:addons → Personas, about:personas, a licensed bundled set |
+| Look of Jihad's pages | cavekit-chrome-look.md | 4 | 🟢 9 met / 5 partial / 0 open (counted 2026-10-25; latest entry 2026-10-25). created 2026-10-12: each shell's buttons on Jihad's pages, about:addons in the webOS style, momentum on Jihad's pages | Settings, about:personas and about:addons as part of each card |
+| Engine Update Readiness | cavekit-engine-update.md | 9 | 🟢 25 met / 1 partial / 0 open (counted 2026-10-25; latest entry 2026-10-18). groundwork 2026-10-08: one source of truth (queue == branch, checked), pins in one file (checked), exports in EngineCompat.h (startup report), check-engine-api.py, docs/ENGINE.md; next steps open | Make the UXP/Goanna interaction modular and maintainable so an engine update is a procedure, not an excavation |
+| More Persona Formats | cavekit-persona-formats.md | 4 | 🟢 19 met / 3 partial / 0 open (counted 2026-10-25; latest entry 2026-10-12). 2026-10-11: colour-only (drawn picture) and layered pictures built, device-checked in Enyo; colour slots in the shells next | Colour-only themes, layered pictures, more colour slots (owner's choice after the format survey) |
+| Add-on Site | cavekit-addons-site.md | 13 | 🟢 56 met / 3 partial / 0 open (counted 2026-10-25; latest entry 2026-10-14). 2026-10-11: kit written from the owner's choices and the Phoebus analysis (`docs/research/phoebus-analysis.md`); site code in `../Riverstone-Addons` (fork); nothing deployed | addons.riverstonerelay.org on Phoebus: Personas first, owner-only, Palm-era skin; about:personas reads its feed |
+| Proxies & Certificates | cavekit-proxies-certs.md | 6 | 🟢 24 met / 2 partial / 0 open (counted 2026-10-25; latest entry 2026-10-25). 2026-10-13: built and device-verified (Enyo throughout, Mochi and Mojo in part); the Relay's pass-through live on the server and checked on the device; 24 met, 2 partial (typing them is the finger round); the Relay no longer passes users' addresses to sites | Settings → Proxy (none, webOS's setting, the Relay, WebOne, own, PAC); webOS's added and patched CAs trusted; a proxy's CA asked when opened; the Relay's CA an option, off |
+| Certificate Trust | cavekit-certificate-trust.md | 7 | ✅ 20 met / 0 partial / 0 open (counted 2026-10-25; latest entry 2026-10-25). done 2026-10-25: roots = UXP release (Pale Moon, Basilisk; patch 0060), 24 removed roots gone, 19 added, audit script + pins + update warning; TLS floor 1.2; the Trust dialog only for overridable errors; CRL-only revocation invisible (no CRL/CRLite in UXP, recorded); T-534 (NSS TLS 1.3 label) open |
+| Finger Emulation | cavekit-finger-emulation.md | 4 | 🟡 12 met / 2 partial / 1 open (counted 2026-10-25; latest entry 2026-10-24). The emulated finger on the real input path (tools/device/finger), the finger round of docs/FINGER-TESTS.md driven and judged by eye; what stays a person's (hearing, a physical keyboard). | An emulated finger that sends the touch panel's own datagrams to LunaSysMgr, and the round of finger tests it drives. |
+| Device Headroom and YouTube | cavekit-device-headroom.md | 5 | 🟡 4 met / 0 partial / 11 open (new 2026-11-07, the owner's request after the device dropped off USB under a YouTube page and a heavy movie): the memory guard built and tested (a 700 MB page stopped and freed in 2 s), YouTube offered H.264 only, Atlas and add-ons read; open: the CPU priority (the stress froze the screen at load 14), YouTube's next video starting by itself, the page's own cost, hardware H.264 |
+| Flash, Finished | cavekit-flash.md | 14 | 🟡 27 met / 0 partial / 42 open (R1 met 2026-11-06, T-570: the corpus; R2 but for each title's signatures, T-571, T-572: the instrumented movies and the plugin checks; new 2026-11-05, the owner's request): the stock player proven on a declared corpus (24+ games, 8+ apps, 8+ videos) by autonomous finger tests in all three shells against the stock browser on the same files; takes over the open Flash criteria of addons R7, input-bridging and offscreen-rendering. Tier 93, T-570 to T-584 |
+| Autonomous Finger Testing | cavekit-finger-testing.md | 7 | 🟡 18 met / 0 partial / 2 open (R4 and R6 met 2026-11-06, T-565: the suite whole, 69 scripts on the three shells, the list generated, the kits citing scripts; what is left is R7, the owner's comparison, T-566; R5 and R4's lint met 2026-11-05, T-564: the script form, the runner `finger-run.py` with the lock, one session a script, the restore, the device check and the report; R1 and R3 met 2026-11-04, T-563: the check library `fingerlib.sh`, the geometry derived and calibrated, Mojo's header rule measured, the walk on the library on the three shells; R2 met 2026-11-03 late night: the sampler and the stream tool, T-561/T-562; its first readings found T-567 and T-568 for the GPU domain, and T-568's fix gave the known-good round it waited for). The owner's "devise a system for accurate autonomous finger testing": verdicts from oracles and a framebuffer frame stream (the card's shown page sampled 10-20 times a second while the finger moves), geometry derived and calibrated, waits on marks and the slow human, one script form and runner that leaves the device as found, the finger list as scripts, accuracy proven against the owner's own round; Tier 92 | The finger round judged by instruments a machine reads, not by an eye on a still |
+| Low-Power Engine Tuning | cavekit-lowpower-uxp.md | 6 | ⚪ 0 met / 0 partial / 19 open (new 2026-10-26). The scan done (`docs/research/lowpower-uxp.md`: twelve levers ranked; the forks hold little Jihad lacks); nothing measured yet | Each candidate lever (JS helper threads for two cores, -O2, the allocator's retained memory, memory prefs, reduced motion, lazy images, decoders, omni.ja) measured on the TouchPad against one baseline, kept only where it gains |
+| The Engine's Next Release | cavekit-engine-release-2026-10.md | 4 | 🟢 11 met / 1 partial / 0 open (counted 2026-11-03). RB_20261027 shipped 2026-11-03 (T-551..T-554: the queue rebased, 0060 dropped, the roots audited, the device checked, the certificate checks unchanged, the owner's push done); the partial: four desktop tests of the GTK path's read-back limit | The engine moved to UXP's next release with the update procedure: the queue rebased, the roots re-audited, the device re-checked where the new commits touch |
+| The webOS SDK at Its Latest | cavekit-webos-sdk-update.md | 3 | ⚪ 0 met / 0 partial / 7 open (new 2026-10-26). HP's PDK is final; webOS Archive's Redux SDK 0.4 -> 0.4.1; the owner: also refresh `/opt/PalmSDK` | The SDK submodule and its novacom built from it at the latest release, proven on the bench; the machine's own SDK refreshed |
+| The Atlas References, Current | cavekit-atlas-references.md | 3 | ⚪ 0 met / 0 partial / 9 open (new 2026-10-26). The app moved to webOS-ports/org.webosports.app.atlas; the adapter and server are Herrie82's (their fork parents are the 2013 code) | The Atlas reference checkouts tracking their real upstreams, one update command, what moved weighed for Jihad |
+
+Totals (recounted from the kit files 2026-10-01): **15 domains, 98 requirements, 391 acceptance criteria — 338 met, 31 partial, 22 open.** Of the 22 open, 9 are the CE 3.1.0 re-verification sweep boxes (cavekit-device-build.md R4), one of which — the human-only residue — no agent can close. ~~Totals: 15 domains, 94 requirements, 348 acceptance criteria — 313 met, 11 partial, 24 open~~
+*(2026-08-06 session 2, all device-verified: preferences-ui R5's two criteria (the settings page's
+edits reach the shells), R1 AC3 (the page opens in all three variants), R3 AC4 (per-variant profile
+isolation, cross-proven both ways), R4 AC2/AC3 (normal navigation path, frozen adapter set
+untouched; the two-surfaces relationship decided and written down) and R6 AC2 (the page's `<select>`
+opens in all three). R6 AC1 closed on the user's own confirmation that scrolling works.
+One criterion went the OTHER way: cavekit-addons-extensions.md R7's plugin-crash bound was
+DOWNGRADED to partial, because the shipped configuration changed from in-process to
+out-of-process plugins and the failure mode it documented is no longer the one that ships.)*
+(COUNTED programmatically 2026-08-06, not estimated, after an adversarial review pass. The count
+went DOWN from the 2026-08-05 figure — three criteria un-marked because their evidence did not
+support "met", and two new criteria added for defects the review found. A count that only ever
+rises is not measuring anything. The open list is still dominated by the two domains that arrived
+2026-08-05: GRE widget bindings and in-browser preferences.)
+
+(How to re-count, and please do before quoting these numbers: count `^### R` for requirements and
+`^- \[x\]` / `^- \[~\]` / `^- \[ \]` for criteria across `context/kits/cavekit-*.md`, excluding this
+file. These numbers have drifted from the files they summarise more than once — a line here once
+said 276/215/21/40 against files that said otherwise.)
+Closed this session on top of the earlier scroll / long-press / coord-mapping / R7-independence
+work: add-ons R2 (enable, disable and remove driven from the real `about:addons` controls, each
+surviving a restart) and R6 (extension storage, device-verified against a footprint snapshot);
+and three daemon-lifecycle defects that had been invisible because the daemon never exited —
+no SIGTERM handling (so nothing flushed), `XRE_TermEmbedding` running while pages were live, and
+a `~YapServer` teardown that had never once executed and was broken. One user-reported defect
+closed with them: dialogs were being answered for the user after five seconds.
+The bulk of what remains sits in two kits — add-ons (8 open, 4 partial: the NPAPI port, the
+Pale Moon/Basilisk cross-validation) and device-build (6 open, 8 partial: clean-clone
+reproducibility, Opal, memory budget) — plus the XUL-zoom gesture. Every open item is
+hardware-gated, a named debug lead, or an engine port.
+**Current priorities (2026-10-01): `docs/PICKUP.md` is the only current handoff and
+`../plans/build-site.md` the task graph; the list below and `../impl/impl-NEXT-AGENT-START-HERE.md`
+are 2026-08 history.** In order: the `<video>` decode fix; the idle daemon (log growth, idle
+tick); the `about:blank` repaint storm; the fresh-install Luna registration; the TLS version
+capture; the media-controls re-test; then the CE 3.1.0 sweep.
+
+**Older priority queue — see `../impl/impl-NEXT-AGENT-START-HERE.md`
+for the detailed queue:**
+(1) **XUL zoom on `about:addons`** — see below; the one open user-reported defect. Note the
+OTHER user-reported defect from that session, "clicking the button to install the add-on doesn't
+do anything", is CLOSED and was not an add-on bug at all: the dialog deadline was denying the
+answer before the user could give it (cavekit-browser-services.md R3);
+    (user-reported as unreliable. The fit-zoom itself is correct — a fixed-width 980 px XUL
+document in a 768 px window — and the popup work does not perturb contentSize; an injected zoom
+is overwritten by the card re-asserting its own, so the actual pinch path needs a real gesture.
+A trace of every zoom the card requests is deployed.)
+(3) **chrome icon repaint latency** (addons R2 polish) — repaint-delivery latency, has a debug
+lead. Re-checked 2026-08-04 and NOT reproduced on a fresh load (icons present at 3/8/16 s);
+(4) **SSL accept-and-reload** (browser-services R5) — wired, not yet verified end to end; a cert
+failure also raises an engine ALERT before the confirm, which wants its own look;
+(5) `<select>` `<optgroup>` header rows (needs a daemon reply-index remap); F7 scroll header
+frame-seq (needs an adapter rebuild); VKB jank (input R2) + gestures (input R3);
+ device LunaService (IPC R4);
+(6) clean-clone OE reproducibility (device-build #7/#8); TouchPad Go + memory budget (device-build R5/R6).
+Full OE-review findings: `../impl/impl-review-findings-oe.md`.
+
+
+## Milestones of 2026-07 (removed 2026-11-07)
+
+### Milestone (2026-07-27): rotation and zoom work on the device
+The portrait↔landscape render-break and the "things get cut off" zoom are both fixed and
+confirmed on hardware (commit 8d7865c; `../impl/rotation-fix-2026-07-26.md`,
+`../impl/zoom-fix-2026-07-27.md`, `../impl/impl-overview.md` 2026-07-27 "Rotation confirmed
+working on device"). Rotation: the adapter now composites through the WebKit Piranha
+**PGContext** (transform-aware) instead of a raw `dstBuffer` blit that LunaCE read at a fixed
+~256px pitch — that pitch, not any daemon bug, was the portrait 3× shear. Zoom: `RenderDocument`'s
+internal scale cancelled the engine zoom, so the daemon now pre-scales the gfxContext and renders
+an absolute document rect (magnify + full-page pan in both axes, layout viewport untouched so
+rotation stays safe). The same change made the daemon report the EFFECTIVE render scale, which
+closed the long-open small-link tap miss (input-bridging R5, commit d4f0842). Closes offscreen
+R6, closes device-build R4's composite AC, and supersedes the 2026-07-20 "LunaCE limitation, NOT
+fixable" analysis.
+
+### Milestone (2026-07-07): self-contained app renders real pages on the TouchPad
+Re-architected from *replacing* the system browser to a **self-contained app that
+coexists** with it (Atlas model: own MIME `application/x-jihad-browser` →
+`BrowserAdapterJihad.so` → `/tmp/yapserver.jihad-browser` → upstart job `jihad`; the
+app's WebView routed there by `app/source/JihadEngineOverride.js`). On-device the card
+loads the Jihad adapter → the Jihad daemon, `example.com` + `slack.com`/HTTPS load and
+render (fb1), load-completion fires (address-bar refresh glyph), and the stock browser
+keeps working for all other apps. This meets IPC-Contract R5 (rebuilt adapter drives the
+daemon through a full load+paint cycle) and advances Device-Build R4. Deploy gotchas
+(reboot registers the plugin; `.ipk` reinstall busts the WebKit cache; content is on fb1)
+in auto-memory `jihad-self-contained-arch.md` + `jihad-device-gotchas.md`.
+
+### Milestone (2026-07-04): headless engine, no X/GTK, renders on the TouchPad
+`MOZ_WIDGET_TOOLKIT=headless` — libxul links **zero** gtk/gdk/pango/cairo/X libs
+(freetype+fontconfig only); ARM cross-build (29 M libxul) + GTK-free daemon → lean
+device bundle (**28 .so vs 68**) → **on-device offscreen ROUND-TRIP PASS** (msgPainted
+786432). This closes Engine-Embedding R2, Offscreen Rendering on-device, and
+Device-Build R2, and advances Device-Build R4/R5. Detail in
+`context/impl/impl-overview.md` + auto-memory `jihad-headless-toolkit.md`.
+
+
+## Dependency graph note on the Mochi rewrite (2026-07-20) (removed 2026-11-07)
+
+- Both UI variants share the BrowserAdapter contract and can be developed in
+  parallel with the engine work; only their on-device verification needs the
+  working daemon. The Mochi rewrite was the larger of the two; as of 2026-07-20
+  its shell, parity views, dialogs, and `app-mochi/PARITY.md` are built and it
+  dual-installs on device (2026-07-19) — what is left is on-device functional
+  verification, not construction.
+
+## Changelog entries 2026-07-31 .. 2026-10-01 (removed 2026-11-07)
+
+- 2026-10-01 (webOS CE 3.1.0 becomes the target; kits brought back in line with the device BEFORE
+  any task, per the standing instruction): the platform header above; every kit read criterion by
+  criterion and each box's evidence classified (device / host / human), which produced
+  cavekit-device-build.md R4's nine sweep boxes. **Added (22 criteria):** device-build R4 fresh
+  install `[~]`, first-start Luna registration, Atlas coexistence, nine sweep boxes; device-build
+  R8 log bounded while running, idle daemon is idle; offscreen R8 a blank page settles; gre-widgets
+  R1 `<video>` plays to the end, in-player volume control, scrubber, volume HUD;
+  browser-services R5 TLS position + negotiated version, cert store on CE. **Downgraded (7):**
+  gre-widgets R1 "controls render" and "codec reality", gre-widgets R5 toast (one shell, one
+  toast, 3.0.5), offscreen R3 "invalidations are coalesced", engine-embedding R3 "CPU is idle",
+  device-build R10 "extend the boost" (never measured on media), input-bridging R2a "`input`
+  event is dispatched" (contradicted by a later device run). **Amended, no state change:**
+  gre-widgets R1 play/pause and "degrades visibly", gre-widgets R7 (stale "no audio output"
+  struck; the open half is now `<video>`), ui-shell R2 and mochi R3 (own service name, branding
+  carve-out). `../impl/impl-media-controls.md`'s 2026-08-20 diagnosis marked superseded.
+- 2026-08-10 (Flash as a first-class target): the requirement changed from "NPAPI plugins load and
+  run" to "Flash games are playable", so the kits changed with it rather than being marked done.
+  - **cavekit-addons-extensions.md R7** gained three UNCHECKED criteria — sustained composite frame
+    rate, audio output, keyboard-to-a-focused-plugin — plus a port-status block. The existing
+    criteria all stand; the point is that they never described playability.
+  - **cavekit-offscreen-rendering.md R8 (new)**: the damage-only repaint may never publish a frame
+    it cannot prove. Four defects found and fixed, including `mDamageForceFull` which was declared,
+    read once, and never assigned true anywhere — so the protection its comment described did not
+    exist — and a buffer record committed BEFORE the blank-frame suppression, which let a rejected
+    white frame become the base for the next partial paint.
+  - **cavekit-device-build.md R9 (new)**: the bundled glibc 2.23 vs device glibc 2.8 ABI boundary.
+    A `sem_t` layout change in glibc 2.21 turned a per-boot race over `/dev/shm/sem.PmLogLib` into a
+    total Flash outage that presented as a code regression on untouched binaries. Contained by
+    interposing one name. The generalisable lesson — and the reason this is a requirement rather
+    than a bug note — is that a device library loaded into our runtime must be PROVEN per library
+    with a standalone probe run under both loaders, never assumed.
+  - **cavekit-input-bridging.md R7 (new)**: keyboard arbitration between a focused plugin and the
+    card chrome. A Flash game focuses no HTML editor, so the editor-focus test could not describe
+    it and every keypress also drove the chrome.
+  - **cavekit-ipc-contract.md R1 amended, not quietly left ticked**: ONE command was ADDED,
+    `asyncCmdSetExtraBuffer` (0x1600), for a third shared framebuffer. Every existing id,
+    argument list and byte order is untouched, and the addition is optional in both directions
+    (an adapter that never sends it, or a daemon that ignores it, both fall back to two buffers).
+    Rationale + measurements in `docs/IPC-CONTRACT.md`. NOTE `BrowserServerBase` lives here
+    without its generator, so the 0x1600 arm is hand-written and a regeneration must re-add it.
+  - Requirement counts: input-bridging 7→8, offscreen-rendering 7→8, device-build 8→9.
+  - Outcome by end of day: **fps DONE** (deferred 77→0, composite 27.1-32.2 fps, frame-gap max
+    127→52-57 ms, verified against the build the `.ipk` ships), **keyboard DONE at the content
+    level** (a SWF's own AVM1 runs on a keypress), **audio still not working** but reduced from
+    an open-ended hunt to a single instruction (`cmp r0,#7` at 0x70f14).
+  - Docs consolidated: `HANDOFF-2026-08-06.md`, `DEVICE-HANDOFF.md` and `NEXT-AGENT-PROMPT.md`
+    deleted, their durable content folded into a single `docs/PICKUP.md`, which is now the only
+    handoff document. The root README's "binary plugins (Flash) are not yet possible" claim was
+    corrected — it had been false since 2026-08-09.
+- 2026-08-06 (adversarial review + fixes): an inspector pass over this session's claims found a
+  **shipped regression and two false statements**, and the counts moved DOWN to 304/13/31 as a
+  result — which is the point of counting.
+  - **Regression:** repointing the Enyo app menu's only "Preferences" entry at `about:preferences`
+    left the card's own panel unreachable, removing the default-search selector, the
+    JavaScript/Flash toggles and all four clear-data actions from the product; a block delete had
+    also taken five preference handlers with it. Both restored; the menu now carries two entries
+    until R5 can absorb what only the card can do.
+  - **Security:** `adoptFromUrl` accepted ANY `about:*` url carrying `#chrome=`. `about:blank` is
+    content-loadable, so a visited page could have rewritten the home button — and a `javascript:`
+    home target runs in page context. Now gated on the path, with an `https?:`/`about:` allowlist
+    on stored values in both the card and the page.
+  - **Two claims disproved:** the Luna route was NOT blocked by policy (this repo already installs
+    a public LS2 role file); and `CurrentUri()` is not the thing stripping the url fragment (this
+    project's own Mojo start page round-trips fragments fine). Both corrected in place rather than
+    quietly dropped.
+  - Three criteria un-marked because the evidence did not support "met".
+- 2026-08-05 (closing sweep): 299 -> **308 met, 7 partial, 31 open**. Prioritised by cost, and the
+  cheapest wins turned out to be corrections, not code:
+  - **cavekit-gre-widgets.md R6 recorded a false blocker.** It said find-in-page SIGSEGVs because
+    the offscreen browser never sets up a frame-selection controller. It does not: `FindNext`
+    reaches `nsContentUtils::SubjectPrincipal()`, which is `MOZ_CRASH` when there is no JSContext
+    — and an embedder calls it from C++ with no script on the stack. `MOZ_CRASH` presents as
+    SIGSEGV at address 0, which is what was misread for two weeks. Patch 0015 fixes it and
+    carries the explanation inline. A kit that records a wrong cause is worse than one that
+    records nothing, so this is the highest-value edit in the sweep.
+  - **R2 (date/time) closed by turning the feature off**, which is one of the two outcomes the
+    criterion itself allowed. Verified by a probe page that prints its own result: `type=date`
+    before, `type=text` after, value intact.
+  - **A deploy trap worth remembering**, recorded in `../impl/impl-gre-widget-inventory.md`: the
+    first attempt to apply that pref silently did nothing, because the idempotence guard grepped
+    for the pref NAME and upstream already set it in the same file. Guard on your own marker.
+  - **preferences-ui R3 3/4 device-proven** from the profile rather than the UI. The fourth
+    measured a real defect and left the criterion open — the honest outcome, and one that reading
+    the pref back would have hidden.
+- 2026-08-05: **`about:preferences` / `about:settings` now render on device**, and the shells
+  gained the two settings they own rather than the engine. Three new requirements
+  (cavekit-ui-shell.md R6, cavekit-mochi-ui.md R7, cavekit-mojo-ui.md R7) for the home button's
+  target and the start page's shortcut list; cavekit-mojo-ui.md R6 extended for the command row.
+  Totals re-counted programmatically (see the Totals line for the current figure).
+
+  Four things here are worth carrying forward more than the counts are:
+  1. **The preferences page needed no C++ change.** An `nsIAboutModule` registered from a JS
+     component reaches `Services.prefs` with the system principal, so the engine's own about:
+     table in `BrowserPageGoanna.cpp` stays as the two-static-pages thing it was written to be.
+  2. **A kit criterion was wrong, not just unmet.** cavekit-preferences-ui.md R1 required the
+     page be built on `<prefwindow>`; that both prescribes a HOW (against the kit conventions)
+     and prescribes the wrong thing, because `<prefwindow>` is a chrome-WINDOW binding and this
+     embedding has no window. Restated as an outcome.
+  3. **Every user-reported symptom this session was invisible in the source.** The Mojo command
+     bar rendering empty was a `.palm-menu-fade` block pushing statically-positioned items out
+     of a clipped box; the url bar "looking incorrect" was Mojo's TextField being two nodes that
+     swap on blur. Both were found by screenshotting the device and dumping live geometry —
+     `luna-send palm://com.palm.systemmanager/takeScreenShot` — not by reading CSS. The same
+     method caught 13 preference rows bound to prefs a bare GRE does not ship.
+  4. **`Mojo.stringifyJSON` does not exist in this framework build**, and `jihad-history.js`
+     used it — so Mojo history had never persisted. Found only because an unrelated new call
+     threw in the main scene's `setup()`.
+- 2026-08-04 (second pass): A sweep against the open list closed **19** criteria and corrected two
+  whose premise was wrong. The engine gained three patches, each fixing something that had been
+  silently doing nothing: `PuppetWidget::GetCurrentWidgetListener` never fell back to
+  `mWidgetListener`, so every synthesized KEY event was dropped (mouse hid it — there is a
+  `SendMouseEventToWindow`, but no key equivalent); no `keypress` was ever synthesized, which is
+  what XUL `<key>` elements match on; and `nsIBadCertListener2` reached nobody, so accepting a bad
+  certificate had no cert to override. That last one came from the user's suggestion to look at how
+  **Atlas** does it — WebKit hands Atlas the certificate as a signal argument, and the lesson
+  (take it from the notification that carries it, don't recover it later) transferred exactly.
+  Also: W3C touch events were OFF on a touchscreen-only device (autodetect only works on
+  Windows/GTK3) and multi-touch parsed only its first point; Flash loads on the TouchPad and
+  `about:plugins` lists it; the memory guardrail was observed firing for the first time, which
+  required admitting it had been unexercisable; and the memory budget is now a number (~90 MB RSS,
+  ceiling 150 MB). What remains is genuinely gated: TouchPad Go hardware, a human pinch, the
+  windowless NPAPI port, a Luna service design decision, and the OE/bitbake track.
+- 2026-08-04: Add-ons **R2** and **R6** closed, and with them three daemon-lifecycle defects that
+  had been hidden by the daemon never exiting: no SIGTERM handling (so the add-on database and
+  prefs never flushed — a UI disable came back enabled after a restart), `XRE_TermEmbedding`
+  running while pages were still live, and a `~YapServer` teardown that had never once run and
+  was broken. cavekit-engine-embedding.md R2's "shuts down cleanly" was corrected from met to
+  met-with-evidence and gained two criteria. The user-reported "install button does nothing" was
+  traced to the DIALOG deadline, not the add-on stack: the card opens the reply pipe only when
+  the user taps, so the 5 s pickup deadline silently denied every dialog a person answered in
+  time — every harness passed throughout (cavekit-browser-services.md R3). New section
+  **"Driving the browser without a human"** records the four traps that cost time here, chiefly
+  that `jsurl` does not execute in a chrome document while still reporting `ok=1`. Totals are now
+  COUNTED rather than estimated; the previous line had drifted.
+- 2026-08-03 (second session): The card JS dev loop is restored (`push-card-js.sh`, stamp-proven
+  reloads) — the two causes were `novacom run`'s stdin-EOF output race and the real WebAppMgr JS
+  cache. With it, the `<select>` popup closed on **all three** variants: the "empty popup" was a
+  JSON field-name mismatch (the stock framework consumes `onOpenSelect` itself and expects the
+  isis `items[].text/isEnabled` + `selectedIdx` shape), so the daemon now emits that shape, the
+  Enyo app's own popup code was deleted as unreachable, Mochi got an overlay list, and Mojo needed
+  no app code at all. Opus review hardened the apply path (disabled/optgroup/out-of-range/no-op
+  guards, fail-closed popup file, process-global ids). Mojo gained **R6** (new card / history /
+  share), lost its redundant title row, and had its toolbar overflow fixed — root cause: the card
+  WebKit ignores unprefixed `box-sizing`, now documented as a platform constraint. All three start
+  pages share the logo/title/engine-line/hint block. Totals → ~54 met / ~9 open; priorities
+  reordered around the now-unblocked queue.
+- 2026-08-03: Session handoff for the next Fable run. Closed on device: scroll pan headroom
+  (offscreen, overscan paint, Opus-reviewed), long-press/`contextmenu` (input, hit-test round-trip
+  was a daemon stub), input coord mapping (input R5, doc→viewport), and **device-build R7** — all
+  three variants live (`push-variant.sh`/`push-engine-update.sh`, `device-independence-test.sh
+  check` 24/24). Apps renamed Enyo/Mochi/Mojo; Jihad logo on the about pages; Enyo start page
+  follows VKB/orientation. Built but card-blocked: the `<select>` popup (daemon done + verified,
+  card list empty behind a broken card JS dev-loop) and the XPI install prompt (authored, unwired).
+  Totals → ~48 met / ~14 open; priorities reordered around the card-dev-loop prerequisite. New impl
+  docs: `impl-scroll-overscan-2026-08-02.md`, `impl-menupopup-2026-08-02.md`,
+  `impl-select-popup-2026-08-03.md`; the START-HERE handoff was rewritten.
+- 2026-07-31: Reconciliation against recorded evidence. The Mochi row read "⬜ 0/5 — skeleton
+  only" while cavekit-mochi-ui.md records R1 (dual-install VERIFIED ON DEVICE 2026-07-19), R3 and
+  R5 as met → now 🟡 R1/R3/R5 ✓, R2/R4 [~]. The UI-Shell row now reflects R4's three
+  device-verified ACs (device-test-2026-07-19 Session 4). The Offscreen row goes 5→6 requirements
+  (R6, added 2026-07-26) and 6/6 (rotation composite + zoom rework device-confirmed 2026-07-27).
+  The Device-Build row no longer describes the Mochi `.ipk` as broken — review items #1/#4/#5/#6/
+  #9/#12 are fixed + build-verified (commits 9413d16, b1c0112); the two real gaps (clean-clone
+  reproducibility, on-device install) are named instead. Totals corrected to 55 requirements
+  (~43 met, ~12 open) and "Current priorities" reordered to what is actually open — the list still
+  led with those fixed review items. Added the 2026-07-27 rotation/zoom milestone.
+

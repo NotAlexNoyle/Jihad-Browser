@@ -178,7 +178,9 @@ const PANES = [
 					{type: "text", label: "The lists", value: blockerStatusText, live: true,
 					 help: "EasyList and EasyPrivacy, by The EasyList authors (GNU GPL v3 or later), refreshed from easylist.to every four days."},
 					{type: "button", label: "Update the lists now", button: "Update", action: blockerUpdate, busy: blockerBusy,
-					 help: "Downloads both lists from easylist.to and uses them if they are newer."}
+					 help: "Downloads both lists from easylist.to and uses them if they are newer."},
+					{pref: "jihad.youtube.lite", type: "bool", label: "Play YouTube in the lightest format",
+					 help: "YouTube is offered only H.264 video at up to 480 lines and 30 frames a second, the formats this device decodes with the least work. Turn it off to let YouTube choose."}
 				]
 			},
 			{

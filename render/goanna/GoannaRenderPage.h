@@ -233,6 +233,9 @@ public:
   // fromPage: a load the page started (a daemon re-drive) — it carries the page's principal
   // (see the .cpp); false for a load the user started.
   bool LoadUrl(const char* url, const char* referrer = nullptr, uint32_t referrerPolicy = 0, bool fromPage = false);
+  // The next LoadUrl replaces the current history entry, and the page it leaves is not kept in the back-forward cache
+  // (a replacing load is never cached): the memory shedding's about:stopped (cavekit-device-headroom.md R1).
+  void SetNextLoadReplaces() { mNextLoadReplaces = true; }
   bool LoadUrlAndWait(const char* url, int timeoutSec);
   bool SetHtml(const char* body);       // load inline HTML (YAP: setHtml)
   bool CanGoBack();
@@ -645,6 +648,7 @@ private:
 
   GoannaRenderPage(const GoannaRenderPage&) = delete;
   GoannaRenderPage& operator=(const GoannaRenderPage&) = delete;
+  bool mNextLoadReplaces = false;
 };
 
 // Drain the engine main thread's READY events, up to msBudget ms, without a page: the same

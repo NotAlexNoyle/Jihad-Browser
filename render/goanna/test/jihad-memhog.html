@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     jihad-memhog.html?mb=N&rate=R — a page that takes memory at R MB a second until it holds N MB, and keeps it
+     (cavekit-device-headroom.md R1: the guard's test, a page that grows like the YouTube visit of 2026-11-07 but on
+     purpose and to a known size). Each megabyte is an ArrayBuffer written through, so its pages are really resident.
+     #held says how much it holds; #state "growing", then "holding". -->
+<html>
+<head>
+	<meta charset="UTF-8"/>
+	<meta name="viewport" content="width=device-width"/>
+	<title>memhog</title>
+	<style>body { font: 20px monospace; margin: 24px; } #held { font-size: 48px; }</style>
+</head>
+<body>
+	<div>held MB</div><div id="held">0</div><div id="state">growing</div>
+	<script>
+		var q = {}; location.search.replace(/[?&]([^=&]+)=([^&]*)/g, function (_, k, v) { q[k] = parseFloat(v); });
+		var target = q.mb || 300, rate = q.rate || 8, held = [], tick = 250;
+		var t = setInterval(function () {
+			for (var i = 0; i < rate * tick / 1000 && held.length < target; i++) {
+				var b = new Uint8Array(1 << 20);
+				for (var j = 0; j < b.length; j += 4096) b[j] = (held.length + j) & 255;   // touch every page
+				held.push(b);
+			}
+			document.getElementById("held").textContent = held.length;
+			if (held.length >= target) { clearInterval(t); document.getElementById("state").textContent = "holding"; }
+		}, tick);
+	</script>
+</body>
+</html>

@@ -272,7 +272,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 	# Fail the BUILD, not the device: a half-landed package means about:preferences resolves to
 	# nothing, and "unknown protocol" points nowhere near this block.
 	for f in jihad-prefsui.manifest prefsui/content/preferences.html \
-	         prefsui/content/preferences.js prefsui/content/preferences.css prefsui/content/personas.html prefsui/content/personas.js prefsui/content/personas.css \
+	         prefsui/content/preferences.js prefsui/content/preferences.css prefsui/content/personas.html prefsui/content/personas.js prefsui/content/personas.css prefsui/content/stopped.html \
 	         prefsui/content/shell.js prefsui/content/shell.css prefsui/content/addons.css prefsui/content/discover-dark.css \
 	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }

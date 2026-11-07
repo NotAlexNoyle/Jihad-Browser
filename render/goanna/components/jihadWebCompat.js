@@ -34,7 +34,13 @@ Cu.import("resource://gre/modules/Timer.jsm");
 
 const PREF_ENABLED = "jihad.compat.enabled";
 const PREF_TRACE   = "jihad.compat.trace";
-const PREF_PROBE   = "jihad.compat.probe";   // trace mode only: base64 of a script run in each top document 25 s after its root, its result logged
+const PREF_PROBE   = "jihad.compat.probe";
+const PREF_PROBE_MS = "jihad.compat.probeDelay";   // when the probe runs, ms after the root (25000)
+// cavekit-device-headroom.md R4: on YouTube the player is offered only what this device decodes cheaply
+const PREF_YT_LITE = "jihad.youtube.lite";
+// diagnosis only (cavekit-device-headroom.md R2/R3): what a top document's script does with the main thread, every 10 s
+const PREF_ACTIVITY = "jihad.compat.activity";
+const YT_HOSTS = ["youtube.com", "youtube-nocookie.com"];   // trace mode only: base64 of a script run in each top document 25 s after its root, its result logged
 
 function log(s) { try { Services.console.logStringMessage("compat: " + s); } catch (e) {} }
 function boolPref(n, d) { try { return Services.prefs.getBoolPref(n); } catch (e) { return d; } }
@@ -51,6 +57,86 @@ const AGENT_CSS =
   // A tap on a movie focuses its element, and the engine drew a dotted ring round it (found by the suite's reacted check,
   // 2026-11-06). A movie has its own focus; no other browser on this device draws one.
   "embed:focus,object:focus,embed:-moz-focusring,object:-moz-focusring{outline:none!important}";
+
+// YouTube's player picks a format from what MediaSource.isTypeSupported and canPlayType accept (the h264ify
+// technique, as its user scripts do it: nikisby's "YouTube h264ify", the "enhanced-h264ify" extension). Refused here:
+// VP8, VP9 and AV1 (this browser decodes them on the CPU through ffvpx; H.264 goes through FFmpeg's NEON decoder,
+// cavekit-modern-web.md R6), and any type that names more than 480 rows or 30 frames a second. Measured cost and
+// effect: cavekit-device-headroom.md R4. Off with jihad.youtube.lite.
+const YT_LITE = String.raw`
+(function (W, maxH, maxFps) {
+  function tooMuch(t) {
+    t = String(t || "").toLowerCase();
+    if (/\bvp0?8|\bvp0?9|\bvp09|\bav01|\bav1\b/.test(t)) return true;
+    var m = /height=(\d+)/.exec(t); if (m && +m[1] > maxH) return true;
+    m = /framerate=(\d+)/.exec(t); if (m && +m[1] > maxFps) return true;
+    return false;
+  }
+  var done = [];
+  if (W.MediaSource && typeof W.MediaSource.isTypeSupported === "function") {
+    var ist = W.MediaSource.isTypeSupported;
+    W.MediaSource.isTypeSupported = function (t) { return tooMuch(t) ? false : ist.call(W.MediaSource, t); };
+    done.push("youtube: isTypeSupported");
+  }
+  if (W.HTMLMediaElement && W.HTMLMediaElement.prototype.canPlayType) {
+    var cpt = W.HTMLMediaElement.prototype.canPlayType;
+    W.HTMLMediaElement.prototype.canPlayType = function (t) { return tooMuch(t) ? "" : cpt.call(this, t); };
+    done.push("youtube: canPlayType");
+  }
+  return done;
+})`;
+
+// The activity count (jihad.compat.activity, off by default): animation frames, timers, intervals and mutation
+// observers, each callback timed; every 10 s their counts and milliseconds, and the three costliest callbacks named by
+// the first frame of the stack that scheduled them (taken once per function). What it cannot see: promise jobs, event
+// listeners, layout and paint; the sum here against the main thread's CPU says how much those are.
+const ACTIVITY = String.raw`
+(function (W, out) {
+  "use strict";
+  var now = function () { return W.performance.now(); }, kinds = {}, by = {}, seen = new W.WeakMap();
+  function where(fn) {
+    var k = seen.get(fn);
+    if (k) return k;
+    var st = ""; try { st = new W.Error().stack.split("\n")[3] || ""; } catch (e) {}   // past where, timed and the wrapper
+    k = (fn.name || "anon") + " " + st.replace(/^[^@]*@/, "").replace(/\?[^:]*/, "").slice(-90);
+    seen.set(fn, k); return k;
+  }
+  function timed(kind, fn) {
+    if (typeof fn !== "function") return fn;
+    var k = where(fn);
+    return function () {
+      var t = now();
+      try { return fn.apply(this, arguments); }
+      finally { var d = now() - t; var a = kinds[kind] || (kinds[kind] = [0, 0]); a[0]++; a[1] += d; var b = by[k] || (by[k] = [0, 0]); b[0]++; b[1] += d; }
+    };
+  }
+  var raf = W.requestAnimationFrame, sto = W.setTimeout, siv = W.setInterval;
+  W.requestAnimationFrame = function (fn) { return raf.call(W, timed("frame", fn)); };
+  W.setTimeout = function (fn) { var a = W.Array.prototype.slice.call(arguments); a[0] = timed("timeout", fn); return sto.apply(W, a); };
+  W.setInterval = function (fn) { var a = W.Array.prototype.slice.call(arguments); a[0] = timed("interval", fn); return siv.apply(W, a); };
+  if (W.MutationObserver) { var MO = W.MutationObserver; W.MutationObserver = function (fn) { return new MO(timed("mutation", fn)); }; W.MutationObserver.prototype = MO.prototype; }
+  // event listeners by type (a MessageChannel scheduler's "message" among them), promise callbacks, queued microtasks
+  var listeners = new W.WeakMap(), ael = W.EventTarget.prototype.addEventListener, rel = W.EventTarget.prototype.removeEventListener;
+  W.EventTarget.prototype.addEventListener = function (type, fn, o) {
+    if (typeof fn !== "function") return ael.call(this, type, fn, o);
+    var m = listeners.get(fn); if (!m) { m = {}; listeners.set(fn, m); }
+    var w = m[type] || (m[type] = timed("event " + type, fn));
+    return ael.call(this, type, w, o);
+  };
+  W.EventTarget.prototype.removeEventListener = function (type, fn, o) { var m = typeof fn === "function" && listeners.get(fn); return rel.call(this, type, (m && m[type]) || fn, o); };
+  if (W.MessagePort) { var d = W.Object.getOwnPropertyDescriptor(W.MessagePort.prototype, "onmessage"); if (d && d.set) W.Object.defineProperty(W.MessagePort.prototype, "onmessage", {configurable: true, get: d.get, set: function (fn) { d.set.call(this, timed("event message", fn)); }}); }
+  var then = W.Promise.prototype.then;
+  W.Promise.prototype.then = function (a, b) { return then.call(this, timed("promise", a), timed("promise", b)); };
+  if (W.queueMicrotask) { var qm = W.queueMicrotask; W.queueMicrotask = function (fn) { return qm.call(W, timed("microtask", fn)); }; }
+  siv.call(W, function () {
+    var parts = [], top = [];
+    for (var k in kinds) parts.push(k + " " + kinds[k][0] + "/" + Math.round(kinds[k][1]) + "ms");
+    for (var b in by) top.push([by[b][1], by[b][0], b]);
+    top.sort(function (x, y) { return y[0] - x[0]; });
+    out("10 s: " + (parts.join(", ") || "nothing") + " | " + top.slice(0, 4).map(function (x) { return Math.round(x[0]) + "ms/" + x[1] + " " + x[2]; }).join(" ; "));
+    kinds = {}; by = {};
+  }, 10000);
+})`;
 
 // The shims: page-level JavaScript, run in the page's sandbox. `window` is the page's window (the
 // sandbox's prototype); every member is defined on the page's own objects. Returns the names
@@ -417,10 +503,13 @@ function JihadWebCompat() {
   this._enabled = boolPref(PREF_ENABLED, true);
   this._trace = boolPref(PREF_TRACE, false);
   this._probe = charPref(PREF_PROBE, "");
+  this._ytLite = boolPref(PREF_YT_LITE, true);
+  this._activity = boolPref(PREF_ACTIVITY, false);
   this._documents = 0;
   this._installed = new Map();          // shim name → documents it was installed in
   this._sheet = null;
   try { Services.prefs.addObserver("jihad.compat.", this, false); } catch (e) {}
+  try { Services.prefs.addObserver("jihad.youtube.", this, false); } catch (e) {}
   try { Services.obs.addObserver(this, "document-element-inserted", false); } catch (e) {}
   this._registerSheet();
   let self = this;
@@ -445,13 +534,15 @@ JihadWebCompat.prototype = {
       if (data === PREF_ENABLED) this._enabled = boolPref(PREF_ENABLED, true);
       else if (data === PREF_TRACE) this._trace = boolPref(PREF_TRACE, false);
       else if (data === PREF_PROBE) this._probe = charPref(PREF_PROBE, "");
+      else if (data === PREF_YT_LITE) this._ytLite = boolPref(PREF_YT_LITE, true);
+      else if (data === PREF_ACTIVITY) this._activity = boolPref(PREF_ACTIVITY, false);
       return;
     }
     if (topic === "document-element-inserted") this._onDocument(subject);
   },
 
   _onDocument: function (doc) {
-    if (!this._enabled && !this._trace) return;
+    if (!this._enabled && !this._trace && !this._activity) return;
     let uri = null, win = null;
     try { uri = doc.documentURIObject; win = doc.defaultView; } catch (e) { return; }
     if (!uri || !win || (uri.scheme !== "http" && uri.scheme !== "https")) return;
@@ -480,14 +571,26 @@ JihadWebCompat.prototype = {
               let r = Cu.evalInSandbox(src, psb, "latest", "jihad-web-compat-probe.js", 1);
               log("probe [" + host + "] " + String(r).slice(0, 6000));
             } catch (e) { log("probe [" + host + "] threw " + e); }
-          }, 25000);
+          }, (function () { try { return Services.prefs.getIntPref(PREF_PROBE_MS); } catch (e) { return 25000; } })());
         }
+      }
+      if (this._activity && win === win.top) {
+        let host = uri.asciiHost, asb = Cu.Sandbox(win, {wantXrays: false, sameZoneAs: win, sandboxName: "jihad-web-compat-activity"});
+        try { Cu.evalInSandbox(ACTIVITY, asb, "latest", "jihad-web-compat-activity.js", 1)(raw, Cu.exportFunction(function (s) { log("activity [" + host + "] " + s); }, asb)); }
+        catch (e) { log("activity failed on " + host + ": " + e); }
       }
       if (this._enabled) {
         let installed = Cu.evalInSandbox(SHIMS, sandbox, "latest", "jihad-web-compat.js", 1)(raw);
         this._documents++;
         let names = [];
         try { names = Array.from(installed || []); } catch (e) {}
+        if (this._ytLite) {
+          let h = uri.asciiHost.toLowerCase();
+          if (YT_HOSTS.some(d => h === d || h.endsWith("." + d))) {
+            try { names = names.concat(Array.from(Cu.evalInSandbox(YT_LITE, sandbox, "latest", "jihad-web-compat-youtube.js", 1)(raw, 480, 30) || [])); }
+            catch (e) { log("youtube lite failed on " + h + ": " + e); }
+          }
+        }
         for (let n of names) this._installed.set(n, (this._installed.get(n) || 0) + 1);
         if (this._documents <= 3 || this._trace) log(uri.asciiHost + ": " + (names.length ? names.join(", ") : "nothing needed"));
       }

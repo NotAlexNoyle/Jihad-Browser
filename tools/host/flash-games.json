@@ -1,5 +1,5 @@
 {
- "_": "How each game of the corpus is started and played (cavekit-flash.md R6, T-576), read from its screens. start: fractions of the movie's rect to tap in turn, with seconds after each. input: tap = the points in turn; hold = press and release at the point; drag = from a point to a point; keys = the game's keys on the system keyboard, after the double tap that engages the movie.",
+ "_": "How each game of the corpus is started and played (cavekit-flash.md R6, T-576), read from its screens. start: fractions of the movie's rect to tap in turn, with seconds after each. input: tap = the points in turn; hold = press and release at the point; drag = from a point to a point; keys = the game's keys on the system keyboard, after the double tap that engages the movie. seq: a mixed cycle instead, each [\"tap\",x,y], [\"drag\",x1,y1,x2,y2(,ms)], [\"hold\",x,y,ms] or [\"key\",name]: a game that ends (a fall, a defeat, a throw landed) is started again by the same cycle.",
  "achievement-unlocked": {
   "start": [
    [
@@ -48,16 +48,32 @@
     0.08
    ],
    [
+    0.5,
+    0.7
+   ],
+   [
     0.76,
     0.08
+   ],
+   [
+    0.5,
+    0.54
    ],
    [
     0.8,
     0.08
    ],
    [
+    0.5,
+    0.48
+   ],
+   [
     0.84,
     0.08
+   ],
+   [
+    0.5,
+    0.37
    ]
   ]
  },
@@ -207,6 +223,36 @@
   "lock_at": [
    0.5,
    0.5
+  ],
+  "seq": [
+   [
+    "key",
+    "right"
+   ],
+   [
+    "key",
+    "d"
+   ],
+   [
+    "hold",
+    0.7,
+    0.5,
+    1000
+   ],
+   [
+    "key",
+    "down"
+   ],
+   [
+    "key",
+    "s"
+   ],
+   [
+    "hold",
+    0.3,
+    0.5,
+    1000
+   ]
   ]
  },
  "crimson-room": {
@@ -321,7 +367,7 @@
    [
     0.87,
     0.89,
-    6
+    8
    ],
    [
     0.5,
@@ -329,8 +375,9 @@
     6
    ],
    [
-    "wait",
-    5
+    0.5,
+    0.6,
+    8
    ]
   ],
   "input": "tap",
@@ -464,6 +511,10 @@
    [
     0.6,
     0.4
+   ],
+   [
+    0.83,
+    0.88
    ]
   ]
  },
@@ -487,25 +538,61 @@
    [
     "wait",
     3
+   ],
+   [
+    0.5,
+    0.5,
+    5
+   ],
+   [
+    0.5,
+    0.5,
+    5
+   ],
+   [
+    0.07,
+    0.25,
+    8
+   ],
+   [
+    0.5,
+    0.5,
+    4
    ]
   ],
   "input": "tap",
   "points": [
    [
-    0.5,
-    0.5
+    0.885,
+    0.32
    ],
    [
-    0.3,
-    0.3
+    0.885,
+    0.45
    ],
    [
-    0.7,
-    0.7
+    0.885,
+    0.45
    ],
    [
-    0.9,
-    0.1
+    0.49,
+    0.23
+   ],
+   [
+    0.925,
+    0.32
+   ],
+   [
+    0.925,
+    0.45
+   ],
+   [
+    0.925,
+    0.45
+   ],
+   [
+    0.71,
+    0.38
    ]
   ]
  },
@@ -755,38 +842,28 @@
     2
    ],
    [
-    0.57,
-    0.9,
-    6
-   ],
-   [
-    0.23,
-    0.78,
-    3
-   ],
-   [
-    0.93,
-    0.93,
-    6
+    0.5,
+    0.95,
+    5
    ]
   ],
   "input": "tap",
   "points": [
    [
-    0.84,
-    0.71
+    0.35,
+    0.95
    ],
    [
     0.5,
     0.5
    ],
    [
-    0.84,
-    0.71
+    0.5,
+    0.95
    ],
    [
-    0.3,
-    0.6
+    0.67,
+    0.95
    ]
   ]
  },
@@ -804,6 +881,20 @@
   "lock_at": [
    0.97,
    0.5
+  ],
+  "seq": [
+   [
+    "drag",
+    0.22,
+    0.38,
+    0.7,
+    0.5
+   ],
+   [
+    "tap",
+    0.4,
+    0.65
+   ]
   ]
  },
  "plants-vs-zombies": {
@@ -862,8 +953,10 @@
    "w",
    "o",
    "p",
-   "q",
-   "p"
+   "space",
+   "w",
+   "o",
+   "q"
   ]
  },
  "raft-wars": {
@@ -1046,7 +1139,8 @@
     0.5,
     0.15
    ]
-  ]
+  ],
+  "limit": "the archive's item is the intro alone, 47 s (1177 frames at 25 fps); at its end it asks for its first scene, lyzar1.swf, which the item does not hold (flash-serve.py logs the miss), and the movie stays black"
  },
  "sas-zombie-assault": {
   "start": [
@@ -1064,6 +1158,44 @@
    "d",
    "w",
    "d"
+  ],
+  "seq": [
+   [
+    "key",
+    "w"
+   ],
+   [
+    "tap",
+    0.3,
+    0.5
+   ],
+   [
+    "key",
+    "d"
+   ],
+   [
+    "tap",
+    0.7,
+    0.5
+   ],
+   [
+    "key",
+    "s"
+   ],
+   [
+    "tap",
+    0.9,
+    0.93
+   ],
+   [
+    "key",
+    "a"
+   ],
+   [
+    "tap",
+    0.23,
+    0.37
+   ]
   ]
  },
  "super-mario-flash": {
@@ -1100,6 +1232,15 @@
    [
     0.5,
     0.92,
+    10
+   ],
+   [
+    "wait",
+    6
+   ],
+   [
+    0.5,
+    0.59,
     8
    ]
   ],

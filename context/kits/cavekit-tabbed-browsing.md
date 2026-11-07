@@ -1,6 +1,6 @@
 ---
 created: "2026-10-06"
-last_edited: "2026-10-06"
+last_edited: "2026-11-07"
 complexity: complex
 ---
 
@@ -18,12 +18,8 @@ Nothing in it is built. The design that satisfies it — which half lives in the
 the shells, and why — is `docs/TABS-GROUNDWORK.md`; the tasks are Tier 71 of
 `context/plans/build-site.md`, all pending.
 
-The one constraint that shapes everything: **the BrowserAdapter↔BrowserServer YAP contract is
-frozen** (cavekit-ipc-contract.md R1). No new YAP command or message, no change to the adapter's
-JS method set. Tabs therefore cannot be "the adapter gets a tab API". What the shells may use is
-the daemon's OWN Luna service (`palm://net.riverstonerelay.jihadBrowser*/`), which is this
-project's and already carries printing, notifications and `pageCertificate` (cavekit-ipc-contract.md
-R4 precedent).
+The BrowserAdapter↔BrowserServer YAP contract stays frozen (cavekit-ipc-contract.md R1), so tabs
+are not an adapter API; the shells reach tabs through the daemon's own Luna service (R2).
 
 Reference: `docs/TABS-GROUNDWORK.md`, `docs/IPC-CONTRACT.md`,
 `render/browserserver/JihadBrowserServer.{h,cpp}` (one `Page` per adapter connection today),
@@ -95,5 +91,6 @@ cavekit-ui-shell.md R7/R8 (how a card already talks to its own daemon over Luna)
 - **Atlas as a reference (owner, 2026-10-06):** Atlas's `source/engine/TabLayer.js` (in `~/eclipse-workspace/Jihad/Atlas/atlas-browser-app`) builds in-app tabs for its Chromium host — an `AtlasTabStrip` Enyo kind (a flex row with `overflow-x: auto`, hidden until a second tab), tabs tracked by view name with `this.$.browser` re-pointed at the active one so the rest of the app is untouched, background views suspended (`setEngineActive(false)`), the last tab closed reopening the start page, `window.open` routed to a tab. Its PAGE model (one engine view per tab) is plan A — right for an engine host with cheap views, not for this adapter (37.7 MB per connection); its UI model carries over to the Enyo shell almost as is, and its rules (hidden with one tab, neighbour on close, never zero) are the ones R1 states.
 
 ## Changelog
+- 2026-11-07: sweep; one Scope paragraph shortened (it repeated R2), original verbatim in `archive/tabbed-browsing-history.md`.
 - 2026-10-06: Created as groundwork only (owner's direction). Nothing built; design in `docs/TABS-GROUNDWORK.md`; Tier 71 tasks pending.
 - 2026-10-06 (later): the owner's answers folded in — `window.open` → new tab by default, strip invisible with one tab, no cap (a responsive, horizontally scrolling strip; memory bounded by the unload step); Atlas's `TabLayer.js` named as the UI reference.

@@ -98,8 +98,8 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 ## R6: Games — every game played, in every shell
 **Description:** each game is started and played by a script in stage coordinates, long enough to show that it is playable. Winning is not required.
 **Acceptance Criteria:**
-- [ ] Each game in each shell reaches its first interactive screen by its reference signature, is started by the finger, and takes a scripted input sequence of at least 60 s with the reacted check true throughout
-- [ ] During that minute the content rate meets R3, the shown-frame spacing's p90 is at most twice the authored frame period or within 10 % of the stock browser's, and no check reads the movie as blank
+- [ ] Each game in each shell reaches its first interactive screen by its reference signature, is started by the finger, and takes a scripted input sequence of at least 60 s with the reacted check true throughout *(2026-11-07, T-576 in progress: Enyo's first full round, 37 games, tools/device/finger/flash/game-round.py, docs/rounds/finger-2026-11-06/t576/; reacted in every window for 10 of them and for 4 more once their scripts were fixed (docs/rounds/finger-2026-11-06/t576/explore), the rest mostly scripts that stopped when the game ended (a fall, a defeat), now cycles that start them again (flash-games.json `seq`); a card that leaves its game for an ad is closed at once; Samorost is a limit, its archive holds only the intro)*
+- [ ] During that minute the content rate meets R3, the shown-frame spacing's p90 is at most twice the authored frame period or within 10 % of the stock browser's, and no check reads the movie as blank *(game-report.py holds each game to the stock browser's minute where it plays the game, else to this browser's software path's (`--label soft`); neither round run yet, so its table still shows the authored bar)*
 - [ ] During that minute plugin-container does not exit, the card does not close and the daemon logs no fault
 - [ ] Each keyboard game is played on the system keyboard of R5 in each shell, or it is a limit with the reason (the keyboard covering its play area counts as our fail unless the stock browser does the same)
 - [ ] Two heavy games and two others each run 15 minutes, and plugin-container's resident memory and the content rate at the end stay within 10 % of their values at minute 1
@@ -128,19 +128,19 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 **Description:** a movie's sound starts and ends with the movie, and follows the card.
 **Acceptance Criteria:**
 - [ ] The audio stream closes within 2 s of navigating away, of a reload and of closing the card, and no stream is left open by plugin-container
-- [ ] With the card sent to the background the sound behaves as in the stock browser on the same file, and it comes back when the card does
+- [ ] With the card sent to the background the sound behaves as in the stock browser on the same file, and it comes back when the card does *(2026-11-07: the owner heard YouTube in a front Enyo card and nothing from Learn to Fly 3 in the Mochi card behind it. The player holds no ALSA device, only sockets; pulseaudio owns the hardware stream. Open, T-579)*
 - [ ] A music player app runs 10 minutes with its stream open throughout and no plugin exit; clicks and dropouts are a person's, on R14's clips
 **Dependencies:** R2
 
 ## R10: The movie's life — teardown, crashes, memory, more than one
 **Description:** movies are opened and left many times over, and a bad one costs only itself.
 **Acceptance Criteria:**
-- [ ] Twenty cycles of navigating away, back, reload and closing the card on each of three titles leave no wedged plugin, no second plugin-container and no orphan, with the daemon's resident memory within 10 MB of its value after cycle 1
+- [ ] Twenty cycles of navigating away, back, reload and closing the card on each of three titles leave no wedged plugin, no second plugin-container and no orphan *(2026-11-07: the engine keeps a player 30 s after its last movie (`dom.ipc.plugins.unloadTimeoutSecs`) and a card opened within that reuses it; an orphan is one still there after 35 s)*, with the daemon's resident memory within 10 MB of its value after cycle 1
 - [ ] Leaving a page with a movie ends plugin-container without an abort: no `mozalloc_abort` and no crash report (PICKUP's item 4)
 - [ ] A corrupt or hostile library in the plugin folder does not wedge the daemon: the daemon reaches `serving YAP` and the page loads, with that plugin absent (PICKUP's item 5)
 - [ ] plugin-container killed three times in a row: the daemon survives, the card shows a state a person can act on, a reload brings the movie back, and a crash loop stops itself within its bound
 - [ ] A background card's movie publishes no frames, and its CPU boost is released within 5 s; back in front it draws and takes a tap within 2 s
-- [ ] Two cards with movies at once, in one shell and across two shells, both draw and take input; the largest title in the corpus runs with the device's other cards closed and does not exhaust memory, or it is a limit
+- [ ] Two cards with movies at once, in one shell and across two shells, both draw and take input; the largest title in the corpus runs with the device's other cards closed and does not exhaust memory *(2026-11-07: the largest, Learn to Fly 3 (17 MB, SWF 28), draws its menu with the player at 58-100 MB; in play it falls to about a frame a second. A tap on its sponsor link once sent the card to YouTube and, with swap, the device off USB: cavekit-device-headroom.md)*, or it is a limit
 - [ ] The Flash switch off means no plugin instantiates on a corpus page and the page says so; on brings it back; the CPU boost is released after the last movie goes
 **Dependencies:** R1, R2
 

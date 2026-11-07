@@ -66,6 +66,9 @@ Cu.import("resource://gre/modules/Timer.jsm");
 const PREF_ENABLED  = "jihad.blocking.enabled";
 const PREF_COSMETIC = "jihad.blocking.cosmetic";
 const PREF_LOG      = "jihad.blocking.log";
+// every load the policy is asked about, taken or refused, with its type: what a page does while it looks idle
+// (a page that never stops asking is a page that never stops running script). Off: a busy page writes hundreds.
+const PREF_TRACE    = "jihad.blocking.trace";
 const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lists were last current
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
@@ -394,6 +397,7 @@ function JihadContentBlocker() {
   this._enabled = boolPref(PREF_ENABLED, true);
   this._cosmetic = boolPref(PREF_COSMETIC, true);
   this._log = boolPref(PREF_LOG, false);
+  this._trace = boolPref(PREF_TRACE, false);
   this._hosts = null; this._tp = null; this._excHosts = null;
   this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
   this._excSel = {}; this._gh = {hosts: [], prefixes: []};   // T-522: the site-excepted generic selectors, the generic-hide hosts
@@ -416,6 +420,7 @@ function JihadContentBlocker() {
   // minutes. The first page after a long idle gets its first seconds without blocking.
   try { Services.obs.addObserver(this, "jihad-client-connected", false); } catch (e) {}
   try { Services.obs.addObserver(this, "jihad-client-disconnected", false); } catch (e) {}
+  try { Services.obs.addObserver(this, "jihad-memory-shed", false); } catch (e) {}
   this._clients = 0; this._unloadTimer = null; this._loading = false;
   // The browser's identity lives in its own component (jihadUserAgent.js); started here as well
   // as by the daemon, so the two come up together whichever is created first.
@@ -436,6 +441,11 @@ JihadContentBlocker.prototype = {
       if (!this._hosts && !this._loading) { this._loading = true; this._load(); }
       return;
     }
+    // cavekit-device-headroom.md R1: the daemon stopped a page or a player for memory. What it held is freed only by a
+    // cycle collection, a GC and a cycle collection again (as after the last card, below); 2 s on, once the stopped
+    // page's replacement has committed.
+    // Twice: at 2 s the replacement had not always committed and the page was still held (2026-11-07: 666 MB, then 85).
+    if (topic === "jihad-memory-shed") { setTimeout(() => this._collect("after a memory shed"), 2000); setTimeout(() => this._collect("after a memory shed, again"), 6000); return; }
     if (topic === "jihad-client-disconnected") {
       this._clients = parseInt(data, 10); if (isNaN(this._clients)) this._clients = Math.max(0, this._clients - 1);
       if (this._clients === 0) {
@@ -458,6 +468,7 @@ JihadContentBlocker.prototype = {
     if (data === PREF_ENABLED) { this._enabled = boolPref(PREF_ENABLED, true); log("blocking " + (this._enabled ? "on" : "off")); this._applySheet(); }
     else if (data === PREF_COSMETIC) { this._cosmetic = boolPref(PREF_COSMETIC, true); this._applySheet(); }
     else if (data === PREF_LOG) { this._log = boolPref(PREF_LOG, false); }
+    else if (data === PREF_TRACE) { this._trace = boolPref(PREF_TRACE, false); }
   },
 
   // ── nsIContentPolicy ──
@@ -465,7 +476,9 @@ JihadContentBlocker.prototype = {
     if (!this._enabled || !this._hosts || NEVER_TYPES[type]) return Ci.nsIContentPolicy.ACCEPT;
     let page = null, self = this;
     let pageHost = () => { if (page === null) page = self._pageHost(context, origin); return page; };
-    return this._decide(type, location, pageHost) ? Ci.nsIContentPolicy.REJECT_REQUEST : Ci.nsIContentPolicy.ACCEPT;
+    let no = this._decide(type, location, pageHost);
+    if (this._trace) { let u = ""; try { u = location.spec; } catch (e) {} log("trace " + (no ? "refused " : "taken ") + (TYPE_NAMES[type] || type) + " " + u.slice(0, u.indexOf("/videoplayback") > 0 ? 600 : 160)); }   // a video's itag and mime come late in its address
+    return no ? Ci.nsIContentPolicy.REJECT_REQUEST : Ci.nsIContentPolicy.ACCEPT;
   },
   shouldProcess: function () { return Ci.nsIContentPolicy.ACCEPT; },
 
@@ -604,6 +617,9 @@ JihadContentBlocker.prototype = {
   },
   _collectAfterLastCard: function () {
     if (this._clients !== 0) return;
+    this._collect("after the last card");
+  },
+  _collect: function (why) {
     try { Cu.forceCC(); Cu.forceShrinkingGC(); Cu.forceCC(); Cu.forceShrinkingGC(); } catch (e) { log("collect: " + e); }
     try { Services.obs.notifyObservers(null, "jihad-blocker-installed", null); } catch (e) {}   // the daemon trims again
     setTimeout(() => {
@@ -612,7 +628,7 @@ JihadContentBlocker.prototype = {
         let fig = (name) => { try { return (mr[name] / 1048576).toFixed(1) + " MB"; } catch (e) { return "n/a"; } };
         let comps = "n/a"; try { comps = mr.JSMainRuntimeCompartmentsSystem + "+" + mr.JSMainRuntimeCompartmentsUser; } catch (e) {}
         let ghosts = "n/a"; try { ghosts = String(mr.ghostWindows); } catch (e) {}
-        log("after the last card: resident " + fig("residentFast") + ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", compartments " + comps + " (system+user; user > 0 with no card = a zombie window), ghost windows " + ghosts);
+        log(why + ": resident " + fig("residentFast") + ", JS GC heap " + fig("JSMainRuntimeGCHeap") + ", compartments " + comps + " (system+user; user > 0 with no card = a zombie window), ghost windows " + ghosts);
         // The full report, for the investigation of what holds a closed window (R6, 2026-10-16):
         // <profile>/jihad-blocklists/memory-last-card.json.gz, as about:memory would show it.
         if (boolPref("jihad.blocking.memoryDump", false)) {

@@ -879,6 +879,7 @@ private:
   struct FlashRect { int l, t, r, b; };
   std::map<void*, int>     mPluginRectIds;
   std::map<int, FlashRect> mEmittedFlashRects;
+  int64_t mContentScrollUntilMs = 0;   // T-575: until then a scroll of the page's own is not the card's echo
   // T-576: THE PLUGIN LANE: see pluginLaneFrame
   bool pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff);
   void pluginLaneClose(const char* why);

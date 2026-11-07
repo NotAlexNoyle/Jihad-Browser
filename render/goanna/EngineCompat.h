@@ -85,6 +85,7 @@ extern "C" {
   // OPTIONAL (T-576): the plugin lane: the frame, and the proof nothing lies over it
   int jihad_plugin_lane_copy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
                              int* aFullW, int* aFullH) __attribute__((weak));
+  void jihad_plugin_key_char(int aChar, int aRaw) __attribute__((weak));
   int jihad_plugin_lane_proof(nsIDocShell* aDocShell, int* aX, int* aY, int* aW, int* aH) __attribute__((weak));
   int jihad_offscreen_popups_open() __attribute__((weak));
   void jihad_plugin_lane_set(int aMode, const unsigned char* aRows, int aStride) __attribute__((weak));

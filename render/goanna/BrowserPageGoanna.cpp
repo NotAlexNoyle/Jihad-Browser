@@ -2900,6 +2900,9 @@ void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
 }
 // Shared enqueue for every input kind (F-9). Records only — pump() dispatches.
+static int64_t gJihadPressMs = 0, gJihadMoveFirstMs = 0, gJihadMoveLastMs = 0;
+static int gJihadPressMoves = 0, gJihadPressSent = 0, gJihadPressMoveMs = 0;
+
 void BrowserPageGoanna::queueInput(int type, int x, int y, int detail) {
   // Coalesce a run of pointer moves into the newest position. A drag delivers a move per touch
   // sample (~60/s) while pump() runs on the ~16 ms tick, so without this the queue grows faster
@@ -2908,8 +2911,11 @@ void BrowserPageGoanna::queueInput(int type, int x, int y, int detail) {
   // tracking. Merging only when the queue's LAST entry is also a move is what keeps this safe: a
   // move that must PRECEDE a down/click is never swallowed, and down/up/click/contextmenu — each
   // semantically significant — are never coalesced.
+  // T-575: over a plugin every position counts: a game follows the path, and the card's moves come in
+  // bursts, so a tick's worth merged left 17 of 32 (cavekit-flash R5 asks 20 a second). A few may wait
+  // there; a plugin that stops answering still merges them.
   if ((type == PM_MOVE || type == PM_TOUCHMOVE) && !mPendingMouse.empty() &&
-      mPendingMouse.back().type == type) {
+      mPendingMouse.back().type == type && (mEmittedFlashRects.empty() || mPendingMouse.size() >= 16)) {
     mPendingMouse.back().x = x; mPendingMouse.back().y = y;
     return;
   }
@@ -2943,6 +2949,17 @@ void BrowserPageGoanna::mouseEvent(int type, int x, int y, int /*detail*/) {
   // RECORD ONLY (F-9) — see mPendingMouse in the header for why this must not dispatch here.
   // x,y are already CONTENT coords (see clickAt) -- do not re-map.
   int t = (type == 0) ? PM_DOWN : (type == 1) ? PM_UP : PM_MOVE;
+  // T-575: how many moves a press sent, against how many reach the engine (the move loop in pump)
+  {
+    const int64_t now = jihadNowMs();
+    if (t == PM_DOWN) { gJihadPressMs = now; gJihadPressMoves = 0; gJihadPressSent = 0; gJihadMoveFirstMs = gJihadMoveLastMs = 0; }
+    else if (t == PM_MOVE) { gJihadPressMoves++; if (!gJihadMoveFirstMs) gJihadMoveFirstMs = now; gJihadMoveLastMs = now; }
+    else if (gJihadPressMs) {
+      fprintf(stderr, "[jihad-bs] a press of %d ms: %d moves from the card in %d ms, %d sent on, %d ms in sending them\n", (int)(now - gJihadPressMs), gJihadPressMoves, (int)(gJihadMoveLastMs - gJihadMoveFirstMs), gJihadPressSent, gJihadPressMoveMs);
+      gJihadPressMoveMs = 0;
+      gJihadPressMs = 0;
+    }
+  }
   queueInput(t, x, y, 0);
   mNeedsPaint = true;
 }
@@ -3032,6 +3049,17 @@ void BrowserPageGoanna::smartZoomRequest(int x, int y) {
   double ox = 0, oy = 0;
   docOffset(&ox, &oy, true);
   int vx = (int)(x - ox + 0.5), vy = (int)(y - oy + 0.5);
+  // T-575: a double tap on a movie engages it (the adapter's gesture lock) and the keyboard comes up; the
+  // keys go to the focused element, which is still the page. The space bar scrolled the page.
+  for (const auto& kv : mEmittedFlashRects) {
+    if (x >= kv.second.l && x < kv.second.r && y >= kv.second.t && y < kv.second.b) {
+      char extra[64];
+      snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d", vx, vy);
+      runPageCommand("focusPlugin", extra);
+      mContentScrollUntilMs = jihadNowMs() + 6000;
+      break;
+    }
+  }
   int l = 0, t = 0, r = 0, b = 0;
   if (!mPage->SmartZoomBlockAt(vx, vy, &l, &t, &r, &b)) {
     // No block under the finger. Zoomed in past the page's fit, the double tap goes back to the fit
@@ -4129,6 +4157,9 @@ void BrowserPageGoanna::emitScrollIfChanged() {
     long dx = (long)sx - (long)((double)mAdapterScrollX / z); if (dx < 0) dx = -dx;
     bool adapterDriven = (jihadNowMs() - mLastScrollMs) < 1500 &&
                          dy < (long)(mPage->Height() / 2) && dx < (long)(mPage->Width() / 2);
+    // T-575: the movie moved out from under the keyboard (jihadPageCommands focusPlugin) just after the
+    // card sent its position for the new size: not an echo of that, or the card never hears of it
+    if (jihadNowMs() < mContentScrollUntilMs && (dx > 1 || dy > 1)) adapterDriven = false;
     if (!adapterDriven) {
       // The size first: the card clamps a scroll to the page size it knows, so a jump made while
       // the page loads (an anchor, a scrollIntoView at DOMContentLoaded) went past the window-high
@@ -4293,6 +4324,7 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // cursor would — and that highlight is also the selection indicator, so the user can
       // see what a lift would pick. The content document cannot hit-test a popup (separate
       // display root), so steer the move into the popup instead of dispatching it below.
+      if (e.type == PM_MOVE) gJihadPressSent++;
       if (e.type == PM_MOVE && mPage->PopupHover(e.x, e.y)) {
         mNeedsPaint = true;
         continue;
@@ -4304,7 +4336,11 @@ void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
       // that claims it (preventDefault) has a menu of its own and gets no second one.
       if (e.type == PM_CONTEXTMENU) runPageCommand("holdArm");
       if (!mPage || mNavGen != gen) break;
-      mPage->MouseEvent(t, e.x, e.y, e.detail);
+      {
+        const int64_t me0 = jihadNowMs();
+        mPage->MouseEvent(t, e.x, e.y, e.detail);
+        if (e.type == PM_MOVE) gJihadPressMoveMs += (int)(jihadNowMs() - me0);
+      }
       if (e.type == PM_CONTEXTMENU) {
         // The long-press, after the page has had its contextmenu event. The card raises the
         // menu; what it offers depends on what is under the finger, which only this side

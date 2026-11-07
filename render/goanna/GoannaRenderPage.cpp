@@ -4327,8 +4327,13 @@ bool GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   jihadMapKey(keyCode, charCode, &domKey, &domChar);
   int mods = (modifiers & ~3) | ((modifiers & 1) << 1) | ((modifiers & 2) >> 1);   // Ctrl <-> Alt
   // A keypress carries the character (and then no keyCode); keydown/keyup carry the key.
+  // T-575: a keydown has no character in the DOM, but a player's key event does, as in the stock host (and
+  // AS's charCode comes from it: 'a' read 65, not 97). And webOS's own special keys stay its own: the player
+  // takes a raw code under 0x100 for text, so the DOM's 38 for Up read as '&', AS's 55. The next event's.
+  if (jihad_plugin_key_char) jihad_plugin_key_char(domChar, keyCode >= 0xE000 ? keyCode : 0);
   if (strcmp(type, "keypress") == 0) engine_calls::KeyEvent(u, t, domChar ? 0 : domKey, domChar, mods, &ret);
   else                               engine_calls::KeyEvent(u, t, domKey, 0, mods, &ret);
+  if (jihad_plugin_key_char) jihad_plugin_key_char(0, 0);
   return ret;   // the default action was taken (nobody cancelled it)
 }
 

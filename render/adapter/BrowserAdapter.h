@@ -538,6 +538,8 @@ private:
     Point mLastPointSentToFlash;
     bool mMouseInFlashRect;
     bool mFlashGestureLock;
+    GSource *m_lockKeyboardTimer;   // T-575: the keyboard comes up a moment after the double tap
+    static gboolean lockKeyboardTimeoutCb(gpointer data);
     typedef std::map<uintptr_t, BrowserRect> RectMap;
     typedef std::pair<uintptr_t, BrowserRect> RectMapItem;
     RectMap mFlashRects;

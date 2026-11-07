@@ -1,11 +1,217 @@
 {
- "date": "2026-11-06T10:54:30",
+ "date": "2026-11-07T00:51:11",
  "shells": [
   "enyo",
   "mochi",
   "mojo"
  ],
  "tests": [
+  {
+   "shell": "enyo",
+   "id": "flash-api",
+   "kit": "cavekit-flash.md R4",
+   "item": "FlashVars arrive, ExternalInterface works both ways, getURL and fscommand reach the page, allowScriptAccess is honoured, a shared object survives a daemon restart, a movie loads data and a movie from its own origin",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 8-text vars = [vars a=hello]",
+    "WAIT ok 9-text so = [so n=1]",
+    "WAIT ok 10-text echoback = [echoback back hi]",
+    "CHECK ok 11-text: echo = [echo hi]",
+    "WAIT ok 12-text geturl = [geturl ok]",
+    "WAIT ok 13-text fscommand = [fscommand jcmd jarg]",
+    "WAIT ok 14-text data = [data true x=42]",
+    "WAIT ok 15-text kid = [kid w=376]",
+    "WAIT ok 17-text so = [so n=2]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-rect m",
+    "CHECK ok 20-text: count = [0]",
+    "CHECK ok 22-text: count = [0]"
+   ],
+   "kept": [],
+   "seconds": 105,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +3 s, load done at +11 s, 9 content frames at +11 s; the GPU path,",
+   "restore": "enyo: (1257678/596572917) jihad (start) running, process 7509; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-fullscreen",
+   "kit": "cavekit-flash.md R4",
+   "item": "Full screen is entered and left by the finger on the movie's own button; the system's turn to landscape is the same as the stock browser's, which the accelerometer turns back",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 9-text kid = [kid w=376]",
+    "WAIT ok 11-text fs = [fs fullScreen]",
+    "WAIT ok 14-text fs = [fs normal]",
+    "WAIT ok 17-text fs = [fs fullScreen]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes)"
+   ],
+   "kept": [
+    "kept/enyo-flash-fullscreen-fullscreen_.jpg"
+   ],
+   "seconds": 118,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&vars=fs=1: connected at +2 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main ",
+   "restore": "enyo: (1257745/175448756) jihad (start) running, process 10744; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-cover",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up a movie it would cover moves so that its play area stays on the screen, and stage coordinates still land right",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 10-line: [jihad-bs] js-console (no source):0:0 page: the movie moved 229 px up for the keyboard, the page at 229",
+    "WAIT ok 11-settled: the card's scroll 0 229",
+    "CHECK ok 13-above-keyboard: m on the screen at 40,373-440,673, above the keyboard",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
+   "kept": [],
+   "seconds": 78,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=low: connected at +5 s, load done at +14 s, 7 content frames at +14 s; the GPU path, frames off the main thread (the exp",
+   "restore": "enyo: (1264526/593550554) jihad (start) running, process 8977; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-hold",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the gesture lock on, a hold keeps the button down for its whole length and a drag sends moves along its path",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 12-text up = [up 201 150]",
+    "CHECK ok 13-number: heldms = 2292 (wanted 1500..3200)",
+    "CHECK ok 14-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 15-number: n-up = 1 (wanted 1..1)",
+    "WAIT ok 17-text up = [up 361 278]",
+    "CHECK ok 18-flash-el: the movie's move at 358,276 for 360,277 (within 30)",
+    "CHECK ok 19-press-rate: 24.2 moves a second sent on (at least 20): ] a press of 1504 ms: 30 moves from the card in 1238 ms, 30 sent on, 600 ms in sending them"
+   ],
+   "kept": [],
+   "seconds": 66,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 5 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (1264593/106324318) jihad (start) running, process 12060; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-kernel",
+   "kit": "cavekit-flash.md R5",
+   "item": "With a kernel keyboard and the gesture lock on, keys reach the movie and the card acts on none; with the lock off they go to the card",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 13-text keydown = [keydown 38 0]",
+    "WAIT ok 15-text keydown = [keydown 65 97]",
+    "WAIT ok 17-text keydown = [keydown 40 0]",
+    "CHECK ok 18-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 23-settled: the card's scroll 0 51",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 51 (at least 20)"
+   ],
+   "kept": [],
+   "seconds": 176,
+   "note": "kernel keyboard: up",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the express l",
+   "restore": "enyo: (1258059/640700843) jihad (start) running, process 22905; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-keys",
+   "kit": "cavekit-flash.md R5",
+   "item": "The system keyboard comes up over a movie on a double tap, with no editor focused; letters, digits, space and its arrow joystick arrive as the right key codes, the page does not move, and a tap outside drops it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 12-text keydown = [keydown 65 97]",
+    "WAIT ok 14-text keydown = [keydown 49 49]",
+    "WAIT ok 16-text keydown = [keydown 32 32]",
+    "CHECK ok 17-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "WAIT ok 19-text keydown = [keydown 38 0]",
+    "WAIT ok 21-text keydown = [keydown 39 0]",
+    "WAIT ok 23-text keydown = [keydown 40 0]",
+    "WAIT ok 25-text keydown = [keydown 37 0]",
+    "CHECK ok 26-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 28-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (1258176/27371339) jihad (start) running, process 27269; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-lock",
+   "kit": "cavekit-flash.md R5",
+   "item": "The gesture lock is engaged and released by the finger: engaged, a drag moves the movie and not the page; released or outside the movie, the page pans",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 9-settled: the card's scroll 0 97",
+    "CHECK ok 10-card-scroll-min: the card's scroll y 97 (at least 30)",
+    "CHECK ok 11-number: n-move = 0 (wanted 0..0)",
+    "WAIT ok 13-settled: the card's scroll 0 0",
+    "CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 18-settled: the card's scroll 0 0",
+    "CHECK ok 19-card-scroll: the card's scroll y 0 (want 0 within 10); the engine's 0",
+    "CHECK ok 20-number: n-move = 14 (wanted 5..400)",
+    "WAIT ok 22-settled: the card's scroll 0 100",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 100 (at least 30)"
+   ],
+   "kept": [],
+   "seconds": 91,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main thread (the express l",
+   "restore": "enyo: (1258266/849609839) jihad (start) running, process 31190; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-tap",
+   "kit": "cavekit-flash.md R5",
+   "item": "A tap on a movie gives one press and one release at the stage point, never a doubled click",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 11-number: n-up = 1 (wanted 1..1)",
+    "CHECK ok 14-flash-at: the movie reported down 101,60 for stage 100,60 (within 3)",
+    "CHECK ok 15-number: n-down = 2 (wanted 2..2)",
+    "CHECK ok 16-number: n-up = 2 (wanted 2..2)",
+    "WAIT ok 17-launch: load done",
+    "WAIT ok 18-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 21-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 22-number: n-up = 1 (wanted 1..1)"
+   ],
+   "kept": [],
+   "seconds": 68,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (1258334/961851752) jihad (start) running, process 2413; daemons running: 1"
+  },
   {
    "shell": "enyo",
    "id": "flash-lane",
@@ -15,79 +221,114 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect toggle",
-    "CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 42 (14.0/s), changes 42 (14.0/s), reads 43, distinct 43, spacing median 68 p90 79 max 197 ms (wanted 8..100/s)",
-    "CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 47 (15.7/s), changes 0 (0.0/s), reads 48, distinct 1, spacing median 62 p90 92 max 163 ms (wanted 0..4/s)",
-    "CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 43 (14.3/s), reads 44, distinct 44, spacing median 68 p90 90 max 162 ms (wanted 8..100/s)",
-    "WAIT ok 15-settled: the card's scroll 0 135",
-    "CHECK ok 16-flash-rate: content 40,0-440,287: 3.0 s, flips 42 (14.0/s), changes 25 (8.3/s), reads 43, distinct 26, spacing median 68 p90 88 max 189 ms (wanted 8..100/s)",
-    "CHECK ok 18-flash-rate: content 40,0-440,287: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 68 p90 137 max 158 ms (wanted 0..4/s)"
+    "CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 42 (14.0/s), changes 40 (13.3/s), reads 43, distinct 41, spacing median 68 p90 94 max 192 ms (wanted 8..100/s)",
+    "CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 65 p90 93 max 165 ms (wanted 0..4/s)",
+    "CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 45 (15.0/s), changes 43 (14.3/s), reads 46, distinct 44, spacing median 68 p90 86 max 153 ms (wanted 8..100/s)",
+    "WAIT ok 15-settled: the card's scroll 0 138",
+    "CHECK ok 16-flash-rate: content 40,0-440,284: 3.0 s, flips 43 (14.3/s), changes 25 (8.3/s), reads 44, distinct 26, spacing median 67 p90 89 max 196 ms (wanted 8..100/s)",
+    "CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 65 p90 109 max 146 ms (wanted 0..4/s)"
    ],
    "kept": [],
-   "seconds": 92,
+   "seconds": 107,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +3 s, load done at +10 s, 12 content frames at +11 s; the GPU path, frames off",
-   "restore": "enyo: (1215281/523151351) jihad (start) running, process 9507; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +10 s, 15 content frames at +10 s; the GPU path, frames off",
+   "restore": "enyo: (1258441/610241363) jihad (start) running, process 6543; daemons running: 1"
   },
   {
    "shell": "enyo",
-   "id": "flash-sound",
-   "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
-   "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
-  },
-  {
-   "shell": "enyo",
-   "id": "pan-long-drag",
-   "kit": "cavekit-gpu-rendering.md R3",
-   "item": "The GPU path: drag-scroll a long page with a fixed header (`jihad-long-static.html`) at a steady pace: the header stays put, the text is continuous, nothing blank enters from below; a tap after the scroll lands where it should (the header still and the content moved by the frame; the card's scroll and the engine's agree)",
-   "section": "Scrolling and gestures",
+   "id": "flash-layout",
+   "kit": "cavekit-flash.md R4",
+   "item": "A percentage size, three movies on a page, a movie in a frame, one scrolled in from below the fold and one shown after being hidden each draw at their bounds with input landing right",
+   "section": "Flash",
    "verdict": "pass",
    "checks": [
-    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
-    "CHECK ok 8-zoom: zoom 1.0000 (want 1.0 within 0.01)",
-    "CHECK ok 9-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
-    "CHECK ok 10-content: region 0,150-768,400: colours 321 hash 98b5debf rows 250 uniform 0 light 150-396 blue none; sel:#content p on the screen at 16,154-748,210, text holds [quick brown]",
-    "CHECK ok 14-card-scroll: the card's scroll y 639 (want 650 within 100); the engine's 639",
-    "WAIT ok 15-still header",
-    "CHECK ok 16-region-equal: region 0,83-756,137: colours 208 hash 34266017 rows 54 uniform 33 light none blue none = the sample's hash",
-    "CHECK ok 17-region-changed: region 0,300-756,900: colours 967 hash faecb0c6 rows 600 uniform 212 light 300-899 blue none against the sample's hash 6a2b3a47",
-    "CHECK ok 18-top: the page's top measured 82 (the tap at y 223 landed on document y 780), the model says 82 (header hidden: 1)",
-    "CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 4)",
+    "WAIT ok 10-launch: load done",
+    "WAIT ok 11-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 13-flash-at: the movie reported down 101,100 for stage 100,100 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 301,200 for stage 300,200 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 23-settled: the card's scroll 0 1389",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-rect show",
+    "WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
    ],
    "kept": [],
-   "seconds": 77,
+   "seconds": 109,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +9 s, 5 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "enyo: (1215359/54231189) jihad (start) running, process 13351; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=percent: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the e",
+   "restore": "enyo: (1258550/331601637) jihad (start) running, process 10692; daemons running: 1"
   },
   {
    "shell": "enyo",
-   "id": "wikipedia-keyboard-zoom",
-   "kit": "cavekit-mochi-ui.md R6",
-   "item": "Desktop Wikipedia keeps its layout and its fit zoom when the keyboard comes and goes (T-569: a repeated size or the keyboard's put a page's declared 1120 px width back to the card's 768 and the zoom to 1.0)",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 52 (17.3/s), changes 43 (14.3/s), reads 53, distinct 44, spacing median 62 p90 74 max 95 ms (wanted 5..100/s)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 83,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "enyo: (1258633/778564880) jihad (start) running, process 14470; daemons running: 1"
   },
   {
    "shell": "enyo",
-   "id": "zoom-new-page",
-   "kit": "cavekit-input-bridging.md R3",
-   "item": "A page zoomed in by a pinch: the next page opens at its own zoom, not the last one's",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-wmode",
+   "kit": "cavekit-flash.md R4",
+   "item": "Each wmode draws at the element's bounds and takes a tap; a transparent movie shows the page behind it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 8-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 10-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 11-launch: load done",
+    "WAIT ok 12-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 13-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 18-flash-behind: the colour 00ff00 in 188 of 192 cells (wanted yes)",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 21-launch: load done",
+    "WAIT ok 22-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 23-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 28-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 80,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=window: connected at +2 s, load done at +8 s, 3 content frames at +8 s; the GPU path, frames off the main threa",
+   "restore": "enyo: (1258714/39150641) jihad (start) running, process 18361; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -103,10 +344,10 @@
     "CHECK ok 10-audio: the movie's audio: closed"
    ],
    "kept": [],
-   "seconds": 54,
+   "seconds": 57,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the ex",
-   "restore": "enyo: (1215413/26769696) jihad (start) running, process 16266; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +2 s, load done at +10 s, 31 content frames at +10 s; the GPU path, frames off the main thread (the",
+   "restore": "enyo: (1258770/922822484) jihad (start) running, process 21376; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -130,10 +371,10 @@
     "CHECK ok 18-flash-drawn: reported not drawn, as it should be: region 40,123-440,421: colours 2 hash 4db04545 rows 298 uniform 0 light none blue 123-420"
    ],
    "kept": [],
-   "seconds": 79,
+   "seconds": 72,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (the",
-   "restore": "enyo: (1215492/167840199) jihad (start) running, process 20063; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 8 content frames at +9 s; the GPU path, frames off the main thread (the ",
+   "restore": "enyo: (1258843/39570913) jihad (start) running, process 25331; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -144,16 +385,16 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 8-plugin: plugin-container 21453: alive (state S, cpu ticks 96 to 104)",
-    "CHECK ok 10-plugin: plugin-container 21453: wedged (state T, cpu ticks 104 to 104)",
-    "CHECK ok 12-plugin: plugin-container 21453: alive (state S, cpu ticks 105 to 112)",
+    "CHECK ok 8-plugin: plugin-container 26736: alive (state S, cpu ticks 93 to 101)",
+    "CHECK ok 10-plugin: plugin-container 26736: wedged (state T, cpu ticks 101 to 101)",
+    "CHECK ok 12-plugin: plugin-container 26736: alive (state S, cpu ticks 102 to 109)",
     "CHECK ok 14-plugin: plugin-container none: gone (state ?, cpu ticks ? to ?)"
    ],
    "kept": [],
-   "seconds": 58,
+   "seconds": 62,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +3 s, load done at +11 s, 13 content frames at +11 s; the GPU path, frames off the main thread (the express lane)",
-   "restore": "enyo: (1215550/375536781) jihad (start) running, process 23190; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +3 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (1258905/276008234) jihad (start) running, process 28416; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -164,16 +405,17 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 9-flash-rate-report: content 40,123-440,421: 8.0 s, flips 78 (9.8/s), changes 78 (9.8/s), reads 79, distinct 61, spacing median 98 p90 173 max 180 ms; the movie's own rate 9.76302/s (frames 50 t=5658 .. frames 160 t=16925)",
+    "CHECK ok 9-flash-rate-report: content 40,123-440,421: 8.0 s, flips 85 (10.6/s), changes 78 (9.8/s), reads 89, distinct 61, spacing median 94 p90 117 max 229 ms; the movie's own rate 9.69556/s (frames 70 t=7747 .. frames 170 t=18061)",
     "WAIT ok 10-launch: load done",
     "WAIT ok 11-rect m",
-    "CHECK ok 12-flash-rate-report: content 40,123-440,421: 8.0 s, flips 115 (14.4/s), changes 115 (14.4/s), reads 116, distinct 60, spacing median 66 p90 85 max 160 ms; the movie's own rate 14.5096/s (frames 30 t=2632 .. frames 180 t=12970)"
+    "CHECK ok 12-flash-rate-report: content 40,123-440,421: 8.0 s, flips 117 (14.6/s), changes 113 (14.1/s), reads 118, distinct 59, spacing median 67 p90 85 max 181 ms; the movie's own rate 14.3954/s (frames 40 t=3072 .. frames 190 t=13492)"
    ],
    "kept": [],
    "seconds": 81,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the ",
-   "restore": "enyo: (1215631/738742395) jihad (start) running, process 26670; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +2 s, load done at +10 s, 14 content frames at +10 s; the GPU path, frames off the main thread (t",
+   "restore": "enyo: (1264673/903146969) jihad (start) running, process 15537; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
   },
   {
    "shell": "enyo",
@@ -185,20 +427,20 @@
    "checks": [
     "WAIT ok 7-rect m",
     "WAIT ok 8-still m",
-    "CHECK ok 11-flash-reacted: reacted: no (content 40,123-440,421: 4.0 s, flips 22 (5.5/s), changes 1 (0.2/s), reads 23, distinct 2, spacing median 186 p90 193 max 199 ms new 0 of 23)",
+    "CHECK ok 11-flash-reacted: reacted: no (content 40,123-440,421: 4.0 s, flips 22 (5.5/s), changes 0 (0.0/s), reads 23, distinct 1, spacing median 181 p90 186 max 190 ms new 0 of 23)",
     "WAIT ok 12-launch: load done",
     "WAIT ok 13-rect m",
-    "CHECK ok 16-flash-reacted: reacted: no (content 40,123-440,421: 5.0 s, flips 143 (28.6/s), changes 143 (28.6/s), reads 144, distinct 40, spacing median 35 p90 38 max 50 ms new 0 of 144)",
+    "CHECK ok 16-flash-reacted: reacted: no (content 40,123-440,421: 5.0 s, flips 144 (28.8/s), changes 144 (28.8/s), reads 145, distinct 41, spacing median 35 p90 39 max 110 ms new 0 of 145)",
     "WAIT ok 17-launch: load done",
     "WAIT ok 18-rect m",
     "WAIT ok 19-still m",
-    "CHECK ok 22-flash-reacted: reacted: yes (content 40,123-440,421: 3.0 s, flips 16 (5.3/s), changes 0 (0.0/s), reads 17, distinct 1, spacing median 185 p90 191 max 192 ms new 17 of 17 first 0 ms)"
+    "CHECK ok 22-flash-reacted: reacted: yes (content 40,123-440,421: 3.0 s, flips 16 (5.3/s), changes 2 (0.7/s), reads 18, distinct 2, spacing median 183 p90 195 max 243 ms new 18 of 18 first 0 ms)"
    ],
    "kept": [],
-   "seconds": 96,
+   "seconds": 108,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +3 s, load done at +9 s, 5 content frames at +9 s; the GPU path, frames off the main thread (the ",
-   "restore": "enyo: (1215727/741666672) jihad (start) running, process 30656; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the ",
+   "restore": "enyo: (1259092/468513384) jihad (start) running, process 4124; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -215,10 +457,10 @@
     "CHECK ok 13-screen: the screen against its reference: difference 8.4 (same is 5 or less; wanted other)"
    ],
    "kept": [],
-   "seconds": 64,
+   "seconds": 62,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the ",
-   "restore": "enyo: (1215791/624335253) jihad (start) running, process 1619; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +1 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (the",
+   "restore": "enyo: (1259154/429005520) jihad (start) running, process 7504; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -245,10 +487,10 @@
     "CHECK ok 29-flash-at: the movie reported down 151,120 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 94,
+   "seconds": 90,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main th",
-   "restore": "enyo: (1215885/480178346) jihad (start) running, process 5874; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +9 s, 4 content frames at +9 s; the GPU path, frames off the main th",
+   "restore": "enyo: (1259244/336565353) jihad (start) running, process 11510; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -260,9 +502,9 @@
    "checks": [
     "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 9-zoom",
-    "CHECK ok 10-zoom: zoom 1.9268 (want 1.92 within 0.3)",
-    "CHECK ok 13-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
-    "CHECK ok 15-flash-at: the movie reported down 149.95,119.95 for stage 150,120 (within 3)",
+    "CHECK ok 10-zoom: zoom 1.9326 (want 1.92 within 0.3)",
+    "CHECK ok 13-flash-at: the movie reported down 199.95,147.95 for stage 200,150 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 149.95,117.95 for stage 150,120 (within 3)",
     "WAIT ok 16-launch: load done",
     "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 19-zoom",
@@ -272,21 +514,21 @@
     "WAIT ok 26-launch: load done",
     "WAIT ok 27-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 29-zoom",
-    "CHECK ok 30-zoom: zoom 1.9361 (want 1.92 within 0.3)",
+    "CHECK ok 30-zoom: zoom 1.9268 (want 1.92 within 0.3)",
     "CHECK ok 33-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
-    "CHECK ok 35-flash-at: the movie reported down 149.3,117.95 for stage 150,120 (within 3)",
+    "CHECK ok 35-flash-at: the movie reported down 150.65,119.95 for stage 150,120 (within 3)",
     "WAIT ok 36-launch: load done",
     "WAIT ok 37-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=300x150 ei=true]",
     "WAIT ok 39-zoom",
-    "CHECK ok 40-zoom: zoom 1.9416 (want 1.92 within 0.3)",
+    "CHECK ok 40-zoom: zoom 1.9265 (want 1.92 within 0.3)",
     "CHECK ok 43-flash-at: the movie reported down 200,150 for stage 200,150 (within 3)",
-    "CHECK ok 45-flash-at: the movie reported down 150,119 for stage 150,120 (within 3)"
+    "CHECK ok 45-flash-at: the movie reported down 150,120 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 116,
+   "seconds": 125,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main th",
-   "restore": "enyo: (1216001/898312249) jihad (start) running, process 10671; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main t",
+   "restore": "enyo: (1259369/267789923) jihad (start) running, process 16138; daemons running: 1"
   },
   {
    "shell": "enyo",
@@ -313,10 +555,216 @@
     "CHECK ok 29-flash-at: the movie reported down 150,119 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 78,
+   "seconds": 92,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the m",
-   "restore": "enyo: (1216080/254297271) jihad (start) running, process 14676; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the m",
+   "restore": "enyo: (1259461/476986646) jihad (start) running, process 20023; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-api",
+   "kit": "cavekit-flash.md R4",
+   "item": "FlashVars arrive, ExternalInterface works both ways, getURL and fscommand reach the page, allowScriptAccess is honoured, a shared object survives a daemon restart, a movie loads data and a movie from its own origin",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 8-text vars = [vars a=hello]",
+    "WAIT ok 9-text so = [so n=1]",
+    "WAIT ok 10-text echoback = [echoback back hi]",
+    "CHECK ok 11-text: echo = [echo hi]",
+    "WAIT ok 12-text geturl = [geturl ok]",
+    "WAIT ok 13-text fscommand = [fscommand jcmd jarg]",
+    "WAIT ok 14-text data = [data true x=42]",
+    "WAIT ok 15-text kid = [kid w=376]",
+    "WAIT ok 17-text so = [so n=2]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-rect m",
+    "CHECK ok 20-text: count = [0]",
+    "CHECK ok 22-text: count = [0]"
+   ],
+   "kept": [],
+   "seconds": 100,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +4 s, load done at +12 s, 4 content frames at +12 s; the GPU path",
+   "restore": "mochi: (1259561/837367812) jihad-mochi (start) running, process 24544; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-fullscreen",
+   "kit": "cavekit-flash.md R4",
+   "item": "Full screen is entered and left by the finger on the movie's own button; the system's turn to landscape is the same as the stock browser's, which the accelerometer turns back",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 9-text kid = [kid w=376]",
+    "WAIT ok 11-text fs = [fs fullScreen]",
+    "WAIT ok 14-text fs = [fs normal]",
+    "WAIT ok 17-text fs = [fs fullScreen]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes)"
+   ],
+   "kept": [
+    "kept/mochi-flash-fullscreen-fullscreen_.jpg"
+   ],
+   "seconds": 123,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&vars=fs=1: connected at +2 s, load done at +10 s, 9 content frames at +10 s; the GPU path, frames off the ma",
+   "restore": "mochi: (1259632/676516982) jihad-mochi (start) running, process 27854; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-cover",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up a movie it would cover moves so that its play area stays on the screen, and stage coordinates still land right",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 10-line: [jihad-bs] js-console (no source):0:0 page: the movie moved 225 px up for the keyboard, the page at 225",
+    "WAIT ok 11-settled: the card's scroll 0 225",
+    "CHECK ok 13-above-keyboard: m on the screen at 40,373-440,673, above the keyboard",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=low: connected at +2 s, load done at +10 s, 7 content frames at +10 s; the GPU path, frames off the main thread (the ex",
+   "restore": "mochi: (1264736/704764439) jihad-mochi (start) running, process 18683; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-hold",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the gesture lock on, a hold keeps the button down for its whole length and a drag sends moves along its path",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 12-text up = [up 201 154]",
+    "CHECK ok 13-number: heldms = 2296 (wanted 1500..3200)",
+    "CHECK ok 14-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 15-number: n-up = 1 (wanted 1..1)",
+    "WAIT ok 17-text up = [up 361 282]",
+    "CHECK ok 18-flash-el: the movie's move at 343,270 for 360,277 (within 30)",
+    "CHECK ok 19-press-rate: 21.8 moves a second sent on (at least 20): ] a press of 1411 ms: 31 moves from the card in 1330 ms, 29 sent on, 490 ms in sending them"
+   ],
+   "kept": [],
+   "seconds": 73,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +10 s, 13 content frames at +10 s; the GPU path, frames off the main thread (the express lane",
+   "restore": "mochi: (1264809/722192573) jihad-mochi (start) running, process 21955; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-kernel",
+   "kit": "cavekit-flash.md R5",
+   "item": "With a kernel keyboard and the gesture lock on, keys reach the movie and the card acts on none; with the lock off they go to the card",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 13-text keydown = [keydown 38 0]",
+    "WAIT ok 15-text keydown = [keydown 65 97]",
+    "WAIT ok 17-text keydown = [keydown 40 0]",
+    "CHECK ok 18-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 23-settled: the card's scroll 0 51",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 51 (at least 20)"
+   ],
+   "kept": [],
+   "seconds": 175,
+   "note": "kernel keyboard: up",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +3 s, load done at +11 s, 9 content frames at +11 s; the GPU path, frames off the main thread (the expres",
+   "restore": "mochi: (1259935/124212628) jihad-mochi (start) running, process 7302; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-keys",
+   "kit": "cavekit-flash.md R5",
+   "item": "The system keyboard comes up over a movie on a double tap, with no editor focused; letters, digits, space and its arrow joystick arrive as the right key codes, the page does not move, and a tap outside drops it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 12-text keydown = [keydown 65 97]",
+    "WAIT ok 14-text keydown = [keydown 49 49]",
+    "WAIT ok 16-text keydown = [keydown 32 32]",
+    "CHECK ok 17-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "WAIT ok 19-text keydown = [keydown 38 0]",
+    "WAIT ok 21-text keydown = [keydown 39 0]",
+    "WAIT ok 23-text keydown = [keydown 40 0]",
+    "WAIT ok 25-text keydown = [keydown 37 0]",
+    "CHECK ok 26-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 28-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 77,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +3 s, load done at +11 s, 12 content frames at +11 s; the GPU path, frames off the main thread (the express lane",
+   "restore": "mochi: (1260066/50018973) jihad-mochi (start) running, process 11889; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-lock",
+   "kit": "cavekit-flash.md R5",
+   "item": "The gesture lock is engaged and released by the finger: engaged, a drag moves the movie and not the page; released or outside the movie, the page pans",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 9-settled: the card's scroll 0 97",
+    "CHECK ok 10-card-scroll-min: the card's scroll y 97 (at least 30)",
+    "CHECK ok 11-number: n-move = 0 (wanted 0..0)",
+    "WAIT ok 13-settled: the card's scroll 0 0",
+    "CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 18-settled: the card's scroll 0 0",
+    "CHECK ok 19-card-scroll: the card's scroll y 0 (want 0 within 10); the engine's 0",
+    "CHECK ok 20-number: n-move = 15 (wanted 5..400)",
+    "WAIT ok 22-settled: the card's scroll 0 97",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 97 (at least 30)"
+   ],
+   "kept": [],
+   "seconds": 77,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +11 s, 12 content frames at +11 s; the GPU path, frames off the main thread (the expre",
+   "restore": "mochi: (1260143/297577476) jihad-mochi (start) running, process 15511; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-tap",
+   "kit": "cavekit-flash.md R5",
+   "item": "A tap on a movie gives one press and one release at the stage point, never a doubled click",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 11-number: n-up = 1 (wanted 1..1)",
+    "CHECK ok 14-flash-at: the movie reported down 101,60 for stage 100,60 (within 3)",
+    "CHECK ok 15-number: n-down = 2 (wanted 2..2)",
+    "CHECK ok 16-number: n-up = 2 (wanted 2..2)",
+    "WAIT ok 17-launch: load done",
+    "WAIT ok 18-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 21-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 22-number: n-up = 1 (wanted 1..1)"
+   ],
+   "kept": [],
+   "seconds": 79,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "mochi: (1260222/466202943) jihad-mochi (start) running, process 19032; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -327,79 +775,114 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect toggle",
-    "CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 42 (14.0/s), changes 41 (13.7/s), reads 43, distinct 42, spacing median 67 p90 100 max 170 ms (wanted 8..100/s)",
-    "CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 63 p90 111 max 163 ms (wanted 0..4/s)",
-    "CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 44 (14.7/s), reads 45, distinct 45, spacing median 68 p90 82 max 164 ms (wanted 8..100/s)",
-    "WAIT ok 15-settled: the card's scroll 0 140",
-    "CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 27 (9.0/s), reads 45, distinct 28, spacing median 66 p90 84 max 154 ms (wanted 8..100/s)",
-    "CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 68 p90 86 max 162 ms (wanted 0..4/s)"
+    "CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 41 (13.7/s), reads 45, distinct 42, spacing median 66 p90 92 max 190 ms (wanted 8..100/s)",
+    "CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 84 max 187 ms (wanted 0..4/s)",
+    "CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 40 (13.3/s), reads 44, distinct 41, spacing median 68 p90 81 max 149 ms (wanted 8..100/s)",
+    "WAIT ok 15-settled: the card's scroll 0 138",
+    "CHECK ok 16-flash-rate: content 40,0-440,280: 3.0 s, flips 43 (14.3/s), changes 26 (8.7/s), reads 44, distinct 27, spacing median 68 p90 75 max 168 ms (wanted 8..100/s)",
+    "CHECK ok 18-flash-rate: content 40,0-440,280: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 66 p90 141 max 190 ms (wanted 0..4/s)"
    ],
    "kept": [],
-   "seconds": 96,
+   "seconds": 93,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +5 s, load done at +12 s, 12 content frames at +12 s; the GPU path, frames of",
-   "restore": "mochi: (1216176/20734291) jihad-mochi (start) running, process 18451; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +11 s, 17 content frames at +11 s; the GPU path, frames of",
+   "restore": "mochi: (1260315/452745295) jihad-mochi (start) running, process 23085; daemons running: 1"
   },
   {
    "shell": "mochi",
-   "id": "flash-sound",
-   "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
-   "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
-  },
-  {
-   "shell": "mochi",
-   "id": "pan-long-drag",
-   "kit": "cavekit-gpu-rendering.md R3",
-   "item": "The GPU path: drag-scroll a long page with a fixed header (`jihad-long-static.html`) at a steady pace: the header stays put, the text is continuous, nothing blank enters from below; a tap after the scroll lands where it should (the header still and the content moved by the frame; the card's scroll and the engine's agree)",
-   "section": "Scrolling and gestures",
+   "id": "flash-layout",
+   "kit": "cavekit-flash.md R4",
+   "item": "A percentage size, three movies on a page, a movie in a frame, one scrolled in from below the fold and one shown after being hidden each draw at their bounds with input landing right",
+   "section": "Flash",
    "verdict": "pass",
    "checks": [
-    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
-    "CHECK ok 8-zoom: zoom 1.0000 (want 1.0 within 0.01)",
-    "CHECK ok 9-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
-    "CHECK ok 10-content: region 0,150-768,400: colours 276 hash 0c6c964c rows 250 uniform 0 light 150-399 blue none; sel:#content p on the screen at 16,150-748,206, text holds [quick brown]",
-    "CHECK ok 14-card-scroll: the card's scroll y 639 (want 650 within 100); the engine's 639",
-    "WAIT ok 15-still header",
-    "CHECK ok 16-region-equal: region 0,79-756,133: colours 204 hash 5486acf3 rows 54 uniform 33 light none blue none = the sample's hash",
-    "CHECK ok 17-region-changed: region 0,300-756,900: colours 840 hash 3f74d198 rows 600 uniform 214 light 307-899 blue none against the sample's hash 653a2a3a",
-    "CHECK ok 18-top: the page's top measured 78 (the tap at y 219 landed on document y 780), the model says 78 (header hidden: 1)",
-    "CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 4)",
+    "WAIT ok 10-launch: load done",
+    "WAIT ok 11-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 13-flash-at: the movie reported down 101,100 for stage 100,100 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 301,200 for stage 300,200 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 23-settled: the card's scroll 0 1385",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-rect show",
+    "WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
    ],
    "kept": [],
-   "seconds": 73,
+   "seconds": 94,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +9 s, 4 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's J",
-   "restore": "mochi: (1216248/730429979) jihad-mochi (start) running, process 22155; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=percent: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the ",
+   "restore": "mochi: (1260408/999937721) jihad-mochi (start) running, process 27175; daemons running: 1"
   },
   {
    "shell": "mochi",
-   "id": "wikipedia-keyboard-zoom",
-   "kit": "cavekit-mochi-ui.md R6",
-   "item": "Desktop Wikipedia keeps its layout and its fit zoom when the keyboard comes and goes (T-569: a repeated size or the keyboard's put a page's declared 1120 px width back to the card's 768 and the zoom to 1.0)",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 44 (14.7/s), changes 44 (14.7/s), reads 45, distinct 45, spacing median 69 p90 76 max 87 ms (wanted 5..100/s)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 90,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +10 s, 10 content frames at +10 s; the GPU path, frames off the main thread (the express lane",
+   "restore": "mochi: (1260498/692468371) jihad-mochi (start) running, process 31040; daemons running: 1"
   },
   {
    "shell": "mochi",
-   "id": "zoom-new-page",
-   "kit": "cavekit-input-bridging.md R3",
-   "item": "A page zoomed in by a pinch: the next page opens at its own zoom, not the last one's",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-wmode",
+   "kit": "cavekit-flash.md R4",
+   "item": "Each wmode draws at the element's bounds and takes a tap; a transparent movie shows the page behind it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 8-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 10-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 11-launch: load done",
+    "WAIT ok 12-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 13-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 18-flash-behind: the colour 00ff00 in 188 of 192 cells (wanted yes)",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 21-launch: load done",
+    "WAIT ok 22-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 23-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 28-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 86,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=window: connected at +2 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thr",
+   "restore": "mochi: (1260585/106392649) jihad-mochi (start) running, process 2763; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -415,10 +898,10 @@
     "CHECK ok 10-audio: the movie's audio: closed"
    ],
    "kept": [],
-   "seconds": 54,
+   "seconds": 49,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +2 s, load done at +9 s, 4 content frames at +9 s; the GPU path, frames off the main thread (the e",
-   "restore": "mochi: (1216303/8984783) jihad-mochi (start) running, process 25123; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +2 s, load done at +9 s, 13 content frames at +9 s; the GPU path, frames off the main thread (the ",
+   "restore": "mochi: (1260634/322081974) jihad-mochi (start) running, process 5591; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -442,10 +925,10 @@
     "CHECK ok 18-flash-drawn: reported not drawn, as it should be: region 40,119-440,417: colours 2 hash 4db04545 rows 298 uniform 0 light none blue 119-416"
    ],
    "kept": [],
-   "seconds": 76,
+   "seconds": 77,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the",
-   "restore": "mochi: (1216379/404694102) jihad-mochi (start) running, process 29044; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +1 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the",
+   "restore": "mochi: (1260710/855208626) jihad-mochi (start) running, process 9445; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -456,16 +939,16 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 8-plugin: plugin-container 30384: alive (state S, cpu ticks 98 to 105)",
-    "CHECK ok 10-plugin: plugin-container 30384: wedged (state T, cpu ticks 106 to 106)",
-    "CHECK ok 12-plugin: plugin-container 30384: alive (state S, cpu ticks 106 to 113)",
+    "CHECK ok 8-plugin: plugin-container 10801: alive (state S, cpu ticks 98 to 106)",
+    "CHECK ok 10-plugin: plugin-container 10801: wedged (state T, cpu ticks 106 to 106)",
+    "CHECK ok 12-plugin: plugin-container 10801: alive (state S, cpu ticks 106 to 114)",
     "CHECK ok 14-plugin: plugin-container none: gone (state ?, cpu ticks ? to ?)"
    ],
    "kept": [],
-   "seconds": 61,
+   "seconds": 68,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (",
-   "restore": "mochi: (1216440/584570979) jihad-mochi (start) running, process 32174; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +3 s, load done at +10 s, 7 content frames at +10 s; the GPU path, frames off the main thread (the express lane)",
+   "restore": "mochi: (1260778/538135131) jihad-mochi (start) running, process 12412; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -476,16 +959,17 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 9-flash-rate-report: content 40,119-440,417: 8.0 s, flips 78 (9.8/s), changes 78 (9.8/s), reads 80, distinct 60, spacing median 97 p90 173 max 209 ms; the movie's own rate 9.75134/s (frames 50 t=5748 .. frames 150 t=16003)",
+    "CHECK ok 9-flash-rate-report: content 40,119-440,417: 8.0 s, flips 86 (10.8/s), changes 78 (9.8/s), reads 90, distinct 60, spacing median 93 p90 114 max 221 ms; the movie's own rate 9.78378/s (frames 50 t=5741 .. frames 150 t=15962)",
     "WAIT ok 10-launch: load done",
     "WAIT ok 11-rect m",
-    "CHECK ok 12-flash-rate-report: content 40,119-440,417: 8.0 s, flips 114 (14.2/s), changes 114 (14.2/s), reads 115, distinct 60, spacing median 67 p90 84 max 163 ms; the movie's own rate 14.4286/s (frames 20 t=1778 .. frames 170 t=12174)"
+    "CHECK ok 12-flash-rate-report: content 40,119-440,417: 8.0 s, flips 118 (14.8/s), changes 113 (14.1/s), reads 119, distinct 73, spacing median 67 p90 86 max 188 ms; the movie's own rate 14.4157/s (frames 20 t=1798 .. frames 180 t=12897)"
    ],
    "kept": [],
-   "seconds": 84,
+   "seconds": 75,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +4 s, load done at +11 s, 9 content frames at +11 s; the GPU path, frames off the main thread (t",
-   "restore": "mochi: (1216524/981987851) jihad-mochi (start) running, process 3503; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +2 s, load done at +9 s, 12 content frames at +9 s; the GPU path, frames off the main thread (th",
+   "restore": "mochi: (1264884/624404706) jihad-mochi (start) running, process 25410; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
   },
   {
    "shell": "mochi",
@@ -497,20 +981,20 @@
    "checks": [
     "WAIT ok 7-rect m",
     "WAIT ok 8-still m",
-    "CHECK ok 11-flash-reacted: reacted: no (content 40,119-440,417: 4.0 s, flips 20 (5.0/s), changes 1 (0.2/s), reads 24, distinct 2, spacing median 189 p90 234 max 235 ms new 0 of 24)",
+    "CHECK ok 11-flash-reacted: reacted: no (content 40,119-440,417: 4.0 s, flips 22 (5.5/s), changes 1 (0.2/s), reads 24, distinct 2, spacing median 181 p90 188 max 210 ms new 0 of 24)",
     "WAIT ok 12-launch: load done",
     "WAIT ok 13-rect m",
-    "CHECK ok 16-flash-reacted: reacted: no (content 40,119-440,417: 5.0 s, flips 143 (28.6/s), changes 143 (28.6/s), reads 144, distinct 46, spacing median 35 p90 39 max 94 ms new 0 of 144)",
+    "CHECK ok 16-flash-reacted: reacted: no (content 40,119-440,417: 5.0 s, flips 141 (28.2/s), changes 141 (28.2/s), reads 142, distinct 47, spacing median 35 p90 39 max 74 ms new 0 of 142)",
     "WAIT ok 17-launch: load done",
     "WAIT ok 18-rect m",
     "WAIT ok 19-still m",
-    "CHECK ok 22-flash-reacted: reacted: yes (content 40,119-440,417: 3.0 s, flips 16 (5.3/s), changes 0 (0.0/s), reads 17, distinct 1, spacing median 188 p90 191 max 194 ms new 17 of 17 first 0 ms)"
+    "CHECK ok 22-flash-reacted: reacted: yes (content 40,119-440,417: 3.0 s, flips 16 (5.3/s), changes 2 (0.7/s), reads 18, distinct 2, spacing median 181 p90 189 max 246 ms new 18 of 18 first 0 ms)"
    ],
    "kept": [],
-   "seconds": 95,
+   "seconds": 86,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (th",
-   "restore": "mochi: (1216619/753993463) jihad-mochi (start) running, process 7646; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +2 s, load done at +9 s, 3 content frames at +9 s; the GPU path, frames off the main thread (the",
+   "restore": "mochi: (1260947/848214950) jihad-mochi (start) running, process 19866; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -529,8 +1013,8 @@
    "kept": [],
    "seconds": 62,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the",
-   "restore": "mochi: (1216681/380568118) jihad-mochi (start) running, process 11085; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +1 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (th",
+   "restore": "mochi: (1261009/700072123) jihad-mochi (start) running, process 23210; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -557,10 +1041,10 @@
     "CHECK ok 29-flash-at: the movie reported down 151,120 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 76,
+   "seconds": 85,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main t",
-   "restore": "mochi: (1216757/652905881) jihad-mochi (start) running, process 14985; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +9 s, 8 content frames at +9 s; the GPU path, frames off the main t",
+   "restore": "mochi: (1261094/631793292) jihad-mochi (start) running, process 27354; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -572,9 +1056,9 @@
    "checks": [
     "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 9-zoom",
-    "CHECK ok 10-zoom: zoom 1.9326 (want 1.92 within 0.3)",
-    "CHECK ok 13-flash-at: the movie reported down 199.95,147.95 for stage 200,150 (within 3)",
-    "CHECK ok 15-flash-at: the movie reported down 149.95,117.95 for stage 150,120 (within 3)",
+    "CHECK ok 10-zoom: zoom 1.9245 (want 1.92 within 0.3)",
+    "CHECK ok 13-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 149.95,119.95 for stage 150,120 (within 3)",
     "WAIT ok 16-launch: load done",
     "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 19-zoom",
@@ -584,21 +1068,21 @@
     "WAIT ok 26-launch: load done",
     "WAIT ok 27-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 29-zoom",
-    "CHECK ok 30-zoom: zoom 1.9361 (want 1.92 within 0.3)",
+    "CHECK ok 30-zoom: zoom 1.9265 (want 1.92 within 0.3)",
     "CHECK ok 33-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
-    "CHECK ok 35-flash-at: the movie reported down 149.3,117.95 for stage 150,120 (within 3)",
+    "CHECK ok 35-flash-at: the movie reported down 150.65,119.95 for stage 150,120 (within 3)",
     "WAIT ok 36-launch: load done",
     "WAIT ok 37-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=300x150 ei=true]",
     "WAIT ok 39-zoom",
-    "CHECK ok 40-zoom: zoom 1.9265 (want 1.92 within 0.3)",
+    "CHECK ok 40-zoom: zoom 1.9403 (want 1.92 within 0.3)",
     "CHECK ok 43-flash-at: the movie reported down 200,150 for stage 200,150 (within 3)",
     "CHECK ok 45-flash-at: the movie reported down 150,120 for stage 150,120 (within 3)"
    ],
    "kept": [],
    "seconds": 115,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +1 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main t",
-   "restore": "mochi: (1216873/117547785) jihad-mochi (start) running, process 19465; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +2 s, load done at +10 s, 7 content frames at +10 s; the GPU path, frames off the main",
+   "restore": "mochi: (1261209/208536826) jihad-mochi (start) running, process 31959; daemons running: 1"
   },
   {
    "shell": "mochi",
@@ -613,8 +1097,8 @@
     "CHECK ok 11-flash-at: the movie reported down 149.95,117.95 for stage 150,120 (within 3)",
     "WAIT ok 12-launch: load done",
     "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
-    "CHECK ok 15-flash-at: the movie reported down 201.3,149.3 for stage 200,150 (within 3)",
-    "CHECK ok 17-flash-at: the movie reported down 150.65,118.65 for stage 150,120 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 201.3,150.65 for stage 200,150 (within 3)",
+    "CHECK ok 17-flash-at: the movie reported down 152,121.3 for stage 150,120 (within 3)",
     "WAIT ok 18-launch: load done",
     "WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "CHECK ok 21-flash-at: the movie reported down 201.3,147.95 for stage 200,150 (within 3)",
@@ -625,10 +1109,216 @@
     "CHECK ok 29-flash-at: the movie reported down 150,119 for stage 150,120 (within 3)"
    ],
    "kept": [],
+   "seconds": 105,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +2 s, load done at +10 s, 10 content frames at +10 s; the GPU path, frames off t",
+   "restore": "mochi: (1261314/387577249) jihad-mochi (start) running, process 3807; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-api",
+   "kit": "cavekit-flash.md R4",
+   "item": "FlashVars arrive, ExternalInterface works both ways, getURL and fscommand reach the page, allowScriptAccess is honoured, a shared object survives a daemon restart, a movie loads data and a movie from its own origin",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 8-text vars = [vars a=hello]",
+    "WAIT ok 9-text so = [so n=1]",
+    "WAIT ok 10-text echoback = [echoback back hi]",
+    "CHECK ok 11-text: echo = [echo hi]",
+    "WAIT ok 12-text geturl = [geturl ok]",
+    "WAIT ok 13-text fscommand = [fscommand jcmd jarg]",
+    "WAIT ok 14-text data = [data true x=42]",
+    "WAIT ok 15-text kid = [kid w=376]",
+    "WAIT ok 17-text so = [so n=2]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-rect m",
+    "CHECK ok 20-text: count = [0]",
+    "CHECK ok 22-text: count = [0]"
+   ],
+   "kept": [],
    "seconds": 93,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +2 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the ",
-   "restore": "mochi: (1216965/669579618) jihad-mochi (start) running, process 23390; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +2 s, load done at +10 s, 8 content frames at +10 s; the GPU path,",
+   "restore": "mojo: (1261407/513100639) jihad-mojo (start) running, process 8300; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-fullscreen",
+   "kit": "cavekit-flash.md R4",
+   "item": "Full screen is entered and left by the finger on the movie's own button; the system's turn to landscape is the same as the stock browser's, which the accelerometer turns back",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 9-text kid = [kid w=376]",
+    "WAIT ok 11-text fs = [fs fullScreen]",
+    "WAIT ok 14-text fs = [fs normal]",
+    "WAIT ok 17-text fs = [fs fullScreen]",
+    "WAIT ok 18-launch: load done",
+    "WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 20-flash-behind: the colour 00ff00 in 192 of 192 cells (wanted yes)"
+   ],
+   "kept": [
+    "kept/mojo-flash-fullscreen-fullscreen_.jpg"
+   ],
+   "seconds": 135,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&vars=fs=1: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main ",
+   "restore": "mojo: (1261478/521487884) jihad-mojo (start) running, process 11737; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-cover",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up a movie it would cover moves so that its play area stays on the screen, and stage coordinates still land right",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 10-line: [jihad-bs] js-console (no source):0:0 page: the movie moved 175 px up for the keyboard, the page at 175",
+    "WAIT ok 11-settled: the card's scroll 0 175",
+    "CHECK ok 13-above-keyboard: m on the screen at 40,373-440,673, above the keyboard",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
+   "kept": [],
+   "seconds": 66,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=low: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the expre",
+   "restore": "mojo: (1265454/903613780) jihad-mojo (start) running, process 18967; daemons running: 1",
+   "rerun": "2026-11-07T00:51:11"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-hold",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the gesture lock on, a hold keeps the button down for its whole length and a drag sends moves along its path",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 12-text up = [up 201 159]",
+    "CHECK ok 13-number: heldms = 2322 (wanted 1500..3200)",
+    "CHECK ok 14-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 15-number: n-up = 1 (wanted 1..1)",
+    "WAIT ok 17-text up = [up 361 287]",
+    "CHECK ok 18-flash-el: the movie's move at 355,283 for 360,277 (within 30)",
+    "CHECK ok 19-press-rate: 24.6 moves a second sent on (at least 20): ] a press of 1428 ms: 29 moves from the card in 1180 ms, 29 sent on, 457 ms in sending them"
+   ],
+   "kept": [],
+   "seconds": 65,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +8 s, 12 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "mojo: (1265029/215699493) jihad-mojo (start) running, process 32283; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-kernel",
+   "kit": "cavekit-flash.md R5",
+   "item": "With a kernel keyboard and the gesture lock on, keys reach the movie and the card acts on none; with the lock off they go to the card",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 13-text keydown = [keydown 38 0]",
+    "WAIT ok 15-text keydown = [keydown 65 97]",
+    "WAIT ok 17-text keydown = [keydown 40 0]",
+    "CHECK ok 18-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 23-settled: the card's scroll 0 51",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 51 (at least 20)"
+   ],
+   "kept": [],
+   "seconds": 174,
+   "note": "kernel keyboard: up",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +10 s, 9 content frames at +10 s; the GPU path, frames off the main thread (the express",
+   "restore": "mojo: (1261797/290571526) jihad-mojo (start) running, process 23610; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-keys",
+   "kit": "cavekit-flash.md R5",
+   "item": "The system keyboard comes up over a movie on a double tap, with no editor focused; letters, digits, space and its arrow joystick arrive as the right key codes, the page does not move, and a tap outside drops it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 12-text keydown = [keydown 65 97]",
+    "WAIT ok 14-text keydown = [keydown 49 49]",
+    "WAIT ok 16-text keydown = [keydown 32 32]",
+    "CHECK ok 17-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "WAIT ok 19-text keydown = [keydown 38 0]",
+    "WAIT ok 21-text keydown = [keydown 39 0]",
+    "WAIT ok 23-text keydown = [keydown 40 0]",
+    "WAIT ok 25-text keydown = [keydown 37 0]",
+    "CHECK ok 26-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 28-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 84,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +9 s, 6 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (1261935/118479055) jihad-mojo (start) running, process 28073; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-lock",
+   "kit": "cavekit-flash.md R5",
+   "item": "The gesture lock is engaged and released by the finger: engaged, a drag moves the movie and not the page; released or outside the movie, the page pans",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 9-settled: the card's scroll 0 52",
+    "CHECK ok 10-card-scroll-min: the card's scroll y 52 (at least 30)",
+    "CHECK ok 11-number: n-move = 0 (wanted 0..0)",
+    "WAIT ok 13-settled: the card's scroll 0 0",
+    "CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 18-settled: the card's scroll 0 0",
+    "CHECK ok 19-card-scroll: the card's scroll y 0 (want 0 within 10); the engine's 0",
+    "CHECK ok 20-number: n-move = 14 (wanted 5..400)",
+    "WAIT ok 22-settled: the card's scroll 0 100",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 24-card-scroll-min: the card's scroll y 100 (at least 30)"
+   ],
+   "kept": [],
+   "seconds": 87,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +1 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express l",
+   "restore": "mojo: (1262022/532235185) jihad-mojo (start) running, process 31897; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-tap",
+   "kit": "cavekit-flash.md R5",
+   "item": "A tap on a movie gives one press and one release at the stage point, never a doubled click",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 11-number: n-up = 1 (wanted 1..1)",
+    "CHECK ok 14-flash-at: the movie reported down 101,60 for stage 100,60 (within 3)",
+    "CHECK ok 15-number: n-down = 2 (wanted 2..2)",
+    "CHECK ok 16-number: n-up = 2 (wanted 2..2)",
+    "WAIT ok 17-launch: load done",
+    "WAIT ok 18-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 21-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 22-number: n-up = 1 (wanted 1..1)"
+   ],
+   "kept": [],
+   "seconds": 60,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (1262082/921783026) jihad-mojo (start) running, process 2927; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -639,79 +1329,114 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect toggle",
-    "CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 42 (14.0/s), changes 41 (13.7/s), reads 43, distinct 42, spacing median 66 p90 111 max 159 ms (wanted 8..100/s)",
-    "CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 66 p90 86 max 156 ms (wanted 0..4/s)",
-    "CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 43 (14.3/s), changes 43 (14.3/s), reads 44, distinct 44, spacing median 67 p90 86 max 154 ms (wanted 8..100/s)",
-    "WAIT ok 15-settled: the card's scroll 0 44",
-    "CHECK ok 16-flash-rate: content 40,26-440,324: 3.0 s, flips 43 (14.3/s), changes 43 (14.3/s), reads 44, distinct 44, spacing median 67 p90 88 max 152 ms (wanted 8..100/s)",
-    "CHECK ok 18-flash-rate: content 40,26-440,324: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 68 p90 85 max 170 ms (wanted 0..4/s)"
+    "CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 44 (14.7/s), changes 42 (14.0/s), reads 45, distinct 43, spacing median 67 p90 88 max 149 ms (wanted 8..100/s)",
+    "CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 66 p90 85 max 150 ms (wanted 0..4/s)",
+    "CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 45 (15.0/s), changes 42 (14.0/s), reads 46, distinct 43, spacing median 65 p90 84 max 175 ms (wanted 8..100/s)",
+    "WAIT ok 15-settled: the card's scroll 0 95",
+    "CHECK ok 16-flash-rate: content 40,0-440,273: 3.0 s, flips 44 (14.7/s), changes 37 (12.3/s), reads 46, distinct 38, spacing median 65 p90 82 max 220 ms (wanted 8..100/s)",
+    "CHECK ok 18-flash-rate: content 40,0-440,273: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 96 max 179 ms (wanted 0..4/s)"
    ],
    "kept": [],
-   "seconds": 96,
+   "seconds": 104,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off th",
-   "restore": "mojo: (1217061/433831748) jihad-mojo (start) running, process 27039; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off th",
+   "restore": "mojo: (1262186/727834414) jihad-mojo (start) running, process 6665; daemons running: 1"
   },
   {
    "shell": "mojo",
-   "id": "flash-sound",
-   "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
-   "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
-  },
-  {
-   "shell": "mojo",
-   "id": "pan-long-drag",
-   "kit": "cavekit-gpu-rendering.md R3",
-   "item": "The GPU path: drag-scroll a long page with a fixed header (`jihad-long-static.html`) at a steady pace: the header stays put, the text is continuous, nothing blank enters from below; a tap after the scroll lands where it should (the header still and the content moved by the frame; the card's scroll and the engine's agree)",
-   "section": "Scrolling and gestures",
+   "id": "flash-layout",
+   "kit": "cavekit-flash.md R4",
+   "item": "A percentage size, three movies on a page, a movie in a frame, one scrolled in from below the fold and one shown after being hidden each draw at their bounds with input landing right",
+   "section": "Flash",
    "verdict": "pass",
    "checks": [
-    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
-    "CHECK ok 8-zoom: zoom 1.0000 (want 1.0 within 0.01)",
-    "CHECK ok 9-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html",
-    "CHECK ok 10-content: region 0,150-768,400: colours 293 hash 8b1a67cb rows 250 uniform 0 light 150-399 blue none; sel:#content p on the screen at 16,145-748,201, text holds [quick brown]",
-    "CHECK ok 14-card-scroll: the card's scroll y 605 (want 650 within 100); the engine's 605",
-    "WAIT ok 15-still header",
-    "CHECK ok 16-region-equal: region 0,29-756,83: colours 185 hash eeaac7d6 rows 54 uniform 33 light none blue none = the sample's hash",
-    "CHECK ok 17-region-changed: region 0,300-756,900: colours 767 hash 8fa49cd9 rows 600 uniform 218 light 300-895 blue none against the sample's hash 5ec8059e",
-    "CHECK ok 18-top: the page's top measured 73 (the tap at y 203 landed on document y 780), the model says 73 (header hidden: 1)",
-    "CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56"
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 4)",
+    "WAIT ok 10-launch: load done",
+    "WAIT ok 11-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 13-flash-at: the movie reported down 101,100 for stage 100,100 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 301,200 for stage 300,200 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "WAIT ok 23-settled: the card's scroll 0 1335",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-rect show",
+    "WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
    ],
    "kept": [],
-   "seconds": 67,
+   "seconds": 93,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "mojo: (1217128/640900031) jihad-mojo (start) running, process 31000; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=percent: connected at +1 s, load done at +8 s, 13 content frames at +8 s; the GPU path, frames off the main thread (the ",
+   "restore": "mojo: (1262280/107755433) jihad-mojo (start) running, process 10751; daemons running: 1"
   },
   {
    "shell": "mojo",
-   "id": "wikipedia-keyboard-zoom",
-   "kit": "cavekit-mochi-ui.md R6",
-   "item": "Desktop Wikipedia keeps its layout and its fit zoom when the keyboard comes and goes (T-569: a repeated size or the keyboard's put a page's declared 1120 px width back to the card's 768 and the zoom to 1.0)",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 43 (14.3/s), changes 43 (14.3/s), reads 44, distinct 44, spacing median 69 p90 84 max 121 ms (wanted 5..100/s)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 77,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (1262357/443809195) jihad-mojo (start) running, process 14309; daemons running: 1"
   },
   {
    "shell": "mojo",
-   "id": "zoom-new-page",
-   "kit": "cavekit-input-bridging.md R3",
-   "item": "A page zoomed in by a pinch: the next page opens at its own zoom, not the last one's",
-   "section": "Scrolling and gestures",
-   "verdict": "not run",
-   "checks": [],
+   "id": "flash-wmode",
+   "kit": "cavekit-flash.md R4",
+   "item": "Each wmode draws at the element's bounds and takes a tap; a transparent movie shows the page behind it",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 8-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 10-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 11-launch: load done",
+    "WAIT ok 12-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 13-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 18-flash-behind: the colour 00ff00 in 188 of 192 cells (wanted yes)",
+    "CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 21-launch: load done",
+    "WAIT ok 22-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 23-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 26-launch: load done",
+    "WAIT ok 27-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 28-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)",
+    "CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "needs internet (run with --with internet)"
+   "seconds": 101,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=window: connected at +1 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main threa",
+   "restore": "mojo: (1262458/108735547) jihad-mojo (start) running, process 18301; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -727,10 +1452,10 @@
     "CHECK ok 10-audio: the movie's audio: closed"
    ],
    "kept": [],
-   "seconds": 55,
+   "seconds": 59,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +1 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the ex",
-   "restore": "mojo: (1217183/516662983) jihad-mojo (start) running, process 1555; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf: connected at +1 s, load done at +8 s, 25 content frames at +8 s; the GPU path, frames off the main thread (the e",
+   "restore": "mojo: (1262517/43422498) jihad-mojo (start) running, process 21279; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -754,10 +1479,10 @@
     "CHECK ok 18-flash-drawn: reported not drawn, as it should be: region 40,114-440,412: colours 1 hash b955b145 rows 298 uniform 298 light none blue 114-411"
    ],
    "kept": [],
-   "seconds": 78,
+   "seconds": 82,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +1 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the ",
-   "restore": "mojo: (1217261/891092746) jihad-mojo (start) running, process 5626; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +1 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the ",
+   "restore": "mojo: (1262598/775816112) jihad-mojo (start) running, process 25170; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -768,16 +1493,16 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 8-plugin: plugin-container 6954: alive (state S, cpu ticks 93 to 100)",
-    "CHECK ok 10-plugin: plugin-container 6954: wedged (state T, cpu ticks 100 to 100)",
-    "CHECK ok 12-plugin: plugin-container 6954: alive (state S, cpu ticks 100 to 108)",
+    "CHECK ok 8-plugin: plugin-container 26440: alive (state S, cpu ticks 94 to 101)",
+    "CHECK ok 10-plugin: plugin-container 26440: wedged (state T, cpu ticks 101 to 101)",
+    "CHECK ok 12-plugin: plugin-container 26440: alive (state S, cpu ticks 101 to 109)",
     "CHECK ok 14-plugin: plugin-container none: gone (state ?, cpu ticks ? to ?)"
    ],
    "kept": [],
-   "seconds": 57,
+   "seconds": 55,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t",
-   "restore": "mojo: (1217319/40000883) jihad-mojo (start) running, process 8728; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "mojo: (1262653/934413138) jihad-mojo (start) running, process 28215; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -788,16 +1513,17 @@
    "verdict": "pass",
    "checks": [
     "WAIT ok 7-rect m",
-    "CHECK ok 9-flash-rate-report: content 40,114-440,412: 8.0 s, flips 78 (9.8/s), changes 78 (9.8/s), reads 79, distinct 61, spacing median 98 p90 159 max 195 ms; the movie's own rate 9.7156/s (frames 60 t=6933 .. frames 170 t=18255)",
+    "CHECK ok 9-flash-rate-report: content 40,114-440,412: 8.0 s, flips 84 (10.5/s), changes 80 (10.0/s), reads 86, distinct 62, spacing median 92 p90 117 max 216 ms; the movie's own rate 9.74237/s (frames 40 t=4617 .. frames 130 t=13855)",
     "WAIT ok 10-launch: load done",
     "WAIT ok 11-rect m",
-    "CHECK ok 12-flash-rate-report: content 40,114-440,412: 8.0 s, flips 110 (13.8/s), changes 110 (13.8/s), reads 111, distinct 60, spacing median 69 p90 92 max 166 ms; the movie's own rate 14.3664/s (frames 50 t=3742 .. frames 200 t=14183)"
+    "CHECK ok 12-flash-rate-report: content 40,114-440,412: 8.0 s, flips 118 (14.8/s), changes 115 (14.4/s), reads 119, distinct 61, spacing median 68 p90 87 max 158 ms; the movie's own rate 14.3805/s (frames 30 t=2468 .. frames 160 t=11508)"
    ],
    "kept": [],
-   "seconds": 83,
+   "seconds": 81,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +1 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the ",
-   "restore": "mojo: (1217401/949068422) jihad-mojo (start) running, process 12321; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate10.swf: connected at +1 s, load done at +8 s, 15 content frames at +8 s; the GPU path, frames off the main thread (the",
+   "restore": "mojo: (1265110/234916515) jihad-mojo (start) running, process 3514; daemons running: 1",
+   "rerun": "2026-11-07T00:35:30"
   },
   {
    "shell": "mojo",
@@ -809,20 +1535,20 @@
    "checks": [
     "WAIT ok 7-rect m",
     "WAIT ok 8-still m",
-    "CHECK ok 11-flash-reacted: reacted: no (content 40,114-440,412: 4.0 s, flips 19 (4.8/s), changes 1 (0.2/s), reads 25, distinct 2, spacing median 210 p90 222 max 225 ms new 0 of 25)",
+    "CHECK ok 11-flash-reacted: reacted: no (content 40,114-440,412: 4.0 s, flips 20 (5.0/s), changes 0 (0.0/s), reads 27, distinct 1, spacing median 207 p90 215 max 221 ms new 0 of 27)",
     "WAIT ok 12-launch: load done",
     "WAIT ok 13-rect m",
-    "CHECK ok 16-flash-reacted: reacted: no (content 40,114-440,412: 5.0 s, flips 137 (27.4/s), changes 137 (27.4/s), reads 138, distinct 40, spacing median 35 p90 41 max 115 ms new 0 of 138)",
+    "CHECK ok 16-flash-reacted: reacted: no (content 40,114-440,412: 5.0 s, flips 142 (28.4/s), changes 142 (28.4/s), reads 143, distinct 41, spacing median 35 p90 40 max 95 ms new 0 of 143)",
     "WAIT ok 17-launch: load done",
     "WAIT ok 18-rect m",
     "WAIT ok 19-still m",
-    "CHECK ok 22-flash-reacted: reacted: yes (content 40,114-440,412: 3.0 s, flips 15 (5.0/s), changes 0 (0.0/s), reads 21, distinct 1, spacing median 209 p90 217 max 219 ms new 21 of 21 first 0 ms)"
+    "CHECK ok 22-flash-reacted: reacted: yes (content 40,114-440,412: 3.0 s, flips 15 (5.0/s), changes 0 (0.0/s), reads 22, distinct 1, spacing median 204 p90 210 max 210 ms new 22 of 22 first 0 ms)"
    ],
    "kept": [],
-   "seconds": 102,
+   "seconds": 101,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +1 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the ",
-   "restore": "mojo: (1217503/449569884) jihad-mojo (start) running, process 16231; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-frozen.swf: connected at +1 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the",
+   "restore": "mojo: (1262843/748731472) jihad-mojo (start) running, process 3432; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -839,10 +1565,10 @@
     "CHECK ok 13-screen: the screen against its reference: difference 8.3 (same is 5 or less; wanted other)"
    ],
    "kept": [],
-   "seconds": 59,
+   "seconds": 60,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +1 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the ",
-   "restore": "mojo: (1217562/613706169) jihad-mojo (start) running, process 19465; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-reacts.swf: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the ",
+   "restore": "mojo: (1262904/221018571) jihad-mojo (start) running, process 6819; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -869,10 +1595,10 @@
     "CHECK ok 29-flash-at: the movie reported down 151,120 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 100,
+   "seconds": 103,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main th",
-   "restore": "mojo: (1217662/518685409) jihad-mojo (start) running, process 23550; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +1 s, load done at +7 s, 10 content frames at +8 s; the GPU path, frames off the main t",
+   "restore": "mojo: (1263007/633264181) jihad-mojo (start) running, process 10937; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -884,21 +1610,21 @@
    "checks": [
     "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 9-zoom",
-    "CHECK ok 10-zoom: zoom 1.9265 (want 1.92 within 0.3)",
+    "CHECK ok 10-zoom: zoom 1.9416 (want 1.92 within 0.3)",
     "CHECK ok 13-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
-    "CHECK ok 15-flash-at: the movie reported down 149.95,119.95 for stage 150,120 (within 3)",
+    "CHECK ok 15-flash-at: the movie reported down 149.95,117.95 for stage 150,120 (within 3)",
     "WAIT ok 16-launch: load done",
     "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 19-zoom",
-    "CHECK ok 20-zoom: zoom 1.9377 (want 1.92 within 0.3)",
-    "CHECK ok 23-flash-at: the movie reported down 199.95,150.65 for stage 200,150 (within 3)",
+    "CHECK ok 20-zoom: zoom 1.9326 (want 1.92 within 0.3)",
+    "CHECK ok 23-flash-at: the movie reported down 199.95,149.3 for stage 200,150 (within 3)",
     "CHECK ok 25-flash-at: the movie reported down 150.65,119.95 for stage 150,120 (within 3)",
     "WAIT ok 26-launch: load done",
     "WAIT ok 27-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
     "WAIT ok 29-zoom",
-    "CHECK ok 30-zoom: zoom 1.9400 (want 1.92 within 0.3)",
-    "CHECK ok 33-flash-at: the movie reported down 199.95,149.95 for stage 200,150 (within 3)",
-    "CHECK ok 35-flash-at: the movie reported down 150.65,119.95 for stage 150,120 (within 3)",
+    "CHECK ok 30-zoom: zoom 1.9326 (want 1.92 within 0.3)",
+    "CHECK ok 33-flash-at: the movie reported down 199.95,147.95 for stage 200,150 (within 3)",
+    "CHECK ok 35-flash-at: the movie reported down 150.65,117.95 for stage 150,120 (within 3)",
     "WAIT ok 36-launch: load done",
     "WAIT ok 37-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=300x150 ei=true]",
     "WAIT ok 39-zoom",
@@ -907,10 +1633,10 @@
     "CHECK ok 45-flash-at: the movie reported down 150,119 for stage 150,120 (within 3)"
    ],
    "kept": [],
-   "seconds": 124,
+   "seconds": 116,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +1 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main th",
-   "restore": "mojo: (1217786/518273682) jihad-mojo (start) running, process 28173; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150: connected at +1 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main t",
+   "restore": "mojo: (1263123/477865047) jihad-mojo (start) running, process 15406; daemons running: 1"
   },
   {
    "shell": "mojo",
@@ -939,10 +1665,11 @@
    "kept": [],
    "seconds": 85,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the m",
-   "restore": "mojo: (1217871/52756924) jihad-mojo (start) running, process 32029; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&scale=showAll&w=300&h=150&fit=1: connected at +1 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the m",
+   "restore": "mojo: (1263208/951413178) jihad-mojo (start) running, process 19291; daemons running: 1"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (1217871/207442109) jihad (start) running, process 14676\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (1217882/161728626) jihad-mochi (start) running, process 23390\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (1217898/89080178) jihad-mojo (start) running, process 32029\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 4% of /tmp used",
- "seconds": 2727
+ "end_check": "DEVICE ok job-enyo: (1265454/993743854) jihad (start) running, process 15537\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (1265459/472732742) jihad-mochi (start) running, process 25410\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (1265464/490060741) jihad-mojo (start) running, process 18967\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/fl-lane.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 4% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 6804,
+ "first_date": "2026-11-06T22:40:54"
 }

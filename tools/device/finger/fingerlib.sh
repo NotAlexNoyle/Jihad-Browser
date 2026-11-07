@@ -484,6 +484,38 @@ fl_check_flash_reacted() { # NAME REGION SECONDS yes|no: reads showing what the 
   if [ "${b:-0}" -gt 0 ] && [ $((${a:-0} * 2)) -ge ${b:-0} ]; then v=yes; else v=no; fi
   [ "$v" = "$4" ] && fl_check ok "$1" "reacted: $v ($l)" || fl_check FAIL "$1" "reacted: $v, wanted $4 ($l)"
 }
+fl_check_number() { # NAME SEL MIN MAX: the number an element holds, within the bounds
+  local v
+  v=$(fl_text "$2")
+  if awk -v v="${v:-x}" -v a=$3 -v b=$4 'BEGIN { exit !(v + 0 == v && v >= a && v <= b) }'; then fl_check ok "$1" "$2 = $v (wanted $3..$4)"
+  else fl_check FAIL "$1" "$2 = [$v] (wanted $3..$4)"; fi
+}
+fl_check_flash_el() { # NAME EL SX SY TOL: the stage point of the last line of that kind the movie reported
+  local l
+  l=$(fl_text "$2"); set -- "$1" "$2" "$3" "$4" "$5" $l
+  if awk -v a="${7:-x}" -v b="${8:-x}" -v x=$3 -v y=$4 -v t=$5 'BEGIN { d = a - x; e = b - y; if (d < 0) d = -d; if (e < 0) e = -e; exit !(d <= t && e <= t) }'; then fl_check ok "$1" "the movie's $2 at $7,$8 for $3,$4 (within $5)"
+  else fl_check FAIL "$1" "the movie's $2 at [$7,$8] for $3,$4 (more than $5 off)"; fi
+}
+fl_check_press_rate() { # NAME MIN: the moves a press sent on, a second, by the daemon's line for the last press
+  local l r
+  l=$(grep -a "a press of" $FL_LOG | tail -1)
+  r=$(echo "$l" | sed -n 's/.*moves from the card in \([0-9]*\) ms, \([0-9]*\) sent on.*/\2 \1/p' | awk '{ if ($2 > 0) printf "%.1f", $1 * 1000 / $2 }')
+  if awk -v r="${r:-0}" -v m=$2 'BEGIN { exit !(r >= m) }'; then fl_check ok "$1" "$r moves a second sent on (at least $2): $(echo "$l" | cut -c10-)"
+  else fl_check FAIL "$1" "${r:-no} moves a second sent on (at least $2): $(echo "$l" | cut -c10-)"; fi
+}
+fl_check_above_keyboard() { # NAME SEL: the element ends above the keyboard's top, which a shell's card is cut at (y 733)
+  local r
+  r=$(fl_screen_rect "$2") || { fl_check FAIL "$1" "no element $2"; return 1; }
+  set -- "$1" "$2" $r
+  if [ $4 -ge 0 ] && [ $6 -le 740 ]; then fl_check ok "$1" "$2 on the screen at $3,$4-$5,$6, above the keyboard"
+  else fl_check FAIL "$1" "$2 on the screen at $3,$4-$5,$6, under the keyboard"; fi
+}
+fl_check_lock() { # NAME 0|1 [BOUND]: the adapter's gesture lock, by its own line in the system log since the mark
+  local n l
+  n=${3:-5}
+  while [ $n -gt 0 ]; do l=$(grep -a "jihad: flashGestureLock ->" /var/log/messages | tail -1); case "$l" in *"-> $2 "*) fl_check ok "$1" "the gesture lock is $2"; return 0;; esac; sleep 1; n=$((n-1)); done
+  fl_check FAIL "$1" "the gesture lock is not $2: [$(echo "$l" | sed 's/.*flashGestureLock/flashGestureLock/')]"
+}
 fl_check_flash_behind() { # NAME REGION RRGGBB yes|no: that colour, the page's behind the movie, in half the region's cells or more
   local g n
   g=$(fl_screen_sig "$2")

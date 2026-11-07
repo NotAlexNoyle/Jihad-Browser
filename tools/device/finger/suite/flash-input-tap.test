@@ -1,0 +1,22 @@
+id: flash-input-tap
+section: Flash
+item: A tap on a movie gives one press and one release at the stage point, never a doubled click
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
+kit: cavekit-flash.md R5
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+expect number n-down 1 1
+expect number n-up 1 1
+pause 1200
+flash-tap m 400 300 showAll 100 60
+expect flash-at 100 60 3
+expect number n-down 2 2
+expect number n-up 2 2
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+expect number n-down 1 1
+expect number n-up 1 1

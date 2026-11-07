@@ -514,7 +514,28 @@ JihadPageCommands.prototype = {
     let win = aSubject;
     if (!win || !win.document) { return; }
     try {
-      if (req.cmd === "holdArm") {
+      if (req.cmd === "focusPlugin") {
+        let el = win.document.elementFromPoint(req.x, req.y);
+        if (el && (el.localName === "embed" || el.localName === "object")) {
+          el.focus();
+          // The keyboard is on its way and takes the lower half of the card: the movie stays in what is left
+          // (asked for on a timer: this embedding's window takes its new size with no resize event)
+          let h0 = win.innerHeight, tries = 0, settled = 0;
+          let timer = Components.classes["@mozilla.org/timer;1"].createInstance(Components.interfaces.nsITimer);
+          timer.initWithCallback({ notify() {
+            if (win.closed) { timer.cancel(); return; }
+            if (win.innerHeight >= h0 && ++tries < 15) { return; }
+            // and the card has sent its position for the new size back: a scroll before that is undone, and
+            // one within 1.5 s of the card's last position is taken for its echo and never reaches the card
+            // (BrowserPageGoanna::emitScrollIfChanged)
+            if (++settled < 9) { return; }
+            timer.cancel();
+            let r = el.getBoundingClientRect();
+            const by = (r.top < 0 || r.height > win.innerHeight) ? r.top : (r.bottom > win.innerHeight ? r.bottom - win.innerHeight + 60 : 0);
+            if (by) { win.scrollBy(0, by); log("the movie moved " + by + " px up for the keyboard, the page at " + win.scrollY); }
+          } }, 200, Components.interfaces.nsITimer.TYPE_REPEATING_SLACK);
+        }
+      } else if (req.cmd === "holdArm") {
         arm(pageState(win, true), win);
       } else if (req.cmd === "hold") {
         let st = pageState(win, true);

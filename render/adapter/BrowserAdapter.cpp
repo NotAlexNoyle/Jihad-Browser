@@ -554,6 +554,7 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mLastPointSentToFlash(-1, -1)
     , mMouseInFlashRect(false)
     , mFlashGestureLock(false)
+    , m_lockKeyboardTimer(NULL)
     , mMouseInInteractiveRect(false)
     , m_spotlightHandle(0)
     , m_ft(0)
@@ -652,6 +653,11 @@ BrowserAdapter::~BrowserAdapter()
 
     g_message("%s: %p", __PRETTY_FUNCTION__, this);
 
+    if (m_lockKeyboardTimer) {
+        g_source_destroy(m_lockKeyboardTimer);
+        g_source_unref(m_lockKeyboardTimer);
+        m_lockKeyboardTimer = NULL;
+    }
     destroyBufferLock();
 
     stopClickTimer();
@@ -1654,6 +1660,7 @@ bool BrowserAdapter::handlePenDown(NpPalmPenEvent *event)
     bool passToFlash = false;
     bool containsFlashPoint = flashRectContainsPoint(m_penDownDoc);
     bool containsInteractivePoint = interactiveRectContainsPoint(m_penDownDoc);
+    if (FILE* jl = jihadPaintLog()) fprintf(jl, "penDown doc %d,%d inFlashRect=%d lock=%d rects=%d\n", m_penDownDoc.x, m_penDownDoc.y, (int)containsFlashPoint, (int)mFlashGestureLock, (int)mFlashRects.size());
 
     detectScrollableLayerUnderMouseDown(m_penDownDoc, Point(eventPt.x / mZoomLevel, eventPt.y / mZoomLevel));
 
@@ -3437,6 +3444,7 @@ const char* BrowserAdapter::js_smartZoom(AdapterBase *adapter, const NPVariant *
                 (a->mScrollPos.y + VariantToInteger(args[1]) - a->m_headerHeight) / a->mZoomLevel);
 
     bool inFlashRect = a->flashRectContainsPoint(docPt);
+    if (FILE* jl = jihadPaintLog()) fprintf(jl, "smartZoom doc %d,%d inFlashRect=%d lock=%d rects=%d\n", docPt.x, docPt.y, (int)inFlashRect, (int)a->flashGestureLock(), (int)a->mFlashRects.size());
     if (a->flashGestureLock()) {
         if (!inFlashRect) {
             a->updateFlashGestureLockStatus(false);
@@ -4821,33 +4829,20 @@ void BrowserAdapter::jsonToRects(const char* rectsArrayJson)
     pbnjson::JValue rectsArray;
     pbnjson::JDomParser parser(NULL);
 
-    // JIHAD: resolve the schema inside THIS app first, and only then fall back to the stock
-    // system path. Two reasons, both learned the hard way:
-    //   - /etc/palm/browser/ on a webOS 3.0.5 device ships HitTest.schema and NOTHING else.
-    //     InteractiveWidgetRect.schema is simply not there, and a missing schema file makes
-    //     the parse below fail, which silently drops EVERY rect in the message — the feature
-    //     looks correct all the way to the wire and then does nothing.
-    //   - /etc is the read-only system rootfs, shared with the stock browser, and outside
-    //     this variant's own footprint (device-build R8). Installing into it would need a
-    //     remount and would leave a file behind that our uninstall never removes.
-    // The wire bytes are untouched by this: the schema is how the adapter validates the
-    // payload, not part of the frozen contract.
-    // Flat, not conf/: the loaded library is the ROOT-OWNED copy in /usr/lib/jihad/<variant>/
-    // (the app-bundle copy is only a delivery vehicle), and postinst puts the schema there
-    // beside it. dladdr therefore names that directory, for whichever variant is running.
-    QString schemaFile = jihadAppFile("InteractiveWidgetRect.schema");
-    if (schemaFile.isEmpty()) {
-#ifdef ISIS_DESKTOP
-        schemaFile = QString("%1/.isis/conf/InteractiveWidgetRect.schema").arg(QDir::homePath());
-#else
-        schemaFile = QString("/etc/palm/browser/InteractiveWidgetRect.schema");
-#endif
-    }
-
-    pbnjson::JSchemaFile schema(qPrintable(schemaFile));
+    // T-575: the schema is here, not in a file. It was looked for beside this library and then in
+    // /etc/palm/browser/, and the first never resolved on the device and the second does not exist: the
+    // parse failed, every rect in every message was dropped without a word, and so the gesture lock could
+    // never engage: no hold, no drag and no keys for any movie. The wire bytes are untouched by this:
+    // the schema is how the adapter validates the payload, not part of the frozen contract.
+    static const char kRectSchema[] =
+        "{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{"
+        "\"id\":{\"type\":\"number\",\"optional\":false},\"left\":{\"type\":\"number\",\"optional\":false},"
+        "\"top\":{\"type\":\"number\",\"optional\":false},\"right\":{\"type\":\"number\",\"optional\":false},"
+        "\"bottom\":{\"type\":\"number\",\"optional\":false},\"type\":{\"type\":\"number\",\"optional\":false}}}}";
+    pbnjson::JSchemaFragment schema(kRectSchema);
     if (!parser.parse(rectsArrayJson, schema, NULL)) {
-        TRACEF("%s: unable to parse '%s' against schema '%s'\n", __FUNCTION__,
-               rectsArrayJson, qPrintable(schemaFile));
+        g_warning("flash rects refused by their schema: %s", rectsArrayJson);
+        if (FILE* jl = jihadPaintLog()) fprintf(jl, "flash rects refused: %s\n", rectsArrayJson);
         goto Done;
     }
 
@@ -4895,6 +4890,7 @@ void BrowserAdapter::msgAddFlashRects(const char* rectsArrayJson)
 {
     TRACEF("ADD RECTS!: %s", rectsArrayJson);
     jsonToRects(rectsArrayJson);
+    if (FILE* jl = jihadPaintLog()) fprintf(jl, "flash rects: %s, %d now\n", rectsArrayJson, (int)mFlashRects.size());
 }
 
 void BrowserAdapter::msgRemoveFlashRects(const char* rectIdJson)
@@ -6015,6 +6011,23 @@ void BrowserAdapter::updateMouseInInteractiveStatus(bool inInteractiveRect)
     }
 }
 
+gboolean BrowserAdapter::lockKeyboardTimeoutCb(gpointer arg)
+{
+    BrowserAdapter* a = (BrowserAdapter*)arg;
+    if (a->m_lockKeyboardTimer) {
+        g_source_unref(a->m_lockKeyboardTimer);
+        a->m_lockKeyboardTimer = NULL;
+    }
+    if (a->mFlashGestureLock) {
+        NPVariant kb[3];
+        BOOLEAN_TO_NPVARIANT(true, kb[0]);
+        INT32_TO_NPVARIANT(0, kb[1]);
+        INT32_TO_NPVARIANT(0, kb[2]);
+        a->InvokeEventListener(gEditorFocusedHandler, kb, G_N_ELEMENTS(kb), 0);
+    }
+    return FALSE;
+}
+
 void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
 {
     if (gestureLockEnabled != mFlashGestureLock) {
@@ -6027,6 +6040,7 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
         // g_message reaches the system log, readable with palm-log / /var/log/messages.
         g_message("jihad: flashGestureLock -> %d (mouseInFlashRect=%d)",
                   (int)gestureLockEnabled, (int)mMouseInFlashRect);
+        if (FILE* jl = jihadPaintLog()) fprintf(jl, "flashGestureLock -> %d (mouseInFlashRect=%d)\n", (int)gestureLockEnabled, (int)mMouseInFlashRect);
 
         // Jihad (cavekit-input-bridging.md R7): the keyboard for a plugin. The VKB is driven by
         // the card's editorFocused handler, which only an HTML editor ever triggers
@@ -6037,9 +6051,23 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
         // (handlePenDoubleClick, and the card's smartZoom; a single tap does not set it). Engaging raises the keyboard through
         // the same handler an HTML field uses; releasing the latch (a tap outside the plugin)
         // lowers it again unless an HTML editor still has focus.
-        {
+        //
+        // T-575: not in the double tap itself. The keyboard resizes the card while the second touch is
+        // still down, and now and then its touch-end is lost: the system then takes the finger as still
+        // on the card and no touch reaches it any more (two runs in five, no pen down after the lock).
+        // A moment after the gesture, and only if the lock still stands.
+        if (m_lockKeyboardTimer) {
+            g_source_destroy(m_lockKeyboardTimer);
+            g_source_unref(m_lockKeyboardTimer);
+            m_lockKeyboardTimer = NULL;
+        }
+        if (gestureLockEnabled) {
+            m_lockKeyboardTimer = g_timeout_source_new(350);
+            g_source_set_callback(m_lockKeyboardTimer, lockKeyboardTimeoutCb, this, NULL);
+            g_source_attach(m_lockKeyboardTimer, g_main_loop_get_context(mMainLoop));
+        } else {
             NPVariant kb[3];
-            BOOLEAN_TO_NPVARIANT(gestureLockEnabled || bEditorFocused, kb[0]);
+            BOOLEAN_TO_NPVARIANT(bEditorFocused, kb[0]);
             INT32_TO_NPVARIANT(0, kb[1]);
             INT32_TO_NPVARIANT(0, kb[2]);
             InvokeEventListener(gEditorFocusedHandler, kb, G_N_ELEMENTS(kb), 0);

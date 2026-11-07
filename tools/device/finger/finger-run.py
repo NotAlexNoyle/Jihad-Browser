@@ -25,6 +25,8 @@
 #   calibrate SEL [TOL]                 the page-top calibration tap (the round stops on a disagreement)
 #   tap SEL | tap-at X Y | chrome NAME | drag X0 Y0 X1 Y1 [MS] | flick X0 Y0 X1 Y1 [MS] | pinch CX CY D0 D1 [MS]
 #   hold X Y [MS] | hold-on SEL [MS] | dtap X Y | pick SEL INDEX [ROWS]
+#   header-away                         Mojo's bar went with a scroll the page made itself: the tools' model says so
+#   kernel-key CODE                     a key of the emulated kernel keyboard (fixture: kernel-kbd), a raw Linux code
 #   type-keys TEXT | key-hold kb-backspace [MS]     the system keyboard by finger (type TEXT is the inject channel's) | card-to Y | pull-header | key CODE | type TEXT | inject CMD...
 #   expect CHECK ARGS...                fl_check_CHECK: scroll EY KY TOL | card-scroll KY TOL | zoom Z TOL | hit SEL |
 #                                       element-at SEL X Y | text SEL TEXT | text-has SEL TEXT | url PART |
@@ -59,16 +61,16 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh")
 REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash")), "refs")   # a movie's screens (cavekit-flash R2)
 SHELLS = ["enyo", "mochi", "mojo"]
-GESTURES = {"flash-tap", "plugin-signal", "tap", "tap-off", "dismiss", "tap-at", "chrome", "drag", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
-UNMARKED = {"chrome", "dismiss", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
-WAITING_EXPECTS = {"keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
+GESTURES = {"kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "dismiss", "tap-at", "chrome", "drag", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
+UNMARKED = {"kernel-key", "chrome", "dismiss", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
+WAITING_EXPECTS = {"lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit",
           "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
           "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
-          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind"}
+          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind", "above-keyboard": "fl_check_above_keyboard", "press-rate": "fl_check_press_rate", "number": "fl_check_number", "flash-el": "fl_check_flash_el", "lock": "fl_check_lock"}
 
 def sh_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -92,8 +94,8 @@ def split_args(rest):
 ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1),
          "hold-on": (1, 2), "key-hold": (1, 2), "drag": (4, 5), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
-         "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2)}
-EXPECT_ARITY = {"flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
+         "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2)}
+EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
                 "hit": (1, 1), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
                 "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2)}
 
@@ -147,7 +149,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot", "flash-control", "sig-save"):
+            elif verb in ("sample", "shoot", "flash-control", "sig-save", "header-away"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -220,6 +222,8 @@ def compile_steps(t):
         elif verb == "pick": out.append(f"fl_pick {' '.join(q)} || fl_check FAIL \"{name}\" \"the pick on {m[0]} did not open or close\"")
         elif verb == "card-to": out.append(f"fl_card_to {q[0]}")
         elif verb == "pull-header": out.append("fl_pull_header")
+        elif verb == "header-away": out.append("FL_HDR=1")
+        elif verb == "kernel-key": out.append(f"echo 'key {a[0]} 1' > /tmp/uinput.cmd; usleep 500000; echo '  kernel key {a[0]}'")
         elif verb == "key": out.append(f"fl_ask \"key {a[0]}\" 'inject key ' 3 >/dev/null || fl_check FAIL \"{name}\" \"the key {a[0]} was not echoed\"")
         elif verb == "type": out.append(f"fl_ask \"text {rest}\" 'inject text ' 3 >/dev/null || fl_check FAIL \"{name}\" \"the text was not echoed\"")
         elif verb == "type-keys": out.append(f"fl_type {sh_quote(rest.strip().strip(chr(39)).strip(chr(34)))} || fl_check FAIL \"{name}\" \"a character has no key\"")

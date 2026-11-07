@@ -16,17 +16,30 @@
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
   <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div>
   <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div>
+  <div id="n-down">0</div><div id="n-up">0</div><div id="n-move">0</div><div id="heldms">0</div><div id="moverate">0</div>
   <div id="count">0</div><div id="all"></div>
 </div>
 <script>
   var q = {}; location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (m, k, v) { q[k] = decodeURIComponent(v); });
-  var n = 0, all = [];
+  var n = 0, all = [], pressAt = 0, movesInPress = 0, firstMove = 0, lastMove = 0;
   function jihadFlash(s) {
     s.split(";").forEach(function (line) {
       if (!line) { return; }
       n++; all.push(line); if (all.length > 12) { all.shift(); }
       var kind = line.split(" ")[0], e = document.getElementById(kind);
-      if (e) { e.textContent = line; }
+      // the player moves the mouse off the stage when a press ends (-1,-1): the path's end is the line before
+      if (e && line != "move -1 -1") { e.textContent = line; }
+      // what a check of input reads: how many of each, how long a press lasted, how fast the moves of one came
+      var c = document.getElementById("n-" + kind), now = Date.now();
+      if (c) { c.textContent = String(Number(c.textContent) + 1); }
+      if (kind == "down") { pressAt = now; movesInPress = 0; firstMove = 0; lastMove = 0; }
+      if (kind == "up" && pressAt) {
+        document.getElementById("heldms").textContent = String(now - pressAt);
+        if (lastMove > firstMove) { document.getElementById("moverate").textContent = String(Math.round((movesInPress - 1) * 1000 / (lastMove - firstMove))); }
+      }
+      if (kind == "move" && line != "move -1 -1" && pressAt) {
+        movesInPress++; if (!firstMove) { firstMove = now; } lastMove = now;
+      }
     });
     document.getElementById("count").textContent = String(n);
     document.getElementById("all").textContent = all.join(" | ");
@@ -49,6 +62,7 @@
   else if (q.tag == "nested") html = '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"' + size + '><param name="movie" value="' + src + '">' + params() + '<object id="m" data="' + src + '" type="application/x-shockwave-flash"' + size + '>' + params() + '</object></object>';
   else if (q.layout == "three") html = embedOf("m") + embedOf("m2") + embedOf("m3");
   else if (q.layout == "frame") html = '<iframe id="m" src="jihad-flash-instr.html?movie=' + (q.movie || "avm1") + '&inframe=1&w=' + w + '&h=' + h + '" width="' + w + '" height="' + h + '" frameborder="0" scrolling="no" style="display:block;margin:40px 0 0 40px"></iframe>';
+  else if (q.layout == "low") html = '<div style="height:480px"></div>' + embedOf("m");
   else if (q.layout == "below") html = '<div style="height:1500px"></div>' + embedOf("m");
   else if (q.layout == "hidden") html = '<button id="show" style="display:block;width:300px;height:60px;margin:20px 0 0 40px" onclick="document.getElementById(\'m\').style.display=\'block\'">show</button>' + embedOf("m").replace('<embed ', '<embed style="display:none" ');
   else html = embedOf("m");

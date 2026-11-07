@@ -1,0 +1,24 @@
+id: flash-input-kernel
+section: Flash
+item: With a kernel keyboard and the gesture lock on, keys reach the movie and the card acts on none; with the lock off they go to the card
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1
+kit: cavekit-flash.md R5
+fixture: kernel-kbd
+wait text ready stage= 30
+dtap 240 272
+expect keyboard up
+pause 1500
+kernel-key 103
+wait text keydown "keydown 38 0" 5
+kernel-key 30
+wait text keydown "keydown 65 97" 5
+kernel-key 108
+wait text keydown "keydown 40 0" 5
+expect card-scroll 0 5
+tap-at 650 800
+expect keyboard down
+pause 1500
+kernel-key 108
+wait settled 5
+expect card-scroll-min 20

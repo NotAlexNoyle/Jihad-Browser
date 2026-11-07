@@ -2353,6 +2353,9 @@ void BrowserAdapter::sendSingleTap(int cx, int cy, int modifiers)
         if (flashRectContainsPoint(docPt)) {
             // single taps for flash go through if we're not in flash lock mode
             if (!flashGestureLock()) {
+                // T-576: the pointer comes to the point first, as a mouse's does: a movie's button hit-tests where the
+                // pointer last was, and a press with no move before it went to nothing (Effing Meteors, Happy Wheels)
+                asyncCmdMouseEvent(2 /*mousemove*/, docPt.x, docPt.y, 1);
                 asyncCmdMouseEvent(0 /*mousedown*/, docPt.x, docPt.y, 1);
                 asyncCmdMouseEvent(1 /*mouseup*/, docPt.x, docPt.y, 1);
             }

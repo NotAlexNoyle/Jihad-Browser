@@ -2733,6 +2733,8 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   { FrameLockGuard frameLock; if (mZoomBack.ok) zoomBackDrop(); }   // T-527 (review): the kept frame is from before this input
   if (!mPage) return;
+  flushKeyUps(key);   // T-576: a held-back release of this key goes before its next press
+  mKeyDownMs[key] = jihadNowMs();
   // T-131 instrument (cavekit-preferences-ui.md R6), same JIHAD_LOG_INSERT gate as InsertText's.
   // WARRANTED because of an asymmetry that would otherwise void the run: a VKB keystroke arriving
   // with no focused editable never reaches InsertText at all — it falls through to engine dispatch
@@ -2897,7 +2899,26 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
   static const bool kGreKeys = getenv("JIHAD_GRE_KEYS") != nullptr;   // see keyDown
+  // T-576: the keyboard's joystick sends an arrow's press and release together, and a game that looks at the keys once
+  // a frame (Key.isDown) never saw one: with no text field focused, a key is held down for kKeyHoldMs at least
+  auto it = mKeyDownMs.find(key);
+  if (mPage && it != mKeyDownMs.end() && !mPage->HasFocusedEditable()) {
+    int64_t due = it->second + kKeyHoldMs;
+    mKeyDownMs.erase(it);
+    if (jihadNowMs() < due) { mHeldKeyUps.push_back({key, modifiers, chr, due}); return; }
+  }
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
+}
+// the releases held back by keyUp: those due, or with a key all of that key's
+void BrowserPageGoanna::flushKeyUps(int onlyKey) {
+  static const bool kGreKeys = getenv("JIHAD_GRE_KEYS") != nullptr;
+  int64_t now = jihadNowMs();
+  for (size_t i = 0; i < mHeldKeyUps.size();) {
+    HeldKeyUp k = mHeldKeyUps[i];
+    if (onlyKey >= 0 ? k.key != onlyKey : now < k.dueMs) { ++i; continue; }
+    mHeldKeyUps.erase(mHeldKeyUps.begin() + i);
+    if (mPage) { mPage->KeyEvent("keyup", k.key, k.chr, k.modifiers, kGreKeys); mNeedsPaint = true; }
+  }
 }
 // Shared enqueue for every input kind (F-9). Records only — pump() dispatches.
 static int64_t gJihadPressMs = 0, gJihadMoveFirstMs = 0, gJihadMoveLastMs = 0;
@@ -4177,6 +4198,7 @@ void BrowserPageGoanna::emitScrollIfChanged() {
 
 void BrowserPageGoanna::pump(int msBudget, bool drainOnly) {
   if (!mPage) return;
+  if (!mHeldKeyUps.empty()) flushKeyUps(-1);
   // Fire the pending 'input' event for a keystroke edit FIRST — before the queued tap AND the Tab/Enter
   // queue below. It targets the element that was actually edited (mPendingInputEl). Flushing before the
   // tap matters when the user types then taps a submit/button or a link: a controlled/React handler must

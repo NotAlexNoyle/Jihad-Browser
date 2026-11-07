@@ -33,7 +33,7 @@ def page(tid, q, host):
     w = int(q.get("w", [round(sw * k)])[0]); h = int(q.get("h", [round(sh * k)])[0])
     wmode = ('wmode="%s"' % q["wmode"][0]) if "wmode" in q else ""
     return ("""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title>
-<style>body{margin:0;background:#888;font:14px monospace}#m{display:block}</style></head><body>
+<style>body{margin:0;min-width:768px;background:#888;font:14px monospace}#m{display:block}</style></head><body>
 <embed id="m" src="%s" type="application/x-shockwave-flash" width="%d" height="%d" allowScriptAccess="always" allowFullScreen="true" flashvars="%s" %s>
 <div id="count">0</div><div id="last">-</div>
 <script>var n=0;function jihadFlash(s){n++;document.getElementById("count").textContent=n;document.getElementById("last").textContent=s;}</script>

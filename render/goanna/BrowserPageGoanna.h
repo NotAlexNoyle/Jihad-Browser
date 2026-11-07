@@ -879,7 +879,13 @@ private:
   struct FlashRect { int l, t, r, b; };
   std::map<void*, int>     mPluginRectIds;
   std::map<int, FlashRect> mEmittedFlashRects;
-  int64_t mContentScrollUntilMs = 0;   // T-575: until then a scroll of the page's own is not the card's echo
+  int64_t mContentScrollUntilMs = 0;
+  // T-576: a key's release held back until it has been down kKeyHoldMs (keyUp, flushKeyUps)
+  static const int kKeyHoldMs = 120;
+  struct HeldKeyUp { int key, modifiers, chr; int64_t dueMs; };
+  std::vector<HeldKeyUp> mHeldKeyUps;
+  std::map<int, int64_t> mKeyDownMs;
+  void flushKeyUps(int onlyKey);   // T-575: until then a scroll of the page's own is not the card's echo
   // T-576: THE PLUGIN LANE: see pluginLaneFrame
   bool pluginLaneFrame(unsigned char* buf, size_t segSize, size_t hdr, int w, int h, double Zeff);
   void pluginLaneClose(const char* why);

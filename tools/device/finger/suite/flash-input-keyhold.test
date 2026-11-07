@@ -1,0 +1,18 @@
+id: flash-input-keyhold
+section: Flash
+item: A key of the system keyboard, and an arrow of its joystick, stays down for the movie at least two frames, so a game that polls the keys each frame sees it
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
+kit: cavekit-flash.md R6
+wait text ready stage= 30
+dtap 240 272
+expect keyboard up
+pause 1500
+type-keys a
+wait text keyup "keyup 65" 5
+expect number keyheldms 60 2000
+drag 702 757 760 757 350
+wait text keyup "keyup 39" 5
+expect number keyheldms 60 2000
+tap-at 600 500
+expect keyboard down

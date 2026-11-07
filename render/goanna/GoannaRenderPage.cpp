@@ -3393,7 +3393,8 @@ void GoannaRenderPage::MouseEvent(const char* type, int x, int y, int button) {
   // Pass explicit buttons (_argc=6): the left button is held for down/move, released
   // (0) for up. With _argc=0 the impl derives buttons from aButton for BOTH, so a
   // mouseup reports the button still held and the press/release may not register.
-  int32_t buttons = (strcmp(type, "mouseup") == 0) ? 0 : 1;
+  // a move with no press held is the pointer hovering (T-576: the move before an unlocked tap's press), not a drag
+  int32_t buttons = (strcmp(type, "mouseup") == 0) ? 0 : (strcmp(type, "mousemove") == 0 && !mRawDownMs) ? 0 : 1;
   // ToWindow: routed via the presShell, not the widget (T-067). No preventDefault out-param.
   (void)ret;
   engine_calls::MouseEventToWindow(u, t, (float)x, (float)y, button, /*clickCount*/1, /*mods*/0, buttons);

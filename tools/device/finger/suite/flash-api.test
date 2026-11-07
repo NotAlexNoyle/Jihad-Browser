@@ -1,0 +1,22 @@
+id: flash-api
+section: Flash
+item: FlashVars arrive, ExternalInterface works both ways, getURL and fscommand reach the page, allowScriptAccess is honoured, a shared object survives a daemon restart, a movie loads data and a movie from its own origin
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1
+kit: cavekit-flash.md R4
+wait text ready features 30
+wait text vars "vars a=hello" 20
+wait text so "so n=1" 20
+wait text echoback "echoback back hi" 30
+expect text echo "echo hi"
+wait text geturl "geturl ok" 20
+wait text fscommand "fscommand jcmd jarg" 20
+wait text data "data true x=42" 20
+wait text kid "kid w=" 30
+daemon-restart http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf
+wait text so "so n=2" 40
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&allow=never
+wait rect m 20
+expect text count 0
+dwell 5000
+expect text count 0

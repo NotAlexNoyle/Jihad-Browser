@@ -1,0 +1,31 @@
+id: flash-layout
+section: Flash
+item: A percentage size, three movies on a page, a movie in a frame, one scrolled in from below the fold and one shown after being hidden each draw at their bounds with input landing right
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=percent
+kit: cavekit-flash.md R4
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 4
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=three
+wait text ready stage= 30
+flash-tap m 400 300 showAll 100 100
+expect flash-at 100 100 3
+flash-tap m3 400 300 showAll 300 200
+expect flash-at 300 200 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=frame
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=below
+wait text ready stage= 30
+card-to 1400
+wait settled 5
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=hidden
+wait rect show 20
+tap show
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3

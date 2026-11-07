@@ -484,6 +484,15 @@ fl_check_flash_reacted() { # NAME REGION SECONDS yes|no: reads showing what the 
   if [ "${b:-0}" -gt 0 ] && [ $((${a:-0} * 2)) -ge ${b:-0} ]; then v=yes; else v=no; fi
   [ "$v" = "$4" ] && fl_check ok "$1" "reacted: $v ($l)" || fl_check FAIL "$1" "reacted: $v, wanted $4 ($l)"
 }
+fl_check_flash_behind() { # NAME REGION RRGGBB yes|no: that colour, the page's behind the movie, in half the region's cells or more
+  local g n
+  g=$(fl_screen_sig "$2")
+  n=$(echo "$g $3" | awk '{ r0 = hex(substr($2,1,2)); g0 = hex(substr($2,3,2)); b0 = hex(substr($2,5,2)); n = 0; for (i = 1; i <= length($1); i += 6) { r = hex(substr($1,i,2)); gg = hex(substr($1,i+2,2)); b = hex(substr($1,i+4,2)); if (abs(r-r0) <= 24 && abs(gg-g0) <= 24 && abs(b-b0) <= 24) n++ } print n }
+    function abs(v) { return v < 0 ? -v : v }
+    function hex(h,  i, v) { v = 0; h = tolower(h); for (i = 1; i <= length(h); i++) v = v * 16 + index("0123456789abcdef", substr(h, i, 1)) - 1; return v }')
+  if { [ "$4" = yes ] && [ "${n:-0}" -ge 96 ]; } || { [ "$4" = no ] && [ "${n:-0}" -lt 96 ]; }; then fl_check ok "$1" "the colour $3 in ${n:-0} of 192 cells (wanted $4)"
+  else fl_check FAIL "$1" "the colour $3 in ${n:-0} of 192 cells (wanted $4)"; fi
+}
 fl_screen_sig() { /tmp/fbstream /tmp/fl-sig -Q "$(fl_flash_region "$1")" -S 2>/dev/null | sed -n 's/.* grid \([0-9a-f]*\).*/\1/p'; }
 fl_check_screen() { # NAME REGION REF want [TOL]: want is same|other; the mean difference per channel against the reference
   local l d tol

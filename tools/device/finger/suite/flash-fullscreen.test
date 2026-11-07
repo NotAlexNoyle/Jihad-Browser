@@ -1,0 +1,20 @@
+id: flash-fullscreen
+section: Flash
+item: Full screen is entered and left by the finger on the movie's own button; the system's turn to landscape is the same as the stock browser's, which the accelerometer turns back
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&vars=fs=1
+kit: cavekit-flash.md R4
+fixture: portrait-after
+wait text ready features 30
+wait text kid "kid w=" 30
+flash-tap m 400 300 showAll 200 150
+wait text fs "fs fullScreen" 15
+shoot fullscreen
+dismiss 384 400
+wait text fs "fs normal" 15
+pause 3000
+dismiss 384 400
+wait text fs "fs fullScreen" 15
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&bg=00ff00
+wait text ready stage= 30
+expect flash-behind 100,500,700,900 00ff00 yes

@@ -159,6 +159,92 @@ def build_avm1():
 
 
 # --- AVM2: a small ABC assembler ----------------------------------------------------------------------------------------
+def build_features():
+    """The instrumented movie's AVM1 half, and what a page's movie does beyond input (cavekit-flash.md R4, T-574): FlashVars, a
+    local shared object, a callback for the page, getURL, fscommand, data and a movie from its own origin, full screen on a
+    tap (FlashVars fs=1). Each reports a line of its own."""
+    def report(x):
+        x.push(1); x.getvar("_root"); x.push("R"); x.op(0x52); x.pop()
+    a = A1()
+    a.push("q", "").op(0x1D); a.push("fr", 0).op(0x1D); a.push("ff", 0).op(0x1D)
+    r = A1(); r.push("_root.q"); r.getvar("_root.q"); r.getvar("s"); r.add(); r.push(";"); r.add(); r.op(0x1D)
+    a.define("R", ["s"], r)
+    a.push("ready features ver="); a.getvar("$version"); a.add(); a.push(" stage="); a.add(); a.getvar("Stage"); a.getmember("width"); a.add(); a.push("x"); a.add(); a.getvar("Stage"); a.getmember("height"); a.add()
+    a.call("R", 1); a.pop()
+    # FlashVars
+    a.push("vars a="); a.getvar("a"); a.add(); a.call("R", 1); a.pop()
+    # the shared object: a count, kept
+    a.push("so"); a.push("/", "jihad-test", 2); a.getvar("SharedObject"); a.push("getLocal"); a.op(0x52); a.op(0x1D)
+    reset = A1(); reset.getvar("so"); reset.getmember("data"); reset.push("n", 0); reset.op(0x4F)
+    a.getvar("reset"); a.op(0x12); a.op(0x12); a.op(0x12); a.op(0x9D, struct.pack("<h", len(reset.b))); a.b += reset.b
+    a.push("n"); a.getvar("so"); a.getmember("data"); a.getmember("n"); a.op(0x18); a.push(1); a.op(0x47); a.op(0x1D)
+    a.getvar("so"); a.getmember("data"); a.push("n"); a.getvar("n"); a.op(0x4F)
+    a.push(0); a.getvar("so"); a.push("flush"); a.op(0x52); a.pop()
+    a.push("so n="); a.getvar("n"); a.add(); a.call("R", 1); a.pop()
+    # a callback for the page
+    e = A1(); e.push("echo "); e.getvar("s"); e.add(); report(e); e.push("back "); e.getvar("s"); e.add(); e.op(0x3E)
+    a.func_expr(["s"], e); a.push(None); a.push("jihadEcho"); a.push(3); a.getvar("flash.external.ExternalInterface"); a.push("addCallback"); a.op(0x52); a.pop()
+    a.op(0x00)
+    # each frame: the queue sent, and the steps at their frames
+    def at(f, n, body):
+        f.getvar("_root.ff"); f.push(n); f.op(0x49); f.op(0x12); f.op(0x9D, struct.pack("<h", len(body.b))); f.b += body.b
+    f = A1()
+    f.push("_root.ff"); f.getvar("_root.ff"); f.push(1); f.add(); f.op(0x1D)
+    g = A1(); g.op(0x83, b"javascript:jihadFlash('geturl ok');void(0)\x00\x00"); at(f, 5, g)
+    c = A1(); c.op(0x83, b"FSCommand:jcmd\x00jarg\x00"); at(f, 10, c)
+    l = A1()
+    l.push("_root.lv"); l.push(0, "LoadVars"); l.op(0x40); l.op(0x1D)
+    on = A1(); on.push("data "); on.getvar("ok"); on.add(); on.push(" x="); on.add(); on.getvar("this"); on.getmember("x"); on.add(); report(on)
+    l.getvar("_root.lv"); l.push("onLoad"); l.func_expr(["ok"], on); l.op(0x4F)
+    l.push("jihad-flash-data.txt"); l.push(1); l.getvar("_root.lv"); l.push("load"); l.op(0x52); l.pop()
+    at(f, 15, l)
+    k = A1()
+    k.push(5, "kid"); k.push(2); k.getvar("_root"); k.push("createEmptyMovieClip"); k.op(0x52); k.pop()
+    k.getvar("_root.kid"); k.push("_x", 300); k.op(0x4F)
+    k.push("jihad-plant-frozen.swf"); k.push(1); k.getvar("_root.kid"); k.push("loadMovie"); k.op(0x52); k.pop()
+    at(f, 20, k)
+    w = A1(); w.push("kid w="); w.getvar("_root.kid"); w.getmember("_width"); w.add(); report(w); at(f, 60, w)
+    send = A1()
+    send.getvar("_root.q"); send.push("jihadFlash", 2); send.getvar("flash.external.ExternalInterface"); send.push("call"); send.op(0x52); send.pop()
+    send.push("_root.q", ""); send.op(0x1D)
+    f.getvar("_root.q"); f.push(""); f.op(0x49); f.op(0x12); f.op(0x12); f.op(0x9D, struct.pack("<h", len(send.b))); f.b += send.b
+    f.op(0x00)
+    # a tap: the down, and full screen where FlashVars ask for it
+    d = A1(); d.getvar("fs")
+    # a tap goes in, the next comes out, as a movie's own button does
+    full = A1(); full.getvar("Stage"); full.push("displayState"); full.getvar("Stage"); full.getmember("displayState"); full.push("fullScreen"); full.op(0x49)
+    out = A1(); out.push("fullScreen"); leave = A1(); leave.push("normal")
+    full.op(0x12); full.op(0x9D, struct.pack("<h", len(leave.b) + 5)); full.b += leave.b; full.op(0x99, struct.pack("<h", len(out.b))); full.b += out.b
+    full.op(0x4F)
+    d = A1(); d.getvar("_root.fs"); d.op(0x12); d.op(0x12); d.op(0x12); d.op(0x9D, struct.pack("<h", len(full.b))); d.b += full.b
+    d.push("fs "); d.getvar("Stage"); d.getmember("displayState"); d.add(); report(d)
+    d.push("down "); d.getvar("_root"); d.getmember("_xmouse"); d.add(); d.push(" "); d.add(); d.getvar("_root"); d.getmember("_ymouse"); d.add(); report(d); d.op(0x00)
+    t = tag(9, bytes((0x20, 0x40, 0x60)))
+    t += _anim.define_shape_rect(1, 40 * TWIPS, 40 * TWIPS, (0xF0, 0x60, 0x20))
+    t += _anim.place_object2(1, char_id=1, translate=(0, 0))
+    t += tag(12, bytes(a.b))
+    t += tag(39, struct.pack("<HH", 2, 1) + tag(1) + tag(0))
+    t += tag(26, bytes([0x80 | 0x02]) + struct.pack("<HH", 2, 2) + clip_actions([(0x02, bytes(f.b)), (0x10, bytes(d.b))]))
+    t += tag(1)
+    return swf(8, t)
+
+
+def build_device_text():
+    """A text field in a device font on white: what the player finds for fonts in this process."""
+    a = A1()
+    a.push(80, 360, 60, 20, 10, "t"); a.push(6); a.getvar("_root"); a.push("createTextField"); a.op(0x52); a.pop()
+    a.getvar("_root.t"); a.push("text", "Device text Hello 123"); a.op(0x4F)
+    a.push("f"); a.push(0, "TextFormat"); a.op(0x40); a.op(0x1D)
+    a.getvar("f"); a.push("size", 28); a.op(0x4F)
+    a.getvar("f"); a.push(1); a.getvar("_root.t"); a.push("setTextFormat"); a.op(0x52); a.pop()
+    a.op(0x00)
+    t = tag(9, bytes((0xff, 0xff, 0xff)))
+    t += _anim.define_shape_rect(1, 40 * TWIPS, 40 * TWIPS, (0xF0, 0x60, 0x20))
+    t += _anim.place_object2(1, char_id=1, translate=(0, 0))
+    t += tag(12, bytes(a.b)) + tag(1)
+    return swf(8, t)
+
+
 def u30(v):
     out = bytearray()
     while True:
@@ -412,6 +498,10 @@ def main():
     print("jihad-instr-avm1.swf", len(d), read_back(d))
     d = build_avm2(); read_back(d); open(os.path.join(o.d, "jihad-instr-avm2.swf"), "wb").write(d)
     print("jihad-instr-avm2.swf", len(d), read_back(d))
+    d = build_features(); read_back(d); open(os.path.join(o.d, "jihad-instr-features.swf"), "wb").write(d)
+    print("jihad-instr-features.swf", len(d), read_back(d))
+    d = build_device_text(); read_back(d); open(os.path.join(o.d, "jihad-plant-text.swf"), "wb").write(d)
+    print("jihad-plant-text.swf", len(d))
     for name, d in plants().items():
         read_back(d); open(os.path.join(o.d, name), "wb").write(d); print(name, len(d))
 

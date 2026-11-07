@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
      jihad-flash-instr.html: an instrumented movie (make-instrument-swf.py) and what it reports, in elements a check reads
-     (cavekit-flash.md R2). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b -->
+     (cavekit-flash.md R2, R4). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b&wmode=&allow=&bg=&tag=&layout=&api=1&over=1 -->
 <html><head><meta charset="utf-8"><title>jihad-flash-instr</title>
 <script>if (!/[?&]fit=1/.test(location.search)) { document.write('<meta name="viewport" content="width=device-width">'); }</script>
 <style>
@@ -15,6 +15,7 @@
 <div id="report">
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
   <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div>
+  <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div>
   <div id="count">0</div><div id="all"></div>
 </div>
 <script>
@@ -33,8 +34,42 @@
   if (q.fit) { document.getElementById("wide").style.width = "1000px"; }   // a page wider than the card: the fit zoom below 1
   var w = q.w || 400, h = q.h || 300, movie = q.swf || ("jihad-instr-" + (q.movie || "avm1") + ".swf");
   var vars = "scale=" + (q.scale || "") + (q.vars ? "&" + q.vars : "");
-  document.getElementById("holder").innerHTML = '<embed id="m" src="' + movie + '" type="application/x-shockwave-flash" width="' + w + '" height="' + h +
-    '" allowScriptAccess="always" flashvars="' + vars + '"' + (q.wmode ? ' wmode="' + q.wmode + '"' : '') + (q.scale ? ' scale="' + q.scale + '"' : '') + '>';
+  var src = movie, fv = vars, allow = q.allow || "always", wm = q.wmode ? ' wmode="' + q.wmode + '"' : '', sc = q.scale ? ' scale="' + q.scale + '"' : '';
+  var size = ' width="' + (q.layout == "percent" ? "50%" : w) + '" height="' + h + '"';
+  function embedOf(id) {
+    return '<embed id="' + id + '" name="' + id + '" src="' + src + '" type="application/x-shockwave-flash"' + size + ' allowScriptAccess="' + allow + '" allowFullScreen="true" swLiveConnect="true" flashvars="' + fv + '"' + wm + sc + '>';
+  }
+  function params() {
+    return '<param name="allowScriptAccess" value="' + allow + '"><param name="flashvars" value="' + fv + '">' + (q.wmode ? '<param name="wmode" value="' + q.wmode + '">' : '') + (q.scale ? '<param name="scale" value="' + q.scale + '">' : '');
+  }
+  // ?tag=object|param|nested: the other ways a page carries a movie. ?layout=percent|three|frame|below|hidden: the places it stands
+  var html;
+  if (q.tag == "object") html = '<object id="m" data="' + src + '" type="application/x-shockwave-flash"' + size + '>' + params() + '</object>';
+  else if (q.tag == "param") html = '<object id="m" type="application/x-shockwave-flash"' + size + '><param name="movie" value="' + src + '">' + params() + '</object>';
+  else if (q.tag == "nested") html = '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"' + size + '><param name="movie" value="' + src + '">' + params() + '<object id="m" data="' + src + '" type="application/x-shockwave-flash"' + size + '>' + params() + '</object></object>';
+  else if (q.layout == "three") html = embedOf("m") + embedOf("m2") + embedOf("m3");
+  else if (q.layout == "frame") html = '<iframe id="m" src="jihad-flash-instr.html?movie=' + (q.movie || "avm1") + '&inframe=1&w=' + w + '&h=' + h + '" width="' + w + '" height="' + h + '" frameborder="0" scrolling="no" style="display:block;margin:40px 0 0 40px"></iframe>';
+  else if (q.layout == "below") html = '<div style="height:1500px"></div>' + embedOf("m");
+  else if (q.layout == "hidden") html = '<button id="show" style="display:block;width:300px;height:60px;margin:20px 0 0 40px" onclick="document.getElementById(\'m\').style.display=\'block\'">show</button>' + embedOf("m").replace('<embed ', '<embed style="display:none" ');
+  else html = embedOf("m");
+  document.getElementById("holder").innerHTML = html;
+  if (q.bg) { document.body.style.background = "#" + q.bg; }
+  if (q.inframe) {   // in a frame: no margins, and the lines go to the page around it
+    document.getElementById("m").style.margin = "0"; document.body.style.margin = "0"; document.body.style.overflow = "hidden";
+    if (window.parent !== window) { window.jihadFlash = function (s) { window.parent.jihadFlash(s); }; }
+  }
+  window.m_DoFSCommand = function (c, a) { jihadFlash("fscommand " + c + " " + a); };
+  (function () {   // the detection script most pages carry
+    var d = navigator.plugins["Shockwave Flash"], t = navigator.mimeTypes["application/x-shockwave-flash"];
+    document.getElementById("detect").textContent = "detect plugin " + (d ? d.description : "none") + " mime " + (t && t.enabledPlugin ? "yes" : "no");
+  })();
+  if (q.api) {   // the page calls the movie: until it answers
+    var tries = 0, ask = setInterval(function () {
+      var m = document.getElementById("m");
+      try { if (m && m.jihadEcho) { document.getElementById("echoback").textContent = "echoback " + m.jihadEcho("hi"); clearInterval(ask); } } catch (e) {}
+      if (++tries > 120) { clearInterval(ask); }
+    }, 500);
+  }
   // ?over=1: a button that puts an element over the movie and takes it away, on a page that scrolls
   if (q.over) {
     var over = document.createElement("div");

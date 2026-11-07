@@ -1,0 +1,30 @@
+id: flash-wmode
+section: Flash
+item: Each wmode draws at the element's bounds and takes a tap; a transparent movie shows the page behind it
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=window
+kit: cavekit-flash.md R4
+wait text ready stage= 30
+expect flash-behind m 00ff00 no
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=opaque
+wait text ready stage= 30
+expect flash-behind m 00ff00 no
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=transparent
+wait text ready stage= 30
+expect flash-behind m 00ff00 yes
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=direct
+wait text ready stage= 30
+expect flash-behind m 00ff00 no
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=gpu
+wait text ready stage= 30
+expect flash-behind m 00ff00 no
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3

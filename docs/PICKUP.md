@@ -96,8 +96,18 @@ should hear `jihad-audio-long.swf`**), a dotted focus ring on a tapped movie, a 
 Measured: a movie's own count is 9.0-9.3 fps for 10, 12.5-13 for 15, about 23 for 30; T-573 says whether the stock browser does
 better. Port 8078 on the host is `jihad-identity-server.py`, not free: the corpus is served on 8097 by hand so far (T-574's).
 
-**Next:** T-573 (the stock browser's bar, same files), T-574 onward; T-567's structural choice (the owner's), the full device
-build, Tier 91's kits.
+**T-573, T-574 DONE, T-576's rate work done (2026-11-06).** The first comparison had many games at half the stock browser's rate; now most match it or beat it (Bloxorz 27 against 31.8, Bubble Tanks 37.6 against a stock reading of 9.9 to 32, Helicopter 28 against 30, Duck Life 26 against 1). What it took, in the order of cost, all in `memory: jihad-flash-frame-budget`:
+- the sync `Show` waited 14-17 ms on the daemon's main thread: `JihadShow`/`JihadShowDone`;
+- the child's glib pump posted its next run 16 ms after a frame's work ended, capping a movie at 27/s, and ran frames with no draw between: 4 ms while playing, and it stops at a posted draw;
+- **the plugin lane** (`BrowserPageGoanna::pluginLaneFrame`): the plugin the only change, zoom 1, nothing over it by a display-list proof: the child's surface goes straight into the slot, one copy, no paint, no compositor, and the answer that frees the surface is what paces the player. The daemon went from 84 % of a core to 23 %.
+- `gconv/` in the bundle, `GCONV_PATH` from the daemon: SWFs older than 6 convert their text with iconv, which loaded the device's glibc-2.8 module into a 2.23 process and jumped into nowhere (Helicopter, Virtual Piano killed the player).
+- `fbstream -C` read a quarter of the pixels twice per flip, 25 % of a core: one pass over a sixteenth; **all rates before d98a45b5 are with the heavy sampler and are not comparable.**
+
+Traps: on the GPU path widget damage is NOT the page's change signal: the page paints its layers itself at the refresh and the daemon sees only `CompositorSeq`; a DOM change gives no `TakeDirty`. The plugin's invalidation moves that count too, so the lane stops it (`jihad_plugin_lane_set`). **Flash's full screen turns the whole system to landscape and leaving it does not turn it back, in the stock browser as well**: only the accelerometer does, so on a bench every later script fails until a system manager restart (`suite/fixtures/portrait-after.sh`). A tap on website-viewer raises a confirm dialog; closing the card under it leaves the daemon opening no plugin until it restarts (T-580's first item; the stock browser does the same). flash-corpus.json's `no_tap` keeps the round off it. The stock numbers of the blank tail in that round want taking again (`title-round.py stock --only ...`, after `stock-bench.sh up`).
+
+**The owner's:** whether a round may try a changed browser identity on the sites that turn this browser away (cavekit-flash R4's last item): this session's permission system refused it as getting past a site's check. Real sites as they stand: `docs/rounds/finger-2026-11-06/t574/flash-sites.md`: Orisinal and BubbleBox play on real Flash in all three shells.
+
+**Next:** T-575 (input: tap, hold, drag, the gesture lock, the keyboard over a movie), then T-576's per-game scripts; Mojo runs some 15 % below Enyo and Mochi on the same title, unexplained; the player's full-screen hint (T-581). T-567's structural choice (the owner's), the full device build, Tier 91's kits.
 
 ## 2026-11-05 — T-564 DONE: the script form and the runner of the finger suite; next T-565
 

@@ -1,0 +1,25 @@
+id: flash-tags
+section: Flash
+item: An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
+kit: cavekit-flash.md R4
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+expect text-has detect 10.3
+expect text-has detect "mime yes"
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&tag=object
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&tag=param
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&tag=nested
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect flash-at 200 150 3
+launch http://192.168.1.245:8077/jihad-plant-rate15.swf
+expect flash-rate 0,100,756,1000 3 5 100

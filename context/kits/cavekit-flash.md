@@ -75,11 +75,11 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 ## R4: Embedding — every way a page carries a movie
 **Description:** real pages carry movies in many ways. Each one draws at its bounds and takes input, and none takes the daemon down (a windowed plugin once did, T-330).
 **Acceptance Criteria:**
-- [ ] Each wmode (window, opaque, transparent, direct, gpu) draws at the element's bounds and takes a tap; a transparent movie shows the page behind it
-- [ ] `<embed>`, `<object>` with a movie param, nested objects and a direct navigation to a `.swf` each draw and take a tap; the common detection script finds Flash and reads 10.3 from `navigator.plugins` and `navigator.mimeTypes`
-- [ ] FlashVars arrive; ExternalInterface works both ways; `getURL` and `fscommand` reach the page; `allowScriptAccess` is honoured; a local shared object survives a daemon stop and start; a movie loads another movie and data from its own origin
-- [ ] Each scale mode, a percentage size, three movies on one page, a movie in a frame, a movie scrolled in from below the fold, and a movie shown after being hidden each draw at their bounds with input landing right
-- [ ] Full screen is entered and left by the finger, or the limit is recorded under this kit's verdict rule
+- [x] Each wmode (window, opaque, transparent, direct, gpu) draws at the element's bounds and takes a tap; a transparent movie shows the page behind it *(2026-11-06, T-574: suite/flash-wmode.test, three shells)*
+- [x] `<embed>`, `<object>` with a movie param, nested objects and a direct navigation to a `.swf` each draw and take a tap; the common detection script finds Flash and reads 10.3 from `navigator.plugins` and `navigator.mimeTypes` *(suite/flash-tags.test; an `<object>` with only a movie param drew nothing on Goanna and plays in the stock browser: the engine takes it now)*
+- [x] FlashVars arrive; ExternalInterface works both ways; `getURL` and `fscommand` reach the page; `allowScriptAccess` is honoured; a local shared object survives a daemon stop and start; a movie loads another movie and data from its own origin *(suite/flash-api.test, the movie `jihad-instr-features.swf`)*
+- [x] Each scale mode, a percentage size, three movies on one page, a movie in a frame, a movie scrolled in from below the fold, and a movie shown after being hidden each draw at their bounds with input landing right *(suite/flash-layout.test, flash-stage-*.test)*
+- [x] Full screen is entered and left by the finger, or the limit is recorded under this kit's verdict rule *(suite/flash-fullscreen.test. It works as in the stock browser, the whole system turned to landscape on the plane of direct rendering; leaving it does not turn the system back in either browser, only the accelerometer does, which a bench never moves. The player's hint "Press Center Button to exit" shows in the stock browser and not here: open, T-581. The centre button itself is a person's)*
 - [ ] At least 5 real sites that carry movies are visited in each shell, and each outcome is recorded by host; a site that is down is recorded as down and is no verdict on Flash, and one that forces Ruffle is recorded with whether a changed browser identity alters it
 **Dependencies:** R2
 

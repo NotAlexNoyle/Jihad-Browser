@@ -178,3 +178,21 @@ and the feed script re-runs on it.
 At 1024 the feed page lived and the probes answered: youtube-feed-no-preview PASSES on Enyo (no play() allowed for
 30 s untouched and 10 s after a pan; videos 0, playing 0, images 35-61). The suite's four runs of the day pass:
 docs/rounds/finger-2026-11-08/finger-report.md (the failed first runs' frames deleted: nothing cites them).
+
+== The dead light sensor: a patch package (the owner's ask of 2026-11-08, "make 1 into a .patch to be installed via preware")
+packaging/patches/touchpad-light-sensor-off/ (control, postinst, prerm, data/touchpad-light-sensor-off.patch, README),
+built by packaging/patches/build-patch-ipk.sh into net.riverstonerelay.patches.touchpad-light-sensor-off_1.0.0_all.ipk.
+How sensord polls: /usr/bin/usd_choose_conf.sh picks /etc/usd/usd_topaz-Wifi_default.xml here (boardtype=topaz-Wifi-pvt;
+the -3G file on a 4G TouchPad) and libusd loads the <config> drivers in it: mpu3050 (accel+gyro), lsm303dlh (compass),
+isl29023 (the light sensor, I2C bus 0 at 0x44, read by sensord itself over /dev/i2c-0). The patch comments the
+<isl29023> block out of both files (XML well-formed; the other two drivers untouched) and restarts sensord.
+Live, 30 s at idle, stock / patched / patched / stock: the kernel's log lines 101 / 0 / 0 / 99 a second; sensord 621 /
+473 / 481 / 571 jiffies (21 -> 16 % of a core); system time 16.4 / 10.8 / 12.4 / 16.9 %; idle 66 / 76 / 71 / 68 %.
+NOT changed: the controller's interrupt 183 (qup_err_intr) at ~400/s either way — it fires for the live sensors' own
+transfers (three subscribers poll the accelerometer: the window server, Atlas's sensor bridge, and one more), not for
+the dead address; the morning's "240 error interrupts a second" was this traffic, mis-read as errors.
+The package: self-contained (busybox patch -p1 from /: no -d, and its --dry-run is in the help but refused, so the
+scripts check md5s: stock ed631619…/079b6de8…, patched 6e9647dc…/c48489ef…), backups as .webosinternals.orig, a
+record under /var/usr/lib/.webosinternals.patches/<id>/, a line in /media/internal/webos-patches.log. `ipkg -o
+/media/cryptofs/apps install` (what Preware runs) does NOT run the scripts (offline root); Preware's service and
+palm-install run them after: the test ran them the same way.

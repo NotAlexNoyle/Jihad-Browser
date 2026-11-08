@@ -84,6 +84,20 @@ boot), the kernel logs 45 lines a second about it, so `/var/log/messages` rotate
 minutes; at idle the system time is 12 % and sensord has 25 hours of CPU in 16 days. Memory
 `touchpad-dead-light-sensor-i2c-storm`.
 
+**The light sensor, fixed as a Preware patch (the owner's ask, the same day):**
+`packaging/patches/touchpad-light-sensor-off/` (control, postinst, prerm, the raw `.patch` with the WOSQI header,
+README) built by `packaging/patches/build-patch-ipk.sh touchpad-light-sensor-off` into
+`/tmp/ipk/net.riverstonerelay.patches.touchpad-light-sensor-off_1.0.0_all.ipk`. It comments the `<isl29023>` driver
+out of `/etc/usd/usd_topaz-Wifi_default.xml` and `-3G` (what `usd_choose_conf.sh` picks; sensord reads the list at
+start, so the scripts restart it); backups as `.webosinternals.orig`, a record under
+`/var/usr/lib/.webosinternals.patches/`, a line in `/media/internal/webos-patches.log`. Self-contained: CE 3.1.0 has
+busybox `patch` only (no `-d`, and `--dry-run` is in its help but refused), no Internals patch tools, so the scripts
+check md5s. Measured at idle, 30 s, stock against patched: the kernel's log lines 100 → 0 a second, sensord 21 → 16 %
+of a core, system time 16 → 11 %; the ~400 interrupts a second on 183 stay — they are the live sensors' transfers
+(the accelerometer polled by the window server and Atlas's bridge), not errors, the morning's reading corrected.
+Install/remove tested through `ipkg -o /media/cryptofs/apps` with the scripts run as Preware's service and
+palm-install run them (`ipkg -o` itself runs none: an offline root); the device left STOCK for the owner's install.
+
 **T-593:** `jihad.youtube.stopAutoplay` (default on, a settings row): on youtube.com a `play()` is refused
 (NotAllowedError) unless a TRUSTED mousedown, click or keydown came within 30 s — the engine's own gate passes any
 element a tap has played once, YouTube keeps one video element, and the watch page's own start went through a

@@ -111,7 +111,7 @@ encode on the host, and give each probe a different text (a comment at its end) 
 `stallwatch.c` runs as SCHED_FIFO 60 with its pages locked and writes a line a second to a tmpfs file: how late its
 own wake-up was (a late witness means the kernel itself stalled), the load, each core's user/nice/system/idle/
 iowait/irq/softirq jiffies over the second, swap-ins, major faults, allocation and compaction stalls, free memory,
-the I2C error interrupt's count (this device's light sensor is dead: 240 of them a second), and for the pids named
+the I2C controller's interrupt count (line 183, qup_err_intr: ~400 a second, the live sensors' own transfers, not errors), and for the pids named
 their state, CPU and wait channel; every other second the tasks in D state with their wait channels. Built like
 `finger.c` (`-o /tmp/stallwatch`, GLIBC 2.4 and 2.7 symbols only); `headroom-stress.sh` starts it when it is there.
 Written after 2026-11-08's stress, when the device's whole user space got no CPU for three minutes (syslog, novacomd

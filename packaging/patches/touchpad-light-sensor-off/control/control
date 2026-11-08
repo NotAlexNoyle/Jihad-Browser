@@ -1,8 +1,0 @@
-Package: net.riverstonerelay.patches.touchpad-light-sensor-off
-Version: 1.0.0
-Architecture: all
-Maintainer: NotAlexNoyle
-Description: Stop sensord polling a dead ambient light sensor (TouchPad)
-Section: System
-Priority: optional
-Source: { "Feed":"Riverstone Relay", "Type":"Patch", "Category":"System", "Title":"TouchPad: light sensor off", "FullDescription":"On a TouchPad whose ambient light sensor (ISL29023, I2C address 0x44) no longer answers, sensord polls it ten times a second and fails every time: the kernel logs 45 to 100 lines a second about it, the system log rotates every few minutes and keeps ten minutes of history, and sensord holds a fifth of a core at idle. Measured: the log lines stop, sensord drops to a sixth of a core, system time from 16 to 11 percent. This patch takes the light sensor out of the sensor framework's driver list (/etc/usd/usd_topaz-Wifi_default.xml and usd_topaz-3G_default.xml) and restarts sensord. Automatic brightness is lost; it was already lost. The accelerometer, gyroscope and compass are untouched. Removing the patch puts the files back and restarts sensord.", "Homepage":"https://git.trueog.net/NotAlexNoyle/Jihad-Browser", "License":"Apache-2.0", "PostInstallFlags":"", "PostUpdateFlags":"", "PostRemoveFlags":"" }

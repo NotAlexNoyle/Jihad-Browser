@@ -179,20 +179,33 @@ At 1024 the feed page lived and the probes answered: youtube-feed-no-preview PAS
 30 s untouched and 10 s after a pan; videos 0, playing 0, images 35-61). The suite's four runs of the day pass:
 docs/rounds/finger-2026-11-08/finger-report.md (the failed first runs' frames deleted: nothing cites them).
 
-== The dead light sensor: a patch package (the owner's ask of 2026-11-08, "make 1 into a .patch to be installed via preware")
-packaging/patches/touchpad-light-sensor-off/ (control, postinst, prerm, data/touchpad-light-sensor-off.patch, README),
-built by packaging/patches/build-patch-ipk.sh into net.riverstonerelay.patches.touchpad-light-sensor-off_1.0.0_all.ipk.
-How sensord polls: /usr/bin/usd_choose_conf.sh picks /etc/usd/usd_topaz-Wifi_default.xml here (boardtype=topaz-Wifi-pvt;
-the -3G file on a 4G TouchPad) and libusd loads the <config> drivers in it: mpu3050 (accel+gyro), lsm303dlh (compass),
-isl29023 (the light sensor, I2C bus 0 at 0x44, read by sensord itself over /dev/i2c-0). The patch comments the
-<isl29023> block out of both files (XML well-formed; the other two drivers untouched) and restarts sensord.
-Live, 30 s at idle, stock / patched / patched / stock: the kernel's log lines 101 / 0 / 0 / 99 a second; sensord 621 /
-473 / 481 / 571 jiffies (21 -> 16 % of a core); system time 16.4 / 10.8 / 12.4 / 16.9 %; idle 66 / 76 / 71 / 68 %.
-NOT changed: the controller's interrupt 183 (qup_err_intr) at ~400/s either way — it fires for the live sensors' own
-transfers (three subscribers poll the accelerometer: the window server, Atlas's sensor bridge, and one more), not for
-the dead address; the morning's "240 error interrupts a second" was this traffic, mis-read as errors.
-The package: self-contained (busybox patch -p1 from /: no -d, and its --dry-run is in the help but refused, so the
-scripts check md5s: stock ed631619…/079b6de8…, patched 6e9647dc…/c48489ef…), backups as .webosinternals.orig, a
-record under /var/usr/lib/.webosinternals.patches/<id>/, a line in /media/internal/webos-patches.log. `ipkg -o
-/media/cryptofs/apps install` (what Preware runs) does NOT run the scripts (offline root); Preware's service and
-palm-install run them after: the test ran them the same way.
+== The dead light sensor: the fix (the owner's ask of 2026-11-08, first "make 1 into a .patch to be installed via
+   preware", then the question "has there ever been a broader patch or method", answered and chosen the same day)
+First built: a Preware patch package, packaging/patches/touchpad-light-sensor-off/ (control, postinst, prerm,
+data/touchpad-light-sensor-off.patch, README) built by packaging/patches/build-patch-ipk.sh into
+net.riverstonerelay.patches.touchpad-light-sensor-off_1.0.0_all.ipk — commit 8eb396c1 holds it; dropped from the tree
+the same day at the owner's choice (option 3 of 3: docs only). How sensord polls: /usr/bin/usd_choose_conf.sh picks
+/etc/usd/usd_topaz-Wifi_default.xml here (boardtype=topaz-Wifi-pvt; the -3G file on a 4G TouchPad; CE ships only those
+two) and libusd loads the <config> drivers in it: mpu3050 (accel+gyro), lsm303dlh (compass), isl29023 (the light
+sensor, I2C bus 0 at 0x44, read by sensord itself over /dev/i2c-0). The patch commented the <isl29023> block out of
+both files and restarted sensord; its gate (both files at CE 3.1.0's stock md5s ed631619…/079b6de8…) made it a
+TouchPad-CE-3.1.0-only package (TouchPad Go/opal, stock 3.0.5, phones refused). Live, 30 s at idle, stock / patched /
+patched / stock: the kernel's log lines 101 / 0 / 0 / 99 a second; sensord 621 / 473 / 481 / 571 jiffies (21 -> 16 %
+of a core); system time 16.4 / 10.8 / 12.4 / 16.9 %; idle 66 / 76 / 71 / 68 %.
+The broader method, found through 2011-12 webOS Nation / PreCentral threads on brightness fluctuation (users turned
+off Screen & Lock's auto-dim) and verified live: the systemservice preference enableALS. LunaSysMgr's
+Preferences::signalAlsEnabled -> DisplayManager::slotAlsEnabled releases sensord's lightintensity subscription
+(sensord: "Requested stop polling"), so the dead chip is never read. On CE 3.1.0 nothing under /usr/palm references
+enableALS (no UI); luna-send -n 1 palm://com.palm.systemservice/setPreferences '{"enableALS":false}' sets it, it
+persists in /var/luna/preferences/systemprefs.db, true reverts it. Measured 10 s at idle, true / false / true again:
+log lines 1053 / 4 / 1072; sensord 208 / 162 / 206 jiffies (20.8 -> 16.2 % of a core) — the same as the patch.
+Caveat of the pref against the patch: another lightintensity subscriber would restart the polling (none exist; no
+public ALS API on webOS 3). History: no community patch for it ever existed — the 3.0.5 webos-patches feed
+(ipkg.preware.net, 120 packages: only screen-lock-reduce-minimum-brightness and misc-disable-light-bar, the Pre's
+LED), webOSArchive/webos-patches (hide-* only), the webOS Internals wiki (sensord only as a package name), the
+webOS-Community-Edition repo and KNOWN-ISSUES. Precedent for log-quieting system patches in the feed:
+misc-quiet-powerd-messages, misc-remove-dropped-packet-logging.
+NOT changed by either fix: the controller's interrupt 183 (qup_err_intr) at ~400/s — it fires for the live sensors'
+own transfers (three subscribers poll the accelerometer: the window server, Atlas's sensor bridge, and one more), not
+for the dead address; the morning's "240 error interrupts a second" was this traffic, mis-read as errors.
+Device state: enableALS=false since 2026-11-08 (the owner's choice); the headroom numbers from here on carry no flood.

@@ -84,19 +84,17 @@ boot), the kernel logs 45 lines a second about it, so `/var/log/messages` rotate
 minutes; at idle the system time is 12 % and sensord has 25 hours of CPU in 16 days. Memory
 `touchpad-dead-light-sensor-i2c-storm`.
 
-**The light sensor, fixed as a Preware patch (the owner's ask, the same day):**
-`packaging/patches/touchpad-light-sensor-off/` (control, postinst, prerm, the raw `.patch` with the WOSQI header,
-README) built by `packaging/patches/build-patch-ipk.sh touchpad-light-sensor-off` into
-`/tmp/ipk/net.riverstonerelay.patches.touchpad-light-sensor-off_1.0.0_all.ipk`. It comments the `<isl29023>` driver
-out of `/etc/usd/usd_topaz-Wifi_default.xml` and `-3G` (what `usd_choose_conf.sh` picks; sensord reads the list at
-start, so the scripts restart it); backups as `.webosinternals.orig`, a record under
-`/var/usr/lib/.webosinternals.patches/`, a line in `/media/internal/webos-patches.log`. Self-contained: CE 3.1.0 has
-busybox `patch` only (no `-d`, and `--dry-run` is in its help but refused), no Internals patch tools, so the scripts
-check md5s. Measured at idle, 30 s, stock against patched: the kernel's log lines 100 → 0 a second, sensord 21 → 16 %
-of a core, system time 16 → 11 %; the ~400 interrupts a second on 183 stay — they are the live sensors' transfers
-(the accelerometer polled by the window server and Atlas's bridge), not errors, the morning's reading corrected.
-Install/remove tested through `ipkg -o /media/cryptofs/apps` with the scripts run as Preware's service and
-palm-install run them (`ipkg -o` itself runs none: an offline root); the device left STOCK for the owner's install.
+**The light sensor, the fix (the owner's ask of the same day, settled 2026-11-08):** webOS 3's own switch,
+`luna-send -n 1 palm://com.palm.systemservice/setPreferences '{"enableALS":false}'`. LunaSysMgr's
+`DisplayManager::slotAlsEnabled` releases sensord's light-intensity subscription and sensord stops polling the dead
+chip; the pref persists in `/var/luna/preferences/systemprefs.db`, `true` reverts it. Measured at idle over 10 s: the
+log 1053 → 4 lines, sensord 20.8 → 16.2 % of a core — the same as the Preware patch built first that day (commit
+8eb396c1, `packaging/patches/touchpad-light-sensor-off/`, dropped from the tree at the owner's choice: it fitted only
+the TouchPad's two `/etc/usd/usd_topaz-*.xml` files at CE 3.1.0's md5s, the pref fits any webOS 3 device). No
+community patch ever existed (the 3.0.5 webos-patches feed, webOSArchive/webos-patches, the Internals wiki and the CE
+repo checked); on stock 3.0.x this was Screen & Lock's auto-dim toggle, on CE nothing references `enableALS`, so
+luna-send only. The ~400 interrupts a second on line 183 stay: the live sensors' transfers, not errors. The device is
+left with `enableALS=false` (set 2026-11-08) so the headroom numbers no longer carry the flood.
 
 **T-593:** `jihad.youtube.stopAutoplay` (default on, a settings row): on youtube.com a `play()` is refused
 (NotAllowedError) unless a TRUSTED mousedown, click or keydown came within 30 s — the engine's own gate passes any

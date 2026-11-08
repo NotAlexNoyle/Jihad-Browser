@@ -38,6 +38,10 @@ const PREF_PROBE   = "jihad.compat.probe";
 const PREF_PROBE_MS = "jihad.compat.probeDelay";   // when the probe runs, ms after the root (25000)
 // cavekit-device-headroom.md R4: on YouTube the player is offered only what this device decodes cheaply
 const PREF_YT_LITE = "jihad.youtube.lite";
+// cavekit-device-headroom.md R4: on YouTube a video plays only after a tap or a key of the person's (the next video and
+// the feed's previews wait)
+const PREF_YT_STOP = "jihad.youtube.stopAutoplay";
+const PREF_YT_ROWS = "jihad.youtube.maxRows";       // the tallest format offered (480); 240 for a measurement or a slower device
 // diagnosis only (cavekit-device-headroom.md R2/R3): what a top document's script does with the main thread, every 10 s
 const PREF_ACTIVITY = "jihad.compat.activity";
 const YT_HOSTS = ["youtube.com", "youtube-nocookie.com"];   // trace mode only: base64 of a script run in each top document 25 s after its root, its result logged
@@ -84,6 +88,36 @@ const YT_LITE = String.raw`
     done.push("youtube: canPlayType");
   }
   return done;
+})`;
+
+// YouTube starts videos by itself: the next one when a video ends (autonav) and the feed's previews. The engine's own
+// gate (media.autoplay.enabled=false) would not stop them: it passes any element a tap has played once, and YouTube's
+// player keeps one video element for every video. So on YouTube a play() is refused unless the person tapped or typed
+// within WINDOW ms (30 s: a tap on a thumbnail leads to a watch page whose player calls play() 5-20 s later on this
+// device); the refusal is the engine's own for a play without a gesture, a rejected promise with NotAllowedError, so
+// the player shows its paused state and waits for a tap. What counts as a gesture: a mousedown, click or keydown that
+// reached the window (the card's pans never come as those; a tap comes as mouse events through the adapter, measured
+// 2026-11-08). Off with jihad.youtube.stopAutoplay=false. In trace mode every play() is logged with the time since
+// the last gesture. The engine's trusted flag tells a person's click from the page's own element.click().
+const YT_QUIET = String.raw`
+(function (W, windowMs, trace) {
+  var last = -1e9, kind = "none";
+  function now() { return W.performance.now(); }
+  function arm(e) { if (!e.isTrusted) return; last = now(); kind = e.type; }   // the page's own element.click() is not a gesture (the watch page started itself 8 s after one, 2026-11-08)
+  ["mousedown", "click", "keydown"].forEach(function (t) { W.addEventListener(t, arm, true); });
+  var P = W.HTMLMediaElement.prototype, play = P.play;
+  if (typeof play !== "function") return [];
+  P.play = function () {
+    var since = now() - last;
+    if (since > windowMs) {
+      if (trace) trace("play() refused: " + Math.round(since / 1000) + " s since the last gesture (" + kind + ")" + (this.muted ? ", muted" : ""));
+      var err; try { err = new W.DOMException("Only a tap starts a video (the browser's YouTube setting)", "NotAllowedError"); } catch (e) { err = new W.Error("NotAllowedError"); }
+      return W.Promise.reject(err);
+    }
+    if (trace) trace("play() allowed: " + Math.round(since) + " ms after a " + kind);
+    return play.apply(this, arguments);
+  };
+  return ["youtube: play by gesture only"];
 })`;
 
 // The activity count (jihad.compat.activity, off by default): animation frames, timers, intervals and mutation
@@ -504,9 +538,11 @@ function JihadWebCompat() {
   this._trace = boolPref(PREF_TRACE, false);
   this._probe = charPref(PREF_PROBE, "");
   this._ytLite = boolPref(PREF_YT_LITE, true);
+  this._ytStop = boolPref(PREF_YT_STOP, true);
   this._activity = boolPref(PREF_ACTIVITY, false);
   this._documents = 0;
   this._installed = new Map();          // shim name → documents it was installed in
+  this._tops = [];                      // the live top documents' windows (weak) and hosts, for a probe on demand
   this._sheet = null;
   try { Services.prefs.addObserver("jihad.compat.", this, false); } catch (e) {}
   try { Services.prefs.addObserver("jihad.youtube.", this, false); } catch (e) {}
@@ -533,8 +569,18 @@ JihadWebCompat.prototype = {
     if (topic === "nsPref:changed") {
       if (data === PREF_ENABLED) this._enabled = boolPref(PREF_ENABLED, true);
       else if (data === PREF_TRACE) this._trace = boolPref(PREF_TRACE, false);
-      else if (data === PREF_PROBE) this._probe = charPref(PREF_PROBE, "");
+      else if (data === PREF_PROBE) {
+        this._probe = charPref(PREF_PROBE, "");
+        // on demand (trace mode): a new probe runs at once in every live top document — the device's set-prefs or the
+        // inject channel's `setpref s jihad.compat.probe <base64>`. The inject channel's javascript: URL is refused
+        // without a word by a page's Content-Security-Policy (YouTube's, 2026-11-08); this sandbox is not.
+        if (this._trace && this._probe) {
+          this._tops = this._tops.filter(t => { let w = t.ref.get(); return w && !w.closed; });
+          for (let t of this._tops) this._runProbe(t.ref.get(), t.host);
+        }
+      }
       else if (data === PREF_YT_LITE) this._ytLite = boolPref(PREF_YT_LITE, true);
+      else if (data === PREF_YT_STOP) this._ytStop = boolPref(PREF_YT_STOP, true);
       else if (data === PREF_ACTIVITY) this._activity = boolPref(PREF_ACTIVITY, false);
       return;
     }
@@ -561,17 +607,13 @@ JihadWebCompat.prototype = {
         // 25 s; what it returns is logged (page-controlled text — trace mode only). Its sandbox
         // has the window as prototype so the script's bare names (document, getComputedStyle)
         // resolve as in a page.
-        if (this._probe && win === win.top) {
-          let src = "";
-          try { src = atob(this._probe); } catch (e) { log("probe: the pref is not base64"); }
-          if (src) setTimeout(function () {
-            try {
-              if (win.closed) return;
-              let psb = Cu.Sandbox(win, {sandboxPrototype: win, wantXrays: false, sameZoneAs: win, sandboxName: "jihad-web-compat-probe"});
-              let r = Cu.evalInSandbox(src, psb, "latest", "jihad-web-compat-probe.js", 1);
-              log("probe [" + host + "] " + String(r).slice(0, 6000));
-            } catch (e) { log("probe [" + host + "] threw " + e); }
-          }, (function () { try { return Services.prefs.getIntPref(PREF_PROBE_MS); } catch (e) { return 25000; } })());
+        if (win === win.top) {
+          this._tops.push({ref: Cu.getWeakReference(win), host: host});
+          if (this._tops.length > 16) this._tops = this._tops.filter(t => { let w = t.ref.get(); return w && !w.closed; });
+          if (this._probe) {
+            let self = this;
+            setTimeout(function () { self._runProbe(win, host); }, (function () { try { return Services.prefs.getIntPref(PREF_PROBE_MS); } catch (e) { return 25000; } })());
+          }
         }
       }
       if (this._activity && win === win.top) {
@@ -584,17 +626,39 @@ JihadWebCompat.prototype = {
         this._documents++;
         let names = [];
         try { names = Array.from(installed || []); } catch (e) {}
-        if (this._ytLite) {
-          let h = uri.asciiHost.toLowerCase();
-          if (YT_HOSTS.some(d => h === d || h.endsWith("." + d))) {
-            try { names = names.concat(Array.from(Cu.evalInSandbox(YT_LITE, sandbox, "latest", "jihad-web-compat-youtube.js", 1)(raw, 480, 30) || [])); }
+        let h = uri.asciiHost.toLowerCase();
+        if ((this._ytLite || this._ytStop) && YT_HOSTS.some(d => h === d || h.endsWith("." + d))) {
+          if (this._ytLite) {
+            let rows = 480; try { rows = Services.prefs.getIntPref(PREF_YT_ROWS); } catch (e) {}
+            if (!(rows >= 144 && rows <= 2160)) rows = 480;
+            try { names = names.concat(Array.from(Cu.evalInSandbox(YT_LITE, sandbox, "latest", "jihad-web-compat-youtube.js", 1)(raw, rows, 30) || [])); }
             catch (e) { log("youtube lite failed on " + h + ": " + e); }
+          }
+          if (this._ytStop) {
+            let tracer = this._trace ? Cu.exportFunction(function (s) { log("youtube [" + h + "] " + s); }, sandbox) : null;
+            try { names = names.concat(Array.from(Cu.evalInSandbox(YT_QUIET, sandbox, "latest", "jihad-web-compat-youtube-quiet.js", 1)(raw, 30000, tracer) || [])); }
+            catch (e) { log("youtube quiet failed on " + h + ": " + e); }
           }
         }
         for (let n of names) this._installed.set(n, (this._installed.get(n) || 0) + 1);
         if (this._documents <= 3 || this._trace) log(uri.asciiHost + ": " + (names.length ? names.join(", ") : "nothing needed"));
       }
     } catch (e) { log("shims failed on " + uri.spec.slice(0, 100) + ": " + e); }
+  },
+
+  // the probe: a diagnosis script from the pref (base64), in a top document; what it returns is logged (page-controlled
+  // text — trace mode only). Its sandbox has the window as prototype so the script's bare names (document,
+  // getComputedStyle) resolve as in a page.
+  _runProbe: function (win, host) {
+    let src = "";
+    try { src = atob(this._probe); } catch (e) { log("probe: the pref is not base64"); return; }
+    if (!src) return;
+    try {
+      if (!win || win.closed) return;
+      let psb = Cu.Sandbox(win, {sandboxPrototype: win, wantXrays: false, sameZoneAs: win, sandboxName: "jihad-web-compat-probe"});
+      let r = Cu.evalInSandbox(src, psb, "latest", "jihad-web-compat-probe.js", 1);
+      log("probe [" + host + "] " + String(r).slice(0, 6000));
+    } catch (e) { log("probe [" + host + "] threw " + e); }
   },
 
   // for the settings page (wrappedJSObject)

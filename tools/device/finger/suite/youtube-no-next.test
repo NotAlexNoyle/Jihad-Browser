@@ -1,0 +1,17 @@
+id: youtube-no-next
+section: Sites
+item: YouTube's next video does not play by itself: a 19 s video played by a tap ends, and for the next 70 s nothing plays — no play() allowed, the video paused at its end, the URL unchanged (the gate of jihad.youtube.stopAutoplay; with it off, YouTube navigates to a "mix"); the first tap's play went through
+shells: enyo mochi mojo
+page: https://m.youtube.com/watch?v=jNQXAC9IVRw
+prefs: jihad.compat.trace=true
+kit: cavekit-device-headroom.md R4
+needs: internet
+wait rect 'sel:video' 60
+dismiss 384 346
+wait line 'play() allowed' 15
+probe playing '(function(){var v=document.querySelector("video");return JSON.stringify({paused:v.paused,t:Math.round(v.currentTime),url:location.href.slice(0,60)});})()'
+expect probe-has '"paused":false'
+wait quiet 'play() allowed' 70
+probe after-the-end '(function(){var v=document.querySelector("video");return JSON.stringify({paused:v.paused,ended:v.ended,t:Math.round(v.currentTime),url:location.href.slice(0,60)});})()'
+expect probe-has '"paused":true'
+expect url jNQXAC9IVRw

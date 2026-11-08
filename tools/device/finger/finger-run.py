@@ -49,12 +49,17 @@
 #   known: T-NNN WORD [; T-NNN WORD]    failures each holding a WORD are those open defects': the verdict reads `known`
 #   dismiss X Y                         a tap that closes a menu (it reaches no page, so no clickAt is awaited)
 #   wait gone SEL | url PART | pref T NAME TEXT | differs REGION SAMPLE   more marks, each with an optional last BOUND
+#   wait quiet PATTERN SECS            the ABSENCE of a line for SECS since the last mark (what must not happen: a video
+#                                       starting by itself); the line coming is a FAILED check
 #   tool: TEXT / skip: TEXT / needs: x y  an item covered by another tool (the settings walk), not run with a reason, or
 #                                       needing what the host provides (proxy, webone, internet: `--with proxy,internet`)
 #   expect stream stale|uniform|still|lag-max|error-max VALUE   checked on the host from the stream tool's reading
+#   probe NAME 'JS'                    a script run inside the page (the compat component's on-demand probe: the header
+#                                       needs prefs: jihad.compat.trace=true); what it returns is printed and kept for
+#                                       `expect probe-has TEXT`. A page's Content-Security-Policy cannot refuse it.
 #   A gesture with no mark of its own (chrome, hold, dtap, pinch) needs a `wait` before the next `expect`; `sleep`
 #   is not a verb of the form. The lint says so.
-import sys, os, re, subprocess, json, time, datetime, shutil, tempfile, argparse
+import sys, os, re, subprocess, json, time, datetime, shutil, tempfile, argparse, base64
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -66,7 +71,7 @@ UNMARKED = {"kernel-key", "chrome", "dismiss", "hold", "hold-on", "dtap", "pinch
 WAITING_EXPECTS = {"lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit",
-          "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url",
+          "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
           "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
@@ -94,10 +99,10 @@ def split_args(rest):
 ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1),
          "hold-on": (1, 2), "key-hold": (1, 2), "drag": (4, 5), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
-         "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2)}
+         "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2), "probe": (2, 2)}
 EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
                 "hit": (1, 1), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
-                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2)}
+                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1)}
 
 def parse(path):
     t = {"id": os.path.basename(path)[:-5], "shells": SHELLS[:], "page": "about:blank", "prefs": [], "kit": "", "person": "", "steps": [], "path": path,
@@ -125,8 +130,8 @@ def lint(tests):
             if verb in ("sleep", "usleep"):
                 errs.append(f"{t['id']}:{n}: `{verb}` is not a verb of the form (wait on a mark)")
             elif verb == "wait":
-                if not a or a[0] not in ("load", "painted", "zoom", "settled", "rect", "gone", "line", "still", "changed", "content", "differs", "text", "url", "pref", "log"):
-                    errs.append(f"{t['id']}:{n}: wait needs a mark: load|painted|zoom|settled|rect SEL|gone SEL|line PATTERN|still REGION|changed REGION|differs REGION SAMPLE|text SEL TEXT|url PART|pref T NAME TEXT")
+                if not a or a[0] not in ("load", "painted", "zoom", "settled", "rect", "gone", "line", "still", "changed", "content", "differs", "text", "url", "pref", "log", "quiet"):
+                    errs.append(f"{t['id']}:{n}: wait needs a mark: load|painted|zoom|settled|rect SEL|gone SEL|line PATTERN|still REGION|changed REGION|differs REGION SAMPLE|text SEL TEXT|url PART|pref T NAME TEXT|quiet PATTERN SECS")
                 pending = None
             elif verb in GESTURES:
                 if verb in UNMARKED: pending = (n, verb)
@@ -144,6 +149,9 @@ def lint(tests):
                 if prev not in ("expect", "wait") or nxt != "expect": errs.append(f"{t['id']}:{n}: dwell stands between a check and the same check (does it still hold?), not `{prev}` and `{nxt}`")
             elif verb in ("stream-start", "stream-stop"):
                 pass
+            elif verb == "probe":
+                pending = None     # it waits for the page's answer
+                if "jihad.compat.trace=true" not in t["prefs"]: errs.append(f"{t['id']}:{n}: a probe needs `prefs: jihad.compat.trace=true` in the header")
             elif verb == "expect":
                 if not a or a[0] not in CHECKS:
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
@@ -189,6 +197,8 @@ def compile_steps(t):
                 out.append(f'fl_wait_differs {q[1]} {q[2]} {a[3] if len(a) > 3 else 5} && echo "WAIT ok {n}-differs {m[1]}" || fl_check FAIL "{n}-wait-differs" "{m[1]} still shows the sample {m[2]} after the bound"')
             elif mark == "line":
                 out.append(f'l=$(fl_wait {q[1]} {b or 5}) && echo "WAIT ok {n}-line: $l" || fl_check FAIL "{n}-wait-line" "no line {m[1]} within the bound"')
+            elif mark == "quiet":
+                out.append(f'fl_mark; l=$(fl_wait_quiet {q[1]} {b or 10}) && fl_check ok "{n}-quiet" "no line {m[1]} for {b or 10} s" || fl_check FAIL "{n}-wait-quiet" "the line came: $l"')
             elif mark == "still":
                 out.append(f'fl_wait_still {q[1]} {b or 4} && echo "WAIT ok {n}-still {m[1]}" || fl_check FAIL "{n}-wait-still" "the region {m[1]} never held still"')
             elif mark == "log":
@@ -242,6 +252,9 @@ def compile_steps(t):
             else: out.append(f"{CHECKS[a[0]]} \"{n}-{a[0]}\" {' '.join(q[1:])}")
         elif verb == "sample": out.append(f"fl_sample {' '.join(q)}")
         elif verb == "shoot": out.append(f"fl_keep {q[0]}")
+        elif verb == "probe":        # a different text each time (a comment with the line): an unchanged pref fires nothing
+            b = base64.b64encode((a[1] + "\n//" + str(n)).encode()).decode()
+            out.append(f'fl_probe {q[0]} {b} || fl_check FAIL "{name}" "no answer to the probe {m[0]} within 30 s"')
     return "\n".join(out) + "\n"
 
 def devsh(script_text, args, bound, tmp):

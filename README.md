@@ -40,14 +40,14 @@ webOS Archive, Herrie82's TLS work, webOS CE 3.1.0), and this is one more piece 
 
 Every part of the browser has a checklist, and an item only gets ticked once it has been seen working on a real TouchPad (or, for the build, on a clean machine). The numbers below are counted straight from those checklists. What's left is either still to build or waiting on a person: a finger on the device, or a call only the owner can make.
 
-**Everything but tabs: `████████████████░░░░` 827 of 975 criteria met (84 %).**
+**Everything but tabs: `█████████████████░░░` 831 of 975 criteria met (85 %).**
 
 | Area | Progress | Met | Left | What it covers |
 |---|---|---:|---|---|
 | Engine and page drawing | `██████████████████░░` 93 % | 104 / 111 | 4 to do, 3 for a person | Goanna inside the webOS card, frames to the card, the card's messages |
 | Drawing on the GPU | `██████████████████░░` 91 % | 45 / 49 | 1 to do, 3 for a person | the Adreno 220 composes the page; WebGL; pan and zoom speed |
 | The modern web | `██████████████████░░` 90 % | 27 / 30 | 3 to do | today's sites: TLS, missing features filled in, video |
-| Speed and memory | `██░░░░░░░░░░░░░░░░░░` 11 % | 4 / 34 | 28 to do, 2 for a person | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
+| Speed and memory | `████░░░░░░░░░░░░░░░░` 23 % | 8 / 34 | 24 to do, 2 for a person | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
 | The three interfaces | `██████████████████░░` 90 % | 122 / 135 | 6 to do, 7 for a person | Enyo, Mochi and Mojo |
 | Touch and keyboard | `█████████████████░░░` 88 % | 40 / 45 | 3 to do, 2 for a person | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | 61 / 63 | 2 to do | the settings panes, downloads, history, printing |
@@ -68,7 +68,7 @@ flowchart LR
   nWork0["Engine and page drawing<br/>104 of 111, 4 to do"]:::doing
   nWork1["Drawing on the GPU<br/>45 of 49, 1 to do"]:::doing
   nWork2["The modern web<br/>27 of 30, 3 to do"]:::doing
-  nWork3["Speed and memory<br/>4 of 34, 28 to do"]:::doing
+  nWork3["Speed and memory<br/>8 of 34, 24 to do"]:::doing
   nWork4["The three interfaces<br/>122 of 135, 6 to do"]:::doing
   nWork5["Touch and keyboard<br/>40 of 45, 3 to do"]:::doing
   nWork6["Settings and services<br/>61 of 63, 2 to do"]:::doing
@@ -198,7 +198,11 @@ with a link to try again. In testing, a page grabbing 700 MB was stopped within 
 its memory was back two seconds later.
 
 YouTube's player is only offered H.264 video, up to 480 lines at 30 frames a second, the cheapest
-thing for this CPU to decode. There's a switch for it in Settings, under content blocking.
+thing for this CPU to decode, and a video on YouTube plays only after you tap: the next video YouTube
+queues up at the end, and anything it would start by itself, waits for you. Both have switches in
+Settings, under content blocking. The memory guard also looks at the browser as a whole: two Jihad
+cards that together push the tablet into swapping are cut back before the swapping takes the whole
+tablet down, which is what a 17 MB Flash game beside a YouTube page did.
 
 ### Also
 
@@ -277,10 +281,14 @@ Site-by-site details, with causes and what was tried, are in `docs/MODERN-WEB.md
   page is frozen while it runs.
 - **YouTube works, but it's heavy.** Its mobile watch page keeps one of the two cores busy for as
   long as it's open and grows past 200 MB, and video plays at 144p to 360p, decoded in software. The
-  TouchPad has a hardware H.264 decoder that Jihad doesn't use yet. When one video ends and YouTube
-  starts the next by itself, the tablet can freeze for a while if a Flash game is running in
-  another card. Being fixed: the browser runs at a higher CPU priority than webOS's own interface,
-  and it shouldn't.
+  TouchPad has a hardware H.264 decoder that Jihad doesn't use yet. When a video ends, YouTube still
+  moves on to the next one's page by itself (that is its own navigation, which nothing in the page's
+  settings turns off from here); the video on it waits for a tap.
+- **Two heavy cards don't fit.** A big Flash game beside a YouTube page pushes a 1 GB tablet, with
+  the system's own memory already swapped out, into swapping so hard that the flash chip's queue
+  stalls every process on it — the freeze and the dropped USB link of early November. The guard now
+  cuts the browser back at the first sign (the game's player, then the page), and the tablet stays
+  responsive; what you see is the game stopped and the page replaced by a notice with a link back.
 - **Stopping a runaway page isn't free.** When the memory guard steps in, the tablet can hang for
   a few seconds while the system pulls its own memory back from swap.
 - **Sites built as ES-module applications** load their frame but not every script-driven part

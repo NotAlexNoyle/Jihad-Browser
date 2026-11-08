@@ -1,0 +1,17 @@
+id: youtube-feed-no-preview
+section: Sites
+item: YouTube's home feed starts no video by itself: 30 s on the feed untouched and after a pan, no video element plays (the mobile feed has none; the gate of jihad.youtube.stopAutoplay would refuse one)
+shells: enyo
+page: https://m.youtube.com/
+prefs: jihad.compat.trace=true
+kit: cavekit-device-headroom.md R4
+needs: internet
+# the card is launched on the feed and its load awaited by the runner: no load mark comes after the script's own mark
+wait quiet 'play() allowed' 30
+probe feed '(function(){var vs=document.querySelectorAll("video"),p=0;for(var i=0;i<vs.length;i++)if(!vs[i].paused)p++;return "videos "+vs.length+" playing "+p+" images "+document.images.length;})()'
+expect probe-has 'playing 0'
+drag 384 800 384 300 600
+wait settled 8
+wait quiet 'play() allowed' 10
+probe feed-after-a-pan '(function(){var vs=document.querySelectorAll("video"),p=0;for(var i=0;i<vs.length;i++)if(!vs[i].paused)p++;return "videos "+vs.length+" playing "+p;})()'
+expect probe-has 'playing 0'

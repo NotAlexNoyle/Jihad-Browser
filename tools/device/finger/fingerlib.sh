@@ -190,6 +190,14 @@ fl_wait() {
   done
   return 1
 }
+# the absence of a line for SECS (a check on what must not happen: a video starting by itself): 0 when PATTERN never
+# came since the mark within SECS, 1 (the line printed) when it did
+fl_wait_quiet() {
+  local n m
+  n=${2:-10}
+  while [ $n -gt 0 ]; do m=$(fl_since | grep -a "$1" | tail -1); [ -n "$m" ] && { echo "$m"; return 1; }; sleep 1; n=$((n-1)); done
+  return 0
+}
 fl_inject() { umask 077; echo "$1" > $FL_INJ; }
 # a command and its answer line (the mark set first)
 fl_ask() { fl_mark; fl_inject "$1"; fl_wait "$2" ${3:-5}; }
@@ -742,6 +750,18 @@ fl_check_text_has() { # NAME SEL TEXT
   local t
   t=$(fl_text "$2") || { fl_check FAIL "$1" "no answer for $2"; return 1; }
   case "$t" in *"$3"*) fl_check ok "$1" "$2 = [$t] holds [$3]";; *) fl_check FAIL "$1" "$2 = [$t] lacks [$3]";; esac
+}
+# a probe inside the page: the compat component's on-demand probe (jihad.compat.trace on for the run; the inject
+# channel's javascript: URL is refused silently by a page's Content-Security-Policy, YouTube's). B64 is the script,
+# base64 on the host (the device has no base64); the answer is FL_PROBE, printed to 300 chars
+FL_PROBE=""
+fl_probe() { # NAME B64
+  local l
+  fl_mark; fl_inject "setpref s jihad.compat.probe $2"; l=$(fl_wait 'probe \[' 30) || return 1
+  FL_PROBE=$(echo "$l" | sed 's/.*probe \[[^]]*\] //'); echo "  probe $1: $(echo "$FL_PROBE" | cut -c1-300)"
+}
+fl_check_probe_has() { # NAME TEXT
+  case "$FL_PROBE" in *"$2"*) fl_check ok "$1" "the probe's answer holds [$2]";; *) fl_check FAIL "$1" "the probe's answer [$(echo "$FL_PROBE" | cut -c1-200)] lacks [$2]";; esac
 }
 fl_check_url() { # NAME PART
   local u

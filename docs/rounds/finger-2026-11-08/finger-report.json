@@ -1,0 +1,97 @@
+{
+ "date": "2026-11-08T10:52:13",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "youtube-feed-no-preview",
+   "kit": "cavekit-device-headroom.md R4",
+   "item": "YouTube's home feed starts no video by itself: 30 s on the feed untouched and after a pan, no video element plays (the mobile feed has none; the gate of jihad.youtube.stopAutoplay would refuse one)",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "CHECK ok 10-quiet: no line play() allowed for 30 s",
+    "CHECK ok 12-probe-has: the probe's answer holds [playing 0]",
+    "WAIT ok 14-settled: the card's scroll 0 483",
+    "CHECK ok 15-quiet: no line play() allowed for 10 s",
+    "CHECK ok 17-probe-has: the probe's answer holds [playing 0]"
+   ],
+   "kept": [],
+   "seconds": 155,
+   "note": "",
+   "start": "enyo card on https://m.youtube.com/: connected at +2 s, load done at +22 s, 3 content frames at +31 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "novacom: unexpected EOF from server",
+   "rerun": "2026-11-08T10:52:13"
+  },
+  {
+   "shell": "enyo",
+   "id": "youtube-no-next",
+   "kit": "cavekit-device-headroom.md R4",
+   "item": "YouTube's next video does not play by itself: a 19 s video played by a tap ends, and for the next 70 s nothing plays \u2014 no play() allowed, the video paused at its end, the URL unchanged (the gate of jihad.youtube.stopAutoplay; with it off, YouTube navigates to a \"mix\"); the first tap's play went through",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:video",
+    "WAIT ok 11-line: [jihad-bs] js-console (no source):0:0 compat: youtube [m.youtube.com] play() allowed: 1828 ms after a click",
+    "CHECK ok 13-probe-has: the probe's answer holds [\"paused\":false]",
+    "CHECK ok 14-quiet: no line play() allowed for 70 s",
+    "CHECK ok 16-probe-has: the probe's answer holds [\"paused\":true]",
+    "CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw"
+   ],
+   "kept": [],
+   "seconds": 171,
+   "note": "",
+   "start": "enyo card on https://m.youtube.com/watch?v=jNQXAC9IVRw: connected at +2 s, load done at +25 s, 5 content frames at +25 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (1385996/453417543) jihad (start) running, process 15387; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "youtube-no-next",
+   "kit": "cavekit-device-headroom.md R4",
+   "item": "YouTube's next video does not play by itself: a 19 s video played by a tap ends, and for the next 70 s nothing plays \u2014 no play() allowed, the video paused at its end, the URL unchanged (the gate of jihad.youtube.stopAutoplay; with it off, YouTube navigates to a \"mix\"); the first tap's play went through",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:video",
+    "WAIT ok 11-line: [jihad-bs] js-console (no source):0:0 compat: youtube [m.youtube.com] play() allowed: 1990 ms after a click",
+    "CHECK ok 13-probe-has: the probe's answer holds [\"paused\":false]",
+    "CHECK ok 14-quiet: no line play() allowed for 70 s",
+    "CHECK ok 16-probe-has: the probe's answer holds [\"paused\":true]",
+    "CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw&pp=0gcJCVgCo7VqN5tD"
+   ],
+   "kept": [],
+   "seconds": 181,
+   "note": "",
+   "start": "mochi card on https://m.youtube.com/watch?v=jNQXAC9IVRw: connected at +3 s, load done at +27 s, 20 content frames at +27 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "mochi: (1386177/109354545) jihad-mochi (start) running, process 20115; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "youtube-no-next",
+   "kit": "cavekit-device-headroom.md R4",
+   "item": "YouTube's next video does not play by itself: a 19 s video played by a tap ends, and for the next 70 s nothing plays \u2014 no play() allowed, the video paused at its end, the URL unchanged (the gate of jihad.youtube.stopAutoplay; with it off, YouTube navigates to a \"mix\"); the first tap's play went through",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:video",
+    "WAIT ok 11-line: [jihad-bs] js-console (no source):0:0 compat: youtube [m.youtube.com] play() allowed: 1710 ms after a click",
+    "CHECK ok 13-probe-has: the probe's answer holds [\"paused\":false]",
+    "CHECK ok 14-quiet: no line play() allowed for 70 s",
+    "CHECK ok 16-probe-has: the probe's answer holds [\"paused\":true]",
+    "CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw"
+   ],
+   "kept": [],
+   "seconds": 177,
+   "note": "",
+   "start": "mojo card on https://m.youtube.com/watch?v=jNQXAC9IVRw: connected at +1 s, load done at +24 s, 21 content frames at +24 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
+   "restore": "mojo: (1386354/177085030) jihad-mojo (start) running, process 25329; daemons running: 1"
+  }
+ ],
+ "end_check": "unable to find device",
+ "seconds": 1645,
+ "first_date": "2026-11-08T10:14:24"
+}

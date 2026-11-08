@@ -27,6 +27,7 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 #include "JihadRuntimePaths.h"       // the ONE runtime-state dir (T-057 / R8)
 #include <sys/stat.h>               // chmod (menu highlight sheet)
 #include <dirent.h>                 // bundle fingerprint (stale startup cache)
+#include <vector>                   // the browser's process groups (the memory guard)
 #include <time.h>
 #include <stdint.h>
 #include <unistd.h>                 // access (bundled child-process loader probe)
@@ -1385,13 +1386,19 @@ static long jihadAvailableKb() {
 }
 
 // Pages swapped in since boot (/proc/vmstat pswpin, 4 kB each), or -1.
+// Pages swapped in AND out since boot: 2026-11-08's stall was the swap-OUT storm (200-1400 pages a second, the
+// kernel making room for the browser's heaps and the video's cache pages) that saturated the eMMC beside the swap-ins.
 static long jihadSwapInPages() {
   FILE* f = fopen("/proc/vmstat", "r");
   if (!f) return -1;
-  char line[96]; long v = -1;
-  while (fgets(line, sizeof(line), f)) if (sscanf(line, "pswpin %ld", &v) == 1) break;
+  char line[96]; long in = -1, out = -1, v;
+  while (fgets(line, sizeof(line), f)) {
+    if (in < 0 && sscanf(line, "pswpin %ld", &v) == 1) in = v;
+    else if (out < 0 && sscanf(line, "pswpout %ld", &v) == 1) out = v;
+    if (in >= 0 && out >= 0) break;
+  }
   fclose(f);
-  return v;
+  return in < 0 ? -1 : in + (out > 0 ? out : 0);
 }
 
 static long jihadRssKb(const char* statusPath) {
@@ -1432,14 +1439,60 @@ static long jihadOwnPlayers(bool kill_) {
   return total;
 }
 
+// The browser as a whole (cavekit-device-headroom.md R1, 2026-11-08): the shells' daemons and their players share the
+// RAM, and two of them (173 + 176 MB) drove the system into a swap storm on the eMMC — every page fault of every
+// process waiting on the card's queue, the USB link gone for 80 s — while neither alone held its share. Their
+// resident kB together, and the pid of the daemon whose group (itself and its players) is the largest: that one sheds.
+static long jihadBrowserTotalKb(pid_t* largest) {
+  struct Group { pid_t pid; long kb; };
+  std::vector<Group> groups; std::vector<std::pair<pid_t, long>> players;   // a player's parent, its kB
+  DIR* d = opendir("/proc");
+  if (!d) { if (largest) *largest = 0; return 0; }
+  while (struct dirent* e = readdir(d)) {
+    if (e->d_name[0] < '1' || e->d_name[0] > '9') continue;
+    char path[64]; snprintf(path, sizeof(path), "/proc/%s/cmdline", e->d_name);
+    FILE* f = fopen(path, "r");
+    if (!f) continue;
+    char buf[512]; size_t n = fread(buf, 1, sizeof(buf) - 1, f); fclose(f); buf[n] = 0;
+    for (size_t i = 0; i < n; ++i) if (!buf[i]) buf[i] = ' ';
+    const bool daemon = strstr(buf, "jihad-browserserver") != nullptr;
+    const bool player = !daemon && strstr(buf, "plugin-container") != nullptr;
+    if (!daemon && !player) continue;
+    snprintf(path, sizeof(path), "/proc/%s/status", e->d_name);
+    const long kb = jihadRssKb(path);
+    const pid_t pid = (pid_t)atol(e->d_name);
+    if (daemon) { groups.push_back({pid, kb}); continue; }
+    snprintf(path, sizeof(path), "/proc/%s/stat", e->d_name);
+    f = fopen(path, "r");
+    if (!f) continue;
+    n = fread(buf, 1, sizeof(buf) - 1, f); fclose(f); buf[n] = 0;
+    const char* rp = strrchr(buf, ')'); int ppid = 0; char st = 0;
+    if (rp && sscanf(rp + 1, " %c %d", &st, &ppid) == 2) players.push_back({(pid_t)ppid, kb});
+  }
+  closedir(d);
+  long total = 0, bestKb = -1; pid_t best = 0;
+  for (Group& g : groups) {
+    for (auto& p : players) if (p.first == g.pid) g.kb += p.second;
+    total += g.kb;
+    if (g.kb > bestKb || (g.kb == bestKb && g.pid < best)) { bestKb = g.kb; best = g.pid; }
+  }
+  if (largest) *largest = best;
+  return total;
+}
+
 static bool (*sJihadShedPageHook)() = nullptr;
 void EngineHost::SetShedPageHook(bool (*hook)()) { sJihadShedPageHook = hook; }
 
-static long jihadEnvKb(const char* name, long dflt, long lo, long hi) {
-  const char* e = getenv(name);
-  if (!e) return dflt;
-  long v = atol(e);
-  return (v >= lo && v <= hi) ? v : dflt;
+// A guard threshold: the environment word (a test run's) first, else the device pref (cavekit-device-headroom.md R1:
+// "the floor and order are in the device prefs", packaging/prefs/jihad-platform-prefs.js), else the default; a value
+// outside lo..hi, or 0 where the default is computed, is the default. Resolved once, at the first poll (the pref
+// service is up: the engine is).
+static long jihadGuardKb(const char* env, const char* pref, long dflt, long lo, long hi) {
+  if (const char* e = getenv(env)) { long v = atol(e); if (v >= lo && v <= hi) return v; }
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  int32_t pv = 0;
+  if (pb && NS_SUCCEEDED(pb->GetIntPref(pref, &pv)) && pv >= lo && pv <= hi && pv != 0) return pv;
+  return dflt;
 }
 
 void
@@ -1456,27 +1509,22 @@ EngineHost::CheckMemoryPressure()
   if (now - mMemPollMs < 5000) return;   // poll /proc/meminfo at most every 5 s
   mMemPollMs = now;
 
-  static long lowKb = -2;
-  if (lowKb == -2) {   // resolve the threshold once
-    lowKb = 49152;     // default 48 MB — headroom for one paint + GC on a 512 MB device
-    const char* e = getenv("JIHAD_MEM_LOW_KB");
-    // Ceiling raised from 256 MB to 1 GB on 2026-08-04, purely so the reaction is
-    // REACHABLE on a machine with headroom. A guardrail that cannot be exercised is one
-    // nobody can trust: an 8-site session on the TouchPad moved available memory by only
-    // 35 MB (441 -> 406 MB, the low-RAM prefs doing their job), so with the old ceiling
-    // there was no way to make the flush fire on demand — on device or in the container.
-    // This is a sanity bound on a debug override, not a safety property; the shipped
-    // default below is unchanged.
-    if (e) { long v = atol(e); if (v >= 8192 && v <= 1048576) lowKb = v; }
-  }
+  // default 48 MB — headroom for one paint + GC on a 512 MB device. The ceiling was raised from 256 MB to 1 GB on
+  // 2026-08-04, purely so the reaction is REACHABLE on a machine with headroom: a guardrail that cannot be exercised is
+  // one nobody can trust (an 8-site session on the TouchPad moved available memory by only 35 MB). A sanity bound on
+  // an override, not a safety property.
+  static const long lowKb = jihadGuardKb("JIHAD_MEM_LOW_KB", "jihad.memory.flushKb", 49152, 8192, 1048576);
   long avail = jihadAvailableKb();
 
   // Past the flush (cavekit-device-headroom.md R1; EngineHost.h): the floor, or swapping in without pause.
-  static const long floorKb = jihadEnvKb("JIHAD_MEM_FLOOR_KB", 24576, 4096, 1048576);
+  static const long floorKb = jihadGuardKb("JIHAD_MEM_FLOOR_KB", "jihad.memory.floorKb", 24576, 4096, 1048576);
   // Measured with render/goanna/test/jihad-memhog.html (2026-11-07, Enyo, 700 MB at 10 MB/s): the kernel held
   // "available" at 45-55 MB by swapping, so the floor alone never fires; swap-in ran 200-4300 pages per 5 s, on and
   // off, so 640 twice running came 6 s late. A page load swaps in for one poll; the shedding wants two running.
-  static const long swapPages = jihadEnvKb("JIHAD_MEM_SWAPIN_PAGES", 256, 16, 1000000);
+  // (The 256 of that day was the swap-in alone; with the swap-out counted since 2026-11-08 the threshold is 1024.)
+  // 1024 (4 MB per poll) since 2026-11-08: at 256 the kernel's ordinary swapping-out of idle daemons while a feed page
+  // grew read as a storm and stopped the page; the two witnessed storms ran 1000-7000 pages per poll.
+  static const long swapPages = jihadGuardKb("JIHAD_MEM_SWAPIN_PAGES", "jihad.memory.swapinPages", 1024, 16, 1000000);
   // Only the main consumer sheds: a 245 MB YouTube page must not be stopped because another app made the system
   // swap. The larger of 128 MB and 35 % of the RAM (330 MB on the TouchPad), this daemon and its players together.
   static long shareKb = -1, budgetKb = -1;
@@ -1484,15 +1532,15 @@ EngineHost::CheckMemoryPressure()
     long totalKb = 0; FILE* mf = fopen("/proc/meminfo", "r");
     if (mf) { char ln[96]; while (fgets(ln, sizeof(ln), mf)) if (sscanf(ln, "MemTotal: %ld", &totalKb) == 1) break; fclose(mf); }
     long dflt = totalKb * 35 / 100; if (dflt < 131072) dflt = 131072;
-    shareKb = jihadEnvKb("JIHAD_MEM_SHARE_KB", dflt, 0, 4194304);
+    shareKb = jihadGuardKb("JIHAD_MEM_SHARE_KB", "jihad.memory.shareKb", dflt, 0, 4194304);
     // The budget (Atlas's lesson, above): past half the RAM with under twice the flush threshold left, waiting for the
     // swap to show it costs the system 20 s stalls (the 2026-11-07 test: the flushes of a 700 MB heap held the
     // application manager up to 22 s before the swap rule fired). JIHAD_MEM_BUDGET_KB.
-    budgetKb = jihadEnvKb("JIHAD_MEM_BUDGET_KB", totalKb / 2 > 131072 ? totalKb / 2 : 131072, 0, 4194304);
-    // and the kernel's first choice when memory does run out, before the system's own processes (players inherit it)
-    if (FILE* oa = fopen("/proc/self/oom_adj", "w")) { fputs("5", oa); fclose(oa); }
+    budgetKb = jihadGuardKb("JIHAD_MEM_BUDGET_KB", "jihad.memory.budgetKb", totalKb / 2 > 131072 ? totalKb / 2 : 131072, 0, 4194304);
+    // oom_adj and the CPU priority are set at the daemon's start (Main.cpp), not here: this runs at the first page's
+    // tick, and an idle daemon read oom_adj 0 (2026-11-07)
     fprintf(stderr, "[jihad-bs] memory guard: flush under %ld kB, shed past %ld kB of this daemon and its players when under %ld kB, "
-            "swapping in over %ld pages per 5 s twice running, or past %ld kB with under %ld kB left; oom_adj 5\n",
+            "swapping in or out over %ld pages per 5 s twice running, or past %ld kB with under %ld kB left\n",
             lowKb, shareKb, floorKb, swapPages, budgetKb, 2 * lowKb);
   }
   long swapIn = jihadSwapInPages(), dIn = 0;
@@ -1505,10 +1553,13 @@ EngineHost::CheckMemoryPressure()
   // the flush has had its chance (at least 5 s ago, below), and the last step 10 s
   else if (mMemNotifyMs && now - mMemNotifyMs >= 5000 && now - mShedMs >= 10000) {
     const long own = jihadRssKb("/proc/self/status"), players = jihadOwnPlayers(false);
-    if (own + players >= shareKb && !mShedSpent) {
+    pid_t largest = 0; const long all = jihadBrowserTotalKb(&largest);
+    const bool mine = own + players >= shareKb, whole = all >= shareKb && largest == getpid();
+    if ((mine || whole) && !mShedSpent) {
       mShedMs = now;
-      fprintf(stderr, "[jihad-bs] memory shed: %ld kB available (floor %ld), %ld pages swapped in over the last 5 s (%d polls running); "
-              "this daemon %ld kB, its players %ld kB\n", avail, floorKb, dIn, mSwapHot, own, players);
+      fprintf(stderr, "[jihad-bs] memory shed: %ld kB available (floor %ld), %ld pages swapped in or out over the last 5 s (%d polls running); "
+              "this daemon %ld kB, its players %ld kB; the browser's processes together %ld kB%s\n", avail, floorKb, dIn, mSwapHot, own, players,
+              all, whole && !mine ? " (this daemon the largest of them)" : "");
       long ended = (mShedStep == 0 && players > 0) ? jihadOwnPlayers(true) : 0;
       if (ended > 0) fprintf(stderr, "[jihad-bs] memory shed: ended %ld Flash player(s)\n", ended);
       else if (sJihadShedPageHook && sJihadShedPageHook()) fprintf(stderr, "[jihad-bs] memory shed: a page stopped\n");
@@ -1537,7 +1588,7 @@ EngineHost::CheckMemoryPressure()
   // regression was over-frequent pressure handling).
   if (now - mMemNotifyMs < 30000) return;
   mMemNotifyMs = now;
-  fprintf(stderr, "[jihad-bs] memory pressure: %ld kB available (flush under %ld kB%s), %ld pages swapped in over 5 s — flushing engine caches\n",
+  fprintf(stderr, "[jihad-bs] memory pressure: %ld kB available (flush under %ld kB%s), %ld pages swapped in or out over 5 s — flushing engine caches\n",
           avail, lowKb, avail < lowKb ? "" : "; the guard's budget or swap rule", dIn);
   nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
   if (obs) obs->NotifyObservers(nullptr, "memory-pressure", u"low-memory");

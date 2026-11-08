@@ -180,7 +180,9 @@ const PANES = [
 					{type: "button", label: "Update the lists now", button: "Update", action: blockerUpdate, busy: blockerBusy,
 					 help: "Downloads both lists from easylist.to and uses them if they are newer."},
 					{pref: "jihad.youtube.lite", type: "bool", label: "Play YouTube in the lightest format",
-					 help: "YouTube is offered only H.264 video at up to 480 lines and 30 frames a second, the formats this device decodes with the least work. Turn it off to let YouTube choose."}
+					 help: "YouTube is offered only H.264 video at up to 480 lines and 30 frames a second, the formats this device decodes with the least work. Turn it off to let YouTube choose."},
+					{pref: "jihad.youtube.stopAutoplay", type: "bool", label: "Only a tap starts a YouTube video",
+					 help: "The next video and the feed's previews do not start by themselves: a video plays only within half a minute of your last tap or key. Turn it off to let YouTube autoplay."}
 				]
 			},
 			{

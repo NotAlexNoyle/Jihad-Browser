@@ -6,7 +6,11 @@
 # answer; the guard's own lines from the daemon's log as they come. It stops 20 s after the guard stopped the page,
 # or after SECS (240). Safety: if the application manager takes over 8 s or the load reaches 14 twice running, the
 # guard has failed and this closes the card itself, so the device is never left starving. Run it detached
-# (nohup ... &) and read its output afterwards: a USB drop must not take the test with it.
+# (tools/device/finger/detached-run.sh) and read its output afterwards: a USB drop must not take the test with it.
+# With &swf=URL on the memory page a Flash player runs in the same card: the guard's first step ends it (logged) before
+# the page is stopped; the first player's nice and oom_adj are printed when it appears, and after the card closes the
+# players are watched for 45 s (R1: a player with no movie left exits within the engine's 30 s unload delay, using no
+# CPU meanwhile).
 V=${1:?variant}; URL=${2:?url}; SECS=${3:-240}
 case $V in enyo) ID=net.riverstonerelay.jihad-browser;; mochi) ID=net.riverstonerelay.jihad-browser-mochi;; mojo) ID=net.riverstonerelay.jihad-browser-mojo;; *) exit 2;; esac
 L=/var/palm/jihad/$V/daemon.log
@@ -18,13 +22,15 @@ DP=$(status jihad$( [ $V = enyo ] || echo -$V ) | sed -n 's/.*process \([0-9]*\)
 close_app; sleep 2
 n0=$(wc -l < $L)
 luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'$ID'","params":{"target":"'"$URL"'"}}' >/dev/null
-in0=$(awk '/pswpin/{print $2}' /proc/vmstat); bad=0; i=0; stopAt=0; shown=$n0
+echo "daemon $DP nice=$(awk '{print $19}' /proc/$DP/stat) oom_adj=$(cat /proc/$DP/oom_adj)"
+in0=$(awk '/pswpin/{print $2}' /proc/vmstat); bad=0; i=0; stopAt=0; shown=$n0; seen=""
 while [ $i -lt $SECS ]; do
   sleep 2; i=$((i+2))
   in1=$(awk '/pswpin/{print $2}' /proc/vmstat)
   a=$(cs); luna-send -n 1 palm://com.palm.applicationManager/running '{}' >/dev/null 2>&1; lat=$(( ($(cs) - a) * 10 ))
   ld=$(cut -d' ' -f1 /proc/loadavg)
   kids=$(for p in /proc/[0-9]*; do [ "$(awk '{print $4}' $p/stat 2>/dev/null)" = "$DP" ] && echo ${p#/proc/}; done)
+  for k in $kids; do case " $seen " in *" $k "*) ;; *) seen="$seen $k"; echo "  player $k at t=$i: nice=$(awk '{print $19}' /proc/$k/stat) oom_adj=$(cat /proc/$k/oom_adj) $(tr '\0' ' ' < /proc/$k/cmdline | cut -c1-60)";; esac; done
   echo "t=$i avail=$(avail) swapin=$((in1 - in0)) load=$ld daemon=$(rss $DP) players=$(rss "$kids") luna=${lat}ms"
   n=$(wc -l < $L); [ $n -gt $shown ] && { tail -n +$((shown + 1)) $L | grep -a -E 'memory (shed|pressure)' | sed 's/^/  LOG /'; shown=$n; }
   [ $stopAt = 0 ] && tail -n +$n0 $L | grep -a -q 'memory shed: stopping' && stopAt=$i
@@ -34,6 +40,15 @@ while [ $i -lt $SECS ]; do
   in0=$in1
 done
 luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{"file":"/tmp/fl-headroom.png"}' >/dev/null 2>&1; usleep 800000
-close_app; sleep 6
+kids=$(for p in /proc/[0-9]*; do [ "$(awk '{print $4}' $p/stat 2>/dev/null)" = "$DP" ] && echo ${p#/proc/}; done)
+c0=$(cs); close_app
+# the players left after the card: gone within the engine's 30 s unload delay, and their CPU meanwhile (jiffies of 10 ms)
+for k in $kids; do
+  j0=$(awk '{print $14+$15}' /proc/$k/stat 2>/dev/null); j0=${j0:-0}; w=0
+  while [ -d /proc/$k ] && [ $w -lt 45 ]; do j1=$(awk '{print $14+$15}' /proc/$k/stat 2>/dev/null); sleep 1; w=$((w+1)); done
+  if [ -d /proc/$k ]; then echo "  player $k STILL ALIVE 45 s after the card closed, $(( ${j1:-$j0} - j0 )) jiffies meanwhile"
+  else echo "  player $k exited $(( ($(cs) - c0) / 100 )) s after the card closed, $(( ${j1:-$j0} - j0 )) jiffies meanwhile"; fi
+done
+sleep 2
 echo "after: avail=$(avail) daemon=$(rss $DP) load=$(cut -d' ' -f1 /proc/loadavg) stopped_at=${stopAt}s"
 echo DONE

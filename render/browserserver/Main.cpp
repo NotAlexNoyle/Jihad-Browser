@@ -15,7 +15,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <cerrno>
 #include <unistd.h>              // write/_exit/alarm in the teardown bailout
+#include <sys/resource.h>        // setpriority/getpriority: the browser below the system's services (headroom R1)
 #include <sys/stat.h>            // fstat for the runtime log cap
 #include <fcntl.h>
 #include <string>
@@ -267,6 +269,27 @@ int main(int argc, char** argv) {
   // Re-armed after engine init (EngineHost::Init) because SpiderMonkey replaces
   // SIGSEGV during startup — see JihadCrashReport.h.
   jihad::JihadInstallCrashHandler();
+  // cavekit-device-headroom.md R1: the browser below the system's own services for the CPU, and the kernel's
+  // first choice when memory runs out, before the system's. Set HERE, before the first thread, so every thread
+  // and every Flash player (plugin-container, forked from this process) inherits both. Measured 2026-11-07
+  // (T-591): the daemons ran at nice 0 and outranked LunaSysMgr and the web app manager (nice 5), and the
+  // stress froze the screen at load 14 with memory to spare; oom_adj was written at a daemon's first page, so
+  // an idle daemon read 0. JIHAD_NICE (default 5, the system UI's own; 0 leaves what was inherited),
+  // JIHAD_OOM_ADJ (default 5 on the kernel's -17..15 scale; LunaSysMgr is -17). The three frame threads keep
+  // their own boost (BrowserPageGoanna.cpp, JIHAD_GPU_FRAME_NICE): a frame is a few milliseconds of work, a
+  // page's script is what starves the system.
+  {
+    long niceTo = 5, oom = 5;
+    if (const char* e = getenv("JIHAD_NICE"))    { long v = atol(e); if (v >= -20 && v <= 19) niceTo = v; }
+    if (const char* e = getenv("JIHAD_OOM_ADJ")) { long v = atol(e); if (v >= -17 && v <= 15) oom = v; }
+    const bool niceOk = niceTo == 0 || setpriority(PRIO_PROCESS, 0, (int)niceTo) == 0;
+    bool oomOk = false;
+    if (FILE* oa = fopen("/proc/self/oom_adj", "w")) { oomOk = fprintf(oa, "%ld", oom) > 0; fclose(oa); }
+    errno = 0;
+    const int niceNow = getpriority(PRIO_PROCESS, 0);
+    printf("[jihad-bs] priority: nice %d%s, oom_adj %ld%s (the players inherit both)\n",
+           niceNow, niceOk ? "" : " (setpriority refused)", oom, oomOk ? "" : " (not written)");
+  }
   const char* greDir = (argc > 1) ? argv[1] : ".";
   const char* name = getenv("JIHAD_BS_NAME");
   if (!name || !*name) name = "jihad-browserserver";

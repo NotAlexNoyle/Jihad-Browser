@@ -72,6 +72,19 @@ const PREF_TRACE    = "jihad.blocking.trace";
 const PREF_LAST     = "jihad.blocking.lastUpdate";      // seconds: when the lists were last current
 const PREF_ATTEMPT  = "jihad.blocking.lastAttempt";     // seconds: the last update attempt
 const PREF_VERSIONS = "jihad.blocking.versions";
+// cavekit-device-headroom.md R3 (2026-11-08): the browser's own path rules beside the lists, "host/path-prefix;…",
+// refused on the page's own host too (a site's telemetry: YouTube's /youtubei/v1/log_event, /api/stats/). Empty by default.
+const PREF_EXTRA    = "jihad.blocking.extra";
+function parseExtra(s) {
+  let out = [];
+  for (let e of String(s || "").split(";")) { e = e.trim().toLowerCase(); let i = e.indexOf("/"); if (i > 0) out.push({h: e.slice(0, i), p: e.slice(i)}); }
+  return out;
+}
+
+// cavekit-device-headroom.md R1 (2026-11-08): loads that never go to the disk cache, "host/path-prefix;…" — a video's
+// segments (googlevideo.com/videoplayback) are appended to the player's buffer and read by no one again, and their
+// writes onto the encrypted FUSE volume were part of the eMMC's saturation under the stress.
+const PREF_NODISK   = "jihad.cache.noDiskPaths";
 
 const COMPILER_VERSION = 11;                 // bump when the compiled form changes (11: T-522, the excepted generic selectors per document)
 const UPDATE_EVERY_S   = 4 * 24 * 3600;     // the lists say "! Expires: 4 days"
@@ -398,6 +411,8 @@ function JihadContentBlocker() {
   this._cosmetic = boolPref(PREF_COSMETIC, true);
   this._log = boolPref(PREF_LOG, false);
   this._trace = boolPref(PREF_TRACE, false);
+  this._extra = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_EXTRA); } catch (e) { return ""; } })());
+  this._noDisk = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_NODISK); } catch (e) { return ""; } })());
   this._hosts = null; this._tp = null; this._excHosts = null;
   this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
   this._excSel = {}; this._gh = {hosts: [], prefixes: []};   // T-522: the site-excepted generic selectors, the generic-hide hosts
@@ -469,6 +484,8 @@ JihadContentBlocker.prototype = {
     else if (data === PREF_COSMETIC) { this._cosmetic = boolPref(PREF_COSMETIC, true); this._applySheet(); }
     else if (data === PREF_LOG) { this._log = boolPref(PREF_LOG, false); }
     else if (data === PREF_TRACE) { this._trace = boolPref(PREF_TRACE, false); }
+    else if (data === PREF_NODISK) { this._noDisk = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_NODISK); } catch (e) { return ""; } })()); }
+    else if (data === PREF_EXTRA) { this._extra = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_EXTRA); } catch (e) { return ""; } })()); log("extra path rules: " + this._extra.length); }
   },
 
   // ── nsIContentPolicy ──
@@ -484,6 +501,17 @@ JihadContentBlocker.prototype = {
 
   // A redirected channel: the policy saw the first address only (inspector F-18).
   _onRequest: function (subject) {
+    // the loads kept off the disk cache: before the lists' gate, with or without them
+    if (this._noDisk.length) {
+      try {
+        let ch = subject.QueryInterface(Ci.nsIHttpChannel), host = ch.URI.asciiHost.toLowerCase(), path = null;
+        for (let r of this._noDisk) {
+          if (!(host === r.h || host.endsWith("." + r.h))) continue;
+          if (path === null) path = ch.URI.path.toLowerCase();
+          if (path.indexOf(r.p) === 0) { ch.loadFlags |= Ci.nsIRequest.INHIBIT_PERSISTENT_CACHING; break; }
+        }
+      } catch (e) {}
+    }
     if (!this._enabled || !this._hosts) return;
     try {
       let ch = subject.QueryInterface(Ci.nsIHttpChannel);
@@ -532,7 +560,8 @@ JihadContentBlocker.prototype = {
       }
       let dot = h.indexOf("."); if (dot < 0) break; h = h.slice(dot + 1); if (h.indexOf(".") < 0) break;
     }
-    // 2. path rules (they apply on the page's own host too: MDN's /pong/ is first-party)
+    // 2. path rules (they apply on the page's own host too: MDN's /pong/ is first-party); the browser's own first
+    for (let r of this._extra) { if ((host === r.h || host.endsWith("." + r.h)) && getPath().indexOf(r.p) === 0) return this._refused("extra " + r.h + r.p, type); }
     for (let h = host; ;) {
       let ps = this._paths.get(h);
       if (ps) for (let r of ps) { if (getPath().indexOf(r.p) === 0 && partyOk(r.party)) return this._refused("path " + h + r.p, type); }

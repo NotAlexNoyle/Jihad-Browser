@@ -1,0 +1,10 @@
+WAIT ok 9-rect sel:video
+  a tap to dismiss at 384,346
+WAIT ok 11-line: [jihad-bs] js-console (no source):0:0 compat: youtube [m.youtube.com] play() allowed: 1828 ms after a click
+  probe playing: {"paused":false,"t":0,"url":"https://m.youtube.com/watch?v=jNQXAC9IVRw"}
+CHECK ok 13-probe-has: the probe's answer holds ["paused":false]
+CHECK ok 14-quiet: no line play() allowed for 70 s
+  probe after-the-end: {"paused":true,"ended":true,"t":19,"url":"https://m.youtube.com/watch?v=jNQXAC9IVRw"}
+CHECK ok 16-probe-has: the probe's answer holds ["paused":true]
+CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw
+CHECKS 4 FAILS 0

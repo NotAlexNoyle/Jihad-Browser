@@ -3,7 +3,8 @@
      jihad-memhog.html?mb=N&rate=R — a page that takes memory at R MB a second until it holds N MB, and keeps it
      (cavekit-device-headroom.md R1: the guard's test, a page that grows like the YouTube visit of 2026-11-07 but on
      purpose and to a known size). Each megabyte is an ArrayBuffer written through, so its pages are really resident.
-     #held says how much it holds; #state "growing", then "holding". -->
+     #held says how much it holds; #state "growing", then "holding". &swf=URL embeds a Flash movie above the counter, so the
+     guard's first step (its Flash players ended before a page is stopped) can be exercised in one card (T-591). -->
 <html>
 <head>
 	<meta charset="UTF-8"/>
@@ -12,10 +13,16 @@
 	<style>body { font: 20px monospace; margin: 24px; } #held { font-size: 48px; }</style>
 </head>
 <body>
+	<div id="movie"></div>
 	<div>held MB</div><div id="held">0</div><div id="state">growing</div>
 	<script>
-		var q = {}; location.search.replace(/[?&]([^=&]+)=([^&]*)/g, function (_, k, v) { q[k] = parseFloat(v); });
-		var target = q.mb || 300, rate = q.rate || 8, held = [], tick = 250;
+		var q = {}; location.search.replace(/[?&]([^=&]+)=([^&]*)/g, function (_, k, v) { q[k] = decodeURIComponent(v); });
+		var target = parseFloat(q.mb) || 300, rate = parseFloat(q.rate) || 8, held = [], tick = 250;
+		if (q.swf) {
+			var e = document.createElement("embed");
+			e.src = q.swf; e.type = "application/x-shockwave-flash"; e.width = 400; e.height = 300;
+			document.getElementById("movie").appendChild(e);
+		}
 		var t = setInterval(function () {
 			for (var i = 0; i < rate * tick / 1000 && held.length < target; i++) {
 				var b = new Uint8Array(1 << 20);

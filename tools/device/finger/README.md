@@ -96,6 +96,31 @@ The first round (2026-11-03, `docs/rounds/finger-2026-11-03/notes.txt`) read two
 round had seen: a grey band at the bottom of the screen under a drag (T-567) and a band under the long page's fixed
 header a frame behind (T-568).
 
+## A probe inside a page: the component's on-demand probe, not `jsurl`
+
+The inject channel's `jsurl javascript:…` runs a javascript: URL in the page: it appends elements, sets the title and
+window variables (checked 2026-11-08 on the long page), but a page whose Content-Security-Policy forbids inline script
+(YouTube) refuses it WITHOUT A WORD — `inject jsurl ok=1` and nothing ran, and a throw inside it is as silent. For such
+a page set the compat component's probe instead: with `jihad.compat.trace` on, `setpref s jihad.compat.probe <base64>`
+through the inject channel runs the script at once in every live top document (a sandbox with the page's window as
+prototype; no CSP applies) and logs `probe [host] <what it returned>` (up to 6000 chars). The device has no `base64`:
+encode on the host, and give each probe a different text (a comment at its end) — an unchanged pref fires nothing.
+
+## stallwatch — the real-time witness of a stall (cavekit-device-headroom.md R1, T-591)
+
+`stallwatch.c` runs as SCHED_FIFO 60 with its pages locked and writes a line a second to a tmpfs file: how late its
+own wake-up was (a late witness means the kernel itself stalled), the load, each core's user/nice/system/idle/
+iowait/irq/softirq jiffies over the second, swap-ins, major faults, allocation and compaction stalls, free memory,
+the I2C error interrupt's count (this device's light sensor is dead: 240 of them a second), and for the pids named
+their state, CPU and wait channel; every other second the tasks in D state with their wait channels. Built like
+`finger.c` (`-o /tmp/stallwatch`, GLIBC 2.4 and 2.7 symbols only); `headroom-stress.sh` starts it when it is there.
+Written after 2026-11-08's stress, when the device's whole user space got no CPU for three minutes (syslog, novacomd
+at nice -4, the window server) while the kernel kept its timestamps, and nothing recorded why.
+
+```bash
+/tmp/stallwatch /tmp/stallwatch.log 600 $(pgrep novacomd) $(pgrep -f LunaSysMgr) <daemon pids> &
+```
+
 ## fingerlib — the check library and the geometry (cavekit-finger-testing.md R1, R3; T-563)
 
 `fingerlib.sh` is the device side of a finger test: busybox sh functions a test's host wrapper puts ahead of the test's

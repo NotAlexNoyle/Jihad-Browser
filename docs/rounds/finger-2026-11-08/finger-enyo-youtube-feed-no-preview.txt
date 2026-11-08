@@ -1,0 +1,8 @@
+CHECK ok 10-quiet: no line play() allowed for 30 s
+  probe feed: videos 0 playing 0 images 61
+CHECK ok 12-probe-has: the probe's answer holds [playing 0]
+WAIT ok 14-settled: the card's scroll 0 483
+CHECK ok 15-quiet: no line play() allowed for 10 s
+  probe feed-after-a-pan: videos 0 playing 0
+CHECK ok 17-probe-has: the probe's answer holds [playing 0]
+CHECKS 4 FAILS 0

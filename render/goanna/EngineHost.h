@@ -48,17 +48,19 @@ public:
   // memchute watcher (doMemWatch: malloc_trim + purge tiers) and Atlas's WPE memory
   // budget ("set the budget near the real free memory so the engine purges early
   // enough" — a 480 MB default budget let the WebProcess die before ever purging).
-  // Threshold override: JIHAD_MEM_LOW_KB (default 49152 = 48 MB).
+  // Threshold: the device pref jihad.memory.flushKb (default 49152 = 48 MB; JIHAD_MEM_LOW_KB for a test run).
   //
   // Past the flush (cavekit-device-headroom.md R1): when available memory stays under a floor, or the
   // system swaps in without pause, a flush alone has not helped, and on 2026-11-07 the TouchPad stopped
   // answering over USB that way (a YouTube page and a 17 MB movie, swap in use). If this daemon and its
   // players hold a real share of the memory, it sheds load one step every 10 s while it lasts: first its
-  // Flash players, then its most recently navigated page, stopped and replaced by about:stopped. Overrides:
-  // JIHAD_MEM_FLOOR_KB (24 MB), JIHAD_MEM_SWAPIN_PAGES (256 pages swapped in per 5 s poll, twice running),
-  // JIHAD_MEM_SHARE_KB (the larger of 128 MB and 35 % of the RAM, this daemon and its players, before it sheds).
-  // And without waiting for the swap: this daemon and its players past JIHAD_MEM_BUDGET_KB (half the RAM) with under
-  // twice the flush threshold available.
+  // Flash players, then its most recently navigated page, stopped and replaced by about:stopped. The thresholds are
+  // device prefs (packaging/prefs/jihad-platform-prefs.js; an environment word wins for a test run):
+  // jihad.memory.floorKb / JIHAD_MEM_FLOOR_KB (24 MB), jihad.memory.swapinPages / JIHAD_MEM_SWAPIN_PAGES (1024 pages
+  // swapped in or out per 5 s poll, twice running), jihad.memory.shareKb / JIHAD_MEM_SHARE_KB (the larger of 128 MB and 35 %
+  // of the RAM, this daemon and its players, before it sheds). And without waiting for the swap: this daemon and its
+  // players past jihad.memory.budgetKb / JIHAD_MEM_BUDGET_KB (half the RAM) with under twice the flush threshold
+  // available.
   void CheckMemoryPressure();
 
   // The daemon layer's half of the shedding: stop one page, the most recently navigated; false if none.

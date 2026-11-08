@@ -52,7 +52,78 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
-## 2026-11-07 — Tier 94: the memory guard, YouTube measured; the README and kits swept (READ FIRST)
+## 2026-11-08 — Tier 94: the stall WITNESSED and held; T-590, T-591 DONE; T-593's gate built (READ FIRST)
+
+**State:** main at this commit on top of `973a2fc1` (the engine unchanged at the fork's `14dc1e2d7a`). **Not pushed**
+(the owner's: `bash .cavekit/handoff-2026-11-03/push.sh`, Gitea only). The device: the three daemons of this head
+(daemon-only pushes: the daemon, the components, goanna.js; **the .ipks are not rebuilt**), `stopAutoplay` back at its
+default on Enyo, no hand daemon, the USB alert closed after each drop.
+
+**The stall, named.** Two stresses (the watch page playing in Enyo, Learn to Fly 3 in Mochi) dropped the USB link for
+156 and 80 s. The first showed, from the syslog's own gap, that the WHOLE user space got no CPU for 3 minutes while the
+kernel ran: syslogd, powerlog, novacomd at nice -4 — so CPU priority between the browser and the UI was never it (the
+daemons run at nice 5 now anyway, oom_adj 5, set in Main.cpp before the first thread; the players inherit both).
+`tools/device/finger/stallwatch.c` (SCHED_FIFO 60, mlocked, a line a second: lateness, the CPU split per core, swap
+in/out, faults, the I2C error interrupt, /proc/diskstats per volume, the named pids' state and wait channel, the
+D-state tasks) witnessed the second: **the eMMC's queue** — iowait 85-100 %, swap-OUT 200-1400 pages a second, kswapd0
+and pulseaudio in get_request_wait, kjournald committing, syslogd, the daemons, the window server and the FUSE cryptofs
+all in sync_page, the second core offline. One card carries the swap partition, /var (ext3 + journal), the cryptofs
+(the profiles, the HTTP cache taking the video's segments) and /media/internal; the swap storm plus the write-back
+fill its queue and every page fault of every process waits seconds. Enyo (173 MB) and Mochi (176 MB) held the share
+TOGETHER while neither daemon did alone, so the guard never shed. Built: the guard sums the browser's processes
+(`jihadBrowserTotalKb`) and the largest group sheds when the whole holds the share; it counts swap-outs with the
+swap-ins; the thresholds are prefs (`jihad.memory.flushKb/floorKb/swapinPages/shareKb/budgetKb`, environment words
+for a run). The third stress held: the player shed at 374 MB together, the watch page at 421 MB at the swap's onset,
+then 10 minutes at load 2-4, 73 of 73 USB probes (worst 274 ms), the witness never late. `jihad.cache.noDiskPaths`
+(default `googlevideo.com/videoplayback`): a video's segments never written to the disk cache — pushed, not yet
+measured by a stress. `docs/rounds/headroom-2026-11-08/notes.txt` has every number.
+
+**The device's own fault, found on the way (the owner's):** the ambient light sensor (I2C 0x44) is not connected;
+sensord polls it ten times a second, the controller's error interrupt fires 238 times a second (562 million since
+boot), the kernel logs 45 lines a second about it, so `/var/log/messages` rotates every 2-5 minutes and holds ten
+minutes; at idle the system time is 12 % and sensord has 25 hours of CPU in 16 days. Memory
+`touchpad-dead-light-sensor-i2c-storm`.
+
+**T-593:** `jihad.youtube.stopAutoplay` (default on, a settings row): on youtube.com a `play()` is refused
+(NotAllowedError) unless a TRUSTED mousedown, click or keydown came within 30 s — the engine's own gate passes any
+element a tap has played once, YouTube keeps one video element, and the watch page's own start went through a
+scripted `element.click()` until `isTrusted` was required. Measured on the device: a finger tap reaches the page as
+pointerdown/mousedown/mouseup/click, all trusted; a pan reaches it as nothing; YouTube's play() comes 1.9 s after the
+click. At a video's end YouTube NAVIGATES to the next (a "mix") by its own SPA and nothing in the page's persisted
+state stops that (the PREF cookie's f5=30030 is rewritten by YouTube to 20030; no autonav toggle exists in this site's
+DOM): the next page loads, its player waits paused. The mobile feed has no video elements at all (no previews). **R4's
+drop bar is NOT met:** a 60 s play at 360p drops 22.7 % of its frames (the main thread 35-84 % of a core, the daemon
+1.0-1.2 cores); the row cap `jihad.youtube.maxRows` binds at the API (height 360 refused under 240) but YouTube's
+mobile player picks its ladder by bandwidth regardless and played 640x360 anyway — the bar waits on T-594's hardware
+decoding or the owner's word.
+Suite scripts `youtube-no-next` (PASS on the three shells: the tap's play in 1.7-2.0 s, nothing for 70 s after the
+end, the URL unchanged — with the gate on YouTube does not even navigate) and `youtube-feed-no-preview` (the mobile
+feed has no video elements; its first runs failed because the GUARD stopped the feed page: a feed alone beside two
+idle daemons crossed the share while the kernel swapped the idle ones out at 256+ pages per poll — the swap threshold
+`jihad.memory.swapinPages` is 1024 now, the storms' size) with the new `probe NAME 'JS'` verb
+(`expect probe-has TEXT`) and `wait quiet PATTERN SECS` (the absence of a line); the compat component runs
+`jihad.compat.probe` on demand in every live top document when the pref changes (trace mode) — the inject channel's
+`jsurl` is refused silently by a page's CSP (YouTube's), `tools/device/finger/README.md`.
+
+**Also built:** `detached-run.sh` (a device test detached from its session, the USB probed every 10 s, the log pulled
+after), `player-exit-test.sh` (a player exits 32 s after its card, 0.65 s of CPU), `atlas-probe.sh` (Atlas on the feed:
+one to two cores, 395 MB), `yt-levers.sh` (T-592's levers three runs each: fonts, telemetry via
+`jihad.blocking.extra`, the heap cap, parallel parsing, Ion, lite off), the memory page's `&swf=` for the players'
+step; the home feed's baseline (a full core, 351 MB, 229 MB kept after the card).
+
+**Next (in order):** T-592's levers (`tools/device/finger/yt-levers.sh base fonts telemetry heap parsing ion nolite`,
+about 30 minutes of device time, then the kept ones per site and the finger tests of feed/search/watch/play/comments);
+T-594 (the OMX probe: a glibc-2.8 helper process, the cross-ABI trap); T-579 (Flash sound behind a card); then T-576's
+remaining rounds.
+
+**Traps:** a `-n` after novacom's `--` is taken as its own option (`tail -1`, not `-n 1`); the device has no `base64`
+(yt-play.sh's probe is pre-encoded now); `headroom-stress.sh`'s old t= was nominal (each loop 10 s real) — it is real
+time now; a heavy test through dev-sh.sh dies with a USB drop — `detached-run.sh`; after any drop or replug tap the
+USB alert's Close (583,232) first.
+
+---
+
+## 2026-11-07 — Tier 94: the memory guard, YouTube measured; the README and kits swept
 
 **What started it.** In T-576's games round a tap reached Learn to Fly 3's sponsor link; the Enyo card went on to a
 YouTube watch page, the daemon grew to 268 MB, swap filled and the TouchPad dropped off USB until the owner replugged it.

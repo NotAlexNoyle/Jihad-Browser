@@ -234,6 +234,17 @@ pref("jihad.ua.sites", "youtube.com=Mozilla/5.0 (Android 14; Mobile; rv:128.0) G
 pref("jihad.compat.enabled", true);
 // cavekit-device-headroom.md R4: YouTube offered only H.264, at most 480 rows and 30 fps (components/jihadWebCompat.js)
 pref("jihad.youtube.lite", true);
+pref("jihad.youtube.maxRows", 480);        // the tallest format the lite setting offers (a 60 s play at 360p dropped 22.7 % of its frames, 2026-11-08)
+// cavekit-device-headroom.md R4: on YouTube a video plays only within 30 s of a tap or a key: the next video and the
+// feed's previews wait (components/jihadWebCompat.js)
+pref("jihad.youtube.stopAutoplay", true);
+// the browser's own path rules beside the lists (components/jihadContentBlocker.js): "host/path-prefix;…", refused on
+// the page's own host too; empty until a measured lever keeps one (cavekit-device-headroom.md R3)
+pref("jihad.blocking.extra", "");
+// loads never written to the disk cache (components/jihadContentBlocker.js, the same "host/path-prefix;…" form): a
+// video's segments are appended to the player's buffer and read by no one again, and 2026-11-08's stress showed the
+// eMMC saturated by the swap and the cache's writes together (cavekit-device-headroom.md R1)
+pref("jihad.cache.noDiskPaths", "googlevideo.com/videoplayback");
 pref("jihad.compat.trace", false);         // a diagnosis mode: logs which engine call threw an XPCOM result to the page, with the page's stack
 
 // --- CSS :has() (the owner, 2026-10-16: "enable :has() by default in all 3 variants") — the engine
@@ -261,6 +272,22 @@ pref("jihad.gpu.enabled", true);
 // Now such a page, once, gets an engine window as wide as its content (up to 1100 px, no meta
 // viewport); the card's fit-zoom is unchanged. BrowserPageGoanna.cpp emitGeometry. ---
 pref("jihad.viewport.followOverflow", true);
+
+// --- The memory guard (cavekit-device-headroom.md R1, EngineHost::CheckMemoryPressure, 2026-11-07/08). Every 5 s:
+// under flushKb available the engine's caches are flushed and the heap returned; then, while memory stays short
+// (under floorKb, or over swapinPages swapped in or out per poll twice running, or this daemon and its players past budgetKb
+// with under twice flushKb left) and this daemon with its players holds shareKb or more, it sheds one step every
+// 10 s IN THIS ORDER: its Flash players (one process serves every movie of a daemon's pages, so one step), then its
+// most recently navigated page, stopped and shown as about:stopped with a link back. The share is also the browser's as
+// a whole: when every shell's daemon and player together hold it, the largest of them sheds (two shells of 175 MB each
+// swapped the device into an eMMC stall on 2026-11-08 while neither held its share alone). 0 for shareKb and budgetKb
+// means the computed default: the larger of 128 MB and 35 % of the RAM, and half the RAM. An environment word
+// (JIHAD_MEM_LOW_KB, _FLOOR_KB, _SWAPIN_PAGES, _SHARE_KB, _BUDGET_KB) wins for a test run. ---
+pref("jihad.memory.flushKb", 49152);
+pref("jihad.memory.floorKb", 24576);
+pref("jihad.memory.swapinPages", 1024);   // 2026-11-08: at 256 a feed page alone shed (the kernel swapping idle daemons out is not a storm); the storms ran 1000-7000
+pref("jihad.memory.shareKb", 0);
+pref("jihad.memory.budgetKb", 0);
 
 // --- jemalloc (T-493, 2026-10-16): the allocator is in the daemon now; every memory-pressure
 // notification (the last card's, the low-memory guardrail's, the lists' unload) also returns

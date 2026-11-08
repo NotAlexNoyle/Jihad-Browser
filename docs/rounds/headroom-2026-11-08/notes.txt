@@ -1,0 +1,180 @@
+Tier 94, the second day (2026-11-08): T-591's priority and the players' step, T-590's home feed, T-593's next video.
+Scripts: tools/device/finger/page-probe.sh, headroom-test.sh, headroom-stress.sh, detached-run.sh (the USB probe).
+Device: webOS CE 3.1.0, up 15 days; the three daemons of 973a2fc1 (daemon-only pushes of this day's builds noted below).
+
+== T-590: the home feed (Enyo, m.youtube.com/, 60 s, nothing touched; the shipped daemon, 04:5x device time)
+t=5  load 3.48 rss 122 MB  main 155 jiffies/5 s (a jiffy is 10 ms; 500 = a core)
+t=10 load 3.63 rss 161 MB  main 522
+t=15           rss 191 MB  main 493
+t=20           rss 205 MB  main 331
+t=25           rss 218 MB  main 539   JS helpers 5 x 23-31
+t=30           rss 230 MB  main 542
+t=35           rss 240 MB  main 559
+t=40 load 3.48 rss 304 MB  main 564   Compositor 50
+t=45           rss 346 MB  main 526   Compositor 68   free 28 MB
+t=50           rss 351 MB  main 495   Compositor 202  ImgDecoder 2 x 25
+t=55           rss 335 MB  main 556   Compositor 201  JihadExpress 31
+t=60 load 3.60 rss 333 MB  main 519   Compositor 113
+after the card closed: rss 229 MB (it was 64 MB before the card), load 3.66
+Reading: the feed is heavier than the watch page (245 MB alone): a full core on the main thread for the whole minute,
+351 MB at 50 s, and from 45 s the Compositor thread wakes to 40 % of a core: something on the feed animates by itself
+(R4: the previews). The daemon keeps 229 MB after the card: the page's heap is not collected until pressure or the
+next load.
+
+== T-591: the priority and oom_adj at the daemon's start (daemon of 08:00, pushed --daemon-only to the three shells)
+Main.cpp, before the first thread: setpriority(nice 5, JIHAD_NICE) and /proc/self/oom_adj 5 (JIHAD_OOM_ADJ); the
+players (plugin-container, forked) inherit both. Read back after the restart (prio-readback-1.txt): enyo, mochi and
+mojo each "nice 5, oom_adj 5", the log's "[jihad-bs] priority: nice 5, oom_adj 5 (the players inherit both)"; the
+frame threads keep JIHAD_GPU_FRAME_NICE (-6) once a page runs. LunaSysMgr and WebAppMgr: nice 5, oom_adj -17;
+novacomd nice -4.
+
+== T-591: the guard's players' step, one card (Enyo, jihad-memhog.html?mb=700&rate=10&swf=jihad-anim.swf, detached-run)
+t=6   the player up: nice=5 oom_adj=5 (inherited)
+t=18  "memory pressure: 78164 kB available ... the guard's budget or swap rule" (the flush; the daemon 528 MB)
+t=20  "memory shed: 48960 kB available (floor 24576), 295 pages swapped in ... this daemon 540632 kB, its players 10656 kB"
+      "memory shed: ended 1 Flash player(s)"
+t=22  "memory shed: ... this daemon 585536 kB, its players 0 kB" ; "memory shed: stopping http://.../jihad-memhog.html..."
+t=24  "memory shed: a page stopped"; t=26 "nothing left of this daemon's to stop"
+t=30  avail 133 MB; t=32 avail 554 MB, the daemon 106 MB; after the card: 44 MB. The t= labels are the script's reads
+      (each about 3 s real): the sheds are 10 s apart as coded.
+The host's probe through it: 38 novacom calls, 0 failed, the worst 2088 ms. The application manager's worst answer 850 ms.
+(The order: one plugin-container serves every movie of a daemon's pages, so "a background page's player, the foreground
+page's player" of the kit is one step here; the kit's wording changed to say so.)
+
+== T-591: a player with no movie left (player-exit-test.sh enyo, jihad-anim.swf in the memory page at 1 MB)
+the player up at +4 s (nice 5, oom_adj 5); after 20 s of the movie 259 jiffies; the card closed; the player exited
+32 s after the close with 65 jiffies (0.65 s of CPU) over those 32 s: the engine's 30 s unload delay
+(dom.ipc.plugins.unloadTimeoutSecs), kept — a card opened within it reuses the player (T-576). Under the memory floor
+the guard ends it at once (above).
+
+== T-591: the stress with the daemons at nice 5 (headroom-stress.sh 600, detached-run; Learn to Fly 3 in Mochi, the
+   watch page playing in Enyo; the device's 05:13-05:28 PST = 13:13-13:28 UTC)
+The script's t= was nominal that run (each loop about 10 s real: the pgrep and /proc scans); real time is about 2x.
+t=5..75   avail 258 -> 196 MB, load 4 -> 6.4, enyo 199 -> 250 MB, mochi 127 MB, the player 89-106 MB at nice 5; luna 390-480 ms; shot 1.3-3.2 s
+t=180-300 (real about 13:19-13:23 UTC) swapin 241, 241, 685, 364, 649 pages per poll, load 7.8 -> 10.2 -> 7.8, the mochi
+          daemon flushed twice (241 MB available: the swap rule), avail never under 190 MB; luna <= 790 ms, shot <= 3.45 s
+host      every probe from host second 375 to 531 FAILED in 3 ms: no device on USB; back by itself at 541; 15 of 74 failed
+t=330-440 calm again: load 5.3-5.8, avail 204-240 MB
+The device afterwards: uptime 16 days (no reboot), /tmp intact, the daemons' pids unchanged, no crash in any daemon log, the
+two cards still open (closed by hand), the USB alert closed (583,232), the screen the launcher.
+The syslog (messages.3.gz, 13:18:19-13:23:30Z): about 1000 lines per 10 s through 13:19:3x, then NOTHING until 13:22:39Z,
+when the queued lines came at once — the kernel's lines carrying their own timestamps 1378692..1378875 (13:19:35..
+13:22:39), powerlog's "top rss users" three times queued. So for 3 minutes no ordinary process ran (pmklogd, pmsyslogd,
+powerlog, novacomd at nice -4) while the kernel did (it kept logging the network's IPT lines every 30 s, the I2C
+interrupts kept counting). The browser's nice is beside the point for that: a nice -4 process starved too.
+Both days the hang came where YouTube started the next video by itself (yesterday's "trailer's end", load 5 -> 14.5).
+Real-time tasks on the device (stall-forensics-1.txt): pulseaudio's alsa-sink/alsa-source RR 5, Atlas's ReceiveQueue
+and WPE's Storage threads RR 5, the kernel's irq threads FIFO 50, migration/watchdog FIFO 99; sched_rt_runtime 950 ms.
+THE DEVICE'S OWN FAULT, found on the way: the ambient light sensor (isl29023 at I2C 0x44) is not connected; sensord
+(nice -3) polls it ten times a second and fails every time; the controller's error interrupt 183 (qup_err_intr) has
+fired 562,770,054 times since boot, 238 a second now; the kernel logs 45 lines a second about it ("I2C slave addr:0x44
+not connected"), so /var/log/messages rotates every 2-5 minutes and holds only the last ten minutes; at an idle moment
+the CPU split over 10 s was user 11 %, system 12.6 %, idle 73 %, and sensord has used 25 hours of CPU in 16 days.
+Not in the boot log (dmesg.txt.gz has no 0x44 line): it began later. Nothing of Jihad's; it costs the headroom this kit
+is about and hides the evidence. The owner's: sensord's light-sensor polling could be stopped if CE has a switch for it.
+Next: stallwatch.c (a SCHED_FIFO witness, a line a second) beside the stress, with the next video allowed
+(jihad.youtube.stopAutoplay=false), to name the mechanism; then the stress with the gate on.
+
+== T-591: the stall WITNESSED (headroom-stress.sh under stallwatch, the next video allowed; 05:50-06:04 PST)
+The stall came at 100-136 s this time (the application manager 7.2 s, a screenshot 4.5 s, load 15, SAFETY closed the
+cards at 136 s; the host's probe failed from host second 136 to 217: the device off USB 80 s, back by itself).
+The witness (stallwatch-1.log, a line a second, SCHED_FIFO 60): from t=77 the CPUs are in IOWAIT (85-100 of each 100
+jiffies), the second core offline (all zeros), user time near 0; the witness itself woke 3.5 and 5.1 s late at t=86 and
+t=93. Swap-OUT ran 200-1400 pages a second from t=60 to t=125 (the kernel making room), swap-in in bursts of 100-560;
+MemFree 100-160 MB the whole time ("available" 245-277 MB in the stress's reading: the page cache full of the video's
+and the cache's pages). The tasks in D state, by wait channel over the window: pmsyslogd sync_page x26, kswapd0
+get_request_wait x25 (the block queue full), kjournald journal_commit_transaction x19, mmcqd mmc_wait_for_req x13,
+pmsyslogd sync_buffer x12, LunaDownloadMgr, node, usbctl-watchd, cryptofs (the FUSE volume), the daemons (ld-2.23.so),
+pactl, BrowserServer-atlas, sensord, powerd, ls-hubd, LunaSysMgr — all sync_page or get_request_wait. The named pids:
+pmsyslogd D/sync_page for 30 s running, the Enyo daemon D/sys_mprotect (its mmap lock held by a fault on the card),
+the Mochi daemon fuse_get_req (cryptofs), pulseaudio congestion_wait then get_request_wait (a writer throttled).
+THE MECHANISM: one eMMC carries the swap partition, /var (ext3 + journal: syslog's 45 lines a second and its gzip
+rotations), the FUSE cryptofs (the profiles, the HTTP disk cache taking the video's segments) and /media/internal; the
+swap-out storm plus the dirty pages' write-back fill its request queue, and from then on every page fault of every
+process — syslogd, novacomd, the window server — waits on the card for seconds. CPU priority is beside the point.
+Nothing in the previous day's reading (swap, then CPU) was wrong, only incomplete: the swap is the I/O.
+What this says for the browser: (1) the guard must see the browser as a WHOLE — Enyo 173 MB and Mochi 176 MB together
+held the share while neither did alone, so no daemon shed; (2) swap-OUT is the earlier signal: it ran for a minute
+before the swap-ins; (3) the disk cache's writes of video segments onto the encrypted FUSE volume are avoidable
+(browser.cache.disk.max_entry_size, or the memory cache for media); (4) the device's own: the syslog flood and the
+journal (the dead light sensor), the owner's.
+Built next: the guard counts swap-outs too and sheds the largest of the browser's groups when the browser as a whole
+holds the share; stallwatch reads /proc/diskstats per volume.
+
+== T-593: what the page sees, and what YouTube does at a video's end (the hand daemon, trace on, the gate OFF for the
+   run; yt-autonav-2.txt; the 19 s video jNQXAC9IVRw)
+A finger tap on the play button reaches the page as pointerdown, mousedown, mouseup, click — one each, all trusted
+(isTrusted), no touch events at all; a 300 px drag up and back reaches the page as NOTHING (the card scrolls). So a
+gesture for the gate is a trusted mousedown/click/keydown, and a pan can never arm it. YouTube's play() came 1876 ms
+after the click. Persisted state before anything: the cookie "PREF=tz=America.Los_Angeles" only; localStorage
+yt-player-bandwidth, yt-player-caption-persistence, ytidb::LAST_RESULT_ENTRY_KEY, yt-icons-last-purged; no autonav
+control in the DOM (the toggle lives in the player's controls, not up); ytcfg has no AUTONAV/AUTOPLAY key.
+At the end of the video, with no one touching anything, the page NAVIGATED by itself to
+m.youtube.com/watch?v=RD_Jwka9NaY&pp=QAFIAQ%3D%3D (a "mix"), and 30 and 50 s later its video element was still
+paused at 0 with no source and no play() had been called: the next page's player takes longer than that on this
+device, so the stress's "next video" is first a whole watch-page load (the main thread's cost), then a play. The gate
+stops the play; the navigation needs YouTube's own autoplay setting (the PREF cookie's bit, researched next) or
+nothing stops the load.
+The previous run (yt-autonav-1.txt, the 4-minute trailer, the gate ON): the watch page's own start came 8 s after a
+click the page dispatched itself (element.click(), untrusted) — the gate now takes trusted events only; a play() at 64
+s since the last gesture was refused. The inject channel's jsurl was refused silently by the page (its CSP): the
+component's on-demand probe (setpref s jihad.compat.probe) is the channel now, and the suite has a `probe` verb.
+
+== T-591: the stress held (the third run, 06:3x PST; the guard seeing the browser as a whole, swap-outs counted;
+   the next video allowed; hstress-watch-2.log, stallwatch-2.log, the host's hstress-watch-2.host.txt)
+Setup (88 s before the loop): the game, then the watch page beside it; the guard's flushes at 1141 and 978 pages per
+5 s with 325 MB "available", then the Mochi daemon: "memory shed: 317480 kB available, 394 pages swapped in or out
+(3 polls running); this daemon 119052 kB, its players 88192 kB; the browser's processes together 374356 kB" —
+"ended 1 Flash player(s)". The loop: load 4.5-5.1, free memory falling 154 -> 75 MB over t=0-81 with no swap at all
+(the watcher), then at t=84-90 swap-out 370, 238, 134 pages a second and iowait 31-156 of 100: the ONSET of the
+storm of the second run; the Enyo daemon at once: "memory shed: 266500 kB available, 1000 pages swapped in or out
+(2 polls running); this daemon 264236 kB; the browser's processes together 421268 kB (this daemon the largest of
+them)" — "stopping https://m.youtube.com/watch?v=ZgZM0ewM4lU"; 10 s later "nothing left of this daemon's to stop"
+(2095 pages over the next poll: the collection). From then to t=600: load 1.8-3.9, 330 MB available, the application
+manager 370-460 ms, the screenshot 1.5-2.4 s; the host's probe 73 of 73 answered, the worst 274 ms; the witness never
+woke late. The thresholds (256 pages per 5 s, two polls running) fired at the onset, not before: kept.
+The browser's shedding is the honest answer of a 1 GB device with 300 MB already swapped out (WebAppMgr's and the
+system's pages, 16 days up): a 17 MB Flash game and a YouTube watch page do not fit beside the system without the
+eMMC taking the overflow, and the overflow is what took the device down. What a person sees: the game stops with the
+plugin's box, then the YouTube page becomes about:stopped with a link back. R1's four criteria are met.
+
+== T-593: YouTube's own autoplay setting, and the feed (yt-cookie-1.txt; the hand daemon, the gate off for the run)
+The player's controls up (a tap on the video, a second tap): still no autonav control anywhere in the DOM — the mobile
+site this identity gets has no toggle in the light DOM. The PREF cookie's bit, as the desktop scripts set it
+(f5=30030): set, the page reloaded with it, the 19 s video played by a tap; at its end YouTube navigated to
+watch?v=ydEMNzksm2M&pp=QAFIAQ%3D%3D all the same and REWROTE the cookie to f5=20030 — its own setting, not ours. So
+nothing of the page's persisted state stops the navigation from here; what the browser stops is the playback (the
+gate), and the next page's player waits paused with no source. The home feed: 30 and 60 s untouched, ZERO video
+elements on the page (35 then 61 images): the mobile feed has no inline previews — "previews do not play by
+themselves" holds by construction here, and the gate would refuse one.
+
+== T-590: Atlas on the home feed (atlas-probe.sh https://m.youtube.com/ 60; atlas-feed-1.txt)
+t=10 rss 46 MB; t=25 192 MB (its web process 328 jiffies/5 s); t=30 252 MB; t=35 288 MB (641); t=40 395 MB (998: two
+cores); t=45 289 MB; t=55 338 MB (791, load 9.2); t=60 353 MB; free memory 20-40 MB from t=35; after the card 43 MB.
+Beside Jihad's feed (above): a full core against one to two, 351 against 395 MB at the peak, and Jihad keeps 229 MB
+after the card where Atlas keeps 43: the page's heap waits for the next collection (the blocker's after-the-last-card
+collection), a lever for T-592 if it costs the next page.
+
+== T-593: a 60 s play at the default quality (yt-play.sh 1; yt-play-lite-1.txt, the probe line broken on the device
+   by a missing base64 — the probe is pre-encoded now; the frame counts in yt-play-lite-2.txt)
+the main thread 175-419 jiffies per 5 s (35-84 % of a core), the daemon 510-610 (1.0-1.2 cores), 220-251 MB, load 6.
+
+== T-593: the suite, and the row cap (finger-2026-11-08/finger-report.md; yt-rows-1.txt; yt-play-240-1.txt)
+youtube-no-next PASSES on Enyo, Mochi and Mojo: the tap's play() allowed 1.7-2.0 s after the click, then no play()
+allowed for 70 s, the video paused at its end, the URL unchanged — with the gate on YouTube does not even navigate to
+the next video (with it off it did, above). The 60 s play at 360p: 361 of 1593 frames dropped (22.7 %); with
+jihad.youtube.maxRows=240 the page's isTypeSupported answers h240 true, h360/480/720 false, VP9 false — and YouTube's
+player still played 640x360 (221 of 1016 dropped): the mobile player's H.264 ladder is its own, by bandwidth; the
+codec part of the lite technique holds, the height part is not obeyed here. R4's drop bar is NOT met at 360p; it waits
+on T-594's hardware decoding or the owner's word.
+youtube-feed-no-preview: the quiet waits pass (nothing plays), the probe got no answer on the feed twice (it did in
+the research when the card came to the feed from a watch page): diagnosed below.
+The feed script's probe, diagnosed (feed-diag): the card on the feed read "load done: about:stopped?url=https://m.youtube.com/"
+— the MEMORY GUARD had stopped the feed page within 20 s: the hand daemon's feed (toward 350 MB) beside the two idle
+job daemons (Mochi 113 MB, Mojo 60 MB) crossed the browser's share, and the kernel's swapping-out of those idle daemons
+(256+ pages per 5 s twice) read as the storm. The probe had no m.youtube.com document left to answer in. The storms
+that took the device ran 1000-7000 pages per poll; the swap threshold (jihad.memory.swapinPages) is 1024 now, a pref,
+and the feed script re-runs on it.
+At 1024 the feed page lived and the probes answered: youtube-feed-no-preview PASSES on Enyo (no play() allowed for
+30 s untouched and 10 s after a pan; videos 0, playing 0, images 35-61). The suite's four runs of the day pass:
+docs/rounds/finger-2026-11-08/finger-report.md (the failed first runs' frames deleted: nothing cites them).

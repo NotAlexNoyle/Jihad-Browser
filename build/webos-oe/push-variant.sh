@@ -40,7 +40,7 @@ say() { echo "[push-$V] $*"; }
 novacom -l >/dev/null 2>&1 || die "no device on novacom"
 
 # ── 1. pack the staged tree ──────────────────────────────────────────────────────────────────
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"; "$REPO/tools/device/close-usb-alert.sh" 300 || true' EXIT   # the Connected alert, looked for
 say "packing $STAGE"
 tar -czf "$TMP/payload.tar.gz" -C "$STAGE" .
 LOCAL_MD5=$(md5sum "$TMP/payload.tar.gz" | cut -c1-32)

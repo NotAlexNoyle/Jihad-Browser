@@ -266,23 +266,19 @@ def compile_steps(t, shell=None):
     return "\n".join(out) + "\n"
 
 def device_ready(bound=300):
-    """The USB drop (cavekit-device-headroom.md: the eMMC saturated under a heavy page takes the link down a while): a
-    script starts only with the device on novacom, and after a drop the system's "Connected" alert is closed (the
-    owner's standing rule) before the finger moves. Returns the seconds the device was away (-1: it did not come back)."""
-    away = 0
-    while away < bound:
-        r = subprocess.run(["novacom", "-l"], capture_output=True, text=True, errors="replace")
-        if "topaz" in r.stdout:
-            break
-        time.sleep(5); away += 5
-    else:
+    """The device on novacom, and the system's "Connected" alert closed by LOOKING at the screen
+    (tools/device/close-usb-alert.sh), the owner's standing rule: a drop inside a command can come back before any
+    poll sees it gone, so a blind tap on "was away" missed alerts (2026-11-09). Returns the seconds the device was away
+    (-1: it did not come back)."""
+    r = subprocess.run([os.path.join(ROOT, "tools", "device", "close-usb-alert.sh"), str(bound)],
+                       capture_output=True, text=True, errors="replace")
+    out = r.stdout.strip()
+    if r.returncode != 0 and "no device" in out:
         return -1
-    if away:
-        print(f"  the device was away {away} s (a USB drop): closing the Connected alert")
-        time.sleep(20)
-        subprocess.run("{ echo '/tmp/finger tap 583 232'; sleep 4; } | novacom run file://bin/sh", shell=True,
-                       capture_output=True)
-    return away
+    if "came back" in out or "was up" in out or "STILL UP" in out:
+        print("  " + out.replace("\n", "; "))
+    m = re.search(r"came back after (\d+) s", out)
+    return int(m.group(1)) if m else 0
 
 def devsh(script_text, args, bound, tmp):
     p = os.path.join(tmp, "s.sh")

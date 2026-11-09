@@ -142,10 +142,11 @@ EOS
 # measurement starts only with the device on novacom, and after a drop the system's "Connected" alert is closed (the
 # owner's standing rule) before anything else; the rows of a run the drop interrupted come out NA and are left out
 # of the medians (the summary skips a row whose values do not match its names).
-ready() {
-	local t=0
-	while ! novacom -l 2>/dev/null | grep -q topaz; do sleep 5; t=$((t+5)); [ $t -ge 300 ] && { echo "!! the device did not come back in 300 s"; return 1; }; done
-	if [ $t -gt 0 ]; then echo "   the device was away $t s (a USB drop): closing the Connected alert"; sleep 20; { echo '/tmp/finger tap 583 232'; sleep 4; } | novacom run file://bin/sh >/dev/null 2>&1; fi
+ready() {   # the device on novacom, and the Connected alert closed by LOOKING (tools/device/close-usb-alert.sh): a
+	# drop inside a command can come back before this poll, so "was the device away" is not enough (2026-11-09)
+	local out
+	out=$("$R/tools/device/close-usb-alert.sh" 300) || { echo "!! $out"; return 1; }
+	case "$out" in *"came back"*|*"was up"*) echo "   $out" | tr '\n' ' '; echo ;; esac
 	return 0
 }
 spike() {   # spike <url> -> the hand-started daemon with the timeline, the card on the page

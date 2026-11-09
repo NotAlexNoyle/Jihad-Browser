@@ -43,7 +43,8 @@ esac
 DEV_APP=/media/cryptofs/apps/usr/palm/applications/$APPID
 STAMP=$(date +%m%d-%H%M%S)
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+UA="$(cd "$(dirname "$0")/../.." && pwd)/tools/device/close-usb-alert.sh"   # the Connected alert, looked for on the way out
+trap 'rm -rf "$TMP"; "$UA" 300 || true' EXIT
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 

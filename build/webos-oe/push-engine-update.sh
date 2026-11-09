@@ -43,7 +43,8 @@ STRIP="${STRIP:-$TC_DEFAULT/bin/arm-webos-linux-gnueabi-strip}"
 VARIANTS="${*:-enyo mochi mojo}"
 appid() { case "$1" in enyo) echo net.riverstonerelay.jihad-browser;; mochi) echo net.riverstonerelay.jihad-browser-mochi;; mojo) echo net.riverstonerelay.jihad-browser-mojo;; *) return 1;; esac; }
 job()   { case "$1" in enyo) echo jihad;; mochi) echo jihad-mochi;; mojo) echo jihad-mojo;; *) return 1;; esac; }
-die() { echo "ERROR: $*" >&2; exit 1; }
+UA="$(cd "$(dirname "$0")/../.." && pwd)/tools/device/close-usb-alert.sh"   # a big push can drop USB: the alert looked for
+die() { echo "ERROR: $*" >&2; "$UA" 300 || true; exit 1; }
 say() { echo "[engine-update] $*"; }
 
 for v in $VARIANTS; do appid "$v" >/dev/null || die "unknown variant '$v'"; done
@@ -210,4 +211,5 @@ for v in $VARIANTS; do
     *) say "[$v] WARNING: $J status: $S" ;;
   esac
 done
+"$UA" 300 || true
 say "DONE"

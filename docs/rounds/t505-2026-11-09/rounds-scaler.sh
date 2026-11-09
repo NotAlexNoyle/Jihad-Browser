@@ -15,10 +15,11 @@ export JIHAD_REPO=$R; . build/webos-oe/host-path.sh
 # The USB drop (cavekit-device-headroom.md: eMMC saturation under a heavy round takes the link down for a while): before
 # a round the device must be back on novacom, and after any drop the system's "Connected" alert is closed (the owner's
 # standing rule) before the finger moves again. A round whose stream came back empty is run once more.
-ready() {
-	local t=0
-	while ! novacom -l 2>/dev/null | grep -q topaz; do sleep 5; t=$((t+5)); [ $t -ge 300 ] && { echo "!! the device did not come back in 300 s"; return 1; }; done
-	if [ $t -gt 0 ]; then echo "   the device was away $t s (a USB drop): closing the Connected alert"; sleep 20; { echo '/tmp/finger tap 583 232; rm -rf /media/internal/jihad-stream'; sleep 4; } | novacom run file://bin/sh >/dev/null 2>&1; fi
+ready() {   # the device on novacom, and the Connected alert closed by LOOKING (tools/device/close-usb-alert.sh): a
+	# drop inside a command can come back before this poll, so "was the device away" is not enough (2026-11-09)
+	local out
+	out=$("$R/tools/device/close-usb-alert.sh" 300) || { echo "!! $out"; return 1; }
+	case "$out" in *"came back"*|*"was up"*) echo "   $out" | tr '\n' ' '; echo ; { echo 'rm -rf /media/internal/jihad-stream'; sleep 3; } | novacom run file://bin/sh >/dev/null 2>&1 ;; esac
 	return 0
 }
 round() {   # round <name> <env words> <stream 0|1>
@@ -46,12 +47,18 @@ for i in $(seq 1 "$N"); do
 	say "scaler $i";  round wiki-s$i "JIHAD_GPU_CPU_SCALE=1" 1
 done
 [ "${VERIFY_FIRST:-0}" = 1 ] || verify_round
+if [ "${CONTROL_VERIFY:-0}" = 1 ]; then   # T-605: the control's verify, the scaler off (the pairs from different trees skipped)
+	say "control verify round (no scaler, no sampler)"
+	round wiki-cv "JIHAD_GPU_VERIFY=1" 0
+	L=$ROUND_DIR/fp-wiki-cv-daemon-gpu.log
+	echo "control verify: $(grep -ac '\] verify .*slot.*rows differ' $L) frames compared, with rows wrong: $(grep -a '\] verify .*slot.*rows differ' $L | grep -avc '; 0 rows wrong:'), structurally wrong: $(grep -a '\] verify .*slot.*rows differ' $L | grep -avc '; 0 rows structurally wrong'), not comparable: $(grep -ac 'not comparable' $L)"
+fi
 say "table"
 names=""; for i in $(seq 1 "$N"); do names="$names wiki-c$i wiki-s$i"; done
 python3 tools/host/wiki-rounds-table.py "$ROUND_DIR" $names 2>&1 | tail -20
 say "census (the last 'cpu bands' line of each round) and verify"
 for n in $names wiki-sv; do echo "$n: $(grep -a 'cpu bands:' $ROUND_DIR/fp-$n-daemon-gpu.log | tail -n 1 | sed 's/.*cpu bands: //' | cut -c1-200)"; done
-echo "verify frames: $(grep -ac '\] verify .*slot' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log), with rows wrong: $(grep -a '\] verify .*slot' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log | grep -avc '; 0 rows wrong:'), structurally wrong: $(grep -a '\] verify .*slot' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log | grep -avc '; 0 rows structurally wrong')"
+echo "verify frames: $(grep -ac '\] verify .*slot.*rows differ' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log), with rows wrong: $(grep -a '\] verify .*slot.*rows differ' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log | grep -avc '; 0 rows wrong:'), structurally wrong: $(grep -a '\] verify .*slot.*rows differ' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log | grep -avc '; 0 rows structurally wrong'), not comparable: $(grep -ac 'not comparable' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log)"
 grep -a '\] verify .*slot' $ROUND_DIR/fp-wiki-sv-daemon-gpu.log | grep -av '; 0 rows wrong:' | head -3 | cut -c1-220
 say "the daemon's memory over the drags (pid VmHWM VmRSS VmData kB) before/after, per round"
 for n in $names; do echo "-- $n: $(sed -n '/daemon memory before and after/,/^---/p' $ROUND_DIR/fp-$n-cpu.txt | awk 'NF >= 4 && $3 > 100000 {print "VmRSS " $3 " kB (HWM " $2 ")"}' | head -2 | tr '\n' ' ')"; done

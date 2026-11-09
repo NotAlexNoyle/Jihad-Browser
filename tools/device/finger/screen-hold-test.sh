@@ -36,7 +36,7 @@ sleep 50; echo "t+130 s (\$(date +%H:%M:%S)): display \$(state) (expected off or
 \$L palm://com.palm.display/control/setState '{"state":"on"}' >/dev/null 2>&1
 [ -n "\$old" ] && \$L palm://com.palm.display/control/setProperty '{"timeout":'\$old'}' >/dev/null 2>&1 && echo "display timeout restored to \$old s"
 [ -n "\$owc" ] && \$L palm://com.palm.display/control/setProperty '{"onWhenConnected":'\$owc'}' >/dev/null 2>&1 && echo "onWhenConnected restored to \$owc"
-for pid in \$(\$L palm://com.palm.applicationManager/running '{}' 2>/dev/null | tr ',' '\\n' | grep -A1 "\$ID\\"" | grep processid | sed 's/.*"processid":"\\([0-9]*\\)".*/\\1/'); do \$L palm://com.palm.applicationManager/close '{"processId":"'\$pid'"}' >/dev/null 2>&1; echo "card \$pid closed"; done
+for pid in \$(\$L palm://com.palm.applicationManager/running '{}' 2>/dev/null | tr ',' '\\n' | grep -A1 "\$ID\\"" | grep processid | sed 's/.*"processid": *"\\([0-9]*\\)".*/\\1/'); do \$L palm://com.palm.applicationManager/close '{"processId":"'\$pid'"}' >/dev/null 2>&1; echo "card \$pid closed"; done
 echo "--- the daemon's media lines"; grep -a "media playing\|media silent\|video playing\|video stopped" /var/palm/jihad/$V/daemon.log 2>/dev/null | tail -n 4
 echo "--- the card's hold lines"; tail -n +\$((m0+1)) /var/log/messages 2>/dev/null | grep -a "T-599" | tail -n 4 | cut -c1-160
 EOS

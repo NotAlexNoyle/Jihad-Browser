@@ -1,0 +1,318 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ownedbywuigi <ownedbywuigi@gmail.com>
+Date: Fri, 27 Mar 2026 12:38:53 +0000
+Subject: [PATCH] Issue #3030 - Implement lazy-loading for image elements.
+
+(cherry picked from commit 7574161abec8e7947db151f25b3ac434fcc1aa57)
+---
+ dom/base/nsGkAtomList.h                       |   1 +
+ dom/html/HTMLImageElement.cpp                 | 151 ++++++++++++++++++
+ dom/html/HTMLImageElement.h                   |  20 +++
+ .../test/test_img_attributes_reflection.html  |   5 +
+ dom/webidl/HTMLImageElement.webidl            |   2 +
+ 5 files changed, 179 insertions(+)
+
+diff --git a/dom/base/nsGkAtomList.h b/dom/base/nsGkAtomList.h
+index 902264e995..b62664a484 100644
+--- a/dom/base/nsGkAtomList.h
++++ b/dom/base/nsGkAtomList.h
+@@ -561,6 +561,7 @@ GK_ATOM(listing, "listing")
+ GK_ATOM(listitem, "listitem")
+ GK_ATOM(listrows, "listrows")
+ GK_ATOM(load, "load")
++GK_ATOM(loading, "loading")
+ GK_ATOM(loadingprincipal, "loadingprincipal")
+ GK_ATOM(localedir, "localedir")
+ GK_ATOM(localName, "local-name")
+diff --git a/dom/html/HTMLImageElement.cpp b/dom/html/HTMLImageElement.cpp
+index 05bfa01e43..06268ac1a7 100644
+--- a/dom/html/HTMLImageElement.cpp
++++ b/dom/html/HTMLImageElement.cpp
+@@ -46,6 +46,8 @@
+ #include "mozilla/net/ReferrerPolicy.h"
+ 
+ #include "nsLayoutUtils.h"
++#include "nsIScrollableFrame.h"
++#include "nsITimer.h"
+ 
+ using namespace mozilla::net;
+ 
+@@ -110,6 +112,7 @@ HTMLImageElement::HTMLImageElement(already_AddRefed<mozilla::dom::NodeInfo>& aNo
+   : nsGenericHTMLElement(aNodeInfo)
+   , mForm(nullptr)
+   , mInDocResponsiveContent(false)
++  , mLazyLoadAlwaysLoad(false)
+   , mCurrentDensity(1.0)
+ {
+   // We start out broken
+@@ -118,6 +121,7 @@ HTMLImageElement::HTMLImageElement(already_AddRefed<mozilla::dom::NodeInfo>& aNo
+ 
+ HTMLImageElement::~HTMLImageElement()
+ {
++  StopLazyLoadTimer();
+   DestroyImageLoadingContent();
+ }
+ 
+@@ -530,6 +534,15 @@ HTMLImageElement::AfterMaybeChangeAttr(int32_t aNamespaceID, nsIAtom* aName,
+       // not). Force a new load of the image with the new referrerpolicy.
+       forceReload = true;
+     }
++  } else if (aName == nsGkAtoms::loading &&
++             aNamespaceID == kNameSpaceID_None &&
++             aNotify) {
++    if (ShouldDeferImageLoad()) {
++      EnsureLazyLoadTimer();
++    } else {
++      StopLazyLoadTimer();
++      QueueImageLoadTask(false);
++    }
+   }
+ 
+   // Because we load image synchronously in non-responsive-mode, we need to do
+@@ -661,6 +674,8 @@ HTMLImageElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
+ void
+ HTMLImageElement::UnbindFromTree(bool aDeep, bool aNullParent)
+ {
++  StopLazyLoadTimer();
++
+   if (mForm) {
+     if (aNullParent || !FindAncestorForm(mForm)) {
+       ClearForm(true);
+@@ -714,6 +729,13 @@ HTMLImageElement::UpdateFormOwner()
+ void
+ HTMLImageElement::MaybeLoadImage()
+ {
++  if (ShouldDeferImageLoad()) {
++    EnsureLazyLoadTimer();
++    return;
++  }
++
++  StopLazyLoadTimer();
++
+   // Our base URI may have changed, or we may have had responsive parameters
+   // change while not bound to the tree. Re-parse src/srcset and call LoadImage,
+   // which is a no-op if it resolves to the same effective URI without aForce.
+@@ -921,6 +943,15 @@ HTMLImageElement::ClearForm(bool aRemoveFromForm)
+ void
+ HTMLImageElement::QueueImageLoadTask(bool aAlwaysLoad)
+ {
++  if (ShouldDeferImageLoad()) {
++    mLazyLoadAlwaysLoad = mLazyLoadAlwaysLoad || aAlwaysLoad;
++    EnsureLazyLoadTimer();
++    return;
++  }
++
++  mLazyLoadAlwaysLoad = false;
++  StopLazyLoadTimer();
++
+   // If loading is temporarily disabled, we don't want to queue tasks
+   // that may then run when loading is re-enabled.
+   if (!LoadingEnabled() || !this->OwnerDoc()->IsCurrentActiveDocument()) {
+@@ -940,6 +971,126 @@ HTMLImageElement::QueueImageLoadTask(bool aAlwaysLoad)
+   nsContentUtils::RunInStableState(task.forget());
+ }
+ 
++void
++HTMLImageElement::LazyLoadTimerCallback(nsITimer* aTimer, void* aClosure)
++{
++  HTMLImageElement* self = static_cast<HTMLImageElement*>(aClosure);
++  self->mLazyLoadTimer = nullptr;
++  self->MaybeLoadImageFromLazyTimer();
++}
++
++bool
++HTMLImageElement::ShouldLazyLoadImage() const
++{
++  nsAutoString loading;
++  const_cast<HTMLImageElement*>(this)->GetAttr(kNameSpaceID_None, nsGkAtoms::loading, loading);
++  return loading.LowerCaseEqualsLiteral("lazy");
++}
++
++bool
++HTMLImageElement::IsProbablyVisibleForLazyLoad() const
++{
++  nsIFrame* frame = const_cast<HTMLImageElement*>(this)->GetPrimaryFrame(Flush_Layout);
++  if (!frame) {
++    return false;
++  }
++
++  nsIDocument* doc = OwnerDoc();
++  if (!doc) {
++    return false;
++  }
++
++  nsIPresShell* presShell = doc->GetShell();
++  if (!presShell) {
++    return false;
++  }
++
++  nsIScrollableFrame* rootScroll = presShell->GetRootScrollFrameAsScrollable();
++  if (!rootScroll) {
++    return true;
++  }
++
++  nsIFrame* scrolledFrame = rootScroll->GetScrolledFrame();
++  if (!scrolledFrame) {
++    return true;
++  }
++
++  nsRect frameRect = frame->GetVisualOverflowRectRelativeToSelf();
++  frameRect.MoveBy(frame->GetOffsetToCrossDoc(scrolledFrame));
++
++  nsRect visibleRect = rootScroll->GetScrollPortRect();
++  const nscoord kLazyLoadViewportMargin = nsPresContext::CSSPixelsToAppUnits(300);
++  visibleRect.Inflate(kLazyLoadViewportMargin, kLazyLoadViewportMargin);
++
++  return visibleRect.Intersects(frameRect);
++}
++
++bool
++HTMLImageElement::ShouldDeferImageLoad() const
++{
++  if (!ShouldLazyLoadImage()) {
++    return false;
++  }
++
++  if (!IsInComposedDoc()) {
++    return false;
++  }
++
++  return !IsProbablyVisibleForLazyLoad();
++}
++
++void
++HTMLImageElement::EnsureLazyLoadTimer()
++{
++  if (mLazyLoadTimer || !LoadingEnabled()) {
++    return;
++  }
++
++  mLazyLoadTimer = do_CreateInstance("@mozilla.org/timer;1");
++  if (!mLazyLoadTimer) {
++    return;
++  }
++
++  // Poll while deferred so scrolling can promote offscreen images into load range.
++  mLazyLoadTimer->InitWithFuncCallback(LazyLoadTimerCallback, this, 250,
++                                       nsITimer::TYPE_ONE_SHOT);
++}
++
++void
++HTMLImageElement::StopLazyLoadTimer()
++{
++  mLazyLoadAlwaysLoad = false;
++
++  if (!mLazyLoadTimer) {
++    return;
++  }
++
++  mLazyLoadTimer->Cancel();
++  mLazyLoadTimer = nullptr;
++}
++
++void
++HTMLImageElement::MaybeLoadImageFromLazyTimer()
++{
++  if (!IsInComposedDoc() || !LoadingEnabled()) {
++    return;
++  }
++
++  if (ShouldDeferImageLoad()) {
++    EnsureLazyLoadTimer();
++    return;
++  }
++
++  if (InResponsiveMode()) {
++    bool alwaysLoad = mLazyLoadAlwaysLoad;
++    mLazyLoadAlwaysLoad = false;
++    QueueImageLoadTask(alwaysLoad);
++  } else {
++    mLazyLoadAlwaysLoad = false;
++    MaybeLoadImage();
++  }
++}
++
+ bool
+ HTMLImageElement::HaveSrcsetOrInPicture()
+ {
+diff --git a/dom/html/HTMLImageElement.h b/dom/html/HTMLImageElement.h
+index d85f7cfb03..63f5a88829 100644
+--- a/dom/html/HTMLImageElement.h
++++ b/dom/html/HTMLImageElement.h
+@@ -13,6 +13,7 @@
+ #include "imgRequestProxy.h"
+ #include "Units.h"
+ #include "nsCycleCollectionParticipant.h"
++#include "nsITimer.h"
+ 
+ namespace mozilla {
+ class EventChainPreVisitor;
+@@ -168,6 +169,14 @@ public:
+   {
+     SetHTMLAttr(nsGkAtoms::usemap, aUseMap, aError);
+   }
++  void GetLoading(nsAString& aLoading)
++  {
++    GetHTMLAttr(nsGkAtoms::loading, aLoading);
++  }
++  void SetLoading(const nsAString& aLoading, ErrorResult& aError)
++  {
++    SetHTMLAttr(nsGkAtoms::loading, aLoading, aError);
++  }
+   void SetName(const nsAString& aName, ErrorResult& aError)
+   {
+     SetHTMLAttr(nsGkAtoms::name, aName, aError);
+@@ -359,6 +368,15 @@ protected:
+   RefPtr<ResponsiveImageSelector> mResponsiveSelector;
+ 
+ private:
++  static void LazyLoadTimerCallback(nsITimer* aTimer, void* aClosure);
++
++  bool ShouldLazyLoadImage() const;
++  bool IsProbablyVisibleForLazyLoad() const;
++  bool ShouldDeferImageLoad() const;
++  void EnsureLazyLoadTimer();
++  void StopLazyLoadTimer();
++  void MaybeLoadImageFromLazyTimer();
++
+   bool SourceElementMatches(nsIContent* aSourceNode);
+ 
+   static void MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
+@@ -391,6 +409,8 @@ private:
+   RefPtr<ImageLoadTask> mPendingImageLoadTask;
+   nsCOMPtr<nsIPrincipal> mSrcTriggeringPrincipal;
+   nsCOMPtr<nsIPrincipal> mSrcsetTriggeringPrincipal;
++  nsCOMPtr<nsITimer> mLazyLoadTimer;
++  bool mLazyLoadAlwaysLoad;
+ 
+   // Last URL that was attempted to load by this element.
+   nsCOMPtr<nsIURI> mLastSelectedSource;
+diff --git a/dom/html/test/test_img_attributes_reflection.html b/dom/html/test/test_img_attributes_reflection.html
+index c40865a867..1542848f7b 100644
+--- a/dom/html/test/test_img_attributes_reflection.html
++++ b/dom/html/test/test_img_attributes_reflection.html
+@@ -47,6 +47,11 @@ reflectString({
+   attribute: "useMap",
+ })
+ 
++reflectString({
++  element: document.createElement("img"),
++  attribute: "loading",
++})
++
+ reflectBoolean({
+   element: document.createElement("img"),
+   attribute: "isMap",
+diff --git a/dom/webidl/HTMLImageElement.webidl b/dom/webidl/HTMLImageElement.webidl
+index 46dcd897bc..e7d2b5f1ed 100644
+--- a/dom/webidl/HTMLImageElement.webidl
++++ b/dom/webidl/HTMLImageElement.webidl
+@@ -29,6 +29,8 @@ interface HTMLImageElement : HTMLElement {
+            attribute DOMString? crossOrigin;
+            [CEReactions, SetterThrows]
+            attribute DOMString useMap;
++           [CEReactions, SetterThrows]
++           attribute DOMString loading;
+            [CEReactions, SetterThrows, Pref="network.http.enablePerElementReferrer"]
+            attribute DOMString referrerPolicy;
+            [CEReactions, SetterThrows]

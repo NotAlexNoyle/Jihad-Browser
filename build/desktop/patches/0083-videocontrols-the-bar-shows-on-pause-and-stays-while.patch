@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 9 Nov 2026 00:11:52 -0500
+Subject: [PATCH] videocontrols: the bar shows on pause and stays while paused
+ (touch, T-285)
+
+A touch screen has no pointer to hover the control bar back with: on the
+TouchPad a tap on a playing video paused it and the bar, faded out two
+seconds after the tap's own hover, never came back (measured 2026-11-08 on
+the three Jihad shells with the emulated finger). The "pause" media event
+now fades the bar in and clears the hide timer, and _hideControlsFn leaves a
+paused (not ended) video's bar alone; play still hides it after the usual
+timeout.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ toolkit/content/widgets/videocontrols.xml | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/toolkit/content/widgets/videocontrols.xml b/toolkit/content/widgets/videocontrols.xml
+index c118110536..0829640938 100644
+--- a/toolkit/content/widgets/videocontrols.xml
++++ b/toolkit/content/widgets/videocontrols.xml
+@@ -508,6 +508,14 @@
+                             if (!this.scrubber.isDragging)
+                                 this.setPlayButtonState(true);
+                             this.stopScrubTimer();    // Jihad: no interpolation while paused
++                            // Jihad: a touch screen has no pointer to hover the bar back with. A pause (the
++                            // tap on the picture) shows the bar and keeps it (_hideControlsFn) until play.
++                            if (!this.isAudioOnly && this.dynamicControls) {
++                                clearTimeout(this._hideControlsTimeout);
++                                this._hideControlsTimeout = 0;
++                                this.startFadeIn(this.controlBar);
++                                this._controlsHiddenByTimeout = false;
++                            }
+                             this.setupStatusFader();
+                             break;
+                         case "ended":
+@@ -937,6 +945,8 @@
+ 
+                 _hideControlsTimeout : 0,
+                 _hideControlsFn : function () {
++                    // Jihad: never while paused — a finger has no hover to bring the bar back (see "pause")
++                    if (Utils.video.paused && !Utils.video.ended) { Utils._hideControlsTimeout = 0; return; }
+                     if (!Utils.scrubber.isDragging) {
+                         Utils.startFade(Utils.controlBar, false);
+                         Utils._hideControlsTimeout = 0;

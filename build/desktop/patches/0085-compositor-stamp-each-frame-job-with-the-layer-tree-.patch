@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 9 Nov 2026 13:40:28 -0500
+Subject: [PATCH] compositor: stamp each frame job with the layer tree it
+ composed (T-605)
+
+The daemon's frame verify compared a GPU frame with a software reference
+that was sometimes composed after newer layer transactions had arrived,
+and reported the difference as a GPU fault (seen 2026-11-09 on the
+TouchPad). ShadowLayersUpdated now counts the content's transactions, each
+JihadComposeAndRead job records the count it composed on, and the puppet
+widget's poll returns it as its 55th value, so the daemon compares a frame
+only with a reference of the same tree and calls the rest "not comparable".
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 6 ++++++
+ gfx/layers/opengl/CompositorOGL.h         | 2 ++
+ widget/PuppetWidget.cpp                   | 1 +
+ 3 files changed, 9 insertions(+)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 5a317265ca..1e06b3c12d 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -2274,9 +2274,14 @@ JihadColumnRead(const JihadFrameRequest* aReq, int aInvX0, int aInvX1, int aInvL
+   return true;
+ }
+ 
++// T-605: the content's layer transactions applied so far (ShadowLayersUpdated), stamped on each frame job when it
++// composes: the daemon's verify compares a frame only with a reference composed on the same tree
++static std::atomic<uint32_t> sJihadTreeSeq{0};
++
+ bool
+ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScale, float aOffsetX, float aOffsetY)
+ {
++  if (aReq) aReq->treeSeq = sJihadTreeSeq.load();
+   // T-509 device test (JIHAD_GPU_TEST_STALL=<n>): the nth job holds the compositor thread 6 s, as a
+   // GPU wait that does not come back would; the daemon gives the frame up and goes on in software
+   {
+@@ -3301,6 +3306,7 @@ CompositorBridgeParent::ShadowLayersUpdated(LayerTransactionParent* aLayerTree,
+                                             int32_t aPaintSyncId,
+                                             bool aHitTestUpdate)
+ {
++  sJihadTreeSeq++;   // T-605
+   ScheduleRotationOnCompositorThread(aTargetConfig, aIsFirstPaint);
+ 
+   // Instruct the LayerManager to update its render bounds now. Since all the orientation
+diff --git a/gfx/layers/opengl/CompositorOGL.h b/gfx/layers/opengl/CompositorOGL.h
+index 2af33a0568..ecfac8a6f1 100644
+--- a/gfx/layers/opengl/CompositorOGL.h
++++ b/gfx/layers/opengl/CompositorOGL.h
+@@ -177,6 +177,8 @@ struct JihadFrameRequest {
+                                        //   parts' rects still reported (the daemon draws them on the CPU). With flag
+                                        //   64, the parts alone with the same rule
+   uint32_t partsGen = 0;               // T-505, out: the parts' signature (the poll's thirtieth int; see partsHave)
++  uint32_t treeSeq = 0;                // T-605, out: the content's layer transactions applied when the job composed
++                                       //   (the poll's 55th int): a verify reference of another count saw a newer tree
+   // T-505 (E2, the inspector's design): a frame without its parts reads the parts' picture in its own job when their
+   // signature (their layers' content, attributes, structure and sizes) is not the one the daemon holds a picture of:
+   // the parts alone, cleared transparent, packed on the band surface and read with their alpha into partsDest (each
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index fdcb3f7dbb..81416a6a70 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -1172,6 +1172,7 @@ PuppetWidget::JihadComposePoll(uint32_t aToken, bool aWait, int* aOut, bool* aSc
+           for (int k = 0; k < 4; k++) aOut[49 + k] = (int)job->req.partsSig[k];
+           aOut[53] = job->req.partsRead;
+         }
++        if (aOutLen >= 55) aOut[54] = (int)job->req.treeSeq;   // T-605: the tree the job composed
+       }
+       if (aScrollOnly) *aScrollOnly = job->req.scrollOnly;
+     } else if (!aWait && job->req.composed) {

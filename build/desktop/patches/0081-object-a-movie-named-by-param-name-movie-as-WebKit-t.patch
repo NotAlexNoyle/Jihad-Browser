@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Fri, 6 Nov 2026 19:45:15 -0500
+Subject: [PATCH] object: a movie named by <param name="movie">, as WebKit
+ takes it (T-574)
+
+The form written for IE, an <object> with a type and a movie param and no data, drew nothing here and plays in the
+stock browser. With no data attribute the params' movie, src or url name it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ dom/base/nsObjectLoadingContent.cpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/dom/base/nsObjectLoadingContent.cpp b/dom/base/nsObjectLoadingContent.cpp
+index b064216329..f85d0332b4 100644
+--- a/dom/base/nsObjectLoadingContent.cpp
++++ b/dom/base/nsObjectLoadingContent.cpp
+@@ -1874,6 +1874,19 @@ nsObjectLoadingContent::UpdateObjectParameters(bool aJavaURI)
+     // is not necessary.)
+   } else if (thisContent->NodeInfo()->Equals(nsGkAtoms::object)) {
+     thisContent->GetAttr(kNameSpaceID_None, nsGkAtoms::data, uriStr);
++    // Jihad T-574: an <object> whose movie stands in <param name="movie">, the form written for IE: WebKit
++    // takes src, movie, code or url from the params, and the stock browser plays it. Here it drew nothing
++    if (uriStr.IsEmpty()) {
++      nsTArray<MozPluginParameter> jihadParams;
++      GetNestedParams(jihadParams, false);
++      for (uint32_t i = 0; i < jihadParams.Length(); i++) {
++        const nsString& n = jihadParams[i].mName;
++        if (n.LowerCaseEqualsLiteral("movie") || n.LowerCaseEqualsLiteral("src") || n.LowerCaseEqualsLiteral("url")) {
++          uriStr = jihadParams[i].mValue;
++          break;
++        }
++      }
++    }
+   } else if (thisContent->NodeInfo()->Equals(nsGkAtoms::embed)) {
+     thisContent->GetAttr(kNameSpaceID_None, nsGkAtoms::src, uriStr);
+   } else {

@@ -1,0 +1,646 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Fri, 6 Nov 2026 11:43:25 -0500
+Subject: [PATCH] flash: a plugin frame without the wait, and a way straight to
+ the card (T-576)
+
+Bloxorz (36 fps) ran at 12 frames a second on the GPU path, against the stock browser's 28.6. Timed per frame:
+Flash's own work 27 ms, its draw 2 ms, the synchronous Show 14-17 ms, nearly all of it waiting for the daemon's
+main thread; and four copies on the parent's side.
+
+- JihadShow/JihadShowDone: Show without the wait. Two surfaces take turns, so at most two frames are in flight
+  and a draw due with two out waits for the answer without blocking the player.
+- The glib pump is the player's clock and its delay started when a frame's work ended: 16 ms after 20 ms of work
+  capped a movie at 27 frames a second. 4 ms while a movie plays, and it stops at a posted draw, or the player ran
+  its next frame with this one never drawn.
+- An opaque source keeps an opaque format: as B8G8R8A8 with its alpha forced the frame was blended over a white fill.
+- A floor of 28 ms between draws. Bubble Tanks at 55 fps had each frame drawn and copied 50 times a second, and the
+  card fell to 24 where the stock browser holds 32.
+- jihad_plugin_lane_copy, _proof, _set: the frame for the daemon's plugin lane, the display-list proof that nothing
+  lies over the plugin, and the plugin's marks off while the lane is open, so that the compositor's count of
+  requests means the page changed. jihad_offscreen_compositor_animating says an animation wants frames.
+
+The timers of a frame's parts are in the 2 s readouts.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ dom/plugins/ipc/PPluginInstance.ipdl      |   7 ++
+ dom/plugins/ipc/PluginInstanceChild.cpp   |  93 ++++++++++++++++-
+ dom/plugins/ipc/PluginInstanceChild.h     |   7 ++
+ dom/plugins/ipc/PluginInstanceParent.cpp  | 116 ++++++++++++++++++++--
+ dom/plugins/ipc/PluginInstanceParent.h    |  11 ++
+ gfx/layers/ipc/CompositorBridgeParent.cpp |   1 +
+ gfx/layers/ipc/CompositorBridgeParent.h   |   3 +
+ layout/generic/nsPluginFrame.cpp          |  92 +++++++++++++++++
+ widget/PuppetWidget.cpp                   |   8 ++
+ 9 files changed, 324 insertions(+), 14 deletions(-)
+
+diff --git a/dom/plugins/ipc/PPluginInstance.ipdl b/dom/plugins/ipc/PPluginInstance.ipdl
+index 5e60af7aa5..33ac1cb043 100644
+--- a/dom/plugins/ipc/PPluginInstance.ipdl
++++ b/dom/plugins/ipc/PPluginInstance.ipdl
+@@ -148,6 +148,9 @@ child:
+   // mCurrentInvalidateTask, so an extra request while one is in flight is a no-op.
+   async JihadRequestFrame();
+ 
++  // The parent has taken its copy of a frame sent by JihadShow: that surface is the child's again.
++  async JihadShowDone();
++
+   // ********************** Async plugins rendering
+   // see https://wiki.mozilla.org/Gecko:AsyncPluginPainting
+   // **********************
+@@ -266,6 +269,10 @@ parent:
+   // @param newSurface - remotable surface
+   // @param prevSurface - if the previous surface was shared-memory, returns
+   //                      the shmem for reuse
++  // Show without the wait: the player's thread goes on while the parent's main thread gets to the
++  // frame. Answered by JihadShowDone.
++  async JihadShow(NPRect updatedRect, SurfaceDescriptor newSurface);
++
+   sync Show(NPRect updatedRect, SurfaceDescriptor newSurface)
+     returns (SurfaceDescriptor prevSurface);
+ #ifdef MOZ_ENABLE_NPAPI
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 05e713ef83..f66d0a8b83 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -86,6 +86,15 @@ enum {
+     kJihadShowSites
+ };
+ static uint32_t gJihadShowFrom[kJihadShowSites];
++// The frame's three parts, summed between the 2 s reports (the `per draw` line)
++static uint32_t gJihadPumpUs = 0, gJihadDrawUs = 0, gJihadShowUs = 0;
++// A draw is posted on this thread's loop: the pump stops, or the player runs its next frame first
++// and this one is never drawn
++static bool gJihadDrawPosted = false;
++// When the plugin last asked for a draw itself: the pump's short period is for a movie that plays
++static uint32_t gJihadSelfInvalMs = 0;
++// When the last frame went to the parent (AsyncShowPluginFrame's floor)
++static uint32_t gJihadLastDrawMs = 0;
+ static const char* const kJihadShowNames[kJihadShowSites] = {
+     "setwin", "hostinval", "plugininval", "retry", "bgupd", "bgtail", "bgdestroy"
+ };
+@@ -256,6 +265,8 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
+     , mDoAlphaExtraction(false)
+     , mHasPainted(false)
+     , mSurfaceDifferenceRect(0,0,0,0)
++    , mJihadShowsInFlight(0)
++    , mJihadShowOwed(false)
+     , mDestroyed(false)
+ #ifdef XP_WIN
+     , mLastKeyEventConsumed(false)
+@@ -4039,7 +4050,7 @@ JihadPumpGlib(int aMaxIterations)
+         return 0;
+     }
+     int n = 0;
+-    while (n < aMaxIterations) {
++    while (n < aMaxIterations && !gJihadDrawPosted) {
+         if (sPending && !sPending(nullptr)) {
+             break;
+         }
+@@ -4200,6 +4211,17 @@ static bool JihadHostIsDrivingFrames()
+     return driving;
+ }
+ 
++bool
++PluginInstanceChild::RecvJihadShowDone()
++{
++    mJihadShowsInFlight--;
++    if (mJihadShowOwed) {
++        mJihadShowOwed = false;
++        AsyncShowPluginFrame();
++    }
++    return true;
++}
++
+ bool
+ PluginInstanceChild::RecvJihadRequestFrame()
+ {
+@@ -4258,9 +4280,16 @@ public:
+             fflush(stderr);
+         }
+ 
++        // The pump is the player's clock: a frame's timer fires only when the pump next runs, and
++        // this delay starts when the frame's work ended. 16 ms after 20 ms of work caps a movie at
++        // 27 frames a second however fast it could go (Bloxorz, 36 fps, 2026-11-06). While a movie
++        // plays the delay is short; a still one wakes as seldom as before.
++        static const int sPlayingMs = getenv("JIHAD_PLUGIN_PUMP_MS") ? atoi(getenv("JIHAD_PLUGIN_PUMP_MS")) : 4;
++        const uint32_t pumpNowMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
++        const bool playing = gJihadSelfInvalMs && (pumpNowMs - gJihadSelfInvalMs) < 250;
+         MessageLoop::current()->PostDelayedTask(
+             RefPtr<Runnable>(new JihadGlibPumpTask()).forget(),
+-            kJihadGlibPumpIntervalMs);
++            playing ? sPlayingMs : kJihadGlibPumpIntervalMs);
+         return NS_OK;
+     }
+ };
+@@ -4303,6 +4332,7 @@ JihadStartGlibPump(PluginInstanceChild* aInstance)
+ //
+ // The context is cached per (buffer,size) because a plugin repaints constantly and both
+ // objects would otherwise leak once per frame.
++
+ static void*
+ JihadPiranhaContextFor(unsigned char* aData, int aWidth, int aHeight, int aStride)
+ {
+@@ -4555,10 +4585,16 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+ 
+             // Let the plugin's own scheduled work run before we ask it to draw, so the
+             // frame it paints is current rather than whatever it had at instantiation.
+-            JihadPumpGlib(50);
++            {
++                PRIntervalTime t0 = PR_IntervalNow();
++                JihadPumpGlib(50);
++                gJihadPumpUs += PR_IntervalToMicroseconds(PR_IntervalNow() - t0);
++            }
+ 
++            PRIntervalTime drawT0 = PR_IntervalNow();
+             int16_t handled = mPluginIface->event
+                 ? mPluginIface->event(&mData, reinterpret_cast<void*>(&ev)) : -1;
++            gJihadDrawUs += PR_IntervalToMicroseconds(PR_IntervalNow() - drawT0);
+             gJihadPalmDrawEvents++;
+ 
+             static int sLogged = 0;
+@@ -4577,6 +4613,12 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+                     fprintf(stderr, "[jihad-npapi-child] palm draw: %u in %ums (%.1f fps)\n",
+                             sDraws, nowMs - sLastReport,
+                             sDraws * 1000.0 / double(nowMs - sLastReport));
++                    // WHERE A FRAME'S TIME GOES, per draw: the pump before it, the plugin's draw,
++                    // the wait in the synchronous Show. Whatever is left of the period is the
++                    // plugin's own work between draws, or the loop idle
++                    fprintf(stderr, "[jihad-npapi-child]   per draw: pump %u us, draw %u us, show %u us\n",
++                            gJihadPumpUs / sDraws, gJihadDrawUs / sDraws, gJihadShowUs / sDraws);
++                    gJihadPumpUs = gJihadDrawUs = gJihadShowUs = 0;
+                     // WHICH SITE ASKED FOR THOSE DRAWS. These are requests to draw, not draws:
+                     // AsyncShowPluginFrame coalesces while an invalidate task is already pending,
+                     // so the sum is an UPPER bound on sDraws and the interesting number is the
+@@ -4851,6 +4893,15 @@ PluginInstanceChild::ShowPluginFrame()
+         return true;
+     }
+ 
++    // A FRAME STILL IN FLIGHT HOLDS ITS SURFACE (JihadShow). Two surfaces take turns, so with one
++    // frame in flight the current surface is free; with two, or one and no second surface, the
++    // surface about to be drawn may still be read by the parent. Nothing blocks: the damage stays
++    // accumulated, the newest pixels are drawn when the parent answers.
++    if (mJihadShowsInFlight > 1 || (mJihadShowsInFlight == 1 && !mBackSurface)) {
++        mJihadShowOwed = true;
++        return true;
++    }
++
+     if (!EnsureCurrentBuffer()) {
+         return false;
+     }
+@@ -5034,9 +5085,24 @@ PluginInstanceChild::ShowPluginFrame()
+     // Unused, except to possibly return a shmem to us
+     SurfaceDescriptor returnSurf;
+ 
+-    if (!SendShow(r, currSurf, &returnSurf)) {
+-        return false;
++    // Measured 2026-11-06, Bloxorz: Flash's work 27 ms a frame, the draw 2 ms, the synchronous Show
++    // 14-17 ms, nearly all of it waiting for the daemon's main thread. 50 ms a frame, where the
++    // stock browser takes 33. So the frame goes without the wait; $JIHAD_PLUGIN_SYNC_SHOW=1 for an
++    // A/B run.
++    static const bool sSyncShow = getenv("JIHAD_PLUGIN_SYNC_SHOW") && atoi(getenv("JIHAD_PLUGIN_SYNC_SHOW"));
++    PRIntervalTime showT0 = PR_IntervalNow();
++    if (sSyncShow) {
++        if (!SendShow(r, currSurf, &returnSurf)) {
++            return false;
++        }
++    } else {
++        if (!SendJihadShow(r, currSurf)) {
++            return false;
++        }
++        mJihadShowsInFlight++;
++        gJihadLastDrawMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
+     }
++    gJihadShowUs += PR_IntervalToMicroseconds(PR_IntervalNow() - showT0);
+ 
+     SwapSurfaces();
+     mSurfaceDifferenceRect = rect;
+@@ -5098,6 +5164,7 @@ PluginInstanceChild::InvalidateRectDelayed(void)
+     }
+ 
+     mCurrentInvalidateTask = nullptr;
++    gJihadDrawPosted = false;
+     if (mAccumulatedInvalidRect.IsEmpty()) {
+         return;
+     }
+@@ -5125,7 +5192,19 @@ PluginInstanceChild::AsyncShowPluginFrame(void)
+     mCurrentInvalidateTask =
+         NewNonOwningCancelableRunnableMethod(this, &PluginInstanceChild::InvalidateRectDelayed);
+     RefPtr<Runnable> addrefedTask = mCurrentInvalidateTask;
++    // A FLOOR BETWEEN DRAWS. The card shows some 30 frames a second, the most the stock browser reached
++    // on any title is 32. A movie running faster (Bubble Tanks, 55 fps) had each frame drawn and copied
++    // twice, 50 a second, 11 ms of CPU each, on a device with none spare: the card fell to 24 where the
++    // stock browser holds 32. The movie's own clock is not touched, and the pump goes on meanwhile.
++    static const int sFloorMs = getenv("JIHAD_PLUGIN_DRAW_MS") ? atoi(getenv("JIHAD_PLUGIN_DRAW_MS")) : 28;
++    const uint32_t drawNowMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
++    const uint32_t sinceDraw = drawNowMs - gJihadLastDrawMs;
++    if (sFloorMs > 0 && gJihadLastDrawMs && sinceDraw < uint32_t(sFloorMs)) {
++        MessageLoop::current()->PostDelayedTask(addrefedTask.forget(), sFloorMs - sinceDraw);
++        return;
++    }
+     MessageLoop::current()->PostTask(addrefedTask.forget());
++    gJihadDrawPosted = true;
+ }
+ 
+ void
+@@ -5159,6 +5238,9 @@ PluginInstanceChild::InvalidateRect(NPRect* aInvalidRect)
+         // accumulated rectangle
+         gJihadShowFrom[sJihadInHostRepaint ? kJihadShowInvalidate
+                                           : kJihadShowPluginSelf]++;
++        if (!sJihadInHostRepaint) {
++            gJihadSelfInvalMs = uint32_t(PR_IntervalToMilliseconds(PR_IntervalNow()));
++        }
+         AsyncShowPluginFrame();
+         return;
+     }
+@@ -5484,6 +5566,7 @@ PluginInstanceChild::Destroy()
+     if (mCurrentInvalidateTask) {
+         mCurrentInvalidateTask->Cancel();
+         mCurrentInvalidateTask = nullptr;
++        gJihadDrawPosted = false;
+     }
+     if (mCurrentAsyncSetWindowTask) {
+         mCurrentAsyncSetWindowTask->Cancel();
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index db567059f5..d82f75d098 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -145,6 +145,9 @@ protected:
+     virtual bool
+     RecvJihadRequestFrame() override;
+ 
++    virtual bool
++    RecvJihadShowDone() override;
++
+     virtual bool
+     AnswerNPP_Destroy(NPError* result) override;
+ 
+@@ -696,6 +699,10 @@ private:
+     // in plugin coordinates.
+     nsIntRect mSurfaceDifferenceRect;
+ 
++    // JihadShow: frames sent the parent has not answered, and a draw that waits for its answer
++    int mJihadShowsInFlight;
++    bool mJihadShowOwed;
++
+     // Has this instance been destroyed, either by ActorDestroy or NPP_Destroy?
+     bool mDestroyed;
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index 6c55f4843f..d9abbe0fc1 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -984,6 +984,95 @@ MOZ_EXPORT int jihad_plugin_request_frame(void)
+ }
+ }
+ 
++
++static uint32_t gJihadRecvShowUs = 0;
++
++// THE PLUGIN LANE (T-576): while it is open the card takes the plugin's frames from here, and the plugin
++// marks nothing damaged. So any damage is the page's, even inside the plugin's rect: an element laid
++// exactly over the movie looks like the movie's own damage otherwise, and the lane drew over it.
++static bool gJihadLaneOpen = false;
++
++extern "C" MOZ_EXPORT void
++jihad_plugin_lane_set(int aOpen)
++{
++    gJihadLaneOpen = aOpen != 0;
++    if (!aOpen) {
++        PluginInstanceParent::JihadLaneClosed();
++    }
++}
++
++// The layer's image is the newest, but nothing has told the layer: the next paint of the page draws it
++void
++PluginInstanceParent::JihadLaneClosed()
++{
++    if (!gJihadLiveInstances) {
++        return;
++    }
++    nsTArray<PluginInstanceParent*> snap(*gJihadLiveInstances);
++    for (uint32_t i = 0; i < snap.Length(); i++) {
++        if (!gJihadLiveInstances->Contains(snap[i]) || !snap[i]->mJihadLastFrame) {
++            continue;
++        }
++        const IntSize size = snap[i]->mJihadLastFrame->GetSize();
++        NPRect r = { 0, 0, (uint16_t)size.height, (uint16_t)size.width };
++        snap[i]->RecvNPN_InvalidateRect(r);
++    }
++}
++
++// THE PLUGIN LANE's source (T-576): the newest frame of the page's one live plugin, opaque ones only.
++// aDest null: is there one, how big. The X byte comes out as alpha 255, which the card's raw blit needs.
++bool
++PluginInstanceParent::JihadLaneCopy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
++                                    int* aFullW, int* aFullH)
++{
++    if (!gJihadLiveInstances || gJihadLiveInstances->Length() != 1) {
++        return false;
++    }
++    RefPtr<gfx::DataSourceSurface> frame = (*gJihadLiveInstances)[0]->mJihadLastFrame;
++    if (!frame) {
++        return false;
++    }
++    const IntSize size = frame->GetSize();
++    if (aFullW) *aFullW = size.width;
++    if (aFullH) *aFullH = size.height;
++    if (!aDest) {
++        return true;
++    }
++    if (aX < 0 || aY < 0 || aW <= 0 || aH <= 0 || aX + aW > size.width || aY + aH > size.height) {
++        return false;
++    }
++    gfx::DataSourceSurface::ScopedMap map(frame, gfx::DataSourceSurface::READ);
++    if (!map.IsMapped()) {
++        return false;
++    }
++    for (int y = 0; y < aH; y++) {
++        const uint32_t* s = reinterpret_cast<const uint32_t*>(map.GetData() + (ptrdiff_t)(aY + y) * map.GetStride()) + aX;
++        uint32_t* d = reinterpret_cast<uint32_t*>(aDest + (ptrdiff_t)y * aDestStride);
++        for (int x = 0; x < aW; x++) {
++            d[x] = s[x] | 0xff000000u;
++        }
++    }
++    return true;
++}
++
++extern "C" MOZ_EXPORT int
++jihad_plugin_lane_copy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
++                       int* aFullW, int* aFullH)
++{
++    return PluginInstanceParent::JihadLaneCopy(aDest, aDestStride, aX, aY, aW, aH, aFullW, aFullH) ? 1 : 0;
++}
++
++bool
++PluginInstanceParent::RecvJihadShow(const NPRect& updatedRect,
++                                    const SurfaceDescriptor& newSurface)
++{
++    SurfaceDescriptor prevSurface;
++    if (!RecvShow(updatedRect, newSurface, &prevSurface)) {
++        return false;
++    }
++    return SendJihadShowDone();
++}
++
+ bool
+ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+                                const SurfaceDescriptor& newSurface,
+@@ -997,6 +1086,11 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+ 
+     MOZ_ASSERT(!IsUsingDirectDrawing());
+ 
++    // The handling's own time: what the child's blocked Show pays once this thread gets to it
++    struct JihadRecvShowTimer {
++        PRIntervalTime t0 = PR_IntervalNow();
++        ~JihadRecvShowTimer() { gJihadRecvShowUs += PR_IntervalToMicroseconds(PR_IntervalNow() - t0); }
++    } jihadTimer;
+     // FRAME-RATE READOUT, parent side. Paired with the child's `palm draw:` line: the child
+     // reports how often the plugin was ASKED to draw, this reports how many of those frames
+     // actually crossed the process boundary. A gap between the two numbers is the difference
+@@ -1009,12 +1103,14 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+         if (!sLastReport) {
+             sLastReport = nowMs;
+         } else if (nowMs - sLastReport >= 2000) {
+-            fprintf(stderr, "[jihad-npapi] RecvShow: %u in %ums (%.1f fps)\n",
++            fprintf(stderr, "[jihad-npapi] RecvShow: %u in %ums (%.1f fps), %u us each\n",
+                     sShows, nowMs - sLastReport,
+-                    sShows * 1000.0 / double(nowMs - sLastReport));
++                    sShows * 1000.0 / double(nowMs - sLastReport),
++                    gJihadRecvShowUs / sShows);
+             fflush(stderr);
+             sShows = 0;
+             sLastReport = nowMs;
++            gJihadRecvShowUs = 0;
+         }
+     }
+ 
+@@ -1137,8 +1233,12 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+             const bool srcHasAlpha =
+                 srcFmt != SurfaceFormat::B8G8R8X8 &&
+                 srcFmt != SurfaceFormat::R8G8B8X8;
++            // 2026-11-06: an opaque source keeps an opaque format. As B8G8R8A8 with its alpha forced
++            // the frame was BLENDED over a white fill, pixel by pixel, 165000 of them at Bloxorz's
++            // size; cairo draws B8G8R8X8 as a plain copy, and takes no alpha from the X byte.
+             RefPtr<gfx::DataSourceSurface> copy =
+-                gfx::Factory::CreateDataSourceSurface(ssize, SurfaceFormat::B8G8R8A8);
++                gfx::Factory::CreateDataSourceSurface(ssize, srcHasAlpha ? SurfaceFormat::B8G8R8A8
++                                                                         : SurfaceFormat::B8G8R8X8);
+             if (copy) {
+                 gfx::DataSourceSurface::ScopedMap dstMap(copy, gfx::DataSourceSurface::WRITE);
+                 if (dstMap.IsMapped()) {
+@@ -1147,13 +1247,9 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+                         uint8_t* dstRow = dstMap.GetData() + (ptrdiff_t)y * dstMap.GetStride();
+                         memcpy(dstRow, imgSurf->Data() + (ptrdiff_t)y * imgSurf->Stride(),
+                                rowBytes);
+-                        if (!srcHasAlpha) {
+-                            for (int32_t x = 0; x < ssize.width; x++) {
+-                                dstRow[x * 4 + 3] = 0xff;  // BGRA: byte 3 is alpha
+-                            }
+-                        }
+                     }
+                     image = new SourceSurfaceImage(ssize, copy);
++                    mJihadLastFrame = srcHasAlpha ? nullptr : copy;
+                 }
+             }
+         }
+@@ -1189,7 +1285,9 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
+     // never had to choose: it pulls the plugin synchronously inside the page paint, so it is
+     // 1:1 by construction. This counter is what lets the daemon be 1:1 too.
+     ++gJihadPluginFrameSeq;
+-    RecvNPN_InvalidateRect(updatedRect);
++    if (!gJihadLaneOpen) {
++        RecvNPN_InvalidateRect(updatedRect);
++    }
+ 
+     PLUGIN_LOG_DEBUG(("   (RecvShow invalidated for surface %p)",
+                       mFrontSurface.get()));
+diff --git a/dom/plugins/ipc/PluginInstanceParent.h b/dom/plugins/ipc/PluginInstanceParent.h
+index 3794f165eb..ecbad7db66 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.h
++++ b/dom/plugins/ipc/PluginInstanceParent.h
+@@ -28,6 +28,7 @@
+ #include "mozilla/EventForwards.h"
+ 
+ class gfxASurface;
++namespace mozilla { namespace gfx { class DataSourceSurface; } }
+ class gfxContext;
+ class nsPluginInstanceOwner;
+ 
+@@ -46,6 +47,7 @@ class D3D11SurfaceHolder;
+ class PluginInstanceParent : public PPluginInstanceParent
+                            , public PluginDataResolver
+ {
++    RefPtr<mozilla::gfx::DataSourceSurface> mJihadLastFrame;
+     friend class PluginModuleParent;
+     friend class BrowserStreamParent;
+     friend class PluginStreamParent;
+@@ -201,6 +203,15 @@ public:
+ #endif
+ 
+     // Async rendering
++    virtual bool
++    RecvJihadShow(const NPRect& updatedRect,
++                  const SurfaceDescriptor& newSurface) override;
++
++    // The plugin lane: the one live instance's newest opaque frame (jihad_plugin_lane_copy)
++    static bool JihadLaneCopy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
++                              int* aFullW, int* aFullH);
++    static void JihadLaneClosed();
++
+     virtual bool
+     RecvShow(const NPRect& updatedRect,
+              const SurfaceDescriptor& newSurface,
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 5539b7f61c..5a317265ca 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1419,6 +1419,7 @@ CompositorBridgeParent::CompositeToTarget(DrawTarget* aTarget, const gfx::IntRec
+   TimeStamp time = mIsTesting ? mTestTime : mCompositorScheduler->GetLastComposeTime();
+   const TimeStamp jihadT0 = sJihadPhases ? TimeStamp::Now() : TimeStamp();
+   bool requestNextFrame = mCompositionManager->TransformShadowTree(time, mVsyncRate);
++  mJihadAnimating = requestNextFrame;
+   if (sJihadPhases) gJihadPhase[7] += (TimeStamp::Now() - jihadT0).ToMilliseconds();
+   // Jihad T-504: an overview window is the scrolled content alone: the daemon stitches windows composed at
+   // other scrolls into one picture, where fixed and stuck layers would sit once per window. Their shadow
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.h b/gfx/layers/ipc/CompositorBridgeParent.h
+index c02ae33060..496f18d6f0 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.h
++++ b/gfx/layers/ipc/CompositorBridgeParent.h
+@@ -528,6 +528,9 @@ public:
+   // compositor thread: compose to the window (the pbuffer / renderbuffer) and read it into
+   // aDest (B8G8R8A8, aStride bytes a row, the top-left aWidth x aHeight of the frame).
+   uint32_t JihadRequests() const;
++  // T-576: the last composite's animations want another frame
++  bool JihadAnimating() const { return mJihadAnimating; }
++  mozilla::Atomic<bool> mJihadAnimating;
+   // Reads back rows [aRowLo, aRowHi) (0,0 = none asked for) joined with the rows the composite
+   // changed, which it reports in aInvLo/aInvHi (0,0 = nothing changed).
+   // Composes into the free window target and hands the read of rows [aReq->lo, aReq->hi)
+diff --git a/layout/generic/nsPluginFrame.cpp b/layout/generic/nsPluginFrame.cpp
+index a36c3259cf..8c8312e0ac 100644
+--- a/layout/generic/nsPluginFrame.cpp
++++ b/layout/generic/nsPluginFrame.cpp
+@@ -34,6 +34,7 @@
+ #include "nsIObjectLoadingContent.h"
+ #include "nsContentUtils.h"
+ #include "nsDisplayList.h"
++#include "nsIDocShell.h"
+ #include "nsFocusManager.h"
+ #include "nsLayoutUtils.h"
+ #include "nsFrameManager.h"
+@@ -1759,3 +1760,94 @@ nsPluginFrame::IsPaintedByGecko() const
+ }
+ 
+ NS_IMPL_FRAMEARENA_HELPERS(nsPluginFrame)
++
++// THE PLUGIN LANE's proof (T-576): the frame of the page's plugin can go straight into the card's
++// buffer only if the plugin is what shows in its whole rect. 1: it is. 0: no plugin drawn. -1: an
++// item is painted over it. -2: it lies under an effect or a clip of its own. -3: more than one.
++namespace {
++struct JihadLaneWalk {
++  int plugins = 0;
++  bool covered = false;
++  bool tainted = false;
++  nsRect bounds;
++  nsRect view;
++};
++} // namespace
++
++static void
++JihadLaneScan(nsDisplayListBuilder* aBuilder, nsDisplayList* aList, JihadLaneWalk& aWalk, bool aEffect)
++{
++  for (nsDisplayItem* i = aList->GetBottom(); i; i = i->GetAbove()) {
++    const nsDisplayItem::Type t = i->GetType();
++    bool snap = false;
++    if (t == nsDisplayItem::TYPE_PLUGIN) {
++      aWalk.plugins++;
++      aWalk.bounds = i->GetBounds(aBuilder, &snap);
++      if (aEffect) {
++        aWalk.tainted = true;
++      }
++      // The root scroll frame clips everything to the view, which the overscan rows go past
++      // and are right to. A clip inside the view is the page's own.
++      const DisplayItemClip& clip = i->GetClip();
++      if (clip.HasClip() &&
++          (clip.GetRoundedRectCount() > 0 ||
++           !clip.GetClipRect().Contains(aWalk.bounds.Intersect(aWalk.view)))) {
++        aWalk.tainted = true;
++      }
++      continue;
++    }
++    if (nsDisplayList* kids = i->GetChildren()) {
++      const bool effect = t == nsDisplayItem::TYPE_OPACITY || t == nsDisplayItem::TYPE_TRANSFORM ||
++                          t == nsDisplayItem::TYPE_PERSPECTIVE || t == nsDisplayItem::TYPE_MASK ||
++                          t == nsDisplayItem::TYPE_FILTER || t == nsDisplayItem::TYPE_BLEND_MODE;
++      JihadLaneScan(aBuilder, kids, aWalk, aEffect || effect);
++      continue;
++    }
++    // These paint nothing
++    if (t == nsDisplayItem::TYPE_LAYER_EVENT_REGIONS || t == nsDisplayItem::TYPE_SCROLL_INFO_LAYER ||
++        t == nsDisplayItem::TYPE_EVENT_RECEIVER) {
++      continue;
++    }
++    // A text item's bounds are its font's box, not its ink: the line right under a movie reaches
++    // into it by a few pixels and draws nothing there
++    nsRect itemBounds = i->GetBounds(aBuilder, &snap);
++    if (t == nsDisplayItem::TYPE_TEXT) {
++      itemBounds.Deflate(0, itemBounds.height / 4);
++    }
++    if (aWalk.plugins && !itemBounds.Intersect(aWalk.bounds).IsEmpty()) {
++      aWalk.covered = true;
++      static int sLog = 0;
++      if (sLog++ < 8) {
++        fprintf(stderr, "[jihad-npapi] lane: over the plugin: %s\n", i->Name());
++      }
++    }
++  }
++}
++
++extern "C" MOZ_EXPORT int
++jihad_plugin_lane_proof(nsIDocShell* aDocShell)
++{
++  nsCOMPtr<nsIPresShell> shell = aDocShell ? aDocShell->GetPresShell() : nullptr;
++  if (!shell) {
++    return 0;
++  }
++  shell->FlushPendingNotifications(Flush_Layout);
++  nsIFrame* root = shell->GetRootFrame();
++  if (!root) {
++    return 0;
++  }
++  nsDisplayListBuilder builder(root, nsDisplayListBuilderMode::PAINTING, false);
++  nsDisplayList list;
++  JihadLaneWalk walk;
++  walk.view = root->GetRect();
++  builder.EnterPresShell(root);
++  builder.SetDirtyRect(root->GetVisualOverflowRectRelativeToSelf());
++  root->BuildDisplayListForStackingContext(&builder, &list);
++  builder.LeavePresShell(root, nullptr);
++  JihadLaneScan(&builder, &list, walk, false);
++  list.DeleteAll();
++  if (walk.plugins == 0) return 0;
++  if (walk.plugins > 1) return -3;
++  if (walk.tainted) return -2;
++  return walk.covered ? -1 : 1;
++}
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 9507c010e5..67a6da3e99 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -1715,6 +1715,14 @@ jihad_offscreen_set_view(nsIWidget* aWidget, double aScale, double aOffsetX, dou
+   }
+ }
+ 
++// T-576: the last composite had animations that want another frame
++MOZ_EXPORT int
++jihad_offscreen_compositor_animating(nsIWidget* aWidget)
++{
++  mozilla::layers::CompositorBridgeParent* bridge = aWidget ? static_cast<PuppetWidget*>(aWidget)->JihadBridge() : nullptr;
++  return bridge && bridge->JihadAnimating() ? 1 : 0;
++}
++
+ // T-502: how many composites the compositor has asked for (layer updates, animations); the
+ // daemon pulls a frame whenever this moves. 0 without a compositor.
+ MOZ_EXPORT uint32_t

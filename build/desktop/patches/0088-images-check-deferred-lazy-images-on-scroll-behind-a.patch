@@ -1,0 +1,254 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Mon, 9 Nov 2026 13:40:28 -0500
+Subject: [PATCH] images: check deferred lazy images on scroll, behind a pref
+ (T-558)
+
+Upstream's lazy loading (the previous commit) polls each deferred image
+on its own timer. On the TouchPad that is a timer per image on a long
+page. The deferred images of a document now share one set, checked 50 ms
+after a scroll event of any of the document's scroll frames (a drag's
+events coalesce) and every 2 s as a safety net for layout that moves an
+image into view without a scroll. An image leaves the set on every load
+path, unbind and destruction. jihad.images.lazy (default false) gates it:
+off, loading="lazy" is read as eager, as before, until the lever is
+measured.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ dom/html/HTMLImageElement.cpp       | 123 ++++++++++++++++++++++++----
+ dom/html/HTMLImageElement.h         |  16 ++--
+ layout/generic/nsGfxScrollFrame.cpp |   5 ++
+ 3 files changed, 123 insertions(+), 21 deletions(-)
+
+diff --git a/dom/html/HTMLImageElement.cpp b/dom/html/HTMLImageElement.cpp
+index 06268ac1a7..0f121a900c 100644
+--- a/dom/html/HTMLImageElement.cpp
++++ b/dom/html/HTMLImageElement.cpp
+@@ -48,6 +48,8 @@
+ #include "nsLayoutUtils.h"
+ #include "nsIScrollableFrame.h"
+ #include "nsITimer.h"
++#include "nsClassHashtable.h"      // Jihad T-558: the documents' deferred images
++#include "mozilla/Preferences.h"   // Jihad T-558: jihad.images.lazy
+ 
+ using namespace mozilla::net;
+ 
+@@ -971,17 +973,80 @@ HTMLImageElement::QueueImageLoadTask(bool aAlwaysLoad)
+   nsContentUtils::RunInStableState(task.forget());
+ }
+ 
++// Jihad T-558: the deferred images of each document, checked together — right after a scroll event of one of the
++// document's scroll frames (50 ms later, so a drag's events coalesce), and every 2 s as a safety net for layout
++// that moves an image into view without a scroll. Raw pointers: an image leaves the set in StopLazyLoadTimer, which
++// its destructor, UnbindFromTree and every load path call; a document's entry goes when its set empties.
++namespace {
++struct JihadLazyDoc {
++  nsTArray<mozilla::dom::HTMLImageElement*> images;
++  nsCOMPtr<nsITimer> timer;
++  nsIDocument* doc = nullptr;
++};
++typedef nsClassHashtable<nsPtrHashKey<nsIDocument>, JihadLazyDoc> JihadLazyDocs;
++JihadLazyDocs* sJihadLazyDocs = nullptr;
++const uint32_t kJihadLazyScrollDelayMs = 50;
++const uint32_t kJihadLazySafetyMs = 2000;
++
++void JihadLazyArm(JihadLazyDoc* aEntry, uint32_t aMs);
++
++void
++JihadLazyTimerCallback(nsITimer* aTimer, void* aClosure)
++{
++  JihadLazyDoc* entry = static_cast<JihadLazyDoc*>(aClosure);
++  // the check may load an image (which takes it out of the set) or keep it: walk a copy
++  nsTArray<mozilla::dom::HTMLImageElement*> images(entry->images);
++  for (uint32_t i = 0; i < images.Length(); i++) {
++    if (sJihadLazyDocs && sJihadLazyDocs->Get(entry->doc) == entry && entry->images.Contains(images[i])) {
++      images[i]->MaybeLoadImageFromLazyTimer();
++    }
++  }
++  if (sJihadLazyDocs && sJihadLazyDocs->Get(entry->doc) == entry && !entry->images.IsEmpty()) {
++    JihadLazyArm(entry, kJihadLazySafetyMs);
++  }
++}
++
+ void
+-HTMLImageElement::LazyLoadTimerCallback(nsITimer* aTimer, void* aClosure)
++JihadLazyArm(JihadLazyDoc* aEntry, uint32_t aMs)
+ {
+-  HTMLImageElement* self = static_cast<HTMLImageElement*>(aClosure);
+-  self->mLazyLoadTimer = nullptr;
+-  self->MaybeLoadImageFromLazyTimer();
++  if (!aEntry->timer) {
++    aEntry->timer = do_CreateInstance("@mozilla.org/timer;1");
++    if (!aEntry->timer) {
++      return;
++    }
++  } else {
++    aEntry->timer->Cancel();
++  }
++  aEntry->timer->InitWithFuncCallback(JihadLazyTimerCallback, aEntry, aMs, nsITimer::TYPE_ONE_SHOT);
++}
++} // namespace
++
++/* static */ void
++HTMLImageElement::JihadLazyScrolled(nsIDocument* aDoc)
++{
++  if (!sJihadLazyDocs || !aDoc) {
++    return;
++  }
++  JihadLazyDoc* entry = sJihadLazyDocs->Get(aDoc);
++  if (!entry || entry->images.IsEmpty()) {
++    return;
++  }
++  JihadLazyArm(entry, kJihadLazyScrollDelayMs);
+ }
+ 
+ bool
+ HTMLImageElement::ShouldLazyLoadImage() const
+ {
++  // Jihad T-558: a lever measured before it is a default; off, loading="lazy" is read as eager, as before
++  static bool sPrefRead = false;
++  static bool sLazyOn = false;
++  if (!sPrefRead) {
++    sPrefRead = true;
++    sLazyOn = Preferences::GetBool("jihad.images.lazy", false);
++  }
++  if (!sLazyOn) {
++    return false;
++  }
+   nsAutoString loading;
+   const_cast<HTMLImageElement*>(this)->GetAttr(kNameSpaceID_None, nsGkAtoms::loading, loading);
+   return loading.LowerCaseEqualsLiteral("lazy");
+@@ -1042,18 +1107,27 @@ HTMLImageElement::ShouldDeferImageLoad() const
+ void
+ HTMLImageElement::EnsureLazyLoadTimer()
+ {
+-  if (mLazyLoadTimer || !LoadingEnabled()) {
++  if (mLazyLoadRegistered || !LoadingEnabled()) {
+     return;
+   }
+-
+-  mLazyLoadTimer = do_CreateInstance("@mozilla.org/timer;1");
+-  if (!mLazyLoadTimer) {
++  nsIDocument* doc = OwnerDoc();
++  if (!doc) {
+     return;
+   }
+-
+-  // Poll while deferred so scrolling can promote offscreen images into load range.
+-  mLazyLoadTimer->InitWithFuncCallback(LazyLoadTimerCallback, this, 250,
+-                                       nsITimer::TYPE_ONE_SHOT);
++  if (!sJihadLazyDocs) {
++    sJihadLazyDocs = new JihadLazyDocs();
++  }
++  JihadLazyDoc* entry = sJihadLazyDocs->Get(doc);
++  if (!entry) {
++    entry = new JihadLazyDoc();
++    entry->doc = doc;
++    sJihadLazyDocs->Put(doc, entry);
++  }
++  entry->images.AppendElement(this);
++  mLazyLoadRegistered = true;
++  if (!entry->timer) {
++    JihadLazyArm(entry, kJihadLazySafetyMs);
++  }
+ }
+ 
+ void
+@@ -1061,12 +1135,29 @@ HTMLImageElement::StopLazyLoadTimer()
+ {
+   mLazyLoadAlwaysLoad = false;
+ 
+-  if (!mLazyLoadTimer) {
++  if (!mLazyLoadRegistered) {
+     return;
+   }
+-
+-  mLazyLoadTimer->Cancel();
+-  mLazyLoadTimer = nullptr;
++  mLazyLoadRegistered = false;
++  if (!sJihadLazyDocs) {
++    return;
++  }
++  nsIDocument* doc = OwnerDoc();
++  JihadLazyDoc* entry = doc ? sJihadLazyDocs->Get(doc) : nullptr;
++  if (!entry) {
++    return;
++  }
++  entry->images.RemoveElement(this);
++  if (entry->images.IsEmpty()) {
++    if (entry->timer) {
++      entry->timer->Cancel();
++    }
++    sJihadLazyDocs->Remove(doc);   // deletes the entry with its timer reference
++    if (sJihadLazyDocs->Count() == 0) {
++      delete sJihadLazyDocs;
++      sJihadLazyDocs = nullptr;
++    }
++  }
+ }
+ 
+ void
+diff --git a/dom/html/HTMLImageElement.h b/dom/html/HTMLImageElement.h
+index 63f5a88829..e661c66993 100644
+--- a/dom/html/HTMLImageElement.h
++++ b/dom/html/HTMLImageElement.h
+@@ -368,14 +368,20 @@ protected:
+   RefPtr<ResponsiveImageSelector> mResponsiveSelector;
+ 
+ private:
+-  static void LazyLoadTimerCallback(nsITimer* aTimer, void* aClosure);
++public:
++  // Jihad (cavekit-lowpower-uxp.md R4, T-558): upstream's lazy loading (issue #3030, reverted there) carried behind
++  // the pref jihad.images.lazy, its 250 ms poll per image replaced by one check per document when its scroll frames
++  // fire a scroll event (ScrollFrameHelper::FireScrollEvent -> JihadLazyScrolled), with a slow safety check (2 s)
++  // while any image of the document is deferred.
++  static void JihadLazyScrolled(nsIDocument* aDoc);
++  void MaybeLoadImageFromLazyTimer();   // the document's check calls it: load now, or stay deferred
+ 
++private:
+   bool ShouldLazyLoadImage() const;
+   bool IsProbablyVisibleForLazyLoad() const;
+   bool ShouldDeferImageLoad() const;
+-  void EnsureLazyLoadTimer();
+-  void StopLazyLoadTimer();
+-  void MaybeLoadImageFromLazyTimer();
++  void EnsureLazyLoadTimer();   // registers this image with its document's deferred set
++  void StopLazyLoadTimer();     // and takes it out
+ 
+   bool SourceElementMatches(nsIContent* aSourceNode);
+ 
+@@ -409,8 +415,8 @@ private:
+   RefPtr<ImageLoadTask> mPendingImageLoadTask;
+   nsCOMPtr<nsIPrincipal> mSrcTriggeringPrincipal;
+   nsCOMPtr<nsIPrincipal> mSrcsetTriggeringPrincipal;
+-  nsCOMPtr<nsITimer> mLazyLoadTimer;
+   bool mLazyLoadAlwaysLoad;
++  bool mLazyLoadRegistered = false;   // Jihad T-558: in its document's deferred set
+ 
+   // Last URL that was attempted to load by this element.
+   nsCOMPtr<nsIURI> mLastSelectedSource;
+diff --git a/layout/generic/nsGfxScrollFrame.cpp b/layout/generic/nsGfxScrollFrame.cpp
+index ca87163980..1a27354aec 100644
+--- a/layout/generic/nsGfxScrollFrame.cpp
++++ b/layout/generic/nsGfxScrollFrame.cpp
+@@ -74,6 +74,7 @@
+ #include <algorithm>
+ #include <cstdlib> // for std::abs(int/long)
+ #include <cmath> // for std::abs(float/double)
++#include "mozilla/dom/HTMLImageElement.h"   // Jihad T-558: JihadLazyScrolled
+ 
+ #define PAINT_SKIP_LOG(...)
+ // #define PAINT_SKIP_LOG(...) printf_stderr("PSKIP: " __VA_ARGS__)
+@@ -4842,6 +4843,10 @@ ScrollFrameHelper::FireScrollEvent()
+   WidgetGUIEvent event(true, eScroll, nullptr);
+   nsEventStatus status = nsEventStatus_eIgnore;
+   nsIContent* content = mOuter->GetContent();
++  // Jihad T-558: the document's deferred lazy images get one check after this scroll (HTMLImageElement.cpp)
++  if (content) {
++    mozilla::dom::HTMLImageElement::JihadLazyScrolled(content->OwnerDoc());
++  }
+   nsPresContext* prescontext = mOuter->PresContext();
+   // Fire viewport scroll events at the document (where they
+   // will bubble to the window)

@@ -96,7 +96,7 @@ ENGINE_LOOSE=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirna
                --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$BUNDLE") || die "could not derive the engine's loose files (engine-loose-files.py)"
 ENGINE_LOOSE=$(echo "$ENGINE_LOOSE" | { grep -v '^goanna\.js$' || true; } | tr '\n' ' ')
 say "the engine's loose files this branch changes: ${ENGINE_LOOSE:-none}"
-OWN="chrome.manifest jihad-bundle.id jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
+OWN="chrome.manifest jihad-bundle.id jihad-watch.list jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 # The add-on manager's provider (modules/addons/*) belongs to the engine it was staged with.

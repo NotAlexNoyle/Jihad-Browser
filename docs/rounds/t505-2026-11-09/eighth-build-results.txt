@@ -1,0 +1,22 @@
+# T-505 scaler, eighth build (two-pass NEON, vrshrn rounding), 2026-11-09 17:16-17:38, Enyo, desktop Wikipedia
+# VERIFY_FIRST=1 CONTROL_VERIFY=1 rounds-scaler.sh 3; control = JIHAD_GPU_CPU_SCALE unset, scaler = 1
+
+round      bottom band: samples / tallest express made ms drags 1-3 median/p90/max   drags 4-16       fps   main%
+wiki-c1      8 /  89 rows                 84/219/1513 (50)                           63/134/323 (233) 11.0  -    
+wiki-s1      8 / 122 rows                 65/167/470 (56)                            59/146/388 (267) 11.4  -    
+wiki-c2     14 /  74 rows                 106/247/291 (48)                           67/152/282 (249) 10.0  -    
+wiki-s2      6 / 112 rows                 52/160/364 (71)                            56/137/362 (276) 11.4  -    
+wiki-c3      7 /  86 rows                 107/211/464 (50)                           67/158/353 (248) 10.6  -    
+wiki-s3     12 /  61 rows                 83/210/560 (52)                            63/140/561 (243) 11.0  -    
+
+
+control verify: 171 frames compared, with rows wrong: 16, structurally wrong: 13, not comparable: 0
+verify frames: 131, with rows wrong: 22, structurally wrong: 4, not comparable: 0
+
+rate (fps, drags 4-16): control 11.0 10.0 10.6 (mean 10.5); scaler 11.4 11.4 11.0 (mean 11.3), +0.7 fps, +7 %
+census: the scaler composes 306-367 of 340-400 band frames on the CPU (control 0-24); verify with the scaler 4 frames structurally wrong of 131, the control 13 of 171
+T-605: 'not comparable: 0' in both verify rounds: the frame and its reference were composed on the same layer tree, so the stale-reference explanation is out.
+The dumped pair (eighth-verify-frame-vs-reference.jpg, the scaler verify round, y -141 during the load): the frame shows the sidebar part and
+the tab labels but not the article column; the reference composed right behind it on the same tree shows the whole page. The control
+verify's wrong frames are the same kind (slots 2 and 0 at the top while the page loads, 400-990 rows differ); after the load every frame
+differs in the same 84 rows (anti-aliasing class, not structural).

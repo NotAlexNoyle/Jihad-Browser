@@ -1780,6 +1780,7 @@ MainAssistant.prototype.refreshDownloads = function () {
 };
 
 MainAssistant.prototype.handleDownloadStart = function (url) {
+	Mojo.Log.error("[Jihad] download start %s", String(url || "").substring(0, 80));   // T-596: when each event arrives
 	JihadDownloads.start(url);
 	JihadToast.show("info", $L("Downloading ") + JihadDownloads.nameOf(url) + "…");
 	this.refreshDownloads();
@@ -1800,6 +1801,7 @@ MainAssistant.prototype.handleDownloadProgress = function (url, soFar, total) {
 };
 
 MainAssistant.prototype.handleDownloadFinished = function (event) {
+	Mojo.Log.error("[Jihad] download finished %s -> %s", String((event && event.url) || "").substring(0, 80), event && event.tmpFilePath);   // T-596
 	var rec = JihadDownloads.update(event && event.url, {state: "done", path: event && event.tmpFilePath, mimeType: event && event.mimeType});
 	if (this._dlPct) { delete this._dlPct[String((event && event.url) || "")]; }
 	JihadToast.show("info", $L("Downloaded ") + (rec ? rec.name : "") + ".");

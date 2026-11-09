@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 afternoon below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,45 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-09 (afternoon) — T-600 DONE on the three shells; the USB alert closed by LOOKING; the engine queue to 0089; the roots refresh (READ FIRST)
+
+**State:** main at `c21660f6` and after, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`). Commits
+of the afternoon: `2e52de90` T-600, `fcda92af` the alert closer, `4d65112b` the engine queue 0078-0089 + pins
+(`UXP_PIN=29595a81f8`, the fork's head; patch-queue.sh --check: 89 patches reproduce it), `c21660f6` the roots refresh.
+**The owner's gitlink bumps:** `third_party/uxp` (to `29595a81f8`) and `third_party/webos-sdk-redux` (`5349208`, 0.4.1).
+The fork branch `jihad/uxp-RB_20261027` gained six commits today (upstream's lazy images cherry-picked, T-605's stamp, the
+T-505 scaler, the helper-thread switches, Jihad's lazy check, T-603's pref) — push the fork with main.
+
+**The owner's rule, asked a FOURTH time: close the USB "Connected" alert every time.** `tools/device/close-usb-alert.sh
+[wait-s]` screenshots, finds the alert (both buttons' dark gray + their white labels), taps Close (583,232), proves it
+gone; the bench, the scaler rounds, the finger runner, the push scripts and load-error-test.sh call it. Ad-hoc novacom
+commands do not: after any EOF/drop, and as the last device step of a turn, run it.
+
+**Trap found today: cards pile up.** Every launch with a `target` opens a NEW Enyo card; a test's close step that never
+matched `applicationManager/running` (its reply has a SPACE after the colon: `"processid": "1013"`) left nine Enyo cards.
+The daemon held 350 MB, swap was 90 % full, load 10-12, and the USB link dropped on nearly every screenshot. Close the
+Jihad cards before a device run (`sed 's/.*"processid": *"\([0-9]*\)".*/\1/'`).
+
+**T-600 DONE** (the card's own page for a failed load, Atlas 0.9.6): by finger on the three shells, an unresolvable host and
+a refused port each show the panel; Try Again with the server up loads the page; Wi-Fi Settings opens the Wi-Fi app. Nine
+faults fixed on the way (the commit message lists them; the window's failed STOP now counts as a failure in
+GoannaRenderPage.cpp, Mochi's retry uses the view's `load()`). Kits: ui-shell R9, mochi-ui R2, mojo-ui R2.
+
+**T-597 DONE, the dev-loop rule for chrome files:** the daemon's startup-cache fingerprint now also covers the files the bundle names in `jihad-watch.list` (the engine's loose files the branch changes, e.g. videocontrols.xml, and Jihad's chrome; 20 files, 35 ms a start), so a binding laid by hand under a running daemon is dropped at the next start even after the old daemon writes its cache back at exit. Still: `push-engine-update.sh --daemon-only` re-lays the BUNDLE's loose chrome, so rebuild the bundle (`make-device-bundle.sh`) after any chrome edit first; a file outside the list (a stock chrome file edited by hand) still needs stop the job, clear `<app>/cache/startupCache*`, start.
+
+**T-505 / T-605 (the eighth scaler build, 17:16-17:38):** the scaler 11.3 fps against the control's 10.5 on desktop Wikipedia (+7 %), no added wrong frames (`docs/rounds/t505-2026-11-09/eighth-build-results.txt`); default is the owner's call (the batch). T-605: both verify rounds read "not comparable: 0", so the frame and its reference shared the tree; the dump shows the frame without the article column at the load's top while the reference has it. Lead: a frame without its parts hides every sticky layer, stuck or not (JihadHideForJob), and the parts list (JihadFixedRectsNow) adds a rect only for a layer with a visible region of its own; a diagnostic (`JIHAD_GPU_DIFFLOG=1`: "hide part …" lines) is in the engine build made during the lever chain, to run after it.
+
+**Certificates:** the forge now answers raw file addresses with a sign-in page; `update-engine.sh` and `audit-roots.py`
+read UXP release's `certdata.txt` through git. UXP release = the base, roots identical. Buypass Class 2/3 are on Mozilla's
+report for NSS 3.134 (not out; 3.133 newest): printed as scheduled, not a finding; the platform import's list is 108/108.
+The device checks re-run (docs/rounds/certs-2026-11-09/): as before.
+
+**Next in order:** the T-505 scaler's eighth build (`VERIFY_FIRST=1 CONTROL_VERIFY=1 rounds-scaler.sh 3`, running at the
+time of writing) and T-605's control verify → the lever chain (scratchpad `lever-chain.sh`: -O2, helpers2, nice5,
+malloc-nnff, purge5s, the decoder A/B, reduced motion, lazy images, Skia, omni.ja; the -O2 libxul predates T-603/T-605/the
+eighth scaler build, all off by default) → T-604's rest profiles (base, nojs) → T-560's record → T-567 → Tier 93 → Tier 94
+(T-592, T-594) → Tier 95 → the owner's dialog batch (T-603's default, PGO, reduced motion, lazy images).
 
 ## 2026-11-09 — Tier 91 begun: the Atlas references current and weighed, the SDK at 0.4.1 and proven; T-505 at its bound; the low-power baseline script (READ FIRST)
 

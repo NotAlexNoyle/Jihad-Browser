@@ -550,6 +550,17 @@ for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 # with the one it last ran under and, when they differ, throws away the engine's compiled-script
 # cache (which is keyed by path alone and would otherwise keep serving the previous version of
 # every script an upgrade replaced — see DropStaleStartupCache in render/goanna/EngineHost.cpp).
+# T-597: the files a startup cache can hold a stale compiled copy of and that a dev push lays by hand — the engine's
+# loose files this branch changes (videocontrols.xml, the add-on manager's modules: engine-loose-files.py, as
+# push-engine-update.sh derives them) and this project's own chrome — named for the daemon, which adds their size and
+# time to the cache's fingerprint (DropStaleStartupCache): one pushed under a running daemon, whose exit then writes its
+# old table back, still drops the cache at the next start (2026-11-08: videocontrols.xml undone that way).
+. "$HERE/../engine/engine-version.env"
+WATCH=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirname "$DIST")" --uxp "$REPO/third_party/uxp" \
+          --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$OUT" 2>/dev/null) || WATCH=""
+{ echo "$WATCH"; (cd "$OUT" && ls -d prefsui/content/* modules/Jihad*.jsm chrome.manifest jihad-prefsui.manifest 2>/dev/null); } |
+  { grep -v '^$' || true; } | LC_ALL=C sort -u > "$OUT/jihad-watch.list"
+echo "  startup-cache watch list: $(wc -l < "$OUT/jihad-watch.list") files"
 rm -f "$OUT/jihad-bundle.id"
 BUNDLE_ID=$(cd "$OUT" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-32)
 [ ${#BUNDLE_ID} -eq 32 ] || { echo "!! could not compute the bundle id" >&2; exit 31; }

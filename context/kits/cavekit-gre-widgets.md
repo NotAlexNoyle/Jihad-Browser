@@ -54,6 +54,9 @@ Full inventory, including the ones deliberately not used: `../impl/impl-gre-widg
   without the user's gesture is refused (NotAllowedError, so the page can fall back to a muted start), and a page that
   unmutes its playing element without a gesture gets it paused *(BrowserServer 0x1131 / Atlas's switch, T-603;
   2026-11-09: `suite/autoplay-sound.test`, `suite/autoplay-unmute.test`; the shipped default is the owner's)*
+- [~] A Bluetooth headset's play/pause/next/previous keys act on the page's media *(the webOS 3 counterpart of Atlas
+  0.9.6's media session, T-601; 2026-11-09: the path from each shell's key handler through the daemon to the page passes
+  on the three shells (the self-test hooks' mediakey scenario); the keys service's own delivery waits for a headset)*
 **Dependencies:** cavekit-offscreen-rendering.md (R2), cavekit-input-bridging.md (R1)
 
 ### R2: Date and time inputs are either right or off

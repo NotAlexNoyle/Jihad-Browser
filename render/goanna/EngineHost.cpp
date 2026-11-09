@@ -919,6 +919,25 @@ static void DropStaleStartupCache(const char* greDir, const std::string& cacheDi
   const std::string gre(greDir);
   FingerprintDir(gre, "", nullptr, &sum, &files);
   FingerprintDir(gre + "/components", "components", "jihad", &sum, &files);
+  // T-597: the files the bundle names in jihad-watch.list (the engine's loose files this branch changes and this
+  // project's chrome, make-device-bundle.sh): a binding pushed by hand under a running daemon changes their size or
+  // time without changing the bundle id, and must drop the cache all the same
+  if (FILE* wl = fopen((gre + "/jihad-watch.list").c_str(), "r")) {
+    char line[512];
+    while (fgets(line, sizeof line, wl)) {
+      line[strcspn(line, "\r\n")] = 0;
+      if (!line[0] || strstr(line, "..")) continue;
+      struct stat st;
+      if (stat((gre + "/" + line).c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+      char rec[600];
+      snprintf(rec, sizeof rec, "%s|%lld|%lld", line, (long long)st.st_size, (long long)st.st_mtime);
+      uint64_t h = 1469598103934665603ULL;
+      for (const char* c = rec; *c; ++c) { h ^= (unsigned char)*c; h *= 1099511628211ULL; }
+      sum += h;
+      ++files;
+    }
+    fclose(wl);
+  }
   char id[80] = "";
   if (FILE* f = fopen((gre + "/jihad-bundle.id").c_str(), "r")) {
     if (!fgets(id, sizeof id, f)) id[0] = 0;

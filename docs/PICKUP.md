@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-07 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,51 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-09 — Tier 91 begun: the Atlas references current and weighed, the SDK at 0.4.1 and proven; T-505 at its bound; the low-power baseline script (READ FIRST)
+
+**State:** main at this commit on top of `ed3b5fb6` (pushed by the owner on 2026-11-09 morning with the fork's `91f482f803`;
+the `third_party/uxp` gitlink still points before it — the owner's bump). **Two gitlinks are the owner's:** `third_party/uxp`
+(the videocontrols commit) and `third_party/webos-sdk-redux` (checked out at `5349208`, release 0.4.1; memory
+`feedback-no-submodule-pointer-commits`). **The owner's standing rule of the day:** "whenever you pull in a new dependency
+like atlas or uxp, look for things in the new code that we can use to improve jihad browser" — every fetch or pin move is
+followed by a reading of the range for Jihad (`docs/REFERENCES.md` for the references, `docs/ENGINE-SOURCE.md` for the
+engine, the SDK kit's notes), each item adopt / n/a / owner's call (memory `feedback-weigh-new-dependency-code`).
+
+**T-505 (R3, desktop Wikipedia ≥ 24 fps under a finger) is PARTIAL at its bound:** the Deciding Vote of 2026-11-04 declined
+the scaler; the one lever left (the scale choice (a), the tiles at resolution 1 scaled down on the CPU into the bands; T-567
+names the same) is asked of the owner in the day's dialog. Everything else in the row is done.
+
+**Tier 91, T-545…T-549 DONE, T-550 READY (the owner's root step).** The Atlas app's origin is webOS-ports' repository
+(fast-forwarded `e6cc687` -> `e665566`, tag 0.9.6, 24 commits), BrowserAdapter and BrowserServer carry their 2013 fork parents
+as read-only `ancestor` remotes, `tools/host/update-references.sh` fast-forwards every reference checkout and prints what
+arrived (refuses on uncommitted changes), `docs/REFERENCES.md` records the heads and weighs the range: **adopt** the
+screen-on-while-media-plays hold (Tier 96, T-599: the daemon's audio poll already knows when media plays; the card's
+`blockScreenTimeout`); **owner's call** (the dialog): an in-card load-error panel with Retry, BT media keys to page media, the
+screen lock during video, BrowserServer's `SetAutoplayWithSound` toggle; the rest n/a (Jihad's IPP print already names the job
+and takes the printer's paper; its shells send typed text nowhere; no updater, no Help item; Enyo loaded once). The SDK
+submodule is at 0.4.1 (`Current -> ./0.4.1`); `build-novacom.sh` passes `-std=gnu17` (gcc 15's C23 `bool`; the SDK's
+`GCC15-C23-BOOL.md`) and built novacom/novacomd into `tools/host/bin/`; on the bench the 0.4.1 client listed, ran, moved a
+40 MB file both ways byte-identical, 0.4.1's palm-package built the three .ipks in the container (Enyo 1.0.4 — **the device
+now runs the .ipks' payload**, installed by `palm-install` in 161-184 s each, the Enyo one re-laid by a full
+`push-variant.sh` with its postinst; `default-check.sh` ×3 faults 0 after), palm-launch launched and closed each card (the
+Enyo card seen by eye). **The host's novacomd is still the 0.4 build** (`/opt/nova/bin/novacomd`, root, started
+2026-10-15): 0.4.1's Linux code is 0.4's (`WINDOWS-PORT-LINUX-REGRESSION.md`: the libusb-1.0 backend is Windows-only), so the
+bench stands; the swap and the `/opt/PalmSDK` refresh are the two root commands handed to the owner (T-550's row).
+
+**T-555, the low-power baseline, begun:** `tools/device/lowpower-bench.sh` (RUNS=5; the T-502 spike helpers with
+`JIHAD_INJECT=1 JIHAD_GPU_TIMELINE=1`): per run desktop Wikipedia's first content frame to idle with the main thread's
+calls (count, ≥100 ms, max, sum), the daemon's RSS/PSS at idle and 30 s later, the scripted pan's rate (gap-trace), the
+jsbench page's five timings (from the title the daemon logs), the long page's pan rate, and the daemon's start to first
+content frame cold (page cache dropped) and warm — the daemon now stamps the timeline with `daemon main` (Main.cpp) and
+`first painted frame` (BrowserPageGoanna.cpp) so start-to-first-frame reads off one clock. Rows in
+`docs/rounds/lowpower-2026-11-09/lowpower-bench.tsv`, logs beside them, medians with spread at the end; the numbers go into
+`docs/research/lowpower-uxp.md` as R1's baseline (the row's status says where it stands).
+
+**Device state:** the three variants installed from today's .ipks (adapter impls `5a99f5ce`/`c6b677d7`/`b866c7ae`, the
+2026-11-08 build), the daemon `61a71464` (the timeline stamps) pushed daemon-only to all three with the bundle's chrome
+(videocontrols.xml patched, from the rebuilt bundle `4d2e0c0c`), the upstart jobs running the GPU path; `enableALS=false`
+persists; the sensors run. The Enyo app's version on the device is 1.0.4, Mochi/Mojo 1.0.0.
 
 ## 2026-11-08 — Tier 94: the stall WITNESSED and held; T-590, T-591 DONE; T-593's gate built (READ FIRST)
 

@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26"
-last_edited: "2026-10-26"
+last_edited: "2026-11-09"
 complexity: quick
 ---
 
@@ -33,25 +33,25 @@ Reference: the session-start rule "fast-forward the reference repos first" (memo
 ### R1: Each reference tracks its real upstream
 **Description:** Every Atlas checkout fetches from where Atlas development happens now, all of it.
 **Acceptance Criteria:**
-- [ ] `atlas-browser-app`'s origin is `https://github.com/webOS-ports/org.webosports.app.atlas` (not the redirected old name); the other three keep Herrie82's repositories, and the fork parents (`woce`, `isis-project`) are added as a second, read-only remote named `ancestor` for comparison, never pulled into the default branch
-- [ ] Every checkout has fetched all branches and tags of its origin (`git fetch --all --tags --prune`), and its default branch is at the origin's head by fast-forward only (a reference is never merged, rebased or edited)
-- [ ] A checkout with local changes or a diverged default branch is reported and left alone, not reset
+- [x] `atlas-browser-app`'s origin is `https://github.com/webOS-ports/org.webosports.app.atlas` (not the redirected old name); the other three keep Herrie82's repositories, and the fork parents (`woce`, `isis-project`) are added as a second, read-only remote named `ancestor` for comparison, never pulled into the default branch
+- [x] Every checkout has fetched all branches and tags of its origin (`git fetch --all --tags --prune`), and its default branch is at the origin's head by fast-forward only (a reference is never merged, rebased or edited)
+- [x] A checkout with local changes or a diverged default branch is reported and left alone, not reset
 **Dependencies:** none
 
 ### R2: One command updates them and says what moved
 **Description:** The update is repeatable at every session start.
 **Acceptance Criteria:**
-- [ ] A host script (`tools/host/update-references.sh`) runs R1 for the four Atlas checkouts (and takes other reference checkouts as arguments: `webos-docs`, `ref-forks/lunace-webos-ports`), with no network writes and no change to Jihad's own repository
-- [ ] It prints, per checkout, the commits that arrived (count and one line each, newest first), new branches and tags, and the head it ended at; with nothing new it says so
-- [ ] It refuses to run while any checkout has uncommitted changes in it, naming them
+- [x] A host script (`tools/host/update-references.sh`) runs R1 for the four Atlas checkouts (and takes other reference checkouts as arguments: `webos-docs`, `ref-forks/lunace-webos-ports`), with no network writes and no change to Jihad's own repository
+- [x] It prints, per checkout, the commits that arrived (count and one line each, newest first), new branches and tags, and the head it ended at; with nothing new it says so
+- [x] It refuses to run while any checkout has uncommitted changes in it, naming them
 **Dependencies:** R1
 
 ### R3: What moved is read for Jihad
 **Description:** An update is only useful if what changed upstream is weighed against Jihad.
 **Acceptance Criteria:**
-- [ ] The last-read head of each reference is recorded in `docs/REFERENCES.md` (repository, branch, commit, date), so the next update shows only the commits since
-- [ ] For the commits since the last record, a short note in the same file says which touch something Jihad shares or mirrors (the BrowserServer command set and the YAP contract, cavekit-ipc-contract.md; the adapter's paint, scroll and input paths, cavekit-offscreen-rendering.md and cavekit-input-bridging.md; the app's card behaviour) and, per item, adopt / not applicable / owner's call
-- [ ] Items marked "owner's call" are put to the owner as multiple-choice questions
+- [x] The last-read head of each reference is recorded in `docs/REFERENCES.md` (repository, branch, commit, date), so the next update shows only the commits since
+- [x] For the commits since the last record, a short note in the same file says which touch something Jihad shares or mirrors (the BrowserServer command set and the YAP contract, cavekit-ipc-contract.md; the adapter's paint, scroll and input paths, cavekit-offscreen-rendering.md and cavekit-input-bridging.md; the app's card behaviour) and, per item, adopt / not applicable / owner's call
+- [x] Items marked "owner's call" are put to the owner as multiple-choice questions *(2026-11-09: the four items of the 0.9.6 range asked and answered the same day — all taken, T-600…T-603)*
 **Dependencies:** R2, cavekit-ipc-contract.md R1
 
 ## Out of Scope
@@ -64,5 +64,6 @@ Reference: the session-start rule "fast-forward the reference repos first" (memo
 - cavekit-engine-update.md — the same "read before you take it" discipline for the engine
 
 ## Changelog
+- 2026-11-09: R1 and R2 met (T-545, T-546: `tools/host/update-references.sh`); R3's record is `docs/REFERENCES.md` (T-547), the app's 0.9.6 range weighed; the owner's rule of the day — every dependency pulled is read for Jihad gains — is the kit's standing purpose.
 - 2026-11-07: a Scope sentence restating R1-R3 moved to `archive/atlas-references-history.md`.
 - 2026-10-26: created from the owner's request; the upstream map read from the GitHub API.

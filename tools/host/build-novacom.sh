@@ -2,7 +2,7 @@
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
 # Build novacom (the client) and novacomd (the USB daemon that talks to a TouchPad) from webOS
-# Archive's SDK, the submodule third_party/webos-sdk-redux, into tools/host/bin/ (git-ignored).
+# Archive's SDK (release 0.4.1), the submodule third_party/webos-sdk-redux, into tools/host/bin/ (git-ignored).
 # build/webos-oe/host-path.sh puts that directory first on PATH for every script here, so
 # nothing has to be installed system-wide (cavekit-device-build.md R11).
 #
@@ -33,6 +33,11 @@ if ! printf '#include <usb.h>\nint main(void){usb_init();return 0;}\n' | "$CC" -
 	echo "!! libusb-compat (usb.h and -lusb) not found; see the package list at the top of this script" >&2
 	exit 2
 fi
+
+# novacomd's platform.h declares its own `typedef int bool`, which C23 (gcc 15's default) refuses;
+# the SDK's GCC15-C23-BOOL.md names -std=gnu17 as the fix, and every gcc back to 4.x takes it, so
+# both makefiles get it through CC (passing CFLAGS would replace novacom's whole flag set).
+CC="$CC -std=gnu17"
 
 # Build in a copy, so the submodule's checkout stays clean.
 WORK="$HERE/build"

@@ -408,6 +408,14 @@ static void jihadTimelinePublish(const char* lane, int64_t start, int y, double 
           gJihadTlLastPub ? (long)(now - gJihadTlLastPub) : -1L, start ? (long)(now - start) : -1L, y, zoom);
   gJihadTlLastPub = now;
 }
+// T-555: the process's first content frame, once, so a benchmark reads "daemon start to first frame" from the
+// timeline alone ("daemon main" in Main.cpp to this line).
+static void jihadTimelineFirstPainted() {
+  static bool sLogged = false;
+  if (sLogged || !jihadTimelineOn()) return;
+  sLogged = true;
+  fprintf(stderr, "[jihad-tl] t=%lld first painted frame\n", (long long)jihadNowMs());
+}
 void jihadTimelineMain(const char* what, long ms) {   // ms: how long it took, ending now
   if (!jihadTimelineOn() || ms < 15) return;
   fprintf(stderr, "[jihad-tl] t=%lld main %s %ld ms\n", (long long)jihadNowMs(), what, ms);
@@ -6488,6 +6496,7 @@ bool BrowserPageGoanna::pluginLaneFrame(unsigned char* buf, size_t segSize, size
   }
   mLane.pubSeq = mPubSeq;
   mLane.frames++;
+  jihadTimelineFirstPainted();
   // Tools count these lines to know a page has frames; one per frame is a write per frame
   if (mLane.frames <= 30 || (mLane.frames % 32) == 0) {
     fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%d left=%d) mZoom=%.4f contentZoom=%.4f ms=0 rows new=%d copied=0 (the plugin lane, frame %ld)\n",
@@ -7582,6 +7591,7 @@ void BrowserPageGoanna::paintToSharedBuffer() {
     }
   }
   if (nb >= 0) {
+    jihadTimelineFirstPainted();
     fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld left=%d) mZoom=%.4f contentZoom=%.4f ms=%ld"
                     " rows new=%ld copied=%ld%s\n",
             (unsigned)mActiveKey, nb, paintedW, paintedH, paintedTop, bandY, paintedX, mZoom,

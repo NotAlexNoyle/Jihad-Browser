@@ -19,6 +19,7 @@
 #include <unistd.h>              // write/_exit/alarm in the teardown bailout
 #include <sys/resource.h>        // setpriority/getpriority: the browser below the system's services (headroom R1)
 #include <sys/stat.h>            // fstat for the runtime log cap
+#include <sys/time.h>            // gettimeofday: the timeline's "daemon main" stamp (T-555)
 #include <fcntl.h>
 #include <string>
 
@@ -265,6 +266,13 @@ static gboolean log_cap_cb(gpointer) {
 
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);
+  // T-555 (cavekit-lowpower-uxp.md R1): with the device rounds' timeline on, the first line is the process's own
+  // start on the timeline's clock (BrowserPageGoanna.cpp jihadNowMs: wall-clock ms), so "daemon start to first
+  // frame" is read from the log alone — this line to the "first painted frame" line.
+  if (getenv("JIHAD_GPU_TIMELINE")) {
+    struct timeval tv; gettimeofday(&tv, nullptr);
+    fprintf(stderr, "[jihad-tl] t=%lld daemon main\n", (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000);
+  }
   // Before anything else: a daemon that dies during bring-up must say where.
   // Re-armed after engine init (EngineHost::Init) because SpiderMonkey replaces
   // SIGSEGV during startup — see JihadCrashReport.h.

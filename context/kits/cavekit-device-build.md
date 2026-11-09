@@ -425,6 +425,8 @@ possible, and the parts that depend on the host's age or libraries run in the bu
   relabelling; the README calls docker rootful and unrecorded.)*
 - [x] novacom and novacomd for talking to a TouchPad build from the `webos-sdk-redux` submodule
   with one script, and the README names the packages it needs on the main distribution families.
+  *(2026-11-09: the submodule at webOS Archive's release 0.4.1, `5349208`; the script passes
+  `-std=gnu17` so gcc 15 builds novacomd too — cavekit-webos-sdk-update.md.)*
 - [x] The README has a "Building" section: the host packages for apt, dnf, pacman, zypper, xbps and
   apk systems, then the steps from a clean clone to the three `.ipk`s and onto a TouchPad.
 - [x] The device test helpers and the review runner that lived in a session scratchpad are in

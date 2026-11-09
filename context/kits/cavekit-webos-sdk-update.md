@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26"
-last_edited: "2026-10-26"
+last_edited: "2026-11-09"
 complexity: quick
 ---
 
@@ -29,19 +29,21 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 
 ### R1: The SDK submodule at upstream's latest release
 **Acceptance Criteria:**
-- [ ] `third_party/webos-sdk-redux` is at upstream's 0.4.1 commit (`5349208` or the newest release commit on the day it
-  is done), committed as the gitlink; `Current` resolves to the 0.4.1 tree
-- [ ] The PDK pin (`fetch-pdk.sh`, its sha256) is unchanged and the adapter still builds with it
-- [ ] `docs/DEVICE-BUILD.md` and cavekit-device-build.md R11 name 0.4.1
+- [~] `third_party/webos-sdk-redux` is at upstream's 0.4.1 commit (`5349208` or the newest release commit on the day it
+  is done), committed as the gitlink; `Current` resolves to the 0.4.1 tree *(2026-11-09: checked out at `5349208`,
+  `Current -> ./0.4.1`; the gitlink commit is the owner's)*
+- [x] The PDK pin (`fetch-pdk.sh`, its sha256) is unchanged and the adapter still builds with it
+- [x] `docs/DEVICE-BUILD.md` and cavekit-device-build.md R11 name 0.4.1
 **Dependencies:** none
 
 ### R2: The tools rebuilt and proven on the device
 **Acceptance Criteria:**
-- [ ] `tools/host/build-novacom.sh` rebuilds novacom/novacomd from 0.4.1, passing `-std=gnu17` so a gcc 15 host also
+- [x] `tools/host/build-novacom.sh` rebuilds novacom/novacomd from 0.4.1, passing `-std=gnu17` so a gcc 15 host also
   builds it
-- [ ] On the bench (CE 3.1.0): `novacom -l` lists the device; a `novacom run`, a `put`/`get` of a 40 MB file and a
+- [x] On the bench (CE 3.1.0): `novacom -l` lists the device; a `novacom run`, a `put`/`get` of a 40 MB file and a
   full `push-variant.sh` all succeed (one session at a time); `palm-package`, `palm-install` and `palm-launch` build,
-  install and launch the three packages
+  install and launch the three packages *(2026-11-09, T-549: all of it, the 0.4.1 client against the host's 0.4 novacomd,
+  whose Linux code 0.4.1 did not change; the daemon swap is the owner's root step)*
 - [ ] Stock 3.0.5 is not on the bench: its check is the owner's (asked before it is claimed)
 **Dependencies:** R1
 
@@ -60,4 +62,5 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 - cavekit-finger-emulation.md — its tools run over novacom
 
 ## Changelog
+- 2026-11-09: R1 met but for the gitlink (the owner's), R2 met on the bench (T-548, T-549); R3's root command handed over (T-550).
 - 2026-10-26: created from the owner's request and the day's research.
